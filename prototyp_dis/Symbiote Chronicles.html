@@ -1,0 +1,1022 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Symbiote Chronicles — Eldritch AR</title>
+<link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=JetBrains+Mono:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+/* ══════════════════════════════════════
+   TOKENS
+══════════════════════════════════════ */
+:root {
+  --bg:     #0a0a0c;
+  --parch:  #d2b48c;
+  --acc:    #ffaa00;
+  --danger: #ff3300;
+  --en:     #3399ff;
+  --sta:    #44dd88;
+  --psi:    #7744ff;
+  --dim:    rgba(255,170,0,0.38);
+  --bright: rgba(255,170,0,0.90);
+  --pt:     rgba(210,180,140,0.88);
+  --mem:    rgba(255,170,0,0.04);
+  --mem-b:  rgba(255,170,0,0.14);
+  /* 3 columns — each feels like a phone screen */
+  --lw: 280px;
+  --rw: 280px;
+}
+
+/* ══════════════════════════════════════
+   RESET
+══════════════════════════════════════ */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { width: 100%; height: 100%; background: var(--bg); font-family: 'JetBrains Mono', monospace; color: var(--bright); overflow: hidden; }
+input, button { font-family: inherit; }
+::-webkit-scrollbar { width: 3px; }
+::-webkit-scrollbar-thumb { background: rgba(255,170,0,0.16); border-radius: 2px; }
+* { scrollbar-width: thin; scrollbar-color: rgba(255,170,0,0.16) transparent; }
+
+/* ══════════════════════════════════════
+   ANIMATIONS
+══════════════════════════════════════ */
+@keyframes breathe   { 0%,100%{box-shadow:0 0 8px rgba(255,170,0,.10),0 0 28px rgba(255,170,0,.04);}  50%{box-shadow:0 0 18px 3px rgba(255,170,0,.22),0 0 52px rgba(255,170,0,.09);} }
+@keyframes breathe-d { 0%,100%{box-shadow:0 0 8px rgba(255,51,0,.14);}  50%{box-shadow:0 0 20px 3px rgba(255,51,0,.28);} }
+@keyframes breathe-e { 0%,100%{box-shadow:0 0 6px rgba(51,153,255,.10);} 50%{box-shadow:0 0 14px rgba(51,153,255,.22);} }
+@keyframes breathe-s { 0%,100%{box-shadow:0 0 6px rgba(68,221,136,.08);} 50%{box-shadow:0 0 14px rgba(68,221,136,.20);} }
+@keyframes pulse     { 0%,100%{opacity:.6;} 50%{opacity:1;} }
+@keyframes flicker   { 0%,89%,91%,96%,100%{opacity:1;} 90%{opacity:.2;} 95%{opacity:.5;} }
+@keyframes scan      { 0%{top:-2px;opacity:0;} 5%{opacity:.26;} 95%{opacity:.26;} 100%{top:100vh;opacity:0;} }
+@keyframes fade-up   { from{opacity:0;transform:translateY(6px);} to{opacity:1;transform:translateY(0);} }
+@keyframes login-exit{ from{opacity:1;transform:scale(1);} to{opacity:0;transform:scale(1.04);} }
+@keyframes inv-in    { from{opacity:0;transform:translateY(-6px);} to{opacity:1;transform:translateY(0);} }
+
+/* ══════════════════════════════════════
+   SHELL — 3 phone columns
+══════════════════════════════════════ */
+#shell {
+  display: grid;
+  grid-template-columns: var(--lw) 1fr var(--rw);
+  height: 100vh;
+  width: 100vw;
+  overflow: hidden;
+}
+/* Ambient scan line */
+body::before {
+  content: ''; position: fixed; left: 0; right: 0; top: 0; height: 2px;
+  background: linear-gradient(90deg, transparent, rgba(255,170,0,.24), transparent);
+  animation: scan 9s linear infinite; pointer-events: none; z-index: 999;
+}
+/* Phone-edge column separators */
+.col-sep { position: fixed; top: 0; bottom: 0; width: 1px; background: linear-gradient(180deg, transparent 0%, rgba(255,170,0,.12) 15%, rgba(255,170,0,.12) 85%, transparent 100%); z-index: 10; pointer-events: none; }
+.col-sep.l { left: var(--lw); }
+.col-sep.r { right: var(--rw); }
+
+/* ══════════════════════════════════════
+   SHARED ATOMS
+══════════════════════════════════════ */
+.mem { background: var(--mem); border: 1px solid var(--mem-b); backdrop-filter: blur(14px); animation: breathe 4.5s ease-in-out infinite; }
+.sec { font-size: 8px; letter-spacing: .3em; text-transform: uppercase; color: rgba(255,170,0,.24); display: flex; align-items: center; gap: 5px; margin: 2px 0 6px; }
+.sec::before, .sec::after { content: ''; flex: 1; height: 1px; background: rgba(255,170,0,.09); }
+.tag { display: inline-block; padding: 2px 7px; font-size: 8px; letter-spacing: .12em; text-transform: uppercase; }
+.tag.burn   { background: rgba(255,100,0,.07); border: 1px solid rgba(255,100,0,.25); color: rgba(255,130,50,.85); }
+.tag.regen  { background: rgba(68,221,136,.06); border: 1px solid rgba(68,221,136,.20); color: rgba(68,221,136,.80); }
+.tag.sys    { background: rgba(255,170,0,.05); border: 1px solid rgba(255,170,0,.14); color: rgba(255,170,0,.60); }
+.tag.stun   { background: rgba(255,220,0,.05); border: 1px solid rgba(255,220,0,.20); color: rgba(255,220,50,.75); }
+
+/* ══════════════════════════════════════
+   LEFT PANEL — Character Sheet
+══════════════════════════════════════ */
+#panel-l {
+  display: flex; flex-direction: column;
+  height: 100vh; overflow: hidden;
+  border-right: 1px solid rgba(255,170,0,.07);
+  background: rgba(255,170,0,.012);
+}
+#panel-l-scroll {
+  flex: 1; overflow-y: auto; overflow-x: hidden;
+  padding: 16px 12px 90px;
+  display: flex; flex-direction: column; gap: 12px;
+}
+
+/* Agent ID */
+.agent-id { font-size: 9px; letter-spacing: .2em; color: var(--dim); border-bottom: 1px solid rgba(255,170,0,.08); padding-bottom: 8px; animation: flicker 8s ease-in-out infinite; line-height: 1.8; }
+.agent-id span { color: var(--acc); }
+
+/* Avatar */
+.avatar { width: 100%; aspect-ratio: 1; border: 1px solid rgba(255,170,0,.20); position: relative; overflow: hidden; flex-shrink: 0; animation: breathe 5.5s ease-in-out infinite; }
+.avatar-bg { width: 100%; height: 100%; background: repeating-linear-gradient(0deg, rgba(255,170,0,.022) 0 1px, transparent 1px 5px), repeating-linear-gradient(90deg, rgba(255,170,0,.022) 0 1px, transparent 1px 5px), radial-gradient(ellipse at 50% 28%, rgba(210,180,140,.10) 0%, transparent 65%), #0e0e12; display: flex; align-items: center; justify-content: center; font-family: 'EB Garamond', serif; font-size: 64px; font-style: italic; color: rgba(210,180,140,.26); }
+.avatar-bg::after { content: ''; position: absolute; inset: 0; background: linear-gradient(180deg, transparent 52%, rgba(10,10,12,.92) 100%); }
+.avatar-info { position: absolute; bottom: 7px; left: 9px; right: 9px; z-index: 2; }
+.avatar-name { font-size: 11px; letter-spacing: .09em; color: var(--parch); text-shadow: 0 0 10px rgba(255,170,0,.45); line-height: 1.4; }
+.avatar-sub  { font-size: 8px; opacity: .44; display: block; margin-top: 1px; }
+.avatar-loc  { font-size: 8px; letter-spacing: .1em; color: rgba(255,170,0,.34); margin-top: 2px; }
+
+/* Vitals */
+.vital-row { display: flex; flex-direction: column; gap: 3px; margin-bottom: 8px; }
+.vital-meta { display: flex; justify-content: space-between; font-size: 9px; }
+.vital-lbl { letter-spacing: .18em; text-transform: uppercase; color: var(--dim); }
+.vital-val { color: var(--bright); font-size: 10px; }
+.vital-val.vd { color: var(--danger); text-shadow: 0 0 7px rgba(255,51,0,.4); }
+.bar-track { height: 5px; background: rgba(255,255,255,.03); border: 1px solid rgba(255,255,255,.04); border-radius: 1px; overflow: hidden; }
+.bar-fill  { height: 100%; border-radius: 1px; transition: width .7s cubic-bezier(.4,0,.2,1); }
+.bar-hp  .bar-fill { background: linear-gradient(90deg, #b01a00, #ff3300, #ff6644); animation: breathe-d 3s ease-in-out infinite; }
+.bar-en  .bar-fill { background: linear-gradient(90deg, #1a66cc, #3399ff, #66bbff); animation: breathe-e 4s ease-in-out infinite; }
+.bar-sta .bar-fill { background: linear-gradient(90deg, #22aa55, #44dd88, #88ffcc); animation: breathe-s 4.5s ease-in-out 1s infinite; }
+
+/* Attributes */
+.attrs-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 3px; }
+.attr-cell  { display: flex; flex-direction: column; align-items: center; padding: 5px 2px; background: rgba(255,255,255,.016); border: 1px solid rgba(255,170,0,.07); cursor: default; transition: background .15s; }
+.attr-cell:hover { background: rgba(255,170,0,.06); }
+.attr-k { font-size: 8px; letter-spacing: .12em; color: var(--dim); text-transform: uppercase; }
+.attr-v { font-size: 14px; color: var(--acc); margin-top: 1px; line-height: 1; }
+
+/* Wallet */
+.wallet { display: flex; gap: 4px; }
+.wlt { flex: 1; display: flex; flex-direction: column; align-items: center; padding: 5px 3px; background: rgba(255,170,0,.025); border: 1px solid rgba(255,170,0,.08); }
+.wlt-icon { font-size: 11px; }
+.wlt-val  { font-size: 10px; color: var(--acc); }
+.wlt-lbl  { font-size: 7px; color: var(--dim); letter-spacing: .1em; }
+
+/* Accordion */
+.acc { border: 1px solid rgba(255,170,0,.09); margin-bottom: 3px; }
+.acc-head { display: flex; align-items: center; justify-content: space-between; padding: 7px 10px; cursor: pointer; background: rgba(255,170,0,.02); font-size: 8px; letter-spacing: .28em; text-transform: uppercase; color: rgba(255,170,0,.38); user-select: none; transition: background .18s; }
+.acc-head:hover { background: rgba(255,170,0,.05); color: var(--acc); }
+.acc-arrow { font-size: 9px; transition: transform .22s; color: rgba(255,170,0,.26); }
+.acc.open .acc-arrow { transform: rotate(90deg); }
+.acc-body { display: none; border-top: 1px solid rgba(255,170,0,.07); padding: 7px; }
+.acc.open .acc-body { display: block; }
+
+/* Skill row inside accordion */
+.skill-row { display: flex; align-items: center; gap: 8px; padding: 5px 7px; margin-bottom: 2px; background: rgba(255,255,255,.014); border: 1px solid rgba(255,170,0,.06); cursor: pointer; transition: all .18s; }
+.skill-row:last-child { margin-bottom: 0; }
+.skill-row:hover { background: rgba(255,170,0,.06); border-color: rgba(255,170,0,.20); }
+.skill-icon { width: 26px; height: 26px; flex-shrink: 0; background: rgba(255,170,0,.07); border: 1px solid rgba(255,170,0,.14); display: flex; align-items: center; justify-content: center; font-size: 12px; clip-path: polygon(0 0, calc(100% - 4px) 0, 100% 4px, 100% 100%, 4px 100%, 0 calc(100% - 4px)); }
+.skill-info { flex: 1; min-width: 0; }
+.skill-name { font-size: 9px; color: rgba(210,180,140,.78); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.skill-desc { font-size: 7px; color: var(--dim); letter-spacing: .05em; margin-top: 1px; }
+.skill-cd { font-size: 9px; color: var(--dim); flex-shrink: 0; }
+.skill-cd.ready { color: #44ff88; text-shadow: 0 0 5px rgba(68,255,136,.4); }
+.skill-rarity { font-size: 8px; flex-shrink: 0; }
+
+/* ══════════════════════════════════════
+   CENTER PANEL — Game Viewport
+══════════════════════════════════════ */
+#panel-c {
+  display: flex; flex-direction: column;
+  height: 100vh; overflow: hidden;
+  background: rgba(255,170,0,.007);
+  position: relative;
+}
+#center-screens {
+  flex: 1; overflow: hidden;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  padding: 16px 15px 80px;
+  gap: 10px;
+}
+
+/* Screens */
+.cs { display: none; flex-direction: column; align-items: center; gap: 10px; width: 100%; }
+.cs.active { display: flex; animation: fade-up .3s ease both; }
+
+/* Location tag */
+.loc-tag { display: flex; align-items: center; gap: 7px; font-size: 8px; letter-spacing: .26em; text-transform: uppercase; color: var(--dim); align-self: flex-start; }
+.loc-dot  { width: 6px; height: 6px; border-radius: 50%; background: var(--acc); box-shadow: 0 0 8px var(--acc); animation: pulse 2s ease-in-out infinite; flex-shrink: 0; }
+
+/* HUD strip */
+.hud-strip { width: 100%; display: flex; gap: 5px; align-items: stretch; }
+.hud-cell  { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 5px 3px; background: rgba(255,255,255,.016); border: 1px solid rgba(255,170,0,.08); }
+.hud-v { font-size: 13px; color: var(--acc); line-height: 1; }
+.hud-l { font-size: 7px; letter-spacing: .15em; text-transform: uppercase; color: var(--dim); margin-top: 2px; }
+.hud-cell.safe .hud-v { color: var(--sta); }
+.hud-cell.thr  .hud-v { color: var(--danger); }
+
+/* Inline minimap in HUD */
+.hud-mini { flex: 0 0 72px; height: 72px; border: 1px solid rgba(255,170,0,.10); background: repeating-linear-gradient(0deg, rgba(255,170,0,.012) 0 1px, transparent 1px 18px), repeating-linear-gradient(90deg, rgba(255,170,0,.012) 0 1px, transparent 1px 18px), rgba(0,0,0,.28); position: relative; overflow: hidden; }
+.mm-blip { position: absolute; border-radius: 50%; animation: pulse 2s ease-in-out infinite; transform: translate(-50%,-50%); }
+.mm-blip.me  { width: 7px; height: 7px; background: var(--acc); box-shadow: 0 0 8px var(--acc); top: 50%; left: 50%; }
+.mm-blip.foe { width: 4px; height: 4px; background: var(--danger); box-shadow: 0 0 6px var(--danger); animation-duration: 1.4s; }
+.mm-lbl { position: absolute; bottom: 2px; right: 4px; font-size: 7px; letter-spacing: .16em; color: rgba(255,170,0,.18); }
+
+/* Parchment */
+.parchment { width: 100%; background: rgba(210,180,140,.055); border: 1px solid rgba(210,180,140,.16); padding: 20px 18px; position: relative; clip-path: polygon(0 12px, 12px 0, calc(100% - 8px) 0, 100% 8px, 100% calc(100% - 16px), calc(100% - 16px) 100%, 8px 100%, 0 calc(100% - 8px)); animation: breathe 6s ease-in-out infinite; }
+.parchment::before { content: ''; position: absolute; inset: 0; pointer-events: none; background: radial-gradient(ellipse at 18% 18%, rgba(210,180,140,.05), transparent 52%), repeating-linear-gradient(0deg, rgba(255,170,0,.007) 0 1px, transparent 1px 24px); }
+.corner { position: absolute; width: 14px; height: 14px; border-color: rgba(210,180,140,.28); border-style: solid; }
+.c-tl { top: 4px; left: 4px;  border-width: 1px 0 0 1px; }
+.c-tr { top: 4px; right: 4px; border-width: 1px 1px 0 0; }
+.c-bl { bottom: 4px; left: 4px;  border-width: 0 0 1px 1px; }
+.c-br { bottom: 4px; right: 4px; border-width: 0 1px 1px 0; }
+.scene-img { width: 100%; height: 80px; border: 1px solid rgba(210,180,140,.09); background: repeating-linear-gradient(45deg, rgba(210,180,140,.022) 0 1px, transparent 1px 9px); display: flex; align-items: center; justify-content: center; font-size: 9px; letter-spacing: .2em; color: rgba(210,180,140,.2); margin-bottom: 12px; position: relative; z-index: 1; }
+.world-text { font-family: 'EB Garamond', serif; font-size: 16px; line-height: 1.78; color: var(--pt); text-wrap: pretty; position: relative; z-index: 1; }
+.world-text em     { color: var(--acc); font-style: italic; text-shadow: 0 0 10px rgba(255,170,0,.26); }
+.world-text strong { color: rgba(210,180,140,1); font-weight: 600; }
+
+/* Symbiont whisper */
+.whisper { width: 100%; padding: 8px 11px; background: rgba(119,68,255,.05); border: 1px solid rgba(119,68,255,.18); border-left: 2px solid rgba(119,68,255,.42); font-size: 10px; line-height: 1.6; font-style: italic; color: rgba(153,102,255,.8); clip-path: polygon(0 0, 100% 0, 100% calc(100% - 5px), calc(100% - 5px) 100%, 0 100%); }
+.whisper::before { content: '◈ SYMBIONT // '; font-style: normal; font-size: 8px; letter-spacing: .1em; color: rgba(119,68,255,.5); }
+
+/* Action button */
+.act { padding: 8px 12px; background: rgba(255,170,0,.03); border: 1px solid rgba(255,170,0,.14); clip-path: polygon(0 0, calc(100% - 8px) 0, 100% 8px, 100% 100%, 8px 100%, 0 calc(100% - 8px)); cursor: pointer; font-size: 9px; letter-spacing: .12em; text-transform: uppercase; color: rgba(255,170,0,.62); transition: all .18s; text-align: center; }
+.act:hover  { background: rgba(255,170,0,.09); border-color: rgba(255,170,0,.36); color: var(--acc); box-shadow: 0 0 12px rgba(255,170,0,.14); }
+.act:active { transform: scale(.96); }
+.act.d  { border-color: rgba(255,51,0,.20); color: rgba(255,80,50,.70); }
+.act.d:hover { background: rgba(255,51,0,.07); border-color: rgba(255,51,0,.38); color: var(--danger); }
+
+/* D-pad */
+.dpad-wrap { width: 100%; display: flex; gap: 14px; align-items: center; justify-content: center; }
+.dpad { display: grid; grid-template-columns: 50px 62px 50px; grid-template-rows: 50px 62px 50px; gap: 3px; }
+.dp { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; background: rgba(255,170,0,.03); border: 1px solid rgba(255,170,0,.11); cursor: pointer; color: rgba(255,170,0,.52); transition: all .18s; clip-path: polygon(0 0, calc(100% - 5px) 0, 100% 5px, 100% 100%, 5px 100%, 0 calc(100% - 5px)); }
+.dp:hover  { background: rgba(255,170,0,.08); border-color: rgba(255,170,0,.34); color: var(--acc); }
+.dp:active { transform: scale(.94); }
+.dp.off { opacity: .14; pointer-events: none; }
+.dp.ctr { clip-path: none; border-radius: 2px; background: rgba(255,170,0,.02); border-color: rgba(255,170,0,.07); cursor: default; color: rgba(255,170,0,.14); font-size: 18px; }
+.dp-arr { font-size: 15px; line-height: 1; }
+.dp-lbl { font-size: 7px; letter-spacing: .16em; text-transform: uppercase; }
+.dp-diag { font-size: 8px; }
+.ctx-col { display: flex; flex-direction: column; gap: 4px; }
+.ctx-btn { padding: 6px 11px; background: rgba(255,170,0,.022); border: 1px solid rgba(255,170,0,.09); cursor: pointer; font-size: 8px; letter-spacing: .1em; text-transform: uppercase; color: rgba(255,170,0,.45); clip-path: polygon(0 0, calc(100% - 5px) 0, 100% 5px, 100% 100%, 5px 100%, 0 calc(100% - 5px)); transition: all .18s; white-space: nowrap; }
+.ctx-btn:hover { background: rgba(255,170,0,.07); border-color: rgba(255,170,0,.26); color: var(--acc); }
+
+/* Encounter panel */
+.enc-panel { width: 100%; background: rgba(255,51,0,.04); border: 1px solid rgba(255,51,0,.20); padding: 14px 16px; clip-path: polygon(0 0, calc(100% - 12px) 0, 100% 12px, 100% 100%, 12px 100%, 0 calc(100% - 12px)); animation: breathe-d 3.5s ease-in-out infinite; }
+.enc-badge { display: inline-block; font-size: 8px; letter-spacing: .18em; text-transform: uppercase; padding: 2px 7px; background: rgba(255,51,0,.10); border: 1px solid rgba(255,51,0,.24); color: rgba(255,80,50,.8); margin-bottom: 8px; }
+.enc-title { font-family: 'EB Garamond', serif; font-size: 20px; color: var(--pt); margin-bottom: 5px; }
+.enc-desc  { font-size: 11px; line-height: 1.6; color: var(--pt); margin-bottom: 10px; font-family: 'EB Garamond', serif; }
+.enc-enemies { display: flex; gap: 6px; margin-bottom: 10px; }
+.enc-e { flex: 1; padding: 6px 8px; background: rgba(255,51,0,.03); border: 1px solid rgba(255,51,0,.12); }
+.enc-e-name { font-size: 10px; color: rgba(255,110,80,.8); margin-bottom: 3px; }
+.enc-e-bar  { height: 3px; background: rgba(255,255,255,.05); border-radius: 1px; overflow: hidden; }
+.enc-e-fill { height: 100%; background: var(--danger); border-radius: 1px; }
+.enc-e-lv   { font-size: 7px; letter-spacing: .08em; color: var(--dim); margin-top: 2px; }
+
+/* Combat */
+.turn-banner { width: 100%; display: flex; align-items: center; justify-content: center; gap: 20px; padding: 7px; background: rgba(255,170,0,.03); border: 1px solid rgba(255,170,0,.11); }
+.turn-n { font-size: 28px; color: var(--acc); font-weight: 600; text-shadow: 0 0 14px rgba(255,170,0,.4); line-height: 1; }
+.turn-meta { font-size: 8px; letter-spacing: .18em; text-transform: uppercase; color: var(--dim); }
+.turn-st { padding: 3px 9px; font-size: 8px; letter-spacing: .14em; text-transform: uppercase; background: rgba(68,221,136,.06); border: 1px solid rgba(68,221,136,.18); color: rgba(68,221,136,.8); }
+.target-strip { width: 100%; padding: 9px 12px; background: rgba(255,51,0,.04); border: 1px solid rgba(255,51,0,.18); display: flex; gap: 12px; align-items: center; }
+.ts-name { font-family: 'EB Garamond', serif; font-size: 15px; color: rgba(210,180,140,.85); flex: 1; }
+.ts-bars { display: flex; flex-direction: column; gap: 4px; width: 140px; }
+.combat-log { width: 100%; max-height: 160px; overflow-y: auto; display: flex; flex-direction: column; gap: 3px; }
+.le { font-size: 9px; line-height: 1.5; padding: 3px 7px; border-left: 2px solid rgba(255,170,0,.10); }
+.le .lt { font-size: 8px; color: var(--dim); margin-right: 4px; }
+.le.hit  { border-color: rgba(255,51,0,.32); color: rgba(255,100,80,.8); }
+.le.miss { border-color: rgba(255,170,0,.18); color: rgba(255,170,0,.5); }
+.le.eff  { border-color: rgba(119,68,255,.28); color: rgba(153,102,255,.75); }
+.le.sys  { border-color: rgba(255,170,0,.08); color: rgba(255,170,0,.36); font-size: 8px; }
+.combat-acts { width: 100%; display: flex; gap: 4px; flex-wrap: wrap; }
+
+/* Scenario */
+.sc-status { display: flex; gap: 4px; flex-wrap: wrap; width: 100%; }
+.sc-stat { padding: 3px 8px; font-size: 8px; letter-spacing: .1em; color: rgba(210,180,140,.55); background: rgba(210,180,140,.025); border: 1px solid rgba(210,180,140,.10); }
+.choices { width: 100%; display: flex; flex-direction: column; gap: 4px; }
+.choice-btn { padding: 9px 13px; background: rgba(210,180,140,.03); border: 1px solid rgba(210,180,140,.12); cursor: pointer; font-family: 'EB Garamond', serif; font-size: 14px; color: rgba(210,180,140,.72); text-align: left; transition: all .2s; position: relative; }
+.choice-btn:hover { background: rgba(210,180,140,.07); border-color: rgba(210,180,140,.26); color: var(--pt); }
+.choice-btn::before { content: '›'; position: absolute; right: 11px; top: 50%; transform: translateY(-50%); color: rgba(255,170,0,.4); font-size: 15px; }
+
+/* Lobby */
+.char-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; width: 100%; }
+.char-slot { padding: 11px 13px; background: rgba(255,170,0,.022); border: 1px solid rgba(255,170,0,.10); cursor: pointer; clip-path: polygon(0 0, calc(100% - 9px) 0, 100% 9px, 100% 100%, 9px 100%, 0 calc(100% - 9px)); transition: all .2s; position: relative; }
+.char-slot:hover { background: rgba(255,170,0,.07); border-color: rgba(255,170,0,.28); }
+.char-slot.sel { border-color: rgba(255,170,0,.42); background: rgba(255,170,0,.08); box-shadow: 0 0 14px rgba(255,170,0,.10); }
+.char-slot.empty { opacity: .38; border-style: dashed; }
+.char-name { font-size: 12px; color: var(--pt); margin-bottom: 2px; }
+.char-meta { font-size: 8px; color: var(--dim); line-height: 1.6; }
+.char-stage { position: absolute; top: 6px; right: 7px; font-size: 7px; letter-spacing: .1em; padding: 2px 5px; background: rgba(255,170,0,.07); border: 1px solid rgba(255,170,0,.14); color: rgba(255,170,0,.5); }
+.char-stage.combat { background: rgba(255,51,0,.07); border-color: rgba(255,51,0,.2); color: rgba(255,80,50,.7); }
+.vitals-mini { display: flex; gap: 4px; margin-top: 7px; }
+.vbar { flex: 1; height: 3px; background: rgba(255,255,255,.05); border-radius: 1px; overflow: hidden; }
+.vbar-fill { height: 100%; border-radius: 1px; }
+.vbar-fill.hp { background: var(--danger); }
+.vbar-fill.en { background: var(--en); }
+.lobby-acts { display: flex; gap: 6px; width: 100%; }
+
+/* ══════════════════════════════════════
+   RIGHT PANEL — Chat + Inventory split
+══════════════════════════════════════ */
+#panel-r {
+  display: flex; flex-direction: column;
+  height: 100vh; overflow: hidden;
+  border-left: 1px solid rgba(255,170,0,.07);
+  background: rgba(255,170,0,.010);
+}
+
+/* Inventory split — slides down from top when open */
+#inv-split {
+  display: none; flex-direction: column;
+  border-bottom: 1px solid rgba(255,170,0,.12);
+  background: rgba(0,0,0,.34);
+  flex-shrink: 0; max-height: 48%; overflow-y: auto;
+  animation: inv-in .25s ease both;
+}
+#inv-split.open { display: flex; }
+.inv-head { padding: 5px 10px; background: rgba(255,170,0,.04); border-bottom: 1px solid rgba(255,170,0,.08); font-size: 8px; letter-spacing: .22em; text-transform: uppercase; color: var(--dim); display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; }
+.inv-close { background: transparent; border: none; cursor: pointer; color: rgba(255,170,0,.3); font-size: 12px; transition: color .18s; }
+.inv-close:hover { color: var(--acc); }
+.inv-body { padding: 9px 10px; display: flex; flex-direction: column; gap: 8px; }
+.inv-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 3px; }
+.inv-slot { aspect-ratio: 1; border: 1px solid rgba(255,170,0,.09); background: rgba(255,255,255,.014); clip-path: polygon(0 0, calc(100% - 4px) 0, 100% 4px, 100% 100%, 4px 100%, 0 calc(100% - 4px)); display: flex; align-items: center; justify-content: center; font-size: 16px; cursor: pointer; transition: all .18s; }
+.inv-slot:hover { background: rgba(255,170,0,.07); border-color: rgba(255,170,0,.26); }
+.inv-slot.empty { opacity: .2; }
+
+/* Chat */
+#chat {
+  flex: 1; display: flex; flex-direction: column;
+  background: rgba(0,0,0,.34);
+  border: 1px solid rgba(255,170,0,.10);
+  margin: 10px 10px 0;
+  animation: breathe 5.2s ease-in-out .6s infinite;
+  overflow: hidden; min-height: 0;
+}
+#chat-head { padding: 5px 9px; background: rgba(255,170,0,.04); border-bottom: 1px solid rgba(255,170,0,.08); font-size: 8px; letter-spacing: .22em; text-transform: uppercase; color: var(--dim); display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; }
+.ch-dot { width: 5px; height: 5px; border-radius: 50%; background: #44ff88; box-shadow: 0 0 6px #44ff88; animation: pulse 1.6s ease-in-out infinite; }
+#chat-log { flex: 1; overflow-y: auto; padding: 8px; display: flex; flex-direction: column; gap: 4px; min-height: 0; }
+.msg { font-size: 10px; line-height: 1.55; animation: fade-up .22s ease both; }
+.msg .tag-m { font-size: 8px; letter-spacing: .1em; margin-right: 3px; opacity: .55; }
+.msg.sys    { color: rgba(255,170,0,.48); }
+.msg.player { color: rgba(210,180,140,.85); }
+.msg.npc    { color: rgba(180,155,225,.80); }
+.msg.danger { color: rgba(255,100,80,.80); }
+#chat-input-row { display: flex; border-top: 1px solid rgba(255,170,0,.08); flex-shrink: 0; }
+#chat-prompt { padding: 6px 7px; font-size: 10px; color: rgba(255,170,0,.28); }
+#chat-input { flex: 1; padding: 6px 2px; background: transparent; border: none; outline: none; font-size: 10px; color: var(--bright); caret-color: var(--acc); }
+#chat-send { padding: 6px 9px; background: transparent; border: none; border-left: 1px solid rgba(255,170,0,.08); cursor: pointer; font-size: 11px; color: var(--dim); transition: color .18s; }
+#chat-send:hover { color: var(--acc); }
+.chat-spacer { height: 64px; flex-shrink: 0; }
+
+/* ══════════════════════════════════════
+   BOTTOM NAV
+══════════════════════════════════════ */
+#bottom-nav {
+  position: fixed; bottom: 14px; left: 50%; transform: translateX(-50%); z-index: 300;
+  display: flex; align-items: center; gap: 2px;
+  background: rgba(10,10,12,.94); border: 1px solid rgba(255,170,0,.18);
+  backdrop-filter: blur(20px); padding: 5px 7px;
+  clip-path: polygon(12px 0%, calc(100% - 12px) 0%, 100% 12px, 100% calc(100% - 12px), calc(100% - 12px) 100%, 12px 100%, 0% calc(100% - 12px), 0% 12px);
+  animation: breathe 5s ease-in-out infinite;
+}
+.bn-tab { display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 7px 22px; cursor: pointer; border-radius: 2px; transition: all .2s; position: relative; min-width: 72px; }
+.bn-tab:hover { background: rgba(255,170,0,.06); }
+.bn-tab.active { background: rgba(255,170,0,.09); }
+.bn-tab.active::after { content: ''; position: absolute; bottom: -1px; left: 20%; right: 20%; height: 2px; background: var(--acc); box-shadow: 0 0 8px var(--acc); border-radius: 1px; }
+.bn-icon  { font-size: 17px; line-height: 1; }
+.bn-label { font-size: 7px; letter-spacing: .16em; text-transform: uppercase; color: var(--dim); }
+.bn-tab.active .bn-label { color: var(--acc); }
+.bn-sep { width: 1px; height: 26px; background: rgba(255,170,0,.10); margin: 0 1px; }
+.bn-badge { position: absolute; top: 4px; right: 12px; width: 5px; height: 5px; border-radius: 50%; background: var(--danger); box-shadow: 0 0 5px var(--danger); animation: pulse 1.5s ease-in-out infinite; }
+
+/* ══════════════════════════════════════
+   RESPONSIVE — column hide on narrow
+══════════════════════════════════════ */
+@media (max-width: 1100px) {
+  #shell { grid-template-columns: var(--lw) 1fr 240px; }
+  --rw: 240px;
+}
+@media (max-width: 900px) {
+  #shell { grid-template-columns: var(--lw) 1fr; }
+  #panel-r { display: none; }
+  .col-sep.r { display: none; }
+}
+@media (max-width: 620px) {
+  #shell { grid-template-columns: 1fr; }
+  #panel-l { display: none; }
+  .col-sep.l { display: none; }
+  #bottom-nav { width: calc(100vw - 24px); justify-content: space-around; clip-path: none; border-radius: 4px; }
+}
+
+/* ══════════════════════════════════════
+   LOGIN SCREEN
+══════════════════════════════════════ */
+#login {
+  position: fixed; inset: 0; z-index: 1000;
+  background: var(--bg);
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  overflow: hidden;
+}
+#login::before {
+  content: ''; position: absolute; inset: 0; pointer-events: none;
+  background: radial-gradient(ellipse at 30% 40%, rgba(255,170,0,.06) 0%, transparent 55%), radial-gradient(ellipse at 70% 60%, rgba(119,68,255,.04) 0%, transparent 55%), repeating-linear-gradient(0deg, rgba(255,170,0,.012) 0 1px, transparent 1px 80px), repeating-linear-gradient(90deg, rgba(255,170,0,.012) 0 1px, transparent 1px 80px);
+}
+.lg { font-family: 'EB Garamond', serif; font-style: italic; color: rgba(210,180,140,.07); position: absolute; user-select: none; pointer-events: none; animation: breathe 6s ease-in-out infinite; }
+.lg.a { top: 6%; left: 5%; font-size: 140px; }
+.lg.b { bottom: 8%; right: 4%; font-size: 120px; transform: scaleX(-1); animation-delay: 3s; }
+.lg.c { top: 42%; left: 2%; font-size: 60px; animation-delay: 1.5s; }
+.login-inner { display: flex; flex-direction: column; align-items: center; position: relative; z-index: 2; }
+.lg-eye   { font-size: 9px; letter-spacing: .44em; text-transform: uppercase; color: rgba(255,170,0,.30); margin-bottom: 18px; animation: flicker 9s ease-in-out infinite; }
+.lg-title { font-family: 'EB Garamond', serif; font-size: clamp(44px, 6vw, 72px); color: rgba(210,180,140,.90); letter-spacing: .05em; text-align: center; line-height: 1.08; text-shadow: 0 0 80px rgba(255,170,0,.14); margin-bottom: 10px; }
+.lg-sub   { font-family: 'EB Garamond', serif; font-size: 18px; font-style: italic; color: rgba(210,180,140,.34); letter-spacing: .06em; text-align: center; margin-bottom: 48px; }
+.lg-div   { width: 200px; height: 1px; background: linear-gradient(90deg, transparent, rgba(255,170,0,.30), transparent); margin-bottom: 48px; }
+.lg-lore  { font-family: 'EB Garamond', serif; font-size: 15px; line-height: 1.82; color: rgba(210,180,140,.36); text-align: center; max-width: 460px; margin-bottom: 52px; font-style: italic; }
+.lg-lore em { color: rgba(255,170,0,.55); }
+.lg-btn   { padding: 13px 40px; background: rgba(255,170,0,.06); border: 1px solid rgba(255,170,0,.26); clip-path: polygon(0 0, calc(100% - 12px) 0, 100% 12px, 100% 100%, 12px 100%, 0 calc(100% - 12px)); cursor: pointer; font-size: 11px; letter-spacing: .24em; text-transform: uppercase; color: rgba(255,170,0,.80); transition: all .25s; animation: breathe 4s ease-in-out infinite; margin-bottom: 20px; position: relative; overflow: hidden; }
+.lg-btn::before { content: ''; position: absolute; inset: 0; background: linear-gradient(135deg, transparent 50%, rgba(255,170,0,.05)); }
+.lg-btn:hover { background: rgba(255,170,0,.12); border-color: rgba(255,170,0,.50); color: var(--acc); box-shadow: 0 0 32px rgba(255,170,0,.16); }
+.lg-meta  { font-size: 8px; letter-spacing: .2em; text-transform: uppercase; color: rgba(255,170,0,.20); display: flex; align-items: center; gap: 12px; }
+.lg-dot   { width: 5px; height: 5px; border-radius: 50%; background: #44ff88; box-shadow: 0 0 6px #44ff88; animation: pulse 1.8s ease-in-out infinite; }
+#login.exit { animation: login-exit .6s ease forwards; }
+</style>
+</head>
+<body>
+
+<svg style="position:absolute;width:0;height:0">
+  <defs>
+    <filter id="f-hp"><feGaussianBlur stdDeviation="2.5" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+    <filter id="f-en"><feGaussianBlur stdDeviation="2" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+    <filter id="f-sta"><feGaussianBlur stdDeviation="2" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+  </defs>
+</svg>
+
+<!-- ══ LOGIN ══════════════════════════ -->
+<div id="login">
+  <div class="lg a">ℜ</div>
+  <div class="lg b">Ω</div>
+  <div class="lg c">⟁</div>
+  <div class="login-inner">
+    <div class="lg-eye">Neural Interface v0.9.4 · Eldritch AR</div>
+    <div class="lg-title">Symbiote<br>Chronicles</div>
+    <div class="lg-sub">The world remembers what you forget</div>
+    <div class="lg-div"></div>
+    <div class="lg-lore">You have been selected by the <em>Weave</em> — or perhaps it merely noticed you.<br>The symbiont does not ask permission. It only asks what you are willing to become.</div>
+    <button class="lg-btn" id="login-btn">⟡ Enter the Weave</button>
+    <div class="lg-meta"><div class="lg-dot"></div><span>Nexus-7 · Online</span><span>·</span><span>Players: 1,247</span></div>
+  </div>
+</div>
+
+<div id="shell">
+  <div class="col-sep l"></div>
+  <div class="col-sep r"></div>
+
+  <!-- ══ LEFT — Character Sheet ════════ -->
+  <div id="panel-l">
+    <div id="panel-l-scroll">
+
+      <div class="agent-id">AGENT&nbsp;<span>ROOK-7</span><br>LOC&nbsp;<span id="loc-id">52_52</span>&nbsp;//&nbsp;LV&nbsp;<span>12</span></div>
+
+      <div class="avatar">
+        <div class="avatar-bg">ℜ</div>
+        <div class="avatar-info">
+          <div class="avatar-name">ROOK THE UNBOUND<span class="avatar-sub">Weave-Bonded Archivist</span></div>
+          <div class="avatar-loc">📍 <span id="loc-name">Sunken Archives</span></div>
+        </div>
+      </div>
+
+      <!-- Vitals -->
+      <div>
+        <div class="sec">Vitals</div>
+        <div class="vital-row">
+          <div class="vital-meta"><span class="vital-lbl">HP</span><span class="vital-val vd" id="hp-val">67 / 100</span></div>
+          <div class="bar-track bar-hp"><div class="bar-fill" id="bar-hp" style="width:67%;filter:url(#f-hp)"></div></div>
+        </div>
+        <div class="vital-row">
+          <div class="vital-meta"><span class="vital-lbl">EN</span><span class="vital-val" id="en-val">82 / 100</span></div>
+          <div class="bar-track bar-en"><div class="bar-fill" id="bar-en" style="width:82%;filter:url(#f-en)"></div></div>
+        </div>
+        <div class="vital-row">
+          <div class="vital-meta"><span class="vital-lbl">Stamina</span><span class="vital-val" id="sta-val">55 / 100</span></div>
+          <div class="bar-track bar-sta"><div class="bar-fill" id="bar-sta" style="width:55%;filter:url(#f-sta)"></div></div>
+        </div>
+      </div>
+
+      <!-- Attributes -->
+      <div>
+        <div class="sec">Attributes</div>
+        <div class="attrs-grid">
+          <div class="attr-cell"><span class="attr-k">STR</span><span class="attr-v">14</span></div>
+          <div class="attr-cell"><span class="attr-k">AGI</span><span class="attr-v">11</span></div>
+          <div class="attr-cell"><span class="attr-k">END</span><span class="attr-v">12</span></div>
+          <div class="attr-cell"><span class="attr-k">INT</span><span class="attr-v">18</span></div>
+          <div class="attr-cell"><span class="attr-k">MEM</span><span class="attr-v">15</span></div>
+          <div class="attr-cell"><span class="attr-k">MEN</span><span class="attr-v">16</span></div>
+          <div class="attr-cell"><span class="attr-k">PER</span><span class="attr-v">13</span></div>
+          <div class="attr-cell"><span class="attr-k">PRJ</span><span class="attr-v">10</span></div>
+          <div class="attr-cell"><span class="attr-k">PRD</span><span class="attr-v">9</span></div>
+        </div>
+      </div>
+
+      <!-- Wallet -->
+      <div>
+        <div class="sec">Wallet</div>
+        <div class="wallet">
+          <div class="wlt"><span class="wlt-icon">🪙</span><span class="wlt-val">840</span><span class="wlt-lbl">Gold</span></div>
+          <div class="wlt"><span class="wlt-icon">✨</span><span class="wlt-val">12</span><span class="wlt-lbl">Dust</span></div>
+          <div class="wlt"><span class="wlt-icon">◈</span><span class="wlt-val">3</span><span class="wlt-lbl">Tokens</span></div>
+        </div>
+      </div>
+
+      <!-- Accordion: Abilities -->
+      <div class="acc open">
+        <div class="acc-head"><span>Abilities</span><span class="acc-arrow">›</span></div>
+        <div class="acc-body">
+          <div class="skill-row" data-ab="Neural Lash">
+            <div class="skill-icon">⚡</div>
+            <div class="skill-info"><div class="skill-name">Neural Lash</div><div class="skill-desc">12 EN · Single target · Instant</div></div>
+            <span class="skill-cd ready">●</span>
+          </div>
+          <div class="skill-row" data-ab="Phase Veil">
+            <div class="skill-icon">🌫</div>
+            <div class="skill-info"><div class="skill-name">Phase Veil</div><div class="skill-desc">18 EN · Self buff · Toggle</div></div>
+            <span class="skill-cd">3s</span>
+          </div>
+          <div class="skill-row" data-ab="Resonance Burst">
+            <div class="skill-icon">◈</div>
+            <div class="skill-info"><div class="skill-name">Resonance Burst</div><div class="skill-desc">24 EN · AoE · Weave</div></div>
+            <span class="skill-cd ready">●</span>
+          </div>
+          <div class="skill-row" data-ab="Symbiont Surge">
+            <div class="skill-icon">🩸</div>
+            <div class="skill-info"><div class="skill-name">Symbiont Surge</div><div class="skill-desc">40 EN · Ultimate · Self-drain</div></div>
+            <span class="skill-cd">12s</span>
+          </div>
+          <div class="skill-row" data-ab="Memory Collapse">
+            <div class="skill-icon">💀</div>
+            <div class="skill-info"><div class="skill-name">Memory Collapse</div><div class="skill-desc">32 EN · Cancel target action</div></div>
+            <span class="skill-cd">8s</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Accordion: Passives -->
+      <div class="acc">
+        <div class="acc-head"><span>Passives</span><span class="acc-arrow">›</span></div>
+        <div class="acc-body">
+          <div class="skill-row">
+            <div class="skill-icon">◉</div>
+            <div class="skill-info"><div class="skill-name">Weave-Sense</div><div class="skill-desc">Detection +15% · Always active</div></div>
+          </div>
+          <div class="skill-row">
+            <div class="skill-icon">🜂</div>
+            <div class="skill-info"><div class="skill-name">Symbiont Bond</div><div class="skill-desc">EN Regen +4 per turn</div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Accordion: Equipment -->
+      <div class="acc">
+        <div class="acc-head"><span>Equipment</span><span class="acc-arrow">›</span></div>
+        <div class="acc-body">
+          <div class="skill-row">
+            <div class="skill-icon">⚔️</div>
+            <div class="skill-info"><div class="skill-name">Weaveblade</div><div class="skill-desc">Main Hand</div></div>
+            <span class="skill-rarity" style="color:var(--en)">Rare</span>
+          </div>
+          <div class="skill-row">
+            <div class="skill-icon">🛡</div>
+            <div class="skill-info"><div class="skill-name">Weave-Coat</div><div class="skill-desc">Chest</div></div>
+            <span class="skill-rarity" style="color:#44aa66">Unc.</span>
+          </div>
+          <div class="skill-row">
+            <div class="skill-icon">🪖</div>
+            <div class="skill-info"><div class="skill-name">Archivist Hood</div><div class="skill-desc">Head</div></div>
+            <span class="skill-rarity" style="color:var(--en)">Adv.</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Accordion: Effects -->
+      <div class="acc">
+        <div class="acc-head"><span>Active Effects</span><span class="acc-arrow">›</span></div>
+        <div class="acc-body" style="display:flex;flex-wrap:wrap;gap:4px">
+          <span class="tag burn">Burn ×1</span>
+          <span class="tag regen">Regen</span>
+          <span class="tag sys">Weave-Sync</span>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ══ CENTER — Game Viewport ════════ -->
+  <div id="panel-c">
+    <div id="center-screens">
+
+      <!-- EXPLORATION -->
+      <div class="cs active" id="scr-exploration">
+        <div class="loc-tag"><div class="loc-dot"></div><span id="loc-title">THE SUNKEN ARCHIVES — SECTOR 7</span></div>
+
+        <div class="hud-strip">
+          <div class="hud-cell thr"><span class="hud-v">⚠ III</span><span class="hud-l">Threat</span></div>
+          <div class="hud-cell"><span class="hud-v">4</span><span class="hud-l">Players</span></div>
+          <div class="hud-cell"><span class="hud-v">2</span><span class="hud-l">Battles</span></div>
+          <div class="hud-cell safe"><span class="hud-v">✗</span><span class="hud-l">Safe</span></div>
+          <div class="hud-mini">
+            <div class="mm-blip me"></div>
+            <div class="mm-blip foe" style="top:28%;left:36%"></div>
+            <div class="mm-blip foe" style="top:66%;left:68%"></div>
+            <div class="mm-lbl" id="mm-lbl">52_52</div>
+          </div>
+        </div>
+
+        <div class="parchment">
+          <div class="corner c-tl"></div><div class="corner c-tr"></div>
+          <div class="corner c-bl"></div><div class="corner c-br"></div>
+          <div class="scene-img">[ scene illustration ]</div>
+          <div class="world-text" id="world-text">
+            The chamber descends in broken tiers, <em>each step whispering forgotten syllables</em> as your boot finds stone. Bioluminescent fungi cling to columns older than the empire — tracing the <strong>Weave-scars</strong> that ridge every surface like healed wounds.<br><br>
+            Water somewhere below. A low resonance, almost sub-audible. The symbiont <em>stirs</em> at the edge of perception.
+          </div>
+        </div>
+
+        <div class="whisper" id="whisper-text">Something was sealed here. The intention is still… resident in the stone. Approach the central plinth slowly.</div>
+
+        <div class="dpad-wrap">
+          <div class="ctx-col">
+            <div class="ctx-btn" data-action="examine">⊙ Examine</div>
+            <div class="ctx-btn" data-action="commune">◈ Commune</div>
+            <div class="ctx-btn" data-action="search">🔍 Search</div>
+          </div>
+          <div class="dpad" id="nav-grid">
+            <div class="dp off dp-diag" data-dir="nw">NW</div>
+            <div class="dp" data-dir="n"><span class="dp-arr">▲</span><span class="dp-lbl">N</span></div>
+            <div class="dp off dp-diag" data-dir="ne">NE</div>
+            <div class="dp" data-dir="w"><span class="dp-arr">◀</span><span class="dp-lbl">W</span></div>
+            <div class="dp ctr">✦</div>
+            <div class="dp" data-dir="e"><span class="dp-arr">▶</span><span class="dp-lbl">E</span></div>
+            <div class="dp dp-diag" data-dir="sw">SW</div>
+            <div class="dp" data-dir="s"><span class="dp-arr">▼</span><span class="dp-lbl">S</span></div>
+            <div class="dp off dp-diag" data-dir="se">SE</div>
+          </div>
+          <div class="ctx-col">
+            <div class="ctx-btn" data-action="look">👁 Look</div>
+            <div class="ctx-btn" data-action="rest">⏸ Rest</div>
+            <div class="ctx-btn" data-action="map">🗺 Map</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ENCOUNTER -->
+      <div class="cs" id="scr-encounter">
+        <div class="loc-tag"><div class="loc-dot" style="background:var(--danger);box-shadow:0 0 8px var(--danger)"></div><span>ENCOUNTER — SECTOR 7-B</span></div>
+        <div class="enc-panel">
+          <div class="enc-badge">⚔ COMBAT</div>
+          <div class="enc-title">Weave-Wraith Pack</div>
+          <div class="enc-desc">Three entities materialise from the stone — their forms <em style="color:var(--acc)">half-translated</em> between dimensions, trailing dissolution.</div>
+          <div class="enc-enemies">
+            <div class="enc-e"><div class="enc-e-name">Wraith Minion</div><div class="enc-e-bar"><div class="enc-e-fill" style="width:88%"></div></div><div class="enc-e-lv">LV 9 · Minion</div></div>
+            <div class="enc-e"><div class="enc-e-name">Wraith Veteran</div><div class="enc-e-bar"><div class="enc-e-fill" style="width:100%"></div></div><div class="enc-e-lv">LV 12 · Veteran</div></div>
+            <div class="enc-e"><div class="enc-e-name">???</div><div class="enc-e-bar"><div class="enc-e-fill" style="width:100%"></div></div><div class="enc-e-lv">LV ? · Unknown</div></div>
+          </div>
+          <div style="display:flex;gap:5px">
+            <div class="act" style="flex:1" data-enc="attack">⚔ Attack</div>
+            <div class="act" style="flex:1" data-enc="observe">👁 Observe</div>
+            <div class="act d" style="flex:1" data-enc="flee">↩ Flee</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- COMBAT -->
+      <div class="cs" id="scr-combat">
+        <div class="turn-banner">
+          <div><div class="turn-meta">Turn</div><div class="turn-n" id="turn-n">04</div></div>
+          <div class="turn-st">● ACTIVE</div>
+          <div><div class="turn-meta">EN</div><div style="font-size:14px;color:var(--en)" id="combat-en">82</div></div>
+        </div>
+        <div class="target-strip">
+          <div class="ts-name">Wraith Veteran</div>
+          <div class="ts-bars">
+            <div class="vital-row"><div class="vital-meta"><span class="vital-lbl">HP</span><span class="vital-val" style="color:var(--danger)">72/120</span></div><div class="bar-track bar-hp"><div class="bar-fill" style="width:60%;filter:url(#f-hp)"></div></div></div>
+            <div class="vital-row"><div class="vital-meta"><span class="vital-lbl">EN</span><span class="vital-val">45/80</span></div><div class="bar-track bar-en"><div class="bar-fill" style="width:56%;filter:url(#f-en)"></div></div></div>
+          </div>
+        </div>
+        <div class="combat-log" id="combat-log">
+          <div class="le sys"><span class="lt">T01</span>Combat begins. ROOK acts first.</div>
+          <div class="le hit"><span class="lt">T01</span>ROOK → <strong>Neural Lash</strong> → Wraith Veteran. <strong>−28 HP</strong>. Burn applied.</div>
+          <div class="le miss"><span class="lt">T02</span>Wraith Minion attacks ROOK. <strong>Evaded</strong>.</div>
+          <div class="le eff"><span class="lt">T02</span>Burn deals −6 HP. Stack: 1.</div>
+          <div class="le hit"><span class="lt">T03</span><strong>Resonance Burst</strong> AoE → −14 HP each.</div>
+          <div class="le hit"><span class="lt">T04</span>Wraith Veteran retaliates. <strong>−19 HP</strong> to ROOK.</div>
+          <div class="le sys"><span class="lt">T04</span>Your turn. 82 EN available.</div>
+        </div>
+        <div class="combat-acts">
+          <div class="act" data-ab="Neural Lash">⚡ Neural Lash</div>
+          <div class="act" data-ab="Phase Veil">🌫 Phase Veil</div>
+          <div class="act" data-ab="Resonance Burst">◈ Res. Burst</div>
+          <div class="act d" data-ab="Symbiont Surge">🩸 Surge</div>
+          <div class="act" data-ab="Weave-Read" style="border-color:rgba(51,153,255,.18);color:rgba(51,153,255,.65)">👁 Assess</div>
+        </div>
+      </div>
+
+      <!-- SCENARIO -->
+      <div class="cs" id="scr-scenario">
+        <div class="loc-tag"><div class="loc-dot" style="background:var(--psi);box-shadow:0 0 8px var(--psi)"></div><span>SCENARIO · THE ARCHIVIST'S BARGAIN</span></div>
+        <div class="sc-status">
+          <div class="sc-stat">Rapport: Wary</div>
+          <div class="sc-stat">Lies Told: 1</div>
+          <div class="sc-stat">Weave: ◈◈◈◈○○</div>
+        </div>
+        <div class="parchment">
+          <div class="corner c-tl"></div><div class="corner c-tr"></div>
+          <div class="corner c-bl"></div><div class="corner c-br"></div>
+          <div class="world-text">The Archivist leans back, his many-jointed fingers interlaced. <em>"You want the Seal coordinates,"</em> he says — not a question. <strong>The air thickens</strong> with suspended Weave-matter, crystalline and listening.<br><br><em>"Everything has a price. Even from one such as you."</em></div>
+        </div>
+        <div class="choices">
+          <button class="choice-btn" data-sc="truth">Tell the truth about the Conclave's mission</button>
+          <button class="choice-btn" data-sc="barter">Offer the obsidian vial as payment</button>
+          <button class="choice-btn" data-sc="deflect">Deflect with a question about the Seals</button>
+          <button class="choice-btn d" data-sc="threaten" style="border-color:rgba(255,51,0,.15);color:rgba(255,80,50,.65)">Invoke the Symbiont as implicit threat</button>
+        </div>
+      </div>
+
+      <!-- LOBBY -->
+      <div class="cs" id="scr-lobby">
+        <div style="font-family:'EB Garamond',serif;font-size:26px;color:var(--pt);text-align:center;line-height:1.2">🏰 Lobby<br><span style="font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:.2em;color:var(--dim)">CHARACTERS: 3 / 4</span></div>
+        <div class="char-grid">
+          <div class="char-slot sel" data-cid="1"><div class="char-stage combat">⚔ Combat</div><div class="char-name">Rook the Unbound</div><div class="char-meta">♂ Archivist · Lv 12<br>52_52</div><div class="vitals-mini"><div class="vbar"><div class="vbar-fill hp" style="width:67%"></div></div><div class="vbar"><div class="vbar-fill en" style="width:82%"></div></div></div></div>
+          <div class="char-slot" data-cid="2"><div class="char-stage">🗺 Explore</div><div class="char-name">Seraphel Null</div><div class="char-meta">♀ Veilblade · Lv 8<br>48_51</div><div class="vitals-mini"><div class="vbar"><div class="vbar-fill hp" style="width:91%"></div></div><div class="vbar"><div class="vbar-fill en" style="width:60%"></div></div></div></div>
+          <div class="char-slot" data-cid="3"><div class="char-stage">📜 Scenario</div><div class="char-name">The Unnamed</div><div class="char-meta">⚧ Null-Walker · Lv 5<br>55_50</div><div class="vitals-mini"><div class="vbar"><div class="vbar-fill hp" style="width:45%"></div></div><div class="vbar"><div class="vbar-fill en" style="width:30%"></div></div></div></div>
+          <div class="char-slot empty" data-cid="new"><div style="display:flex;align-items:center;justify-content:center;height:60px;color:rgba(255,170,0,.3);font-size:22px">➕</div><div class="char-name" style="color:rgba(255,170,0,.3)">Create</div></div>
+        </div>
+        <div class="lobby-acts">
+          <div class="act" style="flex:2" id="lobby-enter">🚀 Enter Game</div>
+          <div class="act d" style="flex:1">🗑 Delete</div>
+          <div class="act" style="flex:1;color:rgba(255,170,0,.30);border-color:rgba(255,170,0,.08)">🚪 Logout</div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ══ RIGHT — Chat + Inventory ══════ -->
+  <div id="panel-r">
+
+    <!-- Inventory split — hidden by default, opens from bottom nav -->
+    <div id="inv-split">
+      <div class="inv-head">
+        <span>Inventory — Bag 5/50</span>
+        <button class="inv-close" id="inv-close">✕</button>
+      </div>
+      <div class="inv-body">
+        <div class="sec">Bag</div>
+        <div class="inv-grid">
+          <div class="inv-slot">⚗️</div><div class="inv-slot">📜</div><div class="inv-slot">🗝</div>
+          <div class="inv-slot">🩸</div><div class="inv-slot">💎</div>
+          <div class="inv-slot empty"></div><div class="inv-slot empty"></div><div class="inv-slot empty"></div>
+          <div class="inv-slot empty"></div><div class="inv-slot empty"></div>
+        </div>
+        <div class="sec" style="margin-top:8px">Wallet</div>
+        <div class="wallet">
+          <div class="wlt"><span class="wlt-icon">🪙</span><span class="wlt-val">840</span><span class="wlt-lbl">Gold</span></div>
+          <div class="wlt"><span class="wlt-icon">✨</span><span class="wlt-val">12</span><span class="wlt-lbl">Dust</span></div>
+          <div class="wlt"><span class="wlt-icon">◈</span><span class="wlt-val">3</span><span class="wlt-lbl">Tokens</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Chat -->
+    <div id="chat">
+      <div id="chat-head">
+        <span>Weave-Channel α</span>
+        <div style="display:flex;align-items:center;gap:5px"><div class="ch-dot"></div><span>Live</span></div>
+      </div>
+      <div id="chat-log"></div>
+      <div id="chat-input-row">
+        <span id="chat-prompt">&gt;</span>
+        <input id="chat-input" type="text" placeholder="transmit..." spellcheck="false" autocomplete="off">
+        <button id="chat-send">⏎</button>
+      </div>
+    </div>
+    <div class="chat-spacer"></div>
+
+  </div>
+
+</div><!-- /shell -->
+
+<!-- BOTTOM NAV -->
+<nav id="bottom-nav">
+  <div class="bn-tab active" data-screen="exploration">
+    <div class="bn-badge"></div>
+    <span class="bn-icon">🗺</span>
+    <span class="bn-label">Explore</span>
+  </div>
+  <div class="bn-sep"></div>
+  <div class="bn-tab" id="inv-tab">
+    <span class="bn-icon">🎒</span>
+    <span class="bn-label">Inventory</span>
+  </div>
+  <div class="bn-sep"></div>
+  <div class="bn-tab" data-screen="lobby">
+    <span class="bn-icon">🏰</span>
+    <span class="bn-label">Lobby</span>
+  </div>
+</nav>
+
+<script>
+/* ══ HELPERS ════════════════════════ */
+const $ = id => document.getElementById(id);
+
+function addMsg(type, tag, text) {
+  const log = $('chat-log');
+  const d = document.createElement('div');
+  d.className = 'msg ' + type;
+  d.innerHTML = `<span class="tag-m">${tag}</span>${text}`;
+  log.appendChild(d);
+  log.scrollTop = log.scrollHeight;
+}
+
+/* ══ STATE ══════════════════════════ */
+const S = { screen: 'exploration', hp: 67, en: 82, sta: 55, sceneIdx: 0 };
+
+const SCENES = [
+  {
+    loc: 'The Sunken Archives — Sector 7', locId: '52_52',
+    text: `The chamber descends in broken tiers, <em>each step whispering forgotten syllables</em> as your boot finds stone. Bioluminescent fungi cling to columns older than the empire — tracing the <strong>Weave-scars</strong> that ridge every surface like healed wounds.<br><br>Water somewhere below. A low resonance, almost sub-audible. The symbiont <em>stirs</em> at the edge of perception.`,
+    whisper: 'Something was sealed here. The intention is still… resident in the stone. Approach the central plinth slowly.',
+    grid: { n:true, s:true, w:true, e:true, nw:false, ne:false, sw:true, se:false },
+  },
+  {
+    loc: 'The Weave Threshold — Upper Gate', locId: '52_50',
+    text: `Dawn, if it can be called that — the sky is a <em>bruised amber membrane</em>, light pushing through like fingers through gauze. The Upper Gate looms, its carved sentinels <strong>half-consumed</strong> by crystallised Weave-matter.<br><br>No guards. Only the distant <em>harmonic thrum</em> of the threshold itself. The symbiont extends outward, probing.`,
+    whisper: 'The threshold is semi-permeable. Something on the other side is already aware of your approach.',
+    grid: { n:true, s:true, w:false, e:true, nw:false, ne:true, sw:false, se:false },
+  },
+  {
+    loc: 'The Veilmarket — Undercroft', locId: '48_51',
+    text: `A hundred voices, none of them entirely human. <strong>The Veilmarket</strong> exists in the space between legalised trade and outright heresy — stalls draped in light-absorbing cloth, vendors whose <em>faces shift slightly</em> at the edge of focus.<br><br>Your symbiont flags three registered entities within twenty metres.`,
+    whisper: 'The woman selling mirrors is not looking at you with her eyes. I recommend stall nine before engaging any flagged entities.',
+    grid: { n:false, s:true, w:true, e:true, nw:false, ne:false, sw:true, se:true },
+  },
+];
+
+/* ══ SCREEN SWITCH ══════════════════ */
+function setScreen(name) {
+  S.screen = name;
+  document.querySelectorAll('.cs').forEach(s => s.classList.remove('active'));
+  const sc = $('scr-' + name);
+  if (sc) sc.classList.add('active');
+  document.querySelectorAll('.bn-tab[data-screen]').forEach(b => b.classList.toggle('active', b.dataset.screen === name));
+  if (name !== 'exploration' && name !== 'lobby') $('inv-tab').classList.remove('active');
+  addMsg('sys', '[SYS]', name.charAt(0).toUpperCase() + name.slice(1) + ' mode.');
+}
+
+/* ══ SCENE ══════════════════════════ */
+function renderScene(idx) {
+  S.sceneIdx = idx;
+  const sc = SCENES[idx];
+  $('loc-title').textContent = sc.loc.toUpperCase();
+  $('loc-id').textContent = sc.locId;
+  $('loc-name').textContent = sc.loc.split(' — ')[0];
+  $('mm-lbl').textContent = sc.locId;
+  const wt = $('world-text'); wt.innerHTML = sc.text;
+  wt.style.animation = 'none'; wt.offsetHeight; wt.style.animation = '';
+  $('whisper-text').textContent = sc.whisper;
+
+  // Update d-pad active states
+  document.querySelectorAll('#nav-grid .dp[data-dir]').forEach(btn => {
+    const dir = btn.dataset.dir;
+    btn.classList.toggle('off', !sc.grid[dir]);
+  });
+}
+
+function navigate(dir) {
+  const next = (S.sceneIdx + 1) % SCENES.length;
+  renderScene(next);
+  S.en = Math.max(5, Math.min(100, S.en - 3 + Math.floor(Math.random() * 8)));
+  updateBars();
+  addMsg('sys', '[NAV]', `Moving ${dir.toUpperCase()} → ${SCENES[next].loc}`);
+}
+
+/* ══ BARS ═══════════════════════════ */
+function updateBars() {
+  $('bar-hp').style.width  = S.hp  + '%';
+  $('bar-en').style.width  = S.en  + '%';
+  $('bar-sta').style.width = S.sta + '%';
+  $('hp-val').textContent  = S.hp  + ' / 100';
+  $('en-val').textContent  = S.en  + ' / 100';
+  $('sta-val').textContent = S.sta + ' / 100';
+  $('hp-val').classList.toggle('vd', S.hp < 30);
+}
+
+/* ══ INIT ═══════════════════════════ */
+document.addEventListener('DOMContentLoaded', () => {
+
+  // Login
+  $('login-btn').addEventListener('click', () => {
+    const l = $('login');
+    l.classList.add('exit');
+    setTimeout(() => l.style.display = 'none', 600);
+    addMsg('sys', '[SYS]', 'Weave connection established. Welcome, Rook.');
+  });
+
+  // Seed chat
+  [
+    { type:'sys',    tag:'[SYS]',       text:'Neural link established. Symbiont active.' },
+    { type:'sys',    tag:'[SYS]',       text:'Location: Sunken Archives 52_52. Threat: III.' },
+    { type:'npc',    tag:'[ARCHIVIST]', text:'You tread where the old ones slept. The stones remember.' },
+    { type:'player', tag:'[ROOK]',      text:'What happened here? The walls are… breathing.' },
+    { type:'danger', tag:'[ALERT]',     text:'Hostile entity detected — 40m NNW.' },
+  ].forEach(m => addMsg(m.type, m.tag, m.text));
+
+  renderScene(0);
+  updateBars();
+
+  // D-pad
+  $('nav-grid').addEventListener('click', e => {
+    const btn = e.target.closest('.dp[data-dir]');
+    if (!btn || btn.classList.contains('off') || btn.classList.contains('ctr')) return;
+    navigate(btn.dataset.dir);
+  });
+
+  // Context actions
+  document.querySelectorAll('.ctx-btn').forEach(b => {
+    b.addEventListener('click', () => addMsg('player', '[ACT]', b.dataset.action + '…'));
+  });
+
+  // Bottom nav — screen tabs
+  document.querySelectorAll('.bn-tab[data-screen]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      $('inv-split').classList.remove('open');
+      $('inv-tab').classList.remove('active');
+      setScreen(btn.dataset.screen);
+    });
+  });
+
+  // Bottom nav — inventory toggle
+  $('inv-tab').addEventListener('click', () => {
+    const split = $('inv-split');
+    const open = !split.classList.contains('open');
+    split.classList.toggle('open', open);
+    $('inv-tab').classList.toggle('active', open);
+    if (open) addMsg('sys', '[INV]', 'Inventory opened.');
+  });
+
+  // Inventory close button
+  $('inv-close').addEventListener('click', () => {
+    $('inv-split').classList.remove('open');
+    $('inv-tab').classList.remove('active');
+  });
+
+  // Accordion toggles
+  document.querySelectorAll('.acc-head').forEach(h => {
+    h.addEventListener('click', () => h.parentElement.classList.toggle('open'));
+  });
+
+  // Skill rows in left panel
+  document.querySelectorAll('.skill-row[data-ab]').forEach(row => {
+    row.addEventListener('click', () => addMsg('player', '[SKILL]', row.dataset.ab + ' activated.'));
+  });
+
+  // Combat actions
+  document.querySelectorAll('#scr-combat .act[data-ab]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      S.en = Math.max(0, S.en - 12);
+      updateBars();
+      $('combat-en').textContent = S.en;
+      const t = +$('turn-n').textContent + 1;
+      $('turn-n').textContent = String(t).padStart(2, '0');
+      const log = $('combat-log');
+      const d = document.createElement('div');
+      d.className = 'le hit';
+      d.innerHTML = `<span class="lt">T${String(t).padStart(2,'0')}</span>ROOK uses <strong>${btn.dataset.ab}</strong>.`;
+      log.appendChild(d);
+      log.scrollTop = log.scrollHeight;
+      addMsg('player', '[COMBAT]', btn.dataset.ab + ' used.');
+    });
+  });
+
+  // Encounter buttons
+  document.querySelectorAll('[data-enc]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      if (btn.dataset.enc === 'attack') { setScreen('combat'); }
+      else if (btn.dataset.enc === 'flee') { setScreen('exploration'); addMsg('danger', '[FLEE]', 'Retreating…'); }
+      else addMsg('player', '[ENC]', btn.textContent.trim() + '…');
+    });
+  });
+
+  // Scenario choices
+  document.querySelectorAll('.choice-btn[data-sc]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      addMsg('player', '[CHOICE]', btn.textContent.trim());
+      setTimeout(() => addMsg('npc', '[ARCHIVIST]', '…The Archivist considers your words at length.'), 600);
+    });
+  });
+
+  // Lobby
+  document.querySelectorAll('.char-slot:not(.empty)').forEach(slot => {
+    slot.addEventListener('click', () => {
+      document.querySelectorAll('.char-slot').forEach(s => s.classList.remove('sel'));
+      slot.classList.add('sel');
+    });
+  });
+  $('lobby-enter').addEventListener('click', () => setScreen('exploration'));
+
+  // Chat
+  $('chat-send').addEventListener('click', () => {
+    const v = $('chat-input').value.trim();
+    if (!v) return;
+    addMsg('player', '[YOU]', v);
+    $('chat-input').value = '';
+    setTimeout(() => addMsg('sys', '[SYS]', 'Message transmitted.'), 600);
+  });
+  $('chat-input').addEventListener('keydown', e => { if (e.key === 'Enter') $('chat-send').click(); });
+
+  // Keyboard navigation
+  document.addEventListener('keydown', e => {
+    if (document.activeElement === $('chat-input')) return;
+    const map = { ArrowUp:'n', ArrowDown:'s', ArrowLeft:'w', ArrowRight:'e' };
+    if (map[e.key] && S.screen === 'exploration') navigate(map[e.key]);
+  });
+
+});
+</script>
+</body>
+</html>

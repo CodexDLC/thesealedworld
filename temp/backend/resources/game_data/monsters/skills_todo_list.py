@@ -1,0 +1,131 @@
+"""
+УНИФИКАЦИЯ НАВЫКОВ МОНСТРОВ
+===========================
+Маппинг уникальных названий навыков на базовые архетипы механик.
+Это позволит использовать ограниченный набор кода для реализации сотен разных способностей.
+"""
+
+SKILL_MAPPING = {
+    # --- 1. ATTACK (Прямой урон) ---
+    "attack_basic": ["claw_scratch", "bite", "nip", "scratch", "punch", "hit", "clumsy_bite", "scavenge_bite"],
+    "attack_heavy": [
+        "heavy_strike",
+        "smash",
+        "bone_bash",
+        "crushing_blow",
+        "iron_fist",
+        "ground_stomp",
+        "tail_smash",
+        "slam",
+        "maul",
+        "crush",
+        "takedown",
+    ],
+    "attack_fast": [
+        "quick_bite",
+        "furious_slashes",
+        "blade_dance",
+        "whirlwind_of_blades",
+        "rapid_strikes",
+        "flurry",
+        "dash",
+    ],
+    "attack_pierce": ["spear_thrust", "pierce_armor", "impale", "sting", "piercing_light", "throat_bite"],
+    "attack_ranged": [
+        "rock_throw",
+        "junk_throw",
+        "acid_spit",
+        "firebolt",
+        "shadow_bolt",
+        "holy_bolt",
+        "holy_arrow",
+        "snipe",
+        "aimed_shot",
+        "lightning_bolt",
+        "pistol_shot",
+        "lunar_beam",
+    ],
+    "attack_aoe": [
+        "cleave",
+        "whirlwind",
+        "fire_breath",
+        "acid_spray",
+        "poison_cloud",
+        "explosion",
+        "shockwave",
+        "earthquake",
+        "meteor_strike",
+        "rain_of_arrows",
+        "gravity_crush",
+    ],
+    "attack_execute": ["execute", "throat_rip", "finish_off", "devour"],
+    "attack_lifesteal": [
+        "vampiric_bite",
+        "life_drain",
+        "blood_transfusion",
+        "consume_flesh",
+        "leech_life",
+        "lifesteal_bite",
+    ],
+    # --- 2. DEBUFF (Негативные эффекты) ---
+    "debuff_poison": ["poison_bite", "toxic_spit", "venom_injection", "plague_cloud", "poison_nova", "poison_stab"],
+    "debuff_bleed": ["rend", "lacerate", "hemorrhage", "deep_cut", "bleed_attack"],
+    "debuff_stun": ["shield_bash", "knockout", "paralyzing_bite", "petrifying_gaze", "stunning_blow", "disarm"],
+    "debuff_slow": ["web_shot", "slow_toxin", "frost_breath", "entangle", "hamstring"],
+    "debuff_weaken": [
+        "intimidate",
+        "roar_of_dominance",
+        "curse_of_weakness",
+        "fear_gaze",
+        "demoralize",
+        "growl",
+        "terror_howl",
+        "mass_hysteria",
+    ],
+    "debuff_armor_break": ["acid_spray", "corrosive_cloud", "sunder_armor", "melt_armor"],
+    "debuff_blind": ["dust_cloud", "blinding_flash", "ink_spray", "pocket_sand", "dirty_trick_blind", "smoke_bomb"],
+    "debuff_burn": ["fireball", "ignite", "flame_breath", "scorch"],
+    "debuff_control": ["confusion"],
+    # --- 3. BUFF (Положительные эффекты) ---
+    "buff_rage": [
+        "shout",
+        "rally_cry",
+        "blood_frenzy",
+        "enrage",
+        "berserk",
+        "howl_rage",
+        "ancestral_howl",
+        "alpha_command",
+    ],
+    "buff_defense": [
+        "shield_wall",
+        "harden_shell",
+        "iron_skin",
+        "ice_armor",
+        "bone_shield",
+        "divine_protection",
+        "ignore_pain",
+    ],
+    "buff_heal": ["heal", "regeneration", "mend_wounds", "repair_protocol"],
+    "buff_evasion": ["camouflage", "blur", "shadow_form", "mist_form", "evasive_maneuvers", "evasion", "shadow_step"],
+    "buff_reflect": ["spiked_carapace", "fire_shield", "lightning_shield", "thorns"],
+    "buff_speed": ["pack_buff_haste"],
+    # --- 4. SPECIAL (Уникальные механики) ---
+    "summon_minion": [
+        "summon_spiderlings",
+        "raise_dead",
+        "call_reinforcements",
+        "summon_pack",
+        "spawn_guards",
+        "summon_whelps",
+    ],
+    "explode_on_death": ["kamikaze_charge", "death_burst", "unstable_core"],
+    "stealth": ["stealth", "vanish", "hide", "burrow", "ambush"],
+    "counter_attack": ["riposte", "counter_stance", "parry"],
+    "special_trap": ["special_trap", "trap_snare"],
+    "special_action": ["rob", "flank", "tracking", "pounce", "bone_breaker", "flee", "coordinated_strike"],
+    "special_unique": ["special_unique", "dirty_blow"],
+}
+
+# Список всех уникальных ключей (для проверки)
+ALL_UNIFIED_SKILLS = list(SKILL_MAPPING.keys())

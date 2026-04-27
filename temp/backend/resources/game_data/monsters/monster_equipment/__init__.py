@@ -1,0 +1,10 @@
+from .beasts import BEASTS_EQUIPMENT
+from .humanoids import HUMANOIDS_EQUIPMENT
+from .mythical import MYTHICAL_EQUIPMENT
+from .undead import UNDEAD_EQUIPMENT
+from .werewolves import WEREWOLVES_EQUIPMENT
+
+# Собираем все в единый реестр
+MONSTER_EQUIPMENT_DB = (
+    WEREWOLVES_EQUIPMENT | UNDEAD_EQUIPMENT | HUMANOIDS_EQUIPMENT | BEASTS_EQUIPMENT | MYTHICAL_EQUIPMENT
+)

@@ -1,0 +1,45 @@
+<header class="site-header">
+    <div class="site-header-container">
+        <div class="site-logo">
+            <a href="/">
+                <span class="logo-main">SYMBIOTE</span>
+                <span class="logo-sub">CHRONICLES</span>
+            </a>
+        </div>
+
+        <nav class="site-nav">
+            <div class="nav-links">
+                <a href="/" class="nav-link {% if request.path == '/' %}active{% endif %}">The Wastes</a>
+                <a href="/about" class="nav-link {% if request.path == '/about' %}active{% endif %}">The Echoes</a>
+                <a href="/library" class="nav-link {% if request.path == '/library' %}active{% endif %}">Library</a>
+                <a href="/news" class="nav-link {% if request.path == '/news' %}active{% endif %}">News</a>
+                {% if user %}
+                    <a href="/game-lobby" class="nav-link nav-link--lobby {% if request.path in ['/game-lobby', '/play'] %}active{% endif %}">Game Lobby</a>
+                {% endif %}
+            </div>
+        </nav>
+
+        <div class="site-actions">
+            {% if user %}
+                <div class="site-account" x-data="{ open: false }" @keydown.escape="open = false" @click.outside="open = false">
+                    <button class="btn-node site-account-btn" @click="open = !open">
+                        <span>{{ user.email }}</span>
+                        <svg class="site-account-caret" :class="{ 'rotated': open }" width="10" height="6" viewBox="0 0 10 6" fill="none">
+                            <path d="M1 1L5 5L9 1" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                        </svg>
+                    </button>
+                    <div class="site-account-dropdown" x-show="open" x-cloak x-transition:enter.duration.150ms x-transition:leave.duration.100ms>
+                        <a href="/cabinet" class="site-account-item">Cabinet</a>
+                        <form action="/logout" method="post">
+                            <button type="submit" class="site-account-item site-account-item--danger">Logout</button>
+                        </form>
+                    </div>
+                </div>
+            {% else %}
+                <a href="/login" class="btn-node accent">
+                    <span>The Bond</span>
+                </a>
+            {% endif %}
+        </div>
+    </div>
+</header>

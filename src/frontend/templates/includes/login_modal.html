@@ -1,0 +1,45 @@
+<div
+    x-show="showLogin"
+    x-transition:enter="transition ease-out duration-300"
+    x-transition:enter-start="opacity-0 scale-95"
+    x-transition:enter-end="opacity-100 scale-100"
+    x-transition:leave="transition ease-in duration-200"
+    x-transition:leave-start="opacity-100 scale-100"
+    x-transition:leave-end="opacity-0 scale-95"
+    class="modal-backdrop"
+    x-cloak
+    @click.self="showLogin = false"
+>
+    <div class="ds-panel login-panel modal-content">
+        <div class="ds-panel-header">
+            <span>THE_BOND // INITIALIZATION</span>
+            <button @click="showLogin = false" class="modal-close">&times;</button>
+        </div>
+        <div class="ds-panel-body">
+            <form action="#" method="POST">
+                <div class="form-group">
+                    <label class="ds-tag sys">SOUL_IDENTIFIER</label>
+                    <input type="text" name="username" placeholder="Echo of essence..." class="form-input">
+                </div>
+
+                <div class="form-group">
+                    <label class="ds-tag sys">RESONANCE_KEY</label>
+                    <input type="password" name="password" placeholder="••••••••" class="form-input">
+                </div>
+
+                <div style="margin-top: var(--sp-4);">
+                    <button type="submit" class="btn-node lg" style="width: 100%;">
+                        <span>ESTABLISH BOND</span>
+                    </button>
+                </div>
+            </form>
+
+            <div style="margin-top: var(--sp-8); text-align: center;">
+                <p class="feature-text" style="font-size: var(--text-sm); opacity: 0.6;">
+                    Have you not yet been touched by the Rift? <br>
+                    <a href="/register" style="color: var(--col-accent); text-decoration: none;">INITIATE NEW LINK</a>
+                </p>
+            </div>
+        </div>
+    </div>
+</div>

@@ -1,0 +1,17 @@
+{% extends base_template %}
+
+{% block title %}CHARACTER_LOST{% endblock %}
+
+{% block content %}
+<div class="error-container ds-panel" style="max-width: 600px; margin: 100px auto; padding: 40px; text-align: center; border: 1px solid var(--col-accent); background: rgba(0,0,0,0.9); backdrop-filter: blur(15px);">
+    <h1 style="color: var(--col-accent); font-family: var(--font-ui); font-size: 2rem; margin-bottom: 1rem;">404 // AREA_NOT_FOUND</h1>
+    <p style="opacity: 0.8; margin: 20px 0; font-family: var(--font-world); font-size: 1.2rem;">
+        You have wandered into a void where the world does not exist. Your Character cannot find a path here.
+    </p>
+    <div style="margin-top: 30px;">
+        <a href="/" class="ds-button" style="text-decoration: none;">
+            <span>RETURN_TO_TOWN</span>
+        </a>
+    </div>
+</div>
+{% endblock %}

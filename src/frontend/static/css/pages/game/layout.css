@@ -1,0 +1,552 @@
+/* ── CORE GAME LAYOUT & BASE CONTAINERS ── */
+.game-container {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    height: 100%; /* Fill #main-content exactly */
+    width: 100%;
+    max-width: 1600px;
+    margin: 0 auto;
+    overflow: hidden;
+    background: transparent;
+    box-shadow: 0 0 150px 30px rgba(0, 0, 0, 0.95);
+    border-left: 1px solid rgba(255, 170, 0, 0.15);
+    border-right: 1px solid rgba(255, 170, 0, 0.15);
+}
+
+.game-scene-layer {
+    position: absolute;
+    inset: 0;
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    opacity: 0.55;
+    z-index: 0; /* Behind the columns which have z-index 1+ */
+    pointer-events: none;
+    transition: background-image 0.8s ease-in-out;
+}
+
+/* ── Location-specific Textures (Fallback/Utility) ── */
+.scene-none   { display: none; }
+
+
+
+
+.page-game {
+    overflow: hidden;
+    height: 100vh;
+    padding: 0;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    background: #000;
+    position: relative;
+}
+
+.page-game::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: url('/static/images/parchment_dull.png') center/cover no-repeat;
+    opacity: 0.7; /* Back to being visible */
+    pointer-events: none;
+    z-index: 0;
+}
+
+.page-game::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    /* Strong vignette to focus on the center */
+    background: radial-gradient(circle at center, rgba(0,0,0,0.2) 0%, rgba(0,0,0,0.9) 100%);
+    pointer-events: none;
+    z-index: 0;
+}
+
+/* Ensure content sits above overlay */
+html, body {
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+}
+
+.page-game > * {
+    position: relative;
+    z-index: 1;
+}
+
+.page-game #main-content {
+    padding: 0 !important;
+    margin: 0 !important;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0; /* CRITICAL: Allows flex child to shrink/not-expand parent */
+    overflow: hidden;
+}
+
+#app-viewport {
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    position: relative;
+}
+
+/* ── GAME FOOTER ── */
+.game-footer {
+    height: 24px;
+    background: rgba(12, 12, 16, 0.9);
+    border-top: 1px solid rgba(255, 170, 0, 0.05);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 15px;
+    font-size: 8px;
+    color: var(--col-parchment-dim);
+    opacity: 0.4;
+    letter-spacing: 0.05em;
+    font-family: 'JetBrains Mono', monospace;
+    z-index: 100;
+}
+
+.footer-copyright {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
+.copyright-sym {
+    font-size: 10px;
+}
+
+.all-rights {
+    opacity: 0.5;
+    font-size: 7px;
+}
+
+.footer-status-log {
+    font-weight: 400;
+}
+
+/* ── GAME HEADER ── */
+.game-header {
+    height: 40px;
+    background: rgba(12, 12, 16, 0.8);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid rgba(255, 170, 0, 0.1);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 20px;
+    z-index: 100;
+    position: relative;
+}
+
+.header-left, .header-right {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.header-center {
+    flex: 2;
+    display: flex;
+    justify-content: center;
+    height: 100%;
+}
+
+.header-right {
+    justify-content: flex-end;
+}
+
+.server-status {
+    display: flex;
+    gap: 5px;
+    font-size: 8px;
+    letter-spacing: 0.1em;
+    font-family: var(--font-ui);
+}
+
+.status-label {
+    color: var(--col-parchment-dim);
+    opacity: 0.5;
+}
+
+.status-value {
+    color: #44ff88;
+    text-shadow: 0 0 5px rgba(68, 255, 136, 0.3);
+}
+
+.connection-stats {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding-left: 15px;
+    border-left: 1px solid rgba(255, 170, 0, 0.1);
+}
+
+.ping-val {
+    font-size: 8px;
+    color: var(--col-parchment-dim);
+    opacity: 0.6;
+    font-family: 'JetBrains Mono', monospace;
+}
+
+.game-logo {
+    font-family: var(--font-ui);
+    font-weight: 800;
+    font-size: 14px;
+    letter-spacing: 0.15em;
+    color: var(--col-accent);
+}
+
+.v-tag {
+    font-size: 7px;
+    opacity: 0.2;
+    font-weight: 400;
+    margin-left: 5px;
+}
+
+
+/* UPPER SECTION */
+.game-top-row {
+    display: grid;
+    grid-template-columns: 0 1fr 0; /* Both closed by default */
+    height: 100%;
+    overflow: hidden;
+    gap: 0;
+    background: transparent;
+    transition: grid-template-columns 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.game-top-row.left-open {
+    grid-template-columns: 340px 1fr 0;
+}
+
+.game-top-row.right-open {
+    grid-template-columns: 0 1fr 340px;
+}
+
+.game-top-row.left-open.right-open {
+    grid-template-columns: 340px 1fr 340px;
+}
+
+.col-left, .col-right {
+    display: none; /* Hide when not active to prevent ghost layouts */
+}
+
+.left-open .col-left,
+.right-open .col-right {
+    display: block;
+}
+
+.col-left,
+.col-center,
+.col-right {
+    height: 100%;
+    overflow-y: auto;
+    overflow-x: hidden;
+    position: relative;
+    background: rgba(12, 12, 16, 0.65);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border: none;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 170, 0, 0.1) transparent;
+}
+
+/* ── Panel Borders & Shadows (Hides blur seam and adds depth) ── */
+.col-left {
+    border-right: 1px solid rgba(255, 170, 0, 0.15);
+    box-shadow: 4px 0 15px rgba(0, 0, 0, 0.4);
+    z-index: 5;
+}
+
+.col-right {
+    border-left: 1px solid rgba(255, 170, 0, 0.15);
+    box-shadow: -4px 0 15px rgba(0, 0, 0, 0.4);
+    z-index: 5;
+}
+
+/* col-center: flex column so inner wrapper can grow to fill */
+.col-center {
+    display: flex;
+    flex-direction: column;
+    overflow-y: hidden;
+    z-index: 1;
+    position: relative;
+    background: linear-gradient(to right, rgba(0,0,0,0.2) 0%, transparent 20px, transparent calc(100% - 20px), rgba(0,0,0,0.2) 100%), rgba(12, 12, 16, 0.65);
+}
+
+
+/* Inner content wrapper — adaptive width */
+.col-center-inner {
+    flex: 1;
+    min-height: 0;
+    width: 100%;
+    min-width: 320px;
+    max-width: 900px; /* Increased base width */
+    margin: 0 auto;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    transition: max-width 0.4s ease-in-out, padding 0.4s ease;
+}
+
+/* When side panels are open, constrain the center to keep it readable */
+.left-open .col-center-inner,
+.right-open .col-center-inner {
+    max-width: 600px;
+}
+
+#center-screens {
+    background: rgba(0, 0, 0, 0.2); /* Very subtle tint to separate from background */
+    backdrop-filter: blur(2px);
+}
+
+/* Right column: hidden by default */
+.col-right {
+    display: none;
+}
+
+.game-top-row.right-open .col-right {
+    display: block;
+}
+
+/* ── SCREEN STYLES (Restored) ── */
+.cs {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 100%;
+    height: 100%;
+    position: relative;
+    overflow-y: auto;
+}
+
+/* Removed .cs::before overlay for unified look */
+.cs::before {
+    display: none;
+}
+
+.cs-content {
+    position: relative;
+    z-index: 2;
+    width: 100%;
+    max-width: 400px;
+    padding: var(--sp-4) 0;
+    display: flex;
+    flex-direction: column;
+}
+
+.cs::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background:
+        url('/static/images/neuron_mask.png') left center/100px contain no-repeat,
+        url('/static/images/neuron_mask.png') right center/100px contain no-repeat;
+    opacity: 0.12;
+    z-index: 1;
+    pointer-events: none;
+    mix-blend-mode: overlay;
+}
+
+/* ── BOTTOM SECTION: The Transformable Chat Overlay ── */
+.game-chat-row {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: var(--chat-height, 200px);
+    background: rgba(5, 5, 5, 0.95);
+    border-top: 2px solid rgba(255, 170, 0, 0.3);
+    z-index: 100;
+    display: flex;
+    flex-direction: column;
+    /* Smooth animation between steps */
+    transition: height 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+
+.chat-minimized {
+    height: 100px !important; /* Approx 3-4 lines + tabs */
+}
+
+
+/* ── NEURAL CONTROLS (Circle buttons in corners) ── */
+.neural-control {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    border: 1px solid var(--col-accent);
+    background: rgba(255, 170, 0, 0.1);
+    cursor: pointer;
+    z-index: 10;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.neural-control::after {
+    content: '';
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    background: var(--col-accent);
+    box-shadow: 0 0 8px var(--col-accent);
+}
+
+.neural-control:hover {
+    background: var(--col-accent);
+    box-shadow: 0 0 15px var(--col-accent);
+}
+
+.neural-control:hover::after {
+    background: #000;
+}
+
+/* Position overrides if needed */
+.col-left .neural-control {
+    right: 10px;
+}
+
+.col-right .neural-control {
+    left: 10px;
+}
+
+/* Hide HTMX neural-control dots — functional only, not visual */
+#game-chat .neural-control,
+#game-viewport .neural-control {
+    display: none;
+}
+
+/* ── ANIMATIONS & UTILS (Restored) ── */
+
+@keyframes pulse {
+    0% {
+        opacity: 0.4;
+    }
+
+    50% {
+        opacity: 1;
+    }
+
+    100% {
+        opacity: 0.4;
+    }
+}
+
+.status-dot.pulse {
+    width: 6px;
+    height: 6px;
+    background: var(--col-accent);
+    border-radius: 50%;
+    box-shadow: 0 0 10px var(--col-accent);
+    animation: pulse 2s infinite;
+}
+
+/* ── PANEL BACKDROP (mobile) ── */
+.panel-backdrop {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.55);
+    z-index: 199;
+    backdrop-filter: blur(2px);
+    -webkit-backdrop-filter: blur(2px);
+}
+.panel-backdrop.is-open { display: none; }
+
+@media (max-width: 768px) {
+    .panel-backdrop.is-open { display: block; }
+}
+
+/* ── PANEL TOGGLE BUTTONS (inside col-center) ── */
+.panel-toggle-bar {
+    display: flex;
+    position: absolute;
+    top: var(--sp-2);
+    left: var(--sp-2);
+    right: var(--sp-2);
+    justify-content: space-between;
+    z-index: 10;
+    pointer-events: none;
+}
+.panel-toggle-bar .ptb-btn {
+    pointer-events: all;
+    padding: 0 var(--sp-3);
+    height: 22px;
+    background: rgba(8, 8, 10, 0.8);
+    border: 1px solid rgba(255, 170, 0, 0.25);
+    color: rgba(255, 170, 0, 0.7);
+    font-family: var(--font-ui);
+    font-size: var(--text-2xs);
+    letter-spacing: 0.08em;
+    cursor: pointer;
+    transition: border-color 0.2s, color 0.2s;
+}
+.panel-toggle-bar .ptb-btn:hover,
+.panel-toggle-bar .ptb-btn.active {
+    border-color: var(--col-accent);
+    color: var(--col-accent);
+}
+
+/* ── RESPONSIVE ── */
+
+/* At 768px: right panel becomes drawer, left stays in grid */
+@media (max-width: 768px) {
+    .game-top-row {
+        grid-template-columns: 340px 1fr !important;
+    }
+
+    .col-right {
+        position: fixed;
+        top: 40px;
+        bottom: 30px;
+        right: 0;
+        width: 340px;
+        z-index: 200;
+        display: block !important;
+        transform: translateX(340px);
+        transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        overflow-y: auto;
+    }
+    .col-right.panel-open {
+        transform: translateX(0);
+    }
+
+    .panel-toggle-bar { display: flex; }
+}
+
+/* At 500px: both panels become drawers, center is full width */
+@media (max-width: 500px) {
+    .game-top-row {
+        grid-template-columns: 1fr !important;
+    }
+
+    .col-left {
+        position: fixed;
+        top: 40px;
+        bottom: 30px;
+        left: 0;
+        width: 100vw;
+        z-index: 200;
+        display: block !important;
+        transform: translateX(-100vw);
+        transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        overflow-y: auto;
+    }
+    .col-left.panel-open {
+        transform: translateX(0);
+    }
+}

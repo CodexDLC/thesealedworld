@@ -1,0 +1,35 @@
+/* ── INCLUDE: HEADER ── */
+.app-header {
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 var(--sp-6);
+    background: rgba(10, 10, 12, 0.8);
+    border-bottom: 1px solid var(--col-border);
+    backdrop-filter: blur(10px);
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 1000;
+}
+
+.header-logo {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-4);
+}
+
+.logo-text {
+    font-family: var(--font-world);
+    font-style: italic;
+    color: var(--col-accent);
+    letter-spacing: 0.1em;
+}
+
+.header-status {
+    font-size: var(--text-2xs);
+    color: var(--col-text-secondary);
+    letter-spacing: 0.1em;
+}

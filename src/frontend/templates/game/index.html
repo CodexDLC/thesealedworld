@@ -1,0 +1,208 @@
+{% extends "game/layout_game.html" %}
+
+{% block extra_head %}
+    <link rel="stylesheet" href="/static/css/pages/game.css">
+{% endblock extra_head %}
+
+{% block title %}Neural Interface — Symbiote Chronicles{% endblock title %}
+
+{% block game_content %}
+<div class="game-container">
+
+    <!-- Dedicated Scene Background Layer -->
+    <div class="game-scene-layer"
+         :style="`background-image: url('/static/images/scenes/${scene}.png')`"
+         x-show="scene !== 'none'"></div>
+
+    <div class="game-top-row" :class="{ 'left-open': leftOpen, 'right-open': rightOpen }">
+
+        <!-- COL 1: LEFT (Status) -->
+        <aside class="col-left" id="game-status"
+               :class="{ 'panel-open': leftOpen }">
+            <div class="neural-control" hx-get="/game/fragment/status" hx-target="#game-status"></div>
+            {% include "game/status/main.html" %}
+        </aside>
+
+        <!-- COL 2: CENTER (The Main Game Viewport) -->
+        <main class="col-center" id="game-viewport">
+            <div class="col-center-inner">
+
+            <div id="center-screens" style="flex: 1; min-height: 0; position: relative; overflow: hidden; border-bottom: 1px solid rgba(255,170,0,0.1);">
+                <!-- Character Selection Screen -->
+                <div class="cs" x-show="tab === 'select'" x-transition:enter.duration.500ms>
+                    <div class="cs-content">
+                        <div class="login-header" style="margin-bottom: 20px;">
+                            <div class="login-title">ANCIENT_RESONANCE_DETECTED</div>
+                            <div class="login-subtitle">Choose your character to proceed</div>
+                        </div>
+
+                        <div class="char-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; width: 100%;">
+                            <template x-for="(agent, id) in agents">
+                                <div class="char-slot ds-panel"
+                                     :class="{ 'sel': selectedAgentId == id, 'empty': agent.lv === 0 }"
+                                     @click="selectedAgentId = id"
+                                     style="padding: 15px; cursor: pointer; border: 1px solid rgba(255,170,0,0.1); position: relative;">
+                                    <div class="char-name" x-text="agent.name" style="font-weight: bold; color: var(--col-accent);"></div>
+                                    <div class="char-meta" style="font-size: 10px; opacity: 0.6;" x-text="agent.lv > 0 ? 'LV ' + agent.lv + ' ' + agent.class : 'VACANT_SLOT'"></div>
+                                </div>
+                            </template>
+                        </div>
+
+                        <div class="login-actions" style="margin-top: 30px; width: 100%;">
+                            <button class="act-btn ds-button" @click="tab = 'game'" :disabled="agents[selectedAgentId].lv === 0">
+                                <span>ENTER_THE_WASTELAND</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Character / Skills Screen -->
+                <div class="cs" x-show="tab === 'character'" x-transition:enter.duration.500ms>
+                    <div class="cs-content">
+                        <div class="login-header" style="margin-bottom: 20px;">
+                            <div class="login-title" x-text="agents[selectedAgentId].name"></div>
+                            <div class="login-subtitle" x-text="'LV ' + agents[selectedAgentId].lv + ' · ' + agents[selectedAgentId].class"></div>
+                        </div>
+
+                        <!-- Combat stance / active equipment -->
+                        <div style="font-family: var(--font-ui); font-size: var(--text-2xs); color: rgba(255,170,0,0.4); letter-spacing: 0.12em; margin-bottom: var(--sp-2);">WAR_STANCE</div>
+                        <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--sp-1); margin-bottom: var(--sp-4);">
+                            <div class="eq-slot" style="width:auto; height:48px; flex-direction:column; gap:2px; font-size:9px;">ATK<span style="font-size:7px; opacity:0.5;">SLASH</span></div>
+                            <div class="eq-slot" style="width:auto; height:48px; flex-direction:column; gap:2px; font-size:9px;">DEF<span style="font-size:7px; opacity:0.5;">PARRY</span></div>
+                            <div class="eq-slot" style="width:auto; height:48px; flex-direction:column; gap:2px; font-size:9px;">SKL<span style="font-size:7px; opacity:0.5;">—</span></div>
+                            <div class="eq-slot" style="width:auto; height:48px; flex-direction:column; gap:2px; font-size:9px;">ULT<span style="font-size:7px; opacity:0.5;">—</span></div>
+                        </div>
+
+                        <!-- Skill tree placeholder -->
+                        <div style="font-family: var(--font-ui); font-size: var(--text-2xs); color: rgba(255,170,0,0.4); letter-spacing: 0.12em; margin-bottom: var(--sp-2);">SKILLS</div>
+                        <div style="display: flex; flex-direction: column; gap: var(--sp-1);">
+                            <template x-for="skill in [
+                                { name: 'Heavy Strike', rank: 3, max: 5 },
+                                { name: 'Shadow Dodge', rank: 1, max: 5 },
+                                { name: 'Bone Rend', rank: 0, max: 5 },
+                                { name: 'Blood Leech', rank: 2, max: 5 }
+                            ]">
+                                <div style="display:flex; align-items:center; gap: var(--sp-2); padding: var(--sp-1) var(--sp-2); border: 1px solid rgba(255,170,0,0.08); background: rgba(255,255,255,0.02);">
+                                    <div style="flex:1; font-size: var(--text-xs); color: var(--col-accent);" x-text="skill.name"></div>
+                                    <div style="display:flex; gap:3px;">
+                                        <template x-for="i in skill.max">
+                                            <div :style="`width:8px; height:8px; border:1px solid rgba(255,170,0,0.3); background: i <= skill.rank ? 'rgba(255,170,0,0.6)' : 'transparent'`"></div>
+                                        </template>
+                                    </div>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Exploration Screen: Simplified to be a HUD overlay -->
+                <div class="cs" x-show="tab === 'game'" :class="{ 'active': tab === 'game' }" x-transition:enter.duration.500ms
+                     style="background: transparent;">
+                    <div class="cs-content" style="max-width: 600px;">
+                        <div class="loc-tag" style="margin-bottom: 40px; background: rgba(0,0,0,0.6); backdrop-filter: blur(4px); padding: 5px 15px; border: 1px solid rgba(255,170,0,0.2);">
+                            <div class="loc-dot"></div>
+                            <span x-text="agents[selectedAgentId].loc" style="font-size: 12px; letter-spacing: 0.2em;"></span>
+                        </div>
+
+                        <!-- Actions & Navigation overlay -->
+                        <div style="margin-top: auto; padding-bottom: 40px;">
+                            <div style="display: flex; align-items: flex-end; gap: 20px;">
+                                <div style="flex: 1; display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                                    <button class="btn-node ds-button" style="height: 40px;"><span>ATTUNE</span></button>
+                                    <button class="btn-node ds-button" style="height: 40px;"><span>PEER_INTO</span></button>
+                                </div>
+                                <div class="dpad-wrap" style="flex-shrink: 0; background: rgba(0,0,0,0.4); padding: 10px; border: 1px solid rgba(255,170,0,0.1);">
+                                    <div class="dpad">
+                                        <div class="dp-empty"></div><div class="dp">N</div><div class="dp-empty"></div>
+                                        <div class="dp">W</div><div class="dp">●</div><div class="dp">E</div>
+                                        <div class="dp-empty"></div><div class="dp">S</div><div class="dp-empty"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            </div><!-- /.col-center-inner -->
+        </main>
+
+        <!-- COL 3: RIGHT — character doll + inventory -->
+        <aside class="col-right" id="game-intel"
+               :class="{ 'panel-open': rightOpen }">
+            <div class="field-panel">
+                <!-- Character Doll -->
+                <div class="doll-section">
+                    <div class="doll-wrap">
+                        <!-- Left slots -->
+                        <div class="eq-slot" style="grid-column:1; grid-row:1;">HEAD</div>
+                        <div class="eq-slot" style="grid-column:1; grid-row:2;">BODY</div>
+                        <div class="eq-slot" style="grid-column:1; grid-row:3;">LEGS</div>
+                        <div class="eq-slot" style="grid-column:1; grid-row:4;">FEET</div>
+                        <!-- Silhouette center -->
+                        <div class="doll-figure">
+                            <svg class="doll-silhouette" viewBox="0 0 36 90" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M18 0C13 0 10 5 10 10C10 15 13 18 18 18C23 18 26 15 26 10C26 5 23 0 18 0Z" fill="currentColor"/>
+                                <path d="M18 20C10 20 6 25 6 35V50C6 55 10 60 18 60C26 60 30 55 30 50V35C30 25 26 20 18 20Z" fill="currentColor"/>
+                                <path d="M10 62C8 62 7 65 7 70V85C7 88 10 90 13 90H15V65H10V62Z" fill="currentColor"/>
+                                <path d="M26 62C28 62 29 65 29 70V85C29 88 26 90 23 90H21V65H26V62Z" fill="currentColor"/>
+                            </svg>
+                        </div>
+                        <!-- Right slots -->
+                        <div class="eq-slot" style="grid-column:3; grid-row:1;">HANDS</div>
+                        <div class="eq-slot" style="grid-column:3; grid-row:2;">WRIST</div>
+                        <div class="eq-slot" style="grid-column:3; grid-row:3;">RING</div>
+                        <div class="eq-slot" style="grid-column:3; grid-row:4;">NECK</div>
+                    </div>
+                    <div class="doll-bottom">
+                        <div class="eq-slot">MAIN_HAND</div>
+                        <div class="eq-slot">OFF_HAND</div>
+                    </div>
+                </div>
+
+                <!-- Inventory -->
+                <div class="inv-section">
+                    <div class="inv-tabs">
+                        <button class="inv-tab active">ALL</button>
+                        <button class="inv-tab">GEAR</button>
+                        <button class="inv-tab">CONSUME</button>
+                        <button class="inv-tab">QUEST</button>
+                    </div>
+                    <div class="inv-list">
+                        <div class="inv-item">
+                            <div class="inv-item-icon">🧪</div>
+                            <div class="inv-item-info">
+                                <div class="inv-item-name">Mending Salve</div>
+                                <div class="inv-item-meta">CONSUMABLE · x3</div>
+                            </div>
+                        </div>
+                        <div class="inv-item">
+                            <div class="inv-item-icon">⚔</div>
+                            <div class="inv-item-info">
+                                <div class="inv-item-name">Blackiron Blade</div>
+                                <div class="inv-item-meta">WEAPON · LV 10</div>
+                            </div>
+                        </div>
+                        <div class="inv-item">
+                            <div class="inv-item-icon">📜</div>
+                            <div class="inv-item-info">
+                                <div class="inv-item-name">Ancient Parchment</div>
+                                <div class="inv-item-meta">QUEST ITEM</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </aside>
+    </div>
+
+    <!-- LOWER SECTION: CHAT -->
+    <div class="game-chat-row" id="game-chat"
+         :class="{ 'chat-minimized': chatStep === 0, ['chat-step-' + chatStep]: true }">
+        <div class="neural-control" hx-get="/game/fragment/chat" hx-target="#game-chat"></div>
+        <div style="flex: 1; display: flex; flex-direction: column; overflow: hidden;">
+            {% include "game/chat/main.html" %}
+        </div>
+    </div>
+</div>
+{% endblock game_content %}

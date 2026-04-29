@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <!-- No SEO Meta needed for game shell -->
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>{% block title %}Neural Interface — Symbiote Chronicles{% endblock %}</title>
+
+    {% block styles %}
+        <!-- Google Fonts -->
+        <link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400..800;1,400..800&family=JetBrains+Mono:wght@300;400;500;600&display=swap" rel="stylesheet">
+        <!-- Game Specific Styles -->
+        <link rel="stylesheet" href="/static/css/game.css">
+    {% endblock styles %}
+
+    {% block extra_head %}{% endblock extra_head %}
+    <style>[x-cloak] { display: none !important; }</style>
+
+    <!-- Full Game Tech Stack -->
+    <script src="/static/js/vendor/htmx.js" defer></script>
+    <script src="/static/js/vendor/htmx-ws.js" defer></script>
+    <script src="/static/js/vendor/alpine-persist.js" defer></script>
+    <script src="/static/js/vendor/alpine-collapse.js" defer></script>
+    <script src="/static/js/vendor/alpine.js" defer></script>
+
+    <!-- Game Engine / Core -->
+    <script src="/static/js/game.js" defer></script>
+</head>
+<body class="game-body {% block body_class %}{% endblock body_class %}">
+    {% block content %}{% endblock content %}
+
+    {% block scripts %}{% endblock scripts %}
+    {% block extra_scripts %}{% endblock extra_scripts %}
+</body>
+</html>

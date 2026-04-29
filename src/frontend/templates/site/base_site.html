@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    {% block meta %}
+        {% include "includes/meta.html" %}
+    {% endblock meta %}
+
+    {% block styles %}
+        <!-- Google Fonts -->
+        <link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400..800;1,400..800&family=JetBrains+Mono:wght@300;400;500;600&display=swap" rel="stylesheet">
+        <!-- Site Specific Styles -->
+        <link rel="stylesheet" href="/static/css/site.css">
+    {% endblock styles %}
+
+    {% block extra_head %}{% endblock extra_head %}
+    <style>[x-cloak] { display: none !important; }</style>
+
+    <!-- Essential Scripts for Site (Minimal Alpine) -->
+    <script src="/static/js/vendor/alpine.js" defer></script>
+    <script src="/static/js/site.js" defer></script>
+</head>
+<body class="site-body {% block body_class %}{% endblock body_class %}">
+    <div x-data="{ showLogin: false }" style="display: contents;">
+        {% include "includes/login_modal.html" %}
+
+        <div id="app-viewport">
+            {% block header %}
+                {% include "includes/site_header.html" %}
+            {% endblock header %}
+
+            <main id="main-content">
+                {% block content %}{% endblock content %}
+            </main>
+
+            {% block footer %}
+                {% include "includes/footer.html" %}
+            {% endblock footer %}
+        </div>
+    </div>
+
+    {% block scripts %}{% endblock scripts %}
+    {% block extra_scripts %}{% endblock extra_scripts %}
+</body>
+</html>

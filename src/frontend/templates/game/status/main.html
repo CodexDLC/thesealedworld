@@ -1,0 +1,14 @@
+<div id="status-container" class="status-panel-root" x-show="selectedAgentId">
+
+    <!--
+        Dynamic Status Layout
+        We can control the order and presence of blocks from the backend context
+        if we pass a 'status_layout' list. Otherwise, we use a default order.
+    -->
+    {% set layout = status_layout or ['vitals', 'avatar', 'attributes', 'skills'] %}
+
+    {% for fragment in layout %}
+        {% include "game/status/fragments/" ~ fragment ~ ".html" %}
+    {% endfor %}
+
+</div>

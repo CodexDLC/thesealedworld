@@ -1,0 +1,94 @@
+/* ── MISC UI ELEMENTS ── */
+
+.tag {
+    display: inline-block;
+    padding: 2px 8px;
+    font-size: var(--text-2xs);
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+}
+
+.tag.burn {
+    background: rgba(255, 100, 0, .08);
+    border: 1px solid rgba(255, 100, 0, .28);
+    color: rgba(255, 130, 50, .85);
+}
+
+.tag.stun {
+    background: rgba(255, 220, 0, .06);
+    border: 1px solid rgba(255, 220, 0, .22);
+    color: rgba(255, 220, 50, .8);
+}
+
+.tag.bleed {
+    background: rgba(255, 30, 30, .07);
+    border: 1px solid rgba(255, 30, 30, .25);
+    color: rgba(255, 80, 80, .8);
+}
+
+.tag.regen {
+    background: rgba(68, 221, 136, .06);
+    border: 1px solid rgba(68, 221, 136, .22);
+    color: rgba(68, 221, 136, .8);
+}
+
+.tag.safe {
+    background: rgba(68, 221, 136, .06);
+    border: 1px solid rgba(68, 221, 136, .18);
+    color: rgba(68, 221, 136, .75);
+}
+
+.tag.threat {
+    background: rgba(255, 51, 0, .08);
+    border: 1px solid rgba(255, 51, 0, .22);
+    color: rgba(255, 80, 50, .8);
+}
+
+.tag.sys {
+    background: rgba(255, 170, 0, .05);
+    border: 1px solid rgba(255, 170, 0, .15);
+    color: rgba(255, 170, 0, .6);
+}
+
+.tag.psi {
+    background: rgba(119, 68, 255, .06);
+    border: 1px solid rgba(119, 68, 255, .22);
+    color: rgba(153, 102, 255, .8);
+}
+
+/* ── CODE SNIPPETS ── */
+.code {
+    background: rgba(0, 0, 0, 0.4);
+    border: 1px solid rgba(255, 170, 0, 0.09);
+    border-left: 2px solid rgba(255, 170, 0, 0.22);
+    padding: var(--sp-3) var(--sp-4);
+    font-size: var(--text-2xs);
+    line-height: 1.8;
+    color: rgba(255, 170, 0, 0.55);
+    overflow-x: auto;
+    white-space: pre;
+    letter-spacing: 0.04em;
+    font-family: var(--font-ui);
+}
+
+.code .c-key {
+    color: var(--col-accent);
+}
+
+.code .c-val {
+    color: rgba(68, 221, 136, 0.8);
+}
+
+.code .c-cmt {
+    color: rgba(255, 170, 0, 0.25);
+}
+
+.jinja-note {
+    font-size: var(--text-xs);
+    color: rgba(255, 170, 0, 0.35);
+    letter-spacing: 0.05em;
+    border-top: 1px solid rgba(255, 170, 0, 0.06);
+    padding-top: var(--sp-3);
+    margin-top: var(--sp-3);
+    font-style: italic;
+}

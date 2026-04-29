@@ -1,0 +1,26 @@
+<div class="cs" x-show="currentScreen === 'select'" x-transition:enter.duration.500ms>
+    <div class="cs-content">
+        <div class="login-header" style="margin-bottom: 20px;">
+            <div class="login-title">NEURAL_INTERFACE_READY</div>
+            <div class="login-subtitle">Select agent for synchronization</div>
+        </div>
+
+        <div class="char-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; width: 100%;">
+            <template x-for="(agent, id) in agents">
+                <div class="char-slot ds-panel"
+                     :class="{ 'sel': selectedAgentId == id, 'empty': agent.lv === 0 }"
+                     @click="selectedAgentId = id"
+                     style="padding: 15px; cursor: pointer; border: 1px solid rgba(255,170,0,0.1); position: relative;">
+                    <div class="char-name" x-text="agent.name" style="font-weight: bold; color: var(--col-accent);"></div>
+                    <div class="char-meta" style="font-size: 10px; opacity: 0.6;" x-text="agent.lv > 0 ? 'LV ' + agent.lv + ' ' + agent.class : 'VACANT_SLOT'"></div>
+                </div>
+            </template>
+        </div>
+
+        <div class="login-actions" style="margin-top: 30px; width: 100%;">
+            <button class="act-btn ds-button" @click="currentScreen = 'exploration'" :disabled="agents[selectedAgentId].lv === 0">
+                <span>ESTABLISH_NEURAL_LINK</span>
+            </button>
+        </div>
+    </div>
+</div>

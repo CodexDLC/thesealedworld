@@ -1,0 +1,1011 @@
+{% extends base_template %}
+
+{% block title %}Design System — Symbiote Chronicles{% endblock %}
+{% block content %}
+  <div class="ds-page">
+    <!-- ── HEADER ── -->
+    <header class="ds-header">
+      <div class="ds-title">Symbiote Chronicles</div>
+      <div class="ds-subtitle">Design System &amp; Component Library — v1.0</div>
+      <div class="ds-meta">
+        <div class="ds-tag">Eldritch AR</div>
+        <div class="ds-tag">FastAPI + HTMX</div>
+        <div class="ds-tag">Jinja2 / Django Templates</div>
+        <div class="ds-tag">EB Garamond + JetBrains Mono</div>
+        <div class="ds-tag">Vanilla CSS · Zero Framework</div>
+      </div>
+    </header>
+    <!-- ══════════════════════════════════════
+       COLORS
+  ══════════════════════════════════════ -->
+    <section class="ds-section">
+      <div class="ds-section-head">Colors</div>
+      <div class="ds-sub">Base Palette</div>
+      <div class="color-grid">
+        <div class="color-swatch">
+          <div class="swatch-block" style="background:#0a0a0c">
+            <span class="swatch-hex">#0a0a0c</span>
+          </div>
+          <div class="swatch-meta">
+            <div class="swatch-name">Deep Void</div>
+            <div class="swatch-var">--col-bg</div>
+          </div>
+        </div>
+        <div class="color-swatch">
+          <div class="swatch-block" style="background:#111116">
+            <span class="swatch-hex">#111116</span>
+          </div>
+          <div class="swatch-meta">
+            <div class="swatch-name">Surface</div>
+            <div class="swatch-var">--col-surface</div>
+          </div>
+        </div>
+        <div class="color-swatch">
+          <div class="swatch-block" style="background:#d2b48c">
+            <span class="swatch-hex" style="color:rgba(0,0,0,.5)">#d2b48c</span>
+          </div>
+          <div class="swatch-meta">
+            <div class="swatch-name">Parchment</div>
+            <div class="swatch-var">--col-parchment</div>
+          </div>
+        </div>
+        <div class="color-swatch">
+          <div class="swatch-block"
+               style="background:#ffaa00;
+                      box-shadow:0 0 24px rgba(255,170,0,.5)">
+            <span class="swatch-hex" style="color:rgba(0,0,0,.6)">#ffaa00</span>
+          </div>
+          <div class="swatch-meta">
+            <div class="swatch-name">Amber Neural</div>
+            <div class="swatch-var">--col-accent</div>
+          </div>
+        </div>
+        <div class="color-swatch">
+          <div class="swatch-block"
+               style="background:#ff3300;
+                      box-shadow:0 0 24px rgba(255,51,0,.4)">
+            <span class="swatch-hex">#ff3300</span>
+          </div>
+          <div class="swatch-meta">
+            <div class="swatch-name">Corrupted Sync</div>
+            <div class="swatch-var">--col-danger</div>
+          </div>
+        </div>
+        <div class="color-swatch">
+          <div class="swatch-block"
+               style="background:#3399ff;
+                      box-shadow:0 0 24px rgba(51,153,255,.4)">
+            <span class="swatch-hex">#3399ff</span>
+          </div>
+          <div class="swatch-meta">
+            <div class="swatch-name">Energy</div>
+            <div class="swatch-var">--col-energy</div>
+          </div>
+        </div>
+        <div class="color-swatch">
+          <div class="swatch-block"
+               style="background:#44dd88;
+                      box-shadow:0 0 24px rgba(68,221,136,.35)">
+            <span class="swatch-hex" style="color:rgba(0,0,0,.55)">#44dd88</span>
+          </div>
+          <div class="swatch-meta">
+            <div class="swatch-name">Stamina</div>
+            <div class="swatch-var">--col-stamina</div>
+          </div>
+        </div>
+        <div class="color-swatch">
+          <div class="swatch-block"
+               style="background:#7744ff;
+                      box-shadow:0 0 24px rgba(119,68,255,.4)">
+            <span class="swatch-hex">#7744ff</span>
+          </div>
+          <div class="swatch-meta">
+            <div class="swatch-name">Psi / Symbiont</div>
+            <div class="swatch-var">--col-psi</div>
+          </div>
+        </div>
+      </div>
+      <div class="ds-sub" style="margin-top:24px">Semantic Tokens</div>
+      <div class="semantic-grid">
+        <div class="sem-row">
+          <div class="sem-dot" style="background:rgba(255,170,0,.9)"></div>
+          <div class="sem-name">Text Primary (UI)</div>
+          <div class="sem-var">--col-text-primary</div>
+          <div class="sem-val">rgba(255,170,0,0.90)</div>
+        </div>
+        <div class="sem-row">
+          <div class="sem-dot" style="background:rgba(255,170,0,.42)"></div>
+          <div class="sem-name">Text Secondary / Dim</div>
+          <div class="sem-var">--col-text-secondary</div>
+          <div class="sem-val">rgba(255,170,0,0.42)</div>
+        </div>
+        <div class="sem-row">
+          <div class="sem-dot" style="background:rgba(210,180,140,.88)"></div>
+          <div class="sem-name">Text World (Parchment)</div>
+          <div class="sem-var">--col-text-world</div>
+          <div class="sem-val">rgba(210,180,140,0.88)</div>
+        </div>
+        <div class="sem-row">
+          <div class="sem-dot" style="background:rgba(255,170,0,.15)"></div>
+          <div class="sem-name">Border Default</div>
+          <div class="sem-var">--col-border</div>
+          <div class="sem-val">rgba(255,170,0,0.15)</div>
+        </div>
+        <div class="sem-row">
+          <div class="sem-dot" style="background:rgba(255,170,0,.32)"></div>
+          <div class="sem-name">Border Strong / Hover</div>
+          <div class="sem-var">--col-border-strong</div>
+          <div class="sem-val">rgba(255,170,0,0.32)</div>
+        </div>
+        <div class="sem-row">
+          <div class="sem-dot"
+               style="background:rgba(255,170,0,.04);
+                      border:1px solid rgba(255,170,0,.3)"></div>
+          <div class="sem-name">Membrane Background</div>
+          <div class="sem-var">--col-membrane</div>
+          <div class="sem-val">rgba(255,170,0,0.04)</div>
+        </div>
+      </div>
+    </section>
+    <!-- ══════════════════════════════════════
+       TYPOGRAPHY
+  ══════════════════════════════════════ -->
+    <section class="ds-section">
+      <div class="ds-section-head">Typography</div>
+      <div class="ds-sub">EB Garamond — The World Layer</div>
+      <div class="type-scale">
+        <div class="type-row">
+          <div class="type-meta">
+            <span class="type-label">3XL · 32px</span><span class="type-size">var(--text-3xl)</span>
+          </div>
+          <div class="type-sample-world" style="font-size:32px">Symbiote Chronicles</div>
+        </div>
+        <div class="type-row">
+          <div class="type-meta">
+            <span class="type-label">2XL · 24px</span><span class="type-size">var(--text-2xl)</span>
+          </div>
+          <div class="type-sample-world" style="font-size:24px">The Sunken Archives</div>
+        </div>
+        <div class="type-row">
+          <div class="type-meta">
+            <span class="type-label">XL · 20px</span><span class="type-size">var(--text-xl)</span>
+          </div>
+          <div class="type-sample-world" style="font-size:20px">Weave-Wraith Pack Encountered</div>
+        </div>
+        <div class="type-row">
+          <div class="type-meta">
+            <span class="type-label">LG · 17px</span><span class="type-size">var(--text-lg)</span>
+          </div>
+          <div class="type-sample-world" style="font-size:17px">
+            The chamber descends in broken tiers, <em style="color:var(--col-accent)">each step whispering forgotten syllables</em> as your boot finds <strong style="color:rgba(210,180,140,1)">ancient stone</strong>.
+          </div>
+        </div>
+        <div class="type-row">
+          <div class="type-meta">
+            <span class="type-label">MD · 14px</span><span class="type-size">var(--text-md)</span>
+          </div>
+          <div class="type-sample-world" style="font-size:14px">Tell the truth about the Conclave's mission</div>
+        </div>
+      </div>
+      <div class="ds-sub" style="margin-top:24px">JetBrains Mono — The Symbiont Layer (UI)</div>
+      <div class="type-scale">
+        <div class="type-row">
+          <div class="type-meta">
+            <span class="type-label">SM · 10px</span><span class="type-size">var(--text-sm)</span>
+          </div>
+          <div class="type-sample-ui" style="font-size:10px">ROOK THE UNBOUND · Weave-Bonded Archivist · Lv 12</div>
+        </div>
+        <div class="type-row">
+          <div class="type-meta">
+            <span class="type-label">XS · 9px</span><span class="type-size">var(--text-xs)</span>
+          </div>
+          <div class="type-sample-ui"
+               style="font-size:9px;
+                      letter-spacing:.18em;
+                      text-transform:uppercase">HP · EN · STAMINA · PSI-RESONANCE</div>
+        </div>
+        <div class="type-row">
+          <div class="type-meta">
+            <span class="type-label">2XS · 8px</span><span class="type-size">var(--text-2xs)</span>
+          </div>
+          <div class="type-sample-ui"
+               style="font-size:8px;
+                      letter-spacing:.28em;
+                      text-transform:uppercase;
+                      color:rgba(255,170,0,.4)">AGENT ROOK-7 // SESSION Δ-0449 // LOC 52_52</div>
+        </div>
+      </div>
+    </section>
+    <!-- ══════════════════════════════════════
+       SPACING
+  ══════════════════════════════════════ -->
+    <section class="ds-section">
+      <div class="ds-section-head">Spacing</div>
+      <div class="spacing-grid">
+        <div class="sp-row">
+          <div class="sp-meta">
+            <span class="sp-token">--sp-1</span><span class="sp-px">4px</span>
+          </div>
+          <div class="sp-bar" style="width:4px"></div>
+        </div>
+        <div class="sp-row">
+          <div class="sp-meta">
+            <span class="sp-token">--sp-2</span><span class="sp-px">8px</span>
+          </div>
+          <div class="sp-bar" style="width:8px"></div>
+        </div>
+        <div class="sp-row">
+          <div class="sp-meta">
+            <span class="sp-token">--sp-3</span><span class="sp-px">12px</span>
+          </div>
+          <div class="sp-bar" style="width:12px"></div>
+        </div>
+        <div class="sp-row">
+          <div class="sp-meta">
+            <span class="sp-token">--sp-4</span><span class="sp-px">16px</span>
+          </div>
+          <div class="sp-bar" style="width:16px"></div>
+        </div>
+        <div class="sp-row">
+          <div class="sp-meta">
+            <span class="sp-token">--sp-5</span><span class="sp-px">20px</span>
+          </div>
+          <div class="sp-bar" style="width:20px"></div>
+        </div>
+        <div class="sp-row">
+          <div class="sp-meta">
+            <span class="sp-token">--sp-6</span><span class="sp-px">24px</span>
+          </div>
+          <div class="sp-bar" style="width:24px"></div>
+        </div>
+        <div class="sp-row">
+          <div class="sp-meta">
+            <span class="sp-token">--sp-8</span><span class="sp-px">32px</span>
+          </div>
+          <div class="sp-bar" style="width:32px"></div>
+        </div>
+        <div class="sp-row">
+          <div class="sp-meta">
+            <span class="sp-token">--sp-10</span><span class="sp-px">40px</span>
+          </div>
+          <div class="sp-bar" style="width:40px"></div>
+        </div>
+        <div class="sp-row">
+          <div class="sp-meta">
+            <span class="sp-token">--sp-12</span><span class="sp-px">48px</span>
+          </div>
+          <div class="sp-bar" style="width:48px"></div>
+        </div>
+      </div>
+      <div class="ds-sub" style="margin-top:20px">Clip-path Nodes (replaces border-radius)</div>
+      <div class="comp-row">
+        <div style="display:flex;flex-direction:column;align-items:center;gap:6px">
+          <div style="width:80px;
+                      height:32px;
+                      background:rgba(255,170,0,.1);
+                      border:1px solid var(--col-border);
+                      clip-path:var(--clip-node-sm)"></div>
+          <div style="font-size:8px;
+                      color:var(--col-text-secondary);
+                      letter-spacing:.1em">
+            --clip-node-sm
+            <br />
+            5px cut
+          </div>
+        </div>
+        <div style="display:flex;flex-direction:column;align-items:center;gap:6px">
+          <div style="width:80px;
+                      height:32px;
+                      background:rgba(255,170,0,.1);
+                      border:1px solid var(--col-border);
+                      clip-path:var(--clip-node-md)"></div>
+          <div style="font-size:8px;
+                      color:var(--col-text-secondary);
+                      letter-spacing:.1em">
+            --clip-node-md
+            <br />
+            8px cut
+          </div>
+        </div>
+        <div style="display:flex;flex-direction:column;align-items:center;gap:6px">
+          <div style="width:80px;
+                      height:32px;
+                      background:rgba(255,170,0,.1);
+                      border:1px solid var(--col-border);
+                      clip-path:var(--clip-node-lg)"></div>
+          <div style="font-size:8px;
+                      color:var(--col-text-secondary);
+                      letter-spacing:.1em">
+            --clip-node-lg
+            <br />
+            12px cut
+          </div>
+        </div>
+      </div>
+    </section>
+    <!-- ══════════════════════════════════════
+       COMPONENTS
+  ══════════════════════════════════════ -->
+    <section class="ds-section">
+      <div class="ds-section-head">Components</div>
+      <div class="comp-grid">
+        <!-- Buttons -->
+        <div class="comp-block">
+          <div class="comp-title">Buttons — Node Style</div>
+          <div class="comp-row">
+            <button class="btn-node sm">Small</button>
+            <button class="btn-node">Default</button>
+            <button class="btn-node lg">Large Node</button>
+          </div>
+          <div class="comp-row">
+            <button class="btn-node danger">⚠ Danger</button>
+            <button class="btn-node ghost">Ghost</button>
+            <button class="btn-node psi">◈ Symbiont</button>
+          </div>
+          <div class="comp-note">
+            No border-radius. All buttons use clip-path polygon. No solid background — only glow on hover.
+          </div>
+          <pre class="code">{% raw %}<span class="c-cmt">{# Jinja2 #}</span>
+<span class="c-key">&lt;button</span> class=<span class="c-val">"btn-node {{ variant }}"</span><span class="c-key">&gt;</span>{{ label }}<span class="c-key">&lt;/button&gt;</span>
+
+<span class="c-cmt">{# HTMX example #}</span>
+<span class="c-key">&lt;button</span> class=<span class="c-val">"btn-node"</span>
+        hx-post=<span class="c-val">"/action/use-ability"</span>
+        hx-target=<span class="c-val">"#chat-log"</span>
+        hx-swap=<span class="c-val">"beforeend"</span><span class="c-key">&gt;</span>Neural Lash<span class="c-key">&lt;/button&gt;</span>{% endraw %}</pre>
+        </div>
+        <!-- Membrane Panels -->
+        <div class="comp-block">
+          <div class="comp-title">Membrane Panels</div>
+          <div class="comp-row">
+            <div class="panel-membrane"
+                 style="width:160px;
+                        font-size:10px;
+                        color:rgba(255,170,0,.6)">Default membrane — accent glow breathing</div>
+            <div class="panel-membrane danger"
+                 style="width:160px;
+                        font-size:10px;
+                        color:rgba(255,80,50,.6)">Danger membrane — HP critical / combat alert</div>
+            <div class="panel-membrane psi"
+                 style="width:160px;
+                        font-size:10px;
+                        color:rgba(153,102,255,.7)">Psi membrane — Symbiont / scenario</div>
+          </div>
+          <div class="comp-note">
+            All panels: background transparent, backdrop-filter blur, animated box-shadow. No solid fills.
+          </div>
+        </div>
+        <!-- Stat Bars -->
+        <div class="comp-block">
+          <div class="comp-title">Vital Bars — HP · EN · Stamina</div>
+          <div class="comp-row">
+            <div class="stat-demo">
+              <div class="stat-row">
+                <div class="stat-label-row">
+                  <span class="stat-key">HP</span><span class="stat-val" style="color:var(--col-danger)">67 / 100</span>
+                </div>
+                <div class="stat-track">
+                  <div class="stat-fill hp" style="width:67%"></div>
+                </div>
+              </div>
+              <div class="stat-row">
+                <div class="stat-label-row">
+                  <span class="stat-key">EN</span><span class="stat-val">82 / 100</span>
+                </div>
+                <div class="stat-track">
+                  <div class="stat-fill en" style="width:82%"></div>
+                </div>
+              </div>
+              <div class="stat-row">
+                <div class="stat-label-row">
+                  <span class="stat-key">Stamina</span><span class="stat-val">55 / 100</span>
+                </div>
+                <div class="stat-track">
+                  <div class="stat-fill sta" style="width:55%"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <pre class="code">{% raw %}<span class="c-cmt">{# stat_bar.html — reusable Jinja2 macro #}</span>
+<span class="c-key">{% macro</span> stat_bar(key, cur, max, variant) <span class="c-key">%}</span>
+<span class="c-key">&lt;div</span> class=<span class="c-val">"stat-row"</span><span class="c-key">&gt;</span>
+  <span class="c-key">&lt;div</span> class=<span class="c-val">"stat-label-row"</span><span class="c-key">&gt;</span>
+    <span class="c-key">&lt;span</span> class=<span class="c-val">"stat-key"</span><span class="c-key">&gt;</span>{{ key }}<span class="c-key">&lt;/span&gt;</span>
+    <span class="c-key">&lt;span</span> class=<span class="c-val">"stat-val"</span><span class="c-key">&gt;</span>{{ cur }} / {{ max }}<span class="c-key">&lt;/span&gt;</span>
+  <span class="c-key">&lt;/div&gt;</span>
+  <span class="c-key">&lt;div</span> class=<span class="c-val">"stat-track"</span><span class="c-key">&gt;</span>
+    <span class="c-key">&lt;div</span> class=<span class="c-val">"stat-fill {{ variant }}"</span>
+         style=<span class="c-val">"width: {{ (cur/max*100)|int }}%"</span><span class="c-key">&gt;&lt;/div&gt;</span>
+  <span class="c-key">&lt;/div&gt;</span>
+<span class="c-key">&lt;/div&gt;</span>
+<span class="c-key">{% endmacro %}</span>{% endraw %}</pre>
+        </div>
+        <!-- Effect Tags -->
+        <div class="comp-block">
+          <div class="comp-title">Status Tags / Badges</div>
+          <div class="comp-row">
+            <span class="tag burn">Burn ×2</span>
+            <span class="tag stun">Stun</span>
+            <span class="tag bleed">Bleed</span>
+            <span class="tag regen">Regen</span>
+            <span class="tag safe">Safe Zone</span>
+            <span class="tag threat">⚠ Threat III</span>
+            <span class="tag sys">System</span>
+            <span class="tag psi">◈ Symbiont</span>
+          </div>
+        </div>
+        <!-- Combat Tokens -->
+        <div class="comp-block">
+          <div class="comp-title">Combat Tokens</div>
+          <div class="comp-row">
+            <div class="token">
+              <span class="t-key">Tactics</span><span class="t-val">5</span>
+            </div>
+            <div class="token">
+              <span class="t-key">Gift</span><span class="t-val">1</span>
+            </div>
+          </div>
+          <pre class="code">{% raw %}<span class="c-cmt">{# tokens from CombatDashboardDTO.hero.tokens #}</span>
+<span class="c-key">{% for</span> key, val <span class="c-key">in</span> hero.tokens.items() <span class="c-key">%}</span>
+<span class="c-key">&lt;div</span> class=<span class="c-val">"token"</span><span class="c-key">&gt;</span>
+  <span class="c-key">&lt;span</span> class=<span class="c-val">"t-key"</span><span class="c-key">&gt;</span>{{ key }}<span class="c-key">&lt;/span&gt;</span>
+  <span class="c-key">&lt;span</span> class=<span class="c-val">"t-val"</span><span class="c-key">&gt;</span>{{ val }}<span class="c-key">&lt;/span&gt;</span>
+<span class="c-key">&lt;/div&gt;</span>
+<span class="c-key">{% endfor %}</span>{% endraw %}</pre>
+        </div>
+        <!-- Attribute Grid -->
+        <div class="comp-block">
+          <div class="comp-title">Attribute Grid — 3×3</div>
+          <div class="comp-row">
+            <div class="attr-grid">
+              <div class="ac">
+                <span class="ac-k">STR</span><span class="ac-v">14</span>
+              </div>
+              <div class="ac">
+                <span class="ac-k">AGI</span><span class="ac-v">11</span>
+              </div>
+              <div class="ac">
+                <span class="ac-k">END</span><span class="ac-v">12</span>
+              </div>
+              <div class="ac">
+                <span class="ac-k">INT</span><span class="ac-v">18</span>
+              </div>
+              <div class="ac">
+                <span class="ac-k">MEM</span><span class="ac-v">15</span>
+              </div>
+              <div class="ac">
+                <span class="ac-k">MEN</span><span class="ac-v">16</span>
+              </div>
+              <div class="ac">
+                <span class="ac-k">PER</span><span class="ac-v">13</span>
+              </div>
+              <div class="ac">
+                <span class="ac-k">PRJ</span><span class="ac-v">10</span>
+              </div>
+              <div class="ac">
+                <span class="ac-k">PRD</span><span class="ac-v">9</span>
+              </div>
+            </div>
+          </div>
+          <div class="comp-note">Maps to CharacterAttributesReadDTO — 9 primary attributes from StatKey enum.</div>
+        </div>
+        <!-- Nav Grid -->
+        <div class="comp-block">
+          <div class="comp-title">Navigation Grid — 3×3 (Pure Movement)</div>
+          <div class="comp-row">
+            <div class="nav-demo">
+              <div class="nb off">NW</div>
+              <div class="nb">⬆ N</div>
+              <div class="nb off">NE</div>
+              <div class="nb">◀ W</div>
+              <div class="nb center">✦</div>
+              <div class="nb">E ▶</div>
+              <div class="nb">SW</div>
+              <div class="nb">⬇ S</div>
+              <div class="nb off">SE</div>
+            </div>
+          </div>
+          <div class="comp-note">Web redesign: grid = movement only (N/S/W/E + diagonals). Inventory/Status moved to Bottom Nav. Maps to NavigationGridDTO.</div>
+          <pre class="code">{% raw %}<span class="c-cmt">{# nav_grid.html — from NavigationGridDTO #}</span>
+<span class="c-key">&lt;div</span> class=<span class="c-val">"nav-demo"</span><span class="c-key">&gt;</span>
+<span class="c-key">{% for</span> dir <span class="c-key">in</span> ['nw','n','ne','w','center','e','sw','s','se'] <span class="c-key">%}</span>
+  <span class="c-key">{% set</span> btn = grid[dir] <span class="c-key">%}</span>
+  <span class="c-key">&lt;div</span> class=<span class="c-val">"nb {{ 'off' if not btn or not btn.is_active }} {{ 'center' if dir == 'center' }}"</span>
+       <span class="c-key">{% if</span> btn and btn.is_active <span class="c-key">%}</span>
+       hx-post=<span class="c-val">"/navigate"</span> hx-vals=<span class="c-val">'{"direction":"{{ btn.action }}"}'</span>
+       hx-target=<span class="c-val">"#viewport"</span> hx-swap=<span class="c-val">"outerHTML"</span>
+       <span class="c-key">{% endif %}&gt;</span>
+    {{ btn.label if btn else dir.upper() }}
+  <span class="c-key">&lt;/div&gt;</span>
+<span class="c-key">{% endfor %}</span>
+<span class="c-key">&lt;/div&gt;</span>{% endraw %}</pre>
+        </div>
+        <!-- Bottom Nav -->
+        <div class="comp-block">
+          <div class="comp-title">Bottom Navigation Bar</div>
+          <div class="comp-row">
+            <div class="bnav-demo">
+              <div class="bnt active">
+                <span class="bi">🗺</span><span class="bl">Explore</span>
+              </div>
+              <div class="bn-div"></div>
+              <div class="bnt">
+                <span class="bi">⚔️</span><span class="bl">Combat</span>
+              </div>
+              <div class="bn-div"></div>
+              <div class="bnt">
+                <span class="bi">🎒</span><span class="bl">Inventory</span>
+              </div>
+              <div class="bn-div"></div>
+              <div class="bnt">
+                <span class="bi">◉</span><span class="bl">Status</span>
+              </div>
+              <div class="bn-div"></div>
+              <div class="bnt">
+                <span class="bi">📜</span><span class="bl">Scenario</span>
+              </div>
+              <div class="bn-div"></div>
+              <div class="bnt">
+                <span class="bi">🏰</span><span class="bl">Lobby</span>
+              </div>
+            </div>
+          </div>
+          <div class="comp-note">Fixed bottom-center. Glassmorphic membrane + clip-path octagon. Replaces Telegram bot's 3×3 corner utilities.</div>
+        </div>
+        <!-- HUD Strip -->
+        <div class="comp-block">
+          <div class="comp-title">HUD Strip — ExplorationHudDTO</div>
+          <div class="comp-row">
+            <div class="hud-demo" style="width:320px">
+              <div class="hc thr">
+                <span class="hv">⚠ III</span><span class="hl">Threat</span>
+              </div>
+              <div class="hc">
+                <span class="hv">4</span><span class="hl">Players</span>
+              </div>
+              <div class="hc">
+                <span class="hv">2</span><span class="hl">Battles</span>
+              </div>
+              <div class="hc safe">
+                <span class="hv">✓</span><span class="hl">Safe Zone</span>
+              </div>
+            </div>
+          </div>
+          <pre class="code">{% raw %}<span class="c-cmt">{# maps to ExplorationHudDTO #}</span>
+<span class="c-key">&lt;div</span> class=<span class="c-val">"hud-demo"</span><span class="c-key">&gt;</span>
+  <span class="c-key">&lt;div</span> class=<span class="c-val">"hc {{ 'thr' if hud.threat_tier >= 3 }}"</span><span class="c-key">&gt;</span>
+    <span class="c-key">&lt;span</span> class=<span class="c-val">"hv"</span><span class="c-key">&gt;</span>⚠ {{ hud.threat_tier }}<span class="c-key">&lt;/span&gt;</span>
+    <span class="c-key">&lt;span</span> class=<span class="c-val">"hl"</span><span class="c-key">&gt;</span>Threat<span class="c-key">&lt;/span&gt;</span>
+  <span class="c-key">&lt;/div&gt;</span>
+  <span class="c-key">&lt;div</span> class=<span class="c-val">"hc {{ 'safe' if hud.is_safe_zone }}"</span><span class="c-key">&gt;</span>
+    <span class="c-key">&lt;span</span> class=<span class="c-val">"hv"</span><span class="c-key">&gt;</span>{{ '✓' if hud.is_safe_zone else '✗' }}<span class="c-key">&lt;/span&gt;</span>
+    <span class="c-key">&lt;span</span> class=<span class="c-val">"hl"</span><span class="c-key">&gt;</span>Safe Zone<span class="c-key">&lt;/span&gt;</span>
+  <span class="c-key">&lt;/div&gt;</span>
+<span class="c-key">&lt;/div&gt;</span>{% endraw %}</pre>
+        </div>
+        <!-- Parchment -->
+        <div class="comp-block">
+          <div class="comp-title">Parchment Viewport — World Description</div>
+          <div class="comp-row">
+            <div class="parchment-demo" style="max-width:480px">
+              <div class="corner c-tl"></div>
+              <div class="corner c-tr"></div>
+              <div class="corner c-bl"></div>
+              <div class="corner c-br"></div>
+              <div class="world-text">
+                The chamber descends in broken tiers, <em>each step whispering forgotten syllables</em> as your boot finds stone. Bioluminescent fungi cling to columns older than the empire — tracing the <strong>Weave-scars</strong> that ridge every surface.
+              </div>
+            </div>
+          </div>
+          <div class="comp-note">Maps to WorldNavigationDTO.description. Font: EB Garamond 17px. Clip-path ragged octagon edges.</div>
+        </div>
+        <!-- Symbiont Whisper -->
+        <div class="comp-block">
+          <div class="comp-title">Symbiont Whisper — Contextual Hint</div>
+          <div class="comp-row">
+            <div class="whisper" style="max-width:480px">
+              Something was sealed here. The intention is still… resident in the stone. Approach the central plinth slowly.
+            </div>
+          </div>
+        </div>
+        <!-- Chat Terminal -->
+        <div class="comp-block">
+          <div class="comp-title">Chat Terminal — Weave-Channel</div>
+          <div class="comp-row">
+            <div class="chat-demo">
+              <div class="chat-h">
+                <span>Weave-Channel α</span>
+                <div style="display:flex;align-items:center;gap:5px">
+                  <div class="ch-dot"></div>
+                  <span>Live</span>
+                </div>
+              </div>
+              <div class="chat-body">
+                <div class="cm sys">
+                  <span class="ct">[SYS]</span>Neural link established.
+                </div>
+                <div class="cm npc">
+                  <span class="ct">[ARCHIVIST]</span>The stones remember.
+                </div>
+                <div class="cm player">
+                  <span class="ct">[ROOK]</span>What happened here?
+                </div>
+                <div class="cm danger">
+                  <span class="ct">[ALERT]</span>Hostile detected — 40m NNW.
+                </div>
+              </div>
+            </div>
+          </div>
+          <pre class="code">{% raw %}<span class="c-cmt">{# HTMX: chat messages appended via hx-swap="beforeend" #}</span>
+<span class="c-key">&lt;div</span> id=<span class="c-val">"chat-log"</span>
+     hx-ext=<span class="c-val">"ws"</span>
+     ws-connect=<span class="c-val">"/ws/channel/{{ char_id }}"</span><span class="c-key">&gt;</span>
+  <span class="c-key">{% for</span> msg <span class="c-key">in</span> messages <span class="c-key">%}</span>
+  <span class="c-key">&lt;div</span> class=<span class="c-val">"cm {{ msg.type }}"</span><span class="c-key">&gt;</span>
+    <span class="c-key">&lt;span</span> class=<span class="c-val">"ct"</span><span class="c-key">&gt;</span>{{ msg.tag }}<span class="c-key">&lt;/span&gt;</span>{{ msg.text }}
+  <span class="c-key">&lt;/div&gt;</span>
+  <span class="c-key">{% endfor %}</span>
+<span class="c-key">&lt;/div&gt;</span>{% endraw %}</pre>
+        </div>
+        <!-- Encounter Card -->
+        <div class="comp-block">
+          <div class="comp-title">Encounter Card — EncounterDTO</div>
+          <div class="comp-row">
+            <div class="enc-demo">
+              <div class="enc-badge">⚔ COMBAT</div>
+              <div class="enc-title">Weave-Wraith Pack</div>
+              <div class="enc-desc">
+                Three entities materialise from the stone — their forms <em>half-translated</em> between dimensions.
+              </div>
+              <div class="comp-row" style="margin-top:10px">
+                <button class="btn-node">⚔ Attack</button>
+                <button class="btn-node ghost">👁 Observe</button>
+                <button class="btn-node danger">↩ Flee</button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <!-- Combat Log -->
+        <div class="comp-block">
+          <div class="comp-title">Combat Log — CombatLogEntryDTO</div>
+          <div class="comp-row">
+            <div class="log-demo" style="width:380px">
+              <div class="le system">
+                <span class="lt">T01</span>Combat begins. Initiative: ROOK-7 acts first.
+              </div>
+              <div class="le hit">
+                <span class="lt">T01</span>ROOK uses <strong>Neural Lash</strong> → Wraith Veteran. <strong>-28 HP</strong>. Burn applied.
+              </div>
+              <div class="le miss">
+                <span class="lt">T02</span>Wraith Minion attacks ROOK. <strong>Evaded</strong>.
+              </div>
+              <div class="le effect">
+                <span class="lt">T02</span>Wraith Veteran: <strong>Burn</strong> deals -6 HP. Stack: 1.
+              </div>
+            </div>
+          </div>
+          <pre class="code">{% raw %}<span class="c-cmt">{# combat_log.html — from CombatLogEntryDTO.tags #}</span>
+<span class="c-key">{% for</span> entry <span class="c-key">in</span> log.logs <span class="c-key">%}</span>
+<span class="c-key">&lt;div</span> class=<span class="c-val">"le {{ entry.tags[0] if entry.tags else 'system' }}"</span><span class="c-key">&gt;</span>
+  <span class="c-key">&lt;span</span> class=<span class="c-val">"lt"</span><span class="c-key">&gt;</span>T{{ loop.index }}<span class="c-key">&lt;/span&gt;</span>{{ entry.text }}
+<span class="c-key">&lt;/div&gt;</span>
+<span class="c-key">{% endfor %}</span>{% endraw %}</pre>
+        </div>
+        <!-- Scenario Choices -->
+        <div class="comp-block">
+          <div class="comp-title">Scenario Choices — ScenarioButtonDTO</div>
+          <div class="comp-row"
+               style="flex-direction:column;
+                      gap:4px;
+                      width:100%;
+                      max-width:480px">
+            <div class="choice">Tell the truth about the Conclave's mission</div>
+            <div class="choice">Offer the obsidian vial as payment</div>
+            <div class="choice">Deflect with a question about the Seals</div>
+          </div>
+          <pre class="code">{% raw %}<span class="c-cmt">{# scenario_choices.html #}</span>
+<span class="c-key">{% for</span> btn <span class="c-key">in</span> scenario.buttons <span class="c-key">%}</span>
+<span class="c-key">&lt;button</span> class=<span class="c-val">"choice"</span>
+        hx-post=<span class="c-val">"/scenario/step"</span>
+        hx-vals=<span class="c-val">'{"action_id":"{{ btn.action_id }}"}'</span>
+        hx-target=<span class="c-val">"#viewport"</span><span class="c-key">&gt;</span>
+  {{ btn.label }}
+<span class="c-key">&lt;/button&gt;</span>
+<span class="c-key">{% endfor %}</span>{% endraw %}</pre>
+        </div>
+        <!-- Inventory Slot + Wallet -->
+        <div class="comp-block">
+          <div class="comp-title">Inventory Slots + Wallet</div>
+          <div class="comp-row">
+            <div class="inv-demo">
+              <div class="is">⚗️</div>
+              <div class="is">📜</div>
+              <div class="is">🗝</div>
+              <div class="is">⚔️</div>
+              <div class="is empty"></div>
+            </div>
+          </div>
+          <div class="comp-row" style="margin-top:12px">
+            <div class="wallet">
+              <div class="wi">
+                <span class="wi-icon">🪙</span><span class="wi-val">840</span><span class="wi-lbl">Gold</span>
+              </div>
+              <div class="wi">
+                <span class="wi-icon">✨</span><span class="wi-val">12</span><span class="wi-lbl">Dust</span>
+              </div>
+              <div class="wi">
+                <span class="wi-icon">◈</span><span class="wi-val">3</span><span class="wi-lbl">Tokens</span>
+              </div>
+            </div>
+          </div>
+          <pre class="code">{% raw %}<span class="c-cmt">{# wallet from WalletDTO.currency #}</span>
+<span class="c-key">{% for</span> cur <span class="c-key">in</span> wallet.currency <span class="c-key">%}</span>
+<span class="c-key">&lt;div</span> class=<span class="c-val">"wi"</span><span class="c-key">&gt;</span>
+  <span class="c-key">&lt;span</span> class=<span class="c-val">"wi-val"</span><span class="c-key">&gt;</span>{{ cur.amount }}<span class="c-key">&lt;/span&gt;</span>
+  <span class="c-key">&lt;span</span> class=<span class="c-val">"wi-lbl"</span><span class="c-key">&gt;</span>{{ cur.name }}<span class="c-key">&lt;/span&gt;</span>
+<span class="c-key">&lt;/div&gt;</span>
+<span class="c-key">{% endfor %}</span>{% endraw %}</pre>
+        </div>
+      </div>
+    </section>
+    <!-- ══════════════════════════════════════
+       RARITY SYSTEM
+  ══════════════════════════════════════ -->
+    <section class="ds-section">
+      <div class="ds-section-head">Item Rarity — Grades 0–7</div>
+      <div class="ds-sub">Rarity Scale</div>
+      <div style="display:flex;flex-direction:column;gap:6px;max-width:640px">
+        <div style="display:flex;align-items:center;gap:12px">
+          <div style="width:32px;text-align:right;font-size:var(--text-xs);color:var(--col-text-secondary)">0</div>
+          <span class="rarity-badge r0"><span class="rarity-pip"></span>Common</span>
+          <code style="font-size:var(--text-2xs);color:rgba(136,136,153,0.5)">--r0: #888899</code>
+        </div>
+        <div style="display:flex;align-items:center;gap:12px">
+          <div style="width:32px;text-align:right;font-size:var(--text-xs);color:var(--col-text-secondary)">1</div>
+          <span class="rarity-badge r1"><span class="rarity-pip"></span>Uncommon</span>
+          <code style="font-size:var(--text-2xs);color:rgba(68,170,102,0.5)">--r1: #44aa66</code>
+        </div>
+        <div style="display:flex;align-items:center;gap:12px">
+          <div style="width:32px;text-align:right;font-size:var(--text-xs);color:var(--col-text-secondary)">2</div>
+          <span class="rarity-badge r2"><span class="rarity-pip"></span>Advanced</span>
+          <code style="font-size:var(--text-2xs);color:rgba(42,157,143,0.5)">--r2: #2a9d8f</code>
+        </div>
+        <div style="display:flex;align-items:center;gap:12px">
+          <div style="width:32px;text-align:right;font-size:var(--text-xs);color:var(--col-text-secondary)">3</div>
+          <span class="rarity-badge r3"><span class="rarity-pip"></span>Rare</span>
+          <code style="font-size:var(--text-2xs);color:rgba(51,153,255,0.5)">--r3: #3399ff</code>
+        </div>
+        <div style="display:flex;align-items:center;gap:12px">
+          <div style="width:32px;text-align:right;font-size:var(--text-xs);color:var(--col-text-secondary)">4</div>
+          <span class="rarity-badge r4"><span class="rarity-pip"></span>Epic</span>
+          <code style="font-size:var(--text-2xs);color:rgba(153,68,238,0.5)">--r4: #9944ee</code>
+        </div>
+        <div style="display:flex;align-items:center;gap:12px">
+          <div style="width:32px;text-align:right;font-size:var(--text-xs);color:var(--col-text-secondary)">5</div>
+          <span class="rarity-badge r5"><span class="rarity-pip"></span>Mythic</span>
+          <code style="font-size:var(--text-2xs);color:rgba(255,102,0,0.5)">--r5: #ff6600</code>
+        </div>
+        <div style="display:flex;align-items:center;gap:12px">
+          <div style="width:32px;text-align:right;font-size:var(--text-xs);color:var(--col-text-secondary)">6</div>
+          <span class="rarity-badge r6"><span class="rarity-pip"></span>Legendary</span>
+          <code style="font-size:var(--text-2xs);color:rgba(255,170,0,0.5)">--r6: #ffaa00 · breathing glow</code>
+        </div>
+        <div style="display:flex;align-items:center;gap:12px">
+          <div style="width:32px;text-align:right;font-size:var(--text-xs);color:var(--col-text-secondary)">7</div>
+          <span class="rarity-badge r7"><span class="rarity-pip"></span>Absolute</span>
+          <code style="font-size:var(--text-2xs);color:rgba(255,255,255,0.35)">--r7: #ffffff · white pulse</code>
+        </div>
+      </div>
+      <!-- Item Cards -->
+      <div class="ds-sub" style="margin-top:28px">Item Cards — MMO Tooltip Style</div>
+      <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-start">
+        <!-- Common -->
+        <div class="item-card r0 ic-r0" style="color:var(--r0)">
+          <div class="ic-header">
+            <div class="ic-name">Worn Leather Belt</div>
+            <div class="ic-type">Belt Accessory · Common</div>
+          </div>
+          <div class="ic-body">
+            <div class="ic-stat">
+              <span class="ic-stat-key">Armor</span><span class="ic-stat-val">+3</span>
+            </div>
+            <div class="ic-stat">
+              <span class="ic-stat-key">Endurance</span><span class="ic-stat-val pos">+1</span>
+            </div>
+            <div class="ic-stat">
+              <span class="ic-stat-key">Weight</span><span class="ic-stat-val">0.4 kg</span>
+            </div>
+          </div>
+          <div class="ic-flavor">Scuffed and repaired many times over. Still holds.</div>
+          <div class="ic-req met">✓ No requirements</div>
+        </div>
+        <!-- Rare -->
+        <div class="item-card r3 ic-r3" style="color:var(--r3)">
+          <div class="ic-header">
+            <div class="ic-name">Archivist's Sigil Ring</div>
+            <div class="ic-type">Ring · Rare</div>
+          </div>
+          <div class="ic-body">
+            <div class="ic-stat">
+              <span class="ic-stat-key">Intelligence</span><span class="ic-stat-val pos">+4</span>
+            </div>
+            <div class="ic-stat">
+              <span class="ic-stat-key">Memory</span><span class="ic-stat-val pos">+3</span>
+            </div>
+            <div class="ic-stat">
+              <span class="ic-stat-key">Magic Resist</span><span class="ic-stat-val pos">+8</span>
+            </div>
+            <div class="ic-stat">
+              <span class="ic-stat-key">Stamina Regen</span><span class="ic-stat-val neg">–2</span>
+            </div>
+            <div class="ic-divider"></div>
+            <div class="ic-effects">
+              <span class="ic-effect">Weave-Read</span>
+              <span class="ic-effect">Archive Access</span>
+            </div>
+          </div>
+          <div class="ic-flavor">
+            Marked with the seal of the Third Archive. The inscription shifts when you are not watching directly.
+          </div>
+          <div class="ic-req">✗ Requires INT 14 · MEM 10</div>
+        </div>
+        <!-- Epic -->
+        <div class="item-card r4 ic-r4" style="color:var(--r4)">
+          <div class="ic-header">
+            <div class="ic-name">Voidblade Resonant</div>
+            <div class="ic-type">Main Hand · Sword · Epic</div>
+          </div>
+          <div class="ic-body">
+            <div class="ic-stat">
+              <span class="ic-stat-key">Physical DMG</span><span class="ic-stat-val pos">+38–52</span>
+            </div>
+            <div class="ic-stat">
+              <span class="ic-stat-key">Magical DMG</span><span class="ic-stat-val pos">+24</span>
+            </div>
+            <div class="ic-stat">
+              <span class="ic-stat-key">Crit Chance</span><span class="ic-stat-val pos">+9%</span>
+            </div>
+            <div class="ic-stat">
+              <span class="ic-stat-key">Initiative</span><span class="ic-stat-val pos">+4</span>
+            </div>
+            <div class="ic-stat">
+              <span class="ic-stat-key">Weight</span><span class="ic-stat-val">1.8 kg</span>
+            </div>
+            <div class="ic-divider"></div>
+            <div class="ic-effects">
+              <span class="ic-effect">Weave-Resonance</span>
+              <span class="ic-effect">Void-Touched</span>
+              <span class="ic-effect">Symbiont Sync</span>
+            </div>
+          </div>
+          <div class="ic-flavor">
+            The blade hums at a frequency that predates the Conclave. Those with a symbiont report hearing it <em>respond</em>.
+          </div>
+          <div class="ic-req met">✓ STR 12 · INT 16 · Weave-Bonded</div>
+        </div>
+        <!-- Legendary -->
+        <div class="item-card r6 ic-r6" style="color:var(--r6)">
+          <div class="ic-header">
+            <div class="ic-name">The Warden's Covenant</div>
+            <div class="ic-type">Outer Garment · Legendary</div>
+          </div>
+          <div class="ic-body">
+            <div class="ic-stat">
+              <span class="ic-stat-key">All Attributes</span><span class="ic-stat-val pos">+6</span>
+            </div>
+            <div class="ic-stat">
+              <span class="ic-stat-key">Armor</span><span class="ic-stat-val pos">+44</span>
+            </div>
+            <div class="ic-stat">
+              <span class="ic-stat-key">Magic Resist</span><span class="ic-stat-val pos">+38</span>
+            </div>
+            <div class="ic-stat">
+              <span class="ic-stat-key">EN Regen</span><span class="ic-stat-val pos">+12/turn</span>
+            </div>
+            <div class="ic-stat">
+              <span class="ic-stat-key">HP Regen</span><span class="ic-stat-val pos">+5/turn</span>
+            </div>
+            <div class="ic-divider"></div>
+            <div class="ic-effects">
+              <span class="ic-effect"
+                    style="border-color:rgba(255,170,0,.3);
+                           color:rgba(255,200,80,.85);
+                           background:rgba(255,170,0,.07)">Warden's Aegis</span>
+              <span class="ic-effect"
+                    style="border-color:rgba(255,170,0,.3);
+                           color:rgba(255,200,80,.85);
+                           background:rgba(255,170,0,.07)">Weave-Anchor</span>
+              <span class="ic-effect"
+                    style="border-color:rgba(255,170,0,.3);
+                           color:rgba(255,200,80,.85);
+                           background:rgba(255,170,0,.07)">Symbiont Amplifier</span>
+            </div>
+          </div>
+          <div class="ic-flavor">
+            One of seven made. Three are unaccounted for. The others are held by people who are not entirely people anymore.
+          </div>
+          <div class="ic-req">✗ Requires Level 20 · Warden Faction · Weave-Tier III</div>
+        </div>
+      </div>
+      <pre class="code" style="margin-top:20px">{% raw %}<span class="c-cmt">{# item_card.html — driven by InventoryItemDTO + rarity int #}</span>
+<span class="c-key">{% set</span> rarity_labels = ['Common','Uncommon','Advanced','Rare','Epic','Mythic','Legendary','Absolute'] <span class="c-key">%}</span>
+<span class="c-key">&lt;div</span> class=<span class="c-val">"item-card r{{ item.rarity }} ic-r{{ item.rarity }}"</span><span class="c-key">&gt;</span>
+  <span class="c-key">&lt;div</span> class=<span class="c-val">"ic-header"</span><span class="c-key">&gt;</span>
+    <span class="c-key">&lt;div</span> class=<span class="c-val">"ic-name"</span><span class="c-key">&gt;</span>{{ item.name }}<span class="c-key">&lt;/div&gt;</span>
+    <span class="c-key">&lt;div</span> class=<span class="c-val">"ic-type"</span><span class="c-key">&gt;</span>{{ item.slot }} · {{ rarity_labels[item.rarity] }}<span class="c-key">&lt;/div&gt;</span>
+  <span class="c-key">&lt;/div&gt;</span>
+  <span class="c-key">&lt;div</span> class=<span class="c-val">"ic-body"</span><span class="c-key">&gt;</span>
+    <span class="c-key">{% for</span> key, val <span class="c-key">in</span> item.stats.items() <span class="c-key">%}</span>
+    <span class="c-key">&lt;div</span> class=<span class="c-val">"ic-stat"</span><span class="c-key">&gt;</span>
+      <span class="c-key">&lt;span</span> class=<span class="c-val">"ic-stat-key"</span><span class="c-key">&gt;</span>{{ key }}<span class="c-key">&lt;/span&gt;</span>
+      <span class="c-key">&lt;span</span> class=<span class="c-val">"ic-stat-val {{ 'pos' if val > 0 else 'neg' }}"</span><span class="c-key">&gt;</span>{{ '+' if val > 0 }}{{ val }}<span class="c-key">&lt;/span&gt;</span>
+    <span class="c-key">&lt;/div&gt;</span>
+    <span class="c-key">{% endfor %}</span>
+    <span class="c-key">{% if</span> item.effects <span class="c-key">%}</span>
+    <span class="c-key">&lt;div</span> class=<span class="c-val">"ic-effects"</span><span class="c-key">&gt;</span>
+      <span class="c-key">{% for</span> fx <span class="c-key">in</span> item.effects <span class="c-key">%}</span>
+      <span class="c-key">&lt;span</span> class=<span class="c-val">"ic-effect"</span><span class="c-key">&gt;</span>{{ fx }}<span class="c-key">&lt;/span&gt;</span>
+      <span class="c-key">{% endfor %}</span>
+    <span class="c-key">&lt;/div&gt;</span>
+    <span class="c-key">{% endif %}</span>
+  <span class="c-key">&lt;/div&gt;</span>
+  <span class="c-key">{% if</span> item.flavor_text <span class="c-key">%}</span>
+  <span class="c-key">&lt;div</span> class=<span class="c-val">"ic-flavor"</span><span class="c-key">&gt;</span>{{ item.flavor_text }}<span class="c-key">&lt;/div&gt;</span>
+  <span class="c-key">{% endif %}</span>
+<span class="c-key">&lt;/div&gt;</span>{% endraw %}</pre>
+    </section>
+    <!-- ══════════════════════════════════════
+       CSS VARIABLES — FULL REFERENCE
+  ══════════════════════════════════════ -->
+    <section class="ds-section">
+      <div class="ds-section-head">CSS Variables — Full Reference</div>
+      <pre class="code">{% raw %}<span class="c-cmt">/* Copy into your base.css or :root block */</span>
+:root {
+  <span class="c-cmt">/* ── Colors ── */</span>
+  <span class="c-key">--col-bg</span>:         <span class="c-val">#0a0a0c</span>;
+  <span class="c-key">--col-surface</span>:    <span class="c-val">#111116</span>;
+  <span class="c-key">--col-parchment</span>:  <span class="c-val">#d2b48c</span>;
+  <span class="c-key">--col-accent</span>:     <span class="c-val">#ffaa00</span>;   <span class="c-cmt">/* amber neural glow */</span>
+  <span class="c-key">--col-danger</span>:     <span class="c-val">#ff3300</span>;   <span class="c-cmt">/* HP / combat alert */</span>
+  <span class="c-key">--col-energy</span>:     <span class="c-val">#3399ff</span>;   <span class="c-cmt">/* EN bar */</span>
+  <span class="c-key">--col-stamina</span>:    <span class="c-val">#44dd88</span>;   <span class="c-cmt">/* STA bar / safe */</span>
+  <span class="c-key">--col-psi</span>:        <span class="c-val">#7744ff</span>;   <span class="c-cmt">/* symbiont / scenario */</span>
+
+  <span class="c-cmt">/* ── Semantic ── */</span>
+  <span class="c-key">--col-text-primary</span>:   <span class="c-val">rgba(255,170,0,0.90)</span>;
+  <span class="c-key">--col-text-secondary</span>: <span class="c-val">rgba(255,170,0,0.55)</span>;
+  <span class="c-key">--col-text-world</span>:     <span class="c-val">rgba(210,180,140,0.88)</span>;
+  <span class="c-key">--col-border</span>:         <span class="c-val">rgba(255,170,0,0.15)</span>;
+  <span class="c-key">--col-border-strong</span>:  <span class="c-val">rgba(255,170,0,0.32)</span>;
+  <span class="c-key">--col-membrane</span>:       <span class="c-val">rgba(255,170,0,0.04)</span>;
+
+  <span class="c-cmt">/* ── Fonts ── */</span>
+  <span class="c-key">--font-world</span>: <span class="c-val">'EB Garamond', Georgia, serif</span>;
+  <span class="c-key">--font-ui</span>:    <span class="c-val">'JetBrains Mono', monospace</span>;
+
+  <span class="c-cmt">/* ── Type scale ── */</span>
+  <span class="c-key">--text-3xl</span>: <span class="c-val">32px</span>;  <span class="c-key">--text-2xl</span>: <span class="c-val">24px</span>;  <span class="c-key">--text-xl</span>: <span class="c-val">20px</span>;
+  <span class="c-key">--text-lg</span>:  <span class="c-val">17px</span>;  <span class="c-key">--text-md</span>: <span class="c-val">14px</span>;  <span class="c-key">--text-base</span>: <span class="c-val">12px</span>;
+  <span class="c-key">--text-sm</span>:  <span class="c-val">10px</span>;  <span class="c-key">--text-xs</span>: <span class="c-val">9px</span>;   <span class="c-key">--text-2xs</span>: <span class="c-val">8px</span>;
+
+  <span class="c-cmt">/* ── Spacing (4pt grid) ── */</span>
+  <span class="c-key">--sp-1</span>:<span class="c-val">4px</span>; <span class="c-key">--sp-2</span>:<span class="c-val">8px</span>; <span class="c-key">--sp-3</span>:<span class="c-val">12px</span>; <span class="c-key">--sp-4</span>:<span class="c-val">16px</span>;
+  <span class="c-key">--sp-5</span>:<span class="c-val">20px</span>; <span class="c-key">--sp-6</span>:<span class="c-val">24px</span>; <span class="c-key">--sp-8</span>:<span class="c-val">32px</span>; <span class="c-key">--sp-12</span>:<span class="c-val">48px</span>;
+
+  <span class="c-cmt">/* ── Rarity (0–7) ── */</span>
+  <span class="c-key">--r0</span>: <span class="c-val">#888899</span>;  <span class="c-cmt">/* Common */</span>
+  <span class="c-key">--r1</span>: <span class="c-val">#44aa66</span>;  <span class="c-cmt">/* Uncommon */</span>
+  <span class="c-key">--r2</span>: <span class="c-val">#2a9d8f</span>;  <span class="c-cmt">/* Advanced */</span>
+  <span class="c-key">--r3</span>: <span class="c-val">#3399ff</span>;  <span class="c-cmt">/* Rare */</span>
+  <span class="c-key">--r4</span>: <span class="c-val">#9944ee</span>;  <span class="c-cmt">/* Epic */</span>
+  <span class="c-key">--r5</span>: <span class="c-val">#ff6600</span>;  <span class="c-cmt">/* Mythic */</span>
+  <span class="c-key">--r6</span>: <span class="c-val">#ffaa00</span>;  <span class="c-cmt">/* Legendary · breathing glow */</span>
+  <span class="c-key">--r7</span>: <span class="c-val">#ffffff</span>;  <span class="c-cmt">/* Absolute · white pulse */</span>
+  <span class="c-key">--clip-node-sm</span>: <span class="c-val">polygon(0 0,calc(100% - 5px) 0,100% 5px,100% 100%,5px 100%,0 calc(100% - 5px))</span>;
+  <span class="c-key">--clip-node-md</span>: <span class="c-val">polygon(0 0,calc(100% - 8px) 0,100% 8px,100% 100%,8px 100%,0 calc(100% - 8px))</span>;
+  <span class="c-key">--clip-node-lg</span>: <span class="c-val">polygon(0 0,calc(100% - 12px) 0,100% 12px,100% 100%,12px 100%,0 calc(100% - 12px))</span>;
+}{% endraw %}</pre>
+    </section>
+  </div>
+  <!-- /ds-page -->
+{% endblock %}

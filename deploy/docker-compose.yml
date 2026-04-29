@@ -1,0 +1,148 @@
+services:
+
+  # ── Infrastructure ────────────────────────────────────────────────────────
+
+  postgres:
+    image: postgres:17-alpine
+    container_name: tbmmorpg-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: tbmmorpg
+      POSTGRES_PASSWORD: tbmmorpg_dev
+      POSTGRES_DB: tbmmorpg_site
+    ports:
+      - "5432:5432"
+    volumes:
+      - tbmmorpg-postgres-data:/var/lib/postgresql/data
+      - ./postgres/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U tbmmorpg -d tbmmorpg_site"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    networks:
+      - tbmmorpg-network
+
+  redis:
+    image: redis/redis-stack-server:7.2.0-v14
+    container_name: tbmmorpg-redis
+    restart: unless-stopped
+    ports:
+      - "6380:6379"
+    volumes:
+      - tbmmorpg-redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    networks:
+      - tbmmorpg-network
+
+  # ── Application ───────────────────────────────────────────────────────────
+
+  backend:
+    build:
+      context: ..
+      dockerfile: deploy/backend/Dockerfile
+    container_name: tbmmorpg-backend
+    restart: unless-stopped
+    env_file: ../.env
+    environment:
+      SITE_DATABASE_URL: postgresql+asyncpg://tbmmorpg:tbmmorpg_dev@postgres:5432/tbmmorpg_site
+      GAME_DATABASE_URL: postgresql+asyncpg://tbmmorpg:tbmmorpg_dev@postgres:5432/tbmmorpg_game
+      DATABASE_URL: postgresql+asyncpg://tbmmorpg:tbmmorpg_dev@postgres:5432/tbmmorpg_site
+      REDIS_URL: redis://redis:6379/0
+    ports:
+      - "8001:8001"
+    volumes:
+      - ../src/backend:/app/src/backend
+      - ../src/shared:/app/src/shared
+    command: >
+      uvicorn src.backend.app:app
+      --host 0.0.0.0
+      --port 8001
+      --reload
+      --log-level info
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - tbmmorpg-network
+
+  frontend:
+    build:
+      context: ..
+      dockerfile: deploy/frontend/Dockerfile
+    container_name: tbmmorpg-frontend
+    restart: unless-stopped
+    env_file: ../.env
+    environment:
+      BACKEND_BASE_URL: http://backend:8001
+    ports:
+      - "8000:8000"
+    volumes:
+      - ../src/frontend:/app/src/frontend
+      - ../src/shared:/app/src/shared
+    command: >
+      uvicorn src.frontend.app:app
+      --host 0.0.0.0
+      --port 8000
+      --reload
+      --log-level info
+    depends_on:
+      backend:
+        condition: service_started
+    networks:
+      - tbmmorpg-network
+
+  worker:
+    profiles:
+      - workers
+    build:
+      context: ..
+      dockerfile: deploy/worker/Dockerfile
+    container_name: tbmmorpg-worker
+    restart: unless-stopped
+    env_file: ../.env
+    environment:
+      SITE_DATABASE_URL: postgresql+asyncpg://tbmmorpg:tbmmorpg_dev@postgres:5432/tbmmorpg_site
+      GAME_DATABASE_URL: postgresql+asyncpg://tbmmorpg:tbmmorpg_dev@postgres:5432/tbmmorpg_game
+      DATABASE_URL: postgresql+asyncpg://tbmmorpg:tbmmorpg_dev@postgres:5432/tbmmorpg_site
+      REDIS_URL: redis://redis:6379/0
+    volumes:
+      - ../src/backend:/app/src/backend
+      - ../src/shared:/app/src/shared
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - tbmmorpg-network
+
+  # ── Nginx (disabled — uncomment when ready to put behind reverse proxy) ──
+
+  # nginx:
+  #   build:
+  #     context: ..
+  #     dockerfile: deploy/nginx/Dockerfile
+  #   container_name: tbmmorpg-nginx
+  #   restart: unless-stopped
+  #   ports:
+  #     - "80:80"
+  #   depends_on:
+  #     - backend
+  #     - frontend
+  #   networks:
+  #     - tbmmorpg-network
+
+volumes:
+  tbmmorpg-postgres-data:
+  tbmmorpg-redis-data:
+
+networks:
+  tbmmorpg-network:
+    driver: bridge

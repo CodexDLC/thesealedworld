@@ -1,0 +1,68 @@
+<div class="status-section">
+    <div class="sec">SKILLS & MASTERY</div>
+
+    <div style="display: flex; flex-direction: column; gap: 4px;">
+
+        <!-- 0. SYSTEM (Symbiote) - Uses --col-psi from Design System -->
+        <div class="acc" x-data="{ open: true }" :class="{ 'open': open }">
+            <div class="acc-head" @click="open = !open" style="border-left: 2px solid var(--col-psi);">
+                <span style="color: var(--col-psi);" x-text="agents[selectedAgentId].symbiote_name || 'SYSTEM'">SYSTEM</span>
+                <span class="acc-arrow">›</span>
+            </div>
+            <div class="acc-body" x-show="open" x-transition>
+                <div class="prof-list">
+                    <template x-for="(val, skill) in agents[selectedAgentId].skills?.symbiote">
+                        <div class="prof-row">
+                            <div class="prof-meta">
+                                <span x-text="skill">Skill</span>
+                                <span style="color: var(--col-psi);" x-text="val + '%'">0%</span>
+                            </div>
+                            <div class="prof-bar">
+                                <div class="prof-fill" :style="`width: ${val}%` ; background: var(--col-psi); opacity: 0.8;"></div>
+                            </div>
+                        </div>
+                    </template>
+                    <div x-show="!agents[selectedAgentId].skills?.symbiote" style="font-size: 8px; opacity: 0.3; padding: 5px; text-align: center;">
+                        INITIALIZING_NEURAL_LINK...
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Dynamic Groups from definitions (Standard Accent) -->
+        {% set categories = [
+            'weapon_mastery', 'armor', 'combat_support', 'tactical',
+            'survival', 'gathering', 'crafting', 'trade',
+            'social', 'science', 'non_combat'
+        ] %}
+
+        {% for cat in categories %}
+        <div class="acc" x-data="{ open: false }" :class="{ 'open': open }">
+            <div class="acc-head" @click="open = !open">
+                <span>{{ cat.replace('_', ' ').upper() }}</span>
+                <span class="acc-arrow">›</span>
+            </div>
+            <div class="acc-body" x-show="open" x-transition>
+                <div class="prof-list">
+                    <template x-for="(val, skill) in agents[selectedAgentId].skills?.{{ cat }}">
+                        <div class="prof-row">
+                            <div class="prof-meta">
+                                <span x-text="skill">Skill</span>
+                                <span x-text="val + '%'">0%</span>
+                            </div>
+                            <div class="prof-bar">
+                                <div class="prof-fill" :style="`width: ${val}%`"></div>
+                            </div>
+                        </div>
+                    </template>
+                    <div x-show="!agents[selectedAgentId].skills?.{{ cat }} || Object.keys(agents[selectedAgentId].skills?.{{ cat }} || {}).length === 0"
+                         style="font-size: 8px; opacity: 0.2; padding: 5px; text-align: center; letter-spacing: 0.1em;">
+                        NO_DATA_AVAILABLE
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+
+    </div>
+</div>

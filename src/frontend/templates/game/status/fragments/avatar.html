@@ -1,0 +1,44 @@
+<div class="status-section" style="margin-top: 0;">
+    <div class="avatar" style="position: relative; width: 100%; aspect-ratio: 1/1; margin-top: 5px;">
+        <!-- The main portrait frame with Eldritch Node clip-path -->
+        <div class="avatar-bg" style="width: 100%; height: 100%; position: relative; clip-path: var(--clip-node-lg); background: var(--col-bg); border: 1px solid var(--col-border);">
+            <img :src="agents[selectedAgentId].avatar" alt="Agent Portrait"
+                 style="width: 100%; height: 100%; object-fit: cover; position: absolute; inset: 0; z-index: 1;"
+                 @error="$el.style.display='none'">
+
+            <!-- Silhouette fallback -->
+            <div style="width: 100%; height: 100%; background: radial-gradient(circle at center, #1a1a20 0%, #0a0a0c 100%); display: flex; align-items: center; justify-content: center; z-index: 0;">
+                <svg viewBox="0 0 100 100" style="width: 60%; height: 60%; opacity: 0.1;">
+                    <path d="M50 22 C42 22 35 28 35 42 C35 52 38 58 36 68 C34 78 30 85 30 85 L70 85 C70 85 66 78 64 68 C62 58 65 52 65 42 C65 28 58 22 50 22Z"
+                          fill="var(--col-accent)" />
+                </svg>
+            </div>
+        </div>
+
+        <!-- HUD Corners (Using JetBrains Mono XS/SM from Design System) -->
+        <!-- Top Left: Name & Rank -->
+        <div class="av-corner av-tl" style="clip-path: var(--clip-node-sm);">
+            <span class="av-val" style="font-size: 9px; letter-spacing: 0.05em;">
+                <span x-text="agents[selectedAgentId].name">AGENT</span>
+                <span style="opacity: 0.4; margin-left: 4px;">· LV.12</span>
+            </span>
+        </div>
+
+        <!-- Top Right: Status / Resonance -->
+        <div class="av-corner av-tr" style="clip-path: var(--clip-node-sm);">
+            <span class="av-val" style="font-size: 8px; color: var(--col-text-secondary);">SYNCED</span>
+        </div>
+
+        <!-- Bottom Left: Primary Resource (Dust/Essence) -->
+        <div class="av-corner av-bl" style="clip-path: var(--clip-node-sm);">
+            <span class="av-ico" style="font-size: 10px;">✨</span>
+            <span class="av-val" x-text="agents[selectedAgentId].dust || 0">0</span>
+        </div>
+
+        <!-- Bottom Right: Secondary Resource / Credits -->
+        <div class="av-corner av-br" style="clip-path: var(--clip-node-sm);">
+            <span class="av-ico" style="font-size: 10px;">🪙</span>
+            <span class="av-val" x-text="agents[selectedAgentId].credits || 0">0</span>
+        </div>
+    </div>
+</div>

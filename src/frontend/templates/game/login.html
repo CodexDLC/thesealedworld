@@ -1,0 +1,66 @@
+{% extends "game/layout_game.html" %}
+
+{% block content %}
+<div class="page-login" x-data="{ selectedChar: 1 }">
+    <div class="login-container">
+        <div class="login-header">
+            <div class="login-title">NEURAL_LINK_ESTABLISHED</div>
+            <div class="login-subtitle">Select your active agent to synchronize with the Weave</div>
+        </div>
+
+        <div class="char-grid">
+            <!-- Slot 1: Active Character -->
+            <div class="char-slot" :class="{ 'sel': selectedChar === 1 }" @click="selectedChar = 1">
+                <div class="char-stage">SYNCHRONIZED</div>
+                <div class="char-name">ROOK-7</div>
+                <div class="char-meta">
+                    LV 12 // Archivist<br>
+                    LOC: Sunken Archives
+                </div>
+                <div class="vitals-mini">
+                    <div class="vbar"><div class="vbar-fill hp" style="width: 67%"></div></div>
+                    <div class="vbar"><div class="vbar-fill en" style="width: 82%"></div></div>
+                </div>
+            </div>
+
+            <!-- Slot 2: Active Character -->
+            <div class="char-slot" :class="{ 'sel': selectedChar === 2 }" @click="selectedChar = 2">
+                <div class="char-stage combat">IN_COMBAT</div>
+                <div class="char-name">VEIL-4</div>
+                <div class="char-meta">
+                    LV 8 // Phase-Runner<br>
+                    LOC: Neon Slums
+                </div>
+                <div class="vitals-mini">
+                    <div class="vbar"><div class="vbar-fill hp" style="width: 45%"></div></div>
+                    <div class="vbar"><div class="vbar-fill en" style="width: 12%"></div></div>
+                </div>
+            </div>
+
+            <!-- Slot 3: Empty Slot -->
+            <div class="char-slot empty" :class="{ 'sel': selectedChar === 3 }" @click="selectedChar = 3">
+                <div class="char-name">EMPTY_SLOT</div>
+                <div class="char-meta">Initialize new agent protocols</div>
+            </div>
+
+            <!-- Slot 4: Empty Slot -->
+            <div class="char-slot empty" :class="{ 'sel': selectedChar === 4 }" @click="selectedChar = 4">
+                <div class="char-name">EMPTY_SLOT</div>
+                <div class="char-meta">Initialize new agent protocols</div>
+            </div>
+        </div>
+
+        <div class="login-actions">
+            <form action="/game" method="get">
+                <button type="submit" class="act-btn login-btn">
+                    <span>INITIALIZE_NEURAL_LINK</span>
+                    <div class="btn-glitch"></div>
+                </button>
+            </form>
+            <div class="login-footer">
+                By connecting, you agree to the Neural Network Protocol v.4.0.1
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

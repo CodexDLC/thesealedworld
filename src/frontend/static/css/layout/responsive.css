@@ -1,0 +1,56 @@
+/* ── RESPONSIVE DESIGN & MEDIA QUERIES ── */
+
+/* Tablet and below */
+@media (max-width: 960px) {
+  .ds-page {
+    padding: var(--sp-4);
+  }
+}
+
+/* Mobile */
+@media (max-width: 480px) {
+  /* Specific mobile overrides will go here */
+}
+
+/* ── MOBILE PANEL TOGGLE BUTTONS ── */
+.mobile-panel-btn {
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 0 var(--sp-2);
+    height: 22px;
+    background: rgba(5, 5, 5, 0.7);
+    border: 1px solid rgba(255, 170, 0, 0.25);
+    color: rgba(255, 170, 0, 0.7);
+    font-family: var(--font-ui);
+    font-size: var(--text-2xs);
+    letter-spacing: 0.08em;
+    cursor: pointer;
+    transition: border-color 0.2s, color 0.2s, background 0.2s;
+}
+
+.mobile-panel-btn:hover,
+.mobile-panel-btn.active {
+    border-color: var(--col-accent);
+    color: var(--col-accent);
+    background: rgba(255, 170, 0, 0.08);
+}
+
+@media (max-width: 500px) {
+    .mobile-panel-btn {
+        display: flex;
+    }
+
+    /* Shrink the logo text on very small screens */
+    .game-logo {
+        font-size: var(--text-xs);
+    }
+
+    /* Make header sections flex so button + text sit side-by-side */
+    .header-left,
+    .header-right {
+        display: flex;
+        align-items: center;
+        gap: var(--sp-2);
+    }
+}

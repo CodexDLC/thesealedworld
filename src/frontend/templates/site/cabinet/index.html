@@ -1,0 +1,28 @@
+{% extends "site/base_site.html" %}
+
+{% block title %}Cabinet{% endblock title %}
+
+{% block content %}
+<section class="main-container" style="padding-top: var(--sp-8);">
+    <div class="ds-panel">
+        <div class="ds-panel-header">SOUL_RESONANCE</div>
+        <div class="ds-panel-body">
+            <p class="feature-text">Authenticated as {{ user.email }}.</p>
+
+            <div class="hero-actions" style="justify-content: flex-start; margin-top: var(--sp-5);">
+                <a href="/cabinet" class="btn-node">
+                    <span>Resonance Profile</span>
+                </a>
+                <a href="/game-lobby" class="btn-node lg">
+                    <span>To the Lobby</span>
+                </a>
+                <form action="/logout" method="post">
+                    <button type="submit" class="btn-node">
+                        <span>Sever Link</span>
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock content %}

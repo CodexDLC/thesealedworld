@@ -1,0 +1,17 @@
+/* ── INCLUDE: NAVIGATION ── */
+.app-nav {
+    display: flex;
+    gap: var(--sp-6);
+    font-size: var(--text-2xs);
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+}
+
+.app-nav a {
+    color: var(--col-text-secondary);
+    transition: color 0.2s;
+}
+
+.app-nav a:hover, .app-nav a.active {
+    color: var(--col-text-primary);
+}

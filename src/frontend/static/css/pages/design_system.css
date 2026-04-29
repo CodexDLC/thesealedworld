@@ -1,0 +1,240 @@
+/* ── PAGE: DESIGN SYSTEM ── */
+
+/* ── HEADER ── */
+.ds-header {
+  padding: var(--sp-8) 0 var(--sp-6);
+  border-bottom: 1px solid rgba(255,170,0,0.12);
+}
+
+.ds-title {
+  font-family: var(--font-world);
+  font-size: var(--text-3xl);
+  color: var(--col-parchment);
+  font-style: italic;
+  letter-spacing: 0.02em;
+  text-shadow: 0 0 32px rgba(255,170,0,0.18);
+}
+
+.ds-subtitle {
+  font-size: var(--text-xs);
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  color: var(--col-text-secondary);
+  margin-top: var(--sp-2);
+}
+
+.ds-meta {
+  display: flex;
+  gap: var(--sp-4);
+  margin-top: var(--sp-4);
+  flex-wrap: wrap;
+}
+
+.ds-tag {
+  font-size: var(--text-2xs);
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  padding: 3px 10px;
+  background: rgba(255,170,0,0.05);
+  border: 1px solid rgba(255,170,0,0.15);
+  color: var(--col-text-secondary);
+  clip-path: var(--clip-node-sm);
+}
+
+/* ── COLOR SWATCHES ── */
+.color-swatch {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+
+.swatch-block {
+  height: 64px;
+  border: 1px solid rgba(255,255,255,0.06);
+  position: relative;
+  display: flex;
+  align-items: flex-end;
+  padding: 5px 7px;
+}
+
+.swatch-hex {
+  font-size: var(--text-2xs);
+  letter-spacing: 0.12em;
+  color: rgba(255,255,255,0.5);
+  font-family: var(--font-ui);
+}
+
+.swatch-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.swatch-name {
+  font-size: var(--text-xs);
+  color: var(--col-text-primary);
+  letter-spacing: 0.08em;
+}
+
+.swatch-var {
+  font-size: var(--text-2xs);
+  color: var(--col-text-secondary);
+  letter-spacing: 0.06em;
+}
+
+/* ── SEMANTIC TOKEN ROWS ── */
+.sem-row {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-4);
+  padding: var(--sp-2) var(--sp-3);
+  background: rgba(255,255,255,0.018);
+  border: 1px solid rgba(255,170,0,0.07);
+}
+
+.sem-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.sem-name {
+  font-size: var(--text-sm);
+  color: var(--col-text-primary);
+  flex: 1;
+}
+
+.sem-var {
+  font-size: var(--text-2xs);
+  color: var(--col-text-secondary);
+  letter-spacing: 0.1em;
+}
+
+.sem-val {
+  font-size: var(--text-2xs);
+  color: var(--col-text-secondary);
+  letter-spacing: 0.05em;
+  font-family: var(--font-ui);
+}
+
+/* ── TYPOGRAPHY SCALE ── */
+.type-row {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-5);
+  padding: var(--sp-3) 0;
+  border-bottom: 1px solid rgba(255,170,0,0.06);
+}
+
+.type-meta {
+  width: 120px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.type-label {
+  font-size: var(--text-2xs);
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--col-text-secondary);
+}
+
+.type-size {
+  font-size: var(--text-xs);
+  color: var(--col-accent);
+}
+
+.type-sample-world {
+  font-family: var(--font-world);
+  color: var(--col-text-world);
+}
+
+.type-sample-ui {
+  font-family: var(--font-ui);
+  color: var(--col-text-primary);
+}
+
+/* ── SPACING SCALE ── */
+.sp-row {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-4);
+}
+
+.sp-bar {
+  background: rgba(255,170,0,0.22);
+  height: 4px;
+  border-radius: 1px;
+  transition: width 0.3s;
+}
+
+.sp-meta {
+  display: flex;
+  gap: var(--sp-5);
+  min-width: 200px;
+  flex-shrink: 0;
+}
+
+.sp-token {
+  font-size: var(--text-xs);
+  color: var(--col-accent);
+  letter-spacing: 0.1em;
+}
+
+.sp-px {
+  font-size: var(--text-xs);
+  color: var(--col-text-secondary);
+}
+
+/* ── ENCOUNTER CARD ── */
+.enc-demo {
+  background: rgba(255,51,0,0.04);
+  border: 1px solid rgba(255,51,0,0.20);
+  padding: var(--sp-4);
+  clip-path: var(--clip-node-lg);
+  animation: breathe-danger 3.5s ease-in-out infinite;
+  max-width: 340px;
+}
+
+.enc-badge {
+  display: inline-block;
+  font-size: var(--text-2xs);
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  padding: 2px 8px;
+  background: rgba(255,51,0,0.10);
+  border: 1px solid rgba(255,51,0,0.26);
+  color: rgba(255,80,50,0.8);
+  margin-bottom: 8px;
+}
+
+.enc-title {
+  font-family: var(--font-world);
+  font-size: var(--text-xl);
+  color: var(--col-text-world);
+  margin-bottom: 5px;
+}
+
+.enc-desc {
+  font-size: var(--text-sm);
+  color: var(--col-text-world);
+  line-height: 1.6;
+  font-family: var(--font-world);
+}
+
+/* ── INVENTORY DEMO WRAPPER ── */
+.inv-demo {
+  display: flex;
+  gap: 3px;
+}
+
+/* ── STAT DEMO WRAPPER ── */
+.stat-demo {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  width: 240px;
+}

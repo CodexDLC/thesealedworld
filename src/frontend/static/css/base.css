@@ -1,0 +1,32 @@
+/* ══════════════════════════════════════════
+   SYMBIOTE CHRONICLES — CORE STACK
+   Generated from Design System v1.0
+   ══════════════════════════════════════════ */
+
+/* ── CORE ── */
+@import url("core/tokens.css");
+@import url("core/reset.css");
+@import url("core/animations.css");
+
+/* ── LAYOUT ── */
+@import url("layout/containers.css");
+@import url("layout/ambient.css");
+@import url("layout/responsive.css");
+@import url("includes.css");
+
+/* ── COMPONENTS ── */
+@import url("components/buttons.css");
+@import url("components/panels.css");
+@import url("components/stats.css");
+@import url("components/inventory.css");
+@import url("components/chat.css");
+@import url("components/cards.css");
+@import url("components/navigation.css");
+@import url("components/misc.css");
+
+/* ── PAGES ── */
+@import url("pages/design_system.css");
+@import url("pages/main.css");
+@import url("pages/about.css");
+@import url("pages/login.css");
+/* @import url("pages/game.css"); */

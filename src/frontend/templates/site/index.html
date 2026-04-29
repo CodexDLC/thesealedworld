@@ -1,0 +1,44 @@
+{% extends "site/base_site.html" %}
+
+{% block title %}Symbiote Chronicles — The Neural Weave awaits{% endblock title %}
+
+{% block body_class %}page-main{% endblock body_class %}
+
+{% block content %}
+<section class="hero-section">
+    <div class="ds-tag sys" style="margin-bottom: var(--sp-4);">THE_BOND // AWAKENED</div>
+    <h1 class="hero-title">Symbiote Chronicles</h1>
+    <p class="hero-subtitle">The Echoes of the Rift</p>
+
+    <div class="hero-actions">
+        <a href="/login" class="btn-node lg">
+            <span>Listen to the Whisper</span>
+        </a>
+        <a href="/about" class="btn-node">
+            <span>The Fragmented Memory</span>
+        </a>
+    </div>
+</section>
+
+<div class="main-container">
+    <div class="features-grid">
+        <div class="ds-panel">
+            <div class="ds-panel-header">The Uninvited</div>
+            <div class="ds-panel-body">
+                <p class="feature-text">
+                    You stepped through the Rift and brought back more than just your life. Something is rooting in the shadows of your mind.
+                </p>
+            </div>
+        </div>
+
+        <div class="ds-panel">
+            <div class="ds-panel-header">Spectral Sight</div>
+            <div class="ds-panel-body">
+                <p class="feature-text">
+                    The world has changed. Strange geometry and energy flows now flicker before your eyes. A gift... or a warning?
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock content %}

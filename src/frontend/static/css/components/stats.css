@@ -1,0 +1,128 @@
+/* ── VITAL BARS & ATTRIBUTES ── */
+
+.stat-row {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+}
+
+.stat-label-row {
+    display: flex;
+    justify-content: space-between;
+    font-size: var(--text-xs);
+}
+
+.stat-key {
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--col-text-secondary);
+}
+
+.stat-val {
+    color: var(--col-text-primary);
+}
+
+.stat-track {
+    height: 5px;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: 1px;
+    overflow: hidden;
+}
+
+.stat-fill {
+    height: 100%;
+    border-radius: 1px;
+    transition: width 0.7s;
+}
+
+.stat-fill.hp {
+    background: linear-gradient(90deg, #b01a00, #ff3300, #ff6644);
+    animation: breathe-danger 3s ease-in-out infinite;
+}
+
+.stat-fill.en {
+    background: linear-gradient(90deg, #1a66cc, #3399ff, #66bbff);
+    animation: breathe-energy 4s ease-in-out infinite;
+}
+
+.stat-fill.sta {
+    background: linear-gradient(90deg, #22aa55, #44dd88, #88ffcc);
+}
+
+/* ── ATTRIBUTES GRID ── */
+.attr-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 3px;
+    width: 180px;
+}
+
+.ac {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 5px 2px;
+    background: rgba(255, 255, 255, .018);
+    border: 1px solid rgba(255, 170, 0, .07);
+}
+
+.ac-k {
+    font-size: var(--text-2xs);
+    letter-spacing: .12em;
+    color: var(--col-text-secondary);
+    text-transform: uppercase;
+}
+
+.ac-v {
+    font-size: var(--text-md);
+    color: var(--col-accent);
+    margin-top: 1px;
+    line-height: 1;
+}
+
+/* ── HUD STRIP ── */
+.hud-demo {
+    display: flex;
+    gap: 5px;
+}
+
+.hc {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 6px 8px;
+    background: rgba(255, 255, 255, .018);
+    border: 1px solid rgba(255, 170, 0, .08);
+}
+
+.hv {
+    font-size: var(--text-xl);
+    color: var(--col-accent);
+    line-height: 1;
+}
+
+.hl {
+    font-size: var(--text-2xs);
+    letter-spacing: .18em;
+    text-transform: uppercase;
+    color: var(--col-text-secondary);
+    margin-top: 2px;
+}
+
+.hc.safe {
+    border-color: rgba(68, 221, 136, .18);
+}
+
+.hc.safe .hv {
+    color: var(--col-stamina);
+}
+
+.hc.thr {
+    border-color: rgba(255, 51, 0, .18);
+}
+
+.hc.thr .hv {
+    color: var(--col-danger);
+}

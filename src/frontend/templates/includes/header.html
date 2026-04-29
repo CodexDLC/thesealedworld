@@ -1,0 +1,12 @@
+<header class="app-header">
+    <div class="header-logo">
+        <span class="logo-text">SC</span>
+        <div class="ds-tag sys">Alpha 0.9.4</div>
+    </div>
+
+    {% include "includes/navigation.html" %}
+
+    <div class="header-status">
+        {{ user.email if user else "UNBOUND_SOUL" }}
+    </div>
+</header>

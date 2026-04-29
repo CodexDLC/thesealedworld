@@ -1,0 +1,19 @@
+{
+    "css": {
+        "site_bundle.css": "site.css",
+        "game_bundle.css": "game.css",
+        "vendor/nprogress.css": "vendor.css"
+    },
+    "js": {
+        "site.js": {
+            "strategy": "ordered",
+            "sources": []
+        },
+        "game.js": {
+            "strategy": "ordered",
+            "sources": [
+                "core/main.js"
+            ]
+        }
+    }
+}

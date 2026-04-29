@@ -1,0 +1,107 @@
+/* ── CHAT & COMBAT LOG ── */
+
+.chat-demo {
+  background: rgba(0, 0, 0, .38);
+  border: 1px solid rgba(255, 170, 0, 0.10);
+  animation: breathe 5.2s ease-in-out .6s infinite;
+  overflow: hidden;
+  width: 280px;
+}
+
+.chat-h {
+  padding: 5px 9px;
+  background: rgba(255, 170, 0, .04);
+  border-bottom: 1px solid rgba(255, 170, 0, .08);
+  font-size: var(--text-2xs);
+  letter-spacing: .22em;
+  text-transform: uppercase;
+  color: var(--col-text-secondary);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.ch-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #44ff88;
+  box-shadow: 0 0 6px #44ff88;
+  animation: pulse 1.6s ease-in-out infinite;
+}
+
+.chat-body {
+  padding: var(--sp-2);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.cm {
+  font-size: var(--text-sm);
+  line-height: 1.5;
+}
+
+.cm .ct {
+  font-size: var(--text-2xs);
+  letter-spacing: .1em;
+  margin-right: 3px;
+  opacity: .55;
+}
+
+.cm.sys {
+  color: rgba(255, 170, 0, .50);
+}
+
+.cm.player {
+  color: rgba(210, 180, 140, .85);
+}
+
+.cm.npc {
+  color: rgba(180, 155, 225, .80);
+}
+
+.cm.danger {
+  color: rgba(255, 100, 80, .80);
+}
+
+/* ── COMBAT LOG ENTRY ── */
+.log-demo {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.le {
+  font-size: var(--text-sm);
+  line-height: 1.5;
+  padding: 3px 8px;
+  border-left: 2px solid rgba(255, 170, 0, .10);
+}
+
+.le .lt {
+  font-size: var(--text-2xs);
+  color: var(--col-text-secondary);
+  margin-right: 5px;
+}
+
+.le.hit {
+  border-color: rgba(255, 51, 0, .35);
+  color: rgba(255, 100, 80, .8);
+}
+
+.le.miss {
+  border-color: rgba(255, 170, 0, .20);
+  color: rgba(255, 170, 0, .5);
+}
+
+.le.effect {
+  border-color: rgba(119, 68, 255, .30);
+  color: rgba(153, 102, 255, .75);
+}
+
+.le.system {
+  border-color: rgba(255, 170, 0, .15);
+  color: rgba(255, 170, 0, .52);
+  font-size: var(--text-2xs);
+}

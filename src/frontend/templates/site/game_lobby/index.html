@@ -1,0 +1,203 @@
+{% extends "site/base_site.html" %}
+
+{% block title %}Game Lobby{% endblock title %}
+
+{% block body_class %}page-game-lobby{% endblock body_class %}
+
+{% block extra_head %}
+<style>
+    .lobby-shell {
+        min-height: calc(100vh - 140px);
+        display: grid;
+        place-items: center;
+        padding: var(--sp-10) var(--sp-4);
+        background: radial-gradient(circle at 50% 44%, rgba(255, 170, 0, 0.045) 0%, transparent 62%);
+    }
+
+    .lobby-panel {
+        width: min(980px, 100%);
+        margin: 0 auto;
+        border: 1px solid rgba(255, 170, 0, 0.16);
+        background:
+            radial-gradient(circle at 50% 10%, rgba(255, 170, 0, 0.055), transparent 42%),
+            linear-gradient(180deg, rgba(18, 18, 22, 0.82), rgba(5, 5, 7, 0.94));
+        clip-path: var(--clip-node-lg);
+        padding: clamp(34px, 6vw, 72px);
+        box-shadow: 0 24px 90px rgba(0, 0, 0, 0.55), inset 0 0 40px rgba(255, 170, 0, 0.025);
+    }
+
+    .lobby-panel--empty {
+        min-height: 480px;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        text-align: center;
+    }
+
+    .lobby-title-row {
+        display: flex;
+        justify-content: space-between;
+        gap: var(--sp-4);
+        align-items: flex-start;
+        margin-bottom: var(--sp-6);
+    }
+
+    .lobby-panel--empty .lobby-title-row {
+        display: block;
+        margin-bottom: var(--sp-7);
+    }
+
+    .lobby-kicker {
+        font-family: var(--font-ui);
+        font-size: var(--text-2xs);
+        color: var(--col-accent);
+        letter-spacing: 0.22em;
+        margin-bottom: var(--sp-4);
+        text-transform: uppercase;
+    }
+
+    .lobby-title {
+        font-family: var(--font-world);
+        font-size: clamp(44px, 8vw, 88px);
+        line-height: 1;
+        margin: 0;
+        color: var(--col-parchment);
+        font-style: italic;
+        font-weight: 600;
+        text-shadow: 0 0 34px rgba(255, 170, 0, 0.18);
+    }
+
+    .lobby-panel--empty .lobby-title {
+        font-size: clamp(52px, 8vw, 96px);
+    }
+
+    .lobby-copy {
+        max-width: 620px;
+        color: var(--col-text-world);
+        line-height: 1.55;
+        margin: var(--sp-4) 0 0;
+    }
+
+    .lobby-panel--empty .lobby-copy {
+        margin-left: auto;
+        margin-right: auto;
+        font-family: var(--font-world);
+        font-size: clamp(20px, 2.4vw, 28px);
+    }
+
+    .lobby-slots {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: var(--sp-3);
+        margin: var(--sp-7) 0;
+    }
+
+    .lobby-slot {
+        min-height: 220px;
+        border: 1px solid rgba(255, 170, 0, 0.16);
+        background: rgba(255, 255, 255, 0.025);
+        clip-path: var(--clip-node-md);
+        padding: var(--sp-3);
+    }
+
+    .lobby-avatar {
+        position: relative;
+        aspect-ratio: 1 / 1;
+        overflow: hidden;
+        clip-path: var(--clip-node-lg);
+        border: 1px solid rgba(255, 170, 0, 0.22);
+        background: radial-gradient(circle at 50% 36%, rgba(255, 170, 0, 0.14), rgba(7, 7, 10, 0.98) 62%);
+    }
+
+    .lobby-avatar img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        display: block;
+    }
+
+    .lobby-silhouette {
+        position: absolute;
+        inset: 0;
+        display: grid;
+        place-items: center;
+    }
+
+    .lobby-silhouette::before {
+        content: "";
+        width: 44%;
+        height: 66%;
+        border-radius: 48% 48% 34% 34%;
+        background: linear-gradient(180deg, rgba(255, 170, 0, 0.16), rgba(255, 170, 0, 0.03));
+        box-shadow: 0 0 42px rgba(255, 170, 0, 0.18);
+        opacity: 0.72;
+    }
+
+    .lobby-slot-meta {
+        margin-top: var(--sp-3);
+        display: flex;
+        justify-content: space-between;
+        gap: var(--sp-2);
+        font-family: var(--font-ui);
+        font-size: var(--text-2xs);
+        color: var(--col-text-secondary);
+        letter-spacing: 0.08em;
+    }
+
+    .lobby-slot-name {
+        color: var(--col-accent);
+        overflow-wrap: anywhere;
+    }
+
+    .lobby-message {
+        font-family: var(--font-ui);
+        font-size: var(--text-xs);
+        color: var(--col-accent);
+        margin-bottom: var(--sp-4);
+    }
+
+    .lobby-actions {
+        display: flex;
+        justify-content: center;
+        margin-top: var(--sp-2);
+    }
+
+    .lobby-empty-note {
+        max-width: 540px;
+        margin: 0 auto var(--sp-8);
+        font-family: var(--font-ui);
+        font-size: var(--text-xs);
+        color: rgba(255, 170, 0, 0.54);
+        letter-spacing: 0.14em;
+        line-height: 1.8;
+        text-transform: uppercase;
+    }
+
+    .lobby-actions .btn-node {
+        min-width: 260px;
+        justify-content: center;
+    }
+
+    @media (max-width: 840px) {
+        .lobby-title-row {
+            flex-direction: column;
+        }
+
+        .lobby-slots {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+    }
+
+    @media (max-width: 520px) {
+        .lobby-slots {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+{% endblock extra_head %}
+
+{% block content %}
+<section class="lobby-shell">
+    {% include "site/game_lobby/fragments/lobby_panel.html" %}
+</section>
+{% endblock content %}

@@ -1,0 +1,194 @@
+
+.page-login {
+    height: 100vh;
+    background: #000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+}
+
+.login-container {
+    width: 100%;
+    max-width: 600px;
+    display: flex;
+    flex-direction: column;
+    gap: 30px;
+}
+
+.login-header { text-align: center; }
+
+.login-title {
+    font-size: 14px;
+    letter-spacing: 0.4em;
+    color: var(--col-accent);
+    text-shadow: 0 0 15px rgba(255, 170, 0, 0.4);
+    margin-bottom: 8px;
+}
+
+.login-subtitle {
+    font-size: 9px;
+    color: var(--col-parchment-dim);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+}
+
+
+.login-form {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.form-group { display: flex; flex-direction: column; gap: 8px; }
+.form-group label {
+    font-size: 9px;
+    letter-spacing: 0.1em;
+    color: var(--col-parchment-dim);
+    text-transform: uppercase;
+}
+.form-group input {
+    background: rgba(10, 10, 12, 0.6);
+    border: 1px solid rgba(255, 170, 0, 0.15);
+    padding: 12px 15px;
+    color: var(--col-parchment);
+    font-size: 13px;
+    font-family: inherit;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    border-radius: 0;
+}
+
+/* Prevent browser autocomplete background */
+.form-group input:-webkit-autofill,
+.form-group input:-webkit-autofill:hover,
+.form-group input:-webkit-autofill:focus,
+.form-group input:-webkit-autofill:active {
+    -webkit-box-shadow: 0 0 0 30px #0a0a0c inset !important;
+    -webkit-text-fill-color: var(--col-parchment) !important;
+    transition: background-color 5000s ease-in-out 0s;
+}
+
+.form-group input:focus {
+    border-color: var(--col-accent);
+    background: rgba(255, 170, 0, 0.05);
+    box-shadow: 0 0 15px rgba(255, 170, 0, 0.1);
+    outline: none;
+}
+
+
+.char-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    width: 100%;
+}
+
+.char-slot {
+    padding: 15px 20px;
+    background: rgba(255, 170, 0, 0.02);
+    border: 1px solid rgba(255, 170, 0, 0.1);
+    cursor: pointer;
+    clip-path: polygon(0 0, calc(100% - 10px) 0, 100% 10px, 100% 100%, 10px 100%, 0 calc(100% - 10px));
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+}
+
+.char-slot:hover {
+    background: rgba(255, 170, 0, 0.06);
+    border-color: rgba(255, 170, 0, 0.3);
+    transform: translateY(-2px);
+}
+
+.char-slot.sel {
+    background: rgba(255, 170, 0, 0.1);
+    border-color: var(--col-accent);
+    box-shadow: 0 0 20px rgba(255, 170, 0, 0.1);
+}
+
+.char-slot.empty {
+    opacity: 0.4;
+    border-style: dashed;
+}
+
+.char-name {
+    font-size: 13px;
+    color: var(--col-parchment);
+    margin-bottom: 4px;
+    letter-spacing: 0.05em;
+}
+
+.char-meta {
+    font-size: 8px;
+    color: var(--col-text-dim);
+    line-height: 1.6;
+    text-transform: uppercase;
+}
+
+.char-stage {
+    position: absolute;
+    top: 8px;
+    right: 10px;
+    font-size: 7px;
+    letter-spacing: 0.1em;
+    padding: 2px 6px;
+    background: rgba(255, 170, 0, 0.08);
+    border: 1px solid rgba(255, 170, 0, 0.2);
+    color: var(--col-accent);
+    border-radius: 2px;
+}
+
+.char-stage.combat {
+    background: rgba(255, 51, 0, 0.1);
+    border-color: rgba(255, 51, 0, 0.3);
+    color: var(--col-danger);
+}
+
+.vitals-mini { display: flex; gap: 5px; margin-top: 12px; }
+.vbar { flex: 1; height: 2px; background: rgba(255, 255, 255, 0.05); }
+.vbar-fill { height: 100%; }
+.vbar-fill.hp { background: var(--col-danger); opacity: 0.7; }
+.vbar-fill.en { background: var(--col-info); opacity: 0.7; }
+
+
+.login-actions {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 15px;
+    margin-top: 20px;
+}
+
+.act-btn {
+    width: 100%;
+    padding: 15px;
+    background: transparent;
+    border: 1px solid var(--col-accent);
+    color: var(--col-accent);
+    cursor: pointer;
+    font-size: 11px;
+    letter-spacing: 0.3em;
+    text-transform: uppercase;
+    position: relative;
+    overflow: hidden;
+    transition: all 0.3s;
+    clip-path: polygon(0 0, calc(100% - 15px) 0, 100% 15px, 100% 100%, 15px 100%, 0 calc(100% - 15px));
+}
+
+.act-btn:hover {
+    background: var(--col-accent);
+    color: #000;
+    box-shadow: 0 0 30px rgba(255, 170, 0, 0.4);
+}
+
+.login-footer {
+    font-size: 8px;
+    color: var(--col-text-dim);
+    opacity: 0.5;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    text-align: center;
+    margin-top: 20px;
+}
+
+.login-footer a { color: var(--col-accent); text-decoration: none; margin: 0 10px; }
+.login-footer a:hover { text-decoration: underline; }

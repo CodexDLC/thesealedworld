@@ -1,0 +1,10 @@
+/* ── ABOUT PAGE ── */
+.lore-section {
+    max-width: 800px;
+    margin: 0 auto;
+    padding: var(--sp-10) 0;
+}
+
+.feature-text {
+    line-height: 1.6;
+}

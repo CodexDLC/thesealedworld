@@ -1,0 +1,79 @@
+/* ── INVENTORY & WALLET ── */
+
+.is {
+  width: 40px;
+  height: 40px;
+  border: 1px solid rgba(255,170,0,0.10);
+  background: rgba(255,255,255,0.015);
+  clip-path: var(--clip-node-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  cursor: pointer;
+  transition: all 0.18s;
+}
+
+.is:hover {
+  background: rgba(255,170,0,0.08);
+  border-color: rgba(255,170,0,0.30);
+}
+
+.is.empty {
+  opacity: .22;
+}
+
+/* ── WALLET ── */
+.wallet {
+  display: flex;
+  gap: 5px;
+}
+
+.wi {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 5px;
+  background: rgba(255,170,0,0.025);
+  border: 1px solid rgba(255,170,0,0.08);
+}
+
+.wi-icon {
+  font-size: 11px;
+}
+
+.wi-val {
+  font-size: var(--text-sm);
+  color: var(--col-accent);
+}
+
+.wi-lbl {
+  font-size: 7px;
+  color: var(--col-text-secondary);
+  letter-spacing: .1em;
+}
+
+/* ── TOKEN CHIPS ── */
+.token {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: var(--sp-1) var(--sp-3);
+  background: rgba(255,170,0,.05);
+  border: 1px solid rgba(255,170,0,.18);
+}
+
+.token .t-key {
+  font-size: var(--text-2xs);
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  color: var(--col-text-secondary);
+}
+
+.token .t-val {
+  font-size: var(--text-lg);
+  font-weight: 600;
+  color: var(--col-accent);
+  line-height: 1;
+}

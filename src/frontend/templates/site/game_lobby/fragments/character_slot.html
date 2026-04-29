@@ -1,0 +1,12 @@
+<article class="lobby-slot" aria-label="Character slot {{ slot.index }}">
+    <div class="lobby-avatar">
+        {% if slot.avatar_url %}
+            <img src="{{ slot.avatar_url }}" alt="{{ slot.name }}">
+        {% endif %}
+        <div class="lobby-silhouette" aria-hidden="true"></div>
+    </div>
+    <div class="lobby-slot-meta">
+        <span class="lobby-slot-name">{{ slot.name }}</span>
+        <span>{{ slot.status }}</span>
+    </div>
+</article>

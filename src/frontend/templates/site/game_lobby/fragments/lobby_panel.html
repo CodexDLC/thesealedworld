@@ -1,0 +1,34 @@
+<div class="lobby-panel {% if not lobby.has_characters %}lobby-panel--empty{% endif %}">
+    <div class="lobby-title-row">
+        <div>
+            <div class="lobby-kicker">GAME_LOBBY // SITE_GATE</div>
+            <h1 class="lobby-title">{{ lobby.title }}</h1>
+            <p class="lobby-copy">{{ lobby.description }}</p>
+        </div>
+        {% if lobby.has_characters %}
+            <div class="ds-tag sys">AUTHENTICATED</div>
+        {% endif %}
+    </div>
+
+    {% if lobby.message %}
+        <div class="lobby-message">{{ lobby.message }}</div>
+    {% endif %}
+
+    {% if lobby.has_characters %}
+        <div class="lobby-slots" aria-label="Character slots">
+            {% for slot in lobby.slots %}
+                {% include "site/game_lobby/fragments/character_slot.html" %}
+            {% endfor %}
+        </div>
+    {% else %}
+        {% include "site/game_lobby/fragments/empty_state.html" %}
+    {% endif %}
+
+    <div class="lobby-actions">
+        <form action="/game-lobby/start" method="post">
+            <button type="submit" class="btn-node lg">
+                <span>{{ lobby.primary_action_label }}</span>
+            </button>
+        </form>
+    </div>
+</div>

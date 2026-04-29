@@ -1,0 +1,33 @@
+/* ── INCLUDE: FOOTER ── */
+.app-footer {
+    height: 30px;
+    background: #050505;
+    border-top: 1px solid var(--col-border);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    color: var(--col-text-dim);
+    letter-spacing: 1px;
+    width: 100%;
+}
+
+.footer-container {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+/* ── GAME SPECIFIC FOOTER ── */
+.game-footer {
+    justify-content: space-between !important;
+    padding: 0 var(--sp-6) !important;
+    color: rgba(255, 255, 255, 0.3) !important;
+}
+
+.game-footer div {
+    white-space: nowrap;
+}
+
+.footer-divider { opacity: 0.2; }
+.footer-status { color: var(--col-accent); opacity: 0.6; }

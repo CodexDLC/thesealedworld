@@ -1,0 +1,21 @@
+{% extends base_template %}
+
+{% block title %}CRITICAL_FAILURE{% endblock %}
+
+{% block content %}
+<div class="error-container ds-panel" style="max-width: 600px; margin: 100px auto; padding: 40px; text-align: center; border: 1px solid #770000; background: rgba(15,0,0,0.95); backdrop-filter: blur(20px);">
+    <h1 style="color: #ff4444; font-family: var(--font-ui); font-size: 2rem; margin-bottom: 1rem;">500 // WORLD_CRASH</h1>
+    <p style="opacity: 0.8; margin: 20px 0; font-family: var(--font-world); font-size: 1.2rem;">
+        A critical failure in the world's fabric has occurred. The MMORPG simulation is unstable.
+    </p>
+    <div style="background: rgba(0,0,0,0.4); padding: 15px; font-family: 'JetBrains Mono'; font-size: 11px; margin-top: 20px; border: 1px solid rgba(255,0,0,0.2); text-align: left; color: #ff8888; overflow-x: auto;">
+        <span style="color: #ff4444; font-weight: bold;">[ERROR_LOG]:</span><br>
+        {{ error }}
+    </div>
+    <div style="margin-top: 30px;">
+        <a href="/" class="ds-button" style="text-decoration: none;">
+            <span>RELOGIN_SESSION</span>
+        </a>
+    </div>
+</div>
+{% endblock %}

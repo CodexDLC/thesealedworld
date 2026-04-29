@@ -1,0 +1,87 @@
+/* ── SITE HEADER ── */
+.site-header {
+    height: 80px;
+    background: rgba(10, 10, 12, 0.85);
+    border-bottom: 1px solid rgba(255, 170, 0, 0.15);
+    backdrop-filter: blur(16px);
+    position: sticky;
+    top: 0;
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+}
+
+.site-header-container {
+    max-width: 1400px;
+    width: 100%;
+    margin: 0 auto;
+    padding: 0 var(--sp-8);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.site-logo {
+    display: flex;
+    flex-direction: column;
+}
+
+.site-logo a {
+    text-decoration: none;
+    color: inherit;
+}
+
+.logo-main {
+    font-family: var(--font-world);
+    font-size: 24px;
+    letter-spacing: 0.15em;
+    color: var(--col-primary);
+    line-height: 1;
+}
+
+.logo-sub {
+    font-size: var(--text-2xs);
+    letter-spacing: 0.4em;
+    color: var(--col-text-secondary);
+    opacity: 0.7;
+    margin-top: 2px;
+}
+
+.site-nav .nav-links {
+    display: flex;
+    gap: var(--sp-10);
+}
+
+.site-nav .nav-link {
+    font-size: var(--text-sm);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--col-text-secondary);
+    text-decoration: none;
+    transition: all 0.3s ease;
+    position: relative;
+    padding: var(--sp-2) 0;
+}
+
+.site-nav .nav-link:hover,
+.site-nav .nav-link.active {
+    color: var(--col-primary);
+    text-shadow: 0 0 10px rgba(255, 170, 0, 0.4);
+}
+
+.site-nav .nav-link.active::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: 2px;
+    background: var(--col-primary);
+    box-shadow: 0 0 8px var(--col-primary);
+}
+
+.site-actions {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-4);
+}

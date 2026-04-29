@@ -2,12 +2,12 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from archive.telegram_bot import DEFAULT_ACTOR_NAME
 from sqlalchemy import ForeignKey, Integer, String
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from src.backend.database.postgres.models.base import Base, TimestampMixin
-from archive.telegram_bot import DEFAULT_ACTOR_NAME
 
 if TYPE_CHECKING:
     from .character import Character

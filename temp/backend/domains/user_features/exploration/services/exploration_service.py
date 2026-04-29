@@ -1,5 +1,4 @@
 # backend/domains/user_features/exploration/services/exploration_service.py
-from typing import TYPE_CHECKING
 
 from loguru import logger as log
 
@@ -17,9 +16,6 @@ from src.shared.schemas.exploration import (
     WorldNavigationDTO,
 )
 from src.shared.schemas.response import ServiceResult
-
-if TYPE_CHECKING:
-    pass
 
 
 class ExplorationService:

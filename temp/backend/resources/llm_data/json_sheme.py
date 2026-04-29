@@ -12,7 +12,7 @@ Your response MUST be a single, raw JSON object without any explanations or text
 No Markdown.
 
 CRITICAL LANGUAGE RULE:
-All user-facing creative strings (dungeon_meta.name, rooms.name, rooms.description, 
+All user-facing creative strings (dungeon_meta.name, rooms.name, rooms.description,
 and all text "values" in the "exits" object) MUST be generated in RUSSIAN.
 
 JSON Schema:

@@ -61,7 +61,7 @@ class AccountSessionService:
         """
         Обновляет секцию bio.
         """
-        await self.account_manager.update_bio(char_id, cast(dict, bio))
+        await self.account_manager.update_bio(char_id, cast("dict", bio))
 
     async def update_state(self, char_id: int, state: CoreDomain) -> None:
         """

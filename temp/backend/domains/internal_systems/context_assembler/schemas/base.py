@@ -1,9 +1,10 @@
 import time
 from typing import Any
 
+from pydantic import BaseModel, computed_field
+
 from src.shared.schemas.character import CharacterAttributesReadDTO, CharacterReadDTO
 from src.shared.schemas.skill import SkillProgressDTO
-from pydantic import BaseModel, computed_field
 
 
 class BaseTempContext(BaseModel):

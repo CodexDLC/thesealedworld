@@ -48,7 +48,7 @@ class MonsterTempContextSchema(BaseModel):
 
         for stat, data in equip_mods.items():
             # data может быть dict или чем-то еще, приводим к dict
-            data_dict = cast(dict[str, Any], data) if isinstance(data, dict) else {}
+            data_dict = cast("dict[str, Any]", data) if isinstance(data, dict) else {}
             sources: dict[str, Any] = data_dict.get("sources", {})
 
             # Если это атрибут (сила, ловкость) -> в attributes.flats

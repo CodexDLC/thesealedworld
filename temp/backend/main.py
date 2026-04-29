@@ -18,7 +18,7 @@ from src.shared.schemas.errors import ErrorResponse
 
 
 @asynccontextmanager
-async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
+async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
     # Настройка логгера с меткой "backend"
     setup_logging(settings, service_name="backend")
     logger.info("🚀 Server starting... Project: {name}", name=settings.project_name)

@@ -115,18 +115,18 @@ class CombatManager:
         local char_id = ARGV[1]
         local team_name = ARGV[2]
         local is_ai = ARGV[3]
-        
+
         -- A. Обновляем actors_info
         local info_raw = redis.call("HGET", meta_key, "actors_info")
         local info = cjson.decode(info_raw or "{}")
         info[char_id] = (is_ai == "1") and "ai" or "player"
         redis.call("HSET", meta_key, "actors_info", cjson.encode(info))
-        
+
         -- B. Обновляем teams
         local teams_raw = redis.call("HGET", meta_key, "teams")
         local teams = cjson.decode(teams_raw or "{}")
         if not teams[team_name] then teams[team_name] = {} end
-        
+
         -- Проверка на дубликат в команде (на всякий случай)
         local exists = false
         for _, id in ipairs(teams[team_name]) do
@@ -136,7 +136,7 @@ class CombatManager:
             table.insert(teams[team_name], tonumber(char_id) or char_id)
             redis.call("HSET", meta_key, "teams", cjson.encode(teams))
         end
-        
+
         -- C. РЕЗОЛВИНГ ЦЕЛЕЙ (Targets)
         -- Мы берем ВСЕ текущие списки целей и добавляем туда нового врага
         local targets_raw = redis.call("JSON.GET", targets_key, "$")
@@ -144,23 +144,23 @@ class CombatManager:
         if targets_raw then
             all_targets = cjson.decode(targets_raw)[1] or {}
         end
-        
+
         local new_actor_targets = {}
-        
+
         for actor_id, target_list in pairs(all_targets) do
             -- Определяем команду этого актера (нужно найти его в teams)
-            
+
             local is_enemy = true
             -- Проверяем, есть ли он в нашей команде
             if teams[team_name] then
                 for _, member_id in ipairs(teams[team_name]) do
-                    if tostring(member_id) == actor_id then 
-                        is_enemy = false 
-                        break 
+                    if tostring(member_id) == actor_id then
+                        is_enemy = false
+                        break
                     end
                 end
             end
-            
+
             if is_enemy then
                 -- Мы добавляем себя ему в список целей (если еще нет)
                 local already_target = false
@@ -170,16 +170,16 @@ class CombatManager:
                 if not already_target then
                     table.insert(target_list, tonumber(char_id) or char_id)
                 end
-                
+
                 -- Он добавляется к нам в список целей
                 table.insert(new_actor_targets, tonumber(actor_id) or actor_id)
             end
         end
-        
+
         -- Записываем обновленные списки обратно
         all_targets[char_id] = new_actor_targets
         redis.call("JSON.SET", targets_key, "$", cjson.encode(all_targets))
-        
+
         return 1
         """
 
@@ -383,26 +383,26 @@ class CombatManager:
         script = """
         local targets = redis.call('JSON.GET', KEYS[1], '$.' .. ARGV[1])
         if not targets then return 0 end
-        
+
         -- ARGV[2] (target_id) can be string or int. JSON.ARRINDEX handles types strictly.
         -- We try both number and string if needed, but usually we pass string here.
-        
+
         local idx_res = redis.call('JSON.ARRINDEX', KEYS[1], '$.' .. ARGV[1], tonumber(ARGV[2]) or ARGV[2])
-        
+
         if not idx_res or idx_res[1] == -1 then
             return 0
         end
-        
+
         local real_idx = idx_res[1]
-        
+
         -- 1. Удаляем цель (POP по индексу)
         redis.call('JSON.ARRPOP', KEYS[1], '$.' .. ARGV[1], real_idx)
-        
+
         -- 2. Добавляем ход (JSON.SET в словарь)
         -- Путь: $.exchange.move_id
         local path = '$.exchange.' .. ARGV[4]
         redis.call('JSON.SET', KEYS[2], path, ARGV[3])
-        
+
         return 1
         """
 
@@ -432,30 +432,30 @@ class CombatManager:
         local success_count = 0
         local moves = cjson.decode(ARGV[2])
         local char_id = ARGV[1]
-        
+
         for _, move_item in ipairs(moves) do
             local target_id = move_item.target_id
             local move_json = move_item.move_json
             local strategy = move_item.strategy
             local move_id = move_item.move_id
-            
+
             -- 1. Ищем цель (try number then string)
             local idx_res = redis.call('JSON.ARRINDEX', KEYS[1], '$.' .. char_id, tonumber(target_id) or target_id)
-            
+
             if idx_res and idx_res[1] ~= -1 then
                 local real_idx = idx_res[1]
-                
+
                 -- 2. Удаляем цель
                 redis.call('JSON.ARRPOP', KEYS[1], '$.' .. char_id, real_idx)
-                
+
                 -- 3. Записываем мув
                 local path = '$.' .. strategy .. '.' .. move_id
                 redis.call('JSON.SET', KEYS[2], path, move_json)
-                
+
                 success_count = success_count + 1
             end
         end
-        
+
         return success_count
         """
 
@@ -707,19 +707,19 @@ class CombatManager:
         script = """
         local key = KEYS[1]
         local feint_id = ARGV[1]
-        
+
         -- Get hand
         local hand_raw = redis.call("JSON.GET", key, "$.meta.feints.hand")
         if not hand_raw then return nil end
-        
+
         local hand = cjson.decode(hand_raw)[1]
         if not hand or not hand[feint_id] then return nil end
-        
+
         local cost = hand[feint_id]
-        
+
         -- Delete feint
         redis.call("JSON.DEL", key, "$.meta.feints.hand." .. feint_id)
-        
+
         return cjson.encode(cost)
         """
 

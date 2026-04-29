@@ -1,14 +1,15 @@
 from typing import Any
 
-# Импортируем существующие DTO (Core Data)
-from src.shared.schemas.character import CharacterAttributesReadDTO, CharacterReadDTO
-from src.shared.schemas.skill import SkillProgressDTO
 from pydantic import BaseModel, computed_field
 
 from src.backend.domains.internal_systems.context_assembler.utils import format_value
 
 # Импортируем Enums для логики
 from src.backend.resources.game_data.common.stats_enum import PrimaryStat
+
+# Импортируем существующие DTO (Core Data)
+from src.shared.schemas.character import CharacterAttributesReadDTO, CharacterReadDTO
+from src.shared.schemas.skill import SkillProgressDTO
 
 # Статы, которые зависят от руки (нуждаются в префиксе)
 HAND_DEPENDENT_STATS = {

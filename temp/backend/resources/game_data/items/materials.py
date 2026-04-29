@@ -19,9 +19,9 @@ from .material.woods import WOODS_DB
 
 # Сборка единой базы данных из модулей
 CRAFTING_MATERIALS_DB: dict[str, dict[int, MaterialDTO]] = (
-    cast(dict[str, dict[int, MaterialDTO]], INGOTS_DB)
-    | cast(dict[str, dict[int, MaterialDTO]], LEATHERS_DB)
-    | cast(dict[str, dict[int, MaterialDTO]], CLOTHS_DB)
-    | cast(dict[str, dict[int, MaterialDTO]], WOODS_DB)
-    | cast(dict[str, dict[int, MaterialDTO]], PARTS_DB)
+    cast("dict[str, dict[int, MaterialDTO]]", INGOTS_DB)
+    | cast("dict[str, dict[int, MaterialDTO]]", LEATHERS_DB)
+    | cast("dict[str, dict[int, MaterialDTO]]", CLOTHS_DB)
+    | cast("dict[str, dict[int, MaterialDTO]]", WOODS_DB)
+    | cast("dict[str, dict[int, MaterialDTO]]", PARTS_DB)
 )

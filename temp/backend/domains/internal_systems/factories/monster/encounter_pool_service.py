@@ -12,7 +12,9 @@ from src.backend.domains.internal_systems.factories.monster.clan_hashing import 
 from src.shared.schemas.monster_dto import GeneratedMonsterDTO
 
 if TYPE_CHECKING:
-    from src.backend.domains.user_features.exploration.services.exploration_service import ExplorationService as GameWorldService
+    from src.backend.domains.user_features.exploration.services.exploration_service import (
+        ExplorationService as GameWorldService,
+    )
 
 
 class EncounterPoolService:

@@ -1,5 +1,3 @@
-
-
 # Managers
 from src.backend.database.redis.manager.account_manager import AccountManager
 from src.backend.database.redis.manager.arena_manager import ArenaManager

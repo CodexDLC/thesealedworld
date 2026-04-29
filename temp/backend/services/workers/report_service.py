@@ -1,8 +1,9 @@
 # app/services/report_service.py
 from aiogram import Bot
 from aiogram.exceptions import TelegramAPIError
-from src.backend.core.config import settings
 from loguru import logger as log
+
+from src.backend.core.config import settings
 
 
 class ReportService:

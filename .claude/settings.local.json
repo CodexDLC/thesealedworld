@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python src/frontend/manage.py compile)",
+      "mcp__Claude_in_Chrome__tabs_context_mcp",
+      "Bash(uv run *)",
+      "Bash(uv --version)",
+      "Bash(xargs grep *)",
+      "Bash(docker compose *)",
+      "Bash(python -c \"from codex_platform.redis_service import RedisService; import inspect; print\\([m for m in dir\\(RedisService\\) if not m.startswith\\('_'\\)]\\)\")",
+      "Bash(python -c \"from codex_platform.redis_service import RedisService; r = RedisService\\(None\\); print\\(type\\(r.redis_client\\) if hasattr\\(r,'redis_client'\\) else 'no redis_client'\\); print\\([m for m in dir\\(r\\) if not m.startswith\\('_'\\)]\\)\")",
+      "Bash(python -c \"from codex_platform.redis_service import RedisService; import inspect; print\\(inspect.getsourcefile\\(RedisService\\)\\)\")"
+    ]
+  }
+}

@@ -184,7 +184,7 @@ class BundleData(TypedDict):
 
 # Сборка всех бандлов
 BUNDLES_DB: dict[str, BundleData] = (
-    cast(dict[str, BundleData], BUNDLES_2_SLOTS)
-    | cast(dict[str, BundleData], BUNDLES_3_SLOTS)
-    | cast(dict[str, BundleData], BUNDLES_4_SLOTS)
+    cast("dict[str, BundleData]", BUNDLES_2_SLOTS)
+    | cast("dict[str, BundleData]", BUNDLES_3_SLOTS)
+    | cast("dict[str, BundleData]", BUNDLES_4_SLOTS)
 )

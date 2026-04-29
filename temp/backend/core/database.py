@@ -63,7 +63,7 @@ async_session_factory = async_sessionmaker(
 
 
 @asynccontextmanager
-async def get_session_context() -> AsyncGenerator[AsyncSession, None]:
+async def get_session_context() -> AsyncGenerator[AsyncSession]:
     """
     Контекстный менеджер для работы с БД (для воркеров, скриптов и сервисов).
     Автоматически делает commit при успехе и rollback при ошибке.
@@ -89,7 +89,7 @@ async def get_session_context() -> AsyncGenerator[AsyncSession, None]:
             await session.close()
 
 
-async def get_db() -> AsyncGenerator[AsyncSession, None]:
+async def get_db() -> AsyncGenerator[AsyncSession]:
     """
     Dependency для FastAPI (Depends(get_db)).
     Использует тот же механизм с авто-коммитом.

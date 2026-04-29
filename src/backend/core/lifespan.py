@@ -14,6 +14,9 @@ from src.backend.config.settings import settings
 from src.backend.core.bus import GameEventProducer
 from src.backend.core.database import create_db_tables
 from src.backend.core.redis.actor_snapshot_manager import ActorSnapshotManager
+from src.backend.core.redis.character_session_events import CharacterSessionEvents
+from src.backend.core.redis.character_session_manager import CharacterSessionManager
+from src.backend.core.redis.managers import RedisManagers
 from src.backend.features.actor_state.events import bind as bind_actor_state_events
 from src.backend.features.actor_state.events import router as actor_state_router
 from src.backend.features.arena.events import router as arena_router
@@ -36,8 +39,17 @@ async def start_event_bus(app: FastAPI) -> None:
     )
 
     app.state.events = GameEventProducer(StreamProducer(app.state.redis_client, settings.game_stream_name))
-    app.state.redis = RedisService(app.state.redis_client)
-    app.state.actor_snapshots = ActorSnapshotManager(app.state.redis)
+    redis_service = RedisService(app.state.redis_client)
+    managers = RedisManagers(
+        redis=redis_service,
+        character_sessions=CharacterSessionManager(redis_service),
+        actor_snapshots=ActorSnapshotManager(redis_service),
+    )
+    app.state.redis = redis_service
+    app.state.redis_managers = managers
+    app.state.character_sessions = managers.character_sessions
+    app.state.character_session_events = CharacterSessionEvents(app.state.events)
+    app.state.actor_snapshots = managers.actor_snapshots
     bind_actor_state_events(app)
 
     dispatcher = StreamDispatcher()

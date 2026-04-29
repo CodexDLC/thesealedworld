@@ -45,7 +45,7 @@ for _subcat, items in ACCESSORIES_DB.items():
 # Сборка единой базы данных из модулей
 # Структура: { "category_name": { "item_id": BaseItemDTO | dict } }
 BASES_DB: dict[str, dict[str, BaseItemDTO | dict[str, Any]]] = {
-    "weapon": cast(dict[str, BaseItemDTO | dict[str, Any]], WEAPONS_DB),
+    "weapon": cast("dict[str, BaseItemDTO | dict[str, Any]]", WEAPONS_DB),
     "armor": _flat_armor,
     "garment": _flat_garment,
     "accessory": _flat_accessories,

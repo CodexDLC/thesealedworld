@@ -1,11 +1,11 @@
 from typing import Any
 
-from src.backend.core.config import settings
 from google import genai
 from google.auth import exceptions
 from google.genai import errors, types
 from loguru import logger as log
 
+from src.backend.core.config import settings
 from src.backend.resources.llm_data.mode_preset import MODE_PRESETS, ChatMode
 from src.backend.services.gemini_service.gemini_service_build import (
     BUILDERS_GEMINI as BUILDERS,

@@ -179,7 +179,7 @@ class CombatCollector:
 
                         # Создаем ОДИН Action на весь мув (с множеством целей)
                         # Используем cast для успокоения mypy
-                        action_type = cast(Literal["exchange", "item", "instant", "system"], strategy)
+                        action_type = cast("Literal['exchange', 'item', 'instant', 'system']", strategy)
                         action = CombatActionDTO(action_type=action_type, move=move, is_forced=False)
 
                         actions.append(action)

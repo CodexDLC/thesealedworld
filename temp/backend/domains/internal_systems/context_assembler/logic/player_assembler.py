@@ -2,8 +2,6 @@
 import asyncio
 from typing import Any, cast
 
-from src.shared.schemas.character import CharacterAttributesReadDTO, CharacterReadDTO
-from src.shared.schemas.skill import SkillProgressDTO
 from loguru import logger as log
 from pydantic import ValidationError
 from redis.exceptions import RedisError
@@ -28,6 +26,8 @@ from src.backend.domains.internal_systems.context_assembler.schemas.base import 
 from src.backend.domains.internal_systems.context_assembler.schemas.combat import CombatTempContext
 from src.backend.domains.internal_systems.context_assembler.schemas.inventory import InventoryTempContext
 from src.backend.domains.internal_systems.context_assembler.schemas.status import StatusTempContext
+from src.shared.schemas.character import CharacterAttributesReadDTO, CharacterReadDTO
+from src.shared.schemas.skill import SkillProgressDTO
 
 
 class PlayerAssembler(BaseAssembler):
@@ -116,16 +116,16 @@ class PlayerAssembler(BaseAssembler):
                 raw_data[key] = result
 
         # Преобразование в словари по ID
-        chars_map = {char.character_id: char for char in cast(list[CharacterReadDTO], raw_data.get("char", []))}
+        chars_map = {char.character_id: char for char in cast("list[CharacterReadDTO]", raw_data.get("char", []))}
         attributes_map = {
-            attr.character_id: attr for attr in cast(list[CharacterAttributesReadDTO], raw_data.get("attributes", []))
+            attr.character_id: attr for attr in cast("list[CharacterAttributesReadDTO]", raw_data.get("attributes", []))
         }
-        skills_map = cast(dict[int, list[SkillProgressDTO]], raw_data.get("skills", {}))
-        inventory_map = cast(dict[int, list[Any]], raw_data.get("inventory", {}))
-        symbiotes_map = {s.character_id: s for s in cast(list[CharacterSymbiote], raw_data.get("symbiote", []))}
+        skills_map = cast("dict[int, list[SkillProgressDTO]]", raw_data.get("skills", {}))
+        inventory_map = cast("dict[int, list[Any]]", raw_data.get("inventory", {}))
+        symbiotes_map = {s.character_id: s for s in cast("list[CharacterSymbiote]", raw_data.get("symbiote", []))}
 
         # Vitals приходят списком в порядке ID
-        vitals_list = cast(list[dict | None], raw_data.get("vitals", []))
+        vitals_list = cast("list[dict | None]", raw_data.get("vitals", []))
         vitals_map = {}
         if "vitals" in query_plan:
             vitals_map = {char_id: vitals for char_id, vitals in zip(int_ids, vitals_list, strict=False)}

@@ -1,0 +1,72 @@
+exclude: ^temp/
+
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-json
+      - id: check-added-large-files
+        args: ['--maxkb=2000']
+      - id: check-merge-conflict
+
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.15.5
+    hooks:
+      - id: ruff
+        args: [--fix]
+        exclude: ^archive/
+      - id: ruff-format
+        exclude: ^archive/
+
+  - repo: https://github.com/igorshubovych/markdownlint-cli
+    rev: v0.44.0
+    hooks:
+      - id: markdownlint
+        args: ["--fix", "--disable", "MD013"]
+
+  - repo: https://github.com/PyCQA/bandit
+    rev: 1.8.3
+    hooks:
+      - id: bandit
+        args: ["-c", "pyproject.toml"]
+        additional_dependencies: ["bandit[toml]"]
+
+  # 1. Проверка библиотек на уязвимости (CVE)
+  - repo: https://github.com/pypa/pip-audit
+    rev: v2.10.0
+    hooks:
+      - id: pip-audit
+        args:
+          - "--local"
+          - "--timeout"
+          - "15"
+          - "--ignore-vuln"
+          - "CVE-2026-3219"  # pip 26.0.1 vulnerability with no fix available yet
+        additional_dependencies: ["pip-audit[toml]", "toml"]
+
+  # 2. Поиск "забытых" секретов и паролей (усиленный)
+  - repo: https://github.com/Yelp/detect-secrets
+    rev: v1.5.0
+    hooks:
+      - id: detect-secrets
+        exclude: ^src/lily_backend/system/fixtures/catalog/
+
+  # 3. Листинг и проверка Docker-файлов (Linter)
+  - repo: local
+    hooks:
+      - id: hadolint-docker
+        name: Lint Dockerfiles (Docker)
+        language: docker_image
+        entry: hadolint/hadolint:latest hadolint
+        args: ["--failure-threshold", "error"]
+        files: ^deploy/.*/Dockerfile(\.local)?$
+
+  # 4. Линтер и форматировщик HTML/Jinja2 шаблонов
+  - repo: https://github.com/djlint/djlint
+    rev: v1.36.4
+    hooks:
+      - id: djlint-reformat-jinja
+      - id: djlint-jinja

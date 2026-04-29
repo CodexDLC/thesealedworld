@@ -1,9 +1,12 @@
 [project]
 name = "turnbasedmmorpg"
 version = "0.1.0"
+description = "Turn-Based MMORPG with FastAPI and HTMX"
 requires-python = ">=3.13"
 dependencies = [
     "alembic>=1.18.4",
+    "aiosqlite>=0.22.0",
+    "asyncpg>=0.31.0",
     "codex-core>=0.3.0",
     "codex-platform>=0.4.0",
     "fastapi>=0.136.1",
@@ -12,6 +15,117 @@ dependencies = [
     "loguru>=0.7.3",
     "pydantic>=2.13.3",
     "pydantic-settings>=2.14.0",
+    "python-multipart>=0.0.20",
+    "redis>=7.1.0",
     "sqlalchemy>=2.0.49",
     "uvicorn>=0.46.0",
 ]
+
+[tool.uv]
+default-groups = ["dev"]
+
+[dependency-groups]
+dev = [
+    "ruff",
+    "mypy",
+    "pytest",
+    "pytest-asyncio",
+    "pytest-cov>=5.0.0",
+    "pytest-mock>=3.14.0",
+    "pre-commit",
+    "pip-audit",
+    "bandit[toml]",
+    "djlint>=1.36.4",
+    "graphifyy>=0.5.4",
+]
+
+# === Ruff ===
+[tool.ruff]
+target-version = "py313"
+line-length = 120
+src = ["src"]
+exclude = ["archive", "tests", "tools"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "N", "UP", "B", "A", "SIM", "TCH"]
+ignore = ["E501"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["src"]
+
+# === Mypy ===
+[tool.mypy]
+python_version = "3.13"
+strict = false
+warn_return_any = false
+warn_unused_configs = true
+disallow_untyped_defs = false
+ignore_missing_imports = true
+check_untyped_defs = true
+warn_unused_ignores = false
+disable_error_code = ["call-arg"]
+
+# === Pytest ===
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+pythonpath = ["."]
+markers = [
+    "unit: Unit tests (fast, isolated)",
+    "integration: Integration tests",
+]
+addopts = "--tb=short --cov=src --cov-report=term-missing"
+
+# === Coverage ===
+[tool.coverage.run]
+source = ["src"]
+omit = [
+    "*/migrations/*",
+    "*/tests/*",
+    "*/conftest.py",
+]
+
+[tool.coverage.report]
+fail_under = 80
+show_missing = true
+exclude_lines = [
+    "pragma: no cover",
+    "raise NotImplementedError",
+    "if TYPE_CHECKING:",
+    "if __name__ == .__main__.:",
+]
+
+# === Bandit ===
+[tool.bandit]
+exclude_dirs = ["tests", "tools"]
+targets = ["src"]
+skips = ["B101", "B308", "B703"]
+
+# === Quality Gate ===
+[tool.codex-check]
+project-name = "TurnBasedMMORPG"
+quality-command = "uv run pre-commit run --all-files"
+types-command = "uv run mypy --explicit-package-bases src tools"
+security-command = "uv run pip-audit --skip-editable --ignore-vuln CVE-2026-3219"
+audit-flags = "--skip-editable --ignore-vuln CVE-2026-3219"
+test-stages = ["unit"]
+test-paths = ["tests"]
+types-paths = ["src", "tools"]
+no-cov-test-stages = ["unit"]
+
+# === djLint ===
+[tool.djlint]
+profile = "jinja"
+indent = 4
+line_length = 120
+blank_line_after_tag = "load,extends,include"
+close_void_tags = true
+format_css = true
+format_js = true
+# H006: img should have alt (demo data doesn't always have it)
+# H030/H031: script/style tag should have type (optional in HTML5)
+# D018/D017: Django specific URL tags (we use Jinja2)
+ignore = "H006,H030,H031,D018,D017"

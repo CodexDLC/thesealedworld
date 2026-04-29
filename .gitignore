@@ -169,9 +169,14 @@ Desktop.ini
 brain/
 artifacts/
 scratch/
+graphify-out/
 
 # Cloud / Infrastructure
 .terraform/
 .aws/
 .gcloud/
 .azure/
+
+# Compiled static assets
+src/frontend/static/css/app.css
+src/frontend/static/js/app.bundle.js

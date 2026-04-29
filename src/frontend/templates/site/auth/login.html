@@ -1,0 +1,41 @@
+{% extends "site/base_site.html" %}
+
+{% block extra_head %}
+<link rel="stylesheet" href="/static/css/pages/auth.css">
+{% endblock %}
+
+{% block content %}
+<div class="page-login">
+    <div class="login-container">
+        <div class="login-header">
+            <div class="login-title">THE BOND: RESONANCE</div>
+            <div class="login-subtitle">Awaken the connection to the Rift</div>
+        </div>
+
+        {% if form and form.error %}
+            <div class="ds-tag err" style="margin-bottom: var(--sp-4);">{{ form.error }}</div>
+        {% endif %}
+
+        <form action="/login" method="post" class="login-form">
+            <div class="form-group">
+                <label for="email">SOUL_IDENTIFIER</label>
+                <input type="email" id="email" name="email" value="{{ form.email if form else '' }}" placeholder="essence@void.link" required>
+            </div>
+            <div class="form-group">
+                <label for="password">RESONANCE_KEY</label>
+                <input type="password" id="password" name="password" placeholder="••••••••" required>
+            </div>
+
+            <div class="login-actions">
+                <button type="submit" class="act-btn login-btn">
+                    <span>AWAKEN_BOND</span>
+                </button>
+            </div>
+        </form>
+
+        <div class="login-footer">
+            <a href="#">Restore Link</a> // <a href="/register">Establish New Bond</a>
+        </div>
+    </div>
+</div>
+{% endblock %}

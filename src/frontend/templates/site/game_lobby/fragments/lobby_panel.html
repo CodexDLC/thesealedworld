@@ -1,4 +1,60 @@
-<div class="lobby-panel {% if not lobby.has_characters %}lobby-panel--empty{% endif %}">
+<div
+    class="lobby-panel {% if not lobby.has_characters %}lobby-panel--empty{% endif %}"
+    x-data="{
+        selectedSlot: null,
+        selectedEmpty: false,
+        selectedCharacterId: '',
+        selectedName: '',
+        creating: {{ 'true' if not lobby.has_characters else 'false' }},
+        showDeleteModal: false,
+        deleteConfirmName: '',
+        confirmDelete() {
+            if (!this.selectedCharacterId || this.selectedEmpty) return;
+            this.showDeleteModal = true;
+            this.deleteConfirmName = '';
+            this.$nextTick(() => { this.$refs.modalInput.focus(); });
+        },
+        submitDelete() {
+            if (this.deleteConfirmName.trim() !== this.selectedName) {
+                alert('Имя не совпало. Персонаж не удален.');
+                return;
+            }
+            this.$refs.confirmName.value = this.deleteConfirmName.trim();
+            this.$refs.deleteForm.submit();
+        }
+    }"
+>
+    <!-- Deletion Modal Overlay -->
+    <template x-if="showDeleteModal">
+        <div class="modal-overlay" x-cloak @click.self="showDeleteModal = false">
+            <div class="modal-container" @keydown.escape.window="showDeleteModal = false">
+                <h2 class="modal-title">Удаление персонажа</h2>
+                <p class="modal-text">
+                    Это действие необратимо. Чтобы подтвердить удаление, введите имя персонажа: <br>
+                    <strong class="col-accent" x-text="selectedName"></strong>
+                </p>
+
+                <div class="modal-input-field">
+                    <label>Имя персонажа</label>
+                    <input type="text"
+                           class="modal-input"
+                           x-model="deleteConfirmName"
+                           x-ref="modalInput"
+                           @keydown.enter="submitDelete()"
+                           placeholder="Введите имя...">
+                </div>
+
+                <div class="modal-actions">
+                    <button class="btn-node danger" @click="submitDelete()" :disabled="deleteConfirmName.trim() !== selectedName">
+                        <span>Удалить навсегда</span>
+                    </button>
+                    <button class="btn-node" @click="showDeleteModal = false">
+                        <span>Отмена</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </template>
     <div class="lobby-title-row">
         <div>
             <div class="lobby-kicker">GAME_LOBBY // SITE_GATE</div>
@@ -16,19 +72,65 @@
 
     {% if lobby.has_characters %}
         <div class="lobby-slots" aria-label="Character slots">
-            {% for slot in lobby.slots %}
-                {% include "site/game_lobby/fragments/character_slot.html" %}
-            {% endfor %}
+            <div class="lobby-slot-row">
+                {% for slot in lobby.slots[:2] %}
+                    {% include "site/game_lobby/fragments/character_slot.html" %}
+                {% endfor %}
+            </div>
+
+            <div class="lobby-slot-actions">
+                <form action="/game-lobby/enter" method="post">
+                    <input type="hidden" name="character_id" :value="selectedCharacterId">
+                    <button class="btn-node" type="submit" :disabled="selectedSlot === null || selectedEmpty">
+                        <span>Играть</span>
+                    </button>
+                </form>
+                <button
+                    type="button"
+                    class="btn-node"
+                    @click="creating = true"
+                    :disabled="selectedSlot !== null && !selectedEmpty"
+                >
+                    <span>Создать</span>
+                </button>
+                <form action="/game-lobby/delete" method="post" x-ref="deleteForm" @submit.prevent="confirmDelete()">
+                    <input type="hidden" name="character_id" :value="selectedCharacterId">
+                    <input type="hidden" name="confirm_name" x-ref="confirmName">
+                    <button
+                        type="submit"
+                        class="btn-node danger lobby-delete-action"
+                        :disabled="selectedSlot === null || selectedEmpty"
+                    >
+                        <span>Удалить</span>
+                    </button>
+                </form>
+            </div>
+
+            <div class="lobby-slot-row">
+                {% for slot in lobby.slots[2:] %}
+                    {% include "site/game_lobby/fragments/character_slot.html" %}
+                {% endfor %}
+            </div>
         </div>
     {% else %}
         {% include "site/game_lobby/fragments/empty_state.html" %}
     {% endif %}
 
-    <div class="lobby-actions">
-        <form action="/game-lobby/start" method="post">
-            <button type="submit" class="btn-node lg">
-                <span>{{ lobby.primary_action_label }}</span>
-            </button>
-        </form>
-    </div>
+    {% if lobby.can_create %}
+        <div class="lobby-creation-section" x-show="creating || !{{ 'true' if lobby.has_characters else 'false' }}" x-cloak>
+            {% include "site/game_lobby/fragments/creation_form.html" %}
+        </div>
+
+        <div class="lobby-actions" x-show="creating || !{{ 'true' if lobby.has_characters else 'false' }}" x-cloak>
+            <form id="character-creation-form" action="/game-lobby/start" method="post">
+                <button type="submit" class="btn-node lg">
+                    <span>{{ lobby.primary_action_label }}</span>
+                </button>
+            </form>
+        </div>
+    {% else %}
+        <div class="lobby-message sys-error">
+            <span>Лимит персонажей достигнут. Все слоты заняты.</span>
+        </div>
+    {% endif %}
 </div>

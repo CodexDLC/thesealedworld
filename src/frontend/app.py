@@ -10,6 +10,7 @@ from src.frontend.config.settings import settings
 from src.frontend.core.middleware import AuthUserMiddleware
 from src.frontend.core.renderer import get_ui_renderer
 from src.frontend.core.routing import include_frontend_routers
+from src.frontend.features.game_menu import GameMenuMiddleware
 
 
 @asynccontextmanager
@@ -40,6 +41,7 @@ app = FastAPI(
 app.mount("/static", StaticFiles(directory=str(settings.static_dir)), name="static")
 
 app.add_middleware(AuthUserMiddleware)
+app.add_middleware(GameMenuMiddleware)
 include_frontend_routers(app)
 
 

@@ -6,10 +6,10 @@ from contextlib import AbstractAsyncContextManager
 from typing import TYPE_CHECKING, Any
 
 from src.backend.core.database import get_session_context
-from src.backend.core.redis.actor_snapshot_manager import ActorSnapshotManager
 from src.backend.features.actor_state.dto.snapshot import ActorSnapshotBatchResult
 from src.backend.features.actor_state.runtime.assemblers import monster_assembler, player_assembler
 from src.backend.features.actor_state.runtime.sections import resolve_sections
+from src.backend.infrastructure.redis.actor_snapshot_manager import ActorSnapshotManager
 
 if TYPE_CHECKING:
     from codex_platform.redis_service import RedisService

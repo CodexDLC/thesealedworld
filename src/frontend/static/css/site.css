@@ -107,6 +107,7 @@
 
 
 
+
 *,
 *::before,
 *::after {
@@ -180,6 +181,7 @@ textarea {
   border: none;
   outline: none;
 }
+
 
 
 
@@ -367,6 +369,7 @@ textarea {
 
 
 
+
 body::before {
   content: '';
   position: fixed;
@@ -388,6 +391,7 @@ body::before {
   pointer-events: none;
   z-index: 1;
 }
+
 
 
 
@@ -574,80 +578,6 @@ body::before {
     gap: var(--sp-4);
 }
 
-.site-account {
-    position: relative;
-}
-
-.site-account-btn {
-    display: inline-flex;
-    align-items: center;
-    gap: var(--sp-2);
-    background: transparent;
-    border: 1px solid rgba(255, 170, 0, 0.18);
-    color: rgba(255, 170, 0, 0.7);
-    padding: var(--sp-2) var(--sp-4);
-    font-family: var(--font-ui);
-    font-size: var(--text-xs);
-    letter-spacing: 0.08em;
-    cursor: pointer;
-    transition: border-color 0.2s, color 0.2s;
-}
-
-.site-account-btn:hover {
-    border-color: rgba(255, 170, 0, 0.4);
-    color: rgba(255, 170, 0, 0.95);
-}
-
-.site-account-caret {
-    transition: transform 0.2s;
-    opacity: 0.6;
-}
-
-.site-account-caret.rotated {
-    transform: rotate(180deg);
-}
-
-.site-account-dropdown {
-    position: absolute;
-    top: calc(100% + var(--sp-2));
-    right: 0;
-    min-width: 160px;
-    background: rgba(10, 10, 12, 0.97);
-    border: 1px solid rgba(255, 170, 0, 0.18);
-    display: flex;
-    flex-direction: column;
-    z-index: 100;
-}
-
-.site-account-item {
-    display: block;
-    width: 100%;
-    padding: var(--sp-3) var(--sp-4);
-    font-family: var(--font-ui);
-    font-size: var(--text-xs);
-    letter-spacing: 0.08em;
-    color: rgba(255, 170, 0, 0.65);
-    text-align: left;
-    background: transparent;
-    border: none;
-    cursor: pointer;
-    transition: background 0.15s, color 0.15s;
-    text-decoration: none;
-}
-
-.site-account-item:hover {
-    background: rgba(255, 170, 0, 0.06);
-    color: rgba(255, 170, 0, 0.95);
-}
-
-.site-account-item--danger {
-    color: rgba(255, 80, 50, 0.65);
-}
-
-.site-account-item--danger:hover {
-    background: rgba(255, 51, 0, 0.08);
-    color: rgba(255, 80, 50, 0.95);
-}
 
 
 .app-nav {
@@ -701,7 +631,6 @@ body::before {
 
 .footer-divider { opacity: 0.2; }
 .footer-status { color: var(--col-accent); opacity: 0.6; }
-
 
 
 
@@ -957,6 +886,7 @@ body::before {
 
 
 
+
 .nav-demo {
   display: grid;
   grid-template-columns: repeat(3, 52px);
@@ -1053,6 +983,7 @@ body::before {
   background: rgba(255, 170, 0, .10);
   margin: 0 2px;
 }
+
 
 
 

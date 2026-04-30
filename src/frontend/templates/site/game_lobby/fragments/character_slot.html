@@ -1,4 +1,14 @@
-<article class="lobby-slot" aria-label="Character slot {{ slot.index }}">
+<article
+    class="lobby-slot {% if slot.is_empty %}lobby-slot--empty{% endif %}"
+    :class="{ 'is-selected': selectedSlot === {{ slot.index }} }"
+    aria-label="Character slot {{ slot.index }}"
+    @click='
+        selectedSlot = {{ slot.index }};
+        selectedEmpty = {{ 'true' if slot.is_empty else 'false' }};
+        selectedCharacterId = {{ (slot.character_id or "") | tojson }};
+        selectedName = {{ (slot.name or "") | tojson }};
+    '
+>
     <div class="lobby-avatar">
         {% if slot.avatar_url %}
             <img src="{{ slot.avatar_url }}" alt="{{ slot.name }}">

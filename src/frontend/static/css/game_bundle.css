@@ -7,7 +7,11 @@
 @import url("components/stats.css");
 @import url("components/inventory.css");
 @import url("components/chat.css");
-@import url("pages/game.css");
+
 @import url("pages/game/layout.css");
-@import url("pages/game/viewport.css");
+@import url("pages/game/status.css");
 @import url("pages/game/chat.css");
+@import url("pages/game/viewport.css");
+@import url("pages/game/selection.css");
+@import url("pages/game/field.css");
+@import url("pages/game/scenario.css");

@@ -1,0 +1,7 @@
+<div id="status-container" class="status-panel-root" x-show="selectedAgentId">
+    {% set layout = status_layout or ['vitals', 'avatar', 'attributes', 'skills'] %}
+
+    {% for fragment in layout %}
+        {% include "game/components/status/fragments/" ~ fragment ~ ".html" %}
+    {% endfor %}
+</div>

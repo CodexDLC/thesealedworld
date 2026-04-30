@@ -26,8 +26,13 @@ class UIRenderer:
             "request": self.request,
             "user": getattr(self.request.state, "user", None),
             "is_htmx": "HX-Request" in self.request.headers,
-            # We can add more common things here (e.g. app settings, flash messages)
         }
+
+        # 2. Dynamic Game Menu (if domain is provided in context)
+        if context and "domain" in context:
+            menu_service = getattr(self.request.state, "game_menu_service", None)
+            if menu_service:
+                global_context["nav"] = menu_service.build_menu(context["domain"])
 
         # 2. Merge contexts
         final_context = {**global_context, **context}

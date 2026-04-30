@@ -4,7 +4,7 @@ from typing import Any
 
 from pydantic import BaseModel, Field, ValidationInfo, field_validator
 
-from src.backend.core.redis.actor_snapshot_manager import ActorSnapshotManager
+from src.backend.infrastructure.redis.actor_snapshot_manager import ActorSnapshotManager
 
 
 def parse_csv_ids(value: Any, *, cast_int: bool = False) -> list[Any]:

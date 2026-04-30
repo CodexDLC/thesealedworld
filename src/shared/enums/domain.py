@@ -8,5 +8,4 @@ class CoreDomain(StrEnum):
     SCENARIO = "SCENARIO"
     COMBAT = "COMBAT"
     INVENTORY = "INVENTORY"
-    GAME_MENU = "GAME_MENU"
     ARENA = "ARENA"

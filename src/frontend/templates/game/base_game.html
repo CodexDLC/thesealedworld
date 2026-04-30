@@ -13,6 +13,7 @@
         <link rel="stylesheet" href="/static/css/game.css">
     {% endblock styles %}
 
+
     {% block extra_head %}{% endblock extra_head %}
     <style>[x-cloak] { display: none !important; }</style>
 
@@ -27,7 +28,37 @@
     <script src="/static/js/game.js" defer></script>
 </head>
 <body class="game-body {% block body_class %}{% endblock body_class %}">
-    {% block content %}{% endblock content %}
+    <div id="app-viewport"
+         class="game-container"
+         x-data="{
+            chatTab: 'world',
+            chatHeight: $persist(200),
+            chatMinimized: $persist(false),
+            chatStep: $persist(1),
+            leftOpen: false,
+            rightOpen: false
+         }"
+         :style="`--chat-height: ${chatMinimized ? '100px' : chatHeight + 'px'}`"
+         @panel-toggle.window="
+             if ($event.detail.side === 'left') leftOpen = !leftOpen;
+             if ($event.detail.side === 'right') rightOpen = !rightOpen;
+         ">
+        {% include "game/includes/header.html" %}
+
+        <main id="main-content">
+            {% block content %}{% endblock content %}
+        </main>
+
+        <div class="game-chat-row" id="game-chat-container"
+             style="position: relative; z-index: 2;"
+             :class="{ 'chat-minimized': chatStep === 0, ['chat-step-' + chatStep]: true }">
+            <div style="flex: 1; display: flex; flex-direction: column; overflow: hidden;">
+                {% include "shared/chat/main.html" %}
+            </div>
+        </div>
+
+        {% include "game/includes/footer.html" %}
+    </div>
 
     {% block scripts %}{% endblock scripts %}
     {% block extra_scripts %}{% endblock extra_scripts %}

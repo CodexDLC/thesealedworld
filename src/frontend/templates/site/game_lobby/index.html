@@ -87,17 +87,58 @@
 
     .lobby-slots {
         display: grid;
-        grid-template-columns: repeat(4, minmax(0, 1fr));
-        gap: var(--sp-3);
+        grid-template-columns: 1fr;
+        gap: var(--sp-4);
         margin: var(--sp-7) 0;
+    }
+
+    .lobby-slot-row {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: var(--sp-4);
+    }
+
+    .lobby-slot-actions {
+        display: flex;
+        justify-content: center;
+        gap: var(--sp-3);
+        flex-wrap: wrap;
+    }
+
+    .lobby-slot-actions form {
+        margin: 0;
+    }
+
+    .lobby-delete-action {
+        border-color: rgba(255, 51, 0, 0.34);
+        color: rgba(255, 120, 84, 0.78);
+    }
+
+    .lobby-delete-action:hover {
+        border-color: rgba(255, 51, 0, 0.72);
+        background: rgba(255, 51, 0, 0.08);
+        box-shadow: 0 0 22px rgba(255, 51, 0, 0.14);
     }
 
     .lobby-slot {
         min-height: 220px;
+        cursor: pointer;
         border: 1px solid rgba(255, 170, 0, 0.16);
         background: rgba(255, 255, 255, 0.025);
         clip-path: var(--clip-node-md);
         padding: var(--sp-3);
+        transition: border-color 0.18s, box-shadow 0.18s, background 0.18s;
+    }
+
+    .lobby-slot:hover,
+    .lobby-slot.is-selected {
+        border-color: rgba(255, 170, 0, 0.56);
+        background: rgba(255, 170, 0, 0.045);
+        box-shadow: 0 0 28px rgba(255, 170, 0, 0.08);
+    }
+
+    .lobby-slot--empty {
+        opacity: 0.72;
     }
 
     .lobby-avatar {
@@ -173,9 +214,134 @@
         text-transform: uppercase;
     }
 
+    .creation-form-grid {
+        display: grid;
+        grid-template-columns: minmax(220px, 1fr) minmax(220px, 0.86fr) minmax(220px, 1fr);
+        grid-template-areas:
+            "male name female";
+        gap: clamp(18px, 3vw, 34px);
+        align-items: end;
+        margin: var(--sp-7) auto var(--sp-5);
+        max-width: 860px;
+        text-align: center;
+    }
+
+    .creation-field {
+        display: flex;
+        flex-direction: column;
+        justify-content: flex-end;
+        gap: var(--sp-2);
+        border: 1px solid rgba(255, 170, 0, 0.16);
+        background: rgba(0, 0, 0, 0.28);
+        clip-path: var(--clip-node-md);
+        padding: var(--sp-4);
+        grid-area: name;
+        min-height: 118px;
+    }
+
+    .creation-field span {
+        font-family: var(--font-ui);
+        font-size: var(--text-2xs);
+        color: rgba(255, 170, 0, 0.58);
+        letter-spacing: 0.18em;
+    }
+
+    .creation-field input {
+        width: 100%;
+        border: 1px solid rgba(255, 170, 0, 0.22);
+        background: rgba(3, 3, 5, 0.72);
+        color: var(--col-parchment);
+        font-family: var(--font-ui);
+        font-size: var(--text-md);
+        padding: 14px 15px;
+        outline: none;
+        text-align: center;
+    }
+
+    .creation-field input:focus {
+        border-color: rgba(255, 170, 0, 0.62);
+        box-shadow: 0 0 0 2px rgba(255, 170, 0, 0.08);
+    }
+
+    .gender-choice {
+        position: relative;
+        min-height: clamp(260px, 31vw, 350px);
+        overflow: hidden;
+        cursor: pointer;
+        border: 1px solid rgba(255, 170, 0, 0.16);
+        background:
+            radial-gradient(circle at 50% 28%, rgba(255, 170, 0, 0.1), transparent 48%),
+            rgba(0, 0, 0, 0.3);
+        clip-path: var(--clip-node-md);
+        padding: var(--sp-4);
+    }
+
+    .gender-choice--male {
+        grid-area: male;
+    }
+
+    .gender-choice--female {
+        grid-area: female;
+    }
+
+    .gender-choice input {
+        position: absolute;
+        opacity: 0;
+        pointer-events: none;
+    }
+
+    .gender-choice img {
+        position: absolute;
+        inset: auto 0 0;
+        width: 100%;
+        height: 92%;
+        object-fit: contain;
+        opacity: 0.46;
+        filter: sepia(0.8) hue-rotate(350deg) saturate(1.4);
+    }
+
+    .gender-choice.is-selected {
+        border-color: rgba(255, 170, 0, 0.62);
+        box-shadow: inset 0 0 32px rgba(255, 170, 0, 0.08), 0 0 28px rgba(255, 170, 0, 0.08);
+    }
+
+    .gender-orb {
+        position: relative;
+        z-index: 1;
+        width: 44px;
+        height: 44px;
+        display: grid;
+        place-items: center;
+        border-radius: 50%;
+        border: 1px solid rgba(255, 170, 0, 0.44);
+        color: var(--col-accent);
+        background: rgba(0, 0, 0, 0.58);
+        font-size: 26px;
+        line-height: 1;
+    }
+
+    .gender-label {
+        position: absolute;
+        z-index: 1;
+        left: var(--sp-3);
+        bottom: var(--sp-3);
+        font-family: var(--font-ui);
+        font-size: var(--text-xs);
+        color: var(--col-accent);
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+    }
+
     .lobby-actions .btn-node {
         min-width: 260px;
         justify-content: center;
+    }
+
+    .btn-node:disabled,
+    .btn-node.disabled {
+        opacity: 0.32;
+        pointer-events: none;
+        cursor: default;
     }
 
     @media (max-width: 840px) {
@@ -183,16 +349,108 @@
             flex-direction: column;
         }
 
-        .lobby-slots {
+        .lobby-slot-row {
             grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        .creation-form-grid {
+            grid-template-columns: 1fr;
+            grid-template-areas:
+                "male"
+                "female"
+                "name";
+            max-width: 420px;
+        }
+
+        .gender-choice {
+            min-height: 220px;
         }
     }
 
     @media (max-width: 520px) {
-        .lobby-slots {
+        .lobby-slot-row {
             grid-template-columns: 1fr;
         }
     }
+    /* ── MODAL STYLES ── */
+    .modal-overlay {
+        position: fixed;
+        inset: 0;
+        z-index: 1000;
+        background: rgba(0, 0, 0, 0.85);
+        backdrop-filter: blur(8px);
+        display: grid;
+        place-items: center;
+        padding: var(--sp-4);
+    }
+
+    .modal-container {
+        width: min(480px, 100%);
+        background: linear-gradient(180deg, rgba(20, 20, 25, 0.95), rgba(10, 10, 12, 0.98));
+        border: 1px solid rgba(255, 170, 0, 0.24);
+        clip-path: var(--clip-node-md);
+        padding: var(--sp-8);
+        box-shadow: 0 32px 100px rgba(0, 0, 0, 0.8);
+        text-align: center;
+    }
+
+    .modal-title {
+        font-family: var(--font-world);
+        font-size: var(--text-2xl);
+        color: var(--col-accent);
+        margin-bottom: var(--sp-3);
+    }
+
+    .modal-text {
+        font-size: var(--text-sm);
+        color: var(--col-text-world);
+        line-height: 1.6;
+        margin-bottom: var(--sp-6);
+    }
+
+    .modal-input-field {
+        margin-bottom: var(--sp-6);
+    }
+
+    .modal-input-field label {
+        display: block;
+        font-family: var(--font-ui);
+        font-size: var(--text-2xs);
+        color: rgba(255, 170, 0, 0.5);
+        margin-bottom: var(--sp-2);
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+    }
+
+    .modal-input {
+        width: 100%;
+        background: rgba(0, 0, 0, 0.4);
+        border: 1px solid rgba(255, 170, 0, 0.2);
+        color: var(--col-parchment);
+        padding: 12px;
+        text-align: center;
+        font-family: var(--font-ui);
+        font-size: var(--text-md);
+        outline: none;
+    }
+
+    .modal-input:focus {
+        border-color: var(--col-accent);
+        background: rgba(255, 170, 0, 0.05);
+    }
+
+    .modal-actions {
+        display: flex;
+        gap: var(--sp-3);
+        justify-content: center;
+    }
+
+    .modal-actions .btn-node {
+        flex: 1;
+        justify-content: center;
+    }
+
+    [x-cloak] { display: none !important; }
 </style>
 {% endblock extra_head %}
 

@@ -4,6 +4,7 @@ from src.backend.core.exceptions import BaseAPIException, api_exception_handler
 from src.backend.core.lifespan import lifespan
 from src.backend.features.auth.api import router as auth_router
 from src.backend.features.game_lobby.api import router as game_lobby_router
+from src.backend.features.scenario.api import router as scenario_router
 
 app = FastAPI(
     title="TurnBasedMMORPG Backend",
@@ -13,6 +14,7 @@ app = FastAPI(
 app.add_exception_handler(BaseAPIException, api_exception_handler)  # type: ignore[arg-type]
 app.include_router(auth_router)
 app.include_router(game_lobby_router)
+app.include_router(scenario_router)
 
 
 @app.get("/")

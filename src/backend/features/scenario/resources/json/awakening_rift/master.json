@@ -1,0 +1,19 @@
+{
+  "quest_key": "awakening_rift",
+  "start_node_id": "rift_entry_01",
+  "analytics_config": {
+    "mapping": {
+      "w_stats": "w",
+      "t_elements": "t",
+      "loot_queue": "items"
+    }
+  },
+  "status_bar_fields": [
+    {
+      "key": "step_counter",
+      "label": "👣"
+    }
+  ],
+  "default_avatar": "evaluator_default.png",
+  "display_name": "ПРОБУЖДЕНИЕ В РАЗЛОМЕ"
+}

@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     {% block meta %}
-        {% include "includes/meta.html" %}
+        {% include "shared/meta.html" %}
     {% endblock meta %}
 
     {% block styles %}
@@ -21,11 +21,11 @@
 </head>
 <body class="site-body {% block body_class %}{% endblock body_class %}">
     <div x-data="{ showLogin: false }" style="display: contents;">
-        {% include "includes/login_modal.html" %}
+        {% include "site/includes/login_modal.html" %}
 
         <div id="app-viewport">
             {% block header %}
-                {% include "includes/site_header.html" %}
+                {% include "site/includes/header.html" %}
             {% endblock header %}
 
             <main id="main-content">
@@ -33,7 +33,7 @@
             </main>
 
             {% block footer %}
-                {% include "includes/footer.html" %}
+                {% include "site/includes/footer.html" %}
             {% endblock footer %}
         </div>
     </div>

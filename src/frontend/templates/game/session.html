@@ -1,0 +1,58 @@
+{% extends "game/base_game.html" %}
+
+{% block content %}
+<div id="game-session-root" class="game-session-shell" style="display: flex; flex-direction: column; flex: 1; position: relative;">
+    {# Background layer #}
+    <div id="game-bg" class="game-scene-layer"
+         style="background-image: url('{{ background_url|default('/static/images/bg_placeholder.png') }}'); z-index: 0; position: absolute; inset: 0;">
+    </div>
+
+    {# Main interactive area #}
+    <div class="game-top-row"
+         style="flex: 1; position: relative; z-index: 1; min-height: 0;"
+         :class="{ 'left-open': leftOpen, 'right-open': rightOpen }">
+        {# Left Panel (Inventory/Stats) #}
+        <aside id="game-left" class="col-left" :class="{ 'panel-open': leftOpen }">
+            {% block game_left %}
+                {% if domain == 'SCENARIO' and scenario and scenario.extra_data and scenario.extra_data.show_left_sidebar %}
+                    {% include "game/domains/scenario/left_sidebar/main.html" %}
+                {% elif domain == 'EXPLORATION' %}
+                    {% include "game/domains/exploration/left_sidebar/main.html" %}
+                {% elif domain == 'COMBAT' %}
+                    {% include "game/domains/combat/left_sidebar/main.html" %}
+                {% endif %}
+            {% endblock %}
+        </aside>
+
+        {# Center Viewport (Scenario/World) #}
+        <main id="game-viewport" class="col-center" style="flex: 1; display: flex; flex-direction: column;">
+            <div id="game-center" class="col-center-inner" style="flex: 1; display: flex; align-items: center; justify-content: center;">
+                {% block session_content %}
+                    {% if domain == 'SCENARIO' %}
+                        {% include "game/domains/scenario/viewport/main.html" %}
+                    {% elif domain == 'EXPLORATION' %}
+                        {% include "game/domains/exploration/viewport/main.html" %}
+                    {% elif domain == 'COMBAT' %}
+                        {% include "game/domains/combat/viewport/main.html" %}
+                    {% else %}
+                        {% include "game/domains/exploration/viewport/main.html" %}
+                    {% endif %}
+                {% endblock %}
+            </div>
+        </main>
+
+        {# Right Panel (Social/Intel) #}
+        <aside id="game-right" class="col-right" :class="{ 'panel-open': rightOpen }">
+            {% block game_right %}
+                {% if domain == 'SCENARIO' and scenario and scenario.extra_data and scenario.extra_data.show_right_sidebar %}
+                    {% include "game/domains/scenario/right_sidebar/main.html" %}
+                {% elif domain == 'EXPLORATION' %}
+                    {% include "game/domains/exploration/right_sidebar/main.html" %}
+                {% elif domain == 'COMBAT' %}
+                    {% include "game/domains/combat/right_sidebar/main.html" %}
+                {% endif %}
+            {% endblock %}
+        </aside>
+    </div>
+</div>
+{% endblock %}

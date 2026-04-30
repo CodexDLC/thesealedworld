@@ -1,0 +1,187 @@
+﻿ M CLAUDE.md
+ M deploy/docker-compose.db.yml
+ M deploy/docker-compose.yml
+ D docs/BACKEND_ARCHITECTURE_PREVIEW.md
+ D docs/FRONTEND_ARCHITECTURE_PREVIEW.md
+A  docs/TESTING_STRATEGY.md
+ D docs/architecture/event-bus.md
+MM pyproject.toml
+ M src/backend/app.py
+ M src/backend/config/settings.py
+ M src/backend/core/bus/producer.py
+ M src/backend/core/bus/router.py
+ M src/backend/core/database/model_imports.py
+MM src/backend/core/lifespan.py
+ D src/backend/core/redis/actor_snapshot_manager.py
+ D src/backend/core/redis/character_session_events.py
+MD src/backend/core/redis/character_session_manager.py
+ D src/backend/core/redis/character_session_schema.py
+ D src/backend/core/redis/keys.py
+MD src/backend/core/redis/managers.py
+ M src/backend/features/actor_state/dto/snapshot.py
+ M src/backend/features/actor_state/events/__init__.py
+ D src/backend/features/actor_state/models/__init__.py
+ D src/backend/features/actor_state/models/character.py
+ D src/backend/features/actor_state/models/inventory.py
+ D src/backend/features/actor_state/models/monster.py
+ D src/backend/features/actor_state/models/skill.py
+ D src/backend/features/actor_state/models/symbiote.py
+ D src/backend/features/actor_state/repositories/__init__.py
+ D src/backend/features/actor_state/repositories/db/__init__.py
+ D src/backend/features/actor_state/repositories/db/character_repository.py
+ D src/backend/features/actor_state/repositories/db/inventory_repository.py
+ D src/backend/features/actor_state/repositories/db/monster_repository.py
+ D src/backend/features/actor_state/repositories/db/skill_repository.py
+ D src/backend/features/actor_state/repositories/db/symbiote_repository.py
+ D src/backend/features/actor_state/repositories/db/wallet_repository.py
+ D src/backend/features/actor_state/repositories/redis/__init__.py
+ M src/backend/features/actor_state/runtime/assemblers/monster_assembler.py
+ M src/backend/features/actor_state/runtime/assemblers/player_assembler.py
+ M src/backend/features/actor_state/runtime/sections.py
+ M src/backend/features/actor_state/services/actor_state_service.py
+ M src/backend/features/arena/events/__init__.py
+ M src/backend/features/auth/events/__init__.py
+ M src/backend/features/chat/events/__init__.py
+ M src/backend/features/combat/events/__init__.py
+ M src/backend/features/exploration/events/__init__.py
+ M src/backend/features/game_lobby/api/router.py
+ M src/backend/features/game_lobby/dependencies.py
+ M src/backend/features/game_lobby/dto/__init__.py
+ M src/backend/features/game_lobby/dto/creation.py
+ M src/backend/features/game_lobby/dto/lobby.py
+ M src/backend/features/game_lobby/services/character_creation_service.py
+ M src/backend/features/game_lobby/services/lobby_service.py
+ M src/backend/features/game_menu/events/__init__.py
+ M src/backend/features/inventory/events/__init__.py
+ M src/backend/features/scenario/api/__init__.py
+AM src/backend/features/scenario/dependencies.py
+MM src/backend/features/scenario/dto/__init__.py
+AM src/backend/features/scenario/dto/context.py
+AM src/backend/features/scenario/dto/finalize.py
+AM src/backend/features/scenario/dto/init.py
+AM src/backend/features/scenario/dto/master.py
+AM src/backend/features/scenario/dto/payload.py
+A  src/backend/features/scenario/engine/__init__.py
+AM src/backend/features/scenario/engine/director.py
+AM src/backend/features/scenario/engine/evaluator.py
+AM src/backend/features/scenario/engine/formatter.py
+ M src/backend/features/scenario/events/__init__.py
+A  src/backend/features/scenario/handlers/__init__.py
+AM src/backend/features/scenario/handlers/base_handler.py
+AM src/backend/features/scenario/handlers/registry.py
+AM src/backend/features/scenario/handlers/tutorial_handler.py
+A  src/backend/features/scenario/loaders/__init__.py
+AM src/backend/features/scenario/loaders/scenario_loader.py
+AD src/backend/features/scenario/models/__init__.py
+AD src/backend/features/scenario/models/quest_master.py
+AD src/backend/features/scenario/models/quest_node.py
+AD src/backend/features/scenario/models/quest_state.py
+AD src/backend/features/scenario/redis/__init__.py
+AD src/backend/features/scenario/redis/keys.py
+AD src/backend/features/scenario/redis/session_manager.py
+MD src/backend/features/scenario/repositories/__init__.py
+AD src/backend/features/scenario/repositories/scenario_repository.py
+A  src/backend/features/scenario/resources/json/tutorial_arrival.json
+M  src/backend/features/scenario/services/__init__.py
+AM src/backend/features/scenario/services/content_service.py
+AM src/backend/features/scenario/services/scenario_service.py
+ M src/backend/features/world/events/__init__.py
+ D src/backend/features/world/models/__init__.py
+ D src/backend/features/world/repositories/__init__.py
+ M src/backend/features/world/services/__init__.py
+ M src/backend/manage.py
+ M src/frontend/app.py
+ M src/frontend/core/renderer.py
+ M src/frontend/core/routing.py
+ M src/frontend/features/game_lobby/dependencies/providers.py
+ M src/frontend/features/game_lobby/routes/pages.py
+ M src/frontend/features/game_lobby/services/lobby_page_service.py
+ M src/frontend/features/game_lobby/view_models/lobby.py
+ M src/frontend/features/routes.py
+ M src/frontend/integrations/backend_api/game_lobby.py
+ M src/frontend/static/css/game.css
+ M src/frontend/static/css/game_bundle.css
+ M src/frontend/static/css/pages/game.css
+ M src/frontend/static/css/pages/game/field.css
+ M src/frontend/static/css/site.css
+ M src/frontend/static/js/game.js
+ M src/frontend/static/js/site.js
+ D src/frontend/templates/auth/login.html
+ D src/frontend/templates/auth/register.html
+ D src/frontend/templates/cabinet/index.html
+ M src/frontend/templates/game/base_game.html
+D  src/frontend/templates/game/chat/main.html
+ M src/frontend/templates/game/index.html
+ M src/frontend/templates/game/layout_game.html
+ D src/frontend/templates/game/login.html
+ D src/frontend/templates/game/select_character.html
+D  src/frontend/templates/includes/footer.html
+D  src/frontend/templates/includes/header.html
+D  src/frontend/templates/includes/login_modal.html
+D  src/frontend/templates/includes/meta.html
+D  src/frontend/templates/includes/minimal.html
+D  src/frontend/templates/includes/navigation.html
+D  src/frontend/templates/includes/scripts.js.html
+D  src/frontend/templates/includes/site_header.html
+D  src/frontend/templates/includes/styles.css.html
+ M src/frontend/templates/site/base_site.html
+ M src/frontend/templates/site/game_lobby/fragments/character_slot.html
+ M src/frontend/templates/site/game_lobby/fragments/empty_state.html
+ M src/frontend/templates/site/game_lobby/fragments/lobby_panel.html
+ M src/frontend/templates/site/game_lobby/index.html
+ M src/shared/enums/domain.py
+ M src/shared/schemas/__init__.py
+AM tests/backend/conftest.py
+AM tests/backend/core/bus/test_producer.py
+AM tests/backend/core/database/test_session.py
+AM tests/backend/core/redis/test_actor_snapshot_manager.py
+AM tests/backend/core/test_exceptions.py
+AM tests/backend/core/test_security.py
+AM tests/backend/features/auth/test_auth_service.py
+AM tests/shared/schemas/test_response.py
+D  tests/test_actor_snapshot_manager.py
+ M tools/dev/check.py
+ M uv.lock
+?? docs/agent-skills/
+?? docs/tasks/
+?? git_status_full.txt
+?? src/backend/alembic.ini
+?? src/backend/alembic/
+?? src/backend/features/scenario/api/router.py
+?? src/backend/features/scenario/resources/json/awakening_rift/
+?? src/backend/features/world/services/bootstrap_service.py
+?? src/backend/features/world/services/cache_service.py
+?? src/backend/features/world/services/navigation_service.py
+?? src/backend/features/world/services/world_service.py
+?? src/backend/infrastructure/
+?? src/frontend/features/game_menu/
+?? src/frontend/features/scenario/
+?? src/frontend/integrations/backend_api/scenario.py
+?? src/frontend/static/css/pages/game/scenario.css
+?? src/frontend/static/images/scenarios/
+?? src/frontend/templates/game/includes/
+?? src/frontend/templates/game/left_sidebar/
+?? src/frontend/templates/game/lobby/
+?? src/frontend/templates/game/right_sidebar/
+?? src/frontend/templates/game/scenario.html
+?? src/frontend/templates/game/scenario/
+?? src/frontend/templates/game/session.html
+?? src/frontend/templates/game/viewport/lobby.html
+?? src/frontend/templates/game/viewport/scenario.html
+?? src/frontend/templates/shared/
+?? src/frontend/templates/site/game_lobby/fragments/creation_form.html
+?? src/frontend/templates/site/includes/
+?? src/shared/schemas/game_lobby.py
+?? src/shared/schemas/scenario.py
+?? tests/backend/core/bus/test_router.py
+?? tests/backend/core/bus/test_streams_migration.py
+?? tests/backend/features/actor_state/
+?? tests/backend/features/auth/test_dependencies.py
+?? tests/backend/features/auth/test_repositories.py
+?? tests/backend/features/auth/test_router.py
+?? tests/backend/features/game_lobby/
+?? tests/backend/features/scenario/
+?? tests/backend/features/world/
+?? tests/backend/test_app.py
+?? tools/migrate_scenarios.py
+?? tools/reload_awakening_rift.py

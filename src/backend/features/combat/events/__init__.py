@@ -1,3 +1,3 @@
-from src.backend.core.bus import GameStreamRouter
+from codex_platform.streams import StreamRouter
 
-router = GameStreamRouter()
+router = StreamRouter()

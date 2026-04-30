@@ -8,6 +8,7 @@ from src.frontend.config.settings import settings
 from src.frontend.features.auth.dependencies.providers import get_backend_http_client
 from src.frontend.features.game_lobby.services.lobby_page_service import GameLobbyPageService
 from src.frontend.integrations.backend_api.game_lobby import BackendGameLobbyApi
+from src.frontend.integrations.backend_api.scenario import BackendScenarioApi
 
 if TYPE_CHECKING:
     import httpx
@@ -20,3 +21,8 @@ def get_backend_game_lobby_api(request: Request) -> BackendGameLobbyApi:
 
 def get_game_lobby_page_service(request: Request) -> GameLobbyPageService:
     return GameLobbyPageService(api=get_backend_game_lobby_api(request))
+
+
+def get_backend_scenario_api(request: Request) -> BackendScenarioApi:
+    client: httpx.AsyncClient = get_backend_http_client(request)
+    return BackendScenarioApi(client=client, base_url=settings.backend_base_url)

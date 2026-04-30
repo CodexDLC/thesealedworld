@@ -1,7 +1,15 @@
+from typing import Any
+
 from pydantic import BaseModel, Field
 
 from src.frontend.integrations.backend_api.base import BaseApiClient
-from src.shared.schemas import CoreResponseDTO
+from src.shared.schemas import (
+    CoreResponseDTO,
+    CreateCharacterRequestDTO,
+    DeleteCharacterRequestDTO,
+    EnterCharacterRequestDTO,
+    ScenarioPayloadDTO,
+)
 
 
 class LobbySlotPayload(BaseModel):
@@ -25,6 +33,8 @@ class GameLobbyPayload(BaseModel):
 
 
 GameLobbyResponse = CoreResponseDTO[GameLobbyPayload]
+GameLobbyStartResponse = CoreResponseDTO[ScenarioPayloadDTO | dict[str, Any]]
+GameLobbyEnterResponse = CoreResponseDTO[ScenarioPayloadDTO | dict[str, Any]]
 
 
 class BackendGameLobbyApi(BaseApiClient):
@@ -36,10 +46,29 @@ class BackendGameLobbyApi(BaseApiClient):
             headers={"Authorization": f"Bearer {access_token}"},
         )
 
-    async def start(self, access_token: str) -> GameLobbyResponse:
+    async def start(self, access_token: str, dto: CreateCharacterRequestDTO) -> GameLobbyStartResponse:
         return await self._request(
             "POST",
             "/game-lobby/start",
+            response_model=GameLobbyStartResponse,
+            headers={"Authorization": f"Bearer {access_token}"},
+            json=dto.model_dump(mode="json"),
+        )
+
+    async def enter(self, access_token: str, dto: EnterCharacterRequestDTO) -> GameLobbyEnterResponse:
+        return await self._request(
+            "POST",
+            "/game-lobby/enter",
+            response_model=GameLobbyEnterResponse,
+            headers={"Authorization": f"Bearer {access_token}"},
+            json=dto.model_dump(mode="json"),
+        )
+
+    async def delete(self, access_token: str, dto: DeleteCharacterRequestDTO) -> GameLobbyResponse:
+        return await self._request(
+            "POST",
+            "/game-lobby/delete",
             response_model=GameLobbyResponse,
             headers={"Authorization": f"Bearer {access_token}"},
+            json=dto.model_dump(mode="json"),
         )

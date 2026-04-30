@@ -1,14 +1,24 @@
 # TurnBasedMMORPG — Agent Notes
 
+## Project Skills
+
+Before architecture or implementation work, read the relevant project skill files in `docs/agent-skills/`.
+
+Use:
+
+- `docs/agent-skills/turnbasedmmorpg-project/SKILL.md` for repository-wide rules, source-tree ownership, donor-code migration, shared contracts, and handoff prompts.
+- `docs/agent-skills/turnbasedmmorpg-frontend/SKILL.md` for frontend routes, services, view models, templates, static assets, middleware placement, and backend API clients.
+- `docs/agent-skills/turnbasedmmorpg-backend/SKILL.md` for backend feature layout, APIs, DTOs, models, repositories, services, workers, runtime code, and data ownership.
+- `docs/agent-skills/turnbasedmmorpg-redis-streams/SKILL.md` for Redis Streams, `GameStreamRouter`, `GameEventProducer`, event handlers, publishing, and `correlation_id` reply flows.
+- `docs/agent-skills/turnbasedmmorpg-feature-slice/SKILL.md` when a task spans backend, frontend, shared contracts, templates, tests, or events.
+- `docs/agent-skills/turnbasedmmorpg-quality-gate/SKILL.md` before declaring code complete, before commits/PRs, or when choosing between full and targeted local validation.
+
+Rule of thumb: if a task changes structure or crosses feature boundaries, read the project skill plus the specific frontend/backend/event skill before editing code. After code edits, use the quality-gate skill and report the verification command that ran.
+
 ## Event Bus (Redis Streams)
 
 Before implementing any cross-feature communication, background task, or anything that involves
-one feature triggering work in another — read:
-
-**`docs/architecture/event-bus.md`**
-
-This covers: architecture overview, `GameStreamRouter`, `GameEventProducer`, all three patterns
-(fire-and-forget, task+report, request-reply), naming conventions, and step-by-step checklists.
+one feature triggering work in another, read `docs/agent-skills/turnbasedmmorpg-redis-streams/SKILL.md`.
 
 **When to apply:**
 - A feature needs to notify another feature that something happened

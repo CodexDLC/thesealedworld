@@ -8,7 +8,7 @@ services:
     restart: unless-stopped
     environment:
       POSTGRES_USER: tbmmorpg
-      POSTGRES_PASSWORD: tbmmorpg_dev
+      POSTGRES_PASSWORD: tbmmorpg_dev  # pragma: allowlist secret
       POSTGRES_DB: tbmmorpg_site
     ports:
       - "5432:5432"
@@ -49,9 +49,9 @@ services:
     restart: unless-stopped
     env_file: ../.env
     environment:
-      SITE_DATABASE_URL: postgresql+asyncpg://tbmmorpg:tbmmorpg_dev@postgres:5432/tbmmorpg_site
-      GAME_DATABASE_URL: postgresql+asyncpg://tbmmorpg:tbmmorpg_dev@postgres:5432/tbmmorpg_game
-      DATABASE_URL: postgresql+asyncpg://tbmmorpg:tbmmorpg_dev@postgres:5432/tbmmorpg_site
+      SITE_DATABASE_URL: postgresql+asyncpg://tbmmorpg:tbmmorpg_dev@postgres:5432/tbmmorpg_site  # pragma: allowlist secret
+      GAME_DATABASE_URL: postgresql+asyncpg://tbmmorpg:tbmmorpg_dev@postgres:5432/tbmmorpg_game  # pragma: allowlist secret
+      DATABASE_URL: postgresql+asyncpg://tbmmorpg:tbmmorpg_dev@postgres:5432/tbmmorpg_site  # pragma: allowlist secret
       REDIS_URL: redis://redis:6379/0
     ports:
       - "8001:8001"
@@ -108,9 +108,9 @@ services:
     restart: unless-stopped
     env_file: ../.env
     environment:
-      SITE_DATABASE_URL: postgresql+asyncpg://tbmmorpg:tbmmorpg_dev@postgres:5432/tbmmorpg_site
-      GAME_DATABASE_URL: postgresql+asyncpg://tbmmorpg:tbmmorpg_dev@postgres:5432/tbmmorpg_game
-      DATABASE_URL: postgresql+asyncpg://tbmmorpg:tbmmorpg_dev@postgres:5432/tbmmorpg_site
+      SITE_DATABASE_URL: postgresql+asyncpg://tbmmorpg:tbmmorpg_dev@postgres:5432/tbmmorpg_site  # pragma: allowlist secret
+      GAME_DATABASE_URL: postgresql+asyncpg://tbmmorpg:tbmmorpg_dev@postgres:5432/tbmmorpg_game  # pragma: allowlist secret
+      DATABASE_URL: postgresql+asyncpg://tbmmorpg:tbmmorpg_dev@postgres:5432/tbmmorpg_site  # pragma: allowlist secret
       REDIS_URL: redis://redis:6379/0
     volumes:
       - ../src/backend:/app/src/backend

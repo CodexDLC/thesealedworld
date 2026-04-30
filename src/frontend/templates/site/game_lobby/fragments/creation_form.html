@@ -1,0 +1,29 @@
+<div class="creation-form-grid" x-data="{ gender: 'male' }">
+    <label class="gender-choice gender-choice--male" :class="{ 'is-selected': gender === 'male' }">
+        <input form="character-creation-form" type="radio" name="gender" value="male" x-model="gender" checked>
+        <span class="gender-orb">♂</span>
+        <span class="gender-label">Мужской</span>
+        <img src="/static/images/avatars/silhouette_m.png" alt="">
+    </label>
+
+    <label class="gender-choice gender-choice--female" :class="{ 'is-selected': gender === 'female' }">
+        <input form="character-creation-form" type="radio" name="gender" value="female" x-model="gender">
+        <span class="gender-orb">♀</span>
+        <span class="gender-label">Женский</span>
+        <img src="/static/images/avatars/silhouette_f.png" alt="">
+    </label>
+
+    <label class="creation-field">
+        <span>Имя персонажа</span>
+        <input
+            form="character-creation-form"
+            type="text"
+            name="name"
+            required
+            minlength="1"
+            maxlength="32"
+            autocomplete="off"
+            placeholder="Введи имя"
+        >
+    </label>
+</div>

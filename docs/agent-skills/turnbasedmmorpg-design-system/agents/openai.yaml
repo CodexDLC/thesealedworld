@@ -1,0 +1,4 @@
+interface:
+  display_name: "TurnBasedMMORPG Design System"
+  short_description: "Use existing project styles before new CSS."
+  default_prompt: "Use $turnbasedmmorpg-design-system to implement UI with existing project classes first."

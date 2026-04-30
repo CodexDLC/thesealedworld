@@ -1,0 +1,64 @@
+{% if scenario %}
+<article class="scenario-panel">
+    <header class="scenario-panel-head">
+        <div class="head-left">
+            {% if scenario.icon and scenario.icon != 'default' %}
+                <span class="scenario-type-badge">[{{ scenario.icon|upper }}]</span>
+            {% endif %}
+            <span class="quest-title">{{ scenario.extra_data.quest_title or scenario.display_name }}</span>
+        </div>
+        <div class="head-right">
+            <span class="node-id">{{ scenario.node_key }}</span>
+        </div>
+    </header>
+
+    <section class="scenario-panel-main">
+        {% if scenario.avatar %}
+        <div class="character-container">
+            <img src="/static/images/avatars/{{ scenario.avatar }}" alt="Avatar" class="character-shadow">
+        </div>
+        {% endif %}
+
+        <div class="scenario-panel-content">
+            <div class="scenario-panel-body">
+                <div class="scenario-copy world-text">{{ scenario.text }}</div>
+
+                {% if scenario.buttons %}
+                    <div class="scenario-choices">
+                        {% for button in scenario.buttons %}
+                            <form hx-post="/game/scenario/step" hx-target="#game-center" hx-swap="innerHTML" method="post" class="choice-form">
+                                <input type="hidden" name="char_id" value="{{ char_id or scenario.extra_data.char_id }}">
+                                <input type="hidden" name="action_id" value="{{ button.action_id }}">
+                                <button type="submit" class="choice-btn">
+                                    <span class="choice-label">{{ button.label }}</span>
+                                    {% if button.icon and button.icon != 'default' %}
+                                        <span class="choice-hint">[{{ button.icon }}]</span>
+                                    {% endif %}
+                                </button>
+                            </form>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+
+                {% if scenario.alerts %}
+                <div class="system-log-inline">
+                    {% for alert in scenario.alerts %}
+                    <div class="whisper">{{ alert }}</div>
+                    {% endfor %}
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </section>
+
+    {% if user and user.is_superuser %}
+    <footer class="scenario-panel-debug">
+        <div class="debug-info">
+            <span>MASTER: {{ quest_key or scenario.extra_data.quest_key }}</span>
+            <span>|</span>
+            <span>NODE: {{ scenario.node_key }}</span>
+        </div>
+    </footer>
+    {% endif %}
+</article>
+{% endif %}

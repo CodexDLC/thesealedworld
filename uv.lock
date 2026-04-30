@@ -235,15 +235,15 @@ wheels = [
 
 [[package]]
 name = "codex-platform"
-version = "0.4.0"
+version = "0.5.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "codex-core" },
     { name = "pydantic" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/0b/34/33053c27be91c0f718a57195a67149b276b46a031ec130951ec1a8f405c9/codex_platform-0.4.0.tar.gz", hash = "sha256:f3028ad1caeeade56ad2014edc4b5c3f41516e50fa25eceaac7cf51882cf1866", size = 163830, upload-time = "2026-04-22T19:11:43.259Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/31/5f/7d9f1a6e350a1417f9603551aa00f32f661fa9ae72241cc5b5c48743dc99/codex_platform-0.5.1.tar.gz", hash = "sha256:8f97c2d6b48cbfceda21fb4f0644eddc481ab9ded04e6131e155c8bc77d0e266", size = 186522, upload-time = "2026-04-30T09:40:46.296Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/fb/3c/003c76047c6fb8b37811561feb194199e2cc94c8345c72d0a56bfbc66bd5/codex_platform-0.4.0-py3-none-any.whl", hash = "sha256:df8dda992b2d2fe7eb110efd4732005424d069ddb09ae5524bfe58436f01f31f", size = 55845, upload-time = "2026-04-22T19:11:41.536Z" },
+    { url = "https://files.pythonhosted.org/packages/b5/e2/1b2ffe369099d2d9f290676aacdc785f72b34b993b999c7a5ad2b4ae2a39/codex_platform-0.5.1-py3-none-any.whl", hash = "sha256:be43dfd7d8b705775375c201b84fca4928827c567e454355229df11bd65bdf12", size = 59131, upload-time = "2026-04-30T09:40:44.738Z" },
 ]
 
 [[package]]
@@ -1856,7 +1856,7 @@ requires-dist = [
     { name = "alembic", specifier = ">=1.18.4" },
     { name = "asyncpg", specifier = ">=0.31.0" },
     { name = "codex-core", specifier = ">=0.3.0" },
-    { name = "codex-platform", specifier = ">=0.4.0" },
+    { name = "codex-platform", specifier = ">=0.5.1" },
     { name = "fastapi", specifier = ">=0.136.1" },
     { name = "httpx", specifier = ">=0.28.1" },
     { name = "jinja2", specifier = ">=3.1.6" },

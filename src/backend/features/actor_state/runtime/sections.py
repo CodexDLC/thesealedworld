@@ -1,4 +1,4 @@
-from src.backend.core.redis.actor_snapshot_manager import ActorSnapshotSection
+from src.backend.infrastructure.redis.actor_snapshot_manager import ActorSnapshotSection
 
 META: ActorSnapshotSection = "meta"
 RUNTIME: ActorSnapshotSection = "runtime"

@@ -5,7 +5,7 @@ services:
     restart: unless-stopped
     environment:
       POSTGRES_USER: tbmmorpg
-      POSTGRES_PASSWORD: tbmmorpg_dev
+      POSTGRES_PASSWORD: tbmmorpg_dev  # pragma: allowlist secret
       POSTGRES_DB: tbmmorpg_site
     ports:
       - "5432:5432"

@@ -2,15 +2,15 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
-from src.backend.features.actor_state.repositories.db import get_monster_repo
 from src.backend.features.actor_state.runtime.sections import COMBAT, INVENTORY, RUNTIME, STATUS
+from src.backend.infrastructure.db.actor_state.repositories.db import get_monster_repo
 
 if TYPE_CHECKING:
     from collections.abc import Collection
 
     from sqlalchemy.ext.asyncio import AsyncSession
 
-    from src.backend.features.actor_state.models import Monster
+    from src.backend.infrastructure.db.actor_state.models import Monster
 
 
 async def build_snapshots(

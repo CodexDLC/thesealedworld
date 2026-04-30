@@ -44,8 +44,8 @@
 }
 
 .cnav-btn svg {
-    width: 18px;
-    height: 18px;
+    width: 18px !important;
+    height: 18px !important;
     opacity: 0.4;
     transition: opacity 0.2s;
     fill: currentColor;

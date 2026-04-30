@@ -1,14 +1,13 @@
-import json
 import logging
 from typing import Any
 
+from codex_platform.streams import StreamRouter
 from fastapi import FastAPI
 
-from src.backend.core.bus import GameStreamRouter
 from src.backend.features.actor_state.dto.snapshot import SnapshotsRequest
 from src.backend.features.actor_state.services.actor_state_service import ActorStateService
 
-router = GameStreamRouter()
+router = StreamRouter()
 _app: FastAPI | None = None
 log = logging.getLogger(__name__)
 
@@ -18,13 +17,12 @@ def bind(app: FastAPI) -> None:
     _app = app
 
 
-@router.on("actor_state.snapshots_requested")
+@router.on("actor_state.snapshots_requested", group="actor_state", reply=True)
 async def on_snapshots_requested(payload: dict[str, Any]) -> None:
     cid = payload.get("correlation_id")
     if not cid or _app is None:
         return
 
-    reply_key = f"reply:{cid}"
     try:
         request = SnapshotsRequest.model_validate(payload)
         service = ActorStateService(_app.state.actor_snapshots, _app.state.redis)
@@ -53,7 +51,6 @@ async def on_snapshots_requested(payload: dict[str, Any]) -> None:
         ack = {"status": "error", "error": f"{exc.__class__.__name__}: {exc}"}
 
     try:
-        await _app.state.redis.list.lpush(reply_key, json.dumps(ack))
-        await _app.state.redis.string.expire(reply_key, 30)
+        await _app.state.events.publish_reply(cid, ack, ttl=30)
     except Exception:
-        log.exception("ActorState snapshots ack delivery failed: reply_key=%s", reply_key)
+        log.exception("ActorState snapshots ack delivery failed: cid=%s", cid)

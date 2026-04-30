@@ -1,0 +1,350 @@
+[
+  {
+    "node_key": "event_gravity_ripple",
+    "text": "Гравитация в этом секторе ведет себя хаотично. Один шаг делает тебя легким как перо, следующий — придавливает к земле с чудовищной силой. Лианы вокруг лопаются под собственным весом.\n\nГРАВИТАЦИОННЫЙ ДРЕЙФ. ВНИМАНИЕ: СТРУКТУРНАЯ ЦЕЛОСТНОСТЬ ПОД УГРОЗОЙ.",
+    "system_messages": [
+      "ГРАВИТАЦИОННЫЙ ДРЕЙФ. ВНИМАНИЕ: СТРУКТУРНАЯ ЦЕЛОСТНОСТЬ ПОД УГРОЗОЙ."
+    ],
+    "actions": [
+      {
+        "action_id": "choice_1",
+        "label": "Использовать вес оружия как противовес для прыжка",
+        "icon": "default",
+        "to_node": "cycle_2_logic_router"
+      },
+      {
+        "action_id": "choice_2",
+        "label": "Укрепить стойку и двигаться только в моменты пика тяжести",
+        "icon": "default",
+        "to_node": "cycle_2_logic_router"
+      },
+      {
+        "action_id": "choice_3",
+        "label": "Довериться интуиции и нестись вперед, ловя моменты невесомости",
+        "icon": "default",
+        "to_node": "cycle_2_logic_router"
+      }
+    ]
+  },
+  {
+    "node_key": "event_echo_chamber",
+    "text": "Ты попадаешь в зону, где звук материализуется. Каждый твой вздох отзывается физическим толчком, а лязг оружия об обломки порождает ударные волны, крошащие камень.\n\nАКУСТИЧЕСКАЯ НЕСТАБИЛЬНОСТЬ. СИНХРОНИЗАЦИЯ С ФОНОВЫМ ШУМОМ... 52%.",
+    "system_messages": [
+      "АКУСТИЧЕСКАЯ НЕСТАБИЛЬНОСТЬ. СИНХРОНИЗАЦИЯ С ФОНОВЫМ ШУМОМ... 52%."
+    ],
+    "actions": [
+      {
+        "action_id": "choice_1",
+        "label": "Выждать момент тишины, чтобы сделать рывок",
+        "icon": "default",
+        "to_node": "cycle_2_logic_router"
+      },
+      {
+        "action_id": "choice_2",
+        "label": "Проанализировать частоту волн и идти в противофазе",
+        "icon": "default",
+        "to_node": "cycle_2_logic_router"
+      },
+      {
+        "action_id": "choice_3",
+        "label": "Рассечь звуковую волну встречным ударом loot_queue.0",
+        "icon": "default",
+        "to_node": "cycle_2_logic_router"
+      }
+    ]
+  },
+  {
+    "node_key": "cycle_1_logic_router",
+    "text": "",
+    "system_messages": [],
+    "actions": [
+      {
+        "action_id": "auto",
+        "label": "",
+        "icon": "default",
+        "to_node": null
+      }
+    ]
+  },
+  {
+    "node_key": "cycle_2_logic_router",
+    "text": "",
+    "system_messages": [],
+    "actions": [
+      {
+        "action_id": "auto",
+        "label": "",
+        "icon": "default",
+        "to_node": null
+      }
+    ]
+  },
+  {
+    "node_key": "cycle_3_logic_router",
+    "text": "",
+    "system_messages": [],
+    "actions": [
+      {
+        "action_id": "auto",
+        "label": "",
+        "icon": "default",
+        "to_node": null
+      }
+    ]
+  },
+  {
+    "node_key": "resonance_logic_01",
+    "text": "АНАЛИЗ ПОВЕДЕНЧЕСКИХ ПАТТЕРНОВ... ЗАВЕРШЕНО. \n\nИзумрудное марево перед тобой вибрирует, материализуя объект из плотной физической материи. Твои руки сами тянутся к нему, узнавая форму, рожденную твоими решениями.",
+    "system_messages": [
+      "АНАЛИЗ ПОВЕДЕНЧЕСКИХ ПАТТЕРНОВ... ЗАВЕРШЕНО. "
+    ],
+    "actions": [
+      {
+        "action_id": "auto",
+        "label": "",
+        "icon": "default",
+        "to_node": null
+      }
+    ]
+  },
+  {
+    "node_key": "choice_strength_weapon",
+    "text": "Энергия Рифта реагирует на твою силу. Перед тобой возникают два силуэта.",
+    "system_messages": [],
+    "actions": [
+      {
+        "action_id": "take_hammer",
+        "label": "Схватить Боевой Молот",
+        "icon": "default",
+        "to_node": "bridge_resonance_award"
+      },
+      {
+        "action_id": "take_axe",
+        "label": "Выбрать Боевой Топор",
+        "icon": "default",
+        "to_node": "bridge_resonance_award"
+      }
+    ]
+  },
+  {
+    "node_key": "choice_agility_weapon",
+    "text": "Рифт чувствует твою скорость. Воздух сгущается в две стремительные формы.",
+    "system_messages": [],
+    "actions": [
+      {
+        "action_id": "take_katana",
+        "label": "Взять Катану",
+        "icon": "default",
+        "to_node": "bridge_resonance_award"
+      },
+      {
+        "action_id": "take_dagger",
+        "label": "Выбрать Кинжал",
+        "icon": "default",
+        "to_node": "bridge_resonance_award"
+      }
+    ]
+  },
+  {
+    "node_key": "choice_balance_weapon",
+    "text": "Твой разум ищет баланс. Рифт предлагает инструменты для тех, кто ценит точность.",
+    "system_messages": [],
+    "actions": [
+      {
+        "action_id": "take_staff",
+        "label": "Взять Боевой Посох",
+        "icon": "default",
+        "to_node": "bridge_resonance_award"
+      },
+      {
+        "action_id": "take_sword",
+        "label": "Выбрать Меч",
+        "icon": "default",
+        "to_node": "bridge_resonance_award"
+      }
+    ]
+  },
+  {
+    "node_key": "bridge_resonance_award",
+    "text": "Свет Осколка гаснет, оставляя в твоих руках тяжесть нового инструмента. Ты делаешь пробный замах — баланс идеален. \n\nОБЪЕКТ СИНХРОНИЗИРОВАН. БОЕВОЙ ПРОТОКОЛ ДОСТУПЕН. ТРЕБУЕТСЯ ПОДГОТОВКА СРЕДСТВ ЗАЩИТЫ.",
+    "system_messages": [
+      "ОБЪЕКТ СИНХРОНИЗИРОВАН. БОЕВОЙ ПРОТОКОЛ ДОСТУПЕН. ТРЕБУЕТСЯ ПОДГОТОВКА СРЕДСТВ ЗАЩИТЫ."
+    ],
+    "actions": [
+      {
+        "action_id": "next",
+        "label": "Закрепить оружие и идти дальше",
+        "icon": "default",
+        "to_node": "pool:bridge_mid"
+      }
+    ]
+  },
+  {
+    "node_key": "resonance_logic_02",
+    "text": "АНАЛИЗ БОЕВОЙ СОВМЕСТИМОСТИ... ЗАВЕРШЕНО. \n\nТвой стиль боя обретает законченную форму. Осколок реагирует на хват твоих рук, формируя идеальное дополнение к [#loot_queue.0].",
+    "system_messages": [
+      "АНАЛИЗ БОЕВОЙ СОВМЕСТИМОСТИ... ЗАВЕРШЕНО. "
+    ],
+    "actions": [
+      {
+        "action_id": "auto",
+        "label": "",
+        "icon": "default",
+        "to_node": null
+      }
+    ]
+  },
+  {
+    "node_key": "choice_offhand",
+    "text": "Твоя вторая рука свободна. Рифт предлагает защиту или скорость.",
+    "system_messages": [],
+    "actions": [
+      {
+        "action_id": "take_shield",
+        "label": "Взять Щит",
+        "icon": "default",
+        "to_node": "bridge_resonance_award_2"
+      },
+      {
+        "action_id": "take_buckler",
+        "label": "Выбрать Баклер Парирование",
+        "icon": "default",
+        "to_node": "bridge_resonance_award_2"
+      }
+    ]
+  },
+  {
+    "node_key": "choice_accessory",
+    "text": "Твои руки заняты двуручным оружием. Рифт предлагает усиление через артефакт.",
+    "system_messages": [],
+    "actions": [
+      {
+        "action_id": "take_belt",
+        "label": "Пояс Силы",
+        "icon": "default",
+        "to_node": "bridge_resonance_award_2"
+      },
+      {
+        "action_id": "take_amulet",
+        "label": "Амулет Концентрации",
+        "icon": "default",
+        "to_node": "bridge_resonance_award_2"
+      }
+    ]
+  },
+  {
+    "node_key": "bridge_resonance_award_2",
+    "text": "Марево перед тобой застывает, превращаясь в полезный инструмент. Теперь ты чувствуешь себя гораздо увереннее. \n\nОБЪЕКТ СИНХРОНИЗИРОВАН. БОЕВОЙ ПРОТОКОЛ ОБНОВЛЕН. ТРЕБУЕТСЯ ФИНАЛЬНАЯ КАЛИБРОВКА ЗАЩИТНОГО КОНТУРА.",
+    "system_messages": [
+      "ОБЪЕКТ СИНХРОНИЗИРОВАН. БОЕВОЙ ПРОТОКОЛ ОБНОВЛЕН. ТРЕБУЕТСЯ ФИНАЛЬНАЯ КАЛИБРОВКА ЗАЩИТНОГО КОНТУРА."
+    ],
+    "actions": [
+      {
+        "action_id": "next",
+        "label": "Проверить снаряжение и продолжить",
+        "icon": "default",
+        "to_node": "pool:bridge_late"
+      }
+    ]
+  },
+  {
+    "node_key": "resonance_logic_03_final",
+    "text": "",
+    "system_messages": [],
+    "actions": [
+      {
+        "action_id": "auto",
+        "label": "",
+        "icon": "default",
+        "to_node": null
+      }
+    ]
+  },
+  {
+    "node_key": "choice_heavy_armor",
+    "text": "Твоя стойкость впечатляет Рифт. Он предлагает тебе стать несокрушимой скалой.",
+    "system_messages": [],
+    "actions": [
+      {
+        "action_id": "take_plate",
+        "label": "Облачиться в Латные Доспехи",
+        "icon": "default",
+        "to_node": "final_award_heavy"
+      },
+      {
+        "action_id": "take_scale",
+        "label": "Выбрать Чешуйчатую Броню",
+        "icon": "default",
+        "to_node": "final_award_heavy"
+      }
+    ]
+  },
+  {
+    "node_key": "choice_light_armor",
+    "text": "Твоя скорость требует свободы. Рифт предлагает защиту, которая не сковывает движений.",
+    "system_messages": [],
+    "actions": [
+      {
+        "action_id": "take_robe",
+        "label": "Надеть Магическую Робу",
+        "icon": "default",
+        "to_node": "final_award_light"
+      },
+      {
+        "action_id": "take_leather",
+        "label": "Выбрать Легкую Кожу",
+        "icon": "default",
+        "to_node": "final_award_light"
+      }
+    ]
+  },
+  {
+    "node_key": "choice_medium_armor",
+    "text": "Ты ищешь баланс во всем. Рифт предлагает универсальную защиту.",
+    "system_messages": [],
+    "actions": [
+      {
+        "action_id": "take_chainmail",
+        "label": "Надеть Кольчугу",
+        "icon": "default",
+        "to_node": "final_award_medium"
+      },
+      {
+        "action_id": "take_brigandine",
+        "label": "Выбрать Бригантину",
+        "icon": "default",
+        "to_node": "final_award_medium"
+      }
+    ]
+  },
+  {
+    "node_key": "final_award_heavy",
+    "text": "Изумрудный Разлом взрывается ослепительным светом. Ты чувствуешь, как на твои плечи ложится колоссальная тяжесть, но она не давит, а дает уверенность. \n\nТвое тело теперь заковано в **тяжелую броню**. Ты — живая крепость среди хаоса кода. \n\nКАЛИБРОВКА ПОЛНОСТЬЮ ЗАВЕРШЕНА. ВЫ ГOTOВЫ К ВЫХОДУ ИЗ РИФТА.",
+    "system_messages": [
+      "КАЛИБРОВКА ПОЛНОСТЬЮ ЗАВЕРШЕНА. ВЫ ГOTOВЫ К ВЫХОДУ ИЗ РИФТА."
+    ],
+    "actions": [
+      {
+        "action_id": "exit",
+        "label": "Шагнуть в финальный портал",
+        "icon": "default",
+        "to_node": "rift_exit_battle"
+      }
+    ]
+  },
+  {
+    "node_key": "final_award_light",
+    "text": "Осколок Зеро окутывает тебя невесомым коконом. Когда сияние гаснет, ты чувствуешь на плечах мягкую ткань, пропитанную энергией Разлома. \n\nТвоим облачением становится **легкая броня**. Это снаряжение не защитит от прямого удара топором, но позволит тебе двигаться быстрее ветра. \n\nСИНХРОНИЗАЦИЯ С ЛЕГКИМ КОНТУРОМ: 100%. ПОЛУЧЕН НАВЫК: МАСТЕР ЛЕГКОЙ БРОНИ.",
+    "system_messages": [
+      "СИНХРОНИЗАЦИЯ С ЛЕГКИМ КОНТУРОМ: 100%. ПОЛУЧЕН НАВЫК: МАСТЕР ЛЕГКОЙ БРОНИ."
+    ],
+    "actions": [
+      {
+        "action_id": "exit",
+        "label": "Выйти из марева",
+        "icon": "default",
+        "to_node": "rift_exit_battle"
+      }
+    ]
+  }
+]

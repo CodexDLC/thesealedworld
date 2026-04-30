@@ -35,15 +35,3 @@ async def library(ui: Annotated[UIRenderer, Depends(get_ui_renderer)]):
 async def news(ui: Annotated[UIRenderer, Depends(get_ui_renderer)]):
     """Render the News placeholder page."""
     return await ui.render("site/news.html")
-
-
-@router.get("/game/select-character", name="select_character")
-async def select_character_page(ui: Annotated[UIRenderer, Depends(get_ui_renderer)]):
-    """Render the Character Selection page."""
-    return await ui.render("game/select_character.html")
-
-
-@router.get("/game", name="game")
-async def game_page(ui: Annotated[UIRenderer, Depends(get_ui_renderer)]):
-    """Render the Game page."""
-    return await ui.render("game/index.html")

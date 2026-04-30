@@ -2,7 +2,7 @@ from typing import Any
 
 from fastapi import HTTPException, Request, status
 
-from src.frontend.features.scenario.view_models.scenario import ScenarioPageVM, build_scenario_page_vm
+from src.frontend.game_features.scenario.view_models.scenario import ScenarioPageVM, build_scenario_page_vm
 from src.frontend.integrations.backend_api.scenario import BackendScenarioApi
 
 

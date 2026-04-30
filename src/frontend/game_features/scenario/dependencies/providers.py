@@ -2,7 +2,7 @@ from typing import Annotated
 
 from fastapi import Depends, Request
 
-from src.frontend.features.scenario.services.scenario_page_service import ScenarioPageService
+from src.frontend.game_features.scenario.services.scenario_page_service import ScenarioPageService
 from src.frontend.integrations.backend_api.scenario import BackendScenarioApi
 
 

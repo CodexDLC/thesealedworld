@@ -1,3 +1,11 @@
+"""
+Frontend application entry point.
+
+Structure:
+- site_features: Web portal features (auth, cabinet, static pages)
+- game_features: Core game logic (lobby, menu, scenario interaction)
+"""
+
 from contextlib import asynccontextmanager
 
 import httpx
@@ -10,7 +18,7 @@ from src.frontend.config.settings import settings
 from src.frontend.core.middleware import AuthUserMiddleware
 from src.frontend.core.renderer import get_ui_renderer
 from src.frontend.core.routing import include_frontend_routers
-from src.frontend.features.game_menu import GameMenuMiddleware
+from src.frontend.game_features.game_menu import GameMenuMiddleware
 
 
 @asynccontextmanager

@@ -4,13 +4,13 @@ from fastapi import APIRouter, Depends, Form, HTTPException, Request, status
 from fastapi.responses import RedirectResponse
 
 from src.frontend.core.renderer import UIRenderer, get_ui_renderer
-from src.frontend.features.auth.dependencies.providers import get_frontend_auth_service
-from src.frontend.features.auth.services.auth_service import FrontendAuthService
-from src.frontend.features.game_lobby.dependencies.providers import (
+from src.frontend.game_features.game_lobby.dependencies.providers import (
     get_game_lobby_page_service,
 )
-from src.frontend.features.game_lobby.services.lobby_page_service import GameLobbyPageService
-from src.frontend.features.game_lobby.view_models.lobby import build_lobby_page_vm
+from src.frontend.game_features.game_lobby.services.lobby_page_service import GameLobbyPageService
+from src.frontend.game_features.game_lobby.view_models.lobby import build_lobby_page_vm
+from src.frontend.site_features.auth.dependencies.providers import get_frontend_auth_service
+from src.frontend.site_features.auth.services.auth_service import FrontendAuthService
 from src.shared.schemas import CreateCharacterRequestDTO, DeleteCharacterRequestDTO, EnterCharacterRequestDTO
 from src.shared.schemas.game_lobby import CharacterCreationGender
 

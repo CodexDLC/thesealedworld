@@ -3,8 +3,8 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, Form, Request
 
 from src.frontend.core.renderer import UIRenderer, get_ui_renderer
-from src.frontend.features.scenario.dependencies.providers import get_scenario_page_service
-from src.frontend.features.scenario.services.scenario_page_service import ScenarioPageService
+from src.frontend.game_features.scenario.dependencies.providers import get_scenario_page_service
+from src.frontend.game_features.scenario.services.scenario_page_service import ScenarioPageService
 
 router = APIRouter(tags=["Scenario"])
 

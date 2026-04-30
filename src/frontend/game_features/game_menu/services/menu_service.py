@@ -1,4 +1,4 @@
-from src.frontend.features.game_menu.view_models.menu import GameMenuItemVM, GameMenuVM
+from src.frontend.game_features.game_menu.view_models.menu import GameMenuItemVM, GameMenuVM
 from src.shared.enums.domain import CoreDomain
 
 

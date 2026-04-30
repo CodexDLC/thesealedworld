@@ -2,7 +2,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 from starlette.responses import Response
 
-from src.frontend.features.game_menu.services.menu_service import GameMenuService
+from src.frontend.game_features.game_menu.services.menu_service import GameMenuService
 
 
 class GameMenuMiddleware(BaseHTTPMiddleware):

@@ -2,8 +2,8 @@ import httpx
 from fastapi import Request
 
 from src.frontend.config.settings import settings
-from src.frontend.features.auth.services.auth_service import FrontendAuthService
 from src.frontend.integrations.backend_api.auth import BackendAuthApi
+from src.frontend.site_features.auth.services.auth_service import FrontendAuthService
 
 
 def get_backend_http_client(request: Request) -> httpx.AsyncClient:

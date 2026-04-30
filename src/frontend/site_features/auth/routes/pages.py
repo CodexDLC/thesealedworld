@@ -6,10 +6,10 @@ from fastapi import APIRouter, Depends, Request, status
 from fastapi.responses import RedirectResponse
 
 from src.frontend.core.renderer import UIRenderer, get_ui_renderer
-from src.frontend.features.auth.dependencies.providers import get_frontend_auth_service
-from src.frontend.features.auth.forms.login import LoginForm
-from src.frontend.features.auth.forms.register import RegisterForm
-from src.frontend.features.auth.services.auth_service import FrontendAuthService
+from src.frontend.site_features.auth.dependencies.providers import get_frontend_auth_service
+from src.frontend.site_features.auth.forms.login import LoginForm
+from src.frontend.site_features.auth.forms.register import RegisterForm
+from src.frontend.site_features.auth.services.auth_service import FrontendAuthService
 
 router = APIRouter(tags=["Auth"])
 

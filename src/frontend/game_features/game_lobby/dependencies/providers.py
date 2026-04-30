@@ -5,10 +5,10 @@ from typing import TYPE_CHECKING
 from fastapi import Request  # noqa: TC002
 
 from src.frontend.config.settings import settings
-from src.frontend.features.auth.dependencies.providers import get_backend_http_client
-from src.frontend.features.game_lobby.services.lobby_page_service import GameLobbyPageService
+from src.frontend.game_features.game_lobby.services.lobby_page_service import GameLobbyPageService
 from src.frontend.integrations.backend_api.game_lobby import BackendGameLobbyApi
 from src.frontend.integrations.backend_api.scenario import BackendScenarioApi
+from src.frontend.site_features.auth.dependencies.providers import get_backend_http_client
 
 if TYPE_CHECKING:
     import httpx

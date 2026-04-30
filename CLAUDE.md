@@ -8,12 +8,18 @@ Use:
 
 - `docs/agent-skills/turnbasedmmorpg-project/SKILL.md` for repository-wide rules, source-tree ownership, donor-code migration, shared contracts, and handoff prompts.
 - `docs/agent-skills/turnbasedmmorpg-frontend/SKILL.md` for frontend routes, services, view models, templates, static assets, middleware placement, and backend API clients.
+- `docs/agent-skills/turnbasedmmorpg-design-system/SKILL.md` for frontend design-system usage, shared class reuse order, shell/include drift checks, and rules for adding CSS only after existing project styles are exhausted.
 - `docs/agent-skills/turnbasedmmorpg-backend/SKILL.md` for backend feature layout, APIs, DTOs, models, repositories, services, workers, runtime code, and data ownership.
 - `docs/agent-skills/turnbasedmmorpg-redis-streams/SKILL.md` for Redis Streams, `GameStreamRouter`, `GameEventProducer`, event handlers, publishing, and `correlation_id` reply flows.
 - `docs/agent-skills/turnbasedmmorpg-feature-slice/SKILL.md` when a task spans backend, frontend, shared contracts, templates, tests, or events.
 - `docs/agent-skills/turnbasedmmorpg-quality-gate/SKILL.md` before declaring code complete, before commits/PRs, or when choosing between full and targeted local validation.
 
 Rule of thumb: if a task changes structure or crosses feature boundaries, read the project skill plus the specific frontend/backend/event skill before editing code. After code edits, use the quality-gate skill and report the verification command that ran.
+
+For frontend visual work, also read:
+
+- `docs/design-system/README.md` for the canonical text summary of the design system, class reuse order, and shared-layer audit notes.
+- `docs/design-system/Design System.html` as the canonical visual reference. Do not treat `/system/design` as the source of truth.
 
 ## Event Bus (Redis Streams)
 

@@ -49,7 +49,7 @@ class TestScenarioFormatter:
         master = {"status_bar_fields": []}
 
         director.get_available_actions.return_value = [
-            {"action_id": "a1", "label": "Go [#target]"}
+            {"action_id": "a1", "label": "Go [#target]", "payload": {"icon": "move"}}
         ]
 
         payload = formatter.render_payload(node, context, master)

@@ -40,7 +40,7 @@ class TestScenarioRepository:
         assert result is None
 
     async def test_upsert_master(self, repo, session):
-        master_data = {"quest_key": "q1", "start_node_id": "n1", "foo": "bar"}
+        master_data = {"quest_key": "q1", "display_name": "Quest 1", "start_node_id": "n1", "foo": "bar"}
         await repo.upsert_master(master_data)
         session.execute.assert_called_once()
 

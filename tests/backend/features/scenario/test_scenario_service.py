@@ -163,6 +163,7 @@ class TestScenarioService:
             mocks["repo"].upsert_state = AsyncMock()
             mocks["content"].get_node = AsyncMock(return_value={"node_key": "n1", "actions_logic": {"auto": {}}})
 
+            mocks["director"]._get_node_actions = MagicMock(return_value={"auto": {}})
             mock_resolved = MagicMock()
             mock_resolved.node = {"node_key": "n2"}
             mock_resolved.context = {"foo": "bar"}
@@ -260,7 +261,11 @@ class TestScenarioService:
             mocks["character_sessions"].clear_scenario_session = AsyncMock()
             mocks["sessions"].delete = AsyncMock()
             mocks["repo"].delete_state = AsyncMock()
+            mocks["repo"].get_active_state = AsyncMock(return_value=None)
             mocks["events"].publish = AsyncMock()
+
+            # Mock director._get_node_actions so ScenarioService knows it's a finish_quest action
+            mocks["director"]._get_node_actions.return_value = {"a1": {"type": "finish_quest"}}
 
             await service.step(1, "a1")
             mocks["sessions"].delete.assert_called_once()
@@ -272,6 +277,7 @@ class TestScenarioService:
         mocks["content"].get_master = AsyncMock(return_value={"id": "q1"})
         mocks["content"].get_node = AsyncMock(return_value={"node_key": "n1", "actions_logic": {"auto": {}}})
 
+        mocks["director"]._get_node_actions = MagicMock(return_value={"auto": {}})
         mock_resolved = MagicMock()
         mock_resolved.node = {"node_key": "n2"}
         mock_resolved.context = {"foo": "bar"}
@@ -295,6 +301,7 @@ class TestScenarioService:
 
     async def test_step_session_not_found(self, service, mocks):
         mocks["sessions"].get = AsyncMock(return_value=None)
+        mocks["repo"].get_active_state = AsyncMock(return_value=None)
         with pytest.raises(ScenarioSessionNotFoundError):
             await service.step(1, "a1")
 
@@ -324,6 +331,7 @@ class TestScenarioService:
         context = ScenarioContextDTO(quest_key="q1", current_node_key="n1")
         mocks["sessions"].get = AsyncMock(return_value=context)
         mocks["content"].get_node = AsyncMock(return_value={"node_key": "n1", "actions_logic": {}})
+        mocks["director"]._get_node_actions = MagicMock(return_value={})
         with pytest.raises(InvalidActionError):
             await service.step(1, "a1")
 

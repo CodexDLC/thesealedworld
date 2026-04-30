@@ -96,7 +96,7 @@ class TestScenarioDirector:
             "auto": {}
         }
         evaluator.check_condition.side_effect = lambda c, ctx: c == "c1" # Only c1 true
-        result = director.get_available_actions(actions_logic, {})
+        result = director.get_available_actions({"actions_logic": actions_logic}, {})
         assert len(result) == 2
         assert result[0]["action_id"] == "a1"
         assert result[1]["action_id"] == "a2"

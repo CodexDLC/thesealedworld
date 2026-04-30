@@ -43,7 +43,7 @@ class TestScenarioLoader:
             mock_upsert.assert_called_once()
             mock_delete.assert_called_once_with("test_quest")
             mock_bulk.assert_called_once()
-            loader.content.invalidate.assert_called_once_with("test_quest")
+            loader.content.warm_up_cache.assert_called_once_with("test_quest")
 
     async def test_load_from_file_no_content_service(self, session, tmp_path):
         loader = ScenarioLoader(session, content=None)

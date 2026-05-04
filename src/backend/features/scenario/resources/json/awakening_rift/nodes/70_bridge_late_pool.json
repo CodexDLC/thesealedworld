@@ -1,0 +1,140 @@
+[
+  {
+    "node_key": "bridge_late_sync",
+    "text": "Синхронизация достигла критической отметки. Ты чувствуешь, как [#loot_queue.0] и [#loot_queue.1] становятся невесомыми, сливаясь с твоей волей.\n\nСИСТЕМА ГОТОВА К ФОРМИРОВАНИЮ ЗАЩИТНОГО КОНТУРА.",
+    "system_messages": [
+      "СИСТЕМА ГОТОВА К ФОРМИРОВАНИЮ ЗАЩИТНОГО КОНТУРА."
+    ],
+    "actions": [
+      {
+        "action_id": "next",
+        "label": "Идти в центр шторма",
+        "icon": "default",
+        "to_node": "pool:cycle_3"
+      }
+    ],
+    "tags": [
+      "bridge_late"
+    ],
+    "selection_requirements": "step_counter >= 6",
+    "node_type": "transition",
+    "phase": "bridge_late",
+    "metadata": {},
+    "ui": {}
+  },
+  {
+    "node_key": "bridge_late_pattern",
+    "text": "Геометрия Разлома меняется. Деревья превращаются в колонны света. Ты видишь сложные паттерны, которые сплетаются в твой будущий доспех.\n\nОБНАРУЖЕНЫ ШАБЛОНЫ ВНЕШНЕЙ ОБОЛОЧКИ. ТРЕБУЕТСЯ ПОДТВЕРЖДЕНИЕ.",
+    "system_messages": [
+      "ОБНАРУЖЕНЫ ШАБЛОНЫ ВНЕШНЕЙ ОБОЛОЧКИ. ТРЕБУЕТСЯ ПОДТВЕРЖДЕНИЕ."
+    ],
+    "actions": [
+      {
+        "action_id": "next",
+        "label": "Шагнуть сквозь хаос",
+        "icon": "default",
+        "to_node": "pool:cycle_3"
+      }
+    ],
+    "tags": [
+      "bridge_late"
+    ],
+    "selection_requirements": "step_counter >= 6",
+    "node_type": "transition",
+    "phase": "bridge_late",
+    "metadata": {},
+    "ui": {}
+  },
+  {
+    "node_key": "bridge_late_echo",
+    "text": "Шепот Осколка превращается в гул. Ты — активный процесс в ядре системы. Твое тело жаждет финального слоя защиты.\n\nПОДГОТОВКА К КОМПЛЕКСНОМУ РЕЗОНАНСУ.",
+    "system_messages": [
+      "ПОДГОТОВКА К КОМПЛЕКСНОМУ РЕЗОНАНСУ."
+    ],
+    "actions": [
+      {
+        "action_id": "next",
+        "label": "Устремиться к горизонту",
+        "icon": "default",
+        "to_node": "pool:cycle_3"
+      }
+    ],
+    "tags": [
+      "bridge_late"
+    ],
+    "selection_requirements": "step_counter >= 6",
+    "node_type": "transition",
+    "phase": "bridge_late",
+    "metadata": {},
+    "ui": {}
+  },
+  {
+    "node_key": "bridge_late_static",
+    "text": "Воздух искрится. Каждое движение порождает шлейф из знаков. Осколок предлагает материю для защиты твоего разума.\n\nОБНАРУЖЕНА СОВМЕСТИМОСТЬ С ВЫСШИМИ СЛОЯМИ ЭКИПИРОВКИ.",
+    "system_messages": [
+      "ОБНАРУЖЕНА СОВМЕСТИМОСТЬ С ВЫСШИМИ СЛОЯМИ ЭКИПИРОВКИ."
+    ],
+    "actions": [
+      {
+        "action_id": "next",
+        "label": "Сделать шаг в тишину",
+        "icon": "default",
+        "to_node": "pool:cycle_3"
+      }
+    ],
+    "tags": [
+      "bridge_late"
+    ],
+    "selection_requirements": "step_counter >= 6",
+    "node_type": "transition",
+    "phase": "bridge_late",
+    "metadata": {},
+    "ui": {}
+  },
+  {
+    "node_key": "bridge_late_vision",
+    "text": "Ты видишь себя со стороны: фигура, окутанная пламенем, сжимающая [#loot_queue.0]. Этот образ будущего доспеха вспыхивает и гаснет.\n\nВИЗУАЛИЗАЦИЯ ЦЕЛИ: ЗАВЕРШЕНА. ВЕРОЯТНОСТЬ УСПЕХА: 89%.",
+    "system_messages": [
+      "ВИЗУАЛИЗАЦИЯ ЦЕЛИ: ЗАВЕРШЕНА. ВЕРОЯТНОСТЬ УСПЕХА: 89%."
+    ],
+    "actions": [
+      {
+        "action_id": "next",
+        "label": "Бежать навстречу вспышке",
+        "icon": "default",
+        "to_node": "pool:cycle_3"
+      }
+    ],
+    "tags": [
+      "bridge_late"
+    ],
+    "selection_requirements": "step_counter >= 6",
+    "node_type": "transition",
+    "phase": "bridge_late",
+    "metadata": {},
+    "ui": {}
+  },
+  {
+    "node_key": "bridge_late_void",
+    "text": "Пространство схлопывается в узкий коридор света. Конец Рифта близок. Последние препятствия отделяют тебя от материализации.\n\nВНИМАНИЕ. СИНХРОНИЗАЦИЯ 94%. ФИНАЛЬНЫЙ ТЕСТ.",
+    "system_messages": [
+      "ВНИМАНИЕ. СИНХРОНИЗАЦИЯ 94%. ФИНАЛЬНЫЙ ТЕСТ."
+    ],
+    "actions": [
+      {
+        "action_id": "next",
+        "label": "Идти к выходу",
+        "icon": "default",
+        "to_node": "pool:cycle_3"
+      }
+    ],
+    "tags": [
+      "bridge_late"
+    ],
+    "selection_requirements": "step_counter >= 6",
+    "node_type": "transition",
+    "phase": "bridge_late",
+    "metadata": {},
+    "ui": {}
+  }
+]

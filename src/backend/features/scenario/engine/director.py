@@ -125,7 +125,7 @@ class ScenarioDirector:
                 candidates.append(node)
         if not candidates:
             raise ScenarioPoolEmpty(quest_key, pool_tag)
-        return random.choice(candidates)
+        return random.choice(candidates)  # nosec B311
 
     def get_available_actions(self, node: dict[str, Any], context: dict[str, Any]) -> list[dict[str, Any]]:
         actions_logic = self._get_node_actions(node)

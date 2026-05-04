@@ -1,0 +1,256 @@
+[
+  {
+    "node_key": "cycle_3_logic_router",
+    "text": "",
+    "system_messages": [],
+    "actions": [
+      {
+        "action_id": "auto",
+        "label": "",
+        "icon": "default",
+        "to_node": null,
+        "branching": [
+          {
+            "condition": "step_counter >= 9",
+            "to_node": "resonance_logic_03_final"
+          },
+          {
+            "condition": "default",
+            "to_node": "pool:bridge_late"
+          }
+        ],
+        "type": "logic_gate"
+      }
+    ],
+    "node_type": "router",
+    "phase": "calibration_router",
+    "metadata": {},
+    "ui": {}
+  },
+  {
+    "node_key": "resonance_logic_03_final",
+    "text": "",
+    "system_messages": [],
+    "actions": [
+      {
+        "action_id": "auto",
+        "label": "",
+        "icon": "default",
+        "to_node": null,
+        "branching": [
+          {
+            "condition": "w_endurance >= 15 or w_strength >= 15",
+            "to_node": "choice_heavy_armor"
+          },
+          {
+            "condition": "w_agility >= 15 or w_prediction >= 15",
+            "to_node": "choice_light_armor"
+          },
+          {
+            "condition": "default",
+            "to_node": "choice_medium_armor"
+          }
+        ],
+        "type": "logic_gate"
+      }
+    ],
+    "node_type": "router",
+    "phase": "calibration_router",
+    "metadata": {},
+    "ui": {}
+  },
+  {
+    "node_key": "choice_heavy_armor",
+    "text": "Твоя стойкость впечатляет Рифт. Он предлагает тебе стать несокрушимой скалой.",
+    "system_messages": [],
+    "actions": [
+      {
+        "action_id": "take_plate",
+        "label": "Облачиться в Латные Доспехи",
+        "icon": "default",
+        "to_node": "final_award_heavy",
+        "math": {
+          "loot_queue": [
+            "push:plate_chest",
+            "push:helmet",
+            "push:wool_tunic",
+            "push:fur_pants",
+            "push:boots"
+          ],
+          "skills_queue": [
+            "push:skill_heavy_armor"
+          ]
+        }
+      },
+      {
+        "action_id": "take_scale",
+        "label": "Выбрать Чешуйчатую Броню",
+        "icon": "default",
+        "to_node": "final_award_heavy",
+        "math": {
+          "loot_queue": [
+            "push:scale_mail",
+            "push:helmet",
+            "push:wool_tunic",
+            "push:fur_pants",
+            "push:boots"
+          ],
+          "skills_queue": [
+            "push:skill_heavy_armor"
+          ]
+        }
+      }
+    ],
+    "node_type": "reward_choice",
+    "phase": "reward_selection",
+    "metadata": {},
+    "ui": {}
+  },
+  {
+    "node_key": "choice_light_armor",
+    "text": "Твоя скорость требует свободы. Рифт предлагает защиту, которая не сковывает движений.",
+    "system_messages": [],
+    "actions": [
+      {
+        "action_id": "take_robe",
+        "label": "Надеть Магическую Робу",
+        "icon": "default",
+        "to_node": "final_award_light",
+        "math": {
+          "loot_queue": [
+            "push:robe",
+            "push:hood",
+            "push:linen_shirt",
+            "push:sandals"
+          ],
+          "skills_queue": [
+            "push:skill_light_armor"
+          ]
+        }
+      },
+      {
+        "action_id": "take_leather",
+        "label": "Выбрать Легкую Кожу",
+        "icon": "default",
+        "to_node": "final_award_light",
+        "math": {
+          "loot_queue": [
+            "push:leather_armor",
+            "push:hood",
+            "push:linen_shirt",
+            "push:boots"
+          ],
+          "skills_queue": [
+            "push:skill_light_armor"
+          ]
+        }
+      }
+    ],
+    "node_type": "reward_choice",
+    "phase": "reward_selection",
+    "metadata": {},
+    "ui": {}
+  },
+  {
+    "node_key": "choice_medium_armor",
+    "text": "Ты ищешь баланс во всем. Рифт предлагает универсальную защиту.",
+    "system_messages": [],
+    "actions": [
+      {
+        "action_id": "take_chainmail",
+        "label": "Надеть Кольчугу",
+        "icon": "default",
+        "to_node": "final_award_medium",
+        "math": {
+          "loot_queue": [
+            "push:chainmail",
+            "push:leather_cap",
+            "push:linen_shirt",
+            "push:boots"
+          ],
+          "skills_queue": [
+            "push:skill_medium_armor"
+          ]
+        }
+      },
+      {
+        "action_id": "take_brigandine",
+        "label": "Выбрать Бригантину",
+        "icon": "default",
+        "to_node": "final_award_medium",
+        "math": {
+          "loot_queue": [
+            "push:brigandine",
+            "push:leather_cap",
+            "push:linen_shirt",
+            "push:boots"
+          ],
+          "skills_queue": [
+            "push:skill_medium_armor"
+          ]
+        }
+      }
+    ],
+    "node_type": "reward_choice",
+    "phase": "reward_selection",
+    "metadata": {},
+    "ui": {}
+  },
+  {
+    "node_key": "final_award_heavy",
+    "text": "Изумрудный Разлом взрывается ослепительным светом. Ты чувствуешь, как на твои плечи ложится колоссальная тяжесть, но она не давит, а дает уверенность. \n\nТвое тело теперь заковано в **тяжелую броню**. Ты — живая крепость среди хаоса кода. \n\nКАЛИБРОВКА ПОЛНОСТЬЮ ЗАВЕРШЕНА. ВЫ ГOTOВЫ К ВЫХОДУ ИЗ РИФТА.",
+    "system_messages": [
+      "КАЛИБРОВКА ПОЛНОСТЬЮ ЗАВЕРШЕНА. ВЫ ГOTOВЫ К ВЫХОДУ ИЗ РИФТА."
+    ],
+    "actions": [
+      {
+        "action_id": "exit",
+        "label": "Шагнуть в финальный портал",
+        "icon": "default",
+        "to_node": "rift_exit_battle"
+      }
+    ],
+    "node_type": "reward_result",
+    "phase": "reward_result",
+    "metadata": {},
+    "ui": {}
+  },
+  {
+    "node_key": "final_award_light",
+    "text": "Осколок Зеро окутывает тебя невесомым коконом. Когда сияние гаснет, ты чувствуешь на плечах мягкую ткань, пропитанную энергией Разлома. \n\nТвоим облачением становится **легкая броня**. Это снаряжение не защитит от прямого удара топором, но позволит тебе двигаться быстрее ветра. \n\nСИНХРОНИЗАЦИЯ С ЛЕГКИМ КОНТУРОМ: 100%. ПОЛУЧЕН НАВЫК: МАСТЕР ЛЕГКОЙ БРОНИ.",
+    "system_messages": [
+      "СИНХРОНИЗАЦИЯ С ЛЕГКИМ КОНТУРОМ: 100%. ПОЛУЧЕН НАВЫК: МАСТЕР ЛЕГКОЙ БРОНИ."
+    ],
+    "actions": [
+      {
+        "action_id": "exit",
+        "label": "Выйти из марева",
+        "icon": "default",
+        "to_node": "rift_exit_battle"
+      }
+    ],
+    "node_type": "reward_result",
+    "phase": "reward_result",
+    "metadata": {},
+    "ui": {}
+  },
+  {
+    "node_key": "final_award_medium",
+    "text": "Изумрудный свет застывает на твоем теле гибкой металлической сеткой. Ты чувствуешь приятную тяжесть и надежность.\n\nНа тебе надета **средняя броня**. Этот комплект — идеальный баланс между защитой и мобильностью. \n\nСИНХРОНИЗАЦИЯ СО СРЕДНИМ КОНТУРОМ ЗАВЕРШЕНА. ПОЛУЧЕН НАВЫК: МАСТЕР СРЕДНЕЙ БРОНИ.",
+    "system_messages": [
+      "СИНХРОНИЗАЦИЯ СО СРЕДНИМ КОНТУРОМ ЗАВЕРШЕНА. ПОЛУЧЕН НАВЫК: МАСТЕР СРЕДНЕЙ БРОНИ."
+    ],
+    "actions": [
+      {
+        "action_id": "exit",
+        "label": "Продолжить путь",
+        "icon": "default",
+        "to_node": "rift_exit_battle"
+      }
+    ],
+    "node_type": "reward_result",
+    "phase": "reward_result",
+    "metadata": {},
+    "ui": {}
+  }
+]

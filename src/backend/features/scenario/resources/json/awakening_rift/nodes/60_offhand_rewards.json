@@ -1,0 +1,149 @@
+[
+  {
+    "node_key": "cycle_2_logic_router",
+    "text": "",
+    "system_messages": [],
+    "actions": [
+      {
+        "action_id": "auto",
+        "label": "",
+        "icon": "default",
+        "to_node": null,
+        "branching": [
+          {
+            "condition": "step_counter >= 6",
+            "to_node": "resonance_logic_02"
+          },
+          {
+            "condition": "default",
+            "to_node": "pool:bridge_mid"
+          }
+        ],
+        "type": "logic_gate"
+      }
+    ],
+    "node_type": "router",
+    "phase": "calibration_router",
+    "metadata": {},
+    "ui": {}
+  },
+  {
+    "node_key": "resonance_logic_02",
+    "text": "АНАЛИЗ БОЕВОЙ СОВМЕСТИМОСТИ... ЗАВЕРШЕНО. \n\nТвой стиль боя обретает законченную форму. Осколок реагирует на хват твоих рук, формируя идеальное дополнение к [#loot_queue.0].",
+    "system_messages": [
+      "АНАЛИЗ БОЕВОЙ СОВМЕСТИМОСТИ... ЗАВЕРШЕНО. "
+    ],
+    "actions": [
+      {
+        "action_id": "auto",
+        "label": "",
+        "icon": "default",
+        "to_node": null,
+        "branching": [
+          {
+            "condition": "is_two_handed == 0",
+            "to_node": "choice_offhand"
+          },
+          {
+            "condition": "default",
+            "to_node": "choice_accessory"
+          }
+        ],
+        "type": "logic_gate"
+      }
+    ],
+    "node_type": "router",
+    "phase": "calibration_router",
+    "metadata": {},
+    "ui": {}
+  },
+  {
+    "node_key": "choice_offhand",
+    "text": "Твоя вторая рука свободна. Рифт предлагает защиту или скорость.",
+    "system_messages": [],
+    "actions": [
+      {
+        "action_id": "take_shield",
+        "label": "Взять Щит",
+        "icon": "default",
+        "to_node": "bridge_resonance_award_2",
+        "math": {
+          "loot_queue": "push:shield",
+          "skills_queue": [
+            "push:skill_shield_mastery"
+          ]
+        }
+      },
+      {
+        "action_id": "take_buckler",
+        "label": "Выбрать Баклер Парирование",
+        "icon": "default",
+        "to_node": "bridge_resonance_award_2",
+        "math": {
+          "loot_queue": "push:buckler",
+          "skills_queue": [
+            "push:skill_parrying"
+          ]
+        }
+      }
+    ],
+    "node_type": "reward_choice",
+    "phase": "reward_selection",
+    "metadata": {},
+    "ui": {}
+  },
+  {
+    "node_key": "choice_accessory",
+    "text": "Твои руки заняты двуручным оружием. Рифт предлагает усиление через артефакт.",
+    "system_messages": [],
+    "actions": [
+      {
+        "action_id": "take_belt",
+        "label": "Пояс Силы",
+        "icon": "default",
+        "to_node": "bridge_resonance_award_2",
+        "math": {
+          "loot_queue": "push:belt",
+          "skills_queue": [
+            "push:skill_tactics"
+          ]
+        }
+      },
+      {
+        "action_id": "take_amulet",
+        "label": "Амулет Концентрации",
+        "icon": "default",
+        "to_node": "bridge_resonance_award_2",
+        "math": {
+          "loot_queue": "push:amulet",
+          "skills_queue": [
+            "push:skill_tactics"
+          ]
+        }
+      }
+    ],
+    "node_type": "reward_choice",
+    "phase": "reward_selection",
+    "metadata": {},
+    "ui": {}
+  },
+  {
+    "node_key": "bridge_resonance_award_2",
+    "text": "Марево перед тобой застывает, превращаясь в полезный инструмент. Теперь ты чувствуешь себя гораздо увереннее. \n\nОБЪЕКТ СИНХРОНИЗИРОВАН. БОЕВОЙ ПРОТОКОЛ ОБНОВЛЕН. ТРЕБУЕТСЯ ФИНАЛЬНАЯ КАЛИБРОВКА ЗАЩИТНОГО КОНТУРА.",
+    "system_messages": [
+      "ОБЪЕКТ СИНХРОНИЗИРОВАН. БОЕВОЙ ПРОТОКОЛ ОБНОВЛЕН. ТРЕБУЕТСЯ ФИНАЛЬНАЯ КАЛИБРОВКА ЗАЩИТНОГО КОНТУРА."
+    ],
+    "actions": [
+      {
+        "action_id": "next",
+        "label": "Проверить снаряжение и продолжить",
+        "icon": "default",
+        "to_node": "pool:bridge_late"
+      }
+    ],
+    "node_type": "reward_result",
+    "phase": "reward_result",
+    "metadata": {},
+    "ui": {}
+  }
+]

@@ -1,6 +1,9 @@
-import pytest
 from unittest.mock import AsyncMock, MagicMock
+
+import pytest
+
 from src.backend.features.world.services.cache_service import WorldCacheService
+
 
 @pytest.mark.unit
 class TestWorldCacheService:
@@ -37,13 +40,20 @@ class TestWorldCacheService:
         assert cache["loc_id"] == "52_52"
         assert cache["name"] == "Узел 52_52"
         assert cache["description"] == "..."
+        assert cache["background_url"] is None
+        assert cache["world_theme"] == {}
         assert cache["services"] == []
 
     def test_to_location_cache_full(self, service, navigation):
         node = MagicMock(
             x=52, y=52,
-            content={"title": "Title", "description": "Desc", "environment_tags": ["tag1"]},
-            flags={"f1": True},
+            content={
+                "title": "Title",
+                "description": "Desc",
+                "background_url": "/static/images/exploration/city/d4/test.png",
+                "environment_tags": ["tag1"],
+            },
+            flags={"f1": True, "world_theme": {"accent": "#ffffff"}},
             services=["s1"],
             zone_id="z1",
             terrain_type="t1"
@@ -53,7 +63,9 @@ class TestWorldCacheService:
         cache = service._to_location_cache(node, {})
         assert cache["name"] == "Title"
         assert cache["description"] == "Desc"
+        assert cache["background_url"] == "/static/images/exploration/city/d4/test.png"
+        assert cache["world_theme"] == {"accent": "#ffffff"}
         assert cache["tags"] == ["tag1"]
         assert cache["service"] == "s1"
         assert cache["services"] == ["s1"]
-        assert cache["flags"] == {"f1": True}
+        assert cache["flags"] == {"f1": True, "world_theme": {"accent": "#ffffff"}}

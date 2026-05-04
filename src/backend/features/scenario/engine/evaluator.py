@@ -31,7 +31,7 @@ class ScenarioEvaluator:
     _unary_ops = {ast.USub: operator.neg, ast.UAdd: operator.pos, ast.Not: operator.not_}
 
     def __init__(self, seed: int | float | str | None = None) -> None:
-        self._rng = random.Random(seed)
+        self._rng = random.Random(seed)  # nosec B311
         self._dice_pattern = re.compile(r"(\d+)d(\d+)")
 
     def check_condition(self, expression: str | None, context: dict[str, Any]) -> bool:

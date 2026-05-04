@@ -1,15 +1,18 @@
 from __future__ import annotations
 
+import json
 import logging
+import uuid
 from typing import TYPE_CHECKING, Any
 
+from src.backend.features.character.events import CharacterEvents
+from src.backend.features.items.dto.instance import ItemGenerationRequestDTO, ItemOriginRefDTO, ItemPlacementRefDTO
+from src.backend.features.items.events import ItemEvents
 from src.backend.features.scenario.dto.context import ScenarioContextDTO
 from src.backend.features.scenario.dto.master import QuestMasterSchema, QuestNodeSchema
 from src.shared.enums import CoreDomain
 
 if TYPE_CHECKING:
-    import uuid
-
     from codex_platform.redis_service import RedisService
 
     from src.backend.core.bus import GameEventProducer
@@ -62,7 +65,7 @@ class ScenarioSystemIntegrator:
             )
         except Exception:
             log.warning("Scenario initialize state transition skipped: char_id=%s", char_id)
-            
+
         await self.character_sessions.set_scenario_session(
             char_id,
             str(context.scenario_session_id),
@@ -113,18 +116,29 @@ class ScenarioSystemIntegrator:
 
         # DB Backup
         if force_backup or context.step_counter % BACKUP_INTERVAL == 0:
-            await self._backup_state(char_id, context.quest_key, context.current_node_key, context, context.scenario_session_id)
+            await self._backup_state(
+                char_id, context.quest_key, context.current_node_key, context, context.scenario_session_id
+            )
 
     async def finalize_session(self, char_id: int, target_state: CoreDomain = CoreDomain.EXPLORATION) -> None:
         """Cleans up all session artifacts across all stores."""
-        await self.character_sessions.transition_state(
-            char_id, target_state, expected_state=CoreDomain.SCENARIO
-        )
+        await self.character_sessions.transition_state(char_id, target_state, expected_state=CoreDomain.SCENARIO)
         await self.character_sessions.clear_scenario_session(char_id)
         await self.sessions.delete(char_id)
         await self.repo.delete_state(char_id)
 
-    async def _backup_state(self, char_id: int, quest_key: str, node_key: str, context: ScenarioContextDTO, session_id: uuid.UUID) -> None:
+    async def sync_active_character_to_db(self, char_id: int) -> None:
+        response = await self.events.request(
+            CharacterEvents.ACTIVE_SESSION_SYNC_REQUESTED,
+            {"char_id": char_id},
+            timeout=30.0,
+        )
+        if not isinstance(response, dict) or response.get("status") != "ok":
+            raise RuntimeError(f"Scenario active character sync failed: {response!r}")
+
+    async def _backup_state(
+        self, char_id: int, quest_key: str, node_key: str, context: ScenarioContextDTO, session_id: uuid.UUID
+    ) -> None:
         await self.repo.upsert_state(
             char_id,
             quest_key,
@@ -139,7 +153,7 @@ class ScenarioSystemIntegrator:
         master = await self.content_manager.get_master(quest_key)
         if master:
             return QuestMasterSchema.model_validate(master).model_dump(mode="json")
-        
+
         if await self._ensure_static_cache(quest_key):
             master = await self.content_manager.get_master(quest_key)
             if master:
@@ -150,7 +164,7 @@ class ScenarioSystemIntegrator:
         node = await self.content_manager.get_node(quest_key, node_key)
         if node:
             return QuestNodeSchema.model_validate(node).model_dump(mode="json")
-        
+
         if await self._ensure_static_cache(quest_key):
             node = await self.content_manager.get_node(quest_key, node_key)
             if node:
@@ -178,21 +192,100 @@ class ScenarioSystemIntegrator:
 
     # --- Rewards / Features Interaction ---
 
-    async def grant_inventory_rewards(self, char_id: int, items: list[str]) -> None:
-        if items:
-            log.info("TODO: inventory rewards skipped; char_id=%s items=%s", char_id, items)
+    async def grant_inventory_rewards(self, char_id: int, items: list[str], *, quest_key: str) -> list[str]:
+        if not items:
+            return []
+
+        requests = [
+            ItemGenerationRequestDTO(
+                base_id=base_id,
+                rarity_tier=0,
+                source=f"scenario:{quest_key}",
+                char_id=char_id,
+                request_ai_text=True,
+                placement_ref=ItemPlacementRefDTO(
+                    holder_type="character",
+                    holder_id=str(char_id),
+                    storage_type="backpack",
+                ),
+                origin_ref=ItemOriginRefDTO(origin_type="scenario", origin_ref=quest_key),
+                delivery_mode="forward",
+                return_item=False,
+            ).model_dump(mode="json")
+            for base_id in items
+        ]
+        response = await self.events.request(
+            ItemEvents.GENERATE_REQUESTED,
+            {"items": requests, "delivery_mode": "forward", "return_items": False},
+            timeout=30.0,
+        )
+        if not isinstance(response, dict) or response.get("status") != "ok":
+            raise RuntimeError(f"Scenario item reward generation failed: {response!r}")
+        item_ids = [str(item_id) for item_id in response.get("item_ids", [])]
+        log.info(
+            "Scenario inventory rewards generated: char_id=%s quest_key=%s base_items=%s item_ids=%s",
+            char_id,
+            quest_key,
+            items,
+            item_ids,
+        )
+        return item_ids
 
     async def unlock_skills(self, char_id: int, skills: list[str]) -> None:
-        if skills:
-            log.info("TODO: skill unlocks skipped; char_id=%s skills=%s", char_id, skills)
+        if not skills:
+            return
+        response = await self.events.request(
+            CharacterEvents.SKILLS_UNLOCK_REQUESTED,
+            {"char_id": char_id, "skill_keys": json.dumps(skills), "progress_state": "PLUS"},
+            timeout=30.0,
+        )
+        if not isinstance(response, dict) or response.get("status") != "ok":
+            raise RuntimeError(f"Scenario skill unlock failed: {response!r}")
 
     async def apply_attribute_bonuses(self, char_id: int, bonuses: dict[str, int]) -> None:
         if bonuses:
             await self.character_sessions.apply_attribute_bonus(char_id, bonuses)
 
-    async def request_combat_start(self, char_id: int, quest_key: str) -> None:
-        log.info("TODO: combat start skipped; char_id=%s source=scenario:%s", char_id, quest_key)
+    async def prepare_combat_return_context(self, char_id: int, *, location_id: str | None = None) -> None:
+        updates: dict[str, Any] = {"$.prev_state": CoreDomain.EXPLORATION.value}
+        if location_id:
+            updates["$.location.current"] = location_id
+            updates["$.location.previous"] = location_id
+        await self.character_sessions.patch_fields(char_id, updates)
+
+    async def request_combat_start(
+        self,
+        char_id: int,
+        quest_key: str,
+        *,
+        battle_type: str = "shadow",
+        location_id: str | None = None,
+    ) -> dict[str, Any]:
+        combat_id = str(uuid.uuid4())
+        response = await self.events.request(
+            "combat.session_requested",
+            {
+                "source": f"scenario:{quest_key}",
+                "combat_id": combat_id,
+                "correlation_id": combat_id,
+                "battle_type": battle_type,
+                "requested_by": char_id,
+                "participants": json.dumps({"team_1": [char_id]}),
+                "location_id": location_id or "",
+            },
+            timeout=30.0,
+            correlation_id=combat_id,
+        )
+        if not isinstance(response, dict) or response.get("status") != "ready":
+            raise RuntimeError(f"Scenario combat start failed: {response!r}")
+        log.info(
+            "Scenario shadow combat requested: char_id=%s quest_key=%s combat_id=%s location_id=%s",
+            char_id,
+            quest_key,
+            response.get("combat_id"),
+            location_id,
+        )
+        return response
 
     async def publish_event(self, event_name: str, payload: dict[str, Any]) -> None:
         await self.events.publish(event_name, payload)
-

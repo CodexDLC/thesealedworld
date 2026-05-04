@@ -1,4 +1,8 @@
+from typing import Any
+
 from pydantic import BaseModel, Field
+
+from src.shared.enums import CoreDomain
 
 
 class ScenarioRewardsDTO(BaseModel):
@@ -9,3 +13,8 @@ class ScenarioRewardsDTO(BaseModel):
 
 class ScenarioFinalizeResult(BaseModel):
     rewards: ScenarioRewardsDTO = Field(default_factory=ScenarioRewardsDTO)
+    target_state: CoreDomain = CoreDomain.EXPLORATION
+    transition_reason: str = "scenario_finalized"
+    combat_id: str | None = None
+    location_id: str | None = None
+    metadata: dict[str, Any] = Field(default_factory=dict)

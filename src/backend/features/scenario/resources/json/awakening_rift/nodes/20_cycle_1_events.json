@@ -1,171 +1,5 @@
 [
   {
-    "node_key": "rift_entry_01",
-    "text": "Причальный Узел [52:52]. Над тобой нависают колоссальные ребра портальной арки, уходящие в бесконечное серое небо. Это — Сердце Города, место, где сохранились Монолиты — неразрушимые здания древних. \n\nПеред тобой стоит Оценщик. Его взгляд, усиленный окулярами, сканирует твою оболочку.\n\n— Еще один «переселенец»? — его голос звучит сухо, с легким электронным скрежетом. — Синхронизация слабая. Визор барахлит. Придется калибровать вручную, иначе Разлом выплюнет тебя обратно кусками кода.",
-    "avatar": "/static/images/scenarios/overseer.png",
-    "actions": [
-      {
-        "action_id": "next",
-        "label": "Что это значит?",
-        "icon": "default",
-        "to_node": "overseer_dialogue_01",
-        "math": {
-          "w_wisdom": "+1"
-        }
-      }
-    ]
-  },
-  {
-    "node_key": "overseer_dialogue_01",
-    "text": "Оценщик делает шаг ближе. Ты видишь, как в глубине его линз пульсирует янтарный свет.\n\n— Это значит, что твоя связь с этим миром сейчас тоньше волоска. Ты видишь город? Эти черные шпили не знают износа. Они стояли до Разлома и будут стоять после. Но ты... ты здесь чужой. \n\nОн протягивает руку к твоему интерфейсу. \n\n— Позволишь мне вмешаться, или рискнешь совершить прыжок вслепую?",
-    "avatar": "/static/images/scenarios/overseer.png",
-    "actions": [
-      {
-        "action_id": "allow",
-        "label": "Довериться Оценщику",
-        "icon": "check",
-        "to_node": "crash_sequence_02"
-      },
-      {
-        "action_id": "risk",
-        "label": "Я справлюсь сам. Активировать прыжок",
-        "icon": "warning",
-        "to_node": "crash_sequence_02"
-      }
-    ]
-  },
-  {
-    "node_key": "crash_sequence_02",
-    "text": "Едва заметное движение — и мир начинает расслаиваться. Звук гудящих порталов превращается в оглушительный рев. \n\nОБНАРУЖЕНА КРИТИЧЕСКАЯ НЕСТАБИЛЬНОСТЬ. СИСТЕМНЫЕ ОШИБКИ ЗАПОЛНЯЮТ ЗРЕНИЕ. СТРУКТУРА РЕАЛЬНОСТИ ДЕФОРМИРУЕТСЯ.",
-    "avatar": "/static/images/scenarios/overseer.png",
-    "system_messages": [
-      "CRITICAL_SYNC_FAILURE",
-      "EMERGENCY_JUMP"
-    ],
-    "actions": [
-      {
-        "action_id": "fall",
-        "label": "Провалиться в Изумрудный Разлом",
-        "icon": "default",
-        "to_node": "pool:bridge_early"
-      }
-    ]
-  },
-  {
-    "node_key": "bridge_early_sensory",
-    "text": "Мир вокруг тебя на мгновение теряет четкость. Ты всё еще помнишь запахи [#p_loc], но здесь воздух пахнет жженой медью и озоном. \n\nОБНАРУЖЕНА СЕНСОРНАЯ ДИССОЦИАЦИЯ. КОРРЕКЦИЯ НЕЙРОСЕТИ... 12%. СТАБИЛИЗАЦИЯ ЗАВЕРШЕНА.",
-    "system_messages": [
-      "ОБНАРУЖЕНА СЕНСОРНАЯ ДИССОЦИАЦИЯ. КОРРЕКЦИЯ НЕЙРОСЕТИ... 12%. СТАБИЛИЗАЦИЯ ЗАВЕРШЕНА."
-    ],
-    "actions": [
-      {
-        "action_id": "next",
-        "label": "Сделать шаг вперед, преодолевая головокружение",
-        "icon": "default",
-        "to_node": "pool:cycle_1"
-      }
-    ],
-    "tags": [
-      "bridge_early"
-    ],
-    "selection_requirements": "step_counter < 4"
-  },
-  {
-    "node_key": "bridge_early_glitch",
-    "text": "Перед глазами всплывает полупрозрачная сетка координат, накладываясь на причудливые деревья Разлома. На мгновение тебе кажется, что ты видишь не листья, а каскады бинарного кода. \n\nВНИМАНИЕ. ВИЗУАЛЬНЫЙ КАНАЛ ПЕРЕГРУЖЕН. ПЕРЕХОД НА РЕЗЕРВНЫЙ ПРОТОКОЛ.",
-    "system_messages": [
-      "ВНИМАНИЕ. ВИЗУАЛЬНЫЙ КАНАЛ ПЕРЕГРУЖЕН. ПЕРЕХОД НА РЕЗЕРВНЫЙ ПРОТОКОЛ."
-    ],
-    "actions": [
-      {
-        "action_id": "next",
-        "label": "Пройти сквозь мерцающую цифровую завесу",
-        "icon": "default",
-        "to_node": "pool:cycle_1"
-      }
-    ],
-    "tags": [
-      "bridge_early"
-    ],
-    "selection_requirements": "step_counter < 4"
-  },
-  {
-    "node_key": "bridge_early_echo",
-    "text": "Тишина Осколка давит на уши, прерываясь лишь короткими статическими разрядами в твоем интерфейсе. Ты чувствуешь, как тяжесть собственного тела меняется, словно гравитация здесь — лишь чье-то предположение.\n\nСКАНИРОВАНИЕ ОКРУЖЕНИЯ... ОБЪЕКТ ИДЕНТИФИЦИРОВАН КАК «ЯКОРЬ». УРОВЕНЬ УГРОЗЫ: МИНИМАЛЬНЫЙ.",
-    "system_messages": [
-      "СКАНИРОВАНИЕ ОКРУЖЕНИЯ... ОБЪЕКТ ИДЕНТИФИЦИРОВАН КАК «ЯКОРЬ». УРОВЕНЬ УГРОЗЫ: МИНИМАЛЬНЫЙ."
-    ],
-    "actions": [
-      {
-        "action_id": "next",
-        "label": "Искать путь среди парящих обломков",
-        "icon": "default",
-        "to_node": "pool:cycle_1"
-      }
-    ],
-    "tags": [
-      "bridge_early"
-    ],
-    "selection_requirements": "step_counter < 4"
-  },
-  {
-    "node_key": "bridge_early_pulse",
-    "text": "Твой пульс внезапно синхронизируется с мерцанием лиан под ногами. На долю секунды ты ощущаешь Изумрудный Разлом не как враждебное место, а как продолжение собственной нервной системы. \n\nРЕЗОНАНС С БИОСФЕРОЙ: 24%. ПОДГОТОВКА К ГЛУБОКОМУ ПОГРУЖЕНИЮ.",
-    "system_messages": [
-      "РЕЗОНАНС С БИОСФЕРОЙ: 24%. ПОДГОТОВКА К ГЛУБОКОМУ ПОГРУЖЕНИЮ."
-    ],
-    "actions": [
-      {
-        "action_id": "next",
-        "label": "Сдвинуть мешающую ветвь и идти дальше",
-        "icon": "default",
-        "to_node": "pool:cycle_1"
-      }
-    ],
-    "tags": [
-      "bridge_early"
-    ],
-    "selection_requirements": "step_counter < 4"
-  },
-  {
-    "node_key": "bridge_early_static",
-    "text": "Статика покалывает кончики пальцев. Каждое твое движение оставляет за собой едва заметный след из искр. Ты начинаешь понимать — это место реагирует на тебя так же, как ты на него. \n\nПРЕДУПРЕЖДЕНИЕ. ИЗБЫТОЧНЫЙ ЗАРЯД В КОНТУРЕ. ТРЕБУЕТСЯ ЗАЗЕМЛЕНИЕ ЧЕРЕЗ ДЕЙСТВИЕ.",
-    "system_messages": [
-      "ПРЕДУПРЕЖДЕНИЕ. ИЗБЫТОЧНЫЙ ЗАРЯД В КОНТУРЕ. ТРЕБУЕТСЯ ЗАЗЕМЛЕНИЕ ЧЕРЕЗ ДЕЙСТВИЕ."
-    ],
-    "actions": [
-      {
-        "action_id": "next",
-        "label": "Ускорить шаг, пока энергия не угасла",
-        "icon": "default",
-        "to_node": "pool:cycle_1"
-      }
-    ],
-    "tags": [
-      "bridge_early"
-    ],
-    "selection_requirements": "step_counter < 4"
-  },
-  {
-    "node_key": "bridge_early_cold",
-    "text": "Резкий порыв ледяного ветра приносит обрывки звуков, похожих на голоса из [#p_loc]. Но стоит тебе прислушаться, как они рассыпаются в цифровой шум. Ты здесь один, и правила здесь другие.\n\nКРИТИЧЕСКАЯ ПОТЕРЯ ТЕРМАЛЬНОГО КОНТРОЛЯ. ПЕРЕНАПРАВЛЕНИЕ ЭНЕРГИИ К ЯДРУ.",
-    "system_messages": [
-      "КРИТИЧЕСКАЯ ПОТЕРЯ ТЕРМАЛЬНОГО КОНТРОЛЯ. ПЕРЕНАПРАВЛЕНИЕ ЭНЕРГИИ К ЯДРУ."
-    ],
-    "actions": [
-      {
-        "action_id": "next",
-        "label": "Двигаться вперед, чтобы не замерзнуть",
-        "icon": "default",
-        "to_node": "pool:cycle_1"
-      }
-    ],
-    "tags": [
-      "bridge_early"
-    ],
-    "selection_requirements": "step_counter < 4"
-  },
-  {
     "node_key": "event_spark_nest",
     "text": "Ты выходишь к роще, где ветви деревьев сотканы из чистого статического электричества. Между ними снуют крошечные сгустки света, похожие на птиц. Воздух здесь настолько разрежен, что каждый вдох дается с трудом.\n\nВНИМАНИЕ. ЗАФИКСИРОВАНЫ ВЫСОКОЧАСТОТНЫЕ КОЛЕБАНИЯ. ВЕРОЯТНОСТЬ ПЕРЕГРУЗКИ НЕЙРОСЕТИ: 42%.",
     "system_messages": [
@@ -180,7 +14,7 @@
         "math": {
           "w_agility": "+3",
           "w_perception": "+2",
-          "w_luck": "+1",
+          "w_prediction": "+1",
           "t_air": "+1",
           "step_counter": "+1"
         }
@@ -192,7 +26,7 @@
         "to_node": "cycle_1_logic_router",
         "math": {
           "w_endurance": "+3",
-          "w_men": "+2",
+          "w_mental": "+2",
           "w_strength": "+1",
           "t_fire": "+1",
           "step_counter": "+1"
@@ -204,8 +38,8 @@
         "icon": "default",
         "to_node": "cycle_1_logic_router",
         "math": {
-          "w_intelligence": "+3",
-          "w_wisdom": "+2",
+          "w_intellect": "+3",
+          "w_memory": "+2",
           "w_perception": "+1",
           "t_arcane": "+1",
           "step_counter": "+1"
@@ -214,7 +48,11 @@
     ],
     "tags": [
       "cycle_1"
-    ]
+    ],
+    "node_type": "event",
+    "phase": "calibration_cycle_1",
+    "metadata": {},
+    "ui": {}
   },
   {
     "node_key": "event_stone_monolith",
@@ -229,7 +67,7 @@
         "icon": "default",
         "to_node": "cycle_1_logic_router",
         "math": {
-          "w_men": "+3",
+          "w_mental": "+3",
           "w_endurance": "+2",
           "w_strength": "+1",
           "t_earth": "+1",
@@ -242,9 +80,9 @@
         "icon": "default",
         "to_node": "cycle_1_logic_router",
         "math": {
-          "w_wisdom": "+3",
-          "w_intelligence": "+2",
-          "w_men": "+1",
+          "w_memory": "+3",
+          "w_intellect": "+2",
+          "w_mental": "+1",
           "t_light": "+1",
           "step_counter": "+1"
         }
@@ -256,7 +94,7 @@
         "to_node": "cycle_1_logic_router",
         "math": {
           "w_agility": "+3",
-          "w_luck": "+2",
+          "w_prediction": "+2",
           "w_perception": "+1",
           "t_water": "+1",
           "step_counter": "+1"
@@ -265,7 +103,11 @@
     ],
     "tags": [
       "cycle_1"
-    ]
+    ],
+    "node_type": "event",
+    "phase": "calibration_cycle_1",
+    "metadata": {},
+    "ui": {}
   },
   {
     "node_key": "event_observatory_ruins",
@@ -280,8 +122,8 @@
         "icon": "default",
         "to_node": "cycle_1_logic_router",
         "math": {
-          "w_intelligence": "+3",
-          "w_wisdom": "+2",
+          "w_intellect": "+3",
+          "w_memory": "+2",
           "w_perception": "+1",
           "t_arcane": "+1",
           "step_counter": "+1"
@@ -294,7 +136,7 @@
         "to_node": "cycle_1_logic_router",
         "math": {
           "w_strength": "+3",
-          "w_men": "+2",
+          "w_mental": "+2",
           "w_endurance": "+1",
           "t_fire": "+1",
           "step_counter": "+1"
@@ -308,7 +150,7 @@
         "math": {
           "w_perception": "+3",
           "w_agility": "+2",
-          "w_luck": "+1",
+          "w_prediction": "+1",
           "t_dark": "+1",
           "step_counter": "+1"
         }
@@ -316,7 +158,11 @@
     ],
     "tags": [
       "cycle_1"
-    ]
+    ],
+    "node_type": "event",
+    "phase": "calibration_cycle_1",
+    "metadata": {},
+    "ui": {}
   },
   {
     "node_key": "event_spore_path",
@@ -331,7 +177,7 @@
         "icon": "default",
         "to_node": "cycle_1_logic_router",
         "math": {
-          "w_luck": "+3",
+          "w_prediction": "+3",
           "w_agility": "+2",
           "w_perception": "+1",
           "t_nature": "+1",
@@ -344,9 +190,9 @@
         "icon": "default",
         "to_node": "cycle_1_logic_router",
         "math": {
-          "w_wisdom": "+3",
+          "w_memory": "+3",
           "w_endurance": "+2",
-          "w_men": "+1",
+          "w_mental": "+1",
           "t_water": "+1",
           "step_counter": "+1"
         }
@@ -358,7 +204,7 @@
         "to_node": "cycle_1_logic_router",
         "math": {
           "w_strength": "+3",
-          "w_intelligence": "+2",
+          "w_intellect": "+2",
           "w_endurance": "+1",
           "t_fire": "+1",
           "step_counter": "+1"
@@ -367,7 +213,11 @@
     ],
     "tags": [
       "cycle_1"
-    ]
+    ],
+    "node_type": "event",
+    "phase": "calibration_cycle_1",
+    "metadata": {},
+    "ui": {}
   },
   {
     "node_key": "event_living_bridge",
@@ -384,7 +234,7 @@
         "math": {
           "w_agility": "+3",
           "w_perception": "+2",
-          "w_luck": "+1",
+          "w_prediction": "+1",
           "t_nature": "+1",
           "step_counter": "+1"
         }
@@ -397,7 +247,7 @@
         "math": {
           "w_endurance": "+3",
           "w_strength": "+2",
-          "w_men": "+1",
+          "w_mental": "+1",
           "t_earth": "+1",
           "step_counter": "+1"
         }
@@ -409,8 +259,8 @@
         "to_node": "cycle_1_logic_router",
         "math": {
           "w_perception": "+3",
-          "w_intelligence": "+2",
-          "w_wisdom": "+1",
+          "w_intellect": "+2",
+          "w_memory": "+1",
           "t_arcane": "+1",
           "step_counter": "+1"
         }
@@ -418,7 +268,11 @@
     ],
     "tags": [
       "cycle_1"
-    ]
+    ],
+    "node_type": "event",
+    "phase": "calibration_cycle_1",
+    "metadata": {},
+    "ui": {}
   },
   {
     "node_key": "event_distortion_altar",
@@ -433,7 +287,7 @@
         "icon": "default",
         "to_node": "cycle_1_logic_router",
         "math": {
-          "w_men": "+3",
+          "w_mental": "+3",
           "w_endurance": "+2",
           "w_strength": "+1",
           "t_dark": "+1",
@@ -446,8 +300,8 @@
         "icon": "default",
         "to_node": "cycle_1_logic_router",
         "math": {
-          "w_intelligence": "+3",
-          "w_wisdom": "+2",
+          "w_intellect": "+3",
+          "w_memory": "+2",
           "w_perception": "+1",
           "t_arcane": "+1",
           "step_counter": "+1"
@@ -459,9 +313,9 @@
         "icon": "default",
         "to_node": "cycle_1_logic_router",
         "math": {
-          "w_luck": "+3",
+          "w_prediction": "+3",
           "w_agility": "+2",
-          "w_men": "+1",
+          "w_mental": "+1",
           "t_water": "+1",
           "step_counter": "+1"
         }
@@ -469,7 +323,11 @@
     ],
     "tags": [
       "cycle_1"
-    ]
+    ],
+    "node_type": "event",
+    "phase": "calibration_cycle_1",
+    "metadata": {},
+    "ui": {}
   },
   {
     "node_key": "event_hologram_echo",
@@ -484,9 +342,9 @@
         "icon": "default",
         "to_node": "cycle_1_logic_router",
         "math": {
-          "w_wisdom": "+3",
-          "w_intelligence": "+2",
-          "w_men": "+1",
+          "w_memory": "+3",
+          "w_intellect": "+2",
+          "w_mental": "+1",
           "t_light": "+1",
           "step_counter": "+1"
         }
@@ -498,8 +356,8 @@
         "to_node": "cycle_1_logic_router",
         "math": {
           "w_perception": "+3",
-          "w_luck": "+2",
-          "w_wisdom": "+1",
+          "w_prediction": "+2",
+          "w_memory": "+1",
           "t_nature": "+1",
           "step_counter": "+1"
         }
@@ -520,7 +378,11 @@
     ],
     "tags": [
       "cycle_1"
-    ]
+    ],
+    "node_type": "event",
+    "phase": "calibration_cycle_1",
+    "metadata": {},
+    "ui": {}
   },
   {
     "node_key": "event_burning_thicket",
@@ -532,11 +394,11 @@
       {
         "action_id": "choice_1",
         "label": "Рывком перебросить пылающий ствол через край обрыва",
-        "icon": "default",
+        "icon": "strength",
         "to_node": "cycle_1_logic_router",
         "math": {
           "w_strength": "+3",
-          "w_men": "+2",
+          "w_mental": "+2",
           "w_endurance": "+1",
           "t_fire": "+1",
           "step_counter": "+1"
@@ -545,12 +407,12 @@
       {
         "action_id": "choice_2",
         "label": "Пройти сквозь пламя, игнорируя системные предупреждения",
-        "icon": "default",
+        "icon": "risk",
         "to_node": "cycle_1_logic_router",
         "math": {
           "w_endurance": "+3",
-          "w_men": "+2",
-          "w_luck": "+1",
+          "w_mental": "+2",
+          "w_prediction": "+1",
           "t_fire": "+1",
           "step_counter": "+1"
         }
@@ -558,12 +420,12 @@
       {
         "action_id": "choice_3",
         "label": "Вычислить безопасный путь по затухающим искрам",
-        "icon": "default",
+        "icon": "inspect",
         "to_node": "cycle_1_logic_router",
         "math": {
-          "w_intelligence": "+3",
+          "w_intellect": "+3",
           "w_perception": "+2",
-          "w_wisdom": "+1",
+          "w_memory": "+1",
           "t_water": "+1",
           "step_counter": "+1"
         }
@@ -571,7 +433,11 @@
     ],
     "tags": [
       "cycle_1"
-    ]
+    ],
+    "node_type": "event",
+    "phase": "calibration_cycle_1",
+    "metadata": {},
+    "ui": {}
   },
   {
     "node_key": "event_singing_spines",
@@ -587,7 +453,7 @@
         "to_node": "cycle_1_logic_router",
         "math": {
           "w_perception": "+3",
-          "w_luck": "+2",
+          "w_prediction": "+2",
           "w_agility": "+1",
           "t_air": "+1",
           "step_counter": "+1"
@@ -601,7 +467,7 @@
         "math": {
           "w_endurance": "+3",
           "w_strength": "+2",
-          "w_men": "+1",
+          "w_mental": "+1",
           "t_earth": "+1",
           "step_counter": "+1"
         }
@@ -612,8 +478,8 @@
         "icon": "default",
         "to_node": "cycle_1_logic_router",
         "math": {
-          "w_intelligence": "+3",
-          "w_wisdom": "+2",
+          "w_intellect": "+3",
+          "w_memory": "+2",
           "w_perception": "+1",
           "t_arcane": "+1",
           "step_counter": "+1"
@@ -622,7 +488,11 @@
     ],
     "tags": [
       "cycle_1"
-    ]
+    ],
+    "node_type": "event",
+    "phase": "calibration_cycle_1",
+    "metadata": {},
+    "ui": {}
   },
   {
     "node_key": "event_moving_shadow",
@@ -637,7 +507,7 @@
         "icon": "default",
         "to_node": "cycle_1_logic_router",
         "math": {
-          "w_luck": "+3",
+          "w_prediction": "+3",
           "w_agility": "+2",
           "w_perception": "+1",
           "t_dark": "+1",
@@ -650,8 +520,8 @@
         "icon": "default",
         "to_node": "cycle_1_logic_router",
         "math": {
-          "w_men": "+3",
-          "w_wisdom": "+2",
+          "w_mental": "+3",
+          "w_memory": "+2",
           "w_endurance": "+1",
           "t_light": "+1",
           "step_counter": "+1"
@@ -665,7 +535,7 @@
         "math": {
           "w_strength": "+3",
           "w_endurance": "+2",
-          "w_men": "+1",
+          "w_mental": "+1",
           "t_fire": "+1",
           "step_counter": "+1"
         }
@@ -673,7 +543,11 @@
     ],
     "tags": [
       "cycle_1"
-    ]
+    ],
+    "node_type": "event",
+    "phase": "calibration_cycle_1",
+    "metadata": {},
+    "ui": {}
   },
   {
     "node_key": "event_ancient_battery",
@@ -688,9 +562,9 @@
         "icon": "default",
         "to_node": "cycle_1_logic_router",
         "math": {
-          "w_intelligence": "+3",
+          "w_intellect": "+3",
           "w_perception": "+2",
-          "w_wisdom": "+1",
+          "w_memory": "+1",
           "t_arcane": "+1",
           "step_counter": "+1"
         }
@@ -703,7 +577,7 @@
         "math": {
           "w_strength": "+3",
           "w_endurance": "+2",
-          "w_men": "+1",
+          "w_mental": "+1",
           "t_fire": "+1",
           "step_counter": "+1"
         }
@@ -714,8 +588,8 @@
         "icon": "default",
         "to_node": "cycle_1_logic_router",
         "math": {
-          "w_luck": "+3",
-          "w_charisma": "+2",
+          "w_prediction": "+3",
+          "w_projection": "+2",
           "w_perception": "+1",
           "t_nature": "+1",
           "step_counter": "+1"
@@ -724,7 +598,11 @@
     ],
     "tags": [
       "cycle_1"
-    ]
+    ],
+    "node_type": "event",
+    "phase": "calibration_cycle_1",
+    "metadata": {},
+    "ui": {}
   },
   {
     "node_key": "event_sinking_platform",
@@ -741,7 +619,7 @@
         "math": {
           "w_agility": "+3",
           "w_strength": "+2",
-          "w_luck": "+1",
+          "w_prediction": "+1",
           "t_air": "+1",
           "step_counter": "+1"
         }
@@ -753,8 +631,8 @@
         "to_node": "cycle_1_logic_router",
         "math": {
           "w_endurance": "+3",
-          "w_men": "+2",
-          "w_wisdom": "+1",
+          "w_mental": "+2",
+          "w_memory": "+1",
           "t_water": "+1",
           "step_counter": "+1"
         }
@@ -765,9 +643,9 @@
         "icon": "default",
         "to_node": "cycle_1_logic_router",
         "math": {
-          "w_intelligence": "+3",
+          "w_intellect": "+3",
           "w_perception": "+2",
-          "w_luck": "+1",
+          "w_prediction": "+1",
           "t_arcane": "+1",
           "step_counter": "+1"
         }
@@ -775,6 +653,10 @@
     ],
     "tags": [
       "cycle_1"
-    ]
+    ],
+    "node_type": "event",
+    "phase": "calibration_cycle_1",
+    "metadata": {},
+    "ui": {}
   }
 ]

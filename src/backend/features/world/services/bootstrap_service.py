@@ -29,12 +29,14 @@ class WorldBootstrapService:
         *,
         auto_generate: bool = False,
         generation_mode: str = "test",
+        refresh_static_seed: bool = True,
     ) -> None:
         self.repository = repository
         self.cache = cache
         self.generator = generator
         self.auto_generate = auto_generate
         self.generation_mode = generation_mode
+        self.refresh_static_seed = refresh_static_seed
 
     async def bootstrap(self) -> int:
         has_world = await self.repository.has_world_data()
@@ -42,9 +44,15 @@ class WorldBootstrapService:
             if self.auto_generate and self.generator is not None:
                 log.info("World data missing; running generator mode=%s", self.generation_mode)
                 await self.generator.run(self.generation_mode)
+            elif self.refresh_static_seed and self.generator is not None:
+                log.info("World data missing; loading static world seed")
+                await self.generator.run("test")
             else:
                 log.warning("World data missing; startup generation is disabled")
                 return 0
+        elif self.refresh_static_seed and self.generator is not None:
+            log.info("World data exists; refreshing static world seed")
+            await self.generator.run("test")
 
         active_nodes = await self.repository.count_active_nodes()
         if active_nodes <= 0:

@@ -1,8 +1,14 @@
-import pytest
 from unittest.mock import AsyncMock, MagicMock
-from src.backend.infrastructure.scenario.managers.session_manager import ScenarioSessionManager, ScenarioSessionAlreadyExistsError
+
+import pytest
+
 from src.backend.features.scenario.dto.context import ScenarioContextDTO
-import uuid
+from src.backend.infrastructure.scenario.managers.session_manager import (
+    SCENARIO_SESSION_TTL_SECONDS,
+    ScenarioSessionAlreadyExistsError,
+    ScenarioSessionManager,
+)
+
 
 @pytest.mark.unit
 class TestScenarioSessionManager:
@@ -21,17 +27,15 @@ class TestScenarioSessionManager:
     @pytest.fixture
     def context_dto(self):
         return ScenarioContextDTO(
-            char_id=1,
             quest_key="q1",
             current_node_key="n1",
-            context={},
-            session_id=uuid.uuid4()
         )
 
     async def test_create_success(self, manager, redis, context_dto):
         redis.json_module.set.return_value = "OK"
         await manager.create(1, context_dto)
         redis.json_module.set.assert_called_once()
+        redis.string.expire.assert_awaited_once_with(manager.build_key(1), SCENARIO_SESSION_TTL_SECONDS)
 
     async def test_create_already_exists(self, manager, redis, context_dto):
         redis.json_module.set.return_value = None
@@ -60,6 +64,7 @@ class TestScenarioSessionManager:
 
         await manager.patch(1, {"$.hp": 10})
         mock_json.set.assert_called_once()
+        mock_pipe.expire.assert_called_once_with(manager.build_key(1), SCENARIO_SESSION_TTL_SECONDS)
         mock_pipe.execute.assert_called_once()
 
     async def test_patch_empty(self, manager, redis):

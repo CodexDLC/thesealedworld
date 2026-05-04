@@ -1,0 +1,140 @@
+[
+  {
+    "node_key": "bridge_mid_weapon_hum",
+    "text": "Твое оружие — [#loot_queue.0] — начинает вибрировать в такт твоему пульсу. Изумрудное сияние Осколка стекает по лезвию, оставляя за собой след из озона. \n\nОБНАРУЖЕН ПЕРВИЧНЫЙ РЕЗОНАНС МАТЕРИИ. СИНХРОНИЗАЦИЯ С ОРУЖИЕМ: 100%. ПОИСК СЛОТОВ ПОДДЕРЖКИ...",
+    "system_messages": [
+      "ОБНАРУЖЕН ПЕРВИЧНЫЙ РЕЗОНАНС МАТЕРИИ. СИНХРОНИЗАЦИЯ С ОРУЖИЕМ: 100%. ПОИСК СЛОТОВ ПОДДЕРЖКИ..."
+    ],
+    "actions": [
+      {
+        "action_id": "next",
+        "label": "Идти вперед, чувствуя вес стали",
+        "icon": "default",
+        "to_node": "pool:cycle_2"
+      }
+    ],
+    "tags": [
+      "bridge_mid"
+    ],
+    "selection_requirements": "step_counter >= 3 and step_counter < 6",
+    "node_type": "transition",
+    "phase": "bridge_mid",
+    "metadata": {},
+    "ui": {}
+  },
+  {
+    "node_key": "bridge_mid_visual_echo",
+    "text": "Воздух становится настолько плотным, что ты видишь траектории собственных движений в виде затухающих шлейфов. Каждый взмах [#loot_queue.0] разрезает не просто пространство, а сами нити вероятности. \n\nТАКТИЧЕСКИЙ ВИЗОР ОТКАЛИБРОВАН. СЕТКА БОЯ НАЛОЖЕНА НА РЕАЛЬНОСТЬ.",
+    "system_messages": [
+      "ТАКТИЧЕСКИЙ ВИЗОР ОТКАЛИБРОВАН. СЕТКА БОЯ НАЛОЖЕНА НА РЕАЛЬНОСТЬ."
+    ],
+    "actions": [
+      {
+        "action_id": "next",
+        "label": "Пройти сквозь каскад цифровых искр",
+        "icon": "default",
+        "to_node": "pool:cycle_2"
+      }
+    ],
+    "tags": [
+      "bridge_mid"
+    ],
+    "selection_requirements": "step_counter >= 3 and step_counter < 6",
+    "node_type": "transition",
+    "phase": "bridge_mid",
+    "metadata": {},
+    "ui": {}
+  },
+  {
+    "node_key": "bridge_mid_body_shift",
+    "text": "Ты чувствуешь, как твои мышцы становятся жестче, словно под кожей натягиваются стальные тросы. Осколок больше не пугает тебя — он подпитывает твою решимость через рукоять [#loot_queue.0]. \n\nБИОМЕХАНИЧЕСКИЙ ОТКЛИК ПОЛОЖИТЕЛЬНЫЙ. СТАБИЛИЗАЦИЯ КОРПУСА: ЗАВЕРШЕНА.",
+    "system_messages": [
+      "БИОМЕХАНИЧЕСКИЙ ОТКЛИК ПОЛОЖИТЕЛЬНЫЙ. СТАБИЛИЗАЦИЯ КОРПУСА: ЗАВЕРШЕНА."
+    ],
+    "actions": [
+      {
+        "action_id": "next",
+        "label": "Углубиться в мерцающую чащу",
+        "icon": "default",
+        "to_node": "pool:cycle_2"
+      }
+    ],
+    "tags": [
+      "bridge_mid"
+    ],
+    "selection_requirements": "step_counter >= 3 and step_counter < 6",
+    "node_type": "transition",
+    "phase": "bridge_mid",
+    "metadata": {},
+    "ui": {}
+  },
+  {
+    "node_key": "bridge_mid_environment_pulse",
+    "text": "Лес вокруг замирает. Даже ветер стихает, когда ты проходишь мимо, словно само пространство Осколка Зеро признает в тебе хищника, а не жертву. \n\nВНИМАНИЕ. УРОВЕНЬ УГРОЗЫ ОКРУЖЕНИЯ СНИЖЕН. ВЫ ИДЕНТИФИЦИРОВАНЫ КАК АКТИВНЫЙ ЭЛЕМЕНТ СИСТЕМЫ.",
+    "system_messages": [
+      "ВНИМАНИЕ. УРОВЕНЬ УГРОЗЫ ОКРУЖЕНИЯ СНИЖЕН. ВЫ ИДЕНТИФИЦИРОВАНЫ КАК АКТИВНЫЙ ЭЛЕМЕНТ СИСТЕМЫ."
+    ],
+    "actions": [
+      {
+        "action_id": "next",
+        "label": "Сдвинуть мешающую лиану и идти дальше",
+        "icon": "default",
+        "to_node": "pool:cycle_2"
+      }
+    ],
+    "tags": [
+      "bridge_mid"
+    ],
+    "selection_requirements": "step_counter >= 3 and step_counter < 6",
+    "node_type": "transition",
+    "phase": "bridge_mid",
+    "metadata": {},
+    "ui": {}
+  },
+  {
+    "node_key": "bridge_mid_glitch_step",
+    "text": "Мир на мгновение окрашивается в негатив. Ты видишь скелеты деревьев и энергетические жилы, уходящие глубоко под землю. [#sys_actor] транслирует данные о структуре разлома прямо в твой разум.\n\nГЛУБОКОЕ СКАНИРОВАНИЕ... ОБНАРУЖЕНЫ ТОЧКИ ВТОРИЧНОЙ МАТЕРИАЛИЗАЦИИ.",
+    "system_messages": [
+      "ГЛУБОКОЕ СКАНИРОВАНИЕ... ОБНАРУЖЕНЫ ТОЧКИ ВТОРИЧНОЙ МАТЕРИАЛИЗАЦИИ."
+    ],
+    "actions": [
+      {
+        "action_id": "next",
+        "label": "Сделать шаг в искаженную реальность",
+        "icon": "default",
+        "to_node": "pool:cycle_2"
+      }
+    ],
+    "tags": [
+      "bridge_mid"
+    ],
+    "selection_requirements": "step_counter >= 3 and step_counter < 6",
+    "node_type": "transition",
+    "phase": "bridge_mid",
+    "metadata": {},
+    "ui": {}
+  },
+  {
+    "node_key": "bridge_mid_static_charge",
+    "text": "Статическое электричество скапливается на твоем оружии, срываясь синими искрами при каждом движении. Ты чувствуешь, как [#loot_queue.0] жаждет столкновения с реальной преградой. \n\nПРЕДУПРЕЖДЕНИЕ. ИЗБЫТОЧНЫЙ КИНЕТИЧЕСКИЙ ЗАРЯД. ТРЕБУЕТСЯ РАЗРЯДКА ЧЕРЕЗ ТАКТИЧЕСКИЙ МАНЕВР.",
+    "system_messages": [
+      "ПРЕДУПРЕЖДЕНИЕ. ИЗБЫТОЧНЫЙ КИНЕТИЧЕСКИЙ ЗАРЯД. ТРЕБУЕТСЯ РАЗРЯДКА ЧЕРЕЗ ТАКТИЧЕСКИЙ МАНЕВР."
+    ],
+    "actions": [
+      {
+        "action_id": "next",
+        "label": "Ускорить шаг, следуя за импульсом",
+        "icon": "default",
+        "to_node": "pool:cycle_2"
+      }
+    ],
+    "tags": [
+      "bridge_mid"
+    ],
+    "selection_requirements": "step_counter >= 3 and step_counter < 6",
+    "node_type": "transition",
+    "phase": "bridge_mid",
+    "metadata": {},
+    "ui": {}
+  }
+]

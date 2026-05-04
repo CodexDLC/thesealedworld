@@ -36,12 +36,13 @@ class ScenarioLoader:
 
             quest_key = master_data["quest_key"]
             all_nodes = []
+            node_files = self._discover_node_files(path)
 
-            for node_file in path.glob("nodes_*.json"):
+            for node_file in node_files:
                 with node_file.open(encoding="utf-8") as h:
                     file_nodes = json.load(h)
-                    # Convert to DTOs for validation, then back to dict
-                    # Add quest_key to each node before validation
+                    if not isinstance(file_nodes, list):
+                        raise ValueError(f"Scenario node file must contain a list: {node_file}")
                     for n in file_nodes:
                         n["quest_key"] = master_data["quest_key"]
 
@@ -64,9 +65,9 @@ class ScenarioLoader:
             if key in deduplicated:
                 logger.warning(f"Duplicate node_key found in scenario files: {key}. Keeping last one.")
             deduplicated[key] = node
-        
+
         all_nodes = list(deduplicated.values())
-        
+
         await self.repo.upsert_master(master_data)
         await self.repo.delete_quest_nodes(quest_key)
         await self.repo.bulk_insert_nodes(all_nodes)
@@ -77,3 +78,10 @@ class ScenarioLoader:
             logger.info("Scenario fixture cache warmed: quest_key={} nodes={}", quest_key, cached_nodes)
         logger.info("Scenario fixture load finished: quest_key={} nodes={}", quest_key, len(all_nodes))
         return quest_key
+
+    @staticmethod
+    def _discover_node_files(path: Path) -> list[Path]:
+        nodes_dir = path / "nodes"
+        if nodes_dir.exists():
+            return sorted(nodes_dir.glob("*.json"))
+        return sorted(path.glob("nodes_*.json"))

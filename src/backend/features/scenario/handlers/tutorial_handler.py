@@ -10,11 +10,25 @@ from src.backend.features.scenario.dto.finalize import (
     ScenarioRewardsDTO,
 )
 from src.backend.features.scenario.handlers.base_handler import BaseScenarioHandler
+from src.shared.enums import CoreDomain
 
 if TYPE_CHECKING:
     from src.backend.infrastructure.actor_state import CharacterSessionManager
 
 log = logging.getLogger(__name__)
+
+VISIBLE_PROFILE_ORDER = [
+    "agility",
+    "projection",
+    "endurance",
+    "intellect",
+    "prediction",
+    "mental",
+    "perception",
+    "strength",
+    "memory",
+]
+ATTRIBUTE_RANK_BONUSES = [9, 8, 7, 6, 5, 4, 3, 2, 1]
 
 TUTORIAL_EXIT_LOCATIONS = [
     "52_58",
@@ -63,13 +77,8 @@ class TutorialScenarioHandler(BaseScenarioHandler):
         context: ScenarioContextDTO,
         quest_master: dict,
     ) -> ScenarioFinalizeResult:
-        monster_id, location_id = await self._prepare_tutorial_combat_handoff(char_id)
-        log.info(
-            "Tutorial scenario combat handoff skipped: char_id=%s monster_id=%s location_id=%s",
-            char_id,
-            monster_id,
-            location_id,
-        )
+        location_id = self._select_tutorial_exit_location()
+        log.info("Tutorial scenario shadow combat handoff: char_id=%s location_id=%s", char_id, location_id)
         bonuses = self._calculate_attribute_bonuses(context)
         return ScenarioFinalizeResult(
             rewards=ScenarioRewardsDTO(
@@ -77,20 +86,25 @@ class TutorialScenarioHandler(BaseScenarioHandler):
                 skills=list(context.queues.skills),
                 attribute_bonuses=bonuses,
             ),
+            target_state=CoreDomain.COMBAT,
+            transition_reason="scenario_shadow_combat",
+            location_id=location_id,
+            metadata={
+                "battle_type": "shadow",
+                "quest_key": quest_master["quest_key"],
+            },
         )
 
-    async def _prepare_tutorial_combat_handoff(self, char_id: int) -> tuple[str, str]:
-        # TODO(scenario-migration): replace with encounter pool + combat handoff after those features migrate.
-        log.info("TODO: tutorial combat handoff is not migrated yet; char_id=%s", char_id)
-        _ = random.choice(TUTORIAL_EXIT_LOCATIONS)
-        return "", ""
+    @staticmethod
+    def _select_tutorial_exit_location() -> str:
+        return random.choice(TUTORIAL_EXIT_LOCATIONS)  # nosec B311
 
     @staticmethod
     def _calculate_attribute_bonuses(context: ScenarioContextDTO) -> dict[str, int]:
+        order_index = {name: index for index, name in enumerate(VISIBLE_PROFILE_ORDER)}
         weighted = [(name, context.weights.stats.get(name, 0)) for name in STAT_KEYS]
-        weighted.sort(key=lambda item: item[1], reverse=True)
-        bonuses = [9, 8, 7, 6, 5, 4, 3, 2, 1]
-        return {stat_name: bonuses[index] for index, (stat_name, _) in enumerate(weighted)}
+        weighted.sort(key=lambda item: (-item[1], order_index.get(item[0], len(order_index))))
+        return {stat_name: ATTRIBUTE_RANK_BONUSES[index] for index, (stat_name, _) in enumerate(weighted)}
 
     @staticmethod
     def _element_tokens(context: ScenarioContextDTO) -> dict[str, int]:

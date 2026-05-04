@@ -4,6 +4,17 @@
   "background_url": "/static/images/scenarios/awakening_rift/background.png",
   "show_left_sidebar": true,
   "show_right_sidebar": true,
+  "ui": {
+    "left_panel": {
+      "mode": "character_status",
+      "status": "error",
+      "distortion": "glitch"
+    },
+    "right_panel": {
+      "mode": "scenario_trace",
+      "status": "normal"
+    }
+  },
   "start_node_id": "rift_entry_01",
   "analytics_config": {
     "mapping": {

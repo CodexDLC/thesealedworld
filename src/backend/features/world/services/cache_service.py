@@ -36,11 +36,16 @@ class WorldCacheService:
         loc_id = self._loc_id(node)
         content = node.content or {}
         flags = node.flags if isinstance(node.flags, dict) else {}
+        anchor_influence = flags.get("anchor_influence", {})
+        world_theme = flags.get("world_theme", {})
         services = node.services if isinstance(node.services, list) else []
         return {
             "loc_id": loc_id,
             "name": content.get("title", f"Узел {loc_id}"),
             "description": content.get("description", "..."),
+            "background_url": content.get("background_url"),
+            "anchor_influence": anchor_influence if isinstance(anchor_influence, dict) else {},
+            "world_theme": world_theme if isinstance(world_theme, dict) else {},
             "exits": self.navigation.calculate_exits(node, node_map),
             "tags": content.get("environment_tags", []),
             "service": services[0] if services else "",

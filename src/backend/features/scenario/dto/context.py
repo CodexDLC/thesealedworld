@@ -10,12 +10,12 @@ STAT_KEYS = [
     "strength",
     "agility",
     "endurance",
-    "intelligence",
-    "wisdom",
-    "men",
+    "intellect",
+    "memory",
+    "mental",
     "perception",
-    "charisma",
-    "luck",
+    "projection",
+    "prediction",
 ]
 
 ELEMENT_KEYS = ["fire", "water", "earth", "air", "dark", "arcane", "light", "nature"]

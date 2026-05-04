@@ -1,6 +1,17 @@
+from enum import StrEnum
 from typing import Any, Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
+
+
+class ScenarioNodeType(StrEnum):
+    DIALOG = "dialog"
+    EVENT = "event"
+    ROUTER = "router"
+    REWARD_CHOICE = "reward_choice"
+    REWARD_RESULT = "reward_result"
+    TRANSITION = "transition"
+    EXIT = "exit"
 
 
 class StatusBarFieldSchema(BaseModel):
@@ -41,12 +52,22 @@ class QuestMasterSchema(BaseModel):
     config: dict[str, Any] | None = None
     init_sync: dict[str, Any] | None = None
     export_sync: dict[str, Any] | None = None
+    ui: dict[str, Any] = Field(default_factory=dict)
 
 
 class QuestNodeSchema(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     node_key: str
     quest_key: str | None = None
+    node_type: ScenarioNodeType = ScenarioNodeType.EVENT
+    phase: str | None = None
+    speaker: str | None = None
+    metadata: dict[str, Any] = Field(default_factory=dict)
+    ui: dict[str, Any] = Field(default_factory=dict)
     display_name: str | None = None
+    icon: str | None = None
+    avatar: str | None = None
     background_url: str | None = None
     show_left_sidebar: bool | None = None
     show_right_sidebar: bool | None = None

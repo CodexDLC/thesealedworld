@@ -24,6 +24,15 @@ if TYPE_CHECKING:
 log = logging.getLogger(__name__)
 
 
+def _finalize_target_state(result: ScenarioFinalizeResult) -> CoreDomain:
+    target_state = getattr(result, "target_state", CoreDomain.EXPLORATION)
+    if isinstance(target_state, CoreDomain):
+        return target_state
+    if isinstance(target_state, str):
+        return CoreDomain(target_state)
+    return CoreDomain.EXPLORATION
+
+
 class ScenarioService:
     def __init__(
         self,
@@ -170,20 +179,37 @@ class ScenarioService:
         handler = get_handler(context.quest_key, character_sessions=self.integrator.character_sessions)
         result = await handler.on_finalize(char_id, context, master)
 
-        await self.integrator.grant_inventory_rewards(char_id, result.rewards.items)
+        item_ids = await self.integrator.grant_inventory_rewards(
+            char_id, result.rewards.items, quest_key=context.quest_key
+        )
         await self.integrator.unlock_skills(char_id, result.rewards.skills)
         await self.integrator.apply_attribute_bonuses(char_id, result.rewards.attribute_bonuses)
-        await self.integrator.request_combat_start(char_id, context.quest_key)
-
-        await self.integrator.finalize_session(char_id, CoreDomain.EXPLORATION)
+        target_state = _finalize_target_state(result)
+        if target_state == CoreDomain.COMBAT:
+            await self.integrator.prepare_combat_return_context(char_id, location_id=result.location_id)
+            await self.integrator.finalize_session(char_id, CoreDomain.EXPLORATION)
+            combat_ready = await self.integrator.request_combat_start(
+                char_id,
+                context.quest_key,
+                battle_type=str(result.metadata.get("battle_type") or "shadow"),
+                location_id=result.location_id,
+            )
+            result.combat_id = str(combat_ready.get("combat_id") or result.combat_id or "")
+            result.metadata = {**result.metadata, "combat_ready": combat_ready}
+        else:
+            await self.integrator.finalize_session(char_id, target_state)
+        await self.integrator.sync_active_character_to_db(char_id)
 
         await self.integrator.publish_event(
             "scenario.finalized",
             {
                 "char_id": char_id,
                 "quest_key": context.quest_key,
-                "target_state": CoreDomain.EXPLORATION.value,
+                "target_state": target_state.value,
                 "rewards": result.rewards.model_dump_json(),
+                "reward_item_ids": item_ids,
+                "combat_id": result.combat_id,
+                "location_id": result.location_id,
             },
         )
         logger.info(f"Scenario finalized: char_id={char_id} quest={context.quest_key}")

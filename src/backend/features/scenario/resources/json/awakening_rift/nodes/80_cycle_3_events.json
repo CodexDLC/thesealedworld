@@ -1,134 +1,5 @@
 [
   {
-    "node_key": "final_award_medium",
-    "text": "Изумрудный свет застывает на твоем теле гибкой металлической сеткой. Ты чувствуешь приятную тяжесть и надежность.\n\nНа тебе надета **средняя броня**. Этот комплект — идеальный баланс между защитой и мобильностью. \n\nСИНХРОНИЗАЦИЯ СО СРЕДНИМ КОНТУРОМ ЗАВЕРШЕНА. ПОЛУЧЕН НАВЫК: МАСТЕР СРЕДНЕЙ БРОНИ.",
-    "system_messages": [
-      "СИНХРОНИЗАЦИЯ СО СРЕДНИМ КОНТУРОМ ЗАВЕРШЕНА. ПОЛУЧЕН НАВЫК: МАСТЕР СРЕДНЕЙ БРОНИ."
-    ],
-    "actions": [
-      {
-        "action_id": "exit",
-        "label": "Продолжить путь",
-        "icon": "default",
-        "to_node": "rift_exit_battle"
-      }
-    ]
-  },
-  {
-    "node_key": "bridge_late_sync",
-    "text": "Синхронизация достигла критической отметки. Ты чувствуешь, как [#loot_queue.0] и [#loot_queue.1] становятся невесомыми, сливаясь с твоей волей.\n\nСИСТЕМА ГОТОВА К ФОРМИРОВАНИЮ ЗАЩИТНОГО КОНТУРА.",
-    "system_messages": [
-      "СИСТЕМА ГОТОВА К ФОРМИРОВАНИЮ ЗАЩИТНОГО КОНТУРА."
-    ],
-    "actions": [
-      {
-        "action_id": "next",
-        "label": "Идти в центр шторма",
-        "icon": "default",
-        "to_node": "pool:cycle_3"
-      }
-    ],
-    "tags": [
-      "bridge_late"
-    ],
-    "selection_requirements": "step_counter >= 6"
-  },
-  {
-    "node_key": "bridge_late_pattern",
-    "text": "Геометрия Разлома меняется. Деревья превращаются в колонны света. Ты видишь сложные паттерны, которые сплетаются в твой будущий доспех.\n\nОБНАРУЖЕНЫ ШАБЛОНЫ ВНЕШНЕЙ ОБОЛОЧКИ. ТРЕБУЕТСЯ ПОДТВЕРЖДЕНИЕ.",
-    "system_messages": [
-      "ОБНАРУЖЕНЫ ШАБЛОНЫ ВНЕШНЕЙ ОБОЛОЧКИ. ТРЕБУЕТСЯ ПОДТВЕРЖДЕНИЕ."
-    ],
-    "actions": [
-      {
-        "action_id": "next",
-        "label": "Шагнуть сквозь хаос",
-        "icon": "default",
-        "to_node": "pool:cycle_3"
-      }
-    ],
-    "tags": [
-      "bridge_late"
-    ],
-    "selection_requirements": "step_counter >= 6"
-  },
-  {
-    "node_key": "bridge_late_echo",
-    "text": "Шепот Осколка превращается в гул. Ты — активный процесс в ядре системы. Твое тело жаждет финального слоя защиты.\n\nПОДГОТОВКА К КОМПЛЕКСНОМУ РЕЗОНАНСУ.",
-    "system_messages": [
-      "ПОДГОТОВКА К КОМПЛЕКСНОМУ РЕЗОНАНСУ."
-    ],
-    "actions": [
-      {
-        "action_id": "next",
-        "label": "Устремиться к горизонту",
-        "icon": "default",
-        "to_node": "pool:cycle_3"
-      }
-    ],
-    "tags": [
-      "bridge_late"
-    ],
-    "selection_requirements": "step_counter >= 6"
-  },
-  {
-    "node_key": "bridge_late_static",
-    "text": "Воздух искрится. Каждое движение порождает шлейф из знаков. Осколок предлагает материю для защиты твоего разума.\n\nОБНАРУЖЕНА СОВМЕСТИМОСТЬ С ВЫСШИМИ СЛОЯМИ ЭКИПИРОВКИ.",
-    "system_messages": [
-      "ОБНАРУЖЕНА СОВМЕСТИМОСТЬ С ВЫСШИМИ СЛОЯМИ ЭКИПИРОВКИ."
-    ],
-    "actions": [
-      {
-        "action_id": "next",
-        "label": "Сделать шаг в тишину",
-        "icon": "default",
-        "to_node": "pool:cycle_3"
-      }
-    ],
-    "tags": [
-      "bridge_late"
-    ],
-    "selection_requirements": "step_counter >= 6"
-  },
-  {
-    "node_key": "bridge_late_vision",
-    "text": "Ты видишь себя со стороны: фигура, окутанная пламенем, сжимающая [#loot_queue.0]. Этот образ будущего доспеха вспыхивает и гаснет.\n\nВИЗУАЛИЗАЦИЯ ЦЕЛИ: ЗАВЕРШЕНА. ВЕРОЯТНОСТЬ УСПЕХА: 89%.",
-    "system_messages": [
-      "ВИЗУАЛИЗАЦИЯ ЦЕЛИ: ЗАВЕРШЕНА. ВЕРОЯТНОСТЬ УСПЕХА: 89%."
-    ],
-    "actions": [
-      {
-        "action_id": "next",
-        "label": "Бежать навстречу вспышке",
-        "icon": "default",
-        "to_node": "pool:cycle_3"
-      }
-    ],
-    "tags": [
-      "bridge_late"
-    ],
-    "selection_requirements": "step_counter >= 6"
-  },
-  {
-    "node_key": "bridge_late_void",
-    "text": "Пространство схлопывается в узкий коридор света. Конец Рифта близок. Последние препятствия отделяют тебя от материализации.\n\nВНИМАНИЕ. СИНХРОНИЗАЦИЯ 94%. ФИНАЛЬНЫЙ ТЕСТ.",
-    "system_messages": [
-      "ВНИМАНИЕ. СИНХРОНИЗАЦИЯ 94%. ФИНАЛЬНЫЙ ТЕСТ."
-    ],
-    "actions": [
-      {
-        "action_id": "next",
-        "label": "Идти к выходу",
-        "icon": "default",
-        "to_node": "pool:cycle_3"
-      }
-    ],
-    "tags": [
-      "bridge_late"
-    ],
-    "selection_requirements": "step_counter >= 6"
-  },
-  {
     "node_key": "event_acid_mist",
     "text": "Воздух густеет, превращаясь в едкий изумрудный туман. Он шипит, соприкасаясь с кожей, и пытается разъесть твою волю. Каждое движение в этой взвеси требует колоссальных усилий.\n\nОБНАРУЖЕНА КОРРОЗИЙНАЯ СРЕДА. УРОВЕНЬ КИСЛОТНОСТИ: ВЫСОКИЙ. СТАБИЛИЗАЦИЯ НЕЙРОСЕТИ...",
     "system_messages": [
@@ -142,7 +13,7 @@
         "to_node": "cycle_3_logic_router",
         "math": {
           "w_endurance": "+3",
-          "w_men": "+2",
+          "w_mental": "+2",
           "w_strength": "+1",
           "t_nature": "+1",
           "step_counter": "+1"
@@ -154,9 +25,9 @@
         "icon": "default",
         "to_node": "cycle_3_logic_router",
         "math": {
-          "w_wisdom": "+3",
-          "w_men": "+2",
-          "w_intelligence": "+1",
+          "w_memory": "+3",
+          "w_mental": "+2",
+          "w_intellect": "+1",
           "t_water": "+1",
           "step_counter": "+1"
         }
@@ -169,7 +40,7 @@
         "math": {
           "w_strength": "+3",
           "w_agility": "+2",
-          "w_luck": "+1",
+          "w_prediction": "+1",
           "t_air": "+1",
           "step_counter": "+1"
         }
@@ -177,7 +48,11 @@
     ],
     "tags": [
       "cycle_3"
-    ]
+    ],
+    "node_type": "event",
+    "phase": "calibration_cycle_3",
+    "metadata": {},
+    "ui": {}
   },
   {
     "node_key": "event_crystal_storm",
@@ -194,7 +69,7 @@
         "math": {
           "w_agility": "+3",
           "w_perception": "+2",
-          "w_luck": "+1",
+          "w_prediction": "+1",
           "t_air": "+1",
           "step_counter": "+1"
         }
@@ -206,8 +81,8 @@
         "to_node": "cycle_3_logic_router",
         "math": {
           "w_perception": "+3",
-          "w_intelligence": "+2",
-          "w_wisdom": "+1",
+          "w_intellect": "+2",
+          "w_memory": "+1",
           "t_arcane": "+1",
           "step_counter": "+1"
         }
@@ -220,7 +95,7 @@
         "math": {
           "w_strength": "+3",
           "w_endurance": "+2",
-          "w_men": "+1",
+          "w_mental": "+1",
           "t_earth": "+1",
           "step_counter": "+1"
         }
@@ -228,7 +103,11 @@
     ],
     "tags": [
       "cycle_3"
-    ]
+    ],
+    "node_type": "event",
+    "phase": "calibration_cycle_3",
+    "metadata": {},
+    "ui": {}
   },
   {
     "node_key": "event_thunder_dome",
@@ -243,8 +122,8 @@
         "icon": "default",
         "to_node": "cycle_3_logic_router",
         "math": {
-          "w_intelligence": "+3",
-          "w_wisdom": "+2",
+          "w_intellect": "+3",
+          "w_memory": "+2",
           "w_perception": "+1",
           "t_arcane": "+1",
           "step_counter": "+1"
@@ -256,7 +135,7 @@
         "icon": "default",
         "to_node": "cycle_3_logic_router",
         "math": {
-          "w_men": "+3",
+          "w_mental": "+3",
           "w_endurance": "+2",
           "w_strength": "+1",
           "t_light": "+1",
@@ -271,7 +150,7 @@
         "math": {
           "w_strength": "+3",
           "w_endurance": "+2",
-          "w_men": "+1",
+          "w_mental": "+1",
           "t_fire": "+1",
           "step_counter": "+1"
         }
@@ -279,7 +158,11 @@
     ],
     "tags": [
       "cycle_3"
-    ]
+    ],
+    "node_type": "event",
+    "phase": "calibration_cycle_3",
+    "metadata": {},
+    "ui": {}
   },
   {
     "node_key": "event_code_quicksand",
@@ -295,7 +178,7 @@
         "to_node": "cycle_3_logic_router",
         "math": {
           "w_endurance": "+3",
-          "w_men": "+2",
+          "w_mental": "+2",
           "w_strength": "+1",
           "t_earth": "+1",
           "step_counter": "+1"
@@ -307,7 +190,7 @@
         "icon": "default",
         "to_node": "cycle_3_logic_router",
         "math": {
-          "w_luck": "+3",
+          "w_prediction": "+3",
           "w_agility": "+2",
           "w_perception": "+1",
           "t_dark": "+1",
@@ -322,7 +205,7 @@
         "math": {
           "w_agility": "+3",
           "w_perception": "+2",
-          "w_intelligence": "+1",
+          "w_intellect": "+1",
           "t_air": "+1",
           "step_counter": "+1"
         }
@@ -330,7 +213,11 @@
     ],
     "tags": [
       "cycle_3"
-    ]
+    ],
+    "node_type": "event",
+    "phase": "calibration_cycle_3",
+    "metadata": {},
+    "ui": {}
   },
   {
     "node_key": "event_ice_silence",
@@ -345,9 +232,9 @@
         "icon": "default",
         "to_node": "cycle_3_logic_router",
         "math": {
-          "w_wisdom": "+3",
-          "w_men": "+2",
-          "w_intelligence": "+1",
+          "w_memory": "+3",
+          "w_mental": "+2",
+          "w_intellect": "+1",
           "t_light": "+1",
           "step_counter": "+1"
         }
@@ -360,7 +247,7 @@
         "math": {
           "w_endurance": "+3",
           "w_strength": "+2",
-          "w_men": "+1",
+          "w_mental": "+1",
           "t_fire": "+1",
           "step_counter": "+1"
         }
@@ -381,7 +268,11 @@
     ],
     "tags": [
       "cycle_3"
-    ]
+    ],
+    "node_type": "event",
+    "phase": "calibration_cycle_3",
+    "metadata": {},
+    "ui": {}
   },
   {
     "node_key": "event_sporadic_vortex",
@@ -397,8 +288,8 @@
         "to_node": "cycle_3_logic_router",
         "math": {
           "w_perception": "+3",
-          "w_intelligence": "+2",
-          "w_luck": "+1",
+          "w_intellect": "+2",
+          "w_prediction": "+1",
           "t_arcane": "+1",
           "step_counter": "+1"
         }
@@ -409,9 +300,9 @@
         "icon": "default",
         "to_node": "cycle_3_logic_router",
         "math": {
-          "w_luck": "+3",
+          "w_prediction": "+3",
           "w_agility": "+2",
-          "w_men": "+1",
+          "w_mental": "+1",
           "t_water": "+1",
           "step_counter": "+1"
         }
@@ -423,7 +314,7 @@
         "to_node": "cycle_3_logic_router",
         "math": {
           "w_endurance": "+3",
-          "w_men": "+2",
+          "w_mental": "+2",
           "w_strength": "+1",
           "t_nature": "+1",
           "step_counter": "+1"
@@ -432,20 +323,10 @@
     ],
     "tags": [
       "cycle_3"
-    ]
-  },
-  {
-    "node_key": "rift_exit_battle",
-    "text": "Портал перед тобой пульсирует, открывая путь в неизведанное. Твоя экипировка готова, навыки откалиброваны. Пришло время встретиться с реальными угрозами Осколка.",
-    "system_messages": [],
-    "actions": [
-      {
-        "action_id": "finish",
-        "label": "К бою!",
-        "icon": "default",
-        "to_node": null,
-        "type": "finish_quest"
-      }
-    ]
+    ],
+    "node_type": "event",
+    "phase": "calibration_cycle_3",
+    "metadata": {},
+    "ui": {}
   }
 ]

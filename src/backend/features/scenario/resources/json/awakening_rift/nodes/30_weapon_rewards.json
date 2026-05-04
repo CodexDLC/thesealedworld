@@ -1,0 +1,200 @@
+[
+  {
+    "node_key": "cycle_1_logic_router",
+    "text": "",
+    "system_messages": [],
+    "actions": [
+      {
+        "action_id": "auto",
+        "label": "",
+        "icon": "default",
+        "to_node": null,
+        "branching": [
+          {
+            "condition": "step_counter >= 3",
+            "to_node": "resonance_logic_01"
+          },
+          {
+            "condition": "default",
+            "to_node": "pool:bridge_early"
+          }
+        ],
+        "type": "logic_gate"
+      }
+    ],
+    "node_type": "router",
+    "phase": "calibration_router",
+    "metadata": {},
+    "ui": {}
+  },
+  {
+    "node_key": "resonance_logic_01",
+    "text": "АНАЛИЗ ПОВЕДЕНЧЕСКИХ ПАТТЕРНОВ... ЗАВЕРШЕНО. \n\nИзумрудное марево перед тобой вибрирует, материализуя объект из плотной физической материи. Твои руки сами тянутся к нему, узнавая форму, рожденную твоими решениями.",
+    "system_messages": [
+      "АНАЛИЗ ПОВЕДЕНЧЕСКИХ ПАТТЕРНОВ... ЗАВЕРШЕНО. "
+    ],
+    "actions": [
+      {
+        "action_id": "auto",
+        "label": "",
+        "icon": "default",
+        "to_node": null,
+        "branching": [
+          {
+            "condition": "w_strength >= w_agility and w_strength >= w_intellect",
+            "to_node": "choice_strength_weapon"
+          },
+          {
+            "condition": "w_agility > w_strength and w_agility >= w_intellect",
+            "to_node": "choice_agility_weapon"
+          },
+          {
+            "condition": "default",
+            "to_node": "choice_balance_weapon"
+          }
+        ],
+        "type": "logic_gate"
+      }
+    ],
+    "node_type": "router",
+    "phase": "calibration_router",
+    "metadata": {},
+    "ui": {}
+  },
+  {
+    "node_key": "choice_strength_weapon",
+    "text": "Энергия Рифта реагирует на твою силу. Перед тобой возникают два силуэта.",
+    "system_messages": [],
+    "actions": [
+      {
+        "action_id": "take_hammer",
+        "label": "Схватить Боевой Молот",
+        "icon": "default",
+        "to_node": "bridge_resonance_award",
+        "math": {
+          "loot_queue": "push:warhammer",
+          "skills_queue": [
+            "push:skill_macing",
+            "push:skill_two_handed"
+          ],
+          "is_two_handed": 1
+        }
+      },
+      {
+        "action_id": "take_axe",
+        "label": "Выбрать Боевой Топор",
+        "icon": "default",
+        "to_node": "bridge_resonance_award",
+        "math": {
+          "loot_queue": "push:battle_axe",
+          "skills_queue": [
+            "push:skill_macing",
+            "push:skill_one_handed"
+          ],
+          "is_two_handed": 0
+        }
+      }
+    ],
+    "node_type": "reward_choice",
+    "phase": "reward_selection",
+    "metadata": {},
+    "ui": {}
+  },
+  {
+    "node_key": "choice_agility_weapon",
+    "text": "Рифт чувствует твою скорость. Воздух сгущается в две стремительные формы.",
+    "system_messages": [],
+    "actions": [
+      {
+        "action_id": "take_katana",
+        "label": "Взять Катану",
+        "icon": "default",
+        "to_node": "bridge_resonance_award",
+        "math": {
+          "loot_queue": "push:katana",
+          "skills_queue": [
+            "push:skill_swords",
+            "push:skill_two_handed"
+          ],
+          "is_two_handed": 1
+        }
+      },
+      {
+        "action_id": "take_dagger",
+        "label": "Выбрать Кинжал",
+        "icon": "default",
+        "to_node": "bridge_resonance_award",
+        "math": {
+          "loot_queue": "push:dagger",
+          "skills_queue": [
+            "push:skill_fencing",
+            "push:skill_one_handed"
+          ],
+          "is_two_handed": 0
+        }
+      }
+    ],
+    "node_type": "reward_choice",
+    "phase": "reward_selection",
+    "metadata": {},
+    "ui": {}
+  },
+  {
+    "node_key": "choice_balance_weapon",
+    "text": "Твой разум ищет баланс. Рифт предлагает инструменты для тех, кто ценит точность.",
+    "system_messages": [],
+    "actions": [
+      {
+        "action_id": "take_staff",
+        "label": "Взять Боевой Посох",
+        "icon": "default",
+        "to_node": "bridge_resonance_award",
+        "math": {
+          "loot_queue": "push:quarterstaff",
+          "skills_queue": [
+            "push:skill_polearms",
+            "push:skill_two_handed"
+          ],
+          "is_two_handed": 1
+        }
+      },
+      {
+        "action_id": "take_sword",
+        "label": "Выбрать Меч",
+        "icon": "default",
+        "to_node": "bridge_resonance_award",
+        "math": {
+          "loot_queue": "push:sword",
+          "skills_queue": [
+            "push:skill_swords",
+            "push:skill_one_handed"
+          ],
+          "is_two_handed": 0
+        }
+      }
+    ],
+    "node_type": "reward_choice",
+    "phase": "reward_selection",
+    "metadata": {},
+    "ui": {}
+  },
+  {
+    "node_key": "bridge_resonance_award",
+    "text": "Свет Осколка гаснет, оставляя в твоих руках тяжесть нового инструмента. Ты делаешь пробный замах — баланс идеален. \n\nОБЪЕКТ СИНХРОНИЗИРОВАН. БОЕВОЙ ПРОТОКОЛ ДОСТУПЕН. ТРЕБУЕТСЯ ПОДГОТОВКА СРЕДСТВ ЗАЩИТЫ.",
+    "system_messages": [
+      "ОБЪЕКТ СИНХРОНИЗИРОВАН. БОЕВОЙ ПРОТОКОЛ ДОСТУПЕН. ТРЕБУЕТСЯ ПОДГОТОВКА СРЕДСТВ ЗАЩИТЫ."
+    ],
+    "actions": [
+      {
+        "action_id": "next",
+        "label": "Закрепить оружие и идти дальше",
+        "icon": "default",
+        "to_node": "pool:bridge_mid"
+      }
+    ],
+    "node_type": "reward_result",
+    "phase": "reward_result",
+    "metadata": {},
+    "ui": {}
+  }
+]

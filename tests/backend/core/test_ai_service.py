@@ -9,7 +9,7 @@ from src.backend.core.ai import FilteringGeminiProvider
 
 @pytest.mark.unit
 async def test_filtering_gemini_provider_drops_prompt_builder_payload_kwargs(mocker):
-    provider = FilteringGeminiProvider(api_key="test-key", model="gemini-2.5-flash")
+    provider = FilteringGeminiProvider(api_key="test-key", model="gemini-2.5-flash")  # pragma: allowlist secret
     answer = mocker.patch.object(FilteringGeminiProvider.__mro__[1], "answer", new=AsyncMock(return_value="{}"))
 
     prompt = object()
@@ -40,7 +40,7 @@ async def test_filtering_gemini_provider_moves_system_messages_to_system_instruc
 @pytest.mark.unit
 async def test_filtering_gemini_provider_tries_fallback_model(mocker):
     provider = FilteringGeminiProvider(
-        api_key="test-key",
+        api_key="test-key",  # pragma: allowlist secret
         model="gemini-2.5-flash",
         fallback_models=["gemini-2.5-pro"],
     )

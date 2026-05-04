@@ -32,4 +32,3 @@ def test_factory_creates_clan_with_members_from_resource_data() -> None:
     assert members
     assert all(member.clan_id == clan.id for member in members)
     assert all(member.scaled_base_stats for member in members)
-

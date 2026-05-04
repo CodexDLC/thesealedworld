@@ -42,6 +42,32 @@ def test_exploration_service_component_has_default_icon_mapping():
     assert '"service_id"' in template
 
 
+def test_arena_main_template_has_service_lobby_contract():
+    template = Path("src/frontend/templates/game/domains/arena/viewport/main.html").read_text()
+
+    assert "arena.screen == 'main_menu'" in template
+    assert "arena-header-art" in template
+    assert "arena-mode-grid" in template
+    assert "arena-mode-card--duel" in template
+    assert "arena-mode-card--group" in template
+    assert "arena-service-exit" in template
+    assert "NO_DATA" in template
+    assert "/game/arena/action" in template
+
+
+def test_arena_css_is_a_dedicated_game_module():
+    bundle = Path("src/frontend/static/css/game_bundle.css").read_text()
+    source = Path("src/frontend/static/css/pages/game/arena.css").read_text()
+
+    assert '@import url("pages/game/arena.css");' in bundle
+    assert ".arena-lobby" in source
+    assert ".arena-header-art" in source
+    assert "arena-icons/sword-clash.svg" in source
+    assert "arena-icons/knight-banner.svg" in source
+    assert "arena-icons/tattered-banner.svg" in source
+    assert "button-surface-02-blackened-metal.webp" in source
+
+
 def test_status_main_prefers_panel_renderer_before_legacy_fragments():
     template = Path("src/frontend/templates/game/components/status/main.html").read_text()
 

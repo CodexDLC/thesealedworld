@@ -9,7 +9,17 @@ from src.shared.enums import CoreDomain
 from src.shared.schemas import CoreResponseDTO, GameStateHeader, ScenarioPayloadDTO
 from src.shared.schemas.character_status import CharacterActorCoreDTO
 from src.shared.schemas.combat import CombatActorCardDTO, CombatActorVitalsDTO, CombatDashboardDTO
+from src.shared.schemas.exploration import (
+    DetectionStatus,
+    EncounterDTO,
+    EncounterType,
+    EnemyPreviewDTO,
+    ExplorationHudDTO,
+    NavigationGridDTO,
+    WorldNavigationDTO,
+)
 from src.shared.schemas.panel import PanelDTO
+from src.shared.schemas.world_theme import WorldThemeDTO
 
 
 class FakeCharacterStatusApi:
@@ -60,9 +70,13 @@ class FakeExplorationApi:
         self.calls.append(("exploration", char_id))
         return CoreResponseDTO(
             header=GameStateHeader(current_state=CoreDomain.EXPLORATION, transaction_id="tx-explore"),
-            payload=SimpleNamespace(
+            payload=WorldNavigationDTO(
                 loc_id="52_52",
-                world_theme={"loc_id": "52_52"},
+                title="Runic Circle",
+                description="Safe hub.",
+                world_theme=WorldThemeDTO(loc_id="52_52"),
+                grid=NavigationGridDTO(),
+                hud=ExplorationHudDTO(is_safe_zone=True),
             ),
             payload_type="exploration_navigation",
         )
@@ -210,6 +224,35 @@ async def test_build_state_restores_actor_core_before_exploration_lookup():
 
     assert calls == [("status", 7), ("exploration", 7)]
     assert context["domain"] == "EXPLORATION"
+    assert context["exploration"].loc_id == "52_52"
+
+
+@pytest.mark.asyncio
+async def test_build_exploration_response_keeps_location_context_for_encounter():
+    calls = []
+    service = exploration_builder(calls)
+    service.character_status_api.calls = calls
+    encounter = EncounterDTO(
+        id="combat_1",
+        type=EncounterType.COMBAT,
+        status=DetectionStatus.DETECTED,
+        title="Threat",
+        description="Rat appears.",
+        enemies=[EnemyPreviewDTO(name="Rat", level=1, hp_percent=100)],
+        session_id="stub_combat_7",
+        metadata={"tier": 0},
+    )
+    response = CoreResponseDTO(
+        header=GameStateHeader(current_state=CoreDomain.EXPLORATION, transaction_id="tx-encounter"),
+        payload=encounter,
+        payload_type="exploration_encounter",
+    )
+
+    context = await service.build_exploration_response(request(), response, char_id=7)
+
+    assert calls == [("status", 7), ("exploration", 7)]
+    assert context["payload_type"] == "exploration_encounter"
+    assert context["encounter"] == encounter
     assert context["exploration"].loc_id == "52_52"
 
 

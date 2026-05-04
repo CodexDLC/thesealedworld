@@ -44,7 +44,7 @@ class TestAuthUserCache:
         user = User(
             id=user_id,
             email="player@example.com",
-            hashed_password="hashed",
+            hashed_password="hashed",  # pragma: allowlist secret
             is_active=True,
             is_superuser=False,
             created_at=datetime(2026, 5, 2, tzinfo=UTC),

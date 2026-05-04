@@ -181,3 +181,4 @@ graphify-out/
 # Compiled static assets
 src/frontend/static/css/app.css
 src/frontend/static/js/app.bundle.js
+/tools/icon-reserve/

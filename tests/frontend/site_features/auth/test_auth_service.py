@@ -65,4 +65,3 @@ async def test_get_current_user_uses_refresh_cookie_when_access_cookie_missing()
     assert user == _user()
     api.refresh.assert_awaited_once_with("old_refresh")
     api.current_user.assert_awaited_once_with("new_access")
-

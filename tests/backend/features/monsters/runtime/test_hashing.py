@@ -22,4 +22,3 @@ def test_unique_clan_hash_depends_on_family_and_context() -> None:
 
     assert compute_unique_clan_hash("wolf_pack", context_hash) == compute_unique_clan_hash("wolf_pack", context_hash)
     assert compute_unique_clan_hash("wolf_pack", context_hash) != compute_unique_clan_hash("rat_swarm", context_hash)
-

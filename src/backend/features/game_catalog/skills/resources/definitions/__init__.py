@@ -1,0 +1,1 @@
+"""Static skill definition groups."""

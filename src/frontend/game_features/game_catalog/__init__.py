@@ -1,0 +1,1 @@
+"""Frontend game catalog feature."""

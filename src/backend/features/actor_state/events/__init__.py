@@ -56,6 +56,7 @@ async def on_snapshots_requested(payload: dict[str, Any]) -> None:
                 "status": "partial",
                 "failed_players": result.failed_players,
                 "failed_monsters": result.failed_monsters,
+                "snapshot_keys": result.snapshot_keys,
             }
         else:
             log.info(
@@ -69,6 +70,7 @@ async def on_snapshots_requested(payload: dict[str, Any]) -> None:
                 "players": result.counts.get("players", 0),
                 "monsters": result.counts.get("monsters", 0),
                 "failed": [],
+                "snapshot_keys": result.snapshot_keys,
             }
     except Exception as exc:  # noqa: BLE001
         log.exception("ActorState snapshots request failed")

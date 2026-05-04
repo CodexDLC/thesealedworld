@@ -1,13 +1,17 @@
-import pytest
 import uuid
 from unittest.mock import AsyncMock, MagicMock
+
+import pytest
+from sqlalchemy.exc import SQLAlchemyError
+
 from src.backend.infrastructure.actor_state.repositories import (
     MonsterRepository,
     SkillRepository,
     SymbioteRepository,
     WalletRepository,
 )
-from sqlalchemy.exc import SQLAlchemyError
+from src.shared.enums.skill_enums import SkillProgressState
+
 
 @pytest.mark.unit
 class TestOtherActorStateRepositories:
@@ -44,6 +48,14 @@ class TestOtherActorStateRepositories:
         result = await repo.get_all_skills_progress_batch([1])
         assert 1 in result
         assert await repo.get_all_skills_progress_batch([]) == {}
+
+    async def test_skill_repo_unlock_skills_upserts_unique_keys(self, session):
+        repo = SkillRepository(session)
+        session.execute = AsyncMock()
+
+        await repo.unlock_skills(1, ["skill_swords", "skill_swords"], progress_state=SkillProgressState.PLUS)
+
+        session.execute.assert_awaited_once()
 
     async def test_symbiote_repo(self, session):
         repo = SymbioteRepository(session)

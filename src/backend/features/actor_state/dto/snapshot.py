@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from typing import Any
 
 from pydantic import BaseModel, Field, ValidationInfo, field_validator
@@ -11,7 +12,12 @@ def parse_csv_ids(value: Any, *, cast_int: bool = False) -> list[Any]:
     if value is None or value == "":
         return []
     if isinstance(value, str):
-        raw_values = [part.strip() for part in value.split(",") if part.strip()]
+        stripped = value.strip()
+        if stripped.startswith("["):
+            decoded = json.loads(stripped)
+            raw_values = [item for item in decoded if item not in (None, "")]
+        else:
+            raw_values = [part.strip() for part in value.split(",") if part.strip()]
     elif isinstance(value, (list, tuple, set)):
         raw_values = [item for item in value if item not in (None, "")]
     else:

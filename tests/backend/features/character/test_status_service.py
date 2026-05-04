@@ -1,0 +1,267 @@
+from datetime import UTC, datetime
+from types import SimpleNamespace
+from uuid import uuid4
+
+import pytest
+
+from src.backend.core.exceptions import BusinessLogicException
+from src.backend.features.character.services import status_service
+from src.backend.features.character.services.status_service import CharacterStatusService
+from src.shared.enums.skill_enums import SkillProgressState
+
+
+class FakeCharacterRepository:
+    character = SimpleNamespace(
+        character_id=7,
+        user_id=uuid4(),
+        name="Ada",
+        gender="female",
+        avatar_url="/avatar.png",
+        created_at=datetime.now(UTC),
+        location_id="52_52",
+        attributes=None,
+        skill_progress=[],
+        symbiote=None,
+    )
+
+    def __init__(self, db_session):
+        self.db_session = db_session
+
+    async def get_by_id_and_user_id(self, char_id, user_id):
+        return self.character
+
+
+class MissingCharacterRepository(FakeCharacterRepository):
+    async def get_by_id_and_user_id(self, char_id, user_id):
+        return None
+
+
+class RewardedCharacterRepository(FakeCharacterRepository):
+    character = SimpleNamespace(
+        character_id=7,
+        user_id=uuid4(),
+        name="Ada",
+        gender="female",
+        avatar_url="/avatar.png",
+        created_at=datetime.now(UTC),
+        location_id="52_52",
+        attributes=SimpleNamespace(
+            strength=10,
+            agility=17,
+            endurance=15,
+            intellect=14,
+            memory=9,
+            mental=12,
+            perception=11,
+            projection=16,
+            prediction=13,
+        ),
+        skill_progress=[
+            SimpleNamespace(
+                skill_key="skill_macing",
+                total_xp=0.0,
+                is_unlocked=True,
+                progress_state=SkillProgressState.PLUS,
+            ),
+            SimpleNamespace(
+                skill_key="locked_skill",
+                total_xp=0.0,
+                is_unlocked=False,
+                progress_state=SkillProgressState.PAUSE,
+            ),
+        ],
+        symbiote=SimpleNamespace(symbiote_name="Symbiote", gift_rank=1),
+    )
+
+
+class FakeCharacterSessions:
+    def __init__(self, document=None):
+        self.document = document
+        self.updated = None
+        self.created = None
+
+    def build_key(self, char_id):
+        return f"game:ac:{char_id}"
+
+    async def get_session(self, char_id):
+        return self.document
+
+    async def update_session(self, char_id, document):
+        self.updated = document
+        self.document = document
+
+    async def create_session(self, char_id, document):
+        self.created = document
+        self.document = document
+
+
+def build_actor_core_document():
+    return {
+        "schema_version": 1,
+        "char_id": 7,
+        "user_id": uuid4(),
+        "state": "EXPLORATION",
+        "prev_state": "SCENARIO",
+        "bio": {"name": "Ada", "gender": "female", "avatar": "/avatar.png", "created_at": datetime.now(UTC)},
+        "location": {"current": "52_52"},
+        "vitals": {"hp": {"cur": 100, "max": 100}},
+        "attributes": {"strength": 8},
+        "sessions": {"scenario_id": None, "combat_id": None, "inventory_id": None},
+        "active_quest": None,
+        "metrics": {"gear_score": 0},
+        "skills": {"skill_macing": {"xp": 0.0}, "skill_medium_armor": {"xp": 0.0}},
+        "symbiote": {"name": "Symbiote"},
+        "updated_at": datetime.now(UTC),
+    }
+
+
+def build_session_document():
+    document = build_actor_core_document()
+    document["bio"] = {"name": "Ada", "gender": "female", "avatar": "/avatar.png", "created_at": datetime.now(UTC)}
+    document["vitals"] = {
+        "hp": {"cur": 50, "max": 100, "regen": 10},
+        "energy": {"cur": 20, "max": 100, "regen": 10},
+        "stamina": {"cur": 10, "max": 100, "regen": 10},
+        "last_update": datetime.now(UTC).timestamp() - 3,
+    }
+    document["attributes"] = {
+        "strength": 8,
+        "agility": 8,
+        "endurance": 8,
+        "intellect": 8,
+        "memory": 8,
+        "mental": 8,
+        "perception": 8,
+        "projection": 8,
+        "prediction": 8,
+    }
+    return document
+
+
+@pytest.mark.asyncio
+async def test_get_actor_core_returns_game_ac_document(monkeypatch):
+    monkeypatch.setattr(status_service, "CharacterRepository", FakeCharacterRepository)
+    service = CharacterStatusService(character_sessions=FakeCharacterSessions(build_actor_core_document()))
+
+    dto = await service.get_actor_core(SimpleNamespace(id=uuid4()), 7, object())
+
+    assert dto.key == "game:ac:7"
+    assert dto.char_id == 7
+    assert dto.state == "EXPLORATION"
+    assert dto.location["current"] == "52_52"
+    assert dto.skills["skill_macing"]["xp"] == 0.0
+    assert dto.panel is not None
+    assert dto.panel.id == "character_status"
+    attributes_widget = next(widget for widget in dto.panel.widgets if widget.title == "ATTRIBUTES")
+    assert attributes_widget.type == "attribute_grid"
+    assert [group["title"] for group in attributes_widget.data["groups"]] == ["BODY", "CORE", "SENSOR"]
+    skills_widget = next(widget for widget in dto.panel.widgets if widget.title == "SKILLS")
+    assert skills_widget.type == "skill_groups"
+    assert [group["title"] for group in skills_widget.data["groups"]] == ["WEAPON MASTERY", "ARMOR"]
+    assert skills_widget.data["groups"][0]["items"][0]["catalog_key"] == "skill_macing"
+
+
+@pytest.mark.asyncio
+async def test_get_actor_core_rejects_unowned_character(monkeypatch):
+    monkeypatch.setattr(status_service, "CharacterRepository", MissingCharacterRepository)
+    service = CharacterStatusService(character_sessions=FakeCharacterSessions(build_actor_core_document()))
+
+    with pytest.raises(BusinessLogicException):
+        await service.get_actor_core(SimpleNamespace(id=uuid4()), 7, object())
+
+
+@pytest.mark.asyncio
+async def test_get_actor_core_initializes_missing_actor_core(monkeypatch):
+    monkeypatch.setattr(status_service, "CharacterRepository", FakeCharacterRepository)
+    sessions = FakeCharacterSessions(None)
+    service = CharacterStatusService(character_sessions=sessions)
+
+    dto = await service.get_actor_core(SimpleNamespace(id=uuid4()), 7, object())
+
+    assert dto.key == "game:ac:7"
+    assert dto.char_id == 7
+    assert dto.bio["name"] == "Ada"
+    assert dto.location["current"] == "52_52"
+    assert sessions.created is not None
+
+
+@pytest.mark.asyncio
+async def test_get_actor_core_initializes_actor_core_from_persisted_actor_state(monkeypatch):
+    monkeypatch.setattr(status_service, "CharacterRepository", RewardedCharacterRepository)
+    sessions = FakeCharacterSessions(None)
+    service = CharacterStatusService(character_sessions=sessions)
+
+    dto = await service.get_actor_core(SimpleNamespace(id=uuid4()), 7, object())
+
+    assert dto.attributes["agility"] == 17
+    assert dto.attributes["projection"] == 16
+    assert dto.vitals["hp"]["max"] == 170
+    assert dto.vitals["hp"]["cur"] == 170
+    assert dto.vitals["energy"]["max"] == 90
+    assert dto.vitals["stamina"]["max"] == 150
+    assert dto.skills["skill_macing"]["state"] == "PLUS"
+    assert "locked_skill" not in dto.skills
+    assert sessions.created["attributes"]["agility"] == 17
+    assert sessions.created["vitals"]["hp"]["max"] == 170
+    assert sessions.created["skills"]["skill_macing"]["unlocked"] is True
+
+
+@pytest.mark.asyncio
+async def test_get_actor_core_repairs_stale_default_actor_core_from_persisted_actor_state(monkeypatch):
+    monkeypatch.setattr(status_service, "CharacterRepository", RewardedCharacterRepository)
+    document = build_session_document()
+    document["skills"] = {}
+    sessions = FakeCharacterSessions(document)
+    service = CharacterStatusService(character_sessions=sessions)
+
+    dto = await service.get_actor_core(SimpleNamespace(id=uuid4()), 7, object())
+
+    assert dto.attributes["agility"] == 17
+    assert dto.attributes["projection"] == 16
+    assert dto.vitals["hp"]["max"] == 170
+    assert dto.vitals["hp"]["cur"] == 50
+    assert dto.vitals["energy"]["max"] == 90
+    assert dto.skills["skill_macing"]["state"] == "PLUS"
+    assert sessions.updated is not None
+    assert sessions.updated["attributes"]["agility"] == 17
+    assert sessions.updated["vitals"]["hp"]["max"] == 170
+    assert sessions.updated["skills"]["skill_macing"]["unlocked"] is True
+
+
+@pytest.mark.asyncio
+async def test_get_actor_core_keeps_runtime_attributes_when_not_default(monkeypatch):
+    monkeypatch.setattr(status_service, "CharacterRepository", RewardedCharacterRepository)
+    document = build_session_document()
+    document["attributes"]["agility"] = 21
+    sessions = FakeCharacterSessions(document)
+    service = CharacterStatusService(character_sessions=sessions)
+
+    dto = await service.get_actor_core(SimpleNamespace(id=uuid4()), 7, object())
+
+    assert dto.attributes["agility"] == 21
+    assert dto.vitals["hp"]["cur"] == 50
+    assert dto.vitals["hp"]["max"] == 96
+
+
+@pytest.mark.asyncio
+async def test_get_status_returns_flat_regenerated_vitals(monkeypatch):
+    monkeypatch.setattr(status_service, "CharacterRepository", FakeCharacterRepository)
+    sessions = FakeCharacterSessions(build_session_document())
+    service = CharacterStatusService(character_sessions=sessions)
+
+    status = await service.get_status(SimpleNamespace(id=uuid4()), 7, object())
+
+    assert status.character_id == 7
+    assert status.hp > 50
+    assert status.max_hp == 96
+    assert status.avatar_url == "/avatar.png"
+    assert sessions.updated is not None
+
+
+@pytest.mark.asyncio
+async def test_get_status_rejects_unowned_character(monkeypatch):
+    monkeypatch.setattr(status_service, "CharacterRepository", MissingCharacterRepository)
+    service = CharacterStatusService(character_sessions=FakeCharacterSessions(build_session_document()))
+
+    with pytest.raises(BusinessLogicException):
+        await service.get_status(SimpleNamespace(id=uuid4()), 7, object())

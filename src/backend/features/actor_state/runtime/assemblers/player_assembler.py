@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 from typing import TYPE_CHECKING, Any, cast
 
+from src.backend.features.actor_state.dto.context import ActorContextDTO
 from src.backend.features.actor_state.runtime.sections import COMBAT, INVENTORY, RUNTIME, STATUS
 from src.backend.infrastructure.actor_state.repositories.db import (
     get_attributes_repo as get_actor_state_attributes_repo,
@@ -31,7 +32,17 @@ if TYPE_CHECKING:
     from src.shared.schemas.skill import SkillProgressDTO
 
 
-PRIMARY_STATS = ("strength", "agility", "endurance", "intelligence", "wisdom", "men", "perception", "charisma", "luck")
+PRIMARY_STATS = (
+    "strength",
+    "agility",
+    "endurance",
+    "intellect",
+    "memory",
+    "mental",
+    "perception",
+    "projection",
+    "prediction",
+)
 
 
 async def build_snapshots(
@@ -126,7 +137,7 @@ async def build_snapshots(
         if STATUS in sections:
             snapshot["status"] = _build_status(character, vitals)
 
-        snapshots[char_id] = snapshot
+        snapshots[char_id] = ActorContextDTO.model_validate(snapshot).model_dump(mode="json")
 
     return snapshots
 
@@ -155,6 +166,8 @@ def _build_meta(character: CharacterReadDTO) -> dict[str, Any]:
         "actor_type": "player",
         "actor_id": character.character_id,
         "name": character.name,
+        "gender": character.gender,
+        "avatar_url": character.avatar_url,
         "role": "player",
         "tags": ["player"],
     }
@@ -164,6 +177,8 @@ def _build_source(character: CharacterReadDTO, symbiote: Any | None) -> dict[str
     source: dict[str, Any] = {
         "character_id": character.character_id,
         "user_id": str(character.user_id),
+        "gender": character.gender,
+        "avatar_url": character.avatar_url,
         "location_id": character.location_id,
         "game_stage": character.game_stage,
         "db_refs": {"characters": character.character_id},

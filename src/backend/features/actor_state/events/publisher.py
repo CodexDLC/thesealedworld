@@ -4,7 +4,6 @@ from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from src.backend.core.bus import GameEventProducer
-    from src.backend.infrastructure.actor_state import CharacterSessionDocumentDTO
 
 
 class CharacterSessionEvents:

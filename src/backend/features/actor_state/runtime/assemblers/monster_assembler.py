@@ -2,7 +2,9 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
+from src.backend.features.actor_state.dto.context import ActorContextDTO
 from src.backend.features.actor_state.runtime.sections import COMBAT, INVENTORY, RUNTIME, STATUS
+from src.backend.features.monsters.runtime.combat_profile import build_monster_combat_context, build_monster_vitals
 from src.backend.infrastructure.actor_state.repositories.db import get_monster_repo
 
 if TYPE_CHECKING:
@@ -38,14 +40,14 @@ async def build_snapshots(
             "source": _build_source(monster),
         }
         if RUNTIME in sections:
-            snapshot["runtime"] = {"vitals": _build_vitals()}
+            snapshot["runtime"] = {"vitals": build_monster_vitals(monster)}
         if COMBAT in sections:
-            snapshot["combat"] = _build_combat(monster)
+            snapshot["combat"] = build_monster_combat_context(monster)
         if INVENTORY in sections:
             snapshot["inventory"] = {}
         if STATUS in sections:
-            snapshot["status"] = _build_vitals()
-        snapshots[monster_id] = snapshot
+            snapshot["status"] = build_monster_vitals(monster)
+        snapshots[monster_id] = ActorContextDTO.model_validate(snapshot).model_dump(mode="json")
 
     return snapshots
 
@@ -67,30 +69,6 @@ def _build_source(monster: Monster) -> dict[str, Any]:
         "clan_id": str(monster.clan_id),
         "db_refs": {"generated_monsters": str(monster.id), "generated_clans": str(monster.clan_id)},
     }
-
-
-def _build_combat(monster: Monster) -> dict[str, Any]:
-    return {
-        "math_model": {
-            "attributes": {
-                stat: {"base": value, "flats": {}, "percents": {}}
-                for stat, value in (monster.scaled_base_stats or {}).items()
-                if value is not None
-            },
-            "modifiers": {},
-            "tags": ["monster", monster.role],
-        },
-        "loadout": {
-            "belt": [],
-            "abilities": _ability_ids(monster.skills_snapshot),
-            "skills": [],
-            "equipment": monster.loadout_ids,
-        },
-    }
-
-
-def _build_vitals() -> dict[str, int]:
-    return {"hp_current": -1, "energy_current": -1}
 
 
 def _ability_ids(snapshot: dict[str, Any] | list[Any]) -> list[str]:

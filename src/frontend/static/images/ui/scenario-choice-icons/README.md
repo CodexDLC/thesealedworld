@@ -15,4 +15,3 @@ The full raw Game-icons.net pack is kept in:
 ```text
 tools/icon-reserve/game-icons-net/
 ```
-

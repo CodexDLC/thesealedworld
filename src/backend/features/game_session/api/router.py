@@ -3,10 +3,10 @@ from typing import Annotated, Any
 from fastapi import APIRouter, Depends
 
 from src.backend.config.settings import settings
-from src.backend.features_site.auth.dependencies import get_current_user
-from src.backend.features_site.auth.models import User
 from src.backend.features.game_session.dependencies import get_game_session_service
 from src.backend.features.game_session.services import GameSessionService
+from src.backend.features_site.auth.dependencies import get_current_user
+from src.backend.features_site.auth.models import User
 from src.shared.schemas import CoreResponseDTO, EnterCharacterRequestDTO, ScenarioPayloadDTO
 from src.shared.utils.dev_utils import log_debug_payload
 

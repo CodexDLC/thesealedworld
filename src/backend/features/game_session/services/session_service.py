@@ -13,8 +13,8 @@ from src.shared.schemas import CoreResponseDTO, GameStateHeader, ScenarioPayload
 if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession
 
-    from src.backend.features_site.auth.models import User
     from src.backend.features.scenario.services import ScenarioService
+    from src.backend.features_site.auth.models import User
 
 
 class GameSessionService:
@@ -33,7 +33,9 @@ class GameSessionService:
         self.db_session = db_session
         self.scenario_service = scenario_service
 
-    async def enter_character(self, user: User, character_id: int) -> CoreResponseDTO[ScenarioPayloadDTO | dict[str, Any]]:
+    async def enter_character(
+        self, user: User, character_id: int
+    ) -> CoreResponseDTO[ScenarioPayloadDTO | dict[str, Any]]:
         character = await self._get_owned_character_or_raise(user, character_id)
         char_id = character.character_id
         stage = (character.game_stage or "").upper()

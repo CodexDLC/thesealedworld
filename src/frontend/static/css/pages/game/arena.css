@@ -1,0 +1,391 @@
+/* Arena service surfaces */
+
+.arena-screen {
+    --center-content-max: 1040px;
+    align-items: stretch;
+    gap: 8px;
+}
+
+.arena-screen .hud-strip {
+    margin-bottom: 4px;
+}
+
+.arena-lobby {
+    width: 100%;
+    display: grid;
+    gap: 12px;
+    padding: 18px;
+    border: 1px solid color-mix(in srgb, var(--world-accent, var(--col-accent)) 18%, transparent);
+    background:
+        linear-gradient(180deg, rgba(255, 183, 55, .045), transparent 34%),
+        linear-gradient(115deg, rgba(3, 3, 4, .76), rgba(9, 11, 14, .91)),
+        url("/static/images/ui/textures/button-candidates/button-surface-04-charcoal-stone.webp");
+    background-position: center;
+    background-size: cover;
+    box-shadow:
+        inset 0 1px 0 rgba(255, 225, 150, .08),
+        inset 0 -28px 42px rgba(0, 0, 0, .34),
+        0 0 0 1px rgba(0, 0, 0, .68);
+    clip-path: var(--clip-node-md);
+    overflow: hidden;
+    position: relative;
+}
+
+.arena-lobby::before,
+.arena-lobby::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+}
+
+.arena-lobby::before {
+    background:
+        radial-gradient(circle at 18% 8%, rgba(255, 170, 0, .14), transparent 30%),
+        radial-gradient(circle at 86% 20%, rgba(68, 170, 255, .09), transparent 34%),
+        repeating-linear-gradient(90deg, rgba(255, 170, 0, .018) 0 1px, transparent 1px 26px);
+    opacity: .82;
+}
+
+.arena-lobby::after {
+    inset: 1px;
+    border: 1px solid rgba(255, 211, 125, .055);
+    clip-path: var(--clip-node-md);
+}
+
+.arena-lobby > * {
+    position: relative;
+    z-index: 1;
+}
+
+.arena-lobby-head {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 12px;
+    align-items: center;
+}
+
+.arena-kicker,
+.arena-card-eyebrow,
+.arena-card-meta,
+.arena-service-exit,
+.arena-small-action {
+    font-family: var(--font-ui);
+    text-transform: uppercase;
+}
+
+.arena-kicker {
+    display: block;
+    color: var(--col-parchment-dim);
+    font-size: 8px;
+    letter-spacing: .24em;
+    margin-bottom: 5px;
+}
+
+.arena-lobby h2 {
+    margin: 0;
+    color: color-mix(in srgb, var(--world-accent, var(--col-accent)) 82%, #fff);
+    font-family: var(--font-ui);
+    font-size: 17px;
+    line-height: 1.2;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    text-shadow: 0 1px 0 #000, 0 0 14px var(--world-accent-soft, rgba(255, 170, 0, .22));
+}
+
+.arena-service-exit {
+    min-width: 84px;
+    height: 34px;
+    border: 1px solid color-mix(in srgb, var(--world-accent, var(--col-accent)) 34%, transparent);
+    background:
+        linear-gradient(180deg, rgba(255, 214, 118, .07), transparent 34%),
+        linear-gradient(rgba(1, 1, 1, .76), rgba(1, 1, 1, .88)),
+        url("/static/images/ui/textures/button-candidates/button-surface-02-blackened-metal.webp");
+    background-position: center;
+    background-size: cover;
+    color: var(--world-accent, var(--col-accent));
+    cursor: pointer;
+    clip-path: var(--clip-node-sm);
+    font-size: 8px;
+    font-weight: 800;
+    letter-spacing: .16em;
+    text-shadow: 0 1px 0 #000, 0 0 8px rgba(255, 170, 0, .18);
+    box-shadow:
+        inset 0 1px 0 rgba(255, 230, 150, .10),
+        inset 0 -8px 14px rgba(0, 0, 0, .34),
+        0 0 0 1px rgba(0, 0, 0, .62);
+    transition: border-color .16s ease, box-shadow .16s ease, color .16s ease, filter .16s ease, transform .16s ease;
+}
+
+.arena-service-exit:not(:disabled):hover,
+.arena-small-action:not(:disabled):hover {
+    color: color-mix(in srgb, var(--world-accent, var(--col-accent)) 84%, #fff);
+    border-color: color-mix(in srgb, var(--world-accent, var(--col-accent)) 62%, transparent);
+    filter: brightness(1.14) saturate(1.08);
+    transform: translateY(-1px);
+    box-shadow:
+        inset 0 1px 0 rgba(255, 230, 150, .18),
+        inset 0 -8px 16px rgba(0, 0, 0, .26),
+        0 0 14px var(--world-accent-soft, rgba(255,170,0,.22)),
+        0 0 0 1px rgba(0, 0, 0, .70);
+}
+
+.arena-header-art {
+    min-height: 170px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    border: 1px solid color-mix(in srgb, var(--world-accent, var(--col-accent)) 18%, transparent);
+    background:
+        linear-gradient(180deg, rgba(0, 0, 0, .16), rgba(0, 0, 0, .76)),
+        radial-gradient(circle at 50% 32%, rgba(255, 170, 0, .18), transparent 30%),
+        var(--arena-header-art, radial-gradient(ellipse at 50% 88%, rgba(68, 170, 255, .12), transparent 42%)),
+        repeating-linear-gradient(45deg, rgba(255, 170, 0, .025) 0 1px, transparent 1px 9px),
+        url("/static/images/ui/textures/button-candidates/button-surface-04-charcoal-stone.webp");
+    background-position: center;
+    background-size: cover;
+    clip-path: var(--clip-node-sm);
+    box-shadow: inset 0 0 38px rgba(0, 0, 0, .72);
+}
+
+.arena-header-art span {
+    max-width: 88%;
+    color: color-mix(in srgb, var(--world-accent, var(--col-accent)) 74%, white);
+    font-family: var(--font-ui);
+    font-size: 10px;
+    letter-spacing: .32em;
+    line-height: 1.8;
+    text-align: center;
+    text-transform: uppercase;
+    text-shadow: 0 2px 16px rgba(0, 0, 0, .95);
+}
+
+.arena-lobby-copy {
+    max-width: 74ch;
+    margin: 0;
+    color: var(--col-parchment);
+    font-family: var(--font-world);
+    font-size: 18px;
+    line-height: 1.72;
+    text-shadow: 0 1px 10px rgba(0, 0, 0, .78);
+}
+
+.arena-mode-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+}
+
+.arena-mode-card {
+    --arena-mode-icon: url("/static/images/ui/arena-icons/sword-clash.svg");
+    min-height: 188px;
+    display: grid;
+    grid-template-rows: auto auto minmax(0, 1fr) auto;
+    gap: 10px;
+    padding: 18px;
+    border: 1px solid color-mix(in srgb, var(--world-accent, var(--col-accent)) 26%, transparent);
+    background:
+        linear-gradient(90deg, rgba(255, 170, 0, .08), transparent 34%),
+        radial-gradient(circle at 92% 12%, var(--world-accent-soft, rgba(255, 170, 0, .13)), transparent 32%),
+        linear-gradient(135deg, rgba(255, 170, 0, .10), transparent 38%),
+        linear-gradient(rgba(2, 2, 2, .64), rgba(2, 2, 2, .88)),
+        url("/static/images/ui/textures/button-candidates/button-surface-01-dark-wood.webp");
+    background-position: center;
+    background-size: cover;
+    color: var(--col-parchment);
+    cursor: pointer;
+    clip-path: var(--clip-node-md);
+    box-shadow:
+        inset 0 1px 0 rgba(255, 230, 150, .11),
+        inset 0 -24px 36px rgba(0, 0, 0, .42),
+        0 0 0 1px rgba(0, 0, 0, .68);
+    overflow: hidden;
+    position: relative;
+    text-align: left;
+    transition: border-color .16s ease, box-shadow .16s ease, filter .16s ease, transform .16s ease;
+}
+
+.arena-mode-card::before,
+.arena-mode-card::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+}
+
+.arena-mode-card::before {
+    width: 128px;
+    height: 128px;
+    inset: 14px 12px auto auto;
+    background: color-mix(in srgb, var(--world-accent, var(--col-accent)) 76%, #fff);
+    mask: var(--arena-mode-icon) center / contain no-repeat;
+    -webkit-mask: var(--arena-mode-icon) center / contain no-repeat;
+    opacity: .13;
+    filter: drop-shadow(0 0 16px var(--world-accent-glow, rgba(255, 170, 0, .32)));
+    transform: rotate(-4deg);
+}
+
+.arena-mode-card::after {
+    inset: 1px;
+    border: 1px solid rgba(255, 211, 125, .07);
+    clip-path: var(--clip-node-md);
+}
+
+.arena-mode-card > * {
+    position: relative;
+    z-index: 1;
+}
+
+.arena-mode-card--group {
+    --arena-mode-icon: url("/static/images/ui/arena-icons/knight-banner.svg");
+    background:
+        linear-gradient(90deg, rgba(255, 170, 0, .07), transparent 34%),
+        radial-gradient(circle at 92% 12%, rgba(68, 170, 255, .10), transparent 32%),
+        linear-gradient(135deg, rgba(68, 170, 255, .08), transparent 36%),
+        linear-gradient(rgba(2, 2, 2, .62), rgba(2, 2, 2, .88)),
+        url("/static/images/ui/textures/button-candidates/button-surface-03-aged-bronze.webp");
+    background-position: center;
+    background-size: cover;
+}
+
+.arena-mode-card--chaos {
+    --arena-mode-icon: url("/static/images/ui/arena-icons/tattered-banner.svg");
+}
+
+.arena-mode-card:not(:disabled):hover {
+    border-color: color-mix(in srgb, var(--world-accent, var(--col-accent)) 58%, transparent);
+    filter: brightness(1.12) saturate(1.06);
+    transform: translateY(-2px);
+    box-shadow:
+        inset 0 1px 0 rgba(255, 230, 150, .17),
+        inset 0 -24px 34px rgba(0, 0, 0, .32),
+        0 0 18px var(--world-accent-soft, rgba(255, 170, 0, .18)),
+        0 0 0 1px rgba(0, 0, 0, .75);
+}
+
+.arena-mode-card:not(:disabled):hover::before {
+    opacity: .22;
+    transform: rotate(-4deg) scale(1.04);
+}
+
+.arena-card-eyebrow {
+    color: var(--col-parchment-dim);
+    font-size: 8px;
+    letter-spacing: .24em;
+}
+
+.arena-card-title {
+    color: color-mix(in srgb, var(--world-accent, var(--col-accent)) 86%, #fff);
+    font-family: var(--font-ui);
+    font-size: 17px;
+    font-weight: 800;
+    letter-spacing: .06em;
+    line-height: 1.3;
+    text-transform: uppercase;
+    text-shadow: 0 1px 0 #000, 0 0 12px rgba(255, 170, 0, .2);
+}
+
+.arena-card-description {
+    color: var(--col-parchment);
+    font-family: var(--font-world);
+    font-size: 16px;
+    line-height: 1.6;
+}
+
+.arena-card-meta {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding-top: 10px;
+    border-top: 1px solid rgba(255, 170, 0, .12);
+    color: var(--col-parchment-dim);
+    font-size: 8px;
+    letter-spacing: .18em;
+}
+
+.arena-card-meta strong {
+    color: var(--world-accent, var(--col-accent));
+    font-size: 12px;
+    letter-spacing: .12em;
+}
+
+.arena-mode-card--missing,
+.arena-service-exit--missing,
+.arena-small-action--missing {
+    cursor: default;
+    filter: grayscale(.5) brightness(.75);
+    opacity: .68;
+}
+
+.arena-state-panel {
+    margin-top: 4px;
+}
+
+.arena-action-row {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 8px;
+    width: 100%;
+    margin-top: 2px;
+}
+
+.arena-small-action {
+    min-width: 136px;
+    min-height: 42px;
+    padding: 0 16px;
+    border: 1px solid color-mix(in srgb, var(--world-accent, var(--col-accent)) 30%, transparent);
+    background:
+        linear-gradient(180deg, rgba(255, 214, 118, .07), transparent 34%),
+        linear-gradient(rgba(1, 1, 1, .76), rgba(1, 1, 1, .88)),
+        url("/static/images/ui/textures/button-candidates/button-surface-02-blackened-metal.webp");
+    background-position: center;
+    background-size: cover;
+    color: var(--col-parchment);
+    cursor: pointer;
+    clip-path: var(--clip-node-sm);
+    font-size: 10px;
+    letter-spacing: .08em;
+    text-shadow: 0 1px 0 #000;
+    box-shadow:
+        inset 0 1px 0 rgba(255, 230, 150, .10),
+        inset 0 -8px 14px rgba(0, 0, 0, .34),
+        0 0 0 1px rgba(0, 0, 0, .62);
+    transition: border-color .16s ease, box-shadow .16s ease, color .16s ease, filter .16s ease, transform .16s ease;
+}
+
+.arena-small-action--ghost {
+    color: var(--col-parchment-dim);
+}
+
+@media (max-width: 760px) {
+    .arena-lobby {
+        padding: 12px;
+    }
+
+    .arena-lobby-head {
+        grid-template-columns: 1fr;
+    }
+
+    .arena-service-exit {
+        width: 100%;
+    }
+
+    .arena-header-art {
+        min-height: 130px;
+    }
+
+    .arena-lobby-copy {
+        font-size: 16px;
+    }
+
+    .arena-mode-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .arena-mode-card {
+        min-height: 164px;
+    }
+}

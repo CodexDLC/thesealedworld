@@ -11,6 +11,7 @@ from src.frontend.game_features.session.view_models.nav import build_game_nav
 from src.frontend.site_features.auth.token_state import require_access_token
 from src.shared.enums import CoreDomain
 from src.shared.schemas import CoreResponseDTO, EnterCharacterRequestDTO
+from src.shared.schemas.exploration import EncounterDTO, WorldNavigationDTO
 
 if TYPE_CHECKING:
     from src.frontend.integrations.backend_api.arena import BackendArenaApi
@@ -68,7 +69,9 @@ class SessionContextBuilder:
             character_status = await self._character_status(token, char_id=char_id)
             exploration_response = await self.exploration_api.look_around(token, char_id=char_id)
             if exploration_response.payload is None:
-                raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail="Exploration payload is unavailable")
+                raise HTTPException(
+                    status_code=status.HTTP_502_BAD_GATEWAY, detail="Exploration payload is unavailable"
+                )
             return self._context(
                 state=exploration_response.header.current_state,
                 char_id=char_id,
@@ -76,7 +79,8 @@ class SessionContextBuilder:
                 payload_type=exploration_response.payload_type,
                 character_status=character_status,
                 exploration=exploration_response.payload,
-                world_theme=getattr(exploration_response.payload, "world_theme", None) or getattr(character_status, "world_theme", None),
+                world_theme=getattr(exploration_response.payload, "world_theme", None)
+                or getattr(character_status, "world_theme", None),
             )
 
         if state == CoreDomain.ARENA:
@@ -102,11 +106,12 @@ class SessionContextBuilder:
             combat_payload = combat_response.payload
             if combat_payload is None or not hasattr(combat_payload, "hero"):
                 raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail="Combat payload is unavailable")
-            
+
             # Type narrowing for Mypy
             from src.shared.schemas.combat import CombatDashboardDTO
+
             if not isinstance(combat_payload, CombatDashboardDTO):
-                 raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail="Invalid combat payload type")
+                raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail="Invalid combat payload type")
 
             return self._context(
                 state=combat_response.header.current_state,
@@ -120,7 +125,9 @@ class SessionContextBuilder:
             )
 
         logger.warning("Session state requested for unsupported state: state={} char_id={}", state, char_id)
-        raise HTTPException(status_code=status.HTTP_501_NOT_IMPLEMENTED, detail=f"{state} screen is not implemented yet")
+        raise HTTPException(
+            status_code=status.HTTP_501_NOT_IMPLEMENTED, detail=f"{state} screen is not implemented yet"
+        )
 
     async def build_from_response(
         self,
@@ -171,14 +178,24 @@ class SessionContextBuilder:
 
         token = require_access_token(request)
         character_status = await self._character_status(token, char_id=char_id)
+        exploration_payload = response.payload
+        encounter_payload = None
+        if response.payload_type == "exploration_encounter" or isinstance(response.payload, EncounterDTO):
+            encounter_payload = response.payload
+            navigation_response = await self.exploration_api.look_around(token, char_id=char_id)
+            if isinstance(navigation_response.payload, WorldNavigationDTO):
+                exploration_payload = navigation_response.payload
+
         return self._context(
             state=response.header.current_state,
             char_id=char_id,
             transaction_id=response.header.transaction_id,
             payload_type=response.payload_type,
             character_status=character_status,
-            exploration=response.payload,
-            world_theme=getattr(response.payload, "world_theme", None) or getattr(character_status, "world_theme", None),
+            exploration=exploration_payload,
+            encounter=encounter_payload,
+            world_theme=getattr(exploration_payload, "world_theme", None)
+            or getattr(character_status, "world_theme", None),
         )
 
     async def build(
@@ -204,6 +221,7 @@ class SessionContextBuilder:
         character_status: CharacterActorCoreDTO | None = None,
         scenario: Any | None = None,
         exploration: Any | None = None,
+        encounter: Any | None = None,
         arena: Any | None = None,
         combat: Any | None = None,
         combat_screen: Any | None = None,
@@ -221,6 +239,7 @@ class SessionContextBuilder:
             "character_status": character_status,
             "scenario": scenario,
             "exploration": exploration,
+            "encounter": encounter,
             "arena": arena,
             "combat": combat,
             "combat_screen": combat_screen,

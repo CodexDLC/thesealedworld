@@ -82,17 +82,73 @@
 .dpad { display: grid; grid-template-columns: repeat(3, 50px); grid-template-rows: repeat(3, 50px); gap: 6px; }
 .dp {
     display: flex; flex-direction: column; align-items: center; justify-content: center;
-    background: rgba(0, 0, 0, 0.85);
-    border: 1px solid var(--world-accent-border, rgba(255, 170, 0, 0.25));
+    background:
+        linear-gradient(180deg, rgba(255, 214, 118, .07), transparent 34%),
+        linear-gradient(rgba(1, 1, 1, .78), rgba(1, 1, 1, .88)),
+        var(--exploration-button-texture, url("/static/images/ui/textures/button-candidates/button-surface-01-dark-wood.webp"));
+    background-position: center;
+    background-size: cover;
+    border: 1px solid color-mix(in srgb, var(--world-accent, var(--col-accent)) 32%, transparent);
     cursor: pointer; color: var(--world-accent, var(--col-accent));
     clip-path: var(--clip-node-sm);
     font-family: var(--font-ui);
     font-size: 11px;
     font-weight: bold;
-    box-shadow: inset 0 0 10px var(--world-accent-soft, rgba(255, 170, 0, 0.05));
-    transition: all 0.2s ease;
+    letter-spacing: .06em;
+    position: relative;
+    overflow: hidden;
+    text-shadow: 0 1px 0 #000, 0 0 8px rgba(255, 170, 0, .22);
+    box-shadow:
+        inset 0 1px 0 rgba(255, 230, 150, .10),
+        inset 0 -10px 18px rgba(0, 0, 0, .40),
+        0 0 0 1px rgba(0, 0, 0, .62);
+    transition:
+        border-color .16s ease,
+        box-shadow .16s ease,
+        color .16s ease,
+        filter .16s ease,
+        transform .16s ease;
 }
-.dp:hover  { background: var(--world-accent, var(--col-accent)); color: #000; border-color: var(--world-accent, var(--col-accent)); box-shadow: 0 0 15px var(--world-accent-glow, var(--col-accent)); }
+
+.dp::before {
+    content: "";
+    position: absolute;
+    inset: 1px;
+    border: 1px solid rgba(255, 211, 125, .07);
+    clip-path: var(--clip-node-sm);
+    pointer-events: none;
+}
+
+.dp::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(circle at 50% 0, rgba(255, 196, 82, .16), transparent 58%);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity .16s ease;
+}
+
+.dp:not(:disabled):hover {
+    color: color-mix(in srgb, var(--world-accent, var(--col-accent)) 84%, #fff);
+    border-color: color-mix(in srgb, var(--world-accent, var(--col-accent)) 62%, transparent);
+    filter: brightness(1.14) saturate(1.08);
+    transform: translateY(-1px);
+    box-shadow:
+        inset 0 1px 0 rgba(255, 230, 150, .18),
+        inset 0 -10px 20px rgba(0, 0, 0, .28),
+        0 0 16px var(--world-accent-soft, rgba(255, 170, 0, .20)),
+        0 0 0 1px rgba(0, 0, 0, .70);
+}
+
+.dp:not(:disabled):hover::after {
+    opacity: 1;
+}
+
+.dp:not(:disabled):active {
+    transform: translateY(0);
+    filter: brightness(1.04);
+}
 .dp-empty { pointer-events: none; opacity: 0; }
 
 .exploration-control-panel {
@@ -117,32 +173,57 @@
     display: grid;
     grid-template-columns: 70px minmax(0, 1fr);
     min-height: 78px;
-    border: 1px solid var(--world-accent-border, rgba(255,170,0,.18));
+    border: 1px solid color-mix(in srgb, var(--world-accent, var(--col-accent)) 24%, transparent);
     background:
-        linear-gradient(135deg, var(--world-accent-soft, rgba(255,170,0,.06)), transparent 42%),
-        rgba(0,0,0,.64);
-    box-shadow: inset 0 0 18px var(--world-accent-soft, rgba(255,170,0,.04));
+        linear-gradient(90deg, rgba(255, 177, 48, .10), transparent 34%, rgba(0, 0, 0, .38)),
+        linear-gradient(rgba(4, 4, 4, .72), rgba(1, 1, 1, .86)),
+        url("/static/images/ui/textures/button-candidates/button-surface-04-charcoal-stone.webp");
+    background-position: center;
+    background-size: cover;
+    box-shadow:
+        inset 0 1px 0 rgba(255, 220, 145, .08),
+        inset 0 -18px 28px rgba(0, 0, 0, .36),
+        0 0 0 1px rgba(0, 0, 0, .72);
     clip-path: var(--clip-node-sm);
     overflow: hidden;
+    position: relative;
+}
+
+.service-card::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background:
+        linear-gradient(90deg, transparent, var(--world-accent-soft, rgba(255, 170, 0, .055)) 52%, transparent),
+        radial-gradient(circle at 11% 50%, var(--world-accent-soft, rgba(255, 170, 0, .16)), transparent 28%);
+    opacity: .55;
+    pointer-events: none;
 }
 
 .service-card-icon {
     min-height: 78px;
     background:
-        radial-gradient(circle at center, var(--world-accent-soft, rgba(255,170,0,.13)), transparent 62%),
-        rgba(255,170,0,.025);
+        radial-gradient(circle at center, var(--world-accent-soft, rgba(255,170,0,.20)), transparent 58%),
+        linear-gradient(rgba(0, 0, 0, .36), rgba(0, 0, 0, .64)),
+        url("/static/images/ui/textures/button-candidates/button-surface-03-aged-bronze.webp");
+    background-position: center;
+    background-size: cover;
+    border-right: 1px solid color-mix(in srgb, var(--world-accent, var(--col-accent)) 22%, transparent);
     position: relative;
+    z-index: 1;
 }
 
 .service-card-icon::before {
     content: "";
     position: absolute;
-    inset: 15px;
+    inset: 16px;
     background: var(--world-accent, var(--col-accent));
     mask: var(--service-icon-url) center / contain no-repeat;
     -webkit-mask: var(--service-icon-url) center / contain no-repeat;
     opacity: .86;
-    filter: drop-shadow(0 0 10px var(--world-accent-glow, rgba(255,170,0,.45)));
+    filter:
+        drop-shadow(0 1px 0 rgba(0, 0, 0, .95))
+        drop-shadow(0 0 10px var(--world-accent-glow, rgba(255,170,0,.42)));
 }
 
 .service-card-body {
@@ -151,6 +232,8 @@
     align-items: center;
     gap: 10px;
     padding: 10px 12px;
+    position: relative;
+    z-index: 1;
 }
 
 .service-card-title {
@@ -166,8 +249,13 @@
 .service-card-action {
     min-width: 60px;
     height: 30px;
-    border: 1px solid var(--world-accent-border, rgba(255,170,0,.22));
-    background: rgba(0,0,0,.58);
+    border: 1px solid color-mix(in srgb, var(--world-accent, var(--col-accent)) 34%, transparent);
+    background:
+        linear-gradient(180deg, rgba(255, 214, 118, .07), transparent 34%),
+        linear-gradient(rgba(1, 1, 1, .76), rgba(1, 1, 1, .88)),
+        url("/static/images/ui/textures/button-candidates/button-surface-02-blackened-metal.webp");
+    background-position: center;
+    background-size: cover;
     color: var(--world-accent, var(--col-accent));
     font-family: var(--font-ui);
     font-size: 8px;
@@ -175,12 +263,29 @@
     letter-spacing: .16em;
     cursor: pointer;
     clip-path: var(--clip-node-sm);
+    text-shadow: 0 1px 0 #000, 0 0 8px rgba(255, 170, 0, .18);
+    box-shadow:
+        inset 0 1px 0 rgba(255, 230, 150, .10),
+        inset 0 -8px 14px rgba(0, 0, 0, .34),
+        0 0 0 1px rgba(0, 0, 0, .62);
+    transition:
+        border-color .16s ease,
+        box-shadow .16s ease,
+        color .16s ease,
+        filter .16s ease,
+        transform .16s ease;
 }
 
 .service-card-action:hover {
-    background: var(--world-accent, var(--col-accent));
-    color: #000;
-    box-shadow: 0 0 14px var(--world-accent-glow, rgba(255,170,0,.42));
+    color: color-mix(in srgb, var(--world-accent, var(--col-accent)) 84%, #fff);
+    border-color: color-mix(in srgb, var(--world-accent, var(--col-accent)) 62%, transparent);
+    filter: brightness(1.14) saturate(1.08);
+    transform: translateY(-1px);
+    box-shadow:
+        inset 0 1px 0 rgba(255, 230, 150, .18),
+        inset 0 -8px 16px rgba(0, 0, 0, .26),
+        0 0 14px var(--world-accent-soft, rgba(255,170,0,.22)),
+        0 0 0 1px rgba(0, 0, 0, .70);
 }
 
 .service-card--compact {
@@ -245,6 +350,7 @@
 }
 
 .exploration-action-block .dp {
+    --exploration-button-texture: url("/static/images/ui/textures/button-candidates/button-surface-01-dark-wood.webp");
     width: 100%;
     min-height: 58px;
 }
@@ -260,6 +366,7 @@
 }
 
 .exploration-route-placeholder {
+    --exploration-button-texture: url("/static/images/ui/textures/button-candidates/button-surface-03-aged-bronze.webp");
     min-height: 44px;
     opacity: .42;
 }
@@ -278,10 +385,62 @@
 }
 
 .exploration-movement-grid .dp {
+    --exploration-button-texture: url("/static/images/ui/textures/button-candidates/button-surface-02-blackened-metal.webp");
     min-height: 50px;
     padding: 0 8px;
     font-size: 9px;
     line-height: 1.2;
+}
+
+.exploration-encounter-panel {
+    display: grid;
+    gap: 10px;
+    border: 1px solid rgba(255, 51, 0, .18);
+    background:
+        linear-gradient(135deg, rgba(255, 51, 0, .055), transparent 42%),
+        linear-gradient(rgba(1, 1, 1, .62), rgba(1, 1, 1, .82)),
+        url("/static/images/ui/textures/button-candidates/button-surface-04-charcoal-stone.webp");
+    background-position: center;
+    background-size: cover;
+    clip-path: var(--clip-node-sm);
+    padding: 10px;
+    box-shadow:
+        inset 0 1px 0 rgba(255, 190, 120, .08),
+        inset 0 -18px 28px rgba(0, 0, 0, .36),
+        0 0 0 1px rgba(0, 0, 0, .70);
+}
+
+.exploration-encounter-tag {
+    margin: 0;
+}
+
+.exploration-encounter-hud,
+.exploration-encounter-enemies {
+    margin: 0;
+}
+
+.exploration-encounter-card {
+    padding: 10px;
+}
+
+.exploration-encounter-card .scene-img {
+    min-height: 118px;
+}
+
+.exploration-encounter-card .world-text {
+    font-size: var(--text-md);
+    line-height: 1.55;
+}
+
+.exploration-encounter-choices {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(128px, 1fr));
+    gap: 8px;
+}
+
+.exploration-encounter-choices .choice {
+    min-height: 42px;
+    font-size: var(--text-sm);
 }
 
 @media (max-width: 760px) {

@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from src.backend.infrastructure.redis.world import WorldLocationStore
+    from src.backend.infrastructure.world.managers.location_store import WorldLocationStore
 
 
 class WorldService:

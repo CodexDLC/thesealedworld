@@ -1,6 +1,11 @@
 import pytest
 from unittest.mock import AsyncMock, MagicMock
-from src.backend.features.scenario.engine.director import ScenarioDirector, ScenarioDirectorError, ResolvedNode
+from src.backend.features.scenario.engine.director import ScenarioDirector, ResolvedNode
+from src.backend.features.scenario.exceptions import (
+    ScenarioDirectorError,
+    ScenarioNodeNotFound,
+    ScenarioPoolEmpty,
+)
 
 @pytest.mark.unit
 class TestScenarioDirector:
@@ -68,7 +73,7 @@ class TestScenarioDirector:
 
     async def test_resolve_target_not_found(self, director, content):
         content.get_node = AsyncMock(return_value=None)
-        with pytest.raises(ScenarioDirectorError, match="node not found"):
+        with pytest.raises(ScenarioNodeNotFound):
             await director._resolve_target("q1", "missing", {}, content)
 
     async def test_pick_from_pool(self, director, evaluator, content):
@@ -86,7 +91,7 @@ class TestScenarioDirector:
 
     async def test_pick_from_pool_empty(self, director, content):
         content.get_nodes_by_pool = AsyncMock(return_value=[])
-        with pytest.raises(ScenarioDirectorError, match="No scenario pool candidates"):
+        with pytest.raises(ScenarioPoolEmpty):
             await director.pick_from_pool("q1", "tag", {}, content)
 
     async def test_get_available_actions(self, director, evaluator):

@@ -1,6 +1,7 @@
 import httpx
 from fastapi import HTTPException, Request, status
 from fastapi.responses import Response
+from loguru import logger
 
 from src.frontend.integrations.backend_api.auth import BackendAuthApi, TokenResponse, UserResponse
 
@@ -13,26 +14,35 @@ class FrontendAuthService:
         self.auth_api = auth_api
 
     async def login(self, email: str, password: str) -> TokenResponse:
-        return await self.auth_api.login(email=email, password=password)
+        tokens = await self.auth_api.login(email=email, password=password)
+        logger.info("Frontend auth login completed")
+        return tokens
 
     async def register(self, email: str, password: str) -> UserResponse:
-        return await self.auth_api.register(email=email, password=password)
+        user = await self.auth_api.register(email=email, password=password)
+        logger.info("Frontend auth registration completed: user_id={}", user.id)
+        return user
 
     async def logout(self, refresh_token: str) -> None:
         await self.auth_api.logout(refresh_token)
+        logger.info("Frontend auth logout completed")
 
     async def get_current_user(self, request: Request) -> UserResponse | None:
         access_token = request.cookies.get(self.access_cookie_name)
         if not access_token:
             return None
         try:
-            return await self.auth_api.current_user(access_token)
-        except httpx.HTTPStatusError:
+            user = await self.auth_api.current_user(access_token)
+            logger.info("Frontend current user resolved: user_id={}", user.id)
+            return user
+        except httpx.HTTPStatusError as exc:
+            logger.warning("Frontend current user lookup rejected: status={}", exc.response.status_code)
             return None
 
     async def require_current_user(self, request: Request) -> UserResponse:
         user = await self.get_current_user(request)
         if user is None:
+            logger.warning("Frontend auth required: redirecting_to_login path={}", request.url.path)
             raise _login_redirect()
         return user
 

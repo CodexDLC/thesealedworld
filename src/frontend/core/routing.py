@@ -1,6 +1,7 @@
 from collections.abc import Sequence
 
 from fastapi import APIRouter, FastAPI
+from loguru import logger
 
 from src.frontend.game_features.game_lobby.routes.pages import router as game_lobby_router
 from src.frontend.game_features.scenario.routes.pages import router as scenario_router
@@ -25,3 +26,4 @@ FRONTEND_ROUTERS: Sequence[APIRouter] = (
 def include_frontend_routers(app: FastAPI) -> None:
     for router in FRONTEND_ROUTERS:
         app.include_router(router)
+        logger.info("Frontend router registered: tags={}", router.tags)

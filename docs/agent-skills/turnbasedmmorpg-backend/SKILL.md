@@ -31,6 +31,7 @@ api/
 dto/
 models/
 repositories/
+integrations/  # Facades that encapsulate multiple low-level infrastructure managers (DB, Redis)
 services/
 dependencies/
 events/

@@ -1,6 +1,6 @@
 import pytest
 from unittest.mock import AsyncMock, MagicMock
-from src.backend.infrastructure.db.actor_state.repositories.db.inventory_repository import InventoryRepository
+from src.backend.infrastructure.actor_state.repositories import InventoryRepository
 from sqlalchemy.exc import SQLAlchemyError
 
 @pytest.mark.unit

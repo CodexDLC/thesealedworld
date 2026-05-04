@@ -14,6 +14,10 @@ class BackendSettings(BaseCommonSettings):
     """Backend-specific settings for game logic and events."""
 
     debug: bool = True
+    log_level_console: str = "DEBUG"
+    log_level_file: str = "DEBUG"
+    log_rotation: str = "10 MB"
+    log_dir: str = "logs"
 
     # Server Settings
     app_host: str = "0.0.0.0"
@@ -52,6 +56,10 @@ class BackendSettings(BaseCommonSettings):
 
     world_auto_generate: bool = False
     world_generation_mode: str = "test"
+
+    # LLM Settings
+    gemini_api_key: str | None = None
+    openrouter_api_key: str | None = None
 
     model_config = SettingsConfigDict(
         env_file=BASE_DIR / ".env",

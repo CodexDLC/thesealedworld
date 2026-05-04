@@ -1,4 +1,5 @@
 import httpx
+from loguru import logger
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 from starlette.responses import Response
@@ -22,6 +23,8 @@ class AuthUserMiddleware(BaseHTTPMiddleware):
                 client: httpx.AsyncClient = request.app.state.backend_http_client
                 api = BackendAuthApi(client=client, base_url=settings.backend_base_url)
                 request.state.user = await api.current_user(token)
-            except (httpx.HTTPStatusError, httpx.RequestError):
-                pass
+            except httpx.HTTPStatusError as exc:
+                logger.warning("Auth middleware user lookup rejected: status={}", exc.response.status_code)
+            except httpx.RequestError:
+                logger.opt(exception=True).critical("Auth middleware backend user lookup failed")
         return await call_next(request)

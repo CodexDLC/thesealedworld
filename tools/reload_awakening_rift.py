@@ -7,13 +7,12 @@ from pathlib import Path
 sys.path.append(os.getcwd())
 
 from src.backend.features.scenario.loaders.scenario_loader import ScenarioLoader
-from src.backend.infrastructure.db.setup import create_session_maker
+from src.backend.core.database import async_session_factory as session_maker
 from src.backend.config.settings import settings
 
 async def reload_quest():
     print("Initializing database session...")
-    session_maker = create_session_maker(settings.database_url)
-
+    # Use the imported session_maker (async_session_factory)
     async with session_maker() as session:
         loader = ScenarioLoader(session)
         quest_path = Path("src/backend/features/scenario/resources/json/awakening_rift")

@@ -1,6 +1,6 @@
 import pytest
 from unittest.mock import AsyncMock, MagicMock
-from src.backend.infrastructure.redis.actor_snapshot_manager import ActorSnapshotManager
+from src.backend.infrastructure.actor_state.managers import ActorSnapshotManager
 from src.backend.features.actor_state.runtime.sections import resolve_sections
 
 @pytest.mark.unit

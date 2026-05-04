@@ -2,6 +2,7 @@ from typing import Any
 
 from fastapi import HTTPException, Request, status
 from fastapi.responses import JSONResponse
+from loguru import logger
 
 
 class BaseAPIException(HTTPException):
@@ -36,7 +37,14 @@ class BusinessLogicException(BaseAPIException):
         )
 
 
-async def api_exception_handler(_: Request, exc: BaseAPIException) -> JSONResponse:
+async def api_exception_handler(request: Request, exc: BaseAPIException) -> JSONResponse:
+    logger.warning(
+        "API exception handled: method={} path={} status={} code={}",
+        request.method,
+        request.url.path,
+        exc.status_code,
+        exc.error_code,
+    )
     return JSONResponse(
         status_code=exc.status_code,
         content={

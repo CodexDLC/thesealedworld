@@ -3,6 +3,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, Form, HTTPException, Request, status
 from fastapi.responses import RedirectResponse
 
+from src.frontend.config.settings import settings
 from src.frontend.core.renderer import UIRenderer, get_ui_renderer
 from src.frontend.game_features.game_lobby.dependencies.providers import (
     get_game_lobby_page_service,
@@ -13,6 +14,7 @@ from src.frontend.site_features.auth.dependencies.providers import get_frontend_
 from src.frontend.site_features.auth.services.auth_service import FrontendAuthService
 from src.shared.schemas import CreateCharacterRequestDTO, DeleteCharacterRequestDTO, EnterCharacterRequestDTO
 from src.shared.schemas.game_lobby import CharacterCreationGender
+from src.shared.utils.dev_utils import log_debug_payload
 
 router = APIRouter(tags=["Game Lobby"])
 ACTIVE_CHARACTER_COOKIE = "tbmmorpg_active_character_id"
@@ -27,6 +29,7 @@ async def game_lobby_page(
 ):
     user = await auth_service.require_current_user(request)
     response = await lobby_service.get_view(request)
+    log_debug_payload("game_lobby_page.game_lobby_page", response, enabled=settings.debug)
     lobby = build_lobby_page_vm(response)
     return await ui.render("site/game_lobby/index.html", context={"user": user, "lobby": lobby})
 
@@ -42,6 +45,7 @@ async def game_lobby_start(
     await auth_service.require_current_user(request)
     dto = CreateCharacterRequestDTO(name=name, gender=gender)
     response = await lobby_service.start(request, dto)
+    log_debug_payload("game_lobby_page.game_lobby_start", response, enabled=settings.debug)
     if response.payload is None or not hasattr(response.payload, "node_key"):
         raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail="Scenario payload is unavailable")
     char_id = _char_id_from_payload(response.payload)
@@ -68,6 +72,7 @@ async def game_session(
     user = await auth_service.require_current_user(request)
     character_id = _active_character_id_from_cookie(request)
     response = await lobby_service.enter(request, EnterCharacterRequestDTO(character_id=character_id))
+    log_debug_payload("game_lobby_page.game_session", response, enabled=settings.debug)
     if response.payload is None or not hasattr(response.payload, "node_key"):
         raise HTTPException(status_code=status.HTTP_501_NOT_IMPLEMENTED, detail="Game state is not available yet")
     return await ui.render(
@@ -98,6 +103,7 @@ async def game_lobby_delete(
         request,
         DeleteCharacterRequestDTO(character_id=character_id, confirm_name=confirm_name),
     )
+    log_debug_payload("game_lobby_page.game_lobby_delete", response, enabled=settings.debug)
     lobby = build_lobby_page_vm(response)
     return await ui.render("site/game_lobby/index.html", context={"user": user, "lobby": lobby})
 

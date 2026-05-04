@@ -6,12 +6,14 @@ Structure:
 - game_features: Core game logic (lobby, menu, scenario interaction)
 """
 
+import re
 from contextlib import asynccontextmanager
 
 import httpx
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
+from loguru import logger
 from starlette.requests import Request
 
 from src.frontend.config.settings import settings
@@ -19,23 +21,61 @@ from src.frontend.core.middleware import AuthUserMiddleware
 from src.frontend.core.renderer import get_ui_renderer
 from src.frontend.core.routing import include_frontend_routers
 from src.frontend.game_features.game_menu import GameMenuMiddleware
+from src.shared.logging_config import setup_logging
+
+setup_logging(
+    settings=settings,
+    service_name="frontend",
+    intercept_loggers=["uvicorn", "fastapi"],
+    log_levels={"httpx": 30},
+)
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup logic
+    logger.info("Frontend startup started")
     if settings.debug:
-        print("🛠️  Frontend running in DEBUG mode")
+        logger.info("Frontend running in DEBUG mode")
 
     # Store templates in state for the UIRenderer dependency
-    app.state.templates = Jinja2Templates(directory=str(settings.templates_dir))
-    app.state.backend_http_client = httpx.AsyncClient(timeout=10.0)
+    try:
+        app.state.templates = Jinja2Templates(directory=str(settings.templates_dir))
+
+        # Scenario rich text filter for automatic CAPS wrapping
+        def scenario_rich_text_filter(text: str) -> str:
+            if not text:
+                return text
+            # Matches uppercase blocks (8+ chars) not surrounded by lowercase letters
+            pattern = r"(?<![а-яa-z])([А-ЯA-Z0-9\s\.,!\?\-\:\%\#\[\]]{8,})(?![а-яa-z])"
+
+            def repl(m):
+                seg = m.group(1).strip()
+                if any(c.isupper() for c in seg) and len(seg) > 5:
+                    return f'<span class="system-alert">{seg}</span>'
+                return m.group(0)
+
+            return re.sub(pattern, repl, text)
+
+        app.state.templates.env.filters["scenario_rich_text"] = scenario_rich_text_filter
+
+        app.state.backend_http_client = httpx.AsyncClient(timeout=10.0)
+    except Exception:
+        logger.opt(exception=True).critical("Frontend startup failed")
+        raise
+    logger.info(
+        "Frontend startup finished: templates_dir={} static_dir={}", settings.templates_dir, settings.static_dir
+    )
 
     yield
 
     # Shutdown logic
-    await app.state.backend_http_client.aclose()
-    print("👋 Shutting down frontend server")
+    try:
+        await app.state.backend_http_client.aclose()
+    except Exception:
+        logger.opt(exception=True).critical("Frontend shutdown failed")
+        raise
+    logger.info("Frontend shutdown finished")
 
 
 # Initialize FastAPI app
@@ -64,11 +104,18 @@ async def health():
 
 @app.exception_handler(404)
 async def not_found_handler(request: Request, exc: Exception):
+    logger.warning("Frontend 404: method={} path={}", request.method, request.url.path)
     ui = get_ui_renderer(request)
     return await ui.render("errors/404.html", context={"error": "PAGE_NOT_FOUND"}, status_code=404)
 
 
 @app.exception_handler(500)
 async def server_error_handler(request: Request, exc: Exception):
+    logger.opt(exception=exc).critical(
+        "Frontend 500: method={} path={} error={}",
+        request.method,
+        request.url.path,
+        exc.__class__.__name__,
+    )
     ui = get_ui_renderer(request)
     return await ui.render("errors/500.html", context={"error": str(exc)}, status_code=500)

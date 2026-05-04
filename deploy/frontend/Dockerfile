@@ -16,6 +16,7 @@ RUN python -m venv /venv && \
 FROM python:3.13-slim AS runtime
 WORKDIR /app
 
+# hadolint ignore=DL3008
 RUN apt-get update && apt-get install -y --no-install-recommends curl && \
     rm -rf /var/lib/apt/lists/* && \
     adduser --disabled-password --uid 1000 appuser

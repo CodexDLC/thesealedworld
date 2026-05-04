@@ -23,10 +23,11 @@ async def on_scenario_start_requested(payload: dict[str, Any]) -> None:
     # TODO(scenario-migration): activate this path when onboarding moves to event-driven flow.
     # Current monolith onboarding calls ScenarioService directly to avoid self-BLPOP orchestration.
     if _app is None:
+        log.warning("Scenario start event ignored: app_not_bound")
         return
     cid = payload.get("correlation_id")
 
-    log.info("TODO: scenario.start_requested event path is not wired yet; payload=%s", payload)
+    log.warning("Scenario start event rejected: path_not_wired cid=%s", cid)
     ack: dict[str, Any] = {"status": "error", "error": "scenario.start_requested is not wired yet"}
 
     if cid:

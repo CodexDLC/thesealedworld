@@ -6,9 +6,9 @@ from typing import TYPE_CHECKING, Any
 from src.backend.features.world.services.navigation_service import WorldNavigationService
 
 if TYPE_CHECKING:
-    from src.backend.infrastructure.db.world.models import WorldGrid
-    from src.backend.infrastructure.db.world.repositories import WorldRepository
-    from src.backend.infrastructure.redis.world import WorldLocationStore
+    from src.backend.infrastructure.world.managers.location_store import WorldLocationStore
+    from src.backend.infrastructure.world.models import WorldGrid
+    from src.backend.infrastructure.world.repositories import WorldRepository
 
 log = logging.getLogger(__name__)
 

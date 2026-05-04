@@ -1,6 +1,6 @@
 import pytest
 from unittest.mock import AsyncMock, MagicMock
-from src.backend.infrastructure.redis.scenario.session_manager import ScenarioSessionManager, ScenarioSessionAlreadyExistsError
+from src.backend.infrastructure.scenario.managers.session_manager import ScenarioSessionManager, ScenarioSessionAlreadyExistsError
 from src.backend.features.scenario.dto.context import ScenarioContextDTO
 import uuid
 

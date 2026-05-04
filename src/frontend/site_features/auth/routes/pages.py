@@ -5,11 +5,13 @@ import httpx
 from fastapi import APIRouter, Depends, Request, status
 from fastapi.responses import RedirectResponse
 
+from src.frontend.config.settings import settings
 from src.frontend.core.renderer import UIRenderer, get_ui_renderer
 from src.frontend.site_features.auth.dependencies.providers import get_frontend_auth_service
 from src.frontend.site_features.auth.forms.login import LoginForm
 from src.frontend.site_features.auth.forms.register import RegisterForm
 from src.frontend.site_features.auth.services.auth_service import FrontendAuthService
+from src.shared.utils.dev_utils import log_debug_payload
 
 router = APIRouter(tags=["Auth"])
 
@@ -31,6 +33,7 @@ async def login_submit(
 
     try:
         tokens = await auth_service.login(form.email, form.password)
+        log_debug_payload("auth_page.login_submit", tokens, enabled=settings.debug)
     except httpx.HTTPStatusError:
         form.error = "Incorrect email or password"
         return await ui.render("site/auth/login.html", context={"form": form}, status_code=status.HTTP_401_UNAUTHORIZED)
@@ -58,7 +61,8 @@ async def register_submit(
         )
 
     try:
-        await auth_service.register(form.email, form.password)
+        response = await auth_service.register(form.email, form.password)
+        log_debug_payload("auth_page.register_submit", response, enabled=settings.debug)
     except httpx.HTTPStatusError as exc:
         if exc.response.status_code == status.HTTP_409_CONFLICT:
             form.errors.append("Email already registered")

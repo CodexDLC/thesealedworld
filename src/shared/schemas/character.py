@@ -26,6 +26,7 @@ class CharacterReadDTO(BaseModel):
     user_id: uuid.UUID
     name: str
     gender: Gender
+    avatar_url: str | None = None
     game_stage: str
     prev_game_stage: str | None = None
     location_id: str = "52_52"
@@ -56,6 +57,19 @@ class CharacterAttributesReadDTO(CharacterAttributesUpdateDTO):
     character_id: int = 0
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class CharacterStatusDTO(BaseModel):
+    character_id: int
+    hp: float
+    max_hp: int
+    energy: float
+    max_energy: int
+    stamina: float
+    max_stamina: int
+    last_update: datetime
+    avatar_url: str | None = None
+    name: str | None = None
 
 
 CharacterStatsUpdateDTO = CharacterAttributesUpdateDTO

@@ -27,7 +27,11 @@
         "icon": "default",
         "to_node": "pool:cycle_3"
       }
-    ]
+    ],
+    "tags": [
+      "bridge_late"
+    ],
+    "selection_requirements": "step_counter >= 6"
   },
   {
     "node_key": "bridge_late_pattern",
@@ -42,7 +46,11 @@
         "icon": "default",
         "to_node": "pool:cycle_3"
       }
-    ]
+    ],
+    "tags": [
+      "bridge_late"
+    ],
+    "selection_requirements": "step_counter >= 6"
   },
   {
     "node_key": "bridge_late_echo",
@@ -57,7 +65,11 @@
         "icon": "default",
         "to_node": "pool:cycle_3"
       }
-    ]
+    ],
+    "tags": [
+      "bridge_late"
+    ],
+    "selection_requirements": "step_counter >= 6"
   },
   {
     "node_key": "bridge_late_static",
@@ -72,7 +84,11 @@
         "icon": "default",
         "to_node": "pool:cycle_3"
       }
-    ]
+    ],
+    "tags": [
+      "bridge_late"
+    ],
+    "selection_requirements": "step_counter >= 6"
   },
   {
     "node_key": "bridge_late_vision",
@@ -87,7 +103,11 @@
         "icon": "default",
         "to_node": "pool:cycle_3"
       }
-    ]
+    ],
+    "tags": [
+      "bridge_late"
+    ],
+    "selection_requirements": "step_counter >= 6"
   },
   {
     "node_key": "bridge_late_void",
@@ -102,7 +122,11 @@
         "icon": "default",
         "to_node": "pool:cycle_3"
       }
-    ]
+    ],
+    "tags": [
+      "bridge_late"
+    ],
+    "selection_requirements": "step_counter >= 6"
   },
   {
     "node_key": "event_acid_mist",
@@ -115,20 +139,44 @@
         "action_id": "choice_1",
         "label": "Игнорировать боль и идти напролом, закаляя тело",
         "icon": "default",
-        "to_node": "cycle_3_logic_router"
+        "to_node": "cycle_3_logic_router",
+        "math": {
+          "w_endurance": "+3",
+          "w_men": "+2",
+          "w_strength": "+1",
+          "t_nature": "+1",
+          "step_counter": "+1"
+        }
       },
       {
         "action_id": "choice_2",
         "label": "Замедлить дыхание и фильтровать воздух через внутреннюю энергию",
         "icon": "default",
-        "to_node": "cycle_3_logic_router"
+        "to_node": "cycle_3_logic_router",
+        "math": {
+          "w_wisdom": "+3",
+          "w_men": "+2",
+          "w_intelligence": "+1",
+          "t_water": "+1",
+          "step_counter": "+1"
+        }
       },
       {
         "action_id": "choice_3",
         "label": "Создать вихрь вокруг себя быстрым вращением loot_queue.0",
         "icon": "default",
-        "to_node": "cycle_3_logic_router"
+        "to_node": "cycle_3_logic_router",
+        "math": {
+          "w_strength": "+3",
+          "w_agility": "+2",
+          "w_luck": "+1",
+          "t_air": "+1",
+          "step_counter": "+1"
+        }
       }
+    ],
+    "tags": [
+      "cycle_3"
     ]
   },
   {
@@ -142,20 +190,44 @@
         "action_id": "choice_1",
         "label": "Уклоняться от осколков в молниеносном танце",
         "icon": "default",
-        "to_node": "cycle_3_logic_router"
+        "to_node": "cycle_3_logic_router",
+        "math": {
+          "w_agility": "+3",
+          "w_perception": "+2",
+          "w_luck": "+1",
+          "t_air": "+1",
+          "step_counter": "+1"
+        }
       },
       {
         "action_id": "choice_2",
         "label": "Предсказать точки падения по мерцанию воздуха",
         "icon": "default",
-        "to_node": "cycle_3_logic_router"
+        "to_node": "cycle_3_logic_router",
+        "math": {
+          "w_perception": "+3",
+          "w_intelligence": "+2",
+          "w_wisdom": "+1",
+          "t_arcane": "+1",
+          "step_counter": "+1"
+        }
       },
       {
         "action_id": "choice_3",
         "label": "Принять удар на loot_queue.1, блокируя шквал",
         "icon": "default",
-        "to_node": "cycle_3_logic_router"
+        "to_node": "cycle_3_logic_router",
+        "math": {
+          "w_strength": "+3",
+          "w_endurance": "+2",
+          "w_men": "+1",
+          "t_earth": "+1",
+          "step_counter": "+1"
+        }
       }
+    ],
+    "tags": [
+      "cycle_3"
     ]
   },
   {
@@ -169,20 +241,44 @@
         "action_id": "choice_1",
         "label": "Взломать код молний и заставить их расступиться",
         "icon": "default",
-        "to_node": "cycle_3_logic_router"
+        "to_node": "cycle_3_logic_router",
+        "math": {
+          "w_intelligence": "+3",
+          "w_wisdom": "+2",
+          "w_perception": "+1",
+          "t_arcane": "+1",
+          "step_counter": "+1"
+        }
       },
       {
         "action_id": "choice_2",
         "label": "Принять разряд на себя, закаляя нервную систему",
         "icon": "default",
-        "to_node": "cycle_3_logic_router"
+        "to_node": "cycle_3_logic_router",
+        "math": {
+          "w_men": "+3",
+          "w_endurance": "+2",
+          "w_strength": "+1",
+          "t_light": "+1",
+          "step_counter": "+1"
+        }
       },
       {
         "action_id": "choice_3",
         "label": "Использовать loot_queue.0 как громоотвод, заземляя энергию",
         "icon": "default",
-        "to_node": "cycle_3_logic_router"
+        "to_node": "cycle_3_logic_router",
+        "math": {
+          "w_strength": "+3",
+          "w_endurance": "+2",
+          "w_men": "+1",
+          "t_fire": "+1",
+          "step_counter": "+1"
+        }
       }
+    ],
+    "tags": [
+      "cycle_3"
     ]
   },
   {
@@ -196,20 +292,44 @@
         "action_id": "choice_1",
         "label": "Замереть и на выносливости дождаться стабилизации",
         "icon": "default",
-        "to_node": "cycle_3_logic_router"
+        "to_node": "cycle_3_logic_router",
+        "math": {
+          "w_endurance": "+3",
+          "w_men": "+2",
+          "w_strength": "+1",
+          "t_earth": "+1",
+          "step_counter": "+1"
+        }
       },
       {
         "action_id": "choice_2",
         "label": "Довериться интуиции и сделать рывок в сторону",
         "icon": "default",
-        "to_node": "cycle_3_logic_router"
+        "to_node": "cycle_3_logic_router",
+        "math": {
+          "w_luck": "+3",
+          "w_agility": "+2",
+          "w_perception": "+1",
+          "t_dark": "+1",
+          "step_counter": "+1"
+        }
       },
       {
         "action_id": "choice_3",
         "label": "Взобраться по призрачным нитям кода в воздухе",
         "icon": "default",
-        "to_node": "cycle_3_logic_router"
+        "to_node": "cycle_3_logic_router",
+        "math": {
+          "w_agility": "+3",
+          "w_perception": "+2",
+          "w_intelligence": "+1",
+          "t_air": "+1",
+          "step_counter": "+1"
+        }
       }
+    ],
+    "tags": [
+      "cycle_3"
     ]
   },
   {
@@ -223,20 +343,44 @@
         "action_id": "choice_1",
         "label": "Сосредоточиться на внутреннем жаре Осколка",
         "icon": "default",
-        "to_node": "cycle_3_logic_router"
+        "to_node": "cycle_3_logic_router",
+        "math": {
+          "w_wisdom": "+3",
+          "w_men": "+2",
+          "w_intelligence": "+1",
+          "t_light": "+1",
+          "step_counter": "+1"
+        }
       },
       {
         "action_id": "choice_2",
         "label": "Напрячь мышцы, поддерживая тепло через усилие",
         "icon": "default",
-        "to_node": "cycle_3_logic_router"
+        "to_node": "cycle_3_logic_router",
+        "math": {
+          "w_endurance": "+3",
+          "w_strength": "+2",
+          "w_men": "+1",
+          "t_fire": "+1",
+          "step_counter": "+1"
+        }
       },
       {
         "action_id": "choice_3",
         "label": "Обрушить серию быстрых ударов по камням",
         "icon": "default",
-        "to_node": "cycle_3_logic_router"
+        "to_node": "cycle_3_logic_router",
+        "math": {
+          "w_strength": "+3",
+          "w_agility": "+2",
+          "w_endurance": "+1",
+          "t_earth": "+1",
+          "step_counter": "+1"
+        }
       }
+    ],
+    "tags": [
+      "cycle_3"
     ]
   },
   {
@@ -250,20 +394,44 @@
         "action_id": "choice_1",
         "label": "Уловить момент безопасной тропы",
         "icon": "default",
-        "to_node": "cycle_3_logic_router"
+        "to_node": "cycle_3_logic_router",
+        "math": {
+          "w_perception": "+3",
+          "w_intelligence": "+2",
+          "w_luck": "+1",
+          "t_arcane": "+1",
+          "step_counter": "+1"
+        }
       },
       {
         "action_id": "choice_2",
         "label": "Бежать вперед, надеясь на удачу Осколка",
         "icon": "default",
-        "to_node": "cycle_3_logic_router"
+        "to_node": "cycle_3_logic_router",
+        "math": {
+          "w_luck": "+3",
+          "w_agility": "+2",
+          "w_men": "+1",
+          "t_water": "+1",
+          "step_counter": "+1"
+        }
       },
       {
         "action_id": "choice_3",
         "label": "Сгруппироваться и защитить органы доспехом",
         "icon": "default",
-        "to_node": "cycle_3_logic_router"
+        "to_node": "cycle_3_logic_router",
+        "math": {
+          "w_endurance": "+3",
+          "w_men": "+2",
+          "w_strength": "+1",
+          "t_nature": "+1",
+          "step_counter": "+1"
+        }
       }
+    ],
+    "tags": [
+      "cycle_3"
     ]
   },
   {
@@ -275,7 +443,8 @@
         "action_id": "finish",
         "label": "К бою!",
         "icon": "default",
-        "to_node": null
+        "to_node": null,
+        "type": "finish_quest"
       }
     ]
   }

@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from src.backend.infrastructure.db.world.models import WorldGrid
+    from src.backend.infrastructure.world.models import WorldGrid
 
 
 class WorldNavigationService:

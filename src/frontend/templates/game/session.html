@@ -4,7 +4,7 @@
 <div id="game-session-root" class="game-session-shell" style="display: flex; flex-direction: column; flex: 1; position: relative;">
     {# Background layer #}
     <div id="game-bg" class="game-scene-layer"
-         style="background-image: url('{{ background_url|default('/static/images/bg_placeholder.png') }}'); z-index: 0; position: absolute; inset: 0;">
+         style="background-image: url('{{ background_url if background_url else '/static/images/scenes/forest.png' }}'); z-index: 0; position: absolute; inset: 0;">
     </div>
 
     {# Main interactive area #}

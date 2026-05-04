@@ -33,9 +33,9 @@ class TestScenarioLoader:
         file_path = tmp_path / "scenario.json"
         file_path.write_text(json.dumps(scenario_data))
 
-        with patch("src.backend.infrastructure.db.scenario.repositories.ScenarioRepository.upsert_master", new_callable=AsyncMock) as mock_upsert, \
-             patch("src.backend.infrastructure.db.scenario.repositories.ScenarioRepository.delete_quest_nodes", new_callable=AsyncMock) as mock_delete, \
-             patch("src.backend.infrastructure.db.scenario.repositories.ScenarioRepository.bulk_insert_nodes", new_callable=AsyncMock) as mock_bulk:
+        with patch("src.backend.infrastructure.scenario.repositories.ScenarioRepository.upsert_master", new_callable=AsyncMock) as mock_upsert, \
+             patch("src.backend.infrastructure.scenario.repositories.ScenarioRepository.delete_quest_nodes", new_callable=AsyncMock) as mock_delete, \
+             patch("src.backend.infrastructure.scenario.repositories.ScenarioRepository.bulk_insert_nodes", new_callable=AsyncMock) as mock_bulk:
 
             quest_key = await loader.load_from_file(file_path)
 
@@ -54,9 +54,9 @@ class TestScenarioLoader:
         file_path = tmp_path / "scenario.json"
         file_path.write_text(json.dumps(scenario_data))
 
-        with patch("src.backend.infrastructure.db.scenario.repositories.ScenarioRepository.upsert_master", new_callable=AsyncMock), \
-             patch("src.backend.infrastructure.db.scenario.repositories.ScenarioRepository.delete_quest_nodes", new_callable=AsyncMock), \
-             patch("src.backend.infrastructure.db.scenario.repositories.ScenarioRepository.bulk_insert_nodes", new_callable=AsyncMock):
+        with patch("src.backend.infrastructure.scenario.repositories.ScenarioRepository.upsert_master", new_callable=AsyncMock), \
+             patch("src.backend.infrastructure.scenario.repositories.ScenarioRepository.delete_quest_nodes", new_callable=AsyncMock), \
+             patch("src.backend.infrastructure.scenario.repositories.ScenarioRepository.bulk_insert_nodes", new_callable=AsyncMock):
 
             await loader.load_from_file(file_path)
             # Should not crash without content service

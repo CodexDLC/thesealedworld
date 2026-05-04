@@ -1,6 +1,7 @@
 from typing import Any, TypeVar, overload
 
 import httpx
+from loguru import logger
 from pydantic import BaseModel
 
 T = TypeVar("T", bound=BaseModel)  # For automatic parsing into Pydantic models
@@ -45,8 +46,24 @@ class BaseApiClient:
         Internal helper for making requests and validating responses.
         """
         url = f"{self.base_url}/{endpoint.lstrip('/')}"
-        response = await self.client.request(method, url, **kwargs)
-        response.raise_for_status()
+        try:
+            response = await self.client.request(method, url, **kwargs)
+            response.raise_for_status()
+        except httpx.HTTPStatusError as exc:
+            logger.warning(
+                "Backend request rejected: method={} endpoint={} status={}",
+                method,
+                endpoint,
+                exc.response.status_code,
+            )
+            raise
+        except httpx.RequestError:
+            logger.opt(exception=True).critical("Backend request failed: method={} endpoint={}", method, endpoint)
+            raise
+
+        logger.info(
+            "Backend request completed: method={} endpoint={} status={}", method, endpoint, response.status_code
+        )
         if response.status_code == 204 or not response.content:
             return None
 

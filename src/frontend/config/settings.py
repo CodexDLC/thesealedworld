@@ -10,6 +10,13 @@ BASE_DIR = Path(__file__).parent.parent.parent.parent
 class FrontendSettings(BaseCommonSettings):
     """Frontend-specific settings inheriting from codex-core base."""
 
+    # Logging
+    debug: bool = True
+    log_level_console: str = "DEBUG"
+    log_level_file: str = "INFO"
+    log_rotation: str = "10 MB"
+    log_dir: str = "logs"
+
     # Server Settings
     app_host: str = "0.0.0.0"
     app_port: int = 8000

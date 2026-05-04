@@ -12,7 +12,7 @@ class ScenarioButtonDTO(BaseModel):
 class ScenarioPayloadDTO(BaseModel):
     node_key: str
     text: str
-    alerts: list[str] = Field(default_factory=list)
+    system_messages: list[str] = Field(default_factory=list)
     status_bar: list[str] = Field(default_factory=list)
     buttons: list[ScenarioButtonDTO] = Field(default_factory=list)
     is_terminal: bool = False

@@ -21,10 +21,21 @@ def bind(app: FastAPI) -> None:
 async def on_snapshots_requested(payload: dict[str, Any]) -> None:
     cid = payload.get("correlation_id")
     if not cid or _app is None:
+        log.warning(
+            "ActorState snapshots request ignored: missing_correlation_or_app cid=%s app_bound=%s",
+            cid,
+            _app is not None,
+        )
         return
 
     try:
         request = SnapshotsRequest.model_validate(payload)
+        log.info(
+            "ActorState snapshots request received: session_id=%s players=%s monsters=%s",
+            request.session_id,
+            len(request.player_ids),
+            len(request.monster_ids),
+        )
         service = ActorStateService(_app.state.actor_snapshots, _app.state.redis)
         result = await service.prepare_snapshots(
             session_id=request.session_id,
@@ -35,12 +46,24 @@ async def on_snapshots_requested(payload: dict[str, Any]) -> None:
             exclude=request.exclude,
         )
         if result.failed_players or result.failed_monsters:
+            log.warning(
+                "ActorState snapshots partially prepared: session_id=%s failed_players=%s failed_monsters=%s",
+                request.session_id,
+                len(result.failed_players),
+                len(result.failed_monsters),
+            )
             ack: dict[str, Any] = {
                 "status": "partial",
                 "failed_players": result.failed_players,
                 "failed_monsters": result.failed_monsters,
             }
         else:
+            log.info(
+                "ActorState snapshots prepared: session_id=%s players=%s monsters=%s",
+                request.session_id,
+                result.counts.get("players", 0),
+                result.counts.get("monsters", 0),
+            )
             ack = {
                 "status": "ok",
                 "players": result.counts.get("players", 0),
@@ -48,6 +71,7 @@ async def on_snapshots_requested(payload: dict[str, Any]) -> None:
                 "failed": [],
             }
     except Exception as exc:  # noqa: BLE001
+        log.exception("ActorState snapshots request failed")
         ack = {"status": "error", "error": f"{exc.__class__.__name__}: {exc}"}
 
     try:

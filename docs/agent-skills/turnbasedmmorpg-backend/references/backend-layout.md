@@ -31,6 +31,7 @@ api/
 dto/
 models/
 repositories/
+integrations/
 services/
 dependencies/
 events/
@@ -47,6 +48,8 @@ Use `dto/` for backend DTOs owned by the feature, unless a DTO is a shared front
 Use `models/` for SQLAlchemy ORM models owned by the feature.
 
 Use `repositories/` for persistence and cache access owned by the feature. Split into `db/` and `redis/` only when useful.
+
+Use `integrations/` for facades that encapsulate low-level infrastructure managers (DB, Redis, sessions) behind a single cohesive interface.
 
 Use `services/` for feature use cases and application/domain logic.
 

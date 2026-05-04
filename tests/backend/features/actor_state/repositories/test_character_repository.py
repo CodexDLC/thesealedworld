@@ -1,6 +1,6 @@
 import pytest
 from unittest.mock import AsyncMock, MagicMock
-from src.backend.infrastructure.db.actor_state.repositories.db.character_repository import CharacterRepository, CharacterAttributesRepository
+from src.backend.infrastructure.actor_state.repositories import CharacterRepository, CharacterAttributesRepository
 from src.shared.schemas.character import CharacterReadDTO, CharacterAttributesReadDTO
 from sqlalchemy.exc import SQLAlchemyError
 

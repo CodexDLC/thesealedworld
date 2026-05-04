@@ -1,9 +1,12 @@
 import pytest
+import uuid
 from unittest.mock import AsyncMock, MagicMock
-from src.backend.infrastructure.db.actor_state.repositories.db.monster_repository import MonsterRepository
-from src.backend.infrastructure.db.actor_state.repositories.db.skill_repository import SkillProgressRepository
-from src.backend.infrastructure.db.actor_state.repositories.db.symbiote_repository import SymbioteRepository
-from src.backend.infrastructure.db.actor_state.repositories.db.wallet_repository import WalletRepository
+from src.backend.infrastructure.actor_state.repositories import (
+    MonsterRepository,
+    SkillRepository,
+    SymbioteRepository,
+    WalletRepository,
+)
 from sqlalchemy.exc import SQLAlchemyError
 
 @pytest.mark.unit
@@ -30,7 +33,7 @@ class TestOtherActorStateRepositories:
             await repo.get_monsters_batch([uid])
 
     async def test_skill_repo(self, session, mocker):
-        repo = SkillProgressRepository(session)
+        repo = SkillRepository(session)
         mock_skill = MagicMock(character_id=1)
         mock_result = MagicMock()
         mock_result.all.return_value = [mock_skill]
@@ -56,15 +59,11 @@ class TestOtherActorStateRepositories:
     async def test_wallet_repo(self, session):
         repo = WalletRepository(session)
         mock_wallet = MagicMock(character_id=1)
-        mock_result = MagicMock()
-        mock_result.one_or_none.return_value = mock_wallet
-        session.scalars = AsyncMock(return_value=mock_result)
+        session.scalar = AsyncMock(return_value=mock_wallet)
 
         result = await repo.get_wallet(1)
         assert result.character_id == 1
 
-        session.scalars = AsyncMock(side_effect=SQLAlchemyError())
+        session.scalar = AsyncMock(side_effect=SQLAlchemyError())
         with pytest.raises(SQLAlchemyError):
             await repo.get_wallet(1)
-
-import uuid

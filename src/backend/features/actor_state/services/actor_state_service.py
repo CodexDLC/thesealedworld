@@ -5,11 +5,13 @@ from collections.abc import Callable
 from contextlib import AbstractAsyncContextManager
 from typing import TYPE_CHECKING, Any
 
+from loguru import logger
+
 from src.backend.core.database import get_session_context
 from src.backend.features.actor_state.dto.snapshot import ActorSnapshotBatchResult
 from src.backend.features.actor_state.runtime.assemblers import monster_assembler, player_assembler
 from src.backend.features.actor_state.runtime.sections import resolve_sections
-from src.backend.infrastructure.redis.actor_snapshot_manager import ActorSnapshotManager
+from src.backend.infrastructure.actor_state.managers.snapshot import ActorSnapshotManager
 
 if TYPE_CHECKING:
     from codex_platform.redis_service import RedisService
@@ -38,6 +40,13 @@ class ActorStateService:
         exclude: set[str] | None = None,
     ) -> ActorSnapshotBatchResult:
         sections = resolve_sections(include, exclude or set())
+        logger.info(
+            "Actor snapshots preparation started: session_id={} players={} monsters={} sections={}",
+            session_id,
+            len(player_ids),
+            len(monster_ids),
+            sorted(sections),
+        )
 
         async with self.session_factory() as session:
             player_snapshots, monster_snapshots = await asyncio.gather(
@@ -55,6 +64,15 @@ class ActorStateService:
         failed_monsters = [
             monster_id for monster_id in monster_ids if f"{session_id}:monster:{monster_id}" not in saved
         ]
+        if failed_players or failed_monsters:
+            logger.warning(
+                "Actor snapshots preparation partial: session_id={} failed_players={} failed_monsters={}",
+                session_id,
+                len(failed_players),
+                len(failed_monsters),
+            )
+        else:
+            logger.info("Actor snapshots preparation completed: session_id={} saved={}", session_id, len(saved))
 
         return ActorSnapshotBatchResult(
             snapshot_keys=saved,

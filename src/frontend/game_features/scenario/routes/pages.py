@@ -2,9 +2,11 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, Form, Request
 
+from src.frontend.config.settings import settings
 from src.frontend.core.renderer import UIRenderer, get_ui_renderer
 from src.frontend.game_features.scenario.dependencies.providers import get_scenario_page_service
 from src.frontend.game_features.scenario.services.scenario_page_service import ScenarioPageService
+from src.shared.utils.dev_utils import log_debug_payload
 
 router = APIRouter(tags=["Scenario"])
 
@@ -18,6 +20,7 @@ async def game_scenario_initialize(
     quest_key: Annotated[str, Form()],
 ):
     vm = await scenario_service.initialize(request, char_id=char_id, quest_key=quest_key)
+    log_debug_payload("scenario_page.game_scenario_initialize", vm, enabled=settings.debug)
     return await ui.render("game/session.html", context=_session_context(vm))
 
 
@@ -30,6 +33,7 @@ async def game_scenario_step(
     action_id: Annotated[str, Form()],
 ):
     template, context = await scenario_service.step(request, char_id=char_id, action_id=action_id)
+    log_debug_payload("scenario_page.game_scenario_step", context, enabled=settings.debug)
     if hasattr(context, "model_dump"):
         return await ui.render(template, context=_session_context(context))
     return await ui.render(template, context=context)
@@ -43,6 +47,7 @@ async def game_scenario_resume(
     scenario_service: Annotated[ScenarioPageService, Depends(get_scenario_page_service)],
 ):
     vm = await scenario_service.resume(request, char_id=char_id)
+    log_debug_payload("scenario_page.game_scenario_resume", vm, enabled=settings.debug)
     return await ui.render("game/session.html", context=_session_context(vm))
 
 

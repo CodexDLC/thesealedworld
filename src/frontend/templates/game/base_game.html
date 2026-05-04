@@ -26,38 +26,52 @@
 
     <!-- Game Engine / Core -->
     <script src="/static/js/game.js" defer></script>
+    <script src="/static/js/core/status.js" defer></script>
 </head>
 <body class="game-body {% block body_class %}{% endblock body_class %}">
     <div id="app-viewport"
          class="game-container"
-         x-data="{
+          x-data="{
             chatTab: 'world',
             chatHeight: $persist(200),
             chatMinimized: $persist(false),
             chatStep: $persist(1),
-            leftOpen: false,
-            rightOpen: false
+            selectedAgentId: '{{ scenario.extra_data.get('char_id') if scenario and scenario.extra_data else '' }}',
+            agents: {
+                '{{ scenario.extra_data.get('char_id') if scenario and scenario.extra_data else '' }}': {
+                    hp: 0, max_hp: 1, energy: 0, max_energy: 1, stamina: 0, max_stamina: 1
+                }
+            },
+            leftOpen: {{ 'true' if scenario and scenario.extra_data and scenario.extra_data.get('show_left_sidebar') else 'false' }},
+            rightOpen: {{ 'true' if scenario and scenario.extra_data and scenario.extra_data.get('show_right_sidebar') else 'false' }}
          }"
          :style="`--chat-height: ${chatMinimized ? '100px' : chatHeight + 'px'}`"
          @panel-toggle.window="
              if ($event.detail.side === 'left') leftOpen = !leftOpen;
              if ($event.detail.side === 'right') rightOpen = !rightOpen;
          ">
-        {% include "game/includes/header.html" %}
+        <header class="game-header">
+            {% include "game/includes/header.html" %}
+        </header>
 
         <main id="main-content">
-            {% block content %}{% endblock content %}
+            <div class="shell-constrained">
+                {% block content %}{% endblock content %}
+            </div>
         </main>
 
         <div class="game-chat-row" id="game-chat-container"
-             style="position: relative; z-index: 2;"
              :class="{ 'chat-minimized': chatStep === 0, ['chat-step-' + chatStep]: true }">
-            <div style="flex: 1; display: flex; flex-direction: column; overflow: hidden;">
-                {% include "shared/chat/main.html" %}
+            <div class="shell-constrained">
+                <div style="flex: 1; display: flex; flex-direction: column; overflow: hidden;">
+                    {% include "shared/chat/main.html" %}
+                </div>
             </div>
         </div>
 
-        {% include "game/includes/footer.html" %}
+        <footer class="game-footer">
+            {% include "game/includes/footer.html" %}
+        </footer>
     </div>
 
     {% block scripts %}{% endblock scripts %}

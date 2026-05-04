@@ -6,9 +6,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.backend.core.database import get_db
 from src.backend.features.game_lobby.services.character_creation_service import CharacterCreationService
 from src.backend.features.game_lobby.services.lobby_service import GameLobbyService
+from src.backend.features.game_lobby.services.session_service import CharacterSessionService
 from src.backend.features.scenario.dependencies import build_scenario_service
 from src.backend.features.scenario.services import ScenarioService
-from src.backend.infrastructure.redis.character_session_manager import CharacterSessionManager
+from src.backend.infrastructure.actor_state.managers.session import CharacterSessionManager
 
 
 def get_game_lobby_service() -> GameLobbyService:
@@ -36,3 +37,10 @@ def get_character_creation_service(
         character_sessions=character_sessions,
         scenario_service=scenario_service,
     )
+
+
+def get_character_session_service(
+    db_session: Annotated[AsyncSession, Depends(get_db)],
+    character_sessions: Annotated[CharacterSessionManager, Depends(get_character_sessions)],
+) -> CharacterSessionService:
+    return CharacterSessionService(db_session, character_sessions)

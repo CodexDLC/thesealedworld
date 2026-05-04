@@ -1,20 +1,43 @@
 [
   {
     "node_key": "rift_entry_01",
-    "text": "Причальный Узел [52:52]. Вокруг лишь гул порталов. Перед тобой Оценщик.\n\n— Синхронизация слабая. Придется калибровать вручную.",
-    "system_messages": [],
+    "text": "Причальный Узел [52:52]. Над тобой нависают колоссальные ребра портальной арки, уходящие в бесконечное серое небо. Это — Сердце Города, место, где сохранились Монолиты — неразрушимые здания древних. \n\nПеред тобой стоит Оценщик. Его взгляд, усиленный окулярами, сканирует твою оболочку.\n\n— Еще один «переселенец»? — его голос звучит сухо, с легким электронным скрежетом. — Синхронизация слабая. Визор барахлит. Придется калибровать вручную, иначе Разлом выплюнет тебя обратно кусками кода.",
+    "avatar": "/static/images/scenarios/overseer.png",
     "actions": [
       {
         "action_id": "next",
         "label": "Что это значит?",
         "icon": "default",
+        "to_node": "overseer_dialogue_01",
+        "math": {
+          "w_wisdom": "+1"
+        }
+      }
+    ]
+  },
+  {
+    "node_key": "overseer_dialogue_01",
+    "text": "Оценщик делает шаг ближе. Ты видишь, как в глубине его линз пульсирует янтарный свет.\n\n— Это значит, что твоя связь с этим миром сейчас тоньше волоска. Ты видишь город? Эти черные шпили не знают износа. Они стояли до Разлома и будут стоять после. Но ты... ты здесь чужой. \n\nОн протягивает руку к твоему интерфейсу. \n\n— Позволишь мне вмешаться, или рискнешь совершить прыжок вслепую?",
+    "avatar": "/static/images/scenarios/overseer.png",
+    "actions": [
+      {
+        "action_id": "allow",
+        "label": "Довериться Оценщику",
+        "icon": "check",
+        "to_node": "crash_sequence_02"
+      },
+      {
+        "action_id": "risk",
+        "label": "Я справлюсь сам. Активировать прыжок",
+        "icon": "warning",
         "to_node": "crash_sequence_02"
       }
     ]
   },
   {
     "node_key": "crash_sequence_02",
-    "text": "Оценщик касается панели. Мир вокруг начинает искажаться. Системные ошибки заполняют зрение.",
+    "text": "Едва заметное движение — и мир начинает расслаиваться. Звук гудящих порталов превращается в оглушительный рев. \n\nОБНАРУЖЕНА КРИТИЧЕСКАЯ НЕСТАБИЛЬНОСТЬ. СИСТЕМНЫЕ ОШИБКИ ЗАПОЛНЯЮТ ЗРЕНИЕ. СТРУКТУРА РЕАЛЬНОСТИ ДЕФОРМИРУЕТСЯ.",
+    "avatar": "/static/images/scenarios/overseer.png",
     "system_messages": [
       "CRITICAL_SYNC_FAILURE",
       "EMERGENCY_JUMP"
@@ -22,7 +45,7 @@
     "actions": [
       {
         "action_id": "fall",
-        "label": "Провалиться в Рифт",
+        "label": "Провалиться в Изумрудный Разлом",
         "icon": "default",
         "to_node": "pool:bridge_early"
       }
@@ -41,7 +64,11 @@
         "icon": "default",
         "to_node": "pool:cycle_1"
       }
-    ]
+    ],
+    "tags": [
+      "bridge_early"
+    ],
+    "selection_requirements": "step_counter < 4"
   },
   {
     "node_key": "bridge_early_glitch",
@@ -56,7 +83,11 @@
         "icon": "default",
         "to_node": "pool:cycle_1"
       }
-    ]
+    ],
+    "tags": [
+      "bridge_early"
+    ],
+    "selection_requirements": "step_counter < 4"
   },
   {
     "node_key": "bridge_early_echo",
@@ -71,7 +102,11 @@
         "icon": "default",
         "to_node": "pool:cycle_1"
       }
-    ]
+    ],
+    "tags": [
+      "bridge_early"
+    ],
+    "selection_requirements": "step_counter < 4"
   },
   {
     "node_key": "bridge_early_pulse",
@@ -86,7 +121,11 @@
         "icon": "default",
         "to_node": "pool:cycle_1"
       }
-    ]
+    ],
+    "tags": [
+      "bridge_early"
+    ],
+    "selection_requirements": "step_counter < 4"
   },
   {
     "node_key": "bridge_early_static",
@@ -101,7 +140,11 @@
         "icon": "default",
         "to_node": "pool:cycle_1"
       }
-    ]
+    ],
+    "tags": [
+      "bridge_early"
+    ],
+    "selection_requirements": "step_counter < 4"
   },
   {
     "node_key": "bridge_early_cold",
@@ -116,7 +159,11 @@
         "icon": "default",
         "to_node": "pool:cycle_1"
       }
-    ]
+    ],
+    "tags": [
+      "bridge_early"
+    ],
+    "selection_requirements": "step_counter < 4"
   },
   {
     "node_key": "event_spark_nest",
@@ -129,20 +176,44 @@
         "action_id": "choice_1",
         "label": "Проскочить сквозь рощу, подражая ритму искр",
         "icon": "default",
-        "to_node": "cycle_1_logic_router"
+        "to_node": "cycle_1_logic_router",
+        "math": {
+          "w_agility": "+3",
+          "w_perception": "+2",
+          "w_luck": "+1",
+          "t_air": "+1",
+          "step_counter": "+1"
+        }
       },
       {
         "action_id": "choice_2",
         "label": "Прикрыть голову руками и проломиться сквозь светящиеся ветви",
         "icon": "default",
-        "to_node": "cycle_1_logic_router"
+        "to_node": "cycle_1_logic_router",
+        "math": {
+          "w_endurance": "+3",
+          "w_men": "+2",
+          "w_strength": "+1",
+          "t_fire": "+1",
+          "step_counter": "+1"
+        }
       },
       {
         "action_id": "choice_3",
         "label": "Использовать помехи, чтобы откалибровать сенсоры",
         "icon": "default",
-        "to_node": "cycle_1_logic_router"
+        "to_node": "cycle_1_logic_router",
+        "math": {
+          "w_intelligence": "+3",
+          "w_wisdom": "+2",
+          "w_perception": "+1",
+          "t_arcane": "+1",
+          "step_counter": "+1"
+        }
       }
+    ],
+    "tags": [
+      "cycle_1"
     ]
   },
   {
@@ -156,20 +227,44 @@
         "action_id": "choice_1",
         "label": "Упереться ногами и выстоять против давления",
         "icon": "default",
-        "to_node": "cycle_1_logic_router"
+        "to_node": "cycle_1_logic_router",
+        "math": {
+          "w_men": "+3",
+          "w_endurance": "+2",
+          "w_strength": "+1",
+          "t_earth": "+1",
+          "step_counter": "+1"
+        }
       },
       {
         "action_id": "choice_2",
         "label": "Сосредоточиться и войти в транс для понимания знаков",
         "icon": "default",
-        "to_node": "cycle_1_logic_router"
+        "to_node": "cycle_1_logic_router",
+        "math": {
+          "w_wisdom": "+3",
+          "w_intelligence": "+2",
+          "w_men": "+1",
+          "t_light": "+1",
+          "step_counter": "+1"
+        }
       },
       {
         "action_id": "choice_3",
         "label": "Обойти аномалию по самому краю обрыва",
         "icon": "default",
-        "to_node": "cycle_1_logic_router"
+        "to_node": "cycle_1_logic_router",
+        "math": {
+          "w_agility": "+3",
+          "w_luck": "+2",
+          "w_perception": "+1",
+          "t_water": "+1",
+          "step_counter": "+1"
+        }
       }
+    ],
+    "tags": [
+      "cycle_1"
     ]
   },
   {
@@ -183,20 +278,44 @@
         "action_id": "choice_1",
         "label": "Перехватить управление лучом через интерфейс",
         "icon": "default",
-        "to_node": "cycle_1_logic_router"
+        "to_node": "cycle_1_logic_router",
+        "math": {
+          "w_intelligence": "+3",
+          "w_wisdom": "+2",
+          "w_perception": "+1",
+          "t_arcane": "+1",
+          "step_counter": "+1"
+        }
       },
       {
         "action_id": "choice_2",
         "label": "Обрушить конструкцию, пока она не взорвалась",
         "icon": "default",
-        "to_node": "cycle_1_logic_router"
+        "to_node": "cycle_1_logic_router",
+        "math": {
+          "w_strength": "+3",
+          "w_men": "+2",
+          "w_endurance": "+1",
+          "t_fire": "+1",
+          "step_counter": "+1"
+        }
       },
       {
         "action_id": "choice_3",
         "label": "Отыскать безопасный путь в тени обломков",
         "icon": "default",
-        "to_node": "cycle_1_logic_router"
+        "to_node": "cycle_1_logic_router",
+        "math": {
+          "w_perception": "+3",
+          "w_agility": "+2",
+          "w_luck": "+1",
+          "t_dark": "+1",
+          "step_counter": "+1"
+        }
       }
+    ],
+    "tags": [
+      "cycle_1"
     ]
   },
   {
@@ -210,20 +329,44 @@
         "action_id": "choice_1",
         "label": "Положиться на интуицию и бежать напролом",
         "icon": "default",
-        "to_node": "cycle_1_logic_router"
+        "to_node": "cycle_1_logic_router",
+        "math": {
+          "w_luck": "+3",
+          "w_agility": "+2",
+          "w_perception": "+1",
+          "t_nature": "+1",
+          "step_counter": "+1"
+        }
       },
       {
         "action_id": "choice_2",
         "label": "Замедлить сердцебиение и идти максимально плавно",
         "icon": "default",
-        "to_node": "cycle_1_logic_router"
+        "to_node": "cycle_1_logic_router",
+        "math": {
+          "w_wisdom": "+3",
+          "w_endurance": "+2",
+          "w_men": "+1",
+          "t_water": "+1",
+          "step_counter": "+1"
+        }
       },
       {
         "action_id": "choice_3",
         "label": "Прожечь себе тропу, используя энергию ядра",
         "icon": "default",
-        "to_node": "cycle_1_logic_router"
+        "to_node": "cycle_1_logic_router",
+        "math": {
+          "w_strength": "+3",
+          "w_intelligence": "+2",
+          "w_endurance": "+1",
+          "t_fire": "+1",
+          "step_counter": "+1"
+        }
       }
+    ],
+    "tags": [
+      "cycle_1"
     ]
   },
   {
@@ -237,20 +380,44 @@
         "action_id": "choice_1",
         "label": "Перебежать по лианам, используя инерцию движения шестерен",
         "icon": "default",
-        "to_node": "cycle_1_logic_router"
+        "to_node": "cycle_1_logic_router",
+        "math": {
+          "w_agility": "+3",
+          "w_perception": "+2",
+          "w_luck": "+1",
+          "t_nature": "+1",
+          "step_counter": "+1"
+        }
       },
       {
         "action_id": "choice_2",
         "label": "Намертво вцепиться в стебли и продвигаться силой",
         "icon": "default",
-        "to_node": "cycle_1_logic_router"
+        "to_node": "cycle_1_logic_router",
+        "math": {
+          "w_endurance": "+3",
+          "w_strength": "+2",
+          "w_men": "+1",
+          "t_earth": "+1",
+          "step_counter": "+1"
+        }
       },
       {
         "action_id": "choice_3",
         "label": "Вычислить момент, когда вращение шестерен замирает",
         "icon": "default",
-        "to_node": "cycle_1_logic_router"
+        "to_node": "cycle_1_logic_router",
+        "math": {
+          "w_perception": "+3",
+          "w_intelligence": "+2",
+          "w_wisdom": "+1",
+          "t_arcane": "+1",
+          "step_counter": "+1"
+        }
       }
+    ],
+    "tags": [
+      "cycle_1"
     ]
   },
   {
@@ -264,20 +431,44 @@
         "action_id": "choice_1",
         "label": "Сцепить зубы и выстоять, пока реальность не стабилизируется",
         "icon": "default",
-        "to_node": "cycle_1_logic_router"
+        "to_node": "cycle_1_logic_router",
+        "math": {
+          "w_men": "+3",
+          "w_endurance": "+2",
+          "w_strength": "+1",
+          "t_dark": "+1",
+          "step_counter": "+1"
+        }
       },
       {
         "action_id": "choice_2",
         "label": "Попробовать перенаправить поток искажения через интерфейс",
         "icon": "default",
-        "to_node": "cycle_1_logic_router"
+        "to_node": "cycle_1_logic_router",
+        "math": {
+          "w_intelligence": "+3",
+          "w_wisdom": "+2",
+          "w_perception": "+1",
+          "t_arcane": "+1",
+          "step_counter": "+1"
+        }
       },
       {
         "action_id": "choice_3",
         "label": "Довериться случаю и шагнуть прямо в центр искажения",
         "icon": "default",
-        "to_node": "cycle_1_logic_router"
+        "to_node": "cycle_1_logic_router",
+        "math": {
+          "w_luck": "+3",
+          "w_agility": "+2",
+          "w_men": "+1",
+          "t_water": "+1",
+          "step_counter": "+1"
+        }
       }
+    ],
+    "tags": [
+      "cycle_1"
     ]
   },
   {
@@ -291,20 +482,44 @@
         "action_id": "choice_1",
         "label": "Попытаться слиться сознанием со своим двойником",
         "icon": "default",
-        "to_node": "cycle_1_logic_router"
+        "to_node": "cycle_1_logic_router",
+        "math": {
+          "w_wisdom": "+3",
+          "w_intelligence": "+2",
+          "w_men": "+1",
+          "t_light": "+1",
+          "step_counter": "+1"
+        }
       },
       {
         "action_id": "choice_2",
         "label": "Внимательно проследить за жестами фигуры, ища скрытый смысл",
         "icon": "default",
-        "to_node": "cycle_1_logic_router"
+        "to_node": "cycle_1_logic_router",
+        "math": {
+          "w_perception": "+3",
+          "w_luck": "+2",
+          "w_wisdom": "+1",
+          "t_nature": "+1",
+          "step_counter": "+1"
+        }
       },
       {
         "action_id": "choice_3",
         "label": "Скопировать движения двойника, чтобы стабилизировать форму",
         "icon": "default",
-        "to_node": "cycle_1_logic_router"
+        "to_node": "cycle_1_logic_router",
+        "math": {
+          "w_agility": "+3",
+          "w_endurance": "+2",
+          "w_strength": "+1",
+          "t_air": "+1",
+          "step_counter": "+1"
+        }
       }
+    ],
+    "tags": [
+      "cycle_1"
     ]
   },
   {
@@ -318,20 +533,44 @@
         "action_id": "choice_1",
         "label": "Рывком перебросить пылающий ствол через край обрыва",
         "icon": "default",
-        "to_node": "cycle_1_logic_router"
+        "to_node": "cycle_1_logic_router",
+        "math": {
+          "w_strength": "+3",
+          "w_men": "+2",
+          "w_endurance": "+1",
+          "t_fire": "+1",
+          "step_counter": "+1"
+        }
       },
       {
         "action_id": "choice_2",
         "label": "Пройти сквозь пламя, игнорируя системные предупреждения",
         "icon": "default",
-        "to_node": "cycle_1_logic_router"
+        "to_node": "cycle_1_logic_router",
+        "math": {
+          "w_endurance": "+3",
+          "w_men": "+2",
+          "w_luck": "+1",
+          "t_fire": "+1",
+          "step_counter": "+1"
+        }
       },
       {
         "action_id": "choice_3",
         "label": "Вычислить безопасный путь по затухающим искрам",
         "icon": "default",
-        "to_node": "cycle_1_logic_router"
+        "to_node": "cycle_1_logic_router",
+        "math": {
+          "w_intelligence": "+3",
+          "w_perception": "+2",
+          "w_wisdom": "+1",
+          "t_water": "+1",
+          "step_counter": "+1"
+        }
       }
+    ],
+    "tags": [
+      "cycle_1"
     ]
   },
   {
@@ -345,20 +584,44 @@
         "action_id": "choice_1",
         "label": "Вслушаться в ритм и двигаться в паузах между колебаниями",
         "icon": "default",
-        "to_node": "cycle_1_logic_router"
+        "to_node": "cycle_1_logic_router",
+        "math": {
+          "w_perception": "+3",
+          "w_luck": "+2",
+          "w_agility": "+1",
+          "t_air": "+1",
+          "step_counter": "+1"
+        }
       },
       {
         "action_id": "choice_2",
         "label": "Напрячь все мышцы, игнорируя дискомфорт от вибрации",
         "icon": "default",
-        "to_node": "cycle_1_logic_router"
+        "to_node": "cycle_1_logic_router",
+        "math": {
+          "w_endurance": "+3",
+          "w_strength": "+2",
+          "w_men": "+1",
+          "t_earth": "+1",
+          "step_counter": "+1"
+        }
       },
       {
         "action_id": "choice_3",
         "label": "Проанализировать структуру шипов и найти немую зону",
         "icon": "default",
-        "to_node": "cycle_1_logic_router"
+        "to_node": "cycle_1_logic_router",
+        "math": {
+          "w_intelligence": "+3",
+          "w_wisdom": "+2",
+          "w_perception": "+1",
+          "t_arcane": "+1",
+          "step_counter": "+1"
+        }
       }
+    ],
+    "tags": [
+      "cycle_1"
     ]
   },
   {
@@ -372,20 +635,44 @@
         "action_id": "choice_1",
         "label": "Шагнуть в саму гущу тени, доверившись интуиции",
         "icon": "default",
-        "to_node": "cycle_1_logic_router"
+        "to_node": "cycle_1_logic_router",
+        "math": {
+          "w_luck": "+3",
+          "w_agility": "+2",
+          "w_perception": "+1",
+          "t_dark": "+1",
+          "step_counter": "+1"
+        }
       },
       {
         "action_id": "choice_2",
         "label": "Сопротивляться давлению пустоты, сохраняя ясность ума",
         "icon": "default",
-        "to_node": "cycle_1_logic_router"
+        "to_node": "cycle_1_logic_router",
+        "math": {
+          "w_men": "+3",
+          "w_wisdom": "+2",
+          "w_endurance": "+1",
+          "t_light": "+1",
+          "step_counter": "+1"
+        }
       },
       {
         "action_id": "choice_3",
         "label": "Рассечь тень широким взмахом, прокладывая себе путь",
         "icon": "default",
-        "to_node": "cycle_1_logic_router"
+        "to_node": "cycle_1_logic_router",
+        "math": {
+          "w_strength": "+3",
+          "w_endurance": "+2",
+          "w_men": "+1",
+          "t_fire": "+1",
+          "step_counter": "+1"
+        }
       }
+    ],
+    "tags": [
+      "cycle_1"
     ]
   },
   {
@@ -399,20 +686,44 @@
         "action_id": "choice_1",
         "label": "Вскрыть логическую защиту и забрать энергию",
         "icon": "default",
-        "to_node": "cycle_1_logic_router"
+        "to_node": "cycle_1_logic_router",
+        "math": {
+          "w_intelligence": "+3",
+          "w_perception": "+2",
+          "w_wisdom": "+1",
+          "t_arcane": "+1",
+          "step_counter": "+1"
+        }
       },
       {
         "action_id": "choice_2",
         "label": "Вырвать сферу из корней, используя физический рычаг",
         "icon": "default",
-        "to_node": "cycle_1_logic_router"
+        "to_node": "cycle_1_logic_router",
+        "math": {
+          "w_strength": "+3",
+          "w_endurance": "+2",
+          "w_men": "+1",
+          "t_fire": "+1",
+          "step_counter": "+1"
+        }
       },
       {
         "action_id": "choice_3",
         "label": "Коснуться сферы, надеясь на благосклонность Осколка",
         "icon": "default",
-        "to_node": "cycle_1_logic_router"
+        "to_node": "cycle_1_logic_router",
+        "math": {
+          "w_luck": "+3",
+          "w_charisma": "+2",
+          "w_perception": "+1",
+          "t_nature": "+1",
+          "step_counter": "+1"
+        }
       }
+    ],
+    "tags": [
+      "cycle_1"
     ]
   },
   {
@@ -426,20 +737,44 @@
         "action_id": "choice_1",
         "label": "Перелетать с одного острова на другой быстрыми прыжками",
         "icon": "default",
-        "to_node": "cycle_1_logic_router"
+        "to_node": "cycle_1_logic_router",
+        "math": {
+          "w_agility": "+3",
+          "w_strength": "+2",
+          "w_luck": "+1",
+          "t_air": "+1",
+          "step_counter": "+1"
+        }
       },
       {
         "action_id": "choice_2",
         "label": "Сохранять спокойствие и выбирать самые твердые участки",
         "icon": "default",
-        "to_node": "cycle_1_logic_router"
+        "to_node": "cycle_1_logic_router",
+        "math": {
+          "w_endurance": "+3",
+          "w_men": "+2",
+          "w_wisdom": "+1",
+          "t_water": "+1",
+          "step_counter": "+1"
+        }
       },
       {
         "action_id": "choice_3",
         "label": "Предсказать траекторию погружения соседних платформ",
         "icon": "default",
-        "to_node": "cycle_1_logic_router"
+        "to_node": "cycle_1_logic_router",
+        "math": {
+          "w_intelligence": "+3",
+          "w_perception": "+2",
+          "w_luck": "+1",
+          "t_arcane": "+1",
+          "step_counter": "+1"
+        }
       }
+    ],
+    "tags": [
+      "cycle_1"
     ]
   }
 ]

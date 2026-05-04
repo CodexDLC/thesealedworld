@@ -4,8 +4,10 @@ import json
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from loguru import logger
+
 from src.backend.features.scenario.dto.master import QuestFileSchema, QuestMasterSchema, QuestNodeSchema
-from src.backend.infrastructure.db.scenario.repositories import ScenarioRepository
+from src.backend.infrastructure.scenario.repositories import ScenarioRepository
 
 if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession
@@ -20,11 +22,13 @@ class ScenarioLoader:
 
     async def load_from_file(self, path: str | Path) -> str:
         path = Path(path)
+        logger.info("Scenario fixture load started: path={}", path)
 
         if path.is_dir():
             # Directory loading logic
             master_file = path / "master.json"
             if not master_file.exists():
+                logger.warning("Scenario fixture master is missing: path={}", master_file)
                 raise FileNotFoundError(f"master.json not found in {path}")
 
             with master_file.open(encoding="utf-8") as h:
@@ -53,11 +57,23 @@ class ScenarioLoader:
 
         all_nodes = [{**node, "quest_key": quest_key} for node in all_nodes]
 
+        # Deduplicate all nodes by (quest_key, node_key) to prevent DB IntegrityErrors
+        deduplicated = {}
+        for node in all_nodes:
+            key = (node["quest_key"], node["node_key"])
+            if key in deduplicated:
+                logger.warning(f"Duplicate node_key found in scenario files: {key}. Keeping last one.")
+            deduplicated[key] = node
+        
+        all_nodes = list(deduplicated.values())
+        
         await self.repo.upsert_master(master_data)
         await self.repo.delete_quest_nodes(quest_key)
         await self.repo.bulk_insert_nodes(all_nodes)
         await self.repo.session.commit()
 
         if self.content is not None:
-            await self.content.warm_up_cache(quest_key)
+            cached_nodes = await self.content.warm_up_cache(quest_key)
+            logger.info("Scenario fixture cache warmed: quest_key={} nodes={}", quest_key, cached_nodes)
+        logger.info("Scenario fixture load finished: quest_key={} nodes={}", quest_key, len(all_nodes))
         return quest_key

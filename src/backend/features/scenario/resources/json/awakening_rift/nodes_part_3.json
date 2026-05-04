@@ -10,20 +10,44 @@
         "action_id": "choice_1",
         "label": "Использовать вес оружия как противовес для прыжка",
         "icon": "default",
-        "to_node": "cycle_2_logic_router"
+        "to_node": "cycle_2_logic_router",
+        "math": {
+          "w_strength": "+3",
+          "w_agility": "+2",
+          "w_luck": "+1",
+          "t_fire": "+1",
+          "step_counter": "+1"
+        }
       },
       {
         "action_id": "choice_2",
         "label": "Укрепить стойку и двигаться только в моменты пика тяжести",
         "icon": "default",
-        "to_node": "cycle_2_logic_router"
+        "to_node": "cycle_2_logic_router",
+        "math": {
+          "w_endurance": "+3",
+          "w_men": "+2",
+          "w_strength": "+1",
+          "t_earth": "+1",
+          "step_counter": "+1"
+        }
       },
       {
         "action_id": "choice_3",
         "label": "Довериться интуиции и нестись вперед, ловя моменты невесомости",
         "icon": "default",
-        "to_node": "cycle_2_logic_router"
+        "to_node": "cycle_2_logic_router",
+        "math": {
+          "w_luck": "+3",
+          "w_agility": "+2",
+          "w_perception": "+1",
+          "t_dark": "+1",
+          "step_counter": "+1"
+        }
       }
+    ],
+    "tags": [
+      "cycle_2"
     ]
   },
   {
@@ -37,20 +61,44 @@
         "action_id": "choice_1",
         "label": "Выждать момент тишины, чтобы сделать рывок",
         "icon": "default",
-        "to_node": "cycle_2_logic_router"
+        "to_node": "cycle_2_logic_router",
+        "math": {
+          "w_perception": "+3",
+          "w_luck": "+2",
+          "w_wisdom": "+1",
+          "t_light": "+1",
+          "step_counter": "+1"
+        }
       },
       {
         "action_id": "choice_2",
         "label": "Проанализировать частоту волн и идти в противофазе",
         "icon": "default",
-        "to_node": "cycle_2_logic_router"
+        "to_node": "cycle_2_logic_router",
+        "math": {
+          "w_intelligence": "+3",
+          "w_wisdom": "+2",
+          "w_perception": "+1",
+          "t_arcane": "+1",
+          "step_counter": "+1"
+        }
       },
       {
         "action_id": "choice_3",
         "label": "Рассечь звуковую волну встречным ударом loot_queue.0",
         "icon": "default",
-        "to_node": "cycle_2_logic_router"
+        "to_node": "cycle_2_logic_router",
+        "math": {
+          "w_strength": "+3",
+          "w_endurance": "+2",
+          "w_men": "+1",
+          "t_fire": "+1",
+          "step_counter": "+1"
+        }
       }
+    ],
+    "tags": [
+      "cycle_2"
     ]
   },
   {
@@ -62,7 +110,18 @@
         "action_id": "auto",
         "label": "",
         "icon": "default",
-        "to_node": null
+        "to_node": null,
+        "branching": [
+          {
+            "condition": "step_counter >= 3",
+            "to_node": "resonance_logic_01"
+          },
+          {
+            "condition": "default",
+            "to_node": "pool:bridge_early"
+          }
+        ],
+        "type": "logic_gate"
       }
     ]
   },
@@ -75,7 +134,18 @@
         "action_id": "auto",
         "label": "",
         "icon": "default",
-        "to_node": null
+        "to_node": null,
+        "branching": [
+          {
+            "condition": "step_counter >= 6",
+            "to_node": "resonance_logic_02"
+          },
+          {
+            "condition": "default",
+            "to_node": "pool:bridge_mid"
+          }
+        ],
+        "type": "logic_gate"
       }
     ]
   },
@@ -88,7 +158,18 @@
         "action_id": "auto",
         "label": "",
         "icon": "default",
-        "to_node": null
+        "to_node": null,
+        "branching": [
+          {
+            "condition": "step_counter >= 9",
+            "to_node": "resonance_logic_03_final"
+          },
+          {
+            "condition": "default",
+            "to_node": "pool:bridge_late"
+          }
+        ],
+        "type": "logic_gate"
       }
     ]
   },
@@ -103,7 +184,22 @@
         "action_id": "auto",
         "label": "",
         "icon": "default",
-        "to_node": null
+        "to_node": null,
+        "branching": [
+          {
+            "condition": "w_strength >= w_agility and w_strength >= w_intelligence",
+            "to_node": "choice_strength_weapon"
+          },
+          {
+            "condition": "w_agility > w_strength and w_agility >= w_intelligence",
+            "to_node": "choice_agility_weapon"
+          },
+          {
+            "condition": "default",
+            "to_node": "choice_balance_weapon"
+          }
+        ],
+        "type": "logic_gate"
       }
     ]
   },
@@ -116,13 +212,23 @@
         "action_id": "take_hammer",
         "label": "Схватить Боевой Молот",
         "icon": "default",
-        "to_node": "bridge_resonance_award"
+        "to_node": "bridge_resonance_award",
+        "math": {
+          "loot_queue": "push:warhammer",
+          "skills_queue": "push:melee_combat",
+          "is_two_handed": 1
+        }
       },
       {
         "action_id": "take_axe",
         "label": "Выбрать Боевой Топор",
         "icon": "default",
-        "to_node": "bridge_resonance_award"
+        "to_node": "bridge_resonance_award",
+        "math": {
+          "loot_queue": "push:battle_axe",
+          "skills_queue": "push:melee_combat",
+          "is_two_handed": 0
+        }
       }
     ]
   },
@@ -135,13 +241,23 @@
         "action_id": "take_katana",
         "label": "Взять Катану",
         "icon": "default",
-        "to_node": "bridge_resonance_award"
+        "to_node": "bridge_resonance_award",
+        "math": {
+          "loot_queue": "push:katana",
+          "skills_queue": "push:melee_combat",
+          "is_two_handed": 1
+        }
       },
       {
         "action_id": "take_dagger",
         "label": "Выбрать Кинжал",
         "icon": "default",
-        "to_node": "bridge_resonance_award"
+        "to_node": "bridge_resonance_award",
+        "math": {
+          "loot_queue": "push:dagger",
+          "skills_queue": "push:melee_combat",
+          "is_two_handed": 0
+        }
       }
     ]
   },
@@ -154,13 +270,23 @@
         "action_id": "take_staff",
         "label": "Взять Боевой Посох",
         "icon": "default",
-        "to_node": "bridge_resonance_award"
+        "to_node": "bridge_resonance_award",
+        "math": {
+          "loot_queue": "push:quarterstaff",
+          "skills_queue": "push:melee_combat",
+          "is_two_handed": 1
+        }
       },
       {
         "action_id": "take_sword",
         "label": "Выбрать Меч",
         "icon": "default",
-        "to_node": "bridge_resonance_award"
+        "to_node": "bridge_resonance_award",
+        "math": {
+          "loot_queue": "push:sword",
+          "skills_queue": "push:melee_combat",
+          "is_two_handed": 0
+        }
       }
     ]
   },
@@ -190,7 +316,18 @@
         "action_id": "auto",
         "label": "",
         "icon": "default",
-        "to_node": null
+        "to_node": null,
+        "branching": [
+          {
+            "condition": "is_two_handed == 0",
+            "to_node": "choice_offhand"
+          },
+          {
+            "condition": "default",
+            "to_node": "choice_accessory"
+          }
+        ],
+        "type": "logic_gate"
       }
     ]
   },
@@ -203,13 +340,25 @@
         "action_id": "take_shield",
         "label": "Взять Щит",
         "icon": "default",
-        "to_node": "bridge_resonance_award_2"
+        "to_node": "bridge_resonance_award_2",
+        "math": {
+          "loot_queue": "push:shield",
+          "skills_queue": [
+            "push:shield_mastery"
+          ]
+        }
       },
       {
         "action_id": "take_buckler",
         "label": "Выбрать Баклер Парирование",
         "icon": "default",
-        "to_node": "bridge_resonance_award_2"
+        "to_node": "bridge_resonance_award_2",
+        "math": {
+          "loot_queue": "push:buckler",
+          "skills_queue": [
+            "push:reflexes"
+          ]
+        }
       }
     ]
   },
@@ -222,13 +371,25 @@
         "action_id": "take_belt",
         "label": "Пояс Силы",
         "icon": "default",
-        "to_node": "bridge_resonance_award_2"
+        "to_node": "bridge_resonance_award_2",
+        "math": {
+          "loot_queue": "push:belt",
+          "skills_queue": [
+            "push:intuition"
+          ]
+        }
       },
       {
         "action_id": "take_amulet",
         "label": "Амулет Концентрации",
         "icon": "default",
-        "to_node": "bridge_resonance_award_2"
+        "to_node": "bridge_resonance_award_2",
+        "math": {
+          "loot_queue": "push:amulet",
+          "skills_queue": [
+            "push:focus"
+          ]
+        }
       }
     ]
   },
@@ -256,7 +417,22 @@
         "action_id": "auto",
         "label": "",
         "icon": "default",
-        "to_node": null
+        "to_node": null,
+        "branching": [
+          {
+            "condition": "w_endurance >= 15 or w_strength >= 15",
+            "to_node": "choice_heavy_armor"
+          },
+          {
+            "condition": "w_agility >= 15 or w_luck >= 15",
+            "to_node": "choice_light_armor"
+          },
+          {
+            "condition": "default",
+            "to_node": "choice_medium_armor"
+          }
+        ],
+        "type": "logic_gate"
       }
     ]
   },
@@ -269,13 +445,37 @@
         "action_id": "take_plate",
         "label": "Облачиться в Латные Доспехи",
         "icon": "default",
-        "to_node": "final_award_heavy"
+        "to_node": "final_award_heavy",
+        "math": {
+          "loot_queue": [
+            "push:plate_chest",
+            "push:helmet",
+            "push:wool_tunic",
+            "push:fur_pants",
+            "push:boots"
+          ],
+          "skills_queue": [
+            "push:heavy_armor_mastery"
+          ]
+        }
       },
       {
         "action_id": "take_scale",
         "label": "Выбрать Чешуйчатую Броню",
         "icon": "default",
-        "to_node": "final_award_heavy"
+        "to_node": "final_award_heavy",
+        "math": {
+          "loot_queue": [
+            "push:scale_mail",
+            "push:helmet",
+            "push:wool_tunic",
+            "push:fur_pants",
+            "push:boots"
+          ],
+          "skills_queue": [
+            "push:heavy_armor_mastery"
+          ]
+        }
       }
     ]
   },
@@ -288,13 +488,35 @@
         "action_id": "take_robe",
         "label": "Надеть Магическую Робу",
         "icon": "default",
-        "to_node": "final_award_light"
+        "to_node": "final_award_light",
+        "math": {
+          "loot_queue": [
+            "push:robe",
+            "push:hood",
+            "push:linen_shirt",
+            "push:sandals"
+          ],
+          "skills_queue": [
+            "push:light_armor_mastery"
+          ]
+        }
       },
       {
         "action_id": "take_leather",
         "label": "Выбрать Легкую Кожу",
         "icon": "default",
-        "to_node": "final_award_light"
+        "to_node": "final_award_light",
+        "math": {
+          "loot_queue": [
+            "push:leather_armor",
+            "push:hood",
+            "push:linen_shirt",
+            "push:boots"
+          ],
+          "skills_queue": [
+            "push:light_armor_mastery"
+          ]
+        }
       }
     ]
   },
@@ -307,13 +529,35 @@
         "action_id": "take_chainmail",
         "label": "Надеть Кольчугу",
         "icon": "default",
-        "to_node": "final_award_medium"
+        "to_node": "final_award_medium",
+        "math": {
+          "loot_queue": [
+            "push:chainmail",
+            "push:leather_cap",
+            "push:linen_shirt",
+            "push:boots"
+          ],
+          "skills_queue": [
+            "push:medium_armor_mastery"
+          ]
+        }
       },
       {
         "action_id": "take_brigandine",
         "label": "Выбрать Бригантину",
         "icon": "default",
-        "to_node": "final_award_medium"
+        "to_node": "final_award_medium",
+        "math": {
+          "loot_queue": [
+            "push:brigandine",
+            "push:leather_cap",
+            "push:linen_shirt",
+            "push:boots"
+          ],
+          "skills_queue": [
+            "push:medium_armor_mastery"
+          ]
+        }
       }
     ]
   },

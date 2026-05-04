@@ -12,7 +12,7 @@ from src.backend.features.scenario.dto.finalize import (
 from src.backend.features.scenario.handlers.base_handler import BaseScenarioHandler
 
 if TYPE_CHECKING:
-    from src.backend.infrastructure.redis.character_session_manager import CharacterSessionManager
+    from src.backend.infrastructure.actor_state import CharacterSessionManager
 
 log = logging.getLogger(__name__)
 

@@ -4,13 +4,18 @@ import random
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
+from loguru import logger
+
 if TYPE_CHECKING:
     from src.backend.features.scenario.engine.evaluator import ScenarioEvaluator
-    from src.backend.features.scenario.services.content_service import ScenarioContentService
+    from src.backend.features.scenario.integrations.system_integrator import ScenarioSystemIntegrator
 
 
-class ScenarioDirectorError(RuntimeError):
-    pass
+from src.backend.features.scenario.exceptions import (
+    ScenarioDirectorError,
+    ScenarioNodeNotFound,
+    ScenarioPoolEmpty,
+)
 
 
 @dataclass
@@ -28,17 +33,23 @@ class ScenarioDirector:
         quest_key: str,
         action: dict[str, Any],
         context: dict[str, Any],
-        content: ScenarioContentService,
+        integrator: ScenarioSystemIntegrator,
     ) -> ResolvedNode:
         next_context = self.evaluator.apply_math(action.get("math", {}), context)
         target, branch_math = self._resolve_branching(action.get("branching", []), next_context, action.get("to_node"))
         next_context = self.evaluator.apply_math(branch_math or {}, next_context)
-        return await self._resolve_target(quest_key, target, next_context, content)
+        return await self._resolve_target(quest_key, target, next_context, integrator)
 
     def _get_node_actions(self, node: dict[str, Any]) -> dict[str, Any]:
         """Unifies actions from 'actions' (list) and 'actions_logic' (dict)"""
         logic = node.get("actions_logic", {}).copy()
-        for action in node.get("actions", []):
+        actions_list = node.get("actions", [])
+
+        logger.debug(
+            f"Node '{node.get('node_key')}': found {len(actions_list)} actions in list and {len(logic)} in logic dict"
+        )
+
+        for action in actions_list:
             aid = action.get("action_id")
             if aid:
                 logic[aid] = action
@@ -49,7 +60,7 @@ class ScenarioDirector:
         quest_key: str,
         node: dict[str, Any],
         context: dict[str, Any],
-        content: ScenarioContentService,
+        integrator: ScenarioSystemIntegrator,
     ) -> ResolvedNode:
         current = node
         next_context = context
@@ -67,7 +78,7 @@ class ScenarioDirector:
                 auto_action.get("to_node"),
             )
             next_context = self.evaluator.apply_math(branch_math or {}, next_context)
-            resolved = await self._resolve_target(quest_key, target, next_context, content, run_auto=False)
+            resolved = await self._resolve_target(quest_key, target, next_context, integrator, run_auto=False)
             current = resolved.node
             next_context = resolved.context
             actions = self._get_node_actions(current)
@@ -78,7 +89,7 @@ class ScenarioDirector:
         quest_key: str,
         target: str | None,
         context: dict[str, Any],
-        content: ScenarioContentService,
+        integrator: ScenarioSystemIntegrator,
         *,
         run_auto: bool = True,
     ) -> ResolvedNode:
@@ -86,15 +97,15 @@ class ScenarioDirector:
             raise ScenarioDirectorError("Scenario action has no target node")
         node: dict[str, Any] | None
         if target.startswith("pool:"):
-            node = await self.pick_from_pool(quest_key, target.split(":", 1)[1], context, content)
+            node = await self.pick_from_pool(quest_key, target.split(":", 1)[1], context, integrator)
         else:
-            node = await content.get_node(quest_key, target)
+            node = await integrator.get_node(quest_key, target)
         if node is None:
-            raise ScenarioDirectorError(f"Scenario node not found: quest={quest_key} node={target}")
+            raise ScenarioNodeNotFound(quest_key, target)
 
         actions = self._get_node_actions(node)
         if run_auto and "auto" in actions:
-            return await self.execute_auto_chain(quest_key, node, context, content)
+            return await self.execute_auto_chain(quest_key, node, context, integrator)
         return ResolvedNode(context=context, node=node)
 
     async def pick_from_pool(
@@ -102,29 +113,35 @@ class ScenarioDirector:
         quest_key: str,
         pool_tag: str,
         context: dict[str, Any],
-        content: ScenarioContentService,
+        integrator: ScenarioSystemIntegrator,
     ) -> dict[str, Any]:
         visited = set(context.get("visited_nodes", []))
         candidates = []
-        for node in await content.get_nodes_by_pool(quest_key, pool_tag):
+        for node in await integrator.get_nodes_by_pool(quest_key, pool_tag):
             if node["node_key"] in visited:
                 continue
             requirement = node.get("selection_requirements")
             if not requirement or self.evaluator.check_condition(requirement, context):
                 candidates.append(node)
         if not candidates:
-            raise ScenarioDirectorError(f"No scenario pool candidates: quest={quest_key} pool={pool_tag}")
+            raise ScenarioPoolEmpty(quest_key, pool_tag)
         return random.choice(candidates)
 
     def get_available_actions(self, node: dict[str, Any], context: dict[str, Any]) -> list[dict[str, Any]]:
         actions_logic = self._get_node_actions(node)
+        logger.debug(f"Actions in logic to check: {list(actions_logic.keys())}")
         available = []
         for action_id, action in actions_logic.items():
             if action_id == "auto":
                 continue
             condition = action.get("condition")
+            logger.debug(f"Checking action '{action_id}' with condition: {condition}")
             if not condition or self.evaluator.check_condition(condition, context):
                 available.append({"action_id": action_id, "label": action.get("label", "Далее"), "payload": action})
+            else:
+                logger.debug(f"Action '{action_id}' filtered out by evaluator")
+
+        logger.info(f"Node '{node.get('node_key')}': total available actions: {len(available)}")
         return available
 
     def _resolve_branching(

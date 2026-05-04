@@ -4,12 +4,20 @@ import asyncio
 from typing import TYPE_CHECKING, Any, cast
 
 from src.backend.features.actor_state.runtime.sections import COMBAT, INVENTORY, RUNTIME, STATUS
-from src.backend.infrastructure.db.actor_state.repositories.db import (
-    get_character_attributes_repo,
-    get_character_repo,
-    get_inventory_repo,
-    get_skill_progress_repo,
-    get_symbiote_repo,
+from src.backend.infrastructure.actor_state.repositories.db import (
+    get_attributes_repo as get_actor_state_attributes_repo,
+)
+from src.backend.infrastructure.actor_state.repositories.db import (
+    get_character_repo as get_actor_state_character_repo,
+)
+from src.backend.infrastructure.actor_state.repositories.db import (
+    get_inventory_repo as get_actor_state_inventory_repo,
+)
+from src.backend.infrastructure.actor_state.repositories.db import (
+    get_skill_repo as get_actor_state_skill_repo,
+)
+from src.backend.infrastructure.actor_state.repositories.db import (
+    get_symbiote_repo as get_actor_state_symbiote_repo,
 )
 from src.backend.infrastructure.redis.keys import PlayerCoreKey
 
@@ -35,7 +43,7 @@ async def build_snapshots(
     if not char_ids:
         return {}
 
-    characters = await get_character_repo(session).get_characters_batch(char_ids)
+    characters = await get_actor_state_character_repo(session).get_characters_batch(char_ids)
     chars_by_id = {char.character_id: char for char in characters}
     existing_ids = [char_id for char_id in char_ids if char_id in chars_by_id]
     if not existing_ids:
@@ -56,20 +64,20 @@ async def build_snapshots(
     labels: list[str] = []
 
     if needs_combat:
-        tasks.append(get_character_attributes_repo(session).get_attributes_batch(existing_ids))
+        tasks.append(get_actor_state_attributes_repo(session).get_attributes_batch(existing_ids))
         labels.append("attributes")
-        tasks.append(get_skill_progress_repo(session).get_all_skills_progress_batch(existing_ids))
+        tasks.append(get_actor_state_skill_repo(session).get_all_skills_progress_batch(existing_ids))
         labels.append("skills")
-        tasks.append(get_symbiote_repo(session).get_symbiotes_batch(existing_ids))
+        tasks.append(get_actor_state_symbiote_repo(session).get_symbiotes_batch(existing_ids))
         labels.append("symbiotes")
 
     if needs_combat or needs_inventory:
-        inv_repo = get_inventory_repo(session)
+        inv_repo = get_actor_state_inventory_repo(session)
         tasks.append(inv_repo.get_items_by_location_batch(existing_ids, "equipped"))
         labels.append("equipped")
 
     if needs_inventory:
-        tasks.append(get_inventory_repo(session).get_items_by_location_batch(existing_ids, "inventory"))
+        tasks.append(get_actor_state_inventory_repo(session).get_items_by_location_batch(existing_ids, "inventory"))
         labels.append("inventory")
 
     if needs_status:

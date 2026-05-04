@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING, Protocol
 
 if TYPE_CHECKING:
     from src.backend.features.world.services.cache_service import WorldCacheService
-    from src.backend.infrastructure.db.world.repositories import WorldRepository
+    from src.backend.infrastructure.world.repositories import WorldRepository
 
 log = logging.getLogger(__name__)
 

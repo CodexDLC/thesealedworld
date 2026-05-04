@@ -4,16 +4,17 @@ from contextlib import suppress
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import delete, func, select
+from loguru import logger
 
 from src.backend.core.exceptions import BusinessLogicException
-from src.backend.infrastructure.db.actor_state.models import (
+from src.backend.infrastructure.actor_state.models import (
     Character,
     CharacterAttributes,
     CharacterSymbiote,
     ResourceWallet,
 )
-from src.backend.infrastructure.redis.character_session_schema import (
+from src.backend.infrastructure.actor_state.repositories import CharacterRepository
+from src.backend.infrastructure.actor_state.schemas.session import (
     CharacterSessionAttributesDTO,
     CharacterSessionBioDTO,
     CharacterSessionDocumentDTO,
@@ -27,7 +28,7 @@ if TYPE_CHECKING:
 
     from src.backend.features.auth.models import User
     from src.backend.features.scenario.services import ScenarioService
-    from src.backend.infrastructure.redis.character_session_manager import CharacterSessionManager
+    from src.backend.infrastructure.actor_state import CharacterSessionManager
     from src.shared.schemas import CreateCharacterRequestDTO, ScenarioPayloadDTO
 
 
@@ -50,13 +51,25 @@ class CharacterCreationService:
         user: User,
         dto: CreateCharacterRequestDTO,
     ) -> ScenarioPayloadDTO:
+        logger.info("Character creation started: user_id={}", user.id)
         await self._ensure_slot_available(user)
 
+        repo = CharacterRepository(self.db_session)
         created_at = datetime.now(UTC)
+
+        # Determine default avatar based on gender if none provided
+        avatar_url = dto.avatar
+        if not avatar_url:
+            if dto.gender == "female":
+                avatar_url = "/static/images/avatars/silhouette_f.png"
+            else:
+                avatar_url = "/static/images/avatars/silhouette_m.png"
+
         character = Character(
             user_id=user.id,
             name=dto.name,
             gender=dto.gender,
+            avatar_url=avatar_url,
             game_stage="session_pending",
             prev_game_stage="LOBBY",
             location_id=self.INITIAL_LOCATION_ID,
@@ -65,10 +78,10 @@ class CharacterCreationService:
         character.symbiote = CharacterSymbiote()
         character.wallet = ResourceWallet()
 
-        self.db_session.add(character)
-        await self.db_session.flush()
+        await repo.save(character)
         char_id = character.character_id
         await self.db_session.commit()
+        logger.info("Character persisted: char_id={} user_id={}", char_id, user.id)
 
         session_payload = CharacterSessionDocumentDTO(
             char_id=char_id,
@@ -78,7 +91,7 @@ class CharacterCreationService:
             bio=CharacterSessionBioDTO(
                 name=dto.name,
                 gender=dto.gender,
-                avatar=dto.avatar,
+                avatar=avatar_url,
                 created_at=created_at,
             ),
             location=CharacterSessionLocationDTO(current=self.INITIAL_LOCATION_ID),
@@ -91,15 +104,18 @@ class CharacterCreationService:
             await self.character_sessions.create_session(char_id, session_payload)
             payload = await self.scenario_service.initialize(char_id, "awakening_rift", source="onboarding")
         except Exception:
+            logger.exception("Character creation failed; cleanup started: char_id={} user_id={}", char_id, user.id)
             await self.db_session.rollback()
             with suppress(Exception):
-                await self.scenario_service.sessions.delete(char_id)
+                await self.scenario_service.integrator.sessions.delete(char_id)
             with suppress(Exception):
-                await self.scenario_service.repo.delete_state(char_id)
+                await self.scenario_service.integrator.repo.delete_state(char_id)
             with suppress(Exception):
                 await self.character_sessions.delete_session(char_id)
-            await self.db_session.execute(delete(Character).where(Character.character_id == char_id))
+
+            await repo.delete(char_id)
             await self.db_session.commit()
+            logger.warning("Character creation cleanup finished: char_id={} user_id={}", char_id, user.id)
             raise
 
         payload.extra_data = {
@@ -110,10 +126,12 @@ class CharacterCreationService:
         character.game_stage = "scenario"
         character.prev_game_stage = "lobby"
         await self.db_session.commit()
+        logger.info("Character entered scenario: char_id={} user_id={}", char_id, user.id)
         return payload
 
     async def _ensure_slot_available(self, user: User) -> None:
-        count_stmt = select(func.count()).select_from(Character).where(Character.user_id == user.id)
-        characters_count = await self.db_session.scalar(count_stmt)
-        if int(characters_count or 0) >= self.MAX_SLOTS:
+        repo = CharacterRepository(self.db_session)
+        characters_count = await repo.count_by_user_id(user.id)
+        if characters_count >= self.MAX_SLOTS:
+            logger.warning("Character creation rejected: slot_limit user_id={} count={}", user.id, characters_count)
             raise BusinessLogicException("Character slot limit reached")

@@ -2,8 +2,8 @@ import pytest
 import uuid
 from unittest.mock import AsyncMock, MagicMock
 from sqlalchemy import select
-from src.backend.infrastructure.db.scenario.repositories.scenario_repository import ScenarioRepository
-from src.backend.infrastructure.db.scenario.models import ScenarioMaster, ScenarioNode, CharacterQuestState
+from src.backend.infrastructure.scenario.repositories.scenario_repository import ScenarioRepository
+from src.backend.infrastructure.scenario.models import ScenarioMaster, ScenarioNode, CharacterQuestState
 
 @pytest.mark.unit
 class TestScenarioRepository:

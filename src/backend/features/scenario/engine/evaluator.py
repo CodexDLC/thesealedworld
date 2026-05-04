@@ -6,6 +6,8 @@ import random
 import re
 from typing import Any
 
+from loguru import logger
+
 
 class ScenarioEvaluator:
     _compare_ops = {
@@ -37,8 +39,12 @@ class ScenarioEvaluator:
             return True
         try:
             parsed = ast.parse(expression, mode="eval")
-            return bool(self._eval_node(parsed.body, context))
-        except Exception:
+            result = bool(self._eval_node(parsed.body, context))
+            if not result:
+                logger.debug(f"Condition '{expression}' evaluated to False")
+            return result
+        except Exception as e:
+            logger.error(f"Error evaluating condition '{expression}': {e}")
             return False
 
     def apply_math(self, updates: dict[str, Any] | None, context: dict[str, Any]) -> dict[str, Any]:

@@ -2,6 +2,7 @@ from typing import Any
 
 from fastapi import Request
 from fastapi.templating import Jinja2Templates
+from loguru import logger
 
 
 class UIRenderer:
@@ -33,6 +34,8 @@ class UIRenderer:
             menu_service = getattr(self.request.state, "game_menu_service", None)
             if menu_service:
                 global_context["nav"] = menu_service.build_menu(context["domain"])
+            else:
+                logger.warning("Menu service missing while rendering domain page: template={}", template_name)
 
         # 2. Merge contexts
         final_context = {**global_context, **context}
@@ -47,6 +50,12 @@ class UIRenderer:
         elif "base_template" not in final_context:
             final_context["base_template"] = "site/base_site.html"
 
+        logger.info(
+            "Template rendered: template={} status={} htmx={}",
+            template_name,
+            status_code,
+            global_context["is_htmx"],
+        )
         return self.templates.TemplateResponse(
             request=self.request,
             name=template_name,

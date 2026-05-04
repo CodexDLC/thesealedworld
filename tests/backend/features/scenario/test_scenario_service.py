@@ -1,7 +1,10 @@
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
-from src.backend.features.scenario.services.scenario_service import (
-    ScenarioService, ScenarioNotFoundError, ScenarioSessionNotFoundError, InvalidActionError
+from src.backend.features.scenario.services.scenario_service import ScenarioService
+from src.backend.features.scenario.exceptions import (
+    ScenarioNodeNotFound,
+    ScenarioSessionNotFound,
+    InvalidScenarioAction,
 )
 from src.backend.features.scenario.dto.context import ScenarioContextDTO
 from src.shared.enums import CoreDomain
@@ -11,15 +14,10 @@ class TestScenarioService:
     @pytest.fixture
     def mocks(self):
         return {
-            "content": MagicMock(),
-            "sessions": MagicMock(),
-            "character_sessions": MagicMock(),
-            "repo": MagicMock(),
+            "integrator": MagicMock(),
             "evaluator": MagicMock(),
             "director": MagicMock(),
             "formatter": MagicMock(),
-            "events": MagicMock(),
-            "redis": MagicMock(),
         }
 
     @pytest.fixture
@@ -30,7 +28,7 @@ class TestScenarioService:
         import uuid
         char_id = 1
         quest_key = "q1"
-        mocks["content"].get_master = AsyncMock(return_value={"id": "q1"})
+        mocks["integrator"].get_quest_master = AsyncMock(return_value={"id": "q1"})
 
         mock_handler = MagicMock()
         context = ScenarioContextDTO(
@@ -41,112 +39,95 @@ class TestScenarioService:
         mock_handler.on_initialize = AsyncMock(return_value=context)
 
         with patch("src.backend.features.scenario.services.scenario_service.get_handler", return_value=mock_handler):
-            mocks["sessions"].create = AsyncMock()
-            mocks["character_sessions"].transition_state = AsyncMock()
-            mocks["character_sessions"].set_scenario_session = AsyncMock()
-            mocks["repo"].upsert_state = AsyncMock()
-            mocks["content"].get_node = AsyncMock(return_value={"node_key": "n1", "actions_logic": {}})
-            mocks["formatter"].render_payload.return_value = {"rendered": True}
-            mocks["events"].publish = AsyncMock()
+            mocks["integrator"].prepare_session = AsyncMock()
+            mocks["integrator"].get_node = AsyncMock(return_value={"node_key": "n1", "actions_logic": {}})
+            mocks["integrator"].publish_event = AsyncMock()
+            mocks["formatter"].render_payload.return_value = MagicMock(node_key="n1", buttons=[])
 
             result = await service.initialize(char_id, quest_key)
-
-            assert result == {"rendered": True}
-            mocks["sessions"].create.assert_called_once()
-            mocks["repo"].upsert_state.assert_called_once()
+            assert result.node_key == "n1"
+            mocks["integrator"].prepare_session.assert_called_once()
 
     async def test_initialize_not_found(self, service, mocks):
-        mocks["content"].get_master = AsyncMock(return_value=None)
-        with pytest.raises(ScenarioNotFoundError):
+        mocks["integrator"].get_quest_master = AsyncMock(return_value=None)
+        with pytest.raises(ScenarioNodeNotFound):
             await service.initialize(1, "unknown")
 
     async def test_resume_success(self, service, mocks):
         char_id = 1
         context = ScenarioContextDTO(quest_key="q1", current_node_key="n1")
-        mocks["sessions"].get = AsyncMock(return_value=context)
-        mocks["content"].get_master = AsyncMock(return_value={"id": "q1"})
-        mocks["content"].get_node = AsyncMock(return_value={"node_key": "n1", "actions_logic": {}})
-        mocks["formatter"].render_payload.return_value = {"rendered": True}
-        mocks["events"].publish = AsyncMock()
+        mocks["integrator"].load_session = AsyncMock(return_value=context)
+        mocks["integrator"].get_quest_master = AsyncMock(return_value={"id": "q1"})
+        mocks["integrator"].get_node = AsyncMock(return_value={"node_key": "n1", "actions_logic": {}})
+        mocks["formatter"].render_payload.return_value = MagicMock(node_key="n1", buttons=[])
+        mocks["integrator"].publish_event = AsyncMock()
 
         result = await service.resume(char_id)
-        assert result == {"rendered": True}
+        assert result.node_key == "n1"
 
-    async def test_resume_repair(self, service, mocks):
-        import uuid
-        char_id = 1
-        mocks["sessions"].get = AsyncMock(return_value=None)
-        mocks["repo"].get_active_state = AsyncMock(return_value={"context": {"quest_key": "q1", "current_node_key": "n1", "scenario_session_id": str(uuid.uuid4())}})
-        mocks["content"].get_master = AsyncMock(return_value={"id": "q1"})
-        mocks["content"].get_node = AsyncMock(return_value={"node_key": "n1", "actions_logic": {}})
-        mocks["sessions"].create = AsyncMock()
-        mocks["character_sessions"].set_scenario_session = AsyncMock()
-        mocks["events"].publish = AsyncMock()
-
-        await service.resume(char_id)
-        mocks["sessions"].create.assert_called_once()
 
     async def test_resume_not_found(self, service, mocks):
-        mocks["sessions"].get = AsyncMock(return_value=None)
-        mocks["repo"].get_active_state = AsyncMock(return_value=None)
-        mocks["events"].publish = AsyncMock()
-        with pytest.raises(ScenarioSessionNotFoundError):
+        mocks["integrator"].load_session = AsyncMock(return_value=None)
+        mocks["integrator"].publish_event = AsyncMock()
+        with pytest.raises(ScenarioSessionNotFound):
             await service.resume(1)
 
     async def test_step_success(self, service, mocks):
         char_id = 1
         context = ScenarioContextDTO(quest_key="q1", current_node_key="n1")
-        mocks["sessions"].get = AsyncMock(return_value=context)
-        mocks["content"].get_node = AsyncMock(return_value={"node_key": "n1", "actions_logic": {"a1": {"type": "move"}}})
+        mocks["integrator"].load_session = AsyncMock(return_value=context)
+        mocks["integrator"].get_node = AsyncMock(return_value={"node_key": "n1", "actions_logic": {"a1": {"type": "move"}}})
 
         mock_resolved = MagicMock()
         mock_resolved.node = {"node_key": "n2"}
         mock_resolved.context = {}
         mocks["director"].resolve_next_node = AsyncMock(return_value=mock_resolved)
 
-        mocks["sessions"].patch = AsyncMock()
-        mocks["repo"].upsert_state = AsyncMock()
-        mocks["content"].get_master = AsyncMock(return_value={"id": "q1"})
-        mocks["events"].publish = AsyncMock()
+        mocks["integrator"].update_progress = AsyncMock()
+        mocks["integrator"].get_quest_master = AsyncMock(return_value={"id": "q1"})
+        mocks["integrator"].publish_event = AsyncMock()
 
         await service.step(char_id, "a1")
         assert context.current_node_key == "n2"
-        mocks["sessions"].patch.assert_called_once()
-        mocks["repo"].upsert_state.assert_called_once()
+        mocks["integrator"].update_progress.assert_called_once()
 
     async def test_step_terminal(self, service, mocks):
         char_id = 1
         context = ScenarioContextDTO(quest_key="q1", current_node_key="n1")
-        mocks["sessions"].get = AsyncMock(return_value=context)
-        mocks["content"].get_node = AsyncMock(return_value={"node_key": "n1", "actions_logic": {"a1": {"type": "move"}}})
+        mocks["integrator"].load_session = AsyncMock(return_value=context)
+        mocks["integrator"].get_node = AsyncMock(return_value={"node_key": "n1", "actions_logic": {"a1": {"type": "move"}}})
 
         mock_resolved = MagicMock()
         mock_resolved.node = {"node_key": "end", "is_terminal": True}
         mock_resolved.context = {}
         mocks["director"].resolve_next_node = AsyncMock(return_value=mock_resolved)
 
-        mocks["sessions"].patch = AsyncMock()
-        mocks["repo"].upsert_state = AsyncMock()
-        mocks["events"].publish = AsyncMock()
+        mocks["integrator"].update_progress = AsyncMock()
+        mocks["integrator"].publish_event = AsyncMock()
 
         # Mock finalize
-        mocks["content"].get_master = AsyncMock(return_value={"id": "q1"})
+        mocks["integrator"].get_quest_master = AsyncMock(return_value={"id": "q1"})
         mock_handler = MagicMock()
-        mock_handler.on_finalize = AsyncMock()
+        mock_result = MagicMock()
+        mock_result.rewards.items = []
+        mock_result.rewards.skills = []
+        mock_result.rewards.attribute_bonuses = None
+        mock_handler.on_finalize = AsyncMock(return_value=mock_result)
         with patch("src.backend.features.scenario.services.scenario_service.get_handler", return_value=mock_handler):
-            mocks["character_sessions"].transition_state = AsyncMock()
-            mocks["character_sessions"].clear_scenario_session = AsyncMock()
-            mocks["sessions"].delete = AsyncMock()
-            mocks["repo"].delete_state = AsyncMock()
+            mocks["integrator"].finalize_session = AsyncMock()
+            mocks["integrator"].grant_inventory_rewards = AsyncMock()
+            mocks["integrator"].unlock_skills = AsyncMock()
+            mocks["integrator"].apply_attribute_bonuses = AsyncMock()
+            mocks["integrator"].request_combat_start = AsyncMock()
 
             await service.step(char_id, "a1")
-            mocks["sessions"].delete.assert_called_with(char_id)
+            mocks["integrator"].finalize_session.assert_called_with(char_id, CoreDomain.EXPLORATION)
 
     async def test_initialize_auto_chain(self, service, mocks):
         import uuid
         char_id = 1
         quest_key = "q1"
-        mocks["content"].get_master = AsyncMock(return_value={"id": "q1"})
+        mocks["integrator"].get_quest_master = AsyncMock(return_value={"id": "q1"})
 
         mock_handler = MagicMock()
         context = ScenarioContextDTO(
@@ -157,11 +138,8 @@ class TestScenarioService:
         mock_handler.on_initialize = AsyncMock(return_value=context)
 
         with patch("src.backend.features.scenario.services.scenario_service.get_handler", return_value=mock_handler):
-            mocks["sessions"].create = AsyncMock()
-            mocks["character_sessions"].transition_state = AsyncMock()
-            mocks["character_sessions"].set_scenario_session = AsyncMock()
-            mocks["repo"].upsert_state = AsyncMock()
-            mocks["content"].get_node = AsyncMock(return_value={"node_key": "n1", "actions_logic": {"auto": {}}})
+            mocks["integrator"].prepare_session = AsyncMock()
+            mocks["integrator"].get_node = AsyncMock(return_value={"node_key": "n1", "actions_logic": {"auto": {}}})
 
             mocks["director"]._get_node_actions = MagicMock(return_value={"auto": {}})
             mock_resolved = MagicMock()
@@ -169,86 +147,54 @@ class TestScenarioService:
             mock_resolved.context = {"foo": "bar"}
             mocks["director"].execute_auto_chain = AsyncMock(return_value=mock_resolved)
 
-            mocks["sessions"].patch = AsyncMock()
-            mocks["formatter"].render_payload.return_value = {"rendered": True}
-            mocks["events"].publish = AsyncMock()
+            mocks["integrator"].update_progress = AsyncMock()
+            mocks["formatter"].render_payload.return_value = MagicMock(node_key="n2", buttons=[])
+            mocks["integrator"].publish_event = AsyncMock()
 
             await service.initialize(char_id, quest_key)
 
             assert context.current_node_key == "n2"
             mocks["director"].execute_auto_chain.assert_called_once()
 
-    async def test_step_terminal(self, service, mocks):
-        char_id = 1
-        context = ScenarioContextDTO(quest_key="q1", current_node_key="n1")
-        mocks["sessions"].get = AsyncMock(return_value=context)
-        mocks["content"].get_node = AsyncMock(return_value={"node_key": "n1", "actions_logic": {"a1": {"type": "move"}}})
 
-        mock_resolved = MagicMock()
-        mock_resolved.node = {"node_key": "end", "is_terminal": True}
-        mock_resolved.context = {}
-        mocks["director"].resolve_next_node = AsyncMock(return_value=mock_resolved)
-
-        mocks["sessions"].patch = AsyncMock()
-        mocks["repo"].upsert_state = AsyncMock()
-        mocks["events"].publish = AsyncMock()
-
-        # Mock finalize
-        mocks["content"].get_master = AsyncMock(return_value={"id": "q1"})
-        mock_handler = MagicMock()
-        mock_result = MagicMock()
-        mock_result.rewards.items = []
-        mock_result.rewards.skills = []
-        mock_result.rewards.attribute_bonuses = None
-        mock_handler.on_finalize = AsyncMock(return_value=mock_result)
-
-        with patch("src.backend.features.scenario.services.scenario_service.get_handler", return_value=mock_handler):
-            mocks["character_sessions"].transition_state = AsyncMock()
-            mocks["character_sessions"].clear_scenario_session = AsyncMock()
-            mocks["sessions"].delete = AsyncMock()
-            mocks["repo"].delete_state = AsyncMock()
-
-            await service.step(char_id, "a1")
-            mocks["sessions"].delete.assert_called_with(char_id)
 
     async def test_initialize_state_transition_error(self, service, mocks):
         import uuid
-        from src.backend.infrastructure.redis.character_session_manager import StateTransitionError
+        from src.backend.infrastructure.actor_state.managers.session import StateTransitionError
         char_id = 1
         quest_key = "q1"
-        mocks["content"].get_master = AsyncMock(return_value={"id": "q1"})
+        mocks["integrator"].get_quest_master = AsyncMock(return_value={"id": "q1"})
 
         mock_handler = MagicMock()
         context = ScenarioContextDTO(quest_key=quest_key, current_node_key="n1", scenario_session_id=uuid.uuid4())
         mock_handler.on_initialize = AsyncMock(return_value=context)
 
         with patch("src.backend.features.scenario.services.scenario_service.get_handler", return_value=mock_handler):
-            mocks["sessions"].create = AsyncMock()
-            mocks["character_sessions"].transition_state = AsyncMock(side_effect=StateTransitionError("fail"))
-            mocks["character_sessions"].set_scenario_session = AsyncMock()
-            mocks["repo"].upsert_state = AsyncMock()
-            mocks["content"].get_node = AsyncMock(return_value={"node_key": "n1", "actions_logic": {}})
-            mocks["formatter"].render_payload.return_value = {}
-            mocks["events"].publish = AsyncMock()
+            mocks["integrator"].prepare_session = AsyncMock(side_effect=StateTransitionError("fail"))
+            mocks["integrator"].get_node = AsyncMock(return_value={"node_key": "n1", "actions_logic": {}})
+            mocks["formatter"].render_payload.return_value = MagicMock(node_key="n1", buttons=[])
+            mocks["integrator"].publish_event = AsyncMock()
 
-            # Should not raise
-            await service.initialize(char_id, quest_key)
+            # Should bubble up
+            with pytest.raises(StateTransitionError):
+                await service.initialize(char_id, quest_key)
 
     async def test_step_invalid_condition(self, service, mocks):
         context = ScenarioContextDTO(quest_key="q1", current_node_key="n1")
-        mocks["sessions"].get = AsyncMock(return_value=context)
-        mocks["content"].get_node = AsyncMock(return_value={"node_key": "n1", "actions_logic": {"a1": {"condition": "fail"}}})
+        mocks["integrator"].load_session = AsyncMock(return_value=context)
+        mocks["integrator"].get_node = AsyncMock(return_value={"node_key": "n1", "actions_logic": {"a1": {"condition": "fail"}}})
         mocks["evaluator"].check_condition.return_value = False
-        with pytest.raises(InvalidActionError):
+        from src.backend.features.scenario.exceptions import ScenarioConditionFailed
+        with pytest.raises(ScenarioConditionFailed):
             await service.step(1, "a1")
 
     async def test_step_finish_quest(self, service, mocks):
         context = ScenarioContextDTO(quest_key="q1", current_node_key="n1")
-        mocks["sessions"].get = AsyncMock(return_value=context)
-        mocks["content"].get_node = AsyncMock(return_value={"node_key": "n1", "actions_logic": {"a1": {"type": "finish_quest"}}})
+        mocks["integrator"].load_session = AsyncMock(return_value=context)
+        mocks["integrator"].get_node = AsyncMock(return_value={"node_key": "n1", "actions_logic": {"a1": {"type": "finish_quest"}}})
 
         # Mock finalize
-        mocks["content"].get_master = AsyncMock(return_value={"id": "q1"})
+        mocks["integrator"].get_quest_master = AsyncMock(return_value={"id": "q1"})
         mock_handler = MagicMock()
         mock_result = MagicMock()
         mock_result.rewards.items = []
@@ -257,25 +203,25 @@ class TestScenarioService:
         mock_handler.on_finalize = AsyncMock(return_value=mock_result)
 
         with patch("src.backend.features.scenario.services.scenario_service.get_handler", return_value=mock_handler):
-            mocks["character_sessions"].transition_state = AsyncMock()
-            mocks["character_sessions"].clear_scenario_session = AsyncMock()
-            mocks["sessions"].delete = AsyncMock()
-            mocks["repo"].delete_state = AsyncMock()
-            mocks["repo"].get_active_state = AsyncMock(return_value=None)
-            mocks["events"].publish = AsyncMock()
+            mocks["integrator"].finalize_session = AsyncMock()
+            mocks["integrator"].grant_inventory_rewards = AsyncMock()
+            mocks["integrator"].unlock_skills = AsyncMock()
+            mocks["integrator"].apply_attribute_bonuses = AsyncMock()
+            mocks["integrator"].request_combat_start = AsyncMock()
+            mocks["integrator"].publish_event = AsyncMock()
 
             # Mock director._get_node_actions so ScenarioService knows it's a finish_quest action
             mocks["director"]._get_node_actions.return_value = {"a1": {"type": "finish_quest"}}
 
             await service.step(1, "a1")
-            mocks["sessions"].delete.assert_called_once()
+            mocks["integrator"].finalize_session.assert_called_once()
 
     async def test_resume_auto_chain(self, service, mocks):
         char_id = 1
         context = ScenarioContextDTO(quest_key="q1", current_node_key="n1")
-        mocks["sessions"].get = AsyncMock(return_value=context)
-        mocks["content"].get_master = AsyncMock(return_value={"id": "q1"})
-        mocks["content"].get_node = AsyncMock(return_value={"node_key": "n1", "actions_logic": {"auto": {}}})
+        mocks["integrator"].load_session = AsyncMock(return_value=context)
+        mocks["integrator"].get_quest_master = AsyncMock(return_value={"id": "q1"})
+        mocks["integrator"].get_node = AsyncMock(return_value={"node_key": "n1", "actions_logic": {"auto": {}}})
 
         mocks["director"]._get_node_actions = MagicMock(return_value={"auto": {}})
         mock_resolved = MagicMock()
@@ -283,9 +229,9 @@ class TestScenarioService:
         mock_resolved.context = {"foo": "bar"}
         mocks["director"].execute_auto_chain = AsyncMock(return_value=mock_resolved)
 
-        mocks["sessions"].patch = AsyncMock()
-        mocks["formatter"].render_payload.return_value = {}
-        mocks["events"].publish = AsyncMock()
+        mocks["integrator"].update_progress = AsyncMock()
+        mocks["formatter"].render_payload.return_value = MagicMock(node_key="n2", buttons=[])
+        mocks["integrator"].publish_event = AsyncMock()
 
         await service.resume(char_id)
         assert context.current_node_key == "n2"
@@ -294,52 +240,51 @@ class TestScenarioService:
     async def test_resume_master_not_found(self, service, mocks):
         char_id = 1
         context = ScenarioContextDTO(quest_key="missing", current_node_key="n1")
-        mocks["sessions"].get = AsyncMock(return_value=context)
-        mocks["content"].get_master = AsyncMock(return_value=None)
-        with pytest.raises(ScenarioNotFoundError):
+        mocks["integrator"].load_session = AsyncMock(return_value=context)
+        mocks["integrator"].get_quest_master = AsyncMock(return_value=None)
+        with pytest.raises(ScenarioNodeNotFound):
             await service.resume(char_id)
 
     async def test_step_session_not_found(self, service, mocks):
-        mocks["sessions"].get = AsyncMock(return_value=None)
-        mocks["repo"].get_active_state = AsyncMock(return_value=None)
-        with pytest.raises(ScenarioSessionNotFoundError):
+        mocks["integrator"].load_session = AsyncMock(return_value=None)
+        with pytest.raises(ScenarioSessionNotFound):
             await service.step(1, "a1")
 
     async def test_finalize_session_not_found(self, service, mocks):
-        mocks["sessions"].get = AsyncMock(return_value=None)
-        with pytest.raises(ScenarioSessionNotFoundError):
+        mocks["integrator"].load_session = AsyncMock(return_value=None)
+        with pytest.raises(ScenarioSessionNotFound):
             await service.finalize(1)
 
     async def test_resume_node_not_found(self, service, mocks):
         char_id = 1
         context = ScenarioContextDTO(quest_key="q1", current_node_key="missing")
-        mocks["sessions"].get = AsyncMock(return_value=context)
-        mocks["content"].get_master = AsyncMock(return_value={"id": "q1"})
-        mocks["content"].get_node = AsyncMock(return_value=None)
-        with pytest.raises(ScenarioNotFoundError):
+        mocks["integrator"].load_session = AsyncMock(return_value=context)
+        mocks["integrator"].get_quest_master = AsyncMock(return_value={"id": "q1"})
+        mocks["integrator"].get_node = AsyncMock(return_value=None)
+        with pytest.raises(ScenarioNodeNotFound):
             await service.resume(char_id)
 
     async def test_finalize_master_not_found(self, service, mocks):
         char_id = 1
         context = ScenarioContextDTO(quest_key="missing", current_node_key="n1")
-        mocks["sessions"].get = AsyncMock(return_value=context)
-        mocks["content"].get_master = AsyncMock(return_value=None)
-        with pytest.raises(ScenarioNotFoundError):
+        mocks["integrator"].load_session = AsyncMock(return_value=context)
+        mocks["integrator"].get_quest_master = AsyncMock(return_value=None)
+        with pytest.raises(ScenarioNodeNotFound):
             await service.finalize(char_id)
 
     async def test_step_invalid_action(self, service, mocks):
         context = ScenarioContextDTO(quest_key="q1", current_node_key="n1")
-        mocks["sessions"].get = AsyncMock(return_value=context)
-        mocks["content"].get_node = AsyncMock(return_value={"node_key": "n1", "actions_logic": {}})
+        mocks["integrator"].load_session = AsyncMock(return_value=context)
+        mocks["integrator"].get_node = AsyncMock(return_value={"node_key": "n1", "actions_logic": {}})
         mocks["director"]._get_node_actions = MagicMock(return_value={})
-        with pytest.raises(InvalidActionError):
+        with pytest.raises(InvalidScenarioAction):
             await service.step(1, "a1")
 
     async def test_finalize_success(self, service, mocks):
         char_id = 1
         context = ScenarioContextDTO(quest_key="q1", current_node_key="terminal")
-        mocks["sessions"].get = AsyncMock(return_value=context)
-        mocks["content"].get_master = AsyncMock(return_value={"id": "q1"})
+        mocks["integrator"].load_session = AsyncMock(return_value=context)
+        mocks["integrator"].get_quest_master = AsyncMock(return_value={"id": "q1"})
 
         mock_handler = MagicMock()
         result = MagicMock()
@@ -349,16 +294,13 @@ class TestScenarioService:
         mock_handler.on_finalize = AsyncMock(return_value=result)
 
         with patch("src.backend.features.scenario.services.scenario_service.get_handler", return_value=mock_handler):
-            mocks["character_sessions"].apply_attribute_bonus = AsyncMock()
-            mocks["character_sessions"].transition_state = AsyncMock()
-            mocks["character_sessions"].clear_scenario_session = AsyncMock()
-            mocks["sessions"].delete = AsyncMock()
-            mocks["repo"].delete_state = AsyncMock()
-            mocks["events"].publish = AsyncMock()
+            mocks["integrator"].grant_inventory_rewards = AsyncMock()
+            mocks["integrator"].unlock_skills = AsyncMock()
+            mocks["integrator"].apply_attribute_bonuses = AsyncMock()
+            mocks["integrator"].request_combat_start = AsyncMock()
+            mocks["integrator"].finalize_session = AsyncMock()
+            mocks["integrator"].publish_event = AsyncMock()
 
             await service.finalize(char_id)
 
-            mocks["character_sessions"].transition_state.assert_called_with(
-                char_id, CoreDomain.EXPLORATION, expected_state=CoreDomain.SCENARIO
-            )
-            mocks["sessions"].delete.assert_called_with(char_id)
+            mocks["integrator"].finalize_session.assert_called_with(char_id, CoreDomain.EXPLORATION)

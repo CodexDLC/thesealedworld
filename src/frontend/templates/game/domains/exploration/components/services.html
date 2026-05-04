@@ -1,0 +1,38 @@
+{% macro service_icon_url(service) -%}
+    {% set haystack = ((service.action if service.action is defined else '') ~ ' ' ~ (service.label if service.label is defined else ''))|lower %}
+    {% if 'blacksmith' in haystack or 'forge' in haystack %}
+        /static/images/ui/service-icons/blacksmith.svg
+    {% elif 'tavern' in haystack %}
+        /static/images/ui/service-icons/tavern.svg
+    {% elif 'arena' in haystack %}
+        /static/images/ui/service-icons/arena.svg
+    {% elif 'market' in haystack %}
+        /static/images/ui/service-icons/market.svg
+    {% elif 'portal' in haystack or 'rift' in haystack %}
+        /static/images/ui/service-icons/portal.svg
+    {% else %}
+        /static/images/ui/service-icons/default.svg
+    {% endif %}
+{%- endmacro %}
+
+{% macro service_card(service, compact=false) %}
+    {% if service and service.is_active %}
+        <article class="service-card {{ 'service-card--compact' if compact else '' }}">
+            <div class="service-card-icon"
+                 style="--service-icon-url: url('{{ service_icon_url(service)|trim }}')"
+                 aria-hidden="true"></div>
+            <div class="service-card-body">
+                <span class="service-card-title">{{ service.label }}</span>
+                {% set action_parts = service.action.split(':') if service.action is defined else [] %}
+                {% set target_service_id = action_parts[1] if action_parts and action_parts[0] == "service" else service.id %}
+                <button class="service-card-action"
+                        hx-post="/game/exploration/use-service"
+                        hx-target="#game-center"
+                        hx-swap="innerHTML"
+                        hx-vals='{"char_id": {{ char_id }}, "service_id": "{{ target_service_id }}"}'>
+                    ENTER
+                </button>
+            </div>
+        </article>
+    {% endif %}
+{% endmacro %}

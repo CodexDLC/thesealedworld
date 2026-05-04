@@ -1,10 +1,210 @@
-<div class="viewport-container">
-    <div class="ds-panel viewport-panel">
-        <div class="ds-panel-header">VISUAL_FEED_STUB</div>
-        <div class="ds-panel-body viewport-content">
+{% macro exploration_button(button, fallback_label='') %}
+    {% if button and button.is_active %}
+        {% set action_parts = button.action.split(':') %}
+        {% if action_parts[0] == 'move' %}
+            <button class="dp"
+                    hx-post="/game/exploration/move"
+                    hx-target="#game-center"
+                    hx-swap="innerHTML"
+                    hx-vals='{"char_id": {{ char_id }}, "target_id": "{{ action_parts[1] }}"}'>
+                {{ fallback_label or button.label }}
+            </button>
+        {% elif action_parts[0] == 'interact' %}
+            <button class="dp"
+                    hx-post="/game/exploration/interact"
+                    hx-target="#game-center"
+                    hx-swap="innerHTML"
+                    hx-vals='{"char_id": {{ char_id }}, "action": "{{ action_parts[1] }}"}'>
+                {{ fallback_label or button.label }}
+            </button>
+        {% elif action_parts[0] == 'service' %}
+            <button class="dp exploration-service-placeholder" disabled>
+                <span>{{ fallback_label or button.label }}</span>
+            </button>
+        {% else %}
+            <button class="dp" disabled>{{ fallback_label or button.label }}</button>
+        {% endif %}
+    {% else %}
+        <button class="dp dp-empty" disabled>{{ fallback_label }}</button>
+    {% endif %}
+{% endmacro %}
+
+{% macro route_placeholder(button, note='PLANNED') %}
+    {% set label = button.label if button.label is defined else button %}
+    <button class="dp dp-empty exploration-route-placeholder" disabled>
+        <span>{{ label }}</span>
+        <small>{{ note }}</small>
+    </button>
+{% endmacro %}
+
+{% from "game/domains/exploration/components/services.html" import service_card with context %}
+
+{% set oob = true %}
+{% include "game/includes/world_theme_vars.html" %}
+{% set symbiote_name = status_seed.symbiote_name if status_seed is defined and status_seed.symbiote_name else 'SYSTEM' %}
+
+{% if oob_panels %}
+    <div id="game-right-content" hx-swap-oob="true">
+        {% include "game/domains/exploration/right_sidebar/main.html" %}
+    </div>
+{% endif %}
+
+<section id="center-screens">
+    {% if exploration %}
+        {% if payload_type == 'exploration_encounter' %}
+            <article class="cs active">
+                <div class="loc-tag">
+                    <span class="loc-dot"></span>
+                    <span>{{ exploration.status }} // {{ exploration.type }}</span>
+                </div>
+
+                <div class="hud-strip">
+                    <div class="hud-cell">
+                        <span class="hud-v">{{ exploration.enemies|length }}</span>
+                        <span class="hud-l">HOSTILES</span>
+                    </div>
+                    <div class="hud-cell">
+                        <span class="hud-v">{{ exploration.metadata.tier if exploration.metadata and exploration.metadata.tier is defined else 'N/A' }}</span>
+                        <span class="hud-l">TIER</span>
+                    </div>
+                    <div class="hud-cell">
+                        <span class="hud-v">{{ exploration.session_id or 'WAIT' }}</span>
+                        <span class="hud-l">SESSION</span>
+                    </div>
+                </div>
+
+                <div class="parchment panel-membrane danger">
+                    <div class="scene-img">{{ exploration.title }}</div>
+                    <div class="world-text">{{ exploration.description }}</div>
+                </div>
+
+                {% if exploration.enemies %}
+                    <div class="hud-strip">
+                        {% for enemy in exploration.enemies %}
+                            <div class="hud-cell">
+                                <span class="hud-v">{{ enemy.name }}</span>
+                                <span class="hud-l">LVL {{ enemy.level }} // HP {{ enemy.hp_percent }}%</span>
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+
+                <div class="scenario-choices">
+                    {% for option in exploration.options %}
+                        <button class="choice {{ 'danger' if option.style == 'danger' else '' }}"
+                                hx-post="/game/exploration/interact"
+                                hx-target="#game-center"
+                                hx-swap="innerHTML"
+                                hx-vals='{"char_id": {{ char_id }}, "action": "{{ option.id }}"}'>
+                            {{ option.label }}
+                        </button>
+                    {% endfor %}
+                </div>
+            </article>
+        {% else %}
+            <article class="cs active">
+                <div class="loc-tag">
+                    <span class="loc-dot"></span>
+                    <span>{{ exploration.loc_id }} // {{ exploration.title }}</span>
+                </div>
+
+                {% if exploration.hud %}
+                    <div class="hud-strip">
+                        <div class="hud-cell">
+                            {% set threat = exploration.hud.threat_tier if exploration.hud.threat_tier is defined else 0 %}
+                            <span class="hud-v">{{ (threat * 100)|round|int if threat <= 1 else threat }}%</span>
+                            <span class="hud-l">THREAT</span>
+                        </div>
+                        <div class="hud-cell">
+                            <span class="hud-v">{{ exploration.players_nearby }}</span>
+                            <span class="hud-l">SIGNALS</span>
+                        </div>
+                        <div class="hud-cell">
+                            <span class="hud-v">{{ exploration.hud.battles_count if exploration.hud.battles_count is defined else 0 }}</span>
+                            <span class="hud-l">BATTLES</span>
+                        </div>
+                        <div class="hud-cell">
+                            <span class="hud-v">{{ 'SAFE' if exploration.hud.is_safe_zone else 'OPEN' }}</span>
+                            <span class="hud-l">ZONE</span>
+                        </div>
+                    </div>
+                {% endif %}
+
+                <div class="parchment">
+                    <div class="scene-img"
+                        {% if exploration.background_url %}style="background-image: url('{{ exploration.background_url }}');"{% endif %}>
+                        <span>{{ exploration.title }}</span>
+                    </div>
+                    <div class="world-text">
+                        <span class="symbiote-readout-name">{{ symbiote_name }}:</span>
+                        {{ exploration.description }}
+                    </div>
+                </div>
+
+                {% if exploration.grid %}
+                    {% set navigation = exploration.navigation if exploration.navigation is defined else none %}
+                    {% set movement = navigation.movement if navigation else none %}
+                    {% set exploration_actions = navigation.exploration if navigation else none %}
+                    {% set services = navigation.services if navigation else none %}
+                    {% set auto_routes = navigation.auto_routes if navigation else none %}
+                    <div class="exploration-control-panel">
+                        {% if services or exploration.grid.services %}
+                            <div class="exploration-service-row">
+                                {% if services %}
+                                    {% for service in services.values() %}
+                                        {{ service_card(service) }}
+                                    {% endfor %}
+                                {% else %}
+                                    {% for service in exploration.grid.services %}
+                                        {{ service_card(service) }}
+                                    {% endfor %}
+                                {% endif %}
+                            </div>
+                        {% endif %}
+
+                        <div class="exploration-control-grid">
+                            <div class="exploration-action-block">
+                                <div class="exploration-control-title">EXPLORATION</div>
+                                {{ exploration_button(exploration_actions.explore if exploration_actions else exploration.grid.nw, 'EXPLORE') }}
+                            </div>
+
+                            <div class="exploration-route-block">
+                                <div class="exploration-control-title">AUTO ROUTES</div>
+                                {% if auto_routes %}
+                                    {% for route in auto_routes.values() %}
+                                        {{ route_placeholder(route) }}
+                                    {% endfor %}
+                                {% else %}
+                                    {{ route_placeholder('HOME') }}
+                                    {{ route_placeholder('QUEST') }}
+                                    {{ route_placeholder('KNOWN PLACE') }}
+                                {% endif %}
+                            </div>
+
+                            <div class="exploration-movement-block">
+                                <div class="exploration-control-title">MOVEMENT</div>
+                                <div class="exploration-movement-grid">
+                                    <span></span>
+                                    {{ exploration_button(movement.north if movement else exploration.grid.n, 'MOVE NORTH') }}
+                                    <span></span>
+                                    {{ exploration_button(movement.west if movement else exploration.grid.w, 'MOVE WEST') }}
+                                    {{ exploration_button(movement.look if movement else exploration.grid.center, 'LOOK AROUND') }}
+                                    {{ exploration_button(movement.east if movement else exploration.grid.e, 'MOVE EAST') }}
+                                    <span></span>
+                                    {{ exploration_button(movement.south if movement else exploration.grid.s, 'MOVE SOUTH') }}
+                                    <span></span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                {% endif %}
+            </article>
+        {% endif %}
+    {% else %}
+        <article class="cs active">
             <div class="placeholder-grid">
                 <p class="feature-text">CENTRAL_INTERFACE_INITIALIZING...</p>
             </div>
-        </div>
-    </div>
-</div>
+        </article>
+    {% endif %}
+</section>

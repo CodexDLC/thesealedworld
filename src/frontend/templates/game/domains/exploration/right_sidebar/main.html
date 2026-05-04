@@ -1,8 +1,82 @@
-<div class="sidebar-placeholder">
+{% from "game/domains/exploration/components/services.html" import service_card with context %}
+
+<div class="field-panel">
     <div class="ds-panel">
-        <div class="ds-panel-header">EXPLORATION_CONTEXT_R</div>
-        <div class="ds-panel-body" style="font-size: 10px; opacity: 0.4;">
-            WAITING_FOR_DATA_SYNC...
+        <div class="ds-panel-header">LOCAL_CONTEXT</div>
+        <div class="ds-panel-body">
+            {% if exploration and payload_type == 'exploration_navigation' %}
+                <div class="status-section" style="margin-top: 0;">
+                    <div class="sec">LOCATION</div>
+                    <div class="prof-list">
+                        <div class="prof-row">
+                            <div class="prof-meta">
+                                <span>ID</span>
+                                <span>{{ exploration.loc_id }}</span>
+                            </div>
+                        </div>
+                        <div class="prof-row">
+                            <div class="prof-meta">
+                                <span>SIGNALS</span>
+                                <span>{{ exploration.players_nearby }}</span>
+                            </div>
+                        </div>
+                        {% if exploration.hud %}
+                            <div class="prof-row">
+                                <div class="prof-meta">
+                                    <span>THREAT</span>
+                                    {% set threat = exploration.hud.threat_tier if exploration.hud.threat_tier is defined else 0 %}
+                                    <span>{{ (threat * 100)|round|int if threat <= 1 else threat }}%</span>
+                                </div>
+                            </div>
+                            <div class="prof-row">
+                                <div class="prof-meta">
+                                    <span>BATTLES</span>
+                                    <span>{{ exploration.hud.battles_count if exploration.hud.battles_count is defined else 0 }}</span>
+                                </div>
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                {% set navigation = exploration.navigation if exploration.navigation is defined else none %}
+                {% set services = navigation.services if navigation else none %}
+                {% if services or (exploration.grid and exploration.grid.services) %}
+                    <div class="status-section">
+                        <div class="sec">SERVICES</div>
+                        <div class="service-card-list service-card-list--sidebar">
+                            {% if services %}
+                                {% for service in services.values() %}
+                                    {{ service_card(service, compact=true) }}
+                                {% endfor %}
+                            {% else %}
+                                {% for service in exploration.grid.services %}
+                                    {{ service_card(service, compact=true) }}
+                                {% endfor %}
+                            {% endif %}
+                        </div>
+                    </div>
+                {% endif %}
+            {% elif exploration and payload_type == 'exploration_encounter' %}
+                <div class="status-section" style="margin-top: 0;">
+                    <div class="sec">ENCOUNTER</div>
+                    <div class="prof-list">
+                        <div class="prof-row">
+                            <div class="prof-meta">
+                                <span>TYPE</span>
+                                <span>{{ exploration.type }}</span>
+                            </div>
+                        </div>
+                        <div class="prof-row">
+                            <div class="prof-meta">
+                                <span>STATUS</span>
+                                <span>{{ exploration.status }}</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            {% else %}
+                <div style="font-size: 10px; opacity: 0.4;">WAITING_FOR_DATA_SYNC...</div>
+            {% endif %}
         </div>
     </div>
 </div>

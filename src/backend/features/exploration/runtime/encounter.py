@@ -1,10 +1,10 @@
 # src/backend/features/exploration/runtime/encounter.py
-import random
 import logging
+import random
 from typing import Any
 
-from src.backend.features.exploration.dto.config import ExplorationConfig
 from src.backend.core.calculators.chance_service import ChanceService
+from src.backend.features.exploration.dto.config import ExplorationConfig
 from src.backend.features.exploration.events.emitters import ExplorationEvents
 from src.shared.schemas.exploration import (
     DetectionStatus,
@@ -27,12 +27,12 @@ class EncounterEngine:
         self._events = events or ExplorationEvents()
 
     async def try_generate_encounter(
-        self, 
-        char_id: int, 
-        location_data: dict[str, Any], 
-        scouting_skill: float, 
-        trigger: str = "move", 
-        loc_id: str = ""
+        self,
+        char_id: int,
+        location_data: dict[str, Any],
+        scouting_skill: float,
+        trigger: str = "move",
+        loc_id: str = "",
     ) -> EncounterDTO | None:
         """
         Главный метод генерации случайной встречи.
@@ -61,20 +61,12 @@ class EncounterEngine:
 
         return None
 
-    async def _generate_combat(
-        self, 
-        char_id: int, 
-        tier: int, 
-        scouting_skill: float, 
-        loc_id: str
-    ) -> EncounterDTO:
+    async def _generate_combat(self, char_id: int, tier: int, scouting_skill: float, loc_id: str) -> EncounterDTO:
         """
         Генерация боевого энкаунтера.
         """
         # 1. Выбор сложности (Зависит от Tier)
-        weights_int = ExplorationConfig.TIER_DIFFICULTY_WEIGHTS.get(
-            tier, ExplorationConfig.TIER_DIFFICULTY_WEIGHTS[1]
-        )
+        weights_int = ExplorationConfig.TIER_DIFFICULTY_WEIGHTS.get(tier, ExplorationConfig.TIER_DIFFICULTY_WEIGHTS[1])
         weights = {k: float(v) for k, v in weights_int.items()}
 
         difficulty = ChanceService.weighted_choice(weights)
@@ -115,11 +107,7 @@ class EncounterEngine:
             return [EnemyPreviewDTO(name=f"Rat (T{tier})", level=base_lvl - 1, hp_percent=100)]
 
     def _build_combat_dto(
-        self, 
-        status: DetectionStatus, 
-        enemies: list[EnemyPreviewDTO], 
-        tier: int, 
-        session_id: str | None = None
+        self, status: DetectionStatus, enemies: list[EnemyPreviewDTO], tier: int, session_id: str | None = None
     ) -> EncounterDTO:
         enemy_name = enemies[0].name if enemies else "Unknown Threat"
 
@@ -139,7 +127,7 @@ class EncounterEngine:
             ]
 
         return EncounterDTO(
-            id=f"combat_{random.randint(1000, 9999)}",
+            id=f"combat_{random.randint(1000, 9999)}",  # nosec B311
             type=EncounterType.COMBAT,
             status=status,
             title=title,
@@ -152,7 +140,7 @@ class EncounterEngine:
 
     def _build_merchant_encounter(self) -> EncounterDTO:
         return EncounterDTO(
-            id=f"merchant_{random.randint(100, 999)}",
+            id=f"merchant_{random.randint(100, 999)}",  # nosec B311
             type=EncounterType.MERCHANT,
             title="💰 Странствующий Торговец",
             description="Вы встречаете торговца с повозкой.",
@@ -164,7 +152,7 @@ class EncounterEngine:
 
     def _build_quest_encounter(self) -> EncounterDTO:
         return EncounterDTO(
-            id=f"quest_{random.randint(100, 999)}",
+            id=f"quest_{random.randint(100, 999)}",  # nosec B311
             type=EncounterType.QUEST,
             title="📜 Странник",
             description="Человек у дороги просит помощи.",

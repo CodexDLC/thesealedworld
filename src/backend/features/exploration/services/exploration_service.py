@@ -1,11 +1,11 @@
 # src/backend/features/exploration/services/exploration_service.py
 import logging
-from typing import Any
 
+from src.backend.features.exploration.dto.config import ExplorationConfig
+from src.backend.features.exploration.integrations.system_integrator import ExplorationSystemIntegrator
+from src.backend.features.exploration.resources.service_registry import get_service_entry
 from src.backend.features.exploration.runtime.encounter import EncounterEngine
 from src.backend.features.exploration.runtime.navigation import NavigationEngine
-from src.backend.features.exploration.integrations.system_integrator import ExplorationSystemIntegrator
-from src.backend.features.exploration.dto.config import ExplorationConfig
 from src.shared.enums.domain import CoreDomain
 from src.shared.schemas.exploration import (
     AlertHudDTO,
@@ -16,6 +16,7 @@ from src.shared.schemas.exploration import (
     WorldNavigationDTO,
 )
 from src.shared.schemas.response import ServiceResult
+from src.shared.schemas.world_theme import WorldThemeDTO
 
 log = logging.getLogger(__name__)
 
@@ -39,10 +40,7 @@ class ExplorationService:
     # =========================================================================
 
     async def move(
-        self, 
-        char_id: int, 
-        direction: str | None = None, 
-        target_id: str | None = None
+        self, char_id: int, direction: str | None = None, target_id: str | None = None
     ) -> WorldNavigationDTO | EncounterDTO:
         """
         Попытка перемещения.
@@ -51,7 +49,7 @@ class ExplorationService:
         current_loc_id = await self._integrator.get_player_location_id(char_id)
         if not current_loc_id:
             current_loc_id = ExplorationConfig.DEFAULT_SPAWN_POINT
-            
+
         loc_data = await self._integrator.get_location_data(current_loc_id)
 
         if not loc_data:
@@ -104,16 +102,13 @@ class ExplorationService:
         loc_id = await self._integrator.get_player_location_id(char_id)
         if not loc_id:
             loc_id = ExplorationConfig.DEFAULT_SPAWN_POINT
-            
+
         loc_data = await self._integrator.get_location_data(loc_id) or {}
 
         return await self._build_navigation_dto(char_id, loc_id, loc_data)
 
     async def interact(
-        self, 
-        char_id: int, 
-        action: str, 
-        target_id: str | None = None
+        self, char_id: int, action: str, target_id: str | None = None
     ) -> WorldNavigationDTO | EncounterDTO | ExplorationListDTO | ServiceResult:
         """
         Обработка контекстных действий (Search, Battles, Bypass, etc).
@@ -121,7 +116,7 @@ class ExplorationService:
         loc_id = await self._integrator.get_player_location_id(char_id)
         if not loc_id:
             loc_id = ExplorationConfig.DEFAULT_SPAWN_POINT
-            
+
         loc_data = await self._integrator.get_location_data(loc_id) or {}
 
         # --- Encounter Reactions ---
@@ -137,13 +132,9 @@ class ExplorationService:
         if action == "search":
             skills = await self._integrator.get_actor_skills(char_id)
             scouting = skills.get("survival", 0.0)
-            
+
             encounter = await self._encounter_engine.try_generate_encounter(
-                char_id=char_id, 
-                location_data=loc_data, 
-                scouting_skill=scouting, 
-                trigger="search", 
-                loc_id=loc_id
+                char_id=char_id, location_data=loc_data, scouting_skill=scouting, trigger="search", loc_id=loc_id
             )
             if encounter:
                 return encounter
@@ -158,6 +149,49 @@ class ExplorationService:
 
         # Default fallback
         return await self.look_around(char_id)
+
+    async def use_service(self, char_id: int, service_id: str) -> WorldNavigationDTO | ServiceResult:
+        loc_id = await self._integrator.get_player_location_id(char_id)
+        if not loc_id:
+            loc_id = ExplorationConfig.DEFAULT_SPAWN_POINT
+
+        loc_data = await self._integrator.get_location_data(loc_id) or {}
+        if not self._service_allowed_in_location(loc_data, service_id):
+            log.warning("ExplorationService | service_denied char_id=%s loc=%s service=%s", char_id, loc_id, service_id)
+            dto = await self._build_navigation_dto(char_id, loc_id, loc_data)
+            dto.hud = AlertHudDTO(message="Сервис недоступен из этой локации.", style="danger")
+            return dto
+
+        entry = get_service_entry(service_id)
+        if entry is None:
+            log.warning(
+                "ExplorationService | service_unknown char_id=%s loc=%s service=%s", char_id, loc_id, service_id
+            )
+            dto = await self._build_navigation_dto(char_id, loc_id, loc_data)
+            dto.hud = AlertHudDTO(message="Сервис пока не подключен.", style="info")
+            return dto
+
+        if entry.access_policy != "public":
+            log.warning(
+                "ExplorationService | service_access_not_implemented char_id=%s loc=%s service=%s policy=%s",
+                char_id,
+                loc_id,
+                service_id,
+                entry.access_policy,
+            )
+            dto = await self._build_navigation_dto(char_id, loc_id, loc_data)
+            dto.hud = AlertHudDTO(message="Доступ к сервису пока не подключен.", style="info")
+            return dto
+
+        return ServiceResult(
+            data={
+                "service_id": service_id,
+                "location_id": loc_id,
+                "label": entry.label,
+                **entry.metadata,
+            },
+            next_state=entry.target_state,
+        )
 
     # =========================================================================
     # LOGIC: Battle Scanner
@@ -186,6 +220,17 @@ class ExplorationService:
             back_action="look_around",
         )
 
+    @staticmethod
+    def _service_allowed_in_location(loc_data: dict, service_id: str) -> bool:
+        services = loc_data.get("services")
+        if isinstance(services, list) and service_id in {str(item) for item in services}:
+            return True
+
+        exits = loc_data.get("exits", {})
+        if not isinstance(exits, dict):
+            return False
+        return f"svc:{service_id}" in exits or service_id in exits
+
     # =========================================================================
     # HELPERS: DTO Builder
     # =========================================================================
@@ -197,27 +242,43 @@ class ExplorationService:
         players_count = await self._integrator.get_players_count(loc_id, exclude_char_id=char_id)
         battles = await self._integrator.get_battles(loc_id)
         battles_count = len(battles)
-        
+
         flags = loc_data.get("flags", {})
+        anchor_influence = loc_data.get("anchor_influence", {})
+        if not isinstance(anchor_influence, dict):
+            anchor_influence = {}
+        world_theme = WorldThemeDTO.model_validate(loc_data.get("world_theme") or {})
+        if world_theme.loc_id is None:
+            world_theme.loc_id = loc_id
 
         # Используем NavigationEngine для сборки сетки
-        grid = NavigationEngine.build_grid(loc_id, loc_data.get("exits", {}), flags)
+        exits = loc_data.get("exits", {})
+        grid = NavigationEngine.build_grid(loc_id, exits, flags)
+        navigation = NavigationEngine.build_actions(loc_id, exits, flags)
 
         hud = ExplorationHudDTO(
-            threat_tier=int(flags.get("threat_tier", 0)),
+            threat_tier=float(flags.get("threat_tier", 0)),
             players_count=players_count,
             battles_count=battles_count,
             is_safe_zone=flags.get("is_safe_zone", False),
+            dominant_anchor=anchor_influence.get("dominant_anchor"),
+            ambient_tags=anchor_influence.get("tags", []),
         )
 
-        return WorldNavigationDTO(
+        dto = WorldNavigationDTO(
             loc_id=loc_id,
             title=loc_data.get("name", "Unknown"),
             description=loc_data.get("description", "..."),
+            background_url=loc_data.get("background_url"),
+            anchor_influence=anchor_influence,
+            world_theme=world_theme,
             visual_objects=[],
             players_nearby=players_count,
             grid=grid,
+            navigation=navigation,
             hud=hud,
-            threat_tier=int(flags.get("threat_tier", 0)),
+            threat_tier=float(flags.get("threat_tier", 0)),
             is_safe_zone=flags.get("is_safe_zone", False),
         )
+        await self._integrator.set_world_theme(char_id, dto.world_theme.model_dump(mode="json"))
+        return dto

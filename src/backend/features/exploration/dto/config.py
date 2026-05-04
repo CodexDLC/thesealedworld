@@ -1,5 +1,6 @@
 # src/backend/features/exploration/dto/config.py
 
+
 class ExplorationConfig:
     """
     Конфигурация и балансные константы домена Exploration.

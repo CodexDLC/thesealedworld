@@ -6,14 +6,14 @@ Engine для сборки навигационной сетки.
 
 from typing import Any
 
-from src.shared.schemas.exploration import GridButtonDTO, NavigationGridDTO
+from src.shared.schemas.exploration import GridButtonDTO, NavigationActionsDTO, NavigationGridDTO
 
 
 class NavigationEngine:
     """
     Собирает NavigationGridDTO из данных локации.
     Stateless — все данные передаются в методы.
-    
+
     Legacy: Сетка 3x3 для совместимости с интерфейсом Telegram-бота.
     В будущем будет переработано под веб-интерфейс.
     """
@@ -82,6 +82,47 @@ class NavigationEngine:
             center=cls._make_center_button(),
             # Сервисы
             services=service_buttons,
+        )
+
+    @classmethod
+    def build_actions(
+        cls,
+        current_loc_id: str,
+        exits: dict[str, Any],
+        flags: dict[str, Any],
+    ) -> NavigationActionsDTO:
+        """
+        Собирает веб-контракт навигации: backend отдает группы действий,
+        frontend решает, как разложить их по экранным блокам.
+        """
+        cx, cy = cls._parse_coords(current_loc_id)
+        if cx is None or cy is None:
+            cx, cy = 0, 0
+
+        direction_buttons = cls._build_direction_buttons(cx, cy, exits)
+        service_buttons = cls._build_service_buttons(exits)
+
+        return NavigationActionsDTO(
+            movement={
+                "north": direction_buttons.get("n", cls._make_wall_button("n")),
+                "south": direction_buttons.get("s", cls._make_wall_button("s")),
+                "west": direction_buttons.get("w", cls._make_wall_button("w")),
+                "east": direction_buttons.get("e", cls._make_wall_button("e")),
+                "look": cls._make_center_button(),
+            },
+            exploration={
+                "explore": cls._make_explore_button(),
+            },
+            services={button.id: button for button in service_buttons},
+            auto_routes={
+                "home": cls._make_auto_route_button("home", "HOME"),
+                "quest": cls._make_auto_route_button("quest", "QUEST"),
+                "known_place": cls._make_auto_route_button("known_place", "KNOWN PLACE"),
+            },
+            context={
+                "is_safe_zone": bool(flags.get("is_safe_zone", False)),
+                "threat_tier": flags.get("threat_tier", 0),
+            },
         )
 
     # =========================================================================
@@ -186,6 +227,16 @@ class NavigationEngine:
             ),
         }
 
+    @classmethod
+    def _make_explore_button(cls) -> GridButtonDTO:
+        return GridButtonDTO(
+            id="explore",
+            label="EXPLORE",
+            action="interact:search",
+            is_active=True,
+            style="secondary",
+        )
+
     # =========================================================================
     # Service Buttons (Нижний ряд)
     # =========================================================================
@@ -234,6 +285,16 @@ class NavigationEngine:
             label="👁 ОБЗОР",
             action="interact:look_around",
             is_active=True,
+            style="secondary",
+        )
+
+    @classmethod
+    def _make_auto_route_button(cls, route_id: str, label: str) -> GridButtonDTO:
+        return GridButtonDTO(
+            id=route_id,
+            label=label,
+            action=f"auto_route:{route_id}",
+            is_active=False,
             style="secondary",
         )
 

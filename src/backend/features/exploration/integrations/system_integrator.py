@@ -14,7 +14,7 @@ class ExplorationSystemIntegrator:
     """
     Integrates Exploration logic with Infrastructure (Redis, DB).
     Provides a unified data access layer for the feature.
-    
+
     Combines player state (CharacterSessionManager) with world state (WorldLocationStore).
     """
 
@@ -53,9 +53,12 @@ class ExplorationSystemIntegrator:
 
         # 2. Update Actor State (RedisJSON ac: key)
         await self.character_sessions.set_location(char_id, to_loc, prev=from_loc)
-        
+
         log.info("ExplorationIntegrator | move_success: char_id=%s from=%s to=%s", char_id, from_loc, to_loc)
         return True
+
+    async def set_world_theme(self, char_id: int, world_theme: dict[str, Any]) -> None:
+        await self.character_sessions.set_world_theme(char_id, world_theme)
 
     async def get_actor_skills(self, char_id: int) -> dict[str, float]:
         """Fetch all character skills."""

@@ -27,14 +27,14 @@ class GiftDTO(BaseModel):
     gift_id: str                # "gift_true_fire"
     name_ru: str                # "Истинное Пламя"
     school: GiftSchool          # FIRE
-    
+
     description: str
     role: str                   # "Damage Dealer", "Tank", etc.
-    
+
     # Способности, открывающиеся по мере прокачки
     # Level -> List[AbilityID]
     abilities_progression: dict[int, list[str]] = {}
-    
+
     # Пассивные бонусы (опционально)
     # Level -> Modifiers
     passives_progression: dict[int, dict] = {}

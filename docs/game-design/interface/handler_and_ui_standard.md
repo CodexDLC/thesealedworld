@@ -62,10 +62,10 @@
 async def combat_attack(callback: CallbackQuery, state: FSMContext, session: AsyncSession):
     # ... init dependencies ...
     orchestrator = container.get_combat_bot_orchestrator(session)
-    
+
     # Action
     view = await orchestrator.handle_attack(char_id, target_id)
-    
+
     # Render
     sender = ViewSender(bot, state, await state.get_data(), callback.from_user.id)
     await sender.send(view)

@@ -17,15 +17,15 @@
 class TriggerDTO(BaseModel):
     id: str                     # Уникальный ID (ключ для активации)
     name_ru: str                # Для логов и UI
-    
+
     event: str                  # Когда срабатывает (ON_CRIT, ON_DODGE...)
     chance: float = 1.0         # Шанс срабатывания (если правило активно)
-    
+
     # Изменения, которые вносит правило
-    # Ключи: 
+    # Ключи:
     # - "force.hit_evasion": Изменение флага
     # - "add_effect": Наложение эффекта (значение - словарь с id и params)
-    mutations: dict[str, Any] = {} 
+    mutations: dict[str, Any] = {}
 ```
 
 ---
@@ -38,18 +38,18 @@ class TriggerDTO(BaseModel):
 class TriggerRulesFlagsDTO(BaseModel):
     # 1. Точность
     accuracy: AccuracyTriggersDTO   # {true_strike: bool, ...}
-    
+
     # 2. Крит
     crit: CritTriggersDTO           # {bleed_on_crit: bool, ...}
-    
+
     # 3. Защита
     dodge: DodgeTriggersDTO         # {counter_on_dodge: bool}
     parry: ParryTriggersDTO         # {disarm_on_parry: bool}
     block: BlockTriggersDTO         # {bash_on_block: bool}
-    
+
     # 4. Контроль (Финал)
     control: ControlTriggersDTO     # {stun_on_hit: bool}
-    
+
     # 5. Урон
     damage: DamageTriggersDTO       # {execute_low_hp: bool}
 ```

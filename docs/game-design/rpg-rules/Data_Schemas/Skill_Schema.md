@@ -33,15 +33,15 @@ class SkillDTO(BaseModel):
     skill_key: str              # Уникальный ключ (например, "skill_swords")
     name_en: str                # Название (EN)
     name_ru: str                # Название (RU)
-    
+
     category: SkillCategory     # Категория
     group: SkillGroup           # Группа
-    
+
     # Математика прогрессии (влияет на скорость прокачки)
     stat_weights: dict[str, int] # Веса атрибутов {"strength": 2, "agility": 1}
     rate_mod: float             # Множитель скорости (1.0 = стандарт)
     wall_mod: float             # Множитель сложности капа (1.0 = стандарт)
-    
+
     description: str            # Описание для UI
 ```
 

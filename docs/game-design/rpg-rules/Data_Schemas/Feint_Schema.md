@@ -17,31 +17,31 @@ class FeintConfigDTO(BaseModel):
     feint_id: str               # Уникальный ID (например, "true_strike")
     name_ru: str                # Название
     description_ru: str         # Описание
-    
+
     # === Стоимость ===
     cost: FeintCostDTO          # Цена в токенах
-    
+
     # === Цели ===
     target: TargetType          # SINGLE_ENEMY, ALL_ENEMIES...
     target_count: int = 1       # Количество целей (для мульти-атак)
-    
+
     # === Модификаторы (Pre-Calc) ===
-    
+
     # 1. Изменение статов (Строки для калькулятора)
     # Пример: {"physical_damage_mult": "+0.5", "accuracy_mult": "-0.2"}
     raw_mutations: dict[str, str] | None = None
-    
+
     # 2. Флаги Пайплайна
     # Пример: {"formula.can_pierce": True}
     pipeline_mutations: dict[str, Any] | None = None
-    
+
     # 3. Активация Триггеров (Правил)
     # Ссылки на ID правил в TRIGGER_RULES
     # Пример: ["accuracy.true_strike", "dodge.counter_on_dodge"]
     triggers: list[str] | None = None
-    
+
     # === Последствия (Post-Calc) ===
-    
+
     # Наложение эффектов (при попадании)
     # Пример: [{"id": "blind", "params": {"duration": 2}}]
     effects: list[dict[str, Any]] | None = None

@@ -30,7 +30,7 @@ class ControlInstructionDTO(BaseModel):
     Инструкции поведения для эффектов контроля.
     """
     # Имя флага состояния (для UI/AI и проверок)
-    status_name: str 
+    status_name: str
 
     # Инструкции для Атакующего (Source)
     # Ключи: "can_act", "accuracy_mult", "damage_deal_mult"
@@ -44,7 +44,7 @@ class EffectDTO(BaseModel):
     effect_id: str
     name_ru: str
     description_ru: str
-    
+
     type: EffectType
     duration: int               # Базовая длительность
 
@@ -76,19 +76,19 @@ class EffectParams(TypedDict, total=False):
     """
     # Переопределение длительности
     duration: int
-    
+
     # Множитель силы (для Impact и Bleed)
-    power: float           
-    
+    power: float
+
     # Прямое задание ресурсов (редко, переопределяет конфиг)
-    impact: dict[str, int] 
-    
+    impact: dict[str, int]
+
     # Динамические статы (для Buff, добавляются к конфигу)
     mutations: dict[str, Any]
-    
+
     # Кастомный контроль (редко)
     control: dict[str, Any]
-    
+
     # Условия снятия
     remove_on: list[str]
 ```
@@ -104,19 +104,19 @@ class ActiveEffectDTO(BaseModel):
     effect_id: str              # Ссылка на конфиг
     source_id: int              # ID того, кто наложил
     expire_at_exchange: int     # Таймер
-    
+
     # --- State ---
     impact: dict[str, int] = {} # Копия resource_impact (с учетом power)
-    
+
     # Копия control_logic из конфига
     control: ControlInstructionDTO | None = None
-    
+
     # Исходный множитель силы (для наследования)
     power: float = 1.0
-    
+
     # Исходные параметры создания (для наследования и логики)
     params: dict[str, Any] = {}
-    
+
     # --- Memory (для отката) ---
     # Список ключей в actor.raw.modifiers, которые этот эффект изменил.
     modified_keys: list[str] = Field(default_factory=list)

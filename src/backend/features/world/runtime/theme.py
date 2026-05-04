@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 from operator import itemgetter
+from typing import Literal, TypedDict
 
-from typing import Any, Literal, TypedDict
 from src.backend.features.world.runtime.config import ANCHORS, HUB_CENTER, PORTAL_PARAMS
 from src.backend.features.world.runtime.threat import ThreatService
 from src.shared.schemas.world_theme import WorldThemeDTO
@@ -26,18 +26,14 @@ class WorldThemeService:
     def build(cls, x: int, y: int, *, loc_id: str | None = None) -> WorldThemeDTO:
         influences = cls._raw_anchor_influences(x, y)
         total_anchor = sum(item["value"] for item in influences) or 1.0
-        weights: dict[str, float] = {
-            item["type"]: round(item["value"] / total_anchor, 4) for item in influences
-        }
+        weights: dict[str, float] = {item["type"]: round(item["value"] / total_anchor, 4) for item in influences}
 
         portal_power = cls._portal_power(x, y)
         shield_ratio = portal_power / (portal_power + total_anchor)
         threat = ThreatService.describe(x, y)
         shield_modifier = ThreatService._shield_modifier(x, y)
         tier_factor = threat.tier / 7.0
-        intensity = cls._clamp(
-            (1.0 - shield_ratio) * (0.18 + tier_factor * 0.82) * shield_modifier
-        )
+        intensity = cls._clamp((1.0 - shield_ratio) * (0.18 + tier_factor * 0.82) * shield_modifier)
         if threat.is_inside_city_shield and threat.tier == 0:
             intensity = min(intensity, 0.08)
 
@@ -50,10 +46,7 @@ class WorldThemeService:
 
         mode: Literal["safe", "anchor", "hybrid"] = "safe"
         if intensity >= 0.12:
-            if top and second and second["value"] >= top["value"] * 0.78:
-                mode = "hybrid"
-            else:
-                mode = "anchor"
+            mode = "hybrid" if top and second and second["value"] >= top["value"] * 0.78 else "anchor"
 
         dto = WorldThemeDTO(
             loc_id=loc_id,
@@ -111,9 +104,7 @@ class WorldThemeService:
         return (result[0], result[1], result[2])
 
     @staticmethod
-    def _lerp_rgb(
-        a: tuple[int, int, int], b: tuple[int, int, int], t: float
-    ) -> tuple[int, int, int]:
+    def _lerp_rgb(a: tuple[int, int, int], b: tuple[int, int, int], t: float) -> tuple[int, int, int]:
         result = tuple(round(a[i] + (b[i] - a[i]) * t) for i in range(3))
         assert len(result) == 3
         return (result[0], result[1], result[2])

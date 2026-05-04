@@ -3,6 +3,7 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 
 from src.backend.features.world.prompts.router import build_batch_location_desc
+from src.backend.features.world.resources.static.start_village import STATIC_LOCATIONS
 from src.backend.features.world.services.generator_service import LLMWorldGenerator
 
 
@@ -62,6 +63,12 @@ async def test_generate_d4_capital_creates_first_playable_territory():
     assert {gate["flags"]["gate_direction"] for gate in gates} == {"north", "south", "west", "east"}
     assert all(gate["flags"]["exit_locked"] is True for gate in gates)
     assert all(gate["flags"]["gated_exits"][gate["flags"]["gate_direction"]]["state"] == "locked" for gate in gates)
+
+
+def test_static_inner_city_gates_are_safe_locations():
+    inner_gate_coords = {(52, 50), (52, 54), (50, 52), (54, 52)}
+
+    assert all(STATIC_LOCATIONS[coord]["flags"]["is_safe_zone"] is True for coord in inner_gate_coords)
 
 
 @pytest.mark.unit

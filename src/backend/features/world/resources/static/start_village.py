@@ -155,7 +155,7 @@ STATIC_LOCATIONS: dict[tuple[int, int], _StaticLocation] = {
         "sector_id": "D4",
         "is_active": True,
         "services": [],
-        "flags": {"is_active": True, "is_safe_zone": False, "is_gate": True, "has_road": True},
+        "flags": {"is_active": True, "is_safe_zone": True, "is_gate": True, "has_road": True},
         "content": {
             "title": "Северные Внутренние Ворота",
             "description": "Древняя арка в монолитной стене. Родных створок давно нет, вместо них — ворота, сбитые из бревен и металлолома. Стража проверяет всех, кто приходит со стороны пустошей.",
@@ -192,7 +192,7 @@ STATIC_LOCATIONS: dict[tuple[int, int], _StaticLocation] = {
         "sector_id": "D4",
         "is_active": True,
         "services": [],
-        "flags": {"is_active": True, "is_safe_zone": False, "is_gate": True, "has_road": True},
+        "flags": {"is_active": True, "is_safe_zone": True, "is_gate": True, "has_road": True},
         "content": {
             "title": "Южные Внутренние Ворота",
             "description": "Выход к южным кварталам. Проход в стене свободен, древние механизмы защиты мертвы. Днем здесь кипит жизнь, рабочие таскают материалы из внешних руин.",
@@ -229,7 +229,7 @@ STATIC_LOCATIONS: dict[tuple[int, int], _StaticLocation] = {
         "sector_id": "D4",
         "is_active": True,
         "services": [],
-        "flags": {"is_active": True, "is_safe_zone": False, "is_gate": True, "has_road": True},
+        "flags": {"is_active": True, "is_safe_zone": True, "is_gate": True, "has_road": True},
         "content": {
             "title": "Западные Внутренние Ворота",
             "description": "Массивный проем, ведущий на Проспект. Это основной путь для доставки грузов. По бокам видны следы креплений каких-то гигантских механизмов, ныне утраченных.",
@@ -266,7 +266,7 @@ STATIC_LOCATIONS: dict[tuple[int, int], _StaticLocation] = {
         "sector_id": "D4",
         "is_active": True,
         "services": [],
-        "flags": {"is_active": True, "is_safe_zone": False, "is_gate": True, "has_road": True},
+        "flags": {"is_active": True, "is_safe_zone": True, "is_gate": True, "has_road": True},
         "content": {
             "title": "Восточные Внутренние Ворота",
             "description": "Арка, выходящая прямо на Рыночную Площадь. Здесь всегда толчея, стража лениво наблюдает за потоком людей среди древних камней.",

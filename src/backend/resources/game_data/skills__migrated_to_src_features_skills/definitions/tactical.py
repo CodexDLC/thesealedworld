@@ -1,0 +1,48 @@
+from src.backend.resources.game_data.skills.schemas import SkillCategory, SkillDTO, SkillGroup
+
+TACTICAL_SKILLS = [
+    SkillDTO(
+        skill_key="skill_one_handed",
+        name_en="One Handed Style",
+        name_ru="Одноручный стиль",
+        category=SkillCategory.COMBAT,
+        group=SkillGroup.TACTICAL,
+        stat_weights={"agility": 2, "perception": 1, "strength": 1},
+        rate_mod=1.0,
+        wall_mod=1.0,
+        description="Стиль боя с использованием одноручного оружия.",
+    ),
+    SkillDTO(
+        skill_key="skill_two_handed",
+        name_en="Two Handed Style",
+        name_ru="Двуручный стиль",
+        category=SkillCategory.COMBAT,
+        group=SkillGroup.TACTICAL,
+        stat_weights={"strength": 2, "endurance": 1, "agility": 1},
+        rate_mod=1.0,
+        wall_mod=1.0,
+        description="Стиль боя с использованием двуручного оружия.",
+    ),
+    SkillDTO(
+        skill_key="skill_shield_mastery",
+        name_en="Shield Mastery",
+        name_ru="Владение щитом",
+        category=SkillCategory.COMBAT,
+        group=SkillGroup.TACTICAL,
+        stat_weights={"strength": 2, "endurance": 1, "agility": 1},
+        rate_mod=1.0,
+        wall_mod=1.0,
+        description="Мастерство использования щита для защиты и атаки.",
+    ),
+    SkillDTO(
+        skill_key="skill_dual_wield",
+        name_en="Dual Wield",
+        name_ru="Бой двумя руками",
+        category=SkillCategory.COMBAT,
+        group=SkillGroup.TACTICAL,
+        stat_weights={"agility": 2, "perception": 1, "strength": 1},
+        rate_mod=1.0,
+        wall_mod=1.0,
+        description="Стиль боя с оружием в каждой руке.",
+    ),
+]

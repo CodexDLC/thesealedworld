@@ -1,60 +1,70 @@
-from enum import StrEnum
+from enum import Enum
 from typing import Any
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
+
+# --- Enums ---
 
 
-class ArenaActionEnum(StrEnum):
-    MENU_MAIN = "MENU_MAIN"
-    MENU_MODE = "MENU_MODE"
-    JOIN_QUEUE = "JOIN_QUEUE"
-    CHECK_MATCH = "CHECK_MATCH"
-    ACCEPT_SHADOW = "ACCEPT_SHADOW"
-    CONTINUE_SEARCH = "CONTINUE_SEARCH"
-    CHECK_COMBAT_READY = "CHECK_COMBAT_READY"
-    CANCEL_QUEUE = "CANCEL_QUEUE"
-    LEAVE = "LEAVE"
+class ArenaScreenEnum(str, Enum):
+    """Экраны арены."""
+
+    MAIN_MENU = "main_menu"
+    MODE_MENU = "mode_menu"
+    SEARCHING = "searching"
+    MATCH_FOUND = "match_found"
 
 
-class ArenaModeEnum(StrEnum):
-    ONE_VS_ONE = "one_vs_one"
+class ArenaModeEnum(str, Enum):
+    """Режимы арены."""
+
+    ONE_VS_ONE = "1v1"
     GROUP = "group"
     TOURNAMENT = "tournament"
 
 
-class ArenaScreenEnum(StrEnum):
-    MAIN_MENU = "main_menu"
-    MODE_MENU = "mode_menu"
-    SEARCHING = "searching"
-    SHADOW_OFFER = "shadow_offer"
-    COMBAT_PENDING = "combat_pending"
-    COMBAT_FAILED = "combat_failed"
+class ArenaActionEnum(str, Enum):
+    """Действия на арене."""
+
+    MENU_MAIN = "menu_main"
+    MENU_MODE = "menu_mode"
+    JOIN_QUEUE = "join_queue"
+    CHECK_MATCH = "check_match"
+    CANCEL_QUEUE = "cancel_queue"
+    LEAVE = "leave"
+    START_BATTLE = "start_battle"
 
 
-class ArenaButtonDTO(BaseModel):
+# --- DTOs ---
+
+
+class ButtonDTO(BaseModel):
+    """Кнопка интерфейса."""
+
     text: str
-    action: ArenaActionEnum | str
-    mode: ArenaModeEnum | str | None = None
-    value: dict[str, Any] | None = None
-    variant: str | None = None
-
-
-class ArenaActionDTO(BaseModel):
-    action: ArenaActionEnum | str
-    mode: ArenaModeEnum | str | None = None
-    value: dict[str, Any] | None = None
+    action: str
+    mode: str | None = None
+    value: str | None = None
 
 
 class ArenaUIPayloadDTO(BaseModel):
-    screen: ArenaScreenEnum | str
+    """Данные для отрисовки UI арены."""
+
+    screen: ArenaScreenEnum
+    mode: str | None = None
     title: str
     description: str
-    mode: ArenaModeEnum | str | None = None
-    arena_session_id: str | None = None
-    combat_id: str | None = None
+    buttons: list[ButtonDTO]
+
+    # Optional fields
     gs: int | None = None
-    wait_time_sec: int = 0
-    poll_after_ms: int = 1000
-    timeout_sec: int = 60
-    buttons: list[ArenaButtonDTO] = Field(default_factory=list)
-    metadata: dict[str, Any] = Field(default_factory=dict)
+    opponent_name: str | None = None
+    is_shadow: bool = False
+
+
+class ArenaActionDTO(BaseModel):
+    """Действие игрока на арене."""
+
+    action: str
+    mode: str | None = None
+    value: Any | None = None

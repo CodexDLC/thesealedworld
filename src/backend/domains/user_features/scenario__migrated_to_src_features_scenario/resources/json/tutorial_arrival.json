@@ -1,0 +1,1893 @@
+{
+  "master": {
+    "quest_key": "awakening_rift",
+    "start_node_id": "rift_entry_01",
+    "analytics_config": {
+      "mapping": {
+        "w_stats": "w",
+        "t_elements": "t",
+        "loot_queue": "items"
+      }
+    },
+    "status_bar_fields": [
+      {"key": "step_counter", "label": "👣"}
+    ]
+  },
+  "nodes": [
+    {
+      "node_key": "rift_entry_01",
+      "quest_key": "awakening_rift",
+      "text_content": "Причальный Узел [52:52]. Вокруг лишь гул порталов. Перед тобой Оценщик.\n\n— Синхронизация слабая. Придется калибровать вручную.",
+      "actions_logic": {
+        "next": {
+          "label": "— Что это значит?",
+          "to_node": "crash_sequence_02",
+          "math": { "w_wisdom": "+1" }
+        }
+      }
+    },
+    {
+      "node_key": "crash_sequence_02",
+      "quest_key": "awakening_rift",
+      "text_content": "Оценщик касается панели. Мир вокруг начинает искажаться. Системные ошибки заполняют зрение.\n\nCRITICAL_SYNC_FAILURE\nEMERGENCY_JUMP",
+      "actions_logic": {
+        "fall": {
+          "label": "Провалиться в Рифт",
+          "to_node": "pool:bridge_early"
+        }
+      }
+    },
+    {
+      "node_key": "bridge_early_sensory",
+      "quest_key": "awakening_rift",
+      "tags": ["bridge_early"],
+      "selection_requirements": "step_counter < 4",
+      "text_content": "Мир вокруг тебя на мгновение теряет четкость. Ты всё еще помнишь запахи [#p_loc], но здесь воздух пахнет жженой медью и озоном. \n\n[#sys_actor]: ОБНАРУЖЕНА СЕНСОРНАЯ ДИССОЦИАЦИЯ. КОРРЕКЦИЯ НЕЙРОСЕТИ... 12%. СТАБИЛИЗАЦИЯ ЗАВЕРШЕНА.",
+      "actions_logic": {
+        "next": { "label": "👣 Сделать шаг вперед, преодолевая головокружение", "to_node": "pool:cycle_1" }
+      }
+    },
+    {
+      "node_key": "bridge_early_glitch",
+      "quest_key": "awakening_rift",
+      "tags": ["bridge_early"],
+      "selection_requirements": "step_counter < 4",
+      "text_content": "Перед глазами всплывает полупрозрачная сетка координат, накладываясь на причудливые деревья Разлома. На мгновение тебе кажется, что ты видишь не листья, а каскады бинарного кода. \n\n[#sys_actor]: ВНИМАНИЕ. ВИЗУАЛЬНЫЙ КАНАЛ ПЕРЕГРУЖЕН. ПЕРЕХОД НА РЕЗЕРВНЫЙ ПРОТОКОЛ.",
+      "actions_logic": {
+        "next": { "label": "🌀 Пройти сквозь мерцающую цифровую завесу", "to_node": "pool:cycle_1" }
+      }
+    },
+    {
+      "node_key": "bridge_early_echo",
+      "quest_key": "awakening_rift",
+      "tags": ["bridge_early"],
+      "selection_requirements": "step_counter < 4",
+      "text_content": "Тишина Осколка давит на уши, прерываясь лишь короткими статическими разрядами в твоем интерфейсе. Ты чувствуешь, как тяжесть собственного тела меняется, словно гравитация здесь — лишь чье-то предположение.\n\n[#sys_actor]: СКАНИРОВАНИЕ ОКРУЖЕНИЯ... ОБЪЕКТ ИДЕНТИФИЦИРОВАН КАК «ЯКОРЬ». УРОВЕНЬ УГРОЗЫ: МИНИМАЛЬНЫЙ.",
+      "actions_logic": {
+        "next": { "label": "🌌 Искать путь среди парящих обломков", "to_node": "pool:cycle_1" }
+      }
+    },
+    {
+      "node_key": "bridge_early_pulse",
+      "quest_key": "awakening_rift",
+      "tags": ["bridge_early"],
+      "selection_requirements": "step_counter < 4",
+      "text_content": "Твой пульс внезапно синхронизируется с мерцанием лиан под ногами. На долю секунды ты ощущаешь Изумрудный Разлом не как враждебное место, а как продолжение собственной нервной системы. \n\n[#sys_actor]: РЕЗОНАНС С БИОСФЕРОЙ: 24%. ПОДГОТОВКА К ГЛУБОКОМУ ПОГРУЖЕНИЮ.",
+      "actions_logic": {
+        "next": { "label": "🌿 Сдвинуть мешающую ветвь и идти дальше", "to_node": "pool:cycle_1" }
+      }
+    },
+    {
+      "node_key": "bridge_early_static",
+      "quest_key": "awakening_rift",
+      "tags": ["bridge_early"],
+      "selection_requirements": "step_counter < 4",
+      "text_content": "Статика покалывает кончики пальцев. Каждое твое движение оставляет за собой едва заметный след из искр. Ты начинаешь понимать — это место реагирует на тебя так же, как ты на него. \n\n[#sys_actor]: ПРЕДУПРЕЖДЕНИЕ. ИЗБЫТОЧНЫЙ ЗАРЯД В КОНТУРЕ. ТРЕБУЕТСЯ ЗАЗЕМЛЕНИЕ ЧЕРЕЗ ДЕЙСТВИЕ.",
+      "actions_logic": {
+        "next": { "label": "👣 Ускорить шаг, пока энергия не угасла", "to_node": "pool:cycle_1" }
+      }
+    },
+    {
+      "node_key": "bridge_early_cold",
+      "quest_key": "awakening_rift",
+      "tags": ["bridge_early"],
+      "selection_requirements": "step_counter < 4",
+      "text_content": "Резкий порыв ледяного ветра приносит обрывки звуков, похожих на голоса из [#p_loc]. Но стоит тебе прислушаться, как они рассыпаются в цифровой шум. Ты здесь один, и правила здесь другие.\n\n[#sys_actor]: КРИТИЧЕСКАЯ ПОТЕРЯ ТЕРМАЛЬНОГО КОНТРОЛЯ. ПЕРЕНАПРАВЛЕНИЕ ЭНЕРГИИ К ЯДРУ.",
+      "actions_logic": {
+        "next": { "label": "💨 Двигаться вперед, чтобы не замерзнуть", "to_node": "pool:cycle_1" }
+      }
+    },
+    {
+      "node_key": "event_spark_nest",
+      "quest_key": "awakening_rift",
+      "tags": ["cycle_1"],
+      "text_content": "Ты выходишь к роще, где ветви деревьев сотканы из чистого статического электричества. Между ними снуют крошечные сгустки света, похожие на птиц. Воздух здесь настолько разрежен, что каждый вдох дается с трудом.\n\n[#sys_actor]: ВНИМАНИЕ. ЗАФИКСИРОВАНЫ ВЫСОКОЧАСТОТНЫЕ КОЛЕБАНИЯ. ВЕРОЯТНОСТЬ ПЕРЕГРУЗКИ НЕЙРОСЕТИ: 42%.",
+      "actions_logic": {
+        "choice_1": {
+          "label": "💨 Проскочить сквозь рощу, подражая ритму искр",
+          "to_node": "cycle_1_logic_router",
+          "math": {
+            "w_agility": "+3",
+            "w_perception": "+2",
+            "w_luck": "+1",
+            "t_air": "+1",
+            "step_counter": "+1"
+          }
+        },
+        "choice_2": {
+          "label": "🧱 Прикрыть голову руками и проломиться сквозь светящиеся ветви",
+          "to_node": "cycle_1_logic_router",
+          "math": {
+            "w_endurance": "+3",
+            "w_men": "+2",
+            "w_strength": "+1",
+            "t_fire": "+1",
+            "step_counter": "+1"
+          }
+        },
+        "choice_3": {
+          "label": "🧩 Использовать помехи, чтобы откалибровать сенсоры",
+          "to_node": "cycle_1_logic_router",
+          "math": {
+            "w_intelligence": "+3",
+            "w_wisdom": "+2",
+            "w_perception": "+1",
+            "t_arcane": "+1",
+            "step_counter": "+1"
+          }
+        }
+      }
+    },
+    {
+      "node_key": "event_stone_monolith",
+      "quest_key": "awakening_rift",
+      "tags": ["cycle_1"],
+      "text_content": "Из земли выступает колоссальная плита, исписанная символами, которые кажутся знакомыми, но ускользают от понимания. От камня исходит тяжелая, давящая волна холода. Кажется, само время здесь течет медленнее.\n\n[#sys_actor]: ОБНАРУЖЕН ГРАВИТАЦИОННЫЙ КОЛОДЕЦ. ВАШЕ ПРИСУТСТВИЕ ВЫЗЫВАЕТ ИСКАЖЕНИЕ МЕТРИКИ.",
+      "actions_logic": {
+        "choice_1": {
+          "label": "😤 Упереться ногами и выстоять против давления",
+          "to_node": "cycle_1_logic_router",
+          "math": {
+            "w_men": "+3",
+            "w_endurance": "+2",
+            "w_strength": "+1",
+            "t_earth": "+1",
+            "step_counter": "+1"
+          }
+        },
+        "choice_2": {
+          "label": "🧘 Сосредоточиться и войти в транс для понимания знаков",
+          "to_node": "cycle_1_logic_router",
+          "math": {
+            "w_wisdom": "+3",
+            "w_intelligence": "+2",
+            "w_men": "+1",
+            "t_light": "+1",
+            "step_counter": "+1"
+          }
+        },
+        "choice_3": {
+          "label": "🤸 Обойти аномалию по самому краю обрыва",
+          "to_node": "cycle_1_logic_router",
+          "math": {
+            "w_agility": "+3",
+            "w_luck": "+2",
+            "w_perception": "+1",
+            "t_water": "+1",
+            "step_counter": "+1"
+          }
+        }
+      }
+    },
+    {
+      "node_key": "event_observatory_ruins",
+      "quest_key": "awakening_rift",
+      "tags": ["cycle_1"],
+      "text_content": "Среди гигантских папоротников ты находишь остатки купола. Внутри — огромная линза, направленная не в небо, а в самую гущу леса. Она фокусирует свет Осколка в одну ослепительную точку, прожигающую реальность.\n\n[#sys_actor]: КРИТИЧЕСКИЙ СБОЙ ЛОГИКИ. ОБНАРУЖЕН ПЕРЕХОДНЫЙ КОД. ТРЕБУЕТСЯ РУЧНОЙ ВВОД.",
+      "actions_logic": {
+        "choice_1": {
+          "label": "🧠 Перехватить управление лучом через интерфейс",
+          "to_node": "cycle_1_logic_router",
+          "math": {
+            "w_intelligence": "+3",
+            "w_wisdom": "+2",
+            "w_perception": "+1",
+            "t_arcane": "+1",
+            "step_counter": "+1"
+          }
+        },
+        "choice_2": {
+          "label": "🦾 Обрушить конструкцию, пока она не взорвалась",
+          "to_node": "cycle_1_logic_router",
+          "math": {
+            "w_strength": "+3",
+            "w_men": "+2",
+            "w_endurance": "+1",
+            "t_fire": "+1",
+            "step_counter": "+1"
+          }
+        },
+        "choice_3": {
+          "label": "👁️ Отыскать безопасный путь в тени обломков",
+          "to_node": "cycle_1_logic_router",
+          "math": {
+            "w_perception": "+3",
+            "w_agility": "+2",
+            "w_luck": "+1",
+            "t_dark": "+1",
+            "step_counter": "+1"
+          }
+        }
+      }
+    },
+    {
+      "node_key": "event_spore_path",
+      "quest_key": "awakening_rift",
+      "tags": ["cycle_1"],
+      "text_content": "Земля покрыта ковром из грибов, которые выбрасывают облака светящихся спор при каждом прикосновении. Одни споры лечат, другие — разъедают плоть. Ты не можешь знать, какой будет следующий шаг.\n\n[#sys_actor]: ВНИМАНИЕ. БИОЛОГИЧЕСКИЙ ХАОС. ВЕРОЯТНОСТЬ УДАЧНОГО ИСХОДА НЕ ОПРЕДЕЛЕНА.",
+      "actions_logic": {
+        "choice_1": {
+          "label": "🎲 Положиться на интуицию и бежать напролом",
+          "to_node": "cycle_1_logic_router",
+          "math": {
+            "w_luck": "+3",
+            "w_agility": "+2",
+            "w_perception": "+1",
+            "t_nature": "+1",
+            "step_counter": "+1"
+          }
+        },
+        "choice_2": {
+          "label": "🧘 Замедлить сердцебиение и идти максимально плавно",
+          "to_node": "cycle_1_logic_router",
+          "math": {
+            "w_wisdom": "+3",
+            "w_endurance": "+2",
+            "w_men": "+1",
+            "t_water": "+1",
+            "step_counter": "+1"
+          }
+        },
+        "choice_3": {
+          "label": "🧱 Прожечь себе тропу, используя энергию ядра",
+          "to_node": "cycle_1_logic_router",
+          "math": {
+            "w_strength": "+3",
+            "w_intelligence": "+2",
+            "w_endurance": "+1",
+            "t_fire": "+1",
+            "step_counter": "+1"
+          }
+        }
+      }
+    },
+    {
+      "node_key": "event_living_bridge",
+      "quest_key": "awakening_rift",
+      "tags": ["cycle_1"],
+      "text_content": "Тропа обрывается над бездной, из которой поднимаются колоссальные, медленно вращающиеся шестерни, обросшие мхом. Между ними натянуты живые лианы, пульсирующие в такт твоему дыханию. Любое неверное движение может дестабилизировать этот хрупкий баланс.\n\n[#sys_actor]: ОБНАРУЖЕНА КИНЕТИЧЕСКАЯ НЕСТАБИЛЬНОСТЬ. СИНХРОНИЗАЦИЯ С ВНЕШНЕЙ СРЕДОЙ: 31%. ТРЕБУЕТСЯ ПРОВЕРКА РЕФЛЕКСОВ.",
+      "actions_logic": {
+        "choice_1": {
+          "label": "💨 Перебежать по лианам, используя инерцию движения шестерен",
+          "to_node": "cycle_1_logic_router",
+          "math": {
+            "w_agility": "+3",
+            "w_perception": "+2",
+            "w_luck": "+1",
+            "t_nature": "+1",
+            "step_counter": "+1"
+          }
+        },
+        "choice_2": {
+          "label": "🧱 Намертво вцепиться в стебли и продвигаться силой",
+          "to_node": "cycle_1_logic_router",
+          "math": {
+            "w_endurance": "+3",
+            "w_strength": "+2",
+            "w_men": "+1",
+            "t_earth": "+1",
+            "step_counter": "+1"
+          }
+        },
+        "choice_3": {
+          "label": "👁️ Вычислить момент, когда вращение шестерен замирает",
+          "to_node": "cycle_1_logic_router",
+          "math": {
+            "w_perception": "+3",
+            "w_intelligence": "+2",
+            "w_wisdom": "+1",
+            "t_arcane": "+1",
+            "step_counter": "+1"
+          }
+        }
+      }
+    },
+    {
+      "node_key": "event_distortion_altar",
+      "quest_key": "awakening_rift",
+      "tags": ["cycle_1"],
+      "text_content": "В центре поляны парит кристалл, поглощающий свет. Вокруг него пространство «сминается», как старая бумага. Ты чувствуешь, как твоя собственная тень начинает отделяться от ног, пытаясь коснуться кристалла. Воздух становится невыносимо тяжелым.\n\n[#sys_actor]: ВНИМАНИЕ. ЗАФИКСИРОВАН КВАНТОВЫЙ РАЗРЫВ. ВАШЕ ПРИСУТСТВИЕ ВЫЗЫВАЕТ ПАРАДОКС.",
+      "actions_logic": {
+        "choice_1": {
+          "label": "😤 Сцепить зубы и выстоять, пока реальность не стабилизируется",
+          "to_node": "cycle_1_logic_router",
+          "math": {
+            "w_men": "+3",
+            "w_endurance": "+2",
+            "w_strength": "+1",
+            "t_dark": "+1",
+            "step_counter": "+1"
+          }
+        },
+        "choice_2": {
+          "label": "🧩 Попробовать перенаправить поток искажения через интерфейс",
+          "to_node": "cycle_1_logic_router",
+          "math": {
+            "w_intelligence": "+3",
+            "w_wisdom": "+2",
+            "w_perception": "+1",
+            "t_arcane": "+1",
+            "step_counter": "+1"
+          }
+        },
+        "choice_3": {
+          "label": "🎲 Довериться случаю и шагнуть прямо в центр искажения",
+          "to_node": "cycle_1_logic_router",
+          "math": {
+            "w_luck": "+3",
+            "w_agility": "+2",
+            "w_men": "+1",
+            "t_water": "+1",
+            "step_counter": "+1"
+          }
+        }
+      }
+    },
+    {
+      "node_key": "event_hologram_echo",
+      "quest_key": "awakening_rift",
+      "tags": ["cycle_1"],
+      "text_content": "Среди папоротников вспыхивает полупрозрачная фигура. Она повторяет твои движения с задержкой в несколько секунд. Это не враг, а эхо твоего собственного присутствия в Разломе, которое пытается передать тебе знание о структуре этого мира.\n\n[#sys_actor]: ОБНАРУЖЕН ПАКЕТ ДАННЫХ ИЗ ВНЕШНЕГО КОНТУРА. ТРЕБУЕТСЯ КОГНИТИВНЫЙ РЕЗОНАНС.",
+      "actions_logic": {
+        "choice_1": {
+          "label": "🧘 Попытаться слиться сознанием со своим двойником",
+          "to_node": "cycle_1_logic_router",
+          "math": {
+            "w_wisdom": "+3",
+            "w_intelligence": "+2",
+            "w_men": "+1",
+            "t_light": "+1",
+            "step_counter": "+1"
+          }
+        },
+        "choice_2": {
+          "label": "👁️ Внимательно проследить за жестами фигуры, ища скрытый смысл",
+          "to_node": "cycle_1_logic_router",
+          "math": {
+            "w_perception": "+3",
+            "w_luck": "+2",
+            "w_wisdom": "+1",
+            "t_nature": "+1",
+            "step_counter": "+1"
+          }
+        },
+        "choice_3": {
+          "label": "💨 Скопировать движения двойника, чтобы стабилизировать форму",
+          "to_node": "cycle_1_logic_router",
+          "math": {
+            "w_agility": "+3",
+            "w_endurance": "+2",
+            "w_strength": "+1",
+            "t_air": "+1",
+            "step_counter": "+1"
+          }
+        }
+      }
+    },
+    {
+      "node_key": "event_burning_thicket",
+      "quest_key": "awakening_rift",
+      "tags": ["cycle_1"],
+      "text_content": "Ты входишь в сектор, где растительность охвачена холодным синим пламенем. Оно не греет, но буквально выжигает воздух. Путь вперед преграждает упавшее исполинское дерево, объятое этой яростной энергией.\n\n[#sys_actor]: ТЕРМАЛЬНАЯ АНОМАЛИЯ. ВНИМАНИЕ: ЗАФИКСИРОВАН РОСТ АГРЕССИВНОГО ФОНА В ЯДРЕ.",
+      "actions_logic": {
+        "choice_1": {
+          "label": "🦾 Рывком перебросить пылающий ствол через край обрыва",
+          "to_node": "cycle_1_logic_router",
+          "math": {
+            "w_strength": "+3",
+            "w_men": "+2",
+            "w_endurance": "+1",
+            "t_fire": "+1",
+            "step_counter": "+1"
+          }
+        },
+        "choice_2": {
+          "label": "😤 Пройти сквозь пламя, игнорируя системные предупреждения",
+          "to_node": "cycle_1_logic_router",
+          "math": {
+            "w_endurance": "+3",
+            "w_men": "+2",
+            "w_luck": "+1",
+            "t_fire": "+1",
+            "step_counter": "+1"
+          }
+        },
+        "choice_3": {
+          "label": "🧠 Вычислить безопасный путь по затухающим искрам",
+          "to_node": "cycle_1_logic_router",
+          "math": {
+            "w_intelligence": "+3",
+            "w_perception": "+2",
+            "w_wisdom": "+1",
+            "t_water": "+1",
+            "step_counter": "+1"
+          }
+        }
+      }
+    },
+    {
+      "node_key": "event_singing_spines",
+      "quest_key": "awakening_rift",
+      "tags": ["cycle_1"],
+      "text_content": "Ты входишь в узкое ущелье, где из стен выступают прозрачные иглы. Ветер, проходя сквозь них, рождает звук, от которого вибрируют зубы. Кажется, само пространство здесь натянуто, как струна, готовая лопнуть от любого резкого звука.\n\n[#sys_actor]: ОБНАРУЖЕН АКУСТИЧЕСКИЙ РЕЗОНАНС. ВНИМАНИЕ: ВАШИ БИОРИТМЫ ВЛИЯЮТ НА ЧАСТОТУ ОКОЛОТОЧНОЙ СРЕДЫ.",
+      "actions_logic": {
+        "choice_1": {
+          "label": "👁️ Вслушаться в ритм и двигаться в паузах между колебаниями",
+          "to_node": "cycle_1_logic_router",
+          "math": {
+            "w_perception": "+3",
+            "w_luck": "+2",
+            "w_agility": "+1",
+            "t_air": "+1",
+            "step_counter": "+1"
+          }
+        },
+        "choice_2": {
+          "label": "🧱 Напрячь все мышцы, игнорируя дискомфорт от вибрации",
+          "to_node": "cycle_1_logic_router",
+          "math": {
+            "w_endurance": "+3",
+            "w_strength": "+2",
+            "w_men": "+1",
+            "t_earth": "+1",
+            "step_counter": "+1"
+          }
+        },
+        "choice_3": {
+          "label": "🧩 Проанализировать структуру шипов и найти «немую» зону",
+          "to_node": "cycle_1_logic_router",
+          "math": {
+            "w_intelligence": "+3",
+            "w_wisdom": "+2",
+            "w_perception": "+1",
+            "t_arcane": "+1",
+            "step_counter": "+1"
+          }
+        }
+      }
+    },
+    {
+      "node_key": "event_moving_shadow",
+      "quest_key": "awakening_rift",
+      "tags": ["cycle_1"],
+      "text_content": "На твоем пути возникает участок абсолютной тьмы, который медленно перемещается по лесу, словно живое существо. Птицы замолкают, когда тень касается деревьев, а тени самих ветвей начинают изгибаться в противоположную сторону.\n\n[#sys_actor]: ОБНАРУЖЕНА ФОТОННАЯ ДЕФИЦИТАРНОСТЬ. СИНХРОНИЗАЦИЯ С ТЕМНЫМ СПЕКТРОМ: 38%.",
+      "actions_logic": {
+        "choice_1": {
+          "label": "🎲 Шагнуть в саму гущу тени, доверившись интуиции",
+          "to_node": "cycle_1_logic_router",
+          "math": {
+            "w_luck": "+3",
+            "w_agility": "+2",
+            "w_perception": "+1",
+            "t_dark": "+1",
+            "step_counter": "+1"
+          }
+        },
+        "choice_2": {
+          "label": "😤 Сопротивляться давлению пустоты, сохраняя ясность ума",
+          "to_node": "cycle_1_logic_router",
+          "math": {
+            "w_men": "+3",
+            "w_wisdom": "+2",
+            "w_endurance": "+1",
+            "t_light": "+1",
+            "step_counter": "+1"
+          }
+        },
+        "choice_3": {
+          "label": "🦾 Рассечь тень широким взмахом, прокладывая себе путь",
+          "to_node": "cycle_1_logic_router",
+          "math": {
+            "w_strength": "+3",
+            "w_endurance": "+2",
+            "w_men": "+1",
+            "t_fire": "+1",
+            "step_counter": "+1"
+          }
+        }
+      }
+    },
+    {
+      "node_key": "event_ancient_battery",
+      "quest_key": "awakening_rift",
+      "tags": ["cycle_1"],
+      "text_content": "Под корнями исполинского дерева ты находишь наполовину погребенную сферу из матового металла. Она тихо гудит, и от неё исходит тепло, которое кажется неестественным для этой части Разлома. Твой интерфейс начинает заполняться логами прошлых сессий.\n\n[#sys_actor]: ОБНАРУЖЕН АРХИВНЫЙ МОДУЛЬ ЭНЕРГИИ. ТРЕБУЕТСЯ ДЕКОДИРОВАНИЕ СТРУКТУРЫ.",
+      "actions_logic": {
+        "choice_1": {
+          "label": "🧠 Вскрыть логическую защиту и забрать энергию",
+          "to_node": "cycle_1_logic_router",
+          "math": {
+            "w_intelligence": "+3",
+            "w_perception": "+2",
+            "w_wisdom": "+1",
+            "t_arcane": "+1",
+            "step_counter": "+1"
+          }
+        },
+        "choice_2": {
+          "label": "🦾 Вырвать сферу из корней, используя физический рычаг",
+          "to_node": "cycle_1_logic_router",
+          "math": {
+            "w_strength": "+3",
+            "w_endurance": "+2",
+            "w_men": "+1",
+            "t_fire": "+1",
+            "step_counter": "+1"
+          }
+        },
+        "choice_3": {
+          "label": "🎲 Коснуться сферы, надеясь на благосклонность Осколка",
+          "to_node": "cycle_1_logic_router",
+          "math": {
+            "w_luck": "+3",
+            "w_charisma": "+2",
+            "w_perception": "+1",
+            "t_nature": "+1",
+            "step_counter": "+1"
+          }
+        }
+      }
+    },
+    {
+      "node_key": "event_sinking_platform",
+      "quest_key": "awakening_rift",
+      "tags": ["cycle_1"],
+      "text_content": "Ты выходишь на участок, где земля состоит из множества мелких островков, медленно погружающихся в лазурное марево. С каждым твоим шагом платформа под ногами оседает чуть быстрее. Здесь нельзя останавливаться ни на секунду.\n\n[#sys_actor]: ГИДРОДИНАМИЧЕСКИЙ СДВИГ. ВНИМАНИЕ: СТАБИЛЬНОСТЬ ПОВЕРХНОСТИ ПАДАЕТ.",
+      "actions_logic": {
+        "choice_1": {
+          "label": "💨 Перелетать с одного острова на другой быстрыми прыжками",
+          "to_node": "cycle_1_logic_router",
+          "math": {
+            "w_agility": "+3",
+            "w_strength": "+2",
+            "w_luck": "+1",
+            "t_air": "+1",
+            "step_counter": "+1"
+          }
+        },
+        "choice_2": {
+          "label": "🧘 Сохранять спокойствие и выбирать самые твердые участки",
+          "to_node": "cycle_1_logic_router",
+          "math": {
+            "w_endurance": "+3",
+            "w_men": "+2",
+            "w_wisdom": "+1",
+            "t_water": "+1",
+            "step_counter": "+1"
+          }
+        },
+        "choice_3": {
+          "label": "🧩 Предсказать траекторию погружения соседних платформ",
+          "to_node": "cycle_1_logic_router",
+          "math": {
+            "w_intelligence": "+3",
+            "w_perception": "+2",
+            "w_luck": "+1",
+            "t_arcane": "+1",
+            "step_counter": "+1"
+          }
+        }
+      }
+    },
+    {
+      "node_key": "bridge_mid_weapon_hum",
+      "quest_key": "awakening_rift",
+      "tags": ["bridge_mid"],
+      "selection_requirements": "step_counter >= 3 and step_counter < 6",
+      "text_content": "Твое оружие — [#loot_queue.0] — начинает вибрировать в такт твоему пульсу. Изумрудное сияние Осколка стекает по лезвию, оставляя за собой след из озона. \n\n[#sys_actor]: ОБНАРУЖЕН ПЕРВИЧНЫЙ РЕЗОНАНС МАТЕРИИ. СИНХРОНИЗАЦИЯ С ОРУЖИЕМ: 100%. ПОИСК СЛОТОВ ПОДДЕРЖКИ...",
+      "actions_logic": {
+        "next": {
+          "label": "👣 Идти вперед, чувствуя вес стали",
+          "to_node": "pool:cycle_2"
+        }
+      }
+    },
+    {
+      "node_key": "bridge_mid_visual_echo",
+      "quest_key": "awakening_rift",
+      "tags": ["bridge_mid"],
+      "selection_requirements": "step_counter >= 3 and step_counter < 6",
+      "text_content": "Воздух становится настолько плотным, что ты видишь траектории собственных движений в виде затухающих шлейфов. Каждый взмах [#loot_queue.0] разрезает не просто пространство, а сами нити вероятности. \n\n[#sys_actor]: ТАКТИЧЕСКИЙ ВИЗОР ОТКАЛИБРОВАН. СЕТКА БОЯ НАЛОЖЕНА НА РЕАЛЬНОСТЬ.",
+      "actions_logic": {
+        "next": {
+          "label": "🌀 Пройти сквозь каскад цифровых искр",
+          "to_node": "pool:cycle_2"
+        }
+      }
+    },
+    {
+      "node_key": "bridge_mid_body_shift",
+      "quest_key": "awakening_rift",
+      "tags": ["bridge_mid"],
+      "selection_requirements": "step_counter >= 3 and step_counter < 6",
+      "text_content": "Ты чувствуешь, как твои мышцы становятся жестче, словно под кожей натягиваются стальные тросы. Осколок больше не пугает тебя — он подпитывает твою решимость через рукоять [#loot_queue.0]. \n\n[#sys_actor]: БИОМЕХАНИЧЕСКИЙ ОТКЛИК ПОЛОЖИТЕЛЬНЫЙ. СТАБИЛИЗАЦИЯ КОРПУСА: ЗАВЕРШЕНА.",
+      "actions_logic": {
+        "next": {
+          "label": "🌌 Углубиться в мерцающую чащу",
+          "to_node": "pool:cycle_2"
+        }
+      }
+    },
+    {
+      "node_key": "bridge_mid_environment_pulse",
+      "quest_key": "awakening_rift",
+      "tags": ["bridge_mid"],
+      "selection_requirements": "step_counter >= 3 and step_counter < 6",
+      "text_content": "Лес вокруг замирает. Даже ветер стихает, когда ты проходишь мимо, словно само пространство Осколка Зеро признает в тебе хищника, а не жертву. \n\n[#sys_actor]: ВНИМАНИЕ. УРОВЕНЬ УГРОЗЫ ОКРУЖЕНИЯ СНИЖЕН. ВЫ ИДЕНТИФИЦИРОВАНЫ КАК АКТИВНЫЙ ЭЛЕМЕНТ СИСТЕМЫ.",
+      "actions_logic": {
+        "next": {
+          "label": "🌿 Сдвинуть мешающую лиану и идти дальше",
+          "to_node": "pool:cycle_2"
+        }
+      }
+    },
+    {
+      "node_key": "bridge_mid_glitch_step",
+      "quest_key": "awakening_rift",
+      "tags": ["bridge_mid"],
+      "selection_requirements": "step_counter >= 3 and step_counter < 6",
+      "text_content": "Мир на мгновение окрашивается в негатив. Ты видишь скелеты деревьев и энергетические жилы, уходящие глубоко под землю. [#sys_actor] транслирует данные о структуре разлома прямо в твой разум.\n\n[#sys_actor]: ГЛУБОКОЕ СКАНИРОВАНИЕ... ОБНАРУЖЕНЫ ТОЧКИ ВТОРИЧНОЙ МАТЕРИАЛИЗАЦИИ.",
+      "actions_logic": {
+        "next": {
+          "label": "👣 Сделать шаг в искаженную реальность",
+          "to_node": "pool:cycle_2"
+        }
+      }
+    },
+    {
+      "node_key": "bridge_mid_static_charge",
+      "quest_key": "awakening_rift",
+      "tags": ["bridge_mid"],
+      "selection_requirements": "step_counter >= 3 and step_counter < 6",
+      "text_content": "Статическое электричество скапливается на твоем оружии, срываясь синими искрами при каждом движении. Ты чувствуешь, как [#loot_queue.0] жаждет столкновения с реальной преградой. \n\n[#sys_actor]: ПРЕДУПРЕЖДЕНИЕ. ИЗБЫТОЧНЫЙ КИНЕТИЧЕСКИЙ ЗАРЯД. ТРЕБУЕТСЯ РАЗРЯДКА ЧЕРЕЗ ТАКТИЧЕСКИЙ МАНЕВР.",
+      "actions_logic": {
+        "next": {
+          "label": "💨 Ускорить шаг, следуя за импульсом",
+          "to_node": "pool:cycle_2"
+        }
+      }
+    },
+    {
+      "node_key": "event_ether_burst",
+      "quest_key": "awakening_rift",
+      "tags": ["cycle_2"],
+      "text_content": "Из земли вырывается гейзер жидкого света. Он не обжигает, но заставляет твое оружие [#loot_queue.0] сиять нестерпимо ярко. Система сообщает о критическом накоплении данных в ядре.\n\n[#sys_actor]: ОБНАРУЖЕН ИСТОЧНИК ЧИСТОЙ ИНФОРМАЦИИ. ВЕРОЯТНОСТЬ УСПЕШНОГО ПОГЛОЩЕНИЯ: 55%.",
+      "actions_logic": {
+        "choice_1": {
+          "label": "🧠 Попробовать структурировать поток через свой интерфейс",
+          "to_node": "cycle_2_logic_router",
+          "math": {
+            "w_intelligence": "+3",
+            "w_perception": "+2",
+            "w_wisdom": "+1",
+            "t_arcane": "+1",
+            "step_counter": "+1"
+          }
+        },
+        "choice_2": {
+          "label": "🦾 Использовать оружие как громоотвод, заземляя энергию",
+          "to_node": "cycle_2_logic_router",
+          "math": {
+            "w_strength": "+3",
+            "w_endurance": "+2",
+            "w_men": "+1",
+            "t_fire": "+1",
+            "step_counter": "+1"
+          }
+        },
+        "choice_3": {
+          "label": "🎲 Окунуться в сияние, надеясь на спонтанную мутацию",
+          "to_node": "cycle_2_logic_router",
+          "math": {
+            "w_luck": "+3",
+            "w_agility": "+2",
+            "w_men": "+1",
+            "t_light": "+1",
+            "step_counter": "+1"
+          }
+        }
+      }
+    },
+    {
+      "node_key": "event_decay_swamp",
+      "quest_key": "awakening_rift",
+      "tags": ["cycle_2"],
+      "text_content": "Тропа уходит в вязкую субстанцию, пахнущую старой листвой и разложением. Из жижи поднимаются пузыри газа, которые вспыхивают изумрудным пламенем. Твой доспех (которого еще нет, но кожа уже чувствует) начинает зудеть.\n\n[#sys_actor]: ОБНАРУЖЕНА БИОЛОГИЧЕСКАЯ КОРРОЗИЯ. ТРЕБУЕТСЯ ПРОВЕРКА ЦЕЛОСТНОСТИ ОБОЛОЧКИ.",
+      "actions_logic": {
+        "choice_1": {
+          "label": "😤 Пройти болото напролом, затаив дыхание",
+          "to_node": "cycle_2_logic_router",
+          "math": {
+            "w_endurance": "+3",
+            "w_men": "+2",
+            "w_strength": "+1",
+            "t_nature": "+1",
+            "step_counter": "+1"
+          }
+        },
+        "choice_2": {
+          "label": "🤸 Прыгать по кочкам, балансируя с оружием в руках",
+          "to_node": "cycle_2_logic_router",
+          "math": {
+            "w_agility": "+3",
+            "w_perception": "+2",
+            "w_luck": "+1",
+            "t_water": "+1",
+            "step_counter": "+1"
+          }
+        },
+        "choice_3": {
+          "label": "👁️ Отыскать безопасную тропу, изучая движение пузырей",
+          "to_node": "cycle_2_logic_router",
+          "math": {
+            "w_perception": "+3",
+            "w_wisdom": "+2",
+            "w_intelligence": "+1",
+            "t_air": "+1",
+            "step_counter": "+1"
+          }
+        }
+      }
+    },
+    {
+      "node_key": "event_hunter_echo",
+      "quest_key": "awakening_rift",
+      "tags": ["cycle_2"],
+      "text_content": "Среди гигантских папоротников проносится тень, слишком быстрая для человеческого глаза. Ты чувствуешь, как [#sys_actor] напряженно сканирует периметр, но помехи Разлома искажают сигнал. Твое оружие кажется тяжелее, чем обычно, когда ты пытаешься угадать направление следующего шороха.\n\n[#sys_actor]: ВНИМАНИЕ. ЗАФИКСИРОВАНА ВРАЖДЕБНАЯ СИНЕРГИЯ. ВЕРОЯТНОСТЬ ЗАСАДЫ: 68%.",
+      "actions_logic": {
+        "choice_1": {
+          "label": "👁️ Закрыть глаза и довериться слуху, выжидая идеальный момент",
+          "to_node": "cycle_2_logic_router",
+          "math": {
+            "w_perception": "+3",
+            "w_wisdom": "+2",
+            "w_luck": "+1",
+            "t_nature": "+1",
+            "step_counter": "+1"
+          }
+        },
+        "choice_2": {
+          "label": "💨 Сделать резкий выпад в сторону ближайшего куста, провоцируя врага",
+          "to_node": "cycle_2_logic_router",
+          "math": {
+            "w_agility": "+3",
+            "w_strength": "+2",
+            "w_men": "+1",
+            "t_fire": "+1",
+            "step_counter": "+1"
+          }
+        },
+        "choice_3": {
+          "label": "🧱 Спиной к дереву принять защитную стойку, ожидая броска",
+          "to_node": "cycle_2_logic_router",
+          "math": {
+            "w_endurance": "+3",
+            "w_men": "+2",
+            "w_strength": "+1",
+            "t_earth": "+1",
+            "step_counter": "+1"
+          }
+        }
+      }
+    },
+    {
+      "node_key": "event_smoldering_crack",
+      "quest_key": "awakening_rift",
+      "tags": ["cycle_2"],
+      "text_content": "Почва под ногами трескается, обнажая раскаленные жилы Разлома. Оттуда вырывается жар, который заставляет твой интерфейс мерцать алым. Путь вперед отрезан потоком жидкой энергии, которая буквально растворяет материю вокруг.\n\n[#sys_actor]: ТЕРМАЛЬНЫЙ ПИК. УРОВЕНЬ ОПАСНОСТИ: ВЫСОКИЙ. ТРЕБУЕТСЯ КОРРЕКЦИЯ МАРШРУТА.",
+      "actions_logic": {
+        "choice_1": {
+          "label": "😤 Прорваться сквозь поток жара, полагаясь на крепость тела",
+          "to_node": "cycle_2_logic_router",
+          "math": {
+            "w_endurance": "+3",
+            "w_men": "+2",
+            "w_strength": "+1",
+            "t_fire": "+1",
+            "step_counter": "+1"
+          }
+        },
+        "choice_2": {
+          "label": "🧗 Взобраться по отвесному склону, едва касаясь раскаленных камней",
+          "to_node": "cycle_2_logic_router",
+          "math": {
+            "w_agility": "+3",
+            "w_perception": "+2",
+            "w_luck": "+1",
+            "t_air": "+1",
+            "step_counter": "+1"
+          }
+        },
+        "choice_3": {
+          "label": "🧠 Использовать рукоять оружия, чтобы создать временную опору",
+          "to_node": "cycle_2_logic_router",
+          "math": {
+            "w_intelligence": "+3",
+            "w_wisdom": "+2",
+            "w_perception": "+1",
+            "t_water": "+1",
+            "step_counter": "+1"
+          }
+        }
+      }
+    },
+    {
+      "node_key": "event_code_hallucination",
+      "quest_key": "awakening_rift",
+      "tags": ["cycle_2"],
+      "text_content": "Реальность Изумрудного Разлома начинает «сыпаться». Ты видишь, как фрагменты деревьев превращаются в каскады цифр и снова обретают форму. Твои руки кажутся прозрачными, а оружие в них — лишь набором пикселей. \n\n[#sys_actor]: ОБНАРУЖЕНА ОШИБКА РЕНДЕРИНГА СОЗНАНИЯ. ТРЕБУЕТСЯ ПРИНУДИТЕЛЬНАЯ ФОКУСИРОВКА.",
+      "actions_logic": {
+        "choice_1": {
+          "label": "🧠 Вычленить из хаоса символов логическую последовательность",
+          "to_node": "cycle_2_logic_router",
+          "math": {
+            "w_intelligence": "+3",
+            "w_wisdom": "+2",
+            "w_perception": "+1",
+            "t_arcane": "+1",
+            "step_counter": "+1"
+          }
+        },
+        "choice_2": {
+          "label": "🧘 Закрыть глаза и идти на ощупь, доверяя интуиции",
+          "to_node": "cycle_2_logic_router",
+          "math": {
+            "w_wisdom": "+3",
+            "w_luck": "+2",
+            "w_men": "+1",
+            "t_light": "+1",
+            "step_counter": "+1"
+          }
+        },
+        "choice_3": {
+          "label": "🦾 Обрушить серию ударов в пустоту, чтобы «протрезветь»",
+          "to_node": "cycle_2_logic_router",
+          "math": {
+            "w_strength": "+3",
+            "w_endurance": "+2",
+            "w_men": "+1",
+            "t_dark": "+1",
+            "step_counter": "+1"
+          }
+        }
+      }
+    },
+    {
+      "node_key": "event_shifting_shadows",
+      "quest_key": "awakening_rift",
+      "tags": ["cycle_2"],
+      "text_content": "Ты оказываешься на участке, где тени от деревьев движутся быстрее, чем само солнце Осколка. Они тянутся к тебе, пытаясь опутать ноги и замедлить движение. Каждое попадание в такую тень отзывается резким холодом в интерфейсе.\n\n[#sys_actor]: ВНИМАНИЕ. ПОТЕРЯ КИНЕТИЧЕСКОЙ ЭНЕРГИИ. ВЕРОЯТНОСТЬ ЗАМЕДЛЕНИЯ: 80%.",
+      "actions_logic": {
+        "choice_1": {
+          "label": "🎲 Довериться удаче и бежать вслепую через пятна тьмы",
+          "to_node": "cycle_2_logic_router",
+          "math": {
+            "w_luck": "+3",
+            "w_agility": "+2",
+            "w_perception": "+1",
+            "t_dark": "+1",
+            "step_counter": "+1"
+          }
+        },
+        "choice_2": {
+          "label": "🤸 Использовать акробатические прыжки, чтобы не касаться земли",
+          "to_node": "cycle_2_logic_router",
+          "math": {
+            "w_agility": "+3",
+            "w_perception": "+2",
+            "w_luck": "+1",
+            "t_air": "+1",
+            "step_counter": "+1"
+          }
+        },
+        "choice_3": {
+          "label": "🧱 Укрепить свою волю и пройти сквозь тени медленным шагом",
+          "to_node": "cycle_2_logic_router",
+          "math": {
+            "w_men": "+3",
+            "w_endurance": "+2",
+            "w_wisdom": "+1",
+            "t_light": "+1",
+            "step_counter": "+1"
+          }
+        }
+      }
+    },
+    {
+      "node_key": "event_sleeping_archivist",
+      "quest_key": "awakening_rift",
+      "tags": ["cycle_2"],
+      "text_content": "Среди корней ты находишь полуразрушенного дрона-библиотекаря. Его линза мерцает красным, а из корпуса вырываются пучки данных, материализующиеся в виде агрессивных программных сущностей. \n\n[#sys_actor]: ОБНАРУЖЕН ПОВРЕЖДЕННЫЙ МОДУЛЬ ПАМЯТИ. ПРОТОКОЛ ЗАЩИТЫ ДАННЫХ: НАРУШЕН.",
+      "actions_logic": {
+        "choice_1": {
+          "label": "🧠 Попробовать перехватить поток данных своим интерфейсом",
+          "to_node": "cycle_2_logic_router",
+          "math": {
+            "w_intelligence": "+3",
+            "w_wisdom": "+2",
+            "w_perception": "+1",
+            "t_arcane": "+1",
+            "step_counter": "+1"
+          }
+        },
+        "choice_2": {
+          "label": "🦾 Использовать [#loot_queue.0] как заземлитель для разрядов",
+          "to_node": "cycle_2_logic_router",
+          "math": {
+            "w_strength": "+3",
+            "w_endurance": "+2",
+            "w_men": "+1",
+            "t_fire": "+1",
+            "step_counter": "+1"
+          }
+        },
+        "choice_3": {
+          "label": "🧘 Сосредоточиться и успокоить ядро дрона через резонанс",
+          "to_node": "cycle_2_logic_router",
+          "math": {
+            "w_wisdom": "+3",
+            "w_men": "+2",
+            "w_luck": "+1",
+            "t_light": "+1",
+            "step_counter": "+1"
+          }
+        }
+      }
+    },
+    {
+      "node_key": "event_blade_vortex",
+      "quest_key": "awakening_rift",
+      "tags": ["cycle_2"],
+      "text_content": "Ветер внезапно подхватывает сотни острых металлических листьев, превращая их в смертоносный смерч. Ты оказываешься в самом центре этой бури. Воздух свистит, разрезаемый тысячами крошечных лезвий.\n\n[#sys_actor]: ОБНАРУЖЕНА КИНЕТИЧЕСКАЯ АНОМАЛИЯ. УРОВЕНЬ УГРОЗЫ: КРИТИЧЕСКИЙ. ТРЕБУЕТСЯ МАКСИМАЛЬНАЯ КОНЦЕНТРАЦИЯ.",
+      "actions_logic": {
+        "choice_1": {
+          "label": "🤸 Двигаться внутри вихря, уклоняясь от каждого лезвия",
+          "to_node": "cycle_2_logic_router",
+          "math": {
+            "w_agility": "+3",
+            "w_perception": "+2",
+            "w_luck": "+1",
+            "t_air": "+1",
+            "step_counter": "+1"
+          }
+        },
+        "choice_2": {
+          "label": "🛡️ Отражать лезвия быстрыми взмахами [#loot_queue.0]",
+          "to_node": "cycle_2_logic_router",
+          "math": {
+            "w_perception": "+3",
+            "w_strength": "+2",
+            "w_endurance": "+1",
+            "t_earth": "+1",
+            "step_counter": "+1"
+          }
+        },
+        "choice_3": {
+          "label": "😤 Сгруппироваться и выдержать удар, защищая жизненно важные узлы",
+          "to_node": "cycle_2_logic_router",
+          "math": {
+            "w_endurance": "+3",
+            "w_men": "+2",
+            "w_strength": "+1",
+            "t_fire": "+1",
+            "step_counter": "+1"
+          }
+        }
+      }
+    },
+    {
+      "node_key": "event_wall_rejection",
+      "quest_key": "awakening_rift",
+      "tags": ["cycle_2"],
+      "text_content": "Проход впереди затянут полупрозрачной пленкой силового поля. Оно пульсирует, отталкивая всё, что пытается к нему приблизиться. Ты чувствуешь, как [#sys_actor] сбоит, когда ты касаешься поля рукоятью оружия.\n\n[#sys_actor]: ОБНАРУЖЕН БАРЬЕР ОТТОРЖЕНИЯ. АНАЛИЗ ПЛОТНОСТИ МЕТРИКИ... ТРЕБУЕТСЯ ФИЗИЧЕСКОЕ УСИЛИЕ.",
+      "actions_logic": {
+        "choice_1": {
+          "label": "🦾 Пробить брешь в поле одним мощным ударом",
+          "to_node": "cycle_2_logic_router",
+          "math": {
+            "w_strength": "+3",
+            "w_men": "+2",
+            "w_endurance": "+1",
+            "t_fire": "+1",
+            "step_counter": "+1"
+          }
+        },
+        "choice_2": {
+          "label": "😤 Навалиться всем телом, медленно продавливая мембрану",
+          "to_node": "cycle_2_logic_router",
+          "math": {
+            "w_endurance": "+3",
+            "w_strength": "+2",
+            "w_men": "+1",
+            "t_earth": "+1",
+            "step_counter": "+1"
+          }
+        },
+        "choice_3": {
+          "label": "🧠 Отыскать точку перегрузки и отключить поле через интерфейс",
+          "to_node": "cycle_2_logic_router",
+          "math": {
+            "w_intelligence": "+3",
+            "w_perception": "+2",
+            "w_wisdom": "+1",
+            "t_arcane": "+1",
+            "step_counter": "+1"
+          }
+        }
+      }
+    },
+    {
+      "node_key": "event_past_mirage",
+      "quest_key": "awakening_rift",
+      "tags": ["cycle_2"],
+      "text_content": "Туман раздвигается, обнажая фрагмент [#p_loc]. Это выглядит настолько реально, что ты чувствуешь запах дома. Но [#sys_actor] вопит об ошибке, а тени домов начинают искажаться, превращаясь в когтистые лапы Осколка.\n\n[#sys_actor]: ВНИМАНИЕ. КОГНИТИВНАЯ ЛОВУШКА. ВЕРОЯТНОСТЬ ИСКАЖЕНИЯ ПАМЯТИ: 92%.",
+      "actions_logic": {
+        "choice_1": {
+          "label": "🧘 Распознать иллюзию и развеять её силой воли",
+          "to_node": "cycle_2_logic_router",
+          "math": {
+            "w_men": "+3",
+            "w_wisdom": "+2",
+            "w_intelligence": "+1",
+            "t_light": "+1",
+            "step_counter": "+1"
+          }
+        },
+        "choice_2": {
+          "label": "🎲 Закрыть глаза и сделать шаг в пустоту, доверившись удаче",
+          "to_node": "cycle_2_logic_router",
+          "math": {
+            "w_luck": "+3",
+            "w_agility": "+2",
+            "w_perception": "+1",
+            "t_dark": "+1",
+            "step_counter": "+1"
+          }
+        },
+        "choice_3": {
+          "label": "👁️ Изучить края миража, ища брешь в программном коде",
+          "to_node": "cycle_2_logic_router",
+          "math": {
+            "w_perception": "+3",
+            "w_intelligence": "+2",
+            "w_wisdom": "+1",
+            "t_arcane": "+1",
+            "step_counter": "+1"
+          }
+        }
+      }
+    },
+    {
+      "node_key": "event_boiling_stream",
+      "quest_key": "awakening_rift",
+      "tags": ["cycle_2"],
+      "text_content": "Перед тобой ручей, наполненный светящейся жидкостью. Она пузырится и выбрасывает в воздух капли, которые прожигают даже камни. Путь вперед лежит через скользкие, парящие над потоком валуны.\n\n[#sys_actor]: ОБНАРУЖЕНА КОРРОЗИЙНАЯ СРЕДА. ТРЕБУЕТСЯ ТЕХНИЧЕСКАЯ АККУРАТНОСТЬ.",
+      "actions_logic": {
+        "choice_1": {
+          "label": "💨 Преодолеть ручей серией быстрых прыжков",
+          "to_node": "cycle_2_logic_router",
+          "math": {
+            "w_agility": "+3",
+            "w_perception": "+2",
+            "w_luck": "+1",
+            "t_air": "+1",
+            "step_counter": "+1"
+          }
+        },
+        "choice_2": {
+          "label": "🧱 Укрепить ноги и пройти через поток, игнорируя ожоги",
+          "to_node": "cycle_2_logic_router",
+          "math": {
+            "w_endurance": "+3",
+            "w_men": "+2",
+            "w_strength": "+1",
+            "t_water": "+1",
+            "step_counter": "+1"
+          }
+        },
+        "choice_3": {
+          "label": "🧠 Сбить ближайший обломок скалы, чтобы создать мост",
+          "to_node": "cycle_2_logic_router",
+          "math": {
+            "w_strength": "+3",
+            "w_intelligence": "+2",
+            "w_perception": "+1",
+            "t_earth": "+1",
+            "step_counter": "+1"
+          }
+        }
+      }
+    },
+    {
+      "node_key": "event_static_calm",
+      "quest_key": "awakening_rift",
+      "tags": ["cycle_2"],
+      "text_content": "Весь звук внезапно исчезает. Твое оружие [#loot_queue.0] начинает медленно подниматься вверх, притягиваемое невидимым магнитным полем. Твое тело становится немеющим, а каждое движение дается с огромным трудом.\n\n[#sys_actor]: МАГНИТНАЯ БУРЯ. УРОВЕНЬ ПОМЕХ: 99%. СИСТЕМА ПЕРЕХОДИТ В РЕЖИМ ОЖИДАНИЯ.",
+      "actions_logic": {
+        "choice_1": {
+          "label": "😤 Противостоять магнитному зову силой воли",
+          "to_node": "cycle_2_logic_router",
+          "math": {
+            "w_men": "+3",
+            "w_endurance": "+2",
+            "w_strength": "+1",
+            "t_dark": "+1",
+            "step_counter": "+1"
+          }
+        },
+        "choice_2": {
+          "label": "🧠 Перенастроить внутренние эмиттеры, чтобы обмануть поле",
+          "to_node": "cycle_2_logic_router",
+          "math": {
+            "w_intelligence": "+3",
+            "w_wisdom": "+2",
+            "w_perception": "+1",
+            "t_arcane": "+1",
+            "step_counter": "+1"
+          }
+        },
+        "choice_3": {
+          "label": "🎲 Резко оттолкнуться, используя импульс оружия для маневра",
+          "to_node": "cycle_2_logic_router",
+          "math": {
+            "w_luck": "+3",
+            "w_agility": "+2",
+            "w_perception": "+1",
+            "t_air": "+1",
+            "step_counter": "+1"
+          }
+        }
+      }
+    },
+    {
+      "node_key": "event_magnetic_pulse",
+      "quest_key": "awakening_rift",
+      "tags": ["cycle_2"],
+      "text_content": "Из-под земли вырывается мощный электромагнитный импульс. Твое оружие [#loot_queue.0] начинает раскаляться, а интерфейс Симбиота заливает статическим шумом. Вокруг парят обломки металла, готовые сорваться в твою сторону.\n\n[#sys_actor]: ОБНАРУЖЕНА ИОНИЗИРУЮЩАЯ АНОМАЛИЯ. РЕЖИМ ЗАЩИТЫ СЕТИ... СБОЙ. ТРЕБУЕТСЯ ЗАЗЕМЛЕНИЕ.",
+      "actions_logic": {
+        "choice_1": {
+          "label": "🦾 Вонзить оружие в почву, отводя заряд от себя",
+          "to_node": "cycle_2_logic_router",
+          "math": {
+            "w_strength": "+3",
+            "w_endurance": "+2",
+            "w_men": "+1",
+            "t_earth": "+1",
+            "step_counter": "+1"
+          }
+        },
+        "choice_2": {
+          "label": "💨 Выполнить серию рывков, уходя из зоны поражения",
+          "to_node": "cycle_2_logic_router",
+          "math": {
+            "w_agility": "+3",
+            "w_luck": "+2",
+            "w_perception": "+1",
+            "t_air": "+1",
+            "step_counter": "+1"
+          }
+        },
+        "choice_3": {
+          "label": "🧠 Перенастроить частоту Симбиота, чтобы поглотить импульс",
+          "to_node": "cycle_2_logic_router",
+          "math": {
+            "w_intelligence": "+3",
+            "w_wisdom": "+2",
+            "w_perception": "+1",
+            "t_arcane": "+1",
+            "step_counter": "+1"
+          }
+        }
+      }
+    },
+    {
+      "node_key": "event_toxic_bloom",
+      "quest_key": "awakening_rift",
+      "tags": ["cycle_2"],
+      "text_content": "Ты входишь на поляну, где распускаются гигантские цветы, напоминающие кристаллы. Они выбрасывают облака едкой пыльцы, которая разъедает воздух. Твое дыхание становится тяжелым, а зрение — туманным.\n\n[#sys_actor]: ОБНАРУЖЕН БИОЛОГИЧЕСКИЙ ТОКСИН. КРИТИЧЕСКОЕ ЗАГРЯЗНЕНИЕ КОНТУРА. ТРЕБУЕТСЯ СТАБИЛИЗАЦИЯ ТЕЛА.",
+      "actions_logic": {
+        "choice_1": {
+          "label": "😤 Сцепить зубы и прорваться сквозь пыльцу на чистой воле",
+          "to_node": "cycle_2_logic_router",
+          "math": {
+            "w_men": "+3",
+            "w_endurance": "+2",
+            "w_strength": "+1",
+            "t_nature": "+1",
+            "step_counter": "+1"
+          }
+        },
+        "choice_2": {
+          "label": "👁️ Отыскать безопасные зазоры в потоках ветра",
+          "to_node": "cycle_2_logic_router",
+          "math": {
+            "w_perception": "+3",
+            "w_agility": "+2",
+            "w_luck": "+1",
+            "t_air": "+1",
+            "step_counter": "+1"
+          }
+        },
+        "choice_3": {
+          "label": "🧘 Замедлить метаболизм и пройти сквозь туман в трансе",
+          "to_node": "cycle_2_logic_router",
+          "math": {
+            "w_wisdom": "+3",
+            "w_intelligence": "+2",
+            "w_men": "+1",
+            "t_water": "+1",
+            "step_counter": "+1"
+          }
+        }
+      }
+    },
+    {
+      "node_key": "event_gravity_ripple",
+      "quest_key": "awakening_rift",
+      "tags": ["cycle_2"],
+      "text_content": "Гравитация в этом секторе ведет себя хаотично. Один шаг делает тебя легким как перо, следующий — придавливает к земле с чудовищной силой. Лианы вокруг лопаются под собственным весом.\n\n[#sys_actor]: ГРАВИТАЦИОННЫЙ ДРЕЙФ. ВНИМАНИЕ: СТРУКТУРНАЯ ЦЕЛОСТНОСТЬ ПОД УГРОЗОЙ.",
+      "actions_logic": {
+        "choice_1": {
+          "label": "🦾 Использовать вес оружия как противовес для прыжка",
+          "to_node": "cycle_2_logic_router",
+          "math": {
+            "w_strength": "+3",
+            "w_agility": "+2",
+            "w_luck": "+1",
+            "t_fire": "+1",
+            "step_counter": "+1"
+          }
+        },
+        "choice_2": {
+          "label": "😤 Укрепить стойку и двигаться только в моменты пика тяжести",
+          "to_node": "cycle_2_logic_router",
+          "math": {
+            "w_endurance": "+3",
+            "w_men": "+2",
+            "w_strength": "+1",
+            "t_earth": "+1",
+            "step_counter": "+1"
+          }
+        },
+        "choice_3": {
+          "label": "🎲 Довериться интуиции и нестись вперед, ловя моменты невесомости",
+          "to_node": "cycle_2_logic_router",
+          "math": {
+            "w_luck": "+3",
+            "w_agility": "+2",
+            "w_perception": "+1",
+            "t_dark": "+1",
+            "step_counter": "+1"
+          }
+        }
+      }
+    },
+    {
+      "node_key": "event_echo_chamber",
+      "quest_key": "awakening_rift",
+      "tags": ["cycle_2"],
+      "text_content": "Ты попадаешь в зону, где звук материализуется. Каждый твой вздох отзывается физическим толчком, а лязг оружия об обломки порождает ударные волны, крошащие камень.\n\n[#sys_actor]: АКУСТИЧЕСКАЯ НЕСТАБИЛЬНОСТЬ. СИНХРОНИЗАЦИЯ С ФОНОВЫМ ШУМОМ... 52%.",
+      "actions_logic": {
+        "choice_1": {
+          "label": "👁️ Выждать момент тишины, чтобы сделать рывок",
+          "to_node": "cycle_2_logic_router",
+          "math": {
+            "w_perception": "+3",
+            "w_luck": "+2",
+            "w_wisdom": "+1",
+            "t_light": "+1",
+            "step_counter": "+1"
+          }
+        },
+        "choice_2": {
+          "label": "🧠 Проанализировать частоту волн и идти в противофазе",
+          "to_node": "cycle_2_logic_router",
+          "math": {
+            "w_intelligence": "+3",
+            "w_wisdom": "+2",
+            "w_perception": "+1",
+            "t_arcane": "+1",
+            "step_counter": "+1"
+          }
+        },
+        "choice_3": {
+          "label": "🦾 Рассечь звуковую волну встречным ударом [#loot_queue.0]",
+          "to_node": "cycle_2_logic_router",
+          "math": {
+            "w_strength": "+3",
+            "w_endurance": "+2",
+            "w_men": "+1",
+            "t_fire": "+1",
+            "step_counter": "+1"
+          }
+        }
+      }
+    },
+    {
+      "node_key": "cycle_1_logic_router",
+      "quest_key": "awakening_rift",
+      "actions_logic": {
+        "auto": {
+          "type": "logic_gate",
+          "branching": [
+            {
+              "condition": "step_counter >= 3",
+              "to_node": "resonance_logic_01"
+            },
+            {
+              "condition": "default",
+              "to_node": "pool:bridge_early"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "node_key": "cycle_2_logic_router",
+      "quest_key": "awakening_rift",
+      "actions_logic": {
+        "auto": {
+          "type": "logic_gate",
+          "branching": [
+            {
+              "condition": "step_counter >= 6",
+              "to_node": "resonance_logic_02"
+            },
+            {
+              "condition": "default",
+              "to_node": "pool:bridge_mid"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "node_key": "cycle_3_logic_router",
+      "quest_key": "awakening_rift",
+      "actions_logic": {
+        "auto": {
+          "type": "logic_gate",
+          "branching": [
+            {
+              "condition": "step_counter >= 9",
+              "to_node": "resonance_logic_03_final"
+            },
+            {
+              "condition": "default",
+              "to_node": "pool:bridge_late"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "node_key": "resonance_logic_01",
+      "quest_key": "awakening_rift",
+      "text_content": "[#sys_actor]: АНАЛИЗ ПОВЕДЕНЧЕСКИХ ПАТТЕРНОВ... ЗАВЕРШЕНО. \n\nИзумрудное марево перед тобой вибрирует, материализуя объект из плотной физической материи. Твои руки сами тянутся к нему, узнавая форму, рожденную твоими решениями.",
+      "actions_logic": {
+        "auto": {
+          "type": "logic_gate",
+          "branching": [
+            {
+              "condition": "w_strength >= w_agility and w_strength >= w_intelligence",
+              "to_node": "choice_strength_weapon"
+            },
+            {
+              "condition": "w_agility > w_strength and w_agility >= w_intelligence",
+              "to_node": "choice_agility_weapon"
+            },
+            {
+              "condition": "default",
+              "to_node": "choice_balance_weapon"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "node_key": "choice_strength_weapon",
+      "quest_key": "awakening_rift",
+      "text_content": "Энергия Рифта реагирует на твою силу. Перед тобой возникают два силуэта.",
+      "actions_logic": {
+        "take_hammer": {
+          "label": "🔨 Схватить Боевой Молот",
+          "math": {
+            "loot_queue": "push:warhammer",
+            "skills_queue": "push:melee_combat",
+            "is_two_handed": 1
+          },
+          "to_node": "bridge_resonance_award"
+        },
+        "take_axe": {
+          "label": "🪓 Выбрать Боевой Топор",
+          "math": {
+            "loot_queue": "push:battle_axe",
+            "skills_queue": "push:melee_combat",
+            "is_two_handed": 0
+          },
+          "to_node": "bridge_resonance_award"
+        }
+      }
+    },
+    {
+      "node_key": "choice_agility_weapon",
+      "quest_key": "awakening_rift",
+      "text_content": "Рифт чувствует твою скорость. Воздух сгущается в две стремительные формы.",
+      "actions_logic": {
+        "take_katana": {
+          "label": "🗡️ Взять Катану",
+          "math": {
+            "loot_queue": "push:katana",
+            "skills_queue": "push:melee_combat",
+            "is_two_handed": 1
+          },
+          "to_node": "bridge_resonance_award"
+        },
+        "take_dagger": {
+          "label": "🔪 Выбрать Кинжал",
+          "math": {
+            "loot_queue": "push:dagger",
+            "skills_queue": "push:melee_combat",
+            "is_two_handed": 0
+          },
+          "to_node": "bridge_resonance_award"
+        }
+      }
+    },
+    {
+      "node_key": "choice_balance_weapon",
+      "quest_key": "awakening_rift",
+      "text_content": "Твой разум ищет баланс. Рифт предлагает инструменты для тех, кто ценит точность.",
+      "actions_logic": {
+        "take_staff": {
+          "label": "🥢 Взять Боевой Посох",
+          "math": {
+            "loot_queue": "push:quarterstaff",
+            "skills_queue": "push:melee_combat",
+            "is_two_handed": 1
+          },
+          "to_node": "bridge_resonance_award"
+        },
+        "take_sword": {
+          "label": "⚔️ Выбрать Меч",
+          "math": {
+            "loot_queue": "push:sword",
+            "skills_queue": "push:melee_combat",
+            "is_two_handed": 0
+          },
+          "to_node": "bridge_resonance_award"
+        }
+      }
+    },
+    {
+      "node_key": "bridge_resonance_award",
+      "quest_key": "awakening_rift",
+      "text_content": "Свет Осколка гаснет, оставляя в твоих руках тяжесть нового инструмента. Ты делаешь пробный замах — баланс идеален. \n\n[#sys_actor]: ОБЪЕКТ СИНХРОНИЗИРОВАН. БОЕВОЙ ПРОТОКОЛ ДОСТУПЕН. ТРЕБУЕТСЯ ПОДГОТОВКА СРЕДСТВ ЗАЩИТЫ.",
+      "actions_logic": {
+        "next": {
+          "label": "🗡️ Закрепить оружие и идти дальше",
+          "to_node": "pool:bridge_mid"
+        }
+      }
+    },
+    {
+      "node_key": "resonance_logic_02",
+      "quest_key": "awakening_rift",
+      "text_content": "[#sys_actor]: АНАЛИЗ БОЕВОЙ СОВМЕСТИМОСТИ... ЗАВЕРШЕНО. \n\nТвой стиль боя обретает законченную форму. Осколок реагирует на хват твоих рук, формируя идеальное дополнение к [#loot_queue.0].",
+      "actions_logic": {
+        "auto": {
+          "type": "logic_gate",
+          "branching": [
+            {
+              "condition": "is_two_handed == 0",
+              "to_node": "choice_offhand"
+            },
+            {
+              "condition": "default",
+              "to_node": "choice_accessory"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "node_key": "choice_offhand",
+      "quest_key": "awakening_rift",
+      "text_content": "Твоя вторая рука свободна. Рифт предлагает защиту или скорость.",
+      "actions_logic": {
+        "take_shield": {
+          "label": "🛡️ Взять Щит",
+          "math": {
+            "loot_queue": "push:shield",
+            "skills_queue": ["push:shield_mastery"]
+          },
+          "to_node": "bridge_resonance_award_2"
+        },
+        "take_buckler": {
+          "label": "🔘 Выбрать Баклер (Парирование)",
+          "math": {
+            "loot_queue": "push:buckler",
+            "skills_queue": ["push:reflexes"]
+          },
+          "to_node": "bridge_resonance_award_2"
+        }
+      }
+    },
+    {
+      "node_key": "choice_accessory",
+      "quest_key": "awakening_rift",
+      "text_content": "Твои руки заняты двуручным оружием. Рифт предлагает усиление через артефакт.",
+      "actions_logic": {
+        "take_belt": {
+          "label": "🎗️ Пояс Силы",
+          "math": {
+            "loot_queue": "push:belt",
+            "skills_queue": ["push:intuition"]
+          },
+          "to_node": "bridge_resonance_award_2"
+        },
+        "take_amulet": {
+          "label": "🧿 Амулет Концентрации",
+          "math": {
+            "loot_queue": "push:amulet",
+            "skills_queue": ["push:focus"]
+          },
+          "to_node": "bridge_resonance_award_2"
+        }
+      }
+    },
+    {
+      "node_key": "bridge_resonance_award_2",
+      "quest_key": "awakening_rift",
+      "text_content": "Марево перед тобой застывает, превращаясь в полезный инструмент. Теперь ты чувствуешь себя гораздо увереннее. \n\n[#sys_actor]: ОБЪЕКТ СИНХРОНИЗИРОВАН. БОЕВОЙ ПРОТОКОЛ ОБНОВЛЕН. ТРЕБУЕТСЯ ФИНАЛЬНАЯ КАЛИБРОВКА ЗАЩИТНОГО КОНТУРА.",
+      "actions_logic": {
+        "next": {
+          "label": "🛡️ Проверить снаряжение и продолжить",
+          "to_node": "pool:bridge_late"
+        }
+      }
+    },
+    {
+      "node_key": "resonance_logic_03_final",
+      "quest_key": "awakening_rift",
+      "actions_logic": {
+        "auto": {
+          "type": "logic_gate",
+          "branching": [
+            {
+              "condition": "w_endurance >= 15 or w_strength >= 15",
+              "to_node": "choice_heavy_armor"
+            },
+            {
+              "condition": "w_agility >= 15 or w_luck >= 15",
+              "to_node": "choice_light_armor"
+            },
+            {
+              "condition": "default",
+              "to_node": "choice_medium_armor"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "node_key": "choice_heavy_armor",
+      "quest_key": "awakening_rift",
+      "text_content": "Твоя стойкость впечатляет Рифт. Он предлагает тебе стать несокрушимой скалой.",
+      "actions_logic": {
+        "take_plate": {
+          "label": "🛡️ Облачиться в Латные Доспехи",
+          "math": {
+            "loot_queue": ["push:plate_chest", "push:helmet", "push:wool_tunic", "push:fur_pants", "push:boots"],
+            "skills_queue": ["push:heavy_armor_mastery"]
+          },
+          "to_node": "final_award_heavy"
+        },
+        "take_scale": {
+          "label": "🐉 Выбрать Чешуйчатую Броню",
+          "math": {
+            "loot_queue": ["push:scale_mail", "push:helmet", "push:wool_tunic", "push:fur_pants", "push:boots"],
+            "skills_queue": ["push:heavy_armor_mastery"]
+          },
+          "to_node": "final_award_heavy"
+        }
+      }
+    },
+    {
+      "node_key": "choice_light_armor",
+      "quest_key": "awakening_rift",
+      "text_content": "Твоя скорость требует свободы. Рифт предлагает защиту, которая не сковывает движений.",
+      "actions_logic": {
+        "take_robe": {
+          "label": "👘 Надеть Магическую Робу",
+          "math": {
+            "loot_queue": ["push:robe", "push:hood", "push:linen_shirt", "push:sandals"],
+            "skills_queue": ["push:light_armor_mastery"]
+          },
+          "to_node": "final_award_light"
+        },
+        "take_leather": {
+          "label": "🧥 Выбрать Легкую Кожу",
+          "math": {
+            "loot_queue": ["push:leather_armor", "push:hood", "push:linen_shirt", "push:boots"],
+            "skills_queue": ["push:light_armor_mastery"]
+          },
+          "to_node": "final_award_light"
+        }
+      }
+    },
+    {
+      "node_key": "choice_medium_armor",
+      "quest_key": "awakening_rift",
+      "text_content": "Ты ищешь баланс во всем. Рифт предлагает универсальную защиту.",
+      "actions_logic": {
+        "take_chainmail": {
+          "label": "⛓️ Надеть Кольчугу",
+          "math": {
+            "loot_queue": ["push:chainmail", "push:leather_cap", "push:linen_shirt", "push:boots"],
+            "skills_queue": ["push:medium_armor_mastery"]
+          },
+          "to_node": "final_award_medium"
+        },
+        "take_brigandine": {
+          "label": "🛡️ Выбрать Бригантину",
+          "math": {
+            "loot_queue": ["push:brigandine", "push:leather_cap", "push:linen_shirt", "push:boots"],
+            "skills_queue": ["push:medium_armor_mastery"]
+          },
+          "to_node": "final_award_medium"
+        }
+      }
+    },
+    {
+      "node_key": "final_award_heavy",
+      "quest_key": "awakening_rift",
+      "text_content": "Изумрудный Разлом взрывается ослепительным светом. Ты чувствуешь, как на твои плечи ложится колоссальная тяжесть, но она не давит, а дает уверенность. \n\nТвое тело теперь заковано в **тяжелую броню**. Ты — живая крепость среди хаоса кода. \n\n[#sys_actor]: КАЛИБРОВКА ПОЛНОСТЬЮ ЗАВЕРШЕНА. ВЫ ГOTOВЫ К ВЫХОДУ ИЗ РИФТА.",
+      "actions_logic": {
+        "exit": {
+          "label": "🌌 Шагнуть в финальный портал",
+          "to_node": "rift_exit_battle"
+        }
+      }
+    },
+    {
+      "node_key": "final_award_light",
+      "quest_key": "awakening_rift",
+      "text_content": "Осколок Зеро окутывает тебя невесомым коконом. Когда сияние гаснет, ты чувствуешь на плечах мягкую ткань, пропитанную энергией Разлома. \n\nТвоим облачением становится **легкая броня**. Это снаряжение не защитит от прямого удара топором, но позволит тебе двигаться быстрее ветра. \n\n[#sys_actor]: СИНХРОНИЗАЦИЯ С ЛЕГКИМ КОНТУРОМ: 100%. ПОЛУЧЕН НАВЫК: МАСТЕР ЛЕГКОЙ БРОНИ.",
+      "actions_logic": {
+        "exit": {
+          "label": "🌌 Выйти из марева",
+          "to_node": "rift_exit_battle"
+        }
+      }
+    },
+    {
+      "node_key": "final_award_medium",
+      "quest_key": "awakening_rift",
+      "text_content": "Изумрудный свет застывает на твоем теле гибкой металлической сеткой. Ты чувствуешь приятную тяжесть и надежность.\n\nНа тебе надета **средняя броня**. Этот комплект — идеальный баланс между защитой и мобильностью. \n\n[#sys_actor]: СИНХРОНИЗАЦИЯ СО СРЕДНИМ КОНТУРОМ ЗАВЕРШЕНА. ПОЛУЧЕН НАВЫК: МАСТЕР СРЕДНЕЙ БРОНИ.",
+      "actions_logic": {
+        "exit": {
+          "label": "🌌 Продолжить путь",
+          "to_node": "rift_exit_battle"
+        }
+      }
+    },
+    {
+      "node_key": "bridge_late_sync",
+      "quest_key": "awakening_rift",
+      "tags": ["bridge_late"],
+      "selection_requirements": "step_counter >= 6",
+      "text_content": "Синхронизация достигла критической отметки. Ты чувствуешь, как [#loot_queue.0] и [#loot_queue.1] становятся невесомыми, сливаясь с твоей волей.\n\n[#sys_actor]: СИСТЕМА ГОТОВА К ФОРМИРОВАНИЮ ЗАЩИТНОГО КОНТУРА.",
+      "actions_logic": { "next": { "label": "👣 Идти в центр шторма", "to_node": "pool:cycle_3" } }
+    },
+    {
+      "node_key": "bridge_late_pattern",
+      "quest_key": "awakening_rift",
+      "tags": ["bridge_late"],
+      "selection_requirements": "step_counter >= 6",
+      "text_content": "Геометрия Разлома меняется. Деревья превращаются в колонны света. Ты видишь сложные паттерны, которые сплетаются в твой будущий доспех.\n\n[#sys_actor]: ОБНАРУЖЕНЫ ШАБЛОНЫ ВНЕШНЕЙ ОБОЛОЧКИ. ТРЕБУЕТСЯ ПОДТВЕРЖДЕНИЕ.",
+      "actions_logic": { "next": { "label": "🌀 Шагнуть сквозь хаос", "to_node": "pool:cycle_3" } }
+    },
+    {
+      "node_key": "bridge_late_echo",
+      "quest_key": "awakening_rift",
+      "tags": ["bridge_late"],
+      "selection_requirements": "step_counter >= 6",
+      "text_content": "Шепот Осколка превращается в гул. Ты — активный процесс в ядре системы. Твое тело жаждет финального слоя защиты.\n\n[#sys_actor]: ПОДГОТОВКА К КОМПЛЕКСНОМУ РЕЗОНАНСУ.",
+      "actions_logic": { "next": { "label": "🌌 Устремиться к горизонту", "to_node": "pool:cycle_3" } }
+    },
+    {
+      "node_key": "bridge_late_static",
+      "quest_key": "awakening_rift",
+      "tags": ["bridge_late"],
+      "selection_requirements": "step_counter >= 6",
+      "text_content": "Воздух искрится. Каждое движение порождает шлейф из знаков. Осколок предлагает материю для защиты твоего разума.\n\n[#sys_actor]: ОБНАРУЖЕНА СОВМЕСТИМОСТЬ С ВЫСШИМИ СЛОЯМИ ЭКИПИРОВКИ.",
+      "actions_logic": { "next": { "label": "👣 Сделать шаг в тишину", "to_node": "pool:cycle_3" } }
+    },
+    {
+      "node_key": "bridge_late_vision",
+      "quest_key": "awakening_rift",
+      "tags": ["bridge_late"],
+      "selection_requirements": "step_counter >= 6",
+      "text_content": "Ты видишь себя со стороны: фигура, окутанная пламенем, сжимающая [#loot_queue.0]. Этот образ будущего доспеха вспыхивает и гаснет.\n\n[#sys_actor]: ВИЗУАЛИЗАЦИЯ ЦЕЛИ: ЗАВЕРШЕНА. ВЕРОЯТНОСТЬ УСПЕХА: 89%.",
+      "actions_logic": { "next": { "label": "💨 Бежать навстречу вспышке", "to_node": "pool:cycle_3" } }
+    },
+    {
+      "node_key": "bridge_late_void",
+      "quest_key": "awakening_rift",
+      "tags": ["bridge_late"],
+      "selection_requirements": "step_counter >= 6",
+      "text_content": "Пространство схлопывается в узкий коридор света. Конец Рифта близок. Последние препятствия отделяют тебя от материализации.\n\n[#sys_actor]: ВНИМАНИЕ. СИНХРОНИЗАЦИЯ 94%. ФИНАЛЬНЫЙ ТЕСТ.",
+      "actions_logic": { "next": { "label": "👣 Идти к выходу", "to_node": "pool:cycle_3" } }
+    },
+    {
+      "node_key": "event_acid_mist",
+      "quest_key": "awakening_rift",
+      "tags": ["cycle_3"],
+      "text_content": "Воздух густеет, превращаясь в едкий изумрудный туман. Он шипит, соприкасаясь с кожей, и пытается разъесть твою волю. Каждое движение в этой взвеси требует колоссальных усилий.\n\n[#sys_actor]: ОБНАРУЖЕНА КОРРОЗИЙНАЯ СРЕДА. УРОВЕНЬ КИСЛОТНОСТИ: ВЫСОКИЙ. СТАБИЛИЗАЦИЯ НЕЙРОСЕТИ...",
+      "actions_logic": {
+        "choice_1": {
+          "label": "😤 Игнорировать боль и идти напролом, закаляя тело",
+          "to_node": "cycle_3_logic_router",
+          "math": { "w_endurance": "+3", "w_men": "+2", "w_strength": "+1", "t_nature": "+1", "step_counter": "+1" }
+        },
+        "choice_2": {
+          "label": "🧘 Замедлить дыхание и фильтровать воздух через внутреннюю энергию",
+          "to_node": "cycle_3_logic_router",
+          "math": { "w_wisdom": "+3", "w_men": "+2", "w_intelligence": "+1", "t_water": "+1", "step_counter": "+1" }
+        },
+        "choice_3": {
+          "label": "🦾 Создать вихрь вокруг себя быстрым вращением [#loot_queue.0]",
+          "to_node": "cycle_3_logic_router",
+          "math": { "w_strength": "+3", "w_agility": "+2", "w_luck": "+1", "t_air": "+1", "step_counter": "+1" }
+        }
+      }
+    },
+    {
+      "node_key": "event_crystal_storm",
+      "quest_key": "awakening_rift",
+      "tags": ["cycle_3"],
+      "text_content": "С неба начинают падать осколки данных, острые как бритва. Они прошивают пространство, оставляя в нем дыры. Тебе нужно найти безопасный путь в этом хаосе падающих кристаллов.\n\n[#sys_actor]: ГЕОМЕТРИЧЕСКАЯ АНОМАЛИЯ. ВНИМАНИЕ: ТРАЕКТОРИИ ПАДЕНИЯ НЕПРЕДСКАЗУЕМЫ.",
+      "actions_logic": {
+        "choice_1": {
+          "label": "🤸 Уклоняться от осколков в молниеносном танце",
+          "to_node": "cycle_3_logic_router",
+          "math": { "w_agility": "+3", "w_perception": "+2", "w_luck": "+1", "t_air": "+1", "step_counter": "+1" }
+        },
+        "choice_2": {
+          "label": "👁️ Предсказать точки падения по мерцанию воздуха",
+          "to_node": "cycle_3_logic_router",
+          "math": { "w_perception": "+3", "w_intelligence": "+2", "w_wisdom": "+1", "t_arcane": "+1", "step_counter": "+1" }
+        },
+        "choice_3": {
+          "label": "🛡️ Принять удар на [#loot_queue.1], блокируя шквал",
+          "to_node": "cycle_3_logic_router",
+          "math": { "w_strength": "+3", "w_endurance": "+2", "w_men": "+1", "t_earth": "+1", "step_counter": "+1" }
+        }
+      }
+    },
+    {
+      "node_key": "event_thunder_dome",
+      "quest_key": "awakening_rift",
+      "tags": ["cycle_3"],
+      "text_content": "Ты попадаешь в зону, где молнии бьют прямо из земли. Они образуют клетку вокруг тебя, которая медленно сжимается. [#sys_actor] требует настройки проводимости твоего снаряжения.\n\n[#sys_actor]: ВЫСОКОВОЛЬТНАЯ ЛОВУШКА. ТРЕБУЕТСЯ ПЕРЕХВАТ ЗАРЯДА.",
+      "actions_logic": {
+        "choice_1": {
+          "label": "🧠 Взломать код молний и заставить их расступиться",
+          "to_node": "cycle_3_logic_router",
+          "math": { "w_intelligence": "+3", "w_wisdom": "+2", "w_perception": "+1", "t_arcane": "+1", "step_counter": "+1" }
+        },
+        "choice_2": {
+          "label": "😤 Принять разряд на себя, закаляя нервную систему",
+          "to_node": "cycle_3_logic_router",
+          "math": { "w_men": "+3", "w_endurance": "+2", "w_strength": "+1", "t_light": "+1", "step_counter": "+1" }
+        },
+        "choice_3": {
+          "label": "🦾 Использовать [#loot_queue.0] как громоотвод, заземляя энергию",
+          "to_node": "cycle_3_logic_router",
+          "math": { "w_strength": "+3", "w_endurance": "+2", "w_men": "+1", "t_fire": "+1", "step_counter": "+1" }
+        }
+      }
+    },
+    {
+      "node_key": "event_code_quicksand",
+      "quest_key": "awakening_rift",
+      "tags": ["cycle_3"],
+      "text_content": "Земля превращается в вязкую цифровую кашу. Она затягивает тебя, пытаясь растворить в себе. Чем больше ты сопротивляешься, тем быстрее погружаешься.\n\n[#sys_actor]: ЭНТРОПИЙНАЯ ЯМА. РИСК ПОЛНОГО РАСТВОРЕНИЯ: 74%.",
+      "actions_logic": {
+        "choice_1": {
+          "label": "😤 Замереть и на выносливости дождаться стабилизации",
+          "to_node": "cycle_3_logic_router",
+          "math": { "w_endurance": "+3", "w_men": "+2", "w_strength": "+1", "t_earth": "+1", "step_counter": "+1" }
+        },
+        "choice_2": {
+          "label": "🎲 Довериться интуиции и сделать рывок в сторону",
+          "to_node": "cycle_3_logic_router",
+          "math": { "w_luck": "+3", "w_agility": "+2", "w_perception": "+1", "t_dark": "+1", "step_counter": "+1" }
+        },
+        "choice_3": {
+          "label": "🧗 Взобраться по призрачным нитям кода в воздухе",
+          "to_node": "cycle_3_logic_router",
+          "math": { "w_agility": "+3", "w_perception": "+2", "w_intelligence": "+1", "t_air": "+1", "step_counter": "+1" }
+        }
+      }
+    },
+    {
+      "node_key": "event_ice_silence",
+      "quest_key": "awakening_rift",
+      "tags": ["cycle_3"],
+      "text_content": "Температура падает до абсолютного нуля. Твои мысли начинают замерзать, превращаясь в ледяные кристаллы. Движение — единственный способ не превратиться в статую.\n\n[#sys_actor]: КРИТИЧЕСКАЯ ГИПОТЕРМИЯ. ТРЕБУЕТСЯ МОБИЛИЗАЦИЯ ЭНЕРГИИ.",
+      "actions_logic": {
+        "choice_1": {
+          "label": "🧘 Сосредоточиться на внутреннем жаре Осколка",
+          "to_node": "cycle_3_logic_router",
+          "math": { "w_wisdom": "+3", "w_men": "+2", "w_intelligence": "+1", "t_light": "+1", "step_counter": "+1" }
+        },
+        "choice_2": {
+          "label": "😤 Напрячь мышцы, поддерживая тепло через усилие",
+          "to_node": "cycle_3_logic_router",
+          "math": { "w_endurance": "+3", "w_strength": "+2", "w_men": "+1", "t_fire": "+1", "step_counter": "+1" }
+        },
+        "choice_3": {
+          "label": "🦾 Обрушить серию быстрых ударов по камням",
+          "to_node": "cycle_3_logic_router",
+          "math": { "w_strength": "+3", "w_agility": "+2", "w_endurance": "+1", "t_earth": "+1", "step_counter": "+1" }
+        }
+      }
+    },
+    {
+      "node_key": "event_sporadic_vortex",
+      "quest_key": "awakening_rift",
+      "tags": ["cycle_3"],
+      "text_content": "Ты в облаке хаотичных частиц. Они то превращаются в шипы, то в вату. Тебе нужно найти выход, пока вихрь не изменил твою структуру.\n\n[#sys_actor]: СБОЙ ПРОСТРАНСТВЕННОГО РЕНДЕРИНГА. ТРЕБУЕТСЯ ФОКУСИРОВКА.",
+      "actions_logic": {
+        "choice_1": {
+          "label": "👁️ Уловить момент безопасной тропы",
+          "to_node": "cycle_3_logic_router",
+          "math": { "w_perception": "+3", "w_intelligence": "+2", "w_luck": "+1", "t_arcane": "+1", "step_counter": "+1" }
+        },
+        "choice_2": {
+          "label": "🎲 Бежать вперед, надеясь на удачу Осколка",
+          "to_node": "cycle_3_logic_router",
+          "math": { "w_luck": "+3", "w_agility": "+2", "w_men": "+1", "t_water": "+1", "step_counter": "+1" }
+        },
+        "choice_3": {
+          "label": "🧱 Сгруппироваться и защитить органы доспехом",
+          "to_node": "cycle_3_logic_router",
+          "math": { "w_endurance": "+3", "w_men": "+2", "w_strength": "+1", "t_nature": "+1", "step_counter": "+1" }
+        }
+      }
+    },
+    {
+      "node_key": "rift_exit_battle",
+      "quest_key": "awakening_rift",
+      "text_content": "Портал перед тобой пульсирует, открывая путь в неизведанное. Твоя экипировка готова, навыки откалиброваны. Пришло время встретиться с реальными угрозами Осколка.",
+      "actions_logic": {
+        "finish": {
+          "label": "⚔️ К бою!",
+          "type": "finish_quest"
+        }
+      }
+    }
+  ]
+}

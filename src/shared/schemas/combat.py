@@ -1,127 +1,74 @@
-from __future__ import annotations
-
-from typing import Any, Literal
-
-from pydantic import BaseModel, Field
-
-CombatActionKind = Literal["exchange", "instant", "item", "system"]
+from pydantic import BaseModel
 
 
-class CombatCatalogLinksDTO(BaseModel):
-    """Stable catalog entry points for client-side text and descriptions."""
+class CombatLogEntryDTO(BaseModel):
+    """Одна запись лога."""
 
-    bootstrap: str = "/game/catalog/bootstrap"
-    abilities: str = "/game/catalog/bootstrap#abilities"
-    feints: str = "/game/catalog/bootstrap#feints"
-    effects: str = "/game/catalog/bootstrap#effects"
-    triggers: str = "/game/catalog/bootstrap#triggers"
-    gifts: str = "/game/catalog/bootstrap#gifts"
+    text: str
+    timestamp: float
+    tags: list[str] = []
 
 
-class CombatActorVitalsDTO(BaseModel):
-    hp_current: int = 0
-    hp_max: int = 0
-    energy_current: int = 0
-    energy_max: int = 0
-    tactics: int = 0
+class ActorShortInfo(BaseModel):
+    """Минимальная инфа для списков"""
 
-
-class CombatEffectBadgeDTO(BaseModel):
-    uid: str | None = None
-    effect_id: str
-    expires_at_exchange: int | None = None
-    catalog_ref: str = "effects"
-    impact: dict[str, Any] = Field(default_factory=dict)
-
-
-class CombatAbilityBadgeDTO(BaseModel):
-    uid: str | None = None
-    ability_id: str
-    expires_at_exchange: int | None = None
-    catalog_ref: str = "abilities"
-    impact: dict[str, Any] = Field(default_factory=dict)
-
-
-class CombatFeintOptionDTO(BaseModel):
-    feint_id: str
-    cost: dict[str, int] = Field(default_factory=dict)
-    catalog_ref: str = "feints"
-
-
-class CombatActorCardDTO(BaseModel):
-    actor_id: str
+    char_id: int
     name: str
-    actor_type: str
+    hp_percent: int
+    is_dead: bool
+    is_target: bool = False  # Выделение в списке
+
+
+class ActorFullInfo(BaseModel):
+    """Полная инфа для Hero и Target"""
+
+    char_id: int
+    name: str
     team: str
-    avatar_url: str | None = None
-    is_ai: bool = False
-    is_dead: bool = False
-    is_target: bool = False
-    vitals: CombatActorVitalsDTO = Field(default_factory=CombatActorVitalsDTO)
-    weapon_type: str | None = None
-    tokens: dict[str, int] = Field(default_factory=dict)
-    active_effects: list[CombatEffectBadgeDTO] = Field(default_factory=list)
-    active_abilities: list[CombatAbilityBadgeDTO] = Field(default_factory=list)
-    feints: list[CombatFeintOptionDTO] = Field(default_factory=list)
-    catalog_links: CombatCatalogLinksDTO = Field(default_factory=CombatCatalogLinksDTO)
+    is_dead: bool
 
+    # Строка 1
+    hp_current: int
+    hp_max: int
+    energy_current: int
+    energy_max: int
 
-class CombatActionOptionDTO(BaseModel):
-    action: CombatActionKind
-    label: str
-    enabled: bool = True
-    target_id: str | None = None
-    ability_id: str | None = None
-    item_id: int | None = None
-    feint_id: str | None = None
-    catalog_ref: str | None = None
-    reason: str | None = None
+    # Для кнопок
+    weapon_type: str  # "sword", "bow", "staff" (из main_hand)
 
+    # Строка 2 (Tokens)
+    # Суммарные токены (свободные + замороженные в руке)
+    tokens: dict[str, int]  # {"tactics": 5, "gift": 1}
 
-class CombatEventDTO(BaseModel):
-    type: str = "log"
-    text: str | None = None
-    timestamp: float | None = None
-    tags: list[str] = Field(default_factory=list)
-    data: dict[str, Any] = Field(default_factory=dict)
+    # Строка 3 (Status)
+    effects: list[str]  # ["burn", "stun"] (ID иконок)
 
-
-class CombatDeltaDTO(BaseModel):
-    events: list[CombatEventDTO] = Field(default_factory=list)
-    log_cursor: int | None = None
+    # Строка 4 (Feints Hand)
+    feints: dict[str, str] = {}  # {"sand_throw": "Бросок песка"}
 
 
 class CombatDashboardDTO(BaseModel):
-    session_id: str
-    turn_number: int = 0
-    status: Literal["active", "waiting", "finished", "spectating"] = "active"
-    hero: CombatActorCardDTO
-    target: CombatActorCardDTO | None = None
-    allies: list[CombatActorCardDTO] = Field(default_factory=list)
-    enemies: list[CombatActorCardDTO] = Field(default_factory=list)
-    active_effects: list[CombatEffectBadgeDTO] = Field(default_factory=list)
-    feints: list[CombatFeintOptionDTO] = Field(default_factory=list)
-    available_actions: list[CombatActionOptionDTO] = Field(default_factory=list)
-    events_delta: CombatDeltaDTO = Field(default_factory=CombatDeltaDTO)
-    catalog_links: CombatCatalogLinksDTO = Field(default_factory=CombatCatalogLinksDTO)
+    """Полный снимок экрана боя."""
+
+    turn_number: int
+    status: str  # active / waiting / finished
+
+    # Блок 1: Я
+    hero: ActorFullInfo
+
+    # Блок 2: Цель (если есть)
+    target: ActorFullInfo | None = None
+
+    # Блок 3: Списки (для контекста)
+    allies: list[ActorShortInfo]
+    enemies: list[ActorShortInfo]
+
     winner_team: str | None = None
 
 
-class CombatRegisterMoveRequestDTO(BaseModel):
-    action: Literal["attack", "exchange", "use_skill", "cast", "instant", "use_item", "leave", "surrender", "flee"] = (
-        "attack"
-    )
-    target_id: int | str | list[int] | None = None
-    ability_id: str | None = None
-    skill_id: str | None = None
-    item_id: int | None = None
-    feint_id: str | None = None
-    payload: dict[str, Any] = Field(default_factory=dict)
-
-
 class CombatLogDTO(BaseModel):
-    session_id: str
-    entries: list[CombatEventDTO] = Field(default_factory=list)
-    page: int = 1
-    page_size: int = 20
-    total: int = 0
+    """Логи с пагинацией."""
+
+    logs: list[CombatLogEntryDTO]
+    total: int
+    page: int

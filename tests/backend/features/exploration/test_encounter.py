@@ -17,6 +17,28 @@ async def test_encounter_safe_zone():
 
     assert encounter is None
 
+
+@pytest.mark.asyncio
+async def test_encounter_city_shield_threat_zero_is_safe_even_with_stale_flag():
+    engine = EncounterEngine()
+    location_data = {
+        "flags": {
+            "is_safe_zone": False,
+            "threat_tier": 0,
+            "anchor_influence": {"is_inside_city_shield": True},
+        }
+    }
+
+    encounter = await engine.try_generate_encounter(
+        char_id=1,
+        location_data=location_data,
+        scouting_skill=0.0,
+        trigger="move",
+        loc_id="52_50",
+    )
+
+    assert encounter is None
+
 @pytest.mark.asyncio
 async def test_encounter_combat_generation():
     # Mock events and chance service to force combat

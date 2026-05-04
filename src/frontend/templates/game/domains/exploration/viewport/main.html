@@ -37,6 +37,58 @@
     </button>
 {% endmacro %}
 
+{% macro encounter_panel(active_encounter) %}
+    <div class="exploration-encounter-panel">
+        <div class="loc-tag exploration-encounter-tag">
+            <span class="loc-dot"></span>
+            <span>{{ active_encounter.status }} // {{ active_encounter.type }}</span>
+        </div>
+
+        <div class="hud-strip exploration-encounter-hud">
+            <div class="hud-cell">
+                <span class="hud-v">{{ active_encounter.enemies|length }}</span>
+                <span class="hud-l">HOSTILES</span>
+            </div>
+            <div class="hud-cell">
+                <span class="hud-v">{{ active_encounter.metadata.tier if active_encounter.metadata and active_encounter.metadata.tier is defined else 'N/A' }}</span>
+                <span class="hud-l">TIER</span>
+            </div>
+            <div class="hud-cell">
+                <span class="hud-v">{{ active_encounter.session_id or 'WAIT' }}</span>
+                <span class="hud-l">SESSION</span>
+            </div>
+        </div>
+
+        <div class="parchment panel-membrane danger exploration-encounter-card">
+            <div class="scene-img">{{ active_encounter.title }}</div>
+            <div class="world-text">{{ active_encounter.description }}</div>
+        </div>
+
+        {% if active_encounter.enemies %}
+            <div class="hud-strip exploration-encounter-enemies">
+                {% for enemy in active_encounter.enemies %}
+                    <div class="hud-cell">
+                        <span class="hud-v">{{ enemy.name }}</span>
+                        <span class="hud-l">LVL {{ enemy.level }} // HP {{ enemy.hp_percent }}%</span>
+                    </div>
+                {% endfor %}
+            </div>
+        {% endif %}
+
+        <div class="scenario-choices exploration-encounter-choices">
+            {% for option in active_encounter.options %}
+                <button class="choice {{ 'danger' if option.style == 'danger' else '' }}"
+                        hx-post="/game/exploration/interact"
+                        hx-target="#game-center"
+                        hx-swap="innerHTML"
+                        hx-vals='{"char_id": {{ char_id }}, "action": "{{ option.id }}"}'>
+                    {{ option.label }}
+                </button>
+            {% endfor %}
+        </div>
+    </div>
+{% endmacro %}
+
 {% from "game/domains/exploration/components/services.html" import service_card with context %}
 
 {% set oob = true %}
@@ -51,7 +103,7 @@
 
 <section id="center-screens">
     {% if exploration %}
-        {% if payload_type == 'exploration_encounter' %}
+        {% if payload_type == 'exploration_encounter' and not (encounter is defined and encounter) %}
             <article class="cs active">
                 <div class="loc-tag">
                     <span class="loc-dot"></span>
@@ -162,6 +214,9 @@
                             </div>
                         {% endif %}
 
+                        {% if encounter is defined and encounter %}
+                            {{ encounter_panel(encounter) }}
+                        {% else %}
                         <div class="exploration-control-grid">
                             <div class="exploration-action-block">
                                 <div class="exploration-control-title">EXPLORATION</div>
@@ -196,6 +251,7 @@
                                 </div>
                             </div>
                         </div>
+                        {% endif %}
                     </div>
                 {% endif %}
             </article>

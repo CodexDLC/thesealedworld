@@ -4,7 +4,7 @@
     <div class="ds-panel">
         <div class="ds-panel-header">LOCAL_CONTEXT</div>
         <div class="ds-panel-body">
-            {% if exploration and payload_type == 'exploration_navigation' %}
+            {% if exploration and (payload_type == 'exploration_navigation' or payload_type == 'exploration_encounter') and exploration.loc_id is defined %}
                 <div class="status-section" style="margin-top: 0;">
                     <div class="sec">LOCATION</div>
                     <div class="prof-list">
@@ -53,6 +53,26 @@
                                     {{ service_card(service, compact=true) }}
                                 {% endfor %}
                             {% endif %}
+                        </div>
+                    </div>
+                {% endif %}
+
+                {% if encounter is defined and encounter %}
+                    <div class="status-section">
+                        <div class="sec">ENCOUNTER</div>
+                        <div class="prof-list">
+                            <div class="prof-row">
+                                <div class="prof-meta">
+                                    <span>TYPE</span>
+                                    <span>{{ encounter.type }}</span>
+                                </div>
+                            </div>
+                            <div class="prof-row">
+                                <div class="prof-meta">
+                                    <span>STATUS</span>
+                                    <span>{{ encounter.status }}</span>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 {% endif %}

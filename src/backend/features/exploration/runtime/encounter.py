@@ -40,7 +40,7 @@ class EncounterEngine:
         flags = location_data.get("flags", {})
 
         # 1. Safe Zone Check
-        if flags.get("is_safe_zone", False):
+        if self._is_safe_context(flags):
             return None
 
         # 2. Rare Events Cascade
@@ -60,6 +60,20 @@ class EncounterEngine:
             return await self._generate_combat(char_id, tier, scouting_skill, loc_id)
 
         return None
+
+    @staticmethod
+    def _is_safe_context(flags: dict[str, Any]) -> bool:
+        if flags.get("is_safe_zone", False):
+            return True
+
+        anchor = flags.get("anchor_influence", {})
+        if isinstance(anchor, dict) and anchor.get("is_inside_city_shield", False):
+            return True
+
+        try:
+            return float(flags.get("threat_tier", 1)) <= 0
+        except (TypeError, ValueError):
+            return False
 
     async def _generate_combat(self, char_id: int, tier: int, scouting_skill: float, loc_id: str) -> EncounterDTO:
         """

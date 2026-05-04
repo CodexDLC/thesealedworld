@@ -256,11 +256,13 @@ class ExplorationService:
         grid = NavigationEngine.build_grid(loc_id, exits, flags)
         navigation = NavigationEngine.build_actions(loc_id, exits, flags)
 
+        is_safe_zone = NavigationEngine.is_safe_context(flags)
+
         hud = ExplorationHudDTO(
             threat_tier=float(flags.get("threat_tier", 0)),
             players_count=players_count,
             battles_count=battles_count,
-            is_safe_zone=flags.get("is_safe_zone", False),
+            is_safe_zone=is_safe_zone,
             dominant_anchor=anchor_influence.get("dominant_anchor"),
             ambient_tags=anchor_influence.get("tags", []),
         )
@@ -278,7 +280,7 @@ class ExplorationService:
             navigation=navigation,
             hud=hud,
             threat_tier=float(flags.get("threat_tier", 0)),
-            is_safe_zone=flags.get("is_safe_zone", False),
+            is_safe_zone=is_safe_zone,
         )
         await self._integrator.set_world_theme(char_id, dto.world_theme.model_dump(mode="json"))
         return dto

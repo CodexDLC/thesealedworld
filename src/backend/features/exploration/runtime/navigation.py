@@ -102,6 +102,8 @@ class NavigationEngine:
         direction_buttons = cls._build_direction_buttons(cx, cy, exits)
         service_buttons = cls._build_service_buttons(exits)
 
+        is_safe = cls.is_safe_context(flags)
+
         return NavigationActionsDTO(
             movement={
                 "north": direction_buttons.get("n", cls._make_wall_button("n")),
@@ -120,7 +122,7 @@ class NavigationEngine:
                 "known_place": cls._make_auto_route_button("known_place", "KNOWN PLACE"),
             },
             context={
-                "is_safe_zone": bool(flags.get("is_safe_zone", False)),
+                "is_safe_zone": is_safe,
                 "threat_tier": flags.get("threat_tier", 0),
             },
         )
@@ -190,7 +192,7 @@ class NavigationEngine:
         """
         Строит контекстные кнопки (углы сетки).
         """
-        is_safe = flags.get("is_safe_zone", False)
+        is_safe = cls.is_safe_context(flags)
 
         return {
             # NW: Поиск
@@ -344,3 +346,17 @@ class NavigationEngine:
             parts = key.split(":", 1)
             return parts[0], parts[1]
         return "nav", key
+
+    @staticmethod
+    def is_safe_context(flags: dict[str, Any]) -> bool:
+        if flags.get("is_safe_zone", False):
+            return True
+
+        anchor = flags.get("anchor_influence", {})
+        if isinstance(anchor, dict) and anchor.get("is_inside_city_shield", False):
+            return True
+
+        try:
+            return float(flags.get("threat_tier", 1)) <= 0
+        except (TypeError, ValueError):
+            return False

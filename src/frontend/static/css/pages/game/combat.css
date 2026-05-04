@@ -1,0 +1,296 @@
+.combat-side {
+    display: grid;
+    gap: 10px;
+}
+
+.combat-actor-panel .ds-panel-header,
+.combat-belt-panel .ds-panel-header,
+.combat-roster-panel .ds-panel-header,
+.combat-summary .ds-panel-header,
+.combat-action-panel .ds-panel-header,
+.combat-log-panel .ds-panel-header {
+    font-size: 8px;
+}
+
+.combat-actor-avatar {
+    position: relative;
+    aspect-ratio: 1;
+    overflow: hidden;
+    border: 1px solid rgba(255, 170, 0, .18);
+    background: rgba(0, 0, 0, .64);
+}
+
+.combat-actor-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.combat-effect-stack {
+    position: absolute;
+    inset: 6px auto auto 6px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 3px;
+    max-width: 96px;
+}
+
+.combat-effect {
+    position: relative;
+    width: 24px;
+    height: 24px;
+    display: grid;
+    place-items: center;
+    border: 1px solid rgba(255, 170, 0, .22);
+    background: rgba(0, 0, 0, .72);
+    clip-path: var(--clip-node-sm);
+}
+
+.combat-effect img,
+.combat-token img,
+.combat-primary-action img,
+.combat-feint-option img {
+    width: 16px;
+    height: 16px;
+    filter: invert(84%) sepia(38%) saturate(729%) hue-rotate(352deg) brightness(99%) contrast(101%);
+}
+
+.combat-effect b {
+    position: absolute;
+    right: 1px;
+    bottom: 0;
+    color: #fff;
+    font-family: var(--font-mono);
+    font-size: 8px;
+    line-height: 1;
+    text-shadow: 0 0 5px #000;
+}
+
+.combat-effect--bleeding { border-color: rgba(220, 48, 48, .72); box-shadow: 0 0 10px rgba(220, 48, 48, .18); }
+.combat-effect--poison { border-color: rgba(70, 210, 92, .68); box-shadow: 0 0 10px rgba(70, 210, 92, .16); }
+.combat-effect--burn { border-color: rgba(255, 110, 35, .74); box-shadow: 0 0 10px rgba(255, 110, 35, .18); }
+.combat-effect--stun { border-color: rgba(118, 130, 255, .70); box-shadow: 0 0 10px rgba(118, 130, 255, .18); }
+.combat-effect--shield { border-color: rgba(88, 190, 255, .65); box-shadow: 0 0 10px rgba(88, 190, 255, .14); }
+
+.combat-actor-name {
+    margin-top: 7px;
+    color: var(--col-accent);
+    font-family: var(--font-ui);
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: .08em;
+}
+
+.combat-vitals,
+.combat-roster {
+    display: grid;
+    gap: 6px;
+    margin-top: 8px;
+}
+
+.combat-vital-row,
+.combat-roster-row {
+    display: grid;
+    grid-template-columns: 24px minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 6px;
+    color: var(--col-parchment);
+    font-family: var(--font-mono);
+    font-size: 8px;
+}
+
+.combat-roster-row {
+    grid-template-columns: 10px minmax(0, .9fr) minmax(46px, 1fr) auto 12px;
+    width: 100%;
+    border: 1px solid rgba(255, 170, 0, .08);
+    background: rgba(0, 0, 0, .24);
+    padding: 5px 6px;
+    text-align: left;
+}
+
+.combat-roster-row--button {
+    cursor: pointer;
+}
+
+.combat-roster-row--button:hover,
+.combat-roster-row.is-target {
+    border-color: rgba(255, 170, 0, .28);
+    background: rgba(255, 170, 0, .045);
+}
+
+.combat-roster-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.combat-vital-bar,
+.combat-roster-hp {
+    height: 5px;
+    overflow: hidden;
+    background: rgba(255, 255, 255, .055);
+}
+
+.combat-vital-bar i,
+.combat-roster-hp i {
+    display: block;
+    height: 100%;
+    background: linear-gradient(90deg, rgba(170, 28, 28, .9), rgba(255, 85, 65, .92));
+}
+
+.combat-vital-bar--energy i {
+    background: linear-gradient(90deg, rgba(45, 90, 190, .86), rgba(85, 170, 255, .92));
+}
+
+.combat-belt-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 5px;
+}
+
+.combat-belt-slot {
+    aspect-ratio: 1;
+    border: 1px solid rgba(255, 170, 0, .10);
+    background: rgba(0, 0, 0, .58);
+    color: rgba(255, 170, 0, .28);
+    font-family: var(--font-mono);
+    font-size: 8px;
+}
+
+.combat-queue-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: rgba(210, 180, 140, .24);
+}
+
+.combat-queue-dot--current {
+    background: #ff3828;
+    box-shadow: 0 0 10px rgba(255, 56, 40, .55);
+}
+
+.combat-info-mark {
+    color: rgba(255, 170, 0, .42);
+    font-weight: 900;
+}
+
+.combat-center {
+    width: min(900px, 100%);
+    display: grid;
+    grid-template-rows: auto minmax(180px, 1fr) minmax(120px, .8fr);
+    gap: 10px;
+}
+
+.combat-summary-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 6px;
+}
+
+.combat-summary-grid div {
+    min-width: 0;
+    border: 1px solid rgba(255, 170, 0, .08);
+    background: rgba(0, 0, 0, .26);
+    padding: 7px;
+}
+
+.combat-summary-grid span {
+    display: block;
+    color: rgba(210, 180, 140, .45);
+    font-family: var(--font-mono);
+    font-size: 7px;
+}
+
+.combat-summary-grid b {
+    display: block;
+    overflow: hidden;
+    color: var(--col-accent);
+    font-family: var(--font-mono);
+    font-size: 9px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.combat-action-core {
+    display: grid;
+    grid-template-columns: minmax(160px, .8fr) minmax(180px, 1fr);
+    gap: 10px;
+    align-items: center;
+}
+
+.combat-primary-action,
+.combat-feint-option {
+    min-height: 42px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    border: 1px solid rgba(255, 170, 0, .22);
+    background: rgba(0, 0, 0, .62);
+    color: var(--col-accent);
+    font-family: var(--font-ui);
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: .08em;
+    clip-path: var(--clip-node-sm);
+}
+
+.combat-primary-action:disabled,
+.combat-feint-option:disabled {
+    opacity: .42;
+}
+
+.combat-token-bar,
+.combat-feint-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.combat-token {
+    min-width: 42px;
+    height: 32px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    border: 1px solid rgba(255, 170, 0, .12);
+    background: rgba(0, 0, 0, .42);
+    color: var(--col-accent);
+    font-family: var(--font-mono);
+    font-size: 9px;
+}
+
+.combat-token--empty {
+    width: auto;
+    padding: 0 8px;
+    color: rgba(210, 180, 140, .34);
+}
+
+.combat-feint-list {
+    margin-top: 12px;
+}
+
+.combat-feint-option {
+    min-height: 34px;
+    justify-content: flex-start;
+    padding: 0 10px;
+    color: rgba(210, 180, 140, .82);
+}
+
+.combat-log-list {
+    max-height: 170px;
+    overflow: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    font-family: var(--font-mono);
+    font-size: 9px;
+}
+
+.combat-log-line {
+    border-left: 2px solid rgba(255, 170, 0, .22);
+    background: rgba(0, 0, 0, .30);
+    padding: 5px 7px;
+    color: rgba(210, 180, 140, .72);
+}

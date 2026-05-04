@@ -1,0 +1,66 @@
+<section id="center-screens">
+    {% if arena %}
+        <article class="cs active arena-screen arena-screen--{{ arena.screen }}">
+            <div class="loc-tag">
+                <span class="loc-dot"></span>
+                <span>ARENA // {{ arena.screen }}</span>
+            </div>
+
+            <div class="hud-strip">
+                <div class="hud-cell">
+                    <span class="hud-v">{{ arena.mode or 'HUB' }}</span>
+                    <span class="hud-l">MODE</span>
+                </div>
+                <div class="hud-cell">
+                    <span class="hud-v">{{ arena.gs if arena.gs is not none else 'N/A' }}</span>
+                    <span class="hud-l">GEAR</span>
+                </div>
+                <div class="hud-cell">
+                    <span class="hud-v">{{ arena.wait_time_sec }}</span>
+                    <span class="hud-l">WAIT</span>
+                </div>
+            </div>
+
+            <div class="parchment panel-membrane">
+                <div class="scene-img"><span>{{ arena.title }}</span></div>
+                <div class="world-text">{{ arena.description }}</div>
+            </div>
+
+            {% if arena.screen == 'searching' %}
+                <div class="arena-pulse"
+                     hx-post="/game/arena/action"
+                     hx-trigger="every {{ arena.poll_after_ms }}ms"
+                     hx-target="#game-center"
+                     hx-swap="innerHTML"
+                     hx-vals='{"char_id": {{ char_id }}, "action": "CHECK_MATCH", "mode": "{{ arena.mode }}"}'>
+                </div>
+            {% elif arena.screen == 'combat_pending' and arena.arena_session_id and arena.metadata.get('polling') %}
+                <div class="arena-pulse"
+                     hx-post="/game/arena/action"
+                     hx-trigger="every {{ arena.poll_after_ms }}ms"
+                     hx-target="#game-center"
+                     hx-swap="innerHTML"
+                     hx-vals='{"char_id": {{ char_id }}, "action": "CHECK_COMBAT_READY", "mode": "{{ arena.mode }}", "arena_session_id": "{{ arena.arena_session_id }}"}'>
+                </div>
+            {% endif %}
+
+            <div class="scenario-choices">
+                {% for button in arena.buttons %}
+                    <button class="choice {{ 'danger' if button.variant == 'danger' else '' }}"
+                            hx-post="/game/arena/action"
+                            hx-target="#game-center"
+                            hx-swap="innerHTML"
+                            hx-vals='{"char_id": {{ char_id }}, "action": "{{ button.action }}"{% if button.mode %}, "mode": "{{ button.mode }}"{% endif %}{% if button.value and button.value.get("arena_session_id") %}, "arena_session_id": "{{ button.value.get("arena_session_id") }}"{% endif %}}'>
+                        {{ button.text }}
+                    </button>
+                {% endfor %}
+            </div>
+        </article>
+    {% else %}
+        <article class="cs active">
+            <div class="placeholder-grid">
+                <p class="feature-text">ARENA_INTERFACE_INITIALIZING...</p>
+            </div>
+        </article>
+    {% endif %}
+</section>

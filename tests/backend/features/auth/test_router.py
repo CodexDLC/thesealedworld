@@ -1,9 +1,11 @@
-import pytest
-from unittest.mock import AsyncMock, MagicMock
-from src.backend.features.auth.dependencies import get_auth_service, get_current_user
-from src.backend.features.auth.dto.user import UserResponse
-from datetime import datetime
 import uuid
+from datetime import datetime
+from unittest.mock import AsyncMock, MagicMock
+
+import pytest
+
+from src.backend.features_site.auth.dependencies import get_auth_service, get_current_user
+
 
 @pytest.mark.unit
 class TestAuthRouter:

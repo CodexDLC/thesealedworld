@@ -2,11 +2,12 @@ from __future__ import annotations
 
 import uuid  # noqa: TC003
 from datetime import datetime  # noqa: TC003
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
 from src.shared.enums import CoreDomain
+from src.shared.schemas.world_theme import WorldThemeDTO
 
 CharacterGender = Literal["male", "female", "other"]
 
@@ -40,12 +41,12 @@ class CharacterSessionAttributesDTO(BaseModel):
     strength: int = 8
     agility: int = 8
     endurance: int = 8
-    intelligence: int = 8
-    wisdom: int = 8
-    men: int = 8
+    intellect: int = 8
+    memory: int = 8
+    mental: int = 8
     perception: int = 8
-    charisma: int = 8
-    luck: int = 8
+    projection: int = 8
+    prediction: int = 8
 
 
 class CharacterSessionRefsDTO(BaseModel):
@@ -77,8 +78,9 @@ class CharacterSessionDocumentDTO(BaseModel):
     sessions: CharacterSessionRefsDTO = Field(default_factory=CharacterSessionRefsDTO)
     active_quest: str | None = None
     metrics: CharacterSessionMetricsDTO = Field(default_factory=CharacterSessionMetricsDTO)
-    skills: dict[str, object] = Field(default_factory=dict)
+    skills: dict[str, Any] = Field(default_factory=dict)
     symbiote: CharacterSessionSymbioteDTO = Field(default_factory=CharacterSessionSymbioteDTO)
+    world_theme: WorldThemeDTO = Field(default_factory=WorldThemeDTO)
     updated_at: datetime
 
     model_config = ConfigDict(use_enum_values=True)

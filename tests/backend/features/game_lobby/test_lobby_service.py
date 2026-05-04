@@ -1,7 +1,10 @@
-import pytest
 from unittest.mock import AsyncMock, MagicMock
+
+import pytest
+
 from src.backend.features.game_lobby.services.lobby_service import GameLobbyService
 from src.shared.schemas import GameLobbyPayloadDTO
+
 
 @pytest.mark.unit
 class TestGameLobbyService:
@@ -13,6 +16,7 @@ class TestGameLobbyService:
         char = MagicMock()
         char.character_id = 10
         char.name = "Hero"
+        char.avatar_url = "/static/images/avatars/silhouette_m.png"
         char.game_stage = "lobby"
         mock_result = MagicMock()
         mock_result.all.return_value = [char]
@@ -24,6 +28,7 @@ class TestGameLobbyService:
         assert len(payload.slots) == 4
         assert payload.slots[0].is_empty is False
         assert payload.slots[0].name == "Hero"
+        assert payload.slots[0].avatar_url == "/static/images/avatars/silhouette_m.png"
         assert payload.slots[1].is_empty is True
         assert payload.can_start is True
 
@@ -37,6 +42,7 @@ class TestGameLobbyService:
             c = MagicMock()
             c.character_id = i
             c.name = f"Hero{i}"
+            c.avatar_url = f"/avatar-{i}.png"
             c.game_stage = "lobby"
             chars.append(c)
 

@@ -9,11 +9,17 @@
         selectedName = {{ (slot.name or "") | tojson }};
     '
 >
-    <div class="lobby-avatar">
+    <div class="lobby-avatar {% if slot.is_empty %}lobby-avatar--empty{% endif %}">
         {% if slot.avatar_url %}
             <img src="{{ slot.avatar_url }}" alt="{{ slot.name }}">
+        {% elif slot.is_empty %}
+            <span class="lobby-empty-portal"
+                  style="--lobby-empty-portal-url: url('/static/images/ui/lobby/threshold-portal.svg')"
+                  aria-hidden="true"></span>
         {% endif %}
-        <div class="lobby-silhouette" aria-hidden="true"></div>
+        {% if not slot.avatar_url and not slot.is_empty %}
+            <div class="lobby-silhouette" aria-hidden="true"></div>
+        {% endif %}
     </div>
     <div class="lobby-slot-meta">
         <span class="lobby-slot-name">{{ slot.name }}</span>

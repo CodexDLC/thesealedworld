@@ -10,7 +10,14 @@ src/frontend/
   core/
   integrations/
     backend_api/
-  features/
+  game_features/
+    <feature_name>/
+      routes/
+      services/
+      view_models/
+      forms/
+      dependencies/
+  site_features/
     <feature_name>/
       routes/
       services/
@@ -25,6 +32,10 @@ Create folders only when they are needed, but keep folder names consistent.
 
 ## Feature Folders
 
+Use `src/frontend/game_features/` for gameplay surfaces such as game session, game menu, scenario, exploration, arena, combat, character status, and game catalog UI.
+
+Use `src/frontend/site_features/` for public site, auth, account/cabinet, and other web-portal surfaces.
+
 Use `routes/` for FastAPI routers that serve pages, forms, and HTMX fragments.
 
 Use `services/` for frontend orchestration that calls backend API clients and assembles view data.
@@ -36,6 +47,20 @@ Use `forms/` for browser form parsing and validation.
 Use `dependencies/` for FastAPI dependency providers and feature-local wiring.
 
 Frontend feature internals should not import internals from another frontend feature. Promote only truly generic code to `core`.
+
+## Game Session Context
+
+Gameplay domains are rendered through the game session shell:
+
+```text
+src/frontend/templates/game/session.html
+src/frontend/game_features/session/services/session_context_builder.py
+src/frontend/game_features/session/services/response_director.py
+```
+
+Domain templates under `src/frontend/templates/game/domains/<domain>/` receive context assembled by the session layer. They should not fetch backend data directly or import backend feature internals.
+
+For combat, add or update a typed backend client in `src/frontend/integrations/backend_api/`, then assemble combat-specific view models in `src/frontend/game_features/combat/` before passing them into `game/domains/combat/*` templates.
 
 ## Templates
 
@@ -93,7 +118,17 @@ src/frontend/static/css/pages/game/
 src/frontend/static/css/vendor/
 ```
 
-Use `pages/game/` for game-specific layout, viewport, scenario, field, chat, and status styles.
+Use `pages/game/` for game-specific layout, viewport, scenario, combat, field, chat, and status styles.
+
+Use frontend-owned image folders for runtime icons, for example:
+
+```text
+src/frontend/static/images/ui/game-menu-icons/
+src/frontend/static/images/ui/scenario-choice-icons/
+src/frontend/static/images/ui/combat-icons/
+```
+
+If an icon is only available in `tools/icon-reserve/game-icons-net/`, copy and adapt it into a frontend-owned static folder and map semantic keys to that file.
 
 Use:
 

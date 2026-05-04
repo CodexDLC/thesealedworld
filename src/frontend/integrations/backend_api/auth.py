@@ -37,6 +37,14 @@ class BackendAuthApi(BaseApiClient):
             headers={"Authorization": f"Bearer {access_token}"},
         )
 
+    async def refresh(self, refresh_token: str) -> TokenResponse:
+        return await self._request(
+            "POST",
+            "/auth/refresh",
+            response_model=TokenResponse,
+            json={"refresh_token": refresh_token},
+        )
+
     async def register(self, email: str, password: str) -> UserResponse:
         return await self._request(
             "POST",

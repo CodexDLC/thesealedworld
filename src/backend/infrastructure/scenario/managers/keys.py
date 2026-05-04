@@ -4,10 +4,10 @@ from codex_platform.redis_service.keys import BaseRedisKey
 class ScenarioSessionKey(BaseRedisKey):
     @property
     def template(self) -> str:
-        return "game:scen:session:{char_id}"
+        return "game:ac:{char_id}:scenario"
 
 
 class ScenarioStaticKey(BaseRedisKey):
     @property
     def template(self) -> str:
-        return "game:scen:static:{quest_key}"
+        return "game:scenario:content:{quest_key}"

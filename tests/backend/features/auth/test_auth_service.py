@@ -1,11 +1,14 @@
 import uuid
 from datetime import datetime
-import pytest
 from unittest.mock import AsyncMock, MagicMock
-from src.backend.features.auth.services.auth_service import AuthService
-from src.backend.features.auth.dto.user import UserCreate, UserResponse
-from src.backend.core.exceptions import BusinessLogicException
+
+import pytest
 from sqlalchemy.exc import IntegrityError
+
+from src.backend.core.exceptions import BusinessLogicException
+from src.backend.features_site.auth.dto.user import UserCreate, UserResponse
+from src.backend.features_site.auth.services.auth_service import AuthService
+
 
 @pytest.mark.unit
 class TestAuthService:
@@ -48,7 +51,7 @@ class TestAuthService:
             await service.register_user(user_in)
 
     async def test_authenticate_user_success(self, service, user_repo, mocker):
-        mocker.patch("src.backend.features.auth.services.auth_service.verify_password", return_value=True)
+        mocker.patch("src.backend.features_site.auth.services.auth_service.verify_password", return_value=True)
         user = MagicMock(
             id=uuid.uuid4(),
             email="test@example.com",
@@ -65,7 +68,7 @@ class TestAuthService:
         assert result.email == "test@example.com"
 
     async def test_authenticate_user_invalid_password(self, service, user_repo, mocker):
-        mocker.patch("src.backend.features.auth.services.auth_service.verify_password", return_value=False)
+        mocker.patch("src.backend.features_site.auth.services.auth_service.verify_password", return_value=False)
         user = MagicMock(
             id=uuid.uuid4(),
             email="test@example.com",
@@ -79,13 +82,13 @@ class TestAuthService:
         assert result is None
 
     async def test_authenticate_user_inactive(self, service, user_repo, mocker):
-        mocker.patch("src.backend.features.auth.services.auth_service.verify_password", return_value=True)
+        mocker.patch("src.backend.features_site.auth.services.auth_service.verify_password", return_value=True)
         user = MagicMock(is_active=False)
         user_repo.get_by_email = AsyncMock(return_value=user)
         assert await service.authenticate_user("test@example.com", "password") is None
 
     async def test_create_tokens(self, service, token_repo, mocker):
-        mocker.patch("src.backend.features.auth.services.auth_service.create_access_token", return_value="access")
+        mocker.patch("src.backend.features_site.auth.services.auth_service.create_access_token", return_value="access")
         mocker.patch("secrets.token_urlsafe", return_value="refresh")
         token_repo.create = AsyncMock()
         token_repo.commit = AsyncMock()

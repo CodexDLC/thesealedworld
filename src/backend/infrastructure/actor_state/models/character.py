@@ -78,12 +78,12 @@ class CharacterAttributes(Base, TimestampMixin):
     strength: Mapped[int] = mapped_column(Integer, default=8, nullable=False)
     agility: Mapped[int] = mapped_column(Integer, default=8, nullable=False)
     endurance: Mapped[int] = mapped_column(Integer, default=8, nullable=False)
-    intelligence: Mapped[int] = mapped_column(Integer, default=8, nullable=False)
-    wisdom: Mapped[int] = mapped_column(Integer, default=8, nullable=False)
-    men: Mapped[int] = mapped_column(Integer, default=8, nullable=False)
+    intellect: Mapped[int] = mapped_column(Integer, default=8, nullable=False)
+    memory: Mapped[int] = mapped_column(Integer, default=8, nullable=False)
+    mental: Mapped[int] = mapped_column(Integer, default=8, nullable=False)
     perception: Mapped[int] = mapped_column(Integer, default=8, nullable=False)
-    charisma: Mapped[int] = mapped_column(Integer, default=8, nullable=False)
-    luck: Mapped[int] = mapped_column(Integer, default=8, nullable=False)
+    projection: Mapped[int] = mapped_column(Integer, default=8, nullable=False)
+    prediction: Mapped[int] = mapped_column(Integer, default=8, nullable=False)
 
     character: Mapped[Character] = relationship("Character", back_populates="attributes")
 

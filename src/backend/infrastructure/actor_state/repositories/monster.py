@@ -1,9 +1,11 @@
 import uuid
 from collections.abc import Sequence
 from typing import Any
+
 from loguru import logger as log
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from ..models import Monster
 
@@ -30,7 +32,7 @@ class MonsterRepository:
         if not valid_ids:
             return []
 
-        stmt = select(Monster).where(Monster.id.in_(valid_ids))
+        stmt = select(Monster).where(Monster.id.in_(valid_ids)).options(selectinload(Monster.clan))
         result = await self.session.scalars(stmt)
         return list(result.all())
 

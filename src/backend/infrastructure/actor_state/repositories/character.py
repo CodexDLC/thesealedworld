@@ -1,11 +1,14 @@
 import uuid
+
 from loguru import logger as log
-from sqlalchemy import func, select, delete
+from sqlalchemy import delete, func, select
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
+
+from src.shared.schemas.character import CharacterReadDTO
 
 from ..models import Character
-from src.shared.schemas.character import CharacterReadDTO
 
 
 class CharacterRepository:
@@ -26,7 +29,9 @@ class CharacterRepository:
 
     async def get_by_user_id(self, user_id: uuid.UUID) -> list[Character]:
         log.debug(f"CharacterRepository | action=get_by_user_id user_id={user_id}")
-        stmt = select(Character).where(Character.user_id == user_id).order_by(Character.created_at, Character.character_id)
+        stmt = (
+            select(Character).where(Character.user_id == user_id).order_by(Character.created_at, Character.character_id)
+        )
         result = await self.session.scalars(stmt)
         return list(result.all())
 
@@ -37,7 +42,15 @@ class CharacterRepository:
 
     async def get_by_id_and_user_id(self, character_id: int, user_id: uuid.UUID) -> Character | None:
         log.debug(f"CharacterRepository | action=get_by_id_and_user_id char_id={character_id} user_id={user_id}")
-        stmt = select(Character).where(Character.character_id == character_id, Character.user_id == user_id)
+        stmt = (
+            select(Character)
+            .options(
+                selectinload(Character.attributes),
+                selectinload(Character.skill_progress),
+                selectinload(Character.symbiote),
+            )
+            .where(Character.character_id == character_id, Character.user_id == user_id)
+        )
         return await self.session.scalar(stmt)
 
     async def delete(self, character_id: int) -> None:

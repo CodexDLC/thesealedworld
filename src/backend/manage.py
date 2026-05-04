@@ -42,7 +42,7 @@ def make_migration(message: str = "auto"):
 
 async def bootstrap_data():
     """Load initial scenario data into the database."""
-    from src.backend.core.lifespan import bootstrap_scenarios
+    from src.backend.core.bootstrap import bootstrap_scenarios
 
     print("📦 Bootstrapping scenario data...")
     await bootstrap_scenarios()

@@ -1,6 +1,9 @@
-import pytest
 from unittest.mock import AsyncMock, MagicMock
+
+import pytest
+
 from src.backend.core.bus.producer import GameEventProducer
+
 
 @pytest.mark.unit
 class TestGameEventProducer:
@@ -22,6 +25,17 @@ class TestGameEventProducer:
         mock_stream_producer.publish.assert_called_once_with("test_event", {"foo": "bar"}, correlation_id=None)
 
     @pytest.mark.asyncio
+    async def test_publish_trims_stream_when_maxlen_configured(self, mock_stream_producer):
+        mock_stream_producer.publish = AsyncMock(return_value="msg-123")
+        mock_stream_producer.client = AsyncMock()
+        mock_stream_producer.stream_name = "game_events"
+        producer = GameEventProducer(mock_stream_producer, maxlen=10_000)
+
+        await producer.publish("test_event", {"foo": "bar"})
+
+        mock_stream_producer.client.xtrim.assert_awaited_once_with("game_events", maxlen=10_000, approximate=True)
+
+    @pytest.mark.asyncio
     async def test_publish_with_explicit_correlation(self, producer, mock_stream_producer):
         mock_stream_producer.publish = AsyncMock(return_value="msg-123")
 
@@ -37,7 +51,7 @@ class TestGameEventProducer:
         mid, cid = await producer.publish_with_correlation("test_event", {"foo": "bar"})
 
         assert mid == "msg-123"
-        assert len(cid) == 36 # uuid4
+        assert len(cid) == 36  # uuid4
         mock_stream_producer.publish.assert_called_once_with("test_event", {"foo": "bar"}, correlation_id=cid)
 
     @pytest.mark.asyncio

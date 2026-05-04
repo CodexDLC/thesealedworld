@@ -19,8 +19,8 @@ Do not nest dictionaries. Redis stores values as strings. Serialize complex valu
 Use lowercase dot-separated names:
 
 ```text
-actor_state.snapshot_requested
-actor_state.snapshot_ready
+actor_state.snapshots_requested
+actor_state.snapshots_ready
 combat.started
 combat.round_resolved
 inventory.item_added
@@ -59,7 +59,7 @@ Publisher:
 
 ```python
 mid, cid = await request.app.state.events.publish_with_correlation(
-    event_type="actor_state.snapshot_requested",
+    event_type="actor_state.snapshots_requested",
     data={"actor_id": actor_id},
 )
 
@@ -71,7 +71,7 @@ if reply is None:
 Handler:
 
 ```python
-@router.on("actor_state.snapshot_requested")
+@router.on("actor_state.snapshots_requested")
 async def on_snapshot_requested(payload: dict) -> None:
     cid = payload.get("correlation_id")
     actor_id = payload["actor_id"]
@@ -82,6 +82,8 @@ async def on_snapshot_requested(payload: dict) -> None:
         await redis.lpush(f"reply:{cid}", snapshot_key)
         await redis.expire(f"reply:{cid}", 30)
 ```
+
+`actor_state.snapshots_requested` prepares temporary scoped actor projections. It must not be used as the live character session itself. The live selected-character runtime document is `game:ac:<char_id>`; snapshot keys such as `game:actor:snapshot:*` are derived transport/cache objects for combat, inventory, builds, and similar feature sessions.
 
 ## Checklist: Handler
 

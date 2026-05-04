@@ -1,31 +1,35 @@
 # src/shared/schemas/exploration.py
-from enum import Enum
+from enum import StrEnum
 from typing import Any
+
 from pydantic import BaseModel, Field
 
+from src.shared.schemas.world_theme import WorldThemeDTO
 
 # --- Enums ---
 
-class HudType(str, Enum):
+
+class HudType(StrEnum):
     ALERT = "alert"
     INFO = "info"
     EXPLORATION = "exploration"
 
 
-class EncounterType(str, Enum):
+class EncounterType(StrEnum):
     COMBAT = "combat"
     MERCHANT = "merchant"
     QUEST = "quest"
     OBJECT = "object"
 
 
-class DetectionStatus(str, Enum):
+class DetectionStatus(StrEnum):
     DETECTED = "detected"
     AMBUSH = "ambush"
     HIDDEN = "hidden"
 
 
 # --- DTOs ---
+
 
 class GridButtonDTO(BaseModel):
     id: str
@@ -46,16 +50,26 @@ class NavigationGridDTO(BaseModel):
     sw: GridButtonDTO | None = None
     s: GridButtonDTO | None = None
     se: GridButtonDTO | None = None
-    
+
     # Additional service buttons (bottom row)
     services: list[GridButtonDTO] = Field(default_factory=list)
 
 
+class NavigationActionsDTO(BaseModel):
+    movement: dict[str, GridButtonDTO] = Field(default_factory=dict)
+    exploration: dict[str, GridButtonDTO] = Field(default_factory=dict)
+    services: dict[str, GridButtonDTO] = Field(default_factory=dict)
+    auto_routes: dict[str, GridButtonDTO] = Field(default_factory=dict)
+    context: dict[str, Any] = Field(default_factory=dict)
+
+
 class ExplorationHudDTO(BaseModel):
-    threat_tier: int = 0
+    threat_tier: float = 0
     players_count: int = 0
     battles_count: int = 0
     is_safe_zone: bool = False
+    dominant_anchor: str | None = None
+    ambient_tags: list[str] = Field(default_factory=list)
 
 
 class AlertHudDTO(BaseModel):
@@ -67,9 +81,13 @@ class WorldNavigationDTO(BaseModel):
     loc_id: str
     title: str
     description: str
+    background_url: str | None = None
+    anchor_influence: dict[str, Any] = Field(default_factory=dict)
+    world_theme: WorldThemeDTO = Field(default_factory=WorldThemeDTO)
     visual_objects: list[dict[str, Any]] = Field(default_factory=list)
     players_nearby: int = 0
     grid: NavigationGridDTO
+    navigation: NavigationActionsDTO = Field(default_factory=NavigationActionsDTO)
     hud: ExplorationHudDTO | AlertHudDTO
 
 
@@ -113,6 +131,7 @@ class ExplorationListDTO(BaseModel):
 
 
 # --- Requests ---
+
 
 class MoveRequest(BaseModel):
     char_id: int

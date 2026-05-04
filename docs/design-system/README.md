@@ -57,6 +57,12 @@ Game shell templates:
 - `src/frontend/templates/game/includes/footer.html`
 - `src/frontend/templates/game/domains/game_menu/header_nav.html`
 
+## External Icon Packs
+
+Scenario choice icons may use selected SVG assets from Game-icons.net, especially for skill, warning, action, and item glyphs. Store any adopted assets locally under `src/frontend/static/images/ui/` and keep scenario data semantic, for example `icon: "warning"` or `icon: "strength"`, instead of embedding filenames or visual text in scenario JSON.
+
+Game-icons.net assets are licensed under CC BY 3.0 or, for some assets, Public Domain. When using them, record the original icon name, author, source URL, and license in an attribution file near the copied assets. Before public release, expose those credits on a public `Credits` / `Lizenzen` page linked from the footer, separate from `Datenschutz`.
+
 ## Audit Summary
 
 This audit checks core pieces and shared shell pieces, not page-specific screens.

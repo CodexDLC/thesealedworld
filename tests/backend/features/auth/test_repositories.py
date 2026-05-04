@@ -1,11 +1,12 @@
 import uuid
-import pytest
 from unittest.mock import AsyncMock, MagicMock
-from sqlalchemy import select
-from src.backend.features.auth.repositories.user_repository import UserRepository
-from src.backend.features.auth.repositories.token_repository import TokenRepository
-from src.backend.features.auth.models import User, RefreshToken
-from src.backend.features.auth.dto.user import UserCreate
+
+import pytest
+
+from src.backend.features_site.auth.dto.user import UserCreate
+from src.backend.features_site.auth.repositories.token_repository import TokenRepository
+from src.backend.features_site.auth.repositories.user_repository import UserRepository
+
 
 @pytest.mark.unit
 class TestUserRepository:

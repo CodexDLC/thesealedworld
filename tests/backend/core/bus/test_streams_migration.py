@@ -1,10 +1,13 @@
+from unittest.mock import AsyncMock, MagicMock
+
 import pytest
-from unittest.mock import MagicMock, AsyncMock
+from codex_platform.streams import StreamRuntimeConfig
 from fastapi import FastAPI
-from codex_platform.streams import StreamRuntime, StreamRuntimeConfig
+
 from src.backend.config.settings import BackendSettings
-from src.backend.core.lifespan import start_event_bus
 from src.backend.core.bus.producer import GameEventProducer
+from src.backend.core.lifespan import EVENT_ROUTERS, start_event_bus
+
 
 @pytest.mark.unit
 class TestStreamsMigration:
@@ -46,7 +49,7 @@ class TestStreamsMigration:
         assert config.enabled_groups is None
 
         # Verify all routers included (checking count based on lifespan.py)
-        assert mock_runtime.include_router.call_count == 10
+        assert mock_runtime.include_router.call_count == len(EVENT_ROUTERS)
 
     @pytest.mark.asyncio
     async def test_start_event_bus_partial_group(self, app, mock_redis, mocker):

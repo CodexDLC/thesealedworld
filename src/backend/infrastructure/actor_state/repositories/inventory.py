@@ -24,7 +24,7 @@ class InventoryRepository:
         stmt = select(InventoryItem).where(InventoryItem.character_id.in_(char_ids), InventoryItem.location == location)
         result = await self.session.scalars(stmt)
         items = list(result.all())
-        
+
         by_id: dict[int, list[dict]] = {char_id: [] for char_id in char_ids}
         for item in items:
             item_dict = {

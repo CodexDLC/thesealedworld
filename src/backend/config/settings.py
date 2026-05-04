@@ -20,7 +20,7 @@ class BackendSettings(BaseCommonSettings):
     log_dir: str = "logs"
 
     # Server Settings
-    app_host: str = "0.0.0.0"
+    app_host: str = "0.0.0.0"  # nosec
     app_port: int = 8001
 
     # Auth / persistence
@@ -31,12 +31,14 @@ class BackendSettings(BaseCommonSettings):
         "postgresql+asyncpg://tbmmorpg:tbmmorpg_dev@127.0.0.1:5432/tbmmorpg_game"  # pragma: allowlist secret
     )
     database_url: str = site_database_url
+    database_echo: bool = False
     secret_key: str = "change-me-in-env"
     access_token_expire_minutes: int = 30
     refresh_token_expire_days: int = 30
 
     # Event Streams
     game_stream_name: str = "game_events"
+    game_stream_maxlen: int = 10_000
     stream_consumer_group: str = "monolith"
     worker_name: str = "worker_1"
     stream_enabled_groups: list[str] | None = None  # None means all groups (monolith mode)
@@ -59,6 +61,8 @@ class BackendSettings(BaseCommonSettings):
 
     # LLM Settings
     gemini_api_key: str | None = None
+    gemini_model: str = "gemini-2.5-flash"
+    gemini_fallback_models: list[str] = ["gemini-2.5-pro"]
     openrouter_api_key: str | None = None
 
     model_config = SettingsConfigDict(

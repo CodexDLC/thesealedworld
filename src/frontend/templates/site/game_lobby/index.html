@@ -157,6 +157,25 @@
         display: block;
     }
 
+    .lobby-avatar--empty {
+        display: grid;
+        place-items: center;
+        background:
+            radial-gradient(circle at 50% 42%, rgba(255, 170, 0, 0.15), transparent 48%),
+            linear-gradient(180deg, rgba(255, 170, 0, 0.035), rgba(7, 7, 10, 0.98) 66%);
+    }
+
+    .lobby-empty-portal {
+        width: 52%;
+        height: 70%;
+        display: block;
+        color: rgba(255, 190, 64, 0.34);
+        background: currentColor;
+        mask: var(--lobby-empty-portal-url) center / contain no-repeat;
+        -webkit-mask: var(--lobby-empty-portal-url) center / contain no-repeat;
+        filter: drop-shadow(0 0 24px rgba(255, 170, 0, 0.18));
+    }
+
     .lobby-silhouette {
         position: absolute;
         inset: 0;

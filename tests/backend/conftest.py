@@ -1,6 +1,9 @@
 from __future__ import annotations
+
 from typing import Any
+
 import pytest
+
 
 class FakeRedisClient:
     def __init__(self, fail_set_keys: set[str] | None = None) -> None:
@@ -115,8 +118,9 @@ def fake_redis_service(fake_redis_client: FakeRedisClient) -> FakeRedisService:
 
 @pytest.fixture
 def app() -> Any:
-    from src.backend.app import app
     from unittest.mock import AsyncMock, MagicMock, patch
+
+    from src.backend.app import app
 
     # Mock app state and lifespan components to avoid real connections
     app.state.redis_client = AsyncMock()
@@ -129,11 +133,11 @@ def app() -> Any:
     app.state.scenario_sessions = MagicMock()
     app.state.world_locations = MagicMock()
 
-    # Globally mock lifespan actions for this app instance to avoid side effects
-    with patch("src.backend.core.lifespan.create_db_tables", new_callable=AsyncMock), \
-         patch("src.backend.core.lifespan.start_event_bus", new_callable=AsyncMock), \
-         patch("src.backend.core.lifespan.bootstrap_world", new_callable=AsyncMock), \
-         patch("src.backend.core.lifespan.bootstrap_scenarios", new_callable=AsyncMock):
+    # Globally mock lifespan containers for this app instance to avoid side effects.
+    with patch("src.backend.core.lifespan.DatabaseContainer.bootstrap", new_callable=AsyncMock), \
+         patch("src.backend.core.lifespan.RedisContainer.bootstrap", new_callable=AsyncMock), \
+         patch("src.backend.core.lifespan.AIContainer.bootstrap", new_callable=AsyncMock), \
+         patch("src.backend.core.lifespan.GameFeatureContainer.bootstrap", new_callable=AsyncMock):
         yield app
 
 

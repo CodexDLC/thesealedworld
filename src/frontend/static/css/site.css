@@ -858,7 +858,7 @@ body::before {
 
 
 .ds-panel {
-  background: rgba(10, 10, 12, 0.7);
+  background: color-mix(in srgb, var(--world-glass, rgba(10,10,12,.56)) 82%, transparent);
   border: 1px solid var(--col-border);
   backdrop-filter: blur(10px);
   display: flex;
@@ -868,6 +868,10 @@ body::before {
 }
 
 .ds-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-2);
   padding: var(--sp-2) var(--sp-4);
   background: rgba(255, 170, 0, 0.05);
   border-bottom: 1px solid var(--col-border);
@@ -876,6 +880,27 @@ body::before {
   text-transform: uppercase;
   color: var(--col-text-secondary);
   font-weight: 600;
+}
+
+.panel-refresh-button {
+  border: 1px solid rgba(255, 170, 0, 0.18);
+  background: rgba(0, 0, 0, 0.28);
+  color: rgba(255, 170, 0, 0.72);
+  cursor: pointer;
+  font-family: var(--font-mono);
+  font-size: var(--text-3xs);
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  line-height: 1;
+  padding: 5px 7px;
+  text-transform: uppercase;
+}
+
+.panel-refresh-button:hover,
+.panel-refresh-button.htmx-request {
+  background: rgba(255, 170, 0, 0.08);
+  border-color: rgba(255, 170, 0, 0.38);
+  color: var(--col-accent);
 }
 
 .ds-panel-body {

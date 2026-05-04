@@ -26,8 +26,8 @@ from src.shared.enums import CoreDomain
 if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession
 
-    from src.backend.features.auth.models import User
     from src.backend.features.scenario.services import ScenarioService
+    from src.backend.features_site.auth.models import User
     from src.backend.infrastructure.actor_state import CharacterSessionManager
     from src.shared.schemas import CreateCharacterRequestDTO, ScenarioPayloadDTO
 

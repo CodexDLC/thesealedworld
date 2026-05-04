@@ -11,6 +11,9 @@ class ScenarioButtonDTO(BaseModel):
 
 class ScenarioPayloadDTO(BaseModel):
     node_key: str
+    node_type: str = "event"
+    phase: str | None = None
+    speaker: str | None = None
     text: str
     system_messages: list[str] = Field(default_factory=list)
     status_bar: list[str] = Field(default_factory=list)
@@ -19,4 +22,5 @@ class ScenarioPayloadDTO(BaseModel):
     display_name: str | None = None
     icon: str | None = None
     avatar: str | None = None
+    ui: dict[str, Any] = Field(default_factory=dict)
     extra_data: dict[str, Any] | None = None

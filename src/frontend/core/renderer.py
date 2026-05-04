@@ -30,7 +30,7 @@ class UIRenderer:
         }
 
         # 2. Dynamic Game Menu (if domain is provided in context)
-        if context and "domain" in context:
+        if context and "domain" in context and "nav" not in context:
             menu_service = getattr(self.request.state, "game_menu_service", None)
             if menu_service:
                 global_context["nav"] = menu_service.build_menu(context["domain"])

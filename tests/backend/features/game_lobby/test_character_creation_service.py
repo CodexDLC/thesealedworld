@@ -1,8 +1,11 @@
-import pytest
 from unittest.mock import AsyncMock, MagicMock
-from src.backend.features.game_lobby.services.character_creation_service import CharacterCreationService
+
+import pytest
+
 from src.backend.core.exceptions import BusinessLogicException
+from src.backend.features.game_lobby.services.character_creation_service import CharacterCreationService
 from src.shared.schemas import CreateCharacterRequestDTO, ScenarioPayloadDTO
+
 
 @pytest.mark.unit
 class TestCharacterCreationService:
@@ -39,6 +42,7 @@ class TestCharacterCreationService:
         # Mock char_id assignment (happens during add/flush usually but we can manually set it on character)
         def side_effect_add(char):
             char.character_id = 123
+
         db_session.add.side_effect = side_effect_add
 
         # Mock session creation

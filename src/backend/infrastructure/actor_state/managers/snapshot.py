@@ -164,10 +164,11 @@ class ActorSnapshotManager:
     @staticmethod
     def _normalize_snapshot(data: dict[str, Any]) -> dict[str, Any]:
         return {
+            "schema_version": data.get("schema_version", 1),
             "meta": data.get("meta") or {},
-            "runtime": data.get("runtime") or {},
-            "combat": data.get("combat") or {},
-            "inventory": data.get("inventory") or {},
-            "status": data.get("status") or {},
+            "runtime": data.get("runtime"),
+            "combat": data.get("combat"),
+            "inventory": data.get("inventory"),
+            "status": data.get("status"),
             "source": data.get("source") or {},
         }

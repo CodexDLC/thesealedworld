@@ -1,7 +1,10 @@
-import pytest
 from unittest.mock import AsyncMock, MagicMock
-from src.backend.infrastructure.actor_state.managers import ActorSnapshotManager
+
+import pytest
+
 from src.backend.features.actor_state.runtime.sections import resolve_sections
+from src.backend.infrastructure.actor_state.managers import ActorSnapshotManager
+
 
 @pytest.mark.unit
 class TestActorSnapshotManager:
@@ -24,6 +27,8 @@ class TestActorSnapshotManager:
         player_doc = docs[saved["combat-1:player:1"]]
         assert player_doc["meta"] == {"actor_type": "player"}
         assert player_doc["source"] == {"character_id": 1}
+        assert player_doc["combat"] is None
+        assert player_doc["inventory"] is None
 
     async def test_save_snapshots_omits_partial_pipeline_failures(self, manager, fake_redis_client):
         failed_key = "game:actor:snapshot:combat-1:monster:m2"
@@ -57,6 +62,7 @@ class TestActorSnapshotManager:
 
         assert key == "game:actor:snapshot:expl-1:player:1"
         assert fake_redis_client.store[key]["status"] == {"hp": 100}
+        assert fake_redis_client.store[key]["combat"] is None
         assert fake_redis_client.ttls[key] == 3600
 
     async def test_get_snapshot(self, manager, fake_redis_client):
@@ -152,11 +158,11 @@ class TestActorSnapshotManager:
         assert await manager.get_sections_batch([], "meta") == {}
 
     def test_first_edge_cases(self, manager):
-        assert manager._first([]) == None
-        assert manager._first([None]) == None
+        assert manager._first([]) is None
+        assert manager._first([None]) is None
         assert manager._first([{"a": 1}]) == {"a": 1}
         assert manager._first({"a": 1}) == {"a": 1}
-        assert manager._first("not a dict") == None
+        assert manager._first("not a dict") is None
 
 def test_resolve_sections_include_exclude_and_forced_meta_source() -> None:
     assert resolve_sections({"combat"}, set()) == {"combat", "meta", "source"}

@@ -1,9 +1,9 @@
 from typing import Any
 
 from src.frontend.integrations.backend_api.base import BaseApiClient
-from src.shared.schemas import CoreResponseDTO, ScenarioPayloadDTO
+from src.shared.schemas import CoreResponseDTO, ScenarioPayloadDTO, StateTransitionDTO
 
-ScenarioResponse = CoreResponseDTO[ScenarioPayloadDTO | dict[str, Any]]
+ScenarioResponse = CoreResponseDTO[ScenarioPayloadDTO | StateTransitionDTO | dict[str, Any]]
 
 
 class BackendScenarioApi(BaseApiClient):

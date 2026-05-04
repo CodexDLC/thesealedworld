@@ -23,6 +23,7 @@ if __name__ == "__main__":
         ("Quality Hooks", "uv run pre-commit run --all-files"),
         ("Types (Mypy)", "uv run mypy --explicit-package-bases src tools"),
         ("Security Audit", "uv run pip-audit --skip-editable --ignore-vuln CVE-2026-3219"),
+        ("Fixture Validators", "uv run python tools/validators/run.py"),
         ("Unit Tests", "uv run pytest"),
     ]
 

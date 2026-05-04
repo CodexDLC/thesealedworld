@@ -2,6 +2,8 @@ from pydantic import BaseModel
 
 from src.frontend.integrations.backend_api.game_lobby import GameLobbyResponse, LobbySlotPayload
 
+DEFAULT_CHARACTER_AVATAR_URL = "/static/images/avatars/silhouette_m.png"
+
 
 class LobbySlotVM(BaseModel):
     index: int
@@ -56,13 +58,14 @@ def build_lobby_page_vm(response: GameLobbyResponse) -> GameLobbyPageVM:
 
 def _build_slot_vm(slot: LobbySlotPayload) -> LobbySlotVM:
     is_empty = slot.is_empty or slot.character_id is None or slot.status.upper() == "VACANT"
+    avatar_url = None if is_empty else slot.avatar_url or DEFAULT_CHARACTER_AVATAR_URL
     return LobbySlotVM(
         index=slot.index,
         is_empty=is_empty,
         character_id=slot.character_id,
         name=slot.name or "Пустой слот",
         status="Свободен" if is_empty else _status_label(slot.status),
-        avatar_url=slot.avatar_url,
+        avatar_url=avatar_url,
     )
 
 

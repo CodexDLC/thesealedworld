@@ -43,12 +43,12 @@ class CharacterAttributesUpdateDTO(BaseModel):
     strength: int
     agility: int
     endurance: int
-    intelligence: int
-    wisdom: int
-    men: int
+    intellect: int
+    memory: int
+    mental: int
     perception: int
-    charisma: int
-    luck: int
+    projection: int
+    prediction: int
 
 
 class CharacterAttributesReadDTO(CharacterAttributesUpdateDTO):

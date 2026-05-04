@@ -17,6 +17,9 @@ class ScenarioSessionAlreadyExistsError(ScenarioSessionError):
     pass
 
 
+SCENARIO_SESSION_TTL_SECONDS = 24 * 60 * 60
+
+
 class ScenarioSessionManager:
     def __init__(self, redis: RedisService) -> None:
         self.redis = redis
@@ -39,6 +42,7 @@ class ScenarioSessionManager:
         )
         if not result:
             raise ScenarioSessionAlreadyExistsError(f"Scenario session already exists: char_id={char_id}")
+        await self.redis.string.expire(self.build_key(char_id), SCENARIO_SESSION_TTL_SECONDS)
 
     async def get(self, char_id: int) -> ScenarioContextDTO | None:
         result = await self.redis.json_module.get(self.build_key(char_id), "$")
@@ -52,6 +56,7 @@ class ScenarioSessionManager:
         async with self._redis_client().pipeline(transaction=False) as pipe:
             for path, value in updates.items():
                 pipe.json().set(key, path, value)
+            pipe.expire(key, SCENARIO_SESSION_TTL_SECONDS)
             await pipe.execute()
 
     async def delete(self, char_id: int) -> None:

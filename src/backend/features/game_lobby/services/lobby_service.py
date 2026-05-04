@@ -1,18 +1,15 @@
 from loguru import logger
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.backend.features.auth.models import User
-from src.backend.features.scenario.exceptions import ScenarioSessionNotFound
 from src.backend.features.scenario.services import ScenarioService
+from src.backend.features_site.auth.models import User
 from src.backend.infrastructure.actor_state import (
     CharacterRepository,
     CharacterSessionManager,
 )
-from src.shared.enums import CoreDomain
 from src.shared.schemas import (
     GameLobbyPayloadDTO,
     LobbySlotDTO,
-    ScenarioPayloadDTO,
 )
 
 
@@ -32,7 +29,7 @@ class GameLobbyService:
                 is_empty=False,
                 character_id=str(character.character_id),
                 name=character.name,
-                avatar_url=None,
+                avatar_url=character.avatar_url,
                 status=character.game_stage,
             )
             for index, character in enumerate(characters, start=1)
@@ -48,42 +45,6 @@ class GameLobbyService:
             slots=[*occupied_slots, *empty_slots],
             max_slots=self.MAX_SLOTS,
         )
-
-    async def enter_character(
-        self,
-        user: User,
-        character_id: int,
-        db_session: AsyncSession,
-        scenario_service: ScenarioService,
-    ) -> ScenarioPayloadDTO | dict:
-        character = await self._get_owned_character_or_raise(db_session, user, character_id)
-        char_id = character.character_id
-        stage = (character.game_stage or "").upper()
-
-        if stage in {CoreDomain.SCENARIO.value, "SESSION_PENDING", CoreDomain.LOBBY.value, ""}:
-            try:
-                payload = await scenario_service.resume(char_id)
-            except ScenarioSessionNotFound:
-                payload = await scenario_service.initialize(char_id, "awakening_rift", source="lobby_enter")
-                character.game_stage = CoreDomain.SCENARIO.value.lower()
-                character.prev_game_stage = CoreDomain.LOBBY.value.lower()
-                await db_session.commit()
-
-            payload.extra_data = {
-                **(payload.extra_data or {}),
-                "char_id": char_id,
-                "quest_key": (payload.extra_data or {}).get("quest_key", "awakening_rift"),
-            }
-            return payload
-
-        # For other domains (Exploration, etc.) - return a placeholder for now
-        return {
-            "character_id": char_id,
-            "name": character.name,
-            "stage": character.game_stage,
-            "domain": CoreDomain.EXPLORATION,
-            "message": "Game shell for this state is not implemented yet.",
-        }
 
     async def delete_character(
         self,

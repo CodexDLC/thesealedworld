@@ -10,12 +10,18 @@ setup_logging(
     settings=settings,
     service_name="backend",
     intercept_loggers=["uvicorn", "sqlalchemy.engine", "fastapi"],
-    log_levels={"httpx": 30},
+    log_levels={"httpx": 30, "sqlalchemy.engine": 30},
 )
 
-from src.backend.features.auth.api import router as auth_router  # noqa: E402
+from src.backend.features.arena.api import router as arena_router  # noqa: E402
+from src.backend.features.character.api import router as character_router  # noqa: E402
+from src.backend.features.combat.api import router as combat_router  # noqa: E402
+from src.backend.features.exploration.api import router as exploration_router  # noqa: E402
+from src.backend.features.game_catalog.api import router as game_catalog_router  # noqa: E402
 from src.backend.features.game_lobby.api import router as game_lobby_router  # noqa: E402
+from src.backend.features.game_session.api import router as game_session_router  # noqa: E402
 from src.backend.features.scenario.api import router as scenario_router  # noqa: E402
+from src.backend.features_site.auth.api import router as auth_router  # noqa: E402
 
 app = FastAPI(
     title="TurnBasedMMORPG Backend",
@@ -24,9 +30,17 @@ app = FastAPI(
 
 app.add_exception_handler(BaseAPIException, api_exception_handler)  # type: ignore[arg-type]
 app.include_router(auth_router)
+app.include_router(arena_router)
+app.include_router(character_router)
+app.include_router(combat_router)
+app.include_router(game_catalog_router)
 app.include_router(game_lobby_router)
+app.include_router(game_session_router)
 app.include_router(scenario_router)
-logger.info("Backend routers registered: auth, game_lobby, scenario")
+app.include_router(exploration_router)
+logger.info(
+    "Backend routers registered: auth, arena, character, combat, game_catalog, game_lobby, game_session, scenario, exploration"
+)
 
 
 @app.get("/")

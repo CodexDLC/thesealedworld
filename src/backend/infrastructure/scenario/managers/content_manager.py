@@ -62,7 +62,7 @@ class ScenarioContentManager:
         for node in nodes:
             node_key = node["node_key"]
             updates[f"node:{node_key}"] = json.dumps(node, ensure_ascii=False)
-        
+
         # We can use multiple set_field or just loop (hash.set_field doesn't easily support MSET in the current RedisService signature, but we'll loop for safety unless hmset is available)
         for k, v in updates.items():
             await self.redis.hash.set_field(key, k, v)

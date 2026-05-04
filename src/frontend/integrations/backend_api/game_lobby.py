@@ -4,6 +4,7 @@ from pydantic import BaseModel, Field
 
 from src.frontend.integrations.backend_api.base import BaseApiClient
 from src.shared.schemas import (
+    CharacterStatusDTO,
     CoreResponseDTO,
     CreateCharacterRequestDTO,
     DeleteCharacterRequestDTO,
@@ -38,6 +39,15 @@ GameLobbyEnterResponse = CoreResponseDTO[ScenarioPayloadDTO | dict[str, Any]]
 
 
 class BackendGameLobbyApi(BaseApiClient):
+    async def get_status(self, access_token: str, char_id: int) -> CharacterStatusDTO:
+        return await self._request(
+            "GET",
+            "/game-lobby/status",
+            response_model=CharacterStatusDTO,
+            headers={"Authorization": f"Bearer {access_token}"},
+            params={"char_id": char_id},
+        )
+
     async def get_view(self, access_token: str) -> GameLobbyResponse:
         return await self._request(
             "GET",

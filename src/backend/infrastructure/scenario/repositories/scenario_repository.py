@@ -2,9 +2,9 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
+from loguru import logger
 from sqlalchemy import delete, select
 from sqlalchemy.dialects.postgresql import insert
-from loguru import logger
 
 from src.backend.infrastructure.scenario.models import CharacterQuestState, ScenarioMaster, ScenarioNode
 
@@ -66,7 +66,7 @@ class ScenarioRepository:
     async def bulk_insert_nodes(self, nodes: list[dict[str, Any]]) -> None:
         if not nodes:
             return
-        
+
         # Deduplicate nodes by (quest_key, node_key)
         seen = set()
         unique_nodes = []
@@ -78,7 +78,7 @@ class ScenarioRepository:
                 unique_nodes.append(node)
             else:
                 duplicates.append(key)
-        
+
         if duplicates:
             logger.warning(f"Found {len(duplicates)} duplicate nodes in bulk_insert_nodes: {duplicates[:10]}")
 

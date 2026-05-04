@@ -18,9 +18,10 @@ class FrontendSettings(BaseCommonSettings):
     log_dir: str = "logs"
 
     # Server Settings
-    app_host: str = "0.0.0.0"
+    app_host: str = "0.0.0.0"  # nosec
     app_port: int = 8000
     backend_base_url: str = "http://127.0.0.1:8001"
+    active_character_cookie_secure: bool = False
 
     # Paths
     templates_dir: Path = BASE_DIR / "src" / "frontend" / "templates"

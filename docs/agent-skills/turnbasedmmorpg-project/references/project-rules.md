@@ -57,5 +57,13 @@ Bad candidates:
 
 - frontend template view models
 - backend repository models
-- Redis snapshot internals not exposed by API
+- Redis runtime internals not exposed by API, including `game:ac:<char_id>` active character sessions and `game:actor:snapshot:*` temporary actor projections
 - temporary helper schemas used only on one side
+
+## Runtime State Terms
+
+Use these terms consistently:
+
+- Active character session: `game:ac:<char_id>`, the live Redis document for a selected character. It holds current runtime state such as vitals, location, game state, symbiote, attributes, skills, and active feature refs.
+- Actor snapshot/projection: `game:actor:snapshot:*`, a temporary on-demand context built for a scope such as combat, inventory, build, status, or exploration. It is derived data and can expire.
+- `actor_state`: the feature responsible for building scoped actor context/snapshots. Do not treat it as the owner of the live `game:ac:<char_id>` document.

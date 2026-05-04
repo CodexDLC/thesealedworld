@@ -6,6 +6,9 @@ class GameMenuItemVM(BaseModel):
     label: str
     url: str
     icon: str | None = None
+    panel: str | None = None
+    panel_view: str | None = None
+    window: str | None = None
     is_active: bool = False
     is_disabled: bool = False
 

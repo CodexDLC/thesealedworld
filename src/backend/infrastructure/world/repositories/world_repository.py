@@ -28,10 +28,33 @@ class WorldRepository:
         return int(result.scalar_one() or 0)
 
     async def upsert_region(self, region: WorldRegion) -> None:
-        await self.session.merge(region)
+        stmt = pg_insert(WorldRegion).values(id=region.id, climate_tags=region.climate_tags)
+        await self.session.execute(
+            stmt.on_conflict_do_update(
+                index_elements=["id"],
+                set_={"climate_tags": stmt.excluded.climate_tags},
+            )
+        )
 
     async def upsert_zone(self, zone: WorldZone) -> None:
-        await self.session.merge(zone)
+        stmt = pg_insert(WorldZone).values(
+            id=zone.id,
+            region_id=zone.region_id,
+            biome_id=zone.biome_id,
+            tier=zone.tier,
+            flags=zone.flags,
+        )
+        await self.session.execute(
+            stmt.on_conflict_do_update(
+                index_elements=["id"],
+                set_={
+                    "region_id": stmt.excluded.region_id,
+                    "biome_id": stmt.excluded.biome_id,
+                    "tier": stmt.excluded.tier,
+                    "flags": stmt.excluded.flags,
+                },
+            )
+        )
 
     async def get_region(self, region_id: str) -> WorldRegion | None:
         result = await self.session.execute(select(WorldRegion).where(WorldRegion.id == region_id))

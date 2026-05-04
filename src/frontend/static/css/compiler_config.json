@@ -12,6 +12,8 @@
         "game.js": {
             "strategy": "ordered",
             "sources": [
+                "core/catalog.js",
+                "core/game_shell.js",
                 "core/main.js"
             ]
         }

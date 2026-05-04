@@ -4,6 +4,7 @@ from typing import TYPE_CHECKING, Any, Literal
 
 from src.backend.infrastructure.redis.keys import PlayerCoreKey
 from src.shared.enums import CoreDomain
+from src.shared.enums.skill_enums import SkillProgressState
 
 if TYPE_CHECKING:
     from codex_platform.redis_service import RedisService
@@ -23,6 +24,15 @@ class SessionNotFoundError(CharacterSessionError):
 
 class StateTransitionError(CharacterSessionError):
     """Raised when a guarded state transition sees an unexpected current state."""
+
+
+ATTRIBUTE_KEY_MIGRATIONS = {
+    "intelligence": "intellect",
+    "wisdom": "memory",
+    "men": "mental",
+    "charisma": "projection",
+    "luck": "prediction",
+}
 
 
 class CharacterSessionManager:
@@ -52,9 +62,18 @@ class CharacterSessionManager:
     async def get_session(self, char_id: int) -> dict[str, Any] | None:
         result = await self.redis.json_module.get(self.build_key(char_id), "$")
         doc = self._first(result)
-        return doc if isinstance(doc, dict) else None
+        if not isinstance(doc, dict):
+            return None
+        normalized = self._normalize_session_contract(doc)
+        if normalized:
+            await self.update_session(char_id, doc)
+        return doc
 
     async def get_section(self, char_id: int, section: str) -> Any:
+        if section == "attributes":
+            document = await self.get_session(char_id)
+            return document.get("attributes") if isinstance(document, dict) else None
+
         result = await self.redis.json_module.get(self.build_key(char_id), f"$.{section}")
         return self._first(result)
 
@@ -145,10 +164,10 @@ class CharacterSessionManager:
         )
 
     async def set_combat_session(self, char_id: int, combat_id: str) -> None:
-        raise NotImplementedError("Combat session attachment is planned for iteration 2.")
+        await self.patch_fields(char_id, {"$.sessions.combat_id": str(combat_id)})
 
     async def clear_combat_session(self, char_id: int) -> None:
-        raise NotImplementedError("Combat session clearing is planned for iteration 2.")
+        await self.patch_fields(char_id, {"$.sessions.combat_id": None})
 
     async def set_inventory_session(self, char_id: int, inventory_id: str) -> None:
         raise NotImplementedError("Inventory session attachment is planned for iteration 2.")
@@ -173,6 +192,25 @@ class CharacterSessionManager:
         async with self._redis_client().pipeline(transaction=False) as pipe:
             for attr, delta in bonuses.items():
                 pipe.json().numincrby(key, f"$.attributes.{attr}", int(delta))
+            await pipe.execute()
+
+    async def unlock_skills(self, char_id: int, skills: list[str]) -> None:
+        unique_skills = list(dict.fromkeys(skill for skill in skills if skill))
+        if not unique_skills:
+            return
+
+        key = self.build_key(char_id)
+        async with self._redis_client().pipeline(transaction=False) as pipe:
+            for skill_key in unique_skills:
+                pipe.json().set(
+                    key,
+                    f"$.skills.{skill_key}",
+                    {
+                        "xp": 0.0,
+                        "unlocked": True,
+                        "state": SkillProgressState.PLUS.value,
+                    },
+                )
             await pipe.execute()
 
     async def update_bio(
@@ -201,8 +239,19 @@ class CharacterSessionManager:
         updates = {"$.location.current": current}
         if prev is not None:
             updates["$.location.previous"] = prev
-            
+
         await self.patch_fields(char_id, updates)
+
+    async def set_world_theme(self, char_id: int, world_theme: dict[str, Any]) -> None:
+        """Persist last known world theme for cross-domain screens."""
+        if not await self.exists(char_id):
+            return
+        await self.patch_fields(char_id, {"$.world_theme": world_theme})
+
+    async def get_world_theme(self, char_id: int) -> dict[str, Any] | None:
+        result = await self.redis.json_module.get(self.build_key(char_id), "$.world_theme")
+        theme = self._first(result)
+        return theme if isinstance(theme, dict) else None
 
     async def get_skills(self, char_id: int) -> dict[str, float] | None:
         """Get all character skills."""
@@ -217,3 +266,18 @@ class CharacterSessionManager:
         if isinstance(result, list):
             return result[0] if result else None
         return result
+
+    @staticmethod
+    def _normalize_session_contract(document: dict[str, Any]) -> bool:
+        attributes = document.get("attributes")
+        if not isinstance(attributes, dict):
+            return False
+
+        changed = False
+        for old_key, new_key in ATTRIBUTE_KEY_MIGRATIONS.items():
+            if old_key not in attributes:
+                continue
+            attributes.setdefault(new_key, attributes[old_key])
+            del attributes[old_key]
+            changed = True
+        return changed

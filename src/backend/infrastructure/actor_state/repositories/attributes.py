@@ -3,8 +3,9 @@ from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ..models import CharacterAttributes
 from src.shared.schemas.character import CharacterAttributesReadDTO
+
+from ..models import CharacterAttributes
 
 
 class CharacterAttributesRepository:

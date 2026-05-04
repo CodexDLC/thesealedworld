@@ -8,7 +8,15 @@ Small project-local helpers for validation, project maps, and graphify navigatio
 python tools/dev/check.py
 ```
 
-Runs the project quality gate through `codex_core.dev.check_runner`.
+Runs the project quality gate: hooks, types, security audit, fixture validators, and tests.
+
+## Fixture Validators
+
+```powershell
+python tools/validators/run.py
+```
+
+Validates project fixtures such as scenario JSON graphs before tests run.
 
 ## Project Tree
 
@@ -17,6 +25,27 @@ python tools/dev/generate_tree.py
 ```
 
 Starts the interactive project tree generator.
+
+## Reset Game Database
+
+```powershell
+python tools/dev/reset_game_db.py
+```
+
+Prints a dry-run plan for clearing game data in the current dev database while preserving site auth tables
+(`auth_users`, `auth_refresh_tokens`, `alembic_version`).
+
+To actually clear game data:
+
+```powershell
+python tools/dev/reset_game_db.py --yes
+```
+
+To keep loaded scenario content and only clear character/world/runtime game data:
+
+```powershell
+python tools/dev/reset_game_db.py --keep-scenario-content --yes
+```
 
 ## Graphify Wiki
 

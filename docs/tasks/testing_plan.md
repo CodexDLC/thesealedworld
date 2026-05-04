@@ -28,10 +28,10 @@
 
 | Компонент | Текущее % | Цель % | Действие |
 |-----------|-----------|--------|----------|
-| `src/backend/features/auth/services/auth_service.py` | 59% | 100% | Тестирование логики JWT, обновления токенов и смены паролей. |
-| `src/backend/features/auth/repositories/` | 50-52% | 100% | CRUD операции с пользователями и токенами. |
-| `src/backend/features/auth/dependencies.py` | 0% | 100% | Проверка извлечения данных пользователя из запроса. |
-| `src/backend/features/auth/api/router.py` | 0% | 100% | Интеграционные тесты эндпоинтов `/login`, `/register`. |
+| `src/backend/features_site/auth/services/auth_service.py` | 59% | 100% | Тестирование логики JWT, обновления токенов и смены паролей. |
+| `src/backend/features_site/auth/repositories/` | 50-52% | 100% | CRUD операции с пользователями и токенами. |
+| `src/backend/features_site/auth/dependencies.py` | 0% | 100% | Проверка извлечения данных пользователя из запроса. |
+| `src/backend/features_site/auth/api/router.py` | 0% | 100% | Интеграционные тесты эндпоинтов `/login`, `/register`. |
 
 ---
 

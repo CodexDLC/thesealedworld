@@ -99,8 +99,6 @@ services:
       - tbmmorpg-network
 
   worker:
-    profiles:
-      - workers
     build:
       context: ..
       dockerfile: deploy/worker/Dockerfile
@@ -115,6 +113,8 @@ services:
     volumes:
       - ../src/backend:/app/src/backend
       - ../src/shared:/app/src/shared
+    command: >
+      arq src.backend.features.combat.workers.arq.CombatArqSettings
     depends_on:
       postgres:
         condition: service_healthy

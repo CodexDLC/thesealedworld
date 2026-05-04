@@ -28,6 +28,7 @@ Apply this order when building UI:
 - Do not add new navigation markup or classes before checking `game/domains/game_menu/header_nav.html`
 - Do not treat broken shared CSS as permission to write page-local replacements
 - Do not use `/system/design` as the design reference
+- Do not reference `tools/icon-reserve/` assets directly from templates, JSON, or browser code
 
 ## Reuse Targets
 
@@ -50,3 +51,11 @@ These files should be treated carefully because they do not fully match the acti
 - `src/frontend/static/css/components/navigation.css`
 
 If a task touches header, footer, or game menu, inspect both the CSS file and the template file before editing.
+
+## Combat UI Notes
+
+Combat may need a stricter game-menu/header mode than exploration or scenario. It is acceptable for combat UI to close, disable, or replace header tabs/windows when the battle screen needs focus, but the behavior must be handled in the game session/menu layer and remain domain-aware.
+
+Combat templates should be designed around separate surfaces: center battlefield/viewport, actor cards, action controls, target state, effect/feint badges, side panels, and combat log feed. Use explicit empty or `NO_DATA` states when backend data is not available yet.
+
+For icons, use semantic keys from backend/catalog/view models and map them to frontend-owned SVG files under `src/frontend/static/images/ui/`. Missing combat icons should be copied and adapted from `tools/icon-reserve/game-icons-net/` into a frontend-owned folder before use.

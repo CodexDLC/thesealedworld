@@ -1,0 +1,4 @@
+from .natural import MONSTER_NATURAL_EQUIPMENT_DB
+
+__all__ = ["MONSTER_NATURAL_EQUIPMENT_DB"]
+

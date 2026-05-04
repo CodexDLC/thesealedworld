@@ -15,9 +15,7 @@ class ArenaResources:
     PVP_PENDING_DESCRIPTION = "Сигнатура подтверждена. Подтвердите переход на арену боя."
 
     SHADOW_PENDING_TITLE = "Активирована Тень"
-    SHADOW_PENDING_DESCRIPTION = (
-        "Живой противник не найден. Полигон поднимает симуляцию вашего боевого отражения."
-    )
+    SHADOW_PENDING_DESCRIPTION = "Живой противник не найден. Полигон поднимает симуляцию вашего боевого отражения."
     SHADOW_OFFER_TITLE = "Тень готова"
     SHADOW_OFFER_DESCRIPTION = (
         "Живой противник не найден. Симуляция вашей боевой тени уже подготовлена; "

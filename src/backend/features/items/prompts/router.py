@@ -19,4 +19,3 @@ async def build_item_name_description(payload: dict[str, Any], **kwargs: Any) ->
     )
     user = json.dumps(payload, ensure_ascii=False, sort_keys=True)
     return PromptResult(messages=[{"role": "system", "content": system}, {"role": "user", "content": user}])
-

@@ -96,7 +96,9 @@ class ItemGenerationService:
             return request.placement_ref
         if request.char_id is not None:
             return ItemPlacementRefDTO(holder_type="character", holder_id=str(request.char_id))
-        return ItemPlacementRefDTO(holder_type="system", holder_id=request.source or "generated", storage_type="storage")
+        return ItemPlacementRefDTO(
+            holder_type="system", holder_id=request.source or "generated", storage_type="storage"
+        )
 
     def _dto_from_instance(self, instance: Any) -> GeneratedItemDTO:
         return GeneratedItemDTO(

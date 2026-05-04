@@ -22,7 +22,7 @@ DIFFICULTY_ROLES: dict[str, tuple[str, ...]] = {
 
 class EncounterPoolSelector:
     def __init__(self, rng: random.Random | None = None) -> None:
-        self._rng = rng or random.Random()
+        self._rng = rng or random.Random()  # nosec B311
 
     def choose_existing_clan(
         self,

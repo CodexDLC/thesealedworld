@@ -52,4 +52,3 @@ class ItemRarity(StrEnum):
 
 
 ItemBonuses = dict[str, float | int]
-

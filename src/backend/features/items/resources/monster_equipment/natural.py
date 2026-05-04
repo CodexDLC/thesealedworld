@@ -92,4 +92,3 @@ MONSTER_NATURAL_EQUIPMENT_DB: dict[str, BaseItemDTO] = {
         implicit_bonuses={"physical_resistance": 0.09, "anti_crit_chance": 0.08, "dodge_chance": -0.08},
     ),
 }
-

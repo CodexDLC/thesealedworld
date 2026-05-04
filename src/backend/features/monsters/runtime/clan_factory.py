@@ -51,7 +51,9 @@ class ClanFactory:
             name_ru=str(flavor["name"]),
             description=str(flavor["description"]),
         )
-        members = [self._build_member(clan.id, family, family.variants[variant_id], context.tier) for variant_id in variant_ids]
+        members = [
+            self._build_member(clan.id, family, family.variants[variant_id], context.tier) for variant_id in variant_ids
+        ]
         return clan, members
 
     def _select_candidates(self, tier: int, biome_id: str) -> set[str]:

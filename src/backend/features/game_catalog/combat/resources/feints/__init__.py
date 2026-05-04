@@ -20,9 +20,7 @@ FEINT_CATALOG_REGISTRY: dict[str, FeintCatalogEntryDTO] = {
     **TACTICAL_FEINTS_CATALOG,
     **DIRTY_FEINTS_CATALOG,
 }
-FEINT_CATALOG_BY_KEY: dict[str, FeintCatalogEntryDTO] = {
-    entry.key: entry for entry in FEINT_CATALOG_REGISTRY.values()
-}
+FEINT_CATALOG_BY_KEY: dict[str, FeintCatalogEntryDTO] = {entry.key: entry for entry in FEINT_CATALOG_REGISTRY.values()}
 
 
 def get_feint_config(feint_id: str) -> FeintConfigDTO | None:

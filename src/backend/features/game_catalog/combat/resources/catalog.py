@@ -1,8 +1,10 @@
 from __future__ import annotations
 
-from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from collections.abc import Sequence
 
 from src.backend.features.game_catalog.combat.resources.abilities import get_all_abilities
 from src.backend.features.game_catalog.combat.resources.effects import get_all_effects
@@ -73,12 +75,25 @@ class CombatResourceCatalogService:
     @staticmethod
     def _public_entry(entry_id: str, data: dict[str, Any]) -> dict[str, Any]:
         title = data.get("name_ru") or data.get("name_en") or entry_id
-        description = data.get("description_ru") or data.get("description") or f"DATA_MISSING: combat_description:{entry_id}"
+        description = (
+            data.get("description_ru") or data.get("description") or f"DATA_MISSING: combat_description:{entry_id}"
+        )
         public: dict[str, Any] = {
             "title": title,
             "description": description,
         }
-        for field in ("source", "type", "target", "target_count", "event", "chance", "school", "role", "duration", "tags"):
+        for field in (
+            "source",
+            "type",
+            "target",
+            "target_count",
+            "event",
+            "chance",
+            "school",
+            "role",
+            "duration",
+            "tags",
+        ):
             if field in data and data[field] not in (None, [], {}):
                 public[field] = data[field]
         return public

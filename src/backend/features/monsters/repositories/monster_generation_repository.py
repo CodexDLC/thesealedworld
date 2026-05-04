@@ -39,12 +39,20 @@ class MonsterGenerationRepository:
         return list(result.all())
 
     async def get_clans_by_zone(self, zone_id: str) -> list[GeneratedClanORM]:
-        stmt = select(GeneratedClanORM).where(GeneratedClanORM.zone_id == zone_id).options(selectinload(GeneratedClanORM.members))
+        stmt = (
+            select(GeneratedClanORM)
+            .where(GeneratedClanORM.zone_id == zone_id)
+            .options(selectinload(GeneratedClanORM.members))
+        )
         result = await self.session.scalars(stmt)
         return list(result.all())
 
     async def get_clan_members(self, clan_id: uuid.UUID | str) -> list[GeneratedMonsterORM]:
-        stmt = select(Monster).where(Monster.clan_id == uuid.UUID(str(clan_id))).order_by(Monster.threat_rating, Monster.role)
+        stmt = (
+            select(Monster)
+            .where(Monster.clan_id == uuid.UUID(str(clan_id)))
+            .order_by(Monster.threat_rating, Monster.role)
+        )
         result = await self.session.scalars(stmt)
         return list(result.all())
 

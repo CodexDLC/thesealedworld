@@ -45,7 +45,9 @@ class ItemFactory:
                 effect = self.catalog.get_affix_effect(effect_id)
                 if effect is None:
                     raise ValueError(f"Unknown affix effect: {effect_id}")
-                explicit_bonuses[effect.target_field] = explicit_bonuses.get(effect.target_field, 0.0) + effect.base_value
+                explicit_bonuses[effect.target_field] = (
+                    explicit_bonuses.get(effect.target_field, 0.0) + effect.base_value
+                )
                 tags.extend(effect.narrative_tags)
 
         item_type = base.type or "item"

@@ -66,7 +66,5 @@ BASES_DB: dict[str, dict[str, BaseItemDTO | dict[str, Any]]] = {
     "armor": _flat_armor,
     "garment": _flat_garment,
     "accessory": _flat_accessories,
-    "monster_equipment": cast(
-        "dict[str, BaseItemDTO | dict[str, Any]]", MONSTER_NATURAL_EQUIPMENT_DB
-    ),
+    "monster_equipment": cast("dict[str, BaseItemDTO | dict[str, Any]]", MONSTER_NATURAL_EQUIPMENT_DB),
 }

@@ -129,7 +129,7 @@ def get_random_base(category_filter: str | None = None) -> dict[str, Any]:
 
     if not pool:
         raise ValueError(f"CRITICAL: No bases found for category '{category_filter}'")
-    return dict(random.choice(pool))
+    return dict(random.choice(pool))  # nosec B311
 
 
 # --- C. КРАФТ И РЕЦЕПТЫ (валидаторы) ---

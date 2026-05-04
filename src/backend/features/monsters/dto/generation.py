@@ -20,4 +20,3 @@ class EncounterMonsterResult(BaseModel):
     reused_existing_clan: bool
     context_hash: str
     unique_hash: str
-

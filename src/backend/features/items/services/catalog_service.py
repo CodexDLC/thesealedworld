@@ -45,12 +45,8 @@ class ItemCatalogService:
         service.affix_bundles = {
             bundle_id: AffixBundleDTO.model_validate(bundle) for bundle_id, bundle in BUNDLES_DB.items()
         }
-        service.rarities = {
-            int(tier): RarityConfigDTO.model_validate(config) for tier, config in RARITY_CONFIG.items()
-        }
-        service.ingredient_to_bundle = {
-            bundle.ingredient_id: bundle for bundle in service.affix_bundles.values()
-        }
+        service.rarities = {int(tier): RarityConfigDTO.model_validate(config) for tier, config in RARITY_CONFIG.items()}
+        service.ingredient_to_bundle = {bundle.ingredient_id: bundle for bundle in service.affix_bundles.values()}
         return service
 
     def get_base_item(self, item_id: str) -> BaseItemTemplateDTO | None:

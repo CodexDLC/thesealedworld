@@ -26,4 +26,3 @@ def compute_context_hash(tier: int, biome_id: str, normalized_tags: Iterable[str
 def compute_unique_clan_hash(family_id: str, context_hash: str) -> str:
     raw_key = f"{family_id}:{context_hash}"
     return hashlib.md5(raw_key.encode("utf-8"), usedforsecurity=False).hexdigest()
-

@@ -1,0 +1,25 @@
+<div class="ds-panel {{ panel.variant if panel and panel.variant else '' }}">
+    {% if panel and panel.title %}
+        <div class="ds-panel-header">
+            <span>{{ panel.title }}</span>
+            {% if panel.id == 'character_status' and char_id is defined and char_id %}
+                <button
+                    type="button"
+                    class="panel-refresh-button"
+                    hx-get="/game/character-status/panel?char_id={{ char_id }}"
+                    hx-target="#status-container"
+                    hx-swap="outerHTML"
+                >REFRESH</button>
+            {% endif %}
+        </div>
+    {% endif %}
+    <div class="ds-panel-body">
+        {% if panel and panel.widgets %}
+            {% for widget in panel.widgets %}
+                {% if widget.visible %}
+                    {% include "game/components/panel/widgets/" ~ widget.type ~ ".html" ignore missing %}
+                {% endif %}
+            {% endfor %}
+        {% endif %}
+    </div>
+</div>

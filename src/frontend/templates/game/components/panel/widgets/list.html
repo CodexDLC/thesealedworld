@@ -1,0 +1,24 @@
+<div class="status-section">
+    {% if widget.title %}<div class="sec">{{ widget.title }}</div>{% endif %}
+    <div class="prof-list">
+        {% set widget_items = widget['items'] if widget is mapping else widget.items %}
+        {% for item in widget_items %}
+            <div class="prof-row">
+                <div class="prof-meta">
+                    <span
+                        {% if item.get('catalog') and item.get('catalog_key') %}
+                            data-catalog="{{ item.get('catalog') }}"
+                            data-catalog-key="{{ item.get('catalog_key') }}"
+                            data-catalog-field="title"
+                            data-catalog-tooltip="description"
+                        {% endif %}
+                    >{{ item.get('label') or item.get('value') }}</span>
+                    {% if item.get('meta') %}<span>{{ item.get('meta') }}</span>{% endif %}
+                    {% if item.get('value') is not none and item.get('value') != item.get('label') %}<span>{{ item.get('value') }}</span>{% endif %}
+                </div>
+            </div>
+        {% else %}
+            <div style="font-size: 8px; color: var(--col-danger); opacity: 0.75; padding: 5px; text-align: center;">DATA_MISSING</div>
+        {% endfor %}
+    </div>
+</div>

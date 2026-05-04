@@ -1,0 +1,43 @@
+<div class="status-section" style="margin-top: 0;">
+    <div class="sec">{{ widget.title or 'PROFILE' }}</div>
+    <div class="avatar" style="position: relative; width: 100%; aspect-ratio: 1/1; margin-top: 5px;">
+        <div class="avatar-bg" style="width: 100%; height: 100%; position: relative; clip-path: var(--clip-node-lg); background: var(--col-bg); border: 1px solid var(--col-border);">
+            {% if widget.data.get('avatar') %}
+                <img src="{{ widget.data.avatar }}" alt="{{ widget.data.get('name', 'Character') }}"
+                     style="width: 100%; height: 100%; object-fit: cover; position: absolute; inset: 0; z-index: 1;">
+            {% endif %}
+            <div style="width: 100%; height: 100%; background: radial-gradient(circle at center, #1a1a20 0%, #0a0a0c 100%); display: flex; align-items: center; justify-content: center; z-index: 0;">
+                <span style="font-family: var(--font-ui); font-size: 22px; color: var(--col-accent); opacity: 0.35;">
+                    {{ (widget.data.get('name', 'AGENT')[:1])|upper }}
+                </span>
+            </div>
+        </div>
+        <div class="av-corner av-tl" style="clip-path: var(--clip-node-sm);">
+            <span class="av-val" style="font-size: 9px; letter-spacing: 0.05em;">
+                {{ widget.data.get('name', 'AGENT') }}
+            </span>
+        </div>
+        <div class="av-corner av-tr" style="clip-path: var(--clip-node-sm);">
+            <span class="av-val" style="font-size: 8px; color: var(--col-text-secondary);">
+                {{ widget.data.get('state', 'SYNCED') }}
+            </span>
+        </div>
+        {% set resources = widget.data.get('resources') or [] %}
+        <div class="av-corner av-bl" style="clip-path: var(--clip-node-sm);">
+            {% if resources and resources|length > 0 %}
+                <span class="av-ico" style="font-size: 10px;">{{ resources[0].get('icon', '•') }}</span>
+                <span class="av-val">{{ resources[0].get('value') }}</span>
+            {% else %}
+                <span class="av-val" style="font-size: 7px; color: var(--col-danger);">DATA_MISSING</span>
+            {% endif %}
+        </div>
+        <div class="av-corner av-br" style="clip-path: var(--clip-node-sm);">
+            {% if resources and resources|length > 1 %}
+                <span class="av-ico" style="font-size: 10px;">{{ resources[1].get('icon', '•') }}</span>
+                <span class="av-val">{{ resources[1].get('value') }}</span>
+            {% else %}
+                <span class="av-val" style="font-size: 7px; color: var(--col-danger);">DATA_MISSING</span>
+            {% endif %}
+        </div>
+    </div>
+</div>

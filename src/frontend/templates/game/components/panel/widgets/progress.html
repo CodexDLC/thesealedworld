@@ -1,0 +1,15 @@
+<div class="status-section">
+    {% if widget.title %}<div class="sec">{{ widget.title }}</div>{% endif %}
+    {% set value = widget.data.get('value', 0) %}
+    {% set max_value = widget.data.get('max', 1) %}
+    {% set width = (value / max_value * 100) if max_value else 0 %}
+    <div class="stat-row">
+        <div class="stat-label-row">
+            <span class="stat-key">{{ widget.data.get('label', widget.title or 'PROGRESS') }}</span>
+            <span class="stat-val">{{ value }} / {{ max_value }}</span>
+        </div>
+        <div class="stat-track">
+            <div class="stat-fill" style="width: {{ width }}%;"></div>
+        </div>
+    </div>
+</div>

@@ -1,0 +1,15 @@
+{% set theme = world_theme or (exploration.world_theme if exploration and exploration.world_theme is defined else None) %}
+{% if theme and theme.css_vars %}
+<style id="world-theme-vars"{% if oob %} hx-swap-oob="true"{% endif %}>
+    #app-viewport,
+    #game-session-root {
+    {% for key, value in theme.css_vars.items() %}
+        {{ key }}: {{ value }};
+    {% endfor %}
+        --col-accent: var(--world-accent);
+        --col-accent-dim: var(--world-accent-dim);
+        --col-border: var(--world-accent-border);
+        --col-membrane: var(--world-accent-soft);
+    }
+</style>
+{% endif %}

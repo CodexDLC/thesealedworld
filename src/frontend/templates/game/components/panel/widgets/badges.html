@@ -1,0 +1,9 @@
+<div class="status-section">
+    {% if widget.title %}<div class="sec">{{ widget.title }}</div>{% endif %}
+    <div class="scenario-stats-bar">
+        {% set widget_items = widget['items'] if widget is mapping else widget.items %}
+        {% for item in widget_items %}
+            <span>{{ item.get('label') or item.get('value') }}</span>
+        {% endfor %}
+    </div>
+</div>

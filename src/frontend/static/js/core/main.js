@@ -57,5 +57,9 @@ window.setChatStep = function(targetStep) {
 
 // ── HTMX hooks ───────────────────────────────────────────────────────────────
 document.addEventListener('htmx:load', function() {
+    if (window.GameCatalogCache) {
+        window.GameCatalogCache.init().then(() => window.GameCatalogCache.resolveDom(document));
+        return;
+    }
     if (typeof tippy !== 'undefined') tippy('[data-tippy-content]');
 });

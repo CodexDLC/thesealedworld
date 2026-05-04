@@ -1,0 +1,34 @@
+<div class="status-section">
+    {% if widget.title %}<div class="sec">{{ widget.title }}</div>{% endif %}
+    {% set groups = widget.data.get('groups', []) %}
+    <div class="skill-groups-widget">
+        {% for group in groups %}
+            <details class="skill-group" open>
+                <summary class="skill-group-head">
+                    <span class="skill-group-title">{{ group.get('title') }}</span>
+                    <span class="skill-group-meta">{{ group.get('items', []) | length }}</span>
+                </summary>
+                <div class="skill-group-body">
+                    {% for item in group.get('items', []) %}
+                        <div class="skill-group-row">
+                            <span
+                                class="skill-group-name"
+                                {% if item.get('catalog') and item.get('catalog_key') %}
+                                    data-catalog="{{ item.get('catalog') }}"
+                                    data-catalog-key="{{ item.get('catalog_key') }}"
+                                    data-catalog-field="title"
+                                    data-catalog-tooltip="description"
+                                {% endif %}
+                            >{{ item.get('label') }}</span>
+                            {% if item.get('value') is not none %}
+                                <span class="skill-group-value">{{ item.get('value') }}</span>
+                            {% endif %}
+                        </div>
+                    {% endfor %}
+                </div>
+            </details>
+        {% else %}
+            <div class="catalog-missing">DATA_MISSING</div>
+        {% endfor %}
+    </div>
+</div>

@@ -1,7 +1,15 @@
-<div id="status-container" class="status-panel-root" x-show="selectedAgentId">
-    {% set layout = status_layout or ['vitals', 'avatar', 'attributes', 'skills'] %}
-
-    {% for fragment in layout %}
-        {% include "game/components/status/fragments/" ~ fragment ~ ".html" %}
-    {% endfor %}
+<div id="status-container" class="status-panel-root">
+    {% if panel %}
+        {% include "game/components/panel/main.html" %}
+    {% elif character_status and character_status.panel %}
+        {% set panel = character_status.panel %}
+        {% include "game/components/panel/main.html" %}
+    {% else %}
+        {% set layout = status_layout or ['vitals', 'avatar', 'attributes', 'skills'] %}
+        <div x-show="selectedAgentId">
+            {% for fragment in layout %}
+                {% include "game/components/status/fragments/" ~ fragment ~ ".html" %}
+            {% endfor %}
+        </div>
+    {% endif %}
 </div>

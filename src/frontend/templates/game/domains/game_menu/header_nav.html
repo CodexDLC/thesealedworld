@@ -1,7 +1,42 @@
+{% macro menu_icon(item) -%}
+    {% set icon_key = item.icon if item and item.icon else 'unknown' %}
+    {% if item and item.is_disabled %}
+        <span class="game-menu-icon game-menu-icon--empty" aria-hidden="true"></span>
+    {% else %}
+        <span class="game-menu-icon game-menu-icon--{{ icon_key }}"
+              style="--game-menu-icon-url: url('/static/images/ui/game-menu-icons/{{ icon_key }}.svg')"
+              aria-hidden="true"></span>
+    {% endif %}
+{%- endmacro %}
+
+{% macro nav_action(item) -%}
+    {% if item and item.is_disabled %}
+        disabled aria-disabled="true"
+    {% elif item and item.panel %}
+        @click="$dispatch('panel-toggle', { side: '{{ item.panel }}', view: '{{ item.panel_view if item.panel_view else '' }}' })"
+    {% elif item and item.window %}
+        @click="$dispatch('hud-window-toggle', { name: '{{ item.window }}' })"
+    {% elif item and item.url and item.url != '#' %}
+        @click="window.location='{{ item.url }}'"
+{% endif %}
+{%- endmacro %}
+
+{% macro nav_state_class(item) -%}
+    {% if item and item.panel == 'left' %}
+        {'active': leftOpen && leftPanelView === '{{ item.panel_view if item.panel_view else "status" }}'}
+    {% elif item and item.panel == 'right' %}
+        {'active': rightOpen && rightPanelView === '{{ item.panel_view if item.panel_view else "context" }}'}
+    {% elif item and item.window %}
+        {'active': windows.{{ item.window }} && windows.{{ item.window }}.open}
+    {% else %}
+        {'active': {{ 'true' if item and item.is_active else 'false' }}}
+    {% endif %}
+{%- endmacro %}
+
 <nav class="center-nav">
     {% if nav and nav.l2 %}
-    <button class="cnav-btn" @click="window.location='{{ nav.l2.url }}'" :class="{'active': {{ 'true' if nav.l2.is_active else 'false' }}}">
-        <svg viewBox="0 0 24 24"><path d="M12 2a5 5 0 1 1 0 10A5 5 0 0 1 12 2zm0 12c5.33 0 8 2.67 8 4v2H4v-2c0-1.33 2.67-4 8-4z"/></svg>
+    <button class="cnav-btn {{ 'is-disabled' if nav.l2.is_disabled else '' }}" {{ nav_action(nav.l2) }} :class="{{ nav_state_class(nav.l2) }}">
+        {{ menu_icon(nav.l2) }}
         <span>{{ nav.l2.label }}</span>
     </button>
     {% else %}
@@ -9,8 +44,8 @@
     {% endif %}
 
     {% if nav and nav.l1 %}
-    <button class="cnav-btn" @click="window.location='{{ nav.l1.url }}'" :class="{'active': {{ 'true' if nav.l1.is_active else 'false' }}}">
-        <svg viewBox="0 0 24 24"><path d="M19 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2zm-7 3a3 3 0 1 1 0 6 3 3 0 0 1 0-6zm6 13H6v-.5c0-2 4-3.1 6-3.1s6 1.1 6 3.1V19z"/></svg>
+    <button class="cnav-btn {{ 'is-disabled' if nav.l1.is_disabled else '' }}" {{ nav_action(nav.l1) }} :class="{{ nav_state_class(nav.l1) }}">
+        {{ menu_icon(nav.l1) }}
         <span>{{ nav.l1.label }}</span>
     </button>
     {% else %}
@@ -18,21 +53,22 @@
     {% endif %}
 
     {% if nav and nav.center %}
-    <button class="cnav-btn cnav-btn--explore {{ 'active' if nav.center.is_active else '' }}"
-            {% if nav.center.url and nav.center.url != '#' %}@click="window.location='{{ nav.center.url }}'"{% endif %}>
-        <svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+    <button class="cnav-btn cnav-btn--explore {{ 'active' if nav.center.is_active else '' }}" {{ nav_action(nav.center) }}>
+        {{ menu_icon(nav.center) }}
         <span>{{ nav.center.label }}</span>
     </button>
     {% else %}
     <button class="cnav-btn cnav-btn--explore">
-        <svg viewBox="0 0 24 24"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5A2.5 2.5 0 1 1 12 6.5a2.5 2.5 0 0 1 0 5z"/></svg>
+        <span class="game-menu-icon game-menu-icon--unknown"
+              style="--game-menu-icon-url: url('/static/images/ui/game-menu-icons/unknown.svg')"
+              aria-hidden="true"></span>
         <span>UNKNOWN</span>
     </button>
     {% endif %}
 
     {% if nav and nav.r1 %}
-    <button class="cnav-btn" @click="window.location='{{ nav.r1.url }}'" :class="{'active': {{ 'true' if nav.r1.is_active else 'false' }}}">
-        <svg viewBox="0 0 24 24"><path d="M13 2v8h8V2h-8zm6 6h-4V4h4v4zm-6 4v8h8v-8h-8zm6 6h-4v-4h4v4zM2 2v8h8V2H2zm6 6H4V4h4v4zm-6 4v8h8v-8H2zm6 6H4v-4h4v4z"/></svg>
+    <button class="cnav-btn {{ 'is-disabled' if nav.r1.is_disabled else '' }}" {{ nav_action(nav.r1) }} :class="{{ nav_state_class(nav.r1) }}">
+        {{ menu_icon(nav.r1) }}
         <span>{{ nav.r1.label }}</span>
     </button>
     {% else %}
@@ -40,8 +76,8 @@
     {% endif %}
 
     {% if nav and nav.r2 %}
-    <button class="cnav-btn" @click="window.location='{{ nav.r2.url }}'" :class="{'active': {{ 'true' if nav.r2.is_active else 'false' }}}">
-        <svg viewBox="0 0 24 24"><path d="M20 6h-2.18c.07-.44.18-.87.18-1.33C18 2.54 15.96.5 13.5.5c-1.27 0-2.4.55-3.2 1.42L9 3.25l-1.3-1.33A4.49 4.49 0 0 0 4.5.5C2.04.5 0 2.54 0 4.67c0 .46.1.89.18 1.33H0v13a2 2 0 0 0 2 2h18a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2zM9 17H7v-2h2v2zm0-4H7v-2h2v2zm4 4h-2v-2h2v2zm0-4h-2v-2h2v2zm4 4h-2v-2h2v2zm0-4h-2v-2h2v2z"/></svg>
+    <button class="cnav-btn {{ 'is-disabled' if nav.r2.is_disabled else '' }}" {{ nav_action(nav.r2) }} :class="{{ nav_state_class(nav.r2) }}">
+        {{ menu_icon(nav.r2) }}
         <span>{{ nav.r2.label }}</span>
     </button>
     {% else %}

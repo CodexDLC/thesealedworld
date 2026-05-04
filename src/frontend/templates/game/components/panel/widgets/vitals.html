@@ -1,0 +1,17 @@
+<div class="status-section" style="margin-top: 0; margin-bottom: 20px;">
+    {% set widget_items = widget['items'] if widget is mapping else widget.items %}
+    {% for item in widget_items %}
+        {% set cur = item.get('cur', 0) %}
+        {% set max_value = item.get('max', 1) %}
+        {% set width = (cur / max_value * 100) if max_value else 0 %}
+        <div class="stat-row" style="{{ '' if loop.first else 'margin-top: 8px;' }}">
+            <div class="stat-label-row">
+                <span class="stat-key">{{ item.get('label') }}</span>
+                <span class="stat-val">{{ cur }} / {{ max_value }}</span>
+            </div>
+            <div class="stat-track">
+                <div class="stat-fill {{ item.get('variant', '') }}" style="width: {{ width }}%;"></div>
+            </div>
+        </div>
+    {% endfor %}
+</div>

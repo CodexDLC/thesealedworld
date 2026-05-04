@@ -12,6 +12,17 @@
     </div>
 
     <div class="header-right">
+        {% if domain == 'COMBAT' %}
+        <div class="game-exit-link is-disabled" aria-disabled="true">
+            <span>EXIT</span>
+            <small>LOCKED</small>
+        </div>
+        {% else %}
+        <a class="game-exit-link" href="/game-lobby" data-session-cleanup="pending" aria-label="Exit to game lobby">
+            <span>EXIT</span>
+            <small>LOBBY</small>
+        </a>
+        {% endif %}
         <div class="server-status">
             <span class="status-label">SERVER:</span>
             <span class="status-value">ONLINE</span>

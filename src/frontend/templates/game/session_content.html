@@ -1,0 +1,52 @@
+{% include "game/includes/world_theme_vars.html" %}
+<header id="game-header" class="game-header" hx-swap-oob="outerHTML">
+    {% include "game/includes/header.html" %}
+</header>
+<div class="shell-constrained" hx-swap-oob="outerHTML:#main-content .shell-constrained">
+    {% include "game/session_content_inner.html" %}
+</div>
+<div id="game-shell-overlays" hx-swap-oob="outerHTML">
+    {% if domain != 'COMBAT' %}
+    <section class="hud-window inventory-window"
+             x-cloak
+             x-show="windows.inventory.open"
+             x-transition.opacity
+             :class="{ 'is-dragging': windows.inventory.dragging }"
+             :style="hudWindowStyle('inventory')">
+        <header class="hud-window-head hud-window-drag-handle"
+                @pointerdown.prevent="startHudWindowDrag('inventory', $event, $el.closest('.hud-window'))">
+            <span>INVENTORY</span>
+            <button type="button"
+                    class="hud-window-close"
+                    @pointerdown.stop
+                    @click="windows.inventory.open = false">×</button>
+        </header>
+        <div class="hud-window-body">
+            <div class="missing-data-block">
+                <span>INVENTORY_LINK_PENDING</span>
+                <small>runtime inventory panel is not wired yet</small>
+            </div>
+        </div>
+    </section>
+    {% endif %}
+</div>
+<div id="game-chat-shell" hx-swap-oob="outerHTML">
+    {% if domain != 'COMBAT' %}
+    <div class="game-chat-row" id="game-chat-container"
+         :class="{ 'chat-minimized': chatStep === 0, ['chat-step-' + chatStep]: true }">
+        <div class="shell-constrained">
+            <div style="flex: 1; display: flex; flex-direction: column; overflow: hidden;">
+                {% include "shared/chat/main.html" %}
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+<div id="game-footer-shell" hx-swap-oob="outerHTML">
+    {% if domain != 'COMBAT' %}
+    <footer class="game-footer">
+        {% include "game/includes/footer.html" %}
+    </footer>
+    {% endif %}
+</div>
+<span hidden aria-hidden="true"></span>

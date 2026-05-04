@@ -1,8 +1,13 @@
-<div class="sidebar-placeholder">
-    <div class="ds-panel">
-        <div class="ds-panel-header">SCENARIO_CONTEXT_R</div>
-        <div class="ds-panel-body" style="font-size: 10px; opacity: 0.4;">
-            WAITING_FOR_DATA_SYNC...
+{% if scenario and scenario.extra_data and scenario.extra_data.right_panel %}
+    {% set panel = scenario.extra_data.right_panel %}
+    {% include "game/components/panel/main.html" %}
+{% else %}
+    <div class="sidebar-placeholder">
+        <div class="ds-panel">
+            <div class="ds-panel-header">SCENARIO_CONTEXT_R</div>
+            <div class="ds-panel-body" style="font-size: 10px; opacity: 0.4;">
+                WAITING_FOR_DATA_SYNC...
+            </div>
         </div>
     </div>
-</div>
+{% endif %}

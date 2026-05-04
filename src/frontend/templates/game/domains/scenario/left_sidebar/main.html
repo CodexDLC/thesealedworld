@@ -1,8 +1,20 @@
-<div class="sidebar-placeholder">
-    <div class="ds-panel">
-        <div class="ds-panel-header">SCENARIO_CONTEXT_L</div>
-        <div class="ds-panel-body" style="font-size: 10px; opacity: 0.4;">
-            WAITING_FOR_DATA_SYNC...
+{% set left_cfg = scenario.extra_data.left_panel if scenario and scenario.extra_data and scenario.extra_data.left_panel is defined else {} %}
+{% set status_mode = left_cfg.get('status', 'normal') if left_cfg else 'normal' %}
+{% set distortion = left_cfg.get('distortion', 'none') if left_cfg else 'none' %}
+
+<div class="scenario-status-panel scenario-status-panel--{{ status_mode }} {{ 'scenario-status-panel--glitch' if distortion == 'glitch' else '' }}">
+    {% if character_status and character_status.panel %}
+        {% set panel = character_status.panel %}
+        {% include "game/components/panel/main.html" %}
+    {% else %}
+        <div class="ds-panel danger">
+            <div class="ds-panel-header">STATUS_LINK_ERROR</div>
+            <div class="ds-panel-body">
+                <div class="missing-data-block">
+                    <span>DATA_MISSING</span>
+                    <small>game:ac session panel unavailable</small>
+                </div>
+            </div>
         </div>
-    </div>
+    {% endif %}
 </div>

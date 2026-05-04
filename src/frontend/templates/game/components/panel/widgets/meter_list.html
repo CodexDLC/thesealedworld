@@ -1,0 +1,29 @@
+<div class="status-section">
+    {% if widget.title %}<div class="sec">{{ widget.title }}</div>{% endif %}
+    <div class="prof-list">
+        {% set widget_items = widget['items'] if widget is mapping else widget.items %}
+        {% for item in widget_items %}
+            {% set value = item.get('value', 0) %}
+            {% set max_value = item.get('max', widget.data.get('max', 20)) %}
+            {% set width = item.get('percent', (value / max_value * 100) if max_value else 0) %}
+            <div class="prof-row">
+                <div class="prof-meta">
+                    <span
+                        {% if item.get('catalog') and item.get('catalog_key') %}
+                            data-catalog="{{ item.get('catalog') }}"
+                            data-catalog-key="{{ item.get('catalog_key') }}"
+                            data-catalog-field="title"
+                            data-catalog-tooltip="description"
+                        {% endif %}
+                    >{{ item.get('label') }}</span>
+                    <span>{{ item.get('display_value', value) }}</span>
+                </div>
+                <div class="prof-bar">
+                    <div class="prof-fill" style="width: {{ width }}%;"></div>
+                </div>
+            </div>
+        {% else %}
+            <div style="font-size: 8px; color: var(--col-danger); opacity: 0.75; padding: 5px; text-align: center;">DATA_MISSING</div>
+        {% endfor %}
+    </div>
+</div>

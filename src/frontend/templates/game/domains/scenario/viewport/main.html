@@ -1,3 +1,12 @@
+{% if oob_panels %}
+    <div id="game-left-content" hx-swap-oob="true">
+        {% include "game/domains/scenario/left_sidebar/main.html" %}
+    </div>
+    <div id="game-right-content" hx-swap-oob="true">
+        {% include "game/domains/scenario/right_sidebar/main.html" %}
+    </div>
+{% endif %}
+
 <div class="scenario-panel" id="scenario-panel-root">
     <header class="scenario-panel-head">
         {% if scenario.display_name and scenario.display_name != scenario.extra_data.quest_title %}
@@ -27,32 +36,23 @@
     <section class="scenario-choices-wrapper">
         <div class="scenario-choices">
             {% for btn in scenario.buttons %}
+            {% set icon_key = btn.icon if btn.icon else 'default' %}
             <button class="choice-btn le-effect"
                     hx-post="/game/scenario/step"
                     hx-vals='{"action_id": "{{ btn.action_id }}", "char_id": "{{ char_id }}"}'
-                    hx-target="#game-session-root"
-                    hx-swap="innerHTML">
-                <span class="choice-icon">{{ btn.icon if btn.icon and btn.icon != 'default' else '→' }}</span>
+                    hx-target="#scenario-panel-root"
+                    hx-swap="outerHTML"
+                    hx-disabled-elt="closest .scenario-choices">
+                <span class="choice-icon choice-icon--{{ icon_key }}"
+                      style="--choice-icon-url: url('/static/images/ui/scenario-choice-icons/{{ icon_key }}.svg')"
+                      aria-hidden="true"></span>
                 <span class="choice-label">{{ btn.label }}</span>
             </button>
             {% endfor %}
         </div>
     </section>
     {% endif %}
-
-
-
-
-
-    {% if scenario.status_bar %}
-    <section class="scenario-stats-bar">
-        {% for stat in scenario.status_bar %}
-            <div class="stat-item">{{ stat }}</div>
-        {% endfor %}
-    </section>
-    {% endif %}
-
-    {% if scenario.extra_data.get('debug') or True %}
+    {% if debug_enabled and scenario.extra_data.get('debug') %}
     <footer class="scenario-panel-debug">
         DEBUG: Node: {{ scenario.node_key }} | Quest: {{ scenario.extra_data.quest_key }}
     </footer>

@@ -1,42 +1,30 @@
 <div class="status-section">
     <div class="sec">ATTRIBUTES</div>
 
-    <div class="attr-grid">
-        <div class="ac">
-            <span class="ac-k">STR</span>
-            <span class="ac-v" x-text="agents[selectedAgentId].strength">10</span>
+    <div class="attribute-grid-widget">
+        <div class="attribute-grid-group">
+            <div class="attribute-grid-title">BODY</div>
+            <div class="attribute-grid-cards">
+                <div class="attribute-card"><span class="attribute-card-label">СИЛ</span><span class="attribute-card-value" x-text="agents[selectedAgentId].strength">10</span></div>
+                <div class="attribute-card"><span class="attribute-card-label">ЛОВ</span><span class="attribute-card-value" x-text="agents[selectedAgentId].agility">10</span></div>
+                <div class="attribute-card"><span class="attribute-card-label">ВЫН</span><span class="attribute-card-value" x-text="agents[selectedAgentId].endurance">10</span></div>
+            </div>
         </div>
-        <div class="ac">
-            <span class="ac-k">AGI</span>
-            <span class="ac-v" x-text="agents[selectedAgentId].agility">10</span>
+        <div class="attribute-grid-group">
+            <div class="attribute-grid-title">CORE</div>
+            <div class="attribute-grid-cards">
+                <div class="attribute-card"><span class="attribute-card-label">ИНТ</span><span class="attribute-card-value" x-text="agents[selectedAgentId].intellect">10</span></div>
+                <div class="attribute-card"><span class="attribute-card-label">ПАМ</span><span class="attribute-card-value" x-text="agents[selectedAgentId].memory">10</span></div>
+                <div class="attribute-card"><span class="attribute-card-label">МЕН</span><span class="attribute-card-value" x-text="agents[selectedAgentId].mental">10</span></div>
+            </div>
         </div>
-        <div class="ac">
-            <span class="ac-k">END</span>
-            <span class="ac-v" x-text="agents[selectedAgentId].endurance">10</span>
-        </div>
-        <div class="ac">
-            <span class="ac-k">INT</span>
-            <span class="ac-v" x-text="agents[selectedAgentId].intelligence">10</span>
-        </div>
-        <div class="ac">
-            <span class="ac-k">MEM</span>
-            <span class="ac-v" x-text="agents[selectedAgentId].memory">10</span>
-        </div>
-        <div class="ac">
-            <span class="ac-k">MEN</span>
-            <span class="ac-v" x-text="agents[selectedAgentId].mentality">10</span>
-        </div>
-        <div class="ac">
-            <span class="ac-k">PER</span>
-            <span class="ac-v" x-text="agents[selectedAgentId].perception">10</span>
-        </div>
-        <div class="ac">
-            <span class="ac-k">PRJ</span>
-            <span class="ac-v" x-text="agents[selectedAgentId].projection">10</span>
-        </div>
-        <div class="ac">
-            <span class="ac-k">PRD</span>
-            <span class="ac-v" x-text="agents[selectedAgentId].protection">10</span>
+        <div class="attribute-grid-group">
+            <div class="attribute-grid-title">SENSOR</div>
+            <div class="attribute-grid-cards">
+                <div class="attribute-card"><span class="attribute-card-label">ВОС</span><span class="attribute-card-value" x-text="agents[selectedAgentId].perception">10</span></div>
+                <div class="attribute-card"><span class="attribute-card-label">ПРО</span><span class="attribute-card-value" x-text="agents[selectedAgentId].projection">10</span></div>
+                <div class="attribute-card"><span class="attribute-card-label">ПРД</span><span class="attribute-card-value" x-text="agents[selectedAgentId].prediction">10</span></div>
+            </div>
         </div>
     </div>
 </div>

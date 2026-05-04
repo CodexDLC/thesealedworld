@@ -1,0 +1,28 @@
+<div class="status-section">
+    {% if widget.title %}<div class="sec">{{ widget.title }}</div>{% endif %}
+    {% set groups = widget.data.get('groups', []) %}
+    <div class="attribute-grid-widget">
+        {% for group in groups %}
+            <div class="attribute-grid-group">
+                <div class="attribute-grid-title">{{ group.get('title') }}</div>
+                <div class="attribute-grid-cards">
+                    {% for item in group.get('items', []) %}
+                        <div
+                            class="attribute-card"
+                            {% if item.get('catalog') and item.get('catalog_key') %}
+                                data-catalog="{{ item.get('catalog') }}"
+                                data-catalog-key="{{ item.get('catalog_key') }}"
+                                data-catalog-tooltip="description"
+                            {% endif %}
+                        >
+                            <span class="attribute-card-label">{{ item.get('label') }}</span>
+                            <span class="attribute-card-value">{{ item.get('value') }}</span>
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+        {% else %}
+            <div class="catalog-missing">DATA_MISSING</div>
+        {% endfor %}
+    </div>
+</div>

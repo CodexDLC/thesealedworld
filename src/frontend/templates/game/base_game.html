@@ -4,6 +4,7 @@
     <!-- No SEO Meta needed for game shell -->
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <link rel="icon" href="data:,">
     <title>{% block title %}Neural Interface — Symbiote Chronicles{% endblock %}</title>
 
     {% block styles %}
@@ -20,37 +21,47 @@
     <!-- Full Game Tech Stack -->
     <script src="/static/js/vendor/htmx.js" defer></script>
     <script src="/static/js/vendor/htmx-ws.js" defer></script>
+    <script src="/static/js/vendor/popper.js" defer></script>
+    <script src="/static/js/vendor/tippy.js" defer></script>
+
+    <!-- Game runtime must be registered before Alpine initializes x-data. -->
+    <script src="/static/js/game.js" defer></script>
+
     <script src="/static/js/vendor/alpine-persist.js" defer></script>
     <script src="/static/js/vendor/alpine-collapse.js" defer></script>
     <script src="/static/js/vendor/alpine.js" defer></script>
 
     <!-- Game Engine / Core -->
-    <script src="/static/js/game.js" defer></script>
     <script src="/static/js/core/status.js" defer></script>
 </head>
 <body class="game-body {% block body_class %}{% endblock body_class %}">
+    {% set active_char_id = char_id if char_id else (scenario.extra_data.get('char_id') if scenario and scenario.extra_data else '') %}
+    {% set initial_status = status_seed if status_seed is defined and status_seed else {
+        'character_id': active_char_id,
+        'hp': 0,
+        'max_hp': 1,
+        'energy': 0,
+        'max_energy': 1,
+        'stamina': 0,
+        'max_stamina': 1
+    } %}
     <div id="app-viewport"
          class="game-container"
-          x-data="{
-            chatTab: 'world',
-            chatHeight: $persist(200),
-            chatMinimized: $persist(false),
-            chatStep: $persist(1),
-            selectedAgentId: '{{ scenario.extra_data.get('char_id') if scenario and scenario.extra_data else '' }}',
-            agents: {
-                '{{ scenario.extra_data.get('char_id') if scenario and scenario.extra_data else '' }}': {
-                    hp: 0, max_hp: 1, energy: 0, max_energy: 1, stamina: 0, max_stamina: 1
-                }
-            },
-            leftOpen: {{ 'true' if scenario and scenario.extra_data and scenario.extra_data.get('show_left_sidebar') else 'false' }},
-            rightOpen: {{ 'true' if scenario and scenario.extra_data and scenario.extra_data.get('show_right_sidebar') else 'false' }}
-         }"
+         data-domain="{{ domain if domain is defined else '' }}"
+         x-data='gameShell({
+            activeCharId: {{ active_char_id|string|tojson }},
+            domain: {{ (domain if domain is defined else '')|tojson }},
+            initialStatus: {{ initial_status|tojson }},
+            leftOpen: {{ 'true' if session_ui is defined and session_ui.left_open else 'false' }},
+            rightOpen: {{ 'true' if session_ui is defined and session_ui.right_open else 'false' }}
+         })'
          :style="`--chat-height: ${chatMinimized ? '100px' : chatHeight + 'px'}`"
-         @panel-toggle.window="
-             if ($event.detail.side === 'left') leftOpen = !leftOpen;
-             if ($event.detail.side === 'right') rightOpen = !rightOpen;
-         ">
-        <header class="game-header">
+         @panel-toggle.window="togglePanel($event.detail)"
+         @hud-window-toggle.window="toggleHudWindow($event.detail?.name)"
+         @pointermove.window="moveHudWindow($event)"
+         @pointerup.window="stopHudWindowDrag()"
+         @pointercancel.window="stopHudWindowDrag()">
+        <header id="game-header" class="game-header">
             {% include "game/includes/header.html" %}
         </header>
 
@@ -60,18 +71,52 @@
             </div>
         </main>
 
-        <div class="game-chat-row" id="game-chat-container"
-             :class="{ 'chat-minimized': chatStep === 0, ['chat-step-' + chatStep]: true }">
-            <div class="shell-constrained">
-                <div style="flex: 1; display: flex; flex-direction: column; overflow: hidden;">
-                    {% include "shared/chat/main.html" %}
+        <div id="game-shell-overlays">
+            {% if domain != 'COMBAT' %}
+            <section class="hud-window inventory-window"
+                     x-cloak
+                     x-show="windows.inventory.open"
+                     x-transition.opacity
+                     :class="{ 'is-dragging': windows.inventory.dragging }"
+                     :style="hudWindowStyle('inventory')">
+                <header class="hud-window-head hud-window-drag-handle"
+                        @pointerdown.prevent="startHudWindowDrag('inventory', $event, $el.closest('.hud-window'))">
+                    <span>INVENTORY</span>
+                    <button type="button"
+                            class="hud-window-close"
+                            @pointerdown.stop
+                            @click="windows.inventory.open = false">×</button>
+                </header>
+                <div class="hud-window-body">
+                    <div class="missing-data-block">
+                        <span>INVENTORY_LINK_PENDING</span>
+                        <small>runtime inventory panel is not wired yet</small>
+                    </div>
                 </div>
-            </div>
+            </section>
+            {% endif %}
         </div>
 
-        <footer class="game-footer">
-            {% include "game/includes/footer.html" %}
-        </footer>
+        <div id="game-chat-shell">
+            {% if domain != 'COMBAT' %}
+            <div class="game-chat-row" id="game-chat-container"
+                 :class="{ 'chat-minimized': chatStep === 0, ['chat-step-' + chatStep]: true }">
+                <div class="shell-constrained">
+                    <div style="flex: 1; display: flex; flex-direction: column; overflow: hidden;">
+                        {% include "shared/chat/main.html" %}
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+
+        <div id="game-footer-shell">
+            {% if domain != 'COMBAT' %}
+            <footer class="game-footer">
+                {% include "game/includes/footer.html" %}
+            </footer>
+            {% endif %}
+        </div>
     </div>
 
     {% block scripts %}{% endblock scripts %}

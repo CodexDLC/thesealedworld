@@ -1,1 +1,64 @@
-{% include "game/components/status/main.html" %}
+{% if combat_screen %}
+    {% set actor = combat_screen.hero %}
+    <div class="combat-side">
+        <section class="ds-panel combat-actor-panel">
+            <div class="ds-panel-header">PLAYER</div>
+            <div class="combat-actor-avatar">
+                <img src="{{ actor.avatar_url }}" alt="{{ actor.name }}">
+                <div class="combat-effect-stack">
+                    {% for effect in actor.effects %}
+                        <span class="combat-effect combat-effect--{{ effect.frame_kind }}"
+                              title="{{ effect.title }} // {{ effect.description }}">
+                            <img src="{{ effect.icon_url }}" alt="{{ effect.effect_id }}">
+                            {% if effect.duration_text %}
+                                <b>{{ effect.duration_text }}</b>
+                            {% endif %}
+                        </span>
+                    {% endfor %}
+                </div>
+            </div>
+            <div class="combat-actor-name">{{ actor.name }}</div>
+            <div class="combat-vitals">
+                <div class="combat-vital-row">
+                    <span>HP</span>
+                    <div class="combat-vital-bar"><i style="width: {{ actor.vitals.hp_percent }}%"></i></div>
+                    <b>{{ actor.vitals.hp_current }}/{{ actor.vitals.hp_max }}</b>
+                </div>
+                <div class="combat-vital-row">
+                    <span>EN</span>
+                    <div class="combat-vital-bar combat-vital-bar--energy"><i style="width: {{ actor.vitals.energy_percent }}%"></i></div>
+                    <b>{{ actor.vitals.energy_current }}/{{ actor.vitals.energy_max }}</b>
+                </div>
+            </div>
+        </section>
+
+        <section class="ds-panel combat-belt-panel">
+            <div class="ds-panel-header">QUICK_BELT</div>
+            <div class="combat-belt-grid">
+                {% for slot in actor.quick_belt %}
+                    <button type="button" class="combat-belt-slot" disabled title="{{ slot.reason }}">
+                        <span>{{ slot.slot_index }}</span>
+                    </button>
+                {% endfor %}
+            </div>
+        </section>
+
+        <section class="ds-panel combat-roster-panel">
+            <div class="ds-panel-header">ALLIES</div>
+            <div class="combat-roster">
+                {% for ally in combat_screen.allies %}
+                    <div class="combat-roster-row">
+                        <span class="combat-queue-dot combat-queue-dot--{{ ally.queue_indicator }}"></span>
+                        <span class="combat-roster-name">{{ ally.name }}</span>
+                        <div class="combat-roster-hp"><i style="width: {{ ally.hp_percent }}%"></i></div>
+                        <b>{{ ally.hp_current }}/{{ ally.hp_max }}</b>
+                    </div>
+                {% else %}
+                    <div class="missing-data-block"><span>NO_ALLIES</span></div>
+                {% endfor %}
+            </div>
+        </section>
+    </div>
+{% else %}
+    {% include "game/components/status/main.html" %}
+{% endif %}

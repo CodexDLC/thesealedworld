@@ -1,0 +1,14 @@
+<div class="status-section">
+    {% if widget.title %}<div class="sec">{{ widget.title }}</div>{% endif %}
+    <div class="prof-list">
+        {% set widget_items = widget['items'] if widget is mapping else widget.items %}
+        {% for item in widget_items %}
+            <div class="prof-row">
+                <div class="prof-meta">
+                    <span>{{ item.get('key') or item.get('label') }}</span>
+                    <span>{{ item.get('value', '') }}</span>
+                </div>
+            </div>
+        {% endfor %}
+    </div>
+</div>

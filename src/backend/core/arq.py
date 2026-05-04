@@ -23,6 +23,7 @@ try:  # pragma: no cover - exercised only when the optional worker runtime is in
         base_startup as platform_base_startup,
     )
 except ImportError:  # pragma: no cover
+
     class PlatformArqService:  # type: ignore[no-redef]
         def __init__(self, *args: Any, **kwargs: Any) -> None: ...
 

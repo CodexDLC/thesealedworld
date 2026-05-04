@@ -102,7 +102,9 @@ def upgrade() -> None:
         sa.Column("locked_amount", sa.Integer(), nullable=False),
         sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
         sa.PrimaryKeyConstraint("id"),
-        sa.UniqueConstraint("holder_type", "holder_id", "storage_type", "resource_key", name="uq_resource_balance_place"),
+        sa.UniqueConstraint(
+            "holder_type", "holder_id", "storage_type", "resource_key", name="uq_resource_balance_place"
+        ),
     )
     op.create_index("ix_resource_balances_holder_type", "resource_balances", ["holder_type"])
     op.create_index("ix_resource_balances_holder_id", "resource_balances", ["holder_id"])
@@ -194,4 +196,3 @@ def upgrade() -> None:
 
 def downgrade() -> None:
     raise RuntimeError("Downgrade for compact item storage is not supported in dev migration.")
-

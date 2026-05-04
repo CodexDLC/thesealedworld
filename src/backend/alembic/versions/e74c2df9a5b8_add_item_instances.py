@@ -73,4 +73,3 @@ def downgrade() -> None:
     op.drop_index("ix_item_instances_lifecycle_status", table_name="item_instances")
     op.drop_index("ix_item_instances_base_id", table_name="item_instances")
     op.drop_table("item_instances")
-

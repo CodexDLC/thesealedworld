@@ -1,7 +1,10 @@
 import ast
 import operator
-from typing import Any, Callable
+from collections.abc import Callable
+from typing import Any
+
 from loguru import logger
+
 from src.backend.core.calculators.data.stats_formulas import MODIFIER_RULES
 
 _OPS: dict[type[ast.AST], Callable[..., Any]] = {

@@ -60,7 +60,7 @@ class FeintService:
         # 3. Добавляем случайные до hand_size
         while actor.feints.get_hand_size() < hand_size and available_pool:
             # Выбираем случайный финт
-            feint_id = random.choice(available_pool)
+            feint_id = random.choice(available_pool)  # nosec B311
             feint_config = CombatCatalogIntegrator.get_feint(feint_id)
 
             if not feint_config:

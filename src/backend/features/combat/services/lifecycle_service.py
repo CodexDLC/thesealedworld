@@ -253,17 +253,17 @@ class CombatLifecycleService:
         status_v = status.get(key)
         if value is None and isinstance(status_v, dict):
             value = status_v.get("cur")
-            
+
         vitals_raw = runtime.get("vitals")
         runtime_vitals = vitals_raw if isinstance(vitals_raw, dict) else {}
-        
+
         if value is None:
             value = runtime_vitals.get(legacy_key)
-            
+
         runtime_v = runtime_vitals.get(key)
         if value is None and isinstance(runtime_v, dict):
             value = runtime_v.get("cur")
-        
+
         if value is None or value == -1:
             value = default
         try:

@@ -21,7 +21,9 @@ router = APIRouter(prefix="/api/game/combat", tags=["combat"])
 # TODO(combat-api): Define combat-specific error response variants before
 # finalizing the browser contract, instead of leaking raw ValueError/HTTP detail.
 @router.get("/{char_id}/view", response_model=CoreResponseDTO[CombatDashboardDTO])
-async def get_combat_view(char_id: int, orchestrator: CombatRuntimeOrchestratorDep) -> CoreResponseDTO[CombatDashboardDTO]:
+async def get_combat_view(
+    char_id: int, orchestrator: CombatRuntimeOrchestratorDep
+) -> CoreResponseDTO[CombatDashboardDTO]:
     try:
         payload = await orchestrator.get_initial_view(char_id)
         return CoreResponseDTO(

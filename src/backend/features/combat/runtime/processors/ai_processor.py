@@ -42,8 +42,8 @@ class AiProcessor:
             hand = available_feints.get("hand", {})
 
         # Логика выбора финта (50% шанс использовать, если есть)
-        if hand and random.random() > 0.5:
-            feint_id = random.choice(list(hand.keys()))
+        if hand and random.random() > 0.5:  # nosec B311
+            feint_id = random.choice(list(hand.keys()))  # nosec B311
             payload["feint_id"] = feint_id
 
         # TODO (v3.0): Добавить тактические решения

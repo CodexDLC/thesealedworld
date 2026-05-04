@@ -17,11 +17,11 @@ class MathCore:
             return True
         if chance <= 0.0:
             return False
-        return random.random() < chance
+        return random.random() < chance  # nosec B311
 
     @staticmethod
     def random_range(min_val: float, max_val: float) -> float:
         """
         Возвращает случайное число между min и max (включительно для int, float для float).
         """
-        return random.uniform(min_val, max_val)
+        return random.uniform(min_val, max_val)  # nosec B311

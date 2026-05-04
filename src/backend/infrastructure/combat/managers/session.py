@@ -8,6 +8,7 @@ from loguru import logger
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
+
     from codex_platform.redis_service import RedisService
 
     from src.backend.features.combat.dto.session import SessionDataDTO
@@ -584,7 +585,6 @@ class CombatSessionManager:
             for members in teams.values():
                 actor_ids.extend(str(actor_id) for actor_id in members)
         return actor_ids
-
 
     @staticmethod
     def decode_json_field(value: Any, *, default: Any) -> Any:

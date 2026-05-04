@@ -145,9 +145,7 @@ class CombatSystemIntegrator:
                 for player_id in player_ids
             },
             **{
-                f"{combat_id}:monster:{monster_id}": self.actor_snapshots.build_key(
-                    f"{combat_id}:monster:{monster_id}"
-                )
+                f"{combat_id}:monster:{monster_id}": self.actor_snapshots.build_key(f"{combat_id}:monster:{monster_id}")
                 for monster_id in monster_ids
             },
         }

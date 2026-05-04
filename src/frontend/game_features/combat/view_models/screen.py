@@ -238,7 +238,7 @@ def _token_bar(tokens: dict[str, int]) -> list[CombatTokenVM]:
         CombatTokenVM(
             token_id=token_id,
             value=value,
-            icon_url=f"{COMBAT_ICON_ROOT}/{'gift-token' if token_id == 'gift' else 'token'}.svg",
+            icon_url=f"{COMBAT_ICON_ROOT}/{'gift-token' if token_id == 'gift' else 'token'}.svg",  # nosec B105
             title=token_id,
         )
         for token_id, value in sorted(tokens.items())

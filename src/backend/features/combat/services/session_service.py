@@ -38,7 +38,9 @@ class CombatSessionService:
     ) -> None:
         self.store = store
         self.character_sessions = character_sessions
-        from src.backend.core.arq import ArqService
+        if TYPE_CHECKING:
+            from src.backend.core.arq import ArqService
+
         self.arq: ArqService = arq or NullArqQueue()  # type: ignore
         self.view = CombatViewService()
         self.turn_manager = CombatTurnManager(self.store, self.arq)
@@ -152,8 +154,12 @@ class CombatSessionService:
     async def _enqueue_collector(self, session_id: str, actor_id: int, move_id: str) -> None:
         state = await self.store.get_actor_state(session_id, actor_id) or {}
         timeout = AFK_TIMEOUTS.get(int(state.get("afk_level", 0) or 0), MIN_TIMEOUT)
-        immediate = CollectorSignalDTO(session_id=session_id, char_id=actor_id, signal_type="check_immediate", move_id=move_id)
-        timeout_signal = CollectorSignalDTO(session_id=session_id, char_id=actor_id, signal_type="check_timeout", move_id=move_id)
+        immediate = CollectorSignalDTO(
+            session_id=session_id, char_id=actor_id, signal_type="check_immediate", move_id=move_id
+        )
+        timeout_signal = CollectorSignalDTO(
+            session_id=session_id, char_id=actor_id, signal_type="check_timeout", move_id=move_id
+        )
         await self.arq.enqueue_job("combat_collector_task", immediate.model_dump(mode="json"))
         await self.arq.enqueue_job(
             "combat_collector_task",

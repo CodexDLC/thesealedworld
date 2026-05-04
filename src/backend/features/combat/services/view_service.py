@@ -128,10 +128,10 @@ class CombatViewService:
     def _map_actor(self, actor_id: str, actor: dict[str, Any], *, is_target: bool) -> CombatActorCardDTO:
         meta_raw = actor.get("meta")
         meta = meta_raw if isinstance(meta_raw, dict) else {}
-        
+
         loadout_raw = actor.get("loadout")
         loadout = loadout_raw if isinstance(loadout_raw, dict) else {}
-        
+
         statuses_raw = actor.get("statuses")
         statuses = statuses_raw if isinstance(statuses_raw, dict) else {}
 
@@ -174,7 +174,9 @@ class CombatViewService:
         if status == "active" and target is not None and not hero.is_dead:
             actions.insert(
                 0,
-                CombatActionOptionDTO(action="exchange", label="Атака", target_id=target.actor_id, catalog_ref="triggers"),
+                CombatActionOptionDTO(
+                    action="exchange", label="Атака", target_id=target.actor_id, catalog_ref="triggers"
+                ),
             )
             actions.extend(
                 CombatActionOptionDTO(
@@ -222,9 +224,7 @@ class CombatViewService:
                 CombatEffectBadgeDTO(
                     uid=CombatViewService._optional_str(item.get("uid")),
                     effect_id=str(item["effect_id"]),
-                    expires_at_exchange=CombatViewService._optional_int(
-                        item.get("expire_at_exchange")
-                    ),
+                    expires_at_exchange=CombatViewService._optional_int(item.get("expire_at_exchange")),
                     impact=impact,
                 )
             )
@@ -244,9 +244,7 @@ class CombatViewService:
                 CombatAbilityBadgeDTO(
                     uid=CombatViewService._optional_str(item.get("uid")),
                     ability_id=str(item["ability_id"]),
-                    expires_at_exchange=CombatViewService._optional_int(
-                        item.get("expire_at_exchange")
-                    ),
+                    expires_at_exchange=CombatViewService._optional_int(item.get("expire_at_exchange")),
                     impact=impact,
                 )
             )
@@ -261,9 +259,7 @@ class CombatViewService:
         return [
             CombatFeintOptionDTO(
                 feint_id=str(feint_id),
-                cost={str(k): CombatViewService._int(v) for k, v in cost.items()}
-                if isinstance(cost, dict)
-                else {},
+                cost={str(k): CombatViewService._int(v) for k, v in cost.items()} if isinstance(cost, dict) else {},
             )
             for feint_id, cost in hand.items()
         ]

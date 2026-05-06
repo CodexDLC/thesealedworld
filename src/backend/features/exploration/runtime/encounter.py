@@ -38,9 +38,10 @@ class EncounterEngine:
         Главный метод генерации случайной встречи.
         """
         flags = location_data.get("flags", {})
+        anchor_influence = location_data.get("anchor_influence", {})
 
         # 1. Safe Zone Check
-        if self._is_safe_context(flags):
+        if self._is_safe_context(flags, anchor_influence):
             return None
 
         # 2. Rare Events Cascade
@@ -62,11 +63,11 @@ class EncounterEngine:
         return None
 
     @staticmethod
-    def _is_safe_context(flags: dict[str, Any]) -> bool:
+    def _is_safe_context(flags: dict[str, Any], anchor_influence: dict[str, Any] | None = None) -> bool:
         if flags.get("is_safe_zone", False):
             return True
 
-        anchor = flags.get("anchor_influence", {})
+        anchor = anchor_influence if isinstance(anchor_influence, dict) else flags.get("anchor_influence", {})
         if isinstance(anchor, dict) and anchor.get("is_inside_city_shield", False):
             return True
 

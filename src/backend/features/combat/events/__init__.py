@@ -5,10 +5,9 @@ from typing import TYPE_CHECKING, Any
 from loguru import logger
 
 from src.backend.core.bus import GameStreamRouter
-from src.backend.features.combat.integrations import CombatSystemIntegrator
+from src.backend.features.combat.integrations import CombatSessionIntegration, CombatSystemIntegrator
 from src.backend.features.combat.orchestrators import CombatCreationOrchestrator
 from src.backend.features.combat.services.lifecycle_service import CombatLifecycleService
-from src.backend.infrastructure.combat.managers.session import CombatSessionManager
 
 if TYPE_CHECKING:
     from fastapi import FastAPI
@@ -31,9 +30,9 @@ async def on_session_requested(payload: dict[str, Any]) -> None:
     request_data = dict(payload)
     correlation_id = request_data.get("correlation_id")
     orchestrator = CombatCreationOrchestrator(
-        lifecycle=CombatLifecycleService(store=CombatSessionManager(_app.state.redis)),
+        lifecycle=CombatLifecycleService(store=CombatSessionIntegration.from_redis(_app.state.redis)),
         integrator=CombatSystemIntegrator(
-            actor_snapshots=_app.state.actor_snapshots,
+            actor_commitments=_app.state.actor_commitments,
             character_sessions=_app.state.character_sessions,
             events=_app.state.events,
             redis=_app.state.redis,

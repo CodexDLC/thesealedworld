@@ -62,9 +62,8 @@ async def execute_batch_task(ctx: dict, job_data: dict) -> None:
 
         try:
             # 3. Fetch Actions from Redis Queue
-            queue_key = f"combat:rbc:{session_id}:q:actions"
             # Берем пачку действий
-            raw_actions = await data_service.combat_manager.redis.redis_client.lrange(queue_key, 0, job.batch_size - 1)  # type: ignore
+            raw_actions = await data_service.load_actions_batch(session_id, job.batch_size)
 
             if not raw_actions:
                 log.info("ExecutorEmpty | session_id={session_id}")

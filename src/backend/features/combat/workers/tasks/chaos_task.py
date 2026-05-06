@@ -35,7 +35,7 @@ async def chaos_check_task(ctx: dict, session_id: str) -> None:
                 return
 
         # ChaosService легковесный, создаем on-demand
-        chaos_service = ChaosService(data_service.combat_manager)
+        chaos_service = ChaosService(data_service)
 
         # 1. Check Session State
         meta = await data_service.get_battle_meta(session_id)

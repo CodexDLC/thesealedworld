@@ -1,6 +1,6 @@
 # tests/backend/features/exploration/test_navigation.py
 from src.backend.features.exploration.runtime.navigation import NavigationEngine
-from src.shared.schemas.exploration import NavigationActionsDTO, NavigationGridDTO
+from src.shared.schemas.exploration import MoveRequest, NavigationActionsDTO, NavigationGridDTO
 
 
 def test_navigation_grid_generation():
@@ -66,9 +66,29 @@ def test_navigation_actions_group_web_contract():
     assert actions.context["threat_tier"] == 0.35
 
 
+def test_navigation_safe_context_accepts_top_level_anchor_influence():
+    actions = NavigationEngine.build_actions(
+        "50_50",
+        {},
+        {"is_safe_zone": False, "threat_tier": 1},
+        {"is_inside_city_shield": True},
+    )
+
+    assert actions.context["is_safe_zone"] is True
+    assert actions.movement["north"].is_active is False
+
+
 def test_service_action_uses_backend_opaque_service_id():
     actions = NavigationEngine.build_actions("52_51", {"svc:svc_arena_main": {"text_button": "Arena"}}, {})
 
     service = actions.services["svc_svc_arena_main"]
 
     assert service.action == "service:svc_arena_main"
+
+
+def test_move_request_accepts_target_location_id_without_direction():
+    request = MoveRequest(char_id=1, target_id="52_51")
+
+    assert request.char_id == 1
+    assert request.target_id == "52_51"
+    assert request.direction is None

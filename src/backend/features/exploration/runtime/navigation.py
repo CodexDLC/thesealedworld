@@ -39,6 +39,7 @@ class NavigationEngine:
         current_loc_id: str,
         exits: dict[str, Any],
         flags: dict[str, Any],
+        anchor_influence: dict[str, Any] | None = None,
     ) -> NavigationGridDTO:
         """
         Собирает полную сетку навигации.
@@ -62,7 +63,7 @@ class NavigationEngine:
         direction_buttons = cls._build_direction_buttons(cx, cy, exits)
 
         # Собираем контекстные кнопки (углы)
-        context_buttons = cls._build_context_buttons(flags)
+        context_buttons = cls._build_context_buttons(flags, anchor_influence)
 
         # Собираем кнопки сервисов
         service_buttons = cls._build_service_buttons(exits)
@@ -90,6 +91,7 @@ class NavigationEngine:
         current_loc_id: str,
         exits: dict[str, Any],
         flags: dict[str, Any],
+        anchor_influence: dict[str, Any] | None = None,
     ) -> NavigationActionsDTO:
         """
         Собирает веб-контракт навигации: backend отдает группы действий,
@@ -102,7 +104,7 @@ class NavigationEngine:
         direction_buttons = cls._build_direction_buttons(cx, cy, exits)
         service_buttons = cls._build_service_buttons(exits)
 
-        is_safe = cls.is_safe_context(flags)
+        is_safe = cls.is_safe_context(flags, anchor_influence)
 
         return NavigationActionsDTO(
             movement={
@@ -188,11 +190,13 @@ class NavigationEngine:
     # =========================================================================
 
     @classmethod
-    def _build_context_buttons(cls, flags: dict[str, Any]) -> dict[str, GridButtonDTO]:
+    def _build_context_buttons(
+        cls, flags: dict[str, Any], anchor_influence: dict[str, Any] | None = None
+    ) -> dict[str, GridButtonDTO]:
         """
         Строит контекстные кнопки (углы сетки).
         """
-        is_safe = cls.is_safe_context(flags)
+        is_safe = cls.is_safe_context(flags, anchor_influence)
 
         return {
             # NW: Поиск
@@ -348,11 +352,11 @@ class NavigationEngine:
         return "nav", key
 
     @staticmethod
-    def is_safe_context(flags: dict[str, Any]) -> bool:
+    def is_safe_context(flags: dict[str, Any], anchor_influence: dict[str, Any] | None = None) -> bool:
         if flags.get("is_safe_zone", False):
             return True
 
-        anchor = flags.get("anchor_influence", {})
+        anchor = anchor_influence if isinstance(anchor_influence, dict) else flags.get("anchor_influence", {})
         if isinstance(anchor, dict) and anchor.get("is_inside_city_shield", False):
             return True
 

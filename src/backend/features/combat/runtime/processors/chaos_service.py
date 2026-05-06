@@ -4,7 +4,7 @@ from typing import Any
 from loguru import logger as log
 
 from src.backend.features.combat.dto.actor import ActorMetaDTO, ActorRawDTO
-from src.backend.infrastructure.combat.managers.session import CombatSessionManager
+from src.backend.features.combat.integrations import CombatSessionIntegration
 
 
 class ChaosService:
@@ -16,8 +16,8 @@ class ChaosService:
     CLEANER_NAME = "Мусорщик"
     CLEANER_TEAM = "chaos"
 
-    def __init__(self, combat_manager: CombatSessionManager):
-        self.combat_manager = combat_manager
+    def __init__(self, combat_sessions: CombatSessionIntegration):
+        self.combat_sessions = combat_sessions
 
     async def spawn_cleaner(self, session_id: str) -> bool:
         """
@@ -25,7 +25,7 @@ class ChaosService:
         Возвращает True, если успешно призван.
         """
         # 1. Проверяем, есть ли он уже
-        meta_raw = await self.combat_manager.get_rbc_session_meta(session_id)
+        meta_raw = await self.combat_sessions.get_raw_meta(session_id)
         if not meta_raw:
             return False
 
@@ -40,16 +40,16 @@ class ChaosService:
         cleaner_data = self._create_cleaner_data()
 
         # 3. Вызываем универсальный метод менеджера
-        await self.combat_manager.universal_hot_join(
+        await self.combat_sessions.hot_join_actor(
             session_id=session_id,
-            char_id=self.CLEANER_ID,
+            actor_id=self.CLEANER_ID,
             team_name=self.CLEANER_TEAM,
             actor_data=cleaner_data,
             is_ai=True,
         )
 
         # 4. Лог
-        await self.combat_manager.add_log(
+        await self.combat_sessions.add_log(
             session_id,
             "⏳ Границы реальности истончились. В поисках утраченного времени пришел ОН.",
             tags=["chaos", "spawn"],

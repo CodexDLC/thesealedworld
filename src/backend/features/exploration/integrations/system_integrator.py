@@ -4,7 +4,7 @@ import logging
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from src.backend.infrastructure.actor_state import CharacterSessionManager
+    from src.backend.features.character.managers import CharacterSessionManager
     from src.backend.infrastructure.world.location_store import WorldLocationStore
 
 log = logging.getLogger(__name__)

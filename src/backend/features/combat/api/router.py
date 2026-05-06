@@ -9,6 +9,7 @@ from src.shared.schemas.combat import (
     CombatDashboardDTO,
     CombatLogDTO,
     CombatRegisterMoveRequestDTO,  # noqa: TC001 - FastAPI needs the body model at runtime
+    CombatResultDTO,
 )
 from src.shared.schemas.response import CoreResponseDTO, GameStateHeader
 
@@ -20,19 +21,24 @@ router = APIRouter(prefix="/api/game/combat", tags=["combat"])
 # route handlers only choose whether the response needs CoreResponseDTO envelope.
 # TODO(combat-api): Define combat-specific error response variants before
 # finalizing the browser contract, instead of leaking raw ValueError/HTTP detail.
-@router.get("/{char_id}/view", response_model=CoreResponseDTO[CombatDashboardDTO])
+@router.get("/{char_id}/view", response_model=CoreResponseDTO[CombatDashboardDTO | CombatResultDTO])
 async def get_combat_view(
     char_id: int, orchestrator: CombatRuntimeOrchestratorDep
-) -> CoreResponseDTO[CombatDashboardDTO]:
+) -> CoreResponseDTO[CombatDashboardDTO | CombatResultDTO]:
     try:
-        payload = await orchestrator.get_initial_view(char_id)
+        payload: CombatDashboardDTO | CombatResultDTO = await orchestrator.get_initial_view(char_id)
         return CoreResponseDTO(
             header=GameStateHeader(current_state=CoreDomain.COMBAT),
             payload=payload,
             payload_type="CombatDashboard",
         )
     except CombatSessionNotFound as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
+        payload = await orchestrator.get_archived_result(char_id, reason=str(exc))
+        return CoreResponseDTO(
+            header=GameStateHeader(current_state=CoreDomain.COMBAT, error="combat_result_from_archive_stub"),
+            payload=payload,
+            payload_type="combat_result",
+        )
 
 
 @router.get("/{char_id}/snapshot", response_model=CombatDashboardDTO)

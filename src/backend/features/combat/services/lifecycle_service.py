@@ -10,7 +10,7 @@ from typing import TYPE_CHECKING, Any
 from src.backend.features.combat.dto.session import SessionDataDTO
 
 if TYPE_CHECKING:
-    from src.backend.infrastructure.combat.managers.session import CombatSessionManager
+    from src.backend.features.combat.integrations import CombatSessionIntegration
 
 
 class CombatLifecycleError(RuntimeError):
@@ -26,7 +26,7 @@ class CombatLifecycleService:
     def __init__(
         self,
         *,
-        store: CombatSessionManager,
+        store: CombatSessionIntegration,
     ) -> None:
         self.store = store
 
@@ -125,7 +125,18 @@ class CombatLifecycleService:
             name = f"Shadow {name}"
 
         hp = self._vital(status, runtime, "hp", "hp_current", default=100)
+        max_hp = max(hp, self._vital_max(status, runtime, "hp", ("max_hp", "hp_max"), default=hp))
         energy = self._vital(status, runtime, "energy", "energy_current", default=100)
+        max_energy = max(
+            energy,
+            self._vital_max(
+                status,
+                runtime,
+                "energy",
+                ("max_energy", "energy_max", "max_en", "en_max"),
+                default=energy,
+            ),
+        )
         known_feints = loadout.get("known_feints") or loadout.get("feints") or []
 
         return {
@@ -145,9 +156,9 @@ class CombatLifecycleService:
                 ),
                 "is_ai": not self._is_player_actor_id(final_id),
                 "hp": hp,
-                "max_hp": hp,
+                "max_hp": max_hp,
                 "en": energy,
-                "max_en": energy,
+                "max_en": max_energy,
                 "tactics": 0,
                 "is_dead": False,
                 "afk_level": 0,
@@ -263,6 +274,47 @@ class CombatLifecycleService:
         runtime_v = runtime_vitals.get(key)
         if value is None and isinstance(runtime_v, dict):
             value = runtime_v.get("cur")
+
+        if value is None or value == -1:
+            value = default
+        try:
+            return max(1, int(value))
+        except (ValueError, TypeError):
+            return default
+
+    @staticmethod
+    def _vital_max(
+        status: dict[str, Any],
+        runtime: dict[str, Any],
+        key: str,
+        legacy_keys: tuple[str, ...],
+        *,
+        default: int,
+    ) -> int:
+        value = next(
+            (status.get(legacy_key) for legacy_key in legacy_keys if status.get(legacy_key) is not None),
+            None,
+        )
+        status_v = status.get(key)
+        if value is None and isinstance(status_v, dict):
+            value = status_v.get("max")
+
+        vitals_raw = runtime.get("vitals")
+        runtime_vitals = vitals_raw if isinstance(vitals_raw, dict) else {}
+
+        if value is None:
+            value = next(
+                (
+                    runtime_vitals.get(legacy_key)
+                    for legacy_key in legacy_keys
+                    if runtime_vitals.get(legacy_key) is not None
+                ),
+                None,
+            )
+
+        runtime_v = runtime_vitals.get(key)
+        if value is None and isinstance(runtime_v, dict):
+            value = runtime_v.get("max")
 
         if value is None or value == -1:
             value = default

@@ -8,17 +8,19 @@ from src.backend.features.combat.services.lifecycle_service import CombatLifecyc
 class FakeEvents:
     def __init__(self):
         self.published = []
+        self.requested = []
 
     async def request(self, event_type, data, timeout=30.0, correlation_id=None):
-        assert event_type == "actor_state.snapshots_requested"
-        session_id = data["session_id"]
+        self.requested.append((event_type, data, timeout, correlation_id))
+        assert event_type == "character.combat_commitments_requested"
+        session_id = data["scope_id"]
         player_ids = _decode_json_list(data["player_ids"])
         monster_ids = _decode_json_list(data["monster_ids"])
         return {
             "status": "ok",
-            "snapshot_keys": {
-                **{f"{session_id}:player:{pid}": f"snapshot:player:{pid}" for pid in player_ids},
-                **{f"{session_id}:monster:{mid}": f"snapshot:monster:{mid}" for mid in monster_ids},
+            "commitments": {
+                **{f"{session_id}:player:{pid}": f"commit:player:{pid}" for pid in player_ids},
+                **{f"{session_id}:monster:{mid}": f"commit:monster:{mid}" for mid in monster_ids},
             },
         }
 
@@ -27,8 +29,8 @@ class FakeEvents:
         return "1-0"
 
 
-class FakeActorSnapshots:
-    async def get_snapshots_batch(self, keys):
+class FakeActorCommitments:
+    async def get_commitments_batch(self, keys):
         snapshots = {}
         for key in keys:
             kind, actor_id = key.split(":")[-2:]
@@ -66,7 +68,7 @@ def _orchestrator(store, events=None, sessions=None):
     return CombatCreationOrchestrator(
         lifecycle=CombatLifecycleService(store=store),
         integrator=CombatSystemIntegrator(
-            actor_snapshots=FakeActorSnapshots(),
+            actor_commitments=FakeActorCommitments(),
             character_sessions=sessions or FakeCharacterSessions(),
             events=events or FakeEvents(),
         ),
@@ -87,7 +89,7 @@ def _player_snapshot(char_id):
             "loadout": {"known_feints": ["quick_cut"]},
             "skills": {"swords": 1.0},
         },
-        "status": {"hp": {"cur": 80}, "energy": {"cur": 30}},
+        "status": {"hp": {"cur": 80, "max": 190}, "energy": {"cur": 30, "max": 97}},
         "source": {"character_id": char_id},
     }
 
@@ -126,9 +128,58 @@ async def test_lifecycle_creates_arena_pvp_session():
     session_id, data, ttl = store.created
     assert ready["combat_id"] == session_id
     assert set(data.actors) == {"1", "2"}
+    assert data.actors["1"]["meta"]["hp"] == 80
+    assert data.actors["1"]["meta"]["max_hp"] == 190
+    assert data.actors["1"]["meta"]["en"] == 30
+    assert data.actors["1"]["meta"]["max_en"] == 97
     assert data.targets["1"] == ["2"]
-    assert sessions.combat[1] == session_id
+    assert sessions.combat == {}
+    assert sessions.states == {}
     assert events.published[0][0] == "combat.session_ready"
+
+
+@pytest.mark.asyncio
+async def test_lifecycle_uses_provided_arena_commitments_without_requesting_character_data():
+    store = FakeStore()
+    events = FakeEvents()
+    service = _orchestrator(store, events=events)
+
+    await service.create_from_request(
+        {
+            "source": "arena",
+            "arena_session_id": "arena:prepared",
+            "battle_type": "pvp",
+            "requested_by": 1,
+            "participants": {"team_1": [1], "team_2": [2]},
+            "commitments": {"1": "commit:player:1", "2": "commit:player:2"},
+        }
+    )
+
+    _, data, _ = store.created
+    assert set(data.actors) == {"1", "2"}
+    assert data.actors["1"]["meta"]["name"] == "Hero 1"
+    assert events.requested == []
+
+
+@pytest.mark.asyncio
+async def test_lifecycle_does_not_link_players_during_session_creation():
+    store = FakeStore()
+    sessions = FakeCharacterSessions()
+    service = _orchestrator(store, sessions=sessions)
+
+    await service.create_from_request(
+        {
+            "source": "arena",
+            "arena_session_id": "arena:prepared",
+            "battle_type": "pvp",
+            "requested_by": 1,
+            "participants": {"team_1": [1], "team_2": [2]},
+        }
+    )
+
+    assert store.created is not None
+    assert sessions.combat == {}
+    assert sessions.states == {}
 
 
 @pytest.mark.asyncio
@@ -153,6 +204,8 @@ async def test_lifecycle_creates_shadow_clone():
     assert data.actors["-7"]["meta"]["is_ai"] is True
     assert data.actors["-7"]["meta"]["name"].startswith("Shadow ")
     assert data.actors["-7"]["meta"]["avatar_url"] == "/static/images/avatars/rook7.png"
+    assert data.actors["-7"]["meta"]["hp"] == 80
+    assert data.actors["-7"]["meta"]["max_hp"] == 190
     assert ttl == 900
     assert sessions.combat == {}
 

@@ -6,7 +6,7 @@ from src.backend.features.exploration.integrations.system_integrator import Expl
 from src.backend.features.exploration.resources.service_registry import get_service_entry
 from src.backend.features.exploration.runtime.encounter import EncounterEngine
 from src.backend.features.exploration.runtime.navigation import NavigationEngine
-from src.shared.enums.domain import CoreDomain
+from src.shared.enums import CoreDomain
 from src.shared.schemas.exploration import (
     AlertHudDTO,
     EncounterDTO,
@@ -60,13 +60,10 @@ class ExplorationService:
         target_loc_id = None
 
         # 1. Resolve Target ID
-        if target_id:
-            # Check if exit exists
-            if f"nav:{target_id}" in exits or target_id in exits:
-                target_loc_id = target_id
-        elif direction:
-            # Legacy direction resolve could be implemented here if needed
-            pass
+        if target_id and (f"nav:{target_id}" in exits or target_id in exits):
+            target_loc_id = target_id
+        elif direction and (f"nav:{direction}" in exits or direction in exits):
+            target_loc_id = direction
 
         if not target_loc_id:
             log.warning("ExplorationService | invalid_move char_id=%s target=%s dir=%s", char_id, target_id, direction)
@@ -253,13 +250,13 @@ class ExplorationService:
 
         # Используем NavigationEngine для сборки сетки
         exits = loc_data.get("exits", {})
-        grid = NavigationEngine.build_grid(loc_id, exits, flags)
-        navigation = NavigationEngine.build_actions(loc_id, exits, flags)
+        grid = NavigationEngine.build_grid(loc_id, exits, flags, anchor_influence)
+        navigation = NavigationEngine.build_actions(loc_id, exits, flags, anchor_influence)
 
-        is_safe_zone = NavigationEngine.is_safe_context(flags)
+        is_safe_zone = NavigationEngine.is_safe_context(flags, anchor_influence)
 
         hud = ExplorationHudDTO(
-            threat_tier=float(flags.get("threat_tier", 0)),
+            threat_tier=int(flags.get("threat_tier", 0)),
             players_count=players_count,
             battles_count=battles_count,
             is_safe_zone=is_safe_zone,
@@ -279,8 +276,9 @@ class ExplorationService:
             grid=grid,
             navigation=navigation,
             hud=hud,
-            threat_tier=float(flags.get("threat_tier", 0)),
+            threat_tier=int(flags.get("threat_tier", 0)),
             is_safe_zone=is_safe_zone,
         )
-        await self._integrator.set_world_theme(char_id, dto.world_theme.model_dump(mode="json"))
+        if dto.world_theme is not None and hasattr(dto.world_theme, "model_dump"):
+            await self._integrator.set_world_theme(char_id, dto.world_theme.model_dump(mode="json"))
         return dto

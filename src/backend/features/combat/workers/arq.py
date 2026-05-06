@@ -1,12 +1,11 @@
 from loguru import logger as log
 
 from src.backend.core.arq import ArqService, BaseArqSettings, base_shutdown, base_startup
+from src.backend.features.combat.integrations import CombatSessionIntegration
 from src.backend.features.combat.runtime.processors.ai_processor import AiProcessor
 from src.backend.features.combat.runtime.processors.collector import CombatCollector
 from src.backend.features.combat.runtime.processors.executor import CombatExecutor
-from src.backend.features.combat.runtime.services.data_service import CombatDataService
 from src.backend.features.combat.services.turn_manager import CombatTurnManager
-from src.backend.infrastructure.combat.managers.session import CombatSessionManager
 
 from .tasks.ai_turn_task import ai_turn_task
 from .tasks.chaos_task import chaos_check_task
@@ -27,15 +26,14 @@ async def combat_startup(ctx: dict) -> None:
     log.info("WorkerInit | stage=start worker_type=combat")
     await base_startup(ctx)
     redis_service = ctx["redis_service"]
-    combat_session_manager = CombatSessionManager(redis_service)
-    combat_data_service = CombatDataService(combat_session_manager)
+    combat_data_service = CombatSessionIntegration.from_redis(redis_service)
     arq_service = ArqService()
 
     ctx["combat_data_service"] = combat_data_service
     ctx["combat_collector"] = CombatCollector(combat_data_service)
     ctx["combat_executor"] = CombatExecutor()
     ctx["ai_processor"] = AiProcessor()
-    ctx["turn_manager"] = CombatTurnManager(combat_session_manager, arq_service)
+    ctx["turn_manager"] = CombatTurnManager(combat_data_service, arq_service)
     ctx["arq_service"] = arq_service
     log.info("WorkerInit | stage=complete worker_type=combat")
 

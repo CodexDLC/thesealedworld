@@ -33,14 +33,24 @@ class CombatCreationOrchestrator:
         player_ids = self.lifecycle.player_snapshot_ids(participants)
         monster_ids = self.lifecycle.monster_snapshot_ids(participants)
         if not player_ids:
-            raise CombatLifecycleError("combat session requires at least one player snapshot")
+            raise CombatLifecycleError("combat session requires at least one player commitment")
 
-        snapshot_keys = await self.integrator.prepare_actor_snapshots(
-            combat_id,
-            player_ids=player_ids,
-            monster_ids=monster_ids,
-        )
-        snapshots = await self.integrator.load_actor_snapshots(snapshot_keys)
+        commitments = self._provided_commitments(combat_id, participants, request)
+        missing_player_ids = [
+            player_id for player_id in player_ids if f"{combat_id}:player:{player_id}" not in commitments
+        ]
+        missing_monster_ids = [
+            monster_id for monster_id in monster_ids if f"{combat_id}:monster:{monster_id}" not in commitments
+        ]
+        if missing_player_ids or missing_monster_ids:
+            commitments.update(
+                await self.integrator.prepare_actor_commitments(
+                    combat_id,
+                    player_ids=missing_player_ids,
+                    monster_ids=missing_monster_ids,
+                )
+            )
+        snapshots = await self.integrator.load_actor_commitments(commitments)
         await self.lifecycle.create_session_from_snapshots(
             combat_id,
             battle_type=battle_type,
@@ -48,9 +58,6 @@ class CombatCreationOrchestrator:
             snapshots=snapshots,
             request=request,
         )
-        if not self._should_defer_player_link(request):
-            await self.integrator.link_players_to_combat(player_ids, combat_id)
-
         ready = {
             "status": "ready",
             "source": source,
@@ -78,12 +85,34 @@ class CombatCreationOrchestrator:
         await self.integrator.publish_session_failed(failed)
         return failed
 
-    @staticmethod
-    def _should_defer_player_link(request: dict[str, Any]) -> bool:
-        metadata = request.get("metadata") or {}
-        if isinstance(metadata, str):
-            try:
-                metadata = json.loads(metadata)
-            except json.JSONDecodeError:
-                metadata = {}
-        return request.get("battle_type") == "shadow" and bool(metadata.get("awaiting_player_choice"))
+    def _provided_commitments(
+        self,
+        combat_id: str,
+        participants: dict[str, list[int | str]],
+        request: dict[str, Any],
+    ) -> dict[str, str]:
+        raw = request.get("commitments") or {}
+        if isinstance(raw, str):
+            raw = json.loads(raw)
+        if not isinstance(raw, dict) or not raw:
+            return {}
+
+        mapped: dict[str, str] = {}
+        for team_members in participants.values():
+            for raw_member in team_members:
+                value = str(raw_member)
+                actor_id = value[1:] if value.startswith("-") and value[1:].isdigit() else value
+                if actor_id.isdigit():
+                    commitment_id = raw.get(actor_id) or raw.get(f"player:{actor_id}")
+                    if commitment_id:
+                        mapped[f"{combat_id}:player:{actor_id}"] = str(commitment_id)
+                    continue
+
+                commitment_id = raw.get(actor_id) or raw.get(f"monster:{actor_id}")
+                if commitment_id:
+                    mapped[f"{combat_id}:monster:{actor_id}"] = str(commitment_id)
+
+        if mapped:
+            return mapped
+
+        return {str(snapshot_id): str(commitment_id) for snapshot_id, commitment_id in raw.items() if commitment_id}

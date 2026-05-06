@@ -6,12 +6,19 @@ import uuid
 from typing import TYPE_CHECKING, Any
 
 from src.backend.features.combat.dto import CollectorSignalDTO, CombatMoveDTO, ExchangePayload, InstantPayload
+from src.backend.features.combat.integrations import CombatSessionIntegration
+from src.backend.features.combat.services.result_archive_service import CombatResultArchiveService
 from src.backend.features.combat.services.turn_manager import CombatTurnManager
 from src.backend.features.combat.services.view_service import CombatViewService
-from src.backend.infrastructure.combat.managers.session import CombatSessionManager
 
 if TYPE_CHECKING:
-    from src.shared.schemas.combat import CombatDashboardDTO, CombatLogDTO, CombatRegisterMoveRequestDTO
+    from src.backend.features.combat.integrations import CombatSystemIntegrator
+    from src.shared.schemas.combat import (
+        CombatDashboardDTO,
+        CombatLogDTO,
+        CombatRegisterMoveRequestDTO,
+        CombatResultDTO,
+    )
 
 AFK_TIMEOUTS = {0: 60, 1: 50, 2: 40, 3: 30}
 MIN_TIMEOUT = 20
@@ -34,14 +41,15 @@ class CombatSessionService:
     """Read-only combat facade for current session state."""
 
     def __init__(
-        self, *, store: CombatSessionManager, character_sessions: Any | None = None, arq: Any | None = None
+        self, *, store: CombatSessionIntegration, system_integrator: CombatSystemIntegrator, arq: Any | None = None
     ) -> None:
         self.store = store
-        self.character_sessions = character_sessions
+        self.system_integrator = system_integrator
         if TYPE_CHECKING:
             from src.backend.core.arq import ArqService
 
         self.arq: ArqService = arq or NullArqQueue()  # type: ignore
+        self.result_archive = CombatResultArchiveService()
         self.view = CombatViewService()
         self.turn_manager = CombatTurnManager(self.store, self.arq)
 
@@ -49,11 +57,13 @@ class CombatSessionService:
         combat_id = session_id or await self._resolve_session_id(char_id)
         meta = await self.store.get_meta(combat_id)
         if meta is None:
+            await self.system_integrator.recover_missing_combat_session(char_id, combat_id=combat_id)
             raise CombatSessionNotFoundError(f"Combat session not found: {combat_id}")
 
-        actor_ids = CombatSessionManager.actor_ids_from_meta(meta)
+        actor_ids = self._actor_ids_from_meta(meta)
         actors = await self.store.get_actors_batch(combat_id, actor_ids)
-        targets = await self.store.get_targets(combat_id)
+        targets = await self._get_targets(combat_id)
+        moves = await self.store.get_moves_batch(combat_id, actor_ids)
         raw_logs = await self.store.get_logs(combat_id, start=-LOG_PAGE_SIZE, stop=-1)
 
         return self.view.build_dashboard(
@@ -61,6 +71,7 @@ class CombatSessionService:
             viewer_id=char_id,
             meta=meta,
             targets=targets,
+            moves=moves,
             actors=actors,
             raw_logs=raw_logs,
         )
@@ -90,10 +101,11 @@ class CombatSessionService:
         session_id = await self._resolve_session_id(char_id)
         meta = await self.store.get_meta(session_id)
         if meta is None:
+            await self.system_integrator.recover_missing_combat_session(char_id, combat_id=session_id)
             raise CombatSessionNotFound(f"Combat session not found: {session_id}")
-        actor_ids = CombatSessionManager.actor_ids_from_meta(meta)
+        actor_ids = self._actor_ids_from_meta(meta)
         actors = await self.store.get_actors_batch(session_id, actor_ids)
-        targets = await self.store.get_targets(session_id)
+        targets = await self._get_targets(session_id)
         moves = await self.store.get_moves_batch(session_id, actor_ids)
         return {
             "session_id": session_id,
@@ -131,6 +143,15 @@ class CombatSessionService:
         raw_logs = await self.store.get_logs(session_id, start=start, stop=stop)
         return {"session_id": session_id, "page": page, "items": [self._decode_log(item) for item in raw_logs]}
 
+    async def get_archived_result(
+        self,
+        char_id: int,
+        *,
+        reason: str = "combat_session_not_found",
+    ) -> CombatResultDTO:
+        combat_id = await self.system_integrator.resolve_combat_session_for_character(char_id)
+        return await self.result_archive.get_result_for_character(char_id, combat_id=combat_id, reason=reason)
+
     async def get_history(self, char_id: int, *, session_id: str | None = None) -> CombatLogDTO:
         combat_id = session_id or await self._resolve_session_id(char_id)
         raw_logs = await self.store.get_logs(combat_id, start=0, stop=-1)
@@ -143,13 +164,11 @@ class CombatSessionService:
         )
 
     async def _resolve_session_id(self, char_id: int) -> str:
-        if self.character_sessions is None:
-            raise CombatSessionNotFoundError(f"Character {char_id} is not in active combat")
-        session = await self.character_sessions.get_session(char_id)
-        combat_id = ((session or {}).get("sessions") or {}).get("combat_id") if isinstance(session, dict) else None
+        combat_id = await self.system_integrator.resolve_combat_session_for_character(char_id)
         if not combat_id:
+            await self.system_integrator.recover_missing_combat_session(char_id)
             raise CombatSessionNotFoundError(f"Character {char_id} is not in active combat")
-        return str(combat_id)
+        return combat_id
 
     async def _enqueue_collector(self, session_id: str, actor_id: int, move_id: str) -> None:
         state = await self.store.get_actor_state(session_id, actor_id) or {}
@@ -169,9 +188,19 @@ class CombatSessionService:
 
     async def _count_logs(self, session_id: str, fallback_logs: list[str]) -> int:
         count_logs = getattr(self.store, "count_logs", None)
-        if count_logs is None:
-            return len(fallback_logs)
-        return int(await count_logs(session_id))
+        return int(await count_logs(session_id)) if count_logs is not None else len(fallback_logs)
+
+    async def _get_targets(self, session_id: str) -> dict[str, list[Any]]:
+        get_targets_map = getattr(self.store, "get_targets_map", None)
+        if get_targets_map is not None:
+            return await get_targets_map(session_id)
+        return await self.store.get_targets(session_id)
+
+    def _actor_ids_from_meta(self, meta: dict[str, Any]) -> list[str]:
+        actor_ids_from_meta = getattr(self.store, "actor_ids_from_meta", None)
+        if actor_ids_from_meta is not None:
+            return actor_ids_from_meta(meta)
+        return CombatSessionIntegration.actor_ids_from_meta(meta)
 
     @staticmethod
     def _build_move(actor_id: int, data: dict[str, Any]) -> CombatMoveDTO:
@@ -212,8 +241,8 @@ class CombatSessionService:
     def _public_meta(meta: dict[str, Any]) -> dict[str, Any]:
         public = dict(meta)
         for field in ("teams", "actors_info", "alive_counts"):
-            public[field] = CombatSessionManager.decode_json_field(public.get(field), default={})
-        public["dead_actors"] = CombatSessionManager.decode_json_field(public.get("dead_actors"), default=[])
+            public[field] = CombatSessionIntegration.decode_json_field(public.get(field), default={})
+        public["dead_actors"] = CombatSessionIntegration.decode_json_field(public.get("dead_actors"), default=[])
         return public
 
     @staticmethod

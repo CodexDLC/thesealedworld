@@ -10,7 +10,7 @@ from src.backend.core.arq import ArqService
 from src.backend.features.combat.dto import ExchangePayload, InstantPayload
 from src.backend.features.combat.dto.action import CombatMoveDTO
 from src.backend.features.combat.dto.worker import CollectorSignalDTO
-from src.backend.infrastructure.combat.managers.session import CombatSessionManager
+from src.backend.features.combat.integrations import CombatSessionIntegration
 
 # Конфиг таймеров согласно документации
 AFK_TIMEOUTS = {
@@ -28,8 +28,8 @@ class CombatTurnManager:
     Управляет буфером намерений и очередями ARQ (Immediate + Delayed).
     """
 
-    def __init__(self, combat_manager: CombatSessionManager, arq_service: ArqService):
-        self.combat_manager = combat_manager
+    def __init__(self, combat_sessions: CombatSessionIntegration, arq_service: ArqService):
+        self.combat_sessions = combat_sessions
         self.arq = arq_service
 
     async def register_move_request(self, session_id: str, char_id: int, payload: dict[str, Any]) -> None:
@@ -42,7 +42,7 @@ class CombatTurnManager:
 
         # 2. Получаем данные персонажа (нужен afk_level для таймера)
         # get_actor_state возвращает словарь из $.meta
-        state_dict = await self.combat_manager.get_actor_state(session_id, char_id)
+        state_dict = await self.combat_sessions.get_actor_state(session_id, char_id)
 
         if not state_dict:
             log.warning(f"TurnManager | Actor {char_id} not found in session {session_id}. Assuming AFK 0.")
@@ -67,7 +67,7 @@ class CombatTurnManager:
         if feint_id:
             # Атомарно проверяем и удаляем финт из руки
             # Возвращает стоимость (dict) если успех, или None если финта нет
-            cost = await self.combat_manager.consume_feint_atomic(session_id, char_id, feint_id)
+            cost = await self.combat_sessions.consume_feint(session_id, char_id, feint_id)
 
             if not cost:
                 raise ValueError(f"Feint {feint_id} is not in hand")
@@ -79,18 +79,18 @@ class CombatTurnManager:
             if not target_id:
                 raise ValueError("Target ID is required for exchange")
 
-            success = await self.combat_manager.register_exchange_move_atomic(
+            success = await self.combat_sessions.register_exchange_move(
                 session_id, char_id, int(target_id), move_dto.model_dump()
             )
 
             if not success:
                 # Если не удалось зарегистрировать ход (цель недоступна), нужно вернуть финт!
                 if feint_id and cost:
-                    await self.combat_manager.return_feint_to_hand(session_id, char_id, feint_id, cost)
+                    await self.combat_sessions.return_feint(session_id, char_id, feint_id, cost)
                 raise ValueError("Target is not available in your queue")
 
         else:
-            await self.combat_manager.append_move(session_id, char_id, move_dto.strategy, move_dto.model_dump())
+            await self.combat_sessions.append_move(session_id, char_id, move_dto.strategy, move_dto.model_dump())
 
         # 5. РАСЧЕТ ТАЙМЕРА (Force Attack)
         timeout = AFK_TIMEOUTS.get(afk_level, MIN_TIMEOUT)
@@ -149,7 +149,7 @@ class CombatTurnManager:
                     feint_id = move_dto.payload.feint_id
 
                 if feint_id:
-                    cost = await self.combat_manager.consume_feint_atomic(session_id, char_id, feint_id)
+                    cost = await self.combat_sessions.consume_feint(session_id, char_id, feint_id)
                     if not cost:
                         log.warning(f"TurnManager | AI tried to use missing feint {feint_id}. Skipping move.")
                         continue  # Пропускаем этот ход, так как финта нет
@@ -161,12 +161,12 @@ class CombatTurnManager:
 
         # 2. Process Exchange Moves (Atomic Lua with POP)
         if exchange_moves_data:
-            count = await self.combat_manager.register_moves_batch_atomic(session_id, char_id, exchange_moves_data)
+            count = await self.combat_sessions.register_moves_batch(session_id, char_id, exchange_moves_data)
             success_count += count
 
         # 3. Process Other Moves (Pipeline without POP)
         if other_moves_dtos:
-            await self.combat_manager.append_moves_batch(session_id, char_id, other_moves_dtos)
+            await self.combat_sessions.append_moves_batch(session_id, char_id, other_moves_dtos)
             success_count += len(other_moves_dtos)
 
         # 4. Signals (Immediate + Timeout)

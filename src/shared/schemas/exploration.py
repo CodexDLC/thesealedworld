@@ -1,19 +1,31 @@
-from enum import Enum
+from enum import StrEnum
 from typing import Any
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict, Field, model_validator
+
+
+class ExplorationJsonDTO(BaseModel):
+    model_config = ConfigDict(extra="allow")
+
 
 # --- Request Models (API) ---
 
 
-class MoveRequest(BaseModel):
+class MoveRequest(ExplorationJsonDTO):
     """Запрос на перемещение."""
 
     char_id: int
-    direction: str
+    direction: str | None = None
+    target_id: str | None = None
+
+    @model_validator(mode="after")
+    def require_move_target(self) -> "MoveRequest":
+        if not self.direction and not self.target_id:
+            raise ValueError("Either direction or target_id is required")
+        return self
 
 
-class InteractRequest(BaseModel):
+class InteractRequest(ExplorationJsonDTO):
     """Запрос на взаимодействие."""
 
     char_id: int
@@ -21,7 +33,7 @@ class InteractRequest(BaseModel):
     target_id: str | None = None
 
 
-class UseServiceRequest(BaseModel):
+class UseServiceRequest(ExplorationJsonDTO):
     """Запрос на использование сервиса."""
 
     char_id: int
@@ -31,7 +43,7 @@ class UseServiceRequest(BaseModel):
 # --- Navigation Grid DTOs ---
 
 
-class GridButtonDTO(BaseModel):
+class GridButtonDTO(ExplorationJsonDTO):
     """
     Кнопка навигационной сетки.
     """
@@ -64,20 +76,28 @@ class NavigationGridDTO(BaseModel):
     center: GridButtonDTO | None = None
 
     # Нижний ряд (Services)
-    services: list[GridButtonDTO] = []
+    services: list[GridButtonDTO] = Field(default_factory=list)
+
+
+class NavigationActionsDTO(ExplorationJsonDTO):
+    movement: dict[str, GridButtonDTO] = Field(default_factory=dict)
+    exploration: dict[str, GridButtonDTO] = Field(default_factory=dict)
+    services: dict[str, GridButtonDTO] = Field(default_factory=dict)
+    auto_routes: dict[str, GridButtonDTO] = Field(default_factory=dict)
+    context: dict[str, Any] = Field(default_factory=dict)
 
 
 # --- HUD DTOs ---
 
 
-class HudType(str, Enum):
+class HudType(StrEnum):
     """Типы HUD."""
 
     EXPLORATION = "exploration"
     ALERT = "alert"
 
 
-class BaseHudDTO(BaseModel):
+class BaseHudDTO(ExplorationJsonDTO):
     """Базовый HUD."""
 
     type: HudType
@@ -87,10 +107,12 @@ class ExplorationHudDTO(BaseHudDTO):
     """HUD исследования."""
 
     type: HudType = HudType.EXPLORATION
-    threat_tier: int
-    players_count: int
-    battles_count: int
-    is_safe_zone: bool
+    threat_tier: int = 0
+    players_count: int = 0
+    battles_count: int = 0
+    is_safe_zone: bool = False
+    dominant_anchor: str | None = None
+    ambient_tags: list[str] = Field(default_factory=list)
 
 
 class AlertHudDTO(BaseHudDTO):
@@ -104,7 +126,7 @@ class AlertHudDTO(BaseHudDTO):
 # --- World DTO ---
 
 
-class WorldNavigationDTO(BaseModel):
+class WorldNavigationDTO(ExplorationJsonDTO):
     """
     Полные данные для отрисовки экрана навигации (Карта).
     """
@@ -115,25 +137,29 @@ class WorldNavigationDTO(BaseModel):
     description: str
 
     # Context
-    visual_objects: list[str] = []  # Объекты в тексте
+    visual_objects: list[str] = Field(default_factory=list)  # Объекты в тексте
     players_nearby: int = 0  # Legacy
 
     # UI Components
     grid: NavigationGridDTO
+    navigation: NavigationActionsDTO | None = None  # Renamed from actions
     hud: ExplorationHudDTO | AlertHudDTO | None = None
 
     # UI Flags (Legacy)
     threat_tier: int = 0
     is_safe_zone: bool = False
+    background_url: str | None = None
+    anchor_influence: dict[str, Any] = Field(default_factory=dict)
+    world_theme: Any | None = None
 
     # Legacy Support
-    metadata: dict[str, Any] = {}
+    metadata: dict[str, Any] = Field(default_factory=dict)
 
 
 # --- List DTO ---
 
 
-class ListItemDTO(BaseModel):
+class ListItemDTO(ExplorationJsonDTO):
     """Элемент списка."""
 
     id: str
@@ -141,7 +167,7 @@ class ListItemDTO(BaseModel):
     action: str  # Callback data при клике
 
 
-class ExplorationListDTO(BaseModel):
+class ExplorationListDTO(ExplorationJsonDTO):
     """
     DTO для отображения списков (Бои, Люди, Квесты).
     """
@@ -156,7 +182,7 @@ class ExplorationListDTO(BaseModel):
 # --- Encounter DTOs ---
 
 
-class EncounterType(str, Enum):
+class EncounterType(StrEnum):
     """Типы энкаунтеров."""
 
     COMBAT = "COMBAT"
@@ -165,14 +191,14 @@ class EncounterType(str, Enum):
     QUEST = "QUEST"
 
 
-class DetectionStatus(str, Enum):
+class DetectionStatus(StrEnum):
     """Статус обнаружения."""
 
     AMBUSH = "AMBUSH"
     DETECTED = "DETECTED"
 
 
-class EnemyPreviewDTO(BaseModel):
+class EnemyPreviewDTO(ExplorationJsonDTO):
     """
     Превью врага в энкаунтере (зависит от Bestiary).
     """
@@ -183,7 +209,7 @@ class EnemyPreviewDTO(BaseModel):
     image: str | None = None
 
 
-class EncounterOptionDTO(BaseModel):
+class EncounterOptionDTO(ExplorationJsonDTO):
     """
     Вариант действия в энкаунтере.
     """
@@ -193,7 +219,7 @@ class EncounterOptionDTO(BaseModel):
     style: str = "primary"  # Стиль кнопки
 
 
-class EncounterDTO(BaseModel):
+class EncounterDTO(ExplorationJsonDTO):
     """
     Данные события (Энкаунтера).
     """
@@ -207,11 +233,11 @@ class EncounterDTO(BaseModel):
     image: str | None = None
 
     # Content
-    enemies: list[EnemyPreviewDTO] = []
+    enemies: list[EnemyPreviewDTO] = Field(default_factory=list)
     info_level: int = 0  # Уровень знаний (Bestiary)
 
-    options: list[EncounterOptionDTO]
+    options: list[EncounterOptionDTO] = Field(default_factory=list)
 
     # Technical Data
     session_id: str | None = None  # ID боевой сессии (если бой)
-    metadata: dict[str, Any] = {}
+    metadata: dict[str, Any] = Field(default_factory=dict)

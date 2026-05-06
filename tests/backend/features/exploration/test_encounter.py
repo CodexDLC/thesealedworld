@@ -1,8 +1,11 @@
 # tests/backend/features/exploration/test_encounter.py
-import pytest
 from unittest.mock import AsyncMock, MagicMock
+
+import pytest
+
 from src.backend.features.exploration.runtime.encounter import EncounterEngine
-from src.shared.schemas.exploration import EncounterType, DetectionStatus
+from src.shared.schemas.exploration import DetectionStatus, EncounterType
+
 
 @pytest.mark.asyncio
 async def test_encounter_safe_zone():
@@ -22,10 +25,10 @@ async def test_encounter_safe_zone():
 async def test_encounter_city_shield_threat_zero_is_safe_even_with_stale_flag():
     engine = EncounterEngine()
     location_data = {
+        "anchor_influence": {"is_inside_city_shield": True},
         "flags": {
             "is_safe_zone": False,
             "threat_tier": 0,
-            "anchor_influence": {"is_inside_city_shield": True},
         }
     }
 
@@ -53,9 +56,7 @@ async def test_encounter_combat_generation():
 
     # Force combat chance to succeed, others to fail
     def side_effect(percent):
-        if percent > 0.1: # CHANCE_COMBAT_BASE is 0.45
-            return True
-        return False
+        return percent > 0.1  # CHANCE_COMBAT_BASE is 0.45
 
     ChanceService.check_chance = MagicMock(side_effect=side_effect)
 

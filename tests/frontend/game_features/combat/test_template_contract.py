@@ -46,11 +46,12 @@ def test_combat_sidebars_use_combat_panels():
     assert "ds-panel" not in right
 
 
-def test_combat_css_contains_texture_surfaces_and_forced_layout():
+def test_combat_css_contains_texture_surfaces_without_shell_overrides():
     source = Path("src/frontend/static/css/pages/game/combat.css").read_text()
 
-    assert ".game-top-row.combat-layout" in source
-    assert "grid-template-columns: var(--side-panel-width) minmax(520px, 1fr) var(--side-panel-width)" in source
+    assert ".game-top-row.combat-layout" not in source
+    assert ".col-left" not in source
+    assert ".col-right" not in source
     assert ".combat-stage" in source
     assert ".combat-command-deck" in source
     assert ".combat-result-modal" in source

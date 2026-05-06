@@ -2,7 +2,7 @@
 {% set status_mode = left_cfg.get('status', 'normal') if left_cfg else 'normal' %}
 {% set distortion = left_cfg.get('distortion', 'none') if left_cfg else 'none' %}
 
-<div class="scenario-status-panel scenario-status-panel--{{ status_mode }} {{ 'scenario-status-panel--glitch' if distortion == 'glitch' else '' }}">
+<div class="scenario-status-panel status-sidebar-surface scenario-status-panel--{{ status_mode }} {{ 'scenario-status-panel--glitch' if distortion == 'glitch' else '' }}">
     {% if character_status and character_status.panel %}
         {% set panel = character_status.panel %}
         {% include "game/components/panel/main.html" %}

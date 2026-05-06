@@ -4,10 +4,12 @@
     --center-content-max: 1040px;
     align-items: stretch;
     gap: 8px;
+    min-width: 0;
 }
 
 #arena-poll-region {
     width: min(100%, var(--center-content-max, 1040px));
+    min-width: 0;
     margin-inline: auto;
     display: grid;
     gap: 8px;
@@ -20,6 +22,7 @@
 .arena-lobby {
     --arena-header-art: url("/static/images/game/arena/backgrounds/arena-main-hub.webp");
     width: 100%;
+    min-width: 0;
     display: grid;
     gap: 12px;
     padding: 18px;
@@ -202,6 +205,7 @@
     --arena-mode-icon: url("/static/images/ui/arena-icons/sword-clash.svg");
     --arena-mode-background: url("/static/images/game/arena/backgrounds/duel-hall.webp");
     min-height: 188px;
+    min-width: 0;
     display: grid;
     grid-template-rows: auto auto minmax(0, 1fr) auto;
     gap: 10px;
@@ -354,6 +358,7 @@
 .arena-mode-stage,
 .arena-search-stage {
     width: 100%;
+    min-width: 0;
     display: grid;
     gap: 14px;
     min-height: 360px;
@@ -454,6 +459,7 @@
     display: grid;
     gap: 10px;
     width: min(100%, 680px);
+    min-width: 0;
     margin: 0 auto;
 }
 
@@ -483,6 +489,7 @@
     grid-template-columns: minmax(0, 1fr) minmax(240px, .82fr);
     gap: 10px;
     width: 100%;
+    min-width: 0;
 }
 
 .arena-group-column {
@@ -492,6 +499,7 @@
 
 .arena-plan-card {
     min-height: 104px;
+    min-width: 0;
     display: grid;
     grid-template-rows: auto auto minmax(0, 1fr) auto;
     gap: 7px;
@@ -577,6 +585,7 @@
 
 .arena-queue-card {
     min-height: 58px;
+    min-width: 0;
     display: grid;
     grid-template-columns: minmax(0, 1fr) 52px;
     grid-template-areas:
@@ -750,6 +759,7 @@
 
 .arena-live-battles {
     width: 100%;
+    min-width: 0;
     display: grid;
     gap: 10px;
     padding: 14px 18px 18px;
@@ -770,6 +780,7 @@
 
 .arena-section-header {
     display: flex;
+    flex-wrap: wrap;
     justify-content: space-between;
     gap: 12px;
     align-items: center;
@@ -876,6 +887,7 @@
 
 .arena-group-tab {
     min-height: 42px;
+    min-width: 0;
     display: grid;
     align-content: center;
     gap: 2px;
@@ -1287,6 +1299,10 @@
         padding: 12px;
     }
 
+    .arena-screen {
+        --center-content-max: 100%;
+    }
+
     .arena-lobby-head {
         grid-template-columns: 1fr;
     }
@@ -1354,5 +1370,31 @@
 
     .arena-countdown-value {
         font-size: 48px;
+    }
+}
+
+@media (max-width: 500px) {
+    .arena-lobby,
+    .arena-mode-stage,
+    .arena-search-stage,
+    .arena-live-battles {
+        padding: 10px;
+        clip-path: var(--clip-node-sm);
+    }
+
+    .arena-card-meta,
+    .arena-search-limit {
+        flex-wrap: wrap;
+    }
+
+    .arena-mode-card {
+        padding: 14px;
+    }
+
+    .arena-battle-action,
+    .arena-small-action,
+    .arena-service-exit {
+        width: 100%;
+        min-width: 0;
     }
 }

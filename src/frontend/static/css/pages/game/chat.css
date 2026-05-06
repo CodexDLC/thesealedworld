@@ -1,9 +1,21 @@
 /* Chat & Terminal Components (Right Sidebar) */
 
+#game-chat-shell {
+    bottom: calc(var(--game-footer-height, 24px) + 8px);
+    z-index: 180;
+    z-index: calc(var(--game-panel-z, 200) - 20);
+    padding: 0 clamp(8px, 2vw, 16px);
+}
+
+.game-chat-row {
+    max-height: calc(100dvh - var(--game-header-height, 40px) - var(--game-footer-height, 24px) - 32px);
+}
+
 .chat-panel {
     display: flex;
     flex-direction: column;
     height: 100%;
+    min-height: 0;
     background: rgba(5, 5, 5, 0.95) !important;
     position: relative;
 }
@@ -168,11 +180,13 @@
 .chat-main-area {
     flex: 1;
     display: flex;
+    min-height: 0;
     overflow: hidden;
 }
 
 .chat-log {
     flex: 1;
+    min-width: 0;
     padding: var(--sp-4);
     overflow-y: auto;
     display: flex;
@@ -182,6 +196,7 @@
 
 .chat-users {
     width: 250px;
+    min-width: 180px;
     border-left: 1px solid rgba(255,170,0,0.1);
     background: rgba(0,0,0,0.2);
     display: flex;
@@ -253,6 +268,7 @@
     display: flex;
     align-items: center;
     gap: 10px;
+    min-width: 0;
 }
 
 #chat-prompt {
@@ -263,12 +279,72 @@
 
 #chat-input {
     flex: 1;
+    min-width: 0;
     background: transparent;
     border: none;
     color: var(--col-parchment);
     font-size: 12px;
     padding: 8px 0;
     font-family: var(--font-mono);
+}
+
+@media (max-width: 1024px) {
+    #game-chat-shell {
+        bottom: calc(var(--game-footer-height, 24px) + 6px);
+        z-index: calc(var(--game-panel-z, 200) - 20);
+    }
+
+    .game-chat-row {
+        width: min(100%, calc(100vw - 16px));
+        max-height: calc(100dvh - var(--game-header-height, 40px) - var(--game-footer-height, 24px) - 24px);
+    }
+
+    .chat-users {
+        width: 190px;
+        min-width: 160px;
+    }
+}
+
+@media (max-width: 768px) {
+    #game-chat-shell {
+        bottom: calc(var(--game-footer-height, 28px) + 4px);
+        padding: 0 6px;
+    }
+
+    .game-chat-row {
+        width: 100%;
+        max-height: calc(100dvh - var(--game-header-height, 72px) - var(--game-footer-height, 28px) - 16px);
+    }
+
+    .chat-users {
+        display: none;
+    }
+
+    .chat-log {
+        padding: var(--sp-3);
+    }
+}
+
+@media (max-width: 500px) {
+    .game-chat-row {
+        max-height: min(46vh, calc(100dvh - var(--game-header-height, 72px) - var(--game-footer-height, 28px) - 12px));
+    }
+
+    .chat-tabs {
+        gap: 8px;
+        padding-inline: var(--sp-2);
+    }
+
+    .chat-tab-group {
+        min-width: 0;
+        gap: 10px;
+        overflow-x: auto;
+        scrollbar-width: none;
+    }
+
+    .chat-tab-group::-webkit-scrollbar {
+        display: none;
+    }
 }
 
 #chat-input:focus {

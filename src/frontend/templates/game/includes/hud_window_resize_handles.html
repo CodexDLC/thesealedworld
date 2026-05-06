@@ -1,0 +1,18 @@
+<div class="hud-window-resize-handles" aria-hidden="true">
+    <span class="hud-window-resize-handle hud-window-resize-handle--n"
+          @pointerdown.prevent.stop="startHudWindowResize('inventory', 'n', $event, $el.closest('.hud-window'))"></span>
+    <span class="hud-window-resize-handle hud-window-resize-handle--e"
+          @pointerdown.prevent.stop="startHudWindowResize('inventory', 'e', $event, $el.closest('.hud-window'))"></span>
+    <span class="hud-window-resize-handle hud-window-resize-handle--s"
+          @pointerdown.prevent.stop="startHudWindowResize('inventory', 's', $event, $el.closest('.hud-window'))"></span>
+    <span class="hud-window-resize-handle hud-window-resize-handle--w"
+          @pointerdown.prevent.stop="startHudWindowResize('inventory', 'w', $event, $el.closest('.hud-window'))"></span>
+    <span class="hud-window-resize-handle hud-window-resize-handle--ne"
+          @pointerdown.prevent.stop="startHudWindowResize('inventory', 'ne', $event, $el.closest('.hud-window'))"></span>
+    <span class="hud-window-resize-handle hud-window-resize-handle--se"
+          @pointerdown.prevent.stop="startHudWindowResize('inventory', 'se', $event, $el.closest('.hud-window'))"></span>
+    <span class="hud-window-resize-handle hud-window-resize-handle--sw"
+          @pointerdown.prevent.stop="startHudWindowResize('inventory', 'sw', $event, $el.closest('.hud-window'))"></span>
+    <span class="hud-window-resize-handle hud-window-resize-handle--nw"
+          @pointerdown.prevent.stop="startHudWindowResize('inventory', 'nw', $event, $el.closest('.hud-window'))"></span>
+</div>

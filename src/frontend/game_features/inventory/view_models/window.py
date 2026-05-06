@@ -156,65 +156,9 @@ def build_inventory_window_vm(status_seed: dict[str, Any] | None = None) -> Inve
             InventoryTabVM(tab_id="resources", label="Resources", icon="R"),
             InventoryTabVM(tab_id="quest", label="Quest", icon="Q"),
         ],
-        visible_rows=_placeholder_rows(),
+        visible_rows=[],
     )
 
 
 def _slot(slot_id: str, label: str, layer: SlotLayer) -> InventorySlotVM:
     return InventorySlotVM(slot_id=slot_id, label=label, layer=layer, compare_slot_id=slot_id)
-
-
-def _placeholder_rows() -> list[InventoryRowVM]:
-    return [
-        InventoryRowVM(
-            row_id="placeholder-bracers",
-            icon="A",
-            name="Leather Bracers",
-            item_type="Armor",
-            weight="1.2",
-            quantity="1",
-            rarity="common",
-            equip_target="arms_armor",
-            comparison=["Armor -2", "Evasion +4%", "Weight -1.8"],
-        ),
-        InventoryRowVM(
-            row_id="placeholder-shirt",
-            icon="C",
-            name="Linen Shirt",
-            item_type="Clothing",
-            weight="0.4",
-            quantity="1",
-            rarity="common",
-            equip_target="chest_garment",
-            comparison=["Heat resist +5", "Comfort +3"],
-        ),
-        InventoryRowVM(
-            row_id="placeholder-boots",
-            icon="B",
-            name="Trail Boots",
-            item_type="Footwear",
-            weight="0.8",
-            quantity="1",
-            rarity="common",
-            equip_target="feetwear",
-            comparison=["Traversal +8", "Comfort +5", "Slip -3"],
-        ),
-        InventoryRowVM(
-            row_id="placeholder-ore",
-            icon="R",
-            name="Iron Ore",
-            item_type="Resource",
-            weight="-",
-            quantity="18",
-            rarity="-",
-        ),
-        InventoryRowVM(
-            row_id="placeholder-token",
-            icon="Q",
-            name="Lost Token",
-            item_type="Quest",
-            weight="-",
-            quantity="1",
-            rarity="-",
-        ),
-    ]

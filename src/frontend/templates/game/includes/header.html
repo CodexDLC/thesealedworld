@@ -1,7 +1,9 @@
     <div class="header-left">
-        <div class="game-logo">SYMB_MMO <span class="v-tag">v0.1.0</span></div>
+        <div class="game-brand" aria-label="SYMB MMO">
+            <div class="game-logo">SYMB_MMO <span class="v-tag">v0.1.0</span></div>
+        </div>
         {% if world_resonance %}
-        <div class="resonance-tag" style="font-family: var(--font-ui); font-size: 8px; color: var(--col-accent); letter-spacing: 0.15em; font-weight: 800; opacity: 0.6; margin-left: 10px; border-left: 1px solid rgba(255,170,0,0.2); padding-left: 10px;">
+        <div class="resonance-tag">
             WORLD_RESONANCE // {{ world_resonance }}
         </div>
         {% endif %}
@@ -12,23 +14,41 @@
     </div>
 
     <div class="header-right">
-        {% if domain == 'combats' %}
-        <div class="game-exit-link is-disabled" aria-disabled="true">
-            <span>EXIT</span>
-            <small>LOCKED</small>
-        </div>
-        {% else %}
-        <a class="game-exit-link" href="/game-lobby" data-session-cleanup="pending" aria-label="Exit to game lobby">
-            <span>EXIT</span>
-            <small>LOBBY</small>
-        </a>
-        {% endif %}
-        <div class="server-status">
-            <span class="status-label">SERVER:</span>
-            <span class="status-value">ONLINE</span>
-        </div>
-        <div class="connection-stats">
-            <div class="status-dot pulse"></div>
-            <span class="ping-val">24ms</span>
+        <div class="game-account" x-data="{ open: false }" @keydown.escape="open = false" @click.outside="open = false">
+            <button type="button"
+                    class="game-account-button"
+                    @click="open = !open"
+                    :aria-expanded="open.toString()"
+                    aria-haspopup="menu"
+                    aria-label="Open account and session menu">
+                <span class="game-account-glyph" aria-hidden="true">U</span>
+            </button>
+            <div class="game-account-menu"
+                 x-show="open"
+                 x-cloak
+                 x-transition:enter.duration.150ms
+                 x-transition:leave.duration.100ms
+                 role="menu">
+                <a class="game-account-item" href="/cabinet" role="menuitem">Cabinet</a>
+                {% if domain == 'combats' %}
+                <div class="game-account-item is-disabled" aria-disabled="true" role="menuitem">
+                    <span>Lobby</span>
+                    <small>LOCKED</small>
+                </div>
+                {% else %}
+                <a class="game-exit-link"
+                   href="/game-lobby"
+                   data-session-cleanup="pending"
+                   role="menuitem"
+                   aria-label="Exit to game lobby">
+                    <span>Lobby</span>
+                    <small>EXIT</small>
+                </a>
+                {% endif %}
+                <div class="game-account-item is-disabled" aria-disabled="true" role="menuitem">
+                    <span>Settings</span>
+                    <small>SOON</small>
+                </div>
+            </div>
         </div>
     </div>

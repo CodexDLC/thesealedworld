@@ -3,7 +3,7 @@
 {% set arena_gear = arena.gs if arena is defined and arena and arena.gs is not none else 'NO_DATA' %}
 {% set arena_rank = arena.metadata.get('rank', arena.metadata.get('tier', 'NO_DATA')) if arena is defined and arena and arena.metadata else 'NO_DATA' %}
 
-<div class="ds-panel arena-view-panel">
+<div class="ds-panel arena-view-panel status-sidebar-surface">
     <div class="ds-panel-header">
         <span>ARENA_VIEW</span>
     </div>

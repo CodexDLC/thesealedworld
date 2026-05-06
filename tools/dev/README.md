@@ -47,6 +47,13 @@ To keep loaded scenario content and only clear character/world/runtime game data
 python tools/dev/reset_game_db.py --keep-scenario-content --yes
 ```
 
+To keep loaded scenario and world content while clearing characters, monsters, item instances,
+inventory, and other runtime game data:
+
+```powershell
+python tools/dev/reset_game_db.py --keep-scenario-content --keep-world-content --yes
+```
+
 ## Graphify Wiki
 
 ```powershell

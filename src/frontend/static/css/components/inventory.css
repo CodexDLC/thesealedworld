@@ -80,7 +80,9 @@
 
 /* Runtime inventory window */
 .hud-window.inventory-window {
-  width: min(760px, calc(100vw - 32px));
+  width: min(940px, calc(100vw - 32px));
+  height: min(720px, calc(100vh - 88px));
+  max-height: calc(100vh - 88px);
 }
 
 .inventory-window .hud-window-body {
@@ -98,7 +100,7 @@
 
 .inventory-loadout {
   display: grid;
-  grid-template-columns: minmax(360px, 1fr) minmax(132px, 168px);
+  grid-template-columns: minmax(460px, 1fr) minmax(148px, 184px);
   gap: var(--sp-3);
   min-width: 0;
 }
@@ -112,7 +114,9 @@
   min-height: 240px;
   padding: var(--sp-3);
   border: 1px solid rgba(255, 170, 0, .14);
-  background: rgba(0, 0, 0, .22);
+  background:
+    linear-gradient(180deg, rgba(8, 7, 5, .9), rgba(10, 8, 7, .96)),
+    url("/static/images/ui/textures/inventory/fabric_leather_02_diff_1k.jpg") center / 300px repeat;
   clip-path: var(--clip-node-md);
 }
 
@@ -124,7 +128,9 @@
   justify-content: center;
   min-width: 0;
   border: 1px solid rgba(255, 170, 0, .12);
-  background: radial-gradient(circle at center, rgba(255, 170, 0, .08), rgba(0, 0, 0, .12) 54%, rgba(0, 0, 0, .34));
+  background:
+    radial-gradient(circle at center, rgba(255, 170, 0, .1), rgba(0, 0, 0, .2) 54%, rgba(0, 0, 0, .64)),
+    url("/static/images/ui/textures/inventory/fabric_leather_02_diff_1k.jpg") center / 260px repeat;
   clip-path: var(--clip-node-md);
 }
 
@@ -142,7 +148,9 @@
 .inventory-row {
   position: relative;
   border: 1px solid rgba(255, 170, 0, .16);
-  background: rgba(255, 255, 255, .018);
+  background:
+    linear-gradient(180deg, rgba(54, 38, 21, .7), rgba(13, 10, 8, .92)),
+    url("/static/images/ui/textures/inventory/fabric_leather_01_diff_1k.jpg") center / 160px repeat;
   color: var(--col-text-secondary);
   font-family: var(--font-ui);
   cursor: pointer;
@@ -165,7 +173,9 @@
 .inventory-tab:hover,
 .inventory-row:hover {
   border-color: rgba(255, 170, 0, .38);
-  background: rgba(255, 170, 0, .07);
+  background:
+    linear-gradient(180deg, rgba(84, 56, 24, .84), rgba(19, 12, 8, .94)),
+    url("/static/images/ui/textures/inventory/fabric_leather_01_diff_1k.jpg") center / 160px repeat;
 }
 
 .inventory-equip-zone--head { grid-column: 1; grid-row: 1; }
@@ -241,7 +251,9 @@
   min-width: 0;
   padding: var(--sp-3);
   border: 1px solid rgba(255, 170, 0, .14);
-  background: rgba(0, 0, 0, .22);
+  background:
+    linear-gradient(180deg, rgba(8, 7, 5, .9), rgba(10, 8, 7, .96)),
+    url("/static/images/ui/textures/inventory/fabric_leather_02_diff_1k.jpg") center / 300px repeat;
   clip-path: var(--clip-node-md);
 }
 
@@ -288,7 +300,9 @@
   gap: var(--sp-3);
   padding: var(--sp-2) var(--sp-3);
   border: 1px solid rgba(255, 170, 0, .12);
-  background: rgba(0, 0, 0, .18);
+  background:
+    linear-gradient(180deg, rgba(13, 10, 8, .92), rgba(5, 5, 5, .98)),
+    url("/static/images/ui/textures/inventory/fabric_leather_02_diff_1k.jpg") center / 320px repeat;
   clip-path: var(--clip-node-sm);
 }
 
@@ -314,8 +328,11 @@
   display: flex;
   flex-direction: column;
   min-height: 236px;
+  flex: 1 1 auto;
   border: 1px solid rgba(255, 170, 0, .14);
-  background: rgba(0, 0, 0, .22);
+  background:
+    linear-gradient(180deg, rgba(8, 7, 5, .92), rgba(4, 4, 5, .98)),
+    url("/static/images/ui/textures/inventory/fabric_leather_02_diff_1k.jpg") center / 340px repeat;
   clip-path: var(--clip-node-md);
 }
 
@@ -355,7 +372,7 @@
   min-height: 28px;
   padding: 0 var(--sp-2);
   border: 1px solid rgba(255, 170, 0, .16);
-  background: rgba(0, 0, 0, .28);
+  background: rgba(0, 0, 0, .74);
   color: var(--col-text-world);
   font: inherit;
   font-size: var(--text-xs);
@@ -367,6 +384,9 @@
 }
 
 .inventory-table {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
   min-height: 0;
 }
 
@@ -384,7 +404,9 @@
 }
 
 .inventory-table-body {
-  max-height: 304px;
+  flex: 1 1 auto;
+  min-height: calc(5 * 32px + var(--sp-3));
+  max-height: none;
   overflow-y: auto;
   padding: var(--sp-1) var(--sp-2) var(--sp-2);
 }
@@ -415,6 +437,31 @@
   color: var(--col-accent);
 }
 
+.inventory-empty-state {
+  display: flex;
+  min-height: calc(5 * 32px);
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-1);
+  border: 1px dashed rgba(255, 170, 0, .16);
+  background: rgba(0, 0, 0, .36);
+  color: var(--col-accent);
+  font-size: var(--text-2xs);
+  letter-spacing: .14em;
+  text-transform: uppercase;
+}
+
+.inventory-empty-state small {
+  max-width: 280px;
+  color: var(--col-text-dim);
+  font-size: var(--text-2xs);
+  letter-spacing: 0;
+  line-height: 1.45;
+  text-align: center;
+  text-transform: none;
+}
+
 .sr-only {
   position: absolute;
   width: 1px;
@@ -429,6 +476,7 @@
 @media (max-width: 720px) {
   .hud-window.inventory-window {
     width: calc(100vw - 20px);
+    height: min(86vh, 620px);
   }
 
   .inventory-loadout {

@@ -1,121 +1,10 @@
-/* ── GAME HEADER ── */
-.game-header {
-    height: 50px;
-    display: flex;
-    align-items: stretch;
-    background: rgba(4, 4, 6, 0.95);
-    border-bottom: 2px solid rgba(255, 170, 0, 0.15);
-    backdrop-filter: blur(10px);
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.6);
-}
-
-/* ── CENTER NAV (Now integrated into Header) ── */
-.center-nav {
-    display: flex;
-    align-items: stretch;
-    height: 100%;
-    background: transparent;
-    gap: 0;
-}
-
-.cnav-btn {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 2px;
-    padding: 0 20px;
-    height: 100%;
-    font-family: var(--font-ui);
-    font-size: 8px;
-    letter-spacing: 0.12em;
-    color: rgba(255, 190, 64, 0.58);
-    background: rgba(255, 170, 0, 0.018);
-    border: none;
-    border-left: 1px solid rgba(255, 170, 0, 0.11);
-    cursor: pointer;
-    position: relative;
-    transition: all 0.2s;
-    user-select: none;
-    text-shadow: 0 0 8px rgba(255, 170, 0, 0.18);
-}
-
-.cnav-btn:last-child {
-    border-right: 1px solid rgba(255, 170, 0, 0.11);
-}
-
-.game-menu-icon {
-    display: block;
-    width: 18px !important;
-    height: 18px !important;
-    opacity: 0.7;
-    transition: opacity 0.2s, filter 0.2s;
-    background: currentColor;
-    mask: var(--game-menu-icon-url) center / contain no-repeat;
-    -webkit-mask: var(--game-menu-icon-url) center / contain no-repeat;
-    filter: drop-shadow(0 0 5px rgba(255, 170, 0, 0.18));
-}
-
-.cnav-btn:hover {
-    background: rgba(255, 170, 0, 0.06);
-    color: rgba(255, 198, 86, 0.88);
-}
-
-.cnav-btn:hover .game-menu-icon {
-    opacity: 0.92;
-}
-
-.cnav-btn.active {
-    color: var(--col-accent);
-    background: rgba(255, 170, 0, 0.07);
-}
-
-.cnav-btn.active .game-menu-icon {
-    opacity: 1;
-}
-
-.cnav-btn.is-disabled {
-    color: rgba(255, 170, 0, 0.18);
-    background: rgba(255, 170, 0, 0.01);
-    cursor: default;
-    pointer-events: none;
-    text-shadow: none;
-}
-
-.cnav-btn.is-disabled .game-menu-icon {
-    opacity: 0;
-    filter: none;
-}
-
-.game-menu-icon--empty {
-    mask: none;
-    -webkit-mask: none;
-    background: transparent;
-}
-
-/* gold underline on active tab */
-.cnav-btn.active::after {
-    content: '';
-    position: absolute;
-    bottom: 0;
-    left: 10%;
-    width: 80%;
-    height: 2px;
-    background: var(--col-accent);
-    box-shadow: 0 0 8px rgba(255, 170, 0, 0.6);
-}
-
-/* center (exploration) tab slightly larger */
-.cnav-btn--explore {
-    flex: 1.3;
-}
-
 /* ── FIELD PANEL (right col — inventory + character doll) ── */
 .field-panel {
     display: flex;
     flex-direction: column;
     height: 100%;
     overflow: hidden;
+    min-width: 0;
 }
 
 /* --- Character Doll --- */
@@ -127,10 +16,11 @@
 
 .doll-wrap {
     display: grid;
-    grid-template-columns: 44px 1fr 44px;
+    grid-template-columns: minmax(36px, 44px) minmax(84px, 1fr) minmax(36px, 44px);
     grid-template-rows: repeat(4, 44px);
     gap: var(--sp-1);
     align-items: center;
+    min-width: 0;
 }
 
 /* Silhouette placeholder in center column spanning all rows */
@@ -203,6 +93,7 @@
 
 .inv-tabs {
     display: flex;
+    flex-wrap: wrap;
     gap: var(--sp-1);
     margin-bottom: var(--sp-2);
     border-bottom: 1px solid rgba(255, 170, 0, 0.1);
@@ -279,4 +170,28 @@
     font-size: var(--text-2xs);
     color: rgba(255, 170, 0, 0.4);
     letter-spacing: 0.06em;
+}
+
+@media (max-width: 500px) {
+    .doll-section {
+        padding: var(--sp-2);
+    }
+
+    .doll-wrap {
+        grid-template-columns: 36px minmax(70px, 1fr) 36px;
+        grid-template-rows: repeat(4, 38px);
+    }
+
+    .eq-slot {
+        width: 34px;
+        height: 34px;
+    }
+
+    .doll-silhouette {
+        height: 76px;
+    }
+
+    .inv-section {
+        padding-inline: var(--sp-2);
+    }
 }

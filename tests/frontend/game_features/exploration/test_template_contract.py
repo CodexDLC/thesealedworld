@@ -163,6 +163,7 @@ def test_game_shell_has_inventory_hud_window_placeholder():
     assert "windows.inventory.open" in template
     assert "windows.inventory.dragging" in template
     assert "hud-window-drag-handle" in template
+    assert "hud_window_resize_handles.html" in template
     assert "startHudWindowDrag('inventory'" in template
     assert 'game/components/inventory/window.html' in template
 
@@ -193,7 +194,8 @@ def test_inventory_window_template_renders_contract_view_model():
     assert 'data-slot-id="chest_armor"' in html
     assert 'data-slot-id="chest_garment"' not in html
     assert 'data-slot-id="belt_accessory"' in html
-    assert "Leather Bracers" in html
+    assert "NO_RUNTIME_ITEMS" in html
+    assert "Leather Bracers" not in html
 
 
 def test_inventory_css_has_loadout_container_and_table_contract():
@@ -205,7 +207,8 @@ def test_inventory_css_has_loadout_container_and_table_contract():
     assert ".inventory-accessory-row--split" in source
     assert ".inventory-belt-slots" in source
     assert ".inventory-table-body" in source
-    assert "max-height: 304px" in source
+    assert "flex: 1 1 auto" in source
+    assert "fabric_leather_02_diff_1k.jpg" in source
 
 
 def test_game_shell_drag_logic_lives_in_source_js():
@@ -216,6 +219,8 @@ def test_game_shell_drag_logic_lives_in_source_js():
     assert "this.leftOpen && this.leftPanelView === nextView" in source
     assert "this.rightOpen && this.rightPanelView === nextView" in source
     assert "startHudWindowDrag" in source
+    assert "startHudWindowResize" in source
+    assert "resizeHudWindow" in source
     assert "moveHudWindow" in source
     assert "core/game_shell.js" in config
 

@@ -1,0 +1,317 @@
+/* ── GAME SHELL RESPONSIVE CONTRACT ── */
+/*
+ * This file is the shared responsive layer for the game shell.
+ * Domain CSS should tune content inside these containers, not redefine panel,
+ * header, footer, or drawer behavior.
+ */
+
+#app-viewport {
+    --side-panel-width: 340px;
+    --side-panel-width-compact: 300px;
+    --center-content-max: 920px;
+    --game-header-height: 40px;
+    --game-footer-height: 24px;
+    --game-drawer-width: min(340px, calc(100vw - 20px));
+    --game-ui-scale: 1;
+    --game-panel-z: 200;
+    --game-overlay-z: 240;
+}
+
+#app-viewport .shell-constrained {
+    --side-panel-width: inherit;
+    --side-panel-width-compact: inherit;
+    --center-content-max: inherit;
+    --game-header-height: inherit;
+    --game-footer-height: inherit;
+    --game-drawer-width: inherit;
+    --game-ui-scale: inherit;
+    --game-panel-z: inherit;
+    --game-overlay-z: inherit;
+}
+
+.game-header {
+    height: var(--game-header-height);
+    min-height: var(--game-header-height);
+}
+
+.game-footer {
+    height: var(--game-footer-height);
+    min-height: var(--game-footer-height);
+}
+
+.col-left,
+.col-right {
+    width: 0;
+    max-width: var(--side-panel-width);
+}
+
+.left-open .col-left,
+.right-open .col-right {
+    width: var(--side-panel-width);
+}
+
+.col-left,
+.col-center,
+.col-right {
+    scrollbar-width: thin;
+    overscroll-behavior: contain;
+}
+
+.col-left > *,
+.col-right > * {
+    min-width: 0;
+}
+
+.game-top-row {
+    grid-template-columns: 0 minmax(0, 1fr) 0;
+}
+
+.game-top-row.left-open {
+    grid-template-columns: var(--side-panel-width) minmax(0, 1fr) 0;
+}
+
+.game-top-row.right-open {
+    grid-template-columns: 0 minmax(0, 1fr) var(--side-panel-width);
+}
+
+.game-top-row.left-open.right-open {
+    grid-template-columns: var(--side-panel-width) minmax(0, 1fr) var(--side-panel-width);
+}
+
+/* 1440-1599px: preserve desktop behavior but reduce side pressure. */
+@media (max-width: 1599px) {
+    #app-viewport {
+        --side-panel-width: 320px;
+        --side-panel-width-compact: 300px;
+        --center-content-max: 880px;
+    }
+
+    .shell-constrained {
+        max-width: 1440px;
+    }
+}
+
+/* 1280-1439px: right panel becomes an overlay drawer; left may remain persistent. */
+@media (max-width: 1439px) {
+    #app-viewport {
+        --side-panel-width: 300px;
+        --side-panel-width-compact: 280px;
+        --center-content-max: 820px;
+        --game-ui-scale: .97;
+        --game-drawer-width: min(340px, calc(100vw - 24px));
+    }
+
+    .shell-constrained {
+        max-width: 1280px;
+    }
+
+    .game-top-row.right-open,
+    .game-top-row.left-open.right-open {
+        grid-template-columns: var(--side-panel-width) minmax(0, 1fr) 0;
+    }
+
+    .game-top-row:not(.left-open).right-open {
+        grid-template-columns: 0 minmax(0, 1fr) 0;
+    }
+
+    .col-right {
+        position: fixed;
+        top: var(--game-header-height);
+        right: 0;
+        bottom: var(--game-footer-height);
+        width: var(--game-drawer-width) !important;
+        max-width: var(--game-drawer-width);
+        display: block;
+        z-index: var(--game-panel-z);
+        transform: translateX(100%);
+        transition: transform .28s cubic-bezier(.4, 0, .2, 1);
+    }
+
+    .col-right.panel-open {
+        transform: translateX(0);
+    }
+}
+
+/* 1025-1279px: compact desktop/tablet, left panel remains possible but narrower. */
+@media (max-width: 1279px) {
+    #app-viewport {
+        --side-panel-width: 280px;
+        --side-panel-width-compact: 260px;
+        --center-content-max: 760px;
+        --game-ui-scale: .94;
+        --game-drawer-width: min(330px, calc(100vw - 20px));
+    }
+
+    .shell-constrained {
+        max-width: 1024px;
+    }
+}
+
+/* 769-1024px: both panels use drawer mechanics so content keeps priority. */
+@media (max-width: 1024px) {
+    #app-viewport {
+        --side-panel-width: 300px;
+        --game-drawer-width: min(330px, calc(100vw - 20px));
+    }
+
+    .game-top-row,
+    .game-top-row.left-open,
+    .game-top-row.right-open,
+    .game-top-row.left-open.right-open {
+        grid-template-columns: minmax(0, 1fr) !important;
+    }
+
+    .col-left,
+    .col-right {
+        position: fixed;
+        top: var(--game-header-height);
+        bottom: var(--game-footer-height);
+        width: var(--game-drawer-width) !important;
+        max-width: var(--game-drawer-width);
+        display: block !important;
+        z-index: var(--game-panel-z);
+        background: var(--world-glass, rgba(8, 8, 10, .96));
+        transition: transform .28s cubic-bezier(.4, 0, .2, 1);
+    }
+
+    .col-left {
+        left: 0;
+        transform: translateX(-100%);
+    }
+
+    .col-right {
+        right: 0;
+        transform: translateX(100%);
+    }
+
+    .col-left.panel-open,
+    .col-right.panel-open {
+        transform: translateX(0);
+    }
+
+    .col-center {
+        grid-column: 1;
+        min-width: 0;
+    }
+
+    .col-center-inner {
+        min-width: 0;
+    }
+}
+
+/* <=768px: mobile shell; header may grow to a two-row structure later. */
+@media (max-width: 768px) {
+    #app-viewport {
+        --game-header-height: 72px;
+        --game-footer-height: 28px;
+        --game-drawer-width: min(340px, calc(100vw - 16px));
+        --game-ui-scale: .9;
+    }
+
+    .game-header {
+        min-height: var(--game-header-height);
+        padding: 6px 12px;
+        grid-template-columns: minmax(0, 1fr) auto;
+        grid-template-rows: 30px 30px;
+        align-content: center;
+        gap: 4px 10px;
+    }
+
+    .header-left {
+        grid-column: 1;
+        grid-row: 1;
+        min-width: min(100%, 220px);
+    }
+
+    .header-center {
+        grid-column: 1 / -1;
+        grid-row: 2;
+        height: 30px;
+        justify-content: center;
+    }
+
+    .header-right {
+        grid-column: 2;
+        grid-row: 1;
+    }
+
+    .center-nav {
+        max-width: 100%;
+        overflow-x: auto;
+        overflow-y: hidden;
+        scrollbar-width: none;
+    }
+
+    .center-nav::-webkit-scrollbar {
+        display: none;
+    }
+
+    .cnav-btn {
+        min-width: 54px;
+        padding: 0 10px;
+    }
+
+    .cnav-btn span:not(.game-menu-icon) {
+        font-size: 7px;
+        white-space: nowrap;
+    }
+
+    .game-footer {
+        padding: 0 12px;
+        gap: 10px;
+    }
+
+    .footer-technical-status {
+        flex: 1 1 auto;
+        gap: 10px;
+    }
+
+    .footer-copyright {
+        display: none;
+    }
+
+    .footer-status-log {
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+}
+
+/* <=500px: narrow phone drawer and compact shell text. */
+@media (max-width: 500px) {
+    #app-viewport {
+        --game-drawer-width: calc(100vw - 12px);
+        --game-ui-scale: .86;
+    }
+
+    .game-logo {
+        font-size: 12px;
+        letter-spacing: .12em;
+    }
+
+    .resonance-tag {
+        display: none;
+    }
+
+    .v-tag {
+        display: none;
+    }
+
+    .cnav-btn {
+        min-width: 48px;
+        padding: 0 8px;
+    }
+
+    .game-footer {
+        font-size: 7px;
+    }
+
+    .footer-technical-status {
+        width: 100%;
+        justify-content: space-between;
+        gap: 8px;
+    }
+
+    .footer-status-log {
+        display: none;
+    }
+}

@@ -30,6 +30,7 @@ def test_occupied_lobby_slot_uses_default_avatar_when_backend_has_none():
                     name="CodeX",
                     avatar_url=None,
                     status="EXPLORATION",
+                    presence_status="online",
                 )
             ]
         ),
@@ -39,6 +40,8 @@ def test_occupied_lobby_slot_uses_default_avatar_when_backend_has_none():
     lobby = build_lobby_page_vm(response)
 
     assert lobby.slots[0].avatar_url == DEFAULT_CHARACTER_AVATAR_URL
+    assert lobby.slots[0].presence_label == "В сети"
+    assert lobby.slots[0].status == "Путешествие"
 
 
 def test_empty_lobby_slot_keeps_avatar_empty_for_portal_template_art():
@@ -52,6 +55,7 @@ def test_empty_lobby_slot_keeps_avatar_empty_for_portal_template_art():
 
     assert lobby.slots[0].is_empty is True
     assert lobby.slots[0].avatar_url is None
+    assert lobby.slots[0].presence_label == "Свободен"
 
 
 def test_lobby_template_uses_portal_art_for_empty_slots():
@@ -60,3 +64,4 @@ def test_lobby_template_uses_portal_art_for_empty_slots():
     )
 
     assert "/static/images/ui/lobby/threshold-portal.svg" in template
+    assert "Выберите слот для новой истории" in template

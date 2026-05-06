@@ -11,6 +11,9 @@ class LobbySlotVM(BaseModel):
     character_id: str | None = None
     name: str
     status: str
+    presence_status: str
+    presence_label: str
+    presence_class: str
     avatar_url: str | None = None
 
 
@@ -65,15 +68,30 @@ def _build_slot_vm(slot: LobbySlotPayload) -> LobbySlotVM:
         character_id=slot.character_id,
         name=slot.name or "Пустой слот",
         status="Свободен" if is_empty else _status_label(slot.status),
+        presence_status="offline" if is_empty else _presence_status(slot.presence_status),
+        presence_label="Свободен" if is_empty else _presence_label(slot.presence_status),
+        presence_class="free" if is_empty else _presence_status(slot.presence_status),
         avatar_url=avatar_url,
     )
 
 
 def _status_label(status: str) -> str:
+    normalized = status.strip().lower()
     labels = {
         "session_pending": "Синхронизация",
         "scenario": "Сценарий",
         "exploration": "Путешествие",
-        "LOBBY": "Лобби",
+        "combat": "Бой",
+        "arena": "Арена",
+        "lobby": "Лобби",
     }
-    return labels.get(status, status)
+    return labels.get(normalized, status)
+
+
+def _presence_status(status: str) -> str:
+    normalized = status.strip().lower()
+    return "online" if normalized == "online" else "offline"
+
+
+def _presence_label(status: str) -> str:
+    return "В сети" if _presence_status(status) == "online" else "Оффлайн"

@@ -176,6 +176,21 @@
         filter: drop-shadow(0 0 24px rgba(255, 170, 0, 0.18));
     }
 
+    .lobby-empty-prompt {
+        position: absolute;
+        left: 12%;
+        right: 12%;
+        bottom: 18%;
+        font-family: var(--font-ui);
+        font-size: clamp(10px, 1.4vw, 12px);
+        line-height: 1.45;
+        color: rgba(255, 210, 116, 0.64);
+        letter-spacing: 0.12em;
+        text-align: center;
+        text-transform: uppercase;
+        text-wrap: balance;
+    }
+
     .lobby-silhouette {
         position: absolute;
         inset: 0;
@@ -207,6 +222,63 @@
     .lobby-slot-name {
         color: var(--col-accent);
         overflow-wrap: anywhere;
+    }
+
+    .lobby-avatar-corner,
+    .lobby-presence {
+        position: absolute;
+        z-index: 2;
+        max-width: calc(100% - 24px);
+        font-family: var(--font-ui);
+        font-size: clamp(9px, 1.2vw, 11px);
+        line-height: 1.2;
+        color: var(--col-accent);
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        text-shadow: 0 1px 8px rgba(0, 0, 0, 0.9);
+        overflow-wrap: anywhere;
+    }
+
+    .lobby-avatar-corner--name {
+        left: var(--sp-3);
+        bottom: var(--sp-3);
+    }
+
+    .lobby-avatar-corner--status {
+        right: var(--sp-3);
+        bottom: var(--sp-3);
+        text-align: right;
+    }
+
+    .lobby-presence {
+        top: var(--sp-3);
+        right: var(--sp-3);
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        color: rgba(255, 210, 116, 0.76);
+    }
+
+    .lobby-presence::before {
+        content: "";
+        width: 7px;
+        height: 7px;
+        flex: 0 0 auto;
+        border-radius: 50%;
+        background: currentColor;
+        box-shadow: 0 0 12px currentColor;
+    }
+
+    .lobby-presence--online {
+        color: rgba(94, 255, 173, 0.88);
+    }
+
+    .lobby-presence--offline {
+        color: rgba(190, 180, 160, 0.68);
+    }
+
+    .lobby-presence--free {
+        color: rgba(255, 190, 64, 0.58);
     }
 
     .lobby-message {

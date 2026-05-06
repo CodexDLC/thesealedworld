@@ -20,6 +20,7 @@ class LobbySlotPayload(BaseModel):
     name: str | None = None
     avatar_url: str | None = None
     status: str = "VACANT"
+    presence_status: str = "offline"
 
 
 class GameLobbyPayload(BaseModel):

@@ -16,13 +16,21 @@
             <span class="lobby-empty-portal"
                   style="--lobby-empty-portal-url: url('/static/images/ui/lobby/threshold-portal.svg')"
                   aria-hidden="true"></span>
+            <span class="lobby-empty-prompt">Выберите слот для новой истории</span>
         {% endif %}
         {% if not slot.avatar_url and not slot.is_empty %}
             <div class="lobby-silhouette" aria-hidden="true"></div>
         {% endif %}
-    </div>
-    <div class="lobby-slot-meta">
-        <span class="lobby-slot-name">{{ slot.name }}</span>
-        <span>{{ slot.status }}</span>
+        <div class="lobby-avatar-corner lobby-avatar-corner--name">
+            {{ slot.name }}
+        </div>
+        <div class="lobby-avatar-corner lobby-avatar-corner--status">
+            {{ slot.status }}
+        </div>
+        {% if not slot.is_empty %}
+            <div class="lobby-presence lobby-presence--{{ slot.presence_class }}">
+                {{ slot.presence_label }}
+            </div>
+        {% endif %}
     </div>
 </article>

@@ -123,6 +123,11 @@
                     </span>
                     {% endif %}
                 </button>
+                {% else %}
+                <div class="inventory-empty-state">
+                    <span>NO_RUNTIME_ITEMS</span>
+                    <small>Inventory data is not connected to the character runtime yet</small>
+                </div>
                 {% endfor %}
             </div>
         </div>

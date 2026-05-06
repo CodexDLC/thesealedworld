@@ -24,6 +24,12 @@ SCENARIO_CONTENT_TABLES = {
     "scenario_nodes",
 }
 
+WORLD_CONTENT_TABLES = {
+    "world_grid",
+    "world_zones",
+    "world_regions",
+}
+
 GAME_TABLES = [
     "character_quest_state",
     "character_skill_progress",
@@ -62,13 +68,20 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Do not truncate scenario_master/scenario_nodes, only character scenario state.",
     )
+    parser.add_argument(
+        "--keep-world-content",
+        action="store_true",
+        help="Do not truncate world_grid/world_zones/world_regions.",
+    )
     return parser.parse_args()
 
 
-def build_table_list(*, keep_scenario_content: bool) -> list[str]:
+def build_table_list(*, keep_scenario_content: bool, keep_world_content: bool) -> list[str]:
     tables = list(GAME_TABLES)
     if keep_scenario_content:
         tables = [table for table in tables if table not in SCENARIO_CONTENT_TABLES]
+    if keep_world_content:
+        tables = [table for table in tables if table not in WORLD_CONTENT_TABLES]
     return tables
 
 
@@ -99,7 +112,10 @@ def print_plan(tables: list[str], *, will_execute: bool) -> None:
 
 async def main() -> int:
     args = parse_args()
-    tables = build_table_list(keep_scenario_content=args.keep_scenario_content)
+    tables = build_table_list(
+        keep_scenario_content=args.keep_scenario_content,
+        keep_world_content=args.keep_world_content,
+    )
     print_plan(tables, will_execute=args.yes)
 
     if not args.yes:

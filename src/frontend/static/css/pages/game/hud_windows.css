@@ -1,24 +1,51 @@
 /* ── FLOATING HUD WINDOWS ── */
 .hud-window {
     position: absolute;
-    z-index: 180;
+    z-index: 240;
+    z-index: var(--game-overlay-z, 240);
     width: min(420px, calc(100vw - 32px));
-    max-height: min(560px, calc(100vh - 120px));
+    min-width: min(320px, calc(100vw - 20px));
+    min-height: 320px;
+    max-height: min(560px, calc(100dvh - var(--game-header-height, 40px) - var(--game-footer-height, 24px) - 32px));
     display: flex;
     flex-direction: column;
-    background: color-mix(in srgb, var(--world-glass, rgba(10,10,12,.56)) 88%, transparent);
+    background: #080706;
     border: 1px solid var(--world-accent-border, rgba(255,170,0,.18));
     box-shadow: 0 18px 52px rgba(0,0,0,.48), inset 0 0 24px var(--world-accent-soft, rgba(255,170,0,.05));
-    backdrop-filter: blur(12px);
     clip-path: var(--clip-node-md);
+    isolation: isolate;
+    overflow: hidden;
+}
+
+.hud-window::before {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    content: "";
+    background:
+        linear-gradient(135deg, rgba(255,170,0,.08), transparent 24%, rgba(0,0,0,.34) 100%),
+        url("/static/images/ui/textures/inventory/fabric_leather_02_diff_1k.jpg") center / 360px repeat;
+    opacity: .74;
+}
+
+.hud-window::after {
+    position: absolute;
+    inset: 1px;
+    z-index: 0;
+    content: "";
+    border: 1px solid rgba(255,170,0,.06);
+    box-shadow: inset 0 0 44px rgba(0,0,0,.72);
+    pointer-events: none;
 }
 
 .inventory-window {
-    top: 64px;
+    top: calc(var(--game-header-height, 40px) + 16px);
     right: calc(var(--side-panel-width, 340px) + 24px);
 }
 
 .hud-window-head {
+    position: relative;
+    z-index: 1;
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -41,6 +68,73 @@
     cursor: grabbing;
 }
 
+.hud-window-resize-handles {
+    position: absolute;
+    inset: 0;
+    z-index: 3;
+    pointer-events: none;
+}
+
+.hud-window-resize-handle {
+    position: absolute;
+    z-index: 2;
+    pointer-events: auto;
+}
+
+.hud-window-resize-handle--n,
+.hud-window-resize-handle--s {
+    left: 12px;
+    right: 12px;
+    height: 10px;
+    cursor: ns-resize;
+}
+
+.hud-window-resize-handle--n { top: -4px; }
+.hud-window-resize-handle--s { bottom: -4px; }
+
+.hud-window-resize-handle--e,
+.hud-window-resize-handle--w {
+    top: 12px;
+    bottom: 12px;
+    width: 10px;
+    cursor: ew-resize;
+}
+
+.hud-window-resize-handle--e { right: -4px; }
+.hud-window-resize-handle--w { left: -4px; }
+
+.hud-window-resize-handle--ne,
+.hud-window-resize-handle--se,
+.hud-window-resize-handle--sw,
+.hud-window-resize-handle--nw {
+    width: 16px;
+    height: 16px;
+}
+
+.hud-window-resize-handle--ne {
+    top: -5px;
+    right: -5px;
+    cursor: nesw-resize;
+}
+
+.hud-window-resize-handle--se {
+    right: -5px;
+    bottom: -5px;
+    cursor: nwse-resize;
+}
+
+.hud-window-resize-handle--sw {
+    bottom: -5px;
+    left: -5px;
+    cursor: nesw-resize;
+}
+
+.hud-window-resize-handle--nw {
+    top: -5px;
+    left: -5px;
+    cursor: nwse-resize;
+}
+
 .hud-window-close {
     width: 24px;
     height: 24px;
@@ -51,17 +145,29 @@
 }
 
 .hud-window-body {
+    position: relative;
+    z-index: 1;
     padding: var(--sp-4);
     overflow: auto;
+    min-height: 0;
 }
 
 @media (max-width: 768px) {
     .inventory-window {
-        left: 10px;
+        position: fixed;
+        left: 0;
         right: auto;
-        bottom: 34px;
+        bottom: var(--game-footer-height, 28px);
         top: auto;
-        width: calc(100vw - 20px);
-        max-height: 58vh;
+        width: 100vw !important;
+        height: min(74dvh, calc(100dvh - var(--game-header-height, 72px) - var(--game-footer-height, 28px) - 12px), 620px) !important;
+        max-height: none;
+        border-right: 0;
+        border-left: 0;
+        clip-path: none;
+    }
+
+    .inventory-window .hud-window-resize-handles {
+        display: none;
     }
 }

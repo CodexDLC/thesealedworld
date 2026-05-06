@@ -1,8 +1,19 @@
 /* ── SCENARIO: CLEAN & MODULAR ── */
 
 .scenario-panel {
+    --scenario-panel-margin: calc(20px * var(--game-ui-scale, 1));
+    --scenario-avatar-width: min(340px, calc(var(--center-content-max, 920px) * 0.37));
+    --scenario-avatar-height: 400px;
+    --scenario-copy-size: calc(19px * var(--game-ui-scale, 1));
+    --scenario-alert-size: calc(14px * var(--game-ui-scale, 1));
+    --scenario-inner-padding: calc(40px * var(--game-ui-scale, 1));
+    --scenario-block-padding: calc(30px * var(--game-ui-scale, 1));
+    --scenario-choice-padding-y: calc(14px * var(--game-ui-scale, 1));
+    --scenario-choice-padding-x: calc(25px * var(--game-ui-scale, 1));
     width: 100%;
-    max-width: 1000px;
+    max-width: min(100%, var(--center-content-max, 920px));
+    height: calc(100% - (var(--scenario-panel-margin) * 2));
+    max-height: calc(100% - (var(--scenario-panel-margin) * 2));
     display: flex;
     flex-direction: column;
     background: rgba(10, 10, 12, 0.98);
@@ -10,8 +21,9 @@
     box-shadow: 0 0 60px rgba(0,0,0,0.9), inset 0 0 20px rgba(255,170,0,0.05);
     position: relative;
     overflow: hidden;
-    margin: 20px auto;
+    margin: var(--scenario-panel-margin) auto;
     border-radius: 4px;
+    min-height: 0;
 }
 
 .scenario-status-panel {
@@ -92,7 +104,7 @@
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    padding: 20px 40px;
+    padding: calc(var(--scenario-block-padding) * 0.67) var(--scenario-inner-padding);
     background: linear-gradient(to bottom, rgba(255, 170, 0, 0.12), transparent);
     border-bottom: 1px solid rgba(255, 170, 0, 0.15);
     text-align: center;
@@ -122,16 +134,17 @@
     display: flex;
     flex-direction: row;
     min-height: 0;
+    overflow: hidden;
     border-bottom: 1px solid rgba(255, 170, 0, 0.1);
 }
 
 .character-container {
-    flex: 0 0 340px;
+    flex: 0 0 var(--scenario-avatar-width);
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: flex-start;
-    padding-top: 40px;
+    padding-top: var(--scenario-inner-padding);
     background: radial-gradient(circle at top, rgba(0, 255, 200, 0.05) 0%, transparent 75%);
     border-right: 1px solid rgba(0, 255, 200, 0.1);
     position: relative;
@@ -140,7 +153,7 @@
 
 .character-shadow {
     width: 90%;
-    max-height: 400px;
+    max-height: min(var(--scenario-avatar-height), calc(100vh - 260px));
     object-fit: contain;
     filter: drop-shadow(0 0 25px rgba(0,0,0,0.9));
     z-index: 2;
@@ -211,15 +224,31 @@
     display: flex;
     flex-direction: column;
     min-height: 0;
+    min-width: 0;
 }
 
 .scenario-story-part {
     flex: 1;
-    padding: 30px 40px;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding: var(--scenario-block-padding) var(--scenario-inner-padding);
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 170, 0, 0.2) transparent;
+}
+
+.scenario-story-part::-webkit-scrollbar,
+.scenario-choices-wrapper::-webkit-scrollbar {
+    width: 8px;
+}
+
+.scenario-story-part::-webkit-scrollbar-thumb,
+.scenario-choices-wrapper::-webkit-scrollbar-thumb {
+    background: rgba(255, 170, 0, 0.18);
 }
 
 .scenario-copy {
-    font-size: 19px;
+    font-size: var(--scenario-copy-size);
     line-height: 1.7;
     color: var(--col-parchment);
     text-shadow: 0 2px 10px rgba(0,0,0,0.5);
@@ -238,7 +267,7 @@
 .scenario-copy .system-alert {
     display: block;
     font-family: var(--font-mono);
-    font-size: 14px;
+    font-size: var(--scenario-alert-size);
     color: #ffaa00;
     background: rgba(255, 170, 0, 0.05);
     border-left: 3px solid #ffaa00;
@@ -267,9 +296,14 @@
 /* CHOICES SECTION (UNDER SPLIT) */
 .scenario-choices-wrapper {
     flex: 0 0 auto;
-    padding: 25px 40px;
+    max-height: min(240px, 42%);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding: calc(var(--scenario-block-padding) * 0.83) var(--scenario-inner-padding);
     background: rgba(0,0,0,0.4);
     border-top: 1px solid rgba(255, 170, 0, 0.1);
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 170, 0, 0.2) transparent;
 }
 
 .scenario-choices {
@@ -283,12 +317,14 @@
     display: flex;
     align-items: center;
     gap: 15px;
-    padding: 14px 25px;
+    box-sizing: border-box;
+    min-width: 0;
+    padding: var(--scenario-choice-padding-y) var(--scenario-choice-padding-x);
     background: rgba(0, 255, 200, 0.03);
     border: 1px solid rgba(0, 255, 200, 0.1);
     color: var(--col-parchment-dim);
     font-family: var(--font-ui);
-    font-size: 15px;
+    font-size: calc(15px * var(--game-ui-scale, 1));
     letter-spacing: 0.05em;
     cursor: pointer;
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
@@ -323,6 +359,8 @@
 
 .choice-label {
     flex: 1;
+    min-width: 0;
+    overflow-wrap: anywhere;
 }
 
 .choice-btn::before {
@@ -341,7 +379,7 @@
     background: rgba(0, 255, 200, 0.08);
     border-color: rgba(0, 255, 200, 0.4);
     color: var(--col-accent);
-    padding-left: 30px;
+    padding-left: calc(var(--scenario-choice-padding-x) + 5px);
     box-shadow: 0 0 20px rgba(0, 255, 200, 0.05);
 }
 
@@ -360,7 +398,7 @@
     flex: 0 0 auto;
     display: flex;
     gap: 30px;
-    padding: 10px 40px;
+    padding: 10px var(--scenario-inner-padding);
     background: rgba(255, 170, 0, 0.05);
     border-top: 1px solid rgba(255, 170, 0, 0.1);
     font-family: var(--font-ui);
@@ -379,7 +417,7 @@
 /* DEBUG FOOTER */
 .scenario-panel-debug {
     flex: 0 0 auto;
-    padding: 4px 40px;
+    padding: 4px var(--scenario-inner-padding);
     background: #000;
     font-family: var(--font-mono);
     font-size: 9px;
@@ -399,10 +437,138 @@
     transition: all 0.8s cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
+@media (max-width: 1599px) {
+    .scenario-panel {
+        --scenario-avatar-width: min(320px, calc(var(--center-content-max, 880px) * 0.36));
+        --scenario-inner-padding: calc(34px * var(--game-ui-scale, 1));
+        --scenario-block-padding: calc(26px * var(--game-ui-scale, 1));
+    }
+}
+
+@media (max-width: 1439px) {
+    .scenario-panel {
+        --scenario-avatar-width: min(300px, calc(var(--center-content-max, 820px) * 0.35));
+        --scenario-copy-size: calc(18px * var(--game-ui-scale, 1));
+        --scenario-inner-padding: calc(30px * var(--game-ui-scale, 1));
+        --scenario-block-padding: calc(24px * var(--game-ui-scale, 1));
+    }
+}
+
+@media (max-width: 1279px) {
+    .scenario-panel {
+        --scenario-avatar-width: min(260px, calc(var(--center-content-max, 760px) * 0.34));
+        --scenario-avatar-height: 340px;
+        --scenario-copy-size: calc(17px * var(--game-ui-scale, 1));
+        --scenario-inner-padding: calc(26px * var(--game-ui-scale, 1));
+        --scenario-block-padding: calc(22px * var(--game-ui-scale, 1));
+    }
+}
+
+@media (max-width: 1024px) {
+    .scenario-panel {
+        --scenario-panel-margin: 12px;
+        --scenario-avatar-width: 220px;
+        --scenario-avatar-height: 300px;
+        --scenario-copy-size: calc(16px * var(--game-ui-scale, 1));
+        --scenario-alert-size: calc(12px * var(--game-ui-scale, 1));
+        --scenario-inner-padding: 22px;
+        --scenario-block-padding: 20px;
+        --scenario-choice-padding-y: 12px;
+        --scenario-choice-padding-x: 18px;
+    }
+}
+
 @media (max-width: 768px) {
-    .scenario-panel { height: 95vh; margin: 0; }
-    .scenario-panel-main { flex-direction: column; }
-    .character-container { flex: 0 0 200px; border-right: none; border-bottom: 1px solid rgba(255,170,0,0.1); }
-    .scenario-copy { font-size: 18px; }
+    .scenario-panel {
+        --scenario-panel-margin: 8px;
+        --scenario-avatar-height: 150px;
+        --scenario-copy-size: 16px;
+        --scenario-inner-padding: 18px;
+        --scenario-block-padding: 16px;
+        height: calc(100% - (var(--scenario-panel-margin) * 2));
+        max-height: calc(100% - (var(--scenario-panel-margin) * 2));
+    }
+
+    .scenario-panel-head {
+        padding-top: 12px;
+        padding-bottom: 12px;
+    }
+
+    .scenario-title {
+        font-size: 9px;
+        letter-spacing: 0.2em;
+    }
+
+    .scenario-location {
+        font-size: 18px;
+    }
+
+    .scenario-panel-main {
+        flex-direction: column;
+    }
+
+    .character-container {
+        flex: 0 0 var(--scenario-avatar-height);
+        padding-top: 10px;
+        border-right: none;
+        border-bottom: 1px solid rgba(255,170,0,0.1);
+    }
+
+    .character-shadow {
+        width: min(72%, 220px);
+        max-height: calc(var(--scenario-avatar-height) - 18px);
+    }
+
+    .scenario-choices-wrapper {
+        max-height: 38%;
+    }
+
+    .choice-btn {
+        gap: 10px;
+    }
+}
+
+@media (max-width: 500px) {
+    .scenario-panel {
+        --scenario-panel-margin: 6px;
+        --scenario-avatar-height: 118px;
+        --scenario-copy-size: 15px;
+        --scenario-inner-padding: 14px;
+        --scenario-block-padding: 14px;
+        --scenario-choice-padding-y: 10px;
+        --scenario-choice-padding-x: 12px;
+    }
+
+    .scenario-location {
+        font-size: 16px;
+    }
+
+    .scenario-copy {
+        line-height: 1.62;
+    }
+
+    .scenario-copy .whisper,
+    .scenario-copy .system-alert {
+        margin: 12px 0;
+        padding: 8px 10px;
+    }
+
+    .scenario-choices-wrapper {
+        max-height: 42%;
+    }
+
+    .choice-btn {
+        font-size: 12px;
+    }
+
+    .choice-icon {
+        width: 24px;
+        height: 24px;
+    }
+
+    .choice-icon::before {
+        width: 14px;
+        height: 14px;
+    }
 }
 @keyframes system-alert-flicker { 0% { opacity: 1; } 98% { opacity: 1; transform: translateX(0); } 99% { opacity: 0.8; transform: translateX(2px); } 100% { opacity: 1; transform: translateX(0); } } .scenario-copy .system-alert { animation: system-alert-flicker 4s infinite; }

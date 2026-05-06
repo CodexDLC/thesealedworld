@@ -2,11 +2,10 @@ from __future__ import annotations
 
 from typing import Any
 
-from codex_platform.redis_service import RedisService
 from loguru import logger
-from redis.asyncio import Redis
 
 from src.backend.config.settings import settings
+from src.backend.core.arq_container import ArqWorkerContainer
 
 try:  # pragma: no cover - exercised only when the optional worker runtime is installed.
     from arq.connections import ArqRedis, RedisSettings, create_pool
@@ -56,17 +55,15 @@ def _redis_settings() -> Any:
 
 async def base_startup(ctx: dict[str, Any]) -> None:
     await platform_base_startup(ctx)
-    redis_client = Redis.from_url(settings.effective_redis_url, decode_responses=True)
-    ctx["redis_client_internal"] = redis_client
-    ctx["redis_service"] = RedisService(redis_client)
-    logger.info("ARQ worker Redis client initialized")
+    container = ArqWorkerContainer()
+    await container.bootstrap(ctx)
+    logger.info("ARQ worker base context initialized")
 
 
 async def base_shutdown(ctx: dict[str, Any]) -> None:
-    client = ctx.get("redis_client_internal")
-    if client is not None:
-        await client.aclose()
-        logger.info("ARQ worker Redis client closed")
+    container = ctx.get("worker_container")
+    if container is not None:
+        await container.shutdown(ctx)
     await platform_base_shutdown(ctx)
 
 

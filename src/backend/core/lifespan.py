@@ -8,7 +8,6 @@ from loguru import logger
 from src.backend.config.settings import settings
 from src.backend.core.bus import GameEventProducer
 from src.backend.core.containers import AIContainer, DatabaseContainer, GameFeatureContainer, RedisContainer
-from src.backend.features.actor_state.events import router as actor_state_router
 from src.backend.features.arena.events import router as arena_router
 from src.backend.features.character.events import router as character_router
 from src.backend.features.combat.events import router as combat_router
@@ -17,14 +16,11 @@ from src.backend.features.inventory.events import router as inventory_router
 from src.backend.features.items.events import router as items_router
 from src.backend.features.scenario.events import router as scenario_router
 from src.backend.features.world.events import router as world_router
-from src.backend.features_realtime.chat.events import router as chat_router
 from src.backend.features_site.auth.events import router as auth_router
 
 EVENT_ROUTERS = (
     auth_router,
-    chat_router,
     world_router,
-    actor_state_router,
     character_router,
     combat_router,
     inventory_router,
@@ -98,6 +94,9 @@ async def lifespan(app: FastAPI):
     try:
         if hasattr(app.state, "stream_runtime"):
             await app.state.stream_runtime.stop()
+
+        if hasattr(app.state, "system_arq"):
+            await app.state.system_arq.close()
 
         if hasattr(app.state, "redis_client"):
             await app.state.redis_client.close()

@@ -5,6 +5,7 @@ from src.backend.core.database.session import (
     create_db_tables,
     get_db,
     get_session_context,
+    load_orm_models,
 )
 
 __all__ = [
@@ -16,4 +17,5 @@ __all__ = [
     "get_db",
     "get_session_context",
     "create_db_tables",
+    "load_orm_models",
 ]

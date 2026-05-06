@@ -4,6 +4,7 @@ from loguru import logger
 from src.backend.config.settings import settings
 from src.backend.core.exceptions import BaseAPIException, api_exception_handler
 from src.backend.core.lifespan import lifespan
+from src.backend.core.middleware import ActiveCharacterDirtySyncMiddleware
 from src.shared.logging_config import setup_logging
 
 setup_logging(
@@ -28,6 +29,7 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+app.add_middleware(ActiveCharacterDirtySyncMiddleware)
 app.add_exception_handler(BaseAPIException, api_exception_handler)  # type: ignore[arg-type]
 app.include_router(auth_router)
 app.include_router(arena_router)

@@ -44,7 +44,11 @@ async def get_session_context() -> AsyncGenerator[AsyncSession]:
 
 
 async def create_db_tables() -> None:
-    from src.backend.core.database import model_imports  # noqa: F401
+    load_orm_models()
 
     async with async_engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+
+
+def load_orm_models() -> None:
+    from src.backend.core.database import model_imports  # noqa: F401

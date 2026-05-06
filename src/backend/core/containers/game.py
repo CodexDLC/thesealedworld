@@ -7,8 +7,9 @@ from src.backend.config.settings import settings
 from src.backend.core.database import get_session_context
 
 # Feature Services
+from src.backend.features.scenario.integrations import ScenarioImportIntegration
+from src.backend.features.world.integrations import WorldDataIntegration, WorldLocationIntegration
 from src.backend.features.world.services import LLMWorldGenerator, WorldBootstrapService, WorldCacheService
-from src.backend.infrastructure.scenario.repositories import ScenarioRepository
 from src.backend.infrastructure.world.repositories import WorldRepository
 
 
@@ -25,12 +26,14 @@ class GameFeatureContainer:
         logger.info("Bootstrapping World feature...")
         async with get_session_context() as session:
             repository = WorldRepository(session)
+            data = WorldDataIntegration(repository)
+            locations = WorldLocationIntegration(app.state.world_locations)
             # world_locations were initialized in InfrastructureContainer
-            cache = WorldCacheService(repository=repository, locations=app.state.world_locations)
-            generator = LLMWorldGenerator(repository, app.state.ai)
+            cache = WorldCacheService(data=data, locations=locations)
+            generator = LLMWorldGenerator(data, app.state.ai)
 
             bootstrap = WorldBootstrapService(
-                repository=repository,
+                data=data,
                 cache=cache,
                 generator=generator,
                 auto_generate=settings.world_auto_generate,
@@ -43,7 +46,6 @@ class GameFeatureContainer:
     async def bootstrap_scenarios(self, app: FastAPI) -> None:
         logger.info("Bootstrapping Scenarios feature...")
         from src.backend.features.scenario.loaders.scenario_loader import ScenarioLoader
-        from src.backend.features.scenario.services.content_service import ScenarioContentService
 
         # Relative path to scenarios JSON
         scenario_path = (
@@ -54,10 +56,8 @@ class GameFeatureContainer:
             return
 
         async with get_session_context() as session:
-            repository = ScenarioRepository(session)
-            # redis service was initialized in InfrastructureContainer
-            content = ScenarioContentService(repository, app.state.redis)
-            loader = ScenarioLoader(session, content=content)
+            importer = ScenarioImportIntegration.from_session(session, cache=app.state.scenario_content)
+            loader = ScenarioLoader(importer)
             quest_key = await loader.load_from_file(scenario_path)
             app.state.scenario_bootstrap_quest_key = quest_key
             logger.info(f"Scenarios bootstrap: quest_key={quest_key} loaded")

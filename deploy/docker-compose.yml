@@ -98,11 +98,40 @@ services:
     networks:
       - tbmmorpg-network
 
-  worker:
+  chat:
+    build:
+      context: ..
+      dockerfile: deploy/chat/Dockerfile
+    container_name: tbmmorpg-chat
+    restart: unless-stopped
+    env_file: ../.env
+    environment:
+      DATABASE_URL: postgresql+asyncpg://tbmmorpg:tbmmorpg_dev@postgres:5432/tbmmorpg_site  # pragma: allowlist secret
+      REDIS_URL: redis://redis:6379/0
+    ports:
+      - "8002:8002"
+    volumes:
+      - ../src/chat:/app/src/chat
+      - ../src/shared:/app/src/shared
+    command: >
+      uvicorn src.chat.app:app
+      --host 0.0.0.0
+      --port 8002
+      --reload
+      --log-level info
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - tbmmorpg-network
+
+  combat-worker:
     build:
       context: ..
       dockerfile: deploy/worker/Dockerfile
-    container_name: tbmmorpg-worker
+    container_name: tbmmorpg-combat-worker
     restart: unless-stopped
     env_file: ../.env
     environment:
@@ -115,6 +144,31 @@ services:
       - ../src/shared:/app/src/shared
     command: >
       arq src.backend.features.combat.workers.arq.CombatArqSettings
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - tbmmorpg-network
+
+  system-worker:
+    build:
+      context: ..
+      dockerfile: deploy/worker/Dockerfile
+    container_name: tbmmorpg-system-worker
+    restart: unless-stopped
+    env_file: ../.env
+    environment:
+      SITE_DATABASE_URL: postgresql+asyncpg://tbmmorpg:tbmmorpg_dev@postgres:5432/tbmmorpg_site  # pragma: allowlist secret
+      GAME_DATABASE_URL: postgresql+asyncpg://tbmmorpg:tbmmorpg_dev@postgres:5432/tbmmorpg_game  # pragma: allowlist secret
+      DATABASE_URL: postgresql+asyncpg://tbmmorpg:tbmmorpg_dev@postgres:5432/tbmmorpg_site  # pragma: allowlist secret
+      REDIS_URL: redis://redis:6379/0
+    volumes:
+      - ../src/backend:/app/src/backend
+      - ../src/shared:/app/src/shared
+    command: >
+      arq src.backend.features.system.workers.arq.SystemArqSettings
     depends_on:
       postgres:
         condition: service_healthy

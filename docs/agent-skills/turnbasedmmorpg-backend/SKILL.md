@@ -36,7 +36,7 @@ api/
 dto/
 models/
 repositories/
-integrations/  # Facades that encapsulate multiple low-level infrastructure managers (DB, Redis)
+integrations/  # Feature facades over external dependencies: infrastructure managers, repositories, Redis Streams clients
 services/
 dependencies/
 events/
@@ -48,7 +48,11 @@ Layer note:
 
 - Use `infrastructure/` for low-level Redis managers/schemas and DB repositories.
 - Use feature `services/` and `runtime/` for high-level internal logic that uses those managers.
-- Use feature `integrations/` for a feature-owned facade over multiple infrastructure managers or cross-feature boundaries.
+- Use feature `integrations/` for feature-owned facades over external dependencies: infrastructure managers, DB repositories, sessions, Redis Streams clients, or cross-feature boundaries.
+- Put outbound Redis Streams clients in feature `integrations/`, not in `services/` or `runtime/`.
+- Keep inbound Redis Streams handlers in feature `events/`.
+- Feature `services/` and `runtime/` must call semantic integration methods such as `request_actor_snapshot()` or `publish_round_resolved()`, not `GameEventProducer.publish()` / `request()` directly.
+- Do not create feature persistence gateway layers that duplicate infrastructure repositories/managers. Feature integrations may depend directly on infrastructure repositories/managers and expose semantic feature operations to services.
 - Use feature `repositories/` only when the data access is truly feature-local and not part of the shared infrastructure layer.
 
 Do not create empty folders just to satisfy the skeleton.

@@ -35,6 +35,7 @@ class BackendSettings(BaseCommonSettings):
     secret_key: str = "change-me-in-env"
     access_token_expire_minutes: int = 30
     refresh_token_expire_days: int = 30
+    default_symbiote_name: str = "SYSTEM"
 
     # Event Streams
     game_stream_name: str = "game_events"
@@ -63,7 +64,9 @@ class BackendSettings(BaseCommonSettings):
     gemini_api_key: str | None = None
     gemini_model: str = "gemini-2.5-flash"
     gemini_fallback_models: list[str] = ["gemini-2.5-pro"]
+    gemini_token: str | None = None
     openrouter_api_key: str | None = None
+    # Removed: bug_report_channel_id (per user request)
 
     model_config = SettingsConfigDict(
         env_file=BASE_DIR / ".env",

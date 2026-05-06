@@ -65,5 +65,5 @@ Bad candidates:
 Use these terms consistently:
 
 - Active character session: `game:ac:<char_id>`, the live Redis document for a selected character. It holds current runtime state such as vitals, location, game state, symbiote, attributes, skills, and active feature refs.
-- Actor snapshot/projection: `game:actor:snapshot:*`, a temporary on-demand context built for a scope such as combat, inventory, build, status, or exploration. It is derived data and can expire.
-- `actor_state`: the feature responsible for building scoped actor context/snapshots. Do not treat it as the owner of the live `game:ac:<char_id>` document.
+- Actor snapshot/projection: `game:actor:snapshot:*`, a temporary on-demand context built for a combat scope. It is derived data and can expire.
+- Character combat snapshot: a character-owned projection built by `character.combat_snapshots_requested` from `game:ac:<char_id>` plus monster runtime sources.

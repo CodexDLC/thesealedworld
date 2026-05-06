@@ -16,7 +16,7 @@ src/backend/
     chat/
     world/
     game_lobby/
-    actor_state/
+    character/
     combat/
     inventory/
     exploration/
@@ -56,15 +56,32 @@ Use `src/backend/infrastructure/` for low-level persistence/cache/session primit
 
 Use feature `repositories/` only for data access that is genuinely feature-local and not already represented by the infrastructure layer.
 
-Use feature `integrations/` for facades that encapsulate low-level infrastructure managers (DB, Redis, sessions) or cross-feature boundaries behind a single cohesive interface.
+Use feature `integrations/` for facades that encapsulate external dependencies behind cohesive feature-level operations:
+
+- Infrastructure Redis managers and Redis schemas.
+- DB repositories and session managers from `src/backend/infrastructure/`.
+- Outbound Redis Streams clients.
+- Cross-feature request/reply flows.
+
+Do not create feature persistence gateway layers that simply wrap infrastructure repositories/managers. Feature integrations may depend directly on infrastructure repositories/managers and expose semantic operations to services.
 
 Use `services/` for feature use cases and application/domain logic.
 
-Use feature `services/` or `runtime/services/` for high-level internal feature logic. For example, a combat data service that assembles `BattleContext` from a Redis manager is a feature-internal service, while the Redis manager and Redis schema belong in `infrastructure`.
+Use feature `services/` or `runtime/services/` for high-level internal feature logic. They should describe use cases and runtime behavior, not SQL/Redis transport details. For example, a combat data service that assembles `BattleContext` from a Redis manager is a feature-internal service, while the Redis manager and Redis schema belong in `infrastructure`.
+
+Feature services and runtime services must not call `GameEventProducer.publish()`, `GameEventProducer.request()`, `publish_with_correlation()`, or raw reply queue operations directly. They call semantic integration methods instead, such as `notify_combat_started()`, `request_actor_snapshot()`, or `publish_round_resolved()`.
 
 Use `dependencies/` for FastAPI dependency providers and local wiring.
 
-Use `events/` for Redis Streams event handlers, publishers, subscribers, and stream-facing adapters.
+Use `events/` for inbound Redis Streams event handlers and stream-facing entrypoints. Handlers validate/map incoming payloads, call feature services or integrations, and delegate reply/error transport details to integration helpers when possible.
+
+Keep outbound Redis Streams clients under `integrations/`, for example:
+
+```text
+src/backend/features/<feature>/integrations/stream_client.py
+```
+
+The stream client owns event names, payload mapping, request/reply, correlation, timeouts, retries, reply parsing, and transport-error mapping. It should expose semantic methods to the feature integrator, not raw `publish()` calls to services.
 
 Use `workers/` for ARQ or background jobs.
 
@@ -79,8 +96,7 @@ DB-owner / infrastructure-backed features:
 - `chat`: rooms, messages, moderation, history.
 - `world`: persistent/generated world data and world cache bootstrap.
 - `game_lobby`: character list/create/delete/enter flow before active runtime.
-- `character`: active character session lifecycle, `game:ac:<char_id>` repair/sync, character status, vitals, attributes, skills, and symbiote runtime data.
-- `actor_state`: on-demand actor context/snapshot assembly for combat, inventory, builds, and future feature sessions. It produces temporary projections such as `game:actor:snapshot:*`; it is not the live character state source.
+- `character`: active character session lifecycle, `game:ac:<char_id>` repair/sync, character status, vitals, attributes, skills, symbiote runtime data, gear score recalculation, and character-owned combat snapshot assembly.
 
 Runtime gameplay features:
 
@@ -98,17 +114,19 @@ When a runtime feature needs Redis session data, prefer this shape:
 ```text
 feature API/workers/processors
   -> feature service/runtime service
-  -> feature integration facade when several external managers are involved
+  -> feature integration facade
   -> src/backend/infrastructure Redis manager/schema or DB repository
 ```
 
 Do not hide low-level Redis key/JSON/Lua behavior inside high-level combat/session services. Keep that behavior in an infrastructure manager or an explicit adapter that is treated as infrastructure.
 
+Do not hide Redis Streams transport details in services/runtime code. Keep inbound stream handlers in `events/` and outbound stream clients in `integrations/`.
+
 Use terms precisely:
 
 - `game:ac:<char_id>`: live active character session. This is the Redis runtime document for the selected character and contains current vitals, location, state, symbiote, attributes, skills, and active feature refs.
-- `game:actor:snapshot:*`: temporary actor projection built on demand for a feature scope such as combat, inventory, build, status, or exploration. It may have a short TTL and must not be treated as source of truth.
-- `actor_state` feature: the assembler/facade that builds scoped actor snapshots or context objects for other runtime systems.
+- `game:actor:snapshot:*`: temporary actor projection built on demand for a feature scope such as combat. It may have a short TTL and must not be treated as source of truth.
+- Character-owned snapshot events: `character.combat_snapshots_requested` builds combat snapshots from `game:ac:<char_id>` plus monster runtime sources.
 
 ## Identity Terms
 
@@ -118,4 +136,4 @@ Use terms consistently:
 - `Character`: persistent game character owned by a user.
 - `Actor`: runtime projection of a character, monster, NPC, or future entity as needed by a game subsystem. A selected player character has a live `game:ac:<char_id>` document; feature-specific actor snapshots are derived from live state and persistent data.
 
-Login/register must not create actor state. Actor state appears only after a user enters the game with a selected character.
+Login/register must not create runtime snapshots. Active character state appears only after a user enters the game with a selected character; combat snapshots are derived later on demand.

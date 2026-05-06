@@ -1,65 +1,69 @@
-# backend/core/security.py
+import base64
+import hashlib
+import hmac
+import json
+import secrets
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
-from jose import jwt
-from loguru import logger as log
-from passlib.context import CryptContext
-
 from src.backend.core.config import settings
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 ALGORITHM = "HS256"
+PASSWORD_ITERATIONS = 390_000
+
+
+def _b64url_encode(raw: bytes) -> str:
+    return base64.urlsafe_b64encode(raw).rstrip(b"=").decode("ascii")
+
+
+def _b64url_decode(value: str) -> bytes:
+    padding = "=" * (-len(value) % 4)
+    return base64.urlsafe_b64decode(value + padding)
 
 
 def create_access_token(subject: str | Any, expires_delta: timedelta | None = None) -> str:
-    """
-    Creates a JWT access token.
+    expire = datetime.now(UTC) + (expires_delta or timedelta(minutes=settings.access_token_expire_minutes))
+    header = {"alg": ALGORITHM, "typ": "JWT"}
+    payload = {"exp": int(expire.timestamp()), "sub": str(subject)}
 
-    Args:
-        subject: The subject of the token (usually user_id).
-        expires_delta: Optional expiration time delta.
-
-    Returns:
-        str: Encoded JWT token.
-    """
-    if expires_delta:
-        expire = datetime.now(UTC) + expires_delta
-    else:
-        expire = datetime.now(UTC) + timedelta(minutes=settings.access_token_expire_minutes)
-
-    to_encode = {"exp": expire, "sub": str(subject)}
-
-    try:
-        encoded_jwt = jwt.encode(to_encode, settings.secret_key, algorithm=ALGORITHM)
-        return encoded_jwt
-    except Exception as exc:
-        log.error(f"Security | action=create_token_failed error={exc}")
-        raise exc
+    header_part = _b64url_encode(json.dumps(header, separators=(",", ":")).encode("utf-8"))
+    payload_part = _b64url_encode(json.dumps(payload, separators=(",", ":")).encode("utf-8"))
+    signing_input = f"{header_part}.{payload_part}".encode("ascii")
+    signature = hmac.new(settings.secret_key.encode("utf-8"), signing_input, hashlib.sha256).digest()
+    return f"{header_part}.{payload_part}.{_b64url_encode(signature)}"
 
 
-def verify_password(plain_password: str, hashed_password: str) -> bool:
-    """
-    Verifies a plain password against a hashed password.
+def decode_access_token(token: str) -> dict[str, Any]:
+    header_part, payload_part, signature_part = token.split(".")
+    signing_input = f"{header_part}.{payload_part}".encode("ascii")
+    expected = hmac.new(settings.secret_key.encode("utf-8"), signing_input, hashlib.sha256).digest()
+    actual = _b64url_decode(signature_part)
+    if not hmac.compare_digest(expected, actual):
+        raise ValueError("Invalid token signature")
 
-    Args:
-        plain_password: The raw password.
-        hashed_password: The hashed password from DB.
-
-    Returns:
-        bool: True if matches.
-    """
-    return pwd_context.verify(plain_password, hashed_password)
+    payload = json.loads(_b64url_decode(payload_part))
+    exp = payload.get("exp")
+    if not isinstance(exp, int) or datetime.now(UTC).timestamp() >= exp:
+        raise ValueError("Token expired")
+    return payload
 
 
 def get_password_hash(password: str) -> str:
-    """
-    Hashes a password using bcrypt.
+    salt = secrets.token_bytes(16)
+    digest = hashlib.pbkdf2_hmac("sha256", password.encode("utf-8"), salt, PASSWORD_ITERATIONS)
+    return f"pbkdf2_sha256${PASSWORD_ITERATIONS}${_b64url_encode(salt)}${_b64url_encode(digest)}"
 
-    Args:
-        password: The raw password.
 
-    Returns:
-        str: Hashed password.
-    """
-    return pwd_context.hash(password)
+def verify_password(plain_password: str, hashed_password: str) -> bool:
+    try:
+        scheme, iterations_raw, salt_raw, digest_raw = hashed_password.split("$", maxsplit=3)
+        if scheme != "pbkdf2_sha256":
+            return False
+        iterations = int(iterations_raw)
+        salt = _b64url_decode(salt_raw)
+        expected = _b64url_decode(digest_raw)
+    except (ValueError, TypeError):
+        return False
+
+    actual = hashlib.pbkdf2_hmac("sha256", plain_password.encode("utf-8"), salt, iterations)
+    return hmac.compare_digest(actual, expected)

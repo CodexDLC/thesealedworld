@@ -7,15 +7,11 @@ from fastapi import FastAPI
 
 from src.backend.config.settings import settings
 from src.backend.core.bus import GameEventProducer
-
-# Event Routers & Publishers
-from src.backend.features.actor_state.events import bind as bind_actor_state_events
-from src.backend.features.actor_state.events import router as actor_state_router
-from src.backend.features.actor_state.events.publisher import CharacterSessionEvents
 from src.backend.features.arena.events import bind as bind_arena_events
 from src.backend.features.arena.events import router as arena_router
 from src.backend.features.character.events import bind as bind_character_events
 from src.backend.features.character.events import router as character_router
+from src.backend.features.character.events.publisher import CharacterSessionEvents
 from src.backend.features.combat.events import bind as bind_combat_events
 from src.backend.features.combat.events import router as combat_router
 from src.backend.features.exploration.events import router as exploration_router
@@ -25,14 +21,10 @@ from src.backend.features.items.events import router as items_router
 from src.backend.features.scenario.events import bind as bind_scenario_events
 from src.backend.features.scenario.events import router as scenario_router
 from src.backend.features.world.events import router as world_router
-from src.backend.features_realtime.chat.events import router as chat_router
 from src.backend.features_site.auth.events import router as auth_router
 
 # Infrastructure Managers
-from src.backend.infrastructure.actor_state import ActorSnapshotManager, CharacterSessionManager
-from src.backend.infrastructure.redis.managers import RedisManagers
-from src.backend.infrastructure.scenario.managers.session_manager import ScenarioSessionManager
-from src.backend.infrastructure.world import WorldLocationStore
+from src.backend.infrastructure.redis.managers import build_redis_managers
 
 log = logging.getLogger(__name__)
 
@@ -51,19 +43,14 @@ class RedisContainer:
         redis_service = RedisService(app.state.redis_client)
 
         # 2. Managers
-        managers = RedisManagers(
-            redis=redis_service,
-            character_sessions=CharacterSessionManager(redis_service),
-            actor_snapshots=ActorSnapshotManager(redis_service),
-            scenario_sessions=ScenarioSessionManager(redis_service),
-            world_locations=WorldLocationStore(redis_service),
-        )
+        managers = build_redis_managers(redis_service)
 
         app.state.redis = redis_service
         app.state.redis_managers = managers
         app.state.character_sessions = managers.character_sessions
-        app.state.actor_snapshots = managers.actor_snapshots
+        app.state.actor_commitments = managers.actor_commitments
         app.state.scenario_sessions = managers.scenario_sessions
+        app.state.scenario_content = managers.scenario_content
         app.state.world_locations = managers.world_locations
 
         # 3. Stream Runtime
@@ -84,7 +71,6 @@ class RedisContainer:
         app.state.character_session_events = CharacterSessionEvents(app.state.events)
 
         # Bind events to app
-        bind_actor_state_events(app)
         bind_character_events(app)
         bind_combat_events(app)
         bind_arena_events(app)
@@ -96,9 +82,7 @@ class RedisContainer:
 
     def _register_routers(self, runtime: StreamRuntime) -> None:
         runtime.include_router(auth_router)
-        runtime.include_router(chat_router)
         runtime.include_router(world_router)
-        runtime.include_router(actor_state_router)
         runtime.include_router(character_router)
         runtime.include_router(combat_router)
         runtime.include_router(inventory_router)

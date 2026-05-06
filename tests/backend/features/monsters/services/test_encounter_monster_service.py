@@ -4,42 +4,41 @@ import uuid
 
 import pytest
 
-from src.backend.features.monsters.dto.generation import MonsterGenerationContext
+from src.backend.features.monsters.dto.generation import GeneratedClan, GeneratedMonster, MonsterGenerationContext
 from src.backend.features.monsters.runtime.hashing import compute_context_hash, normalize_tags
 from src.backend.features.monsters.services import EncounterMonsterService
-from src.backend.infrastructure.actor_state.models import GeneratedClanORM, GeneratedMonsterORM
 
 
 class FakeMonsterRepository:
     def __init__(self) -> None:
-        self.clans_by_context: dict[str, list[GeneratedClanORM]] = {}
-        self.clans_by_unique: dict[str, GeneratedClanORM] = {}
-        self.members_by_clan: dict[uuid.UUID, list[GeneratedMonsterORM]] = {}
+        self.clans_by_context: dict[str, list[GeneratedClan]] = {}
+        self.clans_by_unique: dict[str, GeneratedClan] = {}
+        self.members_by_clan: dict[uuid.UUID, list[GeneratedMonster]] = {}
         self.created = False
 
-    async def get_clans_by_context_hash(self, context_hash: str) -> list[GeneratedClanORM]:
+    async def get_clans_by_context_hash(self, context_hash: str) -> list[GeneratedClan]:
         return self.clans_by_context.get(context_hash, [])
 
-    async def get_clan_by_unique_hash(self, unique_hash: str) -> GeneratedClanORM | None:
+    async def get_clan_by_unique_hash(self, unique_hash: str) -> GeneratedClan | None:
         return self.clans_by_unique.get(unique_hash)
 
     async def create_clan_with_members(
         self,
-        clan: GeneratedClanORM,
-        members: list[GeneratedMonsterORM],
-    ) -> GeneratedClanORM:
+        clan: GeneratedClan,
+        members: list[GeneratedMonster],
+    ) -> GeneratedClan:
         self.created = True
         self.clans_by_unique[clan.unique_hash] = clan
         self.clans_by_context.setdefault(clan.context_hash, []).append(clan)
         self.members_by_clan[clan.id] = members
         return clan
 
-    async def get_clan_members(self, clan_id: uuid.UUID) -> list[GeneratedMonsterORM]:
+    async def get_clan_members(self, clan_id: uuid.UUID) -> list[GeneratedMonster]:
         return self.members_by_clan.get(clan_id, [])
 
 
-def _clan(context_hash: str, unique_hash: str = "unique") -> GeneratedClanORM:
-    return GeneratedClanORM(
+def _clan(context_hash: str, unique_hash: str = "unique") -> GeneratedClan:
+    return GeneratedClan(
         id=uuid.uuid4(),
         family_id="wolf_pack",
         tier=1,
@@ -53,8 +52,8 @@ def _clan(context_hash: str, unique_hash: str = "unique") -> GeneratedClanORM:
     )
 
 
-def _monster(clan_id: uuid.UUID, role: str = "minion", threat: int = 20) -> GeneratedMonsterORM:
-    return GeneratedMonsterORM(
+def _monster(clan_id: uuid.UUID, role: str = "minion", threat: int = 20) -> GeneratedMonster:
+    return GeneratedMonster(
         id=uuid.uuid4(),
         clan_id=clan_id,
         variant_key=f"{role}_{threat}",
@@ -72,7 +71,7 @@ def _monster(clan_id: uuid.UUID, role: str = "minion", threat: int = 20) -> Gene
 @pytest.mark.unit
 async def test_prepare_encounter_reuses_existing_clan() -> None:
     repo = FakeMonsterRepository()
-    service = EncounterMonsterService(repo)  # type: ignore[arg-type]
+    service = EncounterMonsterService(repo)
     context = MonsterGenerationContext(biome_id="forest", tier=1, tags=["mana_leak"], difficulty="easy")
     normalized = normalize_tags(context.tags)
     actual_hash = compute_context_hash(context.tier, context.biome_id, normalized)
@@ -93,7 +92,7 @@ async def test_prepare_encounter_reuses_existing_clan() -> None:
 @pytest.mark.unit
 async def test_prepare_encounter_creates_clan_and_returns_monster_ids() -> None:
     repo = FakeMonsterRepository()
-    service = EncounterMonsterService(repo)  # type: ignore[arg-type]
+    service = EncounterMonsterService(repo)
     context = MonsterGenerationContext(
         zone_id="D4_0_1",
         biome_id="forest",

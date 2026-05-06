@@ -2,6 +2,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
+from src.backend.features.game_lobby.integrations import LobbyCharacterSummary
 from src.backend.features.game_lobby.services.lobby_service import GameLobbyService
 from src.shared.schemas import GameLobbyPayloadDTO
 
@@ -9,20 +10,21 @@ from src.shared.schemas import GameLobbyPayloadDTO
 @pytest.mark.unit
 class TestGameLobbyService:
     async def test_get_start_payload(self):
-        service = GameLobbyService()
         user = MagicMock(id=1)
-        db_session = MagicMock()
+        integration = MagicMock()
+        integration.list_user_characters = AsyncMock(
+            return_value=[
+                LobbyCharacterSummary(
+                    character_id=10,
+                    name="Hero",
+                    avatar_url="/static/images/avatars/silhouette_m.png",
+                    status="lobby",
+                )
+            ]
+        )
+        service = GameLobbyService(integration)
 
-        char = MagicMock()
-        char.character_id = 10
-        char.name = "Hero"
-        char.avatar_url = "/static/images/avatars/silhouette_m.png"
-        char.game_stage = "lobby"
-        mock_result = MagicMock()
-        mock_result.all.return_value = [char]
-        db_session.scalars = AsyncMock(return_value=mock_result)
-
-        payload = await service.get_start_payload(user, db_session)
+        payload = await service.get_start_payload(user)
 
         assert isinstance(payload, GameLobbyPayloadDTO)
         assert len(payload.slots) == 4
@@ -33,23 +35,20 @@ class TestGameLobbyService:
         assert payload.can_start is True
 
     async def test_get_start_payload_full(self):
-        service = GameLobbyService()
         user = MagicMock(id=1)
-        db_session = MagicMock()
+        chars = [
+            LobbyCharacterSummary(
+                character_id=i,
+                name=f"Hero{i}",
+                avatar_url=f"/avatar-{i}.png",
+                status="lobby",
+            )
+            for i in range(4)
+        ]
+        integration = MagicMock()
+        integration.list_user_characters = AsyncMock(return_value=chars)
+        service = GameLobbyService(integration)
 
-        chars = []
-        for i in range(4):
-            c = MagicMock()
-            c.character_id = i
-            c.name = f"Hero{i}"
-            c.avatar_url = f"/avatar-{i}.png"
-            c.game_stage = "lobby"
-            chars.append(c)
-
-        mock_result = MagicMock()
-        mock_result.all.return_value = chars
-        db_session.scalars = AsyncMock(return_value=mock_result)
-
-        payload = await service.get_start_payload(user, db_session)
+        payload = await service.get_start_payload(user)
         assert payload.can_start is False
         assert all(not slot.is_empty for slot in payload.slots)

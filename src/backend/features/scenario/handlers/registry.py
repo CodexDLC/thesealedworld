@@ -5,16 +5,15 @@ from typing import TYPE_CHECKING
 from src.backend.features.scenario.handlers.tutorial_handler import TutorialScenarioHandler
 
 if TYPE_CHECKING:
-    from src.backend.features.scenario.handlers.base_handler import BaseScenarioHandler
-    from src.backend.infrastructure.actor_state import CharacterSessionManager
+    from src.backend.features.scenario.handlers.base_handler import BaseScenarioHandler, ScenarioHandlerIntegration
 
 _HANDLERS: dict[str, type[BaseScenarioHandler]] = {
     "awakening_rift": TutorialScenarioHandler,
 }
 
 
-def get_handler(quest_key: str, *, character_sessions: CharacterSessionManager) -> BaseScenarioHandler:
+def get_handler(quest_key: str, *, integration: ScenarioHandlerIntegration) -> BaseScenarioHandler:
     handler_class = _HANDLERS.get(quest_key)
     if handler_class is None:
         raise KeyError(f"Scenario handler not found: {quest_key}")
-    return handler_class(character_sessions)
+    return handler_class(integration)

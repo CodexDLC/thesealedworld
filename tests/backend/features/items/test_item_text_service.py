@@ -3,6 +3,7 @@ import json
 import pytest
 
 from src.backend.features.items.dto.instance import ItemGenerationRequestDTO
+from src.backend.features.items.integrations import ItemTextAIClient
 from src.backend.features.items.runtime.item_factory import ItemFactory
 from src.backend.features.items.services.text_service import ItemTextService
 
@@ -42,7 +43,7 @@ async def test_item_text_service_replaces_only_name_and_description_with_ai_text
         )
     )
 
-    item = await ItemTextService(ai).enrich(mechanical_item, request)
+    item = await ItemTextService(ItemTextAIClient(ai)).enrich(mechanical_item, request)
 
     assert item.name == "Железный Узловой Молот"
     assert item.description.startswith("Тяжелый молот")
@@ -65,7 +66,7 @@ async def test_item_text_service_skips_ai_when_request_does_not_ask_for_text():
     mechanical_item = ItemFactory().generate(request)
     ai = FakeAI({"name": "Не должен примениться", "description": "Не должен примениться."})
 
-    item = await ItemTextService(ai).enrich(mechanical_item, request)
+    item = await ItemTextService(ItemTextAIClient(ai)).enrich(mechanical_item, request)
 
     assert item == mechanical_item
     assert ai.calls == []

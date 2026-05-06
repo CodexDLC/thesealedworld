@@ -2,8 +2,8 @@ from types import SimpleNamespace
 
 import pytest
 
-from src.backend.features.arena.dto.session import ArenaCombatRequestDTO
 from src.backend.features.arena import events as arena_events
+from src.backend.features.arena.dto.session import ArenaCombatRequestDTO
 
 
 class FakeArenaStore:

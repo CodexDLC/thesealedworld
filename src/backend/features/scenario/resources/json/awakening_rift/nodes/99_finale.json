@@ -6,7 +6,7 @@
     "actions": [
       {
         "action_id": "finish",
-        "label": "В путь",
+        "label": "В бой",
         "icon": "default",
         "to_node": null,
         "type": "finish_quest"

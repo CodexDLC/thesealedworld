@@ -3,9 +3,9 @@ from __future__ import annotations
 import uuid
 from typing import TYPE_CHECKING
 
+from src.backend.features.monsters.dto.generation import GeneratedClan, GeneratedMonster
 from src.backend.features.monsters.resources import get_available_variants_for_tier, get_family_config
 from src.backend.features.monsters.resources.spawn_config import BIOME_FAMILIES, TIER_AVAILABILITY, TIER_SCALING_CONFIG
-from src.backend.infrastructure.actor_state.models import GeneratedClanORM, GeneratedMonsterORM
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -29,7 +29,7 @@ class ClanFactory:
         context_hash: str,
         unique_hash: str,
         normalized_tags: Sequence[str],
-    ) -> tuple[GeneratedClanORM, list[GeneratedMonsterORM]]:
+    ) -> tuple[GeneratedClan, list[GeneratedMonster]]:
         family = get_family_config(family_id)
         if family is None:
             raise ValueError(f"Unknown monster family: {family_id}")
@@ -39,7 +39,7 @@ class ClanFactory:
             raise ValueError(f"No monster variants for family={family_id} tier={context.tier}")
 
         flavor = self._build_flavor(family, context, variant_ids, normalized_tags)
-        clan = GeneratedClanORM(
+        clan = GeneratedClan(
             id=uuid.uuid4(),
             family_id=family.id,
             tier=context.tier,
@@ -54,6 +54,9 @@ class ClanFactory:
         members = [
             self._build_member(clan.id, family, family.variants[variant_id], context.tier) for variant_id in variant_ids
         ]
+        clan.members.extend(members)
+        for member in members:
+            member.clan = clan
         return clan, members
 
     def _select_candidates(self, tier: int, biome_id: str) -> set[str]:
@@ -86,10 +89,10 @@ class ClanFactory:
         family: MonsterFamilyDTO,
         variant: MonsterVariantDTO,
         tier: int,
-    ) -> GeneratedMonsterORM:
+    ) -> GeneratedMonster:
         multiplier = TIER_SCALING_CONFIG.get(tier, {"stat_mult": 1.0})["stat_mult"]
         base_stats = variant.base_stats.model_dump()
-        return GeneratedMonsterORM(
+        return GeneratedMonster(
             id=uuid.uuid4(),
             clan_id=clan_id,
             variant_key=variant.id,

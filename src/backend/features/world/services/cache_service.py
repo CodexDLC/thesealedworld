@@ -3,12 +3,12 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING, Any
 
-from src.backend.features.world.services.navigation_service import WorldNavigationService
+from src.backend.features.world.services.navigation_service import WorldNavigationNode, WorldNavigationService
 
 if TYPE_CHECKING:
-    from src.backend.infrastructure.world.managers.location_store import WorldLocationStore
-    from src.backend.infrastructure.world.models import WorldGrid
-    from src.backend.infrastructure.world.repositories import WorldRepository
+    from collections.abc import Mapping
+
+    from src.backend.features.world.integrations import WorldDataIntegration, WorldLocationIntegration
 
 log = logging.getLogger(__name__)
 
@@ -16,28 +16,31 @@ log = logging.getLogger(__name__)
 class WorldCacheService:
     def __init__(
         self,
-        repository: WorldRepository,
-        locations: WorldLocationStore,
+        data: WorldDataIntegration,
+        locations: WorldLocationIntegration,
         navigation: WorldNavigationService | None = None,
     ) -> None:
-        self.repository = repository
+        self.data = data
         self.locations = locations
         self.navigation = navigation or WorldNavigationService()
 
     async def warm_runtime_cache(self) -> int:
-        active_nodes = await self.repository.get_active_nodes()
+        active_nodes = await self.data.get_active_nodes()
         node_map = {self._loc_id(node): node for node in active_nodes}
         payload = {self._loc_id(node): self._to_location_cache(node, node_map) for node in active_nodes}
         count = await self.locations.write_locations(payload)
         log.info("World cache warmed: active_nodes=%s cached=%s", len(active_nodes), count)
         return count
 
-    def _to_location_cache(self, node: WorldGrid, node_map: dict[str, WorldGrid]) -> dict[str, Any]:
+    def _to_location_cache(
+        self, node: WorldNavigationNode, node_map: Mapping[str, WorldNavigationNode]
+    ) -> dict[str, Any]:
         loc_id = self._loc_id(node)
         content = node.content or {}
         flags = node.flags if isinstance(node.flags, dict) else {}
         anchor_influence = flags.get("anchor_influence", {})
         world_theme = flags.get("world_theme", {})
+        cached_flags = self._cache_flags(flags)
         services = node.services if isinstance(node.services, list) else []
         return {
             "loc_id": loc_id,
@@ -50,11 +53,18 @@ class WorldCacheService:
             "tags": content.get("environment_tags", []),
             "service": services[0] if services else "",
             "services": services,
-            "flags": flags,
+            "flags": cached_flags,
             "zone_id": str(node.zone_id),
             "terrain": str(node.terrain_type),
         }
 
     @staticmethod
-    def _loc_id(node: WorldGrid) -> str:
+    def _loc_id(node: WorldNavigationNode) -> str:
         return f"{node.x}_{node.y}"
+
+    @staticmethod
+    def _cache_flags(flags: dict[str, Any]) -> dict[str, Any]:
+        cached = dict(flags)
+        cached.pop("anchor_influence", None)
+        cached.pop("world_theme", None)
+        return cached

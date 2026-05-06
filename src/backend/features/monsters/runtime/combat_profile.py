@@ -1,13 +1,31 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Protocol
 
 from src.backend.features.items.resources import get_base_by_id
 from src.backend.features.monsters.resources import get_family_config
 
 if TYPE_CHECKING:
+    import uuid
+
     from src.backend.features.monsters.dto.resources import MonsterFamilyDTO
-    from src.backend.infrastructure.actor_state.models import Monster
+
+
+class MonsterCombatSource(Protocol):
+    @property
+    def id(self) -> uuid.UUID | str: ...
+    @property
+    def clan_id(self) -> uuid.UUID | str: ...
+    @property
+    def family_id(self) -> str | None: ...
+
+    variant_key: str
+    role: str
+    name_ru: str
+    scaled_base_stats: dict[str, Any]
+    loadout_ids: dict[str, Any] | list[Any]
+    skills_snapshot: dict[str, Any] | list[Any]
+    current_state: dict[str, Any] | None
 
 
 MONSTER_TO_ACTOR_STATS: dict[str, str] = {
@@ -23,7 +41,7 @@ MONSTER_TO_ACTOR_STATS: dict[str, str] = {
 }
 
 
-def build_monster_combat_context(monster: Monster) -> dict[str, Any]:
+def build_monster_combat_context(monster: MonsterCombatSource) -> dict[str, Any]:
     family = _family_for(monster)
     raw_tags = ["monster", monster.role]
     if family is not None:
@@ -53,7 +71,7 @@ def build_monster_combat_context(monster: Monster) -> dict[str, Any]:
     }
 
 
-def build_monster_vitals(monster: Monster) -> dict[str, Any]:
+def build_monster_vitals(monster: MonsterCombatSource) -> dict[str, Any]:
     stats = monster.scaled_base_stats or {}
     endurance = int(stats.get("endurance") or 0)
     agility = int(stats.get("agility") or 0)
@@ -71,13 +89,16 @@ def build_monster_vitals(monster: Monster) -> dict[str, Any]:
     }
 
 
-def _family_for(monster: Monster) -> MonsterFamilyDTO | None:
+def _family_for(monster: MonsterCombatSource) -> MonsterFamilyDTO | None:
+    family_id = getattr(monster, "family_id", None)
+    if family_id:
+        return get_family_config(str(family_id))
     clan = getattr(monster, "clan", None)
     family_id = getattr(clan, "family_id", None)
     return get_family_config(str(family_id)) if family_id else None
 
 
-def _attributes(monster: Monster) -> dict[str, dict[str, Any]]:
+def _attributes(monster: MonsterCombatSource) -> dict[str, dict[str, Any]]:
     attributes: dict[str, dict[str, Any]] = {}
     for source_key, value in (monster.scaled_base_stats or {}).items():
         actor_key = MONSTER_TO_ACTOR_STATS.get(source_key, source_key)
@@ -86,7 +107,7 @@ def _attributes(monster: Monster) -> dict[str, dict[str, Any]]:
     return attributes
 
 
-def _resolve_equipment(monster: Monster, family: MonsterFamilyDTO | None) -> list[dict[str, Any]]:
+def _resolve_equipment(monster: MonsterCombatSource, family: MonsterFamilyDTO | None) -> list[dict[str, Any]]:
     ids: list[str] = []
     profile = _dump_model(family.combat_profile) if family and family.combat_profile else {}
     if profile.get("natural_weapon_set"):
@@ -112,7 +133,7 @@ def _resolve_equipment(monster: Monster, family: MonsterFamilyDTO | None) -> lis
     return resolved
 
 
-def _resolve_skills(monster: Monster, family: MonsterFamilyDTO | None) -> dict[str, float]:
+def _resolve_skills(monster: MonsterCombatSource, family: MonsterFamilyDTO | None) -> dict[str, float]:
     skills: dict[str, float] = {}
     if family is not None:
         skill_kit = _dump_model(family.skill_kit) if family.skill_kit else {}
@@ -133,7 +154,7 @@ def _resolve_skills(monster: Monster, family: MonsterFamilyDTO | None) -> dict[s
     return skills
 
 
-def _resolve_abilities(monster: Monster, family: MonsterFamilyDTO | None) -> dict[str, Any]:
+def _resolve_abilities(monster: MonsterCombatSource, family: MonsterFamilyDTO | None) -> dict[str, Any]:
     raw_ids = _ability_ids(monster.skills_snapshot)
     ability_map = family.ability_map if family else {}
     mechanics: list[str] = []

@@ -5,12 +5,11 @@ from typing import TYPE_CHECKING, Any
 
 from src.backend.features.world.runtime.theme import WorldThemeService
 from src.backend.features.world.runtime.threat import ThreatService
-from src.backend.infrastructure.world.models import WorldRegion, WorldZone
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
 
-    from src.backend.infrastructure.world.repositories import WorldRepository
+    from src.backend.features.world.integrations import WorldDataIntegration
 
 log = logging.getLogger(__name__)
 
@@ -18,8 +17,8 @@ log = logging.getLogger(__name__)
 class VillageLoader:
     """Service to load static village data into the world database."""
 
-    def __init__(self, repository: WorldRepository) -> None:
-        self.repository = repository
+    def __init__(self, data: WorldDataIntegration) -> None:
+        self.data = data
 
     async def load_village(self, static_locations: Mapping[tuple[int, int], Any]) -> int:
         """Loads static locations into the WorldGrid.
@@ -28,26 +27,20 @@ class VillageLoader:
         """
         # 1. Ensure Region D4 exists
         region_id = "D4"
-        region = await self.repository.get_region(region_id)
-        if not region:
+        if not await self.data.region_exists(region_id):
             log.info("Creating Region %s", region_id)
-            await self.repository.upsert_region(
-                WorldRegion(id=region_id, climate_tags=["city_ruins", "ancient", "portal_shield"])
-            )
+            await self.data.upsert_region(region_id, climate_tags=["city_ruins", "ancient", "portal_shield"])
 
         # 2. Ensure hub zone exists
         zone_id = "D4_1_1"
-        zone = await self.repository.get_zone(zone_id)
-        if not zone:
+        if not await self.data.get_zone(zone_id):
             log.info("Creating Zone %s", zone_id)
-            await self.repository.upsert_zone(
-                WorldZone(
-                    id=zone_id,
-                    region_id=region_id,
-                    biome_id="city_ruins",
-                    tier=0,
-                    flags={"is_safe_zone": True, "is_hub": True, "portal_shield": True, "threat_tier": 0},
-                )
+            await self.data.upsert_zone(
+                zone_id,
+                region_id=region_id,
+                biome_id="city_ruins",
+                tier=0,
+                flags={"is_safe_zone": True, "is_hub": True, "portal_shield": True, "threat_tier": 0},
             )
 
         # 3. Prepare nodes for bulk upsert
@@ -79,7 +72,7 @@ class VillageLoader:
             )
 
         if nodes_to_upsert:
-            await self.repository.bulk_upsert_nodes(nodes_to_upsert)
+            await self.data.bulk_upsert_nodes(nodes_to_upsert)
             log.info("Successfully upserted %d village nodes", len(nodes_to_upsert))
             return len(nodes_to_upsert)
 

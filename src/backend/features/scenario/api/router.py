@@ -1,18 +1,15 @@
-from typing import Annotated, Any
+from typing import Annotated
 
 from fastapi import APIRouter, Depends, Request
 from pydantic import BaseModel, ConfigDict, field_validator
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.backend.config.settings import settings
 from src.backend.core.database import get_db
-from src.backend.core.exceptions import BusinessLogicException
 from src.backend.features.scenario.dependencies import build_scenario_service
 from src.backend.features.scenario.services import ScenarioService
 from src.backend.features_site.auth.dependencies import get_current_user
 from src.backend.features_site.auth.models import User
-from src.backend.infrastructure.actor_state.models import Character
 from src.shared.enums import CoreDomain
 from src.shared.schemas import CoreResponseDTO, GameStateHeader, ScenarioPayloadDTO, StateTransitionDTO
 from src.shared.utils.dev_utils import log_debug_payload
@@ -59,10 +56,9 @@ def get_scenario_service(
 async def initialize_scenario(
     dto: ScenarioInitializeRequestDTO,
     current_user: Annotated[User, Depends(get_current_user)],
-    db_session: Annotated[AsyncSession, Depends(get_db)],
     scenario_service: Annotated[ScenarioService, Depends(get_scenario_service)],
 ) -> CoreResponseDTO[ScenarioPayloadDTO]:
-    await _ensure_character_owner(db_session, current_user, dto.char_id)
+    await scenario_service.ensure_character_owner(user_id=current_user.id, char_id=dto.char_id)
     payload = await scenario_service.initialize(dto.char_id, dto.quest_key, source="api")
     payload.extra_data = {**(payload.extra_data or {}), "char_id": dto.char_id, "quest_key": dto.quest_key}
     response = CoreResponseDTO(
@@ -78,10 +74,9 @@ async def initialize_scenario(
 async def resume_scenario(
     char_id: int,
     current_user: Annotated[User, Depends(get_current_user)],
-    db_session: Annotated[AsyncSession, Depends(get_db)],
     scenario_service: Annotated[ScenarioService, Depends(get_scenario_service)],
 ) -> CoreResponseDTO[ScenarioPayloadDTO]:
-    await _ensure_character_owner(db_session, current_user, char_id)
+    await scenario_service.ensure_character_owner(user_id=current_user.id, char_id=char_id)
     payload = await scenario_service.resume(char_id)
     payload.extra_data = {**(payload.extra_data or {}), "char_id": char_id}
     response = CoreResponseDTO(
@@ -97,10 +92,9 @@ async def resume_scenario(
 async def step_scenario(
     dto: ScenarioStepRequestDTO,
     current_user: Annotated[User, Depends(get_current_user)],
-    db_session: Annotated[AsyncSession, Depends(get_db)],
     scenario_service: Annotated[ScenarioService, Depends(get_scenario_service)],
 ) -> CoreResponseDTO[ScenarioPayloadDTO | StateTransitionDTO]:
-    await _ensure_character_owner(db_session, current_user, dto.char_id)
+    await scenario_service.ensure_character_owner(user_id=current_user.id, char_id=dto.char_id)
 
     payload = await scenario_service.step(dto.char_id, dto.action_id)
     if isinstance(payload, ScenarioPayloadDTO):
@@ -131,9 +125,3 @@ async def step_scenario(
     )
     log_debug_payload("scenario.step", response, enabled=settings.debug)
     return response
-
-
-async def _ensure_character_owner(db_session: AsyncSession, current_user: User, char_id: int) -> None:
-    owner_id: Any = await db_session.scalar(select(Character.user_id).where(Character.character_id == char_id))
-    if owner_id != current_user.id:
-        raise BusinessLogicException("Scenario character is unavailable")

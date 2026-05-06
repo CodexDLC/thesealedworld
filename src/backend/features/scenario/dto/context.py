@@ -6,6 +6,8 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from src.backend.config.settings import settings
+
 STAT_KEYS = [
     "strength",
     "agility",
@@ -41,7 +43,7 @@ class ScenarioContextDTO(BaseModel):
     visited_nodes: list[str] = Field(default_factory=list)
     weights: ScenarioWeightsDTO = Field(default_factory=ScenarioWeightsDTO)
     queues: ScenarioQueuesDTO = Field(default_factory=ScenarioQueuesDTO)
-    sys_actor: str = "Symbiote"
+    sys_actor: str = settings.default_symbiote_name
     prev_state: str | None = None
     prev_loc: str | None = None
     flags: dict[str, Any] = Field(default_factory=dict)

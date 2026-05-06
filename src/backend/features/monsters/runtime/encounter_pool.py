@@ -6,8 +6,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
-    from src.backend.features.monsters.dto.generation import MonsterGenerationContext
-    from src.backend.infrastructure.actor_state.models import GeneratedClanORM, GeneratedMonsterORM
+    from src.backend.features.monsters.dto.generation import GeneratedClan, GeneratedMonster, MonsterGenerationContext
 
 
 DIFFICULTY_ROLES: dict[str, tuple[str, ...]] = {
@@ -26,9 +25,9 @@ class EncounterPoolSelector:
 
     def choose_existing_clan(
         self,
-        clans: Sequence[GeneratedClanORM],
+        clans: Sequence[GeneratedClan],
         context: MonsterGenerationContext,
-    ) -> GeneratedClanORM | None:
+    ) -> GeneratedClan | None:
         suitable = [clan for clan in clans if self._select_members(list(clan.members), context)]
         if not suitable:
             return None
@@ -36,17 +35,17 @@ class EncounterPoolSelector:
 
     def select_monsters(
         self,
-        members: Sequence[GeneratedMonsterORM],
+        members: Sequence[GeneratedMonster],
         context: MonsterGenerationContext,
-    ) -> list[GeneratedMonsterORM]:
+    ) -> list[GeneratedMonster]:
         selected = self._select_members(members, context)
         return selected[: context.count]
 
     def _select_members(
         self,
-        members: Sequence[GeneratedMonsterORM],
+        members: Sequence[GeneratedMonster],
         context: MonsterGenerationContext,
-    ) -> list[GeneratedMonsterORM]:
+    ) -> list[GeneratedMonster]:
         if not members:
             return []
 

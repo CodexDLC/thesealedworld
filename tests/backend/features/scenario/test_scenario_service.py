@@ -1,4 +1,4 @@
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
@@ -42,15 +42,15 @@ class TestScenarioService:
         )
         mock_handler.on_initialize = AsyncMock(return_value=context)
 
-        with patch("src.backend.features.scenario.services.scenario_service.get_handler", return_value=mock_handler):
-            mocks["integrator"].prepare_session = AsyncMock()
-            mocks["integrator"].get_node = AsyncMock(return_value={"node_key": "n1", "actions_logic": {}})
-            mocks["integrator"].publish_event = AsyncMock()
-            mocks["formatter"].render_payload.return_value = MagicMock(node_key="n1", buttons=[])
+        mocks["integrator"].build_handler.return_value = mock_handler
+        mocks["integrator"].prepare_session = AsyncMock()
+        mocks["integrator"].get_node = AsyncMock(return_value={"node_key": "n1", "actions_logic": {}})
+        mocks["integrator"].publish_event = AsyncMock()
+        mocks["formatter"].render_payload.return_value = MagicMock(node_key="n1", buttons=[])
 
-            result = await service.initialize(char_id, quest_key)
-            assert result.node_key == "n1"
-            mocks["integrator"].prepare_session.assert_called_once()
+        result = await service.initialize(char_id, quest_key)
+        assert result.node_key == "n1"
+        mocks["integrator"].prepare_session.assert_called_once()
 
     async def test_initialize_not_found(self, service, mocks):
         mocks["integrator"].get_quest_master = AsyncMock(return_value=None)
@@ -117,17 +117,17 @@ class TestScenarioService:
         mock_result.rewards.skills = []
         mock_result.rewards.attribute_bonuses = None
         mock_handler.on_finalize = AsyncMock(return_value=mock_result)
-        with patch("src.backend.features.scenario.services.scenario_service.get_handler", return_value=mock_handler):
-            mocks["integrator"].finalize_session = AsyncMock()
-            mocks["integrator"].grant_inventory_rewards = AsyncMock()
-            mocks["integrator"].unlock_skills = AsyncMock()
-            mocks["integrator"].apply_attribute_bonuses = AsyncMock()
-            mocks["integrator"].request_combat_start = AsyncMock()
-            mocks["integrator"].sync_active_character_to_db = AsyncMock()
+        mocks["integrator"].build_handler.return_value = mock_handler
+        mocks["integrator"].finalize_session = AsyncMock()
+        mocks["integrator"].grant_inventory_rewards = AsyncMock()
+        mocks["integrator"].unlock_skills = AsyncMock()
+        mocks["integrator"].apply_attribute_bonuses = AsyncMock()
+        mocks["integrator"].request_combat_start = AsyncMock()
+        mocks["integrator"].sync_active_character_to_db = AsyncMock()
 
-            await service.step(char_id, "a1")
-            mocks["integrator"].finalize_session.assert_called_with(char_id, CoreDomain.EXPLORATION)
-            mocks["integrator"].sync_active_character_to_db.assert_called_with(char_id)
+        await service.step(char_id, "a1")
+        mocks["integrator"].finalize_session.assert_called_with(char_id, CoreDomain.EXPLORATION)
+        mocks["integrator"].sync_active_character_to_db.assert_called_with(char_id)
 
     async def test_finalize_shadow_combat_closes_scenario_to_exploration_before_combat(self, service, mocks):
         char_id = 1
@@ -154,17 +154,18 @@ class TestScenarioService:
             calls.append(("request_combat_start", args, kwargs))
             return {"status": "ready", "combat_id": "combat-1"}
 
-        with patch("src.backend.features.scenario.services.scenario_service.get_handler", return_value=mock_handler):
-            mocks["integrator"].grant_inventory_rewards = AsyncMock(return_value=[])
-            mocks["integrator"].unlock_skills = AsyncMock()
-            mocks["integrator"].apply_attribute_bonuses = AsyncMock()
-            mocks["integrator"].prepare_combat_return_context = AsyncMock()
-            mocks["integrator"].request_combat_start = AsyncMock(side_effect=request_combat_start)
-            mocks["integrator"].finalize_session = AsyncMock(side_effect=finalize_session)
-            mocks["integrator"].publish_event = AsyncMock()
-            mocks["integrator"].sync_active_character_to_db = AsyncMock()
+        mocks["integrator"].build_handler.return_value = mock_handler
+        mocks["integrator"].grant_inventory_rewards = AsyncMock(return_value=[])
+        mocks["integrator"].unlock_skills = AsyncMock()
+        mocks["integrator"].apply_attribute_bonuses = AsyncMock()
+        mocks["integrator"].prepare_combat_return_context = AsyncMock()
+        mocks["integrator"].request_combat_start = AsyncMock(side_effect=request_combat_start)
+        mocks["integrator"].finalize_session = AsyncMock(side_effect=finalize_session)
+        mocks["integrator"].enter_prepared_combat = AsyncMock()
+        mocks["integrator"].publish_event = AsyncMock()
+        mocks["integrator"].sync_active_character_to_db = AsyncMock()
 
-            result = await service.finalize(char_id)
+        result = await service.finalize(char_id)
 
         mocks["integrator"].prepare_combat_return_context.assert_awaited_once_with(char_id, location_id="52_58")
         assert calls[0] == ("finalize_session", (char_id, CoreDomain.EXPLORATION))
@@ -173,6 +174,7 @@ class TestScenarioService:
             (char_id, "awakening_rift"),
             {"battle_type": "shadow", "location_id": "52_58"},
         )
+        mocks["integrator"].enter_prepared_combat.assert_awaited_once_with(char_id, "combat-1")
         assert result.target_state == CoreDomain.COMBAT
         assert result.combat_id == "combat-1"
 
@@ -190,31 +192,31 @@ class TestScenarioService:
         )
         mock_handler.on_initialize = AsyncMock(return_value=context)
 
-        with patch("src.backend.features.scenario.services.scenario_service.get_handler", return_value=mock_handler):
-            mocks["integrator"].prepare_session = AsyncMock()
-            mocks["integrator"].get_node = AsyncMock(return_value={"node_key": "n1", "actions_logic": {"auto": {}}})
+        mocks["integrator"].build_handler.return_value = mock_handler
+        mocks["integrator"].prepare_session = AsyncMock()
+        mocks["integrator"].get_node = AsyncMock(return_value={"node_key": "n1", "actions_logic": {"auto": {}}})
 
-            mocks["director"]._get_node_actions = MagicMock(return_value={"auto": {}})
-            mock_resolved = MagicMock()
-            mock_resolved.node = {"node_key": "n2"}
-            mock_resolved.context = {"foo": "bar"}
-            mocks["director"].execute_auto_chain = AsyncMock(return_value=mock_resolved)
+        mocks["director"]._get_node_actions = MagicMock(return_value={"auto": {}})
+        mock_resolved = MagicMock()
+        mock_resolved.node = {"node_key": "n2"}
+        mock_resolved.context = {"foo": "bar"}
+        mocks["director"].execute_auto_chain = AsyncMock(return_value=mock_resolved)
 
-            mocks["integrator"].update_progress = AsyncMock()
-            mocks["formatter"].render_payload.return_value = MagicMock(node_key="n2", buttons=[])
-            mocks["integrator"].publish_event = AsyncMock()
+        mocks["integrator"].update_progress = AsyncMock()
+        mocks["formatter"].render_payload.return_value = MagicMock(node_key="n2", buttons=[])
+        mocks["integrator"].publish_event = AsyncMock()
 
-            await service.initialize(char_id, quest_key)
+        await service.initialize(char_id, quest_key)
 
-            assert context.current_node_key == "n2"
-            mocks["director"].execute_auto_chain.assert_called_once()
+        assert context.current_node_key == "n2"
+        mocks["director"].execute_auto_chain.assert_called_once()
 
 
 
     async def test_initialize_state_transition_error(self, service, mocks):
         import uuid
 
-        from src.backend.infrastructure.actor_state.managers.session import StateTransitionError
+        from src.backend.features.character.managers.session import StateTransitionError
         char_id = 1
         quest_key = "q1"
         mocks["integrator"].get_quest_master = AsyncMock(return_value={"id": "q1"})
@@ -223,15 +225,15 @@ class TestScenarioService:
         context = ScenarioContextDTO(quest_key=quest_key, current_node_key="n1", scenario_session_id=uuid.uuid4())
         mock_handler.on_initialize = AsyncMock(return_value=context)
 
-        with patch("src.backend.features.scenario.services.scenario_service.get_handler", return_value=mock_handler):
-            mocks["integrator"].prepare_session = AsyncMock(side_effect=StateTransitionError("fail"))
-            mocks["integrator"].get_node = AsyncMock(return_value={"node_key": "n1", "actions_logic": {}})
-            mocks["formatter"].render_payload.return_value = MagicMock(node_key="n1", buttons=[])
-            mocks["integrator"].publish_event = AsyncMock()
+        mocks["integrator"].build_handler.return_value = mock_handler
+        mocks["integrator"].prepare_session = AsyncMock(side_effect=StateTransitionError("fail"))
+        mocks["integrator"].get_node = AsyncMock(return_value={"node_key": "n1", "actions_logic": {}})
+        mocks["formatter"].render_payload.return_value = MagicMock(node_key="n1", buttons=[])
+        mocks["integrator"].publish_event = AsyncMock()
 
-            # Should bubble up
-            with pytest.raises(StateTransitionError):
-                await service.initialize(char_id, quest_key)
+        # Should bubble up
+        with pytest.raises(StateTransitionError):
+            await service.initialize(char_id, quest_key)
 
     async def test_step_invalid_condition(self, service, mocks):
         context = ScenarioContextDTO(quest_key="q1", current_node_key="n1")
@@ -256,21 +258,22 @@ class TestScenarioService:
         mock_result.rewards.attribute_bonuses = None
         mock_handler.on_finalize = AsyncMock(return_value=mock_result)
 
-        with patch("src.backend.features.scenario.services.scenario_service.get_handler", return_value=mock_handler):
-            mocks["integrator"].finalize_session = AsyncMock()
-            mocks["integrator"].grant_inventory_rewards = AsyncMock()
-            mocks["integrator"].unlock_skills = AsyncMock()
-            mocks["integrator"].apply_attribute_bonuses = AsyncMock()
-            mocks["integrator"].request_combat_start = AsyncMock()
-            mocks["integrator"].publish_event = AsyncMock()
-            mocks["integrator"].sync_active_character_to_db = AsyncMock()
+        mocks["integrator"].build_handler.return_value = mock_handler
+        mocks["integrator"].finalize_session = AsyncMock()
+        mocks["integrator"].grant_inventory_rewards = AsyncMock()
+        mocks["integrator"].unlock_skills = AsyncMock()
+        mocks["integrator"].apply_attribute_bonuses = AsyncMock()
+        mocks["integrator"].request_combat_start = AsyncMock()
+        mocks["integrator"].enter_prepared_combat = AsyncMock()
+        mocks["integrator"].publish_event = AsyncMock()
+        mocks["integrator"].sync_active_character_to_db = AsyncMock()
 
-            # Mock director._get_node_actions so ScenarioService knows it's a finish_quest action
-            mocks["director"]._get_node_actions.return_value = {"a1": {"type": "finish_quest"}}
+        # Mock director._get_node_actions so ScenarioService knows it's a finish_quest action
+        mocks["director"]._get_node_actions.return_value = {"a1": {"type": "finish_quest"}}
 
-            await service.step(1, "a1")
-            mocks["integrator"].finalize_session.assert_called_once()
-            mocks["integrator"].sync_active_character_to_db.assert_called_once_with(1)
+        await service.step(1, "a1")
+        mocks["integrator"].finalize_session.assert_called_once()
+        mocks["integrator"].sync_active_character_to_db.assert_called_once_with(1)
 
     async def test_resume_auto_chain(self, service, mocks):
         char_id = 1
@@ -305,6 +308,21 @@ class TestScenarioService:
         mocks["integrator"].load_session = AsyncMock(return_value=None)
         with pytest.raises(ScenarioSessionNotFound):
             await service.step(1, "a1")
+
+    async def test_step_finish_missing_session_recovers_to_exploration(self, service, mocks):
+        mocks["integrator"].load_session = AsyncMock(return_value=None)
+        mocks["integrator"].recover_missing_finish_to_exploration = AsyncMock()
+        mocks["integrator"].sync_active_character_to_db = AsyncMock()
+        mocks["integrator"].publish_event = AsyncMock()
+
+        result = await service.step(1, "finish")
+
+        assert result.target_state == CoreDomain.EXPLORATION
+        assert result.transition_reason == "scenario_session_missing_recovered"
+        assert result.metadata == {"recovered": True, "missing_session": True}
+        mocks["integrator"].recover_missing_finish_to_exploration.assert_awaited_once_with(1)
+        mocks["integrator"].sync_active_character_to_db.assert_awaited_once_with(1)
+        mocks["integrator"].publish_event.assert_awaited_once()
 
     async def test_finalize_session_not_found(self, service, mocks):
         mocks["integrator"].load_session = AsyncMock(return_value=None)
@@ -349,16 +367,17 @@ class TestScenarioService:
         result.rewards.attribute_bonuses = {"str": 1}
         mock_handler.on_finalize = AsyncMock(return_value=result)
 
-        with patch("src.backend.features.scenario.services.scenario_service.get_handler", return_value=mock_handler):
-            mocks["integrator"].grant_inventory_rewards = AsyncMock()
-            mocks["integrator"].unlock_skills = AsyncMock()
-            mocks["integrator"].apply_attribute_bonuses = AsyncMock()
-            mocks["integrator"].request_combat_start = AsyncMock()
-            mocks["integrator"].finalize_session = AsyncMock()
-            mocks["integrator"].publish_event = AsyncMock()
-            mocks["integrator"].sync_active_character_to_db = AsyncMock()
+        mocks["integrator"].build_handler.return_value = mock_handler
+        mocks["integrator"].grant_inventory_rewards = AsyncMock()
+        mocks["integrator"].unlock_skills = AsyncMock()
+        mocks["integrator"].apply_attribute_bonuses = AsyncMock()
+        mocks["integrator"].request_combat_start = AsyncMock()
+        mocks["integrator"].enter_prepared_combat = AsyncMock()
+        mocks["integrator"].finalize_session = AsyncMock()
+        mocks["integrator"].publish_event = AsyncMock()
+        mocks["integrator"].sync_active_character_to_db = AsyncMock()
 
-            await service.finalize(char_id)
+        await service.finalize(char_id)
 
-            mocks["integrator"].finalize_session.assert_called_with(char_id, CoreDomain.EXPLORATION)
-            mocks["integrator"].sync_active_character_to_db.assert_called_with(char_id)
+        mocks["integrator"].finalize_session.assert_called_with(char_id, CoreDomain.EXPLORATION)
+        mocks["integrator"].sync_active_character_to_db.assert_called_with(char_id)

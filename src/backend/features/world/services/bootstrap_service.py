@@ -4,8 +4,8 @@ import logging
 from typing import TYPE_CHECKING, Protocol
 
 if TYPE_CHECKING:
+    from src.backend.features.world.integrations import WorldDataIntegration
     from src.backend.features.world.services.cache_service import WorldCacheService
-    from src.backend.infrastructure.world.repositories import WorldRepository
 
 log = logging.getLogger(__name__)
 
@@ -23,7 +23,7 @@ class WorldBootstrapService:
 
     def __init__(
         self,
-        repository: WorldRepository,
+        data: WorldDataIntegration,
         cache: WorldCacheService,
         generator: WorldGenerator | None = None,
         *,
@@ -31,7 +31,7 @@ class WorldBootstrapService:
         generation_mode: str = "test",
         refresh_static_seed: bool = True,
     ) -> None:
-        self.repository = repository
+        self.data = data
         self.cache = cache
         self.generator = generator
         self.auto_generate = auto_generate
@@ -39,7 +39,7 @@ class WorldBootstrapService:
         self.refresh_static_seed = refresh_static_seed
 
     async def bootstrap(self) -> int:
-        has_world = await self.repository.has_world_data()
+        has_world = await self.data.has_world_data()
         if not has_world:
             if self.auto_generate and self.generator is not None:
                 log.info("World data missing; running generator mode=%s", self.generation_mode)
@@ -54,7 +54,7 @@ class WorldBootstrapService:
             log.info("World data exists; refreshing static world seed")
             await self.generator.run("test")
 
-        active_nodes = await self.repository.count_active_nodes()
+        active_nodes = await self.data.count_active_nodes()
         if active_nodes <= 0:
             log.warning("World data exists but no active nodes are available for runtime cache")
             return 0

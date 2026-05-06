@@ -1,6 +1,9 @@
-import pytest
 from unittest.mock import AsyncMock, MagicMock
+
+import pytest
+
 from src.backend.features.world.services.world_service import WorldService
+
 
 @pytest.mark.unit
 class TestWorldService:
@@ -18,11 +21,11 @@ class TestWorldService:
         locations.get_location.assert_called_with("l1")
 
     async def test_register_battle(self, service, locations):
-        locations.add_battle = AsyncMock()
+        locations.register_battle = AsyncMock()
         await service.register_battle("l1", "b1", "desc")
-        locations.add_battle.assert_called_with("l1", "b1", "desc")
+        locations.register_battle.assert_called_with("l1", "b1", "desc")
 
     async def test_unregister_battle(self, service, locations):
-        locations.remove_battle = AsyncMock()
+        locations.unregister_battle = AsyncMock()
         await service.unregister_battle("l1", "b1")
-        locations.remove_battle.assert_called_with("l1", "b1")
+        locations.unregister_battle.assert_called_with("l1", "b1")

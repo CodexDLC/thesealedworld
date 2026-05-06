@@ -1,7 +1,7 @@
-from enum import Enum
+from enum import StrEnum
 
 
-class StatKey(str, Enum):
+class StatKey(StrEnum):
     """
     Ключи всех характеристик персонажа (Attributes, Vitals, Secondary).
     Используются в формулах, Redis и DTO.

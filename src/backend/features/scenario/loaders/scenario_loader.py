@@ -7,18 +7,14 @@ from typing import TYPE_CHECKING
 from loguru import logger
 
 from src.backend.features.scenario.dto.master import QuestFileSchema, QuestMasterSchema, QuestNodeSchema
-from src.backend.infrastructure.scenario.repositories import ScenarioRepository
 
 if TYPE_CHECKING:
-    from sqlalchemy.ext.asyncio import AsyncSession
-
-    from src.backend.features.scenario.services.content_service import ScenarioContentService
+    from src.backend.features.scenario.integrations.import_integration import ScenarioImportIntegration
 
 
 class ScenarioLoader:
-    def __init__(self, session: AsyncSession, content: ScenarioContentService | None = None) -> None:
-        self.repo = ScenarioRepository(session)
-        self.content = content
+    def __init__(self, importer: ScenarioImportIntegration) -> None:
+        self.importer = importer
 
     async def load_from_file(self, path: str | Path) -> str:
         path = Path(path)
@@ -68,14 +64,9 @@ class ScenarioLoader:
 
         all_nodes = list(deduplicated.values())
 
-        await self.repo.upsert_master(master_data)
-        await self.repo.delete_quest_nodes(quest_key)
-        await self.repo.bulk_insert_nodes(all_nodes)
-        await self.repo.session.commit()
-
-        if self.content is not None:
-            cached_nodes = await self.content.warm_up_cache(quest_key)
-            logger.info("Scenario fixture cache warmed: quest_key={} nodes={}", quest_key, cached_nodes)
+        cached_nodes = await self.importer.replace_quest(master_data, all_nodes)
+        if cached_nodes is not None:
+            logger.info("Scenario fixture cache available: quest_key={} nodes={}", quest_key, cached_nodes)
         logger.info("Scenario fixture load finished: quest_key={} nodes={}", quest_key, len(all_nodes))
         return quest_key
 

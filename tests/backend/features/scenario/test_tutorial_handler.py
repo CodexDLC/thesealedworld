@@ -1,6 +1,9 @@
+from unittest.mock import AsyncMock
+
 import pytest
 
 from src.backend.features.scenario.dto.context import ScenarioContextDTO
+from src.backend.features.scenario.handlers.base_handler import ScenarioInitialHandlerContext
 from src.backend.features.scenario.handlers.tutorial_handler import TutorialScenarioHandler
 from src.shared.enums import CoreDomain
 
@@ -36,7 +39,7 @@ def test_tutorial_attribute_bonuses_rank_visible_profile_weights() -> None:
 
 @pytest.mark.unit
 async def test_tutorial_finalize_requests_shadow_combat_transition() -> None:
-    handler = TutorialScenarioHandler(character_sessions=None)
+    handler = TutorialScenarioHandler(integration=AsyncMock())
     context = ScenarioContextDTO(quest_key="awakening_rift", current_node_key="final")
 
     result = await handler.on_finalize(1, context, {"quest_key": "awakening_rift"})
@@ -45,3 +48,24 @@ async def test_tutorial_finalize_requests_shadow_combat_transition() -> None:
     assert result.transition_reason == "scenario_shadow_combat"
     assert result.location_id
     assert result.metadata["battle_type"] == "shadow"
+
+
+@pytest.mark.unit
+async def test_tutorial_initialize_uses_integration_context() -> None:
+    integration = AsyncMock()
+    integration.get_initial_handler_context.return_value = ScenarioInitialHandlerContext(
+        sys_actor="Eidolon",
+        prev_state="LOBBY",
+        prev_loc="52_52",
+    )
+    handler = TutorialScenarioHandler(integration=integration)
+
+    context = await handler.on_initialize(
+        7,
+        {"quest_key": "awakening_rift", "start_node_id": "start"},
+    )
+
+    integration.get_initial_handler_context.assert_awaited_once_with(7)
+    assert context.sys_actor == "Eidolon"
+    assert context.prev_state == "LOBBY"
+    assert context.prev_loc == "52_52"

@@ -5,18 +5,19 @@ from typing import TYPE_CHECKING, Any
 
 from loguru import logger
 
+from src.backend.features.scenario.dto.finalize import ScenarioFinalizeResult
 from src.backend.features.scenario.exceptions import (
     InvalidScenarioAction,
     ScenarioConditionFailed,
     ScenarioNodeNotFound,
     ScenarioSessionNotFound,
 )
-from src.backend.features.scenario.handlers import get_handler
 from src.shared.enums import CoreDomain
 
 if TYPE_CHECKING:
+    from uuid import UUID
+
     from src.backend.features.scenario.dto.context import ScenarioContextDTO
-    from src.backend.features.scenario.dto.finalize import ScenarioFinalizeResult
     from src.backend.features.scenario.engine import ScenarioDirector, ScenarioEvaluator, ScenarioFormatter
     from src.backend.features.scenario.integrations.system_integrator import ScenarioSystemIntegrator
     from src.shared.schemas import ScenarioPayloadDTO
@@ -47,13 +48,16 @@ class ScenarioService:
         self.director = director
         self.formatter = formatter
 
+    async def ensure_character_owner(self, *, user_id: UUID, char_id: int) -> None:
+        await self.integrator.ensure_character_owner(user_id=user_id, char_id=char_id)
+
     async def initialize(self, char_id: int, quest_key: str, source: str = "onboarding") -> ScenarioPayloadDTO:
         master = await self.integrator.get_quest_master(quest_key)
         if master is None:
             log.warning("Scenario initialize rejected: master_missing char_id=%s quest_key=%s", char_id, quest_key)
             raise ScenarioNodeNotFound(quest_key, "START")
 
-        handler = get_handler(quest_key, character_sessions=self.integrator.character_sessions)
+        handler = self.integrator.build_handler(quest_key)
         context = await handler.on_initialize(char_id, master)
 
         await self.integrator.prepare_session(char_id, quest_key, context)
@@ -117,6 +121,23 @@ class ScenarioService:
     async def step(self, char_id: int, action_id: str) -> ScenarioPayloadDTO | ScenarioFinalizeResult:
         context = await self.integrator.load_session(char_id)
         if context is None:
+            if action_id == "finish":
+                await self.integrator.recover_missing_finish_to_exploration(char_id)
+                await self.integrator.sync_active_character_to_db(char_id)
+                await self.integrator.publish_event(
+                    "scenario.recovered_missing_session",
+                    {
+                        "char_id": char_id,
+                        "action_id": action_id,
+                        "target_state": CoreDomain.EXPLORATION.value,
+                    },
+                )
+                log.warning("Scenario finish recovered: session_not_found char_id=%s", char_id)
+                return ScenarioFinalizeResult(
+                    target_state=CoreDomain.EXPLORATION,
+                    transition_reason="scenario_session_missing_recovered",
+                    metadata={"recovered": True, "missing_session": True},
+                )
             log.warning("Scenario step rejected: session_not_found char_id=%s action_id=%s", char_id, action_id)
             raise ScenarioSessionNotFound(char_id)
 
@@ -176,7 +197,7 @@ class ScenarioService:
             )
             raise ScenarioNodeNotFound(context.quest_key, "MASTER")
 
-        handler = get_handler(context.quest_key, character_sessions=self.integrator.character_sessions)
+        handler = self.integrator.build_handler(context.quest_key)
         result = await handler.on_finalize(char_id, context, master)
 
         item_ids = await self.integrator.grant_inventory_rewards(
@@ -196,6 +217,7 @@ class ScenarioService:
             )
             result.combat_id = str(combat_ready.get("combat_id") or result.combat_id or "")
             result.metadata = {**result.metadata, "combat_ready": combat_ready}
+            await self.integrator.enter_prepared_combat(char_id, result.combat_id)
         else:
             await self.integrator.finalize_session(char_id, target_state)
         await self.integrator.sync_active_character_to_db(char_id)
@@ -214,6 +236,9 @@ class ScenarioService:
         )
         logger.info(f"Scenario finalized: char_id={char_id} quest={context.quest_key}")
         return result
+
+    async def cleanup(self, char_id: int) -> None:
+        await self.integrator.cleanup_session(char_id)
 
     async def _current_or_raise(self, context: ScenarioContextDTO) -> dict[str, Any]:
         node = await self.integrator.get_node(context.quest_key, context.current_node_key)

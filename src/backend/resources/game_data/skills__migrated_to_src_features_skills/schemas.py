@@ -1,14 +1,14 @@
-from enum import Enum
+from enum import StrEnum
 
 from pydantic import BaseModel, Field
 
 
-class SkillCategory(str, Enum):
+class SkillCategory(StrEnum):
     COMBAT = "combat"
     NON_COMBAT = "non_combat"
 
 
-class SkillGroup(str, Enum):
+class SkillGroup(StrEnum):
     # Combat Groups
     WEAPON_MASTERY = "weapon_mastery"
     TACTICAL = "tactical"

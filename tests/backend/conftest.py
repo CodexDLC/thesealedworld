@@ -129,7 +129,7 @@ def app() -> Any:
     app.state.redis = MagicMock()
     app.state.redis_managers = MagicMock()
     app.state.character_sessions = MagicMock()
-    app.state.actor_snapshots = MagicMock()
+    app.state.actor_commitments = MagicMock()
     app.state.scenario_sessions = MagicMock()
     app.state.world_locations = MagicMock()
 

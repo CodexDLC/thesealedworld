@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import logging
 import random
-from typing import TYPE_CHECKING
 
 from src.backend.features.scenario.dto.context import ELEMENT_KEYS, STAT_KEYS, ScenarioContextDTO
 from src.backend.features.scenario.dto.finalize import (
@@ -11,9 +10,6 @@ from src.backend.features.scenario.dto.finalize import (
 )
 from src.backend.features.scenario.handlers.base_handler import BaseScenarioHandler
 from src.shared.enums import CoreDomain
-
-if TYPE_CHECKING:
-    from src.backend.infrastructure.actor_state import CharacterSessionManager
 
 log = logging.getLogger(__name__)
 
@@ -47,27 +43,14 @@ TUTORIAL_EXIT_LOCATIONS = [
 
 
 class TutorialScenarioHandler(BaseScenarioHandler):
-    def __init__(self, character_sessions: CharacterSessionManager) -> None:
-        self.character_sessions = character_sessions
-
     async def on_initialize(self, char_id: int, quest_master: dict) -> ScenarioContextDTO:
-        symbiote = await self.character_sessions.get_section(char_id, "symbiote")
-        sys_actor = "Symbiote"
-        if isinstance(symbiote, dict):
-            sys_actor = str(symbiote.get("name") or sys_actor)
-        elif isinstance(symbiote, str) and symbiote:
-            sys_actor = symbiote
-
-        location = await self.character_sessions.get_section(char_id, "location")
-        prev_loc = location.get("current") if isinstance(location, dict) else "52_52"
-
-        state = await self.character_sessions.get_section(char_id, "state")
+        initial = await self.integration.get_initial_handler_context(char_id)
         return ScenarioContextDTO(
             quest_key=quest_master["quest_key"],
             current_node_key=quest_master["start_node_id"],
-            sys_actor=sys_actor,
-            prev_state=str(state) if state else None,
-            prev_loc=prev_loc,
+            sys_actor=initial.sys_actor,
+            prev_state=initial.prev_state,
+            prev_loc=initial.prev_loc,
             flags={"is_two_handed": 0},
         )
 

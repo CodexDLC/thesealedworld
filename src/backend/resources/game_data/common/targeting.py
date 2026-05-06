@@ -1,7 +1,7 @@
-from enum import Enum
+from enum import StrEnum
 
 
-class TargetType(str, Enum):
+class TargetType(StrEnum):
     SELF = "self"
     SINGLE_ENEMY = "single_enemy"
     ALL_ENEMIES = "all_enemies"

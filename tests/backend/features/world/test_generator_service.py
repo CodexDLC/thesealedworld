@@ -9,44 +9,44 @@ from src.backend.features.world.services.generator_service import LLMWorldGenera
 
 @pytest.mark.unit
 async def test_generate_world_shell_uses_anchor_influence():
-    repository = MagicMock()
-    repository.upsert_region = AsyncMock()
-    repository.upsert_zone = AsyncMock()
-    generator = LLMWorldGenerator(repository, ai=None)
+    data = MagicMock()
+    data.upsert_region = AsyncMock()
+    data.upsert_zone = AsyncMock()
+    generator = LLMWorldGenerator(data, ai=None)
 
     await generator._generate_world_shell()
 
-    assert repository.upsert_region.await_count == 49
-    assert repository.upsert_zone.await_count == 441
+    assert data.upsert_region.await_count == 49
+    assert data.upsert_zone.await_count == 441
 
-    zones = [call.args[0] for call in repository.upsert_zone.await_args_list]
-    north_zone = next(zone for zone in zones if zone.id == "A1_1_1")
-    d4_center_zone = next(zone for zone in zones if zone.id == "D4_1_1")
+    zones = {call.args[0]: call.kwargs for call in data.upsert_zone.await_args_list}
+    north_zone = zones["A1_1_1"]
+    d4_center_zone = zones["D4_1_1"]
 
-    assert north_zone.biome_id == "stasis_wastes"
-    assert north_zone.flags["dominant_anchor"] == "north_prime"
-    assert north_zone.flags["anchor_tags"]
-    assert d4_center_zone.tier == 0
-    assert d4_center_zone.flags["is_inside_city_shield"] is True
+    assert north_zone["biome_id"] == "stasis_wastes"
+    assert north_zone["flags"]["dominant_anchor"] == "north_prime"
+    assert north_zone["flags"]["anchor_tags"]
+    assert d4_center_zone["tier"] == 0
+    assert d4_center_zone["flags"]["is_inside_city_shield"] is True
 
 
 @pytest.mark.unit
 async def test_generate_d4_capital_creates_first_playable_territory():
-    repository = MagicMock()
-    repository.upsert_region = AsyncMock()
-    repository.upsert_zone = AsyncMock()
-    repository.bulk_upsert_nodes = AsyncMock()
-    repository.session.flush = AsyncMock()
-    generator = LLMWorldGenerator(repository, ai=None)
+    data = MagicMock()
+    data.upsert_region = AsyncMock()
+    data.upsert_zone = AsyncMock()
+    data.bulk_upsert_nodes = AsyncMock()
+    data.flush = AsyncMock()
+    generator = LLMWorldGenerator(data, ai=None)
 
     await generator._generate_d4_capital()
 
-    repository.upsert_region.assert_awaited_once()
-    assert repository.upsert_zone.await_count == 9
-    repository.session.flush.assert_awaited_once()
-    repository.bulk_upsert_nodes.assert_awaited_once()
+    data.upsert_region.assert_awaited_once()
+    assert data.upsert_zone.await_count == 9
+    data.flush.assert_awaited_once()
+    data.bulk_upsert_nodes.assert_awaited_once()
 
-    nodes = repository.bulk_upsert_nodes.await_args.args[0]
+    nodes = data.bulk_upsert_nodes.await_args.args[0]
     assert len(nodes) == 225
     assert {node["zone_id"] for node in nodes} == {f"D4_{zx}_{zy}" for zx in range(3) for zy in range(3)}
 
@@ -73,19 +73,19 @@ def test_static_inner_city_gates_are_safe_locations():
 
 @pytest.mark.unit
 async def test_run_test_mode_generates_d4_then_loads_static_hub():
-    repository = MagicMock()
-    repository.upsert_region = AsyncMock()
-    repository.upsert_zone = AsyncMock()
-    repository.bulk_upsert_nodes = AsyncMock()
-    repository.session.flush = AsyncMock()
-    repository.get_region = AsyncMock(return_value=True)
-    repository.get_zone = AsyncMock(return_value=True)
-    generator = LLMWorldGenerator(repository, ai=None)
+    data = MagicMock()
+    data.upsert_region = AsyncMock()
+    data.upsert_zone = AsyncMock()
+    data.bulk_upsert_nodes = AsyncMock()
+    data.flush = AsyncMock()
+    data.region_exists = AsyncMock(return_value=True)
+    data.get_zone = AsyncMock(return_value=True)
+    generator = LLMWorldGenerator(data, ai=None)
     generator.village_loader.load_village = AsyncMock()
 
     await generator.run("test")
 
-    repository.bulk_upsert_nodes.assert_awaited_once()
+    data.bulk_upsert_nodes.assert_awaited_once()
     generator.village_loader.load_village.assert_awaited_once()
 
 
@@ -119,9 +119,9 @@ async def test_batch_location_desc_prompt_uses_legacy_tags_context_contract():
 
 @pytest.mark.unit
 async def test_enrich_d4_capital_nodes_uses_legacy_batch_payload_and_preserves_tags():
-    repository = MagicMock()
-    repository.get_nodes_in_rect = AsyncMock()
-    repository.update_content = AsyncMock()
+    data = MagicMock()
+    data.get_nodes_in_rect = AsyncMock()
+    data.update_content = AsyncMock()
     ai = MagicMock()
     ai.include_router = MagicMock()
     ai.process = AsyncMock(
@@ -151,8 +151,8 @@ async def test_enrich_d4_capital_nodes_uses_legacy_batch_payload_and_preserves_t
         content={"environment_tags": ["ancient_city", "ancient_highway"]},
         flags={"has_road": True},
     )
-    repository.get_nodes_in_rect.return_value = [target, neighbor]
-    generator = LLMWorldGenerator(repository, ai=ai)
+    data.get_nodes_in_rect.return_value = [target, neighbor]
+    generator = LLMWorldGenerator(data, ai=ai)
 
     await generator._enrich_d4_capital_nodes_with_ai()
 
@@ -167,8 +167,8 @@ async def test_enrich_d4_capital_nodes_uses_legacy_batch_payload_and_preserves_t
     assert "route_context" in payload[0]
     assert "boundary_context" in payload[0]
 
-    assert repository.update_content.await_count == 2
-    saved_by_coord = {(call.args[0], call.args[1]): call.args[2] for call in repository.update_content.await_args_list}
+    assert data.update_content.await_count == 2
+    saved_by_coord = {(call.args[0], call.args[1]): call.args[2] for call in data.update_content.await_args_list}
     assert saved_by_coord[(45, 52)]["title"] == "Запертые Врата"
     assert saved_by_coord[(45, 52)]["environment_tags"] == payload[0]["tags"]
     assert saved_by_coord[(46, 52)]["title"] == "Мертвый Проспект"
@@ -177,10 +177,10 @@ async def test_enrich_d4_capital_nodes_uses_legacy_batch_payload_and_preserves_t
 @pytest.mark.unit
 async def test_enrich_d4_capital_nodes_batches_sector_as_25_sublocations(mocker):
     mocker.patch("src.backend.features.world.services.generator_service.D4_CONTENT_RETRY_DELAYS_SECONDS", ())
-    repository = MagicMock()
-    repository.get_nodes_in_rect = AsyncMock()
-    repository.update_content = AsyncMock()
-    repository.update_flags = AsyncMock()
+    data = MagicMock()
+    data.get_nodes_in_rect = AsyncMock()
+    data.update_content = AsyncMock()
+    data.update_flags = AsyncMock()
     ai = MagicMock()
     ai.include_router = MagicMock()
     ai.process = AsyncMock(return_value={})
@@ -197,8 +197,8 @@ async def test_enrich_d4_capital_nodes_batches_sector_as_25_sublocations(mocker)
         for x in range(45, 50)
         for y in range(45, 50)
     ]
-    repository.get_nodes_in_rect.return_value = nodes
-    generator = LLMWorldGenerator(repository, ai=ai)
+    data.get_nodes_in_rect.return_value = nodes
+    generator = LLMWorldGenerator(data, ai=ai)
 
     await generator._enrich_d4_capital_nodes_with_ai()
 
@@ -210,14 +210,14 @@ async def test_enrich_d4_capital_nodes_batches_sector_as_25_sublocations(mocker)
 @pytest.mark.unit
 async def test_enrich_d4_capital_nodes_soft_fails_ai_batch(mocker):
     mocker.patch("src.backend.features.world.services.generator_service.D4_CONTENT_RETRY_DELAYS_SECONDS", ())
-    repository = MagicMock()
-    repository.get_nodes_in_rect = AsyncMock()
-    repository.update_content = AsyncMock()
-    repository.update_flags = AsyncMock()
+    data = MagicMock()
+    data.get_nodes_in_rect = AsyncMock()
+    data.update_content = AsyncMock()
+    data.update_flags = AsyncMock()
     ai = MagicMock()
     ai.include_router = MagicMock()
     ai.process = AsyncMock(side_effect=RuntimeError("Gemini unavailable"))
-    repository.get_nodes_in_rect.return_value = [
+    data.get_nodes_in_rect.return_value = [
         MagicMock(
             x=45,
             y=45,
@@ -227,47 +227,49 @@ async def test_enrich_d4_capital_nodes_soft_fails_ai_batch(mocker):
             flags={},
         )
     ]
-    generator = LLMWorldGenerator(repository, ai=ai)
+    generator = LLMWorldGenerator(data, ai=ai)
 
     await generator._enrich_d4_capital_nodes_with_ai()
 
-    repository.update_content.assert_not_awaited()
-    repository.update_flags.assert_awaited_once_with(45, 45, {"ai_content_status": "fallback"})
+    data.update_content.assert_not_awaited()
+    data.update_flags.assert_awaited_once_with(45, 45, {"ai_content_status": "fallback"})
 
 
 @pytest.mark.unit
 async def test_enrich_zone_with_ai_soft_fails_empty_response(mocker):
     mocker.patch("src.backend.features.world.services.generator_service.ZONE_LORE_RETRY_DELAYS_SECONDS", ())
-    repository = MagicMock()
-    repository.get_zone = AsyncMock(
+    data = MagicMock()
+    data.get_zone = AsyncMock(
         return_value=MagicMock(id="D4_1_1", region_id="D4", biome_id="hub_district", tier=0, flags={})
     )
-    repository.upsert_zone = AsyncMock()
+    data.save_zone_lore = AsyncMock()
     ai = MagicMock()
     ai.include_router = MagicMock()
     ai.process = AsyncMock(return_value="")
-    generator = LLMWorldGenerator(repository, ai=ai)
+    generator = LLMWorldGenerator(data, ai=ai)
 
     await generator._enrich_zone_with_ai("D4_1_1")
 
     ai.process.assert_awaited_once()
-    repository.upsert_zone.assert_not_awaited()
+    data.save_zone_lore.assert_not_awaited()
 
 
 @pytest.mark.unit
 async def test_enrich_zone_with_ai_stores_lore_in_flags(mocker):
     mocker.patch("src.backend.features.world.services.generator_service.ZONE_LORE_RETRY_DELAYS_SECONDS", ())
     zone = MagicMock(id="D4_1_1", region_id="D4", biome_id="hub_district", tier=0, flags={})
-    repository = MagicMock()
-    repository.get_zone = AsyncMock(return_value=zone)
-    repository.upsert_zone = AsyncMock()
+    data = MagicMock()
+    data.get_zone = AsyncMock(return_value=zone)
+    data.save_zone_lore = AsyncMock()
     ai = MagicMock()
     ai.include_router = MagicMock()
     ai.process = AsyncMock(return_value={"name": "Сердце Цитадели", "background": "Старый центр столицы."})
-    generator = LLMWorldGenerator(repository, ai=ai)
+    generator = LLMWorldGenerator(data, ai=ai)
 
     await generator._enrich_zone_with_ai("D4_1_1")
 
-    assert zone.flags["lore_name"] == "Сердце Цитадели"
-    assert zone.flags["lore_background"] == "Старый центр столицы."
-    repository.upsert_zone.assert_awaited_once_with(zone)
+    data.save_zone_lore.assert_awaited_once_with(
+        zone,
+        lore_name="Сердце Цитадели",
+        lore_background="Старый центр столицы.",
+    )

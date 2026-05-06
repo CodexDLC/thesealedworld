@@ -4,12 +4,12 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
+from src.backend.features_site.auth.integrations.user_cache import RedisAuthUserCache
 from src.backend.features_site.auth.models import User
-from src.backend.features_site.auth.services.user_cache import AuthUserCache
 
 
 @pytest.mark.unit
-class TestAuthUserCache:
+class TestRedisAuthUserCache:
     async def test_get_returns_cached_user(self):
         user_id = uuid.uuid4()
         redis = MagicMock()
@@ -20,7 +20,7 @@ class TestAuthUserCache:
             )
         )
 
-        user = await AuthUserCache(redis).get(user_id)
+        user = await RedisAuthUserCache(redis).get(user_id)
 
         assert user is not None
         assert user.id == user_id
@@ -33,7 +33,7 @@ class TestAuthUserCache:
         redis = MagicMock()
         redis.string.get = AsyncMock(return_value=None)
 
-        user = await AuthUserCache(redis).get(user_id)
+        user = await RedisAuthUserCache(redis).get(user_id)
 
         assert user is None
 
@@ -50,7 +50,7 @@ class TestAuthUserCache:
             created_at=datetime(2026, 5, 2, tzinfo=UTC),
         )
 
-        await AuthUserCache(redis).set(user)
+        await RedisAuthUserCache(redis).set(user)
 
         redis.string.set.assert_awaited_once()
         key, payload = redis.string.set.await_args.args

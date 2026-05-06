@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import uuid
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import select
 
@@ -93,6 +93,30 @@ class ItemInstanceRepository:
     async def get(self, item_id: str) -> ItemInstance | None:
         return await self.session.scalar(select(ItemInstance).where(ItemInstance.id == item_id))
 
+    async def get_equipped_for_characters(self, char_ids: list[int]) -> dict[int, list[dict[str, Any]]]:
+        if not char_ids:
+            return {}
+
+        holder_ids = [str(char_id) for char_id in char_ids]
+        result = await self.session.execute(
+            select(ItemInstance, ItemPlacement)
+            .join(ItemPlacement, ItemPlacement.item_id == ItemInstance.id)
+            .where(
+                ItemPlacement.holder_type == "character",
+                ItemPlacement.holder_id.in_(holder_ids),
+                ItemPlacement.storage_type == "equipped",
+            )
+        )
+
+        equipped: dict[int, list[dict[str, Any]]] = {char_id: [] for char_id in char_ids}
+        for instance, placement in result.all():
+            try:
+                char_id = int(placement.holder_id)
+            except (TypeError, ValueError):
+                continue
+            equipped.setdefault(char_id, []).append(self._combat_item(instance, placement))
+        return equipped
+
     async def update_text(self, item_id: str, *, name: str, description: str, text_status: str) -> ItemInstance | None:
         instance = await self.get(item_id)
         if instance is None:
@@ -113,3 +137,29 @@ class ItemInstanceRepository:
         instance.metadata_ = {**instance.metadata_, "ai_text_status": "failed", "ai_text_reason": reason or "unknown"}
         await self.session.flush()
         return instance
+
+    @staticmethod
+    def _combat_item(instance: ItemInstance, placement: ItemPlacement) -> dict[str, Any]:
+        mechanics = dict(instance.mechanics or {})
+        metadata = dict(instance.metadata_ or {})
+        slot = placement.slot or mechanics.get("slot")
+        if slot:
+            mechanics["slot"] = slot
+        for key in ("related_skill", "damage_type", "defense_type", "armor_class"):
+            if metadata.get(key) is not None:
+                mechanics[key] = metadata[key]
+
+        return {
+            "item_id": str(instance.id),
+            "base_id": instance.base_id,
+            "item_type": instance.item_type,
+            "slot": slot,
+            "placement": placement.storage_type,
+            "mechanics": mechanics,
+            "tags": list((instance.generation or {}).get("narrative_tags") or []),
+            "metadata": metadata,
+            "name": instance.name,
+            "description": instance.description,
+            "rarity": instance.rarity,
+            "rarity_tier": instance.rarity_tier,
+        }

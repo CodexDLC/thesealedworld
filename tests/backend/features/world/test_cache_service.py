@@ -53,7 +53,11 @@ class TestWorldCacheService:
                 "background_url": "/static/images/exploration/city/d4/test.png",
                 "environment_tags": ["tag1"],
             },
-            flags={"f1": True, "world_theme": {"accent": "#ffffff"}},
+            flags={
+                "f1": True,
+                "anchor_influence": {"dominant_anchor": "north_prime"},
+                "world_theme": {"accent": "#ffffff"},
+            },
             services=["s1"],
             zone_id="z1",
             terrain_type="t1"
@@ -64,8 +68,9 @@ class TestWorldCacheService:
         assert cache["name"] == "Title"
         assert cache["description"] == "Desc"
         assert cache["background_url"] == "/static/images/exploration/city/d4/test.png"
+        assert cache["anchor_influence"] == {"dominant_anchor": "north_prime"}
         assert cache["world_theme"] == {"accent": "#ffffff"}
         assert cache["tags"] == ["tag1"]
         assert cache["service"] == "s1"
         assert cache["services"] == ["s1"]
-        assert cache["flags"] == {"f1": True, "world_theme": {"accent": "#ffffff"}}
+        assert cache["flags"] == {"f1": True}

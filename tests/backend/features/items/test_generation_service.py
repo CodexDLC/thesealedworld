@@ -1,6 +1,7 @@
 import pytest
 
 from src.backend.features.items.dto.instance import ItemGenerationRequestDTO, ItemPlacementRefDTO
+from src.backend.features.items.integrations import ItemPersistenceIntegration, ItemTextAIClient
 from src.backend.features.items.services.generation_service import ItemGenerationService
 
 
@@ -91,7 +92,7 @@ async def test_generation_service_creates_mechanical_item_without_returning_payl
         ),
     )
 
-    result = await ItemGenerationService(repo).generate_mechanical(request)
+    result = await ItemGenerationService(ItemPersistenceIntegration(repo)).generate_mechanical(request)
 
     assert result.item_ids == ["item-1"]
     assert result.item is None
@@ -109,7 +110,7 @@ async def test_generation_service_marks_item_ready_when_ai_text_is_not_requested
     repo = FakeRepo()
     request = ItemGenerationRequestDTO(base_id="warhammer", rarity_tier=0, request_ai_text=False)
 
-    result = await ItemGenerationService(repo).generate_mechanical(request)
+    result = await ItemGenerationService(ItemPersistenceIntegration(repo)).generate_mechanical(request)
 
     assert result.text_status == "not_requested"
     assert result.item is not None
@@ -120,7 +121,7 @@ async def test_generation_service_marks_item_ready_when_ai_text_is_not_requested
 @pytest.mark.unit
 async def test_generation_service_updates_text_after_mechanical_item_exists():
     repo = FakeRepo()
-    service = ItemGenerationService(repo, FakeAI())
+    service = ItemGenerationService(ItemPersistenceIntegration(repo), ItemTextAIClient(FakeAI()))
     request = ItemGenerationRequestDTO(base_id="warhammer", rarity_tier=1, request_ai_text=True)
     result = await service.generate_mechanical(request)
 

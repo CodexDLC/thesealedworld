@@ -1,9 +1,20 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Protocol
 
 if TYPE_CHECKING:
-    from src.backend.infrastructure.world.models import WorldGrid
+    from collections.abc import Mapping
+
+
+class WorldNavigationNode(Protocol):
+    x: int
+    y: int
+    zone_id: str
+    terrain_type: str
+    services: list[str]
+    content: dict[str, Any] | None
+    flags: dict[str, Any]
+    is_active: bool
 
 
 class WorldNavigationService:
@@ -18,7 +29,7 @@ class WorldNavigationService:
     RU_DIRECTIONS = {"north": "Север", "south": "Юг", "west": "Запад", "east": "Восток"}
     OPPOSITE_DIRECTIONS = {"north": "south", "south": "north", "west": "east", "east": "west"}
 
-    def calculate_exits(self, node: WorldGrid, node_map: dict[str, WorldGrid]) -> dict[str, Any]:
+    def calculate_exits(self, node: WorldNavigationNode, node_map: Mapping[str, WorldNavigationNode]) -> dict[str, Any]:
         exits: dict[str, Any] = {}
         flags = node.flags if isinstance(node.flags, dict) else {}
         has_road = bool(flags.get("has_road", False))

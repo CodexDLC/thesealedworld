@@ -4,11 +4,12 @@ from fastapi import Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.backend.core.bus import GameEventProducer
+from src.backend.features.character.managers import CharacterSessionManager
+from src.backend.features.character.repositories import CharacterRepository
 from src.backend.features.scenario.engine import ScenarioDirector, ScenarioEvaluator, ScenarioFormatter
+from src.backend.features.scenario.integrations.content_integration import ScenarioContentIntegration
 from src.backend.features.scenario.integrations.system_integrator import ScenarioSystemIntegrator
 from src.backend.features.scenario.services.scenario_service import ScenarioService
-from src.backend.infrastructure.actor_state import CharacterSessionManager
-from src.backend.infrastructure.scenario.managers.content_manager import ScenarioContentManager
 from src.backend.infrastructure.scenario.managers.session_manager import ScenarioSessionManager
 from src.backend.infrastructure.scenario.repositories import ScenarioRepository
 
@@ -18,14 +19,14 @@ def build_scenario_service(request: Request | Any, db_session: AsyncSession) -> 
     evaluator = ScenarioEvaluator()
     director = ScenarioDirector(evaluator)
     formatter = ScenarioFormatter(director)
-    content_manager = ScenarioContentManager(request.app.state.redis)
+    content = ScenarioContentIntegration(repo, request.app.state.scenario_content)
     integrator = ScenarioSystemIntegrator(
         sessions=request.app.state.scenario_sessions,
-        content_manager=content_manager,
+        content=content,
         character_sessions=request.app.state.character_sessions,
         repo=repo,
         events=request.app.state.events,
-        redis=request.app.state.redis,
+        character_repo=CharacterRepository(db_session),
     )
     return ScenarioService(
         integrator=integrator,

@@ -8,13 +8,13 @@ from src.backend.features.monsters.runtime.encounter_pool import EncounterPoolSe
 from src.backend.features.monsters.runtime.hashing import compute_context_hash, compute_unique_clan_hash, normalize_tags
 
 if TYPE_CHECKING:
-    from src.backend.features.monsters.repositories import MonsterGenerationRepository
+    from src.backend.features.monsters.integrations import MonsterGenerationStorage
 
 
 class EncounterMonsterService:
     def __init__(
         self,
-        repository: MonsterGenerationRepository,
+        repository: MonsterGenerationStorage,
         factory: ClanFactory | None = None,
         pool: EncounterPoolSelector | None = None,
     ) -> None:

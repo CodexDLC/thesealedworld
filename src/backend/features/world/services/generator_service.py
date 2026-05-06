@@ -5,14 +5,13 @@ from collections.abc import Iterable
 from typing import Any
 
 from src.backend.core.ai import AIService
+from src.backend.features.world.integrations import WorldDataIntegration
 from src.backend.features.world.loaders.village_loader import VillageLoader
 from src.backend.features.world.prompts.router import world_prompt_router
 from src.backend.features.world.resources.static.start_village import STATIC_LOCATIONS
 from src.backend.features.world.runtime.config import HUB_CENTER, REGION_ROWS, REGION_SIZE, ZONE_SIZE
 from src.backend.features.world.runtime.theme import WorldThemeService
 from src.backend.features.world.runtime.threat import ThreatService
-from src.backend.infrastructure.world.models import WorldRegion, WorldZone
-from src.backend.infrastructure.world.repositories import WorldRepository
 
 log = logging.getLogger(__name__)
 
@@ -24,9 +23,9 @@ ZONE_LORE_RETRY_DELAYS_SECONDS = (2.0, 6.0)
 class LLMWorldGenerator:
     """Orchestrates world generation using static loaders and AI-driven content."""
 
-    def __init__(self, repository: WorldRepository, ai: AIService | None) -> None:
-        self.repository = repository
-        self.village_loader = VillageLoader(repository)
+    def __init__(self, data: WorldDataIntegration, ai: AIService | None) -> None:
+        self.data = data
+        self.village_loader = VillageLoader(data)
         self.ai = ai
 
         # Register world-specific prompts
@@ -68,32 +67,28 @@ class LLMWorldGenerator:
         mid_x = min_x + REGION_SIZE // 2
         mid_y = min_y + REGION_SIZE // 2
 
-        await self.repository.upsert_region(
-            WorldRegion(id=region_id, climate_tags=["ancient_city", "city_ruins", "portal_shield"])
-        )
+        await self.data.upsert_region(region_id, climate_tags=["ancient_city", "city_ruins", "portal_shield"])
 
         zones_per_region = REGION_SIZE // ZONE_SIZE
         for zx in range(zones_per_region):
             for zy in range(zones_per_region):
                 is_hub_zone = zx == 1 and zy == 1
                 zone_id = f"{region_id}_{zx}_{zy}"
-                await self.repository.upsert_zone(
-                    WorldZone(
-                        id=zone_id,
-                        region_id=region_id,
-                        biome_id="hub_district" if is_hub_zone else "city_ruins",
-                        tier=0,
-                        flags={
-                            "is_safe_zone": is_hub_zone,
-                            "is_hub": is_hub_zone,
-                            "portal_shield": is_hub_zone,
-                            "is_old_capital": True,
-                            "threat_tier": 0,
-                        },
-                    )
+                await self.data.upsert_zone(
+                    zone_id,
+                    region_id=region_id,
+                    biome_id="hub_district" if is_hub_zone else "city_ruins",
+                    tier=0,
+                    flags={
+                        "is_safe_zone": is_hub_zone,
+                        "is_hub": is_hub_zone,
+                        "portal_shield": is_hub_zone,
+                        "is_old_capital": True,
+                        "threat_tier": 0,
+                    },
                 )
 
-        await self.repository.session.flush()
+        await self.data.flush()
 
         nodes: list[dict[str, Any]] = []
         road_cells = self._build_d4_road_cells(min_x=min_x, min_y=min_y, max_x=max_x, max_y=max_y)
@@ -113,7 +108,7 @@ class LLMWorldGenerator:
                     )
                 )
 
-        await self.repository.bulk_upsert_nodes(nodes)
+        await self.data.bulk_upsert_nodes(nodes)
         log.info("D4 capital generated: %d nodes", len(nodes))
 
     def _build_d4_node(
@@ -258,7 +253,7 @@ class LLMWorldGenerator:
 
         min_x = (4 - 1) * REGION_SIZE
         min_y = REGION_ROWS.index("D") * REGION_SIZE
-        nodes = await self.repository.get_nodes_in_rect(min_x - 1, min_y - 1, REGION_SIZE + 2, REGION_SIZE + 2)
+        nodes = await self.data.get_nodes_in_rect(min_x - 1, min_y - 1, REGION_SIZE + 2, REGION_SIZE + 2)
         node_map = {(node.x, node.y): node for node in nodes}
         payload_items = []
         static_coords = set(STATIC_LOCATIONS)
@@ -346,7 +341,7 @@ class LLMWorldGenerator:
             if original_item is None or not isinstance(text_data, dict):
                 continue
 
-            await self.repository.update_content(
+            await self.data.update_content(
                 x,
                 y,
                 {
@@ -362,7 +357,7 @@ class LLMWorldGenerator:
                 x, y = map(int, item["id"].split("_"))
             except (KeyError, ValueError):
                 continue
-            await self.repository.update_flags(x, y, {"ai_content_status": status})
+            await self.data.update_flags(x, y, {"ai_content_status": status})
 
     @staticmethod
     def _filter_complete_location_batch(
@@ -569,9 +564,7 @@ class LLMWorldGenerator:
                     region_influence.biome_id,
                     *region_influence.tags,
                 ]
-                await self.repository.upsert_region(
-                    WorldRegion(id=region_id, climate_tags=list(dict.fromkeys(region_tags)))
-                )
+                await self.data.upsert_region(region_id, climate_tags=list(dict.fromkeys(region_tags)))
 
                 # Create 3x3 zones per region (simplified)
                 zones_per_region = REGION_SIZE // ZONE_SIZE
@@ -583,28 +576,26 @@ class LLMWorldGenerator:
                         influence = ThreatService.describe(center_x, center_y)
                         world_theme = WorldThemeService.build(center_x, center_y, loc_id=zone_id)
 
-                        await self.repository.upsert_zone(
-                            WorldZone(
-                                id=zone_id,
-                                region_id=region_id,
-                                biome_id=influence.biome_id,
-                                tier=influence.tier,
-                                flags={
-                                    "is_safe_zone": False,
-                                    "threat": influence.threat,
-                                    "threat_tier": influence.tier,
-                                    "dominant_anchor": influence.dominant_anchor,
-                                    "anchor_tags": influence.tags,
-                                    "is_inside_city_shield": influence.is_inside_city_shield,
-                                    "world_theme": world_theme.model_dump(mode="json"),
-                                },
-                            )
+                        await self.data.upsert_zone(
+                            zone_id,
+                            region_id=region_id,
+                            biome_id=influence.biome_id,
+                            tier=influence.tier,
+                            flags={
+                                "is_safe_zone": False,
+                                "threat": influence.threat,
+                                "threat_tier": influence.tier,
+                                "dominant_anchor": influence.dominant_anchor,
+                                "anchor_tags": influence.tags,
+                                "is_inside_city_shield": influence.is_inside_city_shield,
+                                "world_theme": world_theme.model_dump(mode="json"),
+                            },
                         )
         log.info("World shell (regions/zones) generated.")
 
     async def _enrich_zone_with_ai(self, zone_id: str) -> None:
         """Uses LLM to enrich zone lore and node descriptions."""
-        zone = await self.repository.get_zone(zone_id)
+        zone = await self.data.get_zone(zone_id)
         if not zone or not self.ai:
             return
 
@@ -638,11 +629,10 @@ class LLMWorldGenerator:
                     await asyncio.sleep(delay)
                 continue
 
-            zone.flags = dict(zone.flags or {})
-            zone.flags["lore_name"] = lore.get("name", zone.id)
-            zone.flags["lore_background"] = lore.get("background", "")
-            await self.repository.upsert_zone(zone)
-            log.info("AI Lore generated for %s: %s", zone_id, zone.flags["lore_name"])
+            lore_name = lore.get("name", zone.id)
+            lore_background = lore.get("background", "")
+            await self.data.save_zone_lore(zone, lore_name=lore_name, lore_background=lore_background)
+            log.info("AI Lore generated for %s: %s", zone_id, lore_name)
             return
 
         log.warning("Zone lore AI enrichment skipped after retries; zone=%s", zone_id)

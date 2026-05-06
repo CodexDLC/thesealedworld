@@ -8,6 +8,7 @@ from codex_platform.streams import StreamRouter
 from src.backend.core.database.session import get_session_context
 from src.backend.features.items.dto.instance import ItemGenerationBatchRequestDTO, ItemGenerationRequestDTO
 from src.backend.features.items.events.publisher import ItemEvents
+from src.backend.features.items.integrations import ItemPersistenceIntegration, ItemTextAIClient
 from src.backend.features.items.repositories import ItemInstanceRepository
 from src.backend.features.items.services import ItemGenerationService
 
@@ -34,7 +35,7 @@ async def on_generate_requested(payload: dict[str, Any]) -> None:
     try:
         requests = _parse_generation_requests(payload)
         async with get_session_context() as session:
-            service = ItemGenerationService(ItemInstanceRepository(session), getattr(_app.state, "ai", None))
+            service = _build_generation_service(session)
             result = await service.generate_many_mechanical(requests)
 
         ack: dict[str, Any] = {"status": "ok", **result.model_dump(mode="json")}
@@ -107,7 +108,7 @@ async def on_text_requested(payload: dict[str, Any]) -> None:
 
     request = ItemGenerationRequestDTO.model_validate(request_payload)
     async with get_session_context() as session:
-        service = ItemGenerationService(ItemInstanceRepository(session), getattr(_app.state, "ai", None))
+        service = _build_generation_service(session)
         item = await service.enrich_text(str(item_id), request)
     if item is None:
         log.warning("Item text request skipped: item_not_found item_id=%s", item_id)
@@ -117,6 +118,14 @@ async def on_text_requested(payload: dict[str, Any]) -> None:
         "items.text_generated" if item.metadata.get("ai_text_status") == "generated" else "items.text_failed",
         {"item_id": item_id, "item": item.model_dump(mode="json")},
         correlation_id=payload.get("correlation_id"),
+    )
+
+
+def _build_generation_service(session: Any) -> ItemGenerationService:
+    ai = getattr(_app.state, "ai", None) if _app is not None else None
+    return ItemGenerationService(
+        ItemPersistenceIntegration(ItemInstanceRepository(session)),
+        ItemTextAIClient(ai) if ai is not None else None,
     )
 
 

@@ -1,43 +1,36 @@
-import os
 import sys
-import subprocess
 from pathlib import Path
 
-def run_step(name: str, command: str, cwd: Path) -> bool:
-    print(f"\n{'='*20} {name} {'='*20}")
-    # capture_output=False ensures everything goes to terminal
-    result = subprocess.run(command, shell=True, cwd=cwd)
-    if result.returncode != 0:
-        print(f"\n❌ {name} failed.")
-        return False
-    print(f"\n✅ {name} passed.")
-    return True
+# Project root
+ROOT = Path(__file__).resolve().parents[2]
+
+# Add codex-core to path if it's in the codex_tools library folder
+LIB_PATH = Path("C:/install/projects/codex_tools/codex-core/src")
+if LIB_PATH.exists() and str(LIB_PATH) not in sys.path:
+    sys.path.insert(0, str(LIB_PATH))
+
+try:
+    from codex_core.dev.check_runner import BaseCheckRunner
+except ImportError:
+    print("Error: Could not find codex_core.dev.check_runner.")
+    print("Ensure C:/install/projects/codex_tools/codex-core is available.")
+    sys.exit(1)
+
+class TurnBasedMMORPGCheckRunner(BaseCheckRunner):
+    """Custom project runner inheriting from codex-core BaseCheckRunner."""
+
+    def extra_checks(self) -> bool:
+        """Run project-specific fixture validators."""
+        self.print_step("Fixture Validators")
+        success, _ = self.run_command([sys.executable, "tools/validators/run.py"])
+        if not success:
+            self.print_error("Fixture validation failed.")
+            return False
+        self.print_success("Fixture validation passed.")
+
+        # Call parent to handle declarative extra commands from pyproject.toml
+        return super().extra_checks()
 
 if __name__ == "__main__":
-    os.system("cls" if os.name == "nt" else "clear")
-    print("=== TurnBasedMMORPG Quality Gate ===")
-
-    root = Path(__file__).parent.parent.parent
-
-    steps = [
-        ("Quality Hooks", "uv run pre-commit run --all-files"),
-        ("Types (Mypy)", "uv run mypy --explicit-package-bases src tools"),
-        ("Security Audit", "uv run pip-audit --skip-editable --ignore-vuln CVE-2026-3219"),
-        ("Fixture Validators", "uv run python tools/validators/run.py"),
-        ("Unit Tests", "uv run pytest"),
-    ]
-
-    all_success = True
-    for name, cmd in steps:
-        if not run_step(name, cmd, root):
-            all_success = False
-            if "--ci" in sys.argv:
-                sys.exit(1)
-            # In non-CI mode, we might want to continue or stop
-            break
-
-    if all_success:
-        print("\n✨ ALL CHECKS PASSED!")
-    else:
-        print("\n⚠️  Gate failed. Review logs above.")
-        sys.exit(1)
+    runner = TurnBasedMMORPGCheckRunner(ROOT)
+    runner.main()

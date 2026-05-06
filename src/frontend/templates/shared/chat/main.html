@@ -1,77 +1,144 @@
 <div class="chat-inner-wrap"
      id="chat"
      style="display: flex; flex-direction: column; height: 100%; width: 100%;"
+     x-data="{
+         channels: {
+             global: [],
+             zone:   [],
+             system: [],
+             trade:  [],
+             party:  [],
+             dm:     {}
+         },
+         _onWsMessage(e) {
+             try {
+                 const msg = JSON.parse(e.detail.message);
+                 const ch  = msg.channel || 'system';
+                 if (ch === 'dm') {
+                     const sid = msg.scope_id || 'unknown';
+                     if (!this.channels.dm[sid]) this.channels.dm[sid] = [];
+                     this.channels.dm[sid].push(msg);
+                 } else {
+                     if (!this.channels[ch]) this.channels[ch] = [];
+                     this.channels[ch].push(msg);
+                 }
+                 // scroll chat-log to bottom
+                 this.$nextTick(() => {
+                     const log = document.getElementById('chat-log');
+                     if (log) log.scrollTop = log.scrollHeight;
+                 });
+             } catch (_) {}
+         },
+         _channelLabel(key) {
+             const channelKey = key || 'global';
+             if (channelKey.startsWith('dm_')) return 'личное';
+             return { global: 'мир', zone: 'зона', system: 'система', trade: 'торговля', party: 'группа' }[channelKey] || channelKey;
+         },
+         _sendChat(form) {
+             const input = form.querySelector('[name=chat_input]');
+             const text = input.value.trim();
+             if (!text) return;
+             const channel = chatTab.startsWith('dm_') ? 'dm' : chatTab;
+             const scope_id = chatTab.startsWith('dm_') ? chatTab.slice(3) : null;
+             form.querySelector('[name=chat_message]').value = JSON.stringify({
+                 channel: channel,
+                 content: text,
+                 scope_id: scope_id
+             });
+             htmx.trigger(form, 'chat-send');
+             input.value = '';
+         },
+         _activeMessages() {
+             if (chatTab.startsWith('dm_')) return this.channels.dm[chatTab.slice(3)] || [];
+             return this.channels[chatTab] || [];
+         },
+         _rosterTitle() {
+             if (chatTab.startsWith('dm_')) return 'ЛИЧНЫЙ ЧАТ';
+             return { global: 'ОНЛАЙН ОБЩИЙ', zone: 'ОНЛАЙН В ЗОНЕ', system: 'СИСТЕМА', trade: 'ТОРГОВЛЯ', party: 'ГРУППА' }[chatTab] || 'ЧАТ';
+         },
+         _rosterHeading() {
+             return `${this._rosterTitle()} (${this._rosterItems().length})`;
+         },
+         _rosterEmptyText() {
+             if (chatTab === 'zone') return 'В зоне пока никто не говорил.';
+             if (chatTab === 'global') return 'В мировом канале пока тихо.';
+             if (chatTab === 'system') return 'Системный канал без агентов.';
+             return 'Список пуст.';
+         },
+         _rosterItems() {
+             const seen = {};
+             return this._activeMessages()
+                 .filter((msg) => msg.sender_id && msg.sender_id !== 'system')
+                 .map((msg) => ({ id: msg.sender_id, name: msg.sender_name || msg.sender_id }))
+                 .filter((agent) => {
+                     if (seen[agent.id]) return false;
+                     seen[agent.id] = true;
+                     return true;
+                 });
+         }
+     }"
+     x-init="window.addEventListener('htmx:wsAfterMessage', (e) => _onWsMessage(e))"
 >
-    <!-- ── TAB BAR (always shows labels — font small enough for collapsed state) ── -->
+    <!-- WS connection — on the outer wrapper so all child forms can ws-send -->
+    <div hx-ext="ws"
+         ws-connect="{{ chat_ws_url }}/ws/chat?token={{ access_token }}&char_id={{ char_id }}"
+         style="display:contents;">
+
+    <!-- ── TAB BAR ── -->
     <div class="chat-tabs" :class="{'chat-tabs-mini': chatStep === 0}">
-
-        <!-- Full tab labels — hidden by CSS when .chat-tabs-mini -->
         <div class="chat-tab-group">
-            <!-- Static channels -->
-            <div class="chat-tab" data-channel="world"  :class="{ 'active': chatTab === 'world' }"  @click="chatTab = 'world'"><span>[WORLD]</span></div>
-            <div class="chat-tab" data-channel="local"  :class="{ 'active': chatTab === 'local' }"  @click="chatTab = 'local'"><span>[LOCAL]</span></div>
-            <div class="chat-tab" data-channel="system" :class="{ 'active': chatTab === 'system' }" @click="chatTab = 'system'"><span>[SYSTEM]</span></div>
-
-            <!-- Divider between channels and private DMs -->
+            <div class="chat-tab" data-channel="global" :class="{ 'active': chatTab === 'global' }" @click="chatTab = 'global'"><span>[МИР]</span></div>
+            <div class="chat-tab" data-channel="zone"   :class="{ 'active': chatTab === 'zone' }"   @click="chatTab = 'zone'"><span>[ЗОНА]</span></div>
+            <div class="chat-tab" data-channel="system" :class="{ 'active': chatTab === 'system' }" @click="chatTab = 'system'"><span>[СИСТЕМА]</span></div>
             <div class="chat-tab-divider"></div>
-
-            <!-- Demo private DM tab — dynamic tabs like this added via Alpine/HTMX -->
-            <div class="chat-tab is-private unread" data-channel="private" :class="{ 'active': chatTab === 'dm_rook' }" @click="chatTab = 'dm_rook'">
-                <span>@Rook-7</span>
-            </div>
+            <template x-for="(msgs, sid) in channels.dm" :key="sid">
+                <div class="chat-tab is-private"
+                     :class="{ 'active': chatTab === 'dm_' + sid }"
+                     @click="chatTab = 'dm_' + sid">
+                    <span x-text="'@' + sid.slice(0, 8)"></span>
+                </div>
+            </template>
         </div>
 
-        <!-- Step controls — always visible -->
         <div class="chat-win-controls">
-            <button class="btn-node sm ghost" @click="stepChatSize(-1)" :disabled="chatStep === 0" title="Collapse one step">▼</button>
+            <button class="btn-node sm ghost" @click="stepChatSize(-1)" :disabled="chatStep === 0" title="Свернуть на шаг">▼</button>
             <div class="chat-step-track">
-                <div class="chat-step-dot" :class="{'active': chatStep === 0}" @click="setChatStep(0)" title="Collapse"></div>
-                <div class="chat-step-dot" :class="{'active': chatStep === 1}" @click="setChatStep(1)" title="Quarter"></div>
-                <div class="chat-step-dot" :class="{'active': chatStep === 2}" @click="setChatStep(2)" title="Half"></div>
-                <div class="chat-step-dot" :class="{'active': chatStep === 3}" @click="setChatStep(3)" title="Full"></div>
+                <div class="chat-step-dot" :class="{'active': chatStep === 0}" @click="setChatStep(0)" title="Свернуть"></div>
+                <div class="chat-step-dot" :class="{'active': chatStep === 1}" @click="setChatStep(1)" title="Четверть"></div>
+                <div class="chat-step-dot" :class="{'active': chatStep === 2}" @click="setChatStep(2)" title="Половина"></div>
+                <div class="chat-step-dot" :class="{'active': chatStep === 3}" @click="setChatStep(3)" title="Полностью"></div>
             </div>
-            <button class="btn-node sm ghost" @click="stepChatSize(1)" :disabled="chatStep === 3" title="Expand one step">▲</button>
-
-            <!-- Smart MIN/MAX toggle — collapses when open, maximizes when collapsed -->
+            <button class="btn-node sm ghost" @click="stepChatSize(1)" :disabled="chatStep === 3" title="Развернуть на шаг">▲</button>
             <button class="btn-node sm"
                     @click="chatStep === 0 ? stepChatSize('max') : stepChatSize('min')"
                     x-text="chatStep === 0 ? 'MAX' : 'MIN'"
-                    title="Toggle min/max"></button>
+                    title="Свернуть/развернуть"></button>
         </div>
     </div>
 
-    <!-- ── COLLAPSED MINI-PREVIEW (step 0 only) ── -->
+    <!-- ── COLLAPSED MINI-PREVIEW ── -->
     <div class="chat-mini-preview" x-show="chatStep === 0" x-transition:enter.duration.200ms x-transition:leave.duration.100ms>
-        <div class="msg sys"><span class="tag-m">SYSTEM</span>Connected to Global Weave.</div>
-        <div class="msg player"><span class="tag-m">ROOK</span>Has anyone found the sector 7-B entrance?</div>
+        <template x-if="channels.global.length > 0">
+            <div class="msg player">
+                <span class="tag-m" x-text="channels.global[channels.global.length - 1].sender_name"></span>
+                <span x-text="channels.global[channels.global.length - 1].content"></span>
+            </div>
+        </template>
+        <template x-if="channels.global.length === 0">
+            <div class="msg sys"><span class="tag-m">SYSTEM</span>Подключение...</div>
+        </template>
     </div>
 
-    <!-- ── MAIN CHAT AREA (step 1-3 only) ── -->
+    <!-- ── MAIN CHAT AREA ── -->
     <div class="chat-main-area" x-show="chatStep > 0" style="flex: 1; min-height: 0;">
         <div class="chat-log" id="chat-log"
              x-data="{
                 isDragging: false,
                 startY: 0,
                 scrollTop: 0,
-                startDrag(e) {
-                    this.isDragging = true;
-                    this.startY = e.pageY - $el.offsetTop;
-                    this.scrollTop = $el.scrollTop;
-                    $el.style.cursor = 'grabbing';
-                    $el.style.userSelect = 'none';
-                },
-                stopDrag() {
-                    this.isDragging = false;
-                    $el.style.cursor = 'grab';
-                    $el.style.userSelect = 'auto';
-                },
-                doDrag(e) {
-                    if (!this.isDragging) return;
-                    e.preventDefault();
-                    const y = e.pageY - $el.offsetTop;
-                    const walk = (y - this.startY) * 1.5;
-                    $el.scrollTop = this.scrollTop - walk;
-                }
+                startDrag(e) { this.isDragging=true; this.startY=e.pageY-$el.offsetTop; this.scrollTop=$el.scrollTop; $el.style.cursor='grabbing'; $el.style.userSelect='none'; },
+                stopDrag()    { this.isDragging=false; $el.style.cursor='grab'; $el.style.userSelect='auto'; },
+                doDrag(e)     { if(!this.isDragging) return; e.preventDefault(); const y=e.pageY-$el.offsetTop; $el.scrollTop=this.scrollTop-(y-this.startY)*1.5; }
              }"
              @mousedown="startDrag($event)"
              @mousemove="doDrag($event)"
@@ -79,48 +146,106 @@
              @mouseleave="stopDrag()"
              style="cursor: grab;"
         >
-            <!-- WORLD CHANNEL -->
-            <template x-if="chatTab === 'world'">
+            <!-- WORLD -->
+            <template x-if="chatTab === 'global'">
                 <div style="padding: 10px;">
-                    <div class="msg sys"><span class="tag-m">SYSTEM</span>Connected to Global Weave.</div>
-                    <div class="msg player"><span class="tag-m">ROOK</span>Has anyone found the sector 7-B entrance?</div>
+                    <template x-if="channels.global.length === 0">
+                        <div class="msg sys"><span class="tag-m">SYSTEM</span>Глобальная сеть подключена.</div>
+                    </template>
+                    <template x-for="m in channels.global" :key="m.id">
+                        <div class="msg player">
+                            <span class="tag-m" x-text="m.sender_name"></span>
+                            <span x-text="m.content"></span>
+                        </div>
+                    </template>
                 </div>
             </template>
 
-            <!-- LOCAL CHANNEL -->
-            <template x-if="chatTab === 'local'">
+            <!-- LOCAL -->
+            <template x-if="chatTab === 'zone'">
                 <div style="padding: 10px;">
-                    <div class="msg npc"><span class="tag-m">ARCHIVIST</span>The weave is thinning there, Rook. Tread lightly.</div>
+                    <template x-if="channels.zone.length === 0">
+                        <div class="msg sys"><span class="tag-m">SYSTEM</span>Канал зоны активен.</div>
+                    </template>
+                    <template x-for="m in channels.zone" :key="m.id">
+                        <div class="msg player">
+                            <span class="tag-m" x-text="m.sender_name"></span>
+                            <span x-text="m.content"></span>
+                        </div>
+                    </template>
                 </div>
             </template>
 
-            <!-- SYSTEM CHANNEL -->
+            <!-- SYSTEM -->
             <template x-if="chatTab === 'system'">
                 <div style="padding: 10px;">
-                    <div class="msg sys"><span class="tag-m">CORE</span>Neural link stable. Latency: 24ms.</div>
+                    <template x-if="channels.system.length === 0">
+                        <div class="msg sys"><span class="tag-m">CORE</span>Neural link stable.</div>
+                    </template>
+                    <template x-for="m in channels.system" :key="m.id">
+                        <div class="msg sys">
+                            <span class="tag-m">CORE</span>
+                            <span x-text="m.content"></span>
+                        </div>
+                    </template>
                 </div>
+            </template>
+
+            <!-- DM sessions -->
+            <template x-for="(msgs, sid) in channels.dm" :key="sid">
+                <template x-if="chatTab === 'dm_' + sid">
+                    <div style="padding: 10px;">
+                        <template x-for="m in msgs" :key="m.id">
+                            <div class="msg player">
+                                <span class="tag-m" x-text="m.sender_name"></span>
+                                <span x-text="m.content"></span>
+                            </div>
+                        </template>
+                    </div>
+                </template>
             </template>
         </div>
 
         <!-- Characters Zone -->
         <div class="chat-users" id="chat-users">
-            <div class="users-header">LOC_AGENTS (3)</div>
-            <div class="user-item online" data-tippy-content="Level 12 Archivist">
-                <div class="u-dot"></div> <span>Rook-7</span>
-            </div>
-            <div class="user-item online" data-tippy-content="Level 8 Phase-Runner">
-                <div class="u-dot"></div> <span>Veil-4</span>
-            </div>
-            <div class="user-item" data-tippy-content="Offline / Last seen 2h ago">
-                <div class="u-dot gray"></div> <span style="opacity: 0.5">Ghost_01</span>
-            </div>
+            <div class="users-header" x-text="_rosterHeading()">ОНЛАЙН ОБЩИЙ (0)</div>
+            <template x-if="_rosterItems().length === 0">
+                <div class="user-item is-empty">
+                    <div class="u-dot gray"></div>
+                    <span x-text="_rosterEmptyText()">Список пуст.</span>
+                </div>
+            </template>
+            <template x-for="agent in _rosterItems()" :key="agent.id">
+                <div class="user-item online">
+                    <div class="u-dot"></div>
+                    <span x-text="agent.name"></span>
+                </div>
+            </template>
         </div>
     </div>
 
-    <!-- ── INPUT ROW (hidden on step 0, hover-reveal on step 1, always on 2-3) ── -->
-    <div class="chat-input-row" id="chat-input-row">
-        <span id="chat-prompt">&gt;</span>
-        <input id="chat-input" type="text" :placeholder="'Transmit to ' + chatTab + '...'" spellcheck="false" autocomplete="off">
-        <button id="chat-send" class="btn-node sm ghost" style="padding: 0 15px; height: 24px; font-size: 8px;">TRANSMIT</button>
-    </div>
+    <!-- ── INPUT ROW ── -->
+    <form id="chat-input-form"
+          ws-send
+          hx-trigger="chat-send"
+          @submit.prevent="_sendChat($el)"
+    >
+        <div class="chat-input-row" id="chat-input-row">
+            <span id="chat-prompt">&gt;</span>
+            <input id="chat-input" type="text"
+                   name="chat_input"
+                   :placeholder="'Сообщение: ' + _channelLabel(chatTab) + '...'"
+                   spellcheck="false"
+                   autocomplete="off"
+                   @keydown.enter.prevent="_sendChat($el.form)">
+            <input type="hidden" name="chat_message" value="">
+            <button type="button"
+                    id="chat-send"
+                    class="btn-node sm ghost"
+                    style="padding: 0 15px; height: 28px; font-size: 10px;"
+                    @click="_sendChat($el.form)">ОТПРАВИТЬ</button>
+        </div>
+    </form>
+
+    </div>{# end hx-ext="ws" #}
 </div>

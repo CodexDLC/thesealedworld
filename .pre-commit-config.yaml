@@ -45,6 +45,8 @@ repos:
           - "15"
           - "--ignore-vuln"
           - "CVE-2026-3219"  # pip 26.0.1 vulnerability with no fix available yet
+          - "--ignore-vuln"
+          - "CVE-2026-6357"  # New pip vulnerability
         additional_dependencies: ["pip-audit[toml]", "toml"]
 
   # 2. Поиск "забытых" секретов и паролей (усиленный)

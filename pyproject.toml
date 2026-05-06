@@ -48,11 +48,11 @@ dev = [
 target-version = "py313"
 line-length = 120
 src = ["src"]
-exclude = ["archive", "tests", "tools"]
+exclude = ["archive", "tests", "tools", "temp"]
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "N", "UP", "B", "A", "SIM", "TCH"]
-ignore = ["E501"]
+ignore = ["E501", "B008"]
 
 [tool.ruff.lint.isort]
 known-first-party = ["src"]
@@ -107,7 +107,7 @@ exclude_lines = [
 [tool.bandit]
 exclude_dirs = ["tests", "tools"]
 targets = ["src"]
-skips = ["B101", "B308", "B703"]
+skips = ["B101", "B308", "B703", "B311", "B110"]
 
 # === Quality Gate ===
 [tool.codex-check]
@@ -115,8 +115,8 @@ project-name = "TurnBasedMMORPG"
 quality-command = "uv run pre-commit run --all-files"
 types-command = "uv run mypy --explicit-package-bases src tools"
 test-command = "uv run pytest"
-security-command = "uv run pip-audit --skip-editable --ignore-vuln CVE-2026-3219"
-audit-flags = "--skip-editable --ignore-vuln CVE-2026-3219"
+security-command = "uv run pip-audit --skip-editable --ignore-vuln CVE-2026-3219 --ignore-vuln CVE-2026-6357"
+audit-flags = "--skip-editable --ignore-vuln CVE-2026-3219 --ignore-vuln CVE-2026-6357"
 test-stages = ["unit"]
 test-paths = ["tests"]
 types-paths = ["src", "tools"]

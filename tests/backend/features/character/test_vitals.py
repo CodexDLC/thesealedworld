@@ -1,5 +1,5 @@
 from src.backend.features.character.runtime import CharacterVitalsCalculator
-from src.backend.infrastructure.actor_state.schemas.session import (
+from src.backend.features.character.schemas.session import (
     CharacterSessionAttributesDTO,
     CharacterSessionVitalsDTO,
     VitalValueDTO,

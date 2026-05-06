@@ -5,7 +5,7 @@ from uuid import uuid4
 import pytest
 
 from src.backend.core.exceptions import BusinessLogicException
-from src.backend.features.character.services import status_service
+from src.backend.features.character.integrations import CharacterStateIntegrator
 from src.backend.features.character.services.status_service import CharacterStatusService
 from src.shared.enums.skill_enums import SkillProgressState
 
@@ -70,7 +70,7 @@ class RewardedCharacterRepository(FakeCharacterRepository):
                 progress_state=SkillProgressState.PAUSE,
             ),
         ],
-        symbiote=SimpleNamespace(symbiote_name="Symbiote", gift_rank=1),
+        symbiote=SimpleNamespace(symbiote_name="SYSTEM", gift_rank=1),
     )
 
 
@@ -95,13 +95,27 @@ class FakeCharacterSessions:
         self.document = document
 
 
+class FakeSkillRepository:
+    pass
+
+
+def build_service(repo_cls, sessions):
+    return CharacterStatusService(
+        state_integrator=CharacterStateIntegrator(
+            character_sessions=sessions,
+            character_repo=repo_cls(object()),
+            skill_repo=FakeSkillRepository(),
+        )
+    )
+
+
 def build_actor_core_document():
     return {
         "schema_version": 1,
         "char_id": 7,
         "user_id": uuid4(),
-        "state": "EXPLORATION",
-        "prev_state": "SCENARIO",
+        "state": "exploration",
+        "prev_state": "scenario",
         "bio": {"name": "Ada", "gender": "female", "avatar": "/avatar.png", "created_at": datetime.now(UTC)},
         "location": {"current": "52_52"},
         "vitals": {"hp": {"cur": 100, "max": 100}},
@@ -110,7 +124,7 @@ def build_actor_core_document():
         "active_quest": None,
         "metrics": {"gear_score": 0},
         "skills": {"skill_macing": {"xp": 0.0}, "skill_medium_armor": {"xp": 0.0}},
-        "symbiote": {"name": "Symbiote"},
+        "symbiote": {"name": "SYSTEM"},
         "updated_at": datetime.now(UTC),
     }
 
@@ -139,15 +153,14 @@ def build_session_document():
 
 
 @pytest.mark.asyncio
-async def test_get_actor_core_returns_game_ac_document(monkeypatch):
-    monkeypatch.setattr(status_service, "CharacterRepository", FakeCharacterRepository)
-    service = CharacterStatusService(character_sessions=FakeCharacterSessions(build_actor_core_document()))
+async def test_get_actor_core_returns_game_ac_document():
+    service = build_service(FakeCharacterRepository, FakeCharacterSessions(build_actor_core_document()))
 
-    dto = await service.get_actor_core(SimpleNamespace(id=uuid4()), 7, object())
+    dto = await service.get_actor_core(SimpleNamespace(id=uuid4()), 7)
 
     assert dto.key == "game:ac:7"
     assert dto.char_id == 7
-    assert dto.state == "EXPLORATION"
+    assert dto.state == "exploration"
     assert dto.location["current"] == "52_52"
     assert dto.skills["skill_macing"]["xp"] == 0.0
     assert dto.panel is not None
@@ -162,36 +175,34 @@ async def test_get_actor_core_returns_game_ac_document(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_get_actor_core_rejects_unowned_character(monkeypatch):
-    monkeypatch.setattr(status_service, "CharacterRepository", MissingCharacterRepository)
-    service = CharacterStatusService(character_sessions=FakeCharacterSessions(build_actor_core_document()))
+async def test_get_actor_core_rejects_unowned_character():
+    service = build_service(MissingCharacterRepository, FakeCharacterSessions(build_actor_core_document()))
 
     with pytest.raises(BusinessLogicException):
-        await service.get_actor_core(SimpleNamespace(id=uuid4()), 7, object())
+        await service.get_actor_core(SimpleNamespace(id=uuid4()), 7)
 
 
 @pytest.mark.asyncio
-async def test_get_actor_core_initializes_missing_actor_core(monkeypatch):
-    monkeypatch.setattr(status_service, "CharacterRepository", FakeCharacterRepository)
+async def test_get_actor_core_initializes_missing_actor_core():
     sessions = FakeCharacterSessions(None)
-    service = CharacterStatusService(character_sessions=sessions)
+    service = build_service(FakeCharacterRepository, sessions)
 
-    dto = await service.get_actor_core(SimpleNamespace(id=uuid4()), 7, object())
+    dto = await service.get_actor_core(SimpleNamespace(id=uuid4()), 7)
 
     assert dto.key == "game:ac:7"
     assert dto.char_id == 7
     assert dto.bio["name"] == "Ada"
     assert dto.location["current"] == "52_52"
     assert sessions.created is not None
+    assert sessions.created["symbiote"]["name"] == "SYSTEM"
 
 
 @pytest.mark.asyncio
-async def test_get_actor_core_initializes_actor_core_from_persisted_actor_state(monkeypatch):
-    monkeypatch.setattr(status_service, "CharacterRepository", RewardedCharacterRepository)
+async def test_get_actor_core_initializes_actor_core_from_persisted_actor_state():
     sessions = FakeCharacterSessions(None)
-    service = CharacterStatusService(character_sessions=sessions)
+    service = build_service(RewardedCharacterRepository, sessions)
 
-    dto = await service.get_actor_core(SimpleNamespace(id=uuid4()), 7, object())
+    dto = await service.get_actor_core(SimpleNamespace(id=uuid4()), 7)
 
     assert dto.attributes["agility"] == 17
     assert dto.attributes["projection"] == 16
@@ -207,14 +218,13 @@ async def test_get_actor_core_initializes_actor_core_from_persisted_actor_state(
 
 
 @pytest.mark.asyncio
-async def test_get_actor_core_repairs_stale_default_actor_core_from_persisted_actor_state(monkeypatch):
-    monkeypatch.setattr(status_service, "CharacterRepository", RewardedCharacterRepository)
+async def test_get_actor_core_repairs_stale_default_actor_core_from_persisted_actor_state():
     document = build_session_document()
     document["skills"] = {}
     sessions = FakeCharacterSessions(document)
-    service = CharacterStatusService(character_sessions=sessions)
+    service = build_service(RewardedCharacterRepository, sessions)
 
-    dto = await service.get_actor_core(SimpleNamespace(id=uuid4()), 7, object())
+    dto = await service.get_actor_core(SimpleNamespace(id=uuid4()), 7)
 
     assert dto.attributes["agility"] == 17
     assert dto.attributes["projection"] == 16
@@ -229,14 +239,13 @@ async def test_get_actor_core_repairs_stale_default_actor_core_from_persisted_ac
 
 
 @pytest.mark.asyncio
-async def test_get_actor_core_keeps_runtime_attributes_when_not_default(monkeypatch):
-    monkeypatch.setattr(status_service, "CharacterRepository", RewardedCharacterRepository)
+async def test_get_actor_core_keeps_runtime_attributes_when_not_default():
     document = build_session_document()
     document["attributes"]["agility"] = 21
     sessions = FakeCharacterSessions(document)
-    service = CharacterStatusService(character_sessions=sessions)
+    service = build_service(RewardedCharacterRepository, sessions)
 
-    dto = await service.get_actor_core(SimpleNamespace(id=uuid4()), 7, object())
+    dto = await service.get_actor_core(SimpleNamespace(id=uuid4()), 7)
 
     assert dto.attributes["agility"] == 21
     assert dto.vitals["hp"]["cur"] == 50
@@ -244,12 +253,11 @@ async def test_get_actor_core_keeps_runtime_attributes_when_not_default(monkeypa
 
 
 @pytest.mark.asyncio
-async def test_get_status_returns_flat_regenerated_vitals(monkeypatch):
-    monkeypatch.setattr(status_service, "CharacterRepository", FakeCharacterRepository)
+async def test_get_status_returns_flat_regenerated_vitals():
     sessions = FakeCharacterSessions(build_session_document())
-    service = CharacterStatusService(character_sessions=sessions)
+    service = build_service(FakeCharacterRepository, sessions)
 
-    status = await service.get_status(SimpleNamespace(id=uuid4()), 7, object())
+    status = await service.get_status(SimpleNamespace(id=uuid4()), 7)
 
     assert status.character_id == 7
     assert status.hp > 50
@@ -259,9 +267,8 @@ async def test_get_status_returns_flat_regenerated_vitals(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_get_status_rejects_unowned_character(monkeypatch):
-    monkeypatch.setattr(status_service, "CharacterRepository", MissingCharacterRepository)
-    service = CharacterStatusService(character_sessions=FakeCharacterSessions(build_session_document()))
+async def test_get_status_rejects_unowned_character():
+    service = build_service(MissingCharacterRepository, FakeCharacterSessions(build_session_document()))
 
     with pytest.raises(BusinessLogicException):
-        await service.get_status(SimpleNamespace(id=uuid4()), 7, object())
+        await service.get_status(SimpleNamespace(id=uuid4()), 7)

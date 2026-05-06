@@ -6,10 +6,11 @@
 а также для обновления и чтения его атрибутов (ранее stats).
 """
 
+import uuid
 from datetime import datetime
 from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 Gender = Literal["male", "female", "other"]  # Возможные значения для пола персонажа.
 
@@ -49,9 +50,10 @@ class CharacterReadDTO(BaseModel):
     """
 
     character_id: int  # Уникальный идентификатор персонажа в игре.
-    user_id: int  # Идентификатор пользователя Telegram, которому принадлежит персонаж.
+    user_id: uuid.UUID | int  # Идентификатор пользователя, которому принадлежит персонаж.
     name: str  # Имя персонажа.
     gender: Gender  # Пол персонажа.
+    avatar_url: str | None = None
     game_stage: str  # Текущая стадия игры персонажа.
 
     # Расширенные поля для контекста и навигации
@@ -67,6 +69,20 @@ class CharacterReadDTO(BaseModel):
     updated_at: datetime  # Дата и время последнего обновления данных персонажа.
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class CharacterStatusDTO(BaseModel):
+    character_id: int
+    name: str
+    avatar_url: str | None = None
+    hp: float = 0
+    max_hp: float = 0
+    energy: float = 0
+    max_energy: float = 0
+    stamina: float = 0
+    max_stamina: float = 0
+    last_update: datetime | None = None
+    extra: dict[str, Any] = Field(default_factory=dict)
 
 
 class CharacterAttributesUpdateDTO(BaseModel):
@@ -95,8 +111,55 @@ class CharacterAttributesReadDTO(CharacterAttributesUpdateDTO):
     created_at: datetime | None = None  # Дата и время создания записи атрибутов.
     updated_at: datetime | None = None  # Дата и время последнего обновления записи атрибутов.
     character_id: int = 0  # Added default value for dummy creation
+    intellect: int = 8
+    memory: int = 8
+    mental: int = 8
+    projection: int = 8
+    prediction: int = 8
 
     model_config = ConfigDict(from_attributes=True)
+
+    @model_validator(mode="before")
+    @classmethod
+    def _normalize_attribute_names(cls, data: Any) -> Any:
+        if data is None:
+            return data
+
+        keys = {
+            "character_id",
+            "strength",
+            "agility",
+            "endurance",
+            "perception",
+            "intelligence",
+            "wisdom",
+            "men",
+            "charisma",
+            "luck",
+            "intellect",
+            "memory",
+            "mental",
+            "projection",
+            "prediction",
+            "created_at",
+            "updated_at",
+        }
+        payload = (
+            dict(data) if isinstance(data, dict) else {key: getattr(data, key) for key in keys if hasattr(data, key)}
+        )
+        aliases = {
+            "intelligence": "intellect",
+            "wisdom": "memory",
+            "men": "mental",
+            "charisma": "projection",
+            "luck": "prediction",
+        }
+        for legacy_key, current_key in aliases.items():
+            if current_key not in payload and legacy_key in payload:
+                payload[current_key] = payload[legacy_key]
+            if legacy_key not in payload and current_key in payload:
+                payload[legacy_key] = payload[current_key]
+        return payload
 
 
 # Aliases for backward compatibility during refactoring (Optional, but safer)

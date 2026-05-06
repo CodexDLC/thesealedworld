@@ -4,18 +4,24 @@ from uuid import uuid4
 
 import pytest
 
+from src.backend.features.character.integrations import CharacterSystemIntegrator
+from src.backend.features.character.models import Character
+from src.backend.features.character.repositories import CharacterRepository
+from src.backend.features.character.schemas.session import CharacterSessionDocumentDTO
 from src.backend.features.character.services import CharacterSessionPersistenceService
-from src.backend.infrastructure.actor_state.models import Character
 
 
 class FakeCharacterSessions:
+    def __init__(self) -> None:
+        self.cleared_dirty_ids: list[int] = []
+
     async def get_session(self, char_id):
         return {
             "schema_version": 1,
             "char_id": char_id,
             "user_id": uuid4(),
-            "state": "EXPLORATION",
-            "prev_state": "SCENARIO",
+            "state": "exploration",
+            "prev_state": "scenario",
             "bio": {
                 "name": "Ada",
                 "gender": "female",
@@ -44,13 +50,58 @@ class FakeCharacterSessions:
             "active_quest": None,
             "metrics": {"gear_score": 0},
             "skills": {"skill_swords": {"xp": 0.25, "unlocked": True, "state": "PLUS"}},
-            "symbiote": {"name": "Symbiote"},
+            "symbiote": {"name": "SYSTEM"},
             "updated_at": datetime.now(UTC),
         }
 
+    async def clear_dirty(self, char_id):
+        self.cleared_dirty_ids.append(char_id)
+
 
 @pytest.mark.unit
-async def test_sync_active_session_to_db_persists_character_attributes_and_skills() -> None:
+async def test_service_delegates_active_session_sync_to_integrator() -> None:
+    integrator = MagicMock()
+    integrator.sync_active_session = AsyncMock(return_value={"char_id": 7, "state": "exploration"})
+    service = CharacterSessionPersistenceService(system_integrator=integrator)
+
+    result = await service.sync_active_session_to_db(7)
+
+    assert result == {"char_id": 7, "state": "exploration"}
+    integrator.sync_active_session.assert_awaited_once_with(7)
+
+
+@pytest.mark.unit
+async def test_system_integrator_persists_character_attributes_and_skills() -> None:
+    character_repo = MagicMock()
+    character_repo.sync_active_session_snapshot = AsyncMock(
+        return_value={"state": "exploration", "location_id": "52_58"}
+    )
+    attributes_repo = MagicMock()
+    attributes_repo.upsert_attributes = AsyncMock()
+    skill_repo = MagicMock()
+    skill_repo.upsert_progress_rows = AsyncMock()
+
+    character_sessions = FakeCharacterSessions()
+    integrator = CharacterSystemIntegrator(
+        character_sessions=character_sessions,
+        character_repo=character_repo,
+        attributes_repo=attributes_repo,
+        skill_repo=skill_repo,
+    )
+
+    result = await integrator.sync_active_session(7)
+
+    assert result["state"] == "exploration"
+    assert result["location_id"] == "52_58"
+    assert result["skills"] == ["skill_swords"]
+    character_repo.sync_active_session_snapshot.assert_awaited_once()
+    attributes_repo.upsert_attributes.assert_awaited_once()
+    skill_repo.upsert_progress_rows.assert_awaited_once()
+    assert character_sessions.cleared_dirty_ids == [7]
+
+
+@pytest.mark.unit
+async def test_character_repository_syncs_active_session_snapshot() -> None:
     character = Character(
         user_id=uuid4(),
         name="Ada",
@@ -60,25 +111,19 @@ async def test_sync_active_session_to_db_persists_character_attributes_and_skill
         location_id="52_52",
     )
     character.character_id = 7
-    db_session = MagicMock()
-    db_session.scalar = AsyncMock(return_value=character)
-    db_session.execute = AsyncMock()
-    db_session.flush = AsyncMock()
+    session = MagicMock()
+    session.flush = AsyncMock()
+    repo = CharacterRepository(session)
+    repo.get_by_id = AsyncMock(return_value=character)  # type: ignore[method-assign]
+    document = CharacterSessionDocumentDTO.model_validate(await FakeCharacterSessions().get_session(7))
 
-    service = CharacterSessionPersistenceService(
-        db_session=db_session,
-        character_sessions=FakeCharacterSessions(),
-    )
+    result = await repo.sync_active_session_snapshot(7, document)
 
-    result = await service.sync_active_session_to_db(character.character_id)
-
-    assert result["state"] == "EXPLORATION"
-    assert character.game_stage == "EXPLORATION"
-    assert character.prev_game_stage == "SCENARIO"
+    assert result == {"state": "exploration", "location_id": "52_58"}
+    assert character.game_stage == "exploration"
+    assert character.prev_game_stage == "scenario"
     assert character.location_id == "52_58"
     assert character.prev_location_id == "52_52"
     assert character.active_sessions == {"scenario_id": None, "combat_id": None, "inventory_id": None, "active_quest": None}
     assert character.vitals_snapshot["hp"]["cur"] == 90
-    assert result["skills"] == ["skill_swords"]
-    assert db_session.execute.await_count == 2
-    db_session.flush.assert_awaited_once()
+    session.flush.assert_awaited_once()

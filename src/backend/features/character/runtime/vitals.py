@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import UTC, datetime
 from typing import Any
 
-from src.backend.infrastructure.actor_state.schemas.session import (
+from src.backend.features.character.schemas.session import (
     CharacterSessionAttributesDTO,
     CharacterSessionVitalsDTO,
     VitalValueDTO,
@@ -89,6 +90,25 @@ class CharacterVitalsCalculator:
             energy=VitalValueDTO(cur=energy, max=energy, regen=round(mental * 0.1, 4)),
             stamina=VitalValueDTO(cur=stamina, max=stamina, regen=round(endurance * 0.2, 4)),
         )
+
+    @staticmethod
+    def apply_regen(vitals: CharacterSessionVitalsDTO) -> CharacterSessionVitalsDTO:
+        now = datetime.now(UTC).timestamp()
+        if vitals.last_update <= 0:
+            vitals.last_update = now
+            return vitals
+
+        elapsed = now - vitals.last_update
+        if elapsed < 1.0:
+            return vitals
+
+        for attr_name in ("hp", "energy", "stamina"):
+            value = getattr(vitals, attr_name)
+            if value.cur < value.max and value.regen > 0:
+                value.cur = min(value.max, int(value.cur + value.regen * elapsed))
+
+        vitals.last_update = now
+        return vitals
 
     @staticmethod
     def _merge_current(current: VitalValueDTO, calculated: VitalValueDTO, *, fill_current: bool) -> VitalValueDTO:

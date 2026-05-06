@@ -1,0 +1,161 @@
+from __future__ import annotations
+
+from src.backend.features.character.dto.modifiers import CombatModifiersDTO
+
+GEAR_SCORE_BASE = 50.0
+GEAR_SCORE_MINIMUM = 1
+
+# Starter balancing weights for waterfall-calculated combat modifiers.
+# Percent values are stored as 0..1, so they intentionally use larger weights.
+GEAR_SCORE_WEIGHTS: dict[str, float] = {
+    # Vitals
+    "hp": 0.04,
+    "hp_regen": 2.0,
+    "en": 0.02,
+    "en_regen": 2.0,
+    "stamina": 0.015,
+    "stamina_regen": 1.0,
+    "resource_cost_reduction": 60.0,
+    "initiative": 0.15,
+    # Hand and item stats
+    "main_hand_damage_base": 1.2,
+    "main_hand_damage_spread": -80.0,
+    "main_hand_damage_bonus": 1.0,
+    "main_hand_penetration": 70.0,
+    "main_hand_accuracy": 55.0,
+    "main_hand_crit_chance": 70.0,
+    "off_hand_damage_base": 0.8,
+    "off_hand_damage_spread": -50.0,
+    "off_hand_damage_bonus": 0.7,
+    "off_hand_penetration": 45.0,
+    "off_hand_accuracy": 35.0,
+    "off_hand_crit_chance": 45.0,
+    "item_damage_base": 0.4,
+    "item_damage_spread": -20.0,
+    "item_damage_bonus": 0.3,
+    "item_penetration": 20.0,
+    "item_accuracy": 15.0,
+    "item_crit_chance": 20.0,
+    # Global offense
+    "physical_damage": 1.0,
+    "physical_damage_bonus": 1.0,
+    "accuracy": 55.0,
+    "armor_penetration": 70.0,
+    "crit_chance": 70.0,
+    "crit_power": 40.0,
+    # Magic
+    "magical_damage": 1.0,
+    "magical_damage_spread": -80.0,
+    "magical_damage_bonus": 1.0,
+    "magical_accuracy": 55.0,
+    "magical_damage_power": 35.0,
+    "magical_penetration": 70.0,
+    "spell_land_chance": 35.0,
+    "magical_crit_chance": 70.0,
+    # Defense
+    "evasion": 80.0,
+    "dodge_cap": 20.0,
+    "anti_dodge_chance": 50.0,
+    "parry": 80.0,
+    "parry_cap": 20.0,
+    "block": 80.0,
+    "shield_block_cap": 20.0,
+    "physical_resistance": 60.0,
+    "magic_resist": 60.0,
+    "resistance_cap": 20.0,
+    "armor": 0.8,
+    # Elements
+    "fire_damage_bonus": 25.0,
+    "fire_resistance": 35.0,
+    "water_damage_bonus": 25.0,
+    "water_resistance": 35.0,
+    "air_damage_bonus": 25.0,
+    "air_resistance": 35.0,
+    "earth_damage_bonus": 25.0,
+    "earth_resistance": 35.0,
+    "light_damage_bonus": 25.0,
+    "light_resistance": 35.0,
+    "dark_damage_bonus": 25.0,
+    "dark_resistance": 35.0,
+    "arcane_damage_bonus": 25.0,
+    "arcane_resistance": 35.0,
+    "nature_damage_bonus": 25.0,
+    "nature_resistance": 35.0,
+    # Status and special
+    "control_chance_bonus": 30.0,
+    "control_resistance": 35.0,
+    "mental_resistance": 35.0,
+    "debuff_avoidance": 35.0,
+    "shock_resistance": 35.0,
+    "poison_damage_bonus": 25.0,
+    "poison_resistance": 35.0,
+    "poison_efficiency": 25.0,
+    "bleed_damage_bonus": 0.6,
+    "bleed_resistance": 35.0,
+    "counter_attack_chance": 75.0,
+    "counter_attack_cap": 20.0,
+    "vampiric_power": 35.0,
+    "vampiric_trigger_chance": 35.0,
+    "vampiric_trigger_cap": 20.0,
+    "healing_power": 25.0,
+    "received_healing_bonus": 20.0,
+    "pet_efficiency_mult": 40.0,
+    "damage_mult": 80.0,
+    "thorns_damage_flat": 0.8,
+    "hand_size": 3.0,
+    # Environment and speed
+    "environment_cold_resistance": 20.0,
+    "environment_heat_resistance": 20.0,
+    "environment_gravity_resistance": 20.0,
+    "environment_bio_resistance": 20.0,
+    "attack_speed": 60.0,
+    "cast_speed": 60.0,
+    "movement_speed": 35.0,
+}
+
+GEAR_SCORE_BASELINES: dict[str, float] = {
+    "main_hand_damage_spread": 0.1,
+    "off_hand_damage_spread": 0.1,
+    "item_damage_spread": 0.1,
+    "magical_damage_spread": 0.1,
+    "dodge_cap": 0.75,
+    "parry_cap": 0.50,
+    "shield_block_cap": 0.75,
+    "resistance_cap": 0.85,
+    "counter_attack_cap": 0.50,
+    "vampiric_trigger_cap": 1.0,
+    "damage_mult": 1.0,
+    "pet_efficiency_mult": 1.0,
+    "hand_size": 3.0,
+}
+
+GEAR_SCORE_CAPS: dict[str, float] = {
+    "hp": 2000.0,
+    "en": 1000.0,
+    "stamina": 1500.0,
+    "armor": 500.0,
+    "physical_damage": 500.0,
+    "magical_damage": 500.0,
+    "main_hand_damage_base": 500.0,
+    "off_hand_damage_base": 500.0,
+}
+
+GEAR_SCORE_CONFIG = {
+    "base": GEAR_SCORE_BASE,
+    "minimum": GEAR_SCORE_MINIMUM,
+    "weights": GEAR_SCORE_WEIGHTS,
+    "baselines": GEAR_SCORE_BASELINES,
+    "caps": GEAR_SCORE_CAPS,
+}
+
+COMBAT_MODIFIER_KEYS = frozenset(CombatModifiersDTO.model_fields)
+
+__all__ = [
+    "COMBAT_MODIFIER_KEYS",
+    "GEAR_SCORE_BASE",
+    "GEAR_SCORE_BASELINES",
+    "GEAR_SCORE_CAPS",
+    "GEAR_SCORE_CONFIG",
+    "GEAR_SCORE_MINIMUM",
+    "GEAR_SCORE_WEIGHTS",
+]

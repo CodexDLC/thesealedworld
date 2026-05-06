@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
 from src.backend.features.character.events import CharacterEvents
@@ -142,13 +143,13 @@ class CombatSystemIntegrator:
         if combat_id is not None and current_combat_id and str(current_combat_id) != str(combat_id):
             return None
 
-        return_state = self._recover_return_state(session.get("prev_state"))
+        return_path = CombatReturnStateMapper.from_combat_previous(session.get("prev_state"))
         await self.character_sessions.patch_fields(
             char_id,
             {
                 "$.sessions.combat_id": None,
-                "$.prev_state": current_state or CoreDomain.COMBAT.value,
-                "$.state": return_state,
+                "$.prev_state": return_path.previous_state,
+                "$.state": return_path.current_state,
             },
         )
         await self.character_sessions.mark_dirty(
@@ -156,7 +157,17 @@ class CombatSystemIntegrator:
             reason="combat_session_missing_recovered",
             paths=["$.prev_state", "$.sessions.combat_id", "$.state"],
         )
-        return return_state
+        return return_path.current_state
+
+    async def resolve_return_state_for_character(self, char_id: int) -> str:
+        session = await self.character_sessions.get_session(char_id)
+        if not isinstance(session, dict):
+            return CoreDomain.EXPLORATION.value
+
+        current_state = self._state_text(session.get("state"))
+        if current_state == CoreDomain.COMBAT.value:
+            return CombatReturnStateMapper.from_combat_previous(session.get("prev_state")).current_state
+        return CombatReturnStateMapper.normalize_current(current_state)
 
     async def publish_session_ready(self, payload: dict[str, Any]) -> None:
         await self.events.publish(
@@ -195,7 +206,43 @@ class CombatSystemIntegrator:
 
     @staticmethod
     def _recover_return_state(value: Any) -> str:
-        state = CombatSystemIntegrator._state_text(value)
+        return CombatReturnStateMapper.from_combat_previous(value).current_state
+
+    @staticmethod
+    def _state_text(value: Any) -> str | None:
+        if value is None:
+            return None
+        return value.value if isinstance(value, CoreDomain) else str(value)
+
+
+@dataclass(frozen=True)
+class CombatReturnPath:
+    current_state: str
+    previous_state: str | None
+
+
+class CombatReturnStateMapper:
+    """Maps stale combat sessions back into the surrounding gameplay state."""
+
+    PARENT_BY_STATE = {
+        CoreDomain.ARENA.value: CoreDomain.EXPLORATION.value,
+        CoreDomain.SCENARIO.value: CoreDomain.EXPLORATION.value,
+        CoreDomain.INVENTORY.value: CoreDomain.EXPLORATION.value,
+        CoreDomain.STATUS.value: CoreDomain.EXPLORATION.value,
+        CoreDomain.WORLD.value: CoreDomain.EXPLORATION.value,
+    }
+
+    @classmethod
+    def from_combat_previous(cls, value: Any) -> CombatReturnPath:
+        current_state = cls.normalize_current(value)
+        return CombatReturnPath(
+            current_state=current_state,
+            previous_state=cls.PARENT_BY_STATE.get(current_state),
+        )
+
+    @classmethod
+    def normalize_current(cls, value: Any) -> str:
+        state = cls._state_text(value)
         if state and state != CoreDomain.COMBAT.value:
             try:
                 return CoreDomain(state).value

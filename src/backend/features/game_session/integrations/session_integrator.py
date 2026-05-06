@@ -58,6 +58,37 @@ class GameSessionIntegrator:
             prev_game_stage=character.prev_game_stage,
         )
 
+    async def release_other_active_sessions(self, user_id: UUID, selected_character_id: int) -> None:
+        if self.character_sessions is None:
+            return
+
+        characters = await self.character_repo.get_by_user_id(user_id)
+        other_character_ids = [
+            character.character_id for character in characters if character.character_id != selected_character_id
+        ]
+        if not other_character_ids:
+            return
+
+        sessions = await self.character_sessions.get_sessions_batch(other_character_ids)
+        persisted_any = False
+        for character_id, document in sessions.items():
+            if not isinstance(document, dict):
+                continue
+
+            await self._persist_active_session_snapshot(character_id, document)
+            persisted_any = True
+            await self.scenario_service.cleanup(character_id)
+            await self.character_sessions.delete_session(character_id)
+            logger.info(
+                "Released previous active character session: user_id={} selected_char_id={} released_char_id={}",
+                user_id,
+                selected_character_id,
+                character_id,
+            )
+
+        if persisted_any:
+            await self.character_repo.commit()
+
     async def get_active_session(self, character_id: int, user_id: UUID) -> CharacterSessionDocumentDTO | None:
         if self.character_sessions is None:
             return None
@@ -82,6 +113,19 @@ class GameSessionIntegrator:
             return None
 
         return session_doc
+
+    async def _persist_active_session_snapshot(self, character_id: int, document: dict[str, object]) -> None:
+        try:
+            session_doc = CharacterSessionDocumentDTO.model_validate(document)
+        except Exception:
+            logger.warning(
+                "Skipping invalid active session snapshot before release: char_id={}", character_id, exc_info=True
+            )
+            return
+
+        synced = await self.character_repo.sync_active_session_snapshot(character_id, session_doc)
+        if synced is None:
+            logger.warning("Skipping active session snapshot sync; character missing: char_id={}", character_id)
 
     async def resume_or_initialize_scenario(
         self,

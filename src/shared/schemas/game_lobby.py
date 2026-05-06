@@ -43,6 +43,7 @@ class LobbySlotDTO(BaseModel):
     name: str | None = None
     avatar_url: str | None = None
     status: str = "VACANT"
+    presence_status: Literal["online", "offline"] = "offline"
 
 
 class GameLobbyPayloadDTO(BaseModel):

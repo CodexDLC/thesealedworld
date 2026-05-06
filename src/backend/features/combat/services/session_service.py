@@ -150,7 +150,13 @@ class CombatSessionService:
         reason: str = "combat_session_not_found",
     ) -> CombatResultDTO:
         combat_id = await self.system_integrator.resolve_combat_session_for_character(char_id)
-        return await self.result_archive.get_result_for_character(char_id, combat_id=combat_id, reason=reason)
+        target_state = await self.system_integrator.resolve_return_state_for_character(char_id)
+        return await self.result_archive.get_result_for_character(
+            char_id,
+            combat_id=combat_id,
+            reason=reason,
+            target_state=target_state,
+        )
 
     async def get_history(self, char_id: int, *, session_id: str | None = None) -> CombatLogDTO:
         combat_id = session_id or await self._resolve_session_id(char_id)

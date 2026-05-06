@@ -48,6 +48,9 @@ WOLVES_FAMILY: MonsterFamily = {
     },
     "loot_profile": {
         "salvage_type": "beast_parts",
+        "loot_mode": "salvage",
+        "allowed_loadout_slots": "natural_only",
+        "equipment_drop_policy": "none",
         "drops_as_equipment": False,
         "materials": ["fang", "hide_scrap", "bone", "pelt"],
     },

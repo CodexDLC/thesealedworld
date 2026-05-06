@@ -46,6 +46,9 @@ GOBLINS_FAMILY: MonsterFamily = {
     },
     "loot_profile": {
         "salvage_type": "humanoid_gear",
+        "loot_mode": "equipment",
+        "allowed_loadout_slots": "full_humanoid",
+        "equipment_drop_policy": "fixed_loadout",
         "drops_as_equipment": True,
         "equipment_quality": "poor_to_common",
         "materials": ["scrap_metal", "torn_cloth", "cracked_tool"],
@@ -77,7 +80,7 @@ GOBLINS_FAMILY: MonsterFamily = {
                 "charisma": 1,
                 "luck": 5,  # Итого: 40 (чуть выше базы из-за luck/agi)
             },
-            "fixed_loadout": {"main_hand": "dagger", "off_hand": "dagger", "chest_garment": "shirt"},
+            "fixed_loadout": {"main_hand": "dagger", "off_hand": "dagger", "chest_garment": "linen_shirt"},
             "skill_overrides": {"skill_dual_wield": 15},
             "skills": ["attack_heavy", "stealth"],
         },
@@ -100,7 +103,7 @@ GOBLINS_FAMILY: MonsterFamily = {
                 "charisma": 1,
                 "luck": 4,  # Итого: 35
             },
-            "fixed_loadout": {"main_hand": "mace", "chest_garment": "shirt"},
+            "fixed_loadout": {"main_hand": "mace", "chest_garment": "linen_shirt"},
             "skills": ["debuff_armor_break"],
         },
         # --- 2. Бойцы (Veterans) [TSP ~45] ---
@@ -145,7 +148,7 @@ GOBLINS_FAMILY: MonsterFamily = {
                 "charisma": 2,
                 "luck": 4,  # Итого: 49
             },
-            "fixed_loadout": {"main_hand": "sling", "chest_garment": "shirt"},
+            "fixed_loadout": {"main_hand": "sling", "chest_garment": "linen_shirt"},
             "skill_overrides": {"skill_archery": 20, "skill_one_handed": None},
             "skills": ["attack_ranged"],
         },

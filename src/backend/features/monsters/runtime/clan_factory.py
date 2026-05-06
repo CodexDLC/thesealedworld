@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING
 from src.backend.features.monsters.dto.generation import GeneratedClan, GeneratedMonster
 from src.backend.features.monsters.resources import get_available_variants_for_tier, get_family_config
 from src.backend.features.monsters.resources.spawn_config import BIOME_FAMILIES, TIER_AVAILABILITY, TIER_SCALING_CONFIG
+from src.backend.features.monsters.runtime.combat_profile import build_monster_combat_seed
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -57,6 +58,7 @@ class ClanFactory:
         clan.members.extend(members)
         for member in members:
             member.clan = clan
+            member.combat_seed = build_monster_combat_seed(member)
         return clan, members
 
     def _select_candidates(self, tier: int, biome_id: str) -> set[str]:

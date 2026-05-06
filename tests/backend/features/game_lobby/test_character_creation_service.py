@@ -39,6 +39,7 @@ class TestCharacterCreationService:
         integration.create_active_session = AsyncMock()
         scenario_payload = MagicMock(spec=ScenarioPayloadDTO)
         integration.initialize_starting_scenario = AsyncMock(return_value=scenario_payload)
+        integration.release_other_active_sessions = AsyncMock()
         integration.mark_character_entered_scenario = AsyncMock()
 
         result = await service.create_and_enter(user, dto)
@@ -47,6 +48,7 @@ class TestCharacterCreationService:
         assert integration.create_character.called
         assert integration.create_active_session.called
         assert integration.initialize_starting_scenario.called
+        integration.release_other_active_sessions.assert_awaited_once_with(user_id, 123)
         assert integration.mark_character_entered_scenario.called
 
     async def test_ensure_slot_available_fails(self, service, integration):

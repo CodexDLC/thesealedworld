@@ -19,6 +19,7 @@ class TestGameLobbyService:
                     name="Hero",
                     avatar_url="/static/images/avatars/silhouette_m.png",
                     status="lobby",
+                    presence_status="online",
                 )
             ]
         )
@@ -31,7 +32,9 @@ class TestGameLobbyService:
         assert payload.slots[0].is_empty is False
         assert payload.slots[0].name == "Hero"
         assert payload.slots[0].avatar_url == "/static/images/avatars/silhouette_m.png"
+        assert payload.slots[0].presence_status == "online"
         assert payload.slots[1].is_empty is True
+        assert payload.slots[1].presence_status == "offline"
         assert payload.can_start is True
 
     async def test_get_start_payload_full(self):
@@ -42,6 +45,7 @@ class TestGameLobbyService:
                 name=f"Hero{i}",
                 avatar_url=f"/avatar-{i}.png",
                 status="lobby",
+                presence_status="offline",
             )
             for i in range(4)
         ]

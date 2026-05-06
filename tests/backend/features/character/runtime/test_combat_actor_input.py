@@ -24,7 +24,7 @@ def test_builder_creates_combat_actor_input_from_active_character_document() -> 
                     "main_hand": "sword-1",
                     "chest_armor": "armor-1",
                 },
-                "belt": {"slot_1": "potion-1"},
+                "belt": {"belt_slot_1": "potion-1"},
             },
             "by_id": {
                 "sword-1": {
@@ -71,7 +71,7 @@ def test_builder_creates_combat_actor_input_from_active_character_document() -> 
     assert actor_input["loadout"]["equipment_layout"] == {"main_hand": "sword-1", "chest_armor": "armor-1"}
     assert actor_input["loadout"]["hand_usage"] == {}
     assert actor_input["loadout"]["two_handed"] is False
-    assert actor_input["loadout"]["belt"][0]["belt_slot"] == "slot_1"
+    assert actor_input["loadout"]["belt"][0]["belt_slot"] == "belt_slot_1"
     assert actor_input["loadout"]["known_abilities"] == ["minor_heal"]
 
 

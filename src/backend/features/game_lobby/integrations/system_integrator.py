@@ -3,7 +3,7 @@ from __future__ import annotations
 from contextlib import suppress
 from dataclasses import dataclass
 from datetime import UTC, datetime
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Literal
 
 from loguru import logger
 
@@ -35,6 +35,7 @@ class LobbyCharacterSummary:
     name: str
     avatar_url: str | None
     status: str
+    presence_status: Literal["online", "offline"] = "offline"
 
 
 @dataclass(frozen=True, slots=True)
@@ -70,15 +71,30 @@ class GameLobbyIntegration:
 
     async def list_user_characters(self, user_id: uuid.UUID) -> list[LobbyCharacterSummary]:
         characters = await self._characters().get_by_user_id(user_id)
+        active_sessions = await self.character_sessions.get_sessions_batch(
+            [character.character_id for character in characters]
+        )
         return [
             LobbyCharacterSummary(
                 character_id=character.character_id,
                 name=character.name,
                 avatar_url=character.avatar_url,
-                status=character.game_stage,
+                status=self._character_status(character.character_id, character.game_stage, active_sessions),
+                presence_status="online" if active_sessions.get(character.character_id) is not None else "offline",
             )
             for character in characters
         ]
+
+    @staticmethod
+    def _character_status(
+        character_id: int,
+        persistent_status: str | None,
+        active_sessions: dict[int, dict[str, object] | None],
+    ) -> str:
+        active_session = active_sessions.get(character_id)
+        if isinstance(active_session, dict):
+            return str(active_session.get("state") or persistent_status or "lobby")
+        return str(persistent_status or "lobby")
 
     async def count_user_characters(self, user_id: uuid.UUID) -> int:
         return await self._characters().count_by_user_id(user_id)
@@ -150,6 +166,44 @@ class GameLobbyIntegration:
     async def cleanup_runtime(self, char_id: int) -> None:
         await self.scenario_service.cleanup(char_id)
         await self.character_sessions.delete_session(char_id)
+
+    async def release_other_active_sessions(self, user_id: uuid.UUID, selected_character_id: int) -> None:
+        characters = await self._characters().get_by_user_id(user_id)
+        other_character_ids = [
+            character.character_id for character in characters if character.character_id != selected_character_id
+        ]
+        if not other_character_ids:
+            return
+
+        sessions = await self.character_sessions.get_sessions_batch(other_character_ids)
+        persisted_any = False
+        for character_id, document in sessions.items():
+            if not isinstance(document, dict):
+                continue
+
+            await self._persist_active_session_snapshot(character_id, document)
+            persisted_any = True
+            await self.cleanup_runtime(character_id)
+            logger.info(
+                "Lobby released previous active character session: user_id={} selected_char_id={} released_char_id={}",
+                user_id,
+                selected_character_id,
+                character_id,
+            )
+
+        if persisted_any:
+            await self._characters().commit()
+
+    async def _persist_active_session_snapshot(self, character_id: int, document: dict[str, object]) -> None:
+        try:
+            session_doc = CharacterSessionDocumentDTO.model_validate(document)
+        except Exception:
+            logger.warning("Lobby active session snapshot validation failed: char_id={}", character_id, exc_info=True)
+            return
+
+        synced = await self._characters().sync_active_session_snapshot(character_id, session_doc)
+        if synced is None:
+            logger.warning("Lobby active session snapshot sync skipped; character missing: char_id={}", character_id)
 
     async def delete_owned_character(self, *, user_id: uuid.UUID, character_id: int) -> None:
         repo = self._characters()

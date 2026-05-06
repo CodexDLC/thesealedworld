@@ -52,6 +52,7 @@ class Monster(Base):
     scaled_base_stats: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
     loadout_ids: Mapped[dict[str, Any] | list[Any]] = mapped_column(JSONB, nullable=False)
     skills_snapshot: Mapped[dict[str, Any] | list[Any]] = mapped_column(JSONB, nullable=False)
+    combat_seed: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False, default=dict)
     current_state: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
 
     clan: Mapped[GeneratedClanORM] = relationship("GeneratedClanORM", back_populates="members")

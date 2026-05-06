@@ -19,6 +19,36 @@ def test_registry_loads_only_starter_families() -> None:
 
 
 @pytest.mark.unit
+@pytest.mark.parametrize("family_id", ["bandit_gang", "goblin_tribe"])
+def test_humanoid_families_are_marked_for_equipment_loot(family_id: str) -> None:
+    family = get_family_config(family_id)
+
+    assert family is not None
+    assert family.archetype == "humanoid"
+    assert family.loot_profile is not None
+    assert family.loot_profile.loot_mode == "equipment"
+    assert family.loot_profile.allowed_loadout_slots == "full_humanoid"
+    assert family.loot_profile.equipment_drop_policy == "fixed_loadout"
+    assert family.loot_profile.drops_as_equipment is True
+    assert family.loot_profile.equipment_quality is not None
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize("family_id", ["rat_swarm", "wolf_pack"])
+def test_beast_families_are_marked_for_salvage_loot(family_id: str) -> None:
+    family = get_family_config(family_id)
+
+    assert family is not None
+    assert family.archetype == "beast"
+    assert family.loot_profile is not None
+    assert family.loot_profile.loot_mode == "salvage"
+    assert family.loot_profile.allowed_loadout_slots == "natural_only"
+    assert family.loot_profile.equipment_drop_policy == "none"
+    assert family.loot_profile.drops_as_equipment is False
+    assert family.loot_profile.materials
+
+
+@pytest.mark.unit
 def test_monster_natural_equipment_is_registered_as_item_base() -> None:
     weapon = get_base_by_id("rat_bite_claws")
     armor = get_base_by_id("light_hide")
@@ -51,8 +81,11 @@ def test_rat_beast_profile_builds_combat_ready_context() -> None:
     assert combat["math_model"]["attributes"]["strength"]["base"] > 0
     assert combat["math_model"]["attributes"]["intellect"]["base"] >= 0
     assert combat["math_model"]["modifiers"]["main_hand_damage_base"]["source"]
-    assert combat["loadout"]["layout"]["main_hand"] == "rat_bite_claws"
-    assert combat["loadout"]["layout"]["chest_armor"] == "light_hide"
+    assert combat["loadout"]["layout"]["main_hand"] == "skill_unarmed"
+    assert combat["loadout"]["layout"]["main_hand_trigger"] == "crit.bleed_on_crit"
+    assert combat["loadout"]["layout"]["body"] == "skill_light_armor"
+    assert combat["loadout"]["equipment_layout"]["main_hand"] == "rat_bite_claws"
+    assert combat["loadout"]["equipment_layout"]["chest_armor"] == "light_hide"
     assert combat["loadout"]["known_abilities"]
     assert combat["skills"]["skill_unarmed"] >= 20
     assert vitals["hp_current"] > 0
@@ -75,9 +108,12 @@ def test_bandit_humanoid_loadout_resolves_into_modifiers_and_layout() -> None:
 
     combat = build_monster_combat_context(monster)
 
-    assert combat["loadout"]["layout"]["main_hand"] == "hatchet"
-    assert combat["loadout"]["layout"]["off_hand"] == "buckler"
-    assert combat["loadout"]["layout"]["chest_armor"] == "jerkin"
+    assert combat["loadout"]["layout"]["main_hand"] == "skill_one_handed"
+    assert combat["loadout"]["layout"]["off_hand"] == "skill_shield_mastery"
+    assert combat["loadout"]["layout"]["body"] == "skill_medium_armor"
+    assert combat["loadout"]["equipment_layout"]["main_hand"] == "hatchet"
+    assert combat["loadout"]["equipment_layout"]["off_hand"] == "buckler"
+    assert combat["loadout"]["equipment_layout"]["chest_armor"] == "jerkin"
     assert combat["math_model"]["modifiers"]["main_hand_damage_base"]["source"]
     assert combat["math_model"]["modifiers"]["armor"]["source"]
     assert combat["skills"]["skill_one_handed"] >= 20

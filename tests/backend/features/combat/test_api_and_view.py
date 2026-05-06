@@ -73,6 +73,9 @@ class FakeCombatSystemIntegrator:
         self.recovered.append((char_id, combat_id))
         return "exploration"
 
+    async def resolve_return_state_for_character(self, char_id):
+        return "exploration"
+
 
 class FakeCharacterSessions:
     def __init__(self, session):
@@ -153,7 +156,7 @@ async def test_missing_live_combat_session_recovers_stale_ac_before_fallback():
 
 
 @pytest.mark.asyncio
-async def test_combat_recovery_clears_ac_combat_id_and_restores_previous_state():
+async def test_combat_recovery_clears_ac_combat_id_and_maps_arena_parent_state():
     sessions = FakeCharacterSessions(
         {
             "state": CoreDomain.COMBAT.value,
@@ -175,7 +178,7 @@ async def test_combat_recovery_clears_ac_combat_id_and_restores_previous_state()
             7,
             {
                 "$.sessions.combat_id": None,
-                "$.prev_state": CoreDomain.COMBAT.value,
+                "$.prev_state": CoreDomain.EXPLORATION.value,
                 "$.state": CoreDomain.ARENA.value,
             },
         )
@@ -187,6 +190,41 @@ async def test_combat_recovery_clears_ac_combat_id_and_restores_previous_state()
             ["$.prev_state", "$.sessions.combat_id", "$.state"],
         )
     ]
+
+
+@pytest.mark.asyncio
+async def test_combat_recovery_falls_back_to_exploration_when_previous_state_is_combat():
+    sessions = FakeCharacterSessions(
+        {
+            "state": CoreDomain.COMBAT.value,
+            "prev_state": CoreDomain.COMBAT.value,
+            "sessions": {"combat_id": "combat-1"},
+        }
+    )
+    integrator = CombatSystemIntegrator(
+        actor_commitments=FakeCommitments(),
+        character_sessions=sessions,
+        events=FakeEvents(),
+    )
+
+    recovered = await integrator.recover_missing_combat_session(7, combat_id="combat-1")
+
+    assert recovered == CoreDomain.EXPLORATION.value
+    assert sessions.patches[0][1]["$.state"] == CoreDomain.EXPLORATION.value
+    assert sessions.patches[0][1]["$.prev_state"] is None
+
+
+@pytest.mark.asyncio
+async def test_archived_result_uses_recovered_return_state_for_primary_action():
+    class ArenaReturnIntegrator(FakeCombatSystemIntegrator):
+        async def resolve_return_state_for_character(self, char_id):
+            return CoreDomain.ARENA.value
+
+    service = CombatSessionService(store=MissingCombatStore(), system_integrator=ArenaReturnIntegrator())
+
+    result = await service.get_archived_result(1)
+
+    assert result.primary_action.target_state == CoreDomain.ARENA.value
 
 
 @pytest.mark.asyncio

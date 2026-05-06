@@ -36,6 +36,7 @@ async def test_create_clan_with_members_persists_clan_and_members() -> None:
         scaled_base_stats={"strength": 10},
         loadout_ids={},
         skills_snapshot=[],
+        combat_seed={"skills": {"skill_unarmed": 10}},
         current_state=None,
     )
 
@@ -47,10 +48,12 @@ async def test_create_clan_with_members_persists_clan_and_members() -> None:
     assert result.id == clan.id
     assert result.members[0].id == member.id
     assert result.members[0].clan is result
+    assert result.members[0].combat_seed == {"skills": {"skill_unarmed": 10}}
     assert isinstance(persisted_clan, GeneratedClanORM)
     assert isinstance(persisted_members[0], GeneratedMonsterORM)
     assert persisted_clan.id == clan.id
     assert persisted_members[0].id == member.id
+    assert persisted_members[0].combat_seed == {"skills": {"skill_unarmed": 10}}
     session.add.assert_called_once()
     session.add_all.assert_called_once()
     session.flush.assert_awaited_once()

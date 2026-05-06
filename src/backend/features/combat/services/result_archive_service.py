@@ -17,6 +17,7 @@ class CombatResultArchiveService:
         *,
         combat_id: str | None = None,
         reason: str = "combat_session_not_found",
+        target_state: str = "exploration",
     ) -> CombatResultDTO:
         return CombatResultDTO(
             combat_id=combat_id,
@@ -32,6 +33,6 @@ class CombatResultArchiveService:
             primary_action=CombatResultActionDTO(
                 label="Продолжить",
                 action="navigate",
-                target_state="exploration",
+                target_state=target_state,
             ),
         )

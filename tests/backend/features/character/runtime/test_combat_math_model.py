@@ -40,9 +40,8 @@ def test_builder_wraps_active_character_attributes_and_equipped_item_mechanics()
                 "equipment": {
                     "main_hand": "weapon-1",
                     "chest_armor": "armor-1",
-                    "belt_slot_1": None,
                 },
-                "belt": {"slot_1": "potion-1"},
+                "belt": {"belt_slot_1": "potion-1"},
             },
             "by_id": {
                 "weapon-1": {

@@ -7,6 +7,9 @@ from pydantic import BaseModel, Field, model_validator
 MonsterRole = Literal["minion", "veteran", "elite", "boss"]
 MonsterArchetype = Literal["humanoid", "beast", "undead", "construct", "demon", "unknown"]
 OrganizationType = Literal["solitary", "pack", "gang", "clan", "legion", "horde", "swarm"]
+LootMode = Literal["equipment", "salvage", "hybrid"]
+LootLoadoutSlots = Literal["full_humanoid", "natural_only", "none"]
+EquipmentDropPolicy = Literal["fixed_loadout", "curated", "none"]
 
 
 class MonsterCombatProfileDTO(BaseModel):
@@ -30,6 +33,9 @@ class MonsterAbilityDefinitionDTO(BaseModel):
 
 class MonsterLootProfileDTO(BaseModel):
     salvage_type: str
+    loot_mode: LootMode
+    allowed_loadout_slots: LootLoadoutSlots
+    equipment_drop_policy: EquipmentDropPolicy
     drops_as_equipment: bool
     materials: list[str] = Field(default_factory=list)
     equipment_quality: str | None = None
@@ -54,7 +60,7 @@ class MonsterLoadoutDTO(BaseModel):
     chest_armor: str | None = None
     arms_armor: str | None = None
     legs_armor: str | None = None
-    feet_armor: str | None = None
+    feetwear: str | None = None
     chest_garment: str | None = None
     legs_garment: str | None = None
     outer_garment: str | None = None

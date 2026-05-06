@@ -55,5 +55,10 @@ class GeneratedMonster:
     scaled_base_stats: dict[str, int]
     loadout_ids: dict[str, str] | list[str]
     skills_snapshot: list[str] | dict[str, Any]
+    combat_seed: dict[str, Any] = field(default_factory=dict)
     current_state: dict[str, Any] | None = None
     clan: GeneratedClan | None = None
+
+    @property
+    def family_id(self) -> str | None:
+        return self.clan.family_id if self.clan else None

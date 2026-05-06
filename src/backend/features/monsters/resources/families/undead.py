@@ -189,7 +189,7 @@ UNDEAD_FAMILY: MonsterFamily = {
                 "head_armor": "helmet",
                 "arms_armor": "gauntlets",
                 "legs_armor": "greaves",
-                "feet_armor": "sabatons",
+                "feetwear": "sabatons",
             },
             "skills": ["debuff_stun", "attack_heavy", "debuff_weaken"],
         },

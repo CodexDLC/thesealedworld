@@ -63,6 +63,7 @@ class CharacterCreationService:
             logger.warning("Character creation cleanup finished: char_id={} user_id={}", char_id, user.id)
             raise
 
+        await self.integration.release_other_active_sessions(user.id, char_id)
         payload.extra_data = {
             **(getattr(payload, "extra_data", None) or {}),
             "char_id": char_id,

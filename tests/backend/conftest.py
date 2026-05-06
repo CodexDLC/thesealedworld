@@ -64,7 +64,7 @@ class FakePipeline:
         return self
 
     def set(self, key: str, path: str, value: dict[str, Any]) -> FakePipeline:
-        self.commands.append(("json_set", key, value))
+        self.commands.append(("json_set", key, (path, value)))
         return self
 
     def get(self, key: str, path: str = "$") -> FakePipeline:
@@ -82,7 +82,14 @@ class FakePipeline:
                 if key in self.client.fail_set_keys:
                     results.append(RuntimeError("write failed"))
                 else:
-                    self.client.store[key] = payload
+                    path, value = payload
+                    if path == "$":
+                        self.client.store[key] = value
+                    elif str(path).startswith("$."):
+                        section = str(path).removeprefix("$.")
+                        if key not in self.client.store or not isinstance(self.client.store[key], dict):
+                            self.client.store[key] = {}
+                        self.client.store[key][section] = value
                     results.append(True)
             elif command == "expire":
                 if key not in self.client.store:

@@ -34,6 +34,7 @@ class GameSessionService:
     ) -> CoreResponseDTO[ScenarioPayloadDTO | dict[str, Any]]:
         character = await self._get_owned_character_or_raise(user, character_id)
         char_id = character.character_id
+        await self.integrator.release_other_active_sessions(user.id, char_id)
         active_session = await self.integrator.get_active_session(char_id, user.id)
         if active_session is not None:
             return await self._enter_from_active_session(active_session)

@@ -25,8 +25,13 @@ class MonsterCombatSource(Protocol):
     scaled_base_stats: dict[str, Any]
     loadout_ids: dict[str, Any] | list[Any]
     skills_snapshot: dict[str, Any] | list[Any]
+    combat_seed: dict[str, Any]
     current_state: dict[str, Any] | None
 
+
+ARMOR_SLOT_TO_COMBAT_SLOT: dict[str, str] = {
+    "chest_armor": "body",
+}
 
 MONSTER_TO_ACTOR_STATS: dict[str, str] = {
     "strength": "strength",
@@ -41,12 +46,39 @@ MONSTER_TO_ACTOR_STATS: dict[str, str] = {
 }
 
 
-def build_monster_combat_context(monster: MonsterCombatSource) -> dict[str, Any]:
+def build_monster_combat_seed(monster: MonsterCombatSource) -> dict[str, Any]:
     family = _family_for(monster)
-    raw_tags = ["monster", monster.role]
-    if family is not None:
-        raw_tags.extend([family.id, family.archetype, *family.default_tags])
+    raw_tags = _monster_tags(monster, family)
+    equipment = _resolve_equipment(monster, family)
+    skills = _resolve_skills(monster, family)
+    abilities = _resolve_abilities(monster, family)
+    loadout = _build_combat_loadout(equipment, skills, raw_tags, abilities)
+    return {
+        "version": 1,
+        "tags": sorted(set(raw_tags)),
+        "skills": skills,
+        "loadout": loadout,
+        "vitals": build_monster_vitals(monster),
+    }
 
+
+def build_monster_combat_context(monster: MonsterCombatSource) -> dict[str, Any]:
+    seed = _combat_seed(monster)
+    if seed:
+        loadout = _dump_mapping(seed.get("loadout"))
+        equipment = _equipment_from_layout(loadout.get("equipment_layout"))
+        return {
+            "math_model": {
+                "attributes": _attributes(monster),
+                "modifiers": _modifiers(equipment),
+                "tags": _list_str(seed.get("tags")),
+            },
+            "loadout": loadout,
+            "skills": _float_map(seed.get("skills")),
+        }
+
+    family = _family_for(monster)
+    raw_tags = _monster_tags(monster, family)
     equipment = _resolve_equipment(monster, family)
     skills = _resolve_skills(monster, family)
     abilities = _resolve_abilities(monster, family)
@@ -57,21 +89,17 @@ def build_monster_combat_context(monster: MonsterCombatSource) -> dict[str, Any]
             "modifiers": _modifiers(equipment),
             "tags": sorted(set(raw_tags)),
         },
-        "loadout": {
-            "layout": {item["slot"]: item["id"] for item in equipment if item.get("slot")},
-            "equipment_layout": {item["slot"]: item["id"] for item in equipment if item.get("slot")},
-            "belt": [],
-            "abilities": abilities["mechanics"],
-            "known_abilities": abilities["mechanics"],
-            "ability_presentations": abilities["presentations"],
-            "skills": sorted(skills),
-            "tags": sorted(set(raw_tags + [tag for item in equipment for tag in item.get("narrative_tags", [])])),
-        },
+        "loadout": _build_combat_loadout(equipment, skills, raw_tags, abilities),
         "skills": skills,
     }
 
 
 def build_monster_vitals(monster: MonsterCombatSource) -> dict[str, Any]:
+    seed = _combat_seed(monster)
+    seed_vitals = _dump_mapping(seed.get("vitals")) if seed else {}
+    if seed_vitals:
+        return seed_vitals
+
     stats = monster.scaled_base_stats or {}
     endurance = int(stats.get("endurance") or 0)
     agility = int(stats.get("agility") or 0)
@@ -107,6 +135,13 @@ def _attributes(monster: MonsterCombatSource) -> dict[str, dict[str, Any]]:
     return attributes
 
 
+def _monster_tags(monster: MonsterCombatSource, family: MonsterFamilyDTO | None) -> list[str]:
+    raw_tags = ["monster", monster.role]
+    if family is not None:
+        raw_tags.extend([family.id, family.archetype, *family.default_tags])
+    return raw_tags
+
+
 def _resolve_equipment(monster: MonsterCombatSource, family: MonsterFamilyDTO | None) -> list[dict[str, Any]]:
     ids: list[str] = []
     profile = _dump_model(family.combat_profile) if family and family.combat_profile else {}
@@ -124,6 +159,23 @@ def _resolve_equipment(monster: MonsterCombatSource, family: MonsterFamilyDTO | 
     resolved: list[dict[str, Any]] = []
     seen: set[str] = set()
     for item_id in ids:
+        if item_id in seen:
+            continue
+        seen.add(item_id)
+        item = get_base_by_id(item_id)
+        if item:
+            resolved.append(dict(item))
+    return resolved
+
+
+def _equipment_from_layout(equipment_layout: Any) -> list[dict[str, Any]]:
+    layout = equipment_layout if isinstance(equipment_layout, dict) else {}
+    resolved: list[dict[str, Any]] = []
+    seen: set[str] = set()
+    for item_id in layout.values():
+        if not item_id:
+            continue
+        item_id = str(item_id)
         if item_id in seen:
             continue
         seen.add(item_id)
@@ -152,6 +204,67 @@ def _resolve_skills(monster: MonsterCombatSource, family: MonsterFamilyDTO | Non
                 skills[key] = float(value)
 
     return skills
+
+
+def _build_combat_loadout(
+    equipment: list[dict[str, Any]],
+    skills: dict[str, float],
+    raw_tags: list[str],
+    abilities: dict[str, Any],
+) -> dict[str, Any]:
+    layout: dict[str, str] = {}
+    equipment_layout: dict[str, str] = {}
+    hand_usage: dict[str, str] = {}
+    tags = list(raw_tags)
+
+    for item in equipment:
+        slot = str(item.get("slot") or "")
+        item_id = str(item.get("id") or "")
+        if not slot or not item_id:
+            continue
+
+        equipment_layout[slot] = item_id
+        combat_slot = ARMOR_SLOT_TO_COMBAT_SLOT.get(slot, slot)
+        skill_key = _skill_key_for_item(combat_slot, item)
+        if skill_key:
+            layout[combat_slot] = skill_key
+            skills.setdefault(skill_key, 0.0)
+
+        trigger_id = _first_trigger(item)
+        if trigger_id and combat_slot in {"main_hand", "off_hand"}:
+            layout[f"{combat_slot}_trigger"] = trigger_id
+
+        if slot == "two_hand":
+            hand_usage["main_hand"] = "two_hand"
+
+        tags.extend(_list_str(item.get("narrative_tags")))
+
+    return {
+        "layout": layout,
+        "equipment_layout": equipment_layout,
+        "hand_usage": hand_usage,
+        "two_handed": bool(hand_usage),
+        "belt": [],
+        "abilities": abilities["mechanics"],
+        "known_abilities": abilities["mechanics"],
+        "ability_presentations": abilities["presentations"],
+        "skills": sorted(skills),
+        "tags": sorted(set(tags)),
+    }
+
+
+def _skill_key_for_item(combat_slot: str, item: dict[str, Any]) -> str | None:
+    for key in ("related_skill", "skill_key", "weapon_skill_key", "armor_skill_key"):
+        value = item.get(key)
+        if value:
+            return str(value)
+
+    return None
+
+
+def _first_trigger(item: dict[str, Any]) -> str | None:
+    raw = item.get("triggers") or []
+    return str(raw[0]) if isinstance(raw, list) and raw else None
 
 
 def _resolve_abilities(monster: MonsterCombatSource, family: MonsterFamilyDTO | None) -> dict[str, Any]:
@@ -199,6 +312,31 @@ def _add_modifier(modifiers: dict[str, dict[str, Any]], key: str, source: str, v
 
 def _dump_model(value: Any) -> dict[str, Any]:
     return value.model_dump(mode="json") if hasattr(value, "model_dump") else dict(value)
+
+
+def _dump_mapping(value: Any) -> dict[str, Any]:
+    if hasattr(value, "model_dump"):
+        return value.model_dump(mode="json")
+    return dict(value) if isinstance(value, dict) else {}
+
+
+def _float_map(value: Any) -> dict[str, float]:
+    raw = _dump_mapping(value)
+    result: dict[str, float] = {}
+    for key, val in raw.items():
+        try:
+            result[str(key)] = float(val or 0.0)
+        except (TypeError, ValueError):
+            result[str(key)] = 0.0
+    return result
+
+
+def _list_str(value: Any) -> list[str]:
+    return [str(item) for item in value] if isinstance(value, list) else []
+
+
+def _combat_seed(monster: MonsterCombatSource) -> dict[str, Any]:
+    return _dump_mapping(getattr(monster, "combat_seed", {}))
 
 
 def _ability_ids(snapshot: dict[str, Any] | list[Any]) -> list[str]:

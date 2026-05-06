@@ -39,8 +39,12 @@ BANDITS_FAMILY: MonsterFamily = {
     },
     "loot_profile": {
         "salvage_type": "humanoid_gear",
+        "loot_mode": "equipment",
+        "allowed_loadout_slots": "full_humanoid",
+        "equipment_drop_policy": "fixed_loadout",
         "drops_as_equipment": True,
         "equipment_quality": "poor_to_common",
+        "materials": ["coin_scraps", "torn_cloth", "worn_leather"],
     },
     "hierarchy": {
         "minions": ["bandit_thug", "bandit_poacher"],
@@ -215,7 +219,7 @@ BANDITS_FAMILY: MonsterFamily = {
                 "head_armor": "helmet",
                 "arms_armor": "gauntlets",
                 "legs_armor": "greaves",
-                "feet_armor": "sabatons",
+                "feetwear": "sabatons",
                 "outer_garment": "winter_cloak",
                 "gloves_garment": "work_gloves",
                 "amulet": "amulet",

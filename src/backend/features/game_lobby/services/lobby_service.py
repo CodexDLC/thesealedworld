@@ -28,6 +28,7 @@ class GameLobbyService:
                 name=character.name,
                 avatar_url=character.avatar_url,
                 status=character.status,
+                presence_status=character.presence_status,
             )
             for index, character in enumerate(characters, start=1)
         ]

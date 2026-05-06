@@ -129,6 +129,7 @@ def _to_generated_monster(monster: GeneratedMonsterORM, clan: GeneratedClan | No
         scaled_base_stats=dict(monster.scaled_base_stats or {}),
         loadout_ids=_copy_json_collection(monster.loadout_ids),
         skills_snapshot=_copy_json_collection(monster.skills_snapshot),
+        combat_seed=dict(monster.combat_seed or {}),
         current_state=dict(monster.current_state or {}) if monster.current_state else None,
         clan=generated_clan,
     )
@@ -176,6 +177,7 @@ def _to_monster_orm(monster: GeneratedMonster) -> GeneratedMonsterORM:
         scaled_base_stats=dict(monster.scaled_base_stats),
         loadout_ids=_copy_json_collection(monster.loadout_ids),
         skills_snapshot=_copy_json_collection(monster.skills_snapshot),
+        combat_seed=dict(monster.combat_seed),
         current_state=dict(monster.current_state) if monster.current_state else None,
     )
 

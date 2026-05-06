@@ -119,7 +119,7 @@ WEREWOLVES_FAMILY: MonsterFamily = {
             "fixed_loadout": {
                 "main_hand": "claw_razor",
                 "chest_armor": "leather_harness",
-                "feet_armor": "padded_wraps",
+                "feetwear": "padded_wraps",
             },
             "skills": ["tracking", "rend", "pounce"],
         },

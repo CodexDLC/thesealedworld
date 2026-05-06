@@ -6,10 +6,10 @@ import pytest
 
 import src.backend.features.game_session.integrations.session_integrator as session_integrator
 from src.backend.core.exceptions import BusinessLogicException
+from src.backend.features.character.schemas.session import CharacterSessionDocumentDTO
 from src.backend.features.game_session.integrations import GameSessionCharacter, GameSessionIntegrator
 from src.backend.features.game_session.services.session_service import GameSessionService
 from src.backend.features.scenario.exceptions import ScenarioSessionNotFound
-from src.backend.features.character.schemas.session import CharacterSessionDocumentDTO
 from src.shared.enums import CoreDomain
 from src.shared.schemas import ScenarioPayloadDTO
 
@@ -26,6 +26,7 @@ class FakeGameSessionIntegrator:
         self.character = self.character if character is None else character
         self.payload = scenario_payload() if payload is None else payload
         self.get_owned_character = AsyncMock(return_value=self.character)
+        self.release_other_active_sessions = AsyncMock()
         self.get_active_session = AsyncMock(return_value=None)
         self.resume_or_initialize_scenario = AsyncMock(return_value=self.payload)
 
@@ -47,6 +48,9 @@ class FakeCharacterRepository:
 
     async def get_by_id(self, character_id):
         return self.character
+
+    async def get_by_user_id(self, user_id):
+        return [self.character]
 
     async def set_character_state(self, character_id, game_stage, *, prev_game_stage=None):
         self.character.game_stage = game_stage
@@ -78,12 +82,14 @@ def scenario_payload() -> ScenarioPayloadDTO:
 async def test_enter_character_resumes_existing_scenario():
     integrator = FakeGameSessionIntegrator()
     service = GameSessionService(integrator=integrator)
+    user_id = uuid4()
 
-    response = await service.enter_character(SimpleNamespace(id=uuid4()), 7)
+    response = await service.enter_character(SimpleNamespace(id=user_id), 7)
 
     assert response.header.current_state == CoreDomain.SCENARIO
     assert response.header.previous_state == CoreDomain.LOBBY
     assert response.payload_type == "scenario_screen"
+    integrator.release_other_active_sessions.assert_awaited_once_with(user_id, 7)
     integrator.resume_or_initialize_scenario.assert_awaited_once_with(
         7,
         quest_key="awakening_rift",
@@ -225,3 +231,49 @@ async def test_integrator_initializes_starting_scenario_when_missing(monkeypatch
     assert FakeCharacterRepository.character.prev_game_stage == CoreDomain.LOBBY.value
     scenario.initialize.assert_awaited_once_with(7, "awakening_rift", source="session_enter")
     db_session.commit.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_integrator_releases_other_active_character_sessions():
+    user_id = uuid4()
+    active_document = {
+        "char_id": 8,
+        "user_id": str(user_id),
+        "state": "exploration",
+        "prev_state": "scenario",
+        "bio": {
+            "name": "Grace",
+            "gender": "female",
+            "created_at": "2026-05-05T00:00:00Z",
+        },
+        "location": {"current": "52_53", "prev": "52_52"},
+        "updated_at": "2026-05-05T00:00:00Z",
+    }
+    repo = SimpleNamespace(
+        get_by_user_id=AsyncMock(
+            return_value=[
+                SimpleNamespace(character_id=7),
+                SimpleNamespace(character_id=8),
+            ]
+        ),
+        sync_active_session_snapshot=AsyncMock(return_value={"state": "exploration", "location_id": "52_53"}),
+        commit=AsyncMock(),
+    )
+    sessions = SimpleNamespace(
+        get_sessions_batch=AsyncMock(return_value={8: active_document}),
+        delete_session=AsyncMock(),
+    )
+    scenario = SimpleNamespace(cleanup=AsyncMock())
+    integrator = GameSessionIntegrator(
+        character_repo=repo,
+        character_sessions=sessions,
+        scenario_service=scenario,
+    )
+
+    await integrator.release_other_active_sessions(user_id, 7)
+
+    sessions.get_sessions_batch.assert_awaited_once_with([8])
+    repo.sync_active_session_snapshot.assert_awaited_once()
+    scenario.cleanup.assert_awaited_once_with(8)
+    sessions.delete_session.assert_awaited_once_with(8)
+    repo.commit.assert_awaited_once()

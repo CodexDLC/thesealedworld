@@ -26,7 +26,7 @@ class MonsterLoadout(TypedDict, total=False):
     chest_armor: str | None
     arms_armor: str | None
     legs_armor: str | None
-    feet_armor: str | None
+    feetwear: str | None
     chest_garment: str | None
     legs_garment: str | None
     outer_garment: str | None
@@ -58,6 +58,9 @@ class MonsterAbilityDefinition(TypedDict):
 
 class MonsterLootProfile(TypedDict, total=False):
     salvage_type: str
+    loot_mode: Literal["equipment", "salvage", "hybrid"]
+    allowed_loadout_slots: Literal["full_humanoid", "natural_only", "none"]
+    equipment_drop_policy: Literal["fixed_loadout", "curated", "none"]
     drops_as_equipment: bool
     materials: list[str]
     equipment_quality: str

@@ -217,10 +217,16 @@ class CharacterSessionManager:
         await self.mark_dirty(char_id, reason="combat_session_cleared", paths=["$.sessions.combat_id"])
 
     async def set_inventory_session(self, char_id: int, inventory_id: str) -> None:
-        raise NotImplementedError("Inventory session attachment is planned for iteration 2.")
+        await self.patch_fields(char_id, {"$.sessions.inventory_id": str(inventory_id)})
+        await self.mark_dirty(char_id, reason="inventory_session_attached", paths=["$.sessions.inventory_id"])
 
     async def clear_inventory_session(self, char_id: int) -> None:
-        raise NotImplementedError("Inventory session clearing is planned for iteration 2.")
+        await self.patch_fields(char_id, {"$.sessions.inventory_id": None})
+        await self.mark_dirty(char_id, reason="inventory_session_cleared", paths=["$.sessions.inventory_id"])
+
+    async def set_items_projection(self, char_id: int, items: dict[str, Any]) -> None:
+        await self.patch_fields(char_id, {"$.items": items})
+        await self.mark_dirty(char_id, reason="inventory_items_changed", paths=["$.items"])
 
     async def update_vital(
         self,

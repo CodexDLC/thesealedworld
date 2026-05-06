@@ -167,7 +167,7 @@ WEREWOLVES_EQUIPMENT = {
     "padded_wraps": {
         "id": "padded_wraps",
         "name_ru": "Мягкие обмотки",
-        "slot": "feet_armor",
+        "slot": "feetwear",
         "type": "armor",
         "base_power": 2,
         "implicit_bonuses": {"stealth_bonus": 0.1},

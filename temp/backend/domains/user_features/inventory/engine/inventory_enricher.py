@@ -1,6 +1,10 @@
+from typing import TYPE_CHECKING
+
 from src.backend.resources.game_data.items.raw_resources import RAW_RESOURCES_DB
-from src.backend.resources.game_data.items.schemas import ResourceDTO
 from src.shared.schemas.inventory import EnrichedCurrencyDTO, WalletDTO, WalletViewDTO
+
+if TYPE_CHECKING:
+    from src.backend.resources.game_data.items.schemas import ResourceDTO
 
 
 class InventoryEnricher:

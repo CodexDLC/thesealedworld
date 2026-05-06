@@ -1,8 +1,14 @@
+from typing import TYPE_CHECKING
+
 from loguru import logger as log
 
-from src.backend.domains.user_features.combat.combat_engine.combat_data_service import CombatDataService
 from src.backend.domains.user_features.combat.dto.combat_arq_dto import AiTurnRequestDTO
-from src.backend.domains.user_features.combat.orchestrators.handler.runtime.combat_turn_manager import CombatTurnManager
+
+if TYPE_CHECKING:
+    from src.backend.domains.user_features.combat.combat_engine.combat_data_service import CombatDataService
+    from src.backend.domains.user_features.combat.orchestrators.handler.runtime.combat_turn_manager import (
+        CombatTurnManager,
+    )
 
 
 async def ai_turn_task(ctx: dict, request_data: dict) -> None:

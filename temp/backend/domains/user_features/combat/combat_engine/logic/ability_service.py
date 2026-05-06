@@ -1,5 +1,5 @@
 import uuid
-from typing import Any, Literal
+from typing import TYPE_CHECKING, Any, Literal
 
 from loguru import logger as log
 
@@ -16,7 +16,9 @@ from src.backend.domains.user_features.combat.dto import (
 from src.backend.resources.game_data import GameData
 from src.backend.resources.game_data.abilities.presets import PIPELINE_PRESETS
 from src.backend.resources.game_data.abilities.schemas import AbilityConfigDTO, AbilityCostDTO
-from src.backend.resources.game_data.feints.schemas import FeintConfigDTO
+
+if TYPE_CHECKING:
+    from src.backend.resources.game_data.feints.schemas import FeintConfigDTO
 
 
 class AbilityService:

@@ -1,11 +1,13 @@
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from src.backend.core.exceptions import BaseAPIException
 from src.backend.domains.user_features.account.services.onboarding_service import OnboardingService
 from src.shared.enums.domain_enums import CoreDomain
 from src.shared.enums.onboarding_enums import OnboardingActionEnum
-from src.shared.schemas.onboarding import OnboardingUIPayloadDTO
 from src.shared.schemas.response import CoreResponseDTO, GameStateHeader
+
+if TYPE_CHECKING:
+    from src.shared.schemas.onboarding import OnboardingUIPayloadDTO
 
 
 class OnboardingGateway:

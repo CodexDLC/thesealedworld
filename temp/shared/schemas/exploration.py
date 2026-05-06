@@ -1,4 +1,4 @@
-from enum import Enum
+from enum import StrEnum
 from typing import Any
 
 from pydantic import BaseModel
@@ -70,7 +70,7 @@ class NavigationGridDTO(BaseModel):
 # --- HUD DTOs ---
 
 
-class HudType(str, Enum):
+class HudType(StrEnum):
     """Типы HUD."""
 
     EXPLORATION = "exploration"
@@ -156,7 +156,7 @@ class ExplorationListDTO(BaseModel):
 # --- Encounter DTOs ---
 
 
-class EncounterType(str, Enum):
+class EncounterType(StrEnum):
     """Типы энкаунтеров."""
 
     COMBAT = "COMBAT"
@@ -165,7 +165,7 @@ class EncounterType(str, Enum):
     QUEST = "QUEST"
 
 
-class DetectionStatus(str, Enum):
+class DetectionStatus(StrEnum):
     """Статус обнаружения."""
 
     AMBUSH = "AMBUSH"

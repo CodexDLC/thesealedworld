@@ -1,10 +1,10 @@
-from enum import Enum
+from enum import StrEnum
 from typing import Any
 
 from pydantic import BaseModel, Field
 
 
-class EffectType(str, Enum):
+class EffectType(StrEnum):
     DOT = "dot"  # Damage Over Time
     HOT = "hot"  # Heal Over Time
     BUFF = "buff"  # Stat Bonus

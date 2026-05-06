@@ -1,9 +1,9 @@
-from enum import Enum
+from enum import StrEnum
 
 from pydantic import BaseModel, Field
 
 
-class GiftSchool(str, Enum):
+class GiftSchool(StrEnum):
     FIRE = "fire"
     WATER = "water"
     AIR = "air"

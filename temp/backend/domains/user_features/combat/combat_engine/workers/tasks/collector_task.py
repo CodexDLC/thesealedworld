@@ -1,8 +1,12 @@
+from typing import TYPE_CHECKING
+
 from loguru import logger as log
 
-from src.backend.domains.user_features.combat.combat_engine.combat_data_service import CombatDataService
-from src.backend.domains.user_features.combat.combat_engine.processors.collector import CombatCollector
 from src.backend.domains.user_features.combat.dto.combat_arq_dto import CollectorSignalDTO, WorkerBatchJobDTO
+
+if TYPE_CHECKING:
+    from src.backend.domains.user_features.combat.combat_engine.combat_data_service import CombatDataService
+    from src.backend.domains.user_features.combat.combat_engine.processors.collector import CombatCollector
 
 
 async def combat_collector_task(ctx: dict, signal_data: dict) -> None:

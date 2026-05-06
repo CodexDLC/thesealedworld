@@ -1,7 +1,10 @@
 import random
-from collections.abc import Callable
+from typing import TYPE_CHECKING
 
 from src.backend.domains.user_features.combat.dto.combat_session_dto import BattleMeta
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 # Конфигурация стратегий (Alias -> Method Name)
 TARGET_STRATEGIES = {

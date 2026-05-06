@@ -1,4 +1,4 @@
-from typing import Any, Generic, TypeVar
+from typing import Any, TypeVar
 
 from pydantic import BaseModel, Field
 
@@ -31,7 +31,7 @@ class GameStateHeader(BaseModel):
     error: str | None = None
 
 
-class CoreResponseDTO(BaseModel, Generic[T]):
+class CoreResponseDTO[T](BaseModel):
     """
     Базовый транспортный конверт.
     Наследовать его не обязательно, достаточно использовать Generic[T].
@@ -42,7 +42,7 @@ class CoreResponseDTO(BaseModel, Generic[T]):
     payload_type: str | None = None  # Тип пейлоада (encounter, list, navigation)
 
 
-class CoreCompositeResponseDTO(BaseModel, Generic[T, M]):
+class CoreCompositeResponseDTO[T, M](BaseModel):
     """
     Расширенный транспортный конверт для двухпанельного UI.
     Содержит данные для основного контента (payload) и для меню (menu_payload).

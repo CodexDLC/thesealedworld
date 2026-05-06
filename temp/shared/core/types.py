@@ -1,34 +1,33 @@
-from typing import TypeAlias
 
 # --- ID TYPES ---
 
 # Идентификатор персонажа (в БД это int, в Redis иногда str, но канонично int)
-CharID: TypeAlias = int
+type CharID = int
 
 # Идентификатор пользователя (Telegram ID)
-UserID: TypeAlias = int
+type UserID = int
 
 # Идентификатор сессии (UUID string)
-SessionID: TypeAlias = str
+type SessionID = str
 
 # --- GAME DATA KEYS ---
 
 # Ключ способности (например, "fireball_lvl1")
-AbilityID: TypeAlias = str
+type AbilityID = str
 
 # Ключ эффекта (например, "bleeding")
-EffectID: TypeAlias = str
+type EffectID = str
 
 # Ключ предмета (например, "sword_iron")
-ItemID: TypeAlias = str
+type ItemID = str
 
 # Ключ финта (например, "feint_sand")
-FeintID: TypeAlias = str
+type FeintID = str
 
 # Ключ навыка (например, "swordsmanship")
-SkillKey: TypeAlias = str
+type SkillKey = str
 
 # --- MISC ---
 
 # JSON-совместимый словарь (для payload)
-JsonDict: TypeAlias = dict[str, str | int | float | bool | None | list | dict]
+type JsonDict = dict[str, str | int | float | bool | None | list | dict]

@@ -1,9 +1,12 @@
 import time
+from typing import TYPE_CHECKING
 
 from loguru import logger as log
 
-from src.backend.domains.user_features.combat.combat_engine.combat_data_service import CombatDataService
 from src.backend.domains.user_features.combat.combat_engine.logic.chaos_service import ChaosService
+
+if TYPE_CHECKING:
+    from src.backend.domains.user_features.combat.combat_engine.combat_data_service import CombatDataService
 
 # Константа таймаута (10 минут)
 MAX_INACTIVITY_SEC = 600

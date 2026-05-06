@@ -1,6 +1,9 @@
+from typing import TYPE_CHECKING
+
 from loguru import logger as log
 
-from src.backend.domains.user_features.combat.combat_engine.combat_data_service import CombatDataService
+if TYPE_CHECKING:
+    from src.backend.domains.user_features.combat.combat_engine.combat_data_service import CombatDataService
 
 
 async def victory_finalizer_task(ctx: dict, data: dict) -> None:

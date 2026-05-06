@@ -1,12 +1,15 @@
 import contextlib
 import time
+from typing import TYPE_CHECKING
 
 from loguru import logger as log
 
-from src.backend.domains.user_features.combat.combat_engine.combat_data_service import CombatDataService
-from src.backend.domains.user_features.combat.combat_engine.processors.executor import CombatExecutor
 from src.backend.domains.user_features.combat.dto.combat_action_dto import CombatActionDTO
 from src.backend.domains.user_features.combat.dto.combat_arq_dto import CollectorSignalDTO, WorkerBatchJobDTO
+
+if TYPE_CHECKING:
+    from src.backend.domains.user_features.combat.combat_engine.combat_data_service import CombatDataService
+    from src.backend.domains.user_features.combat.combat_engine.processors.executor import CombatExecutor
 
 
 async def execute_batch_task(ctx: dict, job_data: dict) -> None:

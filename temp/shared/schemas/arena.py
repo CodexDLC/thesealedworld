@@ -1,4 +1,4 @@
-from enum import Enum
+from enum import StrEnum
 from typing import Any
 
 from pydantic import BaseModel
@@ -6,7 +6,7 @@ from pydantic import BaseModel
 # --- Enums ---
 
 
-class ArenaScreenEnum(str, Enum):
+class ArenaScreenEnum(StrEnum):
     """Экраны арены."""
 
     MAIN_MENU = "main_menu"
@@ -15,7 +15,7 @@ class ArenaScreenEnum(str, Enum):
     MATCH_FOUND = "match_found"
 
 
-class ArenaModeEnum(str, Enum):
+class ArenaModeEnum(StrEnum):
     """Режимы арены."""
 
     ONE_VS_ONE = "1v1"
@@ -23,7 +23,7 @@ class ArenaModeEnum(str, Enum):
     TOURNAMENT = "tournament"
 
 
-class ArenaActionEnum(str, Enum):
+class ArenaActionEnum(StrEnum):
     """Действия на арене."""
 
     MENU_MAIN = "menu_main"

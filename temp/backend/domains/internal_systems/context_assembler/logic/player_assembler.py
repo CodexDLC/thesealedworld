@@ -1,6 +1,6 @@
 # apps/game_core/system/context_assembler/logic/player_assembler.py
 import asyncio
-from typing import Any, cast
+from typing import TYPE_CHECKING, Any, cast
 
 from loguru import logger as log
 from pydantic import ValidationError
@@ -8,7 +8,6 @@ from redis.exceptions import RedisError
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.backend.database.postgres.models.symbiote import CharacterSymbiote
 from src.backend.database.postgres.repositories import (
     get_character_attributes_repo,
     get_character_repo,
@@ -26,8 +25,11 @@ from src.backend.domains.internal_systems.context_assembler.schemas.base import 
 from src.backend.domains.internal_systems.context_assembler.schemas.combat import CombatTempContext
 from src.backend.domains.internal_systems.context_assembler.schemas.inventory import InventoryTempContext
 from src.backend.domains.internal_systems.context_assembler.schemas.status import StatusTempContext
-from src.shared.schemas.character import CharacterAttributesReadDTO, CharacterReadDTO
-from src.shared.schemas.skill import SkillProgressDTO
+
+if TYPE_CHECKING:
+    from src.backend.database.postgres.models.symbiote import CharacterSymbiote
+    from src.shared.schemas.character import CharacterAttributesReadDTO, CharacterReadDTO
+    from src.shared.schemas.skill import SkillProgressDTO
 
 
 class PlayerAssembler(BaseAssembler):

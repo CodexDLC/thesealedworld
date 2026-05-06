@@ -116,6 +116,16 @@ class ScenarioRepository:
     async def delete_quest_nodes(self, quest_key: str) -> None:
         await self.session.execute(delete(ScenarioNode).where(ScenarioNode.quest_key == quest_key))
 
+    async def replace_quest(self, master_data: dict[str, Any], nodes: list[dict[str, Any]]) -> None:
+        quest_key = str(master_data["quest_key"])
+        await self.upsert_master(master_data)
+        await self.delete_quest_nodes(quest_key)
+        await self.bulk_insert_nodes(nodes)
+        await self.session.commit()
+
+    async def commit(self) -> None:
+        await self.session.commit()
+
     async def get_active_state(self, char_id: int) -> dict[str, Any] | None:
         result = await self.session.execute(
             select(CharacterQuestState).where(CharacterQuestState.character_id == char_id)

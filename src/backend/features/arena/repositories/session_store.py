@@ -11,6 +11,33 @@ if TYPE_CHECKING:
 class ArenaSessionStore:
     REQUEST_TTL_SEC = 300
     MATCH_TTL_SEC = 900
+    MATCH_LOCK_TTL_SEC = 8
+    CLAIM_OPPONENT_SCRIPT = """
+local queue_key = KEYS[1]
+local request_prefix = ARGV[4]
+local candidates = redis.call('ZRANGEBYSCORE', queue_key, ARGV[1], ARGV[2])
+for _, candidate in ipairs(candidates) do
+    if candidate ~= ARGV[3] then
+        local candidate_request = redis.call('GET', request_prefix .. candidate)
+        if candidate_request then
+            local removed = redis.call('ZREM', queue_key, candidate)
+            if removed == 1 then
+                redis.call('ZREM', queue_key, ARGV[3])
+                return candidate
+            end
+        else
+            redis.call('ZREM', queue_key, candidate)
+        end
+    end
+end
+return nil
+"""
+    RELEASE_LOCK_SCRIPT = """
+if redis.call('GET', KEYS[1]) == ARGV[1] then
+    return redis.call('DEL', KEYS[1])
+end
+return 0
+"""
 
     def __init__(self, redis: RedisService) -> None:
         self.redis = redis
@@ -36,10 +63,22 @@ class ArenaSessionStore:
     def char_match_key(char_id: int) -> str:
         return f"arena:char_match:{char_id}"
 
+    @staticmethod
+    def match_lock_key(char_id: int) -> str:
+        return f"arena:lock:match:{char_id}"
+
+    @staticmethod
+    def request_key_prefix() -> str:
+        return "arena:request:"
+
     async def add_to_queue(self, request: ArenaQueueRequestDTO) -> None:
         client = self._client()
         await client.zadd(self.queue_key(request.mode), {str(request.char_id): float(request.gs)})
-        await client.set(self.request_key(request.char_id), request.model_dump_json(), ex=self.REQUEST_TTL_SEC)
+        await client.set(
+            self.request_key(request.char_id),
+            request.model_dump_json(),
+            ex=max(self.REQUEST_TTL_SEC, request.wait_limit_sec + 60),
+        )
 
     async def remove_from_queue(self, mode: str, char_id: int) -> bool:
         removed = await self._client().zrem(self.queue_key(mode), str(char_id))
@@ -57,6 +96,24 @@ class ArenaSessionStore:
     async def get_candidates(self, mode: str, min_gs: float, max_gs: float) -> list[int]:
         values = await self._client().zrangebyscore(self.queue_key(mode), min_gs, max_gs)
         return [int(value) for value in values]
+
+    async def claim_opponent(self, mode: str, char_id: int, min_gs: float, max_gs: float) -> int | None:
+        value = await self._client().eval(
+            self.CLAIM_OPPONENT_SCRIPT,
+            1,
+            self.queue_key(mode),
+            min_gs,
+            max_gs,
+            str(char_id),
+            self.request_key_prefix(),
+        )
+        return int(value) if value not in (None, "") else None
+
+    async def acquire_match_lock(self, char_id: int, token: str) -> bool:
+        return bool(await self._client().set(self.match_lock_key(char_id), token, ex=self.MATCH_LOCK_TTL_SEC, nx=True))
+
+    async def release_match_lock(self, char_id: int, token: str) -> None:
+        await self._client().eval(self.RELEASE_LOCK_SCRIPT, 1, self.match_lock_key(char_id), token)
 
     async def create_match(self, request: ArenaCombatRequestDTO) -> None:
         client = self._client()

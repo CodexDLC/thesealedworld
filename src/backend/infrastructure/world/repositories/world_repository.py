@@ -27,8 +27,11 @@ class WorldRepository:
         result = await self.session.execute(stmt)
         return int(result.scalar_one() or 0)
 
-    async def upsert_region(self, region: WorldRegion) -> None:
-        stmt = pg_insert(WorldRegion).values(id=region.id, climate_tags=region.climate_tags)
+    async def upsert_region(self, region_id: str | WorldRegion, *, climate_tags: list[str] | None = None) -> None:
+        if isinstance(region_id, WorldRegion):
+            climate_tags = region_id.climate_tags
+            region_id = region_id.id
+        stmt = pg_insert(WorldRegion).values(id=region_id, climate_tags=climate_tags or [])
         await self.session.execute(
             stmt.on_conflict_do_update(
                 index_elements=["id"],
@@ -36,13 +39,32 @@ class WorldRepository:
             )
         )
 
-    async def upsert_zone(self, zone: WorldZone) -> None:
+    async def upsert_zone(
+        self,
+        zone_id: str | WorldZone,
+        *,
+        region_id: str | None = None,
+        biome_id: str | None = None,
+        tier: int | None = None,
+        flags: dict[str, Any] | None = None,
+    ) -> None:
+        if isinstance(zone_id, WorldZone):
+            zone = zone_id
+            zone_id = zone.id
+            region_id = zone.region_id
+            biome_id = zone.biome_id
+            tier = zone.tier
+            flags = zone.flags
+
+        if region_id is None or biome_id is None or tier is None:
+            raise ValueError("region_id, biome_id, and tier are required for upsert_zone")
+
         stmt = pg_insert(WorldZone).values(
-            id=zone.id,
-            region_id=zone.region_id,
-            biome_id=zone.biome_id,
-            tier=zone.tier,
-            flags=zone.flags,
+            id=zone_id,
+            region_id=region_id,
+            biome_id=biome_id,
+            tier=tier,
+            flags=flags or {},
         )
         await self.session.execute(
             stmt.on_conflict_do_update(
@@ -55,6 +77,9 @@ class WorldRepository:
                 },
             )
         )
+
+    async def flush(self) -> None:
+        await self.session.flush()
 
     async def get_region(self, region_id: str) -> WorldRegion | None:
         result = await self.session.execute(select(WorldRegion).where(WorldRegion.id == region_id))

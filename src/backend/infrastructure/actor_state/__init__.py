@@ -1,5 +1,4 @@
 from .managers import (
-    ActorSnapshotManager,
     CharacterSessionError,
     CharacterSessionManager,
     SessionAlreadyExistsError,
@@ -28,7 +27,6 @@ __all__ = [
     "SymbioteRepository",
     # Managers
     "CharacterSessionManager",
-    "ActorSnapshotManager",
     # Schemas
     "CharacterSessionDocumentDTO",
     # Errors

@@ -15,7 +15,9 @@ class DynamicQuestAnalytics:
         # Базовые поля, которые есть везде
         self.common_fields = ["timestamp", "session_id", "char_id", "seed", "step_count", "history"]
 
-    async def log_result(self, quest_key: str, data: dict[str, Any], mapping_config: dict[str, str] = None) -> None:
+    async def log_result(
+        self, quest_key: str, data: dict[str, Any], mapping_config: dict[str, str] | None = None
+    ) -> None:
         """
         quest_key: используется для названия файла (напр. 'awakening_rift')
         mapping_config: словарь {'поле_в_сессии': 'название_колонки_в_csv'}

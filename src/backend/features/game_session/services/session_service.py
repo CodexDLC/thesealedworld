@@ -5,15 +5,12 @@ from typing import TYPE_CHECKING, Any
 from loguru import logger
 
 from src.backend.core.exceptions import BusinessLogicException
-from src.backend.features.scenario.exceptions import ScenarioSessionNotFound
-from src.backend.infrastructure.actor_state import CharacterRepository
 from src.shared.enums import CoreDomain
 from src.shared.schemas import CoreResponseDTO, GameStateHeader, ScenarioPayloadDTO
 
 if TYPE_CHECKING:
-    from sqlalchemy.ext.asyncio import AsyncSession
-
-    from src.backend.features.scenario.services import ScenarioService
+    from src.backend.features.character.schemas.session import CharacterSessionDocumentDTO
+    from src.backend.features.game_session.integrations import GameSessionIntegrator
     from src.backend.features_site.auth.models import User
 
 
@@ -26,21 +23,55 @@ class GameSessionService:
         CoreDomain.LOBBY.value,
         CoreDomain.SCENARIO.value,
         CoreDomain.ONBOARDING.value,
-        "SESSION_PENDING",
+        "session_pending",
     }
 
-    def __init__(self, *, db_session: AsyncSession, scenario_service: ScenarioService) -> None:
-        self.db_session = db_session
-        self.scenario_service = scenario_service
+    def __init__(self, *, integrator: GameSessionIntegrator) -> None:
+        self.integrator = integrator
 
     async def enter_character(
         self, user: User, character_id: int
     ) -> CoreResponseDTO[ScenarioPayloadDTO | dict[str, Any]]:
         character = await self._get_owned_character_or_raise(user, character_id)
         char_id = character.character_id
-        stage = (character.game_stage or "").upper()
-        previous_state = self._state_from_stage_or_none(getattr(character, "prev_game_stage", None))
+        active_session = await self.integrator.get_active_session(char_id, user.id)
+        if active_session is not None:
+            return await self._enter_from_active_session(active_session)
 
+        stage = self._normalize_stage_text(character.game_stage)
+        previous_state = self._state_from_stage_or_none(getattr(character, "prev_game_stage", None))
+        return await self._enter_from_stage(
+            char_id=char_id,
+            name=character.name,
+            stage=stage,
+            previous_state=previous_state,
+            raw_stage=character.game_stage,
+        )
+
+    async def _enter_from_active_session(
+        self, session_doc: CharacterSessionDocumentDTO
+    ) -> CoreResponseDTO[ScenarioPayloadDTO | dict[str, Any]]:
+        stage = self._normalize_stage_text(session_doc.state)
+        previous_state = self._state_from_stage_or_none(session_doc.prev_state)
+        return await self._enter_from_stage(
+            char_id=session_doc.char_id,
+            name=session_doc.bio.name,
+            stage=stage,
+            previous_state=previous_state,
+            raw_stage=stage,
+            source="hot_ac",
+        )
+
+    async def _enter_from_stage(
+        self,
+        *,
+        char_id: int,
+        name: str,
+        stage: str,
+        previous_state: CoreDomain | None,
+        raw_stage: str | None,
+        source: str = "persistent",
+    ) -> CoreResponseDTO[ScenarioPayloadDTO | dict[str, Any]]:
         if stage in self.SCENARIO_ENTRY_STAGES:
             payload = await self._resume_or_initialize_scenario(char_id)
             response: CoreResponseDTO[ScenarioPayloadDTO | dict[str, Any]] = CoreResponseDTO(
@@ -56,57 +87,58 @@ class GameSessionService:
             header=GameStateHeader(current_state=current_state, previous_state=previous_state),
             payload={
                 "character_id": char_id,
-                "name": character.name,
-                "stage": character.game_stage,
+                "name": name,
+                "stage": raw_stage,
                 "domain": current_state.value,
+                "source": source,
             },
-            payload_type=f"{current_state.value.lower()}_session",
+            payload_type=f"{current_state.value}_session",
         )
         self._log_enter_response(char_id=char_id, response=response)
         return response
 
     async def _resume_or_initialize_scenario(self, char_id: int) -> ScenarioPayloadDTO:
-        try:
-            payload = await self.scenario_service.resume(char_id)
-        except ScenarioSessionNotFound:
-            payload = await self.scenario_service.initialize(char_id, self.STARTING_QUEST_KEY, source="session_enter")
-            character = await CharacterRepository(self.db_session).get_by_id(char_id)
-            if character is not None:
-                character.game_stage = CoreDomain.SCENARIO.value.lower()
-                character.prev_game_stage = CoreDomain.LOBBY.value.lower()
-                await self.db_session.commit()
-
-        payload.extra_data = {
-            **(payload.extra_data or {}),
-            "char_id": char_id,
-            "quest_key": (payload.extra_data or {}).get("quest_key", self.STARTING_QUEST_KEY),
-        }
-        logger.info("Game session scenario payload resolved: char_id={} node={}", char_id, payload.node_key)
-        return payload
+        return await self.integrator.resume_or_initialize_scenario(
+            char_id,
+            quest_key=self.STARTING_QUEST_KEY,
+            source="session_enter",
+            previous_state=CoreDomain.LOBBY,
+        )
 
     async def _get_owned_character_or_raise(self, user: User, character_id: int):
-        character = await CharacterRepository(self.db_session).get_by_id_and_user_id(character_id, user.id)
+        character = await self.integrator.get_owned_character(character_id, user.id)
         if character is None:
             raise BusinessLogicException("Character is unavailable")
         return character
 
     @staticmethod
-    def _state_from_stage(stage: str) -> CoreDomain:
+    def _state_from_stage(stage: str | CoreDomain) -> CoreDomain:
         try:
-            return CoreDomain(stage)
+            return CoreDomain(GameSessionService._normalize_stage_text(stage))
         except ValueError:
             logger.warning("Unknown character game stage; falling back to EXPLORATION: stage={}", stage)
             return CoreDomain.EXPLORATION
 
     @staticmethod
-    def _state_from_stage_or_none(stage: str | None) -> CoreDomain | None:
+    def _state_from_stage_or_none(stage: str | CoreDomain | None) -> CoreDomain | None:
         if not stage:
             return None
         try:
-            return CoreDomain(stage.upper())
+            return CoreDomain(GameSessionService._normalize_stage_text(stage))
         except ValueError:
             logger.warning("Unknown previous game stage; omitting previous_state: stage={}", stage)
             return None
+
+    @staticmethod
+    def _normalize_stage_text(stage: str | CoreDomain | None) -> str:
+        if stage is None:
+            return ""
+        if isinstance(stage, CoreDomain):
+            return stage.value
+        text = str(stage).strip()
+        if text.startswith("CoreDomain."):
+            return text.rsplit(".", maxsplit=1)[-1].lower()
+        return text.lower()
 
     @staticmethod
     def _log_enter_response(

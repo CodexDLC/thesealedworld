@@ -8,6 +8,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.backend.core.database import get_db
 from src.backend.core.exceptions import AuthException
 from src.backend.core.security import decode_access_token
+from src.backend.features_site.auth.integrations import AuthPersistence
+from src.backend.features_site.auth.integrations.user_cache import RedisAuthUserCache
 from src.backend.features_site.auth.models import User
 from src.backend.features_site.auth.repositories.token_repository import TokenRepository
 from src.backend.features_site.auth.repositories.user_repository import UserRepository
@@ -29,14 +31,14 @@ def get_auth_service(
     user_repository: Annotated[UserRepository, Depends(get_user_repository)],
     token_repository: Annotated[TokenRepository, Depends(get_token_repository)],
 ) -> AuthService:
-    return AuthService(user_repository=user_repository, token_repository=token_repository)
+    return AuthService(persistence=AuthPersistence(user_repository, token_repository))
 
 
 def get_auth_user_cache(request: Request) -> AuthUserCache | None:
     redis = getattr(request.app.state, "redis", None)
     if redis is None:
         return None
-    return AuthUserCache(redis=redis)
+    return RedisAuthUserCache(redis=redis)
 
 
 async def get_current_user(
@@ -56,7 +58,7 @@ async def get_current_user(
         if cached_user is not None:
             return cached_user
 
-    user = await auth_service.user_repository.get_by_id(user_id=user_id)
+    user = await auth_service.get_user_by_id(user_id=user_id)
     if user is None:
         raise AuthException(detail="User not found")
     if user_cache is not None:

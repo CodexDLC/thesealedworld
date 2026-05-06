@@ -71,3 +71,6 @@ class ScenarioContentManager:
     async def exists(self, quest_key: str) -> bool:
         key = self.build_key(quest_key)
         return bool(await self.redis.string.exists(key))
+
+    async def invalidate(self, quest_key: str) -> None:
+        await self.redis.string.delete(self.build_key(quest_key))

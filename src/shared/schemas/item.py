@@ -104,6 +104,14 @@ class ArmorData(ItemCoreData):
     valid_slots: list[str]
 
 
+class GarmentData(ItemCoreData):
+    """Данные одежды и внешнего слоя: рубахи, перчатки, штаны, плащи."""
+
+    comfort: float = 0.0
+    environmental_tags: list[str] = Field(default_factory=list)
+    valid_slots: list[str]
+
+
 class AccessoryData(ItemCoreData):
     """Данные аксессуаров."""
 
@@ -121,12 +129,22 @@ class ConsumableData(ItemCoreData):
     effects: list[str] = Field(default_factory=list)
     cooldown_rounds: int = 0
     is_quick_slot_compatible: bool = False
+    use_timing: Literal["exploration", "pre_combat", "combat", "both"] = "exploration"
+    use_mode: Literal["instant", "targeted", "self"] = "instant"
+    combat_action_kind: str | None = None
+    charges: int | None = None
 
 
 class ResourceData(ItemCoreData):
     """Данные ресурсов."""
 
     pass
+
+
+class QuestItemData(ItemCoreData):
+    """Данные квестового предмета."""
+
+    quest_key: str | None = None
 
 
 # --- DTO ДЛЯ ИНВЕНТАРЯ ---
@@ -160,6 +178,13 @@ class ArmorItemDTO(BaseInventoryItemDTO):
     data: ArmorData
 
 
+class GarmentItemDTO(BaseInventoryItemDTO):
+    """DTO одежды в инвентаре."""
+
+    item_type: Literal[ItemType.GARMENT]
+    data: GarmentData
+
+
 class AccessoryItemDTO(BaseInventoryItemDTO):
     """DTO аксессуара в инвентаре."""
 
@@ -177,13 +202,26 @@ class ConsumableItemDTO(BaseInventoryItemDTO):
 class ResourceItemDTO(BaseInventoryItemDTO):
     """DTO ресурса в инвентаре."""
 
-    item_type: Literal[ItemType.RESOURCE, ItemType.CURRENCY]
+    item_type: Literal[ItemType.RESOURCE, ItemType.CURRENCY, ItemType.MATERIAL]
     data: ResourceData
+
+
+class QuestInventoryItemDTO(BaseInventoryItemDTO):
+    """DTO квестового предмета в инвентаре."""
+
+    item_type: Literal[ItemType.QUEST]
+    data: QuestItemData
 
 
 # Полиморфный Union
 InventoryItemDTO = Annotated[
-    WeaponItemDTO | ArmorItemDTO | AccessoryItemDTO | ConsumableItemDTO | ResourceItemDTO,
+    WeaponItemDTO
+    | ArmorItemDTO
+    | GarmentItemDTO
+    | AccessoryItemDTO
+    | ConsumableItemDTO
+    | ResourceItemDTO
+    | QuestInventoryItemDTO,
     Field(discriminator="item_type"),
 ]
 

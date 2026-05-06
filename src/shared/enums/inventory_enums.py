@@ -19,6 +19,8 @@ class InventoryActionType(StrEnum):
     EQUIP = "equip"
     UNEQUIP = "unequip"
     USE = "use"
+    MOVE_TO_BELT = "move_to_belt"
+    REMOVE_FROM_BELT = "remove_from_belt"
     MOVE = "move"  # Перемещение (в быстрый слот или другую ячейку)
     DROP = "drop"  # Удаление предмета
 
@@ -29,6 +31,8 @@ class InventorySection(StrEnum):
     """
 
     EQUIPMENT = "equipment"
+    EQUIPPED = "equipped"
+    ITEMS = "items"
     CONSUMABLE = "consumable"
     RESOURCE = "resource"
     QUEST = "quest"

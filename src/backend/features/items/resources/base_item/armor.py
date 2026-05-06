@@ -6,7 +6,7 @@
 
 КЛЮЧЕВЫЕ ПОЛЯ:
 ---------------
-- slot: 'head_armor', 'chest_armor', 'arms_armor', 'legs_armor', 'feet_armor'.
+- slot: 'head_armor', 'chest_armor', 'arms_armor', 'legs_armor', or 'feetwear' for protective footwear.
 - defense_type: 'physical' (для основной брони) или 'magical' (для брони магов).
 - base_power: Показатель защиты (идет в damage_reduction_flat).
 - implicit_bonuses: Врожденные бонусы (резисты, уворот, реген и т.д.).
@@ -118,7 +118,7 @@ ARMOR_DB: dict[str, BaseItemDTO | dict[str, Any]] = {
     "sabatons": BaseItemDTO(
         id="sabatons",
         name_ru="Латные сапоги",
-        slot="feet_armor",
+        slot="feetwear",
         type="armor",
         defense_type="physical",
         allowed_materials=["ingots"],
@@ -287,7 +287,7 @@ ARMOR_DB: dict[str, BaseItemDTO | dict[str, Any]] = {
     "boots": BaseItemDTO(
         id="boots",
         name_ru="Сапоги",
-        slot="feet_armor",
+        slot="feetwear",
         type="armor",
         defense_type="physical",
         allowed_materials=["leathers"],
@@ -400,7 +400,7 @@ ARMOR_DB: dict[str, BaseItemDTO | dict[str, Any]] = {
     "sandals": BaseItemDTO(
         id="sandals",
         name_ru="Сандалии",
-        slot="feet_armor",
+        slot="feetwear",
         type="armor",
         defense_type="magical",
         allowed_materials=["cloths", "leathers"],

@@ -6,11 +6,11 @@ class EquippedSlot(StrEnum):
     CHEST_ARMOR = "chest_armor"
     ARMS_ARMOR = "arms_armor"
     LEGS_ARMOR = "legs_armor"
-    FEET_ARMOR = "feet_armor"
     CHEST_GARMENT = "chest_garment"
     LEGS_GARMENT = "legs_garment"
     OUTER_GARMENT = "outer_garment"
     GLOVES_GARMENT = "gloves_garment"
+    FEETWEAR = "feetwear"
     MAIN_HAND = "main_hand"
     OFF_HAND = "off_hand"
     TWO_HAND = "two_hand"
@@ -22,10 +22,14 @@ class EquippedSlot(StrEnum):
 
 
 class QuickSlot(StrEnum):
-    QUICK_SLOT_1 = "quick_slot_1"
-    QUICK_SLOT_2 = "quick_slot_2"
-    QUICK_SLOT_3 = "quick_slot_3"
-    QUICK_SLOT_4 = "quick_slot_4"
+    BELT_SLOT_1 = "belt_slot_1"
+    BELT_SLOT_2 = "belt_slot_2"
+    BELT_SLOT_3 = "belt_slot_3"
+    BELT_SLOT_4 = "belt_slot_4"
+    BELT_SLOT_5 = "belt_slot_5"
+    BELT_SLOT_6 = "belt_slot_6"
+    BELT_SLOT_7 = "belt_slot_7"
+    BELT_SLOT_8 = "belt_slot_8"
 
 
 class ItemType(StrEnum):
@@ -38,6 +42,7 @@ class ItemType(StrEnum):
     CURRENCY = "currency"
     GARMENT = "garment"
     MATERIAL = "material"
+    QUEST = "quest"
 
 
 class ItemRarity(StrEnum):

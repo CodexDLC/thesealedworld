@@ -1,13 +1,17 @@
 {% macro arena_action_attrs(button) -%}
+    {% set button_action = button.action.value if button.action and button.action.value is defined else button.action %}
+    {% set button_mode = button.mode.value if button.mode and button.mode.value is defined else button.mode %}
+    {% set button_value = button.value if button.value is mapping else {} %}
+    {% set opens_modal = button_action in ['start_shadow'] %}
     hx-post="/game/arena/action"
-    hx-target="#game-center"
-    hx-swap="innerHTML"
-    hx-vals='{"char_id": {{ char_id }}, "action": "{{ button.action }}"{% if button.mode %}, "mode": "{{ button.mode }}"{% endif %}{% if button.value and button.value.get("arena_session_id") %}, "arena_session_id": "{{ button.value.get("arena_session_id") }}"{% endif %}}'
+    hx-target="{{ '#game-modal-root' if opens_modal else '#game-center' }}"
+    hx-swap="{{ 'outerHTML' if opens_modal else 'innerHTML' }}"
+    hx-vals='{"char_id": {{ char_id }}, "action": "{{ button_action }}"{% if button_mode %}, "mode": "{{ button_mode }}"{% endif %}{% if button_value.get("arena_session_id") %}, "arena_session_id": "{{ button_value.get("arena_session_id") }}"{% endif %}{% if button_value.get("wait_limit_sec") %}, "wait_limit_sec": {{ button_value.get("wait_limit_sec") }}{% endif %}{% if button_value.get("confirm") %}, "confirm": true{% endif %}{% if opens_modal %}, "modal": true{% endif %}}'
 {%- endmacro %}
 
 {% macro arena_mode_card(button, eyebrow, title, description, meta_label, meta_value, class_name='') %}
     {% if button %}
-        <button class="arena-mode-card {{ class_name }}" {{ arena_action_attrs(button) }}>
+        <button type="button" class="arena-mode-card {{ class_name }}" {{ arena_action_attrs(button) }}>
             <span class="arena-card-eyebrow">{{ eyebrow }}</span>
             <span class="arena-card-title">{{ title }}</span>
             <span class="arena-card-description">{{ description }}</span>
@@ -17,7 +21,7 @@
             </span>
         </button>
     {% else %}
-        <button class="arena-mode-card arena-mode-card--missing {{ class_name }}" disabled>
+        <button type="button" class="arena-mode-card arena-mode-card--missing {{ class_name }}" disabled>
             <span class="arena-card-eyebrow">{{ eyebrow }}</span>
             <span class="arena-card-title">NO_DATA</span>
             <span class="arena-card-description">NO_DATA</span>
@@ -31,46 +35,155 @@
 
 {% macro arena_small_action(button) %}
     {% if button %}
-        <button class="arena-small-action {{ 'arena-small-action--ghost' if button.variant == 'ghost' else '' }}" {{ arena_action_attrs(button) }}>
+        <button type="button" class="arena-small-action {{ 'arena-small-action--ghost' if button.variant == 'ghost' else '' }}" {{ arena_action_attrs(button) }}>
             {{ button.text }}
         </button>
     {% else %}
-        <button class="arena-small-action arena-small-action--missing" disabled>NO_DATA</button>
+        <button type="button" class="arena-small-action arena-small-action--missing" disabled>NO_DATA</button>
     {% endif %}
 {% endmacro %}
 
+{% macro arena_action_row(buttons) %}
+    <div class="arena-action-row">
+        {% if buttons %}
+            {% for button in buttons %}
+                {{ arena_small_action(button) }}
+            {% endfor %}
+        {% else %}
+            {{ arena_small_action(none) }}
+        {% endif %}
+    </div>
+{% endmacro %}
+
+{% macro arena_battle_list(mode='one_vs_one') %}
+    <section class="arena-live-battles">
+        <div class="arena-section-header">
+            <span>Текущие бои</span>
+            <strong>{{ 'GROUP' if mode == 'group' else '1 x 1' }}</strong>
+        </div>
+        <div class="arena-battle-list">
+            <div class="arena-battle-row arena-battle-row--empty">
+                <span class="arena-battle-name">NO_DATA</span>
+                <div class="arena-battle-actions">
+                    <button type="button" class="arena-battle-action" disabled>Смотреть</button>
+                    {% if mode == 'group' %}
+                        <button type="button" class="arena-battle-action arena-battle-action--join" disabled>Вмешаться</button>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </section>
+{% endmacro %}
+
+{% macro arena_group_action_attrs(action, item_id='') -%}
+    hx-post="/game/arena/group-action"
+    hx-target="#game-modal-root"
+    hx-swap="outerHTML"
+    hx-vals='{"char_id": {{ char_id }}, "action": "{{ action }}"{% if item_id %}, "item_id": "{{ item_id }}"{% endif %}}'
+{%- endmacro %}
+
+{% macro arena_group_plan_card(action, class_name='') %}
+    <button type="button" class="arena-plan-card {{ class_name }}" {{ arena_group_action_attrs(action.get('action', 'group_unknown')) }}>
+        <span class="arena-plan-kicker">{{ action.get('kicker', 'GROUP') }}</span>
+        <span class="arena-plan-title">{{ action.get('title', 'NO_DATA') }}</span>
+        <span class="arena-plan-description">{{ action.get('description', 'NO_DATA') }}</span>
+        <span class="arena-plan-meta">{{ action.get('meta', 'NO_DATA') }}</span>
+    </button>
+{% endmacro %}
+
+{% macro arena_group_row(item) %}
+    <div class="arena-battle-row arena-group-row">
+        <div class="arena-group-row-main">
+            <span class="arena-battle-name">{{ item.get('name', 'NO_DATA') }}</span>
+            <span class="arena-group-row-meta">{{ item.get('meta', 'NO_DATA') }}</span>
+            <span class="arena-group-row-comment">{{ item.get('comment', 'NO_DATA') }}</span>
+        </div>
+        <div class="arena-battle-actions">
+            {% for action in item.get('actions', []) %}
+                <button type="button" class="arena-battle-action" {{ arena_group_action_attrs(action.get('action', 'group_unknown'), item.get('id', '')) }}>
+                    {{ action.get('text', 'NO_DATA') }}
+                </button>
+            {% endfor %}
+        </div>
+    </div>
+{% endmacro %}
+
+{% macro arena_group_browser(group_lobby) %}
+    {% set tabs = group_lobby.get('tabs', []) %}
+    <section class="arena-live-battles arena-group-browser">
+        <input class="arena-group-tab-input" type="radio" name="arena-group-tab" id="arena-group-tab-current" checked>
+        <input class="arena-group-tab-input" type="radio" name="arena-group-tab" id="arena-group-tab-chaos">
+        <input class="arena-group-tab-input" type="radio" name="arena-group-tab" id="arena-group-tab-requests">
+        <div class="arena-section-header">
+            <span>Групповой зал</span>
+            <strong>GROUP</strong>
+        </div>
+        <div class="arena-group-tabs" role="tablist" aria-label="Фильтры групповой арены">
+            {% for tab in tabs %}
+                <label class="arena-group-tab arena-group-tab--{{ tab.get('id', 'unknown') }}"
+                       for="arena-group-tab-{{ tab.get('id', 'current') }}">
+                    <span>{{ tab.get('title', 'NO_DATA') }}</span>
+                    <strong>{{ tab.get('label', 'GROUP') }}</strong>
+                </label>
+            {% endfor %}
+        </div>
+        <div class="arena-group-browser-panels">
+            {% for tab in tabs %}
+                <div class="arena-group-panel arena-group-panel--{{ tab.get('id', 'unknown') }}">
+                    {% for item in tab.get('items', []) %}
+                        {{ arena_group_row(item) }}
+                    {% else %}
+                        <div class="arena-battle-row arena-battle-row--empty">
+                            <span class="arena-battle-name">{{ tab.get('empty', 'NO_DATA') }}</span>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% endfor %}
+        </div>
+    </section>
+{% endmacro %}
+
+{% set symbiote_name = status_seed.symbiote_name if status_seed is defined and status_seed.symbiote_name else 'SYSTEM' %}
+{% set arena_modal_screens = ['match_found', 'shadow_offer', 'combat_pending', 'combat_failed'] %}
+
 <section id="center-screens">
     {% if arena %}
-        <article class="cs active arena-screen arena-screen--{{ arena.screen }}">
-            <div class="loc-tag">
-                <span class="loc-dot"></span>
-                <span>ARENA // {{ arena.screen or 'NO_DATA' }}</span>
-            </div>
+        {% set arena_screen = arena.screen.value if arena.screen and arena.screen.value is defined else arena.screen %}
+        <article class="cs active arena-screen arena-screen--{{ arena_screen }}">
+            <div id="arena-poll-region">
+                <div class="loc-tag">
+                    <span class="loc-dot"></span>
+                    <span>ARENA // {{ arena_screen or 'NO_DATA' }}</span>
+                </div>
 
-            <div class="hud-strip">
-                <div class="hud-cell">
-                    <span class="hud-v">{{ arena.mode or 'HUB' }}</span>
-                    <span class="hud-l">MODE</span>
-                </div>
-                <div class="hud-cell">
-                    <span class="hud-v">{{ arena.gs if arena.gs is not none else 'NO_DATA' }}</span>
-                    <span class="hud-l">GEAR</span>
-                </div>
-                <div class="hud-cell">
-                    <span class="hud-v">{{ arena.wait_time_sec if arena.wait_time_sec is not none else 'NO_DATA' }}</span>
-                    <span class="hud-l">WAIT</span>
-                </div>
-            </div>
+                {% if arena_screen not in ['main_menu', 'mode_menu', 'searching'] %}
+                    <div class="hud-strip">
+                        <div class="hud-cell">
+                            <span class="hud-v">{{ arena.mode or 'HUB' }}</span>
+                            <span class="hud-l">MODE</span>
+                        </div>
+                        <div class="hud-cell">
+                            <span class="hud-v">{{ arena.gs if arena.gs is not none else 'NO_DATA' }}</span>
+                            <span class="hud-l">GEAR SCORE</span>
+                        </div>
+                        <div class="hud-cell">
+                            <span class="hud-v">{{ arena.metadata.get('rank', arena.metadata.get('tier', 'NO_DATA')) if arena.metadata else 'NO_DATA' }}</span>
+                            <span class="hud-l">RANK</span>
+                        </div>
+                    </div>
+                {% endif %}
 
-            {% if arena.screen == 'main_menu' %}
+                {% if arena_screen == 'main_menu' %}
                 {% set arena_buttons = arena.buttons or [] %}
                 {% set main = namespace(duel=none, group=none, leave=none) %}
                 {% for button in arena_buttons %}
-                    {% if button.action == 'LEAVE' %}
+                    {% set button_action = button.action.value if button.action and button.action.value is defined else button.action %}
+                    {% set button_mode = button.mode.value if button.mode and button.mode.value is defined else button.mode %}
+                    {% if button_action == 'leave' %}
                         {% set main.leave = button %}
-                    {% elif button.mode == 'one_vs_one' %}
+                    {% elif button_mode == 'one_vs_one' %}
                         {% set main.duel = button %}
-                    {% elif button.mode == 'group' %}
+                    {% elif button_mode == 'group' %}
                         {% set main.group = button %}
                     {% endif %}
                 {% endfor %}
@@ -82,11 +195,11 @@
                             <h2>Выберите зал арены</h2>
                         </div>
                         {% if main.leave %}
-                            <button class="arena-service-exit" {{ arena_action_attrs(main.leave) }}>
+                            <button type="button" class="arena-service-exit" {{ arena_action_attrs(main.leave) }}>
                                 <span>{{ main.leave.text or 'Выйти' }}</span>
                             </button>
                         {% else %}
-                            <button class="arena-service-exit arena-service-exit--missing" disabled>
+                            <button type="button" class="arena-service-exit arena-service-exit--missing" disabled>
                                 <span>NO_DATA</span>
                             </button>
                         {% endif %}
@@ -96,7 +209,10 @@
                         <span>{{ arena.title or 'NO_DATA' }}</span>
                     </div>
 
-                    <p class="arena-lobby-copy">{{ arena.description or 'NO_DATA' }}</p>
+                    <p class="arena-lobby-copy">
+                        <span class="symbiote-readout-name">{{ symbiote_name }}:</span>
+                        {{ arena.description or 'NO_DATA' }}
+                    </p>
 
                     <div class="arena-mode-grid">
                         {{ arena_mode_card(
@@ -119,42 +235,164 @@
                         ) }}
                     </div>
                 </section>
-            {% else %}
+                {% elif arena_screen == 'mode_menu' %}
+                {% set arena_buttons = arena.buttons or [] %}
+                {% set mode_menu = namespace(queue=none, shadow=none, back=none, ranked=[]) %}
+                {% set group_lobby = arena.metadata.get('group_lobby', {}) if arena.metadata else {} %}
+                {% for button in arena_buttons %}
+                    {% set button_action = button.action.value if button.action and button.action.value is defined else button.action %}
+                    {% if button_action == 'join_queue' %}
+                        {% set mode_menu.queue = button %}
+                        {% set mode_menu.ranked = mode_menu.ranked + [button] %}
+                    {% elif button_action == 'start_shadow' %}
+                        {% set mode_menu.shadow = button %}
+                    {% elif button_action == 'menu_main' %}
+                        {% set mode_menu.back = button %}
+                    {% endif %}
+                {% endfor %}
+
+                <section class="arena-mode-stage arena-mode-stage--{{ (arena.mode or 'unknown')|replace('_', '-') }}">
+                    <div class="arena-lobby-head arena-mode-head">
+                        <div>
+                            <span class="arena-kicker">{{ 'Залы спаррингов' if arena.mode == 'one_vs_one' else 'Командные залы' }}</span>
+                            <h2>{{ arena.title or 'NO_DATA' }}</h2>
+                        </div>
+                        {% if mode_menu.back %}
+                            <button type="button" class="arena-service-exit arena-service-exit--back" {{ arena_action_attrs(mode_menu.back) }}>
+                                <span>{{ mode_menu.back.text or 'Назад' }}</span>
+                            </button>
+                        {% else %}
+                            <button type="button" class="arena-service-exit arena-service-exit--back arena-service-exit--missing" disabled>
+                                <span>NO_DATA</span>
+                            </button>
+                        {% endif %}
+                    </div>
+
+                    <div class="arena-mode-hero">
+                        <span>{{ 'Залы спаррингов' if arena.mode == 'one_vs_one' else arena.title or 'NO_DATA' }}</span>
+                    </div>
+
+                    <div class="arena-mode-readout world-text">
+                        <span class="symbiote-readout-name">{{ symbiote_name }}:</span>
+                        {{ arena.description or 'NO_DATA' }}
+                    </div>
+
+                    <div class="arena-mode-actions">
+                        {% if arena.mode == 'group' %}
+                            {% set primary_actions = group_lobby.get('primary_actions', []) %}
+                            <div class="arena-group-plans">
+                                <div class="arena-group-column">
+                                    {{ arena_group_plan_card(primary_actions[0] if primary_actions|length > 0 else {}, 'arena-plan-card--ranked') }}
+                                    {{ arena_group_plan_card(primary_actions[1] if primary_actions|length > 1 else {}, 'arena-plan-card--request') }}
+                                </div>
+                                {{ arena_group_plan_card(primary_actions[2] if primary_actions|length > 2 else {}, 'arena-plan-card--chaos') }}
+                            </div>
+                        {% elif mode_menu.ranked %}
+                            <div class="arena-duel-actions">
+                                <div class="arena-duel-ranked">
+                                    <span class="arena-duel-kicker">RANKED MATCH</span>
+                                    <div class="arena-duel-ranked-grid">
+                                        {% for button in mode_menu.ranked %}
+                                            <button type="button" class="arena-queue-card arena-queue-card--compact {{ 'arena-mode-card--missing' if button.variant == 'disabled' else '' }}"
+                                                    {% if button.variant == 'disabled' %}disabled{% else %}{{ arena_action_attrs(button) }}{% endif %}>
+                                                <span class="arena-queue-kicker">WAIT LIMIT</span>
+                                                <span class="arena-queue-title">{{ button.text or 'Ранг' }}</span>
+                                            </button>
+                                        {% endfor %}
+                                    </div>
+                                </div>
+                                {% if mode_menu.shadow %}
+                                    <button type="button" class="arena-queue-card arena-shadow-card {{ 'arena-mode-card--missing' if mode_menu.shadow.variant == 'disabled' else '' }}"
+                                            {% if mode_menu.shadow.variant == 'disabled' %}disabled{% else %}{{ arena_action_attrs(mode_menu.shadow) }}{% endif %}>
+                                        <span class="arena-queue-kicker">TRAINING</span>
+                                        <span class="arena-queue-title">{{ mode_menu.shadow.text or 'Бой с тенью' }}</span>
+                                        <span class="arena-queue-meter" aria-hidden="true"></span>
+                                    </button>
+                                {% endif %}
+                            </div>
+                        {% else %}
+                            <button type="button" class="arena-queue-card arena-mode-card--missing" disabled>
+                                <span class="arena-queue-kicker">MATCHMAKING</span>
+                                <span class="arena-queue-title">NO_DATA</span>
+                                <span class="arena-queue-meter" aria-hidden="true"></span>
+                            </button>
+                        {% endif %}
+                    </div>
+                </section>
+                {% if arena.mode == 'group' %}
+                    {{ arena_group_browser(group_lobby) }}
+                {% else %}
+                    {{ arena_battle_list(arena.mode or 'one_vs_one') }}
+                {% endif %}
+                {% elif arena_screen == 'searching' %}
+                <section id="arena-matchmaking-panel" class="arena-search-stage">
+                    <div class="arena-search-hero">
+                        <span class="arena-search-orbit" aria-hidden="true"></span>
+                        <span class="arena-search-label">{{ arena.title or 'MATCHMAKING' }}</span>
+                    </div>
+
+                    <div class="arena-countdown">
+                        <span class="arena-countdown-value">{{ arena.wait_time_sec if arena.wait_time_sec is not none else 0 }}</span>
+                        <span class="arena-countdown-label">SECONDS</span>
+                    </div>
+                    {% if arena.metadata and arena.metadata.get('wait_limit_sec') %}
+                        <div class="arena-search-limit">
+                            <span>Лимит ожидания</span>
+                            <strong>{{ (arena.metadata.get('wait_limit_sec') // 60) }} мин</strong>
+                        </div>
+                    {% endif %}
+
+                    <p class="arena-search-copy world-text">
+                        <span class="symbiote-readout-name">{{ symbiote_name }}:</span>
+                        {{ arena.description or 'NO_DATA' }}
+                    </p>
+                    {{ arena_action_row(arena.buttons) }}
+                </section>
+                {{ arena_battle_list(arena.mode or 'one_vs_one') }}
+                {% elif arena_screen in arena_modal_screens %}
+                <section class="arena-confirm-surface" aria-hidden="true">
+                    <div class="arena-section-header">
+                        <span>{{ arena.title or 'ARENA' }}</span>
+                        <strong>{{ arena.mode or 'SYSTEM' }}</strong>
+                    </div>
+                    {{ arena_battle_list(arena.mode or 'one_vs_one') }}
+                </section>
+                {% set arena_modal_wrap_root = false %}
+                {% include "game/domains/arena/fragments/confirmation_modal.html" %}
+                {% else %}
                 <div class="parchment panel-membrane arena-state-panel">
                     <div class="scene-img"><span>{{ arena.title or 'NO_DATA' }}</span></div>
-                    <div class="world-text">{{ arena.description or 'NO_DATA' }}</div>
+                    <div class="world-text">
+                        <span class="symbiote-readout-name">{{ symbiote_name }}:</span>
+                        {{ arena.description or 'NO_DATA' }}
+                    </div>
                 </div>
-            {% endif %}
+                {% endif %}
 
-            {% if arena.screen == 'searching' %}
-                <div class="arena-pulse"
-                     hx-post="/game/arena/action"
-                     hx-trigger="every {{ arena.poll_after_ms }}ms"
-                     hx-target="#game-center"
-                     hx-swap="innerHTML"
-                     hx-vals='{"char_id": {{ char_id }}, "action": "CHECK_MATCH", "mode": "{{ arena.mode }}"}'>
-                </div>
-            {% elif arena.screen == 'combat_pending' and arena.arena_session_id and arena.metadata.get('polling') %}
-                <div class="arena-pulse"
-                     hx-post="/game/arena/action"
-                     hx-trigger="every {{ arena.poll_after_ms }}ms"
-                     hx-target="#game-center"
-                     hx-swap="innerHTML"
-                     hx-vals='{"char_id": {{ char_id }}, "action": "CHECK_COMBAT_READY", "mode": "{{ arena.mode }}", "arena_session_id": "{{ arena.arena_session_id }}"}'>
-                </div>
-            {% endif %}
+                {% if arena_screen == 'searching' %}
+                    <div class="arena-pulse"
+                         hx-post="/game/arena/action"
+                         hx-trigger="every {{ arena.poll_after_ms }}ms"
+                         hx-target="#arena-poll-region"
+                         hx-select="#arena-poll-region"
+                         hx-swap="outerHTML"
+                         hx-vals='{"char_id": {{ char_id }}, "action": "check_match", "mode": "{{ arena.mode }}"}'>
+                    </div>
+                {% elif arena_screen == 'combat_pending' and arena.arena_session_id and arena.metadata.get('polling') %}
+                    <div class="arena-pulse"
+                         hx-post="/game/arena/action"
+                         hx-trigger="every {{ arena.poll_after_ms }}ms"
+                         hx-target="#arena-poll-region"
+                         hx-select="#arena-poll-region"
+                         hx-swap="outerHTML"
+                         hx-vals='{"char_id": {{ char_id }}, "action": "check_combat_ready", "mode": "{{ arena.mode }}", "arena_session_id": "{{ arena.arena_session_id }}"}'>
+                    </div>
+                {% endif %}
 
-            {% if arena.screen != 'main_menu' %}
-                <div class="arena-action-row">
-                    {% if arena.buttons %}
-                        {% for button in arena.buttons %}
-                            {{ arena_small_action(button) }}
-                        {% endfor %}
-                    {% else %}
-                        {{ arena_small_action(none) }}
-                    {% endif %}
-                </div>
-            {% endif %}
+                {% if arena_screen not in ['main_menu', 'mode_menu', 'searching'] and arena_screen not in arena_modal_screens %}
+                    {{ arena_action_row(arena.buttons) }}
+                {% endif %}
+            </div>
         </article>
     {% else %}
         <article class="cs active">

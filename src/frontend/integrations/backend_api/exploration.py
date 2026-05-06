@@ -31,7 +31,7 @@ class BackendExplorationApi(BaseApiClient):
             "/exploration/move",
             response_model=ExplorationResponse,
             headers={"Authorization": f"Bearer {access_token}"},
-            json={"char_id": char_id, "direction": direction, "target_id": target_id},
+            json={"char_id": char_id, "direction": direction or target_id, "target_id": target_id},
         )
 
     async def interact(

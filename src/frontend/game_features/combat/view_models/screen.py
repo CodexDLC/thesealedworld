@@ -41,6 +41,7 @@ class CombatVitalsVM(BaseModel):
 class CombatQuickSlotVM(BaseModel):
     slot_index: int
     is_empty: bool = True
+    item_id: str | None = None
     label: str = "NO_DATA"
     icon_url: str | None = None
     enabled: bool = False
@@ -68,10 +69,24 @@ class CombatRosterRowVM(BaseModel):
     hp_current: int
     hp_max: int
     hp_percent: int
+    target_queue_size: int = 0
+    pending_action_count: int = 0
     is_target: bool = False
     is_dead: bool = False
     queue_state: str = "NO_DATA"
     queue_indicator: str = "unknown"
+
+
+class CombatTeamSummaryVM(BaseModel):
+    label: str
+    hp_current: int
+    hp_max: int
+    hp_percent: int
+    alive_count: int
+    total_count: int
+    target_queue_size: int = 0
+    pending_action_count: int = 0
+    effects_count: int = 0
 
 
 class CombatActionVM(BaseModel):
@@ -103,10 +118,20 @@ class CombatScreenVM(BaseModel):
     session_id: str
     status: str
     turn_number: int
+    phase: str | None = None
+    battle_type: str | None = None
+    location_id: str | None = None
+    personal_turn_number: int | None = None
+    round_size: int | None = None
+    action_state: str = "NO_DATA"
+    target_queue_size: int = 0
+    pending_action_count: int = 0
     hero: CombatActorPanelVM
     target: CombatActorPanelVM | None
     allies: list[CombatRosterRowVM] = Field(default_factory=list)
     enemies: list[CombatRosterRowVM] = Field(default_factory=list)
+    allied_team: CombatTeamSummaryVM
+    enemy_team: CombatTeamSummaryVM
     primary_attack: CombatActionVM | None = None
     feint_options: list[CombatActionVM] = Field(default_factory=list)
     ability_options: list[CombatActionVM] = Field(default_factory=list)
@@ -117,14 +142,26 @@ class CombatScreenVM(BaseModel):
 
 def build_combat_screen_vm(dashboard: CombatDashboardDTO) -> CombatScreenVM:
     primary_attack, feints, abilities = _split_actions(dashboard.available_actions, dashboard.hero.feints)
+    allied_actors = [dashboard.hero, *dashboard.allies]
+    enemy_actors = dashboard.enemies or ([dashboard.target] if dashboard.target else [])
     return CombatScreenVM(
         session_id=dashboard.session_id,
         status=dashboard.status,
         turn_number=dashboard.turn_number,
+        phase=dashboard.phase,
+        battle_type=dashboard.battle_type,
+        location_id=dashboard.location_id,
+        personal_turn_number=dashboard.personal_turn_number,
+        round_size=dashboard.round_size,
+        action_state=dashboard.action_state,
+        target_queue_size=dashboard.target_queue_size,
+        pending_action_count=dashboard.pending_action_count,
         hero=_actor_panel(dashboard.hero, include_belt=True),
         target=_actor_panel(dashboard.target, include_belt=False) if dashboard.target else None,
-        allies=[_roster_row(actor) for actor in dashboard.allies],
+        allies=[_roster_row(actor) for actor in allied_actors],
         enemies=[_roster_row(actor) for actor in dashboard.enemies],
+        allied_team=_team_summary("ALLIES", allied_actors),
+        enemy_team=_team_summary("ENEMIES", enemy_actors),
         primary_attack=primary_attack,
         feint_options=feints,
         ability_options=abilities,
@@ -150,7 +187,7 @@ def _actor_panel(actor: CombatActorCardDTO, *, include_belt: bool) -> CombatActo
         is_target=actor.is_target,
         vitals=_vitals(actor),
         effects=[_effect_badge(effect) for effect in actor.active_effects],
-        quick_belt=_quick_belt() if include_belt else [],
+        quick_belt=_quick_belt(actor.quick_items) if include_belt else [],
     )
 
 
@@ -176,9 +213,29 @@ def _roster_row(actor: CombatActorCardDTO) -> CombatRosterRowVM:
         hp_current=vitals.hp_current,
         hp_max=vitals.hp_max,
         hp_percent=vitals.hp_percent,
+        target_queue_size=actor.target_queue_size,
+        pending_action_count=sum(actor.pending_actions.values()),
         is_target=actor.is_target,
         is_dead=actor.is_dead,
-        queue_indicator="current" if actor.is_target else "unknown",
+        queue_state=_queue_state(actor),
+        queue_indicator=_queue_indicator(actor),
+    )
+
+
+def _team_summary(label: str, actors: list[CombatActorCardDTO]) -> CombatTeamSummaryVM:
+    hp_current = sum(max(0, _vitals(actor).hp_current) for actor in actors)
+    hp_max = sum(max(0, _vitals(actor).hp_max) for actor in actors)
+    total_count = len(actors)
+    return CombatTeamSummaryVM(
+        label=label,
+        hp_current=hp_current,
+        hp_max=hp_max,
+        hp_percent=max(0, min(100, round(hp_current / hp_max * 100))) if hp_max else 0,
+        alive_count=sum(1 for actor in actors if not actor.is_dead),
+        total_count=total_count,
+        target_queue_size=sum(actor.target_queue_size for actor in actors),
+        pending_action_count=sum(sum(actor.pending_actions.values()) for actor in actors),
+        effects_count=sum(len(actor.active_effects) + len(actor.active_abilities) for actor in actors),
     )
 
 
@@ -194,8 +251,57 @@ def _effect_badge(effect: CombatEffectBadgeDTO) -> CombatEffectBadgeVM:
     )
 
 
-def _quick_belt() -> list[CombatQuickSlotVM]:
-    return [CombatQuickSlotVM(slot_index=index) for index in range(1, 9)]
+def _quick_belt(items: list[dict]) -> list[CombatQuickSlotVM]:
+    slots: dict[int, CombatQuickSlotVM] = {}
+    for item in items:
+        index = _belt_slot_index(item.get("belt_slot") or item.get("slot"))
+        if index is None:
+            continue
+        item_id = item.get("item_id") or item.get("inventory_id") or item.get("id")
+        label = item.get("name") or item.get("title") or item.get("display_name") or item_id or f"SLOT {index}"
+        slots[index] = CombatQuickSlotVM(
+            slot_index=index,
+            is_empty=False,
+            item_id=str(item_id) if item_id else None,
+            label=str(label),
+            enabled=False,
+            reason=str(item.get("item_type") or item.get("type") or "item_action_not_bound"),
+        )
+    return [slots.get(index) or CombatQuickSlotVM(slot_index=index) for index in range(1, 9)]
+
+
+def _belt_slot_index(value: object) -> int | None:
+    if value is None:
+        return None
+    text = str(value)
+    digits = "".join(char for char in text if char.isdigit())
+    if not digits:
+        return None
+    index = int(digits)
+    return index if 1 <= index <= 8 else None
+
+
+def _queue_state(actor: CombatActorCardDTO) -> str:
+    pending_count = sum(actor.pending_actions.values())
+    if actor.is_dead:
+        return "DOWN"
+    if pending_count:
+        return f"LOCKED {pending_count}"
+    if actor.target_queue_size:
+        return f"QUEUE {actor.target_queue_size}"
+    return "EMPTY"
+
+
+def _queue_indicator(actor: CombatActorCardDTO) -> str:
+    if actor.is_dead:
+        return "dead"
+    if actor.is_target:
+        return "current"
+    if sum(actor.pending_actions.values()):
+        return "locked"
+    if actor.target_queue_size:
+        return "ready"
+    return "unknown"
 
 
 def _split_actions(

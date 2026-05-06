@@ -1,8 +1,8 @@
 {% if combat_screen %}
     {% set actor = combat_screen.hero %}
-    <div class="combat-side">
-        <section class="ds-panel combat-actor-panel">
-            <div class="ds-panel-header">PLAYER</div>
+    <div class="combat-side combat-side--left">
+        <section class="combat-panel combat-actor-panel">
+            <div class="combat-panel-header">PLAYER</div>
             <div class="combat-actor-avatar">
                 <img src="{{ actor.avatar_url }}" alt="{{ actor.name }}">
                 <div class="combat-effect-stack">
@@ -32,19 +32,24 @@
             </div>
         </section>
 
-        <section class="ds-panel combat-belt-panel">
-            <div class="ds-panel-header">QUICK_BELT</div>
+        <section class="combat-panel combat-belt-panel">
+            <div class="combat-panel-header">QUICK BELT</div>
             <div class="combat-belt-grid">
                 {% for slot in actor.quick_belt %}
                     <button type="button" class="combat-belt-slot" disabled title="{{ slot.reason }}">
-                        <span>{{ slot.slot_index }}</span>
+                        {% if slot.is_empty %}
+                            <span>{{ slot.slot_index }}</span>
+                        {% else %}
+                            <span>{{ slot.slot_index }}</span>
+                            <small>{{ slot.label }}</small>
+                        {% endif %}
                     </button>
                 {% endfor %}
             </div>
         </section>
 
-        <section class="ds-panel combat-roster-panel">
-            <div class="ds-panel-header">ALLIES</div>
+        <section class="combat-panel combat-roster-panel">
+            <div class="combat-panel-header">ALLIES</div>
             <div class="combat-roster">
                 {% for ally in combat_screen.allies %}
                     <div class="combat-roster-row">
@@ -52,6 +57,7 @@
                         <span class="combat-roster-name">{{ ally.name }}</span>
                         <div class="combat-roster-hp"><i style="width: {{ ally.hp_percent }}%"></i></div>
                         <b>{{ ally.hp_current }}/{{ ally.hp_max }}</b>
+                        <span class="combat-info-mark">{{ ally.queue_state }}</span>
                     </div>
                 {% else %}
                     <div class="missing-data-block"><span>NO_ALLIES</span></div>

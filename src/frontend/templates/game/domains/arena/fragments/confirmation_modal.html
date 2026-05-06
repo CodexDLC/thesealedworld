@@ -1,0 +1,59 @@
+{% macro arena_modal_action_attrs(button) -%}
+    {% set button_action = button.action.value if button.action and button.action.value is defined else button.action %}
+    {% set button_mode = button.mode.value if button.mode and button.mode.value is defined else button.mode %}
+    {% set button_value = button.value if button.value is mapping else {} %}
+    hx-post="/game/arena/action"
+    hx-target="#game-modal-root"
+    hx-swap="outerHTML"
+    hx-vals='{"char_id": {{ char_id }}, "action": "{{ button_action }}", "modal": true{% if button_mode %}, "mode": "{{ button_mode }}"{% endif %}{% if button_value.get("arena_session_id") %}, "arena_session_id": "{{ button_value.get("arena_session_id") }}"{% endif %}{% if button_value.get("wait_limit_sec") %}, "wait_limit_sec": {{ button_value.get("wait_limit_sec") }}{% endif %}{% if button_value.get("confirm") %}, "confirm": true{% endif %}}'
+{%- endmacro %}
+
+{% macro arena_modal_action_row(buttons) %}
+    <div class="arena-action-row">
+        {% if buttons %}
+            {% for button in buttons %}
+                <button type="button" class="arena-small-action {{ 'arena-small-action--ghost' if button.variant == 'ghost' else '' }}" {{ arena_modal_action_attrs(button) }}>
+                    {{ button.text }}
+                </button>
+            {% endfor %}
+        {% else %}
+            <button type="button" class="arena-small-action arena-small-action--missing" disabled>NO_DATA</button>
+        {% endif %}
+    </div>
+{% endmacro %}
+
+{% set arena_screen = arena.screen.value if arena.screen and arena.screen.value is defined else arena.screen %}
+{% set symbiote_name = status_seed.symbiote_name if status_seed is defined and status_seed.symbiote_name else 'SYSTEM' %}
+
+{% if arena_modal_wrap_root|default(true) %}
+<div id="game-modal-root">
+{% endif %}
+    <div class="arena-modal-backdrop arena-modal-backdrop--confirm" role="presentation">
+        <section class="arena-dev-modal arena-confirm-modal"
+                 role="dialog"
+                 aria-modal="true"
+                 aria-labelledby="arena-confirm-title">
+            <header class="arena-dev-modal-head arena-confirm-modal-head">
+                <div>
+                    <span class="arena-kicker">ARENA // {{ arena_screen or 'CONFIRM' }}</span>
+                    <h2 id="arena-confirm-title">{{ arena.title or 'Подтверждение арены' }}</h2>
+                </div>
+            </header>
+            <p class="arena-dev-modal-copy arena-confirm-modal-copy">
+                <span class="symbiote-readout-name">{{ symbiote_name }}:</span>
+                {{ arena.description or 'Подтвердите действие.' }}
+            </p>
+            {% if arena.wait_time_sec is not none %}
+                <div class="arena-confirm-meta">
+                    <span>WAIT</span>
+                    <strong>{{ arena.wait_time_sec }} сек</strong>
+                </div>
+            {% endif %}
+            <footer class="arena-dev-modal-actions arena-confirm-modal-actions">
+                {{ arena_modal_action_row(arena.buttons) }}
+            </footer>
+        </section>
+    </div>
+{% if arena_modal_wrap_root|default(true) %}
+</div>
+{% endif %}

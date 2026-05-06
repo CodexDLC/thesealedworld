@@ -419,21 +419,40 @@ html, body {
     mix-blend-mode: overlay;
 }
 
-/* ── BOTTOM SECTION: The Transformable Chat Overlay ── */
+/* ── FLOATING CHAT OVERLAY ── */
+#game-chat-shell {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 32px;
+    z-index: 180;
+    display: flex;
+    justify-content: center;
+    padding: 0 16px;
+    box-sizing: border-box;
+    pointer-events: none;
+}
+
 .game-chat-row {
     flex: 0 0 auto;
-    width: 100%;
+    width: min(100%, 1040px);
+    max-height: calc(100vh - 96px);
     height: var(--chat-height, 200px);
     background: rgba(5, 5, 5, 0.98);
-    border-top: 1px solid rgba(255, 170, 0, 0.2);
-    z-index: 100;
+    border: 1px solid rgba(255, 170, 0, 0.18);
+    box-shadow:
+        0 -18px 44px rgba(0, 0, 0, 0.55),
+        0 0 0 1px rgba(0, 0, 0, 0.72);
     display: flex;
     flex-direction: column;
     position: relative;
+    pointer-events: auto;
     transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .game-chat-row > .shell-constrained {
+    width: 100%;
+    max-width: none;
     height: 100%;
     flex-direction: column;
 }

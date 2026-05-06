@@ -1,0 +1,136 @@
+{% set inventory = inventory_window if inventory_window is defined and inventory_window else none %}
+{% if inventory %}
+<div class="inventory-shell" data-contract-state="{{ inventory.contract_state }}">
+    <section class="inventory-loadout" aria-label="Character equipment">
+        <div class="inventory-doll" aria-label="Character doll">
+            <div class="inventory-avatar-frame">
+                <img src="{{ inventory.avatar_url }}" alt="{{ inventory.avatar_name }}">
+            </div>
+
+            {% for zone in inventory.body_zones %}
+            <button type="button"
+                    class="inventory-equip-zone inventory-equip-zone--{{ zone.position }}"
+                    aria-label="{{ zone.label }}"
+                    data-slot-id="{{ zone.primary_slot.slot_id }}">
+                <span class="inventory-slot-title">{{ zone.label }}</span>
+                <span class="inventory-slot-state">{{ zone.primary_slot.item_name }}</span>
+                <span class="inventory-slot-tooltip">
+                    <strong>{{ zone.label }}</strong>
+                    <span>{{ zone.primary_slot.label }}: {{ zone.primary_slot.item_name }}</span>
+                    {% if zone.secondary_slot %}
+                    <span>{{ zone.secondary_slot.label }}: {{ zone.secondary_slot.item_name }}</span>
+                    {% endif %}
+                </span>
+            </button>
+            {% endfor %}
+
+            {% for slot in inventory.weapon_slots %}
+            <button type="button"
+                    class="inventory-equip-zone inventory-equip-zone--{{ 'main' if slot.slot_id == 'main_hand' else 'off' }}"
+                    aria-label="{{ slot.label }}"
+                    data-slot-id="{{ slot.slot_id }}">
+                <span class="inventory-slot-title">{{ slot.label }}</span>
+                <span class="inventory-slot-state">{{ slot.item_name }}</span>
+                <span class="inventory-slot-tooltip">
+                    <strong>{{ slot.label }}</strong>
+                    <span>{{ slot.item_name }}</span>
+                </span>
+            </button>
+            {% endfor %}
+        </div>
+
+        <aside class="inventory-accessories" aria-label="Accessories">
+            <div class="inventory-section-label">ACCESSORIES</div>
+            {% for row in inventory.accessory_rows %}
+            <div class="inventory-accessory-row {{ 'inventory-accessory-row--split' if not row.is_wide else '' }}">
+                {% for slot in row.slots %}
+                <button type="button"
+                        class="inventory-accessory-slot"
+                        aria-label="{{ slot.label }}"
+                        data-slot-id="{{ slot.slot_id }}">
+                    <span>{{ slot.label }}</span>
+                    <small>{{ slot.item_name }}</small>
+                    <span class="inventory-slot-tooltip">
+                        <strong>{{ slot.label }}</strong>
+                        <span>{{ slot.item_name }}</span>
+                    </span>
+                </button>
+                {% endfor %}
+            </div>
+            {% endfor %}
+        </aside>
+    </section>
+
+    <section class="inventory-belt" aria-label="Belt quick slots">
+        <div class="inventory-section-label">BELT</div>
+        <div class="inventory-belt-slots">
+            {% for slot in inventory.quick_slots %}
+            <button type="button"
+                    class="inventory-belt-slot {{ 'is-empty' if slot.is_empty else '' }}"
+                    aria-label="Belt quick slot {{ slot.slot_index }}">
+                {{ slot.slot_index }}
+            </button>
+            {% endfor %}
+        </div>
+    </section>
+
+    <section class="inventory-container" aria-label="Inventory container">
+        <div class="inventory-container-toolbar">
+            <div class="inventory-tabs" role="tablist" aria-label="Inventory filters">
+                {% for tab in inventory.tabs %}
+                <button type="button"
+                        class="inventory-tab {{ 'is-active' if tab.is_active else '' }}"
+                        title="{{ tab.label }}"
+                        aria-label="{{ tab.label }}">
+                    {{ tab.icon }}
+                </button>
+                {% endfor %}
+            </div>
+            <label class="inventory-search">
+                <span class="sr-only">Search inventory</span>
+                <input type="search" placeholder="{{ inventory.search_placeholder }}">
+            </label>
+        </div>
+
+        <div class="inventory-table" aria-label="Inventory items">
+            <div class="inventory-table-head">
+                <span></span>
+                <span>Name</span>
+                <span>Type</span>
+                <span>Wt</span>
+                <span>Qty</span>
+                <span>Rank</span>
+            </div>
+            <div class="inventory-table-body">
+                {% for row in inventory.visible_rows[:inventory.rows_visible_count] %}
+                <button type="button"
+                        class="inventory-row"
+                        aria-label="{{ row.name }}"
+                        data-equip-target="{{ row.equip_target or '' }}">
+                    <span class="inventory-row-icon">{{ row.icon }}</span>
+                    <span>{{ row.name }}</span>
+                    <span>{{ row.item_type }}</span>
+                    <span>{{ row.weight }}</span>
+                    <span>{{ row.quantity }}</span>
+                    <span>{{ row.rarity }}</span>
+                    {% if row.comparison %}
+                    <span class="inventory-row-tooltip">
+                        <strong>{{ row.name }}</strong>
+                        <span>Target: {{ row.equip_target }}</span>
+                        {% for line in row.comparison %}
+                        <span>{{ line }}</span>
+                        {% endfor %}
+                    </span>
+                    {% endif %}
+                </button>
+                {% endfor %}
+            </div>
+        </div>
+    </section>
+</div>
+{% else %}
+<div class="missing-data-block">
+    <span>INVENTORY_VIEW_MODEL_MISSING</span>
+    <small>runtime inventory panel is not wired yet</small>
+</div>
+{% endif %}

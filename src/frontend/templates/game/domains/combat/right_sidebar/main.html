@@ -1,8 +1,8 @@
 {% if combat_screen and combat_screen.target %}
     {% set actor = combat_screen.target %}
-    <div class="combat-side">
-        <section class="ds-panel combat-actor-panel combat-actor-panel--enemy">
-            <div class="ds-panel-header">TARGET</div>
+    <div class="combat-side combat-side--right">
+        <section class="combat-panel combat-actor-panel combat-actor-panel--enemy">
+            <div class="combat-panel-header">TARGET</div>
             <div class="combat-actor-avatar">
                 <img src="{{ actor.avatar_url }}" alt="{{ actor.name }}">
                 <div class="combat-effect-stack">
@@ -32,8 +32,8 @@
             </div>
         </section>
 
-        <section class="ds-panel combat-roster-panel">
-            <div class="ds-panel-header">ENEMIES</div>
+        <section class="combat-panel combat-roster-panel">
+            <div class="combat-panel-header">ENEMIES</div>
             <div class="combat-roster">
                 {% for enemy in combat_screen.enemies %}
                     <button type="button"
@@ -43,7 +43,7 @@
                         <span class="combat-roster-name">{{ enemy.name }}</span>
                         <div class="combat-roster-hp"><i style="width: {{ enemy.hp_percent }}%"></i></div>
                         <b>{{ enemy.hp_current }}/{{ enemy.hp_max }}</b>
-                        <span class="combat-info-mark">i</span>
+                        <span class="combat-info-mark">{{ enemy.queue_state }}</span>
                     </button>
                 {% else %}
                     <div class="missing-data-block"><span>NO_ENEMIES</span></div>
@@ -52,10 +52,10 @@
         </section>
     </div>
 {% else %}
-    <div class="sidebar-placeholder">
-        <div class="ds-panel">
-            <div class="ds-panel-header">COMBAT_CONTEXT</div>
-            <div class="ds-panel-body" style="font-size: 10px; opacity: 0.65;">NO_DATA</div>
-        </div>
+    <div class="combat-side combat-side--right">
+        <section class="combat-panel">
+            <div class="combat-panel-header">COMBAT CONTEXT</div>
+            <div class="missing-data-block"><span>NO_DATA</span></div>
+        </section>
     </div>
 {% endif %}

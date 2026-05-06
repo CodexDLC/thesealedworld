@@ -26,3 +26,18 @@ class ArenaActionService:
             mode=mode,
             value=value,
         )
+
+    async def group_action(
+        self,
+        request: Request,
+        *,
+        char_id: int,
+        action: str,
+        item_id: str | None = None,
+    ) -> ArenaResponse:
+        return await self.api.group_action(
+            require_access_token(request),
+            char_id=char_id,
+            action=action,
+            item_id=item_id,
+        )

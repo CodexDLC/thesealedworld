@@ -2,11 +2,14 @@
     {% if button and button.is_active %}
         {% set action_parts = button.action.split(':') %}
         {% if action_parts[0] == 'move' %}
+            {% set move_duration = action_parts[2] if action_parts|length > 2 else 0 %}
             <button class="dp"
                     hx-post="/game/exploration/move"
                     hx-target="#game-center"
                     hx-swap="innerHTML"
-                    hx-vals='{"char_id": {{ char_id }}, "target_id": "{{ action_parts[1] }}"}'>
+                    hx-vals='{"char_id": {{ char_id }}, "target_id": "{{ action_parts[1] }}"}'
+                    data-move-target="{{ action_parts[1] }}"
+                    data-move-duration="{{ move_duration }}">
                 {{ fallback_label or button.label }}
             </button>
         {% elif action_parts[0] == 'interact' %}
@@ -238,6 +241,10 @@
 
                             <div class="exploration-movement-block">
                                 <div class="exploration-control-title">MOVEMENT</div>
+                                <div class="exploration-move-cooldown" aria-hidden="true">
+                                    <div class="exploration-move-cooldown-bar"></div>
+                                    <span class="exploration-move-cooldown-label">READY</span>
+                                </div>
                                 <div class="exploration-movement-grid">
                                     <span></span>
                                     {{ exploration_button(movement.north if movement else exploration.grid.n, 'MOVE NORTH') }}

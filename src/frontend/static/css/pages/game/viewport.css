@@ -340,6 +340,10 @@
 .exploration-route-block { grid-area: routes; }
 .exploration-movement-block { grid-area: movement; }
 
+.exploration-movement-block.is-cooling {
+    --move-cooldown-progress: 0;
+}
+
 .exploration-control-title {
     margin-bottom: 7px;
     color: var(--col-parchment-dim);
@@ -376,6 +380,65 @@
     color: var(--col-parchment-dim);
     font-size: 6px;
     letter-spacing: .14em;
+}
+
+.exploration-move-cooldown {
+    height: 13px;
+    display: grid;
+    align-items: center;
+    margin: -1px 0 7px;
+    border: 1px solid color-mix(in srgb, var(--world-accent, var(--col-accent)) 18%, transparent);
+    background:
+        linear-gradient(rgba(0, 0, 0, .58), rgba(0, 0, 0, .78)),
+        url("/static/images/ui/textures/button-candidates/button-surface-04-charcoal-stone.webp");
+    background-position: center;
+    background-size: cover;
+    clip-path: var(--clip-node-sm);
+    overflow: hidden;
+    position: relative;
+}
+
+.exploration-move-cooldown-bar {
+    width: calc(var(--move-cooldown-progress, 1) * 100%);
+    height: 100%;
+    background:
+        linear-gradient(
+            90deg,
+            #b11d12 0%,
+            #d66a18 36%,
+            #d8b136 64%,
+            #2ed36a 100%
+        );
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, .16),
+        0 0 12px rgba(46, 211, 106, .20);
+    transition: width .08s linear;
+}
+
+.exploration-move-cooldown-label {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    color: rgba(255, 230, 174, .78);
+    font-family: var(--font-ui);
+    font-size: 6px;
+    font-weight: 800;
+    letter-spacing: .18em;
+    line-height: 1;
+    text-shadow: 0 1px 0 #000;
+}
+
+.exploration-movement-block.is-cooling .exploration-move-cooldown {
+    border-color: rgba(209, 67, 28, .46);
+    box-shadow: 0 0 10px rgba(209, 67, 28, .18);
+}
+
+.exploration-movement-block.is-cooling .dp[data-move-duration] {
+    cursor: wait;
+    filter: grayscale(.25) brightness(.72);
+    opacity: .68;
+    transform: none;
 }
 
 .exploration-movement-grid {

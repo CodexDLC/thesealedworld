@@ -1,22 +1,20 @@
 /**
- * Character Status Polling & UI Sync
- * Handles real-time updates for HP, Energy, and Stamina.
+ * Character Status UI Sync.
+ * Manual refresh is handled by the status panel HTMX button.
  */
 
 window.CharacterStatus = {
     pollingInterval: 3000, // 3 seconds
     timer: null,
+    pollingEnabled: false,
 
     init() {
         console.log("CharacterStatus initialized");
-        if (this.isCombatDomain()) {
-            this.stopPolling();
-            return;
-        }
-        this.startPolling();
+        this.stopPolling();
     },
 
     startPolling() {
+        if (!this.pollingEnabled) return;
         if (this.isCombatDomain()) return;
         if (this.timer) return;
         this.timer = setInterval(() => this.updateStatus(), this.pollingInterval);
@@ -73,10 +71,10 @@ window.CharacterStatus = {
     isCombatDomain() {
         const container = document.querySelector('.game-container');
         if (!container) return false;
-        if (container.dataset.domain === "COMBAT") return true;
+        if (container.dataset.domain === "combats") return true;
         if (!window.Alpine) return false;
         const data = Alpine.$data(container);
-        return data?.domain === "COMBAT";
+        return data?.domain === "combats";
     }
 };
 

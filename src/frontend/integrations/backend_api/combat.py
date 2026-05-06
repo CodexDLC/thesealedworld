@@ -2,9 +2,9 @@ from typing import Any
 
 from src.frontend.integrations.backend_api.base import BaseApiClient
 from src.shared.schemas import CoreResponseDTO
-from src.shared.schemas.combat import CombatDashboardDTO, CombatLogDTO, CombatRegisterMoveRequestDTO
+from src.shared.schemas.combat import CombatDashboardDTO, CombatLogDTO, CombatRegisterMoveRequestDTO, CombatResultDTO
 
-CombatViewResponse = CoreResponseDTO[CombatDashboardDTO | dict[str, Any]]
+CombatViewResponse = CoreResponseDTO[CombatResultDTO | CombatDashboardDTO | dict[str, Any]]
 
 
 class BackendCombatApi(BaseApiClient):

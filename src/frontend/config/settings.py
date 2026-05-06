@@ -21,7 +21,9 @@ class FrontendSettings(BaseCommonSettings):
     app_host: str = "0.0.0.0"  # nosec
     app_port: int = 8000
     backend_base_url: str = "http://127.0.0.1:8001"
+    chat_ws_url: str = "ws://127.0.0.1:8002"
     active_character_cookie_secure: bool = False
+    default_symbiote_name: str = "SYSTEM"
 
     # Paths
     templates_dir: Path = BASE_DIR / "src" / "frontend" / "templates"

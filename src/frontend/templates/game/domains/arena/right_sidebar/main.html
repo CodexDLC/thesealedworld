@@ -1,0 +1,55 @@
+{% set arena_mode = arena.mode if arena is defined and arena and arena.mode else 'LOBBY' %}
+{% set arena_screen = arena.screen.value if arena is defined and arena and arena.screen and arena.screen.value is defined else arena.screen if arena is defined and arena and arena.screen else 'NO_DATA' %}
+{% set arena_gear = arena.gs if arena is defined and arena and arena.gs is not none else 'NO_DATA' %}
+{% set arena_rank = arena.metadata.get('rank', arena.metadata.get('tier', 'NO_DATA')) if arena is defined and arena and arena.metadata else 'NO_DATA' %}
+
+<div class="ds-panel arena-view-panel">
+    <div class="ds-panel-header">
+        <span>ARENA_VIEW</span>
+    </div>
+
+    <div class="ds-panel-body arena-view-body">
+        <section class="arena-view-stat-grid" aria-label="Arena statistics">
+            <div class="arena-view-stat arena-view-stat--wide">
+                <span>GEAR SCORE</span>
+                <strong>{{ arena_gear }}</strong>
+            </div>
+            <div class="arena-view-stat">
+                <span>RANK</span>
+                <strong>{{ arena_rank }}</strong>
+            </div>
+            <div class="arena-view-stat">
+                <span>HALL</span>
+                <strong>{{ arena_mode }}</strong>
+            </div>
+        </section>
+
+        <section class="status-section arena-view-section">
+            <div class="sec">HALLS</div>
+            <div class="arena-view-list">
+                <div class="arena-view-row">
+                    <span>1X1</span>
+                    <strong>{{ 'ACTIVE' if arena_mode == 'one_vs_one' else 'READY' }}</strong>
+                </div>
+                <div class="arena-view-row">
+                    <span>GROUP</span>
+                    <strong>{{ 'ACTIVE' if arena_mode == 'group' else 'PLANNED' }}</strong>
+                </div>
+                <div class="arena-view-row">
+                    <span>CHAOS</span>
+                    <strong>NO_DATA</strong>
+                </div>
+            </div>
+        </section>
+
+        <section class="status-section arena-view-section">
+            <div class="sec">STATE</div>
+            <div class="arena-view-list">
+                <div class="arena-view-row">
+                    <span>SCREEN</span>
+                    <strong>{{ arena_screen }}</strong>
+                </div>
+            </div>
+        </section>
+    </div>
+</div>

@@ -11,7 +11,7 @@ window.gameShell = function(initial = {}) {
     };
 
     return {
-        chatTab: "world",
+        chatTab: "global",
         chatHeight: Alpine.$persist(200),
         chatMinimized: Alpine.$persist(false),
         chatStep: Alpine.$persist(1),

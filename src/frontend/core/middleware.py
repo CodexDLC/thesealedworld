@@ -21,6 +21,10 @@ class AuthUserMiddleware(BaseHTTPMiddleware):
             api = BackendAuthApi(client=client, base_url=settings.backend_base_url)
             auth_service = FrontendAuthService(auth_api=api)
             request.state.user = await auth_service.get_current_user(request)
+            if request.state.user is not None and not getattr(request.state, "access_token", None):
+                cookie_token = request.cookies.get(FrontendAuthService.access_cookie_name)
+                if cookie_token:
+                    request.state.access_token = cookie_token
         except httpx.RequestError:
             logger.opt(exception=True).critical("Auth middleware backend user lookup failed")
 

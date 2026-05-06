@@ -1,0 +1,40 @@
+<div id="game-modal-root">
+    <div class="arena-modal-backdrop"
+         role="presentation"
+         onclick="if (event.target === this) this.closest('#game-modal-root').innerHTML = ''">
+        <section class="arena-dev-modal" role="dialog" aria-modal="true" aria-labelledby="arena-dev-modal-title">
+            <header class="arena-dev-modal-head">
+                <div>
+                    <span class="arena-kicker">GROUP ARENA</span>
+                    <h2 id="arena-dev-modal-title">{{ notice.get('title', 'Групповой режим') }}</h2>
+                </div>
+                <button type="button"
+                        class="arena-modal-close"
+                        aria-label="Закрыть"
+                        onclick="this.closest('#game-modal-root').innerHTML = ''">×</button>
+            </header>
+            <p class="arena-dev-modal-copy">
+                {{ notice.get('message', 'Эта часть арены пока в разработке.') }}
+            </p>
+            <div class="arena-dev-modal-grid">
+                <div>
+                    <span>STATUS</span>
+                    <strong>{{ notice.get('status', 'in_development') }}</strong>
+                </div>
+                <div>
+                    <span>FORMATS</span>
+                    <strong>{{ notice.get('formats', ['3x3', '5x5', '10x10'])|join(' / ') }}</strong>
+                </div>
+                <div>
+                    <span>MOCK</span>
+                    <strong>{{ notice.get('item_id') or notice.get('action', 'group') }}</strong>
+                </div>
+            </div>
+            <footer class="arena-dev-modal-actions">
+                <button type="button"
+                        class="arena-small-action"
+                        onclick="this.closest('#game-modal-root').innerHTML = ''">Понятно</button>
+            </footer>
+        </section>
+    </div>
+</div>

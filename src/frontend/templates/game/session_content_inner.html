@@ -5,27 +5,28 @@
     </div>
 
     {# Main interactive area #}
-    <div class="game-top-row {{ 'left-open' if session_ui and session_ui.left_open else '' }} {{ 'right-open' if session_ui and session_ui.right_open else '' }}"
-         {% if session_ui and session_ui.left_open %}data-left-open="true"{% endif %}
-         {% if session_ui and session_ui.right_open %}data-right-open="true"{% endif %}
+    {% set combat_layout = domain == 'combats' %}
+    <div class="game-top-row {{ 'combat-layout' if combat_layout else '' }} {{ 'left-open' if combat_layout or (session_ui and session_ui.left_open) else '' }} {{ 'right-open' if combat_layout or (session_ui and session_ui.right_open) else '' }}"
+         {% if combat_layout or (session_ui and session_ui.left_open) %}data-left-open="true"{% endif %}
+         {% if combat_layout or (session_ui and session_ui.right_open) %}data-right-open="true"{% endif %}
          style="flex: 1; position: relative; z-index: 1; min-height: 0;"
          :class="{ 'left-open': leftOpen, 'right-open': rightOpen }">
         {# Left Panel (Inventory/Stats) #}
-        <aside id="game-left" class="col-left {{ 'panel-open' if session_ui and session_ui.left_open else '' }}" :class="{ 'panel-open': leftOpen }">
+        <aside id="game-left" class="col-left {{ 'panel-open' if combat_layout or (session_ui and session_ui.left_open) else '' }}" :class="{ 'panel-open': leftOpen }">
             <div id="game-left-content">
                 {% block game_left %}
                     <div x-show="leftPanelView === 'status'">
-                        {% if domain == 'SCENARIO' %}
+                        {% if domain == 'scenario' %}
                             {% include "game/domains/scenario/left_sidebar/main.html" %}
-                        {% elif domain == 'EXPLORATION' %}
+                        {% elif domain == 'exploration' %}
                             {% include "game/domains/exploration/left_sidebar/main.html" %}
-                        {% elif domain == 'ARENA' %}
+                        {% elif domain == 'arena' %}
                             {% include "game/components/status/main.html" %}
-                        {% elif domain == 'COMBAT' %}
+                        {% elif domain == 'combats' %}
                             {% include "game/domains/combat/left_sidebar/main.html" %}
                         {% endif %}
                     </div>
-                    {% if domain != 'COMBAT' %}
+                    {% if domain != 'combats' %}
                     <div x-show="leftPanelView === 'builds'" x-cloak>
                         <div class="ds-panel">
                             <div class="ds-panel-header">BUILDS</div>
@@ -46,13 +47,13 @@
         <main id="game-viewport" class="col-center" style="flex: 1; display: flex; flex-direction: column;">
             <div id="game-center" class="col-center-inner" style="flex: 1; display: flex; align-items: center; justify-content: center;">
                 {% block session_content %}
-                    {% if domain == 'SCENARIO' %}
+                    {% if domain == 'scenario' %}
                         {% include "game/domains/scenario/viewport/main.html" %}
-                    {% elif domain == 'EXPLORATION' %}
+                    {% elif domain == 'exploration' %}
                         {% include "game/domains/exploration/viewport/main.html" %}
-                    {% elif domain == 'ARENA' %}
+                    {% elif domain == 'arena' %}
                         {% include "game/domains/arena/viewport/main.html" %}
-                    {% elif domain == 'COMBAT' %}
+                    {% elif domain == 'combats' %}
                         {% include "game/domains/combat/viewport/main.html" %}
                     {% else %}
                         {% include "game/domains/exploration/viewport/main.html" %}
@@ -62,15 +63,17 @@
         </main>
 
         {# Right Panel (Social/Intel/Enemies) #}
-        <aside id="game-right" class="col-right {{ 'panel-open' if session_ui and session_ui.right_open else '' }}" :class="{ 'panel-open': rightOpen }">
+        <aside id="game-right" class="col-right {{ 'panel-open' if combat_layout or (session_ui and session_ui.right_open) else '' }}" :class="{ 'panel-open': rightOpen }">
             <div id="game-right-content">
                 {% block game_right %}
                     <div x-show="rightPanelView === 'context'">
-                        {% if domain == 'SCENARIO' %}
+                        {% if domain == 'scenario' %}
                             {% include "game/domains/scenario/right_sidebar/main.html" %}
-                        {% elif domain == 'EXPLORATION' %}
+                        {% elif domain == 'exploration' %}
                             {% include "game/domains/exploration/right_sidebar/main.html" %}
-                        {% elif domain == 'COMBAT' %}
+                        {% elif domain == 'arena' %}
+                            {% include "game/domains/arena/right_sidebar/main.html" %}
+                        {% elif domain == 'combats' %}
                             {% include "game/domains/combat/right_sidebar/main.html" %}
                         {% endif %}
                     </div>

@@ -6,7 +6,8 @@
     {% include "game/session_content_inner.html" %}
 </div>
 <div id="game-shell-overlays" hx-swap-oob="outerHTML">
-    {% if domain != 'COMBAT' %}
+    <div id="game-modal-root"></div>
+    {% if domain != 'combats' %}
     <section class="hud-window inventory-window"
              x-cloak
              x-show="windows.inventory.open"
@@ -22,16 +23,13 @@
                     @click="windows.inventory.open = false">×</button>
         </header>
         <div class="hud-window-body">
-            <div class="missing-data-block">
-                <span>INVENTORY_LINK_PENDING</span>
-                <small>runtime inventory panel is not wired yet</small>
-            </div>
+            {% include "game/components/inventory/window.html" %}
         </div>
     </section>
     {% endif %}
 </div>
 <div id="game-chat-shell" hx-swap-oob="outerHTML">
-    {% if domain != 'COMBAT' %}
+    {% if domain != 'combats' %}
     <div class="game-chat-row" id="game-chat-container"
          :class="{ 'chat-minimized': chatStep === 0, ['chat-step-' + chatStep]: true }">
         <div class="shell-constrained">
@@ -43,7 +41,7 @@
     {% endif %}
 </div>
 <div id="game-footer-shell" hx-swap-oob="outerHTML">
-    {% if domain != 'COMBAT' %}
+    {% if domain != 'combats' %}
     <footer class="game-footer">
         {% include "game/includes/footer.html" %}
     </footer>

@@ -73,8 +73,8 @@
 }
 
 .chat-tab span {
-    font-size: var(--text-2xs);
-    letter-spacing: 0.14em;
+    font-size: 10px;
+    letter-spacing: 0.12em;
     opacity: 0.45;
     transition: opacity 0.18s, color 0.18s;
 }
@@ -82,8 +82,8 @@
 .chat-tab:hover span { opacity: 0.75; }
 
 /* ── Per-channel active colours (uses --col-chat-* tokens) ── */
-.chat-tab[data-channel="world"].active  span { color: var(--col-chat-world);   opacity: 1; }
-.chat-tab[data-channel="local"].active  span { color: var(--col-chat-local);   opacity: 1; }
+.chat-tab[data-channel="global"].active span { color: var(--col-chat-world);   opacity: 1; }
+.chat-tab[data-channel="zone"].active   span { color: var(--col-chat-local);   opacity: 1; }
 .chat-tab[data-channel="system"].active span { color: var(--col-chat-system);  opacity: 1; }
 .chat-tab[data-channel="private"].active span { color: var(--col-chat-private); opacity: 1; }
 
@@ -92,8 +92,8 @@
 
 /* ── Unread notification glow ── */
 /* Add class "unread" from Alpine/HTMX when new messages arrive in inactive tab */
-.chat-tab[data-channel="world"].unread span  { color: var(--col-chat-world);   opacity: 0.9; animation: notify-pulse-world 1.3s ease-in-out infinite; }
-.chat-tab[data-channel="local"].unread span  { color: var(--col-chat-local);   opacity: 0.9; animation: notify-pulse-local 1.3s ease-in-out infinite; }
+.chat-tab[data-channel="global"].unread span { color: var(--col-chat-world);   opacity: 0.9; animation: notify-pulse-world 1.3s ease-in-out infinite; }
+.chat-tab[data-channel="zone"].unread span   { color: var(--col-chat-local);   opacity: 0.9; animation: notify-pulse-local 1.3s ease-in-out infinite; }
 .chat-tab[data-channel="system"].unread span { color: var(--col-chat-system);  opacity: 0.9; animation: notify-pulse 1.3s ease-in-out infinite; }
 .chat-tab[data-channel="private"].unread span{ color: var(--col-chat-private); opacity: 0.9; animation: notify-pulse 1.3s ease-in-out infinite; }
 
@@ -190,7 +190,7 @@
 }
 
 .users-header {
-    font-size: 8px;
+    font-size: 10px;
     letter-spacing: 2px;
     color: var(--col-accent);
     opacity: 0.5;
@@ -201,8 +201,15 @@
     display: flex;
     align-items: center;
     gap: 10px;
-    font-size: 10px;
+    font-size: 11px;
     padding: 4px 0;
+}
+
+.user-item.is-empty {
+    color: var(--col-parchment-dim);
+    font-size: 10px;
+    line-height: 1.35;
+    opacity: 0.55;
 }
 
 .u-dot {
@@ -221,16 +228,16 @@
 
 /* Chat Messages */
 .msg {
-    font-size: 9px;
-    line-height: 1.5;
-    padding: 2px 0;
+    font-size: 12px;
+    line-height: 1.55;
+    padding: 3px 0;
     border-left: 2px solid transparent;
     padding-left: 8px;
 }
 .tag-m {
     color: var(--col-accent);
     margin-right: 8px;
-    font-size: 8px;
+    font-size: 10px;
     opacity: 0.8;
 }
 
@@ -250,7 +257,7 @@
 
 #chat-prompt {
     color: var(--col-accent);
-    font-size: 12px;
+    font-size: 14px;
     font-family: var(--font-mono);
 }
 
@@ -259,8 +266,8 @@
     background: transparent;
     border: none;
     color: var(--col-parchment);
-    font-size: 10px;
-    padding: 6px 0;
+    font-size: 12px;
+    padding: 8px 0;
     font-family: var(--font-mono);
 }
 
@@ -321,7 +328,7 @@
 }
 
 .chat-mini-preview .msg {
-    font-size: var(--text-2xs);
+    font-size: 10px;
     opacity: 0.55;
     white-space: nowrap;
     overflow: hidden;

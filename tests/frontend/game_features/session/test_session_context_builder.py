@@ -5,10 +5,12 @@ from uuid import uuid4
 import pytest
 
 from src.frontend.game_features.session.services.session_context_builder import SessionContextBuilder
+from src.frontend.integrations.backend_api.combat import CombatViewResponse
 from src.shared.enums import CoreDomain
 from src.shared.schemas import CoreResponseDTO, GameStateHeader, ScenarioPayloadDTO
+from src.shared.schemas.arena import ArenaScreenEnum, ArenaUIPayloadDTO
 from src.shared.schemas.character_status import CharacterActorCoreDTO
-from src.shared.schemas.combat import CombatActorCardDTO, CombatActorVitalsDTO, CombatDashboardDTO
+from src.shared.schemas.combat import CombatActorCardDTO, CombatActorVitalsDTO, CombatDashboardDTO, CombatResultDTO
 from src.shared.schemas.exploration import (
     DetectionStatus,
     EncounterDTO,
@@ -96,35 +98,52 @@ class FakeScenarioApi:
 
 
 class FakeCombatApi:
-    def __init__(self):
+    def __init__(self, payload=None, payload_type="CombatDashboard"):
         self.calls = []
+        self.payload = payload
+        self.payload_type = payload_type
 
     async def view(self, token, *, char_id):
         self.calls.append(("combat", char_id))
+        payload = self.payload or CombatDashboardDTO(
+            session_id="combat-1",
+            turn_number=3,
+            status="active",
+            hero=CombatActorCardDTO(
+                actor_id=str(char_id),
+                name="Ada",
+                actor_type="player",
+                team="team_1",
+                avatar_url="/static/images/avatars/rook7.png",
+                vitals=CombatActorVitalsDTO(hp_current=70, hp_max=100, energy_current=40, energy_max=90, tactics=2),
+            ),
+            target=CombatActorCardDTO(
+                actor_id=f"-{char_id}",
+                name="Ada Shadow",
+                actor_type="shadow",
+                team="team_2",
+                is_ai=True,
+                vitals=CombatActorVitalsDTO(hp_current=65, hp_max=100, energy_current=30, energy_max=90, tactics=1),
+            ),
+        )
         return CoreResponseDTO(
             header=GameStateHeader(current_state=CoreDomain.COMBAT, transaction_id="tx-combat"),
-            payload=CombatDashboardDTO(
-                session_id="combat-1",
-                turn_number=3,
-                status="active",
-                hero=CombatActorCardDTO(
-                    actor_id=str(char_id),
-                    name="Ada",
-                    actor_type="player",
-                    team="team_1",
-                    avatar_url="/static/images/avatars/rook7.png",
-                    vitals=CombatActorVitalsDTO(hp_current=70, hp_max=100, energy_current=40, energy_max=90, tactics=2),
-                ),
-                target=CombatActorCardDTO(
-                    actor_id=f"-{char_id}",
-                    name="Ada Shadow",
-                    actor_type="shadow",
-                    team="team_2",
-                    is_ai=True,
-                    vitals=CombatActorVitalsDTO(hp_current=65, hp_max=100, energy_current=30, energy_max=90, tactics=1),
-                ),
-            ),
-            payload_type="CombatDashboard",
+            payload=payload,
+            payload_type=self.payload_type,
+        )
+
+
+class FakeArenaApi:
+    def __init__(self, payload):
+        self.payload = payload
+        self.calls = []
+
+    async def view(self, token, *, char_id):
+        self.calls.append(("arena", char_id))
+        return CoreResponseDTO(
+            header=GameStateHeader(current_state=CoreDomain.ARENA, transaction_id="tx-arena"),
+            payload=self.payload,
+            payload_type="arena_screen",
         )
 
 
@@ -181,11 +200,37 @@ def combat_builder(status_api, combat_api):
     )
 
 
+def arena_builder(status_api, arena_api):
+    return SessionContextBuilder(
+        character_status_api=status_api,
+        arena_api=arena_api,
+        exploration_api=SimpleNamespace(),
+        scenario_api=FakeScenarioApi(scenario_response()),
+        game_session_api=FakeGameSessionApi(scenario_response()),
+    )
+
+
+def test_combat_view_response_parses_result_before_dashboard():
+    response = CombatViewResponse.model_validate(
+        {
+            "header": {"current_state": "combats", "error": "combat_result_from_archive_stub"},
+            "payload_type": "combat_result",
+            "payload": {
+                "char_id": 7,
+                "title": "Итоги боя недоступны",
+                "message": "Живая боевая сессия больше не найдена.",
+            },
+        }
+    )
+
+    assert isinstance(response.payload, CombatResultDTO)
+
+
 @pytest.mark.asyncio
 async def test_build_current_returns_full_scenario_shell_context():
     context = await builder(scenario_response()).build_current(request(), char_id=7)
 
-    assert context["domain"] == "SCENARIO"
+    assert context["domain"] == "scenario"
     assert context["char_id"] == 7
     assert context["scenario"].node_key == "rift_entry_01"
     assert context["character_status"].panel is not None
@@ -194,6 +239,11 @@ async def test_build_current_returns_full_scenario_shell_context():
     assert context["status_seed"]["hp"] == 88
     assert context["status_seed"]["symbiote_name"] == "Mote"
     assert context["status_seed"]["symbiote"]["gift_rank"] == 1
+    assert context["inventory_window"].avatar_url == "/avatar.png"
+    assert context["inventory_window"].contract_state == "FRONTEND_CONTRACT_PENDING"
+    assert len(context["inventory_window"].body_zones) == 6
+    assert len(context["inventory_window"].accessory_rows) == 4
+    assert len(context["inventory_window"].quick_slots) == 8
     assert context["nav"]["center"]["label"] == "SCENARIO"
 
 
@@ -209,7 +259,7 @@ async def test_build_state_initializes_scenario_with_same_context_shape():
         quest_key="awakening_rift",
     )
 
-    assert context["domain"] == "SCENARIO"
+    assert context["domain"] == "scenario"
     assert context["scenario"] == response.payload
     assert context["session_ui"]["right_open"] is True
 
@@ -223,7 +273,7 @@ async def test_build_state_restores_actor_core_before_exploration_lookup():
     context = await service.build_state(request(), state=CoreDomain.EXPLORATION, char_id=7)
 
     assert calls == [("status", 7), ("exploration", 7)]
-    assert context["domain"] == "EXPLORATION"
+    assert context["domain"] == "exploration"
     assert context["exploration"].loc_id == "52_52"
 
 
@@ -257,6 +307,28 @@ async def test_build_exploration_response_keeps_location_context_for_encounter()
 
 
 @pytest.mark.asyncio
+async def test_build_state_arena_normalizes_dict_payload_before_render_context():
+    status_api = FakeCharacterStatusApi()
+    arena_api = FakeArenaApi(
+        {
+            "screen": "main_menu",
+            "title": "Ангар Арены",
+            "description": "Выберите режим.",
+            "buttons": [],
+        }
+    )
+    service = arena_builder(status_api, arena_api)
+
+    context = await service.build_state(request(), state=CoreDomain.ARENA, char_id=7)
+
+    assert arena_api.calls == [("arena", 7)]
+    assert isinstance(context["arena"], ArenaUIPayloadDTO)
+    assert context["arena"].screen == ArenaScreenEnum.MAIN_MENU
+    assert context["domain"] == "arena"
+    assert context["character_status"].panel is not None
+
+
+@pytest.mark.asyncio
 async def test_build_state_combat_uses_combat_session_without_character_status_lookup():
     status_api = FakeCharacterStatusApi()
     combat_api = FakeCombatApi()
@@ -266,7 +338,7 @@ async def test_build_state_combat_uses_combat_session_without_character_status_l
 
     assert combat_api.calls == [("combat", 7)]
     assert status_api.calls == []
-    assert context["domain"] == "COMBAT"
+    assert context["domain"] == "combats"
     assert context["combat"].session_id == "combat-1"
     assert context["combat"].hero.avatar_url == "/static/images/avatars/rook7.png"
     assert context["combat_screen"].hero.avatar_url == "/static/images/avatars/rook7.png"
@@ -281,3 +353,23 @@ async def test_build_state_combat_uses_combat_session_without_character_status_l
     assert context["nav"]["r2"]["label"] == "VIEW"
     assert context["status_seed"]["hp"] == 70
     assert context["status_seed"]["name"] == "Ada"
+
+
+@pytest.mark.asyncio
+async def test_build_state_combat_accepts_archived_result_payload():
+    status_api = FakeCharacterStatusApi()
+    combat_api = FakeCombatApi(
+        payload=CombatResultDTO(char_id=7, title="Итоги боя недоступны"),
+        payload_type="combat_result",
+    )
+    service = combat_builder(status_api, combat_api)
+
+    context = await service.build_state(request(), state=CoreDomain.COMBAT, char_id=7)
+
+    assert combat_api.calls == [("combat", 7)]
+    assert status_api.calls == []
+    assert context["domain"] == "combats"
+    assert context["combat_result"].title == "Итоги боя недоступны"
+    assert context["combat_screen"] is None
+    assert context["payload_type"] == "combat_result"
+    assert context["status_seed"]["character_id"] == 7

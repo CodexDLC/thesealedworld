@@ -49,6 +49,16 @@ class MonsterGenerationRepository:
         result = await self.session.scalars(stmt)
         return [_to_generated_clan(clan) for clan in result.all()]
 
+    async def list_generated_clans(self, limit: int = 100) -> list[GeneratedClan]:
+        stmt = (
+            select(GeneratedClanORM)
+            .options(selectinload(GeneratedClanORM.members))
+            .order_by(GeneratedClanORM.zone_id, GeneratedClanORM.tier, GeneratedClanORM.family_id)
+            .limit(limit)
+        )
+        result = await self.session.scalars(stmt)
+        return [_to_generated_clan(clan) for clan in result.all()]
+
     async def get_clan_members(self, clan_id: uuid.UUID | str) -> list[GeneratedMonster]:
         stmt = (
             select(Monster)
@@ -74,6 +84,31 @@ class MonsterGenerationRepository:
         clan_orm.members.extend(member_orms)
         self.session.add(clan_orm)
         self.session.add_all(member_orms)
+        await self.session.flush()
+        return _to_generated_clan(clan_orm)
+
+    async def update_clan_flavor(self, clan: GeneratedClan) -> GeneratedClan:
+        stmt = (
+            select(GeneratedClanORM)
+            .where(GeneratedClanORM.id == clan.id)
+            .options(selectinload(GeneratedClanORM.members))
+        )
+        clan_orm = await self.session.scalar(stmt)
+        if clan_orm is None:
+            raise ValueError(f"Generated clan not found: {clan.id}")
+
+        clan_orm.flavor_content = dict(clan.flavor_content)
+        clan_orm.name_ru = clan.name_ru
+        clan_orm.description = clan.description
+
+        members_by_id = {member.id: member for member in clan.members}
+        for member_orm in clan_orm.members:
+            member = members_by_id.get(member_orm.id)
+            if member is None:
+                continue
+            member_orm.name_ru = member.name_ru
+            member_orm.description = member.description
+
         await self.session.flush()
         return _to_generated_clan(clan_orm)
 

@@ -5,7 +5,7 @@ spawn_config.py
 
 # 1. НАСЕЛЕНИЕ БИОМОВ (ОТКРЫТЫЙ МИР)
 BIOME_FAMILIES: dict[str, set[str]] = {
-    "city_ruins": {"bandit_gang", "rat_swarm", "goblin_tribe", "werewolf_pack", "spider_colony"},
+    "city_ruins": {"bandit_gang", "rat_swarm", "wolf_pack", "goblin_tribe", "werewolf_pack", "spider_colony"},
     "forest": {
         "wolf_pack",
         "bandit_gang",

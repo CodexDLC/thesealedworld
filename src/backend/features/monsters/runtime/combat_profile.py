@@ -4,6 +4,7 @@ from typing import TYPE_CHECKING, Any, Protocol
 
 from src.backend.features.items.resources import get_base_by_id
 from src.backend.features.monsters.resources import get_family_config
+from src.shared.schemas.modifier_dto import CombatModifiersDTO
 
 if TYPE_CHECKING:
     import uuid
@@ -43,6 +44,21 @@ MONSTER_TO_ACTOR_STATS: dict[str, str] = {
     "perception": "perception",
     "charisma": "projection",
     "luck": "prediction",
+}
+
+COMBAT_MODIFIER_KEYS = frozenset(CombatModifiersDTO.model_fields)
+MODIFIER_ALIASES = {
+    "block_chance": "block",
+    "damage_reduction_flat": "armor",
+    "dodge_chance": "evasion",
+    "evasion_penalty": "evasion",
+    "magical_resistance": "magic_resist",
+    "magic_resistance": "magic_resist",
+    "parry_chance": "parry",
+    "physical_accuracy": "accuracy",
+    "physical_crit_chance": "crit_chance",
+    "physical_crit_power_float": "crit_power",
+    "shield_block_chance": "block",
 }
 
 
@@ -283,31 +299,73 @@ def _resolve_abilities(monster: MonsterCombatSource, family: MonsterFamilyDTO | 
 def _modifiers(equipment: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
     modifiers: dict[str, dict[str, Any]] = {}
     for item in equipment:
-        item_id = str(item.get("id"))
-        source_key = f"monster_equipment:{item_id}"
         base_power = float(item.get("base_power") or 0.0)
+        damage_spread = item.get("damage_spread")
         slot = str(item.get("slot") or "")
         item_type = str(item.get("type") or "")
+        tags = _list_str(item.get("narrative_tags"))
+        combat_slot = "main_hand" if slot == "two_hand" else slot
         if base_power:
-            if slot == "main_hand":
-                _add_modifier(modifiers, "main_hand_damage_base", source_key, base_power)
-            elif slot == "off_hand":
-                if "shield" in item.get("narrative_tags", []) or item_type == "shield":
-                    _add_modifier(modifiers, "block", source_key, base_power)
+            if combat_slot == "main_hand":
+                _add_base_modifier(modifiers, "main_hand_damage_base", base_power)
+            elif combat_slot == "off_hand":
+                if _is_shield(item_type, tags):
+                    _add_base_modifier(modifiers, "block", base_power)
                 else:
-                    _add_modifier(modifiers, "off_hand_damage_base", source_key, base_power)
+                    _add_base_modifier(modifiers, "off_hand_damage_base", base_power)
             elif item_type in {"armor", "monster_natural_armor"} or slot.endswith("_armor"):
-                _add_modifier(modifiers, "armor", source_key, base_power)
+                _add_base_modifier(modifiers, "armor", base_power)
+
+        if damage_spread is not None:
+            if combat_slot == "main_hand":
+                _replace_base_modifier(modifiers, "main_hand_damage_spread", float(damage_spread))
+            elif combat_slot == "off_hand" and not _is_shield(item_type, tags):
+                _replace_base_modifier(modifiers, "off_hand_damage_spread", float(damage_spread))
 
         for key, value in (item.get("implicit_bonuses") or {}).items():
-            _add_modifier(modifiers, str(key), source_key, float(value))
+            _add_base_modifier(
+                modifiers,
+                _item_base_key(str(key), slot=combat_slot, item_type=item_type, tags=tags),
+                float(value),
+            )
 
     return modifiers
 
 
-def _add_modifier(modifiers: dict[str, dict[str, Any]], key: str, source: str, value: float) -> None:
+def _add_base_modifier(modifiers: dict[str, dict[str, Any]], key: str, value: float) -> None:
+    key = MODIFIER_ALIASES.get(key, key)
+    if key not in COMBAT_MODIFIER_KEYS:
+        return
     modifiers.setdefault(key, {"base": 0.0, "source": {}, "temp": {}})
-    modifiers[key]["source"][source] = value
+    modifiers[key]["base"] = round(float(modifiers[key].get("base", 0.0) or 0.0) + value, 4)
+
+
+def _replace_base_modifier(modifiers: dict[str, dict[str, Any]], key: str, value: float) -> None:
+    key = MODIFIER_ALIASES.get(key, key)
+    if key not in COMBAT_MODIFIER_KEYS:
+        return
+    modifiers.setdefault(key, {"base": 0.0, "source": {}, "temp": {}})
+    modifiers[key]["base"] = round(value, 4)
+
+
+def _item_base_key(key: str, *, slot: str, item_type: str, tags: list[str]) -> str:
+    if key == "physical_accuracy":
+        if slot == "main_hand":
+            return "main_hand_accuracy"
+        if slot == "off_hand" and not _is_shield(item_type, tags):
+            return "off_hand_accuracy"
+        return "accuracy"
+    if key == "physical_crit_chance":
+        if slot == "main_hand":
+            return "main_hand_crit_chance"
+        if slot == "off_hand" and not _is_shield(item_type, tags):
+            return "off_hand_crit_chance"
+        return "crit_chance"
+    return MODIFIER_ALIASES.get(key, key)
+
+
+def _is_shield(item_type: str, tags: list[str]) -> bool:
+    return item_type == "shield" or "shield" in tags
 
 
 def _dump_model(value: Any) -> dict[str, Any]:

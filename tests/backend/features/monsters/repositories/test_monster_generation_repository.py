@@ -57,3 +57,74 @@ async def test_create_clan_with_members_persists_clan_and_members() -> None:
     session.add.assert_called_once()
     session.add_all.assert_called_once()
     session.flush.assert_awaited_once()
+
+
+@pytest.mark.unit
+async def test_update_clan_flavor_updates_clan_and_member_text() -> None:
+    session = MagicMock()
+    session.flush = AsyncMock()
+    clan_id = uuid.uuid4()
+    member_id = uuid.uuid4()
+    clan_orm = GeneratedClanORM(
+        id=clan_id,
+        family_id="wolf_pack",
+        tier=1,
+        zone_id="zone-a",
+        context_hash="context",
+        unique_hash="unique",
+        raw_tags={},
+        flavor_content={"name": "Wolf Pack T1"},
+        name_ru="Wolf Pack T1",
+        description="Old",
+    )
+    member_orm = GeneratedMonsterORM(
+        id=member_id,
+        clan_id=clan_id,
+        variant_key="runner",
+        role="minion",
+        threat_rating=20,
+        name_ru="Runner T1",
+        description="Old runner",
+        scaled_base_stats={"strength": 10},
+        loadout_ids={},
+        skills_snapshot=[],
+        combat_seed={},
+    )
+    clan_orm.members.append(member_orm)
+    session.scalar = AsyncMock(return_value=clan_orm)
+    repo = MonsterGenerationRepository(session)
+
+    updated = GeneratedClan(
+        id=clan_id,
+        family_id="wolf_pack",
+        tier=1,
+        zone_id="zone-a",
+        context_hash="context",
+        unique_hash="unique",
+        raw_tags={},
+        flavor_content={"name_ru": "Ashen Wolves", "variants_flavor": {}},
+        name_ru="Ashen Wolves",
+        description="New",
+        members=[
+            GeneratedMonster(
+                id=member_id,
+                clan_id=clan_id,
+                variant_key="runner",
+                role="minion",
+                threat_rating=20,
+                name_ru="Runner",
+                description="New runner",
+                scaled_base_stats={"strength": 10},
+                loadout_ids={},
+                skills_snapshot=[],
+            )
+        ],
+    )
+
+    result = await repo.update_clan_flavor(updated)
+
+    assert result.name_ru == "Ashen Wolves"
+    assert result.members[0].name_ru == "Runner"
+    assert clan_orm.flavor_content == {"name_ru": "Ashen Wolves", "variants_flavor": {}}
+    assert member_orm.description == "New runner"
+    session.flush.assert_awaited_once()

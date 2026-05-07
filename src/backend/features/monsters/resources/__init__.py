@@ -84,5 +84,19 @@ def get_available_variants_for_tier(family_id: str, tier: int) -> list[str]:
     return [var.id for var in family.variants.values() if var.min_tier <= tier <= var.max_tier]
 
 
+def get_available_variants_for_tier_window(family_id: str, tier: int, radius: int = 1) -> list[str]:
+    family = _FAMILY_REGISTRY.get(family_id)
+    if not family:
+        return []
+
+    min_tier = max(0, tier - radius)
+    max_tier = min(7, tier + radius)
+    return [var.id for var in family.variants.values() if var.min_tier <= max_tier and var.max_tier >= min_tier]
+
+
 def get_starter_family_ids() -> tuple[str, ...]:
     return STARTER_FAMILY_IDS
+
+
+def get_all_family_configs() -> dict[str, MonsterFamilyDTO]:
+    return dict(_FAMILY_REGISTRY)

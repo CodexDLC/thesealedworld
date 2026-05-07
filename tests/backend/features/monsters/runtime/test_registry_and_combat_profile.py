@@ -61,11 +61,11 @@ def test_monster_natural_equipment_is_registered_as_item_base() -> None:
 
 
 @pytest.mark.unit
-def test_rat_beast_profile_builds_combat_ready_context() -> None:
+async def test_rat_beast_profile_builds_combat_ready_context() -> None:
     context = MonsterGenerationContext(zone_id="D4_0_1", biome_id="city_ruins", tier=1, tags=["mana_leak"])
     tags = normalize_tags(context.tags)
     context_hash = compute_context_hash(context.tier, context.biome_id, tags)
-    clan, members = ClanFactory().build_clan_with_members(
+    clan, members = await ClanFactory().build_clan_with_members(
         family_id="rat_swarm",
         context=context,
         context_hash=context_hash,
@@ -80,7 +80,7 @@ def test_rat_beast_profile_builds_combat_ready_context() -> None:
 
     assert combat["math_model"]["attributes"]["strength"]["base"] > 0
     assert combat["math_model"]["attributes"]["intellect"]["base"] >= 0
-    assert combat["math_model"]["modifiers"]["main_hand_damage_base"]["source"]
+    assert combat["math_model"]["modifiers"]["main_hand_damage_base"]["base"] > 0
     assert combat["loadout"]["layout"]["main_hand"] == "skill_unarmed"
     assert combat["loadout"]["layout"]["main_hand_trigger"] == "crit.bleed_on_crit"
     assert combat["loadout"]["layout"]["body"] == "skill_light_armor"
@@ -92,11 +92,11 @@ def test_rat_beast_profile_builds_combat_ready_context() -> None:
 
 
 @pytest.mark.unit
-def test_bandit_humanoid_loadout_resolves_into_modifiers_and_layout() -> None:
+async def test_bandit_humanoid_loadout_resolves_into_modifiers_and_layout() -> None:
     context = MonsterGenerationContext(zone_id="D4_0_1", biome_id="city_ruins", tier=1, tags=["mana_leak"])
     tags = normalize_tags(context.tags)
     context_hash = compute_context_hash(context.tier, context.biome_id, tags)
-    clan, members = ClanFactory().build_clan_with_members(
+    clan, members = await ClanFactory().build_clan_with_members(
         family_id="bandit_gang",
         context=context,
         context_hash=context_hash,
@@ -114,6 +114,6 @@ def test_bandit_humanoid_loadout_resolves_into_modifiers_and_layout() -> None:
     assert combat["loadout"]["equipment_layout"]["main_hand"] == "hatchet"
     assert combat["loadout"]["equipment_layout"]["off_hand"] == "buckler"
     assert combat["loadout"]["equipment_layout"]["chest_armor"] == "jerkin"
-    assert combat["math_model"]["modifiers"]["main_hand_damage_base"]["source"]
-    assert combat["math_model"]["modifiers"]["armor"]["source"]
+    assert combat["math_model"]["modifiers"]["main_hand_damage_base"]["base"] > 0
+    assert combat["math_model"]["modifiers"]["armor"]["base"] > 0
     assert combat["skills"]["skill_one_handed"] >= 20

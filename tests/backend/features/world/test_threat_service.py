@@ -17,7 +17,7 @@ def test_threat_service_returns_anchor_pressure_outside_city():
     influence = ThreatService.describe(7, 7)
 
     assert influence.dominant_anchor == "north_prime"
-    assert influence.biome_id == "stasis_wastes"
+    assert influence.anomaly_id == "stasis"
     assert influence.tier > 0
     assert influence.tags
 

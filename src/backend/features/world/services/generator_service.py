@@ -1,15 +1,16 @@
 import asyncio
-import json
 import logging
 from collections.abc import Iterable
 from typing import Any
 
 from src.backend.core.ai import AIService
+from src.backend.core.ai_json import parse_ai_json_mapping
 from src.backend.features.world.integrations import WorldDataIntegration
 from src.backend.features.world.loaders.village_loader import VillageLoader
 from src.backend.features.world.prompts.router import world_prompt_router
 from src.backend.features.world.resources.static.start_village import STATIC_LOCATIONS
 from src.backend.features.world.runtime.config import HUB_CENTER, REGION_ROWS, REGION_SIZE, ZONE_SIZE
+from src.backend.features.world.runtime.geography import WorldGeographyService
 from src.backend.features.world.runtime.theme import WorldThemeService
 from src.backend.features.world.runtime.threat import ThreatService
 
@@ -482,20 +483,7 @@ class LLMWorldGenerator:
 
     @staticmethod
     def _parse_ai_json_map(raw_response: Any) -> dict[str, Any] | None:
-        if isinstance(raw_response, dict):
-            return raw_response
-        if not isinstance(raw_response, str):
-            return None
-
-        clean_json = raw_response.replace("```json", "").replace("```", "").strip()
-        if not clean_json:
-            return None
-        try:
-            parsed = json.loads(clean_json)
-        except json.JSONDecodeError:
-            log.warning("World AI content response is not valid JSON")
-            return None
-        return parsed if isinstance(parsed, dict) else None
+        return parse_ai_json_mapping(raw_response, context="world")
 
     @staticmethod
     def _chunks(items: list[dict[str, Any]], size: int) -> Iterable[list[dict[str, Any]]]:
@@ -559,9 +547,14 @@ class LLMWorldGenerator:
                     (col_idx - 1) * REGION_SIZE + REGION_SIZE // 2,
                     r_idx * REGION_SIZE + REGION_SIZE // 2,
                 )
+                region_geo = WorldGeographyService.describe_zone(
+                    (col_idx - 1) * REGION_SIZE + REGION_SIZE // 2,
+                    r_idx * REGION_SIZE + REGION_SIZE // 2,
+                )
                 region_tags = [
                     "ancient_world",
-                    region_influence.biome_id,
+                    str(region_geo["primary_biome"]),
+                    *region_geo["secondary_biomes"],
                     *region_influence.tags,
                 ]
                 await self.data.upsert_region(region_id, climate_tags=list(dict.fromkeys(region_tags)))
@@ -574,20 +567,24 @@ class LLMWorldGenerator:
                         center_x = (col_idx - 1) * REGION_SIZE + zx * ZONE_SIZE + ZONE_SIZE // 2
                         center_y = r_idx * REGION_SIZE + zy * ZONE_SIZE + ZONE_SIZE // 2
                         influence = ThreatService.describe(center_x, center_y)
+                        geography = WorldGeographyService.describe_zone(center_x, center_y)
                         world_theme = WorldThemeService.build(center_x, center_y, loc_id=zone_id)
 
                         await self.data.upsert_zone(
                             zone_id,
                             region_id=region_id,
-                            biome_id=influence.biome_id,
+                            biome_id=str(geography["primary_biome"]),
                             tier=influence.tier,
                             flags={
                                 "is_safe_zone": False,
                                 "threat": influence.threat,
                                 "threat_tier": influence.tier,
                                 "dominant_anchor": influence.dominant_anchor,
+                                "anomaly_id": influence.anomaly_id,
                                 "anchor_tags": influence.tags,
                                 "is_inside_city_shield": influence.is_inside_city_shield,
+                                "secondary_biomes": geography["secondary_biomes"],
+                                "biome_mix": geography["biome_mix"],
                                 "world_theme": world_theme.model_dump(mode="json"),
                             },
                         )

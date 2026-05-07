@@ -254,8 +254,10 @@ class ExplorationService:
         navigation = NavigationEngine.build_actions(loc_id, exits, flags, anchor_influence)
 
         is_safe_zone = NavigationEngine.is_safe_context(flags, anchor_influence)
+        threat = self._safe_threat(anchor_influence.get("threat", flags.get("threat", 0.0)))
 
         hud = ExplorationHudDTO(
+            threat=threat,
             threat_tier=int(flags.get("threat_tier", 0)),
             players_count=players_count,
             battles_count=battles_count,
@@ -282,3 +284,10 @@ class ExplorationService:
         if dto.world_theme is not None and hasattr(dto.world_theme, "model_dump"):
             await self._integrator.set_world_theme(char_id, dto.world_theme.model_dump(mode="json"))
         return dto
+
+    @staticmethod
+    def _safe_threat(value: object) -> float:
+        try:
+            return max(0.0, min(1.0, float(value)))
+        except (TypeError, ValueError):
+            return 0.0

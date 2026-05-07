@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from operator import itemgetter
 
 from src.backend.features.world.runtime.config import (
-    ANCHOR_BIOMES,
+    ANCHOR_ANOMALIES,
     ANCHORS,
     HUB_CENTER,
     HYBRID_TAGS,
@@ -20,7 +20,7 @@ class AnchorInfluence:
     threat: float
     tier: int
     dominant_anchor: str | None
-    biome_id: str
+    anomaly_id: str | None
     tags: list[str]
     is_inside_city_shield: bool
 
@@ -45,7 +45,7 @@ class ThreatService:
             threat=threat,
             tier=tier,
             dominant_anchor=dominant_anchor,
-            biome_id=ANCHOR_BIOMES.get(dominant_anchor or "", "wilderness"),
+            anomaly_id=ANCHOR_ANOMALIES.get(dominant_anchor or ""),
             tags=cls.get_narrative_tags(x, y),
             is_inside_city_shield=cls._is_inside_city(x, y),
         )

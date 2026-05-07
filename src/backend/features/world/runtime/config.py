@@ -90,9 +90,9 @@ HYBRID_TAGS = {
     frozenset(["fire", "bio"]): ["boiling_swamp", "rotting_flesh", "steam", "disease"],
 }
 
-ANCHOR_BIOMES = {
-    "north_prime": "stasis_wastes",
-    "south_prime": "ashlands",
-    "west_prime": "gravity_storm",
-    "east_prime": "living_wilds",
+ANCHOR_ANOMALIES = {
+    "north_prime": "stasis",
+    "south_prime": "entropy",
+    "west_prime": "gravity",
+    "east_prime": "bio_mutation",
 }

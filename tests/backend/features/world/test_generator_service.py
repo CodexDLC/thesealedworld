@@ -23,10 +23,13 @@ async def test_generate_world_shell_uses_anchor_influence():
     north_zone = zones["A1_1_1"]
     d4_center_zone = zones["D4_1_1"]
 
-    assert north_zone["biome_id"] == "stasis_wastes"
+    assert north_zone["biome_id"] == "mountains"
     assert north_zone["flags"]["dominant_anchor"] == "north_prime"
+    assert north_zone["flags"]["anomaly_id"] == "stasis"
     assert north_zone["flags"]["anchor_tags"]
+    assert "biome_mix" in north_zone["flags"]
     assert d4_center_zone["tier"] == 0
+    assert d4_center_zone["biome_id"] == "city_ruins"
     assert d4_center_zone["flags"]["is_inside_city_shield"] is True
 
 

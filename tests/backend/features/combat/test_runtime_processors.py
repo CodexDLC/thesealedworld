@@ -16,10 +16,13 @@ from src.backend.features.combat.dto import (
     CombatMoveDTO,
     ExchangePayload,
     InstantPayload,
+    InteractionResultDTO,
     PipelineContextDTO,
 )
+from src.backend.features.combat.integrations import CombatSessionIntegration
 from src.backend.features.combat.runtime.engine.ability_service import AbilityService
 from src.backend.features.combat.runtime.engine.feint_service import FeintService
+from src.backend.features.combat.runtime.engine.mechanics_service import MechanicsService
 from src.backend.features.combat.runtime.processors import AiProcessor, CombatCollector, CombatExecutor
 
 
@@ -44,6 +47,14 @@ class FakeDataService:
 
     async def transfer_actions(self, session_id: str, actions: list[CombatActionDTO]) -> None:
         self.transferred.extend(actions)
+
+
+class CapturingCombatManager:
+    def __init__(self) -> None:
+        self.commit_kwargs: dict[str, Any] | None = None
+
+    async def commit_battle_results(self, *args: Any, **kwargs: Any) -> None:
+        self.commit_kwargs = {"args": args, "kwargs": kwargs}
 
 
 def battle_meta() -> BattleMeta:
@@ -127,8 +138,27 @@ async def test_executor_returns_target_after_forced_exchange() -> None:
     assert processed == ["m1"]
     assert ctx.pending_target_returns == [{"source_id": "1", "target_id": 2}]
     assert "2" in ctx.pending_dead_actors
+    assert ctx.meta.step_counter == 1
+    assert ctx.actors["1"].meta.exchange_counter == 1
+    assert ctx.actors["2"].meta.exchange_counter == 1
     assert {entry["type"] for entry in ctx.pending_logs} >= {"HIT", "DEATH"}
     assert all("runtime" in entry["tags"] for entry in ctx.pending_logs)
+
+
+@pytest.mark.unit
+async def test_commit_session_persists_step_and_actor_exchange_counters() -> None:
+    manager = CapturingCombatManager()
+    integration = CombatSessionIntegration(manager)  # type: ignore[arg-type]
+    ctx = BattleContext(session_id="c1", meta=battle_meta(), actors={"1": actor(1, "a")})
+    ctx.meta.step_counter = 3
+    ctx.actors["1"].meta.exchange_counter = 2
+
+    await integration.commit_session(ctx, ["m1"])
+
+    assert manager.commit_kwargs is not None
+    updates = manager.commit_kwargs["args"][1]
+    assert updates["1"]["state"]["exchange_counter"] == 2
+    assert manager.commit_kwargs["kwargs"]["meta_update"] == {"step_counter": 3}
 
 
 @pytest.mark.unit
@@ -137,6 +167,25 @@ def test_ai_processor_generates_exchange_payload() -> None:
 
     assert payload["action"] == "attack"
     assert payload["target_id"] == 1
+
+
+@pytest.mark.unit
+def test_session_integration_snapshot_preserves_exchange_counter() -> None:
+    integration = CombatSessionIntegration(CapturingCombatManager())  # type: ignore[arg-type]
+
+    snapshot = integration._build_snapshot(
+        "1",
+        "a",
+        {"hp": 100, "max_hp": 100, "exchange_counter": 17},
+        {"attributes": {}, "modifiers": {}},
+        {},
+        {"name": "A1", "type": "player"},
+        {"abilities": [], "effects": []},
+        {},
+        {},
+    )
+
+    assert snapshot.meta.exchange_counter == 17
 
 
 @pytest.mark.unit
@@ -193,3 +242,16 @@ def test_feint_service_refill_hand_uses_token_costs() -> None:
 
     assert source.meta.feints.hand == {"true_strike": {"hit": 2}}
     assert source.meta.tokens["hit"] == 0
+
+
+@pytest.mark.unit
+def test_mechanics_applies_defender_tokens_from_resolver_result() -> None:
+    source = actor(1, "a")
+    target = actor(2, "b")
+    result = InteractionResultDTO(source_id=1, target_id=2, tokens_awarded_defender={"tempo": 1, "parry": 1})
+
+    MechanicsService().apply_interaction_result(PipelineContextDTO(), source, target, result)
+
+    assert source.meta.tokens == {}
+    assert target.meta.tokens["tempo"] == 1
+    assert target.meta.tokens["parry"] == 1

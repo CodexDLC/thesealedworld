@@ -10,7 +10,7 @@ def test_builder_creates_combat_actor_input_from_active_character_document() -> 
         "user_id": "00000000-0000-0000-0000-000000000001",
         "bio": {"name": "Ada", "gender": "female", "avatar": "/avatar.png"},
         "location": {"current": "52_58"},
-        "vitals": {"hp": {"cur": 80, "max": 190}, "energy": {"cur": 40, "max": 97}},
+        "vitals": {"hp": {"cur": 64, "max": 64}, "energy": {"cur": 26, "max": 26}},
         "attributes": {"strength": 15, "agility": 12},
         "skills": {
             "skill_swords": {"xp": 35},
@@ -57,13 +57,13 @@ def test_builder_creates_combat_actor_input_from_active_character_document() -> 
     assert actor_input["meta"]["actor_id"] == 7
     assert actor_input["meta"]["name"] == "Ada"
     assert actor_input["source"]["location_id"] == "52_58"
-    assert actor_input["status"]["hp"]["max"] == 190
+    assert actor_input["status"]["hp"]["max"] == 64
     assert actor_input["skills"] == {
         "skill_light_armor": 20.0,
         "skill_parrying": 25.0,
         "skill_swords": 35.0,
     }
-    assert actor_input["raw"]["modifiers"]["main_hand_damage_base"]["source"]["item:sword-1"] == 7.0
+    assert actor_input["raw"]["modifiers"]["main_hand_damage_base"]["base"] == 7.0
     assert actor_input["raw"]["modifiers"]["parry"]["source"]["skill:skill_parrying:item:sword-1"] == 0.1
     assert actor_input["loadout"]["layout"]["main_hand"] == "skill_swords"
     assert actor_input["loadout"]["layout"]["main_hand_trigger"] == "crit.bleed_on_crit"
@@ -90,7 +90,7 @@ def test_builder_can_emit_lifecycle_compatible_snapshot() -> None:
 
     assert "attributes" in snapshot["combat"]["math_model"]
     assert snapshot["combat"]["skills"] == {}
-    assert snapshot["combat"]["loadout"]["layout"] == {}
+    assert snapshot["combat"]["loadout"]["layout"] == {"main_hand": "skill_unarmed"}
 
 
 @pytest.mark.unit
@@ -125,3 +125,20 @@ def test_builder_maps_two_hand_rewards_to_main_hand_combat_layout() -> None:
     assert actor_input["loadout"]["equipment_layout"] == {"two_hand": "katana-1"}
     assert actor_input["loadout"]["hand_usage"] == {"main_hand": "two_hand"}
     assert actor_input["loadout"]["two_handed"] is True
+
+
+@pytest.mark.unit
+def test_builder_maps_empty_hands_to_unarmed_layout() -> None:
+    actor_input = CharacterCombatActorInputBuilder().build_input(
+        {
+            "char_id": 7,
+            "bio": {"name": "Ada"},
+            "attributes": {"strength": 12},
+            "skills": {"skill_unarmed": {"xp": 5}},
+            "items": {"layout": {"equipment": {}}, "by_id": {}},
+        }
+    )
+
+    assert actor_input["loadout"]["layout"]["main_hand"] == "skill_unarmed"
+    assert actor_input["raw"]["modifiers"]["main_hand_accuracy"]["base"] == 0.7
+    assert actor_input["raw"]["modifiers"]["main_hand_damage_base"]["base"] == 12.0

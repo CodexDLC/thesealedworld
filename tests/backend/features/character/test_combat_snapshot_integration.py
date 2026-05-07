@@ -13,7 +13,7 @@ class FakeCharacterSessions:
                 "char_id": char_id,
                 "user_id": "00000000-0000-0000-0000-000000000001",
                 "bio": {"name": f"Hero {char_id}"},
-                "vitals": {"hp": {"cur": 80, "max": 190}, "energy": {"cur": 30, "max": 97}},
+                "vitals": {"hp": {"cur": 64, "max": 64}, "energy": {"cur": 26, "max": 26}},
                 "attributes": {"strength": 15, "agility": 9},
                 "items": {},
                 "skills": {},
@@ -90,7 +90,7 @@ async def test_character_combat_commitment_integration_builds_player_commitments
     assert result.commitments == {"combat-1:player:7": "combat-1:player:7"}
     assert result.failed_players == []
     assert commitment["meta"]["actor_id"] == 7
-    assert commitment["status"]["hp"]["max"] == 190
+    assert commitment["status"]["hp"]["max"] == 64
     assert commitment["combat"]["math_model"]["modifiers"]
 
 
@@ -112,6 +112,6 @@ async def test_character_combat_commitment_materializes_equipped_items_from_item
 
     commitment = commitment_manager.saved["combat-1:player:7"]
 
-    assert commitment["combat"]["math_model"]["modifiers"]["main_hand_damage_base"]["source"]["item:katana-1"] == 9.0
+    assert commitment["combat"]["math_model"]["modifiers"]["main_hand_damage_base"]["base"] == 9.0
     assert commitment["combat"]["loadout"]["equipment_layout"] == {"two_hand": "katana-1"}
     assert commitment["combat"]["loadout"]["hand_usage"] == {"main_hand": "two_hand"}

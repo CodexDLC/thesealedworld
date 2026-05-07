@@ -1,11 +1,16 @@
 from __future__ import annotations
 
+import logging
 from typing import Any
 
 from loguru import logger
 
 from src.backend.config.settings import settings
 from src.backend.core.arq_container import ArqWorkerContainer
+
+COMBAT_ARQ_QUEUE = "tbmmorpg:arq:combat"
+SYSTEM_ARQ_QUEUE = "tbmmorpg:arq:system"
+WARNING = 30
 
 try:  # pragma: no cover - exercised only when the optional worker runtime is installed.
     from arq.connections import ArqRedis, RedisSettings, create_pool
@@ -54,7 +59,9 @@ def _redis_settings() -> Any:
 
 
 async def base_startup(ctx: dict[str, Any]) -> None:
+    _quiet_arq_lifecycle_logs()
     await platform_base_startup(ctx)
+    _quiet_arq_lifecycle_logs()
     container = ArqWorkerContainer()
     await container.bootstrap(ctx)
     logger.info("ARQ worker base context initialized")
@@ -76,11 +83,23 @@ class BaseArqSettings(PlatformArqWorkerSettings):
     on_shutdown = base_shutdown
 
 
+def _quiet_arq_lifecycle_logs() -> None:
+    for name in ("arq", "arq.worker", "arq.connections", "arq.jobs", "arq.utils"):
+        logging.getLogger(name).setLevel(WARNING)
+
+
 class ArqService(PlatformArqService):
-    def __init__(self) -> None:
+    def __init__(self, queue_name: str = COMBAT_ARQ_QUEUE) -> None:
         if BaseArqSettings.redis_settings is None:
             raise RuntimeError("arq is not installed; cannot enqueue worker jobs")
+        self.queue_name = queue_name
         super().__init__(BaseArqSettings.redis_settings)
+
+    async def init(self) -> None:
+        if create_pool is None:
+            raise RuntimeError("arq is not installed; cannot create ARQ pool")
+        if not self.pool:
+            self.pool = await create_pool(BaseArqSettings.redis_settings, default_queue_name=self.queue_name)
 
 
 async def get_arq_pool() -> ArqRedis:

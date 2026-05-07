@@ -46,7 +46,7 @@ class UIRenderer:
         # If we want to automatically switch base templates based on HX-Request,
         # we can pass 'base_template' to the context.
         if global_context["is_htmx"] and "base_template" not in final_context:
-            final_context["base_template"] = "includes/minimal.html"
+            final_context["base_template"] = "shared/minimal.html"
         elif "base_template" not in final_context:
             final_context["base_template"] = "site/base_site.html"
 

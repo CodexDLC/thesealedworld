@@ -1,8 +1,9 @@
 from __future__ import annotations
 
+import asyncio
 import json
-import time
 import uuid
+from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING, Any
 
 from src.backend.features.combat.dto import CollectorSignalDTO, CombatMoveDTO, ExchangePayload, InstantPayload
@@ -23,6 +24,7 @@ if TYPE_CHECKING:
 AFK_TIMEOUTS = {0: 60, 1: 50, 2: 40, 3: 30}
 MIN_TIMEOUT = 20
 LOG_PAGE_SIZE = 20
+MOVE_RESPONSE_SETTLE_DELAY_SECONDS = 0.6
 
 
 class NullArqQueue:
@@ -65,6 +67,7 @@ class CombatSessionService:
         targets = await self._get_targets(combat_id)
         moves = await self.store.get_moves_batch(combat_id, actor_ids)
         raw_logs = await self.store.get_logs(combat_id, start=-LOG_PAGE_SIZE, stop=-1)
+        total_logs = await self._count_logs(combat_id, raw_logs)
 
         return self.view.build_dashboard(
             session_id=combat_id,
@@ -74,6 +77,7 @@ class CombatSessionService:
             moves=moves,
             actors=actors,
             raw_logs=raw_logs,
+            total_logs=total_logs,
         )
 
     async def register_move(
@@ -86,6 +90,7 @@ class CombatSessionService:
         combat_id = session_id or await self._resolve_session_id(char_id)
         payload = {**body.payload, **body.model_dump(mode="json", exclude={"payload"})}
         await self.register_move_request(combat_id, char_id, payload)
+        await asyncio.sleep(MOVE_RESPONSE_SETTLE_DELAY_SECONDS)
         return await self.get_dashboard(char_id, session_id=combat_id)
 
     async def register_move_request(self, session_id: str, actor_id: int, payload: dict[str, Any]) -> CombatMoveDTO:
@@ -125,15 +130,20 @@ class CombatSessionService:
     ) -> CombatLogDTO:
         combat_id = session_id or await self._resolve_session_id(char_id)
         page = max(1, page)
-        start = (page - 1) * page_size
-        stop = start + page_size - 1
-        raw_logs = await self.store.get_logs(combat_id, start=start, stop=stop)
+        page_size = max(1, page_size)
+        total = await self._count_logs(combat_id, [])
+        stop = max(total - ((page - 1) * page_size) - 1, -1)
+        start = max(stop - page_size + 1, 0)
+        if stop < start:
+            raw_logs = []
+        else:
+            raw_logs = await self.store.get_logs(combat_id, start=start, stop=stop)
         return self.view.build_logs(
             session_id=combat_id,
             raw_logs=raw_logs,
             page=page,
             page_size=page_size,
-            total=await self._count_logs(combat_id, raw_logs),
+            total=total,
         )
 
     async def get_legacy_logs(self, char_id: int, *, page: int = 0, page_size: int = 50) -> dict[str, Any]:
@@ -189,12 +199,16 @@ class CombatSessionService:
         await self.arq.enqueue_job(
             "combat_collector_task",
             timeout_signal.model_dump(mode="json"),
-            _defer_until=int(time.time() + timeout),
+            _defer_until=datetime.now(UTC) + timedelta(seconds=timeout),
         )
 
     async def _count_logs(self, session_id: str, fallback_logs: list[str]) -> int:
         count_logs = getattr(self.store, "count_logs", None)
-        return int(await count_logs(session_id)) if count_logs is not None else len(fallback_logs)
+        if count_logs is not None:
+            return int(await count_logs(session_id))
+        if fallback_logs:
+            return len(fallback_logs)
+        return len(await self.store.get_logs(session_id, start=0, stop=-1))
 
     async def _get_targets(self, session_id: str) -> dict[str, list[Any]]:
         get_targets_map = getattr(self.store, "get_targets_map", None)

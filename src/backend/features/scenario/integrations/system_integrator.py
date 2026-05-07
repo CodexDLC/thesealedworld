@@ -8,9 +8,9 @@ from typing import TYPE_CHECKING, Any
 from src.backend.config.settings import settings
 from src.backend.core.exceptions import BusinessLogicException
 from src.backend.features.character.events import CharacterEvents
+from src.backend.features.inventory.events.publisher import InventoryEvents
 from src.backend.features.items.dto.instance import ItemGenerationRequestDTO, ItemOriginRefDTO, ItemPlacementRefDTO
-from src.backend.features.items.events import ItemEvents
-from src.backend.features.items.services.catalog_service import ItemCatalogService
+from src.backend.features.items.events.publisher import ItemEvents
 from src.backend.features.scenario.dto.context import ScenarioContextDTO
 from src.backend.features.scenario.handlers import get_handler
 from src.backend.features.scenario.handlers.base_handler import ScenarioInitialHandlerContext
@@ -219,20 +219,52 @@ class ScenarioSystemIntegrator:
         if not items:
             return []
 
-        catalog = ItemCatalogService.load_default()
+        item_ids = await self.generate_reward_items(char_id, items, quest_key=quest_key)
+        response = await self.events.request(
+            InventoryEvents.REWARDS_GRANT_REQUESTED,
+            {
+                "char_id": char_id,
+                "quest_key": quest_key,
+                "item_ids": item_ids,
+                "equip_if_possible": True,
+            },
+            timeout=30.0,
+        )
+        if not isinstance(response, dict) or response.get("status") != "ok":
+            raise RuntimeError(f"Scenario inventory reward grant failed: {response!r}")
+        granted_item_ids = [str(item_id) for item_id in response.get("item_ids", [])]
+        log.info(
+            "Scenario inventory rewards granted: char_id=%s quest_key=%s base_items=%s item_ids=%s",
+            char_id,
+            quest_key,
+            items,
+            granted_item_ids,
+        )
+        return granted_item_ids
+
+    async def generate_reward_items(self, char_id: int, base_item_ids: list[str], *, quest_key: str) -> list[str]:
+        base_item_ids = [base_id for base_id in base_item_ids if base_id]
+        if not base_item_ids:
+            return []
+
         requests = [
             ItemGenerationRequestDTO(
                 base_id=base_id,
                 rarity_tier=0,
                 source=f"scenario:{quest_key}",
                 char_id=char_id,
-                request_ai_text=True,
-                placement_ref=self._reward_item_placement(char_id, base_id, catalog),
+                request_ai_text=False,
+                placement_ref=ItemPlacementRefDTO(
+                    holder_type="character",
+                    holder_id=str(char_id),
+                    storage_type="backpack",
+                    slot=None,
+                ),
                 origin_ref=ItemOriginRefDTO(origin_type="scenario", origin_ref=quest_key),
                 delivery_mode="forward",
                 return_item=False,
             ).model_dump(mode="json")
-            for base_id in items
+            for base_id in base_item_ids
         ]
         response = await self.events.request(
             ItemEvents.GENERATE_REQUESTED,
@@ -240,27 +272,21 @@ class ScenarioSystemIntegrator:
             timeout=30.0,
         )
         if not isinstance(response, dict) or response.get("status") != "ok":
-            raise RuntimeError(f"Scenario item reward generation failed: {response!r}")
+            raise RuntimeError(f"Scenario reward item generation failed: {response!r}")
         item_ids = [str(item_id) for item_id in response.get("item_ids", [])]
+        if len(item_ids) != len(base_item_ids):
+            raise RuntimeError(
+                "Scenario reward item generation returned an unexpected item count: "
+                f"expected={len(base_item_ids)} actual={len(item_ids)}"
+            )
         log.info(
-            "Scenario inventory rewards generated as equipped placements: char_id=%s quest_key=%s base_items=%s item_ids=%s",
+            "Scenario reward items generated: char_id=%s quest_key=%s base_items=%s item_ids=%s",
             char_id,
             quest_key,
-            items,
+            base_item_ids,
             item_ids,
         )
         return item_ids
-
-    @staticmethod
-    def _reward_item_placement(char_id: int, base_id: str, catalog: ItemCatalogService) -> ItemPlacementRefDTO:
-        base_item = catalog.get_base_item(base_id)
-        slot = base_item.slot if base_item is not None else None
-        return ItemPlacementRefDTO(
-            holder_type="character",
-            holder_id=str(char_id),
-            storage_type="equipped" if slot else "backpack",
-            slot=slot,
-        )
 
     async def unlock_skills(self, char_id: int, skills: list[str]) -> None:
         if not skills:
@@ -296,6 +322,12 @@ class ScenarioSystemIntegrator:
         location_id: str | None = None,
     ) -> dict[str, Any]:
         combat_id = str(uuid.uuid4())
+        participants = {"team_1": [char_id]}
+        commitments = await self.prepare_combat_commitments(
+            combat_id,
+            player_ids=[char_id],
+            monster_ids=[],
+        )
         response = await self.events.request(
             "combat.session_requested",
             {
@@ -304,7 +336,8 @@ class ScenarioSystemIntegrator:
                 "correlation_id": combat_id,
                 "battle_type": battle_type,
                 "requested_by": char_id,
-                "participants": json.dumps({"team_1": [char_id]}),
+                "participants": json.dumps(participants),
+                "commitments": json.dumps(commitments),
                 "location_id": location_id or "",
                 "ttl": SCENARIO_COMBAT_TTL_SECONDS,
             },
@@ -321,6 +354,32 @@ class ScenarioSystemIntegrator:
             location_id,
         )
         return response
+
+    async def prepare_combat_commitments(
+        self,
+        combat_id: str,
+        *,
+        player_ids: list[int],
+        monster_ids: list[str],
+    ) -> dict[str, str]:
+        response = await self.events.request(
+            CharacterEvents.COMBAT_COMMITMENTS_REQUESTED,
+            {
+                "scope_id": combat_id,
+                "player_ids": json.dumps(player_ids),
+                "monster_ids": json.dumps(monster_ids),
+                "ttl": SCENARIO_COMBAT_TTL_SECONDS,
+            },
+            timeout=30.0,
+        )
+        if not isinstance(response, dict) or response.get("status") not in ("ok", "partial"):
+            raise RuntimeError(f"Scenario combat commitment preparation failed: {response!r}")
+        commitments = response.get("commitments") or {}
+        if isinstance(commitments, str):
+            commitments = json.loads(commitments)
+        if not isinstance(commitments, dict):
+            raise RuntimeError(f"Scenario combat commitments response is invalid: {response!r}")
+        return {str(key): str(value) for key, value in commitments.items() if value}
 
     async def publish_event(self, event_name: str, payload: dict[str, Any]) -> None:
         await self.events.publish(event_name, payload)

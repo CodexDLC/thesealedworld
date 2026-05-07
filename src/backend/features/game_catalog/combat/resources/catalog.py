@@ -10,6 +10,7 @@ from src.backend.features.game_catalog.combat.resources.abilities import get_all
 from src.backend.features.game_catalog.combat.resources.effects import get_all_effects
 from src.backend.features.game_catalog.combat.resources.feints import get_all_feint_catalog_entries
 from src.backend.features.game_catalog.combat.resources.gifts import get_all_gifts
+from src.backend.features.game_catalog.combat.resources.tokens import get_all_combat_tokens
 from src.backend.features.game_catalog.combat.resources.triggers import get_all_triggers
 
 if TYPE_CHECKING:
@@ -32,8 +33,13 @@ class CombatResourceCatalogService:
             "effects": self._catalog_by_id(get_all_effects(), id_field="effect_id"),
             "triggers": self._catalog_by_id(get_all_triggers(), id_field="id"),
             "gifts": self._catalog_by_id(get_all_gifts(), id_field="gift_id"),
+            "combat_tokens": self._public_mapping(get_all_combat_tokens()),
             "combat_entries": combat_entries,
         }
+
+    @staticmethod
+    def _public_mapping(entries: dict[str, dict[str, Any]]) -> dict[str, dict[str, Any]]:
+        return {str(entry_id): dict(data) for entry_id, data in entries.items()}
 
     def _catalog_by_id(self, entries: Sequence[BaseModel], *, id_field: str) -> dict[str, dict[str, Any]]:
         catalog: dict[str, dict[str, Any]] = {}

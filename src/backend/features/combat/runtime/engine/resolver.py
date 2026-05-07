@@ -1,5 +1,7 @@
 from typing import Any
 
+from loguru import logger as log
+
 from src.backend.features.combat.dto.actor import ActorStats
 from src.backend.features.combat.dto.pipeline import (
     CombatEventDTO,
@@ -94,22 +96,22 @@ class CombatResolver:
             if source == "magic":
                 return stats.mods.magical_crit_chance
             if source == "off_hand":
-                return stats.mods.off_hand_crit_chance
-            return stats.mods.main_hand_crit_chance
+                return stats.mods.off_hand_crit_chance + stats.mods.crit_chance
+            return stats.mods.main_hand_crit_chance + stats.mods.crit_chance
 
         if key == "accuracy":
             if source == "magic":
-                return stats.mods.magical_accuracy
+                return stats.mods.magical_accuracy + stats.mods.accuracy
             if source == "off_hand":
-                return stats.mods.off_hand_accuracy
-            return stats.mods.main_hand_accuracy
+                return stats.mods.off_hand_accuracy + stats.mods.accuracy
+            return stats.mods.main_hand_accuracy + stats.mods.accuracy
 
         if key == "penetration":
             if source == "magic":
                 return stats.mods.magical_penetration
             if source == "off_hand":
-                return stats.mods.off_hand_penetration
-            return stats.mods.main_hand_penetration
+                return stats.mods.off_hand_penetration + stats.mods.armor_penetration
+            return stats.mods.main_hand_penetration + stats.mods.armor_penetration
 
         # Fallback (если ключ не специфичен, например damage_spread)
         full_key = f"{prefix}_{key}"
@@ -130,17 +132,30 @@ class CombatResolver:
             res.is_miss = True
             res.tokens_awarded_defender["tempo"] = 1
             res.events.append(CombatEventDTO(type="MISS", source_id=source_id, target_id=target_id))
+            CombatResolver._trace_step(res, "accuracy", "fail", reason="force_miss")
             return False
 
         if ctx.flags.force.hit:
             CombatResolver._resolve_triggers(ctx, res, "ON_ACCURACY_CHECK")
+            CombatResolver._trace_step(res, "accuracy", "pass", reason="force_hit")
             return True
 
         base_acc = CombatResolver._get_offensive_val(atk_stats, ctx, "accuracy")
         multiplier = ctx.mods.accuracy_mult
         final_acc = base_acc * multiplier
+        roll, passed = MathCore.roll_chance(final_acc)
+        CombatResolver._trace_roll(
+            res,
+            "accuracy",
+            final_acc,
+            roll,
+            passed,
+            base=base_acc,
+            mult=multiplier,
+            source_type=ctx.flags.meta.source_type,
+        )
 
-        if not MathCore.check_chance(final_acc):
+        if not passed:
             res.is_miss = True
             res.tokens_awarded_defender["tempo"] = 1
             res.events.append(CombatEventDTO(type="MISS", source_id=source_id, target_id=target_id))
@@ -190,9 +205,31 @@ class CombatResolver:
 
         if final_chance <= 0:
             CombatResolver._resolve_triggers(ctx, res, "ON_DODGE_FAIL")
+            CombatResolver._trace_roll(
+                res,
+                "evasion",
+                final_chance,
+                None,
+                False,
+                base=base_evasion,
+                cap=evasion_cap,
+                anti=anti_evasion,
+            )
             return False
 
-        if MathCore.check_chance(final_chance):
+        roll, passed = MathCore.roll_chance(final_chance)
+        CombatResolver._trace_roll(
+            res,
+            "evasion",
+            final_chance,
+            roll,
+            passed,
+            base=base_evasion,
+            cap=evasion_cap,
+            anti=anti_evasion,
+        )
+
+        if passed:
             res.is_dodged = True
             res.tokens_awarded_defender["dodge"] = 1
             res.events.append(CombatEventDTO(type="DODGE", source_id=source_id, target_id=target_id))
@@ -238,7 +275,10 @@ class CombatResolver:
             final_chance = parry_chance
             final_chance = min(final_chance, parry_cap)
 
-        if final_chance > 0 and MathCore.check_chance(final_chance):
+        roll, passed = MathCore.roll_chance(final_chance)
+        CombatResolver._trace_roll(res, "parry", final_chance, roll, passed, base=parry_chance, cap=parry_cap)
+
+        if passed:
             res.is_parried = True
             res.tokens_awarded_defender["parry"] = 1
             res.events.append(CombatEventDTO(type="PARRY", source_id=source_id, target_id=target_id))
@@ -286,7 +326,10 @@ class CombatResolver:
         else:
             final_chance = min(block_chance, block_cap)
 
-        if final_chance > 0 and MathCore.check_chance(final_chance):
+        roll, passed = MathCore.roll_chance(final_chance)
+        CombatResolver._trace_roll(res, "block", final_chance, roll, passed, base=block_chance, cap=block_cap)
+
+        if passed:
             res.is_blocked = True
             res.tokens_awarded_defender["block"] = 1
             res.events.append(CombatEventDTO(type="BLOCK", source_id=source_id, target_id=target_id))
@@ -359,7 +402,19 @@ class CombatResolver:
         crit_cap = CombatResolver._get_offensive_val(atk_stats, ctx, "crit_cap")
         final_chance = min(final_chance, crit_cap)
 
-        if final_chance > 0 and MathCore.check_chance(final_chance):
+        roll, passed = MathCore.roll_chance(final_chance)
+        CombatResolver._trace_roll(
+            res,
+            "crit",
+            final_chance,
+            roll,
+            passed,
+            base=my_crit_chance,
+            cap=crit_cap,
+            skill_mult=skill_multiplier,
+        )
+
+        if passed:
             res.is_crit = True
             CombatResolver._resolve_triggers(ctx, res, "ON_CRIT")
         else:
@@ -389,6 +444,8 @@ class CombatResolver:
 
         if ctx.override_damage:
             min_d, max_d = ctx.override_damage
+            base = None
+            spread = None
         else:
             base = CombatResolver._get_offensive_val(atk_stats, ctx, "damage_base")
             spread = CombatResolver._get_offensive_val(atk_stats, ctx, "damage_spread")
@@ -401,6 +458,7 @@ class CombatResolver:
 
         raw_damage = MathCore.random_range(min_d, max_d)
         total_damage = 0.0
+        damage_parts: dict[str, float] = {}
 
         crit_multiplier = 1.0
         if res.is_crit:
@@ -425,6 +483,7 @@ class CombatResolver:
 
             armor_flat = def_stats.mods.armor  # FIXED: damage_reduction_flat -> armor
             phys_dmg = max(0.0, phys_dmg - armor_flat)
+            damage_parts["physical"] = phys_dmg
 
             if res.is_crit:
                 res.tokens_awarded_attacker["crit"] = 1
@@ -438,6 +497,7 @@ class CombatResolver:
             if res.is_crit:
                 pure_dmg *= 1.5
             total_damage += pure_dmg
+            damage_parts["pure"] = pure_dmg
 
         elements = ["fire", "water", "air", "earth", "light", "darkness", "arcane", "nature"]
         for elem in elements:
@@ -456,6 +516,7 @@ class CombatResolver:
                 mitigation_pct = max(0.0, resist_pct - pen_pct)
                 elem_dmg *= 1.0 - mitigation_pct
                 total_damage += elem_dmg
+                damage_parts[elem] = elem_dmg
 
         if ctx.flags.state.hit_index > 0:
             heavy_skill = def_stats.skills.skill_heavy_armor
@@ -469,6 +530,20 @@ class CombatResolver:
 
         total_damage = max(0.0, total_damage)
         res.damage_final = int(total_damage)
+        CombatResolver._trace_damage(
+            res,
+            raw=raw_damage,
+            final=total_damage,
+            min_d=min_d,
+            max_d=max_d,
+            base=base,
+            spread=spread,
+            parts=damage_parts,
+            armor=getattr(def_stats.mods, "armor", 0.0),
+            phys_res=getattr(def_stats.mods, "physical_resistance", 0.0),
+            penetration=CombatResolver._get_offensive_val(atk_stats, ctx, "penetration"),
+            crit_mult=crit_multiplier,
+        )
 
         # [EVENT] HIT
         res.is_hit = True
@@ -640,3 +715,63 @@ class CombatResolver:
             setattr(ctx.flags, key, value)
         elif hasattr(ctx.mods, key):
             setattr(ctx.mods, key, value)
+
+    @staticmethod
+    def _trace_roll(
+        res: InteractionResultDTO,
+        stage: str,
+        chance: float,
+        roll: float | None,
+        passed: bool,
+        **details: Any,
+    ) -> None:
+        log.opt(colors=True).debug(
+            "<cyan>CombatRoll</cyan> | {src}->{dst} stage={stage} chance={chance:.3f} roll={roll} pass={passed} {details}",
+            src=res.source_id,
+            dst=res.target_id,
+            stage=stage,
+            chance=chance,
+            roll="auto" if roll is None else f"{roll:.3f}",
+            passed=passed,
+            details=CombatResolver._compact_details(details),
+        )
+
+    @staticmethod
+    def _trace_step(res: InteractionResultDTO, stage: str, outcome: str, **details: Any) -> None:
+        log.opt(colors=True).debug(
+            "<cyan>CombatStep</cyan> | {src}->{dst} stage={stage} outcome={outcome} {details}",
+            src=res.source_id,
+            dst=res.target_id,
+            stage=stage,
+            outcome=outcome,
+            details=CombatResolver._compact_details(details),
+        )
+
+    @staticmethod
+    def _trace_damage(res: InteractionResultDTO, **details: Any) -> None:
+        final = details.pop("final")
+        raw = details.pop("raw")
+        min_d = details.pop("min_d")
+        max_d = details.pop("max_d")
+        log.opt(colors=True).debug(
+            "<magenta>CombatDamage</magenta> | {src}->{dst} final={final:.2f} raw={raw:.2f} range={min_d:.2f}-{max_d:.2f} {details}",
+            src=res.source_id,
+            dst=res.target_id,
+            final=final,
+            raw=raw,
+            min_d=min_d,
+            max_d=max_d,
+            details=CombatResolver._compact_details(details),
+        )
+
+    @staticmethod
+    def _compact_details(details: dict[str, Any]) -> str:
+        parts = []
+        for key, value in details.items():
+            if value is None:
+                continue
+            if isinstance(value, float):
+                parts.append(f"{key}={value:.3f}")
+            else:
+                parts.append(f"{key}={value}")
+        return " ".join(parts)

@@ -26,6 +26,11 @@ class TestScenarioFormatter:
         assert formatter.format_text("First item: [#items.0]", context) == "First item: sword"
         assert formatter.format_text("Missing item: [#items.5]", context) == "Missing item: Unknown:items.5"
 
+    def test_format_text_loot_queue_items_use_catalog_title(self, formatter):
+        context = {"loot_queue": ["warhammer", "shield"]}
+        assert formatter.format_text("Блокировать [#loot_queue.1]", context) == "Блокировать Щит"
+        assert formatter.format_text("Принять удар на loot_queue.1", context) == "Принять удар на Щит"
+
     def test_format_text_invalid_access(self, formatter):
         context = {"name": "Hero"}
         # Accessing .part on a string should return Unknown

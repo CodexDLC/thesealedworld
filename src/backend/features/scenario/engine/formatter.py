@@ -4,6 +4,7 @@ import re
 from typing import TYPE_CHECKING, Any
 
 from src.backend.features.character.resources import CHARACTER_ATTRIBUTE_TEXT
+from src.backend.features.items.services import ItemCatalogService
 from src.shared.schemas import ScenarioButtonDTO, ScenarioPayloadDTO
 from src.shared.schemas.panel import PanelDTO, PanelWidgetDTO
 
@@ -24,9 +25,12 @@ if TYPE_CHECKING:
 
 
 class ScenarioFormatter:
+    _item_titles: dict[str, str] | None = None
+
     def __init__(self, director: ScenarioDirector) -> None:
         self.director = director
         self.tag_pattern = re.compile(r"\[#(?:stats:)?([\w.]+)\]")
+        self.bare_queue_pattern = re.compile(r"(?<![#\w])loot_queue\.(\d+)\b")
 
     def render_payload(
         self,
@@ -166,9 +170,12 @@ class ScenarioFormatter:
                     if key in ["sys_actor", "p_loc"]:
                         return match.group(0)
                     return f"Unknown:{key}"
-            return str(value)
+            return self._display_value(key, value)
 
         formatted = self.tag_pattern.sub(replace_tag, text)
+        formatted = self.bare_queue_pattern.sub(
+            lambda match: self._display_queue_item("loot_queue", match.group(1), context), formatted
+        )
 
         # 2. Handle special UI prefixes (Space Rangers style)
         # Convert [#sys_actor]: MESSAGE to <div class="whisper">MESSAGE</div>
@@ -193,6 +200,29 @@ class ScenarioFormatter:
             formatted = formatted.replace(tag, html)
 
         return formatted
+
+    def _display_queue_item(self, queue_key: str, index_text: str, context: dict[str, Any]) -> str:
+        queue = context.get(queue_key)
+        if not isinstance(queue, list):
+            return f"Unknown:{queue_key}.{index_text}"
+        index = int(index_text)
+        if not 0 <= index < len(queue):
+            return f"Unknown:{queue_key}.{index_text}"
+        return self._display_value(f"{queue_key}.{index_text}", queue[index])
+
+    def _display_value(self, key: str, value: Any) -> str:
+        if key.startswith("loot_queue.") and isinstance(value, str):
+            return self._item_title(value)
+        return str(value)
+
+    @classmethod
+    def _item_title(cls, item_id: str) -> str:
+        if cls._item_titles is None:
+            cls._item_titles = {
+                key: str(value.get("title") or key)
+                for key, value in ItemCatalogService.load_default().all_public_text().items()
+            }
+        return cls._item_titles.get(item_id, item_id)
 
     @staticmethod
     def resolve_ui(node: dict[str, Any], master: dict[str, Any]) -> dict[str, Any]:

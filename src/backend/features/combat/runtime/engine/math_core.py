@@ -13,11 +13,22 @@ class MathCore:
         Если chance >= 1.0, всегда True.
         Если chance <= 0.0, всегда False.
         """
+        return MathCore.roll_chance(chance)[1]
+
+    @staticmethod
+    def roll_chance(chance: float) -> tuple[float | None, bool]:
+        """
+        Возвращает raw roll и результат проверки шанса.
+
+        Для гарантированных исходов roll=None: это делает combat trace понятнее и
+        не тратит случайное число там, где его результат не влияет на механику.
+        """
         if chance >= 1.0:
-            return True
+            return None, True
         if chance <= 0.0:
-            return False
-        return random.random() < chance  # nosec B311
+            return None, False
+        roll = random.random()  # nosec B311
+        return roll, roll < chance
 
     @staticmethod
     def random_range(min_val: float, max_val: float) -> float:

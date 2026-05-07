@@ -1,0 +1,31 @@
+/* Shared lightweight game tooltips. Item cards keep their inventory-specific tooltip surfaces. */
+
+.tippy-box[data-theme~='game-hint'],
+.tippy-box[data-theme~='game-catalog'] {
+    border: 1px solid rgba(255, 170, 0, .28);
+    background:
+        linear-gradient(180deg, rgba(255, 190, 70, .08), transparent 42%),
+        rgba(8, 10, 12, .96);
+    color: var(--col-parchment);
+    font-family: var(--font-mono);
+    font-size: 10px;
+    line-height: 1.45;
+    box-shadow:
+        0 12px 40px rgba(0, 0, 0, .45),
+        0 0 18px rgba(255, 170, 0, .08);
+    clip-path: var(--clip-node-sm);
+}
+
+.tippy-box[data-theme~='game-hint'] {
+    max-width: 280px;
+}
+
+.tippy-box[data-theme~='game-hint'] .tippy-content,
+.tippy-box[data-theme~='game-catalog'] .tippy-content {
+    padding: 8px 10px;
+}
+
+.tippy-box[data-theme~='game-hint'] .tippy-arrow,
+.tippy-box[data-theme~='game-catalog'] .tippy-arrow {
+    color: rgba(255, 170, 0, .28);
+}

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from fastapi import APIRouter, HTTPException
+from loguru import logger
 
 from src.backend.features.combat.dependencies import CombatRuntimeOrchestratorDep  # noqa: TC001
 from src.backend.features.combat.services.session_service import CombatSessionNotFound
@@ -37,7 +38,7 @@ async def get_combat_view(
         return CoreResponseDTO(
             header=GameStateHeader(current_state=CoreDomain.COMBAT, error="combat_result_from_archive_stub"),
             payload=payload,
-            payload_type="combat_result",
+            payload_type="CombatResult",
         )
 
 
@@ -73,4 +74,5 @@ async def register_combat_move(
     except CombatSessionNotFound as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     except ValueError as exc:
+        logger.warning("Combat move rejected: char_id={} detail={}", char_id, str(exc))
         raise HTTPException(status_code=400, detail=str(exc)) from exc

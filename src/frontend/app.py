@@ -16,6 +16,8 @@ from fastapi.templating import Jinja2Templates
 from loguru import logger
 from starlette.requests import Request
 
+from fastapi_cabinet import include_cabinet
+from src.frontend.cabinet import CABINET_MODULES
 from src.frontend.config.settings import settings
 from src.frontend.core.middleware import AuthUserMiddleware
 from src.frontend.core.renderer import get_ui_renderer
@@ -91,6 +93,7 @@ app.mount("/static", StaticFiles(directory=str(settings.static_dir)), name="stat
 app.add_middleware(AuthUserMiddleware)
 app.add_middleware(GameMenuMiddleware)
 include_frontend_routers(app)
+include_cabinet(app, modules=CABINET_MODULES, mount_path="/cabinet")
 
 
 @app.get("/health")

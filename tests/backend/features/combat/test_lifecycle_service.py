@@ -89,7 +89,7 @@ def _player_snapshot(char_id):
             "loadout": {"known_feints": ["quick_cut"]},
             "skills": {"swords": 1.0},
         },
-        "status": {"hp": {"cur": 80, "max": 190}, "energy": {"cur": 30, "max": 97}},
+        "status": {"hp": {"cur": 64, "max": 64}, "energy": {"cur": 26, "max": 26}},
         "source": {"character_id": char_id},
     }
 
@@ -128,10 +128,10 @@ async def test_lifecycle_creates_arena_pvp_session():
     session_id, data, ttl = store.created
     assert ready["combat_id"] == session_id
     assert set(data.actors) == {"1", "2"}
-    assert data.actors["1"]["meta"]["hp"] == 80
-    assert data.actors["1"]["meta"]["max_hp"] == 190
-    assert data.actors["1"]["meta"]["en"] == 30
-    assert data.actors["1"]["meta"]["max_en"] == 97
+    assert data.actors["1"]["meta"]["hp"] == 64
+    assert data.actors["1"]["meta"]["max_hp"] == 64
+    assert data.actors["1"]["meta"]["en"] == 26
+    assert data.actors["1"]["meta"]["max_en"] == 26
     assert data.targets["1"] == ["2"]
     assert sessions.combat == {}
     assert sessions.states == {}
@@ -204,8 +204,8 @@ async def test_lifecycle_creates_shadow_clone():
     assert data.actors["-7"]["meta"]["is_ai"] is True
     assert data.actors["-7"]["meta"]["name"].startswith("Shadow ")
     assert data.actors["-7"]["meta"]["avatar_url"] == "/static/images/avatars/rook7.png"
-    assert data.actors["-7"]["meta"]["hp"] == 80
-    assert data.actors["-7"]["meta"]["max_hp"] == 190
+    assert data.actors["-7"]["meta"]["hp"] == 64
+    assert data.actors["-7"]["meta"]["max_hp"] == 64
     assert ttl == 900
     assert sessions.combat == {}
 

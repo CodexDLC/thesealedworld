@@ -5,6 +5,14 @@
 СИНХРОНИЗИРОВАНО С: src/shared/enums/stats_enums.py
 """
 
+from src.backend.features.character.runtime.vitals import (
+    ENERGY_PER_MENTAL,
+    ENERGY_REGEN_PER_MENTAL,
+    HP_PER_ENDURANCE,
+    HP_REGEN_PER_ENDURANCE,
+    STAMINA_PER_ENDURANCE,
+    STAMINA_REGEN_PER_ENDURANCE,
+)
 from src.shared.enums.stats_enums import StatKey
 
 MODIFIER_RULES: dict[str, dict[str, float]] = {
@@ -48,16 +56,16 @@ MODIFIER_RULES: dict[str, dict[str, float]] = {
     # ==========================================================================
     # 💀 6. РЕСУРСЫ (Vitals)
     # ==========================================================================
-    # HP (Body: Endurance + Strength)
-    StatKey.HP: {StatKey.ENDURANCE: 10.0, StatKey.STRENGTH: 2.0},
-    # EN (Core: Mental + Body: Endurance)
-    StatKey.EN: {StatKey.MENTAL: 5.0, StatKey.ENDURANCE: 2.0},
+    # HP (Body: Endurance)
+    StatKey.HP: {StatKey.ENDURANCE: HP_PER_ENDURANCE},
+    # EN (Core: Mental)
+    StatKey.EN: {StatKey.MENTAL: ENERGY_PER_MENTAL},
     # Stamina (Body: Endurance)
-    StatKey.STAMINA: {StatKey.ENDURANCE: 10.0},
+    StatKey.STAMINA: {StatKey.ENDURANCE: STAMINA_PER_ENDURANCE},
     # Реген
-    StatKey.HP_REGEN: {StatKey.ENDURANCE: 0.1},
-    StatKey.EN_REGEN: {StatKey.MENTAL: 0.1},
-    StatKey.STAMINA_REGEN: {StatKey.ENDURANCE: 0.2},
+    StatKey.HP_REGEN: {StatKey.ENDURANCE: HP_REGEN_PER_ENDURANCE},
+    StatKey.EN_REGEN: {StatKey.MENTAL: ENERGY_REGEN_PER_MENTAL},
+    StatKey.STAMINA_REGEN: {StatKey.ENDURANCE: STAMINA_REGEN_PER_ENDURANCE},
     # ==========================================================================
     # ⚡ 7. СКОРОСТЬ (Speed)
     # ==========================================================================

@@ -38,6 +38,8 @@ class FilteringGeminiProvider(GeminiProvider):
         except Exception as exc:
             if provider_kw.get("model"):
                 raise
+            if _is_rate_limit_error(exc):
+                raise
 
             last_error = exc
             for fallback_model in self._fallback_models:
@@ -72,6 +74,11 @@ class FilteringGeminiProvider(GeminiProvider):
             temperature=prompt.temperature,
             max_tokens=prompt.max_tokens,
         )
+
+
+def _is_rate_limit_error(exc: Exception) -> bool:
+    text = str(exc).upper()
+    return "429" in text or "RESOURCE_EXHAUSTED" in text or "RATE_LIMIT" in text
 
 
 class AIService:

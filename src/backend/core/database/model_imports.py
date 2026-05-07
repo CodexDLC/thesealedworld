@@ -14,6 +14,16 @@ from src.backend.features.items.models import (
 )
 from src.backend.features_site.auth.models.refresh_token import RefreshToken
 from src.backend.features_site.auth.models.user import User
+from src.backend.infrastructure.arena.models import (
+    ArenaBrawlXP,
+    ArenaLeague,
+    ArenaMatch,
+    ArenaRating,
+    ArenaSeason,
+    ArenaSeasonReward,
+    ArenaTeam,
+    ArenaTeamMembership,
+)
 from src.backend.infrastructure.inventory import InventoryItem, ResourceWallet
 from src.backend.infrastructure.monsters import GeneratedClanORM, GeneratedMonsterORM
 from src.backend.infrastructure.scenario.models import CharacterQuestState, ScenarioMaster, ScenarioNode
@@ -42,4 +52,12 @@ __all__ = [
     "WorldRegion",
     "WorldZone",
     "WorldGrid",
+    "ArenaBrawlXP",
+    "ArenaLeague",
+    "ArenaMatch",
+    "ArenaRating",
+    "ArenaSeason",
+    "ArenaSeasonReward",
+    "ArenaTeam",
+    "ArenaTeamMembership",
 ]

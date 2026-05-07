@@ -1,6 +1,6 @@
 # apps/game_core/modules/combats/session/runtime/combat_turn_manager.py
-import time
 import uuid
+from datetime import UTC, datetime, timedelta
 from typing import Any, Literal
 
 from loguru import logger as log
@@ -74,19 +74,26 @@ class CombatTurnManager:
 
         # 4. Записываем в буфер (Multi-Targeting / Spamming)
         if move_dto.strategy == "exchange":
-            # Для ExchangePayload target_id обязателен и int
             target_id = getattr(move_dto.payload, "target_id", None)
             if not target_id:
                 raise ValueError("Target ID is required for exchange")
 
             success = await self.combat_sessions.register_exchange_move(
-                session_id, char_id, int(target_id), move_dto.model_dump()
+                session_id, char_id, target_id, move_dto.model_dump()
             )
 
             if not success:
                 # Если не удалось зарегистрировать ход (цель недоступна), нужно вернуть финт!
                 if feint_id and cost:
                     await self.combat_sessions.return_feint(session_id, char_id, feint_id, cost)
+                targets = await self.combat_sessions.get_targets(session_id)
+                log.warning(
+                    "TurnManager | Exchange target rejected: session_id={} char_id={} target_id={} queue={}",
+                    session_id,
+                    char_id,
+                    target_id,
+                    targets.get(str(char_id)) or targets.get(char_id),
+                )
                 raise ValueError("Target is not available in your queue")
 
         else:
@@ -105,7 +112,7 @@ class CombatTurnManager:
             session_id=session_id, char_id=char_id, signal_type="check_timeout", move_id=move_dto.move_id
         )
         await self.arq.enqueue_job(
-            "combat_collector_task", signal_timeout.model_dump(), _defer_until=int(time.time() + timeout)
+            "combat_collector_task", signal_timeout.model_dump(), _defer_until=self._defer_after(timeout)
         )
 
         log.info(f"TurnManager | Move {action_type} registered. Strategy: {move_dto.strategy}. Timeout: {timeout}s")
@@ -183,7 +190,7 @@ class CombatTurnManager:
                 session_id=session_id, char_id=char_id, signal_type="check_timeout", move_id="batch"
             )
             await self.arq.enqueue_job(
-                "combat_collector_task", signal_timeout.model_dump(), _defer_until=int(time.time() + timeout)
+                "combat_collector_task", signal_timeout.model_dump(), _defer_until=self._defer_after(timeout)
             )
 
             log.info(f"TurnManager | Batch registered {success_count} moves for {char_id}. Timeout: {timeout}s")
@@ -216,7 +223,7 @@ class CombatTurnManager:
         else:
             # По умолчанию - боевой размен (attack, defend, etc.)
             strategy = "exchange"
-            validated_payload = ExchangePayload(target_id=int(data.get("target_id", 0)), feint_id=data.get("feint_id"))
+            validated_payload = ExchangePayload(target_id=data.get("target_id") or 0, feint_id=data.get("feint_id"))
 
         return CombatMoveDTO(
             move_id=str(uuid.uuid4())[:8],
@@ -224,3 +231,7 @@ class CombatTurnManager:
             strategy=strategy,
             payload=validated_payload,
         )
+
+    @staticmethod
+    def _defer_after(seconds: int) -> datetime:
+        return datetime.now(UTC) + timedelta(seconds=seconds)

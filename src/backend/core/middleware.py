@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING, Any
 from loguru import logger
 from starlette.middleware.base import BaseHTTPMiddleware
 
-from src.backend.core.arq import ArqService
+from src.backend.core.arq import SYSTEM_ARQ_QUEUE, ArqService
 
 if TYPE_CHECKING:
     from collections.abc import Awaitable, Callable
@@ -61,7 +61,7 @@ class ActiveCharacterDirtySyncMiddleware(BaseHTTPMiddleware):
             return arq
 
         try:
-            arq = ArqService()
+            arq = ArqService(queue_name=SYSTEM_ARQ_QUEUE)
         except Exception:  # noqa: BLE001
             logger.exception("AC dirty sync skipped: system ARQ unavailable")
             return None

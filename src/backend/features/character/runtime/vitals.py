@@ -10,6 +10,13 @@ from src.backend.features.character.schemas.session import (
     VitalValueDTO,
 )
 
+HP_PER_ENDURANCE = 4.0
+HP_REGEN_PER_ENDURANCE = 0.5
+ENERGY_PER_MENTAL = 2.0
+ENERGY_REGEN_PER_MENTAL = 0.5
+STAMINA_PER_ENDURANCE = 10.0
+STAMINA_REGEN_PER_ENDURANCE = 0.2
+
 
 @dataclass(frozen=True)
 class VitalFormulaResult:
@@ -77,18 +84,17 @@ class CharacterVitalsCalculator:
 
     @classmethod
     def calculate_max_vitals(cls, attributes: CharacterSessionAttributesDTO) -> CharacterSessionVitalsDTO:
-        strength = attributes.strength
         endurance = attributes.endurance
         mental = attributes.mental
 
-        hp = cls._resource_max(endurance * 10.0 + strength * 2.0)
-        energy = cls._resource_max(mental * 5.0 + endurance * 2.0)
-        stamina = cls._resource_max(endurance * 10.0)
+        hp = cls._resource_max(endurance * HP_PER_ENDURANCE)
+        energy = cls._resource_max(mental * ENERGY_PER_MENTAL)
+        stamina = cls._resource_max(endurance * STAMINA_PER_ENDURANCE)
 
         return CharacterSessionVitalsDTO(
-            hp=VitalValueDTO(cur=hp, max=hp, regen=round(endurance * 0.1, 4)),
-            energy=VitalValueDTO(cur=energy, max=energy, regen=round(mental * 0.1, 4)),
-            stamina=VitalValueDTO(cur=stamina, max=stamina, regen=round(endurance * 0.2, 4)),
+            hp=VitalValueDTO(cur=hp, max=hp, regen=round(endurance * HP_REGEN_PER_ENDURANCE, 4)),
+            energy=VitalValueDTO(cur=energy, max=energy, regen=round(mental * ENERGY_REGEN_PER_MENTAL, 4)),
+            stamina=VitalValueDTO(cur=stamina, max=stamina, regen=round(endurance * STAMINA_REGEN_PER_ENDURANCE, 4)),
         )
 
     @staticmethod

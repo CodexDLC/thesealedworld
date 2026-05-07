@@ -18,8 +18,8 @@ class CombatLogEntryDTO(CombatJsonDTO):
 
 
 class CombatRegisterMoveRequestDTO(CombatJsonDTO):
-    action: str = "attack"
-    target_id: int | None = None
+    action: str = "exchange"
+    target_id: str | int | None = None
     ability_id: str | None = None
     skill_id: str | None = None
     feint_id: str | None = None
@@ -94,6 +94,7 @@ class CombatActorCardDTO(CombatJsonDTO):
     vitals: CombatActorVitalsDTO = Field(default_factory=CombatActorVitalsDTO)
     weapon_type: str | None = None
     quick_items: list[dict[str, Any]] = Field(default_factory=list)
+    known_abilities: list[str] = Field(default_factory=list)
     tokens: dict[str, int] = Field(default_factory=dict)
     active_effects: list[CombatEffectBadgeDTO] = Field(default_factory=list)
     active_abilities: list[CombatAbilityBadgeDTO] = Field(default_factory=list)
@@ -160,6 +161,7 @@ class CombatDashboardDTO(CombatJsonDTO):
     feints: list[CombatFeintOptionDTO] = Field(default_factory=list)
     available_actions: list[CombatActionOptionDTO] = Field(default_factory=list)
     events_delta: CombatDeltaDTO = Field(default_factory=CombatDeltaDTO)
+    log_total: int = 0
     winner_team: str | None = None
 
 

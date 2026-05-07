@@ -59,11 +59,13 @@ class BackendSettings(BaseCommonSettings):
 
     world_auto_generate: bool = False
     world_generation_mode: str = "test"
+    monster_population_clans_per_context: int = 1
 
     # LLM Settings
     gemini_api_key: str | None = None
     gemini_model: str = "gemini-2.5-flash"
     gemini_fallback_models: list[str] = ["gemini-2.5-pro"]
+    monster_clan_flavor_ai_interval_seconds: float = 30.0
     gemini_token: str | None = None
     openrouter_api_key: str | None = None
     # Removed: bug_report_channel_id (per user request)

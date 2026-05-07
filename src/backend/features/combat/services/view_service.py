@@ -4,6 +4,8 @@ import contextlib
 import json
 from typing import Any, Literal
 
+from src.backend.features.combat.integrations import CombatCatalogIntegrator
+from src.backend.features.game_catalog.combat.resources.common.targeting import TargetType
 from src.shared.schemas.combat import (
     CombatAbilityBadgeDTO,
     CombatActionOptionDTO,
@@ -30,6 +32,7 @@ class CombatViewService:
         targets: dict[str, list[Any]],
         actors: dict[str, dict[str, Any] | None],
         raw_logs: list[str],
+        total_logs: int | None = None,
         moves: dict[str, Any] | None = None,
     ) -> CombatDashboardDTO:
         moves = moves or {}
@@ -89,6 +92,7 @@ class CombatViewService:
             feints=hero.feints,
             available_actions=self._available_actions(status, target, hero, pending_action_count=pending_action_count),
             events_delta=CombatDeltaDTO(events=self.parse_logs(raw_logs)),
+            log_total=total_logs if total_logs is not None else len(raw_logs),
             winner_team=self._optional_str(meta.get("winner")),
         )
 
@@ -120,13 +124,19 @@ class CombatViewService:
                 with contextlib.suppress(json.JSONDecodeError):
                     parsed = json.loads(raw)
             if isinstance(parsed, dict):
+                data_raw = parsed.get("data")
+                data = (
+                    data_raw
+                    if isinstance(data_raw, dict)
+                    else {k: v for k, v in parsed.items() if k not in {"type", "text", "timestamp", "tags"}}
+                )
                 events.append(
                     CombatEventDTO(
                         type=str(parsed.get("type") or "log"),
                         text=cls._optional_str(parsed.get("text")),
                         timestamp=parsed.get("timestamp") if isinstance(parsed.get("timestamp"), int | float) else None,
                         tags=[str(tag) for tag in parsed.get("tags", []) if tag],
-                        data={k: v for k, v in parsed.items() if k not in {"type", "text", "timestamp", "tags"}},
+                        data=data,
                     )
                 )
             else:
@@ -199,6 +209,7 @@ class CombatViewService:
             ),
             weapon_type=self._weapon_type(loadout),
             quick_items=self._quick_items(loadout),
+            known_abilities=[str(ability_id) for ability_id in loadout.get("known_abilities", []) if ability_id],
             tokens={str(k): self._int(v) for k, v in tokens.items()},
             active_effects=self._effects(statuses),
             active_abilities=self._abilities(statuses),
@@ -241,6 +252,8 @@ class CombatViewService:
                     label="Атака",
                     enabled=not has_pending,
                     target_id=target.actor_id,
+                    feint_id=None,
+                    ability_id=None,
                     catalog_ref="triggers",
                     reason="action_registered" if has_pending else None,
                 ),
@@ -248,14 +261,43 @@ class CombatViewService:
             actions.extend(
                 CombatActionOptionDTO(
                     action="instant",
-                    label=feint.feint_id,
-                    target_id=target.actor_id,
-                    feint_id=feint.feint_id,
-                    catalog_ref="feints",
+                    label=ability_id,
+                    enabled=not has_pending and self._ability_enabled(hero, ability_id),
+                    target_id=self._ability_target_id(ability_id, target, hero),
+                    ability_id=ability_id,
+                    feint_id=None,
+                    catalog_ref="abilities",
+                    reason="action_registered" if has_pending else None,
                 )
-                for feint in hero.feints
+                for ability_id in hero.known_abilities
             )
         return actions
+
+    @staticmethod
+    def _ability_enabled(hero: CombatActorCardDTO, ability_id: str) -> bool:
+        ability = CombatCatalogIntegrator.get_ability(ability_id)
+        if ability is None:
+            return False
+        return (
+            hero.vitals.energy_current >= ability.cost.energy
+            and hero.vitals.hp_current >= ability.cost.hp
+            and hero.tokens.get("gift", 0) >= ability.cost.gift_tokens
+        )
+
+    @staticmethod
+    def _ability_target_id(
+        ability_id: str,
+        target: CombatActorCardDTO,
+        hero: CombatActorCardDTO,
+    ) -> str | None:
+        ability = CombatCatalogIntegrator.get_ability(ability_id)
+        if ability is None:
+            return target.actor_id
+        if ability.target == TargetType.SELF:
+            return hero.actor_id
+        if ability.target in {TargetType.ALL_ENEMIES, TargetType.ALL_ALLIES}:
+            return None
+        return target.actor_id
 
     @staticmethod
     def _status(
@@ -280,10 +322,10 @@ class CombatViewService:
             return "FINISHED"
         if status == "spectating":
             return "SPECTATING"
-        if target is None:
-            return "TARGET_QUEUE_EMPTY"
         if pending_action_count:
             return "ACTION_LOCKED"
+        if target is None:
+            return "TARGET_QUEUE_EMPTY"
         return "ACTION_READY"
 
     @staticmethod

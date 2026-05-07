@@ -7,6 +7,10 @@ from src.backend.config.settings import settings
 from src.backend.core.database import get_session_context
 
 # Feature Services
+from src.backend.features.monsters.integrations import MonsterClanTextAIClient
+from src.backend.features.monsters.repositories import MonsterGenerationRepository
+from src.backend.features.monsters.runtime import ClanFactory
+from src.backend.features.monsters.services import EncounterMonsterService, WorldMonsterPopulationService
 from src.backend.features.scenario.integrations import ScenarioImportIntegration
 from src.backend.features.world.integrations import WorldDataIntegration, WorldLocationIntegration
 from src.backend.features.world.services import LLMWorldGenerator, WorldBootstrapService, WorldCacheService
@@ -40,8 +44,22 @@ class GameFeatureContainer:
                 generation_mode=settings.world_generation_mode,
             )
             loaded_count = await bootstrap.bootstrap()
+            monster_population = WorldMonsterPopulationService(
+                EncounterMonsterService(
+                    MonsterGenerationRepository(session),
+                    factory=ClanFactory(text_ai=MonsterClanTextAIClient(getattr(app.state, "ai", None))),
+                )
+            )
+            population_result = await monster_population.ensure_population_for_nodes(await data.get_active_nodes())
             app.state.world_cache_loaded_count = loaded_count
+            app.state.monster_population_contexts = population_result.contexts
+            app.state.monster_population_clans = population_result.clans
             logger.info(f"World bootstrap: {loaded_count} locations loaded")
+            logger.info(
+                "Monster population bootstrap: contexts={} clans={}",
+                population_result.contexts,
+                population_result.clans,
+            )
 
     async def bootstrap_scenarios(self, app: FastAPI) -> None:
         logger.info("Bootstrapping Scenarios feature...")

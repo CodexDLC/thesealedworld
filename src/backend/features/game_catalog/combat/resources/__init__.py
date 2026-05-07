@@ -13,6 +13,7 @@ from src.backend.features.game_catalog.combat.resources.feints import (
     get_feint_config,
 )
 from src.backend.features.game_catalog.combat.resources.gifts import get_all_gifts, get_gift_config
+from src.backend.features.game_catalog.combat.resources.tokens import get_all_combat_tokens
 from src.backend.features.game_catalog.combat.resources.triggers import (
     get_all_triggers,
     get_trigger_rule,
@@ -23,6 +24,7 @@ from src.backend.features.game_catalog.combat.resources.triggers import (
 class GameData:
     get_gift = staticmethod(get_gift_config)
     get_all_gifts = staticmethod(get_all_gifts)
+    get_all_combat_tokens = staticmethod(get_all_combat_tokens)
 
     get_ability = staticmethod(get_ability_config)
     get_all_abilities = staticmethod(get_all_abilities)
@@ -51,6 +53,7 @@ __all__ = [
     "get_all_feints",
     "get_all_feint_catalog_entries",
     "get_all_gifts",
+    "get_all_combat_tokens",
     "get_all_triggers",
     "get_effect_config",
     "get_feint_config",

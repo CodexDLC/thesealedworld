@@ -215,6 +215,7 @@ class CombatSessionManager:
             "is_dead": meta.get("is_dead"),
             "tokens": meta.get("tokens"),
             "afk_level": meta.get("afk_level"),
+            "exchange_counter": meta.get("exchange_counter"),
             "feints": meta.get("feints"),
         }
 
@@ -245,12 +246,12 @@ class CombatSessionManager:
         return value if isinstance(value, dict) else {}
 
     async def pop_player_target(self, session_id: str, actor_id: str | int) -> int | None:
-        result = await self._json().arrpop(self.targets_key(session_id), f"$.{actor_id}", 0)
+        result = await self._json().arrpop(self.targets_key(session_id), self._json_member_path(actor_id), 0)
         value = self._first(result)
         return int(value) if value is not None else None
 
     async def peek_player_target(self, session_id: str, actor_id: str | int) -> int | None:
-        result = await self._json().get(self.targets_key(session_id), f"$.{actor_id}[0]")
+        result = await self._json().get(self.targets_key(session_id), f"{self._json_member_path(actor_id)}[0]")
         value = self._first(result)
         return int(value) if value is not None else None
 
@@ -338,9 +339,13 @@ class CombatSessionManager:
         if not move_id:
             return False
         script = """
-        local idx = redis.call('JSON.ARRINDEX', KEYS[1], '$.' .. ARGV[1], tonumber(ARGV[2]) or ARGV[2])
+        local actor_path = '$["' .. ARGV[1] .. '"]'
+        local idx = redis.call('JSON.ARRINDEX', KEYS[1], actor_path, cjson.encode(ARGV[2]))
+        if (not idx or idx[1] == -1) and tonumber(ARGV[2]) then
+            idx = redis.call('JSON.ARRINDEX', KEYS[1], actor_path, tonumber(ARGV[2]))
+        end
         if not idx or idx[1] == -1 then return 0 end
-        redis.call('JSON.ARRPOP', KEYS[1], '$.' .. ARGV[1], idx[1])
+        redis.call('JSON.ARRPOP', KEYS[1], actor_path, idx[1])
         redis.call('JSON.SET', KEYS[2], '$.exchange.' .. ARGV[4], ARGV[3])
         redis.call('EXPIRE', KEYS[2], ARGV[5])
         return 1
@@ -369,10 +374,14 @@ class CombatSessionManager:
         script = """
         local success = 0
         local moves = cjson.decode(ARGV[2])
+        local actor_path = '$["' .. ARGV[1] .. '"]'
         for _, item in ipairs(moves) do
-            local idx = redis.call('JSON.ARRINDEX', KEYS[1], '$.' .. ARGV[1], tonumber(item.target_id) or item.target_id)
+            local idx = redis.call('JSON.ARRINDEX', KEYS[1], actor_path, cjson.encode(tostring(item.target_id)))
+            if (not idx or idx[1] == -1) and tonumber(item.target_id) then
+                idx = redis.call('JSON.ARRINDEX', KEYS[1], actor_path, tonumber(item.target_id))
+            end
             if idx and idx[1] ~= -1 then
-                redis.call('JSON.ARRPOP', KEYS[1], '$.' .. ARGV[1], idx[1])
+                redis.call('JSON.ARRPOP', KEYS[1], actor_path, idx[1])
                 redis.call('JSON.SET', KEYS[2], '$.' .. item.strategy .. '.' .. item.move_id, item.move_json)
                 success = success + 1
             end
@@ -440,6 +449,7 @@ class CombatSessionManager:
                     "max_en": meta.get("max_en", 0),
                     "tactics": meta.get("tactics", 0),
                     "afk_level": meta.get("afk_level", 0),
+                    "exchange_counter": meta.get("exchange_counter", 0),
                     "is_dead": meta.get("is_dead", False),
                     "tokens": meta.get("tokens", {}),
                 },
@@ -462,6 +472,7 @@ class CombatSessionManager:
         processed_count: int,
         target_returns: Sequence[dict[str, int | str]] | None = None,
         dead_actors: str | None = None,
+        meta_update: dict[str, Any] | None = None,
     ) -> None:
         async with self._client().pipeline(transaction=False) as pipe:
             for actor_id, actor_update in updates.items():
@@ -476,15 +487,23 @@ class CombatSessionManager:
                     pipe.json().set(key, "$.raw", actor_update["raw"])
                 if "raw_temp" in actor_update:
                     pipe.json().set(key, "$.raw.temp", actor_update["raw_temp"])
+                if "stats" in actor_update:
+                    pipe.json().set(key, "$.stats", actor_update["stats"])
+                if "explanation" in actor_update:
+                    pipe.json().set(key, "$.explanation", actor_update["explanation"])
             if logs:
                 pipe.rpush(self.log_key(session_id), *logs)
             if processed_count > 0:
                 pipe.ltrim(self.action_queue_key(session_id), processed_count, -1)
             if target_returns:
                 for pair in target_returns:
-                    pipe.json().arrappend(self.targets_key(session_id), f"$.{pair['source_id']}", pair["target_id"])
+                    pipe.json().arrappend(
+                        self.targets_key(session_id), self._json_member_path(pair["source_id"]), pair["target_id"]
+                    )
             if dead_actors is not None:
                 pipe.hset(self.meta_key(session_id), "dead_actors", dead_actors)
+            if meta_update:
+                pipe.hset(self.meta_key(session_id), mapping={k: self._redis_value(v) for k, v in meta_update.items()})
             await pipe.execute()
 
     async def consume_feint_atomic(self, session_id: str, actor_id: str | int, feint_id: str) -> dict[str, int] | None:
@@ -611,6 +630,11 @@ class CombatSessionManager:
     @staticmethod
     def _decode(value: Any) -> Any:
         return value.decode() if isinstance(value, bytes) else value
+
+    @staticmethod
+    def _json_member_path(member: str | int) -> str:
+        escaped = str(member).replace("\\", "\\\\").replace('"', '\\"')
+        return f'$["{escaped}"]'
 
     @staticmethod
     def _redis_value(value: Any) -> str | int | float:

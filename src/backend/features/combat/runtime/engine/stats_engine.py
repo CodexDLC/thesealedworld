@@ -1,8 +1,28 @@
+from loguru import logger as log
 from pydantic import ValidationError
 
 from src.backend.core.calculators.stats_waterfall_calculator import StatsWaterfallCalculator
 from src.backend.features.combat.dto.actor import ActorSnapshot, ActorStats
 from src.shared.schemas.modifier_dto import CombatModifiersDTO, CombatSkillsDTO
+
+TRACE_MOD_KEYS = (
+    "main_hand_accuracy",
+    "accuracy",
+    "main_hand_damage_base",
+    "main_hand_damage_spread",
+    "main_hand_crit_chance",
+    "crit_chance",
+    "armor_penetration",
+    "main_hand_crit_cap",
+    "evasion",
+    "dodge_cap",
+    "parry",
+    "parry_cap",
+    "block",
+    "shield_block_cap",
+    "armor",
+    "physical_resistance",
+)
 
 
 class StatsEngine:
@@ -66,6 +86,24 @@ class StatsEngine:
 
         # 4. Сохраняем объяснения (для дебага/логов)
         actor.explanation = explanation
+        StatsEngine._trace_stats(actor, calculated_mods, explanation)
 
         # 5. Сбрасываем флаги
         actor.dirty_stats.clear()
+
+    @staticmethod
+    def _trace_stats(actor: ActorSnapshot, calculated_mods: dict[str, float], explanation: dict[str, str]) -> None:
+        values = {
+            key: round(float(calculated_mods.get(key, 0.0)), 4)
+            for key in TRACE_MOD_KEYS
+            if key in calculated_mods or calculated_mods.get(key, 0.0) != 0.0
+        }
+        formulas = {key: explanation.get(key) for key in values if explanation.get(key)}
+        log.opt(colors=True).debug(
+            "<green>CombatStats</green> | actor={actor_id} name={name} dirty={dirty} values={values} formulas={formulas}",
+            actor_id=actor.char_id,
+            name=actor.meta.name,
+            dirty=sorted(actor.dirty_stats),
+            values=values,
+            formulas=formulas,
+        )

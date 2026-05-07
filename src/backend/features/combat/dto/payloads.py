@@ -4,7 +4,7 @@ from pydantic import BaseModel
 class ExchangePayload(BaseModel):
     """Данные для стратегии 'exchange' (Combat)."""
 
-    target_id: int  # В обмене всегда одна конкретная цель (ID)
+    target_id: int | str  # В обмене всегда одна конкретная цель из очереди.
 
     # Финт (опционально)
     feint_id: str | None = None

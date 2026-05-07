@@ -120,3 +120,28 @@ async def test_logs_round_trip():
     await store.append_log("c1", {"text": "started"})
 
     assert await store.get_logs("c1") == ['{"text": "started"}']
+
+
+@pytest.mark.asyncio
+async def test_commit_battle_results_persists_meta_updates():
+    redis = FakeRedisService()
+    store = CombatSessionManager(redis)
+
+    await store.commit_battle_results("c1", {}, [], 0, meta_update={"step_counter": 3})
+
+    assert redis.redis_client.hash_store["combat:rbc:c1:meta"]["step_counter"] == 3
+
+
+def test_exchange_registration_lua_prefers_string_target_ids():
+    source = CombatSessionManager.register_exchange_move_atomic.__code__.co_consts
+    script = next(value for value in source if isinstance(value, str) and "JSON.ARRINDEX" in value)
+
+    assert "ARGV[2]) or ARGV[2]" not in script
+    assert """local actor_path = '$["' .. ARGV[1] .. '"]'""" in script
+    assert "JSON.ARRINDEX', KEYS[1], actor_path, cjson.encode(ARGV[2])" in script
+    assert "tonumber(ARGV[2])" in script
+
+
+def test_targets_json_paths_use_bracket_notation_for_numeric_actor_ids():
+    assert CombatSessionManager._json_member_path(5) == '$["5"]'
+    assert CombatSessionManager._json_member_path("-5") == '$["-5"]'

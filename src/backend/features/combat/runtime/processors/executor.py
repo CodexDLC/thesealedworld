@@ -107,8 +107,16 @@ class CombatExecutor:
                 t_id = result.target_id
 
                 log.debug(
-                    f"Executor | Result [{s_id}->{t_id}] ({result.hand}): "
-                    f"hit={result.is_hit}, dmg={result.damage_final}"
+                    "Executor | Result [{}->{}] ({}): outcome={} hit={} crit={} dmg={} heal={} events={}",
+                    s_id,
+                    t_id,
+                    result.hand,
+                    self._result_outcome(result),
+                    result.is_hit,
+                    result.is_crit,
+                    result.damage_final,
+                    result.healing_final,
+                    [event.type for event in result.events],
                 )
                 self._append_result_logs(ctx, result, action=action, wave=wave)
 
@@ -298,3 +306,21 @@ class CombatExecutor:
             # Проверяем, что актор мертв и еще не в списке мертвых
             if actor.meta.is_dead and char_id not in ctx.meta.dead_actors and char_id not in ctx.pending_dead_actors:
                 ctx.pending_dead_actors.append(char_id)
+
+    @staticmethod
+    def _result_outcome(result: InteractionResultDTO) -> str:
+        if result.skip_reason:
+            return result.skip_reason.lower()
+        if result.is_miss:
+            return "miss"
+        if result.is_dodged:
+            return "dodge"
+        if result.is_parried:
+            return "parry"
+        if result.is_blocked:
+            return "block"
+        if result.is_hit:
+            return "crit" if result.is_crit else "hit"
+        if result.healing_final > 0:
+            return "heal"
+        return "none"

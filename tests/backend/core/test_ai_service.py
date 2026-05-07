@@ -57,3 +57,22 @@ async def test_filtering_gemini_provider_tries_fallback_model(mocker):
     assert answer.await_count == 2
     assert answer.await_args_list[0].kwargs == {"max_tokens": 16000}
     assert answer.await_args_list[1].kwargs == {"max_tokens": 16000, "model": "gemini-2.5-pro"}
+
+
+@pytest.mark.unit
+async def test_filtering_gemini_provider_does_not_fallback_on_rate_limit(mocker):
+    provider = FilteringGeminiProvider(
+        api_key="test-key",  # pragma: allowlist secret
+        model="gemini-2.5-flash",
+        fallback_models=["gemini-2.5-pro"],
+    )
+    answer = mocker.patch.object(
+        FilteringGeminiProvider.__mro__[1],
+        "answer",
+        new=AsyncMock(side_effect=LLMProviderError("429 RESOURCE_EXHAUSTED Please retry in 45s.")),
+    )
+
+    with pytest.raises(LLMProviderError):
+        await provider.answer(object(), max_tokens=16000)
+
+    assert answer.await_count == 1

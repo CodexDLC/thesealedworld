@@ -51,10 +51,11 @@ class BaseApiClient:
             response.raise_for_status()
         except httpx.HTTPStatusError as exc:
             logger.warning(
-                "Backend request rejected: method={} endpoint={} status={}",
+                "Backend request rejected: method={} endpoint={} status={} detail={}",
                 method,
                 endpoint,
                 exc.response.status_code,
+                _response_detail(exc.response),
             )
             raise
         except httpx.RequestError:
@@ -71,3 +72,13 @@ class BaseApiClient:
             return response_model.model_validate(response.json())
         data = response.json()
         return data if isinstance(data, dict) else {"data": data}
+
+
+def _response_detail(response: httpx.Response) -> str:
+    try:
+        data = response.json()
+    except ValueError:
+        return response.text
+    if isinstance(data, dict):
+        return str(data.get("detail") or data)
+    return str(data)

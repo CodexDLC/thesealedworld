@@ -71,12 +71,12 @@ def test_builder_wraps_active_character_attributes_and_equipped_item_mechanics()
 
     assert raw["attributes"]["strength"] == {"base": 15.0, "source": {}, "temp": {}}
     assert raw["attributes"]["agility"] == {"base": 9.0, "source": {}, "temp": {}}
-    assert raw["modifiers"]["main_hand_damage_base"]["source"]["item:weapon-1"] == 7.0
-    assert raw["modifiers"]["main_hand_damage_spread"]["source"]["item:weapon-1"] == 0.2
-    assert raw["modifiers"]["accuracy"]["source"]["item:weapon-1"] == 0.1
-    assert raw["modifiers"]["parry"]["source"]["item:weapon-1"] == 0.1
+    assert raw["modifiers"]["main_hand_damage_base"]["base"] == 7.0
+    assert raw["modifiers"]["main_hand_damage_spread"]["base"] == 0.2
+    assert raw["modifiers"]["main_hand_accuracy"]["base"] == 0.1
+    assert raw["modifiers"]["parry"]["base"] == 0.1
     assert raw["modifiers"]["parry"]["source"]["skill:skill_parrying:item:weapon-1"] == 0.1
-    assert raw["modifiers"]["armor"]["source"]["item:armor-1"] == 4.0
+    assert raw["modifiers"]["armor"]["base"] == 4.0
     assert raw["modifiers"]["physical_resistance"]["source"]["item:armor-1"] == 0.05
     assert set(raw["modifiers"]) == COMBAT_MODIFIER_KEYS
     assert raw["modifiers"]["item_damage_base"] == {"base": 0.0, "source": {}, "temp": {}}
@@ -100,7 +100,7 @@ def test_builder_applies_shield_mastery_as_precombat_source() -> None:
         skills={"skill_shield_mastery": {"xp": 50}},
     )
 
-    assert raw["modifiers"]["block"]["source"]["item:shield-1"] == 0.2
+    assert raw["modifiers"]["block"]["base"] == 0.2
     assert raw["modifiers"]["block"]["source"]["skill:skill_shield_mastery:item:shield-1"] == pytest.approx(0.15)
 
 
@@ -115,12 +115,30 @@ def test_builder_counts_two_hand_weapon_as_main_hand_damage_source() -> None:
                     "item_id": "katana-1",
                     "item_type": "weapon",
                     "slot": "two_hand",
-                    "mechanics": {"power": 9, "damage_spread": 0.1},
+                    "mechanics": {
+                        "power": 9,
+                        "damage_spread": 0.1,
+                        "implicit_bonuses": {"physical_accuracy": 0.1},
+                    },
                 }
             },
         },
         skills={},
     )
 
-    assert raw["modifiers"]["main_hand_damage_base"]["source"]["item:katana-1"] == 9.0
-    assert raw["modifiers"]["main_hand_damage_spread"]["source"]["item:katana-1"] == 0.1
+    assert raw["modifiers"]["main_hand_damage_base"]["base"] == 9.0
+    assert raw["modifiers"]["main_hand_damage_spread"]["base"] == 0.1
+    assert raw["modifiers"]["main_hand_accuracy"]["base"] == 0.1
+
+
+@pytest.mark.unit
+def test_builder_adds_unarmed_main_hand_when_no_weapon_is_equipped() -> None:
+    raw = CharacterCombatMathModelBuilder().build_raw(
+        attributes={"strength": 15},
+        items={"layout": {"equipment": {}}, "by_id": {}},
+        skills={},
+    )
+
+    assert raw["modifiers"]["main_hand_damage_base"]["base"] == 15.0
+    assert raw["modifiers"]["main_hand_damage_spread"]["base"] == 0.5
+    assert raw["modifiers"]["main_hand_accuracy"]["base"] == 0.7

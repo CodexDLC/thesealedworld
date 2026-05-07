@@ -8,6 +8,20 @@ from src.frontend.config.settings import settings
 from src.frontend.integrations.backend_api.auth import BackendAuthApi
 from src.frontend.site_features.auth.services.auth_service import FrontendAuthService
 
+AUTH_LOOKUP_SKIP_EXACT_PATHS = {
+    "/favicon.ico",
+    "/health",
+    "/library",
+}
+AUTH_LOOKUP_SKIP_PATH_PREFIXES = (
+    "/library/",
+    "/static/",
+)
+
+
+def should_skip_auth_lookup(path: str) -> bool:
+    return path in AUTH_LOOKUP_SKIP_EXACT_PATHS or path.startswith(AUTH_LOOKUP_SKIP_PATH_PREFIXES)
+
 
 class AuthUserMiddleware(BaseHTTPMiddleware):
     """Silently resolves the current user from the access token cookie
@@ -16,6 +30,9 @@ class AuthUserMiddleware(BaseHTTPMiddleware):
 
     async def dispatch(self, request: Request, call_next) -> Response:
         request.state.user = None
+        if should_skip_auth_lookup(request.url.path):
+            return await call_next(request)
+
         try:
             client: httpx.AsyncClient = request.app.state.backend_http_client
             api = BackendAuthApi(client=client, base_url=settings.backend_base_url)

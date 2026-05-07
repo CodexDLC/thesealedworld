@@ -1,5 +1,13 @@
 from __future__ import annotations
 
+from src.backend.features.character.runtime.vitals import (
+    ENERGY_PER_MENTAL,
+    ENERGY_REGEN_PER_MENTAL,
+    HP_PER_ENDURANCE,
+    HP_REGEN_PER_ENDURANCE,
+    STAMINA_PER_ENDURANCE,
+    STAMINA_REGEN_PER_ENDURANCE,
+)
 from src.shared.enums.stats_enums import StatKey
 
 # Attribute -> combat modifier bridge used when a combat actor snapshot is calculated.
@@ -20,12 +28,12 @@ ATTRIBUTE_MODIFIER_RULES: dict[str, dict[str, float]] = {
     StatKey.PARRY: {StatKey.AGILITY: 0.02},
     StatKey.MAGIC_RESIST: {StatKey.MENTAL: 0.01},
     # Vitals
-    StatKey.HP: {StatKey.ENDURANCE: 10.0, StatKey.STRENGTH: 2.0},
-    StatKey.EN: {StatKey.MENTAL: 5.0, StatKey.ENDURANCE: 2.0},
-    StatKey.STAMINA: {StatKey.ENDURANCE: 10.0},
-    StatKey.HP_REGEN: {StatKey.ENDURANCE: 0.1},
-    StatKey.EN_REGEN: {StatKey.MENTAL: 0.1},
-    StatKey.STAMINA_REGEN: {StatKey.ENDURANCE: 0.2},
+    StatKey.HP: {StatKey.ENDURANCE: HP_PER_ENDURANCE},
+    StatKey.EN: {StatKey.MENTAL: ENERGY_PER_MENTAL},
+    StatKey.STAMINA: {StatKey.ENDURANCE: STAMINA_PER_ENDURANCE},
+    StatKey.HP_REGEN: {StatKey.ENDURANCE: HP_REGEN_PER_ENDURANCE},
+    StatKey.EN_REGEN: {StatKey.MENTAL: ENERGY_REGEN_PER_MENTAL},
+    StatKey.STAMINA_REGEN: {StatKey.ENDURANCE: STAMINA_REGEN_PER_ENDURANCE},
     # Speed
     StatKey.INITIATIVE: {StatKey.PREDICTION: 1.0, StatKey.AGILITY: 0.5},
     StatKey.ATTACK_SPEED: {StatKey.AGILITY: 0.005},

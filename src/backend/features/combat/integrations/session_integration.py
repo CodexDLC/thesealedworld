@@ -80,7 +80,7 @@ class CombatSessionIntegration:
         self,
         session_id: str,
         actor_id: int | str,
-        target_id: int,
+        target_id: int | str,
         move_dto: dict[str, Any],
     ) -> bool:
         return await self.combat_manager.register_exchange_move_atomic(session_id, actor_id, target_id, move_dto)
@@ -302,10 +302,13 @@ class CombatSessionIntegration:
                     "tactics": actor.meta.tactics,
                     "is_dead": actor.meta.is_dead,
                     "tokens": actor.meta.tokens,
+                    "exchange_counter": actor.meta.exchange_counter,
                 },
                 "statuses": actor.statuses.model_dump(),
                 "xp": actor.xp_buffer,
                 "raw": actor.raw.model_dump(),
+                "stats": actor.stats.model_dump(mode="json") if actor.stats else None,
+                "explanation": actor.explanation,
             }
             updates[cid] = actor_updates
 
@@ -327,6 +330,7 @@ class CombatSessionIntegration:
             len(processed_action_ids),
             target_returns=ctx.pending_target_returns,
             dead_actors=dead_actors_update,
+            meta_update={"step_counter": ctx.meta.step_counter},
         )
 
     # ==========================================================================
@@ -372,6 +376,7 @@ class CombatSessionIntegration:
             max_en=int(r_state.get("max_en", 0)),
             tactics=int(r_state.get("tactics", 0)),
             is_dead=bool(r_state.get("is_dead", False)),
+            exchange_counter=int(r_state.get("exchange_counter", 0)),
             tokens=r_state.get("tokens") or {},
         )
 

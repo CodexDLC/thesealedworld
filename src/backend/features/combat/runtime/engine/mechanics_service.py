@@ -118,7 +118,7 @@ class MechanicsService:
         self, ctx: PipelineContextDTO, target: ActorSnapshot, result: InteractionResultDTO
     ) -> None:
         """
-        Изменения для Защитника: Урон.
+        Изменения для Защитника: Урон, защитные токены.
         """
         # A. Damage Final
         if ctx.flags.mechanics.apply_damage:
@@ -143,6 +143,11 @@ class MechanicsService:
                     value=0,
                 )
             )
+
+        # C. Tokens Awarded
+        if result.tokens_awarded_defender:
+            for token, amount in result.tokens_awarded_defender.items():
+                target.meta.tokens[token] = target.meta.tokens.get(token, 0) + amount
 
     def _apply_resource_delta(self, actor: ActorSnapshot, resource: str, sources: list[str]) -> None:
         """

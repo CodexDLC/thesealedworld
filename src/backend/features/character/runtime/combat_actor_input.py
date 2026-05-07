@@ -91,6 +91,9 @@ class CharacterCombatActorInputBuilder:
             if trigger_id and combat_slot in {"main_hand", "off_hand"}:
                 combat_layout[f"{combat_slot}_trigger"] = trigger_id
 
+        if "main_hand" not in combat_layout:
+            combat_layout["main_hand"] = "skill_unarmed"
+
         belt = []
         for belt_slot, item_id in belt_layout.items():
             if not item_id:

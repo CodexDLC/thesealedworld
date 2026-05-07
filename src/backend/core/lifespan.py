@@ -92,7 +92,10 @@ async def lifespan(app: FastAPI):
 
     logger.info("Backend shutdown started")
     try:
-        if hasattr(app.state, "stream_runtime"):
+        if hasattr(app.state, "stream_runtimes"):
+            for runtime in app.state.stream_runtimes:
+                await runtime.stop()
+        elif hasattr(app.state, "stream_runtime"):
             await app.state.stream_runtime.stop()
 
         if hasattr(app.state, "system_arq"):

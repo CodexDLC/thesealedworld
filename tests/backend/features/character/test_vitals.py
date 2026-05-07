@@ -11,14 +11,14 @@ def test_initial_vitals_fill_current_from_calculated_maximums():
 
     vitals = CharacterVitalsCalculator.build_initial_vitals(attributes)
 
-    assert vitals.hp.max == 190
-    assert vitals.hp.cur == 190
-    assert vitals.energy.max == 97
-    assert vitals.energy.cur == 97
+    assert vitals.hp.max == 64
+    assert vitals.hp.cur == 64
+    assert vitals.energy.max == 26
+    assert vitals.energy.cur == 26
     assert vitals.stamina.max == 160
     assert vitals.stamina.cur == 160
-    assert vitals.hp.regen == 1.6
-    assert vitals.energy.regen == 1.3
+    assert vitals.hp.regen == 8.0
+    assert vitals.energy.regen == 6.5
     assert vitals.stamina.regen == 3.2
 
 
@@ -33,9 +33,9 @@ def test_refresh_max_vitals_preserves_current_values_from_combat():
     refreshed = CharacterVitalsCalculator.refresh_max_vitals(current, attributes)
 
     assert refreshed.hp.cur == 42
-    assert refreshed.hp.max == 190
+    assert refreshed.hp.max == 64
     assert refreshed.energy.cur == 25
-    assert refreshed.energy.max == 97
+    assert refreshed.energy.max == 26
     assert refreshed.stamina.cur == 12
     assert refreshed.stamina.max == 160
 
@@ -50,8 +50,8 @@ def test_refresh_max_vitals_clamps_current_values_to_new_maximums():
 
     refreshed = CharacterVitalsCalculator.refresh_max_vitals(current, attributes)
 
-    assert refreshed.hp.cur == 96
-    assert refreshed.energy.cur == 56
+    assert refreshed.hp.cur == 32
+    assert refreshed.energy.cur == 16
     assert refreshed.stamina.cur == 80
 
 
@@ -67,9 +67,9 @@ def test_snapshot_restore_uses_saved_current_values_with_recalculated_maximums()
     vitals = CharacterVitalsCalculator.build_vitals_from_snapshot(snapshot, attributes)
 
     assert vitals.hp.cur == 41
-    assert vitals.hp.max == 190
+    assert vitals.hp.max == 64
     assert vitals.energy.cur == 22
-    assert vitals.energy.max == 97
+    assert vitals.energy.max == 26
     assert vitals.stamina.cur == 15
     assert vitals.stamina.max == 160
     assert vitals.last_update == 123.0

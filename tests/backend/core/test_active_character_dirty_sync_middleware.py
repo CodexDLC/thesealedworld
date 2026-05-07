@@ -6,6 +6,7 @@ from unittest.mock import AsyncMock
 import pytest
 from starlette.responses import Response
 
+from src.backend.core.arq import SYSTEM_ARQ_QUEUE
 from src.backend.core.middleware import ActiveCharacterDirtySyncMiddleware
 
 
@@ -65,6 +66,30 @@ async def test_dirty_sync_middleware_skips_clean_active_session() -> None:
 
     character_sessions.is_dirty.assert_awaited_once_with(7)
     system_arq.enqueue_job.assert_not_awaited()
+
+
+@pytest.mark.unit
+async def test_dirty_sync_middleware_creates_system_arq_when_missing(mocker) -> None:
+    character_sessions = SimpleNamespace(is_dirty=AsyncMock(return_value=True))
+    created_arq = SimpleNamespace(enqueue_job=AsyncMock())
+    arq_factory = mocker.patch("src.backend.core.middleware.ArqService", return_value=created_arq)
+    request = SimpleNamespace(
+        app=SimpleNamespace(state=SimpleNamespace(character_sessions=character_sessions)),
+        path_params={"char_id": "7"},
+        query_params={},
+    )
+    middleware = ActiveCharacterDirtySyncMiddleware(app=SimpleNamespace())
+
+    await middleware.dispatch(request, _ok_response)
+
+    arq_factory.assert_called_once_with(queue_name=SYSTEM_ARQ_QUEUE)
+    created_arq.enqueue_job.assert_awaited_once_with(
+        "sync_active_session_task",
+        {
+            "char_id": 7,
+            "source": "ac_dirty_middleware",
+        },
+    )
 
 
 async def _ok_response(_request: object) -> Response:

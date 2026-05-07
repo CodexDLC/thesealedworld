@@ -1,5 +1,5 @@
 from src.frontend.game_features.game_menu.view_models.menu import GameMenuItemVM, GameMenuVM
-from src.shared.enums.domain import CoreDomain
+from src.shared.enums import CoreDomain
 
 
 class GameMenuService:
@@ -39,9 +39,9 @@ class GameMenuService:
 
     def _build_combat_menu(self) -> GameMenuVM:
         return GameMenuVM(
-            l2=GameMenuItemVM(id="status", label="STATUS", icon="person", url="#", panel="left", panel_view="status"),
-            l1=GameMenuItemVM(id="builds", label="BUILDS", icon="bolt", url="#", panel="left", panel_view="builds"),
+            l2=GameMenuItemVM(id="status", label="STATUS", icon="person", url="#", is_disabled=True),
+            l1=GameMenuItemVM(id="builds", label="BUILDS", icon="bolt", url="#", is_disabled=True),
             center=GameMenuItemVM(id="combat", label="COMBAT", icon="swords", url="#", is_active=True),
-            r1=GameMenuItemVM(id="inventory", label="INVENTORY", icon="inventory", url="#", window="inventory"),
-            r2=GameMenuItemVM(id="view", label="VIEW", icon="journal", url="#", panel="right", panel_view="context"),
+            r1=GameMenuItemVM(id="inventory", label="INVENTORY", icon="inventory", url="#", is_disabled=True),
+            r2=GameMenuItemVM(id="view", label="VIEW", icon="journal", url="#", is_disabled=True),
         )

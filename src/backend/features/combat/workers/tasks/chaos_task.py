@@ -1,4 +1,5 @@
 import time
+from datetime import UTC, datetime, timedelta
 
 from loguru import logger as log
 
@@ -63,7 +64,11 @@ async def chaos_check_task(ctx: dict, session_id: str) -> None:
         # 3. Relay (Self-Requeue)
         # Планируем следующий чек через 5 минут (300 сек)
         next_check_delay = 300
-        await ctx["redis"].enqueue_job("chaos_check_task", session_id, _defer_until=int(time.time() + next_check_delay))
+        await ctx["redis"].enqueue_job(
+            "chaos_check_task",
+            session_id,
+            _defer_until=datetime.now(UTC) + timedelta(seconds=next_check_delay),
+        )
 
         log.debug(
             "ChaosRelay | session_id={session_id} next_run_in={delay}s", session_id=session_id, delay=next_check_delay

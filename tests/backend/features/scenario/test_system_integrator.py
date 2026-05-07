@@ -5,7 +5,8 @@ import pytest
 
 from src.backend.core.exceptions import BusinessLogicException
 from src.backend.features.character.events import CharacterEvents
-from src.backend.features.items.events import ItemEvents
+from src.backend.features.inventory.events.publisher import InventoryEvents
+from src.backend.features.items.events.publisher import ItemEvents
 from src.backend.features.scenario.handlers.base_handler import ScenarioInitialHandlerContext
 from src.backend.features.scenario.integrations.system_integrator import (
     SCENARIO_COMBAT_TTL_SECONDS,
@@ -36,9 +37,19 @@ async def test_unlock_skills_updates_active_character_runtime() -> None:
 
 
 @pytest.mark.unit
-async def test_grant_inventory_rewards_creates_equipped_item_placements() -> None:
+async def test_grant_inventory_rewards_requests_inventory_reward_grant() -> None:
     events = MagicMock()
-    events.request = AsyncMock(return_value={"status": "ok", "item_ids": ["item-1"], "items": None})
+    events.request = AsyncMock(
+        side_effect=[
+            {"status": "ok", "item_ids": ["item-1"]},
+            {
+                "status": "ok",
+                "item_ids": ["item-1"],
+                "equipped_item_ids": ["item-1"],
+                "backpack_item_ids": [],
+            },
+        ]
+    )
     integrator = ScenarioSystemIntegrator(
         sessions=MagicMock(),
         content=MagicMock(),
@@ -50,16 +61,20 @@ async def test_grant_inventory_rewards_creates_equipped_item_placements() -> Non
     item_ids = await integrator.grant_inventory_rewards(7, ["sword"], quest_key="awakening_rift")
 
     assert item_ids == ["item-1"]
-    event_type, payload = events.request.await_args.args[:2]
+    first_call, second_call = events.request.await_args_list
+    event_type, payload = first_call.args[:2]
     assert event_type == ItemEvents.GENERATE_REQUESTED
-    assert payload["return_items"] is False
-    assert payload["items"][0]["return_item"] is False
-    assert payload["items"][0]["placement_ref"] == {
-        "holder_type": "character",
-        "holder_id": "7",
-        "storage_type": "equipped",
-        "slot": "main_hand",
-        "position_index": None,
+    assert payload["items"][0]["base_id"] == "sword"
+    assert payload["items"][0]["placement_ref"]["storage_type"] == "backpack"
+    assert payload["items"][0]["origin_ref"]["origin_ref"] == "awakening_rift"
+
+    event_type, payload = second_call.args[:2]
+    assert event_type == InventoryEvents.REWARDS_GRANT_REQUESTED
+    assert payload == {
+        "char_id": 7,
+        "quest_key": "awakening_rift",
+        "item_ids": ["item-1"],
+        "equip_if_possible": True,
     }
 
 
@@ -163,7 +178,12 @@ async def test_enter_prepared_combat_attaches_combat_and_switches_state() -> Non
 @pytest.mark.unit
 async def test_request_combat_start_uses_day_ttl() -> None:
     events = MagicMock()
-    events.request = AsyncMock(return_value={"status": "ready", "combat_id": "combat-1"})
+    events.request = AsyncMock(
+        side_effect=[
+            {"status": "ok", "commitments": {"combat-1:player:7": "snapshot-1"}},
+            {"status": "ready", "combat_id": "combat-1"},
+        ]
+    )
     integrator = ScenarioSystemIntegrator(
         sessions=MagicMock(),
         content=MagicMock(),
@@ -174,5 +194,8 @@ async def test_request_combat_start_uses_day_ttl() -> None:
 
     await integrator.request_combat_start(7, "awakening_rift", battle_type="shadow", location_id="52_58")
 
-    payload = events.request.await_args.args[1]
+    commitment_event, combat_event = events.request.await_args_list
+    assert commitment_event.args[0] == CharacterEvents.COMBAT_COMMITMENTS_REQUESTED
+    payload = combat_event.args[1]
     assert payload["ttl"] == SCENARIO_COMBAT_TTL_SECONDS
+    assert payload["commitments"] == '{"combat-1:player:7": "snapshot-1"}'

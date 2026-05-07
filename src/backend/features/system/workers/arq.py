@@ -4,7 +4,7 @@ from typing import Any
 
 from loguru import logger
 
-from src.backend.core.arq import BaseArqSettings, base_shutdown, base_startup
+from src.backend.core.arq import SYSTEM_ARQ_QUEUE, BaseArqSettings, base_shutdown, base_startup
 from src.backend.features.character.workers.tasks import CHARACTER_TASKS
 
 SYSTEM_TASKS = (*CHARACTER_TASKS,)
@@ -24,6 +24,7 @@ async def system_shutdown(ctx: dict[str, Any]) -> None:
 
 class SystemArqSettings(BaseArqSettings):
     redis_settings = BaseArqSettings.redis_settings
+    queue_name = SYSTEM_ARQ_QUEUE
     max_jobs: int = 20
     job_timeout: int = 60
     keep_result: int = 5

@@ -46,7 +46,7 @@ class ItemGenerationService:
     async def generate_mechanical(self, request: ItemGenerationRequestDTO) -> ItemGenerationResultDTO:
         placement_ref = self._resolve_placement_ref(request)
         item = self.factory.generate(request)
-        text_status = "pending" if request.request_ai_text else "not_requested"
+        text_status = "pending" if self._should_request_ai_text(request) else "not_requested"
         item_id = await self.persistence.create_mechanical_item(
             item,
             placement_ref,
@@ -77,6 +77,8 @@ class ItemGenerationService:
         item = await self.persistence.get_generated_item(item_id)
         if item is None:
             return None
+        if not self._should_request_ai_text(request) or item.rarity_tier <= 0:
+            return item
         enriched = await self.text_service.enrich(item, request)
         if enriched.metadata.get("ai_text_status") == "generated":
             await self.persistence.save_generated_text(item_id, enriched)
@@ -92,3 +94,6 @@ class ItemGenerationService:
         return ItemPlacementRefDTO(
             holder_type="system", holder_id=request.source or "generated", storage_type="storage"
         )
+
+    def _should_request_ai_text(self, request: ItemGenerationRequestDTO) -> bool:
+        return request.request_ai_text and request.rarity_tier > 0

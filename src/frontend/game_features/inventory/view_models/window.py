@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any, Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 DEFAULT_INVENTORY_AVATAR_URL = "/static/images/avatars/silhouette_m.png"
 
@@ -51,6 +51,11 @@ class InventoryTabVM(BaseModel):
     is_active: bool = False
 
 
+class InventoryStatsVM(BaseModel):
+    slots_total: int = 50
+    slots_used: int = 0
+
+
 class InventoryRowVM(BaseModel):
     row_id: str
     icon: str
@@ -59,8 +64,98 @@ class InventoryRowVM(BaseModel):
     weight: str
     quantity: str
     rarity: str
+    rarity_tier: int = 0
+    rarity_label: str = "Common"
     equip_target: str | None = None
+    grid_w: int = 2
+    grid_h: int = 1
+    is_equipped: bool = False
     comparison: list[str] = Field(default_factory=list)
+
+
+class InventoryCardVM(BaseModel):
+    row_id: str
+    icon: str
+    name: str
+    item_type: str
+    weight: str
+    quantity: str
+    rarity: str
+    rarity_tier: int
+    rarity_label: str
+    equip_target: str | None = None
+    grid_w: int
+    grid_h: int
+    style: str
+    card_class: str
+    is_equipped: bool = False
+    details: list[str] = Field(default_factory=list)
+    comparison: list[str] = Field(default_factory=list)
+
+
+def build_inventory_card_vm(row: InventoryRowVM) -> InventoryCardVM:
+    grid_w, grid_h = inventory_card_dimensions(row.item_type, row.grid_w, row.grid_h)
+    details = [
+        f"Type: {row.item_type}",
+        f"Weight: {row.weight}",
+        f"Qty: {row.quantity}",
+        f"Rank: {row.rarity}",
+        *row.comparison,
+    ]
+    return InventoryCardVM(
+        row_id=row.row_id,
+        icon=row.icon,
+        name=row.name,
+        item_type=row.item_type,
+        weight=row.weight,
+        quantity=row.quantity,
+        rarity=row.rarity,
+        rarity_tier=max(0, min(7, row.rarity_tier)),
+        rarity_label=row.rarity_label,
+        equip_target=row.equip_target,
+        grid_w=grid_w,
+        grid_h=grid_h,
+        style=f"--item-w: {grid_w}; --item-h: {grid_h};",
+        card_class=inventory_card_class(row.item_type, grid_w, grid_h),
+        is_equipped=row.is_equipped,
+        details=details,
+        comparison=row.comparison,
+    )
+
+
+def inventory_card_dimensions(item_type: str, grid_w: int | None = None, grid_h: int | None = None) -> tuple[int, int]:
+    fallback_by_type = {
+        "weapon": (4, 2),
+        "armor": (4, 2),
+        "garment": (3, 2),
+        "footwear": (3, 2),
+        "accessory": (2, 2),
+        "consumable": (2, 1),
+        "resource": (2, 1),
+        "currency": (2, 1),
+        "material": (2, 1),
+        "quest": (2, 1),
+    }
+    fallback_w, fallback_h = fallback_by_type.get(item_type, (2, 2))
+    width = int(grid_w or 0)
+    height = int(grid_h or 0)
+    if width <= 1 and height <= 1:
+        width, height = fallback_w, fallback_h
+    return max(1, min(8, width)), max(1, min(4, height))
+
+
+def inventory_card_class(item_type: str, grid_w: int, grid_h: int) -> str:
+    normalized_type = item_type.lower().replace("_", "-")
+    shape = "square" if grid_w == grid_h else "wide" if grid_w > grid_h else "tall"
+    footprint = "compact" if grid_w * grid_h <= 2 else "large" if grid_w * grid_h >= 8 else "medium"
+    return " ".join(
+        [
+            f"inventory-card--{normalized_type}",
+            f"inventory-card--{shape}",
+            f"inventory-card--{footprint}",
+            f"inventory-card--{grid_w}x{grid_h}",
+        ]
+    )
 
 
 class InventoryWindowVM(BaseModel):
@@ -72,9 +167,17 @@ class InventoryWindowVM(BaseModel):
     quick_slots: list[InventoryQuickSlotVM]
     tabs: list[InventoryTabVM]
     visible_rows: list[InventoryRowVM]
+    visible_cards: list[InventoryCardVM] = Field(default_factory=list)
+    stats: InventoryStatsVM = Field(default_factory=InventoryStatsVM)
     rows_visible_count: int = 10
     search_placeholder: str = "Search"
     contract_state: str = "FRONTEND_CONTRACT_PENDING"
+
+    @model_validator(mode="after")
+    def populate_inventory_cards(self) -> InventoryWindowVM:
+        if not self.visible_cards and self.visible_rows:
+            self.visible_cards = [build_inventory_card_vm(row) for row in self.visible_rows]
+        return self
 
 
 def build_inventory_window_vm(status_seed: dict[str, Any] | None = None) -> InventoryWindowVM:
@@ -151,12 +254,13 @@ def build_inventory_window_vm(status_seed: dict[str, Any] | None = None) -> Inve
         ],
         quick_slots=[InventoryQuickSlotVM(slot_index=index) for index in range(1, 9)],
         tabs=[
-            InventoryTabVM(tab_id="equipped", label="Equipped", icon="E", is_active=True),
-            InventoryTabVM(tab_id="items", label="Items", icon="I"),
+            InventoryTabVM(tab_id="items", label="Items", icon="I", is_active=True),
             InventoryTabVM(tab_id="resources", label="Resources", icon="R"),
             InventoryTabVM(tab_id="quest", label="Quest", icon="Q"),
         ],
         visible_rows=[],
+        visible_cards=[],
+        stats=InventoryStatsVM(slots_total=50, slots_used=0),
     )
 
 

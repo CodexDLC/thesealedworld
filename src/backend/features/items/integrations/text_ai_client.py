@@ -1,11 +1,11 @@
 from __future__ import annotations
 
-import json
 import logging
 from typing import TYPE_CHECKING, Any
 
-from pydantic import BaseModel, Field, ValidationError
+from pydantic import BaseModel, Field
 
+from src.backend.core.ai_json import parse_ai_json_model
 from src.backend.features.items.prompts.router import item_prompt_router
 
 if TYPE_CHECKING:
@@ -37,11 +37,7 @@ class ItemTextAIClient:
         return self._parse_response(raw_text)
 
     def _parse_response(self, raw_text: Any) -> GeneratedItemTextDTO | None:
-        if raw_text is None:
-            return None
-        raw_payload = json.loads(raw_text) if isinstance(raw_text, str) else raw_text
-        try:
-            return GeneratedItemTextDTO.model_validate(raw_payload)
-        except ValidationError:
+        parsed = parse_ai_json_model(raw_text, GeneratedItemTextDTO, context=self.prompt_name)
+        if parsed is None:
             log.warning("Invalid AI item text response: %r", raw_text)
-            return None
+        return parsed

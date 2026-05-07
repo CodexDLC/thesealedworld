@@ -25,6 +25,8 @@ class ItemTextService:
     async def enrich(self, item: GeneratedItemDTO, request: ItemGenerationRequestDTO) -> GeneratedItemDTO:
         if not request.request_ai_text:
             return item
+        if request.rarity_tier <= 0 or item.rarity_tier <= 0:
+            return self._mark_metadata(item, ai_text_status="skipped", ai_text_reason="common_tier")
         if self.ai_client is None:
             return self._mark_metadata(item, ai_text_status="skipped", ai_text_reason="ai_unavailable")
 

@@ -200,6 +200,59 @@ class InventoryUIPayloadDTO(BaseModel):
 
 
 InventorySlotLayer = Literal["armor", "garment", "equipment", "accessory", "quick"]
+InventoryLineTone = Literal["positive", "negative", "neutral"]
+InventoryActionStyle = Literal["primary", "secondary", "danger"]
+
+
+class InventoryDetailLineDTO(BaseModel):
+    label: str
+    value: str
+    tone: InventoryLineTone = "neutral"
+    delta: float | None = None
+
+
+class InventoryRequirementDTO(BaseModel):
+    label: str
+    value: str
+    met: bool = False
+    current: str | None = None
+
+
+class InventoryEffectTagDTO(BaseModel):
+    label: str
+    tone: InventoryLineTone = "neutral"
+
+
+class InventoryMetaFieldDTO(BaseModel):
+    label: str
+    value: str
+
+
+class InventoryItemActionDTO(BaseModel):
+    action: Literal["equip", "unequip", "move_to_belt", "remove_from_belt", "use", "drop"]
+    label: str
+    enabled: bool = True
+    reason: str | None = None
+    slot_id: str | None = None
+    style: InventoryActionStyle = "secondary"
+
+
+class InventoryItemDetailsDTO(BaseModel):
+    item_id: str
+    name: str
+    item_type: str
+    rarity: str = "shared"
+    rarity_tier: int = Field(default=0, ge=0, le=7)
+    rarity_label: str = "Common"
+    description: str = ""
+    flavor: str | None = None
+    details: list[InventoryDetailLineDTO] = Field(default_factory=list)
+    comparison: list[InventoryDetailLineDTO] = Field(default_factory=list)
+    effects: list[InventoryEffectTagDTO] = Field(default_factory=list)
+    tags: list[InventoryEffectTagDTO] = Field(default_factory=list)
+    requirements: list[InventoryRequirementDTO] = Field(default_factory=list)
+    meta: list[InventoryMetaFieldDTO] = Field(default_factory=list)
+    actions: list[InventoryItemActionDTO] = Field(default_factory=list)
 
 
 class InventoryWindowSlotDTO(BaseModel):
@@ -207,6 +260,7 @@ class InventoryWindowSlotDTO(BaseModel):
     label: str
     layer: InventorySlotLayer
     item: InventoryRuntimeItemDTO | None = None
+    details: InventoryItemDetailsDTO | None = None
     accepted_slots: list[str] = Field(default_factory=list)
 
 
@@ -229,6 +283,7 @@ class InventoryQuickSlotDTO(BaseModel):
     slot_id: str
     slot_index: int
     item: InventoryRuntimeItemDTO | None = None
+    details: InventoryItemDetailsDTO | None = None
     enabled: bool = False
     reason: str = "empty"
 
@@ -244,6 +299,7 @@ class InventoryComparisonLineDTO(BaseModel):
     label: str
     value: str
     delta: float | None = None
+    tone: InventoryLineTone = "neutral"
 
 
 class InventoryContainerRowDTO(BaseModel):
@@ -254,8 +310,15 @@ class InventoryContainerRowDTO(BaseModel):
     weight: str = "-"
     quantity: int = 1
     rarity: str = "shared"
+    rarity_tier: int = Field(default=0, ge=0, le=7)
+    rarity_label: str = "Common"
     equip_target: str | None = None
+    valid_slots: list[str] = Field(default_factory=list)
+    grid_w: int = 2
+    grid_h: int = 1
+    is_equipped: bool = False
     comparison: list[InventoryComparisonLineDTO] = Field(default_factory=list)
+    details: InventoryItemDetailsDTO | None = None
 
 
 class InventoryWindowDTO(BaseModel):
@@ -265,6 +328,7 @@ class InventoryWindowDTO(BaseModel):
     forbidden_reason: str | None = None
     avatar_url: str | None = None
     avatar_name: str = "NO_DATA"
+    stats: InventoryStatsDTO = Field(default_factory=InventoryStatsDTO)
     body_zones: list[InventoryBodyZoneDTO]
     weapon_slots: list[InventoryWindowSlotDTO]
     accessory_rows: list[InventoryAccessoryRowDTO]

@@ -61,6 +61,32 @@ async def test_item_text_service_replaces_only_name_and_description_with_ai_text
 
 
 @pytest.mark.unit
+async def test_item_text_service_accepts_fenced_json_ai_response():
+    request = ItemGenerationRequestDTO(
+        base_id="warhammer",
+        material_id="mat_iron_ingot",
+        rarity_tier=1,
+        source="scenario:awakening_rift",
+        request_ai_text=True,
+    )
+    mechanical_item = ItemFactory().generate(request)
+    ai = FakeAI(
+        """```json
+{
+  "name": "Грязный железный молот",
+  "description": "Когда-то он, возможно, был ровным и надежным."
+}
+```"""
+    )
+
+    item = await ItemTextService(ItemTextAIClient(ai)).enrich(mechanical_item, request)
+
+    assert item.name == "Грязный железный молот"
+    assert item.description.startswith("Когда-то он")
+    assert item.metadata["ai_text_status"] == "generated"
+
+
+@pytest.mark.unit
 async def test_item_text_service_skips_ai_when_request_does_not_ask_for_text():
     request = ItemGenerationRequestDTO(base_id="warhammer", rarity_tier=0, request_ai_text=False)
     mechanical_item = ItemFactory().generate(request)
@@ -69,4 +95,19 @@ async def test_item_text_service_skips_ai_when_request_does_not_ask_for_text():
     item = await ItemTextService(ItemTextAIClient(ai)).enrich(mechanical_item, request)
 
     assert item == mechanical_item
+    assert ai.calls == []
+
+
+@pytest.mark.unit
+async def test_item_text_service_skips_ai_for_common_tier_even_when_requested():
+    request = ItemGenerationRequestDTO(base_id="warhammer", rarity_tier=0, request_ai_text=True)
+    mechanical_item = ItemFactory().generate(request)
+    ai = FakeAI({"name": "Не должен примениться", "description": "Не должен примениться."})
+
+    item = await ItemTextService(ItemTextAIClient(ai)).enrich(mechanical_item, request)
+
+    assert item.name == mechanical_item.name
+    assert item.description == mechanical_item.description
+    assert item.metadata["ai_text_status"] == "skipped"
+    assert item.metadata["ai_text_reason"] == "common_tier"
     assert ai.calls == []

@@ -51,12 +51,13 @@ class ItemFactory:
                 tags.extend(effect.narrative_tags)
 
         item_type = base.type or "item"
+        name = self._build_instance_name(base.name_ru, rarity.name_ru, material.name_ru if material else None)
         return GeneratedItemDTO(
             template_id=f"{base.id}:{material.id if material else 'none'}:{request.rarity_tier}",
             item_type=item_type,
             rarity=rarity.enum_key,
             rarity_tier=request.rarity_tier,
-            name=f"{rarity.name_ru} {base.name_ru}",
+            name=name,
             description=self._build_mechanical_description(base.narrative_description, base.name_ru),
             base_id=base.id,
             material_id=material.id if material else None,
@@ -84,6 +85,11 @@ class ItemFactory:
         if base_description:
             return base_description
         return f"{base_name}: базовый предмет без нарративного описания."
+
+    def _build_instance_name(self, base_name: str, rarity_name: str, material_name: str | None) -> str:
+        if material_name:
+            return f"{material_name}: {base_name}"
+        return f"{rarity_name} {base_name}"
 
     def _resolve_material(
         self,

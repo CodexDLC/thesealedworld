@@ -36,6 +36,7 @@ class FakeInstance:
         self.mechanics = item.mechanics
         self.generation = {"narrative_tags": item.tags}
         self.metadata_ = item.metadata
+        self.appearance = item.metadata
 
 
 class FakePlacement:
@@ -61,6 +62,140 @@ async def test_open_window_creates_redis_session_and_active_character_projection
     assert fake_redis_client.store["game:inventory:7"]["layout"]["equipment"]["main_hand"] == "sword-1"
     assert fake_redis_client.store["game:ac:7"]["items"]["layout"]["equipment"]["outer_garment"] == "cloak-1"
     assert fake_redis_client.ttls["game:inventory:7"] == 3600
+
+
+@pytest.mark.asyncio
+async def test_open_window_calculates_inventory_slots_from_strength_and_belt(
+    fake_redis_service,
+    fake_redis_client,
+):
+    _active_character(fake_redis_client, state="exploration", attributes={"strength": 12})
+    service = _service(
+        fake_redis_service,
+        [
+            _item(
+                "belt-1",
+                "accessory",
+                slot="belt_accessory",
+                placement="equipped",
+                mechanics={
+                    "implicit_bonuses": {
+                        "quick_slot_capacity": 2,
+                        "inventory_slot_capacity": 6,
+                    },
+                    "valid_slots": ["belt_accessory"],
+                },
+            ),
+            _item(
+                "ore-1",
+                "resource",
+                slot=None,
+                mechanics={"valid_slots": []},
+                metadata={"width_cells": 2, "height_cells": 1},
+            ),
+        ],
+    )
+
+    window = await service.open_window(7)
+
+    assert window.stats.slots_total == 48
+    assert window.stats.slots_used == 2
+    assert sum(not slot.enabled for slot in window.quick_slots) == 6
+
+
+@pytest.mark.asyncio
+async def test_open_window_maps_real_item_card_fields(fake_redis_service, fake_redis_client):
+    _active_character(fake_redis_client, state="exploration")
+    service = _service(
+        fake_redis_service,
+        [
+            _item(
+                "axe-1",
+                "weapon",
+                slot="main_hand",
+                mechanics={"valid_slots": ["main_hand", "off_hand"], "weight_units": 3.5},
+                metadata={"width_cells": 4, "height_cells": 2, "quantity": 2, "icon_key": "axe"},
+            ),
+            _item(
+                "helm-1",
+                "armor",
+                slot="head_armor",
+                placement="equipped",
+                mechanics={"valid_slots": ["head_armor"]},
+                metadata={"volume_units": 5},
+            ),
+        ],
+    )
+
+    window = await service.open_window(7)
+
+    axe = next(row for row in window.visible_rows if row.item_id == "axe-1")
+    helm = next(row for row in window.visible_rows if row.item_id == "helm-1")
+    assert axe.quantity == 2
+    assert axe.weight == "3.5"
+    assert axe.grid_w == 4
+    assert axe.grid_h == 2
+    assert axe.equip_target == "main_hand"
+    assert axe.valid_slots == ["main_hand", "off_hand"]
+    assert helm.is_equipped is True
+    assert window.body_zones[0].primary_slot.item.item_id == "helm-1"
+
+
+@pytest.mark.asyncio
+async def test_open_window_builds_structured_item_tooltip_without_html(fake_redis_service, fake_redis_client):
+    _active_character(fake_redis_client, state="exploration")
+    service = _service(
+        fake_redis_service,
+        [
+            _item(
+                "old-axe",
+                "weapon",
+                slot="main_hand",
+                placement="equipped",
+                mechanics={"valid_slots": ["main_hand"], "power": 5, "implicit_bonuses": {"initiative": 1}},
+                rarity_tier=1,
+            ),
+            _item(
+                "new-axe",
+                "weapon",
+                slot="main_hand",
+                mechanics={
+                    "valid_slots": ["main_hand"],
+                    "power": 9,
+                    "implicit_bonuses": {"initiative": 3, "stamina_regen": -1},
+                    "effects": ["void_touched"],
+                    "requirements": [{"label": "STR", "value": "12", "current": "14", "met": True}],
+                },
+                metadata={"flavor_text": "A clean tooltip payload.", "source": "test"},
+                rarity="epic",
+                rarity_tier=4,
+                description="Structured item details.",
+                tags=["two_handed"],
+            ),
+        ],
+    )
+
+    window = await service.open_window(7)
+
+    row = next(row for row in window.visible_rows if row.item_id == "new-axe")
+    details = row.details
+    assert details is not None
+    assert row.rarity_tier == 4
+    assert row.rarity_label == "Epic"
+    assert details.description == "Structured item details."
+    assert details.flavor == "A clean tooltip payload."
+    assert any(line.label == "Power" and line.value == "+9" and line.tone == "positive" for line in details.details)
+    assert any(line.label == "Stamina Regen" and line.tone == "negative" for line in details.details)
+    assert any(line.label == "Power" and line.delta == 4 for line in details.comparison)
+    assert details.effects[0].label == "Void Touched"
+    assert details.tags[0].label == "two_handed"
+    assert details.requirements[0].met is True
+    assert any(field.label == "Source" and field.value == "test" for field in details.meta)
+    assert details.actions[0].action == "equip"
+    assert details.actions[0].slot_id == "main_hand"
+    dumped = details.model_dump_json()
+    assert "<" not in dumped
+    assert "item-card" not in dumped
 
 
 @pytest.mark.asyncio
@@ -124,6 +259,50 @@ async def test_move_to_belt_requires_capacity_and_consumable_compatibility(fake_
 
 
 @pytest.mark.asyncio
+async def test_unequipping_belt_moves_disabled_quick_items_back_to_backpack(fake_redis_service, fake_redis_client):
+    _active_character(fake_redis_client, state="exploration")
+    service = _service(
+        fake_redis_service,
+        [
+            _item(
+                "belt-1",
+                "accessory",
+                slot="belt_accessory",
+                placement="equipped",
+                mechanics={"implicit_bonuses": {"quick_slot_capacity": 1}, "valid_slots": ["belt_accessory"]},
+            ),
+            _item(
+                "potion-1",
+                "consumable",
+                slot="belt_slot_1",
+                placement="belt",
+                mechanics={"is_quick_slot_compatible": True, "valid_slots": []},
+            ),
+        ],
+    )
+
+    window = await service.apply_action(
+        InventoryActionRequestDTO(char_id=7, action="unequip", item_id="belt-1", slot_id="belt_accessory")
+    )
+
+    active_doc = fake_redis_client.store["game:ac:7"]
+    assert active_doc["items"]["layout"]["belt"]["belt_slot_1"] is None
+    assert "potion-1" in active_doc["items"]["layout"]["backpack"]
+    assert all(slot.enabled is False for slot in window.quick_slots)
+
+
+@pytest.mark.asyncio
+async def test_remove_from_belt_only_removes_belt_items(fake_redis_service, fake_redis_client):
+    _active_character(fake_redis_client, state="exploration")
+    service = _service(fake_redis_service, [_item("boots-1", "garment", slot="feetwear", placement="equipped")])
+
+    with pytest.raises(ValueError, match="not in the belt"):
+        await service.apply_action(
+            InventoryActionRequestDTO(char_id=7, action="remove_from_belt", item_id="boots-1", slot_id="belt_slot_1")
+        )
+
+
+@pytest.mark.asyncio
 async def test_close_window_flushes_dirty_session_and_removes_redis_key(fake_redis_service, fake_redis_client):
     _active_character(fake_redis_client, state="exploration")
     repository = FakeInventoryRepository([_item("boots-1", "garment", slot="feetwear")])
@@ -152,10 +331,11 @@ def _service(
     )
 
 
-def _active_character(fake_redis_client, *, state: str) -> None:
+def _active_character(fake_redis_client, *, state: str, attributes: dict | None = None) -> None:
     fake_redis_client.store["game:ac:7"] = {
         "char_id": 7,
         "state": state,
+        "attributes": attributes or {},
         "bio": {"name": "Ada", "avatar": "/avatar.png"},
         "sessions": {},
         "items": {},
@@ -169,6 +349,11 @@ def _item(
     slot: str | None,
     placement: str = "backpack",
     mechanics: dict | None = None,
+    metadata: dict | None = None,
+    rarity: str = "shared",
+    rarity_tier: int = 0,
+    description: str = "",
+    tags: list[str] | None = None,
 ) -> InventoryRuntimeItemDTO:
     mechanics = mechanics or {"valid_slots": [slot] if slot else []}
     return InventoryRuntimeItemDTO(
@@ -179,5 +364,10 @@ def _item(
         valid_slots=list(mechanics.get("valid_slots") or ([slot] if slot else [])),
         placement=placement,
         name=item_id,
+        description=description,
+        rarity=rarity,
+        rarity_tier=rarity_tier,
         mechanics=mechanics,
+        tags=tags or [],
+        metadata=metadata or {},
     )

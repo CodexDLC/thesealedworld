@@ -66,6 +66,7 @@ class InventoryService:
             can_act=can_act,
             forbidden_reason=None if can_act else InventoryActionForbiddenDTO(state=state).message,
             **await self._avatar_context(char_id),
+            **await self._attribute_context(char_id),
         )
 
     async def apply_action(self, dto: InventoryActionRequestDTO) -> InventoryWindowDTO:
@@ -87,7 +88,12 @@ class InventoryService:
         session.updated_at = time.time()
         await self.inventory_sessions.set(session)
         await self._sync_active_character_items(session)
-        return self.view_service.build_window(session, can_act=True, **await self._avatar_context(dto.char_id))
+        return self.view_service.build_window(
+            session,
+            can_act=True,
+            **await self._avatar_context(dto.char_id),
+            **await self._attribute_context(dto.char_id),
+        )
 
     async def close_window(self, char_id: int) -> InventoryWindowDTO:
         session = await self.get_or_create_session(char_id)
@@ -95,7 +101,12 @@ class InventoryService:
             await self.flush_session(session)
         await self.inventory_sessions.delete(char_id)
         await self.character_sessions.clear_inventory_session(char_id)
-        return self.view_service.build_window(session, can_act=True, **await self._avatar_context(char_id))
+        return self.view_service.build_window(
+            session,
+            can_act=True,
+            **await self._avatar_context(char_id),
+            **await self._attribute_context(char_id),
+        )
 
     async def get_or_create_session(self, char_id: int) -> InventoryRuntimeSessionDTO:
         session = await self.inventory_sessions.get(char_id)
@@ -142,6 +153,7 @@ class InventoryService:
         item.placement = EQUIPMENT_STORAGE
         item.slot = slot_id
         session.layout.equipment[slot_id] = item_id
+        self._enforce_belt_capacity(session)
 
     def _unequip(self, session: InventoryRuntimeSessionDTO, item_id: str) -> None:
         item = self._item(session, item_id)
@@ -150,6 +162,7 @@ class InventoryService:
         item.slot = None
         if item_id not in session.layout.backpack:
             session.layout.backpack.append(item_id)
+        self._enforce_belt_capacity(session)
 
     def _move_to_belt(self, session: InventoryRuntimeSessionDTO, item_id: str, slot_id: str) -> None:
         if slot_id not in {slot.value for slot in QuickSlot}:
@@ -168,7 +181,14 @@ class InventoryService:
         session.layout.belt[slot_id] = item_id
 
     def _remove_from_belt(self, session: InventoryRuntimeSessionDTO, item_id: str) -> None:
-        self._unequip(session, item_id)
+        item = self._item(session, item_id)
+        if item.placement != BELT_STORAGE:
+            raise InventoryActionError(f"Item {item_id} is not in the belt")
+        self._detach_item(session, item_id)
+        item.placement = BACKPACK_STORAGE
+        item.slot = None
+        if item_id not in session.layout.backpack:
+            session.layout.backpack.append(item_id)
 
     def _detach_item(self, session: InventoryRuntimeSessionDTO, item_id: str) -> None:
         for slot, equipped_id in list(session.layout.equipment.items()):
@@ -201,6 +221,12 @@ class InventoryService:
                     session.layout.backpack.append(item_id)
         session.layout.belt[slot_id] = None
 
+    def _enforce_belt_capacity(self, session: InventoryRuntimeSessionDTO) -> None:
+        capacity = belt_capacity(session)
+        for index, slot in enumerate(QuickSlot, start=1):
+            if index > capacity and session.layout.belt.get(slot.value):
+                self._clear_belt_slot(session, slot.value)
+
     def _item(self, session: InventoryRuntimeSessionDTO, item_id: str) -> InventoryRuntimeItemDTO:
         item = session.by_id.get(item_id)
         if item is None:
@@ -224,6 +250,16 @@ class InventoryService:
         if not isinstance(bio, dict):
             return {"avatar_url": None, "avatar_name": "NO_DATA"}
         return {"avatar_url": bio.get("avatar"), "avatar_name": str(bio.get("name") or "NO_DATA")}
+
+    async def _attribute_context(self, char_id: int) -> dict[str, Any]:
+        attributes = await self.character_sessions.get_section(char_id, "attributes")
+        if not isinstance(attributes, dict):
+            return {"strength": 0}
+        try:
+            strength = int(attributes.get("strength") or 0)
+        except (TypeError, ValueError):
+            strength = 0
+        return {"strength": max(0, strength)}
 
     @staticmethod
     def _require_slot(dto: InventoryActionRequestDTO) -> str:

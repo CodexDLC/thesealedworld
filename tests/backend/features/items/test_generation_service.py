@@ -114,7 +114,28 @@ async def test_generation_service_marks_item_ready_when_ai_text_is_not_requested
 
     assert result.text_status == "not_requested"
     assert result.item is not None
+    assert result.item.name == "Ржавый лом: Боевой Молот"
     assert result.item.description == "Двуручный молот, переносящий силу удара в сокрушительный импульс против брони и щитов."
+    assert repo.instances["item-1"].name == "Ржавый лом: Боевой Молот"
+    assert repo.instances["item-1"].lifecycle_status == "ready"
+
+
+@pytest.mark.unit
+async def test_generation_service_forces_common_tier_ready_even_when_ai_text_is_requested():
+    repo = FakeRepo()
+    request = ItemGenerationRequestDTO(base_id="warhammer", rarity_tier=0, request_ai_text=True)
+
+    result = await ItemGenerationService(ItemPersistenceIntegration(repo), ItemTextAIClient(FakeAI())).generate_mechanical(
+        request
+    )
+    item = await ItemGenerationService(ItemPersistenceIntegration(repo), ItemTextAIClient(FakeAI())).enrich_text(
+        result.item_ids[0], request
+    )
+
+    assert result.text_status == "not_requested"
+    assert item is not None
+    assert item.name == "Ржавый лом: Боевой Молот"
+    assert repo.instances["item-1"].text_status == "not_requested"
     assert repo.instances["item-1"].lifecycle_status == "ready"
 
 

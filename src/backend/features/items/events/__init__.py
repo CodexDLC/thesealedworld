@@ -54,7 +54,7 @@ async def on_generate_requested(payload: dict[str, Any]) -> None:
             correlation_id=cid,
         )
         for item_id, request in zip(result.item_ids, requests, strict=True):
-            if not request.request_ai_text:
+            if not _should_request_ai_text(request):
                 continue
             await _app.state.events.publish(
                 "items.text_requested",
@@ -107,6 +107,13 @@ async def on_text_requested(payload: dict[str, Any]) -> None:
         return
 
     request = ItemGenerationRequestDTO.model_validate(request_payload)
+    if not _should_request_ai_text(request):
+        log.info(
+            "Item text request skipped: ai_text_not_allowed item_id=%s rarity_tier=%s",
+            item_id,
+            request.rarity_tier,
+        )
+        return
     async with get_session_context() as session:
         service = _build_generation_service(session)
         item = await service.enrich_text(str(item_id), request)
@@ -127,6 +134,10 @@ def _build_generation_service(session: Any) -> ItemGenerationService:
         ItemPersistenceIntegration(ItemInstanceRepository(session)),
         ItemTextAIClient(ai) if ai is not None else None,
     )
+
+
+def _should_request_ai_text(request: ItemGenerationRequestDTO) -> bool:
+    return request.request_ai_text and request.rarity_tier > 0
 
 
 __all__ = ["ItemEvents", "bind", "router"]

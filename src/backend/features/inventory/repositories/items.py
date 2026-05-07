@@ -17,6 +17,7 @@ class InventoryItemRepository:
             select(ItemInstance, ItemPlacement)
             .join(ItemPlacement, ItemPlacement.item_id == ItemInstance.id)
             .where(ItemPlacement.holder_type == "character", ItemPlacement.holder_id == str(char_id))
+            .order_by(ItemPlacement.position_index.nulls_last(), ItemInstance.name, ItemInstance.id)
         )
         return list(result.all())
 
@@ -39,13 +40,16 @@ class InventoryItemRepository:
             placement.slot = item.slot
         await self.session.flush()
 
+    async def flush(self) -> None:
+        await self.session.flush()
+
     async def commit(self) -> None:
         await self.session.commit()
 
 
 def runtime_item_from_instance(instance: ItemInstance, placement: ItemPlacement) -> InventoryRuntimeItemDTO:
     mechanics = dict(instance.mechanics or {})
-    metadata = dict(instance.metadata_ or {})
+    metadata = {**dict(instance.metadata_ or {}), **dict(getattr(instance, "appearance", {}) or {})}
     slot = placement.slot or mechanics.get("slot")
     if slot:
         mechanics["slot"] = slot
@@ -65,7 +69,26 @@ def runtime_item_from_instance(instance: ItemInstance, placement: ItemPlacement)
         description=instance.description,
         rarity=instance.rarity,
         rarity_tier=instance.rarity_tier,
+        quantity=_quantity_from_item(metadata, mechanics),
         mechanics=mechanics,
         tags=list((instance.generation or {}).get("narrative_tags") or []),
         metadata=metadata,
     )
+
+
+def _quantity_from_item(metadata: dict[str, Any], mechanics: dict[str, Any]) -> int:
+    for raw in (
+        metadata.get("quantity"),
+        metadata.get("stack_count"),
+        metadata.get("count"),
+        mechanics.get("quantity"),
+        mechanics.get("stack_count"),
+        mechanics.get("charges"),
+    ):
+        try:
+            value = int(raw)
+        except (TypeError, ValueError):
+            continue
+        if value > 0:
+            return value
+    return 1

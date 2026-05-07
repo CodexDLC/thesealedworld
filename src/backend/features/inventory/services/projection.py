@@ -48,6 +48,35 @@ def belt_capacity(session: InventoryRuntimeSessionDTO) -> int:
         return 0
 
 
+def inventory_cell_capacity(session: InventoryRuntimeSessionDTO, *, strength: int = 0) -> int:
+    return max(0, 30 + int(strength or 0) + belt_inventory_cell_bonus(session))
+
+
+def belt_inventory_cell_bonus(session: InventoryRuntimeSessionDTO) -> int:
+    belt_id = session.layout.equipment.get(EquippedSlot.BELT_ACCESSORY.value)
+    if not belt_id:
+        return 0
+    belt = session.by_id.get(belt_id)
+    if belt is None:
+        return 0
+
+    bonuses = belt.mechanics.get("implicit_bonuses") or {}
+    raw = (
+        bonuses.get("inventory_cell_capacity")
+        or bonuses.get("inventory_slot_capacity")
+        or bonuses.get("inventory_slots")
+        or belt.mechanics.get("inventory_cell_capacity")
+        or belt.mechanics.get("inventory_slot_capacity")
+        or belt.mechanics.get("inventory_slots")
+    )
+    if raw is None:
+        return 4
+    try:
+        return max(0, int(float(raw)))
+    except (TypeError, ValueError):
+        return 4
+
+
 def compatible_with_slot(item: InventoryRuntimeItemDTO, slot_id: str) -> bool:
     if slot_id in item.valid_slots:
         return True

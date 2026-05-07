@@ -141,7 +141,7 @@ class ItemInstanceRepository:
     @staticmethod
     def _combat_item(instance: ItemInstance, placement: ItemPlacement) -> dict[str, Any]:
         mechanics = dict(instance.mechanics or {})
-        metadata = dict(instance.metadata_ or {})
+        metadata = {**dict(instance.metadata_ or {}), **dict(getattr(instance, "appearance", {}) or {})}
         slot = placement.slot or mechanics.get("slot")
         if slot:
             mechanics["slot"] = slot

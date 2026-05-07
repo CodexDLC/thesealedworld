@@ -55,11 +55,32 @@ window.setChatStep = function(targetStep) {
     _applyChatStep(targetStep);
 };
 
+function initGameTooltips(root = document) {
+    if (typeof tippy === 'undefined') return;
+    const nodes = Array.from(root.querySelectorAll('[data-tippy-content]'));
+    nodes.forEach((node) => {
+        if (node._tippy) {
+            node._tippy.setContent(node.getAttribute('data-tippy-content'));
+        }
+    });
+    tippy(nodes.filter((node) => !node._tippy), {
+        allowHTML: false,
+        appendTo: document.body,
+        delay: [120, 40],
+        maxWidth: 320,
+        theme: 'game-hint',
+    });
+}
+
+window.initGameTooltips = initGameTooltips;
+
+document.addEventListener('DOMContentLoaded', () => initGameTooltips(document));
+
 // ── HTMX hooks ───────────────────────────────────────────────────────────────
 document.addEventListener('htmx:load', function() {
     if (window.GameCatalogCache) {
         window.GameCatalogCache.init().then(() => window.GameCatalogCache.resolveDom(document));
         return;
     }
-    if (typeof tippy !== 'undefined') tippy('[data-tippy-content]');
+    initGameTooltips(document);
 });

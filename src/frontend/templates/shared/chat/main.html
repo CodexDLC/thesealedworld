@@ -27,6 +27,7 @@
                      const log = document.getElementById('chat-log');
                      if (log) log.scrollTop = log.scrollHeight;
                  });
+                 window.dispatchEvent(new CustomEvent('chat-unread'));
              } catch (_) {}
          },
          _channelLabel(key) {
@@ -113,6 +114,10 @@
                     @click="chatStep === 0 ? stepChatSize('max') : stepChatSize('min')"
                     x-text="chatStep === 0 ? 'MAX' : 'MIN'"
                     title="Свернуть/развернуть"></button>
+            <button class="btn-node sm ghost"
+                    @click="chatClosed = true"
+                    title="Закрыть в компактную кнопку"
+                    aria-label="Close chat to launcher">×</button>
         </div>
     </div>
 

@@ -192,12 +192,14 @@ window.GameCatalogCache = {
                     node._tippy.setContent(node.getAttribute('data-tippy-content'));
                 }
             });
-            tippy(Array.from(tooltipNodes).filter((node) => !node._tippy), {
-                allowHTML: false,
-                appendTo: document.body,
-                delay: [120, 40],
-                maxWidth: 320,
-                theme: 'game-catalog'
+            Array.from(tooltipNodes).filter((node) => !node._tippy).forEach((node) => {
+                tippy(node, {
+                    allowHTML: false,
+                    appendTo: document.body,
+                    delay: [120, 40],
+                    maxWidth: 320,
+                    theme: node.getAttribute('data-tippy-theme') || 'game-catalog',
+                });
             });
         }
     }

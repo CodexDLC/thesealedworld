@@ -1,22 +1,81 @@
 {% extends "site/base_site.html" %}
 
 {% block title %}Library — Symbiote Chronicles{% endblock title %}
+{% block body_class %}page-library{% endblock body_class %}
 
 {% block content %}
-<section class="hero-section" style="min-height: calc(100vh - 160px);">
-    <div class="ds-tag sys hero-badge">ARCHIVE // SEALED</div>
-    <h1 class="hero-title">Library</h1>
-    <p class="hero-subtitle">Fragments awaiting translation</p>
+<section class="library-page">
+    <div class="library-heading">
+        <div class="ds-tag sys">Archive // Online</div>
+        <h1>Library</h1>
+        <p>Field notes, creature records, and recovered fragments.</p>
+    </div>
 
-    <div class="main-container" style="max-width: 760px;">
-        <div class="ds-panel">
-            <div class="ds-panel-header">ARCHIVE_PLACEHOLDER</div>
-            <div class="ds-panel-body">
-                <p class="feature-text">
-                    The archive will hold lore, mechanics notes, world fragments, and recovered records. For now, the shelves remain sealed.
-                </p>
-            </div>
+    <div class="library-shell">
+        <aside class="library-sidebar ds-panel" aria-label="Library sections">
+            <div class="ds-panel-header">Contents</div>
+            <nav class="library-tree" aria-label="Library navigation">
+                <button
+                    class="library-tree-link active"
+                    type="button"
+                    data-library-nav="intro"
+                    hx-get="/library/fragments/intro"
+                    hx-target="#library-content"
+                    hx-swap="innerHTML"
+                >
+                    Introduction
+                </button>
+                <button
+                    class="library-tree-link"
+                    type="button"
+                    data-library-nav="monsters"
+                    hx-get="/library/fragments/monsters"
+                    hx-target="#library-content"
+                    hx-swap="innerHTML"
+                >
+                    Monsters
+                </button>
+                <button
+                    class="library-tree-link child"
+                    type="button"
+                    data-library-nav="monster-clans"
+                    hx-get="/library/fragments/monster-clans"
+                    hx-target="#library-content"
+                    hx-swap="innerHTML"
+                >
+                    Monster Clans
+                </button>
+            </nav>
+        </aside>
+
+        <div id="library-content" class="library-content">
+            {% include "site/library/fragments/intro.html" %}
         </div>
     </div>
 </section>
 {% endblock content %}
+
+{% block extra_scripts %}
+<script src="/static/js/vendor/htmx.js" defer></script>
+<script>
+document.body.addEventListener("click", function (event) {
+    const navItem = event.target.closest("[data-library-nav]");
+    if (!navItem) {
+        return;
+    }
+    document.querySelectorAll("[data-library-nav]").forEach(function (item) {
+        item.classList.toggle("active", item === navItem);
+    });
+});
+
+document.body.addEventListener("library:nav", function (event) {
+    const key = event.detail && event.detail.key;
+    if (!key) {
+        return;
+    }
+    document.querySelectorAll("[data-library-nav]").forEach(function (item) {
+        item.classList.toggle("active", item.dataset.libraryNav === key);
+    });
+});
+</script>
+{% endblock extra_scripts %}

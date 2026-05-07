@@ -46,6 +46,7 @@
                     <div class="combat-battle-title">
                         <span class="loc-dot"></span>
                         <strong>COMBAT</strong>
+                        <em>{{ combat_screen.battle_type or 'BATTLE_NO_DATA' }}</em>
                     </div>
                     <div class="combat-battle-meta">
                         <div>
@@ -61,147 +62,210 @@
                             <b>{{ combat_screen.phase or combat_screen.action_state }}</b>
                         </div>
                         <div>
-                            <span>TARGET QUEUE</span>
-                            <b>{{ combat_screen.round_size if combat_screen.round_size is not none else 'NO_DATA' }}</b>
+                            <span>LOCATION</span>
+                            <b>{{ combat_screen.location_id or combat_screen.session_id }}</b>
                         </div>
                     </div>
                 </header>
 
-                <section class="combat-team-overview">
+                <section class="combat-team-bars">
                     {% for team in [combat_screen.allied_team, combat_screen.enemy_team] %}
-                        <article class="combat-team-summary combat-team-summary--{{ 'allied' if loop.index0 == 0 else 'enemy' }}">
+                        <article class="combat-team-bar combat-team-bar--{{ 'allied' if loop.index0 == 0 else 'enemy' }}">
                             <div class="combat-team-summary-head">
                                 <span>{{ team.label }}</span>
                                 <b>{{ team.alive_count }}/{{ team.total_count }}</b>
                             </div>
                             <div class="combat-team-hp">
                                 <i style="width: {{ team.hp_percent }}%"></i>
+                                <strong>{{ team.hp_current }}/{{ team.hp_max }}</strong>
                             </div>
-                            <div class="combat-team-summary-grid">
-                                <div>
-                                    <span>TOTAL HP</span>
-                                    <b>{{ team.hp_current }}/{{ team.hp_max }}</b>
-                                </div>
-                                <div>
-                                    <span>QUEUE</span>
-                                    <b>{{ team.target_queue_size }}</b>
-                                </div>
-                                <div>
-                                    <span>LOCKED</span>
-                                    <b>{{ team.pending_action_count }}</b>
-                                </div>
-                                <div>
-                                    <span>EFFECTS</span>
-                                    <b>{{ team.effects_count }}</b>
-                                </div>
+                            <div class="combat-team-mini">
+                                <span data-tippy-content="Очередь целей: сколько бойцов этой команды сейчас находится в очереди размена. Цель для атаки выдается системой по очереди."
+                                      data-tippy-theme="game-hint">
+                                    QUEUE <b>{{ team.target_queue_size }}</b>
+                                </span>
+                                <span data-tippy-content="Зафиксированные действия: сколько ходов этой команды уже выбрано и ожидает разрешения боя."
+                                      data-tippy-theme="game-hint">
+                                    LOCKED <b>{{ team.pending_action_count }}</b>
+                                </span>
+                                <span data-tippy-content="Эффекты: активные бафы, дебафы, состояния и временные способности на бойцах этой команды."
+                                      data-tippy-theme="game-hint">
+                                    FX <b>{{ team.effects_count }}</b>
+                                </span>
                             </div>
                         </article>
                     {% endfor %}
                 </section>
 
-                <section class="combat-stage">
-                    <div class="combat-duelist combat-duelist--hero">
-                        <span class="combat-duelist-kicker">PLAYER</span>
-                        <strong class="combat-duelist-name">{{ hero.name }}</strong>
-                        <div class="combat-vitals">
-                            <div class="combat-vital-row">
-                                <span>HP</span>
-                                <div class="combat-vital-bar"><i style="width: {{ hero.vitals.hp_percent }}%"></i></div>
-                                <b>{{ hero.vitals.hp_current }}/{{ hero.vitals.hp_max }}</b>
-                            </div>
-                            <div class="combat-vital-row">
-                                <span>EN</span>
-                                <div class="combat-vital-bar combat-vital-bar--energy"><i style="width: {{ hero.vitals.energy_percent }}%"></i></div>
-                                <b>{{ hero.vitals.energy_current }}/{{ hero.vitals.energy_max }}</b>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="combat-exchange-core">
-                        <span class="combat-exchange-label">EXCHANGE</span>
-                        <strong>{{ target.name if target else 'NO_TARGET' }}</strong>
-                        <span>{{ combat_screen.action_state }}</span>
-                    </div>
-
-                    <div class="combat-duelist combat-duelist--target">
-                        <span class="combat-duelist-kicker">TARGET</span>
-                        {% if target %}
-                            <strong class="combat-duelist-name">{{ target.name }}</strong>
-                            <div class="combat-vitals">
-                                <div class="combat-vital-row">
-                                    <span>HP</span>
-                                    <div class="combat-vital-bar"><i style="width: {{ target.vitals.hp_percent }}%"></i></div>
-                                    <b>{{ target.vitals.hp_current }}/{{ target.vitals.hp_max }}</b>
-                                </div>
-                                <div class="combat-vital-row">
-                                    <span>EN</span>
-                                    <div class="combat-vital-bar combat-vital-bar--energy"><i style="width: {{ target.vitals.energy_percent }}%"></i></div>
-                                    <b>{{ target.vitals.energy_current }}/{{ target.vitals.energy_max }}</b>
-                                </div>
-                            </div>
-                        {% else %}
-                            <strong class="combat-duelist-name">NO_TARGET</strong>
-                        {% endif %}
-                    </div>
-                </section>
-
-                <section class="combat-command-deck">
+                {% set combat_waiting_for_target = combat_screen.action_state in ['ACTION_LOCKED', 'TARGET_QUEUE_EMPTY'] %}
+                <section class="combat-command-deck"
+                         hx-sync="this:drop"
+                         {% if combat_waiting_for_target %}
+                         hx-get="/game/session/state/combats?char_id={{ char_id }}"
+                         hx-trigger="load delay:2s, every 2s"
+                         hx-target="#main-content .shell-constrained"
+                         hx-select=".shell-constrained"
+                         hx-swap="outerHTML"
+                         {% endif %}>
                     <div class="combat-command-head">
                         <span>ACTIONS</span>
                         <strong>{{ hero.name }}</strong>
                     </div>
-                    <div class="combat-action-core">
-                        {% if combat_screen.primary_attack %}
-                            <button type="button"
-                                    class="combat-primary-action"
-                                    title="{{ combat_screen.primary_attack.reason or combat_screen.action_state }}"
-                                    {% if not combat_screen.primary_attack.enabled %}disabled{% endif %}>
-                                <img src="{{ combat_screen.primary_attack.icon_url }}" alt="">
-                                <span>{{ combat_screen.primary_attack.label }}</span>
-                            </button>
-                        {% else %}
-                            <button type="button" class="combat-primary-action" disabled>
-                                <span>ATTACK_NO_DATA</span>
-                            </button>
-                        {% endif %}
-
-                        <div class="combat-token-bar">
-                            {% for token in combat_screen.token_bar %}
-                                <span class="combat-token" title="{{ token.title }} // {{ token.description }}">
-                                    <img src="{{ token.icon_url }}" alt="">
-                                    <b>{{ token.value }}</b>
-                                </span>
+                    <div class="combat-action-topline">
+                        <div class="combat-attack-column">
+                            {% if combat_screen.primary_attack %}
+                                <button type="button"
+                                        class="combat-primary-action"
+                                        hx-post="/game/combat/move"
+                                        hx-target="#main-content .shell-constrained"
+                                        hx-swap="innerHTML"
+                                        hx-disabled-elt="this"
+                                        hx-vals='{"char_id": {{ char_id }}, "action": "exchange", "target_id": "{{ combat_screen.primary_attack.target_id or "" }}"}'
+                                        data-tippy-content="{{ combat_screen.primary_attack.reason or combat_screen.action_state }}"
+                                        data-tippy-theme="game-hint"
+                                        {% if not combat_screen.primary_attack.enabled %}disabled{% endif %}>
+                                    <img src="{{ combat_screen.primary_attack.icon_url }}" alt="">
+                                    <span>{{ combat_screen.primary_attack.label }}</span>
+                                </button>
                             {% else %}
-                                <span class="combat-token combat-token--empty">TOKENS_NO_DATA</span>
+                                {% if combat_screen.action_state == 'ACTION_LOCKED' %}
+                                    <button type="button"
+                                            class="combat-primary-action combat-primary-action--waiting"
+                                            data-tippy-content="Ход выбран. Ожидаем разрешения размена."
+                                            data-tippy-theme="game-hint"
+                                            disabled>
+                                        <span>ACTION_LOCKED</span>
+                                    </button>
+                                {% elif combat_screen.action_state == 'TARGET_QUEUE_EMPTY' %}
+                                    <button type="button"
+                                            class="combat-primary-action combat-primary-action--refresh"
+                                            hx-get="/game/session/state/combats?char_id={{ char_id }}"
+                                            hx-target="#main-content .shell-constrained"
+                                            hx-select=".shell-constrained"
+                                            hx-swap="outerHTML"
+                                            hx-disabled-elt="this"
+                                            data-tippy-content="Цель еще не доступна. Экран обновляется автоматически."
+                                            data-tippy-theme="game-hint">
+                                        <span>REFRESH_TARGET</span>
+                                    </button>
+                                {% else %}
+                                    <button type="button" class="combat-primary-action" disabled>
+                                        <span>ATTACK_NO_DATA</span>
+                                    </button>
+                                {% endif %}
+                            {% endif %}
+                        </div>
+                        <div class="combat-token-strip">
+                            <div class="combat-token-bar">
+                                {% for token in combat_screen.token_bar %}
+                                    <span class="combat-token"
+                                          data-catalog="{{ token.catalog }}"
+                                          data-catalog-key="{{ token.catalog_key }}"
+                                          data-catalog-tooltip="description"
+                                          data-tippy-content="{{ token.title }} // {{ token.description }}"
+                                          data-tippy-theme="game-hint">
+                                        <img src="{{ token.icon_url }}" alt="">
+                                        <b>{{ token.value }}</b>
+                                    </span>
+                                {% else %}
+                                    <span class="combat-token combat-token--empty">TOKENS_NO_DATA</span>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="combat-action-group combat-action-group--feints">
+                        <span class="combat-action-label">FEINTS</span>
+                        <div class="combat-action-list">
+                            {% for action in combat_screen.feint_options[:3] %}
+                                <button type="button"
+                                        class="combat-feint-option"
+                                        hx-post="/game/combat/move"
+                                        hx-target="#main-content .shell-constrained"
+                                        hx-swap="innerHTML"
+                                        hx-disabled-elt="this"
+                                        hx-vals='{"char_id": {{ char_id }}, "action": "exchange", "target_id": "{{ action.target_id or (combat_screen.primary_attack.target_id if combat_screen.primary_attack else "") }}", "feint_id": "{{ action.feint_id or "" }}"}'
+                                        {% if action.catalog and action.catalog_key %}
+                                        data-catalog="{{ action.catalog }}"
+                                            data-catalog-key="{{ action.catalog_key }}"
+                                            data-catalog-tooltip="description"
+                                        {% endif %}
+                                        data-tippy-content="{{ action.reason or action.label }}"
+                                        data-tippy-theme="game-hint"
+                                        {% if not action.enabled %}disabled{% endif %}>
+                                    <img src="{{ action.icon_url }}" alt="">
+                                    <span {% if action.catalog and action.catalog_key %}
+                                            data-catalog="{{ action.catalog }}"
+                                            data-catalog-key="{{ action.catalog_key }}"
+                                            data-catalog-field="title"
+                                          {% endif %}>{{ action.label }}</span>
+                                </button>
+                            {% else %}
+                                {% for index in [1, 2, 3] %}
+                                    <button type="button" class="combat-feint-option combat-feint-option--debug" disabled>
+                                        <span>Нет приема</span>
+                                    </button>
+                                {% endfor %}
                             {% endfor %}
                         </div>
                     </div>
 
-                    <div class="combat-feint-list">
-                        {% for action in combat_screen.feint_options %}
-                            <button type="button" class="combat-feint-option" {% if not action.enabled %}disabled{% endif %}>
-                                <img src="{{ action.icon_url }}" alt="">
-                                <span>{{ action.label }}</span>
-                            </button>
-                        {% else %}
-                            <div class="missing-data-block"><span>FEINTS_NO_DATA</span></div>
-                        {% endfor %}
+                    {% if combat_screen.ability_options %}
+                    <div class="combat-action-group combat-action-group--abilities">
+                        <span class="combat-action-label">ABILITIES</span>
+                        <div class="combat-ability-grid">
+                            {% for action in combat_screen.ability_options %}
+                                <button type="button"
+                                        class="combat-ability-option"
+                                        hx-post="/game/combat/move"
+                                        hx-target="#main-content .shell-constrained"
+                                        hx-swap="innerHTML"
+                                        hx-disabled-elt="this"
+                                        hx-vals='{"char_id": {{ char_id }}, "action": "instant"{% if action.target_id %}, "target_id": "{{ action.target_id }}"{% endif %}, "ability_id": "{{ action.ability_id or "" }}"}'
+                                        {% if action.catalog and action.catalog_key %}
+                                        data-catalog="{{ action.catalog }}"
+                                            data-catalog-key="{{ action.catalog_key }}"
+                                            data-catalog-tooltip="description"
+                                        {% endif %}
+                                        data-tippy-content="{{ action.label }} // {{ action.reason or 'ABILITY_READY' }}"
+                                        data-tippy-theme="game-hint"
+                                        {% if not action.enabled %}disabled{% endif %}>
+                                    <img src="{{ action.icon_url }}" alt="">
+                                </button>
+                            {% endfor %}
+                        </div>
                     </div>
+                    {% elif debug_enabled %}
+                    <div class="combat-action-group combat-action-group--abilities combat-action-group--debug">
+                        <span class="combat-action-label">ABILITIES</span>
+                        <div class="combat-ability-grid">
+                            {% for icon, label in [
+                                ('ability-debug-swirl.svg', 'DEBUG ARCANE'),
+                                ('ability-debug-shield.svg', 'DEBUG WARD'),
+                                ('ability-debug-rays.svg', 'DEBUG BURST')
+                            ] %}
+                                <button type="button"
+                                        class="combat-ability-option"
+                                        data-tippy-content="{{ label }} // DEBUG_ABILITY_PLACEHOLDER"
+                                        data-tippy-theme="game-hint"
+                                        disabled>
+                                    <img src="/static/images/ui/combat-icons/{{ icon }}" alt="">
+                                </button>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endif %}
                 </section>
 
-                <section class="combat-log-panel">
-                    <div class="combat-command-head">
-                        <span>EXCHANGE LOG</span>
-                        <strong>{{ combat_screen.log_lines|length }}</strong>
-                    </div>
-                    <div class="combat-log-list">
-                        {% for line in combat_screen.log_lines %}
-                            <div class="combat-log-line combat-log-line--{{ line.kind }}">{{ line.text }}</div>
-                        {% else %}
-                            <div class="combat-log-line">LOG_NO_DATA</div>
-                        {% endfor %}
-                    </div>
-                </section>
+                {% set combat_log_entries = combat_screen.log_lines %}
+                {% set combat_log_page = 1 %}
+                {% set combat_log_page_size = 8 %}
+                {% set combat_log_page_size_options = [4, 8, 12] %}
+                {% set combat_log_total = combat_screen.log_total %}
+                {% set combat_log_total_pages = [1, ((combat_screen.log_total + combat_log_page_size - 1) // combat_log_page_size)] | max %}
+                {% set combat_log_last_page = [combat_log_total_pages, 4] | min %}
+                {% set combat_log_pages = range(1, combat_log_last_page + 1) %}
+                {% include "game/domains/combat/viewport/log_panel.html" %}
             </article>
         </section>
     {% else %}

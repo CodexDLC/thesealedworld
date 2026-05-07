@@ -1,3 +1,46 @@
+window.inventoryGridLayout = function(element) {
+    if (!element) return null;
+
+    const root = element.closest(".inventory-shell") || element;
+    const frame = element.closest(".inventory-window") || root;
+    const readNumber = (value, fallback) => {
+        const parsed = Number.parseFloat(value);
+        return Number.isFinite(parsed) ? parsed : fallback;
+    };
+
+    const update = () => {
+        const styles = window.getComputedStyle(root);
+        const gap = readNumber(styles.getPropertyValue("--inventory-grid-gap"), 5);
+        const baseCell = readNumber(styles.getPropertyValue("--inventory-grid-base-cell"), 34);
+        const cols = Math.max(1, Math.round(readNumber(styles.getPropertyValue("--inventory-grid-cols"), 12)));
+        const extraRows = Math.max(0, Math.round(readNumber(styles.getPropertyValue("--inventory-grid-extra-rows"), 2)));
+        const width = Math.max(0, frame.clientWidth - 48);
+        if (width <= 0) return;
+
+        const cell = Math.max(22, Math.min(baseCell, (width - gap * (cols - 1)) / cols));
+        const capacity = Math.max(1, Math.ceil(readNumber(element.dataset.inventoryCells, cols * 5)));
+        const rows = Math.max(1, Math.ceil(capacity / cols) + extraRows);
+        const framePadding = 16;
+        const gridWidth = cols * cell + gap * Math.max(0, cols - 1) + framePadding;
+        const gridHeight = rows * cell + gap * Math.max(0, rows - 1);
+        const viewportHeight = Math.min(gridHeight, Math.max(cell * 5, frame.clientHeight * 0.42));
+        root.style.setProperty("--inventory-cell", `${cell}px`);
+        root.style.setProperty("--inventory-grid-rows", String(rows));
+        root.style.setProperty("--inventory-grid-width", `${gridWidth}px`);
+        root.style.setProperty("--inventory-grid-height", `${gridHeight}px`);
+        root.style.setProperty("--inventory-grid-viewport-height", `${viewportHeight}px`);
+    };
+
+    update();
+    const observer = new ResizeObserver(update);
+    observer.observe(frame);
+    window.addEventListener("resize", update, { passive: true });
+    return () => {
+        observer.disconnect();
+        window.removeEventListener("resize", update);
+    };
+};
+
 window.gameShell = function(initial = {}) {
     const activeCharId = initial.activeCharId || "";
     const domain = initial.domain || "";
@@ -38,12 +81,49 @@ window.gameShell = function(initial = {}) {
         resizeStartWidth: 0,
         resizeStartHeight: 0,
     };
+    const hudStorageKey = (name) => `tbmmorpg:hud:${name}:geometry:v1`;
+    const loadHudGeometry = (name, target) => {
+        try {
+            const raw = window.localStorage.getItem(hudStorageKey(name));
+            if (!raw) return;
+            const saved = JSON.parse(raw);
+            for (const key of ["x", "y", "width", "height"]) {
+                if (Number.isFinite(saved[key])) target[key] = saved[key];
+            }
+        } catch (_error) {
+            window.localStorage.removeItem(hudStorageKey(name));
+        }
+    };
+    const saveHudGeometry = (name, hudWindow) => {
+        if (hudWindow.x === null || hudWindow.y === null || hudWindow.width === null || hudWindow.height === null) {
+            return;
+        }
+        window.localStorage.setItem(hudStorageKey(name), JSON.stringify({
+            x: Math.round(hudWindow.x),
+            y: Math.round(hudWindow.y),
+            width: Math.round(hudWindow.width),
+            height: Math.round(hudWindow.height),
+        }));
+    };
+    loadHudGeometry("inventory", inventoryWindow);
+    const chatLauncher = {
+        x: null,
+        y: null,
+        dragging: false,
+        dragMoved: false,
+        dragOffsetX: 0,
+        dragOffsetY: 0,
+        startX: 0,
+        startY: 0,
+    };
 
     return {
         chatTab: "global",
         chatHeight: Alpine.$persist(200),
         chatMinimized: Alpine.$persist(false),
         chatStep: Alpine.$persist(1),
+        chatClosed: Alpine.$persist(false),
+        chatUnread: false,
         selectedAgentId: activeCharId,
         domain,
         agents: {
@@ -54,6 +134,7 @@ window.gameShell = function(initial = {}) {
         windows: {
             inventory: inventoryWindow,
         },
+        chatLauncher,
         leftOpen: Boolean(initial.leftOpen),
         rightOpen: Boolean(initial.rightOpen),
 
@@ -147,12 +228,51 @@ window.gameShell = function(initial = {}) {
             }
         },
 
+        startChatLauncherDrag(event, element) {
+            if (!element) return;
+            const rect = element.getBoundingClientRect();
+            this.chatLauncher.x = rect.left;
+            this.chatLauncher.y = rect.top;
+            this.chatLauncher.dragging = true;
+            this.chatLauncher.dragMoved = false;
+            this.chatLauncher.dragOffsetX = event.clientX - rect.left;
+            this.chatLauncher.dragOffsetY = event.clientY - rect.top;
+            this.chatLauncher.startX = event.clientX;
+            this.chatLauncher.startY = event.clientY;
+
+            if (event.pointerId !== undefined && element.setPointerCapture) {
+                element.setPointerCapture(event.pointerId);
+            }
+        },
+
+        moveChatLauncher(event) {
+            if (!this.chatLauncher.dragging) return;
+
+            const metrics = shellMetrics();
+            const size = 52;
+            const nextX = event.clientX - this.chatLauncher.dragOffsetX;
+            const nextY = event.clientY - this.chatLauncher.dragOffsetY;
+            const maxX = Math.max(metrics.inset, window.innerWidth - size - metrics.inset);
+            const maxY = Math.max(metrics.top, window.innerHeight - size - metrics.bottom);
+
+            if (Math.abs(event.clientX - this.chatLauncher.startX) > 3 || Math.abs(event.clientY - this.chatLauncher.startY) > 3) {
+                this.chatLauncher.dragMoved = true;
+            }
+
+            this.chatLauncher.x = Math.max(metrics.inset, Math.min(maxX, nextX));
+            this.chatLauncher.y = Math.max(metrics.top, Math.min(maxY, nextY));
+        },
+
+        stopChatLauncherDrag() {
+            this.chatLauncher.dragging = false;
+        },
+
         resizeHudWindow(hudWindow, event) {
             const metrics = shellMetrics();
             const edge = hudWindow.resizeEdge || "";
             const deltaX = event.clientX - hudWindow.resizeStartX;
             const deltaY = event.clientY - hudWindow.resizeStartY;
-            const minWidth = Math.min(720, Math.max(320, window.innerWidth - 24));
+            const minWidth = Math.min(560, Math.max(320, window.innerWidth - 24));
             const maxWidth = Math.max(minWidth, window.innerWidth - (metrics.inset * 2));
             const availableHeight = window.innerHeight - metrics.top - metrics.bottom;
             const minHeight = Math.min(520, Math.max(320, availableHeight));
@@ -186,7 +306,10 @@ window.gameShell = function(initial = {}) {
         },
 
         stopHudWindowDrag() {
-            for (const hudWindow of Object.values(this.windows)) {
+            for (const [name, hudWindow] of Object.entries(this.windows)) {
+                if (hudWindow.dragging || hudWindow.resizing) {
+                    saveHudGeometry(name, hudWindow);
+                }
                 hudWindow.dragging = false;
                 hudWindow.resizing = false;
                 hudWindow.resizeEdge = "";
@@ -204,6 +327,11 @@ window.gameShell = function(initial = {}) {
             if (hudWindow.width !== null) parts.push(`width: ${hudWindow.width}px`);
             if (hudWindow.height !== null) parts.push(`height: ${hudWindow.height}px`);
             return parts.length ? `${parts.join("; ")};` : "";
+        },
+
+        chatLauncherStyle() {
+            if (this.chatLauncher.x === null || this.chatLauncher.y === null) return "";
+            return `left: ${this.chatLauncher.x}px; top: ${this.chatLauncher.y}px; right: auto; bottom: auto;`;
         },
     };
 };

@@ -242,15 +242,17 @@ html, body {
 }
 
 .game-account-button {
-    width: 28px;
+    min-width: 28px;
     height: 28px;
+    padding: 0 10px;
     display: inline-flex;
     align-items: center;
     justify-content: center;
+    gap: 7px;
     border: 1px solid rgba(255, 170, 0, 0.16);
     background: rgba(0, 0, 0, 0.28);
     color: var(--col-accent);
-    border-radius: 50%;
+    border-radius: 999px;
     cursor: pointer;
     box-shadow: inset 0 0 10px rgba(255, 170, 0, 0.04);
     transition: border-color 0.2s ease, background 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
@@ -269,6 +271,14 @@ html, body {
     font-size: 10px;
     font-weight: 800;
     text-transform: uppercase;
+}
+
+.game-account-label {
+    font-family: var(--font-ui);
+    font-size: 8px;
+    font-weight: 800;
+    letter-spacing: 0.12em;
+    line-height: 1;
 }
 
 .game-account-menu {
@@ -361,6 +371,109 @@ html, body {
 .cnav-spacer {
     width: 80px;
     border-left: 1px solid rgba(255, 170, 0, 0.05);
+}
+
+/* ── CENTER GAME NAV ── */
+.center-nav {
+    display: flex;
+    align-items: stretch;
+    height: 100%;
+    background: transparent;
+    gap: 0;
+    min-width: 0;
+}
+
+.cnav-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    min-width: 72px;
+    height: 100%;
+    padding: 0 16px;
+    border: none;
+    border-left: 1px solid rgba(255, 170, 0, 0.11);
+    background: rgba(255, 170, 0, 0.018);
+    color: rgba(255, 190, 64, 0.58);
+    cursor: pointer;
+    font-family: var(--font-ui);
+    font-size: 8px;
+    letter-spacing: 0.12em;
+    line-height: 1;
+    position: relative;
+    text-shadow: 0 0 8px rgba(255, 170, 0, 0.18);
+    transition: background 0.2s, color 0.2s;
+    user-select: none;
+}
+
+.cnav-btn:last-child {
+    border-right: 1px solid rgba(255, 170, 0, 0.11);
+}
+
+.game-menu-icon {
+    display: block;
+    width: 18px;
+    height: 18px;
+    flex: 0 0 auto;
+    background: currentColor;
+    opacity: 0.7;
+    mask: var(--game-menu-icon-url) center / contain no-repeat;
+    -webkit-mask: var(--game-menu-icon-url) center / contain no-repeat;
+    filter: drop-shadow(0 0 5px rgba(255, 170, 0, 0.18));
+    transition: opacity 0.2s, filter 0.2s;
+}
+
+.cnav-btn:hover {
+    background: rgba(255, 170, 0, 0.06);
+    color: rgba(255, 198, 86, 0.88);
+}
+
+.cnav-btn:hover .game-menu-icon {
+    opacity: 0.92;
+}
+
+.cnav-btn.active {
+    background: rgba(255, 170, 0, 0.07);
+    color: var(--col-accent);
+}
+
+.cnav-btn.active .game-menu-icon {
+    opacity: 1;
+}
+
+.cnav-btn.is-disabled {
+    background: rgba(255, 170, 0, 0.01);
+    color: rgba(255, 170, 0, 0.18);
+    cursor: default;
+    pointer-events: none;
+    text-shadow: none;
+}
+
+.cnav-btn.is-disabled .game-menu-icon {
+    filter: none;
+    opacity: 0;
+}
+
+.game-menu-icon--empty {
+    background: transparent;
+    mask: none;
+    -webkit-mask: none;
+}
+
+.cnav-btn.active::after {
+    content: "";
+    position: absolute;
+    right: 10%;
+    bottom: 0;
+    left: 10%;
+    height: 2px;
+    background: var(--col-accent);
+    box-shadow: 0 0 8px rgba(255, 170, 0, 0.6);
+}
+
+.cnav-btn--explore {
+    min-width: 82px;
 }
 
 
@@ -554,18 +667,84 @@ html, body {
     flex-direction: column;
 }
 
-/* Future icon state support */
-.game-chat-row.chat-mode-icon {
-    position: absolute;
-    bottom: 40px;
+.game-chat-launcher {
+    position: fixed;
     right: 20px;
-    width: 60px;
-    height: 60px;
+    bottom: calc(var(--game-footer-height, 24px) + 14px);
+    z-index: calc(var(--game-overlay-z, 240) + 10);
+    width: 52px;
+    height: 52px;
+    pointer-events: auto;
+    touch-action: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid rgba(255, 170, 0, 0.45);
     border-radius: 50%;
-    border: 2px solid var(--col-accent);
-    box-shadow: 0 0 20px var(--col-accent);
-    overflow: hidden;
-    animation: chat-blink 2s infinite;
+    background:
+        radial-gradient(circle at 50% 35%, rgba(255, 170, 0, 0.10), transparent 58%),
+        rgba(5, 5, 5, 0.96);
+    box-shadow:
+        0 0 18px rgba(255, 170, 0, 0.18),
+        0 14px 30px rgba(0, 0, 0, 0.48);
+    color: var(--col-accent);
+    cursor: grab;
+    font-family: var(--font-ui);
+    letter-spacing: 0.12em;
+    transition: border-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.game-chat-launcher:hover {
+    border-color: var(--col-accent);
+    color: #ffd36a;
+    box-shadow:
+        0 0 24px rgba(255, 170, 0, 0.26),
+        0 14px 30px rgba(0, 0, 0, 0.5);
+}
+
+.game-chat-launcher:active {
+    cursor: grabbing;
+}
+
+.game-chat-launcher-glyph {
+    width: 20px;
+    height: 20px;
+    display: block;
+    background: currentColor;
+    mask: url('/static/images/ui/game-menu-icons/chat.svg') center / contain no-repeat;
+    -webkit-mask: url('/static/images/ui/game-menu-icons/chat.svg') center / contain no-repeat;
+    filter: drop-shadow(0 0 8px rgba(255, 170, 0, 0.32));
+}
+
+.game-chat-launcher.has-unread {
+    animation: chat-launcher-unread 1.1s ease-in-out infinite;
+}
+
+.game-chat-launcher.has-unread::after {
+    content: "";
+    position: absolute;
+    top: 7px;
+    right: 7px;
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--col-accent);
+    box-shadow: 0 0 10px rgba(255, 170, 0, 0.8);
+}
+
+@keyframes chat-launcher-unread {
+    0%, 100% {
+        border-color: rgba(255, 170, 0, 0.45);
+        box-shadow:
+            0 0 18px rgba(255, 170, 0, 0.18),
+            0 14px 30px rgba(0, 0, 0, 0.48);
+    }
+    50% {
+        border-color: var(--col-accent);
+        box-shadow:
+            0 0 32px rgba(255, 170, 0, 0.46),
+            0 14px 30px rgba(0, 0, 0, 0.52);
+    }
 }
 
 @keyframes chat-blink {

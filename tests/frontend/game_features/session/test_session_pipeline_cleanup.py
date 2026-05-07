@@ -78,6 +78,18 @@ def test_legacy_game_menu_fallback_keeps_global_domains_in_center_only():
                 assert item.label not in global_labels
 
 
+def test_legacy_combat_menu_disables_non_combat_tabs():
+    nav = GameMenuService().build_menu(CoreDomain.COMBAT)
+
+    assert nav.center is not None
+    assert nav.center.label == "COMBAT"
+    for item in [nav.l2, nav.l1, nav.r1, nav.r2]:
+        assert item is not None
+        assert item.is_disabled is True
+        assert item.panel is None
+        assert item.window is None
+
+
 def test_legacy_exploration_menu_fallback_does_not_link_to_other_main_states():
     nav = GameMenuService().build_menu(CoreDomain.EXPLORATION)
 

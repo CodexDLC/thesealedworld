@@ -19,9 +19,10 @@
                     class="game-account-button"
                     @click="open = !open"
                     :aria-expanded="open.toString()"
-                    aria-haspopup="menu"
-                    aria-label="Open account and session menu">
+                aria-haspopup="menu"
+                aria-label="Open account and session menu">
                 <span class="game-account-glyph" aria-hidden="true">U</span>
+                <span class="game-account-label">ACCOUNT</span>
             </button>
             <div class="game-account-menu"
                  x-show="open"

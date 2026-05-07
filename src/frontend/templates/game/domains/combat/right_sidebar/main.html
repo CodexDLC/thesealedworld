@@ -8,28 +8,36 @@
                 <div class="combat-effect-stack">
                     {% for effect in actor.effects %}
                         <span class="combat-effect combat-effect--{{ effect.frame_kind }}"
-                              title="{{ effect.title }} // {{ effect.description }}">
+                              data-catalog="{{ effect.catalog }}"
+                              data-catalog-key="{{ effect.catalog_key }}"
+                              data-catalog-tooltip="description"
+                              data-tippy-content="{{ effect.title }} // {{ effect.description }}"
+                              data-tippy-theme="game-hint">
                             <img src="{{ effect.icon_url }}" alt="{{ effect.effect_id }}">
                             {% if effect.duration_text %}
                                 <b>{{ effect.duration_text }}</b>
                             {% endif %}
                         </span>
+                    {% else %}
+                        {% if debug_enabled %}
+                            {% for effect_id, frame_kind, icon, turns in [
+                                ('DEBUG_BURN', 'burn', 'burn.svg', '2'),
+                                ('DEBUG_POISON', 'poison', 'poison.svg', '3'),
+                                ('DEBUG_GUARD', 'shield', 'shield.svg', '1'),
+                                ('DEBUG_STUN', 'stun', 'stun.svg', '1')
+                            ] %}
+                                <span class="combat-effect combat-effect--{{ frame_kind }}"
+                                      data-tippy-content="{{ effect_id }} // DEBUG_EFFECT_PLACEHOLDER"
+                                      data-tippy-theme="game-hint">
+                                    <img src="/static/images/ui/combat-icons/{{ icon }}" alt="{{ effect_id }}">
+                                    <b>{{ turns }}</b>
+                                </span>
+                            {% endfor %}
+                        {% endif %}
                     {% endfor %}
                 </div>
             </div>
             <div class="combat-actor-name">{{ actor.name }}</div>
-            <div class="combat-vitals">
-                <div class="combat-vital-row">
-                    <span>HP</span>
-                    <div class="combat-vital-bar"><i style="width: {{ actor.vitals.hp_percent }}%"></i></div>
-                    <b>{{ actor.vitals.hp_current }}/{{ actor.vitals.hp_max }}</b>
-                </div>
-                <div class="combat-vital-row">
-                    <span>EN</span>
-                    <div class="combat-vital-bar combat-vital-bar--energy"><i style="width: {{ actor.vitals.energy_percent }}%"></i></div>
-                    <b>{{ actor.vitals.energy_current }}/{{ actor.vitals.energy_max }}</b>
-                </div>
-            </div>
         </section>
 
         <section class="combat-panel combat-roster-panel">
@@ -38,7 +46,8 @@
                 {% for enemy in combat_screen.enemies %}
                     <button type="button"
                             class="combat-roster-row combat-roster-row--button {% if enemy.is_target %}is-target{% endif %}"
-                            title="target switch: NO_DATA">
+                            data-tippy-content="Смена цели будет отдельной тактической возможностью. Сейчас цель выдается очередью боя."
+                            data-tippy-theme="game-hint">
                         <span class="combat-queue-dot combat-queue-dot--{{ enemy.queue_indicator }}"></span>
                         <span class="combat-roster-name">{{ enemy.name }}</span>
                         <div class="combat-roster-hp"><i style="width: {{ enemy.hp_percent }}%"></i></div>

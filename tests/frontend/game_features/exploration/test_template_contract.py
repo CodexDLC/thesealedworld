@@ -2,7 +2,13 @@ from pathlib import Path
 
 from jinja2 import Environment, FileSystemLoader
 
-from src.frontend.game_features.inventory.view_models.window import build_inventory_window_vm
+from src.frontend.game_features.inventory.view_models.window import (
+    InventoryRowVM,
+    build_inventory_card_vm,
+    build_inventory_window_vm,
+    inventory_card_class,
+    inventory_card_dimensions,
+)
 
 
 def test_exploration_center_template_has_navigation_and_encounter_surfaces():
@@ -26,6 +32,8 @@ def test_exploration_center_template_has_navigation_and_encounter_surfaces():
     assert "exploration_button(exploration.grid.sw" not in template
     assert "exploration_button(exploration.grid.se" not in template
     assert "PEOPLE" not in template
+    assert "exploration.hud.threat if exploration.hud.threat is defined else 0" in template
+    assert "T{{ exploration.hud.threat_tier" in template
 
 
 def test_exploration_right_sidebar_has_navigation_and_encounter_contexts():
@@ -35,6 +43,8 @@ def test_exploration_right_sidebar_has_navigation_and_encounter_contexts():
     assert "payload_type == 'exploration_encounter'" in template
     assert "LOCAL_CONTEXT" in template
     assert "service_card(service, compact=true)" in template
+    assert "exploration.hud.threat if exploration.hud.threat is defined else 0" in template
+    assert "<span>TIER</span>" in template
 
 
 def test_exploration_service_component_has_default_icon_mapping():
@@ -178,7 +188,15 @@ def test_inventory_window_template_defines_frontend_contract():
     assert "inventory-belt-slots" in template
     assert "inventory-tabs" in template
     assert "inventory-search" in template
-    assert "inventory.visible_rows[:inventory.rows_visible_count]" in template
+    assert "inventory.visible_cards" in template
+    assert "inventory_cards[:inventory.rows_visible_count]" in template
+    assert "data-inventory-cells" in template
+    assert "inventory-container-status" in template
+    assert "inventory-feedback" in template
+    assert "inventory-tooltip-card" in template
+    assert "hoverRow?.stats" in template
+    assert "hoverRow?.effects" in template
+    assert "row.card_class" in template
     assert "row.comparison" in template
     assert "INVENTORY_LINK_PENDING" not in template
 
@@ -194,12 +212,44 @@ def test_inventory_window_template_renders_contract_view_model():
     assert 'data-slot-id="chest_armor"' in html
     assert 'data-slot-id="chest_garment"' not in html
     assert 'data-slot-id="belt_accessory"' in html
-    assert "NO_RUNTIME_ITEMS" in html
+    assert "NO_RUNTIME_ITEMS" not in html
+    assert 'data-inventory-cells="50"' in html
     assert "Leather Bracers" not in html
+
+
+def test_inventory_card_mapper_builds_grid_card_from_type_and_numeric_size():
+    assert inventory_card_dimensions("armor", 0, 0) == (4, 2)
+    assert inventory_card_dimensions("quest", 12, 7) == (8, 4)
+    assert inventory_card_class("armor", 2, 2) == (
+        "inventory-card--armor inventory-card--square inventory-card--medium inventory-card--2x2"
+    )
+
+    card = build_inventory_card_vm(
+        InventoryRowVM(
+            row_id="item-1",
+            icon="A",
+            name="Leather Bracers",
+            item_type="armor",
+            weight="1.2",
+            quantity="1",
+            rarity="common",
+            equip_target="arms_armor",
+            grid_w=0,
+            grid_h=0,
+            comparison=["Heat resist +5"],
+        )
+    )
+
+    assert card.grid_w == 4
+    assert card.grid_h == 2
+    assert card.style == "--item-w: 4; --item-h: 2;"
+    assert card.card_class == "inventory-card--armor inventory-card--wide inventory-card--large inventory-card--4x2"
+    assert card.details == ["Type: armor", "Weight: 1.2", "Qty: 1", "Rank: common", "Heat resist +5"]
 
 
 def test_inventory_css_has_loadout_container_and_table_contract():
     source = Path("src/frontend/static/css/components/inventory.css").read_text()
+    bundle = Path("src/frontend/static/css/game_bundle.css").read_text()
 
     assert ".inventory-loadout" in source
     assert ".inventory-equip-zone--head" in source
@@ -208,7 +258,23 @@ def test_inventory_css_has_loadout_container_and_table_contract():
     assert ".inventory-belt-slots" in source
     assert ".inventory-table-body" in source
     assert "flex: 1 1 auto" in source
-    assert "fabric_leather_02_diff_1k.jpg" in source
+    assert "--inventory-cell: var(--inventory-grid-base-cell)" in source
+    assert "grid-auto-rows: var(--inventory-cell)" in source
+    assert "grid-column: 1 / -1" in source
+    assert "grid-row: span var(--inventory-grid-rows)" in source
+    assert ".inventory-container-status" in source
+    assert ".inventory-feedback" in source
+    assert "scrollbar-width: none" in source
+    assert "--inventory-grid-viewport-height" in source
+    assert "height: var(--inventory-grid-height)" in source
+    assert "--inventory-grid-cols: 8" in source
+    assert "grid-template-columns: repeat(4, minmax(28px, 34px))" in source
+    assert ".inventory-tooltip-card" in source
+    assert ".inventory-tooltip-meta" in source
+    assert ".inventory-card--square" in source
+    assert ".inventory-card--wide" in source
+    assert "fabric_leather_02_diff_1k.webp" in source
+    assert '@import url("components/cards.css");' in bundle
 
 
 def test_game_shell_drag_logic_lives_in_source_js():

@@ -211,68 +211,11 @@
     .game-header {
         min-height: var(--game-header-height);
         padding: 6px 12px;
-        grid-template-columns: minmax(0, 1fr) auto;
-        grid-template-rows: 30px 30px;
-        align-content: center;
-        gap: 4px 10px;
-    }
-
-    .header-left {
-        grid-column: 1;
-        grid-row: 1;
-        min-width: min(100%, 220px);
-    }
-
-    .header-center {
-        grid-column: 1 / -1;
-        grid-row: 2;
-        height: 30px;
-        justify-content: center;
-    }
-
-    .header-right {
-        grid-column: 2;
-        grid-row: 1;
-    }
-
-    .center-nav {
-        max-width: 100%;
-        overflow-x: auto;
-        overflow-y: hidden;
-        scrollbar-width: none;
-    }
-
-    .center-nav::-webkit-scrollbar {
-        display: none;
-    }
-
-    .cnav-btn {
-        min-width: 54px;
-        padding: 0 10px;
-    }
-
-    .cnav-btn span:not(.game-menu-icon) {
-        font-size: 7px;
-        white-space: nowrap;
     }
 
     .game-footer {
         padding: 0 12px;
         gap: 10px;
-    }
-
-    .footer-technical-status {
-        flex: 1 1 auto;
-        gap: 10px;
-    }
-
-    .footer-copyright {
-        display: none;
-    }
-
-    .footer-status-log {
-        overflow: hidden;
-        text-overflow: ellipsis;
     }
 }
 
@@ -283,35 +226,17 @@
         --game-ui-scale: .86;
     }
 
-    .game-logo {
-        font-size: 12px;
-        letter-spacing: .12em;
-    }
-
-    .resonance-tag {
-        display: none;
-    }
-
-    .v-tag {
-        display: none;
-    }
-
-    .cnav-btn {
-        min-width: 48px;
-        padding: 0 8px;
-    }
-
     .game-footer {
         font-size: 7px;
     }
 
-    .footer-technical-status {
-        width: 100%;
-        justify-content: space-between;
-        gap: 8px;
+    .game-account-button {
+        width: 28px;
+        padding: 0;
+        border-radius: 50%;
     }
 
-    .footer-status-log {
+    .game-account-label {
         display: none;
     }
 }

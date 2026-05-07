@@ -26,6 +26,8 @@ class CombatEffectBadgeVM(BaseModel):
     duration_text: str | None = None
     title: str
     description: str = "NO_DATA"
+    catalog: str = "effects"
+    catalog_key: str
 
 
 class CombatVitalsVM(BaseModel):
@@ -99,6 +101,8 @@ class CombatActionVM(BaseModel):
     feint_id: str | None = None
     ability_id: str | None = None
     reason: str | None = None
+    catalog: str | None = None
+    catalog_key: str | None = None
 
 
 class CombatTokenVM(BaseModel):
@@ -107,6 +111,8 @@ class CombatTokenVM(BaseModel):
     icon_url: str
     title: str
     description: str = "NO_DATA"
+    catalog: str = "combat_tokens"
+    catalog_key: str
 
 
 class CombatLogLineVM(BaseModel):
@@ -137,6 +143,7 @@ class CombatScreenVM(BaseModel):
     ability_options: list[CombatActionVM] = Field(default_factory=list)
     token_bar: list[CombatTokenVM] = Field(default_factory=list)
     log_lines: list[CombatLogLineVM] = Field(default_factory=list)
+    log_total: int = 0
     winner_team: str | None = None
 
 
@@ -170,6 +177,7 @@ def build_combat_screen_vm(dashboard: CombatDashboardDTO) -> CombatScreenVM:
             CombatLogLineVM(text=event.text or "NO_DATA", kind=event.type)
             for event in dashboard.events_delta.events[-8:]
         ],
+        log_total=dashboard.log_total,
         winner_team=dashboard.winner_team,
     )
 
@@ -248,6 +256,7 @@ def _effect_badge(effect: CombatEffectBadgeDTO) -> CombatEffectBadgeVM:
         frame_kind=frame_kind,
         duration_text=duration,
         title=effect.effect_id,
+        catalog_key=effect.effect_id,
     )
 
 
@@ -308,24 +317,36 @@ def _split_actions(
     actions: list[CombatActionOptionDTO],
     feint_hand: list[CombatFeintOptionDTO],
 ) -> tuple[CombatActionVM | None, list[CombatActionVM], list[CombatActionVM]]:
-    feint_ids = {feint.feint_id for feint in feint_hand}
     primary: CombatActionVM | None = None
-    feints: list[CombatActionVM] = []
     abilities: list[CombatActionVM] = []
 
     for action in actions:
         if action.action == "exchange":
             primary = _action_vm(action, kind="attack", icon="attack")
-        elif action.feint_id or (action.action == "instant" and action.label in feint_ids):
-            feints.append(_action_vm(action, kind="feint", icon="feint"))
         elif action.ability_id:
             abilities.append(_action_vm(action, kind="ability", icon="gift-token"))
 
+    feints = [
+        CombatActionVM(
+            id=feint.feint_id,
+            label=feint.feint_id,
+            kind="feint",
+            icon_url=f"{COMBAT_ICON_ROOT}/feint.svg",
+            enabled=primary.enabled if primary else False,
+            target_id=primary.target_id if primary else None,
+            feint_id=feint.feint_id,
+            catalog="feints",
+            catalog_key=feint.feint_id,
+        )
+        for feint in feint_hand
+    ]
     return primary, feints, abilities
 
 
 def _action_vm(action: CombatActionOptionDTO, *, kind: str, icon: str) -> CombatActionVM:
     action_id = action.feint_id or action.ability_id or action.action
+    catalog = _action_catalog(kind)
+    catalog_key = action.feint_id or action.ability_id
     return CombatActionVM(
         id=str(action_id),
         label=action.label,
@@ -336,19 +357,56 @@ def _action_vm(action: CombatActionOptionDTO, *, kind: str, icon: str) -> Combat
         feint_id=action.feint_id,
         ability_id=action.ability_id,
         reason=action.reason,
+        catalog=catalog,
+        catalog_key=catalog_key,
     )
 
 
+def _action_catalog(kind: str) -> str | None:
+    if kind == "feint":
+        return "feints"
+    if kind == "ability":
+        return "abilities"
+    return None
+
+
+COMBAT_TOKEN_CATALOG: tuple[tuple[str, str, str], ...] = (
+    ("tempo", "TEMPO", "token-tempo"),
+    ("hit", "HIT", "token-hit"),
+    ("crit", "CRIT", "token-crit"),
+    ("dodge", "DODGE", "token-dodge"),
+    ("parry", "PARRY", "token-parry"),
+    ("block", "BLOCK", "token-block"),
+    ("counter", "COUNTER", "token-counter"),
+    ("gift", "GIFT", "token-gift"),
+)
+
+
 def _token_bar(tokens: dict[str, int]) -> list[CombatTokenVM]:
-    return [
+    known = {
+        token_id: CombatTokenVM(
+            token_id=token_id,
+            value=max(0, int(tokens.get(token_id, 0) or 0)),
+            icon_url=f"{COMBAT_ICON_ROOT}/{icon}.svg",
+            title=title,
+            catalog_key=token_id,
+        )
+        for token_id, title, icon in COMBAT_TOKEN_CATALOG
+    }
+    unknown = [
         CombatTokenVM(
             token_id=token_id,
-            value=value,
-            icon_url=f"{COMBAT_ICON_ROOT}/{'gift-token' if token_id == 'gift' else 'token'}.svg",  # nosec B105
-            title=token_id,
+            value=max(0, int(value or 0)),
+            icon_url=f"{COMBAT_ICON_ROOT}/token.svg",
+            title=token_id.upper(),
+            catalog_key=token_id,
         )
         for token_id, value in sorted(tokens.items())
-        if value
+        if token_id not in known
+    ]
+    return [
+        *known.values(),
+        *unknown,
     ]
 
 

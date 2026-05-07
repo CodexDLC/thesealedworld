@@ -34,6 +34,15 @@ def build_game_nav(*, state: CoreDomain | str, char_id: int) -> dict[str, dict[s
         CoreDomain.ARENA.value: "swords",
     }
 
+    if current == CoreDomain.COMBAT.value:
+        return {
+            "l2": _disabled_item("STATUS", icon="person"),
+            "l1": _disabled_item("BUILDS", icon="bolt"),
+            "center": _item("COMBAT", "#", True, icon="swords"),
+            "r1": _disabled_item("INVENTORY", icon="inventory"),
+            "r2": _disabled_item("VIEW", icon="journal"),
+        }
+
     return {
         "l2": _item("STATUS", "#", False, icon="person", panel="left", panel_view="status"),
         "l1": _item("BUILDS", "#", False, icon="bolt", panel="left", panel_view="builds"),
@@ -76,3 +85,9 @@ def _empty_item() -> dict[str, Any]:
         "window": None,
         "is_disabled": True,
     }
+
+
+def _disabled_item(label: str, *, icon: str) -> dict[str, Any]:
+    item = _item(label, "#", False, icon=icon)
+    item["is_disabled"] = True
+    return item

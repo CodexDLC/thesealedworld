@@ -1,0 +1,51 @@
+<section id="combat-log-panel" class="combat-log-panel">
+    <div class="combat-command-head">
+        <span>EXCHANGE LOG</span>
+        <div class="combat-log-controls" aria-label="Combat log controls">
+            <button type="button"
+                    class="combat-log-page-arrow"
+                    aria-label="Previous log page"
+                    hx-get="/game/combat/logs?char_id={{ char_id }}&page={{ combat_log_page - 1 }}&page_size={{ combat_log_page_size }}"
+                    hx-target="#combat-log-panel"
+                    hx-swap="outerHTML"
+                    {% if combat_log_page <= 1 %}disabled{% endif %}>‹</button>
+            <div class="combat-log-pages" aria-label="Combat log pages">
+                {% for page in combat_log_pages %}
+                    <button type="button"
+                            class="{{ 'is-active' if page == combat_log_page else '' }}"
+                            hx-get="/game/combat/logs?char_id={{ char_id }}&page={{ page }}&page_size={{ combat_log_page_size }}"
+                            hx-target="#combat-log-panel"
+                            hx-swap="outerHTML"
+                            {% if page == combat_log_page %}disabled{% endif %}>{{ page }}</button>
+                {% endfor %}
+            </div>
+            <button type="button"
+                    class="combat-log-page-arrow"
+                    aria-label="Next log page"
+                    hx-get="/game/combat/logs?char_id={{ char_id }}&page={{ combat_log_page + 1 }}&page_size={{ combat_log_page_size }}"
+                    hx-target="#combat-log-panel"
+                    hx-swap="outerHTML"
+                    {% if combat_log_page >= combat_log_total_pages %}disabled{% endif %}>›</button>
+            <label class="combat-log-size">
+                <span>ROWS</span>
+                <select name="page_size"
+                        hx-get="/game/combat/logs?char_id={{ char_id }}&page=1"
+                        hx-target="#combat-log-panel"
+                        hx-swap="outerHTML">
+                    {% for option in combat_log_page_size_options %}
+                        <option value="{{ option }}" {% if option == combat_log_page_size %}selected{% endif %}>{{ option }}</option>
+                    {% endfor %}
+                </select>
+            </label>
+        </div>
+    </div>
+    <div class="combat-log-list">
+        {% for line in combat_log_entries %}
+            <div class="combat-log-line combat-log-line--{{ line.kind if line.kind is defined else line.type }}">
+                {{ line.text or 'NO_DATA' }}
+            </div>
+        {% else %}
+            <div class="combat-log-line">LOG_NO_DATA</div>
+        {% endfor %}
+    </div>
+</section>

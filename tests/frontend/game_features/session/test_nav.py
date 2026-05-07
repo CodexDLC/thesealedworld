@@ -46,7 +46,7 @@ def test_global_domains_are_only_rendered_in_center_slot():
 
 
 def test_inventory_is_far_right_for_runtime_domains():
-    for state in [CoreDomain.EXPLORATION, CoreDomain.COMBAT, CoreDomain.ARENA]:
+    for state in [CoreDomain.EXPLORATION, CoreDomain.ARENA]:
         nav = build_game_nav(state=state, char_id=7)
 
         assert nav["l1"]["label"] == "BUILDS"
@@ -55,3 +55,14 @@ def test_inventory_is_far_right_for_runtime_domains():
         assert nav["r1"]["window"] == "inventory"
         assert nav["r2"]["label"] == "VIEW"
         assert nav["r2"]["panel"] == "right"
+
+
+def test_combat_nav_keeps_shell_slots_but_disables_side_actions():
+    nav = build_game_nav(state=CoreDomain.COMBAT, char_id=7)
+
+    assert nav["center"]["label"] == "COMBAT"
+    assert nav["center"]["is_active"] is True
+    for slot in ["l2", "l1", "r1", "r2"]:
+        assert nav[slot]["is_disabled"] is True
+        assert nav[slot]["panel"] is None
+        assert nav[slot]["window"] is None

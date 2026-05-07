@@ -1,0 +1,78 @@
+<section class="library-section">
+    <div class="library-breadcrumb">
+        <button
+            class="library-back"
+            type="button"
+            hx-get="/library/fragments/monster-clans"
+            hx-target="#library-content"
+            hx-swap="innerHTML"
+            hx-on::after-request="document.body.dispatchEvent(new CustomEvent('library:nav', { detail: { key: 'monster-clans' } }))"
+        >
+            Back to Monster Clans
+        </button>
+    </div>
+
+    <div class="library-section-head">
+        <span>Monster Clan</span>
+        <h2>{{ clan.title if clan else clan_id|replace("_", " ")|title }}</h2>
+    </div>
+
+    {% if clan %}
+        <div class="ds-panel library-intro">
+            <div class="ds-panel-header">Field_Record</div>
+            <div class="ds-panel-body">
+                <p class="world-text">{{ clan.summary }}</p>
+                <div class="library-fact-grid">
+                    <div><span>Threat</span><strong>{{ clan.danger }}</strong></div>
+                    <div><span>Habitat</span><strong>{{ clan.habitat }}</strong></div>
+                    <div><span>Known Forms</span><strong>{{ clan.member_count }}</strong></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="library-section-head">
+            <span>Representatives</span>
+            <h2>Known Forms</h2>
+        </div>
+
+        <div class="library-card-grid">
+            {% for member in clan.members %}
+                <article class="library-card library-card-static">
+                    <span class="library-card-kicker">{{ member.role_label }} // {{ member.danger }}</span>
+                    <strong>{{ member.title }}</strong>
+                    <p>{{ member.description }}</p>
+                    {% if member.public_stats %}
+                        <div class="library-stat-grid" aria-label="Monster stats">
+                            {% for stat in member.public_stats %}
+                                <span><b>{{ stat.label }}</b>{{ stat.value }}</span>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                    {% if member.public_skills %}
+                        <div class="library-mini-section">
+                            <span>Moves</span>
+                            <p>{{ member.public_skills|join(", ") }}</p>
+                        </div>
+                    {% endif %}
+                    {% if member.public_loadout %}
+                        <div class="library-mini-section">
+                            <span>Gear</span>
+                            <p>
+                                {% for item in member.public_loadout %}
+                                    {{ item.slot }}: {{ item.item }}{% if not loop.last %}; {% endif %}
+                                {% endfor %}
+                            </p>
+                        </div>
+                    {% endif %}
+                </article>
+            {% endfor %}
+        </div>
+    {% else %}
+        <div class="ds-panel library-intro">
+            <div class="ds-panel-header">Record_Not_Found</div>
+            <div class="ds-panel-body">
+                <p class="world-text">This monster record is no longer available.</p>
+            </div>
+        </div>
+    {% endif %}
+</section>

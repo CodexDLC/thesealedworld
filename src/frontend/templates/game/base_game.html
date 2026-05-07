@@ -58,9 +58,10 @@
          :style="`--chat-height: ${chatMinimized ? '100px' : chatHeight + 'px'}`"
          @panel-toggle.window="togglePanel($event.detail)"
          @hud-window-toggle.window="toggleHudWindow($event.detail?.name)"
-         @pointermove.window="moveHudWindow($event)"
-         @pointerup.window="stopHudWindowDrag()"
-         @pointercancel.window="stopHudWindowDrag()">
+         @chat-unread.window="if (chatClosed) chatUnread = true"
+         @pointermove.window="moveHudWindow($event); moveChatLauncher($event)"
+         @pointerup.window="stopHudWindowDrag(); stopChatLauncherDrag()"
+         @pointercancel.window="stopHudWindowDrag(); stopChatLauncherDrag()">
         <header id="game-header" class="game-header">
             {% include "game/includes/header.html" %}
         </header>
@@ -98,7 +99,21 @@
 
         <div id="game-chat-shell">
             {% if domain != 'combats' %}
+            <button type="button"
+                    class="game-chat-launcher"
+                    x-cloak
+                    x-show="chatClosed"
+                    x-transition.opacity
+                    :class="{ 'has-unread': chatUnread }"
+                    :style="chatLauncherStyle()"
+                    @pointerdown.prevent="startChatLauncherDrag($event, $el)"
+                    @click="if (!chatLauncher.dragMoved) { chatClosed = false; chatUnread = false; setChatStep(chatStep > 0 ? chatStep : 1) }"
+                    aria-label="Open chat">
+                <span class="game-chat-launcher-glyph" aria-hidden="true"></span>
+            </button>
             <div class="game-chat-row" id="game-chat-container"
+                 x-show="!chatClosed"
+                 x-transition.opacity
                  :class="{ 'chat-minimized': chatStep === 0, ['chat-step-' + chatStep]: true }">
                 <div class="shell-constrained">
                     <div style="flex: 1; display: flex; flex-direction: column; overflow: hidden;">

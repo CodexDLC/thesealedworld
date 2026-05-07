@@ -525,20 +525,6 @@
     color: var(--col-danger);
 }
 
-.tippy-box[data-theme~='game-catalog'] {
-    background: rgba(8, 10, 12, .96);
-    border: 1px solid rgba(255,170,0,.28);
-    color: var(--col-parchment);
-    font-family: var(--font-mono);
-    font-size: 10px;
-    line-height: 1.45;
-    box-shadow: 0 12px 40px rgba(0,0,0,.45), 0 0 18px rgba(255,170,0,.08);
-}
-
-.tippy-box[data-theme~='game-catalog'] .tippy-content {
-    padding: 8px 10px;
-}
-
 /* Tags */
 .tag { display: inline-block; padding: 2px 7px; font-size: 8px; letter-spacing: .12em; text-transform: uppercase; border-radius: 2px; }
 .tag.burn   { background: rgba(255,100,0,.07); border: 1px solid rgba(255,100,0,.25); color: rgba(255,130,50,.85); }

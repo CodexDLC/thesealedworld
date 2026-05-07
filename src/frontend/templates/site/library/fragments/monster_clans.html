@@ -1,0 +1,150 @@
+{% set clans = result.clans %}
+{% set selected = result.selected %}
+{% set options = result.options %}
+
+<section class="library-section">
+    <div class="library-breadcrumb">
+        <button
+            class="library-back"
+            type="button"
+            hx-get="/library/fragments/monsters"
+            hx-target="#library-content"
+            hx-swap="innerHTML"
+            hx-on::after-request="document.body.dispatchEvent(new CustomEvent('library:nav', { detail: { key: 'monsters' } }))"
+        >
+            Back to Monsters
+        </button>
+    </div>
+
+    <div class="library-section-head">
+        <span>Monsters</span>
+        <h2>Monster Clans</h2>
+    </div>
+
+    <form
+        class="library-filter-panel"
+        hx-get="/library/fragments/monster-clans"
+        hx-target="#library-content"
+        hx-swap="innerHTML"
+    >
+        <div class="library-filter-grid">
+            <label class="library-filter-search">
+                <span>Search</span>
+                <input name="q" value="{{ selected.q }}" placeholder="Name, place, influence">
+            </label>
+
+            <label>
+                <span>Tier</span>
+                <select name="tier">
+                    <option value="all" {% if selected.tier == "all" %}selected{% endif %}>All tiers</option>
+                    {% for option in options.tiers %}
+                        <option value="{{ option.key }}" {% if selected.tier == option.key %}selected{% endif %}>{{ option.label }}</option>
+                    {% endfor %}
+                </select>
+            </label>
+
+            <label>
+                <span>Location</span>
+                <select name="location">
+                    <option value="all" {% if selected.location == "all" %}selected{% endif %}>All locations</option>
+                    {% for option in options.locations %}
+                        <option value="{{ option.key }}" {% if selected.location == option.key %}selected{% endif %}>{{ option.label }}</option>
+                    {% endfor %}
+                </select>
+            </label>
+
+            <label>
+                <span>Kind</span>
+                <select name="family">
+                    <option value="all" {% if selected.family == "all" %}selected{% endif %}>All kinds</option>
+                    {% for option in options.families %}
+                        <option value="{{ option.key }}" {% if selected.family == option.key %}selected{% endif %}>{{ option.label }}</option>
+                    {% endfor %}
+                </select>
+            </label>
+
+            <label>
+                <span>Influence</span>
+                <select name="tag">
+                    <option value="all" {% if selected.tag == "all" %}selected{% endif %}>All tags</option>
+                    {% for option in options.tags %}
+                        <option value="{{ option.key }}" {% if selected.tag == option.key %}selected{% endif %}>{{ option.label }}</option>
+                    {% endfor %}
+                </select>
+            </label>
+
+            <label>
+                <span>Threat</span>
+                <select name="danger">
+                    <option value="all" {% if selected.danger == "all" %}selected{% endif %}>All threats</option>
+                    {% for option in options.dangers %}
+                        <option value="{{ option.key }}" {% if selected.danger == option.key %}selected{% endif %}>{{ option.label }}</option>
+                    {% endfor %}
+                </select>
+            </label>
+
+            <label>
+                <span>Sort</span>
+                <select name="sort">
+                    {% for option in result.sort_options %}
+                        <option value="{{ option.key }}" {% if selected.sort == option.key %}selected{% endif %}>{{ option.label }}</option>
+                    {% endfor %}
+                </select>
+            </label>
+        </div>
+
+        <div class="library-filter-actions">
+            <div class="library-view-toggle" aria-label="View mode">
+                <button class="{% if result.view == 'cards' %}active{% endif %}" type="submit" name="view" value="cards">Cards</button>
+                <button class="{% if result.view == 'list' %}active{% endif %}" type="submit" name="view" value="list">List</button>
+            </div>
+            <input type="hidden" name="view" value="{{ result.view }}">
+            <button class="library-filter-apply" type="submit">Apply</button>
+            <button
+                class="library-filter-reset"
+                type="button"
+                hx-get="/library/fragments/monster-clans"
+                hx-target="#library-content"
+                hx-swap="innerHTML"
+            >
+                Reset
+            </button>
+            <span class="library-result-count">{{ result.filtered_count }} / {{ result.total_count }} records</span>
+        </div>
+    </form>
+
+    {% if clans %}
+        <div class="library-card-grid {% if result.view == 'list' %}library-card-list{% endif %}">
+            {% for clan in clans %}
+                <button
+                    class="library-card"
+                    type="button"
+                    hx-get="/library/fragments/monster-clans/{{ clan.id }}"
+                    hx-target="#library-content"
+                    hx-swap="innerHTML"
+                >
+                    <span class="library-card-kicker">Tier {{ clan.tier }} // {{ clan.danger }} // {{ clan.habitat }}</span>
+                    <strong>{{ clan.title }}</strong>
+                    <p>
+                        {{ clan.summary }}
+                    </p>
+                    {% if clan.filter_tags %}
+                        <span class="library-card-tags">
+                            {% for tag in clan.filter_tags[:3] %}
+                                <b>{{ tag.label }}</b>
+                            {% endfor %}
+                        </span>
+                    {% endif %}
+                    <span class="library-card-meta">{{ clan.member_count }} known forms</span>
+                </button>
+            {% endfor %}
+        </div>
+    {% else %}
+        <div class="ds-panel library-intro">
+            <div class="ds-panel-header">No_Records</div>
+            <div class="ds-panel-body">
+                <p class="world-text">No monster groups match the selected filters.</p>
+            </div>
+        </div>
+    {% endif %}
+</section>

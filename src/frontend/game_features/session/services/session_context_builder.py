@@ -222,6 +222,25 @@ class SessionContextBuilder:
     ) -> dict[str, Any]:
         return await self.build_state(request, state=state, char_id=char_id, quest_key=quest_key)
 
+    def build_combat_dashboard_context(
+        self,
+        dashboard: CombatDashboardDTO,
+        *,
+        char_id: int,
+        transaction_id: str = "",
+        payload_type: str = "CombatDashboard",
+    ) -> dict[str, Any]:
+        return self._context(
+            state=CoreDomain.COMBAT,
+            char_id=char_id,
+            transaction_id=transaction_id,
+            payload_type=payload_type,
+            combat=dashboard,
+            combat_screen=build_combat_screen_vm(dashboard),
+            background_url="/static/images/scenes/ruins.png",
+            status_seed=self._combat_status_seed(dashboard),
+        )
+
     async def _character_status(self, token: str, *, char_id: int) -> CharacterActorCoreDTO:
         return await self.character_status_api.get_panel(token, char_id=char_id)
 

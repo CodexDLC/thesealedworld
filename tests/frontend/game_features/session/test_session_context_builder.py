@@ -214,7 +214,7 @@ def test_combat_view_response_parses_result_before_dashboard():
     response = CombatViewResponse.model_validate(
         {
             "header": {"current_state": "combats", "error": "combat_result_from_archive_stub"},
-            "payload_type": "combat_result",
+            "payload_type": "CombatResult",
             "payload": {
                 "char_id": 7,
                 "title": "Итоги боя недоступны",
@@ -351,6 +351,8 @@ async def test_build_state_combat_uses_combat_session_without_character_status_l
     assert context["nav"]["l1"]["label"] == "BUILDS"
     assert context["nav"]["r1"]["label"] == "INVENTORY"
     assert context["nav"]["r2"]["label"] == "VIEW"
+    assert context["nav"]["l2"]["is_disabled"] is True
+    assert context["nav"]["r1"]["is_disabled"] is True
     assert context["status_seed"]["hp"] == 70
     assert context["status_seed"]["name"] == "Ada"
 
@@ -360,7 +362,7 @@ async def test_build_state_combat_accepts_archived_result_payload():
     status_api = FakeCharacterStatusApi()
     combat_api = FakeCombatApi(
         payload=CombatResultDTO(char_id=7, title="Итоги боя недоступны"),
-        payload_type="combat_result",
+        payload_type="CombatResult",
     )
     service = combat_builder(status_api, combat_api)
 
@@ -371,5 +373,5 @@ async def test_build_state_combat_accepts_archived_result_payload():
     assert context["domain"] == "combats"
     assert context["combat_result"].title == "Итоги боя недоступны"
     assert context["combat_screen"] is None
-    assert context["payload_type"] == "combat_result"
+    assert context["payload_type"] == "CombatResult"
     assert context["status_seed"]["character_id"] == 7

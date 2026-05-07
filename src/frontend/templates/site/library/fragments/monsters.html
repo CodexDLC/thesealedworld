@@ -1,0 +1,36 @@
+<section class="library-section">
+    <div class="library-section-head">
+        <span>Section</span>
+        <h2>Monsters</h2>
+    </div>
+
+    <div class="library-card-grid">
+        <button
+            class="library-card"
+            type="button"
+            hx-get="/library/fragments/monster-clans"
+            hx-target="#library-content"
+            hx-swap="innerHTML"
+            hx-on::after-request="document.body.dispatchEvent(new CustomEvent('library:nav', { detail: { key: 'monster-clans' } }))"
+        >
+            <span class="library-card-kicker">Bestiary</span>
+            <strong>Monster Clans</strong>
+            <p>Clan groups, threat tiers, and representatives prepared for backend catalog data.</p>
+            <span class="library-card-meta">Open shelf</span>
+        </button>
+
+        <article class="library-card is-disabled">
+            <span class="library-card-kicker">Bestiary</span>
+            <strong>Representatives</strong>
+            <p>Individual monster cards will appear here after clan drilldown is wired.</p>
+            <span class="library-card-meta">Locked</span>
+        </article>
+
+        <article class="library-card is-disabled">
+            <span class="library-card-kicker">Taxonomy</span>
+            <strong>Roles</strong>
+            <p>Combat roles, habitats, and encounter notes will be split after the first data slice.</p>
+            <span class="library-card-meta">Later</span>
+        </article>
+    </div>
+</section>

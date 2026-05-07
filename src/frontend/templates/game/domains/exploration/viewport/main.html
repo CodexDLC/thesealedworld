@@ -166,9 +166,13 @@
                 {% if exploration.hud %}
                     <div class="hud-strip">
                         <div class="hud-cell">
-                            {% set threat = exploration.hud.threat_tier if exploration.hud.threat_tier is defined else 0 %}
-                            <span class="hud-v">{{ (threat * 100)|round|int if threat <= 1 else threat }}%</span>
+                            {% set threat = exploration.hud.threat if exploration.hud.threat is defined else 0 %}
+                            <span class="hud-v">{{ (threat * 100)|round|int }}%</span>
                             <span class="hud-l">THREAT</span>
+                        </div>
+                        <div class="hud-cell">
+                            <span class="hud-v">T{{ exploration.hud.threat_tier if exploration.hud.threat_tier is defined else 0 }}</span>
+                            <span class="hud-l">TIER</span>
                         </div>
                         <div class="hud-cell">
                             <span class="hud-v">{{ exploration.players_nearby }}</span>

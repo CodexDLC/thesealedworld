@@ -1,0 +1,32 @@
+<section class="ds-panel library-intro">
+    <div class="ds-panel-header">Library_Index</div>
+    <div class="ds-panel-body">
+        <p class="world-text">
+            The library is the public archive for systems that are ready to be inspected outside the game session.
+            Monster records are the first shelf to be opened.
+        </p>
+    </div>
+</section>
+
+<section class="library-section">
+    <div class="library-section-head">
+        <span>Open shelf</span>
+        <h2>Start</h2>
+    </div>
+
+    <div class="library-card-grid">
+        <button
+            class="library-card"
+            type="button"
+            hx-get="/library/fragments/monsters"
+            hx-target="#library-content"
+            hx-swap="innerHTML"
+            hx-on::after-request="document.body.dispatchEvent(new CustomEvent('library:nav', { detail: { key: 'monsters' } }))"
+        >
+            <span class="library-card-kicker">Catalog</span>
+            <strong>Monsters</strong>
+            <p>Creature families, clan records, and representatives prepared for catalog integration.</p>
+            <span class="library-card-meta">Open section</span>
+        </button>
+    </div>
+</section>

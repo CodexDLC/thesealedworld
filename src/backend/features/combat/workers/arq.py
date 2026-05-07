@@ -1,6 +1,6 @@
 from loguru import logger as log
 
-from src.backend.core.arq import ArqService, BaseArqSettings, base_shutdown, base_startup
+from src.backend.core.arq import COMBAT_ARQ_QUEUE, ArqService, BaseArqSettings, base_shutdown, base_startup
 from src.backend.features.combat.integrations import CombatSessionIntegration
 from src.backend.features.combat.runtime.processors.ai_processor import AiProcessor
 from src.backend.features.combat.runtime.processors.collector import CombatCollector
@@ -49,6 +49,7 @@ async def combat_shutdown(ctx: dict) -> None:
 
 class CombatArqSettings(BaseArqSettings):
     redis_settings = BaseArqSettings.redis_settings
+    queue_name = COMBAT_ARQ_QUEUE
     max_jobs: int = 50
     job_timeout: int = 30
     keep_result: int = 0

@@ -5,7 +5,9 @@ from typing import TYPE_CHECKING
 
 from loguru import logger
 
+from src.backend.features.arena.integrations.arena_integration import ArenaIntegration
 from src.backend.features.arena.integrations.session_integration import ArenaSessionIntegration
+from src.backend.features.arena.integrations.stream_client import ArenaStreamClient
 from src.backend.features.character.events import CharacterEvents
 from src.shared.enums import CoreDomain
 
@@ -90,4 +92,4 @@ class ArenaSystemIntegrator:
             logger.warning("Arena runtime state update skipped: char_id={} state={}", char_id, state.value)
 
 
-__all__ = ["ArenaSessionIntegration", "ArenaSystemIntegrator"]
+__all__ = ["ArenaIntegration", "ArenaSessionIntegration", "ArenaStreamClient", "ArenaSystemIntegrator"]

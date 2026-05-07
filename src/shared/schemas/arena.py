@@ -24,6 +24,19 @@ class ArenaModeEnum(StrEnum):
     ONE_VS_ONE = "one_vs_one"
     GROUP = "group"
     TOURNAMENT = "tournament"
+    RANKED = "ranked"
+    CUSTOM = "custom"
+    SHADOW = "shadow"
+    BRAWL = "brawl"
+
+
+class ArenaModeSizeEnum(StrEnum):
+    """Размеры команд арены."""
+
+    SOLO = "1"
+    THREE = "3"
+    FIVE = "5"
+    TEN = "10"
 
 
 class ArenaActionEnum(StrEnum):
@@ -87,4 +100,6 @@ class ArenaActionDTO(ArenaJsonDTO):
 
     action: str
     mode: str | None = None
+    mode_size: int | None = None
+    team_id: int | None = None
     value: Any | None = None

@@ -77,7 +77,7 @@ testpaths = ["tests"]
 python_files = ["test_*.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
-pythonpath = ["."]
+pythonpath = [".", "src"]
 markers = [
     "unit: Unit tests (fast, isolated)",
     "integration: Integration tests",

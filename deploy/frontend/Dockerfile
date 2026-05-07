@@ -24,11 +24,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends curl && \
 COPY --from=builder /venv /venv
 
 ENV PATH="/venv/bin:$PATH" \
-    PYTHONPATH="/app" \
+    PYTHONPATH="/app:/app/src" \
     PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1
 
 COPY src/frontend ./src/frontend
+COPY src/fastapi_cabinet ./src/fastapi_cabinet
 COPY src/shared   ./src/shared
 
 RUN chown -R appuser:appuser /app

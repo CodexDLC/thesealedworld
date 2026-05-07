@@ -17,6 +17,10 @@ Use `temp/` only as donor code. It may contain useful algorithms, resource data,
 
 Backend features own game behavior, persistence, runtime state, events, and workers.
 
+Backend feature `integrations/` modules are the expected boundary between feature logic and backend infrastructure. When feature code needs repositories, managers, schemas, sessions, Redis Streams clients, or cross-feature flows, add or update a semantic integration instead of wiring services directly to infrastructure.
+
+Backend infrastructure is domain-grouped under `src/backend/infrastructure/<domain>/` and may contain low-level `schemas/`, `models/`, `repositories/`, `managers/`, and adapters for that domain.
+
 Frontend features own browser routes, page/fragment orchestration, forms, view models, and templates.
 
 Shared code owns only stable contracts used by both backend and frontend.
@@ -32,6 +36,8 @@ Do not put backend-internal service DTOs in shared code.
 Do not create global repositories or global Redis managers that know every game domain.
 
 Do not recreate a central dispatcher that replaces feature ownership.
+
+Do not skip a feature integration layer for new infrastructure access just because the feature is still incomplete. Missing feature folders mean the slice has not been built yet, not that services should bypass the intended boundary.
 
 ## Donor Code Migration
 

@@ -18,6 +18,8 @@ Then open, only as needed:
 
 If the task changes frontend structure broadly, also use `turnbasedmmorpg-frontend`.
 
+If the task changes game shell CSS, responsive layout, side panels, header/footer, game menu, chat/HUD placement, or domain viewport sizing, also use `turnbasedmmorpg-game-css-shell`.
+
 ## Core Rules
 
 - Treat `docs/design-system/Design System.html` as the visual canon.

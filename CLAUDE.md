@@ -2,7 +2,7 @@
 
 ## Project Skills
 
-Before architecture or implementation work, read the relevant project skill files in `docs/agent-skills/`.
+Before architecture or implementation work, read the relevant project skill files in `docs/agent-skills/`. Do not infer project architecture from folder absence alone; the skills are the source of truth for intended boundaries.
 
 Use:
 
@@ -15,6 +15,8 @@ Use:
 - `docs/agent-skills/turnbasedmmorpg-quality-gate/SKILL.md` before declaring code complete, before commits/PRs, or when choosing between full and targeted local validation.
 
 Rule of thumb: if a task changes structure or crosses feature boundaries, read the project skill plus the specific frontend/backend/event skill before editing code. After code edits, use the quality-gate skill and report the verification command that ran.
+
+For backend work involving repositories, Redis managers, Redis schemas, sessions, or infrastructure modules, read `turnbasedmmorpg-backend` before editing. Feature code should go through feature `integrations/`; domain infrastructure lives under `src/backend/infrastructure/<domain>/` and may contain `schemas/`, `models/`, `repositories/`, `managers/`, and adapters.
 
 For frontend visual work, also read:
 
@@ -35,4 +37,9 @@ one feature triggering work in another, read `docs/agent-skills/turnbasedmmorpg-
 ## Graphify
 
 Knowledge graph outputs for this project are stored in `graphify-out/`.
-When exploring the codebase architecture visually, check there first before generating a new graph.
+When answering architecture, ownership, dependency, or "where is this implemented?" questions, use Graphify as project context:
+
+- Check `graphify-out/GRAPH_REPORT.md`, `graphify-out/graph.json`, and `graphify-out/wiki/` before doing broad manual scans.
+- Use Graphify query/path/explain workflows when relationships across files or features matter.
+- If skills, architecture docs, or significant source files changed since the last graph build, update Graphify before relying on it.
+- After changing docs or architecture rules, run a Graphify update and regenerate the wiki when practical.

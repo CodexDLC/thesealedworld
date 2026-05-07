@@ -81,10 +81,12 @@ services:
     env_file: ../.env
     environment:
       BACKEND_BASE_URL: http://backend:8001
+      PYTHONPATH: /app:/app/src
     ports:
       - "8000:8000"
     volumes:
       - ../src/frontend:/app/src/frontend
+      - ../src/fastapi_cabinet:/app/src/fastapi_cabinet
       - ../src/shared:/app/src/shared
     command: >
       uvicorn src.frontend.app:app

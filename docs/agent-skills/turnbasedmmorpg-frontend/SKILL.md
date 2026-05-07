@@ -13,6 +13,8 @@ Read:
 
 If backend API contracts are involved, also use `turnbasedmmorpg-backend`.
 
+If the task changes game shell CSS, responsive layout, side panels, header/footer, game menu, chat/HUD placement, or domain viewport sizing, also use `turnbasedmmorpg-game-css-shell`.
+
 ## Core Rules
 
 - Frontend renders UI and calls backend APIs.

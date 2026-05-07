@@ -1,0 +1,24 @@
+{% extends "cabinet/base.html" %}
+
+{% block content %}
+    <h1>{{ module.label }}</h1>
+    {% if module_context %}
+        <dl class="fc-context">
+            {% for key, value in module_context.items() %}
+                <div>
+                    <dt>{{ key }}</dt>
+                    <dd>{{ value }}</dd>
+                </div>
+            {% endfor %}
+        </dl>
+    {% else %}
+        <p class="fc-empty">No module context is available.</p>
+    {% endif %}
+    {% if widgets %}
+        <div class="fc-widgets">
+            {% for widget in widgets %}
+                {% include "cabinet/widgets/" ~ widget.kind ~ ".html" %}
+            {% endfor %}
+        </div>
+    {% endif %}
+{% endblock %}

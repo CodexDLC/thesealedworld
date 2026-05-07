@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <title>{{ layout.title }}</title>
+        <link rel="stylesheet" href="{{ layout.mount_path }}/static/css/cabinet.css">
+    </head>
+    <body class="fc-shell">
+        {% include "cabinet/includes/header.html" %}
+        <main class="fc-main">
+            {% include "cabinet/includes/sidebar.html" %}
+            <section class="fc-content">
+                {% block content %}{% endblock %}
+            </section>
+        </main>
+        <script src="{{ layout.mount_path }}/static/js/cabinet.js"></script>
+    </body>
+</html>

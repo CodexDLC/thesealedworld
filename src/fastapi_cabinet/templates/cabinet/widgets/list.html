@@ -1,0 +1,7 @@
+{% extends "cabinet/includes/widget_frame.html" %}
+
+{% block widget_content %}
+    <ul>
+        {% for item in widget.items %}<li>{{ item }}</li>{% endfor %}
+    </ul>
+{% endblock %}

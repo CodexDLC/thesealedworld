@@ -1,0 +1,23 @@
+{% extends "cabinet/base.html" %}
+
+{% block content %}
+    <h1>Cabinet</h1>
+    {% if modules %}
+        <ul class="fc-module-list">
+            {% for module in modules %}
+                <li>
+                    <a href="{{ module.path or layout.mount_path ~ '/' ~ module.key }}">{{ module.label }}</a>
+                </li>
+            {% endfor %}
+        </ul>
+    {% else %}
+        <p class="fc-empty">No cabinet modules are registered.</p>
+    {% endif %}
+    {% if widgets %}
+        <div class="fc-widgets">
+            {% for widget in widgets %}
+                {% include "cabinet/widgets/" ~ widget.kind ~ ".html" %}
+            {% endfor %}
+        </div>
+    {% endif %}
+{% endblock %}

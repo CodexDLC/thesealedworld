@@ -1,0 +1,6 @@
+{% extends "cabinet/includes/widget_frame.html" %}
+
+{% block widget_content %}
+    <p class="fc-metric-value">{{ widget.value }}</p>
+    {% if widget.subtitle %}<p>{{ widget.subtitle }}</p>{% endif %}
+{% endblock %}

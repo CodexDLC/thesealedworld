@@ -1,0 +1,8 @@
+<header class="fc-header">
+    <a class="fc-brand" href="{{ layout.mount_path }}">{{ layout.title }}</a>
+    <nav class="fc-header-nav" aria-label="Cabinet modules">
+        {% for item in layout.header %}
+            <a class="{% if item.key == layout.active_module %}is-active{% endif %}" href="{{ item.path }}">{{ item.label }}</a>
+        {% endfor %}
+    </nav>
+</header>

@@ -54,6 +54,7 @@ class CombatLogBuilder:
                 action_id=action_id,
                 catalog=catalog,
                 targets_count=len(targets),
+                exchange_id=cls._derive_exchange_id(ctx, action),
             ),
             "timestamp": timestamp,
             "tags": tags,
@@ -126,6 +127,7 @@ class CombatLogBuilder:
         action_id: str | None,
         catalog: dict[str, Any],
         targets_count: int,
+        exchange_id: str | None = None,
     ) -> str:
         values = cls._template_values(result, source_name=source_name, target_name=target_name)
         values["targets_count"] = targets_count
@@ -147,6 +149,17 @@ class CombatLogBuilder:
             return cls._with_damage_sentence(f"{templated}; {trigger_suffix}", result)
         if templated:
             return cls._with_damage_sentence(templated, result)
+        exchange_text = cls._basic_exchange_summary_text(
+            result,
+            exchange_id=exchange_id,
+            outcome=outcome,
+            source_name=source_name,
+            target_name=target_name,
+        )
+        if exchange_text and trigger_suffix:
+            return cls._with_damage_sentence(f"{exchange_text}; {trigger_suffix}", result)
+        if exchange_text:
+            return cls._with_damage_sentence(exchange_text, result)
         return cls._fallback_text(
             result,
             action=action,
@@ -806,6 +819,67 @@ class CombatLogBuilder:
         if use_text and outcome_text:
             return f"{use_text}, {outcome_text}"
         return use_text or outcome_text
+
+    @classmethod
+    def _basic_exchange_summary_text(
+        cls,
+        result: InteractionResultDTO,
+        *,
+        exchange_id: str | None,
+        outcome: str,
+        source_name: str,
+        target_name: str,
+    ) -> str | None:
+        if not exchange_id:
+            return None
+
+        entry = CombatCatalogIntegrator.get_basic_exchange(exchange_id)
+        if entry is None:
+            return None
+
+        variant = entry.descriptive.variants.get(entry.descriptive.default_taxonomy) or entry.descriptive.variants.get(
+            "humanoid"
+        )
+        if variant is None:
+            return None
+
+        use_templates = variant.event_texts.use
+        outcome_templates = getattr(variant.event_texts, outcome, [])
+        if not use_templates and not outcome_templates:
+            return None
+
+        values = {
+            "source": source_name,
+            "target": target_name,
+            "weapon": entry.technical.weapon_class,
+            "damage": result.damage_final,
+            "healing": result.healing_final,
+            "hand": entry.technical.hand,
+            "skill": entry.technical.skill_key,
+            "outcome": outcome,
+        }
+
+        use_text = cls._format_values(use_templates[0], values) if use_templates else ""
+        outcome_text = cls._format_values(outcome_templates[0], values) if outcome_templates else ""
+        if use_text and outcome_text:
+            return f"{use_text}, {outcome_text}"
+        return use_text or outcome_text
+
+    @staticmethod
+    def _derive_exchange_id(ctx: BattleContext, action: CombatActionDTO) -> str | None:
+        if action.action_type != "exchange":
+            return None
+        actor = ctx.get_actor(action.move.char_id)
+        if actor is None:
+            return None
+        payload = action.move.payload
+        hand = getattr(payload, "hand", None)
+        source_type = "off_hand" if hand == "off" else "main_hand"
+        skill_key = actor.loadout.layout.get(source_type)
+        if not skill_key:
+            return None
+        weapon_class = skill_key.replace("skill_", "")
+        return f"skill_{weapon_class}.{source_type}"
 
     @staticmethod
     def _format_values(template: str, values: dict[str, Any]) -> str:

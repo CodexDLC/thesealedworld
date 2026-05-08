@@ -8,6 +8,11 @@ from src.backend.features.game_catalog.combat.resources.abilities import (
     get_all_ability_catalog_entries,
     get_pipeline_preset,
 )
+from src.backend.features.game_catalog.combat.resources.basic_exchanges import (
+    get_all_basic_exchange_entries,
+    get_basic_exchange_entry,
+    get_basic_exchange_entry_by_key,
+)
 from src.backend.features.game_catalog.combat.resources.catalog import CombatResourceCatalogService
 from src.backend.features.game_catalog.combat.resources.effects import (
     get_all_effect_catalog_entries,
@@ -84,6 +89,10 @@ class GameData:
     get_feint_catalog_entry_by_key = staticmethod(get_feint_catalog_entry_by_key)
     get_all_feint_catalog_entries = staticmethod(get_all_feint_catalog_entries)
 
+    get_basic_exchange = staticmethod(get_basic_exchange_entry)
+    get_basic_exchange_by_key = staticmethod(get_basic_exchange_entry_by_key)
+    get_all_basic_exchanges = staticmethod(get_all_basic_exchange_entries)
+
 
 def get_combat_catalog_entry_by_key(catalog_key: str) -> Any | None:
     for resolver in (
@@ -92,6 +101,8 @@ def get_combat_catalog_entry_by_key(catalog_key: str) -> Any | None:
         get_combat_item_action_catalog_entry_by_key,
         get_feint_catalog_entry_by_key,
         get_effect_catalog_entry_by_key,
+        get_trigger_catalog_entry_by_key,
+        get_basic_exchange_entry_by_key,
     ):
         entry = resolver(catalog_key)
         if entry is not None:
@@ -106,6 +117,8 @@ def get_all_combat_catalog_entries() -> list[Any]:
         *get_all_combat_item_action_catalog_entries(),
         *get_all_feint_catalog_entries(),
         *get_all_effect_catalog_entries(),
+        *get_all_triggers(),
+        *get_all_basic_exchange_entries(),
     ]
 
 
@@ -117,6 +130,7 @@ __all__ = [
     "get_ability_config",
     "get_all_ability_catalog_entries",
     "get_all_abilities",
+    "get_all_basic_exchange_entries",
     "get_all_combat_catalog_entries",
     "get_all_combat_item_action_catalog_entries",
     "get_all_combat_item_actions",
@@ -130,6 +144,8 @@ __all__ = [
     "get_all_gifts",
     "get_all_combat_tokens",
     "get_all_triggers",
+    "get_basic_exchange_entry",
+    "get_basic_exchange_entry_by_key",
     "get_combat_catalog_entry_by_key",
     "get_combat_item_action",
     "get_combat_item_action_catalog_entry",

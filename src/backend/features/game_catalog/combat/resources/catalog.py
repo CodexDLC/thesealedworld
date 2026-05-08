@@ -7,6 +7,7 @@ if TYPE_CHECKING:
     from collections.abc import Sequence
 
 from src.backend.features.game_catalog.combat.resources.abilities import get_all_ability_catalog_entries
+from src.backend.features.game_catalog.combat.resources.basic_exchanges import get_all_basic_exchange_entries
 from src.backend.features.game_catalog.combat.resources.effects import get_all_effect_catalog_entries
 from src.backend.features.game_catalog.combat.resources.feints import get_all_feint_catalog_entries
 from src.backend.features.game_catalog.combat.resources.gifts import get_all_gift_catalog_entries
@@ -33,14 +34,24 @@ class CombatResourceCatalogService:
         feint_entries = get_all_feint_catalog_entries()
         effect_entries = get_all_effect_catalog_entries()
         trigger_entries = get_all_triggers()
+        basic_exchange_entries = get_all_basic_exchange_entries()
         combat_entries = self._catalog_entries_by_key(
-            [*ability_entries, *gift_entries, *item_entries, *feint_entries, *effect_entries, *trigger_entries]
+            [
+                *ability_entries,
+                *gift_entries,
+                *item_entries,
+                *feint_entries,
+                *effect_entries,
+                *trigger_entries,
+                *basic_exchange_entries,
+            ]
         )
         return {
             "abilities": self._catalog_entries_by_id(ability_entries, id_field="ability_id"),
             "feints": self._catalog_entries_by_id(feint_entries, id_field="feint_id"),
             "effects": self._catalog_entries_by_id(effect_entries, id_field="effect_id"),
             "triggers": self._catalog_entries_by_key(trigger_entries),
+            "basic_exchanges": self._catalog_entries_by_key(basic_exchange_entries),
             "gifts": self._catalog_entries_by_id(gift_entries, id_field="gift_id"),
             "combat_item_actions": self._catalog_entries_by_id(item_entries, id_field="item_action_id"),
             "combat_tokens": self._public_mapping(get_all_combat_tokens()),
@@ -91,6 +102,7 @@ class CombatResourceCatalogService:
                 or technical.get("feint_id")
                 or technical.get("effect_id")
                 or technical.get("trigger_id")
+                or technical.get("exchange_id")
                 or key
             )
             if technical.get("cost") not in (None, [], {}):

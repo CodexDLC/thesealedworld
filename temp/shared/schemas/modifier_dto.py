@@ -57,22 +57,42 @@ class CombatSkillsDTO(BaseModel):
     skill_parrying: float = 0.0
     skill_anatomy: float = 0.0
     skill_tactics: float = 0.0
-    skill_first_aid: float = 0.0
 
 
 class SecondarySkillsDTO(BaseModel):
     """Второстепенные навыки."""
 
-    # Crafting & Trade
-    skill_crafting: float = 0.0
-    skill_trading: float = 0.0
-    skill_gathering: float = 0.0
+    # Crafting
+    skill_first_aid: float = 0.0
+    skill_alchemy: float = 0.0
+    skill_weapon_craft: float = 0.0
+    skill_armor_craft: float = 0.0
+    skill_jewelry_craft: float = 0.0
+    skill_artifact_craft: float = 0.0
+    skill_engineering: float = 0.0
+
+    skill_mining: float = 0.0
+    skill_herbalism: float = 0.0
+    skill_skinning: float = 0.0
+    skill_woodcutting: float = 0.0
+    skill_hunting: float = 0.0
+    skill_archaeology: float = 0.0
 
     # Survival
     skill_taming: float = 0.0
     skill_adaptation: float = 0.0
     skill_scouting: float = 0.0
     skill_pathfinder: float = 0.0
+
+    skill_accounting: float = 0.0
+    skill_brokerage: float = 0.0
+    skill_contracts: float = 0.0
+    skill_trade_relations: float = 0.0
+
+    skill_leadership: float = 0.0
+    skill_organization: float = 0.0
+    skill_team_spirit: float = 0.0
+    skill_egoism: float = 0.0
 
 
 class MainHandStatsDTO(BaseModel):
@@ -88,6 +108,7 @@ class MainHandStatsDTO(BaseModel):
 
     # Crit
     main_hand_crit_chance: float = 0.0
+    main_hand_crit_cap: float = 0.75
 
 
 class OffHandStatsDTO(BaseModel):
@@ -103,6 +124,7 @@ class OffHandStatsDTO(BaseModel):
 
     # Crit
     off_hand_crit_chance: float = 0.0
+    off_hand_crit_cap: float = 0.75
 
 
 class ItemStatsDTO(BaseModel):
@@ -117,6 +139,7 @@ class ItemStatsDTO(BaseModel):
     item_penetration: float = 0.0
     item_accuracy: float = 0.0
     item_crit_chance: float = 0.0
+    item_crit_cap: float = 0.75
 
 
 class PhysicalStatsDTO(BaseModel):
@@ -148,6 +171,7 @@ class MagicalStatsDTO(BaseModel):
 
     # Magical Crit (Пока общий)
     magical_crit_chance: float = 0.0
+    magical_crit_cap: float = 0.75
 
 
 class DefensiveStatsDTO(BaseModel):

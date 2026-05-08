@@ -27,16 +27,77 @@ class CombatRegisterMoveRequestDTO(CombatJsonDTO):
     payload: dict[str, Any] = Field(default_factory=dict)
 
 
+class CombatPinFeintRequestDTO(CombatJsonDTO):
+    feint_id: str | None = None
+
+
+class CombatLogActorRefDTO(CombatJsonDTO):
+    id: str
+    name: str
+    team: str | None = None
+    actor_type: str | None = None
+
+
+class CombatLogActionRefDTO(CombatJsonDTO):
+    mode: str = "exchange"
+    id: str | None = None
+    catalog: str | None = None
+    catalog_key: str | None = None
+    event: str | None = None
+    taxonomy: str = "humanoid"
+
+
+class CombatLogTemplateRefDTO(CombatJsonDTO):
+    key: str | None = None
+    variant: int = 0
+
+
+class CombatLogResourceDTO(CombatJsonDTO):
+    actor_id: str | None = None
+    resource: str
+    before: int
+    after: int
+    max: int
+    delta: int
+    direction: str
+
+
+class CombatLogBadgeDTO(CombatJsonDTO):
+    kind: str
+    value: int | float | None = None
+    resource: str | None = None
+    direction: str | None = None
+
+
 class CombatEventDTO(CombatJsonDTO):
     type: str = "log"
+    id: str | None = None
+    kind: str = "log"
     text: str | None = "NO_DATA"
+    severity: str = "normal"
     timestamp: int | float | None = None
     tags: list[str] = Field(default_factory=list)
+    source: CombatLogActorRefDTO | None = None
+    target: CombatLogActorRefDTO | None = None
+    action: CombatLogActionRefDTO | None = None
+    template: CombatLogTemplateRefDTO | None = None
+    outcome: str | None = None
+    resources: list[CombatLogResourceDTO] = Field(default_factory=list)
+    badges: list[CombatLogBadgeDTO] = Field(default_factory=list)
+    effects: list[dict[str, Any]] = Field(default_factory=list)
+    flags: dict[str, bool] = Field(default_factory=dict)
     data: dict[str, Any] = Field(default_factory=dict)
+
+
+class CombatLogTurnDTO(CombatJsonDTO):
+    global_turn: int | None = None
+    title: str = "Ход NO_DATA"
+    entries: list[CombatEventDTO] = Field(default_factory=list)
 
 
 class CombatDeltaDTO(CombatJsonDTO):
     events: list[CombatEventDTO] = Field(default_factory=list)
+    turns: list[CombatLogTurnDTO] = Field(default_factory=list)
 
 
 class CombatActorVitalsDTO(CombatJsonDTO):
@@ -44,6 +105,8 @@ class CombatActorVitalsDTO(CombatJsonDTO):
     hp_max: int = 1
     energy_current: int = 0
     energy_max: int = 1
+    stamina_current: int = 0
+    stamina_max: int = 1
     tactics: int = 0
 
 
@@ -64,6 +127,7 @@ class CombatAbilityBadgeDTO(CombatJsonDTO):
 class CombatFeintOptionDTO(CombatJsonDTO):
     feint_id: str = "NO_DATA"
     cost: dict[str, int] = Field(default_factory=dict)
+    pinned: bool = False
 
 
 class CombatActionOptionDTO(CombatJsonDTO):
@@ -198,7 +262,9 @@ class CombatLogDTO(CombatJsonDTO):
 
     session_id: str = "NO_DATA"
     entries: list[CombatEventDTO] = Field(default_factory=list)
+    turns: list[CombatLogTurnDTO] = Field(default_factory=list)
     logs: list[CombatLogEntryDTO] = Field(default_factory=list)
+    total_turns: int = 0
     total: int = 0
     page: int = 1
     page_size: int = 20

@@ -30,6 +30,7 @@ class StatKey(StrEnum):
     # Offense
     PHYSICAL_DAMAGE = "physical_damage"
     MAGICAL_DAMAGE = "magical_damage"
+    MAGICAL_PENETRATION = "magical_penetration"
     CRIT_CHANCE = "crit_chance"
     CRIT_POWER = "crit_power"
     ACCURACY = "accuracy"
@@ -40,7 +41,9 @@ class StatKey(StrEnum):
     EVASION = "evasion"  # или DODGE
     BLOCK = "block"
     PARRY = "parry"
+    PHYSICAL_RESISTANCE = "physical_resistance"
     MAGIC_RESIST = "magic_resist"
+    ANTI_DODGE_CHANCE = "anti_dodge_chance"
 
     # Speed & Time
     INITIATIVE = "initiative"
@@ -55,4 +58,21 @@ class StatKey(StrEnum):
     STAMINA_REGEN = "stamina_regen"
 
     # --- 5. SPECIAL ---
+    COUNTER_ATTACK_CHANCE = "counter_attack_chance"
     HAND_SIZE = "hand_size"
+
+    # --- 6. STATUS / ENVIRONMENT RESISTANCES ---
+    CONTROL_RESISTANCE = "control_resistance"
+    MENTAL_RESISTANCE = "mental_resistance"
+    POISON_RESISTANCE = "poison_resistance"
+    BLEED_RESISTANCE = "bleed_resistance"
+    ENVIRONMENT_BIO_RESISTANCE = "environment_bio_resistance"
+
+    FIRE_RESISTANCE = "fire_resistance"
+    WATER_RESISTANCE = "water_resistance"
+    AIR_RESISTANCE = "air_resistance"
+    EARTH_RESISTANCE = "earth_resistance"
+    LIGHT_RESISTANCE = "light_resistance"
+    DARK_RESISTANCE = "dark_resistance"
+    ARCANE_RESISTANCE = "arcane_resistance"
+    NATURE_RESISTANCE = "nature_resistance"

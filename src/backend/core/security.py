@@ -1,12 +1,16 @@
 import base64
 import hashlib
 import hmac
-import json
 import secrets
-from datetime import UTC, datetime, timedelta
+from datetime import timedelta
 from typing import Any
 
-from src.backend.core.config import settings
+from src.backend.features_site.auth.security.token_service import (
+    create_access_token as _create_access_token,
+)
+from src.backend.features_site.auth.security.token_service import (
+    decode_access_token as _decode_access_token,
+)
 
 ALGORITHM = "HS256"
 PASSWORD_ITERATIONS = 390_000
@@ -22,30 +26,11 @@ def _b64url_decode(value: str) -> bytes:
 
 
 def create_access_token(subject: str | Any, expires_delta: timedelta | None = None) -> str:
-    expire = datetime.now(UTC) + (expires_delta or timedelta(minutes=settings.access_token_expire_minutes))
-    header = {"alg": ALGORITHM, "typ": "JWT"}
-    payload = {"exp": int(expire.timestamp()), "sub": str(subject)}
-
-    header_part = _b64url_encode(json.dumps(header, separators=(",", ":")).encode("utf-8"))
-    payload_part = _b64url_encode(json.dumps(payload, separators=(",", ":")).encode("utf-8"))
-    signing_input = f"{header_part}.{payload_part}".encode("ascii")
-    signature = hmac.new(settings.secret_key.encode("utf-8"), signing_input, hashlib.sha256).digest()
-    return f"{header_part}.{payload_part}.{_b64url_encode(signature)}"
+    return _create_access_token(subject, expires_delta=expires_delta)
 
 
 def decode_access_token(token: str) -> dict[str, Any]:
-    header_part, payload_part, signature_part = token.split(".")
-    signing_input = f"{header_part}.{payload_part}".encode("ascii")
-    expected = hmac.new(settings.secret_key.encode("utf-8"), signing_input, hashlib.sha256).digest()
-    actual = _b64url_decode(signature_part)
-    if not hmac.compare_digest(expected, actual):
-        raise ValueError("Invalid token signature")
-
-    payload = json.loads(_b64url_decode(payload_part))
-    exp = payload.get("exp")
-    if not isinstance(exp, int) or datetime.now(UTC).timestamp() >= exp:
-        raise ValueError("Token expired")
-    return payload
+    return _decode_access_token(token)
 
 
 def get_password_hash(password: str) -> str:

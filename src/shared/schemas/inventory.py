@@ -88,6 +88,7 @@ class InventoryRuntimeSessionDTO(BaseModel):
     wallet: WalletDTO = Field(default_factory=WalletDTO)
     stats: InventoryStatsDTO = Field(default_factory=InventoryStatsDTO)
     is_dirty: bool = False
+    dirty: dict[str, Any] = Field(default_factory=dict)
     version: int = 1
     updated_at: float = 0.0
 

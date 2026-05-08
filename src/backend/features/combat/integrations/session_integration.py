@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 import json
-from typing import TYPE_CHECKING, Any
+import time
+from typing import TYPE_CHECKING, Any, cast
 
 # DTOs
 from src.backend.features.combat.dto.actor import (
@@ -13,6 +14,7 @@ from src.backend.features.combat.dto.actor import (
     ActorSnapshot,
     ActorStats,
     ActorStatusesDTO,
+    FeintHandDTO,
 )
 from src.backend.features.combat.dto.session import (
     BattleContext,
@@ -117,7 +119,7 @@ class CombatSessionIntegration:
     ) -> None:
         await self.combat_manager.universal_hot_join(
             session_id=session_id,
-            char_id=actor_id,
+            actor_id=actor_id,
             team_name=team_name,
             actor_data=actor_data,
             is_ai=is_ai,
@@ -194,6 +196,9 @@ class CombatSessionIntegration:
 
     async def set_winner(self, session_id: str, winner: str) -> None:
         await self.set_battle_winner(session_id, winner)
+
+    async def touch_activity(self, session_id: str) -> None:
+        await self.combat_manager.touch_activity(session_id)
 
     async def transfer_actions(self, session_id: str, actions: list[CombatActionDTO]) -> None:
         """
@@ -341,12 +346,12 @@ class CombatSessionIntegration:
         await self.combat_manager.commit_battle_results(
             ctx.session_id,
             updates,
-            logs,
+            cast("list[dict[str, Any] | str]", logs),
             len(processed_action_ids),
             target_returns=ctx.pending_target_returns,
             dead_actors=dead_actors_update,
-            meta_update={"step_counter": ctx.meta.step_counter},
-            analytics=ctx.pending_analytics,
+            meta_update={"step_counter": ctx.meta.step_counter, "last_activity_at": int(time.time())},
+            analytics=cast("list[dict[str, Any] | str] | None", ctx.pending_analytics),
         )
 
     # ==========================================================================
@@ -396,6 +401,7 @@ class CombatSessionIntegration:
             team=team,
             template_id=meta_dict.get("template_id"),
             is_ai=meta_dict.get("is_ai", False),
+            archetype=meta_dict.get("archetype", "humanoid"),
             # State fields (from r_state dict)
             hp=int(r_state.get("hp", 0)),
             max_hp=int(r_state.get("max_hp", 0)),
@@ -405,7 +411,7 @@ class CombatSessionIntegration:
             is_dead=bool(r_state.get("is_dead", False)),
             exchange_counter=int(r_state.get("exchange_counter", 0)),
             tokens=r_state.get("tokens") or {},
-            feints=r_state.get("feints") or {},
+            feints=FeintHandDTO.model_validate(r_state.get("feints") or {}),
         )
 
         raw_dict = r_raw or {}

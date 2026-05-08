@@ -4,7 +4,7 @@ import httpx
 import pytest
 
 from src.frontend.game_features.combat.routes.actions import game_combat_feint_pin, game_combat_move
-from src.shared.schemas.combat import CombatActorCardDTO, CombatDashboardDTO
+from src.shared.schemas.combat import CombatActorCardDTO, CombatDashboardDTO, CombatResultDTO
 
 
 class FakeRenderer:
@@ -50,9 +50,17 @@ class CapturingPinCombatApi:
         )
 
 
+class ResultCombatApi:
+    async def register_move(self, token, *, char_id, body):
+        return CombatResultDTO(char_id=char_id, combat_id="combat-1", reason="combat_session_finished")
+
+
 class FakeContextBuilder:
     def build_combat_dashboard_context(self, dashboard, *, char_id):
         return {"combat": dashboard, "char_id": char_id}
+
+    def build_combat_result_context(self, result, *, char_id):
+        return {"combat_result": result, "char_id": char_id}
 
 
 @pytest.mark.asyncio
@@ -72,6 +80,25 @@ async def test_combat_move_rejection_refreshes_dashboard_instead_of_raising() ->
 
     assert response.template == "game/session_content_inner.html"
     assert ui.context["combat"].events_delta.events[-1].text == "Target is not available in your queue"
+
+
+@pytest.mark.asyncio
+async def test_combat_move_renders_result_when_backend_returns_result() -> None:
+    ui = FakeRenderer()
+    request = SimpleNamespace(cookies={"tbmmorpg_access_token": "token"}, state=SimpleNamespace())
+
+    response = await game_combat_move(
+        request,
+        ui,
+        FakeAuthService(),
+        ResultCombatApi(),
+        FakeContextBuilder(),
+        char_id=5,
+        action="exchange",
+    )
+
+    assert response.template == "game/session_content_inner.html"
+    assert ui.context["combat_result"].reason == "combat_session_finished"
 
 
 @pytest.mark.asyncio

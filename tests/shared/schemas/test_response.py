@@ -1,6 +1,6 @@
 import pytest
 from src.shared.schemas.response import GameStateHeader, CoreResponseDTO, CoreCompositeResponseDTO
-from src.shared.enums.domain import CoreDomain
+from src.shared.enums.domain_enums import CoreDomain
 
 @pytest.mark.unit
 class TestResponseSchemas:

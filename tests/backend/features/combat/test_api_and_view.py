@@ -29,6 +29,7 @@ class FakeCombatStore:
         self.instant_moves = []
         self.consumed_feints = []
         self.pinned_feints = []
+        self.touched_sessions = []
 
     async def get_meta(self, session_id):
         return {
@@ -123,6 +124,9 @@ class FakeCombatStore:
     async def append_move(self, session_id, actor_id, strategy, move_dto):
         self.instant_moves.append((session_id, actor_id, strategy, move_dto))
 
+    async def touch_activity(self, session_id):
+        self.touched_sessions.append(session_id)
+
 
 class MissingCombatStore(FakeCombatStore):
     async def get_meta(self, session_id):
@@ -133,6 +137,14 @@ class FinishedCombatStore(FakeCombatStore):
     async def get_meta(self, session_id):
         meta = await super().get_meta(session_id)
         return {**meta, "active": "0", "status": "finished", "winner": "team_1"}
+
+
+class FinishesAfterMoveCombatStore(FakeCombatStore):
+    async def get_meta(self, session_id):
+        meta = await super().get_meta(session_id)
+        if self.exchange_moves or self.instant_moves:
+            return {**meta, "active": "0", "status": "finished", "winner": "team_1"}
+        return meta
 
 
 class LockedCombatStore(FakeCombatStore):
@@ -396,6 +408,20 @@ async def test_post_exchange_accepts_feint_id():
 
     assert store.exchange_moves[0][3]["payload"]["feint_id"] == "true_strike"
     assert store.consumed_feints == [("combat-1", 1, "true_strike")]
+
+
+@pytest.mark.asyncio
+async def test_post_exchange_returns_result_when_move_finishes_session():
+    service = CombatSessionService(store=FinishesAfterMoveCombatStore(), system_integrator=FakeCombatSystemIntegrator())
+
+    result = await register_combat_move(
+        1,
+        CombatRegisterMoveRequestDTO(action="exchange", target_id="2", feint_id=None),
+        CombatRuntimeOrchestrator(service),
+    )
+
+    assert isinstance(result, CombatResultDTO)
+    assert result.reason == "combat_session_finished"
 
 
 @pytest.mark.asyncio

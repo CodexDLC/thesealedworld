@@ -1,5 +1,6 @@
 # src/backend/features/exploration/services/exploration_service.py
 import logging
+from typing import Any, cast
 
 from src.backend.features.exploration.dto.config import ExplorationConfig
 from src.backend.features.exploration.integrations.system_integrator import ExplorationSystemIntegrator
@@ -288,6 +289,6 @@ class ExplorationService:
     @staticmethod
     def _safe_threat(value: object) -> float:
         try:
-            return max(0.0, min(1.0, float(value)))
+            return max(0.0, min(1.0, float(cast("Any", value))))
         except (TypeError, ValueError):
             return 0.0

@@ -3,6 +3,10 @@ from typing import Any
 from pydantic import BaseModel, Field
 
 from src.backend.features.game_catalog.combat.resources.abilities.enums import AbilitySource, AbilityType
+from src.backend.features.game_catalog.combat.resources.common.descriptions import (
+    CombatCatalogEntryDTO,
+    CombatDescriptionDTO,
+)
 from src.backend.features.game_catalog.combat.resources.common.targeting import TargetType
 
 
@@ -25,14 +29,12 @@ class PipelineMutationsDTO(BaseModel):
     flags: dict[str, Any] = Field(default_factory=dict)  # Индивидуальные флаги
 
 
-class AbilityConfigDTO(BaseModel):
+class AbilityTechnicalDTO(BaseModel):
     """
-    Конфигурация абилки (Gift Ability).
+    Technical configuration for an active ability.
     """
 
     ability_id: str
-    name_ru: str
-    description_ru: str
 
     source: AbilitySource = AbilitySource.GIFT
     type: AbilityType = AbilityType.INSTANT
@@ -66,3 +68,17 @@ class AbilityConfigDTO(BaseModel):
     # Наложение эффектов (Баффы, Дебаффы, Хил)
     # Пример: [{"id": "burn", "params": {"duration": 3}}]
     effects: list[dict[str, Any]] | None = None
+
+    # Future: tokens granted by the action, separate from resolver-generated tokens.
+    token_grants: dict[str, int] | None = None
+
+
+class AbilityCatalogEntryDTO(CombatCatalogEntryDTO):
+    key: str
+    technical: AbilityTechnicalDTO
+    descriptive: CombatDescriptionDTO
+
+
+# Compatibility import name for existing runtime code. This is the technical
+# DTO, not the old text-bearing config shape.
+AbilityConfigDTO = AbilityTechnicalDTO

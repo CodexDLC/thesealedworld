@@ -1,0 +1,190 @@
+"""
+СЕМЕЙСТВО: ВЛАДЫКИ ЯКОРЕЙ
+==========================
+Четыре tier-7 силы на границах мира. В обычные затянувшиеся бои приходят их
+проекции; истинные тела остаются рейдовыми боссами анкорных разломов.
+"""
+
+from ..monster_structs import MonsterFamily
+
+ANCHOR_SOVEREIGNS_FAMILY: MonsterFamily = {
+    "id": "anchor_sovereigns",
+    "archetype": "unknown",
+    "organization_type": "solitary",
+    "default_tags": ["anchor", "higher_force", "projection", "raid_boss"],
+    "hierarchy": {
+        "minions": [],
+        "veterans": [],
+        "elites": [],
+        "boss": [
+            "north_stasis_sovereign",
+            "south_entropy_sovereign",
+            "west_gravity_sovereign",
+            "east_evolution_sovereign",
+        ],
+    },
+    "combat_profile": {
+        "archetype": "unknown",
+        "body_loadout": "humanoid",
+        "armor_class": None,
+        "natural_weapon_set": None,
+        "equipment_scaling": "tier_7_anchor_projection",
+        "modifier_formula": "anchor_projection_v1",
+    },
+    "skill_kit": {
+        "base": {
+            "skill_tactics": 100,
+            "skill_anatomy": 100,
+            "skill_parrying": 100,
+            "skill_heavy_armor": 100,
+            "skill_adaptation": 100,
+        },
+        "role_bonus": {
+            "boss": {
+                "skill_leadership": 100,
+                "skill_team_spirit": 100,
+            },
+        },
+    },
+    "ability_map": {
+        "anchor_fireball": {"mechanic": "fireball", "presentation": "anchor_fireball"},
+        "anchor_true_strike": {"mechanic": "true_strike_spell", "presentation": "anchor_true_strike"},
+        "anchor_stone_skin": {"mechanic": "stone_skin", "presentation": "anchor_stone_skin"},
+        "anchor_heal": {"mechanic": "heal", "presentation": "anchor_heal"},
+    },
+    "loot_profile": {
+        "salvage_type": "anchor_residue",
+        "loot_mode": "hybrid",
+        "allowed_loadout_slots": "natural_only",
+        "equipment_drop_policy": "none",
+        "drops_as_equipment": False,
+        "materials": ["anchor_shard", "projection_core"],
+        "equipment_quality": "tier_7_raid",
+    },
+    "variants": {
+        "north_stasis_sovereign": {
+            "id": "north_stasis_sovereign",
+            "role": "boss",
+            "cost": 2200,
+            "min_tier": 7,
+            "max_tier": 7,
+            "narrative_hint": "Северный якорь стазиса. Его проекция не спешит: она отнимает у боя само движение.",
+            "extra_tags": ["north", "stasis", "frost", "time_stasis", "absolute_zero"],
+            "base_stats": {
+                "strength": 160,
+                "agility": 70,
+                "endurance": 220,
+                "intelligence": 190,
+                "wisdom": 240,
+                "men": 210,
+                "perception": 150,
+                "charisma": 80,
+                "luck": 40,
+            },
+            "fixed_loadout": {
+                "main_hand": "anchor_stasis_crown_blade",
+                "chest_armor": "anchor_projection_aegis",
+            },
+            "skills": ["anchor_true_strike", "anchor_stone_skin", "anchor_heal"],
+            "skill_overrides": {
+                "skill_macing": 100,
+                "skill_two_handed": 100,
+                "skill_heavy_armor": 100,
+                "skill_light_armor": 20,
+            },
+        },
+        "south_entropy_sovereign": {
+            "id": "south_entropy_sovereign",
+            "role": "boss",
+            "cost": 2400,
+            "min_tier": 7,
+            "max_tier": 7,
+            "narrative_hint": "Южный якорь энтропии. Его проекция завершает спор грубой ценой распада.",
+            "extra_tags": ["south", "entropy", "ash_storm", "lava_veins", "thermal_shock"],
+            "base_stats": {
+                "strength": 240,
+                "agility": 80,
+                "endurance": 230,
+                "intelligence": 110,
+                "wisdom": 120,
+                "men": 220,
+                "perception": 130,
+                "charisma": 90,
+                "luck": 30,
+            },
+            "fixed_loadout": {
+                "main_hand": "anchor_entropy_cinder_maul",
+                "chest_armor": "anchor_projection_aegis",
+            },
+            "skills": ["anchor_fireball", "anchor_stone_skin", "anchor_true_strike"],
+            "skill_overrides": {
+                "skill_macing": 100,
+                "skill_two_handed": 100,
+                "skill_heavy_armor": 100,
+                "skill_light_armor": 10,
+            },
+        },
+        "west_gravity_sovereign": {
+            "id": "west_gravity_sovereign",
+            "role": "boss",
+            "cost": 2100,
+            "min_tier": 7,
+            "max_tier": 7,
+            "narrative_hint": "Западный якорь гравитации. Его проекция выбирает направление, в котором падают враги.",
+            "extra_tags": ["west", "gravity", "floating_islands", "reverse_gravity", "lightning"],
+            "base_stats": {
+                "strength": 130,
+                "agility": 210,
+                "endurance": 170,
+                "intelligence": 220,
+                "wisdom": 160,
+                "men": 170,
+                "perception": 240,
+                "charisma": 100,
+                "luck": 90,
+            },
+            "fixed_loadout": {
+                "main_hand": "anchor_gravity_storm_lance",
+                "chest_armor": "anchor_projection_aegis",
+            },
+            "skills": ["anchor_true_strike", "anchor_fireball", "anchor_heal"],
+            "skill_overrides": {
+                "skill_polearms": 100,
+                "skill_one_handed": 100,
+                "skill_light_armor": 100,
+                "skill_heavy_armor": 55,
+            },
+        },
+        "east_evolution_sovereign": {
+            "id": "east_evolution_sovereign",
+            "role": "boss",
+            "cost": 2300,
+            "min_tier": 7,
+            "max_tier": 7,
+            "narrative_hint": "Восточный якорь эволюции. Его проекция отвечает на застой быстрой мутацией боя.",
+            "extra_tags": ["east", "evolution", "living_jungle", "toxic_spores", "mutation_fog"],
+            "base_stats": {
+                "strength": 170,
+                "agility": 230,
+                "endurance": 190,
+                "intelligence": 160,
+                "wisdom": 220,
+                "men": 180,
+                "perception": 230,
+                "charisma": 70,
+                "luck": 120,
+            },
+            "fixed_loadout": {
+                "main_hand": "anchor_evolution_bloom_talons",
+                "chest_armor": "anchor_projection_aegis",
+            },
+            "skills": ["anchor_true_strike", "anchor_heal", "anchor_stone_skin"],
+            "skill_overrides": {
+                "skill_unarmed": 100,
+                "skill_dual_wield": 100,
+                "skill_light_armor": 100,
+                "skill_heavy_armor": 35,
+            },
+        },
+    },
+}

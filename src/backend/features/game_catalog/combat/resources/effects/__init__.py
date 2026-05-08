@@ -1,25 +1,15 @@
 from loguru import logger as log
 
-from src.backend.features.game_catalog.combat.resources.effects.definitions.buffs import BUFF_EFFECTS
-from src.backend.features.game_catalog.combat.resources.effects.definitions.controls import CONTROL_EFFECTS
-from src.backend.features.game_catalog.combat.resources.effects.definitions.debuffs import DEBUFF_EFFECTS
-from src.backend.features.game_catalog.combat.resources.effects.definitions.dots import DOT_EFFECTS
-from src.backend.features.game_catalog.combat.resources.effects.definitions.hots import HOT_EFFECTS
-from src.backend.features.game_catalog.combat.resources.effects.schemas import EffectDTO
+from src.backend.features.game_catalog.combat.resources.effects.definitions.buffs import BUFF_EFFECTS_CATALOG
+from src.backend.features.game_catalog.combat.resources.effects.definitions.controls import CONTROL_EFFECTS_CATALOG
+from src.backend.features.game_catalog.combat.resources.effects.definitions.debuffs import DEBUFF_EFFECTS_CATALOG
+from src.backend.features.game_catalog.combat.resources.effects.definitions.dots import DOT_EFFECTS_CATALOG
+from src.backend.features.game_catalog.combat.resources.effects.definitions.hots import HOT_EFFECTS_CATALOG
+from src.backend.features.game_catalog.combat.resources.effects.schemas import EffectCatalogEntryDTO, EffectDTO
 
-# ==========================================
-# ГЛОБАЛЬНЫЕ РЕЕСТРЫ (In-Memory DB)
-# ==========================================
-
-EFFECT_REGISTRY: dict[str, EffectDTO] = {}
+EFFECT_CATALOG_REGISTRY: dict[str, EffectCatalogEntryDTO] = {}
+EFFECT_CATALOG_BY_KEY: dict[str, EffectCatalogEntryDTO] = {}
 _INITIALIZED = False
-
-
-def _register_effects(effect_list: list[EffectDTO]) -> None:
-    for effect in effect_list:
-        if effect.effect_id in EFFECT_REGISTRY:
-            log.warning(f"EffectLibrary | Duplicate effect ID: '{effect.effect_id}'. Overwriting.")
-        EFFECT_REGISTRY[effect.effect_id] = effect
 
 
 def _initialize_library() -> None:
@@ -29,34 +19,53 @@ def _initialize_library() -> None:
 
     log.info("EffectLibrary | Initializing...")
 
-    all_groups = [
-        DOT_EFFECTS,
-        HOT_EFFECTS,
-        BUFF_EFFECTS,
-        DEBUFF_EFFECTS,
-        CONTROL_EFFECTS,
+    all_catalogs = [
+        DOT_EFFECTS_CATALOG,
+        HOT_EFFECTS_CATALOG,
+        BUFF_EFFECTS_CATALOG,
+        DEBUFF_EFFECTS_CATALOG,
+        CONTROL_EFFECTS_CATALOG,
     ]
-    count = 0
+    for catalog in all_catalogs:
+        for effect_id, entry in catalog.items():
+            if effect_id in EFFECT_CATALOG_REGISTRY:
+                log.warning(f"EffectLibrary | Duplicate effect ID: '{effect_id}'. Overwriting.")
+            EFFECT_CATALOG_REGISTRY[effect_id] = entry
+            EFFECT_CATALOG_BY_KEY[entry.key] = entry
 
-    for group in all_groups:
-        _register_effects(group)
-        count += len(group)
-
-    log.info(f"EffectLibrary | Loaded {count} effects.")
+    log.info(f"EffectLibrary | Loaded {len(EFFECT_CATALOG_REGISTRY)} effects.")
     _INITIALIZED = True
 
 
 # ==========================================
-# PUBLIC API
+# PUBLIC API — catalog (primary)
+# ==========================================
+
+
+def get_effect_catalog_entry(effect_id: str) -> EffectCatalogEntryDTO | None:
+    return EFFECT_CATALOG_REGISTRY.get(effect_id)
+
+
+def get_effect_catalog_entry_by_key(key: str) -> EffectCatalogEntryDTO | None:
+    return EFFECT_CATALOG_BY_KEY.get(key)
+
+
+def get_all_effect_catalog_entries() -> list[EffectCatalogEntryDTO]:
+    return list(EFFECT_CATALOG_REGISTRY.values())
+
+
+# ==========================================
+# COMPAT WRAPPERS — used by log_builder until that task migrates
 # ==========================================
 
 
 def get_effect_config(effect_id: str) -> EffectDTO | None:
-    return EFFECT_REGISTRY.get(effect_id)
+    entry = EFFECT_CATALOG_REGISTRY.get(effect_id)
+    return EffectDTO.from_catalog_entry(entry) if entry else None
 
 
 def get_all_effects() -> list[EffectDTO]:
-    return list(EFFECT_REGISTRY.values())
+    return [EffectDTO.from_catalog_entry(e) for e in EFFECT_CATALOG_REGISTRY.values()]
 
 
 # Auto-init

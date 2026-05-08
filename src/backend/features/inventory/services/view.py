@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Any
+
 from src.shared.enums.item_enums import EquippedSlot, QuickSlot
 from src.shared.schemas.inventory import (
     InventoryAccessoryRowDTO,
@@ -500,9 +502,9 @@ class InventoryViewService:
         return "positive" if value > 0 else "negative"
 
     @staticmethod
-    def _float_value(raw: object) -> float | None:
+    def _float_value(raw: Any) -> float | None:
         try:
-            return float(raw)  # type: ignore[arg-type]
+            return float(raw)
         except (TypeError, ValueError):
             return None
 
@@ -529,7 +531,7 @@ class InventoryViewService:
         return None
 
     @staticmethod
-    def _positive_int(raw: object) -> int:
+    def _positive_int(raw: Any) -> int:
         try:
             return int(raw)
         except (TypeError, ValueError):

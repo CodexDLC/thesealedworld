@@ -1,3 +1,5 @@
+from typing import Any
+
 from loguru import logger as log
 
 from src.backend.features.combat.runtime.services.data_service import CombatDataService  # noqa: TC001
@@ -95,18 +97,18 @@ async def _commit_player_vitals_to_active_sessions(ctx: dict, data_service: Comb
 
 
 async def _update_vital_if_present(
-    character_sessions: object,
+    character_sessions: Any,
     char_id: int,
     vital: str,
-    cur: object,
-    max_value: object,
+    cur: Any,
+    max_value: Any,
 ) -> None:
     if cur is None and max_value is None:
         return
     await character_sessions.update_vital(char_id, vital, cur=_int_or_none(cur), max=_int_or_none(max_value))
 
 
-def _int_or_none(value: object) -> int | None:
+def _int_or_none(value: Any) -> int | None:
     if value is None:
         return None
     try:

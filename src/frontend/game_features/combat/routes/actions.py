@@ -16,6 +16,7 @@ from src.shared.schemas.combat import (
     CombatEventDTO,
     CombatPinFeintRequestDTO,
     CombatRegisterMoveRequestDTO,
+    CombatResultDTO,
 )
 
 router = APIRouter(tags=["Combat"])
@@ -71,7 +72,7 @@ async def game_combat_move(
     await auth_service.require_current_user(request)
     token = require_access_token(request)
     try:
-        dashboard = await combat_api.register_move(
+        combat_payload = await combat_api.register_move(
             token,
             char_id=char_id,
             body=CombatRegisterMoveRequestDTO(
@@ -84,9 +85,14 @@ async def game_combat_move(
     except httpx.HTTPStatusError as exc:
         detail = _backend_error_detail(exc)
         logger.warning("Combat move rejected: char_id={} action={} detail={}", char_id, action, detail)
-        dashboard = await combat_api.snapshot(token, char_id=char_id)
+        combat_payload = await combat_api.snapshot(token, char_id=char_id)
+        dashboard = combat_payload
         _append_rejected_move_event(dashboard, detail)
-    context = context_builder.build_combat_dashboard_context(dashboard, char_id=char_id)
+    if isinstance(combat_payload, CombatResultDTO):
+        context = context_builder.build_combat_result_context(combat_payload, char_id=char_id)
+    else:
+        dashboard = combat_payload
+        context = context_builder.build_combat_dashboard_context(dashboard, char_id=char_id)
     return await ui.render("game/session_content_inner.html", context=context)
 
 
@@ -124,7 +130,7 @@ def _blank_to_none(value: str | None) -> str | None:
 
 
 def _allowed_page_size(page_size: int) -> int:
-    return page_size if page_size in LOG_PAGE_SIZE_OPTIONS else 8
+    return max(1, min(page_size, 50))
 
 
 def _page_window(active_page: int, total_pages: int) -> list[int]:

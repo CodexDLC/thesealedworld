@@ -25,6 +25,12 @@ def test_game_catalog_bootstrap_contains_safe_text_catalogs():
     assert "strength" in payload.catalogs["attributes"]
     assert payload.catalogs["abilities"]["fireball"]["title"] == "Огненный Шар"
     assert payload.catalogs["feints"]["true_strike"]["title"] == "Верный удар"
+    assert payload.catalogs["combat_entries"]["combat.ability.fireball"]["resource_id"] == "fireball"
+    assert payload.catalogs["combat_entries"]["combat.ability.fireball"]["taxonomy_variants"]["humanoid"]["event_texts"][
+        "area_result"
+    ]
+    assert payload.catalogs["combat_entries"]["combat.gift.gift_true_fire"]["resource_id"] == "gift_true_fire"
+    assert payload.catalogs["combat_entries"]["combat.item.fire_grenade"]["resource_id"] == "fire_grenade"
     assert payload.catalogs["combat_entries"]["combat.feint.cleave"]["resource_id"] == "cleave"
     assert payload.catalogs["combat_entries"]["combat.feint.cleave"]["taxonomy_variants"]["beast"]["event_texts"]["hit"]
     assert payload.catalogs["effects"]["dot_burn"]["title"] == "Ожог"

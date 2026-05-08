@@ -49,17 +49,44 @@ class CombatLogActionRefDTO(CombatJsonDTO):
 
 class CombatLogTemplateRefDTO(CombatJsonDTO):
     key: str | None = None
+    event: str | None = None
+    taxonomy: str = "humanoid"
     variant: int = 0
 
 
-class CombatLogResourceDTO(CombatJsonDTO):
+class CombatLogPublicResourceDTO(CombatJsonDTO):
     actor_id: str | None = None
     resource: str
-    before: int
+    before: int | None = None
     after: int
     max: int
-    delta: int
-    direction: str
+    delta: int | None = None
+    label: str | None = None
+
+
+class CombatLogPublicTokenDTO(CombatJsonDTO):
+    actor_id: str | None = None
+    owner: str
+    token: str
+    amount: int
+    icon: str | None = None
+    tooltip: str | None = None
+
+
+class CombatLogPublicEffectDTO(CombatJsonDTO):
+    actor_id: str | None = None
+    owner: str
+    effect_id: str
+    action: str
+    duration: int | None = None
+    icon: str | None = None
+    tooltip: str | None = None
+
+
+class CombatLogPublicResultDTO(CombatJsonDTO):
+    resources: list[CombatLogPublicResourceDTO] = Field(default_factory=list)
+    tokens: list[CombatLogPublicTokenDTO] = Field(default_factory=list)
+    effects: list[CombatLogPublicEffectDTO] = Field(default_factory=list)
 
 
 class CombatLogBadgeDTO(CombatJsonDTO):
@@ -82,7 +109,9 @@ class CombatEventDTO(CombatJsonDTO):
     action: CombatLogActionRefDTO | None = None
     template: CombatLogTemplateRefDTO | None = None
     outcome: str | None = None
-    resources: list[CombatLogResourceDTO] = Field(default_factory=list)
+    variables: dict[str, Any] = Field(default_factory=dict)
+    result: CombatLogPublicResultDTO = Field(default_factory=CombatLogPublicResultDTO)
+    resources: list[CombatLogPublicResourceDTO] = Field(default_factory=list)
     badges: list[CombatLogBadgeDTO] = Field(default_factory=list)
     effects: list[dict[str, Any]] = Field(default_factory=list)
     flags: dict[str, bool] = Field(default_factory=dict)

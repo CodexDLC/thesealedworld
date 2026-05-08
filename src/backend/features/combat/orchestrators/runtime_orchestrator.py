@@ -34,8 +34,13 @@ class CombatRuntimeOrchestrator:
     async def get_archived_result(self, char_id: int, *, reason: str = "combat_session_not_found") -> CombatResultDTO:
         return await self.session_service.get_archived_result(char_id, reason=reason)
 
-    async def register_move(self, char_id: int, body: CombatRegisterMoveRequestDTO) -> CombatDashboardDTO:
-        return await self.session_service.register_move(char_id, body)
+    async def register_move(
+        self, char_id: int, body: CombatRegisterMoveRequestDTO
+    ) -> CombatDashboardDTO | CombatResultDTO:
+        dashboard = await self.session_service.register_move(char_id, body)
+        if dashboard.status == "finished" or dashboard.winner_team:
+            return await self.session_service.get_archived_result(char_id, reason="combat_session_finished")
+        return dashboard
 
     async def pin_feint(self, char_id: int, body: CombatPinFeintRequestDTO) -> CombatDashboardDTO:
         return await self.session_service.pin_feint(char_id, body)

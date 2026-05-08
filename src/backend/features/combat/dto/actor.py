@@ -78,6 +78,7 @@ class ActorMetaDTO(BaseModel):
     team: str
     template_id: str | None = None
     is_ai: bool = False
+    archetype: str = "humanoid"  # "humanoid" | "beast" | "undead" | "construct" | "demon" | ...
 
     # State (Hot Data)
     hp: int = 0

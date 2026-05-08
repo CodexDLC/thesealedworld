@@ -1,27 +1,91 @@
 import json
+from dataclasses import dataclass
 from typing import Any
 
 from loguru import logger as log
 
 from src.backend.features.combat.dto.actor import ActorMetaDTO, ActorRawDTO
 from src.backend.features.combat.integrations import CombatSessionIntegration
+from src.backend.features.monsters.resources import get_family_config
+from src.backend.features.monsters.runtime.combat_profile import (
+    build_monster_combat_context,
+    build_monster_vitals,
+)
+
+ANCHOR_FAMILY_ID = "anchor_sovereigns"
+ANCHOR_FORCE_TEAM = "anchor_force"
+
+
+@dataclass(frozen=True)
+class AnchorProjectionConfig:
+    actor_id: int
+    variant_id: str
+    name: str
+    battle_types: tuple[str, ...]
+    arrival_text: str
+
+
+ANCHOR_PROJECTIONS: dict[str, AnchorProjectionConfig] = {
+    "north_stasis": AnchorProjectionConfig(
+        actor_id=-701,
+        variant_id="north_stasis_sovereign",
+        name="Проекция Северного Стазиса",
+        battle_types=("shadow", "duel"),
+        arrival_text="Северный Стазис замечает остановившийся бой. Воздух густеет, и его проекция входит в круг.",
+    ),
+    "south_entropy": AnchorProjectionConfig(
+        actor_id=-702,
+        variant_id="south_entropy_sovereign",
+        name="Проекция Южной Энтропии",
+        battle_types=("rift", "standard"),
+        arrival_text="Южная Энтропия принимает затянувшееся молчание за приглашение. На поле осыпается пепел.",
+    ),
+    "west_gravity": AnchorProjectionConfig(
+        actor_id=-703,
+        variant_id="west_gravity_sovereign",
+        name="Проекция Западной Гравитации",
+        battle_types=("arena", "pvp"),
+        arrival_text="Западная Гравитация склоняет арену. Те, кто не сделал выбор, теперь падают к ее воле.",
+    ),
+    "east_evolution": AnchorProjectionConfig(
+        actor_id=-704,
+        variant_id="east_evolution_sovereign",
+        name="Проекция Восточной Эволюции",
+        battle_types=("pve", "field"),
+        arrival_text="Восточная Эволюция не терпит застоя. Живая проекция прорастает в бой и ищет слабые формы.",
+    ),
+}
+
+
+@dataclass
+class _AnchorProjectionSource:
+    id: str
+    clan_id: str
+    family_id: str
+    variant_key: str
+    role: str
+    name_ru: str
+    scaled_base_stats: dict[str, Any]
+    loadout_ids: dict[str, Any]
+    skills_snapshot: list[str]
+    combat_seed: dict[str, Any]
+    current_state: dict[str, Any] | None
 
 
 class ChaosService:
     """
-    Сервис Хаоса. Отвечает за спавн "Мусорщика" (Time Eater).
+    Сервис вмешательства высших сил. Отвечает за призыв анкорной проекции
+    в затянувшийся бой.
     """
 
-    CLEANER_ID = -666
-    CLEANER_NAME = "Мусорщик"
-    CLEANER_TEAM = "chaos"
+    FORCE_TEAM = ANCHOR_FORCE_TEAM
 
     def __init__(self, combat_sessions: CombatSessionIntegration):
         self.combat_sessions = combat_sessions
 
     async def spawn_cleaner(self, session_id: str) -> bool:
         """
-        Призывает Мусорщика в бой.
+        Призывает проекцию одного из четырех Якорей в бой.
         Возвращает True, если успешно призван.
         """
         # 1. Проверяем, есть ли он уже
@@ -31,70 +95,145 @@ class ChaosService:
 
         # Проверка через actors_info (быстрее, чем парсить teams)
         actors_info = json.loads(meta_raw.get("actors_info") or "{}")
-        if str(self.CLEANER_ID) in actors_info:
+        if any(str(config.actor_id) in actors_info for config in ANCHOR_PROJECTIONS.values()):
             return False  # Уже здесь
 
-        log.warning(f"Chaos Protocol | Spawning Cleaner in session {session_id}")
+        projection = self._select_projection(session_id, meta_raw)
+        log.warning(
+            "AnchorIntervention | session_id={} projection={} variant={}",
+            session_id,
+            projection.name,
+            projection.variant_id,
+        )
 
-        # 2. Создаем данные Мусорщика (DTO)
-        cleaner_data = self._create_cleaner_data()
+        # 2. Создаем actor document из monster family resource
+        projection_data = self._create_projection_data(projection)
 
         # 3. Вызываем универсальный метод менеджера
         await self.combat_sessions.hot_join_actor(
             session_id=session_id,
-            actor_id=self.CLEANER_ID,
-            team_name=self.CLEANER_TEAM,
-            actor_data=cleaner_data,
+            actor_id=projection.actor_id,
+            team_name=self.FORCE_TEAM,
+            actor_data=projection_data,
             is_ai=True,
         )
 
         # 4. Лог
         await self.combat_sessions.add_log(
             session_id,
-            "⏳ Границы реальности истончились. В поисках утраченного времени пришел ОН.",
-            tags=["chaos", "spawn"],
+            projection.arrival_text,
+            tags=["anchor", "higher_force", "spawn", projection.variant_id],
         )
 
         return True
 
-    def _create_cleaner_data(self) -> dict[str, Any]:
-        """Генерирует данные босса через DTO."""
-        # Stats
-        stats = {
-            "strength": 1000,
-            "agility": 1000,
-            "endurance": 1000,
-            "intelligence": 1000,
-            "wisdom": 1000,
-            "luck": 1000,
-        }
+    def _select_projection(self, session_id: str, meta_raw: dict[str, Any]) -> AnchorProjectionConfig:
+        battle_type = str(meta_raw.get("battle_type") or "standard")
+        for projection in ANCHOR_PROJECTIONS.values():
+            if battle_type in projection.battle_types:
+                return projection
 
-        # State DTO (используем ActorMetaDTO вместо ActorState)
-        state = ActorMetaDTO(
-            id=self.CLEANER_ID,
-            name=self.CLEANER_NAME,
+        projections = tuple(ANCHOR_PROJECTIONS.values())
+        index = sum(ord(char) for char in session_id) % len(projections)
+        return projections[index]
+
+    def _create_projection_data(self, projection: AnchorProjectionConfig) -> dict[str, Any]:
+        """Генерирует actor document проекции из monster family resource."""
+        family = get_family_config(ANCHOR_FAMILY_ID)
+        if family is None:
+            log.error("AnchorIntervention | missing_family family_id={}", ANCHOR_FAMILY_ID)
+            return self._create_fallback_projection_data(projection)
+
+        variant = family.variants.get(projection.variant_id)
+        if variant is None:
+            log.error("AnchorIntervention | missing_variant variant_id={}", projection.variant_id)
+            return self._create_fallback_projection_data(projection)
+
+        source = _AnchorProjectionSource(
+            id=str(projection.actor_id),
+            clan_id=ANCHOR_FAMILY_ID,
+            family_id=ANCHOR_FAMILY_ID,
+            variant_key=variant.id,
+            role=variant.role,
+            name_ru=projection.name,
+            scaled_base_stats=variant.base_stats.model_dump(mode="json"),
+            loadout_ids=variant.fixed_loadout.model_dump(mode="json", exclude_none=True),
+            skills_snapshot=list(variant.skills),
+            combat_seed={},
+            current_state=None,
+        )
+        combat_context = build_monster_combat_context(source)
+        vitals = build_monster_vitals(source)
+        hp = int((vitals.get("hp") or {}).get("cur") or vitals.get("hp_current") or 1)
+        max_hp = int((vitals.get("hp") or {}).get("max") or hp)
+        energy = int((vitals.get("energy") or {}).get("cur") or vitals.get("energy_current") or 1)
+        max_energy = int((vitals.get("energy") or {}).get("max") or energy)
+
+        meta = ActorMetaDTO(
+            id=projection.actor_id,
+            name=projection.name,
             type="ai",
-            team=self.CLEANER_TEAM,
-            hp=100000,
-            max_hp=100000,
-            en=1000,
-            max_en=1000,
+            team=self.FORCE_TEAM,
+            template_id=variant.id,
+            is_ai=True,
+            archetype=family.archetype,
+            hp=hp,
+            max_hp=max_hp,
+            en=energy,
+            max_en=max_energy,
             tactics=100,
             afk_level=0,
             is_dead=False,
             tokens={},
         )
 
-        # Raw DTO
-        raw = ActorRawDTO(
-            attributes=stats,
-            modifiers={},
+        return {
+            "meta": meta.model_dump(mode="json"),
+            "raw": combat_context["math_model"],
+            "skills": combat_context["skills"],
+            "loadout": combat_context["loadout"],
+            "statuses": {"abilities": [], "effects": []},
+            "xp_buffer": {},
+            "metrics": {},
+            "explanation": {},
+            "source": {
+                "family_id": ANCHOR_FAMILY_ID,
+                "variant_id": variant.id,
+                "projection": True,
+                "narrative_hint": variant.narrative_hint,
+            },
+        }
+
+    def _create_fallback_projection_data(self, projection: AnchorProjectionConfig) -> dict[str, Any]:
+        meta = ActorMetaDTO(
+            id=projection.actor_id,
+            name=projection.name,
+            type="ai",
+            team=self.FORCE_TEAM,
+            template_id=projection.variant_id,
+            is_ai=True,
+            hp=2500,
+            max_hp=2500,
+            en=1000,
+            max_en=1000,
+            tactics=100,
         )
-
-        # Meta (dict) - дублируем для совместимости, если нужно, или используем state
-        meta_dict = {"name": self.CLEANER_NAME, "type": "ai"}
-
-        # Loadout (dict)
-        loadout_dict: dict[str, Any] = {"equipment_layout": {}, "known_abilities": []}
-
-        return {"state": state.model_dump(), "raw": raw.model_dump(), "loadout": loadout_dict, "meta": meta_dict}
+        raw = ActorRawDTO(
+            attributes={
+                "strength": {"base": 200, "source": {}, "temp": {}},
+                "endurance": {"base": 200, "source": {}, "temp": {}},
+                "agility": {"base": 120, "source": {}, "temp": {}},
+                "mental": {"base": 200, "source": {}, "temp": {}},
+            },
+            modifiers={"main_hand_damage_base": {"base": 100, "source": {}, "temp": {}}},
+        )
+        return {
+            "meta": meta.model_dump(mode="json"),
+            "raw": raw.model_dump(mode="json"),
+            "skills": {"skill_unarmed": 1.0, "skill_tactics": 1.0},
+            "loadout": {"layout": {"main_hand": "skill_unarmed"}, "known_abilities": []},
+            "statuses": {"abilities": [], "effects": []},
+            "xp_buffer": {},
+            "metrics": {},
+            "explanation": {},
+        }

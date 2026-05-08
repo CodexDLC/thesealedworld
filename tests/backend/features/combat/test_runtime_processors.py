@@ -32,29 +32,36 @@ from src.backend.features.combat.runtime.engine.pipeline import CombatPipeline
 from src.backend.features.combat.runtime.engine.resolver import CombatResolver
 from src.backend.features.combat.runtime.engine.stats_engine import StatsEngine
 from src.backend.features.combat.runtime.processors import AiProcessor, CombatCollector, CombatExecutor
+from src.backend.features.combat.runtime.processors.chaos_service import ANCHOR_FORCE_TEAM, ChaosService
 from src.shared.schemas.modifier_dto import CombatModifiersDTO, CombatSkillsDTO
 
 
 class FakeDataService:
-    def __init__(self, meta: BattleMeta, moves: dict[str, Any], targets: dict[str, list[int]]) -> None:
+    def __init__(self, meta: BattleMeta | None, moves: dict[str, Any], targets: dict[str, list[int]]) -> None:
         self.meta = meta
         self.moves = moves
         self.targets = targets
         self.transferred: list[CombatActionDTO] = []
+        self.calls: list[str] = []
 
     async def get_action_queue_size(self, session_id: str) -> int:
+        self.calls.append("get_action_queue_size")
         return 0
 
-    async def get_battle_meta(self, session_id: str) -> BattleMeta:
+    async def get_battle_meta(self, session_id: str) -> BattleMeta | None:
+        self.calls.append("get_battle_meta")
         return self.meta
 
     async def get_intent_moves(self, session_id: str, actor_ids: list[int | str]) -> dict[str, Any]:
+        self.calls.append("get_intent_moves")
         return self.moves
 
     async def get_targets(self, session_id: str) -> dict[str, list[int]]:
+        self.calls.append("get_targets")
         return self.targets
 
     async def transfer_actions(self, session_id: str, actions: list[CombatActionDTO]) -> None:
+        self.calls.append("transfer_actions")
         self.transferred.extend(actions)
 
 
@@ -64,6 +71,41 @@ class CapturingCombatManager:
 
     async def commit_battle_results(self, *args: Any, **kwargs: Any) -> None:
         self.commit_kwargs = {"args": args, "kwargs": kwargs}
+
+
+class FakeCombatSessionsForChaos:
+    def __init__(self, *, battle_type: str = "arena", actors_info: dict[str, str] | None = None) -> None:
+        import json
+
+        self.meta = {
+            "battle_type": battle_type,
+            "actors_info": json.dumps(actors_info or {"1": "player", "2": "player"}),
+        }
+        self.hot_joined: dict[str, Any] | None = None
+        self.logs: list[tuple[str, list[str] | None]] = []
+
+    async def get_raw_meta(self, session_id: str) -> dict[str, Any] | None:
+        return self.meta
+
+    async def hot_join_actor(
+        self,
+        *,
+        session_id: str,
+        actor_id: int,
+        team_name: str,
+        actor_data: dict[str, Any],
+        is_ai: bool,
+    ) -> None:
+        self.hot_joined = {
+            "session_id": session_id,
+            "actor_id": actor_id,
+            "team_name": team_name,
+            "actor_data": actor_data,
+            "is_ai": is_ai,
+        }
+
+    async def add_log(self, session_id: str, text: str, tags: list[str] | None = None) -> None:
+        self.logs.append((text, tags))
 
 
 def battle_meta() -> BattleMeta:
@@ -103,6 +145,35 @@ def stats(mods: dict[str, float] | None = None, skills: dict[str, float] | None 
 
 
 @pytest.mark.unit
+async def test_chaos_service_spawns_anchor_projection_from_family_resource() -> None:
+    sessions = FakeCombatSessionsForChaos(battle_type="arena")
+
+    spawned = await ChaosService(sessions).spawn_cleaner("combat-1")  # type: ignore[arg-type]
+
+    assert spawned is True
+    assert sessions.hot_joined is not None
+    assert sessions.hot_joined["actor_id"] == -703
+    assert sessions.hot_joined["team_name"] == ANCHOR_FORCE_TEAM
+    actor_data = sessions.hot_joined["actor_data"]
+    assert actor_data["meta"]["name"] == "Проекция Западной Гравитации"
+    assert actor_data["meta"]["hp"] > 1000
+    assert actor_data["raw"]["modifiers"]["main_hand_damage_base"]["base"] >= 100
+    assert actor_data["loadout"]["layout"]["main_hand"] == "skill_polearms"
+    assert actor_data["skills"]["skill_polearms"] == 1.0
+    assert sessions.logs[0][1] == ["anchor", "higher_force", "spawn", "west_gravity_sovereign"]
+
+
+@pytest.mark.unit
+async def test_chaos_service_does_not_spawn_second_anchor_projection() -> None:
+    sessions = FakeCombatSessionsForChaos(actors_info={"1": "player", "-703": "ai"})
+
+    spawned = await ChaosService(sessions).spawn_cleaner("combat-1")  # type: ignore[arg-type]
+
+    assert spawned is False
+    assert sessions.hot_joined is None
+
+
+@pytest.mark.unit
 async def test_collector_pairs_exchange_moves() -> None:
     data = FakeDataService(
         battle_meta(),
@@ -116,6 +187,54 @@ async def test_collector_pairs_exchange_moves() -> None:
     assert ai_tasks == []
     assert winner is None
     assert data.transferred[0].partner_move is not None
+
+
+@pytest.mark.unit
+async def test_collector_orders_exchange_pairs_by_response_readiness() -> None:
+    meta = BattleMeta(
+        active=1,
+        step_counter=0,
+        active_actors_count=4,
+        teams={"a": [1, 3], "b": [2, 4]},
+        actors_info={"1": "player", "2": "ai", "3": "player", "4": "ai"},
+        battle_type="arena",
+        location_id="arena",
+    )
+    data = FakeDataService(
+        meta,
+        {
+            "1": {"exchange": {"m1": move_payload("m1", 1, 2)}},
+            "3": {"exchange": {"m3": move_payload("m3", 3, 4)}},
+            "4": {"exchange": {"m4": move_payload("m4", 4, 3)}},
+            "2": {"exchange": {"m2": move_payload("m2", 2, 1)}},
+        },
+        {"1": [2], "2": [1], "3": [4], "4": [3]},
+    )
+
+    batch_size, ai_tasks, winner = await CombatCollector(data).collect_actions("c1")
+
+    assert batch_size > 0
+    assert ai_tasks == []
+    assert winner is None
+    assert [(action.move.move_id, action.partner_move.move_id) for action in data.transferred] == [
+        ("m3", "m4"),
+        ("m1", "m2"),
+    ]
+
+
+@pytest.mark.unit
+async def test_collector_inactive_session_returns_before_queue_reads() -> None:
+    data = FakeDataService(None, {}, {})
+
+    batch_size, ai_tasks, winner = await CombatCollector(data).collect_actions(
+        "c1",
+        CollectorSignalDTO(session_id="c1", char_id=1, signal_type="check_timeout", move_id="m1"),
+    )
+
+    assert batch_size == 0
+    assert ai_tasks == []
+    assert winner is None
+    assert data.calls == ["get_battle_meta"]
 
 
 @pytest.mark.unit
@@ -172,7 +291,9 @@ async def test_executor_returns_target_after_forced_exchange() -> None:
     assert ctx.meta.step_counter == 1
     assert ctx.actors["1"].meta.exchange_counter == 1
     assert ctx.actors["2"].meta.exchange_counter == 1
-    assert {entry["type"] for entry in ctx.pending_logs} >= {"HIT", "DEATH"}
+    assert [entry["type"] for entry in ctx.pending_logs] == ["LOG"]
+    assert ctx.pending_logs[0]["kind"] == "death"
+    assert ctx.pending_logs[0]["result"]["effects"][0]["effect_id"] == "death"
     assert all("runtime" in entry["tags"] for entry in ctx.pending_logs)
 
 
@@ -197,23 +318,18 @@ def test_executor_log_entries_use_actor_names_and_result_summary() -> None:
 
     CombatExecutor()._append_result_logs(ctx, result, action=action, wave=1)
 
-    assert [entry["type"] for entry in ctx.pending_logs] == ["RESULT", "HIT"]
-    assert ctx.pending_logs[0]["source_name"] == "A1"
-    assert ctx.pending_logs[0]["target_name"] == "A2"
+    assert [entry["type"] for entry in ctx.pending_logs] == ["LOG"]
+    assert ctx.pending_logs[0]["source"]["name"] == "A1"
+    assert ctx.pending_logs[0]["target"]["name"] == "A2"
     assert ctx.pending_logs[0]["outcome"] == "hit"
     assert ctx.pending_logs[0]["global_turn"] == 1
-    assert ctx.pending_logs[0]["target_hp_before"] == 100
-    assert ctx.pending_logs[0]["target_hp_after"] == 93
-    assert ctx.pending_logs[0]["target_hp_max"] == 100
     assert ctx.pending_logs[0]["resources"] == [
-        {"actor_id": "2", "resource": "hp", "before": 100, "after": 93, "max": 100, "delta": -7, "direction": "loss"}
+        {"actor_id": "2", "resource": "hp", "before": 100, "after": 93, "max": 100, "delta": -7, "label": "HP 93/100"}
     ]
-    assert ctx.pending_logs[0]["text"] == "A1 разменялся с A2: удар, -7 hp (HP 93/100)."
-    assert ctx.pending_logs[1]["resource_max"] == 100
-    assert ctx.pending_logs[1]["resources"] == [
-        {"actor_id": "2", "resource": "hp", "before": 100, "after": 93, "max": 100, "delta": -7, "direction": "loss"}
-    ]
-    assert ctx.pending_logs[1]["text"] == "A1 наносит A2 7 hp (HP 93/100)."
+    assert ctx.pending_logs[0]["result"]["resources"] == ctx.pending_logs[0]["resources"]
+    assert ctx.pending_logs[0]["text"] == "A1 атакует A2, нанося 7 урона."
+    assert "damage_final" not in ctx.pending_logs[0]
+    assert "chain_events" not in ctx.pending_logs[0]
 
 
 @pytest.mark.unit
@@ -238,14 +354,125 @@ def test_executor_log_entries_use_humanoid_feint_text_templates() -> None:
     assert (
         ctx.pending_logs[0]["text"]
         == "A1 выжидает момент и ведет удар по открытой линии A2, "
-        "и попадает, не давая A2 уйти движением (HP 93/100)."
+        "и попадает, не давая A2 уйти движением, получая 7 урона."
     )
+    assert len(ctx.pending_logs) == 1
     assert ctx.pending_logs[0]["catalog"] == "combat_entries"
     assert ctx.pending_logs[0]["catalog_key"] == "combat.feint.true_strike"
     assert ctx.pending_logs[0]["catalog_event"] == "hit"
     assert ctx.pending_logs[0]["catalog_tooltip"] == "description"
-    assert ctx.pending_logs[1]["text"] == "A1 выжидает момент и ведет удар по открытой линии A2."
-    assert ctx.pending_logs[2]["text"] == "и попадает, не давая A2 уйти движением 7 hp (HP 93/100)."
+    assert ctx.pending_logs[0]["result"]["resources"] == [
+        {"actor_id": "2", "resource": "hp", "before": 100, "after": 93, "max": 100, "delta": -7, "label": "HP 93/100"}
+    ]
+
+
+@pytest.mark.unit
+def test_executor_log_entries_use_ability_catalog_templates() -> None:
+    ctx = BattleContext(session_id="c1", meta=battle_meta(), actors={"1": actor(1, "a"), "2": actor(2, "b")})
+    ctx.actors["2"].meta.hp = 84
+    action = CombatActionDTO(
+        action_type="instant",
+        move=CombatMoveDTO(
+            move_id="m1",
+            char_id=1,
+            strategy="instant",
+            payload=InstantPayload(ability_id="fireball", target_id=2),
+        ),
+    )
+    result = InteractionResultDTO(source_id=1, target_id=2, damage_final=16, is_hit=True)
+    result.events.append(CombatEventDTO(type="CAST", source_id=1, target_id=2, action_id="fireball"))
+    result.events.append(CombatEventDTO(type="HIT", source_id=1, target_id=2, value=16, resource="hp"))
+
+    CombatExecutor()._append_result_logs(ctx, result, action=action, wave=1)
+
+    entry = ctx.pending_logs[0]
+    assert entry["catalog_key"] == "combat.ability.fireball"
+    assert entry["template"]["event"] == "hit"
+    assert entry["variables"]["ability"] == "Огненный Шар"
+    assert entry["text"] == "пламя ударяет в A2, получая 16 урона."
+    assert entry["result"]["resources"] == [
+        {"actor_id": "2", "resource": "hp", "before": 100, "after": 84, "max": 100, "delta": -16, "label": "HP 84/100"}
+    ]
+
+
+@pytest.mark.unit
+def test_executor_log_entries_use_ability_no_resource_template() -> None:
+    ctx = BattleContext(session_id="c1", meta=battle_meta(), actors={"1": actor(1, "a"), "2": actor(2, "b")})
+    action = CombatActionDTO(
+        action_type="instant",
+        move=CombatMoveDTO(
+            move_id="m1",
+            char_id=1,
+            strategy="instant",
+            payload=InstantPayload(ability_id="fireball", target_id=2),
+        ),
+    )
+    result = InteractionResultDTO(source_id=1, target_id=2, skip_reason="NO_RESOURCE")
+
+    CombatExecutor()._append_result_logs(ctx, result, action=action, wave=1)
+
+    entry = ctx.pending_logs[0]
+    assert entry["catalog_key"] == "combat.ability.fireball"
+    assert entry["template"]["event"] == "no_resource"
+    assert entry["text"] == "A1 пытается собрать Огненный Шар, но жар гаснет раньше броска."
+    assert entry["result"]["resources"] == []
+
+
+@pytest.mark.unit
+def test_executor_log_entries_use_item_template_when_item_delegates_to_ability() -> None:
+    ctx = BattleContext(session_id="c1", meta=battle_meta(), actors={"1": actor(1, "a"), "2": actor(2, "b")})
+    ctx.actors["2"].meta.hp = 90
+    action = CombatActionDTO(
+        action_type="item",
+        move=CombatMoveDTO(
+            move_id="m1",
+            char_id=1,
+            strategy="item",
+            payload=InstantPayload(item_id="fire_grenade", target_id=2),
+        ),
+    )
+    result = InteractionResultDTO(source_id=1, target_id=2, damage_final=10, is_hit=True)
+    result.events.append(CombatEventDTO(type="CAST", source_id=1, target_id=2, action_id="fireball"))
+    result.events.append(CombatEventDTO(type="HIT", source_id=1, target_id=2, value=10, resource="hp"))
+
+    CombatExecutor()._append_result_logs(ctx, result, action=action, wave=1)
+
+    entry = ctx.pending_logs[0]
+    assert entry["catalog_key"] == "combat.item.fire_grenade"
+    assert entry["variables"]["item"] == "Огненная граната"
+    assert entry["text"] == "огонь накрывает A2, получая 10 урона."
+
+
+@pytest.mark.unit
+def test_executor_log_entries_use_area_contract_for_multi_target_actions() -> None:
+    ctx = BattleContext(
+        session_id="c1",
+        meta=battle_meta(),
+        actors={"1": actor(1, "a"), "2": actor(2, "b"), "3": actor(3, "b")},
+    )
+    ctx.actors["2"].meta.hp = 91
+    action = CombatActionDTO(
+        action_type="instant",
+        move=CombatMoveDTO(
+            move_id="m1",
+            char_id=1,
+            strategy="instant",
+            payload=InstantPayload(ability_id="fireball", target_id=[2, 3]),
+            targets=[2, 3],
+        ),
+    )
+    result = InteractionResultDTO(source_id=1, target_id=2, damage_final=9, is_hit=True)
+    result.events.append(CombatEventDTO(type="HIT", source_id=1, target_id=2, value=9, resource="hp"))
+
+    CombatExecutor()._append_result_logs(ctx, result, action=action, wave=1)
+
+    entry = ctx.pending_logs[0]
+    assert entry["kind"] == "ability_area_result"
+    assert entry["template"]["event"] == "area_result"
+    assert entry["variables"]["targets_count"] == 2
+    assert [target["id"] for target in entry["targets"]] == ["2", "3"]
+    assert entry["text"] == "A1 бросает Огненный Шар, пламя расходится по 2 целям, получая 9 урона."
+    assert entry["result"]["resources"][0]["delta"] == -9
 
 
 @pytest.mark.unit
@@ -304,10 +531,13 @@ def test_executor_log_entries_use_humanoid_effect_fallback_text() -> None:
 
     CombatExecutor()._append_result_logs(ctx, result, action=action, wave=1)
 
-    assert ctx.pending_logs[1]["text"] == "A1 накладывает Кровотечение на A2."
-    assert ctx.pending_logs[1]["catalog"] == "effects"
-    assert ctx.pending_logs[1]["catalog_key"] == "dot_bleed"
-    assert ctx.pending_logs[1]["catalog_tooltip"] == "description"
+    assert len(ctx.pending_logs) == 1
+    assert ctx.pending_logs[0]["text"] == "A1 накладывает Кровотечение на A2."
+    assert ctx.pending_logs[0]["kind"] == "effect_apply"
+    assert ctx.pending_logs[0]["catalog"] == "effects"
+    assert ctx.pending_logs[0]["catalog_key"] == "dot_bleed"
+    assert ctx.pending_logs[0]["catalog_tooltip"] == "description"
+    assert ctx.pending_logs[0]["result"]["effects"][0]["effect_id"] == "dot_bleed"
 
 
 @pytest.mark.unit
@@ -323,7 +553,9 @@ async def test_commit_session_persists_step_and_actor_exchange_counters() -> Non
     assert manager.commit_kwargs is not None
     updates = manager.commit_kwargs["args"][1]
     assert updates["1"]["state"]["exchange_counter"] == 2
-    assert manager.commit_kwargs["kwargs"]["meta_update"] == {"step_counter": 3}
+    meta_update = manager.commit_kwargs["kwargs"]["meta_update"]
+    assert meta_update["step_counter"] == 3
+    assert isinstance(meta_update["last_activity_at"], int)
 
 
 @pytest.mark.unit
@@ -539,7 +771,14 @@ async def test_executor_ticks_periodic_effects_before_exchange() -> None:
     await CombatExecutor().process_batch(ctx, [action])
 
     assert ctx.actors["1"].meta.hp == 98
-    assert any(entry["type"] == "TICK" and entry["action_id"] == "dot_bleed" for entry in ctx.pending_logs)
+    assert any(
+        entry["kind"] == "effect_tick"
+        and entry["template"]["key"] == "dot_bleed"
+        and entry["result"]["resources"] == [
+            {"actor_id": "1", "resource": "hp", "before": 100, "after": 98, "max": 100, "delta": -2, "label": "HP 98/100"}
+        ]
+        for entry in ctx.pending_logs
+    )
 
 
 @pytest.mark.unit

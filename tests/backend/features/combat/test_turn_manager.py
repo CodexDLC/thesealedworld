@@ -10,6 +10,7 @@ from src.backend.features.combat.services.turn_manager import CombatTurnManager
 class FakeCombatSessions:
     def __init__(self) -> None:
         self.exchange_moves_data: list[dict[str, Any]] = []
+        self.touched_sessions: list[str] = []
 
     async def register_moves_batch(self, session_id: str, char_id: int, exchange_moves_data: list[dict[str, Any]]):
         self.exchange_moves_data.extend(exchange_moves_data)
@@ -20,6 +21,9 @@ class FakeCombatSessions:
 
     async def consume_feint(self, session_id: str, char_id: int, feint_id: str):
         return None
+
+    async def touch_activity(self, session_id: str) -> None:
+        self.touched_sessions.append(session_id)
 
 
 class FakeArq:
@@ -52,3 +56,4 @@ async def test_batch_registration_enqueues_timeout_per_accepted_move_id() -> Non
     assert [payload["move_id"] for payload in timeout_jobs] == accepted_ids
     assert all(payload["move_id"] != "batch" for payload in timeout_jobs)
     assert all(kwargs.get("_defer_until") is not None for _, payload, kwargs in arq.jobs if payload["signal_type"] == "check_timeout")
+    assert sessions.touched_sessions == ["combat-1"]

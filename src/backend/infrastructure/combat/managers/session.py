@@ -202,6 +202,9 @@ class CombatSessionManager:
             mapping={"active": 0, "winner": winner, "status": "finished", "updated_at": int(time.time())},
         )
 
+    async def touch_activity(self, session_id: str) -> None:
+        await self._client().hset(self.meta_key(session_id), "last_activity_at", int(time.time()))
+
     async def get_actor(self, session_id: str, actor_id: str | int) -> dict[str, Any] | None:
         result = await self._json().get(self.actor_key(session_id, actor_id), "$")
         return self._first_dict(result)

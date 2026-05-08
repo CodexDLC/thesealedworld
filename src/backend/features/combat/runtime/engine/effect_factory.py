@@ -3,7 +3,7 @@ import uuid
 from typing import Any
 
 from src.backend.features.combat.dto import ActiveEffectDTO
-from src.backend.features.game_catalog.combat.resources.effects.schemas import ControlInstructionDTO, EffectDTO
+from src.backend.features.game_catalog.combat.resources.effects.schemas import ControlInstructionDTO, EffectTechnicalDTO
 
 
 class EffectFactory:
@@ -14,7 +14,7 @@ class EffectFactory:
 
     @staticmethod
     def create_effect(
-        config: EffectDTO,
+        config: EffectTechnicalDTO,
         params: dict[str, Any],
         source_id: int,
         current_exchange: int,

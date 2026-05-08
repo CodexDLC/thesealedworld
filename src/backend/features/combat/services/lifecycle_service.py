@@ -155,6 +155,7 @@ class CombatLifecycleService:
                 "id": final_id,
                 "name": name,
                 "type": meta.get("actor_type", "player"),
+                "archetype": meta.get("archetype", "humanoid"),
                 "avatar_url": avatar_url,
                 "gender": meta.get("gender") or source.get("gender"),
                 "team": team_name,

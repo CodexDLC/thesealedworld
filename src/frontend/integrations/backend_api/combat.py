@@ -11,6 +11,7 @@ from src.shared.schemas.combat import (
 )
 
 CombatViewResponse = CoreResponseDTO[CombatResultDTO | CombatDashboardDTO | dict[str, Any]]
+CombatMoveResponse = CombatResultDTO | CombatDashboardDTO
 
 
 class BackendCombatApi(BaseApiClient):
@@ -45,11 +46,11 @@ class BackendCombatApi(BaseApiClient):
         *,
         char_id: int,
         body: CombatRegisterMoveRequestDTO,
-    ) -> CombatDashboardDTO:
+    ) -> CombatMoveResponse:
         return await self._request(
             "POST",
             f"/api/game/combat/{char_id}/moves",
-            response_model=CombatDashboardDTO,
+            response_model=CombatMoveResponse,
             headers={"Authorization": f"Bearer {access_token}"},
             json=body.model_dump(mode="json"),
         )

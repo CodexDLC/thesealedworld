@@ -30,17 +30,18 @@ class CombatCollector:
         - ai_tasks (List[AiTurnRequestDTO]): Список задач для AI агентов.
         - victory_result (str | None): Результат проверки победы ("team_name" / "draw" / None).
         """
-        # 0. Backpressure Check (Защита от переполнения очереди)
+        # 0. Load Meta first so stale delayed timeout jobs from finished
+        # sessions exit before touching queues, moves, or targets.
+        meta = await self.data_service.get_battle_meta(session_id)
+        if not meta or not meta.active:
+            return 0, [], None  # type: ignore # TODO: Fix later when refactoring Combat Engine
+
+        # 1. Backpressure Check (Защита от переполнения очереди)
         # Если очередь Исполнителя забита, не добавляем новые задачи.
         queue_size = await self.data_service.get_action_queue_size(session_id)
         if queue_size > 50:  # TODO: Вынести лимит в конфиг
             log.warning(f"Collector | Queue full ({queue_size}), skipping cycle. session_id={session_id}")
             return 0, [], None
-
-        # 1. Load Snapshot (Meta + Moves + Targets)
-        meta = await self.data_service.get_battle_meta(session_id)
-        if not meta or not meta.active:
-            return 0, [], None  # type: ignore # TODO: Fix later when refactoring Combat Engine
 
         # Получаем список всех участников из Meta
         all_actor_ids: list[int | str] = []
@@ -197,27 +198,31 @@ class CombatCollector:
         actions = []
         to_delete = []
 
-        # Простой перебор (O(N^2) в худшем случае, но N мал)
-        # Собираем пул всех exchange заявок
-        pool = []
+        # Собираем пул всех exchange заявок и индекс для быстрого поиска
+        # встречного намерения B -> A. Порядок pool отражает порядок,
+        # доступный collector из moves_map; когда появится явный sequence,
+        # его можно будет использовать вместо локального индекса.
+        pool: list[tuple[int, CombatMoveDTO]] = []
+        exchange_by_pair: dict[tuple[str, str], tuple[int, CombatMoveDTO]] = {}
         for _char_id, moves_data in moves_map.items():
             exchanges = moves_data.get("exchange", {})
             for _move_id, move_json in exchanges.items():
                 try:
                     move = CombatMoveDTO(**move_json)
-                    # created_at removed from DTO, assume order is not critical or use move_id/timestamp if added back
-                    # For now, just append
-                    pool.append(move)
+                    target_id = getattr(move.payload, "target_id", None)
+                    if target_id is None:
+                        continue
+                    order = len(pool)
+                    pool.append((order, move))
+                    exchange_by_pair[(str(move.char_id), str(target_id))] = (order, move)
                 except Exception:  # noqa: BLE001
                     pass
 
-        # Сортируем по времени (FIFO) - removed as created_at is missing
-        # pool.sort(key=lambda x: x.created_at)
-
         matched_ids = set()
+        ready_pairs: list[tuple[int, int, CombatActionDTO]] = []
 
         # 1. Normal Matchmaking
-        for move_a in pool:
+        for order_a, move_a in pool:
             if move_a.move_id in matched_ids:
                 continue
 
@@ -225,26 +230,29 @@ class CombatCollector:
             target_id = getattr(move_a.payload, "target_id", None)
             if not target_id:
                 continue
-            target_id = int(target_id)
 
-            # Ищем ответный мув (B -> A)
-            for move_b in pool:
-                if move_b.move_id in matched_ids:
-                    continue
-                if int(move_b.char_id) != target_id:
-                    continue
+            # Ищем ответный мув (B -> A) через индекс, без повторного перебора pool.
+            partner_entry = exchange_by_pair.get((str(target_id), str(move_a.char_id)))
+            if partner_entry is None:
+                continue
 
-                # Проверяем, бьет ли B игрока A
-                target_b = getattr(move_b.payload, "target_id", 0)
-                if int(target_b) == int(move_a.char_id):
-                    # ПАРА НАЙДЕНА!
-                    action = CombatActionDTO(action_type="exchange", move=move_a, partner_move=move_b, is_forced=False)
-                    actions.append(action)
-                    matched_ids.add(move_a.move_id)
-                    matched_ids.add(move_b.move_id)
-                    to_delete.append(move_a.move_id)
-                    to_delete.append(move_b.move_id)
-                    break
+            order_b, move_b = partner_entry
+            if move_b.move_id == move_a.move_id or move_b.move_id in matched_ids:
+                continue
+
+            # Пара готова только когда пришли оба намерения; порядок очереди
+            # задаем по более позднему из двух намерений, то есть по ответу.
+            ready_order = max(order_a, order_b)
+            action = CombatActionDTO(action_type="exchange", move=move_a, partner_move=move_b, is_forced=False)
+            ready_pairs.append((ready_order, min(order_a, order_b), action))
+            matched_ids.add(move_a.move_id)
+            matched_ids.add(move_b.move_id)
+
+        for _ready_order, _first_order, action in sorted(ready_pairs, key=lambda item: (item[0], item[1])):
+            actions.append(action)
+            to_delete.append(action.move.move_id)
+            if action.partner_move:
+                to_delete.append(action.partner_move.move_id)
 
         # 2. Force Attack Check (Timeout)
         if signal and signal.signal_type == "check_timeout" and signal.move_id:
@@ -261,7 +269,7 @@ class CombatCollector:
                 )
             else:
                 # Specific move
-                for move in pool:
+                for _order, move in pool:
                     if move.move_id == signal.move_id and move.move_id not in matched_ids:
                         force_candidates.append(move)
                         break

@@ -85,10 +85,11 @@ def _quantity_from_item(metadata: dict[str, Any], mechanics: dict[str, Any]) -> 
         mechanics.get("stack_count"),
         mechanics.get("charges"),
     ):
-        try:
-            value = int(raw)
-        except (TypeError, ValueError):
-            continue
-        if value > 0:
-            return value
+        if raw is not None:
+            try:
+                value = int(raw)
+            except (TypeError, ValueError):
+                continue
+            if value > 0:
+                return value
     return 1

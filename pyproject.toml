@@ -24,6 +24,7 @@ dependencies = [
     "google-genai>=1.74.0",
     "codex-ai[gemini] == 0.1.0",
     "authx==1.6.0",
+    "mako>=1.3.12",
 ]
 
 [tool.uv]

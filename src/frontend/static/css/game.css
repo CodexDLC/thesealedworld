@@ -7257,6 +7257,9 @@ html, body {
     width: 100%;
     min-width: 0;
     padding: clamp(8px, 1.4vw, 12px) clamp(8px, 1.4vw, 12px) 22px;
+    align-items: center;
+    justify-content: flex-start;
+    overflow-y: auto;
 }
 
 .combat-screen {
@@ -7511,6 +7514,11 @@ html, body {
     display: grid;
     gap: 10px;
     padding: 12px;
+}
+
+.combat-log-panel {
+    grid-template-rows: auto minmax(0, 1fr);
+    max-height: min(680px, calc(100vh - 260px));
 }
 
 .combat-command-deck {
@@ -7940,8 +7948,10 @@ html, body {
 }
 
 .combat-log-list {
-    max-height: min(260px, 30vh);
-    overflow: auto;
+    min-height: 0;
+    max-height: none;
+    overflow-y: auto;
+    overflow-x: hidden;
     display: grid;
     gap: 8px;
     font-family: var(--font-mono);
@@ -8466,6 +8476,14 @@ html, body {
     .combat-battle-meta,
     .combat-team-mini {
         grid-template-columns: 1fr;
+    }
+
+    .combat-log-panel {
+        max-height: none;
+    }
+
+    .combat-log-list {
+        max-height: min(320px, 45vh);
     }
 
 }

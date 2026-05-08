@@ -1,20 +1,35 @@
-from src.backend.features.game_catalog.combat.resources.gifts.schemas import GiftDTO, GiftSchool
+from src.backend.features.game_catalog.combat.resources.gifts.schemas import (
+    GiftSchool,
+    GiftTechnicalDTO,
+    build_gift_catalog_entry,
+)
 
-DARKNESS_GIFTS = [
-    GiftDTO(
+DARKNESS_GIFTS_TECHNICAL = {
+    "gift_shadow_assassin": GiftTechnicalDTO(
         gift_id="gift_shadow_assassin",
-        name_ru="Тень",
         school=GiftSchool.DARKNESS,
-        description="Ты сливаешься с тенью. Удары из невидимости и обман зрения.",
         role="Stealth / Burst",
         abilities=["shadow_step", "backstab_bonus"],
     ),
-    GiftDTO(
+    "gift_necrosis": GiftTechnicalDTO(
         gift_id="gift_necrosis",
-        name_ru="Некроз",
         school=GiftSchool.DARKNESS,
-        description="Тьма иссушает врагов, передавая их жизненные силы тебе.",
         role="Drain / Debuff",
         abilities=["life_drain", "weaken"],
     ),
-]
+}
+
+DARKNESS_GIFTS_CATALOG = {
+    "gift_shadow_assassin": build_gift_catalog_entry(
+        technical=DARKNESS_GIFTS_TECHNICAL["gift_shadow_assassin"],
+        display_name="Тень",
+        short_description="Ты сливаешься с тенью. Удары из невидимости и обман зрения.",
+    ),
+    "gift_necrosis": build_gift_catalog_entry(
+        technical=DARKNESS_GIFTS_TECHNICAL["gift_necrosis"],
+        display_name="Некроз",
+        short_description="Тьма иссушает врагов, передавая их жизненные силы тебе.",
+    ),
+}
+
+DARKNESS_GIFTS = [entry.technical for entry in DARKNESS_GIFTS_CATALOG.values()]

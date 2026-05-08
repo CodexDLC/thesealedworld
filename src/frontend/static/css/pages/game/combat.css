@@ -12,6 +12,9 @@
     width: 100%;
     min-width: 0;
     padding: clamp(8px, 1.4vw, 12px) clamp(8px, 1.4vw, 12px) 22px;
+    align-items: center;
+    justify-content: flex-start;
+    overflow-y: auto;
 }
 
 .combat-screen {
@@ -266,6 +269,11 @@
     display: grid;
     gap: 10px;
     padding: 12px;
+}
+
+.combat-log-panel {
+    max-height: calc(100vh - var(--game-header-height, 40px) - var(--game-footer-height, 24px) - 72px);
+    overflow: hidden;
 }
 
 .combat-command-deck {
@@ -695,8 +703,10 @@
 }
 
 .combat-log-list {
-    max-height: min(260px, 30vh);
-    overflow: auto;
+    min-height: 0;
+    max-height: calc(100vh - var(--game-header-height, 40px) - var(--game-footer-height, 24px) - 150px);
+    overflow-y: auto;
+    overflow-x: hidden;
     display: grid;
     gap: 8px;
     font-family: var(--font-mono);
@@ -706,7 +716,7 @@
 
 .combat-log-turn {
     display: grid;
-    overflow: hidden;
+    overflow: visible;
     border: 1px solid rgba(255, 170, 0, .14);
     border-left: 2px solid rgba(255, 170, 0, .42);
     background:
@@ -747,51 +757,74 @@
 
 .combat-log-turn-body {
     display: grid;
-    gap: 4px;
-    padding: 5px;
+    gap: 2px;
+    padding: 8px;
 }
 
 .combat-log-line {
-    display: flex;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: 5px;
-    border: 1px solid rgba(255, 170, 0, .08);
-    background: rgba(0, 0, 0, .30);
+    display: block;
+    border: 0;
+    border-left: 2px solid rgba(255, 170, 0, .16);
+    background:
+        linear-gradient(90deg, rgba(255, 170, 0, .035), transparent 58%),
+        rgba(0, 0, 0, .18);
     color: rgba(210, 180, 140, .76);
-    padding: 6px 8px;
+    padding: 5px 8px;
+    line-height: 1.55;
+}
+
+.combat-log-line.is-player-source {
+    border-left-color: rgba(80, 185, 255, .52);
+    background:
+        linear-gradient(90deg, rgba(80, 185, 255, .11), transparent 62%),
+        linear-gradient(rgba(4, 13, 17, .46), rgba(0, 0, 0, .18)),
+        url("/static/images/ui/textures/button-candidates/button-surface-02-blackened-metal.webp");
+    background-position: center;
+    background-size: cover;
+    color: rgba(205, 236, 248, .88);
+}
+
+.combat-log-line.is-player-target {
+    border-left-color: rgba(255, 198, 82, .56);
+    background:
+        linear-gradient(90deg, rgba(255, 198, 82, .12), transparent 62%),
+        linear-gradient(rgba(28, 19, 8, .48), rgba(0, 0, 0, .18)),
+        url("/static/images/ui/textures/button-candidates/button-surface-03-aged-bronze.webp");
+    background-position: center;
+    background-size: cover;
+    color: rgba(255, 226, 170, .88);
 }
 
 .combat-log-line--good {
-    border-color: rgba(70, 210, 120, .20);
+    border-left-color: rgba(70, 210, 120, .42);
     color: rgba(202, 238, 198, .82);
 }
 
 .combat-log-line--bad,
 .combat-log-line--warning {
-    border-color: rgba(255, 125, 70, .22);
+    border-left-color: rgba(255, 125, 70, .46);
     color: rgba(238, 196, 160, .84);
 }
 
 .combat-log-line--death {
-    border-color: rgba(255, 55, 55, .38);
+    border-left-color: rgba(255, 55, 55, .62);
     color: rgba(255, 185, 170, .90);
 }
 
 .combat-log-line.is-crit {
-    border-color: rgba(255, 210, 70, .38);
+    border-left-color: rgba(255, 210, 70, .62);
     box-shadow: inset 0 0 18px rgba(255, 190, 40, .055);
 }
 
 .combat-log-line.is-parried,
 .combat-log-line.is-blocked,
 .combat-log-line.is-dodged {
-    border-color: rgba(120, 190, 255, .26);
+    border-left-color: rgba(120, 190, 255, .54);
 }
 
 .combat-log-text {
-    min-width: min(100%, 220px);
-    flex: 1 1 auto;
+    display: block;
+    min-width: 0;
 }
 
 .combat-log-resource,
@@ -852,7 +885,7 @@
 
 .combat-log-pages button,
 .combat-log-page-arrow,
-.combat-log-size select {
+.combat-log-size input {
     width: 24px;
     height: 22px;
     border: 1px solid rgba(255, 170, 0, .12);
@@ -886,10 +919,9 @@
     letter-spacing: .16em;
 }
 
-.combat-log-size select {
-    width: 40px;
+.combat-log-size input {
+    width: 44px;
     padding: 0 3px;
-    appearance: none;
     text-align: center;
 }
 
@@ -1221,6 +1253,14 @@
     .combat-battle-meta,
     .combat-team-mini {
         grid-template-columns: 1fr;
+    }
+
+    .combat-log-panel {
+        max-height: calc(100vh - var(--game-header-height, 40px) - var(--game-footer-height, 24px) - 52px);
+    }
+
+    .combat-log-list {
+        max-height: min(320px, 45vh);
     }
 
 }

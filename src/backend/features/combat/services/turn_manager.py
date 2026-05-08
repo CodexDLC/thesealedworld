@@ -98,12 +98,14 @@ class CombatTurnManager:
                     session_id,
                     char_id,
                     target_id,
-                    targets.get(str(char_id)) or targets.get(char_id),
+                    targets.get(str(char_id)),
                 )
                 raise ValueError("Target is not available in your queue")
 
         else:
             await self.combat_sessions.append_move(session_id, char_id, move_dto.strategy, move_dto.model_dump())
+
+        await self.combat_sessions.touch_activity(session_id)
 
         # 5. РАСЧЕТ ТАЙМЕРА (Force Attack)
         timeout = AFK_TIMEOUTS.get(afk_level, MIN_TIMEOUT)
@@ -193,6 +195,8 @@ class CombatTurnManager:
 
         # 4. Signals (Immediate + Timeout)
         if accepted_move_ids:
+            await self.combat_sessions.touch_activity(session_id)
+
             # A. Immediate
             signal_immediate = CollectorSignalDTO(
                 session_id=session_id, char_id=char_id, signal_type="check_immediate", move_id="batch"

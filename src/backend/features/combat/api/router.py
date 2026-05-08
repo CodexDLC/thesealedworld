@@ -64,12 +64,12 @@ async def get_combat_logs(
         raise HTTPException(status_code=404, detail=str(exc)) from exc
 
 
-@router.post("/{char_id}/moves", response_model=CombatDashboardDTO)
+@router.post("/{char_id}/moves", response_model=CombatDashboardDTO | CombatResultDTO)
 async def register_combat_move(
     char_id: int,
     body: CombatRegisterMoveRequestDTO,
     orchestrator: CombatRuntimeOrchestratorDep,
-) -> CombatDashboardDTO:
+) -> CombatDashboardDTO | CombatResultDTO:
     try:
         return await orchestrator.register_move(char_id, body)
     except CombatSessionNotFound as exc:

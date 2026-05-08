@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING, Any
 from src.backend.core.database import get_session_context
 from src.backend.features.character.runtime.combat_actor_input import CharacterCombatActorInputBuilder
 from src.backend.features.items.repositories import ItemInstanceRepository
+from src.backend.features.monsters.resources import get_family_config
 from src.backend.features.monsters.runtime.combat_profile import build_monster_combat_context, build_monster_vitals
 from src.backend.infrastructure.monsters import MonsterRepository
 
@@ -173,6 +174,8 @@ class CharacterCombatCommitmentIntegration:
                 failed.append(str(monster_id))
                 continue
             vitals = build_monster_vitals(monster)
+            _family = get_family_config(monster.family_id) if monster.family_id else None
+            _archetype = _family.archetype if _family else "humanoid"
             snapshots[f"{scope_id}:monster:{monster_id}"] = {
                 "meta": {
                     "actor_type": "monster",
@@ -180,6 +183,7 @@ class CharacterCombatCommitmentIntegration:
                     "name": monster.name_ru,
                     "role": monster.role,
                     "tags": ["monster", monster.role],
+                    "archetype": _archetype,
                 },
                 "runtime": {"vitals": vitals},
                 "combat": build_monster_combat_context(monster),

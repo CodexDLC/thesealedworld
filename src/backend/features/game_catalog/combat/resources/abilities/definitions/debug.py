@@ -1,20 +1,22 @@
 from src.backend.features.game_catalog.combat.resources.abilities.enums import AbilitySource, AbilityType
 from src.backend.features.game_catalog.combat.resources.abilities.schemas import (
-    AbilityConfigDTO,
+    AbilityCatalogEntryDTO,
     AbilityCostDTO,
+    AbilityTechnicalDTO,
     PipelineMutationsDTO,
+)
+from src.backend.features.game_catalog.combat.resources.common.descriptions import (
+    CombatEventTextSetDTO,
+    build_combat_description,
 )
 from src.backend.features.game_catalog.combat.resources.common.targeting import TargetType
 
-# Словарь способностей (ID -> DTO)
-ABILITIES_DEFINITIONS = {
+ABILITIES_TECHNICAL = {
     # ==========================================================================
     # 1. FIREBALL (Магическая Атака)
     # ==========================================================================
-    "fireball": AbilityConfigDTO(
+    "fireball": AbilityTechnicalDTO(
         ability_id="fireball",
-        name_ru="Огненный Шар",
-        description_ru="Наносит урон огнем и поджигает цель.",
         source=AbilitySource.GIFT,
         type=AbilityType.INSTANT,
         # Стоит ману и 1 токен дара
@@ -34,10 +36,8 @@ ABILITIES_DEFINITIONS = {
     # ==========================================================================
     # 2. HEAL (Лечение)
     # ==========================================================================
-    "heal": AbilityConfigDTO(
+    "heal": AbilityTechnicalDTO(
         ability_id="heal",
-        name_ru="Исцеление",
-        description_ru="Восстанавливает здоровье союзнику.",
         source=AbilitySource.GIFT,
         type=AbilityType.INSTANT,
         # Стоит меньше маны, но тоже требует токен
@@ -50,10 +50,8 @@ ABILITIES_DEFINITIONS = {
     # ==========================================================================
     # 3. STONE SKIN (Бафф)
     # ==========================================================================
-    "stone_skin": AbilityConfigDTO(
+    "stone_skin": AbilityTechnicalDTO(
         ability_id="stone_skin",
-        name_ru="Каменная Кожа",
-        description_ru="Повышает броню на 3 хода.",
         source=AbilitySource.GIFT,
         type=AbilityType.INSTANT,
         # Мощный бафф, стоит 2 токена (КД 2 хода)
@@ -65,10 +63,8 @@ ABILITIES_DEFINITIONS = {
     # ==========================================================================
     # 4. TRUE STRIKE (Атака без пресета)
     # ==========================================================================
-    "true_strike_spell": AbilityConfigDTO(
+    "true_strike_spell": AbilityTechnicalDTO(
         ability_id="true_strike_spell",
-        name_ru="Верный Выстрел",
-        description_ru="Магическая стрела, от которой нельзя увернуться.",
         source=AbilitySource.GIFT,
         type=AbilityType.INSTANT,
         # Дешевый спелл
@@ -88,3 +84,87 @@ ABILITIES_DEFINITIONS = {
         override_damage=(20.0, 25.0),
     ),
 }
+
+
+ABILITIES_DESCRIPTIVE = {
+    "fireball": build_combat_description(
+        resource_type="abilities",
+        resource_id="fireball",
+        icon="combat/abilities/fireball.svg",
+        display_name="Огненный Шар",
+        ui_label="Бросить огненный шар",
+        short_description="Наносит урон огнем и поджигает цель.",
+        humanoid_long_description="Сгусток живого пламени, который ударяет по цели и может оставить ожог.",
+        humanoid_event_texts=CombatEventTextSetDTO(
+            use=["{source} бросает {ability} в сторону {target}"],
+            hit=["пламя ударяет в {target}"],
+            crit=["{ability} взрывается у {target} особенно ярко"],
+            miss=["но огонь проходит мимо {target}"],
+            apply_effect=["пламя цепляется за {target}, оставляя {effect}"],
+            area_use=["{source} бросает {ability}"],
+            area_result=["пламя расходится по {targets_count} целям"],
+            no_resource=["{source} пытается собрать {ability}, но жар гаснет раньше броска"],
+        ),
+        beast_event_texts=CombatEventTextSetDTO(),
+    ),
+    "heal": build_combat_description(
+        resource_type="abilities",
+        resource_id="heal",
+        icon="combat/abilities/heal.svg",
+        display_name="Исцеление",
+        ui_label="Исцелить союзника",
+        short_description="Восстанавливает здоровье союзнику.",
+        humanoid_long_description="Мягкий поток дара закрывает раны и возвращает телу устойчивость.",
+        humanoid_event_texts=CombatEventTextSetDTO(
+            use=["{source} направляет {ability} на {target}"],
+            heal=["{source} направляет {ability} на {target}"],
+            apply_effect=["чистая энергия {ability} снимает с {target} эффект {effect}"],
+            no_resource=["{source} тянется к {ability}, но сил не хватает"],
+        ),
+        beast_event_texts=CombatEventTextSetDTO(),
+    ),
+    "stone_skin": build_combat_description(
+        resource_type="abilities",
+        resource_id="stone_skin",
+        icon="combat/abilities/stone_skin.svg",
+        display_name="Каменная Кожа",
+        ui_label="Укрепить кожу камнем",
+        short_description="Повышает броню на 3 хода.",
+        humanoid_long_description="Кожа грубеет и покрывается плотной каменной коркой, принимая часть удара на себя.",
+        humanoid_event_texts=CombatEventTextSetDTO(
+            use=["{source} сгущает землю под кожей"],
+            apply_effect=["{source} покрывает кожу каменной коркой"],
+            no_resource=["{source} пытается поднять каменную защиту, но земля не отзывается"],
+        ),
+        beast_event_texts=CombatEventTextSetDTO(),
+    ),
+    "true_strike_spell": build_combat_description(
+        resource_type="abilities",
+        resource_id="true_strike_spell",
+        icon="combat/abilities/true_strike_spell.svg",
+        display_name="Верный Выстрел",
+        ui_label="Пустить неуклонную стрелу",
+        short_description="Магическая стрела, от которой нельзя увернуться.",
+        humanoid_long_description="Короткая магическая стрела выбирает прямую линию и почти не оставляет цели места для ухода.",
+        humanoid_event_texts=CombatEventTextSetDTO(
+            use=["{source} вытягивает линию {ability} к {target}"],
+            hit=["{ability} находит прямую линию к {target}"],
+            crit=["{ability} прошивает защитный ритм {target}"],
+            miss=["линия {ability} рвется до удара по {target}"],
+            no_resource=["{source} не удерживает линию {ability}: ресурса не хватает"],
+        ),
+        beast_event_texts=CombatEventTextSetDTO(),
+    ),
+}
+
+
+ABILITIES_CATALOG = {
+    ability_id: AbilityCatalogEntryDTO(
+        key=f"combat.ability.{ability_id}",
+        technical=technical,
+        descriptive=ABILITIES_DESCRIPTIVE[ability_id],
+    )
+    for ability_id, technical in ABILITIES_TECHNICAL.items()
+}
+
+ABILITIES_DEFINITIONS = {ability_id: entry.technical for ability_id, entry in ABILITIES_CATALOG.items()}

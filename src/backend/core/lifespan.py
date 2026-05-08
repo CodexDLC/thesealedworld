@@ -101,6 +101,9 @@ async def lifespan(app: FastAPI):
         if hasattr(app.state, "system_arq"):
             await app.state.system_arq.close()
 
+        if hasattr(app.state, "combat_arq"):
+            await app.state.combat_arq.close()
+
         if hasattr(app.state, "redis_client"):
             await app.state.redis_client.close()
 

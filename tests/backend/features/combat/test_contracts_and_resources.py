@@ -7,8 +7,10 @@ from src.backend.features.combat.dto import (
 )
 from src.backend.features.combat.integrations import CombatCatalogIntegrator
 from src.backend.features.game_catalog.combat.resources import CombatResourceCatalogService
-from src.backend.features.game_catalog.combat.resources.abilities import get_ability_config
+from src.backend.features.game_catalog.combat.resources.abilities import get_ability_catalog_entry, get_ability_config
 from src.backend.features.game_catalog.combat.resources.feints import get_feint_catalog_entry, get_feint_config
+from src.backend.features.game_catalog.combat.resources.gifts import get_gift_catalog_entry
+from src.backend.features.game_catalog.combat.resources.items import get_combat_item_action_catalog_entry
 
 
 def test_combat_action_contract_preserves_exchange_pair() -> None:
@@ -50,8 +52,36 @@ def test_combat_resources_load_runtime_and_public_catalog() -> None:
     assert get_ability_config("fireball") is not None
     assert get_feint_config("true_strike") is not None
     assert catalog["abilities"]["fireball"]["target"] == "single_enemy"
+    assert catalog["combat_entries"]["combat.ability.fireball"]["resource_id"] == "fireball"
+    assert catalog["combat_entries"]["combat.gift.gift_true_fire"]["resource_id"] == "gift_true_fire"
+    assert catalog["combat_entries"]["combat.item.fire_grenade"]["resource_id"] == "fire_grenade"
     assert catalog["feints"]["shield_bash"]["title"] == "Удар щитом"
     assert catalog["triggers"]["bleed_on_crit"]["event"] == "ON_CRIT"
+
+
+def test_ability_gift_and_item_catalog_entries_split_technical_and_descriptive() -> None:
+    ability = get_ability_catalog_entry("fireball")
+    gift = get_gift_catalog_entry("gift_true_fire")
+    item = get_combat_item_action_catalog_entry("fire_grenade")
+
+    assert ability is not None
+    assert ability.key == "combat.ability.fireball"
+    assert ability.technical.ability_id == "fireball"
+    assert not hasattr(ability.technical, "name_ru")
+    assert ability.descriptive.variants["humanoid"].event_texts.area_result
+    assert ability.descriptive.variants["humanoid"].event_texts.no_resource
+
+    assert gift is not None
+    assert gift.key == "combat.gift.gift_true_fire"
+    assert gift.technical.gift_id == "gift_true_fire"
+    assert gift.technical.abilities == ["fireball", "flame_thrower"]
+    assert not hasattr(gift.technical, "description")
+    assert gift.descriptive.variants["humanoid"].display_name == "Истинное Пламя"
+
+    assert item is not None
+    assert item.key == "combat.item.fire_grenade"
+    assert item.technical.ability_id == "fireball"
+    assert item.descriptive.variants["humanoid"].event_texts.area_result
 
 
 def test_feint_catalog_entry_splits_technical_and_taxonomy_descriptions() -> None:
@@ -77,3 +107,7 @@ def test_combat_runtime_can_resolve_catalog_entry_by_stable_key() -> None:
     assert entry is not None
     assert entry.technical.feint_id == "cleave"
     assert entry.descriptive.variants["beast"].event_texts.hit
+
+    ability_entry = CombatCatalogIntegrator.get_catalog_entry_by_key("combat.ability.fireball")
+    assert ability_entry is not None
+    assert ability_entry.technical.ability_id == "fireball"

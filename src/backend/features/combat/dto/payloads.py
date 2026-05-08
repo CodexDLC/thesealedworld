@@ -17,5 +17,5 @@ class InstantPayload(BaseModel):
     target_id: int | str | list[int] | None = None
 
     ability_id: str | None = None  # ID способности
-    item_id: int | None = None  # ID предмета (если это расходник)
+    item_id: int | str | None = None  # ID предмета или combat item action id (если это расходник)
     feint_id: str | None = None  # ID финта (если это мгновенный финт, например "песок в глаза")

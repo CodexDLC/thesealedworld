@@ -15,6 +15,7 @@ def test_registry_loads_only_starter_families() -> None:
     assert get_family_config("wolf_pack") is not None
     assert get_family_config("bandit_gang") is not None
     assert get_family_config("goblin_tribe") is not None
+    assert get_family_config("anchor_sovereigns") is not None
     assert get_family_config("dragon_brood") is None
 
 
@@ -52,12 +53,39 @@ def test_beast_families_are_marked_for_salvage_loot(family_id: str) -> None:
 def test_monster_natural_equipment_is_registered_as_item_base() -> None:
     weapon = get_base_by_id("rat_bite_claws")
     armor = get_base_by_id("light_hide")
+    anchor_weapon = get_base_by_id("anchor_gravity_storm_lance")
+    anchor_armor = get_base_by_id("anchor_projection_aegis")
 
     assert weapon is not None
     assert weapon["slot"] == "main_hand"
     assert weapon["triggers"] == ["crit.bleed_on_crit"]
     assert armor is not None
     assert armor["slot"] == "chest_armor"
+    assert anchor_weapon is not None
+    assert anchor_weapon["related_skill"] == "skill_polearms"
+    assert anchor_weapon["base_power"] >= 100
+    assert anchor_armor is not None
+    assert anchor_armor["related_skill"] == "skill_heavy_armor"
+
+
+@pytest.mark.unit
+def test_anchor_sovereigns_family_defines_four_tier_seven_bosses() -> None:
+    family = get_family_config("anchor_sovereigns")
+
+    assert family is not None
+    assert family.archetype == "unknown"
+    assert family.hierarchy.boss == [
+        "north_stasis_sovereign",
+        "south_entropy_sovereign",
+        "west_gravity_sovereign",
+        "east_evolution_sovereign",
+    ]
+    assert all(variant.role == "boss" for variant in family.variants.values())
+    assert all(variant.min_tier == 7 and variant.max_tier == 7 for variant in family.variants.values())
+    assert family.variants["north_stasis_sovereign"].base_stats.wisdom > 200
+    assert family.variants["south_entropy_sovereign"].base_stats.strength > 200
+    assert family.variants["west_gravity_sovereign"].base_stats.perception > 200
+    assert family.variants["east_evolution_sovereign"].base_stats.agility > 200
 
 
 @pytest.mark.unit

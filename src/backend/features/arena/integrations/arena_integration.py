@@ -5,6 +5,8 @@ from typing import TYPE_CHECKING
 from src.backend.features.character.runtime.gear_score import CharacterGearScoreCalculator
 
 if TYPE_CHECKING:
+    from typing import Any
+
     from src.backend.features.arena.integrations.stream_client import ArenaStreamClient
     from src.backend.features.character.managers import CharacterSessionManager
     from src.backend.infrastructure.arena.managers import ArenaSessionManager
@@ -34,7 +36,8 @@ class ArenaIntegration:
         if self.character_sessions is not None:
             session = await self.character_sessions.get_session(char_id)
             if isinstance(session, dict):
-                metrics = session.get("metrics") if isinstance(session.get("metrics"), dict) else {}
+                metrics_raw = session.get("metrics")
+                metrics: dict[str, Any] = metrics_raw if isinstance(metrics_raw, dict) else {}
                 cached = metrics.get("gear_score")
                 if cached is not None:
                     return max(0, int(cached))
@@ -56,7 +59,8 @@ class ArenaIntegration:
         for char_id, session in sessions.items():
             if not isinstance(session, dict):
                 continue
-            metrics = session.get("metrics") if isinstance(session.get("metrics"), dict) else {}
+            metrics_raw = session.get("metrics")
+            metrics: dict[str, Any] = metrics_raw if isinstance(metrics_raw, dict) else {}
             cached = metrics.get("gear_score")
             if cached is not None:
                 scores[char_id] = max(0, int(cached))

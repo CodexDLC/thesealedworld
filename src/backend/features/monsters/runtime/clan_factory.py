@@ -13,7 +13,7 @@ from src.backend.features.monsters.resources.spawn_config import BIOME_FAMILIES,
 from src.backend.features.monsters.runtime.combat_profile import build_monster_combat_seed
 
 if TYPE_CHECKING:
-    from collections.abc import Sequence
+    from collections.abc import Mapping, Sequence
 
     from src.backend.features.monsters.dto.generation import MonsterGenerationContext
     from src.backend.features.monsters.dto.resources import MonsterFamilyDTO, MonsterVariantDTO
@@ -160,7 +160,7 @@ class ClanFactory:
         }
 
     @staticmethod
-    def _has_all_variant_flavor(variants_flavor: dict[str, object], variant_ids: Sequence[str]) -> bool:
+    def _has_all_variant_flavor(variants_flavor: Mapping[str, object], variant_ids: Sequence[str]) -> bool:
         return all(variant_id in variants_flavor for variant_id in variant_ids)
 
     def _build_fallback_flavor(

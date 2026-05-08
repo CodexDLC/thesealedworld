@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, cast
 
 from pydantic import BaseModel, Field
 
@@ -276,7 +276,7 @@ def _event_data_int(event: CombatEventDTO, key: str) -> int | None:
     if value in (None, ""):
         return None
     try:
-        return int(value)
+        return int(cast("Any", value))
     except (TypeError, ValueError):
         return None
 

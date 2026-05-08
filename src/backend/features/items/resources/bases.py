@@ -26,19 +26,16 @@ from .monster_equipment import MONSTER_NATURAL_EQUIPMENT_DB
 # Для глобального реестра мы их объединяем в плоские словари.
 
 # 1. Weapons
-_flat_weapons: dict[str, BaseItemDTO | dict[str, Any]] = {}
-for item_id, items in WEAPONS_DB.items():
+_flat_weapons: dict[str, Any] = {}
+for item_id, items in cast("Any", WEAPONS_DB.items()):
     if isinstance(items, BaseItemDTO):
         _flat_weapons[item_id] = items
-    elif isinstance(items, dict):
-        if "id" in items:
-            _flat_weapons[item_id] = items
-        else:
-            _flat_weapons.update(items)
+    else:
+        _flat_weapons.update(items)
 
 # 2. Armor
-_flat_armor: dict[str, BaseItemDTO | dict[str, Any]] = {}
-for item_id, items in ARMOR_DB.items():
+_flat_armor: dict[str, Any] = {}
+for item_id, items in cast("Any", ARMOR_DB.items()):
     if isinstance(items, BaseItemDTO):
         _flat_armor[item_id] = items
     elif isinstance(items, dict):
@@ -48,23 +45,23 @@ for item_id, items in ARMOR_DB.items():
             _flat_armor.update(items)
 
 # 3. Garment
-_flat_garment: dict[str, BaseItemDTO | dict[str, Any]] = {}
-for _subcat, items in GARMENT_DB.items():
+_flat_garment: dict[str, Any] = {}
+for _subcat, items in cast("Any", GARMENT_DB.items()):
     if isinstance(items, dict):
         _flat_garment.update(items)
 
 # 4. Accessories
-_flat_accessories: dict[str, BaseItemDTO | dict[str, Any]] = {}
-for _subcat, items in ACCESSORIES_DB.items():
+_flat_accessories: dict[str, Any] = {}
+for _subcat, items in cast("Any", ACCESSORIES_DB.items()):
     if isinstance(items, dict):
         _flat_accessories.update(items)
 
 # Сборка единой базы данных из модулей
 # Структура: { "category_name": { "item_id": BaseItemDTO | dict } }
-BASES_DB: dict[str, dict[str, BaseItemDTO | dict[str, Any]]] = {
-    "weapon": cast("dict[str, BaseItemDTO | dict[str, Any]]", _flat_weapons),
+BASES_DB: dict[str, dict[str, Any]] = {
+    "weapon": _flat_weapons,
     "armor": _flat_armor,
     "garment": _flat_garment,
     "accessory": _flat_accessories,
-    "monster_equipment": cast("dict[str, BaseItemDTO | dict[str, Any]]", MONSTER_NATURAL_EQUIPMENT_DB),
+    "monster_equipment": cast("Any", MONSTER_NATURAL_EQUIPMENT_DB),
 }

@@ -24,7 +24,7 @@ if TYPE_CHECKING:
     from src.frontend.integrations.backend_api.game_session import BackendGameSessionApi
     from src.frontend.integrations.backend_api.scenario import BackendScenarioApi
     from src.shared.schemas.character_status import CharacterActorCoreDTO
-    from src.shared.schemas.combat import CombatDashboardDTO
+    from src.shared.schemas.combat import CombatDashboardDTO, CombatResultDTO
 
 
 def _elapsed_ms(started_at: float) -> float:
@@ -267,6 +267,24 @@ class SessionContextBuilder:
             combat_screen=build_combat_screen_vm(dashboard),
             background_url="/static/images/scenes/ruins.png",
             status_seed=self._combat_status_seed(dashboard),
+        )
+
+    def build_combat_result_context(
+        self,
+        result: CombatResultDTO,
+        *,
+        char_id: int,
+        transaction_id: str = "",
+        payload_type: str = "CombatResult",
+    ) -> dict[str, Any]:
+        return self._context(
+            state=CoreDomain.COMBAT,
+            char_id=char_id,
+            transaction_id=transaction_id,
+            payload_type=payload_type,
+            combat_result=result,
+            background_url="/static/images/scenes/ruins.png",
+            status_seed=self._empty_combat_status_seed(char_id),
         )
 
     async def _character_status(self, token: str, *, char_id: int) -> CharacterActorCoreDTO:

@@ -16,7 +16,15 @@ class CombatEventTextSetDTO(BaseModel):
     parry: list[str] = Field(default_factory=list)
     dodge: list[str] = Field(default_factory=list)
     apply_effect: list[str] = Field(default_factory=list)
+    heal: list[str] = Field(default_factory=list)
+    area_use: list[str] = Field(default_factory=list)
+    area_result: list[str] = Field(default_factory=list)
+    no_resource: list[str] = Field(default_factory=list)
     expire_effect: list[str] = Field(default_factory=list)
+    tick: list[str] = Field(default_factory=list)
+    resist: list[str] = Field(default_factory=list)
+    cleanse: list[str] = Field(default_factory=list)
+    control_prevent_action: list[str] = Field(default_factory=list)
 
 
 class CombatTaxonomyDescriptionDTO(BaseModel):
@@ -27,6 +35,7 @@ class CombatTaxonomyDescriptionDTO(BaseModel):
     ui_label: str
     tooltip: str
     event_texts: CombatEventTextSetDTO = Field(default_factory=CombatEventTextSetDTO)
+    control_term: str | None = None
 
 
 class CombatDescriptionDTO(BaseModel):
@@ -55,6 +64,7 @@ def build_combat_description(
     ui_label: str = "",
     tooltip: str = "",
     icon: str = "",
+    control_term: str | None = None,
 ) -> CombatDescriptionDTO:
     resolved_icon = icon or f"combat/{resource_type}/{resource_id}.png"
     resolved_ui_label = ui_label or display_name
@@ -74,6 +84,7 @@ def build_combat_description(
                 ui_label=resolved_ui_label,
                 tooltip=resolved_tooltip,
                 event_texts=humanoid_event_texts,
+                control_term=control_term,
             ),
             "beast": CombatTaxonomyDescriptionDTO(
                 icon=resolved_icon,
@@ -118,6 +129,19 @@ def default_ability_event_texts(name: str) -> CombatEventTextSetDTO:
         apply_effect=[
             "{ability} накладывает {effect} на {target}.",
             "{target} получает эффект {effect} от {ability}.",
+        ],
+        heal=[
+            "{source} направляет {ability} на {target}.",
+            "{ability} восстанавливает силы {target}.",
+        ],
+        area_use=[
+            "{source} использует {ability}.",
+        ],
+        area_result=[
+            "{ability} расходится по {targets_count} целям.",
+        ],
+        no_resource=[
+            "{source} пытается использовать {ability}, но сил не хватает.",
         ],
         expire_effect=[
             "{effect} от {ability} на {target} заканчивается.",
@@ -232,6 +256,18 @@ def default_gift_event_texts(name: str) -> CombatEventTextSetDTO:
         ],
         apply_effect=[
             "Дар {gift} накладывает {effect} на {target}.",
+        ],
+        heal=[
+            "Дар {gift} возвращает силы {target}.",
+        ],
+        area_use=[
+            "{source} раскрывает дар {gift}.",
+        ],
+        area_result=[
+            "Дар {gift} касается {targets_count} целей.",
+        ],
+        no_resource=[
+            "Дар {gift} не отзывается: {source} не хватает ресурса.",
         ],
         expire_effect=[
             "Влияние дара {gift} на {target} заканчивается.",

@@ -133,10 +133,10 @@ def _build_filter_options(clans: list[dict]) -> dict[str, list[dict[str, str]]]:
 
     return {
         "tiers": [{"key": str(tier), "label": f"Tier {tier}"} for tier in tiers],
-        "locations": [{"key": key, "label": locations[key]} for key in sorted(locations, key=locations.get)],
-        "families": [{"key": key, "label": families[key]} for key in sorted(families, key=families.get)],
-        "dangers": [{"key": key, "label": dangers[key]} for key in sorted(dangers, key=dangers.get)],
-        "tags": [{"key": key, "label": tags[key]} for key in sorted(tags, key=tags.get)],
+        "locations": [{"key": key, "label": locations[key]} for key in sorted(locations, key=lambda k: locations[k])],
+        "families": [{"key": key, "label": families[key]} for key in sorted(families, key=lambda k: families[k])],
+        "dangers": [{"key": key, "label": dangers[key]} for key in sorted(dangers, key=lambda k: dangers[k])],
+        "tags": [{"key": key, "label": tags[key]} for key in sorted(tags, key=lambda k: tags[k])],
     }
 
 

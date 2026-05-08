@@ -5,7 +5,7 @@ import json
 import sys
 from dataclasses import asdict, dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import redis
 
@@ -85,7 +85,7 @@ def load_active_character(char_id: int, redis_url: str) -> dict[str, Any] | None
         except redis.ResponseError:
             raw = None
         if raw:
-            result = json.loads(raw)
+            result = json.loads(cast(Any, raw))
         else:
             try:
                 result = client.json().get(key, "$")

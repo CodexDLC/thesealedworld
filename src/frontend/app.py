@@ -9,6 +9,7 @@ Structure:
 import re
 from contextlib import asynccontextmanager
 from datetime import datetime
+from typing import Any, cast
 
 import httpx
 from fastapi import FastAPI
@@ -64,7 +65,7 @@ async def lifespan(app: FastAPI):
             if timestamp in (None, ""):
                 return ""
             try:
-                return datetime.fromtimestamp(float(timestamp)).strftime("%H:%M:%S")
+                return datetime.fromtimestamp(float(cast("Any", timestamp))).strftime("%H:%M:%S")
             except (TypeError, ValueError, OSError):
                 return ""
 

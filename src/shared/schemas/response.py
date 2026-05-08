@@ -1,3 +1,4 @@
+import uuid
 from typing import Any, TypeVar
 
 from pydantic import BaseModel, Field
@@ -25,7 +26,7 @@ class GameStateHeader(BaseModel):
 
     current_state: CoreDomain = Field(..., description="Куда переключить UI бота")
     previous_state: CoreDomain | None = None
-    transaction_id: str = Field(default_factory=str, description="Trace ID для логов")
+    transaction_id: str = Field(default_factory=lambda: uuid.uuid4().hex, description="Trace ID для логов")
 
     # Опционально: можно добавить error_code сюда, если header отвечает за статус
     error: str | None = None

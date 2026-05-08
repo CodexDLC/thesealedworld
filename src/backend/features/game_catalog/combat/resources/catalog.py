@@ -6,10 +6,11 @@ from typing import TYPE_CHECKING, Any
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
-from src.backend.features.game_catalog.combat.resources.abilities import get_all_abilities
-from src.backend.features.game_catalog.combat.resources.effects import get_all_effects
+from src.backend.features.game_catalog.combat.resources.abilities import get_all_ability_catalog_entries
+from src.backend.features.game_catalog.combat.resources.effects import get_all_effect_catalog_entries
 from src.backend.features.game_catalog.combat.resources.feints import get_all_feint_catalog_entries
-from src.backend.features.game_catalog.combat.resources.gifts import get_all_gifts
+from src.backend.features.game_catalog.combat.resources.gifts import get_all_gift_catalog_entries
+from src.backend.features.game_catalog.combat.resources.items import get_all_combat_item_action_catalog_entries
 from src.backend.features.game_catalog.combat.resources.tokens import get_all_combat_tokens
 from src.backend.features.game_catalog.combat.resources.triggers import get_all_triggers
 
@@ -26,13 +27,21 @@ class CombatResourceCatalogService:
         return cls()
 
     def all_public_text(self) -> dict[str, dict[str, dict[str, Any]]]:
-        combat_entries = self._catalog_entries_by_key(get_all_feint_catalog_entries())
+        ability_entries = get_all_ability_catalog_entries()
+        gift_entries = get_all_gift_catalog_entries()
+        item_entries = get_all_combat_item_action_catalog_entries()
+        feint_entries = get_all_feint_catalog_entries()
+        effect_entries = get_all_effect_catalog_entries()
+        combat_entries = self._catalog_entries_by_key(
+            [*ability_entries, *gift_entries, *item_entries, *feint_entries, *effect_entries]
+        )
         return {
-            "abilities": self._catalog_by_id(get_all_abilities(), id_field="ability_id"),
-            "feints": self._catalog_entries_by_id(get_all_feint_catalog_entries(), id_field="feint_id"),
-            "effects": self._catalog_by_id(get_all_effects(), id_field="effect_id"),
+            "abilities": self._catalog_entries_by_id(ability_entries, id_field="ability_id"),
+            "feints": self._catalog_entries_by_id(feint_entries, id_field="feint_id"),
+            "effects": self._catalog_entries_by_id(effect_entries, id_field="effect_id"),
             "triggers": self._catalog_by_id(get_all_triggers(), id_field="id"),
-            "gifts": self._catalog_by_id(get_all_gifts(), id_field="gift_id"),
+            "gifts": self._catalog_entries_by_id(gift_entries, id_field="gift_id"),
+            "combat_item_actions": self._catalog_entries_by_id(item_entries, id_field="item_action_id"),
             "combat_tokens": self._public_mapping(get_all_combat_tokens()),
             "combat_entries": combat_entries,
         }
@@ -74,7 +83,14 @@ class CombatResourceCatalogService:
             public = self._public_entry_from_description(key, descriptive)
             public["catalog_key"] = key
             public["resource_type"] = key.split(".")[1] if "." in key else ""
-            public["resource_id"] = technical.get("feint_id") or key
+            public["resource_id"] = (
+                technical.get("item_action_id")
+                or technical.get("ability_id")
+                or technical.get("gift_id")
+                or technical.get("feint_id")
+                or technical.get("effect_id")
+                or key
+            )
             if technical.get("cost") not in (None, [], {}):
                 public["cost"] = technical["cost"]
             catalog[key] = public

@@ -1,6 +1,6 @@
 import asyncio
 import time
-from typing import Any
+from typing import Any, cast
 
 from loguru import logger as log
 
@@ -78,7 +78,7 @@ class CombatExecutor:
         """
         source = ctx.get_actor(action.move.char_id)
         target_id = getattr(action.move.payload, "target_id", None)
-        target = ctx.get_actor(int(target_id)) if target_id else None
+        target = ctx.get_actor(int(cast("Any", target_id))) if target_id else None
 
         if not source or not target:
             log.warning(f"Executor | Exchange participants not found: {action.move.char_id} -> {target_id}")
@@ -106,7 +106,9 @@ class CombatExecutor:
             log.error("Executor | Exchange without partner_move and not forced")
             return
 
-        for secondary_target in self._secondary_feint_targets(ctx, action, primary_target_id=int(target_id)):
+        for secondary_target in self._secondary_feint_targets(
+            ctx, action, primary_target_id=int(cast("Any", target_id))
+        ):
             pending_tasks.append(
                 (
                     self._create_task(

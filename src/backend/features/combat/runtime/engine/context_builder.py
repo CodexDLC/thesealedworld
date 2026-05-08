@@ -75,6 +75,9 @@ class ContextBuilder:
         if "damage_mult" in mods:
             ctx.mods.damage_mult = float(mods["damage_mult"])
 
+        if mods.get("is_counter_attack"):
+            ctx.result.is_counter = True
+
     @staticmethod
     def _analyze_intent(
         ctx: PipelineContextDTO, actor: ActorSnapshot, move: CombatMoveDTO, external_mods: dict[str, Any] | None

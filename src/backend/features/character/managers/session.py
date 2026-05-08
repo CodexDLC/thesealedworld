@@ -353,7 +353,8 @@ class CharacterSessionManager:
 
         updates: dict[str, Any] = {}
         dirty_paths: list[str] = []
-        skills = document.get("skills") if isinstance(document.get("skills"), dict) else {}
+        skills_raw = document.get("skills")
+        skills: dict[str, Any] = skills_raw if isinstance(skills_raw, dict) else {}
 
         for reward_key, delta in rewards.items():
             delta = round(float(delta or 0.0), 4)

@@ -53,6 +53,7 @@ class CharacterCombatActorInputBuilder:
             "avatar_url": bio.get("avatar"),
             "role": "player",
             "tags": ["player"],
+            "archetype": "humanoid",
         }
 
     @staticmethod

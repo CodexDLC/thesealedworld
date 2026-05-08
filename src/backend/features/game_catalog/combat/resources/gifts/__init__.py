@@ -2,29 +2,40 @@ from collections import defaultdict
 
 from loguru import logger as log
 
-from src.backend.features.game_catalog.combat.resources.gifts.definitions.darkness import DARKNESS_GIFTS
-from src.backend.features.game_catalog.combat.resources.gifts.definitions.fire import FIRE_GIFTS
-from src.backend.features.game_catalog.combat.resources.gifts.definitions.light import LIGHT_GIFTS
-from src.backend.features.game_catalog.combat.resources.gifts.definitions.nature import NATURE_GIFTS
-from src.backend.features.game_catalog.combat.resources.gifts.definitions.water import WATER_GIFTS
-from src.backend.features.game_catalog.combat.resources.gifts.schemas import GiftDTO, GiftSchool
+from src.backend.features.game_catalog.combat.resources.gifts.definitions.darkness import (
+    DARKNESS_GIFTS_CATALOG,
+)
+from src.backend.features.game_catalog.combat.resources.gifts.definitions.fire import FIRE_GIFTS_CATALOG
+from src.backend.features.game_catalog.combat.resources.gifts.definitions.light import LIGHT_GIFTS_CATALOG
+from src.backend.features.game_catalog.combat.resources.gifts.definitions.nature import NATURE_GIFTS_CATALOG
+from src.backend.features.game_catalog.combat.resources.gifts.definitions.water import WATER_GIFTS_CATALOG
+from src.backend.features.game_catalog.combat.resources.gifts.schemas import (
+    GiftCatalogEntryDTO,
+    GiftSchool,
+    GiftTechnicalDTO,
+)
 from src.backend.features.game_catalog.combat.resources.gifts.xp_config import GIFT_LEVELING
 
 # ==========================================
 # ГЛОБАЛЬНЫЕ РЕЕСТРЫ (In-Memory DB)
 # ==========================================
 
-GIFT_REGISTRY: dict[str, GiftDTO] = {}
-GIFTS_BY_SCHOOL: dict[GiftSchool, list[GiftDTO]] = defaultdict(list)
+GIFT_REGISTRY: dict[str, GiftTechnicalDTO] = {}
+GIFT_CATALOG_REGISTRY: dict[str, GiftCatalogEntryDTO] = {}
+GIFT_CATALOG_BY_KEY: dict[str, GiftCatalogEntryDTO] = {}
+GIFTS_BY_SCHOOL: dict[GiftSchool, list[GiftTechnicalDTO]] = defaultdict(list)
 _INITIALIZED = False
 
 
-def _register_gifts(gift_list: list[GiftDTO]) -> None:
-    for gift in gift_list:
+def _register_gifts(gift_entries: list[GiftCatalogEntryDTO]) -> None:
+    for entry in gift_entries:
+        gift = entry.technical
         if gift.gift_id in GIFT_REGISTRY:
             log.warning(f"GiftLibrary | Duplicate gift ID: '{gift.gift_id}'. Overwriting.")
 
         GIFT_REGISTRY[gift.gift_id] = gift
+        GIFT_CATALOG_REGISTRY[gift.gift_id] = entry
+        GIFT_CATALOG_BY_KEY[entry.key] = entry
         GIFTS_BY_SCHOOL[gift.school].append(gift)
 
 
@@ -35,7 +46,13 @@ def _initialize_library() -> None:
 
     log.info("GiftLibrary | Initializing Gift Library...")
 
-    all_gifts = [FIRE_GIFTS, WATER_GIFTS, LIGHT_GIFTS, DARKNESS_GIFTS, NATURE_GIFTS]
+    all_gifts = [
+        list(FIRE_GIFTS_CATALOG.values()),
+        list(WATER_GIFTS_CATALOG.values()),
+        list(LIGHT_GIFTS_CATALOG.values()),
+        list(DARKNESS_GIFTS_CATALOG.values()),
+        list(NATURE_GIFTS_CATALOG.values()),
+    ]
 
     count = 0
     for group in all_gifts:
@@ -51,16 +68,28 @@ def _initialize_library() -> None:
 # ==========================================
 
 
-def get_gift_config(gift_id: str) -> GiftDTO | None:
+def get_gift_config(gift_id: str) -> GiftTechnicalDTO | None:
     return GIFT_REGISTRY.get(gift_id)
 
 
-def get_all_gifts() -> list[GiftDTO]:
+def get_all_gifts() -> list[GiftTechnicalDTO]:
     return list(GIFT_REGISTRY.values())
 
 
-def get_gifts_by_school(school: GiftSchool) -> list[GiftDTO]:
+def get_gifts_by_school(school: GiftSchool) -> list[GiftTechnicalDTO]:
     return GIFTS_BY_SCHOOL.get(school, [])
+
+
+def get_gift_catalog_entry(gift_id: str) -> GiftCatalogEntryDTO | None:
+    return GIFT_CATALOG_REGISTRY.get(gift_id)
+
+
+def get_gift_catalog_entry_by_key(catalog_key: str) -> GiftCatalogEntryDTO | None:
+    return GIFT_CATALOG_BY_KEY.get(catalog_key)
+
+
+def get_all_gift_catalog_entries() -> list[GiftCatalogEntryDTO]:
+    return list(GIFT_CATALOG_REGISTRY.values())
 
 
 def get_gift_level_info(level: int) -> dict | None:

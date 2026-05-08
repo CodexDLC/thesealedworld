@@ -14,7 +14,7 @@ from src.backend.features.combat.dto import (
 )
 from src.backend.features.combat.integrations import CombatCatalogIntegrator as GameData
 from src.backend.features.combat.runtime.engine.effect_factory import EffectFactory
-from src.backend.features.game_catalog.combat.resources.abilities.schemas import AbilityConfigDTO, AbilityCostDTO
+from src.backend.features.game_catalog.combat.resources.abilities.schemas import AbilityCostDTO, AbilityTechnicalDTO
 from src.backend.features.game_catalog.combat.resources.feints.schemas import FeintConfigDTO  # noqa: TC001
 
 
@@ -166,7 +166,7 @@ class AbilityService:
         """
         Универсальная логика обработки действия (Абилка или Финт).
         """
-        config: AbilityConfigDTO | FeintConfigDTO | None = None
+        config: AbilityTechnicalDTO | FeintConfigDTO | None = None
         cost_ok = False
         action_id: str | None = None
 
@@ -351,9 +351,10 @@ class AbilityService:
             if not isinstance(effect_id, str):
                 continue
 
-            config = GameData.get_effect(effect_id)
-            if not config:
+            catalog_entry = GameData.get_effect_catalog_entry(effect_id)
+            if not catalog_entry:
                 continue
+            config = catalog_entry.technical
 
             params = effect_data.get("params", {})
 

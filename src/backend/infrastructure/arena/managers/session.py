@@ -1,17 +1,14 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, TypeVar
+from typing import TYPE_CHECKING
 
 from src.backend.infrastructure.arena.schemas.session import ArenaCombatSessionSchema, ArenaQueueSessionSchema
 
 if TYPE_CHECKING:
     from codex_platform.redis_service import RedisService
 
-QueueT = TypeVar("QueueT", bound=ArenaQueueSessionSchema)
-CombatT = TypeVar("CombatT", bound=ArenaCombatSessionSchema)
 
-
-class ArenaSessionManager:
+class ArenaSessionManager[QueueT: ArenaQueueSessionSchema, CombatT: ArenaCombatSessionSchema]:
     REQUEST_TTL_SEC = 300
     MATCH_TTL_SEC = 900
     MATCH_LOCK_TTL_SEC = 8
@@ -46,8 +43,8 @@ return 0
         self,
         redis: RedisService,
         *,
-        queue_schema: type[QueueT] = ArenaQueueSessionSchema,
-        combat_schema: type[CombatT] = ArenaCombatSessionSchema,
+        queue_schema: type[QueueT] = ArenaQueueSessionSchema,  # type: ignore[assignment]
+        combat_schema: type[CombatT] = ArenaCombatSessionSchema,  # type: ignore[assignment]
     ) -> None:
         self.redis = redis
         self.queue_schema = queue_schema
@@ -58,34 +55,27 @@ return 0
             return self.redis.redis_client
         return self.redis.pipeline.client
 
-    @staticmethod
-    def queue_key(mode: str, mode_size: int = 1) -> str:
-        return f"arena:queue:{mode}:{mode_size}"
+    def queue_key(self, mode: str, size: int) -> str:
+        return f"arena:q:{mode}:{size}"
 
-    @staticmethod
-    def request_key(char_id: int) -> str:
-        return f"arena:request:{char_id}"
+    def request_key(self, char_id: int) -> str:
+        return f"arena:req:{char_id}"
 
-    @staticmethod
-    def match_key(arena_session_id: str) -> str:
-        return f"arena:match:{arena_session_id}"
+    def request_key_prefix(self) -> str:
+        return "arena:req:"
 
-    @staticmethod
-    def char_match_key(char_id: int) -> str:
-        return f"arena:char_match:{char_id}"
+    def match_key(self, session_id: str) -> str:
+        return f"arena:m:{session_id}"
 
-    @staticmethod
-    def match_lock_key(entity_type: str, entity_id: int) -> str:
-        return f"arena:lock:match:{entity_type}:{entity_id}"
+    def char_match_key(self, char_id: int) -> str:
+        return f"arena:cm:{char_id}"
 
-    @staticmethod
-    def request_key_prefix() -> str:
-        return "arena:request:"
+    def match_lock_key(self, entity_type: str, entity_id: int) -> str:
+        return f"arena:lock:{entity_type}:{entity_id}"
 
-    async def add_to_queue(self, request: QueueT) -> None:
+    async def add_to_queue(self, mode: str, request: QueueT, *, mode_size: int = 1) -> None:
         client = self._client()
-        score = float(request.gs_locked if request.gs_locked is not None else request.gs)
-        await client.zadd(self.queue_key(request.mode, request.mode_size), {str(request.char_id): score})
+        await client.zadd(self.queue_key(mode, mode_size), {str(request.char_id): float(request.gs)})
         await client.set(
             self.request_key(request.char_id),
             request.model_dump_json(),

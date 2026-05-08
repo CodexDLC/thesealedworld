@@ -6,6 +6,7 @@ from codex_platform.streams import StreamRuntime, StreamRuntimeConfig
 from fastapi import FastAPI
 
 from src.backend.config.settings import settings
+from src.backend.core.arq import ArqService
 from src.backend.core.bus import GameEventProducer
 from src.backend.features.arena.events import bind as bind_arena_events
 from src.backend.features.arena.events import router as arena_router
@@ -56,6 +57,7 @@ class RedisContainer:
         managers = build_redis_managers(redis_service)
 
         app.state.redis = redis_service
+        app.state.combat_arq = ArqService()
         app.state.redis_managers = managers
         app.state.character_sessions = managers.character_sessions
         app.state.actor_commitments = managers.actor_commitments

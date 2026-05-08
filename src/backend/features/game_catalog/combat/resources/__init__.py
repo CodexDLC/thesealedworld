@@ -3,6 +3,11 @@ from src.backend.features.game_catalog.combat.resources.abilities import (
     get_all_abilities,
     get_pipeline_preset,
 )
+from src.backend.features.game_catalog.combat.resources.basic_exchanges import (
+    get_all_basic_exchange_entries,
+    get_basic_exchange_entry,
+    get_basic_exchange_entry_by_key,
+)
 from src.backend.features.game_catalog.combat.resources.catalog import CombatResourceCatalogService
 from src.backend.features.game_catalog.combat.resources.effects import get_all_effects, get_effect_config
 from src.backend.features.game_catalog.combat.resources.feints import (
@@ -43,18 +48,25 @@ class GameData:
     get_feint_catalog_entry_by_key = staticmethod(get_feint_catalog_entry_by_key)
     get_all_feint_catalog_entries = staticmethod(get_all_feint_catalog_entries)
 
+    get_basic_exchange = staticmethod(get_basic_exchange_entry)
+    get_basic_exchange_by_key = staticmethod(get_basic_exchange_entry_by_key)
+    get_all_basic_exchanges = staticmethod(get_all_basic_exchange_entries)
+
 
 __all__ = [
     "CombatResourceCatalogService",
     "GameData",
     "get_ability_config",
     "get_all_abilities",
+    "get_all_basic_exchange_entries",
     "get_all_effects",
     "get_all_feints",
     "get_all_feint_catalog_entries",
     "get_all_gifts",
     "get_all_combat_tokens",
     "get_all_triggers",
+    "get_basic_exchange_entry",
+    "get_basic_exchange_entry_by_key",
     "get_effect_config",
     "get_feint_config",
     "get_feint_catalog_entry",

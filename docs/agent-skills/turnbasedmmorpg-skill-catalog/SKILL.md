@@ -94,6 +94,41 @@ Known scale risks:
 - Some design docs describe skill progression as `0..100`.
 - New code must not mix `0.0..1.0` and `0..100` without an explicit conversion at the boundary.
 
+## UI Display Rule
+
+`display_value = round(skill_value * 100, 1)` — UI and player-facing text shows `0..100` (percent of mastery), the internal representation is always `0.0..1.0`.
+
+Never pass raw `0.0..1.0` values to UI templates. Never store `0..100` display values in Redis or DTOs.
+
+## Progression Model
+
+Skills grow via a Ultima Online–style formula: using a skill awards XP, but growth slows as the skill value rises (diminishing returns):
+
+```
+delta = (base_power × global_rate × rate_mod) / (1 + current_skill × effective_wall)
+```
+
+- `global_rate = 0.000005` — base growth speed per action
+- `effective_wall = global_wall × wall_mod` — difficulty ceiling (default `100.0`)
+- `current_skill` — current normalized value (`0.0..1.0`)
+- At `skill = 1.0` the denominator is `1 + 100 = 101`, delta approaches zero
+
+Implementation: `src/backend/core/calculators/skill_progression_calculator.py` → `SkillProgressionCalculator.calculate_delta()`.
+
+`base_power` is derived from character attribute weights defined on the `SkillDTO` (`stat_weights`). `action_power` is provided per action (e.g., combat exchange grants `1.0`, crafting may vary).
+
+Do not implement custom progression math. Use `SkillProgressionCalculator` for all XP delta computation.
+
+## Combat Catalog Integration
+
+Weapon mastery skills link directly to the combat catalog via `weapon_class`:
+
+- `context_builder.py` sets `ctx.flags.meta.weapon_class = skill_key.replace("skill_", "")` (e.g., `"skill_swords"` → `"swords"`)
+- Basic exchange catalog keys follow the pattern `f"skill_{weapon_class}.{source_type}"` (e.g., `"skill_swords.main_hand"`)
+- Basic exchange catalog module: `src/backend/features/game_catalog/combat/resources/basic_exchanges/`
+
+When adding a new weapon mastery skill, also add a corresponding basic exchange entry in `basic_exchanges/definitions/weapon_mastery.py` with event texts for `use`, `hit`, `crit`, `miss`, `dodge`, `parry`, `block`.
+
 ## Surface Contracts
 
 Keep `src/backend/features/game_catalog/skills/resources/contracts.py` in sync whenever a skill is added, renamed, removed, or starts/stops affecting a surface.

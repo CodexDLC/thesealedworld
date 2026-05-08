@@ -68,7 +68,9 @@ class CombatLogBuilder:
         source_name = cls._actor_name(ctx, result.source_id)
         target_name = cls._actor_name(ctx, result.target_id)
         outcome = cls._result_outcome(result)
-        hp_change = cls._resource_change(ctx, actor_id=result.target_id, resource="hp", delta=cls._result_hp_delta(result))
+        hp_change = cls._resource_change(
+            ctx, actor_id=result.target_id, resource="hp", delta=cls._result_hp_delta(result)
+        )
         action_id = cls._action_id(action)
 
         entry = {
@@ -83,6 +85,7 @@ class CombatLogBuilder:
                 action_id=action_id,
                 global_turn=global_turn,
                 hp_change=hp_change,
+                exchange_id=cls._derive_exchange_id(ctx, action),
             ),
             "timestamp": timestamp,
             "tags": [*tags, f"outcome:{outcome}"],
@@ -195,6 +198,7 @@ class CombatLogBuilder:
         action_id: str | None,
         global_turn: int,
         hp_change: dict[str, int | str] | None,
+        exchange_id: str | None = None,
     ) -> str:
         verb = cls._summary_verb(action, action_id, source_name=source_name, target_name=target_name)
         hp_suffix = cls._hp_suffix(hp_change)
@@ -217,6 +221,15 @@ class CombatLogBuilder:
             return cls._sentence(feint_text, hp_suffix)
         if templated:
             return cls._sentence(templated, hp_suffix)
+        exchange_text = cls._basic_exchange_summary_text(
+            result,
+            exchange_id=exchange_id,
+            outcome=outcome,
+            source_name=source_name,
+            target_name=target_name,
+        )
+        if exchange_text:
+            return cls._sentence(exchange_text, hp_suffix)
         if result.healing_final > 0:
             return f"{verb}: +{result.healing_final} hp{hp_suffix}."
         if result.is_miss:
@@ -520,10 +533,9 @@ class CombatLogBuilder:
         if feint_entry is None:
             return None
 
-        variant = (
-            feint_entry.descriptive.variants.get(feint_entry.descriptive.default_taxonomy)
-            or feint_entry.descriptive.variants.get("humanoid")
-        )
+        variant = feint_entry.descriptive.variants.get(
+            feint_entry.descriptive.default_taxonomy
+        ) or feint_entry.descriptive.variants.get("humanoid")
         if variant is None:
             return None
 
@@ -548,6 +560,67 @@ class CombatLogBuilder:
         if use_text and outcome_text:
             return f"{use_text}, {outcome_text}"
         return use_text or outcome_text
+
+    @classmethod
+    def _basic_exchange_summary_text(
+        cls,
+        result: InteractionResultDTO,
+        *,
+        exchange_id: str | None,
+        outcome: str,
+        source_name: str,
+        target_name: str,
+    ) -> str | None:
+        if not exchange_id:
+            return None
+
+        entry = CombatCatalogIntegrator.get_basic_exchange(exchange_id)
+        if entry is None:
+            return None
+
+        variant = entry.descriptive.variants.get(entry.descriptive.default_taxonomy) or entry.descriptive.variants.get(
+            "humanoid"
+        )
+        if variant is None:
+            return None
+
+        use_templates = variant.event_texts.use
+        outcome_templates = getattr(variant.event_texts, outcome, [])
+        if not use_templates and not outcome_templates:
+            return None
+
+        values = {
+            "source": source_name,
+            "target": target_name,
+            "weapon": entry.technical.weapon_class,
+            "damage": result.damage_final,
+            "healing": result.healing_final,
+            "hand": entry.technical.hand,
+            "skill": entry.technical.skill_key,
+            "outcome": outcome,
+        }
+
+        use_text = cls._format_values(use_templates[0], values) if use_templates else ""
+        outcome_text = cls._format_values(outcome_templates[0], values) if outcome_templates else ""
+        if use_text and outcome_text:
+            return f"{use_text}, {outcome_text}"
+        return use_text or outcome_text
+
+    @staticmethod
+    def _derive_exchange_id(ctx: BattleContext, action: CombatActionDTO) -> str | None:
+        if action.action_type != "exchange":
+            return None
+        actor = ctx.get_actor(action.move.char_id)
+        if actor is None:
+            return None
+        payload = action.move.payload
+        hand = getattr(payload, "hand", None)
+        source_type = "off_hand" if hand == "off" else "main_hand"
+        skill_key = actor.loadout.layout.get(source_type)
+        if not skill_key:
+            return None
+        weapon_class = skill_key.replace("skill_", "")
+        return f"skill_{weapon_class}.{source_type}"
 
     @staticmethod
     def _format_values(template: str, values: dict[str, Any]) -> str:

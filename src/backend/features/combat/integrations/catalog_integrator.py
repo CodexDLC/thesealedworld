@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from src.backend.features.game_catalog.combat.resources import (
     get_ability_config,
+    get_basic_exchange_entry,
     get_effect_config,
     get_feint_catalog_entry_by_key,
     get_feint_config,
@@ -23,3 +24,4 @@ class CombatCatalogIntegrator:
     get_trigger = staticmethod(get_weapon_trigger)
     get_trigger_rule = staticmethod(get_trigger_rule)
     get_pipeline_preset = staticmethod(get_pipeline_preset)
+    get_basic_exchange = staticmethod(get_basic_exchange_entry)

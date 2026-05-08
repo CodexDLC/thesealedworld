@@ -9,12 +9,14 @@ from src.backend.features.game_catalog.combat.resources import (
     get_effect_catalog_entry,
     get_effect_catalog_entry_by_key,
     get_effect_config,
+    get_feint_catalog_entry_by_key,
     get_feint_config,
     get_gift_catalog_entry_by_key,
     get_gift_config,
     get_pipeline_preset,
+    get_trigger_catalog_entry,
+    get_trigger_catalog_entry_by_key,
     get_trigger_rule,
-    get_weapon_trigger,
 )
 
 
@@ -27,11 +29,13 @@ class CombatCatalogIntegrator:
     get_effect_catalog_entry = staticmethod(get_effect_catalog_entry)
     get_effect_catalog_entry_by_key = staticmethod(get_effect_catalog_entry_by_key)
     get_feint = staticmethod(get_feint_config)
+    get_feint_catalog_entry_by_key = staticmethod(get_feint_catalog_entry_by_key)
     get_catalog_entry_by_key = staticmethod(get_combat_catalog_entry_by_key)
     get_gift = staticmethod(get_gift_config)
     get_gift_catalog_entry_by_key = staticmethod(get_gift_catalog_entry_by_key)
     get_combat_item_action = staticmethod(get_combat_item_action)
     get_combat_item_action_catalog_entry_by_key = staticmethod(get_combat_item_action_catalog_entry_by_key)
-    get_trigger = staticmethod(get_weapon_trigger)
     get_trigger_rule = staticmethod(get_trigger_rule)
+    get_trigger_catalog_entry = staticmethod(get_trigger_catalog_entry)
+    get_trigger_catalog_entry_by_key = staticmethod(get_trigger_catalog_entry_by_key)
     get_pipeline_preset = staticmethod(get_pipeline_preset)

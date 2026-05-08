@@ -40,8 +40,9 @@ from src.backend.features.game_catalog.combat.resources.items import (
 from src.backend.features.game_catalog.combat.resources.tokens import get_all_combat_tokens
 from src.backend.features.game_catalog.combat.resources.triggers import (
     get_all_triggers,
+    get_trigger_catalog_entry,
+    get_trigger_catalog_entry_by_key,
     get_trigger_rule,
-    get_weapon_trigger,
 )
 
 
@@ -72,9 +73,10 @@ class GameData:
     get_effect_catalog_entry_by_key = staticmethod(get_effect_catalog_entry_by_key)
     get_all_effect_catalog_entries = staticmethod(get_all_effect_catalog_entries)
 
-    get_trigger = staticmethod(get_weapon_trigger)
     get_all_triggers = staticmethod(get_all_triggers)
     get_trigger_rule = staticmethod(get_trigger_rule)
+    get_trigger_catalog_entry = staticmethod(get_trigger_catalog_entry)
+    get_trigger_catalog_entry_by_key = staticmethod(get_trigger_catalog_entry_by_key)
 
     get_feint = staticmethod(get_feint_config)
     get_all_feints = staticmethod(get_all_feints)
@@ -141,5 +143,6 @@ __all__ = [
     "get_gift_config",
     "get_pipeline_preset",
     "get_trigger_rule",
-    "get_weapon_trigger",
+    "get_trigger_catalog_entry",
+    "get_trigger_catalog_entry_by_key",
 ]

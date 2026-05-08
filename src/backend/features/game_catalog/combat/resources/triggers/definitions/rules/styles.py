@@ -1,51 +1,93 @@
-from src.backend.features.game_catalog.combat.resources.triggers.schemas import TriggerDTO
+from src.backend.features.game_catalog.combat.resources.common.descriptions import (
+    CombatEventTextSetDTO,
+    build_combat_description,
+    default_trigger_proc_event_texts,
+)
+from src.backend.features.game_catalog.combat.resources.triggers.schemas import (
+    TriggerCatalogEntryDTO,
+    TriggerTechnicalDTO,
+)
 
-STYLE_RULES = [
-    # --- 1. ONE-HANDED (Flow) ---
-    TriggerDTO(
-        id="style_1h_flow",
-        name_ru="Поток (Стиль)",
-        description_ru="С шансом сохраняет темп: возвращает стоимость использованного финта.",
-        event="ON_ACCURACY_CHECK",  # Или ON_HIT
-        chance=0.25,
-        mutations={
-            "chain_events.preserve_feint": True,
-        },
+STYLE_CATALOG: list[TriggerCatalogEntryDTO] = [
+    TriggerCatalogEntryDTO(
+        key="combat.trigger.style.1h_flow",
+        technical=TriggerTechnicalDTO(
+            trigger_id="style_1h_flow",
+            event="ON_ACCURACY_CHECK",
+            chance=0.25,
+            mutations={"chain_events.preserve_feint": True},
+        ),
+        descriptive=build_combat_description(
+            resource_type="trigger",
+            resource_id="style_1h_flow",
+            display_name="Поток (стиль)",
+            short_description="С шансом сохраняет темп: возвращает стоимость использованного финта.",
+            humanoid_event_texts=CombatEventTextSetDTO(
+                proc=["{source} сохраняет темп удара."],
+            ),
+            beast_event_texts=default_trigger_proc_event_texts("Поток (стиль)"),
+        ),
     ),
-    # --- 2. TWO-HANDED (Ignore) ---
-    TriggerDTO(
-        id="style_2h_ignore",
-        name_ru="Пробитие (Стиль)",
-        description_ru="Игнорирует броню и ослабляет защиту врага.",
-        event="ON_ACCURACY_CHECK",
-        chance=0.25,
-        mutations={
-            "formula.evasion_halved": True,
-            "formula.parry_halved": True,
-            "formula.block_halved": True,
-        },
+    TriggerCatalogEntryDTO(
+        key="combat.trigger.style.2h_ignore",
+        technical=TriggerTechnicalDTO(
+            trigger_id="style_2h_ignore",
+            event="ON_ACCURACY_CHECK",
+            chance=0.25,
+            mutations={
+                "formula.evasion_halved": True,
+                "formula.parry_halved": True,
+                "formula.block_halved": True,
+            },
+        ),
+        descriptive=build_combat_description(
+            resource_type="trigger",
+            resource_id="style_2h_ignore",
+            display_name="Пробитие (стиль)",
+            short_description="Игнорирует броню и ослабляет защиту врага.",
+            humanoid_event_texts=CombatEventTextSetDTO(
+                proc=["{source} пробивает защиту {target} мощным ударом."],
+            ),
+            beast_event_texts=default_trigger_proc_event_texts("Пробитие (стиль)"),
+        ),
     ),
-    # --- 3. SHIELD (Reflect) ---
-    TriggerDTO(
-        id="style_shield_reflect",
-        name_ru="Отражение (Стиль)",
-        description_ru="При провале блока частично гасит удар и готовит отражение.",
-        event="ON_BLOCK_FAIL",
-        chance=0.25,
-        mutations={
-            # Включаем механику отражения в Резолвере
-            "state.partial_absorb_reflect": True,
-        },
+    TriggerCatalogEntryDTO(
+        key="combat.trigger.style.shield_reflect",
+        technical=TriggerTechnicalDTO(
+            trigger_id="style_shield_reflect",
+            event="ON_BLOCK_FAIL",
+            chance=0.25,
+            mutations={"state.partial_absorb_reflect": True},
+        ),
+        descriptive=build_combat_description(
+            resource_type="trigger",
+            resource_id="style_shield_reflect",
+            display_name="Отражение (стиль)",
+            short_description="При провале блока частично гасит удар и готовит отражение.",
+            humanoid_event_texts=CombatEventTextSetDTO(
+                block_proc=["{target} частично гасит удар {source} щитом."],
+            ),
+            beast_event_texts=default_trigger_proc_event_texts("Отражение (стиль)"),
+        ),
     ),
-    # --- 4. DUAL WIELD (Extra Attack) ---
-    TriggerDTO(
-        id="style_dual_extra",
-        name_ru="Доп. атака (Стиль)",
-        description_ru="Мгновенная атака второй рукой.",
-        event="ON_ACCURACY_CHECK",
-        chance=0.25,
-        mutations={
-            "chain_events.trigger_offhand_attack": True,
-        },
+    TriggerCatalogEntryDTO(
+        key="combat.trigger.style.offhand_attack",
+        technical=TriggerTechnicalDTO(
+            trigger_id="style_dual_extra",
+            event="ON_ACCURACY_CHECK",
+            chance=0.25,
+            mutations={"chain_events.trigger_offhand_attack": True},
+        ),
+        descriptive=build_combat_description(
+            resource_type="trigger",
+            resource_id="style_dual_extra",
+            display_name="Удар второй рукой",
+            short_description="Мгновенная атака второй рукой после попадания.",
+            humanoid_event_texts=CombatEventTextSetDTO(
+                proc=["{source} проводит молниеносный удар второй рукой по {target}."],
+                extra_strike=["{source} добавляет удар второй рукой."],
+            ),
+            beast_event_texts=default_trigger_proc_event_texts("Удар второй рукой"),
+        ),
     ),
 ]

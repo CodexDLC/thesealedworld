@@ -96,7 +96,23 @@ class CombatLogBuilder:
             "badges": [],
             "flags": cls._public_flags(result),
         }
-        return [entry]
+        entries = [entry]
+        for trigger_id in result.fired_triggers:
+            if cls._should_merge_trigger(trigger_id):
+                continue
+            proc_entry = cls._build_trigger_proc_entry(
+                ctx=ctx,
+                result=result,
+                trigger_id=trigger_id,
+                outcome=outcome,
+                timestamp=timestamp,
+                tags=tags,
+                global_turn=global_turn,
+            )
+            if proc_entry:
+                proc_entry["id"] = f"{global_turn}:{wave}:{len(entries)}"
+                entries.append(proc_entry)
+        return entries
 
     @classmethod
     def _summary_text(
@@ -122,8 +138,13 @@ class CombatLogBuilder:
             values=values,
             catalog=catalog,
         )
+        trigger_suffix = cls._trigger_suffix_text(
+            result, outcome=outcome, source_name=source_name, target_name=target_name
+        )
         if result.skip_reason:
             return cls._with_damage_sentence(templated, result) if templated else f"{source_name} не может действовать."
+        if templated and trigger_suffix:
+            return cls._with_damage_sentence(f"{templated}; {trigger_suffix}", result)
         if templated:
             return cls._with_damage_sentence(templated, result)
         return cls._fallback_text(
@@ -211,7 +232,10 @@ class CombatLogBuilder:
                     "resource_type": cls._catalog_resource_type(str(key)),
                 }
 
-        if action_id and CombatCatalogIntegrator.get_catalog_entry_by_key(f"combat.feint.{action_id}") is not None:
+        if (
+            action_id
+            and CombatCatalogIntegrator.get_feint_catalog_entry_by_key(f"combat.feint.{action_id}") is not None
+        ):
             return {
                 "catalog": "combat_entries",
                 "catalog_key": f"combat.feint.{action_id}",
@@ -230,10 +254,11 @@ class CombatLogBuilder:
                 "catalog_tooltip": "description",
             }
 
-        if action_id and CombatCatalogIntegrator.get_trigger_rule(action_id) is not None:
+        trigger_entry = CombatCatalogIntegrator.get_trigger_catalog_entry(action_id) if action_id else None
+        if trigger_entry is not None:
             return {
-                "catalog": "triggers",
-                "catalog_key": action_id,
+                "catalog": "combat_entries",
+                "catalog_key": trigger_entry.key,
                 "catalog_event": event_name,
                 "catalog_taxonomy": "humanoid",
                 "catalog_tooltip": "description",
@@ -447,6 +472,11 @@ class CombatLogBuilder:
         }
 
     @staticmethod
+    def _actor_name(ctx: BattleContext, actor_id: int | str | None) -> str:
+        actor = CombatLogBuilder._actor_ref(ctx, actor_id)
+        return str((actor or {}).get("name") or "NO_TARGET")
+
+    @staticmethod
     def _template_key(*, action_id: str | None, event_name: str) -> str:
         if action_id:
             return f"combat.{action_id}.{event_name}"
@@ -507,7 +537,188 @@ class CombatLogBuilder:
                 values=values,
             )
 
+        trigger_entry = CombatCatalogIntegrator.get_trigger_catalog_entry(action_id)
+        if trigger_entry is not None:
+            variant = trigger_entry.descriptive.variants.get("humanoid")
+            if variant:
+                resolved_event = cls._resolve_trigger_event_name(event_name)
+                templates = (
+                    getattr(variant.event_texts, resolved_event, [])
+                    or getattr(variant.event_texts, "proc", [])
+                    or getattr(variant.event_texts, event_name, [])
+                )
+                if templates:
+                    return cls._format_template(
+                        templates[0],
+                        source_name=source_name,
+                        target_name=target_name,
+                        label=variant.display_name,
+                        label_key="trigger",
+                        values=values,
+                    )
+
         return None
+
+    @staticmethod
+    def _resolve_trigger_event_name(event_name: str) -> str:
+        return {
+            "crit": "crit_proc",
+            "hit": "hit_proc",
+            "miss": "miss_proc",
+            "dodge": "dodge_proc",
+            "parry": "parry_proc",
+            "block": "block_proc",
+        }.get(event_name, "proc")
+
+    # Triggers that generate a separate log entry (counter-attack, extra strike).
+    # All others are merged into the main summary line as a suffix.
+    _SEPARATE_LINE_TRIGGERS: frozenset[str] = frozenset(
+        {
+            "counter_on_parry",
+            "counter_on_dodge",
+            "style_dual_extra",
+            "bash_on_block",
+        }
+    )
+
+    @staticmethod
+    def _should_merge_trigger(trigger_id: str) -> bool:
+        return trigger_id not in CombatLogBuilder._SEPARATE_LINE_TRIGGERS
+
+    @classmethod
+    def _trigger_suffix_text(
+        cls,
+        result: InteractionResultDTO,
+        *,
+        outcome: str,
+        source_name: str,
+        target_name: str,
+    ) -> str:
+        parts: list[str] = []
+        for trigger_id in result.fired_triggers:
+            if not cls._should_merge_trigger(trigger_id):
+                continue
+            entry = CombatCatalogIntegrator.get_trigger_catalog_entry(trigger_id)
+            if entry is None:
+                continue
+            variant = entry.descriptive.variants.get("humanoid")
+            if not variant:
+                continue
+            proc_event = cls._resolve_trigger_event_name(outcome)
+            templates = getattr(variant.event_texts, proc_event, []) or getattr(variant.event_texts, "proc", [])
+            if not templates:
+                continue
+            effect_label = cls._first_applied_effect_label(entry, result)
+            part = cls._format_values(
+                templates[0],
+                {
+                    "source": source_name,
+                    "target": target_name,
+                    "trigger": variant.display_name,
+                    "effect": effect_label,
+                    "damage": result.damage_final,
+                    "token": "",
+                },
+            )
+            parts.append(part)
+        return "; ".join(parts)
+
+    @classmethod
+    def _build_trigger_proc_entry(
+        cls,
+        *,
+        ctx: BattleContext,
+        result: InteractionResultDTO,
+        trigger_id: str,
+        outcome: str,
+        timestamp: float,
+        tags: list[str],
+        global_turn: int,
+    ) -> dict[str, Any] | None:
+        entry = CombatCatalogIntegrator.get_trigger_catalog_entry(trigger_id)
+        if entry is None:
+            return None
+        variant = entry.descriptive.variants.get("humanoid")
+        if variant is None:
+            return None
+
+        source_name = cls._actor_name(ctx, result.source_id)
+        target_name = cls._actor_name(ctx, result.target_id)
+        proc_event = cls._resolve_trigger_event_name(outcome)
+
+        templates = getattr(variant.event_texts, proc_event, []) or getattr(variant.event_texts, "proc", [])
+        text = ""
+        if templates:
+            effect_label = cls._first_applied_effect_label(entry, result)
+            try:
+                text = cls._format_values(
+                    templates[0],
+                    {
+                        "source": source_name,
+                        "target": target_name,
+                        "trigger": variant.display_name,
+                        "effect": effect_label,
+                        "damage": result.damage_final,
+                        "token": "",
+                    },
+                )
+            except KeyError:
+                text = templates[0]
+
+        return {
+            "type": "TRIGGER_PROC",
+            "kind": "trigger_proc",
+            "text": text,
+            "timestamp": timestamp,
+            "tags": [*tags, "trigger_proc", f"trigger:{trigger_id}"],
+            "global_turn": global_turn,
+            "action_id": trigger_id,
+            "source_id": result.source_id,
+            "target_id": result.target_id,
+            "source_name": source_name,
+            "target_name": target_name,
+            "outcome": outcome,
+            "catalog": "combat_entries",
+            "catalog_key": entry.key,
+            "catalog_event": proc_event,
+            "catalog_taxonomy": "humanoid",
+            "template": {
+                "key": entry.key,
+                "event": proc_event,
+                "taxonomy": "humanoid",
+            },
+            "source": cls._actor_ref(ctx, result.source_id),
+            "target": cls._actor_ref(ctx, result.target_id),
+            "variables": {
+                "source": source_name,
+                "target": target_name,
+                "trigger": variant.display_name,
+                "effect": cls._first_applied_effect_label(entry, result),
+                "damage": result.damage_final,
+            },
+            "effects": cls._public_effects(ctx, result),
+            "presentation": {
+                "player_visible": True,
+                "merge_with_result": False,
+            },
+        }
+
+    @staticmethod
+    def _first_applied_effect_label(
+        trigger_entry: Any,
+        result: InteractionResultDTO,
+    ) -> str:
+        if hasattr(trigger_entry, "technical") and trigger_entry.technical.applied_effect_ids:
+            for effect_id in trigger_entry.technical.applied_effect_ids:
+                effect = CombatCatalogIntegrator.get_effect(effect_id)
+                if effect:
+                    return effect.name_ru
+        for effect in result.applied_effects:
+            if isinstance(effect, dict):
+                name = effect.get("name") or effect.get("id") or effect.get("effect_id") or ""
+                if name:
+                    return str(name)
+        return ""
 
     @classmethod
     def _templates_for_event(cls, variant: Any, event_name: str, *, resource_type: str = "") -> list[str]:
@@ -573,7 +784,7 @@ class CombatLogBuilder:
         if not feint_id:
             return None
 
-        feint_entry = CombatCatalogIntegrator.get_catalog_entry_by_key(f"combat.feint.{feint_id}")
+        feint_entry = CombatCatalogIntegrator.get_feint_catalog_entry_by_key(f"combat.feint.{feint_id}")
         if feint_entry is None:
             return None
 

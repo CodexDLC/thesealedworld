@@ -298,6 +298,10 @@ class InteractionResultDTO(BaseModel):
     # === Chain Reactions (Новые задачи) ===
     chain_events: ChainTriggersDTO = Field(default_factory=ChainTriggersDTO)
 
+    # === Fired Triggers (для log_builder) ===
+    # trigger_id-значения триггеров, прошедших chance check в _resolve_triggers()
+    fired_triggers: list[str] = Field(default_factory=list)
+
     # === Resources (Изменения ресурсов) ===
     # {"hp": {"cost": "-10", "regen": "+5"}, "en": {"cost": "-20"}}
     # Используется WaterfallCalculator для расчета итога

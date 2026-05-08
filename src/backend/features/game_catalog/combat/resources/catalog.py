@@ -32,14 +32,15 @@ class CombatResourceCatalogService:
         item_entries = get_all_combat_item_action_catalog_entries()
         feint_entries = get_all_feint_catalog_entries()
         effect_entries = get_all_effect_catalog_entries()
+        trigger_entries = get_all_triggers()
         combat_entries = self._catalog_entries_by_key(
-            [*ability_entries, *gift_entries, *item_entries, *feint_entries, *effect_entries]
+            [*ability_entries, *gift_entries, *item_entries, *feint_entries, *effect_entries, *trigger_entries]
         )
         return {
             "abilities": self._catalog_entries_by_id(ability_entries, id_field="ability_id"),
             "feints": self._catalog_entries_by_id(feint_entries, id_field="feint_id"),
             "effects": self._catalog_entries_by_id(effect_entries, id_field="effect_id"),
-            "triggers": self._catalog_by_id(get_all_triggers(), id_field="id"),
+            "triggers": self._catalog_entries_by_key(trigger_entries),
             "gifts": self._catalog_entries_by_id(gift_entries, id_field="gift_id"),
             "combat_item_actions": self._catalog_entries_by_id(item_entries, id_field="item_action_id"),
             "combat_tokens": self._public_mapping(get_all_combat_tokens()),
@@ -89,6 +90,7 @@ class CombatResourceCatalogService:
                 or technical.get("gift_id")
                 or technical.get("feint_id")
                 or technical.get("effect_id")
+                or technical.get("trigger_id")
                 or key
             )
             if technical.get("cost") not in (None, [], {}):

@@ -732,6 +732,8 @@ class CombatResolver:
             if not MathCore.check_chance(chance):
                 continue
 
+            res.fired_triggers.append(rule_id)
+
             # 5. Мутации (с поддержкой точек и add_effect)
             for key, value in rule_data.get("mutations", {}).items():
                 CombatResolver._apply_mutation(ctx, res, key, value, step_key=step_key)

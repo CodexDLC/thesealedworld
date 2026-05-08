@@ -17,6 +17,17 @@ class CombatEventTextSetDTO(BaseModel):
     dodge: list[str] = Field(default_factory=list)
     apply_effect: list[str] = Field(default_factory=list)
     expire_effect: list[str] = Field(default_factory=list)
+    # Trigger-specific proc fields
+    proc: list[str] = Field(default_factory=list)
+    hit_proc: list[str] = Field(default_factory=list)
+    crit_proc: list[str] = Field(default_factory=list)
+    miss_proc: list[str] = Field(default_factory=list)
+    dodge_proc: list[str] = Field(default_factory=list)
+    parry_proc: list[str] = Field(default_factory=list)
+    block_proc: list[str] = Field(default_factory=list)
+    token_gain: list[str] = Field(default_factory=list)
+    counter: list[str] = Field(default_factory=list)
+    extra_strike: list[str] = Field(default_factory=list)
 
 
 class CombatTaxonomyDescriptionDTO(BaseModel):
@@ -211,6 +222,45 @@ def default_trigger_event_texts(name: str) -> CombatEventTextSetDTO:
         ],
         expire_effect=[
             "Последствие {trigger} на {target} заканчивается.",
+        ],
+    )
+
+
+def default_trigger_proc_event_texts(name: str) -> CombatEventTextSetDTO:
+    return CombatEventTextSetDTO(
+        proc=[
+            f"Срабатывает {name}.",
+            f"{{source}} активирует {name}.",
+        ],
+        hit_proc=[
+            f"{name} вступает в действие: {{source}} поражает {{target}}.",
+        ],
+        crit_proc=[
+            f"{name} срабатывает на крите: {{source}} рассекает {{target}}.",
+        ],
+        miss_proc=[
+            f"{name} даёт {{source}} преимущество после промаха.",
+        ],
+        dodge_proc=[
+            f"{name}: {{target}} уклоняется и контратакует.",
+        ],
+        parry_proc=[
+            f"{name}: {{target}} парирует и отвечает.",
+        ],
+        block_proc=[
+            f"{name}: {{target}} блокирует и наносит ответный удар.",
+        ],
+        apply_effect=[
+            f"{name} накладывает {{effect}} на {{target}}.",
+        ],
+        token_gain=[
+            f"{{source}} получает токен {{token}} от {name}.",
+        ],
+        counter=[
+            f"{name} открывает контратаку {{source}} по {{target}}.",
+        ],
+        extra_strike=[
+            f"{name} даёт {{source}} дополнительный удар по {{target}}.",
         ],
     )
 

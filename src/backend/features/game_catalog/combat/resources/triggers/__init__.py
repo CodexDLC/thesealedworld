@@ -3,37 +3,52 @@ from typing import Any
 
 from loguru import logger as log
 
-from src.backend.features.game_catalog.combat.resources.triggers.definitions.rules import ALL_RULES_LIST
-from src.backend.features.game_catalog.combat.resources.triggers.schemas import TriggerDTO
+from src.backend.features.game_catalog.combat.resources.triggers.definitions.catalog import ALL_TRIGGER_CATALOG_ENTRIES
+from src.backend.features.game_catalog.combat.resources.triggers.schemas import (
+    TriggerCatalogEntryDTO,
+    TriggerTechnicalDTO,
+)
 
 # ==========================================
-# 1. ГЛОБАЛЬНЫЙ РЕЕСТР (UI / META)
+# 1. REGISTRY: trigger_id -> TriggerTechnicalDTO
 # ==========================================
-# Используется для отображения информации о триггерах (иконки, описание).
-TRIGGER_REGISTRY: dict[str, TriggerDTO] = {}
+TRIGGER_REGISTRY: dict[str, TriggerTechnicalDTO] = {}
 
 # ==========================================
-# 2. ПРАВИЛА БОЯ (LOGIC / RESOLVER)
+# 2. CATALOG: trigger_id -> TriggerCatalogEntryDTO
 # ==========================================
-# Оптимизированный индекс для CombatResolver.
-# Структура: { "ON_CRIT": { "trigger_id": { "chance": 1.0, "mutations": {...} } } }
+TRIGGER_CATALOG_REGISTRY: dict[str, TriggerCatalogEntryDTO] = {}
+
+# ==========================================
+# 3. CATALOG BY KEY: catalog_key -> TriggerCatalogEntryDTO
+# ==========================================
+TRIGGER_CATALOG_BY_KEY: dict[str, TriggerCatalogEntryDTO] = {}
+
+# ==========================================
+# 4. RULES: event -> { trigger_id: {event, chance, mutations} }
+#    Consumed by CombatResolver._resolve_triggers() — preserves existing contract.
+# ==========================================
 TRIGGER_RULES: dict[str, dict[str, dict[str, Any]]] = defaultdict(dict)
 
 _INITIALIZED = False
 
 
-def _register_triggers(trigger_list: list[TriggerDTO]) -> None:
-    for trigger in trigger_list:
-        # 1. Registry (UI)
-        if trigger.id in TRIGGER_REGISTRY:
-            log.warning(f"TriggerLibrary | Duplicate trigger ID: '{trigger.id}'. Overwriting.")
-        TRIGGER_REGISTRY[trigger.id] = trigger
+def _register_triggers(entries: list[TriggerCatalogEntryDTO]) -> None:
+    for entry in entries:
+        t = entry.technical
+        trigger_id = t.trigger_id
 
-        # 2. Rules (Logic)
-        # Преобразуем DTO в формат правил для резолвера
-        TRIGGER_RULES[trigger.event][trigger.id] = {
-            "chance": trigger.chance,
-            "mutations": trigger.mutations,
+        if trigger_id in TRIGGER_REGISTRY:
+            log.warning(f"TriggerLibrary | Duplicate trigger_id: '{trigger_id}'. Overwriting.")
+
+        TRIGGER_REGISTRY[trigger_id] = t
+        TRIGGER_CATALOG_REGISTRY[trigger_id] = entry
+        TRIGGER_CATALOG_BY_KEY[entry.key] = entry
+
+        TRIGGER_RULES[t.event][trigger_id] = {
+            "event": t.event,
+            "chance": t.chance,
+            "mutations": t.mutations,
         }
 
 
@@ -43,16 +58,10 @@ def _initialize_library() -> None:
         return
 
     log.info("TriggerLibrary | Initializing...")
-
-    # Используем общий список правил из definitions.rules
-    all_groups = [ALL_RULES_LIST]
-    count = 0
-
-    for group in all_groups:
-        _register_triggers(group)
-        count += len(group)
-
-    log.info(f"TriggerLibrary | Loaded {count} triggers. Rules compiled for {len(TRIGGER_RULES)} events.")
+    _register_triggers(ALL_TRIGGER_CATALOG_ENTRIES)
+    log.info(
+        f"TriggerLibrary | Loaded {len(TRIGGER_REGISTRY)} triggers. Rules compiled for {len(TRIGGER_RULES)} events."
+    )
     _INITIALIZED = True
 
 
@@ -61,29 +70,35 @@ def _initialize_library() -> None:
 # ==========================================
 
 
-def get_trigger_config(trigger_id: str) -> TriggerDTO | None:
-    """Получить полное описание триггера (для UI)."""
+def get_trigger_technical(trigger_id: str) -> TriggerTechnicalDTO | None:
+    """Technical config for resolver."""
     return TRIGGER_REGISTRY.get(trigger_id)
 
 
+def get_trigger_catalog_entry(trigger_id: str) -> TriggerCatalogEntryDTO | None:
+    """Full catalog entry by trigger_id."""
+    return TRIGGER_CATALOG_REGISTRY.get(trigger_id)
+
+
+def get_trigger_catalog_entry_by_key(catalog_key: str) -> TriggerCatalogEntryDTO | None:
+    """Full catalog entry by catalog key (e.g. 'combat.trigger.crit.bleed_on_crit')."""
+    return TRIGGER_CATALOG_BY_KEY.get(catalog_key)
+
+
 def get_trigger_rule(trigger_id: str) -> dict[str, Any] | None:
-    trigger = TRIGGER_REGISTRY.get(trigger_id)
-    if trigger is None:
+    """Resolver-compatible rule dict {event, chance, mutations}. Preserves existing resolver contract."""
+    t = TRIGGER_REGISTRY.get(trigger_id)
+    if t is None:
         return None
-    return trigger.model_dump()
+    return {
+        "event": t.event,
+        "chance": t.chance,
+        "mutations": t.mutations,
+    }
 
 
-def get_all_triggers() -> list[TriggerDTO]:
-    return list(TRIGGER_REGISTRY.values())
-
-
-def get_weapon_trigger(weapon_class: str) -> TriggerDTO | None:
-    """
-    DEPRECATED: Триггеры теперь не привязаны жестко к классу оружия в коде.
-    Связь идет через поле triggers в BaseItemDTO.
-    """
-    log.warning("Using deprecated function get_weapon_trigger. Use item.triggers list instead.")
-    return None
+def get_all_triggers() -> list[TriggerCatalogEntryDTO]:
+    return list(TRIGGER_CATALOG_REGISTRY.values())
 
 
 # Auto-init

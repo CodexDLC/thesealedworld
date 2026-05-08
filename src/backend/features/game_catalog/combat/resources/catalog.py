@@ -26,12 +26,14 @@ class CombatResourceCatalogService:
         return cls()
 
     def all_public_text(self) -> dict[str, dict[str, dict[str, Any]]]:
-        combat_entries = self._catalog_entries_by_key(get_all_feint_catalog_entries())
+        feint_entries = self._catalog_entries_by_key(get_all_feint_catalog_entries())
+        trigger_entries = self._catalog_entries_by_key(get_all_triggers())
+        combat_entries = {**feint_entries, **trigger_entries}
         return {
             "abilities": self._catalog_by_id(get_all_abilities(), id_field="ability_id"),
             "feints": self._catalog_entries_by_id(get_all_feint_catalog_entries(), id_field="feint_id"),
             "effects": self._catalog_by_id(get_all_effects(), id_field="effect_id"),
-            "triggers": self._catalog_by_id(get_all_triggers(), id_field="id"),
+            "triggers": trigger_entries,
             "gifts": self._catalog_by_id(get_all_gifts(), id_field="gift_id"),
             "combat_tokens": self._public_mapping(get_all_combat_tokens()),
             "combat_entries": combat_entries,
@@ -74,7 +76,7 @@ class CombatResourceCatalogService:
             public = self._public_entry_from_description(key, descriptive)
             public["catalog_key"] = key
             public["resource_type"] = key.split(".")[1] if "." in key else ""
-            public["resource_id"] = technical.get("feint_id") or key
+            public["resource_id"] = technical.get("feint_id") or technical.get("trigger_id") or key
             if technical.get("cost") not in (None, [], {}):
                 public["cost"] = technical["cost"]
             catalog[key] = public

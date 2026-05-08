@@ -56,7 +56,11 @@ def test_combat_resources_load_runtime_and_public_catalog() -> None:
     assert catalog["combat_entries"]["combat.gift.gift_true_fire"]["resource_id"] == "gift_true_fire"
     assert catalog["combat_entries"]["combat.item.fire_grenade"]["resource_id"] == "fire_grenade"
     assert catalog["feints"]["shield_bash"]["title"] == "Удар щитом"
-    assert catalog["triggers"]["bleed_on_crit"]["event"] == "ON_CRIT"
+    assert catalog["triggers"]["combat.trigger.crit.bleed_on_crit"]["resource_id"] == "bleed_on_crit"
+    assert catalog["combat_entries"]["combat.trigger.crit.bleed_on_crit"]["resource_id"] == "bleed_on_crit"
+    assert catalog["combat_entries"]["combat.basic_exchange.skill_swords.main_hand"]["resource_id"] == (
+        "skill_swords.main_hand"
+    )
 
 
 def test_ability_gift_and_item_catalog_entries_split_technical_and_descriptive() -> None:

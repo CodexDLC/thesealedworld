@@ -34,6 +34,7 @@ class ItemFactory:
         material_mult = material.tier_mult if material else 1.0
         power = round(base.base_power * material_mult * rarity.default_mult, 2)
         durability = round(base.base_durability * material_mult, 2)
+        implicit_bonuses = self._scale_implicit_bonuses(base.implicit_bonuses, rarity.default_mult)
         explicit_bonuses: dict[str, float] = {}
         tags = [*base.narrative_tags]
         if material:
@@ -67,7 +68,7 @@ class ItemFactory:
             damage_spread=base.damage_spread,
             slot=base.slot,
             valid_slots=[base.slot, *base.extra_slots],
-            implicit_bonuses=dict(base.implicit_bonuses),
+            implicit_bonuses=implicit_bonuses,
             bonuses=explicit_bonuses,
             triggers=list(base.triggers),
             narrative_tags=list(dict.fromkeys(tags)),
@@ -107,3 +108,7 @@ class ItemFactory:
             if material is not None:
                 return material
         return None
+
+    @staticmethod
+    def _scale_implicit_bonuses(bonuses: dict[str, float], rarity_mult: float) -> dict[str, float]:
+        return {key: round(float(value) * rarity_mult, 4) for key, value in bonuses.items()}

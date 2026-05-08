@@ -1,23 +1,17 @@
-from __future__ import annotations
-
-import importlib.util
-from pathlib import Path
-from typing import Any
-
+from .archery import ARCHERY_DB
+from .fencing import FENCING_DB
+from .macing import MACING_DB
+from .offhand import OFFHAND_DB
+from .polearms import POLEARMS_DB
 from .swords import SWORDS_DB
 
-# Legacy temp tree had both base_item/weapons.py and base_item/weapons/.
-# Keep the full file as the authoritative source until the weapon categories
-# are split into separate resource modules.
-_legacy_file = Path(__file__).resolve().parents[1] / "weapons.py"
-_legacy_weapons: dict[str, Any] = {}
-if _legacy_file.exists():
-    spec = importlib.util.spec_from_file_location("items_legacy_weapons", _legacy_file)
-    if spec and spec.loader:
-        module = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(module)
-        _legacy_weapons = getattr(module, "WEAPONS_DB", {})
-
-WEAPONS_DB = _legacy_weapons or SWORDS_DB
+WEAPONS_DB = {
+    "swords": SWORDS_DB,
+    "fencing": FENCING_DB,
+    "polearms": POLEARMS_DB,
+    "macing": MACING_DB,
+    "archery": ARCHERY_DB,
+    "offhand": OFFHAND_DB,
+}
 
 __all__ = ["WEAPONS_DB"]

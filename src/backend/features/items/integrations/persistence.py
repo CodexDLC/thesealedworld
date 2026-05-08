@@ -48,6 +48,9 @@ class ItemPersistenceIntegration:
     async def mark_text_failed(self, item_id: str, reason: str | None = None) -> None:
         await self.repo.mark_text_failed(item_id, reason)
 
+    async def transfer_deleted_character_items_to_system(self, character_id: int) -> int:
+        return await self.repo.transfer_character_items_to_system(character_id)
+
     def _dto_from_instance(self, instance: Any) -> GeneratedItemDTO:
         return GeneratedItemDTO(
             instance_id=instance.id,

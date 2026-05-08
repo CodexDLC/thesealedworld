@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import select
 
-from src.backend.features.items.models import ItemInstance, ItemOrigin, ItemPlacement
+from src.backend.features.items.models import ItemInstance, ItemOrigin, ItemPlacement, ItemTransaction
 
 if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession
@@ -116,6 +116,48 @@ class ItemInstanceRepository:
                 continue
             equipped.setdefault(char_id, []).append(self._combat_item(instance, placement))
         return equipped
+
+    async def transfer_character_items_to_system(
+        self,
+        character_id: int,
+        *,
+        holder_id: str | None = None,
+        storage_type: str = "deleted_character_recovery",
+        reason: str = "character_deleted",
+    ) -> int:
+        source_holder_id = str(character_id)
+        target_holder_id = holder_id or f"deleted_character:{source_holder_id}"
+        placements = (
+            await self.session.scalars(
+                select(ItemPlacement).where(
+                    ItemPlacement.holder_type == "character",
+                    ItemPlacement.holder_id == source_holder_id,
+                )
+            )
+        ).all()
+
+        for placement in placements:
+            self.session.add(
+                ItemTransaction(
+                    item_id=placement.item_id,
+                    from_holder_type=placement.holder_type,
+                    from_holder_id=placement.holder_id,
+                    from_storage_type=placement.storage_type,
+                    to_holder_type="system",
+                    to_holder_id=target_holder_id,
+                    to_storage_type=storage_type,
+                    reason=reason,
+                )
+            )
+            placement.holder_type = "system"
+            placement.holder_id = target_holder_id
+            placement.storage_type = storage_type
+            placement.slot = None
+            placement.position_index = None
+            placement.locked_by = None
+
+        await self.session.flush()
+        return len(placements)
 
     async def update_text(self, item_id: str, *, name: str, description: str, text_status: str) -> ItemInstance | None:
         instance = await self.get(item_id)

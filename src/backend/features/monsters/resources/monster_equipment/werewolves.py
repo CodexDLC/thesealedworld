@@ -259,7 +259,7 @@ WEREWOLVES_EQUIPMENT = {
         "slot": "ring_1",
         "type": "accessory",
         "base_power": 0,
-        "implicit_bonuses": {"charisma": 5, "leadership": 0.2},
+        "implicit_bonuses": {"charisma": 5, "skill_leadership": 0.2},
     },
     "amulet_ancestors": {
         "id": "amulet_ancestors",

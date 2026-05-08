@@ -40,6 +40,7 @@ async def test_generate_d4_capital_creates_first_playable_territory():
     data.upsert_zone = AsyncMock()
     data.bulk_upsert_nodes = AsyncMock()
     data.flush = AsyncMock()
+    data.get_nodes_in_rect = AsyncMock(return_value=[])
     generator = LLMWorldGenerator(data, ai=None)
 
     await generator._generate_d4_capital()
@@ -56,6 +57,9 @@ async def test_generate_d4_capital_creates_first_playable_territory():
     by_coord = {(node["x"], node["y"]): node for node in nodes}
     assert by_coord[(52, 52)]["flags"]["is_safe_zone"] is True
     assert by_coord[(52, 52)]["flags"]["has_road"] is True
+    assert by_coord[(48, 56)]["flags"]["is_safe_zone"] is False
+    assert by_coord[(48, 56)]["flags"]["threat_tier"] == 1
+    assert by_coord[(48, 56)]["flags"]["anchor_influence"]["threat"] == pytest.approx(0.03)
     assert by_coord[(45, 45)]["terrain_type"] == "outer_monolith_wall_walk"
     assert by_coord[(45, 45)]["flags"]["is_passable"] is True
     assert set(by_coord[(45, 45)]["flags"]["blocked_exits"]) == {"north", "west"}
@@ -66,6 +70,50 @@ async def test_generate_d4_capital_creates_first_playable_territory():
     assert {gate["flags"]["gate_direction"] for gate in gates} == {"north", "south", "west", "east"}
     assert all(gate["flags"]["exit_locked"] is True for gate in gates)
     assert all(gate["flags"]["gated_exits"][gate["flags"]["gate_direction"]]["state"] == "locked" for gate in gates)
+
+
+@pytest.mark.unit
+async def test_generate_d4_capital_preserves_enriched_non_static_content():
+    data = MagicMock()
+    data.upsert_region = AsyncMock()
+    data.upsert_zone = AsyncMock()
+    data.bulk_upsert_nodes = AsyncMock()
+    data.flush = AsyncMock()
+    data.get_nodes_in_rect = AsyncMock(
+        return_value=[
+            MagicMock(
+                x=48,
+                y=56,
+                content={
+                    "title": "Пепельный Двор",
+                    "description": "AI описание квартала.",
+                    "environment_tags": ["custom_ai_tag"],
+                },
+            ),
+            MagicMock(
+                x=49,
+                y=56,
+                content={
+                    "title": "Руины Старой Столицы",
+                    "description": (
+                        "Мертвый квартал древней столицы. Координата описывает не размер, а отдельную "
+                        "навигационную область: улицу, площадь, двор или фрагмент квартала."
+                    ),
+                    "environment_tags": ["old_fallback_tag"],
+                },
+            ),
+        ]
+    )
+    generator = LLMWorldGenerator(data, ai=None)
+
+    await generator._generate_d4_capital()
+
+    nodes = data.bulk_upsert_nodes.await_args.args[0]
+    by_coord = {(node["x"], node["y"]): node for node in nodes}
+    assert by_coord[(48, 56)]["content"]["title"] == "Пепельный Двор"
+    assert by_coord[(48, 56)]["content"]["description"] == "AI описание квартала."
+    assert by_coord[(49, 56)]["content"]["title"] == "Руины Старой Столицы"
+    assert by_coord[(49, 56)]["content"]["environment_tags"] != ["old_fallback_tag"]
 
 
 def test_static_inner_city_gates_are_safe_locations():
@@ -81,6 +129,7 @@ async def test_run_test_mode_generates_d4_then_loads_static_hub():
     data.upsert_zone = AsyncMock()
     data.bulk_upsert_nodes = AsyncMock()
     data.flush = AsyncMock()
+    data.get_nodes_in_rect = AsyncMock(return_value=[])
     data.region_exists = AsyncMock(return_value=True)
     data.get_zone = AsyncMock(return_value=True)
     generator = LLMWorldGenerator(data, ai=None)
@@ -125,6 +174,7 @@ async def test_enrich_d4_capital_nodes_uses_legacy_batch_payload_and_preserves_t
     data = MagicMock()
     data.get_nodes_in_rect = AsyncMock()
     data.update_content = AsyncMock()
+    data.update_flags = AsyncMock()
     ai = MagicMock()
     ai.include_router = MagicMock()
     ai.process = AsyncMock(
@@ -171,6 +221,7 @@ async def test_enrich_d4_capital_nodes_uses_legacy_batch_payload_and_preserves_t
     assert "boundary_context" in payload[0]
 
     assert data.update_content.await_count == 2
+    assert data.update_flags.await_count == 2
     saved_by_coord = {(call.args[0], call.args[1]): call.args[2] for call in data.update_content.await_args_list}
     assert saved_by_coord[(45, 52)]["title"] == "Запертые Врата"
     assert saved_by_coord[(45, 52)]["environment_tags"] == payload[0]["tags"]

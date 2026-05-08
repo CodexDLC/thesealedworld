@@ -8,6 +8,7 @@ Structure:
 
 import re
 from contextlib import asynccontextmanager
+from datetime import datetime
 
 import httpx
 from fastapi import FastAPI
@@ -59,7 +60,16 @@ async def lifespan(app: FastAPI):
 
             return re.sub(pattern, repl, text)
 
+        def combat_log_time_filter(timestamp: int | float | str | None) -> str:
+            if timestamp in (None, ""):
+                return ""
+            try:
+                return datetime.fromtimestamp(float(timestamp)).strftime("%H:%M:%S")
+            except (TypeError, ValueError, OSError):
+                return ""
+
         app.state.templates.env.filters["scenario_rich_text"] = scenario_rich_text_filter
+        app.state.templates.env.filters["combat_log_time"] = combat_log_time_filter
 
         app.state.backend_http_client = httpx.AsyncClient(timeout=10.0)
     except Exception:

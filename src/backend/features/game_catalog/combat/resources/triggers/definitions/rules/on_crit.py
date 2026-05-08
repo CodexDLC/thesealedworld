@@ -10,7 +10,7 @@ ON_CRIT_RULES = [
         chance=1.0,
         mutations={
             "formula.crit_damage_boost": False,
-            "add_effect": {"id": "bleed"},
+            "add_effect": {"id": "dot_bleed"},
         },
     ),
     TriggerDTO(
@@ -20,7 +20,6 @@ ON_CRIT_RULES = [
         event="ON_CRIT",
         chance=1.0,
         mutations={
-            "formula.crit_damage_boost": True,  # С уроном
             "add_effect": {"id": "stun"},
         },
     ),

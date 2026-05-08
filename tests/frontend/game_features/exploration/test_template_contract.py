@@ -9,6 +9,7 @@ from src.frontend.game_features.inventory.view_models.window import (
     inventory_card_class,
     inventory_card_dimensions,
 )
+from src.shared.schemas.inventory import InventoryWindowDTO
 
 
 def test_exploration_center_template_has_navigation_and_encounter_surfaces():
@@ -172,6 +173,7 @@ def test_game_shell_has_inventory_hud_window_placeholder():
     assert "hud-window inventory-window" in template
     assert "windows.inventory.open" in template
     assert "windows.inventory.dragging" in template
+    assert 'id="inventory-window-body"' in template
     assert "hud-window-drag-handle" in template
     assert "hud_window_resize_handles.html" in template
     assert "startHudWindowDrag('inventory'" in template
@@ -215,6 +217,67 @@ def test_inventory_window_template_renders_contract_view_model():
     assert "NO_RUNTIME_ITEMS" not in html
     assert 'data-inventory-cells="50"' in html
     assert "Leather Bracers" not in html
+
+
+def test_inventory_window_template_renders_backend_contract_dto():
+    env = Environment(loader=FileSystemLoader("src/frontend/templates"), autoescape=True)
+    template = env.get_template("game/components/inventory/window.html")
+    inventory = InventoryWindowDTO.model_validate(
+        {
+            "char_id": 7,
+            "avatar_url": "/avatar.png",
+            "avatar_name": "Ada",
+            "stats": {"slots_total": 64, "slots_used": 8},
+            "body_zones": [
+                {
+                    "zone_id": "chest",
+                    "label": "Torso",
+                    "position": "chest",
+                    "primary_slot": {
+                        "slot_id": "chest_armor",
+                        "label": "Armor",
+                        "layer": "armor",
+                        "item": {
+                            "item_id": "item-1",
+                            "base_id": "leather_armor",
+                            "item_type": "armor",
+                            "placement": "equipped",
+                            "name": "Leather Armor",
+                        },
+                    },
+                }
+            ],
+            "weapon_slots": [],
+            "accessory_rows": [],
+            "quick_slots": [{"slot_id": "belt_1", "slot_index": 1, "enabled": True}],
+            "tabs": [{"tab_id": "items", "label": "Items", "icon": "I", "is_active": True}],
+            "visible_rows": [
+                {
+                    "item_id": "item-2",
+                    "icon": "B",
+                    "name": "Bronze Sword",
+                    "item_type": "weapon",
+                    "quantity": 1,
+                    "rarity": "shared",
+                    "equip_target": "main_hand",
+                    "details": {
+                        "item_id": "item-2",
+                        "name": "Bronze Sword",
+                        "item_type": "weapon",
+                        "rarity": "shared",
+                        "details": [{"label": "Damage", "value": "+3", "tone": "positive"}],
+                    },
+                }
+            ],
+        }
+    )
+
+    html = template.render(inventory_window=inventory)
+
+    assert 'data-contract-state="SHARED_INVENTORY_CONTRACT_V1"' in html
+    assert "Leather Armor" in html
+    assert "Bronze Sword" in html
+    assert 'data-inventory-cells="64"' in html
 
 
 def test_inventory_card_mapper_builds_grid_card_from_type_and_numeric_size():
@@ -297,6 +360,8 @@ def test_game_header_nav_marks_open_panels_and_windows_active():
     assert "leftOpen && leftPanelView" in template
     assert "rightOpen && rightPanelView" in template
     assert "windows.{{ item.window }}.open" in template
+    assert 'hx-get="/game/inventory/window?char_id={{ char_id }}"' in template
+    assert 'hx-target="#inventory-window-body"' in template
 
 
 def test_game_runtime_loads_before_alpine_initializes():

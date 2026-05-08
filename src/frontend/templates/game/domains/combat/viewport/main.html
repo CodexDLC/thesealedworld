@@ -178,43 +178,78 @@
                         <span class="combat-action-label">FEINTS</span>
                         <div class="combat-action-list">
                             {% for action in combat_screen.feint_options[:3] %}
-                                <button type="button"
-                                        class="combat-feint-option"
-                                        hx-post="/game/combat/move"
-                                        hx-target="#main-content .shell-constrained"
-                                        hx-swap="innerHTML"
-                                        hx-disabled-elt="this"
-                                        hx-vals='{"char_id": {{ char_id }}, "action": "exchange", "target_id": "{{ action.target_id or (combat_screen.primary_attack.target_id if combat_screen.primary_attack else "") }}", "feint_id": "{{ action.feint_id or "" }}"}'
-                                        {% if action.catalog and action.catalog_key %}
-                                        data-catalog="{{ action.catalog }}"
-                                            data-catalog-key="{{ action.catalog_key }}"
-                                            data-catalog-tooltip="description"
-                                        {% endif %}
-                                        data-tippy-content="{{ action.reason or action.label }}"
-                                        data-tippy-theme="game-hint"
-                                        {% if not action.enabled %}disabled{% endif %}>
-                                    <img src="{{ action.icon_url }}" alt="">
-                                    <span {% if action.catalog and action.catalog_key %}
+                                <div class="combat-feint-row {% if action.pinned %}combat-feint-row--pinned{% endif %}">
+                                    <button type="button"
+                                            class="combat-feint-pin"
+                                            hx-post="/game/combat/feint-pin"
+                                            hx-target="#main-content .shell-constrained"
+                                            hx-swap="innerHTML"
+                                            hx-disabled-elt="this"
+                                            hx-vals='{"char_id": {{ char_id }}, "feint_id": "{% if not action.pinned %}{{ action.feint_id or "" }}{% endif %}"}'
+                                            aria-pressed="{{ 'true' if action.pinned else 'false' }}"
+                                            data-tippy-content="{{ 'Открепить прием' if action.pinned else 'Закрепить прием до следующего размена' }}"
+                                            data-tippy-theme="game-hint"
+                                            {% if not action.feint_id %}disabled{% endif %}>
+                                        <span>{{ '◆' if action.pinned else '◇' }}</span>
+                                    </button>
+                                    <button type="button"
+                                            class="combat-feint-option"
+                                            hx-post="/game/combat/move"
+                                            hx-target="#main-content .shell-constrained"
+                                            hx-swap="innerHTML"
+                                            hx-disabled-elt="this"
+                                            hx-vals='{"char_id": {{ char_id }}, "action": "exchange", "target_id": "{{ action.target_id or (combat_screen.primary_attack.target_id if combat_screen.primary_attack else "") }}", "feint_id": "{{ action.feint_id or "" }}"}'
+                                            {% if action.catalog and action.catalog_key %}
                                             data-catalog="{{ action.catalog }}"
-                                            data-catalog-key="{{ action.catalog_key }}"
-                                            data-catalog-field="title"
-                                          {% endif %}>{{ action.label }}</span>
-                                </button>
+                                                data-catalog-key="{{ action.catalog_key }}"
+                                                data-catalog-tooltip="description"
+                                            {% endif %}
+                                            data-tippy-content="{{ action.reason or action.label }}"
+                                            data-tippy-theme="game-hint"
+                                            {% if not action.enabled %}disabled{% endif %}>
+                                        <img src="{{ action.icon_url }}" alt="">
+                                        <span class="combat-feint-main">
+                                            <span class="combat-feint-title"
+                                                  {% if action.catalog and action.catalog_key %}
+                                                  data-catalog="{{ action.catalog }}"
+                                                  data-catalog-key="{{ action.catalog_key }}"
+                                                  data-catalog-field="title"
+                                                  {% endif %}>{{ action.label }}</span>
+                                            <span class="combat-feint-meta">
+                                                {% for token, amount in action.cost.items() %}
+                                                    {{ token|upper }} {{ amount }}{% if not loop.last %} / {% endif %}
+                                                {% else %}
+                                                    COST_NO_DATA
+                                                {% endfor %}
+                                            </span>
+                                        </span>
+                                    </button>
+                                </div>
                             {% else %}
                                 {% for index in [1, 2, 3] %}
+                                    <div class="combat-feint-row combat-feint-row--empty">
                                     <button type="button" class="combat-feint-option combat-feint-option--debug" disabled>
                                         <span>Нет приема</span>
                                     </button>
+                                    </div>
                                 {% endfor %}
                             {% endfor %}
                         </div>
                     </div>
 
-                    {% if combat_screen.ability_options %}
+                    {% set ability_source = combat_screen.ability_options if combat_screen.ability_options is defined else none %}
+                    {% if ability_source is mapping %}
+                        {% set ability_options = ability_source.values() | list %}
+                    {% elif ability_source is sequence and ability_source is not string %}
+                        {% set ability_options = ability_source %}
+                    {% else %}
+                        {% set ability_options = [] %}
+                    {% endif %}
+                    {% if ability_options %}
                     <div class="combat-action-group combat-action-group--abilities">
                         <span class="combat-action-label">ABILITIES</span>
                         <div class="combat-ability-grid">
-                            {% for action in combat_screen.ability_options %}
+                            {% for action in ability_options %}
                                 <button type="button"
                                         class="combat-ability-option"
                                         hx-post="/game/combat/move"
@@ -235,29 +270,11 @@
                             {% endfor %}
                         </div>
                     </div>
-                    {% elif debug_enabled %}
-                    <div class="combat-action-group combat-action-group--abilities combat-action-group--debug">
-                        <span class="combat-action-label">ABILITIES</span>
-                        <div class="combat-ability-grid">
-                            {% for icon, label in [
-                                ('ability-debug-swirl.svg', 'DEBUG ARCANE'),
-                                ('ability-debug-shield.svg', 'DEBUG WARD'),
-                                ('ability-debug-rays.svg', 'DEBUG BURST')
-                            ] %}
-                                <button type="button"
-                                        class="combat-ability-option"
-                                        data-tippy-content="{{ label }} // DEBUG_ABILITY_PLACEHOLDER"
-                                        data-tippy-theme="game-hint"
-                                        disabled>
-                                    <img src="/static/images/ui/combat-icons/{{ icon }}" alt="">
-                                </button>
-                            {% endfor %}
-                        </div>
-                    </div>
                     {% endif %}
                 </section>
 
                 {% set combat_log_entries = combat_screen.log_lines %}
+                {% set combat_log_turns = combat_screen.log_turns %}
                 {% set combat_log_page = 1 %}
                 {% set combat_log_page_size = 8 %}
                 {% set combat_log_page_size_options = [4, 8, 12] %}

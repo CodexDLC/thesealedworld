@@ -11,6 +11,7 @@ from src.backend.features.combat.dto.actor import (
     ActorMetaDTO,
     ActorRawDTO,
     ActorSnapshot,
+    ActorStats,
     ActorStatusesDTO,
 )
 from src.backend.features.combat.dto.session import (
@@ -58,6 +59,9 @@ class CombatSessionIntegration:
     async def get_logs(self, session_id: str, *, start: int = 0, stop: int = -1) -> list[str]:
         return await self.combat_manager.get_logs(session_id, start=start, stop=stop)
 
+    async def get_logs_by_turn(self, session_id: str) -> dict[str, list[str]]:
+        return await self.combat_manager.get_logs_by_turn(session_id)
+
     async def get_moves_batch(self, session_id: str, actor_ids: Sequence[str | int]) -> dict[str, Any]:
         return await self.combat_manager.get_moves_batch(session_id, actor_ids)
 
@@ -76,6 +80,9 @@ class CombatSessionIntegration:
     async def return_feint(self, session_id: str, actor_id: int | str, feint_id: str, cost: dict[str, int]) -> None:
         await self.combat_manager.return_feint_to_hand(session_id, actor_id, feint_id, cost)
 
+    async def pin_feint(self, session_id: str, actor_id: int | str, feint_id: str | None) -> bool:
+        return await self.combat_manager.pin_feint_atomic(session_id, actor_id, feint_id)
+
     async def register_exchange_move(
         self,
         session_id: str,
@@ -93,7 +100,7 @@ class CombatSessionIntegration:
         session_id: str,
         actor_id: int | str,
         exchange_moves_data: list[dict[str, Any]],
-    ) -> int:
+    ) -> list[str]:
         return await self.combat_manager.register_moves_batch_atomic(session_id, actor_id, exchange_moves_data)
 
     async def append_moves_batch(self, session_id: str, actor_id: int | str, moves: list[Any]) -> None:
@@ -268,6 +275,8 @@ class CombatSessionIntegration:
                 data["statuses"],
                 data["xp"],
                 data.get("skills", {}),
+                data.get("stats"),
+                data.get("explanation", {}),
             )
 
             # Cache Move
@@ -275,7 +284,12 @@ class CombatSessionIntegration:
                 moves_cache[cid] = data["move"]
 
         return BattleContext(
-            session_id=session_id, meta=meta, actors=actors_map, moves_cache=moves_cache, pending_logs=[]
+            session_id=session_id,
+            meta=meta,
+            actors=actors_map,
+            moves_cache=moves_cache,
+            pending_logs=[],
+            pending_analytics=[],
         )
 
     async def load_snapshot_context(self, session_id: str) -> BattleContext | None:
@@ -302,6 +316,7 @@ class CombatSessionIntegration:
                     "tactics": actor.meta.tactics,
                     "is_dead": actor.meta.is_dead,
                     "tokens": actor.meta.tokens,
+                    "feints": actor.meta.feints.model_dump(mode="json"),
                     "exchange_counter": actor.meta.exchange_counter,
                 },
                 "statuses": actor.statuses.model_dump(),
@@ -312,8 +327,8 @@ class CombatSessionIntegration:
             }
             updates[cid] = actor_updates
 
-        # 2. Prepare Logs
-        logs = [json.dumps(entry) for entry in ctx.pending_logs]
+        # 2. Prepare logs. Storage groups entries by global_turn, so keep structured payloads here.
+        logs = ctx.pending_logs
 
         # 3. Update dead_actors list if needed
         dead_actors_update = None
@@ -331,6 +346,7 @@ class CombatSessionIntegration:
             target_returns=ctx.pending_target_returns,
             dead_actors=dead_actors_update,
             meta_update={"step_counter": ctx.meta.step_counter},
+            analytics=ctx.pending_analytics,
         )
 
     # ==========================================================================
@@ -358,7 +374,18 @@ class CombatSessionIntegration:
         )
 
     def _build_snapshot(
-        self, cid, team, r_state, r_raw, r_loadout, r_meta, r_statuses, r_xp, r_skills
+        self,
+        cid,
+        team,
+        r_state,
+        r_raw,
+        r_loadout,
+        r_meta,
+        r_statuses,
+        r_xp,
+        r_skills,
+        r_stats=None,
+        r_explanation=None,
     ) -> ActorSnapshot:
         meta_dict = r_meta or {}
 
@@ -378,6 +405,7 @@ class CombatSessionIntegration:
             is_dead=bool(r_state.get("is_dead", False)),
             exchange_counter=int(r_state.get("exchange_counter", 0)),
             tokens=r_state.get("tokens") or {},
+            feints=r_state.get("feints") or {},
         )
 
         raw_dict = r_raw or {}
@@ -389,7 +417,11 @@ class CombatSessionIntegration:
         }
 
         loadout = ActorLoadoutDTO(
-            layout=loadout_dict.get("equipment_layout", {}),
+            layout=loadout_dict.get("layout", {}),
+            equipment_layout=loadout_dict.get("equipment_layout", {}),
+            hand_usage=loadout_dict.get("hand_usage", {}),
+            two_handed=bool(loadout_dict.get("two_handed", False)),
+            weapon_slots=loadout_dict.get("weapon_slots", []),
             belt=loadout_dict.get("belt", []),
             known_abilities=loadout_dict.get("known_abilities", []),
             tags=loadout_dict.get("tags", []),
@@ -401,6 +433,8 @@ class CombatSessionIntegration:
             effects=[ActiveEffectDTO(**e) for e in statuses_dict.get("effects", [])],
         )
 
+        stats = self._build_actor_stats(r_stats)
+
         return ActorSnapshot(
             meta=meta,
             raw=ActorRawDTO(**merged_raw),
@@ -408,7 +442,18 @@ class CombatSessionIntegration:
             statuses=statuses,
             xp_buffer=r_xp or {},
             skills=r_skills or {},
+            explanation=r_explanation or {},
+            stats=stats,
         )
+
+    def _build_actor_stats(self, r_stats) -> ActorStats | None:
+        if not isinstance(r_stats, dict) or not r_stats:
+            return None
+
+        if "mods" in r_stats or "skills" in r_stats or "calculated_at" in r_stats:
+            return ActorStats(**r_stats)
+
+        return ActorStats.from_flat_dict(r_stats)
 
 
 CombatDataService = CombatSessionIntegration

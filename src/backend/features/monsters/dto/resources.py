@@ -22,8 +22,8 @@ class MonsterCombatProfileDTO(BaseModel):
 
 
 class MonsterSkillKitDTO(BaseModel):
-    base: dict[str, int] = Field(default_factory=dict)
-    role_bonus: dict[MonsterRole, dict[str, int]] = Field(default_factory=dict)
+    base: dict[str, float] = Field(default_factory=dict)
+    role_bonus: dict[MonsterRole, dict[str, float]] = Field(default_factory=dict)
 
 
 class MonsterAbilityDefinitionDTO(BaseModel):

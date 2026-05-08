@@ -79,6 +79,28 @@ class FeintService:
             available_pool.remove(feint_id)
 
     @staticmethod
+    def reroll_hand(actor: ActorMetaDTO, hand_size: int = 3) -> None:
+        """
+        Обновляет руку после размена.
+
+        Закрепленный финт остается в руке и продолжает держать токены замороженными.
+        Все остальные неиспользованные финты возвращают стоимость в свободные токены,
+        удаляются из руки, затем рука снова случайно пополняется до hand_size.
+        """
+        pinned = actor.feints.pinned
+        if pinned and pinned not in actor.feints.hand:
+            actor.feints.pinned = None
+            pinned = None
+
+        for feint_id, cost in list(actor.feints.hand.items()):
+            if feint_id == pinned:
+                continue
+            FeintService._return_tokens(actor.tokens, cost)
+            actor.feints.remove_from_hand(feint_id)
+
+        FeintService.refill_hand(actor, hand_size=hand_size)
+
+    @staticmethod
     def return_to_hand(actor: ActorMetaDTO, feint_key: str, cost: dict[str, int]) -> None:
         """
         Возвращает финт в руку (атака провалилась, цель мертва).
@@ -88,6 +110,11 @@ class FeintService:
         """
         # Возвращаем финт в руку
         actor.feints.add_to_hand(feint_key, cost)
+
+    @staticmethod
+    def refund_cost(actor: ActorMetaDTO, cost: dict[str, int]) -> None:
+        """Возвращает замороженную стоимость использованного финта в свободные токены."""
+        FeintService._return_tokens(actor.tokens, cost)
 
     @staticmethod
     def get_hand_for_dashboard(actor: ActorMetaDTO) -> dict[str, str]:

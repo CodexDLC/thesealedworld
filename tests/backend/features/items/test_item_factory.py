@@ -21,6 +21,9 @@ def test_item_factory_generates_combat_ready_item_spec():
     assert item.rarity == "uncommon"
     assert item.power > 0
     assert item.slot == "two_hand"
+    assert item.implicit_bonuses["accuracy_penalty"] == pytest.approx(0.288)
+    assert item.implicit_bonuses["main_hand_penetration"] == pytest.approx(0.264)
+    assert item.implicit_bonuses["evasion_penalty"] == pytest.approx(-0.12)
     assert "phys_dmg_flat" not in item.bonuses
     assert "physical_damage_bonus" in item.bonuses
     assert item.metadata["source"] == "scenario:awakening_rift"

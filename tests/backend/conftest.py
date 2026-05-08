@@ -20,10 +20,9 @@ class FakeRedisClient:
         if path == "$":
             self.store[key] = value
         elif path.startswith("$."):
-            section = path.removeprefix("$.")
             if key not in self.store:
                 self.store[key] = {}
-            self.store[key][section] = value
+            self._set_path(self.store[key], path.removeprefix("$."), value)
         return True
 
     async def get(self, key: str, path: str = "$") -> list[Any] | None:
@@ -32,8 +31,7 @@ class FakeRedisClient:
             return None
         if path == "$":
             return [doc]
-        section = str(path).removeprefix("$.")
-        return [doc.get(section)]
+        return [self._get_path(doc, str(path).removeprefix("$."))]
 
     async def expire(self, key: str, ttl: int) -> bool:
         if key not in self.store:
@@ -48,6 +46,32 @@ class FakeRedisClient:
                 del self.ttls[key]
             return True
         return False
+
+    async def scan(self, cursor: int = 0, match: str | None = None, count: int = 100) -> tuple[int, list[str]]:
+        prefix = (match or "").removesuffix("*")
+        keys = [key for key in self.store if not prefix or key.startswith(prefix)]
+        return 0, keys[:count]
+
+    @staticmethod
+    def _set_path(doc: dict[str, Any], dotted: str, value: Any) -> None:
+        current = doc
+        parts = dotted.split(".")
+        for part in parts[:-1]:
+            next_value = current.get(part)
+            if not isinstance(next_value, dict):
+                next_value = {}
+                current[part] = next_value
+            current = next_value
+        current[parts[-1]] = value
+
+    @staticmethod
+    def _get_path(doc: dict[str, Any], dotted: str) -> Any:
+        current: Any = doc
+        for part in dotted.split("."):
+            if not isinstance(current, dict):
+                return None
+            current = current.get(part)
+        return current
 
 class FakePipeline:
     def __init__(self, client: FakeRedisClient) -> None:
@@ -86,10 +110,9 @@ class FakePipeline:
                     if path == "$":
                         self.client.store[key] = value
                     elif str(path).startswith("$."):
-                        section = str(path).removeprefix("$.")
                         if key not in self.client.store or not isinstance(self.client.store[key], dict):
                             self.client.store[key] = {}
-                        self.client.store[key][section] = value
+                        self.client._set_path(self.client.store[key], str(path).removeprefix("$."), value)
                     results.append(True)
             elif command == "expire":
                 if key not in self.client.store:
@@ -104,8 +127,7 @@ class FakePipeline:
                 elif payload == "$":
                     results.append([doc])
                 else:
-                    section = str(payload).removeprefix("$.")
-                    results.append([doc.get(section)])
+                    results.append([self.client._get_path(doc, str(payload).removeprefix("$."))])
         return results
 
 class FakeRedisService:

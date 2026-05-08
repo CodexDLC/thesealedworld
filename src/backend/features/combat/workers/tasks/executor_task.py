@@ -1,4 +1,3 @@
-import contextlib
 import time
 
 from loguru import logger as log
@@ -70,14 +69,36 @@ async def execute_batch_task(ctx: dict, job_data: dict) -> None:
                 return
 
             actions = []
+            invalid_actions = 0
             for raw in raw_actions:
-                with contextlib.suppress(Exception):
+                try:
                     # Валидируем JSON, битые пакеты игнорируем
                     actions.append(CombatActionDTO.model_validate_json(raw))
+                except Exception:
+                    invalid_actions += 1
+
+            log.info(
+                "ExecutorBatchLoaded | session_id={session_id} requested={requested} raw={raw} parsed={parsed} invalid={invalid} step={step}",
+                session_id=session_id,
+                requested=job.batch_size,
+                raw=len(raw_actions),
+                parsed=len(actions),
+                invalid=invalid_actions,
+                step=battle_ctx.meta.step_counter,
+            )
 
             # 4. Process Batch (Pure Logic Calculation)
             # Вся математика происходит тут
             processed_ids = await executor.process_batch(battle_ctx, actions)
+            log.info(
+                "ExecutorBatchProcessed | session_id={session_id} processed={processed} step={step} logs={logs} deaths={deaths} target_returns={returns}",
+                session_id=session_id,
+                processed=len(processed_ids),
+                step=battle_ctx.meta.step_counter,
+                logs=len(battle_ctx.pending_logs),
+                deaths=len(battle_ctx.pending_dead_actors),
+                returns=len(battle_ctx.pending_target_returns),
+            )
 
             # 5. Commit (Zombie Check & Save)
             # Перед записью проверяем, не истек ли наш лок пока мы считали
@@ -91,9 +112,13 @@ async def execute_batch_task(ctx: dict, job_data: dict) -> None:
             await data_service.commit_session(battle_ctx, processed_ids)
 
             log.info(
-                "ExecutorSuccess | session_id={session_id} processed={count}",
+                "ExecutorSuccess | session_id={session_id} processed={count} step={step} logs={logs} deaths={deaths} target_returns={returns}",
                 session_id=session_id,
                 count=len(processed_ids),
+                step=battle_ctx.meta.step_counter,
+                logs=len(battle_ctx.pending_logs),
+                deaths=len(battle_ctx.pending_dead_actors),
+                returns=len(battle_ctx.pending_target_returns),
             )
 
         finally:

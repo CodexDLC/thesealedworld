@@ -10,6 +10,7 @@ if TYPE_CHECKING:
         CombatActorCardDTO,
         CombatDashboardDTO,
         CombatEffectBadgeDTO,
+        CombatEventDTO,
         CombatFeintOptionDTO,
     )
 
@@ -37,6 +38,9 @@ class CombatVitalsVM(BaseModel):
     energy_current: int
     energy_max: int
     energy_percent: int
+    stamina_current: int
+    stamina_max: int
+    stamina_percent: int
     tactics: int
 
 
@@ -103,6 +107,8 @@ class CombatActionVM(BaseModel):
     reason: str | None = None
     catalog: str | None = None
     catalog_key: str | None = None
+    pinned: bool = False
+    cost: dict[str, int] = Field(default_factory=dict)
 
 
 class CombatTokenVM(BaseModel):
@@ -116,8 +122,32 @@ class CombatTokenVM(BaseModel):
 
 
 class CombatLogLineVM(BaseModel):
+    id: str | None = None
     text: str
     kind: str = "log"
+    severity: str = "normal"
+    timestamp: int | float | None = None
+    global_turn: int | None = None
+    source: dict[str, object] | None = None
+    target: dict[str, object] | None = None
+    action: dict[str, object] | None = None
+    template: dict[str, object] | None = None
+    outcome: str | None = None
+    resources: list[dict[str, object]] = Field(default_factory=list)
+    badges: list[dict[str, object]] = Field(default_factory=list)
+    effects: list[dict[str, object]] = Field(default_factory=list)
+    flags: dict[str, bool] = Field(default_factory=dict)
+    catalog: str | None = None
+    catalog_key: str | None = None
+    catalog_event: str | None = None
+    catalog_taxonomy: str = "humanoid"
+    catalog_tooltip: str | None = None
+
+
+class CombatLogTurnVM(BaseModel):
+    global_turn: int | None = None
+    title: str
+    lines: list[CombatLogLineVM] = Field(default_factory=list)
 
 
 class CombatScreenVM(BaseModel):
@@ -143,6 +173,7 @@ class CombatScreenVM(BaseModel):
     ability_options: list[CombatActionVM] = Field(default_factory=list)
     token_bar: list[CombatTokenVM] = Field(default_factory=list)
     log_lines: list[CombatLogLineVM] = Field(default_factory=list)
+    log_turns: list[CombatLogTurnVM] = Field(default_factory=list)
     log_total: int = 0
     winner_team: str | None = None
 
@@ -173,13 +204,113 @@ def build_combat_screen_vm(dashboard: CombatDashboardDTO) -> CombatScreenVM:
         feint_options=feints,
         ability_options=abilities,
         token_bar=_token_bar(dashboard.hero.tokens),
-        log_lines=[
-            CombatLogLineVM(text=event.text or "NO_DATA", kind=event.type)
-            for event in dashboard.events_delta.events[-8:]
-        ],
+        log_lines=[_log_line(event) for event in dashboard.events_delta.events[-8:]],
+        log_turns=_log_turns(dashboard),
         log_total=dashboard.log_total,
         winner_team=dashboard.winner_team,
     )
+
+
+def _log_line(event: CombatEventDTO) -> CombatLogLineVM:
+    action = _model_dict(getattr(event, "action", None)) or _event_data_dict(event.data, "action")
+    template = _model_dict(getattr(event, "template", None)) or _event_data_dict(event.data, "template")
+    source = _model_dict(getattr(event, "source", None)) or _event_data_dict(event.data, "source")
+    target = _model_dict(getattr(event, "target", None)) or _event_data_dict(event.data, "target")
+    catalog = _event_data_str(event.data, "catalog") or _dict_str(action, "catalog")
+    catalog_key = _event_data_str(event.data, "catalog_key") or _dict_str(action, "catalog_key")
+    catalog_event = _event_data_str(event.data, "catalog_event") or _dict_str(action, "event")
+    catalog_taxonomy = _event_data_str(event.data, "catalog_taxonomy") or _dict_str(action, "taxonomy") or "humanoid"
+    return CombatLogLineVM(
+        id=getattr(event, "id", None),
+        text=event.text or "NO_DATA",
+        kind=getattr(event, "kind", None) or event.type,
+        severity=getattr(event, "severity", None) or "normal",
+        timestamp=event.timestamp,
+        global_turn=_event_data_int(event, "global_turn"),
+        source=source,
+        target=target,
+        action=action,
+        template=template,
+        outcome=getattr(event, "outcome", None) or _event_data_str(event.data, "outcome"),
+        resources=[_model_dict(resource) for resource in getattr(event, "resources", [])],
+        badges=[_model_dict(badge) for badge in getattr(event, "badges", [])],
+        effects=[dict(effect) for effect in getattr(event, "effects", []) if isinstance(effect, dict)],
+        flags=dict(getattr(event, "flags", {}) or {}),
+        catalog=catalog,
+        catalog_key=catalog_key,
+        catalog_event=catalog_event,
+        catalog_taxonomy=catalog_taxonomy,
+        catalog_tooltip=_event_data_str(event.data, "catalog_tooltip"),
+    )
+
+
+def _log_turns(dashboard: CombatDashboardDTO) -> list[CombatLogTurnVM]:
+    turns = dashboard.events_delta.turns
+    if not turns:
+        grouped: dict[int | None, list[CombatEventDTO]] = {}
+        for event in dashboard.events_delta.events[-8:]:
+            grouped.setdefault(_event_data_int(event, "global_turn"), []).append(event)
+        return [
+            CombatLogTurnVM(
+                global_turn=turn,
+                title=f"Ход {turn}" if turn is not None else "Ход NO_DATA",
+                lines=[_log_line(event) for event in events],
+            )
+            for turn, events in grouped.items()
+        ]
+
+    return [
+        CombatLogTurnVM(
+            global_turn=turn.global_turn,
+            title=turn.title,
+            lines=[_log_line(event) for event in turn.entries],
+        )
+        for turn in turns[-8:]
+    ]
+
+
+def _event_data_int(event: CombatEventDTO, key: str) -> int | None:
+    value = getattr(event, key, None)
+    if value in (None, ""):
+        value = event.data.get(key)
+    if value in (None, ""):
+        return None
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _event_data_str(data: dict[str, object], key: str) -> str | None:
+    value = data.get(key)
+    if value in (None, ""):
+        return None
+    return str(value)
+
+
+def _event_data_dict(data: dict[str, object], key: str) -> dict[str, object] | None:
+    value = data.get(key)
+    return dict(value) if isinstance(value, dict) else None
+
+
+def _model_dict(value: object) -> dict[str, object]:
+    if value is None:
+        return {}
+    if isinstance(value, dict):
+        return dict(value)
+    model_dump = getattr(value, "model_dump", None)
+    if callable(model_dump):
+        return model_dump(mode="json")
+    return {}
+
+
+def _dict_str(data: dict[str, object] | None, key: str) -> str | None:
+    if not data:
+        return None
+    value = data.get(key)
+    if value in (None, ""):
+        return None
+    return str(value)
 
 
 def _actor_panel(actor: CombatActorCardDTO, *, include_belt: bool) -> CombatActorPanelVM:
@@ -202,6 +333,7 @@ def _actor_panel(actor: CombatActorCardDTO, *, include_belt: bool) -> CombatActo
 def _vitals(actor: CombatActorCardDTO) -> CombatVitalsVM:
     hp_max = max(actor.vitals.hp_max, 1)
     energy_max = max(actor.vitals.energy_max, 1)
+    stamina_max = max(actor.vitals.stamina_max, 1)
     return CombatVitalsVM(
         hp_current=actor.vitals.hp_current,
         hp_max=hp_max,
@@ -209,6 +341,9 @@ def _vitals(actor: CombatActorCardDTO) -> CombatVitalsVM:
         energy_current=actor.vitals.energy_current,
         energy_max=energy_max,
         energy_percent=max(0, min(100, round(actor.vitals.energy_current / energy_max * 100))),
+        stamina_current=actor.vitals.stamina_current,
+        stamina_max=stamina_max,
+        stamina_percent=max(0, min(100, round(actor.vitals.stamina_current / stamina_max * 100))),
         tactics=actor.vitals.tactics,
     )
 
@@ -337,6 +472,8 @@ def _split_actions(
             feint_id=feint.feint_id,
             catalog="feints",
             catalog_key=feint.feint_id,
+            pinned=feint.pinned,
+            cost=feint.cost,
         )
         for feint in feint_hand
     ]

@@ -1,4 +1,4 @@
-from src.backend.features.game_catalog.skills.dto.catalog import SkillCategory, SkillDTO, SkillGroup
+from src.backend.features.game_catalog.skills.dto.catalog import SkillCategory, SkillDTO, SkillGroup, SkillUiGroup
 
 TACTICAL_SKILLS = [
     SkillDTO(
@@ -6,7 +6,8 @@ TACTICAL_SKILLS = [
         name_en="One Handed Style",
         name_ru="Одноручный стиль",
         category=SkillCategory.COMBAT,
-        group=SkillGroup.TACTICAL,
+        group=SkillGroup.COMBAT,
+        ui_group=SkillUiGroup.TACTICAL,
         stat_weights={"agility": 2, "perception": 1, "strength": 1},
         rate_mod=1.0,
         wall_mod=1.0,
@@ -17,7 +18,8 @@ TACTICAL_SKILLS = [
         name_en="Two Handed Style",
         name_ru="Двуручный стиль",
         category=SkillCategory.COMBAT,
-        group=SkillGroup.TACTICAL,
+        group=SkillGroup.COMBAT,
+        ui_group=SkillUiGroup.TACTICAL,
         stat_weights={"strength": 2, "endurance": 1, "agility": 1},
         rate_mod=1.0,
         wall_mod=1.0,
@@ -28,7 +30,8 @@ TACTICAL_SKILLS = [
         name_en="Shield Mastery",
         name_ru="Владение щитом",
         category=SkillCategory.COMBAT,
-        group=SkillGroup.TACTICAL,
+        group=SkillGroup.COMBAT,
+        ui_group=SkillUiGroup.TACTICAL,
         stat_weights={"strength": 2, "endurance": 1, "agility": 1},
         rate_mod=1.0,
         wall_mod=1.0,
@@ -39,7 +42,8 @@ TACTICAL_SKILLS = [
         name_en="Dual Wield",
         name_ru="Бой двумя руками",
         category=SkillCategory.COMBAT,
-        group=SkillGroup.TACTICAL,
+        group=SkillGroup.COMBAT,
+        ui_group=SkillUiGroup.TACTICAL,
         stat_weights={"agility": 2, "perception": 1, "strength": 1},
         rate_mod=1.0,
         wall_mod=1.0,

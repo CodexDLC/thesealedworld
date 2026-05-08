@@ -3,13 +3,19 @@ import json
 import pytest
 from fastapi import HTTPException
 
-from src.backend.features.combat.api.router import get_combat_view, register_combat_move
+from src.backend.features.combat.api.router import get_combat_view, pin_combat_feint, register_combat_move
 from src.backend.features.combat.integrations import CombatSystemIntegrator
 from src.backend.features.combat.orchestrators.runtime_orchestrator import CombatRuntimeOrchestrator
 from src.backend.features.combat.services.result_archive_service import CombatResultArchiveService
 from src.backend.features.combat.services.session_service import CombatSessionService
+from src.backend.features.combat.services.view_service import CombatViewService
 from src.shared.enums import CoreDomain
-from src.shared.schemas.combat import CombatDashboardDTO, CombatRegisterMoveRequestDTO
+from src.shared.schemas.combat import (
+    CombatDashboardDTO,
+    CombatPinFeintRequestDTO,
+    CombatRegisterMoveRequestDTO,
+    CombatResultDTO,
+)
 
 
 @pytest.fixture(autouse=True)
@@ -22,6 +28,7 @@ class FakeCombatStore:
         self.exchange_moves = []
         self.instant_moves = []
         self.consumed_feints = []
+        self.pinned_feints = []
 
     async def get_meta(self, session_id):
         return {
@@ -79,6 +86,22 @@ class FakeCombatStore:
     async def get_logs(self, session_id, *, start=0, stop=-1):
         return [json.dumps({"type": "log", "text": "started", "timestamp": 1, "tags": ["combat"], "data": {"x": 1}})]
 
+    async def get_logs_by_turn(self, session_id):
+        return {
+            "1": [
+                json.dumps(
+                    {
+                        "type": "log",
+                        "text": "started",
+                        "timestamp": 1,
+                        "tags": ["combat"],
+                        "data": {"x": 1, "global_turn": 1},
+                        "global_turn": 1,
+                    }
+                )
+            ]
+        }
+
     async def get_actor_state(self, session_id, actor_id):
         return {"afk_level": 0}
 
@@ -88,6 +111,10 @@ class FakeCombatStore:
 
     async def return_feint(self, session_id, actor_id, feint_id, cost):
         return None
+
+    async def pin_feint(self, session_id, actor_id, feint_id):
+        self.pinned_feints.append((session_id, actor_id, feint_id))
+        return feint_id in ("true_strike", None)
 
     async def register_exchange_move(self, session_id, actor_id, target_id, move_dto):
         self.exchange_moves.append((session_id, actor_id, target_id, move_dto))
@@ -100,6 +127,12 @@ class FakeCombatStore:
 class MissingCombatStore(FakeCombatStore):
     async def get_meta(self, session_id):
         return None
+
+
+class FinishedCombatStore(FakeCombatStore):
+    async def get_meta(self, session_id):
+        meta = await super().get_meta(session_id)
+        return {**meta, "active": "0", "status": "finished", "winner": "team_1"}
 
 
 class LockedCombatStore(FakeCombatStore):
@@ -173,6 +206,42 @@ async def test_combat_session_service_returns_logs():
     logs = await service.get_logs(1)
 
     assert [entry.text for entry in logs.entries] == ["started"]
+    assert logs.turns[0].global_turn == 1
+    assert [entry.text for entry in logs.turns[0].entries] == ["started"]
+
+
+def test_combat_view_service_collapses_fragmented_entries_into_turn_blocks():
+    service = CombatViewService()
+    turns = service.parse_logs_by_turn(
+        {
+            "unknown-1": ['{"type":"RESULT","text":"Ход 1. A атакует B.","timestamp":1}'],
+            "unknown-2": ['{"type":"RESULT","text":"B парирует.","timestamp":2}'],
+            "unknown-3": ['{"type":"RESULT","text":"Ход 1. B отвечает A.","timestamp":3}'],
+            "unknown-4": ['{"type":"RESULT","text":"A получает 4 урона.","timestamp":4}'],
+        }
+    )
+
+    assert len(turns) == 1
+    assert turns[0].global_turn == 1
+    assert [entry.text for entry in turns[0].entries] == [
+        "A атакует B.",
+        "B парирует.",
+        "B отвечает A.",
+        "A получает 4 урона.",
+    ]
+
+
+def test_combat_view_service_returns_latest_turn_first():
+    service = CombatViewService()
+    turns = service.parse_logs_by_turn(
+        {
+            "1": ['{"type":"RESULT","text":"Ход 1. first","timestamp":1}'],
+            "2": ['{"type":"RESULT","text":"Ход 2. second","timestamp":2}'],
+        }
+    )
+
+    assert [turn.global_turn for turn in turns] == [2, 1]
+    assert [turn.entries[0].text for turn in turns] == ["second", "first"]
 
 
 @pytest.mark.asyncio
@@ -204,6 +273,17 @@ async def test_combat_view_endpoint_returns_result_payload_type_when_session_mis
 
 
 @pytest.mark.asyncio
+async def test_combat_view_endpoint_returns_result_payload_type_when_live_session_finished():
+    service = CombatSessionService(store=FinishedCombatStore(), system_integrator=FakeCombatSystemIntegrator())
+
+    response = await get_combat_view(1, CombatRuntimeOrchestrator(service))
+
+    assert response.payload_type == "CombatResult"
+    assert isinstance(response.payload, CombatResultDTO)
+    assert response.payload.reason == "combat_session_finished"
+
+
+@pytest.mark.asyncio
 async def test_combat_dashboard_derives_session_display_state():
     service = CombatSessionService(store=FakeCombatStore(), system_integrator=FakeCombatSystemIntegrator())
 
@@ -226,11 +306,12 @@ async def test_combat_dashboard_exposes_real_actor_contract_and_actions():
     assert dashboard.hero.actor_id == "1"
     assert dashboard.target.actor_id == "2"
     assert [actor.actor_id for actor in dashboard.enemies] == ["2"]
-    assert dashboard.hero.tokens == {"hit": 2, "gift": 1}
+    assert dashboard.hero.tokens == {"hit": 3, "gift": 1}
     assert [effect.effect_id for effect in dashboard.hero.active_effects] == ["burn"]
     assert [ability.ability_id for ability in dashboard.hero.active_abilities] == ["true_strike"]
     assert [feint.feint_id for feint in dashboard.hero.feints] == ["true_strike"]
-    assert dashboard.events_delta.events[0].data == {"x": 1}
+    assert dashboard.events_delta.events[0].data["x"] == 1
+    assert dashboard.events_delta.turns[0].global_turn == 1
 
 
 @pytest.mark.asyncio
@@ -315,6 +396,37 @@ async def test_post_exchange_accepts_feint_id():
 
     assert store.exchange_moves[0][3]["payload"]["feint_id"] == "true_strike"
     assert store.consumed_feints == [("combat-1", 1, "true_strike")]
+
+
+@pytest.mark.asyncio
+async def test_post_pin_feint_accepts_single_hand_option():
+    store = FakeCombatStore()
+    service = CombatSessionService(store=store, system_integrator=FakeCombatSystemIntegrator())
+
+    dashboard = await pin_combat_feint(
+        1,
+        CombatPinFeintRequestDTO(feint_id="true_strike"),
+        CombatRuntimeOrchestrator(service),
+    )
+
+    assert isinstance(dashboard, CombatDashboardDTO)
+    assert store.pinned_feints == [("combat-1", 1, "true_strike")]
+
+
+@pytest.mark.asyncio
+async def test_post_pin_feint_rejects_missing_hand_option():
+    store = FakeCombatStore()
+    service = CombatSessionService(store=store, system_integrator=FakeCombatSystemIntegrator())
+
+    with pytest.raises(HTTPException) as exc_info:
+        await pin_combat_feint(
+            1,
+            CombatPinFeintRequestDTO(feint_id="missing"),
+            CombatRuntimeOrchestrator(service),
+        )
+
+    assert exc_info.value.status_code == 400
+    assert exc_info.value.detail == "Feint is not in hand"
 
 
 @pytest.mark.asyncio

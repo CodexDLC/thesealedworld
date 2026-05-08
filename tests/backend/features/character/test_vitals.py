@@ -55,6 +55,19 @@ def test_refresh_max_vitals_clamps_current_values_to_new_maximums():
     assert refreshed.stamina.cur == 80
 
 
+def test_restore_to_max_vitals_refills_all_resources():
+    attributes = CharacterSessionAttributesDTO(strength=15, endurance=16, mental=13)
+
+    restored = CharacterVitalsCalculator.restore_to_max_vitals(attributes)
+
+    assert restored.hp.cur == 64
+    assert restored.hp.max == 64
+    assert restored.energy.cur == 26
+    assert restored.energy.max == 26
+    assert restored.stamina.cur == 160
+    assert restored.stamina.max == 160
+
+
 def test_snapshot_restore_uses_saved_current_values_with_recalculated_maximums():
     attributes = CharacterSessionAttributesDTO(strength=15, endurance=16, mental=13)
     snapshot = {
@@ -73,3 +86,47 @@ def test_snapshot_restore_uses_saved_current_values_with_recalculated_maximums()
     assert vitals.stamina.cur == 15
     assert vitals.stamina.max == 160
     assert vitals.last_update == 123.0
+
+
+def test_apply_regen_advances_damaged_resources_from_elapsed_time():
+    vitals = CharacterSessionVitalsDTO(
+        hp=VitalValueDTO(cur=20, max=100, regen=2.0),
+        energy=VitalValueDTO(cur=5, max=20, regen=1.0),
+        stamina=VitalValueDTO(cur=10, max=50, regen=4.0),
+        last_update=100.0,
+    )
+
+    updated = CharacterVitalsCalculator.apply_regen(vitals, now=130.0)
+
+    assert updated.hp.cur == 80
+    assert updated.energy.cur == 20
+    assert updated.stamina.cur == 50
+    assert updated.last_update == 130.0
+
+
+def test_apply_regen_keeps_fractional_time_when_no_integer_gain():
+    vitals = CharacterSessionVitalsDTO(
+        hp=VitalValueDTO(cur=20, max=100, regen=0.2),
+        energy=VitalValueDTO(cur=20, max=20, regen=1.0),
+        stamina=VitalValueDTO(cur=50, max=50, regen=1.0),
+        last_update=100.0,
+    )
+
+    updated = CharacterVitalsCalculator.apply_regen(vitals, now=101.0)
+
+    assert updated.hp.cur == 20
+    assert updated.last_update == 100.0
+
+
+def test_apply_regen_touches_full_vitals_to_prevent_idle_time_bank():
+    vitals = CharacterSessionVitalsDTO(
+        hp=VitalValueDTO(cur=100, max=100, regen=2.0),
+        energy=VitalValueDTO(cur=20, max=20, regen=1.0),
+        stamina=VitalValueDTO(cur=50, max=50, regen=1.0),
+        last_update=100.0,
+    )
+
+    updated = CharacterVitalsCalculator.apply_regen(vitals, now=130.0)
+
+    assert updated.hp.cur == 100
+    assert updated.last_update == 130.0

@@ -7,6 +7,17 @@ from src.backend.features.character.integrations import CharacterCombatCommitmen
 
 
 class FakeCharacterSessions:
+    def __init__(self):
+        self.regenerated = []
+
+    async def apply_vitals_regen(self, char_id):
+        self.regenerated.append(char_id)
+        return {
+            "hp": {"cur": 64, "max": 64},
+            "energy": {"cur": 26, "max": 26},
+            "stamina": {"cur": 80, "max": 80},
+        }
+
     async def get_sessions_batch(self, char_ids):
         return {
             char_id: {
@@ -74,8 +85,9 @@ async def fake_session_factory():
 async def test_character_combat_commitment_integration_builds_player_commitments_from_ac(monkeypatch):
     monkeypatch.setattr(commitment_module, "ItemInstanceRepository", FakeItemRepository)
     commitment_manager = FakeCommitmentManager()
+    character_sessions = FakeCharacterSessions()
     result = await CharacterCombatCommitmentIntegration(
-        character_sessions=FakeCharacterSessions(),
+        character_sessions=character_sessions,
         commitment_manager=commitment_manager,
         session_factory=fake_session_factory,
     ).prepare_commitments(
@@ -89,6 +101,7 @@ async def test_character_combat_commitment_integration_builds_player_commitments
 
     assert result.commitments == {"combat-1:player:7": "combat-1:player:7"}
     assert result.failed_players == []
+    assert character_sessions.regenerated == [7]
     assert commitment["meta"]["actor_id"] == 7
     assert commitment["status"]["hp"]["max"] == 64
     assert commitment["combat"]["math_model"]["modifiers"]

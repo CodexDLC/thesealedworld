@@ -317,6 +317,9 @@ class AbilityService:
         Использует EffectFactory.
         """
         for effect_data in ctx.result.applied_effects:
+            if not AbilityService._effect_conditions_met(ctx, effect_data):
+                continue
+
             target_char_id = effect_data.get("target_id")
             effect_target = source if target_char_id == source.char_id else target
             if not effect_target:
@@ -376,6 +379,23 @@ class AbilityService:
                     type="APPLY_EFFECT", source_id=source.char_id, target_id=effect_target.char_id, action_id=effect_id
                 )
             )
+
+    @staticmethod
+    def _effect_conditions_met(ctx: PipelineContextDTO, effect_data: dict[str, Any]) -> bool:
+        conditions = effect_data.get("conditions")
+        if not isinstance(conditions, dict):
+            return True
+
+        result = ctx.result
+        flags = {
+            "is_hit": result.is_hit,
+            "is_crit": result.is_crit,
+            "is_blocked": result.is_blocked,
+            "is_parried": result.is_parried,
+            "is_dodged": result.is_dodged,
+            "is_miss": result.is_miss,
+        }
+        return all(flags.get(str(key)) is bool(value) for key, value in conditions.items())
 
     @staticmethod
     def _cleanup_expired_effects_pre_calc(actor: ActorSnapshot) -> None:

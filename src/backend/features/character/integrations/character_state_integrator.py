@@ -47,6 +47,7 @@ class CharacterStateIntegrator:
 
     async def get_actor_core(self, user_id: UUID, char_id: int) -> ActiveCharacterDocument:
         session_doc = await self._get_or_initialize_session_doc(user_id, char_id)
+        session_doc = await self._apply_and_persist_vitals_regen(session_doc, char_id)
         return ActiveCharacterDocument(
             key=self.character_sessions.build_key(char_id),
             document=session_doc.model_dump(mode="json"),
@@ -54,12 +55,7 @@ class CharacterStateIntegrator:
 
     async def get_status_document(self, user_id: UUID, char_id: int) -> dict[str, Any]:
         session_doc = await self._get_or_initialize_session_doc(user_id, char_id)
-        previous_last_update = session_doc.vitals.last_update
-        updated_vitals = CharacterVitalsCalculator.apply_regen(session_doc.vitals)
-        if updated_vitals.last_update != previous_last_update:
-            session_doc.vitals = updated_vitals
-            session_doc.updated_at = datetime.now(UTC)
-            await self.character_sessions.update_session(char_id, session_doc.model_dump(mode="json"))
+        session_doc = await self._apply_and_persist_vitals_regen(session_doc, char_id)
         return session_doc.model_dump(mode="json")
 
     async def unlock_skills(
@@ -113,6 +109,19 @@ class CharacterStateIntegrator:
             updated_at=datetime.now(UTC),
         )
         await self.character_sessions.create_session(character.character_id, session_doc.model_dump(mode="json"))
+        return session_doc
+
+    async def _apply_and_persist_vitals_regen(
+        self,
+        session_doc: CharacterSessionDocumentDTO,
+        char_id: int,
+    ) -> CharacterSessionDocumentDTO:
+        before = session_doc.vitals.model_dump(mode="json")
+        updated_vitals = CharacterVitalsCalculator.apply_regen(session_doc.vitals)
+        if updated_vitals.model_dump(mode="json") != before:
+            session_doc.vitals = updated_vitals
+            session_doc.updated_at = datetime.now(UTC)
+            await self.character_sessions.update_session(char_id, session_doc.model_dump(mode="json"))
         return session_doc
 
     @staticmethod

@@ -3,7 +3,7 @@ from types import SimpleNamespace
 import httpx
 import pytest
 
-from src.frontend.game_features.combat.routes.actions import game_combat_move
+from src.frontend.game_features.combat.routes.actions import game_combat_feint_pin, game_combat_move
 from src.shared.schemas.combat import CombatActorCardDTO, CombatDashboardDTO
 
 
@@ -37,6 +37,19 @@ class RejectingCombatApi:
         )
 
 
+class CapturingPinCombatApi:
+    def __init__(self) -> None:
+        self.pin_body = None
+
+    async def pin_feint(self, token, *, char_id, body):
+        self.pin_body = body
+        return CombatDashboardDTO(
+            session_id="combat-1",
+            status="active",
+            hero=CombatActorCardDTO(actor_id=str(char_id), name="Hero"),
+        )
+
+
 class FakeContextBuilder:
     def build_combat_dashboard_context(self, dashboard, *, char_id):
         return {"combat": dashboard, "char_id": char_id}
@@ -59,3 +72,23 @@ async def test_combat_move_rejection_refreshes_dashboard_instead_of_raising() ->
 
     assert response.template == "game/session_content_inner.html"
     assert ui.context["combat"].events_delta.events[-1].text == "Target is not available in your queue"
+
+
+@pytest.mark.asyncio
+async def test_combat_feint_pin_forwards_pin_request() -> None:
+    ui = FakeRenderer()
+    api = CapturingPinCombatApi()
+    request = SimpleNamespace(cookies={"tbmmorpg_access_token": "token"}, state=SimpleNamespace())
+
+    response = await game_combat_feint_pin(
+        request,
+        ui,
+        FakeAuthService(),
+        api,
+        FakeContextBuilder(),
+        char_id=5,
+        feint_id="true_strike",
+    )
+
+    assert response.template == "game/session_content_inner.html"
+    assert api.pin_body.feint_id == "true_strike"

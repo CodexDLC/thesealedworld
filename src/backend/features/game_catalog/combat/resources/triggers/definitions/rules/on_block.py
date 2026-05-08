@@ -3,7 +3,7 @@ from src.backend.features.game_catalog.combat.resources.triggers.schemas import 
 ON_BLOCK_RULES = [
     # --- ON_BLOCK (Успех) ---
     TriggerDTO(
-        id="shield_bash_on_block",
+        id="bash_on_block",
         name_ru="Удар щитом (Блок)",
         description_ru="Успешный блок наносит ответный удар щитом.",
         event="ON_BLOCK",

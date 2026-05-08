@@ -100,6 +100,11 @@ class CharacterCombatCommitmentIntegration:
         if not player_ids:
             return {}, []
 
+        apply_vitals_regen = getattr(self.character_sessions, "apply_vitals_regen", None)
+        if apply_vitals_regen is not None:
+            for char_id in player_ids:
+                await apply_vitals_regen(char_id)
+
         sessions = await self.character_sessions.get_sessions_batch(player_ids)
         async with self.session_factory() as session:
             equipped_by_char = await ItemInstanceRepository(session).get_equipped_for_characters(player_ids)

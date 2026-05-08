@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import contextlib
 import json
+import re
 from typing import Any, Literal
 
 from src.backend.features.combat.integrations import CombatCatalogIntegrator
@@ -17,6 +18,7 @@ from src.shared.schemas.combat import (
     CombatEventDTO,
     CombatFeintOptionDTO,
     CombatLogDTO,
+    CombatLogTurnDTO,
 )
 
 
@@ -32,6 +34,7 @@ class CombatViewService:
         targets: dict[str, list[Any]],
         actors: dict[str, dict[str, Any] | None],
         raw_logs: list[str],
+        raw_logs_by_turn: dict[str, list[str]] | None = None,
         total_logs: int | None = None,
         moves: dict[str, Any] | None = None,
     ) -> CombatDashboardDTO:
@@ -72,6 +75,9 @@ class CombatViewService:
         pending_action_count = self._pending_action_count(moves.get(str(viewer_id), {}))
         action_state = self._action_state(status, target=target, pending_action_count=pending_action_count)
 
+        log_turns = self.parse_logs_by_turn(raw_logs_by_turn) if raw_logs_by_turn is not None else []
+        log_events = self._flatten_turn_events(log_turns) if log_turns else self.parse_logs(raw_logs)
+
         return CombatDashboardDTO(
             session_id=session_id,
             turn_number=self._int(meta.get("step_counter")),
@@ -91,7 +97,7 @@ class CombatViewService:
             active_effects=hero.active_effects,
             feints=hero.feints,
             available_actions=self._available_actions(status, target, hero, pending_action_count=pending_action_count),
-            events_delta=CombatDeltaDTO(events=self.parse_logs(raw_logs)),
+            events_delta=CombatDeltaDTO(events=log_events, turns=log_turns),
             log_total=total_logs if total_logs is not None else len(raw_logs),
             winner_team=self._optional_str(meta.get("winner")),
         )
@@ -101,17 +107,53 @@ class CombatViewService:
         *,
         session_id: str,
         raw_logs: list[str],
+        raw_logs_by_turn: dict[str, list[str]] | None = None,
         page: int,
         page_size: int,
         total: int,
     ) -> CombatLogDTO:
+        turns = self.parse_logs_by_turn(raw_logs_by_turn) if raw_logs_by_turn is not None else []
+        entries = self._flatten_turn_events(turns) if turns else self.parse_logs(raw_logs)
         return CombatLogDTO(
             session_id=session_id,
-            entries=self.parse_logs(raw_logs),
+            entries=entries,
+            turns=turns,
+            total_turns=total,
+            total=total,
             page=page,
             page_size=page_size,
-            total=total,
         )
+
+    @classmethod
+    def parse_logs_by_turn(cls, raw_logs_by_turn: dict[str, list[str]]) -> list[CombatLogTurnDTO]:
+        grouped: dict[int | None, list[CombatEventDTO]] = {}
+        current_turn: int | None = None
+        for raw_turn, raw_logs in sorted(raw_logs_by_turn.items(), key=lambda item: cls._turn_sort_key(item[0])):
+            entries = cls.parse_logs(raw_logs)
+            key_turn = cls._storage_turn_key(raw_turn)
+            for entry in entries:
+                event_turn = cls._event_turn(entry)
+                if event_turn is not None:
+                    current_turn = event_turn
+                elif key_turn is not None and key_turn > 0:
+                    current_turn = key_turn
+                grouped.setdefault(current_turn, []).append(entry)
+        return [
+            CombatLogTurnDTO(
+                global_turn=global_turn,
+                title=f"Ход {global_turn}" if global_turn is not None else "Ход NO_DATA",
+                entries=entries,
+            )
+            for global_turn, entries in sorted(
+                grouped.items(),
+                key=lambda item: item[0] if item[0] is not None else -1,
+                reverse=True,
+            )
+        ]
+
+    @staticmethod
+    def _flatten_turn_events(turns: list[CombatLogTurnDTO]) -> list[CombatEventDTO]:
+        return [event for turn in turns for event in turn.entries]
 
     @classmethod
     def parse_logs(cls, raw_logs: list[str]) -> list[CombatEventDTO]:
@@ -124,23 +166,26 @@ class CombatViewService:
                 with contextlib.suppress(json.JSONDecodeError):
                     parsed = json.loads(raw)
             if isinstance(parsed, dict):
+                text_raw = cls._optional_str(parsed.get("text"))
+                extra = {k: v for k, v in parsed.items() if k not in {"type", "text", "timestamp", "tags", "data"}}
+                if "global_turn" not in extra:
+                    inferred_turn = cls._turn_from_text(text_raw)
+                    if inferred_turn is not None:
+                        extra["global_turn"] = inferred_turn
                 data_raw = parsed.get("data")
-                data = (
-                    data_raw
-                    if isinstance(data_raw, dict)
-                    else {k: v for k, v in parsed.items() if k not in {"type", "text", "timestamp", "tags"}}
-                )
+                data = data_raw if isinstance(data_raw, dict) else dict(extra)
                 events.append(
                     CombatEventDTO(
                         type=str(parsed.get("type") or "log"),
-                        text=cls._optional_str(parsed.get("text")),
+                        text=cls._strip_turn_prefix(text_raw),
                         timestamp=parsed.get("timestamp") if isinstance(parsed.get("timestamp"), int | float) else None,
                         tags=[str(tag) for tag in parsed.get("tags", []) if tag],
                         data=data,
+                        **extra,
                     )
                 )
             else:
-                events.append(CombatEventDTO(text=str(parsed)))
+                events.append(CombatEventDTO(text=cls._strip_turn_prefix(str(parsed))))
         return events
 
     def _resolve_target(
@@ -185,8 +230,7 @@ class CombatViewService:
         metrics_raw = actor.get("metrics")
         metrics = metrics_raw if isinstance(metrics_raw, dict) else {}
 
-        tokens_raw = meta.get("tokens")
-        tokens = tokens_raw if isinstance(tokens_raw, dict) else {}
+        tokens = self._visible_tokens(meta)
 
         return CombatActorCardDTO(
             actor_id=str(meta.get("id") or actor_id),
@@ -205,12 +249,14 @@ class CombatViewService:
                 hp_max=self._int(meta.get("max_hp")),
                 energy_current=self._int(meta.get("en")),
                 energy_max=self._int(meta.get("max_en")),
+                stamina_current=self._int(meta.get("stamina")),
+                stamina_max=self._int(meta.get("max_stamina")),
                 tactics=self._int(meta.get("tactics")),
             ),
             weapon_type=self._weapon_type(loadout),
             quick_items=self._quick_items(loadout),
             known_abilities=[str(ability_id) for ability_id in loadout.get("known_abilities", []) if ability_id],
-            tokens={str(k): self._int(v) for k, v in tokens.items()},
+            tokens=tokens,
             active_effects=self._effects(statuses),
             active_abilities=self._abilities(statuses),
             feints=self._feints(meta),
@@ -397,13 +443,33 @@ class CombatViewService:
         feints = feints_raw if isinstance(feints_raw, dict) else {}
         hand_raw = feints.get("hand")
         hand = hand_raw if isinstance(hand_raw, dict) else {}
+        pinned = str(feints.get("pinned")) if feints.get("pinned") is not None else None
         return [
             CombatFeintOptionDTO(
                 feint_id=str(feint_id),
                 cost={str(k): CombatViewService._int(v) for k, v in cost.items()} if isinstance(cost, dict) else {},
+                pinned=str(feint_id) == pinned,
             )
             for feint_id, cost in hand.items()
         ]
+
+    @classmethod
+    def _visible_tokens(cls, meta: dict[str, Any]) -> dict[str, int]:
+        tokens_raw = meta.get("tokens")
+        tokens_source = tokens_raw if isinstance(tokens_raw, dict) else {}
+        tokens = {str(k): cls._int(v) for k, v in tokens_source.items()}
+
+        feints_raw = meta.get("feints")
+        feints = feints_raw if isinstance(feints_raw, dict) else {}
+        hand_raw = feints.get("hand")
+        hand = hand_raw if isinstance(hand_raw, dict) else {}
+        for cost in hand.values():
+            if not isinstance(cost, dict):
+                continue
+            for token, amount in cost.items():
+                key = str(token)
+                tokens[key] = tokens.get(key, 0) + cls._int(amount)
+        return tokens
 
     @staticmethod
     def _pending_actions(moves: Any) -> dict[str, int]:
@@ -444,6 +510,49 @@ class CombatViewService:
     def _optional_int(value: Any) -> int | None:
         with contextlib.suppress(TypeError, ValueError):
             return int(value)
+        if value not in (None, ""):
+            match = re.search(r"\d+", str(value))
+            if match:
+                with contextlib.suppress(ValueError):
+                    return int(match.group(0))
+        return None
+
+    @staticmethod
+    def _turn_sort_key(turn: str) -> tuple[int, str]:
+        numeric = CombatViewService._optional_int(turn)
+        if numeric is not None:
+            return (numeric, str(turn))
+        return (0, str(turn))
+
+    @classmethod
+    def _event_turn(cls, entry: CombatEventDTO) -> int | None:
+        turn = cls._optional_int(getattr(entry, "global_turn", None))
+        if turn is None:
+            turn = cls._optional_int(entry.data.get("global_turn"))
+        if turn is None and entry.text:
+            turn = cls._turn_from_text(entry.text)
+        return turn
+
+    @staticmethod
+    def _strip_turn_prefix(text: str | None) -> str | None:
+        if text is None:
+            return None
+        return re.sub(r"^\s*Ход\s+\d+\.\s*", "", text, count=1, flags=re.IGNORECASE)
+
+    @classmethod
+    def _turn_from_text(cls, text: str | None) -> int | None:
+        if not text:
+            return None
+        match = re.search(r"\bХод\s+(\d+)\b", text, re.IGNORECASE)
+        return cls._optional_int(match.group(1)) if match else None
+
+    @classmethod
+    def _storage_turn_key(cls, raw_turn: Any) -> int | None:
+        if raw_turn in (None, ""):
+            return None
+        text = str(raw_turn)
+        if re.fullmatch(r"(?:global_turn|turn)?[:_-]?\d+", text):
+            return cls._optional_int(text)
         return None
 
     @staticmethod

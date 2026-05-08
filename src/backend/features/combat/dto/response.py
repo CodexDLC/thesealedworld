@@ -40,10 +40,12 @@ class FeintHandDTO(BaseModel):
 
     arsenal - весь доступный арсенал финтов актора (статичный список)
     hand - текущие финты в руке {feint_key: cost_dict}
+    pinned - единственный финт, который игрок закрепил между разменами
     """
 
     arsenal: list[str] = Field(default_factory=list)
     hand: dict[str, dict[str, int]] = Field(default_factory=dict)
+    pinned: str | None = None
 
     def is_in_hand(self, feint_key: str) -> bool:
         """Проверяет есть ли финт в руке"""
@@ -55,6 +57,8 @@ class FeintHandDTO(BaseModel):
 
     def remove_from_hand(self, feint_key: str) -> dict[str, int] | None:
         """Убирает финт из руки, возвращает его стоимость"""
+        if self.pinned == feint_key:
+            self.pinned = None
         return self.hand.pop(feint_key, None)
 
     def get_hand_size(self) -> int:
@@ -64,6 +68,7 @@ class FeintHandDTO(BaseModel):
     def clear_hand(self) -> None:
         """Очищает руку (для отладки)"""
         self.hand.clear()
+        self.pinned = None
 
 
 class ActorMetaDTO(BaseModel):
@@ -113,6 +118,10 @@ class ActorLoadoutDTO(BaseModel):
 
     # {slot: skill_key, slot_trigger: trigger_id}
     layout: dict[str, str] = Field(default_factory=dict)
+    equipment_layout: dict[str, str] = Field(default_factory=dict)
+    hand_usage: dict[str, str] = Field(default_factory=dict)
+    two_handed: bool = False
+    weapon_slots: list[str] = Field(default_factory=list)
     belt: list[dict[str, Any]] = Field(default_factory=list)
     known_abilities: list[str] = Field(default_factory=list)
     tags: list[str] = Field(default_factory=list)
@@ -233,7 +242,7 @@ class ActorSnapshot(BaseModel):
     # 5. Dynamic Statuses
     statuses: ActorStatusesDTO = Field(default_factory=ActorStatusesDTO)
 
-    xp_buffer: dict[str, int] = Field(default_factory=dict)
+    xp_buffer: dict[str, float] = Field(default_factory=dict)
 
     # 6. Analytics & Debug
     metrics: dict[str, float] = Field(default_factory=dict)

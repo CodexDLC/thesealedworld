@@ -180,6 +180,7 @@ async def test_request_combat_start_uses_day_ttl() -> None:
     events = MagicMock()
     events.request = AsyncMock(
         side_effect=[
+            {"status": "ok", "vitals": {"hp": {"cur": 64, "max": 64}}},
             {"status": "ok", "commitments": {"combat-1:player:7": "snapshot-1"}},
             {"status": "ready", "combat_id": "combat-1"},
         ]
@@ -194,7 +195,9 @@ async def test_request_combat_start_uses_day_ttl() -> None:
 
     await integrator.request_combat_start(7, "awakening_rift", battle_type="shadow", location_id="52_58")
 
-    commitment_event, combat_event = events.request.await_args_list
+    restore_event, commitment_event, combat_event = events.request.await_args_list
+    assert restore_event.args[0] == CharacterEvents.VITALS_RESTORE_REQUESTED
+    assert restore_event.args[1]["char_id"] == 7
     assert commitment_event.args[0] == CharacterEvents.COMBAT_COMMITMENTS_REQUESTED
     payload = combat_event.args[1]
     assert payload["ttl"] == SCENARIO_COMBAT_TTL_SECONDS

@@ -19,6 +19,11 @@ log = logging.getLogger(__name__)
 D4_CONTENT_BATCH_SIZE = 25
 D4_CONTENT_RETRY_DELAYS_SECONDS = (2.0, 6.0, 15.0)
 ZONE_LORE_RETRY_DELAYS_SECONDS = (2.0, 6.0)
+D4_FALLBACK_TITLE = "Руины Старой Столицы"
+D4_FALLBACK_DESCRIPTION = (
+    "Мертвый квартал древней столицы. Координата описывает не размер, а отдельную "
+    "навигационную область: улицу, площадь, двор или фрагмент квартала."
+)
 
 
 class LLMWorldGenerator:
@@ -93,21 +98,23 @@ class LLMWorldGenerator:
 
         nodes: list[dict[str, Any]] = []
         road_cells = self._build_d4_road_cells(min_x=min_x, min_y=min_y, max_x=max_x, max_y=max_y)
+        existing_nodes = await self.data.get_nodes_in_rect(min_x, min_y, REGION_SIZE, REGION_SIZE)
+        existing_by_coord = {(node.x, node.y): node for node in existing_nodes}
         for x in range(min_x, max_x + 1):
             for y in range(min_y, max_y + 1):
-                nodes.append(
-                    self._build_d4_node(
-                        x=x,
-                        y=y,
-                        min_x=min_x,
-                        min_y=min_y,
-                        max_x=max_x,
-                        max_y=max_y,
-                        mid_x=mid_x,
-                        mid_y=mid_y,
-                        road_cells=road_cells,
-                    )
+                node = self._build_d4_node(
+                    x=x,
+                    y=y,
+                    min_x=min_x,
+                    min_y=min_y,
+                    max_x=max_x,
+                    max_y=max_y,
+                    mid_x=mid_x,
+                    mid_y=mid_y,
+                    road_cells=road_cells,
                 )
+                self._preserve_existing_d4_content(node, existing_by_coord.get((x, y)))
+                nodes.append(node)
 
         await self.data.bulk_upsert_nodes(nodes)
         log.info("D4 capital generated: %d nodes", len(nodes))
@@ -136,11 +143,8 @@ class LLMWorldGenerator:
 
         terrain_type = "city_ruins"
         tags = ["ancient_city", "city_ruins"]
-        title = "Руины Старой Столицы"
-        description = (
-            "Мертвый квартал древней столицы. Координата описывает не размер, а отдельную "
-            "навигационную область: улицу, площадь, двор или фрагмент квартала."
-        )
+        title = D4_FALLBACK_TITLE
+        description = D4_FALLBACK_DESCRIPTION
         flags: dict[str, Any] = {
             "is_active": True,
             "is_safe_zone": is_hub,
@@ -342,15 +346,17 @@ class LLMWorldGenerator:
             if original_item is None or not isinstance(text_data, dict):
                 continue
 
-            await self.data.update_content(
+            updated = await self.data.update_content(
                 x,
                 y,
                 {
-                    "title": text_data.get("title") or "Руины Старой Столицы",
+                    "title": text_data.get("title") or D4_FALLBACK_TITLE,
                     "description": text_data.get("description") or "...",
                     "environment_tags": original_item["tags"],
                 },
             )
+            if updated:
+                await self.data.update_flags(x, y, {"ai_content_status": "generated"})
 
     async def _mark_location_batch_ai_status(self, batch: list[dict[str, Any]], status: str) -> None:
         for item in batch:
@@ -484,6 +490,27 @@ class LLMWorldGenerator:
     @staticmethod
     def _parse_ai_json_map(raw_response: Any) -> dict[str, Any] | None:
         return parse_ai_json_mapping(raw_response, context="world")
+
+    @staticmethod
+    def _preserve_existing_d4_content(node: dict[str, Any], existing_node: Any | None) -> None:
+        if existing_node is None:
+            return
+        if (node["x"], node["y"]) in STATIC_LOCATIONS:
+            return
+
+        existing_content = existing_node.content if isinstance(existing_node.content, dict) else {}
+        if not existing_content:
+            return
+
+        existing_title = existing_content.get("title")
+        existing_description = existing_content.get("description")
+        is_fallback = existing_title == D4_FALLBACK_TITLE and existing_description == D4_FALLBACK_DESCRIPTION
+        if is_fallback:
+            return
+
+        content = dict(node.get("content") or {})
+        content.update(existing_content)
+        node["content"] = content
 
     @staticmethod
     def _chunks(items: list[dict[str, Any]], size: int) -> Iterable[list[dict[str, Any]]]:

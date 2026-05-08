@@ -85,6 +85,12 @@ class InventoryService:
             raise InventoryActionError(f"Inventory action is not implemented yet: {dto.action}")
 
         session.is_dirty = True
+        session.dirty = {
+            "dirty": True,
+            "reason": dto.action,
+            "paths": ["$.layout", "$.by_id"],
+            "updated_at": time.time(),
+        }
         session.updated_at = time.time()
         await self.inventory_sessions.set(session)
         await self._sync_active_character_items(session)
@@ -127,6 +133,7 @@ class InventoryService:
         await self.repository.save_placements(session.char_id, session.by_id)
         await self.repository.commit()
         session.is_dirty = False
+        session.dirty = {"dirty": False, "last_flushed_at": time.time()}
         session.updated_at = time.time()
         await self.inventory_sessions.set(session)
         await self._sync_active_character_items(session)

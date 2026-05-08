@@ -18,26 +18,27 @@
                                 <b>{{ effect.duration_text }}</b>
                             {% endif %}
                         </span>
-                    {% else %}
-                        {% if debug_enabled %}
-                            {% for effect_id, frame_kind, icon, turns in [
-                                ('DEBUG_BURN', 'burn', 'burn.svg', '2'),
-                                ('DEBUG_POISON', 'poison', 'poison.svg', '3'),
-                                ('DEBUG_GUARD', 'shield', 'shield.svg', '1'),
-                                ('DEBUG_STUN', 'stun', 'stun.svg', '1')
-                            ] %}
-                                <span class="combat-effect combat-effect--{{ frame_kind }}"
-                                      data-tippy-content="{{ effect_id }} // DEBUG_EFFECT_PLACEHOLDER"
-                                      data-tippy-theme="game-hint">
-                                    <img src="/static/images/ui/combat-icons/{{ icon }}" alt="{{ effect_id }}">
-                                    <b>{{ turns }}</b>
-                                </span>
-                            {% endfor %}
-                        {% endif %}
                     {% endfor %}
                 </div>
             </div>
             <div class="combat-actor-name">{{ actor.name }}</div>
+            <div class="combat-vitals">
+                <div class="combat-vital-row">
+                    <span>HP</span>
+                    <div class="combat-vital-bar combat-vital-bar--hp"><i style="width: {{ actor.vitals.hp_percent }}%"></i></div>
+                    <b>{{ actor.vitals.hp_current }}/{{ actor.vitals.hp_max }}</b>
+                </div>
+                <div class="combat-vital-row">
+                    <span>EN</span>
+                    <div class="combat-vital-bar combat-vital-bar--energy"><i style="width: {{ actor.vitals.energy_percent }}%"></i></div>
+                    <b>{{ actor.vitals.energy_current }}/{{ actor.vitals.energy_max }}</b>
+                </div>
+                <div class="combat-vital-row">
+                    <span>STA</span>
+                    <div class="combat-vital-bar combat-vital-bar--stamina"><i style="width: {{ actor.vitals.stamina_percent }}%"></i></div>
+                    <b>{{ actor.vitals.stamina_current }}/{{ actor.vitals.stamina_max }}</b>
+                </div>
+            </div>
         </section>
 
         <section class="combat-panel combat-roster-panel">

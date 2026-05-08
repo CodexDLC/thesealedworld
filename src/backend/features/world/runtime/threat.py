@@ -32,7 +32,9 @@ class ThreatService:
         "west_prime": "gravity",
         "east_prime": "bio",
     }
+    CITY_SAFE_RADIUS = 2
     CITY_RADIUS = 7
+    SHIELDED_RUINS_MIN_THREAT = 0.03
 
     @classmethod
     def describe(cls, x: int, y: int) -> AnchorInfluence:
@@ -63,7 +65,10 @@ class ThreatService:
         if dist_hub <= cls.CITY_RADIUS:
             danger *= 0.25
 
-        return max(0.0, min(1.0, danger - stability))
+        threat = max(0.0, min(1.0, danger - stability))
+        if cls.CITY_SAFE_RADIUS < dist_hub <= cls.CITY_RADIUS:
+            threat = max(threat, cls.SHIELDED_RUINS_MIN_THREAT)
+        return threat
 
     @staticmethod
     def get_tier_from_threat(threat: float) -> int:
@@ -142,7 +147,7 @@ class ThreatService:
     def _shield_modifier(cls, x: int, y: int) -> float:
         dist_hub = cls._get_dist(x, y, HUB_CENTER["x"], HUB_CENTER["y"])
         if dist_hub <= cls.CITY_RADIUS:
-            return 0.0 if dist_hub <= 4 else 0.2
+            return 0.0 if dist_hub <= cls.CITY_SAFE_RADIUS else 0.2
         distance_from_wall = dist_hub - cls.CITY_RADIUS
         return distance_from_wall / 10.0 if distance_from_wall < 10 else 1.0
 

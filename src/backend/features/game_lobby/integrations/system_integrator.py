@@ -17,6 +17,8 @@ from src.backend.features.character.schemas.session import (
     CharacterSessionLocationDTO,
     CharacterSessionSymbioteDTO,
 )
+from src.backend.features.items.integrations import ItemPersistenceIntegration
+from src.backend.features.items.repositories import ItemInstanceRepository
 from src.shared.enums import CoreDomain
 
 if TYPE_CHECKING:
@@ -54,6 +56,7 @@ class GameLobbyIntegration:
         self,
         *,
         character_repo: CharacterRepository | None = None,
+        item_persistence: ItemPersistenceIntegration | None = None,
         db_session: AsyncSession | None = None,
         character_sessions: CharacterSessionManager,
         scenario_service: ScenarioService,
@@ -63,6 +66,9 @@ class GameLobbyIntegration:
                 raise ValueError("character_repo or db_session is required")
             character_repo = CharacterRepository(db_session)
         self.character_repo = character_repo
+        self.item_persistence = item_persistence
+        if self.item_persistence is None and db_session is not None:
+            self.item_persistence = ItemPersistenceIntegration(ItemInstanceRepository(db_session))
         self.character_sessions = character_sessions
         self.scenario_service = scenario_service
 
@@ -213,6 +219,14 @@ class GameLobbyIntegration:
 
         char_id = character.character_id
         await self.cleanup_runtime(char_id)
+        if self.item_persistence is not None:
+            transferred_count = await self.item_persistence.transfer_deleted_character_items_to_system(char_id)
+            if transferred_count:
+                logger.info(
+                    "Lobby transferred deleted character item instances to system custody: char_id={} count={}",
+                    char_id,
+                    transferred_count,
+                )
         await repo.delete(char_id)
         await repo.commit()
 

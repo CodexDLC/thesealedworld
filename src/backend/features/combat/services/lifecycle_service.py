@@ -137,6 +137,17 @@ class CombatLifecycleService:
                 default=energy,
             ),
         )
+        stamina = self._vital(status, runtime, "stamina", "stamina_current", default=100)
+        max_stamina = max(
+            stamina,
+            self._vital_max(
+                status,
+                runtime,
+                "stamina",
+                ("max_stamina", "stamina_max"),
+                default=stamina,
+            ),
+        )
         known_feints = loadout.get("known_feints") or loadout.get("feints") or []
 
         return {
@@ -159,12 +170,14 @@ class CombatLifecycleService:
                 "max_hp": max_hp,
                 "en": energy,
                 "max_en": max_energy,
+                "stamina": stamina,
+                "max_stamina": max_stamina,
                 "tactics": 0,
                 "is_dead": False,
                 "afk_level": 0,
                 "exchange_counter": 0,
                 "tokens": {},
-                "feints": {"arsenal": known_feints, "hand": {}},
+                "feints": {"arsenal": known_feints, "hand": {}, "pinned": None},
             },
             "raw": {"attributes": raw.get("attributes", {}), "modifiers": raw.get("modifiers", {})},
             "skills": copy.deepcopy(combat.get("skills") or {}),

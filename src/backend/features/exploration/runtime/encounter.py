@@ -67,10 +67,6 @@ class EncounterEngine:
         if flags.get("is_safe_zone", False):
             return True
 
-        anchor = anchor_influence if isinstance(anchor_influence, dict) else flags.get("anchor_influence", {})
-        if isinstance(anchor, dict) and anchor.get("is_inside_city_shield", False):
-            return True
-
         try:
             return float(flags.get("threat_tier", 1)) <= 0
         except (TypeError, ValueError):

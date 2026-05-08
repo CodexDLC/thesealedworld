@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import json
 import uuid
 from datetime import UTC, datetime, timedelta
@@ -17,6 +18,7 @@ if TYPE_CHECKING:
     from src.shared.schemas.combat import (
         CombatDashboardDTO,
         CombatLogDTO,
+        CombatPinFeintRequestDTO,
         CombatRegisterMoveRequestDTO,
         CombatResultDTO,
     )
@@ -66,8 +68,9 @@ class CombatSessionService:
         actors = await self.store.get_actors_batch(combat_id, actor_ids)
         targets = await self._get_targets(combat_id)
         moves = await self.store.get_moves_batch(combat_id, actor_ids)
-        raw_logs = await self.store.get_logs(combat_id, start=-LOG_PAGE_SIZE, stop=-1)
-        total_logs = await self._count_logs(combat_id, raw_logs)
+        all_logs_by_turn = await self._get_logs_by_turn(combat_id)
+        raw_logs_by_turn = dict(list(all_logs_by_turn.items())[-LOG_PAGE_SIZE:])
+        total_logs = len(all_logs_by_turn)
 
         return self.view.build_dashboard(
             session_id=combat_id,
@@ -76,7 +79,8 @@ class CombatSessionService:
             targets=targets,
             moves=moves,
             actors=actors,
-            raw_logs=raw_logs,
+            raw_logs=[],
+            raw_logs_by_turn=raw_logs_by_turn,
             total_logs=total_logs,
         )
 
@@ -91,6 +95,19 @@ class CombatSessionService:
         payload = {**body.payload, **body.model_dump(mode="json", exclude={"payload"})}
         await self.register_move_request(combat_id, char_id, payload)
         await asyncio.sleep(MOVE_RESPONSE_SETTLE_DELAY_SECONDS)
+        return await self.get_dashboard(char_id, session_id=combat_id)
+
+    async def pin_feint(
+        self,
+        char_id: int,
+        body: CombatPinFeintRequestDTO,
+        *,
+        session_id: str | None = None,
+    ) -> CombatDashboardDTO:
+        combat_id = session_id or await self._resolve_session_id(char_id)
+        success = await self.store.pin_feint(combat_id, char_id, body.feint_id)
+        if not success:
+            raise ValueError("Feint is not in hand")
         return await self.get_dashboard(char_id, session_id=combat_id)
 
     async def register_move_request(self, session_id: str, actor_id: int, payload: dict[str, Any]) -> CombatMoveDTO:
@@ -131,16 +148,13 @@ class CombatSessionService:
         combat_id = session_id or await self._resolve_session_id(char_id)
         page = max(1, page)
         page_size = max(1, page_size)
-        total = await self._count_logs(combat_id, [])
-        stop = max(total - ((page - 1) * page_size) - 1, -1)
-        start = max(stop - page_size + 1, 0)
-        if stop < start:
-            raw_logs = []
-        else:
-            raw_logs = await self.store.get_logs(combat_id, start=start, stop=stop)
+        all_logs_by_turn = await self._get_logs_by_turn(combat_id)
+        total = len(all_logs_by_turn)
+        selected_logs_by_turn = self._slice_log_turns_from_end(all_logs_by_turn, page=page, page_size=page_size)
         return self.view.build_logs(
             session_id=combat_id,
-            raw_logs=raw_logs,
+            raw_logs=[],
+            raw_logs_by_turn=selected_logs_by_turn,
             page=page,
             page_size=page_size,
             total=total,
@@ -170,13 +184,14 @@ class CombatSessionService:
 
     async def get_history(self, char_id: int, *, session_id: str | None = None) -> CombatLogDTO:
         combat_id = session_id or await self._resolve_session_id(char_id)
-        raw_logs = await self.store.get_logs(combat_id, start=0, stop=-1)
+        raw_logs_by_turn = await self._get_logs_by_turn(combat_id)
         return self.view.build_logs(
             session_id=combat_id,
-            raw_logs=raw_logs,
+            raw_logs=[],
+            raw_logs_by_turn=raw_logs_by_turn,
             page=1,
-            page_size=max(1, len(raw_logs)),
-            total=len(raw_logs),
+            page_size=max(1, len(raw_logs_by_turn)),
+            total=len(raw_logs_by_turn),
         )
 
     async def _resolve_session_id(self, char_id: int) -> str:
@@ -209,6 +224,39 @@ class CombatSessionService:
         if fallback_logs:
             return len(fallback_logs)
         return len(await self.store.get_logs(session_id, start=0, stop=-1))
+
+    async def _get_logs_by_turn(self, session_id: str) -> dict[str, list[str]]:
+        get_logs_by_turn = getattr(self.store, "get_logs_by_turn", None)
+        if get_logs_by_turn is not None:
+            return dict(await get_logs_by_turn(session_id))
+        raw_logs = await self.store.get_logs(session_id, start=0, stop=-1)
+        return self._group_raw_logs_by_turn(raw_logs)
+
+    async def _count_log_turns(self, session_id: str, fallback_logs_by_turn: dict[str, list[str]]) -> int:
+        if fallback_logs_by_turn:
+            return len(fallback_logs_by_turn)
+        return len(await self._get_logs_by_turn(session_id))
+
+    @staticmethod
+    def _slice_log_turns_from_end(
+        logs_by_turn: dict[str, list[str]], *, page: int, page_size: int
+    ) -> dict[str, list[str]]:
+        items = list(logs_by_turn.items())
+        stop = max(len(items) - ((page - 1) * page_size), 0)
+        start = max(stop - page_size, 0)
+        return dict(items[start:stop])
+
+    @staticmethod
+    def _group_raw_logs_by_turn(raw_logs: list[str]) -> dict[str, list[str]]:
+        grouped: dict[str, list[str]] = {}
+        for index, raw in enumerate(raw_logs):
+            turn = str(index)
+            with contextlib.suppress(json.JSONDecodeError):
+                parsed = json.loads(raw)
+                if isinstance(parsed, dict):
+                    turn = str(parsed.get("global_turn", index))
+            grouped.setdefault(turn, []).append(raw)
+        return grouped
 
     async def _get_targets(self, session_id: str) -> dict[str, list[Any]]:
         get_targets_map = getattr(self.store, "get_targets_map", None)

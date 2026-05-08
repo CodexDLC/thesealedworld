@@ -18,15 +18,18 @@ GOBLINS_FAMILY: MonsterFamily = {
     },
     "skill_kit": {
         "base": {
-            "skill_one_handed": 15,
-            "skill_light_armor": 10,
-            "skill_tactics": 10,
+            "skill_swords": 0.15,
+            "skill_macing": 0.10,
+            "skill_polearms": 0.10,
+            "skill_one_handed": 0.15,
+            "skill_light_armor": 0.10,
+            "skill_tactics": 0.10,
         },
         "role_bonus": {
             "minion": {},
-            "veteran": {"skill_one_handed": 15, "skill_tactics": 10},
-            "elite": {"skill_one_handed": 30, "skill_tactics": 30},
-            "boss": {"skill_one_handed": 65, "skill_tactics": 55, "leadership": 35},
+            "veteran": {"skill_polearms": 0.15, "skill_one_handed": 0.15, "skill_tactics": 0.10},
+            "elite": {"skill_swords": 0.30, "skill_one_handed": 0.30, "skill_tactics": 0.30},
+            "boss": {"skill_macing": 0.65, "skill_one_handed": 0.65, "skill_tactics": 0.55, "skill_leadership": 0.35},
         },
     },
     "ability_map": {
@@ -81,7 +84,7 @@ GOBLINS_FAMILY: MonsterFamily = {
                 "luck": 5,  # Итого: 40 (чуть выше базы из-за luck/agi)
             },
             "fixed_loadout": {"main_hand": "dagger", "off_hand": "dagger", "chest_garment": "linen_shirt"},
-            "skill_overrides": {"skill_dual_wield": 15},
+            "skill_overrides": {"skill_dual_wield": 0.15},
             "skills": ["attack_heavy", "stealth"],
         },
         "goblin_scavenger": {
@@ -149,7 +152,7 @@ GOBLINS_FAMILY: MonsterFamily = {
                 "luck": 4,  # Итого: 49
             },
             "fixed_loadout": {"main_hand": "sling", "chest_garment": "linen_shirt"},
-            "skill_overrides": {"skill_archery": 20, "skill_one_handed": None},
+            "skill_overrides": {"skill_archery": 0.20, "skill_one_handed": None},
             "skills": ["attack_ranged"],
         },
         # --- 3. Инженеры (Elites) [TSP ~75] ---
@@ -173,7 +176,7 @@ GOBLINS_FAMILY: MonsterFamily = {
                 "luck": 6,  # Итого: 79
             },
             "fixed_loadout": {"main_hand": "dagger", "chest_garment": "apron", "head_armor": "goggles"},
-            "skill_overrides": {"skill_tactics": 45},
+            "skill_overrides": {"skill_tactics": 0.45},
             "skills": ["special_trap", "debuff_slow"],
         },
         "goblin_bomber": {
@@ -196,7 +199,7 @@ GOBLINS_FAMILY: MonsterFamily = {
                 "luck": 10,  # Итого: 76
             },
             "fixed_loadout": {"chest_armor": "jerkin"},
-            "skill_overrides": {"skill_tactics": 40},
+            "skill_overrides": {"skill_tactics": 0.40},
             "skills": ["attack_aoe", "explode_on_death"],
         },
         # --- 4. Вожди (Bosses) [TSP ~120] ---
@@ -220,7 +223,7 @@ GOBLINS_FAMILY: MonsterFamily = {
                 "luck": 8,  # Итого: 116
             },
             "fixed_loadout": {"main_hand": "battle_axe", "chest_armor": "plate_chest", "head_armor": "helmet"},
-            "skill_overrides": {"skill_heavy_armor": 25},
+            "skill_overrides": {"skill_heavy_armor": 0.25},
             "skills": ["buff_rage", "attack_aoe", "attack_execute"],
         },
         "scrap_king": {
@@ -249,7 +252,7 @@ GOBLINS_FAMILY: MonsterFamily = {
                 "arms_armor": "gauntlets",
                 "legs_armor": "greaves",
             },
-            "skill_overrides": {"skill_two_handed": 55, "skill_heavy_armor": 45},
+            "skill_overrides": {"skill_two_handed": 0.55, "skill_heavy_armor": 0.45},
             "skills": ["attack_ranged", "debuff_stun", "buff_rage"],
         },
     },

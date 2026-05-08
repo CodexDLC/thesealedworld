@@ -27,7 +27,7 @@ def test_combat_math_model_outputs_only_combat_modifier_keys() -> None:
                     "mechanics": {
                         "power": 7,
                         "implicit_bonuses": {
-                            "physical_accuracy": 0.1,
+                            "accuracy_penalty": 0.1,
                             "unknown_bonus": 99,
                         },
                     },
@@ -61,7 +61,7 @@ def test_gear_score_uses_waterfall_calculated_raw_and_equipment() -> None:
                 "weapon-1": {
                     "item_id": "weapon-1",
                     "item_type": "weapon",
-                    "mechanics": {"power": 7, "implicit_bonuses": {"physical_accuracy": 0.1}},
+                    "mechanics": {"power": 7, "implicit_bonuses": {"accuracy_penalty": 0.1}},
                 },
                 "armor-1": {
                     "item_id": "armor-1",

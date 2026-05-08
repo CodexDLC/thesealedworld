@@ -1,15 +1,26 @@
+from copy import deepcopy
 from typing import Any
 
 from loguru import logger as log
 
 from src.backend.features.combat.dto.actor import ActorStats
 from src.backend.features.combat.dto.pipeline import (
+    CombatCheckTraceDTO,
+    CombatDamageTraceDTO,
     CombatEventDTO,
     InteractionResultDTO,
     PipelineContextDTO,
 )
 from src.backend.features.combat.integrations import CombatCatalogIntegrator
 from src.backend.features.combat.runtime.engine.math_core import MathCore
+
+PARRY_SKILL_MULT_PER_POINT = 4.0
+SHIELD_BLOCK_SKILL_MULT_PER_POINT = 1.5
+TWO_HANDED_DEFENSE_PRESSURE_MAX = 0.5
+UNARMED_MIN_EFFICIENCY = 0.5
+UNARMED_MAX_EFFICIENCY = 3.0
+UNARMED_NOVICE_SPREAD = 0.5
+UNARMED_MASTER_SPREAD = 0.1
 
 
 class CombatResolver:
@@ -73,7 +84,7 @@ class CombatResolver:
     @staticmethod
     def _get_offensive_val(stats: ActorStats, ctx: PipelineContextDTO, key: str) -> float:
         """
-        Получает значение модификатора в зависимости от источника (main_hand, off_hand, magic).
+        Получает значение модификатора в зависимости от источника (main_hand, off_hand, magic, item).
         """
         source = ctx.flags.meta.source_type
 
@@ -83,35 +94,37 @@ class CombatResolver:
             prefix = "off_hand"
         elif source == "magic":
             prefix = "magical"
+        elif source == "item":
+            prefix = "item"
 
         # Спец. кейсы (явный доступ к полям DTO)
         if key == "damage_base":
-            if source == "off_hand":
-                return stats.mods.off_hand_damage_base
-            elif source == "magic":
-                return stats.mods.magical_damage  # FIXED: magical_damage_base -> magical_damage
-            return stats.mods.main_hand_damage_base
+            return {
+                "off_hand": stats.mods.off_hand_damage_base,
+                "magic": stats.mods.magical_damage,  # FIXED: magical_damage_base -> magical_damage
+                "item": stats.mods.item_damage_base,
+            }.get(source, stats.mods.main_hand_damage_base)
 
         if key == "crit_chance":
-            if source == "magic":
-                return stats.mods.magical_crit_chance
-            if source == "off_hand":
-                return stats.mods.off_hand_crit_chance + stats.mods.crit_chance
-            return stats.mods.main_hand_crit_chance + stats.mods.crit_chance
+            return {
+                "magic": stats.mods.magical_crit_chance,
+                "item": stats.mods.item_crit_chance,
+                "off_hand": stats.mods.off_hand_crit_chance + stats.mods.crit_chance,
+            }.get(source, stats.mods.main_hand_crit_chance + stats.mods.crit_chance)
 
         if key == "accuracy":
-            if source == "magic":
-                return stats.mods.magical_accuracy + stats.mods.accuracy
-            if source == "off_hand":
-                return stats.mods.off_hand_accuracy + stats.mods.accuracy
-            return stats.mods.main_hand_accuracy + stats.mods.accuracy
+            return {
+                "magic": stats.mods.magical_accuracy + stats.mods.accuracy,
+                "item": stats.mods.item_accuracy,
+                "off_hand": stats.mods.off_hand_accuracy + stats.mods.accuracy,
+            }.get(source, stats.mods.main_hand_accuracy + stats.mods.accuracy)
 
         if key == "penetration":
-            if source == "magic":
-                return stats.mods.magical_penetration
-            if source == "off_hand":
-                return stats.mods.off_hand_penetration + stats.mods.armor_penetration
-            return stats.mods.main_hand_penetration + stats.mods.armor_penetration
+            return {
+                "magic": stats.mods.magical_penetration,
+                "item": stats.mods.item_penetration,
+                "off_hand": stats.mods.off_hand_penetration + stats.mods.armor_penetration,
+            }.get(source, stats.mods.main_hand_penetration + stats.mods.armor_penetration)
 
         # Fallback (если ключ не специфичен, например damage_spread)
         full_key = f"{prefix}_{key}"
@@ -167,7 +180,7 @@ class CombatResolver:
 
     @staticmethod
     def _step_evasion_roll(
-        _atk_stats: ActorStats, def_stats: ActorStats, ctx: PipelineContextDTO, res: InteractionResultDTO
+        atk_stats: ActorStats, def_stats: ActorStats, ctx: PipelineContextDTO, res: InteractionResultDTO
     ) -> bool:
         if not ctx.stages.check_evasion:
             return False
@@ -189,10 +202,12 @@ class CombatResolver:
 
         base_evasion = def_stats.mods.evasion  # FIXED: dodge_chance -> evasion
         evasion_cap = def_stats.mods.dodge_cap
-        anti_evasion = def_stats.mods.anti_dodge_chance
+        anti_evasion = atk_stats.mods.anti_dodge_chance
+        style_mult = None
 
         if ctx.flags.formula.evasion_halved:
-            final_chance = (base_evasion * 0.5) - anti_evasion
+            style_mult = CombatResolver._two_handed_defense_pressure_mult(atk_stats)
+            final_chance = (base_evasion * style_mult) - anti_evasion
             final_chance = min(final_chance, evasion_cap)
         elif ctx.flags.formula.ignore_evasion_cap:
             final_chance = base_evasion - anti_evasion
@@ -214,6 +229,7 @@ class CombatResolver:
                 base=base_evasion,
                 cap=evasion_cap,
                 anti=anti_evasion,
+                style_mult=style_mult,
             )
             return False
 
@@ -227,6 +243,7 @@ class CombatResolver:
             base=base_evasion,
             cap=evasion_cap,
             anti=anti_evasion,
+            style_mult=style_mult,
         )
 
         if passed:
@@ -242,7 +259,7 @@ class CombatResolver:
 
     @staticmethod
     def _step_parry_roll(
-        _atk_stats: ActorStats, def_stats: ActorStats, ctx: PipelineContextDTO, res: InteractionResultDTO
+        atk_stats: ActorStats, def_stats: ActorStats, ctx: PipelineContextDTO, res: InteractionResultDTO
     ) -> bool:
         if not ctx.stages.check_parry:
             return False
@@ -263,11 +280,16 @@ class CombatResolver:
                 ctx.flags.state.check_counter = True
             return True
 
-        parry_chance = def_stats.mods.parry  # FIXED: parry_chance -> parry
+        parry_base = def_stats.mods.parry  # FIXED: parry_chance -> parry
         parry_cap = def_stats.mods.parry_cap
+        parrying = def_stats.skills.skill_parrying
+        skill_mult = 1.0 + (PARRY_SKILL_MULT_PER_POINT * parrying)
+        parry_chance = parry_base * skill_mult
+        style_mult = None
 
         if ctx.flags.formula.parry_halved:
-            final_chance = parry_chance * 0.5
+            style_mult = CombatResolver._two_handed_defense_pressure_mult(atk_stats)
+            final_chance = parry_chance * style_mult
             final_chance = min(final_chance, parry_cap)
         elif ctx.flags.formula.ignore_parry_cap:
             final_chance = parry_chance
@@ -276,7 +298,18 @@ class CombatResolver:
             final_chance = min(final_chance, parry_cap)
 
         roll, passed = MathCore.roll_chance(final_chance)
-        CombatResolver._trace_roll(res, "parry", final_chance, roll, passed, base=parry_chance, cap=parry_cap)
+        CombatResolver._trace_roll(
+            res,
+            "parry",
+            final_chance,
+            roll,
+            passed,
+            base=parry_base,
+            cap=parry_cap,
+            skill=parrying,
+            skill_mult=skill_mult,
+            style_mult=style_mult,
+        )
 
         if passed:
             res.is_parried = True
@@ -297,7 +330,7 @@ class CombatResolver:
 
     @staticmethod
     def _step_block_roll(
-        _atk_stats: ActorStats, def_stats: ActorStats, ctx: PipelineContextDTO, res: InteractionResultDTO
+        atk_stats: ActorStats, def_stats: ActorStats, ctx: PipelineContextDTO, res: InteractionResultDTO
     ) -> bool:
         if not ctx.stages.check_block:
             return False
@@ -315,11 +348,16 @@ class CombatResolver:
             CombatResolver._resolve_triggers(ctx, res, "ON_BLOCK")
             return True
 
-        block_chance = def_stats.mods.block  # FIXED: shield_block_chance -> block
+        block_base = def_stats.mods.block  # FIXED: shield_block_chance -> block
         block_cap = def_stats.mods.shield_block_cap
+        parrying = def_stats.skills.skill_parrying
+        skill_mult = 1.0 + (SHIELD_BLOCK_SKILL_MULT_PER_POINT * parrying)
+        block_chance = block_base * skill_mult
+        style_mult = None
 
         if ctx.flags.formula.block_halved:
-            final_chance = block_chance * 0.5
+            style_mult = CombatResolver._two_handed_defense_pressure_mult(atk_stats)
+            final_chance = block_chance * style_mult
             final_chance = min(final_chance, block_cap)
         elif ctx.flags.formula.ignore_block_cap:
             final_chance = block_chance
@@ -327,7 +365,18 @@ class CombatResolver:
             final_chance = min(block_chance, block_cap)
 
         roll, passed = MathCore.roll_chance(final_chance)
-        CombatResolver._trace_roll(res, "block", final_chance, roll, passed, base=block_chance, cap=block_cap)
+        CombatResolver._trace_roll(
+            res,
+            "block",
+            final_chance,
+            roll,
+            passed,
+            base=block_base,
+            cap=block_cap,
+            skill=parrying,
+            skill_mult=skill_mult,
+            style_mult=style_mult,
+        )
 
         if passed:
             res.is_blocked = True
@@ -335,9 +384,6 @@ class CombatResolver:
             res.events.append(CombatEventDTO(type="BLOCK", source_id=source_id, target_id=target_id))
             CombatResolver._resolve_triggers(ctx, res, "ON_BLOCK")
             return True
-
-        if ctx.flags.mastery.shield_reflect and MathCore.check_chance(0.25):
-            ctx.flags.state.partial_absorb_reflect = True
 
         CombatResolver._resolve_triggers(ctx, res, "ON_BLOCK_FAIL")
         return False
@@ -363,6 +409,11 @@ class CombatResolver:
             res.is_counter = True
             res.tokens_awarded_defender["counter"] = 1
             res.chain_events.trigger_counter_attack = True
+
+    @staticmethod
+    def _two_handed_defense_pressure_mult(atk_stats: ActorStats) -> float:
+        skill = max(0.0, min(atk_stats.skills.skill_two_handed, 1.0))
+        return 1.0 - (TWO_HANDED_DEFENSE_PRESSURE_MAX * skill)
 
     @staticmethod
     def _step_crit_roll(
@@ -396,7 +447,7 @@ class CombatResolver:
         if ctx.flags.meta.weapon_class:
             skill_key = f"skill_{ctx.flags.meta.weapon_class}"
             skill_val = getattr(atk_stats.skills, skill_key, 0.0)
-            skill_multiplier = 1.0 + (skill_val / 100.0)
+            skill_multiplier = 1.0 + skill_val
 
         final_chance = my_crit_chance * skill_multiplier
         crit_cap = CombatResolver._get_offensive_val(atk_stats, ctx, "crit_cap")
@@ -451,6 +502,13 @@ class CombatResolver:
             spread = CombatResolver._get_offensive_val(atk_stats, ctx, "damage_spread")
 
             if ctx.flags.damage.physical:
+                if ctx.flags.meta.weapon_class == "unarmed":
+                    unarmed = atk_stats.skills.skill_unarmed
+                    efficiency = UNARMED_MIN_EFFICIENCY + ((UNARMED_MAX_EFFICIENCY - UNARMED_MIN_EFFICIENCY) * unarmed)
+                    base *= efficiency
+                    spread = max(UNARMED_MASTER_SPREAD, UNARMED_NOVICE_SPREAD - (0.4 * unarmed))
+                else:
+                    base += atk_stats.mods.physical_damage
                 base += atk_stats.mods.physical_damage_bonus
 
             min_d = base * (1.0 - spread)
@@ -528,6 +586,7 @@ class CombatResolver:
             total_damage -= absorbed
             res.reflected_damage += int(absorbed)
 
+        total_damage *= ctx.mods.damage_mult
         total_damage = max(0.0, total_damage)
         res.damage_final = int(total_damage)
         CombatResolver._trace_damage(
@@ -675,17 +734,29 @@ class CombatResolver:
 
             # 5. Мутации (с поддержкой точек и add_effect)
             for key, value in rule_data.get("mutations", {}).items():
-                CombatResolver._apply_mutation(ctx, res, key, value)
+                CombatResolver._apply_mutation(ctx, res, key, value, step_key=step_key)
 
     @staticmethod
-    def _apply_mutation(ctx: PipelineContextDTO, res: InteractionResultDTO, key: str, value: Any):
+    def _apply_mutation(
+        ctx: PipelineContextDTO,
+        res: InteractionResultDTO,
+        key: str,
+        value: Any,
+        *,
+        step_key: str | None = None,
+    ):
         """
         Применяет мутацию к контексту или результату.
         Поддерживает вложенные ключи и спец. команду add_effect.
         """
         # 0. Спец. команда: add_effect
         if key == "add_effect" and isinstance(value, dict):
-            res.applied_effects.append(value)
+            effect_data = deepcopy(value)
+            conditions = effect_data.setdefault("conditions", {})
+            if step_key == "ON_CRIT":
+                conditions.setdefault("is_hit", True)
+                conditions.setdefault("is_crit", True)
+            res.applied_effects.append(effect_data)
             return
 
         # 1. Разбор пути
@@ -704,6 +775,11 @@ class CombatResolver:
             # B) Chain Events (res.chain_events)
             if root_name == "chain_events" and hasattr(res.chain_events, field_name):
                 setattr(res.chain_events, field_name, value)
+                return
+
+            # C) Numeric pipeline mods (ctx.mods.weapon_effect_value, etc.)
+            if root_name == "mods" and hasattr(ctx.mods, field_name):
+                setattr(ctx.mods, field_name, value)
                 return
 
             return
@@ -725,6 +801,16 @@ class CombatResolver:
         passed: bool,
         **details: Any,
     ) -> None:
+        compact_details = CombatResolver._compact_trace_details(details)
+        res.checks.append(
+            CombatCheckTraceDTO(
+                stage=stage,
+                chance=chance,
+                roll=roll,
+                passed=passed,
+                details=compact_details,
+            )
+        )
         log.opt(colors=True).debug(
             "<cyan>CombatRoll</cyan> | {src}->{dst} stage={stage} chance={chance:.3f} roll={roll} pass={passed} {details}",
             src=res.source_id,
@@ -733,7 +819,7 @@ class CombatResolver:
             chance=chance,
             roll="auto" if roll is None else f"{roll:.3f}",
             passed=passed,
-            details=CombatResolver._compact_details(details),
+            details=CombatResolver._compact_details(compact_details),
         )
 
     @staticmethod
@@ -753,6 +839,14 @@ class CombatResolver:
         raw = details.pop("raw")
         min_d = details.pop("min_d")
         max_d = details.pop("max_d")
+        compact_details = CombatResolver._compact_trace_details(details)
+        res.damage_trace = CombatDamageTraceDTO(
+            raw=float(raw),
+            final=float(final),
+            min=float(min_d),
+            max=float(max_d),
+            details=compact_details,
+        )
         log.opt(colors=True).debug(
             "<magenta>CombatDamage</magenta> | {src}->{dst} final={final:.2f} raw={raw:.2f} range={min_d:.2f}-{max_d:.2f} {details}",
             src=res.source_id,
@@ -761,7 +855,7 @@ class CombatResolver:
             raw=raw,
             min_d=min_d,
             max_d=max_d,
-            details=CombatResolver._compact_details(details),
+            details=CombatResolver._compact_details(compact_details),
         )
 
     @staticmethod
@@ -775,3 +869,7 @@ class CombatResolver:
             else:
                 parts.append(f"{key}={value}")
         return " ".join(parts)
+
+    @staticmethod
+    def _compact_trace_details(details: dict[str, Any]) -> dict[str, Any]:
+        return {key: value for key, value in details.items() if value is not None}

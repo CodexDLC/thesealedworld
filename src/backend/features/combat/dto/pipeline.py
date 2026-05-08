@@ -161,6 +161,7 @@ class PipelineModsDTO(BaseModel):
     """Числовые модификаторы."""
 
     accuracy_mult: float = 1.0
+    damage_mult: float = 1.0
     weapon_effect_value: float = 2.0  # Универсальный бонус оружия (Crit Mult / Pierce %)
 
 
@@ -193,6 +194,7 @@ class ChainTriggersDTO(BaseModel):
     trigger_offhand_attack: bool = False  # Атака второй рукой
     trigger_counter_attack: bool = False  # Контратака
     trigger_extra_strike: bool = False  # Дополнительный удар (перк)
+    preserve_feint: bool = False  # Возвратить стоимость использованного финта
     trigger_cleave: list[int] = Field(default_factory=list)  # IDs целей для Cleave
 
 
@@ -202,7 +204,18 @@ class CombatEventDTO(BaseModel):
     """
 
     type: Literal[
-        "CAST", "HIT", "MISS", "DODGE", "PARRY", "BLOCK", "CRIT", "TICK", "DEATH", "HEAL", "COST", "APPLY_EFFECT"
+        "CAST",
+        "HIT",
+        "MISS",
+        "DODGE",
+        "PARRY",
+        "BLOCK",
+        "CRIT",
+        "TICK",
+        "DEATH",
+        "HEAL",
+        "COST",
+        "APPLY_EFFECT",
     ]
     source_id: int
     target_id: int | None = None
@@ -216,6 +229,26 @@ class CombatEventDTO(BaseModel):
 
     # Теги (для доп. инфы)
     tags: list[str] = Field(default_factory=list)
+
+
+class CombatCheckTraceDTO(BaseModel):
+    """Structured resolver check trace for one stage of one interaction."""
+
+    stage: str
+    chance: float
+    roll: float | None = None
+    passed: bool
+    details: dict[str, Any] = Field(default_factory=dict)
+
+
+class CombatDamageTraceDTO(BaseModel):
+    """Structured damage calculation trace for one interaction."""
+
+    raw: float
+    final: float
+    min: float
+    max: float
+    details: dict[str, Any] = Field(default_factory=dict)
 
 
 class InteractionResultDTO(BaseModel):
@@ -253,6 +286,10 @@ class InteractionResultDTO(BaseModel):
 
     # === Events (Структурированный лог) ===
     events: list[CombatEventDTO] = Field(default_factory=list)
+
+    # === Resolver Trace (для читаемого INFO лога и аналитики) ===
+    checks: list[CombatCheckTraceDTO] = Field(default_factory=list)
+    damage_trace: CombatDamageTraceDTO | None = None
 
     # === Что надо сделать (Команды) ===
     # Список эффектов для наложения: [{"id": "bleed", "params": {"power": 30}}]

@@ -61,6 +61,7 @@ async def test_open_window_creates_redis_session_and_active_character_projection
     assert window.can_act is True
     assert fake_redis_client.store["game:inventory:7"]["layout"]["equipment"]["main_hand"] == "sword-1"
     assert fake_redis_client.store["game:ac:7"]["items"]["layout"]["equipment"]["outer_garment"] == "cloak-1"
+    assert set(fake_redis_client.store["game:ac:7"]["items"]["by_id"]) == {"sword-1", "cloak-1"}
     assert fake_redis_client.ttls["game:inventory:7"] == 3600
 
 
@@ -287,7 +288,8 @@ async def test_unequipping_belt_moves_disabled_quick_items_back_to_backpack(fake
 
     active_doc = fake_redis_client.store["game:ac:7"]
     assert active_doc["items"]["layout"]["belt"]["belt_slot_1"] is None
-    assert "potion-1" in active_doc["items"]["layout"]["backpack"]
+    assert active_doc["items"]["layout"]["backpack"] == []
+    assert "potion-1" not in active_doc["items"]["by_id"]
     assert all(slot.enabled is False for slot in window.quick_slots)
 
 

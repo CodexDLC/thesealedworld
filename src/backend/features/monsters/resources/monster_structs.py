@@ -47,8 +47,8 @@ class MonsterCombatProfile(TypedDict, total=False):
 
 
 class MonsterSkillKit(TypedDict):
-    base: dict[str, int]
-    role_bonus: dict[str, dict[str, int]]
+    base: dict[str, float]
+    role_bonus: dict[str, dict[str, float]]
 
 
 class MonsterAbilityDefinition(TypedDict):

@@ -1,7 +1,14 @@
 from __future__ import annotations
 
+import builtins
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any, Literal
 
+from src.backend.features.character.runtime.vitals import CharacterVitalsCalculator
+from src.backend.features.character.schemas.session import (
+    CharacterSessionAttributesDTO,
+    CharacterSessionVitalsDTO,
+)
 from src.backend.infrastructure.redis.keys import PlayerCoreKey
 from src.shared.enums import CoreDomain
 from src.shared.enums.skill_enums import SkillProgressState
@@ -236,7 +243,67 @@ class CharacterSessionManager:
         cur: int | None = None,
         max: int | None = None,  # noqa: A002
     ) -> None:
-        raise NotImplementedError("Vital point-updates are planned for iteration 2.")
+        if cur is None and max is None:
+            return
+
+        document = await self.get_session(char_id)
+        if not isinstance(document, dict):
+            raise SessionNotFoundError(f"Character session not found: char_id={char_id}")
+
+        now = datetime.now(UTC).timestamp()
+        vitals = CharacterSessionVitalsDTO.model_validate(document.get("vitals") or {})
+        vitals = CharacterVitalsCalculator.apply_regen(vitals, now=now)
+        value = getattr(vitals, vital)
+
+        if max is not None:
+            value.max = builtins.max(1, int(max))
+        if cur is not None:
+            value.cur = builtins.max(0, min(int(cur), value.max))
+        else:
+            value.cur = builtins.max(0, min(int(value.cur), value.max))
+        vitals.last_update = now
+
+        payload = vitals.model_dump(mode="json")
+        await self.patch_fields(char_id, {"$.vitals": payload})
+        await self.mark_dirty(
+            char_id,
+            reason="vitals_changed",
+            paths=[f"$.vitals.{vital}", "$.vitals.last_update"],
+        )
+
+    async def apply_vitals_regen(self, char_id: int) -> dict[str, Any]:
+        document = await self.get_session(char_id)
+        if not isinstance(document, dict):
+            raise SessionNotFoundError(f"Character session not found: char_id={char_id}")
+
+        vitals = CharacterSessionVitalsDTO.model_validate(document.get("vitals") or {})
+        before = vitals.model_dump(mode="json")
+        updated_vitals = CharacterVitalsCalculator.apply_regen(vitals)
+        payload = updated_vitals.model_dump(mode="json")
+        if payload != before:
+            await self.patch_fields(char_id, {"$.vitals": payload})
+            await self.mark_dirty(
+                char_id,
+                reason="vitals_regenerated",
+                paths=["$.vitals.hp", "$.vitals.energy", "$.vitals.stamina", "$.vitals.last_update"],
+            )
+        return payload
+
+    async def restore_vitals_to_max(self, char_id: int) -> dict[str, Any]:
+        document = await self.get_session(char_id)
+        if not isinstance(document, dict):
+            raise SessionNotFoundError(f"Character session not found: char_id={char_id}")
+
+        attributes = CharacterSessionAttributesDTO.model_validate(document.get("attributes") or {})
+        restored_vitals = CharacterVitalsCalculator.restore_to_max_vitals(attributes)
+        payload = restored_vitals.model_dump(mode="json")
+        await self.patch_fields(char_id, {"$.vitals": payload})
+        await self.mark_dirty(
+            char_id,
+            reason="vitals_restored",
+            paths=["$.vitals.hp", "$.vitals.energy", "$.vitals.stamina", "$.vitals.last_update"],
+        )
+        return payload
 
     async def apply_attribute_bonus(self, char_id: int, bonuses: dict[str, int]) -> None:
         if not bonuses:
@@ -275,6 +342,51 @@ class CharacterSessionManager:
             reason="skills_unlocked",
             paths=[f"$.skills.{skill_key}" for skill_key in sorted(unique_skills)],
         )
+
+    async def apply_skill_progress(self, char_id: int, rewards: dict[str, float]) -> None:
+        if not rewards:
+            return
+
+        document = await self.get_session(char_id)
+        if not isinstance(document, dict):
+            raise SessionNotFoundError(f"Character session not found: char_id={char_id}")
+
+        updates: dict[str, Any] = {}
+        dirty_paths: list[str] = []
+        skills = document.get("skills") if isinstance(document.get("skills"), dict) else {}
+
+        for reward_key, delta in rewards.items():
+            delta = round(float(delta or 0.0), 4)
+            if delta <= 0:
+                continue
+
+            if reward_key == "free_xp":
+                progression = dict(document.get("progression") or {})
+                progression["free_xp"] = round(float(progression.get("free_xp", 0.0) or 0.0) + delta, 4)
+                updates["$.progression"] = progression
+                dirty_paths.append("$.progression.free_xp")
+                continue
+
+            current = skills.get(reward_key)
+            if isinstance(current, dict):
+                payload = dict(current)
+                payload["xp"] = round(float(payload.get("xp", payload.get("total_xp", 0.0)) or 0.0) + delta, 4)
+                payload.setdefault("unlocked", True)
+                payload.setdefault("state", SkillProgressState.PLUS.value)
+            else:
+                payload = {
+                    "xp": delta,
+                    "unlocked": True,
+                    "state": SkillProgressState.PLUS.value,
+                }
+            updates[f"$.skills.{reward_key}"] = payload
+            dirty_paths.append(f"$.skills.{reward_key}")
+
+        if not updates:
+            return
+
+        await self.patch_fields(char_id, updates)
+        await self.mark_dirty(char_id, reason="skill_progress_applied", paths=sorted(set(dirty_paths)))
 
     async def update_bio(
         self,

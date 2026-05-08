@@ -7,6 +7,9 @@
 ## 🎯 Описание
 Справочник по типам оружия. Каждое оружие имеет уникальный стиль игры, определяемый его **Триггерами** (спецэффектами при крите/ударе).
 
+Runtime хранит триггеры на предметах как `section.trigger_id`, например `crit.bleed_on_crit`.
+В каталоге правил сами id лежат без секции (`bleed_on_crit`), а секция выбирает событие пайплайна.
+
 ---
 
 ## 🗡️ Swords (Мечи)
@@ -15,16 +18,16 @@
 
 ### Типы и Триггеры
 *   **Longsword (Длинный меч):**
-    *   **Trigger:** `trigger_bleed` (On Crit).
+    *   **Trigger:** `crit.bleed_on_crit` (On Crit).
     *   **Эффект:** Накладывает кровотечение (DoT).
 *   **Greatsword (Двуручный меч):**
-    *   **Trigger:** `trigger_cleave` (On Kill/Crit).
+    *   **Trigger:** `crit.heavy_strike_on_crit` / planned `crit.cleave_on_crit` (On Crit).
     *   **Эффект:** Урон по соседней цели (AoE).
 *   **Katana (Катана):**
-    *   **Trigger:** `trigger_heavy_bleed` (On Crit).
+    *   **Trigger:** `crit.bleed_on_crit` (On Crit).
     *   **Эффект:** Усиленное кровотечение или мгновенный урон от стаков (Hemorrhage).
 *   **Scimitar (Сабля):**
-    *   **Trigger:** `trigger_flow` (On Hit).
+    *   **Trigger:** planned `damage.flow_on_hit` (On Hit).
     *   **Эффект:** Накапливает инициативу/скорость с каждым ударом.
 
 ---
@@ -35,16 +38,16 @@
 
 ### Типы и Триггеры
 *   **Mace (Булава):**
-    *   **Trigger:** `trigger_macing_stun` (On Crit).
+    *   **Trigger:** `crit.stun_on_crit` (On Crit).
     *   **Эффект:** Оглушение (Stun) на 1 ход.
 *   **War Hammer (Боевой молот):**
-    *   **Trigger:** `trigger_armor_crush` (On Crit).
+    *   **Trigger:** `crit.stun_on_crit` / planned `crit.armor_crush_on_crit` (On Crit).
     *   **Эффект:** Перманентное снижение брони цели.
 *   **Flail (Кистень):**
-    *   **Trigger:** `trigger_shield_bypass` (On Hit).
+    *   **Trigger:** `crit.unblockable_crit` or planned `damage.shield_bypass_on_hit`.
     *   **Эффект:** Игнорирует блок щитом.
 *   **Maul (Тяжёлый молот):**
-    *   **Trigger:** `trigger_concussion` (On Hit).
+    *   **Trigger:** `crit.heavy_strike_on_crit` / planned `damage.concussion_on_hit`.
     *   **Эффект:** Сжигает энергию/выносливость цели.
 
 ---
@@ -55,16 +58,16 @@
 
 ### Типы и Триггеры
 *   **Shortbow (Короткий лук):**
-    *   **Trigger:** `trigger_evasive_shot` (On Hit).
+    *   **Trigger:** `control.evasive_shot` (On Hit).
     *   **Эффект:** Бафф на уклонение после выстрела.
 *   **Longbow (Длинный лук):**
-    *   **Trigger:** `trigger_sniper_crit` (On Crit).
+    *   **Trigger:** `crit.heavy_strike_on_crit` (On Crit).
     *   **Эффект:** Множитель крита **x3.0**.
 *   **Composite Bow (Композитный лук):**
-    *   **Trigger:** `trigger_heavy_impact` (On Crit).
+    *   **Trigger:** `crit.stun_on_crit` / planned `crit.heavy_impact_on_crit` (On Crit).
     *   **Эффект:** Отбрасывание (Knockback) и Стан.
 *   **Heavy Crossbow (Тяжёлый арбалет):**
-    *   **Trigger:** `trigger_armor_pierce` (On Hit).
+    *   **Trigger:** `crit.piercing_crit` / planned `damage.armor_pierce_on_hit`.
     *   **Эффект:** Игнорирует 100% брони.
 
 ---
@@ -75,16 +78,16 @@
 
 ### Типы и Триггеры
 *   **Spear (Копье):**
-    *   **Trigger:** `trigger_keep_distance` (On Hit).
+    *   **Trigger:** planned `damage.keep_distance_on_hit`.
     *   **Эффект:** Замедление врага (Slow).
 *   **Pike (Пика):**
-    *   **Trigger:** `trigger_piercing_thrust` (On Crit).
+    *   **Trigger:** `crit.piercing_crit` (On Crit).
     *   **Эффект:** Игнорирует Резисты и Броню.
 *   **Halberd (Алебарда):**
-    *   **Trigger:** `trigger_heavy_crit` (On Crit).
+    *   **Trigger:** `crit.heavy_strike_on_crit` (On Crit).
     *   **Эффект:** Множитель крита **x3.0**.
 *   **Trident (Трезубец):**
-    *   **Trigger:** `trigger_entangle` (On Hit).
+    *   **Trigger:** planned `damage.entangle_on_hit` / `parry.disarm_on_parry`.
     *   **Эффект:** Обездвиживание (Root) или Обезоруживание.
 
 ---
@@ -95,14 +98,14 @@
 
 ### Типы и Триггеры
 *   **Stiletto (Стилет):**
-    *   **Trigger:** `trigger_needle_point` (On Crit).
+    *   **Trigger:** `crit.piercing_crit` (On Crit).
     *   **Эффект:** Игнорирует Flat Armor.
 *   **Rapier (Рапира):**
-    *   **Trigger:** `trigger_vitals_trace` (On Crit).
+    *   **Trigger:** `crit.true_crit` / planned `crit.vitals_trace_on_crit` (On Crit).
     *   **Эффект:** Игнорирует % Resistance.
 *   **Main-gauche (Дага):**
-    *   **Trigger:** `trigger_blade_catcher` (On Parry).
+    *   **Trigger:** `parry.counter_on_parry` (On Parry).
     *   **Эффект:** Контратака с бонусом урона.
 *   **Katar (Катар):**
-    *   **Trigger:** `trigger_vitals_strike` (On Crit).
+    *   **Trigger:** planned `crit.vitals_strike_on_crit` (On Crit).
     *   **Эффект:** True Damage (Чистый урон).

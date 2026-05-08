@@ -39,6 +39,12 @@ class CombatTurnManager:
         """
         # 1. Определяем тип действия
         action_type = payload.get("action", "attack")
+        log.debug(
+            "TurnManagerStart | session_id={session_id} actor_id={actor_id} action={action}",
+            session_id=session_id,
+            actor_id=char_id,
+            action=action_type,
+        )
 
         # 2. Получаем данные персонажа (нужен afk_level для таймера)
         # get_actor_state возвращает словарь из $.meta
@@ -115,7 +121,15 @@ class CombatTurnManager:
             "combat_collector_task", signal_timeout.model_dump(), _defer_until=self._defer_after(timeout)
         )
 
-        log.info(f"TurnManager | Move {action_type} registered. Strategy: {move_dto.strategy}. Timeout: {timeout}s")
+        log.info(
+            "TurnManagerAccepted | session_id={session_id} actor_id={actor_id} move_id={move_id} action={action} strategy={strategy} timeout={timeout}s",
+            session_id=session_id,
+            actor_id=char_id,
+            move_id=move_dto.move_id,
+            action=action_type,
+            strategy=move_dto.strategy,
+            timeout=timeout,
+        )
 
     async def register_moves_batch(self, session_id: str, char_id: int, payloads: list[dict[str, Any]]) -> None:
         """
@@ -164,36 +178,47 @@ class CombatTurnManager:
             except ValidationError:
                 continue
 
-        success_count = 0
+        accepted_move_ids: list[str] = []
 
         # 2. Process Exchange Moves (Atomic Lua with POP)
         if exchange_moves_data:
-            count = await self.combat_sessions.register_moves_batch(session_id, char_id, exchange_moves_data)
-            success_count += count
+            accepted_move_ids.extend(
+                await self.combat_sessions.register_moves_batch(session_id, char_id, exchange_moves_data)
+            )
 
         # 3. Process Other Moves (Pipeline without POP)
         if other_moves_dtos:
             await self.combat_sessions.append_moves_batch(session_id, char_id, other_moves_dtos)
-            success_count += len(other_moves_dtos)
+            accepted_move_ids.extend(str(move.move_id) for move in other_moves_dtos)
 
         # 4. Signals (Immediate + Timeout)
-        if success_count > 0:
+        if accepted_move_ids:
             # A. Immediate
             signal_immediate = CollectorSignalDTO(
                 session_id=session_id, char_id=char_id, signal_type="check_immediate", move_id="batch"
             )
             await self.arq.enqueue_job("combat_collector_task", signal_immediate.model_dump())
 
-            # B. Timeout (Force Attack)
+            # B. Timeout (Force Attack). Each timeout is tied to a concrete
+            # move_id, matching single-move registration and preventing stale
+            # batch timeouts from forcing newer AI intents.
             timeout = 60
-            signal_timeout = CollectorSignalDTO(
-                session_id=session_id, char_id=char_id, signal_type="check_timeout", move_id="batch"
-            )
-            await self.arq.enqueue_job(
-                "combat_collector_task", signal_timeout.model_dump(), _defer_until=self._defer_after(timeout)
-            )
+            for move_id in accepted_move_ids:
+                signal_timeout = CollectorSignalDTO(
+                    session_id=session_id, char_id=char_id, signal_type="check_timeout", move_id=move_id
+                )
+                await self.arq.enqueue_job(
+                    "combat_collector_task", signal_timeout.model_dump(), _defer_until=self._defer_after(timeout)
+                )
 
-            log.info(f"TurnManager | Batch registered {success_count} moves for {char_id}. Timeout: {timeout}s")
+            log.info(
+                "TurnManagerBatchAccepted | session_id={session_id} actor_id={actor_id} accepted={accepted} requested={requested} timeout={timeout}s",
+                session_id=session_id,
+                actor_id=char_id,
+                accepted=len(accepted_move_ids),
+                requested=len(payloads),
+                timeout=timeout,
+            )
         else:
             log.warning(f"TurnManager | Batch failed or empty for {char_id}")
 

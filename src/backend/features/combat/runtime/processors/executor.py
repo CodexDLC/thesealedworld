@@ -1,12 +1,19 @@
 import asyncio
 import time
+from typing import Any
 
 from loguru import logger as log
 
-from src.backend.features.combat.dto.action import CombatActionDTO
-from src.backend.features.combat.dto.pipeline import InteractionResultDTO
+from src.backend.features.combat.dto.action import CombatActionDTO, CombatMoveDTO
+from src.backend.features.combat.dto.pipeline import InteractionResultDTO, PipelineContextDTO
 from src.backend.features.combat.dto.session import BattleContext
+from src.backend.features.combat.integrations import CombatCatalogIntegrator
+from src.backend.features.combat.runtime.engine.feint_service import FeintService
 from src.backend.features.combat.runtime.engine.pipeline import CombatPipeline
+from src.backend.features.combat.runtime.engine.target_resolver import TargetResolver
+from src.backend.features.combat.runtime.services.analytics_builder import CombatAnalyticsFactBuilder
+from src.backend.features.combat.runtime.services.log_builder import CombatLogBuilder
+from src.backend.features.game_catalog.combat.resources.common.targeting import TargetType
 
 
 class CombatExecutor:
@@ -18,6 +25,7 @@ class CombatExecutor:
 
     def __init__(self):
         self.pipeline = CombatPipeline()
+        self.target_resolver = TargetResolver()
 
     async def process_batch(self, ctx: BattleContext, actions: list[CombatActionDTO]) -> list[str]:
         """
@@ -76,20 +84,40 @@ class CombatExecutor:
             log.warning(f"Executor | Exchange participants not found: {action.move.char_id} -> {target_id}")
             return
 
+        self._process_periodic_effects(ctx, [source, target], action=action, wave=0)
+
         # Очередь задач (Waves)
-        pending_tasks = []
+        pending_tasks: list[tuple[Any, CombatMoveDTO]] = []
 
         # 1. Main Attack (A -> B)
-        pending_tasks.append(self._create_task(source, target, action.move, mods={"action_mode": "exchange"}))  # type: ignore # TODO: Fix later when refactoring Combat Engine
+        pending_tasks.append(
+            (self._create_task(source, target, action.move, mods={"action_mode": "exchange"}), action.move)
+        )  # type: ignore # TODO: Fix later when refactoring Combat Engine
 
         # 2. Partner Attack (B -> A)
         if action.partner_move:
             pending_tasks.append(
-                self._create_task(target, source, action.partner_move, mods={"action_mode": "exchange"})  # type: ignore # TODO: Fix later when refactoring Combat Engine
+                (
+                    self._create_task(target, source, action.partner_move, mods={"action_mode": "exchange"}),
+                    action.partner_move,
+                )  # type: ignore # TODO: Fix later when refactoring Combat Engine
             )
         elif not action.is_forced:
             log.error("Executor | Exchange without partner_move and not forced")
             return
+
+        for secondary_target in self._secondary_feint_targets(ctx, action, primary_target_id=int(target_id)):
+            pending_tasks.append(
+                (
+                    self._create_task(
+                        source,
+                        secondary_target,
+                        action.move,
+                        mods={"action_mode": "exchange", "damage_mult": 0.5, "feint_role": "secondary"},
+                    ),
+                    action.move,
+                )
+            )
 
         # --- EXECUTION LOOP (Waves) ---
         max_waves = 3
@@ -99,10 +127,11 @@ class CombatExecutor:
             wave += 1
 
             # Запускаем текущую волну
-            results = await asyncio.gather(*pending_tasks)
+            current_tasks = pending_tasks
+            results = await asyncio.gather(*(task for task, _move in current_tasks))
             pending_tasks = []
 
-            for result in results:
+            for result, move in zip(results, (move for _task, move in current_tasks), strict=False):
                 s_id = result.source_id
                 t_id = result.target_id
 
@@ -119,6 +148,9 @@ class CombatExecutor:
                     [event.type for event in result.events],
                 )
                 self._append_result_logs(ctx, result, action=action, wave=wave)
+                self._append_analytics_fact(ctx, result, action=action, wave=wave)
+                self._log_result_info(ctx, result, wave=wave)
+                self._refund_feint_cost_if_needed(ctx, result, move)
 
                 # --- CHAIN REACTIONS ---
 
@@ -131,11 +163,14 @@ class CombatExecutor:
                         log.info(f"Executor | Chain: Counter-Attack {t_id} -> {s_id}")
                         counter_move = action.partner_move if action.partner_move else action.move
                         pending_tasks.append(
-                            self._create_task(
-                                defender,
-                                attacker,
+                            (
+                                self._create_task(
+                                    defender,
+                                    attacker,
+                                    counter_move,
+                                    mods={"is_counter_attack": True, "action_mode": "exchange"},  # type: ignore # TODO: Fix later when refactoring Combat Engine
+                                ),
                                 counter_move,
-                                mods={"is_counter_attack": True, "action_mode": "exchange"},  # type: ignore # TODO: Fix later when refactoring Combat Engine
                             )
                         )
 
@@ -147,11 +182,14 @@ class CombatExecutor:
                     if attacker and defender:
                         log.info(f"Executor | Chain: Off-Hand Attack {s_id} -> {t_id}")
                         pending_tasks.append(
-                            self._create_task(
-                                attacker,
-                                defender,
+                            (
+                                self._create_task(
+                                    attacker,
+                                    defender,
+                                    action.move,
+                                    mods={"hand": "off", "action_mode": "exchange"},  # type: ignore # TODO: Fix later when refactoring Combat Engine
+                                ),
                                 action.move,
-                                mods={"hand": "off", "action_mode": "exchange"},  # type: ignore # TODO: Fix later when refactoring Combat Engine
                             )
                         )
 
@@ -159,6 +197,9 @@ class CombatExecutor:
         source.meta.exchange_counter += 1
         target.meta.exchange_counter += 1
         ctx.meta.step_counter += 1
+
+        self._reroll_exchange_feints(source)
+        self._reroll_exchange_feints(target)
 
         # НОВОЕ: Собираем пары для возврата целей
         self._collect_target_returns(ctx, action)
@@ -172,6 +213,8 @@ class CombatExecutor:
         source = ctx.get_actor(action.move.char_id)
         if not source:
             return
+
+        self._process_periodic_effects(ctx, [source], action=action, wave=0)
 
         target_ids = action.move.targets or []
 
@@ -190,6 +233,8 @@ class CombatExecutor:
             results = await asyncio.gather(*tasks)
             for result in results:
                 self._append_result_logs(ctx, result, action=action, wave=1)
+                self._append_analytics_fact(ctx, result, action=action, wave=1)
+                self._log_result_info(ctx, result, wave=1)
             log.info(f"Executor | Unidirectional complete. Targets={len(tasks)}")
 
     # ==========================================================================
@@ -209,69 +254,122 @@ class CombatExecutor:
             exchange_count=source.meta.exchange_counter,
         )
 
+    def _secondary_feint_targets(
+        self, ctx: BattleContext, action: CombatActionDTO, *, primary_target_id: int
+    ) -> list[Any]:
+        feint_id = getattr(action.move.payload, "feint_id", None)
+        if not feint_id:
+            return []
+
+        feint_config = CombatCatalogIntegrator.get_feint(str(feint_id))
+        if not feint_config or feint_config.target != TargetType.ALL_ENEMIES or feint_config.target_count <= 1:
+            return []
+
+        resolved = self.target_resolver.resolve(int(action.move.char_id), feint_config.target.value, ctx.meta)
+        limit = max(0, int(feint_config.target_count) - 1)
+        selected: list[Any] = []
+        for target_id in resolved:
+            if int(target_id) in {int(action.move.char_id), primary_target_id}:
+                continue
+            actor = ctx.get_actor(target_id)
+            if actor and actor.is_alive:
+                selected.append(actor)
+            if len(selected) >= limit:
+                break
+        return selected
+
+    def _process_periodic_effects(
+        self, ctx: BattleContext, actors: list[Any], *, action: CombatActionDTO, wave: int
+    ) -> None:
+        seen: set[int] = set()
+        for actor in actors:
+            actor_id = int(actor.char_id)
+            if actor_id in seen:
+                continue
+            seen.add(actor_id)
+
+            tick_ctx = PipelineContextDTO()
+            tick_ctx.flags.mechanics.apply_periodic = True
+            self.pipeline.mechanics_service.process_turn_start(tick_ctx, actor)
+            if tick_ctx.result.events:
+                self._append_result_logs(ctx, tick_ctx.result, action=action, wave=wave)
+                self._append_analytics_fact(ctx, tick_ctx.result, action=action, wave=wave)
+                self._log_result_info(ctx, tick_ctx.result, wave=wave)
+
+    @staticmethod
+    def _refund_feint_cost_if_needed(ctx: BattleContext, result: InteractionResultDTO, move: CombatMoveDTO) -> None:
+        if not result.chain_events.preserve_feint:
+            return
+
+        feint_id = getattr(move.payload, "feint_id", None)
+        if not feint_id:
+            return
+
+        source = ctx.get_actor(move.char_id)
+        if not source:
+            return
+
+        feint_config = CombatCatalogIntegrator.get_feint(feint_id)
+        if not feint_config:
+            log.warning("Executor | Feint refund failed: unknown feint_id={}", feint_id)
+            return
+
+        FeintService.refund_cost(source.meta, dict(feint_config.cost.tactics))
+
+    @staticmethod
+    def _reroll_exchange_feints(actor) -> None:
+        hand_size = actor.stats.mods.hand_size if actor.stats else 3
+        FeintService.reroll_hand(actor.meta, hand_size=hand_size)
+
     def _append_result_logs(
         self, ctx: BattleContext, result: InteractionResultDTO, *, action: CombatActionDTO, wave: int
     ) -> None:
         """
-        Переносит уже рассчитанные pipeline events в боевой log buffer.
-
-        Это технический runtime-log для текущего браузерного интерфейса. Текстовые описания,
-        локализация и компактное архивное хранение должны появиться отдельным log service.
-        TODO(combat-logs): заменить этот временный перенос на CombatLogBuilder, который получает
-        полный InteractionResultDTO, action, source/target snapshots, wave/action_mode и catalog
-        text layer, а затем собирает structured exchange summary и человекочитаемые тексты.
+        Переносит полный результат резольвера и pipeline events в боевой log buffer.
         """
-        timestamp = time.time()
-        common_tags = ["runtime", action.action_type, f"wave:{wave}"]
-        if action.is_forced:
-            common_tags.append("forced")
-
-        if result.events:
-            for event in result.events:
-                entry = event.model_dump(mode="json")
-                entry["timestamp"] = timestamp
-                entry["tags"] = [*entry.get("tags", []), *common_tags]
-                entry["text"] = self._build_technical_log_text(entry)
-                ctx.pending_logs.append(entry)
-            return
-
-        ctx.pending_logs.append(
-            {
-                "type": "RESULT",
-                "text": self._build_technical_log_text(
-                    {
-                        "type": "RESULT",
-                        "source_id": result.source_id,
-                        "target_id": result.target_id,
-                        "value": result.damage_final or result.healing_final or None,
-                    }
-                ),
-                "timestamp": timestamp,
-                "tags": common_tags,
-                "source_id": result.source_id,
-                "target_id": result.target_id,
-                "damage_final": result.damage_final,
-                "healing_final": result.healing_final,
-                "skip_reason": result.skip_reason,
-            }
+        ctx.pending_logs.extend(
+            CombatLogBuilder.build_result_entries(
+                ctx=ctx,
+                result=result,
+                action=action,
+                wave=wave,
+                timestamp=time.time(),
+            )
         )
 
     @staticmethod
-    def _build_technical_log_text(entry: dict) -> str:
-        event_type = entry.get("type") or "RESULT"
-        source_id = entry.get("source_id")
-        target_id = entry.get("target_id")
-        value = entry.get("value")
-        resource = entry.get("resource")
+    def _append_analytics_fact(
+        ctx: BattleContext, result: InteractionResultDTO, *, action: CombatActionDTO, wave: int
+    ) -> None:
+        ctx.pending_analytics.append(
+            CombatAnalyticsFactBuilder.build_result_fact(
+                ctx=ctx,
+                result=result,
+                action=action,
+                wave=wave,
+                seq=len(ctx.pending_analytics),
+            )
+        )
 
-        text = f"{event_type}: {source_id}"
-        if target_id is not None:
-            text += f" -> {target_id}"
-        if value is not None:
-            text += f" {value}"
-            if resource:
-                text += f" {resource}"
-        return text
+    @staticmethod
+    def _log_result_info(ctx: BattleContext, result: InteractionResultDTO, *, wave: int) -> None:
+        checks = " ".join(
+            f"{CombatAnalyticsFactBuilder.STAGES.get(check.stage, check.stage)}{'✓' if check.passed else '×'}"
+            for check in result.checks
+        )
+        log.info(
+            "CombatExchange | session={} turn={} wave={} {}->{} outcome={} checks={} dmg={} heal={} events={}",
+            ctx.session_id,
+            ctx.meta.step_counter + 1,
+            wave,
+            result.source_id,
+            result.target_id,
+            CombatAnalyticsFactBuilder.OUTCOMES.get(CombatAnalyticsFactBuilder._outcome(result), "N"),
+            checks or "-",
+            result.damage_final,
+            result.healing_final,
+            [event.type for event in result.events],
+        )
 
     def _collect_target_returns(self, ctx: BattleContext, action: CombatActionDTO) -> None:
         """

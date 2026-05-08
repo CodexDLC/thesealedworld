@@ -63,11 +63,11 @@ def test_feint_catalog_entry_splits_technical_and_taxonomy_descriptions() -> Non
     assert entry.technical.target_count == 3
     assert entry.descriptive.default_taxonomy == "humanoid"
     assert set(entry.descriptive.variants) == {"humanoid", "beast"}
-    assert entry.descriptive.variants["humanoid"].icon == "combat/feints/cleave.png"
+    assert entry.descriptive.variants["humanoid"].icon == "combat/feints/cleave.svg"
     assert entry.descriptive.variants["beast"].display_name == "Рассечение"
     assert len(entry.descriptive.variants["humanoid"].event_texts.hit) >= 2
     assert len(entry.descriptive.variants["beast"].event_texts.dodge) >= 2
-    assert "{source}" in entry.descriptive.variants["humanoid"].event_texts.hit[0]
+    assert "{source}" in entry.descriptive.variants["humanoid"].event_texts.use[0]
     assert "{target}" in entry.descriptive.variants["beast"].event_texts.hit[0]
 
 

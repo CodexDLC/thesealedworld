@@ -20,15 +20,15 @@ WOLVES_FAMILY: MonsterFamily = {
     },
     "skill_kit": {
         "base": {
-            "skill_unarmed": 30,
-            "skill_adaptation": 10,
-            "skill_scouting": 20,
+            "skill_unarmed": 0.30,
+            "skill_adaptation": 0.10,
+            "skill_scouting": 0.20,
         },
         "role_bonus": {
             "minion": {},
-            "veteran": {"skill_scouting": 15},
-            "elite": {"skill_unarmed": 35, "skill_tactics": 15},
-            "boss": {"skill_unarmed": 75, "skill_tactics": 45},
+            "veteran": {"skill_scouting": 0.15},
+            "elite": {"skill_unarmed": 0.35, "skill_tactics": 0.15},
+            "boss": {"skill_unarmed": 0.75, "skill_tactics": 0.45},
         },
     },
     "ability_map": {

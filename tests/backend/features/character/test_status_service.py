@@ -229,11 +229,12 @@ async def test_get_actor_core_repairs_stale_default_actor_core_from_persisted_ac
     assert dto.attributes["agility"] == 17
     assert dto.attributes["projection"] == 16
     assert dto.vitals["hp"]["max"] == 60
-    assert dto.vitals["hp"]["cur"] == 50
+    assert dto.vitals["hp"]["cur"] == 60
     assert dto.vitals["energy"]["max"] == 24
     assert dto.skills["skill_macing"]["state"] == "PLUS"
     assert sessions.updated is not None
     assert sessions.updated["attributes"]["agility"] == 17
+    assert sessions.updated["vitals"]["hp"]["cur"] == 60
     assert sessions.updated["vitals"]["hp"]["max"] == 60
     assert sessions.updated["skills"]["skill_macing"]["unlocked"] is True
 

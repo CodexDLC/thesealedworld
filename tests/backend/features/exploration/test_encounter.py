@@ -22,13 +22,14 @@ async def test_encounter_safe_zone():
 
 
 @pytest.mark.asyncio
-async def test_encounter_city_shield_threat_zero_is_safe_even_with_stale_flag():
+async def test_encounter_city_shield_does_not_make_unsafe_ruins_safe(mocker):
     engine = EncounterEngine()
+    mocker.patch("src.backend.core.calculators.chance_service.ChanceService.check_chance", return_value=True)
     location_data = {
         "anchor_influence": {"is_inside_city_shield": True},
         "flags": {
             "is_safe_zone": False,
-            "threat_tier": 0,
+            "threat_tier": 1,
         }
     }
 
@@ -37,10 +38,11 @@ async def test_encounter_city_shield_threat_zero_is_safe_even_with_stale_flag():
         location_data=location_data,
         scouting_skill=0.0,
         trigger="move",
-        loc_id="52_50",
+        loc_id="48_56",
     )
 
-    assert encounter is None
+    assert encounter is not None
+    assert encounter.type == EncounterType.MERCHANT
 
 @pytest.mark.asyncio
 async def test_encounter_combat_generation():

@@ -42,6 +42,9 @@ class CharacterEvents:
     SKILLS_UNLOCK_REQUESTED = "character.skills_unlock_requested"
     SKILLS_UNLOCKED = "character.skills_unlocked"
     SKILLS_UNLOCK_FAILED = "character.skills_unlock_failed"
+    VITALS_RESTORE_REQUESTED = "character.vitals_restore_requested"
+    VITALS_RESTORED = "character.vitals_restored"
+    VITALS_RESTORE_FAILED = "character.vitals_restore_failed"
 
 
 def bind(app: FastAPI) -> None:
@@ -128,6 +131,37 @@ async def on_combat_commitments_requested(payload: dict[str, Any]) -> None:
             await _app.state.events.publish_reply(cid, ack, ttl=30)
         except Exception:
             log.exception("Character combat commitments ack delivery failed: cid=%s", cid)
+
+
+@router.on(CharacterEvents.VITALS_RESTORE_REQUESTED, group="character", reply=True)
+async def on_vitals_restore_requested(payload: dict[str, Any]) -> None:
+    cid = payload.get("correlation_id")
+    if _app is None:
+        log.warning("Character vitals restore ignored: app_not_bound cid=%s", cid)
+        return
+
+    try:
+        char_id = int(payload["char_id"])
+        vitals = await _app.state.character_sessions.restore_vitals_to_max(char_id)
+        ack: dict[str, Any] = {"status": "ok", "char_id": char_id, "vitals": vitals}
+        await _app.state.events.publish(
+            CharacterEvents.VITALS_RESTORED,
+            {"char_id": char_id, "reason": payload.get("reason") or "restore_requested"},
+            correlation_id=cid,
+        )
+    except Exception as exc:  # noqa: BLE001
+        log.exception("Character vitals restore failed")
+        ack = {"status": "error", "error": f"{exc.__class__.__name__}: {exc}"}
+        try:
+            await _app.state.events.publish(CharacterEvents.VITALS_RESTORE_FAILED, {"request": payload, **ack})
+        except Exception:
+            log.exception("Character vitals restore failure event delivery failed")
+
+    if cid:
+        try:
+            await _app.state.events.publish_reply(cid, ack, ttl=30)
+        except Exception:
+            log.exception("Character vitals restore ack delivery failed: cid=%s", cid)
 
 
 @router.on(CharacterEvents.GEAR_SCORE_RECALCULATE_REQUESTED, group="character", reply=True)

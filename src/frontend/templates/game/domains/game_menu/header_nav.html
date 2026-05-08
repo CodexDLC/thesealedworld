@@ -16,6 +16,11 @@
         @click="$dispatch('panel-toggle', { side: '{{ item.panel }}', view: '{{ item.panel_view if item.panel_view else '' }}' })"
     {% elif item and item.window %}
         @click="$dispatch('hud-window-toggle', { name: '{{ item.window }}' })"
+        {% if item.window == 'inventory' and char_id is defined and char_id %}
+        hx-get="/game/inventory/window?char_id={{ char_id }}"
+        hx-target="#inventory-window-body"
+        hx-swap="innerHTML"
+        {% endif %}
     {% elif item and item.url and item.url != '#' %}
         @click="window.location='{{ item.url }}'"
 {% endif %}

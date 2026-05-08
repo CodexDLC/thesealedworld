@@ -33,6 +33,14 @@ async def combat_collector_task(ctx: dict, signal_data: dict) -> None:
         # 1. Logic Execution (Collect Actions & Check Timers)
         # Возвращает размер батча, список задач для AI и результат проверки победы
         batch_size, ai_tasks, victory_result = await collector.collect_actions(signal.session_id, signal)
+        log.debug(
+            "CollectorResult | session_id={session_id} signal={signal} batch={batch} ai_tasks={ai_tasks} victory={victory}",
+            session_id=session_id,
+            signal=signal.signal_type,
+            batch=batch_size,
+            ai_tasks=len(ai_tasks),
+            victory=victory_result,
+        )
 
         # 2. Dispatch AI Tasks (Non-blocking)
         if ai_tasks:

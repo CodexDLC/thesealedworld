@@ -21,7 +21,11 @@ class FeintCostDTO(BaseModel):
 
 class FeintTechnicalDTO(BaseModel):
     """
-    Technical configuration for a tactical move.
+    Technical configuration for a feint.
+
+    Feints are exchange-only attack modifiers: they are selected together with
+    an attack target and change the exchange pipeline. Standalone instant
+    actions belong to abilities, effects, or items, not to feints.
     """
 
     feint_id: str
@@ -65,6 +69,12 @@ class FeintConfigDTO(FeintTechnicalDTO):
 
     name_ru: str
     description_ru: str
+    display_name: str
+    ui_label: str
+    short_description: str
+    long_description: str
+    tooltip: str
+    icon: str
 
     @classmethod
     def from_catalog_entry(cls, entry: "FeintCatalogEntryDTO") -> "FeintConfigDTO":
@@ -74,6 +84,12 @@ class FeintConfigDTO(FeintTechnicalDTO):
             **technical,
             name_ru=humanoid.display_name,
             description_ru=humanoid.short_description,
+            display_name=humanoid.display_name,
+            ui_label=humanoid.ui_label,
+            short_description=humanoid.short_description,
+            long_description=humanoid.long_description,
+            tooltip=humanoid.tooltip,
+            icon=humanoid.icon,
         )
 
 

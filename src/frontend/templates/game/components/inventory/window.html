@@ -10,36 +10,44 @@
             </button>
 
             {% for zone in inventory.body_zones %}
+            {% set primary_item = zone.primary_slot.item if zone.primary_slot.item is defined else none %}
+            {% set primary_empty = zone.primary_slot.is_empty if zone.primary_slot.is_empty is defined else not primary_item %}
+            {% set primary_name = zone.primary_slot.item_name if zone.primary_slot.item_name is defined else (primary_item.name if primary_item else 'EMPTY') %}
             <button type="button"
-                    class="inventory-equip-zone inventory-equip-zone--{{ zone.position }} {{ 'is-equipped' if (zone.primary_slot.is_empty is defined and not zone.primary_slot.is_empty) or (zone.primary_slot.item is defined and zone.primary_slot.item) else '' }}"
+                    class="inventory-equip-zone inventory-equip-zone--{{ zone.position }} {{ 'is-equipped' if not primary_empty else '' }}"
                     :class="{ 'is-selected': selectedSlot === '{{ zone.primary_slot.slot_id }}' }"
                     aria-label="{{ zone.label }}"
                     data-slot-id="{{ zone.primary_slot.slot_id }}"
                     @click="selectedSlot = selectedSlot === '{{ zone.primary_slot.slot_id }}' ? null : '{{ zone.primary_slot.slot_id }}'; activeInventoryTab = 'items'">
                 <span class="inventory-slot-title">{{ zone.label }}</span>
-                <span class="inventory-slot-state">{{ zone.primary_slot.item_name }}</span>
+                <span class="inventory-slot-state">{{ primary_name }}</span>
                 <span class="inventory-slot-tooltip">
                     <strong>{{ zone.label }}</strong>
-                    <span>{{ zone.primary_slot.label }}: {{ zone.primary_slot.item_name }}</span>
+                    <span>{{ zone.primary_slot.label }}: {{ primary_name }}</span>
                     {% if zone.secondary_slot %}
-                    <span>{{ zone.secondary_slot.label }}: {{ zone.secondary_slot.item_name }}</span>
+                    {% set secondary_item = zone.secondary_slot.item if zone.secondary_slot.item is defined else none %}
+                    {% set secondary_name = zone.secondary_slot.item_name if zone.secondary_slot.item_name is defined else (secondary_item.name if secondary_item else 'EMPTY') %}
+                    <span>{{ zone.secondary_slot.label }}: {{ secondary_name }}</span>
                     {% endif %}
                 </span>
             </button>
             {% endfor %}
 
             {% for slot in inventory.weapon_slots %}
+            {% set slot_item = slot.item if slot.item is defined else none %}
+            {% set slot_empty = slot.is_empty if slot.is_empty is defined else not slot_item %}
+            {% set slot_name = slot.item_name if slot.item_name is defined else (slot_item.name if slot_item else 'EMPTY') %}
             <button type="button"
-                    class="inventory-equip-zone inventory-equip-zone--{{ 'main' if slot.slot_id == 'main_hand' else 'off' }} {{ 'is-equipped' if (slot.is_empty is defined and not slot.is_empty) or (slot.item is defined and slot.item) else '' }}"
+                    class="inventory-equip-zone inventory-equip-zone--{{ 'main' if slot.slot_id == 'main_hand' else 'off' }} {{ 'is-equipped' if not slot_empty else '' }}"
                     :class="{ 'is-selected': selectedSlot === '{{ slot.slot_id }}' }"
                     aria-label="{{ slot.label }}"
                     data-slot-id="{{ slot.slot_id }}"
                     @click="selectedSlot = selectedSlot === '{{ slot.slot_id }}' ? null : '{{ slot.slot_id }}'; activeInventoryTab = 'items'">
                 <span class="inventory-slot-title">{{ slot.label }}</span>
-                <span class="inventory-slot-state">{{ slot.item_name }}</span>
+                <span class="inventory-slot-state">{{ slot_name }}</span>
                 <span class="inventory-slot-tooltip">
                     <strong>{{ slot.label }}</strong>
-                    <span>{{ slot.item_name }}</span>
+                    <span>{{ slot_name }}</span>
                 </span>
             </button>
             {% endfor %}
@@ -50,17 +58,20 @@
             {% for row in inventory.accessory_rows %}
             <div class="inventory-accessory-row {{ 'inventory-accessory-row--split' if not row.is_wide else '' }}">
                 {% for slot in row.slots %}
+                {% set slot_item = slot.item if slot.item is defined else none %}
+                {% set slot_empty = slot.is_empty if slot.is_empty is defined else not slot_item %}
+                {% set slot_name = slot.item_name if slot.item_name is defined else (slot_item.name if slot_item else 'EMPTY') %}
                 <button type="button"
-                        class="inventory-accessory-slot {{ 'is-equipped' if (slot.is_empty is defined and not slot.is_empty) or (slot.item is defined and slot.item) else '' }}"
+                        class="inventory-accessory-slot {{ 'is-equipped' if not slot_empty else '' }}"
                         :class="{ 'is-selected': selectedSlot === '{{ slot.slot_id }}' }"
                         aria-label="{{ slot.label }}"
                         data-slot-id="{{ slot.slot_id }}"
                         @click="selectedSlot = selectedSlot === '{{ slot.slot_id }}' ? null : '{{ slot.slot_id }}'; activeInventoryTab = 'items'">
                     <span>{{ slot.label }}</span>
-                    <small>{{ slot.item_name }}</small>
+                    <small>{{ slot_name }}</small>
                     <span class="inventory-slot-tooltip">
                         <strong>{{ slot.label }}</strong>
-                        <span>{{ slot.item_name }}</span>
+                        <span>{{ slot_name }}</span>
                     </span>
                 </button>
                 {% endfor %}
@@ -73,8 +84,10 @@
         <div class="inventory-section-label">BELT</div>
         <div class="inventory-belt-slots">
             {% for slot in inventory.quick_slots %}
+            {% set quick_item = slot.item if slot.item is defined else none %}
+            {% set quick_empty = slot.is_empty if slot.is_empty is defined else not quick_item %}
             <button type="button"
-                    class="inventory-belt-slot {{ 'is-empty' if slot.is_empty else '' }}"
+                    class="inventory-belt-slot {{ 'is-empty' if quick_empty else '' }}"
                     aria-label="Belt quick slot {{ slot.slot_index }}">
                 {{ slot.slot_index }}
             </button>
@@ -189,7 +202,7 @@
                         }; hoverX = $event.clientX; hoverY = $event.clientY"
                         @mousemove="hoverX = $event.clientX; hoverY = $event.clientY"
                         @mouseleave="hoverRow = null">
-                    <span class="inventory-card-icon">{{ row.icon }}</span>
+                    <span class="inventory-card-icon">{{ row.icon or '?' }}</span>
                     <span class="inventory-card-name">{{ row.name }}</span>
                     {% if row.quantity != "1" and row.quantity != 1 %}
                     <span class="inventory-card-qty">{{ row.quantity }}</span>

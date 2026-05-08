@@ -30,7 +30,14 @@ def build_runtime_session(char_id: int, items: list[InventoryRuntimeItemDTO]) ->
 
 
 def build_active_character_projection(session: InventoryRuntimeSessionDTO) -> ActiveCharacterItemsProjectionDTO:
-    return ActiveCharacterItemsProjectionDTO(layout=session.layout, by_id=session.by_id)
+    active_ids = {item_id for item_id in [*session.layout.equipment.values(), *session.layout.belt.values()] if item_id}
+    layout = InventoryLayoutDTO(
+        equipment=session.layout.equipment,
+        belt=session.layout.belt,
+        backpack=[],
+    )
+    by_id = {item_id: item for item_id, item in session.by_id.items() if item_id in active_ids}
+    return ActiveCharacterItemsProjectionDTO(layout=layout, by_id=by_id)
 
 
 def belt_capacity(session: InventoryRuntimeSessionDTO) -> int:

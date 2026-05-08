@@ -65,6 +65,13 @@ async def ai_turn_task(ctx: dict, request_data: dict) -> None:
             log.warning("AiTurnSkip | reason=no_valid_targets bot_id={bot_id}", bot_id=request.bot_id)
             return
 
+        log.debug(
+            "AiTurnPlan | session_id={session_id} bot_id={bot_id} valid_targets={targets}",
+            session_id=request.session_id,
+            bot_id=request.bot_id,
+            targets=[target.meta.id for target in targets],
+        )
+
         # 5. ПРИНЯТИЕ РЕШЕНИЙ (AI Processor)
         payloads = []
         for target in targets:

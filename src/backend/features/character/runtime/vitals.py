@@ -83,6 +83,28 @@ class CharacterVitalsCalculator:
         )
 
     @classmethod
+    def restore_to_max_vitals(
+        cls,
+        attributes: CharacterSessionAttributesDTO,
+    ) -> CharacterSessionVitalsDTO:
+        max_vitals = cls.calculate_max_vitals(attributes)
+        now = datetime.now(UTC).timestamp()
+        return CharacterSessionVitalsDTO(
+            hp=VitalValueDTO(cur=max_vitals.hp.max, max=max_vitals.hp.max, regen=max_vitals.hp.regen),
+            energy=VitalValueDTO(
+                cur=max_vitals.energy.max,
+                max=max_vitals.energy.max,
+                regen=max_vitals.energy.regen,
+            ),
+            stamina=VitalValueDTO(
+                cur=max_vitals.stamina.max,
+                max=max_vitals.stamina.max,
+                regen=max_vitals.stamina.regen,
+            ),
+            last_update=now,
+        )
+
+    @classmethod
     def calculate_max_vitals(cls, attributes: CharacterSessionAttributesDTO) -> CharacterSessionVitalsDTO:
         endurance = attributes.endurance
         mental = attributes.mental
@@ -97,9 +119,9 @@ class CharacterVitalsCalculator:
             stamina=VitalValueDTO(cur=stamina, max=stamina, regen=round(endurance * STAMINA_REGEN_PER_ENDURANCE, 4)),
         )
 
-    @staticmethod
-    def apply_regen(vitals: CharacterSessionVitalsDTO) -> CharacterSessionVitalsDTO:
-        now = datetime.now(UTC).timestamp()
+    @classmethod
+    def apply_regen(cls, vitals: CharacterSessionVitalsDTO, *, now: float | None = None) -> CharacterSessionVitalsDTO:
+        now = now if now is not None else datetime.now(UTC).timestamp()
         if vitals.last_update <= 0:
             vitals.last_update = now
             return vitals
@@ -108,12 +130,17 @@ class CharacterVitalsCalculator:
         if elapsed < 1.0:
             return vitals
 
+        changed = False
         for attr_name in ("hp", "energy", "stamina"):
             value = getattr(vitals, attr_name)
             if value.cur < value.max and value.regen > 0:
-                value.cur = min(value.max, int(value.cur + value.regen * elapsed))
+                new_value = min(value.max, int(value.cur + value.regen * elapsed))
+                if new_value != value.cur:
+                    value.cur = new_value
+                    changed = True
 
-        vitals.last_update = now
+        if changed or cls._is_full(vitals):
+            vitals.last_update = now
         return vitals
 
     @staticmethod
@@ -134,4 +161,12 @@ class CharacterVitalsCalculator:
             and vitals.energy.max == 100
             and vitals.stamina.cur == 100
             and vitals.stamina.max == 100
+        )
+
+    @staticmethod
+    def _is_full(vitals: CharacterSessionVitalsDTO) -> bool:
+        return (
+            vitals.hp.cur >= vitals.hp.max
+            and vitals.energy.cur >= vitals.energy.max
+            and vitals.stamina.cur >= vitals.stamina.max
         )

@@ -11,7 +11,11 @@ MYTHICAL_EQUIPMENT = {
         "slot": "off_hand",
         "type": "shield",
         "base_power": 25,
-        "implicit_bonuses": {"shield_block_chance": 0.30, "shield_block_power": 0.50},
+        "implicit_bonuses": {
+            "shield_block_chance": 0.30,
+            "shield_block_power": 0.50,
+            "evasion_penalty": -0.35,
+        },
     },
     "flaming_sword": {
         "id": "flaming_sword",

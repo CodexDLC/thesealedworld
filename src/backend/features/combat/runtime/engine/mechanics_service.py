@@ -52,6 +52,17 @@ class MechanicsService:
             if en_changes:
                 self._apply_resource_delta(actor, "en", en_changes)
 
+            if actor.meta.hp <= 0 and not actor.meta.is_dead:
+                actor.meta.is_dead = True
+                ctx.result.events.append(
+                    CombatEventDTO(
+                        type="DEATH",
+                        source_id=actor.char_id,
+                        target_id=actor.char_id,
+                        value=0,
+                    )
+                )
+
     def apply_interaction_result(
         self, ctx: PipelineContextDTO, source: ActorSnapshot, target: ActorSnapshot | None, result: InteractionResultDTO
     ) -> None:
@@ -68,9 +79,9 @@ class MechanicsService:
         # 3. [XP] Register Events
         self._register_xp_events(ctx, source, target, result)
 
-        # === НОВАЯ ИНТЕГРАЦИЯ: Пополнение руки финтов ===
-        # 4. [FEINTS] Refill Hand (только для exchange, не для insta_skill)
-        if ctx.flags.mechanics.generate_feints:
+        # 4. [FEINTS] One-way actions can still refill locally. Exchange hands are
+        # rerolled once in CombatExecutor after the full paired exchange resolves.
+        if ctx.flags.mechanics.generate_feints and ctx.flags.meta.action_mode == "unidirectional":
             # Получаем размер руки из статов (если есть) или дефолт 3
             source_hand = source.stats.mods.hand_size if source.stats else 3
             FeintService.refill_hand(source.meta, hand_size=source_hand)
@@ -113,6 +124,31 @@ class MechanicsService:
         if result.tokens_awarded_attacker:
             for token, amount in result.tokens_awarded_attacker.items():
                 source.meta.tokens[token] = source.meta.tokens.get(token, 0) + amount
+
+        # C. Reflected damage from defender-side block style.
+        if ctx.flags.mechanics.apply_damage and result.reflected_damage > 0:
+            self._apply_resource_delta(source, "hp", [f"-{result.reflected_damage}"])
+            ctx.result.events.append(
+                CombatEventDTO(
+                    type="HIT",
+                    source_id=result.target_id or source.char_id,
+                    target_id=source.char_id,
+                    value=result.reflected_damage,
+                    resource="hp",
+                    tags=["REFLECT"],
+                )
+            )
+
+            if ctx.flags.mechanics.check_death and source.meta.hp <= 0:
+                source.meta.is_dead = True
+                ctx.result.events.append(
+                    CombatEventDTO(
+                        type="DEATH",
+                        source_id=source.char_id,
+                        target_id=source.char_id,
+                        value=0,
+                    )
+                )
 
     def _apply_target_changes(
         self, ctx: PipelineContextDTO, target: ActorSnapshot, result: InteractionResultDTO
@@ -181,31 +217,31 @@ class MechanicsService:
         if not ctx.flags.mechanics.grant_xp:
             return
 
+        source_prefix = "off_hand" if result.hand == "off_hand" else "main_hand"
+
         # 1. Generic Actions
         if result.is_hit:
-            self._inc_xp(source, "action_hit")
+            self._inc_xp(source, f"{source_prefix}_hit")
         elif result.is_miss:
-            self._inc_xp(source, "action_miss")
+            self._inc_xp(source, f"{source_prefix}_miss")
 
         if result.is_crit:
-            self._inc_xp(source, "action_crit")
+            self._inc_xp(source, f"{source_prefix}_crit")
 
-        # 2. Skill Usage (TODO: Pass move to get ID)
-
-        # 3. Target Reactions
+        # 2. Target Reactions
         if target:
             if result.is_dodged:
-                self._inc_xp(target, "reaction_dodge")
+                self._inc_xp(target, "defense_dodge")
             if result.is_parried:
-                self._inc_xp(target, "reaction_parry")
+                self._inc_xp(target, "defense_parry")
             if result.is_blocked:
-                self._inc_xp(target, "reaction_block")
+                self._inc_xp(target, "defense_block")
 
-            # 4. Kill
+            # 3. Kill
             if target.meta.is_dead:
                 self._inc_xp(source, "kill_generic")
 
-    def _inc_xp(self, actor: ActorSnapshot, key: str, amount: int = 1) -> None:
+    def _inc_xp(self, actor: ActorSnapshot, key: str, amount: float = 1.0) -> None:
         actor.xp_buffer[key] = actor.xp_buffer.get(key, 0) + amount
 
     def _log_effect_tick(

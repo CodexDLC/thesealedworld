@@ -52,6 +52,10 @@ class CombatSessionManager:
         return f"combat:rbc:{session_id}:logs"
 
     @staticmethod
+    def analytics_key(session_id: str) -> str:
+        return f"combat:rbc:{session_id}:analytics"
+
+    @staticmethod
     def busy_lock_key(session_id: str) -> str:
         return f"combat:rbc:{session_id}:sys:busy"
 
@@ -91,6 +95,7 @@ class CombatSessionManager:
 
             pipe.delete(self.action_queue_key(session_id))
             pipe.delete(self.log_key(session_id))
+            pipe.delete(self.analytics_key(session_id))
             await pipe.execute()
         logger.info("Combat session created: session_id={} actors={}", session_id, len(data.actors))
 
@@ -368,11 +373,12 @@ class CombatSessionManager:
         session_id: str,
         actor_id: str | int,
         moves_data: list[dict[str, Any]],
-    ) -> int:
+    ) -> list[str]:
         if not moves_data:
-            return 0
+            return []
         script = """
         local success = 0
+        local accepted = {}
         local moves = cjson.decode(ARGV[2])
         local actor_path = '$["' .. ARGV[1] .. '"]'
         for _, item in ipairs(moves) do
@@ -384,10 +390,11 @@ class CombatSessionManager:
                 redis.call('JSON.ARRPOP', KEYS[1], actor_path, idx[1])
                 redis.call('JSON.SET', KEYS[2], '$.' .. item.strategy .. '.' .. item.move_id, item.move_json)
                 success = success + 1
+                table.insert(accepted, item.move_id)
             end
         end
         redis.call('EXPIRE', KEYS[2], ARGV[3])
-        return success
+        return cjson.encode(accepted)
         """
         result = await self._client().eval(
             script,
@@ -398,7 +405,8 @@ class CombatSessionManager:
             json.dumps(moves_data),
             str(self.DEFAULT_TTL_SECONDS),
         )
-        return int(result or 0)
+        accepted = json.loads(result) if result else []
+        return [str(move_id) for move_id in accepted] if isinstance(accepted, list) else []
 
     async def get_queue_size(self, session_id: str) -> int:
         return int(await self._client().llen(self.action_queue_key(session_id)))
@@ -414,14 +422,71 @@ class CombatSessionManager:
     ) -> None:
         if not actions_json and not deletes:
             return
-        async with self._client().pipeline(transaction=False) as pipe:
-            if actions_json:
-                pipe.rpush(self.action_queue_key(session_id), *actions_json)
-            for item in deletes:
-                key = self.moves_key(session_id, item["char_id"])
-                pipe.json().delete(key, f"$.{item['strategy']}.{item['move_id']}")
-                pipe.expire(key, self.DEFAULT_TTL_SECONDS)
-            await pipe.execute()
+        script = """
+        local actions = cjson.decode(ARGV[1])
+        local fallback_deletes = cjson.decode(ARGV[2])
+        local ttl = tonumber(ARGV[3])
+        local queue_key = KEYS[1]
+        local session_id = ARGV[4]
+        local pushed = 0
+
+        local function moves_key(actor_id)
+            return 'combat:rbc:' .. session_id .. ':actor:' .. tostring(actor_id) .. ':moves'
+        end
+
+        local function move_path(move)
+            return '$.' .. tostring(move.strategy) .. '.' .. tostring(move.move_id)
+        end
+
+        local function move_exists(move)
+            local raw = redis.call('JSON.GET', moves_key(move.char_id), move_path(move))
+            return raw and raw ~= '[]' and raw ~= 'null'
+        end
+
+        local function delete_move(move)
+            local key = moves_key(move.char_id)
+            redis.call('JSON.DEL', key, move_path(move))
+            redis.call('EXPIRE', key, ttl)
+        end
+
+        for _, action_json in ipairs(actions) do
+            local action = cjson.decode(action_json)
+            local valid = action.move and move_exists(action.move)
+            local partner_move = action.partner_move
+
+            if valid and partner_move ~= nil and partner_move ~= cjson.null then
+                valid = move_exists(partner_move)
+            end
+
+            if valid then
+                redis.call('RPUSH', queue_key, action_json)
+                delete_move(action.move)
+                if partner_move ~= nil and partner_move ~= cjson.null then
+                    delete_move(partner_move)
+                end
+                pushed = pushed + 1
+            end
+        end
+
+        if #actions == 0 then
+            for _, item in ipairs(fallback_deletes) do
+                local key = moves_key(item.char_id)
+                redis.call('JSON.DEL', key, '$.' .. tostring(item.strategy) .. '.' .. tostring(item.move_id))
+                redis.call('EXPIRE', key, ttl)
+            end
+        end
+
+        return pushed
+        """
+        await self._client().eval(
+            script,
+            1,
+            self.action_queue_key(session_id),
+            json.dumps(actions_json),
+            json.dumps(deletes),
+            str(self.DEFAULT_TTL_SECONDS),
+            session_id,
+        )
 
     async def push_actions_batch(self, session_id: str, actions_json: list[str]) -> None:
         if actions_json:
@@ -459,6 +524,8 @@ class CombatSessionManager:
                 "statuses": actor_data.get("statuses", {"abilities": [], "effects": []}),
                 "xp": actor_data.get("xp_buffer", {}),
                 "skills": actor_data.get("skills", {}),
+                "stats": actor_data.get("stats"),
+                "explanation": actor_data.get("explanation", {}),
                 "move": moves_data or {},
             }
         data["global_queue"] = results[-1] if results else []
@@ -468,12 +535,15 @@ class CombatSessionManager:
         self,
         session_id: str,
         updates: dict[str, Any],
-        logs: list[str],
+        logs: list[dict[str, Any] | str],
         processed_count: int,
         target_returns: Sequence[dict[str, int | str]] | None = None,
         dead_actors: str | None = None,
         meta_update: dict[str, Any] | None = None,
+        analytics: list[dict[str, Any] | str] | None = None,
     ) -> None:
+        grouped_logs = await self._merge_logs_by_turn(session_id, logs) if logs else {}
+        analytics_entries = self._analytics_mapping(analytics or [])
         async with self._client().pipeline(transaction=False) as pipe:
             for actor_id, actor_update in updates.items():
                 key = self.actor_key(session_id, actor_id)
@@ -491,8 +561,10 @@ class CombatSessionManager:
                     pipe.json().set(key, "$.stats", actor_update["stats"])
                 if "explanation" in actor_update:
                     pipe.json().set(key, "$.explanation", actor_update["explanation"])
-            if logs:
-                pipe.rpush(self.log_key(session_id), *logs)
+            if grouped_logs:
+                pipe.hset(self.log_key(session_id), mapping=grouped_logs)
+            if analytics_entries:
+                pipe.hset(self.analytics_key(session_id), mapping=analytics_entries)
             if processed_count > 0:
                 pipe.ltrim(self.action_queue_key(session_id), processed_count, -1)
             if target_returns:
@@ -514,6 +586,13 @@ class CombatSessionManager:
         if not hand or not hand[ARGV[1]] then return nil end
         local cost = hand[ARGV[1]]
         redis.call('JSON.DEL', KEYS[1], '$.meta.feints.hand.' .. ARGV[1])
+        local pinned_raw = redis.call('JSON.GET', KEYS[1], '$.meta.feints.pinned')
+        if pinned_raw then
+            local pinned = cjson.decode(pinned_raw)[1]
+            if pinned == ARGV[1] then
+                redis.call('JSON.SET', KEYS[1], '$.meta.feints.pinned', 'null')
+            end
+        end
         return cjson.encode(cost)
         """
         result = await self._client().eval(script, 1, self.actor_key(session_id, actor_id), feint_id)
@@ -528,21 +607,113 @@ class CombatSessionManager:
     ) -> None:
         await self._json().set(self.actor_key(session_id, actor_id), f"$.meta.feints.hand.{feint_id}", cost)
 
+    async def pin_feint_atomic(self, session_id: str, actor_id: str | int, feint_id: str | None) -> bool:
+        if feint_id is None:
+            await self._json().set(self.actor_key(session_id, actor_id), "$.meta.feints.pinned", None)
+            return True
+
+        script = """
+        local raw = redis.call('JSON.GET', KEYS[1], '$.meta.feints.hand')
+        if not raw then return 0 end
+        local hand = cjson.decode(raw)[1]
+        if not hand or not hand[ARGV[1]] then return 0 end
+        redis.call('JSON.SET', KEYS[1], '$.meta.feints.pinned', cjson.encode(ARGV[1]))
+        return 1
+        """
+        result = await self._client().eval(script, 1, self.actor_key(session_id, actor_id), feint_id)
+        return bool(result)
+
     async def append_log(self, session_id: str, entry: dict[str, Any] | str) -> None:
-        payload = entry if isinstance(entry, str) else json.dumps(entry)
-        await self._client().rpush(self.log_key(session_id), payload)
+        grouped = await self._merge_logs_by_turn(session_id, [entry])
+        await self._client().hset(self.log_key(session_id), mapping=grouped)
 
     async def add_log(self, session_id: str, text: str, tags: list[str] | None = None) -> None:
         await self.append_log(session_id, {"text": text, "timestamp": time.time(), "tags": tags or []})
 
     async def get_logs(self, session_id: str, *, start: int = 0, stop: int = -1) -> list[str]:
-        return list(await self._client().lrange(self.log_key(session_id), start, stop))
+        logs = self._flatten_logs_by_turn(await self.get_logs_by_turn(session_id))
+        return self._slice_logs(logs, start=start, stop=stop)
+
+    async def get_logs_by_turn(self, session_id: str) -> dict[str, list[str]]:
+        raw = dict(await self._client().hgetall(self.log_key(session_id)))
+        grouped: dict[str, list[str]] = {}
+        for turn, payload in raw.items():
+            if isinstance(turn, bytes):
+                turn = turn.decode()
+            if isinstance(payload, bytes):
+                payload = payload.decode()
+            try:
+                values = json.loads(payload)
+            except (TypeError, json.JSONDecodeError):
+                values = [str(payload)]
+            grouped[str(turn)] = [value if isinstance(value, str) else json.dumps(value) for value in values]
+        return dict(sorted(grouped.items(), key=lambda item: self._turn_sort_key(item[0])))
 
     async def get_combat_log_list(self, session_id: str) -> list[str]:
         return await self.get_logs(session_id, start=0, stop=-1)
 
     async def count_logs(self, session_id: str) -> int:
-        return int(await self._client().llen(self.log_key(session_id)))
+        return len(self._flatten_logs_by_turn(await self.get_logs_by_turn(session_id)))
+
+    async def _merge_logs_by_turn(self, session_id: str, logs: list[dict[str, Any] | str]) -> dict[str, str]:
+        existing = await self.get_logs_by_turn(session_id)
+        for turn, payload in self._group_logs_by_turn(logs).items():
+            existing.setdefault(turn, []).extend(json.loads(payload))
+        return {turn: json.dumps(values) for turn, values in existing.items()}
+
+    @classmethod
+    def _group_logs_by_turn(cls, logs: list[dict[str, Any] | str]) -> dict[str, str]:
+        grouped: dict[str, list[str]] = {}
+        for entry in logs:
+            payload = entry if isinstance(entry, str) else json.dumps(entry)
+            turn = cls._log_turn(payload, entry)
+            grouped.setdefault(turn, []).append(payload)
+        return {turn: json.dumps(values) for turn, values in grouped.items()}
+
+    @staticmethod
+    def _analytics_mapping(analytics: list[dict[str, Any] | str]) -> dict[str, str]:
+        mapping: dict[str, str] = {}
+        for index, entry in enumerate(analytics):
+            payload = entry if isinstance(entry, str) else json.dumps(entry)
+            try:
+                decoded = json.loads(payload)
+            except json.JSONDecodeError:
+                decoded = {}
+            turn = decoded.get("t", 0) if isinstance(decoded, dict) else 0
+            seq = decoded.get("seq", index) if isinstance(decoded, dict) else index
+            mapping[f"{turn}:{seq}"] = payload
+        return mapping
+
+    @staticmethod
+    def _log_turn(payload: str, entry: dict[str, Any] | str) -> str:
+        if isinstance(entry, dict):
+            return str(entry.get("global_turn", 0))
+        try:
+            decoded = json.loads(payload)
+        except json.JSONDecodeError:
+            return "0"
+        if isinstance(decoded, dict):
+            return str(decoded.get("global_turn", 0))
+        return "0"
+
+    @classmethod
+    def _flatten_logs_by_turn(cls, logs_by_turn: dict[str, list[str]]) -> list[str]:
+        flat: list[str] = []
+        for turn in sorted(logs_by_turn, key=cls._turn_sort_key):
+            flat.extend(logs_by_turn[turn])
+        return flat
+
+    @staticmethod
+    def _slice_logs(logs: list[str], *, start: int = 0, stop: int = -1) -> list[str]:
+        end = None if stop == -1 else stop + 1
+        return logs[start:end]
+
+    @staticmethod
+    def _turn_sort_key(turn: str) -> tuple[int, str]:
+        try:
+            return (int(turn), turn)
+        except ValueError:
+            return (0, turn)
 
     async def cleanup_session(self, session_id: str, *, history_ttl: int = HISTORY_TTL_SECONDS) -> None:
         meta = await self.get_meta(session_id)

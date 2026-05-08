@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
 
-from src.backend.features.game_catalog.skills.dto import SkillGroup
+from src.backend.features.game_catalog.skills.dto import SkillUiGroup
 from src.backend.features.game_catalog.skills.services import SkillCatalogService
 from src.shared.schemas.character import CharacterStatusDTO
 from src.shared.schemas.character_status import CharacterActorCoreDTO
@@ -42,31 +42,27 @@ ATTRIBUTE_GROUPS = [
 ]
 
 SKILL_GROUP_ORDER = [
-    SkillGroup.WEAPON_MASTERY.value,
-    SkillGroup.TACTICAL.value,
-    SkillGroup.ARMOR.value,
-    SkillGroup.COMBAT_SUPPORT.value,
-    SkillGroup.GATHERING.value,
-    SkillGroup.CRAFTING.value,
-    SkillGroup.TRADE.value,
-    SkillGroup.SOCIAL.value,
-    SkillGroup.SURVIVAL.value,
-    SkillGroup.SCIENCE.value,
-    SkillGroup.OTHER.value,
+    SkillUiGroup.WEAPON_MASTERY.value,
+    SkillUiGroup.TACTICAL.value,
+    SkillUiGroup.ARMOR.value,
+    SkillUiGroup.COMBAT_SUPPORT.value,
+    SkillUiGroup.GATHERING.value,
+    SkillUiGroup.SURVIVAL.value,
+    SkillUiGroup.CRAFTING.value,
+    SkillUiGroup.TRADE.value,
+    SkillUiGroup.LEADERSHIP.value,
 ]
 
 SKILL_GROUP_TITLES = {
-    SkillGroup.WEAPON_MASTERY.value: "WEAPON MASTERY",
-    SkillGroup.TACTICAL.value: "TACTICAL",
-    SkillGroup.ARMOR.value: "ARMOR",
-    SkillGroup.COMBAT_SUPPORT.value: "COMBAT SUPPORT",
-    SkillGroup.GATHERING.value: "GATHERING",
-    SkillGroup.CRAFTING.value: "CRAFTING",
-    SkillGroup.TRADE.value: "TRADE",
-    SkillGroup.SOCIAL.value: "SOCIAL",
-    SkillGroup.SURVIVAL.value: "SURVIVAL",
-    SkillGroup.SCIENCE.value: "SCIENCE",
-    SkillGroup.OTHER.value: "OTHER",
+    SkillUiGroup.WEAPON_MASTERY.value: "WEAPON MASTERY",
+    SkillUiGroup.TACTICAL.value: "TACTICAL",
+    SkillUiGroup.ARMOR.value: "ARMOR",
+    SkillUiGroup.COMBAT_SUPPORT.value: "COMBAT SUPPORT",
+    SkillUiGroup.GATHERING.value: "GATHERING",
+    SkillUiGroup.SURVIVAL.value: "SURVIVAL",
+    SkillUiGroup.CRAFTING.value: "CRAFTING",
+    SkillUiGroup.TRADE.value: "TRADE",
+    SkillUiGroup.LEADERSHIP.value: "LEADERSHIP",
 }
 
 
@@ -209,7 +205,7 @@ class CharacterStatusService:
         for key, value in skills.items():
             skill_key = str(key)
             definition = self.skill_catalog.get(skill_key)
-            group_key = definition.group.value if definition else SkillGroup.OTHER.value
+            group_key = definition.ui_group.value if definition else SkillUiGroup.SURVIVAL.value
             group = groups.setdefault(
                 group_key,
                 {

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, Protocol
 
+from src.backend.features.game_catalog.combat.resources.feints.availability import build_known_feints
 from src.backend.features.items.resources import get_base_by_id
 from src.backend.features.monsters.resources import get_family_config
 from src.shared.schemas.modifier_dto import CombatModifiersDTO
@@ -47,6 +48,7 @@ MONSTER_TO_ACTOR_STATS: dict[str, str] = {
 }
 
 COMBAT_MODIFIER_KEYS = frozenset(CombatModifiersDTO.model_fields)
+WEAPON_BASE_ACCURACY = 0.70
 MODIFIER_ALIASES = {
     "block_chance": "block",
     "damage_reduction_flat": "armor",
@@ -206,10 +208,10 @@ def _resolve_skills(monster: MonsterCombatSource, family: MonsterFamilyDTO | Non
     if family is not None:
         skill_kit = _dump_model(family.skill_kit) if family.skill_kit else {}
         for key, value in (skill_kit.get("base") or {}).items():
-            skills[str(key)] = float(value)
+            skills[str(key)] = _skill_value(value)
         role_bonus = (skill_kit.get("role_bonus") or {}).get(monster.role) or {}
         for key, value in role_bonus.items():
-            skills[str(key)] = skills.get(str(key), 0.0) + float(value)
+            skills[str(key)] = skills.get(str(key), 0.0) + _skill_value(value)
 
     variant = family.variants.get(monster.variant_key) if family is not None else None
     if variant is not None:
@@ -217,7 +219,7 @@ def _resolve_skills(monster: MonsterCombatSource, family: MonsterFamilyDTO | Non
             if value is None:
                 skills.pop(key, None)
             else:
-                skills[key] = float(value)
+                skills[key] = _skill_value(value)
 
     return skills
 
@@ -231,6 +233,7 @@ def _build_combat_loadout(
     layout: dict[str, str] = {}
     equipment_layout: dict[str, str] = {}
     hand_usage: dict[str, str] = {}
+    weapon_slots: list[str] = []
     tags = list(raw_tags)
 
     for item in equipment:
@@ -241,6 +244,7 @@ def _build_combat_loadout(
 
         equipment_layout[slot] = item_id
         combat_slot = ARMOR_SLOT_TO_COMBAT_SLOT.get(slot, slot)
+        item_type = str(item.get("type") or item.get("item_type") or "")
         skill_key = _skill_key_for_item(combat_slot, item)
         if skill_key:
             layout[combat_slot] = skill_key
@@ -252,14 +256,17 @@ def _build_combat_loadout(
 
         if slot == "two_hand":
             hand_usage["main_hand"] = "two_hand"
+        if item_type == "weapon" and slot != "two_hand":
+            weapon_slots.append(combat_slot)
 
         tags.extend(_list_str(item.get("narrative_tags")))
 
-    return {
+    loadout = {
         "layout": layout,
         "equipment_layout": equipment_layout,
         "hand_usage": hand_usage,
         "two_handed": bool(hand_usage),
+        "weapon_slots": sorted(set(weapon_slots)),
         "belt": [],
         "abilities": abilities["mechanics"],
         "known_abilities": abilities["mechanics"],
@@ -267,6 +274,8 @@ def _build_combat_loadout(
         "skills": sorted(skills),
         "tags": sorted(set(tags)),
     }
+    loadout["known_feints"] = build_known_feints(loadout, skills)
+    return loadout
 
 
 def _skill_key_for_item(combat_slot: str, item: dict[str, Any]) -> str | None:
@@ -299,6 +308,8 @@ def _resolve_abilities(monster: MonsterCombatSource, family: MonsterFamilyDTO | 
 def _modifiers(equipment: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
     modifiers: dict[str, dict[str, Any]] = {}
     for item in equipment:
+        item_id = str(item.get("id") or "")
+        source = f"item:{item_id}" if item_id else "item:unknown"
         base_power = float(item.get("base_power") or 0.0)
         damage_spread = item.get("damage_spread")
         slot = str(item.get("slot") or "")
@@ -309,11 +320,9 @@ def _modifiers(equipment: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
             if combat_slot == "main_hand":
                 _add_base_modifier(modifiers, "main_hand_damage_base", base_power)
             elif combat_slot == "off_hand":
-                if _is_shield(item_type, tags):
-                    _add_base_modifier(modifiers, "block", base_power)
-                else:
+                if not _is_shield(item_type, tags):
                     _add_base_modifier(modifiers, "off_hand_damage_base", base_power)
-            elif item_type in {"armor", "monster_natural_armor"} or slot.endswith("_armor"):
+            elif slot.endswith("_armor"):
                 _add_base_modifier(modifiers, "armor", base_power)
 
         if damage_spread is not None:
@@ -322,7 +331,13 @@ def _modifiers(equipment: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
             elif combat_slot == "off_hand" and not _is_shield(item_type, tags):
                 _replace_base_modifier(modifiers, "off_hand_damage_spread", float(damage_spread))
 
+        if item_type == "weapon" and combat_slot in {"main_hand", "off_hand"}:
+            _apply_weapon_accuracy_base(modifiers, slot=combat_slot)
+
         for key, value in (item.get("implicit_bonuses") or {}).items():
+            if key == "accuracy_penalty" and item_type == "weapon" and combat_slot in {"main_hand", "off_hand"}:
+                _add_accuracy_penalty(modifiers, slot=combat_slot, source=source, value=value)
+                continue
             _add_base_modifier(
                 modifiers,
                 _item_base_key(str(key), slot=combat_slot, item_type=item_type, tags=tags),
@@ -346,6 +361,28 @@ def _replace_base_modifier(modifiers: dict[str, dict[str, Any]], key: str, value
         return
     modifiers.setdefault(key, {"base": 0.0, "source": {}, "temp": {}})
     modifiers[key]["base"] = round(value, 4)
+
+
+def _apply_weapon_accuracy_base(modifiers: dict[str, dict[str, Any]], *, slot: str) -> None:
+    _replace_base_modifier(
+        modifiers, "off_hand_accuracy" if slot == "off_hand" else "main_hand_accuracy", WEAPON_BASE_ACCURACY
+    )
+
+
+def _add_accuracy_penalty(modifiers: dict[str, dict[str, Any]], *, slot: str, source: str, value: Any) -> None:
+    penalty = _float_value(value)
+    if penalty is None:
+        return
+    key = "off_hand_accuracy" if slot == "off_hand" else "main_hand_accuracy"
+    _add_source_modifier(modifiers, key, source, -abs(penalty))
+
+
+def _add_source_modifier(modifiers: dict[str, dict[str, Any]], key: str, source: str, value: float) -> None:
+    key = MODIFIER_ALIASES.get(key, key)
+    if key not in COMBAT_MODIFIER_KEYS:
+        return
+    modifiers.setdefault(key, {"base": 0.0, "source": {}, "temp": {}})
+    modifiers[key]["source"][source] = round(float(value), 4)
 
 
 def _item_base_key(key: str, *, slot: str, item_type: str, tags: list[str]) -> str:
@@ -391,6 +428,22 @@ def _float_map(value: Any) -> dict[str, float]:
 
 def _list_str(value: Any) -> list[str]:
     return [str(item) for item in value] if isinstance(value, list) else []
+
+
+def _float_value(value: Any) -> float | None:
+    if value is None:
+        return None
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _skill_value(value: Any) -> float:
+    raw_value = _float_value(value) or 0.0
+    if raw_value > 1.0:
+        return raw_value / 100.0
+    return raw_value
 
 
 def _combat_seed(monster: MonsterCombatSource) -> dict[str, Any]:

@@ -1,7 +1,5 @@
 from typing import Any, Literal
 
-from loguru import logger as log
-
 from src.backend.features.combat.dto import (
     ActorSnapshot,
     CombatMoveDTO,
@@ -12,7 +10,6 @@ from src.backend.features.combat.dto import (
     PipelineStagesDTO,
 )
 from src.backend.features.combat.dto.trigger_rules import TriggerRulesFlagsDTO
-from src.backend.features.combat.runtime.engine.math_core import MathCore
 
 
 class ContextBuilder:
@@ -59,25 +56,7 @@ class ContextBuilder:
             ctx.result.target_id = int(target.char_id) if target else None
             ctx.result.hand = ctx.flags.meta.source_type
 
-            # 6. Проверка Dual Wield (Chain Reaction)
-            # Если это Main Hand атака и у нас есть второе оружие -> ставим триггер
-            if ctx.flags.meta.source_type == "main_hand" and ContextBuilder._check_dual_wield(actor):
-                ctx.result.chain_events.trigger_offhand_attack = True
-                log.info(f"ContextBuilder | Chain Event: Dual Wield triggered for {actor.char_id}")
-
         return ctx
-
-    @staticmethod
-    def _check_dual_wield(actor: ActorSnapshot) -> bool:
-        """Проверяет возможность и шанс удара второй рукой."""
-        off_hand_skill = actor.loadout.layout.get("off_hand")
-        if not off_hand_skill or "shield" in off_hand_skill:
-            return False
-
-        skill_val = actor.skills.get("skill_dual_wield", 0.0)
-        chance = 0.25 + (skill_val * 0.01)
-
-        return MathCore.check_chance(chance)
 
     @staticmethod
     def _apply_external_mods(ctx: PipelineContextDTO, mods: dict[str, Any]) -> None:
@@ -92,6 +71,9 @@ class ContextBuilder:
             mode = mods["action_mode"]
             if mode in ["exchange", "unidirectional"]:
                 ctx.flags.meta.action_mode = mode
+
+        if "damage_mult" in mods:
+            ctx.mods.damage_mult = float(mods["damage_mult"])
 
     @staticmethod
     def _analyze_intent(
@@ -147,6 +129,10 @@ class ContextBuilder:
             if trigger_id:
                 ContextBuilder._activate_trigger_flag(ctx, trigger_id)
 
+            style_trigger = actor.loadout.layout.get("tactical_style_trigger")
+            if style_trigger and actor.loadout.layout.get("tactical_style") != "skill_shield_mastery":
+                ContextBuilder._activate_trigger_flag(ctx, style_trigger)
+
     @staticmethod
     def _activate_trigger_flag(ctx: PipelineContextDTO, trigger_id: str) -> None:
         """
@@ -188,5 +174,8 @@ class ContextBuilder:
 
         # 2. Shield (Off-hand)
         off_hand_skill = layout.get("off_hand")
-        if off_hand_skill == "skill_shield":
+        if off_hand_skill == "skill_shield_mastery":
             ctx.flags.mastery.shield_reflect = True
+            style_trigger = layout.get("tactical_style_trigger")
+            if layout.get("tactical_style") == "skill_shield_mastery" and style_trigger:
+                ContextBuilder._activate_trigger_flag(ctx, style_trigger)

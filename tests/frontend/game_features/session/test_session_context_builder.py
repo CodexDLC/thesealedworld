@@ -115,7 +115,15 @@ class FakeCombatApi:
                 actor_type="player",
                 team="team_1",
                 avatar_url="/static/images/avatars/rook7.png",
-                vitals=CombatActorVitalsDTO(hp_current=70, hp_max=100, energy_current=40, energy_max=90, tactics=2),
+                vitals=CombatActorVitalsDTO(
+                    hp_current=70,
+                    hp_max=100,
+                    energy_current=40,
+                    energy_max=90,
+                    stamina_current=55,
+                    stamina_max=120,
+                    tactics=2,
+                ),
             ),
             target=CombatActorCardDTO(
                 actor_id=f"-{char_id}",
@@ -123,7 +131,15 @@ class FakeCombatApi:
                 actor_type="shadow",
                 team="team_2",
                 is_ai=True,
-                vitals=CombatActorVitalsDTO(hp_current=65, hp_max=100, energy_current=30, energy_max=90, tactics=1),
+                vitals=CombatActorVitalsDTO(
+                    hp_current=65,
+                    hp_max=100,
+                    energy_current=30,
+                    energy_max=90,
+                    stamina_current=50,
+                    stamina_max=120,
+                    tactics=1,
+                ),
             ),
         )
         return CoreResponseDTO(
@@ -354,6 +370,8 @@ async def test_build_state_combat_uses_combat_session_without_character_status_l
     assert context["nav"]["l2"]["is_disabled"] is True
     assert context["nav"]["r1"]["is_disabled"] is True
     assert context["status_seed"]["hp"] == 70
+    assert context["status_seed"]["stamina"] == 55
+    assert context["status_seed"]["max_stamina"] == 120
     assert context["status_seed"]["name"] == "Ada"
 
 

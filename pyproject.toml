@@ -9,7 +9,7 @@ dependencies = [
     "arq>=0.26.3",
     "asyncpg>=0.31.0",
     "codex-core>=0.3.0",
-    "codex-platform>=0.5.1",
+    "codex-platform>=0.5.2",
     "fastapi>=0.136.1",
     "httpx>=0.28.1",
     "jinja2>=3.1.6",
@@ -23,6 +23,7 @@ dependencies = [
     "uvicorn>=0.46.0",
     "google-genai>=1.74.0",
     "codex-ai[gemini] == 0.1.0",
+    "authx==1.6.0",
 ]
 
 [tool.uv]

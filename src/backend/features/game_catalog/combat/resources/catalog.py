@@ -57,7 +57,7 @@ class CombatResourceCatalogService:
             descriptive = data["descriptive"]
             entry_id = str(technical[id_field])
             public = self._public_entry_from_description(entry_id, descriptive)
-            for field in ("target", "target_count"):
+            for field in ("cost", "target", "target_count"):
                 if field in technical and technical[field] not in (None, [], {}):
                     public[field] = technical[field]
             public["catalog_key"] = data["key"]
@@ -75,6 +75,8 @@ class CombatResourceCatalogService:
             public["catalog_key"] = key
             public["resource_type"] = key.split(".")[1] if "." in key else ""
             public["resource_id"] = technical.get("feint_id") or key
+            if technical.get("cost") not in (None, [], {}):
+                public["cost"] = technical["cost"]
             catalog[key] = public
         return catalog
 
@@ -111,7 +113,9 @@ class CombatResourceCatalogService:
         selected = variants.get(default_taxonomy) or variants.get("humanoid") or {}
         return {
             "title": selected.get("display_name") or entry_id,
+            "label": selected.get("ui_label") or selected.get("display_name") or entry_id,
             "description": selected.get("short_description") or f"DATA_MISSING: combat_description:{entry_id}",
+            "long_description": selected.get("long_description") or selected.get("short_description") or "",
             "icon": selected.get("icon") or "",
             "default_taxonomy": default_taxonomy,
             "taxonomy_variants": variants,

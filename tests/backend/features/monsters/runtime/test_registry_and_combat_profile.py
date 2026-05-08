@@ -87,7 +87,8 @@ async def test_rat_beast_profile_builds_combat_ready_context() -> None:
     assert combat["loadout"]["equipment_layout"]["main_hand"] == "rat_bite_claws"
     assert combat["loadout"]["equipment_layout"]["chest_armor"] == "light_hide"
     assert combat["loadout"]["known_abilities"]
-    assert combat["skills"]["skill_unarmed"] >= 20
+    assert "close_grapple" in combat["loadout"]["known_feints"]
+    assert combat["skills"]["skill_unarmed"] >= 0.2
     assert vitals["hp_current"] > 0
 
 
@@ -108,12 +109,13 @@ async def test_bandit_humanoid_loadout_resolves_into_modifiers_and_layout() -> N
 
     combat = build_monster_combat_context(monster)
 
-    assert combat["loadout"]["layout"]["main_hand"] == "skill_one_handed"
-    assert combat["loadout"]["layout"]["off_hand"] == "skill_shield_mastery"
+    assert combat["loadout"]["layout"]["main_hand"] == "skill_macing"
+    assert combat["loadout"]["layout"]["off_hand"] == "skill_parrying"
     assert combat["loadout"]["layout"]["body"] == "skill_medium_armor"
     assert combat["loadout"]["equipment_layout"]["main_hand"] == "hatchet"
     assert combat["loadout"]["equipment_layout"]["off_hand"] == "buckler"
     assert combat["loadout"]["equipment_layout"]["chest_armor"] == "jerkin"
     assert combat["math_model"]["modifiers"]["main_hand_damage_base"]["base"] > 0
     assert combat["math_model"]["modifiers"]["armor"]["base"] > 0
-    assert combat["skills"]["skill_one_handed"] >= 20
+    assert combat["skills"]["skill_macing"] >= 0.2
+    assert "guard_breaker" in combat["loadout"]["known_feints"]

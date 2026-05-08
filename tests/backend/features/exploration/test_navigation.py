@@ -66,7 +66,7 @@ def test_navigation_actions_group_web_contract():
     assert actions.context["threat_tier"] == 0.35
 
 
-def test_navigation_safe_context_accepts_top_level_anchor_influence():
+def test_navigation_city_shield_does_not_make_unsafe_ruins_safe():
     actions = NavigationEngine.build_actions(
         "50_50",
         {},
@@ -74,7 +74,7 @@ def test_navigation_safe_context_accepts_top_level_anchor_influence():
         {"is_inside_city_shield": True},
     )
 
-    assert actions.context["is_safe_zone"] is True
+    assert actions.context["is_safe_zone"] is False
     assert actions.movement["north"].is_active is False
 
 

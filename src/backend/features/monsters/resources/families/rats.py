@@ -20,15 +20,15 @@ RATS_FAMILY: MonsterFamily = {
     },
     "skill_kit": {
         "base": {
-            "skill_unarmed": 20,
-            "skill_adaptation": 10,
-            "skill_scouting": 10,
+            "skill_unarmed": 0.20,
+            "skill_adaptation": 0.10,
+            "skill_scouting": 0.10,
         },
         "role_bonus": {
             "minion": {},
-            "veteran": {"skill_scouting": 10},
-            "elite": {"skill_unarmed": 25, "skill_adaptation": 15},
-            "boss": {"skill_unarmed": 60, "skill_tactics": 30},
+            "veteran": {"skill_scouting": 0.10},
+            "elite": {"skill_unarmed": 0.25, "skill_adaptation": 0.15},
+            "boss": {"skill_unarmed": 0.60, "skill_tactics": 0.30},
         },
     },
     "ability_map": {

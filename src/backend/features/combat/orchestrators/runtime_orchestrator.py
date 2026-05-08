@@ -7,6 +7,7 @@ if TYPE_CHECKING:
     from src.shared.schemas.combat import (
         CombatDashboardDTO,
         CombatLogDTO,
+        CombatPinFeintRequestDTO,
         CombatRegisterMoveRequestDTO,
         CombatResultDTO,
     )
@@ -18,8 +19,11 @@ class CombatRuntimeOrchestrator:
     def __init__(self, session_service: CombatSessionService) -> None:
         self.session_service = session_service
 
-    async def get_initial_view(self, char_id: int) -> CombatDashboardDTO:
-        return await self.session_service.get_dashboard(char_id)
+    async def get_initial_view(self, char_id: int) -> CombatDashboardDTO | CombatResultDTO:
+        dashboard = await self.session_service.get_dashboard(char_id)
+        if dashboard.status == "finished" or dashboard.winner_team:
+            return await self.session_service.get_archived_result(char_id, reason="combat_session_finished")
+        return dashboard
 
     async def get_dashboard(self, char_id: int) -> CombatDashboardDTO:
         return await self.session_service.get_dashboard(char_id)
@@ -32,3 +36,6 @@ class CombatRuntimeOrchestrator:
 
     async def register_move(self, char_id: int, body: CombatRegisterMoveRequestDTO) -> CombatDashboardDTO:
         return await self.session_service.register_move(char_id, body)
+
+    async def pin_feint(self, char_id: int, body: CombatPinFeintRequestDTO) -> CombatDashboardDTO:
+        return await self.session_service.pin_feint(char_id, body)

@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import logging
 import uuid
+from time import perf_counter
 from typing import TYPE_CHECKING, Any
 
 from src.backend.config.settings import settings
@@ -28,6 +29,10 @@ if TYPE_CHECKING:
 log = logging.getLogger(__name__)
 BACKUP_INTERVAL = 3
 SCENARIO_COMBAT_TTL_SECONDS = 24 * 60 * 60
+
+
+def _elapsed_ms(started_at: float) -> float:
+    return round((perf_counter() - started_at) * 1000, 2)
 
 
 class ScenarioSystemIntegrator:
@@ -183,10 +188,17 @@ class ScenarioSystemIntegrator:
         await self.repo.delete_state(char_id)
 
     async def sync_active_character_to_db(self, char_id: int) -> None:
+        started_at = perf_counter()
         response = await self.events.request(
             CharacterEvents.ACTIVE_SESSION_SYNC_REQUESTED,
             {"char_id": char_id},
             timeout=30.0,
+        )
+        log.info(
+            "ScenarioIntegratorTiming | op=sync_active_character_to_db char_id=%s status=%s ms=%s",
+            char_id,
+            response.get("status") if isinstance(response, dict) else type(response).__name__,
+            _elapsed_ms(started_at),
         )
         if not isinstance(response, dict) or response.get("status") != "ok":
             raise RuntimeError(f"Scenario active character sync failed: {response!r}")
@@ -220,6 +232,7 @@ class ScenarioSystemIntegrator:
             return []
 
         item_ids = await self.generate_reward_items(char_id, items, quest_key=quest_key)
+        started_at = perf_counter()
         response = await self.events.request(
             InventoryEvents.REWARDS_GRANT_REQUESTED,
             {
@@ -229,6 +242,14 @@ class ScenarioSystemIntegrator:
                 "equip_if_possible": True,
             },
             timeout=30.0,
+        )
+        log.info(
+            "ScenarioIntegratorTiming | op=inventory_rewards_grant char_id=%s quest_key=%s item_count=%s status=%s ms=%s",
+            char_id,
+            quest_key,
+            len(item_ids),
+            response.get("status") if isinstance(response, dict) else type(response).__name__,
+            _elapsed_ms(started_at),
         )
         if not isinstance(response, dict) or response.get("status") != "ok":
             raise RuntimeError(f"Scenario inventory reward grant failed: {response!r}")
@@ -266,10 +287,19 @@ class ScenarioSystemIntegrator:
             ).model_dump(mode="json")
             for base_id in base_item_ids
         ]
+        started_at = perf_counter()
         response = await self.events.request(
             ItemEvents.GENERATE_REQUESTED,
             {"items": requests, "delivery_mode": "forward", "return_items": False},
             timeout=30.0,
+        )
+        log.info(
+            "ScenarioIntegratorTiming | op=generate_reward_items char_id=%s quest_key=%s base_count=%s status=%s ms=%s",
+            char_id,
+            quest_key,
+            len(base_item_ids),
+            response.get("status") if isinstance(response, dict) else type(response).__name__,
+            _elapsed_ms(started_at),
         )
         if not isinstance(response, dict) or response.get("status") != "ok":
             raise RuntimeError(f"Scenario reward item generation failed: {response!r}")
@@ -291,13 +321,39 @@ class ScenarioSystemIntegrator:
     async def unlock_skills(self, char_id: int, skills: list[str]) -> None:
         if not skills:
             return
+        started_at = perf_counter()
         response = await self.events.request(
             CharacterEvents.SKILLS_UNLOCK_REQUESTED,
             {"char_id": char_id, "skill_keys": json.dumps(skills), "progress_state": "PLUS"},
             timeout=30.0,
         )
+        log.info(
+            "ScenarioIntegratorTiming | op=unlock_skills char_id=%s skill_count=%s status=%s ms=%s",
+            char_id,
+            len(skills),
+            response.get("status") if isinstance(response, dict) else type(response).__name__,
+            _elapsed_ms(started_at),
+        )
         if not isinstance(response, dict) or response.get("status") != "ok":
             raise RuntimeError(f"Scenario skill unlock failed: {response!r}")
+
+    async def restore_character_vitals(self, char_id: int, *, reason: str) -> dict[str, Any]:
+        started_at = perf_counter()
+        response = await self.events.request(
+            CharacterEvents.VITALS_RESTORE_REQUESTED,
+            {"char_id": char_id, "reason": reason},
+            timeout=30.0,
+        )
+        log.info(
+            "ScenarioIntegratorTiming | op=restore_character_vitals char_id=%s status=%s ms=%s",
+            char_id,
+            response.get("status") if isinstance(response, dict) else type(response).__name__,
+            _elapsed_ms(started_at),
+        )
+        if not isinstance(response, dict) or response.get("status") != "ok":
+            raise RuntimeError(f"Scenario character vitals restore failed: {response!r}")
+        vitals = response.get("vitals") or {}
+        return vitals if isinstance(vitals, dict) else {}
 
     async def apply_attribute_bonuses(self, char_id: int, bonuses: dict[str, int]) -> None:
         if bonuses:
@@ -323,11 +379,28 @@ class ScenarioSystemIntegrator:
     ) -> dict[str, Any]:
         combat_id = str(uuid.uuid4())
         participants = {"team_1": [char_id]}
+        started_at = perf_counter()
+        await self.restore_character_vitals(char_id, reason=f"scenario:{quest_key}:combat_handoff")
+        log.info(
+            "ScenarioIntegratorTiming | op=restore_vitals_for_combat char_id=%s combat_id=%s ms=%s",
+            char_id,
+            combat_id,
+            _elapsed_ms(started_at),
+        )
+        started_at = perf_counter()
         commitments = await self.prepare_combat_commitments(
             combat_id,
             player_ids=[char_id],
             monster_ids=[],
         )
+        log.info(
+            "ScenarioIntegratorTiming | op=prepare_combat_commitments_for_start char_id=%s combat_id=%s count=%s ms=%s",
+            char_id,
+            combat_id,
+            len(commitments),
+            _elapsed_ms(started_at),
+        )
+        started_at = perf_counter()
         response = await self.events.request(
             "combat.session_requested",
             {
@@ -343,6 +416,13 @@ class ScenarioSystemIntegrator:
             },
             timeout=30.0,
             correlation_id=combat_id,
+        )
+        log.info(
+            "ScenarioIntegratorTiming | op=combat_session_requested char_id=%s combat_id=%s status=%s ms=%s",
+            char_id,
+            combat_id,
+            response.get("status") if isinstance(response, dict) else type(response).__name__,
+            _elapsed_ms(started_at),
         )
         if not isinstance(response, dict) or response.get("status") != "ready":
             raise RuntimeError(f"Scenario combat start failed: {response!r}")
@@ -362,6 +442,7 @@ class ScenarioSystemIntegrator:
         player_ids: list[int],
         monster_ids: list[str],
     ) -> dict[str, str]:
+        started_at = perf_counter()
         response = await self.events.request(
             CharacterEvents.COMBAT_COMMITMENTS_REQUESTED,
             {
@@ -371,6 +452,15 @@ class ScenarioSystemIntegrator:
                 "ttl": SCENARIO_COMBAT_TTL_SECONDS,
             },
             timeout=30.0,
+        )
+        log.info(
+            "ScenarioIntegratorTiming | op=prepare_combat_commitments combat_id=%s player_count=%s monster_count=%s "
+            "status=%s ms=%s",
+            combat_id,
+            len(player_ids),
+            len(monster_ids),
+            response.get("status") if isinstance(response, dict) else type(response).__name__,
+            _elapsed_ms(started_at),
         )
         if not isinstance(response, dict) or response.get("status") not in ("ok", "partial"):
             raise RuntimeError(f"Scenario combat commitment preparation failed: {response!r}")

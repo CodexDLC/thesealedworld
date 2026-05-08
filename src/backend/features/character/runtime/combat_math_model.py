@@ -10,8 +10,16 @@ RawCombatMathModel = dict[str, Any]
 
 ATTRIBUTE_KEYS = tuple(CharacterSessionAttributesDTO.model_fields)
 COMBAT_MODIFIER_KEYS = frozenset(CombatModifiersDTO.model_fields)
+WEAPON_BASE_ACCURACY = 0.70
 UNARMED_ACCURACY = 0.70
 UNARMED_DAMAGE_SPREAD = 0.50
+HEAVY_CHEST_DODGE_CAPS = {
+    "plate_chest": 0.35,
+    "scale_mail": 0.40,
+}
+MEDIUM_CHEST_DODGE_CAP_PENALTY = -0.10
+MEDIUM_ARMOR_DODGE_CAP_RECOVERY = 0.10
+LIGHT_ARMOR_DODGE_CAP_BOOST = 0.20
 MODIFIER_ALIASES = {
     "block_chance": "block",
     "damage_reduction_flat": "armor",
@@ -40,11 +48,10 @@ class CharacterCombatMathModelBuilder:
         skills: dict[str, Any] | None = None,
     ) -> RawCombatMathModel:
         equipped = self._equipped_items(items or {})
-        skill_values = self._skill_values(skills or {})
         attributes_data = self._dump(attributes)
         return {
             "attributes": self._build_attributes(attributes_data),
-            "modifiers": self._build_modifiers(equipped, skill_values, attributes_data),
+            "modifiers": self._build_modifiers(equipped, attributes_data, skills or {}),
             "tags": ["player"],
         }
 
@@ -57,10 +64,11 @@ class CharacterCombatMathModelBuilder:
         }
 
     def _build_modifiers(
-        self, equipment: list[dict[str, Any]], skills: dict[str, float], attributes: dict[str, Any]
+        self, equipment: list[dict[str, Any]], attributes: dict[str, Any], skills: dict[str, Any]
     ) -> RawStatBlock:
         modifiers = self._empty_modifiers()
         has_main_hand_weapon = False
+        chest_item: dict[str, Any] | None = None
         for item in equipment:
             item_id = str(item.get("item_id") or item.get("inventory_id") or item.get("id") or "")
             if not item_id:
@@ -70,8 +78,12 @@ class CharacterCombatMathModelBuilder:
             mechanics = self._mechanics(item)
             slot = str(item.get("slot") or mechanics.get("slot") or "")
             combat_slot = self._combat_slot(slot)
-            item_type = str(item.get("item_type") or item.get("type") or mechanics.get("item_type") or "")
+            item_type = str(
+                item.get("item_type") or item.get("type") or mechanics.get("item_type") or mechanics.get("type") or ""
+            )
             tags = self._tags(item, mechanics)
+            if combat_slot == "chest_armor" and item_type == "armor":
+                chest_item = item
             if combat_slot == "main_hand" and item_type == "weapon":
                 has_main_hand_weapon = True
 
@@ -86,7 +98,17 @@ class CharacterCombatMathModelBuilder:
                 elif combat_slot == "off_hand" and not self._is_shield(item_type, tags):
                     self._replace_base_modifier(modifiers, "off_hand_damage_spread", damage_spread)
 
+            if item_type == "weapon" and combat_slot in {"main_hand", "off_hand"}:
+                self._apply_weapon_accuracy_base(modifiers, slot=combat_slot)
+
             for bonus_key, value in (mechanics.get("implicit_bonuses") or {}).items():
+                if (
+                    bonus_key == "accuracy_penalty"
+                    and item_type == "weapon"
+                    and combat_slot in {"main_hand", "off_hand"}
+                ):
+                    self._add_accuracy_penalty(modifiers, slot=combat_slot, source=source, value=value)
+                    continue
                 self._add_item_base_modifier(
                     modifiers,
                     str(bonus_key),
@@ -97,12 +119,52 @@ class CharacterCombatMathModelBuilder:
                 )
             for bonus_key, value in (mechanics.get("bonuses") or {}).items():
                 self._add_modifier(modifiers, str(bonus_key), source, value)
-            self._add_skill_sources(modifiers, item=item, mechanics=mechanics, tags=tags, source=source, skills=skills)
 
         if not has_main_hand_weapon:
             self._apply_unarmed_base(modifiers, attributes)
 
+        self._apply_armor_dodge_cap_rules(modifiers, chest_item, skills)
+
         return modifiers
+
+    @staticmethod
+    def _apply_armor_dodge_cap_rules(
+        modifiers: RawStatBlock, chest_item: dict[str, Any] | None, skills: dict[str, Any]
+    ) -> None:
+        if not chest_item:
+            return
+
+        mechanics = CharacterCombatMathModelBuilder._mechanics(chest_item)
+        armor_class = str(chest_item.get("armor_class") or mechanics.get("armor_class") or "")
+        if not armor_class:
+            return
+
+        item_id = str(chest_item.get("item_id") or chest_item.get("inventory_id") or chest_item.get("id") or "")
+        source = f"item:{item_id}" if item_id else "item:chest_armor"
+        base_id = str(chest_item.get("base_id") or mechanics.get("base_id") or mechanics.get("id") or item_id)
+
+        if armor_class == "heavy":
+            cap = HEAVY_CHEST_DODGE_CAPS.get(base_id, 0.35)
+            CharacterCombatMathModelBuilder._set_source_command(modifiers, "dodge_cap", source, f"={cap:.2f}")
+            return
+
+        if armor_class == "medium":
+            CharacterCombatMathModelBuilder._add_modifier(
+                modifiers, "dodge_cap", f"{source}:medium_cap_penalty", MEDIUM_CHEST_DODGE_CAP_PENALTY
+            )
+            skill = CharacterCombatMathModelBuilder._skill_value(skills.get("skill_medium_armor"))
+            if skill > 0:
+                recovery = min(MEDIUM_ARMOR_DODGE_CAP_RECOVERY, skill * MEDIUM_ARMOR_DODGE_CAP_RECOVERY)
+                CharacterCombatMathModelBuilder._add_modifier(
+                    modifiers, "dodge_cap", "skill:skill_medium_armor", recovery
+                )
+            return
+
+        if armor_class == "light":
+            skill = CharacterCombatMathModelBuilder._skill_value(skills.get("skill_light_armor"))
+            if skill > 0:
+                boost = min(LIGHT_ARMOR_DODGE_CAP_BOOST, skill * LIGHT_ARMOR_DODGE_CAP_BOOST)
+                CharacterCombatMathModelBuilder._add_modifier(modifiers, "dodge_cap", "skill:skill_light_armor", boost)
 
     @staticmethod
     def _apply_unarmed_base(modifiers: RawStatBlock, attributes: dict[str, Any]) -> None:
@@ -113,34 +175,16 @@ class CharacterCombatMathModelBuilder:
         )
         CharacterCombatMathModelBuilder._set_base_modifier(modifiers, "main_hand_accuracy", UNARMED_ACCURACY)
 
-    def _add_skill_sources(
-        self,
-        modifiers: RawStatBlock,
-        *,
-        item: dict[str, Any],
-        mechanics: dict[str, Any],
-        tags: list[str],
-        source: str,
-        skills: dict[str, float],
-    ) -> None:
-        bonuses = {
-            **(mechanics.get("implicit_bonuses") or {}),
-            **(mechanics.get("bonuses") or {}),
-        }
+    def _apply_weapon_accuracy_base(self, modifiers: RawStatBlock, *, slot: str) -> None:
+        key = "off_hand_accuracy" if slot == "off_hand" else "main_hand_accuracy"
+        self._replace_base_modifier(modifiers, key, WEAPON_BASE_ACCURACY)
 
-        parry_base = self._first_numeric(bonuses, ("parry", "parry_chance"))
-        if parry_base:
-            parrying = skills.get("skill_parrying", 0.0)
-            self._add_modifier(
-                modifiers, "parry", f"skill:skill_parrying:{source}", parry_base * 4.0 * parrying / 100.0
-            )
-
-        block_base = self._first_numeric(bonuses, ("block", "shield_block_chance"))
-        if block_base and self._is_shield(str(item.get("item_type") or item.get("type") or ""), tags):
-            shield = skills.get("skill_shield_mastery", 0.0)
-            self._add_modifier(
-                modifiers, "block", f"skill:skill_shield_mastery:{source}", block_base * 1.5 * shield / 100.0
-            )
+    def _add_accuracy_penalty(self, modifiers: RawStatBlock, *, slot: str, source: str, value: Any) -> None:
+        penalty = self._float_value(value)
+        if penalty is None:
+            return
+        key = "off_hand_accuracy" if slot == "off_hand" else "main_hand_accuracy"
+        self._add_modifier(modifiers, key, source, -abs(penalty))
 
     def _add_power_modifier(
         self,
@@ -155,10 +199,10 @@ class CharacterCombatMathModelBuilder:
             self._set_base_modifier(modifiers, "main_hand_damage_base", value)
             return
         if slot == "off_hand":
-            key = "block" if self._is_shield(item_type, tags) else "off_hand_damage_base"
-            self._set_base_modifier(modifiers, key, value)
+            if not self._is_shield(item_type, tags):
+                self._set_base_modifier(modifiers, "off_hand_damage_base", value)
             return
-        if item_type == "armor" or slot.endswith("_armor"):
+        if slot.endswith("_armor"):
             self._set_base_modifier(modifiers, "armor", value)
 
     @staticmethod
@@ -216,6 +260,14 @@ class CharacterCombatMathModelBuilder:
             return
         modifiers.setdefault(key, {"base": 0.0, "source": {}, "temp": {}})
         modifiers[key]["source"][source] = round(numeric, 4)
+
+    @staticmethod
+    def _set_source_command(modifiers: RawStatBlock, key: str, source: str, command: str) -> None:
+        key = MODIFIER_ALIASES.get(key, key)
+        if key not in COMBAT_MODIFIER_KEYS:
+            return
+        modifiers.setdefault(key, {"base": 0.0, "source": {}, "temp": {}})
+        modifiers[key]["source"][source] = command
 
     @staticmethod
     def _add_item_base_modifier(
@@ -278,26 +330,6 @@ class CharacterCombatMathModelBuilder:
         }
 
     @staticmethod
-    def _first_numeric(data: dict[str, Any], keys: tuple[str, ...]) -> float | None:
-        for key in keys:
-            value = CharacterCombatMathModelBuilder._float_value(data.get(key))
-            if value is not None:
-                return value
-        return None
-
-    @staticmethod
-    def _skill_values(skills: dict[str, Any]) -> dict[str, float]:
-        values: dict[str, float] = {}
-        for key, raw in skills.items():
-            if isinstance(raw, dict):
-                value = raw.get("value", raw.get("level", raw.get("total_xp", raw.get("xp", 0.0))))
-            else:
-                value = raw
-            numeric = CharacterCombatMathModelBuilder._float_value(value)
-            values[str(key)] = numeric if numeric is not None else 0.0
-        return values
-
-    @staticmethod
     def _float_value(value: Any) -> float | None:
         if value is None:
             return None
@@ -307,10 +339,22 @@ class CharacterCombatMathModelBuilder:
             return None
 
     @staticmethod
+    def _skill_value(value: Any) -> float:
+        if isinstance(value, dict):
+            value = value.get("xp", value.get("value", value.get("level", 0.0)))
+        return CharacterCombatMathModelBuilder._float_value(value) or 0.0
+
+    @staticmethod
     def _dump(value: Any) -> dict[str, Any]:
         if hasattr(value, "model_dump"):
             return value.model_dump(mode="json")
         return dict(value) if isinstance(value, dict) else {}
 
 
-__all__ = ["COMBAT_MODIFIER_KEYS", "CharacterCombatMathModelBuilder", "RawCombatMathModel", "RawStatBlock"]
+__all__ = [
+    "COMBAT_MODIFIER_KEYS",
+    "CharacterCombatMathModelBuilder",
+    "RawCombatMathModel",
+    "RawStatBlock",
+    "WEAPON_BASE_ACCURACY",
+]

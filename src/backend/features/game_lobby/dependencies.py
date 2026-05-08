@@ -9,6 +9,8 @@ from src.backend.features.character.repositories import CharacterRepository
 from src.backend.features.game_lobby.integrations import GameLobbyIntegration
 from src.backend.features.game_lobby.services.character_creation_service import CharacterCreationService
 from src.backend.features.game_lobby.services.lobby_service import GameLobbyService
+from src.backend.features.items.integrations import ItemPersistenceIntegration
+from src.backend.features.items.repositories import ItemInstanceRepository
 from src.backend.features.scenario.dependencies import build_scenario_service
 from src.backend.features.scenario.services import ScenarioService
 
@@ -31,6 +33,7 @@ def get_game_lobby_integration(
 ) -> GameLobbyIntegration:
     return GameLobbyIntegration(
         character_repo=CharacterRepository(db_session),
+        item_persistence=ItemPersistenceIntegration(ItemInstanceRepository(db_session)),
         character_sessions=character_sessions,
         scenario_service=scenario_service,
     )

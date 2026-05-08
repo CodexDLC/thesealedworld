@@ -9,6 +9,7 @@ from src.shared.enums import CoreDomain
 from src.shared.schemas.combat import (
     CombatDashboardDTO,
     CombatLogDTO,
+    CombatPinFeintRequestDTO,  # noqa: TC001 - FastAPI needs the body model at runtime
     CombatRegisterMoveRequestDTO,  # noqa: TC001 - FastAPI needs the body model at runtime
     CombatResultDTO,
 )
@@ -31,7 +32,7 @@ async def get_combat_view(
         return CoreResponseDTO(
             header=GameStateHeader(current_state=CoreDomain.COMBAT),
             payload=payload,
-            payload_type="CombatDashboard",
+            payload_type="CombatResult" if isinstance(payload, CombatResultDTO) else "CombatDashboard",
         )
     except CombatSessionNotFound as exc:
         payload = await orchestrator.get_archived_result(char_id, reason=str(exc))
@@ -75,4 +76,19 @@ async def register_combat_move(
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     except ValueError as exc:
         logger.warning("Combat move rejected: char_id={} detail={}", char_id, str(exc))
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@router.post("/{char_id}/feints/pin", response_model=CombatDashboardDTO)
+async def pin_combat_feint(
+    char_id: int,
+    body: CombatPinFeintRequestDTO,
+    orchestrator: CombatRuntimeOrchestratorDep,
+) -> CombatDashboardDTO:
+    try:
+        return await orchestrator.pin_feint(char_id, body)
+    except CombatSessionNotFound as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except ValueError as exc:
+        logger.warning("Combat feint pin rejected: char_id={} detail={}", char_id, str(exc))
         raise HTTPException(status_code=400, detail=str(exc)) from exc

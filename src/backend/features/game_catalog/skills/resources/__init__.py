@@ -28,6 +28,8 @@ def load_skill_definitions() -> list[SkillDefinitionDTO]:
     registry: dict[str, SkillDefinitionDTO] = {}
     for group in SKILL_GROUPS:
         for skill in group:
+            if not skill.skill_key.startswith("skill_"):
+                raise ValueError(f"Skill key must use skill_ prefix: {skill.skill_key}")
             registry[skill.skill_key] = SkillDefinitionDTO.model_validate(skill)
     return list(registry.values())
 

@@ -12,15 +12,23 @@ BANDITS_FAMILY: MonsterFamily = {
     },
     "skill_kit": {
         "base": {
-            "skill_one_handed": 20,
-            "skill_light_armor": 15,
-            "skill_tactics": 5,
+            "skill_swords": 0.20,
+            "skill_macing": 0.20,
+            "skill_one_handed": 0.20,
+            "skill_light_armor": 0.15,
+            "skill_tactics": 0.05,
         },
         "role_bonus": {
             "minion": {},
-            "veteran": {"skill_one_handed": 15},
-            "elite": {"skill_one_handed": 35, "skill_tactics": 20},
-            "boss": {"skill_one_handed": 70, "skill_tactics": 50, "leadership": 40},
+            "veteran": {"skill_swords": 0.15, "skill_macing": 0.15, "skill_one_handed": 0.15},
+            "elite": {"skill_swords": 0.35, "skill_macing": 0.35, "skill_one_handed": 0.35, "skill_tactics": 0.20},
+            "boss": {
+                "skill_swords": 0.70,
+                "skill_macing": 0.70,
+                "skill_one_handed": 0.70,
+                "skill_tactics": 0.50,
+                "skill_leadership": 0.40,
+            },
         },
     },
     "ability_map": {
@@ -104,7 +112,7 @@ BANDITS_FAMILY: MonsterFamily = {
                 "legs_armor": "breeches",
                 "belt_accessory": "belt",
             },
-            "skill_overrides": {"skill_archery": 20, "skill_one_handed": None},
+            "skill_overrides": {"skill_archery": 0.20, "skill_one_handed": None},
             "skills": ["aimed_shot"],
         },
         # === 2. Головорезы (Veterans) [TSP ~75] ===
@@ -133,7 +141,7 @@ BANDITS_FAMILY: MonsterFamily = {
                 "gloves_garment": "work_gloves",
                 "belt_accessory": "belt",
             },
-            "skill_overrides": {"skill_dual_wield": 20},
+            "skill_overrides": {"skill_dual_wield": 0.20},
             "skills": ["poison_stab", "evasion"],
         },
         # === 3. Элита (Elites) [TSP ~125] ===
@@ -163,7 +171,7 @@ BANDITS_FAMILY: MonsterFamily = {
                 "amulet": "amulet",
                 "belt_accessory": "belt",
             },
-            "skill_overrides": {"skill_heavy_armor": 20, "skill_shield_mastery": 25},
+            "skill_overrides": {"skill_heavy_armor": 0.20, "skill_shield_mastery": 0.25},
             "skills": ["shield_bash", "rally_cry"],
         },
         "bandit_hedge_wizard": {
@@ -191,7 +199,7 @@ BANDITS_FAMILY: MonsterFamily = {
                 "ring_1": "ring",
                 "belt_accessory": "belt",
             },
-            "skill_overrides": {"skill_two_handed": 20, "skill_light_armor": 25},
+            "skill_overrides": {"skill_two_handed": 0.20, "skill_light_armor": 0.25},
             "skills": ["lightning_bolt", "confusion", "smoke_bomb"],
         },
         # === 4. Босс (Bosses) [TSP ~200] ===
@@ -227,7 +235,7 @@ BANDITS_FAMILY: MonsterFamily = {
                 "ring_2": "ring",
                 "belt_accessory": "belt",
             },
-            "skill_overrides": {"skill_two_handed": 60, "skill_heavy_armor": 45},
+            "skill_overrides": {"skill_two_handed": 0.60, "skill_heavy_armor": 0.45},
             "skills": ["dirty_trick_blind", "call_reinforcements", "cleave"],
         },
     },

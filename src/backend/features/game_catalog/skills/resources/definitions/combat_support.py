@@ -1,4 +1,4 @@
-from src.backend.features.game_catalog.skills.dto.catalog import SkillCategory, SkillDTO, SkillGroup
+from src.backend.features.game_catalog.skills.dto.catalog import SkillCategory, SkillDTO, SkillGroup, SkillUiGroup
 
 COMBAT_SUPPORT_SKILLS = [
     SkillDTO(
@@ -6,7 +6,8 @@ COMBAT_SUPPORT_SKILLS = [
         name_en="Parrying",
         name_ru="Парирование",
         category=SkillCategory.COMBAT,
-        group=SkillGroup.COMBAT_SUPPORT,
+        group=SkillGroup.COMBAT,
+        ui_group=SkillUiGroup.COMBAT_SUPPORT,
         stat_weights={"agility": 2, "perception": 1, "strength": 1},
         rate_mod=1.0,
         wall_mod=1.0,
@@ -17,7 +18,8 @@ COMBAT_SUPPORT_SKILLS = [
         name_en="Anatomy",
         name_ru="Анатомия",
         category=SkillCategory.COMBAT,
-        group=SkillGroup.COMBAT_SUPPORT,
+        group=SkillGroup.COMBAT,
+        ui_group=SkillUiGroup.COMBAT_SUPPORT,
         stat_weights={"intellect": 2, "perception": 2},  # Dual 2+2
         rate_mod=1.0,
         wall_mod=1.0,
@@ -28,7 +30,8 @@ COMBAT_SUPPORT_SKILLS = [
         name_en="Tactics",
         name_ru="Тактика",
         category=SkillCategory.COMBAT,
-        group=SkillGroup.COMBAT_SUPPORT,
+        group=SkillGroup.COMBAT,
+        ui_group=SkillUiGroup.COMBAT_SUPPORT,
         stat_weights={"intellect": 2, "memory": 2},
         rate_mod=1.0,
         wall_mod=1.0,
@@ -38,8 +41,9 @@ COMBAT_SUPPORT_SKILLS = [
         skill_key="skill_first_aid",
         name_en="First Aid",
         name_ru="Первая помощь",
-        category=SkillCategory.COMBAT,
-        group=SkillGroup.COMBAT_SUPPORT,
+        category=SkillCategory.NON_COMBAT,
+        group=SkillGroup.CRAFTING,
+        ui_group=SkillUiGroup.CRAFTING,
         stat_weights={"memory": 2, "intellect": 1, "agility": 1},
         rate_mod=1.0,
         wall_mod=1.0,

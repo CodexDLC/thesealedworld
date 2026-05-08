@@ -1,4 +1,4 @@
-from src.backend.features.game_catalog.skills.dto.catalog import SkillCategory, SkillDTO, SkillGroup
+from src.backend.features.game_catalog.skills.dto.catalog import SkillCategory, SkillDTO, SkillGroup, SkillUiGroup
 
 ARMOR_SKILLS = [
     SkillDTO(
@@ -6,7 +6,8 @@ ARMOR_SKILLS = [
         name_en="Light Armor",
         name_ru="Легкая броня",
         category=SkillCategory.COMBAT,
-        group=SkillGroup.ARMOR,
+        group=SkillGroup.COMBAT,
+        ui_group=SkillUiGroup.ARMOR,
         stat_weights={"agility": 2, "endurance": 1, "perception": 1},
         rate_mod=1.0,
         wall_mod=1.0,
@@ -17,7 +18,8 @@ ARMOR_SKILLS = [
         name_en="Medium Armor",
         name_ru="Средняя броня",
         category=SkillCategory.COMBAT,
-        group=SkillGroup.ARMOR,
+        group=SkillGroup.COMBAT,
+        ui_group=SkillUiGroup.ARMOR,
         stat_weights={"endurance": 2, "strength": 1, "agility": 1},
         rate_mod=1.0,
         wall_mod=1.0,
@@ -28,7 +30,8 @@ ARMOR_SKILLS = [
         name_en="Heavy Armor",
         name_ru="Тяжелая броня",
         category=SkillCategory.COMBAT,
-        group=SkillGroup.ARMOR,
+        group=SkillGroup.COMBAT,
+        ui_group=SkillUiGroup.ARMOR,
         stat_weights={"strength": 2, "endurance": 2},  # Dual 2+2
         rate_mod=1.0,
         wall_mod=1.0,

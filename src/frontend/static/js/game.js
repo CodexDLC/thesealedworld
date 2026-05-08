@@ -745,6 +745,60 @@ window.initGameTooltips = initGameTooltips;
 document.addEventListener('DOMContentLoaded', () => initGameTooltips(document));
 
 
+
+
+function resolveActionFeedbackElement(source) {
+    if (!source || !source.closest) return null;
+    const control = source.closest('button, a, [role="button"], input[type="submit"], input[type="button"]');
+    if (!control || control.matches('[data-action-feedback="off"]')) return null;
+    return control;
+}
+
+function setActionFeedback(source) {
+    const control = resolveActionFeedbackElement(source);
+    if (!control) return;
+
+    control.classList.add('is-action-pending');
+    control.setAttribute('aria-busy', 'true');
+    if (!control.hasAttribute('aria-live')) {
+        control.setAttribute('aria-live', 'polite');
+        control.dataset.actionFeedbackLive = 'true';
+    }
+}
+
+function clearActionFeedback(source) {
+    const control = resolveActionFeedbackElement(source);
+    if (!control) return;
+
+    control.classList.remove('is-action-pending');
+    control.removeAttribute('aria-busy');
+    if (control.dataset.actionFeedbackLive === 'true') {
+        control.removeAttribute('aria-live');
+        delete control.dataset.actionFeedbackLive;
+    }
+}
+
+
+document.addEventListener('htmx:beforeRequest', (event) => {
+    setActionFeedback(event.detail?.elt);
+});
+
+document.addEventListener('htmx:afterRequest', (event) => {
+    clearActionFeedback(event.detail?.elt);
+});
+
+document.addEventListener('htmx:sendAbort', (event) => {
+    clearActionFeedback(event.detail?.elt);
+});
+
+document.addEventListener('htmx:timeout', (event) => {
+    clearActionFeedback(event.detail?.elt);
+});
+
+document.addEventListener('htmx:responseError', (event) => {
+    clearActionFeedback(event.detail?.elt);
+});
+
 document.addEventListener('htmx:load', function() {
     if (window.GameCatalogCache) {
         window.GameCatalogCache.init().then(() => window.GameCatalogCache.resolveDom(document));

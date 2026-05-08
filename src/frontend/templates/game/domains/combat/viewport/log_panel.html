@@ -27,7 +27,7 @@
                     hx-swap="outerHTML"
                     {% if combat_log_page >= combat_log_total_pages %}disabled{% endif %}>›</button>
             <label class="combat-log-size">
-                <span>ROWS</span>
+                <span>TURNS</span>
                 <select name="page_size"
                         hx-get="/game/combat/logs?char_id={{ char_id }}&page=1"
                         hx-target="#combat-log-panel"
@@ -40,12 +40,124 @@
         </div>
     </div>
     <div class="combat-log-list">
-        {% for line in combat_log_entries %}
-            <div class="combat-log-line combat-log-line--{{ line.kind if line.kind is defined else line.type }}">
-                {{ line.text or 'NO_DATA' }}
+        {% for turn in combat_log_turns|default([]) %}
+            {% set lines = turn.entries if turn.entries is defined and turn.entries else turn.lines if turn.lines is defined and turn.lines else turn.events if turn.events is defined and turn.events else turn.logs if turn.logs is defined and turn.logs else [] %}
+            {% set first_line = lines[0] if lines else none %}
+            {% set first_data = first_line.data if first_line and first_line.data is defined and first_line.data else {} %}
+            {% set turn_number = turn.global_turn if turn.global_turn is defined and turn.global_turn is not none else turn.turn if turn.turn is defined and turn.turn is not none else turn.index if turn.index is defined and turn.index is not none else first_line.global_turn if first_line and first_line.global_turn is defined and first_line.global_turn is not none else first_data.get('global_turn') %}
+            {% set turn_title = turn.title if turn.title is defined and turn.title and turn.title != 'Ход NO_DATA' else 'Ход ' ~ turn_number if turn_number is not none else 'Ход NO_DATA' %}
+            <article class="combat-log-turn">
+                <header class="combat-log-turn-head">
+                    <strong>{{ turn_title }}</strong>
+                    {% if first_line and first_line.timestamp is defined and first_line.timestamp %}
+                        {% set log_time = first_line.timestamp | combat_log_time %}
+                        {% if log_time %}<time datetime="{{ first_line.timestamp }}">{{ log_time }}</time>{% endif %}
+                    {% endif %}
+                </header>
+                <div class="combat-log-turn-body">
+                    {% for line in lines %}
+                        {% set data = line.data if line.data is defined and line.data else {} %}
+                        {% set action = line.action if line.action is defined and line.action else data.get('action', {}) %}
+                        {% set catalog = line.catalog if line.catalog is defined and line.catalog else action.catalog if action.catalog is defined else action.get('catalog') if action else data.get('catalog') %}
+                        {% set catalog_key = line.catalog_key if line.catalog_key is defined and line.catalog_key else action.catalog_key if action.catalog_key is defined else action.get('catalog_key') if action else data.get('catalog_key') %}
+                        {% set catalog_event = line.catalog_event if line.catalog_event is defined and line.catalog_event else action.event if action.event is defined else action.get('event') if action else data.get('catalog_event') %}
+                        {% set catalog_taxonomy = line.catalog_taxonomy if line.catalog_taxonomy is defined and line.catalog_taxonomy else action.taxonomy if action.taxonomy is defined else action.get('taxonomy') if action else data.get('catalog_taxonomy', 'humanoid') %}
+                        {% set catalog_tooltip = line.catalog_tooltip if line.catalog_tooltip is defined else data.get('catalog_tooltip') %}
+                        {% set flags = line.flags if line.flags is defined and line.flags else data.get('flags', {}) %}
+                        <div class="combat-log-line combat-log-line--{{ line.kind if line.kind is defined else line.type }} combat-log-line--{{ line.severity if line.severity is defined else 'normal' }}{% if line.outcome is defined and line.outcome %} combat-log-line--outcome-{{ line.outcome }}{% endif %}{% if flags.crit is defined and flags.crit %} is-crit{% endif %}{% if flags.parried is defined and flags.parried %} is-parried{% endif %}{% if flags.blocked is defined and flags.blocked %} is-blocked{% endif %}{% if flags.dodged is defined and flags.dodged %} is-dodged{% endif %}"
+                             {% if line.id is defined and line.id %}data-log-id="{{ line.id }}"{% endif %}
+                             {% if line.outcome is defined and line.outcome %}data-outcome="{{ line.outcome }}"{% endif %}
+                             {% if catalog and catalog_key %}
+                             data-catalog="{{ catalog }}"
+                             data-catalog-key="{{ catalog_key }}"
+                             data-catalog-taxonomy="{{ catalog_taxonomy or 'humanoid' }}"
+                             {% if catalog_event %}data-catalog-event="{{ catalog_event }}"{% endif %}
+                             {% if catalog_tooltip %}data-catalog-tooltip="{{ catalog_tooltip }}"{% endif %}
+                             {% endif %}>
+                            <span class="combat-log-text">{{ line.text or 'NO_DATA' }}</span>
+                            {% set resources = line.resources if line.resources is defined else data.get('resources', []) %}
+                            {% for resource in resources %}
+                                {% set percent = (resource.after / resource.max * 100) | round(0, 'floor') if resource.max else 0 %}
+                                <span class="combat-log-resource combat-log-resource--{{ resource.resource }} combat-log-resource--{{ resource.direction }}{% if resource.resource == 'hp' and percent <= 25 %} is-low{% endif %}"
+                                      data-actor-id="{{ resource.actor_id }}"
+                                      data-resource="{{ resource.resource }}"
+                                      data-before="{{ resource.before }}"
+                                      data-after="{{ resource.after }}"
+                                      data-max="{{ resource.max }}"
+                                      data-delta="{{ resource.delta }}"
+                                      data-percent="{{ percent }}">
+                                    {{ resource.resource|upper }} {{ resource.after }}/{{ resource.max }}{% if resource.delta %} ({{ '+' if resource.delta > 0 else '' }}{{ resource.delta }}){% endif %}
+                                </span>
+                            {% endfor %}
+                            {% set badges = line.badges if line.badges is defined else data.get('badges', []) %}
+                            {% for badge in badges %}
+                                <span class="combat-log-badge combat-log-badge--{{ badge.kind }}{% if badge.direction is defined and badge.direction %} combat-log-badge--{{ badge.direction }}{% endif %}">
+                                    {{ badge.kind|upper }}{% if badge.value is defined and badge.value is not none %} {{ badge.value }}{% endif %}{% if badge.resource is defined and badge.resource %} {{ badge.resource|upper }}{% endif %}
+                                </span>
+                            {% endfor %}
+                        </div>
+                    {% endfor %}
+                </div>
+            </article>
+        {% else %}
+        {% set log_group = namespace(current_turn='__start__', is_open=false) %}
+        {% for line in combat_log_entries|default([]) %}
+            {% set data = line.data if line.data is defined and line.data else {} %}
+            {% set global_turn = line.global_turn if line.global_turn is defined and line.global_turn is not none else data.get('global_turn') %}
+            {% set turn_key = global_turn if global_turn is not none else 'unknown-' ~ loop.index %}
+            {% if log_group.current_turn != turn_key %}
+                {% if log_group.is_open %}
+                    </div>
+                </article>
+                {% endif %}
+                <article class="combat-log-turn">
+                    <header class="combat-log-turn-head">
+                        <strong>{{ 'Ход ' ~ global_turn if global_turn is not none else 'Ход NO_DATA' }}</strong>
+                        {% if line.timestamp is defined and line.timestamp %}
+                            {% set log_time = line.timestamp | combat_log_time %}
+                            {% if log_time %}<time datetime="{{ line.timestamp }}">{{ log_time }}</time>{% endif %}
+                        {% endif %}
+                    </header>
+                    <div class="combat-log-turn-body">
+                {% set log_group.current_turn = turn_key %}
+                {% set log_group.is_open = true %}
+            {% endif %}
+            {% set catalog = line.catalog if line.catalog is defined else data.get('catalog') %}
+            {% set catalog_key = line.catalog_key if line.catalog_key is defined else data.get('catalog_key') %}
+            {% set catalog_event = line.catalog_event if line.catalog_event is defined else data.get('catalog_event') %}
+            {% set catalog_taxonomy = line.catalog_taxonomy if line.catalog_taxonomy is defined else data.get('catalog_taxonomy', 'humanoid') %}
+            {% set catalog_tooltip = line.catalog_tooltip if line.catalog_tooltip is defined else data.get('catalog_tooltip') %}
+            <div class="combat-log-line combat-log-line--{{ line.kind if line.kind is defined else line.type }} combat-log-line--{{ line.severity if line.severity is defined else 'normal' }}"
+                 {% if line.id is defined and line.id %}data-log-id="{{ line.id }}"{% endif %}
+                 {% if line.outcome is defined and line.outcome %}data-outcome="{{ line.outcome }}"{% endif %}
+                 {% if catalog and catalog_key %}
+                 data-catalog="{{ catalog }}"
+                 data-catalog-key="{{ catalog_key }}"
+                 data-catalog-taxonomy="{{ catalog_taxonomy or 'humanoid' }}"
+                 {% if catalog_event %}data-catalog-event="{{ catalog_event }}"{% endif %}
+                 {% if catalog_tooltip %}data-catalog-tooltip="{{ catalog_tooltip }}"{% endif %}
+                 {% endif %}>
+                <span class="combat-log-text">{{ line.text or 'NO_DATA' }}</span>
+                {% set resources = line.resources if line.resources is defined else data.get('resources', []) %}
+                {% for resource in resources %}
+                    <span class="combat-log-resource combat-log-resource--{{ resource.resource }} combat-log-resource--{{ resource.direction }}"
+                          data-actor-id="{{ resource.actor_id }}"
+                          data-resource="{{ resource.resource }}"
+                          data-before="{{ resource.before }}"
+                          data-after="{{ resource.after }}"
+                          data-max="{{ resource.max }}"
+                          data-delta="{{ resource.delta }}">
+                        {{ resource.resource|upper }} {{ resource.after }}/{{ resource.max }}
+                    </span>
+                {% endfor %}
             </div>
+            {% if loop.last and log_group.is_open %}
+                    </div>
+                </article>
+            {% endif %}
         {% else %}
             <div class="combat-log-line">LOG_NO_DATA</div>
+        {% endfor %}
         {% endfor %}
     </div>
 </section>

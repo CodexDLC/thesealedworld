@@ -5,12 +5,11 @@ STYLE_RULES = [
     TriggerDTO(
         id="style_1h_flow",
         name_ru="Поток (Стиль)",
-        description_ru="Сохраняет тактические токены при успешном действии.",
+        description_ru="С шансом сохраняет темп: возвращает стоимость использованного финта.",
         event="ON_ACCURACY_CHECK",  # Или ON_HIT
         chance=0.25,
         mutations={
-            # Инструкция для AbilityService вернуть токены
-            "add_effect": {"id": "refund_tactics"},
+            "chain_events.preserve_feint": True,
         },
     ),
     # --- 2. TWO-HANDED (Ignore) ---
@@ -21,20 +20,17 @@ STYLE_RULES = [
         event="ON_ACCURACY_CHECK",
         chance=0.25,
         mutations={
-            # 1. Игнор брони (здесь и сейчас)
-            "formula.can_pierce": True,
-            # 2. Ослабление защиты (здесь и сейчас)
+            "formula.evasion_halved": True,
             "formula.parry_halved": True,
             "formula.block_halved": True,
-            # Можно добавить ignore_block_cap, если нужно
         },
     ),
     # --- 3. SHIELD (Reflect) ---
     TriggerDTO(
         id="style_shield_reflect",
         name_ru="Отражение (Стиль)",
-        description_ru="При блоке возвращает часть урона врагу.",
-        event="ON_BLOCK",
+        description_ru="При провале блока частично гасит удар и готовит отражение.",
+        event="ON_BLOCK_FAIL",
         chance=0.25,
         mutations={
             # Включаем механику отражения в Резолвере

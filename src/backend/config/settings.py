@@ -1,6 +1,6 @@
 import os
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 from codex_core.settings import BaseCommonSettings
 from pydantic import field_validator, model_validator
@@ -32,9 +32,11 @@ class BackendSettings(BaseCommonSettings):
     )
     database_url: str = site_database_url
     database_echo: bool = False
-    secret_key: str = "change-me-in-env"
+    secret_key: str = "change-me-in-env-change-me-in-env-32-bytes"  # pragma: allowlist secret
     access_token_expire_minutes: int = 30
     refresh_token_expire_days: int = 30
+    authx_jwt_algorithm: str = "HS256"
+    authx_jwt_token_locations: list[Literal["headers", "cookies", "json", "query"]] = ["headers"]
     default_symbiote_name: str = "SYSTEM"
 
     # Event Streams

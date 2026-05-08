@@ -20,7 +20,7 @@ ON_CONTROL_RULES = [
         event="ON_CHECK_CONTROL",
         chance=1.0,
         mutations={
-            "add_effect": {"id": "bleed"},
+            "add_effect": {"id": "dot_bleed"},
         },
     ),
     # Пример: Маркер уворота (для луков)

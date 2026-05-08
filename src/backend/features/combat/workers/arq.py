@@ -1,3 +1,8 @@
+# ruff: noqa: E402
+from src.backend.core.arq_logging import setup_arq_worker_logging
+
+setup_arq_worker_logging("combat-worker")
+
 from loguru import logger as log
 
 from src.backend.core.arq import COMBAT_ARQ_QUEUE, ArqService, BaseArqSettings, base_shutdown, base_startup

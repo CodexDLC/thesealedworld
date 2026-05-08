@@ -55,6 +55,8 @@
 Урон рассчитывается в два этапа:
 1.  **Base Potential:** `Strength * Global_Str_Coefficient`
 2.  **Final Damage:** `Base_Damage * Skill_Efficiency_Multiplier`
+3.  В runtime `Strength` уже лежит в `main_hand_damage_base` для unarmed, поэтому
+    глобальный `physical_damage` от Strength не добавляется второй раз.
 
 ### 3. Прогрессия (0.0 - 100.0)
 

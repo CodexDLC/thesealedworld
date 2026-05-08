@@ -251,20 +251,14 @@ class CombatCollector:
             # Ищем мув, который вызвал таймаут
             # Если он еще в пуле (не сматчился выше) -> Force Attack
 
-            # Если move_id="batch", мы не знаем конкретный ID.
-            # Но для AI мы ставим "batch".
-            # Значит, если "batch", мы должны проверить ВСЕ мувы AI?
-            # Или просто пройтись по всем оставшимся в пуле и проверить их возраст?
-            # Давайте пока поддержим конкретный ID и "batch" (как Force All Old).
-
             force_candidates = []
 
             if signal.move_id == "batch":
-                # Force all unmatched moves for this char_id (if provided)
-                # Signal содержит char_id.
-                for move in pool:
-                    if move.move_id not in matched_ids and int(move.char_id) == signal.char_id:
-                        force_candidates.append(move)
+                log.warning(
+                    "CollectorTimeoutIgnored | reason=unsafe_batch_timeout session_id={session_id} actor_id={actor_id}",
+                    session_id=signal.session_id,
+                    actor_id=signal.char_id,
+                )
             else:
                 # Specific move
                 for move in pool:

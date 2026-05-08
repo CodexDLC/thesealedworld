@@ -18,7 +18,11 @@ def test_character_raw_attributes_drive_combat_modifiers_through_waterfall() -> 
             "strength": 15,
             "agility": 9,
             "endurance": 16,
+            "intellect": 11,
+            "memory": 10,
             "mental": 13,
+            "perception": 8,
+            "prediction": 6,
         },
         items={},
         skills={},
@@ -27,7 +31,28 @@ def test_character_raw_attributes_drive_combat_modifiers_through_waterfall() -> 
     calculated, _ = StatsWaterfallCalculator.calculate_waterfall(raw)
 
     assert calculated["physical_damage"] == 15.0
+    assert calculated["armor_penetration"] == 0.3
+    assert calculated["magical_damage"] == 11.0
+    assert calculated["magical_penetration"] == 0.22
     assert calculated["hp"] == 64.0
     assert calculated["en"] == 26.0
     assert calculated["stamina"] == 160.0
-    assert calculated["evasion"] == 0.135
+    assert calculated["hp_regen"] == 8.0
+    assert calculated["en_regen"] == 6.5
+    assert calculated["stamina_regen"] == 3.2
+    assert calculated["physical_resistance"] == 0.32
+    assert calculated["magic_resist"] == 0.26
+    assert calculated["poison_resistance"] == 0.32
+    assert calculated["bleed_resistance"] == 0.32
+    assert calculated["environment_bio_resistance"] == 0.32
+    assert calculated["control_resistance"] == 0.26
+    assert calculated["mental_resistance"] == 0.26
+    assert calculated["fire_resistance"] == 0.26
+    assert calculated["arcane_resistance"] == 0.26
+    assert calculated["evasion"] == 0.45
+    assert calculated["anti_dodge_chance"] == 0.24
+    assert calculated["counter_attack_chance"] == 0.034
+    assert calculated["initiative"] == 4.5
+    assert calculated["armor"] == 0.0
+    assert calculated["block"] == 0.0
+    assert calculated["parry"] == 0.0

@@ -4,11 +4,14 @@ from src.backend.features.items.services.catalog_service import ItemCatalogServi
 
 
 @pytest.mark.unit
-def test_item_catalog_loads_legacy_resources_through_pydantic():
+def test_item_catalog_loads_structured_base_resources_through_pydantic():
     catalog = ItemCatalogService.load_default()
 
     assert catalog.get_base_item("sword")
     assert catalog.get_base_item("warhammer")
+    assert catalog.get_base_item("quarterstaff")
+    assert catalog.get_base_item("plate_chest")
+    assert catalog.get_base_item("belt")
     assert catalog.get_material("mat_iron_ingot")
     assert catalog.get_raw_resource("currency_dust")
     assert catalog.get_affix_bundle("soldier")
@@ -49,3 +52,30 @@ def test_base_item_catalog_has_public_descriptions_for_all_templates():
     ]
 
     assert missing == []
+
+
+@pytest.mark.unit
+def test_starting_weapons_match_combat_snapshot_contract():
+    catalog = ItemCatalogService.load_default()
+    starting_weapon_ids = {
+        "battle_axe",
+        "dagger",
+        "katana",
+        "quarterstaff",
+        "shortbow",
+        "sword",
+        "warhammer",
+    }
+
+    missing_penalty = []
+    missing_skill = []
+    for item_id in starting_weapon_ids:
+        item = catalog.get_base_item(item_id)
+        assert item is not None
+        if not item.related_skill:
+            missing_skill.append(item_id)
+        if "accuracy_penalty" not in item.implicit_bonuses:
+            missing_penalty.append(item_id)
+
+    assert missing_skill == []
+    assert missing_penalty == []

@@ -7,8 +7,17 @@ from src.backend.features.world.runtime.threat import ThreatService
 def test_threat_service_suppresses_anchor_tags_inside_d4_core():
     influence = ThreatService.describe(52, 52)
 
+    assert influence.threat == 0.0
     assert influence.tier == 0
     assert influence.tags == []
+    assert influence.is_inside_city_shield is True
+
+
+@pytest.mark.unit
+def test_threat_service_leaks_pressure_outside_inner_wall():
+    influence = ThreatService.describe(48, 56)
+
+    assert influence.threat == pytest.approx(0.03)
     assert influence.is_inside_city_shield is True
 
 

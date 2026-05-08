@@ -2,7 +2,13 @@ from typing import Any
 
 from src.frontend.integrations.backend_api.base import BaseApiClient
 from src.shared.schemas import CoreResponseDTO
-from src.shared.schemas.combat import CombatDashboardDTO, CombatLogDTO, CombatRegisterMoveRequestDTO, CombatResultDTO
+from src.shared.schemas.combat import (
+    CombatDashboardDTO,
+    CombatLogDTO,
+    CombatPinFeintRequestDTO,
+    CombatRegisterMoveRequestDTO,
+    CombatResultDTO,
+)
 
 CombatViewResponse = CoreResponseDTO[CombatResultDTO | CombatDashboardDTO | dict[str, Any]]
 
@@ -43,6 +49,21 @@ class BackendCombatApi(BaseApiClient):
         return await self._request(
             "POST",
             f"/api/game/combat/{char_id}/moves",
+            response_model=CombatDashboardDTO,
+            headers={"Authorization": f"Bearer {access_token}"},
+            json=body.model_dump(mode="json"),
+        )
+
+    async def pin_feint(
+        self,
+        access_token: str,
+        *,
+        char_id: int,
+        body: CombatPinFeintRequestDTO,
+    ) -> CombatDashboardDTO:
+        return await self._request(
+            "POST",
+            f"/api/game/combat/{char_id}/feints/pin",
             response_model=CombatDashboardDTO,
             headers={"Authorization": f"Bearer {access_token}"},
             json=body.model_dump(mode="json"),

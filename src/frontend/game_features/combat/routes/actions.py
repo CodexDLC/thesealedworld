@@ -11,7 +11,12 @@ from src.frontend.integrations.backend_api.combat import BackendCombatApi
 from src.frontend.site_features.auth.dependencies.providers import get_frontend_auth_service
 from src.frontend.site_features.auth.services.auth_service import FrontendAuthService
 from src.frontend.site_features.auth.token_state import require_access_token
-from src.shared.schemas.combat import CombatDashboardDTO, CombatEventDTO, CombatRegisterMoveRequestDTO
+from src.shared.schemas.combat import (
+    CombatDashboardDTO,
+    CombatEventDTO,
+    CombatPinFeintRequestDTO,
+    CombatRegisterMoveRequestDTO,
+)
 
 router = APIRouter(tags=["Combat"])
 LOG_PAGE_SIZE_OPTIONS = (4, 8, 12)
@@ -31,17 +36,19 @@ async def game_combat_logs(
     token = require_access_token(request)
     page_size = _allowed_page_size(page_size)
     logs = await combat_api.logs(token, char_id=char_id, page=max(1, page), page_size=page_size)
-    total_pages = max(1, (logs.total + logs.page_size - 1) // logs.page_size)
+    total_turns = getattr(logs, "total_turns", 0) or logs.total
+    total_pages = max(1, (total_turns + logs.page_size - 1) // logs.page_size)
     active_page = min(max(1, logs.page), total_pages)
     return await ui.render(
         "game/domains/combat/viewport/log_panel.html",
         context={
             "char_id": char_id,
             "combat_log_entries": logs.entries,
+            "combat_log_turns": logs.turns,
             "combat_log_page": active_page,
             "combat_log_page_size": logs.page_size,
             "combat_log_page_size_options": LOG_PAGE_SIZE_OPTIONS,
-            "combat_log_total": logs.total,
+            "combat_log_total": total_turns,
             "combat_log_total_pages": total_pages,
             "combat_log_pages": _page_window(active_page, total_pages),
         },
@@ -77,6 +84,33 @@ async def game_combat_move(
     except httpx.HTTPStatusError as exc:
         detail = _backend_error_detail(exc)
         logger.warning("Combat move rejected: char_id={} action={} detail={}", char_id, action, detail)
+        dashboard = await combat_api.snapshot(token, char_id=char_id)
+        _append_rejected_move_event(dashboard, detail)
+    context = context_builder.build_combat_dashboard_context(dashboard, char_id=char_id)
+    return await ui.render("game/session_content_inner.html", context=context)
+
+
+@router.post("/game/combat/feint-pin", name="game_combat_feint_pin")
+async def game_combat_feint_pin(
+    request: Request,
+    ui: Annotated[UIRenderer, Depends(get_ui_renderer)],
+    auth_service: Annotated[FrontendAuthService, Depends(get_frontend_auth_service)],
+    combat_api: Annotated[BackendCombatApi, Depends(get_backend_combat_api)],
+    context_builder: Annotated[SessionContextBuilder, Depends(get_session_context_builder)],
+    char_id: Annotated[int, Form()],
+    feint_id: Annotated[str | None, Form()] = None,
+):
+    await auth_service.require_current_user(request)
+    token = require_access_token(request)
+    try:
+        dashboard = await combat_api.pin_feint(
+            token,
+            char_id=char_id,
+            body=CombatPinFeintRequestDTO(feint_id=_blank_to_none(feint_id)),
+        )
+    except httpx.HTTPStatusError as exc:
+        detail = _backend_error_detail(exc)
+        logger.warning("Combat feint pin rejected: char_id={} feint_id={} detail={}", char_id, feint_id, detail)
         dashboard = await combat_api.snapshot(token, char_id=char_id)
         _append_rejected_move_event(dashboard, detail)
     context = context_builder.build_combat_dashboard_context(dashboard, char_id=char_id)

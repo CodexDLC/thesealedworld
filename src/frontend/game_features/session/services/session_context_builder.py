@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from time import perf_counter
 from typing import TYPE_CHECKING, Any
 
 from fastapi import HTTPException, Request, status
@@ -26,6 +27,10 @@ if TYPE_CHECKING:
     from src.shared.schemas.combat import CombatDashboardDTO
 
 
+def _elapsed_ms(started_at: float) -> float:
+    return round((perf_counter() - started_at) * 1000, 2)
+
+
 class SessionContextBuilder:
     def __init__(
         self,
@@ -46,8 +51,24 @@ class SessionContextBuilder:
 
     async def build_current(self, request: Request, *, char_id: int) -> dict[str, Any]:
         token = require_access_token(request)
+        started_at = perf_counter()
         response = await self.game_session_api.enter(token, EnterCharacterRequestDTO(character_id=char_id))
-        return await self.build_from_response(request, response, char_id=char_id)
+        logger.info(
+            "FrontendSessionTiming | step=game_session_enter char_id={} state={} payload_type={} ms={}",
+            char_id,
+            response.header.current_state,
+            response.payload_type,
+            _elapsed_ms(started_at),
+        )
+        started_at = perf_counter()
+        context = await self.build_from_response(request, response, char_id=char_id)
+        logger.info(
+            "FrontendSessionTiming | step=build_current_total_after_enter char_id={} domain={} ms={}",
+            char_id,
+            context.get("domain"),
+            _elapsed_ms(started_at),
+        )
+        return context
 
     async def build_state(
         self,
@@ -105,7 +126,14 @@ class SessionContextBuilder:
         if state == CoreDomain.COMBAT:
             if self.combat_api is None:
                 raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail="Combat API client is unavailable")
+            started_at = perf_counter()
             combat_response = await self.combat_api.view(token, char_id=char_id)
+            logger.info(
+                "FrontendSessionTiming | step=combat_view char_id={} payload_type={} ms={}",
+                char_id,
+                combat_response.payload_type,
+                _elapsed_ms(started_at),
+            )
             combat_payload = combat_response.payload
             if combat_payload is None:
                 raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail="Combat payload is unavailable")
@@ -344,8 +372,8 @@ class SessionContextBuilder:
             "max_hp": max(hero.vitals.hp_max, 1),
             "energy": hero.vitals.energy_current,
             "max_energy": max(hero.vitals.energy_max, 1),
-            "stamina": hero.vitals.tactics,
-            "max_stamina": max(hero.vitals.tactics, 1),
+            "stamina": hero.vitals.stamina_current,
+            "max_stamina": max(hero.vitals.stamina_max, 1),
             "avatar_url": None,
             "name": hero.name,
             "symbiote": {},

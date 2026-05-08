@@ -60,6 +60,7 @@ class BattleContext(BaseModel):
     moves_cache: dict[str, dict[str, Any]] = Field(default_factory=dict)
     targets: dict[str, list[int]] = Field(default_factory=dict)
     pending_logs: list[dict] = Field(default_factory=list)
+    pending_analytics: list[dict] = Field(default_factory=list)
 
     # NEW: Очередь возврата целей (заполняется в Executor, обрабатывается в DataService)
     pending_target_returns: list[dict[str, int | str]] = Field(default_factory=list)

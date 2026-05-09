@@ -4,6 +4,7 @@ import logging
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
+from src.backend.features.items.resources.item_grade import GRADE_BY_RARITY_TIER
 from src.backend.features.items.services.catalog_service import ItemCatalogService
 
 if TYPE_CHECKING:
@@ -25,12 +26,17 @@ class ItemTextService:
     async def enrich(self, item: GeneratedItemDTO, request: ItemGenerationRequestDTO) -> GeneratedItemDTO:
         if not request.request_ai_text:
             return item
-        if request.rarity_tier <= 0 or item.rarity_tier <= 0:
+
+        item_grade = str(item.metadata.get("item_grade") or "") or GRADE_BY_RARITY_TIER.get(
+            request.rarity_tier, "common"
+        )
+        if item_grade == "common":
             return self._mark_metadata(item, ai_text_status="skipped", ai_text_reason="common_tier")
+
         if self.ai_client is None:
             return self._mark_metadata(item, ai_text_status="skipped", ai_text_reason="ai_unavailable")
 
-        payload = self._build_payload(item)
+        payload = self._build_payload(item, request)
         try:
             item_text = await self.ai_client.generate_item_text(payload)
         except Exception:
@@ -52,25 +58,51 @@ class ItemTextService:
             }
         )
 
-    def _build_payload(self, item: GeneratedItemDTO) -> dict[str, Any]:
+    def _build_payload(self, item: GeneratedItemDTO, request: ItemGenerationRequestDTO) -> dict[str, Any]:
         base = self.catalog.get_base_item(item.base_id)
         material = self.catalog.get_material(item.material_id) if item.material_id else None
-        rarity = self.catalog.get_rarity(item.rarity_tier)
-        bundles = [
-            bundle
-            for bundle_id in item.affix_bundle_ids
-            for bundle in [self.catalog.get_affix_bundle(bundle_id)]
-            if bundle is not None
-        ]
-        effects_by_id = {
-            effect_id: effect
-            for bundle in bundles
-            for effect_id in bundle.effects
-            for effect in [self.catalog.get_affix_effect(effect_id)]
-            if effect is not None
-        }
+        item_grade = str(item.metadata.get("item_grade") or "") or GRADE_BY_RARITY_TIER.get(item.rarity_tier, "common")
 
-        return {
+        # Resolve affix narrative tags from new catalog
+        affixes_payload: list[dict[str, Any]] = []
+        mechanics = item.mechanics
+        if isinstance(mechanics, dict):
+            for affix_record in mechanics.get("affixes", []):
+                if not isinstance(affix_record, dict):
+                    continue
+                affix_id = str(affix_record.get("affix_id", ""))
+                source = str(affix_record.get("source", ""))
+                entry = self.catalog.get_affix_entry(affix_id)
+                affix_tags = list(entry.descriptive.narrative_tags) if entry else []
+
+                if source.startswith("bundle:"):
+                    bundle_id = source[len("bundle:") :]
+                    bundle = self.catalog.get_new_bundle(bundle_id)
+                    bundle_tags = list(bundle.tags) if bundle else []
+                    # Group by bundle — accumulate affix_tags under same bundle entry
+                    existing = next((a for a in affixes_payload if a.get("source") == source), None)
+                    if existing is not None:
+                        existing["affix_tags"].append(affix_tags)
+                    else:
+                        affixes_payload.append(
+                            {
+                                "source": source,
+                                "bundle_tags": bundle_tags,
+                                "affix_tags": [affix_tags],
+                            }
+                        )
+                else:
+                    affixes_payload.append(
+                        {
+                            "source": source,
+                            "affix_tags": [affix_tags],
+                        }
+                    )
+
+        payload: dict[str, Any] = {
+            "type": item.item_type,
+            "slot": item.slot,
+            "base_tags": base.narrative_tags if base else [],
             "base": {
                 "id": item.base_id,
                 "name_ru": base.name_ru if base else item.base_id,
@@ -83,32 +115,18 @@ class ItemTextService:
             },
             "material": {
                 "id": item.material_id,
-                "name_ru": material.name_ru if material else None,
+                "name": material.name_ru if material else None,
                 "tags": material.narrative_tags if material else [],
             },
-            "rarity": {
-                "tier": item.rarity_tier,
-                "key": item.rarity,
-                "name_ru": rarity.name_ru,
-            },
-            "affixes": [
-                {
-                    "id": bundle.id,
-                    "tags": bundle.narrative_tags,
-                    "effects": [
-                        {
-                            "id": effect_id,
-                            "target_field": effects_by_id[effect_id].target_field,
-                            "tags": effects_by_id[effect_id].narrative_tags,
-                        }
-                        for effect_id in bundle.effects
-                        if effect_id in effects_by_id
-                    ],
-                }
-                for bundle in bundles
-            ],
+            "grade": item_grade,
+            "affixes": affixes_payload,
             "narrative_tags": item.narrative_tags,
         }
+
+        if request.source_context:
+            payload["source_context"] = request.source_context
+
+        return payload
 
     def _mark_metadata(self, item: GeneratedItemDTO, **metadata: object) -> GeneratedItemDTO:
         return item.model_copy(update={"metadata": {**item.metadata, **metadata}})

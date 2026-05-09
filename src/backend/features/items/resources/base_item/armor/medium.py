@@ -17,7 +17,6 @@ MEDIUM_ARMOR_DB = {
         narrative_tags=["goggles", "medium", "engineer", "vision"],
         implicit_bonuses={
             "physical_accuracy": 0.05,
-            "perception": 1.0,
         },
     ),
     "leather_cap": BaseItemDTO(
@@ -73,7 +72,6 @@ MEDIUM_ARMOR_DB = {
         damage_spread=0.0,
         narrative_tags=["chainmail", "medium", "rings"],
         implicit_bonuses={
-            "parry_chance": 0.05,
             "bleed_resistance": 0.10,
             "evasion_penalty": -0.03,
         },
@@ -93,8 +91,8 @@ MEDIUM_ARMOR_DB = {
         damage_spread=0.0,
         narrative_tags=["brigandine", "medium", "balanced"],
         implicit_bonuses={
-            "parry_chance": 0.08,
-            "counter_attack_chance": 0.05,
+            "evasion_penalty": -0.04,
+            "bleed_resistance": 0.06,
         },
     ),
     "breeches": BaseItemDTO(
@@ -113,7 +111,6 @@ MEDIUM_ARMOR_DB = {
         narrative_tags=["breeches", "medium", "pants", "travel"],
         implicit_bonuses={
             "evasion": 0.02,
-            "inventory_cell_capacity": 1.0,
         },
     ),
     "boots": BaseItemDTO(
@@ -132,7 +129,6 @@ MEDIUM_ARMOR_DB = {
         narrative_tags=["boots", "medium", "travel"],
         implicit_bonuses={
             "evasion": 0.04,
-            "counter_attack_chance": 0.03,
         },
     ),
 }

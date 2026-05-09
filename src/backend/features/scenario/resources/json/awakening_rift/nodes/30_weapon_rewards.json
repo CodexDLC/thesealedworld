@@ -74,10 +74,9 @@
         "math": {
           "loot_queue": "push:warhammer",
           "skills_queue": [
-            "push:skill_macing",
-            "push:skill_two_handed"
+            "push:skill_macing"
           ],
-          "is_two_handed": 1
+          "grip_family": "'two_handed'"
         }
       },
       {
@@ -88,10 +87,9 @@
         "math": {
           "loot_queue": "push:battle_axe",
           "skills_queue": [
-            "push:skill_macing",
-            "push:skill_one_handed"
+            "push:skill_macing"
           ],
-          "is_two_handed": 0
+          "grip_family": "'one_handed_simple'"
         }
       }
     ],
@@ -113,10 +111,9 @@
         "math": {
           "loot_queue": "push:katana",
           "skills_queue": [
-            "push:skill_swords",
-            "push:skill_two_handed"
+            "push:skill_swords"
           ],
-          "is_two_handed": 1
+          "grip_family": "'two_handed'"
         }
       },
       {
@@ -127,10 +124,9 @@
         "math": {
           "loot_queue": "push:dagger",
           "skills_queue": [
-            "push:skill_fencing",
-            "push:skill_one_handed"
+            "push:skill_fencing"
           ],
-          "is_two_handed": 0
+          "grip_family": "'dagger'"
         }
       }
     ],
@@ -152,10 +148,9 @@
         "math": {
           "loot_queue": "push:quarterstaff",
           "skills_queue": [
-            "push:skill_polearms",
-            "push:skill_two_handed"
+            "push:skill_polearms"
           ],
-          "is_two_handed": 1
+          "grip_family": "'two_handed'"
         }
       },
       {
@@ -166,10 +161,9 @@
         "math": {
           "loot_queue": "push:sword",
           "skills_queue": [
-            "push:skill_swords",
-            "push:skill_one_handed"
+            "push:skill_swords"
           ],
-          "is_two_handed": 0
+          "grip_family": "'sword'"
         }
       }
     ],
@@ -180,7 +174,7 @@
   },
   {
     "node_key": "bridge_resonance_award",
-    "text": "Свет Осколка гаснет, оставляя в твоих руках тяжесть нового инструмента. Ты делаешь пробный замах — баланс идеален. \n\nОБЪЕКТ СИНХРОНИЗИРОВАН. БОЕВОЙ ПРОТОКОЛ ДОСТУПЕН. ТРЕБУЕТСЯ ПОДГОТОВКА СРЕДСТВ ЗАЩИТЫ.",
+    "text": "Свет Осколка гаснет, оставляя в твоих руках тяжесть найденного оружия. Ты делаешь пробный замах — форма знакома телу, даже если вещь собрана из того, что удалось поднять рядом. \n\nОБЪЕКТ СИНХРОНИЗИРОВАН. БОЕВОЙ ПРОТОКОЛ ДОСТУПЕН. ТРЕБУЕТСЯ ПОДГОТОВКА СРЕДСТВ ЗАЩИТЫ.",
     "system_messages": [
       "ОБЪЕКТ СИНХРОНИЗИРОВАН. БОЕВОЙ ПРОТОКОЛ ДОСТУПЕН. ТРЕБУЕТСЯ ПОДГОТОВКА СРЕДСТВ ЗАЩИТЫ."
     ],

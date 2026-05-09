@@ -10,6 +10,7 @@ WOODS_DB = {
         0: {
             "id": "mat_driftwood_plank",
             "name_ru": "Доска из плавника",
+            "name_prefix_ru": "Ржавый",
             "tier_mult": 0.8,
             "slots": 0,
             "narrative_tags": ["driftwood", "brittle", "salty"],

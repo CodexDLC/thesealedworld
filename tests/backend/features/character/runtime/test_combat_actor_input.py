@@ -34,7 +34,7 @@ def test_builder_creates_combat_actor_input_from_active_character_document() -> 
                     "mechanics": {
                         "power": 7,
                         "implicit_bonuses": {"parry_chance": 0.1},
-                        "triggers": ["crit.bleed_on_crit"],
+                        "triggers": ["crit.weapon_serrated_bleed_crit"],
                     },
                 },
                 "armor-1": {
@@ -67,7 +67,7 @@ def test_builder_creates_combat_actor_input_from_active_character_document() -> 
     assert actor_input["raw"]["modifiers"]["parry"]["base"] == 0.1
     assert actor_input["raw"]["modifiers"]["parry"]["source"] == {}
     assert actor_input["loadout"]["layout"]["main_hand"] == "skill_swords"
-    assert actor_input["loadout"]["layout"]["main_hand_trigger"] == "crit.bleed_on_crit"
+    assert actor_input["loadout"]["layout"]["main_hand_trigger"] == "crit.weapon_serrated_bleed_crit"
     assert actor_input["loadout"]["layout"]["body"] == "skill_light_armor"
     assert actor_input["loadout"]["equipment_layout"] == {"main_hand": "sword-1", "chest_armor": "armor-1"}
     assert actor_input["loadout"]["hand_usage"] == {}
@@ -131,7 +131,7 @@ def test_builder_maps_two_hand_rewards_to_main_hand_combat_layout() -> None:
                             "power": 9,
                             "damage_spread": 0.1,
                             "related_skill": "skill_swords",
-                            "triggers": ["crit.bleed_on_crit"],
+                            "triggers": ["crit.weapon_serrated_bleed_crit"],
                         },
                     }
                 },
@@ -140,7 +140,7 @@ def test_builder_maps_two_hand_rewards_to_main_hand_combat_layout() -> None:
     )
 
     assert actor_input["loadout"]["layout"]["main_hand"] == "skill_swords"
-    assert actor_input["loadout"]["layout"]["main_hand_trigger"] == "crit.bleed_on_crit"
+    assert actor_input["loadout"]["layout"]["main_hand_trigger"] == "crit.weapon_serrated_bleed_crit"
     assert actor_input["loadout"]["equipment_layout"] == {"two_hand": "katana-1"}
     assert actor_input["loadout"]["hand_usage"] == {"main_hand": "two_hand"}
     assert actor_input["loadout"]["two_handed"] is True
@@ -186,6 +186,40 @@ def test_builder_marks_only_real_offhand_weapons_for_dual_wield() -> None:
     assert actor_input["loadout"]["weapon_slots"] == ["main_hand"]
     assert "guard_breaker" in actor_input["loadout"]["known_feints"]
     assert "shield_bash" in actor_input["loadout"]["known_feints"]
+
+
+@pytest.mark.unit
+def test_builder_keeps_buckler_on_parrying_not_shield_mastery() -> None:
+    actor_input = CharacterCombatActorInputBuilder().build_input(
+        {
+            "char_id": 7,
+            "bio": {"name": "Ada"},
+            "attributes": {},
+            "skills": {"skill_swords": 0.2, "skill_parrying": 0.1},
+            "items": {
+                "layout": {"equipment": {"main_hand": "sword-1", "off_hand": "buckler-1"}},
+                "by_id": {
+                    "sword-1": {
+                        "item_id": "sword-1",
+                        "item_type": "weapon",
+                        "related_skill": "skill_swords",
+                        "mechanics": {"power": 8},
+                    },
+                    "buckler-1": {
+                        "item_id": "buckler-1",
+                        "item_type": "armor",
+                        "related_skill": "skill_parrying",
+                        "mechanics": {"power": 3, "tags": ["buckler", "shield", "parry", "small_shield"]},
+                    },
+                },
+            },
+        }
+    )
+
+    assert actor_input["loadout"]["layout"]["off_hand"] == "skill_parrying"
+    assert actor_input["loadout"]["layout"]["tactical_style"] == "skill_one_handed"
+    assert actor_input["loadout"]["equipment_layout"]["off_hand"] == "buckler-1"
+    assert "shield_bash" not in actor_input["loadout"]["known_feints"]
 
 
 @pytest.mark.unit

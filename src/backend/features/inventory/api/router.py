@@ -1,9 +1,8 @@
-from __future__ import annotations
-
-from typing import TYPE_CHECKING, Annotated
+from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, status
 
+from src.backend.features.character.repositories import CharacterRepository
 from src.backend.features.inventory.dependencies import get_character_repository, get_inventory_service
 from src.backend.features.inventory.services.inventory_service import (
     InventoryActionError,
@@ -11,6 +10,7 @@ from src.backend.features.inventory.services.inventory_service import (
     InventoryService,
 )
 from src.backend.features_site.auth.dependencies import get_current_user
+from src.backend.features_site.auth.models import User
 from src.shared.enums import CoreDomain
 from src.shared.schemas.inventory import (
     InventoryActionRequestDTO,
@@ -18,10 +18,6 @@ from src.shared.schemas.inventory import (
     InventoryWindowDTO,
 )
 from src.shared.schemas.response import CoreResponseDTO, GameStateHeader
-
-if TYPE_CHECKING:
-    from src.backend.features.character.repositories import CharacterRepository
-    from src.backend.features_site.auth.models import User
 
 router = APIRouter(prefix="/api/game/inventory", tags=["inventory"])
 

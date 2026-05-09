@@ -1,19 +1,26 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from pydantic import BaseModel
 
 from src.backend.features.items.dto.catalog import (
-    AffixBundleDTO,
-    AffixEffectDTO,
     BaseItemTemplateDTO,
     CatalogEntryDTO,
     MaterialTemplateDTO,
     RarityConfigDTO,
     RawResourceTemplateDTO,
 )
+from src.backend.features.items.resources.affixes.catalog import AFFIX_CATALOG, BUNDLE_CATALOG
+
+if TYPE_CHECKING:
+    from src.backend.features.items.resources.affixes.schemas import (
+        AffixBundleDTO as NewAffixBundleDTO,
+    )
+    from src.backend.features.items.resources.affixes.schemas import (
+        AffixCatalogEntryDTO,
+    )
 
 
 @dataclass(slots=True)
@@ -21,15 +28,11 @@ class ItemCatalogService:
     base_items: dict[str, BaseItemTemplateDTO] = field(default_factory=dict)
     materials: dict[str, MaterialTemplateDTO] = field(default_factory=dict)
     raw_resources: dict[str, RawResourceTemplateDTO] = field(default_factory=dict)
-    affix_effects: dict[str, AffixEffectDTO] = field(default_factory=dict)
-    affix_bundles: dict[str, AffixBundleDTO] = field(default_factory=dict)
     rarities: dict[int, RarityConfigDTO] = field(default_factory=dict)
     entries: dict[str, CatalogEntryDTO] = field(default_factory=dict)
-    ingredient_to_bundle: dict[str, AffixBundleDTO] = field(default_factory=dict)
 
     @classmethod
     def load_default(cls) -> ItemCatalogService:
-        from src.backend.features.items.resources.affix_config import BUNDLES_DB, EFFECTS_DB
         from src.backend.features.items.resources.bases import BASES_DB
         from src.backend.features.items.resources.materials import CRAFTING_MATERIALS_DB
         from src.backend.features.items.resources.rarity_config import RARITY_CONFIG
@@ -39,14 +42,7 @@ class ItemCatalogService:
         service._load_base_items(BASES_DB)
         service._load_materials(CRAFTING_MATERIALS_DB)
         service._load_raw_resources(RAW_RESOURCES_DB)
-        service.affix_effects = {
-            effect_id: AffixEffectDTO.model_validate(effect) for effect_id, effect in EFFECTS_DB.items()
-        }
-        service.affix_bundles = {
-            bundle_id: AffixBundleDTO.model_validate(bundle) for bundle_id, bundle in BUNDLES_DB.items()
-        }
         service.rarities = {int(tier): RarityConfigDTO.model_validate(config) for tier, config in RARITY_CONFIG.items()}
-        service.ingredient_to_bundle = {bundle.ingredient_id: bundle for bundle in service.affix_bundles.values()}
         return service
 
     def get_base_item(self, item_id: str) -> BaseItemTemplateDTO | None:
@@ -58,11 +54,8 @@ class ItemCatalogService:
     def get_raw_resource(self, resource_id: str) -> RawResourceTemplateDTO | None:
         return self.raw_resources.get(resource_id)
 
-    def get_affix_bundle(self, bundle_id: str) -> AffixBundleDTO | None:
-        return self.affix_bundles.get(bundle_id)
-
-    def get_affix_effect(self, effect_id: str) -> AffixEffectDTO | None:
-        return self.affix_effects.get(effect_id)
+    def get_affix_bundle(self, bundle_id: str) -> NewAffixBundleDTO | None:
+        return BUNDLE_CATALOG.get(bundle_id)
 
     def get_rarity(self, tier: int) -> RarityConfigDTO:
         if not self.rarities:
@@ -70,6 +63,12 @@ class ItemCatalogService:
         max_tier = max(self.rarities.keys())
         safe_tier = max(0, min(int(tier), max_tier))
         return self.rarities[safe_tier]
+
+    def get_affix_entry(self, affix_id: str) -> AffixCatalogEntryDTO | None:
+        return AFFIX_CATALOG.get(affix_id)
+
+    def get_new_bundle(self, bundle_id: str) -> NewAffixBundleDTO | None:
+        return self.get_affix_bundle(bundle_id)
 
     def get_material_for_tier(self, category: str, tier: int) -> MaterialTemplateDTO | None:
         matching = [
@@ -82,7 +81,7 @@ class ItemCatalogService:
         if not matching:
             return None
         index = max(0, min(int(tier), len(matching) - 1))
-        return sorted(matching, key=lambda item: item.slots)[index]
+        return sorted(matching, key=lambda item: item.tier)[index]
 
     def by_id(self, item_id: str) -> CatalogEntryDTO | None:
         return self.entries.get(item_id)
@@ -117,8 +116,12 @@ class ItemCatalogService:
 
     def _load_materials(self, materials_db: dict[str, dict[int, Any]]) -> None:
         for category, tier_map in materials_db.items():
-            for _tier, raw in tier_map.items():
-                item = MaterialTemplateDTO.model_validate(_as_dict(raw))
+            for tier_idx, raw in tier_map.items():
+                raw_dict = _as_dict(raw)
+                if not raw_dict.get("category"):
+                    raw_dict = {**raw_dict, "category": category}
+                raw_dict = {**raw_dict, "tier": int(tier_idx)}
+                item = MaterialTemplateDTO.model_validate(raw_dict)
                 self._add_entry(item.id, "material", category, item)
                 self.materials[item.id] = item
 

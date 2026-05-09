@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Annotated
 
 from fastapi import Depends, Request
+from sqlalchemy.ext.asyncio import AsyncSession  # noqa: TC002
 
 from src.backend.core.database import get_db
 from src.backend.features.character.repositories import CharacterRepository
@@ -11,8 +12,6 @@ from src.backend.features.inventory.services.inventory_service import InventoryS
 from src.backend.features.inventory.services.session_manager import InventorySessionManager
 
 if TYPE_CHECKING:
-    from sqlalchemy.ext.asyncio import AsyncSession
-
     from src.backend.features.character.managers.session import CharacterSessionManager
 
 

@@ -1,6 +1,4 @@
 from src.backend.features.items.dto.catalog import (
-    AffixBundleDTO,
-    AffixEffectDTO,
     BaseItemTemplateDTO,
     CatalogEntryDTO,
     MaterialTemplateDTO,
@@ -15,8 +13,6 @@ from src.backend.features.items.dto.instance import (
 )
 
 __all__ = [
-    "AffixBundleDTO",
-    "AffixEffectDTO",
     "BaseItemTemplateDTO",
     "CatalogEntryDTO",
     "EquippedSlot",

@@ -15,8 +15,14 @@ class RawResourceTemplateDTO(BaseModel):
 class MaterialTemplateDTO(BaseModel):
     id: str
     name_ru: str
+    name_prefix_ru: str | None = None
     tier_mult: float
     slots: int
+    tier: int = 0
+    category: str = ""
+    allowed_item_types: list[str] = Field(default_factory=list)
+    allowed_armor_classes: list[str] = Field(default_factory=list)
+    color_key: str = "grey"
     narrative_tags: list[str] = Field(default_factory=list)
     narrative_description: str | None = None
 
@@ -49,22 +55,6 @@ class RarityConfigDTO(BaseModel):
     color_hex: str
     default_mult: float
     slots_capacity: int
-
-
-class AffixEffectDTO(BaseModel):
-    target_field: str
-    base_value: float
-    is_percentage: bool
-    narrative_tags: list[str] = Field(default_factory=list)
-
-
-class AffixBundleDTO(BaseModel):
-    id: str
-    ingredient_id: str
-    cost_slots: int
-    min_tier: int
-    effects: list[str] = Field(default_factory=list)
-    narrative_tags: list[str] = Field(default_factory=list)
 
 
 class CatalogEntryDTO(BaseModel):

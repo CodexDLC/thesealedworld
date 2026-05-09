@@ -21,6 +21,7 @@ class FakeRepo:
             name=item.name,
             description=item.description,
             mechanics={
+                **item.mechanics,
                 "template_id": item.template_id,
                 "slot": item.slot,
                 "valid_slots": item.valid_slots,
@@ -114,9 +115,12 @@ async def test_generation_service_marks_item_ready_when_ai_text_is_not_requested
 
     assert result.text_status == "not_requested"
     assert result.item is not None
-    assert result.item.name == "Ржавый лом: Боевой Молот"
-    assert result.item.description == "Двуручный молот, переносящий силу удара в сокрушительный импульс против брони и щитов."
-    assert repo.instances["item-1"].name == "Ржавый лом: Боевой Молот"
+    assert result.item.name == "Ржавый боевой молот"
+    assert (
+        result.item.description
+        == "Двуручный молот, переносящий силу удара в сокрушительный импульс против брони и щитов."
+    )
+    assert repo.instances["item-1"].name == "Ржавый боевой молот"
     assert repo.instances["item-1"].lifecycle_status == "ready"
 
 
@@ -125,18 +129,57 @@ async def test_generation_service_forces_common_tier_ready_even_when_ai_text_is_
     repo = FakeRepo()
     request = ItemGenerationRequestDTO(base_id="warhammer", rarity_tier=0, request_ai_text=True)
 
-    result = await ItemGenerationService(ItemPersistenceIntegration(repo), ItemTextAIClient(FakeAI())).generate_mechanical(
-        request
-    )
+    result = await ItemGenerationService(
+        ItemPersistenceIntegration(repo), ItemTextAIClient(FakeAI())
+    ).generate_mechanical(request)
     item = await ItemGenerationService(ItemPersistenceIntegration(repo), ItemTextAIClient(FakeAI())).enrich_text(
         result.item_ids[0], request
     )
 
     assert result.text_status == "not_requested"
     assert item is not None
-    assert item.name == "Ржавый лом: Боевой Молот"
+    assert item.name == "Ржавый боевой молот"
     assert repo.instances["item-1"].text_status == "not_requested"
     assert repo.instances["item-1"].lifecycle_status == "ready"
+
+
+@pytest.mark.unit
+async def test_generation_service_uses_item_grade_for_ai_text_threshold():
+    repo = FakeRepo()
+    request = ItemGenerationRequestDTO(
+        base_id="warhammer",
+        rarity_tier=1,
+        item_grade="common",
+        request_ai_text=True,
+    )
+
+    result = await ItemGenerationService(
+        ItemPersistenceIntegration(repo), ItemTextAIClient(FakeAI())
+    ).generate_mechanical(request)
+
+    assert result.text_status == "not_requested"
+    assert repo.instances["item-1"].text_status == "not_requested"
+    assert repo.instances["item-1"].lifecycle_status == "ready"
+
+
+@pytest.mark.unit
+async def test_generation_service_allows_ai_text_when_grade_overrides_tier_zero():
+    repo = FakeRepo()
+    service = ItemGenerationService(ItemPersistenceIntegration(repo), ItemTextAIClient(FakeAI()))
+    request = ItemGenerationRequestDTO(
+        base_id="warhammer",
+        rarity_tier=0,
+        item_grade="uncommon",
+        request_ai_text=True,
+    )
+
+    result = await service.generate_mechanical(request)
+    item = await service.enrich_text(result.item_ids[0], request)
+
+    assert result.text_status == "pending"
+    assert item is not None
+    assert item.name == "Молот Памяти"
+    assert repo.instances["item-1"].text_status == "generated"
 
 
 @pytest.mark.unit

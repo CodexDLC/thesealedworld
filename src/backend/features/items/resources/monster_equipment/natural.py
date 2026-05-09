@@ -14,7 +14,7 @@ MONSTER_NATURAL_EQUIPMENT_DB: dict[str, BaseItemDTO] = {
         related_skill="skill_unarmed",
         narrative_tags=["natural_weapon", "fangs", "claws", "rat"],
         implicit_bonuses={"physical_crit_chance": 0.03, "bleed_damage_bonus": 0.05},
-        triggers=["crit.bleed_on_crit"],
+        triggers=["crit.weapon_serrated_bleed_crit"],
     ),
     "wolf_fangs_claws": BaseItemDTO(
         id="wolf_fangs_claws",
@@ -29,7 +29,7 @@ MONSTER_NATURAL_EQUIPMENT_DB: dict[str, BaseItemDTO] = {
         related_skill="skill_unarmed",
         narrative_tags=["natural_weapon", "fangs", "claws", "wolf"],
         implicit_bonuses={"physical_crit_chance": 0.08, "bleed_damage_bonus": 0.12},
-        triggers=["crit.bleed_on_crit"],
+        triggers=["crit.weapon_serrated_bleed_crit"],
     ),
     "light_hide": BaseItemDTO(
         id="light_hide",
@@ -172,7 +172,7 @@ MONSTER_NATURAL_EQUIPMENT_DB: dict[str, BaseItemDTO] = {
             "bleed_damage_bonus": 0.25,
             "poison_resistance": 0.4,
         },
-        triggers=["crit.bleed_on_crit"],
+        triggers=["crit.weapon_serrated_bleed_crit"],
     ),
     "anchor_projection_aegis": BaseItemDTO(
         id="anchor_projection_aegis",

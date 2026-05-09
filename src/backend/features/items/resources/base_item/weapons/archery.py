@@ -19,7 +19,7 @@ ARCHERY_DB = {
             "physical_crit_chance": 0.03,
             "evasion": 0.03,
         },
-        triggers=["crit.stun_on_crit"],
+        triggers=["crit.weapon_impact_stun_crit"],
     ),
     "shortbow": BaseItemDTO(
         id="shortbow",
@@ -39,7 +39,7 @@ ARCHERY_DB = {
             "physical_crit_chance": 0.04,
             "evasion": 0.03,
         },
-        triggers=["control.evasive_shot"],
+        triggers=["control.weapon_evasive_shot"],
     ),
 }
 

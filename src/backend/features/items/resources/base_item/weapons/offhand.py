@@ -18,7 +18,7 @@ OFFHAND_DB = {
             "shield_block_chance": 0.10,
             "evasion_penalty": -0.25,
         },
-        triggers=["block.bash_on_block"],
+        triggers=["block.weapon_shield_bash_on_block"],
     ),
     "buckler": BaseItemDTO(
         id="buckler",
@@ -34,12 +34,10 @@ OFFHAND_DB = {
         damage_spread=0.0,
         narrative_tags=["buckler", "shield", "parry", "small_shield"],
         implicit_bonuses={
-            "shield_block_chance": 0.05,
             "evasion_penalty": -0.15,
             "parry_chance": 0.15,
-            "counter_attack_chance": 0.06,
         },
-        triggers=["parry.counter_on_parry"],
+        triggers=["parry.weapon_riposte_on_parry"],
     ),
 }
 

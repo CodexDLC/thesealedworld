@@ -1,0 +1,25 @@
+from .attributes import ATTRIBUTES_AFFIXES
+from .combat_control import COMBAT_CONTROL_AFFIXES
+from .combat_defense import COMBAT_DEFENSE_AFFIXES
+from .combat_magic import COMBAT_MAGIC_AFFIXES
+from .combat_offense import COMBAT_OFFENSE_AFFIXES
+from .combat_resource import COMBAT_RESOURCE_AFFIXES
+from .crafting import CRAFTING_AFFIXES
+from .economy import ECONOMY_AFFIXES
+from .utility import UTILITY_AFFIXES
+from .world_exploration import WORLD_EXPLORATION_AFFIXES
+from .world_survival import WORLD_SURVIVAL_AFFIXES
+
+ALL_AFFIX_DEFINITIONS = (
+    COMBAT_OFFENSE_AFFIXES
+    + COMBAT_DEFENSE_AFFIXES
+    + COMBAT_MAGIC_AFFIXES
+    + COMBAT_CONTROL_AFFIXES
+    + COMBAT_RESOURCE_AFFIXES
+    + WORLD_EXPLORATION_AFFIXES
+    + WORLD_SURVIVAL_AFFIXES
+    + CRAFTING_AFFIXES
+    + ECONOMY_AFFIXES
+    + ATTRIBUTES_AFFIXES
+    + UTILITY_AFFIXES
+)

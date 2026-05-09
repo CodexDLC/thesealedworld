@@ -27,6 +27,19 @@ class ItemInstanceRepository:
         correlation_id: str | None = None,
     ) -> ItemInstance:
         instance_id = item.instance_id or str(uuid.uuid4())
+        mechanics = {
+            **item.mechanics,
+            "template_id": item.template_id,
+            "slot": item.slot,
+            "valid_slots": item.valid_slots,
+            "power": item.power,
+            "durability_current": item.durability_max,
+            "durability_max": item.durability_max,
+            "damage_spread": item.damage_spread,
+            "implicit_bonuses": item.implicit_bonuses,
+            "bonuses": item.bonuses,
+            "triggers": item.triggers,
+        }
         instance = ItemInstance(
             id=instance_id,
             base_id=item.base_id,
@@ -37,18 +50,7 @@ class ItemInstanceRepository:
             text_status=text_status,
             name=item.name,
             description=item.description,
-            mechanics={
-                "template_id": item.template_id,
-                "slot": item.slot,
-                "valid_slots": item.valid_slots,
-                "power": item.power,
-                "durability_current": item.durability_max,
-                "durability_max": item.durability_max,
-                "damage_spread": item.damage_spread,
-                "implicit_bonuses": item.implicit_bonuses,
-                "bonuses": item.bonuses,
-                "triggers": item.triggers,
-            },
+            mechanics=mechanics,
             appearance={
                 "width_cells": item.metadata.get("width_cells", 1),
                 "height_cells": item.metadata.get("height_cells", 1),

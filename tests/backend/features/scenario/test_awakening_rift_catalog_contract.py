@@ -23,7 +23,9 @@ def test_awakening_rift_reward_items_exist_in_item_catalog() -> None:
     item_catalog = ItemCatalogService.load_default()
     item_factory = ItemFactory(item_catalog)
 
-    missing = sorted(item_id for item_id in _collect_reward_values("loot_queue") if item_id not in item_catalog.base_items)
+    missing = sorted(
+        item_id for item_id in _collect_reward_values("loot_queue") if item_id not in item_catalog.base_items
+    )
 
     assert missing == []
     for item_id in _collect_reward_values("loot_queue"):
@@ -34,9 +36,80 @@ def test_awakening_rift_reward_items_exist_in_item_catalog() -> None:
 def test_awakening_rift_reward_skills_exist_in_skill_catalog() -> None:
     skill_catalog = SkillCatalogService()
 
-    missing = sorted(skill_key for skill_key in _collect_reward_values("skills_queue") if skill_catalog.get(skill_key) is None)
+    missing = sorted(
+        skill_key for skill_key in _collect_reward_values("skills_queue") if skill_catalog.get(skill_key) is None
+    )
 
     assert missing == []
+
+
+def test_awakening_rift_first_weapon_line_grants_only_weapon_mastery_and_sets_grip_family() -> None:
+    expected = {
+        "take_hammer": ("push:warhammer", ["push:skill_macing"], "'two_handed'"),
+        "take_axe": ("push:battle_axe", ["push:skill_macing"], "'one_handed_simple'"),
+        "take_katana": ("push:katana", ["push:skill_swords"], "'two_handed'"),
+        "take_dagger": ("push:dagger", ["push:skill_fencing"], "'dagger'"),
+        "take_staff": ("push:quarterstaff", ["push:skill_polearms"], "'two_handed'"),
+        "take_sword": ("push:sword", ["push:skill_swords"], "'sword'"),
+    }
+
+    for action_id, (loot, skills, grip_family) in expected.items():
+        action = _find_action("30_weapon_rewards.json", action_id)
+        math = action["math"]
+
+        assert math["loot_queue"] == loot
+        assert math["skills_queue"] == skills
+        assert math["grip_family"] == grip_family
+        assert "is_two_handed" not in math
+        assert "needs_offhand_weapon" not in math
+
+
+def test_awakening_rift_second_reward_router_uses_precise_grip_family() -> None:
+    router = _find_node("60_offhand_rewards.json", "resonance_logic_02")["actions"][0]
+
+    assert router["branching"] == [
+        {"condition": "grip_family == 'dagger'", "to_node": "choice_dagger_offhand"},
+        {"condition": "grip_family == 'sword'", "to_node": "choice_sword_offhand"},
+        {"condition": "grip_family == 'one_handed_simple'", "to_node": "choice_simple_onehand"},
+        {"condition": "grip_family == 'two_handed'", "to_node": "choice_two_handed_support"},
+        {"condition": "default", "to_node": "choice_two_handed_support"},
+    ]
+
+
+def test_awakening_rift_second_reward_paths_match_combat_skill_model() -> None:
+    assert _find_action("60_offhand_rewards.json", "take_shield")["math"]["skills_queue"] == [
+        "push:skill_parrying",
+        "push:skill_shield_mastery",
+    ]
+    assert _find_action("60_offhand_rewards.json", "take_shield_simple")["math"]["skills_queue"] == [
+        "push:skill_parrying",
+        "push:skill_shield_mastery",
+    ]
+    assert _find_action("60_offhand_rewards.json", "take_buckler")["math"]["skills_queue"] == [
+        "push:skill_parrying",
+    ]
+    assert _find_action("60_offhand_rewards.json", "take_buckler_simple")["math"]["skills_queue"] == [
+        "push:skill_parrying",
+    ]
+    assert _find_action("60_offhand_rewards.json", "take_second_dagger")["math"]["skills_queue"] == [
+        "push:skill_dual_wield",
+    ]
+    assert _find_action("60_offhand_rewards.json", "take_main_gauche")["math"]["skills_queue"] == [
+        "push:skill_dual_wield",
+        "push:skill_parrying",
+    ]
+    assert _find_action("60_offhand_rewards.json", "take_offhand_dagger")["math"]["skills_queue"] == [
+        "push:skill_dual_wield",
+    ]
+    assert _find_action("60_offhand_rewards.json", "take_belt")["math"]["skills_queue"] == [
+        "push:skill_one_handed",
+    ]
+    assert _find_action("60_offhand_rewards.json", "take_belt_twohand")["math"]["skills_queue"] == [
+        "push:skill_two_handed",
+    ]
+    assert _find_action("60_offhand_rewards.json", "take_amulet")["math"]["skills_queue"] == [
+        "push:skill_two_handed",
+    ]
 
 
 def _collect_reward_values(queue_key: str) -> set[str]:
@@ -69,3 +142,20 @@ def _parse_queue_value(value: Any) -> set[str]:
 
 def _strip_push(value: str) -> str:
     return value.removeprefix("push:")
+
+
+def _find_action(filename: str, action_id: str) -> dict[str, Any]:
+    data = json.loads((QUEST_DIR / "nodes" / filename).read_text(encoding="utf-8"))
+    for node in data:
+        for action in node.get("actions", []):
+            if action.get("action_id") == action_id:
+                return action
+    raise AssertionError(f"Action {action_id!r} not found in {filename}")
+
+
+def _find_node(filename: str, node_key: str) -> dict[str, Any]:
+    data = json.loads((QUEST_DIR / "nodes" / filename).read_text(encoding="utf-8"))
+    for node in data:
+        if node.get("node_key") == node_key:
+            return node
+    raise AssertionError(f"Node {node_key!r} not found in {filename}")

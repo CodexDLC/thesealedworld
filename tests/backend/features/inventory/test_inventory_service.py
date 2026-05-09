@@ -80,9 +80,9 @@ async def test_open_window_calculates_inventory_slots_from_strength_and_belt(
                 slot="belt_accessory",
                 placement="equipped",
                 mechanics={
+                    "power": 6,
                     "implicit_bonuses": {
                         "quick_slot_capacity": 2,
-                        "inventory_slot_capacity": 6,
                     },
                     "valid_slots": ["belt_accessory"],
                 },
@@ -131,14 +131,14 @@ async def test_open_window_maps_real_item_card_fields(fake_redis_service, fake_r
     window = await service.open_window(7)
 
     axe = next(row for row in window.visible_rows if row.item_id == "axe-1")
-    helm = next(row for row in window.visible_rows if row.item_id == "helm-1")
     assert axe.quantity == 2
     assert axe.weight == "3.5"
     assert axe.grid_w == 4
     assert axe.grid_h == 2
     assert axe.equip_target == "main_hand"
     assert axe.valid_slots == ["main_hand", "off_hand"]
-    assert helm.is_equipped is True
+    assert axe.icon == "weapon"
+    assert all(row.item_id != "helm-1" for row in window.visible_rows)
     assert window.body_zones[0].primary_slot.item.item_id == "helm-1"
 
 
@@ -153,7 +153,11 @@ async def test_open_window_builds_structured_item_tooltip_without_html(fake_redi
                 "weapon",
                 slot="main_hand",
                 placement="equipped",
-                mechanics={"valid_slots": ["main_hand"], "power": 5, "implicit_bonuses": {"initiative": 1}},
+                mechanics={
+                    "valid_slots": ["main_hand"],
+                    "power": 5,
+                    "implicit_bonuses": {"initiative": 1, "parry_chance": 0.04},
+                },
                 rarity_tier=1,
             ),
             _item(
@@ -163,7 +167,9 @@ async def test_open_window_builds_structured_item_tooltip_without_html(fake_redi
                 mechanics={
                     "valid_slots": ["main_hand"],
                     "power": 9,
-                    "implicit_bonuses": {"initiative": 3, "stamina_regen": -1},
+                    "implicit_bonuses": {"initiative": 3, "parry_chance": 0.12, "stamina_regen": -1},
+                    "affixes": [{"affix_id": "crit_chance", "value": 0.045, "source": "single:combat_offense"}],
+                    "bonuses": {"physical_damage_bonus": 99},
                     "effects": ["void_touched"],
                     "requirements": [{"label": "STR", "value": "12", "current": "14", "met": True}],
                 },
@@ -185,9 +191,23 @@ async def test_open_window_builds_structured_item_tooltip_without_html(fake_redi
     assert row.rarity_label == "Epic"
     assert details.description == "Structured item details."
     assert details.flavor == "A clean tooltip payload."
-    assert any(line.label == "Power" and line.value == "+9" and line.tone == "positive" for line in details.details)
-    assert any(line.label == "Stamina Regen" and line.tone == "negative" for line in details.details)
-    assert any(line.label == "Power" and line.delta == 4 for line in details.comparison)
+    assert any(line.label == "Power" and line.value == "9" and line.tone == "neutral" for line in details.details)
+    assert any(
+        line.label == "Parry Chance" and line.value == "12%" and line.tone == "neutral" for line in details.details
+    )
+    assert any(
+        line.label == "Stamina Regen" and line.value == "1" and line.tone == "neutral" for line in details.details
+    )
+    assert any(line.label == "Critical Chance" and line.value == "+4.5% Crit Chance" for line in details.details)
+    assert all(line.label != "Physical Damage Bonus" for line in details.details)
+    assert any(
+        line.label == "Power" and line.value == "+4" and line.delta == 4 and line.tone == "positive"
+        for line in details.comparison
+    )
+    assert any(
+        line.label == "Parry Chance" and line.value == "+8%" and line.delta == pytest.approx(0.08)
+        for line in details.comparison
+    )
     assert details.effects[0].label == "Void Touched"
     assert details.tags[0].label == "two_handed"
     assert details.requirements[0].met is True
@@ -197,6 +217,34 @@ async def test_open_window_builds_structured_item_tooltip_without_html(fake_redi
     dumped = details.model_dump_json()
     assert "<" not in dumped
     assert "item-card" not in dumped
+
+
+@pytest.mark.asyncio
+async def test_open_window_shows_belt_power_as_inventory_cells(fake_redis_service, fake_redis_client):
+    _active_character(fake_redis_client, state="exploration")
+    service = _service(
+        fake_redis_service,
+        [
+            _item(
+                "belt-1",
+                "accessory",
+                slot="belt_accessory",
+                placement="equipped",
+                mechanics={
+                    "valid_slots": ["belt_accessory"],
+                    "power": 8,
+                    "implicit_bonuses": {"quick_slot_capacity": 4},
+                },
+            ),
+        ],
+    )
+
+    window = await service.open_window(7)
+
+    details = window.accessory_rows[-1].slots[0].details
+    assert details is not None
+    assert any(line.label == "Inventory Cell Capacity" and line.value == "8" for line in details.details)
+    assert any(line.label == "Quick Slot Capacity" and line.value == "4" for line in details.details)
 
 
 @pytest.mark.asyncio

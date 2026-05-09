@@ -28,7 +28,6 @@ async def test_item_text_service_replaces_only_name_and_description_with_ai_text
         base_id="warhammer",
         material_id="mat_iron_ingot",
         rarity_tier=1,
-        affix_bundle_ids=["soldier"],
         source="scenario:awakening_rift",
         request_ai_text=True,
     )
@@ -56,8 +55,8 @@ async def test_item_text_service_replaces_only_name_and_description_with_ai_text
     assert payload["base"]["id"] == "warhammer"
     assert payload["base"]["narrative_description"]
     assert payload["material"]["id"] == "mat_iron_ingot"
-    assert payload["rarity"]["tier"] == 1
-    assert payload["affixes"][0]["id"] == "soldier"
+    assert payload["grade"] == "uncommon"
+    assert isinstance(payload["affixes"], list)
 
 
 @pytest.mark.unit
@@ -99,7 +98,7 @@ async def test_item_text_service_skips_ai_when_request_does_not_ask_for_text():
 
 
 @pytest.mark.unit
-async def test_item_text_service_skips_ai_for_common_tier_even_when_requested():
+async def test_item_text_service_skips_ai_for_common_grade_even_when_requested():
     request = ItemGenerationRequestDTO(base_id="warhammer", rarity_tier=0, request_ai_text=True)
     mechanical_item = ItemFactory().generate(request)
     ai = FakeAI({"name": "Не должен примениться", "description": "Не должен примениться."})
@@ -111,3 +110,32 @@ async def test_item_text_service_skips_ai_for_common_tier_even_when_requested():
     assert item.metadata["ai_text_status"] == "skipped"
     assert item.metadata["ai_text_reason"] == "common_tier"
     assert ai.calls == []
+
+
+@pytest.mark.unit
+async def test_item_text_service_passes_source_context_in_payload():
+    source_context = {
+        "monster_family_id": "bandit_gang",
+        "monster_family_tags": ["human", "outlaw"],
+        "biome_id": "city_ruins",
+        "source_label": "loot",
+    }
+    request = ItemGenerationRequestDTO(
+        base_id="warhammer",
+        material_id="mat_iron_ingot",
+        rarity_tier=1,
+        request_ai_text=True,
+        source_context=source_context,
+    )
+    mechanical_item = ItemFactory().generate(request)
+    ai = FakeAI(
+        json.dumps(
+            {"name": "Лезвие Банды", "description": "Оружие из рук придорожного головореза."}, ensure_ascii=False
+        )
+    )
+
+    await ItemTextService(ItemTextAIClient(ai)).enrich(mechanical_item, request)
+
+    payload = ai.calls[0][1]["payload"]
+    assert payload["source_context"]["monster_family_id"] == "bandit_gang"
+    assert payload["source_context"]["biome_id"] == "city_ruins"

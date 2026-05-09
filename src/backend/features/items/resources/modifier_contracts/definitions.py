@@ -1,0 +1,100 @@
+from __future__ import annotations
+
+from .schemas import ModifierContractDTO, ModifierLayer, ModifierOperation
+
+
+def _contract(
+    contract_id: str,
+    target_field: str,
+    value_kind: str,
+    *,
+    operation: ModifierOperation = "add",
+    default_layer: ModifierLayer = "auto",
+    tags: tuple[str, ...] = (),
+) -> ModifierContractDTO:
+    return ModifierContractDTO(
+        id=contract_id,
+        target_field=target_field,
+        operation=operation,
+        value_kind=value_kind,
+        default_layer=default_layer,
+        tags=tags,
+    )
+
+
+MODIFIER_CONTRACT_DEFINITIONS: tuple[ModifierContractDTO, ...] = (
+    _contract("main_hand_accuracy_add", "main_hand_accuracy", "percent", tags=("combat", "offense")),
+    _contract("off_hand_accuracy_add", "off_hand_accuracy", "percent", tags=("combat", "offense")),
+    _contract("accuracy_add", "accuracy", "percent", tags=("combat", "offense")),
+    _contract("armor_penetration_add", "armor_penetration", "percent", tags=("combat", "offense")),
+    _contract("crit_chance_add", "crit_chance", "percent", tags=("combat", "offense")),
+    _contract("crit_power_add", "crit_power", "percent", tags=("combat", "offense", "reserved")),
+    _contract("damage_mult", "damage_mult", "percent", operation="mult", tags=("combat", "offense")),
+    _contract("physical_damage_bonus_add", "physical_damage_bonus", "flat", tags=("combat", "offense")),
+    _contract("vampiric_power_add", "vampiric_power", "percent", tags=("combat", "offense", "vampiric", "reserved")),
+    _contract(
+        "vampiric_trigger_chance_add",
+        "vampiric_trigger_chance",
+        "percent",
+        tags=("combat", "offense", "vampiric", "reserved"),
+    ),
+    _contract("armor_add", "armor", "flat", tags=("combat", "defense")),
+    _contract("evasion_add", "evasion", "percent", tags=("combat", "defense")),
+    _contract("evasion_mult", "evasion", "percent", operation="mult", tags=("combat", "defense")),
+    _contract("parry_mult", "parry", "percent", operation="mult", tags=("combat", "defense")),
+    _contract("block_mult", "block", "percent", operation="mult", tags=("combat", "defense", "shield")),
+    _contract("physical_resistance_add", "physical_resistance", "percent", tags=("combat", "defense")),
+    _contract("block_add", "block", "percent", tags=("combat", "defense", "shield")),
+    _contract("shield_guard_power_add", "shield_guard_power", "flat", tags=("combat", "defense", "shield")),
+    _contract("thorns_damage_flat_add", "thorns_damage_flat", "flat", tags=("combat", "defense", "reflect")),
+    _contract("control_chance_add", "control_chance_bonus", "percent", tags=("combat", "control")),
+    _contract("control_resistance_add", "control_resistance", "percent", tags=("combat", "control")),
+    _contract("hp_add", "hp", "flat_int", tags=("combat", "resource")),
+    _contract("en_add", "en", "flat_int", tags=("combat", "resource")),
+    _contract("hp_regen_add", "hp_regen", "percent", tags=("combat", "resource")),
+    _contract("travel_speed_add", "travel_speed", "percent", default_layer="world", tags=("world",)),
+    _contract("skill_scouting_add", "skill_scouting", "percent", default_layer="world", tags=("world", "skill")),
+    _contract(
+        "skill_pathfinder_add",
+        "skill_pathfinder",
+        "percent",
+        default_layer="world",
+        tags=("world", "skill"),
+    ),
+    _contract("environment_cold_resistance_add", "environment_cold_resistance", "percent", tags=("world", "survival")),
+    _contract("environment_heat_resistance_add", "environment_heat_resistance", "percent", tags=("world", "survival")),
+    _contract("environment_bio_resistance_add", "environment_bio_resistance", "percent", tags=("world", "survival")),
+    _contract(
+        "magical_damage_bonus_add",
+        "magical_damage_bonus",
+        "percent",
+        tags=("combat", "magic", "reserved"),
+    ),
+    _contract(
+        "magical_penetration_add",
+        "magical_penetration",
+        "percent",
+        tags=("combat", "magic", "reserved"),
+    ),
+    _contract("fire_damage_bonus_add", "fire_damage_bonus", "percent", tags=("combat", "elemental", "reserved")),
+    _contract("fire_resistance_add", "fire_resistance", "percent", tags=("combat", "elemental", "reserved")),
+    _contract("arcane_resistance_add", "arcane_resistance", "percent", tags=("combat", "elemental", "reserved")),
+    _contract("crafting_speed_add", "crafting_speed", "percent", default_layer="world", tags=("world", "crafting")),
+    _contract(
+        "resource_find_chance_add",
+        "resource_find_chance",
+        "percent",
+        default_layer="world",
+        tags=("world", "crafting"),
+    ),
+    _contract("trade_bonus_add", "trade_bonus", "percent", default_layer="world", tags=("world", "economy")),
+    _contract("strength_add", "strength", "attribute", default_layer="attributes", tags=("attribute",)),
+    _contract("dexterity_add", "dexterity", "attribute", default_layer="attributes", tags=("attribute", "legacy")),
+    _contract(
+        "intelligence_add", "intelligence", "attribute", default_layer="attributes", tags=("attribute", "legacy")
+    ),
+    _contract("endurance_add", "endurance", "attribute", default_layer="attributes", tags=("attribute",)),
+    _contract("perception_add", "perception", "attribute", default_layer="attributes", tags=("attribute",)),
+    _contract("agility_add", "agility", "attribute", default_layer="attributes", tags=("attribute",)),
+    _contract("luck_add", "luck", "percent", default_layer="world", tags=("world", "utility", "pending")),
+)

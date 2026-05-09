@@ -11,6 +11,7 @@ INGOTS_DB = {
         0: MaterialDTO(
             id="mat_scrap_metal",
             name_ru="Ржавый лом",
+            name_prefix_ru="Ржавый",
             tier_mult=0.8,
             slots=0,
             narrative_tags=["rusty", "junk", "old"],

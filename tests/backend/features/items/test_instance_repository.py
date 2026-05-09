@@ -1,6 +1,7 @@
 import pytest
 
 from src.backend.features.items.dto.instance import GeneratedItemDTO, ItemPlacementRefDTO
+from src.backend.features.items.integrations import ItemPersistenceIntegration
 from src.backend.features.items.models import ItemInstance, ItemPlacement, ItemTransaction
 from src.backend.features.items.repositories import ItemInstanceRepository
 
@@ -47,6 +48,11 @@ async def test_create_mechanical_persists_current_and_max_durability():
             power=5,
             durability_max=45,
             slot="two_hand",
+            mechanics={
+                "material": {"material_id": "mat_iron_ingot", "tier_mult": 1.0, "tags": []},
+                "affixes": [{"affix_id": "crit_chance", "value": 0.03, "source": "single:combat_offense"}],
+                "sockets": [],
+            },
         ),
         ItemPlacementRefDTO(holder_type="character", holder_id="42", storage_type="equipped", slot="two_hand"),
         text_status="not_requested",
@@ -56,6 +62,45 @@ async def test_create_mechanical_persists_current_and_max_durability():
 
     assert instance.mechanics["durability_current"] == 45
     assert instance.mechanics["durability_max"] == 45
+    assert instance.mechanics["material"]["material_id"] == "mat_iron_ingot"
+    assert instance.mechanics["affixes"][0]["affix_id"] == "crit_chance"
+
+
+@pytest.mark.unit
+def test_persistence_integration_restores_canonical_mechanics():
+    instance = ItemInstance(
+        id="item-1",
+        base_id="warhammer",
+        item_type="weapon",
+        rarity="common",
+        rarity_tier=0,
+        lifecycle_status="ready",
+        text_status="not_requested",
+        name="Warhammer",
+        description="A heavy hammer.",
+        mechanics={
+            "template_id": "warhammer:mat_iron_ingot:common",
+            "slot": "two_hand",
+            "valid_slots": ["two_hand"],
+            "power": 5,
+            "durability_max": 45,
+            "damage_spread": 0.1,
+            "implicit_bonuses": {},
+            "bonuses": {},
+            "triggers": [],
+            "material": {"material_id": "mat_iron_ingot", "tier_mult": 1.0, "tags": []},
+            "affixes": [{"affix_id": "crit_chance", "value": 0.03, "source": "single:combat_offense"}],
+            "sockets": [],
+        },
+        appearance={},
+        generation={"material_id": "mat_iron_ingot", "affix_bundle_ids": [], "narrative_tags": []},
+        metadata_={},
+    )
+
+    dto = ItemPersistenceIntegration(FakeSession())._dto_from_instance(instance)
+
+    assert dto.mechanics["material"]["material_id"] == "mat_iron_ingot"
+    assert dto.mechanics["affixes"][0]["affix_id"] == "crit_chance"
 
 
 @pytest.mark.unit

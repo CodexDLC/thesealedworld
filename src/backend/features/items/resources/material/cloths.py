@@ -9,6 +9,7 @@ CLOTHS_DB = {
         0: {
             "id": "mat_dirty_rags",
             "name_ru": "Грязное тряпье",
+            "name_prefix_ru": "Грязный",
             "tier_mult": 0.8,
             "slots": 0,
             "narrative_tags": ["dirty", "rags"],

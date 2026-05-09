@@ -1,6 +1,18 @@
 import pytest
 
+from src.backend.features.combat.dto.trigger_rules import TriggerRulesFlagsDTO
 from src.backend.features.items.services.catalog_service import ItemCatalogService
+
+WEAPON_DIRECTIONS_EXCEPT_ARCHERY = {
+    "skill_swords": {"sword", "longsword", "greatsword", "katana", "scimitar"},
+    "skill_macing": {"hatchet", "battle_axe", "mace", "warhammer", "flail"},
+    "skill_polearms": {"spear", "pike", "halberd", "quarterstaff", "trident"},
+    "skill_fencing": {"knife", "dagger", "stiletto", "rapier", "main_gauche", "katar"},
+}
+
+DAGGERLIKE_DUAL_SLOT_WEAPONS = {"knife", "dagger", "stiletto", "main_gauche", "katar"}
+CAPACITY_KEYS = {"inventory_cell_capacity", "inventory_slot_capacity", "inventory_slots", "quick_slot_capacity"}
+ATTRIBUTE_KEYS = {"strength", "agility", "intelligence", "constitution", "perception", "willpower", "charisma"}
 
 
 @pytest.mark.unit
@@ -14,17 +26,18 @@ def test_item_catalog_loads_structured_base_resources_through_pydantic():
     assert catalog.get_base_item("belt")
     assert catalog.get_material("mat_iron_ingot")
     assert catalog.get_raw_resource("currency_dust")
-    assert catalog.get_affix_bundle("soldier")
-    assert catalog.get_affix_effect("phys_dmg_flat")
+    assert catalog.get_affix_entry("weapon_accuracy")
+    assert catalog.get_affix_bundle("duelist_weapon_4")
     assert catalog.get_rarity(0).enum_key == "shared"
 
 
 @pytest.mark.unit
-def test_item_catalog_builds_reverse_bundle_lookup():
+def test_item_catalog_exposes_new_affix_bundle_lookup():
     catalog = ItemCatalogService.load_default()
 
-    bundle = catalog.ingredient_to_bundle["essence_iron_will"]
-    assert bundle.id == "soldier"
+    bundle = catalog.get_affix_bundle("bulwark_shield_4")
+    assert bundle is not None
+    assert bundle.affix_ids == ("armor_flat", "block_bonus", "shield_guard_power_bonus", "physical_resistance_bonus")
 
 
 @pytest.mark.unit
@@ -79,3 +92,102 @@ def test_starting_weapons_match_combat_snapshot_contract():
 
     assert missing_skill == []
     assert missing_penalty == []
+
+
+@pytest.mark.unit
+def test_weapon_directions_except_archery_have_core_base_items():
+    catalog = ItemCatalogService.load_default()
+
+    for skill_key, item_ids in WEAPON_DIRECTIONS_EXCEPT_ARCHERY.items():
+        loaded = {item_id: catalog.get_base_item(item_id) for item_id in item_ids}
+        assert [item_id for item_id, item in loaded.items() if item is None] == []
+        assert {item.related_skill for item in loaded.values() if item is not None} == {skill_key}
+        assert sum(1 for item in loaded.values() if item is not None and item.triggers) >= 3
+
+
+@pytest.mark.unit
+def test_daggerlike_fencing_weapons_support_main_and_off_hand():
+    catalog = ItemCatalogService.load_default()
+
+    for item_id in DAGGERLIKE_DUAL_SLOT_WEAPONS:
+        item = catalog.get_base_item(item_id)
+        assert item is not None
+        assert {item.slot, *item.extra_slots} == {"main_hand", "off_hand"}
+
+
+@pytest.mark.unit
+def test_base_item_triggers_reference_runtime_trigger_flags():
+    catalog = ItemCatalogService.load_default()
+    flags = TriggerRulesFlagsDTO()
+    checked_item_ids = {
+        item_id
+        for item_id, item in catalog.base_items.items()
+        if item.type == "weapon" and catalog.entries[item_id].category != "monster_equipment"
+    }
+
+    missing = []
+    non_weapon_triggers = []
+    for item_id in checked_item_ids:
+        item = catalog.get_base_item(item_id)
+        assert item is not None
+        for trigger_id in item.triggers:
+            section_name, _, field_name = trigger_id.partition(".")
+            section = getattr(flags, section_name, None)
+            if not section or not field_name or not hasattr(section, field_name):
+                missing.append(f"{item.id}:{trigger_id}")
+            if not field_name.startswith("weapon_"):
+                non_weapon_triggers.append(f"{item.id}:{trigger_id}")
+
+    assert missing == []
+    assert non_weapon_triggers == []
+
+
+@pytest.mark.unit
+def test_player_base_items_do_not_carry_passive_counter_attack_chance():
+    catalog = ItemCatalogService.load_default()
+
+    offenders = [
+        item_id
+        for item_id, item in catalog.base_items.items()
+        if catalog.entries[item_id].category != "monster_equipment" and "counter_attack_chance" in item.implicit_bonuses
+    ]
+
+    assert offenders == []
+
+
+@pytest.mark.unit
+def test_parry_base_bonus_is_limited_to_weapons_and_parrying_offhand():
+    catalog = ItemCatalogService.load_default()
+
+    offenders = []
+    for item_id, item in catalog.base_items.items():
+        if catalog.entries[item_id].category == "monster_equipment":
+            continue
+        if "parry_chance" not in item.implicit_bonuses:
+            continue
+        if item.type == "weapon":
+            continue
+        if item.slot == "off_hand" and "parry" in item.narrative_tags:
+            continue
+        offenders.append(item_id)
+
+    assert offenders == []
+
+
+@pytest.mark.unit
+def test_base_attribute_and_capacity_bonuses_stay_in_their_expected_item_types():
+    catalog = ItemCatalogService.load_default()
+
+    attribute_offenders = []
+    capacity_offenders = []
+    for item_id, item in catalog.base_items.items():
+        if catalog.entries[item_id].category == "monster_equipment":
+            continue
+        bonuses = set(item.implicit_bonuses)
+        if bonuses & ATTRIBUTE_KEYS and item.type != "accessory":
+            attribute_offenders.append(item_id)
+        if bonuses & CAPACITY_KEYS and item_id != "belt":
+            capacity_offenders.append(item_id)
+
+    assert attribute_offenders == []
+    assert capacity_offenders == []

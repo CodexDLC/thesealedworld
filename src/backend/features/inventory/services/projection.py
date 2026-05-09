@@ -69,7 +69,8 @@ def belt_inventory_cell_bonus(session: InventoryRuntimeSessionDTO) -> int:
 
     bonuses = belt.mechanics.get("implicit_bonuses") or {}
     raw = (
-        bonuses.get("inventory_cell_capacity")
+        belt.mechanics.get("power")
+        or bonuses.get("inventory_cell_capacity")
         or bonuses.get("inventory_slot_capacity")
         or bonuses.get("inventory_slots")
         or belt.mechanics.get("inventory_cell_capacity")

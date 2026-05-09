@@ -29,7 +29,7 @@
   },
   {
     "node_key": "resonance_logic_02",
-    "text": "АНАЛИЗ БОЕВОЙ СОВМЕСТИМОСТИ... ЗАВЕРШЕНО. \n\nТвой стиль боя обретает законченную форму. Осколок реагирует на хват твоих рук, формируя идеальное дополнение к [#loot_queue.0].",
+    "text": "АНАЛИЗ БОЕВОЙ СОВМЕСТИМОСТИ... ЗАВЕРШЕНО. \n\nТвой стиль боя обретает первые очертания. Осколок реагирует на хват твоих рук и вытягивает из пыли вещь, которая не будет мешать выбранному оружию.",
     "system_messages": [
       "АНАЛИЗ БОЕВОЙ СОВМЕСТИМОСТИ... ЗАВЕРШЕНО. "
     ],
@@ -41,12 +41,24 @@
         "to_node": null,
         "branching": [
           {
-            "condition": "is_two_handed == 0",
-            "to_node": "choice_offhand"
+            "condition": "grip_family == 'dagger'",
+            "to_node": "choice_dagger_offhand"
+          },
+          {
+            "condition": "grip_family == 'sword'",
+            "to_node": "choice_sword_offhand"
+          },
+          {
+            "condition": "grip_family == 'one_handed_simple'",
+            "to_node": "choice_simple_onehand"
+          },
+          {
+            "condition": "grip_family == 'two_handed'",
+            "to_node": "choice_two_handed_support"
           },
           {
             "condition": "default",
-            "to_node": "choice_accessory"
+            "to_node": "choice_two_handed_support"
           }
         ],
         "type": "logic_gate"
@@ -58,30 +70,31 @@
     "ui": {}
   },
   {
-    "node_key": "choice_offhand",
-    "text": "Твоя вторая рука свободна. Рифт предлагает защиту или скорость.",
+    "node_key": "choice_dagger_offhand",
+    "text": "После кинжала вторая рука сама ищет короткий клинок. Рифт предлагает либо прямую пару, либо узкую дагу для защиты линии.",
     "system_messages": [],
     "actions": [
       {
-        "action_id": "take_shield",
-        "label": "Взять Щит",
+        "action_id": "take_second_dagger",
+        "label": "Взять второй кинжал",
         "icon": "default",
         "to_node": "bridge_resonance_award_2",
         "math": {
-          "loot_queue": "push:shield",
+          "loot_queue": "push:dagger",
           "skills_queue": [
-            "push:skill_shield_mastery"
+            "push:skill_dual_wield"
           ]
         }
       },
       {
-        "action_id": "take_buckler",
-        "label": "Выбрать Баклер Парирование",
+        "action_id": "take_main_gauche",
+        "label": "Взять дагу для парирования",
         "icon": "default",
         "to_node": "bridge_resonance_award_2",
         "math": {
-          "loot_queue": "push:buckler",
+          "loot_queue": "push:main_gauche",
           "skills_queue": [
+            "push:skill_dual_wield",
             "push:skill_parrying"
           ]
         }
@@ -93,19 +106,115 @@
     "ui": {}
   },
   {
-    "node_key": "choice_accessory",
-    "text": "Твои руки заняты двуручным оружием. Рифт предлагает усиление через артефакт.",
+    "node_key": "choice_sword_offhand",
+    "text": "Меч оставляет вторую руку свободной. Можно закрыться щитом, играть на парировании или взять короткий клинок для второй руки.",
     "system_messages": [],
     "actions": [
       {
+        "action_id": "take_shield",
+        "label": "Взять Щит",
+        "icon": "default",
+        "to_node": "bridge_resonance_award_2",
+        "math": {
+          "loot_queue": "push:shield",
+          "skills_queue": [
+            "push:skill_parrying",
+            "push:skill_shield_mastery"
+          ]
+        }
+      },
+      {
+        "action_id": "take_buckler",
+        "label": "Выбрать баклер для парирования",
+        "icon": "default",
+        "to_node": "bridge_resonance_award_2",
+        "math": {
+          "loot_queue": "push:buckler",
+          "skills_queue": [
+            "push:skill_parrying"
+          ]
+        }
+      },
+      {
+        "action_id": "take_offhand_dagger",
+        "label": "Взять кинжал во вторую руку",
+        "icon": "default",
+        "to_node": "bridge_resonance_award_2",
+        "math": {
+          "loot_queue": "push:dagger",
+          "skills_queue": [
+            "push:skill_dual_wield"
+          ]
+        }
+      }
+    ],
+    "node_type": "reward_choice",
+    "phase": "reward_selection",
+    "metadata": {},
+    "ui": {}
+  },
+  {
+    "node_key": "choice_simple_onehand",
+    "text": "Одноручное оружие оставляет выбор для свободной руки: принять удар на щит, держать короткую защиту или оставить руку легче ради устойчивого хвата.",
+    "system_messages": [],
+    "actions": [
+      {
+        "action_id": "take_shield_simple",
+        "label": "Взять Щит",
+        "icon": "default",
+        "to_node": "bridge_resonance_award_2",
+        "math": {
+          "loot_queue": "push:shield",
+          "skills_queue": [
+            "push:skill_parrying",
+            "push:skill_shield_mastery"
+          ]
+        }
+      },
+      {
+        "action_id": "take_buckler_simple",
+        "label": "Выбрать баклер для парирования",
+        "icon": "default",
+        "to_node": "bridge_resonance_award_2",
+        "math": {
+          "loot_queue": "push:buckler",
+          "skills_queue": [
+            "push:skill_parrying"
+          ]
+        }
+      },
+      {
         "action_id": "take_belt",
-        "label": "Пояс Силы",
+        "label": "Взять пояс с подсумками",
         "icon": "default",
         "to_node": "bridge_resonance_award_2",
         "math": {
           "loot_queue": "push:belt",
           "skills_queue": [
-            "push:skill_tactics"
+            "push:skill_one_handed"
+          ]
+        }
+      }
+    ],
+    "node_type": "reward_choice",
+    "phase": "reward_selection",
+    "metadata": {},
+    "ui": {}
+  },
+  {
+    "node_key": "choice_two_handed_support",
+    "text": "Обе руки заняты оружием. Рифт предлагает простую вещь, которая крепится к телу и не ломает широкий хват.",
+    "system_messages": [],
+    "actions": [
+      {
+        "action_id": "take_belt_twohand",
+        "label": "Взять пояс с подсумками",
+        "icon": "default",
+        "to_node": "bridge_resonance_award_2",
+        "math": {
+          "loot_queue": "push:belt",
+          "skills_queue": [
+            "push:skill_two_handed"
           ]
         }
       },
@@ -117,7 +226,7 @@
         "math": {
           "loot_queue": "push:amulet",
           "skills_queue": [
-            "push:skill_tactics"
+            "push:skill_two_handed"
           ]
         }
       }

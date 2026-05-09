@@ -11,6 +11,7 @@ LEATHERS_DB = {
         0: MaterialDTO(
             id="mat_torn_leather",
             name_ru="Лохмотья кожи",
+            name_prefix_ru="Латаный",
             tier_mult=0.8,
             slots=0,
             narrative_tags=["torn", "rotten"],

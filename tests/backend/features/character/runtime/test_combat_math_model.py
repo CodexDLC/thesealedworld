@@ -1,5 +1,6 @@
 import pytest
 
+from src.backend.core.calculators.stats_waterfall_calculator import StatsWaterfallCalculator
 from src.backend.features.character.runtime import CharacterCombatMathModelBuilder
 from src.backend.features.character.runtime.combat_math_model import COMBAT_MODIFIER_KEYS
 from src.backend.features.character.schemas.session import (
@@ -7,6 +8,14 @@ from src.backend.features.character.schemas.session import (
     CharacterSessionDocumentDTO,
     CharacterSessionItemsDTO,
 )
+from src.backend.features.items.resources.affixes.catalog import AFFIX_CATALOG
+from src.backend.features.items.resources.affixes.schemas import (
+    AffixCatalogEntryDTO,
+    AffixDescriptiveDTO,
+    AffixRollProfileDTO,
+    AffixTechnicalDTO,
+)
+from src.backend.features.items.resources.modifier_contracts import MODIFIER_CONTRACTS, ModifierContractDTO
 
 
 @pytest.mark.unit
@@ -105,6 +114,7 @@ def test_builder_maps_shield_block_chance_without_skill_scaling() -> None:
     assert raw["modifiers"]["block"]["base"] == 0.1
     assert raw["modifiers"]["block"]["source"] == {}
     assert raw["modifiers"]["armor"]["base"] == 0.0
+    assert raw["modifiers"]["shield_guard_power"]["base"] == 6.6
 
 
 @pytest.mark.unit
@@ -155,6 +165,42 @@ def test_builder_counts_two_hand_weapon_as_main_hand_damage_source() -> None:
     assert raw["modifiers"]["main_hand_damage_spread"]["base"] == 0.1
     assert raw["modifiers"]["main_hand_accuracy"]["base"] == 0.7
     assert raw["modifiers"]["main_hand_accuracy"]["source"]["item:katana-1"] == -0.12
+
+
+@pytest.mark.unit
+def test_builder_routes_weapon_penetration_to_equipped_hand() -> None:
+    raw = CharacterCombatMathModelBuilder().build_raw(
+        attributes={},
+        items={
+            "layout": {"equipment": {"main_hand": "stiletto-1", "off_hand": "stiletto-2"}},
+            "by_id": {
+                "stiletto-1": {
+                    "item_id": "stiletto-1",
+                    "item_type": "weapon",
+                    "slot": "main_hand",
+                    "mechanics": {
+                        "power": 3,
+                        "damage_spread": 0.07,
+                        "implicit_bonuses": {"weapon_penetration": 0.10},
+                    },
+                },
+                "stiletto-2": {
+                    "item_id": "stiletto-2",
+                    "item_type": "weapon",
+                    "slot": "off_hand",
+                    "mechanics": {
+                        "power": 2,
+                        "damage_spread": 0.07,
+                        "implicit_bonuses": {"weapon_penetration": 0.08},
+                    },
+                },
+            },
+        },
+        skills={},
+    )
+
+    assert raw["modifiers"]["main_hand_penetration"]["base"] == 0.10
+    assert raw["modifiers"]["off_hand_penetration"]["base"] == 0.08
 
 
 @pytest.mark.unit
@@ -234,3 +280,131 @@ def test_builder_applies_light_armor_dodge_cap_skill_boost() -> None:
     )
 
     assert raw["modifiers"]["dodge_cap"]["source"]["skill:skill_light_armor"] == pytest.approx(0.20)
+
+
+@pytest.mark.unit
+def test_builder_applies_rolled_affix_add_command_to_modifier_source() -> None:
+    raw = CharacterCombatMathModelBuilder().build_raw(
+        attributes={},
+        items={
+            "layout": {"equipment": {"ring": "ring-1"}},
+            "by_id": {
+                "ring-1": {
+                    "item_id": "ring-1",
+                    "item_type": "accessory",
+                    "slot": "ring",
+                    "mechanics": {
+                        "affixes": [{"affix_id": "crit_chance", "value": 0.05, "source": "single:combat_offense"}]
+                    },
+                }
+            },
+        },
+        skills={},
+    )
+
+    sources = raw["modifiers"]["crit_chance"]["source"]
+
+    assert sources["item:ring-1:affix:crit_chance"] == "+0.05"
+    value, formula = StatsWaterfallCalculator.evaluate_sources(sources, base_value=0.10)
+    assert value == pytest.approx(0.15)
+    assert formula == "(0.1 + 0.05)"
+
+
+@pytest.mark.unit
+def test_builder_applies_rolled_affix_add_command_to_attribute_source() -> None:
+    raw = CharacterCombatMathModelBuilder().build_raw(
+        attributes={"strength": 8},
+        items={
+            "layout": {"equipment": {"ring": "ring-1"}},
+            "by_id": {
+                "ring-1": {
+                    "item_id": "ring-1",
+                    "item_type": "accessory",
+                    "slot": "ring",
+                    "mechanics": {
+                        "affixes": [{"affix_id": "attribute_strength", "value": 2, "source": "single:attributes"}]
+                    },
+                }
+            },
+        },
+        skills={},
+    )
+
+    assert raw["attributes"]["strength"]["base"] == 8.0
+    assert raw["attributes"]["strength"]["source"]["item:ring-1:affix:attribute_strength"] == "+2"
+
+
+@pytest.mark.unit
+def test_builder_keeps_world_only_affixes_out_of_combat_raw() -> None:
+    raw = CharacterCombatMathModelBuilder().build_raw(
+        attributes={},
+        items={
+            "layout": {"equipment": {"belt": "belt-1"}},
+            "by_id": {
+                "belt-1": {
+                    "item_id": "belt-1",
+                    "item_type": "belt",
+                    "slot": "belt",
+                    "mechanics": {
+                        "affixes": [{"affix_id": "travel_speed", "value": 0.05, "source": "single:world_exploration"}]
+                    },
+                }
+            },
+        },
+        skills={},
+    )
+
+    assert "travel_speed" not in raw["modifiers"]
+    assert all("travel_speed" not in source for data in raw["modifiers"].values() for source in data["source"])
+
+
+@pytest.mark.unit
+def test_builder_accepts_affix_mult_command_from_modifier_contract(monkeypatch: pytest.MonkeyPatch) -> None:
+    contract = ModifierContractDTO(
+        id="crit_chance_mult_test",
+        target_field="crit_chance",
+        operation="mult",
+        value_kind="percent",
+    )
+    affix = AffixCatalogEntryDTO(
+        id="crit_chance_mult_test",
+        group="combat_offense",
+        technical=AffixTechnicalDTO(
+            modifier_id="crit_chance_mult_test",
+            base_value=0.10,
+            value_kind="multiplier_delta",
+            roll_profile=AffixRollProfileDTO(step_spread=0.0, rounding="decimal", round_digits=4),
+        ),
+        descriptive=AffixDescriptiveDTO(
+            display_name="Crit Mult Test",
+            ui_template="+{value}% Crit",
+            narrative_tags=("test",),
+        ),
+    )
+    monkeypatch.setitem(MODIFIER_CONTRACTS, "crit_chance_mult_test", contract)
+    monkeypatch.setitem(AFFIX_CATALOG, "crit_chance_mult_test", affix)
+
+    raw = CharacterCombatMathModelBuilder().build_raw(
+        attributes={},
+        items={
+            "layout": {"equipment": {"ring": "ring-1"}},
+            "by_id": {
+                "ring-1": {
+                    "item_id": "ring-1",
+                    "item_type": "accessory",
+                    "slot": "ring",
+                    "mechanics": {
+                        "affixes": [{"affix_id": "crit_chance_mult_test", "value": 0.10, "source": "single:test"}]
+                    },
+                }
+            },
+        },
+        skills={},
+    )
+
+    sources = raw["modifiers"]["crit_chance"]["source"]
+
+    assert sources["item:ring-1:affix:crit_chance_mult_test"] == "*1.1"
+    value, formula = StatsWaterfallCalculator.evaluate_sources(sources, base_value=0.20)
+    assert value == pytest.approx(0.22)
+    assert formula == "0.2 * 1.1"

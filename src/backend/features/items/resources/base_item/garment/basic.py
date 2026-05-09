@@ -11,7 +11,7 @@ GARMENT_DB = {
             "damage_spread": 0.0,
             "narrative_description": "Рабочий фартук с карманами для мелких инструментов и расходников.",
             "narrative_tags": ["apron", "garment", "workwear", "tools"],
-            "implicit_bonuses": {"inventory_cell_capacity": 1.0},
+            "implicit_bonuses": {},
         },
         "linen_shirt": {
             "id": "linen_shirt",
@@ -63,7 +63,7 @@ GARMENT_DB = {
             "damage_spread": 0.0,
             "narrative_description": "Плотные перчатки для грубой работы, хватов и защиты ладоней.",
             "narrative_tags": ["gloves", "garment", "workwear", "grip"],
-            "implicit_bonuses": {"parry_chance": 0.02},
+            "implicit_bonuses": {},
         },
         "winter_cloak": {
             "id": "winter_cloak",

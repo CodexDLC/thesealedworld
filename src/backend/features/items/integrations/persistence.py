@@ -72,5 +72,6 @@ class ItemPersistenceIntegration:
             bonuses=dict(instance.mechanics.get("bonuses") or {}),
             triggers=list(instance.mechanics.get("triggers") or []),
             narrative_tags=list(instance.generation.get("narrative_tags") or []),
+            mechanics=dict(instance.mechanics or {}),
             metadata=instance.metadata_,
         )

@@ -141,7 +141,7 @@ class CharacterCombatActorInputBuilder:
         if {"main_hand", "off_hand"}.issubset(weapon_slot_set):
             return "skill_dual_wield", "accuracy.style_dual_extra"
 
-        if "main_hand" in weapon_slot_set and "off_hand" not in combat_layout:
+        if "main_hand" in weapon_slot_set and "off_hand" not in weapon_slot_set:
             return "skill_one_handed", "accuracy.style_1h_flow"
 
         return None
@@ -153,13 +153,13 @@ class CharacterCombatActorInputBuilder:
         tags = CharacterCombatActorInputBuilder._tags(item, mechanics)
         item_type = str(item.get("item_type") or item.get("type") or mechanics.get("item_type") or "")
 
-        if slot == "off_hand" and (item_type == "shield" or "shield" in tags or "buckler" in tags):
-            return "skill_shield_mastery"
-
         for key in ("skill_key", "weapon_skill_key", "armor_skill_key", "related_skill"):
             value = item.get(key) or mechanics.get(key) or metadata.get(key)
             if value:
                 return str(value)
+
+        if slot == "off_hand" and (item_type == "shield" or ("shield" in tags and "buckler" not in tags)):
+            return "skill_shield_mastery"
 
         return None
 

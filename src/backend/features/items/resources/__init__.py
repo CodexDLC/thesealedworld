@@ -2,7 +2,6 @@ import random
 from collections.abc import Mapping
 from typing import Any
 
-from .affix_config import BUNDLES_DB
 from .bases import BASES_DB
 
 # --- ИМПОРТЫ ДАННЫХ (СКЛАДЫ) ---
@@ -14,16 +13,6 @@ from .raw_resources import RAW_RESOURCES_DB
 # 1. ГЛОБАЛЬНЫЙ РЕЕСТР (КЭШ)
 # ==========================================
 ITEM_REGISTRY: dict[str, dict[str, Any]] = {}
-_INGREDIENT_TO_BUNDLE_MAP: dict[str, Mapping[str, Any]] = {}
-
-
-def _build_reverse_maps():
-    """Строит обратные индексы для быстрого поиска."""
-    for bundle in BUNDLES_DB.values():
-        if ingredient_id := bundle.get("ingredient_id"):
-            if ingredient_id in _INGREDIENT_TO_BUNDLE_MAP:
-                print(f"[WARNING] Duplicate ingredient_id in bundles: {ingredient_id}")
-            _INGREDIENT_TO_BUNDLE_MAP[ingredient_id] = bundle
 
 
 def _register_all_items():
@@ -48,9 +37,6 @@ def _register_all_items():
     for cat, base_group in BASES_DB.items():
         for _item_id, base_data in base_group.items():
             _add_to_registry(base_data, meta_type="base", category=cat)
-
-    # 4. Строим обратные карты
-    _build_reverse_maps()
 
 
 def _add_to_registry(data: Any, meta_type: str, category: str):
@@ -180,20 +166,7 @@ def is_supply(item_id: str) -> bool:
     return item is not None and item.get("_meta_type") == "resource" and item.get("_meta_category") == "supplies"
 
 
-# --- D. МАГИЯ И СУФФИКСЫ ---
-
-
-def get_bundle_by_id(bundle_id: str) -> Mapping[str, Any] | None:
-    """Возвращает данные Магического Бандла по его ID."""
-    return BUNDLES_DB.get(bundle_id)
-
-
-def get_bundle_by_ingredient(ingredient_id: str) -> Mapping[str, Any] | None:
-    """Обратный поиск O(1) с использованием предварительно созданного индекса."""
-    return _INGREDIENT_TO_BUNDLE_MAP.get(ingredient_id)
-
-
-# --- E. COMBAT HELPERS ---
+# --- D. COMBAT HELPERS ---
 
 
 def get_weapon_trigger(base_id: str) -> str | None:

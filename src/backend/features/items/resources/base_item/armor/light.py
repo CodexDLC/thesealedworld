@@ -55,7 +55,6 @@ LIGHT_ARMOR_DB = {
         narrative_tags=["leather_armor", "light", "mobile", "scout"],
         implicit_bonuses={
             "evasion": 0.10,
-            "counter_attack_chance": 0.05,
         },
     ),
     "sandals": BaseItemDTO(

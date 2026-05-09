@@ -19,7 +19,7 @@ MACING_DB = {
             "main_hand_penetration": 0.05,
             "physical_crit_chance": 0.03,
         },
-        triggers=["crit.heavy_strike_on_crit"],
+        triggers=["crit.weapon_heavy_crit"],
     ),
     "battle_axe": BaseItemDTO(
         id="battle_axe",
@@ -39,7 +39,7 @@ MACING_DB = {
             "main_hand_penetration": 0.12,
             "physical_crit_chance": 0.05,
         },
-        triggers=["crit.heavy_strike_on_crit"],
+        triggers=["crit.weapon_heavy_crit"],
     ),
     "mace": BaseItemDTO(
         id="mace",
@@ -59,7 +59,7 @@ MACING_DB = {
             "main_hand_penetration": 0.10,
             "physical_crit_chance": 0.03,
         },
-        triggers=["crit.stun_on_crit"],
+        triggers=["crit.weapon_impact_stun_crit"],
     ),
     "warhammer": BaseItemDTO(
         id="warhammer",
@@ -81,7 +81,27 @@ MACING_DB = {
             "parry_chance": 0.03,
             "evasion_penalty": -0.10,
         },
-        triggers=["crit.stun_on_crit"],
+        triggers=["crit.weapon_impact_stun_crit"],
+    ),
+    "flail": BaseItemDTO(
+        id="flail",
+        name_ru="Кистень",
+        narrative_description="Цепное ударное оружие, которое обходит жесткую линию щита и наказывает статичную защиту.",
+        slot="main_hand",
+        type="weapon",
+        damage_type="physical",
+        related_skill="skill_macing",
+        allowed_materials=["ingots"],
+        base_power=6,
+        damage_spread=0.30,
+        base_durability=50,
+        narrative_tags=["flail", "macing", "chain", "shield_bypass"],
+        implicit_bonuses={
+            "accuracy_penalty": 0.18,
+            "main_hand_penetration": 0.08,
+            "physical_crit_chance": 0.06,
+        },
+        triggers=["crit.weapon_shieldbreaker_crit"],
     ),
 }
 

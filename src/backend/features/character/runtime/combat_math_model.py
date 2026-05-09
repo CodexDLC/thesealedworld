@@ -4,6 +4,8 @@ from typing import Any
 
 from src.backend.features.character.dto.modifiers import CombatModifiersDTO
 from src.backend.features.character.schemas.session import CharacterSessionAttributesDTO
+from src.backend.features.items.resources.affixes.catalog import AFFIX_CATALOG
+from src.backend.features.items.resources.modifier_contracts import MODIFIER_CONTRACTS, compile_modifier_command
 
 RawStatBlock = dict[str, dict[str, Any]]
 RawCombatMathModel = dict[str, Any]
@@ -49,9 +51,10 @@ class CharacterCombatMathModelBuilder:
     ) -> RawCombatMathModel:
         equipped = self._equipped_items(items or {})
         attributes_data = self._dump(attributes)
+        raw_attributes = self._build_attributes(attributes_data)
         return {
-            "attributes": self._build_attributes(attributes_data),
-            "modifiers": self._build_modifiers(equipped, attributes_data, skills or {}),
+            "attributes": raw_attributes,
+            "modifiers": self._build_modifiers(equipped, attributes_data, skills or {}, raw_attributes),
             "tags": ["player"],
         }
 
@@ -64,7 +67,11 @@ class CharacterCombatMathModelBuilder:
         }
 
     def _build_modifiers(
-        self, equipment: list[dict[str, Any]], attributes: dict[str, Any], skills: dict[str, Any]
+        self,
+        equipment: list[dict[str, Any]],
+        attributes: dict[str, Any],
+        skills: dict[str, Any],
+        raw_attributes: RawStatBlock,
     ) -> RawStatBlock:
         modifiers = self._empty_modifiers()
         has_main_hand_weapon = False
@@ -119,6 +126,7 @@ class CharacterCombatMathModelBuilder:
                 )
             for bonus_key, value in (mechanics.get("bonuses") or {}).items():
                 self._add_modifier(modifiers, str(bonus_key), source, value)
+            self._apply_affix_sources(raw_attributes, modifiers, mechanics, source)
 
         if not has_main_hand_weapon:
             self._apply_unarmed_base(modifiers, attributes)
@@ -126,6 +134,48 @@ class CharacterCombatMathModelBuilder:
         self._apply_armor_dodge_cap_rules(modifiers, chest_item, skills)
 
         return modifiers
+
+    @staticmethod
+    def _apply_affix_sources(
+        raw_attributes: RawStatBlock,
+        modifiers: RawStatBlock,
+        mechanics: dict[str, Any],
+        item_source: str,
+    ) -> None:
+        affixes = mechanics.get("affixes") or []
+        if not isinstance(affixes, list):
+            return
+        for raw_affix in affixes:
+            if not isinstance(raw_affix, dict):
+                continue
+            affix_id = str(raw_affix.get("affix_id") or "")
+            if not affix_id:
+                continue
+            entry = AFFIX_CATALOG.get(affix_id)
+            if entry is None:
+                continue
+            contract = MODIFIER_CONTRACTS.get(entry.technical.modifier_id)
+            if contract is None:
+                continue
+            value = CharacterCombatMathModelBuilder._float_value(raw_affix.get("value"))
+            if value is None:
+                continue
+            command = compile_modifier_command(contract, value)
+            source_id = f"{item_source}:affix:{affix_id}"
+            target = MODIFIER_ALIASES.get(contract.target_field, contract.target_field)
+
+            if contract.default_layer == "attributes" or target in ATTRIBUTE_KEYS:
+                if target not in ATTRIBUTE_KEYS:
+                    continue
+                CharacterCombatMathModelBuilder._set_attribute_source_command(
+                    raw_attributes, target, source_id, command
+                )
+                continue
+
+            if contract.default_layer == "world" and target not in COMBAT_MODIFIER_KEYS:
+                continue
+
+            CharacterCombatMathModelBuilder._set_source_command(modifiers, target, source_id, command)
 
     @staticmethod
     def _apply_armor_dodge_cap_rules(
@@ -201,6 +251,8 @@ class CharacterCombatMathModelBuilder:
         if slot == "off_hand":
             if not self._is_shield(item_type, tags):
                 self._set_base_modifier(modifiers, "off_hand_damage_base", value)
+            elif self._is_guard_shield(item_type, tags):
+                self._set_base_modifier(modifiers, "shield_guard_power", value)
             return
         if slot.endswith("_armor"):
             self._set_base_modifier(modifiers, "armor", value)
@@ -251,6 +303,10 @@ class CharacterCombatMathModelBuilder:
         return item_type == "shield" or "shield" in tags
 
     @staticmethod
+    def _is_guard_shield(item_type: str, tags: list[str]) -> bool:
+        return CharacterCombatMathModelBuilder._is_shield(item_type, tags) and "buckler" not in tags
+
+    @staticmethod
     def _add_modifier(modifiers: RawStatBlock, key: str, source: str, value: Any) -> None:
         key = MODIFIER_ALIASES.get(key, key)
         if key not in COMBAT_MODIFIER_KEYS:
@@ -268,6 +324,13 @@ class CharacterCombatMathModelBuilder:
             return
         modifiers.setdefault(key, {"base": 0.0, "source": {}, "temp": {}})
         modifiers[key]["source"][source] = command
+
+    @staticmethod
+    def _set_attribute_source_command(attributes: RawStatBlock, key: str, source: str, command: str) -> None:
+        if key not in ATTRIBUTE_KEYS:
+            return
+        attributes.setdefault(key, {"base": 0.0, "source": {}, "temp": {}})
+        attributes[key]["source"][source] = command
 
     @staticmethod
     def _add_item_base_modifier(
@@ -318,6 +381,11 @@ class CharacterCombatMathModelBuilder:
             if slot == "off_hand" and not CharacterCombatMathModelBuilder._is_shield(item_type, tags):
                 return "off_hand_crit_chance"
             return "crit_chance"
+        if key in {"weapon_penetration", "main_hand_penetration", "off_hand_penetration"} and item_type == "weapon":
+            if slot == "main_hand":
+                return "main_hand_penetration"
+            if slot == "off_hand" and not CharacterCombatMathModelBuilder._is_shield(item_type, tags):
+                return "off_hand_penetration"
         return MODIFIER_ALIASES.get(key, key)
 
     @staticmethod

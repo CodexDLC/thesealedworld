@@ -23,8 +23,10 @@ class ItemOriginRefDTO(BaseModel):
 class ItemGenerationRequestDTO(BaseModel):
     base_id: str
     rarity_tier: int = 0
+    item_grade: str = ""
     material_id: str | None = None
     affix_bundle_ids: list[str] = Field(default_factory=list)
+    source_context: dict[str, object] = Field(default_factory=dict)
     source: str | None = None
     char_id: int | None = None
     request_ai_text: bool = False
@@ -60,4 +62,5 @@ class GeneratedItemDTO(BaseModel):
     bonuses: dict[str, float] = Field(default_factory=dict)
     triggers: list[str] = Field(default_factory=list)
     narrative_tags: list[str] = Field(default_factory=list)
+    mechanics: dict[str, object] = Field(default_factory=dict)
     metadata: dict[str, object] = Field(default_factory=dict)

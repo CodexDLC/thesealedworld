@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
 from src.backend.features.items.dto.instance import GeneratedItemDTO, ItemGenerationRequestDTO, ItemPlacementRefDTO
+from src.backend.features.items.resources.item_grade import GRADE_BY_RARITY_TIER
 from src.backend.features.items.runtime import ItemFactory
 from src.backend.features.items.services.catalog_service import ItemCatalogService
 from src.backend.features.items.services.text_service import ItemTextService
@@ -77,7 +78,7 @@ class ItemGenerationService:
         item = await self.persistence.get_generated_item(item_id)
         if item is None:
             return None
-        if not self._should_request_ai_text(request) or item.rarity_tier <= 0:
+        if not self._should_request_ai_text(request):
             return item
         enriched = await self.text_service.enrich(item, request)
         if enriched.metadata.get("ai_text_status") == "generated":
@@ -96,4 +97,5 @@ class ItemGenerationService:
         )
 
     def _should_request_ai_text(self, request: ItemGenerationRequestDTO) -> bool:
-        return request.request_ai_text and request.rarity_tier > 0
+        item_grade = request.item_grade or GRADE_BY_RARITY_TIER.get(request.rarity_tier, "common")
+        return request.request_ai_text and item_grade != "common"

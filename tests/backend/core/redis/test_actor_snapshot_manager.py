@@ -1,5 +1,5 @@
 from unittest.mock import AsyncMock, MagicMock
-
+import uuid
 import pytest
 
 from src.backend.infrastructure.actor_commitments import ActorCommitmentManager
@@ -18,12 +18,12 @@ class TestActorCommitmentManager:
             "actor-monster-m1": {"meta": {"actor_type": "monster"}, "combat": {"hp": 10}, "source": {}},
         }
 
-        saved = await manager.save_snapshots("combat-1", snapshots, ttl=123)
+        saved = await manager.save_snapshots(snapshots, ttl=123)
 
         assert len(saved) == 2
-        assert fake_redis_client.ttls["combat:combat-1:actor:actor-player-1"] == 123
+        assert fake_redis_client.ttls["combat:snapshot:actor-player-1"] == 123
 
-        docs = await manager.get_snapshots_batch("combat-1", list(saved.values()))
+        docs = await manager.get_snapshots_batch(list(saved.values()))
         player_doc = docs[saved["actor-player-1"]]
         assert player_doc["actor_id"] == "actor-player-1"
         assert player_doc["meta"] == {"actor_type": "player"}
@@ -32,11 +32,12 @@ class TestActorCommitmentManager:
         assert player_doc["inventory"] is None
 
     async def test_save_commitments_omits_partial_pipeline_failures(self, manager, fake_redis_client):
-        failed_key = "combat:combat-1:actor:actor-monster-m2"
+        # We need to know the actual key to fail it.
+        # Since it's flat now, it's combat:snapshot:actor-monster-m2
+        failed_key = "combat:snapshot:actor-monster-m2"
         fake_redis_client.fail_set_keys.add(failed_key)
 
         saved = await manager.save_snapshots(
-            "combat-1",
             {
                 "actor-player-1": {"meta": {"actor_type": "player"}, "source": {}},
                 "actor-monster-m2": {"meta": {"actor_type": "monster"}, "source": {}},
@@ -47,10 +48,10 @@ class TestActorCommitmentManager:
 
     async def test_get_sections_batch_fetches_requested_section(self, manager, fake_redis_client):
         # Manually seed fake store
-        fake_redis_client.store["combat:c1:actor:p1"] = {"meta": {}, "combat": {"hp": 100}, "source": {}}
-        fake_redis_client.store["combat:c1:actor:m1"] = {"meta": {}, "combat": {"hp": 50}, "source": {}}
+        fake_redis_client.store["combat:snapshot:p1"] = {"meta": {}, "combat": {"hp": 100}, "source": {}}
+        fake_redis_client.store["combat:snapshot:m1"] = {"meta": {}, "combat": {"hp": 50}, "source": {}}
 
-        sections = await manager.get_sections_batch("c1", ["p1", "m1"], "combat")
+        sections = await manager.get_sections_batch(["p1", "m1"], "combat")
 
         assert sections["p1"] == {"hp": 100}
         assert sections["m1"] == {"hp": 50}
@@ -59,23 +60,23 @@ class TestActorCommitmentManager:
         actor_id = "actor-player-1"
         data = {"meta": {"actor_type": "player"}, "status": {"hp": 100}}
 
-        key = await manager.save_snapshot("expl-1", actor_id, data, ttl=3600)
+        key = await manager.save_snapshot(actor_id, data, ttl=3600)
 
         assert key == actor_id
-        redis_key = "combat:expl-1:actor:actor-player-1"
+        redis_key = "combat:snapshot:actor-player-1"
         assert fake_redis_client.store[redis_key]["status"] == {"hp": 100}
         assert fake_redis_client.store[redis_key]["combat"] is None
         assert fake_redis_client.ttls[redis_key] == 3600
 
     async def test_get_commitment(self, manager, fake_redis_client):
-        key = "combat:c1:actor:test"
+        key = "combat:snapshot:test"
         fake_redis_client.store[key] = {"meta": {"id": 1}}
 
-        result = await manager.get_snapshot("c1", "test")
+        result = await manager.get_snapshot("test")
         assert result == {"meta": {"id": 1}}
 
     async def test_section_getters(self, manager, fake_redis_client):
-        key = "combat:c1:actor:test"
+        key = "combat:snapshot:test"
         fake_redis_client.store[key] = {
             "meta": {"m": 1},
             "runtime": {"r": 1},
@@ -85,28 +86,28 @@ class TestActorCommitmentManager:
             "source": {"src": 1}
         }
 
-        assert await manager.get_meta("c1", "test") == {"m": 1}
-        assert await manager.get_runtime("c1", "test") == {"r": 1}
-        assert await manager.get_combat("c1", "test") == {"c": 1}
-        assert await manager.get_inventory("c1", "test") == {"i": 1}
-        assert await manager.get_status("c1", "test") == {"s": 1}
-        assert await manager.get_source("c1", "test") == {"src": 1}
+        assert await manager.get_meta("test") == {"m": 1}
+        assert await manager.get_runtime("test") == {"r": 1}
+        assert await manager.get_combat("test") == {"c": 1}
+        assert await manager.get_inventory("test") == {"i": 1}
+        assert await manager.get_status("test") == {"s": 1}
+        assert await manager.get_source("test") == {"src": 1}
 
     async def test_patch_section(self, manager, fake_redis_client):
-        key = "combat:c1:actor:test"
+        key = "combat:snapshot:test"
         fake_redis_client.store[key] = {"meta": {}}
 
-        await manager.patch_section("c1", "test", "combat", {"hp": 50})
+        await manager.patch_section("test", "combat", {"hp": 50})
         assert fake_redis_client.store[key]["combat"] == {"hp": 50}
 
     async def test_touch_and_delete(self, manager, fake_redis_client):
-        key = "combat:c1:actor:test"
+        key = "combat:snapshot:test"
         fake_redis_client.store[key] = {"meta": {}}
 
-        await manager.touch("c1", "test", 500)
+        await manager.touch("test", 500)
         assert fake_redis_client.ttls[key] == 500
 
-        await manager.delete_snapshot("c1", "test")
+        await manager.delete_snapshot("test")
         assert key not in fake_redis_client.store
 
     async def test_redis_client_branch(self, manager):
@@ -130,8 +131,6 @@ class TestActorCommitmentManager:
 
     async def test_save_commitments_with_falsy_result(self, manager, fake_redis_client):
         # Force a falsy result (not Exception, but e.g. None or False)
-        # In our FakePipeline.execute, we return True for success.
-        # Let's mock execute to return [False, True]
         mock_pipe = MagicMock()
         mock_pipe.execute = AsyncMock(return_value=[False, True])
         mock_pipe.__aenter__ = AsyncMock(return_value=mock_pipe)
@@ -143,27 +142,28 @@ class TestActorCommitmentManager:
 
         with pytest.MonkeyPatch().context() as m:
             m.setattr(manager, "_redis_client", lambda: mocker_local)
-            saved = await manager.save_snapshots("c1", {"a": {"meta": {}}})
+            saved = await manager.save_snapshots({"a": {"meta": {}}})
             assert saved == {} # because set_result was False
 
     async def test_pipeline_exception_handling(self, manager, mocker):
         # Mock _redis_client to raise an exception when pipeline() is called
         mocker.patch.object(manager, "_redis_client", side_effect=Exception("pipeline fail"))
 
-        assert await manager.save_snapshots("c1", {"a": {}}) == {}
-        assert await manager.get_snapshots_batch("c1", ["k"]) == {"k": None}
-        assert await manager.get_sections_batch("c1", ["k"], "meta") == {"k": None}
+        assert await manager.save_snapshots({"a": {}}) == {}
+        assert await manager.get_snapshots_batch(["k"]) == {"k": None}
+        assert await manager.get_sections_batch(["k"], "meta") == {"k": None}
 
     async def test_empty_inputs(self, manager):
-        assert await manager.save_snapshots("c1", {}) == {}
-        assert await manager.get_snapshots_batch("c1", []) == {}
-        assert await manager.get_sections_batch("c1", [], "meta") == {}
+        assert await manager.save_snapshots({}) == {}
+        assert await manager.get_snapshots_batch([]) == {}
+        assert await manager.get_sections_batch([], "meta") == {}
 
     def test_actor_refs_are_standardized(self, manager):
         assert manager.source_ref("player", 7) == "player:7"
         assert manager.source_ref("monster", "m1") == "monster:m1"
-        assert manager.actor_uuid("combat-1", "player", 7) == manager.actor_uuid("combat-1", "player", 7)
-        assert manager.actor_uuid("combat-1", "player", 7) != manager.actor_uuid("combat-2", "player", 7)
+        assert manager.actor_uuid("player", 7, "combat-1") == manager.actor_uuid("player", 7, "combat-1")
+        assert manager.actor_uuid("player", 7, "combat-1") != manager.actor_uuid("player", 7, "combat-2")
+        assert manager.actor_uuid("player", 7) != manager.actor_uuid("player", 7)
 
     def test_first_edge_cases(self, manager):
         assert manager._first([]) is None

@@ -45,16 +45,14 @@ class CharacterCombatCommitmentIntegration:
     async def prepare_commitments(
         self,
         *,
-        scope_id: str,
         player_ids: list[int],
         monster_ids: list[str],
         ttl: int,
     ) -> CharacterCombatCommitmentResult:
-        player_snapshots, player_refs, failed_players = await self._player_commitments(scope_id, player_ids)
-        monster_snapshots, monster_refs, failed_monsters = await self._monster_commitments(scope_id, monster_ids)
+        player_snapshots, player_refs, failed_players = await self._player_commitments(player_ids)
+        monster_snapshots, monster_refs, failed_monsters = await self._monster_commitments(monster_ids)
         refs_by_actor_id = {**player_refs, **monster_refs}
         saved = await self.commitment_manager.save_snapshots(
-            scope_id,
             {**player_snapshots, **monster_snapshots},
             ttl=ttl,
         )
@@ -64,8 +62,12 @@ class CharacterCombatCommitmentIntegration:
             *[
                 char_id
                 for char_id in player_ids
-                if self.commitment_manager.actor_uuid(scope_id, "player", char_id) not in saved
-                and char_id not in failed_players
+                if char_id not in failed_players
+                and not any(
+                    aid in saved
+                    for aid, ref in player_refs.items()
+                    if ref == self.commitment_manager.source_ref("player", char_id)
+                )
             ],
         ]
         failed_monsters = [
@@ -73,8 +75,12 @@ class CharacterCombatCommitmentIntegration:
             *[
                 monster_id
                 for monster_id in monster_ids
-                if self.commitment_manager.actor_uuid(scope_id, "monster", monster_id) not in saved
-                and monster_id not in failed_monsters
+                if monster_id not in failed_monsters
+                and not any(
+                    aid in saved
+                    for aid, ref in monster_refs.items()
+                    if ref == self.commitment_manager.source_ref("monster", monster_id)
+                )
             ],
         ]
 
@@ -87,7 +93,7 @@ class CharacterCombatCommitmentIntegration:
         )
 
     async def _player_commitments(
-        self, scope_id: str, player_ids: list[int]
+        self, player_ids: list[int]
     ) -> tuple[dict[str, dict[str, Any]], dict[str, str], list[int]]:
         if not player_ids:
             return {}, {}, []
@@ -110,7 +116,7 @@ class CharacterCombatCommitmentIntegration:
                 failed.append(char_id)
                 continue
             active_character = self._with_equipped_items(active_character, equipped_by_char.get(char_id, []))
-            actor_id = self.commitment_manager.actor_uuid(scope_id, "player", char_id)
+            actor_id = self.commitment_manager.actor_uuid("player", char_id)
             snapshots[actor_id] = self.player_builder.build_snapshot(active_character)
             refs[actor_id] = self.commitment_manager.source_ref("player", char_id)
         return snapshots, refs, failed
@@ -150,7 +156,6 @@ class CharacterCombatCommitmentIntegration:
 
     async def _monster_commitments(
         self,
-        scope_id: str,
         monster_ids: list[str],
     ) -> tuple[dict[str, dict[str, Any]], dict[str, str], list[str]]:
         if not monster_ids:
@@ -164,11 +169,11 @@ class CharacterCombatCommitmentIntegration:
         refs: dict[str, str] = {}
         failed: list[str] = []
         for monster_id in monster_ids:
-            monster = monsters_by_id.get(str(monster_id))
+            monster = monsters_by_id.get(monster_id)
             if monster is None:
-                failed.append(str(monster_id))
+                failed.append(monster_id)
                 continue
-            actor_id = self.commitment_manager.actor_uuid(scope_id, "monster", monster_id)
+            actor_id = self.commitment_manager.actor_uuid("monster", monster_id)
             snapshots[actor_id] = self.monster_builder.build_snapshot(monster)
             refs[actor_id] = self.commitment_manager.source_ref("monster", monster_id)
         return snapshots, refs, failed

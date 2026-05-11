@@ -89,10 +89,9 @@ class MonsterGroupService:
         if not assembly.members:
             raise ValueError(f"No generated monsters available for clan={clan.id}")
 
-        group_id = str(scope_id or f"monster_group:{uuid.uuid4()}")
+        group_id = scope_id or f"monster_group:{uuid.uuid4()}"
         sources = [self._materialize_actor_source(member) for member in assembly.members]
         actor_commitments = await self.actor_commitments.save_monster_sources(
-            scope_id=group_id,
             sources=sources,
             ttl=ttl,
         )

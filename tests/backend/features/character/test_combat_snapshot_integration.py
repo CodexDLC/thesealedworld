@@ -1,5 +1,5 @@
 from contextlib import asynccontextmanager
-
+from typing import Any, Literal
 import pytest
 
 import src.backend.features.character.integrations.combat_commitment_integration as commitment_module
@@ -42,12 +42,14 @@ class FakeCommitmentManager:
         return f"{actor_type}:{source_id}"
 
     @staticmethod
-    def actor_uuid(scope_id, actor_type, source_id):
-        return f"actor:{scope_id}:{actor_type}:{source_id}"
+    def actor_uuid(actor_type: Literal["player", "monster"], source_id: int | str, scope_id: str | None = None) -> str:
+        if scope_id:
+            return f"actor:{scope_id}:{actor_type}:{source_id}"
+        return f"actor:snapshot:{actor_type}:{source_id}"
 
-    async def save_snapshots(self, scope_id, snapshots, ttl=300):
-        del scope_id, ttl
-        self.saved = snapshots
+    async def save_snapshots(self, snapshots: dict[str, dict[str, Any]], ttl: int = 300):
+        del ttl
+        self.saved.update(snapshots)
         return {actor_id: actor_id for actor_id in snapshots}
 
 
@@ -100,13 +102,12 @@ async def test_character_combat_commitment_integration_builds_player_commitments
         commitment_manager=commitment_manager,
         session_factory=fake_session_factory,
     ).prepare_commitments(
-        scope_id="combat-1",
         player_ids=[7],
         monster_ids=[],
         ttl=600,
     )
 
-    actor_id = commitment_manager.actor_uuid("combat-1", "player", 7)
+    actor_id = commitment_manager.actor_uuid("player", 7)
     commitment = commitment_manager.saved[actor_id]
 
     assert result.commitments == {"player:7": actor_id}
@@ -127,13 +128,13 @@ async def test_character_combat_commitment_materializes_equipped_items_from_item
         commitment_manager=commitment_manager,
         session_factory=fake_session_factory,
     ).prepare_commitments(
-        scope_id="combat-1",
         player_ids=[7],
         monster_ids=[],
         ttl=600,
     )
 
-    commitment = commitment_manager.saved[commitment_manager.actor_uuid("combat-1", "player", 7)]
+    actor_id = commitment_manager.actor_uuid("player", 7)
+    commitment = commitment_manager.saved[actor_id]
 
     assert commitment["combat"]["math_model"]["modifiers"]["main_hand_damage_base"]["base"] == 9.0
     assert commitment["combat"]["loadout"]["equipment_layout"] == {"two_hand": "katana-1"}

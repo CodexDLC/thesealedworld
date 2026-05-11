@@ -50,7 +50,7 @@ class CombatCreationOrchestrator:
             raise CombatLifecycleError("combat session requires at least one player commitment")
 
         step_started_at = perf_counter()
-        commitments = self._provided_commitments(combat_id, participants, request)
+        commitments = self._provided_commitments(participants, request)
         logger.info(
             "CombatCreationTiming | step=provided_commitments combat_id={} commitment_count={} ms={}",
             combat_id,
@@ -83,7 +83,7 @@ class CombatCreationOrchestrator:
                 _elapsed_ms(step_started_at),
             )
         step_started_at = perf_counter()
-        snapshots = await self.integrator.load_actor_commitments(combat_id, commitments)
+        snapshots = await self.integrator.load_actor_commitments(commitments)
         logger.info(
             "CombatCreationTiming | step=load_actor_commitments combat_id={} commitment_count={} snapshot_count={} "
             "ms={}",
@@ -148,7 +148,6 @@ class CombatCreationOrchestrator:
 
     def _provided_commitments(
         self,
-        combat_id: str,
         participants: dict[str, list[int | str]],
         request: dict[str, Any],
     ) -> dict[str, str]:

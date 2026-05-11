@@ -1,7 +1,6 @@
 from __future__ import annotations
-
 import uuid
-
+from typing import Any
 from src.backend.features.monsters.dto.generation import GeneratedClan, GeneratedMonster, MonsterLocationContext
 from src.backend.features.monsters.services.monster_group_service import MonsterGroupService
 
@@ -54,13 +53,26 @@ class FakeActorCommitments:
     def __init__(self) -> None:
         self.saved: dict[str, dict] = {}
 
-    async def save_monster_sources(self, *, scope_id: str, sources: list[dict], ttl: int) -> dict[str, str]:
+    async def save_monster_sources(
+        self,
+        *,
+        sources: list[dict[str, Any]],
+        ttl: int,
+        scope_id: str | None = None,
+    ) -> dict[str, str]:
         del ttl
-        self.saved = {f"actor:{scope_id}:monster:{source['source']['monster_id']}": source for source in sources}
-        return {
-            f"monster:{source['source']['monster_id']}": actor_id
-            for actor_id, source in self.saved.items()
-        }
+        prefix = f"actor:{scope_id}" if scope_id else "actor:snapshot"
+
+        # In real code we use actor_uuid, but here we just mock the result
+        self.saved = {}
+        results = {}
+        for source in sources:
+            monster_id = source['source']['monster_id']
+            actor_id = f"{prefix}:monster:{monster_id}"
+            self.saved[actor_id] = source
+            results[f"monster:{monster_id}"] = actor_id
+
+        return results
 
 
 class FakeGroupCache:
@@ -84,6 +96,7 @@ async def test_prepare_monster_group_creates_clan_and_actor_commitments() -> Non
         group_cache=cache,  # type: ignore[arg-type]
     )
 
+    # scope_id passed here becomes group_id and is used in save_monster_sources as scope_id
     result = await service.prepare_monster_group("45_45", budget=40, scope_id="encounter:test", ttl=120)
 
     assert storage.created is True

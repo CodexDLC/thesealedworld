@@ -97,7 +97,6 @@ async def on_combat_commitments_requested(payload: dict[str, Any]) -> None:
         return
 
     try:
-        scope_id = str(payload.get("scope_id") or payload["session_id"])
         player_ids = [int(value) for value in _parse_json_list(payload.get("player_ids", []))]
         monster_ids = [str(value) for value in _parse_json_list(payload.get("monster_ids", []))]
         ttl = int(payload.get("ttl") or 300)
@@ -105,7 +104,6 @@ async def on_combat_commitments_requested(payload: dict[str, Any]) -> None:
             character_sessions=_app.state.character_sessions,
             commitment_manager=_app.state.actor_commitments,
         ).prepare_commitments(
-            scope_id=scope_id,
             player_ids=player_ids,
             monster_ids=monster_ids,
             ttl=ttl,

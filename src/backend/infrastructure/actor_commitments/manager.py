@@ -1,3 +1,4 @@
+import uuid
 from typing import Any, Literal
 from uuid import NAMESPACE_URL, uuid5
 
@@ -24,7 +25,7 @@ def resolve_sections(include: set[str] | None, exclude: set[str]) -> set[ActorCo
         selected &= include
     selected -= exclude
     selected |= ALWAYS_SECTIONS
-    return {section for section in selected if section in ALL_SECTIONS}
+    return {section for section in selected if section in ALL_SECTIONS}  # type: ignore
 
 
 class ActorCommitmentManager:
@@ -45,11 +46,13 @@ class ActorCommitmentManager:
         return f"{actor_type}:{source_id}"
 
     @staticmethod
-    def actor_uuid(scope_id: str, actor_type: Literal["player", "monster"], source_id: int | str) -> str:
-        return str(uuid5(NAMESPACE_URL, f"combat-actor:{scope_id}:{actor_type}:{source_id}"))
+    def actor_uuid(actor_type: Literal["player", "monster"], source_id: int | str, scope_id: str | None = None) -> str:
+        if scope_id:
+            return str(uuid5(NAMESPACE_URL, f"combat-actor:{scope_id}:{actor_type}:{source_id}"))
+        return str(uuid.uuid4())
 
-    def build_key(self, scope_id: str, actor_id: str) -> str:
-        return self.key.build(scope_id=scope_id, actor_id=actor_id)
+    def build_key(self, actor_id: str) -> str:
+        return self.key.build(actor_id=actor_id)
 
     def _redis_client(self) -> Any:
         if hasattr(self.redis, "redis_client"):
@@ -58,19 +61,17 @@ class ActorCommitmentManager:
 
     async def save_snapshot(
         self,
-        scope_id: str,
         actor_id: str,
         data: dict[str, Any],
         ttl: int = DEFAULT_TTL_SECONDS,
     ) -> str:
-        actor_key = self.build_key(scope_id, actor_id)
+        actor_key = self.build_key(actor_id)
         await self.redis.json_module.set(actor_key, "$", self._normalize_commitment(data, actor_id=actor_id))
         await self.redis.string.expire(actor_key, ttl)
         return actor_id
 
     async def save_snapshots(
         self,
-        scope_id: str,
         snapshots: dict[str, dict[str, Any]],
         ttl: int = DEFAULT_TTL_SECONDS,
     ) -> dict[str, str]:
@@ -83,7 +84,7 @@ class ActorCommitmentManager:
             return {}
 
         ordered_ids = list(snapshots.keys())
-        keys_by_id = {actor_id: self.build_key(scope_id, actor_id) for actor_id in ordered_ids}
+        keys_by_id = {actor_id: self.build_key(actor_id) for actor_id in ordered_ids}
 
         try:
             async with self._redis_client().pipeline(transaction=False) as pipe:
@@ -107,15 +108,15 @@ class ActorCommitmentManager:
             saved[actor_id] = actor_id
         return saved
 
-    async def get_snapshot(self, scope_id: str, actor_id: str) -> dict[str, Any] | None:
-        result = await self.redis.json_module.get(self.build_key(scope_id, actor_id), "$")
+    async def get_snapshot(self, actor_id: str) -> dict[str, Any] | None:
+        result = await self.redis.json_module.get(self.build_key(actor_id), "$")
         return self._first(result)
 
-    async def get_snapshots_batch(self, scope_id: str, actor_ids: list[str]) -> dict[str, dict[str, Any] | None]:
+    async def get_snapshots_batch(self, actor_ids: list[str]) -> dict[str, dict[str, Any] | None]:
         if not actor_ids:
             return {}
 
-        keys = [self.build_key(scope_id, actor_id) for actor_id in actor_ids]
+        keys = [self.build_key(actor_id) for actor_id in actor_ids]
         try:
             async with self._redis_client().pipeline(transaction=False) as pipe:
                 for key in keys:
@@ -129,13 +130,12 @@ class ActorCommitmentManager:
             for i, actor_id in enumerate(actor_ids)
         }
 
-    async def get_section(self, scope_id: str, actor_id: str, section: ActorCommitmentSection) -> dict[str, Any] | None:
-        result = await self.redis.json_module.get(self.build_key(scope_id, actor_id), f"$.{section}")
+    async def get_section(self, actor_id: str, section: ActorCommitmentSection) -> dict[str, Any] | None:
+        result = await self.redis.json_module.get(self.build_key(actor_id), f"$.{section}")
         return self._first(result)
 
     async def get_sections_batch(
         self,
-        scope_id: str,
         actor_ids: list[str],
         section: ActorCommitmentSection,
     ) -> dict[str, dict[str, Any] | None]:
@@ -143,7 +143,7 @@ class ActorCommitmentManager:
             return {}
 
         path = f"$.{section}"
-        keys = [self.build_key(scope_id, actor_id) for actor_id in actor_ids]
+        keys = [self.build_key(actor_id) for actor_id in actor_ids]
 
         try:
             async with self._redis_client().pipeline(transaction=False) as pipe:
@@ -158,41 +158,40 @@ class ActorCommitmentManager:
             for i, actor_id in enumerate(actor_ids)
         }
 
-    async def get_meta(self, scope_id: str, actor_id: str) -> dict[str, Any] | None:
-        return await self.get_section(scope_id, actor_id, "meta")
+    async def get_meta(self, actor_id: str) -> dict[str, Any] | None:
+        return await self.get_section(actor_id, "meta")
 
-    async def get_runtime(self, scope_id: str, actor_id: str) -> dict[str, Any] | None:
-        return await self.get_section(scope_id, actor_id, "runtime")
+    async def get_runtime(self, actor_id: str) -> dict[str, Any] | None:
+        return await self.get_section(actor_id, "runtime")
 
-    async def get_combat(self, scope_id: str, actor_id: str) -> dict[str, Any] | None:
-        return await self.get_section(scope_id, actor_id, "combat")
+    async def get_combat(self, actor_id: str) -> dict[str, Any] | None:
+        return await self.get_section(actor_id, "combat")
 
-    async def get_inventory(self, scope_id: str, actor_id: str) -> dict[str, Any] | None:
-        return await self.get_section(scope_id, actor_id, "inventory")
+    async def get_inventory(self, actor_id: str) -> dict[str, Any] | None:
+        return await self.get_section(actor_id, "inventory")
 
-    async def get_status(self, scope_id: str, actor_id: str) -> dict[str, Any] | None:
-        return await self.get_section(scope_id, actor_id, "status")
+    async def get_status(self, actor_id: str) -> dict[str, Any] | None:
+        return await self.get_section(actor_id, "status")
 
-    async def get_source(self, scope_id: str, actor_id: str) -> dict[str, Any] | None:
-        return await self.get_section(scope_id, actor_id, "source")
+    async def get_source(self, actor_id: str) -> dict[str, Any] | None:
+        return await self.get_section(actor_id, "source")
 
     async def patch_section(
         self,
-        scope_id: str,
         actor_id: str,
         section: ActorCommitmentSection,
         data: dict[str, Any],
         ttl: int | None = DEFAULT_TTL_SECONDS,
     ) -> None:
-        await self.redis.json_module.set(self.build_key(scope_id, actor_id), f"$.{section}", data)
+        await self.redis.json_module.set(self.build_key(actor_id), f"$.{section}", data)
         if ttl is not None:
-            await self.redis.string.expire(self.build_key(scope_id, actor_id), ttl)
+            await self.redis.string.expire(self.build_key(actor_id), ttl)
 
-    async def touch(self, scope_id: str, actor_id: str, ttl: int = DEFAULT_TTL_SECONDS) -> bool:
-        return await self.redis.string.expire(self.build_key(scope_id, actor_id), ttl)
+    async def touch(self, actor_id: str, ttl: int = DEFAULT_TTL_SECONDS) -> bool:
+        return await self.redis.string.expire(self.build_key(actor_id), ttl)
 
-    async def delete_snapshot(self, scope_id: str, actor_id: str) -> None:
-        await self.redis.string.delete(self.build_key(scope_id, actor_id))
+    async def delete_snapshot(self, actor_id: str) -> None:
+        await self.redis.string.delete(self.build_key(actor_id))
 
     @staticmethod
     def _first(result: Any) -> dict[str, Any] | None:

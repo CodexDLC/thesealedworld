@@ -6,7 +6,7 @@ class ActorCommitmentKey(BaseRedisKey):
 
     @property
     def template(self) -> str:
-        return "combat:{scope_id}:actor:{actor_id}"
+        return "combat:snapshot:{actor_id}"
 
 
 class PlayerCoreKey(BaseRedisKey):

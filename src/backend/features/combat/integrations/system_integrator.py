@@ -53,7 +53,6 @@ class CombatSystemIntegrator:
             character_sessions=self.character_sessions,
             commitment_manager=self.actor_commitments,
         ).prepare_commitments(
-            scope_id=combat_id,
             player_ids=player_ids,
             monster_ids=monster_ids,
             ttl=300,
@@ -97,8 +96,8 @@ class CombatSystemIntegrator:
             raise CombatLifecycleError("character combat commitment response did not include commitments")
         return {str(source_ref): str(actor_id) for source_ref, actor_id in commitments.items()}
 
-    async def load_actor_commitments(self, combat_id: str, commitments: dict[str, str]) -> dict[str, dict[str, Any]]:
-        docs = await self.actor_commitments.get_snapshots_batch(combat_id, list(commitments.values()))
+    async def load_actor_commitments(self, commitments: dict[str, str]) -> dict[str, dict[str, Any]]:
+        docs = await self.actor_commitments.get_snapshots_batch(list(commitments.values()))
         snapshots: dict[str, dict[str, Any]] = {}
         for source_ref, actor_id in commitments.items():
             doc = docs.get(actor_id)

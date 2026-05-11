@@ -49,7 +49,6 @@ class ArenaSystemIntegrator:
         response = await self.events.request(
             self.COMBAT_COMMITMENTS_REQUESTED,
             {
-                "scope_id": request_id,
                 "player_ids": json.dumps([char_id]),
                 "monster_ids": "[]",
                 "ttl": ttl,

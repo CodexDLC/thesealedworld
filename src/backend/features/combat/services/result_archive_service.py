@@ -48,16 +48,19 @@ class CombatResultArchiveService:
     ) -> CombatResultDTO:
         combat_id = self._optional_str(finalization.get("combat_id"))
         winner = self._optional_str(finalization.get("winner_team"))
-        actors = finalization.get("actors") if isinstance(finalization.get("actors"), dict) else {}
+        raw_actors = finalization.get("actors")
+        actors = raw_actors if isinstance(raw_actors, dict) else {}
+
+        raw_teams = finalization.get("teams")
         teams = {
             str(team): [str(member) for member in members]
-            for team, members in (
-                finalization.get("teams") if isinstance(finalization.get("teams"), dict) else {}
-            ).items()
+            for team, members in (raw_teams if isinstance(raw_teams, dict) else {}).items()
             if isinstance(members, list)
         }
+
+        raw_report = finalization.get("report")
         report = self._complete_report(
-            finalization.get("report") if isinstance(finalization.get("report"), dict) else {},
+            raw_report if isinstance(raw_report, dict) else {},
             teams=teams,
             actors=actors,
             winner=winner,

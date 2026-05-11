@@ -2,11 +2,11 @@ from codex_platform.redis_service.keys import BaseRedisKey
 
 
 class ActorCommitmentKey(BaseRedisKey):
-    """Temporary combat actor commitment assembled for feature session bootstrap."""
+    """Temporary combat actor snapshot assembled before session bootstrap."""
 
     @property
     def template(self) -> str:
-        return "game:actor:commit:{commitment_id}"
+        return "combat:{scope_id}:actor:{actor_id}"
 
 
 class PlayerCoreKey(BaseRedisKey):

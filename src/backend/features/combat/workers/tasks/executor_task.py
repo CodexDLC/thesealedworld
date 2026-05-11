@@ -131,7 +131,7 @@ async def execute_batch_task(ctx: dict, job_data: dict) -> None:
 
             # 7. Heartbeat Signal
             # Пинаем коллектор, чтобы он проверил, есть ли еще действия
-            signal = CollectorSignalDTO(session_id=session_id, char_id=0, signal_type="heartbeat", move_id="executor")
+            signal = CollectorSignalDTO(session_id=session_id, char_id="0", signal_type="heartbeat", move_id="executor")
             await ctx["redis"].enqueue_job("combat_collector_task", signal.model_dump())
 
     except Exception:

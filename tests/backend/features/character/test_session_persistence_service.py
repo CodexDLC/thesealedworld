@@ -128,6 +128,8 @@ async def test_character_repository_syncs_active_session_snapshot() -> None:
         "scenario_id": None,
         "combat_id": None,
         "combat_finalization_id": None,
+        "encounter_id": None,
+        "arena_id": None,
         "inventory_id": None,
         "active_quest": None,
     }

@@ -230,7 +230,7 @@ async def test_request_combat_start_uses_day_ttl() -> None:
     events.request = AsyncMock(
         side_effect=[
             {"status": "ok", "vitals": {"hp": {"cur": 64, "max": 64}}},
-            {"status": "ok", "commitments": {"combat-1:player:7": "snapshot-1"}},
+            {"status": "ok", "commitments": {"player:7": "snapshot-1"}},
             {"status": "ready", "combat_id": "combat-1"},
         ]
     )
@@ -250,4 +250,4 @@ async def test_request_combat_start_uses_day_ttl() -> None:
     assert commitment_event.args[0] == CharacterEvents.COMBAT_COMMITMENTS_REQUESTED
     payload = combat_event.args[1]
     assert payload["ttl"] == SCENARIO_COMBAT_TTL_SECONDS
-    assert payload["commitments"] == '{"combat-1:player:7": "snapshot-1"}'
+    assert payload["commitments"] == '{"player:7": "snapshot-1"}'

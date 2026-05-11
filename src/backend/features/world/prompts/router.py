@@ -11,6 +11,7 @@ world_prompt_router = LLMRouter()
 @world_prompt_router.prompt("zone_lore")
 async def build_zone_lore(region_id: str, biome_id: str, tier: int, **kwargs: Any) -> PromptResult:
     """Builds a prompt to generate lore for a specific world zone."""
+    narrative_context = kwargs.get("narrative_context")
     system = (
         "You are a world-building assistant for a dark fantasy/post-apocalyptic MMORPG. "
         "The world is shaped by four Anchor Monoliths: north is stasis/ice, south is plasma/fire, "
@@ -21,6 +22,7 @@ async def build_zone_lore(region_id: str, biome_id: str, tier: int, **kwargs: An
         f"Region: {region_id}\n"
         f"Biome: {biome_id}\n"
         f"Threat Tier: {tier}\n"
+        f"Narrative Context: {narrative_context or 'No extra narrative context.'}\n"
         "Generate a JSON response with 'name' (unique and atmospheric) and 'background' (1-2 sentences of history)."
     )
     return PromptResult(messages=[{"role": "system", "content": system}, {"role": "user", "content": user}])

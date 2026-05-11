@@ -209,7 +209,7 @@ class CharacterCombatActorInputBuilder:
             else mechanics.get("tier", item.get("rarity_tier", mechanics.get("rarity_tier", 0)))
         )
         try:
-            return max(1, int(raw) + 1)
+            return max(1, int(raw) + 1) if isinstance(raw, (int, str)) else 1
         except (TypeError, ValueError):
             return 1
 

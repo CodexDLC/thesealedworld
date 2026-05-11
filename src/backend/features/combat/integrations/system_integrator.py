@@ -64,11 +64,9 @@ class CombatSystemIntegrator:
                 f"failed_players={result.failed_players} failed_monsters={result.failed_monsters}"
             )
         commitments = result.commitments
-        if not commitments:
-            commitments = self._fallback_commitments(combat_id, player_ids=player_ids, monster_ids=monster_ids)
         if not isinstance(commitments, dict) or not commitments:
             raise CombatLifecycleError("character combat commitment response did not include commitments")
-        return {str(snapshot_id): str(commitment_id) for snapshot_id, commitment_id in commitments.items()}
+        return {str(source_ref): str(actor_id) for source_ref, actor_id in commitments.items()}
 
     async def _request_actor_commitments(
         self,
@@ -95,23 +93,26 @@ class CombatSystemIntegrator:
         commitments = response.get("commitments") or {}
         if isinstance(commitments, str):
             commitments = json.loads(commitments)
-        if not commitments:
-            commitments = self._fallback_commitments(combat_id, player_ids=player_ids, monster_ids=monster_ids)
         if not isinstance(commitments, dict) or not commitments:
             raise CombatLifecycleError("character combat commitment response did not include commitments")
-        return {str(snapshot_id): str(commitment_id) for snapshot_id, commitment_id in commitments.items()}
+        return {str(source_ref): str(actor_id) for source_ref, actor_id in commitments.items()}
 
-    async def load_actor_commitments(self, commitments: dict[str, str]) -> dict[str, dict[str, Any]]:
-        docs = await self.actor_commitments.get_commitments_batch(list(commitments.values()))
+    async def load_actor_commitments(self, combat_id: str, commitments: dict[str, str]) -> dict[str, dict[str, Any]]:
+        docs = await self.actor_commitments.get_snapshots_batch(combat_id, list(commitments.values()))
         snapshots: dict[str, dict[str, Any]] = {}
-        for snapshot_id, commitment_id in commitments.items():
-            doc = docs.get(commitment_id)
+        for source_ref, actor_id in commitments.items():
+            doc = docs.get(actor_id)
             if isinstance(doc, dict):
-                snapshots[snapshot_id] = doc
+                snapshots[source_ref] = doc
         if len(snapshots) != len(commitments):
             missing = sorted(set(commitments) - set(snapshots))
-            raise CombatLifecycleError(f"prepared actor commitments are missing: {missing}")
+            raise CombatLifecycleError(f"prepared actor snapshots are missing: {missing}")
         return snapshots
+
+    def source_ref(self, actor_type: str, source_id: int | str) -> str:
+        if actor_type not in {"player", "monster"}:
+            raise ValueError(f"Unsupported combat actor type: {actor_type}")
+        return self.actor_commitments.source_ref(actor_type, source_id)  # type: ignore[arg-type]
 
     async def link_players_to_combat(self, player_ids: list[int], combat_id: str) -> None:
         for char_id in player_ids:
@@ -250,18 +251,6 @@ class CombatSystemIntegrator:
             self._flat_payload(payload),
             correlation_id=payload.get("correlation_id"),
         )
-
-    def _fallback_commitments(
-        self,
-        combat_id: str,
-        *,
-        player_ids: list[int],
-        monster_ids: list[str],
-    ) -> dict[str, str]:
-        return {
-            **{f"{combat_id}:player:{player_id}": f"{combat_id}:player:{player_id}" for player_id in player_ids},
-            **{f"{combat_id}:monster:{monster_id}": f"{combat_id}:monster:{monster_id}" for monster_id in monster_ids},
-        }
 
     @staticmethod
     def _flat_payload(payload: dict[str, Any]) -> dict[str, Any]:

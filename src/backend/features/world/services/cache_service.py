@@ -55,6 +55,7 @@ class WorldCacheService:
             "services": services,
             "flags": cached_flags,
             "zone_id": str(node.zone_id),
+            "world_zone": self._world_zone(node),
             "terrain": str(node.terrain_type),
         }
 
@@ -68,3 +69,29 @@ class WorldCacheService:
         cached.pop("anchor_influence", None)
         cached.pop("world_theme", None)
         return cached
+
+    @staticmethod
+    def _world_zone(node: WorldNavigationNode) -> dict[str, Any]:
+        zone = getattr(node, "zone", None)
+        return {
+            "id": _safe_text(getattr(zone, "id", None), fallback=str(node.zone_id)),
+            "region_id": _safe_text(getattr(zone, "region_id", None)),
+            "biome_id": _safe_text(getattr(zone, "biome_id", None)),
+            "tier": _safe_int(getattr(zone, "tier", 0)),
+            "flags": _safe_dict(getattr(zone, "flags", None)),
+        }
+
+
+def _safe_text(value: Any, *, fallback: str = "") -> str:
+    return value if isinstance(value, str) and value else fallback
+
+
+def _safe_int(value: Any) -> int:
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return 0
+
+
+def _safe_dict(value: Any) -> dict[str, Any]:
+    return dict(value) if isinstance(value, dict) else {}

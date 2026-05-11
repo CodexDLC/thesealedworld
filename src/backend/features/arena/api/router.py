@@ -2,7 +2,7 @@ from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, Query
 
-from src.backend.features.arena.dependencies import ArenaServiceDep
+from src.backend.features.arena.dependencies import ArenaGatewayDep, ArenaServiceDep
 from src.backend.features_site.auth.dependencies import get_current_user
 from src.backend.features_site.auth.models import User
 from src.shared.enums import CoreDomain
@@ -10,6 +10,63 @@ from src.shared.schemas.arena import ArenaActionDTO, ArenaActionEnum, ArenaScree
 from src.shared.schemas.response import CoreResponseDTO, GameStateHeader, StateTransitionDTO
 
 router = APIRouter(prefix="/arena", tags=["Arena"])
+
+
+@router.get("/v2/{char_id}/view", response_model=CoreResponseDTO[ArenaUIPayloadDTO])
+async def arena_view_v2(
+    char_id: int,
+    gateway: ArenaGatewayDep,
+    current_user: Annotated[User, Depends(get_current_user)],
+) -> CoreResponseDTO[ArenaUIPayloadDTO]:
+    return await gateway.get_arena_view(current_user, char_id)
+
+
+@router.post("/v2/{char_id}/action", response_model=CoreResponseDTO[ArenaUIPayloadDTO | StateTransitionDTO])
+async def arena_action_v2(
+    char_id: int,
+    body: ArenaActionDTO,
+    gateway: ArenaGatewayDep,
+    current_user: Annotated[User, Depends(get_current_user)],
+) -> CoreResponseDTO[ArenaUIPayloadDTO | StateTransitionDTO]:
+    return await gateway.handle_arena_action(current_user, char_id, body)
+
+
+@router.get("/v2/{char_id}/duel/view", response_model=CoreResponseDTO[ArenaUIPayloadDTO])
+async def arena_duel_view_v2(
+    char_id: int,
+    gateway: ArenaGatewayDep,
+    current_user: Annotated[User, Depends(get_current_user)],
+) -> CoreResponseDTO[ArenaUIPayloadDTO]:
+    return await gateway.get_duel_view(current_user, char_id)
+
+
+@router.post("/v2/{char_id}/duel/action", response_model=CoreResponseDTO[ArenaUIPayloadDTO | StateTransitionDTO])
+async def arena_duel_action_v2(
+    char_id: int,
+    body: ArenaActionDTO,
+    gateway: ArenaGatewayDep,
+    current_user: Annotated[User, Depends(get_current_user)],
+) -> CoreResponseDTO[ArenaUIPayloadDTO | StateTransitionDTO]:
+    return await gateway.handle_duel_action(current_user, char_id, body)
+
+
+@router.get("/v2/{char_id}/group/lobby", response_model=CoreResponseDTO[ArenaUIPayloadDTO])
+async def arena_group_lobby_v2(
+    char_id: int,
+    gateway: ArenaGatewayDep,
+    current_user: Annotated[User, Depends(get_current_user)],
+) -> CoreResponseDTO[ArenaUIPayloadDTO]:
+    return await gateway.get_group_view(current_user, char_id)
+
+
+@router.post("/v2/{char_id}/group/action", response_model=CoreResponseDTO[ArenaUIPayloadDTO])
+async def arena_group_action_v2(
+    char_id: int,
+    body: ArenaActionDTO,
+    gateway: ArenaGatewayDep,
+    current_user: Annotated[User, Depends(get_current_user)],
+) -> CoreResponseDTO[ArenaUIPayloadDTO]:
+    return await gateway.handle_group_action(current_user, char_id, body)
 
 
 @router.get("/view", response_model=CoreResponseDTO[ArenaUIPayloadDTO])

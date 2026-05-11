@@ -47,6 +47,12 @@ async def test_generate_d4_capital_creates_first_playable_territory():
 
     data.upsert_region.assert_awaited_once()
     assert data.upsert_zone.await_count == 9
+    zones = {call.args[0]: call.kwargs for call in data.upsert_zone.await_args_list}
+    assert zones["D4_1_1"]["tier"] == 0
+    assert zones["D4_1_1"]["flags"]["is_safe_zone"] is True
+    assert zones["D4_0_0"]["tier"] == 1
+    assert zones["D4_0_0"]["flags"]["threat_tier"] == 1
+    assert zones["D4_0_0"]["flags"]["anchor_influence"]
     data.flush.assert_awaited_once()
     data.bulk_upsert_nodes.assert_awaited_once()
 
@@ -60,6 +66,8 @@ async def test_generate_d4_capital_creates_first_playable_territory():
     assert by_coord[(48, 56)]["flags"]["is_safe_zone"] is False
     assert by_coord[(48, 56)]["flags"]["threat_tier"] == 1
     assert by_coord[(48, 56)]["flags"]["anchor_influence"]["threat"] == pytest.approx(0.03)
+    assert "former capital" in by_coord[(48, 56)]["flags"]["narrative_context"]
+    assert "former_capital_ruins" in by_coord[(48, 56)]["content"]["environment_tags"]
     assert by_coord[(45, 45)]["terrain_type"] == "outer_monolith_wall_walk"
     assert by_coord[(45, 45)]["flags"]["is_passable"] is True
     assert set(by_coord[(45, 45)]["flags"]["blocked_exits"]) == {"north", "west"}
@@ -311,7 +319,13 @@ async def test_enrich_zone_with_ai_soft_fails_empty_response(mocker):
 @pytest.mark.unit
 async def test_enrich_zone_with_ai_stores_lore_in_flags(mocker):
     mocker.patch("src.backend.features.world.services.generator_service.ZONE_LORE_RETRY_DELAYS_SECONDS", ())
-    zone = MagicMock(id="D4_1_1", region_id="D4", biome_id="hub_district", tier=0, flags={})
+    zone = MagicMock(
+        id="D4_1_1",
+        region_id="D4",
+        biome_id="hub_district",
+        tier=0,
+        flags={"narrative_context": "Former capital safe hub."},
+    )
     data = MagicMock()
     data.get_zone = AsyncMock(return_value=zone)
     data.save_zone_lore = AsyncMock()
@@ -322,6 +336,7 @@ async def test_enrich_zone_with_ai_stores_lore_in_flags(mocker):
 
     await generator._enrich_zone_with_ai("D4_1_1")
 
+    assert ai.process.await_args.kwargs["narrative_context"] == "Former capital safe hub."
     data.save_zone_lore.assert_awaited_once_with(
         zone,
         lore_name="Сердце Цитадели",

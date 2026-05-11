@@ -1,6 +1,7 @@
 import pytest
 
 from src.backend.features.items.dto.instance import ItemGenerationRequestDTO, ItemPlacementRefDTO
+from src.backend.features.items.events import _parse_generation_requests
 from src.backend.features.items.integrations import ItemPersistenceIntegration, ItemTextAIClient
 from src.backend.features.items.services.generation_service import ItemGenerationService
 
@@ -122,6 +123,91 @@ async def test_generation_service_marks_item_ready_when_ai_text_is_not_requested
     )
     assert repo.instances["item-1"].name == "Ржавый боевой молот"
     assert repo.instances["item-1"].lifecycle_status == "ready"
+
+
+@pytest.mark.unit
+async def test_generation_service_generates_runtime_item_without_persistence():
+    repo = FakeRepo()
+    request = ItemGenerationRequestDTO(
+        generation_mode="runtime",
+        base_id="dagger",
+        item_grade="artifact",
+        affix_bundle_ids=["duelist_weapon_4"],
+        affix_step_count=1,
+        presentation_name_ru="Крысиные клыки",
+        runtime_metadata={"monster_equipment_key": "rat_bite_claws"},
+    )
+
+    result = await ItemGenerationService(ItemPersistenceIntegration(repo)).generate(request)
+
+    assert result.item_ids == []
+    assert result.text_status == "not_requested"
+    assert result.item is not None
+    assert result.item.name == "Крысиные клыки"
+    assert result.item.metadata["runtime_item"] is True
+    assert result.item.metadata["monster_equipment_key"] == "rat_bite_claws"
+    assert {affix["roll"]["step_count"] for affix in result.item.mechanics["affixes"]} == {1}
+    assert repo.instances == {}
+
+
+@pytest.mark.unit
+async def test_generation_service_generates_runtime_projection_batch_without_persistence():
+    repo = FakeRepo()
+    service = ItemGenerationService(ItemPersistenceIntegration(repo))
+    requests = [
+        ItemGenerationRequestDTO(
+            generation_mode="runtime",
+            base_id="dagger",
+            target_slot="main_hand",
+            item_grade="artifact",
+            allowed_affix_ids=["weapon_accuracy", "crit_chance"],
+            forced_affix_ids=["weapon_accuracy"],
+            affix_count=1,
+            affix_step_count=2,
+            runtime_metadata={"owner_key": "member_0", "runtime_item_id": "item-main"},
+        ),
+        ItemGenerationRequestDTO(
+            generation_mode="runtime",
+            base_id="leather_armor",
+            item_grade="artifact",
+            allowed_affix_ids=["evasion_bonus", "physical_resistance_bonus"],
+            forced_affix_ids=["evasion_bonus"],
+            affix_count=1,
+            affix_step_count=2,
+            runtime_metadata={"owner_key": "member_0", "runtime_item_id": "item-armor"},
+        ),
+    ]
+
+    projections = await service.generate_runtime_projections(requests)
+
+    assert [item.item_id for item in projections] == ["item-main", "item-armor"]
+    assert [item.owner_key for item in projections] == ["member_0", "member_0"]
+    assert set(projections[0].combat.bonuses) == {"main_hand_accuracy"}
+    assert set(projections[1].combat.bonuses) == {"evasion"}
+    assert repo.instances == {}
+
+
+@pytest.mark.unit
+def test_item_generation_stream_parser_preserves_runtime_fields() -> None:
+    requests = _parse_generation_requests(
+        {
+            "items": [
+                {
+                    "generation_mode": "runtime",
+                    "base_id": "dagger",
+                    "item_grade": "artifact",
+                    "affix_step_count": 2,
+                    "presentation_name_ru": "Крысиные клыки",
+                    "runtime_metadata": {"monster_equipment_key": "rat_bite_claws"},
+                }
+            ]
+        }
+    )
+
+    assert requests[0].generation_mode == "runtime"
+    assert requests[0].affix_step_count == 2
+    assert requests[0].presentation_name_ru == "Крысиные клыки"
+    assert requests[0].runtime_metadata["monster_equipment_key"] == "rat_bite_claws"
 
 
 @pytest.mark.unit

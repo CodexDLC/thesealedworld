@@ -1,4 +1,4 @@
-from typing import Annotated, Any
+from typing import Annotated, Any, cast
 
 from fastapi import APIRouter, Depends
 
@@ -72,24 +72,25 @@ async def start_lobby_flow(
     return response
 
 
-@router.post("/enter", response_model=CoreResponseDTO[ScenarioPayloadDTO | dict[Any, Any]])
+@router.post("/enter", response_model=CoreResponseDTO[ScenarioPayloadDTO | dict[str, Any]])
 async def enter_lobby_character(
     dto: EnterCharacterRequestDTO,
     current_user: Annotated[User, Depends(get_current_user)],
     lobby_service: Annotated[GameLobbyService, Depends(get_game_lobby_service)],
-) -> CoreResponseDTO[ScenarioPayloadDTO | dict[Any, Any]]:
+) -> CoreResponseDTO[ScenarioPayloadDTO | dict[str, Any]]:
     """Cold lobby enter: rebuilds AC from Postgres before the runtime game session starts."""
-    response = await lobby_service.enter_character(current_user, dto.character_id)
+    res = await lobby_service.enter_character(current_user, dto.character_id)
+    response = cast("CoreResponseDTO[ScenarioPayloadDTO | dict[str, Any]]", res)
     log_debug_payload("game_lobby.enter", response, enabled=settings.debug)
     return response
 
 
-@router.post("/release", response_model=CoreResponseDTO[dict[Any, Any]])
+@router.post("/release", response_model=CoreResponseDTO[dict[str, Any]])
 async def release_lobby_character(
     dto: EnterCharacterRequestDTO,
     current_user: Annotated[User, Depends(get_current_user)],
     lobby_service: Annotated[GameLobbyService, Depends(get_game_lobby_service)],
-) -> CoreResponseDTO[dict[Any, Any]]:
+) -> CoreResponseDTO[dict[str, Any]]:
     """Saves the active AC snapshot and removes the runtime AC before returning to lobby."""
     response = await lobby_service.release_character(current_user, dto.character_id)
     log_debug_payload("game_lobby.release", response, enabled=settings.debug)

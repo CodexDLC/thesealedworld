@@ -260,9 +260,13 @@ class CombatSessionService:
 
     async def _resolve_finalization_id(self, char_id: int) -> str | None:
         resolver = getattr(self.system_integrator, "resolve_combat_finalization_for_character", None)
-        if resolver is None:
+        finalization_id = await resolver(char_id) if resolver is not None else None
+        if finalization_id:
+            return finalization_id
+        latest = getattr(self.store, "get_latest_finalization_id_for_character", None)
+        if latest is None:
             return None
-        return await resolver(char_id)
+        return await latest(char_id)
 
     async def _mark_finalized_if_needed(
         self,

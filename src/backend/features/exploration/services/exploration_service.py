@@ -1,11 +1,14 @@
 # src/backend/features/exploration/services/exploration_service.py
+from __future__ import annotations
+
 import logging
-from typing import Any, cast
+from dataclasses import dataclass
+from typing import TYPE_CHECKING, Any, cast
+
+from pydantic import ValidationError
 
 from src.backend.features.exploration.dto.config import ExplorationConfig
-from src.backend.features.exploration.integrations.system_integrator import ExplorationSystemIntegrator
 from src.backend.features.exploration.resources.service_registry import get_service_entry
-from src.backend.features.exploration.runtime.encounter import EncounterEngine
 from src.backend.features.exploration.runtime.navigation import NavigationEngine
 from src.shared.enums import CoreDomain
 from src.shared.schemas.exploration import (
@@ -18,6 +21,11 @@ from src.shared.schemas.exploration import (
 )
 from src.shared.schemas.response import ServiceResult
 from src.shared.schemas.world_theme import WorldThemeDTO
+
+if TYPE_CHECKING:
+    from src.backend.features.exploration.integrations.encounter_integration import EncounterIntegration
+    from src.backend.features.exploration.integrations.system_integrator import ExplorationSystemIntegrator
+    from src.backend.features.exploration.runtime.encounter import EncounterEngine
 
 log = logging.getLogger(__name__)
 
@@ -32,9 +40,11 @@ class ExplorationService:
         self,
         integrator: ExplorationSystemIntegrator,
         encounter_engine: EncounterEngine,
+        encounter_integration: EncounterIntegration | None = None,
     ):
         self._integrator = integrator
         self._encounter_engine = encounter_engine
+        self._encounter_integration = encounter_integration
 
     # =========================================================================
     # CORE ACTIONS
@@ -50,6 +60,10 @@ class ExplorationService:
         current_loc_id = await self._integrator.get_player_location_id(char_id)
         if not current_loc_id:
             current_loc_id = ExplorationConfig.DEFAULT_SPAWN_POINT
+
+        active_encounter = await self._get_active_encounter(char_id)
+        if active_encounter is not None:
+            return active_encounter.payload
 
         loc_data = await self._integrator.get_location_data(current_loc_id)
 
@@ -87,19 +101,25 @@ class ExplorationService:
             if encounter:
                 # Still move the player to the target location where encounter happens
                 await self._integrator.move_player(char_id, current_loc_id, target_loc_id)
+                encounter = await self._attach_navigation_snapshot(char_id, target_loc_id, target_loc_data, encounter)
+                await self._persist_encounter(char_id, encounter)
                 return encounter
 
         # 3. Finalize Move
         await self._integrator.move_player(char_id, current_loc_id, target_loc_id)
         return await self.look_around(char_id)
 
-    async def look_around(self, char_id: int) -> WorldNavigationDTO:
+    async def look_around(self, char_id: int) -> WorldNavigationDTO | EncounterDTO:
         """
         Обновление данных текущей локации (без движения).
         """
         loc_id = await self._integrator.get_player_location_id(char_id)
         if not loc_id:
             loc_id = ExplorationConfig.DEFAULT_SPAWN_POINT
+
+        active_encounter = await self._get_active_encounter(char_id)
+        if active_encounter is not None:
+            return active_encounter.payload
 
         loc_data = await self._integrator.get_location_data(loc_id) or {}
 
@@ -116,6 +136,7 @@ class ExplorationService:
             loc_id = ExplorationConfig.DEFAULT_SPAWN_POINT
 
         loc_data = await self._integrator.get_location_data(loc_id) or {}
+        active_encounter = await self._get_active_encounter(char_id)
 
         # --- Encounter Reactions ---
         if action == "attack":
@@ -124,7 +145,15 @@ class ExplorationService:
             return ServiceResult(data={"status": "entering_combat"}, next_state=CoreDomain.COMBAT)
 
         if action == "bypass":
+            if active_encounter is not None:
+                await self._clear_active_encounter(char_id, active_encounter.encounter_id)
+                dto = await self._build_navigation_dto(char_id, loc_id, loc_data)
+                dto.hud = AlertHudDTO(message="Опасность миновала. Вы решили обойти угрозу.", style="info")
+                return dto
             return await self.look_around(char_id)
+
+        if active_encounter is not None:
+            return active_encounter.payload
 
         # --- Exploration Actions ---
         if action == "search":
@@ -135,6 +164,8 @@ class ExplorationService:
                 char_id=char_id, location_data=loc_data, scouting_skill=scouting, trigger="search", loc_id=loc_id
             )
             if encounter:
+                encounter = await self._attach_navigation_snapshot(char_id, loc_id, loc_data, encounter)
+                await self._persist_encounter(char_id, encounter)
                 return encounter
 
             # Empty search -> Alert HUD
@@ -148,10 +179,14 @@ class ExplorationService:
         # Default fallback
         return await self.look_around(char_id)
 
-    async def use_service(self, char_id: int, service_id: str) -> WorldNavigationDTO | ServiceResult:
+    async def use_service(self, char_id: int, service_id: str) -> WorldNavigationDTO | EncounterDTO | ServiceResult:
         loc_id = await self._integrator.get_player_location_id(char_id)
         if not loc_id:
             loc_id = ExplorationConfig.DEFAULT_SPAWN_POINT
+
+        active_encounter = await self._get_active_encounter(char_id)
+        if active_encounter is not None:
+            return active_encounter.payload
 
         loc_data = await self._integrator.get_location_data(loc_id) or {}
         if not self._service_allowed_in_location(loc_data, service_id):
@@ -292,3 +327,84 @@ class ExplorationService:
             return max(0.0, min(1.0, float(cast("Any", value))))
         except (TypeError, ValueError):
             return 0.0
+
+    async def _get_active_encounter(self, char_id: int) -> _ActiveEncounter | None:
+        if self._encounter_integration is None:
+            return None
+
+        encounter_id = await self._encounter_integration.get_active_encounter_id(char_id)
+        if encounter_id is None:
+            return None
+
+        session = await self._encounter_integration.get_encounter_session(encounter_id)
+        if session is None:
+            log.warning("ExplorationService | stale_encounter_ref char_id=%s encounter=%s", char_id, encounter_id)
+            await self._encounter_integration.detach_encounter_session(char_id)
+            return None
+
+        payload = session.get("payload", session)
+        if not isinstance(payload, dict):
+            await self._clear_active_encounter(char_id, encounter_id)
+            return None
+        try:
+            encounter = EncounterDTO.model_validate(payload)
+        except ValidationError:
+            log.warning("ExplorationService | invalid_encounter_session char_id=%s encounter=%s", char_id, encounter_id)
+            await self._clear_active_encounter(char_id, encounter_id)
+            return None
+        if not isinstance(encounter.metadata.get("navigation"), dict):
+            loc_id = await self._integrator.get_player_location_id(char_id)
+            if loc_id:
+                loc_data = await self._integrator.get_location_data(loc_id) or {}
+                encounter = await self._attach_navigation_snapshot(char_id, loc_id, loc_data, encounter)
+                try:
+                    await self._encounter_integration.patch_encounter_session(
+                        encounter_id,
+                        {"payload": encounter.model_dump(mode="json")},
+                    )
+                except Exception:  # noqa: BLE001
+                    log.warning(
+                        "ExplorationService | encounter_navigation_snapshot_patch_failed char_id=%s encounter=%s",
+                        char_id,
+                        encounter_id,
+                    )
+        return _ActiveEncounter(encounter_id=encounter_id, payload=encounter)
+
+    async def _persist_encounter(self, char_id: int, encounter: EncounterDTO) -> None:
+        if self._encounter_integration is None:
+            return
+        payload = encounter.model_dump(mode="json")
+        await self._encounter_integration.create_encounter_session(
+            encounter.id,
+            {
+                "encounter_id": encounter.id,
+                "char_id": char_id,
+                "status": "pending",
+                "payload": payload,
+            },
+        )
+        await self._encounter_integration.attach_encounter_session(char_id, encounter.id)
+
+    async def _attach_navigation_snapshot(
+        self,
+        char_id: int,
+        loc_id: str,
+        loc_data: dict,
+        encounter: EncounterDTO,
+    ) -> EncounterDTO:
+        navigation = await self._build_navigation_dto(char_id, loc_id, loc_data)
+        metadata = dict(encounter.metadata or {})
+        metadata["navigation"] = navigation.model_dump(mode="json")
+        return encounter.model_copy(update={"metadata": metadata})
+
+    async def _clear_active_encounter(self, char_id: int, encounter_id: str) -> None:
+        if self._encounter_integration is None:
+            return
+        await self._encounter_integration.clear_encounter_session(encounter_id)
+        await self._encounter_integration.detach_encounter_session(char_id)
+
+
+@dataclass(frozen=True, slots=True)
+class _ActiveEncounter:
+    encounter_id: str
+    payload: EncounterDTO

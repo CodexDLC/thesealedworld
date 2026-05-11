@@ -31,8 +31,9 @@ class WorldMonsterPopulationService:
         clans_count = 0
 
         for context in contexts:
-            clans = await self.encounter_service.ensure_population_for_context(context)
-            clans_count += len(clans)
+            for family_id in self.encounter_service.get_available_family_ids(context):
+                await self.encounter_service.ensure_clan_for_context(context, family_id)
+                clans_count += 1
 
         log.info("Monster world population ensured: contexts=%s clans=%s", len(contexts), clans_count)
         return MonsterPopulationResult(contexts=len(contexts), clans=clans_count)

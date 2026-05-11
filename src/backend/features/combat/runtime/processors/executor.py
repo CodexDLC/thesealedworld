@@ -441,15 +441,22 @@ class CombatExecutor:
 
         target_id = normalize_actor_id(cast("ActorIdLike", target_id_raw))
 
-        ctx.pending_target_returns.append(self._target_return(source_id, target_id))
+        if self._can_return_target(ctx, source_id, target_id):
+            ctx.pending_target_returns.append(self._target_return(source_id, target_id))
 
         # Target -> Source (только если был ответ)
-        if action.partner_move:
+        if action.partner_move and self._can_return_target(ctx, target_id, source_id):
             ctx.pending_target_returns.append(self._target_return(target_id, source_id))
 
     @staticmethod
     def _target_return(source_id: ActorIdLike, target_id: ActorIdLike) -> TargetReturnDTO:
         return {"source_id": normalize_actor_id(source_id), "target_id": normalize_actor_id(target_id)}
+
+    @staticmethod
+    def _can_return_target(ctx: BattleContext, source_id: ActorIdLike, target_id: ActorIdLike) -> bool:
+        source = ctx.get_actor(source_id)
+        target = ctx.get_actor(target_id)
+        return bool(source and source.is_alive and target and target.is_alive)
 
     def _collect_dead_actors(self, ctx: BattleContext) -> None:
         """

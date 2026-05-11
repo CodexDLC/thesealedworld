@@ -44,7 +44,8 @@ class CombatFinalizationRepository:
 
     @staticmethod
     def _model_values(payload: dict[str, Any]) -> dict[str, Any]:
-        meta = payload.get("meta") if isinstance(payload.get("meta"), dict) else {}
+        raw_meta = payload.get("meta")
+        meta = raw_meta if isinstance(raw_meta, dict) else {}
         report = payload.get("report") if isinstance(payload.get("report"), dict) else {}
         analytics = payload.get("analytics") if isinstance(payload.get("analytics"), dict) else {}
         reward_hooks = payload.get("reward_hooks") if isinstance(payload.get("reward_hooks"), list) else []

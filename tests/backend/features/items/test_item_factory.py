@@ -168,6 +168,133 @@ def test_item_factory_high_rarity_tier_uses_artifact_container():
 
 
 @pytest.mark.unit
+def test_item_factory_runtime_item_uses_presentation_override_and_custom_affix_steps():
+    factory = ItemFactory()
+    request = ItemGenerationRequestDTO(
+        generation_mode="runtime",
+        base_id="dagger",
+        material_id="mat_cobalt_ingot",
+        item_grade="artifact",
+        affix_bundle_ids=["duelist_weapon_4"],
+        affix_step_count=2,
+        presentation_name_ru="Крысиные клыки и когти",
+        presentation_description="Естественное оружие твари.",
+        extra_narrative_tags=["natural_weapon", "rat"],
+        runtime_metadata={"monster_equipment_key": "rat_bite_claws"},
+    )
+
+    item = factory.generate_runtime_item(request)
+
+    assert item.name == "Крысиные клыки и когти"
+    assert item.description == "Естественное оружие твари."
+    assert item.metadata["runtime_item"] is True
+    assert item.metadata["monster_equipment_key"] == "rat_bite_claws"
+    assert item.metadata["affix_step_count"] == 2
+    assert item.metadata["request_ai_text"] is False
+    assert {"natural_weapon", "rat"} <= set(item.narrative_tags)
+    assert item.affix_bundle_ids == ["duelist_weapon_4"]
+    assert {affix["roll"]["step_count"] for affix in item.mechanics["affixes"]} == {2}
+
+
+@pytest.mark.unit
+def test_item_factory_player_pipeline_keeps_default_affix_steps():
+    item = ItemFactory().generate_player_item(
+        ItemGenerationRequestDTO(
+            base_id="dagger",
+            material_id="mat_iron_ingot",
+            item_grade="artifact",
+            affix_bundle_ids=["duelist_weapon_4"],
+        )
+    )
+
+    assert {affix["roll"]["step_count"] for affix in item.mechanics["affixes"]} == {5}
+
+
+@pytest.mark.unit
+def test_item_factory_runtime_item_filters_allowed_affixes_and_exact_count():
+    item = ItemFactory().generate_runtime_item(
+        ItemGenerationRequestDTO(
+            generation_mode="runtime",
+            base_id="dagger",
+            material_id="mat_cobalt_ingot",
+            item_grade="artifact",
+            allowed_affix_ids=["crit_chance", "weapon_accuracy"],
+            affix_count=2,
+            affix_step_count=7,
+        )
+    )
+
+    affixes = item.mechanics["affixes"]
+    assert len(affixes) == 2
+    assert {affix["affix_id"] for affix in affixes} <= {"crit_chance", "weapon_accuracy"}
+    assert {affix["roll"]["step_count"] for affix in affixes} == {7}
+
+
+@pytest.mark.unit
+def test_item_factory_runtime_item_applies_forced_affixes_before_random_fill():
+    item = ItemFactory().generate_runtime_item(
+        ItemGenerationRequestDTO(
+            generation_mode="runtime",
+            base_id="dagger",
+            material_id="mat_cobalt_ingot",
+            item_grade="artifact",
+            allowed_affix_ids=["weapon_accuracy", "crit_chance", "armor_penetration_bonus", "control_chance_bonus"],
+            forced_affix_ids=["weapon_accuracy", "crit_chance"],
+            affix_count=4,
+            affix_step_count=4,
+        )
+    )
+
+    affixes = item.mechanics["affixes"]
+    assert len(affixes) == 4
+    assert [affix["affix_id"] for affix in affixes[:2]] == ["weapon_accuracy", "crit_chance"]
+    assert {affix["source"] for affix in affixes[:2]} == {"forced"}
+
+
+@pytest.mark.unit
+def test_item_factory_runtime_projection_is_compact_and_compiles_affix_bonuses():
+    projection = ItemFactory().generate_runtime_projection(
+        ItemGenerationRequestDTO(
+            generation_mode="runtime",
+            base_id="dagger",
+            target_slot="off_hand",
+            material_id="mat_cobalt_ingot",
+            item_grade="artifact",
+            allowed_affix_ids=["off_hand_accuracy", "crit_chance"],
+            forced_affix_ids=["off_hand_accuracy"],
+            affix_count=1,
+            affix_step_count=2,
+            runtime_metadata={"owner_key": "member_0", "natural_key": "rat_left_claws"},
+            source_context={"family_id": "rat_swarm", "member_tier": 1},
+        ),
+        item_id="runtime-item-1",
+    )
+
+    assert projection.item_id == "runtime-item-1"
+    assert projection.owner_key == "member_0"
+    assert projection.slot == "off_hand"
+    assert projection.combat.power > 0
+    assert projection.combat.related_skill == "skill_fencing"
+    assert set(projection.combat.bonuses) == {"off_hand_accuracy"}
+    assert projection.combat.bonuses["off_hand_accuracy"].startswith("+")
+    assert projection.generation.natural_key == "rat_left_claws"
+    assert projection.generation.source_context == {"family_id": "rat_swarm", "member_tier": 1}
+    assert projection.generation.affixes[0]["affix_id"] == "off_hand_accuracy"
+
+
+@pytest.mark.unit
+def test_item_factory_runtime_projection_rejects_invalid_target_slot():
+    with pytest.raises(ValueError, match="not allowed"):
+        ItemFactory().generate_runtime_item(
+            ItemGenerationRequestDTO(
+                generation_mode="runtime",
+                base_id="dagger",
+                target_slot="chest_armor",
+            )
+        )
+
+
+@pytest.mark.unit
 def test_item_factory_rejects_material_from_wrong_category():
     with pytest.raises(ValueError, match="not allowed"):
         ItemFactory().generate(

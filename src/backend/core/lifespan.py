@@ -11,9 +11,9 @@ from src.backend.core.containers import AIContainer, DatabaseContainer, GameFeat
 from src.backend.features.arena.events import router as arena_router
 from src.backend.features.character.events import router as character_router
 from src.backend.features.combat.events import router as combat_router
-from src.backend.features.exploration.events import router as exploration_router
 from src.backend.features.inventory.events import router as inventory_router
 from src.backend.features.items.events import router as items_router
+from src.backend.features.monsters.events import router as monsters_router
 from src.backend.features.scenario.events import router as scenario_router
 from src.backend.features.world.events import router as world_router
 from src.backend.features_site.auth.events import router as auth_router
@@ -25,7 +25,7 @@ EVENT_ROUTERS = (
     combat_router,
     inventory_router,
     items_router,
-    exploration_router,
+    monsters_router,
     scenario_router,
     arena_router,
 )

@@ -24,6 +24,7 @@ from src.backend.features.game_session.api import router as game_session_router 
 from src.backend.features.inventory.api import router as inventory_router  # noqa: E402
 from src.backend.features.scenario.api import router as scenario_router  # noqa: E402
 from src.backend.features_site.auth.api import router as auth_router  # noqa: E402
+from src.backend.features_site.game_config.router import router as game_config_router  # noqa: E402
 
 app = FastAPI(
     title="TurnBasedMMORPG Backend",
@@ -33,6 +34,7 @@ app = FastAPI(
 app.add_middleware(ActiveCharacterDirtySyncMiddleware)
 app.add_exception_handler(BaseAPIException, api_exception_handler)  # type: ignore[arg-type]
 app.include_router(auth_router)
+app.include_router(game_config_router)
 app.include_router(arena_router)
 app.include_router(character_router)
 app.include_router(combat_router)

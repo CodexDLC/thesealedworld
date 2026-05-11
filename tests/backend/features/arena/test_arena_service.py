@@ -111,7 +111,7 @@ class FakeEvents:
         player_ids = json.loads(data["player_ids"])
         return {
             "status": "ok",
-            "commitments": {f"{session_id}:player:{char_id}": f"{session_id}:player:{char_id}" for char_id in player_ids},
+            "commitments": {f"player:{char_id}": f"actor:{session_id}:player:{char_id}" for char_id in player_ids},
         }
 
 
@@ -143,6 +143,20 @@ class FakeCharacterSessions:
         self.state = (char_id, state, prev_state)
 
 
+class FakeRatingView:
+    async def player_metadata(self, *, char_id: int, mode_size: int = 1):
+        return {
+            "char_id": char_id,
+            "mode_size": mode_size,
+            "rating": 1000,
+            "rank": 1000,
+            "tier": 1,
+            "league_name": "Bronze",
+            "matches_played": 0,
+            "placement_left": 5,
+        }
+
+
 def build_service(store: FakeStore, events: FakeEvents) -> ArenaService:
     sessions = FakeCharacterSessions()
     return ArenaService(
@@ -168,6 +182,25 @@ async def test_view_creates_arena_runtime_session_and_attaches_active_character_
     assert arena_id.startswith("arena:runtime:")
     assert store.runtime_sessions[arena_id].char_id == 1
     assert sessions.state == (1, CoreDomain.ARENA, None)
+
+
+@pytest.mark.asyncio
+async def test_view_includes_rating_metadata_when_rating_view_is_configured():
+    store = FakeStore()
+    events = FakeEvents()
+    sessions = FakeCharacterSessions()
+    service = ArenaService(
+        session_service=ArenaSessionIntegration(store),
+        integrator=ArenaSystemIntegrator(events=events, character_sessions=sessions),
+        rating_view=FakeRatingView(),
+    )
+
+    payload = await service.view(1)
+
+    assert payload.metadata["rating"] == 1000
+    assert payload.metadata["rank"] == 1000
+    assert payload.metadata["tier"] == 1
+    assert payload.metadata["league_name"] == "Bronze"
 
 
 @pytest.mark.asyncio
@@ -261,9 +294,9 @@ async def test_check_match_creates_pvp_combat_request():
     assert events.published[0][0] == "combat.session_requested"
     assert events.published[0][1]["battle_type"] == "pvp"
     assert events.published[0][1]["participants"] == {"team_1": [1], "team_2": [2]}
-    assert set(events.published[0][1]["commitments"]) == {"1", "2"}
-    assert events.published[0][1]["commitments"]["1"].endswith(":player:1")
-    assert events.published[0][1]["commitments"]["2"].endswith(":player:2")
+    assert set(events.published[0][1]["commitments"]) == {"player:1", "player:2"}
+    assert events.published[0][1]["commitments"]["player:1"].endswith(":player:1")
+    assert events.published[0][1]["commitments"]["player:2"].endswith(":player:2")
 
 
 @pytest.mark.asyncio

@@ -1,3 +1,5 @@
+from typing import Any
+
 from loguru import logger
 
 from src.backend.features.game_lobby.integrations import GameLobbyIntegration
@@ -54,7 +56,7 @@ class GameLobbyService:
     ) -> None:
         await self.integration.delete_owned_character(user_id=user.id, character_id=character_id)
 
-    async def enter_character(self, user: User, character_id: int) -> CoreResponseDTO[dict[str, object]]:
+    async def enter_character(self, user: User, character_id: int) -> CoreResponseDTO[dict[str, Any]]:
         await self.integration.release_other_active_sessions(user.id, character_id)
         session_doc = await self.integration.bootstrap_active_character(user_id=user.id, character_id=character_id)
         return CoreResponseDTO(
@@ -63,7 +65,7 @@ class GameLobbyService:
             payload_type="active_character_bootstrap",
         )
 
-    async def release_character(self, user: User, character_id: int) -> CoreResponseDTO[dict[str, object]]:
+    async def release_character(self, user: User, character_id: int) -> CoreResponseDTO[dict[str, Any]]:
         await self.integration.release_active_character(user_id=user.id, character_id=character_id)
         return CoreResponseDTO(
             header=GameStateHeader(current_state=CoreDomain.LOBBY),

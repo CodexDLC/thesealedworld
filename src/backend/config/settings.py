@@ -61,7 +61,6 @@ class BackendSettings(BaseCommonSettings):
 
     world_auto_generate: bool = False
     world_generation_mode: str = "test"
-    monster_population_clans_per_context: int = 1
 
     # LLM Settings
     gemini_api_key: str | None = None

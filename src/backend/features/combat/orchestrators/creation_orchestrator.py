@@ -58,10 +58,12 @@ class CombatCreationOrchestrator:
             _elapsed_ms(step_started_at),
         )
         missing_player_ids = [
-            player_id for player_id in player_ids if f"{combat_id}:player:{player_id}" not in commitments
+            player_id for player_id in player_ids if self.integrator.source_ref("player", player_id) not in commitments
         ]
         missing_monster_ids = [
-            monster_id for monster_id in monster_ids if f"{combat_id}:monster:{monster_id}" not in commitments
+            monster_id
+            for monster_id in monster_ids
+            if self.integrator.source_ref("monster", monster_id) not in commitments
         ]
         if missing_player_ids or missing_monster_ids:
             step_started_at = perf_counter()
@@ -81,7 +83,7 @@ class CombatCreationOrchestrator:
                 _elapsed_ms(step_started_at),
             )
         step_started_at = perf_counter()
-        snapshots = await self.integrator.load_actor_commitments(commitments)
+        snapshots = await self.integrator.load_actor_commitments(combat_id, commitments)
         logger.info(
             "CombatCreationTiming | step=load_actor_commitments combat_id={} commitment_count={} snapshot_count={} "
             "ms={}",
@@ -162,16 +164,15 @@ class CombatCreationOrchestrator:
                 value = str(raw_member)
                 actor_id = value[1:] if value.startswith("-") and value[1:].isdigit() else value
                 if actor_id.isdigit():
-                    commitment_id = raw.get(actor_id) or raw.get(f"player:{actor_id}")
+                    source_ref = self.integrator.source_ref("player", actor_id)
+                    commitment_id = raw.get(source_ref)
                     if commitment_id:
-                        mapped[f"{combat_id}:player:{actor_id}"] = str(commitment_id)
+                        mapped[source_ref] = str(commitment_id)
                     continue
 
-                commitment_id = raw.get(actor_id) or raw.get(f"monster:{actor_id}")
+                source_ref = self.integrator.source_ref("monster", actor_id)
+                commitment_id = raw.get(source_ref)
                 if commitment_id:
-                    mapped[f"{combat_id}:monster:{actor_id}"] = str(commitment_id)
+                    mapped[source_ref] = str(commitment_id)
 
-        if mapped:
-            return mapped
-
-        return {str(snapshot_id): str(commitment_id) for snapshot_id, commitment_id in raw.items() if commitment_id}
+        return mapped

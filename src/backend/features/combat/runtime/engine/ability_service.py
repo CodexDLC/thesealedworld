@@ -232,7 +232,7 @@ class AbilityService:
         )
 
         ability_uid = str(uuid.uuid4())
-        modified_keys = []
+        modified_keys: list[str] = []
         modified_sources: dict[str, list[str]] = {}
 
         if config.modifier_applications:
@@ -247,9 +247,10 @@ class AbilityService:
             modified_keys = sorted(set(modified_keys) | applied_modifiers.modified_keys)
             AbilityService._merge_modified_sources(modified_sources, applied_modifiers.modified_sources)
 
-        if mode == "feint" and getattr(config, "hit_damage_bonus_per_tier", 0.0):
+        bonus_per_tier = float(getattr(config, "hit_damage_bonus_per_tier", 0.0))
+        if mode == "feint" and bonus_per_tier > 0:
             weapon_tier = AbilityService._source_weapon_tier(actor, move)
-            bonus_damage = float(config.hit_damage_bonus_per_tier) * weapon_tier
+            bonus_damage = bonus_per_tier * weapon_tier
             ctx.mods.weapon_technique_bonus_damage = bonus_damage
             applied_modifiers = ModifierApplicationService.apply(
                 applications=[
@@ -268,18 +269,21 @@ class AbilityService:
             modified_keys = sorted(set(modified_keys) | applied_modifiers.modified_keys)
             AbilityService._merge_modified_sources(modified_sources, applied_modifiers.modified_sources)
 
-        payload_effects = {}
-        if getattr(config, "preparation_effects", None):
-            payload_effects["always"] = config.preparation_effects
-        if config.effects:
-            payload_effects["is_hit"] = config.effects
+        payload_effects: dict[str, Any] = {}
+        prep_effects = getattr(config, "preparation_effects", None)
+        if prep_effects:
+            payload_effects["always"] = prep_effects
+
+        effects = getattr(config, "effects", None)
+        if effects:
+            payload_effects["is_hit"] = effects
 
         # Determine ID for ActiveAbilityDTO
-        active_id = (
-            config.ability_id
-            if mode == "ability" and hasattr(config, "ability_id")
-            else (config.feint_id if mode == "feint" and hasattr(config, "feint_id") else action_id)
-        )
+        active_id = action_id
+        if mode == "ability":
+            active_id = getattr(config, "ability_id", action_id)
+        elif mode == "feint":
+            active_id = getattr(config, "feint_id", action_id)
 
         active_ability = ActiveAbilityDTO(
             uid=ability_uid,

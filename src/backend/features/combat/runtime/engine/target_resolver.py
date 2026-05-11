@@ -37,10 +37,10 @@ class TargetResolver:
 
         # 1. Direct ID
         if isinstance(target_raw, int):
-            return [normalize_actor_id(target_raw)]
+            return self._resolve_direct(target_raw, meta)
 
         if isinstance(target_raw, str) and target_raw.lstrip("-").isdigit():
-            return [normalize_actor_id(target_raw)]
+            return self._resolve_direct(target_raw, meta)
 
         # 2. Alias Processing
         alias = str(target_raw).lower()
@@ -55,7 +55,7 @@ class TargetResolver:
             return self._resolve_random_enemies(source_actor_id, meta, alias)
 
         if self._is_known_actor_id(alias, meta):
-            return [normalize_actor_id(target_raw)]
+            return self._resolve_direct(target_raw, meta)
 
         return []
 
@@ -120,3 +120,9 @@ class TargetResolver:
     @staticmethod
     def _is_known_actor_id(actor_id: ActorId, meta: BattleMeta) -> bool:
         return any(actor_id == normalize_actor_id(member) for members in meta.teams.values() for member in members)
+
+    @staticmethod
+    def _resolve_direct(target_raw: ActorIdLike, meta: BattleMeta) -> list[ActorId]:
+        target_id = normalize_actor_id(target_raw)
+        dead_set = {normalize_actor_id(actor_id) for actor_id in meta.dead_actors}
+        return [] if target_id in dead_set else [target_id]

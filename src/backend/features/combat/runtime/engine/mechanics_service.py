@@ -135,8 +135,8 @@ class MechanicsService:
         """
         # A. Costs (из resource_changes)
         if ctx.flags.mechanics.pay_cost:
-            hp_changes = []
-            en_changes = []
+            hp_changes: list[tuple[str, str]] = []
+            en_changes: list[tuple[str, str]] = []
 
             # Пример: {"hp": {"cost": "-10"}, "en": {"cost": "-20"}}
             if "hp" in result.resource_changes:

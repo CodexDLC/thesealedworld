@@ -21,8 +21,11 @@ Return JSON only:
     "unit_key": {
       "name": "Russian monster/variant title",
       "appearance": "Static visual bestiary description, 1-2 sentences",
-      "encounter": "Battle-start action text, 1-2 sentences",
-      "behavior": "What it is doing or how it behaves, 1 sentence"
+      "detected": "Text when the player notices this monster first, 1 sentence",
+      "ambush": "Text when this monster notices or attacks first, 1 sentence",
+      "idle": "Text when this monster is seen before combat, standing or doing something, 1 sentence",
+      "encounter": "Legacy fallback battle-start text; duplicate detected when unsure",
+      "behavior": "Short behavioral note for fallback/internal use, 1 sentence"
     }
   }
 }
@@ -33,6 +36,7 @@ Rules:
 - Location context tags matter. Anchor/influence tags must visibly mutate appearance and behavior.
 - Tier 0-1 means ragged, hungry, weak, scavenging. Tier 5+ means ancient, evolved, or magically altered.
 - Unit keys are technical ids from the input. Keep the same keys and write player-facing title/text fields for them.
+- detected, ambush, and idle must describe different encounter states, not repeat appearance.
 - Russian only for player-facing strings.
 - No markdown, no explanations."""
     user = json.dumps(payload, ensure_ascii=False, sort_keys=True)

@@ -9,6 +9,7 @@ from src.backend.features.arena.integrations.arena_integration import ArenaInteg
 from src.backend.features.arena.integrations.session_integration import ArenaSessionIntegration
 from src.backend.features.arena.integrations.stream_client import ArenaStreamClient
 from src.backend.features.character.events import CharacterEvents
+from src.backend.infrastructure.actor_commitments import ActorCommitmentManager
 from src.shared.enums import CoreDomain
 
 if TYPE_CHECKING:
@@ -64,8 +65,8 @@ class ArenaSystemIntegrator:
             commitments = json.loads(commitments)
         if not isinstance(commitments, dict):
             return None
-        commitment_id = f"{request_id}:player:{char_id}"
-        commitment = commitments.get(commitment_id) or commitments.get(str(char_id))
+        source_ref = ActorCommitmentManager.source_ref("player", char_id)
+        commitment = commitments.get(source_ref)
         return str(commitment) if commitment else None
 
     async def enter_combat(self, char_id: int, combat_id: str) -> None:

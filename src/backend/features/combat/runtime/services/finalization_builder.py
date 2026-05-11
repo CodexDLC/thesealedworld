@@ -80,7 +80,8 @@ class CombatFinalizationBuilder:
             if not isinstance(actor, dict):
                 continue
             actor_id = str(actor_id)
-            meta = actor.get("meta") if isinstance(actor.get("meta"), dict) else {}
+            raw_meta = actor.get("meta")
+            meta: dict[str, Any] = raw_meta if isinstance(raw_meta, dict) else {}
             xp_buffer = cls._float_mapping(actor.get("xp_buffer"))
             progression = progression_results.get(actor_id)
             progression_payload = progression.rewards if progression is not None else {}

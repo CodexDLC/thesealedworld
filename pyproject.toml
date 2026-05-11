@@ -31,6 +31,11 @@ dependencies = [
 default-groups = ["dev"]
 
 [dependency-groups]
+docs = [
+    "mkdocs==1.6.1",
+    "mkdocs-material==9.5.49",
+    "mkdocstrings[python]==0.27.0",
+]
 dev = [
     "ruff",
     "mypy",

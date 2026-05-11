@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, Literal
+from typing import Any, Literal, cast
 
 from pydantic import BaseModel, Field
 
@@ -97,7 +97,7 @@ class CombatDescriptionDTO(BaseModel):
         taxonomy_chain: list[str] | None = None,
     ) -> CombatResolvedTemplateDTO | None:
         for taxonomy in self._taxonomy_candidates(taxonomy_chain):
-            variant = self.variants.get(taxonomy)  # type: ignore[arg-type]
+            variant = self.variants.get(cast("CombatTaxonomy", taxonomy))
             if variant is None:
                 continue
             text = variant.event_texts.event_template(event)
@@ -111,7 +111,7 @@ class CombatDescriptionDTO(BaseModel):
         taxonomy_chain: list[str] | None = None,
     ) -> CombatResolvedTemplateDTO | None:
         for taxonomy in self._taxonomy_candidates(taxonomy_chain):
-            variant = self.variants.get(taxonomy)  # type: ignore[arg-type]
+            variant = self.variants.get(cast("CombatTaxonomy", taxonomy))
             if variant is None:
                 continue
             text = variant.event_texts.exchange_template(outcome)

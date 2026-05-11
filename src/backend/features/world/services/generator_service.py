@@ -24,6 +24,10 @@ D4_FALLBACK_DESCRIPTION = (
     "Мертвый квартал древней столицы. Координата описывает не размер, а отдельную "
     "навигационную область: улицу, площадь, двор или фрагмент квартала."
 )
+D4_NARRATIVE_CONTEXT = (
+    "D4 is the ruined former capital around the protected city hub. Treat city_ruins here as old capital outskirts, "
+    "collapsed districts, sealed roads, monolith walls, and scavenged streets around a safe portal-shielded center."
+)
 
 
 class LLMWorldGenerator:
@@ -80,17 +84,29 @@ class LLMWorldGenerator:
             for zy in range(zones_per_region):
                 is_hub_zone = zx == 1 and zy == 1
                 zone_id = f"{region_id}_{zx}_{zy}"
+                zone_center_x = min_x + zx * ZONE_SIZE + ZONE_SIZE // 2
+                zone_center_y = min_y + zy * ZONE_SIZE + ZONE_SIZE // 2
+                zone_influence = ThreatService.describe(zone_center_x, zone_center_y)
+                zone_tier = 0 if is_hub_zone else max(1, zone_influence.tier)
                 await self.data.upsert_zone(
                     zone_id,
                     region_id=region_id,
                     biome_id="hub_district" if is_hub_zone else "city_ruins",
-                    tier=0,
+                    tier=zone_tier,
                     flags={
                         "is_safe_zone": is_hub_zone,
                         "is_hub": is_hub_zone,
                         "portal_shield": is_hub_zone,
                         "is_old_capital": True,
-                        "threat_tier": 0,
+                        "narrative_context": D4_NARRATIVE_CONTEXT,
+                        "threat_tier": zone_tier,
+                        "anchor_influence": {
+                            "threat": zone_influence.threat,
+                            "tier": zone_influence.tier,
+                            "dominant_anchor": zone_influence.dominant_anchor,
+                            "tags": zone_influence.tags,
+                            "is_inside_city_shield": zone_influence.is_inside_city_shield,
+                        },
                     },
                 )
 
@@ -234,6 +250,7 @@ class LLMWorldGenerator:
             "tags": influence.tags,
             "is_inside_city_shield": influence.is_inside_city_shield,
         }
+        flags["narrative_context"] = D4_NARRATIVE_CONTEXT
         flags["world_theme"] = WorldThemeService.build(x, y, loc_id=f"{x}_{y}").model_dump(mode="json")
 
         return {
@@ -245,7 +262,7 @@ class LLMWorldGenerator:
             "content": {
                 "title": title,
                 "description": description,
-                "environment_tags": list(dict.fromkeys(tags)),
+                "environment_tags": list(dict.fromkeys([*tags, "former_capital_ruins"])),
             },
             "is_active": True,
             "flags": flags,
@@ -627,7 +644,13 @@ class LLMWorldGenerator:
         for attempt, delay in enumerate((*ZONE_LORE_RETRY_DELAYS_SECONDS, 0.0), start=1):
             try:
                 lore_raw = await self.ai.process(
-                    "zone_lore", region_id=zone.region_id, biome_id=zone.biome_id, tier=zone.tier
+                    "zone_lore",
+                    region_id=zone.region_id,
+                    biome_id=zone.biome_id,
+                    tier=zone.tier,
+                    narrative_context=(
+                        (zone.flags or {}).get("narrative_context") if isinstance(zone.flags, dict) else None
+                    ),
                 )
             except Exception as exc:
                 log.warning(

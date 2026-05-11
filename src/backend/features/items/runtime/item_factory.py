@@ -1,10 +1,17 @@
 from __future__ import annotations
 
 import random
+from dataclasses import dataclass
 from math import floor
 from typing import TYPE_CHECKING
 
-from src.backend.features.items.dto.instance import GeneratedItemDTO, ItemGenerationRequestDTO
+from src.backend.features.items.dto.instance import (
+    GeneratedItemDTO,
+    ItemGenerationRequestDTO,
+    RuntimeItemCombatProjectionDTO,
+    RuntimeItemGenerationDebugDTO,
+    RuntimeItemProjectionDTO,
+)
 from src.backend.features.items.resources.affix_balance import GLOBAL_AFFIX_STEPS
 from src.backend.features.items.resources.affixes.catalog import AFFIX_CATALOG, BUNDLE_CATALOG
 from src.backend.features.items.resources.affixes.pools import (
@@ -13,6 +20,7 @@ from src.backend.features.items.resources.affixes.pools import (
     AFFIX_POOLS_BY_TAG,
 )
 from src.backend.features.items.resources.item_grade import AFFIX_CONTAINER_RULES, GRADE_BY_RARITY_TIER
+from src.backend.features.items.resources.modifier_contracts import MODIFIER_CONTRACTS, compile_modifier_command
 
 if TYPE_CHECKING:
     from src.backend.features.items.resources.affixes.schemas import AffixBundleDTO, AffixCatalogEntryDTO
@@ -58,6 +66,13 @@ _PREFIX_FORMS: dict[str, tuple[str, str, str, str]] = {
 }
 
 
+@dataclass(slots=True)
+class _ScaledItemStats:
+    power: float
+    durability: float
+    implicit_bonuses: dict[str, float]
+
+
 class ItemFactory:
     def __init__(self, catalog: ItemCatalogService | None = None) -> None:
         if catalog is None:
@@ -66,87 +81,330 @@ class ItemFactory:
         self.catalog = catalog or ItemCatalogService.load_default()
 
     def generate(self, request: ItemGenerationRequestDTO) -> GeneratedItemDTO:
-        base = self.catalog.get_base_item(request.base_id)
-        if base is None:
-            raise ValueError(f"Unknown base item: {request.base_id}")
+        return self.generate_player_item(request)
 
-        item_grade = request.item_grade or GRADE_BY_RARITY_TIER.get(request.rarity_tier, "common")
-
+    def generate_player_item(self, request: ItemGenerationRequestDTO) -> GeneratedItemDTO:
+        base = self._resolve_base(request.base_id)
         material = self._resolve_material(base.allowed_materials, request.material_id, request.rarity_tier)
-        tier_mult = material.tier_mult if material else 1.0
-        item_tier = material.tier if material else request.rarity_tier
+        slot = base.slot
+        item_grade = self._resolve_item_grade(request)
+        item_tier = self._resolve_item_tier(material, request.rarity_tier)
+        tier_mult = self._resolve_tier_mult(material)
+        scaled = self._scale_item_stats(base, material, tier_mult)
+        item_type = self._resolve_item_type(base)
+        item_tags = self._build_item_tags(base, material)
+        affixes, bundle_ids = self._roll_affix_set(
+            request=request,
+            item_grade=item_grade,
+            item_type=item_type,
+            slot=slot,
+            item_tags=item_tags,
+            item_tier=item_tier,
+            tier_mult=tier_mult,
+            affix_step_count=GLOBAL_AFFIX_STEPS,
+        )
+        all_tags = self._build_all_tags(base, material, bundle_ids, affixes)
+        rarity = self.catalog.get_rarity(request.rarity_tier)
+        name = self._build_player_name(base, material, rarity)
+        description = self._build_player_description(base, material)
+        mechanics = self._build_mechanics(material, tier_mult, scaled.implicit_bonuses, affixes)
+        metadata = self._build_metadata(
+            request=request,
+            base=base,
+            item_grade=item_grade,
+            request_ai_text=request.request_ai_text,
+        )
+        return self._build_generated_item(
+            request=request,
+            base=base,
+            material=material,
+            item_grade=item_grade,
+            item_type=item_type,
+            slot=slot,
+            rarity=rarity,
+            name=name,
+            description=description,
+            scaled=scaled,
+            bundle_ids=bundle_ids,
+            narrative_tags=all_tags,
+            mechanics=mechanics,
+            metadata=metadata,
+        )
 
-        scaled_power = self._scale_power(base, material, tier_mult)
-        scaled_durability = round(base.base_durability * tier_mult, 2)
-        scaled_implicit = self._scale_implicit_bonuses(base, material, tier_mult)
+    def generate_runtime_item(self, request: ItemGenerationRequestDTO) -> GeneratedItemDTO:
+        base = self._resolve_base(request.base_id)
+        material = self._resolve_material(base.allowed_materials, request.material_id, request.rarity_tier)
+        slot = self._resolve_target_slot(base, request.target_slot)
+        item_grade = self._resolve_item_grade(request)
+        item_tier = self._resolve_item_tier(material, request.rarity_tier)
+        tier_mult = self._resolve_tier_mult(material)
+        scaled = self._scale_item_stats(base, material, tier_mult)
+        item_type = self._resolve_item_type(base)
+        item_tags = self._build_item_tags(base, material, extra_tags=request.extra_narrative_tags)
+        affixes, bundle_ids = self._roll_affix_set(
+            request=request,
+            item_grade=item_grade,
+            item_type=item_type,
+            slot=slot,
+            item_tags=item_tags,
+            item_tier=item_tier,
+            tier_mult=tier_mult,
+            affix_step_count=request.affix_step_count or GLOBAL_AFFIX_STEPS,
+        )
+        all_tags = self._build_all_tags(base, material, bundle_ids, affixes, extra_tags=request.extra_narrative_tags)
+        rarity = self.catalog.get_rarity(request.rarity_tier)
+        name = request.presentation_name_ru or self._build_player_name(base, material, rarity)
+        description = request.presentation_description or self._build_player_description(base, material)
+        mechanics = self._build_mechanics(material, tier_mult, scaled.implicit_bonuses, affixes)
+        metadata = self._build_metadata(
+            request=request,
+            base=base,
+            item_grade=item_grade,
+            request_ai_text=False,
+            extra_metadata={
+                **request.runtime_metadata,
+                "runtime_item": True,
+                "affix_step_count": request.affix_step_count or GLOBAL_AFFIX_STEPS,
+            },
+        )
+        return self._build_generated_item(
+            request=request,
+            base=base,
+            material=material,
+            item_grade=item_grade,
+            item_type=item_type,
+            slot=slot,
+            rarity=rarity,
+            name=name,
+            description=description,
+            scaled=scaled,
+            bundle_ids=bundle_ids,
+            narrative_tags=all_tags,
+            mechanics=mechanics,
+            metadata=metadata,
+        )
 
-        item_type = base.type or "item"
-        item_tags = list(base.narrative_tags)
-        if material:
-            item_tags.extend(material.narrative_tags)
-        affix_item_type = self._affix_item_type(item_type, base.slot, item_tags)
+    def generate_runtime_projection(
+        self, request: ItemGenerationRequestDTO, *, item_id: str
+    ) -> RuntimeItemProjectionDTO:
+        item = self.generate_runtime_item(request)
+        item = item.model_copy(update={"instance_id": item_id})
+        return self.project_runtime_item(item, owner_key=_string_or_none(request.runtime_metadata.get("owner_key")))
 
+    @staticmethod
+    def project_runtime_item(item: GeneratedItemDTO, *, owner_key: str | None = None) -> RuntimeItemProjectionDTO:
+        raw_affixes = item.mechanics.get("affixes")
+        affixes = raw_affixes if isinstance(raw_affixes, list) else []
+        material = item.mechanics.get("material") if isinstance(item.mechanics.get("material"), dict) else {}
+        source_context = item.metadata.get("source_context")
+        return RuntimeItemProjectionDTO(
+            item_id=item.instance_id or _string_or_none(item.metadata.get("runtime_item_id")) or item.template_id,
+            owner_key=owner_key or _string_or_none(item.metadata.get("owner_key")),
+            base_id=item.base_id,
+            item_type=item.item_type,
+            slot=item.slot,
+            combat=RuntimeItemCombatProjectionDTO(
+                power=item.power,
+                damage_spread=item.damage_spread,
+                implicit_bonuses=dict(item.implicit_bonuses),
+                bonuses=ItemFactory._compile_affix_bonuses(affixes),
+                triggers=list(item.triggers),
+                tags=list(item.narrative_tags),
+                related_skill=_string_or_none(item.metadata.get("related_skill")),
+            ),
+            generation=RuntimeItemGenerationDebugDTO(
+                material_id=_string_or_none(material.get("material_id"))
+                if isinstance(material, dict)
+                else item.material_id,
+                item_grade=str(item.metadata.get("item_grade") or ""),
+                rarity_tier=item.rarity_tier,
+                affix_bundle_ids=list(item.affix_bundle_ids),
+                affixes=affixes,
+                natural_key=_string_or_none(
+                    item.metadata.get("natural_key") or item.metadata.get("monster_equipment_key")
+                ),
+                source_context=dict(source_context) if isinstance(source_context, dict) else {},
+            ),
+        )
+
+    def _resolve_base(self, base_id: str):
+        base = self.catalog.get_base_item(base_id)
+        if base is None:
+            raise ValueError(f"Unknown base item: {base_id}")
+        return base
+
+    @staticmethod
+    def _resolve_target_slot(base, target_slot: str | None) -> str:
+        if not target_slot:
+            return str(base.slot)
+        valid_slots = {str(base.slot), *(str(slot) for slot in base.extra_slots)}
+        if target_slot not in valid_slots:
+            raise ValueError(f"Slot {target_slot!r} is not allowed for base item {base.id!r}")
+        return target_slot
+
+    @staticmethod
+    def _resolve_item_grade(request: ItemGenerationRequestDTO) -> str:
+        return request.item_grade or GRADE_BY_RARITY_TIER.get(request.rarity_tier, "common")
+
+    @staticmethod
+    def _resolve_item_tier(material, rarity_tier: int) -> int:
+        return material.tier if material else rarity_tier
+
+    @staticmethod
+    def _resolve_tier_mult(material) -> float:
+        return float(material.tier_mult) if material else 1.0
+
+    @staticmethod
+    def _resolve_item_type(base) -> str:
+        return str(base.type or "item")
+
+    def _scale_item_stats(self, base, material, tier_mult: float) -> _ScaledItemStats:
+        return _ScaledItemStats(
+            power=self._scale_power(base, material, tier_mult),
+            durability=round(base.base_durability * tier_mult, 2),
+            implicit_bonuses=self._scale_implicit_bonuses(base, material, tier_mult),
+        )
+
+    @staticmethod
+    def _build_item_tags(base, material, *, extra_tags: list[str] | None = None) -> list[str]:
+        tags = [*base.narrative_tags, *(material.narrative_tags if material else []), *(extra_tags or [])]
+        return list(dict.fromkeys(tags))
+
+    def _roll_affix_set(
+        self,
+        *,
+        request: ItemGenerationRequestDTO,
+        item_grade: str,
+        item_type: str,
+        slot: str,
+        item_tags: list[str],
+        item_tier: int,
+        tier_mult: float,
+        affix_step_count: int,
+    ) -> tuple[list[dict[str, object]], list[str]]:
+        affix_item_type = self._affix_item_type(item_type, slot, item_tags)
         container_rules = AFFIX_CONTAINER_RULES.get(item_grade, AFFIX_CONTAINER_RULES["common"])
-
         seed = request.origin_ref.seed if request.origin_ref and request.origin_ref.seed else None
-        rng = random.Random(seed)
-
-        filled_affixes, bundle_ids_used = self._fill_affixes(
+        return self._fill_affixes(
             container_rules=container_rules,
             item_type=affix_item_type,
-            slot=base.slot,
+            slot=slot,
             item_tags=item_tags,
             item_tier=item_tier,
             tier_mult=tier_mult,
             forced_bundle_ids=request.affix_bundle_ids,
-            rng=rng,
+            forced_affix_ids=request.forced_affix_ids,
+            allowed_affix_ids=request.allowed_affix_ids,
+            affix_count=request.affix_count,
+            rng=random.Random(seed),
+            affix_step_count=affix_step_count,
         )
 
+    @staticmethod
+    def _build_all_tags(
+        base,
+        material,
+        bundle_ids: list[str],
+        affixes: list[dict[str, object]],
+        *,
+        extra_tags: list[str] | None = None,
+    ) -> list[str]:
         bundle_narrative_tags: list[str] = []
-        for bid in bundle_ids_used:
-            b = BUNDLE_CATALOG.get(bid)
-            if b:
-                bundle_narrative_tags.extend(b.tags)
+        for bundle_id in bundle_ids:
+            bundle = BUNDLE_CATALOG.get(bundle_id)
+            if bundle:
+                bundle_narrative_tags.extend(bundle.tags)
 
         affix_narrative_tags: list[str] = []
-        for af in filled_affixes:
-            affix_narrative_tags.extend(af.pop("_narrative_tags", []))
+        for affix in affixes:
+            tags = affix.pop("_narrative_tags", [])
+            if isinstance(tags, list):
+                affix_narrative_tags.extend(tags)
 
-        all_tags = list(
+        return list(
             dict.fromkeys(
                 [
                     *base.narrative_tags,
                     *(material.narrative_tags if material else []),
+                    *(extra_tags or []),
                     *bundle_narrative_tags,
                     *affix_narrative_tags,
                 ]
             )
         )
 
-        rarity = self.catalog.get_rarity(request.rarity_tier)
-        name = self._build_instance_name(
+    def _build_player_name(self, base, material, rarity) -> str:
+        return self._build_instance_name(
             base.name_ru,
             rarity_name=rarity.name_ru,
             material_name=material.name_ru if material else None,
             material_prefix=material.name_prefix_ru if material else None,
         )
-        description = self._build_deterministic_description(
+
+    def _build_player_description(self, base, material) -> str:
+        return self._build_deterministic_description(
             base_description=base.narrative_description,
             base_name=base.name_ru,
             material_description=material.narrative_description if material else None,
         )
 
-        mechanics: dict[str, object] = {
+    @staticmethod
+    def _build_mechanics(
+        material,
+        tier_mult: float,
+        scaled_implicit: dict[str, float],
+        affixes: list[dict[str, object]],
+    ) -> dict[str, object]:
+        return {
             "implicit_bonuses": scaled_implicit,
             "material": {
                 "material_id": material.id if material else None,
                 "tier_mult": tier_mult,
                 "tags": list(material.narrative_tags) if material else [],
             },
-            "affixes": filled_affixes,
+            "affixes": affixes,
             "sockets": [],
         }
 
+    @staticmethod
+    def _build_metadata(
+        *,
+        request: ItemGenerationRequestDTO,
+        base,
+        item_grade: str,
+        request_ai_text: bool,
+        extra_metadata: dict[str, object] | None = None,
+    ) -> dict[str, object]:
+        return {
+            "source": request.source,
+            "source_context": request.source_context,
+            "request_ai_text": request_ai_text,
+            "damage_type": base.damage_type,
+            "defense_type": base.defense_type,
+            "related_skill": base.related_skill,
+            "armor_class": base.armor_class,
+            "item_grade": item_grade,
+            **(extra_metadata or {}),
+        }
+
+    @staticmethod
+    def _build_generated_item(
+        *,
+        request: ItemGenerationRequestDTO,
+        base,
+        material,
+        item_grade: str,
+        item_type: str,
+        slot: str,
+        rarity,
+        name: str,
+        description: str,
+        scaled: _ScaledItemStats,
+        bundle_ids: list[str],
+        narrative_tags: list[str],
+        mechanics: dict[str, object],
+        metadata: dict[str, object],
+    ) -> GeneratedItemDTO:
         return GeneratedItemDTO(
             template_id=f"{base.id}:{material.id if material else 'none'}:{item_grade}",
             item_type=item_type,
@@ -156,27 +414,40 @@ class ItemFactory:
             description=description,
             base_id=base.id,
             material_id=material.id if material else None,
-            affix_bundle_ids=bundle_ids_used,
-            power=scaled_power,
-            durability_max=scaled_durability,
+            affix_bundle_ids=bundle_ids,
+            power=scaled.power,
+            durability_max=scaled.durability,
             damage_spread=base.damage_spread,
-            slot=base.slot,
+            slot=slot,
             valid_slots=[base.slot, *base.extra_slots],
-            implicit_bonuses=scaled_implicit,
+            implicit_bonuses=scaled.implicit_bonuses,
             bonuses={},
             triggers=list(base.triggers),
-            narrative_tags=all_tags,
+            narrative_tags=narrative_tags,
             mechanics=mechanics,
-            metadata={
-                "source": request.source,
-                "request_ai_text": request.request_ai_text,
-                "damage_type": base.damage_type,
-                "defense_type": base.defense_type,
-                "related_skill": base.related_skill,
-                "armor_class": base.armor_class,
-                "item_grade": item_grade,
-            },
+            metadata=metadata,
         )
+
+    @staticmethod
+    def _compile_affix_bonuses(affixes: list[object]) -> dict[str, str]:
+        bonuses: dict[str, str] = {}
+        for raw_affix in affixes:
+            if not isinstance(raw_affix, dict):
+                continue
+            affix_id = _string_or_none(raw_affix.get("affix_id"))
+            if affix_id is None:
+                continue
+            entry = AFFIX_CATALOG.get(affix_id)
+            if entry is None:
+                continue
+            contract = MODIFIER_CONTRACTS.get(entry.technical.modifier_id)
+            if contract is None:
+                continue
+            value = _float_or_none(raw_affix.get("value"))
+            if value is None:
+                continue
+            bonuses[contract.target_field] = compile_modifier_command(contract, value)
+        return bonuses
 
     @staticmethod
     def _scale_power(base, material, tier_mult: float) -> float:
@@ -216,11 +487,22 @@ class ItemFactory:
         tier_mult: float,
         forced_bundle_ids: list[str],
         rng: random.Random,
+        forced_affix_ids: list[str] | None = None,
+        allowed_affix_ids: list[str] | None = None,
+        affix_count: int | None = None,
+        affix_step_count: int = GLOBAL_AFFIX_STEPS,
     ) -> tuple[list[dict[str, object]], list[str]]:
-        max_count = int(container_rules["max"])  # type: ignore[arg-type]
-        min_count = int(container_rules["min"])  # type: ignore[arg-type]
-        bundle_chance = float(container_rules["bundle_chance"])  # type: ignore[arg-type]
-        allowed_bundle_sizes: list[int] = list(container_rules["bundle_sizes"])  # type: ignore[arg-type]
+        raw_max = container_rules.get("max")
+        max_count = int(raw_max) if isinstance(raw_max, (int, str)) else 0
+        raw_min = container_rules.get("min")
+        min_count = int(raw_min) if isinstance(raw_min, (int, str)) else 0
+        raw_bundle_chance = container_rules.get("bundle_chance")
+        bundle_chance = float(raw_bundle_chance) if isinstance(raw_bundle_chance, (int, float, str)) else 0.0
+        raw_bundle_sizes = container_rules.get("bundle_sizes")
+        allowed_bundle_sizes: list[int] = list(raw_bundle_sizes) if isinstance(raw_bundle_sizes, list) else []  # type: ignore[arg-type]
+        if affix_count is not None:
+            min_count = max(0, affix_count)
+            max_count = min_count
 
         if max_count == 0:
             return [], []
@@ -228,6 +510,28 @@ class ItemFactory:
         filled: list[dict[str, object]] = []
         bundle_ids_used: list[str] = []
         chosen_affix_ids: set[str] = set()
+
+        forced_pool = set(
+            self._pool_for_item(
+                item_type,
+                slot,
+                item_tags,
+                item_tier,
+                already_chosen=set(),
+                allowed_affix_ids=allowed_affix_ids,
+            )
+        )
+        for affix_id in forced_affix_ids or []:
+            if affix_id in chosen_affix_ids or affix_id not in forced_pool or len(filled) >= max_count:
+                continue
+            entry = AFFIX_CATALOG.get(affix_id)
+            if entry is None:
+                continue
+            rolled = self._roll_affix(entry, tier_mult, rng, item_tier=item_tier, affix_step_count=affix_step_count)
+            rolled["source"] = "forced"
+            rolled["_narrative_tags"] = list(entry.descriptive.narrative_tags)
+            filled.append(rolled)
+            chosen_affix_ids.add(affix_id)
 
         # Forced bundles from request (treated as boss/forced drops)
         for bundle_id in forced_bundle_ids:
@@ -240,10 +544,12 @@ class ItemFactory:
             for affix_id in bundle.affix_ids:
                 if affix_id in chosen_affix_ids or len(filled) >= max_count:
                     continue
+                if allowed_affix_ids and affix_id not in allowed_affix_ids:
+                    continue
                 entry = AFFIX_CATALOG.get(affix_id)
                 if entry is None or not self._affix_matches_item(entry, item_tags, item_tier):
                     continue
-                rolled = self._roll_affix(entry, tier_mult, rng, item_tier=item_tier)
+                rolled = self._roll_affix(entry, tier_mult, rng, item_tier=item_tier, affix_step_count=affix_step_count)
                 rolled["source"] = f"bundle:{bundle_id}"
                 rolled["_narrative_tags"] = list(entry.descriptive.narrative_tags)
                 filled.append(rolled)
@@ -264,10 +570,18 @@ class ItemFactory:
                 for affix_id in bundle.affix_ids:
                     if affix_id in chosen_affix_ids or len(filled) >= max_count:
                         continue
+                    if allowed_affix_ids and affix_id not in allowed_affix_ids:
+                        continue
                     entry = AFFIX_CATALOG.get(affix_id)
                     if entry is None or not self._affix_matches_item(entry, item_tags, item_tier):
                         continue
-                    rolled = self._roll_affix(entry, tier_mult, rng, item_tier=item_tier)
+                    rolled = self._roll_affix(
+                        entry,
+                        tier_mult,
+                        rng,
+                        item_tier=item_tier,
+                        affix_step_count=affix_step_count,
+                    )
                     rolled["source"] = f"bundle:{bundle.id}"
                     rolled["_narrative_tags"] = list(entry.descriptive.narrative_tags)
                     filled.append(rolled)
@@ -277,7 +591,14 @@ class ItemFactory:
         # Fill singles to reach a target between min_count and max_count
         target = rng.randint(min_count, max_count) if min_count <= max_count else max_count
         while len(filled) < target:
-            pool = self._pool_for_item(item_type, slot, item_tags, item_tier, chosen_affix_ids)
+            pool = self._pool_for_item(
+                item_type,
+                slot,
+                item_tags,
+                item_tier,
+                chosen_affix_ids,
+                allowed_affix_ids=allowed_affix_ids,
+            )
             if not pool:
                 break
             affix_id = rng.choice(pool)
@@ -285,7 +606,7 @@ class ItemFactory:
             if entry is None:
                 chosen_affix_ids.add(affix_id)
                 continue
-            rolled = self._roll_affix(entry, tier_mult, rng, item_tier=item_tier)
+            rolled = self._roll_affix(entry, tier_mult, rng, item_tier=item_tier, affix_step_count=affix_step_count)
             rolled["source"] = f"single:{entry.group}"
             rolled["_narrative_tags"] = list(entry.descriptive.narrative_tags)
             filled.append(rolled)
@@ -300,18 +621,20 @@ class ItemFactory:
         rng: random.Random,
         *,
         item_tier: int,
+        affix_step_count: int = GLOBAL_AFFIX_STEPS,
     ) -> dict[str, object]:
         profile = entry.technical.roll_profile
         step_base = entry.technical.base_value * tier_mult
         lo = max(0.0, 1.0 - profile.step_spread)
         hi = 1.0 + profile.step_spread
-        step_mults = [rng.uniform(lo, hi) for _ in range(GLOBAL_AFFIX_STEPS)]
+        step_count = max(1, affix_step_count)
+        step_mults = [rng.uniform(lo, hi) for _ in range(step_count)]
         step_roll_total = sum(step_mults)
         raw_value = step_base * step_roll_total
         value = _round_value(raw_value, profile.rounding, profile.round_digits)
 
-        max_total = GLOBAL_AFFIX_STEPS * (1.0 + profile.step_spread)
-        min_total = GLOBAL_AFFIX_STEPS * max(0.0, 1.0 - profile.step_spread)
+        max_total = step_count * (1.0 + profile.step_spread)
+        min_total = step_count * max(0.0, 1.0 - profile.step_spread)
         roll_quality = (
             round(max(0.0, min(1.0, (step_roll_total - min_total) / (max_total - min_total))), 4)
             if max_total > min_total
@@ -324,7 +647,7 @@ class ItemFactory:
             "tier": item_tier,
             "source": "",
             "roll_quality": roll_quality,
-            "roll": {"step_roll_total": round(step_roll_total, 4)},
+            "roll": {"step_count": step_count, "step_roll_total": round(step_roll_total, 4)},
         }
 
     @staticmethod
@@ -334,6 +657,7 @@ class ItemFactory:
         item_tags: list[str],
         item_tier: int,
         already_chosen: set[str],
+        allowed_affix_ids: list[str] | None = None,
     ) -> list[str]:
         type_pool = set(AFFIX_POOLS_BY_ITEM_TYPE.get(item_type, []))
 
@@ -351,6 +675,8 @@ class ItemFactory:
             candidate = type_pool & tag_union
             if candidate:
                 type_pool = candidate
+        if allowed_affix_ids:
+            type_pool &= set(allowed_affix_ids)
 
         result: list[str] = []
         for affix_id in type_pool:
@@ -459,3 +785,21 @@ def _round_value(value: float, rounding: str, round_digits: int) -> float:
     if rounding == "round_int":
         return float(round(value))
     return round(value, round_digits)
+
+
+def _string_or_none(value: object) -> str | None:
+    if value is None:
+        return None
+    text = str(value)
+    return text or None
+
+
+def _float_or_none(value: object) -> float | None:
+    if isinstance(value, bool):
+        return None
+    if isinstance(value, int | float | str):
+        try:
+            return float(value)
+        except (TypeError, ValueError):
+            return None
+    return None

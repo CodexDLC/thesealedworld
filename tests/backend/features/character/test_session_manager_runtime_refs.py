@@ -38,6 +38,23 @@ async def test_arena_runtime_ref_marks_character_dirty(
 
 
 @pytest.mark.asyncio
+async def test_encounter_runtime_ref_marks_character_dirty(
+    fake_redis_service,
+    fake_redis_client,
+) -> None:
+    fake_redis_client.store["game:ac:7"] = {"char_id": 7, "sessions": {}, "items": {}}
+    manager = CharacterSessionManager(fake_redis_service)
+
+    await manager.set_encounter_session(7, "encounter-1")
+    await manager.clear_encounter_session(7)
+
+    active_character = fake_redis_client.store["game:ac:7"]
+    assert active_character["sessions"]["encounter_id"] is None
+    assert active_character["sync_dirty"]["dirty"] is True
+    assert "$.sessions.encounter_id" in active_character["sync_dirty"]["paths"]
+
+
+@pytest.mark.asyncio
 async def test_reset_main_runtime_refs_to_exploration_clears_blocking_refs(
     fake_redis_service,
     fake_redis_client,
@@ -50,6 +67,7 @@ async def test_reset_main_runtime_refs_to_exploration_clears_blocking_refs(
             "scenario_id": "scenario-1",
             "combat_id": "combat-1",
             "combat_finalization_id": "combat-final-1",
+            "encounter_id": "encounter-1",
             "arena_id": "arena-1",
             "inventory_id": "inventory-1",
         },
@@ -65,6 +83,7 @@ async def test_reset_main_runtime_refs_to_exploration_clears_blocking_refs(
     assert active_character["sessions"]["scenario_id"] is None
     assert active_character["sessions"]["combat_id"] is None
     assert active_character["sessions"]["combat_finalization_id"] is None
+    assert active_character["sessions"]["encounter_id"] is None
     assert active_character["sessions"]["arena_id"] is None
     assert active_character["sessions"]["inventory_id"] == "inventory-1"
     assert active_character["active_quest"] is None

@@ -1,0 +1,161 @@
+site_name: Symbiote Chronicles — Документация
+docs_dir: docs/ru
+site_dir: site_docs
+
+theme:
+  name: material
+  language: ru
+  palette:
+    scheme: slate
+    primary: amber
+    accent: amber
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.indexes
+    - navigation.top
+    - content.code.copy
+    - content.code.annotate
+
+plugins:
+  - search:
+      lang: ru
+  - mkdocstrings:
+      handlers:
+        python:
+          paths: [src]
+          options:
+            show_source: true
+            show_root_heading: true
+            show_symbol_type_heading: true
+            merge_init_into_class: true
+
+markdown_extensions:
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.details
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - admonition
+  - toc:
+      permalink: true
+
+nav:
+  - Обзор: index.md
+
+  - Shared:
+    - Обзор: shared/index.md
+    - Enums: shared/enums.md
+    - Schemas: shared/schemas.md
+    - Constants: shared/constants.md
+    - Utils: shared/utils.md
+
+  - Backend:
+    - Обзор: backend/index.md
+    - Core:
+      - Обзор: backend/core/index.md
+      - Lifespan: backend/core/lifespan.md
+      - Containers: backend/core/containers.md
+      - Bus: backend/core/bus.md
+      - Calculators: backend/core/calculators.md
+      - Database: backend/core/database.md
+      - ARQ: backend/core/arq.md
+      - AI: backend/core/ai.md
+      - Schemas: backend/core/schemas.md
+      - Security: backend/core/security.md
+      - Middleware: backend/core/middleware.md
+      - Exceptions: backend/core/exceptions.md
+    - Features:
+      - Arena:
+        - Обзор: backend/features/arena/index.md
+        - DTO: backend/features/arena/dto.md
+        - Services: backend/features/arena/services.md
+        - Gateway: backend/features/arena/gateway.md
+        - Integrations: backend/features/arena/integrations.md
+        - Runtime: backend/features/arena/runtime.md
+        - Repositories: backend/features/arena/repositories.md
+      - Character:
+        - Обзор: backend/features/character/index.md
+        - Models: backend/features/character/models.md
+        - Repositories: backend/features/character/repositories.md
+        - DTO & Schemas: backend/features/character/dto.md
+        - Services: backend/features/character/services.md
+        - Integrations: backend/features/character/integrations.md
+        - Runtime: backend/features/character/runtime.md
+        - Managers: backend/features/character/managers.md
+        - Workers: backend/features/character/workers.md
+      - Combat:
+        - Обзор: backend/features/combat/index.md
+        - DTO: backend/features/combat/dto.md
+        - Services: backend/features/combat/services.md
+        - Orchestrators: backend/features/combat/orchestrators.md
+        - Integrations: backend/features/combat/integrations.md
+        - Workers: backend/features/combat/workers.md
+        - Runtime:
+          - Обзор: backend/features/combat/runtime/index.md
+          - Engine: backend/features/combat/runtime/engine.md
+          - Processors: backend/features/combat/runtime/processors.md
+          - Services: backend/features/combat/runtime/services.md
+          - Support: backend/features/combat/runtime/support.md
+      - Exploration: backend/features/exploration/index.md
+      - Game Catalog: backend/features/game_catalog/index.md
+      - Game Lobby: backend/features/game_lobby/index.md
+      - Game Session: backend/features/game_session/index.md
+      - Inventory: backend/features/inventory/index.md
+      - Items: backend/features/items/index.md
+      - Loot: backend/features/loot/index.md
+      - Monsters: backend/features/monsters/index.md
+      - Scenario: backend/features/scenario/index.md
+      - System: backend/features/system/index.md
+      - World: backend/features/world/index.md
+    - Infrastructure:
+      - Обзор: backend/infrastructure/index.md
+      - Redis: backend/infrastructure/redis.md
+      - Actor State: backend/infrastructure/actor_state.md
+      - Actor Commitments: backend/infrastructure/actor_commitments.md
+      - Combat: backend/infrastructure/combat.md
+      - DB: backend/infrastructure/db.md
+      - Game Config: backend/infrastructure/game_config.md
+      - Inventory: backend/infrastructure/inventory.md
+      - Monsters: backend/infrastructure/monsters.md
+      - Scenario: backend/infrastructure/scenario.md
+      - World: backend/infrastructure/world.md
+    - Features Site:
+      - Обзор: backend/features_site/index.md
+      - Auth: backend/features_site/auth.md
+      - Game Config: backend/features_site/game_config.md
+      - Site: backend/features_site/site.md
+
+  - Frontend:
+    - Обзор: frontend/index.md
+    - Game Features:
+      - Обзор: frontend/game_features/index.md
+      - Arena: frontend/game_features/arena.md
+      - Character Status: frontend/game_features/character_status.md
+      - Combat: frontend/game_features/combat.md
+      - Exploration: frontend/game_features/exploration.md
+      - Game Catalog: frontend/game_features/game_catalog.md
+      - Game Lobby: frontend/game_features/game_lobby.md
+      - Game Menu: frontend/game_features/game_menu.md
+      - Inventory: frontend/game_features/inventory.md
+      - Scenario: frontend/game_features/scenario.md
+      - Session: frontend/game_features/session.md
+    - Site Features:
+      - Обзор: frontend/site_features/index.md
+      - Auth: frontend/site_features/auth.md
+      - Cabinet: frontend/site_features/cabinet.md
+      - Site: frontend/site_features/site.md
+    - Integrations: frontend/integrations.md
+    - Middleware: frontend/middleware.md
+
+  - Chat:
+    - Обзор: chat/index.md
+    - Services: chat/services.md
+    - DTO: chat/dto.md
+    - Events: chat/events.md
+    - Workers: chat/workers.md
+    - Repositories: chat/repositories.md

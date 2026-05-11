@@ -1,9 +1,15 @@
 from __future__ import annotations
 
+import uuid
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
-from src.backend.features.items.dto.instance import GeneratedItemDTO, ItemGenerationRequestDTO, ItemPlacementRefDTO
+from src.backend.features.items.dto.instance import (
+    GeneratedItemDTO,
+    ItemGenerationRequestDTO,
+    ItemPlacementRefDTO,
+    RuntimeItemProjectionDTO,
+)
 from src.backend.features.items.resources.item_grade import GRADE_BY_RARITY_TIER
 from src.backend.features.items.runtime import ItemFactory
 from src.backend.features.items.services.catalog_service import ItemCatalogService
@@ -46,7 +52,7 @@ class ItemGenerationService:
 
     async def generate_mechanical(self, request: ItemGenerationRequestDTO) -> ItemGenerationResultDTO:
         placement_ref = self._resolve_placement_ref(request)
-        item = self.factory.generate(request)
+        item = self.factory.generate_player_item(request)
         text_status = "pending" if self._should_request_ai_text(request) else "not_requested"
         item_id = await self.persistence.create_mechanical_item(
             item,
@@ -61,6 +67,19 @@ class ItemGenerationService:
             text_status=text_status,
         )
 
+    async def generate_runtime(self, request: ItemGenerationRequestDTO) -> ItemGenerationResultDTO:
+        item = self.factory.generate_runtime_item(request)
+        return ItemGenerationResultDTO(
+            item_ids=[],
+            items=[item] if request.return_item else None,
+            text_status="not_requested",
+        )
+
+    async def generate(self, request: ItemGenerationRequestDTO) -> ItemGenerationResultDTO:
+        if request.generation_mode == "runtime":
+            return await self.generate_runtime(request)
+        return await self.generate_mechanical(request)
+
     async def generate_many_mechanical(self, requests: list[ItemGenerationRequestDTO]) -> ItemGenerationResultDTO:
         item_ids: list[str] = []
         items: list[GeneratedItemDTO] = []
@@ -73,6 +92,29 @@ class ItemGenerationService:
             text_statuses.add(result.text_status)
         text_status = text_statuses.pop() if len(text_statuses) == 1 else "mixed"
         return ItemGenerationResultDTO(item_ids=item_ids, items=items or None, text_status=text_status)
+
+    async def generate_many(self, requests: list[ItemGenerationRequestDTO]) -> ItemGenerationResultDTO:
+        item_ids: list[str] = []
+        items: list[GeneratedItemDTO] = []
+        text_statuses: set[str] = set()
+        for request in requests:
+            result = await self.generate(request)
+            item_ids.extend(result.item_ids)
+            if result.items:
+                items.extend(result.items)
+            text_statuses.add(result.text_status)
+        text_status = text_statuses.pop() if len(text_statuses) == 1 else "mixed"
+        return ItemGenerationResultDTO(item_ids=item_ids, items=items or None, text_status=text_status)
+
+    async def generate_runtime_projections(
+        self, requests: list[ItemGenerationRequestDTO]
+    ) -> list[RuntimeItemProjectionDTO]:
+        projections: list[RuntimeItemProjectionDTO] = []
+        for request in requests:
+            runtime_request = request.model_copy(update={"generation_mode": "runtime", "return_item": True})
+            item_id = str(runtime_request.runtime_metadata.get("runtime_item_id") or uuid.uuid4())
+            projections.append(self.factory.generate_runtime_projection(runtime_request, item_id=item_id))
+        return projections
 
     async def enrich_text(self, item_id: str, request: ItemGenerationRequestDTO) -> GeneratedItemDTO | None:
         item = await self.persistence.get_generated_item(item_id)
@@ -97,5 +139,7 @@ class ItemGenerationService:
         )
 
     def _should_request_ai_text(self, request: ItemGenerationRequestDTO) -> bool:
+        if request.generation_mode == "runtime":
+            return False
         item_grade = request.item_grade or GRADE_BY_RARITY_TIER.get(request.rarity_tier, "common")
         return request.request_ai_text and item_grade != "common"

@@ -94,17 +94,10 @@ class SessionExpiredException(BaseAPIException):
 
 
 async def api_exception_handler(_: Request, exc: BaseAPIException) -> JSONResponse:
-    """
-    Handler for custom BaseAPIException.
-    Returns structured JSON error response.
-    """
+    extra = dict(exc.extra)
+    headers: dict[str, str] | None = extra.pop("headers", None)
     return JSONResponse(
         status_code=exc.status_code,
-        content={
-            "error": {
-                "code": exc.error_code,
-                "message": exc.detail,
-                **exc.extra,
-            }
-        },
+        content={"error": {"code": exc.error_code, "message": exc.detail, **extra}},
+        headers=headers,
     )

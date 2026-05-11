@@ -37,9 +37,18 @@ class FakeCommitmentManager:
     def __init__(self):
         self.saved = {}
 
-    async def save_commitments(self, commitments, ttl=300):
-        self.saved = commitments
-        return {commitment_id: commitment_id for commitment_id in commitments}
+    @staticmethod
+    def source_ref(actor_type, source_id):
+        return f"{actor_type}:{source_id}"
+
+    @staticmethod
+    def actor_uuid(scope_id, actor_type, source_id):
+        return f"actor:{scope_id}:{actor_type}:{source_id}"
+
+    async def save_snapshots(self, scope_id, snapshots, ttl=300):
+        del scope_id, ttl
+        self.saved = snapshots
+        return {actor_id: actor_id for actor_id in snapshots}
 
 
 class FakeItemRepository:
@@ -97,9 +106,10 @@ async def test_character_combat_commitment_integration_builds_player_commitments
         ttl=600,
     )
 
-    commitment = commitment_manager.saved["combat-1:player:7"]
+    actor_id = commitment_manager.actor_uuid("combat-1", "player", 7)
+    commitment = commitment_manager.saved[actor_id]
 
-    assert result.commitments == {"combat-1:player:7": "combat-1:player:7"}
+    assert result.commitments == {"player:7": actor_id}
     assert result.failed_players == []
     assert character_sessions.regenerated == [7]
     assert commitment["meta"]["actor_id"] == 7
@@ -123,7 +133,7 @@ async def test_character_combat_commitment_materializes_equipped_items_from_item
         ttl=600,
     )
 
-    commitment = commitment_manager.saved["combat-1:player:7"]
+    commitment = commitment_manager.saved[commitment_manager.actor_uuid("combat-1", "player", 7)]
 
     assert commitment["combat"]["math_model"]["modifiers"]["main_hand_damage_base"]["base"] == 9.0
     assert commitment["combat"]["loadout"]["equipment_layout"] == {"two_hand": "katana-1"}

@@ -45,8 +45,8 @@ async def get_combat_view(
             payload_type="CombatResult" if isinstance(payload, CombatResultDTO) else "CombatDashboard",
         )
     except CombatSessionNotFound as exc:
-        payload = await orchestrator.find_archived_result(char_id, reason=str(exc))
-        if payload is None:
+        archived = await orchestrator.find_archived_result(char_id, reason=str(exc))
+        if archived is None:
             transition = await orchestrator.recover_missing_combat_transition(char_id, reason=str(exc))
             return CoreResponseDTO(
                 header=GameStateHeader(current_state=transition.target_state, error="combat_session_recovered"),
@@ -55,7 +55,7 @@ async def get_combat_view(
             )
         return CoreResponseDTO(
             header=GameStateHeader(current_state=CoreDomain.COMBAT_RESULT, error="combat_result_recovered"),
-            payload=payload,
+            payload=archived,
             payload_type="CombatResult",
         )
 

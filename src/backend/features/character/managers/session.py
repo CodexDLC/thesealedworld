@@ -271,6 +271,22 @@ class CharacterSessionManager:
         await self.patch_fields(char_id, {"$.sessions.combat_id": None})
         await self.mark_dirty(char_id, reason="combat_session_cleared", paths=["$.sessions.combat_id"])
 
+    async def set_encounter_session(self, char_id: int, encounter_id: str) -> None:
+        await self.patch_fields(char_id, {"$.sessions.encounter_id": str(encounter_id)})
+        await self.mark_dirty(
+            char_id,
+            reason="encounter_session_attached",
+            paths=["$.sessions.encounter_id"],
+        )
+
+    async def clear_encounter_session(self, char_id: int) -> None:
+        await self.patch_fields(char_id, {"$.sessions.encounter_id": None})
+        await self.mark_dirty(
+            char_id,
+            reason="encounter_session_cleared",
+            paths=["$.sessions.encounter_id"],
+        )
+
     async def set_arena_session(self, char_id: int, arena_id: str) -> None:
         await self.patch_fields(char_id, {"$.sessions.arena_id": str(arena_id)})
         await self.mark_dirty(char_id, reason="arena_session_attached", paths=["$.sessions.arena_id"])
@@ -286,6 +302,7 @@ class CharacterSessionManager:
             "$.sessions.scenario_id": None,
             "$.sessions.combat_id": None,
             "$.sessions.combat_finalization_id": None,
+            "$.sessions.encounter_id": None,
             "$.sessions.arena_id": None,
             "$.active_quest": None,
         }

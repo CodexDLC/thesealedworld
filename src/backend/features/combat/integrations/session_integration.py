@@ -374,11 +374,18 @@ class CombatSessionIntegration:
         logs = ctx.pending_logs
 
         # 3. Update dead_actors list if needed
+        dead_actor_ids = {str(actor_id) for actor_id in ctx.meta.dead_actors}
         dead_actors_update = None
         if ctx.pending_dead_actors:
             # Merge with existing dead_actors
             updated_dead = list(set(ctx.meta.dead_actors + ctx.pending_dead_actors))
+            dead_actor_ids = {str(actor_id) for actor_id in updated_dead}
             dead_actors_update = json.dumps(updated_dead)
+        target_returns = [
+            pair
+            for pair in ctx.pending_target_returns
+            if str(pair["source_id"]) not in dead_actor_ids and str(pair["target_id"]) not in dead_actor_ids
+        ]
 
         # 4. АТОМАРНЫЙ Commit (state + logs + actions + targets + dead_actors)
         await self.combat_manager.commit_battle_results(
@@ -386,7 +393,7 @@ class CombatSessionIntegration:
             updates,
             cast("list[dict[str, Any] | str]", logs),
             len(processed_action_ids),
-            target_returns=ctx.pending_target_returns,
+            target_returns=target_returns,
             dead_actors=dead_actors_update,
             meta_update={"step_counter": ctx.meta.step_counter, "last_activity_at": int(time.time())},
         )

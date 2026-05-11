@@ -36,7 +36,7 @@ async def on_generate_requested(payload: dict[str, Any]) -> None:
         requests = _parse_generation_requests(payload)
         async with get_session_context() as session:
             service = _build_generation_service(session)
-            result = await service.generate_many_mechanical(requests)
+            result = await service.generate_many(requests)
 
         ack: dict[str, Any] = {"status": "ok", **result.model_dump(mode="json")}
         await _app.state.events.publish(
@@ -50,10 +50,12 @@ async def on_generate_requested(payload: dict[str, Any]) -> None:
                     request.placement_ref.model_dump(mode="json") if request.placement_ref is not None else None
                     for request in requests
                 ],
+                "generation_modes": [request.generation_mode for request in requests],
             },
             correlation_id=cid,
         )
-        for item_id, request in zip(result.item_ids, requests, strict=True):
+        persisted_requests = [request for request in requests if request.generation_mode == "player"]
+        for item_id, request in zip(result.item_ids, persisted_requests, strict=True):
             if not _should_request_ai_text(request):
                 continue
             await _app.state.events.publish(
@@ -137,7 +139,7 @@ def _build_generation_service(session: Any) -> ItemGenerationService:
 
 
 def _should_request_ai_text(request: ItemGenerationRequestDTO) -> bool:
-    return request.request_ai_text and request.rarity_tier > 0
+    return request.generation_mode == "player" and request.request_ai_text and request.rarity_tier > 0
 
 
 __all__ = ["ItemEvents", "bind", "router"]

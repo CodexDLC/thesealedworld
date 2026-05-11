@@ -67,8 +67,8 @@ class _AnchorProjectionSource:
     role: str
     name_ru: str
     scaled_base_stats: dict[str, Any]
-    loadout_ids: dict[str, Any]
-    skills_snapshot: list[str]
+    loadout_ids: dict[str, Any] | list[Any]
+    skills_snapshot: dict[str, Any] | list[Any]
     combat_seed: dict[str, Any]
     current_state: dict[str, Any] | None
 

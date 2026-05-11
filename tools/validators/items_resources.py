@@ -27,11 +27,9 @@ def validate_items_resources(root: Path) -> list[str]:
                 errors.append(f"items:{base.id}: unknown material category: {category}")
 
     for bundle in catalog.affix_bundles.values():
-        if bundle.ingredient_id not in resource_ids and bundle.ingredient_id not in material_ids:
-            errors.append(f"items:affix:{bundle.id}: unknown ingredient_id: {bundle.ingredient_id}")
-        for effect_id in bundle.effects:
-            if effect_id not in catalog.affix_effects:
-                errors.append(f"items:affix:{bundle.id}: unknown effect: {effect_id}")
+        for affix_id in bundle.affix_ids:
+            if affix_id not in catalog.affix_effects:
+                errors.append(f"items:affix:{bundle.id}: unknown effect: {affix_id}")
 
     missing_tiers = set(range(8)) - set(catalog.rarities)
     if missing_tiers:

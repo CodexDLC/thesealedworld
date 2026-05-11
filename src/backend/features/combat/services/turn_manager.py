@@ -95,6 +95,13 @@ class CombatTurnManager:
             target_id = getattr(move_dto.payload, "target_id", None)
             if not target_id:
                 raise CombatTargetRequiredError("Target ID is required for exchange")
+            if await self._is_dead_target(session_id, target_id):
+                if feint_id and cost:
+                    await self.combat_sessions.return_feint(session_id, char_id, feint_id, cost)
+                raise CombatTargetUnavailableError(
+                    "Target is already defeated",
+                    context={"target_id": str(target_id)},
+                )
 
             success = await self.combat_sessions.register_exchange_move(
                 session_id, char_id, target_id, move_dto.model_dump()
@@ -290,6 +297,17 @@ class CombatTurnManager:
             strategy=strategy,
             payload=validated_payload,
         )
+
+    async def _is_dead_target(self, session_id: str, target_id: ActorIdLike) -> bool:
+        state = await self.combat_sessions.get_actor_state(session_id, target_id)
+        if not isinstance(state, dict):
+            return False
+        if bool(state.get("is_dead")):
+            return True
+        try:
+            return int(state.get("hp", 1) or 0) <= 0
+        except (TypeError, ValueError):
+            return False
 
     @staticmethod
     def _defer_after(seconds: int) -> datetime:

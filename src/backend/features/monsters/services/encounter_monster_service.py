@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from src.backend.config.settings import settings
 from src.backend.features.monsters.dto.generation import EncounterMonsterResult, GeneratedClan, MonsterGenerationContext
 from src.backend.features.monsters.runtime.clan_factory import ClanFactory
 from src.backend.features.monsters.runtime.encounter_pool import EncounterPoolSelector
@@ -18,16 +17,10 @@ class EncounterMonsterService:
         repository: MonsterGenerationStorage,
         factory: ClanFactory | None = None,
         pool: EncounterPoolSelector | None = None,
-        population_clans_per_context: int | None = None,
     ) -> None:
         self.repository = repository
         self.factory = factory or ClanFactory()
         self.pool = pool or EncounterPoolSelector()
-        self.population_clans_per_context = (
-            settings.monster_population_clans_per_context
-            if population_clans_per_context is None
-            else population_clans_per_context
-        )
 
     async def prepare_encounter_monsters(self, context: MonsterGenerationContext) -> EncounterMonsterResult:
         normalized_tags = normalize_tags(context.tags)
@@ -76,37 +69,31 @@ class EncounterMonsterService:
             unique_hash=unique_hash,
         )
 
-    async def ensure_population_for_context(self, context: MonsterGenerationContext) -> list[GeneratedClan]:
+    def get_available_family_ids(self, context: MonsterGenerationContext) -> list[str]:
+        return self.factory.get_available_family_ids(context)
+
+    async def ensure_clan_for_context(self, context: MonsterGenerationContext, family_id: str) -> GeneratedClan:
+        available_family_ids = set(self.get_available_family_ids(context))
+        if family_id not in available_family_ids:
+            raise ValueError(
+                f"Monster family is not available for biome={context.biome_id} tier={context.tier}: {family_id}"
+            )
+
         normalized_tags = normalize_tags(context.tags)
         context_hash = compute_context_hash(context.tier, context.biome_id, normalized_tags)
-        clans: list[GeneratedClan] = []
+        unique_hash = compute_unique_clan_hash(family_id, context_hash)
+        clan = await self.repository.get_clan_by_unique_hash(unique_hash)
+        if clan is not None:
+            return await self._refresh_clan_if_stale(clan, context, normalized_tags)
 
-        for family_id in self._select_population_family_ids(context, context_hash):
-            unique_hash = compute_unique_clan_hash(family_id, context_hash)
-            clan = await self.repository.get_clan_by_unique_hash(unique_hash)
-            if clan is None:
-                clan, members_to_create = await self.factory.build_clan_with_members(
-                    family_id=family_id,
-                    context=context,
-                    context_hash=context_hash,
-                    unique_hash=unique_hash,
-                    normalized_tags=normalized_tags,
-                )
-                clan = await self.repository.create_clan_with_members(clan, members_to_create)
-            else:
-                clan = await self._refresh_clan_if_stale(clan, context, normalized_tags)
-            clans.append(clan)
-
-        return clans
-
-    def _select_population_family_ids(self, context: MonsterGenerationContext, context_hash: str) -> list[str]:
-        limit = max(0, int(self.population_clans_per_context))
-        if limit <= 0:
-            return []
-        if limit == 1:
-            family_id = self.factory.select_family_id(context, context_hash)
-            return [family_id] if family_id is not None else []
-        return self.factory.get_available_family_ids(context)[:limit]
+        clan, members_to_create = await self.factory.build_clan_with_members(
+            family_id=family_id,
+            context=context,
+            context_hash=context_hash,
+            unique_hash=unique_hash,
+            normalized_tags=normalized_tags,
+        )
+        return await self.repository.create_clan_with_members(clan, members_to_create)
 
     async def _refresh_clan_if_stale(
         self,

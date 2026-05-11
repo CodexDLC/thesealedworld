@@ -34,6 +34,7 @@ from src.backend.features.combat.runtime.engine.mechanics_service import Mechani
 from src.backend.features.combat.runtime.engine.pipeline import CombatPipeline
 from src.backend.features.combat.runtime.engine.resolver import CombatResolver
 from src.backend.features.combat.runtime.engine.stats_engine import StatsEngine
+from src.backend.features.combat.runtime.engine.target_resolver import TargetResolver
 from src.backend.features.combat.runtime.engine.trigger_activation import activate_trigger
 from src.backend.features.combat.runtime.processors import AiProcessor, CombatCollector, CombatExecutor
 from src.backend.features.combat.runtime.processors.chaos_service import ANCHOR_FORCE_TEAM, ChaosService
@@ -368,7 +369,7 @@ async def test_collector_finds_string_id_ai_missing_targets() -> None:
 
 
 @pytest.mark.unit
-async def test_executor_returns_target_after_forced_exchange() -> None:
+async def test_executor_does_not_return_dead_target_after_forced_exchange() -> None:
     ctx = BattleContext(session_id="c1", meta=battle_meta(), actors={"1": actor(1, "a"), "2": actor(2, "b", hp=1)})
     action = CombatActionDTO(
         action_type="exchange",
@@ -379,7 +380,7 @@ async def test_executor_returns_target_after_forced_exchange() -> None:
     processed = await CombatExecutor().process_batch(ctx, [action])
 
     assert processed == ["m1"]
-    assert ctx.pending_target_returns == [{"source_id": "1", "target_id": "2"}]
+    assert ctx.pending_target_returns == []
     assert "2" in ctx.pending_dead_actors
     assert ctx.meta.step_counter == 1
     assert ctx.actors["1"].meta.exchange_counter == 1
@@ -419,9 +420,32 @@ async def test_executor_handles_string_actor_id_target_returns() -> None:
     processed = await CombatExecutor().process_batch(ctx, [action])
 
     assert processed == ["m1"]
-    assert ctx.pending_target_returns == [{"source_id": "1", "target_id": "goblin_1"}]
+    assert ctx.pending_target_returns == []
     assert "goblin_1" in ctx.pending_dead_actors
     assert all("runtime" in entry["tags"] for entry in ctx.pending_logs)
+
+
+@pytest.mark.unit
+async def test_executor_returns_only_living_targets_after_exchange() -> None:
+    ctx = BattleContext(session_id="c1", meta=battle_meta(), actors={"1": actor(1, "a"), "2": actor(2, "b", hp=1000)})
+    action = CombatActionDTO(
+        action_type="exchange",
+        move=CombatMoveDTO(move_id="m1", char_id=1, strategy="exchange", payload=ExchangePayload(target_id=2)),
+        is_forced=True,
+    )
+
+    processed = await CombatExecutor().process_batch(ctx, [action])
+
+    assert processed == ["m1"]
+    assert ctx.pending_target_returns == [{"source_id": "1", "target_id": "2"}]
+    assert ctx.pending_dead_actors == []
+
+
+@pytest.mark.unit
+def test_target_resolver_rejects_dead_direct_target_id() -> None:
+    meta = battle_meta().model_copy(update={"dead_actors": [2]})
+
+    assert TargetResolver().resolve(1, 2, meta) == []
 
 
 @pytest.mark.unit

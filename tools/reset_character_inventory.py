@@ -273,7 +273,8 @@ def print_existing(rows: list[asyncpg.Record]) -> None:
 def print_generated(items: list[tuple[GeneratedItemDTO, str | None]]) -> None:
     print(f"Generated replacement items: {len(items)}")
     for item, slot_override in items:
-        affixes = item.mechanics.get("affixes", [])
+        raw_affixes = item.mechanics.get("affixes")
+        affixes = raw_affixes if isinstance(raw_affixes, list) else []
         affix_ids = ", ".join(str(affix.get("affix_id")) for affix in affixes if isinstance(affix, dict))
         slot = slot_override or item.slot
         print(f"  {item.base_id} | T{item.rarity_tier} | {slot} | {item.name} | affixes: {affix_ids or '-'}")
@@ -314,7 +315,7 @@ async def main() -> None:
     load_env_file(Path(".env"))
     database_url = os.environ.get("DATABASE_URL") or os.environ["SITE_DATABASE_URL"]
     redis_url = os.environ["REDIS_URL"]
-    loadout = [(base_id, None) for base_id in args.base_ids] if args.base_ids else STARTER_LOADOUT
+    loadout: list[tuple[str, str | None]] = [(base_id, None) for base_id in args.base_ids] if args.base_ids else STARTER_LOADOUT  # type: ignore[assignment]
     generated = generate_items(args.char_id, loadout, args.rarity_tier)
 
     conn = await asyncpg.connect(asyncpg_url(database_url))

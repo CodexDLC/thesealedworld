@@ -15,18 +15,27 @@ from src.backend.features.character.events import router as character_router
 from src.backend.features.character.events.publisher import CharacterSessionEvents
 from src.backend.features.combat.events import bind as bind_combat_events
 from src.backend.features.combat.events import router as combat_router
-from src.backend.features.exploration.events import router as exploration_router
+
+# Game Config
+from src.backend.features.combat.game_config import CombatConfig
+from src.backend.features.exploration.game_config import ExplorationConfig
 from src.backend.features.inventory.events import bind as bind_inventory_events
 from src.backend.features.inventory.events import router as inventory_router
 from src.backend.features.items.events import bind as bind_items_events
 from src.backend.features.items.events import router as items_router
+from src.backend.features.monsters.events import bind as bind_monsters_events
+from src.backend.features.monsters.events import router as monsters_router
 from src.backend.features.scenario.events import bind as bind_scenario_events
 from src.backend.features.scenario.events import router as scenario_router
+from src.backend.features.scenario.game_config import ScenarioConfig
 from src.backend.features.world.events import router as world_router
 from src.backend.features_site.auth.events import router as auth_router
+from src.backend.infrastructure.game_config.manager import GameConfigManager
 
 # Infrastructure Managers
 from src.backend.infrastructure.redis.managers import build_redis_managers
+
+_GAME_CONFIGS = (CombatConfig, ExplorationConfig, ScenarioConfig)
 
 log = logging.getLogger(__name__)
 
@@ -35,6 +44,7 @@ EVENT_ROUTER_GROUPS = (
     ("combat", combat_router),
     ("inventory", inventory_router),
     ("items", items_router),
+    ("monsters", monsters_router),
     ("scenario", scenario_router),
     ("arena", arena_router),
 )
@@ -55,6 +65,12 @@ class RedisContainer:
 
         # 2. Managers
         managers = build_redis_managers(redis_service)
+
+        game_config = GameConfigManager(app.state.redis_client)
+        for cfg in _GAME_CONFIGS:
+            game_config.register(cfg)
+        await game_config.bootstrap()
+        app.state.game_config = game_config
 
         app.state.redis = redis_service
         app.state.combat_arq = ArqService()
@@ -79,6 +95,7 @@ class RedisContainer:
         bind_arena_events(app)
         bind_inventory_events(app)
         bind_items_events(app)
+        bind_monsters_events(app)
         bind_scenario_events(app)
 
         for runtime in runtimes:
@@ -124,6 +141,6 @@ class RedisContainer:
         runtime.include_router(combat_router)
         runtime.include_router(inventory_router)
         runtime.include_router(items_router)
-        runtime.include_router(exploration_router)
+        runtime.include_router(monsters_router)
         runtime.include_router(scenario_router)
         runtime.include_router(arena_router)

@@ -217,6 +217,30 @@ class EmptyTargetCombatStore(FakeCombatStore):
         return {"1": [], "2": ["1"]}
 
 
+class DeadFirstTargetCombatStore(FakeCombatStore):
+    async def get_meta(self, session_id):
+        meta = await super().get_meta(session_id)
+        return {
+            **meta,
+            "teams": json.dumps({"team_1": ["1"], "team_2": ["2", "3"]}),
+            "actors_info": json.dumps({"1": "player", "2": "ai", "3": "ai"}),
+            "dead_actors": json.dumps(["2"]),
+        }
+
+    async def get_targets(self, session_id):
+        return {"1": ["2", "3"], "2": ["1"], "3": ["1"]}
+
+    async def get_actor_state(self, session_id, actor_id):
+        if str(actor_id) == "2":
+            return {"hp": 0, "is_dead": True, "afk_level": 0}
+        return {"hp": 80, "is_dead": False, "afk_level": 0}
+
+
+class LatestFinalizedCombatStore(FinalizedCombatStore):
+    async def get_latest_finalization_id_for_character(self, char_id):
+        return "combat-1"
+
+
 class FakeCombatSystemIntegrator:
     def __init__(self):
         self.recovered = []
@@ -442,6 +466,35 @@ async def test_combat_dashboard_marks_empty_queue_only_without_pending_action():
     assert dashboard.target is None
     assert dashboard.pending_action_count == 0
     assert dashboard.action_state == "TARGET_QUEUE_EMPTY"
+
+
+@pytest.mark.asyncio
+async def test_combat_dashboard_skips_dead_target_queue_entries():
+    service = CombatSessionService(store=DeadFirstTargetCombatStore(), system_integrator=FakeCombatSystemIntegrator())
+
+    dashboard = await service.get_dashboard(1)
+
+    assert dashboard.target is not None
+    assert dashboard.target.actor_id == "3"
+    exchange = next(action for action in dashboard.available_actions if action.action == "exchange")
+    assert exchange.target_id == "3"
+    assert dashboard.round_size == 2
+
+
+@pytest.mark.asyncio
+async def test_post_exchange_rejects_dead_target_even_if_queue_is_stale():
+    service = CombatSessionService(store=DeadFirstTargetCombatStore(), system_integrator=FakeCombatSystemIntegrator())
+
+    with pytest.raises(HTTPException) as exc_info:
+        await register_combat_move(
+            1,
+            CombatRegisterMoveRequestDTO(action="exchange", target_id="2", feint_id=None),
+            CombatRuntimeOrchestrator(service),
+        )
+
+    assert exc_info.value.status_code == 400
+    assert exc_info.value.error_code == "combat_target_unavailable"
+    assert exc_info.value.extra["context"]["target_id"] == "2"
 
 
 @pytest.mark.asyncio
@@ -793,6 +846,34 @@ async def test_continue_combat_result_clears_ac_and_returns_transition() -> None
     assert response.payload.target_state == CoreDomain.ARENA
     assert sessions.patches[0][1]["$.sessions.combat_finalization_id"] is None
     assert sessions.patches[0][1]["$.sessions.combat_id"] is None
+
+
+@pytest.mark.asyncio
+async def test_continue_combat_result_recovers_latest_finalization_and_clears_stale_combat_id() -> None:
+    events = FakeEvents()
+    sessions = FakeCharacterSessions(
+        {
+            "state": CoreDomain.EXPLORATION.value,
+            "prev_state": CoreDomain.EXPLORATION.value,
+            "sessions": {"combat_id": "combat-1", "combat_finalization_id": None},
+        }
+    )
+    service = CombatSessionService(
+        store=LatestFinalizedCombatStore(),
+        system_integrator=CombatSystemIntegrator(
+            actor_commitments=FakeCommitments(),
+            character_sessions=sessions,
+            events=events,
+        ),
+    )
+
+    response = await continue_combat_result(7, CombatRuntimeOrchestrator(service))
+
+    assert response.payload_type == "state_transition"
+    assert response.header.current_state == CoreDomain.EXPLORATION
+    assert response.payload.combat_id == "combat-1"
+    assert sessions.patches[0][1]["$.sessions.combat_id"] is None
+    assert sessions.patches[0][1]["$.sessions.combat_finalization_id"] is None
 
 
 @pytest.mark.asyncio

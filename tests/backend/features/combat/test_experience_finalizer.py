@@ -41,9 +41,9 @@ def test_experience_finalizer_maps_flat_xp_buffer_to_skill_rewards() -> None:
     rewards = CombatExperienceFinalizer().calculate_actor_rewards(actor)
 
     assert rewards == {
-        "skill_swords": 0.0005,
-        "skill_parrying": 0.0002,
-        "free_xp": 0.0002,
+        "skill_swords": 0.0048,
+        "skill_parrying": 0.0016,
+        "free_xp": 0.0016,
     }
 
 
@@ -58,7 +58,7 @@ def test_experience_finalizer_sends_unknown_useful_actions_to_free_xp() -> None:
 
     rewards = CombatExperienceFinalizer().calculate_actor_rewards(actor)
 
-    assert rewards == {"free_xp": 0.0001}
+    assert rewards == {"free_xp": 0.0012}
 
 
 @pytest.mark.unit

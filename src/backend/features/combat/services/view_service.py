@@ -199,16 +199,20 @@ class CombatViewService:
         queue = targets.get(viewer_id)
         if not queue:
             return None
-        target_id = str(queue[0])
-        target_raw = actors.get(target_id)
-        if not target_raw:
-            return None
-        return self._enrich_actor_card(
-            self._map_actor(target_id, target_raw, is_target=True, dead_actor_ids=dead_actor_ids),
-            actor_id=target_id,
-            targets=targets,
-            moves=moves,
-        )
+        for raw_target_id in queue:
+            target_id = str(raw_target_id)
+            target_raw = actors.get(target_id)
+            if not target_raw:
+                continue
+            target = self._enrich_actor_card(
+                self._map_actor(target_id, target_raw, is_target=True, dead_actor_ids=dead_actor_ids),
+                actor_id=target_id,
+                targets=targets,
+                moves=moves,
+            )
+            if not target.is_dead:
+                return target
+        return None
 
     def _map_actor(
         self,
@@ -289,7 +293,7 @@ class CombatViewService:
             CombatActionOptionDTO(action="system", label="Обновить", enabled=True),
             CombatActionOptionDTO(action="system", label="Сбежать", enabled=not hero.is_dead),
         ]
-        if status == "active" and target is not None and not hero.is_dead:
+        if status == "active" and target is not None and not target.is_dead and not hero.is_dead:
             has_pending = pending_action_count > 0
             actions.insert(
                 0,
@@ -383,7 +387,13 @@ class CombatViewService:
         dead_actor_ids: set[str],
     ) -> int:
         active_actor_ids = {actor_id for actor_id, actor in actors.items() if actor and actor_id not in dead_actor_ids}
-        return sum(len(queue) for actor_id, queue in targets.items() if actor_id in active_actor_ids)
+        return sum(
+            1
+            for actor_id, queue in targets.items()
+            if actor_id in active_actor_ids
+            for target_id in queue
+            if str(target_id) not in dead_actor_ids
+        )
 
     @staticmethod
     def _weapon_type(loadout: dict[str, Any]) -> str | None:

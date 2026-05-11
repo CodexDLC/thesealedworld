@@ -8,6 +8,7 @@ from collections import defaultdict
 from typing import TYPE_CHECKING, Any
 
 from src.backend.features.combat.dto.session import SessionDataDTO
+from src.backend.infrastructure.actor_commitments import ActorCommitmentManager
 
 if TYPE_CHECKING:
     from src.backend.features.combat.integrations import CombatSessionIntegration
@@ -252,12 +253,12 @@ class CombatLifecycleService:
     ) -> tuple[str, str]:
         value = str(raw_member)
         if value.isdigit():
-            return value, f"{combat_id}:player:{value}"
+            return value, ActorCommitmentManager.source_ref("player", value)
         if value.startswith("-") and value[1:].isdigit():
-            return value, f"{combat_id}:player:{value[1:]}"
+            return value, ActorCommitmentManager.source_ref("player", value[1:])
 
         monster_instance_counts[value] += 1
-        return f"{value}_{monster_instance_counts[value]}", f"{combat_id}:monster:{value}"
+        return f"{value}_{monster_instance_counts[value]}", ActorCommitmentManager.source_ref("monster", value)
 
     @staticmethod
     def _is_player_actor_id(actor_id: str) -> bool:

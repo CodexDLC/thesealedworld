@@ -6,10 +6,12 @@ from typing import TYPE_CHECKING
 
 from src.backend.features.arena.dto.session import ArenaCombatRequestDTO, ArenaRuntimeSessionDTO
 from src.backend.features.arena.resources import ArenaResources
+from src.backend.infrastructure.actor_commitments import ActorCommitmentManager
 from src.shared.schemas.arena import ArenaScreenEnum, ArenaUIPayloadDTO
 
 if TYPE_CHECKING:
     from src.backend.features.arena.integrations import ArenaSessionIntegration, ArenaSystemIntegrator
+    from src.backend.features.arena.services.rating_view_service import ArenaRatingViewService
 
 COMBAT_READY_TIMEOUT = 60
 ARENA_SNAPSHOT_GRACE_SEC = 10 * 60
@@ -19,16 +21,41 @@ ARENA_COMMITMENT_GRACE_SEC = ARENA_SNAPSHOT_GRACE_SEC
 class ArenaService:
     SHADOW_SESSION_TTL_SEC = 15 * 60
 
-    def __init__(self, *, session_service: ArenaSessionIntegration, integrator: ArenaSystemIntegrator) -> None:
+    def __init__(
+        self,
+        *,
+        session_service: ArenaSessionIntegration,
+        integrator: ArenaSystemIntegrator,
+        rating_view: ArenaRatingViewService | None = None,
+    ) -> None:
         self.session = session_service
         self.integrator = integrator
+        self.rating_view = rating_view
 
     async def enter_arena(self, char_id: int) -> None:
         await self._ensure_runtime_session(char_id)
 
     async def view(self, char_id: int) -> ArenaUIPayloadDTO:
         session = await self._ensure_runtime_session(char_id)
-        return await self._payload_from_runtime_session(session)
+        return await self.enrich_rating(char_id, await self._payload_from_runtime_session(session))
+
+    async def ensure_runtime_session(self, char_id: int) -> ArenaRuntimeSessionDTO:
+        return await self._ensure_runtime_session(char_id)
+
+    async def runtime_session_for_char(self, char_id: int) -> ArenaRuntimeSessionDTO | None:
+        return await self._runtime_session_for_char(char_id)
+
+    async def enrich_rating(
+        self,
+        char_id: int,
+        payload: ArenaUIPayloadDTO,
+        *,
+        mode_size: int = 1,
+    ) -> ArenaUIPayloadDTO:
+        if self.rating_view is None:
+            return payload
+        metadata = await self.rating_view.player_metadata(char_id=char_id, mode_size=mode_size)
+        return payload.model_copy(update={"metadata": {**payload.metadata, **metadata}})
 
     async def get_main_menu(self) -> ArenaUIPayloadDTO:
         return ArenaUIPayloadDTO(
@@ -451,7 +478,7 @@ class ArenaService:
             battle_type="shadow",
             requested_by=char_id,
             participants=participants,
-            commitments={str(char_id): commitment_id},
+            commitments={ActorCommitmentManager.source_ref("player", char_id): commitment_id},
             ttl=self.SHADOW_SESSION_TTL_SEC,
             metadata={
                 "shadow": True,
@@ -554,7 +581,7 @@ class ArenaService:
             char_id = getattr(request, "char_id", None)
             commitment_id = getattr(request, "commitment_id", None)
             if char_id is not None and commitment_id:
-                commitments[str(char_id)] = str(commitment_id)
+                commitments[ActorCommitmentManager.source_ref("player", char_id)] = str(commitment_id)
         return commitments
 
     @staticmethod

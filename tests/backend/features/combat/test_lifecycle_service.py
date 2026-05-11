@@ -19,8 +19,8 @@ class FakeEvents:
         return {
             "status": "ok",
             "commitments": {
-                **{f"{session_id}:player:{pid}": f"commit:player:{pid}" for pid in player_ids},
-                **{f"{session_id}:monster:{mid}": f"commit:monster:{mid}" for mid in monster_ids},
+                **{f"player:{pid}": f"actor:{session_id}:player:{pid}" for pid in player_ids},
+                **{f"monster:{mid}": f"actor:{session_id}:monster:{mid}" for mid in monster_ids},
             },
         }
 
@@ -30,10 +30,15 @@ class FakeEvents:
 
 
 class FakeActorCommitments:
-    async def get_commitments_batch(self, keys):
+    @staticmethod
+    def source_ref(actor_type, source_id):
+        return f"{actor_type}:{source_id}"
+
+    async def get_snapshots_batch(self, scope_id, keys):
+        del scope_id
         snapshots = {}
         for key in keys:
-            kind, actor_id = key.split(":")[-2:]
+            _prefix, _scope_id, kind, actor_id = key.split(":", 3)
             snapshots[key] = _player_snapshot(int(actor_id)) if kind == "player" else _monster_snapshot(actor_id)
         return snapshots
 
@@ -148,10 +153,14 @@ async def test_lifecycle_uses_provided_arena_commitments_without_requesting_char
         {
             "source": "arena",
             "arena_session_id": "arena:prepared",
+            "combat_id": "arena-prepared",
             "battle_type": "pvp",
             "requested_by": 1,
             "participants": {"team_1": [1], "team_2": [2]},
-            "commitments": {"1": "commit:player:1", "2": "commit:player:2"},
+            "commitments": {
+                "player:1": "actor:arena-prepared:player:1",
+                "player:2": "actor:arena-prepared:player:2",
+            },
         }
     )
 

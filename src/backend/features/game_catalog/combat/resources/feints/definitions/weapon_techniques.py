@@ -1,4 +1,5 @@
 from src.backend.features.game_catalog.combat.resources.common.descriptions import (
+    CombatDescriptionDTO,
     CombatEventTextSetDTO,
     build_combat_description,
 )
@@ -63,7 +64,7 @@ _WEAPON_TECHNIQUE_TEXTS = {
 }
 
 
-def _description(feint_id: str) -> object:
+def _description(feint_id: str) -> CombatDescriptionDTO:
     display_name, ui_label, short = _WEAPON_TECHNIQUE_TEXTS[feint_id]
     return build_combat_description(
         resource_type="feints",

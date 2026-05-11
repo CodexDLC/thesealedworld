@@ -2,7 +2,8 @@
   "permissions": {
     "allow": [
       "Bash(python -c ' *)",
-      "Bash(python -c \"import sys; print\\(sys.path\\)\")"
+      "Bash(python -c \"import sys; print\\(sys.path\\)\")",
+      "Bash(pip show *)"
     ]
   }
 }

@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Any
+
 from src.backend.features.game_catalog.combat.resources.basic_exchanges.definitions.weapon_attack_forms import (
     resolve_weapon_attack_form,
 )
@@ -33,7 +35,7 @@ def resolve_feint_render_context(
     else:
         template = use_templates[0] if use_templates else outcome_templates[0]
 
-    weapon_variables = resolve_weapon_attack_form(skill_key, seed=seed)
+    weapon_variables: dict[str, Any] = resolve_weapon_attack_form(skill_key, seed=seed)
     weapon_variables["bonus_damage"] = _format_bonus_damage(bonus_damage)
     return FeintRenderContextDTO(
         template=template,

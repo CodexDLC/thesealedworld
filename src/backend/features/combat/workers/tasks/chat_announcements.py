@@ -60,9 +60,15 @@ async def publish_combat_final_announcement(ctx: dict[str, Any], finalization: d
     if not recipients:
         return
 
-    teams = finalization.get("teams") if isinstance(finalization.get("teams"), dict) else {}
-    actors = finalization.get("actors") if isinstance(finalization.get("actors"), dict) else {}
-    report = finalization.get("report") if isinstance(finalization.get("report"), dict) else {}
+    raw_teams = finalization.get("teams")
+    teams = raw_teams if isinstance(raw_teams, dict) else {}
+
+    raw_actors = finalization.get("actors")
+    actors = raw_actors if isinstance(raw_actors, dict) else {}
+
+    raw_report = finalization.get("report")
+    report = raw_report if isinstance(raw_report, dict) else {}
+
     winner = str(finalization.get("winner_team") or "")
     last_turn = report.get("last_turn")
 
@@ -165,7 +171,8 @@ def _team_summary(team: str, members: Any, actors: dict[str, Any], *, final: boo
 def _actor_label(actor_id: str, actor: Any, *, final: bool) -> str:
     if not isinstance(actor, dict):
         return actor_id
-    meta = actor.get("meta") if isinstance(actor.get("meta"), dict) else {}
+    raw_meta = actor.get("meta")
+    meta = raw_meta if isinstance(raw_meta, dict) else {}
     name = str(actor.get("name") or meta.get("name") or actor_id)
     vitals = actor.get("vitals_final") if final and isinstance(actor.get("vitals_final"), dict) else meta
     hp = _optional_int(vitals.get("hp") if isinstance(vitals, dict) else None)
@@ -179,7 +186,10 @@ def _player_recipients(actor_ids: list[str], actors: dict[str, Any]) -> list[str
     recipients: list[str] = []
     for actor_id in actor_ids:
         actor = actors.get(actor_id)
-        meta = actor.get("meta") if isinstance(actor, dict) and isinstance(actor.get("meta"), dict) else {}
+        if not isinstance(actor, dict):
+            continue
+        raw_meta = actor.get("meta")
+        meta = raw_meta if isinstance(raw_meta, dict) else {}
         if meta.get("type") == "monster" or meta.get("is_ai") is True:
             continue
         if actor_id.isdigit():

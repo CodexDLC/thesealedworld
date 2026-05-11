@@ -23,8 +23,12 @@
             </span>
         </div>
         {% set resources = widget.data.get('resources') or [] %}
+        {% set gear_score = widget.data.get('gear_score') %}
         <div class="av-corner av-bl" style="clip-path: var(--clip-node-sm);">
-            {% if resources and resources|length > 0 %}
+            {% if gear_score is not none %}
+                <span class="av-ico" style="font-size: 8px;">GS</span>
+                <span class="av-val">{{ gear_score }}</span>
+            {% elif resources and resources|length > 0 %}
                 <span class="av-ico" style="font-size: 10px;">{{ resources[0].get('icon', '•') }}</span>
                 <span class="av-val">{{ resources[0].get('value') }}</span>
             {% else %}

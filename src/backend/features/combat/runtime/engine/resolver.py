@@ -1,4 +1,3 @@
-from copy import deepcopy
 from typing import Any
 
 from loguru import logger as log
@@ -8,15 +7,19 @@ from src.backend.features.combat.dto.pipeline import (
     CombatCheckTraceDTO,
     CombatDamageTraceDTO,
     CombatEventDTO,
+    CombatTriggerActivationDTO,
+    CombatTriggerFactDTO,
     InteractionResultDTO,
     PipelineContextDTO,
 )
 from src.backend.features.combat.integrations import CombatCatalogIntegrator
 from src.backend.features.combat.runtime.engine.math_core import MathCore
+from src.backend.features.combat.runtime.engine.pipeline_mutation_service import PipelineMutationService
 
 PARRY_SKILL_MULT_PER_POINT = 4.0
 SHIELD_BLOCK_SKILL_MULT_PER_POINT = 1.5
-TWO_HANDED_DEFENSE_PRESSURE_MAX = 0.5
+SHIELD_MASTERY_ABSORB_RATIO_PER_POINT = 0.20
+SHIELD_ABSORB_RATIO_CAP = 0.85
 UNARMED_MIN_EFFICIENCY = 0.5
 UNARMED_MAX_EFFICIENCY = 3.0
 UNARMED_NOVICE_SPREAD = 0.5
@@ -138,8 +141,8 @@ class CombatResolver:
         if not ctx.stages.check_accuracy:
             return True
 
-        source_id = res.source_id if res.source_id is not None else 0
-        target_id = res.target_id if res.target_id is not None else 0
+        source_id = res.source_id if res.source_id is not None else "0"
+        target_id = res.target_id if res.target_id is not None else "0"
 
         if ctx.flags.force.miss:
             res.is_miss = True
@@ -185,8 +188,8 @@ class CombatResolver:
         if not ctx.stages.check_evasion:
             return False
 
-        source_id = res.source_id if res.source_id is not None else 0
-        target_id = res.target_id if res.target_id is not None else 0
+        source_id = res.source_id if res.source_id is not None else "0"
+        target_id = res.target_id if res.target_id is not None else "0"
 
         if ctx.flags.force.dodge:
             res.is_dodged = True
@@ -203,13 +206,8 @@ class CombatResolver:
         base_evasion = def_stats.mods.evasion  # FIXED: dodge_chance -> evasion
         evasion_cap = def_stats.mods.dodge_cap
         anti_evasion = atk_stats.mods.anti_dodge_chance
-        style_mult = None
 
-        if ctx.flags.formula.evasion_halved:
-            style_mult = CombatResolver._two_handed_defense_pressure_mult(atk_stats)
-            final_chance = (base_evasion * style_mult) - anti_evasion
-            final_chance = min(final_chance, evasion_cap)
-        elif ctx.flags.formula.ignore_evasion_cap:
+        if ctx.flags.formula.ignore_evasion_cap:
             final_chance = base_evasion - anti_evasion
         elif ctx.flags.formula.zero_anti_evasion:
             final_chance = base_evasion
@@ -229,7 +227,6 @@ class CombatResolver:
                 base=base_evasion,
                 cap=evasion_cap,
                 anti=anti_evasion,
-                style_mult=style_mult,
             )
             return False
 
@@ -243,7 +240,6 @@ class CombatResolver:
             base=base_evasion,
             cap=evasion_cap,
             anti=anti_evasion,
-            style_mult=style_mult,
         )
 
         if passed:
@@ -264,8 +260,8 @@ class CombatResolver:
         if not ctx.stages.check_parry:
             return False
 
-        source_id = res.source_id if res.source_id is not None else 0
-        target_id = res.target_id if res.target_id is not None else 0
+        source_id = res.source_id if res.source_id is not None else "0"
+        target_id = res.target_id if res.target_id is not None else "0"
 
         if ctx.flags.restriction.ignore_parry:
             CombatResolver._resolve_triggers(ctx, res, "ON_PARRY_FAIL")
@@ -276,7 +272,11 @@ class CombatResolver:
             res.tokens_awarded_defender["parry"] = 1
             res.events.append(CombatEventDTO(type="PARRY", source_id=source_id, target_id=target_id))
             CombatResolver._resolve_triggers(ctx, res, "ON_PARRY")
-            if ctx.flags.mastery.medium_armor or ctx.flags.state.allow_counter_on_parry:
+            if (
+                ctx.flags.mastery.medium_armor
+                or ctx.flags.state.allow_counter_on_parry
+                or ctx.flags.state.force_counter_on_parry
+            ):
                 ctx.flags.state.check_counter = True
             return True
 
@@ -285,13 +285,8 @@ class CombatResolver:
         parrying = def_stats.skills.skill_parrying
         skill_mult = 1.0 + (PARRY_SKILL_MULT_PER_POINT * parrying)
         parry_chance = parry_base * skill_mult
-        style_mult = None
 
-        if ctx.flags.formula.parry_halved:
-            style_mult = CombatResolver._two_handed_defense_pressure_mult(atk_stats)
-            final_chance = parry_chance * style_mult
-            final_chance = min(final_chance, parry_cap)
-        elif ctx.flags.formula.ignore_parry_cap:
+        if ctx.flags.formula.ignore_parry_cap:
             final_chance = parry_chance
         else:
             final_chance = parry_chance
@@ -308,7 +303,6 @@ class CombatResolver:
             cap=parry_cap,
             skill=parrying,
             skill_mult=skill_mult,
-            style_mult=style_mult,
         )
 
         if passed:
@@ -321,7 +315,7 @@ class CombatResolver:
                 mastery_chance = def_stats.skills.skill_medium_armor
                 if MathCore.check_chance(mastery_chance):
                     ctx.flags.state.check_counter = True
-            elif ctx.flags.state.allow_counter_on_parry:
+            elif ctx.flags.state.allow_counter_on_parry or ctx.flags.state.force_counter_on_parry:
                 ctx.flags.state.check_counter = True
             return True
         else:
@@ -335,8 +329,8 @@ class CombatResolver:
         if not ctx.stages.check_block:
             return False
 
-        source_id = res.source_id if res.source_id is not None else 0
-        target_id = res.target_id if res.target_id is not None else 0
+        source_id = res.source_id if res.source_id is not None else "0"
+        target_id = res.target_id if res.target_id is not None else "0"
 
         if ctx.flags.restriction.ignore_block:
             CombatResolver._resolve_triggers(ctx, res, "ON_BLOCK_FAIL")
@@ -353,16 +347,8 @@ class CombatResolver:
         parrying = def_stats.skills.skill_parrying
         skill_mult = 1.0 + (SHIELD_BLOCK_SKILL_MULT_PER_POINT * parrying)
         block_chance = block_base * skill_mult
-        style_mult = None
 
-        if ctx.flags.formula.block_halved:
-            style_mult = CombatResolver._two_handed_defense_pressure_mult(atk_stats)
-            final_chance = block_chance * style_mult
-            final_chance = min(final_chance, block_cap)
-        elif ctx.flags.formula.ignore_block_cap:
-            final_chance = block_chance
-        else:
-            final_chance = min(block_chance, block_cap)
+        final_chance = block_chance if ctx.flags.formula.ignore_block_cap else min(block_chance, block_cap)
 
         roll, passed = MathCore.roll_chance(final_chance)
         CombatResolver._trace_roll(
@@ -375,7 +361,6 @@ class CombatResolver:
             cap=block_cap,
             skill=parrying,
             skill_mult=skill_mult,
-            style_mult=style_mult,
         )
 
         if passed:
@@ -405,15 +390,18 @@ class CombatResolver:
         if ctx.flags.formula.counter_chance_boost:
             counter_chance += 0.20
 
+        if res.is_dodged and ctx.flags.state.counter_to_cap_on_dodge:
+            counter_chance = max(counter_chance, cap)
+
+        if (res.is_dodged and ctx.flags.state.force_counter_on_dodge) or (
+            res.is_parried and ctx.flags.state.force_counter_on_parry
+        ):
+            counter_chance = 1.0
+
         if counter_chance > 0 and MathCore.check_chance(counter_chance):
             res.is_counter = True
             res.tokens_awarded_defender["counter"] = 1
             res.chain_events.trigger_counter_attack = True
-
-    @staticmethod
-    def _two_handed_defense_pressure_mult(atk_stats: ActorStats) -> float:
-        skill = max(0.0, min(atk_stats.skills.skill_two_handed, 1.0))
-        return 1.0 - (TWO_HANDED_DEFENSE_PRESSURE_MAX * skill)
 
     @staticmethod
     def _step_crit_roll(
@@ -490,8 +478,8 @@ class CombatResolver:
         if not ctx.stages.calculate_damage:
             return 0.0
 
-        source_id = res.source_id if res.source_id is not None else 0
-        target_id = res.target_id if res.target_id is not None else 0
+        source_id = res.source_id if res.source_id is not None else "0"
+        target_id = res.target_id if res.target_id is not None else "0"
 
         if ctx.override_damage:
             min_d, max_d = ctx.override_damage
@@ -539,7 +527,7 @@ class CombatResolver:
             mitigation_pct = max(0.0, phys_res_pct - phys_pen_pct)
             phys_dmg *= 1.0 - mitigation_pct
 
-            armor_flat = def_stats.mods.armor  # FIXED: damage_reduction_flat -> armor
+            armor_flat = 0.0 if ctx.flags.formula.ignore_armor else def_stats.mods.armor
             phys_dmg = max(0.0, phys_dmg - armor_flat)
             damage_parts["physical"] = phys_dmg
 
@@ -581,11 +569,26 @@ class CombatResolver:
             if heavy_skill > 0:
                 total_damage *= 1.0 - (heavy_skill * 0.5)
 
+        shield_absorb = 0.0
+        shield_reflect = 0.0
+        shield_absorb_ratio = 0.0
+        shield_guard_power = 0.0
+        shield_reflect_ratio = 0.0
         if ctx.flags.state.partial_absorb_reflect:
-            absorbed = total_damage * 0.40
-            total_damage -= absorbed
-            res.reflected_damage += int(absorbed)
+            shield_guard_power = max(0.0, getattr(def_stats.mods, "shield_guard_power", 0.0))
+            shield_absorb_ratio = max(0.0, getattr(def_stats.mods, "shield_absorb_ratio", 0.40))
+            shield_absorb_ratio += (
+                max(0.0, def_stats.skills.skill_shield_mastery) * SHIELD_MASTERY_ABSORB_RATIO_PER_POINT
+            )
+            shield_absorb_ratio = min(shield_absorb_ratio, SHIELD_ABSORB_RATIO_CAP)
+            shield_reflect_ratio = max(0.0, getattr(def_stats.mods, "shield_reflect_ratio", 1.0))
 
+            shield_absorb = min(total_damage, (total_damage * shield_absorb_ratio) + shield_guard_power)
+            total_damage -= shield_absorb
+            shield_reflect = shield_absorb * shield_reflect_ratio
+            res.reflected_damage += int(shield_reflect)
+
+        total_damage *= max(0.0, getattr(atk_stats.mods, "damage_mult", 1.0))
         total_damage *= ctx.mods.damage_mult
         total_damage = max(0.0, total_damage)
         res.damage_final = int(total_damage)
@@ -599,6 +602,12 @@ class CombatResolver:
             spread=spread,
             parts=damage_parts,
             armor=getattr(def_stats.mods, "armor", 0.0),
+            shield_absorb=shield_absorb,
+            shield_absorb_ratio=shield_absorb_ratio,
+            shield_guard_power=shield_guard_power,
+            shield_reflect=shield_reflect,
+            shield_reflect_ratio=shield_reflect_ratio,
+            weapon_technique_bonus_damage=ctx.mods.weapon_technique_bonus_damage,
             phys_res=getattr(def_stats.mods, "physical_resistance", 0.0),
             penetration=CombatResolver._get_offensive_val(atk_stats, ctx, "penetration"),
             crit_mult=crit_multiplier,
@@ -632,8 +641,8 @@ class CombatResolver:
         if not ctx.stages.calculate_healing:
             return 0.0
 
-        source_id = res.source_id if res.source_id is not None else 0
-        target_id = res.target_id if res.target_id is not None else 0
+        source_id = res.source_id if res.source_id is not None else "0"
+        target_id = res.target_id if res.target_id is not None else "0"
 
         # 1. Базовое значение
         if ctx.override_damage:
@@ -725,6 +734,10 @@ class CombatResolver:
             if rule_data.get("event") != step_key:
                 continue
 
+            activation = CombatResolver._select_trigger_activation(ctx, rule_id, rule_data)
+            if activation is None:
+                continue
+
             # 4. Шанс
             raw_chance = rule_data.get("chance", 0.0)
             chance = float(raw_chance) if isinstance(raw_chance, (int, float)) else 0.0
@@ -733,66 +746,72 @@ class CombatResolver:
                 continue
 
             res.fired_triggers.append(rule_id)
+            res.trigger_facts.append(
+                CombatTriggerFactDTO(
+                    trigger_id=rule_id,
+                    event=step_key,
+                    source=activation.source,
+                    source_id=activation.source_id,
+                    source_slot=activation.source_slot,
+                    chance=chance,
+                    display_policy=str(rule_data.get("display_policy") or "merge"),
+                    stacking_rule=str(rule_data.get("stacking_rule") or "unique"),
+                    tags=[*activation.tags, *[str(tag) for tag in rule_data.get("tags", [])]],
+                )
+            )
 
-            # 5. Мутации (с поддержкой точек и add_effect)
-            for key, value in rule_data.get("mutations", {}).items():
-                CombatResolver._apply_mutation(ctx, res, key, value, step_key=step_key)
+            # 5. Pipeline-local mutations. Effects/tokens stay separate technical outputs.
+            PipelineMutationService.apply(
+                applications=rule_data.get("pipeline_mutations", []),
+                ctx=ctx,
+                source=activation.source,
+            )
+            CombatResolver._apply_trigger_effects(res, rule_id, rule_data, step_key=step_key)
+            CombatResolver._apply_trigger_token_grants(res, rule_data)
 
     @staticmethod
-    def _apply_mutation(
-        ctx: PipelineContextDTO,
+    def _apply_trigger_effects(
         res: InteractionResultDTO,
-        key: str,
-        value: Any,
+        rule_id: str,
+        rule_data: dict[str, Any],
         *,
-        step_key: str | None = None,
-    ):
-        """
-        Применяет мутацию к контексту или результату.
-        Поддерживает вложенные ключи и спец. команду add_effect.
-        """
-        # 0. Спец. команда: add_effect
-        if key == "add_effect" and isinstance(value, dict):
-            effect_data = deepcopy(value)
+        step_key: str,
+    ) -> None:
+        for effect_id in rule_data.get("applied_effect_ids", []):
+            effect_data = {"id": effect_id, "source_trigger_id": rule_id}
             conditions = effect_data.setdefault("conditions", {})
             if step_key == "ON_CRIT":
                 conditions.setdefault("is_hit", True)
                 conditions.setdefault("is_crit", True)
             res.applied_effects.append(effect_data)
-            return
 
-        # 1. Разбор пути
-        if "." in key:
-            parts = key.split(".")
-            root_name = parts[0]
-            field_name = parts[1]
+    @staticmethod
+    def _apply_trigger_token_grants(
+        res: InteractionResultDTO,
+        rule_data: dict[str, Any],
+    ) -> None:
+        attacker_tokens = rule_data.get("token_grants_attacker", [])
+        defender_tokens = rule_data.get("token_grants_defender", [])
+        for token in attacker_tokens:
+            res.tokens_awarded_attacker[str(token)] = res.tokens_awarded_attacker.get(str(token), 0) + 1
+        for token in defender_tokens:
+            res.tokens_awarded_defender[str(token)] = res.tokens_awarded_defender.get(str(token), 0) + 1
 
-            # A) Flags (ctx.flags.force, ctx.flags.formula...)
-            if hasattr(ctx.flags, root_name):
-                sub_obj = getattr(ctx.flags, root_name)
-                if hasattr(sub_obj, field_name):
-                    setattr(sub_obj, field_name, value)
-                    return
+    @staticmethod
+    def _select_trigger_activation(
+        ctx: PipelineContextDTO, rule_id: str, rule_data: dict[str, Any]
+    ) -> CombatTriggerActivationDTO | None:
+        activations = ctx.trigger_activations.get(rule_id) or [
+            CombatTriggerActivationDTO(trigger_id=rule_id, source="system")
+        ]
+        allowed_sources = set(rule_data.get("allowed_sources") or [])
+        if not allowed_sources:
+            return activations[0]
 
-            # B) Chain Events (res.chain_events)
-            if root_name == "chain_events" and hasattr(res.chain_events, field_name):
-                setattr(res.chain_events, field_name, value)
-                return
-
-            # C) Numeric pipeline mods (ctx.mods.weapon_effect_value, etc.)
-            if root_name == "mods" and hasattr(ctx.mods, field_name):
-                setattr(ctx.mods, field_name, value)
-                return
-
-            return
-
-        # 2. Плоский поиск (Legacy / Shortcuts)
-        if hasattr(ctx.stages, key):
-            setattr(ctx.stages, key, value)
-        elif hasattr(ctx.flags, key):
-            setattr(ctx.flags, key, value)
-        elif hasattr(ctx.mods, key):
-            setattr(ctx.mods, key, value)
+        for activation in activations:
+            if activation.source in allowed_sources:
+                return activation
+        return None
 
     @staticmethod
     def _trace_roll(

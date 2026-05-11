@@ -32,7 +32,7 @@ def test_skill_progression_calculator_returns_rounded_reward_mapping() -> None:
         )
     )
 
-    assert rewards == {"skill_swords": 0.0003}
+    assert rewards == {"skill_swords": 0.003}
 
 
 @pytest.mark.unit
@@ -50,4 +50,4 @@ def test_skill_progression_calculator_accepts_free_xp_base_power() -> None:
         )
     )
 
-    assert rewards == {"free_xp": 0.0003}
+    assert rewards == {"free_xp": 0.0025}

@@ -1,43 +1,60 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, HTTPException
+from typing import Any
+
+from fastapi import APIRouter
 from loguru import logger
 
 from src.backend.features.combat.dependencies import CombatRuntimeOrchestratorDep  # noqa: TC001
+from src.backend.features.combat.exceptions import CombatActionRejectedError, CombatAPIError, CombatError
 from src.backend.features.combat.services.session_service import CombatSessionNotFound
 from src.shared.enums import CoreDomain
 from src.shared.schemas.combat import (
     CombatDashboardDTO,
+    CombatErrorResponseDTO,
     CombatLogDTO,
     CombatPinFeintRequestDTO,  # noqa: TC001 - FastAPI needs the body model at runtime
     CombatRegisterMoveRequestDTO,  # noqa: TC001 - FastAPI needs the body model at runtime
     CombatResultDTO,
 )
-from src.shared.schemas.response import CoreResponseDTO, GameStateHeader
+from src.shared.schemas.response import CoreResponseDTO, GameStateHeader, StateTransitionDTO
 
-router = APIRouter(prefix="/api/game/combat", tags=["combat"])
+COMBAT_ERROR_RESPONSES: dict[int | str, dict[str, Any]] = {
+    400: {"model": CombatErrorResponseDTO},
+    404: {"model": CombatErrorResponseDTO},
+}
+
+router = APIRouter(prefix="/api/game/combat", tags=["combat"], responses=COMBAT_ERROR_RESPONSES)
 
 
 # TODO(combat-api): These endpoints are transitional browser API stubs. Keep
 # shared schemas as the public contract: runtime orchestrator builds payload DTOs,
 # route handlers only choose whether the response needs CoreResponseDTO envelope.
-# TODO(combat-api): Define combat-specific error response variants before
-# finalizing the browser contract, instead of leaking raw ValueError/HTTP detail.
-@router.get("/{char_id}/view", response_model=CoreResponseDTO[CombatDashboardDTO | CombatResultDTO])
+@router.get(
+    "/{char_id}/view", response_model=CoreResponseDTO[CombatDashboardDTO | CombatResultDTO | StateTransitionDTO]
+)
 async def get_combat_view(
     char_id: int, orchestrator: CombatRuntimeOrchestratorDep
-) -> CoreResponseDTO[CombatDashboardDTO | CombatResultDTO]:
+) -> CoreResponseDTO[CombatDashboardDTO | CombatResultDTO | StateTransitionDTO]:
     try:
         payload: CombatDashboardDTO | CombatResultDTO = await orchestrator.get_initial_view(char_id)
+        current_state = CoreDomain.COMBAT_RESULT if isinstance(payload, CombatResultDTO) else CoreDomain.COMBAT
         return CoreResponseDTO(
-            header=GameStateHeader(current_state=CoreDomain.COMBAT),
+            header=GameStateHeader(current_state=current_state),
             payload=payload,
             payload_type="CombatResult" if isinstance(payload, CombatResultDTO) else "CombatDashboard",
         )
     except CombatSessionNotFound as exc:
-        payload = await orchestrator.get_archived_result(char_id, reason=str(exc))
+        payload = await orchestrator.find_archived_result(char_id, reason=str(exc))
+        if payload is None:
+            transition = await orchestrator.recover_missing_combat_transition(char_id, reason=str(exc))
+            return CoreResponseDTO(
+                header=GameStateHeader(current_state=transition.target_state, error="combat_session_recovered"),
+                payload=transition,
+                payload_type="state_transition",
+            )
         return CoreResponseDTO(
-            header=GameStateHeader(current_state=CoreDomain.COMBAT, error="combat_result_from_archive_stub"),
+            header=GameStateHeader(current_state=CoreDomain.COMBAT_RESULT, error="combat_result_recovered"),
             payload=payload,
             payload_type="CombatResult",
         )
@@ -47,8 +64,8 @@ async def get_combat_view(
 async def get_combat_snapshot(char_id: int, orchestrator: CombatRuntimeOrchestratorDep) -> CombatDashboardDTO:
     try:
         return await orchestrator.get_dashboard(char_id)
-    except CombatSessionNotFound as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except CombatError as exc:
+        raise CombatAPIError(exc, context={"char_id": char_id}) from exc
 
 
 @router.get("/{char_id}/logs", response_model=CombatLogDTO)
@@ -60,8 +77,8 @@ async def get_combat_logs(
 ) -> CombatLogDTO:
     try:
         return await orchestrator.get_logs(char_id, page=page, page_size=page_size)
-    except CombatSessionNotFound as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except CombatError as exc:
+        raise CombatAPIError(exc, context={"char_id": char_id}) from exc
 
 
 @router.post("/{char_id}/moves", response_model=CombatDashboardDTO | CombatResultDTO)
@@ -72,11 +89,15 @@ async def register_combat_move(
 ) -> CombatDashboardDTO | CombatResultDTO:
     try:
         return await orchestrator.register_move(char_id, body)
-    except CombatSessionNotFound as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except CombatError as exc:
+        logger.warning("Combat move rejected: char_id={} code={} detail={}", char_id, exc.code, exc.message)
+        raise CombatAPIError(exc, context={"char_id": char_id}) from exc
     except ValueError as exc:
         logger.warning("Combat move rejected: char_id={} detail={}", char_id, str(exc))
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
+        raise CombatAPIError(
+            CombatActionRejectedError("Combat action rejected", context={"reason": str(exc)}),
+            context={"char_id": char_id},
+        ) from exc
 
 
 @router.post("/{char_id}/feints/pin", response_model=CombatDashboardDTO)
@@ -87,8 +108,25 @@ async def pin_combat_feint(
 ) -> CombatDashboardDTO:
     try:
         return await orchestrator.pin_feint(char_id, body)
-    except CombatSessionNotFound as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except CombatError as exc:
+        logger.warning("Combat feint pin rejected: char_id={} code={} detail={}", char_id, exc.code, exc.message)
+        raise CombatAPIError(exc, context={"char_id": char_id}) from exc
     except ValueError as exc:
         logger.warning("Combat feint pin rejected: char_id={} detail={}", char_id, str(exc))
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
+        raise CombatAPIError(
+            CombatActionRejectedError("Combat feint pin rejected", context={"reason": str(exc)}),
+            context={"char_id": char_id},
+        ) from exc
+
+
+@router.post("/{char_id}/result/continue", response_model=CoreResponseDTO[StateTransitionDTO])
+async def continue_combat_result(
+    char_id: int,
+    orchestrator: CombatRuntimeOrchestratorDep,
+) -> CoreResponseDTO[StateTransitionDTO]:
+    transition = await orchestrator.continue_result(char_id)
+    return CoreResponseDTO(
+        header=GameStateHeader(current_state=transition.target_state),
+        payload=transition,
+        payload_type="state_transition",
+    )

@@ -19,6 +19,7 @@ INGOTS_DB = {
         1: MaterialDTO(
             id="mat_iron_ingot",
             name_ru="Железный слиток",
+            name_prefix_ru="Железный",
             tier_mult=1.0,
             slots=1,
             narrative_tags=["iron", "heavy", "reliable"],
@@ -26,6 +27,7 @@ INGOTS_DB = {
         2: MaterialDTO(
             id="mat_cobalt_ingot",
             name_ru="Кобальтовый слиток",
+            name_prefix_ru="Кобальтовый",
             tier_mult=1.5,
             slots=2,
             narrative_tags=["cobalt", "blueish", "hard"],
@@ -33,6 +35,7 @@ INGOTS_DB = {
         3: MaterialDTO(
             id="mat_mithril_ingot",
             name_ru="Мифриловый слиток",
+            name_prefix_ru="Мифриловый",
             tier_mult=2.2,
             slots=3,
             narrative_tags=["mithril", "light", "shining", "elven"],
@@ -40,6 +43,7 @@ INGOTS_DB = {
         4: MaterialDTO(
             id="mat_adamantite_ingot",
             name_ru="Адамантитовый слиток",
+            name_prefix_ru="Адамантитовый",
             tier_mult=3.0,
             slots=4,
             narrative_tags=["adamantite", "unbreakable", "greenish"],
@@ -47,6 +51,7 @@ INGOTS_DB = {
         5: MaterialDTO(
             id="mat_thorium_ingot",
             name_ru="Ториевый слиток",
+            name_prefix_ru="Ториевый",
             tier_mult=4.0,
             slots=4,
             narrative_tags=["thorium", "glowing", "radioactive"],
@@ -54,6 +59,7 @@ INGOTS_DB = {
         6: MaterialDTO(
             id="mat_void_metal_ingot",
             name_ru="Слиток Пустотного металла",
+            name_prefix_ru="Пустотный",
             tier_mult=5.5,
             slots=5,
             narrative_tags=["void", "dark", "absorbing"],
@@ -61,6 +67,7 @@ INGOTS_DB = {
         7: MaterialDTO(
             id="mat_star_metal_ingot",
             name_ru="Слиток Звездного металла",
+            name_prefix_ru="Звездный",
             tier_mult=7.0,
             slots=6,
             narrative_tags=["star_metal", "celestial", "cosmic"],

@@ -20,8 +20,11 @@ log = logging.getLogger(__name__)
 class MonsterVariantFlavorDTO(BaseModel):
     name: str = Field(min_length=1, max_length=80)
     appearance: str = Field(min_length=1, max_length=500)
-    encounter: str = Field(min_length=1, max_length=500)
-    behavior: str = Field(min_length=1, max_length=300)
+    encounter: str = Field(default="", max_length=500)
+    detected: str = Field(default="", max_length=500)
+    ambush: str = Field(default="", max_length=500)
+    idle: str = Field(default="", max_length=500)
+    behavior: str = Field(default="", max_length=300)
 
     @model_validator(mode="before")
     @classmethod
@@ -33,9 +36,34 @@ class MonsterVariantFlavorDTO(BaseModel):
             merged = dict(flavor)
             if value.get("name"):
                 merged["name"] = value["name"]
-            merged.update({key: raw for key, raw in value.items() if key in {"appearance", "encounter", "behavior"}})
+            merged.update(
+                {
+                    key: raw
+                    for key, raw in value.items()
+                    if key in {"appearance", "encounter", "detected", "ambush", "idle", "behavior"}
+                }
+            )
+            cls._fill_encounter_defaults(merged)
             return merged
+        value = dict(value)
+        cls._fill_encounter_defaults(value)
         return value
+
+    @staticmethod
+    def _fill_encounter_defaults(value: dict[str, Any]) -> None:
+        encounter = value.get("encounter")
+        detected = value.get("detected")
+        ambush = value.get("ambush")
+        idle = value.get("idle")
+        behavior = value.get("behavior")
+        if not detected and encounter:
+            value["detected"] = encounter
+        if not ambush and encounter:
+            value["ambush"] = encounter
+        if not idle and behavior:
+            value["idle"] = behavior
+        if not encounter and detected:
+            value["encounter"] = detected
 
 
 class MonsterClanFlavorDTO(BaseModel):

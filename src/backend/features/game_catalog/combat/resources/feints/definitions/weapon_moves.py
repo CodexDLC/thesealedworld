@@ -2,10 +2,11 @@ from src.backend.features.game_catalog.combat.resources.common.descriptions impo
     CombatEventTextSetDTO,
     build_combat_description,
 )
+from src.backend.features.game_catalog.combat.resources.common.modifier_applications import ModifierApplicationDTO
+from src.backend.features.game_catalog.combat.resources.common.pipeline_mutations import pipeline_mutation
 from src.backend.features.game_catalog.combat.resources.common.targeting import TargetType
 from src.backend.features.game_catalog.combat.resources.feints.schemas import (
     FeintCatalogEntryDTO,
-    FeintConfigDTO,
     FeintCostDTO,
     FeintTechnicalDTO,
 )
@@ -15,58 +16,74 @@ WEAPON_FEINTS_TECHNICAL = {
         feint_id="piercing_thrust",
         cost=FeintCostDTO(tactics={"hit": 3}),
         target=TargetType.SINGLE_ENEMY,
-        pipeline_mutations={"formula.can_pierce": True},
+        pipeline_mutations=[pipeline_mutation("enable_pierce")],
     ),
     "shield_bash": FeintTechnicalDTO(
         feint_id="shield_bash",
         cost=FeintCostDTO(tactics={"block": 2}),
         target=TargetType.SINGLE_ENEMY,
-        triggers=["control.stun_on_hit"],
+        effects=[{"id": "stun"}],
     ),
     "cleave": FeintTechnicalDTO(
         feint_id="cleave",
         cost=FeintCostDTO(tactics={"hit": 2, "crit": 1}),
         target=TargetType.ALL_ENEMIES,
         target_count=3,
-        raw_mutations={"physical_damage_mult": "-0.3"},
+        modifier_applications=[
+            ModifierApplicationDTO(modifier_id="damage_mult", value_override=-0.3),
+        ],
     ),
     "pommel_strike": FeintTechnicalDTO(
         feint_id="pommel_strike",
         cost=FeintCostDTO(tactics={"tempo": 1, "hit": 1}),
         target=TargetType.SINGLE_ENEMY,
-        triggers=["control.stun_on_hit"],
-        raw_mutations={"physical_damage_mult": "-0.4"},
+        effects=[{"id": "stun"}],
+        modifier_applications=[
+            ModifierApplicationDTO(modifier_id="damage_mult", value_override=-0.4),
+        ],
     ),
     "hamstring_cut": FeintTechnicalDTO(
         feint_id="hamstring_cut",
         cost=FeintCostDTO(tactics={"hit": 1, "dodge": 1}),
         target=TargetType.SINGLE_ENEMY,
-        triggers=["control.bleed_on_hit"],
-        raw_mutations={"physical_damage_mult": "-0.2"},
+        effects=[{"id": "dot_bleed"}],
+        modifier_applications=[
+            ModifierApplicationDTO(modifier_id="damage_mult", value_override=-0.2),
+        ],
     ),
     "polearm_trip": FeintTechnicalDTO(
         feint_id="polearm_trip",
         cost=FeintCostDTO(tactics={"tempo": 1, "dodge": 1}),
         target=TargetType.SINGLE_ENEMY,
-        pipeline_mutations={"formula.evasion_halved": True},
+        modifier_applications=[
+            ModifierApplicationDTO(modifier_id="evasion_mult", target_actor="target", value_override=-0.5),
+        ],
     ),
     "guard_breaker": FeintTechnicalDTO(
         feint_id="guard_breaker",
         cost=FeintCostDTO(tactics={"block": 1, "hit": 1}),
         target=TargetType.SINGLE_ENEMY,
-        pipeline_mutations={"formula.block_halved": True},
+        modifier_applications=[
+            ModifierApplicationDTO(modifier_id="block_mult", target_actor="target", value_override=-0.5),
+        ],
     ),
     "aimed_shot": FeintTechnicalDTO(
         feint_id="aimed_shot",
         cost=FeintCostDTO(tactics={"hit": 2, "tempo": 1}),
         target=TargetType.SINGLE_ENEMY,
-        raw_mutations={"accuracy_mult": "+0.2", "physical_damage_mult": "-0.1"},
+        modifier_applications=[
+            ModifierApplicationDTO(modifier_id="accuracy_add", value_override=0.2),
+            ModifierApplicationDTO(modifier_id="damage_mult", value_override=-0.1),
+        ],
     ),
     "close_grapple": FeintTechnicalDTO(
         feint_id="close_grapple",
         cost=FeintCostDTO(tactics={"tempo": 2}),
         target=TargetType.SINGLE_ENEMY,
-        pipeline_mutations={"formula.evasion_halved": True, "formula.parry_halved": True},
+        modifier_applications=[
+            ModifierApplicationDTO(modifier_id="evasion_mult", target_actor="target", value_override=-0.5),
+            ModifierApplicationDTO(modifier_id="parry_mult", target_actor="target", value_override=-0.5),
+        ],
     ),
 }
 
@@ -386,5 +403,3 @@ WEAPON_FEINTS_CATALOG = {
     )
     for feint_id, technical in WEAPON_FEINTS_TECHNICAL.items()
 }
-
-WEAPON_FEINTS = [FeintConfigDTO.from_catalog_entry(entry) for entry in WEAPON_FEINTS_CATALOG.values()]

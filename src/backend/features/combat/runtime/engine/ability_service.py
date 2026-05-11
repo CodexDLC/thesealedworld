@@ -1,21 +1,31 @@
+from __future__ import annotations
+
 import uuid
-from typing import Any, Literal
+from typing import TYPE_CHECKING, Any, Literal
 
 from loguru import logger as log
 
 from src.backend.features.combat.dto import (
     ActiveAbilityDTO,
     ActorSnapshot,
+    CombatEffectFactDTO,
     CombatEventDTO,
     CombatMoveDTO,
+    CombatResourceFactDTO,
     ExchangePayload,
     InstantPayload,
     PipelineContextDTO,
 )
 from src.backend.features.combat.integrations import CombatCatalogIntegrator as GameData
 from src.backend.features.combat.runtime.engine.effect_factory import EffectFactory
-from src.backend.features.game_catalog.combat.resources.abilities.schemas import AbilityCostDTO, AbilityTechnicalDTO
-from src.backend.features.game_catalog.combat.resources.feints.schemas import FeintConfigDTO  # noqa: TC001
+from src.backend.features.combat.runtime.engine.modifier_application_service import ModifierApplicationService
+from src.backend.features.combat.runtime.engine.pipeline_mutation_service import PipelineMutationService
+from src.backend.features.combat.runtime.engine.trigger_activation import activate_trigger
+from src.backend.features.game_catalog.combat.resources.common.modifier_applications import ModifierApplicationDTO
+
+if TYPE_CHECKING:
+    from src.backend.features.game_catalog.combat.resources.abilities.schemas import AbilityCostDTO, AbilityTechnicalDTO
+    from src.backend.features.game_catalog.combat.resources.feints.schemas import FeintTechnicalDTO
 
 
 class AbilityService:
@@ -82,7 +92,10 @@ class AbilityService:
         # 1. [CLEANUP TEMP ABILITIES & COLLECT EFFECTS]
         self._process_temp_abilities_post_calc(ctx, source, target)
 
-        # 2. [EXECUTE EFFECTS]
+        # 2. [CONSUME PREPARED REACTIONS]
+        self._process_prepared_reactions_post_calc(ctx, source, target)
+
+        # 3. [EXECUTE EFFECTS]
         self._apply_queued_effects(ctx, source, target)
 
     # ==============================================================================
@@ -95,6 +108,17 @@ class AbilityService:
         Применяет влияние активных эффектов на контекст.
         """
         for effect in actor.statuses.effects:
+            effect_entry = GameData.get_effect_catalog_entry(effect.effect_id)
+            effect_config = effect_entry.technical if effect_entry else None
+            if effect_config and effect_config.pipeline_mutations:
+                role = effect_config.pipeline_mutation_role
+                if role == "both" or role == mode:
+                    PipelineMutationService.apply(
+                        applications=effect_config.pipeline_mutations,
+                        ctx=ctx,
+                        source="effect",
+                    )
+
             if effect.control:
                 behavior = effect.control.source_behavior if mode == "source" else effect.control.target_behavior
                 if behavior:
@@ -166,7 +190,7 @@ class AbilityService:
         """
         Универсальная логика обработки действия (Абилка или Финт).
         """
-        config: AbilityTechnicalDTO | FeintConfigDTO | None = None
+        config: AbilityTechnicalDTO | FeintTechnicalDTO | None = None
         cost_ok = False
         action_id: str | None = None
 
@@ -175,8 +199,9 @@ class AbilityService:
             if not action_id:
                 return
 
-            config = GameData.get_ability(action_id)
-            if config:
+            ability_entry = GameData.get_ability_catalog_entry(action_id)
+            if ability_entry:
+                config = ability_entry.technical
                 cost_ok = AbilityService._check_ability_cost(actor, config.cost)
                 if cost_ok:
                     AbilityService._register_ability_cost(ctx, config.cost)
@@ -190,8 +215,9 @@ class AbilityService:
             if not action_id:
                 return
 
-            config = GameData.get_feint(action_id)
-            if config:
+            feint_entry = GameData.get_feint_catalog_entry(action_id)
+            if feint_entry:
+                config = feint_entry.technical
                 # Финты уже оплачены (при получении в руку) и списаны (в TurnManager)
                 cost_ok = True
 
@@ -207,12 +233,44 @@ class AbilityService:
 
         ability_uid = str(uuid.uuid4())
         modified_keys = []
+        modified_sources: dict[str, list[str]] = {}
 
-        if config.raw_mutations:
-            AbilityService._apply_raw_mutations(actor, config.raw_mutations, source_key=ability_uid)
-            modified_keys = list(config.raw_mutations.keys())
+        if config.modifier_applications:
+            applied_modifiers = ModifierApplicationService.apply(
+                applications=config.modifier_applications,
+                owner=mode,
+                owner_uid=ability_uid,
+                owner_id=action_id,
+                source=actor,
+                target=target,
+            )
+            modified_keys = sorted(set(modified_keys) | applied_modifiers.modified_keys)
+            AbilityService._merge_modified_sources(modified_sources, applied_modifiers.modified_sources)
+
+        if mode == "feint" and getattr(config, "hit_damage_bonus_per_tier", 0.0):
+            weapon_tier = AbilityService._source_weapon_tier(actor, move)
+            bonus_damage = float(config.hit_damage_bonus_per_tier) * weapon_tier
+            ctx.mods.weapon_technique_bonus_damage = bonus_damage
+            applied_modifiers = ModifierApplicationService.apply(
+                applications=[
+                    ModifierApplicationDTO(
+                        modifier_id="physical_damage_bonus_add",
+                        value_override=bonus_damage,
+                        tags=["weapon_technique", action_id or ""],
+                    )
+                ],
+                owner=mode,
+                owner_uid=ability_uid,
+                owner_id=action_id or "",
+                source=actor,
+                target=target,
+            )
+            modified_keys = sorted(set(modified_keys) | applied_modifiers.modified_keys)
+            AbilityService._merge_modified_sources(modified_sources, applied_modifiers.modified_sources)
 
         payload_effects = {}
+        if getattr(config, "preparation_effects", None):
+            payload_effects["always"] = config.preparation_effects
         if config.effects:
             payload_effects["is_hit"] = config.effects
 
@@ -227,26 +285,36 @@ class AbilityService:
             uid=ability_uid,
             ability_id=active_id,  # type: ignore # Pydantic validator handles this usually
             source_id=actor.char_id,
-            expire_at_exchange=actor.meta.exchange_counter,
+            expire_at_exchange=AbilityService._ability_expire_exchange(actor.meta.exchange_counter, config),
             modified_keys=modified_keys,
+            modified_sources=modified_sources,
             payload={"effects": payload_effects},
         )
         actor.statuses.abilities.append(active_ability)
 
         if config.pipeline_mutations:
             if hasattr(config.pipeline_mutations, "preset") and config.pipeline_mutations.preset:
-                preset_flags = GameData.get_pipeline_preset(config.pipeline_mutations.preset)
-                for path, value in preset_flags.items():
-                    AbilityService._set_nested_flag(ctx, path, value)
+                PipelineMutationService.apply(
+                    applications=GameData.get_pipeline_preset(config.pipeline_mutations.preset),
+                    ctx=ctx,
+                    source=mode,
+                )
 
-            flags = getattr(config.pipeline_mutations, "flags", config.pipeline_mutations)
-            if isinstance(flags, dict):
-                for path, value in flags.items():
-                    AbilityService._set_nested_flag(ctx, path, value)
+            mutation_applications = (
+                config.pipeline_mutations.applications
+                if hasattr(config.pipeline_mutations, "applications")
+                else config.pipeline_mutations
+            )
+            if mutation_applications:
+                PipelineMutationService.apply(
+                    applications=mutation_applications,
+                    ctx=ctx,
+                    source=mode,
+                )
 
         if config.triggers:
             for trigger in config.triggers:
-                AbilityService._set_nested_flag(ctx.triggers, trigger, True)
+                activate_trigger(ctx, trigger, source=mode, source_id=action_id)
 
         if config.override_damage:
             ctx.override_damage = config.override_damage
@@ -267,18 +335,15 @@ class AbilityService:
 
         for ability in source.statuses.abilities:
             if ability.expire_at_exchange <= current_exchange:
-                for stat_key in ability.modified_keys:
-                    if stat_key in source.raw.attributes:
-                        if ability.uid in source.raw.attributes[stat_key]["temp"]:
-                            del source.raw.attributes[stat_key]["temp"][ability.uid]
-                            source.dirty_stats.add(stat_key)
-                    elif stat_key in source.raw.modifiers and ability.uid in source.raw.modifiers[stat_key]["temp"]:
-                        del source.raw.modifiers[stat_key]["temp"][ability.uid]
-                        source.dirty_stats.add(stat_key)
+                if ability.modified_sources:
+                    ModifierApplicationService.remove_temp_sources(source, ability.modified_sources)
+                    if target:
+                        ModifierApplicationService.remove_temp_sources(target, ability.modified_sources)
 
                 effects_map = ability.payload.get("effects", {})
                 if effects_map:
                     conditions = {
+                        "always": True,
                         "is_hit": ctx.result.is_hit,
                         "is_crit": ctx.result.is_crit,
                         "is_blocked": ctx.result.is_blocked,
@@ -298,6 +363,78 @@ class AbilityService:
             source.statuses.abilities.remove(ability)
 
     @staticmethod
+    def _process_prepared_reactions_post_calc(
+        ctx: PipelineContextDTO, source: ActorSnapshot, target: ActorSnapshot | None
+    ) -> None:
+        outcome = AbilityService._result_outcome(ctx)
+        if not outcome:
+            return
+
+        AbilityService._process_actor_prepared_reactions(ctx, source, actor_role="source", outcome=outcome)
+        if target:
+            AbilityService._process_actor_prepared_reactions(ctx, target, actor_role="target", outcome=outcome)
+
+    @staticmethod
+    def _process_actor_prepared_reactions(
+        ctx: PipelineContextDTO,
+        actor: ActorSnapshot,
+        *,
+        actor_role: Literal["source", "target"],
+        outcome: str,
+    ) -> None:
+        to_remove = []
+        for effect in actor.statuses.effects:
+            effect_entry = GameData.get_effect_catalog_entry(effect.effect_id)
+            if not effect_entry:
+                continue
+            config = effect_entry.technical
+            if outcome not in config.react_on_outcomes:
+                continue
+            if config.pipeline_mutation_role not in {actor_role, "both"}:
+                continue
+
+            AbilityService._apply_prepared_reaction_result(ctx, actor, effect.effect_id, effect.params)
+            ctx.result.effect_facts.append(
+                CombatEffectFactDTO(
+                    actor_id=actor.char_id,
+                    owner=actor_role,
+                    effect_id=effect.effect_id,
+                    action="expire" if config.consume_on_reaction else "tick",
+                    source_effect_id=effect.effect_id,
+                    tags=["prepared_reaction", outcome],
+                )
+            )
+            if config.consume_on_reaction:
+                if effect.modified_sources:
+                    ModifierApplicationService.remove_temp_sources(actor, effect.modified_sources)
+                to_remove.append(effect)
+
+        for effect in to_remove:
+            actor.statuses.effects.remove(effect)
+
+    @staticmethod
+    def _apply_prepared_reaction_result(
+        ctx: PipelineContextDTO, actor: ActorSnapshot, effect_id: str, params: dict[str, Any]
+    ) -> None:
+        if effect_id != "spiked_guard":
+            return
+        reflected_damage = AbilityService._int_param(params, "reflect_damage", default=5)
+        if reflected_damage <= 0:
+            return
+        ctx.result.reflected_damage += reflected_damage
+        ctx.result.resource_facts.append(
+            CombatResourceFactDTO(
+                actor_id=ctx.result.source_id,
+                owner="source",
+                resource="hp",
+                reason="prepared_reflect",
+                delta=-reflected_damage,
+                source_effect_id=effect_id,
+                tags=["prepared_reaction", "block", "reflect", f"defender:{actor.char_id}"],
+            )
+        )
+
+    @staticmethod
     def _queue_effect(
         ctx: PipelineContextDTO, effect_data: dict, source: ActorSnapshot, target: ActorSnapshot | None
     ) -> None:
@@ -305,10 +442,32 @@ class AbilityService:
         Хелпер: Добавляет эффект в очередь.
         """
         if "target_id" not in effect_data:
-            real_target = target if target else source
+            target_actor = effect_data.get("target_actor")
+            if target_actor == "source":
+                real_target = source
+            elif target_actor == "target":
+                real_target = target if target else source
+            else:
+                real_target = target if target else source
             effect_data["target_id"] = real_target.char_id
 
         ctx.result.applied_effects.append(effect_data)
+
+    @staticmethod
+    def _source_weapon_tier(actor: ActorSnapshot, move: CombatMoveDTO) -> int:
+        payload = move.payload
+        hand = getattr(payload, "hand", None)
+        source_type = "off_hand" if hand == "off" else "main_hand"
+        tiers = getattr(actor.loadout, "weapon_tiers", {}) or {}
+        try:
+            return max(1, int(tiers.get(source_type, 1)))
+        except (TypeError, ValueError):
+            return 1
+
+    @staticmethod
+    def _merge_modified_sources(target: dict[str, list[str]], source: dict[str, list[str]]) -> None:
+        for key, source_ids in source.items():
+            target.setdefault(key, []).extend(source_ids)
 
     @staticmethod
     def _apply_queued_effects(ctx: PipelineContextDTO, source: ActorSnapshot, target: ActorSnapshot | None) -> None:
@@ -333,6 +492,17 @@ class AbilityService:
                 if "hp" not in ctx.result.resource_changes:
                     ctx.result.resource_changes["hp"] = {}
                 ctx.result.resource_changes["hp"]["heal"] = f"+{val}"
+                ctx.result.effect_facts.append(
+                    CombatEffectFactDTO(
+                        actor_id=effect_target.char_id,
+                        owner=AbilityService._fact_owner(ctx, effect_target.char_id),
+                        effect_id="restore_hp",
+                        action="apply",
+                        value=val,
+                        resource="hp",
+                        source_trigger_id=effect_data.get("source_trigger_id"),
+                    )
+                )
 
                 # [EVENT] HEAL
                 ctx.result.events.append(
@@ -361,7 +531,7 @@ class AbilityService:
             # ВАЖНО: Передаем damage_final как damage_ref для скалирования (например, Bleed)
             damage_ref = ctx.result.damage_final if ctx.result.damage_final > 0 else 0
 
-            active_effect, mutations = EffectFactory.create_effect(
+            active_effect = EffectFactory.create_effect(
                 config=config,
                 params=params,
                 source_id=source.char_id,
@@ -369,10 +539,29 @@ class AbilityService:
                 damage_ref=damage_ref,  # Передаем урон
             )
 
-            if mutations:
-                AbilityService._apply_raw_mutations(effect_target, mutations, source_key=active_effect.uid)
+            if config.modifier_applications:
+                applied_modifiers = ModifierApplicationService.apply(
+                    applications=config.modifier_applications,
+                    owner="effect",
+                    owner_uid=active_effect.uid,
+                    owner_id=active_effect.effect_id,
+                    source=source,
+                    target=effect_target,
+                )
+                active_effect.modified_keys = sorted(set(active_effect.modified_keys) | applied_modifiers.modified_keys)
+                active_effect.modified_sources = applied_modifiers.modified_sources
 
             effect_target.statuses.effects.append(active_effect)
+            ctx.result.effect_facts.append(
+                CombatEffectFactDTO(
+                    actor_id=effect_target.char_id,
+                    owner=AbilityService._fact_owner(ctx, effect_target.char_id),
+                    effect_id=active_effect.effect_id,
+                    action="apply",
+                    duration=max(0, active_effect.expire_at_exchange - source.meta.exchange_counter),
+                    source_trigger_id=effect_data.get("source_trigger_id"),
+                )
+            )
 
             # [EVENT] APPLY_EFFECT
             ctx.result.events.append(
@@ -389,6 +578,7 @@ class AbilityService:
 
         result = ctx.result
         flags = {
+            "always": True,
             "is_hit": result.is_hit,
             "is_crit": result.is_crit,
             "is_blocked": result.is_blocked,
@@ -397,6 +587,43 @@ class AbilityService:
             "is_miss": result.is_miss,
         }
         return all(flags.get(str(key)) is bool(value) for key, value in conditions.items())
+
+    @staticmethod
+    def _result_outcome(ctx: PipelineContextDTO) -> str:
+        result = ctx.result
+        if result.is_miss:
+            return "miss"
+        if result.is_dodged:
+            return "dodge"
+        if result.is_parried:
+            return "parry"
+        if result.is_blocked:
+            return "block"
+        if result.is_hit:
+            return "crit" if result.is_crit else "hit"
+        if result.healing_final > 0:
+            return "heal"
+        return ""
+
+    @staticmethod
+    def _int_param(params: dict[str, Any], key: str, *, default: int) -> int:
+        try:
+            return int(params.get(key, default))
+        except (TypeError, ValueError):
+            return default
+
+    @staticmethod
+    def _fact_owner(
+        ctx: PipelineContextDTO, actor_id: int | str | None
+    ) -> Literal["source", "target", "self", "other"]:
+        if actor_id is None:
+            return "other"
+        actor_key = str(actor_id)
+        if ctx.result.source_id is not None and actor_key == str(ctx.result.source_id):
+            return "source"
+        if ctx.result.target_id is not None and actor_key == str(ctx.result.target_id):
+            return "target"
+        return "other"
 
     @staticmethod
     def _cleanup_expired_effects_pre_calc(actor: ActorSnapshot) -> None:
@@ -408,14 +635,8 @@ class AbilityService:
 
         for effect in actor.statuses.effects:
             if effect.expire_at_exchange < current_exchange:
-                for stat_key in effect.modified_keys:
-                    if stat_key in actor.raw.attributes:
-                        if effect.uid in actor.raw.attributes[stat_key]["temp"]:
-                            del actor.raw.attributes[stat_key]["temp"][effect.uid]
-                            actor.dirty_stats.add(stat_key)
-                    elif stat_key in actor.raw.modifiers and effect.uid in actor.raw.modifiers[stat_key]["temp"]:
-                        del actor.raw.modifiers[stat_key]["temp"][effect.uid]
-                        actor.dirty_stats.add(stat_key)
+                if effect.modified_sources:
+                    ModifierApplicationService.remove_temp_sources(actor, effect.modified_sources)
 
                 to_remove.append(effect)
 
@@ -450,15 +671,10 @@ class AbilityService:
             ctx.result.resource_changes["gift"]["cost"] = f"-{cost.gift_tokens}"
 
     @staticmethod
-    def _apply_raw_mutations(actor: ActorSnapshot, mutations: dict, source_key: str) -> None:
-        """
-        Применяет мутации к actor.raw (attributes или modifiers) и помечает dirty_stats.
-        """
-        for stat, value in mutations.items():
-            target_dict = actor.raw.attributes if stat in actor.raw.attributes else actor.raw.modifiers
-
-            if stat not in target_dict:
-                target_dict[stat] = {"base": 0.0, "source": {}, "temp": {}}
-
-            target_dict[stat]["temp"][source_key] = value
-            actor.dirty_stats.add(stat)
+    def _ability_expire_exchange(current_exchange: int, config: AbilityTechnicalDTO | FeintTechnicalDTO) -> int:
+        expire_at_exchange = current_exchange
+        for application in config.modifier_applications:
+            if application.scope == "duration":
+                duration = application.duration_exchanges or 1
+                expire_at_exchange = max(expire_at_exchange, current_exchange + duration)
+        return expire_at_exchange

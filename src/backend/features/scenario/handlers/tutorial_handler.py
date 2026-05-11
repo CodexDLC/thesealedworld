@@ -67,6 +67,7 @@ class TutorialScenarioHandler(BaseScenarioHandler):
             rewards=ScenarioRewardsDTO(
                 items=list(context.queues.loot),
                 skills=list(context.queues.skills),
+                skill_initial_xp=0.10,
                 attribute_bonuses=bonuses,
             ),
             target_state=CoreDomain.COMBAT,

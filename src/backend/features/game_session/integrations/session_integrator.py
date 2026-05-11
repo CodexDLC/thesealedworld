@@ -29,7 +29,7 @@ class GameSessionCharacter:
 
 
 class GameSessionIntegrator:
-    """Facade over character persistence and scenario feature entrypoints."""
+    """Facade over active character runtime state for game session entry."""
 
     def __init__(
         self,
@@ -37,17 +37,17 @@ class GameSessionIntegrator:
         character_repo: CharacterRepository | None = None,
         character_sessions: CharacterSessionManager | None = None,
         db_session: AsyncSession | None = None,
-        scenario_service: ScenarioService,
+        scenario_service: ScenarioService | None = None,
     ) -> None:
-        if character_repo is None:
-            if db_session is None:
-                raise ValueError("character_repo or db_session is required")
+        if character_repo is None and db_session is not None:
             character_repo = CharacterRepository(db_session)
         self.character_repo = character_repo
         self.character_sessions = character_sessions
         self.scenario_service = scenario_service
 
     async def get_owned_character(self, character_id: int, user_id: UUID) -> GameSessionCharacter | None:
+        if self.character_repo is None:
+            return None
         character = await self.character_repo.get_by_id_and_user_id(character_id, user_id)
         if character is None:
             return None
@@ -61,6 +61,8 @@ class GameSessionIntegrator:
     async def release_other_active_sessions(self, user_id: UUID, selected_character_id: int) -> None:
         if self.character_sessions is None:
             return
+        if self.character_repo is None or self.scenario_service is None:
+            raise RuntimeError("character_repo and scenario_service are required to release active sessions")
 
         characters = await self.character_repo.get_by_user_id(user_id)
         other_character_ids = [
@@ -114,7 +116,56 @@ class GameSessionIntegrator:
 
         return session_doc
 
+    async def set_active_session_state(self, character_id: int, state: CoreDomain) -> None:
+        if self.character_sessions is None:
+            return
+        await self.character_sessions.patch_fields(character_id, {"$.state": state.value})
+        await self.character_sessions.mark_dirty(
+            character_id,
+            reason="game_session_state_fallback",
+            paths=["$.state"],
+        )
+
+    async def reset_active_session_to_exploration(self, character_id: int) -> None:
+        if self.character_sessions is None:
+            return
+        await self.character_sessions.reset_main_runtime_refs_to_exploration(character_id)
+
+    async def reconcile_stale_combat_active_session(
+        self,
+        character_id: int,
+        *,
+        persistent_state: CoreDomain | str,
+        previous_state: CoreDomain | str | None,
+    ) -> None:
+        if self.character_sessions is None:
+            return
+
+        state_value = self._state_value(persistent_state) or CoreDomain.EXPLORATION.value
+        previous_value = self._state_value(previous_state)
+        await self.character_sessions.patch_fields(
+            character_id,
+            {
+                "$.state": state_value,
+                "$.prev_state": previous_value,
+                "$.sessions.combat_id": None,
+            },
+        )
+        await self.character_sessions.mark_dirty(
+            character_id,
+            reason="stale_combat_session_reconciled",
+            paths=["$.prev_state", "$.sessions.combat_id", "$.state"],
+        )
+        logger.warning(
+            "Reconciled stale hot combat session from persistent state: char_id={} state={} prev_state={}",
+            character_id,
+            state_value,
+            previous_value,
+        )
+
     async def _persist_active_session_snapshot(self, character_id: int, document: dict[str, object]) -> None:
+        if self.character_repo is None:
+            return
         try:
             session_doc = CharacterSessionDocumentDTO.model_validate(document)
         except Exception:
@@ -135,6 +186,8 @@ class GameSessionIntegrator:
         source: str,
         previous_state: CoreDomain = CoreDomain.LOBBY,
     ) -> ScenarioPayloadDTO:
+        if self.scenario_service is None:
+            raise RuntimeError("scenario_service is required to resume or initialize scenario")
         try:
             payload = await self.scenario_service.resume(char_id)
         except ScenarioSessionNotFound:
@@ -156,6 +209,8 @@ class GameSessionIntegrator:
         *,
         previous_state: CoreDomain | str | None = None,
     ) -> None:
+        if self.character_repo is None:
+            return
         updated = await self.character_repo.set_character_state(
             char_id,
             state.value,

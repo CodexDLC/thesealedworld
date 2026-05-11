@@ -3,10 +3,13 @@ from typing import Any, Literal, cast
 from loguru import logger as log
 
 from src.backend.features.combat.dto import BattleMeta, CombatActionDTO, CombatMoveDTO
+from src.backend.features.combat.dto.ids import ActorId, ActorIdLike, normalize_actor_id
 from src.backend.features.combat.dto.worker import AiTurnRequestDTO, CollectorSignalDTO
 from src.backend.features.combat.runtime.engine.target_resolver import TargetResolver
 from src.backend.features.combat.runtime.engine.victory_checker import VictoryChecker
 from src.backend.features.combat.runtime.services.data_service import CombatDataService
+
+COMBAT_ACTION_QUEUE_LIMIT = 50
 
 
 class CombatCollector:
@@ -39,12 +42,12 @@ class CombatCollector:
         # 1. Backpressure Check (Защита от переполнения очереди)
         # Если очередь Исполнителя забита, не добавляем новые задачи.
         queue_size = await self.data_service.get_action_queue_size(session_id)
-        if queue_size > 50:  # TODO: Вынести лимит в конфиг
+        if queue_size > COMBAT_ACTION_QUEUE_LIMIT:
             log.warning(f"Collector | Queue full ({queue_size}), skipping cycle. session_id={session_id}")
             return 0, [], None
 
         # Получаем список всех участников из Meta
-        all_actor_ids: list[int | str] = []
+        all_actor_ids: list[ActorIdLike] = []
         for team_ids in meta.teams.values():
             all_actor_ids.extend(team_ids)
 
@@ -98,28 +101,25 @@ class CombatCollector:
         return batch_size, ai_tasks, None
 
     def _check_ai_turns(
-        self, session_id: str, meta: BattleMeta, moves_map: dict[str, Any], targets_map: dict[str, list[int]]
+        self, session_id: str, meta: BattleMeta, moves_map: dict[str, Any], targets_map: dict[str, list[ActorId]]
     ) -> list[AiTurnRequestDTO]:
         """
         Проверяет, кто из AI еще не сделал ход.
         Сравнивает очередь целей (targets) с заявленными мувами (exchange).
         Фильтрует мертвых акторов (оптимизация).
         """
-        tasks = []
+        tasks: list[AiTurnRequestDTO] = []
         dead_set = set(str(x) for x in meta.dead_actors)
 
         for actor_id_str, actor_type in meta.actors_info.items():
             if actor_type != "ai":
                 continue
 
-            if not actor_id_str.lstrip("-").isdigit():
-                continue
-
             # Фильтруем мертвых ботов (оптимизация)
             if actor_id_str in dead_set:
                 continue
 
-            actor_id = int(actor_id_str)
+            actor_id = normalize_actor_id(actor_id_str)
 
             # 1. Получаем цели бота
             my_targets = targets_map.get(actor_id_str, [])
@@ -130,7 +130,7 @@ class CombatCollector:
             actor_moves = moves_map.get(actor_id_str, {})
             exchange_moves = actor_moves.get("exchange", {})
 
-            covered_targets = set()
+            covered_targets: set[ActorId] = set()
             for move_json in exchange_moves.values():
                 try:
                     # Парсим JSON, чтобы достать target_id
@@ -138,12 +138,12 @@ class CombatCollector:
                     # payload теперь объект, используем getattr
                     tid = getattr(move.payload, "target_id", None)
                     if tid:
-                        covered_targets.add(int(tid))
+                        covered_targets.add(normalize_actor_id(tid))
                 except Exception:  # noqa: BLE001
                     pass
 
             # 3. Сравниваем и фильтруем мертвых из целей
-            missing_targets_raw = list(set(my_targets) - covered_targets)
+            missing_targets_raw = list({normalize_actor_id(tid) for tid in my_targets} - covered_targets)
             # Фильтруем мертвых из списка целей
             missing_targets = [tid for tid in missing_targets_raw if str(tid) not in dead_set]
 
@@ -173,7 +173,7 @@ class CombatCollector:
                         # Резолвинг целей через TargetResolver
                         # payload теперь объект, используем getattr
                         raw_target = getattr(move.payload, "target_id", None)
-                        target_ids = self.target_resolver.resolve(int(char_id), raw_target, meta)  # type: ignore # TODO: Fix later when refactoring Combat Engine
+                        target_ids = self.target_resolver.resolve(cast("ActorIdLike", char_id), raw_target, meta)
 
                         # Записываем результат резолвинга в сам мув
                         move.targets = target_ids

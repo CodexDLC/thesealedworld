@@ -5,8 +5,9 @@ DTO для управления Пайплайном Боя (Combat Pipeline).
 
 from typing import Any, Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
+from src.backend.features.combat.dto.ids import ActorId, ActorIdLike, normalize_actor_id
 from src.backend.features.combat.dto.trigger_rules import TriggerRulesFlagsDTO
 
 # ==============================================================================
@@ -58,14 +59,11 @@ class FormulaFlagsDTO(BaseModel):
     """Переключатели формул."""
 
     # Evasion
-    evasion_halved: bool = False
     ignore_evasion_cap: bool = False
     zero_anti_evasion: bool = False
 
     # Parry/Block
-    parry_halved: bool = False
     ignore_parry_cap: bool = False
-    block_halved: bool = False
     ignore_block_cap: bool = False
 
     # Crit
@@ -74,6 +72,7 @@ class FormulaFlagsDTO(BaseModel):
 
     # Damage
     can_pierce: bool = False  # Разрешить проверку на пронзание
+    ignore_armor: bool = False
 
     # Counter Attack
     counter_chance_boost: bool = False  # Был enable_counter (+20% chance)
@@ -106,6 +105,9 @@ class StateFlagsDTO(BaseModel):
     # Counter Attack State
     allow_counter_on_parry: bool = False  # Был can_counter_on_parry
     check_counter: bool = False  # Сигнал для запуска этапа проверки контратаки
+    force_counter_on_dodge: bool = False
+    force_counter_on_parry: bool = False
+    counter_to_cap_on_dodge: bool = False
 
 
 class MetaFlagsDTO(BaseModel):
@@ -163,6 +165,7 @@ class PipelineModsDTO(BaseModel):
     accuracy_mult: float = 1.0
     damage_mult: float = 1.0
     weapon_effect_value: float = 2.0  # Универсальный бонус оружия (Crit Mult / Pierce %)
+    weapon_technique_bonus_damage: float = 0.0
 
 
 class PipelineStagesDTO(BaseModel):
@@ -195,7 +198,6 @@ class ChainTriggersDTO(BaseModel):
     trigger_counter_attack: bool = False  # Контратака
     trigger_extra_strike: bool = False  # Дополнительный удар (перк)
     preserve_feint: bool = False  # Возвратить стоимость использованного финта
-    trigger_cleave: list[int] = Field(default_factory=list)  # IDs целей для Cleave
 
 
 class CombatEventDTO(BaseModel):
@@ -217,8 +219,8 @@ class CombatEventDTO(BaseModel):
         "COST",
         "APPLY_EFFECT",
     ]
-    source_id: int
-    target_id: int | None = None
+    source_id: ActorId
+    target_id: ActorId | None = None
 
     # Контекст (чем вызвано)
     action_id: str | None = None  # ID абилки/финта/эффекта
@@ -229,6 +231,11 @@ class CombatEventDTO(BaseModel):
 
     # Теги (для доп. инфы)
     tags: list[str] = Field(default_factory=list)
+
+    @field_validator("source_id", "target_id", mode="before")
+    @classmethod
+    def _normalize_actor_ids(cls, value: ActorIdLike | None) -> ActorId | None:
+        return normalize_actor_id(value) if value is not None else None
 
 
 class CombatCheckTraceDTO(BaseModel):
@@ -251,13 +258,127 @@ class CombatDamageTraceDTO(BaseModel):
     details: dict[str, Any] = Field(default_factory=dict)
 
 
+CombatFactOwner = Literal["source", "target", "self", "other"]
+CombatTriggerSource = Literal["weapon", "feint", "style", "effect", "ability", "monster", "system"]
+
+
+class CombatResourceFactDTO(BaseModel):
+    """Normalized resource mutation fact produced by the combat pipeline."""
+
+    actor_id: ActorId | None = None
+    owner: CombatFactOwner = "other"
+    resource: str
+    reason: str
+    delta: int
+    before: int | None = None
+    after: int | None = None
+    max: int | None = None
+    source_action_id: str | None = None
+    source_effect_id: str | None = None
+    source_trigger_id: str | None = None
+    tags: list[str] = Field(default_factory=list)
+
+    @field_validator("actor_id", mode="before")
+    @classmethod
+    def _normalize_actor_id(cls, value: ActorIdLike | None) -> ActorId | None:
+        return normalize_actor_id(value) if value is not None else None
+
+
+class CombatTokenFactDTO(BaseModel):
+    """Normalized token mutation fact produced by the combat pipeline."""
+
+    actor_id: ActorId | None = None
+    owner: CombatFactOwner = "other"
+    token: str
+    amount: int
+    before: int | None = None
+    after: int | None = None
+    reason: str | None = None
+    source_action_id: str | None = None
+    source_effect_id: str | None = None
+    source_trigger_id: str | None = None
+    tags: list[str] = Field(default_factory=list)
+
+    @field_validator("actor_id", mode="before")
+    @classmethod
+    def _normalize_actor_id(cls, value: ActorIdLike | None) -> ActorId | None:
+        return normalize_actor_id(value) if value is not None else None
+
+
+class CombatEffectFactDTO(BaseModel):
+    """Normalized effect lifecycle fact produced by the combat pipeline."""
+
+    actor_id: ActorId | None = None
+    owner: CombatFactOwner = "other"
+    effect_id: str
+    action: Literal["apply", "tick", "expire", "resist", "cleanse"]
+    value: int | None = None
+    resource: str | None = None
+    duration: int | None = None
+    source_action_id: str | None = None
+    source_effect_id: str | None = None
+    source_trigger_id: str | None = None
+    tags: list[str] = Field(default_factory=list)
+
+    @field_validator("actor_id", mode="before")
+    @classmethod
+    def _normalize_actor_id(cls, value: ActorIdLike | None) -> ActorId | None:
+        return normalize_actor_id(value) if value is not None else None
+
+
+class CombatDeathFactDTO(BaseModel):
+    """Normalized death fact produced by the combat pipeline."""
+
+    actor_id: ActorId | None = None
+    owner: CombatFactOwner = "other"
+    reason: str = "death"
+    source_action_id: str | None = None
+    source_effect_id: str | None = None
+    source_trigger_id: str | None = None
+    tags: list[str] = Field(default_factory=list)
+
+    @field_validator("actor_id", mode="before")
+    @classmethod
+    def _normalize_actor_id(cls, value: ActorIdLike | None) -> ActorId | None:
+        return normalize_actor_id(value) if value is not None else None
+
+
+class CombatTriggerActivationDTO(BaseModel):
+    """A source that enabled a trigger flag for this exchange."""
+
+    trigger_id: str
+    source: CombatTriggerSource = "system"
+    source_id: str | None = None
+    source_slot: str | None = None
+    tags: list[str] = Field(default_factory=list)
+
+
+class CombatTriggerFactDTO(BaseModel):
+    """Normalized trigger fact produced when a trigger passes its chance check."""
+
+    trigger_id: str
+    event: str
+    source: CombatTriggerSource = "system"
+    source_id: str | None = None
+    source_slot: str | None = None
+    chance: float = 1.0
+    display_policy: str = "merge"
+    stacking_rule: str = "unique"
+    tags: list[str] = Field(default_factory=list)
+
+
 class InteractionResultDTO(BaseModel):
     """Итоговый отчет."""
 
     # === Context (Кто и Кого) ===
-    source_id: int | None = None
-    target_id: int | None = None
+    source_id: ActorId | None = None
+    target_id: ActorId | None = None
     hand: str = "main"  # main, off
+
+    @field_validator("source_id", "target_id", mode="before")
+    @classmethod
+    def _normalize_actor_ids(cls, value: ActorIdLike | None) -> ActorId | None:
+        return normalize_actor_id(value) if value is not None else None
 
     # === Что случилось (Факты) ===
     is_hit: bool = False
@@ -287,6 +408,13 @@ class InteractionResultDTO(BaseModel):
     # === Events (Структурированный лог) ===
     events: list[CombatEventDTO] = Field(default_factory=list)
 
+    # === Pipeline Facts (нормализованные факты для будущего public log mapping) ===
+    resource_facts: list[CombatResourceFactDTO] = Field(default_factory=list)
+    token_facts: list[CombatTokenFactDTO] = Field(default_factory=list)
+    effect_facts: list[CombatEffectFactDTO] = Field(default_factory=list)
+    death_facts: list[CombatDeathFactDTO] = Field(default_factory=list)
+    trigger_facts: list[CombatTriggerFactDTO] = Field(default_factory=list)
+
     # === Resolver Trace (для читаемого INFO лога и аналитики) ===
     checks: list[CombatCheckTraceDTO] = Field(default_factory=list)
     damage_trace: CombatDamageTraceDTO | None = None
@@ -307,10 +435,6 @@ class InteractionResultDTO(BaseModel):
     # Используется WaterfallCalculator для расчета итога
     resource_changes: dict[str, dict[str, str]] = Field(default_factory=dict)
 
-    # Флаги для AbilityService (чтобы знать, какие эффекты накладывать)
-    # Используется для передачи информации из Резолвера в Пост-Кальк
-    ability_flags: Any = None  # TODO: Типизировать как AbilityFlagsDTO, но тут циклический импорт
-
 
 # ==============================================================================
 # 4. CONTEXT (Вход и Выход)
@@ -326,6 +450,7 @@ class PipelineContextDTO(BaseModel):
 
     # Заменили PipelineTriggersDTO на TriggerRulesFlagsDTO
     triggers: TriggerRulesFlagsDTO = Field(default_factory=TriggerRulesFlagsDTO)
+    trigger_activations: dict[str, list[CombatTriggerActivationDTO]] = Field(default_factory=dict)
 
     stages: PipelineStagesDTO = Field(default_factory=PipelineStagesDTO)
 

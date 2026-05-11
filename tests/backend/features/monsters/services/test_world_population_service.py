@@ -23,11 +23,15 @@ class FakeNode:
 
 class FakeEncounterService:
     def __init__(self) -> None:
-        self.contexts: list[MonsterGenerationContext] = []
+        self.calls: list[tuple[MonsterGenerationContext, str]] = []
 
-    async def ensure_population_for_context(self, context: MonsterGenerationContext) -> list[object]:
-        self.contexts.append(context)
-        return [object(), object()]
+    def get_available_family_ids(self, context: MonsterGenerationContext) -> list[str]:
+        del context
+        return ["bandit_gang", "goblin_tribe", "rat_swarm"]
+
+    async def ensure_clan_for_context(self, context: MonsterGenerationContext, family_id: str) -> object:
+        self.calls.append((context, family_id))
+        return object()
 
 
 async def test_world_population_builds_unique_unsafe_contexts() -> None:
@@ -59,13 +63,16 @@ async def test_world_population_builds_unique_unsafe_contexts() -> None:
     )
 
     assert result.contexts == 1
-    assert result.clans == 2
-    assert service.contexts == [
-        MonsterGenerationContext(
-            zone_id="D4_0_0",
-            biome_id="city_ruins",
-            tier=2,
-            tags=["city_ruins", "mana_leak"],
-            difficulty="mid",
-        )
+    assert result.clans == 3
+    expected_context = MonsterGenerationContext(
+        zone_id="D4_0_0",
+        biome_id="city_ruins",
+        tier=2,
+        tags=["city_ruins", "mana_leak"],
+        difficulty="mid",
+    )
+    assert service.calls == [
+        (expected_context, "bandit_gang"),
+        (expected_context, "goblin_tribe"),
+        (expected_context, "rat_swarm"),
     ]

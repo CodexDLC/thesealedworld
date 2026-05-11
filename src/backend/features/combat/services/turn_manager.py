@@ -9,7 +9,14 @@ from pydantic import ValidationError
 from src.backend.core.arq import ArqService
 from src.backend.features.combat.dto import ExchangePayload, InstantPayload
 from src.backend.features.combat.dto.action import CombatMoveDTO
+from src.backend.features.combat.dto.ids import ActorIdLike, normalize_actor_id
 from src.backend.features.combat.dto.worker import CollectorSignalDTO
+from src.backend.features.combat.exceptions import (
+    CombatFeintUnavailableError,
+    CombatInvalidMovePayloadError,
+    CombatTargetRequiredError,
+    CombatTargetUnavailableError,
+)
 from src.backend.features.combat.integrations import CombatSessionIntegration
 
 # Конфиг таймеров согласно документации
@@ -32,13 +39,15 @@ class CombatTurnManager:
         self.combat_sessions = combat_sessions
         self.arq = arq_service
 
-    async def register_move_request(self, session_id: str, char_id: int, payload: dict[str, Any]) -> None:
+    async def register_move_request(self, session_id: str, char_id: ActorIdLike, payload: dict[str, Any]) -> None:
         """
         Основной метод регистрации хода.
         Записывает 'пулю' (Intent) и ставит две задачи в ARQ.
         """
         # 1. Определяем тип действия
         action_type = payload.get("action", "attack")
+        if action_type in {"attack", "exchange"} and not payload.get("target_id"):
+            raise CombatTargetRequiredError("Target ID is required for exchange")
         log.debug(
             "TurnManagerStart | session_id={session_id} actor_id={actor_id} action={action}",
             session_id=session_id,
@@ -61,7 +70,7 @@ class CombatTurnManager:
             move_dto = self._build_move_dto(char_id, action_type, payload)
         except ValidationError as e:
             log.error(f"TurnManager | Payload validation failed: {e}")
-            raise ValueError("Invalid move payload structure") from e
+            raise CombatInvalidMovePayloadError("Invalid move payload structure") from e
 
         # --- FEINT VALIDATION & CONSUMPTION (ATOMIC) ---
         # Проверяем финт, если он есть в payload
@@ -76,13 +85,16 @@ class CombatTurnManager:
             cost = await self.combat_sessions.consume_feint(session_id, char_id, feint_id)
 
             if not cost:
-                raise ValueError(f"Feint {feint_id} is not in hand")
+                raise CombatFeintUnavailableError(
+                    f"Feint {feint_id} is not in hand",
+                    context={"feint_id": feint_id},
+                )
 
         # 4. Записываем в буфер (Multi-Targeting / Spamming)
         if move_dto.strategy == "exchange":
             target_id = getattr(move_dto.payload, "target_id", None)
             if not target_id:
-                raise ValueError("Target ID is required for exchange")
+                raise CombatTargetRequiredError("Target ID is required for exchange")
 
             success = await self.combat_sessions.register_exchange_move(
                 session_id, char_id, target_id, move_dto.model_dump()
@@ -100,7 +112,10 @@ class CombatTurnManager:
                     target_id,
                     targets.get(str(char_id)),
                 )
-                raise ValueError("Target is not available in your queue")
+                raise CombatTargetUnavailableError(
+                    "Target is not available in your queue",
+                    context={"target_id": str(target_id)},
+                )
 
         else:
             await self.combat_sessions.append_move(session_id, char_id, move_dto.strategy, move_dto.model_dump())
@@ -112,12 +127,18 @@ class CombatTurnManager:
 
         # 6. СТАВИМ ДВЕ ЗАДАЧИ В ARQ
         signal_immediate = CollectorSignalDTO(
-            session_id=session_id, char_id=char_id, signal_type="check_immediate", move_id=move_dto.move_id
+            session_id=session_id,
+            char_id=normalize_actor_id(char_id),
+            signal_type="check_immediate",
+            move_id=move_dto.move_id,
         )
         await self.arq.enqueue_job("combat_collector_task", signal_immediate.model_dump())
 
         signal_timeout = CollectorSignalDTO(
-            session_id=session_id, char_id=char_id, signal_type="check_timeout", move_id=move_dto.move_id
+            session_id=session_id,
+            char_id=normalize_actor_id(char_id),
+            signal_type="check_timeout",
+            move_id=move_dto.move_id,
         )
         await self.arq.enqueue_job(
             "combat_collector_task", signal_timeout.model_dump(), _defer_until=self._defer_after(timeout)
@@ -133,7 +154,7 @@ class CombatTurnManager:
             timeout=timeout,
         )
 
-    async def register_moves_batch(self, session_id: str, char_id: int, payloads: list[dict[str, Any]]) -> None:
+    async def register_moves_batch(self, session_id: str, char_id: ActorIdLike, payloads: list[dict[str, Any]]) -> None:
         """
         Батчевая регистрация ходов (для AI).
         Поддерживает и Exchange (с удалением целей), и Instant/Item (без удаления).
@@ -157,7 +178,7 @@ class CombatTurnManager:
                         exchange_moves_data.append(
                             {
                                 "move_json": move_dto.model_dump_json(),
-                                "target_id": int(target_id),
+                                "target_id": target_id,
                                 "strategy": move_dto.strategy,
                                 "move_id": move_dto.move_id,
                             }
@@ -199,7 +220,10 @@ class CombatTurnManager:
 
             # A. Immediate
             signal_immediate = CollectorSignalDTO(
-                session_id=session_id, char_id=char_id, signal_type="check_immediate", move_id="batch"
+                session_id=session_id,
+                char_id=normalize_actor_id(char_id),
+                signal_type="check_immediate",
+                move_id="batch",
             )
             await self.arq.enqueue_job("combat_collector_task", signal_immediate.model_dump())
 
@@ -209,7 +233,10 @@ class CombatTurnManager:
             timeout = 60
             for move_id in accepted_move_ids:
                 signal_timeout = CollectorSignalDTO(
-                    session_id=session_id, char_id=char_id, signal_type="check_timeout", move_id=move_id
+                    session_id=session_id,
+                    char_id=normalize_actor_id(char_id),
+                    signal_type="check_timeout",
+                    move_id=move_id,
                 )
                 await self.arq.enqueue_job(
                     "combat_collector_task", signal_timeout.model_dump(), _defer_until=self._defer_after(timeout)
@@ -226,7 +253,7 @@ class CombatTurnManager:
         else:
             log.warning(f"TurnManager | Batch failed or empty for {char_id}")
 
-    def _build_move_dto(self, char_id: int, action: str, data: dict) -> CombatMoveDTO:
+    def _build_move_dto(self, char_id: ActorIdLike, action: str, data: dict) -> CombatMoveDTO:
         """
         Маппинг входящих данных в правильную стратегию и Payload.
         """
@@ -252,11 +279,14 @@ class CombatTurnManager:
         else:
             # По умолчанию - боевой размен (attack, defend, etc.)
             strategy = "exchange"
-            validated_payload = ExchangePayload(target_id=data.get("target_id") or 0, feint_id=data.get("feint_id"))
+            validated_payload = ExchangePayload(
+                target_id=normalize_actor_id(data.get("target_id") or "0"),
+                feint_id=data.get("feint_id"),
+            )
 
         return CombatMoveDTO(
             move_id=str(uuid.uuid4())[:8],
-            char_id=char_id,
+            char_id=normalize_actor_id(char_id),
             strategy=strategy,
             payload=validated_payload,
         )

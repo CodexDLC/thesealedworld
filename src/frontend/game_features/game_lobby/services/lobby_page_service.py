@@ -4,6 +4,7 @@ from loguru import logger
 from src.frontend.integrations.backend_api.game_lobby import (
     BackendGameLobbyApi,
     GameLobbyEnterResponse,
+    GameLobbyReleaseResponse,
     GameLobbyResponse,
     GameLobbyStartResponse,
 )
@@ -38,6 +39,11 @@ class GameLobbyPageService:
     async def enter(self, request: Request, dto: EnterCharacterRequestDTO) -> GameLobbyEnterResponse:
         response = await self.api.enter(require_access_token(request), dto)
         logger.info("Lobby page character enter completed: character_id={}", dto.character_id)
+        return response
+
+    async def release(self, request: Request, dto: EnterCharacterRequestDTO) -> GameLobbyReleaseResponse:
+        response = await self.api.release(require_access_token(request), dto)
+        logger.info("Lobby page character release completed: character_id={}", dto.character_id)
         return response
 
     async def delete(self, request: Request, dto: DeleteCharacterRequestDTO) -> GameLobbyResponse:

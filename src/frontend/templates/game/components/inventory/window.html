@@ -1,8 +1,177 @@
 {% set inventory = inventory_window if inventory_window is defined and inventory_window else none %}
 {% if inventory %}
+{% set gear_icon_keys = [
+    'amulet', 'arms', 'belt', 'cloak', 'consumable', 'default', 'earrings', 'feetwear', 'garment',
+    'head', 'legs', 'legwear', 'quest', 'resource', 'ring', 'shield', 'torso', 'weapon',
+    'weapon_axe', 'weapon_bow', 'weapon_dagger', 'weapon_hammer', 'weapon_mace', 'weapon_polearm',
+    'weapon_sword', 'weapon_two_hand'
+] %}
+{% set slot_icon_map = {
+    'head_armor': 'head',
+    'outer_garment': 'cloak',
+    'chest_armor': 'torso',
+    'chest_garment': 'garment',
+    'arms_armor': 'arms',
+    'gloves_garment': 'arms',
+    'legs_armor': 'legs',
+    'legs_garment': 'legwear',
+    'feetwear': 'feetwear',
+    'main_hand': 'weapon',
+    'off_hand': 'shield',
+    'two_hand': 'weapon',
+    'amulet': 'amulet',
+    'earring': 'earrings',
+    'ring_1': 'ring',
+    'ring_2': 'ring',
+    'belt_accessory': 'belt'
+} %}
+{% set accessory_slot_label_map = {
+    'ring_1': 'Кольцо 1',
+    'ring_2': 'Кольцо 2'
+} %}
+{% set weapon_icon_base_map = {
+    'sword': 'weapon_sword',
+    'longsword': 'weapon_sword',
+    'scimitar': 'weapon_sword',
+    'rapier': 'weapon_sword',
+    'greatsword': 'weapon_two_hand',
+    'katana': 'weapon_two_hand',
+    'knife': 'weapon_dagger',
+    'dagger': 'weapon_dagger',
+    'stiletto': 'weapon_dagger',
+    'main_gauche': 'weapon_dagger',
+    'katar': 'weapon_dagger',
+    'hatchet': 'weapon_axe',
+    'battle_axe': 'weapon_axe',
+    'mace': 'weapon_mace',
+    'flail': 'weapon_mace',
+    'warhammer': 'weapon_hammer',
+    'spear': 'weapon_polearm',
+    'pike': 'weapon_polearm',
+    'halberd': 'weapon_polearm',
+    'quarterstaff': 'weapon_polearm',
+    'trident': 'weapon_polearm',
+    'shortbow': 'weapon_bow',
+    'sling': 'weapon_bow'
+} %}
+{% set type_icon_map = {
+    'weapon': 'weapon',
+    'armor': 'torso',
+    'garment': 'garment',
+    'accessory': 'ring',
+    'consumable': 'consumable',
+    'container': 'default',
+    'resource': 'resource',
+    'material': 'resource',
+    'currency': 'resource',
+    'quest': 'quest'
+} %}
+{% macro inventory_tooltip_card(name, item_type, rarity_label, tier, icon, details, comparison=[], row_weight='-', row_quantity='1', target_label='') %}
+{% set type_label = details.item_type_label if details and details.item_type_label is defined else item_type %}
+<article class="item-card inventory-tooltip-card r{{ tier }} ic-r{{ tier }}"
+         style="--inventory-tooltip-icon-url: url('/static/images/ui/inventory-gear/{{ icon }}.svg');">
+    <div class="ic-header inventory-tooltip-header">
+        <div>
+            <div class="ic-name">{{ name }}</div>
+            <div class="ic-type">
+                <span>{{ type_label }} · {{ rarity_label }}</span>
+                <span class="inventory-tooltip-tier">T{{ tier }}</span>
+            </div>
+        </div>
+        <div class="inventory-tooltip-sigil" aria-hidden="true"></div>
+    </div>
+    {% if details and details.description is defined and details.description %}
+    <div class="inventory-tooltip-description">{{ details.description }}</div>
+    {% endif %}
+    <div class="ic-body">
+        {% if details and details.details is defined and details.details %}
+        <div class="inventory-tooltip-section-title">ОСНОВА</div>
+        {% for line in details.details %}
+        <div class="ic-stat">
+            <span class="ic-stat-key">{{ line.label }}</span>
+            <span class="ic-stat-val {{ 'pos' if line.tone == 'positive' else 'neg' if line.tone == 'negative' else '' }}">{{ line.value }}</span>
+        </div>
+        {% endfor %}
+        {% elif details and details.details is not defined %}
+        {% for line in details %}
+        <div class="ic-stat">
+            <span class="ic-stat-key">Detail</span>
+            <span class="ic-stat-val">{{ line }}</span>
+        </div>
+        {% endfor %}
+        {% else %}
+        <div class="ic-stat"><span class="ic-stat-key">Тип</span><span class="ic-stat-val">{{ type_label }}</span></div>
+        {% if row_weight and row_weight != '-' %}
+        <div class="ic-stat"><span class="ic-stat-key">Вес</span><span class="ic-stat-val">{{ row_weight }}</span></div>
+        {% endif %}
+        {% if row_quantity and row_quantity != '1' and row_quantity != 1 %}
+        <div class="ic-stat"><span class="ic-stat-key">Кол-во</span><span class="ic-stat-val">{{ row_quantity }}</span></div>
+        {% endif %}
+        {% endif %}
+        {% if details and details.affixes is defined and details.affixes %}
+        <div class="ic-divider"></div>
+        <div class="inventory-tooltip-section-title">АФФИКСЫ</div>
+        {% for affix in details.affixes %}
+        <div class="ic-stat inventory-tooltip-affix inventory-grade-r{{ affix.tier }}">
+            <span class="ic-stat-key">{{ affix.label }}</span>
+            <span class="ic-stat-val">{{ affix.value }}</span>
+        </div>
+        {% endfor %}
+        {% endif %}
+        {% set comparison_lines = details.comparison if details and details.comparison is defined and details.comparison else comparison %}
+        {% if comparison_lines %}
+        <div class="ic-divider"></div>
+        {% for line in comparison_lines %}
+        <div class="ic-stat">
+            {% if line.label is defined %}
+            <span class="ic-stat-key">{{ line.label }}</span>
+            <span class="ic-stat-val {{ 'pos' if line.tone is defined and line.tone == 'positive' else 'neg' if line.tone is defined and line.tone == 'negative' else '' }}">{{ line.value }}</span>
+            {% else %}
+            <span class="ic-stat-key">Compare</span>
+            <span class="ic-stat-val">{{ line }}</span>
+            {% endif %}
+        </div>
+        {% endfor %}
+        {% endif %}
+        {% if details and details.effects is defined and details.effects %}
+        <div class="ic-divider"></div>
+        <div class="ic-effects">
+            {% for effect in details.effects %}
+            <span class="ic-effect">{{ effect.label }}</span>
+            {% endfor %}
+        </div>
+        {% endif %}
+    </div>
+    {% if details and details.flavor is defined and details.flavor %}
+    <div class="ic-flavor">{{ details.flavor }}</div>
+    {% endif %}
+    {% if details and details.requirements is defined and details.requirements %}
+    {% for req in details.requirements %}
+    <div class="ic-req {{ 'met' if req.met else '' }}">{{ 'OK' if req.met else 'LOCK' }} {{ req.label }} {{ req.value }}</div>
+    {% endfor %}
+    {% else %}
+    <div class="ic-req met">Нет требований</div>
+    {% endif %}
+    {% set meta_fields = details.meta if details and details.meta is defined and details.meta else [] %}
+    {% if meta_fields or target_label %}
+    <div class="inventory-tooltip-meta">
+        {% for field in meta_fields %}
+        {% if field.label != 'Источник' %}
+        <span><b>{{ field.label }}</b> <em>{{ field.value }}</em></span>
+        {% endif %}
+        {% endfor %}
+        {% if target_label and not meta_fields %}
+        <span><b>Слот</b> <em>{{ target_label }}</em></span>
+        {% endif %}
+    </div>
+    {% endif %}
+</article>
+{% endmacro %}
+{% set active_inventory_tab = (inventory.tabs | selectattr('is_active') | list | first).tab_id if (inventory.tabs | selectattr('is_active') | list) else 'items' %}
+{% set inventory_state_notice = inventory_notice if inventory_notice is defined and inventory_notice else inventory.forbidden_reason if inventory.forbidden_reason else '' %}
 <div class="inventory-shell"
      data-contract-state="{{ inventory.contract_state }}"
-     x-data="{ activeInventoryTab: '{{ (inventory.tabs | selectattr('is_active') | list | first).tab_id if (inventory.tabs | selectattr('is_active') | list) else 'items' }}', selectedSlot: null, hoverRow: null, hoverX: 0, hoverY: 0, inventoryNotice: '' }">
+     x-data='{"activeInventoryTab": {{ active_inventory_tab | tojson }}, "selectedSlot": null, "inventoryNotice": {{ inventory_state_notice | tojson }}, "searchQuery": ""}'>
     <section class="inventory-loadout" aria-label="Character equipment">
         <div class="inventory-doll" aria-label="Character doll">
             <button type="button" class="inventory-avatar-frame" aria-label="Choose character avatar">
@@ -13,23 +182,66 @@
             {% set primary_item = zone.primary_slot.item if zone.primary_slot.item is defined else none %}
             {% set primary_empty = zone.primary_slot.is_empty if zone.primary_slot.is_empty is defined else not primary_item %}
             {% set primary_name = zone.primary_slot.item_name if zone.primary_slot.item_name is defined else (primary_item.name if primary_item else 'EMPTY') %}
+            {% set primary_tier = zone.primary_slot.details.rarity_tier if zone.primary_slot.details else (primary_item.rarity_tier if primary_item and primary_item.rarity_tier is defined else 0) %}
+            {% set primary_rarity = zone.primary_slot.details.rarity_label if zone.primary_slot.details else (primary_item.rarity if primary_item else 'Без грейда') %}
+            {% set primary_icon = slot_icon_map.get(zone.primary_slot.slot_id, type_icon_map.get(primary_item.item_type if primary_item else '', 'default')) %}
+            {% set secondary_item = zone.secondary_slot.item if zone.secondary_slot and zone.secondary_slot.item is defined else none %}
+            {% set secondary_empty = zone.secondary_slot.is_empty if zone.secondary_slot and zone.secondary_slot.is_empty is defined else not secondary_item %}
+            {% set secondary_name = zone.secondary_slot.item_name if zone.secondary_slot and zone.secondary_slot.item_name is defined else (secondary_item.name if secondary_item else 'EMPTY') %}
+            {% set secondary_tier = zone.secondary_slot.details.rarity_tier if zone.secondary_slot and zone.secondary_slot.details else (secondary_item.rarity_tier if secondary_item and secondary_item.rarity_tier is defined else 0) %}
+            {% set secondary_rarity = zone.secondary_slot.details.rarity_label if zone.secondary_slot and zone.secondary_slot.details else (secondary_item.rarity if secondary_item else 'Без грейда') %}
+            {% set secondary_icon = slot_icon_map.get(zone.secondary_slot.slot_id if zone.secondary_slot else '', type_icon_map.get(secondary_item.item_type if secondary_item else '', 'default')) %}
+            {% set zone_has_item = (not primary_empty) or (not secondary_empty) %}
+            {% set zone_action_item = primary_item if primary_item else secondary_item %}
+            {% set zone_action_slot = zone.primary_slot.slot_id if primary_item else (zone.secondary_slot.slot_id if zone.secondary_slot else zone.primary_slot.slot_id) %}
             <button type="button"
-                    class="inventory-equip-zone inventory-equip-zone--{{ zone.position }} {{ 'is-equipped' if not primary_empty else '' }}"
+                    class="inventory-equip-zone inventory-equip-zone--{{ zone.position }} {{ 'is-equipped' if zone_has_item else '' }} inventory-grade-r{{ primary_tier if not primary_empty else secondary_tier }}"
                     :class="{ 'is-selected': selectedSlot === '{{ zone.primary_slot.slot_id }}' }"
-                    aria-label="{{ zone.label }}"
+                    aria-label="{{ zone.label }}: {{ primary_name }}"
                     data-slot-id="{{ zone.primary_slot.slot_id }}"
-                    @click="selectedSlot = selectedSlot === '{{ zone.primary_slot.slot_id }}' ? null : '{{ zone.primary_slot.slot_id }}'; activeInventoryTab = 'items'">
+                    {% if zone_has_item %}data-inventory-tooltip-trigger{% endif %}
+                    {% if zone_has_item %}style="--inventory-item-icon-url: url('/static/images/ui/inventory-gear/{{ primary_icon if not primary_empty else secondary_icon }}.svg');"{% endif %}
+                    {% if zone_has_item and inventory.can_act and zone_action_item %}
+                    hx-post="/game/inventory/action"
+                    hx-target="#inventory-window-body"
+                    hx-swap="innerHTML"
+                    hx-vals='{{ {
+                        "char_id": inventory.char_id,
+                        "action": "unequip",
+                        "item_id": zone_action_item.item_id,
+                        "slot_id": zone_action_slot
+                    } | tojson }}'
+                    {% elif zone_has_item and inventory.forbidden_reason %}
+                    @click="inventoryNotice = {{ inventory.forbidden_reason | tojson | forceescape }}"
+                    {% else %}
+                    @click="selectedSlot = selectedSlot === '{{ zone.primary_slot.slot_id }}' ? null : '{{ zone.primary_slot.slot_id }}'; activeInventoryTab = 'items'"
+                    {% endif %}>
                 <span class="inventory-slot-title">{{ zone.label }}</span>
+                {% if not zone_has_item %}
                 <span class="inventory-slot-state">{{ primary_name }}</span>
+                {% else %}
+                <span class="inventory-equipped-icon" aria-hidden="true"></span>
+                <span class="sr-only">{{ primary_name }}{% if secondary_item %}; {{ secondary_name }}{% endif %}</span>
+                {% endif %}
                 <span class="inventory-slot-tooltip">
                     <strong>{{ zone.label }}</strong>
                     <span>{{ zone.primary_slot.label }}: {{ primary_name }}</span>
                     {% if zone.secondary_slot %}
-                    {% set secondary_item = zone.secondary_slot.item if zone.secondary_slot.item is defined else none %}
-                    {% set secondary_name = zone.secondary_slot.item_name if zone.secondary_slot.item_name is defined else (secondary_item.name if secondary_item else 'EMPTY') %}
                     <span>{{ zone.secondary_slot.label }}: {{ secondary_name }}</span>
                     {% endif %}
                 </span>
+                {% if zone_has_item %}
+                <template class="inventory-tooltip-template">
+                    <div class="inventory-tooltip-stack">
+                        {% if primary_item %}
+                        {{ inventory_tooltip_card(primary_name, primary_item.item_type, primary_rarity, primary_tier, primary_icon, zone.primary_slot.details, [], '-', '1', zone.primary_slot.label) }}
+                        {% endif %}
+                        {% if secondary_item and zone.secondary_slot %}
+                        {{ inventory_tooltip_card(secondary_name, secondary_item.item_type, secondary_rarity, secondary_tier, secondary_icon, zone.secondary_slot.details, [], '-', '1', zone.secondary_slot.label) }}
+                        {% endif %}
+                    </div>
+                </template>
+                {% endif %}
             </button>
             {% endfor %}
 
@@ -37,42 +249,129 @@
             {% set slot_item = slot.item if slot.item is defined else none %}
             {% set slot_empty = slot.is_empty if slot.is_empty is defined else not slot_item %}
             {% set slot_name = slot.item_name if slot.item_name is defined else (slot_item.name if slot_item else 'EMPTY') %}
+            {% set slot_tier = slot.details.rarity_tier if slot.details else (slot_item.rarity_tier if slot_item and slot_item.rarity_tier is defined else 0) %}
+            {% set slot_rarity = slot.details.rarity_label if slot.details else (slot_item.rarity if slot_item else 'Без грейда') %}
+            {% set slot_icon = weapon_icon_base_map.get(slot_item.base_id if slot_item else '', slot_icon_map.get(slot.slot_id, type_icon_map.get(slot_item.item_type if slot_item else '', 'default'))) %}
+            {% if slot.slot_id == 'two_hand' and not slot_empty %}
             <button type="button"
-                    class="inventory-equip-zone inventory-equip-zone--{{ 'main' if slot.slot_id == 'main_hand' else 'off' }} {{ 'is-equipped' if not slot_empty else '' }}"
-                    :class="{ 'is-selected': selectedSlot === '{{ slot.slot_id }}' }"
-                    aria-label="{{ slot.label }}"
-                    data-slot-id="{{ slot.slot_id }}"
-                    @click="selectedSlot = selectedSlot === '{{ slot.slot_id }}' ? null : '{{ slot.slot_id }}'; activeInventoryTab = 'items'">
+                    class="inventory-equip-zone inventory-equip-zone--two-shadow is-equipped inventory-grade-r{{ slot_tier }}"
+                    aria-label="{{ slot.label }}: {{ slot_name }}"
+                    data-slot-id="{{ slot.slot_id }}-shadow"
+                    style="--inventory-item-icon-url: url('/static/images/ui/inventory-gear/{{ slot_icon }}.svg');"
+                    {% if inventory.can_act and slot_item %}
+                    hx-post="/game/inventory/action"
+                    hx-target="#inventory-window-body"
+                    hx-swap="innerHTML"
+                    hx-vals='{{ {
+                        "char_id": inventory.char_id,
+                        "action": "unequip",
+                        "item_id": slot_item.item_id,
+                        "slot_id": slot.slot_id
+                    } | tojson }}'
+                    {% elif inventory.forbidden_reason %}
+                    @click="inventoryNotice = {{ inventory.forbidden_reason | tojson | forceescape }}"
+                    {% else %}
+                    @click="selectedSlot = selectedSlot === '{{ slot.slot_id }}' ? null : '{{ slot.slot_id }}'; activeInventoryTab = 'items'"
+                    {% endif %}>
                 <span class="inventory-slot-title">{{ slot.label }}</span>
+                <span class="inventory-equipped-icon" aria-hidden="true"></span>
+            </button>
+            {% endif %}
+            <button type="button"
+                    class="inventory-equip-zone inventory-equip-zone--{{ 'two' if slot.slot_id == 'two_hand' else 'main' if slot.slot_id == 'main_hand' else 'off' }} {{ 'is-equipped' if not slot_empty else '' }} inventory-grade-r{{ slot_tier }}"
+                    :class="{ 'is-selected': selectedSlot === '{{ slot.slot_id }}' }"
+                    aria-label="{{ slot.label }}: {{ slot_name }}"
+                    data-slot-id="{{ slot.slot_id }}"
+                    {% if not slot_empty %}data-inventory-tooltip-trigger{% endif %}
+                    {% if not slot_empty %}style="--inventory-item-icon-url: url('/static/images/ui/inventory-gear/{{ slot_icon }}.svg');"{% endif %}
+                    {% if not slot_empty and inventory.can_act and slot_item %}
+                    hx-post="/game/inventory/action"
+                    hx-target="#inventory-window-body"
+                    hx-swap="innerHTML"
+                    hx-vals='{{ {
+                        "char_id": inventory.char_id,
+                        "action": "unequip",
+                        "item_id": slot_item.item_id,
+                        "slot_id": slot.slot_id
+                    } | tojson }}'
+                    {% elif not slot_empty and inventory.forbidden_reason %}
+                    @click="inventoryNotice = {{ inventory.forbidden_reason | tojson | forceescape }}"
+                    {% else %}
+                    @click="selectedSlot = selectedSlot === '{{ slot.slot_id }}' ? null : '{{ slot.slot_id }}'; activeInventoryTab = 'items'"
+                    {% endif %}>
+                <span class="inventory-slot-title">{{ slot.label }}</span>
+                {% if slot_empty %}
                 <span class="inventory-slot-state">{{ slot_name }}</span>
+                {% else %}
+                <span class="inventory-equipped-icon" aria-hidden="true"></span>
+                <span class="sr-only">{{ slot_name }}</span>
+                {% endif %}
                 <span class="inventory-slot-tooltip">
                     <strong>{{ slot.label }}</strong>
                     <span>{{ slot_name }}</span>
                 </span>
+                {% if slot_item %}
+                <template class="inventory-tooltip-template">
+                    {{ inventory_tooltip_card(slot_name, slot_item.item_type, slot_rarity, slot_tier, slot_icon, slot.details, [], '-', '1', slot.label) }}
+                </template>
+                {% endif %}
             </button>
             {% endfor %}
         </div>
 
-        <aside class="inventory-accessories" aria-label="Accessories">
-            <div class="inventory-section-label">ACCESSORIES</div>
+        <aside class="inventory-accessories" aria-label="Аксессуары">
+            <div class="inventory-section-label">АКСЕССУАРЫ</div>
             {% for row in inventory.accessory_rows %}
-            <div class="inventory-accessory-row {{ 'inventory-accessory-row--split' if not row.is_wide else '' }}">
+            {% if not row.is_wide and row.row_id != 'rings' %}
+            <div class="inventory-accessory-row-label">{{ row.label }}</div>
+            {% endif %}
+            <div class="inventory-accessory-row inventory-accessory-row--{{ row.row_id }} {{ 'inventory-accessory-row--split' if not row.is_wide else '' }}">
                 {% for slot in row.slots %}
                 {% set slot_item = slot.item if slot.item is defined else none %}
                 {% set slot_empty = slot.is_empty if slot.is_empty is defined else not slot_item %}
                 {% set slot_name = slot.item_name if slot.item_name is defined else (slot_item.name if slot_item else 'EMPTY') %}
+                {% set slot_tier = slot.details.rarity_tier if slot.details else (slot_item.rarity_tier if slot_item and slot_item.rarity_tier is defined else 0) %}
+                {% set slot_rarity = slot.details.rarity_label if slot.details else (slot_item.rarity if slot_item else 'Без грейда') %}
+                {% set slot_icon = slot_icon_map.get(slot.slot_id, type_icon_map.get(slot_item.item_type if slot_item else '', 'default')) %}
+                {% set slot_label = accessory_slot_label_map.get(slot.slot_id, slot.label) %}
                 <button type="button"
-                        class="inventory-accessory-slot {{ 'is-equipped' if not slot_empty else '' }}"
+                        class="inventory-accessory-slot {{ 'is-equipped' if not slot_empty else '' }} inventory-grade-r{{ slot_tier }}"
                         :class="{ 'is-selected': selectedSlot === '{{ slot.slot_id }}' }"
-                        aria-label="{{ slot.label }}"
+                        aria-label="{{ slot.label }}: {{ slot_name }}"
                         data-slot-id="{{ slot.slot_id }}"
-                        @click="selectedSlot = selectedSlot === '{{ slot.slot_id }}' ? null : '{{ slot.slot_id }}'; activeInventoryTab = 'items'">
-                    <span>{{ slot.label }}</span>
+                        {% if not slot_empty %}data-inventory-tooltip-trigger{% endif %}
+                        {% if not slot_empty %}style="--inventory-item-icon-url: url('/static/images/ui/inventory-gear/{{ slot_icon }}.svg');"{% endif %}
+                        {% if not slot_empty and inventory.can_act and slot_item %}
+                        hx-post="/game/inventory/action"
+                        hx-target="#inventory-window-body"
+                        hx-swap="innerHTML"
+                        hx-vals='{{ {
+                            "char_id": inventory.char_id,
+                            "action": "unequip",
+                            "item_id": slot_item.item_id,
+                            "slot_id": slot.slot_id
+                        } | tojson }}'
+                        {% elif not slot_empty and inventory.forbidden_reason %}
+                        @click="inventoryNotice = {{ inventory.forbidden_reason | tojson | forceescape }}"
+                        {% else %}
+                        @click="selectedSlot = selectedSlot === '{{ slot.slot_id }}' ? null : '{{ slot.slot_id }}'; activeInventoryTab = 'items'"
+                        {% endif %}>
+                    <span class="inventory-accessory-slot-label">{{ slot_label }}</span>
+                    {% if slot_empty %}
                     <small>{{ slot_name }}</small>
+                    {% else %}
+                    <span class="inventory-equipped-icon" aria-hidden="true"></span>
+                    <small class="sr-only">{{ slot_name }}</small>
+                    {% endif %}
                     <span class="inventory-slot-tooltip">
                         <strong>{{ slot.label }}</strong>
                         <span>{{ slot_name }}</span>
                     </span>
+                    {% if slot_item %}
+                    <template class="inventory-tooltip-template">
+                        {{ inventory_tooltip_card(slot_name, slot_item.item_type, slot_rarity, slot_tier, slot_icon, slot.details, [], '-', '1', slot.label) }}
+                    </template>
+                    {% endif %}
                 </button>
                 {% endfor %}
             </div>
@@ -80,16 +379,46 @@
         </aside>
     </section>
 
-    <section class="inventory-belt" aria-label="Belt quick slots">
-        <div class="inventory-section-label">BELT</div>
+    <section class="inventory-belt" aria-label="Быстрые слоты пояса">
+        <div class="inventory-section-label">ПОЯС</div>
         <div class="inventory-belt-slots">
             {% for slot in inventory.quick_slots %}
             {% set quick_item = slot.item if slot.item is defined else none %}
             {% set quick_empty = slot.is_empty if slot.is_empty is defined else not quick_item %}
+            {% set quick_name = quick_item.name if quick_item else ('ПУСТО' if slot.enabled else 'ЗАКРЫТО') %}
+            {% set quick_tier = slot.details.rarity_tier if slot.details else (quick_item.rarity_tier if quick_item and quick_item.rarity_tier is defined else 0) %}
+            {% set quick_rarity = slot.details.rarity_label if slot.details else (quick_item.rarity if quick_item else 'Без грейда') %}
+            {% set quick_icon = type_icon_map.get(quick_item.item_type if quick_item else '', 'consumable') %}
             <button type="button"
-                    class="inventory-belt-slot {{ 'is-empty' if quick_empty else '' }}"
-                    aria-label="Belt quick slot {{ slot.slot_index }}">
-                {{ slot.slot_index }}
+                    class="inventory-belt-slot {{ 'is-empty' if quick_empty else '' }} {{ 'is-locked' if not slot.enabled else '' }} {{ 'is-enabled' if slot.enabled else '' }} {{ 'is-equipped' if not quick_empty else '' }} inventory-grade-r{{ quick_tier }}"
+                    aria-label="Belt quick slot {{ slot.slot_index }}: {{ quick_name }}"
+                    aria-disabled="{{ 'false' if slot.enabled else 'true' }}"
+                    {% if not quick_empty %}data-inventory-tooltip-trigger{% endif %}
+                    {% if not quick_empty %}style="--inventory-item-icon-url: url('/static/images/ui/inventory-gear/{{ quick_icon }}.svg');"{% endif %}
+                    {% if not quick_empty and inventory.can_act and quick_item %}
+                    hx-post="/game/inventory/action"
+                    hx-target="#inventory-window-body"
+                    hx-swap="innerHTML"
+                    hx-vals='{{ {
+                        "char_id": inventory.char_id,
+                        "action": "remove_from_belt",
+                        "item_id": quick_item.item_id,
+                        "slot_id": slot.slot_id
+                    } | tojson }}'
+                    {% elif not quick_empty and inventory.forbidden_reason %}
+                    @click="inventoryNotice = {{ inventory.forbidden_reason | tojson | forceescape }}"
+                    {% endif %}>
+                {% if quick_empty %}
+                <span class="inventory-belt-slot-index">{{ slot.slot_index }}</span>
+                {% else %}
+                <span class="inventory-equipped-icon" aria-hidden="true"></span>
+                <span class="sr-only">{{ quick_name }}</span>
+                {% endif %}
+                {% if quick_item %}
+                <template class="inventory-tooltip-template">
+                    {{ inventory_tooltip_card(quick_name, quick_item.item_type, quick_rarity, quick_tier, quick_icon, slot.details, [], '-', '1', 'Belt ' ~ slot.slot_index) }}
+                </template>
+                {% endif %}
             </button>
             {% endfor %}
         </div>
@@ -115,6 +444,7 @@
                 <button type="button"
                         class="inventory-tab"
                         :class="{ 'is-active': activeInventoryTab === '{{ tab.tab_id }}' }"
+                        :aria-selected="activeInventoryTab === '{{ tab.tab_id }}' ? 'true' : 'false'"
                         @click="activeInventoryTab = '{{ tab.tab_id }}'"
                         data-tab-id="{{ tab.tab_id }}"
                         title="{{ tab.label }}"
@@ -126,9 +456,12 @@
             <div class="inventory-container-status" x-show="activeInventoryTab === 'items'">
                 {{ inventory.stats.slots_used if inventory.stats is defined else 0 }} / {{ inventory.stats.slots_total if inventory.stats is defined else 50 }}
             </div>
+            <div class="inventory-container-status" x-show="activeInventoryTab !== 'items'" x-cloak>
+                <span x-text="activeInventoryTab"></span>
+            </div>
             <label class="inventory-search">
                 <span class="sr-only">Search inventory</span>
-                <input type="search" placeholder="{{ inventory.search_placeholder }}">
+                <input type="search" placeholder="{{ inventory.search_placeholder }}" x-model.debounce.150ms="searchQuery">
             </label>
         </div>
 
@@ -140,126 +473,64 @@
                      x-init="window.inventoryGridLayout?.($el)">
                 {% set inventory_cards = inventory.visible_cards if inventory.visible_cards is defined and inventory.visible_cards else inventory.visible_rows %}
                 {% for row in inventory_cards[:inventory.rows_visible_count] %}
+                {% set row_details = row.details if row.details is defined else none %}
+                {% set row_actions = row_details.actions if row_details and row_details.actions is defined else [] %}
+                {% set enabled_actions = row_actions | selectattr('enabled') | list %}
+                {% set primary_action = enabled_actions[0] if enabled_actions else none %}
+                {% set row_icon = row.icon if row.icon in gear_icon_keys else type_icon_map.get(row.item_type, 'default') %}
+                {% set row_tier = row.rarity_tier if row.rarity_tier is defined else 0 %}
                 <button type="button"
-                        class="inventory-card {{ row.card_class if row.card_class is defined else '' }} {{ 'is-equipped' if row.is_equipped else '' }}"
+                        class="inventory-card {{ row.card_class if row.card_class is defined else '' }} {{ 'is-equipped' if row.is_equipped else '' }} inventory-grade-r{{ row_tier }}"
                         aria-label="{{ row.name }}"
+                        data-inventory-tooltip-trigger
                         data-equip-target="{{ row.equip_target or '' }}"
-                        style="{{ row.style if row.style is defined and row.style else '--item-w: ' ~ (row.grid_w if row.grid_w is defined else 2) ~ '; --item-h: ' ~ (row.grid_h if row.grid_h is defined else 1) ~ ';' }}"
+                        {% if inventory.can_act and primary_action %}
+                        hx-post="/game/inventory/action"
+                        hx-target="#inventory-window-body"
+                        hx-swap="innerHTML"
+                        hx-vals='{{ {
+                            "char_id": inventory.char_id,
+                            "action": primary_action.action,
+                            "item_id": row.item_id if row.item_id is defined else row.row_id,
+                            "slot_id": primary_action.slot_id
+                        } | tojson }}'
+                        {% elif not inventory.can_act and inventory.forbidden_reason %}
+                        @click="inventoryNotice = {{ inventory.forbidden_reason | tojson | forceescape }}"
+                        {% endif %}
+                        style="{{ row.style if row.style is defined and row.style else '--item-w: ' ~ (row.grid_w if row.grid_w is defined else 2) ~ '; --item-h: ' ~ (row.grid_h if row.grid_h is defined else 1) ~ ';' }} --inventory-item-icon-url: url('/static/images/ui/inventory-gear/{{ row_icon }}.svg');"
                         x-show="(!selectedSlot || '{{ row.equip_target or '' }}' === selectedSlot) && (
-                            activeInventoryTab === 'items'
+                            (activeInventoryTab === 'items' && !['resource', 'currency', 'material', 'quest'].includes('{{ row.item_type }}'))
                             || (activeInventoryTab === 'resources' && ['resource', 'currency', 'material'].includes('{{ row.item_type }}'))
                             || (activeInventoryTab === 'quest' && '{{ row.item_type }}' === 'quest')
-                        )"
-                        @mouseenter="hoverRow = {
-                            name: {{ row.name | tojson }},
-                            rarityTier: {{ (row.rarity_tier if row.rarity_tier is defined else 0) | tojson }},
-                            rarityLabel: {{ (row.rarity_label if row.rarity_label is defined else row.rarity) | tojson }},
-                            typeLabel: {{ ((row.details.item_type if row.details is defined and row.details and row.details.item_type is defined else row.item_type) ~ ' · ' ~ (row.rarity_label if row.rarity_label is defined else row.rarity)) | tojson }},
-                            target: {{ (row.equip_target or 'NO_TARGET') | tojson }},
-                            description: {{ (row.details.description if row.details is defined and row.details and row.details.description is defined else '') | tojson }},
-                            flavor: {{ (row.details.flavor if row.details is defined and row.details and row.details.flavor is defined and row.details.flavor else '') | tojson }},
-                            stats: [
-                                {% if row.details is defined and row.details and row.details.details is defined and row.details.details %}
-                                {% for line in row.details.details %}
-                                { label: {{ line.label | tojson }}, value: {{ line.value | tojson }}, tone: {{ line.tone | tojson }} }{{ ',' if not loop.last else '' }}
-                                {% endfor %}
-                                {% elif row.details is defined and row.details and row.details.details is not defined %}
-                                {% for line in row.details %}
-                                { label: 'Detail', value: {{ line | tojson }}, tone: 'neutral' }{{ ',' if not loop.last else '' }}
-                                {% endfor %}
-                                {% else %}
-                                { label: 'Type', value: {{ row.item_type | tojson }}, tone: 'neutral' },
-                                { label: 'Weight', value: {{ row.weight | tojson }}, tone: 'neutral' },
-                                { label: 'Qty', value: {{ row.quantity | tojson }}, tone: 'neutral' },
-                                { label: 'Rank', value: {{ row.rarity | tojson }}, tone: 'neutral' }{% for line in row.comparison %},
-                                {% if line.label is defined %}{ label: {{ line.label | tojson }}, value: {{ line.value | tojson }}, tone: {{ (line.tone if line.tone is defined else 'neutral') | tojson }} }{% else %}{ label: 'Compare', value: {{ line | tojson }}, tone: 'neutral' }{% endif %}{% endfor %}
-                                {% endif %}
-                            ],
-                            effects: [
-                                {% if row.details is defined and row.details and row.details.effects is defined and row.details.effects %}
-                                {% for effect in row.details.effects %}
-                                {{ effect.label | tojson }}{{ ',' if not loop.last else '' }}
-                                {% endfor %}
-                                {% endif %}
-                            ],
-                            requirements: [
-                                {% if row.details is defined and row.details and row.details.requirements is defined and row.details.requirements %}
-                                {% for req in row.details.requirements %}
-                                { label: {{ req.label | tojson }}, value: {{ req.value | tojson }}, met: {{ req.met | tojson }} }{{ ',' if not loop.last else '' }}
-                                {% endfor %}
-                                {% endif %}
-                            ],
-                            meta: [
-                                {% if row.details is defined and row.details and row.details.meta is defined and row.details.meta %}
-                                {% for meta in row.details.meta %}
-                                { label: {{ meta.label | tojson }}, value: {{ meta.value | tojson }} }{{ ',' if not loop.last else '' }}
-                                {% endfor %}
-                                {% else %}
-                                { label: 'Size', value: {{ ((row.grid_w if row.grid_w is defined else 2) ~ 'x' ~ (row.grid_h if row.grid_h is defined else 1)) | tojson }} },
-                                { label: 'Target', value: {{ (row.equip_target or 'NO_TARGET') | tojson }} }
-                                {% endif %}
-                            ]
-                        }; hoverX = $event.clientX; hoverY = $event.clientY"
-                        @mousemove="hoverX = $event.clientX; hoverY = $event.clientY"
-                        @mouseleave="hoverRow = null">
-                    <span class="inventory-card-icon">{{ row.icon or '?' }}</span>
+                        ) && (!searchQuery.trim() || {{ row.name | tojson | forceescape }}.toLowerCase().includes(searchQuery.toLowerCase()))">
+                    <span class="inventory-card-icon" aria-hidden="true"></span>
                     <span class="inventory-card-name">{{ row.name }}</span>
                     {% if row.quantity != "1" and row.quantity != 1 %}
                     <span class="inventory-card-qty">{{ row.quantity }}</span>
                     {% endif %}
                     <span class="inventory-card-rarity">{{ row.rarity }}</span>
+                    <template class="inventory-tooltip-template">
+                        {{ inventory_tooltip_card(row.name, row.item_type, row.rarity_label if row.rarity_label is defined else row.rarity, row_tier, row_icon, row.details if row.details is defined else none, row.comparison if row.comparison is defined else [], row.weight, row.quantity, row.equip_target or '') }}
+                    </template>
                 </button>
                 {% else %}
                 <div class="inventory-empty-state">
                 </div>
                 {% endfor %}
+                <div class="inventory-empty-state inventory-empty-state--filtered"
+                     x-show="activeInventoryTab === 'resources'"
+                     x-cloak>
+                    РЕСУРСОВ НЕТ
+                </div>
+                <div class="inventory-empty-state inventory-empty-state--filtered"
+                     x-show="activeInventoryTab === 'quest'"
+                     x-cloak>
+                    КВЕСТОВЫХ ПРЕДМЕТОВ НЕТ
+                </div>
                 </div>
             </div>
         </div>
     </section>
-    <div class="inventory-floating-tooltip"
-         x-cloak
-         x-show="hoverRow"
-         :style="`left: ${Math.min(hoverX + 14, window.innerWidth - 260)}px; top: ${Math.max(16, hoverY - 12)}px`">
-        <article class="item-card inventory-tooltip-card"
-                 :class="`r${hoverRow?.rarityTier ?? 0} ic-r${hoverRow?.rarityTier ?? 0}`">
-            <div class="ic-header inventory-tooltip-header">
-                <div>
-                    <div class="ic-name" x-text="hoverRow?.name"></div>
-                    <div class="ic-type" x-text="hoverRow?.typeLabel"></div>
-                </div>
-                <div class="inventory-tooltip-sigil" aria-hidden="true"></div>
-            </div>
-            <div class="inventory-tooltip-description" x-show="hoverRow?.description" x-text="hoverRow?.description"></div>
-            <div class="ic-body">
-                <template x-for="stat in hoverRow?.stats || []" :key="`${stat.label}-${stat.value}`">
-                    <div class="ic-stat">
-                        <span class="ic-stat-key" x-text="stat.label"></span>
-                        <span class="ic-stat-val"
-                              :class="{ pos: stat.tone === 'positive', neg: stat.tone === 'negative' }"
-                              x-text="stat.value"></span>
-                    </div>
-                </template>
-                <div class="ic-divider" x-show="(hoverRow?.effects || []).length"></div>
-                <div class="ic-effects" x-show="(hoverRow?.effects || []).length">
-                    <template x-for="effect in hoverRow?.effects || []" :key="effect">
-                        <span class="ic-effect" x-text="effect"></span>
-                    </template>
-                </div>
-            </div>
-            <div class="ic-flavor" x-show="hoverRow?.flavor" x-text="hoverRow?.flavor"></div>
-            <template x-for="req in hoverRow?.requirements || []" :key="`${req.label}-${req.value}`">
-                <div class="ic-req" :class="{ met: req.met }">
-                    <span x-text="`${req.met ? 'OK' : 'LOCK'} ${req.label} ${req.value}`"></span>
-                </div>
-            </template>
-            <div class="inventory-tooltip-meta" x-show="(hoverRow?.meta || []).length">
-                <template x-for="field in hoverRow?.meta || []" :key="`${field.label}-${field.value}`">
-                    <span><b x-text="field.label"></b> <em x-text="field.value"></em></span>
-                </template>
-            </div>
-        </article>
-    </div>
 </div>
 {% else %}
 <div class="missing-data-block">

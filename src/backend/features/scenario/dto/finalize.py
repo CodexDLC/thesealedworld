@@ -8,6 +8,7 @@ from src.shared.enums import CoreDomain
 class ScenarioRewardsDTO(BaseModel):
     items: list[str] = Field(default_factory=list)
     skills: list[str] = Field(default_factory=list)
+    skill_initial_xp: float | None = None
     attribute_bonuses: dict[str, int] = Field(default_factory=dict)
 
 

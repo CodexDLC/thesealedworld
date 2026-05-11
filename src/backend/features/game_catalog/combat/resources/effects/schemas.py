@@ -1,13 +1,19 @@
 from __future__ import annotations
 
 from enum import StrEnum
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
 from src.backend.features.game_catalog.combat.resources.common.descriptions import (
     CombatCatalogEntryDTO,
     CombatDescriptionDTO,
+)
+from src.backend.features.game_catalog.combat.resources.common.modifier_applications import (  # noqa: TC001
+    ModifierApplicationDTO,
+)
+from src.backend.features.game_catalog.combat.resources.common.pipeline_mutations import (  # noqa: TC001
+    PipelineMutationApplicationDTO,
 )
 
 
@@ -45,7 +51,11 @@ class EffectTechnicalDTO(BaseModel):
     type: EffectType
     duration: int
     resource_impact: dict[str, int] = Field(default_factory=dict)
-    raw_modifiers: dict[str, float] = Field(default_factory=dict)
+    modifier_applications: list[ModifierApplicationDTO] = Field(default_factory=list)
+    pipeline_mutations: list[PipelineMutationApplicationDTO] = Field(default_factory=list)
+    pipeline_mutation_role: Literal["source", "target", "both"] = "target"
+    react_on_outcomes: list[str] = Field(default_factory=list)
+    consume_on_reaction: bool = True
     control_logic: ControlInstructionDTO | None = None
     tags: list[str] = Field(default_factory=list)
 
@@ -58,52 +68,3 @@ class EffectCatalogEntryDTO(CombatCatalogEntryDTO):
 
     technical: EffectTechnicalDTO
     descriptive: CombatDescriptionDTO
-
-
-class EffectDTO(BaseModel):
-    """
-    Шаблон эффекта в библиотеке (GameData).
-    """
-
-    effect_id: str
-    name_en: str
-    name_ru: str
-
-    type: EffectType
-    duration: int
-
-    # --- 1. Ресурсы (DOT/HOT) ---
-    # Базовое значение за ход.
-    # Пример: {"hp": -10, "en": 5}
-    resource_impact: dict[str, int] = Field(default_factory=dict)
-
-    # --- 2. Статы (BUFF/DEBUFF) ---
-    # Значения, которые добавляются в temp modifiers.
-    # Пример: {"strength": 5.0, "armor": -10.0}
-    raw_modifiers: dict[str, float] = Field(default_factory=dict)
-
-    # --- 3. Логика (CONTROL) ---
-    # Инструкции поведения.
-    control_logic: ControlInstructionDTO | None = None
-
-    # Теги (для диспела/иммунитета)
-    tags: list[str] = Field(default_factory=list)
-
-    description: str
-
-    @classmethod
-    def from_catalog_entry(cls, entry: EffectCatalogEntryDTO) -> EffectDTO:
-        t = entry.technical
-        variant = entry.descriptive.variants.get(entry.descriptive.default_taxonomy)
-        return cls(
-            effect_id=t.effect_id,
-            name_en=getattr(variant, "display_name", t.effect_id),
-            name_ru=getattr(variant, "display_name", t.effect_id),
-            type=t.type,
-            duration=t.duration,
-            resource_impact=t.resource_impact,
-            raw_modifiers=t.raw_modifiers,
-            control_logic=t.control_logic,
-            tags=t.tags,
-            description=getattr(variant, "short_description", ""),
-        )

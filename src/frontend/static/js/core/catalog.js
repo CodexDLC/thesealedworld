@@ -187,15 +187,20 @@ window.GameCatalogCache = {
 
         if (typeof tippy !== 'undefined') {
             const tooltipNodes = root.querySelectorAll('[data-tippy-content]');
+            const tooltipContent = (node) => (node.getAttribute('data-tippy-content') || '').replace(/\\n/g, '\n').replace(/\s+\/\/\s+/g, '\n');
             tooltipNodes.forEach((node) => {
+                node.removeAttribute('title');
                 if (node._tippy) {
-                    node._tippy.setContent(node.getAttribute('data-tippy-content'));
+                    node._tippy.setContent(tooltipContent(node));
                 }
             });
             Array.from(tooltipNodes).filter((node) => !node._tippy).forEach((node) => {
                 tippy(node, {
                     allowHTML: false,
                     appendTo: document.body,
+                    content(reference) {
+                        return tooltipContent(reference);
+                    },
                     delay: [120, 40],
                     maxWidth: 320,
                     theme: node.getAttribute('data-tippy-theme') || 'game-catalog',

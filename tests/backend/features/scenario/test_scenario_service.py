@@ -147,8 +147,11 @@ class TestScenarioService:
 
         calls = []
 
-        async def finalize_session(*args):
-            calls.append(("finalize_session", args))
+        async def finalize_session(*args, **kwargs):
+            calls.append(("finalize_session", args, kwargs))
+
+        async def sync_active_character_to_db(*args):
+            calls.append(("sync_active_character_to_db", args))
 
         async def request_combat_start(*args, **kwargs):
             calls.append(("request_combat_start", args, kwargs))
@@ -163,18 +166,24 @@ class TestScenarioService:
         mocks["integrator"].finalize_session = AsyncMock(side_effect=finalize_session)
         mocks["integrator"].enter_prepared_combat = AsyncMock()
         mocks["integrator"].publish_event = AsyncMock()
-        mocks["integrator"].sync_active_character_to_db = AsyncMock()
+        mocks["integrator"].sync_active_character_to_db = AsyncMock(side_effect=sync_active_character_to_db)
 
         result = await service.finalize(char_id)
 
         mocks["integrator"].prepare_combat_return_context.assert_awaited_once_with(char_id, location_id="52_58")
-        assert calls[0] == ("finalize_session", (char_id, CoreDomain.EXPLORATION))
-        assert calls[1] == (
+        assert calls[0] == (
+            "finalize_session",
+            (char_id, CoreDomain.EXPLORATION),
+            {"prev_state": CoreDomain.EXPLORATION},
+        )
+        assert calls[1] == ("sync_active_character_to_db", (char_id,))
+        assert calls[2] == (
             "request_combat_start",
             (char_id, "awakening_rift"),
             {"battle_type": "shadow", "location_id": "52_58"},
         )
         mocks["integrator"].enter_prepared_combat.assert_awaited_once_with(char_id, "combat-1")
+        assert mocks["integrator"].sync_active_character_to_db.await_count == 2
         assert result.target_state == CoreDomain.COMBAT
         assert result.combat_id == "combat-1"
 

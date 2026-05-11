@@ -10,10 +10,14 @@ from src.frontend.game_features.game_lobby.dependencies.providers import (
 )
 from src.frontend.game_features.game_lobby.services.lobby_page_service import GameLobbyPageService
 from src.frontend.game_features.game_lobby.view_models.lobby import build_lobby_page_vm
-from src.frontend.game_features.session.cookies import set_active_character_cookie
+from src.frontend.game_features.session.cookies import (
+    active_character_id_from_cookie,
+    clear_active_character_cookie,
+    set_active_character_cookie,
+)
 from src.frontend.site_features.auth.dependencies.providers import get_frontend_auth_service
 from src.frontend.site_features.auth.services.auth_service import FrontendAuthService
-from src.shared.schemas import CreateCharacterRequestDTO, DeleteCharacterRequestDTO
+from src.shared.schemas import CreateCharacterRequestDTO, DeleteCharacterRequestDTO, EnterCharacterRequestDTO
 from src.shared.schemas.game_lobby import CharacterCreationGender
 from src.shared.utils.dev_utils import log_debug_payload
 
@@ -67,10 +71,26 @@ async def game_lobby_start(
 async def game_lobby_enter(
     request: Request,
     auth_service: Annotated[FrontendAuthService, Depends(get_frontend_auth_service)],
+    lobby_service: Annotated[GameLobbyPageService, Depends(get_game_lobby_page_service)],
     character_id: Annotated[int, Form()],
 ):
     await auth_service.require_current_user(request)
+    response = await lobby_service.enter(request, EnterCharacterRequestDTO(character_id=character_id))
+    log_debug_payload("game_lobby_page.game_lobby_enter", response, enabled=settings.debug)
     return _active_session_redirect(character_id)
+
+
+@router.post("/game-lobby/release", name="game_lobby_release")
+async def game_lobby_release(
+    request: Request,
+    auth_service: Annotated[FrontendAuthService, Depends(get_frontend_auth_service)],
+    lobby_service: Annotated[GameLobbyPageService, Depends(get_game_lobby_page_service)],
+):
+    await auth_service.require_current_user(request)
+    character_id = active_character_id_from_cookie(request)
+    response = await lobby_service.release(request, EnterCharacterRequestDTO(character_id=character_id))
+    log_debug_payload("game_lobby_page.game_lobby_release", response, enabled=settings.debug)
+    return _lobby_redirect()
 
 
 @router.post("/game-lobby/delete", name="game_lobby_delete")
@@ -103,4 +123,10 @@ def _char_id_from_payload(payload) -> int:
 def _active_session_redirect(character_id: int) -> RedirectResponse:
     response = RedirectResponse("/game/session", status_code=status.HTTP_303_SEE_OTHER)
     set_active_character_cookie(response, character_id)
+    return response
+
+
+def _lobby_redirect() -> RedirectResponse:
+    response = RedirectResponse("/game-lobby", status_code=status.HTTP_303_SEE_OTHER)
+    clear_active_character_cookie(response)
     return response

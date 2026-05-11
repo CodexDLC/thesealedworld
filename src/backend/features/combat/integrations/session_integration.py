@@ -30,6 +30,7 @@ if TYPE_CHECKING:
     from codex_platform.redis_service import RedisService
 
     from src.backend.features.combat.dto.action import CombatActionDTO
+    from src.backend.features.combat.dto.ids import ActorId
 
 
 class CombatSessionIntegration:
@@ -72,6 +73,43 @@ class CombatSessionIntegration:
         if count_logs is None:
             return len(await self.get_logs(session_id, start=0, stop=-1))
         return int(await count_logs(session_id))
+
+    async def append_analytics(self, session_id: str, entry: dict[str, Any] | str) -> None:
+        append = getattr(self.combat_manager, "append_analytics", None)
+        if append is None:
+            await self.combat_manager.commit_battle_results(session_id, {}, [], 0, analytics=[entry])
+            return
+        await append(session_id, entry)
+
+    async def get_analytics(self, session_id: str) -> dict[str, Any]:
+        getter = getattr(self.combat_manager, "get_analytics", None)
+        if getter is None:
+            return {}
+        return await getter(session_id)
+
+    async def save_finalization(
+        self,
+        session_id: str,
+        payload: dict[str, Any],
+        *,
+        char_ids: Sequence[int | str],
+        ttl: int = 86400,
+    ) -> None:
+        save = getattr(self.combat_manager, "save_finalization", None)
+        if save is not None:
+            await save(session_id, payload, char_ids=char_ids, ttl=ttl)
+
+    async def get_finalization(self, session_id: str) -> dict[str, Any] | None:
+        getter = getattr(self.combat_manager, "get_finalization", None)
+        if getter is None:
+            return None
+        return await getter(session_id)
+
+    async def get_latest_finalization_id_for_character(self, char_id: int | str) -> str | None:
+        getter = getattr(self.combat_manager, "get_latest_finalization_id_for_character", None)
+        if getter is None:
+            return None
+        return await getter(char_id)
 
     async def get_actor_state(self, session_id: str, actor_id: int | str) -> dict[str, Any] | None:
         return await self.combat_manager.get_actor_state(session_id, actor_id)
@@ -160,7 +198,7 @@ class CombatSessionIntegration:
         """
         return await self.combat_manager.get_moves_batch(session_id, char_ids)
 
-    async def get_targets(self, session_id: str) -> dict[str, list[int]]:
+    async def get_targets(self, session_id: str) -> dict[str, list[ActorId]]:
         """
         Загружает очереди целей всех участников.
         Возвращает {char_id: [target_id, ...]}.
@@ -294,7 +332,7 @@ class CombatSessionIntegration:
             actors=actors_map,
             moves_cache=moves_cache,
             pending_logs=[],
-            pending_analytics=[],
+            pending_result_support_tasks=[],
         )
 
     async def load_snapshot_context(self, session_id: str) -> BattleContext | None:
@@ -351,7 +389,6 @@ class CombatSessionIntegration:
             target_returns=ctx.pending_target_returns,
             dead_actors=dead_actors_update,
             meta_update={"step_counter": ctx.meta.step_counter, "last_activity_at": int(time.time())},
-            analytics=cast("list[dict[str, Any] | str] | None", ctx.pending_analytics),
         )
 
     # ==========================================================================
@@ -393,6 +430,13 @@ class CombatSessionIntegration:
         r_explanation=None,
     ) -> ActorSnapshot:
         meta_dict = r_meta or {}
+        loadout_dict = r_loadout or {}
+        feints_state = r_state.get("feints") if isinstance(r_state, dict) else None
+        feints = dict(feints_state) if isinstance(feints_state, dict) else {}
+        if not feints.get("arsenal"):
+            known_feints = loadout_dict.get("known_feints") or loadout_dict.get("feints") or []
+            if known_feints:
+                feints["arsenal"] = list(known_feints)
 
         meta = ActorMetaDTO(
             id=cid,
@@ -411,11 +455,10 @@ class CombatSessionIntegration:
             is_dead=bool(r_state.get("is_dead", False)),
             exchange_counter=int(r_state.get("exchange_counter", 0)),
             tokens=r_state.get("tokens") or {},
-            feints=FeintHandDTO.model_validate(r_state.get("feints") or {}),
+            feints=FeintHandDTO.model_validate(feints),
         )
 
         raw_dict = r_raw or {}
-        loadout_dict = r_loadout or {}
 
         merged_raw = {
             "attributes": raw_dict.get("attributes", {}),

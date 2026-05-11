@@ -22,6 +22,7 @@ async def test_character_skill_service_unlocks_valid_skills_in_db_and_redis() ->
         7,
         ["skill_swords"],
         progress_state=SkillProgressState.PLUS,
+        initial_xp=0.0,
     )
 
 

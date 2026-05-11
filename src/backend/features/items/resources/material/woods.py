@@ -18,6 +18,7 @@ WOODS_DB = {
         1: {
             "id": "mat_oak_plank",
             "name_ru": "Дубовая доска",
+            "name_prefix_ru": "Дубовый",
             "tier_mult": 1.0,
             "slots": 1,
             "narrative_tags": ["oak", "solid", "wooden"],
@@ -25,6 +26,7 @@ WOODS_DB = {
         2: {
             "id": "mat_ironwood_plank",
             "name_ru": "Доска из железного дерева",
+            "name_prefix_ru": "Железнодеревянный",
             "tier_mult": 1.4,
             "slots": 1,
             "narrative_tags": ["ironwood", "hard", "dark"],
@@ -32,6 +34,7 @@ WOODS_DB = {
         3: {
             "id": "mat_scorched_plank",
             "name_ru": "Опаленная доска",
+            "name_prefix_ru": "Опаленный",
             "tier_mult": 2.0,
             "slots": 2,
             "narrative_tags": ["scorched", "ash", "fire_resistant"],
@@ -39,6 +42,7 @@ WOODS_DB = {
         4: {
             "id": "mat_crystal_infused_wood",
             "name_ru": "Кристаллическая древесина",
+            "name_prefix_ru": "Кристальный",
             "tier_mult": 2.8,
             "slots": 3,
             "narrative_tags": ["crystal", "infused", "glowing"],
@@ -46,6 +50,7 @@ WOODS_DB = {
         5: {
             "id": "mat_spirit_wood",
             "name_ru": "Призрачная древесина",
+            "name_prefix_ru": "Призрачный",
             "tier_mult": 3.8,
             "slots": 3,
             "narrative_tags": ["spirit", "ethereal", "lightweight"],
@@ -53,6 +58,7 @@ WOODS_DB = {
         6: {
             "id": "mat_void_timber",
             "name_ru": "Брус Пустоты",
+            "name_prefix_ru": "Пустотный",
             "tier_mult": 5.2,
             "slots": 4,
             "narrative_tags": ["void", "dark", "warped"],
@@ -60,6 +66,7 @@ WOODS_DB = {
         7: {
             "id": "mat_ancient_heartwood",
             "name_ru": "Древняя сердцевина",
+            "name_prefix_ru": "Древний",
             "tier_mult": 6.8,
             "slots": 5,
             "narrative_tags": ["heartwood", "ancient", "world_tree"],
@@ -70,6 +77,7 @@ WOODS_DB = {
         0: {
             "id": "mat_driftwood_stave",
             "name_ru": "Кривая палка",
+            "name_prefix_ru": "Деревянный",
             "tier_mult": 0.8,
             "slots": 0,
             "narrative_tags": ["crooked", "weak"],
@@ -77,6 +85,7 @@ WOODS_DB = {
         1: {
             "id": "mat_oak_stave",
             "name_ru": "Дубовая заготовка",
+            "name_prefix_ru": "Дубовый",
             "tier_mult": 1.0,
             "slots": 1,
             "narrative_tags": ["flexible", "sturdy"],
@@ -84,6 +93,7 @@ WOODS_DB = {
         2: {
             "id": "mat_ironwood_stave",
             "name_ru": "Заготовка из железного дерева",
+            "name_prefix_ru": "Железнодеревянный",
             "tier_mult": 1.5,  # Луки из железного дерева мощнее
             "slots": 1,
             "narrative_tags": ["heavy_draw", "powerful"],
@@ -91,6 +101,7 @@ WOODS_DB = {
         3: {
             "id": "mat_scorched_stave",
             "name_ru": "Опаленная дуга",
+            "name_prefix_ru": "Опаленный",
             "tier_mult": 2.1,
             "slots": 2,
             "narrative_tags": ["warm", "snapping"],
@@ -98,6 +109,7 @@ WOODS_DB = {
         4: {
             "id": "mat_crystal_stave",
             "name_ru": "Кристальная дуга",
+            "name_prefix_ru": "Кристальный",
             "tier_mult": 3.0,
             "slots": 3,
             "narrative_tags": ["resonating", "singing"],
@@ -105,6 +117,7 @@ WOODS_DB = {
         5: {
             "id": "mat_spirit_stave",
             "name_ru": "Призрачная дуга",
+            "name_prefix_ru": "Призрачный",
             "tier_mult": 4.0,
             "slots": 3,
             "narrative_tags": ["silent", "swift"],
@@ -112,6 +125,7 @@ WOODS_DB = {
         6: {
             "id": "mat_void_stave",
             "name_ru": "Дуга Пустоты",
+            "name_prefix_ru": "Пустотный",
             "tier_mult": 5.5,
             "slots": 4,
             "narrative_tags": ["hungry", "dark_draw"],
@@ -119,6 +133,7 @@ WOODS_DB = {
         7: {
             "id": "mat_ancient_stave",
             "name_ru": "Древняя дуга",
+            "name_prefix_ru": "Древний",
             "tier_mult": 7.2,
             "slots": 5,
             "narrative_tags": ["legendary", "god_killer"],

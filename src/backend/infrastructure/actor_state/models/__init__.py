@@ -1,17 +1,15 @@
-from .character import Character, CharacterAttributes, CharacterStats
+from .character import Character, CharacterAttributes
 from .inventory import InventoryItem, ResourceWallet
 from .monster import GeneratedClanORM, GeneratedMonsterORM, Monster
-from .skill import CharacterSkillProgress, SkillProgress
+from .skill import SkillProgress
 from .symbiote import CharacterSymbiote
 
 __all__ = [
     "Character",
     "CharacterAttributes",
-    "CharacterStats",
     "InventoryItem",
     "ResourceWallet",
     "SkillProgress",
-    "CharacterSkillProgress",
     "CharacterSymbiote",
     "GeneratedClanORM",
     "GeneratedMonsterORM",

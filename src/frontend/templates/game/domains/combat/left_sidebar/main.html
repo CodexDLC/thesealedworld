@@ -1,4 +1,38 @@
-{% if combat_screen %}
+{% if combat_result %}
+    {% set result_screen = combat_result_screen if combat_result_screen is defined else none %}
+    {% set result_outcome = result_screen.outcome if result_screen else combat_result.outcome %}
+    <div class="combat-side combat-side--left combat-result-side">
+        {% if combat_screen %}
+            {% set actor = combat_screen.hero %}
+            <section class="combat-panel combat-actor-panel combat-result-player-panel combat-result-player-panel--{{ result_outcome }}">
+                <div class="combat-panel-header">FINAL PLAYER STATE</div>
+                <div class="combat-actor-avatar">
+                    <img src="{{ actor.avatar_url }}" alt="{{ actor.name }}">
+                </div>
+                <div class="combat-actor-name">{{ actor.name }}</div>
+                <div class="combat-vitals">
+                    <div class="combat-vital-row">
+                        <span>HP</span>
+                        <div class="combat-vital-bar combat-vital-bar--hp"><i style="width: {{ actor.vitals.hp_percent }}%"></i></div>
+                        <b>{{ actor.vitals.hp_current }}/{{ actor.vitals.hp_max }}</b>
+                    </div>
+                    <div class="combat-vital-row">
+                        <span>EN</span>
+                        <div class="combat-vital-bar combat-vital-bar--energy"><i style="width: {{ actor.vitals.energy_percent }}%"></i></div>
+                        <b>{{ actor.vitals.energy_current }}/{{ actor.vitals.energy_max }}</b>
+                    </div>
+                    <div class="combat-vital-row">
+                        <span>STA</span>
+                        <div class="combat-vital-bar combat-vital-bar--stamina"><i style="width: {{ actor.vitals.stamina_percent }}%"></i></div>
+                        <b>{{ actor.vitals.stamina_current }}/{{ actor.vitals.stamina_max }}</b>
+                    </div>
+                </div>
+            </section>
+        {% else %}
+            {% include "game/components/status/main.html" %}
+        {% endif %}
+    </div>
+{% elif combat_screen %}
     {% set actor = combat_screen.hero %}
     <div class="combat-side combat-side--left">
         <section class="combat-panel combat-actor-panel">
@@ -10,8 +44,7 @@
                         <span class="combat-effect combat-effect--{{ effect.frame_kind }}"
                               data-catalog="{{ effect.catalog }}"
                               data-catalog-key="{{ effect.catalog_key }}"
-                              data-catalog-tooltip="description"
-                              data-tippy-content="{{ effect.title }} // {{ effect.description }}"
+                              data-tippy-content="{{ effect.tooltip }}"
                               data-tippy-theme="game-hint">
                             <img src="{{ effect.icon_url }}" alt="{{ effect.effect_id }}">
                             {% if effect.duration_text %}

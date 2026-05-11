@@ -37,10 +37,12 @@ class InventoryAccessoryRowVM(BaseModel):
 
 
 class InventoryQuickSlotVM(BaseModel):
+    slot_id: str = ""
     slot_index: int
     is_empty: bool = True
     item_id: str | None = None
     label: str = "EMPTY"
+    enabled: bool = False
     reason: str = "belt_contract_pending"
 
 
@@ -65,7 +67,7 @@ class InventoryRowVM(BaseModel):
     quantity: str
     rarity: str
     rarity_tier: int = 0
-    rarity_label: str = "Common"
+    rarity_label: str = "Без грейда"
     equip_target: str | None = None
     grid_w: int = 2
     grid_h: int = 1
@@ -96,10 +98,10 @@ class InventoryCardVM(BaseModel):
 def build_inventory_card_vm(row: InventoryRowVM) -> InventoryCardVM:
     grid_w, grid_h = inventory_card_dimensions(row.item_type, row.grid_w, row.grid_h)
     details = [
-        f"Type: {row.item_type}",
-        f"Weight: {row.weight}",
-        f"Qty: {row.quantity}",
-        f"Rank: {row.rarity}",
+        f"Тип: {row.item_type}",
+        f"Вес: {row.weight}",
+        f"Кол-во: {row.quantity}",
+        f"Грейд: {row.rarity}",
         *row.comparison,
     ]
     return InventoryCardVM(
@@ -124,23 +126,12 @@ def build_inventory_card_vm(row: InventoryRowVM) -> InventoryCardVM:
 
 
 def inventory_card_dimensions(item_type: str, grid_w: int | None = None, grid_h: int | None = None) -> tuple[int, int]:
-    fallback_by_type = {
-        "weapon": (4, 2),
-        "armor": (4, 2),
-        "garment": (3, 2),
-        "footwear": (3, 2),
-        "accessory": (2, 2),
-        "consumable": (2, 1),
-        "resource": (2, 1),
-        "currency": (2, 1),
-        "material": (2, 1),
-        "quest": (2, 1),
-    }
-    fallback_w, fallback_h = fallback_by_type.get(item_type, (2, 2))
     width = int(grid_w or 0)
     height = int(grid_h or 0)
-    if width <= 1 and height <= 1:
-        width, height = fallback_w, fallback_h
+    if width < 1:
+        width = 1 if item_type in {"resource", "currency", "material", "consumable", "quest"} else 2
+    if height < 1:
+        height = 1 if item_type in {"resource", "currency", "material", "consumable", "quest"} else 2
     return max(1, min(8, width)), max(1, min(4, height))
 
 
@@ -170,7 +161,7 @@ class InventoryWindowVM(BaseModel):
     visible_cards: list[InventoryCardVM] = Field(default_factory=list)
     stats: InventoryStatsVM = Field(default_factory=InventoryStatsVM)
     rows_visible_count: int = 10
-    search_placeholder: str = "Search"
+    search_placeholder: str = "Поиск"
     contract_state: str = "FRONTEND_CONTRACT_PENDING"
 
     @model_validator(mode="after")
@@ -191,72 +182,72 @@ def build_inventory_window_vm(status_seed: dict[str, Any] | None = None) -> Inve
         body_zones=[
             InventoryBodyZoneVM(
                 zone_id="head",
-                label="Head",
-                primary_slot=_slot("head_armor", "Helmet", "armor"),
+                label="Голова",
+                primary_slot=_slot("head_armor", "Шлем", "armor"),
                 position="head",
             ),
             InventoryBodyZoneVM(
                 zone_id="outer",
-                label="Cloak",
-                primary_slot=_slot("outer_garment", "Cloak", "garment"),
+                label="Плащ",
+                primary_slot=_slot("outer_garment", "Плащ", "garment"),
                 position="outer",
             ),
             InventoryBodyZoneVM(
                 zone_id="chest",
-                label="Torso",
-                primary_slot=_slot("chest_armor", "Armor", "armor"),
-                secondary_slot=_slot("chest_garment", "Clothing", "garment"),
+                label="Корпус",
+                primary_slot=_slot("chest_armor", "Броня", "armor"),
+                secondary_slot=_slot("chest_garment", "Одежда", "garment"),
                 position="chest",
             ),
             InventoryBodyZoneVM(
                 zone_id="arms",
-                label="Arms",
-                primary_slot=_slot("arms_armor", "Bracers", "armor"),
-                secondary_slot=_slot("gloves_garment", "Gloves", "garment"),
+                label="Руки",
+                primary_slot=_slot("arms_armor", "Наручи", "armor"),
+                secondary_slot=_slot("gloves_garment", "Перчатки", "garment"),
                 position="arms",
             ),
             InventoryBodyZoneVM(
                 zone_id="legs",
-                label="Legs",
-                primary_slot=_slot("legs_armor", "Leg Armor", "armor"),
-                secondary_slot=_slot("legs_garment", "Pants", "garment"),
+                label="Ноги",
+                primary_slot=_slot("legs_armor", "Поножи", "armor"),
+                secondary_slot=_slot("legs_garment", "Штаны", "garment"),
                 position="legs",
             ),
             InventoryBodyZoneVM(
                 zone_id="feet",
-                label="Footwear",
-                primary_slot=_slot("feetwear", "Boots", "equipment"),
+                label="Обувь",
+                primary_slot=_slot("feetwear", "Обувь", "equipment"),
                 position="feet",
             ),
         ],
         weapon_slots=[
-            _slot("main_hand", "Main Hand", "equipment"),
-            _slot("off_hand", "Off Hand", "equipment"),
+            _slot("main_hand", "Основная", "equipment"),
+            _slot("off_hand", "Вторая", "equipment"),
         ],
         accessory_rows=[
-            InventoryAccessoryRowVM(row_id="amulet", label="Amulet", slots=[_slot("amulet", "Amulet", "accessory")]),
+            InventoryAccessoryRowVM(row_id="amulet", label="Амулет", slots=[_slot("amulet", "Амулет", "accessory")]),
             InventoryAccessoryRowVM(
                 row_id="earrings",
-                label="Earrings",
-                slots=[_slot("earring", "Earrings", "accessory")],
+                label="Серьги",
+                slots=[_slot("earring", "Серьги", "accessory")],
             ),
             InventoryAccessoryRowVM(
                 row_id="rings",
-                label="Rings",
-                slots=[_slot("ring_1", "Ring 1", "accessory"), _slot("ring_2", "Ring 2", "accessory")],
+                label="Кольца",
+                slots=[_slot("ring_1", "Кольцо 1", "accessory"), _slot("ring_2", "Кольцо 2", "accessory")],
                 is_wide=False,
             ),
             InventoryAccessoryRowVM(
                 row_id="belt",
-                label="Belt",
-                slots=[_slot("belt_accessory", "Belt", "accessory")],
+                label="Пояс",
+                slots=[_slot("belt_accessory", "Пояс", "accessory")],
             ),
         ],
-        quick_slots=[InventoryQuickSlotVM(slot_index=index) for index in range(1, 9)],
+        quick_slots=[InventoryQuickSlotVM(slot_id=f"belt_slot_{index}", slot_index=index) for index in range(1, 9)],
         tabs=[
-            InventoryTabVM(tab_id="items", label="Items", icon="I", is_active=True),
-            InventoryTabVM(tab_id="resources", label="Resources", icon="R"),
-            InventoryTabVM(tab_id="quest", label="Quest", icon="Q"),
+            InventoryTabVM(tab_id="items", label="Предметы", icon="I", is_active=True),
+            InventoryTabVM(tab_id="resources", label="Ресурсы", icon="R"),
+            InventoryTabVM(tab_id="quest", label="Квест", icon="Q"),
         ],
         visible_rows=[],
         visible_cards=[],

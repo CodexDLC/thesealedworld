@@ -194,15 +194,20 @@ window.GameCatalogCache = {
 
         if (typeof tippy !== 'undefined') {
             const tooltipNodes = root.querySelectorAll('[data-tippy-content]');
+            const tooltipContent = (node) => (node.getAttribute('data-tippy-content') || '').replace(/\\n/g, '\n').replace(/\s+\/\/\s+/g, '\n');
             tooltipNodes.forEach((node) => {
+                node.removeAttribute('title');
                 if (node._tippy) {
-                    node._tippy.setContent(node.getAttribute('data-tippy-content'));
+                    node._tippy.setContent(tooltipContent(node));
                 }
             });
             Array.from(tooltipNodes).filter((node) => !node._tippy).forEach((node) => {
                 tippy(node, {
                     allowHTML: false,
                     appendTo: document.body,
+                    content(reference) {
+                        return tooltipContent(reference);
+                    },
                     delay: [120, 40],
                     maxWidth: 320,
                     theme: node.getAttribute('data-tippy-theme') || 'game-catalog',
@@ -392,7 +397,7 @@ window.gameShell = function(initial = {}) {
         };
     };
     const inventoryWindow = {
-        open: false,
+        open: Boolean(initial.initialInventoryOpen),
         x: null,
         y: null,
         width: null,
@@ -726,23 +731,114 @@ window.setChatStep = function(targetStep) {
 function initGameTooltips(root = document) {
     if (typeof tippy === 'undefined') return;
     const nodes = Array.from(root.querySelectorAll('[data-tippy-content]'));
+    const tooltipContent = (node) => (node.getAttribute('data-tippy-content') || '').replace(/\\n/g, '\n').replace(/\s+\/\/\s+/g, '\n');
     nodes.forEach((node) => {
+        node.removeAttribute('title');
         if (node._tippy) {
-            node._tippy.setContent(node.getAttribute('data-tippy-content'));
+            node._tippy.setContent(tooltipContent(node));
         }
     });
     tippy(nodes.filter((node) => !node._tippy), {
         allowHTML: false,
         appendTo: document.body,
+        content(reference) {
+            return tooltipContent(reference);
+        },
         delay: [120, 40],
         maxWidth: 320,
         theme: 'game-hint',
     });
 }
 
+let activeInventoryTooltipTrigger = null;
+
+function inventoryTooltipHost() {
+    let host = document.getElementById('inventory-tooltip-host');
+    if (host) return host;
+
+    host = document.createElement('div');
+    host.id = 'inventory-tooltip-host';
+    host.className = 'inventory-floating-tooltip inventory-floating-tooltip--js';
+    host.setAttribute('role', 'tooltip');
+    document.body.appendChild(host);
+    return host;
+}
+
+function inventoryTooltipTemplate(trigger) {
+    return trigger?.querySelector?.('.inventory-tooltip-template') || null;
+}
+
+function positionInventoryTooltip(host, event, trigger = activeInventoryTooltipTrigger) {
+    const gap = 14;
+    const margin = 12;
+    const width = host.offsetWidth || 292;
+    const height = host.offsetHeight || 220;
+    const rect = trigger?.getBoundingClientRect?.();
+    let left = rect ? rect.right + gap : event.clientX + gap;
+    let top = rect ? rect.top : event.clientY - margin;
+
+    if (left + width > window.innerWidth - margin) {
+        left = rect ? rect.left - width - gap : event.clientX - width - gap;
+    }
+    if (top + height > window.innerHeight - margin) {
+        top = window.innerHeight - height - margin;
+    }
+
+    host.style.left = `${Math.max(margin, left)}px`;
+    host.style.top = `${Math.max(margin, top)}px`;
+}
+
+function showInventoryTooltip(trigger, event) {
+    const template = inventoryTooltipTemplate(trigger);
+    if (!template) return;
+
+    const host = inventoryTooltipHost();
+    activeInventoryTooltipTrigger = trigger;
+    host.innerHTML = template.innerHTML;
+    host.classList.add('is-visible');
+    positionInventoryTooltip(host, event, trigger);
+}
+
+function hideInventoryTooltip() {
+    const host = document.getElementById('inventory-tooltip-host');
+    activeInventoryTooltipTrigger = null;
+    if (!host) return;
+
+    host.classList.remove('is-visible');
+    host.innerHTML = '';
+}
+
+function initInventoryTooltips() {
+    document.addEventListener('pointerover', (event) => {
+        const trigger = event.target?.closest?.('[data-inventory-tooltip-trigger]');
+        if (!trigger || trigger === activeInventoryTooltipTrigger) return;
+        showInventoryTooltip(trigger, event);
+    });
+
+    document.addEventListener('pointermove', (event) => {
+        if (!activeInventoryTooltipTrigger) return;
+        if (!activeInventoryTooltipTrigger.isConnected) {
+            hideInventoryTooltip();
+            return;
+        }
+        positionInventoryTooltip(inventoryTooltipHost(), event, activeInventoryTooltipTrigger);
+    });
+
+    document.addEventListener('pointerout', (event) => {
+        if (!activeInventoryTooltipTrigger) return;
+        if (activeInventoryTooltipTrigger.contains(event.relatedTarget)) return;
+        hideInventoryTooltip();
+    });
+
+    document.addEventListener('htmx:beforeSwap', () => hideInventoryTooltip());
+}
+
 window.initGameTooltips = initGameTooltips;
 
-document.addEventListener('DOMContentLoaded', () => initGameTooltips(document));
+document.addEventListener('DOMContentLoaded', () => {
+    initGameTooltips(document);
+    initInventoryTooltips();
+});
 
 
 

@@ -11,8 +11,6 @@ from src.backend.features.game_lobby.dependencies import (
 )
 from src.backend.features.game_lobby.services.character_creation_service import CharacterCreationService
 from src.backend.features.game_lobby.services.lobby_service import GameLobbyService
-from src.backend.features.game_session.dependencies import get_game_session_service
-from src.backend.features.game_session.services import GameSessionService
 from src.backend.features_site.auth.dependencies import get_current_user
 from src.backend.features_site.auth.models import User
 from src.shared.enums import CoreDomain
@@ -78,11 +76,23 @@ async def start_lobby_flow(
 async def enter_lobby_character(
     dto: EnterCharacterRequestDTO,
     current_user: Annotated[User, Depends(get_current_user)],
-    session_service: Annotated[GameSessionService, Depends(get_game_session_service)],
+    lobby_service: Annotated[GameLobbyService, Depends(get_game_lobby_service)],
 ) -> CoreResponseDTO[ScenarioPayloadDTO | dict[Any, Any]]:
-    """Compatibility wrapper for the session-owned game entry endpoint."""
-    response = await session_service.enter_character(current_user, dto.character_id)
+    """Cold lobby enter: rebuilds AC from Postgres before the runtime game session starts."""
+    response = await lobby_service.enter_character(current_user, dto.character_id)
     log_debug_payload("game_lobby.enter", response, enabled=settings.debug)
+    return response
+
+
+@router.post("/release", response_model=CoreResponseDTO[dict[Any, Any]])
+async def release_lobby_character(
+    dto: EnterCharacterRequestDTO,
+    current_user: Annotated[User, Depends(get_current_user)],
+    lobby_service: Annotated[GameLobbyService, Depends(get_game_lobby_service)],
+) -> CoreResponseDTO[dict[Any, Any]]:
+    """Saves the active AC snapshot and removes the runtime AC before returning to lobby."""
+    response = await lobby_service.release_character(current_user, dto.character_id)
+    log_debug_payload("game_lobby.release", response, enabled=settings.debug)
     return response
 
 

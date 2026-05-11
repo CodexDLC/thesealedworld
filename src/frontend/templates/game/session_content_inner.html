@@ -6,13 +6,16 @@
 
     {# Main interactive area #}
     {% set combat_layout = domain == 'combats' %}
-    <div class="game-top-row {{ 'combat-layout' if combat_layout else '' }} {{ 'left-open' if combat_layout or (session_ui and session_ui.left_open) else '' }} {{ 'right-open' if combat_layout or (session_ui and session_ui.right_open) else '' }}"
-         {% if combat_layout or (session_ui and session_ui.left_open) %}data-left-open="true"{% endif %}
-         {% if combat_layout or (session_ui and session_ui.right_open) %}data-right-open="true"{% endif %}
+    {% set combat_sidebars = combat_layout %}
+    {% set shell_left_open = combat_sidebars or (not combat_layout and session_ui and session_ui.left_open) %}
+    {% set shell_right_open = combat_sidebars or (not combat_layout and session_ui and session_ui.right_open) %}
+    <div class="game-top-row {{ 'combat-layout' if combat_layout else '' }} {{ 'left-open' if shell_left_open else '' }} {{ 'right-open' if shell_right_open else '' }}"
+         {% if shell_left_open %}data-left-open="true"{% endif %}
+         {% if shell_right_open %}data-right-open="true"{% endif %}
          style="flex: 1; position: relative; z-index: 1; min-height: 0;"
          :class="{ 'left-open': leftOpen, 'right-open': rightOpen }">
         {# Left Panel (Inventory/Stats) #}
-        <aside id="game-left" class="col-left {{ 'panel-open' if combat_layout or (session_ui and session_ui.left_open) else '' }}" :class="{ 'panel-open': leftOpen }">
+        <aside id="game-left" class="col-left {{ 'panel-open' if shell_left_open else '' }}" :class="{ 'panel-open': leftOpen }">
             <div id="game-left-content">
                 {% block game_left %}
                     <div x-show="leftPanelView === 'status'">
@@ -63,7 +66,7 @@
         </main>
 
         {# Right Panel (Social/Intel/Enemies) #}
-        <aside id="game-right" class="col-right {{ 'panel-open' if combat_layout or (session_ui and session_ui.right_open) else '' }}" :class="{ 'panel-open': rightOpen }">
+        <aside id="game-right" class="col-right {{ 'panel-open' if shell_right_open else '' }}" :class="{ 'panel-open': rightOpen }">
             <div id="game-right-content">
                 {% block game_right %}
                     <div x-show="rightPanelView === 'context'">

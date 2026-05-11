@@ -16,6 +16,8 @@ from .tasks.ai_turn_task import ai_turn_task
 from .tasks.chaos_task import chaos_check_task
 from .tasks.collector_task import combat_collector_task
 from .tasks.executor_task import execute_batch_task
+from .tasks.finalization_persist_task import combat_finalization_persist_task
+from .tasks.result_support_task import combat_result_support_task
 from .tasks.victory_finalizer_task import victory_finalizer_task
 
 COMBAT_TASKS = [
@@ -24,6 +26,8 @@ COMBAT_TASKS = [
     ai_turn_task,
     chaos_check_task,
     victory_finalizer_task,
+    combat_result_support_task,
+    combat_finalization_persist_task,
 ]
 
 

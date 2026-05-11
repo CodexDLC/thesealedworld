@@ -1,6 +1,7 @@
 <div class="chat-inner-wrap"
      id="chat"
      style="display: flex; flex-direction: column; height: 100%; width: 100%;"
+     :class="'chat-theme-' + _chatThemeKey()"
      x-data="{
          channels: {
              global: [],
@@ -8,24 +9,183 @@
              system: [],
              trade:  [],
              party:  [],
-             dm:     {}
+             dm:     {},
+             dynamic: {}
+         },
+         unreadTabs: {},
+         _dynamicTabKey(msg) {
+             if ((msg.tab && msg.tab.kind === 'combat') || msg.channel === 'combat') return 'combat_' + (msg.scope_id || 'unknown');
+             if (msg.tab && msg.tab.key) return msg.tab.key;
+             if (msg.channel === 'dm') return 'dm_' + (msg.scope_id || 'unknown');
+             return null;
+         },
+         _defaultTab(msg, key) {
+             if (msg.channel === 'dm') {
+                 const sid = msg.scope_id || key.replace(/^dm_/, '');
+                 return { kind: 'dm', key: key, title: '@' + sid.slice(0, 8), open_policy: 'request_consent', closeable: true, accent: 'private' };
+             }
+             if (msg.channel === 'combat') {
+                 return { kind: 'combat', key: key, title: 'БОЙ', open_policy: 'force_open', closeable: true, accent: 'combat' };
+             }
+             return null;
+         },
+         _ensureDynamicTab(msg) {
+             const key = this._dynamicTabKey(msg);
+             if (!key) return null;
+             const tab = msg.tab || this._defaultTab(msg, key);
+             if (key.startsWith('combat_') && this._isClosedDynamicTab(key) && (!tab || tab.open_policy !== 'force_open')) return null;
+             if (!this.channels.dynamic[key]) {
+                 this.channels.dynamic[key] = {
+                     tab: tab,
+                     scope_id: msg.scope_id || null,
+                     messages: []
+                 };
+             } else if (msg.tab) {
+                 this.channels.dynamic[key].tab = msg.tab;
+             }
+             return key;
+         },
+         _activateTab(key) {
+             chatTab = key;
+             this.unreadTabs[key] = false;
+             this._markTabSeen(key);
+          },
+         _messageTabKey(msg, dynamicKey) {
+             if (dynamicKey) return dynamicKey;
+             return msg.channel || 'system';
+         },
+         _seenStorageKey(key) {
+             return 'tbmmorpg:chat:seen:{{ char_id }}:' + key;
+         },
+         _hiddenStorageKey(key) {
+             return 'tbmmorpg:chat:hidden:{{ char_id }}:' + key;
+         },
+         _closedStorageKey(key) {
+             return 'tbmmorpg:chat:closed:{{ char_id }}:' + key;
+         },
+         _isClosedDynamicTab(key) {
+             try { return window.localStorage.getItem(this._closedStorageKey(key)) === '1'; } catch (_) { return false; }
+         },
+         _rememberClosedDynamicTab(key) {
+             try { window.localStorage.setItem(this._closedStorageKey(key), '1'); } catch (_) {}
+         },
+         _forgetClosedDynamicTab(key) {
+             try { window.localStorage.removeItem(this._closedStorageKey(key)); } catch (_) {}
+         },
+         _messageCursor(msg) {
+             if (!msg) return '';
+             return String(msg.created_at || '') + '|' + String(msg.id || '');
+         },
+         _readSeen(key) {
+             try { return window.localStorage.getItem(this._seenStorageKey(key)) || ''; } catch (_) { return ''; }
+         },
+         _writeSeen(key, cursor) {
+             if (!key || !cursor) return;
+             try { window.localStorage.setItem(this._seenStorageKey(key), cursor); } catch (_) {}
+         },
+         _readHidden(key) {
+             try { return window.localStorage.getItem(this._hiddenStorageKey(key)) || ''; } catch (_) { return ''; }
+         },
+         _writeHidden(key, cursor) {
+             if (!key || !cursor) return;
+             try { window.localStorage.setItem(this._hiddenStorageKey(key), cursor); } catch (_) {}
+         },
+         _messagesForTab(key) {
+             if (this.channels.dynamic[key]) return this.channels.dynamic[key].messages || [];
+             return this.channels[key] || [];
+         },
+         _visibleMessagesForTab(key) {
+             const messages = this._messagesForTab(key);
+             const hiddenCursor = this._readHidden(key);
+             if (!hiddenCursor) return messages;
+             return messages.filter((msg) => this._messageCursor(msg) > hiddenCursor);
+         },
+         _latestVisibleMessage(key) {
+             const messages = this._visibleMessagesForTab(key);
+             return messages.length ? messages[messages.length - 1] : null;
+         },
+         _markTabSeen(key) {
+             const messages = this._messagesForTab(key);
+             if (!messages.length) return;
+             this._writeSeen(key, this._messageCursor(messages[messages.length - 1]));
+         },
+         _markUnread(key, msg) {
+             if (!key) return;
+             const cursor = this._messageCursor(msg);
+             if (cursor && this._readSeen(key) >= cursor) return;
+             if (key === chatTab && !chatClosed) {
+                 this._writeSeen(key, cursor);
+                 return;
+             }
+             this.unreadTabs[key] = true;
+         },
+         _isUnread(key) {
+             return Boolean(this.unreadTabs[key]);
+         },
+         _normalizeMessage(raw) {
+             const msg = Object.assign({}, raw || {});
+             msg.view = this._buildMessageView(msg);
+             return msg;
+         },
+         _buildMessageView(msg) {
+             if (this._isCombatLog(msg)) return this._buildCombatLogView(msg);
+             return this._buildPlainMessageView(msg);
+         },
+         _buildPlainMessageView(msg) {
+             const rendered = this._renderMessageTemplate(msg);
+             const text = msg.content || rendered || '';
+             return {
+                 parts: text ? [{ type: 'text', text: text }] : [],
+                 facts: [],
+                 text: text
+             };
+         },
+         _buildCombatLogView(msg) {
+             const parts = this._combatLogParts(msg);
+             const facts = this._combatFactItems(msg);
+             const text = parts.map((part) => part.text || '').join('');
+             const factText = facts.map((fact) => '[' + (fact.plain || fact.text || '') + ']').filter(Boolean).join(' ');
+             return {
+                 icon: this._combatLogIconUrl(msg),
+                 parts: parts.length ? parts : [{ type: 'text', text: msg.content || '' }],
+                 facts: facts,
+                 text: [text || msg.content || '', factText].filter(Boolean).join(' ')
+             };
+         },
+         _combatLogIconUrl(msg) {
+             const data = (msg && msg.data) || {};
+             const action = (msg && msg.action) || data.action || {};
+             const catalog = msg.catalog || action.catalog || data.catalog || '';
+             const key = msg.catalog_key || action.catalog_key || data.catalog_key || '';
+             if (catalog === 'feints' || String(key).startsWith('combat.feint.')) return '/static/images/ui/combat-icons/feint.svg';
+             return '';
          },
          _onWsMessage(e) {
              try {
-                 const msg = JSON.parse(e.detail.message);
+                 const raw = JSON.parse(e.detail.message);
+                 const msg = this._normalizeMessage(raw);
                  const ch  = msg.channel || 'system';
-                 if (ch === 'dm') {
-                     const sid = msg.scope_id || 'unknown';
-                     if (!this.channels.dm[sid]) this.channels.dm[sid] = [];
-                     this.channels.dm[sid].push(msg);
+                 const dynamicKey = this._ensureDynamicTab(msg);
+                 let routedKey = dynamicKey;
+                 if (dynamicKey) {
+                     this._forgetClosedDynamicTab(dynamicKey);
+                     this.channels.dynamic[dynamicKey].messages.push(msg);
+                     const policy = (this.channels.dynamic[dynamicKey].tab || {}).open_policy;
+                     if (policy === 'force_open') {
+                         chatTab = dynamicKey;
+                         chatClosed = false;
+                         if (chatStep === 0) setChatStep(1);
+                     }
                  } else {
                      if (!this.channels[ch]) this.channels[ch] = [];
                      this.channels[ch].push(msg);
                  }
+                 this._markUnread(this._messageTabKey(msg, routedKey), msg);
                  // scroll chat-log to bottom
                  this.$nextTick(() => {
                      const log = document.getElementById('chat-log');
                      if (log) log.scrollTop = log.scrollHeight;
+                     if (log && window.GameCatalogCache && window.GameCatalogCache.resolveDom) window.GameCatalogCache.resolveDom(log);
                  });
                  window.dispatchEvent(new CustomEvent('chat-unread'));
              } catch (_) {}
@@ -33,14 +193,439 @@
          _channelLabel(key) {
              const channelKey = key || 'global';
              if (channelKey.startsWith('dm_')) return 'личное';
+             if (channelKey.startsWith('combat_')) return 'бой';
              return { global: 'мир', zone: 'зона', system: 'система', trade: 'торговля', party: 'группа' }[channelKey] || channelKey;
          },
+         _activeDynamicTab() {
+             return this.channels.dynamic[chatTab] || null;
+         },
+         _chatThemeKey() {
+             const dynamicTab = this._activeDynamicTab();
+             if (dynamicTab && dynamicTab.tab && dynamicTab.tab.accent) return dynamicTab.tab.accent;
+             if (chatTab === 'global') return 'world';
+             if (chatTab === 'zone') return 'zone';
+             if (chatTab === 'system') return 'system';
+             if (chatTab.startsWith('dm_')) return 'private';
+             if (chatTab.startsWith('combat_')) return 'combat';
+             return 'world';
+         },
+         _activeTabCanSend() {
+             if (chatTab === 'system') return false;
+             return true;
+         },
+         _isCombatLog(m) {
+             return m && m.presentation && m.presentation.render === 'combat_log';
+         },
+         _combatLogSeparator(m) {
+             return (m.presentation && m.presentation.separator) || null;
+         },
+         _showCombatLogSeparator(messages, idx) {
+             const current = this._combatLogSeparator(messages[idx]);
+             if (!current) return false;
+             const previous = idx > 0 ? this._combatLogSeparator(messages[idx - 1]) : null;
+             return !previous || previous.key !== current.key;
+         },
+         _templateVarText(value) {
+             if (value === null || value === undefined) return '';
+             if (typeof value === 'object') {
+                 return String(value.label || value.name || value.display_name || value.id || '');
+             }
+             return String(value);
+         },
+         _renderTemplateText(text, variables) {
+             return String(text || '').replace(/\{([a-zA-Z0-9_]+)\}/g, (match, key) => {
+                 if (!variables || !Object.prototype.hasOwnProperty.call(variables, key)) return match;
+                 const rendered = this._templateVarText(variables[key]);
+                 return rendered || match;
+             });
+         },
+         _templateTextsFrom(value) {
+             const texts = [];
+             const add = (item) => {
+                 if (!item) return;
+                 if (Array.isArray(item)) {
+                     item.forEach(add);
+                     return;
+                 }
+                 if (typeof item === 'string') {
+                     texts.push(item);
+                     return;
+                 }
+                 if (typeof item === 'object') {
+                     add(item.parts);
+                     add(item.texts);
+                     add(item.fragments);
+                     add(item.templates);
+                     add(item.text);
+                 }
+             };
+             add(value);
+             return texts.map((text) => String(text).trim()).filter(Boolean);
+         },
+         _templateTexts(m) {
+             if (!m) return [];
+             const texts = [
+                 ...this._templateTextsFrom(m.templates),
+                 ...this._templateTextsFrom(m.template)
+             ];
+             const seen = {};
+             return texts.filter((text) => {
+                 if (seen[text]) return false;
+                 seen[text] = true;
+                 return true;
+             });
+         },
+         _joinTemplateTexts(parts) {
+             return parts
+                 .map((part, idx) => idx < parts.length - 1 ? part.replace(/[\\s.,;:]+$/g, '') : part)
+                 .join(', ')
+                 .replace(/\\s+/g, ' ')
+                 .trim();
+         },
+         _renderMessageTemplate(m) {
+             const parts = this._templateTexts(m)
+                 .map((text) => this._renderTemplateText(text, m.variables || {}))
+                 .map((text) => text.trim())
+                 .filter(Boolean);
+             if (!parts.length) return '';
+             return this._joinTemplateTexts(parts);
+         },
+         _actorTemplateValues(variables) {
+             if (!variables) return [];
+             const actors = ['source', 'target'].map((role) => ({
+                 role: role,
+                 text: this._templateVarText(variables[role])
+             })).filter((actor) => actor.text);
+             actors.sort((a, b) => b.text.length - a.text.length);
+             return actors;
+         },
+         _pushRenderedTextParts(parts, text, variables) {
+             const source = String(text || '');
+             const actors = this._actorTemplateValues(variables);
+             if (!source || !actors.length) {
+                 if (source) parts.push({ type: 'text', text: source });
+                 return;
+             }
+             let cursor = 0;
+             while (cursor < source.length) {
+                 let best = null;
+                 actors.forEach((actor) => {
+                     const index = source.indexOf(actor.text, cursor);
+                     if (index < 0) return;
+                     if (!best || index < best.index || (index === best.index && actor.text.length > best.text.length)) {
+                         best = { index: index, role: actor.role, text: actor.text };
+                     }
+                 });
+                 if (!best) {
+                     parts.push({ type: 'text', text: source.slice(cursor) });
+                     return;
+                 }
+                 if (best.index > cursor) {
+                     parts.push({ type: 'text', text: source.slice(cursor, best.index) });
+                 }
+                 parts.push({ type: 'actor', role: best.role, text: best.text });
+                 cursor = best.index + best.text.length;
+             }
+         },
+         _pushTemplateParts(parts, text, variables) {
+             const source = String(text || '');
+             const pattern = /\{([a-zA-Z0-9_]+)\}/g;
+             let cursor = 0;
+             let match = null;
+             while ((match = pattern.exec(source)) !== null) {
+                 if (match.index > cursor) {
+                     this._pushRenderedTextParts(parts, source.slice(cursor, match.index), variables);
+                 }
+                 const key = match[1];
+                 const rendered = variables && Object.prototype.hasOwnProperty.call(variables, key) ? this._templateVarText(variables[key]) : match[0];
+                 parts.push({
+                     type: this._templatePartType(key),
+                     role: key,
+                     text: rendered || match[0]
+                 });
+                 cursor = match.index + match[0].length;
+             }
+             if (cursor < source.length) {
+                 this._pushRenderedTextParts(parts, source.slice(cursor), variables);
+             }
+         },
+         _templatePartType(key) {
+             if (key === 'source' || key === 'target') return 'actor';
+             if (key === 'weapon') return 'weapon';
+             return 'text';
+         },
+         _trimLastTemplatePart(parts) {
+             if (!parts.length) return;
+             const last = parts[parts.length - 1];
+             if (!last || last.type !== 'text') return;
+             last.text = String(last.text || '').replace(/[\\s.,;:]+$/g, '');
+         },
+         _combatLogParts(msg) {
+             const texts = this._templateTexts(msg);
+             const variables = msg.variables || {};
+             const parts = [];
+             if (!texts.length && msg.content) {
+                 this._pushRenderedTextParts(parts, msg.content, variables);
+                 return parts;
+             }
+             texts.forEach((text, index) => {
+                 if (index > 0) {
+                     this._trimLastTemplatePart(parts);
+                     parts.push({ type: 'text', text: ', ' });
+                 }
+                 this._pushTemplateParts(parts, text, variables);
+             });
+             return parts;
+         },
+         _factLabel(value) {
+             if (value === null || value === undefined) return '';
+             if (typeof value === 'string') return value;
+             if (typeof value !== 'object') return String(value);
+             return String(value.label || value.tooltip || value.name || value.display_name || value.title || value.id || value.effect_id || value.trigger_id || '');
+         },
+         _catalogCache() {
+             return window.GameCatalogCache || null;
+         },
+         _catalogEntry(catalog, key) {
+             if (!catalog || !key) return null;
+             const cache = this._catalogCache();
+             if (!cache) return null;
+             if (cache.get) {
+                 const direct = cache.get(catalog, key);
+                 if (direct) return direct;
+             }
+             if (cache.getByKey) return cache.getByKey(key);
+             return (cache.memory && cache.memory[catalog] && cache.memory[catalog][key]) || null;
+         },
+         _catalogField(entry, field) {
+             if (!entry || !field) return '';
+             const cache = this._catalogCache();
+             if (cache && cache.getField) {
+                 const value = cache.getField(entry, field);
+                 if (value) return String(value);
+             }
+             const value = entry[field];
+             return value === null || value === undefined ? '' : String(value);
+         },
+         _tokenFactKey(item) {
+             if (item === null || item === undefined) return '';
+             if (typeof item === 'string') return item;
+             if (typeof item !== 'object') return String(item);
+             return String(item.token || item.token_id || item.catalog_key || item.key || item.id || '');
+         },
+         _signedAmount(value) {
+             if (value === null || value === undefined || value === '') return '';
+             const number = Number(value);
+             if (Number.isNaN(number)) return String(value);
+             return number > 0 ? '+' + number : String(number);
+         },
+         _catalogIconUrl(entry, kind) {
+             if (!entry || typeof entry !== 'object') return '';
+             const raw = String(entry.icon_url || entry.icon || '');
+             if (!raw) return '';
+             if (raw.startsWith('/static/')) return raw;
+             if (raw.startsWith('http://') || raw.startsWith('https://')) return raw;
+             if (kind === 'token') return '/static/images/ui/combat-icons/' + raw.replace(/[^a-zA-Z0-9_-]/g, '') + '.svg';
+             return raw;
+         },
+         _tokenFactItem(item) {
+             const token = this._tokenFactKey(item).replace(/[^a-zA-Z0-9_-]/g, '');
+             const entry = this._catalogEntry('combat_tokens', token);
+             const title = this._catalogField(entry, 'title') || this._factLabel(item) || token;
+             const description = this._catalogField(entry, 'description');
+             const amount = item && typeof item === 'object' ? this._signedAmount(item.amount ?? item.delta ?? item.value) : '';
+             const text = amount || title;
+             const plain = [amount, title].filter(Boolean).join(' ');
+             const tooltipHead = title ? [title, amount].filter(Boolean).join('. ') : (amount || text);
+             const tooltip = [tooltipHead, description].filter(Boolean).join('. ');
+             return {
+                 type: 'token',
+                 text: text,
+                 plain: plain || text,
+                 tooltip: tooltip || plain || text,
+                 icon: this._combatIconUrl(item, 'token') || this._catalogIconUrl(entry, 'token'),
+                 catalog: token ? 'combat_tokens' : '',
+                 catalogKey: token
+             };
+         },
+         _resourceFactText(resource) {
+             if (!resource || typeof resource !== 'object') return this._factLabel(resource);
+             const current = resource.after;
+             const max = resource.max;
+             const kind = String(resource.resource || '').toUpperCase();
+             const delta = resource.delta;
+             const deltaText = this._signedAmount(delta);
+             if (current !== undefined && current !== null && max !== undefined && max !== null) {
+                 const value = kind ? `${current}/${max} ${kind}` : `${current}/${max}`;
+                 return deltaText ? `${deltaText} ${kind} -> ${value}` : value;
+             }
+             return this._factLabel(resource);
+         },
+         _flagFacts(flags) {
+             if (!flags) return [];
+             const labels = {
+                 crit: 'КРИТ',
+                 dodged: 'УВОРОТ',
+                 parried: 'ПАРИРОВАНО',
+                 blocked: 'БЛОК',
+                 missed: 'МИМО',
+                 counter: 'КОНТРАТАКА',
+                 death: 'ПОБЕЖДЕН'
+             };
+             return Object.keys(labels).filter((key) => flags[key]).map((key) => labels[key]);
+         },
+         _combatIconUrl(item, kind) {
+             if (!item || typeof item !== 'object') return '';
+             const raw = String(item.icon_url || item.icon || '');
+             if (raw.startsWith('/static/')) return raw;
+             if (raw.startsWith('http://') || raw.startsWith('https://')) return raw;
+             const token = String(item.token || '').replace(/[^a-zA-Z0-9_-]/g, '');
+             if (kind === 'token' && token) return '/static/images/ui/combat-icons/token-' + token + '.svg';
+             const effectId = String(item.effect_id || item.id || '').replace(/[^a-zA-Z0-9_-]/g, '');
+             if (kind === 'effect') {
+                 const effectIcons = {
+                     dot_bleed: 'bleeding',
+                     bleed: 'bleeding',
+                     bleeding: 'bleeding',
+                     burn: 'burn',
+                     poison: 'poison',
+                     stun: 'stun',
+                     death: 'target'
+                 };
+                 return '/static/images/ui/combat-icons/' + (effectIcons[effectId] || effectId || 'token') + '.svg';
+             }
+             if (raw.startsWith('combat/tokens/')) return '/static/images/ui/combat-icons/token-' + raw.split('/').pop().replace('.svg', '') + '.svg';
+             if (raw.startsWith('combat/effects/')) return this._combatIconUrl({ effect_id: raw.split('/').pop().replace('.svg', '') }, 'effect');
+             return raw;
+         },
+         _combatFactItems(msg) {
+             if (!this._isCombatLog(msg)) return [];
+             const result = msg.result || {};
+             const items = [
+                 ...(result.resources || []).map((item) => ({
+                     type: 'resource',
+                     text: this._resourceFactText(item),
+                     plain: this._resourceFactText(item),
+                     tooltip: this._factLabel(item)
+                 })),
+                 ...(result.tokens || []).map((item) => this._tokenFactItem(item)),
+                 ...(result.effects || []).map((item) => ({
+                     type: 'effect',
+                     text: this._factLabel(item),
+                     plain: this._factLabel(item),
+                     tooltip: this._factLabel(item),
+                     icon: this._combatIconUrl(item, 'effect')
+                 })),
+                 ...(result.triggers || []).map((item) => ({
+                     type: 'trigger',
+                     text: this._factLabel(item),
+                     plain: this._factLabel(item),
+                     tooltip: this._factLabel(item)
+                 })),
+                 ...(result.badges || msg.badges || []).map((item) => ({
+                     type: 'badge',
+                     text: this._factLabel(item),
+                     plain: this._factLabel(item),
+                     tooltip: this._factLabel(item)
+                 })),
+                 ...this._flagFacts(result.flags || msg.flags).map((item) => ({
+                     type: 'flag',
+                     text: item,
+                     plain: item,
+                     tooltip: item
+                 }))
+             ].filter((item) => item.text);
+             const seen = {};
+             return items.filter((item) => {
+                 const key = item.type + '|' + item.text + '|' + (item.icon || '');
+                 if (seen[key]) return false;
+                 seen[key] = true;
+                 return true;
+             });
+         },
+         _combatFactsText(m) {
+             if (!this._isCombatLog(m)) return '';
+             const result = m.result || {};
+             const facts = [
+                 ...(result.resources || []).map((item) => this._resourceFactText(item)),
+                 ...(result.effects || []).map((item) => this._factLabel(item)),
+                 ...(result.triggers || []).map((item) => this._factLabel(item)),
+                 ...(result.tokens || []).map((item) => this._tokenFactItem(item).plain),
+                 ...(result.badges || m.badges || []).map((item) => this._factLabel(item)),
+                 ...this._flagFacts(result.flags || m.flags)
+             ].map((item) => String(item || '').trim()).filter(Boolean);
+             const seen = {};
+             return facts.filter((item) => {
+                 if (seen[item]) return false;
+                 seen[item] = true;
+                 return true;
+             }).map((item) => `[${item}]`).join(' ');
+         },
+         _messageText(m) {
+             const view = this._messageView(m);
+             return view.text || '';
+         },
+         _messageView(m) {
+             if (!m) return { parts: [], facts: [], text: '' };
+             if (!m.view) m.view = this._buildMessageView(m);
+             return m.view;
+         },
+         _messageParts(m) {
+             return this._messageView(m).parts || [];
+         },
+         _messageIcon(m) {
+             return this._messageView(m).icon || '';
+         },
+         _messageFacts(m) {
+             return this._messageView(m).facts || [];
+         },
+         _messagePartClass(part) {
+             if (!part) return '';
+             if (part.type === 'actor' && part.role === 'source') return 'combat-log-var combat-log-var--source';
+             if (part.type === 'actor' && part.role === 'target') return 'combat-log-var combat-log-var--target';
+             if (part.type === 'weapon') return 'combat-log-var combat-log-var--weapon';
+             return '';
+         },
+         _messageFactClass(fact) {
+             return 'combat-fact combat-fact--' + ((fact && fact.type) || 'badge');
+         },
+         _refreshMessageViews() {
+             const refresh = (messages) => {
+                 (messages || []).forEach((msg) => { msg.view = this._buildMessageView(msg); });
+             };
+             Object.keys(this.channels).forEach((key) => {
+                 if (Array.isArray(this.channels[key])) refresh(this.channels[key]);
+             });
+             Object.values(this.channels.dynamic || {}).forEach((entry) => refresh(entry.messages));
+         },
+         _clearActiveChatTab() {
+             const key = chatTab || 'global';
+             const messages = this._messagesForTab(key);
+             if (!messages.length) return;
+             this._writeHidden(key, this._messageCursor(messages[messages.length - 1]));
+             this.unreadTabs[key] = false;
+             this._markTabSeen(key);
+             this.$nextTick(() => {
+                 const log = document.getElementById('chat-log');
+                 if (log) log.scrollTop = log.scrollHeight;
+             });
+         },
+         _closeDynamicTab(key) {
+             const entry = this.channels.dynamic[key];
+             if (!entry || !entry.tab || !entry.tab.closeable) return;
+             this._rememberClosedDynamicTab(key);
+             delete this.channels.dynamic[key];
+             this.unreadTabs[key] = false;
+             if (chatTab === key) chatTab = 'global';
+         },
          _sendChat(form) {
+             if (!this._activeTabCanSend()) return;
              const input = form.querySelector('[name=chat_input]');
              const text = input.value.trim();
              if (!text) return;
-             const channel = chatTab.startsWith('dm_') ? 'dm' : chatTab;
-             const scope_id = chatTab.startsWith('dm_') ? chatTab.slice(3) : null;
+             const dynamicTab = this._activeDynamicTab();
+             const channel = dynamicTab ? dynamicTab.tab.kind : (chatTab.startsWith('dm_') ? 'dm' : chatTab);
+             const scope_id = dynamicTab ? dynamicTab.scope_id : (chatTab.startsWith('dm_') ? chatTab.slice(3) : null);
              form.querySelector('[name=chat_message]').value = JSON.stringify({
                  channel: channel,
                  content: text,
@@ -50,11 +635,11 @@
              input.value = '';
          },
          _activeMessages() {
-             if (chatTab.startsWith('dm_')) return this.channels.dm[chatTab.slice(3)] || [];
-             return this.channels[chatTab] || [];
+             return this._visibleMessagesForTab(chatTab || 'global');
          },
          _rosterTitle() {
-             if (chatTab.startsWith('dm_')) return 'ЛИЧНЫЙ ЧАТ';
+             const dynamicTab = this._activeDynamicTab();
+             if (dynamicTab) return (dynamicTab.tab.kind === 'combat') ? 'БОЕВОЙ КАНАЛ' : 'ЛИЧНЫЙ ЧАТ';
              return { global: 'ОНЛАЙН ОБЩИЙ', zone: 'ОНЛАЙН В ЗОНЕ', system: 'СИСТЕМА', trade: 'ТОРГОВЛЯ', party: 'ГРУППА' }[chatTab] || 'ЧАТ';
          },
          _rosterHeading() {
@@ -64,6 +649,7 @@
              if (chatTab === 'zone') return 'В зоне пока никто не говорил.';
              if (chatTab === 'global') return 'В мировом канале пока тихо.';
              if (chatTab === 'system') return 'Системный канал без агентов.';
+             if (chatTab.startsWith('combat_')) return 'Боевые события появятся здесь.';
              return 'Список пуст.';
          },
          _rosterItems() {
@@ -78,30 +664,43 @@
                  });
          }
      }"
-     x-init="window.addEventListener('htmx:wsAfterMessage', (e) => _onWsMessage(e))"
+     x-init="if (window.GameCatalogCache && window.GameCatalogCache.init) window.GameCatalogCache.init().then(() => { _refreshMessageViews(); }); window.addEventListener('htmx:wsAfterMessage', (e) => _onWsMessage(e))"
 >
     <!-- WS connection — on the outer wrapper so all child forms can ws-send -->
     <div hx-ext="ws"
-         ws-connect="{{ chat_ws_url }}/ws/chat?token={{ access_token }}&char_id={{ char_id }}"
+         ws-connect="{{ chat_ws_url }}/ws/chat?token={{ access_token }}&char_id={{ char_id }}{% if combat_chat_session_id %}&combat_session_id={{ combat_chat_session_id }}{% endif %}"
          style="display:contents;">
 
     <!-- ── TAB BAR ── -->
     <div class="chat-tabs" :class="{'chat-tabs-mini': chatStep === 0}">
         <div class="chat-tab-group">
-            <div class="chat-tab" data-channel="global" :class="{ 'active': chatTab === 'global' }" @click="chatTab = 'global'"><span>[МИР]</span></div>
-            <div class="chat-tab" data-channel="zone"   :class="{ 'active': chatTab === 'zone' }"   @click="chatTab = 'zone'"><span>[ЗОНА]</span></div>
-            <div class="chat-tab" data-channel="system" :class="{ 'active': chatTab === 'system' }" @click="chatTab = 'system'"><span>[СИСТЕМА]</span></div>
+            <div class="chat-tab" data-channel="global" :class="{ 'active': chatTab === 'global', 'unread': _isUnread('global') }" @click="_activateTab('global')"><span>[МИР]</span></div>
+            <div class="chat-tab" data-channel="zone"   :class="{ 'active': chatTab === 'zone', 'unread': _isUnread('zone') }"   @click="_activateTab('zone')"><span>[ЗОНА]</span></div>
             <div class="chat-tab-divider"></div>
-            <template x-for="(msgs, sid) in channels.dm" :key="sid">
-                <div class="chat-tab is-private"
-                     :class="{ 'active': chatTab === 'dm_' + sid }"
-                     @click="chatTab = 'dm_' + sid">
-                    <span x-text="'@' + sid.slice(0, 8)"></span>
+            <template x-for="(entry, key) in channels.dynamic" :key="key">
+                <div class="chat-tab"
+                     :data-channel="entry.tab.accent || entry.tab.kind"
+                     :class="{ 'active': chatTab === key, 'unread': _isUnread(key), 'is-private': entry.tab.kind === 'dm', 'is-combat': entry.tab.kind === 'combat' }"
+                     @click="_activateTab(key)">
+                    <span x-text="'[' + entry.tab.title + ']'"></span>
+                    <button x-show="entry.tab.closeable"
+                            type="button"
+                            class="chat-tab-close"
+                            @click.stop="_closeDynamicTab(key)"
+                            title="Закрыть вкладку"
+                            aria-label="Закрыть вкладку">×</button>
                 </div>
             </template>
         </div>
 
         <div class="chat-win-controls">
+            <div class="chat-tab chat-tab-system-toggle"
+                 data-channel="system"
+                 :class="{ 'active': chatTab === 'system', 'unread': _isUnread('system') }"
+                 @click="_activateTab('system')"
+                 title="Система">
+                <span>[СИСТЕМА]</span>
+            </div>
             <button class="btn-node sm ghost" @click="stepChatSize(-1)" :disabled="chatStep === 0" title="Свернуть на шаг">▼</button>
             <div class="chat-step-track">
                 <div class="chat-step-dot" :class="{'active': chatStep === 0}" @click="setChatStep(0)" title="Свернуть"></div>
@@ -110,6 +709,10 @@
                 <div class="chat-step-dot" :class="{'active': chatStep === 3}" @click="setChatStep(3)" title="Полностью"></div>
             </div>
             <button class="btn-node sm ghost" @click="stepChatSize(1)" :disabled="chatStep === 3" title="Развернуть на шаг">▲</button>
+            <button class="btn-node sm ghost"
+                    @click="_clearActiveChatTab()"
+                    title="Очистить видимые сообщения вкладки"
+                    aria-label="Очистить видимые сообщения вкладки">CLR</button>
             <button class="btn-node sm"
                     @click="chatStep === 0 ? stepChatSize('max') : stepChatSize('min')"
                     x-text="chatStep === 0 ? 'MAX' : 'MIN'"
@@ -123,44 +726,64 @@
 
     <!-- ── COLLAPSED MINI-PREVIEW ── -->
     <div class="chat-mini-preview" x-show="chatStep === 0" x-transition:enter.duration.200ms x-transition:leave.duration.100ms>
-        <template x-if="channels.global.length > 0">
+        <template x-if="_latestVisibleMessage('global')">
             <div class="msg player">
-                <span class="tag-m" x-text="channels.global[channels.global.length - 1].sender_name"></span>
-                <span x-text="channels.global[channels.global.length - 1].content"></span>
+                <span class="tag-m" x-text="_latestVisibleMessage('global').sender_name"></span>
+                <span class="chat-message-view">
+                    <img class="chat-message-icon" x-show="_messageIcon(_latestVisibleMessage('global'))" :src="_messageIcon(_latestVisibleMessage('global'))" alt="">
+                    <template x-for="(part, partIdx) in _messageParts(_latestVisibleMessage('global'))" :key="partIdx">
+                        <span :class="_messagePartClass(part)" x-text="part.text"></span>
+                    </template>
+                    <span class="combat-facts" x-show="_messageFacts(_latestVisibleMessage('global')).length">
+                        <template x-for="(fact, factIdx) in _messageFacts(_latestVisibleMessage('global'))" :key="factIdx">
+                            <span :class="_messageFactClass(fact)"
+                                  :data-catalog="fact.catalog || null"
+                                  :data-catalog-key="fact.catalogKey || null"
+                                  :data-tippy-content="fact.tooltip || fact.text"
+                                  data-tippy-theme="game-hint">
+                                <img x-show="fact.icon" :src="fact.icon" alt="">
+                                <span x-text="fact.text"></span>
+                            </span>
+                        </template>
+                    </span>
+                </span>
             </div>
         </template>
-        <template x-if="channels.global.length === 0">
+        <template x-if="!_latestVisibleMessage('global')">
             <div class="msg sys"><span class="tag-m">SYSTEM</span>Подключение...</div>
         </template>
     </div>
 
     <!-- ── MAIN CHAT AREA ── -->
     <div class="chat-main-area" x-show="chatStep > 0" style="flex: 1; min-height: 0;">
-        <div class="chat-log" id="chat-log"
-             x-data="{
-                isDragging: false,
-                startY: 0,
-                scrollTop: 0,
-                startDrag(e) { this.isDragging=true; this.startY=e.pageY-$el.offsetTop; this.scrollTop=$el.scrollTop; $el.style.cursor='grabbing'; $el.style.userSelect='none'; },
-                stopDrag()    { this.isDragging=false; $el.style.cursor='grab'; $el.style.userSelect='auto'; },
-                doDrag(e)     { if(!this.isDragging) return; e.preventDefault(); const y=e.pageY-$el.offsetTop; $el.scrollTop=this.scrollTop-(y-this.startY)*1.5; }
-             }"
-             @mousedown="startDrag($event)"
-             @mousemove="doDrag($event)"
-             @mouseup="stopDrag()"
-             @mouseleave="stopDrag()"
-             style="cursor: grab;"
-        >
+        <div class="chat-log" id="chat-log">
             <!-- WORLD -->
             <template x-if="chatTab === 'global'">
                 <div style="padding: 10px;">
-                    <template x-if="channels.global.length === 0">
+                    <template x-if="_visibleMessagesForTab('global').length === 0">
                         <div class="msg sys"><span class="tag-m">SYSTEM</span>Глобальная сеть подключена.</div>
                     </template>
-                    <template x-for="m in channels.global" :key="m.id">
+                    <template x-for="m in _visibleMessagesForTab('global')" :key="m.id">
                         <div class="msg player">
                             <span class="tag-m" x-text="m.sender_name"></span>
-                            <span x-text="m.content"></span>
+                            <span class="chat-message-view">
+                                <img class="chat-message-icon" x-show="_messageIcon(m)" :src="_messageIcon(m)" alt="">
+                                <template x-for="(part, partIdx) in _messageParts(m)" :key="partIdx">
+                                    <span :class="_messagePartClass(part)" x-text="part.text"></span>
+                                </template>
+                                <span class="combat-facts" x-show="_messageFacts(m).length">
+                                    <template x-for="(fact, factIdx) in _messageFacts(m)" :key="factIdx">
+                                        <span :class="_messageFactClass(fact)"
+                                              :data-catalog="fact.catalog || null"
+                                              :data-catalog-key="fact.catalogKey || null"
+                                              :data-tippy-content="fact.tooltip || fact.text"
+                                              data-tippy-theme="game-hint">
+                                            <img x-show="fact.icon" :src="fact.icon" alt="">
+                                            <span x-text="fact.text"></span>
+                                        </span>
+                                    </template>
+                                </span>
+                            </span>
                         </div>
                     </template>
                 </div>
@@ -169,13 +792,30 @@
             <!-- LOCAL -->
             <template x-if="chatTab === 'zone'">
                 <div style="padding: 10px;">
-                    <template x-if="channels.zone.length === 0">
+                    <template x-if="_visibleMessagesForTab('zone').length === 0">
                         <div class="msg sys"><span class="tag-m">SYSTEM</span>Канал зоны активен.</div>
                     </template>
-                    <template x-for="m in channels.zone" :key="m.id">
+                    <template x-for="m in _visibleMessagesForTab('zone')" :key="m.id">
                         <div class="msg player">
                             <span class="tag-m" x-text="m.sender_name"></span>
-                            <span x-text="m.content"></span>
+                            <span class="chat-message-view">
+                                <img class="chat-message-icon" x-show="_messageIcon(m)" :src="_messageIcon(m)" alt="">
+                                <template x-for="(part, partIdx) in _messageParts(m)" :key="partIdx">
+                                    <span :class="_messagePartClass(part)" x-text="part.text"></span>
+                                </template>
+                                <span class="combat-facts" x-show="_messageFacts(m).length">
+                                    <template x-for="(fact, factIdx) in _messageFacts(m)" :key="factIdx">
+                                        <span :class="_messageFactClass(fact)"
+                                              :data-catalog="fact.catalog || null"
+                                              :data-catalog-key="fact.catalogKey || null"
+                                              :data-tippy-content="fact.tooltip || fact.text"
+                                              data-tippy-theme="game-hint">
+                                            <img x-show="fact.icon" :src="fact.icon" alt="">
+                                            <span x-text="fact.text"></span>
+                                        </span>
+                                    </template>
+                                </span>
+                            </span>
                         </div>
                     </template>
                 </div>
@@ -184,26 +824,70 @@
             <!-- SYSTEM -->
             <template x-if="chatTab === 'system'">
                 <div style="padding: 10px;">
-                    <template x-if="channels.system.length === 0">
+                    <template x-if="_visibleMessagesForTab('system').length === 0">
                         <div class="msg sys"><span class="tag-m">CORE</span>Neural link stable.</div>
                     </template>
-                    <template x-for="m in channels.system" :key="m.id">
-                        <div class="msg sys">
-                            <span class="tag-m">CORE</span>
-                            <span x-text="m.content"></span>
+                    <template x-for="(m, idx) in _visibleMessagesForTab('system')" :key="m.id">
+                        <div>
+                            <template x-if="_showCombatLogSeparator(_visibleMessagesForTab('system'), idx)">
+                                <div class="combat-log-separator">
+                                    <span x-text="_combatLogSeparator(m).label"></span>
+                                </div>
+                            </template>
+                            <div class="msg" :class="_isCombatLog(m) ? 'combat-log' : 'sys'">
+                                <span class="tag-m" x-text="_isCombatLog(m) ? 'БОЙ' : 'CORE'"></span>
+                                <span class="chat-message-view">
+                                    <img class="chat-message-icon" x-show="_messageIcon(m)" :src="_messageIcon(m)" alt="">
+                                    <template x-for="(part, partIdx) in _messageParts(m)" :key="partIdx">
+                                        <span :class="_messagePartClass(part)" x-text="part.text"></span>
+                                    </template>
+                                    <span class="combat-facts" x-show="_messageFacts(m).length">
+                                        <template x-for="(fact, factIdx) in _messageFacts(m)" :key="factIdx">
+                                            <span :class="_messageFactClass(fact)"
+                                                  :data-catalog="fact.catalog || null"
+                                                  :data-catalog-key="fact.catalogKey || null"
+                                                  :data-tippy-content="fact.tooltip || fact.text"
+                                                  data-tippy-theme="game-hint">
+                                                <img x-show="fact.icon" :src="fact.icon" alt="">
+                                                <span x-text="fact.text"></span>
+                                            </span>
+                                        </template>
+                                    </span>
+                                </span>
+                            </div>
                         </div>
                     </template>
                 </div>
             </template>
 
-            <!-- DM sessions -->
-            <template x-for="(msgs, sid) in channels.dm" :key="sid">
-                <template x-if="chatTab === 'dm_' + sid">
+            <!-- Dynamic tabs: combat sessions and private chats -->
+            <template x-for="(entry, key) in channels.dynamic" :key="key">
+                <template x-if="chatTab === key">
                     <div style="padding: 10px;">
-                        <template x-for="m in msgs" :key="m.id">
-                            <div class="msg player">
-                                <span class="tag-m" x-text="m.sender_name"></span>
-                                <span x-text="m.content"></span>
+                        <template x-if="_visibleMessagesForTab(key).length === 0">
+                            <div class="msg sys"><span class="tag-m" x-text="entry.tab.title"></span><span>Нет сообщений.</span></div>
+                        </template>
+                        <template x-for="m in _visibleMessagesForTab(key)" :key="m.id">
+                            <div class="msg" :class="entry.tab.kind === 'combat' ? 'combat' : 'player'">
+                                <span class="tag-m" x-text="m.sender_name || entry.tab.title"></span>
+                                <span class="chat-message-view">
+                                    <img class="chat-message-icon" x-show="_messageIcon(m)" :src="_messageIcon(m)" alt="">
+                                    <template x-for="(part, partIdx) in _messageParts(m)" :key="partIdx">
+                                        <span :class="_messagePartClass(part)" x-text="part.text"></span>
+                                    </template>
+                                    <span class="combat-facts" x-show="_messageFacts(m).length">
+                                        <template x-for="(fact, factIdx) in _messageFacts(m)" :key="factIdx">
+                                            <span :class="_messageFactClass(fact)"
+                                                  :data-catalog="fact.catalog || null"
+                                                  :data-catalog-key="fact.catalogKey || null"
+                                                  :data-tippy-content="fact.tooltip || fact.text"
+                                                  data-tippy-theme="game-hint">
+                                                <img x-show="fact.icon" :src="fact.icon" alt="">
+                                                <span x-text="fact.text"></span>
+                                            </span>
+                                        </template>
+                                    </span>
+                                </span>
                             </div>
                         </template>
                     </div>
@@ -212,7 +896,7 @@
         </div>
 
         <!-- Characters Zone -->
-        <div class="chat-users" id="chat-users">
+        <div class="chat-users" id="chat-users" x-show="chatTab !== 'system'">
             <div class="users-header" x-text="_rosterHeading()">ОНЛАЙН ОБЩИЙ (0)</div>
             <template x-if="_rosterItems().length === 0">
                 <div class="user-item is-empty">
@@ -235,11 +919,12 @@
           hx-trigger="chat-send"
           @submit.prevent="_sendChat($el)"
     >
-        <div class="chat-input-row" id="chat-input-row">
+        <div class="chat-input-row" id="chat-input-row" x-show="_activeTabCanSend()">
             <span id="chat-prompt">&gt;</span>
             <input id="chat-input" type="text"
                    name="chat_input"
                    :placeholder="'Сообщение: ' + _channelLabel(chatTab) + '...'"
+                   :disabled="!_activeTabCanSend()"
                    spellcheck="false"
                    autocomplete="off"
                    @keydown.enter.prevent="_sendChat($el.form)">
@@ -248,6 +933,7 @@
                     id="chat-send"
                     class="btn-node sm ghost"
                     style="padding: 0 15px; height: 28px; font-size: 10px;"
+                    :disabled="!_activeTabCanSend()"
                     @click="_sendChat($el.form)">ОТПРАВИТЬ</button>
         </div>
     </form>

@@ -314,6 +314,15 @@ html, body {
     transition: border-color 0.2s ease, background 0.2s ease, color 0.2s ease;
 }
 
+.game-account-exit-form {
+    margin: 0;
+}
+
+.game-account-exit-form .game-exit-link {
+    width: 100%;
+    cursor: pointer;
+}
+
 .game-account-item small,
 .game-account-menu .game-exit-link small {
     color: var(--col-parchment-dim);

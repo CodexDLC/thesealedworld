@@ -2,10 +2,10 @@ from src.backend.features.game_catalog.combat.resources.common.descriptions impo
     CombatEventTextSetDTO,
     build_combat_description,
 )
+from src.backend.features.game_catalog.combat.resources.common.modifier_applications import ModifierApplicationDTO
 from src.backend.features.game_catalog.combat.resources.common.targeting import TargetType
 from src.backend.features.game_catalog.combat.resources.feints.schemas import (
     FeintCatalogEntryDTO,
-    FeintConfigDTO,
     FeintCostDTO,
     FeintTechnicalDTO,
 )
@@ -16,16 +16,18 @@ TACTICAL_FEINTS_TECHNICAL = {
         cost=FeintCostDTO(tactics={"hit": 2}),
         target=TargetType.SINGLE_ENEMY,
         triggers=["accuracy.true_strike"],
-        raw_mutations={"physical_damage_mult": "-0.2"},
+        modifier_applications=[
+            ModifierApplicationDTO(modifier_id="damage_mult", value_override=-0.2),
+        ],
     ),
     "power_attack": FeintTechnicalDTO(
         feint_id="power_attack",
         cost=FeintCostDTO(tactics={"crit": 1, "hit": 1}),
         target=TargetType.SINGLE_ENEMY,
-        raw_mutations={
-            "physical_damage_mult": "+0.5",
-            "accuracy_mult": "-0.2",
-        },
+        modifier_applications=[
+            ModifierApplicationDTO(modifier_id="damage_mult", value_override=0.5),
+            ModifierApplicationDTO(modifier_id="accuracy_add", value_override=-0.2),
+        ],
     ),
     "defensive_strike": FeintTechnicalDTO(
         feint_id="defensive_strike",
@@ -134,5 +136,3 @@ TACTICAL_FEINTS_CATALOG = {
     )
     for feint_id, technical in TACTICAL_FEINTS_TECHNICAL.items()
 }
-
-TACTICAL_FEINTS = [FeintConfigDTO.from_catalog_entry(entry) for entry in TACTICAL_FEINTS_CATALOG.values()]

@@ -12,7 +12,6 @@ from src.backend.features.game_catalog.combat.resources.gifts.definitions.water 
 from src.backend.features.game_catalog.combat.resources.gifts.schemas import (
     GiftCatalogEntryDTO,
     GiftSchool,
-    GiftTechnicalDTO,
 )
 from src.backend.features.game_catalog.combat.resources.gifts.xp_config import GIFT_LEVELING
 
@@ -20,23 +19,21 @@ from src.backend.features.game_catalog.combat.resources.gifts.xp_config import G
 # ГЛОБАЛЬНЫЕ РЕЕСТРЫ (In-Memory DB)
 # ==========================================
 
-GIFT_REGISTRY: dict[str, GiftTechnicalDTO] = {}
 GIFT_CATALOG_REGISTRY: dict[str, GiftCatalogEntryDTO] = {}
 GIFT_CATALOG_BY_KEY: dict[str, GiftCatalogEntryDTO] = {}
-GIFTS_BY_SCHOOL: dict[GiftSchool, list[GiftTechnicalDTO]] = defaultdict(list)
+GIFTS_BY_SCHOOL: dict[GiftSchool, list[GiftCatalogEntryDTO]] = defaultdict(list)
 _INITIALIZED = False
 
 
 def _register_gifts(gift_entries: list[GiftCatalogEntryDTO]) -> None:
     for entry in gift_entries:
         gift = entry.technical
-        if gift.gift_id in GIFT_REGISTRY:
+        if gift.gift_id in GIFT_CATALOG_REGISTRY:
             log.warning(f"GiftLibrary | Duplicate gift ID: '{gift.gift_id}'. Overwriting.")
 
-        GIFT_REGISTRY[gift.gift_id] = gift
         GIFT_CATALOG_REGISTRY[gift.gift_id] = entry
         GIFT_CATALOG_BY_KEY[entry.key] = entry
-        GIFTS_BY_SCHOOL[gift.school].append(gift)
+        GIFTS_BY_SCHOOL[gift.school].append(entry)
 
 
 def _initialize_library() -> None:
@@ -68,15 +65,7 @@ def _initialize_library() -> None:
 # ==========================================
 
 
-def get_gift_config(gift_id: str) -> GiftTechnicalDTO | None:
-    return GIFT_REGISTRY.get(gift_id)
-
-
-def get_all_gifts() -> list[GiftTechnicalDTO]:
-    return list(GIFT_REGISTRY.values())
-
-
-def get_gifts_by_school(school: GiftSchool) -> list[GiftTechnicalDTO]:
+def get_gift_catalog_entries_by_school(school: GiftSchool) -> list[GiftCatalogEntryDTO]:
     return GIFTS_BY_SCHOOL.get(school, [])
 
 

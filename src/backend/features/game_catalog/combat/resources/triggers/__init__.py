@@ -25,7 +25,7 @@ TRIGGER_CATALOG_REGISTRY: dict[str, TriggerCatalogEntryDTO] = {}
 TRIGGER_CATALOG_BY_KEY: dict[str, TriggerCatalogEntryDTO] = {}
 
 # ==========================================
-# 4. RULES: event -> { trigger_id: {event, chance, mutations} }
+# 4. RULES: event -> { trigger_id: {event, chance, pipeline_mutations} }
 #    Consumed by CombatResolver._resolve_triggers() — preserves existing contract.
 # ==========================================
 TRIGGER_RULES: dict[str, dict[str, dict[str, Any]]] = defaultdict(dict)
@@ -48,7 +48,14 @@ def _register_triggers(entries: list[TriggerCatalogEntryDTO]) -> None:
         TRIGGER_RULES[t.event][trigger_id] = {
             "event": t.event,
             "chance": t.chance,
-            "mutations": t.mutations,
+            "pipeline_mutations": t.pipeline_mutations,
+            "applied_effect_ids": t.applied_effect_ids,
+            "token_grants_attacker": t.token_grants_attacker,
+            "token_grants_defender": t.token_grants_defender,
+            "allowed_sources": t.allowed_sources,
+            "stacking_rule": t.stacking_rule,
+            "display_policy": t.display_policy,
+            "tags": t.tags,
         }
 
 
@@ -81,19 +88,26 @@ def get_trigger_catalog_entry(trigger_id: str) -> TriggerCatalogEntryDTO | None:
 
 
 def get_trigger_catalog_entry_by_key(catalog_key: str) -> TriggerCatalogEntryDTO | None:
-    """Full catalog entry by catalog key (e.g. 'combat.trigger.crit.bleed_on_crit')."""
+    """Full catalog entry by catalog key (e.g. 'combat.trigger.weapon.heavy_crit')."""
     return TRIGGER_CATALOG_BY_KEY.get(catalog_key)
 
 
 def get_trigger_rule(trigger_id: str) -> dict[str, Any] | None:
-    """Resolver-compatible rule dict {event, chance, mutations}. Preserves existing resolver contract."""
+    """Resolver rule dict for trigger execution."""
     t = TRIGGER_REGISTRY.get(trigger_id)
     if t is None:
         return None
     return {
         "event": t.event,
         "chance": t.chance,
-        "mutations": t.mutations,
+        "pipeline_mutations": t.pipeline_mutations,
+        "applied_effect_ids": t.applied_effect_ids,
+        "token_grants_attacker": t.token_grants_attacker,
+        "token_grants_defender": t.token_grants_defender,
+        "allowed_sources": t.allowed_sources,
+        "stacking_rule": t.stacking_rule,
+        "display_policy": t.display_policy,
+        "tags": t.tags,
     }
 
 

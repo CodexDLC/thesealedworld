@@ -1,7 +1,9 @@
 import time
 
+from codex_platform.streams.codec import encode_stream_payload
 from loguru import logger as log
 
+from src.backend.config.settings import settings
 from src.backend.features.combat.dto.action import CombatActionDTO
 from src.backend.features.combat.dto.worker import CollectorSignalDTO, WorkerBatchJobDTO
 from src.backend.features.combat.runtime.processors.executor import CombatExecutor  # noqa: TC001
@@ -110,6 +112,8 @@ async def execute_batch_task(ctx: dict, job_data: dict) -> None:
 
             # 5.1. АТОМАРНЫЙ Save (state + logs + actions + targets)
             await data_service.commit_session(battle_ctx, processed_ids)
+            await _enqueue_result_support_tasks(ctx, battle_ctx)
+            await _publish_combat_logs_to_chat(ctx, battle_ctx)
 
             log.info(
                 "ExecutorSuccess | session_id={session_id} processed={count} step={step} logs={logs} deaths={deaths} target_returns={returns}",
@@ -134,3 +138,115 @@ async def execute_batch_task(ctx: dict, job_data: dict) -> None:
         # Ловим любые ошибки, чтобы воркер не упал насмерть
         log.exception("ExecutorCriticalError | session_id={session_id}", session_id=session_id)
         raise  # Reraise нужен, чтобы ARQ увидел ошибку и (возможно) сделал retry
+
+
+async def _publish_combat_logs_to_chat(ctx: dict, battle_ctx) -> None:
+    if not battle_ctx.pending_logs:
+        return
+
+    redis = ctx.get("redis_client_internal")
+    if redis is None:
+        log.warning("CombatChatPublishSkip | reason=no_redis session_id={}", battle_ctx.session_id)
+        return
+
+    recipients = _player_recipients(battle_ctx)
+    if not recipients:
+        log.warning("CombatChatPublishSkip | reason=no_recipients session_id={}", battle_ctx.session_id)
+        return
+
+    published = 0
+    for entry in battle_ctx.pending_logs:
+        payload = _combat_log_chat_payload(battle_ctx.session_id, recipients, entry)
+        try:
+            await redis.xadd(
+                settings.game_stream_name,
+                encode_stream_payload({"type": "chat.combat_log_message", **payload}),
+                maxlen=settings.game_stream_maxlen,
+                approximate=True,
+            )
+            published += 1
+        except Exception:
+            log.exception(
+                "CombatChatPublishFailed | session_id={session_id} seq={seq}",
+                session_id=battle_ctx.session_id,
+                seq=entry.get("id"),
+            )
+            continue
+
+    log.info(
+        "CombatChatPublished | session_id={session_id} messages={count} recipients={recipients}",
+        session_id=battle_ctx.session_id,
+        count=published,
+        recipients=recipients,
+    )
+
+
+async def _enqueue_result_support_tasks(ctx: dict, battle_ctx) -> None:
+    payloads = getattr(battle_ctx, "pending_result_support_tasks", None) or []
+    if not payloads:
+        return
+
+    queue = ctx.get("redis")
+    if queue is None:
+        log.warning("CombatResultSupportSkip | reason=no_arq session_id={}", battle_ctx.session_id)
+        return
+
+    enqueued = 0
+    for payload in payloads:
+        try:
+            await queue.enqueue_job("combat_result_support_task", payload)
+            enqueued += 1
+        except Exception:
+            log.exception(
+                "CombatResultSupportEnqueueFailed | session_id={session_id} seq={seq}",
+                session_id=battle_ctx.session_id,
+                seq=payload.get("seq"),
+            )
+            continue
+
+    log.info(
+        "CombatResultSupportEnqueued | session_id={session_id} tasks={count}",
+        session_id=battle_ctx.session_id,
+        count=enqueued,
+    )
+
+
+def _player_recipients(battle_ctx) -> list[str]:
+    recipients: list[str] = []
+    for actor_id, actor in battle_ctx.actors.items():
+        actor_type = getattr(actor.meta, "type", None)
+        if actor_type == "monster":
+            continue
+        value = str(actor_id)
+        if value.startswith("-"):
+            continue
+        recipients.append(value)
+    return recipients
+
+
+def _combat_log_chat_payload(session_id: str, recipients: list[str], entry: dict) -> dict:
+    global_turn = entry.get("global_turn")
+    template = dict(entry.get("template") or {})
+    template.setdefault("text", entry.get("text", ""))
+    return {
+        "scope_id": session_id,
+        "recipients": recipients,
+        "content": entry.get("text", ""),
+        "template": template,
+        "variables": entry.get("variables") or {},
+        "result": entry.get("result") or {},
+        "presentation": {
+            **(entry.get("presentation") or {}),
+            "render": "combat_log",
+            "separator": {
+                "label": f"ХОД {global_turn}" if global_turn is not None else "ХОД",
+                "key": f"combat:{session_id}:turn:{global_turn}",
+            },
+        },
+        "meta": {
+            "combat_session_id": session_id,
+            "global_turn": global_turn,
+            "wave": entry.get("wave"),
+            "seq": entry.get("id"),
+        },
+    }

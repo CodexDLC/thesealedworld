@@ -80,21 +80,6 @@ class CharacterCombatCommitmentIntegration:
             failed_monsters=failed_monsters,
         )
 
-    async def prepare_snapshots(
-        self,
-        *,
-        session_id: str,
-        player_ids: list[int],
-        monster_ids: list[str],
-        ttl: int,
-    ) -> CharacterCombatCommitmentResult:
-        return await self.prepare_commitments(
-            scope_id=session_id,
-            player_ids=player_ids,
-            monster_ids=monster_ids,
-            ttl=ttl,
-        )
-
     async def _player_commitments(
         self, scope_id: str, player_ids: list[int]
     ) -> tuple[dict[str, dict[str, Any]], list[int]]:

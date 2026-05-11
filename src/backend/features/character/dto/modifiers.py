@@ -165,6 +165,9 @@ class MitigationStatsDTO(BaseModel):
     magic_resist: float = 0.0
     resistance_cap: float = 0.85
     armor: float = 0.0
+    shield_guard_power: float = 0.0
+    shield_absorb_ratio: float = 0.40
+    shield_reflect_ratio: float = 1.0
 
 
 class ElementalStatsDTO(BaseModel):

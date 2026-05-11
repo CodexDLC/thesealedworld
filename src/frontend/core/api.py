@@ -2,7 +2,7 @@ from typing import Any, TypeVar, overload
 
 import httpx
 from loguru import logger
-from pydantic import BaseModel
+from pydantic import BaseModel, TypeAdapter
 
 T = TypeVar("T", bound=BaseModel)  # For automatic parsing into Pydantic models
 
@@ -69,7 +69,10 @@ class BaseApiClient:
             return None
 
         if response_model:
-            return response_model.model_validate(response.json())
+            data = response.json()
+            if hasattr(response_model, "model_validate"):
+                return response_model.model_validate(data)
+            return TypeAdapter(response_model).validate_python(data)
         data = response.json()
         return data if isinstance(data, dict) else {"data": data}
 

@@ -165,6 +165,23 @@ def test_avatar_widget_marks_missing_resource_data_explicitly():
     assert "DATA_MISSING" in template
 
 
+def test_avatar_widget_renders_gear_score_corner():
+    template = Path("src/frontend/templates/game/components/panel/widgets/avatar.html").read_text()
+
+    assert "gear_score" in template
+    assert ">GS<" in template
+
+
+def test_status_attribute_and_skill_widgets_are_collapsible():
+    attribute_template = Path("src/frontend/templates/game/components/panel/widgets/attribute_grid.html").read_text()
+    skill_template = Path("src/frontend/templates/game/components/panel/widgets/skill_groups.html").read_text()
+
+    for template in (attribute_template, skill_template):
+        assert 'class="status-section status-section--collapsible"' in template
+        assert 'class="sec status-section-toggle"' in template
+        assert "status-section-toggle-icon" in template
+
+
 def test_game_shell_has_inventory_hud_window_placeholder():
     template = Path("src/frontend/templates/game/base_game.html").read_text()
 
@@ -188,7 +205,23 @@ def test_inventory_window_template_defines_frontend_contract():
     assert "inventory-doll" in template
     assert "inventory-accessories" in template
     assert "inventory-belt-slots" in template
+    assert "is-locked" in template
+    assert "accessory_slot_label_map" in template
+    assert "inventory-accessory-row-label" in template
+    assert "row.row_id != 'rings'" in template
+    assert "inventory-accessory-row--{{ row.row_id }}" in template
+    assert "'ring_1': 'Кольцо 1'" in template
+    assert "'ring_2': 'Кольцо 2'" in template
+    assert "'legs_garment': 'legwear'" in template
+    assert "'feetwear': 'feetwear'" in template
+    assert "weapon_icon_base_map" in template
+    assert "'greatsword': 'weapon_two_hand'" in template
+    assert "'dagger': 'weapon_dagger'" in template
+    assert "'battle_axe': 'weapon_axe'" in template
+    assert "slot.slot_id == 'two_hand'" in template
+    assert "inventory-equip-zone--two-shadow" in template
     assert "inventory-tabs" in template
+    assert "aria-selected" in template
     assert "inventory-search" in template
     assert "inventory.visible_cards" in template
     assert "inventory_cards[:inventory.rows_visible_count]" in template
@@ -196,8 +229,17 @@ def test_inventory_window_template_defines_frontend_contract():
     assert "inventory-container-status" in template
     assert "inventory-feedback" in template
     assert "inventory-tooltip-card" in template
-    assert "hoverRow?.stats" in template
-    assert "hoverRow?.effects" in template
+    assert "inventory-equipped-icon" in template
+    assert "inventory-grade-r" in template
+    assert "inventory-gear/" in template
+    assert "data-inventory-tooltip-trigger" in template
+    assert "inventory-tooltip-template" in template
+    assert "activeInventoryTab === 'resources'" in template
+    assert "activeInventoryTab === 'quest'" in template
+    assert "hoverRow" not in template
+    assert 'hx-post="/game/inventory/action"' in template
+    assert 'x-model.debounce.150ms="searchQuery"' in template
+    assert "inventory_notice" in template
     assert "row.card_class" in template
     assert "row.comparison" in template
     assert "INVENTORY_LINK_PENDING" not in template
@@ -247,7 +289,20 @@ def test_inventory_window_template_renders_backend_contract_dto():
                     },
                 }
             ],
-            "weapon_slots": [],
+            "weapon_slots": [
+                {
+                    "slot_id": "two_hand",
+                    "label": "Two hand",
+                    "layer": "equipment",
+                    "item": {
+                        "item_id": "item-3",
+                        "base_id": "greatsword",
+                        "item_type": "weapon",
+                        "placement": "equipped",
+                        "name": "Iron Greatsword",
+                    },
+                }
+            ],
             "accessory_rows": [],
             "quick_slots": [{"slot_id": "belt_1", "slot_index": 1, "enabled": True}],
             "tabs": [{"tab_id": "items", "label": "Items", "icon": "I", "is_active": True}],
@@ -266,6 +321,14 @@ def test_inventory_window_template_renders_backend_contract_dto():
                         "item_type": "weapon",
                         "rarity": "shared",
                         "details": [{"label": "Damage", "value": "+3", "tone": "positive"}],
+                        "actions": [
+                            {
+                                "action": "equip",
+                                "label": "Equip",
+                                "slot_id": "main_hand",
+                                "style": "primary",
+                            }
+                        ],
                     },
                 }
             ],
@@ -275,13 +338,44 @@ def test_inventory_window_template_renders_backend_contract_dto():
     html = template.render(inventory_window=inventory)
 
     assert 'data-contract-state="SHARED_INVENTORY_CONTRACT_V1"' in html
+    assert "x-data='{" in html
+    assert '"activeInventoryTab": "items"' in html
+    assert '"selectedSlot": null' in html
+    assert '"inventoryNotice": ""' in html
+    assert '"searchQuery": ""' in html
+    assert 'inventoryNotice: "' not in html
     assert "Leather Armor" in html
     assert "Bronze Sword" in html
+    assert "inventory-gear/weapon.svg" in html
+    assert "inventory-equipped-icon" in html
+    assert "inventory-grade-r0" in html
+    assert 'hx-post="/game/inventory/action"' in html
+    assert '"action": "unequip"' in html
+    assert '"item_id": "item-1"' in html
+    assert "Iron Greatsword" in html
+    assert 'data-slot-id="two_hand-shadow"' in html
+    assert '"item_id": "item-3"' in html
+    assert '"slot_id": "two_hand"' in html
+    assert '"action": "equip"' in html
+    assert '"slot_id": "main_hand"' in html
     assert 'data-inventory-cells="64"' in html
+
+    locked_html = template.render(
+        inventory_window=inventory.model_copy(
+            update={
+                "can_act": False,
+                "forbidden_reason": "Вы не можете пользоваться инвентарём сейчас.",
+            }
+        )
+    )
+    assert "inventoryNotice = &#34;\\u0412\\u044b" in locked_html
+    assert "inventoryNotice = \"Вы не можете пользоваться инвентарём сейчас.\"" not in locked_html
+    assert "&#34;Bronze Sword&#34;.toLowerCase()" in locked_html
+    assert '|| "Bronze Sword".toLowerCase()' not in locked_html
 
 
 def test_inventory_card_mapper_builds_grid_card_from_type_and_numeric_size():
-    assert inventory_card_dimensions("armor", 0, 0) == (4, 2)
+    assert inventory_card_dimensions("armor", 0, 0) == (2, 2)
     assert inventory_card_dimensions("quest", 12, 7) == (8, 4)
     assert inventory_card_class("armor", 2, 2) == (
         "inventory-card--armor inventory-card--square inventory-card--medium inventory-card--2x2"
@@ -303,20 +397,30 @@ def test_inventory_card_mapper_builds_grid_card_from_type_and_numeric_size():
         )
     )
 
-    assert card.grid_w == 4
+    assert card.grid_w == 2
     assert card.grid_h == 2
-    assert card.style == "--item-w: 4; --item-h: 2;"
-    assert card.card_class == "inventory-card--armor inventory-card--wide inventory-card--large inventory-card--4x2"
-    assert card.details == ["Type: armor", "Weight: 1.2", "Qty: 1", "Rank: common", "Heat resist +5"]
+    assert card.style == "--item-w: 2; --item-h: 2;"
+    assert card.card_class == "inventory-card--armor inventory-card--square inventory-card--medium inventory-card--2x2"
+    assert card.details == ["Тип: armor", "Вес: 1.2", "Кол-во: 1", "Грейд: common", "Heat resist +5"]
 
 
 def test_inventory_css_has_loadout_container_and_table_contract():
     source = Path("src/frontend/static/css/components/inventory.css").read_text()
     bundle = Path("src/frontend/static/css/game_bundle.css").read_text()
+    legwear_icon = Path("src/frontend/static/images/ui/inventory-gear/legwear.svg")
+    weapon_two_hand_icon = Path("src/frontend/static/images/ui/inventory-gear/weapon_two_hand.svg")
 
     assert ".inventory-loadout" in source
     assert ".inventory-equip-zone--head" in source
     assert ".inventory-equip-zone--outer" in source
+    assert ".inventory-equip-zone--main { grid-column: 3; grid-row: 2; }" in source
+    assert ".inventory-equip-zone--off { grid-column: 1; grid-row: 2; }" in source
+    assert ".inventory-equip-zone--two" in source
+    assert ".inventory-equip-zone--two { grid-column: 3; grid-row: 2; }" in source
+    assert ".inventory-equip-zone--two-shadow { grid-column: 1; grid-row: 2; }" in source
+    assert ".inventory-equip-zone--two-shadow .inventory-slot-title" in source
+    assert "display: none" in source
+    assert "grid-column: 1 / 4; grid-row: 2" not in source
     assert ".inventory-accessory-row--split" in source
     assert ".inventory-belt-slots" in source
     assert ".inventory-table-body" in source
@@ -333,10 +437,22 @@ def test_inventory_css_has_loadout_container_and_table_contract():
     assert "--inventory-grid-cols: 8" in source
     assert "grid-template-columns: repeat(4, minmax(28px, 34px))" in source
     assert ".inventory-tooltip-card" in source
+    assert ".inventory-tooltip-affix" in source
+    assert ".inventory-tooltip-section-title" in source
+    assert ".inventory-accessory-row-label" in source
+    assert ".inventory-accessory-row--rings .inventory-accessory-slot" in source
+    assert ".inventory-accessory-row--split .inventory-accessory-slot-label" in source
     assert ".inventory-tooltip-meta" in source
+    assert ".inventory-equipped-icon" in source
+    assert ".inventory-grade-r7" in source
+    assert "--inventory-item-icon-url" in source
+    assert "--inventory-tooltip-icon-url" in source
+    assert "-webkit-mask" in source
     assert ".inventory-card--square" in source
     assert ".inventory-card--wide" in source
     assert "fabric_leather_02_diff_1k.webp" in source
+    assert legwear_icon.exists()
+    assert weapon_two_hand_icon.exists()
     assert '@import url("components/cards.css");' in bundle
 
 
@@ -352,6 +468,18 @@ def test_game_shell_drag_logic_lives_in_source_js():
     assert "resizeHudWindow" in source
     assert "moveHudWindow" in source
     assert "core/game_shell.js" in config
+
+
+def test_inventory_frontend_route_proxies_actions_to_backend():
+    route = Path("src/frontend/game_features/inventory/routes/fragments.py").read_text()
+    client = Path("src/frontend/integrations/backend_api/inventory.py").read_text()
+
+    assert '@router.post("/game/inventory/action"' in route
+    assert "InventoryActionRequestDTO.model_validate" in route
+    assert "inventory_api.action" in route
+    assert "HTTP_409_CONFLICT" in route
+    assert "async def action" in client
+    assert '"/api/game/inventory/actions"' in client
 
 
 def test_game_header_nav_marks_open_panels_and_windows_active():

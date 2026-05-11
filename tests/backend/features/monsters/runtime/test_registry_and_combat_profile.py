@@ -58,7 +58,7 @@ def test_monster_natural_equipment_is_registered_as_item_base() -> None:
 
     assert weapon is not None
     assert weapon["slot"] == "main_hand"
-    assert weapon["triggers"] == ["crit.bleed_on_crit"]
+    assert weapon["triggers"] == ["crit.weapon_serrated_bleed_crit"]
     assert armor is not None
     assert armor["slot"] == "chest_armor"
     assert anchor_weapon is not None
@@ -110,12 +110,13 @@ async def test_rat_beast_profile_builds_combat_ready_context() -> None:
     assert combat["math_model"]["attributes"]["intellect"]["base"] >= 0
     assert combat["math_model"]["modifiers"]["main_hand_damage_base"]["base"] > 0
     assert combat["loadout"]["layout"]["main_hand"] == "skill_unarmed"
-    assert combat["loadout"]["layout"]["main_hand_trigger"] == "crit.bleed_on_crit"
+    assert combat["loadout"]["layout"]["main_hand_trigger"] == "crit.weapon_serrated_bleed_crit"
     assert combat["loadout"]["layout"]["body"] == "skill_light_armor"
     assert combat["loadout"]["equipment_layout"]["main_hand"] == "rat_bite_claws"
     assert combat["loadout"]["equipment_layout"]["chest_armor"] == "light_hide"
     assert combat["loadout"]["known_abilities"]
-    assert "close_grapple" in combat["loadout"]["known_feints"]
+    assert "measured_strike" in combat["loadout"]["known_feints"]
+    assert "close_grapple" not in combat["loadout"]["known_feints"]
     assert combat["skills"]["skill_unarmed"] >= 0.2
     assert vitals["hp_current"] > 0
 
@@ -146,4 +147,5 @@ async def test_bandit_humanoid_loadout_resolves_into_modifiers_and_layout() -> N
     assert combat["math_model"]["modifiers"]["main_hand_damage_base"]["base"] > 0
     assert combat["math_model"]["modifiers"]["armor"]["base"] > 0
     assert combat["skills"]["skill_macing"] >= 0.2
-    assert "guard_breaker" in combat["loadout"]["known_feints"]
+    assert "measured_strike" in combat["loadout"]["known_feints"]
+    assert "guard_breaker" not in combat["loadout"]["known_feints"]

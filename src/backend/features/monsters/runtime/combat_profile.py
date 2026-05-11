@@ -234,6 +234,7 @@ def _build_combat_loadout(
     equipment_layout: dict[str, str] = {}
     hand_usage: dict[str, str] = {}
     weapon_slots: list[str] = []
+    weapon_tiers: dict[str, int] = {}
     tags = list(raw_tags)
 
     for item in equipment:
@@ -258,6 +259,8 @@ def _build_combat_loadout(
             hand_usage["main_hand"] = "two_hand"
         if item_type == "weapon" and slot != "two_hand":
             weapon_slots.append(combat_slot)
+        if item_type == "weapon" and combat_slot in {"main_hand", "off_hand"}:
+            weapon_tiers[combat_slot] = _weapon_tier(item)
 
         tags.extend(_list_str(item.get("narrative_tags")))
 
@@ -267,6 +270,7 @@ def _build_combat_loadout(
         "hand_usage": hand_usage,
         "two_handed": bool(hand_usage),
         "weapon_slots": sorted(set(weapon_slots)),
+        "weapon_tiers": weapon_tiers,
         "belt": [],
         "abilities": abilities["mechanics"],
         "known_abilities": abilities["mechanics"],
@@ -290,6 +294,14 @@ def _skill_key_for_item(combat_slot: str, item: dict[str, Any]) -> str | None:
 def _first_trigger(item: dict[str, Any]) -> str | None:
     raw = item.get("triggers") or []
     return str(raw[0]) if isinstance(raw, list) and raw else None
+
+
+def _weapon_tier(item: dict[str, Any]) -> int:
+    raw = item.get("tier", item.get("rarity_tier", 0))
+    try:
+        return max(1, int(raw) + 1)
+    except (TypeError, ValueError):
+        return 1
 
 
 def _resolve_abilities(monster: MonsterCombatSource, family: MonsterFamilyDTO | None) -> dict[str, Any]:

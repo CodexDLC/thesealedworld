@@ -86,6 +86,3 @@ class CharacterAttributes(Base, TimestampMixin):
     prediction: Mapped[int] = mapped_column(Integer, default=8, nullable=False)
 
     character: Mapped[Character] = relationship("Character", back_populates="attributes")
-
-
-CharacterStats = CharacterAttributes

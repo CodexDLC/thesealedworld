@@ -156,6 +156,15 @@ class ClanFactory:
             "biome_id": context.biome_id,
             "difficulty": context.difficulty,
             "tier": context.tier,
+            "text_contract": {
+                "clan": ["name_ru", "description"],
+                "member": ["name", "appearance", "detected", "ambush", "idle", "encounter", "behavior"],
+                "encounter_states": {
+                    "detected": "player noticed the monster first",
+                    "ambush": "monster noticed or attacked first",
+                    "idle": "monster is observed before combat starts",
+                },
+            },
             "units_to_name": units_with_roles,
         }
 
@@ -183,6 +192,9 @@ class ClanFactory:
                 variant_id: {
                     "name": family.variants[variant_id].id.replace("_", " ").title(),
                     "appearance": family.variants[variant_id].narrative_hint,
+                    "detected": "The creature moves into view, watching for weakness.",
+                    "ambush": "The creature lunges from cover before the target can settle.",
+                    "idle": "It keeps to the clan's hunting pattern.",
                     "encounter": "The creature moves into view, watching for weakness.",
                     "behavior": "It keeps to the clan's hunting pattern.",
                 }

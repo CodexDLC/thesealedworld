@@ -8,6 +8,28 @@ from src.frontend.config.settings import settings
 from src.frontend.integrations.backend_api.auth import BackendAuthApi
 from src.frontend.site_features.auth.services.auth_service import FrontendAuthService
 
+ANALYTICS_SKIP_PREFIXES = ("/static/", "/library/", "/cabinet/", "/health")
+ANALYTICS_EVENT_PATHS: dict[str, str] = {
+    "/auth/register": "registrations",
+    "/lobby": "lobby_visits",
+    "/game/join": "game_joins",
+}
+
+
+class SiteAnalyticsMiddleware(BaseHTTPMiddleware):
+    """Increments in-memory counters for key site events. Fire-and-forget, never blocks."""
+
+    async def dispatch(self, request: Request, call_next) -> Response:
+        path = request.url.path
+        if not path.startswith(ANALYTICS_SKIP_PREFIXES):
+            counters: dict[str, int] = getattr(request.app.state, "site_analytics", {})
+            counters["visits"] = counters.get("visits", 0) + 1
+            event_key = ANALYTICS_EVENT_PATHS.get(path)
+            if event_key:
+                counters[event_key] = counters.get(event_key, 0) + 1
+        return await call_next(request)
+
+
 AUTH_LOOKUP_SKIP_EXACT_PATHS = {
     "/favicon.ico",
     "/health",

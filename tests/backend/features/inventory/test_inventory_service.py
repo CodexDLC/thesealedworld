@@ -137,9 +137,54 @@ async def test_open_window_maps_real_item_card_fields(fake_redis_service, fake_r
     assert axe.grid_h == 2
     assert axe.equip_target == "main_hand"
     assert axe.valid_slots == ["main_hand", "off_hand"]
-    assert axe.icon == "weapon"
+    assert axe.icon == "weapon_axe"
     assert all(row.item_id != "helm-1" for row in window.visible_rows)
     assert window.body_zones[0].primary_slot.item.item_id == "helm-1"
+
+
+@pytest.mark.asyncio
+async def test_open_window_uses_distinct_legwear_and_feetwear_icons(fake_redis_service, fake_redis_client):
+    _active_character(fake_redis_client, state="exploration")
+    service = _service(
+        fake_redis_service,
+        [
+            _item("pants-1", "garment", slot="legs_garment"),
+            _item("boots-1", "garment", slot="feetwear"),
+            _item("greaves-1", "armor", slot="legs_armor"),
+        ],
+    )
+
+    window = await service.open_window(7)
+
+    rows = {row.item_id: row for row in window.visible_rows}
+    assert rows["pants-1"].icon == "legwear"
+    assert rows["boots-1"].icon == "feetwear"
+    assert rows["greaves-1"].icon == "legs"
+
+
+@pytest.mark.asyncio
+async def test_open_window_uses_weapon_family_icons_and_two_hand_slot(fake_redis_service, fake_redis_client):
+    _active_character(fake_redis_client, state="exploration")
+    service = _service(
+        fake_redis_service,
+        [
+            _item("sword-1", "weapon", slot="main_hand", tags=["sword"]),
+            _item("dagger-1", "weapon", slot="main_hand", tags=["dagger"]),
+            _item("battle_axe-1", "weapon", slot="main_hand", tags=["axe"]),
+            _item("greatsword-1", "weapon", slot="two_hand", placement="equipped", tags=["two_handed"]),
+        ],
+    )
+
+    window = await service.open_window(7)
+
+    rows = {row.item_id: row for row in window.visible_rows}
+    assert rows["sword-1"].icon == "weapon_sword"
+    assert rows["dagger-1"].icon == "weapon_dagger"
+    assert rows["battle_axe-1"].icon == "weapon_axe"
+    assert len(window.weapon_slots) == 1
+    assert window.weapon_slots[0].slot_id == "two_hand"
+    assert window.weapon_slots[0].label == "Две руки"
+    assert window.weapon_slots[0].item.item_id == "greatsword-1"
 
 
 @pytest.mark.asyncio
@@ -168,7 +213,19 @@ async def test_open_window_builds_structured_item_tooltip_without_html(fake_redi
                     "valid_slots": ["main_hand"],
                     "power": 9,
                     "implicit_bonuses": {"initiative": 3, "parry_chance": 0.12, "stamina_regen": -1},
-                    "affixes": [{"affix_id": "crit_chance", "value": 0.045, "source": "single:combat_offense"}],
+                    "affixes": [
+                        {"affix_id": "crit_chance", "value": 0.045, "source": "single:combat_offense"},
+                        {
+                            "affix_id": "control_resistance_bonus",
+                            "value": 0.0125,
+                            "source": "single:combat_control",
+                        },
+                        {
+                            "affix_id": "armor_penetration_bonus",
+                            "value": 0.0147,
+                            "source": "single:combat_offense",
+                        },
+                    ],
                     "bonuses": {"physical_damage_bonus": 99},
                     "effects": ["void_touched"],
                     "requirements": [{"label": "STR", "value": "12", "current": "14", "met": True}],
@@ -188,35 +245,76 @@ async def test_open_window_builds_structured_item_tooltip_without_html(fake_redi
     details = row.details
     assert details is not None
     assert row.rarity_tier == 4
-    assert row.rarity_label == "Epic"
+    assert row.rarity_label == "Эпический"
     assert details.description == "Structured item details."
     assert details.flavor == "A clean tooltip payload."
-    assert any(line.label == "Power" and line.value == "9" and line.tone == "neutral" for line in details.details)
+    assert details.item_type_label == "Оружие"
+    assert any(line.label == "Урон" and line.value == "9" and line.tone == "neutral" for line in details.details)
     assert any(
-        line.label == "Parry Chance" and line.value == "12%" and line.tone == "neutral" for line in details.details
+        line.label == "Парирование" and line.value == "12%" and line.tone == "neutral" for line in details.details
     )
     assert any(
-        line.label == "Stamina Regen" and line.value == "1" and line.tone == "neutral" for line in details.details
+        line.label == "Восстановление выносливости" and line.value == "1" and line.tone == "neutral"
+        for line in details.details
     )
-    assert any(line.label == "Critical Chance" and line.value == "+4.5% Crit Chance" for line in details.details)
-    assert all(line.label != "Physical Damage Bonus" for line in details.details)
     assert any(
-        line.label == "Power" and line.value == "+4" and line.delta == 4 and line.tone == "positive"
+        line.label == "Шанс крита" and line.value == "+4.5%" and line.tier == 4
+        for line in details.affixes
+    )
+    assert any(
+        line.label == "Сопротивление контролю" and line.value == "+1.25%" and line.tier == 4
+        for line in details.affixes
+    )
+    assert any(
+        line.label == "Пробитие физ. защиты" and line.value == "+1.47%" and line.tier == 4
+        for line in details.affixes
+    )
+    assert all(line.label != "Физический урон" for line in details.details)
+    assert any(
+        line.label == "Урон" and line.value == "+4" and line.delta == 4 and line.tone == "positive"
         for line in details.comparison
     )
     assert any(
-        line.label == "Parry Chance" and line.value == "+8%" and line.delta == pytest.approx(0.08)
+        line.label == "Парирование" and line.value == "+8%" and line.delta == pytest.approx(0.08)
         for line in details.comparison
     )
     assert details.effects[0].label == "Void Touched"
     assert details.tags[0].label == "two_handed"
     assert details.requirements[0].met is True
-    assert any(field.label == "Source" and field.value == "test" for field in details.meta)
+    assert any(field.label == "Источник" and field.value == "test" for field in details.meta)
     assert details.actions[0].action == "equip"
     assert details.actions[0].slot_id == "main_hand"
     dumped = details.model_dump_json()
     assert "<" not in dumped
     assert "item-card" not in dumped
+
+
+@pytest.mark.asyncio
+async def test_open_window_maps_power_label_by_item_role(fake_redis_service, fake_redis_client):
+    _active_character(fake_redis_client, state="exploration")
+    service = _service(
+        fake_redis_service,
+        [
+            _item("sword-1", "weapon", slot="main_hand", mechanics={"valid_slots": ["main_hand"], "power": 7}),
+            _item("helm-1", "armor", slot="head_armor", mechanics={"valid_slots": ["head_armor"], "power": 3}),
+            _item(
+                "tunic-1",
+                "garment",
+                slot="chest_garment",
+                mechanics={"valid_slots": ["chest_garment"], "power": 2},
+            ),
+        ],
+    )
+
+    window = await service.open_window(7)
+
+    rows = {row.item_id: row.details for row in window.visible_rows}
+    assert rows["sword-1"] is not None
+    assert rows["helm-1"] is not None
+    assert rows["tunic-1"] is not None
+    assert any(line.label == "Урон" and line.value == "7" for line in rows["sword-1"].details)
+    assert any(line.label == "Броня" and line.value == "3" for line in rows["helm-1"].details)
+    assert any(line.label == "Защита" and line.value == "2" for line in rows["tunic-1"].details)
 
 
 @pytest.mark.asyncio
@@ -243,8 +341,8 @@ async def test_open_window_shows_belt_power_as_inventory_cells(fake_redis_servic
 
     details = window.accessory_rows[-1].slots[0].details
     assert details is not None
-    assert any(line.label == "Inventory Cell Capacity" and line.value == "8" for line in details.details)
-    assert any(line.label == "Quick Slot Capacity" and line.value == "4" for line in details.details)
+    assert any(line.label == "Ячейки инвентаря" and line.value == "8" for line in details.details)
+    assert any(line.label == "Слоты пояса" and line.value == "4" for line in details.details)
 
 
 @pytest.mark.asyncio
@@ -275,6 +373,7 @@ async def test_equip_action_updates_inventory_session_and_active_character_items
     assert inventory_doc["is_dirty"] is True
     assert inventory_doc["layout"]["equipment"]["feetwear"] == "boots-1"
     assert active_doc["items"]["layout"]["equipment"]["feetwear"] == "boots-1"
+    assert "sync_dirty" not in active_doc
 
 
 @pytest.mark.asyncio

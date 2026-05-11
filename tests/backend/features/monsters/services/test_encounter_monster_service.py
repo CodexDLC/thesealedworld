@@ -143,7 +143,7 @@ async def test_prepare_encounter_creates_clan_and_returns_monster_ids() -> None:
 
 
 @pytest.mark.unit
-async def test_population_creates_only_one_clan_per_context_by_default() -> None:
+async def test_ensure_clan_for_context_creates_one_requested_family() -> None:
     repo = FakeMonsterRepository()
     service = EncounterMonsterService(repo)
     context = MonsterGenerationContext(
@@ -154,7 +154,26 @@ async def test_population_creates_only_one_clan_per_context_by_default() -> None
         difficulty="mid",
     )
 
-    clans = await service.ensure_population_for_context(context)
+    clan = await service.ensure_clan_for_context(context, "goblin_tribe")
 
-    assert len(clans) == 1
+    assert clan.family_id == "goblin_tribe"
+    assert len(repo.clans_by_unique) == 1
+
+
+@pytest.mark.unit
+async def test_ensure_clan_for_context_reuses_existing_family_context_hash() -> None:
+    repo = FakeMonsterRepository()
+    service = EncounterMonsterService(repo)
+    context = MonsterGenerationContext(
+        zone_id="D4_0_1",
+        biome_id="city_ruins",
+        tier=1,
+        tags=["mana_leak"],
+        difficulty="mid",
+    )
+
+    first = await service.ensure_clan_for_context(context, "goblin_tribe")
+    second = await service.ensure_clan_for_context(context, "goblin_tribe")
+
+    assert second.id == first.id
     assert len(repo.clans_by_unique) == 1

@@ -218,6 +218,7 @@ async def on_skills_unlock_requested(payload: dict[str, Any]) -> None:
         char_id = int(payload["char_id"])
         skill_keys = _parse_skill_keys(payload)
         progress_state = SkillProgressState(payload.get("progress_state") or SkillProgressState.PLUS.value)
+        initial_xp = _parse_initial_xp(payload)
         async with get_session_context() as session:
             service = CharacterSkillService(
                 state_integrator=CharacterStateIntegrator(
@@ -226,7 +227,12 @@ async def on_skills_unlock_requested(payload: dict[str, Any]) -> None:
                     skill_repo=SkillRepository(session),
                 ),
             )
-            unlocked = await service.unlock_skills(char_id, skill_keys, progress_state=progress_state)
+            unlocked = await service.unlock_skills(
+                char_id,
+                skill_keys,
+                progress_state=progress_state,
+                initial_xp=initial_xp,
+            )
 
         ack: dict[str, Any] = {"status": "ok", "char_id": char_id, "skill_keys": unlocked}
         await _app.state.events.publish(
@@ -255,6 +261,14 @@ def _parse_skill_keys(payload: dict[str, Any]) -> list[str]:
     if not isinstance(parsed, list):
         raise ValueError("skill_keys must be a list")
     return [str(skill_key) for skill_key in parsed if skill_key]
+
+
+def _parse_initial_xp(payload: dict[str, Any]) -> float:
+    raw = payload.get("initial_xp", payload.get("initial_skill_xp", 0.0))
+    try:
+        return min(1.0, max(0.0, float(raw or 0.0)))
+    except (TypeError, ValueError):
+        raise ValueError("initial_xp must be a number") from None
 
 
 def _parse_json_list(raw: Any) -> list[Any]:

@@ -8,10 +8,15 @@ from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING, Any
 
 from src.backend.features.combat.dto import CollectorSignalDTO, CombatMoveDTO, ExchangePayload, InstantPayload
+from src.backend.features.combat.dto.ids import normalize_actor_id
+from src.backend.features.combat.exceptions import CombatFeintUnavailableError, CombatSessionNotFoundError
 from src.backend.features.combat.integrations import CombatSessionIntegration
 from src.backend.features.combat.services.result_archive_service import CombatResultArchiveService
 from src.backend.features.combat.services.turn_manager import CombatTurnManager
 from src.backend.features.combat.services.view_service import CombatViewService
+from src.shared.enums import CoreDomain
+from src.shared.schemas.combat import CombatResultActionDTO, CombatResultDTO
+from src.shared.schemas.response import StateTransitionDTO
 
 if TYPE_CHECKING:
     from src.backend.features.combat.integrations import CombatSystemIntegrator
@@ -20,7 +25,6 @@ if TYPE_CHECKING:
         CombatLogDTO,
         CombatPinFeintRequestDTO,
         CombatRegisterMoveRequestDTO,
-        CombatResultDTO,
     )
 
 AFK_TIMEOUTS = {0: 60, 1: 50, 2: 40, 3: 30}
@@ -32,10 +36,6 @@ MOVE_RESPONSE_SETTLE_DELAY_SECONDS = 0.6
 class NullArqQueue:
     async def enqueue_job(self, function: str, *args: Any, **kwargs: Any) -> Any | None:
         return None
-
-
-class CombatSessionNotFoundError(ValueError):
-    """Raised when an actor is not attached to a combat session."""
 
 
 CombatSessionNotFound = CombatSessionNotFoundError
@@ -61,7 +61,6 @@ class CombatSessionService:
         combat_id = session_id or await self._resolve_session_id(char_id)
         meta = await self.store.get_meta(combat_id)
         if meta is None:
-            await self.system_integrator.recover_missing_combat_session(char_id, combat_id=combat_id)
             raise CombatSessionNotFoundError(f"Combat session not found: {combat_id}")
 
         actor_ids = self._actor_ids_from_meta(meta)
@@ -107,7 +106,7 @@ class CombatSessionService:
         combat_id = session_id or await self._resolve_session_id(char_id)
         success = await self.store.pin_feint(combat_id, char_id, body.feint_id)
         if not success:
-            raise ValueError("Feint is not in hand")
+            raise CombatFeintUnavailableError("Feint is not in hand", context={"feint_id": body.feint_id})
         return await self.get_dashboard(char_id, session_id=combat_id)
 
     async def register_move_request(self, session_id: str, actor_id: int, payload: dict[str, Any]) -> CombatMoveDTO:
@@ -123,7 +122,6 @@ class CombatSessionService:
         session_id = await self._resolve_session_id(char_id)
         meta = await self.store.get_meta(session_id)
         if meta is None:
-            await self.system_integrator.recover_missing_combat_session(char_id, combat_id=session_id)
             raise CombatSessionNotFound(f"Combat session not found: {session_id}")
         actor_ids = self._actor_ids_from_meta(meta)
         actors = await self.store.get_actors_batch(session_id, actor_ids)
@@ -160,26 +158,86 @@ class CombatSessionService:
             total=total,
         )
 
-    async def get_legacy_logs(self, char_id: int, *, page: int = 0, page_size: int = 50) -> dict[str, Any]:
-        session_id = await self._resolve_session_id(char_id)
-        start = max(0, page) * page_size
-        stop = start + page_size - 1
-        raw_logs = await self.store.get_logs(session_id, start=start, stop=stop)
-        return {"session_id": session_id, "page": page, "items": [self._decode_log(item) for item in raw_logs]}
-
     async def get_archived_result(
         self,
         char_id: int,
         *,
         reason: str = "combat_session_not_found",
     ) -> CombatResultDTO:
+        result = await self.find_archived_result(char_id, reason=reason)
+        if result is not None:
+            return result
+
         combat_id = await self.system_integrator.resolve_combat_session_for_character(char_id)
+        finalization_id = await self._resolve_finalization_id(char_id)
         target_state = await self.system_integrator.resolve_return_state_for_character(char_id)
         return await self.result_archive.get_result_for_character(
+            char_id,
+            combat_id=finalization_id or combat_id,
+            reason=reason,
+            target_state=target_state,
+        )
+
+    async def find_archived_result(
+        self,
+        char_id: int,
+        *,
+        reason: str = "combat_session_not_found",
+    ) -> CombatResultDTO | None:
+        combat_id = await self.system_integrator.resolve_combat_session_for_character(char_id)
+        finalization_id = await self._resolve_finalization_id(char_id)
+        target_state = await self.system_integrator.resolve_return_state_for_character(char_id)
+        finalization = await self.result_archive.load_finalization_for_character(
+            self.store,
+            char_id,
+            combat_id=combat_id,
+            finalization_id=finalization_id,
+        )
+        if finalization is not None:
+            result = self.result_archive.build_result_from_finalization(
+                finalization,
+                char_id=char_id,
+                reason=reason,
+                target_state=target_state,
+            )
+            await self._mark_finalized_if_needed(char_id, result.combat_id, finalization_id=finalization_id)
+            return result
+        runtime_result = await self._build_runtime_history_result(
             char_id,
             combat_id=combat_id,
             reason=reason,
             target_state=target_state,
+        )
+        if runtime_result is not None:
+            await self._mark_finalized_if_needed(char_id, runtime_result.combat_id, finalization_id=finalization_id)
+            return runtime_result
+        return None
+
+    async def recover_missing_combat_transition(
+        self,
+        char_id: int,
+        *,
+        reason: str,
+        combat_id: str | None = None,
+    ) -> StateTransitionDTO:
+        target = await self.system_integrator.recover_missing_combat_session(char_id, combat_id=combat_id)
+        target_state = self._core_domain(target)
+        return StateTransitionDTO(
+            char_id=char_id,
+            target_state=target_state,
+            reason=reason,
+            combat_id=combat_id,
+        )
+
+    async def continue_result(self, char_id: int) -> StateTransitionDTO:
+        combat_id = await self._resolve_finalization_id(char_id)
+        target = await self.system_integrator.complete_combat_session_return(char_id, combat_id=combat_id)
+        target_state = self._core_domain(target)
+        return StateTransitionDTO(
+            char_id=char_id,
+            target_state=target_state,
+            reason="combat_result_continued",
+            combat_id=combat_id,
         )
 
     async def get_history(self, char_id: int, *, session_id: str | None = None) -> CombatLogDTO:
@@ -197,18 +255,51 @@ class CombatSessionService:
     async def _resolve_session_id(self, char_id: int) -> str:
         combat_id = await self.system_integrator.resolve_combat_session_for_character(char_id)
         if not combat_id:
-            await self.system_integrator.recover_missing_combat_session(char_id)
             raise CombatSessionNotFoundError(f"Character {char_id} is not in active combat")
         return combat_id
+
+    async def _resolve_finalization_id(self, char_id: int) -> str | None:
+        resolver = getattr(self.system_integrator, "resolve_combat_finalization_for_character", None)
+        if resolver is None:
+            return None
+        return await resolver(char_id)
+
+    async def _mark_finalized_if_needed(
+        self,
+        char_id: int,
+        combat_id: str | None,
+        *,
+        finalization_id: str | None,
+    ) -> None:
+        if finalization_id or not combat_id:
+            return
+        marker = getattr(self.system_integrator, "mark_combat_finalized", None)
+        if marker is not None:
+            await marker(char_id, combat_id)
+
+    @staticmethod
+    def _core_domain(value: str | None) -> CoreDomain:
+        if not value:
+            return CoreDomain.EXPLORATION
+        try:
+            return CoreDomain(str(value))
+        except ValueError:
+            return CoreDomain.EXPLORATION
 
     async def _enqueue_collector(self, session_id: str, actor_id: int, move_id: str) -> None:
         state = await self.store.get_actor_state(session_id, actor_id) or {}
         timeout = AFK_TIMEOUTS.get(int(state.get("afk_level", 0) or 0), MIN_TIMEOUT)
         immediate = CollectorSignalDTO(
-            session_id=session_id, char_id=actor_id, signal_type="check_immediate", move_id=move_id
+            session_id=session_id,
+            char_id=normalize_actor_id(actor_id),
+            signal_type="check_immediate",
+            move_id=move_id,
         )
         timeout_signal = CollectorSignalDTO(
-            session_id=session_id, char_id=actor_id, signal_type="check_timeout", move_id=move_id
+            session_id=session_id,
+            char_id=normalize_actor_id(actor_id),
+            signal_type="check_timeout",
+            move_id=move_id,
         )
         await self.arq.enqueue_job("combat_collector_task", immediate.model_dump(mode="json"))
         await self.arq.enqueue_job(
@@ -237,6 +328,57 @@ class CombatSessionService:
             return len(fallback_logs_by_turn)
         return len(await self._get_logs_by_turn(session_id))
 
+    async def _build_runtime_history_result(
+        self,
+        char_id: int,
+        *,
+        combat_id: str | None,
+        reason: str,
+        target_state: str,
+    ) -> CombatResultDTO | None:
+        if not combat_id:
+            return None
+        try:
+            meta = await self.store.get_meta(combat_id)
+        except Exception:
+            meta = None
+        if not meta or not self._is_finished_meta(meta):
+            return None
+
+        try:
+            logs_by_turn = await self._get_logs_by_turn(combat_id)
+        except Exception:
+            logs_by_turn = {}
+
+        winner = self._meta_string(meta.get("winner"))
+        viewer_team = self._team_for_actor(meta, char_id)
+        outcome = self._outcome_for_actor(winner=winner, viewer_team=viewer_team)
+        last_turn = self._last_log_turn(logs_by_turn)
+        summary = self._result_summary(outcome=outcome, winner=winner, last_turn=last_turn)
+        return CombatResultDTO(
+            combat_id=combat_id,
+            char_id=char_id,
+            status="finished",
+            outcome=outcome,
+            title=self._result_title(outcome),
+            message="Бой завершен. Живой runtime-снимок уже закрыт.",
+            summary=summary,
+            reason=reason,
+            archived=True,
+            metadata={
+                "source": "combat_runtime_history",
+                "winner": winner,
+                "viewer_team": viewer_team,
+                "turns": len(logs_by_turn),
+                "last_turn": last_turn,
+            },
+            primary_action=CombatResultActionDTO(
+                label="Продолжить",
+                action="navigate",
+                target_state=target_state,
+            ),
+        )
+
     @staticmethod
     def _slice_log_turns_from_end(
         logs_by_turn: dict[str, list[str]], *, page: int, page_size: int
@@ -258,6 +400,74 @@ class CombatSessionService:
             grouped.setdefault(turn, []).append(raw)
         return grouped
 
+    @staticmethod
+    def _is_finished_meta(meta: dict[str, Any]) -> bool:
+        status = str(meta.get("status") or "").lower()
+        active = str(meta.get("active") or "")
+        winner = str(meta.get("winner") or "")
+        return status == "finished" or active == "0" or bool(winner)
+
+    @staticmethod
+    def _meta_string(value: Any) -> str | None:
+        if value is None:
+            return None
+        text = str(value).strip()
+        if not text or text.lower() in {"none", "null", "unknown"}:
+            return None
+        return text
+
+    @staticmethod
+    def _team_for_actor(meta: dict[str, Any], char_id: int) -> str | None:
+        teams = CombatSessionIntegration.decode_json_field(meta.get("teams"), default={})
+        actor_id = str(char_id)
+        if not isinstance(teams, dict):
+            return None
+        for team, members in teams.items():
+            if isinstance(members, list) and actor_id in {str(member) for member in members}:
+                return str(team)
+        return None
+
+    @staticmethod
+    def _outcome_for_actor(*, winner: str | None, viewer_team: str | None) -> str:
+        if not winner:
+            return "unknown"
+        if winner == "draw":
+            return "draw"
+        if not viewer_team:
+            return "unknown"
+        return "victory" if viewer_team == winner else "defeat"
+
+    @staticmethod
+    def _result_title(outcome: str) -> str:
+        titles = {
+            "victory": "Победа",
+            "defeat": "Поражение",
+            "draw": "Ничья",
+        }
+        return titles.get(outcome, "Итоги боя")
+
+    @staticmethod
+    def _result_summary(*, outcome: str, winner: str | None, last_turn: int | None) -> str:
+        leads = {
+            "victory": "Ваша команда победила.",
+            "defeat": "Ваша команда проиграла.",
+            "draw": "Бой завершен ничьей.",
+        }
+        parts = [leads.get(outcome, "Бой завершен, но итог для персонажа не удалось определить.")]
+        if winner and outcome == "unknown":
+            parts.append(f"Победитель: {winner}.")
+        if last_turn is not None:
+            parts.append(f"Последний ход в журнале: {last_turn}.")
+        return " ".join(parts)
+
+    @staticmethod
+    def _last_log_turn(logs_by_turn: dict[str, list[str]]) -> int | None:
+        numeric_turns: list[int] = []
+        for turn in logs_by_turn:
+            with contextlib.suppress(TypeError, ValueError):
+                numeric_turns.append(int(turn))
+        return max(numeric_turns) if numeric_turns else None
+
     async def _get_targets(self, session_id: str) -> dict[str, list[Any]]:
         get_targets_map = getattr(self.store, "get_targets_map", None)
         if get_targets_map is not None:
@@ -271,38 +481,44 @@ class CombatSessionService:
         return CombatSessionIntegration.actor_ids_from_meta(meta)
 
     @staticmethod
-    def _build_move(actor_id: int, data: dict[str, Any]) -> CombatMoveDTO:
+    def _build_move(actor_id: int | str, data: dict[str, Any]) -> CombatMoveDTO:
         action = str(data.get("action") or "attack")
         if action == "use_item":
             return CombatMoveDTO(
                 move_id=uuid.uuid4().hex[:8],
-                char_id=actor_id,
+                char_id=normalize_actor_id(actor_id),
                 strategy="item",
-                payload=InstantPayload(item_id=data.get("item_id"), target_id=data.get("target_id") or actor_id),
+                payload=InstantPayload(
+                    item_id=data.get("item_id"),
+                    target_id=normalize_actor_id(data.get("target_id") or actor_id),
+                ),
             )
         if action in {"use_skill", "cast", "instant"}:
             return CombatMoveDTO(
                 move_id=uuid.uuid4().hex[:8],
-                char_id=actor_id,
+                char_id=normalize_actor_id(actor_id),
                 strategy="instant",
                 payload=InstantPayload(
                     ability_id=data.get("ability_id") or data.get("skill_id"),
-                    target_id=data.get("target_id") or actor_id,
+                    target_id=normalize_actor_id(data.get("target_id") or actor_id),
                     feint_id=data.get("feint_id"),
                 ),
             )
         if action in {"leave", "surrender", "flee"}:
             return CombatMoveDTO(
                 move_id=uuid.uuid4().hex[:8],
-                char_id=actor_id,
+                char_id=normalize_actor_id(actor_id),
                 strategy="system",
                 payload={"sys_action": action},
             )
         return CombatMoveDTO(
             move_id=uuid.uuid4().hex[:8],
-            char_id=actor_id,
+            char_id=normalize_actor_id(actor_id),
             strategy="exchange",
-            payload=ExchangePayload(target_id=int(data.get("target_id") or 0), feint_id=data.get("feint_id")),
+            payload=ExchangePayload(
+                target_id=normalize_actor_id(data.get("target_id") or "0"),
+                feint_id=data.get("feint_id"),
+            ),
         )
 
     @staticmethod

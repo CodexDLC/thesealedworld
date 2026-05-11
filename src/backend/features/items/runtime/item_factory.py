@@ -20,15 +20,40 @@ if TYPE_CHECKING:
 
 
 _PREFIX_FORMS: dict[str, tuple[str, str, str, str]] = {
+    "Адамантитовый": ("Адамантитовый", "Адамантитовая", "Адамантитовое", "Адамантитовые"),
+    "Драконий": ("Драконий", "Драконья", "Драконье", "Драконьи"),
+    "Древний": ("Древний", "Древняя", "Древнее", "Древние"),
+    "Дубленый": ("Дубленый", "Дубленая", "Дубленое", "Дубленые"),
+    "Дубовый": ("Дубовый", "Дубовая", "Дубовое", "Дубовые"),
+    "Железнодеревянный": (
+        "Железнодеревянный",
+        "Железнодеревянная",
+        "Железнодеревянное",
+        "Железнодеревянные",
+    ),
     "Ржавый": ("Ржавый", "Ржавая", "Ржавое", "Ржавые"),
     "Грязный": ("Грязный", "Грязная", "Грязное", "Грязные"),
     "Латаный": ("Латаный", "Латаная", "Латаное", "Латаные"),
     "Дырявый": ("Дырявый", "Дырявая", "Дырявое", "Дырявые"),
     "Железный": ("Железный", "Железная", "Железное", "Железные"),
+    "Зачарованный": ("Зачарованный", "Зачарованная", "Зачарованное", "Зачарованные"),
+    "Звездный": ("Звездный", "Звездная", "Звездное", "Звездные"),
+    "Золотой": ("Золотой", "Золотая", "Золотое", "Золотые"),
+    "Кристальный": ("Кристальный", "Кристальная", "Кристальное", "Кристальные"),
+    "Льняной": ("Льняной", "Льняная", "Льняное", "Льняные"),
+    "Мифриловый": ("Мифриловый", "Мифриловая", "Мифриловое", "Мифриловые"),
+    "Небесный": ("Небесный", "Небесная", "Небесное", "Небесные"),
+    "Опаленный": ("Опаленный", "Опаленная", "Опаленное", "Опаленные"),
+    "Призрачный": ("Призрачный", "Призрачная", "Призрачное", "Призрачные"),
+    "Прочный": ("Прочный", "Прочная", "Прочное", "Прочные"),
+    "Пустотный": ("Пустотный", "Пустотная", "Пустотное", "Пустотные"),
     "Стальной": ("Стальной", "Стальная", "Стальное", "Стальные"),
     "Деревянный": ("Деревянный", "Деревянная", "Деревянное", "Деревянные"),
     "Кожаный": ("Кожаный", "Кожаная", "Кожаное", "Кожаные"),
+    "Ториевый": ("Ториевый", "Ториевая", "Ториевое", "Ториевые"),
+    "Толстый": ("Толстый", "Толстая", "Толстое", "Толстые"),
     "Тканый": ("Тканый", "Тканая", "Тканое", "Тканые"),
+    "Чешуйчатый": ("Чешуйчатый", "Чешуйчатая", "Чешуйчатое", "Чешуйчатые"),
     "Кобальтовый": ("Кобальтовый", "Кобальтовая", "Кобальтовое", "Кобальтовые"),
 }
 
@@ -218,7 +243,7 @@ class ItemFactory:
                 entry = AFFIX_CATALOG.get(affix_id)
                 if entry is None or not self._affix_matches_item(entry, item_tags, item_tier):
                     continue
-                rolled = self._roll_affix(entry, tier_mult, rng)
+                rolled = self._roll_affix(entry, tier_mult, rng, item_tier=item_tier)
                 rolled["source"] = f"bundle:{bundle_id}"
                 rolled["_narrative_tags"] = list(entry.descriptive.narrative_tags)
                 filled.append(rolled)
@@ -242,7 +267,7 @@ class ItemFactory:
                     entry = AFFIX_CATALOG.get(affix_id)
                     if entry is None or not self._affix_matches_item(entry, item_tags, item_tier):
                         continue
-                    rolled = self._roll_affix(entry, tier_mult, rng)
+                    rolled = self._roll_affix(entry, tier_mult, rng, item_tier=item_tier)
                     rolled["source"] = f"bundle:{bundle.id}"
                     rolled["_narrative_tags"] = list(entry.descriptive.narrative_tags)
                     filled.append(rolled)
@@ -260,7 +285,7 @@ class ItemFactory:
             if entry is None:
                 chosen_affix_ids.add(affix_id)
                 continue
-            rolled = self._roll_affix(entry, tier_mult, rng)
+            rolled = self._roll_affix(entry, tier_mult, rng, item_tier=item_tier)
             rolled["source"] = f"single:{entry.group}"
             rolled["_narrative_tags"] = list(entry.descriptive.narrative_tags)
             filled.append(rolled)
@@ -269,7 +294,13 @@ class ItemFactory:
         return filled, bundle_ids_used
 
     @staticmethod
-    def _roll_affix(entry: AffixCatalogEntryDTO, tier_mult: float, rng: random.Random) -> dict[str, object]:
+    def _roll_affix(
+        entry: AffixCatalogEntryDTO,
+        tier_mult: float,
+        rng: random.Random,
+        *,
+        item_tier: int,
+    ) -> dict[str, object]:
         profile = entry.technical.roll_profile
         step_base = entry.technical.base_value * tier_mult
         lo = max(0.0, 1.0 - profile.step_spread)
@@ -290,6 +321,7 @@ class ItemFactory:
         return {
             "affix_id": entry.id,
             "value": value,
+            "tier": item_tier,
             "source": "",
             "roll_quality": roll_quality,
             "roll": {"step_roll_total": round(step_roll_total, 4)},

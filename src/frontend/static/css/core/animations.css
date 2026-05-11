@@ -29,6 +29,31 @@
   50% { box-shadow: 0 0 32px 6px rgba(255,255,255,.40); opacity: 1; }
 }
 
+@keyframes absolute-rainbow {
+  from { background-position: 0% 50%; }
+  to { background-position: 100% 50%; }
+}
+
+@keyframes grade-sheen {
+  from { background-position: 0% 50%; }
+  to { background-position: 180% 50%; }
+}
+
+@keyframes absolute-aura {
+  0%, 100% {
+    box-shadow:
+      0 0 18px rgba(255, 255, 255, .24),
+      0 0 34px rgba(255, 79, 216, .16),
+      0 0 48px rgba(53, 215, 255, .12);
+  }
+  50% {
+    box-shadow:
+      0 0 28px rgba(255, 255, 255, .42),
+      0 0 54px rgba(122, 92, 255, .28),
+      0 0 72px rgba(77, 255, 136, .18);
+  }
+}
+
 @keyframes pulse {
   0%, 100% { opacity: 0.6; }
   50% { opacity: 1; }

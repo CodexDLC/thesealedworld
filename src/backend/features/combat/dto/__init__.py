@@ -11,10 +11,17 @@ from src.backend.features.combat.dto.actor import (
     FeintCostDTO,
     FeintHandDTO,
 )
+from src.backend.features.combat.dto.ids import ActorId, ActorIdLike, normalize_actor_id
 from src.backend.features.combat.dto.payloads import ExchangePayload, InstantPayload
 from src.backend.features.combat.dto.pipeline import (
     ChainTriggersDTO,
+    CombatDeathFactDTO,
+    CombatEffectFactDTO,
     CombatEventDTO,
+    CombatResourceFactDTO,
+    CombatTokenFactDTO,
+    CombatTriggerActivationDTO,
+    CombatTriggerFactDTO,
     DamageTypeFlagsDTO,
     ForceFlagsDTO,
     FormulaFlagsDTO,
@@ -36,6 +43,7 @@ from src.backend.features.combat.dto.session import (
     CombatInitContextDTO,
     CombatTeamDTO,
     SessionDataDTO,
+    TargetReturnDTO,
 )
 from src.backend.features.combat.dto.trigger_rules import (
     AccuracyTriggersDTO,
@@ -55,6 +63,8 @@ __all__ = [
     "ActorLoadoutDTO",
     "ActorMetaDTO",
     "ActorRawDTO",
+    "ActorId",
+    "ActorIdLike",
     "ActorSnapshot",
     "ActorStats",
     "ActorStatusesDTO",
@@ -67,10 +77,16 @@ __all__ = [
     "CollectorSignalDTO",
     "CombatActionDTO",
     "CombatActionResultDTO",
+    "CombatDeathFactDTO",
     "CombatEventDTO",
+    "CombatEffectFactDTO",
     "CombatInitContextDTO",
     "CombatMoveDTO",
+    "CombatResourceFactDTO",
     "CombatTeamDTO",
+    "CombatTokenFactDTO",
+    "CombatTriggerActivationDTO",
+    "CombatTriggerFactDTO",
     "ControlTriggersDTO",
     "CritTriggersDTO",
     "DamageTriggersDTO",
@@ -95,6 +111,8 @@ __all__ = [
     "RestrictionFlagsDTO",
     "SessionDataDTO",
     "StateFlagsDTO",
+    "TargetReturnDTO",
     "TriggerRulesFlagsDTO",
     "WorkerBatchJobDTO",
+    "normalize_actor_id",
 ]

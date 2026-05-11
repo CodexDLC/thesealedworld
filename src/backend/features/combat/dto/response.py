@@ -5,13 +5,14 @@
 
 from typing import Any
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 from src.backend.features.combat.dto.action import (
     CombatActionDTO,
     CombatActionResultDTO,
     CombatMoveDTO,
 )
+from src.backend.features.combat.dto.ids import ActorId, ActorIdLike, normalize_actor_id
 from src.backend.features.game_catalog.combat.resources.effects.schemas import ControlInstructionDTO
 from src.shared.schemas.modifier_dto import (
     CombatModifiersDTO,
@@ -136,15 +137,22 @@ class ActiveAbilityDTO(BaseModel):
 
     uid: str
     ability_id: str
-    source_id: int
+    source_id: ActorId
     expire_at_exchange: int
     impact: dict[str, int] = Field(default_factory=dict)
 
     # --- Memory (для отката) ---
     # Список ключей в actor.raw.modifiers, которые эта абилка изменила.
     modified_keys: list[str] = Field(default_factory=list)
+    # Точные source ids внутри raw.*.temp по каждому ключу.
+    modified_sources: dict[str, list[str]] = Field(default_factory=dict)
 
     payload: dict[str, Any] = Field(default_factory=dict)
+
+    @field_validator("source_id", mode="before")
+    @classmethod
+    def _normalize_source_id(cls, value: ActorIdLike) -> ActorId:
+        return normalize_actor_id(value)
 
 
 class ActiveEffectDTO(BaseModel):
@@ -155,8 +163,13 @@ class ActiveEffectDTO(BaseModel):
 
     uid: str
     effect_id: str
-    source_id: int
+    source_id: ActorId
     expire_at_exchange: int
+
+    @field_validator("source_id", mode="before")
+    @classmethod
+    def _normalize_source_id(cls, value: ActorIdLike) -> ActorId:
+        return normalize_actor_id(value)
 
     # --- State ---
     # Копия resource_impact из конфига (с учетом power)
@@ -174,6 +187,8 @@ class ActiveEffectDTO(BaseModel):
     # --- Memory (для отката) ---
     # Список ключей в actor.raw.modifiers, которые этот эффект изменил.
     modified_keys: list[str] = Field(default_factory=list)
+    # Точные source ids внутри raw.*.temp по каждому ключу.
+    modified_sources: dict[str, list[str]] = Field(default_factory=dict)
 
 
 class ActorStatusesDTO(BaseModel):

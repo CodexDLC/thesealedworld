@@ -7,13 +7,17 @@ from typing import TYPE_CHECKING, Any, cast
 from src.backend.config.settings import settings
 from src.backend.core.exceptions import BusinessLogicException
 from src.backend.features.character.runtime import CharacterVitalsCalculator
+from src.backend.features.character.runtime.gear_score import CharacterGearScoreCalculator
 from src.backend.features.character.schemas.session import (
     CharacterSessionAttributesDTO,
     CharacterSessionBioDTO,
     CharacterSessionDocumentDTO,
+    CharacterSessionItemsDTO,
     CharacterSessionLocationDTO,
     CharacterSessionSymbioteDTO,
 )
+from src.backend.features.inventory.repositories.items import runtime_item_from_instance
+from src.backend.features.inventory.services.projection import build_active_character_projection, build_runtime_session
 from src.shared.enums.skill_enums import SkillProgressState
 
 if TYPE_CHECKING:
@@ -23,6 +27,7 @@ if TYPE_CHECKING:
     from src.backend.features.character.models.character import Character
     from src.backend.features.character.repositories import CharacterRepository, SkillRepository
     from src.backend.features.character.schemas.session import CharacterGender
+    from src.backend.features.inventory.repositories.items import InventoryItemRepository
 
 
 @dataclass(frozen=True)
@@ -40,10 +45,14 @@ class CharacterStateIntegrator:
         character_sessions: CharacterSessionManager,
         character_repo: CharacterRepository,
         skill_repo: SkillRepository,
+        inventory_repo: InventoryItemRepository | None = None,
+        gear_score_calculator: CharacterGearScoreCalculator | None = None,
     ) -> None:
         self.character_sessions = character_sessions
         self.character_repo = character_repo
         self.skill_repo = skill_repo
+        self.inventory_repo = inventory_repo
+        self.gear_score_calculator = gear_score_calculator or CharacterGearScoreCalculator()
 
     async def get_actor_core(self, user_id: UUID, char_id: int) -> ActiveCharacterDocument:
         session_doc = await self._get_or_initialize_session_doc(user_id, char_id)
@@ -58,15 +67,31 @@ class CharacterStateIntegrator:
         session_doc = await self._apply_and_persist_vitals_regen(session_doc, char_id)
         return session_doc.model_dump(mode="json")
 
+    async def bootstrap_active_session(self, user_id: UUID, char_id: int) -> CharacterSessionDocumentDTO:
+        """Replace AC from cold character rows after lobby selection."""
+        character = await self.character_repo.get_by_id_and_user_id(char_id, user_id)
+        if character is None:
+            raise BusinessLogicException("Character is unavailable")
+
+        session_doc = await self._build_session_from_character(character)
+        await self.character_sessions.replace_session(char_id, session_doc.model_dump(mode="json"))
+        return session_doc
+
     async def unlock_skills(
         self,
         char_id: int,
         skill_keys: list[str],
         *,
         progress_state: SkillProgressState = SkillProgressState.PLUS,
+        initial_xp: float = 0.0,
     ) -> None:
-        await self.skill_repo.unlock_skills(char_id, skill_keys, progress_state=progress_state)
-        await self.character_sessions.unlock_skills(char_id, skill_keys)
+        await self.skill_repo.unlock_skills(
+            char_id,
+            skill_keys,
+            progress_state=progress_state,
+            initial_xp=initial_xp,
+        )
+        await self.character_sessions.unlock_skills(char_id, skill_keys, initial_xp=initial_xp)
 
     async def _get_or_initialize_session_doc(self, user_id: UUID, char_id: int) -> CharacterSessionDocumentDTO:
         character = await self.character_repo.get_by_id_and_user_id(char_id, user_id)
@@ -85,6 +110,11 @@ class CharacterStateIntegrator:
         return repaired_doc
 
     async def _initialize_session_from_character(self, character: Character) -> CharacterSessionDocumentDTO:
+        session_doc = await self._build_session_from_character(character)
+        await self.character_sessions.create_session(character.character_id, session_doc.model_dump(mode="json"))
+        return session_doc
+
+    async def _build_session_from_character(self, character: Character) -> CharacterSessionDocumentDTO:
         attributes = self._session_attributes_from_character(character)
         session_doc = CharacterSessionDocumentDTO(
             char_id=character.character_id,
@@ -108,8 +138,24 @@ class CharacterStateIntegrator:
             ),
             updated_at=datetime.now(UTC),
         )
-        await self.character_sessions.create_session(character.character_id, session_doc.model_dump(mode="json"))
+        await self._hydrate_items_and_gear_score(session_doc)
         return session_doc
+
+    async def _hydrate_items_and_gear_score(self, session_doc: CharacterSessionDocumentDTO) -> None:
+        if self.inventory_repo is None:
+            return
+
+        rows = await self.inventory_repo.list_character_items(session_doc.char_id)
+        if not rows:
+            return
+
+        runtime_items = [runtime_item_from_instance(instance, placement) for instance, placement in rows]
+        inventory_session = build_runtime_session(session_doc.char_id, runtime_items)
+        projection = build_active_character_projection(inventory_session).model_dump(mode="json")
+        session_doc.items = CharacterSessionItemsDTO.model_validate(projection)
+        session_doc.metrics.gear_score = self.gear_score_calculator.calculate_from_active_character(
+            session_doc.model_dump(mode="json")
+        )
 
     async def _apply_and_persist_vitals_regen(
         self,

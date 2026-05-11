@@ -128,7 +128,53 @@ class CombatSystemIntegrator:
         combat_id = ((session or {}).get("sessions") or {}).get("combat_id") if isinstance(session, dict) else None
         return str(combat_id) if combat_id else None
 
+    async def resolve_combat_finalization_for_character(self, char_id: int) -> str | None:
+        session = await self.character_sessions.get_session(char_id)
+        finalization_id = (
+            ((session or {}).get("sessions") or {}).get("combat_finalization_id") if isinstance(session, dict) else None
+        )
+        return str(finalization_id) if finalization_id else None
+
+    async def mark_combat_finalized(self, char_id: int, combat_id: str) -> None:
+        session = await self.character_sessions.get_session(char_id)
+        if not isinstance(session, dict):
+            return
+
+        updates = {
+            "$.sessions.combat_id": None,
+            "$.sessions.combat_finalization_id": str(combat_id),
+            "$.state": CoreDomain.COMBAT_RESULT.value,
+        }
+        await self.character_sessions.patch_fields(char_id, updates)
+        await self.character_sessions.mark_dirty(
+            char_id,
+            reason="combat_session_finalized",
+            paths=sorted(updates),
+        )
+
     async def recover_missing_combat_session(self, char_id: int, *, combat_id: str | None = None) -> str | None:
+        return await self._return_from_combat(
+            char_id,
+            combat_id=combat_id,
+            dirty_reason="combat_session_missing_recovered",
+        )
+
+    async def complete_combat_session_return(self, char_id: int, *, combat_id: str | None = None) -> str | None:
+        return await self._return_from_combat(
+            char_id,
+            combat_id=combat_id,
+            dirty_reason="combat_session_finalized_returned",
+            sync_to_db=True,
+        )
+
+    async def _return_from_combat(
+        self,
+        char_id: int,
+        *,
+        combat_id: str | None = None,
+        dirty_reason: str,
+        sync_to_db: bool = False,
+    ) -> str | None:
         session = await self.character_sessions.get_session(char_id)
         if not isinstance(session, dict):
             return None
@@ -136,11 +182,18 @@ class CombatSystemIntegrator:
         raw_sessions = session.get("sessions")
         sessions = raw_sessions if isinstance(raw_sessions, dict) else {}
         current_combat_id = sessions.get("combat_id")
+        current_finalization_id = sessions.get("combat_finalization_id")
         current_state = self._state_text(session.get("state"))
-        if current_state != CoreDomain.COMBAT.value and not current_combat_id:
+        if current_state not in {CoreDomain.COMBAT.value, CoreDomain.COMBAT_RESULT.value} and not (
+            current_combat_id or current_finalization_id
+        ):
             return None
 
-        if combat_id is not None and current_combat_id and str(current_combat_id) != str(combat_id):
+        if (
+            combat_id is not None
+            and (current_combat_id or current_finalization_id)
+            and str(current_combat_id or current_finalization_id) != str(combat_id)
+        ):
             return None
 
         return_path = CombatReturnStateMapper.from_combat_previous(session.get("prev_state"))
@@ -148,15 +201,18 @@ class CombatSystemIntegrator:
             char_id,
             {
                 "$.sessions.combat_id": None,
+                "$.sessions.combat_finalization_id": None,
                 "$.prev_state": return_path.previous_state,
                 "$.state": return_path.current_state,
             },
         )
         await self.character_sessions.mark_dirty(
             char_id,
-            reason="combat_session_missing_recovered",
-            paths=["$.prev_state", "$.sessions.combat_id", "$.state"],
+            reason=dirty_reason,
+            paths=["$.prev_state", "$.sessions.combat_finalization_id", "$.sessions.combat_id", "$.state"],
         )
+        if sync_to_db:
+            await self._sync_active_character_to_db(char_id)
         return return_path.current_state
 
     async def resolve_return_state_for_character(self, char_id: int) -> str:
@@ -165,9 +221,21 @@ class CombatSystemIntegrator:
             return CoreDomain.EXPLORATION.value
 
         current_state = self._state_text(session.get("state"))
-        if current_state == CoreDomain.COMBAT.value:
+        if current_state in {CoreDomain.COMBAT.value, CoreDomain.COMBAT_RESULT.value}:
             return CombatReturnStateMapper.from_combat_previous(session.get("prev_state")).current_state
         return CombatReturnStateMapper.normalize_current(current_state)
+
+    async def _sync_active_character_to_db(self, char_id: int) -> None:
+        request = getattr(self.events, "request", None)
+        if request is None:
+            return
+        response = await request(
+            CharacterEvents.ACTIVE_SESSION_SYNC_REQUESTED,
+            {"char_id": char_id},
+            timeout=30.0,
+        )
+        if isinstance(response, dict) and response.get("status") == "error":
+            raise RuntimeError(str(response.get("error") or "character active session sync failed"))
 
     async def publish_session_ready(self, payload: dict[str, Any]) -> None:
         await self.events.publish(
@@ -243,7 +311,7 @@ class CombatReturnStateMapper:
     @classmethod
     def normalize_current(cls, value: Any) -> str:
         state = cls._state_text(value)
-        if state and state != CoreDomain.COMBAT.value:
+        if state and state not in {CoreDomain.COMBAT.value, CoreDomain.COMBAT_RESULT.value}:
             try:
                 return CoreDomain(state).value
             except ValueError:

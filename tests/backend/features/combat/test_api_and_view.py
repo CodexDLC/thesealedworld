@@ -3,7 +3,13 @@ import json
 import pytest
 from fastapi import HTTPException
 
-from src.backend.features.combat.api.router import get_combat_view, pin_combat_feint, register_combat_move
+from src.backend.features.character.events import CharacterEvents
+from src.backend.features.combat.api.router import (
+    continue_combat_result,
+    get_combat_view,
+    pin_combat_feint,
+    register_combat_move,
+)
 from src.backend.features.combat.integrations import CombatSystemIntegrator
 from src.backend.features.combat.orchestrators.runtime_orchestrator import CombatRuntimeOrchestrator
 from src.backend.features.combat.services.result_archive_service import CombatResultArchiveService
@@ -139,6 +145,57 @@ class FinishedCombatStore(FakeCombatStore):
         return {**meta, "active": "0", "status": "finished", "winner": "team_1"}
 
 
+class FinalizedCombatStore(FinishedCombatStore):
+    async def get_finalization(self, session_id):
+        return {
+            "schema_version": 1,
+            "combat_id": session_id,
+            "status": "finalized",
+            "winner_team": "team_1",
+            "participant_char_ids": [1],
+            "meta": {"battle_type": "pve", "source": "exploration"},
+            "teams": {"team_1": ["1"], "team_2": ["2"]},
+            "actors": {
+                "1": {
+                    "actor_id": "1",
+                    "char_id": 1,
+                    "name": "Hero",
+                    "team": "team_1",
+                    "actor_type": "player",
+                    "is_dead": False,
+                    "xp_buffer": {"main_hand_hit": 1},
+                    "progression": {"skill_swords": 0.0003},
+                },
+                "2": {
+                    "actor_id": "2",
+                    "char_id": None,
+                    "name": "Wolf",
+                    "team": "team_2",
+                    "actor_type": "monster",
+                    "is_dead": True,
+                    "xp_buffer": {},
+                    "progression": {},
+                },
+            },
+            "report": {
+                "last_turn": 3,
+                "teams": [
+                    {"team": "team_1", "outcome": "victory", "actors": [{"actor_id": "1", "name": "Hero"}]},
+                    {"team": "team_2", "outcome": "defeat", "actors": [{"actor_id": "2", "name": "Wolf"}]},
+                ],
+            },
+            "analytics": {"3:0": {"o": "H"}},
+            "reward_hooks": [{"type": "loot.roll", "status": "pending"}],
+        }
+
+
+class FinalizedCombatStoreWithoutReportTeams(FinalizedCombatStore):
+    async def get_finalization(self, session_id):
+        finalization = await super().get_finalization(session_id)
+        finalization["report"] = {"last_turn": 3}
+        return finalization
+
+
 class FinishesAfterMoveCombatStore(FakeCombatStore):
     async def get_meta(self, session_id):
         meta = await super().get_meta(session_id)
@@ -163,12 +220,25 @@ class EmptyTargetCombatStore(FakeCombatStore):
 class FakeCombatSystemIntegrator:
     def __init__(self):
         self.recovered = []
+        self.completed_returns = []
+        self.marked_finalized = []
+        self.finalization_id = None
 
     async def resolve_combat_session_for_character(self, char_id):
         return "combat-1"
 
+    async def resolve_combat_finalization_for_character(self, char_id):
+        return self.finalization_id
+
+    async def mark_combat_finalized(self, char_id, combat_id):
+        self.marked_finalized.append((char_id, combat_id))
+
     async def recover_missing_combat_session(self, char_id, *, combat_id=None):
         self.recovered.append((char_id, combat_id))
+        return "exploration"
+
+    async def complete_combat_session_return(self, char_id, *, combat_id=None):
+        self.completed_returns.append((char_id, combat_id))
         return "exploration"
 
     async def resolve_return_state_for_character(self, char_id):
@@ -196,8 +266,15 @@ class FakeCommitments:
 
 
 class FakeEvents:
+    def __init__(self):
+        self.requests = []
+
     async def publish(self, *args, **kwargs):
         return "1-0"
+
+    async def request(self, event_type, payload, *, timeout=None):
+        self.requests.append((event_type, payload, timeout))
+        return {"status": "ok"}
 
 
 @pytest.mark.asyncio
@@ -281,7 +358,8 @@ async def test_combat_view_endpoint_returns_result_payload_type_when_session_mis
 
     response = await get_combat_view(1, CombatRuntimeOrchestrator(service))
 
-    assert response.payload_type == "CombatResult"
+    assert response.payload_type == "state_transition"
+    assert response.header.current_state == CoreDomain.EXPLORATION
 
 
 @pytest.mark.asyncio
@@ -293,6 +371,10 @@ async def test_combat_view_endpoint_returns_result_payload_type_when_live_sessio
     assert response.payload_type == "CombatResult"
     assert isinstance(response.payload, CombatResultDTO)
     assert response.payload.reason == "combat_session_finished"
+    assert response.payload.status == "finished"
+    assert response.payload.outcome == "victory"
+    assert response.payload.archived is True
+    assert response.payload.metadata["source"] == "combat_runtime_history"
 
 
 @pytest.mark.asyncio
@@ -392,6 +474,10 @@ async def test_post_exchange_requires_target_id_from_client_payload():
 
     assert exc_info.value.status_code == 400
     assert exc_info.value.detail == "Target ID is required for exchange"
+    assert exc_info.value.error_code == "combat_target_required"
+    assert exc_info.value.extra["domain"] == "combat"
+    assert exc_info.value.extra["frontend_action"] == "show_message"
+    assert exc_info.value.extra["context"]["char_id"] == 1
     assert store.exchange_moves == []
 
 
@@ -422,6 +508,72 @@ async def test_post_exchange_returns_result_when_move_finishes_session():
 
     assert isinstance(result, CombatResultDTO)
     assert result.reason == "combat_session_finished"
+    assert result.status == "finished"
+    assert result.outcome == "victory"
+    assert result.archived is True
+
+
+@pytest.mark.asyncio
+async def test_archived_result_uses_finished_runtime_history_before_stub():
+    service = CombatSessionService(store=FinishedCombatStore(), system_integrator=FakeCombatSystemIntegrator())
+
+    result = await service.get_archived_result(1, reason="combat_session_finished")
+
+    assert result.char_id == 1
+    assert result.combat_id == "combat-1"
+    assert result.status == "finished"
+    assert result.outcome == "victory"
+    assert result.title == "Победа"
+    assert result.archived is True
+    assert result.metadata["source"] == "combat_runtime_history"
+    assert result.metadata["winner"] == "team_1"
+    assert result.metadata["viewer_team"] == "team_1"
+    assert result.metadata["last_turn"] == 1
+    assert "Последний ход в журнале: 1." in result.summary
+
+
+@pytest.mark.asyncio
+async def test_archived_result_prefers_combat_finalization_before_runtime_history():
+    service = CombatSessionService(store=FinalizedCombatStore(), system_integrator=FakeCombatSystemIntegrator())
+
+    result = await service.get_archived_result(1, reason="combat_session_finished")
+
+    assert result.char_id == 1
+    assert result.combat_id == "combat-1"
+    assert result.status == "finished"
+    assert result.outcome == "victory"
+    assert result.archived is True
+    assert result.metadata["source"] == "combat_finalization"
+    assert result.metadata["battle_type"] == "pve"
+    assert result.report["last_turn"] == 3
+    assert result.actors["1"]["progression"] == {"skill_swords": 0.0003}
+    assert result.rewards == {"progression": {"skill_swords": 0.0003}}
+    assert result.reward_hooks == [{"type": "loot.roll", "status": "pending"}]
+
+
+@pytest.mark.asyncio
+async def test_archived_finalization_completes_missing_report_teams_from_actor_snapshot():
+    service = CombatSessionService(
+        store=FinalizedCombatStoreWithoutReportTeams(),
+        system_integrator=FakeCombatSystemIntegrator(),
+    )
+
+    result = await service.get_archived_result(1, reason="combat_session_finished")
+
+    assert result.metadata["source"] == "combat_finalization"
+    assert result.summary == "Ваша команда победила. Последний ход в журнале: 3."
+    assert result.report["teams"] == [
+        {
+            "team": "team_1",
+            "outcome": "victory",
+            "actors": [{"actor_id": "1", "name": "Hero", "actor_type": "player", "is_dead": False}],
+        },
+        {
+            "team": "team_2",
+            "outcome": "defeat",
+            "actors": [{"actor_id": "2", "name": "Wolf", "actor_type": "monster", "is_dead": True}],
+        },
+    ]
 
 
 @pytest.mark.asyncio
@@ -453,6 +605,9 @@ async def test_post_pin_feint_rejects_missing_hand_option():
 
     assert exc_info.value.status_code == 400
     assert exc_info.value.detail == "Feint is not in hand"
+    assert exc_info.value.error_code == "combat_feint_unavailable"
+    assert exc_info.value.extra["domain"] == "combat"
+    assert exc_info.value.extra["context"] == {"feint_id": "missing", "char_id": 1}
 
 
 @pytest.mark.asyncio
@@ -478,7 +633,7 @@ async def test_missing_live_combat_session_recovers_stale_ac_before_fallback():
     with pytest.raises(ValueError, match="Combat session not found: combat-1"):
         await service.get_dashboard(1)
 
-    assert integrator.recovered == [(1, "combat-1")]
+    assert integrator.recovered == []
 
 
 @pytest.mark.asyncio
@@ -504,6 +659,7 @@ async def test_combat_recovery_clears_ac_combat_id_and_maps_arena_parent_state()
             7,
             {
                 "$.sessions.combat_id": None,
+                "$.sessions.combat_finalization_id": None,
                 "$.prev_state": CoreDomain.EXPLORATION.value,
                 "$.state": CoreDomain.ARENA.value,
             },
@@ -513,7 +669,7 @@ async def test_combat_recovery_clears_ac_combat_id_and_maps_arena_parent_state()
         (
             7,
             "combat_session_missing_recovered",
-            ["$.prev_state", "$.sessions.combat_id", "$.state"],
+            ["$.prev_state", "$.sessions.combat_finalization_id", "$.sessions.combat_id", "$.state"],
         )
     ]
 
@@ -551,6 +707,92 @@ async def test_archived_result_uses_recovered_return_state_for_primary_action():
     result = await service.get_archived_result(1)
 
     assert result.primary_action.target_state == CoreDomain.ARENA.value
+
+
+@pytest.mark.asyncio
+async def test_archived_result_completes_combat_return_state() -> None:
+    integrator = FakeCombatSystemIntegrator()
+    service = CombatSessionService(store=FinalizedCombatStore(), system_integrator=integrator)
+
+    result = await service.get_archived_result(1, reason="combat_session_finished")
+
+    assert result.primary_action.target_state == CoreDomain.EXPLORATION.value
+    assert integrator.completed_returns == []
+    assert integrator.marked_finalized == [(1, "combat-1")]
+
+
+@pytest.mark.asyncio
+async def test_combat_finalized_return_clears_ac_and_syncs_to_db() -> None:
+    events = FakeEvents()
+    sessions = FakeCharacterSessions(
+        {
+            "state": CoreDomain.COMBAT.value,
+            "prev_state": CoreDomain.EXPLORATION.value,
+            "sessions": {"combat_id": "combat-1"},
+        }
+    )
+    integrator = CombatSystemIntegrator(
+        actor_commitments=FakeCommitments(),
+        character_sessions=sessions,
+        events=events,
+    )
+
+    returned = await integrator.complete_combat_session_return(7, combat_id="combat-1")
+
+    assert returned == CoreDomain.EXPLORATION.value
+    assert sessions.patches == [
+        (
+            7,
+            {
+                "$.sessions.combat_id": None,
+                "$.sessions.combat_finalization_id": None,
+                "$.prev_state": None,
+                "$.state": CoreDomain.EXPLORATION.value,
+            },
+        )
+    ]
+    assert sessions.dirty == [
+        (
+            7,
+            "combat_session_finalized_returned",
+            ["$.prev_state", "$.sessions.combat_finalization_id", "$.sessions.combat_id", "$.state"],
+        )
+    ]
+    assert events.requests == [
+        (
+            CharacterEvents.ACTIVE_SESSION_SYNC_REQUESTED,
+            {"char_id": 7},
+            30.0,
+        )
+    ]
+
+
+@pytest.mark.asyncio
+async def test_continue_combat_result_clears_ac_and_returns_transition() -> None:
+    events = FakeEvents()
+    sessions = FakeCharacterSessions(
+        {
+            "state": CoreDomain.COMBAT_RESULT.value,
+            "prev_state": CoreDomain.ARENA.value,
+            "sessions": {"combat_id": None, "combat_finalization_id": "combat-1"},
+        }
+    )
+    service = CombatSessionService(
+        store=FinalizedCombatStore(),
+        system_integrator=CombatSystemIntegrator(
+            actor_commitments=FakeCommitments(),
+            character_sessions=sessions,
+            events=events,
+        ),
+    )
+
+    response = await continue_combat_result(7, CombatRuntimeOrchestrator(service))
+
+    assert response.payload_type == "state_transition"
+    assert response.header.current_state == CoreDomain.ARENA
+    assert response.payload.target_state == CoreDomain.ARENA
+    assert sessions.patches[0][1]["$.sessions.combat_finalization_id"] is None
+    assert sessions.patches[0][1]["$.sessions.combat_id"] is None
 
 
 @pytest.mark.asyncio

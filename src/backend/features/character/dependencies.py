@@ -8,6 +8,7 @@ from src.backend.features.character.integrations import CharacterStateIntegrator
 from src.backend.features.character.managers.session import CharacterSessionManager
 from src.backend.features.character.repositories import CharacterRepository, SkillRepository
 from src.backend.features.character.services.status_service import CharacterStatusService
+from src.backend.features.inventory.repositories.items import InventoryItemRepository
 
 
 def get_character_sessions(request: Request) -> CharacterSessionManager:
@@ -21,6 +22,7 @@ def get_character_state_integrator(
     return CharacterStateIntegrator(
         character_sessions=character_sessions,
         character_repo=CharacterRepository(db_session),
+        inventory_repo=InventoryItemRepository(db_session),
         skill_repo=SkillRepository(db_session),
     )
 

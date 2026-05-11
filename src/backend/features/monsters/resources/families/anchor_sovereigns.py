@@ -26,8 +26,8 @@ ANCHOR_SOVEREIGNS_FAMILY: MonsterFamily = {
     "combat_profile": {
         "archetype": "unknown",
         "body_loadout": "humanoid",
-        "armor_class": None,
-        "natural_weapon_set": None,
+        "armor_class": "",
+        "natural_weapon_set": "",
         "equipment_scaling": "tier_7_anchor_projection",
         "modifier_formula": "anchor_projection_v1",
     },

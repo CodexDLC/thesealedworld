@@ -77,7 +77,24 @@ class ArenaSystemIntegrator:
         await self.set_character_state(char_id, CoreDomain.ARENA)
 
     async def leave_arena(self, char_id: int) -> None:
+        if hasattr(self.character_sessions, "clear_arena_session"):
+            await self.character_sessions.clear_arena_session(char_id)
         await self.set_character_state(char_id, CoreDomain.EXPLORATION, prev_state=CoreDomain.ARENA)
+
+    async def attach_arena_session(self, char_id: int, arena_id: str) -> None:
+        if hasattr(self.character_sessions, "set_arena_session"):
+            await self.character_sessions.set_arena_session(char_id, arena_id)
+
+    async def clear_arena_session(self, char_id: int) -> None:
+        if hasattr(self.character_sessions, "clear_arena_session"):
+            await self.character_sessions.clear_arena_session(char_id)
+
+    async def resolve_arena_session_id(self, char_id: int) -> str | None:
+        if not hasattr(self.character_sessions, "get_session"):
+            return None
+        session = await self.character_sessions.get_session(char_id)
+        arena_id = ((session or {}).get("sessions") or {}).get("arena_id") if isinstance(session, dict) else None
+        return str(arena_id) if arena_id else None
 
     async def set_character_state(
         self,

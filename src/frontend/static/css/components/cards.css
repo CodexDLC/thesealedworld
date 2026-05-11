@@ -14,54 +14,60 @@
 
 .r0 {
   color: var(--r0);
-  border-color: rgba(136, 136, 153, 0.3);
-  background: rgba(136, 136, 153, 0.06);
+  border-color: rgba(111, 107, 98, 0.34);
+  background: rgba(111, 107, 98, 0.055);
 }
 
 .r1 {
   color: var(--r1);
-  border-color: rgba(68, 170, 102, 0.3);
-  background: rgba(68, 170, 102, 0.06);
+  border-color: rgba(200, 191, 168, 0.34);
+  background: rgba(200, 191, 168, 0.055);
 }
 
 .r2 {
   color: var(--r2);
-  border-color: rgba(42, 157, 143, 0.3);
-  background: rgba(42, 157, 143, 0.06);
+  border-color: rgba(79, 168, 107, 0.34);
+  background: rgba(79, 168, 107, 0.06);
 }
 
 .r3 {
   color: var(--r3);
-  border-color: rgba(51, 153, 255, 0.3);
-  background: rgba(51, 153, 255, 0.06);
+  border-color: rgba(47, 143, 211, 0.34);
+  background: rgba(47, 143, 211, 0.06);
 }
 
 .r4 {
   color: var(--r4);
-  border-color: rgba(153, 68, 238, 0.3);
-  background: rgba(153, 68, 238, 0.06);
+  border-color: rgba(140, 85, 216, 0.38);
+  background: rgba(140, 85, 216, 0.065);
 }
 
 .r5 {
   color: var(--r5);
-  border-color: rgba(255, 102, 0, 0.3);
-  background: rgba(255, 102, 0, 0.06);
+  border-color: rgba(208, 104, 53, 0.44);
+  background: rgba(88, 42, 20, 0.12);
 }
 
 .r6 {
   color: var(--r6);
-  border-color: rgba(255, 170, 0, 0.4);
-  background: rgba(255, 170, 0, 0.07);
-  box-shadow: 0 0 10px rgba(255, 170, 0, 0.12);
+  border-color: rgba(201, 154, 58, 0.72);
+  background:
+    linear-gradient(135deg, rgba(241, 195, 87, .08), rgba(119, 75, 24, .11) 42%, rgba(39, 25, 11, .13));
+  box-shadow:
+    0 0 12px rgba(201, 154, 58, 0.2),
+    inset 0 1px 0 rgba(241, 195, 87, .16);
   animation: breathe 3.5s ease-in-out infinite;
 }
 
 .r7 {
   color: var(--r7);
-  border-color: rgba(255, 255, 255, 0.4);
-  background: rgba(255, 255, 255, 0.05);
-  box-shadow: 0 0 14px rgba(255, 255, 255, 0.1);
-  animation: pulse-r7 3s ease-in-out infinite;
+  border-color: rgba(255, 255, 255, 0.62);
+  background:
+    linear-gradient(120deg, rgba(255, 255, 255, .09), rgba(255, 79, 216, .08), rgba(53, 215, 255, .08));
+  box-shadow:
+    0 0 18px rgba(255, 255, 255, 0.22),
+    0 0 30px rgba(122, 92, 255, 0.16);
+  animation: absolute-aura 3.2s ease-in-out infinite;
 }
 
 .rarity-pip {
@@ -95,40 +101,100 @@
   opacity: 0.7;
 }
 
+.item-card.r7::before {
+  height: 3px;
+  background: linear-gradient(90deg, #ffffff 0%, #ff4fd8 8.33%, #7a5cff 16.66%, #35d7ff 25%, #4dff88 33.33%, #ffd84d 41.66%, #ffffff 50%, #ff4fd8 58.33%, #7a5cff 66.66%, #35d7ff 75%, #4dff88 83.33%, #ffd84d 91.66%, #ffffff 100%);
+  background-size: 200% 100%;
+  opacity: 1;
+  animation: absolute-rainbow 3.2s linear infinite;
+}
+
 .item-card.r0 {
-  border-color: rgba(136, 136, 153, 0.3);
+  border-color: rgba(111, 107, 98, 0.34);
 }
 
 .item-card.r1 {
-  border-color: rgba(68, 170, 102, 0.35);
+  border-color: rgba(200, 191, 168, 0.35);
 }
 
 .item-card.r2 {
-  border-color: rgba(42, 157, 143, 0.35);
+  border-color: rgba(79, 168, 107, 0.36);
 }
 
 .item-card.r3 {
-  border-color: rgba(51, 153, 255, 0.35);
+  border-color: rgba(47, 143, 211, 0.38);
 }
 
 .item-card.r4 {
-  border-color: rgba(153, 68, 238, 0.4);
+  border-color: rgba(140, 85, 216, 0.42);
 }
 
 .item-card.r5 {
-  border-color: rgba(255, 102, 0, 0.4);
+  --inventory-mythic-sheen: linear-gradient(90deg, #8f3f20, #d06835 42%, #b9572d 68%, #e08a47);
+  border-color: rgba(208, 104, 53, 0.5);
 }
 
 .item-card.r6 {
-  border-color: rgba(255, 170, 0, 0.5);
-  box-shadow: 0 0 20px rgba(255, 170, 0, 0.1);
+  --inventory-legendary-sheen: linear-gradient(90deg, #6f4318, #a86f24 34%, #c99a3a 64%, #e2bf68);
+  border-color: rgba(201, 154, 58, 0.78);
+  background:
+    linear-gradient(115deg, rgba(241, 195, 87, .025), transparent 25%),
+    linear-gradient(180deg, rgba(12, 11, 9, .96), rgba(7, 6, 5, .98));
+  box-shadow:
+    0 0 18px rgba(201, 154, 58, 0.18),
+    0 0 34px rgba(97, 58, 18, 0.14),
+    inset 0 1px 0 rgba(241, 195, 87, 0.13),
+    inset 0 0 18px rgba(111, 67, 24, 0.08);
   animation: breathe 4s ease-in-out infinite;
 }
 
+.item-card.r6::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background:
+    linear-gradient(110deg, transparent 0%, transparent 40%, rgba(184, 150, 78, .07) 50%, transparent 60%, transparent 100%);
+  opacity: .24;
+  pointer-events: none;
+}
+
+.item-card.r5::before,
+.item-card.r6::before {
+  height: 2px;
+  background: var(--inventory-mythic-sheen, var(--inventory-legendary-sheen));
+  background-size: 180% 100%;
+  opacity: .58;
+}
+
+.item-card.r6::before {
+  background: var(--inventory-legendary-sheen);
+  opacity: .62;
+}
+
 .item-card.r7 {
-  border-color: rgba(255, 255, 255, 0.4);
-  box-shadow: 0 0 28px rgba(255, 255, 255, 0.08);
-  animation: pulse-r7 3s ease-in-out infinite;
+  --inventory-absolute-gradient: linear-gradient(
+    90deg,
+    #ffffff 0%,
+    #ff4fd8 8.33%,
+    #7a5cff 16.66%,
+    #35d7ff 25%,
+    #4dff88 33.33%,
+    #ffd84d 41.66%,
+    #ffffff 50%,
+    #ff4fd8 58.33%,
+    #7a5cff 66.66%,
+    #35d7ff 75%,
+    #4dff88 83.33%,
+    #ffd84d 91.66%,
+    #ffffff 100%
+  );
+  border-color: rgba(255, 255, 255, 0.74);
+  box-shadow:
+    0 0 28px rgba(255, 255, 255, 0.22),
+    0 0 46px rgba(255, 79, 216, 0.16),
+    inset 0 0 22px rgba(53, 215, 255, 0.06);
+  animation: absolute-aura 3.2s ease-in-out infinite;
 }
 
 .ic-header {
@@ -164,20 +230,51 @@
 
 .item-card.r5 .ic-name {
   color: var(--r5);
-  text-shadow: 0 0 10px rgba(255, 102, 0, 0.3);
+  text-shadow:
+    0 0 10px rgba(208, 104, 53, 0.38),
+    0 0 18px rgba(88, 42, 20, 0.24);
 }
 
 .item-card.r6 .ic-name {
   color: var(--r6);
-  text-shadow: 0 0 12px rgba(255, 170, 0, 0.4);
+  text-shadow:
+    0 0 7px rgba(241, 195, 87, 0.24),
+    0 0 15px rgba(201, 154, 58, 0.22),
+    0 1px 0 rgba(0, 0, 0, 0.8);
 }
 
 .item-card.r7 .ic-name {
-  color: var(--r7);
-  text-shadow: 0 0 16px rgba(255, 255, 255, 0.5);
+  background: linear-gradient(
+    90deg,
+    #ffffff 0%,
+    #ff4fd8 8.33%,
+    #7a5cff 16.66%,
+    #35d7ff 25%,
+    #4dff88 33.33%,
+    #ffd84d 41.66%,
+    #ffffff 50%,
+    #ff4fd8 58.33%,
+    #7a5cff 66.66%,
+    #35d7ff 75%,
+    #4dff88 83.33%,
+    #ffd84d 91.66%,
+    #ffffff 100%
+  );
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  text-shadow:
+    0 0 12px rgba(255, 255, 255, .46),
+    0 0 22px rgba(122, 92, 255, .3);
+  animation: absolute-rainbow 3.2s linear infinite;
 }
 
 .ic-type {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 5px 8px;
   font-size: var(--text-2xs);
   letter-spacing: 0.2em;
   text-transform: uppercase;

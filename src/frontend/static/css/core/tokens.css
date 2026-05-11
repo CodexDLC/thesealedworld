@@ -71,6 +71,7 @@
   --col-chat-local:   var(--col-stamina);  /* #55ee99 green  — area channel    */
   --col-chat-system:  var(--col-neutral);  /* #9999aa gray   — system messages */
   --col-chat-private: var(--col-psi);      /* #8866ff purple — private DM      */
+  --col-chat-combat:  #ff4d2e;
 
   /* ── Chat: notification glows (unread tab indicators) ── */
   /* Higher intensity than ambient shadows — designed for small tab elements */
@@ -80,19 +81,19 @@
   --shadow-notify-private: 0 0 10px 2px rgba(136, 102, 255, 0.60);
 
   /* Rarity System Colors */
-  --r0: #888899;
+  --r0: #6f6b62;
+  /* No-grade */
+  --r1: #c8bfa8;
   /* Common */
-  --r1: #44aa66;
+  --r2: #4fa86b;
   /* Uncommon */
-  --r2: #2a9d8f;
-  /* Advanced */
-  --r3: #3399ff;
+  --r3: #2f8fd3;
   /* Rare */
-  --r4: #9944ee;
+  --r4: #8c55d8;
   /* Epic */
-  --r5: #ff6600;
+  --r5: #d06835;
   /* Mythic */
-  --r6: #ffaa00;
+  --r6: #c99a3a;
   /* Legendary */
   --r7: #ffffff;
   /* Absolute */

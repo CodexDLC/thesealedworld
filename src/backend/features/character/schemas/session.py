@@ -53,6 +53,8 @@ class CharacterSessionAttributesDTO(BaseModel):
 class CharacterSessionRefsDTO(BaseModel):
     scenario_id: str | None = None
     combat_id: str | None = None
+    combat_finalization_id: str | None = None
+    arena_id: str | None = None
     inventory_id: str | None = None
 
 

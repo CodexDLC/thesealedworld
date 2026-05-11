@@ -1,9 +1,9 @@
 from typing import Any
 
 from src.frontend.integrations.backend_api.base import BaseApiClient
-from src.shared.schemas import CoreResponseDTO, EnterCharacterRequestDTO, ScenarioPayloadDTO
+from src.shared.schemas import CoreResponseDTO, EnterCharacterRequestDTO, StateTransitionDTO
 
-GameSessionEnterResponse = CoreResponseDTO[ScenarioPayloadDTO | dict[str, Any]]
+GameSessionEnterResponse = CoreResponseDTO[StateTransitionDTO | dict[str, Any]]
 
 
 class BackendGameSessionApi(BaseApiClient):

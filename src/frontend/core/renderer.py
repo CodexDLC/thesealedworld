@@ -4,6 +4,8 @@ from fastapi import Request
 from fastapi.templating import Jinja2Templates
 from loguru import logger
 
+from src.frontend.site_features.auth.token_state import get_access_token
+
 
 class UIRenderer:
     """
@@ -26,6 +28,7 @@ class UIRenderer:
         global_context = {
             "request": self.request,
             "user": getattr(self.request.state, "user", None),
+            "access_token": get_access_token(self.request) or "",
             "is_htmx": "HX-Request" in self.request.headers,
         }
 

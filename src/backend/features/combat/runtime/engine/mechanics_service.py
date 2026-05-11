@@ -1,8 +1,14 @@
+from typing import Literal
+
 # === НОВЫЙ ИМПОРТ ===
 from src.backend.core.calculators.stats_waterfall_calculator import StatsWaterfallCalculator
 from src.backend.features.combat.dto import (
     ActorSnapshot,
+    CombatDeathFactDTO,
+    CombatEffectFactDTO,
     CombatEventDTO,
+    CombatResourceFactDTO,
+    CombatTokenFactDTO,
     InteractionResultDTO,
     PipelineContextDTO,
 )
@@ -29,6 +35,8 @@ class MechanicsService:
             # 1. Collect Ticks
             hp_changes = []
             en_changes = []
+            hp_effect_ids = []
+            en_effect_ids = []
 
             for effect in actor.statuses.effects:
                 if not effect.impact:
@@ -38,22 +46,47 @@ class MechanicsService:
                 if "hp" in effect.impact:
                     val = effect.impact["hp"]
                     hp_changes.append(str(val))
+                    hp_effect_ids.append(effect.effect_id)
                     self._log_effect_tick(ctx, actor, effect.effect_id, val, "hp")
 
                 # EN Impact
                 if "en" in effect.impact:
                     val = effect.impact["en"]
                     en_changes.append(str(val))
+                    en_effect_ids.append(effect.effect_id)
                     self._log_effect_tick(ctx, actor, effect.effect_id, val, "en")
 
             # 2. Apply Changes
             if hp_changes:
-                self._apply_resource_delta(actor, "hp", hp_changes)
+                applied = self._apply_resource_delta(actor, "hp", hp_changes)
+                self._record_resource_fact(
+                    ctx.result,
+                    actor=actor,
+                    owner="self",
+                    resource="hp",
+                    reason="effect_tick",
+                    applied=applied,
+                    source_effect_id=hp_effect_ids[0] if len(hp_effect_ids) == 1 else None,
+                    tags=hp_effect_ids,
+                )
             if en_changes:
-                self._apply_resource_delta(actor, "en", en_changes)
+                applied = self._apply_resource_delta(actor, "en", en_changes)
+                self._record_resource_fact(
+                    ctx.result,
+                    actor=actor,
+                    owner="self",
+                    resource="en",
+                    reason="effect_tick",
+                    applied=applied,
+                    source_effect_id=en_effect_ids[0] if len(en_effect_ids) == 1 else None,
+                    tags=en_effect_ids,
+                )
 
             if actor.meta.hp <= 0 and not actor.meta.is_dead:
                 actor.meta.is_dead = True
+                ctx.result.death_facts.append(
+                    CombatDeathFactDTO(actor_id=actor.char_id, owner="self", reason="effect_tick")
+                )
                 ctx.result.events.append(
                     CombatEventDTO(
                         type="DEATH",
@@ -102,32 +135,67 @@ class MechanicsService:
         """
         # A. Costs (из resource_changes)
         if ctx.flags.mechanics.pay_cost:
-            hp_sources = []
-            en_sources = []
+            hp_changes = []
+            en_changes = []
 
             # Пример: {"hp": {"cost": "-10"}, "en": {"cost": "-20"}}
             if "hp" in result.resource_changes:
-                for _key, val in result.resource_changes["hp"].items():
-                    hp_sources.append(val)
+                hp_changes.extend(result.resource_changes["hp"].items())
 
             if "en" in result.resource_changes:
-                for _key, val in result.resource_changes["en"].items():
-                    en_sources.append(val)
+                en_changes.extend(result.resource_changes["en"].items())
 
             # Apply Costs
-            if hp_sources:
-                self._apply_resource_delta(source, "hp", hp_sources)
-            if en_sources:
-                self._apply_resource_delta(source, "en", en_sources)
+            if hp_changes:
+                applied = self._apply_resource_delta(source, "hp", [val for _key, val in hp_changes])
+                self._record_resource_fact(
+                    result,
+                    actor=source,
+                    owner="source",
+                    resource="hp",
+                    reason=self._resource_change_reason(hp_changes),
+                    applied=applied,
+                )
+            if en_changes:
+                applied = self._apply_resource_delta(source, "en", [val for _key, val in en_changes])
+                self._record_resource_fact(
+                    result,
+                    actor=source,
+                    owner="source",
+                    resource="en",
+                    reason=self._resource_change_reason(en_changes),
+                    applied=applied,
+                )
 
         # B. Tokens Awarded (Всегда начисляем, если не сказано иное? Пока оставим безусловно)
         if result.tokens_awarded_attacker:
             for token, amount in result.tokens_awarded_attacker.items():
+                before = source.meta.tokens.get(token, 0)
                 source.meta.tokens[token] = source.meta.tokens.get(token, 0) + amount
+                result.token_facts.append(
+                    CombatTokenFactDTO(
+                        actor_id=source.char_id,
+                        owner="source",
+                        token=token,
+                        amount=amount,
+                        before=before,
+                        after=source.meta.tokens[token],
+                        reason="award",
+                    )
+                )
 
         # C. Reflected damage from defender-side block style.
         if ctx.flags.mechanics.apply_damage and result.reflected_damage > 0:
-            self._apply_resource_delta(source, "hp", [f"-{result.reflected_damage}"])
+            applied = self._apply_resource_delta(source, "hp", [f"-{result.reflected_damage}"])
+            self._record_resource_fact(
+                result,
+                actor=source,
+                owner="source",
+                resource="hp",
+                reason="reflect",
+                applied=applied,
+                tags=["REFLECT"],
+            )
             ctx.result.events.append(
                 CombatEventDTO(
                     type="HIT",
@@ -141,6 +209,9 @@ class MechanicsService:
 
             if ctx.flags.mechanics.check_death and source.meta.hp <= 0:
                 source.meta.is_dead = True
+                ctx.result.death_facts.append(
+                    CombatDeathFactDTO(actor_id=source.char_id, owner="source", reason="reflect")
+                )
                 ctx.result.events.append(
                     CombatEventDTO(
                         type="DEATH",
@@ -164,11 +235,20 @@ class MechanicsService:
 
             # Apply
             if hp_sources:
-                self._apply_resource_delta(target, "hp", hp_sources)
+                applied = self._apply_resource_delta(target, "hp", hp_sources)
+                self._record_resource_fact(
+                    result,
+                    actor=target,
+                    owner="target",
+                    resource="hp",
+                    reason="damage",
+                    applied=applied,
+                )
 
         # B. Death Check
         if ctx.flags.mechanics.check_death and target.meta.hp <= 0:
             target.meta.is_dead = True
+            ctx.result.death_facts.append(CombatDeathFactDTO(actor_id=target.char_id, owner="target", reason="damage"))
 
             # Log Death Event
             ctx.result.events.append(
@@ -183,18 +263,36 @@ class MechanicsService:
         # C. Tokens Awarded
         if result.tokens_awarded_defender:
             for token, amount in result.tokens_awarded_defender.items():
+                before = target.meta.tokens.get(token, 0)
                 target.meta.tokens[token] = target.meta.tokens.get(token, 0) + amount
+                result.token_facts.append(
+                    CombatTokenFactDTO(
+                        actor_id=target.char_id,
+                        owner="target",
+                        token=token,
+                        amount=amount,
+                        before=before,
+                        after=target.meta.tokens[token],
+                        reason="award",
+                    )
+                )
 
-    def _apply_resource_delta(self, actor: ActorSnapshot, resource: str, sources: list[str]) -> None:
+    def _apply_resource_delta(
+        self, actor: ActorSnapshot, resource: str, sources: list[str]
+    ) -> tuple[int, int, int, int] | None:
         """
         Универсальный метод изменения ресурса через StatsWaterfallCalculator.
         """
+        before, max_value = self._resource_state(actor, resource)
+        if before is None or max_value is None:
+            return None
+
         # 1. Calculate Delta
         delta, _ = StatsWaterfallCalculator.evaluate_sources(sources, base_value=0.0)
         delta_int = int(delta)
 
         if delta_int == 0:
-            return
+            return None
 
         # 2. Apply & Clamp
         if resource == "hp":
@@ -203,6 +301,62 @@ class MechanicsService:
         elif resource == "en":
             new_val = actor.meta.en + delta_int
             actor.meta.en = max(0, min(new_val, actor.meta.max_en))
+        else:
+            return None
+
+        after, _max_value = self._resource_state(actor, resource)
+        if after is None:
+            return None
+        return before, after, max_value, after - before
+
+    @staticmethod
+    def _resource_state(actor: ActorSnapshot, resource: str) -> tuple[int | None, int | None]:
+        if resource == "hp":
+            return actor.meta.hp, actor.meta.max_hp
+        if resource == "en":
+            return actor.meta.en, actor.meta.max_en
+        return None, None
+
+    @staticmethod
+    def _resource_change_reason(changes: list[tuple[str, str]]) -> str:
+        reasons = [key for key, _value in changes]
+        if len(reasons) == 1:
+            return reasons[0]
+        if reasons and all(reason == reasons[0] for reason in reasons):
+            return reasons[0]
+        return "mixed"
+
+    @staticmethod
+    def _record_resource_fact(
+        result: InteractionResultDTO,
+        *,
+        actor: ActorSnapshot,
+        owner: Literal["source", "target", "self", "other"],
+        resource: str,
+        reason: str,
+        applied: tuple[int, int, int, int] | None,
+        source_effect_id: str | None = None,
+        source_trigger_id: str | None = None,
+        tags: list[str] | None = None,
+    ) -> None:
+        if applied is None:
+            return
+        before, after, max_value, delta = applied
+        result.resource_facts.append(
+            CombatResourceFactDTO(
+                actor_id=actor.char_id,
+                owner=owner,
+                resource=resource,
+                reason=reason,
+                delta=delta,
+                before=before,
+                after=after,
+                max=max_value,
+                source_effect_id=source_effect_id,
+                source_trigger_id=source_trigger_id,
+                tags=tags or [],
+            )
+        )
 
     def _register_xp_events(
         self,
@@ -250,6 +404,17 @@ class MechanicsService:
         """
         Формирует лог тика эффекта.
         """
+        ctx.result.effect_facts.append(
+            CombatEffectFactDTO(
+                actor_id=actor.char_id,
+                owner="self",
+                effect_id=effect_id,
+                action="tick",
+                value=value,
+                resource=resource,
+            )
+        )
+
         # Создаем событие TICK
         event = CombatEventDTO(
             type="TICK",

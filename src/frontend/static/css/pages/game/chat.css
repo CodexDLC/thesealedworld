@@ -9,6 +9,70 @@
 
 .game-chat-row {
     max-height: calc(100dvh - var(--game-header-height, 40px) - var(--game-footer-height, 24px) - 32px);
+    background:
+        linear-gradient(rgba(4, 4, 4, .80), rgba(2, 2, 2, .91)),
+        var(--chat-surface-texture, url("/static/images/ui/textures/button-candidates/button-surface-01-dark-wood.webp")) center / cover no-repeat;
+    border-color: color-mix(in srgb, var(--chat-accent, var(--col-accent)) 24%, transparent);
+}
+
+.chat-inner-wrap {
+    --chat-accent: var(--col-chat-world);
+    --chat-accent-soft: rgba(255, 170, 0, .12);
+    --chat-accent-border: rgba(255, 170, 0, .20);
+    --chat-panel-fill: rgba(10, 7, 4, .64);
+    --chat-side-fill: rgba(8, 6, 4, .70);
+    --chat-input-fill: rgba(18, 11, 5, .58);
+    --chat-surface-texture: url("/static/images/ui/textures/button-candidates/button-surface-01-dark-wood.webp");
+}
+
+.chat-theme-world {
+    --chat-accent: var(--col-chat-world);
+    --chat-accent-soft: rgba(255, 170, 0, .13);
+    --chat-accent-border: rgba(255, 170, 0, .24);
+    --chat-panel-fill: rgba(13, 8, 4, .62);
+    --chat-side-fill: rgba(10, 7, 4, .70);
+    --chat-input-fill: rgba(22, 13, 5, .60);
+    --chat-surface-texture: url("/static/images/ui/textures/button-candidates/button-surface-01-dark-wood.webp");
+}
+
+.chat-theme-zone {
+    --chat-accent: var(--col-chat-local);
+    --chat-accent-soft: rgba(85, 238, 153, .10);
+    --chat-accent-border: rgba(85, 238, 153, .20);
+    --chat-panel-fill: rgba(4, 12, 8, .64);
+    --chat-side-fill: rgba(3, 10, 7, .72);
+    --chat-input-fill: rgba(5, 17, 10, .58);
+    --chat-surface-texture: url("/static/images/ui/textures/button-candidates/button-surface-04-charcoal-stone.webp");
+}
+
+.chat-theme-system {
+    --chat-accent: var(--col-chat-system);
+    --chat-accent-soft: rgba(153, 153, 170, .11);
+    --chat-accent-border: rgba(153, 153, 170, .20);
+    --chat-panel-fill: rgba(5, 6, 8, .68);
+    --chat-side-fill: rgba(4, 5, 7, .76);
+    --chat-input-fill: rgba(9, 10, 13, .62);
+    --chat-surface-texture: url("/static/images/ui/textures/button-candidates/button-surface-02-blackened-metal.webp");
+}
+
+.chat-theme-private {
+    --chat-accent: var(--col-chat-private);
+    --chat-accent-soft: rgba(136, 102, 255, .11);
+    --chat-accent-border: rgba(136, 102, 255, .22);
+    --chat-panel-fill: rgba(11, 7, 16, .64);
+    --chat-side-fill: rgba(9, 6, 14, .72);
+    --chat-input-fill: rgba(16, 9, 24, .58);
+    --chat-surface-texture: url("/static/images/ui/textures/button-candidates/button-surface-03-aged-bronze.webp");
+}
+
+.chat-theme-combat {
+    --chat-accent: var(--col-chat-combat, #ff4d2e);
+    --chat-accent-soft: rgba(255, 77, 46, .13);
+    --chat-accent-border: rgba(255, 77, 46, .24);
+    --chat-panel-fill: rgba(15, 5, 3, .66);
+    --chat-side-fill: rgba(12, 4, 3, .74);
+    --chat-input-fill: rgba(21, 7, 4, .60);
+    --chat-surface-texture: url("/static/images/ui/textures/button-candidates/button-surface-02-blackened-metal.webp");
 }
 
 .chat-panel {
@@ -16,8 +80,14 @@
     flex-direction: column;
     height: 100%;
     min-height: 0;
-    background: rgba(5, 5, 5, 0.95) !important;
+    background:
+        radial-gradient(circle at 18% 0, var(--chat-accent-soft), transparent 34%),
+        linear-gradient(var(--chat-panel-fill), rgba(1, 1, 1, .88)),
+        var(--chat-surface-texture) center / cover no-repeat !important;
     position: relative;
+    box-shadow:
+        inset 0 1px 0 color-mix(in srgb, var(--chat-accent) 18%, transparent),
+        inset 0 -24px 44px rgba(0, 0, 0, .32);
 }
 
 .chat-resizer {
@@ -42,8 +112,10 @@
     align-items: center;
     justify-content: space-between;
     padding: 6px var(--sp-3);
-    background: rgba(0,0,0,0.4);
-    border-bottom: 1px solid rgba(255,170,0,0.1);
+    background:
+        linear-gradient(90deg, var(--chat-accent-soft), transparent 34%, rgba(0, 0, 0, .18)),
+        rgba(0,0,0,0.34);
+    border-bottom: 1px solid var(--chat-accent-border);
     flex-shrink: 0;
 }
 
@@ -59,7 +131,7 @@
 .chat-tab-divider {
     width: 1px;
     height: 10px;
-    background: rgba(255, 170, 0, 0.15);
+    background: color-mix(in srgb, var(--chat-accent) 24%, transparent);
     align-self: center;
     margin: 0 4px;
 }
@@ -98,6 +170,7 @@
 .chat-tab[data-channel="zone"].active   span { color: var(--col-chat-local);   opacity: 1; }
 .chat-tab[data-channel="system"].active span { color: var(--col-chat-system);  opacity: 1; }
 .chat-tab[data-channel="private"].active span { color: var(--col-chat-private); opacity: 1; }
+.chat-tab[data-channel="combat"].active span { color: var(--col-chat-combat, #ff4d2e); opacity: 1; }
 
 /* Fallback for tabs without data-channel */
 .chat-tab.active span { color: var(--col-chat-world); opacity: 1; }
@@ -108,6 +181,7 @@
 .chat-tab[data-channel="zone"].unread span   { color: var(--col-chat-local);   opacity: 0.9; animation: notify-pulse-local 1.3s ease-in-out infinite; }
 .chat-tab[data-channel="system"].unread span { color: var(--col-chat-system);  opacity: 0.9; animation: notify-pulse 1.3s ease-in-out infinite; }
 .chat-tab[data-channel="private"].unread span{ color: var(--col-chat-private); opacity: 0.9; animation: notify-pulse 1.3s ease-in-out infinite; }
+.chat-tab[data-channel="combat"].unread span { color: var(--col-chat-combat, #ff4d2e); opacity: 0.9; animation: notify-pulse 1.3s ease-in-out infinite; }
 
 /* Unread dot — tiny marker on the tab */
 .chat-tab.unread::after {
@@ -133,12 +207,53 @@
     text-shadow: 0 0 8px rgba(136, 102, 255, 0.4);
 }
 
+.chat-tab.is-combat span {
+    color: var(--col-chat-combat, #ff4d2e);
+    opacity: 0.62;
+}
+
+.chat-tab.is-combat.active span {
+    color: var(--col-chat-combat, #ff4d2e);
+    opacity: 1;
+    text-shadow: 0 0 8px rgba(255, 77, 46, 0.38);
+}
+
+.chat-tab-close {
+    margin-left: 4px;
+    border: 0;
+    background: transparent;
+    color: currentColor;
+    cursor: pointer;
+    font: inherit;
+    opacity: 0.45;
+    padding: 0 1px;
+}
+
+.chat-tab-close:hover {
+    opacity: 1;
+}
+
 /* Chat window controls row */
 .chat-win-controls {
     display: flex;
     align-items: center;
     gap: var(--sp-2);
     padding-right: var(--sp-3);
+}
+
+.chat-tab-system-toggle {
+    margin-right: 4px;
+}
+
+.chat-tab-system-toggle span {
+    color: var(--col-chat-system);
+    opacity: 0.52;
+}
+
+.chat-tab-system-toggle.active span {
+    color: var(--col-chat-system);
+    opacity: 1;
+    text-shadow: 0 0 8px rgba(153, 153, 170, 0.35);
 }
 
 /* Override btn-node disabled state inside chat */
@@ -182,6 +297,9 @@
     display: flex;
     min-height: 0;
     overflow: hidden;
+    background:
+        linear-gradient(180deg, rgba(255, 255, 255, .018), transparent 24%),
+        linear-gradient(90deg, rgba(0, 0, 0, .18), transparent 34%, rgba(0, 0, 0, .22));
 }
 
 .chat-log {
@@ -197,8 +315,10 @@
 .chat-users {
     width: 250px;
     min-width: 180px;
-    border-left: 1px solid rgba(255,170,0,0.1);
-    background: rgba(0,0,0,0.2);
+    border-left: 1px solid var(--chat-accent-border);
+    background:
+        linear-gradient(var(--chat-side-fill), rgba(0, 0, 0, .68)),
+        var(--chat-surface-texture) center / cover no-repeat;
     display: flex;
     flex-direction: column;
     padding: var(--sp-3);
@@ -207,8 +327,8 @@
 .users-header {
     font-size: 10px;
     letter-spacing: 2px;
-    color: var(--col-accent);
-    opacity: 0.5;
+    color: var(--chat-accent);
+    opacity: 0.68;
     margin-bottom: 10px;
 }
 
@@ -250,7 +370,7 @@
     padding-left: 8px;
 }
 .tag-m {
-    color: var(--col-accent);
+    color: var(--chat-accent);
     margin-right: 8px;
     font-size: 10px;
     opacity: 0.8;
@@ -259,12 +379,125 @@
 .msg.sys { border-color: rgba(255, 170, 0, 0.1); color: var(--col-accent); opacity: 0.7; }
 .msg.player { color: var(--col-parchment); }
 .msg.npc { color: var(--col-parchment-dim); font-style: italic; }
+.msg.combat {
+    border-color: rgba(255, 77, 46, 0.26);
+    color: var(--col-parchment);
+}
+
+.msg.combat-log {
+    border-color: rgba(255, 77, 46, 0.30);
+    color: rgba(230, 204, 172, 0.92);
+}
+
+.msg.combat-log .tag-m {
+    color: var(--col-chat-combat, #ff4d2e);
+}
+
+.chat-message-view {
+    display: inline;
+}
+
+.chat-message-icon {
+    width: 14px;
+    height: 14px;
+    margin-right: 5px;
+    vertical-align: -2px;
+    object-fit: contain;
+    filter: invert(84%) sepia(38%) saturate(729%) hue-rotate(352deg) brightness(99%) contrast(101%);
+}
+
+.combat-log-var {
+    font-weight: 700;
+}
+
+.combat-log-var--source {
+    color: #68a8ff;
+}
+
+.combat-log-var--target {
+    color: #ff6a4d;
+}
+
+.combat-log-var--weapon {
+    color: #e8cf95;
+    text-decoration: underline;
+    text-decoration-color: rgba(232, 207, 149, .55);
+    text-underline-offset: 2px;
+}
+
+.combat-facts {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    margin-left: 7px;
+    vertical-align: -2px;
+}
+
+.combat-fact {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    min-height: 16px;
+    padding: 1px 5px;
+    border: 1px solid rgba(255, 170, 0, .18);
+    background: rgba(0, 0, 0, .26);
+    color: rgba(238, 220, 190, .92);
+    font-family: var(--font-mono);
+    font-size: 10px;
+    line-height: 1.2;
+    white-space: nowrap;
+}
+
+.combat-fact img {
+    width: 13px;
+    height: 13px;
+    object-fit: contain;
+    flex: 0 0 auto;
+}
+
+.combat-fact--resource {
+    color: #f1d58f;
+    border-color: rgba(241, 213, 143, .24);
+}
+
+.combat-fact--token {
+    color: #d8ecff;
+    border-color: rgba(104, 168, 255, .28);
+}
+
+.combat-fact--effect {
+    color: #ffb38f;
+    border-color: rgba(255, 106, 77, .28);
+}
+
+.combat-log-separator {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 9px 0 6px;
+    color: var(--col-chat-combat, #ff4d2e);
+    font-family: var(--font-ui);
+    font-size: 9px;
+    letter-spacing: .16em;
+    text-transform: uppercase;
+    opacity: .78;
+}
+
+.combat-log-separator::before,
+.combat-log-separator::after {
+    content: "";
+    height: 1px;
+    flex: 1;
+    background: linear-gradient(90deg, transparent, rgba(255, 77, 46, .42), transparent);
+}
 
 /* Input Row */
 .chat-input-row {
     padding: var(--sp-2) var(--sp-3);
-    background: rgba(255, 170, 0, 0.03);
-    border-top: 1px solid rgba(255, 170, 0, 0.1);
+    background:
+        linear-gradient(90deg, var(--chat-accent-soft), transparent 42%),
+        var(--chat-input-fill);
+    border-top: 1px solid var(--chat-accent-border);
     display: flex;
     align-items: center;
     gap: 10px;
@@ -272,7 +505,7 @@
 }
 
 #chat-prompt {
-    color: var(--col-accent);
+    color: var(--chat-accent);
     font-size: 14px;
     font-family: var(--font-mono);
 }
@@ -354,7 +587,7 @@
 #chat-send {
     background: transparent;
     border: none;
-    color: var(--col-accent);
+    color: var(--chat-accent);
     cursor: pointer;
     opacity: 0.5;
     transition: opacity 0.2s;

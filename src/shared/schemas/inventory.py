@@ -212,6 +212,15 @@ class InventoryDetailLineDTO(BaseModel):
     delta: float | None = None
 
 
+class InventoryAffixLineDTO(BaseModel):
+    affix_id: str
+    label: str
+    value: str
+    tier: int = Field(default=0, ge=0, le=7)
+    source: str | None = None
+    tone: InventoryLineTone = "neutral"
+
+
 class InventoryRequirementDTO(BaseModel):
     label: str
     value: str
@@ -242,12 +251,14 @@ class InventoryItemDetailsDTO(BaseModel):
     item_id: str
     name: str
     item_type: str
+    item_type_label: str = "Предмет"
     rarity: str = "shared"
     rarity_tier: int = Field(default=0, ge=0, le=7)
-    rarity_label: str = "Common"
+    rarity_label: str = "Без грейда"
     description: str = ""
     flavor: str | None = None
     details: list[InventoryDetailLineDTO] = Field(default_factory=list)
+    affixes: list[InventoryAffixLineDTO] = Field(default_factory=list)
     comparison: list[InventoryDetailLineDTO] = Field(default_factory=list)
     effects: list[InventoryEffectTagDTO] = Field(default_factory=list)
     tags: list[InventoryEffectTagDTO] = Field(default_factory=list)
@@ -312,7 +323,7 @@ class InventoryContainerRowDTO(BaseModel):
     quantity: int = 1
     rarity: str = "shared"
     rarity_tier: int = Field(default=0, ge=0, le=7)
-    rarity_label: str = "Common"
+    rarity_label: str = "Без грейда"
     equip_target: str | None = None
     valid_slots: list[str] = Field(default_factory=list)
     grid_w: int = 2
@@ -338,6 +349,7 @@ class InventoryWindowDTO(BaseModel):
     visible_rows: list[InventoryContainerRowDTO]
     rows_visible_count: int = 10
     search_query: str | None = None
+    search_placeholder: str = "Поиск"
     contract_state: str = "SHARED_INVENTORY_CONTRACT_V1"
 
 

@@ -3,46 +3,48 @@
 Позволяют быстро настроить поведение Пайплайна (Атака, Хил, Бафф).
 """
 
-from typing import Any
+from src.backend.features.game_catalog.combat.resources.common.pipeline_mutations import (
+    PipelineMutationApplicationDTO,
+    pipeline_mutation,
+)
 
-PIPELINE_PRESETS: dict[str, dict[str, Any]] = {
+PIPELINE_PRESETS: dict[str, list[PipelineMutationApplicationDTO]] = {
     # === MAGIC ATTACK (Магическая Атака) ===
     # Использует магические статы, проверяет резисты.
-    "MAGIC_ATTACK": {
-        "meta.source_type": "magic",
-        "stages.check_accuracy": True,
-        "stages.check_evasion": True,  # Можно увернуться? (Обычно да)
-        "stages.check_parry": False,  # Магию нельзя парировать мечом
-        "stages.check_block": False,  # Магию нельзя блокировать щитом (обычным)
-        "stages.calculate_damage": True,
-    },
+    "MAGIC_ATTACK": [
+        pipeline_mutation("meta.source_type", "magic"),
+        pipeline_mutation("stage.check_accuracy", True),
+        pipeline_mutation("stage.check_evasion", True),
+        pipeline_mutation("stage.check_parry", False),
+        pipeline_mutation("stage.check_block", False),
+        pipeline_mutation("stage.calculate_damage", True),
+    ],
     # === HEALING (Лечение) ===
     # Пропускает боевые проверки, считает только хил.
-    "HEALING": {
-        "meta.source_type": "magic",
-        "stages.check_accuracy": False,
-        "stages.check_evasion": False,
-        "stages.check_parry": False,
-        "stages.check_block": False,
-        "stages.check_crit": True,  # Хил может критовать
-        "stages.calculate_damage": False,
-        "stages.calculate_healing": True,  # Включаем расчет хила
-    },
+    "HEALING": [
+        pipeline_mutation("meta.source_type", "magic"),
+        pipeline_mutation("stage.check_accuracy", False),
+        pipeline_mutation("stage.check_evasion", False),
+        pipeline_mutation("stage.check_parry", False),
+        pipeline_mutation("stage.check_block", False),
+        pipeline_mutation("stage.check_crit", True),
+        pipeline_mutation("stage.calculate_damage", False),
+        pipeline_mutation("stage.calculate_healing", True),
+    ],
     # === BUFF / DEBUFF (Чистый эффект) ===
     # Пропускает всё, кроме применения эффектов.
-    "BUFF": {
-        "phases.run_calculator": False,  # Выключаем Резолвер полностью
-        "phases.run_stats_engine": True,  # Статы нужны для скейлинга эффектов
-    },
+    "BUFF": [
+        pipeline_mutation("phase.run_calculator", False),
+        pipeline_mutation("phase.run_stats_engine", True),
+    ],
     # === WEAPON SKILL (Навык Оружия) ===
     # Ведет себя как обычная атака, но может иметь бонусы.
-    "WEAPON_SKILL": {
-        "meta.source_type": "main_hand",
-        # Все этапы включены по умолчанию в Pipeline
-    },
+    "WEAPON_SKILL": [
+        pipeline_mutation("meta.source_type", "main_hand"),
+    ],
     # === UNBLOCKABLE (Неблокируемая Атака) ===
-    "UNBLOCKABLE": {
-        "restriction.ignore_block": True,
-        "restriction.ignore_parry": True,
-    },
+    "UNBLOCKABLE": [
+        pipeline_mutation("ignore_block"),
+        pipeline_mutation("ignore_parry"),
+    ],
 }

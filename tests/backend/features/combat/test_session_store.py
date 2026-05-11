@@ -40,6 +40,12 @@ class FakePipeline:
     def set(self, key, path, value):
         self.commands.append(("json_set", key, path, value))
 
+    def get(self, key, path="$"):
+        self.commands.append(("json_get", key, path))
+
+    def lrange(self, key, start, stop):
+        self.commands.append(("lrange", key, start, stop))
+
     def delete(self, key):
         self.commands.append(("delete", key, None))
 
@@ -57,6 +63,18 @@ class FakePipeline:
                 _, value = payload
                 self.client.json_store[key] = value
                 results.append(True)
+            elif name == "json_get":
+                path = payload[0]
+                value = self.client.json_store.get(key)
+                if path == "$":
+                    results.append([value] if value is not None else None)
+                else:
+                    results.append(None)
+            elif name == "lrange":
+                start, stop = payload
+                values = self.client.lists.get(key, [])
+                end = None if stop == -1 else stop + 1
+                results.append(values[start:end])
             elif name == "delete":
                 self.client.json_store.pop(key, None)
                 self.client.hash_store.pop(key, None)
@@ -217,6 +235,33 @@ async def test_commit_battle_results_persists_meta_updates():
     await store.commit_battle_results("c1", {}, [], 0, meta_update={"step_counter": 3})
 
     assert redis.redis_client.hash_store["combat:rbc:c1:meta"]["step_counter"] == 3
+
+
+@pytest.mark.asyncio
+async def test_load_full_context_data_preserves_actor_feints_from_meta():
+    redis = FakeRedisService()
+    store = CombatSessionManager(redis)
+    redis.redis_client.json_store["combat:rbc:c1:actor:1"] = {
+        "meta": {
+            "id": "1",
+            "hp": 10,
+            "max_hp": 10,
+            "tokens": {"hit": 2},
+            "feints": {"arsenal": ["true_strike"], "hand": {"true_strike": {"hit": 2}}, "pinned": "true_strike"},
+        },
+        "raw": {},
+        "loadout": {},
+        "statuses": {"abilities": [], "effects": []},
+    }
+    redis.redis_client.json_store["combat:rbc:c1:actor:1:moves"] = {"exchange": {}}
+
+    data = await store.load_full_context_data("c1", ["1"])
+
+    assert data["1"]["state"]["feints"] == {
+        "arsenal": ["true_strike"],
+        "hand": {"true_strike": {"hit": 2}},
+        "pinned": "true_strike",
+    }
 
 
 def test_exchange_registration_lua_prefers_string_target_ids():

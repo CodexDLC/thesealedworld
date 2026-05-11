@@ -2,9 +2,10 @@ import time
 
 import pytest
 
-from src.backend.features.arena.dto.session import ArenaCombatRequestDTO, ArenaQueueRequestDTO
+from src.backend.features.arena.dto.session import ArenaCombatRequestDTO, ArenaQueueRequestDTO, ArenaRuntimeSessionDTO
 from src.backend.features.arena.integrations import ArenaSessionIntegration, ArenaSystemIntegrator
 from src.backend.features.arena.services import ArenaService
+from src.shared.enums import CoreDomain
 from src.shared.schemas.arena import ArenaScreenEnum
 
 
@@ -12,6 +13,7 @@ class FakeStore:
     def __init__(self) -> None:
         self.requests: dict[int, ArenaQueueRequestDTO] = {}
         self.matches: dict[str, ArenaCombatRequestDTO] = {}
+        self.runtime_sessions: dict[str, ArenaRuntimeSessionDTO] = {}
         self.char_matches: dict[int, str] = {}
         self.queue: dict[str, set[int]] = {}
         self.locks: set[int] = set()
@@ -31,6 +33,18 @@ class FakeStore:
 
     async def get_request(self, char_id: int) -> ArenaQueueRequestDTO | None:
         return self.requests.get(char_id)
+
+    async def create_runtime_session(self, session: ArenaRuntimeSessionDTO) -> None:
+        self.runtime_sessions[session.arena_id] = session
+
+    async def get_runtime_session(self, arena_id: str) -> ArenaRuntimeSessionDTO | None:
+        return self.runtime_sessions.get(arena_id)
+
+    async def update_runtime_session(self, session: ArenaRuntimeSessionDTO) -> None:
+        self.runtime_sessions[session.arena_id] = session
+
+    async def delete_runtime_session(self, arena_id: str) -> None:
+        self.runtime_sessions.pop(arena_id, None)
 
     async def get_candidates(self, mode: str, min_gs: float, max_gs: float) -> list[int]:
         _ = min_gs, max_gs
@@ -110,10 +124,20 @@ class FailingSnapshotEvents(FakeEvents):
 class FakeCharacterSessions:
     def __init__(self):
         self.combat = {}
+        self.arena = {}
         self.state = None
+
+    async def get_session(self, char_id):
+        return {"char_id": char_id, "sessions": {"arena_id": self.arena.get(char_id)}}
 
     async def set_combat_session(self, char_id, combat_id):
         self.combat[char_id] = combat_id
+
+    async def set_arena_session(self, char_id, arena_id):
+        self.arena[char_id] = arena_id
+
+    async def clear_arena_session(self, char_id):
+        self.arena[char_id] = None
 
     async def set_state(self, char_id, state, *, prev_state=None):
         self.state = (char_id, state, prev_state)
@@ -125,6 +149,43 @@ def build_service(store: FakeStore, events: FakeEvents) -> ArenaService:
         session_service=ArenaSessionIntegration(store),
         integrator=ArenaSystemIntegrator(events=events, character_sessions=sessions),
     )
+
+
+@pytest.mark.asyncio
+async def test_view_creates_arena_runtime_session_and_attaches_active_character_ref():
+    store = FakeStore()
+    events = FakeEvents()
+    sessions = FakeCharacterSessions()
+    service = ArenaService(
+        session_service=ArenaSessionIntegration(store),
+        integrator=ArenaSystemIntegrator(events=events, character_sessions=sessions),
+    )
+
+    payload = await service.view(1)
+
+    arena_id = sessions.arena[1]
+    assert payload.screen == ArenaScreenEnum.MAIN_MENU
+    assert arena_id.startswith("arena:runtime:")
+    assert store.runtime_sessions[arena_id].char_id == 1
+    assert sessions.state == (1, CoreDomain.ARENA, None)
+
+
+@pytest.mark.asyncio
+async def test_show_mode_menu_updates_arena_runtime_position():
+    store = FakeStore()
+    events = FakeEvents()
+    sessions = FakeCharacterSessions()
+    service = ArenaService(
+        session_service=ArenaSessionIntegration(store),
+        integrator=ArenaSystemIntegrator(events=events, character_sessions=sessions),
+    )
+
+    payload = await service.show_mode_menu(1, "group")
+
+    session = store.runtime_sessions[sessions.arena[1]]
+    assert payload.screen == ArenaScreenEnum.MODE_MENU
+    assert session.screen == ArenaScreenEnum.MODE_MENU
+    assert session.mode == "group"
 
 
 @pytest.mark.asyncio

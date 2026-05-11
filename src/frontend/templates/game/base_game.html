@@ -53,7 +53,8 @@
             domain: {{ (domain if domain is defined else '')|tojson }},
             initialStatus: {{ initial_status|tojson }},
             leftOpen: {{ 'true' if session_ui is defined and session_ui.left_open else 'false' }},
-            rightOpen: {{ 'true' if session_ui is defined and session_ui.right_open else 'false' }}
+            rightOpen: {{ 'true' if session_ui is defined and session_ui.right_open else 'false' }},
+            initialInventoryOpen: {{ 'true' if initial_inventory_open is defined and initial_inventory_open else 'false' }}
          })'
          :style="`--chat-height: ${chatMinimized ? '100px' : chatHeight + 'px'}`"
          @panel-toggle.window="togglePanel($event.detail)"
@@ -98,7 +99,6 @@
         </div>
 
         <div id="game-chat-shell">
-            {% if domain != 'combats' %}
             <button type="button"
                     class="game-chat-launcher"
                     x-cloak
@@ -121,7 +121,6 @@
                     </div>
                 </div>
             </div>
-            {% endif %}
         </div>
 
         <div id="game-footer-shell">

@@ -1,38 +1,102 @@
 <div class="combat-viewport">
     {% if combat_result %}
+        {% set result_screen = combat_result_screen if combat_result_screen is defined else none %}
+        {% set result_title = result_screen.title if result_screen else combat_result.title %}
+        {% set result_summary = result_screen.summary if result_screen else combat_result.summary %}
+        {% set result_message = result_screen.message if result_screen else combat_result.message %}
+        {% set result_outcome = result_screen.outcome if result_screen else combat_result.outcome %}
+        {% set result_reason = result_screen.reason if result_screen else combat_result.reason %}
+        {% set result_archived = result_screen.archived if result_screen else combat_result.archived %}
+        {% set result_combat_id = result_screen.combat_id if result_screen else (combat_result.combat_id or 'NO_DATA') %}
+        {% set result_battle_type = result_screen.battle_type if result_screen else none %}
+        {% set result_last_turn = result_screen.last_turn if result_screen else none %}
+        {% set result_teams = result_screen.teams if result_screen else [] %}
+        {% set result_progression = result_screen.progression if result_screen else [] %}
+        {% set result_experience = result_screen.experience if result_screen else none %}
+        {% set result_primary_label = result_screen.primary_label if result_screen else combat_result.primary_action.label %}
+        {% set result_primary_state = result_screen.primary_target_state if result_screen else (combat_result.primary_action.target_state or 'exploration') %}
         <section id="center-screens" class="combat-screen-shell">
             <article class="cs active combat-screen combat-result-screen">
-                <div class="combat-result-backdrop" role="presentation"></div>
-                <section class="combat-result-modal" role="dialog" aria-modal="true" aria-labelledby="combat-result-title">
+                <section class="combat-result-hero" role="dialog" aria-modal="true" aria-labelledby="combat-result-title">
                     <header class="combat-result-head">
-                        <span>COMBAT RESULT</span>
-                        <h2 id="combat-result-title">{{ combat_result.title }}</h2>
+                        <h2 id="combat-result-title" class="combat-result-title--{{ result_outcome }}">{{ result_title }}</h2>
+                        <p>
+                            {% if result_last_turn is not none %}
+                                Бой окончился на {{ result_last_turn }} ходу.
+                            {% else %}
+                                Финальный отчет готов.
+                            {% endif %}
+                        </p>
                     </header>
-                    <p class="combat-result-message">{{ combat_result.message }}</p>
-                    <div class="combat-result-summary">{{ combat_result.summary }}</div>
-                    <div class="combat-result-grid">
-                        <div>
-                            <span>OUTCOME</span>
-                            <strong>{{ combat_result.outcome }}</strong>
-                        </div>
-                        <div>
-                            <span>ARCHIVE</span>
-                            <strong>{{ 'READY' if combat_result.archived else 'PENDING' }}</strong>
-                        </div>
-                        <div>
-                            <span>COMBAT ID</span>
-                            <strong>{{ combat_result.combat_id or 'NO_DATA' }}</strong>
-                        </div>
-                        <div>
-                            <span>REASON</span>
-                            <strong>{{ combat_result.reason }}</strong>
+
+                    <div class="combat-result-field" role="presentation">
+                        <div class="combat-result-field__image"></div>
+                        <div class="combat-result-field__caption">
+                            <span>{{ result_battle_type or 'БОЙ ЗАВЕРШЕН' }}</span>
+                            <strong>{{ 'ХОД ' ~ result_last_turn if result_last_turn is not none else 'ФИНАЛ' }}</strong>
                         </div>
                     </div>
+
+                    <section class="combat-result-report combat-result-rosters">
+                        {% for team in result_teams %}
+                            <article class="combat-result-team combat-result-team--{{ team.outcome }}">
+                                <div class="combat-result-team-head">
+                                    <span>{{ 'Твоя команда' if loop.index0 == 0 else 'Противники' }}</span>
+                                    <strong>{{ team.alive_count }} выжило / {{ team.total_count - team.alive_count }} погибло</strong>
+                                </div>
+                                <div class="combat-result-roster">
+                                    {% for actor in team.actors %}
+                                        <div class="combat-result-actor {% if actor.is_dead %}is-dead{% endif %}">
+                                            <span>{{ actor.name }}</span>
+                                            <div><i style="width: {{ actor.hp_percent }}%"></i></div>
+                                            <b>{{ actor.hp_current }}/{{ actor.hp_max }}</b>
+                                            <em>{{ 'ПАЛ' if actor.is_dead else 'ЖИВ' }}</em>
+                                        </div>
+                                    {% else %}
+                                        <div class="combat-result-empty">NO_ACTORS</div>
+                                    {% endfor %}
+                                </div>
+                            </article>
+                        {% else %}
+                            <article class="combat-result-team">
+                                <div class="combat-result-team-head">
+                                    <span>Состав боя</span>
+                                    <strong>NO_DATA</strong>
+                                </div>
+                                <div class="combat-result-empty">Данные участников не попали в финальный отчет.</div>
+                            </article>
+                        {% endfor %}
+                    </section>
+
+                    <section class="combat-result-rewards">
+                        <div class="combat-result-section-title">ПРОГРЕСС</div>
+                        <div class="combat-result-reward-grid">
+                            <div class="combat-result-reward combat-result-reward--total">
+                                <span>ПОЛУЧЕНО ОПЫТА ВСЕГО</span>
+                                <em>{{ result_experience.percent_text if result_experience else '+0.00%' }}</em>
+                            </div>
+                            {% for row in result_progression %}
+                            <div class="combat-result-reward combat-result-reward--skill">
+                                <span>{{ row.label }}</span>
+                                <em>{{ row.percent_text }}</em>
+                            </div>
+                            {% else %}
+                            <div class="combat-result-empty combat-result-empty--progress">НАВЫКИ НЕ ИЗМЕНИЛИСЬ</div>
+                            {% endfor %}
+                        </div>
+                    </section>
+
                     <footer class="combat-result-actions">
-                        <a class="combat-primary-action"
-                           href="/game/session/state/{{ combat_result.primary_action.target_state or 'exploration' }}?char_id={{ char_id }}">
-                            <span>{{ combat_result.primary_action.label }}</span>
-                        </a>
+                        <button type="button"
+                           class="combat-primary-action"
+                           hx-post="/game/combat/result/continue"
+                           hx-target="#main-content .shell-constrained"
+                           hx-swap="innerHTML"
+                           hx-disabled-elt="this"
+                           hx-vals='{"char_id": {{ char_id }}}'
+                           data-target-state="{{ result_primary_state }}">
+                            <span>{{ result_primary_label }}</span>
+                        </button>
                     </footer>
                 </section>
             </article>
@@ -97,16 +161,18 @@
                     {% endfor %}
                 </section>
 
-                {% set combat_waiting_for_target = combat_screen.action_state in ['ACTION_LOCKED', 'TARGET_QUEUE_EMPTY'] %}
-                <section class="combat-command-deck"
-                         hx-sync="this:drop"
-                         {% if combat_waiting_for_target %}
-                         hx-get="/game/session/state/combats?char_id={{ char_id }}"
-                         hx-trigger="load delay:2s, every 2s"
-                         hx-target="#main-content .shell-constrained"
-                         hx-select=".shell-constrained"
-                         hx-swap="outerHTML"
-                         {% endif %}>
+                {% if combat_screen.action_state == 'ACTION_LOCKED' %}
+                    <section class="combat-wait-scene">
+                        <div class="combat-wait-scene__image" role="presentation"></div>
+                        <div class="combat-wait-scene__copy">
+                            <span>{{ combat_screen.action_state }}</span>
+                            <strong>Ход выбран</strong>
+                            <p>Ожидаем, пока противник ответит и движок разрешит размен.</p>
+                        </div>
+                    </section>
+                {% endif %}
+
+                <section class="combat-command-deck" hx-sync="this:drop">
                     <div class="combat-command-head">
                         <span>ACTIONS</span>
                         <strong>{{ hero.name }}</strong>
@@ -141,7 +207,7 @@
                                             class="combat-primary-action combat-primary-action--refresh"
                                             hx-get="/game/session/state/combats?char_id={{ char_id }}"
                                             hx-target="#main-content .shell-constrained"
-                                            hx-select=".shell-constrained"
+                                            hx-select="#main-content > .shell-constrained"
                                             hx-swap="outerHTML"
                                             hx-disabled-elt="this"
                                             data-tippy-content="Цель еще не доступна. Экран обновляется автоматически."
@@ -207,17 +273,25 @@
                                             data-tippy-content="{{ action.reason or action.label }}"
                                             data-tippy-theme="game-hint"
                                             {% if not action.enabled %}disabled{% endif %}>
-                                        <img src="{{ action.icon_url }}" alt="">
+                                        <img class="combat-feint-icon" src="{{ action.icon_url }}" alt="">
                                         <span class="combat-feint-main">
                                             <span class="combat-feint-title"
                                                   {% if action.catalog and action.catalog_key %}
                                                   data-catalog="{{ action.catalog }}"
                                                   data-catalog-key="{{ action.catalog_key }}"
-                                                  data-catalog-field="title"
+                                                  data-catalog-field="label"
                                                   {% endif %}>{{ action.label }}</span>
                                             <span class="combat-feint-meta">
-                                                {% for token, amount in action.cost.items() %}
-                                                    {{ token|upper }} {{ amount }}{% if not loop.last %} / {% endif %}
+                                                {% for cost in action.cost_items %}
+                                                    <span class="combat-feint-cost"
+                                                          data-catalog="{{ cost.catalog }}"
+                                                          data-catalog-key="{{ cost.catalog_key }}"
+                                                          data-catalog-tooltip="description"
+                                                          data-tippy-content="{{ cost.token_id|upper }}"
+                                                          data-tippy-theme="game-hint">
+                                                        <img src="{{ cost.icon_url }}" alt="">
+                                                        <span>{{ cost.amount }}</span>
+                                                    </span>
                                                 {% else %}
                                                     COST_NO_DATA
                                                 {% endfor %}
@@ -273,16 +347,16 @@
                     {% endif %}
                 </section>
 
-                {% set combat_log_entries = combat_screen.log_lines %}
-                {% set combat_log_turns = combat_screen.log_turns %}
-                {% set combat_log_page = 1 %}
-                {% set combat_log_page_size = 8 %}
-                {% set combat_log_page_size_options = [4, 8, 12] %}
-                {% set combat_log_total = combat_screen.log_total %}
-                {% set combat_log_total_pages = [1, ((combat_screen.log_total + combat_log_page_size - 1) // combat_log_page_size)] | max %}
-                {% set combat_log_last_page = [combat_log_total_pages, 4] | min %}
-                {% set combat_log_pages = range(1, combat_log_last_page + 1) %}
-                {% include "game/domains/combat/viewport/log_panel.html" %}
+                {% if combat_screen.action_state in ['ACTION_LOCKED', 'TARGET_QUEUE_EMPTY'] %}
+                    <div hidden
+                         aria-hidden="true"
+                         hx-get="/game/session/state/combats?char_id={{ char_id }}"
+                         hx-trigger="load delay:1500ms"
+                         hx-target="#main-content .shell-constrained"
+                         hx-select="#main-content > .shell-constrained"
+                         hx-swap="outerHTML"></div>
+                {% endif %}
+
             </article>
         </section>
     {% else %}

@@ -5,6 +5,7 @@ from typing import Any
 from loguru import logger as log
 
 from src.backend.features.combat.dto.actor import ActorMetaDTO, ActorRawDTO
+from src.backend.features.combat.dto.ids import normalize_actor_id
 from src.backend.features.combat.integrations import CombatSessionIntegration
 from src.backend.features.monsters.resources import get_family_config
 from src.backend.features.monsters.runtime.combat_profile import (
@@ -170,7 +171,7 @@ class ChaosService:
         max_energy = int((vitals.get("energy") or {}).get("max") or energy)
 
         meta = ActorMetaDTO(
-            id=projection.actor_id,
+            id=normalize_actor_id(projection.actor_id),
             name=projection.name,
             type="ai",
             team=self.FORCE_TEAM,
@@ -206,7 +207,7 @@ class ChaosService:
 
     def _create_fallback_projection_data(self, projection: AnchorProjectionConfig) -> dict[str, Any]:
         meta = ActorMetaDTO(
-            id=projection.actor_id,
+            id=normalize_actor_id(projection.actor_id),
             name=projection.name,
             type="ai",
             team=self.FORCE_TEAM,

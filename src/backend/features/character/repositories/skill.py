@@ -1,7 +1,7 @@
 from typing import Any
 
 from loguru import logger as log
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -53,16 +53,18 @@ class SkillRepository:
         skill_keys: list[str],
         *,
         progress_state: SkillProgressState = SkillProgressState.PLUS,
+        initial_xp: float = 0.0,
     ) -> None:
         unique_skill_keys = list(dict.fromkeys(skill_key for skill_key in skill_keys if skill_key))
         if not unique_skill_keys:
             return
 
+        starting_xp = min(1.0, max(0.0, float(initial_xp or 0.0)))
         rows = [
             {
                 "character_id": char_id,
                 "skill_key": skill_key,
-                "total_xp": 0.0,
+                "total_xp": starting_xp,
                 "is_unlocked": True,
                 "progress_state": progress_state,
             }
@@ -72,6 +74,7 @@ class SkillRepository:
         stmt = stmt.on_conflict_do_update(
             index_elements=[SkillProgress.character_id, SkillProgress.skill_key],
             set_={
+                "total_xp": func.greatest(SkillProgress.total_xp, stmt.excluded.total_xp),
                 "is_unlocked": True,
                 "progress_state": progress_state,
             },

@@ -10,6 +10,15 @@ from fastapi_cabinet.contracts.widgets import DashboardWidget, ListWidgetMap, Me
 from fastapi_cabinet.exceptions import CabinetProviderError
 
 
+async def resolve_admin_widgets(
+    admin: CabinetAdmin, widgets: tuple[DashboardWidget, ...], request: Request
+) -> list[WidgetMap]:
+    result: list[WidgetMap] = []
+    for declaration in sorted(widgets, key=lambda w: (w.order, w.key)):
+        result.append(await resolve_widget(admin, declaration, request))
+    return result
+
+
 async def resolve_dashboard_widgets(admins: Sequence[CabinetAdmin], request: Request) -> list[WidgetMap]:
     widgets: list[WidgetMap] = []
     for admin in admins:

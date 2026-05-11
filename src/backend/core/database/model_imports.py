@@ -24,6 +24,7 @@ from src.backend.infrastructure.arena.models import (
     ArenaTeam,
     ArenaTeamMembership,
 )
+from src.backend.infrastructure.combat.models import CombatFinalization
 from src.backend.infrastructure.inventory import InventoryItem, ResourceWallet
 from src.backend.infrastructure.monsters import GeneratedClanORM, GeneratedMonsterORM
 from src.backend.infrastructure.scenario.models import CharacterQuestState, ScenarioMaster, ScenarioNode
@@ -60,4 +61,5 @@ __all__ = [
     "ArenaSeasonReward",
     "ArenaTeam",
     "ArenaTeamMembership",
+    "CombatFinalization",
 ]

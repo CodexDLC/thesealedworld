@@ -2,10 +2,11 @@
     {% if layout.sidebar %}
         <nav aria-label="Module sections">
             {% for item in layout.sidebar %}
-                <a href="{{ item.path }}">
+                <a class="{% if item.path == layout.active_path %}is-active{% endif %}"
+                   href="{{ item.path }}">
                     <span>{{ item.label }}</span>
                     {% if item.badge_key and item.badge_key in layout.sidebar_badges %}
-                        <strong>{{ layout.sidebar_badges[item.badge_key] }}</strong>
+                        <strong class="fc-sidebar-badge">{{ layout.sidebar_badges[item.badge_key] }}</strong>
                     {% endif %}
                 </a>
             {% endfor %}

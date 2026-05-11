@@ -7,7 +7,11 @@ from fastapi import HTTPException, Request, status
 from loguru import logger
 
 from src.frontend.config.settings import settings
-from src.frontend.game_features.combat.view_models.screen import build_combat_screen_vm
+from src.frontend.game_features.combat.view_models.screen import (
+    build_combat_result_screen_vm,
+    build_combat_screen_from_result_vm,
+    build_combat_screen_vm,
+)
 from src.frontend.game_features.inventory.view_models.window import build_inventory_window_vm
 from src.frontend.game_features.session.view_models.nav import build_game_nav
 from src.frontend.site_features.auth.token_state import require_access_token
@@ -22,9 +26,11 @@ if TYPE_CHECKING:
     from src.frontend.integrations.backend_api.combat import BackendCombatApi
     from src.frontend.integrations.backend_api.exploration import BackendExplorationApi
     from src.frontend.integrations.backend_api.game_session import BackendGameSessionApi
+    from src.frontend.integrations.backend_api.inventory import BackendInventoryApi
     from src.frontend.integrations.backend_api.scenario import BackendScenarioApi
     from src.shared.schemas.character_status import CharacterActorCoreDTO
     from src.shared.schemas.combat import CombatDashboardDTO, CombatResultDTO
+    from src.shared.schemas.inventory import InventoryWindowDTO
 
 
 def _elapsed_ms(started_at: float) -> float:
@@ -40,6 +46,7 @@ class SessionContextBuilder:
         exploration_api: BackendExplorationApi,
         scenario_api: BackendScenarioApi,
         game_session_api: BackendGameSessionApi,
+        inventory_api: BackendInventoryApi,
         combat_api: BackendCombatApi | None = None,
     ) -> None:
         self.character_status_api = character_status_api
@@ -48,6 +55,7 @@ class SessionContextBuilder:
         self.exploration_api = exploration_api
         self.scenario_api = scenario_api
         self.game_session_api = game_session_api
+        self.inventory_api = inventory_api
 
     async def build_current(self, request: Request, *, char_id: int) -> dict[str, Any]:
         token = require_access_token(request)
@@ -90,6 +98,13 @@ class SessionContextBuilder:
 
         if state == CoreDomain.EXPLORATION:
             character_status = await self._character_status(token, char_id=char_id)
+            status_payload = self._status_seed(character_status)
+            initial_inventory_open, inventory_window = await self._inventory_window_state(
+                token,
+                char_id=char_id,
+                character_status=character_status,
+                status_payload=status_payload,
+            )
             exploration_response = await self.exploration_api.look_around(token, char_id=char_id)
             if exploration_response.payload is None:
                 raise HTTPException(
@@ -104,6 +119,9 @@ class SessionContextBuilder:
                 exploration=exploration_response.payload,
                 world_theme=getattr(exploration_response.payload, "world_theme", None)
                 or getattr(character_status, "world_theme", None),
+                status_seed=status_payload,
+                inventory_window=inventory_window,
+                initial_inventory_open=initial_inventory_open,
             )
 
         if state == CoreDomain.ARENA:
@@ -112,6 +130,13 @@ class SessionContextBuilder:
                 raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail="Arena payload is unavailable")
             arena_payload = ArenaUIPayloadDTO.model_validate(arena_response.payload)
             character_status = await self._character_status(token, char_id=char_id)
+            status_payload = self._status_seed(character_status)
+            initial_inventory_open, inventory_window = await self._inventory_window_state(
+                token,
+                char_id=char_id,
+                character_status=character_status,
+                status_payload=status_payload,
+            )
             return self._context(
                 state=arena_response.header.current_state,
                 char_id=char_id,
@@ -121,9 +146,12 @@ class SessionContextBuilder:
                 arena=arena_payload,
                 background_url="/static/images/scenes/forest.png",
                 world_theme=getattr(character_status, "world_theme", None),
+                status_seed=status_payload,
+                inventory_window=inventory_window,
+                initial_inventory_open=initial_inventory_open,
             )
 
-        if state == CoreDomain.COMBAT:
+        if state in {CoreDomain.COMBAT, CoreDomain.COMBAT_RESULT}:
             if self.combat_api is None:
                 raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail="Combat API client is unavailable")
             started_at = perf_counter()
@@ -138,6 +166,9 @@ class SessionContextBuilder:
             if combat_payload is None:
                 raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail="Combat payload is unavailable")
 
+            if combat_response.payload_type == "state_transition":
+                return await self.build_from_response(request, combat_response, char_id=char_id)
+
             # Type narrowing for Mypy
             from src.shared.schemas.combat import CombatDashboardDTO, CombatResultDTO
 
@@ -148,6 +179,8 @@ class SessionContextBuilder:
                     transaction_id=combat_response.header.transaction_id,
                     payload_type=combat_response.payload_type,
                     combat_result=combat_payload,
+                    combat_result_screen=build_combat_result_screen_vm(combat_payload),
+                    combat_screen=build_combat_screen_from_result_vm(combat_payload),
                     background_url="/static/images/scenes/ruins.png",
                     status_seed=self._empty_combat_status_seed(char_id),
                 )
@@ -182,15 +215,28 @@ class SessionContextBuilder:
         if not isinstance(state, CoreDomain):
             state = CoreDomain(str(state))
 
+        if state == CoreDomain.LOBBY:
+            raise HTTPException(status_code=status.HTTP_303_SEE_OTHER, headers={"Location": "/game-lobby"})
+
         if response.payload_type == "state_transition" or state != CoreDomain.SCENARIO:
             quest_key = getattr(response.payload, "quest_key", None)
             return await self.build_state(request, state=state, char_id=char_id, quest_key=quest_key)
+
+        if response.payload_type != "scenario_screen":
+            return await self.build_state(request, state=state, char_id=char_id)
 
         if response.payload is None or not hasattr(response.payload, "node_key"):
             raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail="Scenario payload is unavailable")
 
         token = require_access_token(request)
         character_status = await self._character_status(token, char_id=char_id)
+        status_payload = self._status_seed(character_status)
+        initial_inventory_open, inventory_window = await self._inventory_window_state(
+            token,
+            char_id=char_id,
+            character_status=character_status,
+            status_payload=status_payload,
+        )
         extra_data = getattr(response.payload, "extra_data", None) or {}
         response.payload.extra_data = {
             **extra_data,
@@ -206,6 +252,9 @@ class SessionContextBuilder:
             scenario=response.payload,
             background_url=response.payload.extra_data.get("background_url"),
             world_theme=getattr(character_status, "world_theme", None),
+            status_seed=status_payload,
+            inventory_window=inventory_window,
+            initial_inventory_open=initial_inventory_open,
         )
 
     async def build_exploration_response(
@@ -220,6 +269,13 @@ class SessionContextBuilder:
 
         token = require_access_token(request)
         character_status = await self._character_status(token, char_id=char_id)
+        status_payload = self._status_seed(character_status)
+        initial_inventory_open, inventory_window = await self._inventory_window_state(
+            token,
+            char_id=char_id,
+            character_status=character_status,
+            status_payload=status_payload,
+        )
         exploration_payload = response.payload
         encounter_payload = None
         if response.payload_type == "exploration_encounter" or isinstance(response.payload, EncounterDTO):
@@ -238,6 +294,9 @@ class SessionContextBuilder:
             encounter=encounter_payload,
             world_theme=getattr(exploration_payload, "world_theme", None)
             or getattr(character_status, "world_theme", None),
+            status_seed=status_payload,
+            inventory_window=inventory_window,
+            initial_inventory_open=initial_inventory_open,
         )
 
     async def build(
@@ -283,6 +342,8 @@ class SessionContextBuilder:
             transaction_id=transaction_id,
             payload_type=payload_type,
             combat_result=result,
+            combat_result_screen=build_combat_result_screen_vm(result),
+            combat_screen=build_combat_screen_from_result_vm(result),
             background_url="/static/images/scenes/ruins.png",
             status_seed=self._empty_combat_status_seed(char_id),
         )
@@ -305,13 +366,17 @@ class SessionContextBuilder:
         combat: Any | None = None,
         combat_screen: Any | None = None,
         combat_result: Any | None = None,
+        combat_result_screen: Any | None = None,
         background_url: str | None = None,
         world_theme: Any | None = None,
         status_seed: dict[str, Any] | None = None,
+        inventory_window: InventoryWindowDTO | Any | None = None,
+        initial_inventory_open: bool = False,
     ) -> dict[str, Any]:
         domain = state.value if isinstance(state, CoreDomain) else str(state)
         session_ui = self._session_ui(domain=domain, scenario=scenario)
         status_payload = status_seed or self._status_seed(character_status)
+        inventory_payload = inventory_window or build_inventory_window_vm(status_payload)
         return {
             "domain": domain,
             "payload_type": payload_type,
@@ -325,15 +390,45 @@ class SessionContextBuilder:
             "combat": combat,
             "combat_screen": combat_screen,
             "combat_result": combat_result,
+            "combat_result_screen": combat_result_screen,
+            "combat_chat_session_id": getattr(combat_screen, "session_id", None),
             "background_url": background_url,
             "world_theme": world_theme,
             "nav": build_game_nav(state=domain, char_id=char_id),
             "session_ui": session_ui,
             "status_seed": status_payload,
-            "inventory_window": build_inventory_window_vm(status_payload),
+            "inventory_window": inventory_payload,
+            "initial_inventory_open": initial_inventory_open,
             "debug_enabled": settings.debug,
             "chat_ws_url": settings.chat_ws_url,
         }
+
+    async def _inventory_window_state(
+        self,
+        token: str,
+        *,
+        char_id: int,
+        character_status: CharacterActorCoreDTO | None,
+        status_payload: dict[str, Any],
+    ) -> tuple[bool, InventoryWindowDTO | Any]:
+        initial_open = self._has_inventory_runtime_ref(character_status)
+        if not initial_open:
+            return False, build_inventory_window_vm(status_payload)
+
+        response = await self.inventory_api.view(token, char_id=char_id)
+        if response.payload is None:
+            raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail="Inventory payload is unavailable")
+
+        from src.shared.schemas.inventory import InventoryWindowDTO
+
+        return True, InventoryWindowDTO.model_validate(response.payload)
+
+    @staticmethod
+    def _has_inventory_runtime_ref(character_status: CharacterActorCoreDTO | None) -> bool:
+        sessions = getattr(character_status, "sessions", None)
+        if not isinstance(sessions, dict):
+            return False
+        return bool(sessions.get("inventory_id"))
 
     @staticmethod
     def _session_ui(*, domain: str, scenario: Any | None) -> dict[str, bool]:

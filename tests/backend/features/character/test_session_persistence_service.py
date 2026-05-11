@@ -54,7 +54,7 @@ class FakeCharacterSessions:
             "updated_at": datetime.now(UTC),
         }
 
-    async def clear_dirty(self, char_id):
+    async def clear_dirty(self, char_id, *, generation=None):
         self.cleared_dirty_ids.append(char_id)
 
 
@@ -124,6 +124,12 @@ async def test_character_repository_syncs_active_session_snapshot() -> None:
     assert character.prev_game_stage == "scenario"
     assert character.location_id == "52_58"
     assert character.prev_location_id == "52_52"
-    assert character.active_sessions == {"scenario_id": None, "combat_id": None, "inventory_id": None, "active_quest": None}
+    assert character.active_sessions == {
+        "scenario_id": None,
+        "combat_id": None,
+        "combat_finalization_id": None,
+        "inventory_id": None,
+        "active_quest": None,
+    }
     assert character.vitals_snapshot["hp"]["cur"] == 90
     session.flush.assert_awaited_once()

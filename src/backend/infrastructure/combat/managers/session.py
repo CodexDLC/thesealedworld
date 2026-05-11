@@ -11,7 +11,8 @@ if TYPE_CHECKING:
 
     from codex_platform.redis_service import RedisService
 
-    from src.backend.features.combat.dto.session import SessionDataDTO
+    from src.backend.features.combat.dto.ids import ActorId
+    from src.backend.features.combat.dto.session import SessionDataDTO, TargetReturnDTO
 
 
 class CombatSessionManager:
@@ -54,6 +55,14 @@ class CombatSessionManager:
     @staticmethod
     def analytics_key(session_id: str) -> str:
         return f"combat:rbc:{session_id}:analytics"
+
+    @staticmethod
+    def finalization_key(session_id: str) -> str:
+        return f"combat:finalize:{session_id}"
+
+    @staticmethod
+    def character_finalization_key(char_id: str | int) -> str:
+        return f"combat:finalize:char:{char_id}:latest"
 
     @staticmethod
     def busy_lock_key(session_id: str) -> str:
@@ -253,15 +262,15 @@ class CombatSessionManager:
         value = self._first(result)
         return value if isinstance(value, dict) else {}
 
-    async def pop_player_target(self, session_id: str, actor_id: str | int) -> int | None:
+    async def pop_player_target(self, session_id: str, actor_id: str | int) -> ActorId | None:
         result = await self._json().arrpop(self.targets_key(session_id), self._json_member_path(actor_id), 0)
         value = self._first(result)
-        return int(value) if value is not None else None
+        return str(value) if value is not None else None
 
-    async def peek_player_target(self, session_id: str, actor_id: str | int) -> int | None:
+    async def peek_player_target(self, session_id: str, actor_id: str | int) -> ActorId | None:
         result = await self._json().get(self.targets_key(session_id), f"{self._json_member_path(actor_id)}[0]")
         value = self._first(result)
-        return int(value) if value is not None else None
+        return str(value) if value is not None else None
 
     async def load_snapshot_data_batch(
         self,
@@ -520,6 +529,7 @@ class CombatSessionManager:
                     "exchange_counter": meta.get("exchange_counter", 0),
                     "is_dead": meta.get("is_dead", False),
                     "tokens": meta.get("tokens", {}),
+                    "feints": meta.get("feints", {}),
                 },
                 "raw": actor_data.get("raw", {}),
                 "loadout": actor_data.get("loadout", {}),
@@ -540,7 +550,7 @@ class CombatSessionManager:
         updates: dict[str, Any],
         logs: list[dict[str, Any] | str],
         processed_count: int,
-        target_returns: Sequence[dict[str, int | str]] | None = None,
+        target_returns: Sequence[TargetReturnDTO] | None = None,
         dead_actors: str | None = None,
         meta_update: dict[str, Any] | None = None,
         analytics: list[dict[str, Any] | str] | None = None,
@@ -629,6 +639,55 @@ class CombatSessionManager:
     async def append_log(self, session_id: str, entry: dict[str, Any] | str) -> None:
         grouped = await self._merge_logs_by_turn(session_id, [entry])
         await self._client().hset(self.log_key(session_id), mapping=grouped)
+
+    async def append_analytics(self, session_id: str, entry: dict[str, Any] | str) -> None:
+        mapping = self._analytics_mapping([entry])
+        if mapping:
+            await self._client().hset(self.analytics_key(session_id), mapping=mapping)
+
+    async def get_analytics(self, session_id: str) -> dict[str, Any]:
+        raw = dict(await self._client().hgetall(self.analytics_key(session_id)))
+        analytics: dict[str, Any] = {}
+        for key, payload in raw.items():
+            key = self._decode(key)
+            payload = self._decode(payload)
+            try:
+                analytics[str(key)] = json.loads(payload)
+            except (TypeError, json.JSONDecodeError):
+                analytics[str(key)] = payload
+        return dict(sorted(analytics.items(), key=lambda item: self._turn_sort_key(item[0].split(":", 1)[0])))
+
+    async def save_finalization(
+        self,
+        session_id: str,
+        payload: dict[str, Any],
+        *,
+        char_ids: Sequence[int | str],
+        ttl: int = HISTORY_TTL_SECONDS,
+    ) -> None:
+        encoded = json.dumps(payload)
+        async with self._client().pipeline(transaction=False) as pipe:
+            pipe.set(self.finalization_key(session_id), encoded, ex=ttl)
+            for char_id in char_ids:
+                pipe.set(self.character_finalization_key(char_id), session_id, ex=ttl)
+            await pipe.execute()
+
+    async def get_finalization(self, session_id: str) -> dict[str, Any] | None:
+        raw = await self._client().get(self.finalization_key(session_id))
+        if not raw:
+            return None
+        raw = self._decode(raw)
+        try:
+            decoded = json.loads(raw)
+        except (TypeError, json.JSONDecodeError):
+            return None
+        return decoded if isinstance(decoded, dict) else None
+
+    async def get_latest_finalization_id_for_character(self, char_id: int | str) -> str | None:
+        value = await self._client().get(self.character_finalization_key(char_id))
+        if not value:
+            return None
+        return self._decode(value)
 
     async def add_log(self, session_id: str, text: str, tags: list[str] | None = None) -> None:
         await self.append_log(session_id, {"text": text, "timestamp": time.time(), "tags": tags or []})

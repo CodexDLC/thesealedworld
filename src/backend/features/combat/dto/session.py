@@ -2,11 +2,12 @@
 DTO, описывающие Сессию (Session) и Инициализацию.
 """
 
-from typing import Any, NamedTuple
+from typing import Any, NamedTuple, TypedDict
 
 from pydantic import BaseModel, Field
 
 from src.backend.features.combat.dto.actor import ActorSnapshot
+from src.backend.features.combat.dto.ids import ActorId, ActorIdLike
 
 
 class SessionDataDTO(NamedTuple):
@@ -15,6 +16,13 @@ class SessionDataDTO(NamedTuple):
     meta: dict[str, Any]
     actors: dict[str, dict[str, Any]]  # final_id -> {key: value} (HASH/JSON fields)
     targets: dict[str, list[str]]  # final_id -> [enemy_id, ...]
+
+
+class TargetReturnDTO(TypedDict):
+    """Target queue return pair committed after an exchange."""
+
+    source_id: ActorId
+    target_id: ActorId
 
 
 class CombatTeamDTO(BaseModel):
@@ -38,10 +46,10 @@ class BattleMeta(BaseModel):
     active: int
     step_counter: int
     active_actors_count: int
-    teams: dict[str, list[str | int]]  # ID могут быть int (игроки) или str (монстры)
+    teams: dict[str, list[ActorIdLike]]  # ID могут быть int (игроки) или str (монстры)
     winner: str | None = None
     actors_info: dict[str, str] = Field(default_factory=dict)
-    dead_actors: list[str | int] = Field(default_factory=list)
+    dead_actors: list[ActorIdLike] = Field(default_factory=list)
     last_activity_at: int = 0
     battle_type: str
     location_id: str
@@ -58,20 +66,20 @@ class BattleContext(BaseModel):
     actors: dict[str, ActorSnapshot]
 
     moves_cache: dict[str, dict[str, Any]] = Field(default_factory=dict)
-    targets: dict[str, list[int]] = Field(default_factory=dict)
+    targets: dict[ActorId, list[ActorId]] = Field(default_factory=dict)
     pending_logs: list[dict] = Field(default_factory=list)
-    pending_analytics: list[dict] = Field(default_factory=list)
+    pending_result_support_tasks: list[dict[str, Any]] = Field(default_factory=list)
 
     # NEW: Очередь возврата целей (заполняется в Executor, обрабатывается в DataService)
-    pending_target_returns: list[dict[str, int | str]] = Field(default_factory=list)
+    pending_target_returns: list[TargetReturnDTO] = Field(default_factory=list)
 
     # NEW: Очередь умерших акторов (заполняется в Executor, обрабатывается в DataService)
-    pending_dead_actors: list[str | int] = Field(default_factory=list)
+    pending_dead_actors: list[ActorIdLike] = Field(default_factory=list)
 
-    def get_actor(self, char_id: str | int) -> ActorSnapshot | None:
+    def get_actor(self, char_id: ActorIdLike) -> ActorSnapshot | None:
         return self.actors.get(str(char_id))
 
-    def get_enemies(self, char_id: str | int) -> list[ActorSnapshot]:
+    def get_enemies(self, char_id: ActorIdLike) -> list[ActorSnapshot]:
         me = self.get_actor(char_id)
         if not me:
             return []

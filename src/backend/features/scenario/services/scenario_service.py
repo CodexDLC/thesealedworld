@@ -215,6 +215,7 @@ class ScenarioService:
 
         reward_items = result.rewards.items or []
         reward_skills = result.rewards.skills or []
+        reward_skill_initial_xp = result.rewards.skill_initial_xp
         attribute_bonuses = result.rewards.attribute_bonuses or {}
 
         step_started_at = perf_counter()
@@ -227,7 +228,7 @@ class ScenarioService:
             _elapsed_ms(step_started_at),
         )
         step_started_at = perf_counter()
-        await self.integrator.unlock_skills(char_id, reward_skills)
+        await self.integrator.unlock_skills(char_id, reward_skills, initial_xp=reward_skill_initial_xp)
         logger.info(
             "ScenarioFinalizeTiming | step=unlock_skills char_id={} quest_key={} skill_count={} ms={}",
             char_id,
@@ -255,9 +256,21 @@ class ScenarioService:
                 _elapsed_ms(step_started_at),
             )
             step_started_at = perf_counter()
-            await self.integrator.finalize_session(char_id, CoreDomain.EXPLORATION)
+            await self.integrator.finalize_session(
+                char_id,
+                CoreDomain.EXPLORATION,
+                prev_state=CoreDomain.EXPLORATION,
+            )
             logger.info(
                 "ScenarioFinalizeTiming | step=finalize_session_to_exploration char_id={} quest_key={} ms={}",
+                char_id,
+                context.quest_key,
+                _elapsed_ms(step_started_at),
+            )
+            step_started_at = perf_counter()
+            await self.integrator.sync_active_character_to_db(char_id)
+            logger.info(
+                "ScenarioFinalizeTiming | step=sync_exploration_snapshot_before_combat char_id={} quest_key={} ms={}",
                 char_id,
                 context.quest_key,
                 _elapsed_ms(step_started_at),

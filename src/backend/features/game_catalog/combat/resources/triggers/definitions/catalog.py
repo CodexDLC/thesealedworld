@@ -8,6 +8,9 @@ from src.backend.features.game_catalog.combat.resources.triggers.definitions.rul
 from src.backend.features.game_catalog.combat.resources.triggers.definitions.rules.on_dodge import ON_DODGE_CATALOG
 from src.backend.features.game_catalog.combat.resources.triggers.definitions.rules.on_parry import ON_PARRY_CATALOG
 from src.backend.features.game_catalog.combat.resources.triggers.definitions.rules.styles import STYLE_CATALOG
+from src.backend.features.game_catalog.combat.resources.triggers.definitions.rules.weapon_triggers import (
+    WEAPON_TRIGGER_CATALOG,
+)
 
 ALL_TRIGGER_CATALOG_ENTRIES = (
     ON_ACCURACY_CATALOG
@@ -17,5 +20,6 @@ ALL_TRIGGER_CATALOG_ENTRIES = (
     + ON_BLOCK_CATALOG
     + ON_CONTROL_CATALOG
     + ON_DAMAGE_CATALOG
+    + WEAPON_TRIGGER_CATALOG
     + STYLE_CATALOG
 )

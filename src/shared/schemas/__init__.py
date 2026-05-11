@@ -19,6 +19,12 @@ from src.shared.schemas.game_lobby import (
     GameLobbyPayloadDTO,
     LobbySlotDTO,
 )
+from src.shared.schemas.messages import (
+    GameMessageDTO,
+    GameMessagePresentationDTO,
+    GameMessageTabDTO,
+    GameMessageTemplateDTO,
+)
 from src.shared.schemas.response import (
     CoreCompositeResponseDTO,
     CoreResponseDTO,
@@ -46,6 +52,10 @@ __all__ = [
     "DeleteCharacterRequestDTO",
     "EnterCharacterRequestDTO",
     "GameLobbyPayloadDTO",
+    "GameMessageDTO",
+    "GameMessagePresentationDTO",
+    "GameMessageTabDTO",
+    "GameMessageTemplateDTO",
     "GameStateHeader",
     "Gender",
     "LobbySlotDTO",

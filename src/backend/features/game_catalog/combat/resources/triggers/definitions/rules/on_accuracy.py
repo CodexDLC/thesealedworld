@@ -3,6 +3,7 @@ from src.backend.features.game_catalog.combat.resources.common.descriptions impo
     build_combat_description,
     default_trigger_proc_event_texts,
 )
+from src.backend.features.game_catalog.combat.resources.common.pipeline_mutations import pipeline_mutation
 from src.backend.features.game_catalog.combat.resources.triggers.schemas import (
     TriggerCatalogEntryDTO,
     TriggerTechnicalDTO,
@@ -15,7 +16,10 @@ ON_ACCURACY_CATALOG: list[TriggerCatalogEntryDTO] = [
             trigger_id="true_strike",
             event="ON_ACCURACY_CHECK",
             chance=1.0,
-            mutations={"force.hit_evasion": True},
+            pipeline_mutations=[pipeline_mutation("ignore_evasion")],
+            allowed_sources=["weapon", "feint", "monster"],
+            display_policy="merge",
+            tags=["accuracy", "anti_evasion"],
         ),
         descriptive=build_combat_description(
             resource_type="trigger",
@@ -34,7 +38,9 @@ ON_ACCURACY_CATALOG: list[TriggerCatalogEntryDTO] = [
             trigger_id="rage_on_miss",
             event="ON_MISS",
             chance=1.0,
-            mutations={"tokens_awarded_attacker": ["RAGE_TOKEN"]},
+            allowed_sources=["weapon", "feint", "monster"],
+            display_policy="merge",
+            tags=["resource", "miss", "rage"],
             token_grants_attacker=["RAGE_TOKEN"],
         ),
         descriptive=build_combat_description(

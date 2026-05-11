@@ -158,9 +158,20 @@ class ScenarioSystemIntegrator:
                 char_id, context.quest_key, context.current_node_key, context, context.scenario_session_id
             )
 
-    async def finalize_session(self, char_id: int, target_state: CoreDomain = CoreDomain.EXPLORATION) -> None:
+    async def finalize_session(
+        self,
+        char_id: int,
+        target_state: CoreDomain = CoreDomain.EXPLORATION,
+        *,
+        prev_state: CoreDomain | None = None,
+    ) -> None:
         """Cleans up all session artifacts across all stores."""
-        await self.character_sessions.transition_state(char_id, target_state, expected_state=CoreDomain.SCENARIO)
+        await self.character_sessions.transition_state(
+            char_id,
+            target_state,
+            expected_state=CoreDomain.SCENARIO,
+            prev_state=prev_state,
+        )
         await self.character_sessions.clear_scenario_session(char_id)
         await self.sessions.delete(char_id)
         await self.repo.delete_state(char_id)
@@ -318,13 +329,16 @@ class ScenarioSystemIntegrator:
         )
         return item_ids
 
-    async def unlock_skills(self, char_id: int, skills: list[str]) -> None:
+    async def unlock_skills(self, char_id: int, skills: list[str], *, initial_xp: float | None = None) -> None:
         if not skills:
             return
         started_at = perf_counter()
+        payload: dict[str, Any] = {"char_id": char_id, "skill_keys": json.dumps(skills), "progress_state": "PLUS"}
+        if initial_xp is not None:
+            payload["initial_xp"] = min(1.0, max(0.0, float(initial_xp)))
         response = await self.events.request(
             CharacterEvents.SKILLS_UNLOCK_REQUESTED,
-            {"char_id": char_id, "skill_keys": json.dumps(skills), "progress_state": "PLUS"},
+            payload,
             timeout=30.0,
         )
         log.info(

@@ -34,6 +34,25 @@ async def test_unlock_skills_updates_active_character_runtime() -> None:
     assert event_type == CharacterEvents.SKILLS_UNLOCK_REQUESTED
     assert payload["char_id"] == 7
     assert payload["skill_keys"] == '["skill_swords"]'
+    assert "initial_xp" not in payload
+
+
+@pytest.mark.unit
+async def test_unlock_skills_can_pass_initial_xp_to_character_runtime() -> None:
+    events = MagicMock()
+    events.request = AsyncMock(return_value={"status": "ok", "skill_keys": ["skill_swords"]})
+    integrator = ScenarioSystemIntegrator(
+        sessions=MagicMock(),
+        content=MagicMock(),
+        character_sessions=MagicMock(),
+        repo=MagicMock(),
+        events=events,
+    )
+
+    await integrator.unlock_skills(7, ["skill_swords"], initial_xp=0.10)
+
+    payload = events.request.await_args.args[1]
+    assert payload["initial_xp"] == 0.10
 
 
 @pytest.mark.unit
@@ -146,6 +165,36 @@ async def test_recover_missing_finish_to_exploration_clears_stale_scenario_state
         7,
         CoreDomain.EXPLORATION,
         prev_state=CoreDomain.SCENARIO,
+    )
+    character_sessions.clear_scenario_session.assert_awaited_once_with(7)
+    sessions.delete.assert_awaited_once_with(7)
+    repo.delete_state.assert_awaited_once_with(7)
+
+
+@pytest.mark.unit
+async def test_finalize_session_can_persist_exploration_as_previous_state() -> None:
+    character_sessions = MagicMock()
+    character_sessions.transition_state = AsyncMock()
+    character_sessions.clear_scenario_session = AsyncMock()
+    sessions = MagicMock()
+    sessions.delete = AsyncMock()
+    repo = MagicMock()
+    repo.delete_state = AsyncMock()
+    integrator = ScenarioSystemIntegrator(
+        sessions=sessions,
+        content=MagicMock(),
+        character_sessions=character_sessions,
+        repo=repo,
+        events=MagicMock(),
+    )
+
+    await integrator.finalize_session(7, CoreDomain.EXPLORATION, prev_state=CoreDomain.EXPLORATION)
+
+    character_sessions.transition_state.assert_awaited_once_with(
+        7,
+        CoreDomain.EXPLORATION,
+        expected_state=CoreDomain.SCENARIO,
+        prev_state=CoreDomain.EXPLORATION,
     )
     character_sessions.clear_scenario_session.assert_awaited_once_with(7)
     sessions.delete.assert_awaited_once_with(7)

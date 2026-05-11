@@ -1,7 +1,6 @@
 from typing import Any
 
 from src.frontend.integrations.backend_api.base import BaseApiClient
-from src.shared.schemas import CoreResponseDTO
 from src.shared.schemas.combat import (
     CombatDashboardDTO,
     CombatLogDTO,
@@ -9,8 +8,9 @@ from src.shared.schemas.combat import (
     CombatRegisterMoveRequestDTO,
     CombatResultDTO,
 )
+from src.shared.schemas.response import CoreResponseDTO, StateTransitionDTO
 
-CombatViewResponse = CoreResponseDTO[CombatResultDTO | CombatDashboardDTO | dict[str, Any]]
+CombatViewResponse = CoreResponseDTO[CombatResultDTO | CombatDashboardDTO | StateTransitionDTO | dict[str, Any]]
 CombatMoveResponse = CombatResultDTO | CombatDashboardDTO
 
 
@@ -68,4 +68,12 @@ class BackendCombatApi(BaseApiClient):
             response_model=CombatDashboardDTO,
             headers={"Authorization": f"Bearer {access_token}"},
             json=body.model_dump(mode="json"),
+        )
+
+    async def continue_result(self, access_token: str, *, char_id: int) -> CoreResponseDTO[StateTransitionDTO]:
+        return await self._request(
+            "POST",
+            f"/api/game/combat/{char_id}/result/continue",
+            response_model=CoreResponseDTO[StateTransitionDTO],
+            headers={"Authorization": f"Bearer {access_token}"},
         )

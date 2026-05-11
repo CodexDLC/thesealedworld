@@ -7,7 +7,21 @@ from pydantic import BaseModel, Field
 CombatTaxonomy = Literal["humanoid", "beast"]
 
 
+class CombatResolvedTemplateDTO(BaseModel):
+    text: str
+    event: str
+    taxonomy: str
+    variant: int = 0
+
+
 class CombatEventTextSetDTO(BaseModel):
+    attack_use: list[str] = Field(default_factory=list)
+    hit_result: list[str] = Field(default_factory=list)
+    crit_result: list[str] = Field(default_factory=list)
+    miss_result: list[str] = Field(default_factory=list)
+    block_result: list[str] = Field(default_factory=list)
+    parry_result: list[str] = Field(default_factory=list)
+    dodge_result: list[str] = Field(default_factory=list)
     use: list[str] = Field(default_factory=list)
     hit: list[str] = Field(default_factory=list)
     crit: list[str] = Field(default_factory=list)
@@ -36,6 +50,31 @@ class CombatEventTextSetDTO(BaseModel):
     counter: list[str] = Field(default_factory=list)
     extra_strike: list[str] = Field(default_factory=list)
 
+    def event_template(self, event: str) -> str | None:
+        templates = getattr(self, event, None)
+        if not isinstance(templates, list) or not templates:
+            return None
+        template = templates[0]
+        return template if isinstance(template, str) and template else None
+
+    def exchange_template(self, outcome: str) -> str | None:
+        attack = self.event_template("attack_use") or self.event_template("use")
+        result = self.event_template(f"{outcome}_result") or self.event_template(outcome)
+        if attack and result:
+            return self._sentence(f"{attack.rstrip(' .')}, {result.lstrip(' .')}")
+        if attack:
+            return self._sentence(attack)
+        if result:
+            return self._sentence(result)
+        return None
+
+    @staticmethod
+    def _sentence(text: str) -> str:
+        text = text.strip()
+        if not text:
+            return text
+        return text if text[-1] in ".!?" else f"{text}."
+
 
 class CombatTaxonomyDescriptionDTO(BaseModel):
     icon: str
@@ -51,6 +90,38 @@ class CombatTaxonomyDescriptionDTO(BaseModel):
 class CombatDescriptionDTO(BaseModel):
     default_taxonomy: CombatTaxonomy = "humanoid"
     variants: dict[CombatTaxonomy, CombatTaxonomyDescriptionDTO]
+
+    def resolve_event_template(
+        self,
+        event: str,
+        taxonomy_chain: list[str] | None = None,
+    ) -> CombatResolvedTemplateDTO | None:
+        for taxonomy in self._taxonomy_candidates(taxonomy_chain):
+            variant = self.variants.get(taxonomy)  # type: ignore[arg-type]
+            if variant is None:
+                continue
+            text = variant.event_texts.event_template(event)
+            if text:
+                return CombatResolvedTemplateDTO(text=text, event=event, taxonomy=taxonomy)
+        return None
+
+    def resolve_exchange_template(
+        self,
+        outcome: str,
+        taxonomy_chain: list[str] | None = None,
+    ) -> CombatResolvedTemplateDTO | None:
+        for taxonomy in self._taxonomy_candidates(taxonomy_chain):
+            variant = self.variants.get(taxonomy)  # type: ignore[arg-type]
+            if variant is None:
+                continue
+            text = variant.event_texts.exchange_template(outcome)
+            if text:
+                return CombatResolvedTemplateDTO(text=text, event=outcome, taxonomy=taxonomy)
+        return None
+
+    def _taxonomy_candidates(self, taxonomy_chain: list[str] | None = None) -> list[str]:
+        candidates = [*(taxonomy_chain or []), self.default_taxonomy, "humanoid"]
+        return list(dict.fromkeys(candidate for candidate in candidates if candidate))
 
 
 class CombatCatalogEntryDTO(BaseModel):

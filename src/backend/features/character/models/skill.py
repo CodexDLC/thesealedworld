@@ -31,6 +31,3 @@ class SkillProgress(Base, TimestampMixin):
     character: Mapped[Character] = relationship("Character", back_populates="skill_progress")
 
     __table_args__ = (PrimaryKeyConstraint("character_id", "skill_key", name="pk_character_skill_progress"),)
-
-
-CharacterSkillProgress = SkillProgress

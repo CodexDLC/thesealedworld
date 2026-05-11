@@ -15,6 +15,8 @@ log = logging.getLogger(__name__)
 
 class ChatEvents:
     SYSTEM_MESSAGE = "chat.system_message"
+    COMBAT_MESSAGE = "chat.combat_message"
+    COMBAT_LOG_MESSAGE = "chat.combat_log_message"
 
 
 def bind(app: FastAPI) -> None:
@@ -54,7 +56,7 @@ async def on_system_message(payload: dict[str, Any]) -> None:
     if not character_ids or not content:
         return
 
-    msg_service = _app.state.get("msg_service")
+    msg_service = getattr(_app.state, "msg_service", None)
     if msg_service is None:
         from src.chat.services.message_service import MessageService
 
@@ -65,6 +67,50 @@ async def on_system_message(payload: dict[str, Any]) -> None:
             await msg_service.push_system(cid, content)
         except Exception:
             log.exception("Failed to push system message to character %s", cid)
+
+
+@router.on(ChatEvents.COMBAT_MESSAGE, group="chat")
+async def on_combat_message(payload: dict[str, Any]) -> None:
+    """Receive a combat chat message and deliver it to combat participants."""
+    if _app is None:
+        log.warning("chat.combat_message ignored: app not bound")
+        return
+
+    if not payload.get("scope_id"):
+        return
+
+    msg_service = getattr(_app.state, "msg_service", None)
+    if msg_service is None:
+        from src.chat.services.message_service import MessageService
+
+        msg_service = MessageService(_app.state.chat_manager, _app.state.redis)
+
+    try:
+        await msg_service.push_combat(payload)
+    except Exception:
+        log.exception("Failed to push combat message scope_id=%s", payload.get("scope_id"))
+
+
+@router.on(ChatEvents.COMBAT_LOG_MESSAGE, group="chat")
+async def on_combat_log_message(payload: dict[str, Any]) -> None:
+    """Receive an assembled combat log and deliver it through the system tab."""
+    if _app is None:
+        log.warning("chat.combat_log_message ignored: app not bound")
+        return
+
+    if not payload.get("scope_id") or not payload.get("recipients"):
+        return
+
+    msg_service = getattr(_app.state, "msg_service", None)
+    if msg_service is None:
+        from src.chat.services.message_service import MessageService
+
+        msg_service = MessageService(_app.state.chat_manager, _app.state.redis)
+
+    try:
+        await msg_service.push_combat_log(payload)
+    except Exception:
+        log.exception("Failed to push combat log message scope_id=%s", payload.get("scope_id"))
 
 
 __all__ = ["ChatEvents", "bind", "router"]

@@ -3,11 +3,12 @@ from __future__ import annotations
 from contextlib import suppress
 from dataclasses import dataclass
 from datetime import UTC, datetime
-from typing import TYPE_CHECKING, Literal
+from typing import TYPE_CHECKING, Any, Literal
 
 from loguru import logger
 
 from src.backend.core.exceptions import BusinessLogicException
+from src.backend.features.character.integrations import CharacterStateIntegrator, CharacterSystemIntegrator
 from src.backend.features.character.repositories import CharacterRepository
 from src.backend.features.character.schemas.session import (
     CharacterGender,
@@ -20,15 +21,17 @@ from src.backend.features.character.schemas.session import (
 from src.backend.features.items.integrations import ItemPersistenceIntegration
 from src.backend.features.items.repositories import ItemInstanceRepository
 from src.shared.enums import CoreDomain
+from src.shared.schemas import ScenarioPayloadDTO
 
 if TYPE_CHECKING:
     import uuid
 
     from sqlalchemy.ext.asyncio import AsyncSession
 
+    from src.backend.core.bus import GameEventProducer
     from src.backend.features.character.managers import CharacterSessionManager
-    from src.backend.features.scenario.services import ScenarioService
-    from src.shared.schemas import ScenarioPayloadDTO
+    from src.backend.features.character.repositories import CharacterAttributesRepository, SkillRepository
+    from src.backend.features.inventory.repositories.items import InventoryItemRepository
 
 
 @dataclass(frozen=True, slots=True)
@@ -56,20 +59,28 @@ class GameLobbyIntegration:
         self,
         *,
         character_repo: CharacterRepository | None = None,
+        attributes_repo: CharacterAttributesRepository | None = None,
+        skill_repo: SkillRepository | None = None,
+        inventory_repo: InventoryItemRepository | None = None,
         item_persistence: ItemPersistenceIntegration | None = None,
+        scenario_service: Any | None = None,
         db_session: AsyncSession | None = None,
         character_sessions: CharacterSessionManager,
-        scenario_service: ScenarioService,
+        events: GameEventProducer | None = None,
     ) -> None:
         if character_repo is None:
             if db_session is None:
                 raise ValueError("character_repo or db_session is required")
             character_repo = CharacterRepository(db_session)
         self.character_repo = character_repo
+        self.attributes_repo = attributes_repo
+        self.skill_repo = skill_repo
+        self.inventory_repo = inventory_repo
         self.item_persistence = item_persistence
         if self.item_persistence is None and db_session is not None:
             self.item_persistence = ItemPersistenceIntegration(ItemInstanceRepository(db_session))
         self.character_sessions = character_sessions
+        self.events = events
         self.scenario_service = scenario_service
 
     def _characters(self) -> CharacterRepository:
@@ -77,30 +88,16 @@ class GameLobbyIntegration:
 
     async def list_user_characters(self, user_id: uuid.UUID) -> list[LobbyCharacterSummary]:
         characters = await self._characters().get_by_user_id(user_id)
-        active_sessions = await self.character_sessions.get_sessions_batch(
-            [character.character_id for character in characters]
-        )
         return [
             LobbyCharacterSummary(
                 character_id=character.character_id,
                 name=character.name,
                 avatar_url=character.avatar_url,
-                status=self._character_status(character.character_id, character.game_stage, active_sessions),
-                presence_status="online" if active_sessions.get(character.character_id) is not None else "offline",
+                status=str(character.game_stage or "lobby"),
+                presence_status="offline",
             )
             for character in characters
         ]
-
-    @staticmethod
-    def _character_status(
-        character_id: int,
-        persistent_status: str | None,
-        active_sessions: dict[int, dict[str, object] | None],
-    ) -> str:
-        active_session = active_sessions.get(character_id)
-        if isinstance(active_session, dict):
-            return str(active_session.get("state") or persistent_status or "lobby")
-        return str(persistent_status or "lobby")
 
     async def count_user_characters(self, user_id: uuid.UUID) -> int:
         return await self._characters().count_by_user_id(user_id)
@@ -160,6 +157,49 @@ class GameLobbyIntegration:
 
         await self.character_sessions.create_session(character.character_id, session_payload)
 
+    async def bootstrap_active_character(
+        self,
+        *,
+        user_id: uuid.UUID,
+        character_id: int,
+    ) -> CharacterSessionDocumentDTO:
+        if self.skill_repo is None:
+            raise RuntimeError("skill_repo is required for lobby character bootstrap")
+
+        if await self.character_sessions.exists(character_id):
+            await self.release_active_character(user_id=user_id, character_id=character_id)
+            await self.cleanup_runtime(character_id)
+
+        state_integrator = CharacterStateIntegrator(
+            character_sessions=self.character_sessions,
+            character_repo=self.character_repo,
+            skill_repo=self.skill_repo,
+            inventory_repo=self.inventory_repo,
+        )
+        session_doc = await state_integrator.bootstrap_active_session(user_id, character_id)
+        logger.info("Lobby bootstrapped active character session: user_id={} char_id={}", user_id, character_id)
+        return session_doc
+
+    async def release_active_character(self, *, user_id: uuid.UUID, character_id: int) -> None:
+        character = await self._characters().get_by_id_and_user_id(character_id, user_id)
+        if character is None:
+            raise BusinessLogicException("Character is unavailable")
+        if not await self.character_sessions.exists(character_id):
+            return
+        if self.attributes_repo is None or self.skill_repo is None:
+            raise RuntimeError("attributes_repo and skill_repo are required for lobby character release")
+
+        sync = CharacterSystemIntegrator(
+            character_sessions=self.character_sessions,
+            character_repo=self.character_repo,
+            attributes_repo=self.attributes_repo,
+            skill_repo=self.skill_repo,
+        )
+        await sync.sync_active_session(character_id)
+        await self.character_sessions.delete_session(character_id)
+        await self._characters().commit()
+        logger.info("Lobby released active character session: user_id={} char_id={}", user_id, character_id)
+
     async def initialize_starting_scenario(
         self,
         char_id: int,
@@ -167,10 +207,26 @@ class GameLobbyIntegration:
         *,
         source: str,
     ) -> ScenarioPayloadDTO:
-        return await self.scenario_service.initialize(char_id, quest_key, source=source)
+        if self.events is None:
+            raise RuntimeError("events bus is required for scenario initialization")
+        response = await self.events.request(
+            "scenario.start_requested",
+            {"char_id": char_id, "quest_key": quest_key, "source": source},
+            timeout=30.0,
+        )
+        if not isinstance(response, dict) or response.get("status") != "ok":
+            raise RuntimeError(f"Scenario initialization failed: {response!r}")
+        return ScenarioPayloadDTO(**response["payload"])
 
     async def cleanup_runtime(self, char_id: int) -> None:
-        await self.scenario_service.cleanup(char_id)
+        if self.events is not None:
+            await self.events.request(
+                "scenario.cleanup_requested",
+                {"char_id": char_id},
+                timeout=15.0,
+            )
+        elif self.scenario_service is not None and hasattr(self.scenario_service, "cleanup"):
+            await self.scenario_service.cleanup(char_id)
         await self.character_sessions.delete_session(char_id)
 
     async def release_other_active_sessions(self, user_id: uuid.UUID, selected_character_id: int) -> None:
@@ -201,6 +257,16 @@ class GameLobbyIntegration:
             await self._characters().commit()
 
     async def _persist_active_session_snapshot(self, character_id: int, document: dict[str, object]) -> None:
+        if self.attributes_repo is not None and self.skill_repo is not None:
+            sync = CharacterSystemIntegrator(
+                character_sessions=self.character_sessions,
+                character_repo=self.character_repo,
+                attributes_repo=self.attributes_repo,
+                skill_repo=self.skill_repo,
+            )
+            await sync.sync_active_session(character_id)
+            return
+
         try:
             session_doc = CharacterSessionDocumentDTO.model_validate(document)
         except Exception:
@@ -234,7 +300,14 @@ class GameLobbyIntegration:
         repo = self._characters()
         await repo.rollback()
         with suppress(Exception):
-            await self.scenario_service.cleanup(char_id)
+            if self.events is not None:
+                await self.events.request(
+                    "scenario.cleanup_requested",
+                    {"char_id": char_id},
+                    timeout=10.0,
+                )
+            elif self.scenario_service is not None and hasattr(self.scenario_service, "cleanup"):
+                await self.scenario_service.cleanup(char_id)
         with suppress(Exception):
             await self.character_sessions.delete_session(char_id)
         with suppress(Exception):

@@ -37,6 +37,9 @@ class FakeAI:
                     "wolf_runner": {
                         "name": "Каменный бегун",
                         "appearance": "Серая шерсть покрыта каменной пылью.",
+                        "detected": "Он застывает у плиты и смотрит на путника.",
+                        "ambush": "Он выскакивает из тумана и бьет первым.",
+                        "idle": "Он нюхает камни у старой дороги.",
                         "encounter": "Он выскакивает из тумана.",
                         "behavior": "Держит дистанцию и ищет слабое место.",
                     }
@@ -78,8 +81,48 @@ async def test_monster_clan_text_ai_client_rate_limits_between_requests(monkeypa
 
     assert first is not None
     assert second is not None
+    assert first.variants_flavor["wolf_runner"].detected == "Он застывает у плиты и смотрит на путника."
+    assert first.variants_flavor["wolf_runner"].ambush == "Он выскакивает из тумана и бьет первым."
+    assert first.variants_flavor["wolf_runner"].idle == "Он нюхает камни у старой дороги."
     assert sleeps
     assert sleeps[0] <= 0.5
+
+
+@pytest.mark.unit
+async def test_monster_clan_text_ai_client_keeps_legacy_encounter_compatible(monkeypatch) -> None:
+    class LegacyAI(FakeAI):
+        async def process(self, prompt_name: str, **kwargs):
+            self.calls += 1
+            return json.dumps(
+                {
+                    "name_ru": "Стая Старого Прохода",
+                    "description": "Волки держатся низины.",
+                    "variants_flavor": {
+                        "wolf_runner": {
+                            "name": "Старый бегун",
+                            "appearance": "Тощий волк с серой шерстью.",
+                            "encounter": "Волк выходит из низины.",
+                            "behavior": "Он кружит у камней.",
+                        }
+                    },
+                },
+                ensure_ascii=False,
+            )
+
+    monkeypatch.setattr(
+        "src.backend.features.monsters.integrations.text_ai_client.settings."
+        "monster_clan_flavor_ai_interval_seconds",
+        0.0,
+    )
+    client = MonsterClanTextAIClient(LegacyAI())  # type: ignore[arg-type]
+
+    flavor = await client.generate_clan_flavor({})
+
+    assert flavor is not None
+    variant = flavor.variants_flavor["wolf_runner"]
+    assert variant.detected == "Волк выходит из низины."
+    assert variant.ambush == "Волк выходит из низины."
+    assert variant.idle == "Он кружит у камней."
 
 
 @pytest.mark.unit

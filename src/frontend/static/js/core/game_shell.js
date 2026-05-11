@@ -64,7 +64,7 @@ window.gameShell = function(initial = {}) {
         };
     };
     const inventoryWindow = {
-        open: false,
+        open: Boolean(initial.initialInventoryOpen),
         x: null,
         y: null,
         width: null,

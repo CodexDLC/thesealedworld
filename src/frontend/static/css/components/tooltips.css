@@ -23,6 +23,7 @@
 .tippy-box[data-theme~='game-hint'] .tippy-content,
 .tippy-box[data-theme~='game-catalog'] .tippy-content {
     padding: 8px 10px;
+    white-space: pre-line;
 }
 
 .tippy-box[data-theme~='game-hint'] .tippy-arrow,

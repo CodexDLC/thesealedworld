@@ -123,6 +123,7 @@ class CharacterStatusService:
         vitals = document.get("vitals") or {}
         attributes = document.get("attributes") or {}
         skills = document.get("skills") or {}
+        metrics = document.get("metrics") or {}
         resources = document.get("resources") or document.get("wallet") or {}
 
         return PanelDTO(
@@ -136,6 +137,7 @@ class CharacterStatusService:
                         "name": bio.get("name", "AGENT"),
                         "avatar": bio.get("avatar"),
                         "state": document.get("state", "UNKNOWN"),
+                        "gear_score": metrics.get("gear_score"),
                         "resources": self._resource_items(resources),
                     },
                 ),
@@ -221,7 +223,7 @@ class CharacterStatusService:
             group["items"].append(
                 {
                     "label": definition.name_ru if definition else skill_key,
-                    "value": self._skill_value(value),
+                    "value": self._skill_display_value(value),
                     "catalog": "skills",
                     "catalog_key": skill_key,
                 }
@@ -233,7 +235,21 @@ class CharacterStatusService:
         ]
 
     @staticmethod
-    def _skill_value(value: object) -> object:
+    def _skill_normalized_value(value: object) -> float | None:
         if isinstance(value, dict):
-            return value.get("xp", value.get("total_xp", value.get("value", 0)))
-        return value
+            value = value.get("xp", value.get("total_xp", value.get("value")))
+        if isinstance(value, bool):
+            return None
+        if isinstance(value, int | float):
+            return float(value)
+        return None
+
+    @classmethod
+    def _skill_display_value(cls, value: object) -> str:
+        normalized = cls._skill_normalized_value(value)
+        if normalized is None:
+            return "DATA_MISSING"
+        percent = round(normalized * 100, 1)
+        if percent.is_integer():
+            return f"{int(percent)}%"
+        return f"{percent:.1f}%"

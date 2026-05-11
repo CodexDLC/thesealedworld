@@ -33,6 +33,7 @@ def test_item_factory_generates_combat_ready_item_spec():
     assert item.bonuses == {}
     # mechanics carries the canonical source
     assert isinstance(item.mechanics["affixes"], list)
+    assert all(affix["tier"] == 1 for affix in item.mechanics["affixes"])
     assert item.mechanics["material"]["material_id"] == "mat_iron_ingot"
     assert item.mechanics["material"]["tier_mult"] == pytest.approx(1.0)
     assert item.metadata["source"] == "scenario:awakening_rift"
@@ -85,6 +86,48 @@ def test_item_factory_common_grade_produces_no_affixes():
     assert item.metadata["item_grade"] == "common"
     assert item.mechanics["affixes"] == []
     assert item.bonuses == {}
+
+
+@pytest.mark.unit
+def test_item_factory_uses_material_prefix_for_generated_names():
+    factory = ItemFactory()
+
+    buckler = factory.generate(
+        ItemGenerationRequestDTO(
+            base_id="buckler",
+            material_id="mat_oak_plank",
+            item_grade="common",
+        )
+    )
+    breeches = factory.generate(
+        ItemGenerationRequestDTO(
+            base_id="breeches",
+            material_id="mat_cured_leather",
+            item_grade="common",
+        )
+    )
+
+    assert buckler.name == "Дубовый баклер"
+    assert breeches.name == "Дубленые прочные штаны"
+    assert ":" not in buckler.name
+    assert ":" not in breeches.name
+
+
+@pytest.mark.unit
+def test_item_factory_generates_earring_accessory():
+    item = ItemFactory().generate(
+        ItemGenerationRequestDTO(
+            base_id="earring",
+            material_id="mat_iron_ingot",
+            item_grade="uncommon",
+        )
+    )
+
+    assert item.base_id == "earring"
+    assert item.item_type == "accessory"
+    assert item.slot == "earring"
+    assert item.name == "Железная серьга"
+    assert item.implicit_bonuses["debuff_avoidance"] == pytest.approx(0.015)
 
 
 @pytest.mark.unit

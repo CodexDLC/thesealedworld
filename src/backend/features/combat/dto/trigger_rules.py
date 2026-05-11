@@ -21,14 +21,12 @@ class AccuracyTriggersDTO(BaseModel):
 class CritTriggersDTO(BaseModel):
     """Триггеры этапа Крита (ON_CRIT, ON_CRIT_FAIL)."""
 
-    bleed_on_crit: bool = False
-    stun_on_crit: bool = False
-    heavy_strike_on_crit: bool = False
-
-    # Новые тактические триггеры
-    true_crit: bool = False  # Игнор уворота при крите
-    unblockable_crit: bool = False  # Игнор блока при крите
-    piercing_crit: bool = False  # Игнор брони при крите
+    weapon_serrated_bleed_crit: bool = False
+    weapon_heavy_crit: bool = False
+    weapon_impact_stun_crit: bool = False
+    weapon_piercing_crit: bool = False
+    weapon_precision_crit: bool = False
+    weapon_shieldbreaker_crit: bool = False
 
 
 class DodgeTriggersDTO(BaseModel):
@@ -40,14 +38,13 @@ class DodgeTriggersDTO(BaseModel):
 class ParryTriggersDTO(BaseModel):
     """Триггеры этапа Парирования (ON_PARRY, ON_PARRY_FAIL)."""
 
-    disarm_on_parry: bool = False
-    counter_on_parry: bool = False
+    weapon_riposte_on_parry: bool = False
 
 
 class BlockTriggersDTO(BaseModel):
     """Триггеры этапа Блока (ON_BLOCK, ON_BLOCK_FAIL)."""
 
-    bash_on_block: bool = False
+    weapon_shield_bash_on_block: bool = False
 
     # Styles
     style_shield_reflect: bool = False  # Отражение урона
@@ -56,10 +53,9 @@ class BlockTriggersDTO(BaseModel):
 class ControlTriggersDTO(BaseModel):
     """Триггеры финального этапа (ON_CHECK_CONTROL)."""
 
-    stun_on_hit: bool = False
-    bleed_on_hit: bool = False
-    knockdown_on_hit: bool = False
-    evasive_shot: bool = False  # Добавили для луков
+    weapon_serrated_bleed_hit: bool = False
+    weapon_knockdown_hit: bool = False
+    weapon_evasive_shot: bool = False
 
 
 class DamageTriggersDTO(BaseModel):

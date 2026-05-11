@@ -1,5 +1,10 @@
-<div class="status-section">
-    {% if widget.title %}<div class="sec">{{ widget.title }}</div>{% endif %}
+<details class="status-section status-section--collapsible" open>
+    {% if widget.title %}
+        <summary class="sec status-section-toggle">
+            <span class="status-section-toggle-label">{{ widget.title }}</span>
+            <span class="status-section-toggle-icon" aria-hidden="true">›</span>
+        </summary>
+    {% endif %}
     {% set groups = widget.data.get('groups', []) %}
     <div class="skill-groups-widget">
         {% for group in groups %}
@@ -31,4 +36,4 @@
             <div class="catalog-missing">DATA_MISSING</div>
         {% endfor %}
     </div>
-</div>
+</details>

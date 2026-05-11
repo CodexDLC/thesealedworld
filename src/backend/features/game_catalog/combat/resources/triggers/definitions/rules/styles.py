@@ -3,6 +3,7 @@ from src.backend.features.game_catalog.combat.resources.common.descriptions impo
     build_combat_description,
     default_trigger_proc_event_texts,
 )
+from src.backend.features.game_catalog.combat.resources.common.pipeline_mutations import pipeline_mutation
 from src.backend.features.game_catalog.combat.resources.triggers.schemas import (
     TriggerCatalogEntryDTO,
     TriggerTechnicalDTO,
@@ -15,7 +16,10 @@ STYLE_CATALOG: list[TriggerCatalogEntryDTO] = [
             trigger_id="style_1h_flow",
             event="ON_ACCURACY_CHECK",
             chance=0.25,
-            mutations={"chain_events.preserve_feint": True},
+            pipeline_mutations=[pipeline_mutation("chain.preserve_feint")],
+            allowed_sources=["style"],
+            display_policy="merge",
+            tags=["style", "resource", "preserve_feint"],
         ),
         descriptive=build_combat_description(
             resource_type="trigger",
@@ -34,11 +38,14 @@ STYLE_CATALOG: list[TriggerCatalogEntryDTO] = [
             trigger_id="style_2h_ignore",
             event="ON_ACCURACY_CHECK",
             chance=0.25,
-            mutations={
-                "formula.evasion_halved": True,
-                "formula.parry_halved": True,
-                "formula.block_halved": True,
-            },
+            pipeline_mutations=[
+                pipeline_mutation("ignore_evasion"),
+                pipeline_mutation("ignore_parry"),
+                pipeline_mutation("ignore_block"),
+            ],
+            allowed_sources=["style"],
+            display_policy="merge",
+            tags=["style", "defense_bypass", "ignore_dodge", "ignore_parry", "ignore_block"],
         ),
         descriptive=build_combat_description(
             resource_type="trigger",
@@ -57,7 +64,10 @@ STYLE_CATALOG: list[TriggerCatalogEntryDTO] = [
             trigger_id="style_shield_reflect",
             event="ON_BLOCK_FAIL",
             chance=0.25,
-            mutations={"state.partial_absorb_reflect": True},
+            pipeline_mutations=[pipeline_mutation("partial_absorb_reflect")],
+            allowed_sources=["style"],
+            display_policy="merge",
+            tags=["style", "block", "reflect"],
         ),
         descriptive=build_combat_description(
             resource_type="trigger",
@@ -76,7 +86,10 @@ STYLE_CATALOG: list[TriggerCatalogEntryDTO] = [
             trigger_id="style_dual_extra",
             event="ON_ACCURACY_CHECK",
             chance=0.25,
-            mutations={"chain_events.trigger_offhand_attack": True},
+            pipeline_mutations=[pipeline_mutation("chain.trigger_offhand_attack")],
+            allowed_sources=["style"],
+            display_policy="separate",
+            tags=["style", "dual_wield", "extra_strike"],
         ),
         descriptive=build_combat_description(
             resource_type="trigger",

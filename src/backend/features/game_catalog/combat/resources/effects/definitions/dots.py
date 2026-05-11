@@ -57,7 +57,7 @@ _bleed_catalog = EffectCatalogEntryDTO(
         effect_id="dot_bleed",
         type=EffectType.DOT,
         duration=3,
-        resource_impact={"hp": -1},
+        resource_impact={"hp": -3},
         tags=["dot", "bleed", "physical"],
     ),
     descriptive=build_combat_description(

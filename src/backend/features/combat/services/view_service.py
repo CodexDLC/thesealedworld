@@ -321,9 +321,10 @@ class CombatViewService:
 
     @staticmethod
     def _ability_enabled(hero: CombatActorCardDTO, ability_id: str) -> bool:
-        ability = CombatCatalogIntegrator.get_ability(ability_id)
-        if ability is None:
+        entry = CombatCatalogIntegrator.get_ability_catalog_entry(ability_id)
+        if entry is None:
             return False
+        ability = entry.technical
         return (
             hero.vitals.energy_current >= ability.cost.energy
             and hero.vitals.hp_current >= ability.cost.hp
@@ -336,9 +337,10 @@ class CombatViewService:
         target: CombatActorCardDTO,
         hero: CombatActorCardDTO,
     ) -> str | None:
-        ability = CombatCatalogIntegrator.get_ability(ability_id)
-        if ability is None:
+        entry = CombatCatalogIntegrator.get_ability_catalog_entry(ability_id)
+        if entry is None:
             return target.actor_id
+        ability = entry.technical
         if ability.target == TargetType.SELF:
             return hero.actor_id
         if ability.target in {TargetType.ALL_ENEMIES, TargetType.ALL_ALLIES}:

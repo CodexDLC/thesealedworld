@@ -37,14 +37,16 @@
                     <small>LOCKED</small>
                 </div>
                 {% else %}
-                <a class="game-exit-link"
-                   href="/game-lobby"
-                   data-session-cleanup="pending"
-                   role="menuitem"
-                   aria-label="Exit to game lobby">
-                    <span>Lobby</span>
-                    <small>EXIT</small>
-                </a>
+                <form class="game-account-exit-form" action="/game-lobby/release" method="post" role="none">
+                    <button class="game-exit-link"
+                            type="submit"
+                            data-session-cleanup="pending"
+                            role="menuitem"
+                            aria-label="Save session and return to game lobby">
+                        <span>Lobby</span>
+                        <small>SAVE</small>
+                    </button>
+                </form>
                 {% endif %}
                 <div class="game-account-item is-disabled" aria-disabled="true" role="menuitem">
                     <span>Settings</span>

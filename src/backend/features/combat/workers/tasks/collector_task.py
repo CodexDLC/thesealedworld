@@ -3,6 +3,7 @@ from loguru import logger as log
 from src.backend.features.combat.dto.worker import CollectorSignalDTO, WorkerBatchJobDTO
 from src.backend.features.combat.runtime.processors.collector import CombatCollector  # noqa: TC001
 from src.backend.features.combat.runtime.services.data_service import CombatDataService  # noqa: TC001
+from src.backend.features.combat.workers.tasks.chat_announcements import publish_combat_start_announcement
 
 
 async def combat_collector_task(ctx: dict, signal_data: dict) -> None:
@@ -41,6 +42,7 @@ async def combat_collector_task(ctx: dict, signal_data: dict) -> None:
             ai_tasks=len(ai_tasks),
             victory=victory_result,
         )
+        await publish_combat_start_announcement(ctx, data_service, signal.session_id)
 
         # 2. Dispatch AI Tasks (Non-blocking)
         if ai_tasks:

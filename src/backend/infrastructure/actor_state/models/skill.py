@@ -1,3 +1,3 @@
-from src.backend.features.character.models.skill import CharacterSkillProgress, SkillProgress
+from src.backend.features.character.models.skill import SkillProgress
 
-__all__ = ["CharacterSkillProgress", "SkillProgress"]
+__all__ = ["SkillProgress"]

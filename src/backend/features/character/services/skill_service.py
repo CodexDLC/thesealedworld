@@ -25,12 +25,18 @@ class CharacterSkillService:
         skill_keys: list[str],
         *,
         progress_state: SkillProgressState = SkillProgressState.PLUS,
+        initial_xp: float = 0.0,
     ) -> list[str]:
         valid_skill_keys = self._validate_skill_keys(skill_keys)
         if not valid_skill_keys:
             return []
 
-        await self.state_integrator.unlock_skills(char_id, valid_skill_keys, progress_state=progress_state)
+        await self.state_integrator.unlock_skills(
+            char_id,
+            valid_skill_keys,
+            progress_state=progress_state,
+            initial_xp=initial_xp,
+        )
         return valid_skill_keys
 
     def _validate_skill_keys(self, skill_keys: list[str]) -> list[str]:

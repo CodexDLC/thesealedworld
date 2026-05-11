@@ -2,8 +2,11 @@ from loguru import logger
 
 from src.backend.features.game_lobby.integrations import GameLobbyIntegration
 from src.backend.features_site.auth.models import User
+from src.shared.enums import CoreDomain
 from src.shared.schemas import (
+    CoreResponseDTO,
     GameLobbyPayloadDTO,
+    GameStateHeader,
     LobbySlotDTO,
 )
 
@@ -50,3 +53,20 @@ class GameLobbyService:
         character_id: int,
     ) -> None:
         await self.integration.delete_owned_character(user_id=user.id, character_id=character_id)
+
+    async def enter_character(self, user: User, character_id: int) -> CoreResponseDTO[dict[str, object]]:
+        await self.integration.release_other_active_sessions(user.id, character_id)
+        session_doc = await self.integration.bootstrap_active_character(user_id=user.id, character_id=character_id)
+        return CoreResponseDTO(
+            header=GameStateHeader(current_state=CoreDomain.LOBBY),
+            payload={"character_id": session_doc.char_id, "state": str(session_doc.state)},
+            payload_type="active_character_bootstrap",
+        )
+
+    async def release_character(self, user: User, character_id: int) -> CoreResponseDTO[dict[str, object]]:
+        await self.integration.release_active_character(user_id=user.id, character_id=character_id)
+        return CoreResponseDTO(
+            header=GameStateHeader(current_state=CoreDomain.LOBBY),
+            payload={"character_id": character_id, "released": True},
+            payload_type="active_character_release",
+        )

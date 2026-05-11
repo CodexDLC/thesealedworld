@@ -17,6 +17,7 @@ CLOTHS_DB = {
         1: {
             "id": "mat_linen",
             "name_ru": "Льняная ткань",
+            "name_prefix_ru": "Льняной",
             "tier_mult": 1.0,
             "slots": 2,  # Ткань имеет бонус к магии (больше слотов)
             "narrative_tags": ["linen", "clean", "white"],
@@ -24,6 +25,7 @@ CLOTHS_DB = {
         2: {
             "id": "mat_strong_silk",
             "name_ru": "Прочный шелк",
+            "name_prefix_ru": "Прочный",
             "tier_mult": 1.3,
             "slots": 3,
             "narrative_tags": ["silk", "strong", "light"],
@@ -31,6 +33,7 @@ CLOTHS_DB = {
         3: {
             "id": "mat_infused_cloth",
             "name_ru": "Зачарованная ткань",
+            "name_prefix_ru": "Зачарованный",
             "tier_mult": 1.8,
             "slots": 4,
             "narrative_tags": ["infused", "glowing", "mana"],
@@ -38,6 +41,7 @@ CLOTHS_DB = {
         4: {
             "id": "mat_golden_fleece",
             "name_ru": "Золотое руно",
+            "name_prefix_ru": "Золотой",
             "tier_mult": 2.5,
             "slots": 5,
             "narrative_tags": ["golden", "fleece", "warm", "mythical"],
@@ -45,6 +49,7 @@ CLOTHS_DB = {
         5: {
             "id": "mat_spectral_cloth",
             "name_ru": "Призрачная ткань",
+            "name_prefix_ru": "Призрачный",
             "tier_mult": 3.5,
             "slots": 5,
             "narrative_tags": ["spectral", "ethereal", "translucent"],
@@ -52,6 +57,7 @@ CLOTHS_DB = {
         6: {
             "id": "mat_void_weave",
             "name_ru": "Ткань Пустоты",
+            "name_prefix_ru": "Пустотный",
             "tier_mult": 5.0,
             "slots": 6,
             "narrative_tags": ["void", "dark", "absorbing"],
@@ -59,6 +65,7 @@ CLOTHS_DB = {
         7: {
             "id": "mat_celestial_silk",
             "name_ru": "Небесный шелк",
+            "name_prefix_ru": "Небесный",
             "tier_mult": 6.5,
             "slots": 7,
             "narrative_tags": ["celestial", "starlight", "divine"],

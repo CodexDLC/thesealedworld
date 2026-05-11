@@ -1,3 +1,3 @@
-from src.backend.features.character.models.character import Character, CharacterAttributes, CharacterStats
+from src.backend.features.character.models.character import Character, CharacterAttributes
 
-__all__ = ["Character", "CharacterAttributes", "CharacterStats"]
+__all__ = ["Character", "CharacterAttributes"]

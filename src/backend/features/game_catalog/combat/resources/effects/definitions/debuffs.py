@@ -2,6 +2,7 @@ from src.backend.features.game_catalog.combat.resources.common.descriptions impo
     CombatEventTextSetDTO,
     build_combat_description,
 )
+from src.backend.features.game_catalog.combat.resources.common.modifier_applications import ModifierApplicationDTO
 from src.backend.features.game_catalog.combat.resources.effects.schemas import (
     EffectCatalogEntryDTO,
     EffectTechnicalDTO,
@@ -18,7 +19,8 @@ def _debuff_catalog(
     effect_id: str,
     display_name: str,
     short_description: str,
-    raw_modifiers: dict,
+    modifier_id: str,
+    value: float,
     tags: list[str],
     apply_humanoid: list[str],
     expire_humanoid: list[str],
@@ -29,7 +31,14 @@ def _debuff_catalog(
             effect_id=effect_id,
             type=EffectType.DEBUFF,
             duration=3,
-            raw_modifiers=raw_modifiers,
+            modifier_applications=[
+                ModifierApplicationDTO(
+                    modifier_id=modifier_id,
+                    value_override=value,
+                    scope="duration",
+                    duration_exchanges=3,
+                )
+            ],
             tags=tags,
         ),
         descriptive=build_combat_description(
@@ -53,7 +62,8 @@ _debuff_str_catalog = _debuff_catalog(
     effect_id="debuff_str",
     display_name="Ослабление Силы",
     short_description="Снижает Силу.",
-    raw_modifiers={"strength": -1.0},
+    modifier_id="strength_add",
+    value=-1.0,
     tags=["debuff", "attribute", "curse"],
     apply_humanoid=["{source} ослабляет мощь {target}.", "{target} получает {effect} — сила тает."],
     expire_humanoid=["Ослабление Силы {target} проходит.", "{target} избавляется от {effect}."],
@@ -63,7 +73,8 @@ _debuff_armor_catalog = _debuff_catalog(
     effect_id="debuff_armor",
     display_name="Ослабление Брони",
     short_description="Снижает Броню.",
-    raw_modifiers={"armor": -1.0},
+    modifier_id="armor_add",
+    value=-1.0,
     tags=["debuff", "defense", "physical"],
     apply_humanoid=["{source} пробивает защиту {target}.", "{target} получает {effect} — броня ослаблена."],
     expire_humanoid=["Броня {target} восстанавливается.", "{target} избавляется от {effect}."],
@@ -73,7 +84,8 @@ _debuff_evasion_catalog = _debuff_catalog(
     effect_id="debuff_evasion",
     display_name="Ослабление Уклонения",
     short_description="Снижает уклонение.",
-    raw_modifiers={"evasion": -0.01},
+    modifier_id="evasion_add",
+    value=-0.01,
     tags=["debuff", "defense", "ice"],
     apply_humanoid=["{source} сковывает движения {target}.", "{target} получает {effect}."],
     expire_humanoid=["Ослабление Уклонения {target} спадает.", "{target} избавляется от {effect}."],
@@ -83,7 +95,8 @@ _debuff_accuracy_catalog = _debuff_catalog(
     effect_id="debuff_accuracy",
     display_name="Ослабление Точности",
     short_description="Снижает точность.",
-    raw_modifiers={"accuracy": -0.01},
+    modifier_id="accuracy_add",
+    value=-0.01,
     tags=["debuff", "offense", "physical"],
     apply_humanoid=["{source} сбивает прицел {target}.", "{target} получает {effect} — точность падает."],
     expire_humanoid=["Ослабление Точности {target} спадает.", "{target} избавляется от {effect}."],

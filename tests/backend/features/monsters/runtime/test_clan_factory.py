@@ -79,6 +79,9 @@ class FakeMonsterTextAI:
                 key: MonsterVariantFlavorDTO(
                     name=f"Бродяга '{idx}'",
                     appearance="Оборванец с ледяной пылью на плаще.",
+                    detected="Оборванец пятится к разбитой арке.",
+                    ambush="Оборванец выскакивает из разбитой арки.",
+                    idle="Оборванец перебирает чужие вещи у стены.",
                     encounter="Он выходит из разбитой арки.",
                     behavior="Держится ближе к темным проходам.",
                 )
@@ -111,6 +114,15 @@ async def test_factory_uses_ai_flavor_for_clan_and_members() -> None:
 
     assert fake_ai.payload["family_id"] == family_id
     assert fake_ai.payload["context_tags"] == tags
+    assert fake_ai.payload["text_contract"]["member"] == [
+        "name",
+        "appearance",
+        "detected",
+        "ambush",
+        "idle",
+        "encounter",
+        "behavior",
+    ]
     assert clan.name_ru == "Банда Ржавого Клинка"
     assert clan.flavor_content["variants_flavor"]
     assert members[0].name_ru.startswith("Бродяга")

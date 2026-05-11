@@ -3,6 +3,7 @@ from __future__ import annotations
 import time
 from typing import TYPE_CHECKING, Any
 
+from src.backend.features.character.runtime.gear_score import CharacterGearScoreCalculator
 from src.backend.features.inventory.repositories.items import runtime_item_from_instance
 from src.backend.features.inventory.services.projection import (
     BACKPACK_STORAGE,
@@ -42,7 +43,12 @@ class InventoryActionError(ValueError):
 
 
 class InventoryService:
-    FORBIDDEN_ACTION_STATES = {CoreDomain.SCENARIO.value, CoreDomain.COMBAT.value, "combat"}
+    FORBIDDEN_ACTION_STATES = {
+        CoreDomain.SCENARIO.value,
+        CoreDomain.COMBAT.value,
+        CoreDomain.COMBAT_RESULT.value,
+        "combat",
+    }
 
     def __init__(
         self,
@@ -51,11 +57,13 @@ class InventoryService:
         inventory_sessions: InventorySessionManager,
         character_sessions: CharacterSessionManager,
         view_service: InventoryViewService | None = None,
+        gear_score_calculator: CharacterGearScoreCalculator | None = None,
     ) -> None:
         self.repository = repository
         self.inventory_sessions = inventory_sessions
         self.character_sessions = character_sessions
         self.view_service = view_service or InventoryViewService()
+        self.gear_score_calculator = gear_score_calculator or CharacterGearScoreCalculator()
 
     async def open_window(self, char_id: int) -> InventoryWindowDTO:
         session = await self.get_or_create_session(char_id)
@@ -141,6 +149,19 @@ class InventoryService:
     async def _sync_active_character_items(self, session: InventoryRuntimeSessionDTO) -> None:
         projection = build_active_character_projection(session)
         await self.character_sessions.set_items_projection(session.char_id, projection.model_dump(mode="json"))
+        await self._sync_gear_score(session, projection.model_dump(mode="json"))
+
+    async def _sync_gear_score(self, session: InventoryRuntimeSessionDTO, items: dict[str, Any]) -> None:
+        attributes = await self.character_sessions.get_section(session.char_id, "attributes")
+        skills = await self.character_sessions.get_section(session.char_id, "skills")
+        gear_score = self.gear_score_calculator.calculate_from_active_character(
+            {
+                "attributes": attributes if isinstance(attributes, dict) else {},
+                "items": items,
+                "skills": skills if isinstance(skills, dict) else {},
+            }
+        )
+        await self.character_sessions.patch_fields(session.char_id, {"$.metrics.gear_score": gear_score})
 
     def _equip(self, session: InventoryRuntimeSessionDTO, item_id: str, slot_id: str) -> None:
         if slot_id not in {slot.value for slot in EquippedSlot}:

@@ -13,10 +13,12 @@ class CabinetAdmin:
     icon: ClassVar[str] = ""
     path: ClassVar[str | None] = None
     group: ClassVar[str] = "main"
+    group_label: ClassVar[str] = ""
     order: ClassVar[int] = 100
 
     sidebar: ClassVar[tuple[SidebarItem, ...]] = ()
     dashboard_widgets: ClassVar[tuple[DashboardWidget, ...]] = ()
+    sub_pages: ClassVar[dict[str, tuple[DashboardWidget, ...]]] = {}
     providers: ClassVar[dict[str, WidgetProvider]] = {}
 
     async def get_dashboard_context(self, request: Request) -> dict[str, object]:

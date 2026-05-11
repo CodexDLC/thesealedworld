@@ -84,6 +84,9 @@
                              {% if catalog_event %}data-catalog-event="{{ catalog_event }}"{% endif %}
                              {% if catalog_tooltip %}data-catalog-tooltip="{{ catalog_tooltip }}"{% endif %}
                              {% endif %}>
+                            {% if line.icon_url is defined and line.icon_url %}
+                                <img class="combat-log-icon" src="{{ line.icon_url }}" alt="">
+                            {% endif %}
                             <span class="combat-log-text">{{ line.text or 'NO_DATA' }}</span>
                         </div>
                         {% endif %}
@@ -136,6 +139,9 @@
                  {% if catalog_event %}data-catalog-event="{{ catalog_event }}"{% endif %}
                  {% if catalog_tooltip %}data-catalog-tooltip="{{ catalog_tooltip }}"{% endif %}
                  {% endif %}>
+                {% if line.icon_url is defined and line.icon_url %}
+                    <img class="combat-log-icon" src="{{ line.icon_url }}" alt="">
+                {% endif %}
                 <span class="combat-log-text">{{ line.text or 'NO_DATA' }}</span>
             </div>
             {% endif %}

@@ -17,4 +17,5 @@ class HeaderItem(BaseModel):
     path: str
     icon: str = ""
     group: str = "main"
+    group_label: str = ""
     order: int = 100

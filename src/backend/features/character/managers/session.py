@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import builtins
+import time
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any, Literal
 
@@ -45,9 +46,12 @@ ATTRIBUTE_KEY_MIGRATIONS = {
 class CharacterSessionManager:
     """RedisJSON access layer for long-lived online character state."""
 
-    def __init__(self, redis: RedisService) -> None:
+    DEFAULT_TTL_SECONDS = 6 * 60 * 60
+
+    def __init__(self, redis: RedisService, *, ttl_seconds: int = DEFAULT_TTL_SECONDS) -> None:
         self.redis = redis
         self.key = PlayerCoreKey()
+        self.ttl_seconds = ttl_seconds
 
     def build_key(self, char_id: int) -> str:
         return self.key.build(char_id=char_id)
@@ -61,10 +65,17 @@ class CharacterSessionManager:
         result = await self.redis.json_module.set(self.build_key(char_id), "$", initial_data, nx=True)
         if not result:
             raise SessionAlreadyExistsError(f"Character session already exists: char_id={char_id}")
+        await self.touch(char_id)
+
+    async def replace_session(self, char_id: int, data: dict[str, Any]) -> None:
+        """Replace runtime AC from cold persistent state."""
+        await self.redis.json_module.set(self.build_key(char_id), "$", data)
+        await self.touch(char_id)
 
     async def update_session(self, char_id: int, data: dict[str, Any]) -> None:
         """Overwrite entire session document."""
         await self.redis.json_module.set(self.build_key(char_id), "$", data)
+        await self.touch(char_id)
 
     async def get_session(self, char_id: int) -> dict[str, Any] | None:
         result = await self.redis.json_module.get(self.build_key(char_id), "$")
@@ -108,16 +119,38 @@ class CharacterSessionManager:
         async with self._redis_client().pipeline(transaction=False) as pipe:
             for path, value in updates.items():
                 pipe.json().set(key, path, value)
+            pipe.expire(key, self.ttl_seconds)
             await pipe.execute()
 
-    async def mark_dirty(self, char_id: int, *, reason: str, paths: list[str]) -> None:
-        await self.redis.json_module.set(
-            self.build_key(char_id),
-            "$.sync_dirty",
+    async def mark_dirty(
+        self, char_id: int, *, reason: str, paths: list[str], targets: list[str] | None = None
+    ) -> None:
+        existing = await self.get_section(char_id, "sync_dirty")
+        merged_paths: set[str] = set(paths)
+        merged_targets: set[str] = set(targets or self._dirty_targets_from_paths(paths))
+        reasons: list[str] = [reason]
+
+        if isinstance(existing, dict) and existing.get("dirty") is True:
+            raw_paths = existing.get("paths")
+            if isinstance(raw_paths, list):
+                merged_paths.update(str(path) for path in raw_paths)
+            raw_targets = existing.get("targets")
+            if isinstance(raw_targets, dict):
+                merged_targets.update(str(key) for key, value in raw_targets.items() if value is True)
+            previous_reason = existing.get("reason")
+            if isinstance(previous_reason, str) and previous_reason and previous_reason != reason:
+                reasons.insert(0, previous_reason)
+
+        await self.patch_fields(
+            char_id,
             {
-                "dirty": True,
-                "reason": reason,
-                "paths": paths,
+                "$.sync_dirty": {
+                    "dirty": True,
+                    "reason": "+".join(dict.fromkeys(reasons)),
+                    "paths": sorted(merged_paths),
+                    "targets": {target: True for target in sorted(merged_targets)},
+                    "generation": time.time(),
+                }
             },
         )
 
@@ -125,8 +158,12 @@ class CharacterSessionManager:
         dirty_marker = await self.get_section(char_id, "sync_dirty")
         return isinstance(dirty_marker, dict) and dirty_marker.get("dirty") is True
 
-    async def clear_dirty(self, char_id: int) -> None:
-        await self.redis.json_module.set(self.build_key(char_id), "$.sync_dirty", None)
+    async def clear_dirty(self, char_id: int, *, generation: float | None = None) -> None:
+        if generation is not None:
+            current = await self.get_section(char_id, "sync_dirty")
+            if not isinstance(current, dict) or current.get("generation") != generation:
+                return
+        await self.patch_fields(char_id, {"$.sync_dirty": None})
 
     async def set_state(
         self,
@@ -168,6 +205,7 @@ class CharacterSessionManager:
         state: CoreDomain | str,
         *,
         expected_state: CoreDomain | str | None = None,
+        prev_state: CoreDomain | str | None = None,
     ) -> None:
         current_state = await self.get_section(char_id, "state")
         if current_state is None:
@@ -179,7 +217,7 @@ class CharacterSessionManager:
                 f"Invalid state transition for char_id={char_id}: expected={expected} actual={current_state}"
             )
 
-        await self.set_state(char_id, state)
+        await self.set_state(char_id, state, prev_state=prev_state)
 
     async def set_scenario_session(
         self,
@@ -216,24 +254,56 @@ class CharacterSessionManager:
         )
 
     async def set_combat_session(self, char_id: int, combat_id: str) -> None:
-        await self.patch_fields(char_id, {"$.sessions.combat_id": str(combat_id)})
-        await self.mark_dirty(char_id, reason="combat_session_attached", paths=["$.sessions.combat_id"])
+        await self.patch_fields(
+            char_id,
+            {
+                "$.sessions.combat_id": str(combat_id),
+                "$.sessions.combat_finalization_id": None,
+            },
+        )
+        await self.mark_dirty(
+            char_id,
+            reason="combat_session_attached",
+            paths=["$.sessions.combat_finalization_id", "$.sessions.combat_id"],
+        )
 
     async def clear_combat_session(self, char_id: int) -> None:
         await self.patch_fields(char_id, {"$.sessions.combat_id": None})
         await self.mark_dirty(char_id, reason="combat_session_cleared", paths=["$.sessions.combat_id"])
 
+    async def set_arena_session(self, char_id: int, arena_id: str) -> None:
+        await self.patch_fields(char_id, {"$.sessions.arena_id": str(arena_id)})
+        await self.mark_dirty(char_id, reason="arena_session_attached", paths=["$.sessions.arena_id"])
+
+    async def clear_arena_session(self, char_id: int) -> None:
+        await self.patch_fields(char_id, {"$.sessions.arena_id": None})
+        await self.mark_dirty(char_id, reason="arena_session_cleared", paths=["$.sessions.arena_id"])
+
+    async def reset_main_runtime_refs_to_exploration(self, char_id: int) -> None:
+        updates = {
+            "$.state": CoreDomain.EXPLORATION.value,
+            "$.prev_state": CoreDomain.EXPLORATION.value,
+            "$.sessions.scenario_id": None,
+            "$.sessions.combat_id": None,
+            "$.sessions.combat_finalization_id": None,
+            "$.sessions.arena_id": None,
+            "$.active_quest": None,
+        }
+        await self.patch_fields(char_id, updates)
+        await self.mark_dirty(
+            char_id,
+            reason="main_runtime_refs_reset",
+            paths=sorted(updates),
+        )
+
     async def set_inventory_session(self, char_id: int, inventory_id: str) -> None:
         await self.patch_fields(char_id, {"$.sessions.inventory_id": str(inventory_id)})
-        await self.mark_dirty(char_id, reason="inventory_session_attached", paths=["$.sessions.inventory_id"])
 
     async def clear_inventory_session(self, char_id: int) -> None:
         await self.patch_fields(char_id, {"$.sessions.inventory_id": None})
-        await self.mark_dirty(char_id, reason="inventory_session_cleared", paths=["$.sessions.inventory_id"])
 
     async def set_items_projection(self, char_id: int, items: dict[str, Any]) -> None:
         await self.patch_fields(char_id, {"$.items": items})
-        await self.mark_dirty(char_id, reason="inventory_items_changed", paths=["$.items"])
 
     async def update_vital(
         self,
@@ -319,19 +389,31 @@ class CharacterSessionManager:
             paths=[f"$.attributes.{attr}" for attr in sorted(bonuses)],
         )
 
-    async def unlock_skills(self, char_id: int, skills: list[str]) -> None:
+    async def unlock_skills(self, char_id: int, skills: list[str], *, initial_xp: float = 0.0) -> None:
         unique_skills = list(dict.fromkeys(skill for skill in skills if skill))
         if not unique_skills:
             return
 
+        starting_xp = min(1.0, max(0.0, float(initial_xp or 0.0)))
+        document = await self.get_session(char_id)
+        session_skills = document.get("skills") if isinstance(document, dict) else {}
+        current_skills: dict[str, Any] = session_skills if isinstance(session_skills, dict) else {}
+
         key = self.build_key(char_id)
         async with self._redis_client().pipeline(transaction=False) as pipe:
             for skill_key in unique_skills:
+                current = current_skills.get(skill_key)
+                current_xp = 0.0
+                if isinstance(current, dict):
+                    try:
+                        current_xp = float(current.get("xp", current.get("total_xp", 0.0)) or 0.0)
+                    except (TypeError, ValueError):
+                        current_xp = 0.0
                 pipe.json().set(
                     key,
                     f"$.skills.{skill_key}",
                     {
-                        "xp": 0.0,
+                        "xp": round(max(current_xp, starting_xp), 4),
                         "unlocked": True,
                         "state": SkillProgressState.PLUS.value,
                     },
@@ -436,7 +518,7 @@ class CharacterSessionManager:
         return self._first(result)
 
     async def touch(self, char_id: int) -> None:
-        raise NotImplementedError("Activity markers are planned for iteration 2.")
+        await self.redis.string.expire(self.build_key(char_id), self.ttl_seconds)
 
     @staticmethod
     def _first(result: Any) -> Any:
@@ -472,3 +554,24 @@ class CharacterSessionManager:
             del attributes[old_key]
             changed = True
         return changed
+
+    @staticmethod
+    def _dirty_targets_from_paths(paths: list[str]) -> list[str]:
+        targets: set[str] = set()
+        for path in paths:
+            if path.startswith("$.attributes"):
+                targets.add("attributes")
+            elif path.startswith("$.skills") or path.startswith("$.progression"):
+                targets.add("skills")
+            elif path.startswith("$.symbiote"):
+                targets.add("symbiote")
+            elif (
+                path.startswith("$.items")
+                or path.startswith("$.metrics.gear_score")
+                or path.startswith("$.world_theme")
+                or path.startswith("$.sessions.inventory_id")
+            ):
+                continue
+            else:
+                targets.add("character")
+        return sorted(targets)

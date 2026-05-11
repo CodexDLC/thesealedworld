@@ -4,7 +4,7 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
-GLOBAL_BASE_RATE = 0.000005
+GLOBAL_BASE_RATE = 0.00005
 GLOBAL_BASE_WALL = 100.0
 
 

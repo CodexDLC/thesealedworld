@@ -19,8 +19,7 @@ async def arena_view(
     char_id: int = Query(...),
 ) -> CoreResponseDTO[ArenaUIPayloadDTO]:
     _ = current_user
-    await service.enter_arena(char_id)
-    payload = await service.get_main_menu()
+    payload = await service.view(char_id)
     return _arena_response(payload)
 
 
@@ -31,8 +30,7 @@ async def arena_group_lobby(
     char_id: int = Query(...),
 ) -> CoreResponseDTO[ArenaUIPayloadDTO]:
     _ = current_user
-    await service.enter_arena(char_id)
-    return _arena_response(await service.get_group_lobby())
+    return _arena_response(await service.show_group_lobby(char_id))
 
 
 @router.post("/{char_id}/action", response_model=CoreResponseDTO[ArenaUIPayloadDTO | StateTransitionDTO])
@@ -49,9 +47,9 @@ async def arena_action(
     value = body.value or {}
 
     if action == ArenaActionEnum.MENU_MAIN.value:
-        return _arena_response(await service.get_main_menu())
+        return _arena_response(await service.show_main_menu(char_id))
     if action == ArenaActionEnum.MENU_MODE.value:
-        return _arena_response(await service.get_mode_menu(_require_mode(mode)))
+        return _arena_response(await service.show_mode_menu(char_id, _require_mode(mode)))
     if action == ArenaActionEnum.JOIN_QUEUE.value:
         return _arena_response(
             await service.join_queue(
@@ -154,7 +152,7 @@ async def arena_group_action(
     _ = current_user
     await service.enter_arena(char_id)
     value = body.value if isinstance(body.value, dict) else {}
-    return _arena_response(await service.group_action(str(body.action), item_id=value.get("item_id")))
+    return _arena_response(await service.group_action(str(body.action), char_id=char_id, item_id=value.get("item_id")))
 
 
 def _arena_response(payload: ArenaUIPayloadDTO) -> CoreResponseDTO[Any]:

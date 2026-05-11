@@ -36,20 +36,29 @@ class CharacterSystemIntegrator:
             raise ValueError(f"Active character session not found: char_id={char_id}")
 
         session_doc = CharacterSessionDocumentDTO.model_validate(document)
-        synced_character = await self.character_repo.sync_active_session_snapshot(char_id, session_doc)
-        if synced_character is None:
-            raise ValueError(f"Character not found: char_id={char_id}")
+        dirty_marker = document.get("sync_dirty")
+        dirty_targets = self._dirty_targets(dirty_marker)
 
-        await self.attributes_repo.upsert_attributes(
-            session_doc.char_id,
-            {key: int(value) for key, value in session_doc.attributes.model_dump(mode="json").items()},
-        )
-        synced_skills = await self._sync_skills(session_doc)
-        await self.character_sessions.clear_dirty(char_id)
+        synced_character: dict[str, Any] | None = None
+        if dirty_targets is None or dirty_targets.get("character") is True:
+            synced_character = await self.character_repo.sync_active_session_snapshot(char_id, session_doc)
+            if synced_character is None:
+                raise ValueError(f"Character not found: char_id={char_id}")
+
+        if dirty_targets is None or dirty_targets.get("attributes") is True:
+            await self.attributes_repo.upsert_attributes(
+                session_doc.char_id,
+                {key: int(value) for key, value in session_doc.attributes.model_dump(mode="json").items()},
+            )
+
+        synced_skills: list[str] = []
+        if dirty_targets is None or dirty_targets.get("skills") is True:
+            synced_skills = await self._sync_skills(session_doc)
+        await self.character_sessions.clear_dirty(char_id, generation=self._dirty_generation(dirty_marker))
         return {
             "char_id": char_id,
-            "state": synced_character["state"],
-            "location_id": synced_character["location_id"],
+            "state": synced_character["state"] if synced_character else str(session_doc.state),
+            "location_id": synced_character["location_id"] if synced_character else session_doc.location.current,
             "skills": synced_skills,
         }
 
@@ -76,3 +85,22 @@ class CharacterSystemIntegrator:
 
         await self.skill_repo.upsert_progress_rows(rows)
         return [str(row["skill_key"]) for row in rows]
+
+    @staticmethod
+    def _dirty_targets(marker: Any) -> dict[str, bool] | None:
+        """Return explicit dirty targets, or None for legacy/full-sync markers."""
+        if not isinstance(marker, dict) or marker.get("dirty") is not True:
+            return None
+
+        raw_targets = marker.get("targets")
+        if not isinstance(raw_targets, dict):
+            return None
+
+        return {str(key): value is True for key, value in raw_targets.items()}
+
+    @staticmethod
+    def _dirty_generation(marker: Any) -> float | None:
+        if not isinstance(marker, dict):
+            return None
+        value = marker.get("generation")
+        return float(value) if isinstance(value, (int, float)) else None

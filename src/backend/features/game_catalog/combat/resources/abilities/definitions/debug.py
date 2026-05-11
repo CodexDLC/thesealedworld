@@ -9,6 +9,8 @@ from src.backend.features.game_catalog.combat.resources.common.descriptions impo
     CombatEventTextSetDTO,
     build_combat_description,
 )
+from src.backend.features.game_catalog.combat.resources.common.modifier_applications import ModifierApplicationDTO
+from src.backend.features.game_catalog.combat.resources.common.pipeline_mutations import pipeline_mutation
 from src.backend.features.game_catalog.combat.resources.common.targeting import TargetType
 
 ABILITIES_TECHNICAL = {
@@ -24,13 +26,15 @@ ABILITIES_TECHNICAL = {
         target=TargetType.SINGLE_ENEMY,
         pipeline_mutations=PipelineMutationsDTO(
             preset="MAGIC_ATTACK",
-            flags={
-                "damage.fire": True,
-                "damage.physical": False,
-            },
+            applications=[
+                pipeline_mutation("damage.fire", True),
+                pipeline_mutation("damage.physical", False),
+            ],
         ),
         override_damage=(40.0, 60.0),
-        raw_mutations={"magical_damage_mult": "*1.5"},
+        modifier_applications=[
+            ModifierApplicationDTO(modifier_id="damage_mult", value_override=0.5),
+        ],
         triggers=["crit.burn_on_crit"],
     ),
     # ==========================================================================
@@ -71,15 +75,15 @@ ABILITIES_TECHNICAL = {
         cost=AbilityCostDTO(energy=10, gift_tokens=1),
         target=TargetType.SINGLE_ENEMY,
         pipeline_mutations=PipelineMutationsDTO(
-            flags={
-                "meta.source_type": "magic",
-                "stages.check_accuracy": True,
-                "stages.check_evasion": False,
-                "stages.check_parry": False,
-                "stages.check_block": True,
-                "stages.calculate_damage": True,
-                "force.hit_evasion": True,
-            }
+            applications=[
+                pipeline_mutation("meta.source_type", "magic"),
+                pipeline_mutation("stage.check_accuracy", True),
+                pipeline_mutation("stage.check_evasion", False),
+                pipeline_mutation("stage.check_parry", False),
+                pipeline_mutation("stage.check_block", True),
+                pipeline_mutation("stage.calculate_damage", True),
+                pipeline_mutation("ignore_evasion"),
+            ]
         ),
         override_damage=(20.0, 25.0),
     ),

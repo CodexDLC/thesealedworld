@@ -4,6 +4,9 @@ from loguru import logger as log
 
 from src.backend.features.combat.runtime.services.data_service import CombatDataService  # noqa: TC001
 from src.backend.features.combat.runtime.services.experience_finalizer import CombatExperienceFinalizer
+from src.backend.features.combat.runtime.services.finalization_builder import CombatFinalizationBuilder
+from src.backend.features.combat.workers.tasks.chat_announcements import publish_combat_final_announcement
+from src.shared.enums import CoreDomain
 
 
 async def victory_finalizer_task(ctx: dict, data: dict) -> None:
@@ -39,20 +42,65 @@ async def victory_finalizer_task(ctx: dict, data: dict) -> None:
         await _commit_player_vitals_to_active_sessions(ctx, data_service, session_id)
 
         # 3. Convert flat runtime xp_buffer counters into character progression rewards.
-        await CombatExperienceFinalizer().finalize(
+        progression_results = await CombatExperienceFinalizer().finalize(
             data_service,
             session_id,
             winner,
             character_sessions=ctx.get("character_sessions"),
         )
 
-        # 4. (Future) Начисление наград, сохранение истории боя в БД
-        # TODO: Реализовать награды и архивирование combat logs.
+        # 4. Freeze final combat facts before runtime cleanup can remove actor/session keys.
+        finalization = await CombatFinalizationBuilder().build(
+            data_service,
+            session_id,
+            winner,
+            progression_results=progression_results,
+        )
+        save_finalization = getattr(data_service, "save_finalization", None)
+        if save_finalization is not None:
+            await save_finalization(
+                session_id,
+                finalization,
+                char_ids=finalization.get("participant_char_ids", []),
+                ttl=86400,
+            )
+            await _attach_finalization_to_active_sessions(ctx, session_id, finalization)
+            await publish_combat_final_announcement(ctx, finalization)
+            await _enqueue_finalization_persist(ctx, session_id)
 
         log.info(f"VictoryFinalizer | Battle {session_id} finalized successfully")
 
     except Exception as e:  # noqa: BLE001
         log.exception(f"VictoryFinalizer | Failed to finalize battle {session_id}: {e}")
+
+
+async def _enqueue_finalization_persist(ctx: dict, session_id: str) -> None:
+    queue = ctx.get("redis")
+    if queue is None:
+        return
+    await queue.enqueue_job("combat_finalization_persist_task", {"combat_id": session_id})
+
+
+async def _attach_finalization_to_active_sessions(ctx: dict, session_id: str, finalization: dict[str, Any]) -> None:
+    character_sessions = ctx.get("character_sessions")
+    if character_sessions is None:
+        return
+
+    char_ids = [int(char_id) for char_id in finalization.get("participant_char_ids", []) if _int_or_none(char_id)]
+    for char_id in char_ids:
+        await character_sessions.patch_fields(
+            char_id,
+            {
+                "$.sessions.combat_id": None,
+                "$.sessions.combat_finalization_id": str(session_id),
+                "$.state": CoreDomain.COMBAT_RESULT.value,
+            },
+        )
+        await character_sessions.mark_dirty(
+            char_id,
+            reason="combat_finalization_attached",
+            paths=["$.sessions.combat_finalization_id", "$.sessions.combat_id", "$.state"],
+        )
 
 
 async def _commit_player_vitals_to_active_sessions(ctx: dict, data_service: CombatDataService, session_id: str) -> None:

@@ -18,7 +18,9 @@ async def game_server_checks_provider(request: Request) -> ListWidgetMap:
 
 class GameServerAdmin(CabinetAdmin):
     key = "game_server"
-    label = "Game Server"
+    label = "Игровой сервер"
+    group = "game_server"
+    group_label = "Гейм Сервер"
     icon = "server"
     path = "/cabinet/game-server"
     sidebar = (SidebarItem(key="overview", label="Overview", path="/cabinet/game-server"),)

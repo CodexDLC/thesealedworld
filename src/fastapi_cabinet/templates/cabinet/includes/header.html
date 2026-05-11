@@ -1,8 +1,18 @@
 <header class="fc-header">
     <a class="fc-brand" href="{{ layout.mount_path }}">{{ layout.title }}</a>
     <nav class="fc-header-nav" aria-label="Cabinet modules">
-        {% for item in layout.header %}
-            <a class="{% if item.key == layout.active_module %}is-active{% endif %}" href="{{ item.path }}">{{ item.label }}</a>
+        {% for group in layout.header_groups %}
+            <div class="fc-header-group">
+                <button class="fc-header-group__trigger" type="button">
+                    {{ group.label }}<span class="fc-header-group__arrow">▾</span>
+                </button>
+                <div class="fc-header-group__menu">
+                    {% for item in group.items %}
+                        <a class="fc-header-group__item{% if item.key == layout.active_module %} is-active{% endif %}"
+                           href="{{ item.path }}">{{ item.label }}</a>
+                    {% endfor %}
+                </div>
+            </div>
         {% endfor %}
     </nav>
 </header>

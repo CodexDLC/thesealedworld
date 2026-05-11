@@ -21,7 +21,7 @@ from starlette.requests import Request
 from fastapi_cabinet import include_cabinet
 from src.frontend.cabinet import CABINET_MODULES
 from src.frontend.config.settings import settings
-from src.frontend.core.middleware import AuthUserMiddleware
+from src.frontend.core.middleware import AuthUserMiddleware, SiteAnalyticsMiddleware
 from src.frontend.core.renderer import get_ui_renderer
 from src.frontend.core.routing import include_frontend_routers
 from src.frontend.game_features.game_menu import GameMenuMiddleware
@@ -73,6 +73,7 @@ async def lifespan(app: FastAPI):
         app.state.templates.env.filters["combat_log_time"] = combat_log_time_filter
 
         app.state.backend_http_client = httpx.AsyncClient(timeout=10.0)
+        app.state.site_analytics: dict[str, int] = {}
     except Exception:
         logger.opt(exception=True).critical("Frontend startup failed")
         raise
@@ -102,6 +103,7 @@ app = FastAPI(
 app.mount("/static", StaticFiles(directory=str(settings.static_dir)), name="static")
 
 app.add_middleware(AuthUserMiddleware)
+app.add_middleware(SiteAnalyticsMiddleware)
 app.add_middleware(GameMenuMiddleware)
 include_frontend_routers(app)
 include_cabinet(app, modules=CABINET_MODULES, mount_path="/cabinet")

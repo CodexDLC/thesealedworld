@@ -67,7 +67,7 @@ class FakeEquippedItemRepository:
                         "power": 9,
                         "damage_spread": 0.1,
                         "related_skill": "skill_swords",
-                        "triggers": ["crit.bleed_on_crit"],
+                        "triggers": ["crit.weapon_serrated_bleed_crit"],
                     },
                     "tags": ["katana"],
                     "metadata": {"related_skill": "skill_swords"},

@@ -1,9 +1,11 @@
 from __future__ import annotations
 
+import time
 import uuid
 from typing import TYPE_CHECKING
 
-from src.backend.features.arena.dto.session import ArenaCombatRequestDTO, ArenaQueueRequestDTO
+from src.backend.features.arena.dto.session import ArenaCombatRequestDTO, ArenaQueueRequestDTO, ArenaRuntimeSessionDTO
+from src.shared.schemas.arena import ArenaScreenEnum
 
 if TYPE_CHECKING:
     from src.backend.features.arena.repositories.session_store import ArenaSessionStore
@@ -40,6 +42,51 @@ class ArenaSessionIntegration:
             )
         )
         return gs
+
+    async def create_runtime_session(self, char_id: int) -> ArenaRuntimeSessionDTO:
+        session = ArenaRuntimeSessionDTO(char_id=char_id)
+        await self.store.create_runtime_session(session)
+        return session
+
+    async def get_runtime_session(self, arena_id: str) -> ArenaRuntimeSessionDTO | None:
+        return await self.store.get_runtime_session(arena_id)
+
+    async def save_runtime_session(self, session: ArenaRuntimeSessionDTO) -> ArenaRuntimeSessionDTO:
+        session.updated_at = time.time()
+        await self.store.update_runtime_session(session)
+        return session
+
+    async def delete_runtime_session(self, arena_id: str) -> None:
+        await self.store.delete_runtime_session(arena_id)
+
+    async def set_runtime_screen(
+        self,
+        session: ArenaRuntimeSessionDTO,
+        screen: ArenaScreenEnum,
+        *,
+        mode: str | None = None,
+        queue_request_id: str | None = None,
+        active_match_id: str | None = None,
+        combat_id: str | None = None,
+        metadata: dict[str, object] | None = None,
+    ) -> ArenaRuntimeSessionDTO:
+        session.screen = screen
+        if mode is not None or screen == ArenaScreenEnum.MAIN_MENU:
+            session.mode = mode
+        if queue_request_id is not None:
+            session.queue_request_id = queue_request_id or None
+        if active_match_id is not None:
+            session.active_match_id = active_match_id or None
+        if combat_id is not None:
+            session.combat_id = combat_id or None
+        if screen == ArenaScreenEnum.MAIN_MENU:
+            session.queue_request_id = None
+            session.active_match_id = None
+            session.combat_id = None
+            session.metadata = {}
+        if metadata:
+            session.metadata = {**session.metadata, **metadata}
+        return await self.save_runtime_session(session)
 
     async def leave_queue(self, char_id: int, mode: str) -> None:
         await self.store.remove_from_queue(mode, char_id)

@@ -10,6 +10,7 @@ from src.backend.features.combat.dto import (
     PipelineStagesDTO,
 )
 from src.backend.features.combat.dto.trigger_rules import TriggerRulesFlagsDTO
+from src.backend.features.combat.runtime.engine.trigger_activation import activate_trigger
 
 
 class ContextBuilder:
@@ -52,8 +53,8 @@ class ContextBuilder:
 
         # 5. Инициализация Результата (Context Info)
         if ctx.result:
-            ctx.result.source_id = int(actor.char_id)
-            ctx.result.target_id = int(target.char_id) if target else None
+            ctx.result.source_id = actor.char_id
+            ctx.result.target_id = target.char_id if target else None
             ctx.result.hand = ctx.flags.meta.source_type
 
         return ctx
@@ -130,11 +131,16 @@ class ContextBuilder:
             trigger_id = actor.loadout.layout.get(trigger_key)
 
             if trigger_id:
-                ContextBuilder._activate_trigger_flag(ctx, trigger_id)
+                activate_trigger(ctx, trigger_id, source="weapon", source_slot=source_type)
 
             style_trigger = actor.loadout.layout.get("tactical_style_trigger")
             if style_trigger and actor.loadout.layout.get("tactical_style") != "skill_shield_mastery":
-                ContextBuilder._activate_trigger_flag(ctx, style_trigger)
+                activate_trigger(
+                    ctx,
+                    style_trigger,
+                    source="style",
+                    source_id=actor.loadout.layout.get("tactical_style"),
+                )
 
     @staticmethod
     def _activate_trigger_flag(ctx: PipelineContextDTO, trigger_id: str) -> None:
@@ -144,22 +150,7 @@ class ContextBuilder:
         1. Путь через точку: "accuracy.true_strike"
         2. Простое имя: "true_strike" (ищет во всех секциях)
         """
-        # 1. Если это путь (section.field)
-        if "." in trigger_id:
-            parts = trigger_id.split(".")
-            if len(parts) == 2:
-                section_name, field_name = parts
-                if hasattr(ctx.triggers, section_name):
-                    section = getattr(ctx.triggers, section_name)
-                    if hasattr(section, field_name):
-                        setattr(section, field_name, True)
-                        return
-
-        # 2. Если это просто имя (ищем везде)
-        for _section_name, section_model in ctx.triggers:
-            if hasattr(section_model, trigger_id):
-                setattr(section_model, trigger_id, True)
-                return
+        activate_trigger(ctx, trigger_id, source="system")
 
     @staticmethod
     def _analyze_defense(ctx: PipelineContextDTO, target: ActorSnapshot) -> None:
@@ -181,4 +172,4 @@ class ContextBuilder:
             ctx.flags.mastery.shield_reflect = True
             style_trigger = layout.get("tactical_style_trigger")
             if layout.get("tactical_style") == "skill_shield_mastery" and style_trigger:
-                ContextBuilder._activate_trigger_flag(ctx, style_trigger)
+                activate_trigger(ctx, style_trigger, source="style", source_id=layout.get("tactical_style"))

@@ -99,6 +99,31 @@ class FakeSkillRepository:
     pass
 
 
+class FakeInventoryRepository:
+    async def list_character_items(self, char_id):
+        instance = SimpleNamespace(
+            id="item-weapon",
+            base_id="sword",
+            item_type="weapon",
+            mechanics={"slot": "main_hand", "valid_slots": ["main_hand"], "power": 10},
+            metadata_={},
+            appearance={},
+            name="Practice Sword",
+            description="Starter blade",
+            rarity="common",
+            rarity_tier=1,
+            generation={},
+        )
+        placement = SimpleNamespace(storage_type="equipped", slot="main_hand")
+        return [(instance, placement)]
+
+
+class FakeGearScoreCalculator:
+    def calculate_from_active_character(self, active_character):
+        assert active_character["items"]["layout"]["equipment"]["main_hand"] == "item-weapon"
+        return 777
+
+
 def build_service(repo_cls, sessions):
     return CharacterStatusService(
         state_integrator=CharacterStateIntegrator(
@@ -122,7 +147,7 @@ def build_actor_core_document():
         "attributes": {"strength": 8},
         "sessions": {"scenario_id": None, "combat_id": None, "inventory_id": None},
         "active_quest": None,
-        "metrics": {"gear_score": 0},
+        "metrics": {"gear_score": 612},
         "skills": {"skill_macing": {"xp": 0.0}, "skill_medium_armor": {"xp": 0.0}},
         "symbiote": {"name": "SYSTEM"},
         "updated_at": datetime.now(UTC),
@@ -165,6 +190,8 @@ async def test_get_actor_core_returns_game_ac_document():
     assert dto.skills["skill_macing"]["xp"] == 0.0
     assert dto.panel is not None
     assert dto.panel.id == "character_status"
+    avatar_widget = next(widget for widget in dto.panel.widgets if widget.title == "PROFILE")
+    assert avatar_widget.data["gear_score"] == 612
     attributes_widget = next(widget for widget in dto.panel.widgets if widget.title == "ATTRIBUTES")
     assert attributes_widget.type == "attribute_grid"
     assert [group["title"] for group in attributes_widget.data["groups"]] == ["BODY", "CORE", "SENSOR"]
@@ -172,6 +199,25 @@ async def test_get_actor_core_returns_game_ac_document():
     assert skills_widget.type == "skill_groups"
     assert [group["title"] for group in skills_widget.data["groups"]] == ["WEAPON MASTERY", "ARMOR"]
     assert skills_widget.data["groups"][0]["items"][0]["catalog_key"] == "skill_macing"
+    assert skills_widget.data["groups"][0]["items"][0]["value"] == "0%"
+
+
+@pytest.mark.asyncio
+async def test_get_actor_core_formats_skill_values_as_percentages():
+    document = build_actor_core_document()
+    document["skills"] = {
+        "skill_macing": {"xp": 0.0352},
+        "skill_medium_armor": {"xp": 1.0},
+    }
+    service = build_service(FakeCharacterRepository, FakeCharacterSessions(document))
+
+    dto = await service.get_actor_core(SimpleNamespace(id=uuid4()), 7)
+
+    skills_widget = next(widget for widget in dto.panel.widgets if widget.title == "SKILLS")
+    weapon_group = next(group for group in skills_widget.data["groups"] if group["title"] == "WEAPON MASTERY")
+    armor_group = next(group for group in skills_widget.data["groups"] if group["title"] == "ARMOR")
+    assert weapon_group["items"][0]["value"] == "3.5%"
+    assert armor_group["items"][0]["value"] == "100%"
 
 
 @pytest.mark.asyncio
@@ -195,6 +241,27 @@ async def test_get_actor_core_initializes_missing_actor_core():
     assert dto.location["current"] == "52_52"
     assert sessions.created is not None
     assert sessions.created["symbiote"]["name"] == "SYSTEM"
+
+
+@pytest.mark.asyncio
+async def test_get_actor_core_initializes_items_and_gear_score_from_inventory():
+    sessions = FakeCharacterSessions(None)
+    service = CharacterStatusService(
+        state_integrator=CharacterStateIntegrator(
+            character_sessions=sessions,
+            character_repo=FakeCharacterRepository(object()),
+            skill_repo=FakeSkillRepository(),
+            inventory_repo=FakeInventoryRepository(),
+            gear_score_calculator=FakeGearScoreCalculator(),
+        )
+    )
+
+    dto = await service.get_actor_core(SimpleNamespace(id=uuid4()), 7)
+
+    assert sessions.created["items"]["layout"]["equipment"]["main_hand"] == "item-weapon"
+    assert dto.metrics["gear_score"] == 777
+    avatar_widget = next(widget for widget in dto.panel.widgets if widget.title == "PROFILE")
+    assert avatar_widget.data["gear_score"] == 777
 
 
 @pytest.mark.asyncio

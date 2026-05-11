@@ -66,6 +66,44 @@ class MonsterLootProfile(TypedDict, total=False):
     equipment_quality: str
 
 
+class MonsterFamilyBalance(TypedDict, total=False):
+    organization_divisor: float
+    composition_profile: str
+    max_elites_without_boss: int
+    boss_allowed: bool
+
+
+class MonsterEquipmentMapping(TypedDict, total=False):
+    equipment_key: str
+    source_base_id: str
+    slots: list[str]
+    tags: list[str]
+    scaling_profile: str
+    affix_pool: str
+
+
+class MonsterClanResourceModel(TypedDict, total=False):
+    tier_range: dict[str, int]
+    balance: MonsterFamilyBalance
+    text_hints: dict[str, object]
+    ai_defaults: dict[str, object]
+    item_mappings: dict[str, MonsterEquipmentMapping]
+    allowed_affix_pools: list[str]
+
+
+class MonsterMemberResourceModel(TypedDict, total=False):
+    variant_key: str
+    role: Literal["minion", "veteran", "elite", "boss"]
+    tier_policy: Literal["role_offset", "fixed", "clan_tier"]
+    member_tier_offset: int
+    attribute_profile: dict[str, object]
+    skill_profile: dict[str, object]
+    item_loadout_profile: dict[str, object]
+    ability_profile: dict[str, object]
+    ai_profile: dict[str, object]
+    balance: dict[str, object]
+
+
 # ==========================================
 # 3. СТРУКТУРА ВАРИАНТА (ЮНИТ)
 # ==========================================
@@ -93,6 +131,7 @@ class MonsterVariant(TypedDict):
     skills: list[str]
     skill_overrides: NotRequired[dict[str, float | None]]
     ability_overrides: NotRequired[dict[str, str | None]]
+    member_model: NotRequired[MonsterMemberResourceModel]
 
     # Служебные поля (проставляются в __init__ реестра)
     _family_ref: NotRequired[str]
@@ -122,6 +161,8 @@ class MonsterFamily(TypedDict):
     skill_kit: NotRequired[MonsterSkillKit]
     ability_map: NotRequired[dict[str, MonsterAbilityDefinition]]
     loot_profile: NotRequired[MonsterLootProfile]
+    clan_model: NotRequired[MonsterClanResourceModel]
+    member_models: NotRequired[list[MonsterMemberResourceModel]]
 
     hierarchy: FamilyHierarchy
     variants: dict[str, MonsterVariant]

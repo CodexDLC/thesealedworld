@@ -2,7 +2,7 @@ import contextlib
 import uuid
 from typing import Any
 
-from src.backend.features.combat.dto import ActiveEffectDTO
+from src.backend.features.combat.dto import ActiveEffectDTO, ActorIdLike, normalize_actor_id
 from src.backend.features.game_catalog.combat.resources.effects.schemas import ControlInstructionDTO, EffectTechnicalDTO
 
 
@@ -16,10 +16,10 @@ class EffectFactory:
     def create_effect(
         config: EffectTechnicalDTO,
         params: dict[str, Any],
-        source_id: int,
+        source_id: ActorIdLike,
         current_exchange: int,
         damage_ref: int = 0,
-    ) -> tuple[ActiveEffectDTO, dict[str, Any]]:
+    ) -> ActiveEffectDTO:
         """
         Главный метод-оркестратор.
         Собирает финальный импакт, мутации и создает DTO.
@@ -32,9 +32,8 @@ class EffectFactory:
             damage_ref: Ссылка на нанесенный урон (для эффектов типа Bleed).
 
         Returns:
-            tuple[ActiveEffectDTO, dict[str, Any]]:
-            1. Готовый DTO эффекта.
-            2. Словарь мутаций (raw_modifiers), которые нужно применить к актору.
+            Готовый DTO эффекта. Numeric modifier applications apply later through
+            ModifierApplicationService using this effect uid.
         """
         # 1. [BASE DATA]
         duration = params.get("duration", config.duration)
@@ -46,12 +45,12 @@ class EffectFactory:
         # A. Special Logic: Bleed (Кровотечение)
         # Если эффект имеет тег "bleed" и передан damage_ref, считаем от урона.
         if "bleed" in config.tags and damage_ref > 0:
+            base_tick = abs(int(config.resource_impact.get("hp", 0))) if config.resource_impact else 0
             # Логика: 30% от урона (или как настроим).
             # Можно вынести коэффициент в константы или конфиг, но пока хардкод для MVP.
             # Если в params передан power, он может влиять на этот процент (например, 0.3 * power).
             bleed_ratio = 0.3 * power
-            bleed_val = int(damage_ref * bleed_ratio)
-            # Минимальный урон кровотока = 1
+            bleed_val = max(base_tick, int(damage_ref * bleed_ratio))
             if bleed_val < 1:
                 bleed_val = 1
 
@@ -67,18 +66,7 @@ class EffectFactory:
                 for res, val in base_impact.items():
                     final_impact[res] = int(val * power)
 
-        # 3. [MUTATIONS CALCULATION]
-        final_mutations = {}
-
-        # A. Из конфига
-        if config.raw_modifiers:
-            final_mutations.update(config.raw_modifiers)
-
-        # B. Из параметров (динамические)
-        if "mutations" in params:
-            final_mutations.update(params["mutations"])
-
-        # 4. [CONTROL LOGIC]
+        # 3. [CONTROL LOGIC]
         # Приоритет: Params > Config.
         final_control = config.control_logic
 
@@ -88,13 +76,13 @@ class EffectFactory:
             with contextlib.suppress(Exception):
                 final_control = ControlInstructionDTO(**params["control"])
 
-        # 5. [CREATE DTO]
+        # 4. [CREATE DTO]
         effect_uid = str(uuid.uuid4())
 
         active_effect = ActiveEffectDTO(
             uid=effect_uid,
             effect_id=config.effect_id,
-            source_id=source_id,
+            source_id=normalize_actor_id(source_id),
             expire_at_exchange=current_exchange + duration,
             # Calculated State
             impact=final_impact,
@@ -102,8 +90,6 @@ class EffectFactory:
             # Source Data (для наследования)
             power=power,
             params=params,  # Сохраняем исходные параметры
-            # Memory (ключи, которые мы изменим)
-            modified_keys=list(final_mutations.keys()),
         )
 
-        return active_effect, final_mutations
+        return active_effect

@@ -67,6 +67,14 @@ class ItemCatalogService:
     def get_affix_entry(self, affix_id: str) -> AffixCatalogEntryDTO | None:
         return AFFIX_CATALOG.get(affix_id)
 
+    @property
+    def affix_bundles(self) -> dict[str, Any]:
+        return BUNDLE_CATALOG
+
+    @property
+    def affix_effects(self) -> dict[str, Any]:
+        return AFFIX_CATALOG
+
     def get_new_bundle(self, bundle_id: str) -> NewAffixBundleDTO | None:
         return self.get_affix_bundle(bundle_id)
 

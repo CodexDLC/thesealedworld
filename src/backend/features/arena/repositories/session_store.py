@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from src.backend.features.arena.dto.session import ArenaCombatRequestDTO, ArenaQueueRequestDTO
+from src.backend.features.arena.dto.session import ArenaCombatRequestDTO, ArenaQueueRequestDTO, ArenaRuntimeSessionDTO
 
 if TYPE_CHECKING:
     from codex_platform.redis_service import RedisService
@@ -12,6 +12,7 @@ class ArenaSessionStore:
     REQUEST_TTL_SEC = 300
     MATCH_TTL_SEC = 900
     MATCH_LOCK_TTL_SEC = 8
+    RUNTIME_TTL_SEC = 6 * 60 * 60
     CLAIM_OPPONENT_SCRIPT = """
 local queue_key = KEYS[1]
 local request_prefix = ARGV[4]
@@ -71,6 +72,10 @@ return 0
     def request_key_prefix() -> str:
         return "arena:request:"
 
+    @staticmethod
+    def runtime_key(arena_id: str) -> str:
+        return f"arena:runtime_session:{arena_id}"
+
     async def add_to_queue(self, request: ArenaQueueRequestDTO) -> None:
         client = self._client()
         await client.zadd(self.queue_key(request.mode), {str(request.char_id): float(request.gs)})
@@ -79,6 +84,29 @@ return 0
             request.model_dump_json(),
             ex=max(self.REQUEST_TTL_SEC, request.wait_limit_sec + 60),
         )
+
+    async def create_runtime_session(self, session: ArenaRuntimeSessionDTO) -> None:
+        await self._client().set(
+            self.runtime_key(session.arena_id),
+            session.model_dump_json(),
+            ex=self.RUNTIME_TTL_SEC,
+        )
+
+    async def get_runtime_session(self, arena_id: str) -> ArenaRuntimeSessionDTO | None:
+        raw = await self._client().get(self.runtime_key(arena_id))
+        if raw is None:
+            return None
+        return ArenaRuntimeSessionDTO.model_validate_json(raw)
+
+    async def update_runtime_session(self, session: ArenaRuntimeSessionDTO) -> None:
+        await self._client().set(
+            self.runtime_key(session.arena_id),
+            session.model_dump_json(),
+            ex=self.RUNTIME_TTL_SEC,
+        )
+
+    async def delete_runtime_session(self, arena_id: str) -> None:
+        await self._client().delete(self.runtime_key(arena_id))
 
     async def remove_from_queue(self, mode: str, char_id: int) -> bool:
         removed = await self._client().zrem(self.queue_key(mode), str(char_id))

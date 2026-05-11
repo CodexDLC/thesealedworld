@@ -3,6 +3,7 @@ from types import SimpleNamespace
 from uuid import uuid4
 
 import pytest
+from fastapi import HTTPException
 
 from src.frontend.game_features.session.services.session_context_builder import SessionContextBuilder
 from src.frontend.integrations.backend_api.combat import CombatViewResponse
@@ -20,13 +21,15 @@ from src.shared.schemas.exploration import (
     NavigationGridDTO,
     WorldNavigationDTO,
 )
+from src.shared.schemas.inventory import InventoryWindowDTO
 from src.shared.schemas.panel import PanelDTO
 from src.shared.schemas.world_theme import WorldThemeDTO
 
 
 class FakeCharacterStatusApi:
-    def __init__(self):
+    def __init__(self, *, sessions=None):
         self.calls = []
+        self.sessions = sessions or {}
 
     async def get_panel(self, token, *, char_id):
         self.calls.append(("status", char_id))
@@ -44,7 +47,7 @@ class FakeCharacterStatusApi:
                     "stamina": {"cur": 66, "max": 100},
                 },
                 "attributes": {},
-                "sessions": {},
+                "sessions": self.sessions,
                 "metrics": {},
                 "skills": {},
                 "symbiote": {"name": "Mote", "gift_rank": 1},
@@ -62,6 +65,20 @@ class FakeGameSessionApi:
     async def enter(self, token, dto):
         self.dto = dto
         return self.response
+
+
+class FakeInventoryApi:
+    def __init__(self, payload=None):
+        self.calls = []
+        self.payload = payload
+
+    async def view(self, token, *, char_id):
+        self.calls.append(("inventory", char_id))
+        return CoreResponseDTO(
+            header=GameStateHeader(current_state=CoreDomain.INVENTORY, transaction_id="tx-inventory"),
+            payload=self.payload or inventory_window_payload(char_id),
+            payload_type="inventory",
+        )
 
 
 class FakeExplorationApi:
@@ -184,6 +201,30 @@ def scenario_response() -> CoreResponseDTO[ScenarioPayloadDTO]:
     )
 
 
+def inventory_window_payload(char_id: int = 7) -> InventoryWindowDTO:
+    return InventoryWindowDTO.model_validate(
+        {
+            "char_id": char_id,
+            "avatar_url": "/inventory-avatar.png",
+            "avatar_name": "Inventory Ada",
+            "stats": {"slots_total": 42, "slots_used": 1},
+            "body_zones": [
+                {
+                    "zone_id": "head",
+                    "label": "Head",
+                    "position": "head",
+                    "primary_slot": {"slot_id": "head_armor", "label": "Head", "layer": "armor"},
+                }
+            ],
+            "weapon_slots": [],
+            "accessory_rows": [],
+            "quick_slots": [],
+            "tabs": [{"tab_id": "items", "label": "Items", "icon": "I", "is_active": True}],
+            "visible_rows": [],
+        }
+    )
+
+
 def builder(response):
     return SessionContextBuilder(
         character_status_api=FakeCharacterStatusApi(),
@@ -191,6 +232,7 @@ def builder(response):
         exploration_api=SimpleNamespace(),
         scenario_api=FakeScenarioApi(response),
         game_session_api=FakeGameSessionApi(response),
+        inventory_api=FakeInventoryApi(),
     )
 
 
@@ -202,6 +244,7 @@ def exploration_builder(calls):
         exploration_api=FakeExplorationApi(calls),
         scenario_api=FakeScenarioApi(scenario_response()),
         game_session_api=FakeGameSessionApi(scenario_response()),
+        inventory_api=FakeInventoryApi(),
     )
 
 
@@ -212,6 +255,7 @@ def combat_builder(status_api, combat_api):
         exploration_api=SimpleNamespace(),
         scenario_api=FakeScenarioApi(scenario_response()),
         game_session_api=FakeGameSessionApi(scenario_response()),
+        inventory_api=FakeInventoryApi(),
         combat_api=combat_api,
     )
 
@@ -223,6 +267,7 @@ def arena_builder(status_api, arena_api):
         exploration_api=SimpleNamespace(),
         scenario_api=FakeScenarioApi(scenario_response()),
         game_session_api=FakeGameSessionApi(scenario_response()),
+        inventory_api=FakeInventoryApi(),
     )
 
 
@@ -261,6 +306,77 @@ async def test_build_current_returns_full_scenario_shell_context():
     assert len(context["inventory_window"].accessory_rows) == 4
     assert len(context["inventory_window"].quick_slots) == 8
     assert context["nav"]["center"]["label"] == "SCENARIO"
+
+
+@pytest.mark.asyncio
+async def test_build_current_loads_scenario_when_session_enter_returns_state_decision():
+    enter_response = CoreResponseDTO(
+        header=GameStateHeader(current_state=CoreDomain.SCENARIO, transaction_id="tx-enter"),
+        payload={"character_id": 7, "domain": "scenario", "source": "hot_ac"},
+        payload_type="scenario_session",
+    )
+    scenario = scenario_response()
+    scenario_api = FakeScenarioApi(scenario)
+    service = SessionContextBuilder(
+        character_status_api=FakeCharacterStatusApi(),
+        arena_api=SimpleNamespace(),
+        exploration_api=SimpleNamespace(),
+        scenario_api=scenario_api,
+        game_session_api=FakeGameSessionApi(enter_response),
+        inventory_api=FakeInventoryApi(),
+    )
+
+    context = await service.build_current(request(), char_id=7)
+
+    assert context["domain"] == "scenario"
+    assert context["scenario"].node_key == "rift_entry_01"
+    assert scenario_api.initialized is None
+
+
+@pytest.mark.asyncio
+async def test_build_current_redirects_to_lobby_when_session_enter_returns_lobby():
+    enter_response = CoreResponseDTO(
+        header=GameStateHeader(current_state=CoreDomain.LOBBY, transaction_id="tx-enter"),
+        payload={"char_id": 7, "target_state": "lobby", "reason": "active_character_unavailable"},
+        payload_type="state_transition",
+    )
+    service = SessionContextBuilder(
+        character_status_api=FakeCharacterStatusApi(),
+        arena_api=SimpleNamespace(),
+        exploration_api=SimpleNamespace(),
+        scenario_api=FakeScenarioApi(scenario_response()),
+        game_session_api=FakeGameSessionApi(enter_response),
+        inventory_api=FakeInventoryApi(),
+    )
+
+    with pytest.raises(HTTPException) as exc:
+        await service.build_current(request(), char_id=7)
+
+    assert exc.value.status_code == 303
+    assert exc.value.headers == {"Location": "/game-lobby"}
+
+
+@pytest.mark.asyncio
+async def test_build_current_restores_open_inventory_window_from_active_character_ref():
+    status_api = FakeCharacterStatusApi(sessions={"inventory_id": "game:inventory:7"})
+    inventory_api = FakeInventoryApi()
+    response = scenario_response()
+    service = SessionContextBuilder(
+        character_status_api=status_api,
+        arena_api=SimpleNamespace(),
+        exploration_api=SimpleNamespace(),
+        scenario_api=FakeScenarioApi(response),
+        game_session_api=FakeGameSessionApi(response),
+        inventory_api=inventory_api,
+    )
+
+    context = await service.build_current(request(), char_id=7)
+
+    assert context["initial_inventory_open"] is True
+    assert inventory_api.calls == [("inventory", 7)]
+    assert context["inventory_window"].contract_state == "SHARED_INVENTORY_CONTRACT_V1"
+    assert context["inventory_window"].stats.slots_total == 42
+    assert context["inventory_window"].avatar_url == "/inventory-avatar.png"
 
 
 @pytest.mark.asyncio
@@ -390,6 +506,7 @@ async def test_build_state_combat_accepts_archived_result_payload():
     assert status_api.calls == []
     assert context["domain"] == "combats"
     assert context["combat_result"].title == "Итоги боя недоступны"
-    assert context["combat_screen"] is None
+    assert context["combat_screen"].status == "finished"
+    assert context["combat_screen"].action_state == "COMBAT_FINALIZED"
     assert context["payload_type"] == "CombatResult"
     assert context["status_seed"]["character_id"] == 7

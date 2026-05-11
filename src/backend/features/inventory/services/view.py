@@ -6,6 +6,7 @@ from src.backend.features.items.resources.affixes.catalog import AFFIX_CATALOG
 from src.shared.enums.item_enums import EquippedSlot, QuickSlot
 from src.shared.schemas.inventory import (
     InventoryAccessoryRowDTO,
+    InventoryAffixLineDTO,
     InventoryBodyZoneDTO,
     InventoryComparisonLineDTO,
     InventoryContainerRowDTO,
@@ -27,6 +28,174 @@ from .projection import belt_capacity, inventory_cell_capacity
 
 
 class InventoryViewService:
+    _RARITY_LABELS_RU = [
+        "Без грейда",
+        "Обычный",
+        "Необычный",
+        "Редкий",
+        "Эпический",
+        "Мифический",
+        "Легендарный",
+        "Абсолют",
+    ]
+    _ITEM_TYPE_LABELS_RU = {
+        "weapon": "Оружие",
+        "armor": "Броня",
+        "garment": "Одежда",
+        "accessory": "Аксессуар",
+        "consumable": "Расходник",
+        "container": "Контейнер",
+        "resource": "Ресурс",
+        "material": "Материал",
+        "currency": "Валюта",
+        "quest": "Квестовый предмет",
+    }
+    _STAT_LABELS_RU = {
+        "accuracy_penalty": "Штраф точности",
+        "agility": "Ловкость",
+        "anti_crit_chance": "Защита от крита",
+        "anti_dodge_chance": "Против уворота",
+        "arcane_resistance": "Сопротивление тайне",
+        "armor": "Броня",
+        "armor_penetration": "Пробитие физ. защиты",
+        "bleed_damage_bonus": "Усиление кровотечения",
+        "bleed_resistance": "Сопротивление кровотечению",
+        "block": "Блок",
+        "block_chance": "Шанс блока",
+        "cold_resistance": "Сопротивление холоду",
+        "control_chance": "Шанс контроля",
+        "control_resistance": "Сопротивление контролю",
+        "counter_attack_chance": "Шанс контратаки",
+        "crafting_speed": "Скорость ремесла",
+        "damage": "Урон",
+        "debuff_avoidance": "Избежание ослаблений",
+        "defense": "Защита",
+        "durability": "Прочность",
+        "energy_max": "Максимум энергии",
+        "environment_cold_resistance": "Защита от холода",
+        "environment_heat_resistance": "Защита от жара",
+        "evasion": "Уклонение",
+        "evasion_penalty": "Штраф уклонения",
+        "find_loot_chance": "Поиск добычи",
+        "fire_damage_bonus": "Урон огнём",
+        "fire_resistance": "Сопротивление огню",
+        "heat_resistance": "Сопротивление жару",
+        "hp_max": "Максимум здоровья",
+        "hp_regen": "Восстановление здоровья",
+        "initiative": "Инициатива",
+        "intelligence": "Интеллект",
+        "inventory_cell_capacity": "Ячейки инвентаря",
+        "luck": "Удача",
+        "magic_damage": "Магический урон",
+        "magic_penetration": "Пробитие магии",
+        "magic_resist": "Магическая защита",
+        "magical_damage_bonus": "Магический урон",
+        "magical_penetration": "Пробитие магии",
+        "magical_resistance": "Магическая защита",
+        "main_hand_accuracy": "Точность основной руки",
+        "maximum_energy": "Максимум энергии",
+        "maximum_hp": "Максимум здоровья",
+        "parry_chance": "Парирование",
+        "perception": "Восприятие",
+        "physical_accuracy": "Физическая точность",
+        "physical_crit_chance": "Шанс крита",
+        "physical_crit_power_float": "Сила крита",
+        "physical_damage_bonus": "Физический урон",
+        "physical_penetration": "Физическое пробитие",
+        "physical_resistance": "Физическая защита",
+        "power": "Сила",
+        "quick_slot_capacity": "Слоты пояса",
+        "resource_find": "Поиск ресурсов",
+        "scouting": "Разведка",
+        "shield_block_chance": "Блок щитом",
+        "shield_guard_power": "Сила щита",
+        "stamina_regen": "Восстановление выносливости",
+        "strength": "Сила",
+        "thorns_damage": "Шипы",
+        "trade_bonus": "Торговля",
+        "travel_speed": "Скорость пути",
+        "vampiric_power": "Вампиризм",
+        "vampiric_trigger_chance": "Шанс вампиризма",
+    }
+    _AFFIX_LABELS_RU = {
+        "agility": "Ловкость",
+        "arcane_resistance": "Сопротивление тайне",
+        "arcane_resistance_bonus": "Сопротивление тайне",
+        "attribute_agility": "Ловкость",
+        "attribute_perception": "Восприятие",
+        "attribute_strength": "Сила",
+        "armor_flat": "Броня",
+        "armor_penetration_bonus": "Пробитие физ. защиты",
+        "bio_resistance": "Биозащита",
+        "bio_resistance_bonus": "Биозащита",
+        "block_bonus": "Шанс блока",
+        "cold_resistance": "Сопротивление холоду",
+        "cold_resistance_bonus": "Сопротивление холоду",
+        "control_chance": "Шанс контроля",
+        "control_chance_bonus": "Шанс контроля",
+        "control_resistance": "Сопротивление контролю",
+        "control_resistance_bonus": "Сопротивление контролю",
+        "crafting_speed": "Скорость ремесла",
+        "crit_chance": "Шанс крита",
+        "crit_power": "Сила крита",
+        "evasion": "Уклонение",
+        "evasion_bonus": "Уклонение",
+        "en_bonus": "Максимум энергии",
+        "fire_damage": "Урон огнём",
+        "fire_damage_bonus": "Урон огнём",
+        "fire_resistance": "Сопротивление огню",
+        "fire_resistance_bonus": "Сопротивление огню",
+        "heat_resistance": "Сопротивление жару",
+        "heat_resistance_bonus": "Сопротивление жару",
+        "hp_bonus": "Максимум здоровья",
+        "hp_regen_bonus": "Восстановление здоровья",
+        "hp_regeneration": "Восстановление здоровья",
+        "luck": "Удача",
+        "luck_bonus": "Удача",
+        "magic_damage": "Магический урон",
+        "magic_damage_bonus": "Магический урон",
+        "magic_penetration": "Пробитие магии",
+        "magic_penetration_bonus": "Пробитие магии",
+        "maximum_energy": "Максимум энергии",
+        "maximum_hp": "Максимум здоровья",
+        "off_hand_accuracy": "Точность второй руки",
+        "pathfinding": "Поиск пути",
+        "pathfinding_bonus": "Поиск пути",
+        "perception": "Восприятие",
+        "physical_resistance_bonus": "Физическая защита",
+        "resource_find": "Поиск ресурсов",
+        "resource_find_chance": "Поиск ресурсов",
+        "scouting": "Разведка",
+        "scouting_bonus": "Разведка",
+        "shield_guard_power_bonus": "Сила щита",
+        "strength": "Сила",
+        "thorns_damage": "Шипы",
+        "thorns_damage_bonus": "Шипы",
+        "trade_bonus": "Торговля",
+        "travel_speed": "Скорость пути",
+        "vampiric_power_bonus": "Вампиризм",
+        "vampiric_trigger_chance_bonus": "Шанс вампиризма",
+        "weapon_accuracy": "Точность оружия",
+    }
+    _SLOT_LABELS_RU = {
+        "amulet": "Амулет",
+        "arms_armor": "Наручи",
+        "belt_accessory": "Пояс",
+        "chest_armor": "Броня корпуса",
+        "chest_garment": "Одежда корпуса",
+        "earring": "Серьги",
+        "feetwear": "Обувь",
+        "gloves_garment": "Перчатки",
+        "head_armor": "Голова",
+        "legs_armor": "Поножи",
+        "legs_garment": "Штаны",
+        "main_hand": "Основная",
+        "off_hand": "Вторая",
+        "outer_garment": "Плащ",
+        "ring_1": "Кольцо 1",
+        "ring_2": "Кольцо 2",
+        "two_hand": "Две руки",
+    }
     _NON_PERCENT_STAT_KEYS = {
         "power",
         "armor",
@@ -113,75 +282,72 @@ class InventoryViewService:
             avatar_name=avatar_name,
             stats=stats,
             body_zones=[
-                self._zone(session, "head", "Head", EquippedSlot.HEAD_ARMOR.value, "Helmet", "armor", "head"),
-                self._zone(session, "outer", "Cloak", EquippedSlot.OUTER_GARMENT.value, "Cloak", "garment", "outer"),
+                self._zone(session, "head", "Голова", EquippedSlot.HEAD_ARMOR.value, "Шлем", "armor", "head"),
+                self._zone(session, "outer", "Плащ", EquippedSlot.OUTER_GARMENT.value, "Плащ", "garment", "outer"),
                 self._zone(
                     session,
                     "chest",
-                    "Torso",
+                    "Корпус",
                     EquippedSlot.CHEST_ARMOR.value,
-                    "Armor",
+                    "Броня",
                     "armor",
                     "chest",
-                    secondary=(EquippedSlot.CHEST_GARMENT.value, "Clothing", "garment"),
+                    secondary=(EquippedSlot.CHEST_GARMENT.value, "Одежда", "garment"),
                 ),
                 self._zone(
                     session,
                     "arms",
-                    "Arms",
+                    "Руки",
                     EquippedSlot.ARMS_ARMOR.value,
-                    "Bracers",
+                    "Наручи",
                     "armor",
                     "arms",
-                    secondary=(EquippedSlot.GLOVES_GARMENT.value, "Gloves", "garment"),
+                    secondary=(EquippedSlot.GLOVES_GARMENT.value, "Перчатки", "garment"),
                 ),
                 self._zone(
                     session,
                     "legs",
-                    "Legs",
+                    "Ноги",
                     EquippedSlot.LEGS_ARMOR.value,
-                    "Leg Armor",
+                    "Поножи",
                     "armor",
                     "legs",
-                    secondary=(EquippedSlot.LEGS_GARMENT.value, "Pants", "garment"),
+                    secondary=(EquippedSlot.LEGS_GARMENT.value, "Штаны", "garment"),
                 ),
-                self._zone(session, "feet", "Footwear", EquippedSlot.FEETWEAR.value, "Boots", "equipment", "feet"),
+                self._zone(session, "feet", "Обувь", EquippedSlot.FEETWEAR.value, "Обувь", "equipment", "feet"),
             ],
-            weapon_slots=[
-                self._slot(session, EquippedSlot.MAIN_HAND.value, "Main Hand", "equipment"),
-                self._slot(session, EquippedSlot.OFF_HAND.value, "Off Hand", "equipment"),
-            ],
+            weapon_slots=self._weapon_slots(session),
             accessory_rows=[
                 InventoryAccessoryRowDTO(
                     row_id="amulet",
-                    label="Amulet",
-                    slots=[self._slot(session, EquippedSlot.AMULET.value, "Amulet", "accessory")],
+                    label="Амулет",
+                    slots=[self._slot(session, EquippedSlot.AMULET.value, "Амулет", "accessory")],
                 ),
                 InventoryAccessoryRowDTO(
                     row_id="earrings",
-                    label="Earrings",
-                    slots=[self._slot(session, EquippedSlot.EARRING.value, "Earrings", "accessory")],
+                    label="Серьги",
+                    slots=[self._slot(session, EquippedSlot.EARRING.value, "Серьги", "accessory")],
                 ),
                 InventoryAccessoryRowDTO(
                     row_id="rings",
-                    label="Rings",
+                    label="Кольца",
                     slots=[
-                        self._slot(session, EquippedSlot.RING_1.value, "Ring 1", "accessory"),
-                        self._slot(session, EquippedSlot.RING_2.value, "Ring 2", "accessory"),
+                        self._slot(session, EquippedSlot.RING_1.value, "Кольцо 1", "accessory"),
+                        self._slot(session, EquippedSlot.RING_2.value, "Кольцо 2", "accessory"),
                     ],
                     is_wide=False,
                 ),
                 InventoryAccessoryRowDTO(
                     row_id="belt",
-                    label="Belt",
-                    slots=[self._slot(session, EquippedSlot.BELT_ACCESSORY.value, "Belt", "accessory")],
+                    label="Пояс",
+                    slots=[self._slot(session, EquippedSlot.BELT_ACCESSORY.value, "Пояс", "accessory")],
                 ),
             ],
             quick_slots=self._quick_slots(session),
             tabs=[
-                InventoryTabDTO(tab_id="items", label="Items", icon="I", is_active=True),
-                InventoryTabDTO(tab_id="resources", label="Resources", icon="R"),
-                InventoryTabDTO(tab_id="quest", label="Quest", icon="Q"),
+                InventoryTabDTO(tab_id="items", label="Предметы", icon="I", is_active=True),
+                InventoryTabDTO(tab_id="resources", label="Ресурсы", icon="R"),
+                InventoryTabDTO(tab_id="quest", label="Квест", icon="Q"),
             ],
             visible_rows=self._rows(session),
         )
@@ -222,6 +388,14 @@ class InventoryViewService:
             details=self._item_details(session, item) if item else None,
             accepted_slots=[slot_id],
         )
+
+    def _weapon_slots(self, session: InventoryRuntimeSessionDTO) -> list[InventoryWindowSlotDTO]:
+        if self._item_in_equipment_slot(session, EquippedSlot.TWO_HAND.value):
+            return [self._slot(session, EquippedSlot.TWO_HAND.value, "Две руки", "equipment")]
+        return [
+            self._slot(session, EquippedSlot.MAIN_HAND.value, "Основная", "equipment"),
+            self._slot(session, EquippedSlot.OFF_HAND.value, "Вторая", "equipment"),
+        ]
 
     def _quick_slots(self, session: InventoryRuntimeSessionDTO) -> list[InventoryQuickSlotDTO]:
         capacity = belt_capacity(session)
@@ -280,6 +454,8 @@ class InventoryViewService:
 
     def _icon_key(self, item: InventoryRuntimeItemDTO) -> str:
         slot = item.slot or (item.valid_slots[0] if item.valid_slots else "")
+        if item.item_type == "weapon":
+            return self._weapon_icon_key(item)
         slot_icons = {
             EquippedSlot.HEAD_ARMOR.value: "head",
             EquippedSlot.OUTER_GARMENT.value: "cloak",
@@ -288,7 +464,7 @@ class InventoryViewService:
             EquippedSlot.ARMS_ARMOR.value: "arms",
             EquippedSlot.GLOVES_GARMENT.value: "arms",
             EquippedSlot.LEGS_ARMOR.value: "legs",
-            EquippedSlot.LEGS_GARMENT.value: "legs",
+            EquippedSlot.LEGS_GARMENT.value: "legwear",
             EquippedSlot.FEETWEAR.value: "feetwear",
             EquippedSlot.MAIN_HAND.value: "weapon",
             EquippedSlot.TWO_HAND.value: "weapon",
@@ -319,6 +495,29 @@ class InventoryViewService:
         }
         return type_icons.get(item.item_type, "default")
 
+    @staticmethod
+    def _weapon_icon_key(item: InventoryRuntimeItemDTO) -> str:
+        base_id = item.base_id.lower()
+        tags = {str(tag).lower() for tag in item.tags}
+        haystack = {base_id, *tags}
+        if base_id in {"greatsword", "katana"} or "two_handed" in haystack:
+            return "weapon_two_hand"
+        if haystack & {"bow", "archery", "ranged", "shortbow", "sling"}:
+            return "weapon_bow"
+        if haystack & {"dagger", "knife", "stiletto", "main_gauche", "katar"}:
+            return "weapon_dagger"
+        if haystack & {"axe", "hatchet", "battle_axe", "chop"}:
+            return "weapon_axe"
+        if haystack & {"hammer", "warhammer"}:
+            return "weapon_hammer"
+        if haystack & {"mace", "flail", "blunt", "macing"}:
+            return "weapon_mace"
+        if haystack & {"spear", "pike", "halberd", "quarterstaff", "trident", "polearm", "staff"}:
+            return "weapon_polearm"
+        if haystack & {"sword", "longsword", "scimitar", "rapier", "blade", "fast_blade"}:
+            return "weapon_sword"
+        return "weapon"
+
     def _item_details(
         self,
         session: InventoryRuntimeSessionDTO,
@@ -330,12 +529,14 @@ class InventoryViewService:
             item_id=item.item_id,
             name=item.name,
             item_type=item.item_type,
+            item_type_label=self._item_type_label(item.item_type),
             rarity=item.rarity,
             rarity_tier=self._rarity_tier(item),
             rarity_label=self._rarity_label(item),
             description=item.description,
             flavor=self._flavor(item),
             details=self._detail_lines(item),
+            affixes=self._affix_lines(item.mechanics.get("affixes"), fallback_tier=self._rarity_tier(item)),
             comparison=self._comparison_lines(item, comparison_item) if comparison_item else [],
             effects=self._effect_tags(item),
             tags=[InventoryEffectTagDTO(label=tag) for tag in item.tags],
@@ -366,16 +567,15 @@ class InventoryViewService:
         bonuses = item.mechanics.get("implicit_bonuses") or {}
         if isinstance(bonuses, dict):
             lines.extend(self._bonus_lines(bonuses))
-        lines.extend(self._affix_lines(item.mechanics.get("affixes")))
 
         weight = self._weight_label(item)
         if weight != "-":
-            lines.append(InventoryDetailLineDTO(label="Weight", value=weight, tone="neutral"))
+            lines.append(InventoryDetailLineDTO(label="Вес", value=weight, tone="neutral"))
         if item.quantity > 1:
-            lines.append(InventoryDetailLineDTO(label="Quantity", value=str(item.quantity), tone="neutral"))
+            lines.append(InventoryDetailLineDTO(label="Количество", value=str(item.quantity), tone="neutral"))
         durability = self._durability_label(item)
         if durability:
-            lines.append(InventoryDetailLineDTO(label="Durability", value=durability, tone="neutral"))
+            lines.append(InventoryDetailLineDTO(label="Прочность", value=durability, tone="neutral"))
         return lines
 
     def _comparison_lines(
@@ -473,12 +673,12 @@ class InventoryViewService:
         ]
 
     def _meta_fields(self, item: InventoryRuntimeItemDTO) -> list[InventoryMetaFieldDTO]:
-        fields = [InventoryMetaFieldDTO(label="Type", value=self._label(item.item_type))]
+        fields = [InventoryMetaFieldDTO(label="Тип", value=self._item_type_label(item.item_type))]
         slot = item.slot or (item.valid_slots[0] if item.valid_slots else "")
         if slot:
-            fields.append(InventoryMetaFieldDTO(label="Slot", value=self._label(slot)))
+            fields.append(InventoryMetaFieldDTO(label="Слот", value=self._label(slot)))
         if item.metadata.get("source"):
-            fields.append(InventoryMetaFieldDTO(label="Source", value=str(item.metadata["source"])))
+            fields.append(InventoryMetaFieldDTO(label="Источник", value=str(item.metadata["source"])))
         return fields
 
     def _numeric_stats(self, item: InventoryRuntimeItemDTO) -> dict[str, float]:
@@ -486,7 +686,7 @@ class InventoryViewService:
         for key in ("power", "armor", "defense", "damage"):
             value = self._float_value(item.mechanics.get(key))
             if value is not None:
-                stats[key] = value
+                stats[self._base_line_key(item, key)] = value
         for source in (item.mechanics.get("implicit_bonuses"),):
             if not isinstance(source, dict):
                 continue
@@ -519,12 +719,20 @@ class InventoryViewService:
 
     @staticmethod
     def _base_line_key(item: InventoryRuntimeItemDTO, key: str) -> str:
-        if item.base_id == "belt" and key == "power":
+        if key != "power":
+            return key
+        if item.base_id == "belt":
             return "inventory_cell_capacity"
-        return key
+        if item.item_type == "weapon":
+            return "damage"
+        if item.item_type == "armor":
+            return "armor"
+        if item.item_type == "garment":
+            return "defense"
+        return "power"
 
-    def _affix_lines(self, raw_affixes: object) -> list[InventoryDetailLineDTO]:
-        lines: list[InventoryDetailLineDTO] = []
+    def _affix_lines(self, raw_affixes: object, *, fallback_tier: int = 0) -> list[InventoryAffixLineDTO]:
+        lines: list[InventoryAffixLineDTO] = []
         for raw_affix in self._iter_affixes(raw_affixes):
             affix_id = str(raw_affix.get("affix_id") or "")
             entry = AFFIX_CATALOG.get(affix_id)
@@ -533,9 +741,12 @@ class InventoryViewService:
                 continue
             formatted_value = self._format_affix_value(entry.technical.value_kind, value)
             lines.append(
-                InventoryDetailLineDTO(
-                    label=entry.descriptive.display_name,
-                    value=entry.descriptive.ui_template.replace("{value}", formatted_value),
+                InventoryAffixLineDTO(
+                    affix_id=affix_id,
+                    label=self._affix_label(affix_id, entry.descriptive.display_name),
+                    value=self._format_affix_text(entry.descriptive.ui_template, formatted_value),
+                    tier=self._affix_tier(raw_affix, fallback_tier),
+                    source=str(raw_affix.get("source") or "") or None,
                     tone="neutral",
                 )
             )
@@ -654,8 +865,7 @@ class InventoryViewService:
 
     @staticmethod
     def _rarity_label(item: InventoryRuntimeItemDTO) -> str:
-        labels = ["No-grade", "Common", "Uncommon", "Rare", "Epic", "Mythic", "Legendary", "Absolute"]
-        return labels[InventoryViewService._rarity_tier(item)]
+        return InventoryViewService._RARITY_LABELS_RU[InventoryViewService._rarity_tier(item)]
 
     @staticmethod
     def _flavor(item: InventoryRuntimeItemDTO) -> str | None:
@@ -743,7 +953,36 @@ class InventoryViewService:
 
     @staticmethod
     def _label(key: str) -> str:
+        normalized = key.replace("-", "_").lower()
+        if normalized in InventoryViewService._STAT_LABELS_RU:
+            return InventoryViewService._STAT_LABELS_RU[normalized]
+        if normalized in InventoryViewService._SLOT_LABELS_RU:
+            return InventoryViewService._SLOT_LABELS_RU[normalized]
+        if normalized in InventoryViewService._ITEM_TYPE_LABELS_RU:
+            return InventoryViewService._ITEM_TYPE_LABELS_RU[normalized]
         return key.replace("_", " ").replace("-", " ").title()
+
+    @staticmethod
+    def _item_type_label(item_type: str) -> str:
+        return InventoryViewService._ITEM_TYPE_LABELS_RU.get(item_type, InventoryViewService._label(item_type))
+
+    @staticmethod
+    def _affix_label(affix_id: str, fallback: str) -> str:
+        return InventoryViewService._AFFIX_LABELS_RU.get(affix_id, InventoryViewService._label(fallback))
+
+    @staticmethod
+    def _format_affix_text(template: str, formatted_value: str) -> str:
+        suffix = "%" if "%" in template else ""
+        return f"+{formatted_value}{suffix}"
+
+    @staticmethod
+    def _affix_tier(raw_affix: dict[str, object], fallback_tier: int) -> int:
+        for key in ("tier", "affix_tier", "item_tier"):
+            try:
+                return max(0, min(7, int(raw_affix[key])))  # type: ignore[arg-type]
+            except (KeyError, TypeError, ValueError):
+                continue
+        return max(0, min(7, fallback_tier))
 
     @staticmethod
     def _is_quick_slot_compatible(item: InventoryRuntimeItemDTO) -> bool:

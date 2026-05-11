@@ -7,6 +7,8 @@ from src.backend.features.game_catalog.combat.resources.common.descriptions impo
     CombatCatalogEntryDTO,
     CombatDescriptionDTO,
 )
+from src.backend.features.game_catalog.combat.resources.common.modifier_applications import ModifierApplicationDTO
+from src.backend.features.game_catalog.combat.resources.common.pipeline_mutations import PipelineMutationApplicationDTO
 from src.backend.features.game_catalog.combat.resources.common.targeting import TargetType
 
 
@@ -26,7 +28,7 @@ class PipelineMutationsDTO(BaseModel):
     """
 
     preset: str | None = None  # Имя пресета (MAGIC_ATTACK, HEALING...)
-    flags: dict[str, Any] = Field(default_factory=dict)  # Индивидуальные флаги
+    applications: list[PipelineMutationApplicationDTO] = Field(default_factory=list)
 
 
 class AbilityTechnicalDTO(BaseModel):
@@ -48,12 +50,10 @@ class AbilityTechnicalDTO(BaseModel):
 
     # === PIPELINE CONFIG ===
 
-    # 1. Прямое изменение статов (RAW) - Строки для калькулятора
-    # Пример: {"magical_damage_bonus": "*2.0"}
-    raw_mutations: dict[str, str] | None = None
+    # 1. Numeric stat changes compiled through modifier contracts into raw.temp.
+    modifier_applications: list[ModifierApplicationDTO] = Field(default_factory=list)
 
-    # 2. Настройка Пайплайна (Пресеты + Флаги)
-    # Пример: {"preset": "MAGIC_ATTACK", "flags": {"damage.fire": True}}
+    # 2. Настройка Пайплайна (пресеты + whitelisted technical mutations)
     pipeline_mutations: PipelineMutationsDTO | None = None
 
     # 3. Активация Триггеров (ссылки на TRIGGER_RULES)

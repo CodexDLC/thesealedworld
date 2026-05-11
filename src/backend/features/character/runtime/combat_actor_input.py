@@ -80,6 +80,7 @@ class CharacterCombatActorInputBuilder:
         combat_layout: dict[str, str] = {}
         hand_usage: dict[str, str] = {}
         weapon_slots: list[str] = []
+        weapon_tiers: dict[str, int] = {}
         for slot, item_id in equipment_layout.items():
             if not item_id:
                 continue
@@ -91,6 +92,8 @@ class CharacterCombatActorInputBuilder:
                 hand_usage[combat_slot] = "two_hand"
             if item_type == "weapon" and str(slot) != "two_hand":
                 weapon_slots.append(combat_slot)
+            if item_type == "weapon" and combat_slot in {"main_hand", "off_hand"}:
+                weapon_tiers[combat_slot] = CharacterCombatActorInputBuilder._weapon_tier(item)
             if skill_key:
                 combat_layout[combat_slot] = skill_key
             trigger_id = CharacterCombatActorInputBuilder._first_trigger(item)
@@ -119,6 +122,7 @@ class CharacterCombatActorInputBuilder:
             "hand_usage": hand_usage,
             "two_handed": bool(hand_usage),
             "weapon_slots": sorted(set(weapon_slots)),
+            "weapon_tiers": weapon_tiers,
             "belt": belt,
             "abilities": CharacterCombatActorInputBuilder._known_abilities(by_id),
             "known_abilities": CharacterCombatActorInputBuilder._known_abilities(by_id),
@@ -194,6 +198,20 @@ class CharacterCombatActorInputBuilder:
             if isinstance(raw, list):
                 abilities.extend(str(value) for value in raw if value)
         return list(dict.fromkeys(abilities))
+
+    @staticmethod
+    def _weapon_tier(item: dict[str, Any]) -> int:
+        mechanics = CharacterCombatActorInputBuilder._mechanics(item)
+        metadata = CharacterCombatActorInputBuilder._dict(item.get("metadata") or mechanics.get("metadata"))
+        raw = (
+            metadata.get("tier")
+            if metadata.get("tier") is not None
+            else mechanics.get("tier", item.get("rarity_tier", mechanics.get("rarity_tier", 0)))
+        )
+        try:
+            return max(1, int(raw) + 1)
+        except (TypeError, ValueError):
+            return 1
 
     @staticmethod
     def _flat_skills(skills: dict[str, Any]) -> dict[str, float]:

@@ -16,19 +16,24 @@ Runtime хранит триггеры на предметах как `section.tr
 **Философия:** «Баланс и мастерство». Универсальное оружие.
 **Атрибуты:** `STR (2) + AGI (1) + DEX (1)`.
 
-### Типы и Триггеры
-*   **Longsword (Длинный меч):**
-    *   **Trigger:** `crit.bleed_on_crit` (On Crit).
-    *   **Эффект:** Накладывает кровотечение (DoT).
-*   **Greatsword (Двуручный меч):**
-    *   **Trigger:** `crit.heavy_strike_on_crit` / planned `crit.cleave_on_crit` (On Crit).
-    *   **Эффект:** Урон по соседней цели (AoE).
-*   **Katana (Катана):**
-    *   **Trigger:** `crit.bleed_on_crit` (On Crit).
-    *   **Эффект:** Усиленное кровотечение или мгновенный урон от стаков (Hemorrhage).
-*   **Scimitar (Сабля):**
-    *   **Trigger:** planned `damage.flow_on_hit` (On Hit).
-    *   **Эффект:** Накапливает инициативу/скорость с каждым ударом.
+### Типовые base items
+| Item | Runtime trigger | Роль |
+|---|---|---|
+| `sword` / Меч | `crit.bleed_on_crit` | Базовый одноручный меч: баланс урона, точности и парирования. |
+| `longsword` / Длинный меч | `crit.bleed_on_crit` | Более стабильный клинок с усиленным parry-профилем. |
+| `greatsword` / Двуручный меч | `crit.heavy_strike_on_crit` | Медленный двуручник с высоким base power и сильным критом. |
+
+### Уникальные base items
+| Item | Runtime trigger | Поведение |
+|---|---|---|
+| `katana` / Катана | `crit.bleed_on_crit` | Быстрый двуручный клинок: высокий trigger chance и `bleed_damage_bonus`. |
+| `scimitar` / Сабля | `crit.true_crit` | Темповый одноручный клинок: точный крит, меньше raw power. |
+
+### Planned triggers
+| Trigger | Предлагаемая реализация |
+|---|---|
+| `crit.cleave_on_crit` | На критическом ударе создать вторичный damage event по соседней цели с 40-60% урона основного удара. |
+| `damage.flow_on_hit` | При успешном попадании дать атакующему tempo-token или короткий `buff_accuracy`; не должен напрямую повышать base damage. |
 
 ---
 
@@ -36,19 +41,24 @@ Runtime хранит триггеры на предметах как `section.tr
 **Философия:** «Неотвратимая сила». Контроль и разрушение брони.
 **Атрибуты:** `STR (3) + CON (1)`.
 
-### Типы и Триггеры
-*   **Mace (Булава):**
-    *   **Trigger:** `crit.stun_on_crit` (On Crit).
-    *   **Эффект:** Оглушение (Stun) на 1 ход.
-*   **War Hammer (Боевой молот):**
-    *   **Trigger:** `crit.stun_on_crit` / planned `crit.armor_crush_on_crit` (On Crit).
-    *   **Эффект:** Перманентное снижение брони цели.
-*   **Flail (Кистень):**
-    *   **Trigger:** `crit.unblockable_crit` or planned `damage.shield_bypass_on_hit`.
-    *   **Эффект:** Игнорирует блок щитом.
-*   **Maul (Тяжёлый молот):**
-    *   **Trigger:** `crit.heavy_strike_on_crit` / planned `damage.concussion_on_hit`.
-    *   **Эффект:** Сжигает энергию/выносливость цели.
+### Типовые base items
+| Item | Runtime trigger | Роль |
+|---|---|---|
+| `hatchet` / Топорик | `crit.heavy_strike_on_crit` | Легкое рубящее оружие с высоким разбросом и небольшой пробивной силой. |
+| `battle_axe` / Боевой топор | `crit.heavy_strike_on_crit` | Агрессивный одноручный топор: больше penetration, выше accuracy penalty. |
+| `mace` / Булава | `crit.stun_on_crit` | Базовая дробящая ветка: контроль через stun. |
+
+### Уникальные base items
+| Item | Runtime trigger | Поведение |
+|---|---|---|
+| `warhammer` / Боевой молот | `crit.stun_on_crit` | Двуручный anti-armor профиль: высокий power, penetration, evasion penalty. |
+| `flail` / Кистень | `crit.unblockable_crit` | Цепное оружие против щитов: крит игнорирует block. |
+
+### Planned triggers
+| Trigger | Предлагаемая реализация |
+|---|---|
+| `crit.armor_crush_on_crit` | На критическом ударе накладывать `debuff_armor` или отдельный stackable armor-break effect. |
+| `damage.concussion_on_hit` | При попадании снижать ресурс выносливости/энергии цели, когда EN runtime станет боевым ресурсом. |
 
 ---
 
@@ -76,19 +86,24 @@ Runtime хранит триггеры на предметах как `section.tr
 **Философия:** «Контроль дистанции». Reach и AoE.
 **Атрибуты:** `STR (2) + AGI (1) + CON (1)`.
 
-### Типы и Триггеры
-*   **Spear (Копье):**
-    *   **Trigger:** planned `damage.keep_distance_on_hit`.
-    *   **Эффект:** Замедление врага (Slow).
-*   **Pike (Пика):**
-    *   **Trigger:** `crit.piercing_crit` (On Crit).
-    *   **Эффект:** Игнорирует Резисты и Броню.
-*   **Halberd (Алебарда):**
-    *   **Trigger:** `crit.heavy_strike_on_crit` (On Crit).
-    *   **Эффект:** Множитель крита **x3.0**.
-*   **Trident (Трезубец):**
-    *   **Trigger:** planned `damage.entangle_on_hit` / `parry.disarm_on_parry`.
-    *   **Эффект:** Обездвиживание (Root) или Обезоруживание.
+### Типовые base items
+| Item | Runtime trigger | Роль |
+|---|---|---|
+| `spear` / Копье | `crit.piercing_crit` | Одноручное reach-оружие: работает со щитом, умеренная пробивная сила. |
+| `pike` / Пика | `crit.piercing_crit` | Двуручный длинный укол: сильный penetration, хуже мобильность. |
+| `halberd` / Алебарда | `crit.heavy_strike_on_crit` | Двуручный рубящий polearm: высокий power и тяжелый крит. |
+
+### Уникальные base items
+| Item | Runtime trigger | Поведение |
+|---|---|---|
+| `quarterstaff` / Боевой посох | `crit.stun_on_crit` | Оборонительный двуручный посох: высокий parry, низкий kill pressure. |
+| `trident` / Трезубец | `control.knockdown_on_hit` | Контрольный polearm: попадание может сбить цель с ног. |
+
+### Planned triggers
+| Trigger | Предлагаемая реализация |
+|---|---|
+| `damage.keep_distance_on_hit` | При попадании наложить short slow/accuracy penalty на цель или дать defender-disengage token. |
+| `damage.entangle_on_hit` | При попадании наложить root-like control effect, запрещающий dodge/reposition, но не полный stun. |
 
 ---
 
@@ -96,16 +111,22 @@ Runtime хранит триггеры на предметах как `section.tr
 **Философия:** «Ping 0ms». Скорость, точность, уколы.
 **Атрибуты:** `AGI (2) + PER (1) + STR (1)`.
 
-### Типы и Триггеры
-*   **Stiletto (Стилет):**
-    *   **Trigger:** `crit.piercing_crit` (On Crit).
-    *   **Эффект:** Игнорирует Flat Armor.
-*   **Rapier (Рапира):**
-    *   **Trigger:** `crit.true_crit` / planned `crit.vitals_trace_on_crit` (On Crit).
-    *   **Эффект:** Игнорирует % Resistance.
-*   **Main-gauche (Дага):**
-    *   **Trigger:** `parry.counter_on_parry` (On Parry).
-    *   **Эффект:** Контратака с бонусом урона.
-*   **Katar (Катар):**
-    *   **Trigger:** planned `crit.vitals_strike_on_crit` (On Crit).
-    *   **Эффект:** True Damage (Чистый урон).
+### Типовые base items
+| Item | Runtime trigger | Роль |
+|---|---|---|
+| `knife` / Нож | `control.bleed_on_hit` | Самый легкий клинок; main hand и off hand. |
+| `dagger` / Кинжал | `crit.bleed_on_crit` | Базовый быстрый кинжал; main hand и off hand. |
+| `stiletto` / Стилет | `crit.piercing_crit` | Узкий пробивающий кинжал; main hand и off hand. |
+
+### Уникальные base items
+| Item | Runtime trigger | Поведение |
+|---|---|---|
+| `rapier` / Рапира | `crit.true_crit` | Main-hand дуэльное оружие: точность, parry, reliable crit. |
+| `main_gauche` / Дага | `parry.counter_on_parry` | Off-hand парирующий клинок, может использоваться как main hand. |
+| `katar` / Катар | `crit.piercing_crit` | Близкий агрессивный клинок: высокий crit chance, ниже parry. |
+
+### Planned triggers
+| Trigger | Предлагаемая реализация |
+|---|---|
+| `crit.vitals_trace_on_crit` | На критическом ударе временно снижать evasion/dodge cap цели или ставить vulnerability marker. |
+| `crit.vitals_strike_on_crit` | На критическом ударе часть урона проводить как true damage через armor/resist caps. |

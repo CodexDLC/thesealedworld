@@ -4,276 +4,204 @@ from uuid import uuid4
 
 import pytest
 
-import src.backend.features.game_session.integrations.session_integrator as session_integrator
-from src.backend.core.exceptions import BusinessLogicException
 from src.backend.features.character.schemas.session import CharacterSessionDocumentDTO
-from src.backend.features.game_session.integrations import GameSessionCharacter, GameSessionIntegrator
+from src.backend.features.game_session.integrations import GameSessionIntegrator
 from src.backend.features.game_session.services.session_service import GameSessionService
-from src.backend.features.scenario.exceptions import ScenarioSessionNotFound
 from src.shared.enums import CoreDomain
-from src.shared.schemas import ScenarioPayloadDTO
 
 
 class FakeGameSessionIntegrator:
-    character = GameSessionCharacter(
-        character_id=7,
-        name="Ada",
-        game_stage="scenario",
-        prev_game_stage="lobby",
-    )
-
-    def __init__(self, *, character=None, payload=None):
-        self.character = self.character if character is None else character
-        self.payload = scenario_payload() if payload is None else payload
-        self.get_owned_character = AsyncMock(return_value=self.character)
-        self.release_other_active_sessions = AsyncMock()
-        self.get_active_session = AsyncMock(return_value=None)
-        self.resume_or_initialize_scenario = AsyncMock(return_value=self.payload)
+    def __init__(self, *, session_doc=None):
+        self.get_active_session = AsyncMock(return_value=session_doc)
+        self.set_active_session_state = AsyncMock()
+        self.reset_active_session_to_exploration = AsyncMock()
 
 
-class MissingCharacterIntegrator(FakeGameSessionIntegrator):
-    def __init__(self):
-        super().__init__(character=None)
-        self.get_owned_character = AsyncMock(return_value=None)
-
-
-class FakeCharacterRepository:
-    character = SimpleNamespace()
-
-    def __init__(self, db_session):
-        self.db_session = db_session
-
-    async def get_by_id_and_user_id(self, character_id, user_id):
-        return self.character
-
-    async def get_by_id(self, character_id):
-        return self.character
-
-    async def get_by_user_id(self, user_id):
-        return [self.character]
-
-    async def set_character_state(self, character_id, game_stage, *, prev_game_stage=None):
-        self.character.game_stage = game_stage
-        self.character.prev_game_stage = prev_game_stage
-        return True
-
-    async def commit(self):
-        await self.db_session.commit()
-
-
-def reset_fake_repository_character() -> None:
-    FakeCharacterRepository.character = SimpleNamespace(
-        character_id=7,
-        name="Ada",
-        game_stage="lobby",
-        prev_game_stage=None,
-    )
-
-
-def scenario_payload() -> ScenarioPayloadDTO:
-    return ScenarioPayloadDTO(
-        node_key="rift_entry_01",
-        text="Wake up.",
-        extra_data={"show_left_sidebar": True, "show_right_sidebar": True},
+def active_session(
+    *,
+    user_id=None,
+    state=CoreDomain.EXPLORATION,
+    prev_state=None,
+    sessions=None,
+    location=None,
+) -> CharacterSessionDocumentDTO:
+    return CharacterSessionDocumentDTO.model_validate(
+        {
+            "char_id": 7,
+            "user_id": str(user_id or uuid4()),
+            "state": state.value if isinstance(state, CoreDomain) else state,
+            "prev_state": prev_state.value if isinstance(prev_state, CoreDomain) else prev_state,
+            "bio": {
+                "name": "Ada",
+                "gender": "female",
+                "created_at": "2026-05-05T00:00:00Z",
+            },
+            "location": location or {"current": "52_51", "prev": "52_52"},
+            "sessions": sessions or {},
+            "updated_at": "2026-05-05T00:00:00Z",
+        }
     )
 
 
 @pytest.mark.asyncio
-async def test_enter_character_resumes_existing_scenario():
-    integrator = FakeGameSessionIntegrator()
-    service = GameSessionService(integrator=integrator)
+async def test_enter_character_returns_lobby_transition_when_ac_is_missing():
     user_id = uuid4()
+    integrator = FakeGameSessionIntegrator(session_doc=None)
+    service = GameSessionService(integrator=integrator)
 
     response = await service.enter_character(SimpleNamespace(id=user_id), 7)
 
-    assert response.header.current_state == CoreDomain.SCENARIO
-    assert response.header.previous_state == CoreDomain.LOBBY
-    assert response.payload_type == "scenario_screen"
-    integrator.release_other_active_sessions.assert_awaited_once_with(user_id, 7)
-    integrator.resume_or_initialize_scenario.assert_awaited_once_with(
-        7,
-        quest_key="awakening_rift",
-        source="session_enter",
-        previous_state=CoreDomain.LOBBY,
-    )
+    assert response.header.current_state == CoreDomain.LOBBY
+    assert response.payload_type == "state_transition"
+    assert response.payload.target_state == CoreDomain.LOBBY
+    integrator.get_active_session.assert_awaited_once_with(7, user_id)
 
 
 @pytest.mark.asyncio
-async def test_enter_character_returns_integrator_scenario_payload():
-    payload = scenario_payload()
-    payload.extra_data = {"quest_key": "awakening_rift", "char_id": 7}
-    integrator = FakeGameSessionIntegrator(payload=payload)
+async def test_enter_character_routes_exploration_without_runtime_session_ref():
+    user_id = uuid4()
+    integrator = FakeGameSessionIntegrator(
+        session_doc=active_session(user_id=user_id, state=CoreDomain.EXPLORATION, prev_state=CoreDomain.SCENARIO)
+    )
     service = GameSessionService(integrator=integrator)
 
-    response = await service.enter_character(SimpleNamespace(id=uuid4()), 7)
+    response = await service.enter_character(SimpleNamespace(id=user_id), 7)
 
-    assert response.header.current_state == CoreDomain.SCENARIO
-    assert response.header.previous_state == CoreDomain.LOBBY
-    assert response.payload.extra_data["quest_key"] == "awakening_rift"
-    assert response.payload.extra_data["char_id"] == 7
-
-
-@pytest.mark.asyncio
-async def test_enter_character_allows_missing_previous_state_for_first_enter():
-    character = GameSessionCharacter(
-        character_id=7,
-        name="Ada",
-        game_stage="scenario",
-        prev_game_stage=None,
-    )
-    service = GameSessionService(integrator=FakeGameSessionIntegrator(character=character))
-
-    response = await service.enter_character(SimpleNamespace(id=uuid4()), 7)
-
-    assert response.header.current_state == CoreDomain.SCENARIO
-    assert response.header.previous_state is None
+    assert response.header.current_state == CoreDomain.EXPLORATION
+    assert response.header.previous_state == CoreDomain.SCENARIO
+    assert response.payload_type == "exploration_session"
+    assert response.payload["route_reason"] == "current_state"
 
 
 @pytest.mark.asyncio
-async def test_enter_character_prefers_hot_active_session_state_over_persistent_stage():
-    character = GameSessionCharacter(
-        character_id=7,
-        name="Ada",
-        game_stage="exploration",
-        prev_game_stage="scenario",
-    )
-    integrator = FakeGameSessionIntegrator(character=character)
-    integrator.get_active_session = AsyncMock(
-        return_value=CharacterSessionDocumentDTO.model_validate(
-            {
-                "char_id": 7,
-                "user_id": uuid4(),
-                "state": "arena",
-                "prev_state": "exploration",
-                "bio": {
-                    "name": "Ada",
-                    "gender": "female",
-                    "created_at": "2026-05-05T00:00:00Z",
-                },
-                "location": {"current": "52_51", "prev": "52_52"},
-                "updated_at": "2026-05-05T00:00:00Z",
-            }
+async def test_enter_character_routes_scenario_only_when_scenario_ref_exists():
+    user_id = uuid4()
+    integrator = FakeGameSessionIntegrator(
+        session_doc=active_session(
+            user_id=user_id,
+            state=CoreDomain.SCENARIO,
+            prev_state=CoreDomain.EXPLORATION,
+            sessions={"scenario_id": "scenario-session-1"},
         )
     )
     service = GameSessionService(integrator=integrator)
 
-    response = await service.enter_character(SimpleNamespace(id=integrator.get_active_session.return_value.user_id), 7)
+    response = await service.enter_character(SimpleNamespace(id=user_id), 7)
+
+    assert response.header.current_state == CoreDomain.SCENARIO
+    assert response.payload_type == "scenario_session"
+    assert response.payload["source"] == "hot_ac"
+    integrator.reset_active_session_to_exploration.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_enter_character_routes_combat_and_result_by_their_refs():
+    user_id = uuid4()
+    combat = active_session(
+        user_id=user_id,
+        state=CoreDomain.COMBAT,
+        prev_state=CoreDomain.ARENA,
+        sessions={"combat_id": "combat-1", "arena_id": "arena-1"},
+    )
+    result = active_session(
+        user_id=user_id,
+        state=CoreDomain.COMBAT_RESULT,
+        prev_state=CoreDomain.ARENA,
+        sessions={"combat_finalization_id": "combat-final-1", "arena_id": "arena-1"},
+    )
+
+    combat_response = await GameSessionService(
+        integrator=FakeGameSessionIntegrator(session_doc=combat)
+    ).enter_character(SimpleNamespace(id=user_id), 7)
+    result_response = await GameSessionService(
+        integrator=FakeGameSessionIntegrator(session_doc=result)
+    ).enter_character(SimpleNamespace(id=user_id), 7)
+
+    assert combat_response.header.current_state == CoreDomain.COMBAT
+    assert combat_response.payload_type == "combats_session"
+    assert result_response.header.current_state == CoreDomain.COMBAT_RESULT
+    assert result_response.payload_type == "combat_result_session"
+
+
+@pytest.mark.asyncio
+async def test_enter_character_routes_arena_only_when_arena_ref_exists():
+    user_id = uuid4()
+    integrator = FakeGameSessionIntegrator(
+        session_doc=active_session(
+            user_id=user_id,
+            state=CoreDomain.ARENA,
+            prev_state=CoreDomain.EXPLORATION,
+            sessions={"arena_id": "arena:runtime:1"},
+        )
+    )
+    service = GameSessionService(integrator=integrator)
+
+    response = await service.enter_character(SimpleNamespace(id=user_id), 7)
 
     assert response.header.current_state == CoreDomain.ARENA
-    assert response.header.previous_state == CoreDomain.EXPLORATION
     assert response.payload_type == "arena_session"
-    assert response.payload["source"] == "hot_ac"
-    integrator.resume_or_initialize_scenario.assert_not_awaited()
 
 
 @pytest.mark.asyncio
-async def test_enter_character_rejects_unowned_character():
-    service = GameSessionService(integrator=MissingCharacterIntegrator())
-
-    with pytest.raises(BusinessLogicException):
-        await service.enter_character(SimpleNamespace(id=uuid4()), 7)
-
-
-@pytest.mark.asyncio
-async def test_integrator_returns_owned_character(monkeypatch):
-    reset_fake_repository_character()
-    monkeypatch.setattr(session_integrator, "CharacterRepository", FakeCharacterRepository)
-    integrator = GameSessionIntegrator(db_session=SimpleNamespace(), scenario_service=SimpleNamespace())
-
-    character = await integrator.get_owned_character(7, uuid4())
-
-    assert character == GameSessionCharacter(
-        character_id=7,
-        name="Ada",
-        game_stage="lobby",
-        prev_game_stage=None,
-    )
-
-
-@pytest.mark.asyncio
-async def test_integrator_resumes_existing_scenario(monkeypatch):
-    reset_fake_repository_character()
-    monkeypatch.setattr(session_integrator, "CharacterRepository", FakeCharacterRepository)
-    scenario = SimpleNamespace(resume=AsyncMock(return_value=scenario_payload()), initialize=AsyncMock())
-    integrator = GameSessionIntegrator(db_session=SimpleNamespace(commit=AsyncMock()), scenario_service=scenario)
-
-    payload = await integrator.resume_or_initialize_scenario(
-        7,
-        quest_key="awakening_rift",
-        source="session_enter",
-    )
-
-    assert payload.extra_data["char_id"] == 7
-    assert payload.extra_data["quest_key"] == "awakening_rift"
-    scenario.resume.assert_awaited_once_with(7)
-    scenario.initialize.assert_not_called()
-
-
-@pytest.mark.asyncio
-async def test_integrator_initializes_starting_scenario_when_missing(monkeypatch):
-    reset_fake_repository_character()
-    monkeypatch.setattr(session_integrator, "CharacterRepository", FakeCharacterRepository)
-    db_session = SimpleNamespace(commit=AsyncMock())
-    scenario = SimpleNamespace(
-        resume=AsyncMock(side_effect=ScenarioSessionNotFound(7)),
-        initialize=AsyncMock(return_value=scenario_payload()),
-    )
-    integrator = GameSessionIntegrator(db_session=db_session, scenario_service=scenario)
-
-    payload = await integrator.resume_or_initialize_scenario(
-        7,
-        quest_key="awakening_rift",
-        source="session_enter",
-    )
-
-    assert payload.extra_data["quest_key"] == "awakening_rift"
-    assert FakeCharacterRepository.character.game_stage == CoreDomain.SCENARIO.value
-    assert FakeCharacterRepository.character.prev_game_stage == CoreDomain.LOBBY.value
-    scenario.initialize.assert_awaited_once_with(7, "awakening_rift", source="session_enter")
-    db_session.commit.assert_awaited_once()
-
-
-@pytest.mark.asyncio
-async def test_integrator_releases_other_active_character_sessions():
+async def test_enter_character_uses_previous_valid_state_when_current_ref_is_missing():
     user_id = uuid4()
-    active_document = {
-        "char_id": 8,
-        "user_id": str(user_id),
-        "state": "exploration",
-        "prev_state": "scenario",
-        "bio": {
-            "name": "Grace",
-            "gender": "female",
-            "created_at": "2026-05-05T00:00:00Z",
-        },
-        "location": {"current": "52_53", "prev": "52_52"},
-        "updated_at": "2026-05-05T00:00:00Z",
-    }
-    repo = SimpleNamespace(
-        get_by_user_id=AsyncMock(
-            return_value=[
-                SimpleNamespace(character_id=7),
-                SimpleNamespace(character_id=8),
-            ]
-        ),
-        sync_active_session_snapshot=AsyncMock(return_value={"state": "exploration", "location_id": "52_53"}),
-        commit=AsyncMock(),
+    integrator = FakeGameSessionIntegrator(
+        session_doc=active_session(
+            user_id=user_id,
+            state=CoreDomain.COMBAT,
+            prev_state=CoreDomain.SCENARIO,
+            sessions={"scenario_id": "scenario-session-1"},
+        )
     )
-    sessions = SimpleNamespace(
-        get_sessions_batch=AsyncMock(return_value={8: active_document}),
-        delete_session=AsyncMock(),
+    service = GameSessionService(integrator=integrator)
+
+    response = await service.enter_character(SimpleNamespace(id=user_id), 7)
+
+    assert response.header.current_state == CoreDomain.SCENARIO
+    assert response.payload["route_reason"] == "previous_state_fallback"
+    integrator.set_active_session_state.assert_awaited_once_with(7, CoreDomain.SCENARIO)
+
+
+@pytest.mark.asyncio
+async def test_enter_character_resets_to_exploration_when_current_and_previous_are_invalid():
+    user_id = uuid4()
+    integrator = FakeGameSessionIntegrator(
+        session_doc=active_session(
+            user_id=user_id,
+            state=CoreDomain.ARENA,
+            prev_state=CoreDomain.SCENARIO,
+            sessions={},
+        )
     )
-    scenario = SimpleNamespace(cleanup=AsyncMock())
-    integrator = GameSessionIntegrator(
-        character_repo=repo,
-        character_sessions=sessions,
-        scenario_service=scenario,
+    service = GameSessionService(integrator=integrator)
+
+    response = await service.enter_character(SimpleNamespace(id=user_id), 7)
+
+    assert response.header.current_state == CoreDomain.EXPLORATION
+    assert response.payload["route_reason"] == "reset_to_exploration"
+    integrator.reset_active_session_to_exploration.assert_awaited_once_with(7)
+
+
+@pytest.mark.asyncio
+async def test_integrator_sets_active_session_state():
+    sessions = SimpleNamespace(patch_fields=AsyncMock(), mark_dirty=AsyncMock())
+    integrator = GameSessionIntegrator(character_sessions=sessions)
+
+    await integrator.set_active_session_state(7, CoreDomain.ARENA)
+
+    sessions.patch_fields.assert_awaited_once_with(7, {"$.state": CoreDomain.ARENA.value})
+    sessions.mark_dirty.assert_awaited_once_with(
+        7,
+        reason="game_session_state_fallback",
+        paths=["$.state"],
     )
 
-    await integrator.release_other_active_sessions(user_id, 7)
 
-    sessions.get_sessions_batch.assert_awaited_once_with([8])
-    repo.sync_active_session_snapshot.assert_awaited_once()
-    scenario.cleanup.assert_awaited_once_with(8)
-    sessions.delete_session.assert_awaited_once_with(8)
-    repo.commit.assert_awaited_once()
+@pytest.mark.asyncio
+async def test_integrator_resets_active_session_to_exploration():
+    sessions = SimpleNamespace(reset_main_runtime_refs_to_exploration=AsyncMock())
+    integrator = GameSessionIntegrator(character_sessions=sessions)
+
+    await integrator.reset_active_session_to_exploration(7)
+
+    sessions.reset_main_runtime_refs_to_exploration.assert_awaited_once_with(7)

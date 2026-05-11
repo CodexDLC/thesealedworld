@@ -13,6 +13,7 @@ class CoreDomain(StrEnum):
     INVENTORY = "inventory"
     STATUS = "status"
     COMBAT = "combats"  # Обычно это CombatTurnOrchestrator
+    COMBAT_RESULT = "combat_result"
     SCENARIO = "scenario"
     ONBOARDING = "onboarding"
     LOBBY = "lobby"

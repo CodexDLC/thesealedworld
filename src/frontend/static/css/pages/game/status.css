@@ -60,6 +60,47 @@
     min-width: 0;
 }
 
+.status-section--collapsible {
+    display: block;
+}
+
+.status-section-toggle {
+    cursor: pointer;
+    user-select: none;
+    list-style: none;
+}
+
+.status-section-toggle::-webkit-details-marker {
+    display: none;
+}
+
+.status-section-toggle-label {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.status-section-toggle-icon {
+    flex: 0 0 auto;
+    color: rgba(255,170,0,.48);
+    font-size: 11px;
+    line-height: 1;
+    transition: transform .18s ease, color .18s ease;
+}
+
+.status-section-toggle:hover .status-section-toggle-icon {
+    color: var(--col-accent);
+}
+
+.status-section--collapsible:not([open]) .status-section-toggle {
+    margin-bottom: 0;
+}
+
+.status-section--collapsible[open] .status-section-toggle-icon {
+    transform: rotate(90deg);
+}
+
 /* Status Section Titles */
 .sec {
     font-size: 8px;

@@ -9,6 +9,21 @@ class CombatJsonDTO(BaseModel):
     model_config = ConfigDict(extra="allow")
 
 
+class CombatErrorDTO(CombatJsonDTO):
+    """Structured combat API error for frontend branching."""
+
+    code: str
+    message: str
+    domain: str = "combat"
+    frontend_action: str = "show_message"
+    retriable: bool = False
+    context: dict[str, Any] = Field(default_factory=dict)
+
+
+class CombatErrorResponseDTO(CombatJsonDTO):
+    error: CombatErrorDTO
+
+
 class CombatLogEntryDTO(CombatJsonDTO):
     """Одна запись лога."""
 
@@ -52,6 +67,7 @@ class CombatLogTemplateRefDTO(CombatJsonDTO):
     event: str | None = None
     taxonomy: str = "humanoid"
     variant: int = 0
+    text: str | None = None
 
 
 class CombatLogPublicResourceDTO(CombatJsonDTO):
@@ -280,8 +296,12 @@ class CombatResultDTO(CombatJsonDTO):
     )
     reason: str = "combat_session_not_found"
     archived: bool = False
+    teams: dict[str, list[str]] = Field(default_factory=dict)
+    actors: dict[str, Any] = Field(default_factory=dict)
+    report: dict[str, Any] = Field(default_factory=dict)
     rewards: dict[str, Any] = Field(default_factory=dict)
     injuries: dict[str, Any] = Field(default_factory=dict)
+    reward_hooks: list[dict[str, Any]] = Field(default_factory=list)
     metadata: dict[str, Any] = Field(default_factory=dict)
     primary_action: CombatResultActionDTO = Field(default_factory=CombatResultActionDTO)
 

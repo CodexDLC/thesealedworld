@@ -43,12 +43,12 @@ class FeintService:
         available_pool = []
 
         for feint_id in actor.feints.arsenal:
-            feint_config = CombatCatalogIntegrator.get_feint(feint_id)
-            if not feint_config:
+            feint_entry = CombatCatalogIntegrator.get_feint_catalog_entry(feint_id)
+            if not feint_entry:
                 continue
 
             # Берем стоимость напрямую из DTO (dict[str, int])
-            cost_dict = feint_config.cost.tactics
+            cost_dict = feint_entry.technical.cost.tactics
 
             # Проверяем хватает ли токенов
             if FeintService._can_afford(actor.tokens, cost_dict):
@@ -61,13 +61,13 @@ class FeintService:
         while actor.feints.get_hand_size() < hand_size and available_pool:
             # Выбираем случайный финт
             feint_id = random.choice(available_pool)  # nosec B311
-            feint_config = CombatCatalogIntegrator.get_feint(feint_id)
+            feint_entry = CombatCatalogIntegrator.get_feint_catalog_entry(feint_id)
 
-            if not feint_config:
+            if not feint_entry:
                 available_pool.remove(feint_id)
                 continue
 
-            cost_dict = feint_config.cost.tactics
+            cost_dict = feint_entry.technical.cost.tactics
 
             # Добавляем в руку
             actor.feints.add_to_hand(feint_id, cost_dict)
@@ -132,8 +132,12 @@ class FeintService:
         result = {}
 
         for feint_key in actor.feints.hand:
-            feint_config = CombatCatalogIntegrator.get_feint(feint_key)
-            button_text = feint_config.name_ru if feint_config else f"❓ {feint_key}"
+            feint_entry = CombatCatalogIntegrator.get_feint_catalog_entry(feint_key)
+            if feint_entry:
+                variant = feint_entry.descriptive.variants.get(feint_entry.descriptive.default_taxonomy)
+                button_text = variant.display_name if variant else feint_key
+            else:
+                button_text = f"❓ {feint_key}"
 
             result[feint_key] = button_text
 

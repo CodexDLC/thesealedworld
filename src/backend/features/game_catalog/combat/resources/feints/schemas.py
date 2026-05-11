@@ -1,11 +1,11 @@
-from typing import Any
-
 from pydantic import BaseModel, Field
 
 from src.backend.features.game_catalog.combat.resources.common.descriptions import (
     CombatCatalogEntryDTO,
     CombatDescriptionDTO,
 )
+from src.backend.features.game_catalog.combat.resources.common.modifier_applications import ModifierApplicationDTO
+from src.backend.features.game_catalog.combat.resources.common.pipeline_mutations import PipelineMutationApplicationDTO
 from src.backend.features.game_catalog.combat.resources.common.targeting import TargetType
 
 
@@ -39,18 +39,22 @@ class FeintTechnicalDTO(BaseModel):
 
     # === PRE-CALC (Настройка удара) ===
 
-    # 1. Прямое изменение статов (RAW) - Строки для WaterfallCalculator
-    # Пример: {"physical_damage_bonus": "+10", "accuracy_mult": "-0.2"}
-    raw_mutations: dict[str, str] | None = None
+    # 1. Numeric stat changes compiled through modifier contracts into raw.temp.
+    modifier_applications: list[ModifierApplicationDTO] = Field(default_factory=list)
 
-    # 2. Гарантированные флаги (Pipeline)
-    # Пример: {"restriction.ignore_block": True}
-    pipeline_mutations: dict[str, Any] | None = None
+    # 2. Whitelisted pipeline-local context/result mutations.
+    pipeline_mutations: list[PipelineMutationApplicationDTO] = Field(default_factory=list)
 
     # 3. Вероятностные и Реактивные правила (Triggers)
     # Список путей к флагам в TriggerRulesFlagsDTO
     # Пример: ["accuracy.true_strike", "dodge.counter_on_dodge"]
     triggers: list[str] | None = None
+
+    # Catalog tags used by weapon/style mappers.
+    applicability_tags: list[str] = Field(default_factory=list)
+
+    # Weapon technique flat damage added only when the exchange reaches damage calculation.
+    hit_damage_bonus_per_tier: float = 0.0
 
     # Полная замена урона (редко, но бывает)
     override_damage: tuple[float, float] | None = None
@@ -59,40 +63,21 @@ class FeintTechnicalDTO(BaseModel):
 
     # Наложение эффектов (обычно при попадании)
     # Пример: [{"id": "bleed", "params": {"power": 10}}]
-    effects: list[dict[str, Any]] | None = None
+    effects: list[dict] | None = None
 
-
-class FeintConfigDTO(FeintTechnicalDTO):
-    """
-    Backward-compatible assembled feint config for current runtime consumers.
-    """
-
-    name_ru: str
-    description_ru: str
-    display_name: str
-    ui_label: str
-    short_description: str
-    long_description: str
-    tooltip: str
-    icon: str
-
-    @classmethod
-    def from_catalog_entry(cls, entry: "FeintCatalogEntryDTO") -> "FeintConfigDTO":
-        technical = entry.technical.model_dump()
-        humanoid = entry.descriptive.variants[entry.descriptive.default_taxonomy]
-        return cls(
-            **technical,
-            name_ru=humanoid.display_name,
-            description_ru=humanoid.short_description,
-            display_name=humanoid.display_name,
-            ui_label=humanoid.ui_label,
-            short_description=humanoid.short_description,
-            long_description=humanoid.long_description,
-            tooltip=humanoid.tooltip,
-            icon=humanoid.icon,
-        )
+    # Подготовки/бафы, которые накладываются после выбранной атаки независимо
+    # от попадания: например следующий уворот или парирование открывает контратаку.
+    preparation_effects: list[dict] | None = None
 
 
 class FeintCatalogEntryDTO(CombatCatalogEntryDTO):
     technical: FeintTechnicalDTO
     descriptive: CombatDescriptionDTO
+
+
+class FeintRenderContextDTO(BaseModel):
+    template: str
+    event: str
+    taxonomy: str = "humanoid"
+    variant: int = 0
+    variables: dict[str, str | int | float] = Field(default_factory=dict)

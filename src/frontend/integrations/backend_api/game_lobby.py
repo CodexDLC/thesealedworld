@@ -37,6 +37,7 @@ class GameLobbyPayload(BaseModel):
 GameLobbyResponse = CoreResponseDTO[GameLobbyPayload]
 GameLobbyStartResponse = CoreResponseDTO[ScenarioPayloadDTO | dict[str, Any]]
 GameLobbyEnterResponse = CoreResponseDTO[ScenarioPayloadDTO | dict[str, Any]]
+GameLobbyReleaseResponse = CoreResponseDTO[dict[str, Any]]
 
 
 class BackendGameLobbyApi(BaseApiClient):
@@ -71,6 +72,15 @@ class BackendGameLobbyApi(BaseApiClient):
             "POST",
             "/game-lobby/enter",
             response_model=GameLobbyEnterResponse,
+            headers={"Authorization": f"Bearer {access_token}"},
+            json=dto.model_dump(mode="json"),
+        )
+
+    async def release(self, access_token: str, dto: EnterCharacterRequestDTO) -> GameLobbyReleaseResponse:
+        return await self._request(
+            "POST",
+            "/game-lobby/release",
+            response_model=GameLobbyReleaseResponse,
             headers={"Authorization": f"Bearer {access_token}"},
             json=dto.model_dump(mode="json"),
         )

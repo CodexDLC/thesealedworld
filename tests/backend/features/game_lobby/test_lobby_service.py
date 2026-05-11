@@ -4,6 +4,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
+import src.backend.features.game_lobby.integrations.system_integrator as lobby_integrator
 from src.backend.features.game_lobby.integrations import GameLobbyIntegration, LobbyCharacterSummary
 from src.backend.features.game_lobby.services.lobby_service import GameLobbyService
 from src.shared.schemas import GameLobbyPayloadDTO
@@ -105,3 +106,38 @@ async def test_delete_owned_character_transfers_item_instances_to_system_before_
         "delete:42",
         "commit",
     ]
+
+
+@pytest.mark.unit
+async def test_bootstrap_existing_active_character_releases_and_cleans_runtime(monkeypatch):
+    operations: list[str] = []
+
+    class FakeSessions:
+        async def exists(self, character_id):
+            operations.append(f"exists:{character_id}")
+            return True
+
+        async def replace_session(self, character_id, data):
+            operations.append(f"replace:{character_id}")
+
+    class FakeStateIntegrator:
+        def __init__(self, **kwargs):
+            pass
+
+        async def bootstrap_active_session(self, user_id, character_id):
+            operations.append(f"bootstrap:{character_id}")
+            return SimpleNamespace(char_id=character_id, model_dump=lambda mode: {"char_id": character_id})
+
+    monkeypatch.setattr(lobby_integrator, "CharacterStateIntegrator", FakeStateIntegrator)
+    integration = GameLobbyIntegration(
+        character_repo=SimpleNamespace(),
+        skill_repo=SimpleNamespace(),
+        character_sessions=FakeSessions(),
+    )
+    integration.release_active_character = AsyncMock(side_effect=lambda **kwargs: operations.append("release"))
+    integration.cleanup_runtime = AsyncMock(side_effect=lambda character_id: operations.append(f"cleanup:{character_id}"))
+
+    session_doc = await integration.bootstrap_active_character(user_id=uuid.uuid4(), character_id=7)
+
+    assert session_doc.char_id == 7
+    assert operations == ["exists:7", "release", "cleanup:7", "bootstrap:7"]

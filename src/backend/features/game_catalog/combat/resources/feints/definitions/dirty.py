@@ -2,10 +2,10 @@ from src.backend.features.game_catalog.combat.resources.common.descriptions impo
     CombatEventTextSetDTO,
     build_combat_description,
 )
+from src.backend.features.game_catalog.combat.resources.common.modifier_applications import ModifierApplicationDTO
 from src.backend.features.game_catalog.combat.resources.common.targeting import TargetType
 from src.backend.features.game_catalog.combat.resources.feints.schemas import (
     FeintCatalogEntryDTO,
-    FeintConfigDTO,
     FeintCostDTO,
     FeintTechnicalDTO,
 )
@@ -15,14 +15,16 @@ DIRTY_FEINTS_TECHNICAL = {
         feint_id="sand_throw",
         cost=FeintCostDTO(tactics={"tempo": 3}),
         target=TargetType.SINGLE_ENEMY,
-        raw_mutations={"physical_damage_mult": "-0.8"},
+        modifier_applications=[
+            ModifierApplicationDTO(modifier_id="damage_mult", value_override=-0.8),
+        ],
         effects=[{"id": "blind", "params": {"duration": 2}}],
     ),
     "low_blow": FeintTechnicalDTO(
         feint_id="low_blow",
         cost=FeintCostDTO(tactics={"crit": 2}),
         target=TargetType.SINGLE_ENEMY,
-        triggers=["control.stun_on_hit"],
+        effects=[{"id": "stun"}],
     ),
 }
 
@@ -102,5 +104,3 @@ DIRTY_FEINTS_CATALOG = {
     )
     for feint_id, technical in DIRTY_FEINTS_TECHNICAL.items()
 }
-
-DIRTY_FEINTS = [FeintConfigDTO.from_catalog_entry(entry) for entry in DIRTY_FEINTS_CATALOG.values()]

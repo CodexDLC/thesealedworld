@@ -34,6 +34,21 @@ class CombatRuntimeOrchestrator:
     async def get_archived_result(self, char_id: int, *, reason: str = "combat_session_not_found") -> CombatResultDTO:
         return await self.session_service.get_archived_result(char_id, reason=reason)
 
+    async def find_archived_result(
+        self, char_id: int, *, reason: str = "combat_session_not_found"
+    ) -> CombatResultDTO | None:
+        return await self.session_service.find_archived_result(char_id, reason=reason)
+
+    async def recover_missing_combat_transition(self, char_id: int, *, reason: str, combat_id: str | None = None):
+        return await self.session_service.recover_missing_combat_transition(
+            char_id,
+            reason=reason,
+            combat_id=combat_id,
+        )
+
+    async def continue_result(self, char_id: int):
+        return await self.session_service.continue_result(char_id)
+
     async def register_move(
         self, char_id: int, body: CombatRegisterMoveRequestDTO
     ) -> CombatDashboardDTO | CombatResultDTO:

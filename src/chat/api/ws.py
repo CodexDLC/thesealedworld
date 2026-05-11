@@ -29,6 +29,7 @@ async def chat_ws(
     ws: WebSocket,
     token: str = Query(...),
     char_id: int | None = Query(default=None),
+    combat_session_id: str | None = Query(default=None),
 ) -> None:
     # 1. Authenticate
     try:
@@ -75,11 +76,13 @@ async def chat_ws(
         topics.append(f"chat:zone:{location_id}")
     if party_id:
         topics.append(f"chat:party:{party_id}")
+    if combat_session_id:
+        topics.append(f"chat:combat:{combat_session_id}")
     for sid in dm_sessions:
         topics.append(f"chat:dm:{sid}")
 
     # 5. Register connection
-    await manager.connect(ws, topics)
+    await manager.connect(ws, topics, user_id=character_id)
 
     # 6. Send hot tail for each subscribed channel from Redis Streams
     for topic in topics:

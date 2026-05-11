@@ -25,7 +25,7 @@ class AiProcessor:
         """
         payload = {
             "action": "attack",
-            "target_id": int(target.char_id),
+            "target_id": target.char_id,
         }
 
         # Извлечение финтов из meta

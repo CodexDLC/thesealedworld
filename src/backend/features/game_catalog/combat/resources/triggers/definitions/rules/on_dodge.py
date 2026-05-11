@@ -3,6 +3,7 @@ from src.backend.features.game_catalog.combat.resources.common.descriptions impo
     build_combat_description,
     default_trigger_proc_event_texts,
 )
+from src.backend.features.game_catalog.combat.resources.common.pipeline_mutations import pipeline_mutation
 from src.backend.features.game_catalog.combat.resources.triggers.schemas import (
     TriggerCatalogEntryDTO,
     TriggerTechnicalDTO,
@@ -15,7 +16,10 @@ ON_DODGE_CATALOG: list[TriggerCatalogEntryDTO] = [
             trigger_id="counter_on_dodge",
             event="ON_DODGE",
             chance=1.0,
-            mutations={"chain_events.trigger_counter_attack": True},
+            pipeline_mutations=[pipeline_mutation("chain.trigger_counter_attack")],
+            allowed_sources=["weapon", "feint", "style", "monster"],
+            display_policy="separate",
+            tags=["reaction", "dodge", "counter"],
         ),
         descriptive=build_combat_description(
             resource_type="trigger",

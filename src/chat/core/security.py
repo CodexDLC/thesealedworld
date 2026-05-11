@@ -30,7 +30,7 @@ def decode_access_token(token: str) -> dict[str, Any]:
 
     payload = json.loads(_b64url_decode(payload_part))
     exp = payload.get("exp")
-    if not isinstance(exp, int) or datetime.now(UTC).timestamp() >= exp:
+    if not isinstance(exp, int | float) or datetime.now(UTC).timestamp() >= float(exp):
         raise ValueError("Token expired")
 
     return payload

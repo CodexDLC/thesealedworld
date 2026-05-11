@@ -15,7 +15,7 @@ class ChatSettings(BaseCommonSettings):
     )
     database_echo: bool = False
 
-    secret_key: str = "change-me-in-env"
+    secret_key: str = "change-me-in-env-change-me-in-env-32-bytes"  # pragma: allowlist secret
     access_token_expire_minutes: int = 30
 
     # Redis Streams (shared with backend)

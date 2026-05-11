@@ -7,6 +7,7 @@ from fastapi.responses import RedirectResponse
 
 from src.frontend.config.settings import settings
 from src.frontend.core.renderer import UIRenderer, get_ui_renderer
+from src.frontend.game_features.session.cookies import clear_active_character_cookie
 from src.frontend.site_features.auth.dependencies.providers import get_frontend_auth_service
 from src.frontend.site_features.auth.forms.login import LoginForm
 from src.frontend.site_features.auth.forms.register import RegisterForm
@@ -87,4 +88,5 @@ async def logout(
 
     response = RedirectResponse(url="/login", status_code=status.HTTP_303_SEE_OTHER)
     auth_service.clear_auth_cookies(response)
+    clear_active_character_cookie(response)
     return response

@@ -16,6 +16,10 @@ def set_active_character_cookie(response: Response, character_id: int) -> None:
     )
 
 
+def clear_active_character_cookie(response: Response) -> None:
+    response.delete_cookie(ACTIVE_CHARACTER_COOKIE, path="/")
+
+
 def active_character_id_from_cookie(request: Request) -> int:
     raw_value = request.cookies.get(ACTIVE_CHARACTER_COOKIE)
     if raw_value is None:

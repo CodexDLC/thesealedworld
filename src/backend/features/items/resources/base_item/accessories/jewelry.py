@@ -26,6 +26,19 @@ JEWELRY_DB = {
         "narrative_tags": ["amulet", "accessory", "necklace", "pendant"],
         "implicit_bonuses": {"debuff_avoidance": 0.03},
     },
+    "earring": {
+        "id": "earring",
+        "name_ru": "Серьга",
+        "slot": "earring",
+        "type": "accessory",
+        "allowed_materials": ["ingots"],
+        "base_power": 0,
+        "base_durability": 80,
+        "damage_spread": 0.0,
+        "narrative_description": "Небольшая серьга как основа для тонкой настройки реакции и личной защиты.",
+        "narrative_tags": ["earring", "accessory", "jewelry"],
+        "implicit_bonuses": {"debuff_avoidance": 0.015},
+    },
 }
 
 __all__ = ["JEWELRY_DB"]

@@ -32,10 +32,10 @@ def test_skill_progression_calculator_uses_traction_against_resistance():
     delta = SkillProgressionCalculator.calculate_delta(entry)
 
     assert base_power == 25
-    assert GLOBAL_BASE_RATE * skill.rate_mod == 0.000005
+    assert GLOBAL_BASE_RATE * skill.rate_mod == 0.00005
     assert GLOBAL_BASE_WALL * skill.wall_mod == 100.0
     assert 1.0 + (entry.current_skill * GLOBAL_BASE_WALL * skill.wall_mod) == 51.0
-    assert delta == pytest.approx((25 * 0.000005) / 51.0)
+    assert delta == pytest.approx((25 * 0.00005) / 51.0)
 
 
 @pytest.mark.unit
@@ -62,4 +62,4 @@ def test_skill_progression_calculator_returns_award_mapping_without_persistence_
         )
     )
 
-    assert rewards == {"skill_test": 0.0001}
+    assert rewards == {"skill_test": 0.0007}

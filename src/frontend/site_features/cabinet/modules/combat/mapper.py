@@ -1,5 +1,6 @@
 from fastapi_cabinet.contracts.widgets import MetricWidgetMap, TableColumnMap, TableWidgetMap
-from src.frontend.site_features.cabinet.modules.combat.service import CombatSettingEntry, CombatStats
+from src.frontend.integrations.backend_api.game_config import ConfigEntryDTO
+from src.frontend.site_features.cabinet.modules.combat.service import CombatStats
 
 
 class CombatCabinetMapper:
@@ -38,14 +39,26 @@ class CombatCabinetMapper:
             rows=stats.recent,
         )
 
-    def settings_table(self, entries: tuple[CombatSettingEntry, ...]) -> TableWidgetMap:
+    def settings_table(self, entries: list[ConfigEntryDTO]) -> TableWidgetMap:
+        rows = [
+            {
+                "key": e.key,
+                "current": e.current,
+                "default": e.default,
+                "type": e.value_type,
+                "modified": "✎" if e.is_modified else "",
+            }
+            for e in entries
+        ]
         return TableWidgetMap(
             key="combat_settings",
-            title="Константы боевого движка",
+            title="Настройки боя (Redis)",
             columns=[
-                TableColumnMap(key="name", label="Параметр"),
-                TableColumnMap(key="value", label="Значение"),
-                TableColumnMap(key="source", label="Файл"),
+                TableColumnMap(key="modified", label=""),
+                TableColumnMap(key="key", label="Параметр"),
+                TableColumnMap(key="current", label="Текущее"),
+                TableColumnMap(key="default", label="По умолчанию"),
+                TableColumnMap(key="type", label="Тип"),
             ],
-            rows=[{"name": e.name, "value": e.value, "source": e.source} for e in entries],
+            rows=rows,
         )

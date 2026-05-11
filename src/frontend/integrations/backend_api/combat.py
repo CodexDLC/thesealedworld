@@ -50,7 +50,7 @@ class BackendCombatApi(BaseApiClient):
         return await self._request(
             "POST",
             f"/api/game/combat/{char_id}/moves",
-            response_model=CombatMoveResponse,
+            response_model=CombatMoveResponse,  # type: ignore[call-overload]
             headers={"Authorization": f"Bearer {access_token}"},
             json=body.model_dump(mode="json"),
         )

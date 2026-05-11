@@ -18,8 +18,15 @@ router = APIRouter(tags=["Auth"])
 
 
 @router.get("/login", name="login")
-async def login_page(ui: Annotated[UIRenderer, Depends(get_ui_renderer)]):
-    return await ui.render("site/auth/login.html", context={"form": LoginForm()})
+async def login_page(request: Request, ui: Annotated[UIRenderer, Depends(get_ui_renderer)]):
+    return await ui.render(
+        "site/auth/login.html",
+        context={
+            "form": LoginForm(),
+            "backend_unavailable": request.query_params.get("server") == "starting"
+            or getattr(request.state, "backend_unavailable", False),
+        },
+    )
 
 
 @router.post("/login", name="login_submit")
@@ -38,6 +45,12 @@ async def login_submit(
     except httpx.HTTPStatusError:
         form.error = "Incorrect email or password"
         return await ui.render("site/auth/login.html", context={"form": form}, status_code=status.HTTP_401_UNAUTHORIZED)
+    except httpx.RequestError:
+        return await ui.render(
+            "site/auth/login.html",
+            context={"form": form, "backend_unavailable": True},
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+        )
 
     response = RedirectResponse(url="/game-lobby", status_code=status.HTTP_303_SEE_OTHER)
     auth_service.attach_auth_cookies(response, tokens)
@@ -71,6 +84,11 @@ async def register_submit(
             form.errors.append("Registration failed, please try again")
         return await ui.render(
             "site/auth/register.html", context={"form": form}, status_code=status.HTTP_400_BAD_REQUEST
+        )
+    except httpx.RequestError:
+        form.errors.append("Game server is starting. Please refresh and try again.")
+        return await ui.render(
+            "site/auth/register.html", context={"form": form}, status_code=status.HTTP_503_SERVICE_UNAVAILABLE
         )
 
     return RedirectResponse(url="/login", status_code=status.HTTP_303_SEE_OTHER)

@@ -68,4 +68,5 @@ class ResponseDirector:
             "char_id": char_id,
             "arena": response.payload,
             "payload_type": response.payload_type,
+            "oob_panels": True,
         }

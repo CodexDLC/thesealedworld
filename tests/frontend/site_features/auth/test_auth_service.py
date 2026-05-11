@@ -33,6 +33,10 @@ def _unauthorized() -> httpx.HTTPStatusError:
     return httpx.HTTPStatusError("Unauthorized", request=request, response=response)
 
 
+def _connect_error() -> httpx.ConnectError:
+    return httpx.ConnectError("backend starting", request=httpx.Request("GET", "http://backend/auth/me"))
+
+
 @pytest.mark.asyncio
 async def test_get_current_user_refreshes_expired_access_token() -> None:
     api = SimpleNamespace(
@@ -65,3 +69,15 @@ async def test_get_current_user_uses_refresh_cookie_when_access_cookie_missing()
     assert user == _user()
     api.refresh.assert_awaited_once_with("old_refresh")
     api.current_user.assert_awaited_once_with("new_access")
+
+
+@pytest.mark.asyncio
+async def test_get_current_user_marks_backend_unavailable_on_connect_error() -> None:
+    api = SimpleNamespace(current_user=AsyncMock(side_effect=_connect_error()))
+    service = FrontendAuthService(auth_api=api)
+    request = _request(access_token="old_access")
+
+    user = await service.get_current_user(request)
+
+    assert user is None
+    assert request.state.backend_unavailable is True

@@ -58,8 +58,8 @@ class BaseApiClient:
                 _response_detail(exc.response),
             )
             raise
-        except httpx.RequestError:
-            logger.opt(exception=True).critical("Backend request failed: method={} endpoint={}", method, endpoint)
+        except httpx.RequestError as exc:
+            logger.warning("Backend request unavailable: method={} endpoint={} error={}", method, endpoint, exc)
             raise
 
         logger.info(

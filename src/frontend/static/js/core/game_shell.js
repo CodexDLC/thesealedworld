@@ -63,8 +63,32 @@ window.gameShell = function(initial = {}) {
             isMobile: window.matchMedia("(max-width: 768px)").matches,
         };
     };
+    const hudStorageKey = (name) => `tbmmorpg:hud:${name}:geometry:v1`;
+    const hudOpenStorageKey = (name) => {
+        const scope = activeCharId || "global";
+        return `tbmmorpg:hud:${name}:open:${scope}:v1`;
+    };
+    const loadHudOpenState = (name) => {
+        try {
+            const raw = window.localStorage.getItem(hudOpenStorageKey(name));
+            if (!raw) return null;
+            const saved = JSON.parse(raw);
+            return typeof saved?.open === "boolean" ? saved.open : null;
+        } catch (_error) {
+            window.localStorage.removeItem(hudOpenStorageKey(name));
+            return null;
+        }
+    };
+    const saveHudOpenState = (name, isOpen) => {
+        try {
+            window.localStorage.setItem(hudOpenStorageKey(name), JSON.stringify({ open: Boolean(isOpen) }));
+        } catch (_error) {
+            return;
+        }
+    };
+    const savedInventoryOpen = loadHudOpenState("inventory");
     const inventoryWindow = {
-        open: Boolean(initial.initialInventoryOpen),
+        open: Boolean(initial.initialInventoryOpen) && savedInventoryOpen !== false,
         x: null,
         y: null,
         width: null,
@@ -81,7 +105,6 @@ window.gameShell = function(initial = {}) {
         resizeStartWidth: 0,
         resizeStartHeight: 0,
     };
-    const hudStorageKey = (name) => `tbmmorpg:hud:${name}:geometry:v1`;
     const loadHudGeometry = (name, target) => {
         try {
             const raw = window.localStorage.getItem(hudStorageKey(name));
@@ -163,6 +186,14 @@ window.gameShell = function(initial = {}) {
             const hudWindow = this.windows[name];
             if (!hudWindow) return;
             hudWindow.open = !hudWindow.open;
+            saveHudOpenState(name, hudWindow.open);
+        },
+
+        closeHudWindow(name) {
+            const hudWindow = this.windows[name];
+            if (!hudWindow) return;
+            hudWindow.open = false;
+            saveHudOpenState(name, false);
         },
 
         startHudWindowDrag(name, event, element) {

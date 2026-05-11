@@ -82,11 +82,14 @@ class FakeInventoryApi:
 
 
 class FakeExplorationApi:
-    def __init__(self, calls):
+    def __init__(self, calls, response: CoreResponseDTO | None = None):
         self.calls = calls
+        self.response = response
 
     async def look_around(self, token, *, char_id):
         self.calls.append(("exploration", char_id))
+        if self.response is not None:
+            return self.response
         return CoreResponseDTO(
             header=GameStateHeader(current_state=CoreDomain.EXPLORATION, transaction_id="tx-explore"),
             payload=WorldNavigationDTO(
@@ -115,10 +118,11 @@ class FakeScenarioApi:
 
 
 class FakeCombatApi:
-    def __init__(self, payload=None, payload_type="CombatDashboard"):
+    def __init__(self, payload=None, payload_type="CombatDashboard", current_state=CoreDomain.COMBAT):
         self.calls = []
         self.payload = payload
         self.payload_type = payload_type
+        self.current_state = current_state
 
     async def view(self, token, *, char_id):
         self.calls.append(("combat", char_id))
@@ -160,7 +164,7 @@ class FakeCombatApi:
             ),
         )
         return CoreResponseDTO(
-            header=GameStateHeader(current_state=CoreDomain.COMBAT, transaction_id="tx-combat"),
+            header=GameStateHeader(current_state=self.current_state, transaction_id="tx-combat"),
             payload=payload,
             payload_type=self.payload_type,
         )
@@ -242,6 +246,18 @@ def exploration_builder(calls):
         character_status_api=status_api,
         arena_api=SimpleNamespace(),
         exploration_api=FakeExplorationApi(calls),
+        scenario_api=FakeScenarioApi(scenario_response()),
+        game_session_api=FakeGameSessionApi(scenario_response()),
+        inventory_api=FakeInventoryApi(),
+    )
+
+
+def exploration_builder_with_response(calls, response):
+    status_api = FakeCharacterStatusApi()
+    return SessionContextBuilder(
+        character_status_api=status_api,
+        arena_api=SimpleNamespace(),
+        exploration_api=FakeExplorationApi(calls, response=response),
         scenario_api=FakeScenarioApi(scenario_response()),
         game_session_api=FakeGameSessionApi(scenario_response()),
         inventory_api=FakeInventoryApi(),
@@ -439,6 +455,43 @@ async def test_build_exploration_response_keeps_location_context_for_encounter()
 
 
 @pytest.mark.asyncio
+async def test_build_exploration_response_uses_encounter_navigation_snapshot_when_lookup_is_gated():
+    calls = []
+    navigation = WorldNavigationDTO(
+        loc_id="52_52",
+        title="Runic Circle",
+        description="Safe hub.",
+        world_theme=WorldThemeDTO(loc_id="52_52"),
+        grid=NavigationGridDTO(),
+        hud=ExplorationHudDTO(is_safe_zone=True),
+    )
+    encounter = EncounterDTO(
+        id="combat_1",
+        type=EncounterType.COMBAT,
+        status=DetectionStatus.AMBUSH,
+        title="Threat",
+        description="Rat appears.",
+        enemies=[EnemyPreviewDTO(name="Rat", level=1, hp_percent=100)],
+        metadata={"navigation": navigation.model_dump(mode="json")},
+    )
+    gated_response = CoreResponseDTO(
+        header=GameStateHeader(current_state=CoreDomain.EXPLORATION, transaction_id="tx-encounter"),
+        payload=encounter,
+        payload_type="exploration_encounter",
+    )
+    service = exploration_builder_with_response(calls, gated_response)
+    service.character_status_api.calls = calls
+
+    context = await service.build_exploration_response(request(), gated_response, char_id=7)
+
+    assert calls == [("status", 7)]
+    assert context["payload_type"] == "exploration_encounter"
+    assert context["encounter"] == encounter
+    assert context["exploration"].loc_id == "52_52"
+    assert context["exploration"].title == "Runic Circle"
+
+
+@pytest.mark.asyncio
 async def test_build_state_arena_normalizes_dict_payload_before_render_context():
     status_api = FakeCharacterStatusApi()
     arena_api = FakeArenaApi(
@@ -510,3 +563,22 @@ async def test_build_state_combat_accepts_archived_result_payload():
     assert context["combat_screen"].action_state == "COMBAT_FINALIZED"
     assert context["payload_type"] == "CombatResult"
     assert context["status_seed"]["character_id"] == 7
+
+
+@pytest.mark.asyncio
+async def test_build_state_combat_result_uses_combat_layout_domain():
+    status_api = FakeCharacterStatusApi()
+    combat_api = FakeCombatApi(
+        payload=CombatResultDTO(char_id=7, title="Победа"),
+        payload_type="CombatResult",
+        current_state=CoreDomain.COMBAT_RESULT,
+    )
+    service = combat_builder(status_api, combat_api)
+
+    context = await service.build_state(request(), state=CoreDomain.COMBAT_RESULT, char_id=7)
+
+    assert combat_api.calls == [("combat", 7)]
+    assert context["domain"] == "combats"
+    assert context["combat_result"].title == "Победа"
+    assert context["session_ui"] == {"left_open": True, "right_open": True}
+    assert context["nav"]["center"]["label"] == "COMBAT"

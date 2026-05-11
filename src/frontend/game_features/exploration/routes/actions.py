@@ -1,6 +1,7 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Form, Request
+from fastapi import APIRouter, Depends, Form, Request, Response, status
+from fastapi.responses import RedirectResponse
 
 from src.frontend.core.renderer import UIRenderer, get_ui_renderer
 from src.frontend.game_features.exploration.dependencies import (
@@ -8,6 +9,7 @@ from src.frontend.game_features.exploration.dependencies import (
     get_response_director,
 )
 from src.frontend.game_features.exploration.services.exploration_action_service import ExplorationActionService
+from src.frontend.game_features.session.cookies import set_active_character_cookie
 from src.frontend.game_features.session.services.response_director import ResponseDirector
 from src.frontend.site_features.auth.dependencies.providers import get_frontend_auth_service
 from src.frontend.site_features.auth.services.auth_service import FrontendAuthService
@@ -34,7 +36,10 @@ async def game_exploration_move(
         response,
         source_state=CoreDomain.EXPLORATION,
         char_id=char_id,
+        redirect_transitions=True,
     )
+    if template == "__session_redirect__":
+        return _session_redirect(request, char_id=char_id)
     return await ui.render(template, context=context)
 
 
@@ -56,7 +61,10 @@ async def game_exploration_interact(
         response,
         source_state=CoreDomain.EXPLORATION,
         char_id=char_id,
+        redirect_transitions=True,
     )
+    if template == "__session_redirect__":
+        return _session_redirect(request, char_id=char_id)
     return await ui.render(template, context=context)
 
 
@@ -77,5 +85,18 @@ async def game_exploration_use_service(
         response,
         source_state=CoreDomain.EXPLORATION,
         char_id=char_id,
+        redirect_transitions=True,
     )
+    if template == "__session_redirect__":
+        return _session_redirect(request, char_id=char_id)
     return await ui.render(template, context=context)
+
+
+def _session_redirect(request: Request, *, char_id: int) -> Response:
+    if "HX-Request" in request.headers:
+        response = Response(status_code=status.HTTP_204_NO_CONTENT)
+        response.headers["HX-Redirect"] = "/game/session"
+    else:
+        response = RedirectResponse("/game/session", status_code=status.HTTP_303_SEE_OTHER)
+    set_active_character_cookie(response, char_id)
+    return response

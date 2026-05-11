@@ -5682,7 +5682,7 @@ html, body {
 
 .exploration-encounter-panel {
     display: grid;
-    gap: 10px;
+    gap: 9px;
     border: 1px solid rgba(255, 51, 0, .18);
     background:
         linear-gradient(135deg, rgba(255, 51, 0, .055), transparent 42%),
@@ -5698,37 +5698,317 @@ html, body {
         0 0 0 1px rgba(0, 0, 0, .70);
 }
 
-.exploration-encounter-tag {
-    margin: 0;
-}
-
-.exploration-encounter-hud,
-.exploration-encounter-enemies {
-    margin: 0;
-}
-
-.exploration-encounter-card {
-    padding: 10px;
-}
-
-.exploration-encounter-card .scene-img {
-    min-height: 118px;
-}
-
-.exploration-encounter-card .world-text {
-    font-size: var(--text-md);
-    line-height: 1.55;
-}
-
-.exploration-encounter-choices {
+.exploration-encounter-notice {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(128px, 1fr));
-    gap: 8px;
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 10px;
+    align-items: center;
+    margin-top: 13px;
+    padding: 9px 10px;
+    border: 1px solid rgba(255, 170, 0, .16);
+    background:
+        linear-gradient(90deg, rgba(255, 170, 0, .08), rgba(0, 0, 0, .18)),
+        rgba(0, 0, 0, .30);
+    clip-path: var(--clip-node-sm);
 }
 
-.exploration-encounter-choices .choice {
-    min-height: 42px;
-    font-size: var(--text-sm);
+.exploration-encounter-notice.is-ambush {
+    border-color: rgba(255, 51, 0, .28);
+    background:
+        linear-gradient(90deg, rgba(255, 51, 0, .10), rgba(0, 0, 0, .18)),
+        rgba(0, 0, 0, .34);
+}
+
+.exploration-encounter-notice.is-clear {
+    border-color: rgba(68, 221, 136, .24);
+    background:
+        linear-gradient(90deg, rgba(68, 221, 136, .08), rgba(0, 0, 0, .18)),
+        rgba(0, 0, 0, .30);
+}
+
+.exploration-encounter-notice span {
+    color: var(--world-accent, var(--col-accent));
+    font-family: var(--font-ui);
+    font-size: 8px;
+    font-weight: 900;
+    letter-spacing: .18em;
+}
+
+.exploration-encounter-notice.is-ambush span {
+    color: var(--col-danger);
+}
+
+.exploration-encounter-notice.is-clear span {
+    color: var(--col-success);
+}
+
+.exploration-encounter-notice p {
+    margin: 0;
+    color: rgba(255, 231, 190, .82);
+    font-family: var(--font-world);
+    font-size: 14px;
+    line-height: 1.45;
+}
+
+.exploration-encounter-head {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 12px;
+    align-items: center;
+    min-width: 0;
+    padding-bottom: 8px;
+    border-bottom: 1px solid rgba(255, 170, 0, .10);
+}
+
+.exploration-encounter-head .exploration-control-title {
+    margin-bottom: 4px;
+    text-align: left;
+}
+
+.exploration-encounter-head strong {
+    display: block;
+    overflow: hidden;
+    color: var(--world-accent, var(--col-accent));
+    font-family: var(--font-ui);
+    font-size: 12px;
+    letter-spacing: .08em;
+    line-height: 1.35;
+    text-overflow: ellipsis;
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+
+.exploration-encounter-state {
+    display: flex;
+    gap: 6px;
+    justify-content: flex-end;
+    min-width: 0;
+}
+
+.exploration-encounter-state span {
+    padding: 4px 7px;
+    border: 1px solid rgba(255, 170, 0, .14);
+    color: rgba(255, 212, 128, .76);
+    background: rgba(0, 0, 0, .24);
+    font-size: 7px;
+    font-weight: 900;
+    letter-spacing: .14em;
+    text-transform: uppercase;
+}
+
+.exploration-encounter-body {
+    display: grid;
+    grid-template-columns: minmax(150px, .38fr) minmax(0, .62fr);
+    gap: 9px;
+    min-width: 0;
+}
+
+.exploration-encounter-roster {
+    display: grid;
+    align-content: start;
+    gap: 6px;
+    min-width: 0;
+}
+
+.exploration-encounter-target {
+    display: grid;
+    gap: 3px;
+    min-width: 0;
+    min-height: 44px;
+    padding: 7px 8px;
+    border: 1px solid rgba(255, 170, 0, .10);
+    background: rgba(0, 0, 0, .24);
+    color: rgba(255, 231, 190, .72);
+    cursor: pointer;
+    text-align: left;
+    clip-path: var(--clip-node-sm);
+}
+
+.exploration-encounter-target:hover,
+.exploration-encounter-target.is-active {
+    border-color: rgba(255, 170, 0, .34);
+    background:
+        linear-gradient(90deg, rgba(255, 170, 0, .075), transparent),
+        rgba(0, 0, 0, .30);
+    color: rgba(255, 231, 190, .94);
+}
+
+.exploration-encounter-target span {
+    overflow: hidden;
+    font-family: var(--font-ui);
+    font-size: 9px;
+    font-weight: 900;
+    letter-spacing: .06em;
+    line-height: 1.25;
+    text-overflow: ellipsis;
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+
+.exploration-encounter-target small {
+    overflow: hidden;
+    color: rgba(210, 180, 140, .54);
+    font-size: 7px;
+    font-weight: 900;
+    letter-spacing: .12em;
+    text-overflow: ellipsis;
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+
+.exploration-encounter-detail {
+    min-width: 0;
+}
+
+.exploration-encounter-target-detail {
+    display: grid;
+    gap: 8px;
+    min-width: 0;
+}
+
+.exploration-encounter-target-art {
+    min-height: 118px;
+    display: grid;
+    place-items: center;
+    overflow: hidden;
+    border: 1px solid rgba(255, 170, 0, .10);
+    background:
+        linear-gradient(rgba(0, 0, 0, .42), rgba(0, 0, 0, .72)),
+        repeating-linear-gradient(45deg, rgba(255, 170, 0, .025) 0 1px, transparent 1px 8px);
+    background-position: center;
+    background-size: cover;
+    clip-path: var(--clip-node-sm);
+}
+
+.exploration-encounter-target-art span {
+    max-width: 100%;
+    overflow: hidden;
+    padding: 0 10px;
+    color: color-mix(in srgb, var(--world-accent, var(--col-accent)) 74%, white);
+    font-family: var(--font-ui);
+    font-size: 10px;
+    font-weight: 900;
+    letter-spacing: .16em;
+    text-align: center;
+    text-overflow: ellipsis;
+    text-transform: uppercase;
+    text-shadow: 0 2px 12px rgba(0, 0, 0, .92);
+    white-space: nowrap;
+}
+
+.exploration-encounter-target-copy {
+    display: grid;
+    gap: 5px;
+    min-width: 0;
+}
+
+.exploration-encounter-target-copy strong {
+    overflow: hidden;
+    color: rgba(255, 231, 190, .92);
+    font-family: var(--font-ui);
+    font-size: 10px;
+    letter-spacing: .10em;
+    text-overflow: ellipsis;
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+
+.exploration-encounter-target-copy p {
+    margin: 0;
+    color: rgba(255, 231, 190, .76);
+    font-family: var(--font-world);
+    font-size: 14px;
+    line-height: 1.45;
+}
+
+.exploration-encounter-facts {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 6px;
+}
+
+.exploration-encounter-facts div {
+    display: grid;
+    gap: 3px;
+    min-width: 0;
+    padding: 6px;
+    border: 1px solid rgba(255, 170, 0, .10);
+    background: rgba(0, 0, 0, .22);
+    text-align: center;
+}
+
+.exploration-encounter-facts span {
+    color: rgba(210, 180, 140, .48);
+    font-size: 7px;
+    font-weight: 900;
+    letter-spacing: .14em;
+    text-transform: uppercase;
+}
+
+.exploration-encounter-facts strong {
+    overflow: hidden;
+    color: var(--world-accent, var(--col-accent));
+    font-size: 9px;
+    font-weight: 900;
+    text-overflow: ellipsis;
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+
+.exploration-encounter-actions {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+    gap: 8px;
+    padding-top: 2px;
+}
+
+.exploration-encounter-actions .dp {
+    min-height: 44px;
+    padding: 0 10px;
+    font-size: 9px;
+}
+
+.exploration-encounter-action-danger {
+    border-color: rgba(255, 51, 0, .34);
+    color: rgba(255, 118, 86, .92);
+}
+
+.exploration-encounter-preparing {
+    display: grid;
+    align-items: center;
+    min-height: 18px;
+    overflow: hidden;
+    border: 1px solid rgba(255, 170, 0, .16);
+    background: rgba(0, 0, 0, .42);
+    clip-path: var(--clip-node-sm);
+    position: relative;
+}
+
+.exploration-encounter-preparing-bar {
+    width: 100%;
+    height: 100%;
+    min-height: 18px;
+    background: linear-gradient(90deg, rgba(255, 51, 0, .64), rgba(255, 170, 0, .88), rgba(68, 221, 136, .72));
+    animation: encounter-preparing 3s ease-in-out infinite;
+    transform-origin: left center;
+}
+
+.exploration-encounter-preparing span {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    color: rgba(0, 0, 0, .82);
+    font-size: 7px;
+    font-weight: 900;
+    letter-spacing: .18em;
+    text-shadow: 0 1px 0 rgba(255, 230, 160, .45);
+}
+
+@keyframes encounter-preparing {
+    0% { transform: scaleX(.08); filter: brightness(.85); }
+    70% { transform: scaleX(1); filter: brightness(1.1); }
+    100% { transform: scaleX(1); filter: brightness(.92); }
 }
 
 @media (max-width: 760px) {
@@ -5765,6 +6045,14 @@ html, body {
             "routes";
     }
 
+    .exploration-encounter-body {
+        grid-template-columns: 1fr;
+    }
+
+    .exploration-encounter-roster {
+        grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    }
+
     .exploration-route-block,
     .exploration-movement-grid {
         grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -5791,6 +6079,19 @@ html, body {
         min-height: 44px;
         padding-inline: 5px;
         font-size: 8px;
+    }
+
+    .exploration-encounter-head,
+    .exploration-encounter-notice {
+        grid-template-columns: 1fr;
+    }
+
+    .exploration-encounter-state {
+        justify-content: flex-start;
+    }
+
+    .exploration-encounter-facts {
+        grid-template-columns: 1fr;
     }
 }
 

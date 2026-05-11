@@ -12,9 +12,9 @@ def test_project_cabinet_modules_render_engine_cabinet() -> None:
 
     response = TestClient(app).get("/cabinet")
     assert response.status_code == 200
-    assert "Game Server" in response.text
-    assert "Game Server Status" in response.text
-    assert "Runtime Checks" in response.text
+    # Cabinet redirects to first registered module (combat); verify Russian labels render
+    assert "Гейм Сервер" in response.text
+    assert "Бой" in response.text
 
 
 def test_project_cabinet_module_route_renders() -> None:

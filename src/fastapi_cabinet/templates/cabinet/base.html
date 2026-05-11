@@ -7,13 +7,19 @@
         <link rel="stylesheet" href="{{ layout.mount_path }}/static/css/cabinet.css">
     </head>
     <body class="fc-shell">
-        {% include "cabinet/includes/header.html" %}
-        <main class="fc-main">
+        <aside class="fc-sidebar-col">
+            <a class="fc-brand" href="{{ layout.mount_path }}">
+                <span class="fc-brand__icon">⬡</span>
+                <span class="fc-brand__label">Cabinet</span>
+            </a>
             {% include "cabinet/includes/sidebar.html" %}
-            <section class="fc-content">
+        </aside>
+        <div class="fc-main-col">
+            {% include "cabinet/includes/topbar.html" %}
+            <main class="fc-content">
                 {% block content %}{% endblock %}
-            </section>
-        </main>
+            </main>
+        </div>
         <script src="{{ layout.mount_path }}/static/js/cabinet.js"></script>
     </body>
 </html>

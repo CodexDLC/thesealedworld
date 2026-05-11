@@ -53,6 +53,9 @@ class FrontendAuthService:
     async def require_current_user(self, request: Request) -> UserResponse:
         user = await self.get_current_user(request)
         if user is None:
+            if getattr(request.state, "backend_unavailable", False):
+                logger.warning("Frontend auth required while backend is unavailable: path={}", request.url.path)
+                raise _backend_starting_redirect()
             logger.warning("Frontend auth required: redirecting_to_login path={}", request.url.path)
             raise _login_redirect()
         return user
@@ -82,6 +85,10 @@ class FrontendAuthService:
     async def _current_user_or_refresh(self, request: Request, access_token: str) -> UserResponse | None:
         try:
             return await self.auth_api.current_user(access_token)
+        except httpx.RequestError as exc:
+            request.state.backend_unavailable = True
+            logger.warning("Frontend current user lookup backend unavailable: error={}", exc)
+            return None
         except httpx.HTTPStatusError as exc:
             if exc.response.status_code != status.HTTP_401_UNAUTHORIZED:
                 logger.warning("Frontend current user lookup rejected: status={}", exc.response.status_code)
@@ -92,6 +99,10 @@ class FrontendAuthService:
                 return None
             try:
                 return await self.auth_api.current_user(tokens.access_token)
+            except httpx.RequestError as refresh_exc:
+                request.state.backend_unavailable = True
+                logger.warning("Frontend current user lookup backend unavailable after refresh: error={}", refresh_exc)
+                return None
             except httpx.HTTPStatusError as refresh_exc:
                 logger.warning(
                     "Frontend current user lookup rejected after refresh: status={}",
@@ -111,8 +122,9 @@ class FrontendAuthService:
             if exc.response.status_code == status.HTTP_401_UNAUTHORIZED:
                 request.state.clear_auth_cookies = True
             return None
-        except httpx.RequestError:
-            logger.opt(exception=True).critical("Frontend auth refresh backend request failed")
+        except httpx.RequestError as exc:
+            request.state.backend_unavailable = True
+            logger.warning("Frontend auth refresh backend unavailable: error={}", exc)
             return None
 
         request.state.access_token = tokens.access_token
@@ -122,3 +134,7 @@ class FrontendAuthService:
 
 def _login_redirect() -> HTTPException:
     return HTTPException(status_code=status.HTTP_303_SEE_OTHER, headers={"Location": "/login"})
+
+
+def _backend_starting_redirect() -> HTTPException:
+    return HTTPException(status_code=status.HTTP_303_SEE_OTHER, headers={"Location": "/login?server=starting"})

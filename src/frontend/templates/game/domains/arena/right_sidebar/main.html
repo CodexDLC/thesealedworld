@@ -1,7 +1,13 @@
 {% set arena_mode = arena.mode if arena is defined and arena and arena.mode else 'LOBBY' %}
 {% set arena_screen = arena.screen.value if arena is defined and arena and arena.screen and arena.screen.value is defined else arena.screen if arena is defined and arena and arena.screen else 'NO_DATA' %}
-{% set arena_gear = arena.gs if arena is defined and arena and arena.gs is not none else 'NO_DATA' %}
-{% set arena_rank = arena.metadata.get('rank', arena.metadata.get('tier', 'NO_DATA')) if arena is defined and arena and arena.metadata else 'NO_DATA' %}
+{% set arena_meta = arena.metadata if arena is defined and arena and arena.metadata else {} %}
+{% set arena_rating = arena_meta.get('rating', 'NO_DATA') %}
+{% set arena_rank = arena_meta.get('rank', arena_meta.get('tier', 'NO_DATA')) %}
+{% set arena_league = arena_meta.get('league_name', arena_meta.get('league_code', 'NO_DATA')) %}
+{% set arena_record = (arena_meta.get('wins', 0) ~ '-' ~ arena_meta.get('losses', 0) ~ '-' ~ arena_meta.get('draws', 0)) if arena_meta.get('matches_played') is not none else 'NO_DATA' %}
+{% set arena_placement = arena_meta.get('placement_left', 'NO_DATA') %}
+{% set arena_season = arena_meta.get('season_name', 'NO_DATA') %}
+{% set arena_hall = '1X1' if arena_mode == 'one_vs_one' else 'GROUP' if arena_mode == 'group' else 'LOBBY' %}
 
 <div class="ds-panel arena-view-panel status-sidebar-surface">
     <div class="ds-panel-header">
@@ -11,8 +17,8 @@
     <div class="ds-panel-body arena-view-body">
         <section class="arena-view-stat-grid" aria-label="Arena statistics">
             <div class="arena-view-stat arena-view-stat--wide">
-                <span>GEAR SCORE</span>
-                <strong>{{ arena_gear }}</strong>
+                <span>MMR</span>
+                <strong>{{ arena_rating }}</strong>
             </div>
             <div class="arena-view-stat">
                 <span>RANK</span>
@@ -20,24 +26,38 @@
             </div>
             <div class="arena-view-stat">
                 <span>HALL</span>
-                <strong>{{ arena_mode }}</strong>
+                <strong>{{ arena_hall }}</strong>
             </div>
         </section>
 
         <section class="status-section arena-view-section">
-            <div class="sec">HALLS</div>
+            <div class="sec">RATING</div>
             <div class="arena-view-list">
                 <div class="arena-view-row">
-                    <span>1X1</span>
-                    <strong>{{ 'ACTIVE' if arena_mode == 'one_vs_one' else 'READY' }}</strong>
+                    <span>LEAGUE</span>
+                    <strong>{{ arena_league }}</strong>
                 </div>
                 <div class="arena-view-row">
-                    <span>GROUP</span>
-                    <strong>{{ 'ACTIVE' if arena_mode == 'group' else 'PLANNED' }}</strong>
+                    <span>RECORD</span>
+                    <strong>{{ arena_record }}</strong>
                 </div>
                 <div class="arena-view-row">
-                    <span>CHAOS</span>
-                    <strong>NO_DATA</strong>
+                    <span>PLACEMENT</span>
+                    <strong>{{ arena_placement }}</strong>
+                </div>
+                <div class="arena-view-row">
+                    <span>SEASON</span>
+                    <strong>{{ arena_season }}</strong>
+                </div>
+            </div>
+        </section>
+
+        <section class="status-section arena-view-section">
+            <div class="sec">HALL</div>
+            <div class="arena-view-list">
+                <div class="arena-view-row">
+                    <span>ACTIVE</span>
+                    <strong>{{ arena_hall }}</strong>
                 </div>
             </div>
         </section>

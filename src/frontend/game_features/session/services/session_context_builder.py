@@ -18,7 +18,7 @@ from src.frontend.site_features.auth.token_state import require_access_token
 from src.shared.enums import CoreDomain
 from src.shared.schemas import CoreResponseDTO, EnterCharacterRequestDTO
 from src.shared.schemas.arena import ArenaUIPayloadDTO
-from src.shared.schemas.exploration import EncounterDTO, WorldNavigationDTO
+from src.shared.schemas.exploration import EncounterDTO, ExplorationScreenDTO, WorldNavigationDTO
 
 if TYPE_CHECKING:
     from src.frontend.integrations.backend_api.arena import BackendArenaApi
@@ -110,14 +110,20 @@ class SessionContextBuilder:
                 raise HTTPException(
                     status_code=status.HTTP_502_BAD_GATEWAY, detail="Exploration payload is unavailable"
                 )
+            exploration_payload = exploration_response.payload
+            exploration_payload, encounter_payload = self._split_exploration_payload(
+                exploration_payload,
+                payload_type=exploration_response.payload_type,
+            )
             return self._context(
                 state=exploration_response.header.current_state,
                 char_id=char_id,
                 transaction_id=exploration_response.header.transaction_id,
                 payload_type=exploration_response.payload_type,
                 character_status=character_status,
-                exploration=exploration_response.payload,
-                world_theme=getattr(exploration_response.payload, "world_theme", None)
+                exploration=exploration_payload,
+                encounter=encounter_payload,
+                world_theme=getattr(exploration_payload, "world_theme", None)
                 or getattr(character_status, "world_theme", None),
                 status_seed=status_payload,
                 inventory_window=inventory_window,
@@ -277,12 +283,25 @@ class SessionContextBuilder:
             status_payload=status_payload,
         )
         exploration_payload = response.payload
-        encounter_payload = None
-        if response.payload_type == "exploration_encounter" or isinstance(response.payload, EncounterDTO):
-            encounter_payload = response.payload
-            navigation_response = await self.exploration_api.look_around(token, char_id=char_id)
-            if isinstance(navigation_response.payload, WorldNavigationDTO):
-                exploration_payload = navigation_response.payload
+        exploration_payload, encounter_payload = self._split_exploration_payload(
+            exploration_payload,
+            payload_type=response.payload_type,
+        )
+        if encounter_payload is not None and not isinstance(exploration_payload, WorldNavigationDTO):
+            metadata_navigation = self._navigation_from_encounter(encounter_payload)
+            if metadata_navigation is not None:
+                exploration_payload = metadata_navigation
+            else:
+                navigation_response = await self.exploration_api.look_around(token, char_id=char_id)
+                if isinstance(navigation_response.payload, WorldNavigationDTO):
+                    exploration_payload = navigation_response.payload
+                elif navigation_response.payload_type == "exploration_encounter" or isinstance(
+                    navigation_response.payload, EncounterDTO
+                ):
+                    navigation_encounter = EncounterDTO.model_validate(navigation_response.payload)
+                    navigation_payload = self._navigation_from_encounter(navigation_encounter)
+                    if navigation_payload is not None:
+                        exploration_payload = navigation_payload
 
         return self._context(
             state=response.header.current_state,
@@ -298,6 +317,40 @@ class SessionContextBuilder:
             inventory_window=inventory_window,
             initial_inventory_open=initial_inventory_open,
         )
+
+    def _split_exploration_payload(
+        self,
+        payload: Any,
+        *,
+        payload_type: str | None,
+    ) -> tuple[Any, EncounterDTO | None]:
+        if isinstance(payload, ExplorationScreenDTO) or (
+            isinstance(payload, dict) and isinstance(payload.get("content"), dict) and "context" in payload
+        ):
+            screen = ExplorationScreenDTO.model_validate(payload)
+            content = screen.content.data
+            if screen.content.kind == "encounter" or payload_type == "exploration_encounter":
+                encounter = EncounterDTO.model_validate(content)
+                return self._navigation_from_encounter(encounter) or content, encounter
+            if screen.content.kind == "navigation":
+                return WorldNavigationDTO.model_validate(content), None
+            return content, None
+
+        if payload_type == "exploration_encounter" or isinstance(payload, EncounterDTO):
+            encounter = EncounterDTO.model_validate(payload)
+            return self._navigation_from_encounter(encounter) or payload, encounter
+        return payload, None
+
+    @staticmethod
+    def _navigation_from_encounter(encounter: EncounterDTO) -> WorldNavigationDTO | None:
+        metadata = encounter.metadata if isinstance(encounter.metadata, dict) else {}
+        raw_navigation = metadata.get("navigation")
+        if not isinstance(raw_navigation, dict):
+            return None
+        try:
+            return WorldNavigationDTO.model_validate(raw_navigation)
+        except Exception:  # noqa: BLE001
+            return None
 
     async def build(
         self,
@@ -373,7 +426,7 @@ class SessionContextBuilder:
         inventory_window: InventoryWindowDTO | Any | None = None,
         initial_inventory_open: bool = False,
     ) -> dict[str, Any]:
-        domain = state.value if isinstance(state, CoreDomain) else str(state)
+        domain = self._layout_domain(state)
         session_ui = self._session_ui(domain=domain, scenario=scenario)
         status_payload = status_seed or self._status_seed(character_status)
         inventory_payload = inventory_window or build_inventory_window_vm(status_payload)
@@ -429,6 +482,13 @@ class SessionContextBuilder:
         if not isinstance(sessions, dict):
             return False
         return bool(sessions.get("inventory_id"))
+
+    @staticmethod
+    def _layout_domain(state: CoreDomain | str) -> str:
+        domain = state.value if isinstance(state, CoreDomain) else str(state)
+        if domain == CoreDomain.COMBAT_RESULT.value:
+            return CoreDomain.COMBAT.value
+        return domain
 
     @staticmethod
     def _session_ui(*, domain: str, scenario: Any | None) -> dict[str, bool]:

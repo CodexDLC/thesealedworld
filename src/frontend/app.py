@@ -73,7 +73,7 @@ async def lifespan(app: FastAPI):
         app.state.templates.env.filters["combat_log_time"] = combat_log_time_filter
 
         app.state.backend_http_client = httpx.AsyncClient(timeout=10.0)
-        app.state.site_analytics: dict[str, int] = {}
+        app.state.site_analytics = {}
     except Exception:
         logger.opt(exception=True).critical("Frontend startup failed")
         raise

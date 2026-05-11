@@ -41,53 +41,145 @@
 {% endmacro %}
 
 {% macro encounter_panel(active_encounter) %}
-    <div class="exploration-encounter-panel">
-        <div class="loc-tag exploration-encounter-tag">
-            <span class="loc-dot"></span>
-            <span>{{ active_encounter.status }} // {{ active_encounter.type }}</span>
-        </div>
-
-        <div class="hud-strip exploration-encounter-hud">
-            <div class="hud-cell">
-                <span class="hud-v">{{ active_encounter.enemies|length }}</span>
-                <span class="hud-l">HOSTILES</span>
+    {% set metadata = active_encounter.metadata if active_encounter.metadata is defined and active_encounter.metadata else {} %}
+    {% set group = metadata.monster_group if metadata.monster_group is defined else metadata.group if metadata.group is defined else {} %}
+    {% set previews = active_encounter.enemies if active_encounter.enemies else metadata.previews if metadata.previews is defined else group.previews if group.previews is defined else [] %}
+    {% set first_preview = previews[0] if previews else none %}
+    <div class="exploration-encounter-panel" x-data="{ selected: 0, preparing: false }">
+        <div class="exploration-encounter-head">
+            <div>
+                <div class="exploration-control-title">ENCOUNTER</div>
+                <strong>{{ active_encounter.title }}</strong>
             </div>
-            <div class="hud-cell">
-                <span class="hud-v">{{ active_encounter.metadata.tier if active_encounter.metadata and active_encounter.metadata.tier is defined else 'N/A' }}</span>
-                <span class="hud-l">TIER</span>
-            </div>
-            <div class="hud-cell">
-                <span class="hud-v">{{ active_encounter.session_id or 'WAIT' }}</span>
-                <span class="hud-l">SESSION</span>
+            <div class="exploration-encounter-state">
+                <span>{{ active_encounter.status or 'UNKNOWN' }}</span>
+                <span>{{ active_encounter.type }}</span>
             </div>
         </div>
 
-        <div class="parchment panel-membrane danger exploration-encounter-card">
-            <div class="scene-img">{{ active_encounter.title }}</div>
-            <div class="world-text">{{ active_encounter.description }}</div>
+        <div class="exploration-encounter-body">
+            <div class="exploration-encounter-roster" role="tablist" aria-label="Encounter targets">
+                {% if previews %}
+                    {% for enemy in previews %}
+                        {% set enemy_name = enemy.name if enemy.name is defined and enemy.name else 'UNKNOWN TARGET' %}
+                        {% set enemy_role = enemy.role if enemy.role is defined else enemy.variant_key if enemy.variant_key is defined else 'HOSTILE' %}
+                        <button type="button"
+                                class="exploration-encounter-target"
+                                :class="{ 'is-active': selected === {{ loop.index0 }} }"
+                                @click="selected = {{ loop.index0 }}"
+                                role="tab">
+                            <span>{{ enemy_name }}</span>
+                            <small>
+                                {% if enemy.level is defined and enemy.level %}
+                                    LVL {{ enemy.level }}
+                                {% elif enemy.threat_rating is defined %}
+                                    THR {{ enemy.threat_rating }}
+                                {% else %}
+                                    {{ enemy_role }}
+                                {% endif %}
+                            </small>
+                        </button>
+                    {% endfor %}
+                {% else %}
+                    <button type="button" class="exploration-encounter-target is-active" disabled>
+                        <span>UNKNOWN TARGET</span>
+                        <small>NO SIGNAL</small>
+                    </button>
+                {% endif %}
+            </div>
+
+            <div class="exploration-encounter-detail">
+                {% if previews %}
+                    {% for enemy in previews %}
+                        {% set enemy_name = enemy.name if enemy.name is defined and enemy.name else 'UNKNOWN TARGET' %}
+                        {% set enemy_description = enemy.description if enemy.description is defined and enemy.description else active_encounter.description %}
+                        {% set hp = enemy.hp if enemy.hp is defined and enemy.hp else {} %}
+                        <section class="exploration-encounter-target-detail"
+                                 x-show="selected === {{ loop.index0 }}"
+                                 {% if not loop.first %}x-cloak{% endif %}>
+                            <div class="exploration-encounter-target-art"
+                                 {% if enemy.image is defined and enemy.image %}style="background-image: url('{{ enemy.image }}');"{% endif %}>
+                                <span>{{ enemy_name }}</span>
+                            </div>
+                            <div class="exploration-encounter-target-copy">
+                                <strong>{{ enemy_name }}</strong>
+                                <p>{{ enemy_description }}</p>
+                            </div>
+                            <div class="exploration-encounter-facts">
+                                <div>
+                                    <span>HP</span>
+                                    <strong>
+                                        {% if enemy.hp_percent is defined and enemy.hp_percent is not none %}
+                                            {{ enemy.hp_percent }}%
+                                        {% elif hp.cur is defined and hp.max is defined %}
+                                            {{ hp.cur }}/{{ hp.max }}
+                                        {% else %}
+                                            ???
+                                        {% endif %}
+                                    </strong>
+                                </div>
+                                <div>
+                                    <span>ROLE</span>
+                                    <strong>{{ enemy.role if enemy.role is defined else enemy.variant_key if enemy.variant_key is defined else '???' }}</strong>
+                                </div>
+                                <div>
+                                    <span>POWER</span>
+                                    <strong>{{ enemy.threat_rating if enemy.threat_rating is defined else enemy.level if enemy.level is defined else '???' }}</strong>
+                                </div>
+                            </div>
+                        </section>
+                    {% endfor %}
+                {% else %}
+                    <section class="exploration-encounter-target-detail">
+                        <div class="exploration-encounter-target-art">
+                            <span>{{ active_encounter.title }}</span>
+                        </div>
+                        <div class="exploration-encounter-target-copy">
+                            <strong>{{ active_encounter.title }}</strong>
+                            <p>{{ active_encounter.description }}</p>
+                        </div>
+                    </section>
+                {% endif %}
+            </div>
         </div>
 
-        {% if active_encounter.enemies %}
-            <div class="hud-strip exploration-encounter-enemies">
-                {% for enemy in active_encounter.enemies %}
-                    <div class="hud-cell">
-                        <span class="hud-v">{{ enemy.name }}</span>
-                        <span class="hud-l">LVL {{ enemy.level }} // HP {{ enemy.hp_percent }}%</span>
-                    </div>
-                {% endfor %}
-            </div>
-        {% endif %}
-
-        <div class="scenario-choices exploration-encounter-choices">
+        <div class="exploration-encounter-actions">
+            {% set rendered_action = namespace(count=0) %}
             {% for option in active_encounter.options %}
-                <button class="choice {{ 'danger' if option.style == 'danger' else '' }}"
+                {% if option.id != 'inspect' %}
+                    {% set rendered_action.count = rendered_action.count + 1 %}
+                    <button class="dp {{ 'exploration-encounter-action-danger' if option.style == 'danger' or option.id == 'attack' else '' }}"
+                            hx-post="/game/exploration/interact"
+                            hx-target="#game-center"
+                            hx-swap="innerHTML"
+                            hx-vals='{"char_id": {{ char_id }}, "action": "{{ option.id }}"}'
+                            {% if option.id == 'attack' %}@click="preparing = true"{% endif %}>
+                        {{ option.label }}
+                    </button>
+                {% endif %}
+            {% endfor %}
+            {% if rendered_action.count == 0 %}
+                <button class="dp exploration-encounter-action-danger"
                         hx-post="/game/exploration/interact"
                         hx-target="#game-center"
                         hx-swap="innerHTML"
-                        hx-vals='{"char_id": {{ char_id }}, "action": "{{ option.id }}"}'>
-                    {{ option.label }}
+                        hx-vals='{"char_id": {{ char_id }}, "action": "attack"}'
+                        @click="preparing = true">
+                    ATTACK
                 </button>
-            {% endfor %}
+                <button class="dp"
+                        hx-post="/game/exploration/interact"
+                        hx-target="#game-center"
+                        hx-swap="innerHTML"
+                        hx-vals='{"char_id": {{ char_id }}, "action": "bypass"}'>
+                    BYPASS
+                </button>
+            {% endif %}
+        </div>
+
+        <div class="exploration-encounter-preparing" x-show="preparing" x-cloak>
+            <div class="exploration-encounter-preparing-bar"></div>
+            <span>COMBAT SESSION PREPARING</span>
         </div>
     </div>
 {% endmacro %}
@@ -106,84 +198,38 @@
 
 <section id="center-screens">
     {% if exploration %}
-        {% if payload_type == 'exploration_encounter' and not (encounter is defined and encounter) %}
+        {% set active_encounter = encounter if encounter is defined and encounter else exploration if payload_type == 'exploration_encounter' else none %}
+        {% set location_view = exploration %}
+        {% if active_encounter and not (location_view.loc_id is defined) and active_encounter.metadata is defined and active_encounter.metadata.navigation is defined %}
+            {% set location_view = active_encounter.metadata.navigation %}
+        {% endif %}
             <article class="cs active">
                 <div class="loc-tag">
                     <span class="loc-dot"></span>
-                    <span>{{ exploration.status }} // {{ exploration.type }}</span>
+                    <span>{{ location_view.loc_id if location_view.loc_id is defined else 'LOCATION' }} // {{ location_view.title if location_view.title is defined else 'ENCOUNTER LOCK' }}</span>
                 </div>
 
-                <div class="hud-strip">
-                    <div class="hud-cell">
-                        <span class="hud-v">{{ exploration.enemies|length }}</span>
-                        <span class="hud-l">HOSTILES</span>
-                    </div>
-                    <div class="hud-cell">
-                        <span class="hud-v">{{ exploration.metadata.tier if exploration.metadata and exploration.metadata.tier is defined else 'N/A' }}</span>
-                        <span class="hud-l">TIER</span>
-                    </div>
-                    <div class="hud-cell">
-                        <span class="hud-v">{{ exploration.session_id or 'WAIT' }}</span>
-                        <span class="hud-l">SESSION</span>
-                    </div>
-                </div>
-
-                <div class="parchment panel-membrane danger">
-                    <div class="scene-img">{{ exploration.title }}</div>
-                    <div class="world-text">{{ exploration.description }}</div>
-                </div>
-
-                {% if exploration.enemies %}
-                    <div class="hud-strip">
-                        {% for enemy in exploration.enemies %}
-                            <div class="hud-cell">
-                                <span class="hud-v">{{ enemy.name }}</span>
-                                <span class="hud-l">LVL {{ enemy.level }} // HP {{ enemy.hp_percent }}%</span>
-                            </div>
-                        {% endfor %}
-                    </div>
-                {% endif %}
-
-                <div class="scenario-choices">
-                    {% for option in exploration.options %}
-                        <button class="choice {{ 'danger' if option.style == 'danger' else '' }}"
-                                hx-post="/game/exploration/interact"
-                                hx-target="#game-center"
-                                hx-swap="innerHTML"
-                                hx-vals='{"char_id": {{ char_id }}, "action": "{{ option.id }}"}'>
-                            {{ option.label }}
-                        </button>
-                    {% endfor %}
-                </div>
-            </article>
-        {% else %}
-            <article class="cs active">
-                <div class="loc-tag">
-                    <span class="loc-dot"></span>
-                    <span>{{ exploration.loc_id }} // {{ exploration.title }}</span>
-                </div>
-
-                {% if exploration.hud %}
+                {% if location_view.hud %}
                     <div class="hud-strip">
                         <div class="hud-cell">
-                            {% set threat = exploration.hud.threat if exploration.hud.threat is defined else 0 %}
+                            {% set threat = location_view.hud.threat if location_view.hud.threat is defined else 0 %}
                             <span class="hud-v">{{ (threat * 100)|round|int }}%</span>
                             <span class="hud-l">THREAT</span>
                         </div>
                         <div class="hud-cell">
-                            <span class="hud-v">T{{ exploration.hud.threat_tier if exploration.hud.threat_tier is defined else 0 }}</span>
+                            <span class="hud-v">T{{ location_view.hud.threat_tier if location_view.hud.threat_tier is defined else 0 }}</span>
                             <span class="hud-l">TIER</span>
                         </div>
                         <div class="hud-cell">
-                            <span class="hud-v">{{ exploration.players_nearby }}</span>
+                            <span class="hud-v">{{ location_view.players_nearby if location_view.players_nearby is defined else 0 }}</span>
                             <span class="hud-l">SIGNALS</span>
                         </div>
                         <div class="hud-cell">
-                            <span class="hud-v">{{ exploration.hud.battles_count if exploration.hud.battles_count is defined else 0 }}</span>
+                            <span class="hud-v">{{ location_view.hud.battles_count if location_view.hud.battles_count is defined else 0 }}</span>
                             <span class="hud-l">BATTLES</span>
                         </div>
                         <div class="hud-cell">
-                            <span class="hud-v">{{ 'SAFE' if exploration.hud.is_safe_zone else 'OPEN' }}</span>
+                            <span class="hud-v">{{ 'SAFE' if location_view.hud.is_safe_zone else 'OPEN' }}</span>
                             <span class="hud-l">ZONE</span>
                         </div>
                     </div>
@@ -191,43 +237,60 @@
 
                 <div class="parchment">
                     <div class="scene-img"
-                        {% if exploration.background_url %}style="background-image: url('{{ exploration.background_url }}');"{% endif %}>
-                        <span>{{ exploration.title }}</span>
+                        {% if location_view.background_url is defined and location_view.background_url %}style="background-image: url('{{ location_view.background_url }}');"{% endif %}>
+                        <span>{{ location_view.title if location_view.title is defined else active_encounter.title if active_encounter else 'LOCATION' }}</span>
                     </div>
                     <div class="world-text">
                         <span class="symbiote-readout-name">{{ symbiote_name }}:</span>
-                        {{ exploration.description }}
+                        {{ location_view.description if location_view.description is defined else active_encounter.description if active_encounter else '' }}
                     </div>
+                    {% if active_encounter %}
+                        <div class="exploration-encounter-notice {{ 'is-ambush' if active_encounter.status == 'AMBUSH' else '' }}">
+                            <span>{{ 'AMBUSH' if active_encounter.status == 'AMBUSH' else 'DANGER' }}</span>
+                            <p>
+                                {% if active_encounter.status == 'AMBUSH' %}
+                                    Вас заметили первыми. Движение остановлено до решения.
+                                {% else %}
+                                    Вы заметили угрозу раньше, чем она подошла ближе.
+                                {% endif %}
+                            </p>
+                        </div>
+                    {% elif location_view.hud and location_view.hud.type is defined and location_view.hud.type == 'alert' %}
+                        <div class="exploration-encounter-notice is-clear">
+                            <span>NOTICE</span>
+                            <p>{{ location_view.hud.message }}</p>
+                        </div>
+                    {% endif %}
                 </div>
 
-                {% if exploration.grid %}
-                    {% set navigation = exploration.navigation if exploration.navigation is defined else none %}
+                {% if location_view.grid is defined and location_view.grid %}
+                    {% set navigation = location_view.navigation if location_view.navigation is defined else none %}
                     {% set movement = navigation.movement if navigation else none %}
                     {% set exploration_actions = navigation.exploration if navigation else none %}
                     {% set services = navigation.services if navigation else none %}
                     {% set auto_routes = navigation.auto_routes if navigation else none %}
                     <div class="exploration-control-panel">
-                        {% if services or exploration.grid.services %}
+                        {% if services or location_view.grid.services %}
                             <div class="exploration-service-row">
                                 {% if services %}
                                     {% for service in services.values() %}
                                         {{ service_card(service) }}
                                     {% endfor %}
                                 {% else %}
-                                    {% for service in exploration.grid.services %}
+                                    {% for service in location_view.grid.services %}
                                         {{ service_card(service) }}
                                     {% endfor %}
                                 {% endif %}
                             </div>
                         {% endif %}
 
-                        {% if encounter is defined and encounter %}
-                            {{ encounter_panel(encounter) }}
+                        {% if active_encounter %}
+                            {{ encounter_panel(active_encounter) }}
                         {% else %}
                         <div class="exploration-control-grid">
                             <div class="exploration-action-block">
                                 <div class="exploration-control-title">EXPLORATION</div>
-                                {{ exploration_button(exploration_actions.explore if exploration_actions else exploration.grid.nw, 'EXPLORE') }}
+                                {{ exploration_button(exploration_actions.explore if exploration_actions else location_view.grid.nw, 'EXPLORE') }}
                             </div>
 
                             <div class="exploration-route-block">
@@ -251,13 +314,13 @@
                                 </div>
                                 <div class="exploration-movement-grid">
                                     <span></span>
-                                    {{ exploration_button(movement.north if movement else exploration.grid.n, 'MOVE NORTH') }}
+                                    {{ exploration_button(movement.north if movement else location_view.grid.n, 'MOVE NORTH') }}
                                     <span></span>
-                                    {{ exploration_button(movement.west if movement else exploration.grid.w, 'MOVE WEST') }}
-                                    {{ exploration_button(movement.look if movement else exploration.grid.center, 'LOOK AROUND') }}
-                                    {{ exploration_button(movement.east if movement else exploration.grid.e, 'MOVE EAST') }}
+                                    {{ exploration_button(movement.west if movement else location_view.grid.w, 'MOVE WEST') }}
+                                    {{ exploration_button(movement.look if movement else location_view.grid.center, 'LOOK AROUND') }}
+                                    {{ exploration_button(movement.east if movement else location_view.grid.e, 'MOVE EAST') }}
                                     <span></span>
-                                    {{ exploration_button(movement.south if movement else exploration.grid.s, 'MOVE SOUTH') }}
+                                    {{ exploration_button(movement.south if movement else location_view.grid.s, 'MOVE SOUTH') }}
                                     <span></span>
                                 </div>
                             </div>
@@ -266,7 +329,6 @@
                     </div>
                 {% endif %}
             </article>
-        {% endif %}
     {% else %}
         <article class="cs active">
             <div class="placeholder-grid">

@@ -10,18 +10,16 @@ function _applyChatStep(newStep) {
 
     const available = window.innerHeight - 80;
     const steps = [
-        68,                            // 0: mini strip — preview only, input hidden
-        Math.round(available * 0.25),  // 1: quarter — input hover-reveal
-        Math.round(available * 0.50),  // 2: half
-        Math.round(available * 0.75),  // 3: three-quarters
+        68,
+        Math.round(available * 0.25),
+        Math.round(available * 0.50),
+        Math.round(available * 0.75),
     ];
     const clamped = Math.max(0, Math.min(steps.length - 1, newStep));
     const height  = steps[clamped];
 
-    // Direct style → CSS transition animates this, no Alpine lag
     chatRow.style.height = height + 'px';
 
-    // Sync Alpine once (persistence + reactive classes)
     if (window.Alpine) {
         const data = Alpine.$data(container);
         if (data) {

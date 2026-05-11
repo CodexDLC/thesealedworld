@@ -2,5 +2,6 @@
 
 {% block widget_content %}
     <p class="fc-metric-value">{{ widget.value }}</p>
-    {% if widget.subtitle %}<p>{{ widget.subtitle }}</p>{% endif %}
+    {% if widget.subtitle %}<p class="fc-metric-subtitle">{{ widget.subtitle }}</p>{% endif %}
+    {% if widget.trend %}<p class="fc-metric-trend">{{ widget.trend }}</p>{% endif %}
 {% endblock %}

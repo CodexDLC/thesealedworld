@@ -27,7 +27,7 @@ async def _recent_provider(request: Request) -> TableWidgetMap:
 
 
 async def _settings_provider(request: Request) -> TableWidgetMap:
-    entries = CombatCabinetService().get_settings()
+    entries = await CombatCabinetService().get_config(request)
     return CombatCabinetMapper().settings_table(entries)
 
 

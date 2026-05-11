@@ -2,9 +2,11 @@ from typing import Any
 
 from src.frontend.integrations.backend_api.base import BaseApiClient
 from src.shared.schemas import CoreResponseDTO, StateTransitionDTO
-from src.shared.schemas.exploration import EncounterDTO, ExplorationListDTO, WorldNavigationDTO
+from src.shared.schemas.exploration import EncounterDTO, ExplorationListDTO, ExplorationScreenDTO, WorldNavigationDTO
 
-ExplorationPayload = WorldNavigationDTO | EncounterDTO | ExplorationListDTO | StateTransitionDTO | dict[str, Any]
+ExplorationPayload = (
+    ExplorationScreenDTO | WorldNavigationDTO | EncounterDTO | ExplorationListDTO | StateTransitionDTO | dict[str, Any]
+)
 ExplorationResponse = CoreResponseDTO[ExplorationPayload]
 
 

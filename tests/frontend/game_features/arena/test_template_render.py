@@ -172,3 +172,31 @@ def test_group_hall_renders_future_intervention_action():
     assert "Вмешаться" in rendered
     assert "Смотреть" in rendered
     assert "Подбор недоступен" not in rendered
+
+
+def test_arena_viewport_can_oob_refresh_right_sidebar():
+    env = Environment(
+        loader=FileSystemLoader("src/frontend/templates"),
+        autoescape=select_autoescape(),
+    )
+    template = env.get_template("game/domains/arena/viewport/main.html")
+    arena = ArenaUIPayloadDTO(
+        screen=ArenaScreenEnum.MODE_MENU,
+        mode="one_vs_one",
+        title="Схватка [1x1]",
+        description="Описание",
+        buttons=ArenaResources.get_mode_buttons("one_vs_one"),
+        metadata={"rating": 1000, "rank": 1000, "league_name": "Bronze", "matches_played": 0, "placement_left": 5},
+    )
+
+    rendered = template.render(
+        arena=arena,
+        char_id=7,
+        status_seed=SimpleNamespace(symbiote_name="SYSTEM"),
+        oob_panels=True,
+    )
+
+    assert 'id="game-right-content"' in rendered
+    assert 'hx-swap-oob="innerHTML"' in rendered
+    assert "MMR" in rendered
+    assert "1000" in rendered

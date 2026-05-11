@@ -19,7 +19,7 @@ def test_exploration_center_template_has_navigation_and_encounter_surfaces():
     assert "/game/exploration/move" in template
     assert "/game/exploration/interact" in template
     assert "exploration-control-panel" in template
-    assert "exploration.navigation" in template
+    assert "location_view.navigation" in template
     assert "data-move-duration" in template
     assert "exploration-move-cooldown" in template
     assert "game/domains/exploration/right_sidebar/main.html" in template
@@ -33,8 +33,10 @@ def test_exploration_center_template_has_navigation_and_encounter_surfaces():
     assert "exploration_button(exploration.grid.sw" not in template
     assert "exploration_button(exploration.grid.se" not in template
     assert "PEOPLE" not in template
-    assert "exploration.hud.threat if exploration.hud.threat is defined else 0" in template
-    assert "T{{ exploration.hud.threat_tier" in template
+    assert "location_view.hud.threat if location_view.hud.threat is defined else 0" in template
+    assert "T{{ location_view.hud.threat_tier" in template
+    assert "payload_type == 'exploration_encounter' and not" not in template
+    assert "HOSTILES" not in template
 
 
 def test_exploration_right_sidebar_has_navigation_and_encounter_contexts():
@@ -92,9 +94,15 @@ def test_arena_right_sidebar_has_view_contract():
 
     assert "game/domains/arena/right_sidebar/main.html" in shell
     assert "ARENA_VIEW" in template
-    assert "GEAR SCORE" in template
     assert "RANK" in template
-    assert "HALLS" in template
+    assert "RATING" in template
+    assert "MMR" in template
+    assert "LEAGUE" in template
+    assert "RECORD" in template
+    assert "PLACEMENT" in template
+    assert "SEASON" in template
+    assert "HALL" in template
+    assert "GEAR SCORE" not in template
     assert "LIVE BATTLES" not in template
     assert "NO_DATA" in template
 
@@ -194,6 +202,7 @@ def test_game_shell_has_inventory_hud_window_placeholder():
     assert "hud-window-drag-handle" in template
     assert "hud_window_resize_handles.html" in template
     assert "startHudWindowDrag('inventory'" in template
+    assert "closeHudWindow('inventory')" in template
     assert 'game/components/inventory/window.html' in template
 
 
@@ -467,6 +476,11 @@ def test_game_shell_drag_logic_lives_in_source_js():
     assert "startHudWindowResize" in source
     assert "resizeHudWindow" in source
     assert "moveHudWindow" in source
+    assert "hudOpenStorageKey" in source
+    assert "loadHudOpenState(\"inventory\")" in source
+    assert "savedInventoryOpen !== false" in source
+    assert "saveHudOpenState(name, hudWindow.open)" in source
+    assert "closeHudWindow(name)" in source
     assert "core/game_shell.js" in config
 
 
@@ -502,5 +516,5 @@ def test_game_header_has_system_exit_to_lobby():
     template = Path("src/frontend/templates/game/includes/header.html").read_text()
 
     assert 'class="game-exit-link"' in template
-    assert 'href="/game-lobby"' in template
+    assert 'action="/game-lobby/release"' in template
     assert 'data-session-cleanup="pending"' in template

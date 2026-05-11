@@ -242,3 +242,37 @@ class EncounterDTO(ExplorationJsonDTO):
     # Technical Data
     session_id: str | None = None  # ID боевой сессии (если бой)
     metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+# --- Screen Contract DTOs ---
+
+
+class ExplorationScreenContextDTO(ExplorationJsonDTO):
+    """Stable top-level exploration screen context."""
+
+    loc_id: str
+    title: str
+    description: str
+    background_url: str | None = None
+    anchor_influence: dict[str, Any] = Field(default_factory=dict)
+    world_theme: Any | None = None
+    hud: ExplorationHudDTO | AlertHudDTO | None = None
+    threat_tier: int = 0
+    is_safe_zone: bool = False
+    location_understanding_percent: float | None = None
+    location_research_cap_reached: bool | None = None
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class ExplorationScreenContentDTO(ExplorationJsonDTO):
+    """Lower exploration screen content supplied by navigation or encounter services."""
+
+    kind: str
+    data: Any
+
+
+class ExplorationScreenDTO(ExplorationJsonDTO):
+    """Composite payload for the exploration frontend."""
+
+    context: ExplorationScreenContextDTO
+    content: ExplorationScreenContentDTO

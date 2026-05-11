@@ -71,7 +71,7 @@
     {% endif %}
 
     {% if lobby.has_characters %}
-        <div class="lobby-slots" aria-label="Character slots">
+        <div class="lobby-slots" aria-label="Character slots" x-show="!creating" x-cloak>
             <div class="lobby-slot-row">
                 {% for slot in lobby.slots[:2] %}
                     {% include "site/game_lobby/fragments/character_slot.html" %}

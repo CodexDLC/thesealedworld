@@ -64,8 +64,9 @@ class AuthUserMiddleware(BaseHTTPMiddleware):
                 cookie_token = request.cookies.get(FrontendAuthService.access_cookie_name)
                 if cookie_token:
                     request.state.access_token = cookie_token
-        except httpx.RequestError:
-            logger.opt(exception=True).critical("Auth middleware backend user lookup failed")
+        except httpx.RequestError as exc:
+            request.state.backend_unavailable = True
+            logger.warning("Auth middleware backend user lookup unavailable: error={}", exc)
 
         response = await call_next(request)
         tokens = getattr(request.state, "auth_tokens", None)

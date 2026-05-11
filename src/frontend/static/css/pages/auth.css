@@ -40,6 +40,29 @@
     gap: 20px;
 }
 
+.login-notice {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 16px;
+    border: 1px solid rgba(255, 170, 0, 0.25);
+    background: rgba(255, 170, 0, 0.05);
+    color: var(--col-parchment);
+    font-size: 10px;
+    line-height: 1.6;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+}
+
+.login-notice strong {
+    color: var(--col-accent);
+    font-size: 11px;
+}
+
+.login-notice .act-btn {
+    margin-top: 4px;
+}
+
 .form-group { display: flex; flex-direction: column; gap: 8px; }
 .form-group label {
     font-size: 9px;

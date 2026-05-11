@@ -2,6 +2,9 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, cast
 
+if TYPE_CHECKING:
+    from collections.abc import Mapping
+
 from pydantic import BaseModel, Field
 
 if TYPE_CHECKING:
@@ -269,23 +272,27 @@ def build_combat_screen_from_result_vm(result: CombatResultDTO) -> CombatScreenV
     from src.shared.schemas.combat import CombatDashboardDTO
 
     actors = result.actors if isinstance(result.actors, dict) else {}
-    teams = result.teams if isinstance(result.teams, dict) else {}
+    teams = cast("dict[str, Any]", result.teams) if isinstance(result.teams, dict) else {}
     report = result.report if isinstance(result.report, dict) else {}
     metadata = result.metadata if isinstance(result.metadata, dict) else {}
-    viewer_team = _optional_str(metadata.get("viewer_team")) or _viewer_team(result.char_id, teams)
+    viewer_team = _optional_str(metadata.get("viewer_team")) or _viewer_team(
+        result.char_id, cast("Mapping[str, object]", teams)
+    )
     hero_id = str(result.char_id)
     if hero_id not in actors:
         hero_id = _first_actor_id(teams.get(viewer_team) if viewer_team else None) or hero_id
-    enemy_team = _first_enemy_team(teams, viewer_team)
+    enemy_team = _first_enemy_team(cast("Mapping[str, object]", teams), viewer_team)
 
     hero = _result_actor_card(hero_id, actors.get(hero_id), fallback_team=viewer_team or "team_1")
     ally_ids = (
-        [str(actor_id) for actor_id in teams.get(viewer_team, []) if viewer_team and str(actor_id) != hero.actor_id]
-        if isinstance(teams.get(viewer_team), list)
+        [str(actor_id) for actor_id in cast("list[Any]", teams.get(viewer_team, [])) if str(actor_id) != hero.actor_id]
+        if viewer_team and isinstance(teams.get(viewer_team), list)
         else []
     )
     enemy_ids = (
-        [str(actor_id) for actor_id in teams.get(enemy_team, [])] if isinstance(teams.get(enemy_team), list) else []
+        [str(actor_id) for actor_id in cast("list[Any]", teams.get(enemy_team, []))]
+        if enemy_team and isinstance(teams.get(enemy_team), list)
+        else []
     )
     enemies = [
         _result_actor_card(actor_id, actors.get(actor_id), fallback_team=enemy_team or "team_2", is_target=index == 0)
@@ -350,11 +357,12 @@ def _result_actor_card(
     *,
     fallback_team: str,
     is_target: bool = False,
-) -> object:
+) -> CombatActorCardDTO:
     from src.shared.schemas.combat import CombatActorCardDTO, CombatActorVitalsDTO
 
     data = value if isinstance(value, dict) else {}
-    vitals = data.get("vitals_final") if isinstance(data.get("vitals_final"), dict) else {}
+    raw_vitals = data.get("vitals_final")
+    vitals = raw_vitals if isinstance(raw_vitals, dict) else {}
     return CombatActorCardDTO(
         actor_id=actor_id,
         name=str(data.get("name") or actor_id),
@@ -374,18 +382,18 @@ def _result_actor_card(
     )
 
 
-def _viewer_team(char_id: int, teams: dict[str, object]) -> str | None:
+def _viewer_team(char_id: int, teams: Mapping[str, object]) -> str | None:
     actor_id = str(char_id)
     for team, members in teams.items():
-        if isinstance(members, list) and actor_id in {str(member) for member in members}:
-            return str(team)
+        if isinstance(members, list) and actor_id in {member for member in members}:
+            return team
     return None
 
 
-def _first_enemy_team(teams: dict[str, object], viewer_team: str | None) -> str | None:
+def _first_enemy_team(teams: Mapping[str, object], viewer_team: str | None) -> str | None:
     for team, members in teams.items():
         if team != viewer_team and isinstance(members, list) and members:
-            return str(team)
+            return team
     return None
 
 
@@ -402,8 +410,8 @@ def _result_teams(result: CombatResultDTO, actors: dict[str, object]) -> list[Co
         teams = [_result_team_from_report(team, actors) for team in report_teams if isinstance(team, dict)]
         return _order_result_teams(teams, result)
 
-    teams = result.teams if isinstance(result.teams, dict) else {}
-    if teams:
+    raw_teams = result.teams if isinstance(result.teams, dict) else {}
+    if raw_teams:
         result_teams = [
             _result_team_from_member_ids(
                 str(team),
@@ -411,7 +419,7 @@ def _result_teams(result: CombatResultDTO, actors: dict[str, object]) -> list[Co
                 actors,
                 _team_outcome_for_result(str(team), result),
             )
-            for team, members in teams.items()
+            for team, members in raw_teams.items()
             if isinstance(members, list)
         ]
         return _order_result_teams(result_teams, result)
@@ -419,7 +427,7 @@ def _result_teams(result: CombatResultDTO, actors: dict[str, object]) -> list[Co
     grouped: dict[str, list[str]] = {}
     for actor_id, value in actors.items():
         data = value if isinstance(value, dict) else {}
-        grouped.setdefault(str(data.get("team") or "neutral"), []).append(str(actor_id))
+        grouped.setdefault(str(data.get("team") or "neutral"), []).append(actor_id)
     result_teams = [
         _result_team_from_member_ids(team, member_ids, actors, _team_outcome_for_result(team, result))
         for team, member_ids in grouped.items()
@@ -462,7 +470,8 @@ def _result_team_from_member_ids(
 
 def _result_actor(actor_id: str, value: object) -> CombatResultActorVM:
     data = value if isinstance(value, dict) else {}
-    vitals = data.get("vitals_final") if isinstance(data.get("vitals_final"), dict) else {}
+    raw_vitals = data.get("vitals_final")
+    vitals = raw_vitals if isinstance(raw_vitals, dict) else {}
     hp_current = _optional_int(vitals.get("hp")) or 0
     hp_max = max(_optional_int(vitals.get("max_hp")) or 1, 1)
     return CombatResultActorVM(
@@ -513,7 +522,7 @@ def _result_experience(result: CombatResultDTO) -> CombatResultExperienceVM:
 
 def _order_result_teams(teams: list[CombatResultTeamVM], result: CombatResultDTO) -> list[CombatResultTeamVM]:
     metadata = result.metadata if isinstance(result.metadata, dict) else {}
-    viewer_team = _optional_str(metadata.get("viewer_team")) or _viewer_team(result.char_id, result.teams)
+    viewer_team = _optional_str(metadata.get("viewer_team")) or _viewer_team(result.char_id, cast("Any", result.teams))
     return sorted(teams, key=lambda team: (team.team != viewer_team, team.team))
 
 
@@ -524,7 +533,7 @@ def _team_outcome_for_result(team: str, result: CombatResultDTO) -> str:
         return "draw"
     if winner:
         return "victory" if team == winner else "defeat"
-    viewer_team = _optional_str(metadata.get("viewer_team")) or _viewer_team(result.char_id, result.teams)
+    viewer_team = _optional_str(metadata.get("viewer_team")) or _viewer_team(result.char_id, cast("Any", result.teams))
     if viewer_team and team == viewer_team:
         return result.outcome
     if result.outcome == "victory":
@@ -661,7 +670,7 @@ def _model_dict(value: object) -> dict[str, object]:
         return dict(value)
     model_dump = getattr(value, "model_dump", None)
     if callable(model_dump):
-        return model_dump(mode="json")
+        return cast("dict[str, object]", model_dump(mode="json"))
     return {}
 
 
@@ -775,7 +784,7 @@ def _effect_badge(effect: CombatEffectBadgeDTO, exchange_counter: int) -> Combat
 def _effect_remaining(expires_at_exchange: int | None, exchange_counter: int) -> int | None:
     if expires_at_exchange is None:
         return None
-    return max(1, int(expires_at_exchange) - int(exchange_counter) + 1)
+    return max(1, expires_at_exchange - exchange_counter + 1)
 
 
 def _turns_left_text(turns: int) -> str:
@@ -787,13 +796,13 @@ def _turns_left_text(turns: int) -> str:
 
 
 def _effect_impact_text(impact: dict[str, Any]) -> str:
-    hp = impact.get("hp")
-    if hp in (None, ""):
+    raw_hp = impact.get("hp")
+    if not isinstance(raw_hp, (int, str)) or raw_hp == "":
         return ""
     try:
-        value = int(hp)
+        value = int(raw_hp)
     except (TypeError, ValueError):
-        return f"{hp} HP за ход"
+        return f"{raw_hp} HP за ход"
     prefix = "+" if value > 0 else ""
     return f"{prefix}{value} HP за ход"
 
@@ -914,10 +923,10 @@ def _action_catalog(kind: str) -> str | None:
 def _action_cost_items(cost: dict[str, int]) -> list[CombatActionCostVM]:
     return [
         CombatActionCostVM(
-            token_id=str(token_id),
-            amount=int(amount),
-            icon_url=_token_icon_url(str(token_id)),
-            catalog_key=str(token_id),
+            token_id=token_id,
+            amount=amount,
+            icon_url=_token_icon_url(token_id),
+            catalog_key=token_id,
         )
         for token_id, amount in cost.items()
     ]
@@ -945,7 +954,7 @@ def _token_bar(tokens: dict[str, int]) -> list[CombatTokenVM]:
     known = {
         token_id: CombatTokenVM(
             token_id=token_id,
-            value=max(0, int(tokens.get(token_id, 0) or 0)),
+            value=max(0, tokens.get(token_id, 0) or 0),
             icon_url=f"{COMBAT_ICON_ROOT}/{icon}.svg",
             title=title,
             catalog_key=token_id,
@@ -955,7 +964,7 @@ def _token_bar(tokens: dict[str, int]) -> list[CombatTokenVM]:
     unknown = [
         CombatTokenVM(
             token_id=token_id,
-            value=max(0, int(value or 0)),
+            value=max(0, value or 0),
             icon_url=f"{COMBAT_ICON_ROOT}/token.svg",
             title=token_id.upper(),
             catalog_key=token_id,

@@ -1,18 +1,24 @@
 {% extends "cabinet/includes/widget_frame.html" %}
 
 {% block widget_content %}
-    <table>
-        <thead>
-            <tr>
-                {% for column in widget.columns %}<th>{{ column.label }}</th>{% endfor %}
-            </tr>
-        </thead>
-        <tbody>
-            {% for row in widget.rows %}
+    {% if widget.rows %}
+        <table class="fc-table">
+            <thead>
                 <tr>
-                    {% for column in widget.columns %}<td>{{ row[column.key] }}</td>{% endfor %}
+                    {% for column in widget.columns %}<th>{{ column.label }}</th>{% endfor %}
                 </tr>
-            {% endfor %}
-        </tbody>
-    </table>
+            </thead>
+            <tbody>
+                {% for row in widget.rows %}
+                    <tr>
+                        {% for column in widget.columns %}
+                            <td>{{ row.get(column.key, "—") }}</td>
+                        {% endfor %}
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <p class="fc-empty">Нет данных.</p>
+    {% endif %}
 {% endblock %}

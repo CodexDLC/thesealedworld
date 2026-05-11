@@ -20,7 +20,7 @@
             <button type="button"
                     class="hud-window-close"
                     @pointerdown.stop
-                    @click="windows.inventory.open = false">×</button>
+                    @click="closeHudWindow('inventory')">×</button>
         </header>
         <div id="inventory-window-body" class="hud-window-body">
             {% include "game/components/inventory/window.html" %}

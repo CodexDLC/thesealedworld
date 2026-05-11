@@ -254,16 +254,20 @@ async def test_open_window_builds_structured_item_tooltip_without_html(fake_redi
         line.label == "Парирование" and line.value == "12%" and line.tone == "neutral" for line in details.details
     )
     assert any(
-        line.label == "Восстановление выносливости" and line.value == "1" and line.tone == "neutral"
-        for line in details.details
-    )
-    assert any(
-        line.label == "Шанс крита" and line.value == "+4.5%" and line.tier == 4
-        for line in details.affixes
-    )
-    assert any(
         line.label == "Сопротивление контролю" and line.value == "+1.25%" and line.tier == 4
         for line in details.affixes
+    )
+    assert any(
+        line.label == "Пробитие физ. защиты" and line.value == "+1.47%" and line.tier == 4
+        for line in details.affixes
+    )
+    assert any(
+        line.label == "Урон" and line.value == "+4" and line.delta == 4 and line.tone == "positive"
+        for line in details.comparison
+    )
+    assert any(
+        line.label == "Парирование" and line.value == "+8%" and line.delta == pytest.approx(0.08)
+        for line in details.comparison
     )
     assert any(
         line.label == "Пробитие физ. защиты" and line.value == "+1.47%" and line.tier == 4

@@ -706,12 +706,12 @@ class InventoryViewService:
         for key, raw in bonuses.items():
             value = self._float_value(raw)
             if value is None:
-                lines.append(InventoryDetailLineDTO(label=self._label(str(key)), value=str(raw), tone="neutral"))
+                lines.append(InventoryDetailLineDTO(label=self._label(key), value=str(raw), tone="neutral"))
                 continue
             lines.append(
                 InventoryDetailLineDTO(
-                    label=self._label(str(key)),
-                    value=self._display_stat_value(str(key), value),
+                    label=self._label(key),
+                    value=self._display_stat_value(key, value),
                     tone="neutral",
                 )
             )
@@ -978,10 +978,12 @@ class InventoryViewService:
     @staticmethod
     def _affix_tier(raw_affix: dict[str, object], fallback_tier: int) -> int:
         for key in ("tier", "affix_tier", "item_tier"):
-            try:
-                return max(0, min(7, int(raw_affix[key])))  # type: ignore[arg-type]
-            except (KeyError, TypeError, ValueError):
-                continue
+            val = raw_affix.get(key)
+            if val is not None:
+                try:
+                    return max(0, min(7, int(val)))  # type: ignore[arg-type, call-overload]
+                except (TypeError, ValueError):
+                    continue
         return max(0, min(7, fallback_tier))
 
     @staticmethod

@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ru">
 <head>
     {% block meta %}
         {% include "shared/meta.html" %}
@@ -9,18 +9,18 @@
         <!-- Google Fonts -->
         <link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400..800;1,400..800&family=JetBrains+Mono:wght@300;400;500;600&display=swap" rel="stylesheet">
         <!-- Site Specific Styles -->
-        <link rel="stylesheet" href="/static/css/site.css">
+        <link rel="stylesheet" href="/static/css/site.css?v={{ static_version }}">
     {% endblock styles %}
 
     {% block extra_head %}{% endblock extra_head %}
     <style>[x-cloak] { display: none !important; }</style>
 
-    <!-- Essential Scripts for Site (Minimal Alpine) -->
+    <!-- Site state factories must load before Alpine initializes x-data. -->
+    <script src="/static/js/site.js?v={{ static_version }}" defer></script>
     <script src="/static/js/vendor/alpine.js" defer></script>
-    <script src="/static/js/site.js" defer></script>
 </head>
 <body class="site-body {% block body_class %}{% endblock body_class %}">
-    <div x-data="{ showLogin: false }" style="display: contents;">
+    <div x-data="{ authModal: null }" style="display: contents;">
         {% include "site/includes/login_modal.html" %}
 
         <div id="app-viewport">

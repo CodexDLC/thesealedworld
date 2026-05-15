@@ -508,6 +508,9 @@
                     {% if row.quantity != "1" and row.quantity != 1 %}
                     <span class="inventory-card-qty">{{ row.quantity }}</span>
                     {% endif %}
+                    {% if row.is_unsecured is defined and row.is_unsecured %}
+                    <span class="inventory-card-qty" title="Unsynced">DIRTY</span>
+                    {% endif %}
                     <span class="inventory-card-rarity">{{ row.rarity }}</span>
                     <template class="inventory-tooltip-template">
                         {{ inventory_tooltip_card(row.name, row.item_type, row.rarity_label if row.rarity_label is defined else row.rarity, row_tier, row_icon, row.details if row.details is defined else none, row.comparison if row.comparison is defined else [], row.weight, row.quantity, row.equip_target or '') }}

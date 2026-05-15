@@ -2,8 +2,8 @@ from typing import Any
 
 from loguru import logger
 
+from src.backend.core.auth import User
 from src.backend.features.game_lobby.integrations import GameLobbyIntegration
-from src.backend.features_site.auth.models import User
 from src.shared.enums import CoreDomain
 from src.shared.schemas import (
     CoreResponseDTO,
@@ -53,8 +53,14 @@ class GameLobbyService:
         self,
         user: User,
         character_id: int,
+        *,
+        confirm_name: str,
     ) -> None:
-        await self.integration.delete_owned_character(user_id=user.id, character_id=character_id)
+        await self.integration.delete_owned_character(
+            user_id=user.id,
+            character_id=character_id,
+            confirm_name=confirm_name,
+        )
 
     async def enter_character(self, user: User, character_id: int) -> CoreResponseDTO[dict[str, Any]]:
         await self.integration.release_other_active_sessions(user.id, character_id)

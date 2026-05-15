@@ -1,7 +1,7 @@
 from fastapi import Request
 
+from src.frontend.game_features.session.token_state import require_game_access_token
 from src.frontend.integrations.backend_api.exploration import BackendExplorationApi, ExplorationResponse
-from src.frontend.site_features.auth.token_state import require_access_token
 
 
 class ExplorationActionService:
@@ -17,7 +17,7 @@ class ExplorationActionService:
         target_id: str | None,
     ) -> ExplorationResponse:
         return await self.api.move(
-            require_access_token(request),
+            require_game_access_token(request),
             char_id=char_id,
             direction=direction,
             target_id=target_id,
@@ -32,7 +32,7 @@ class ExplorationActionService:
         target_id: str | None,
     ) -> ExplorationResponse:
         return await self.api.interact(
-            require_access_token(request),
+            require_game_access_token(request),
             char_id=char_id,
             action=action,
             target_id=target_id,
@@ -40,7 +40,7 @@ class ExplorationActionService:
 
     async def use_service(self, request: Request, *, char_id: int, service_id: str) -> ExplorationResponse:
         return await self.api.use_service(
-            require_access_token(request),
+            require_game_access_token(request),
             char_id=char_id,
             service_id=service_id,
         )

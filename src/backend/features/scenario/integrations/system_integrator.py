@@ -15,6 +15,7 @@ from src.backend.features.items.events.publisher import ItemEvents
 from src.backend.features.scenario.dto.context import ScenarioContextDTO
 from src.backend.features.scenario.handlers import get_handler
 from src.backend.features.scenario.handlers.base_handler import ScenarioInitialHandlerContext
+from src.backend.features.tavern.events import TavernEvents
 from src.shared.enums import CoreDomain
 
 if TYPE_CHECKING:
@@ -70,8 +71,10 @@ class ScenarioSystemIntegrator:
         if character is None:
             raise BusinessLogicException("Scenario character is unavailable")
 
-    def build_handler(self, quest_key: str) -> BaseScenarioHandler:
-        return get_handler(quest_key, integration=self)
+    def build_handler(self, quest_master: dict[str, Any]) -> BaseScenarioHandler:
+        quest_key = str(quest_master["quest_key"])
+        scenario_type = str(quest_master["scenario_type"])
+        return get_handler(quest_key, scenario_type=scenario_type, integration=self)
 
     async def get_initial_handler_context(self, char_id: int) -> ScenarioInitialHandlerContext:
         symbiote = await self.character_sessions.get_section(char_id, "symbiote")
@@ -98,11 +101,16 @@ class ScenarioSystemIntegrator:
 
         # 2. Register with Character Session
         try:
+            expected_state = self._prepare_expected_state(context)
             await self.character_sessions.transition_state(
-                char_id, CoreDomain.SCENARIO, expected_state=CoreDomain.LOBBY
+                char_id,
+                CoreDomain.SCENARIO,
+                expected_state=expected_state,
+                prev_state=expected_state,
             )
         except Exception:
-            log.warning("Scenario initialize state transition skipped: char_id=%s", char_id)
+            await self.sessions.delete(char_id)
+            raise
 
         await self.character_sessions.set_scenario_session(
             char_id,
@@ -112,6 +120,12 @@ class ScenarioSystemIntegrator:
 
         # 3. Create initial DB Backup
         await self._backup_state(char_id, quest_key, context.current_node_key, context, context.scenario_session_id)
+
+    @staticmethod
+    def _prepare_expected_state(context: ScenarioContextDTO) -> CoreDomain | str | None:
+        if context.return_context is not None:
+            return context.return_context.source_state
+        return context.prev_state
 
     async def load_session(self, char_id: int) -> ScenarioContextDTO | None:
         """Loads a session, preferring Redis, falling back to DB."""
@@ -372,6 +386,60 @@ class ScenarioSystemIntegrator:
     async def apply_attribute_bonuses(self, char_id: int, bonuses: dict[str, int]) -> None:
         if bonuses:
             await self.character_sessions.apply_attribute_bonus(char_id, bonuses)
+
+    async def apply_finalize_effects(self, char_id: int, metadata: dict[str, Any], *, quest_key: str) -> dict[str, Any]:
+        effects = metadata.pop("_effects", [])
+        if not effects:
+            return {}
+        if not isinstance(effects, list):
+            raise RuntimeError(f"Scenario finalize effects must be a list: quest_key={quest_key}")
+
+        results: dict[str, Any] = {}
+        for effect in effects:
+            if not isinstance(effect, dict):
+                raise RuntimeError(f"Scenario finalize effect must be an object: quest_key={quest_key}")
+            effect_type = str(effect.get("type") or "")
+            required = bool(effect.get("required", True))
+            try:
+                effect_result = await self._apply_finalize_effect(char_id, effect, quest_key=quest_key)
+            except Exception:
+                if required:
+                    raise
+                log.exception(
+                    "Optional scenario finalize effect failed: char_id=%s quest_key=%s effect=%s",
+                    char_id,
+                    quest_key,
+                    effect,
+                )
+                continue
+            results.update(effect_result)
+            results.setdefault("effects", {})[effect_type] = effect_result
+        return results
+
+    async def _apply_finalize_effect(self, char_id: int, effect: dict[str, Any], *, quest_key: str) -> dict[str, Any]:
+        effect_type = str(effect.get("type") or "")
+        if effect_type == "tavern.grant_room":
+            response = await self.events.request(
+                TavernEvents.ROOM_GRANT_REQUESTED,
+                {
+                    "char_id": char_id,
+                    "quest_key": quest_key,
+                    "tavern_id": str(effect["tavern_id"]),
+                    "room_key": str(effect.get("room_key") or ""),
+                    "reason": str(effect.get("reason") or f"scenario:{quest_key}"),
+                },
+                timeout=30.0,
+            )
+            if not isinstance(response, dict) or response.get("status") != "ok":
+                raise RuntimeError(f"Tavern room grant effect failed: {response!r}")
+            return {
+                "room_granted": True,
+                "room_id": response.get("room_id"),
+                "room_key": response.get("room_key"),
+                "tavern_id": response.get("tavern_id"),
+                "room_created": response.get("created"),
+            }
+        raise RuntimeError(f"Unsupported scenario finalize effect: {effect_type}")
 
     async def prepare_combat_return_context(self, char_id: int, *, location_id: str | None = None) -> None:
         updates: dict[str, Any] = {"$.prev_state": CoreDomain.EXPLORATION.value}

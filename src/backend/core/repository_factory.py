@@ -4,14 +4,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.backend.features.character.repositories import (
     CharacterAttributesRepository,
+    CharacterProgressionRepository,
     CharacterRepository,
     SkillRepository,
     SymbioteRepository,
 )
+from src.backend.features.expedition import CharacterExpeditionRepository
 from src.backend.features.items.repositories import ItemInstanceRepository
 from src.backend.features.monsters.repositories import MonsterGenerationRepository
-from src.backend.features_site.auth.repositories.token_repository import TokenRepository
-from src.backend.features_site.auth.repositories.user_repository import UserRepository
 from src.backend.infrastructure.inventory import InventoryRepository, WalletRepository
 from src.backend.infrastructure.monsters import MonsterRepository
 from src.backend.infrastructure.scenario.repositories import ScenarioRepository
@@ -26,13 +26,9 @@ class ActorStateRepositories:
     inventory: InventoryRepository
     wallet: WalletRepository
     skills: SkillRepository
+    progression: CharacterProgressionRepository
     symbiote: SymbioteRepository
-
-
-@dataclass(frozen=True)
-class AuthRepositories:
-    users: UserRepository
-    tokens: TokenRepository
+    expeditions: CharacterExpeditionRepository
 
 
 @dataclass(frozen=True)
@@ -52,13 +48,9 @@ class RepositoryFactory:
             inventory=InventoryRepository(session),
             wallet=WalletRepository(session),
             skills=SkillRepository(session),
+            progression=CharacterProgressionRepository(session),
             symbiote=SymbioteRepository(session),
-        )
-
-    def auth(self, session: AsyncSession) -> AuthRepositories:
-        return AuthRepositories(
-            users=UserRepository(session),
-            tokens=TokenRepository(session),
+            expeditions=CharacterExpeditionRepository(session),
         )
 
     def content(self, session: AsyncSession) -> ContentRepositories:

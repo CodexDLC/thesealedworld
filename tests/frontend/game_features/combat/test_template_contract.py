@@ -14,6 +14,7 @@ from src.shared.schemas.combat import (
     CombatDeltaDTO,
     CombatEffectBadgeDTO,
     CombatEventDTO,
+    CombatExchangeStateDTO,
     CombatFeintOptionDTO,
     CombatLogTurnDTO,
     CombatResultActionDTO,
@@ -21,42 +22,89 @@ from src.shared.schemas.combat import (
 )
 
 
-def test_combat_shell_forces_three_zone_layout():
+def test_combat_shell_uses_desktop_docks_without_forcing_mobile_panels():
     template = Path("src/frontend/templates/game/session_content_inner.html").read_text()
+    responsive_css = Path("src/frontend/static/css/pages/game/layout_responsive.css").read_text()
 
     assert "combat_layout = domain == 'combats'" in template
-    assert "combat_sidebars = combat_layout" in template
+    assert "shell_background_url = background_url" in template
+    assert "scene-none" not in template
+    assert "localStorage.getItem('combat_background_url')" in template
+    assert "combat_sidebars = false" in template
     assert "shell_left_open" in template
     assert "'combat-layout' if combat_layout else ''" in template
     assert "combat_sidebars or (not combat_layout and session_ui and session_ui.left_open)" in template
     assert "combat_sidebars or (not combat_layout and session_ui and session_ui.right_open)" in template
+    assert "@media (min-width: 1025px)" in responsive_css
+    assert ".game-top-row.combat-layout" in responsive_css
+    assert ".game-top-row.combat-layout .col-left" in responsive_css
+    assert "@media (max-width: 1279px)" in responsive_css
+    assert "@media (max-width: 767px)" in responsive_css
+    assert ".game-top-row.combat-layout .col-right" in responsive_css
 
 
-def test_combat_viewport_uses_team_bars_and_command_deck():
+def test_combat_shell_renders_footer_chat_and_state_header():
+    base = Path("src/frontend/templates/game/base_game.html").read_text()
+    session_oob = Path("src/frontend/templates/game/session_content.html").read_text()
+    header = Path("src/frontend/templates/game/includes/header.html").read_text()
+
+    assert 'domain != \'combats\'' not in base
+    assert 'domain != \'combats\'' not in session_oob
+    assert 'include "game/includes/chat_footer.html"' in base
+    assert 'include "game/includes/chat_footer.html"' in session_oob
+    assert "{% if domain == 'combats' %}" in header
+    assert "combat-header-state" in header
+    combat_header = header.split("{% if domain == 'combats' %}", maxsplit=1)[1].split("{% else %}", maxsplit=1)[0]
+    assert "game-system-menu" not in combat_header
+    assert "header_nav.html" not in combat_header
+    assert "opponent_response_state" in combat_header
+
+
+def test_combat_viewport_uses_prototype_field_and_bottom_action_panel():
     template = Path("src/frontend/templates/game/domains/combat/viewport/main.html").read_text()
 
     assert "combat-viewport" in template
     assert "combat-screen-shell" in template
-    assert "combat-battle-header" in template
-    assert "combat-team-bars" in template
-    assert "combat_screen.session_id" in template
+    assert "combat-statebar" in template
+    assert "game-screen-area" in template
+    assert "game-screen-area--vertical" in template
+    assert "combat-battle-header" not in template
+    assert "combat-team-bars" not in template
+    assert "combat-command-deck" not in template
+    assert "combat-exchange-track" not in template
+    assert "combat-exchange-meta" not in template
+    assert "combat-secondary-action" not in template
+    assert "combat-escape" not in template
+    assert "СБЕЖАТЬ" not in template
+    assert "game-action-panel game-action-panel--bottom combat-action-panel" in template
+    assert "game-action-button" in template
+    assert "combat-action-panel" in template
+    assert "combat-mobile-dock" in template
     assert "QUEUE" in template
-    assert "LOCKED" in template
     assert "combat-stage" not in template
     assert "combat-duelist--hero" not in template
     assert "combat-duelist--target" not in template
-    assert "combat-command-deck" in template
+    assert "combat-field" in template
+    assert "combat-commit--{{ field_target.commit_state }}" in template
+    assert "combat-commit-frame--{{ field_target.commit_state }}" in template
+    assert "field_target.commit_tooltip" in template
+    assert "combat-exchange-card" in template
+    assert "combat-exchange-wave" in template
+    assert "combat_screen.log_turns[0]" in template
+    assert "combat_screen.exchange_state" in template
     assert 'hx-trigger="every 2s"' not in template
     assert 'hx-trigger="load delay:1500ms"' in template
     assert "combat_screen.action_state == 'ACTION_LOCKED'" in template
     assert 'hx-disabled-elt="this"' in template
     assert "ACTION_LOCKED" in template
     assert "REFRESH_TARGET" in template
-    assert "combat-action-topline" in template
+    assert "combat-primary-row" in template
+    assert "combat-command-layout" in template
     assert "combat-token-strip" in template
     assert 'data-catalog="{{ token.catalog }}"' in template
     assert 'data-catalog-tooltip="description"' in template
-    assert "combat_screen.feint_options[:3]" in template
+    assert "feint_slots = combat_screen.feint_options[:3]" in template
+    assert "[:3 - (feint_slots|length)]" in template
     assert "combat-feint-row" in template
     assert 'hx-post="/game/combat/feint-pin"' in template
     assert "action.pinned" in template
@@ -68,6 +116,18 @@ def test_combat_viewport_uses_team_bars_and_command_deck():
     assert "combat_screen.ability_options" in template
     assert "ability_source is mapping" in template
     assert "ability_source is sequence" in template
+    assert "belt_slots = hero.quick_belt[:8]" in template
+    assert "ability_slots = ability_options[:8]" in template
+    assert "[:8 - (belt_slots|length)]" in template
+    assert "[:8 - (ability_slots|length)]" in template
+    assert "combat-belt-slot--empty" in template
+    assert "combat-ability-option--empty" in template
+    assert "/static/images/ui/inventory-gear/default.svg" in template
+    assert "<span>x</span>" not in template
+    assert "combat-action-group--desktop" in template
+    assert "combat-action-group--mobile" in template
+    assert "panel-dock panel-dock--framed combat-action-group combat-action-group--belt" in template
+    assert "panel-dock panel-dock--framed combat-action-group combat-action-group--abilities" in template
     assert "combat-ability-option" in template
     assert "ability-debug-swirl.svg" not in template
     assert "DEBUG_ABILITY_PLACEHOLDER" not in template
@@ -82,12 +142,64 @@ def test_combat_viewport_uses_team_bars_and_command_deck():
     assert "НАВЫКИ НЕ ИЗМЕНИЛИСЬ" in template
     assert "result_primary_state" in template
     assert "combat_result_screen is defined" in template
+    assert "'Противники · ' ~ team.team|upper" in template
     assert "OUTCOME" not in template
     assert "ARCHIVE" not in template
-    assert "combat-wait-scene" in template
+    assert "combat-wait-scene" not in template
     assert "ds-panel combat-summary" not in template
-    wait_scene_block = template.split("combat-wait-scene", maxsplit=1)[1].split("{% endif %}", maxsplit=1)[0]
-    assert "TARGET_QUEUE_EMPTY" not in wait_scene_block
+
+
+def test_combat_active_template_renders_prototype_layout():
+    env = Environment(loader=FileSystemLoader("src/frontend/templates"), autoescape=True)
+    template = env.get_template("game/domains/combat/viewport/main.html")
+    hero = CombatActorCardDTO(
+        actor_id="1",
+        name="Hero",
+        team="team_1",
+        vitals=CombatActorVitalsDTO(hp_current=70, hp_max=100),
+        feints=[CombatFeintOptionDTO(feint_id="true_strike", label="Attack", cost={"hit": 1})],
+    )
+    target = CombatActorCardDTO(
+        actor_id="2",
+        name="Shadow",
+        team="team_2",
+        vitals=CombatActorVitalsDTO(hp_current=40, hp_max=80),
+        is_target=True,
+    )
+    screen = build_combat_screen_vm(
+        CombatDashboardDTO(
+            session_id="combat-1",
+            turn_number=3,
+            status="active",
+            action_state="ACTION_READY",
+            hero=hero,
+            target=target,
+            allies=[hero],
+            enemies=[target],
+            events_delta=CombatDeltaDTO(
+                turns=[
+                    CombatLogTurnDTO(
+                        global_turn=3,
+                        title="Ход 3",
+                        entries=[CombatEventDTO(type="HIT", text="Shadow hits Hero.", global_turn=3)],
+                    )
+                ]
+            ),
+        )
+    )
+
+    html = template.render(char_id=5, combat_screen=screen, combat_result=None)
+
+    assert "combat-statebar" in html
+    assert "game-screen-area" in html
+    assert "game-action-panel game-action-panel--bottom combat-action-panel" in html
+    assert "combat-field" in html
+    assert "combat-exchange-wave" in html
+    assert "Shadow hits Hero." in html
+    assert "combat-mobile-dock" in html
+    assert "combat-action-panel" in html
+    assert "combat-team-bars" not in html
+    assert "СБЕЖАТЬ" not in html
 
 
 def test_combat_sidebars_use_combat_panels():
@@ -95,9 +207,17 @@ def test_combat_sidebars_use_combat_panels():
     right = Path("src/frontend/templates/game/domains/combat/right_sidebar/main.html").read_text()
 
     assert "combat-panel combat-actor-panel" in left
-    assert "combat-panel combat-actor-panel" in right
+    assert "combat-panel combat-actor-panel" not in right.split("{% elif combat_screen %}", maxsplit=1)[1].split("{% else %}", maxsplit=1)[0]
     assert "combat-panel-header" in left
     assert "combat-panel-header" in right
+    assert "combat_screen.exchange_state.pair_status" in right
+    assert "combat_screen.exchange_state.opponent_response_state" in right
+    assert "combat-commit-row--{{ enemy.commit_state }}" in right
+    assert "combat-queue-dot--{{ enemy.commit_state }}" in right
+    assert "enemy.commit_tooltip" in right
+    assert "combat_screen.enemy_groups" in right
+    assert "combat-roster-group" in right
+    assert 'data-team="{{ enemy.team }}"' in right
     assert "combat-target-empty-panel" in right
     assert "TARGET_QUEUE_EMPTY" in right
     assert "Цель не найдена" in right
@@ -112,9 +232,8 @@ def test_combat_sidebars_use_combat_panels():
     assert "DEBUG_BLEED" not in left
     assert "DEBUG_BURN" not in right
     assert "actor.effects" in left
-    assert "actor.effects" in right
+    assert "actor.effects" not in right.split("{% elif combat_screen %}", maxsplit=1)[1].split("{% else %}", maxsplit=1)[0]
     assert "combat-vital-bar--stamina" in left
-    assert "combat-vital-bar--stamina" in right
     assert "ds-panel" not in left
     assert "ds-panel" not in right
 
@@ -139,8 +258,48 @@ def test_combat_css_contains_texture_surfaces_without_shell_overrides():
     assert ".combat-vital-bar--stamina i" in source
     assert "button-surface-04-charcoal-stone.webp" in source
     assert "button-surface-02-blackened-metal.webp" in source
+    action_panel_block = source.split(".combat-action-panel {", maxsplit=1)[1].split(".combat-action-panel .combat-token-strip", maxsplit=1)[0]
+    assert "button-surface-03-aged-bronze.webp" not in action_panel_block
+    token_block = source.split(".combat-token {", maxsplit=1)[1].split(".combat-token img", maxsplit=1)[0]
+    assert "button-surface-03-aged-bronze.webp" not in token_block
     assert "duel-hall.webp" in source
+    assert "universal-combat-bg.png" in source
     assert ".combat-log-icon" in source
+    assert ".combat-exchange-wave" in source
+    assert ".combat-exchange-wave__line" in source
+    assert "@media (min-width: 1025px)" in source
+    assert ".combat-field > .combat-field-actor--hero" in source
+    assert "display: none;" in source
+    assert "--center-content-max: 820px;" in source
+    assert "grid-template-rows: auto auto auto;" in source
+    assert "align-content: start;" in source
+    assert ".combat-statebar," in source
+    assert "@media (max-width: 860px)" in source
+    assert ".combat-statebar {\n        display: none;" in source
+    assert "width: 100%;" in source
+    assert "grid-template-rows: minmax(138px, auto) minmax(0, 1fr);" in source
+    assert "width: min(100%, 300px);" in source
+    assert "--combat-target-card-width: clamp(340px, 52cqw, 620px);" in source
+    assert "--combat-target-portrait-size: clamp(100px, min(16cqw, 30cqh), 190px);" in source
+    assert "grid-template-columns: minmax(0, 1fr) var(--combat-target-portrait-size);" in source
+    assert "width: var(--combat-target-portrait-size);" in source
+    assert "height: var(--combat-target-portrait-size);" in source
+    assert ".combat-commit-frame--committed" in source
+    assert ".combat-commit-row--timeout_warning" in source
+    assert ".combat-info-list" in source
+    assert "grid-template-columns: minmax(148px, 190px) minmax(0, 1fr);" in source
+    assert ".combat-roster-group" in source
+    assert ".combat-roster-group__head" in source
+    assert ".combat-action-group--desktop" in source
+    assert ".combat-action-group--mobile" in source
+    assert "grid-template-columns: repeat(4, minmax(0, 1fr));" in source
+    assert ".combat-belt-slot--empty" in source
+    assert ".combat-ability-option--empty" in source
+    assert ".combat-belt-slot--empty img" in source
+    assert "button-surface-02-blackened-metal.webp" in source
+    assert ".combat-tool-panel {\n        order: -1;" in source
+    assert ".combat-decision-panel {\n        order: 1;" in source
+    assert ".combat-refresh-button" in source
 
 
 def test_combat_log_panel_renders_line_icons():
@@ -229,7 +388,13 @@ def test_combat_vm_includes_hero_in_allied_side_and_session_metrics():
                 team="team_2",
                 vitals=CombatActorVitalsDTO(hp_current=40, hp_max=80),
                 is_target=True,
-            )
+            ),
+            CombatActorCardDTO(
+                actor_id="3",
+                name="Third Force",
+                team="team_3",
+                vitals=CombatActorVitalsDTO(hp_current=25, hp_max=50),
+            ),
         ],
     )
 
@@ -238,10 +403,15 @@ def test_combat_vm_includes_hero_in_allied_side_and_session_metrics():
     assert [actor.actor_id for actor in screen.allies] == ["1"]
     assert screen.allied_team.hp_current == 70
     assert screen.allied_team.hp_max == 100
-    assert screen.enemy_team.hp_current == 40
-    assert screen.enemy_team.hp_max == 80
+    assert screen.enemy_team.hp_current == 65
+    assert screen.enemy_team.hp_max == 130
     assert screen.allied_team.target_queue_size == 0
     assert screen.enemy_team.pending_action_count == 0
+    assert [actor.team for actor in screen.enemies] == ["team_2", "team_3"]
+    assert [group.team for group in screen.enemy_groups] == ["team_2", "team_3"]
+    assert [group.label for group in screen.enemy_groups] == ["TEAM 2", "TEAM 3"]
+    assert [row.actor_id for row in screen.enemy_groups[0].rows] == ["2"]
+    assert [row.actor_id for row in screen.enemy_groups[1].rows] == ["3"]
 
 
 def test_combat_vm_exposes_full_token_strip_from_backend_key_values():
@@ -382,6 +552,28 @@ def test_combat_vm_preserves_log_catalog_metadata():
     assert screen.log_turns[0].lines[0].icon_url.endswith("/feint.svg")
 
 
+def test_combat_vm_exposes_exchange_state():
+    dashboard = CombatDashboardDTO(
+        session_id="combat-1",
+        turn_number=3,
+        status="active",
+        hero=CombatActorCardDTO(actor_id="1", name="Hero", team="team_1"),
+        exchange_state=CombatExchangeStateDTO(
+            pair_status="ready_to_resolve",
+            opponent_response_state="responded",
+            title="PAIR READY",
+            summary_text="Ответ противника получен.",
+            turn=3,
+        ),
+    )
+
+    screen = build_combat_screen_vm(dashboard)
+
+    assert screen.exchange_state.pair_status == "ready_to_resolve"
+    assert screen.exchange_state.opponent_response_state == "responded"
+    assert screen.exchange_state.summary_text == "Ответ противника получен."
+
+
 def test_combat_result_vm_builds_report_and_progression_rows():
     result = CombatResultDTO(
         combat_id="combat-1",
@@ -442,7 +634,7 @@ def test_combat_result_vm_builds_standard_combat_sidebars_from_finalization():
         char_id=7,
         status="finished",
         outcome="victory",
-        teams={"team_1": ["7"], "team_2": ["-7"]},
+        teams={"team_1": ["7"], "team_2": ["-7"], "team_3": ["-8"]},
         actors={
             "7": {
                 "name": "CodexDLC",
@@ -455,6 +647,12 @@ def test_combat_result_vm_builds_standard_combat_sidebars_from_finalization():
                 "actor_type": "shadow",
                 "is_dead": True,
                 "vitals_final": {"hp": 0, "max_hp": 40},
+            },
+            "-8": {
+                "name": "Third Warband",
+                "team": "team_3",
+                "actor_type": "monster",
+                "vitals_final": {"hp": 11, "max_hp": 30},
             },
         },
         report={"last_turn": 9},
@@ -471,4 +669,9 @@ def test_combat_result_vm_builds_standard_combat_sidebars_from_finalization():
     assert screen.target.name == "Shadow CodexDLC"
     assert screen.target.is_dead is True
     assert screen.allied_team.total_count == 1
-    assert screen.enemy_team.alive_count == 0
+    assert screen.enemy_team.alive_count == 1
+    assert screen.enemy_team.total_count == 2
+    assert [enemy.actor_id for enemy in screen.enemies] == ["-7", "-8"]
+    assert [group.team for group in screen.enemy_groups] == ["team_2", "team_3"]
+    assert [row.actor_id for row in screen.enemy_groups[0].rows] == ["-7"]
+    assert [row.actor_id for row in screen.enemy_groups[1].rows] == ["-8"]

@@ -27,6 +27,12 @@ SERVICE_REGISTRY: dict[str, ExplorationServiceEntry] = {
         label="На арену",
         metadata={"service_type": "arena"},
     ),
+    "svc_tavern_hub": ExplorationServiceEntry(
+        service_id="svc_tavern_hub",
+        target_state=CoreDomain.TAVERN,
+        label="В таверну",
+        metadata={"service_type": "tavern", "tavern_id": "last_refuge"},
+    ),
 }
 
 

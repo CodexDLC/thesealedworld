@@ -21,6 +21,16 @@ Apply this order when building UI:
 6. page-level CSS
 7. inline styles
 
+## Surface-Specific Skills
+
+Before UI design work, use the matching surface skill:
+
+- `turnbasedmmorpg-site-design` for public website and account pages.
+- `turnbasedmmorpg-cabinet-design` for cabinet/admin/operational pages.
+- `turnbasedmmorpg-game-interface-design` for gameplay HUDs, game prototypes, and domain screens.
+
+The general frontend skill describes service architecture. It does not replace surface-specific design rules.
+
 ## Do Not
 
 - Do not add new button classes before checking `components/buttons.css`
@@ -29,6 +39,8 @@ Apply this order when building UI:
 - Do not treat broken shared CSS as permission to write page-local replacements
 - Do not use `/system/design` as the design reference
 - Do not reference `tools/icon-reserve/` assets directly from templates, JSON, or browser code
+- Do not put shared layout behavior into a domain screen CSS file just because the first implementation happens inside one domain
+- Do not create separate action panel, drawer, or button systems for exploration, combat, scenario, and loot
 
 ## Reuse Targets
 
@@ -41,6 +53,25 @@ Prefer these shared classes first:
 - `world-text`
 - `whisper`
 - `choice`
+
+## Component Promotion Rule
+
+If two domains need the same behavior, the base behavior belongs in a component.
+
+Domain files may contain:
+
+- domain content layout
+- domain-specific labels/icons/state colors
+- small responsive overrides
+
+Domain files must not own:
+
+- shell placement
+- common action panel position
+- common drawer overlay behavior
+- common button surface
+- common side panel mechanics
+- common chat drawer mechanics
 
 ## Known Shared-Layer Drift
 

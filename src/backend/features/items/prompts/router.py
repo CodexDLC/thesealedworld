@@ -10,6 +10,10 @@ item_prompt_router = LLMRouter()
 
 @item_prompt_router.prompt("item_name_description")
 async def build_item_name_description(payload: dict[str, Any], **kwargs: Any) -> PromptResult:
+    return build_item_name_description_prompt(payload)
+
+
+def build_item_name_description_prompt(payload: dict[str, Any]) -> PromptResult:
     system = (
         'You write item names and descriptions for a dark fantasy / post-apocalyptic MMORPG ("Echo of Ancients"). '
         "The world is shaped by four Anchor Monoliths: north=stasis/ice, south=plasma/fire, west=gravity/storm, east=biomass/mutation. "

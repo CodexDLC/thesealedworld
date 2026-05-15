@@ -10,8 +10,8 @@ from src.shared.schemas.character_status import CharacterActorCoreDTO
 from src.shared.schemas.panel import PanelDTO, PanelWidgetDTO
 
 if TYPE_CHECKING:
+    from src.backend.core.auth import User
     from src.backend.features.character.integrations import CharacterStateIntegrator
-    from src.backend.features_site.auth.models import User
 
 
 ATTRIBUTE_GROUPS = [
@@ -125,6 +125,7 @@ class CharacterStatusService:
         skills = document.get("skills") or {}
         metrics = document.get("metrics") or {}
         resources = document.get("resources") or document.get("wallet") or {}
+        risk = document.get("risk") or {}
 
         return PanelDTO(
             id="character_status",
@@ -149,6 +150,12 @@ class CharacterStatusService:
                         self._vital_item("EN", vitals.get("energy"), "en"),
                         self._vital_item("STAMINA", vitals.get("stamina"), "sta"),
                     ],
+                ),
+                PanelWidgetDTO(
+                    type="badges",
+                    title="SYNC",
+                    visible=bool(risk),
+                    items=self._risk_items(risk),
                 ),
                 PanelWidgetDTO(
                     type="attribute_grid",
@@ -182,6 +189,24 @@ class CharacterStatusService:
             for key, value in resources.items()
             if isinstance(value, int | float | str)
         ]
+
+    @staticmethod
+    def _risk_items(risk: dict) -> list[dict]:
+        state = str(risk.get("sync_state") or "safe").upper()
+        items = [{"label": state}]
+        free_xp = float(risk.get("pending_free_xp", 0.0) or 0.0)
+        skill_count = int(risk.get("pending_skill_count", 0) or 0)
+        item_count = int(risk.get("carried_item_count", 0) or 0)
+        resource_count = int(risk.get("carried_resource_count", 0) or 0)
+        if free_xp:
+            items.append({"label": f"XP +{free_xp:.2f}"})
+        if skill_count:
+            items.append({"label": f"SKILLS {skill_count}"})
+        if item_count:
+            items.append({"label": f"ITEMS {item_count}"})
+        if resource_count:
+            items.append({"label": f"RES {resource_count}"})
+        return items
 
     @staticmethod
     def _attribute_groups(attributes: dict) -> list[dict]:

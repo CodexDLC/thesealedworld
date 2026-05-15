@@ -14,6 +14,7 @@ if TYPE_CHECKING:
         CombatDashboardDTO,
         CombatEffectBadgeDTO,
         CombatEventDTO,
+        CombatExchangeStateDTO,
         CombatFeintOptionDTO,
         CombatResultDTO,
     )
@@ -70,6 +71,10 @@ class CombatActorPanelVM(BaseModel):
     is_ai: bool = False
     is_dead: bool = False
     is_target: bool = False
+    committed: bool = False
+    commit_state: str = "idle"
+    commit_tooltip: str = "Ход не выбран"
+    remaining_ms: int | None = None
     vitals: CombatVitalsVM
     effects: list[CombatEffectBadgeVM] = Field(default_factory=list)
     quick_belt: list[CombatQuickSlotVM] = Field(default_factory=list)
@@ -78,6 +83,7 @@ class CombatActorPanelVM(BaseModel):
 class CombatRosterRowVM(BaseModel):
     actor_id: str
     name: str
+    team: str
     hp_current: int
     hp_max: int
     hp_percent: int
@@ -85,8 +91,20 @@ class CombatRosterRowVM(BaseModel):
     pending_action_count: int = 0
     is_target: bool = False
     is_dead: bool = False
+    committed: bool = False
+    commit_state: str = "idle"
+    commit_tooltip: str = "Ход не выбран"
+    remaining_ms: int | None = None
     queue_state: str = "NO_DATA"
     queue_indicator: str = "unknown"
+
+
+class CombatRosterGroupVM(BaseModel):
+    team: str
+    label: str
+    rows: list[CombatRosterRowVM] = Field(default_factory=list)
+    alive_count: int = 0
+    total_count: int = 0
 
 
 class CombatTeamSummaryVM(BaseModel):
@@ -166,6 +184,32 @@ class CombatLogTurnVM(BaseModel):
     lines: list[CombatLogLineVM] = Field(default_factory=list)
 
 
+class CombatActorRefVM(BaseModel):
+    id: str
+    name: str
+    team: str | None = None
+    actor_type: str | None = None
+
+
+class CombatExchangeBadgeVM(BaseModel):
+    kind: str
+    value: int | float | None = None
+    resource: str | None = None
+    direction: str | None = None
+
+
+class CombatExchangeStateVM(BaseModel):
+    pair_status: str = "unknown"
+    opponent_response_state: str = "unknown"
+    title: str = "COMBAT"
+    summary_text: str = "Бой начался. Противники выбирают позицию для первого размена."
+    turn: int | None = None
+    source: CombatActorRefVM | None = None
+    target: CombatActorRefVM | None = None
+    outcome: str | None = None
+    badges: list[CombatExchangeBadgeVM] = Field(default_factory=list)
+
+
 class CombatScreenVM(BaseModel):
     session_id: str
     status: str
@@ -182,6 +226,7 @@ class CombatScreenVM(BaseModel):
     target: CombatActorPanelVM | None
     allies: list[CombatRosterRowVM] = Field(default_factory=list)
     enemies: list[CombatRosterRowVM] = Field(default_factory=list)
+    enemy_groups: list[CombatRosterGroupVM] = Field(default_factory=list)
     allied_team: CombatTeamSummaryVM
     enemy_team: CombatTeamSummaryVM
     primary_attack: CombatActionVM | None = None
@@ -191,6 +236,7 @@ class CombatScreenVM(BaseModel):
     log_lines: list[CombatLogLineVM] = Field(default_factory=list)
     log_turns: list[CombatLogTurnVM] = Field(default_factory=list)
     log_total: int = 0
+    exchange_state: CombatExchangeStateVM = Field(default_factory=CombatExchangeStateVM)
     winner_team: str | None = None
 
 
@@ -281,7 +327,7 @@ def build_combat_screen_from_result_vm(result: CombatResultDTO) -> CombatScreenV
     hero_id = str(result.char_id)
     if hero_id not in actors:
         hero_id = _first_actor_id(teams.get(viewer_team) if viewer_team else None) or hero_id
-    enemy_team = _first_enemy_team(cast("Mapping[str, object]", teams), viewer_team)
+    enemy_team_ids = _enemy_team_ids(cast("Mapping[str, object]", teams), viewer_team)
 
     hero = _result_actor_card(hero_id, actors.get(hero_id), fallback_team=viewer_team or "team_1")
     ally_ids = (
@@ -289,13 +335,19 @@ def build_combat_screen_from_result_vm(result: CombatResultDTO) -> CombatScreenV
         if viewer_team and isinstance(teams.get(viewer_team), list)
         else []
     )
-    enemy_ids = (
-        [str(actor_id) for actor_id in cast("list[Any]", teams.get(enemy_team, []))]
-        if enemy_team and isinstance(teams.get(enemy_team), list)
-        else []
-    )
+    enemy_ids = [
+        str(actor_id)
+        for team in enemy_team_ids
+        if isinstance(teams.get(team), list)
+        for actor_id in cast("list[Any]", teams.get(team, []))
+    ]
     enemies = [
-        _result_actor_card(actor_id, actors.get(actor_id), fallback_team=enemy_team or "team_2", is_target=index == 0)
+        _result_actor_card(
+            actor_id,
+            actors.get(actor_id),
+            fallback_team=_actor_team_from_result_teams(actor_id, teams) or "team_2",
+            is_target=index == 0,
+        )
         for index, actor_id in enumerate(enemy_ids)
     ]
     target = enemies[0] if enemies else None
@@ -322,6 +374,7 @@ def build_combat_screen_vm(dashboard: CombatDashboardDTO) -> CombatScreenVM:
     primary_attack, feints, abilities = _split_actions(dashboard.available_actions, dashboard.hero.feints)
     allied_actors = [dashboard.hero, *dashboard.allies]
     enemy_actors = dashboard.enemies or ([dashboard.target] if dashboard.target else [])
+    enemy_rows = [_roster_row(actor) for actor in dashboard.enemies]
     return CombatScreenVM(
         session_id=dashboard.session_id,
         status=dashboard.status,
@@ -337,7 +390,8 @@ def build_combat_screen_vm(dashboard: CombatDashboardDTO) -> CombatScreenVM:
         hero=_actor_panel(dashboard.hero, include_belt=True),
         target=_actor_panel(dashboard.target, include_belt=False) if dashboard.target else None,
         allies=[_roster_row(actor) for actor in allied_actors],
-        enemies=[_roster_row(actor) for actor in dashboard.enemies],
+        enemies=enemy_rows,
+        enemy_groups=_roster_groups(enemy_rows),
         allied_team=_team_summary("ALLIES", allied_actors),
         enemy_team=_team_summary("ENEMIES", enemy_actors),
         primary_attack=primary_attack,
@@ -347,6 +401,7 @@ def build_combat_screen_vm(dashboard: CombatDashboardDTO) -> CombatScreenVM:
         log_lines=[_log_line(event) for event in dashboard.events_delta.events[-8:]],
         log_turns=_log_turns(dashboard),
         log_total=dashboard.log_total,
+        exchange_state=_exchange_state(dashboard.exchange_state),
         winner_team=dashboard.winner_team,
     )
 
@@ -385,14 +440,18 @@ def _result_actor_card(
 def _viewer_team(char_id: int, teams: Mapping[str, object]) -> str | None:
     actor_id = str(char_id)
     for team, members in teams.items():
-        if isinstance(members, list) and actor_id in {member for member in members}:
+        if isinstance(members, list) and actor_id in {str(member) for member in members}:
             return team
     return None
 
 
-def _first_enemy_team(teams: Mapping[str, object], viewer_team: str | None) -> str | None:
+def _enemy_team_ids(teams: Mapping[str, object], viewer_team: str | None) -> list[str]:
+    return [team for team, members in teams.items() if team != viewer_team and isinstance(members, list) and members]
+
+
+def _actor_team_from_result_teams(actor_id: str, teams: Mapping[str, object]) -> str | None:
     for team, members in teams.items():
-        if team != viewer_team and isinstance(members, list) and members:
+        if isinstance(members, list) and actor_id in {str(member) for member in members}:
             return team
     return None
 
@@ -615,6 +674,46 @@ def _log_turns(dashboard: CombatDashboardDTO) -> list[CombatLogTurnVM]:
     ]
 
 
+def _exchange_state(exchange: CombatExchangeStateDTO | None) -> CombatExchangeStateVM:
+    if exchange is None:
+        return CombatExchangeStateVM()
+    return CombatExchangeStateVM(
+        pair_status=exchange.pair_status,
+        opponent_response_state=exchange.opponent_response_state,
+        title=exchange.title,
+        summary_text=exchange.summary_text,
+        turn=exchange.turn,
+        source=_actor_ref(exchange.source),
+        target=_actor_ref(exchange.target),
+        outcome=exchange.outcome,
+        badges=[
+            CombatExchangeBadgeVM(
+                kind=badge.kind,
+                value=badge.value,
+                resource=badge.resource,
+                direction=badge.direction,
+            )
+            for badge in exchange.badges
+        ],
+    )
+
+
+def _actor_ref(value: object) -> CombatActorRefVM | None:
+    if value is None:
+        return None
+    data = _model_dict(value)
+    actor_id = _dict_str(data, "id")
+    name = _dict_str(data, "name")
+    if not actor_id or not name:
+        return None
+    return CombatActorRefVM(
+        id=actor_id,
+        name=name,
+        team=_dict_str(data, "team"),
+        actor_type=_dict_str(data, "actor_type"),
+    )
+
+
 def _event_data_int(event: CombatEventDTO, key: str) -> int | None:
     value = getattr(event, key, None)
     if value in (None, ""):
@@ -701,6 +800,10 @@ def _actor_panel(actor: CombatActorCardDTO, *, include_belt: bool) -> CombatActo
         is_ai=actor.is_ai,
         is_dead=actor.is_dead,
         is_target=actor.is_target,
+        committed=actor.committed,
+        commit_state=actor.commit_state,
+        commit_tooltip=_commit_tooltip(actor),
+        remaining_ms=actor.remaining_ms,
         vitals=_vitals(actor),
         effects=[_effect_badge(effect, actor.exchange_counter) for effect in actor.active_effects],
         quick_belt=_quick_belt(actor.quick_items) if include_belt else [],
@@ -730,6 +833,7 @@ def _roster_row(actor: CombatActorCardDTO) -> CombatRosterRowVM:
     return CombatRosterRowVM(
         actor_id=actor.actor_id,
         name=actor.name,
+        team=actor.team,
         hp_current=vitals.hp_current,
         hp_max=vitals.hp_max,
         hp_percent=vitals.hp_percent,
@@ -737,9 +841,36 @@ def _roster_row(actor: CombatActorCardDTO) -> CombatRosterRowVM:
         pending_action_count=sum(actor.pending_actions.values()),
         is_target=actor.is_target,
         is_dead=actor.is_dead,
+        committed=actor.committed,
+        commit_state=actor.commit_state,
+        commit_tooltip=_commit_tooltip(actor),
+        remaining_ms=actor.remaining_ms,
         queue_state=_queue_state(actor),
         queue_indicator=_queue_indicator(actor),
     )
+
+
+def _roster_groups(rows: list[CombatRosterRowVM]) -> list[CombatRosterGroupVM]:
+    grouped: dict[str, list[CombatRosterRowVM]] = {}
+    for row in rows:
+        grouped.setdefault(row.team or "neutral", []).append(row)
+    return [
+        CombatRosterGroupVM(
+            team=team,
+            label=_combat_team_label(team),
+            rows=team_rows,
+            alive_count=sum(1 for row in team_rows if not row.is_dead),
+            total_count=len(team_rows),
+        )
+        for team, team_rows in grouped.items()
+    ]
+
+
+def _combat_team_label(team: str) -> str:
+    if team == "neutral":
+        return "NEUTRAL"
+    suffix = team.removeprefix("team_")
+    return f"TEAM {suffix.upper()}" if suffix else team.upper()
 
 
 def _team_summary(label: str, actors: list[CombatActorCardDTO]) -> CombatTeamSummaryVM:
@@ -851,6 +982,8 @@ def _queue_state(actor: CombatActorCardDTO) -> str:
 def _queue_indicator(actor: CombatActorCardDTO) -> str:
     if actor.is_dead:
         return "dead"
+    if actor.commit_state in {"committed", "half_time", "timeout_warning"}:
+        return actor.commit_state
     if actor.is_target:
         return "current"
     if sum(actor.pending_actions.values()):
@@ -858,6 +991,25 @@ def _queue_indicator(actor: CombatActorCardDTO) -> str:
     if actor.target_queue_size:
         return "ready"
     return "unknown"
+
+
+def _commit_tooltip(actor: CombatActorCardDTO) -> str:
+    if actor.is_dead:
+        return "Выведен из боя"
+    if actor.commit_state == "timeout_warning":
+        return _remaining_text(actor.remaining_ms, prefix="До force attack")
+    if actor.commit_state == "half_time":
+        return _remaining_text(actor.remaining_ms, prefix="До force attack")
+    if actor.commit_state == "committed":
+        return "Ход выбран"
+    return "Ход не выбран"
+
+
+def _remaining_text(remaining_ms: int | None, *, prefix: str) -> str:
+    if remaining_ms is None:
+        return prefix
+    seconds = max(0, round(remaining_ms / 1000))
+    return f"{prefix}: {seconds} сек."
 
 
 def _split_actions(

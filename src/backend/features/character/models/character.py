@@ -7,21 +7,28 @@ from sqlalchemy import ForeignKey, Integer, String
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from src.backend.core.database import Base, TimestampMixin
+from src.backend.core.database import (
+    Base,
+    LifecycleStatusMixin,
+    MetadataContextMixin,
+    RevisionMixin,
+    SchemaVersionMixin,
+    TimestampMixin,
+)
 
 if TYPE_CHECKING:
+    from src.backend.features.character.models.progression import CharacterProgression
     from src.backend.features.character.models.skill import SkillProgress
     from src.backend.features.character.models.symbiote import CharacterSymbiote
     from src.backend.infrastructure.inventory.models import InventoryItem, ResourceWallet
 
 
-class Character(Base, TimestampMixin):
+class Character(Base, TimestampMixin, LifecycleStatusMixin, MetadataContextMixin, SchemaVersionMixin, RevisionMixin):
     __tablename__ = "characters"
 
     character_id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     user_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
-        ForeignKey("auth_users.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
     )
@@ -34,6 +41,7 @@ class Character(Base, TimestampMixin):
 
     location_id: Mapped[str] = mapped_column(String(50), default="52_52", nullable=False)
     prev_location_id: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    respawn_anchor_location_id: Mapped[str] = mapped_column(String(50), default="52_52", nullable=False)
 
     vitals_snapshot: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
     active_sessions: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
@@ -47,6 +55,12 @@ class Character(Base, TimestampMixin):
         "SkillProgress",
         back_populates="character",
         cascade="all, delete-orphan",
+    )
+    progression: Mapped[CharacterProgression] = relationship(
+        "CharacterProgression",
+        back_populates="character",
+        cascade="all, delete-orphan",
+        uselist=False,
     )
     symbiote: Mapped[CharacterSymbiote] = relationship(
         "CharacterSymbiote",
@@ -67,7 +81,7 @@ class Character(Base, TimestampMixin):
     )
 
 
-class CharacterAttributes(Base, TimestampMixin):
+class CharacterAttributes(Base, TimestampMixin, SchemaVersionMixin, RevisionMixin):
     __tablename__ = "character_attributes"
 
     character_id: Mapped[int] = mapped_column(

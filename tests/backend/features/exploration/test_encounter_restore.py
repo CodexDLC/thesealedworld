@@ -49,7 +49,7 @@ class FakeExplorationIntegrator:
         return True
 
     async def get_actor_skills(self, char_id: int) -> dict[str, float]:
-        return {"survival": 1.0}
+        return {"skill_pathfinder": 1.0, "skill_scouting": 1.0}
 
     async def get_players_count(self, loc_id: str, exclude_char_id: int | None = None) -> int:
         return 0
@@ -67,9 +67,13 @@ class FakeEncounterIntegration:
         self.sessions = sessions or {}
         self.created: list[tuple[str, dict]] = []
         self.attached: list[tuple[int, str]] = []
+        self.combat_sessions: list[tuple[int, str]] = []
         self.detached: list[int] = []
         self.cleared: list[str] = []
         self.patched: list[tuple[str, dict]] = []
+
+    async def get_ac_skill_snapshot(self, char_id: int) -> dict[str, float]:
+        return {"skill_scouting": 0.0, "skill_pathfinder": 0.0, "skill_hunting": 0.0, "skill_taming": 0.0}
 
     async def get_active_encounter_id(self, char_id: int) -> str | None:
         return self.active_id
@@ -100,6 +104,9 @@ class FakeEncounterIntegration:
         self.cleared.append(encounter_id)
         self.sessions.pop(encounter_id, None)
 
+    async def attach_combat_session(self, char_id: int, combat_id: str) -> None:
+        self.combat_sessions.append((char_id, combat_id))
+
 
 class FakeEncounterEngine:
     def __init__(self, encounter: EncounterDTO | None = None) -> None:
@@ -119,6 +126,23 @@ def _encounter(encounter_id: str = "enc-1") -> EncounterDTO:
         title="Threat",
         description="An active encounter",
         options=[EncounterOptionDTO(id="bypass", label="Bypass")],
+    )
+
+
+def _ready_combat_encounter(encounter_id: str = "enc-1", combat_id: str = "combat-enc-1") -> EncounterDTO:
+    encounter = _encounter(encounter_id)
+    return encounter.model_copy(
+        update={
+            "session_id": combat_id,
+            "metadata": {
+                "combat": {
+                    "status": "ready",
+                    "combat_id": combat_id,
+                    "request": {"combat_id": combat_id},
+                    "response": {"status": "ready", "combat_id": combat_id},
+                }
+            },
+        }
     )
 
 
@@ -190,6 +214,39 @@ async def test_active_encounter_blocks_move_search_and_use_service_progression()
     assert move_result.id == search_result.id == service_result.id == "enc-1"
     assert integrator.moves == []
     assert engine.calls == []
+
+
+@pytest.mark.asyncio
+async def test_failed_gateway_bypass_routes_active_encounter_to_combat(monkeypatch) -> None:
+    monkeypatch.setattr(
+        "src.backend.features.exploration.services.encounter_service.random.random",
+        lambda: 0.99,
+    )
+    encounter = _ready_combat_encounter()
+    encounter_integration = FakeEncounterIntegration(
+        active_id="enc-1",
+        sessions={"enc-1": {"payload": encounter.model_dump(mode="json")}},
+    )
+    navigation = ExplorationNavigationService(FakeExplorationIntegrator())  # type: ignore[arg-type]
+    gateway = ExplorationGateway(
+        navigation=navigation,
+        encounters=ExplorationEncounterService(
+            engine=FakeEncounterEngine(),  # type: ignore[arg-type]
+            integration=encounter_integration,  # type: ignore[arg-type]
+            session=ExplorationEncounterSessionService(encounter_integration),  # type: ignore[arg-type]
+            navigation=navigation,
+        ),
+    )
+
+    response = await gateway.interact(char_id=7, action="bypass")
+
+    assert response.header.current_state == CoreDomain.COMBAT
+    assert response.payload_type == "state_transition"
+    assert response.payload.combat_id == "combat-enc-1"
+    assert response.payload.reason == "exploration_attack"
+    assert encounter_integration.combat_sessions == [(7, "combat-enc-1")]
+    assert encounter_integration.cleared == ["enc-1"]
+    assert encounter_integration.detached == [7]
 
 
 @pytest.mark.asyncio

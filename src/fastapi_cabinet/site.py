@@ -50,6 +50,10 @@ class CabinetSite:
                 router.get(sub_route, name=f"cabinet:{admin.key}:{suffix}")(
                     self._build_subpage_endpoint(admin, suffix, page_widgets, mount_path)
                 )
+            for suffix, (method, handler_name) in admin.action_routes.items():
+                action_route = f"{admin_route_path(admin, mount_path)}/{suffix}"
+                handler = getattr(admin, handler_name)
+                getattr(router, method.lower())(action_route, name=f"cabinet:{admin.key}:action:{suffix}")(handler)
 
         return router
 

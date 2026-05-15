@@ -90,6 +90,10 @@ document.addEventListener('session:panel-state', (event) => {
     if (!data) return;
 
     const state = event.detail?.value || event.detail || {};
+    if (typeof data.applySessionPanelState === 'function') {
+        data.applySessionPanelState(state);
+        return;
+    }
     if (Object.prototype.hasOwnProperty.call(state, 'left_open')) {
         data.leftOpen = Boolean(state.left_open);
     }

@@ -7,7 +7,12 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from src.backend.features.character.models import Character, CharacterAttributes, CharacterSymbiote
+from src.backend.features.character.models import (
+    Character,
+    CharacterAttributes,
+    CharacterProgression,
+    CharacterSymbiote,
+)
 from src.backend.features.character.schemas.session import CharacterSessionDocumentDTO
 from src.backend.infrastructure.inventory import ResourceWallet
 from src.shared.schemas.character import CharacterReadDTO
@@ -50,6 +55,7 @@ class CharacterRepository:
             location_id=location_id,
         )
         character.attributes = CharacterAttributes()
+        character.progression = CharacterProgression()
         character.symbiote = CharacterSymbiote()
         character.wallet = ResourceWallet()
         return await self.save(character)

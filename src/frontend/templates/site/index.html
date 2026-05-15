@@ -1,44 +1,328 @@
 {% extends "site/base_site.html" %}
 
-{% block title %}Symbiote Chronicles — The Neural Weave awaits{% endblock title %}
+{% block title %}The Sealed World — Запечатанный мир{% endblock title %}
 
-{% block body_class %}page-main{% endblock body_class %}
+{% block body_class %}page-the-sealed-world{% if lobby_overlay_open %} has-lobby-modal{% endif %}{% if auth_overlay_open %} has-auth-modal{% endif %}{% endblock body_class %}
 
 {% block content %}
-<section class="hero-section">
-    <div class="ds-tag sys" style="margin-bottom: var(--sp-4);">THE_BOND // AWAKENED</div>
-    <h1 class="hero-title">Symbiote Chronicles</h1>
-    <p class="hero-subtitle">The Echoes of the Rift</p>
+<nav class="landing-dock" aria-label="Навигация по лендингу">
+    <a href="#premise">Идея</a>
+    <a href="#prealpha">Pre-alpha</a>
+    <a href="#loop">Цикл</a>
+    <a href="#roadmap">Планы</a>
+    <a href="#feedback">Фидбек</a>
+    <a class="primary" href="#cta">Заявка</a>
+</nav>
 
-    <div class="hero-actions">
-        <a href="/login" class="btn-node lg">
-            <span>Listen to the Whisper</span>
-        </a>
-        <a href="/about" class="btn-node">
-            <span>The Fragmented Memory</span>
-        </a>
+<section class="tsw-hero" id="top">
+    <div class="tsw-hero-bg" aria-hidden="true">
+        <img class="tsw-hero-main" src="/static/images/site/the-sealed-world/hero-main.jpg" alt="">
+        <div class="tsw-dust"></div>
+    </div>
+
+    {% if user %}
+    <a class="tsw-hero-rift" href="/game-lobby" aria-label="Заглянуть в мир">
+        <img src="/static/images/site/the-sealed-world/hero-rift.png" alt="">
+        <span class="tsw-rift-tooltip">Заглянуть в мир</span>
+    </a>
+    {% else %}
+    <button type="button" class="tsw-hero-rift" @click="authModal = 'login'" aria-label="Заглянуть в мир">
+        <img src="/static/images/site/the-sealed-world/hero-rift.png" alt="">
+        <span class="tsw-rift-tooltip">Заглянуть в мир</span>
+    </button>
+    {% endif %}
+
+    <div class="tsw-hero-content">
+        <div class="tag sys tsw-kicker">Пре-альфа · браузерная MMORPG · набор тестеров</div>
+        <h1>The Sealed <em>World</em></h1>
+        <p class="tsw-hero-lede">
+            Браузерная MMORPG об опасных вылазках за стену, добыче и возвращении домой живым.
+        </p>
+        <div class="tsw-hero-meta">
+            <span>Запечатанный мир</span>
+            <span class="tsw-meta-rule"></span>
+            <span>The Sealed World</span>
+        </div>
+        <div class="tsw-hero-actions">
+            <a class="btn-node lg" href="#cta"><span>Хочу на тест</span></a>
+            <a class="btn-node ghost lg" href="#roadmap"><span>Смотреть планы</span></a>
+        </div>
+        <p class="tsw-hero-note"><span></span>Первая публичная pre-alpha · версия 0.1.0</p>
     </div>
 </section>
 
-<div class="main-container">
-    <div class="features-grid">
-        <div class="ds-panel">
-            <div class="ds-panel-header">The Uninvited</div>
-            <div class="ds-panel-body">
-                <p class="feature-text">
-                    You stepped through the Rift and brought back more than just your life. Something is rooting in the shadows of your mind.
-                </p>
+<section class="tsw-band tsw-premise" id="premise">
+    <div class="tsw-wrap tsw-split">
+        <div class="tsw-copy">
+            <span class="tag sys">I · Завязка</span>
+            <h2>Стена еще держит.<br><em>Всё за ней уже давно изменено.</em></h2>
+            <p class="world-text">
+                Игроки приходят в себя в уцелевшей части внутреннего города. Мирная зона
+                существует только благодаря ауре центральной портальной арки: она сдерживает
+                напасть, анкоры и разломы за пределами стен.
+            </p>
+            <p>
+                За стенами внешний город уже давно стал другим. Экспедиции добывают ресурсы,
+                находят эхо древнего мира и рискуют
+                потерять незакрепленную добычу до возвращения в безопасную зону.
+            </p>
+            <div class="tsw-zone-list" aria-label="Зоны мира">
+                <div class="panel-membrane">
+                    <span class="tag safe">Безопасная зона</span>
+                    <strong>Уцелевший центр</strong>
+                    <span>Напасть можно, но стража почти сразу входит в бой на стороне жертвы.</span>
+                </div>
+                <div class="panel-membrane">
+                    <span class="tag sys">Опасная зона</span>
+                    <strong>Внешний город</strong>
+                    <span>Руины, засады и короткая фора до того, как система пришлет защиту.</span>
+                </div>
+                <div class="panel-membrane psi">
+                    <span class="tag psi">Аномальная зона</span>
+                    <strong>Разломы</strong>
+                    <span>Безнаказанная территория: цели экспедиций, нестабильность и риск не вернуться.</span>
+                </div>
             </div>
         </div>
 
-        <div class="ds-panel">
-            <div class="ds-panel-header">Spectral Sight</div>
-            <div class="ds-panel-body">
-                <p class="feature-text">
-                    The world has changed. Strange geometry and energy flows now flicker before your eyes. A gift... or a warning?
-                </p>
+        <figure class="tsw-premise-figure">
+            <img src="/static/images/site/the-sealed-world/premise-fig.jpg" alt="Вид из уцелевшего города на внешние руины">
+            <figcaption>Вид на внешний район · Западная стена</figcaption>
+        </figure>
+    </div>
+</section>
+
+<section class="tsw-band tsw-band-surface" id="prealpha">
+    <div class="tsw-wrap">
+        <div class="tsw-section-head">
+            <span class="tag sys">II · Что входит в 0.1.0</span>
+            <h2>Играбельная основа<br><em>для честного раннего теста.</em></h2>
+            <p>
+                Это не релиз и не витрина. Первая публичная версия проверяет базовую петлю:
+                персонаж, бой, добыча, подготовка и первые решения.
+            </p>
+        </div>
+
+        <div class="tsw-card-grid">
+            <article class="ds-panel tsw-card">
+                <div class="ds-panel-header">Будет в тесте · 01</div>
+                <div class="ds-panel-body">
+                    <h3>Бои на намерениях</h3>
+                    <p>Вы задаете намерение и ждете ответа, но массовая схватка идет сразу со всеми: каждый обмен ощущается как личный бой 1х1.</p>
+                </div>
+            </article>
+            <article class="ds-panel tsw-card">
+                <div class="ds-panel-header">Будет в тесте · 02</div>
+                <div class="ds-panel-body">
+                    <h3>Рост персонажа</h3>
+                    <p>Навыки, характеристики и экипировка должны давать ощутимый, понятный прогресс.</p>
+                </div>
+            </article>
+            <article class="ds-panel tsw-card">
+                <div class="ds-panel-header">Первый срез · 03</div>
+                <div class="ds-panel-body">
+                    <h3>Первые вылазки</h3>
+                    <p>Выйти за стену, встретить угрозу, найти ресурс, принять решение и успеть вернуться.</p>
+                </div>
+            </article>
+            <article class="ds-panel tsw-card">
+                <div class="ds-panel-header">Первый срез · 04</div>
+                <div class="ds-panel-body">
+                    <h3>Добыча и снаряжение</h3>
+                    <p>Важно не только победить, но и донести найденное обратно до безопасной части города.</p>
+                </div>
+            </article>
+            <article class="ds-panel tsw-card">
+                <div class="ds-panel-header">Будет в тесте · 05</div>
+                <div class="ds-panel-body">
+                    <h3>Браузерная точка входа</h3>
+                    <p>Открыть сайт, войти, попробовать срез без установки клиента.</p>
+                </div>
+            </article>
+            <article class="ds-panel tsw-card">
+                <div class="ds-panel-header">Позже · 06</div>
+                <div class="ds-panel-body">
+                    <h3>Будущий MMO-слой</h3>
+                    <p>Группы, кланы, публичные события и живой мир будут расти после проверки ядра.</p>
+                </div>
+            </article>
+        </div>
+    </div>
+</section>
+
+<section class="tsw-band" id="loop">
+    <div class="tsw-wrap">
+        <div class="tsw-section-head">
+            <span class="tag sys">III · Первый игровой цикл</span>
+            <h2>Одна вылазка.<br><em>От стены к разлому и обратно.</em></h2>
+            <p>
+                Именно эту петлю нужно проверить с первыми тестерами. Если она работает,
+                на ней можно строить мир дальше.
+            </p>
+        </div>
+
+        <div class="tsw-loop-stack">
+            <div class="tsw-loop-head">
+                <span class="tag safe">PvE · вылазка</span>
+                <p>Основная петля мира: выйти за стену, найти цель, выжить и донести добычу обратно.</p>
+            </div>
+            <div class="tsw-loop">
+                <article class="panel-membrane">
+                    <span>01 / Подготовка</span>
+                    <h3>Город</h3>
+                    <p>Запасы, ремонт, выбор маршрута и настройка снаряжения.</p>
+                </article>
+                <article class="panel-membrane">
+                    <span>02 / Маршрут</span>
+                    <h3>Внешние районы</h3>
+                    <p>Переход через руины, развилки, точки засад и нестабильные места.</p>
+                </article>
+                <article class="panel-membrane psi">
+                    <span>03 / Цель</span>
+                    <h3>Разлом</h3>
+                    <p>Артефакт, трещина, аномалия или ресурс под давлением времени.</p>
+                </article>
+                <article class="panel-membrane danger">
+                    <span>04 / Столкновение</span>
+                    <h3>Бой и добыча</h3>
+                    <p>Победа, отступление или провал. Добыча не закреплена до возврата.</p>
+                </article>
+                <article class="panel-membrane energy">
+                    <span>05 / Возврат</span>
+                    <h3>Синхронизация</h3>
+                    <p>Вернуться за стену, сохранить прогресс и открыть следующий контракт.</p>
+                </article>
+            </div>
+
+            <div class="tsw-loop-head">
+                <span class="tag danger">PvP · арена</span>
+                <p>Соревновательная ветка уже строится на арене 1х1, рангах и боях с тенью.</p>
+            </div>
+            <div class="tsw-loop tsw-loop-pvp">
+                <article class="panel-membrane">
+                    <span>01 / Подготовка</span>
+                    <h3>Город</h3>
+                    <p>Билд, снаряжение, ремонт и выбор PvP-режима перед входом в бой.</p>
+                </article>
+                <article class="panel-membrane danger">
+                    <span>02 / Вход</span>
+                    <h3>Арена 1х1</h3>
+                    <p>Контролируемый формат для дуэли, боя с тенью и рангового матча.</p>
+                </article>
+                <article class="panel-membrane psi">
+                    <span>03 / Столкновение</span>
+                    <h3>Дуэль</h3>
+                    <p>Пошаговые решения, эффекты, ресурсы, контригра и проверка билда.</p>
+                </article>
+                <article class="panel-membrane energy">
+                    <span>04 / Итог</span>
+                    <h3>Ранг</h3>
+                    <p>Победа или поражение меняют позицию, статистику и ценность следующего боя.</p>
+                </article>
+                <article class="panel-membrane">
+                    <span>05 / Расширение</span>
+                    <h3>Новые форматы</h3>
+                    <p>Групповая арена в плане; позже возможны столкновения за пределами стен.</p>
+                </article>
             </div>
         </div>
     </div>
-</div>
+</section>
+
+<section class="tsw-band tsw-band-deep" id="roadmap">
+    <div class="tsw-wrap">
+        <div class="tsw-section-head">
+            <span class="tag sys">IV · План развития</span>
+            <h2>Куда мир<br><em>может вырасти дальше.</em></h2>
+            <p>
+                Это не обещание дат. Это порядок, в котором проект может расти,
+                если первые игроки подтвердят, что базовая игра стоит времени.
+            </p>
+        </div>
+
+        <div class="tsw-roadmap">
+            <article class="ds-panel tsw-card">
+                <div class="ds-panel-header">Фаза I · Ближайшее</div>
+                <div class="ds-panel-body">
+                    <h3>Личные разломы и контракты</h3>
+                    <p>Соло-экспедиции с понятной целью и быстрым входом в игровой цикл.</p>
+                </div>
+            </article>
+            <article class="ds-panel tsw-card">
+                <div class="ds-panel-header">Фаза I · Ближайшее</div>
+                <div class="ds-panel-body">
+                    <h3>Опасные маршруты</h3>
+                    <p>Руинные районы с развилками, угрозами окружения и остатками древней инфраструктуры.</p>
+                </div>
+            </article>
+            <article class="ds-panel tsw-card">
+                <div class="ds-panel-header">Фаза II · Средний срок</div>
+                <div class="ds-panel-body">
+                    <h3>Крафт и грязная добыча</h3>
+                    <p>Найденное за стеной сначала сырое и опасное, а ценность получает после возврата.</p>
+                </div>
+            </article>
+            <article class="ds-panel tsw-card">
+                <div class="ds-panel-header">Фаза III · Позже</div>
+                <div class="ds-panel-body">
+                    <h3>Групповой контент</h3>
+                    <p>Координированные экспедиции и публичные разломы, на которые реагирует город.</p>
+                </div>
+            </article>
+        </div>
+    </div>
+</section>
+
+<section class="tsw-band tsw-band-surface" id="feedback">
+    <div class="tsw-wrap tsw-split">
+        <div class="tsw-copy">
+            <span class="tag sys">V · Прозрачность разработки</span>
+            <h2>Честный ранний тест.<br><em>Не релиз и не витрина.</em></h2>
+            <p>
+                В pre-alpha важны не красивые отзывы, а конкретные сигналы:
+                где интересно, где непонятно, где бой затянулся, где хочется еще одну вылазку.
+            </p>
+        </div>
+
+        <div class="ds-panel tsw-feedback-panel">
+            <div class="ds-panel-header">Канал тестеров · откроется вместе с 0.1.0</div>
+            <div class="ds-panel-body">
+                <h3>Помогите понять, где игра цепляет.</h3>
+                <div class="tsw-feedback-actions">
+                    <a class="choice" href="#cta">Сообщить баг</a>
+                    <a class="choice" href="#cta">Оставить пожелание</a>
+                    <a class="choice" href="#cta">Описать впечатление</a>
+                    <a class="choice" href="#cta">Посмотреть статус</a>
+                </div>
+                <p class="tsw-feedback-note">Баги · баланс · темп боя · понятность интерфейса · идеи для вылазок</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section class="tsw-cta" id="cta">
+    <div class="tsw-cta-bg" aria-hidden="true"></div>
+    <div class="tsw-wrap">
+        <span class="tag sys">Заявка в тест</span>
+        <h2>Станьте одним<br>из первых тестеров.</h2>
+        <p>
+            Первая публичная версия 0.1.0 будет небольшой, честной и сырой.
+            Нам нужны игроки, готовые попробовать ранний срез и сказать, что в нем работает.
+        </p>
+        <div class="tsw-cta-actions">
+            <button type="button" class="btn-node lg" @click="authModal = 'register'"><span>Оставить заявку</span></button>
+            <button type="button" class="btn-node ghost lg" @click="authModal = 'login'"><span>Войти</span></button>
+            <a class="btn-node ghost lg" href="#prealpha"><span>Что будет в 0.1.0</span></a>
+        </div>
+        <p class="tsw-cta-note">Без магазина · без обещаний релиза · только pre-alpha тест</p>
+    </div>
+</section>
+
+{% if lobby_overlay_open and lobby %}
+    {% include "site/game_lobby/modal.html" %}
+{% endif %}
+
+{% if auth_overlay_open %}
+    {% include "site/auth/modal.html" %}
+{% endif %}
 {% endblock content %}

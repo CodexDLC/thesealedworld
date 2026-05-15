@@ -1,29 +1,97 @@
-.page-game-lobby {
+.page-game-lobby,
+.has-lobby-modal {
     --lobby-site-chrome-height: 110px;
     --lobby-shell-padding-x: clamp(16px, 2vw, 32px);
     --lobby-shell-padding-y: clamp(16px, 2.4svh, 34px);
     --lobby-panel-padding: clamp(24px, 3svh, 42px);
     --lobby-grid-gap: clamp(12px, 1.5svh, 18px);
-    --lobby-actions-height: 30px;
+    --lobby-actions-height: 42px;
     --lobby-title-block-height: clamp(104px, 13svh, 144px);
     --lobby-card-size: clamp(
-        250px,
+        220px,
         min(
-            18vw,
+            22vw,
             calc(
-                (
-                    100svh
-                    - var(--lobby-site-chrome-height)
-                    - (var(--lobby-shell-padding-y) * 2)
-                    - (var(--lobby-panel-padding) * 2)
-                    - var(--lobby-title-block-height)
-                    - var(--lobby-actions-height)
-                    - (var(--lobby-grid-gap) * 3)
-                ) / 2
+                100svh
+                - var(--lobby-site-chrome-height)
+                - (var(--lobby-shell-padding-y) * 2)
+                - (var(--lobby-panel-padding) * 2)
+                - var(--lobby-title-block-height)
+                - var(--lobby-actions-height)
+                - (var(--lobby-grid-gap) * 2)
             )
         ),
-        340px
+        320px
     );
+}
+
+.has-lobby-modal {
+    --lobby-site-chrome-height: 0px;
+}
+
+.has-lobby-modal {
+    overflow: hidden;
+}
+
+.lobby-modal-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 1800;
+    display: grid;
+    place-items: center;
+    padding: clamp(14px, 2.4vw, 34px);
+    background:
+        radial-gradient(circle at 50% 36%, rgba(119, 68, 255, 0.16), transparent 48%),
+        rgba(0, 0, 0, 0.72);
+    backdrop-filter: blur(12px);
+}
+
+.lobby-modal-scrim {
+    position: absolute;
+    inset: 0;
+    cursor: default;
+}
+
+.lobby-modal {
+    position: relative;
+    z-index: 1;
+    width: fit-content;
+    max-width: min(1180px, 100%);
+    max-height: min(860px, calc(100svh - clamp(28px, 4.8vw, 68px)));
+    display: flex;
+    min-height: 0;
+}
+
+.lobby-modal .lobby-panel {
+    width: min(
+        100vw - clamp(28px, 4.8vw, 68px),
+        calc((var(--lobby-card-size) * 2) + var(--lobby-grid-gap) + (var(--lobby-panel-padding) * 2))
+    );
+    max-height: inherit;
+}
+
+.lobby-modal-close {
+    position: absolute;
+    top: clamp(10px, 1.6vw, 16px);
+    right: clamp(10px, 1.6vw, 16px);
+    z-index: 3;
+    width: 38px;
+    height: 38px;
+    display: grid;
+    place-items: center;
+    border: 1px solid rgba(255, 170, 0, 0.24);
+    background: rgba(0, 0, 0, 0.58);
+    color: rgba(255, 210, 116, 0.82);
+    font-size: 28px;
+    line-height: 1;
+    text-decoration: none;
+    border-radius: 2px;
+}
+
+.lobby-modal-close:hover {
+    border-color: rgba(255, 170, 0, 0.62);
+    color: var(--col-accent);
+    box-shadow: 0 0 24px rgba(255, 170, 0, 0.14);
 }
 
 .lobby-shell {
@@ -35,10 +103,7 @@
 }
 
 .lobby-panel {
-    width: min(
-        calc((var(--lobby-card-size) * 2) + var(--lobby-grid-gap) + (var(--lobby-panel-padding) * 2) + 2px),
-        100%
-    );
+    width: min(1180px, 100%);
     max-height: calc(100svh - var(--lobby-site-chrome-height) - (var(--lobby-shell-padding-y) * 2));
     margin: 0 auto;
     display: flex;
@@ -119,18 +184,34 @@
     grid-template-columns: 1fr;
     gap: var(--lobby-grid-gap);
     margin: 0;
-    flex: 1 1 auto;
+    flex: 0 0 auto;
     min-height: 0;
-    overflow-x: hidden;
-    overflow-y: auto;
+    overflow: visible;
     overscroll-behavior: contain;
 }
 
-.lobby-slot-row {
-    display: grid;
-    grid-template-columns: repeat(2, var(--lobby-card-size));
+.lobby-carousel-track {
+    display: flex;
     gap: var(--lobby-grid-gap);
-    justify-content: center;
+    align-items: stretch;
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding: 2px 2px clamp(10px, 1.2svh, 14px);
+    scroll-snap-type: x mandatory;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 170, 0, 0.38) rgba(255, 255, 255, 0.06);
+}
+
+.lobby-carousel-track::-webkit-scrollbar {
+    height: 6px;
+}
+
+.lobby-carousel-track::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.06);
+}
+
+.lobby-carousel-track::-webkit-scrollbar-thumb {
+    background: rgba(255, 170, 0, 0.38);
 }
 
 .lobby-slot-actions {
@@ -158,6 +239,7 @@
 }
 
 .lobby-slot {
+    flex: 0 0 var(--lobby-card-size);
     width: var(--lobby-card-size);
     max-width: 100%;
     min-height: 0;
@@ -166,6 +248,7 @@
     background: rgba(255, 255, 255, 0.025);
     clip-path: var(--clip-node-md);
     padding: clamp(10px, 1.2svh, 14px);
+    scroll-snap-align: center;
     transition: border-color 0.18s, box-shadow 0.18s, background 0.18s;
 }
 
@@ -383,6 +466,26 @@
     text-transform: uppercase;
 }
 
+.lobby-intro {
+    display: grid;
+    justify-items: center;
+    gap: var(--sp-5);
+}
+
+.lobby-intro-text {
+    width: min(720px, 100%);
+    margin: 0;
+    color: rgba(245, 232, 204, 0.88);
+    font-family: var(--font-world);
+    font-size: clamp(22px, 2.6vw, 34px);
+    line-height: 1.34;
+    text-wrap: balance;
+}
+
+.lobby-intro .lobby-empty-note {
+    margin-bottom: var(--sp-2);
+}
+
 .creation-form-grid {
     display: grid;
     grid-template-columns: repeat(2, minmax(220px, 1fr));
@@ -518,7 +621,8 @@
 }
 
 @media (max-width: 1024px) {
-    .page-game-lobby {
+    .page-game-lobby,
+    .has-lobby-modal {
         --lobby-shell-padding-x: clamp(12px, 2.4vw, 24px);
         --lobby-shell-padding-y: clamp(12px, 2svh, 24px);
         --lobby-panel-padding: clamp(18px, 2.4svh, 30px);
@@ -535,7 +639,7 @@
     }
 
     .lobby-panel {
-        width: min(calc(var(--lobby-card-size) + (var(--lobby-panel-padding) * 2)), 100%);
+        width: 100%;
     }
 
     .lobby-title-row {
@@ -551,8 +655,18 @@
         line-height: 1.45;
     }
 
-    .lobby-slot-row {
-        grid-template-columns: var(--lobby-card-size);
+    .lobby-carousel-track {
+        scroll-padding-inline: var(--lobby-panel-padding);
+    }
+
+    .lobby-slot-actions {
+        width: 100%;
+    }
+
+    .lobby-slot-actions form,
+    .lobby-slot-actions .btn-node {
+        display: flex;
+        justify-content: center;
     }
 
     .creation-form-grid {
@@ -570,7 +684,8 @@
 }
 
 @media (max-width: 520px) {
-    .page-game-lobby {
+    .page-game-lobby,
+    .has-lobby-modal {
         --lobby-card-size: min(
             100%,
             calc(100vw - (var(--lobby-shell-padding-x) * 2) - (var(--lobby-panel-padding) * 2))
@@ -579,6 +694,25 @@
 
     .lobby-panel {
         width: 100%;
+    }
+
+    .lobby-modal-backdrop {
+        padding: 10px;
+    }
+
+    .lobby-carousel-track {
+        padding-inline: 0;
+    }
+
+    .lobby-slot-actions {
+        display: grid;
+        grid-template-columns: 1fr;
+        justify-items: center;
+    }
+
+    .lobby-slot-actions form,
+    .lobby-slot-actions .btn-node {
+        width: min(100%, 280px);
     }
 
     .lobby-kicker {

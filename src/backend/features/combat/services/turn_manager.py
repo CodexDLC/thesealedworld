@@ -72,6 +72,9 @@ class CombatTurnManager:
             log.error(f"TurnManager | Payload validation failed: {e}")
             raise CombatInvalidMovePayloadError("Invalid move payload structure") from e
 
+        timeout = AFK_TIMEOUTS.get(afk_level, MIN_TIMEOUT)
+        move_dto = self._with_timeout(move_dto, timeout)
+
         # --- FEINT VALIDATION & CONSUMPTION (ATOMIC) ---
         # Проверяем финт, если он есть в payload
         feint_id = None
@@ -129,10 +132,7 @@ class CombatTurnManager:
 
         await self.combat_sessions.touch_activity(session_id)
 
-        # 5. РАСЧЕТ ТАЙМЕРА (Force Attack)
-        timeout = AFK_TIMEOUTS.get(afk_level, MIN_TIMEOUT)
-
-        # 6. СТАВИМ ДВЕ ЗАДАЧИ В ARQ
+        # 5. СТАВИМ ДВЕ ЗАДАЧИ В ARQ
         signal_immediate = CollectorSignalDTO(
             session_id=session_id,
             char_id=normalize_actor_id(char_id),
@@ -170,6 +170,7 @@ class CombatTurnManager:
         if not payloads:
             return
 
+        timeout = 60
         exchange_moves_data = []
         other_moves_dtos = []
 
@@ -177,7 +178,7 @@ class CombatTurnManager:
         for payload in payloads:
             action_type = payload.get("action", "attack")
             try:
-                move_dto = self._build_move_dto(char_id, action_type, payload)
+                move_dto = self._with_timeout(self._build_move_dto(char_id, action_type, payload), timeout)
 
                 if move_dto.strategy == "exchange":
                     target_id = getattr(move_dto.payload, "target_id", None)
@@ -237,7 +238,6 @@ class CombatTurnManager:
             # B. Timeout (Force Attack). Each timeout is tied to a concrete
             # move_id, matching single-move registration and preventing stale
             # batch timeouts from forcing newer AI intents.
-            timeout = 60
             for move_id in accepted_move_ids:
                 signal_timeout = CollectorSignalDTO(
                     session_id=session_id,
@@ -296,6 +296,18 @@ class CombatTurnManager:
             char_id=normalize_actor_id(char_id),
             strategy=strategy,
             payload=validated_payload,
+        )
+
+    @staticmethod
+    def _with_timeout(move: CombatMoveDTO, timeout_seconds: int) -> CombatMoveDTO:
+        now_ms = int(datetime.now(UTC).timestamp() * 1000)
+        timeout_ms = max(0, int(timeout_seconds * 1000))
+        return move.model_copy(
+            update={
+                "registered_at_ms": now_ms,
+                "timeout_ms": timeout_ms,
+                "force_attack_at_ms": now_ms + timeout_ms,
+            }
         )
 
     async def _is_dead_target(self, session_id: str, target_id: ActorIdLike) -> bool:

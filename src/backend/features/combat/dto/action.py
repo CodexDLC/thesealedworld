@@ -18,6 +18,9 @@ class CombatMoveDTO(BaseModel):
     move_id: str
     char_id: ActorId
     strategy: Literal["exchange", "item", "instant", "system"]
+    registered_at_ms: int | None = None
+    timeout_ms: int | None = None
+    force_attack_at_ms: int | None = None
 
     # Полиморфный payload
     payload: ExchangePayload | InstantPayload | dict[str, Any] = Field(default_factory=dict)

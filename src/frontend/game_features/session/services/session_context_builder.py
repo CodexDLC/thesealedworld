@@ -13,12 +13,13 @@ from src.frontend.game_features.combat.view_models.screen import (
     build_combat_screen_vm,
 )
 from src.frontend.game_features.inventory.view_models.window import build_inventory_window_vm
+from src.frontend.game_features.session.token_state import require_game_access_token
 from src.frontend.game_features.session.view_models.nav import build_game_nav
-from src.frontend.site_features.auth.token_state import require_access_token
 from src.shared.enums import CoreDomain
 from src.shared.schemas import CoreResponseDTO, EnterCharacterRequestDTO
 from src.shared.schemas.arena import ArenaUIPayloadDTO
 from src.shared.schemas.exploration import EncounterDTO, ExplorationScreenDTO, WorldNavigationDTO
+from src.shared.schemas.tavern import TavernUIPayloadDTO
 
 if TYPE_CHECKING:
     from src.frontend.integrations.backend_api.arena import BackendArenaApi
@@ -28,6 +29,7 @@ if TYPE_CHECKING:
     from src.frontend.integrations.backend_api.game_session import BackendGameSessionApi
     from src.frontend.integrations.backend_api.inventory import BackendInventoryApi
     from src.frontend.integrations.backend_api.scenario import BackendScenarioApi
+    from src.frontend.integrations.backend_api.tavern import BackendTavernApi
     from src.shared.schemas.character_status import CharacterActorCoreDTO
     from src.shared.schemas.combat import CombatDashboardDTO, CombatResultDTO
     from src.shared.schemas.inventory import InventoryWindowDTO
@@ -45,6 +47,7 @@ class SessionContextBuilder:
         arena_api: BackendArenaApi,
         exploration_api: BackendExplorationApi,
         scenario_api: BackendScenarioApi,
+        tavern_api: BackendTavernApi,
         game_session_api: BackendGameSessionApi,
         inventory_api: BackendInventoryApi,
         combat_api: BackendCombatApi | None = None,
@@ -54,11 +57,12 @@ class SessionContextBuilder:
         self.combat_api = combat_api
         self.exploration_api = exploration_api
         self.scenario_api = scenario_api
+        self.tavern_api = tavern_api
         self.game_session_api = game_session_api
         self.inventory_api = inventory_api
 
     async def build_current(self, request: Request, *, char_id: int) -> dict[str, Any]:
-        token = require_access_token(request)
+        token = require_game_access_token(request)
         started_at = perf_counter()
         response = await self.game_session_api.enter(token, EnterCharacterRequestDTO(character_id=char_id))
         logger.info(
@@ -85,12 +89,20 @@ class SessionContextBuilder:
         state: CoreDomain,
         char_id: int,
         quest_key: str | None = None,
+        transition_context: dict[str, Any] | None = None,
+        transition_metadata: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
-        token = require_access_token(request)
+        token = require_game_access_token(request)
 
         if state == CoreDomain.SCENARIO:
+            return_context = _return_context_from_transition(transition_context)
             scenario_response = (
-                await self.scenario_api.initialize(token, char_id=char_id, quest_key=quest_key)
+                await self.scenario_api.initialize(
+                    token,
+                    char_id=char_id,
+                    quest_key=quest_key,
+                    return_context=return_context,
+                )
                 if quest_key
                 else await self.scenario_api.resume(token, char_id=char_id)
             )
@@ -125,6 +137,41 @@ class SessionContextBuilder:
                 encounter=encounter_payload,
                 world_theme=getattr(exploration_payload, "world_theme", None)
                 or getattr(character_status, "world_theme", None),
+                status_seed=status_payload,
+                inventory_window=inventory_window,
+                initial_inventory_open=initial_inventory_open,
+            )
+
+        if state == CoreDomain.TAVERN:
+            tavern_screen = _tavern_screen_from_transition(transition_context, transition_metadata)
+            tavern_response = await self.tavern_api.view(
+                token,
+                char_id=char_id,
+                screen=tavern_screen,
+                tavern_id=_transition_value("tavern_id", transition_context, transition_metadata),
+                service_id=_transition_value("service_id", transition_context, transition_metadata),
+                location_id=_transition_value("location_id", transition_context, transition_metadata),
+            )
+            if tavern_response.payload is None:
+                raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail="Tavern payload is unavailable")
+            tavern_payload = TavernUIPayloadDTO.model_validate(tavern_response.payload)
+            character_status = await self._character_status(token, char_id=char_id)
+            status_payload = self._status_seed(character_status)
+            initial_inventory_open, inventory_window = await self._inventory_window_state(
+                token,
+                char_id=char_id,
+                character_status=character_status,
+                status_payload=status_payload,
+            )
+            return self._context(
+                state=tavern_response.header.current_state,
+                char_id=char_id,
+                transaction_id=tavern_response.header.transaction_id,
+                payload_type=tavern_response.payload_type,
+                character_status=character_status,
+                tavern=tavern_payload,
+                background_url="/static/images/exploration/city/d4/52_53_last_refuge_tavern.png",
+                world_theme=getattr(character_status, "world_theme", None),
                 status_seed=status_payload,
                 inventory_window=inventory_window,
                 initial_inventory_open=initial_inventory_open,
@@ -205,6 +252,28 @@ class SessionContextBuilder:
                 status_seed=self._combat_status_seed(combat_payload),
             )
 
+        if state == CoreDomain.DEATH:
+            character_status = await self._character_status(token, char_id=char_id)
+            status_payload = self._status_seed(character_status)
+            sessions = getattr(character_status, "sessions", {}) or {}
+            return self._context(
+                state=CoreDomain.DEATH,
+                char_id=char_id,
+                transaction_id="",
+                payload_type="death_session",
+                character_status=character_status,
+                background_url="/static/images/scenes/ruins.png",
+                world_theme=getattr(character_status, "world_theme", None),
+                status_seed=status_payload,
+                death={
+                    "char_id": char_id,
+                    "run_id": sessions.get("death_run_id") if isinstance(sessions, dict) else None,
+                    "corpse_id": sessions.get("death_corpse_id") if isinstance(sessions, dict) else None,
+                    "respawn_action": "/game/death/respawn",
+                },
+                initial_inventory_open=False,
+            )
+
         logger.warning("Session state requested for unsupported state: state={} char_id={}", state, char_id)
         raise HTTPException(
             status_code=status.HTTP_501_NOT_IMPLEMENTED, detail=f"{state} screen is not implemented yet"
@@ -226,7 +295,14 @@ class SessionContextBuilder:
 
         if response.payload_type == "state_transition" or state != CoreDomain.SCENARIO:
             quest_key = getattr(response.payload, "quest_key", None)
-            return await self.build_state(request, state=state, char_id=char_id, quest_key=quest_key)
+            return await self.build_state(
+                request,
+                state=state,
+                char_id=char_id,
+                quest_key=quest_key,
+                transition_context=getattr(response.payload, "context", None),
+                transition_metadata=getattr(response.payload, "metadata", None),
+            )
 
         if response.payload_type != "scenario_screen":
             return await self.build_state(request, state=state, char_id=char_id)
@@ -234,15 +310,9 @@ class SessionContextBuilder:
         if response.payload is None or not hasattr(response.payload, "node_key"):
             raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail="Scenario payload is unavailable")
 
-        token = require_access_token(request)
+        token = require_game_access_token(request)
         character_status = await self._character_status(token, char_id=char_id)
         status_payload = self._status_seed(character_status)
-        initial_inventory_open, inventory_window = await self._inventory_window_state(
-            token,
-            char_id=char_id,
-            character_status=character_status,
-            status_payload=status_payload,
-        )
         extra_data = getattr(response.payload, "extra_data", None) or {}
         response.payload.extra_data = {
             **extra_data,
@@ -259,9 +329,13 @@ class SessionContextBuilder:
             background_url=response.payload.extra_data.get("background_url"),
             world_theme=getattr(character_status, "world_theme", None),
             status_seed=status_payload,
-            inventory_window=inventory_window,
-            initial_inventory_open=initial_inventory_open,
+            initial_inventory_open=False,
         )
+
+    async def respawn(self, request: Request, *, char_id: int) -> dict[str, Any]:
+        token = require_game_access_token(request)
+        response = await self.game_session_api.respawn(token, EnterCharacterRequestDTO(character_id=char_id))
+        return await self.build_from_response(request, response, char_id=char_id)
 
     async def build_exploration_response(
         self,
@@ -273,7 +347,7 @@ class SessionContextBuilder:
         if response.payload is None:
             raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail="Exploration payload is unavailable")
 
-        token = require_access_token(request)
+        token = require_game_access_token(request)
         character_status = await self._character_status(token, char_id=char_id)
         status_payload = self._status_seed(character_status)
         initial_inventory_open, inventory_window = await self._inventory_window_state(
@@ -359,8 +433,17 @@ class SessionContextBuilder:
         state: CoreDomain,
         char_id: int,
         quest_key: str | None = None,
+        transition_context: dict[str, Any] | None = None,
+        transition_metadata: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
-        return await self.build_state(request, state=state, char_id=char_id, quest_key=quest_key)
+        return await self.build_state(
+            request,
+            state=state,
+            char_id=char_id,
+            quest_key=quest_key,
+            transition_context=transition_context,
+            transition_metadata=transition_metadata,
+        )
 
     def build_combat_dashboard_context(
         self,
@@ -416,10 +499,12 @@ class SessionContextBuilder:
         exploration: Any | None = None,
         encounter: Any | None = None,
         arena: Any | None = None,
+        tavern: Any | None = None,
         combat: Any | None = None,
         combat_screen: Any | None = None,
         combat_result: Any | None = None,
         combat_result_screen: Any | None = None,
+        death: dict[str, Any] | None = None,
         background_url: str | None = None,
         world_theme: Any | None = None,
         status_seed: dict[str, Any] | None = None,
@@ -440,10 +525,12 @@ class SessionContextBuilder:
             "exploration": exploration,
             "encounter": encounter,
             "arena": arena,
+            "tavern": tavern,
             "combat": combat,
             "combat_screen": combat_screen,
             "combat_result": combat_result,
             "combat_result_screen": combat_result_screen,
+            "death": death,
             "combat_chat_session_id": getattr(combat_screen, "session_id", None),
             "background_url": background_url,
             "world_theme": world_theme,
@@ -580,3 +667,41 @@ def _vital_max(value: Any) -> int:
     if isinstance(value, dict):
         return int(value.get("max", 1))
     return 1
+
+
+def _return_context_from_transition(transition_context: dict[str, Any] | None) -> dict[str, Any] | None:
+    if not isinstance(transition_context, dict):
+        return None
+    raw = transition_context.get("return_context")
+    return raw if isinstance(raw, dict) else None
+
+
+def _tavern_screen_from_transition(
+    transition_context: dict[str, Any] | None,
+    transition_metadata: dict[str, Any] | None,
+) -> str | None:
+    return _transition_value("next_screen", transition_context, transition_metadata) or _transition_value(
+        "screen",
+        transition_context,
+        transition_metadata,
+    )
+
+
+def _transition_value(
+    key: str,
+    transition_context: dict[str, Any] | None,
+    transition_metadata: dict[str, Any] | None,
+) -> str | None:
+    for source in (transition_metadata, transition_context):
+        if isinstance(source, dict) and source.get(key):
+            return str(source[key])
+    return_context = _return_context_from_transition(transition_context)
+    if isinstance(return_context, dict):
+        mapped_key = {
+            "service_id": "source_service_id",
+            "screen": "return_screen",
+            "next_screen": "return_screen",
+        }.get(key, key)
+        if return_context.get(mapped_key):
+            return str(return_context[mapped_key])
+    return None

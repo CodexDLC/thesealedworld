@@ -6,10 +6,10 @@ from sqlalchemy import BigInteger, ForeignKey, String
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
-from src.backend.core.database import Base
+from src.backend.core.database import Base, MetadataContextMixin, RevisionMixin, SchemaVersionMixin
 
 
-class ArenaSeasonReward(Base):
+class ArenaSeasonReward(Base, MetadataContextMixin, SchemaVersionMixin, RevisionMixin):
     """Stub table for future season-end reward distribution.
 
     Populated by `arena.season_ended` hook; redemption logic TBD.

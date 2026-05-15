@@ -1,5 +1,3 @@
-"""Loot services.
+from src.backend.features.loot.services.loot_service import LootService
 
-TODO: coordinate high-level use cases such as generate loot from encounter,
-create pending loot container, grant selected rewards, and persist/ack results.
-"""
+__all__ = ["LootService"]

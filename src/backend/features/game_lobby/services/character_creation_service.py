@@ -8,8 +8,8 @@ from src.backend.core.exceptions import BusinessLogicException
 from src.shared.enums import CoreDomain
 
 if TYPE_CHECKING:
+    from src.backend.core.auth import User
     from src.backend.features.game_lobby.integrations import GameLobbyIntegration
-    from src.backend.features_site.auth.models import User
     from src.shared.schemas import CreateCharacterRequestDTO, ScenarioPayloadDTO
 
 
@@ -77,4 +77,4 @@ class CharacterCreationService:
         characters_count = await self.integration.count_user_characters(user.id)
         if characters_count >= self.MAX_SLOTS:
             logger.warning("Character creation rejected: slot_limit user_id={} count={}", user.id, characters_count)
-            raise BusinessLogicException("Character slot limit reached")
+            raise BusinessLogicException("Лимит персонажей достигнут")

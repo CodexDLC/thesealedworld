@@ -2,7 +2,10 @@
 from typing import Annotated
 
 from fastapi import Depends, Request
+from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.backend.core.database import get_db
+from src.backend.features.expedition import ExpeditionService
 from src.backend.features.exploration.gateway import ExplorationGateway
 from src.backend.features.exploration.integrations.encounter_integration import EncounterIntegration
 from src.backend.features.exploration.integrations.system_integrator import ExplorationSystemIntegrator
@@ -11,9 +14,13 @@ from src.backend.features.exploration.services.encounter_service import Explorat
 from src.backend.features.exploration.services.encounter_session_service import ExplorationEncounterSessionService
 from src.backend.features.exploration.services.exploration_service import ExplorationService
 from src.backend.features.exploration.services.navigation_service import ExplorationNavigationService
+from src.backend.infrastructure.loot.managers.loot_manager import LootManager
 
 
-def build_exploration_service(request: Request) -> ExplorationService:
+def build_exploration_service(
+    request: Request,
+    db_session: Annotated[AsyncSession, Depends(get_db)],
+) -> ExplorationService:
     """
     DI factory for ExplorationService.
     """
@@ -23,7 +30,19 @@ def build_exploration_service(request: Request) -> ExplorationService:
     redis = getattr(request.app.state, "redis", None)
     event_bus = getattr(request.app.state, "events", None)
 
-    integrator = ExplorationSystemIntegrator(character_sessions=character_sessions, world_store=world_store)
+    expedition_service = ExpeditionService(
+        session=db_session,
+        character_sessions=character_sessions,
+        expedition_manager=request.app.state.redis_managers.expeditions,
+        loot_manager=LootManager(redis),
+        world_store=world_store,
+        commit_on_write=True,
+    )
+    integrator = ExplorationSystemIntegrator(
+        character_sessions=character_sessions,
+        world_store=world_store,
+        expedition_service=expedition_service,
+    )
     encounter_integration = EncounterIntegration(
         character_sessions=character_sessions,
         world_store=world_store,
@@ -43,13 +62,28 @@ def build_exploration_service(request: Request) -> ExplorationService:
 ExplorationServiceDep = Annotated[ExplorationService, Depends(build_exploration_service)]
 
 
-def build_exploration_gateway(request: Request) -> ExplorationGateway:
+def build_exploration_gateway(
+    request: Request,
+    db_session: Annotated[AsyncSession, Depends(get_db)],
+) -> ExplorationGateway:
     character_sessions = request.app.state.character_sessions
     world_store = request.app.state.world_locations
     redis = getattr(request.app.state, "redis", None)
     event_bus = getattr(request.app.state, "events", None)
 
-    integrator = ExplorationSystemIntegrator(character_sessions=character_sessions, world_store=world_store)
+    expedition_service = ExpeditionService(
+        session=db_session,
+        character_sessions=character_sessions,
+        expedition_manager=request.app.state.redis_managers.expeditions,
+        loot_manager=LootManager(redis),
+        world_store=world_store,
+        commit_on_write=True,
+    )
+    integrator = ExplorationSystemIntegrator(
+        character_sessions=character_sessions,
+        world_store=world_store,
+        expedition_service=expedition_service,
+    )
     encounter_integration = EncounterIntegration(
         character_sessions=character_sessions,
         world_store=world_store,

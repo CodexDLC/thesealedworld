@@ -88,10 +88,6 @@ def test_monster_combat_actor_input_uses_generated_template_contract() -> None:
                 },
             },
         },
-        "granted_abilities": {
-            "known_abilities": ["basic_attack"],
-            "ability_presentations": {"basic_attack": "infected_bite"},
-        },
         "ai_profile": {"behavior": "swarm_chaff"},
         "balance": {
             "base_cost": 20,
@@ -106,23 +102,32 @@ def test_monster_combat_actor_input_uses_generated_template_contract() -> None:
         clan_id=clan_id,
         variant_key="sewer_rat",
         role="minion",
+        member_tier=1,
         threat_rating=20,
-        name_ru="Крыса",
+        name_ru="Крыса с черными когтями",
         description="Крыса",
-        scaled_base_stats={
-            "strength": 4,
-            "agility": 10,
-            "endurance": 5,
-            "intelligence": 1,
-            "wisdom": 1,
-            "men": 2,
-            "perception": 6,
-            "charisma": 1,
-            "luck": 2,
+        text_content=template["text_content"],
+        scaled_attributes=template["scaled_attributes"],
+        scaled_skills=template["scaled_skills"]["skills"],
+        items=template["items"],
+        vitals={
+            "hp": {"current": 20, "max": 20},
+            "energy": {"current": 10, "max": 10},
+            "stamina": {"current": 10, "max": 10},
         },
-        loadout_ids=template["items"],
-        skills_snapshot=template["scaled_skills"],
-        combat_seed={"schema_version": 2, "generated_template": template},
+        ai_profile=template["ai_profile"],
+        generation_meta={
+            "schema_version": 2,
+            "visual": {
+                "status": "fallback",
+                "image_url": "/static/images/monsters/families/rat_swarm.svg",
+                "fallback_image_url": "/static/images/monsters/families/rat_swarm.svg",
+                "storage_key": "monsters/generated/families/test.webp",
+            },
+            "meta": template["meta"],
+            "source": template["meta"]["source"],
+            "balance": template["balance"],
+        },
     )
     monster.clan = clan
 
@@ -132,8 +137,10 @@ def test_monster_combat_actor_input_uses_generated_template_contract() -> None:
     assert snapshot["meta"]["actor_type"] == "monster"
     assert snapshot["meta"]["actor_id"] == str(monster_id)
     assert snapshot["meta"]["name"] == "Крыса с черными когтями"
+    assert snapshot["meta"]["avatar_url"] == "/static/images/monsters/families/rat_swarm.svg"
     assert snapshot["source"]["monster_id"] == str(monster_id)
     assert snapshot["source"]["family_id"] == "rat_swarm"
+    assert snapshot["source"]["visual"]["status"] == "fallback"
     assert snapshot["status"]["hp"]["max"] > 0
     combat = snapshot["combat"]
     assert combat["math_model"]["attributes"]["strength"]["base"] == 4.0
@@ -144,5 +151,4 @@ def test_monster_combat_actor_input_uses_generated_template_contract() -> None:
     assert combat["loadout"]["layout"]["main_hand"] == "skill_fencing"
     assert combat["loadout"]["layout"]["main_hand_trigger"] == "crit.weapon_serrated_bleed_crit"
     assert combat["loadout"]["layout"]["body"] == "skill_light_armor"
-    assert combat["loadout"]["known_abilities"] == ["basic_attack"]
-    assert combat["loadout"]["ability_presentations"] == {"basic_attack": "infected_bite"}
+    assert combat["loadout"]["known_abilities"] == []

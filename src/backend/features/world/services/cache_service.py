@@ -42,11 +42,15 @@ class WorldCacheService:
         world_theme = flags.get("world_theme", {})
         cached_flags = self._cache_flags(flags)
         services = node.services if isinstance(node.services, list) else []
+        world_zone = self._world_zone(node)
         return {
             "loc_id": loc_id,
             "name": content.get("title", f"Узел {loc_id}"),
             "description": content.get("description", "..."),
             "background_url": content.get("background_url"),
+            "background_key": getattr(node, "background_key", None),
+            "background_pool_key": getattr(node, "background_pool_key", None),
+            "visual_overrides": _safe_dict(getattr(node, "visual_overrides", None)),
             "anchor_influence": anchor_influence if isinstance(anchor_influence, dict) else {},
             "world_theme": world_theme if isinstance(world_theme, dict) else {},
             "exits": self.navigation.calculate_exits(node, node_map),
@@ -55,7 +59,13 @@ class WorldCacheService:
             "services": services,
             "flags": cached_flags,
             "zone_id": str(node.zone_id),
-            "world_zone": self._world_zone(node),
+            "world_zone": world_zone,
+            "biome_id": _safe_text(getattr(node, "biome_id", None), fallback=world_zone["biome_id"]),
+            "node_type": _safe_text(getattr(node, "node_type", None), fallback="generic"),
+            "navigation_profile_id": _safe_text(getattr(node, "navigation_profile_id", None)),
+            "buildable_kind": getattr(node, "buildable_kind", None),
+            "landmark_profile": getattr(node, "landmark_profile", None),
+            "movement_profile": _safe_dict(getattr(node, "movement_profile", None)),
             "terrain": str(node.terrain_type),
         }
 
@@ -78,6 +88,10 @@ class WorldCacheService:
             "region_id": _safe_text(getattr(zone, "region_id", None)),
             "biome_id": _safe_text(getattr(zone, "biome_id", None)),
             "tier": _safe_int(getattr(zone, "tier", 0)),
+            "zone_archetype": _safe_text(getattr(zone, "zone_archetype", None)),
+            "navigation_profile_id": _safe_text(getattr(zone, "navigation_profile_id", None)),
+            "landmark_profile": getattr(zone, "landmark_profile", None),
+            "population_tags": _safe_list(getattr(zone, "population_tags", None)),
             "flags": _safe_dict(getattr(zone, "flags", None)),
         }
 
@@ -95,3 +109,7 @@ def _safe_int(value: Any) -> int:
 
 def _safe_dict(value: Any) -> dict[str, Any]:
     return dict(value) if isinstance(value, dict) else {}
+
+
+def _safe_list(value: Any) -> list[Any]:
+    return list(value) if isinstance(value, list) else []

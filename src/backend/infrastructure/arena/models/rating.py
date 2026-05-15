@@ -5,10 +5,10 @@ import datetime as dt  # noqa: TC003
 from sqlalchemy import BigInteger, DateTime, ForeignKey, Index, Integer, SmallInteger, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
-from src.backend.core.database import Base
+from src.backend.core.database import Base, MetadataContextMixin, RevisionMixin, SchemaVersionMixin
 
 
-class ArenaRating(Base):
+class ArenaRating(Base, MetadataContextMixin, SchemaVersionMixin, RevisionMixin):
     """Long-table rating: one row per (entity, mode_size, season).
 
     entity_type: 'character' | 'team'.

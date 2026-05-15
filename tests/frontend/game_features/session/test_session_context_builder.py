@@ -1,4 +1,5 @@
 from datetime import UTC, datetime
+from pathlib import Path
 from types import SimpleNamespace
 from uuid import uuid4
 
@@ -23,6 +24,7 @@ from src.shared.schemas.exploration import (
 )
 from src.shared.schemas.inventory import InventoryWindowDTO
 from src.shared.schemas.panel import PanelDTO
+from src.shared.schemas.tavern import TavernScreenEnum, TavernUIPayloadDTO
 from src.shared.schemas.world_theme import WorldThemeDTO
 
 
@@ -55,6 +57,20 @@ class FakeCharacterStatusApi:
                 "panel": PanelDTO(id="character_status", title="STATUS", widgets=[]),
             }
         )
+
+
+def test_death_screen_uses_encounter_notice_and_respawn_tooltip():
+    template = Path("src/frontend/templates/game/domains/death/viewport/main.html").read_text(encoding="utf-8")
+    viewport_css = Path("src/frontend/static/css/pages/game/viewport.css").read_text(encoding="utf-8")
+
+    assert "CONNECTION LOST" not in template
+    assert "mobile-encounter-interrupt death-screen-panel" in template
+    assert "Вы погибли" in template
+    assert "Воскреснуть у портала" in template
+    assert "Все найденное во время похода будет утеряно." in template
+    assert "death-respawn-action" in template
+    assert ".death-screen" in viewport_css
+    assert ".death-screen-actions" in viewport_css
 
 
 class FakeGameSessionApi:
@@ -109,8 +125,8 @@ class FakeScenarioApi:
         self.response = response
         self.initialized = None
 
-    async def initialize(self, token, *, char_id, quest_key):
-        self.initialized = (char_id, quest_key)
+    async def initialize(self, token, *, char_id, quest_key, return_context=None):
+        self.initialized = (char_id, quest_key, return_context)
         return self.response
 
     async def resume(self, token, *, char_id):
@@ -184,6 +200,46 @@ class FakeArenaApi:
         )
 
 
+class FakeTavernApi:
+    def __init__(self, payload=None):
+        self.payload = payload
+        self.calls = []
+
+    async def view(
+        self,
+        token,
+        *,
+        char_id,
+        screen=None,
+        tavern_id=None,
+        service_id=None,
+        location_id=None,
+    ):
+        self.calls.append(
+            {
+                "char_id": char_id,
+                "screen": screen,
+                "tavern_id": tavern_id,
+                "service_id": service_id,
+                "location_id": location_id,
+            }
+        )
+        return CoreResponseDTO(
+            header=GameStateHeader(current_state=CoreDomain.TAVERN, transaction_id="tx-tavern"),
+            payload=self.payload
+            or TavernUIPayloadDTO(
+                tavern_id="last_refuge",
+                service_id="svc_tavern_hub",
+                location_id=location_id or "52_53",
+                screen=TavernScreenEnum(screen or TavernScreenEnum.MAIN.value),
+                title="Таверна Последнего Убежища",
+                description="Теплый свет и свободные столы.",
+                buttons=[],
+            ),
+            payload_type="tavern_screen",
+        )
+
+
 def request():
     return SimpleNamespace(cookies={"tbmmorpg_access_token": "token"})
 
@@ -235,6 +291,7 @@ def builder(response):
         arena_api=SimpleNamespace(),
         exploration_api=SimpleNamespace(),
         scenario_api=FakeScenarioApi(response),
+        tavern_api=FakeTavernApi(),
         game_session_api=FakeGameSessionApi(response),
         inventory_api=FakeInventoryApi(),
     )
@@ -247,6 +304,7 @@ def exploration_builder(calls):
         arena_api=SimpleNamespace(),
         exploration_api=FakeExplorationApi(calls),
         scenario_api=FakeScenarioApi(scenario_response()),
+        tavern_api=FakeTavernApi(),
         game_session_api=FakeGameSessionApi(scenario_response()),
         inventory_api=FakeInventoryApi(),
     )
@@ -259,6 +317,7 @@ def exploration_builder_with_response(calls, response):
         arena_api=SimpleNamespace(),
         exploration_api=FakeExplorationApi(calls, response=response),
         scenario_api=FakeScenarioApi(scenario_response()),
+        tavern_api=FakeTavernApi(),
         game_session_api=FakeGameSessionApi(scenario_response()),
         inventory_api=FakeInventoryApi(),
     )
@@ -270,6 +329,7 @@ def combat_builder(status_api, combat_api):
         arena_api=SimpleNamespace(),
         exploration_api=SimpleNamespace(),
         scenario_api=FakeScenarioApi(scenario_response()),
+        tavern_api=FakeTavernApi(),
         game_session_api=FakeGameSessionApi(scenario_response()),
         inventory_api=FakeInventoryApi(),
         combat_api=combat_api,
@@ -282,6 +342,19 @@ def arena_builder(status_api, arena_api):
         arena_api=arena_api,
         exploration_api=SimpleNamespace(),
         scenario_api=FakeScenarioApi(scenario_response()),
+        tavern_api=FakeTavernApi(),
+        game_session_api=FakeGameSessionApi(scenario_response()),
+        inventory_api=FakeInventoryApi(),
+    )
+
+
+def tavern_builder(status_api, tavern_api):
+    return SessionContextBuilder(
+        character_status_api=status_api,
+        arena_api=SimpleNamespace(),
+        exploration_api=SimpleNamespace(),
+        scenario_api=FakeScenarioApi(scenario_response()),
+        tavern_api=tavern_api,
         game_session_api=FakeGameSessionApi(scenario_response()),
         inventory_api=FakeInventoryApi(),
     )
@@ -321,7 +394,8 @@ async def test_build_current_returns_full_scenario_shell_context():
     assert len(context["inventory_window"].body_zones) == 6
     assert len(context["inventory_window"].accessory_rows) == 4
     assert len(context["inventory_window"].quick_slots) == 8
-    assert context["nav"]["center"]["label"] == "SCENARIO"
+    assert context["nav"] == {"l2": None, "l1": None, "center": None, "r1": None, "r2": None}
+    assert context["initial_inventory_open"] is False
 
 
 @pytest.mark.asyncio
@@ -338,6 +412,7 @@ async def test_build_current_loads_scenario_when_session_enter_returns_state_dec
         arena_api=SimpleNamespace(),
         exploration_api=SimpleNamespace(),
         scenario_api=scenario_api,
+        tavern_api=FakeTavernApi(),
         game_session_api=FakeGameSessionApi(enter_response),
         inventory_api=FakeInventoryApi(),
     )
@@ -361,6 +436,7 @@ async def test_build_current_redirects_to_lobby_when_session_enter_returns_lobby
         arena_api=SimpleNamespace(),
         exploration_api=SimpleNamespace(),
         scenario_api=FakeScenarioApi(scenario_response()),
+        tavern_api=FakeTavernApi(),
         game_session_api=FakeGameSessionApi(enter_response),
         inventory_api=FakeInventoryApi(),
     )
@@ -373,7 +449,7 @@ async def test_build_current_redirects_to_lobby_when_session_enter_returns_lobby
 
 
 @pytest.mark.asyncio
-async def test_build_current_restores_open_inventory_window_from_active_character_ref():
+async def test_build_current_does_not_restore_inventory_window_inside_scenario():
     status_api = FakeCharacterStatusApi(sessions={"inventory_id": "game:inventory:7"})
     inventory_api = FakeInventoryApi()
     response = scenario_response()
@@ -382,17 +458,16 @@ async def test_build_current_restores_open_inventory_window_from_active_characte
         arena_api=SimpleNamespace(),
         exploration_api=SimpleNamespace(),
         scenario_api=FakeScenarioApi(response),
+        tavern_api=FakeTavernApi(),
         game_session_api=FakeGameSessionApi(response),
         inventory_api=inventory_api,
     )
 
     context = await service.build_current(request(), char_id=7)
 
-    assert context["initial_inventory_open"] is True
-    assert inventory_api.calls == [("inventory", 7)]
-    assert context["inventory_window"].contract_state == "SHARED_INVENTORY_CONTRACT_V1"
-    assert context["inventory_window"].stats.slots_total == 42
-    assert context["inventory_window"].avatar_url == "/inventory-avatar.png"
+    assert context["initial_inventory_open"] is False
+    assert inventory_api.calls == []
+    assert context["inventory_window"].contract_state == "FRONTEND_CONTRACT_PENDING"
 
 
 @pytest.mark.asyncio
@@ -410,6 +485,39 @@ async def test_build_state_initializes_scenario_with_same_context_shape():
     assert context["domain"] == "scenario"
     assert context["scenario"] == response.payload
     assert context["session_ui"]["right_open"] is True
+
+
+@pytest.mark.asyncio
+async def test_build_state_initializes_scenario_with_return_context():
+    response = scenario_response()
+    scenario_api = FakeScenarioApi(response)
+    service = SessionContextBuilder(
+        character_status_api=FakeCharacterStatusApi(),
+        arena_api=SimpleNamespace(),
+        exploration_api=SimpleNamespace(),
+        scenario_api=scenario_api,
+        tavern_api=FakeTavernApi(),
+        game_session_api=FakeGameSessionApi(response),
+        inventory_api=FakeInventoryApi(),
+    )
+    return_context = {
+        "source_state": "tavern",
+        "return_state": "tavern",
+        "return_screen": "bar",
+        "source_service_id": "svc_tavern_hub",
+        "location_id": "52_53",
+        "tavern_id": "last_refuge",
+    }
+
+    await service.build_state(
+        request(),
+        state=CoreDomain.SCENARIO,
+        char_id=7,
+        quest_key="tavern_bartender_dialogue",
+        transition_context={"return_context": return_context},
+    )
+
+    assert scenario_api.initialized == (7, "tavern_bartender_dialogue", return_context)
 
 
 @pytest.mark.asyncio
@@ -511,6 +619,41 @@ async def test_build_state_arena_normalizes_dict_payload_before_render_context()
     assert context["arena"].screen == ArenaScreenEnum.MAIN_MENU
     assert context["domain"] == "arena"
     assert context["character_status"].panel is not None
+
+
+@pytest.mark.asyncio
+async def test_build_state_tavern_loads_shell_from_backend_payload():
+    status_api = FakeCharacterStatusApi()
+    tavern_api = FakeTavernApi()
+    service = tavern_builder(status_api, tavern_api)
+
+    context = await service.build_state(
+        request(),
+        state=CoreDomain.TAVERN,
+        char_id=7,
+        transition_context={
+            "return_context": {
+                "return_screen": "room",
+                "source_service_id": "svc_tavern_hub",
+                "location_id": "52_53",
+                "tavern_id": "last_refuge",
+            }
+        },
+    )
+
+    assert tavern_api.calls == [
+        {
+            "char_id": 7,
+            "screen": "room",
+            "tavern_id": "last_refuge",
+            "service_id": "svc_tavern_hub",
+            "location_id": "52_53",
+        }
+    ]
+    assert context["domain"] == "tavern"
+    assert context["tavern"].screen == TavernScreenEnum.ROOM
+    assert context["character_status"].panel is not None
+    assert context["nav"]["center"]["label"] == "TAVERN"
 
 
 @pytest.mark.asyncio

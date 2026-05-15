@@ -38,6 +38,8 @@
     {% endif %}
 {%- endmacro %}
 
+{% set has_center_nav = nav and (nav.l2 or nav.l1 or nav.center or nav.r1 or nav.r2) %}
+{% if has_center_nav %}
 <nav class="center-nav">
     {% if nav and nav.l2 %}
     <button class="cnav-btn {{ 'is-disabled' if nav.l2.is_disabled else '' }}" {{ nav_action(nav.l2) }} :class="{{ nav_state_class(nav.l2) }}">
@@ -89,3 +91,4 @@
         <div class="cnav-spacer"></div>
     {% endif %}
 </nav>
+{% endif %}

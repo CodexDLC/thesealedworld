@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Goblin tribe">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#162015"/>
+      <stop offset="1" stop-color="#38522b"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" fill="url(#bg)"/>
+  <path d="M72 396c54-42 116-63 184-63s130 21 184 63v48H72z" fill="#10170f"/>
+  <path d="M256 130l108 50-48 136H196l-48-136z" fill="#5c8c3d"/>
+  <path d="M148 180L76 142l52 86zM364 180l72-38-52 86z" fill="#77a94b"/>
+  <path d="M205 244h102l-20 47h-62z" fill="#263322"/>
+  <circle cx="216" cy="225" r="13" fill="#ffdf64"/>
+  <circle cx="296" cy="225" r="13" fill="#ffdf64"/>
+  <path d="M179 342l38-68 78 68z" fill="#a77d38"/>
+  <path d="M325 342l-38-68-78 68z" fill="#756044"/>
+</svg>

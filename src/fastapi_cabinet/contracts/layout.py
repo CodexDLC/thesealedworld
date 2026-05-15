@@ -18,3 +18,4 @@ class CabinetLayoutMap(BaseModel):
     header_groups: list[HeaderGroup] = Field(default_factory=list)
     sidebar: list[SidebarItem]
     sidebar_badges: dict[str, int | str] = Field(default_factory=dict)
+    notification_count: int = 0

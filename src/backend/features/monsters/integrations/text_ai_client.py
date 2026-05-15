@@ -8,8 +8,7 @@ from typing import TYPE_CHECKING, Any
 from pydantic import BaseModel, Field, model_validator
 
 from src.backend.config.settings import settings
-from src.backend.core.ai_json import parse_ai_json_model
-from src.backend.features.monsters.prompts import monster_prompt_router
+from src.backend.features.monsters.prompts import build_monster_clan_flavor_prompt
 
 if TYPE_CHECKING:
     from src.backend.core.ai import AIService
@@ -81,8 +80,6 @@ class MonsterClanTextAIClient:
 
     def __init__(self, ai: AIService | None) -> None:
         self.ai = ai
-        if self.ai is not None:
-            self.ai.include_router(monster_prompt_router)
 
     async def generate_clan_flavor(self, payload: dict[str, Any]) -> MonsterClanFlavorDTO | None:
         if self.ai is None:
@@ -90,17 +87,18 @@ class MonsterClanTextAIClient:
         if not await self._wait_for_rate_limit():
             return None
         try:
-            raw_text = await self.ai.process(self.prompt_name, payload=payload)
+            generated = await self.ai.generate_json(
+                build_monster_clan_flavor_prompt(payload),
+                schema=MonsterClanFlavorDTO,
+            )
         except Exception:
             self._apply_failure_backoff()
             log.exception("Monster clan flavor AI request failed; using fallback flavor")
             return None
-        parsed = parse_ai_json_model(raw_text, MonsterClanFlavorDTO, context=self.prompt_name)
-        if parsed is None:
-            log.warning("Invalid AI monster clan flavor response: %r", raw_text)
-        else:
-            self._reset_failure_backoff()
-        return parsed
+        self._reset_failure_backoff()
+        if isinstance(generated, MonsterClanFlavorDTO):
+            return generated
+        return MonsterClanFlavorDTO.model_validate(generated)
 
     @classmethod
     async def _wait_for_rate_limit(cls) -> bool:

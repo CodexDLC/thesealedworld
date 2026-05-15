@@ -1,4 +1,13 @@
-from src.backend.core.database.base import Base, TimestampMixin, naming_convention
+from src.backend.core.database.base import (
+    Base,
+    ContextSourceMixin,
+    LifecycleStatusMixin,
+    MetadataContextMixin,
+    RevisionMixin,
+    SchemaVersionMixin,
+    TimestampMixin,
+    naming_convention,
+)
 from src.backend.core.database.session import (
     async_engine,
     async_session_factory,
@@ -10,6 +19,11 @@ from src.backend.core.database.session import (
 
 __all__ = [
     "Base",
+    "ContextSourceMixin",
+    "LifecycleStatusMixin",
+    "MetadataContextMixin",
+    "RevisionMixin",
+    "SchemaVersionMixin",
     "TimestampMixin",
     "naming_convention",
     "async_engine",

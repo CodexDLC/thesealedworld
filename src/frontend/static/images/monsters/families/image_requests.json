@@ -1,0 +1,36 @@
+{
+  "schema_version": 1,
+  "model": "nano-banana-gemini-2.5-flash-preview-image",
+  "purpose": "Base family images used as default fallbacks until a generated clan or member template receives a unique image.",
+  "style": "dark tactical RPG bestiary art, full-body subject, readable silhouette, no text, no UI frame, no logo, square composition",
+  "requests": [
+    {
+      "family_id": "bandit_gang",
+      "fallback_path": "/static/images/monsters/families/bandit_gang.svg",
+      "storage_key": "monsters/generated/families/{asset_hash}.webp",
+      "target_url": "{asset_public_base_url}/monsters/generated/families/{asset_hash}.webp",
+      "prompt": "A gritty fantasy bandit clan from ruined city outskirts, patched leather armor, scavenged blades, watchful ambushers, rough barricade fragments behind them, full-body group portrait, dark tactical RPG bestiary art, square composition, no text."
+    },
+    {
+      "family_id": "goblin_tribe",
+      "fallback_path": "/static/images/monsters/families/goblin_tribe.svg",
+      "storage_key": "monsters/generated/families/{asset_hash}.webp",
+      "target_url": "{asset_public_base_url}/monsters/generated/families/{asset_hash}.webp",
+      "prompt": "A wiry goblin tribe from a collapsed workshop district, scrap tools, stolen trinkets, sharp silhouettes, nervous pack energy, full-body group portrait, dark tactical RPG bestiary art, square composition, no text."
+    },
+    {
+      "family_id": "rat_swarm",
+      "fallback_path": "/static/images/monsters/families/rat_swarm.svg",
+      "storage_key": "monsters/generated/families/{asset_hash}.webp",
+      "target_url": "{asset_public_base_url}/monsters/generated/families/{asset_hash}.webp",
+      "prompt": "A diseased rat swarm from flooded old-city drains, ragged fur, pale eyes, cellar shadows, creeping mass composition, damp stone and broken pipes, dark tactical RPG bestiary art, square composition, no text."
+    },
+    {
+      "family_id": "wolf_pack",
+      "fallback_path": "/static/images/monsters/families/wolf_pack.svg",
+      "storage_key": "monsters/generated/families/{asset_hash}.webp",
+      "target_url": "{asset_public_base_url}/monsters/generated/families/{asset_hash}.webp",
+      "prompt": "A lean wolf pack from ash-covered city outskirts, scarred hides, alert hunting posture, ruined wall silhouettes behind them, full-body group portrait, dark tactical RPG bestiary art, square composition, no text."
+    }
+  ]
+}

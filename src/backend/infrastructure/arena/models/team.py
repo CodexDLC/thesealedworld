@@ -5,10 +5,10 @@ import datetime as dt  # noqa: TC003
 from sqlalchemy import BigInteger, DateTime, ForeignKey, SmallInteger, String, UniqueConstraint, func
 from sqlalchemy.orm import Mapped, mapped_column
 
-from src.backend.core.database import Base, TimestampMixin
+from src.backend.core.database import Base, MetadataContextMixin, RevisionMixin, SchemaVersionMixin, TimestampMixin
 
 
-class ArenaTeam(Base, TimestampMixin):
+class ArenaTeam(Base, TimestampMixin, MetadataContextMixin, SchemaVersionMixin, RevisionMixin):
     __tablename__ = "arena_teams"
     __table_args__ = (UniqueConstraint("leader_id", "name", name="uq_arena_teams_leader_name"),)
 
@@ -23,7 +23,7 @@ class ArenaTeam(Base, TimestampMixin):
     status: Mapped[str] = mapped_column(String(16), default="active", nullable=False)
 
 
-class ArenaTeamMembership(Base):
+class ArenaTeamMembership(Base, MetadataContextMixin, SchemaVersionMixin):
     __tablename__ = "arena_team_members"
 
     team_id: Mapped[int] = mapped_column(

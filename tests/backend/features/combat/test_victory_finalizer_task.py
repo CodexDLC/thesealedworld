@@ -2,7 +2,9 @@ from __future__ import annotations
 
 import pytest
 
+from src.backend.features.combat.runtime.services.durability_policy import CombatDurabilityPolicy
 from src.backend.features.combat.workers.tasks.victory_finalizer_task import victory_finalizer_task
+from src.backend.features.inventory.events.publisher import InventoryEvents
 
 
 class FakeCombatDataService:
@@ -68,6 +70,30 @@ class FakeCombatDataService:
         self.saved_finalization = (session_id, payload, char_ids, ttl)
 
 
+class ArenaCombatDataService(FakeCombatDataService):
+    async def get_meta(self, session_id: str) -> dict:
+        meta = await super().get_meta(session_id)
+        meta["battle_type"] = "arena"
+        meta["arena_session_id"] = "arena-1"
+        return meta
+
+
+class NoXpCombatDataService(FakeCombatDataService):
+    async def get_actors_batch(self, session_id: str, actor_ids: list[str]) -> dict:
+        actors = await super().get_actors_batch(session_id, actor_ids)
+        for actor in actors.values():
+            actor["xp_buffer"] = {}
+        return actors
+
+
+class NoXpArenaCombatDataService(ArenaCombatDataService):
+    async def get_actors_batch(self, session_id: str, actor_ids: list[str]) -> dict:
+        actors = await super().get_actors_batch(session_id, actor_ids)
+        for actor in actors.values():
+            actor["xp_buffer"] = {}
+        return actors
+
+
 class FakeCharacterSessions:
     def __init__(self) -> None:
         self.updated: list[tuple[int, str, int | None, int | None]] = []
@@ -101,6 +127,15 @@ class FakeQueue:
 
     async def enqueue_job(self, name: str, payload: dict) -> None:
         self.jobs.append((name, payload))
+
+
+class FakeEvents:
+    def __init__(self) -> None:
+        self.requests: list[tuple[str, dict, float, str | None]] = []
+
+    async def request(self, event_type: str, payload: dict, *, timeout: float, correlation_id: str | None = None):
+        self.requests.append((event_type, payload, timeout, correlation_id))
+        return {"status": "ok"}
 
 
 @pytest.mark.asyncio
@@ -148,3 +183,90 @@ async def test_victory_finalizer_commits_player_vitals_to_active_session() -> No
     assert finalization["report"]["last_turn"] == 1
     assert finalization["analytics"] == {"1:0": {"t": 1, "o": "H"}}
     assert queue.jobs == [("combat_finalization_persist_task", {"combat_id": "combat-1"})]
+
+
+@pytest.mark.asyncio
+async def test_victory_finalizer_requests_durability_damage_for_non_arena_combat() -> None:
+    data_service = NoXpCombatDataService()
+    character_sessions = FakeCharacterSessions()
+    events = FakeEvents()
+
+    await victory_finalizer_task(
+        {
+            "combat_data_service": data_service,
+            "character_sessions": character_sessions,
+            "events": events,
+            "redis": FakeQueue(),
+        },
+        {"session_id": "combat-1", "winner": "team_1"},
+    )
+
+    assert events.requests == [
+        (
+            InventoryEvents.DURABILITY_DAMAGE_REQUESTED,
+            {
+                "char_id": 7,
+                "amount": 0.1,
+                "scope": "equipped",
+                "reason": "combat_completed",
+                "source": "combat_finalization",
+                "combat_id": "combat-1",
+                "idempotency_key": "combat:combat-1:durability:7:combat_completed",
+                "metadata": {"winner_team": "team_1", "battle_type": "pve"},
+            },
+            30.0,
+            "combat:combat-1:durability:7:combat_completed",
+        )
+    ]
+
+
+@pytest.mark.asyncio
+async def test_victory_finalizer_skips_durability_damage_for_arena_combat() -> None:
+    events = FakeEvents()
+
+    await victory_finalizer_task(
+        {
+            "combat_data_service": NoXpArenaCombatDataService(),
+            "character_sessions": FakeCharacterSessions(),
+            "events": events,
+            "redis": FakeQueue(),
+        },
+        {"session_id": "combat-1", "winner": "team_1"},
+    )
+
+    assert events.requests == []
+
+
+def test_durability_policy_uses_death_damage_for_dead_pve_players() -> None:
+    finalization = {
+        "combat_id": "combat-2",
+        "winner_team": "team_2",
+        "meta": {"battle_type": "pve"},
+        "actors": {
+            "7": {
+                "char_id": 7,
+                "is_ai": False,
+                "is_dead": True,
+            },
+            "wolf_1": {
+                "char_id": None,
+                "is_ai": True,
+                "is_dead": False,
+            },
+        },
+    }
+
+    requests = CombatDurabilityPolicy().resolve(finalization)
+
+    assert [request.as_payload() for request in requests] == [
+        {
+            "char_id": 7,
+            "amount": 2.0,
+            "scope": "all_carried",
+            "reason": "death",
+            "source": "combat_finalization",
+            "combat_id": "combat-2",
+            "idempotency_key": "combat:combat-2:durability:7:death",
+            "metadata": {"winner_team": "team_2", "battle_type": "pve"},
+        }
+    ]

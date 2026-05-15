@@ -3,10 +3,10 @@ from __future__ import annotations
 from sqlalchemy import BigInteger, ForeignKey, Integer, SmallInteger, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
-from src.backend.core.database import Base
+from src.backend.core.database import Base, MetadataContextMixin, SchemaVersionMixin
 
 
-class ArenaLeague(Base):
+class ArenaLeague(Base, MetadataContextMixin, SchemaVersionMixin):
     __tablename__ = "arena_leagues"
     __table_args__ = (UniqueConstraint("season_id", "tier", name="uq_arena_leagues_season_tier"),)
 

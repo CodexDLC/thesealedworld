@@ -1,0 +1,519 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>The Sealed World - Panel Components Prototype</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=EB+Garamond:wght@500;600;700&family=JetBrains+Mono:wght@400;500;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/panels.css">
+</head>
+<body class="game-body mobile-rift-body">
+    <nav class="prototype-purpose-nav" aria-label="Prototype purpose navigation">
+        <a href="exploration.html">Exploration</a>
+        <a href="combat.html">Combat</a>
+        <a href="scenario.html">Scenario</a>
+        <a class="is-active" href="panels.html">Panels</a>
+    </nav>
+
+    <main class="prototype-board prototype-board--purpose panels-catalog" aria-label="Reusable side panel component board">
+        <header class="prototype-domain-head">
+            <div>
+                <strong>Reusable Panels</strong>
+                <span>левая статус/build mastery · правая info/inventory · только боковые dock-блоки</span>
+            </div>
+            <nav aria-label="Panel variants">
+                <span>status</span>
+                <span>mastery</span>
+                <span>info</span>
+                <span>inventory</span>
+            </nav>
+        </header>
+
+        <section class="prototype-form-section" aria-label="Side panel composition">
+            <div class="prototype-section-title">
+                <strong>Panel Pair</strong>
+                <span>только боковые панели и их переиспользуемые состояния</span>
+            </div>
+
+            <div class="panels-catalog-grid">
+                <aside class="panel-dock panel-dock--framed panel-dock--scroll side-panel-drawer side-panel-drawer--left panels-side-panel panels-left-compact" aria-label="Reusable left status panel">
+                    <nav class="dock-nav dock-nav--bar dock-nav--two" aria-label="Left panel actions">
+                        <button class="dock-nav-button is-active" type="button">STATUS</button>
+                        <button class="dock-nav-button" type="button">BUILD</button>
+                    </nav>
+
+                    <section class="status-widget-card" aria-label="Character summary">
+                        <div class="status-widget-avatar">
+                            <img src="../src/frontend/static/images/avatars/veil4.png" alt="Sealed Agent avatar">
+                        </div>
+                        <div class="status-widget-core">
+                            <div class="status-widget-name">
+                                <strong>SEALED AGENT</strong>
+                                <span>TIER 0</span>
+                            </div>
+                            <div class="status-widget-bars">
+                                <div class="status-widget-bar status-widget-bar--hp" style="--status-fill: 84%;">
+                                    <span>HP</span>
+                                    <i></i>
+                                    <b>84 / 100</b>
+                                </div>
+                                <div class="status-widget-bar status-widget-bar--en" style="--status-fill: 52%;">
+                                    <span>EN</span>
+                                    <i></i>
+                                    <b>31 / 60</b>
+                                </div>
+                                <div class="status-widget-bar status-widget-bar--sta" style="--status-fill: 60%;">
+                                    <span>STA</span>
+                                    <i></i>
+                                    <b>48 / 80</b>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    <details class="status-widget-section" open>
+                        <summary class="status-widget-section-title">
+                            <span>ATTRIBUTES</span>
+                            <strong>BASE</strong>
+                        </summary>
+                        <div class="status-widget-attribute-body">
+                            <div class="status-widget-attribute-list">
+                                <div class="status-widget-attribute-group">
+                                    <em>BODY</em>
+                                    <div><span>СИЛ</span><strong>11</strong></div>
+                                    <div><span>ЛОВ</span><strong>12</strong></div>
+                                    <div><span>ВЫН</span><strong>15</strong></div>
+                                </div>
+                                <div class="status-widget-attribute-group">
+                                    <em>CORE</em>
+                                    <div><span>ИНТ</span><strong>14</strong></div>
+                                    <div><span>ПАМ</span><strong>17</strong></div>
+                                    <div><span>МЕН</span><strong>16</strong></div>
+                                </div>
+                                <div class="status-widget-attribute-group">
+                                    <em>SENSOR</em>
+                                    <div><span>ВОС</span><strong>10</strong></div>
+                                    <div><span>ПРО</span><strong>9</strong></div>
+                                    <div><span>ПРД</span><strong>13</strong></div>
+                                </div>
+                            </div>
+                        </div>
+                    </details>
+
+                    <details class="status-widget-section" open>
+                        <summary class="status-widget-section-title">
+                            <span>SKILLS</span>
+                            <strong>GROUPS</strong>
+                        </summary>
+                        <div class="status-widget-skill-accordion">
+                            <details open>
+                                <summary><span>WEAPON MASTERY</span><strong>12</strong></summary>
+                                <div class="status-widget-skill-list">
+                                    <div><span>Древковое оружие</span><strong>10.2%</strong></div>
+                                    <div><span>Клинки</span><strong>4.8%</strong></div>
+                                    <div><span>Метательное</span><strong>2.1%</strong></div>
+                                </div>
+                            </details>
+                            <details>
+                                <summary><span>TACTICAL</span><strong>18</strong></summary>
+                                <div class="status-widget-skill-list">
+                                    <div><span>Маневрирование</span><strong>8.2%</strong></div>
+                                    <div><span>Выживание</span><strong>7.4%</strong></div>
+                                </div>
+                            </details>
+                        </div>
+                    </details>
+                </aside>
+
+                <aside class="panel-dock panel-dock--framed panel-dock--scroll side-panel-drawer side-panel-drawer--right panels-side-panel panels-right-compact" aria-label="Reusable right info panel">
+                    <nav class="dock-nav dock-nav--bar dock-nav--two" aria-label="Right panel actions">
+                        <button class="dock-nav-button is-active" type="button">INFO</button>
+                        <button class="dock-nav-button" type="button">CLOSE</button>
+                    </nav>
+
+                    <section class="info-widget-section" aria-label="Location identity">
+                        <header class="info-widget-title">
+                            <span>БАШНЯ ИСПЫТАНИЙ</span>
+                            <strong>SAFE</strong>
+                        </header>
+                        <div class="info-widget-kv">
+                            <div><span>Grid X</span><strong>52</strong></div>
+                            <div><span>Grid Y</span><strong>51</strong></div>
+                            <div><span>Street</span><strong>УЛИЦА МУДРЕЦОВ</strong></div>
+                            <div><span>Tier</span><strong>T0</strong></div>
+                        </div>
+                    </section>
+
+                    <details class="info-widget-section" open>
+                        <summary class="info-widget-title">
+                            <span>ENCOUNTER</span>
+                            <strong>GROUP</strong>
+                        </summary>
+                        <div class="info-widget-list">
+                            <div><span>Тварь у разлома</span><strong>HIGH</strong></div>
+                            <div><span>Второй силуэт</span><strong>UNKNOWN</strong></div>
+                        </div>
+                    </details>
+
+                    <details class="info-widget-section" open>
+                        <summary class="info-widget-title">
+                            <span>RESOURCES</span>
+                            <strong>AREA</strong>
+                        </summary>
+                        <div class="info-widget-meters">
+                            <div class="info-widget-meter" style="--meter-fill: 72%;">
+                                <span>Rift pressure</span>
+                                <strong>72%</strong>
+                                <i></i>
+                            </div>
+                            <div class="info-widget-meter" style="--meter-fill: 38%;">
+                                <span>Loot density</span>
+                                <strong>38%</strong>
+                                <i></i>
+                            </div>
+                        </div>
+                    </details>
+
+                    <details class="info-widget-section">
+                        <summary class="info-widget-title">
+                            <span>TAGS</span>
+                            <strong>5</strong>
+                        </summary>
+                        <div class="info-widget-tags">
+                            <span>safe</span>
+                            <span>tower</span>
+                            <span>npc</span>
+                            <span>rift</span>
+                            <span>trace</span>
+                        </div>
+                    </details>
+                </aside>
+            </div>
+        </section>
+
+        <section class="prototype-form-section" aria-label="Build mastery and inventory side panels">
+            <div class="prototype-section-title">
+                <strong>Build / Inventory</strong>
+                <span>левая панель для развития мастерства; правая панель для быстрого инвентаря</span>
+            </div>
+
+            <div class="panels-catalog-grid">
+                <aside class="panel-dock panel-dock--framed panel-dock--scroll side-panel-drawer side-panel-drawer--left panels-side-panel panels-mastery-panel" aria-label="Reusable left build mastery panel">
+                    <nav class="dock-nav dock-nav--bar dock-nav--two" aria-label="Build mastery actions">
+                        <button class="dock-nav-button is-active" type="button">MASTERY</button>
+                        <button class="dock-nav-button" type="button">APPLY</button>
+                    </nav>
+
+                    <section class="status-widget-card panels-mastery-hero" aria-label="Current mastery summary">
+                        <div class="status-widget-avatar">
+                            <span class="panels-mastery-rank" aria-hidden="true">II</span>
+                        </div>
+                        <div class="status-widget-core">
+                            <div class="status-widget-name">
+                                <strong>WEAPON MASTERY</strong>
+                                <span>12</span>
+                            </div>
+                            <div class="status-widget-bars">
+                                <div class="status-widget-bar status-widget-bar--sta" style="--status-fill: 68%;">
+                                    <span>XP</span>
+                                    <i></i>
+                                    <b>68%</b>
+                                </div>
+                                <div class="status-widget-bar status-widget-bar--en" style="--status-fill: 30%;">
+                                    <span>POINTS</span>
+                                    <i></i>
+                                    <b>3 FREE</b>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    <details class="status-widget-section panels-mastery-section" open>
+                        <summary class="status-widget-section-title">
+                            <span>ACTIVE PATH</span>
+                            <strong>SPEAR</strong>
+                        </summary>
+                        <div class="panels-mastery-track" aria-label="Mastery progression">
+                            <button class="panels-mastery-node is-unlocked" type="button">
+                                <strong>GRIP</strong>
+                                <span>+2 control</span>
+                            </button>
+                            <button class="panels-mastery-node is-active" type="button">
+                                <strong>THRUST</strong>
+                                <span>ready to rank</span>
+                            </button>
+                            <button class="panels-mastery-node" type="button">
+                                <strong>BRACE</strong>
+                                <span>2 points</span>
+                            </button>
+                        </div>
+                    </details>
+
+                    <details class="status-widget-section panels-mastery-section" open>
+                        <summary class="status-widget-section-title">
+                            <span>SKILL LINES</span>
+                            <strong>4</strong>
+                        </summary>
+                        <div class="status-widget-skill-list panels-mastery-lines">
+                            <div><span>Древковое оружие</span><strong>10.2%</strong></div>
+                            <div><span>Клинки</span><strong>4.8%</strong></div>
+                            <div><span>Парирование</span><strong>8.2%</strong></div>
+                            <div><span>Маневрирование</span><strong>7.4%</strong></div>
+                        </div>
+                    </details>
+
+                    <details class="status-widget-section panels-mastery-section" open>
+                        <summary class="status-widget-section-title">
+                            <span>PREVIEW</span>
+                            <strong>DELTA</strong>
+                        </summary>
+                        <div class="panels-mastery-delta" aria-label="Pending build changes">
+                            <div><span>Attack control</span><strong>+2</strong></div>
+                            <div><span>Stamina cost</span><strong>-4%</strong></div>
+                            <div><span>Unlock</span><strong>Brace</strong></div>
+                        </div>
+                    </details>
+                </aside>
+
+                <aside class="panel-dock panel-dock--framed panel-dock--scroll side-panel-drawer side-panel-drawer--right panels-side-panel panels-inventory-panel" aria-label="Reusable right inventory panel">
+                    <nav class="dock-nav dock-nav--bar dock-nav--two" aria-label="Inventory actions">
+                        <button class="dock-nav-button is-active" type="button">BAG</button>
+                        <button class="dock-nav-button" type="button">SORT</button>
+                    </nav>
+
+                    <section class="mobile-inventory-screen panels-inventory-screen" aria-label="Inventory right panel adaptation">
+                        <header class="mobile-inventory-head">
+                            <strong>INVENTORY</strong>
+                            <span>18 / 50</span>
+                            <button type="button" aria-label="Close inventory">×</button>
+                        </header>
+
+                        <div class="inventory-shell mobile-inventory-shell panels-inventory-shell" data-contract-state="SHARED_INVENTORY_CONTRACT_V1">
+                            <section class="mobile-inventory-equip panels-inventory-equip" aria-label="Character equipment doll">
+                                <div class="panels-equipment-doll-grid">
+                                    <img class="panels-equipment-avatar" src="../src/frontend/static/images/avatars/veil4.png" alt="" aria-hidden="true">
+                                    <button type="button" class="inventory-accessory-slot panels-equip-slot--amulet is-equipped inventory-grade-r2" style="--inventory-item-icon-url: url('../src/frontend/static/images/ui/inventory-gear/amulet.svg');" aria-label="Амулет: надет">
+                                        <span class="inventory-accessory-slot-label">АМУЛЕТ</span>
+                                        <span class="inventory-equipped-icon" aria-hidden="true"></span>
+                                    </button>
+                                    <button type="button" class="inventory-equip-zone panels-equip-slot--head inventory-grade-r1" aria-label="Голова: EMPTY">
+                                        <span class="inventory-slot-title">ГОЛОВА</span>
+                                        <span class="inventory-slot-state">EMPTY</span>
+                                    </button>
+                                    <button type="button" class="inventory-accessory-slot panels-equip-slot--earring inventory-grade-r0" aria-label="Серьги: EMPTY">
+                                        <span class="inventory-accessory-slot-label">СЕРЬГИ</span>
+                                        <small>EMPTY</small>
+                                    </button>
+                                    <button type="button" class="inventory-equip-zone panels-equip-slot--main is-equipped inventory-grade-r1" aria-label="Правая рука: Тупой нож" style="--inventory-item-icon-url: url('../src/frontend/static/images/ui/inventory-gear/weapon_dagger.svg');">
+                                        <span class="inventory-slot-title">MAIN</span>
+                                        <span class="inventory-equipped-icon" aria-hidden="true"></span>
+                                    </button>
+                                    <button type="button" class="inventory-equip-zone panels-equip-slot--chest inventory-grade-r0" aria-label="Корпус: броня и одежда">
+                                        <span class="inventory-slot-title">БРОНЯ</span>
+                                        <span class="inventory-slot-state">EMPTY</span>
+                                        <span class="inventory-slot-tooltip">
+                                            <strong>КОРПУС</strong>
+                                            <span>Броня: EMPTY</span>
+                                        </span>
+                                    </button>
+                                    <button type="button" class="inventory-equip-zone panels-equip-slot--garment inventory-grade-r0" aria-label="Одежда корпуса: EMPTY">
+                                        <span class="inventory-slot-title">ОДЕЖДА</span>
+                                        <span class="inventory-slot-state">EMPTY</span>
+                                    </button>
+                                    <button type="button" class="inventory-equip-zone panels-equip-slot--off inventory-grade-r0" aria-label="Левая рука: EMPTY">
+                                        <span class="inventory-slot-title">OFF</span>
+                                        <span class="inventory-slot-state">EMPTY</span>
+                                    </button>
+                                    <button type="button" class="inventory-equip-zone panels-equip-slot--arms inventory-grade-r0" aria-label="Руки: наручи и перчатки">
+                                        <span class="inventory-slot-title">НАРУЧИ</span>
+                                        <span class="inventory-slot-state">EMPTY</span>
+                                        <span class="inventory-slot-tooltip">
+                                            <strong>РУКИ</strong>
+                                            <span>Наручи: EMPTY</span>
+                                        </span>
+                                    </button>
+                                    <button type="button" class="inventory-equip-zone panels-equip-slot--gloves inventory-grade-r0" aria-label="Перчатки: EMPTY">
+                                        <span class="inventory-slot-title">ПЕРЧ</span>
+                                        <span class="inventory-slot-state">EMPTY</span>
+                                    </button>
+                                    <button type="button" class="inventory-equip-zone panels-equip-slot--legs inventory-grade-r0" aria-label="Ноги: поножи и штаны">
+                                        <span class="inventory-slot-title">ПОНОЖИ</span>
+                                        <span class="inventory-slot-state">EMPTY</span>
+                                        <span class="inventory-slot-tooltip">
+                                            <strong>НОГИ</strong>
+                                            <span>Поножи: EMPTY</span>
+                                        </span>
+                                    </button>
+                                    <button type="button" class="inventory-equip-zone panels-equip-slot--legwear inventory-grade-r0" aria-label="Штаны: EMPTY">
+                                        <span class="inventory-slot-title">ШТАНЫ</span>
+                                        <span class="inventory-slot-state">EMPTY</span>
+                                    </button>
+                                    <button type="button" class="inventory-equip-zone panels-equip-slot--cloak is-equipped inventory-grade-r2" aria-label="Плащ: Серый плащ" style="--inventory-item-icon-url: url('../src/frontend/static/images/ui/inventory-gear/cloak.svg');">
+                                        <span class="inventory-slot-title">ПЛАЩ</span>
+                                        <span class="inventory-equipped-icon" aria-hidden="true"></span>
+                                    </button>
+                                    <button type="button" class="inventory-accessory-slot panels-equip-slot--ring-a inventory-grade-r0" aria-label="Кольцо 1: EMPTY">
+                                        <span class="inventory-accessory-slot-label">КОЛЬЦО 1</span>
+                                        <small>EMPTY</small>
+                                    </button>
+                                    <button type="button" class="inventory-equip-zone panels-equip-slot--feet inventory-grade-r0" aria-label="Ступни: EMPTY">
+                                        <span class="inventory-slot-title">ОБУВЬ</span>
+                                        <span class="inventory-slot-state">EMPTY</span>
+                                    </button>
+                                    <button type="button" class="inventory-accessory-slot panels-equip-slot--ring-b inventory-grade-r0" aria-label="Кольцо 2: EMPTY">
+                                        <span class="inventory-accessory-slot-label">КОЛЬЦО 2</span>
+                                        <small>EMPTY</small>
+                                    </button>
+                                    <button type="button" class="inventory-accessory-slot panels-equip-slot--belt is-equipped inventory-grade-r1" style="--inventory-item-icon-url: url('../src/frontend/static/images/ui/inventory-gear/belt.svg');" aria-label="Пояс: простой пояс">
+                                        <span class="inventory-accessory-slot-label">ПОЯС</span>
+                                        <span class="inventory-equipped-icon" aria-hidden="true"></span>
+                                    </button>
+                                </div>
+                            </section>
+
+                            <section class="inventory-belt mobile-inventory-beltline" aria-label="Quick slots">
+                                <div class="inventory-section-label">QUICK SLOTS</div>
+                                <div class="inventory-belt-slots">
+                                    <button type="button" class="inventory-belt-slot is-enabled is-equipped inventory-grade-r1" style="--inventory-item-icon-url: url('../src/frontend/static/images/ui/inventory-gear/consumable.svg');" aria-label="Belt quick slot 1: Флакон">
+                                        <span class="inventory-equipped-icon" aria-hidden="true"></span>
+                                    </button>
+                                    <button type="button" class="inventory-belt-slot is-enabled is-empty" aria-label="Belt quick slot 2: ПУСТО"><span class="inventory-belt-slot-index">2</span></button>
+                                    <button type="button" class="inventory-belt-slot is-enabled is-empty" aria-label="Belt quick slot 3: ПУСТО"><span class="inventory-belt-slot-index">3</span></button>
+                                    <button type="button" class="inventory-belt-slot is-locked" aria-label="Belt quick slot 4: ЗАКРЫТО"><span class="inventory-belt-slot-index">4</span></button>
+                                    <button type="button" class="inventory-belt-slot is-locked" aria-label="Belt quick slot 5: ЗАКРЫТО"><span class="inventory-belt-slot-index">5</span></button>
+                                    <button type="button" class="inventory-belt-slot is-locked" aria-label="Belt quick slot 6: ЗАКРЫТО"><span class="inventory-belt-slot-index">6</span></button>
+                                    <button type="button" class="inventory-belt-slot is-locked" aria-label="Belt quick slot 7: ЗАКРЫТО"><span class="inventory-belt-slot-index">7</span></button>
+                                    <button type="button" class="inventory-belt-slot is-locked" aria-label="Belt quick slot 8: ЗАКРЫТО"><span class="inventory-belt-slot-index">8</span></button>
+                                </div>
+                            </section>
+
+                            <section class="inventory-container mobile-inventory-container" aria-label="Inventory container">
+                                <div class="inventory-container-toolbar">
+                                    <div class="inventory-tabs" role="tablist" aria-label="Inventory filters">
+                                        <button type="button" class="inventory-tab is-active" aria-selected="true" data-tab-id="items" title="Предметы" aria-label="Предметы"><img src="../src/frontend/static/images/ui/inventory-icons/items.svg" alt="" aria-hidden="true"></button>
+                                        <button type="button" class="inventory-tab" aria-selected="false" data-tab-id="resources" title="Ресурсы" aria-label="Ресурсы"><img src="../src/frontend/static/images/ui/inventory-icons/resources.svg" alt="" aria-hidden="true"></button>
+                                        <button type="button" class="inventory-tab" aria-selected="false" data-tab-id="quest" title="Квест" aria-label="Квест"><img src="../src/frontend/static/images/ui/inventory-icons/quest.svg" alt="" aria-hidden="true"></button>
+                                    </div>
+                                    <div class="inventory-container-status">18 / 50</div>
+                                    <label class="inventory-search">
+                                        <span class="sr-only">Search inventory</span>
+                                        <input type="search" placeholder="Поиск">
+                                    </label>
+                                </div>
+                                <div class="inventory-table inventory-grid-panel" aria-label="Inventory items">
+                                    <div class="inventory-table-body">
+                                        <div class="inventory-item-grid" data-inventory-cells="50" data-inventory-used-cells="18">
+                                            <button type="button" class="inventory-card inventory-grade-r1" style="--item-w: 2; --item-h: 1; --inventory-item-icon-url: url('../src/frontend/static/images/ui/inventory-gear/weapon_dagger.svg');">
+                                                <span class="inventory-card-icon" aria-hidden="true"></span>
+                                                <span class="inventory-card-name">Тупой нож</span>
+                                                <span class="inventory-card-rarity">обычный</span>
+                                            </button>
+                                            <button type="button" class="inventory-card inventory-grade-r1" style="--item-w: 2; --item-h: 1; --inventory-item-icon-url: url('../src/frontend/static/images/ui/inventory-gear/consumable.svg');">
+                                                <span class="inventory-card-icon" aria-hidden="true"></span>
+                                                <span class="inventory-card-name">Флакон</span>
+                                                <span class="inventory-card-qty">2</span>
+                                                <span class="inventory-card-rarity">расходник</span>
+                                            </button>
+                                            <button type="button" class="inventory-card inventory-grade-r2" style="--item-w: 2; --item-h: 2; --inventory-item-icon-url: url('../src/frontend/static/images/ui/inventory-gear/cloak.svg');">
+                                                <span class="inventory-card-icon" aria-hidden="true"></span>
+                                                <span class="inventory-card-name">Серый плащ</span>
+                                                <span class="inventory-card-rarity">T1</span>
+                                            </button>
+                                            <button type="button" class="inventory-card inventory-grade-r0" style="--item-w: 1; --item-h: 1; --inventory-item-icon-url: url('../src/frontend/static/images/ui/inventory-gear/resource.svg');">
+                                                <span class="inventory-card-icon" aria-hidden="true"></span>
+                                                <span class="inventory-card-qty">9</span>
+                                            </button>
+                                            <button type="button" class="inventory-card inventory-grade-r2" style="--item-w: 2; --item-h: 1; --inventory-item-icon-url: url('../src/frontend/static/images/ui/inventory-gear/quest.svg');">
+                                                <span class="inventory-card-icon" aria-hidden="true"></span>
+                                                <span class="inventory-card-name">Метка башни</span>
+                                                <span class="inventory-card-rarity">quest</span>
+                                            </button>
+                                            <div class="inventory-empty-state"></div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </section>
+                        </div>
+                    </section>
+                </aside>
+            </div>
+        </section>
+
+        <section class="prototype-form-section" aria-label="Reusable panel fragments">
+            <div class="prototype-section-title">
+                <strong>Fragments</strong>
+                <span>минимальные блоки, которые можно переносить в доменные страницы</span>
+            </div>
+
+            <div class="panels-component-grid">
+                <article class="panels-component-card">
+                    <header class="panels-component-head">
+                        <strong>Left Status Dock</strong>
+                        <span>panel-dock + status-widget-card + status-widget-section</span>
+                    </header>
+                    <div class="panel-dock panel-dock--framed panels-mini-panel">
+                        <section class="status-widget-card" aria-label="Compact status card">
+                            <div class="status-widget-avatar">
+                                <img src="../src/frontend/static/images/avatars/rook7.png" alt="Player avatar">
+                            </div>
+                            <div class="status-widget-core">
+                                <div class="status-widget-name">
+                                    <strong>CODEXDLC</strong>
+                                    <span>T0</span>
+                                </div>
+                                <div class="status-widget-bars">
+                                    <div class="status-widget-bar status-widget-bar--hp" style="--status-fill: 64%;">
+                                        <span>HP</span>
+                                        <i></i>
+                                        <b>64 / 100</b>
+                                    </div>
+                                    <div class="status-widget-bar status-widget-bar--sta" style="--status-fill: 78%;">
+                                        <span>STA</span>
+                                        <i></i>
+                                        <b>78 / 100</b>
+                                    </div>
+                                </div>
+                            </div>
+                        </section>
+                    </div>
+                </article>
+
+                <article class="panels-component-card">
+                    <header class="panels-component-head">
+                        <strong>Right Info Dock</strong>
+                        <span>panel-dock + info-widget-section + details/summary</span>
+                    </header>
+                    <div class="panel-dock panel-dock--framed panels-mini-panel">
+                        <section class="info-widget-section" aria-label="Compact info card">
+                            <header class="info-widget-title">
+                                <span>SCENARIO</span>
+                                <strong>NPC</strong>
+                            </header>
+                            <div class="info-widget-list">
+                                <div><span>NPC</span><strong>Смотритель</strong></div>
+                                <div><span>Шаг</span><strong>03 / 05</strong></div>
+                                <div><span>Флаг</span><strong>pending</strong></div>
+                            </div>
+                        </section>
+                    </div>
+                </article>
+
+                <article class="panels-component-card">
+                    <header class="panels-component-head">
+                        <strong>Shared Contract</strong>
+                        <span>что остается общим для всех доменов</span>
+                    </header>
+                    <ul class="panels-contract-list">
+                        <li>Оболочка панели: <code>panel-dock</code>, <code>panel-dock--framed</code>, <code>panel-dock--scroll</code>.</li>
+                        <li>Drawer-поведение: <code>side-panel-drawer--left</code> и <code>side-panel-drawer--right</code>.</li>
+                        <li>Левый статус: <code>status-widget-*</code>; правый контекст: <code>info-widget-*</code>.</li>
+                        <li>Домен добавляет только данные и маленькие модификаторы, не новый shell.</li>
+                    </ul>
+                </article>
+            </div>
+        </section>
+    </main>
+</body>
+</html>

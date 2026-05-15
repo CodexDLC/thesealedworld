@@ -81,7 +81,7 @@ Rules:
 - `hierarchy` entries must reference existing variant ids. DTO validation enforces this.
 - Keep the variant dict key equal to `variant.id`; current DTO validation does not enforce this, but registry and generated monster code assume stable ids.
 - Use `min_tier` and `max_tier` to gate variant availability. `get_available_variants_for_tier_window()` may include neighbor-tier variants around the current tier.
-- `base_stats` must include `strength`, `agility`, `endurance`, `intelligence`, `wisdom`, `men`, `perception`, `charisma`, and `luck`.
+- `base_stats` must include `strength`, `agility`, `endurance`, `intellect`, `memory`, `mental`, `perception`, `projection`, and `prediction`.
 - `variant.skills` is a list of ability ids, not numeric catalog skill ids.
 
 ## Skills

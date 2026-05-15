@@ -34,6 +34,21 @@ class SkillRepository:
         )
         await self.session.execute(stmt)
 
+    async def increment_progress_rows(self, rows: list[dict[str, Any]]) -> None:
+        if not rows:
+            return
+
+        stmt = insert(SkillProgress).values(rows)
+        stmt = stmt.on_conflict_do_update(
+            index_elements=[SkillProgress.character_id, SkillProgress.skill_key],
+            set_={
+                "total_xp": SkillProgress.total_xp + stmt.excluded.total_xp,
+                "is_unlocked": True,
+                "progress_state": stmt.excluded.progress_state,
+            },
+        )
+        await self.session.execute(stmt)
+
     async def get_all_skills_progress_batch(self, char_ids: list[int]) -> dict[int, list[SkillProgress]]:
         log.debug(f"SkillRepository | action=get_all_skills_progress_batch count={len(char_ids)}")
         if not char_ids:

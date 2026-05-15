@@ -5,15 +5,22 @@ import secrets
 from datetime import timedelta
 from typing import Any
 
-from src.backend.features_site.auth.security.token_service import (
-    create_access_token as _create_access_token,
-)
-from src.backend.features_site.auth.security.token_service import (
-    decode_access_token as _decode_access_token,
-)
+from authx import AuthX, AuthXConfig, RequestToken
+from authx.exceptions import JWTDecodeError, TokenExpiredError, TokenInvalidSignatureError
+
+from src.backend.config.settings import settings
 
 ALGORITHM = "HS256"
 PASSWORD_ITERATIONS = 390_000
+authx: AuthX = AuthX(
+    config=AuthXConfig(
+        JWT_SECRET_KEY=settings.secret_key,
+        JWT_ALGORITHM=settings.authx_jwt_algorithm,  # type: ignore[arg-type]
+        JWT_TOKEN_LOCATION=settings.authx_jwt_token_locations,  # type: ignore[arg-type]
+        JWT_ACCESS_TOKEN_EXPIRES=timedelta(minutes=settings.access_token_expire_minutes),
+        JWT_REFRESH_TOKEN_EXPIRES=timedelta(days=settings.refresh_token_expire_days),
+    )
+)
 
 
 def _b64url_encode(raw: bytes) -> str:
@@ -26,11 +33,28 @@ def _b64url_decode(value: str) -> bytes:
 
 
 def create_access_token(subject: str | Any, expires_delta: timedelta | None = None) -> str:
-    return _create_access_token(subject, expires_delta=expires_delta)
+    return authx.create_access_token(
+        uid=str(subject),
+        expiry=expires_delta or timedelta(minutes=settings.access_token_expire_minutes),
+    )
 
 
 def decode_access_token(token: str) -> dict[str, Any]:
-    return _decode_access_token(token)
+    request_token = RequestToken(token=token, type="access", location="headers")
+    try:
+        payload = authx.verify_token(request_token, verify_type=True, verify_csrf=False)
+    except TokenExpiredError as exc:
+        raise ValueError("Token expired") from exc
+    except TokenInvalidSignatureError as exc:
+        raise ValueError("Invalid token signature") from exc
+    except JWTDecodeError as exc:
+        message = str(exc)
+        if "expired" in message.lower():
+            raise ValueError("Token expired") from exc
+        if "signature" in message.lower():
+            raise ValueError("Invalid token signature") from exc
+        raise ValueError("Invalid token") from exc
+    return payload.model_dump()
 
 
 def get_password_hash(password: str) -> str:

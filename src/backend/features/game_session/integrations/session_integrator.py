@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from loguru import logger
 
@@ -15,6 +15,7 @@ if TYPE_CHECKING:
 
     from sqlalchemy.ext.asyncio import AsyncSession
 
+    from src.backend.features.character.integrations import CharacterStateIntegrator
     from src.backend.features.character.managers.session import CharacterSessionManager
     from src.backend.features.scenario.services import ScenarioService
     from src.shared.schemas import ScenarioPayloadDTO
@@ -38,12 +39,16 @@ class GameSessionIntegrator:
         character_sessions: CharacterSessionManager | None = None,
         db_session: AsyncSession | None = None,
         scenario_service: ScenarioService | None = None,
+        expedition_service: Any | None = None,
+        state_integrator: CharacterStateIntegrator | None = None,
     ) -> None:
         if character_repo is None and db_session is not None:
             character_repo = CharacterRepository(db_session)
         self.character_repo = character_repo
         self.character_sessions = character_sessions
         self.scenario_service = scenario_service
+        self.expedition_service = expedition_service
+        self.state_integrator = state_integrator
 
     async def get_owned_character(self, character_id: int, user_id: UUID) -> GameSessionCharacter | None:
         if self.character_repo is None:
@@ -97,7 +102,13 @@ class GameSessionIntegrator:
 
         document = await self.character_sessions.get_session(character_id)
         if document is None:
-            return None
+            if self.state_integrator is None:
+                return None
+            try:
+                return await self.state_integrator.bootstrap_active_session(user_id, character_id)
+            except Exception:
+                logger.warning("Game session cold AC bootstrap failed: char_id={}", character_id, exc_info=True)
+                return None
 
         try:
             session_doc = CharacterSessionDocumentDTO.model_validate(document)
@@ -130,6 +141,11 @@ class GameSessionIntegrator:
         if self.character_sessions is None:
             return
         await self.character_sessions.reset_main_runtime_refs_to_exploration(character_id)
+
+    async def respawn_character(self, character_id: int) -> dict[str, Any]:
+        if self.expedition_service is None:
+            raise RuntimeError("expedition_service is required for death respawn")
+        return await self.expedition_service.respawn(char_id=character_id)
 
     async def reconcile_stale_combat_active_session(
         self,

@@ -13,9 +13,10 @@ def test_build_exploration_service_uses_registered_world_locations_state_key():
     state = State()
     state.character_sessions = object()
     state.world_locations = object()
+    state.redis_managers = SimpleNamespace(expeditions=object())
     request = SimpleNamespace(app=SimpleNamespace(state=state))
 
-    service = build_exploration_service(request)  # type: ignore[arg-type]
+    service = build_exploration_service(request, object())  # type: ignore[arg-type]
 
     assert isinstance(service, ExplorationService)
     assert service._integrator.world_store is state.world_locations
@@ -28,9 +29,10 @@ def test_build_exploration_gateway_uses_registered_world_locations_state_key():
     state.world_locations = object()
     state.redis = object()
     state.events = object()
+    state.redis_managers = SimpleNamespace(expeditions=object())
     request = SimpleNamespace(app=SimpleNamespace(state=state))
 
-    gateway = build_exploration_gateway(request)  # type: ignore[arg-type]
+    gateway = build_exploration_gateway(request, object())  # type: ignore[arg-type]
 
     assert isinstance(gateway, ExplorationGateway)
     assert gateway._navigation._integrator.world_store is state.world_locations

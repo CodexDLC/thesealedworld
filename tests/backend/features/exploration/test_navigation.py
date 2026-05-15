@@ -78,6 +78,20 @@ def test_navigation_city_shield_does_not_make_unsafe_ruins_safe():
     assert actions.movement["north"].is_active is False
 
 
+def test_navigation_threat_tier_zero_is_not_safe_without_system_connect():
+    actions = NavigationEngine.build_actions("50_50", {}, {"is_safe_zone": False, "threat_tier": 0})
+
+    assert actions.context["is_safe_zone"] is False
+    assert actions.context["system_connect"] is False
+
+
+def test_navigation_system_connect_marks_safe_context():
+    actions = NavigationEngine.build_actions("52_52", {}, {"system_connect": True, "threat_tier": 2})
+
+    assert actions.context["is_safe_zone"] is True
+    assert actions.context["system_connect"] is True
+
+
 def test_service_action_uses_backend_opaque_service_id():
     actions = NavigationEngine.build_actions("52_51", {"svc:svc_arena_main": {"text_button": "Arena"}}, {})
 

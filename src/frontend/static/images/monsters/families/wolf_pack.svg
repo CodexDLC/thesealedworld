@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Wolf pack">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#151820"/>
+      <stop offset="1" stop-color="#35404c"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" fill="url(#bg)"/>
+  <path d="M72 386c60-54 121-80 184-80s124 26 184 80v58H72z" fill="#10141a"/>
+  <path d="M256 92l65 102 90 30-63 44-28 98-64-50-64 50-28-98-63-44 90-30z" fill="#6d7884"/>
+  <path d="M201 232l55-49 55 49-22 83h-66z" fill="#303844"/>
+  <path d="M179 142l-35-66 85 50zM333 142l35-66-85 50z" fill="#8b98a4"/>
+  <circle cx="222" cy="239" r="10" fill="#ffe28a"/>
+  <circle cx="290" cy="239" r="10" fill="#ffe28a"/>
+  <path d="M238 276h36l-18 20z" fill="#1c1f25"/>
+</svg>

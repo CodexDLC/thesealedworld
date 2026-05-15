@@ -3,8 +3,9 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, Form, HTTPException, Request, status
 from fastapi.responses import RedirectResponse
 
-from src.frontend.config.settings import settings
 from src.frontend.core.renderer import UIRenderer, get_ui_renderer
+from src.frontend.features.auth.dependencies.providers import get_frontend_auth_service
+from src.frontend.features.auth.services.auth_service import FrontendAuthService
 from src.frontend.game_features.game_lobby.dependencies.providers import (
     get_game_lobby_page_service,
 )
@@ -15,11 +16,12 @@ from src.frontend.game_features.session.cookies import (
     clear_active_character_cookie,
     set_active_character_cookie,
 )
-from src.frontend.site_features.auth.dependencies.providers import get_frontend_auth_service
-from src.frontend.site_features.auth.services.auth_service import FrontendAuthService
+from src.frontend.game_features.session.token_state import (
+    attach_game_tokens_from_backend_response,
+    clear_game_token_cookies,
+)
 from src.shared.schemas import CreateCharacterRequestDTO, DeleteCharacterRequestDTO, EnterCharacterRequestDTO
 from src.shared.schemas.game_lobby import CharacterCreationGender
-from src.shared.utils.dev_utils import log_debug_payload
 
 router = APIRouter(tags=["Game Lobby"])
 
@@ -31,11 +33,18 @@ async def game_lobby_page(
     auth_service: Annotated[FrontendAuthService, Depends(get_frontend_auth_service)],
     lobby_service: Annotated[GameLobbyPageService, Depends(get_game_lobby_page_service)],
 ):
-    user = await auth_service.require_current_user(request)
-    response = await lobby_service.get_view(request)
-    log_debug_payload("game_lobby_page.game_lobby_page", response, enabled=settings.debug)
+    user = await auth_service.get_current_user(request)
+    if user is None:
+        return await ui.render(
+            "site/index.html",
+            context={"auth_overlay_open": True, "auth_mode": "login"},
+        )
+    response = await lobby_service.get_view(user)
     lobby = build_lobby_page_vm(response)
-    return await ui.render("site/game_lobby/index.html", context={"user": user, "lobby": lobby})
+    return await ui.render(
+        "site/index.html",
+        context={"user": user, "lobby": lobby, "lobby_overlay_open": True},
+    )
 
 
 @router.get("/api/game-lobby/status", name="api_game_lobby_status")
@@ -57,14 +66,15 @@ async def game_lobby_start(
     name: Annotated[str, Form(min_length=1, max_length=32)],
     gender: Annotated[CharacterCreationGender, Form()],
 ):
-    await auth_service.require_current_user(request)
+    user = await auth_service.require_current_user(request)
     dto = CreateCharacterRequestDTO(name=name, gender=gender)
-    response = await lobby_service.start(request, dto)
-    log_debug_payload("game_lobby_page.game_lobby_start", response, enabled=settings.debug)
+    response = await lobby_service.start(user, dto)
     if response.payload is None or not hasattr(response.payload, "node_key"):
         raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail="Scenario payload is unavailable")
     char_id = _char_id_from_payload(response.payload)
-    return _active_session_redirect(char_id)
+    redirect = _active_session_redirect(char_id)
+    attach_game_tokens_from_backend_response(redirect, response)
+    return redirect
 
 
 @router.post("/game-lobby/enter", name="game_lobby_enter")
@@ -74,10 +84,11 @@ async def game_lobby_enter(
     lobby_service: Annotated[GameLobbyPageService, Depends(get_game_lobby_page_service)],
     character_id: Annotated[int, Form()],
 ):
-    await auth_service.require_current_user(request)
-    response = await lobby_service.enter(request, EnterCharacterRequestDTO(character_id=character_id))
-    log_debug_payload("game_lobby_page.game_lobby_enter", response, enabled=settings.debug)
-    return _active_session_redirect(character_id)
+    user = await auth_service.require_current_user(request)
+    response = await lobby_service.select(user, EnterCharacterRequestDTO(character_id=character_id))
+    redirect = _active_session_redirect(character_id)
+    attach_game_tokens_from_backend_response(redirect, response)
+    return redirect
 
 
 @router.post("/game-lobby/release", name="game_lobby_release")
@@ -86,10 +97,9 @@ async def game_lobby_release(
     auth_service: Annotated[FrontendAuthService, Depends(get_frontend_auth_service)],
     lobby_service: Annotated[GameLobbyPageService, Depends(get_game_lobby_page_service)],
 ):
-    await auth_service.require_current_user(request)
+    user = await auth_service.require_current_user(request)
     character_id = active_character_id_from_cookie(request)
-    response = await lobby_service.release(request, EnterCharacterRequestDTO(character_id=character_id))
-    log_debug_payload("game_lobby_page.game_lobby_release", response, enabled=settings.debug)
+    await lobby_service.release(user, EnterCharacterRequestDTO(character_id=character_id))
     return _lobby_redirect()
 
 
@@ -104,12 +114,17 @@ async def game_lobby_delete(
 ):
     user = await auth_service.require_current_user(request)
     response = await lobby_service.delete(
-        request,
+        user,
         DeleteCharacterRequestDTO(character_id=character_id, confirm_name=confirm_name),
     )
-    log_debug_payload("game_lobby_page.game_lobby_delete", response, enabled=settings.debug)
     lobby = build_lobby_page_vm(response)
-    return await ui.render("site/game_lobby/index.html", context={"user": user, "lobby": lobby})
+    rendered = await ui.render(
+        "site/index.html",
+        context={"user": user, "lobby": lobby, "lobby_overlay_open": True},
+    )
+    clear_active_character_cookie(rendered)
+    clear_game_token_cookies(rendered)
+    return rendered
 
 
 def _char_id_from_payload(payload) -> int:
@@ -129,4 +144,5 @@ def _active_session_redirect(character_id: int) -> RedirectResponse:
 def _lobby_redirect() -> RedirectResponse:
     response = RedirectResponse("/game-lobby", status_code=status.HTTP_303_SEE_OTHER)
     clear_active_character_cookie(response)
+    clear_game_token_cookies(response)
     return response

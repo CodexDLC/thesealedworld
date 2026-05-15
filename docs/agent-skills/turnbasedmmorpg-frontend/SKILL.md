@@ -11,22 +11,39 @@ Read:
 
 - `docs/agent-skills/turnbasedmmorpg-frontend/references/frontend-layout.md`
 
+For service split, auth/user, cabinet, library, frontend database, frontend Alembic, game-backend availability, or site/game boundary work, also read:
+
+- `docs/tasks/service_split_finalization.md`
+- `docs/tasks/service_split_frontend_site.md`
+
 If backend API contracts are involved, also use `turnbasedmmorpg-backend`.
 
 If the task changes game shell CSS, responsive layout, side panels, header/footer, game menu, chat/HUD placement, or domain viewport sizing, also use `turnbasedmmorpg-game-css-shell`.
+
+If the task changes UI design, choose the surface-specific design skill before editing:
+
+- Public website, landing, library, auth pages: `turnbasedmmorpg-site-design`.
+- Cabinet/admin/operational dashboards: `turnbasedmmorpg-cabinet-design`.
+- Gameplay HUD, `design_prototype`, exploration/combat/scenario/loot/status/inventory: `turnbasedmmorpg-game-interface-design`.
 
 ## Core Rules
 
 - Frontend renders UI and calls backend APIs.
 - Frontend must not access databases or import backend feature internals.
+- During the service split, treat `src/frontend` as the server-side site service: user layer, auth, cabinet, library, public site, templates, site-owned repositories, and site Alembic belong here.
+- Site-owned feature folders live under `src/frontend/features/<feature>/`.
+- Site-owned repositories may live inside the owning frontend feature folder; do not add a broad shared repository layer until real model count or reuse justifies it.
+- Game data access must go through typed clients under `src/frontend/integrations/backend_api/`.
+- Game backend downtime must be rendered as unavailable or maintenance UI instead of breaking the site.
 - Put gameplay page and fragment routes in `src/frontend/game_features/<feature>/routes/`.
-- Put site/account/public page routes in `src/frontend/site_features/<feature>/routes/`.
-- Put frontend orchestration in `src/frontend/game_features/<feature>/services/` or `src/frontend/site_features/<feature>/services/`.
-- Put template-shaped data in `src/frontend/game_features/<feature>/view_models/` or `src/frontend/site_features/<feature>/view_models/`.
+- Put site/account/public page routes in `src/frontend/features/<feature>/routes/`.
+- Put frontend orchestration in `src/frontend/game_features/<feature>/services/` or `src/frontend/features/<feature>/services/`.
+- Put template-shaped data in `src/frontend/game_features/<feature>/view_models/` or `src/frontend/features/<feature>/view_models/`.
 - Put backend HTTP clients in `src/frontend/integrations/backend_api/`.
 - Put generic frontend infrastructure in `src/frontend/core/`.
 - Game session screens are assembled through `src/frontend/game_features/session/services/session_context_builder.py`.
 - Domain transitions such as scenario to combat must be resolved by the session context/response director layer, not by templates importing backend internals.
+- Frontend architecture guidance is not enough for UI work. Public site design, cabinet design, and gameplay interface design are separate surfaces with separate rules. Do not use one surface's layout language as the default for another.
 
 ## Combat Frontend Rules
 
@@ -48,8 +65,15 @@ Put feature-specific request helpers, dependencies, or middleware-like behavior 
 ```text
 src/frontend/game_features/<feature>/dependencies/
 src/frontend/game_features/<feature>/middleware/
-src/frontend/site_features/<feature>/dependencies/
-src/frontend/site_features/<feature>/middleware/
+src/frontend/features/<feature>/dependencies/
+src/frontend/features/<feature>/middleware/
 ```
 
 Do not place lobby-only, scenario-only, game-menu-only, or cabinet-only behavior in core middleware.
+
+## Service Split Closure Rule
+
+Before closing a frontend/site service split task, update the relevant task document with the actual decision, file moves, deferred work, and any deviation from the planned architecture:
+
+- `docs/tasks/service_split_finalization.md`
+- `docs/tasks/service_split_frontend_site.md`

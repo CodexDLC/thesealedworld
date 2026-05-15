@@ -1,5 +1,5 @@
 /* ══════════════════════════════════════════
-   SYMBIOTE CHRONICLES — CORE STACK
+   THE SEALED WORLD — CORE STACK
    Generated from Design System v1.0
    ══════════════════════════════════════════ */
 
@@ -15,18 +15,19 @@
 @import url("includes.css");
 
 /* ── COMPONENTS ── */
-@import url("components/buttons.css");
-@import url("components/panels.css");
-@import url("components/stats.css");
-@import url("components/inventory.css");
-@import url("components/chat.css");
-@import url("components/cards.css");
-@import url("components/navigation.css");
-@import url("components/misc.css");
+@import url("components/common/buttons.css");
+@import url("components/common/panels.css");
+@import url("components/common/navigation_primitives.css");
+@import url("components/common/tags_code.css");
+@import url("components/game/stats.css");
+@import url("components/game/inventory.css");
+@import url("components/game/chat.css");
+@import url("components/game/cards.css");
 
 /* ── PAGES ── */
 @import url("pages/design_system.css");
 @import url("pages/main.css");
 @import url("pages/about.css");
 @import url("pages/login.css");
+@import url("pages/site/the_sealed_world_landing.css");
 /* @import url("pages/game.css"); */

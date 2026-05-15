@@ -14,8 +14,8 @@ from src.shared.schemas.arena import ArenaActionDTO, ArenaActionEnum
 from src.shared.schemas.response import CoreResponseDTO
 
 if TYPE_CHECKING:
+    from src.backend.core.auth import User
     from src.backend.features.arena.services import ArenaDuelService, ArenaGroupService, ArenaService
-    from src.backend.features_site.auth.models import User
 
 ActionHandler = Callable[[int, ArenaActionDTO], Awaitable[CoreResponseDTO[Any]]]
 

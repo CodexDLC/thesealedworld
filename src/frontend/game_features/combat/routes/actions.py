@@ -5,12 +5,12 @@ from fastapi import APIRouter, Depends, Form, Request
 from loguru import logger
 
 from src.frontend.core.renderer import UIRenderer, get_ui_renderer
+from src.frontend.features.auth.dependencies.providers import get_frontend_auth_service
+from src.frontend.features.auth.services.auth_service import FrontendAuthService
 from src.frontend.game_features.session.dependencies import get_backend_combat_api, get_session_context_builder
 from src.frontend.game_features.session.services.session_context_builder import SessionContextBuilder
+from src.frontend.game_features.session.token_state import require_game_access_token
 from src.frontend.integrations.backend_api.combat import BackendCombatApi
-from src.frontend.site_features.auth.dependencies.providers import get_frontend_auth_service
-from src.frontend.site_features.auth.services.auth_service import FrontendAuthService
-from src.frontend.site_features.auth.token_state import require_access_token
 from src.shared.schemas.combat import (
     CombatDashboardDTO,
     CombatErrorDTO,
@@ -35,7 +35,7 @@ async def game_combat_logs(
     page_size: int = 8,
 ):
     await auth_service.require_current_user(request)
-    token = require_access_token(request)
+    token = require_game_access_token(request)
     page_size = _allowed_page_size(page_size)
     logs = await combat_api.logs(token, char_id=char_id, page=max(1, page), page_size=page_size)
     total_turns = getattr(logs, "total_turns", 0) or logs.total
@@ -71,7 +71,7 @@ async def game_combat_move(
     ability_id: Annotated[str | None, Form()] = None,
 ):
     await auth_service.require_current_user(request)
-    token = require_access_token(request)
+    token = require_game_access_token(request)
     try:
         combat_payload = await combat_api.register_move(
             token,
@@ -109,7 +109,7 @@ async def game_combat_result_continue(
     char_id: Annotated[int, Form()],
 ):
     await auth_service.require_current_user(request)
-    token = require_access_token(request)
+    token = require_game_access_token(request)
     response = await combat_api.continue_result(token, char_id=char_id)
     context = await context_builder.build_from_response(request, response, char_id=char_id)
     return await ui.render("game/session_content_inner.html", context=context)
@@ -126,7 +126,7 @@ async def game_combat_feint_pin(
     feint_id: Annotated[str | None, Form()] = None,
 ):
     await auth_service.require_current_user(request)
-    token = require_access_token(request)
+    token = require_game_access_token(request)
     try:
         dashboard = await combat_api.pin_feint(
             token,

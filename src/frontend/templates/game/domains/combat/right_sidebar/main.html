@@ -13,47 +13,7 @@
     </div>
 {% elif combat_screen %}
     <div class="combat-side combat-side--right">
-        {% if combat_screen.target %}
-            {% set actor = combat_screen.target %}
-        <section class="combat-panel combat-actor-panel combat-actor-panel--enemy">
-            <div class="combat-panel-header">TARGET</div>
-            <div class="combat-actor-avatar">
-                <img src="{{ actor.avatar_url }}" alt="{{ actor.name }}">
-                <div class="combat-effect-stack">
-                    {% for effect in actor.effects %}
-                        <span class="combat-effect combat-effect--{{ effect.frame_kind }}"
-                              data-catalog="{{ effect.catalog }}"
-                              data-catalog-key="{{ effect.catalog_key }}"
-                              data-tippy-content="{{ effect.tooltip }}"
-                              data-tippy-theme="game-hint">
-                            <img src="{{ effect.icon_url }}" alt="{{ effect.effect_id }}">
-                            {% if effect.duration_text %}
-                                <b>{{ effect.duration_text }}</b>
-                            {% endif %}
-                        </span>
-                    {% endfor %}
-                </div>
-            </div>
-            <div class="combat-actor-name">{{ actor.name }}</div>
-            <div class="combat-vitals">
-                <div class="combat-vital-row">
-                    <span>HP</span>
-                    <div class="combat-vital-bar combat-vital-bar--hp"><i style="width: {{ actor.vitals.hp_percent }}%"></i></div>
-                    <b>{{ actor.vitals.hp_current }}/{{ actor.vitals.hp_max }}</b>
-                </div>
-                <div class="combat-vital-row">
-                    <span>EN</span>
-                    <div class="combat-vital-bar combat-vital-bar--energy"><i style="width: {{ actor.vitals.energy_percent }}%"></i></div>
-                    <b>{{ actor.vitals.energy_current }}/{{ actor.vitals.energy_max }}</b>
-                </div>
-                <div class="combat-vital-row">
-                    <span>STA</span>
-                    <div class="combat-vital-bar combat-vital-bar--stamina"><i style="width: {{ actor.vitals.stamina_percent }}%"></i></div>
-                    <b>{{ actor.vitals.stamina_current }}/{{ actor.vitals.stamina_max }}</b>
-                </div>
-            </div>
-        </section>
-        {% elif combat_screen.action_state == 'TARGET_QUEUE_EMPTY' %}
+        {% if combat_screen.action_state == 'TARGET_QUEUE_EMPTY' %}
         <section class="combat-panel combat-target-empty-panel">
             <div class="combat-panel-header">TARGET QUEUE</div>
             <div class="combat-target-empty">
@@ -65,25 +25,39 @@
         </section>
         {% else %}
         <section class="combat-panel">
-            <div class="combat-panel-header">COMBAT CONTEXT</div>
-            <div class="missing-data-block"><span>NO_DATA</span></div>
+            <div class="combat-panel-header">INFO</div>
+            <div class="combat-info-list">
+                <span><b>PAIR</b><em>{{ combat_screen.exchange_state.pair_status }}</em></span>
+                <span><b>RESPONSE</b><em>{{ combat_screen.exchange_state.opponent_response_state }}</em></span>
+                <span><b>TARGET</b><em>{{ combat_screen.target.name if combat_screen.target else 'NO_TARGET' }}</em></span>
+            </div>
         </section>
         {% endif %}
 
         <section class="combat-panel combat-roster-panel">
             <div class="combat-panel-header">ENEMIES</div>
             <div class="combat-roster">
-                {% for enemy in combat_screen.enemies %}
-                    <button type="button"
-                            class="combat-roster-row combat-roster-row--button {% if enemy.is_target %}is-target{% endif %}"
-                            data-tippy-content="Смена цели будет отдельной тактической возможностью. Сейчас цель выдается очередью боя."
-                            data-tippy-theme="game-hint">
-                        <span class="combat-queue-dot combat-queue-dot--{{ enemy.queue_indicator }}"></span>
-                        <span class="combat-roster-name">{{ enemy.name }}</span>
-                        <div class="combat-roster-hp"><i style="width: {{ enemy.hp_percent }}%"></i></div>
-                        <b>{{ enemy.hp_current }}/{{ enemy.hp_max }}</b>
-                        <span class="combat-info-mark">{{ enemy.queue_state }}</span>
-                    </button>
+                {% for group in combat_screen.enemy_groups %}
+                    <div class="combat-roster-group">
+                        <div class="combat-roster-group__head">
+                            <span>{{ group.label }}</span>
+                            <b>{{ group.alive_count }}/{{ group.total_count }}</b>
+                        </div>
+                        {% for enemy in group.rows %}
+                            <button type="button"
+                                    class="combat-roster-row combat-roster-row--button combat-commit-row combat-commit-row--{{ enemy.commit_state }} {% if enemy.is_target %}is-target{% endif %}"
+                                    data-team="{{ enemy.team }}"
+                                    data-commit-state="{{ enemy.commit_state }}"
+                                    data-tippy-content="{{ enemy.commit_tooltip }}"
+                                    data-tippy-theme="game-hint">
+                                <span class="combat-queue-dot combat-queue-dot--{{ enemy.commit_state }}"></span>
+                                <span class="combat-roster-name">{{ enemy.name }}</span>
+                                <div class="combat-roster-hp"><i style="width: {{ enemy.hp_percent }}%"></i></div>
+                                <b>{{ enemy.hp_current }}/{{ enemy.hp_max }}</b>
+                                <span class="combat-info-mark">{{ enemy.queue_state }}</span>
+                            </button>
+                        {% endfor %}
+                    </div>
                 {% else %}
                     <div class="missing-data-block"><span>NO_ENEMIES</span></div>
                 {% endfor %}

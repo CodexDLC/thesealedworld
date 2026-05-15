@@ -1,0 +1,39 @@
+<div class="page-login page-login--modal">
+    <div class="login-container">
+        <div class="login-header">
+            <div class="login-title" id="auth-modal-title">THE BOND: INITIALIZATION</div>
+            <div class="login-subtitle">Seek the shadow within the Rift</div>
+        </div>
+
+        {% if form and form.errors %}
+            {% for error in form.errors %}
+                <div class="ds-tag err" style="margin-bottom: var(--sp-2);">{{ error }}</div>
+            {% endfor %}
+        {% endif %}
+
+        <form action="/register" method="post" class="login-form">
+            <div class="form-group">
+                <label for="email">SOUL_IDENTIFIER</label>
+                <input type="email" id="email" name="email" value="{{ form.email if form else '' }}" placeholder="essence@void.link" required>
+            </div>
+            <div class="form-group">
+                <label for="password">RESONANCE_KEY</label>
+                <input type="password" id="password" name="password" placeholder="••••••••" required>
+            </div>
+            <div class="form-group">
+                <label for="password_confirm">CONFIRM_RESONANCE</label>
+                <input type="password" id="password_confirm" name="password_confirm" placeholder="••••••••" required>
+            </div>
+
+            <div class="login-actions">
+                <button type="submit" class="act-btn login-btn">
+                    <span>ESTABLISH_BOND</span>
+                </button>
+            </div>
+        </form>
+
+        <div class="login-footer">
+            <a href="/login">Уже есть аккаунт? Войти</a>
+        </div>
+    </div>
+</div>

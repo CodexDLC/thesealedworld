@@ -1,3 +1,5 @@
+import json
+
 import pytest
 
 from src.backend.features.items.dto.instance import ItemGenerationRequestDTO, ItemPlacementRefDTO
@@ -71,11 +73,10 @@ class FakeInstance:
 
 
 class FakeAI:
-    def include_router(self, router):
-        self.router = router
-
-    async def process(self, prompt_name, **kwargs):
-        return '{"name": "Молот Памяти", "description": "Тяжелый молот с холодной рукоятью."}'
+    async def generate_json(self, prompt, *, schema, **kwargs):
+        return schema.model_validate(
+            json.loads('{"name": "Молот Памяти", "description": "Тяжелый молот с холодной рукоятью."}')
+        )
 
 
 @pytest.mark.unit

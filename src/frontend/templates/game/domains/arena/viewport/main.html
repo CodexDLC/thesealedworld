@@ -149,7 +149,7 @@
 <section id="center-screens">
     {% if arena %}
         {% set arena_screen = arena.screen.value if arena.screen and arena.screen.value is defined else arena.screen %}
-        <article class="cs active arena-screen arena-screen--{{ arena_screen }}">
+        <div class="game-screen-area game-screen-area--vertical arena-screen arena-screen--{{ arena_screen }}{{ ' arena-group-underwork' if arena_screen == 'mode_menu' and arena.mode == 'group' else '' }}">
             <div id="arena-poll-region">
                 <div class="loc-tag">
                     <span class="loc-dot"></span>
@@ -279,14 +279,11 @@
 
                     <div class="arena-mode-actions">
                         {% if arena.mode == 'group' %}
-                            {% set primary_actions = group_lobby.get('primary_actions', []) %}
-                            <div class="arena-group-plans">
-                                <div class="arena-group-column">
-                                    {{ arena_group_plan_card(primary_actions[0] if primary_actions|length > 0 else {}, 'arena-plan-card--ranked') }}
-                                    {{ arena_group_plan_card(primary_actions[1] if primary_actions|length > 1 else {}, 'arena-plan-card--request') }}
-                                </div>
-                                {{ arena_group_plan_card(primary_actions[2] if primary_actions|length > 2 else {}, 'arena-plan-card--chaos') }}
-                            </div>
+                            <button type="button" class="arena-repair-banner arena-repair-banner--action" disabled>
+                                <span>REMOTE WORKS</span>
+                                <strong>Пока открыт только зал 1x1</strong>
+                                <p>Групповой зал закрыт: работники арены приводят в порядок комнаты ожидания, роли и стойки заявок. Командные бои временно не принимают участников.</p>
+                            </button>
                         {% elif mode_menu.ranked %}
                             <div class="arena-duel-actions">
                                 <div class="arena-duel-ranked">
@@ -346,7 +343,9 @@
                         <span class="symbiote-readout-name">{{ symbiote_name }}:</span>
                         {{ arena.description or 'NO_DATA' }}
                     </p>
-                    {{ arena_action_row(arena.buttons) }}
+                    <div class="game-action-panel game-action-panel--bottom arena-action-panel">
+                        {{ arena_action_row(arena.buttons) }}
+                    </div>
                 </section>
                 {{ arena_battle_list(arena.mode or 'one_vs_one') }}
                 {% elif arena_screen in arena_modal_screens %}
@@ -360,11 +359,13 @@
                 {% set arena_modal_wrap_root = false %}
                 {% include "game/domains/arena/fragments/confirmation_modal.html" %}
                 {% else %}
-                <div class="parchment panel-membrane arena-state-panel">
-                    <div class="scene-img"><span>{{ arena.title or 'NO_DATA' }}</span></div>
-                    <div class="world-text">
-                        <span class="symbiote-readout-name">{{ symbiote_name }}:</span>
-                        {{ arena.description or 'NO_DATA' }}
+                <div class="mobile-scene parchment arena-state-panel">
+                    <div class="mobile-scene-art"><span class="mobile-scene-title">{{ arena.title or 'NO_DATA' }}</span></div>
+                    <div class="mobile-scene-copy">
+                        <p class="world-text">
+                            <span class="symbiote-readout-name">{{ symbiote_name }}:</span>
+                            {{ arena.description or 'NO_DATA' }}
+                        </p>
                     </div>
                 </div>
                 {% endif %}
@@ -390,16 +391,18 @@
                 {% endif %}
 
                 {% if arena_screen not in ['main_menu', 'mode_menu', 'searching'] and arena_screen not in arena_modal_screens %}
-                    {{ arena_action_row(arena.buttons) }}
+                    <div class="game-action-panel game-action-panel--bottom arena-action-panel">
+                        {{ arena_action_row(arena.buttons) }}
+                    </div>
                 {% endif %}
             </div>
-        </article>
+        </div>
     {% else %}
-        <article class="cs active">
+        <div class="game-screen-area game-screen-area--vertical">
             <div class="placeholder-grid">
                 <p class="feature-text">ARENA_NO_DATA</p>
             </div>
-        </article>
+        </div>
     {% endif %}
 </section>
 {% if oob_panels|default(false) %}

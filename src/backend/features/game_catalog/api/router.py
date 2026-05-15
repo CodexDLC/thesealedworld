@@ -3,12 +3,11 @@ from typing import Annotated, Any
 from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.backend.core.auth import User, get_current_user
 from src.backend.core.database import get_db
 from src.backend.features.game_catalog.dto import GameCatalogBootstrapDTO
 from src.backend.features.game_catalog.services import GameCatalogBootstrapService
 from src.backend.features.monsters.repositories import MonsterGenerationRepository
-from src.backend.features_site.auth.dependencies import get_current_user
-from src.backend.features_site.auth.models import User
 
 router = APIRouter(prefix="/game/catalog", tags=["Game Catalog"])
 

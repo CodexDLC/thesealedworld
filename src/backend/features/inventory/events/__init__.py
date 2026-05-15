@@ -78,6 +78,53 @@ async def on_rewards_grant_requested(payload: dict[str, Any]) -> None:
             log.exception("Inventory reward grant ack delivery failed: cid=%s", cid)
 
 
+@router.on(InventoryEvents.DURABILITY_DAMAGE_REQUESTED, group="inventory", reply=True)
+async def on_durability_damage_requested(payload: dict[str, Any]) -> None:
+    cid = payload.get("correlation_id")
+    if _app is None:
+        log.warning("Inventory durability damage ignored: app_not_bound cid=%s", cid)
+        return
+
+    try:
+        char_id = int(payload["char_id"])
+        async with get_session_context() as session:
+            service = _build_inventory_service(session)
+            result = await service.apply_durability_damage(
+                char_id=char_id,
+                amount=float(payload.get("amount") or 0),
+                scope=str(payload.get("scope") or "equipped"),
+                reason=str(payload.get("reason") or "combat_completed"),
+                source=str(payload.get("source") or "combat_finalization"),
+                combat_id=str(payload.get("combat_id")) if payload.get("combat_id") else None,
+                idempotency_key=str(payload.get("idempotency_key")) if payload.get("idempotency_key") else None,
+                metadata=payload.get("metadata") if isinstance(payload.get("metadata"), dict) else {},
+            )
+
+        ack: dict[str, Any] = {"status": "ok", **result}
+        await _app.state.events.publish(
+            InventoryEvents.DURABILITY_DAMAGE_APPLIED,
+            {"char_id": char_id, **result},
+            correlation_id=cid,
+        )
+    except Exception as exc:  # noqa: BLE001
+        log.exception("Inventory durability damage failed")
+        ack = {"status": "error", "error": f"{exc.__class__.__name__}: {exc}"}
+        try:
+            await _app.state.events.publish(
+                InventoryEvents.DURABILITY_DAMAGE_FAILED,
+                {"request": payload, **ack},
+                correlation_id=cid,
+            )
+        except Exception:
+            log.exception("Inventory durability damage failure event delivery failed")
+
+    if cid:
+        try:
+            await _app.state.events.publish_reply(cid, ack, ttl=30)
+        except Exception:
+            log.exception("Inventory durability damage ack delivery failed: cid=%s", cid)
+
+
 def _parse_item_ids(payload: dict[str, Any]) -> list[str]:
     raw = payload.get("item_ids") or []
     if not isinstance(raw, list):
@@ -109,6 +156,16 @@ def _build_reward_service(session: Any) -> InventoryRewardService:
         inventory_sessions=inventory_sessions,
         inventory_service=inventory_service,
         events=_app.state.events,
+    )
+
+
+def _build_inventory_service(session: Any) -> InventoryService:
+    if _app is None:
+        raise RuntimeError("Inventory events are not bound to app")
+    return InventoryService(
+        repository=InventoryItemRepository(session),
+        inventory_sessions=InventorySessionManager(_app.state.redis),
+        character_sessions=_app.state.character_sessions,
     )
 
 

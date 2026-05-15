@@ -109,6 +109,41 @@ window.GameCatalogCache = {
         return null;
     },
 
+    getCombatTextTemplate(templateKey) {
+        if (!templateKey) return null;
+        return this.memory?.combat_text?.templates?.[templateKey] || null;
+    },
+
+    getCombatTextResource(resourceType, resourceId) {
+        if (!resourceType || !resourceId) return null;
+        const buckets = {
+            feint: 'feints',
+            basic_exchange: 'basic_exchanges',
+            effect: 'effects',
+            ability: 'abilities',
+            death: 'deaths',
+            trigger: 'triggers',
+            gift: 'gifts',
+            item: 'items',
+        };
+        const bucket = buckets[resourceType] || resourceType;
+        return this.memory?.combat_text?.resources?.[bucket]?.[resourceId] || null;
+    },
+
+    renderTemplate(template, variables = {}) {
+        return String(template || '').replace(/\{([a-zA-Z_][a-zA-Z0-9_]*)\}/g, (match, key) => {
+            const value = variables[key];
+            if (value === undefined || value === null) return match;
+            return String(value);
+        });
+    },
+
+    renderCombatText(templateKey, variables = {}) {
+        const entry = this.getCombatTextTemplate(templateKey);
+        if (!entry) return '';
+        return this.renderTemplate(entry.template, variables);
+    },
+
     getTaxonomyVariant(entry, taxonomy = 'humanoid') {
         const variants = entry?.taxonomy_variants || {};
         const selected = variants[taxonomy];

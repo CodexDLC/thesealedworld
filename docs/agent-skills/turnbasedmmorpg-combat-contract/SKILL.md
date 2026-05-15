@@ -143,12 +143,12 @@ chance = 0.25 + skill_dual_wield            # 0.25 base, up to 1.25 at full mast
 
 `CombatResolver._get_offensive_val(stats, ctx, key)` dispatches on `ctx.flags.meta.source_type`:
 
-| source_type | damage_base | accuracy | penetration | crit_chance |
+| source_type | damage_base | accuracy | armor_penetration_pct | crit_chance |
 |---|---|---|---|---|
-| `main_hand` | `main_hand_damage_base` | `main_hand_accuracy + accuracy` | `main_hand_penetration + armor_penetration` | `main_hand_crit_chance + crit_chance` |
-| `off_hand` | `off_hand_damage_base` | `off_hand_accuracy + accuracy` | `off_hand_penetration + armor_penetration` | `off_hand_crit_chance + crit_chance` |
-| `magic` | `magical_damage` | `magical_accuracy + accuracy` | `magical_penetration` (no global pen) | `magical_crit_chance` (no global crit) |
-| `item` | `item_damage_base` | `item_accuracy` | `item_penetration` | `item_crit_chance` |
+| `main_hand` | `main_hand_damage_base` | `main_hand_accuracy + accuracy` | `main_hand_armor_penetration_pct + armor_penetration_pct` | `main_hand_crit_chance + crit_chance` |
+| `off_hand` | `off_hand_damage_base` | `off_hand_accuracy + accuracy` | `off_hand_armor_penetration_pct + armor_penetration_pct` | `off_hand_crit_chance + crit_chance` |
+| `magic` | `magical_damage` | `magical_accuracy + accuracy` | `0.0` | `magical_crit_chance` (no global crit) |
+| `item` | `item_damage_base` | `item_accuracy` | `item_armor_penetration_pct + armor_penetration_pct` | `item_crit_chance` |
 
 `ContextBuilder._analyze_intent()` sets `source_type`:
 - `strategy == "instant"` → `"magic"`
@@ -168,8 +168,10 @@ chance = 0.25 + skill_dual_wield            # 0.25 base, up to 1.25 at full mast
 | damage_base (off) | `atk.mods.off_hand_damage_base` | CharMathModel / MonsterProfile | OK |
 | damage_base (magic) | `atk.mods.magical_damage` | CharMathModel / MonsterProfile | OK |
 | damage_spread (main/off/magic) | `atk.mods.{prefix}_damage_spread` | CharMathModel / MonsterProfile | OK |
-| penetration (main/off) | `atk.mods.{prefix}_penetration + armor_penetration` | CharMathModel | OK |
-| penetration (magic) | `atk.mods.magical_penetration` (no global) | CharMathModel | OK |
+| physical_suppression | `atk.mods.physical_suppression` | CharMathModel | OK |
+| armor_penetration_pct (main/off/item) | `atk.mods.{source}_armor_penetration_pct + armor_penetration_pct` | CharMathModel | OK |
+| armor_ignore_chance (main/off/item) | `atk.mods.{source}_armor_ignore_chance + armor_ignore_chance` | CharMathModel | OK |
+| magical_penetration (magic/elemental) | `atk.mods.magical_penetration` | CharMathModel | OK |
 | crit_chance (main/off) | `atk.mods.{prefix}_crit_chance + crit_chance` | CharMathModel | OK |
 | crit_chance (magic) | `atk.mods.magical_crit_chance` only | CharMathModel | OK (asymmetric) |
 | crit_cap (all) | `atk.mods.{prefix}_crit_cap` | DTO defaults | OK |
@@ -216,12 +218,17 @@ chance = 0.25 + skill_dual_wield            # 0.25 base, up to 1.25 at full mast
 
 ```
 main_hand_damage_base    main_hand_damage_spread    main_hand_accuracy
-main_hand_crit_chance    main_hand_penetration
+main_hand_crit_chance    main_hand_armor_penetration_pct
+main_hand_armor_ignore_chance
 off_hand_damage_base     off_hand_damage_spread     off_hand_accuracy
-off_hand_crit_chance     off_hand_penetration
+off_hand_crit_chance     off_hand_armor_penetration_pct
+off_hand_armor_ignore_chance
+item_damage_base         item_accuracy              item_crit_chance
+item_armor_penetration_pct item_armor_ignore_chance
 magical_damage           magical_damage_spread      magical_accuracy
 magical_crit_chance      magical_penetration
-accuracy                 crit_chance                armor_penetration
+accuracy                 crit_chance                physical_suppression
+armor_penetration_pct    armor_penetration_flat     armor_ignore_chance
 physical_damage_bonus
 evasion                  dodge_cap                  anti_dodge_chance
 parry                    parry_cap
@@ -239,7 +246,7 @@ resistance_cap           vampiric_trigger_cap
 main_hand_damage_bonus   off_hand_damage_bonus
 healing_power            received_healing_bonus
 {elem}_damage_bonus                                   (elemental attack bonus, pending)
-item_damage_base         item_accuracy                item_crit_chance  (item branch, pending)
+item_damage_bonus
 ```
 
 ### Renamed (Aliases Active in Both Mappers)

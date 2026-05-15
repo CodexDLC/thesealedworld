@@ -7,10 +7,10 @@ from sqlalchemy import BigInteger, DateTime, Index, String, func
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
-from src.backend.core.database import Base
+from src.backend.core.database import Base, MetadataContextMixin, SchemaVersionMixin
 
 
-class CombatFinalization(Base):
+class CombatFinalization(Base, MetadataContextMixin, SchemaVersionMixin):
     __tablename__ = "combat_finalizations"
     __table_args__ = (
         Index("ix_combat_finalizations_finished_at", "finished_at"),
@@ -26,6 +26,8 @@ class CombatFinalization(Base):
     arena_session_id: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
     winner_team: Mapped[str | None] = mapped_column(String(80), nullable=True, index=True)
     participant_char_ids: Mapped[list[int]] = mapped_column(JSONB, default=list, nullable=False)
+    actor_summaries: Mapped[list[dict[str, Any]]] = mapped_column(JSONB, default=list, nullable=False)
+    short_report: Mapped[dict[str, Any]] = mapped_column(JSONB, default=dict, nullable=False)
     started_at: Mapped[dt.datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     finished_at: Mapped[dt.datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     persisted_at: Mapped[dt.datetime] = mapped_column(

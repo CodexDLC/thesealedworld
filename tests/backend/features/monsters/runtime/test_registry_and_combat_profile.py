@@ -1,11 +1,149 @@
 import pytest
 
+from src.backend.features.items.dto.instance import RuntimeItemProjectionDTO
 from src.backend.features.items.resources import get_base_by_id
-from src.backend.features.monsters.dto.generation import MonsterGenerationContext
+from src.backend.features.monsters.dto.generation import GeneratedClan, MonsterGenerationContext
 from src.backend.features.monsters.resources import get_family_config, get_starter_family_ids
-from src.backend.features.monsters.runtime.clan_factory import ClanFactory
-from src.backend.features.monsters.runtime.combat_profile import build_monster_combat_context, build_monster_vitals
+from src.backend.features.monsters.runtime.combat_actor_input import MonsterCombatActorInputBuilder
+from src.backend.features.monsters.runtime.generation_builder import MonsterClanGenerationBuilder, _MemberPlan
+from src.backend.features.monsters.runtime.generation_fields import build_member_tier
 from src.backend.features.monsters.runtime.hashing import compute_context_hash, compute_unique_clan_hash, normalize_tags
+
+
+class FakeRepository:
+    async def get_clan_by_unique_hash(self, unique_hash: str):
+        del unique_hash
+        return None
+
+    async def get_clans_by_context_hash(self, context_hash: str) -> list:
+        del context_hash
+        return []
+
+    async def get_clan_members(self, clan_id) -> list:
+        del clan_id
+        return []
+
+    async def create_clan_with_members(self, clan, members):
+        clan.members.extend(members)
+        for member in clan.members:
+            member.clan = clan
+        return clan
+
+    async def update_clan_flavor(self, clan):
+        return clan
+
+
+class FakeItemGeneration:
+    async def generate_runtime_projections(self, requests):
+        projections = []
+        for index, request in enumerate(requests):
+            natural_key = request.runtime_metadata.get("natural_key")
+            related_skill = {
+                "rat_bite_claws": "skill_fencing",
+                "rat_light_hide": "skill_light_armor",
+                "wolf_bite_claws": "skill_fencing",
+                "wolf_hide": "skill_light_armor",
+            }.get(str(natural_key))
+            if related_skill is None:
+                related_skill = {
+                    "dagger": "skill_fencing",
+                    "hatchet": "skill_macing",
+                    "mace": "skill_macing",
+                    "warhammer": "skill_macing",
+                    "spear": "skill_polearms",
+                    "quarterstaff": "skill_polearms",
+                    "sling": "skill_archery",
+                    "shortbow": "skill_archery",
+                    "buckler": "skill_shield_mastery",
+                    "shield": "skill_shield_mastery",
+                    "jerkin": "skill_medium_armor",
+                    "leather_armor": "skill_light_armor",
+                }.get(str(request.base_id), "skill_unarmed")
+            projections.append(
+                RuntimeItemProjectionDTO(
+                    item_id=f"item-{index}",
+                    owner_key=str(request.runtime_metadata["owner_key"]),
+                    base_id=request.base_id,
+                    item_type="shield"
+                    if request.target_slot == "off_hand" and request.base_id in {"buckler", "shield"}
+                    else ("weapon" if request.target_slot in {"main_hand", "two_hand"} else "armor"),
+                    slot=str(request.target_slot),
+                    combat={
+                        "power": 4,
+                        "damage_spread": 0.0,
+                        "implicit_bonuses": {},
+                        "bonuses": {"main_hand_accuracy": "+0.01"},
+                        "triggers": ["crit.weapon_serrated_bleed_crit"],
+                        "tags": ["shield"] if request.base_id == "buckler" else [],
+                        "related_skill": related_skill,
+                    },
+                    generation={"item_grade": request.item_grade, "rarity_tier": request.rarity_tier, "affixes": []},
+                )
+            )
+        return projections
+
+
+async def _build_member(family_id: str, variant_key: str | None = None):
+    context = MonsterGenerationContext(zone_id="D4_0_1", biome_id="city_ruins", tier=1, tags=["mana_leak"])
+    tags = normalize_tags(context.tags)
+    context_hash = compute_context_hash(context.tier, context.biome_id, tags)
+    unique_hash = compute_unique_clan_hash(family_id, context_hash)
+    builder = MonsterClanGenerationBuilder(
+        repository=FakeRepository(),
+        item_generation=FakeItemGeneration(),
+    )
+    if variant_key is None:
+        clan = await builder.generate_active_clan(
+            family_id=family_id,
+            context=context,
+            context_hash=context_hash,
+            unique_hash=unique_hash,
+            normalized_tags=tags,
+            reuse_existing=False,
+        )
+        member = clan.members[0]
+        member.clan = clan
+        return member
+
+    family = get_family_config(family_id)
+    assert family is not None
+    variant = family.variants[variant_key]
+    member_model = builder._member_model_for(family, variant)
+    member_id = compute_unique_clan_hash(family_id, variant_key)
+    import uuid
+
+    plan = _MemberPlan(
+        member_id=uuid.uuid5(uuid.NAMESPACE_DNS, member_id),
+        owner_key=member_id,
+        variant=variant,
+        member_model=member_model,
+        member_tier=build_member_tier(context.tier, variant, member_model),
+    )
+    item_requests = builder._build_item_requests(family, [plan], unique_hash)
+    runtime_items = await builder._generate_runtime_items(item_requests)
+    clan = GeneratedClan(
+        id=uuid.uuid4(),
+        family_id=family_id,
+        tier=context.tier,
+        zone_id=context.zone_id,
+        context_hash=context_hash,
+        unique_hash=unique_hash,
+        raw_tags={},
+        flavor_content={},
+        name_ru=family_id,
+        description=family_id,
+    )
+    member = builder._build_member_row(
+        clan_id=clan.id,
+        family=family,
+        plan=plan,
+        runtime_items=runtime_items,
+        flavor={},
+        context=context,
+        unique_hash=unique_hash,
+    )
+    member.clan = clan
+    return member
 
 
 @pytest.mark.unit
@@ -17,6 +155,34 @@ def test_registry_loads_only_starter_families() -> None:
     assert get_family_config("goblin_tribe") is not None
     assert get_family_config("anchor_sovereigns") is not None
     assert get_family_config("dragon_brood") is None
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize("family_id", ["rat_swarm", "wolf_pack", "bandit_gang", "goblin_tribe"])
+def test_starter_families_have_twelve_variants(family_id: str) -> None:
+    family = get_family_config(family_id)
+
+    assert family is not None
+    assert len(family.variants) == 12
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize(
+    ("family_id", "expected_count"),
+    [
+        ("bandit_gang", 12),
+        ("goblin_tribe", 12),
+    ],
+)
+def test_humanoid_starter_families_have_full_variant_sets(family_id: str, expected_count: int) -> None:
+    family = get_family_config(family_id)
+
+    assert family is not None
+    assert len(family.variants) == expected_count
+    assert len(family.hierarchy.minions) >= 4
+    assert len(family.hierarchy.veterans) >= 3
+    assert len(family.hierarchy.elites) >= 3
+    assert len(family.hierarchy.boss) >= 2
 
 
 @pytest.mark.unit
@@ -32,6 +198,48 @@ def test_humanoid_families_are_marked_for_equipment_loot(family_id: str) -> None
     assert family.loot_profile.equipment_drop_policy == "fixed_loadout"
     assert family.loot_profile.drops_as_equipment is True
     assert family.loot_profile.equipment_quality is not None
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize("family_id", ["bandit_gang", "goblin_tribe"])
+def test_humanoid_family_fixed_loadout_slots_match_item_catalog(family_id: str) -> None:
+    family = get_family_config(family_id)
+
+    assert family is not None
+    problems = []
+    for variant in family.variants.values():
+        for slot, base_id in variant.fixed_loadout.model_dump(exclude_none=True).items():
+            base = get_base_by_id(base_id)
+            if base is None:
+                problems.append((variant.id, slot, base_id, "missing_base"))
+                continue
+            valid_slots = {str(base["slot"]), *(str(extra) for extra in base.get("extra_slots", []))}
+            if slot not in valid_slots:
+                problems.append((variant.id, slot, base_id, sorted(valid_slots)))
+
+    assert problems == []
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize("family_id", ["bandit_gang", "goblin_tribe"])
+def test_humanoid_starter_variants_always_have_combat_weapon(family_id: str) -> None:
+    family = get_family_config(family_id)
+
+    assert family is not None
+    missing_weapon = []
+    invalid_weapon = []
+    for variant in family.variants.values():
+        loadout = variant.fixed_loadout.model_dump(exclude_none=True)
+        weapon_id = loadout.get("main_hand") or loadout.get("two_hand")
+        if not weapon_id:
+            missing_weapon.append(variant.id)
+            continue
+        base = get_base_by_id(str(weapon_id))
+        if base is None or base.get("type") != "weapon":
+            invalid_weapon.append((variant.id, weapon_id, None if base is None else base.get("type")))
+
+    assert missing_weapon == []
+    assert invalid_weapon == []
 
 
 @pytest.mark.unit
@@ -58,9 +266,12 @@ def test_monster_natural_equipment_is_registered_as_item_base() -> None:
 
     assert weapon is not None
     assert weapon["slot"] == "main_hand"
+    assert weapon["type"] == "weapon"
+    assert weapon["related_skill"] == "skill_fencing"
     assert weapon["triggers"] == ["crit.weapon_serrated_bleed_crit"]
     assert armor is not None
     assert armor["slot"] == "chest_armor"
+    assert armor["type"] == "armor"
     assert anchor_weapon is not None
     assert anchor_weapon["related_skill"] == "skill_polearms"
     assert anchor_weapon["base_power"] >= 100
@@ -82,70 +293,88 @@ def test_anchor_sovereigns_family_defines_four_tier_seven_bosses() -> None:
     ]
     assert all(variant.role == "boss" for variant in family.variants.values())
     assert all(variant.min_tier == 7 and variant.max_tier == 7 for variant in family.variants.values())
-    assert family.variants["north_stasis_sovereign"].base_stats.wisdom > 200
+    assert family.variants["north_stasis_sovereign"].base_stats.memory > 200
     assert family.variants["south_entropy_sovereign"].base_stats.strength > 200
     assert family.variants["west_gravity_sovereign"].base_stats.perception > 200
     assert family.variants["east_evolution_sovereign"].base_stats.agility > 200
+    assert family.variants["north_stasis_sovereign"].fixed_loadout.model_dump(exclude_none=True) == {
+        "main_hand": "anchor_stasis_crown_blade",
+        "off_hand": "shield",
+        "chest_armor": "anchor_projection_aegis",
+    }
+    assert family.variants["south_entropy_sovereign"].fixed_loadout.model_dump(exclude_none=True) == {
+        "two_hand": "anchor_entropy_cinder_maul",
+        "chest_armor": "anchor_projection_aegis",
+    }
+    assert family.variants["west_gravity_sovereign"].fixed_loadout.model_dump(exclude_none=True) == {
+        "main_hand": "anchor_gravity_storm_lance",
+        "chest_armor": "anchor_projection_aegis",
+    }
+    assert family.variants["east_evolution_sovereign"].fixed_loadout.model_dump(exclude_none=True) == {
+        "main_hand": "anchor_evolution_bloom_talons",
+        "off_hand": "anchor_evolution_bloom_talons",
+        "chest_armor": "anchor_projection_aegis",
+    }
+    assert family.variants["north_stasis_sovereign"].skill_overrides["skill_shield_mastery"] == 1.0
+    assert family.variants["south_entropy_sovereign"].skill_overrides["skill_two_handed"] == 1.0
+    assert family.variants["west_gravity_sovereign"].skill_overrides["skill_one_handed"] == 1.0
+    assert family.variants["east_evolution_sovereign"].skill_overrides["skill_dual_wield"] == 1.0
+    for variant in family.variants.values():
+        assert all(value == 1.0 for value in variant.skill_overrides.values())
+    for variant in family.variants.values():
+        for slot, base_id in variant.fixed_loadout.model_dump(exclude_none=True).items():
+            base = get_base_by_id(base_id)
+            assert base is not None
+            assert slot in {str(base["slot"]), *(str(extra) for extra in base.get("extra_slots", []))}
 
 
 @pytest.mark.unit
 async def test_rat_beast_profile_builds_combat_ready_context() -> None:
-    context = MonsterGenerationContext(zone_id="D4_0_1", biome_id="city_ruins", tier=1, tags=["mana_leak"])
-    tags = normalize_tags(context.tags)
-    context_hash = compute_context_hash(context.tier, context.biome_id, tags)
-    clan, members = await ClanFactory().build_clan_with_members(
-        family_id="rat_swarm",
-        context=context,
-        context_hash=context_hash,
-        unique_hash=compute_unique_clan_hash("rat_swarm", context_hash),
-        normalized_tags=tags,
-    )
-    monster = members[0]
-    monster.clan = clan
-
-    combat = build_monster_combat_context(monster)
-    vitals = build_monster_vitals(monster)
+    monster = await _build_member("rat_swarm")
+    snapshot = MonsterCombatActorInputBuilder().build_snapshot(monster)
+    combat = snapshot["combat"]
 
     assert combat["math_model"]["attributes"]["strength"]["base"] > 0
     assert combat["math_model"]["attributes"]["intellect"]["base"] >= 0
     assert combat["math_model"]["modifiers"]["main_hand_damage_base"]["base"] > 0
-    assert combat["loadout"]["layout"]["main_hand"] == "skill_unarmed"
+    assert combat["loadout"]["layout"]["main_hand"] == "skill_fencing"
     assert combat["loadout"]["layout"]["main_hand_trigger"] == "crit.weapon_serrated_bleed_crit"
     assert combat["loadout"]["layout"]["body"] == "skill_light_armor"
-    assert combat["loadout"]["equipment_layout"]["main_hand"] == "rat_bite_claws"
-    assert combat["loadout"]["equipment_layout"]["chest_armor"] == "light_hide"
-    assert combat["loadout"]["known_abilities"]
+    assert combat["loadout"]["equipment_layout"]["main_hand"]
+    assert combat["loadout"]["equipment_layout"]["chest_armor"]
     assert "measured_strike" in combat["loadout"]["known_feints"]
     assert "close_grapple" not in combat["loadout"]["known_feints"]
-    assert combat["skills"]["skill_unarmed"] >= 0.2
-    assert vitals["hp_current"] > 0
+    assert combat["skills"]["skill_fencing"] >= 0.2
+    assert snapshot["status"]["hp"]["max"] > 0
 
 
 @pytest.mark.unit
 async def test_bandit_humanoid_loadout_resolves_into_modifiers_and_layout() -> None:
-    context = MonsterGenerationContext(zone_id="D4_0_1", biome_id="city_ruins", tier=1, tags=["mana_leak"])
-    tags = normalize_tags(context.tags)
-    context_hash = compute_context_hash(context.tier, context.biome_id, tags)
-    clan, members = await ClanFactory().build_clan_with_members(
-        family_id="bandit_gang",
-        context=context,
-        context_hash=context_hash,
-        unique_hash=compute_unique_clan_hash("bandit_gang", context_hash),
-        normalized_tags=tags,
-    )
-    monster = next(member for member in members if member.variant_key == "bandit_thug")
-    monster.clan = clan
-
-    combat = build_monster_combat_context(monster)
+    monster = await _build_member("bandit_gang", "bandit_thug")
+    combat = MonsterCombatActorInputBuilder().build_snapshot(monster)["combat"]
 
     assert combat["loadout"]["layout"]["main_hand"] == "skill_macing"
-    assert combat["loadout"]["layout"]["off_hand"] == "skill_parrying"
+    assert combat["loadout"]["layout"]["off_hand"] == "skill_shield_mastery"
     assert combat["loadout"]["layout"]["body"] == "skill_medium_armor"
-    assert combat["loadout"]["equipment_layout"]["main_hand"] == "hatchet"
-    assert combat["loadout"]["equipment_layout"]["off_hand"] == "buckler"
-    assert combat["loadout"]["equipment_layout"]["chest_armor"] == "jerkin"
+    assert combat["loadout"]["equipment_layout"]["main_hand"]
+    assert combat["loadout"]["equipment_layout"]["off_hand"]
+    assert combat["loadout"]["equipment_layout"]["chest_armor"]
     assert combat["math_model"]["modifiers"]["main_hand_damage_base"]["base"] > 0
+    assert combat["math_model"]["modifiers"]["main_hand_accuracy"]["base"] > 0
     assert combat["math_model"]["modifiers"]["armor"]["base"] > 0
     assert combat["skills"]["skill_macing"] >= 0.2
     assert "measured_strike" in combat["loadout"]["known_feints"]
     assert "guard_breaker" not in combat["loadout"]["known_feints"]
+
+
+@pytest.mark.unit
+async def test_goblin_humanoid_loadout_resolves_into_damage_and_accuracy() -> None:
+    monster = await _build_member("goblin_tribe", "goblin_scrapguard")
+    combat = MonsterCombatActorInputBuilder().build_snapshot(monster)["combat"]
+
+    assert combat["loadout"]["layout"]["main_hand"] == "skill_macing"
+    assert combat["loadout"]["layout"]["off_hand"] == "skill_shield_mastery"
+    assert combat["math_model"]["modifiers"]["main_hand_damage_base"]["base"] > 0
+    assert combat["math_model"]["modifiers"]["main_hand_accuracy"]["base"] > 0
+    assert combat["math_model"]["modifiers"]["shield_guard_power"]["base"] > 0
+    assert combat["skills"]["skill_macing"] >= 0.2

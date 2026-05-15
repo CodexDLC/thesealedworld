@@ -13,7 +13,7 @@ UNDEAD_EQUIPMENT = {
         "damage_spread": 0.0,
         "implicit_bonuses": {
             "magical_damage_bonus": 0.15,
-            "intelligence": 5,
+            "intellect": 5,
         },
     },
 }

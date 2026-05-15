@@ -112,6 +112,20 @@ class CombatLogBadgeDTO(CombatJsonDTO):
     direction: str | None = None
 
 
+class CombatExchangeStateDTO(CombatJsonDTO):
+    """Compact combat exchange state for the central battle viewport."""
+
+    pair_status: str = "unknown"
+    opponent_response_state: str = "unknown"
+    title: str = "COMBAT"
+    summary_text: str = "Бой начался. Противники выбирают позицию для первого размена."
+    turn: int | None = None
+    source: CombatLogActorRefDTO | None = None
+    target: CombatLogActorRefDTO | None = None
+    outcome: str | None = None
+    badges: list[CombatLogBadgeDTO] = Field(default_factory=list)
+
+
 class CombatEventDTO(CombatJsonDTO):
     type: str = "log"
     id: str | None = None
@@ -197,6 +211,11 @@ class CombatActorCardDTO(CombatJsonDTO):
     is_ai: bool = False
     is_dead: bool = False
     is_target: bool = False
+    committed: bool = False
+    commit_state: str = "idle"
+    timeout_total_ms: int | None = None
+    remaining_ms: int | None = None
+    force_attack_at_ms: int | None = None
     exchange_counter: int = 0
     target_queue_size: int = 0
     pending_actions: dict[str, int] = Field(default_factory=dict)
@@ -269,6 +288,7 @@ class CombatDashboardDTO(CombatJsonDTO):
     active_effects: list[CombatEffectBadgeDTO] = Field(default_factory=list)
     feints: list[CombatFeintOptionDTO] = Field(default_factory=list)
     available_actions: list[CombatActionOptionDTO] = Field(default_factory=list)
+    exchange_state: CombatExchangeStateDTO | None = None
     events_delta: CombatDeltaDTO = Field(default_factory=CombatDeltaDTO)
     log_total: int = 0
     winner_team: str | None = None

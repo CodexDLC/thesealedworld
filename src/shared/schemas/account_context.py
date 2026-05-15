@@ -32,7 +32,7 @@ class StatsDict(TypedDict):
     """Сводка статов."""
 
     hp: VitalsDict
-    mp: VitalsDict
+    energy: VitalsDict
     stamina: VitalsDict
     last_update: float | None  # Timestamp последнего пересчета регенерации
 
@@ -43,12 +43,12 @@ class AttributesDict(TypedDict):
     strength: int
     agility: int
     endurance: int
-    intelligence: int
-    wisdom: int
-    men: int
+    intellect: int
+    memory: int
+    mental: int
     perception: int
-    charisma: int
-    luck: int
+    projection: int
+    prediction: int
 
 
 class SessionsDict(TypedDict):

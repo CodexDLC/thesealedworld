@@ -42,7 +42,7 @@ MYTHICAL_EQUIPMENT = {
         "type": "weapon",
         "base_power": 35,
         "damage_spread": 0.2,
-        "implicit_bonuses": {"physical_penetration": 0.30},
+        "implicit_bonuses": {"physical_suppression": 0.30},
     },
     "sword_of_light": {
         "id": "sword_of_light",

@@ -5,14 +5,14 @@ from typing import TYPE_CHECKING
 from sqlalchemy import Enum, Float, ForeignKey, PrimaryKeyConstraint, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from src.backend.core.database import Base, TimestampMixin
+from src.backend.core.database import Base, RevisionMixin, SchemaVersionMixin, TimestampMixin
 from src.shared.enums.skill_enums import SkillProgressState
 
 if TYPE_CHECKING:
     from src.backend.features.character.models.character import Character
 
 
-class SkillProgress(Base, TimestampMixin):
+class SkillProgress(Base, TimestampMixin, SchemaVersionMixin, RevisionMixin):
     __tablename__ = "character_skill_progress"
 
     character_id: Mapped[int] = mapped_column(

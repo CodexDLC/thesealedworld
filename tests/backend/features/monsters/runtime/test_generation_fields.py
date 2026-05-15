@@ -25,10 +25,6 @@ def _family() -> MonsterFamilyDTO:
                 "base": {"skill_fencing": 0.2},
                 "role_bonus": {"minion": {}, "boss": {"skill_tactics": 0.3}},
             },
-            "ability_map": {
-                "attack_basic": {"mechanic": "basic_attack", "presentation": "infected_bite"},
-                "buff_rage": {"mechanic": "self_buff", "presentation": "swarm_frenzy"},
-            },
             "clan_model": {
                 "balance": {"organization_divisor": 5.0, "composition_profile": "many_weak"},
                 "ai_defaults": {"targeting": "lowest_hp", "group_logic": "swarm"},
@@ -43,7 +39,6 @@ def _family() -> MonsterFamilyDTO:
                         "tier_bonus": {"endurance": 2},
                     },
                     "skill_profile": {"base": {"skill_light_armor": 0.05}},
-                    "ability_profile": {"guaranteed": ["buff_rage"]},
                     "ai_profile": {"behavior": "swarm_chaff"},
                 }
             ],
@@ -60,14 +55,13 @@ def _family() -> MonsterFamilyDTO:
                         "strength": 4,
                         "agility": 10,
                         "endurance": 5,
-                        "intelligence": 1,
-                        "wisdom": 1,
-                        "men": 2,
+                        "intellect": 1,
+                        "memory": 1,
+                        "mental": 2,
                         "perception": 6,
-                        "charisma": 1,
-                        "luck": 2,
+                        "projection": 1,
+                        "prediction": 2,
                     },
-                    "skills": ["attack_basic"],
                     "skill_overrides": {"skill_fencing": 0.25},
                 },
                 "rat_king": {
@@ -81,14 +75,13 @@ def _family() -> MonsterFamilyDTO:
                         "strength": 20,
                         "agility": 10,
                         "endurance": 35,
-                        "intelligence": 14,
-                        "wisdom": 12,
-                        "men": 20,
+                        "intellect": 14,
+                        "memory": 12,
+                        "mental": 20,
                         "perception": 15,
-                        "charisma": 15,
-                        "luck": 5,
+                        "projection": 15,
+                        "prediction": 5,
                     },
-                    "skills": ["attack_basic", "buff_rage"],
                 },
             },
         }
@@ -96,14 +89,14 @@ def _family() -> MonsterFamilyDTO:
 
 
 @pytest.mark.unit
-def test_build_member_tier_uses_role_offset_and_variant_bounds() -> None:
+def test_build_member_tier_uses_clan_tier_without_variant_bounds() -> None:
     family = _family()
     minion = family.variants["sewer_rat"]
     boss = family.variants["rat_king"]
 
-    assert build_member_tier(1, minion, family.member_models[0]) == 0
-    assert build_member_tier(3, boss) == 4
-    assert build_member_tier(10, boss) == 7
+    assert build_member_tier(1, minion, family.member_models[0]) == 1
+    assert build_member_tier(3, boss) == 3
+    assert build_member_tier(10, boss) == 10
 
 
 @pytest.mark.unit
@@ -133,11 +126,8 @@ def test_build_scaled_skills_and_granted_abilities_use_family_member_and_variant
     abilities = build_granted_abilities(family, variant, member_model)
 
     assert skills.skills == {"skill_fencing": 0.25, "skill_light_armor": 0.05}
-    assert abilities.known_abilities == ["basic_attack", "self_buff"]
-    assert abilities.ability_presentations == {
-        "basic_attack": "infected_bite",
-        "self_buff": "swarm_frenzy",
-    }
+    assert abilities.known_abilities == []
+    assert abilities.ability_presentations == {}
 
 
 @pytest.mark.unit
@@ -218,7 +208,7 @@ def test_build_generated_monster_template_composes_field_builders() -> None:
     )
 
     assert template.variant_key == "sewer_rat"
-    assert template.member_tier == 1
+    assert template.member_tier == 2
     assert template.text_content.name_ru == "Крыса"
     assert template.meta.family_id == "rat_swarm"
     assert template.meta.source == {"clan_id": "clan-1"}

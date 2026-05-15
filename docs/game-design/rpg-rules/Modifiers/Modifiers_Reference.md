@@ -74,7 +74,7 @@
 - **Множитель:** —
 - **Источник:** Item Affix.
 
-#### `main_hand_penetration`
+#### `main_hand_armor_penetration_pct`
 **Пробивание брони (%).**
 - **Источник (Base):** —
 - **Множитель:** —

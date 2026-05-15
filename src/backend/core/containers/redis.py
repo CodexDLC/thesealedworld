@@ -6,7 +6,7 @@ from codex_platform.streams import StreamRuntime, StreamRuntimeConfig
 from fastapi import FastAPI
 
 from src.backend.config.settings import settings
-from src.backend.core.arq import ArqService
+from src.backend.core.arq import GENERATION_AI_ARQ_QUEUE, SYSTEM_ARQ_QUEUE, ArqService
 from src.backend.core.bus import GameEventProducer
 from src.backend.features.arena.events import bind as bind_arena_events
 from src.backend.features.arena.events import router as arena_router
@@ -28,8 +28,9 @@ from src.backend.features.monsters.events import router as monsters_router
 from src.backend.features.scenario.events import bind as bind_scenario_events
 from src.backend.features.scenario.events import router as scenario_router
 from src.backend.features.scenario.game_config import ScenarioConfig
+from src.backend.features.tavern.events import bind as bind_tavern_events
+from src.backend.features.tavern.events import router as tavern_router
 from src.backend.features.world.events import router as world_router
-from src.backend.features_site.auth.events import router as auth_router
 from src.backend.infrastructure.game_config.manager import GameConfigManager
 
 # Infrastructure Managers
@@ -47,6 +48,7 @@ EVENT_ROUTER_GROUPS = (
     ("monsters", monsters_router),
     ("scenario", scenario_router),
     ("arena", arena_router),
+    ("tavern", tavern_router),
 )
 
 
@@ -74,6 +76,8 @@ class RedisContainer:
 
         app.state.redis = redis_service
         app.state.combat_arq = ArqService()
+        app.state.system_arq = ArqService(queue_name=SYSTEM_ARQ_QUEUE)
+        app.state.generation_ai_arq = ArqService(queue_name=GENERATION_AI_ARQ_QUEUE)
         app.state.redis_managers = managers
         app.state.character_sessions = managers.character_sessions
         app.state.actor_commitments = managers.actor_commitments
@@ -97,6 +101,7 @@ class RedisContainer:
         bind_items_events(app)
         bind_monsters_events(app)
         bind_scenario_events(app)
+        bind_tavern_events(app)
 
         for runtime in runtimes:
             await runtime.start()
@@ -135,7 +140,6 @@ class RedisContainer:
         return runtimes
 
     def _register_all_routers(self, runtime: StreamRuntime) -> None:
-        runtime.include_router(auth_router)
         runtime.include_router(world_router)
         runtime.include_router(character_router)
         runtime.include_router(combat_router)
@@ -144,3 +148,4 @@ class RedisContainer:
         runtime.include_router(monsters_router)
         runtime.include_router(scenario_router)
         runtime.include_router(arena_router)
+        runtime.include_router(tavern_router)

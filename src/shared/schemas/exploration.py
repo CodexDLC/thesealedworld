@@ -112,6 +112,12 @@ class ExplorationHudDTO(BaseHudDTO):
     players_count: int = 0
     battles_count: int = 0
     is_safe_zone: bool = False
+    system_connect: bool = False
+    risk_state: str = "safe"
+    pending_free_xp: float = 0.0
+    pending_skill_count: int = 0
+    carried_resource_count: int = 0
+    carried_item_count: int = 0
     dominant_anchor: str | None = None
     ambient_tags: list[str] = Field(default_factory=list)
 
@@ -152,6 +158,16 @@ class WorldNavigationDTO(ExplorationJsonDTO):
     background_url: str | None = None
     anchor_influence: dict[str, Any] = Field(default_factory=dict)
     world_theme: Any | None = None
+    zone_id: str = ""
+    terrain: str = ""
+    biome_id: str = ""
+    node_type: str = ""
+    zone_archetype: str = ""
+    navigation_profile_id: str = ""
+    buildable_kind: str | None = None
+    landmark_profile: str | None = None
+    movement_profile: dict[str, Any] = Field(default_factory=dict)
+    world_zone: dict[str, Any] = Field(default_factory=dict)
 
     # Legacy Support
     metadata: dict[str, Any] = Field(default_factory=dict)

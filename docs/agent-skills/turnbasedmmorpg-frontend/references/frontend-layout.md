@@ -10,14 +10,14 @@ src/frontend/
   core/
   integrations/
     backend_api/
-  game_features/
+  features/
     <feature_name>/
       routes/
       services/
       view_models/
       forms/
       dependencies/
-  site_features/
+  game_features/
     <feature_name>/
       routes/
       services/
@@ -34,7 +34,7 @@ Create folders only when they are needed, but keep folder names consistent.
 
 Use `src/frontend/game_features/` for gameplay surfaces such as game session, game menu, scenario, exploration, arena, combat, character status, and game catalog UI.
 
-Use `src/frontend/site_features/` for public site, auth, account/cabinet, and other web-portal surfaces.
+Use `src/frontend/features/` for public site, auth, account/cabinet, library, and other web-portal surfaces.
 
 Use `routes/` for FastAPI routers that serve pages, forms, and HTMX fragments.
 

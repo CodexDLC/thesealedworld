@@ -73,6 +73,7 @@ class TestScenarioFormatter:
         assert len(payload.buttons) == 1
         assert payload.buttons[0].label == "Go North"
         assert payload.buttons[0].action_id == "a1"
+        assert payload.buttons[0].icon == "move"
 
     def test_resolve_action_icon_infers_semantic_icon_from_math(self, formatter):
         assert formatter.resolve_action_icon({"icon": "default", "math": {"w_strength": "+3"}}) == "strength"

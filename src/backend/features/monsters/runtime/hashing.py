@@ -4,7 +4,7 @@ import hashlib
 from collections.abc import Iterable, Mapping
 from typing import Any
 
-from src.backend.features.monsters.resources.spawn_config import MUTATION_TAGS_WHITELIST
+from src.backend.features.monsters.resources.spawn_config import CONTEXT_HASH_TAGS_WHITELIST
 
 
 def normalize_tags(raw_tags: Iterable[str] | Mapping[str, Any] | None) -> list[str]:
@@ -14,7 +14,7 @@ def normalize_tags(raw_tags: Iterable[str] | Mapping[str, Any] | None) -> list[s
         tags = [str(key) for key, value in raw_tags.items() if bool(value)]
     else:
         tags = [str(tag) for tag in raw_tags]
-    return sorted(set(tags) & MUTATION_TAGS_WHITELIST)
+    return sorted(set(tags) & CONTEXT_HASH_TAGS_WHITELIST)
 
 
 def compute_context_hash(tier: int, biome_id: str, normalized_tags: Iterable[str]) -> str:

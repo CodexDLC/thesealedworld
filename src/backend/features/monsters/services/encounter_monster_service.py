@@ -3,23 +3,23 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from src.backend.features.monsters.dto.generation import EncounterMonsterResult, GeneratedClan, MonsterGenerationContext
-from src.backend.features.monsters.runtime.clan_factory import ClanFactory
 from src.backend.features.monsters.runtime.encounter_pool import EncounterPoolSelector
 from src.backend.features.monsters.runtime.hashing import compute_context_hash, compute_unique_clan_hash, normalize_tags
 
 if TYPE_CHECKING:
     from src.backend.features.monsters.integrations import MonsterGenerationStorage
+    from src.backend.features.monsters.runtime.generation_builder import MonsterClanGenerationBuilder
 
 
 class EncounterMonsterService:
     def __init__(
         self,
         repository: MonsterGenerationStorage,
-        factory: ClanFactory | None = None,
+        generator: MonsterClanGenerationBuilder,
         pool: EncounterPoolSelector | None = None,
     ) -> None:
         self.repository = repository
-        self.factory = factory or ClanFactory()
+        self.generator = generator
         self.pool = pool or EncounterPoolSelector()
 
     async def prepare_encounter_monsters(self, context: MonsterGenerationContext) -> EncounterMonsterResult:
@@ -31,7 +31,6 @@ class EncounterMonsterService:
             context,
         )
         if existing_clan is not None:
-            existing_clan = await self._refresh_clan_if_stale(existing_clan, context, normalized_tags)
             members = self.pool.select_monsters(await self.repository.get_clan_members(existing_clan.id), context)
             return EncounterMonsterResult(
                 clan_id=str(existing_clan.id),
@@ -41,7 +40,7 @@ class EncounterMonsterService:
                 unique_hash=existing_clan.unique_hash,
             )
 
-        family_id = self.factory.select_family_id(context, context_hash)
+        family_id = self.generator.select_family_id(context, context_hash)
         if family_id is None:
             raise ValueError(f"No monster families available for biome={context.biome_id} tier={context.tier}")
 
@@ -49,16 +48,14 @@ class EncounterMonsterService:
         clan = await self.repository.get_clan_by_unique_hash(unique_hash)
         reused = clan is not None
         if clan is None:
-            clan, members_to_create = await self.factory.build_clan_with_members(
-                family_id=family_id,
-                context=context,
+            clan = await self.generator.generate_active_clan(
                 context_hash=context_hash,
+                context=context,
+                family_id=family_id,
                 unique_hash=unique_hash,
                 normalized_tags=normalized_tags,
+                reuse_existing=False,
             )
-            clan = await self.repository.create_clan_with_members(clan, members_to_create)
-        else:
-            clan = await self._refresh_clan_if_stale(clan, context, normalized_tags)
 
         members = self.pool.select_monsters(await self.repository.get_clan_members(clan.id), context)
         return EncounterMonsterResult(
@@ -70,7 +67,7 @@ class EncounterMonsterService:
         )
 
     def get_available_family_ids(self, context: MonsterGenerationContext) -> list[str]:
-        return self.factory.get_available_family_ids(context)
+        return self.generator.get_available_family_ids(context)
 
     async def ensure_clan_for_context(self, context: MonsterGenerationContext, family_id: str) -> GeneratedClan:
         available_family_ids = set(self.get_available_family_ids(context))
@@ -84,26 +81,13 @@ class EncounterMonsterService:
         unique_hash = compute_unique_clan_hash(family_id, context_hash)
         clan = await self.repository.get_clan_by_unique_hash(unique_hash)
         if clan is not None:
-            return await self._refresh_clan_if_stale(clan, context, normalized_tags)
+            return clan
 
-        clan, members_to_create = await self.factory.build_clan_with_members(
-            family_id=family_id,
-            context=context,
+        return await self.generator.generate_active_clan(
             context_hash=context_hash,
+            context=context,
+            family_id=family_id,
             unique_hash=unique_hash,
             normalized_tags=normalized_tags,
+            reuse_existing=False,
         )
-        return await self.repository.create_clan_with_members(clan, members_to_create)
-
-    async def _refresh_clan_if_stale(
-        self,
-        clan: GeneratedClan,
-        context: MonsterGenerationContext,
-        normalized_tags: list[str],
-    ) -> GeneratedClan:
-        if not self.factory.should_refresh_clan_flavor(clan):
-            return clan
-        refreshed = await self.factory.refresh_clan_flavor(clan, context, normalized_tags)
-        if refreshed is None:
-            return clan
-        return await self.repository.update_clan_flavor(refreshed)

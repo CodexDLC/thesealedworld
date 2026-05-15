@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Rat swarm">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#141516"/>
+      <stop offset="1" stop-color="#303839"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" fill="url(#bg)"/>
+  <path d="M64 378c58-56 122-84 192-84s134 28 192 84v70H64z" fill="#0e1010"/>
+  <ellipse cx="256" cy="252" rx="115" ry="78" fill="#5c5a52"/>
+  <circle cx="181" cy="218" r="34" fill="#6f6a60"/>
+  <circle cx="331" cy="218" r="34" fill="#6f6a60"/>
+  <path d="M148 265c45 48 171 48 216 0-10 70-61 106-108 106s-98-36-108-106z" fill="#3b3936"/>
+  <circle cx="217" cy="244" r="9" fill="#d6c081"/>
+  <circle cx="295" cy="244" r="9" fill="#d6c081"/>
+  <path d="M247 268h18l-9 14z" fill="#d49b9b"/>
+  <path d="M191 286l-98 13M196 303l-105 43M321 286l98 13M316 303l105 43" stroke="#9b9588" stroke-width="8" stroke-linecap="round"/>
+</svg>

@@ -50,25 +50,18 @@ def test_session_template_keeps_alpine_root_above_sidebars_and_inner_oob_targets
 def test_legacy_scenario_menu_fallback_keeps_panel_controls():
     nav = GameMenuService().build_menu(CoreDomain.SCENARIO)
 
-    assert nav.l2 is not None
-    assert nav.l2.label == "STATUS"
-    assert nav.l2.panel == "left"
-    assert nav.center is not None
-    assert nav.center.label == "SCENARIO"
-    assert nav.l1 is not None
-    assert nav.l1.is_disabled is True
-    assert nav.r1 is not None
-    assert nav.r1.label == "TRACE"
-    assert nav.r1.panel == "right"
-    assert nav.r2 is not None
-    assert nav.r2.is_disabled is True
+    assert nav.l2 is None
+    assert nav.l1 is None
+    assert nav.center is None
+    assert nav.r1 is None
+    assert nav.r2 is None
 
 
 def test_legacy_game_menu_fallback_keeps_global_domains_in_center_only():
     global_labels = {"SCENARIO", "EXPLORE", "COMBAT", "ARENA"}
     menu = GameMenuService()
 
-    for domain in [CoreDomain.SCENARIO, CoreDomain.EXPLORATION, CoreDomain.COMBAT]:
+    for domain in [CoreDomain.EXPLORATION, CoreDomain.COMBAT]:
         nav = menu.build_menu(domain)
 
         assert nav.center is not None

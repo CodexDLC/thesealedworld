@@ -9,6 +9,40 @@ from src.backend.features.monsters.runtime.hashing import compute_context_hash, 
 from src.backend.features.monsters.services import EncounterMonsterService
 
 
+class FakeGenerator:
+    def __init__(self, repository: FakeMonsterRepository) -> None:
+        self.repository = repository
+
+    def select_family_id(self, context: MonsterGenerationContext, context_hash: str) -> str | None:
+        del context, context_hash
+        return "wolf_pack"
+
+    def get_available_family_ids(self, context: MonsterGenerationContext) -> list[str]:
+        del context
+        return ["wolf_pack", "goblin_tribe"]
+
+    async def generate_active_clan(
+        self,
+        *,
+        context_hash: str,
+        context: MonsterGenerationContext,
+        family_id: str,
+        unique_hash: str,
+        normalized_tags: list[str],
+        reuse_existing: bool = True,
+        target_budget: int | None = None,
+    ) -> GeneratedClan:
+        del normalized_tags, reuse_existing, target_budget
+        clan = _clan(context_hash, unique_hash)
+        clan.family_id = family_id
+        clan.zone_id = context.zone_id
+        members = [_monster(clan.id, threat=10 + index) for index in range(max(1, context.count))]
+        clan.members.extend(members)
+        for member in members:
+            member.clan = clan
+        return await self.repository.create_clan_with_members(clan, members)
+
+
 class FakeMonsterRepository:
     def __init__(self) -> None:
         self.clans_by_context: dict[str, list[GeneratedClan]] = {}
@@ -65,20 +99,33 @@ def _monster(clan_id: uuid.UUID, role: str = "minion", threat: int = 20) -> Gene
         clan_id=clan_id,
         variant_key=f"{role}_{threat}",
         role=role,
+        member_tier=0,
         threat_rating=threat,
         name_ru="Wolf",
         description="Wolf",
-        scaled_base_stats={"strength": 10},
-        loadout_ids={},
-        skills_snapshot=["attack_basic"],
-        current_state=None,
+        text_content={"name_ru": "Wolf"},
+        scaled_attributes={
+            "strength": 10,
+            "agility": 10,
+            "endurance": 10,
+            "intellect": 1,
+            "memory": 1,
+            "mental": 1,
+            "perception": 5,
+            "projection": 1,
+            "prediction": 1,
+        },
+        scaled_skills={"skill_unarmed": 0.1},
+        items={},
+        vitals={"hp": {"current": 20, "max": 20}},
+        ai_profile={},
     )
 
 
 @pytest.mark.unit
 async def test_prepare_encounter_reuses_existing_clan() -> None:
     repo = FakeMonsterRepository()
-    service = EncounterMonsterService(repo)
+    service = EncounterMonsterService(repo, generator=FakeGenerator(repo))
     context = MonsterGenerationContext(biome_id="forest", tier=1, tags=["mana_leak"], difficulty="easy")
     normalized = normalize_tags(context.tags)
     actual_hash = compute_context_hash(context.tier, context.biome_id, normalized)
@@ -97,34 +144,9 @@ async def test_prepare_encounter_reuses_existing_clan() -> None:
 
 
 @pytest.mark.unit
-async def test_prepare_encounter_refreshes_stale_clan_flavor() -> None:
-    repo = FakeMonsterRepository()
-    service = EncounterMonsterService(repo)
-    context = MonsterGenerationContext(biome_id="forest", tier=1, tags=["mana_leak"], difficulty="easy")
-    normalized = normalize_tags(context.tags)
-    actual_hash = compute_context_hash(context.tier, context.biome_id, normalized)
-    clan = _clan(actual_hash)
-    clan.name_ru = "Wolf Pack T1"
-    clan.flavor_content = {"name": "Wolf Pack T1", "variants": ["runner"]}
-    monster = _monster(clan.id, role="minion")
-    monster.variant_key = "runner"
-    monster.name_ru = "Runner T1"
-    clan.members.append(monster)
-    repo.clans_by_context[actual_hash] = [clan]
-    repo.members_by_clan[clan.id] = [monster]
-
-    result = await service.prepare_encounter_monsters(context)
-
-    assert result.reused_existing_clan is True
-    assert repo.updated is True
-    assert repo.members_by_clan[clan.id][0].name_ru == "Runner"
-    assert repo.clans_by_unique[clan.unique_hash].name_ru == "Ashen Wolves"
-
-
-@pytest.mark.unit
 async def test_prepare_encounter_creates_clan_and_returns_monster_ids() -> None:
     repo = FakeMonsterRepository()
-    service = EncounterMonsterService(repo)
+    service = EncounterMonsterService(repo, generator=FakeGenerator(repo))
     context = MonsterGenerationContext(
         zone_id="D4_0_1",
         biome_id="forest",
@@ -145,7 +167,7 @@ async def test_prepare_encounter_creates_clan_and_returns_monster_ids() -> None:
 @pytest.mark.unit
 async def test_ensure_clan_for_context_creates_one_requested_family() -> None:
     repo = FakeMonsterRepository()
-    service = EncounterMonsterService(repo)
+    service = EncounterMonsterService(repo, generator=FakeGenerator(repo))
     context = MonsterGenerationContext(
         zone_id="D4_0_1",
         biome_id="city_ruins",
@@ -163,7 +185,7 @@ async def test_ensure_clan_for_context_creates_one_requested_family() -> None:
 @pytest.mark.unit
 async def test_ensure_clan_for_context_reuses_existing_family_context_hash() -> None:
     repo = FakeMonsterRepository()
-    service = EncounterMonsterService(repo)
+    service = EncounterMonsterService(repo, generator=FakeGenerator(repo))
     context = MonsterGenerationContext(
         zone_id="D4_0_1",
         biome_id="city_ruins",

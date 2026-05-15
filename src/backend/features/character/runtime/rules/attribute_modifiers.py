@@ -15,7 +15,7 @@ from src.shared.enums.stats_enums import StatKey
 ATTRIBUTE_MODIFIER_RULES: dict[str, dict[str, float]] = {
     # Body node
     StatKey.PHYSICAL_DAMAGE: {StatKey.STRENGTH: 1.0},
-    StatKey.ARMOR_PENETRATION: {StatKey.STRENGTH: 0.02},
+    StatKey.PHYSICAL_SUPPRESSION: {StatKey.STRENGTH: 0.02},
     StatKey.BLEED_RESISTANCE: {StatKey.ENDURANCE: 0.02},
     StatKey.ENVIRONMENT_BIO_RESISTANCE: {StatKey.ENDURANCE: 0.02},
     StatKey.EVASION: {StatKey.AGILITY: 0.05},

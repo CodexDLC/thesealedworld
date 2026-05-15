@@ -1,6 +1,8 @@
 from __future__ import annotations
+
 import uuid
 from typing import Any
+
 from src.backend.features.monsters.dto.generation import GeneratedClan, GeneratedMonster, MonsterLocationContext
 from src.backend.features.monsters.services.monster_group_service import MonsterGroupService
 
@@ -35,6 +37,74 @@ class FakeStorage:
     async def update_clan_flavor(self, clan: GeneratedClan) -> GeneratedClan:
         self.clans_by_unique[clan.unique_hash] = clan
         return clan
+
+
+class FakeGenerator:
+    def __init__(self, storage: FakeStorage) -> None:
+        self.storage = storage
+
+    def select_family_id(self, context, context_hash: str) -> str:
+        del context, context_hash
+        return "rat_swarm"
+
+    def get_available_family_ids(self, context) -> list[str]:
+        del context
+        return ["rat_swarm"]
+
+    async def generate_active_clan(
+        self,
+        *,
+        context_hash: str,
+        context,
+        family_id: str,
+        unique_hash: str,
+        normalized_tags: list[str],
+        reuse_existing: bool = True,
+        target_budget: int | None = None,
+    ) -> GeneratedClan:
+        del normalized_tags, reuse_existing, target_budget
+        clan = GeneratedClan(
+            id=uuid.uuid4(),
+            family_id=family_id,
+            tier=context.tier,
+            zone_id=context.zone_id,
+            context_hash=context_hash,
+            unique_hash=unique_hash,
+            raw_tags={},
+            flavor_content={},
+            name_ru="Rat Swarm",
+            description="Rat Swarm",
+        )
+        monster = GeneratedMonster(
+            id=uuid.uuid4(),
+            clan_id=clan.id,
+            variant_key="sewer_rat",
+            role="minion",
+            member_tier=0,
+            threat_rating=20,
+            name_ru="Rat",
+            description="Rat",
+            text_content={"name_ru": "Rat"},
+            scaled_attributes={
+                "strength": 4,
+                "agility": 10,
+                "endurance": 5,
+                "intellect": 1,
+                "memory": 1,
+                "mental": 2,
+                "perception": 6,
+                "projection": 1,
+                "prediction": 2,
+            },
+            scaled_skills={"skill_unarmed": 0.2},
+            items={},
+            vitals={"hp": {"current": 20, "max": 20}, "energy": {"current": 10, "max": 10}},
+            ai_profile={},
+            generation_meta={"schema_version": 2, "meta": {"archetype": "beast", "tags": ["rat"]}},
+        )
+        monster.clan = clan
+        clan.members.append(monster)
+        return await self.storage.create_clan_with_members(clan, [monster])
 
 
 class FakeLocationContext:
@@ -94,6 +164,7 @@ async def test_prepare_monster_group_creates_clan_and_actor_commitments() -> Non
         location_context=FakeLocationContext(),  # type: ignore[arg-type]
         actor_commitments=commitments,  # type: ignore[arg-type]
         group_cache=cache,  # type: ignore[arg-type]
+        generator=FakeGenerator(storage),  # type: ignore[arg-type]
     )
 
     # scope_id passed here becomes group_id and is used in save_monster_sources as scope_id

@@ -13,14 +13,13 @@ class FakeEvents:
     async def request(self, event_type, data, timeout=30.0, correlation_id=None):
         self.requested.append((event_type, data, timeout, correlation_id))
         assert event_type == "character.combat_commitments_requested"
-        session_id = data["scope_id"]
         player_ids = _decode_json_list(data["player_ids"])
         monster_ids = _decode_json_list(data["monster_ids"])
         return {
             "status": "ok",
             "commitments": {
-                **{f"player:{pid}": f"actor:{session_id}:player:{pid}" for pid in player_ids},
-                **{f"monster:{mid}": f"actor:{session_id}:monster:{mid}" for mid in monster_ids},
+                **{f"player:{pid}": f"actor:combat-test:player:{pid}" for pid in player_ids},
+                **{f"monster:{mid}": f"actor:combat-test:monster:{mid}" for mid in monster_ids},
             },
         }
 
@@ -34,8 +33,7 @@ class FakeActorCommitments:
     def source_ref(actor_type, source_id):
         return f"{actor_type}:{source_id}"
 
-    async def get_snapshots_batch(self, scope_id, keys):
-        del scope_id
+    async def get_snapshots_batch(self, keys):
         snapshots = {}
         for key in keys:
             _prefix, _scope_id, kind, actor_id = key.split(":", 3)

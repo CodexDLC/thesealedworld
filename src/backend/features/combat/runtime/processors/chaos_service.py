@@ -4,14 +4,16 @@ from typing import Any
 
 from loguru import logger as log
 
+from src.backend.features.character.runtime import CharacterVitalsCalculator
+from src.backend.features.character.runtime.combat_actor_input import CharacterCombatActorInputBuilder
+from src.backend.features.character.runtime.combat_math_model import CharacterCombatMathModelBuilder
+from src.backend.features.character.schemas.session import CharacterSessionAttributesDTO
 from src.backend.features.combat.dto.actor import ActorMetaDTO, ActorRawDTO
 from src.backend.features.combat.dto.ids import normalize_actor_id
 from src.backend.features.combat.integrations import CombatSessionIntegration
+from src.backend.features.combat.services.lifecycle_service import CombatLifecycleService
 from src.backend.features.monsters.resources import get_family_config
-from src.backend.features.monsters.runtime.combat_profile import (
-    build_monster_combat_context,
-    build_monster_vitals,
-)
+from src.backend.features.monsters.runtime.generation_fields import build_scaled_skills
 
 ANCHOR_FAMILY_ID = "anchor_sovereigns"
 ANCHOR_FORCE_TEAM = "anchor_force"
@@ -58,21 +60,6 @@ ANCHOR_PROJECTIONS: dict[str, AnchorProjectionConfig] = {
 }
 
 
-@dataclass
-class _AnchorProjectionSource:
-    id: str
-    clan_id: str
-    family_id: str
-    variant_key: str
-    role: str
-    name_ru: str
-    scaled_base_stats: dict[str, Any]
-    loadout_ids: dict[str, Any] | list[Any]
-    skills_snapshot: dict[str, Any] | list[Any]
-    combat_seed: dict[str, Any]
-    current_state: dict[str, Any] | None
-
-
 class ChaosService:
     """
     Сервис вмешательства высших сил. Отвечает за призыв анкорной проекции
@@ -81,8 +68,9 @@ class ChaosService:
 
     FORCE_TEAM = ANCHOR_FORCE_TEAM
 
-    def __init__(self, combat_sessions: CombatSessionIntegration):
+    def __init__(self, combat_sessions: CombatSessionIntegration, anchor_snapshots: Any | None = None):
         self.combat_sessions = combat_sessions
+        self.anchor_snapshots = anchor_snapshots
 
     async def spawn_cleaner(self, session_id: str) -> bool:
         """
@@ -108,7 +96,10 @@ class ChaosService:
         )
 
         # 2. Создаем actor document из monster family resource
-        projection_data = self._create_projection_data(projection)
+        projection_data = await self._create_projection_data(
+            projection,
+            battle_type=str(meta_raw.get("battle_type") or "standard"),
+        )
 
         # 3. Вызываем универсальный метод менеджера
         await self.combat_sessions.hot_join_actor(
@@ -138,8 +129,19 @@ class ChaosService:
         index = sum(ord(char) for char in session_id) % len(projections)
         return projections[index]
 
-    def _create_projection_data(self, projection: AnchorProjectionConfig) -> dict[str, Any]:
+    async def _create_projection_data(self, projection: AnchorProjectionConfig, *, battle_type: str) -> dict[str, Any]:
         """Генерирует actor document проекции из monster family resource."""
+        if self.anchor_snapshots is not None:
+            snapshot = await self.anchor_snapshots.get_snapshot(projection.variant_id)
+            if snapshot is not None:
+                return CombatLifecycleService(store=self.combat_sessions)._build_actor_doc(
+                    str(projection.actor_id),
+                    self.FORCE_TEAM,
+                    snapshot,
+                    battle_type=battle_type,
+                )
+            log.error("AnchorIntervention | missing_cached_snapshot variant_id={}", projection.variant_id)
+
         family = get_family_config(ANCHOR_FAMILY_ID)
         if family is None:
             log.error("AnchorIntervention | missing_family family_id={}", ANCHOR_FAMILY_ID)
@@ -150,25 +152,19 @@ class ChaosService:
             log.error("AnchorIntervention | missing_variant variant_id={}", projection.variant_id)
             return self._create_fallback_projection_data(projection)
 
-        source = _AnchorProjectionSource(
-            id=str(projection.actor_id),
-            clan_id=ANCHOR_FAMILY_ID,
-            family_id=ANCHOR_FAMILY_ID,
-            variant_key=variant.id,
-            role=variant.role,
-            name_ru=projection.name,
-            scaled_base_stats=variant.base_stats.model_dump(mode="json"),
-            loadout_ids=variant.fixed_loadout.model_dump(mode="json", exclude_none=True),
-            skills_snapshot=list(variant.skills),
-            combat_seed={},
-            current_state=None,
-        )
-        combat_context = build_monster_combat_context(source)
-        vitals = build_monster_vitals(source)
-        hp = int((vitals.get("hp") or {}).get("cur") or vitals.get("hp_current") or 1)
+        attributes = variant.base_stats.model_dump(mode="json")
+        skills = build_scaled_skills(family, variant).skills
+        vitals = CharacterVitalsCalculator.build_initial_vitals(
+            CharacterSessionAttributesDTO.model_validate(attributes)
+        ).model_dump(mode="json")
+        hp = int((vitals.get("hp") or {}).get("cur") or 1)
         max_hp = int((vitals.get("hp") or {}).get("max") or hp)
-        energy = int((vitals.get("energy") or {}).get("cur") or vitals.get("energy_current") or 1)
+        energy = int((vitals.get("energy") or {}).get("cur") or 1)
         max_energy = int((vitals.get("energy") or {}).get("max") or energy)
+        items = {"layout": {"equipment": {}, "belt": {}}, "by_id": {}}
+        raw = CharacterCombatMathModelBuilder().build_raw(attributes=attributes, items=items, skills=skills)
+        raw["tags"] = sorted(set(["monster", variant.role, family.id, family.archetype, *family.default_tags]))
+        loadout = CharacterCombatActorInputBuilder._loadout(items, skills)
 
         meta = ActorMetaDTO(
             id=normalize_actor_id(projection.actor_id),
@@ -190,9 +186,9 @@ class ChaosService:
 
         return {
             "meta": meta.model_dump(mode="json"),
-            "raw": combat_context["math_model"],
-            "skills": combat_context["skills"],
-            "loadout": combat_context["loadout"],
+            "raw": raw,
+            "skills": skills,
+            "loadout": loadout,
             "statuses": {"abilities": [], "effects": []},
             "xp_buffer": {},
             "metrics": {},

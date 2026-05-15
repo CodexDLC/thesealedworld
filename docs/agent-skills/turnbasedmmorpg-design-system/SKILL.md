@@ -20,6 +20,12 @@ If the task changes frontend structure broadly, also use `turnbasedmmorpg-fronte
 
 If the task changes game shell CSS, responsive layout, side panels, header/footer, game menu, chat/HUD placement, or domain viewport sizing, also use `turnbasedmmorpg-game-css-shell`.
 
+If the task is UI design work, also use exactly the relevant surface skill:
+
+- `turnbasedmmorpg-site-design` for public site and account pages.
+- `turnbasedmmorpg-cabinet-design` for cabinet/admin/operational pages.
+- `turnbasedmmorpg-game-interface-design` for gameplay HUDs, `design_prototype`, and game domain screens.
+
 ## Core Rules
 
 - Treat `docs/design-system/Design System.html` as the visual canon.
@@ -28,6 +34,7 @@ If the task changes game shell CSS, responsive layout, side panels, header/foote
 - Reuse existing shared classes before introducing new CSS.
 - Extend shared components before adding page-local styles.
 - Inspect shared shell templates and their CSS together before editing header, footer, or navigation.
+- Keep tokens, shell/layout, components, and domain screen CSS separate. Do not hide reusable component behavior inside a domain CSS file.
 
 ## Reuse Order
 
@@ -40,6 +47,31 @@ Use this order:
 5. domain templates under `src/frontend/templates/game/domains/`
 6. page CSS
 7. inline styles only for dynamic values or diagnostics
+
+## Surface Split
+
+The project has three UI design surfaces:
+
+- Site design: public and account-facing pages.
+- Cabinet design: admin and operational interfaces.
+- Game interface design: gameplay HUDs and game prototypes.
+
+Do not transfer patterns between these surfaces without an explicit reason. A public-site hero, a cabinet dashboard panel, and a gameplay action panel are different design systems sharing only low-level tokens and primitives.
+
+## Component Promotion Rule
+
+When the same behavior appears in two domains, promote it to a shared component before extending it further.
+
+Examples:
+
+- action panel positioning
+- drawer overlay behavior
+- button surface and icon masks
+- side panel shell
+- chat drawer shell
+- status/resource meters
+
+Domain CSS may provide content and small variants; it must not own shared behavior.
 
 ## Shared Drift Check
 

@@ -21,6 +21,9 @@
         <div class="ds-panel library-intro">
             <div class="ds-panel-header">Field_Record</div>
             <div class="ds-panel-body">
+                {% if clan.visual and clan.visual.image_url %}
+                    <img class="library-hero-image" src="{{ clan.visual.image_url }}" alt="{{ clan.title }}">
+                {% endif %}
                 <p class="world-text">{{ clan.summary }}</p>
                 <div class="library-fact-grid">
                     <div><span>Threat</span><strong>{{ clan.danger }}</strong></div>
@@ -38,6 +41,9 @@
         <div class="library-card-grid">
             {% for member in clan.members %}
                 <article class="library-card library-card-static">
+                    {% if member.visual and member.visual.image_url %}
+                        <img class="library-card-image" src="{{ member.visual.image_url }}" alt="{{ member.title }}">
+                    {% endif %}
                     <span class="library-card-kicker">{{ member.role_label }} // {{ member.danger }}</span>
                     <strong>{{ member.title }}</strong>
                     <p>{{ member.description }}</p>

@@ -57,4 +57,4 @@ class TestCharacterCreationService:
 
         with pytest.raises(BusinessLogicException) as exc:
             await service._ensure_slot_available(user)
-        assert "slot limit reached" in str(exc.value)
+        assert "Лимит персонажей достигнут" in str(exc.value)

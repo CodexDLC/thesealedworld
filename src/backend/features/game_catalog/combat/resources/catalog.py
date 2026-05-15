@@ -12,6 +12,7 @@ from src.backend.features.game_catalog.combat.resources.effects import get_all_e
 from src.backend.features.game_catalog.combat.resources.feints import get_all_feint_catalog_entries
 from src.backend.features.game_catalog.combat.resources.gifts import get_all_gift_catalog_entries
 from src.backend.features.game_catalog.combat.resources.items import get_all_combat_item_action_catalog_entries
+from src.backend.features.game_catalog.combat.resources.text_templates import build_combat_text_catalog
 from src.backend.features.game_catalog.combat.resources.tokens import get_all_combat_tokens
 from src.backend.features.game_catalog.combat.resources.triggers import get_all_triggers
 
@@ -56,6 +57,7 @@ class CombatResourceCatalogService:
             "combat_item_actions": self._catalog_entries_by_id(item_entries, id_field="item_action_id"),
             "combat_tokens": self._public_mapping(get_all_combat_tokens()),
             "combat_entries": combat_entries,
+            "combat_text": build_combat_text_catalog(),
         }
 
     @staticmethod

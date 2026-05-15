@@ -1,0 +1,1 @@
+"""Frontend tavern game feature."""

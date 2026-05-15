@@ -47,8 +47,8 @@ def build_lobby_page_vm(response: GameLobbyResponse) -> GameLobbyPageVM:
     slots = [_build_slot_vm(slot) for slot in payload.slots]
     has_empty_slot = any(slot.is_empty for slot in slots)
     return GameLobbyPageVM(
-        title="Порог",
-        description="Нейронные врата молчат. Задай имя и выбери облик, чтобы начать первое приключение.",
+        title=payload.title,
+        description=payload.description,
         primary_action_label=payload.primary_action_label,
         message=payload.message,
         slots=slots,

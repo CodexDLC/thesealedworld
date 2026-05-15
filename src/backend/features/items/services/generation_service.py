@@ -41,7 +41,7 @@ class ItemGenerationResultDTO:
 class ItemGenerationService:
     def __init__(
         self,
-        persistence: ItemPersistenceIntegration,
+        persistence: ItemPersistenceIntegration | None = None,
         text_ai_client: ItemTextAIClient | None = None,
         catalog: ItemCatalogService | None = None,
     ) -> None:
@@ -51,6 +51,8 @@ class ItemGenerationService:
         self.text_service = ItemTextService(text_ai_client, self.catalog)
 
     async def generate_mechanical(self, request: ItemGenerationRequestDTO) -> ItemGenerationResultDTO:
+        if self.persistence is None:
+            raise RuntimeError("Item persistence is required for mechanical item generation")
         placement_ref = self._resolve_placement_ref(request)
         item = self.factory.generate_player_item(request)
         text_status = "pending" if self._should_request_ai_text(request) else "not_requested"

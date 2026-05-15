@@ -52,6 +52,7 @@ TIER_AVAILABILITY: dict[int, set[str]] = {
     },
     2: {
         "bandit_gang",
+        "rat_swarm",
         "wolf_pack",
         "goblin_tribe",
         "spider_colony",
@@ -137,6 +138,34 @@ MUTATION_TAGS_WHITELIST: set[str] = {
     "cursed_ground",
     "ancient_tech",
     "mana_leak",
+}
+
+CONTEXT_HASH_TAGS_WHITELIST: set[str] = MUTATION_TAGS_WHITELIST | {
+    # --- D4 start-region context tags ---
+    "d4_city_ruins",
+    "d4_city_rift",
+    "d4_corner_pressure",
+    "d4_tier0_population",
+    "d4_tier1_population",
+    "d4_rift_rat_king",
+    "d4_rift_wolf_breach",
+    "d4_rift_bandit_barricade",
+    "d4_rift_goblin_scrapyard",
+    "d4_tier0_gate_cross",
+    "d4_tier0_ruined_streets",
+    "d4_tier0_scavenger_route",
+    "rat_king_pressure",
+    "wolf_breach_pressure",
+    "bandit_barricade_pressure",
+    "goblin_scrapyard_pressure",
+    "undercity_seep",
+    "overgrown_kennel",
+    "scavenger_barricade",
+    "collapsed_workshop",
+    "rat_swarm",
+    "wolf_pack",
+    "bandit_gang",
+    "goblin_tribe",
 }
 
 # 4. КОНФИГУРАЦИЯ СКАЛИРОВАНИЯ ОТ ТИРА

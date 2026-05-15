@@ -16,6 +16,7 @@ Also use:
 
 - `turnbasedmmorpg-frontend` for frontend routing/template/API boundaries.
 - `turnbasedmmorpg-design-system` for visual/component reuse.
+- `turnbasedmmorpg-game-interface-design` for gameplay HUD composition, action panels, prototype pages, and domain screen design.
 
 ## Core Rules
 
@@ -27,6 +28,7 @@ Also use:
 - If side panel behavior or breakpoint behavior is wrong across screens, fix `layout_responsive.css`, not every domain CSS file.
 - If one feature's content overflows, fix that feature's internal CSS using shell tokens.
 - Before editing shared shell selectors, inspect all current definitions with `rg`.
+- Gameplay action panel placement, chat slot behavior, side panel slots, and viewport sizing are shell/component contracts. Do not reimplement them independently in exploration, combat, scenario, loot, or inventory CSS.
 
 ## Shell-Owned Selectors
 

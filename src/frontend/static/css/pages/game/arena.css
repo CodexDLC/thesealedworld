@@ -1398,3 +1398,116 @@
         min-width: 0;
     }
 }
+
+/* ── Arena: repair banner (GROUP hall under construction) ── */
+.arena-repair-banner {
+    min-width: 0;
+    display: grid;
+    gap: 10px;
+    width: 100%;
+    padding: 14px 16px;
+    border: 1px solid rgba(255, 170, 0, 0.24);
+    border-left: 3px solid rgba(255, 170, 0, 0.78);
+    background:
+        linear-gradient(90deg, rgba(255, 170, 0, 0.10), rgba(0, 0, 0, 0.26)),
+        url("/static/images/ui/textures/button-candidates/button-surface-02-blackened-metal.webp") center / cover,
+        rgba(5, 5, 7, 0.82);
+    box-shadow:
+        inset 0 1px 0 rgba(255, 230, 150, 0.08),
+        0 10px 24px rgba(0, 0, 0, 0.30);
+    text-align: left;
+}
+
+.arena-repair-banner--action {
+    min-height: 132px;
+    cursor: default;
+}
+
+.arena-repair-banner--action:disabled {
+    color: inherit;
+    opacity: 1;
+}
+
+.arena-repair-banner strong,
+.arena-repair-banner span,
+.arena-repair-banner p {
+    min-width: 0;
+    margin: 0;
+}
+
+.arena-repair-banner strong,
+.arena-repair-banner span {
+    overflow: hidden;
+    font-family: var(--font-ui);
+    font-weight: 900;
+    line-height: 1.1;
+    text-overflow: ellipsis;
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+
+.arena-repair-banner strong {
+    color: var(--col-accent);
+    font-size: 10px;
+    letter-spacing: 0.16em;
+}
+
+.arena-repair-banner span {
+    color: rgba(210, 180, 140, 0.58);
+    font-size: 7px;
+    letter-spacing: 0.14em;
+}
+
+.arena-repair-banner p {
+    color: rgba(245, 232, 204, 0.82);
+    font-family: var(--font-world);
+    font-size: 15px;
+    line-height: 1.55;
+}
+
+/* ── Arena: group underwork state ── */
+.arena-group-underwork .arena-battle-row {
+    opacity: 0.72;
+    filter: saturate(0.72);
+}
+
+/* ── Arena: landscape phone responsive ── */
+@media (max-width: 900px) and (orientation: landscape) {
+    .arena-lobby,
+    .arena-mode-stage {
+        padding: 7px;
+        min-height: 0;
+        height: 100%;
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(220px, 34%);
+        grid-template-areas:
+            "head actions"
+            "art  actions"
+            "copy actions";
+        grid-template-rows: auto minmax(70px, 1fr) auto;
+        align-content: stretch;
+        gap: 8px;
+    }
+
+    .arena-lobby-head,
+    .arena-mode-head { grid-area: head; }
+
+    .arena-header-art,
+    .arena-mode-hero { grid-area: art; min-height: 64px; }
+
+    .arena-lobby-copy,
+    .arena-mode-readout,
+    .arena-repair-banner { grid-area: copy; font-size: 12px; line-height: 1.38; }
+
+    .arena-mode-grid,
+    .arena-mode-actions { grid-area: actions; align-self: stretch; width: 100%; max-width: none; }
+
+    .arena-mode-head { grid-template-columns: minmax(0, 1fr) 72px; gap: 8px; }
+    .arena-mode-head h2 { font-size: 12px; }
+    .arena-service-exit { min-width: 0; height: 30px; }
+    .arena-mode-grid { grid-template-columns: minmax(0, 1fr); align-content: stretch; }
+    .arena-repair-banner p { font-size: 12px; line-height: 1.3; }
+    .arena-repair-banner--action { min-height: 100%; align-content: center; }
+    .arena-card-title { font-size: 11px; }
+    .arena-card-description { font-size: 12px; }
+}

@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING, Any
 from pydantic import BaseModel, Field
 
 from src.backend.core.ai_json import parse_ai_json_model
-from src.backend.features.items.prompts.router import item_prompt_router
+from src.backend.features.items.prompts.router import build_item_name_description_prompt
 
 if TYPE_CHECKING:
     from src.backend.core.ai import AIService
@@ -26,15 +26,20 @@ class ItemTextAIClient:
 
     def __init__(self, ai: AIService | None) -> None:
         self.ai = ai
-        if self.ai is not None:
-            self.ai.include_router(item_prompt_router)
 
     async def generate_item_text(self, payload: dict[str, Any]) -> GeneratedItemTextDTO | None:
         if self.ai is None:
             return None
 
-        raw_text = await self.ai.process(self.prompt_name, payload=payload)
-        return self._parse_response(raw_text)
+        generated = await self.ai.generate_json(
+            build_item_name_description_prompt(payload),
+            schema=GeneratedItemTextDTO,
+        )
+        if generated is None:
+            return None
+        if isinstance(generated, GeneratedItemTextDTO):
+            return generated
+        return GeneratedItemTextDTO.model_validate(generated)
 
     def _parse_response(self, raw_text: Any) -> GeneratedItemTextDTO | None:
         parsed = parse_ai_json_model(raw_text, GeneratedItemTextDTO, context=self.prompt_name)

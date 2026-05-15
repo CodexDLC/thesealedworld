@@ -5,6 +5,7 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 
 import src.backend.features.game_lobby.integrations.system_integrator as lobby_integrator
+from src.backend.core.exceptions import BusinessLogicException
 from src.backend.features.game_lobby.integrations import GameLobbyIntegration, LobbyCharacterSummary
 from src.backend.features.game_lobby.services.lobby_service import GameLobbyService
 from src.shared.schemas import GameLobbyPayloadDTO
@@ -68,7 +69,7 @@ async def test_delete_owned_character_transfers_item_instances_to_system_before_
     class FakeCharacterRepository:
         async def get_by_id_and_user_id(self, character_id, user_id):
             operations.append("load_character")
-            return SimpleNamespace(character_id=character_id)
+            return SimpleNamespace(character_id=character_id, name="Ada")
 
         async def delete(self, character_id):
             operations.append(f"delete:{character_id}")
@@ -96,7 +97,7 @@ async def test_delete_owned_character_transfers_item_instances_to_system_before_
         scenario_service=FakeScenarioService(),
     )
 
-    await integration.delete_owned_character(user_id=uuid.uuid4(), character_id=42)
+    await integration.delete_owned_character(user_id=uuid.uuid4(), character_id=42, confirm_name="Ada")
 
     assert operations == [
         "load_character",
@@ -109,7 +110,32 @@ async def test_delete_owned_character_transfers_item_instances_to_system_before_
 
 
 @pytest.mark.unit
-async def test_bootstrap_existing_active_character_releases_and_cleans_runtime(monkeypatch):
+async def test_delete_owned_character_rejects_wrong_confirmation_name():
+    operations: list[str] = []
+
+    class FakeCharacterRepository:
+        async def get_by_id_and_user_id(self, character_id, user_id):
+            operations.append("load_character")
+            return SimpleNamespace(character_id=character_id, name="Ada")
+
+    class FakeCharacterSessions:
+        async def delete_session(self, character_id):
+            operations.append(f"delete_session:{character_id}")
+
+    integration = GameLobbyIntegration(
+        character_repo=FakeCharacterRepository(),
+        character_sessions=FakeCharacterSessions(),
+    )
+
+    with pytest.raises(BusinessLogicException, match="Имя подтверждения не совпадает"):
+        await integration.delete_owned_character(user_id=uuid.uuid4(), character_id=42, confirm_name="Other")
+
+    assert operations == ["load_character"]
+
+
+@pytest.mark.unit
+async def test_bootstrap_existing_active_character_reuses_runtime_session(monkeypatch):
+    user_id = uuid.uuid4()
     operations: list[str] = []
 
     class FakeSessions:
@@ -117,8 +143,21 @@ async def test_bootstrap_existing_active_character_releases_and_cleans_runtime(m
             operations.append(f"exists:{character_id}")
             return True
 
-        async def replace_session(self, character_id, data):
-            operations.append(f"replace:{character_id}")
+        async def get_session(self, character_id):
+            operations.append(f"get:{character_id}")
+            return {
+                "char_id": character_id,
+                "user_id": str(user_id),
+                "state": "scenario",
+                "prev_state": "lobby",
+                "bio": {
+                    "name": "Ada",
+                    "gender": "female",
+                    "created_at": "2026-05-05T00:00:00Z",
+                },
+                "sessions": {"scenario_id": "scenario-session-1"},
+                "updated_at": "2026-05-05T00:00:00Z",
+            }
 
     class FakeStateIntegrator:
         def __init__(self, **kwargs):
@@ -137,7 +176,10 @@ async def test_bootstrap_existing_active_character_releases_and_cleans_runtime(m
     integration.release_active_character = AsyncMock(side_effect=lambda **kwargs: operations.append("release"))
     integration.cleanup_runtime = AsyncMock(side_effect=lambda character_id: operations.append(f"cleanup:{character_id}"))
 
-    session_doc = await integration.bootstrap_active_character(user_id=uuid.uuid4(), character_id=7)
+    session_doc = await integration.bootstrap_active_character(user_id=user_id, character_id=7)
 
     assert session_doc.char_id == 7
-    assert operations == ["exists:7", "release", "cleanup:7", "bootstrap:7"]
+    assert session_doc.sessions.scenario_id == "scenario-session-1"
+    assert operations == ["exists:7", "get:7"]
+    integration.release_active_character.assert_not_awaited()
+    integration.cleanup_runtime.assert_not_awaited()

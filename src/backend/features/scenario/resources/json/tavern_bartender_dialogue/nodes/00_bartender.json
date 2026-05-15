@@ -1,0 +1,171 @@
+[
+  {
+    "node_key": "bartender_greeting",
+    "node_type": "dialog",
+    "phase": "bar",
+    "speaker": "last_refuge_bartender",
+    "display_name": "Барная стойка",
+    "text": "Бармен поднимает взгляд от недописанного списка припасов.\n\n— Новое лицо. Если пришел за тишиной, она тут только наверху. Если за ответами — спрашивай короче.",
+    "metadata": {
+      "location": "Таверна Последнее Убежище"
+    },
+    "actions": [
+      {
+        "action_id": "ask_room",
+        "label": "Спросить о комнате",
+        "icon": "home",
+        "to_node": "room_offer",
+        "math": {
+          "bartender_friendly": "+1"
+        }
+      },
+      {
+        "action_id": "ask_work",
+        "label": "Спросить о слухах",
+        "icon": "inspect",
+        "to_node": "rumors_placeholder",
+        "math": {
+          "bartender_friendly": "+1"
+        }
+      },
+      {
+        "action_id": "be_rude",
+        "label": "Поторопить бармена",
+        "icon": "warning",
+        "to_node": "rude_reply",
+        "math": {
+          "bartender_rudeness": "+1"
+        }
+      },
+      {
+        "action_id": "leave",
+        "label": "Вернуться в зал",
+        "icon": "back",
+        "to_node": "final_bar"
+      }
+    ],
+    "ui": {}
+  },
+  {
+    "node_key": "room_offer",
+    "node_type": "dialog",
+    "phase": "bar",
+    "speaker": "last_refuge_bartender",
+    "display_name": "Ключ от комнаты",
+    "text": "— Плату пока не беру. Первые прибывшие держатся на доверии, пока оно не кончилось.\n\nОн кладет на стойку простой ключ с выжженной меткой.\n\n— Комната наверху. Закрой дверь, если хочешь отдохнуть.",
+    "actions": [
+      {
+        "action_id": "take_key",
+        "label": "Взять ключ",
+        "icon": "home",
+        "to_node": "final_room",
+        "math": {
+          "room_key_received": "=1"
+        }
+      },
+      {
+        "action_id": "not_now",
+        "label": "Пока не нужно",
+        "icon": "back",
+        "to_node": "final_bar"
+      }
+    ],
+    "ui": {}
+  },
+  {
+    "node_key": "rumors_placeholder",
+    "node_type": "dialog",
+    "phase": "bar",
+    "speaker": "last_refuge_bartender",
+    "display_name": "Слухи",
+    "text": "— Слухи будут, когда люди перестанут только выживать. Сейчас все новости одинаковые: кто-то пришел, кто-то не вернулся, кто-то нашел проход и боится назвать его проходом.",
+    "actions": [
+      {
+        "action_id": "return_bar",
+        "label": "Вернуться к стойке",
+        "icon": "back",
+        "to_node": "final_bar"
+      }
+    ],
+    "ui": {}
+  },
+  {
+    "node_key": "rude_reply",
+    "node_type": "dialog",
+    "phase": "bar",
+    "speaker": "last_refuge_bartender",
+    "display_name": "Холодный ответ",
+    "text": "Бармен медленно закрывает список.\n\n— Хамить в новом мире научились быстрее, чем строить крыши. Хорошо. Тогда разговор короткий.",
+    "actions": [
+      {
+        "action_id": "apologize",
+        "label": "Сбавить тон",
+        "icon": "default",
+        "to_node": "room_offer",
+        "math": {
+          "bartender_friendly": "+1",
+          "bartender_rudeness": "-1"
+        }
+      },
+      {
+        "action_id": "walk_away",
+        "label": "Отойти от стойки",
+        "icon": "back",
+        "to_node": "final_bar"
+      }
+    ],
+    "ui": {}
+  },
+  {
+    "node_key": "final_room",
+    "node_type": "dialog",
+    "phase": "bar",
+    "speaker": "last_refuge_bartender",
+    "display_name": "Комната получена",
+    "text": "Ключ оказывается тяжелее, чем выглядел.",
+    "is_terminal": true,
+    "metadata": {
+      "finalize": {
+        "target_state": "tavern",
+        "transition_reason": "tavern_bartender_room_granted",
+        "next_screen": "room",
+        "response_metadata": {
+          "room_granted": true,
+          "bartender_rep_delta": 1
+        },
+        "effects": [
+          {
+            "type": "tavern.grant_room",
+            "required": true,
+            "tavern_id": "last_refuge",
+            "room_key": "last_refuge_private_room"
+          }
+        ]
+      }
+    },
+    "actions": [],
+    "ui": {}
+  },
+  {
+    "node_key": "final_bar",
+    "node_type": "dialog",
+    "phase": "bar",
+    "speaker": "last_refuge_bartender",
+    "display_name": "Возвращение к стойке",
+    "text": "Разговор обрывается, и шум таверны снова становится главным голосом в помещении.",
+    "is_terminal": true,
+    "metadata": {
+      "finalize": {
+        "target_state": "tavern",
+        "transition_reason": "tavern_bartender_dialogue_closed",
+        "next_screen": "bar",
+        "response_metadata": {
+          "room_granted": false,
+          "bartender_rep_delta": 0
+        }
+      }
+    },
+    "actions": [],
+    "ui": {}
+  }
+]

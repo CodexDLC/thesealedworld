@@ -10,12 +10,16 @@ def _monster(variant_key: str, threat: int) -> GeneratedMonster:
         clan_id=uuid.uuid4(),
         variant_key=variant_key,
         role="minion",
+        member_tier=0,
         threat_rating=threat,
         name_ru=variant_key,
         description=variant_key,
-        scaled_base_stats={"endurance": 1},
-        loadout_ids={},
-        skills_snapshot=[],
+        text_content={},
+        scaled_attributes={"endurance": 1},
+        scaled_skills={},
+        items={},
+        vitals={},
+        ai_profile={},
     )
 
 

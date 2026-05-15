@@ -11,10 +11,8 @@ from src.backend.features.monsters.dto.generation import (
     MonsterGroupMemberPreview,
     MonsterGroupResult,
 )
-from src.backend.features.monsters.resources import get_available_variants_for_tier, get_family_config
-from src.backend.features.monsters.runtime.clan_factory import ClanFactory
+from src.backend.features.monsters.resources import get_available_variants_for_family_tier, get_family_config
 from src.backend.features.monsters.runtime.combat_actor_input import MonsterCombatActorInputBuilder
-from src.backend.features.monsters.runtime.combat_profile import build_monster_vitals
 from src.backend.features.monsters.runtime.group_assembler import MonsterGroupAssembler
 from src.backend.features.monsters.runtime.hashing import compute_context_hash, compute_unique_clan_hash, normalize_tags
 
@@ -25,6 +23,7 @@ if TYPE_CHECKING:
         MonsterGroupCacheIntegration,
         MonsterLocationContextIntegration,
     )
+    from src.backend.features.monsters.runtime.generation_builder import MonsterClanGenerationBuilder
 
 
 class MonsterGroupService:
@@ -35,7 +34,7 @@ class MonsterGroupService:
         location_context: MonsterLocationContextIntegration,
         actor_commitments: MonsterActorCommitmentIntegration,
         group_cache: MonsterGroupCacheIntegration | None = None,
-        factory: ClanFactory | None = None,
+        generator: MonsterClanGenerationBuilder,
         assembler: MonsterGroupAssembler | None = None,
         rng: random.Random | None = None,
     ) -> None:
@@ -43,7 +42,7 @@ class MonsterGroupService:
         self.location_context = location_context
         self.actor_commitments = actor_commitments
         self.group_cache = group_cache
-        self.factory = factory or ClanFactory()
+        self.generator = generator
         self.assembler = assembler or MonsterGroupAssembler()
         self.actor_builder = MonsterCombatActorInputBuilder()
         self._rng = rng or random.Random()  # nosec B311
@@ -65,6 +64,7 @@ class MonsterGroupService:
             tier=location.tier,
             tags=location.tags,
             difficulty="mid",
+            context_meta=self._context_meta(location.raw_location),
         )
         normalized_tags = normalize_tags(context.tags)
         context_hash = compute_context_hash(context.tier, context.biome_id, normalized_tags)
@@ -144,7 +144,7 @@ class MonsterGroupService:
         if existing:
             return self._choose_existing_clan(existing), True
 
-        family_id = preferred_family_id or self.factory.select_family_id(context, context_hash)
+        family_id = preferred_family_id or self.generator.select_family_id(context, context_hash)
         if family_id is None:
             raise ValueError(f"No monster families available for biome={context.biome_id} tier={context.tier}")
 
@@ -153,21 +153,22 @@ class MonsterGroupService:
         if clan is not None:
             return clan, True
 
-        clan, members_to_create = await self.factory.build_clan_with_members(
-            family_id=family_id,
-            context=context,
+        clan = await self.generator.generate_active_clan(
             context_hash=context_hash,
+            context=context,
+            family_id=family_id,
             unique_hash=unique_hash,
             normalized_tags=normalized_tags,
+            reuse_existing=False,
         )
-        return await self.repository.create_clan_with_members(clan, members_to_create), False
+        return clan, False
 
     def _validate_preferred_family(self, context: MonsterGenerationContext, family_id: str) -> None:
         family = get_family_config(family_id)
         if family is None:
             raise ValueError(f"Unknown monster family: {family_id}")
-        available = set(self.factory.get_available_family_ids(context))
-        if family_id not in available or not get_available_variants_for_tier(family_id, context.tier):
+        available = set(self.generator.get_available_family_ids(context))
+        if family_id not in available or not get_available_variants_for_family_tier(family_id, context.tier):
             raise ValueError(
                 f"Monster family is not available for biome={context.biome_id} tier={context.tier}: {family_id}"
             )
@@ -175,11 +176,18 @@ class MonsterGroupService:
     def _choose_existing_clan(self, clans: list[GeneratedClan]) -> GeneratedClan:
         return self._rng.choice(sorted(clans, key=lambda clan: clan.unique_hash))
 
+    @staticmethod
+    def _context_meta(raw_location: dict) -> dict[str, object]:
+        flags = raw_location.get("flags")
+        if not isinstance(flags, dict):
+            return {}
+        rift_profile = flags.get("rift_profile")
+        return {"rift_profile": rift_profile} if isinstance(rift_profile, dict) else {}
+
     def _materialize_actor_source(self, monster: GeneratedMonster) -> dict[str, object]:
         return self.actor_builder.build_snapshot(monster)
 
     def _preview(self, monster: GeneratedMonster) -> MonsterGroupMemberPreview:
-        vitals = build_monster_vitals(monster)
         family_id = monster.family_id
         family = get_family_config(family_id) if family_id else None
         tags = ["monster", monster.role]
@@ -189,12 +197,35 @@ class MonsterGroupService:
             monster_id=str(monster.id),
             name=monster.name_ru,
             description=monster.description,
+            detected_ru=self._variant_text(monster, "detected"),
+            ambush_ru=self._variant_text(monster, "ambush"),
+            idle_ru=self._variant_text(monster, "idle"),
             role=monster.role,
             variant_key=monster.variant_key,
+            member_tier=monster.member_tier,
             threat_rating=monster.threat_rating,
-            hp=dict(vitals.get("hp") or {}),
+            hp=dict((monster.vitals or {}).get("hp") or {}),
             tags=sorted(set(tags)),
         )
+
+    @staticmethod
+    def _variant_text(monster: GeneratedMonster, key: str) -> str:
+        clan = monster.clan
+        if clan is None:
+            return ""
+        variants = clan.flavor_content.get("variants_flavor")
+        if not isinstance(variants, dict):
+            return ""
+        flavor = variants.get(monster.variant_key)
+        if not isinstance(flavor, dict):
+            return ""
+        nested = flavor.get("flavor")
+        if isinstance(nested, dict):
+            value = nested.get(key)
+            if value:
+                return str(value)
+        value = flavor.get(key)
+        return str(value) if value else ""
 
     @staticmethod
     def _group_payload(result: MonsterGroupResult) -> dict[str, object]:

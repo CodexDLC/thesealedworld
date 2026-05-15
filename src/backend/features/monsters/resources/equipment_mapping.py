@@ -20,7 +20,7 @@ class MonsterNaturalEquipmentMapping:
 NATURAL_EQUIPMENT_MAPPINGS: dict[str, MonsterNaturalEquipmentMapping] = {
     "rat_bite_claws": MonsterNaturalEquipmentMapping(
         natural_key="rat_bite_claws",
-        base_id="dagger",
+        base_id="rat_bite_claws",
         item_kind="weapon",
         default_slot="main_hand",
         tags=("natural_weapon", "rat", "bite", "claws"),
@@ -34,21 +34,21 @@ NATURAL_EQUIPMENT_MAPPINGS: dict[str, MonsterNaturalEquipmentMapping] = {
     ),
     "rat_light_hide": MonsterNaturalEquipmentMapping(
         natural_key="rat_light_hide",
-        base_id="leather_armor",
+        base_id="light_hide",
         item_kind="armor",
         default_slot="chest_armor",
         tags=("natural_armor", "rat", "hide", "light"),
     ),
     "wolf_bite_claws": MonsterNaturalEquipmentMapping(
         natural_key="wolf_bite_claws",
-        base_id="katar",
+        base_id="wolf_fangs_claws",
         item_kind="weapon",
         default_slot="main_hand",
         tags=("natural_weapon", "wolf", "bite", "claws"),
     ),
     "wolf_hide": MonsterNaturalEquipmentMapping(
         natural_key="wolf_hide",
-        base_id="leather_armor",
+        base_id="light_hide",
         item_kind="armor",
         default_slot="chest_armor",
         tags=("natural_armor", "wolf", "hide", "light"),

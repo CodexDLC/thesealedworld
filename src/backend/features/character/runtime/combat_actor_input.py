@@ -15,6 +15,7 @@ class CharacterCombatActorInputBuilder:
     def build_input(self, active_character: dict[str, Any]) -> dict[str, Any]:
         items = self._dict(active_character.get("items"))
         flat_skills = self._flat_skills(self._dict(active_character.get("skills")))
+        flat_skills = self._apply_pending_skills(flat_skills, active_character.get("pending_progress"))
         return {
             "meta": self._meta(active_character),
             "source": self._source(active_character),
@@ -226,6 +227,20 @@ class CharacterCombatActorInputBuilder:
             except (TypeError, ValueError):
                 flat[str(key)] = 0.0
         return flat
+
+    @staticmethod
+    def _apply_pending_skills(skills: dict[str, float], pending_progress: Any) -> dict[str, float]:
+        pending = CharacterCombatActorInputBuilder._dict(pending_progress)
+        pending_skills = CharacterCombatActorInputBuilder._dict(pending.get("skills"))
+        if not pending_skills:
+            return skills
+        merged = dict(skills)
+        for key, raw in pending_skills.items():
+            try:
+                merged[str(key)] = round(float(merged.get(str(key), 0.0) or 0.0) + float(raw or 0.0), 4)
+            except (TypeError, ValueError):
+                continue
+        return merged
 
     @staticmethod
     def _mechanics(item: dict[str, Any]) -> dict[str, Any]:

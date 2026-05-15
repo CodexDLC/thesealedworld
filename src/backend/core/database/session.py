@@ -3,6 +3,7 @@ from contextlib import asynccontextmanager
 
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.schema import CreateSchema
 
 from src.backend.config.settings import settings
 from src.backend.core.database.base import Base
@@ -47,6 +48,7 @@ async def create_db_tables() -> None:
     load_orm_models()
 
     async with async_engine.begin() as conn:
+        await conn.execute(CreateSchema("chat", if_not_exists=True))
         await conn.run_sync(Base.metadata.create_all)
 
 

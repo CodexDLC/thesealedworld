@@ -1,0 +1,13 @@
+<div class="auth-modal-backdrop" role="presentation">
+    <a class="auth-modal-scrim" href="/" aria-label="Закрыть окно входа"></a>
+    <section class="auth-modal" role="dialog" aria-modal="true" aria-labelledby="auth-modal-title">
+        <a class="auth-modal-close" href="/" aria-label="Закрыть окно входа">
+            <span aria-hidden="true">×</span>
+        </a>
+        {% if auth_mode == "register" %}
+            {% include "site/auth/fragments/register_form.html" %}
+        {% else %}
+            {% include "site/auth/fragments/login_form.html" %}
+        {% endif %}
+    </section>
+</div>

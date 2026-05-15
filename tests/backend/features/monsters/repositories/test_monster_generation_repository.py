@@ -30,14 +30,17 @@ async def test_create_clan_with_members_persists_clan_and_members() -> None:
         clan_id=clan.id,
         variant_key="wolf",
         role="minion",
+        member_tier=0,
         threat_rating=20,
         name_ru="Wolf",
         description="Wolf",
-        scaled_base_stats={"strength": 10},
-        loadout_ids={},
-        skills_snapshot=[],
-        combat_seed={"skills": {"skill_unarmed": 0.10}},
-        current_state=None,
+        text_content={"name_ru": "Wolf"},
+        scaled_attributes={"strength": 10},
+        scaled_skills={"skill_unarmed": 0.10},
+        items={},
+        vitals={"hp": {"current": 10, "max": 10}},
+        ai_profile={},
+        generation_meta={"schema_version": 2},
     )
 
     result = await repo.create_clan_with_members(clan, [member])
@@ -48,12 +51,12 @@ async def test_create_clan_with_members_persists_clan_and_members() -> None:
     assert result.id == clan.id
     assert result.members[0].id == member.id
     assert result.members[0].clan is result
-    assert result.members[0].combat_seed == {"skills": {"skill_unarmed": 0.10}}
+    assert result.members[0].scaled_skills == {"skill_unarmed": 0.10}
     assert isinstance(persisted_clan, GeneratedClanORM)
     assert isinstance(persisted_members[0], GeneratedMonsterORM)
     assert persisted_clan.id == clan.id
     assert persisted_members[0].id == member.id
-    assert persisted_members[0].combat_seed == {"skills": {"skill_unarmed": 0.10}}
+    assert persisted_members[0].scaled_skills == {"skill_unarmed": 0.10}
     session.add.assert_called_once()
     session.add_all.assert_called_once()
     session.flush.assert_awaited_once()
@@ -82,13 +85,17 @@ async def test_update_clan_flavor_updates_clan_and_member_text() -> None:
         clan_id=clan_id,
         variant_key="runner",
         role="minion",
+        member_tier=0,
         threat_rating=20,
         name_ru="Runner T1",
         description="Old runner",
-        scaled_base_stats={"strength": 10},
-        loadout_ids={},
-        skills_snapshot=[],
-        combat_seed={},
+        text_content={"name_ru": "Runner T1"},
+        scaled_attributes={"strength": 10},
+        scaled_skills={},
+        items={},
+        vitals={},
+        ai_profile={},
+        generation_meta={},
     )
     clan_orm.members.append(member_orm)
     session.scalar = AsyncMock(return_value=clan_orm)
@@ -111,12 +118,16 @@ async def test_update_clan_flavor_updates_clan_and_member_text() -> None:
                 clan_id=clan_id,
                 variant_key="runner",
                 role="minion",
+                member_tier=0,
                 threat_rating=20,
                 name_ru="Runner",
                 description="New runner",
-                scaled_base_stats={"strength": 10},
-                loadout_ids={},
-                skills_snapshot=[],
+                text_content={"name_ru": "Runner"},
+                scaled_attributes={"strength": 10},
+                scaled_skills={},
+                items={},
+                vitals={},
+                ai_profile={},
             )
         ],
     )

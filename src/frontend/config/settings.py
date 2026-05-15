@@ -22,7 +22,21 @@ class FrontendSettings(BaseCommonSettings):
     app_port: int = 8000
     backend_base_url: str = "http://127.0.0.1:8001"
     chat_ws_url: str = "ws://127.0.0.1:8002"
+    backend_internal_service_key: str = "dev-site-to-game-service-key"  # pragma: allowlist secret
+    backend_internal_service_header: str = "X-Internal-Service-Key"
     active_character_cookie_secure: bool = False
+    game_token_cookie_secure: bool = False
+    auth_user_cache_ttl_seconds: int = 30 * 60
+    site_database_url: str = (
+        "postgresql+asyncpg://tbmmorpg:tbmmorpg_dev@127.0.0.1:5432/tbmmorpg_site"  # pragma: allowlist secret
+    )
+    database_url: str = site_database_url
+    database_echo: bool = False
+    secret_key: str = "change-me-in-env-change-me-in-env-32-bytes"  # pragma: allowlist secret
+    access_token_expire_minutes: int = 30
+    refresh_token_expire_days: int = 30
+    authx_jwt_algorithm: str = "HS256"
+    authx_jwt_token_locations: list[str] = ["headers"]
     default_symbiote_name: str = "SYSTEM"
 
     # Paths

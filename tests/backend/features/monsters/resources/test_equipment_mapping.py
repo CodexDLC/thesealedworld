@@ -23,6 +23,22 @@ def test_natural_equipment_mappings_reference_existing_base_items_and_slots() ->
 
 
 @pytest.mark.unit
+def test_natural_weapon_mappings_resolve_to_real_weapon_skill_contracts() -> None:
+    catalog = ItemCatalogService.load_default()
+    problems: list[tuple[str, str, str | None, str | None]] = []
+    for natural_key, mapping in NATURAL_EQUIPMENT_MAPPINGS.items():
+        if mapping.item_kind != "weapon":
+            continue
+        base = catalog.get_base_item(mapping.base_id)
+        if base is None:
+            continue
+        if base.type != "weapon" or base.related_skill == "skill_unarmed":
+            problems.append((natural_key, mapping.base_id, base.type, base.related_skill))
+
+    assert problems == []
+
+
+@pytest.mark.unit
 def test_natural_equipment_mappings_cover_mvp_beast_families() -> None:
     assert {"rat_bite_claws", "rat_light_hide", "wolf_bite_claws", "wolf_hide"} <= set(
         NATURAL_EQUIPMENT_MAPPINGS

@@ -125,6 +125,7 @@ class NavigationEngine:
             },
             context={
                 "is_safe_zone": is_safe,
+                "system_connect": bool(flags.get("system_connect") or flags.get("is_safe_zone", False)),
                 "threat_tier": flags.get("threat_tier", 0),
             },
         )
@@ -353,10 +354,5 @@ class NavigationEngine:
 
     @staticmethod
     def is_safe_context(flags: dict[str, Any], anchor_influence: dict[str, Any] | None = None) -> bool:
-        if flags.get("is_safe_zone", False):
-            return True
-
-        try:
-            return float(flags.get("threat_tier", 1)) <= 0
-        except (TypeError, ValueError):
-            return False
+        del anchor_influence
+        return bool(flags.get("system_connect") or flags.get("is_safe_zone", False))

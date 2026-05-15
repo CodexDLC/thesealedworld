@@ -1,0 +1,16 @@
+/* ── COMPONENTS: CABINET SHELL ── */
+
+.cabinet-body #main-content {
+  min-height: calc(100svh - 76px);
+  padding-top: 76px;
+  background:
+    radial-gradient(circle at 18% 0%, rgba(255, 170, 0, 0.08), transparent 28rem),
+    radial-gradient(circle at 84% 12%, rgba(119, 68, 255, 0.07), transparent 30rem),
+    var(--col-bg-darker);
+}
+
+.cabinet-shell {
+  width: min(1180px, calc(100% - clamp(32px, 7vw, 96px)));
+  margin: 0 auto;
+  padding: clamp(var(--sp-8), 7vw, var(--sp-12)) 0;
+}

@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Bandit gang">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#211816"/>
+      <stop offset="1" stop-color="#4b2b20"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" fill="url(#bg)"/>
+  <path d="M68 386c68-50 125-65 188-65s120 15 188 65v58H68z" fill="#14100f"/>
+  <path d="M181 201l-35 80 110 37 110-37-35-80z" fill="#6e4b35"/>
+  <path d="M154 192c31-38 62-57 102-57s71 19 102 57c-30 14-64 21-102 21s-72-7-102-21z" fill="#1b1615"/>
+  <path d="M214 243h84l-14 54h-56z" fill="#d2a45d"/>
+  <path d="M122 140l28-28 240 240-28 28z" fill="#c9b28b"/>
+  <path d="M360 112l30 28-240 240-28-28z" fill="#8d8f8e"/>
+  <circle cx="216" cy="243" r="10" fill="#f1c765"/>
+  <circle cx="296" cy="243" r="10" fill="#f1c765"/>
+</svg>

@@ -6,7 +6,7 @@ class ActorCommitmentKey(BaseRedisKey):
 
     @property
     def template(self) -> str:
-        return "combat:snapshot:{actor_id}"
+        return "game:combat:snapshot:{actor_id}"
 
 
 class PlayerCoreKey(BaseRedisKey):
@@ -15,14 +15,6 @@ class PlayerCoreKey(BaseRedisKey):
     @property
     def template(self) -> str:
         return "game:ac:{char_id}"
-
-
-class SitePageCacheKey(BaseRedisKey):
-    """Optional rendered site page cache namespace."""
-
-    @property
-    def template(self) -> str:
-        return "site:page:{page_key}"
 
 
 class WorldLocationKey(BaseRedisKey):
@@ -47,3 +39,19 @@ class WorldLocationBattlesKey(BaseRedisKey):
     @property
     def template(self) -> str:
         return "game:world:location:{loc_id}:battles"
+
+
+class ExpeditionActiveKey(BaseRedisKey):
+    """Pointer from character id to the active dirty-gains expedition run."""
+
+    @property
+    def template(self) -> str:
+        return "game:expedition:active:{char_id}"
+
+
+class ExpeditionRunKey(BaseRedisKey):
+    """Runtime cache for a dirty-gains expedition run."""
+
+    @property
+    def template(self) -> str:
+        return "game:expedition:{run_id}"

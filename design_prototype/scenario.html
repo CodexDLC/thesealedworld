@@ -1,0 +1,541 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>The Sealed World - Scenario Prototype</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=EB+Garamond:wght@500;600;700&family=JetBrains+Mono:wght@400;500;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/scenario.css">
+</head>
+<body class="game-body mobile-rift-body">
+    <nav class="prototype-purpose-nav" aria-label="Prototype purpose navigation">
+        <a href="exploration.html">Exploration</a>
+        <a href="combat.html">Combat</a>
+        <a class="is-active" href="scenario.html">Scenario</a>
+        <a href="arena.html">Arena</a>
+        <a href="panels.html">Panels</a>
+    </nav>
+
+    <main class="prototype-board prototype-board--purpose" aria-label="Scenario interface design board">
+        <header class="prototype-domain-head">
+            <div>
+                <strong>Scenario</strong>
+                <span>отдельный домен · mobile-first · tablet / desktop рядом</span>
+            </div>
+            <nav aria-label="Scenario variants">
+                <span>npc dialogue</span>
+                <span>reputation</span>
+                <span>outcome</span>
+            </nav>
+        </header>
+
+        <section class="prototype-form-section" aria-label="Scenario mobile variants">
+            <div class="prototype-form-row">
+                <div class="prototype-form-column">
+                    <span class="prototype-frame-label">Mobile scenario 428x830</span>
+                    <section class="prototype-frame prototype-frame--mobile" aria-label="Scenario mobile portrait prototype">
+                        <header class="prototype-frame-header">
+                            <div>
+                                <strong>Scenario HUD</strong>
+                                <span>portrait · NPC/dialogue engine · choices</span>
+                            </div>
+                            <nav aria-label="Prototype variants">
+                                <button class="is-active" type="button">NPC</button>
+                                <button type="button">FINAL</button>
+                                <button type="button">REPUTATION</button>
+                            </nav>
+                        </header>
+                        <div class="device-mount" data-scenario-mount="dialogue"></div>
+                    </section>
+                </div>
+
+                <div class="prototype-form-column">
+                    <span class="prototype-frame-label">Mobile finale 428x830</span>
+                    <section class="prototype-frame prototype-frame--mobile" aria-label="Scenario finale mobile prototype">
+                        <header class="prototype-frame-header">
+                            <div>
+                                <strong>Scenario Finale</strong>
+                                <span>portrait · result and return actions</span>
+                            </div>
+                            <nav aria-label="Prototype variants">
+                                <button type="button">DIALOGUE</button>
+                                <button class="is-active" type="button">FINAL</button>
+                                <button type="button">REQ</button>
+                            </nav>
+                        </header>
+                        <div class="device-mount" data-scenario-mount="finale"></div>
+                    </section>
+                </div>
+
+                <div class="prototype-form-column">
+                    <span class="prototype-frame-label">Mobile landscape 830x380</span>
+                    <section class="prototype-frame prototype-frame--mobile-landscape" aria-label="Scenario mobile landscape prototype">
+                        <header class="prototype-frame-header">
+                            <div>
+                                <strong>Scenario HUD</strong>
+                                <span>landscape · choices right</span>
+                            </div>
+                            <nav aria-label="Prototype variants">
+                                <button class="is-active" type="button">DIALOGUE</button>
+                                <button type="button">FINAL</button>
+                                <button type="button">REQ</button>
+                            </nav>
+                        </header>
+                        <div class="device-mount" data-scenario-mount="dialogue"></div>
+                    </section>
+                </div>
+            </div>
+        </section>
+
+        <section class="prototype-form-section" aria-label="Scenario tablet variants">
+            <div class="prototype-section-title">
+                <strong>Tablet</strong>
+                <span>тот же актуальный scenario shell в другом размере</span>
+            </div>
+            <div class="prototype-form-row">
+                <div class="prototype-form-column">
+                    <span class="prototype-frame-label">Tablet landscape 1024x768</span>
+                    <section class="prototype-frame prototype-frame--tablet-landscape" aria-label="Scenario tablet landscape prototype">
+                        <header class="prototype-frame-header">
+                            <div>
+                                <strong>Scenario HUD</strong>
+                                <span>wide tablet · dialogue with reputation context</span>
+                            </div>
+                            <nav aria-label="Prototype variants">
+                                <button class="is-active" type="button">NPC</button>
+                                <button type="button">FINAL</button>
+                                <button type="button">REPUTATION</button>
+                            </nav>
+                        </header>
+                        <div class="device-mount" data-scenario-mount="dialogue"></div>
+                    </section>
+                </div>
+
+                <div class="prototype-form-column">
+                    <span class="prototype-frame-label">Tablet portrait 768x1024</span>
+                    <section class="prototype-frame prototype-frame--tablet-portrait" aria-label="Scenario tablet portrait prototype">
+                        <header class="prototype-frame-header">
+                            <div>
+                                <strong>Scenario Finale</strong>
+                                <span>tall tablet · result with side summary</span>
+                            </div>
+                            <nav aria-label="Prototype variants">
+                                <button type="button">DIALOGUE</button>
+                                <button class="is-active" type="button">FINAL</button>
+                                <button type="button">REQ</button>
+                            </nav>
+                        </header>
+                        <div class="device-mount" data-scenario-mount="finale"></div>
+                    </section>
+                </div>
+            </div>
+        </section>
+
+        <div class="prototype-air-gap" aria-hidden="true"></div>
+
+        <section class="prototype-form-section" aria-label="Scenario desktop variants">
+            <div class="prototype-section-title">
+                <strong>Desktop</strong>
+                <span>сценарий как рабочий экран: контекст, текст, условия, решения</span>
+            </div>
+            <div class="prototype-form-row">
+                <div class="prototype-form-column">
+                    <span class="prototype-frame-label">Desktop scenario 1440x830</span>
+                    <section class="prototype-frame prototype-frame--desktop" aria-label="Scenario desktop prototype">
+                        <header class="prototype-frame-header">
+                            <div>
+                                <strong>Scenario HUD</strong>
+                                <span>desktop composition · scenario controls reputation</span>
+                            </div>
+                            <nav aria-label="Prototype variants">
+                                <button class="is-active" type="button">NPC</button>
+                                <button type="button">FINAL</button>
+                                <button type="button">REPUTATION</button>
+                            </nav>
+                        </header>
+                        <div class="device-mount" data-scenario-mount="dialogue"></div>
+                    </section>
+                </div>
+            </div>
+        </section>
+
+        <section class="prototype-notes prototype-notes--wide" aria-label="Scenario layout notes">
+            <strong>Scenario Rules</strong>
+            <ul>
+                <li>Scenario может быть квестовой сценой или обычным NPC-разговором; общий слой хранит последствия, репутацию и флаги.</li>
+                <li>Scenario использует общий `game-action-panel`: варианты ответов являются доменным содержимым, а не отдельной системой кнопок.</li>
+                <li>Mobile portrait держит текст в центральном поле, а ответы закрепляет снизу над чатом.</li>
+                <li>Tablet и desktop живут внутри этой страницы как варианты актуального scenario shell.</li>
+            </ul>
+        </section>
+    </main>
+
+    <template id="scenario-dialogue-template">
+        <div class="game-shell mobile-rift scenario-rift">
+            <header class="game-shell__header mobile-rift-header">
+                <div class="mobile-rift-topbar">
+                    <button class="mobile-menu-button" type="button" aria-label="Open game menu">
+                        <span class="mobile-glyph mobile-glyph--menu" aria-hidden="true"></span>
+                    </button>
+                    <div class="mobile-rift-brand">The Sealed World</div>
+                </div>
+            </header>
+
+            <main class="game-shell__main mobile-rift-main game-main">
+                <section class="game-screen-area game-screen-area--vertical scenario-screen" aria-label="Scenario dialogue">
+                    <header class="scenario-statebar">
+                        <strong>СЦЕНАРИЙ</strong>
+                        <span>NPC_DIALOGUE // STEP 03</span>
+                        <em>REP WATCH</em>
+                    </header>
+
+                    <aside class="panel-dock panel-dock--framed panel-dock--scroll scenario-status-dock" aria-label="Character status dock">
+                        <nav class="dock-nav dock-nav--bar dock-nav--two scenario-status-actions" aria-label="Status actions">
+                            <button class="dock-nav-button is-active" type="button">STATUS</button>
+                            <button class="dock-nav-button" type="button">BUILD</button>
+                        </nav>
+                        <section class="status-widget-card exploration-status-card" aria-label="Character summary">
+                            <div class="status-widget-avatar">
+                                <img src="../src/frontend/static/images/avatars/rook7.png" alt="Player avatar">
+                            </div>
+                            <div class="status-widget-core">
+                                <div class="status-widget-name">
+                                    <strong>CODEXDLC</strong>
+                                    <span>TIER 0</span>
+                                </div>
+                                <div class="status-widget-bars">
+                                    <div class="status-widget-bar status-widget-bar--hp" style="--status-fill: 84%;">
+                                        <span>HP</span>
+                                        <i></i>
+                                        <b>84 / 100</b>
+                                    </div>
+                                    <div class="status-widget-bar status-widget-bar--en" style="--status-fill: 52%;">
+                                        <span>EN</span>
+                                        <i></i>
+                                        <b>31 / 60</b>
+                                    </div>
+                                    <div class="status-widget-bar status-widget-bar--sta" style="--status-fill: 60%;">
+                                        <span>STA</span>
+                                        <i></i>
+                                        <b>48 / 80</b>
+                                    </div>
+                                </div>
+                            </div>
+                        </section>
+                        <details class="status-widget-section scenario-status-section" open>
+                            <summary class="status-widget-section-title">
+                                <span>ATTRIBUTES</span>
+                                <strong>GROUPS</strong>
+                            </summary>
+                            <div class="status-widget-attribute-body" aria-label="Attribute layout variants">
+                                <section class="status-widget-attribute-variant" aria-label="Vertical attributes variant">
+                                    <div class="status-widget-attribute-list">
+                                        <div class="status-widget-attribute-group">
+                                            <em>BODY</em>
+                                            <div><span>СИЛ</span><strong>11</strong></div>
+                                            <div><span>ЛОВ</span><strong>12</strong></div>
+                                            <div><span>ВЫН</span><strong>15</strong></div>
+                                        </div>
+                                        <div class="status-widget-attribute-group">
+                                            <em>CORE</em>
+                                            <div><span>ИНТ</span><strong>14</strong></div>
+                                            <div><span>ПАМ</span><strong>17</strong></div>
+                                            <div><span>МЕН</span><strong>16</strong></div>
+                                        </div>
+                                        <div class="status-widget-attribute-group">
+                                            <em>SENSOR</em>
+                                            <div><span>ВОС</span><strong>10</strong></div>
+                                            <div><span>ПРО</span><strong>9</strong></div>
+                                            <div><span>ПРД</span><strong>13</strong></div>
+                                        </div>
+                                    </div>
+                                </section>
+                            </div>
+                        </details>
+                        <details class="status-widget-section scenario-status-section" open>
+                            <summary class="status-widget-section-title">
+                                <span>SKILLS</span>
+                                <strong>SCENE</strong>
+                            </summary>
+                            <div class="status-widget-skill-list">
+                                <div><span>Разведка</span><strong>6.6%</strong></div>
+                                <div><span>Адаптация</span><strong>4.1%</strong></div>
+                                <div><span>Контракты</span><strong>0.8%</strong></div>
+                            </div>
+                        </details>
+                    </aside>
+
+                    <section class="scenario-stage" aria-label="Scenario stage">
+                        <article class="scenario-copy" aria-label="Scenario text">
+                            <figure class="scenario-subject" aria-label="Speaker or situation">
+                                <img src="../src/frontend/static/images/scenarios/symbiont.png" alt="Symbiont entity">
+                                <figcaption>СИМБИОТ</figcaption>
+                            </figure>
+                            <div class="scenario-kicker">NPC DIALOGUE ENGINE</div>
+                            <h2>Смотритель башни сверяет твой след.</h2>
+                            <p>Это может быть обычный разговор с NPC, но он проходит через сценарный слой: ответы меняют репутацию, открывают сервисы и пишут флаги в состояние локации.</p>
+                            <p>Интерфейс подсвечивает не только текст, но и последствия. Репутация NPC, фракции и локальные флаги могут измениться даже без боя.</p>
+                            <p>Если текста станет больше, он скроллится внутри этой зоны, а нижний блок решений остается на месте.</p>
+                        </article>
+
+                        <aside class="scenario-watch" aria-label="Urgent information">
+                            <strong>ОБЯЗАТЕЛЬНО</strong>
+                            <span>Ответ изменит репутацию и сохранит сценарный флаг.</span>
+                            <button class="game-action-button" type="button">INFO</button>
+                        </aside>
+                    </section>
+
+                    <aside class="panel-dock panel-dock--framed panel-dock--scroll side-panel-drawer side-panel-drawer--right scenario-info-dock is-open" data-side-panel="scenario-info" aria-label="Scenario details dock">
+                        <nav class="dock-nav dock-nav--bar dock-nav--two scenario-info-actions" aria-label="Scenario info actions">
+                            <button class="dock-nav-button is-active" type="button">INFO</button>
+                            <button class="dock-nav-button" type="button" data-side-panel-close="scenario-info">CLOSE</button>
+                        </nav>
+
+                        <section class="info-widget-section scenario-info-section" aria-label="Scenario identity">
+                            <header class="info-widget-title">
+                                <span>DIALOGUE</span>
+                                <strong>NPC</strong>
+                            </header>
+                            <div class="info-widget-list">
+                                <div><span>NPC</span><strong>Смотритель</strong></div>
+                                <div><span>Step</span><strong>03 / 05</strong></div>
+                                <div><span>State</span><strong>NPC TALK</strong></div>
+                            </div>
+                        </section>
+
+                        <section class="info-widget-section scenario-info-section" aria-label="Reputation controls">
+                            <header class="info-widget-title">
+                                <span>REPUTATION</span>
+                                <strong>CONTROL</strong>
+                            </header>
+                            <div class="info-widget-list">
+                                <div><span>NPC</span><strong>+1</strong></div>
+                                <div><span>Faction</span><strong>0</strong></div>
+                                <div><span>Flag</span><strong>PENDING</strong></div>
+                            </div>
+                        </section>
+
+                        <section class="info-widget-section scenario-info-section" aria-label="Scenario trace">
+                            <header class="info-widget-title">
+                                <span>TRACE</span>
+                                <strong>2</strong>
+                            </header>
+                            <div class="info-widget-list">
+                                <div><span>Last answer</span><strong>NO_DATA</strong></div>
+                                <div><span>Outcome</span><strong>SAVED</strong></div>
+                            </div>
+                        </section>
+
+                        <section class="info-widget-section scenario-info-section" aria-label="Tags">
+                            <header class="info-widget-title">
+                                <span>TAGS</span>
+                                <strong>3</strong>
+                            </header>
+                            <div class="info-widget-tags">
+                                <span>NPC</span>
+                                <span>REPUTATION</span>
+                                <span>FLAG</span>
+                            </div>
+                        </section>
+                    </aside>
+
+                    <section class="game-action-panel game-action-panel--bottom scenario-action-panel" aria-label="Scenario choices">
+                        <header class="game-action-panel__head scenario-action-head">
+                            <span>DIALOGUE RESPONSE</span>
+                            <strong>3 CHOICES</strong>
+                        </header>
+                        <div class="game-action-panel__body scenario-action-layout">
+                            <figure class="scenario-player-node">
+                                <img src="../src/frontend/static/images/avatars/rook7.png" alt="Player avatar">
+                                <figcaption>CODEXDLC</figcaption>
+                            </figure>
+                            <section class="game-action-panel__decisions scenario-choice-list" aria-label="Scenario answers">
+                                <button class="game-action-button scenario-choice scenario-choice--primary" type="button">
+                                    <strong>Ответить честно</strong>
+                                    <span>NPC +1 · флаг trust</span>
+                                </button>
+                                <button class="game-action-button scenario-choice" type="button">
+                                    <strong>Спросить о долге башни</strong>
+                                    <span>Проверка: отношение NPC</span>
+                                </button>
+                                <button class="game-action-button scenario-choice scenario-choice--danger" type="button">
+                                    <strong>Солгать о цели</strong>
+                                    <span>NPC -1 · флаг suspect</span>
+                                </button>
+                            </section>
+                        </div>
+                    </section>
+                </section>
+            </main>
+
+            <footer class="game-shell__footer mobile-rift-footer" data-chat-channel="scenario">
+                <details class="mobile-chat-drawer">
+                    <summary class="mobile-chat-summary" aria-label="Toggle scenario log">
+                        <button class="mobile-chat-head-button mobile-chat-head-button--drop" type="button" aria-label="Chat channel menu">▼</button>
+                        <span class="mobile-chat-head-signal" aria-label="Unread scenario activity">
+                            <i></i><i></i><i></i>
+                        </span>
+                        <span class="mobile-chat-priority-tabs" aria-label="Unread chat channels">
+                            <i class="is-active" data-channel="scenario">SCN</i>
+                            <i data-channel="system">SYS</i>
+                            <i data-channel="world">WRLD</i>
+                        </span>
+                        <button class="mobile-chat-head-button" type="button" aria-label="Expand chat">▲</button>
+                        <button class="mobile-chat-head-button" type="button" aria-label="Clear chat">CLR</button>
+                        <button class="mobile-chat-head-button is-active" type="button" aria-label="Minimize chat">MIN</button>
+                        <button class="mobile-chat-head-button" type="button" aria-label="Close chat">×</button>
+                    </summary>
+                    <div class="mobile-chat-panel">
+                        <header class="mobile-chat-head">
+                            <strong>SCENARIO TRACE</strong>
+                            <span>step 1 / 3</span>
+                        </header>
+                        <nav class="mobile-chat-tabs" aria-label="Scenario log tabs">
+                            <button class="is-active" type="button">[СЦЕНА]</button>
+                            <button type="button">[СИСТ]</button>
+                            <button type="button">[МИР]</button>
+                        </nav>
+                        <div class="mobile-chat-mini-preview">
+                            <p><b>СЦЕНА</b> Сигнал в башне стабилизируется.</p>
+                            <p><b>СИМБИОТ</b> Можно запросить расширенную информацию.</p>
+                        </div>
+                        <div class="mobile-chat-input-row is-locked">
+                            <span>&gt;</span>
+                            <em>Сценарные события фиксируются...</em>
+                            <button type="button">INFO</button>
+                        </div>
+                    </div>
+                </details>
+            </footer>
+        </div>
+    </template>
+
+    <template id="scenario-finale-template">
+        <div class="game-shell mobile-rift scenario-rift scenario-rift--finale">
+            <header class="game-shell__header mobile-rift-header">
+                <div class="mobile-rift-topbar">
+                    <button class="mobile-menu-button" type="button" aria-label="Open game menu">
+                        <span class="mobile-glyph mobile-glyph--menu" aria-hidden="true"></span>
+                    </button>
+                    <div class="mobile-rift-brand">The Sealed World</div>
+                </div>
+            </header>
+
+            <main class="game-shell__main mobile-rift-main game-main">
+                <section class="game-screen-area game-screen-area--vertical scenario-screen scenario-screen--finale" aria-label="Scenario finale">
+                    <header class="scenario-statebar">
+                        <strong>СЦЕНАРИЙ // ФИНАЛ</strong>
+                        <span>OUTCOME SAVED</span>
+                        <em>TRACE SAVED</em>
+                    </header>
+
+                    <aside class="panel-dock panel-dock--framed panel-dock--scroll scenario-status-dock" aria-label="Character status dock">
+                        <nav class="dock-nav dock-nav--bar dock-nav--two scenario-status-actions" aria-label="Status actions">
+                            <button class="dock-nav-button is-active" type="button">STATUS</button>
+                            <button class="dock-nav-button" type="button">BUILD</button>
+                        </nav>
+                        <section class="status-widget-card exploration-status-card" aria-label="Character summary">
+                            <div class="status-widget-avatar">
+                                <img src="../src/frontend/static/images/avatars/rook7.png" alt="Player avatar">
+                            </div>
+                            <div class="status-widget-core">
+                                <div class="status-widget-name">
+                                    <strong>CODEXDLC</strong>
+                                    <span>TIER 0</span>
+                                </div>
+                                <div class="status-widget-bars">
+                                    <div class="status-widget-bar status-widget-bar--hp" style="--status-fill: 84%;"><span>HP</span><i></i><b>84 / 100</b></div>
+                                    <div class="status-widget-bar status-widget-bar--en" style="--status-fill: 52%;"><span>EN</span><i></i><b>31 / 60</b></div>
+                                    <div class="status-widget-bar status-widget-bar--sta" style="--status-fill: 60%;"><span>STA</span><i></i><b>48 / 80</b></div>
+                                </div>
+                            </div>
+                        </section>
+                        <details class="status-widget-section scenario-status-section" open>
+                            <summary class="status-widget-section-title">
+                                <span>SKILLS</span>
+                                <strong>SCENE</strong>
+                            </summary>
+                            <div class="status-widget-skill-list">
+                                <div><span>Разведка</span><strong>6.6%</strong></div>
+                                <div><span>Адаптация</span><strong>4.1%</strong></div>
+                                <div><span>Контракты</span><strong>0.8%</strong></div>
+                            </div>
+                        </details>
+                    </aside>
+
+                    <section class="scenario-result-card" aria-label="Scenario result">
+                        <div class="scenario-result-art" aria-hidden="true">
+                            <img src="../src/frontend/static/images/scenarios/awakening_rift/background_v4.png" alt="">
+                        </div>
+                        <article>
+                            <div class="scenario-kicker">ИТОГ ДИАЛОГА</div>
+                            <h2>Смотритель меняет отношение башни.</h2>
+                            <p>Выбранный ответ применяет репутацию и сценарные флаги. После выхода exploration получит обновленный список локальных сервисов.</p>
+                        </article>
+                        <div class="scenario-reward-grid" aria-label="Scenario rewards">
+                            <span><b>NPC REP</b><strong>+1</strong></span>
+                            <span><b>FACTION</b><strong>0</strong></span>
+                            <span><b>ФЛАГ</b><strong>TRUST</strong></span>
+                        </div>
+                    </section>
+
+                    <aside class="panel-dock panel-dock--framed panel-dock--scroll side-panel-drawer side-panel-drawer--right scenario-info-dock is-open" data-side-panel="scenario-info" aria-label="Scenario result details dock">
+                        <nav class="dock-nav dock-nav--bar dock-nav--two scenario-info-actions" aria-label="Scenario info actions">
+                            <button class="dock-nav-button is-active" type="button">INFO</button>
+                            <button class="dock-nav-button" type="button" data-side-panel-close="scenario-info">CLOSE</button>
+                        </nav>
+
+                        <section class="info-widget-section scenario-info-section" aria-label="Scenario changes">
+                            <header class="info-widget-title">
+                                <span>CHANGES</span>
+                                <strong>3</strong>
+                            </header>
+                            <div class="info-widget-list">
+                                <div><span>NPC</span><strong>+1</strong></div>
+                                <div><span>Faction</span><strong>0</strong></div>
+                                <div><span>Journal</span><strong>UPDATED</strong></div>
+                            </div>
+                        </section>
+
+                        <section class="info-widget-section scenario-info-section" aria-label="Scenario note">
+                            <header class="info-widget-title">
+                                <span>NOTE</span>
+                                <strong>SAVED</strong>
+                            </header>
+                            <div class="info-widget-list">
+                                <div><span>Return</span><strong>EXPLORATION</strong></div>
+                                <div><span>Outcome</span><strong>APPLIED</strong></div>
+                            </div>
+                        </section>
+                    </aside>
+
+                    <section class="game-action-panel game-action-panel--bottom scenario-action-panel scenario-action-panel--finale" aria-label="Scenario finale actions">
+                        <header class="game-action-panel__head scenario-action-head">
+                            <span>SCENE COMPLETE</span>
+                            <strong>RETURN READY</strong>
+                        </header>
+                        <div class="scenario-final-actions">
+                            <button class="game-action-button game-action-button--primary" type="button">ВЕРНУТЬСЯ</button>
+                            <button class="game-action-button" type="button">ЖУРНАЛ</button>
+                        </div>
+                    </section>
+                </section>
+            </main>
+        </div>
+    </template>
+
+    <script>
+        const scenarioTemplates = {
+            dialogue: document.querySelector("#scenario-dialogue-template"),
+            finale: document.querySelector("#scenario-finale-template")
+        };
+
+        document.querySelectorAll("[data-scenario-mount]").forEach((mount) => {
+            const template = scenarioTemplates[mount.dataset.scenarioMount];
+            mount.append(template.content.cloneNode(true));
+        });
+    </script>
+</body>
+</html>

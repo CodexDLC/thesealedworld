@@ -20,6 +20,8 @@ class CabinetAdmin:
     dashboard_widgets: ClassVar[tuple[DashboardWidget, ...]] = ()
     sub_pages: ClassVar[dict[str, tuple[DashboardWidget, ...]]] = {}
     providers: ClassVar[dict[str, WidgetProvider]] = {}
+    action_routes: ClassVar[dict[str, tuple[str, str]]] = {}
+    # format: {"url_suffix": ("HTTP_METHOD", "method_name_on_admin_instance")}
 
     async def get_dashboard_context(self, request: Request) -> dict[str, object]:
         return {}

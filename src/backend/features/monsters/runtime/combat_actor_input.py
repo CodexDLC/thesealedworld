@@ -6,11 +6,6 @@ from typing import Any
 from src.backend.features.character.runtime.combat_actor_input import CharacterCombatActorInputBuilder
 from src.backend.features.character.runtime.combat_math_model import CharacterCombatMathModelBuilder
 from src.backend.features.game_catalog.combat.resources.feints.availability import build_known_feints
-from src.backend.features.monsters.runtime.combat_profile import (
-    MonsterCombatSource,
-    build_monster_combat_context,
-    build_monster_vitals,
-)
 
 
 class MonsterCombatActorInputBuilder:
@@ -19,38 +14,26 @@ class MonsterCombatActorInputBuilder:
     def __init__(self, math_model: CharacterCombatMathModelBuilder | None = None) -> None:
         self.math_model = math_model or CharacterCombatMathModelBuilder()
 
-    def build_input(self, monster: MonsterCombatSource) -> dict[str, Any]:
-        template = self._generated_template(monster)
-        if not template:
-            combat = build_monster_combat_context(monster)
-            return {
-                "meta": self._legacy_meta(monster),
-                "source": self._legacy_source(monster),
-                "status": self._status_from_vitals(build_monster_vitals(monster)),
-                "raw": combat["math_model"],
-                "skills": combat["skills"],
-                "loadout": combat["loadout"],
-            }
-
-        items = self._items_for_player_mapper(template)
-        skills = self._scaled_skills(template)
+    def build_input(self, monster: Any) -> dict[str, Any]:
+        items = self._items_for_player_mapper(monster.items)
+        skills = self._scaled_skills(monster.scaled_skills)
         raw = self.math_model.build_raw(
-            attributes=self._scaled_attributes(template),
+            attributes=dict(monster.scaled_attributes or {}),
             items=items,
             skills=skills,
         )
-        raw["tags"] = self._meta_tags(template, monster)
-        loadout = self._loadout(template, items, skills)
+        raw["tags"] = self._meta_tags(monster)
+        loadout = self._loadout(monster, items, skills)
         return {
-            "meta": self._meta(monster, template),
-            "source": self._source(monster, template),
-            "status": self._status_from_vitals(build_monster_vitals(monster)),
+            "meta": self._meta(monster),
+            "source": self._source(monster),
+            "status": self._status_from_vitals(dict(monster.vitals or {})),
             "raw": raw,
             "skills": skills,
             "loadout": loadout,
         }
 
-    def build_snapshot(self, monster: MonsterCombatSource) -> dict[str, Any]:
+    def build_snapshot(self, monster: Any) -> dict[str, Any]:
         actor_input = self.build_input(monster)
         return {
             "meta": actor_input["meta"],
@@ -64,20 +47,8 @@ class MonsterCombatActorInputBuilder:
         }
 
     @staticmethod
-    def _generated_template(monster: MonsterCombatSource) -> dict[str, Any]:
-        seed = monster.combat_seed if isinstance(monster.combat_seed, dict) else {}
-        template = seed.get("generated_template")
-        return template if isinstance(template, dict) else {}
-
-    @staticmethod
-    def _scaled_attributes(template: dict[str, Any]) -> dict[str, Any]:
-        raw = template.get("scaled_attributes")
-        return dict(raw) if isinstance(raw, dict) else {}
-
-    @staticmethod
-    def _scaled_skills(template: dict[str, Any]) -> dict[str, float]:
-        raw = template.get("scaled_skills")
-        skills = raw.get("skills") if isinstance(raw, dict) else raw
+    def _scaled_skills(raw: dict[str, Any]) -> dict[str, float]:
+        skills = raw.get("skills") if isinstance(raw, dict) and "skills" in raw else raw
         if not isinstance(skills, dict):
             return {}
         result: dict[str, float] = {}
@@ -89,10 +60,7 @@ class MonsterCombatActorInputBuilder:
         return result
 
     @staticmethod
-    def _items_for_player_mapper(template: dict[str, Any]) -> dict[str, Any]:
-        raw_items = template.get("items")
-        items = raw_items if isinstance(raw_items, dict) else {}
-
+    def _items_for_player_mapper(items: dict[str, Any]) -> dict[str, Any]:
         raw_layout = items.get("layout")
         layout = raw_layout if isinstance(raw_layout, dict) else {}
 
@@ -153,54 +121,40 @@ class MonsterCombatActorInputBuilder:
         }
 
     @staticmethod
-    def _loadout(template: dict[str, Any], items: dict[str, Any], skills: dict[str, float]) -> dict[str, Any]:
+    def _loadout(monster: Any, items: dict[str, Any], skills: dict[str, float]) -> dict[str, Any]:
         loadout = CharacterCombatActorInputBuilder._loadout(items, skills)
-        granted = template.get("granted_abilities")
-        granted_data = granted if isinstance(granted, dict) else {}
-        known_abilities = [str(value) for value in granted_data.get("known_abilities") or [] if value]
-        if known_abilities:
-            loadout["abilities"] = known_abilities
-            loadout["known_abilities"] = known_abilities
-        presentations = granted_data.get("ability_presentations")
-        if isinstance(presentations, dict):
-            loadout["ability_presentations"] = dict(presentations)
-        tags = sorted(set([*loadout.get("tags", []), *MonsterCombatActorInputBuilder._meta_tags(template, None)]))
+        tags = sorted(set([*loadout.get("tags", []), *MonsterCombatActorInputBuilder._meta_tags(monster)]))
         loadout["tags"] = tags
         loadout["known_feints"] = build_known_feints(loadout, skills)
         return loadout
 
     @staticmethod
-    def _meta(monster: MonsterCombatSource, template: dict[str, Any]) -> dict[str, Any]:
-        text_raw = template.get("text_content")
-        text = text_raw if isinstance(text_raw, dict) else {}
-
-        meta_raw = template.get("meta")
-        meta = meta_raw if isinstance(meta_raw, dict) else {}
-
+    def _meta(monster: Any) -> dict[str, Any]:
+        visual = MonsterCombatActorInputBuilder._visual(monster)
         return {
             "actor_type": "monster",
             "actor_id": str(monster.id),
-            "name": text.get("name_ru") or monster.name_ru,
+            "name": monster.name_ru,
             "role": monster.role,
-            "tags": MonsterCombatActorInputBuilder._meta_tags(template, monster),
-            "archetype": meta.get("archetype") or "unknown",
+            "avatar_url": visual.get("image_url") or visual.get("fallback_image_url"),
+            "tags": MonsterCombatActorInputBuilder._meta_tags(monster),
+            "archetype": MonsterCombatActorInputBuilder._archetype(monster),
         }
 
     @staticmethod
-    def _source(monster: MonsterCombatSource, template: dict[str, Any]) -> dict[str, Any]:
-        meta_raw = template.get("meta")
-        meta = meta_raw if isinstance(meta_raw, dict) else {}
-
-        source_raw = meta.get("source")
-        meta_source = source_raw if isinstance(source_raw, dict) else {}
-
-        family_id = meta.get("family_id") or getattr(monster, "family_id", None)
+    def _source(monster: Any) -> dict[str, Any]:
+        meta = dict(monster.generation_meta or {})
+        source = meta.get("source")
+        meta_source = source if isinstance(source, dict) else {}
+        family_id = getattr(monster, "family_id", None)
         return {
             **meta_source,
             "monster_id": str(monster.id),
             "clan_id": str(monster.clan_id),
             "family_id": family_id,
             "template_id": monster.variant_key,
+            "member_tier": int(getattr(monster, "member_tier", 0) or 0),
+            "visual": MonsterCombatActorInputBuilder._visual(monster),
             "db_refs": {
                 "generated_monsters": str(monster.id),
                 "generated_clans": str(monster.clan_id),
@@ -208,40 +162,27 @@ class MonsterCombatActorInputBuilder:
         }
 
     @staticmethod
-    def _legacy_meta(monster: MonsterCombatSource) -> dict[str, Any]:
-        return {
-            "actor_type": "monster",
-            "actor_id": str(monster.id),
-            "name": monster.name_ru,
-            "role": monster.role,
-            "tags": ["monster", monster.role],
-            "archetype": "unknown",
-        }
+    def _visual(monster: Any) -> dict[str, Any]:
+        generation_meta = dict(getattr(monster, "generation_meta", None) or {})
+        visual = generation_meta.get("visual")
+        return dict(visual) if isinstance(visual, dict) else {}
 
     @staticmethod
-    def _legacy_source(monster: MonsterCombatSource) -> dict[str, Any]:
-        return {
-            "monster_id": str(monster.id),
-            "clan_id": str(monster.clan_id),
-            "family_id": getattr(monster, "family_id", None),
-            "template_id": monster.variant_key,
-            "db_refs": {
-                "generated_monsters": str(monster.id),
-                "generated_clans": str(monster.clan_id),
-            },
-        }
-
-    @staticmethod
-    def _meta_tags(template: dict[str, Any], monster: MonsterCombatSource | None) -> list[str]:
-        meta_raw = template.get("meta")
-        meta = meta_raw if isinstance(meta_raw, dict) else {}
-
-        tags_raw = meta.get("tags")
+    def _meta_tags(monster: Any) -> list[str]:
+        generation_meta = dict(getattr(monster, "generation_meta", None) or {})
+        meta = generation_meta.get("meta")
+        meta_data = meta if isinstance(meta, dict) else {}
+        tags_raw = meta_data.get("tags")
         tags = [str(tag) for tag in tags_raw or [] if tag] if isinstance(tags_raw, list) else []
-
-        if monster is not None:
-            tags.extend(["monster", monster.role])
+        tags.extend(["monster", monster.role])
         return sorted(set(tags))
+
+    @staticmethod
+    def _archetype(monster: Any) -> str:
+        generation_meta = dict(getattr(monster, "generation_meta", None) or {})
+        meta = generation_meta.get("meta")
+        meta_data = meta if isinstance(meta, dict) else {}
+        return str(meta_data.get("archetype") or "unknown")
 
     @staticmethod
     def _status_from_vitals(vitals: dict[str, Any]) -> dict[str, Any]:

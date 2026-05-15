@@ -381,11 +381,24 @@ class CharacterCombatMathModelBuilder:
             if slot == "off_hand" and not CharacterCombatMathModelBuilder._is_shield(item_type, tags):
                 return "off_hand_crit_chance"
             return "crit_chance"
-        if key in {"weapon_penetration", "main_hand_penetration", "off_hand_penetration"} and item_type == "weapon":
+        if key in {
+            "weapon_armor_penetration_pct",
+            "main_hand_armor_penetration_pct",
+            "off_hand_armor_penetration_pct",
+        } and item_type == "weapon":
             if slot == "main_hand":
-                return "main_hand_penetration"
+                return "main_hand_armor_penetration_pct"
             if slot == "off_hand" and not CharacterCombatMathModelBuilder._is_shield(item_type, tags):
-                return "off_hand_penetration"
+                return "off_hand_armor_penetration_pct"
+        if key in {
+            "weapon_armor_ignore_chance",
+            "main_hand_armor_ignore_chance",
+            "off_hand_armor_ignore_chance",
+        } and item_type == "weapon":
+            if slot == "main_hand":
+                return "main_hand_armor_ignore_chance"
+            if slot == "off_hand" and not CharacterCombatMathModelBuilder._is_shield(item_type, tags):
+                return "off_hand_armor_ignore_chance"
         return MODIFIER_ALIASES.get(key, key)
 
     @staticmethod

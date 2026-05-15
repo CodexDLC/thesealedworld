@@ -1,20 +1,120 @@
-{% set left_cfg = scenario.extra_data.left_panel if scenario and scenario.extra_data and scenario.extra_data.left_panel is defined else {} %}
+{% set extra = scenario.extra_data if scenario and scenario.extra_data else {} %}
+{% set left_cfg = extra.get('left_panel', {}) %}
 {% set status_mode = left_cfg.get('status', 'normal') if left_cfg else 'normal' %}
 {% set distortion = left_cfg.get('distortion', 'none') if left_cfg else 'none' %}
+{% set status = character_status if character_status is defined else none %}
+{% set bio = status.bio if status else {} %}
+{% set vitals = status.vitals if status else {} %}
+{% set attrs = status.attributes if status else {} %}
+{% set skills = status.skills if status else {} %}
+{% set hp = vitals.get('hp', {}) %}
+{% set en = vitals.get('energy', {}) %}
+{% set sta = vitals.get('stamina', {}) %}
+{% set hp_cur = hp.get('cur', 0) %}
+{% set hp_max = hp.get('max', 1) %}
+{% set en_cur = en.get('cur', 0) %}
+{% set en_max = en.get('max', 1) %}
+{% set sta_cur = sta.get('cur', 0) %}
+{% set sta_max = sta.get('max', 1) %}
+{% set body_attrs = [
+    ('strength', 'СИЛ', attrs.get('strength')),
+    ('agility', 'ЛОВ', attrs.get('agility')),
+    ('endurance', 'ВЫН', attrs.get('endurance')),
+] %}
+{% set core_attrs = [
+    ('intellect', 'ИНТ', attrs.get('intellect')),
+    ('memory', 'ПАМ', attrs.get('memory')),
+    ('mental', 'МЕН', attrs.get('mental')),
+] %}
+{% set sensor_attrs = [
+    ('perception', 'ВОС', attrs.get('perception')),
+    ('projection', 'ПРО', attrs.get('projection')),
+    ('prediction', 'ПРД', attrs.get('prediction')),
+] %}
 
-<div class="scenario-status-panel status-sidebar-surface scenario-status-panel--{{ status_mode }} {{ 'scenario-status-panel--glitch' if distortion == 'glitch' else '' }}">
-    {% if character_status and character_status.panel %}
-        {% set panel = character_status.panel %}
-        {% include "game/components/panel/main.html" %}
-    {% else %}
-        <div class="ds-panel danger">
-            <div class="ds-panel-header">STATUS_LINK_ERROR</div>
-            <div class="ds-panel-body">
-                <div class="missing-data-block">
-                    <span>DATA_MISSING</span>
-                    <small>game:ac session panel unavailable</small>
+<aside class="panel-dock panel-dock--framed panel-dock--scroll scenario-status-dock scenario-status-dock--{{ status_mode }} {{ 'scenario-status-dock--glitch' if distortion == 'glitch' else '' }}"
+       aria-label="Character status dock">
+    <nav class="dock-nav dock-nav--bar dock-nav--two scenario-status-actions" aria-label="Status actions">
+        <button class="dock-nav-button"
+                type="button"
+                @click="leftPanelView = 'status'"
+                :class="{ 'is-active': leftPanelView === 'status' }">STATUS</button>
+        <button class="dock-nav-button"
+                type="button"
+                @click="leftPanelView = 'builds'"
+                :class="{ 'is-active': leftPanelView === 'builds' }">BUILD</button>
+    </nav>
+
+    {% if status %}
+        <section class="status-widget-card scenario-status-card" aria-label="Character summary">
+            <div class="status-widget-avatar">
+                {% if bio.get('avatar') %}
+                    <img src="{{ bio.get('avatar') }}" alt="{{ bio.get('name', 'Character') }}">
+                {% else %}
+                    <span>{{ (bio.get('name', 'A')[:1])|upper }}</span>
+                {% endif %}
+            </div>
+            <div class="status-widget-core">
+                <div class="status-widget-name">
+                    {% if bio.get('name') %}<strong>{{ bio.get('name') }}</strong>{% endif %}
+                    {% if status.state %}<span>{{ status.state }}</span>{% endif %}
+                </div>
+                <div class="status-widget-bars">
+                    {% if hp %}<div class="status-widget-bar status-widget-bar--hp" style="--status-fill: {{ (hp_cur / hp_max * 100) if hp_max else 0 }}%;"><span>HP</span><i></i><b>{{ hp_cur }} / {{ hp_max }}</b></div>{% endif %}
+                    {% if en %}<div class="status-widget-bar status-widget-bar--en" style="--status-fill: {{ (en_cur / en_max * 100) if en_max else 0 }}%;"><span>EN</span><i></i><b>{{ en_cur }} / {{ en_max }}</b></div>{% endif %}
+                    {% if sta %}<div class="status-widget-bar status-widget-bar--sta" style="--status-fill: {{ (sta_cur / sta_max * 100) if sta_max else 0 }}%;"><span>STA</span><i></i><b>{{ sta_cur }} / {{ sta_max }}</b></div>{% endif %}
                 </div>
             </div>
-        </div>
+        </section>
+
+        {% if attrs %}
+        <details class="status-widget-section scenario-status-section" open>
+            <summary class="status-widget-section-title">
+                <span data-tippy-content="Базовые атрибуты персонажа. Сценарий может использовать их как будущие требования выбора."
+                      data-tippy-theme="game-hint">ATTRIBUTES</span>
+                <strong>GROUPS</strong>
+            </summary>
+            <div class="status-widget-attribute-body" aria-label="Scenario attributes">
+                <div class="status-widget-attribute-list">
+                    <div class="status-widget-attribute-group">
+                        <em>BODY</em>
+                        {% for attr_key, label, value in body_attrs %}{% if value is not none %}<div><span data-catalog="attributes" data-catalog-key="{{ attr_key }}" data-catalog-tooltip="description">{{ label }}</span><strong>{{ value }}</strong></div>{% endif %}{% endfor %}
+                    </div>
+                    <div class="status-widget-attribute-group">
+                        <em>CORE</em>
+                        {% for attr_key, label, value in core_attrs %}{% if value is not none %}<div><span data-catalog="attributes" data-catalog-key="{{ attr_key }}" data-catalog-tooltip="description">{{ label }}</span><strong>{{ value }}</strong></div>{% endif %}{% endfor %}
+                    </div>
+                    <div class="status-widget-attribute-group">
+                        <em>SENSOR</em>
+                        {% for attr_key, label, value in sensor_attrs %}{% if value is not none %}<div><span data-catalog="attributes" data-catalog-key="{{ attr_key }}" data-catalog-tooltip="description">{{ label }}</span><strong>{{ value }}</strong></div>{% endif %}{% endfor %}
+                    </div>
+                </div>
+            </div>
+        </details>
+        {% endif %}
+
+        {% if skills %}
+        <details class="status-widget-section scenario-status-section" open>
+            <summary class="status-widget-section-title">
+                <span data-tippy-content="Навыки персонажа. Сценарные проверки и диалоговые условия будут подключаться к этому слою позже."
+                      data-tippy-theme="game-hint">SKILLS</span>
+                <strong>SCENE</strong>
+            </summary>
+            <div class="status-widget-skill-list">
+                {% for skill_key, skill_value in skills.items() %}
+                    {% if loop.index <= 8 %}
+                        {% set xp = skill_value.get('xp', skill_value.get('total_xp', skill_value.get('value'))) if skill_value is mapping else skill_value %}
+                        <div>
+                            <span data-catalog="skills"
+                                  data-catalog-key="{{ skill_key }}"
+                                  data-catalog-field="title"
+                                  data-catalog-tooltip="description">{{ skill_key }}</span>
+                            <strong>{{ (xp * 100)|round(1) ~ '%' if xp is number else 'DATA' }}</strong>
+                        </div>
+                    {% endif %}
+                {% endfor %}
+            </div>
+        </details>
+        {% endif %}
     {% endif %}
-</div>
+</aside>

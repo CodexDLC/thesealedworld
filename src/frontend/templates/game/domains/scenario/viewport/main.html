@@ -7,54 +7,119 @@
     </div>
 {% endif %}
 
-<div class="scenario-panel" id="scenario-panel-root">
-    <header class="scenario-panel-head">
-        {% if scenario.display_name and scenario.display_name != scenario.extra_data.quest_title %}
-            <span class="scenario-title">{{ scenario.extra_data.quest_title }}</span>
-        {% endif %}
-        <span class="scenario-location">{{ scenario.display_name }}</span>
+{% set extra = scenario.extra_data if scenario and scenario.extra_data else {} %}
+{% set scenario_char_id = char_id if char_id is defined and char_id else extra.get('char_id') %}
+{% set quest_title = extra.get('quest_title') or 'СЦЕНАРИЙ' %}
+{% set scenario_background = extra.get('background_url') or (background_url if background_url is defined else none) or '/static/images/scenarios/awakening_rift/background_v4.png' %}
+{% set subject_avatar = scenario.avatar if scenario and scenario.avatar else '/static/images/scenarios/symbiont.png' %}
+{% set subject_label = scenario.speaker|upper if scenario and scenario.speaker else 'SCENE' %}
+{% set watch_text = scenario.system_messages[0] if scenario and scenario.system_messages else 'Состояние сцены обновлено.' %}
+{% set display_name_raw = scenario.display_name|trim if scenario and scenario.display_name else '' %}
+{% set display_name_label = display_name_raw %}
+{% set display_name_coords = none %}
+{% set display_name_coord_parts = [] %}
+{% if display_name_raw.endswith(']') and '[' in display_name_raw %}
+    {% set display_name_prefix = display_name_raw.rsplit('[', 1)[0]|trim %}
+    {% set display_name_suffix = display_name_raw.rsplit('[', 1)[1].rstrip(']')|trim %}
+    {% if ':' in display_name_suffix and display_name_prefix %}
+        {% set display_name_label = display_name_prefix %}
+        {% set display_name_coords = display_name_suffix|replace(' ', '') %}
+        {% set display_name_coord_parts = display_name_coords.split(':') %}
+    {% endif %}
+{% endif %}
+
+<section class="scenario-screen game-screen-area game-screen-area--vertical" id="scenario-panel-root">
+    <header class="scenario-statebar">
+        <strong>{{ 'СЦЕНАРИЙ // ФИНАЛ' if scenario.is_terminal else 'СЦЕНАРИЙ' }}</strong>
+        <span>{{ subject_label }}</span>
+        <em data-tippy-content="Краткое состояние текущей сцены."
+            data-tippy-theme="game-hint">SCENE ACTIVE</em>
     </header>
 
-    <!-- MAIN SPLIT: AVATAR | TEXT -->
-    <section class="scenario-panel-main">
-        <div class="character-container">
-            <img src="{{ scenario.avatar if scenario.avatar else '/static/images/scenarios/symbiont.png' }}"
-                 class="character-shadow"
-                 alt="Character Illustration">
-            <div class="scanline"></div>
-        </div>
+    <section class="scenario-stage"
+             aria-label="Scenario stage"
+             style="--scenario-stage-image: url('{{ scenario_background }}');">
+        <article class="scenario-copy" aria-label="Scenario text">
+            <figure class="scenario-subject" aria-label="Speaker or situation">
+                <img src="{{ subject_avatar }}" alt="{{ subject_label }}">
+                <figcaption>{{ subject_label }}</figcaption>
+            </figure>
+            <div class="scenario-kicker">{{ quest_title }}</div>
+            {% if display_name_label %}
+                <h2 class="scenario-title">
+                    <span>{{ display_name_label }}</span>
+                    {% if display_name_coord_parts|length == 2 %}
+                        <small class="scenario-title-coords">
+                            <b>X</b> {{ display_name_coord_parts[0] }}
+                            <b>Y</b> {{ display_name_coord_parts[1] }}
+                        </small>
+                    {% endif %}
+                </h2>
+            {% endif %}
+            <div class="scenario-text world-text">{{ scenario.text|scenario_rich_text|safe }}</div>
+        </article>
 
-        <div class="scenario-panel-content">
-            <div class="scenario-story-part">
-                <div class="scenario-copy world-text">{{ scenario.text|scenario_rich_text|safe }}</div>
+        <aside class="scenario-watch" aria-label="Scenario context">
+            <strong>INFO</strong>
+            <span data-tippy-content="Краткая подсказка по текущей сцене."
+                  data-tippy-theme="game-hint">{{ watch_text }}</span>
+            <button class="game-action-button"
+                    type="button"
+                    @click="$dispatch('panel-toggle', { side: 'right', view: 'context' })"
+                    data-tippy-content="Подробности вынесены в правую панель сценария."
+                    data-tippy-theme="game-hint">INFO</button>
+        </aside>
+    </section>
+
+    <section class="game-action-panel game-action-panel--bottom scenario-action-panel" aria-label="Scenario choices">
+        <header class="game-action-panel__head scenario-action-head">
+            <span>{{ 'SCENE COMPLETE' if scenario.is_terminal else 'DIALOGUE RESPONSE' }}</span>
+            <strong>{{ scenario.buttons|length }} CHOICES</strong>
+        </header>
+        {% if scenario.buttons %}
+            <div class="game-action-panel__body scenario-action-layout">
+                <section class="game-action-panel__decisions scenario-choice-list" aria-label="Scenario answers">
+                    {% for btn in scenario.buttons %}
+                        {% set icon_key = btn.icon if btn.icon is defined and btn.icon else 'default' %}
+                        {% set choice_hint = none %}
+                        {% if btn.hint is defined and btn.hint %}
+                            {% set choice_hint = btn.hint %}
+                        {% elif btn.description is defined and btn.description %}
+                            {% set choice_hint = btn.description %}
+                        {% elif btn.effect is defined and btn.effect %}
+                            {% set choice_hint = btn.effect %}
+                        {% endif %}
+                        <button class="game-action-button scenario-choice {{ 'scenario-choice--primary' if loop.first else '' }} {{ 'scenario-choice--danger' if icon_key in ['risk', 'warning'] else '' }}"
+                                type="button"
+                                hx-post="/game/scenario/step"
+                                hx-vals='{{ {"action_id": btn.action_id, "char_id": scenario_char_id}|tojson }}'
+                                hx-target="#scenario-panel-root"
+                                hx-swap="outerHTML"
+                                hx-disabled-elt="closest .scenario-action-panel"
+                                {% if choice_hint %}data-tippy-content="{{ choice_hint }}" data-tippy-theme="game-hint"{% endif %}>
+                            <span class="scenario-choice-icon"
+                                  style="--scenario-choice-icon-url: url('/static/images/ui/scenario-choice-icons/{{ icon_key }}.svg')"
+                                  aria-hidden="true"></span>
+                            <span class="scenario-choice-copy">
+                                <strong>{{ btn.label }}</strong>
+                                {% if choice_hint %}
+                                    <small>{{ choice_hint }}</small>
+                                {% endif %}
+                            </span>
+                        </button>
+                    {% endfor %}
+                </section>
             </div>
-        </div>
+        {% else %}
+            <div class="scenario-empty-actions">
+                <span>NO_ACTIONS_AVAILABLE</span>
+            </div>
+        {% endif %}
     </section>
 
-    <!-- UNDER SPLIT: CHOICES -->
-    {% if scenario.buttons %}
-    <section class="scenario-choices-wrapper">
-        <div class="scenario-choices">
-            {% for btn in scenario.buttons %}
-            {% set icon_key = btn.icon if btn.icon else 'default' %}
-            <button class="choice-btn le-effect"
-                    hx-post="/game/scenario/step"
-                    hx-vals='{"action_id": "{{ btn.action_id }}", "char_id": "{{ char_id }}"}'
-                    hx-target="#scenario-panel-root"
-                    hx-swap="outerHTML"
-                    hx-disabled-elt="closest .scenario-choices">
-                <span class="choice-icon choice-icon--{{ icon_key }}"
-                      style="--choice-icon-url: url('/static/images/ui/scenario-choice-icons/{{ icon_key }}.svg')"
-                      aria-hidden="true"></span>
-                <span class="choice-label">{{ btn.label }}</span>
-            </button>
-            {% endfor %}
-        </div>
-    </section>
+    {% if debug_enabled and extra.get('debug') %}
+        <footer class="scenario-panel-debug">
+            DEBUG: Node: {{ scenario.node_key }} | Quest: {{ extra.get('quest_key') }}
+        </footer>
     {% endif %}
-    {% if debug_enabled and scenario.extra_data.get('debug') %}
-    <footer class="scenario-panel-debug">
-        DEBUG: Node: {{ scenario.node_key }} | Quest: {{ scenario.extra_data.quest_key }}
-    </footer>
-    {% endif %}
-</div>
+</section>

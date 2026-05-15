@@ -27,7 +27,7 @@ def test_item_factory_generates_combat_ready_item_spec():
     assert item.power == pytest.approx(13.0)
     # implicit_bonuses scaled by tier_mult=1.0 — values unchanged
     assert item.implicit_bonuses["accuracy_penalty"] == pytest.approx(0.24)
-    assert item.implicit_bonuses["main_hand_penetration"] == pytest.approx(0.22)
+    assert item.implicit_bonuses["main_hand_armor_penetration_pct"] == pytest.approx(0.22)
     assert item.implicit_bonuses["evasion_penalty"] == pytest.approx(-0.10)
     # bonuses is intentionally empty — projection is runtime-only
     assert item.bonuses == {}
@@ -238,7 +238,7 @@ def test_item_factory_runtime_item_applies_forced_affixes_before_random_fill():
             base_id="dagger",
             material_id="mat_cobalt_ingot",
             item_grade="artifact",
-            allowed_affix_ids=["weapon_accuracy", "crit_chance", "armor_penetration_bonus", "control_chance_bonus"],
+            allowed_affix_ids=["weapon_accuracy", "crit_chance", "armor_penetration_pct_bonus", "control_chance_bonus"],
             forced_affix_ids=["weapon_accuracy", "crit_chance"],
             affix_count=4,
             affix_step_count=4,
@@ -363,7 +363,7 @@ def test_attribute_affix_profile_floors_rolled_values():
 def test_item_factory_forced_bundle_smoke_by_item_family():
     factory = ItemFactory()
     cases = [
-        ("rapier", "mat_cobalt_ingot", "duelist_weapon_4", {"weapon_accuracy", "armor_penetration_bonus"}),
+        ("rapier", "mat_cobalt_ingot", "duelist_weapon_4", {"weapon_accuracy", "armor_penetration_pct_bonus"}),
         ("ring", "mat_cobalt_ingot", "duelist_accessory_4", {"attribute_agility", "attribute_perception"}),
         ("shield", "mat_iron_ingot", "bulwark_shield_4", {"block_bonus", "shield_guard_power_bonus"}),
         ("plate_chest", "mat_iron_ingot", "bulwark_armor_4", {"armor_flat", "thorns_damage_bonus"}),

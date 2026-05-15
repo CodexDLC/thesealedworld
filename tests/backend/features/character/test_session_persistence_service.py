@@ -58,6 +58,11 @@ class FakeCharacterSessions:
         self.cleared_dirty_ids.append(char_id)
 
 
+class FakeActiveExpeditionRepo:
+    async def get_active_for_character(self, char_id, *, for_update=False):
+        return object()
+
+
 @pytest.mark.unit
 async def test_service_delegates_active_session_sync_to_integrator() -> None:
     integrator = MagicMock()
@@ -101,6 +106,35 @@ async def test_system_integrator_persists_character_attributes_and_skills() -> N
 
 
 @pytest.mark.unit
+async def test_system_integrator_does_not_secure_dirty_state_during_active_expedition() -> None:
+    character_repo = MagicMock()
+    character_repo.sync_active_session_snapshot = AsyncMock()
+    attributes_repo = MagicMock()
+    attributes_repo.upsert_attributes = AsyncMock()
+    skill_repo = MagicMock()
+    skill_repo.upsert_progress_rows = AsyncMock()
+
+    character_sessions = FakeCharacterSessions()
+    integrator = CharacterSystemIntegrator(
+        character_sessions=character_sessions,
+        character_repo=character_repo,
+        attributes_repo=attributes_repo,
+        skill_repo=skill_repo,
+        expedition_repo=FakeActiveExpeditionRepo(),
+    )
+
+    result = await integrator.sync_active_session(7)
+
+    assert result["state"] == "exploration"
+    assert result["location_id"] == "52_58"
+    assert result["skills"] == []
+    character_repo.sync_active_session_snapshot.assert_not_awaited()
+    attributes_repo.upsert_attributes.assert_not_awaited()
+    skill_repo.upsert_progress_rows.assert_not_awaited()
+    assert character_sessions.cleared_dirty_ids == [7]
+
+
+@pytest.mark.unit
 async def test_character_repository_syncs_active_session_snapshot() -> None:
     character = Character(
         user_id=uuid4(),
@@ -131,6 +165,8 @@ async def test_character_repository_syncs_active_session_snapshot() -> None:
         "encounter_id": None,
         "arena_id": None,
         "inventory_id": None,
+        "death_run_id": None,
+        "death_corpse_id": None,
         "active_quest": None,
     }
     assert character.vitals_snapshot["hp"]["cur"] == 90

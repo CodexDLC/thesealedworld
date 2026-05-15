@@ -4,26 +4,31 @@ import uuid
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
+from src.backend.features.character.runtime import CharacterVitalsCalculator
+from src.backend.features.character.schemas.session import CharacterSessionAttributesDTO
 from src.backend.features.monsters.dto.generation import GeneratedClan, GeneratedMonster
 from src.backend.features.monsters.integrations.item_generation import (
     build_monster_item_request,
     to_item_generation_requests,
 )
 from src.backend.features.monsters.resources import (
-    get_available_variants_for_tier,
+    get_available_variants_for_family_tier,
     get_family_config,
 )
 from src.backend.features.monsters.resources.equipment_mapping import NATURAL_EQUIPMENT_MAPPINGS
 from src.backend.features.monsters.resources.spawn_config import BIOME_FAMILIES, TIER_AVAILABILITY
+from src.backend.features.monsters.resources.visuals import build_clan_visual, build_member_visual
 from src.backend.features.monsters.runtime.generation_fields import (
     build_generated_monster_template,
     build_member_tier,
 )
 from src.backend.features.monsters.runtime.hashing import compute_context_hash, compute_unique_clan_hash, normalize_tags
+from src.backend.features.monsters.tasks_ai import build_monster_clan_flavor_task_spec
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
+    from src.backend.features.generation_ai import GenerationAIService
     from src.backend.features.items.dto.instance import ItemGenerationRequestDTO, RuntimeItemProjectionDTO
     from src.backend.features.monsters.dto.generation import MonsterGenerationContext
     from src.backend.features.monsters.dto.resources import (
@@ -50,10 +55,12 @@ class MonsterClanGenerationBuilder:
         repository: MonsterGenerationStorage,
         item_generation,
         text_ai: MonsterClanTextAIClient | None = None,
+        generation_ai: GenerationAIService | None = None,
     ) -> None:
         self.repository = repository
         self.item_generation = item_generation
         self.text_ai = text_ai
+        self.generation_ai = generation_ai
 
     async def generate_active_clan(
         self,
@@ -88,6 +95,15 @@ class MonsterClanGenerationBuilder:
         item_requests = self._build_item_requests(family, member_plans, resolved_unique_hash)
         runtime_items = await self._generate_runtime_items(item_requests)
         flavor = await self._build_flavor(family, context, member_plans, tags)
+        flavor = {
+            **flavor,
+            "visual": build_clan_visual(
+                family.id,
+                clan_name=str(flavor["name_ru"]),
+                description=str(flavor["description"]),
+                context_tags=list(tags),
+            ),
+        }
         clan_id = uuid.uuid4()
         clan = GeneratedClan(
             id=clan_id,
@@ -103,6 +119,7 @@ class MonsterClanGenerationBuilder:
                 "difficulty": context.difficulty,
                 "target_budget": budget,
                 "composition": [plan.variant.id for plan in member_plans],
+                "context_meta": context.context_meta,
             },
             flavor_content=flavor,
             name_ru=str(flavor["name_ru"]),
@@ -123,14 +140,20 @@ class MonsterClanGenerationBuilder:
         clan.members.extend(members)
         for member in members:
             member.clan = clan
-        return await self.repository.create_clan_with_members(clan, members)
+        created = await self.repository.create_clan_with_members(clan, members)
+        await self._enqueue_ai_flavor(created)
+        return created
 
     def get_available_family_ids(self, context: MonsterGenerationContext) -> list[str]:
         candidates = sorted(self._select_candidates(context.tier, context.biome_id))
+        family_bias = self._family_bias_from_tags(context.tags)
+        if family_bias:
+            candidates = [family_id for family_id in candidates if family_id in family_bias]
         return [
             family_id
             for family_id in candidates
-            if get_family_config(family_id) is not None and get_available_variants_for_tier(family_id, context.tier)
+            if get_family_config(family_id) is not None
+            and get_available_variants_for_family_tier(family_id, context.tier)
         ]
 
     def select_family_id(self, context: MonsterGenerationContext, context_hash: str) -> str | None:
@@ -146,8 +169,9 @@ class MonsterClanGenerationBuilder:
         target_budget: float,
         max_members: int,
     ) -> list[_MemberPlan]:
+        max_variant_tier = min(7, context.tier + 1)
         available = [
-            variant for variant in family.variants.values() if variant.min_tier <= context.tier <= variant.max_tier
+            variant for variant in family.variants.values() if variant.min_tier <= max_variant_tier and variant.max_tier >= 0
         ]
         if not available:
             raise ValueError(f"No monster variants for family={family.id} tier={context.tier}")
@@ -272,6 +296,11 @@ class MonsterClanGenerationBuilder:
                 return generated.model_dump(mode="json")
         return self._build_fallback_flavor(family, context, member_plans)
 
+    async def _enqueue_ai_flavor(self, clan: GeneratedClan) -> None:
+        if self.generation_ai is None:
+            return
+        await self.generation_ai.enqueue_many([build_monster_clan_flavor_task_spec(clan)])
+
     @staticmethod
     def _build_flavor_prompt_payload(
         family: MonsterFamilyDTO,
@@ -292,6 +321,7 @@ class MonsterClanGenerationBuilder:
             "biome_id": context.biome_id,
             "difficulty": context.difficulty,
             "tier": context.tier,
+            "rift_profile": context.context_meta.get("rift_profile"),
             "text_contract": {
                 "clan": ["name_ru", "description"],
                 "member": ["name", "appearance", "detected", "ambush", "idle", "encounter", "behavior"],
@@ -329,23 +359,36 @@ class MonsterClanGenerationBuilder:
                 "owner_key": plan.owner_key,
             },
         )
-        old_stats = _legacy_stats_from_template(template.scaled_attributes.model_dump())
         return GeneratedMonster(
             id=plan.member_id,
             clan_id=clan_id,
             variant_key=plan.variant.id,
             role=plan.variant.role,
+            member_tier=template.member_tier,
             threat_rating=template.balance.threat_rating,
             name_ru=template.text_content.name_ru or plan.variant.id,
             description=template.text_content.appearance_ru or plan.variant.narrative_hint,
-            scaled_base_stats=old_stats,
-            loadout_ids=template.items.model_dump(mode="json"),
-            skills_snapshot=template.scaled_skills.model_dump(mode="json"),
-            combat_seed={
+            text_content=template.text_content.model_dump(mode="json"),
+            scaled_attributes=template.scaled_attributes.model_dump(mode="json"),
+            scaled_skills=template.scaled_skills.model_dump(mode="json")["skills"],
+            items=template.items.model_dump(mode="json"),
+            vitals=_build_vitals(template.scaled_attributes.model_dump(mode="json")),
+            ai_profile=template.ai_profile.model_dump(mode="json"),
+            generation_meta={
                 "schema_version": 2,
-                "generated_template": template.model_dump(mode="json"),
+                "source": "monster_clan_generation_builder",
+                "clan_unique_hash": unique_hash,
+                "owner_key": plan.owner_key,
+                "visual": build_member_visual(
+                    family.id,
+                    variant_key=plan.variant.id,
+                    role=plan.variant.role,
+                    member_name=template.text_content.name_ru or plan.variant.id,
+                    appearance=template.text_content.appearance_ru or plan.variant.narrative_hint,
+                ),
+                "balance": template.balance.model_dump(mode="json"),
+                "meta": template.meta.model_dump(mode="json"),
             },
-            current_state=None,
         )
 
     def _member_loadout(self, family: MonsterFamilyDTO, plan: _MemberPlan) -> dict[str, str]:
@@ -375,6 +418,11 @@ class MonsterClanGenerationBuilder:
         if candidates:
             return candidates
         return in_tier - {"all_families"}
+
+    @staticmethod
+    def _family_bias_from_tags(tags: Sequence[str]) -> set[str]:
+        starter_families = {"rat_swarm", "wolf_pack", "bandit_gang", "goblin_tribe"}
+        return set(tags) & starter_families
 
     @staticmethod
     def _target_budget(context: MonsterGenerationContext, target_budget: float | None) -> float:
@@ -446,18 +494,9 @@ def _string_mapping(value: dict[str, object]) -> dict[str, str]:
     return {str(key): str(raw) for key, raw in value.items() if raw}
 
 
-def _legacy_stats_from_template(attributes: dict[str, int]) -> dict[str, int]:
-    return {
-        "strength": int(attributes.get("strength", 0)),
-        "agility": int(attributes.get("agility", 0)),
-        "endurance": int(attributes.get("endurance", 0)),
-        "intelligence": int(attributes.get("intellect", 0)),
-        "wisdom": int(attributes.get("memory", 0)),
-        "men": int(attributes.get("mental", 0)),
-        "perception": int(attributes.get("perception", 0)),
-        "charisma": int(attributes.get("projection", 0)),
-        "luck": int(attributes.get("prediction", 0)),
-    }
+def _build_vitals(attributes: dict[str, int]) -> dict[str, object]:
+    dto = CharacterSessionAttributesDTO.model_validate(attributes)
+    return CharacterVitalsCalculator.build_initial_vitals(dto).model_dump(mode="json")
 
 
 _NATURAL_DEFAULT_LOADOUTS: dict[str, dict[str, str]] = {

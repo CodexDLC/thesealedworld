@@ -4,11 +4,11 @@ import httpx
 from fastapi import APIRouter, Depends, Form, HTTPException, Query, Request, status
 
 from src.frontend.core.renderer import UIRenderer, get_ui_renderer
+from src.frontend.features.auth.dependencies.providers import get_frontend_auth_service
+from src.frontend.features.auth.services.auth_service import FrontendAuthService
 from src.frontend.game_features.inventory.dependencies import get_backend_inventory_api
+from src.frontend.game_features.session.token_state import require_game_access_token
 from src.frontend.integrations.backend_api.inventory import BackendInventoryApi
-from src.frontend.site_features.auth.dependencies.providers import get_frontend_auth_service
-from src.frontend.site_features.auth.services.auth_service import FrontendAuthService
-from src.frontend.site_features.auth.token_state import require_access_token
 from src.shared.schemas.inventory import InventoryActionRequestDTO, InventoryWindowDTO
 
 router = APIRouter(tags=["Inventory"])
@@ -23,7 +23,7 @@ async def inventory_window(
     char_id: Annotated[int, Query()],
 ):
     await auth_service.require_current_user(request)
-    token = require_access_token(request)
+    token = require_game_access_token(request)
     response = await inventory_api.view(token, char_id=char_id)
     if response.payload is None:
         raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail="Inventory payload is unavailable")
@@ -46,7 +46,7 @@ async def inventory_action(
     slot_id: Annotated[str | None, Form()] = None,
 ):
     await auth_service.require_current_user(request)
-    token = require_access_token(request)
+    token = require_game_access_token(request)
     dto = InventoryActionRequestDTO.model_validate(
         {"char_id": char_id, "action": action, "item_id": item_id, "slot_id": slot_id or None}
     )

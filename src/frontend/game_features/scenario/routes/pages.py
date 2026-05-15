@@ -3,16 +3,14 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, Form, Request, Response, status
 from fastapi.responses import RedirectResponse
 
-from src.frontend.config.settings import settings
 from src.frontend.core.renderer import UIRenderer, get_ui_renderer
+from src.frontend.features.auth.dependencies.providers import get_frontend_auth_service
+from src.frontend.features.auth.services.auth_service import FrontendAuthService
 from src.frontend.game_features.scenario.dependencies.providers import get_response_director, get_scenario_page_service
 from src.frontend.game_features.scenario.services.scenario_page_service import ScenarioPageService
 from src.frontend.game_features.session.cookies import set_active_character_cookie
 from src.frontend.game_features.session.services.response_director import ResponseDirector
-from src.frontend.site_features.auth.dependencies.providers import get_frontend_auth_service
-from src.frontend.site_features.auth.services.auth_service import FrontendAuthService
 from src.shared.enums import CoreDomain
-from src.shared.utils.dev_utils import log_debug_payload
 
 router = APIRouter(tags=["Scenario"])
 
@@ -26,8 +24,7 @@ async def game_scenario_initialize(
     quest_key: Annotated[str, Form()],
 ):
     await auth_service.require_current_user(request)
-    vm = await scenario_service.initialize(request, char_id=char_id, quest_key=quest_key)
-    log_debug_payload("scenario_page.game_scenario_initialize", vm, enabled=settings.debug)
+    await scenario_service.initialize(request, char_id=char_id, quest_key=quest_key)
     return _session_redirect(request, char_id=char_id)
 
 
@@ -43,7 +40,6 @@ async def game_scenario_step(
 ):
     user = await auth_service.require_current_user(request)
     response = await scenario_service.step(request, char_id=char_id, action_id=action_id)
-    log_debug_payload("scenario_page.game_scenario_step", response, enabled=settings.debug)
     template, render_context = await director.resolve(
         request,
         response,
@@ -65,8 +61,7 @@ async def game_scenario_resume(
     scenario_service: Annotated[ScenarioPageService, Depends(get_scenario_page_service)],
 ):
     await auth_service.require_current_user(request)
-    vm = await scenario_service.resume(request, char_id=char_id)
-    log_debug_payload("scenario_page.game_scenario_resume", vm, enabled=settings.debug)
+    await scenario_service.resume(request, char_id=char_id)
     return _session_redirect(request, char_id=char_id)
 
 

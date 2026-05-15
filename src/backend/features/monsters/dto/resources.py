@@ -13,23 +13,9 @@ EquipmentDropPolicy = Literal["fixed_loadout", "curated", "none"]
 MemberTierPolicy = Literal["role_offset", "fixed", "clan_tier"]
 
 
-class MonsterCombatProfileDTO(BaseModel):
-    archetype: MonsterArchetype
-    body_loadout: str | None = None
-    armor_class: str | None = None
-    natural_weapon_set: str | None = None
-    equipment_scaling: str | None = None
-    modifier_formula: str
-
-
 class MonsterSkillKitDTO(BaseModel):
     base: dict[str, float] = Field(default_factory=dict)
     role_bonus: dict[MonsterRole, dict[str, float]] = Field(default_factory=dict)
-
-
-class MonsterAbilityDefinitionDTO(BaseModel):
-    mechanic: str
-    presentation: str
 
 
 class MonsterLootProfileDTO(BaseModel):
@@ -46,17 +32,18 @@ class MonsterStatsDTO(BaseModel):
     strength: int = Field(ge=0)
     agility: int = Field(ge=0)
     endurance: int = Field(ge=0)
-    intelligence: int = Field(ge=0)
-    wisdom: int = Field(ge=0)
-    men: int = Field(ge=0)
+    intellect: int = Field(ge=0)
+    memory: int = Field(ge=0)
+    mental: int = Field(ge=0)
     perception: int = Field(ge=0)
-    charisma: int = Field(ge=0)
-    luck: int
+    projection: int = Field(ge=0)
+    prediction: int
 
 
 class MonsterLoadoutDTO(BaseModel):
     main_hand: str | None = None
     off_hand: str | None = None
+    two_hand: str | None = None
     head_armor: str | None = None
     chest_armor: str | None = None
     arms_armor: str | None = None
@@ -118,7 +105,6 @@ class MonsterMemberResourceModelDTO(BaseModel):
     attribute_profile: dict[str, Any] = Field(default_factory=dict)
     skill_profile: dict[str, Any] = Field(default_factory=dict)
     item_loadout_profile: dict[str, Any] = Field(default_factory=dict)
-    ability_profile: dict[str, Any] = Field(default_factory=dict)
     ai_profile: dict[str, Any] = Field(default_factory=dict)
     balance: dict[str, Any] = Field(default_factory=dict)
 
@@ -133,9 +119,7 @@ class MonsterVariantDTO(BaseModel):
     max_tier: int = Field(default=11, ge=0, le=11)
     base_stats: MonsterStatsDTO
     fixed_loadout: MonsterLoadoutDTO = Field(default_factory=MonsterLoadoutDTO)
-    skills: list[str] = Field(default_factory=list)
     skill_overrides: dict[str, float | None] = Field(default_factory=dict)
-    ability_overrides: dict[str, str | None] = Field(default_factory=dict)
     member_model: MonsterMemberResourceModelDTO | None = None
 
     @model_validator(mode="after")
@@ -158,9 +142,7 @@ class MonsterFamilyDTO(BaseModel):
     organization_type: OrganizationType
     default_tags: list[str] = Field(default_factory=list)
     hierarchy: FamilyHierarchyDTO
-    combat_profile: MonsterCombatProfileDTO | None = None
     skill_kit: MonsterSkillKitDTO | None = None
-    ability_map: dict[str, MonsterAbilityDefinitionDTO] = Field(default_factory=dict)
     loot_profile: MonsterLootProfileDTO | None = None
     clan_model: MonsterClanResourceModelDTO | None = None
     member_models: list[MonsterMemberResourceModelDTO] = Field(default_factory=list)

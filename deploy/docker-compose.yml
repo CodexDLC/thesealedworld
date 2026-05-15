@@ -41,6 +41,28 @@ services:
 
   # ── Application ───────────────────────────────────────────────────────────
 
+  backend-migrate:
+    build:
+      context: ..
+      dockerfile: deploy/backend/Dockerfile
+    container_name: tbmmorpg-backend-migrate
+    restart: "no"
+    env_file: ../.env
+    environment:
+      SITE_DATABASE_URL: postgresql+asyncpg://tbmmorpg:tbmmorpg_dev@postgres:5432/tbmmorpg_site  # pragma: allowlist secret
+      GAME_DATABASE_URL: postgresql+asyncpg://tbmmorpg:tbmmorpg_dev@postgres:5432/tbmmorpg_game  # pragma: allowlist secret
+      DATABASE_URL: postgresql+asyncpg://tbmmorpg:tbmmorpg_dev@postgres:5432/tbmmorpg_game  # pragma: allowlist secret
+      REDIS_URL: redis://redis:6379/0
+    volumes:
+      - ../src/backend:/app/src/backend
+      - ../src/shared:/app/src/shared
+    entrypoint: ["python", "src/backend/manage.py", "upgrade"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - tbmmorpg-network
+
   backend:
     build:
       context: ..
@@ -51,7 +73,7 @@ services:
     environment:
       SITE_DATABASE_URL: postgresql+asyncpg://tbmmorpg:tbmmorpg_dev@postgres:5432/tbmmorpg_site  # pragma: allowlist secret
       GAME_DATABASE_URL: postgresql+asyncpg://tbmmorpg:tbmmorpg_dev@postgres:5432/tbmmorpg_game  # pragma: allowlist secret
-      DATABASE_URL: postgresql+asyncpg://tbmmorpg:tbmmorpg_dev@postgres:5432/tbmmorpg_site  # pragma: allowlist secret
+      DATABASE_URL: postgresql+asyncpg://tbmmorpg:tbmmorpg_dev@postgres:5432/tbmmorpg_game  # pragma: allowlist secret
       REDIS_URL: redis://redis:6379/0
     ports:
       - "8001:8001"
@@ -65,8 +87,8 @@ services:
       --reload
       --log-level info
     depends_on:
-      postgres:
-        condition: service_healthy
+      backend-migrate:
+        condition: service_completed_successfully
       redis:
         condition: service_healthy
     networks:
@@ -81,6 +103,10 @@ services:
     env_file: ../.env
     environment:
       BACKEND_BASE_URL: http://backend:8001
+      SITE_DATABASE_URL: postgresql+asyncpg://tbmmorpg:tbmmorpg_dev@postgres:5432/tbmmorpg_site  # pragma: allowlist secret
+      GAME_DATABASE_URL: postgresql+asyncpg://tbmmorpg:tbmmorpg_dev@postgres:5432/tbmmorpg_game  # pragma: allowlist secret
+      DATABASE_URL: postgresql+asyncpg://tbmmorpg:tbmmorpg_dev@postgres:5432/tbmmorpg_site  # pragma: allowlist secret
+      REDIS_URL: redis://redis:6379/0
       PYTHONPATH: /app:/app/src
     ports:
       - "8000:8000"
@@ -108,15 +134,19 @@ services:
     restart: unless-stopped
     env_file: ../.env
     environment:
-      DATABASE_URL: postgresql+asyncpg://tbmmorpg:tbmmorpg_dev@postgres:5432/tbmmorpg_site  # pragma: allowlist secret
+      SITE_DATABASE_URL: postgresql+asyncpg://tbmmorpg:tbmmorpg_dev@postgres:5432/tbmmorpg_site  # pragma: allowlist secret
+      GAME_DATABASE_URL: postgresql+asyncpg://tbmmorpg:tbmmorpg_dev@postgres:5432/tbmmorpg_game  # pragma: allowlist secret
+      DATABASE_URL: postgresql+asyncpg://tbmmorpg:tbmmorpg_dev@postgres:5432/tbmmorpg_game  # pragma: allowlist secret
       REDIS_URL: redis://redis:6379/0
+      STREAM_CONSUMER_GROUP: chat
+      WORKER_NAME: chat_worker_1
     ports:
       - "8002:8002"
     volumes:
-      - ../src/chat:/app/src/chat
+      - ../src/backend:/app/src/backend
       - ../src/shared:/app/src/shared
     command: >
-      uvicorn src.chat.app:app
+      uvicorn src.backend.chat.app:app
       --host 0.0.0.0
       --port 8002
       --reload
@@ -139,7 +169,7 @@ services:
     environment:
       SITE_DATABASE_URL: postgresql+asyncpg://tbmmorpg:tbmmorpg_dev@postgres:5432/tbmmorpg_site  # pragma: allowlist secret
       GAME_DATABASE_URL: postgresql+asyncpg://tbmmorpg:tbmmorpg_dev@postgres:5432/tbmmorpg_game  # pragma: allowlist secret
-      DATABASE_URL: postgresql+asyncpg://tbmmorpg:tbmmorpg_dev@postgres:5432/tbmmorpg_site  # pragma: allowlist secret
+      DATABASE_URL: postgresql+asyncpg://tbmmorpg:tbmmorpg_dev@postgres:5432/tbmmorpg_game  # pragma: allowlist secret
       REDIS_URL: redis://redis:6379/0
     volumes:
       - ../src/backend:/app/src/backend
@@ -147,8 +177,8 @@ services:
     command: >
       arq src.backend.features.combat.workers.arq.CombatArqSettings
     depends_on:
-      postgres:
-        condition: service_healthy
+      backend-migrate:
+        condition: service_completed_successfully
       redis:
         condition: service_healthy
     networks:
@@ -164,7 +194,7 @@ services:
     environment:
       SITE_DATABASE_URL: postgresql+asyncpg://tbmmorpg:tbmmorpg_dev@postgres:5432/tbmmorpg_site  # pragma: allowlist secret
       GAME_DATABASE_URL: postgresql+asyncpg://tbmmorpg:tbmmorpg_dev@postgres:5432/tbmmorpg_game  # pragma: allowlist secret
-      DATABASE_URL: postgresql+asyncpg://tbmmorpg:tbmmorpg_dev@postgres:5432/tbmmorpg_site  # pragma: allowlist secret
+      DATABASE_URL: postgresql+asyncpg://tbmmorpg:tbmmorpg_dev@postgres:5432/tbmmorpg_game  # pragma: allowlist secret
       REDIS_URL: redis://redis:6379/0
     volumes:
       - ../src/backend:/app/src/backend
@@ -172,8 +202,33 @@ services:
     command: >
       arq src.backend.features.system.workers.arq.SystemArqSettings
     depends_on:
-      postgres:
+      backend-migrate:
+        condition: service_completed_successfully
+      redis:
         condition: service_healthy
+    networks:
+      - tbmmorpg-network
+
+  generation-ai-worker:
+    build:
+      context: ..
+      dockerfile: deploy/worker/Dockerfile
+    container_name: tbmmorpg-generation-ai-worker
+    restart: unless-stopped
+    env_file: ../.env
+    environment:
+      SITE_DATABASE_URL: postgresql+asyncpg://tbmmorpg:tbmmorpg_dev@postgres:5432/tbmmorpg_site  # pragma: allowlist secret
+      GAME_DATABASE_URL: postgresql+asyncpg://tbmmorpg:tbmmorpg_dev@postgres:5432/tbmmorpg_game  # pragma: allowlist secret
+      DATABASE_URL: postgresql+asyncpg://tbmmorpg:tbmmorpg_dev@postgres:5432/tbmmorpg_game  # pragma: allowlist secret
+      REDIS_URL: redis://redis:6379/0
+    volumes:
+      - ../src/backend:/app/src/backend
+      - ../src/shared:/app/src/shared
+    command: >
+      arq src.backend.features.generation_ai.workers.arq.GenerationAIArqSettings
+    depends_on:
+      backend-migrate:
+        condition: service_completed_successfully
       redis:
         condition: service_healthy
     networks:

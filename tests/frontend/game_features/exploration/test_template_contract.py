@@ -18,23 +18,48 @@ def test_exploration_center_template_has_navigation_and_encounter_surfaces():
     assert "payload_type == 'exploration_encounter'" in template
     assert "/game/exploration/move" in template
     assert "/game/exploration/interact" in template
-    assert "exploration-control-panel" in template
+    assert "exploration-main-dock" in template
+    assert "mobile-center-menu" in template
+    assert "game-screen-content exploration-screen-content" in template
+    assert "mobile-scene parchment" in template
+    assert "mobile-scene-services" in template
+    assert "data-services" in template
+    assert "NO SERVICES" in template
+    assert "mobile-services" in template
+    assert "game-action-panel game-action-panel--bottom exploration-action-panel" in template
+    assert "mobile-action-grid exploration-navigation-grid" in template
+    assert "game-action-button mobile-action" in template
     assert "location_view.navigation" in template
     assert "data-move-duration" in template
-    assert "exploration-move-cooldown" in template
+    assert "mobile-move-cooldown" in template
+    assert "mobile-bottom-rule" not in template
     assert "game/domains/exploration/right_sidebar/main.html" in template
     assert "hx-swap-oob=\"true\"" in template
-    assert "AUTO ROUTES" in template
-    assert "MOVE NORTH" in template
-    assert "service_card(service)" in template
+    assert "mobile-encounter-interrupt" in template
+    assert "mobile-encounter-layout" in template
+    assert "mobile-encounter-target-card" in template
+    assert "mobile-encounter-target-switcher" in template
+    assert "mobile-encounter-roster" in template
+    assert "mobile-encounter-actions" in template
+    assert 'encounter_surfaces(active_encounter, symbiote_name)' in template
+    assert '<span class="symbiote-readout-name">SYMBIOTE:</span>' not in template
+    assert "default_bypass_chance" in template
+    assert "шанс обойти" in template
+    assert "\"action\": \"bypass\"" in template
+    assert "@click=\"selected =" in template
+    assert "enemy.hp_percent" in template
+    assert "hp.cur" not in template
+    assert "POWER" not in template
+    assert "<span>THREAT</span>" in template
+    assert "NORTH" in template
+    assert "service_tile(service" in template
+    assert "service_icon_url(service)" in template
     assert "game/domains/exploration/components/services.html" in template
     assert "SERVICE_PENDING" not in template
-    assert "exploration_button(exploration.grid.ne" not in template
-    assert "exploration_button(exploration.grid.sw" not in template
-    assert "exploration_button(exploration.grid.se" not in template
+    assert "mobile-chat-drawer" not in template
     assert "PEOPLE" not in template
-    assert "location_view.hud.threat if location_view.hud.threat is defined else 0" in template
-    assert "T{{ location_view.hud.threat_tier" in template
+    assert "location_view.hud.threat if location_view.hud is defined" in template
+    assert "data-risk-frame" in template
     assert "payload_type == 'exploration_encounter' and not" not in template
     assert "HOSTILES" not in template
 
@@ -42,12 +67,39 @@ def test_exploration_center_template_has_navigation_and_encounter_surfaces():
 def test_exploration_right_sidebar_has_navigation_and_encounter_contexts():
     template = Path("src/frontend/templates/game/domains/exploration/right_sidebar/main.html").read_text()
 
-    assert "payload_type == 'exploration_navigation'" in template
     assert "payload_type == 'exploration_encounter'" in template
-    assert "LOCAL_CONTEXT" in template
-    assert "service_card(service, compact=true)" in template
-    assert "exploration.hud.threat if exploration.hud.threat is defined else 0" in template
-    assert "<span>TIER</span>" in template
+    assert "exploration-info-dock" in template
+    assert "INFO" in template
+    assert "CLOSE" in template
+    assert "info-widget-section exploration-location-card" in template
+    assert "exploration-encounter-info" in template
+    assert "exploration-monster-card" in template
+    assert "hud.threat if hud and hud.threat is defined else 0" in template
+    assert "<span>Tier</span>" in template
+
+
+def test_exploration_uses_shared_base_css_contracts():
+    panel_css = Path("src/frontend/static/css/components/game/panel_dock.css").read_text()
+    viewport_css = Path("src/frontend/static/css/pages/game/viewport.css").read_text()
+    bundle = Path("src/frontend/static/css/game_bundle.css").read_text()
+
+    assert ".dock-nav--five" in panel_css
+    assert ".mobile-center-menu" in panel_css
+    assert ".mobile-nav-icon" in panel_css
+    assert ".side-panel-drawer--right" in panel_css
+    assert ".game-screen-area" in viewport_css
+    assert ".game-screen-content" in viewport_css
+    assert ".mobile-scene" in viewport_css
+    assert ".mobile-action-grid" in viewport_css
+    assert ".mobile-action-icon" in viewport_css
+    assert ".exploration-main-dock.mobile-rift--encounter .mobile-screen.is-active" in viewport_css
+    assert ".exploration-main-dock.mobile-rift--encounter .mobile-encounter-layout" in viewport_css
+    assert ".exploration-main-dock.mobile-rift--encounter .exploration-action-panel" in viewport_css
+    assert ".exploration-main-dock.mobile-rift--encounter .mobile-encounter-actions" in viewport_css
+    assert ".exploration-main-dock.mobile-rift--encounter .mobile-encounter-target-switcher" in viewport_css
+    assert "@media (max-width: 899px)" in viewport_css
+    assert '@import url("components/game/action_panel.css");' in bundle
+    assert '@import url("components/game/panel_dock.css");' in bundle
 
 
 def test_exploration_service_component_has_default_icon_mapping():
@@ -183,11 +235,55 @@ def test_avatar_widget_renders_gear_score_corner():
 def test_status_attribute_and_skill_widgets_are_collapsible():
     attribute_template = Path("src/frontend/templates/game/components/panel/widgets/attribute_grid.html").read_text()
     skill_template = Path("src/frontend/templates/game/components/panel/widgets/skill_groups.html").read_text()
+    legacy_skill_template = Path("src/frontend/templates/game/components/status/fragments/skills.html").read_text()
 
     for template in (attribute_template, skill_template):
         assert 'class="status-section status-section--collapsible"' in template
         assert 'class="sec status-section-toggle"' in template
         assert "status-section-toggle-icon" in template
+
+    assert "NO_DATA_AVAILABLE" not in legacy_skill_template
+
+
+def test_scenario_panels_hide_missing_transfer_data():
+    right_template = Path("src/frontend/templates/game/domains/scenario/right_sidebar/main.html").read_text()
+    left_template = Path("src/frontend/templates/game/domains/scenario/left_sidebar/main.html").read_text()
+    viewport_template = Path("src/frontend/templates/game/domains/scenario/viewport/main.html").read_text()
+    finalized_template = Path("src/frontend/templates/game/domains/scenario/viewport/finalized.html").read_text()
+
+    for marker in ("NO_DATA", "NO_SKILLS", "DATA_MISSING", "FUTURE"):
+        assert marker not in right_template
+        assert marker not in left_template
+
+    for marker in ("<span>Quest</span>", "<span>Node</span>", "<span>Step</span>", "<span>Phase</span>"):
+        if marker != "<span>Quest</span>":
+            assert marker not in right_template
+
+    assert "<span>Quest</span>" in right_template
+    assert "<span>Place</span>" in right_template
+    assert "<span>Focus</span>" in right_template
+    assert "<span>quest_key</span>" not in right_template
+    assert "<span>node_key</span>" not in right_template
+
+    assert "TRACE" not in viewport_template
+    assert "TRACE" not in finalized_template
+    assert "техничес" not in viewport_template
+    assert "техничес" not in right_template
+
+
+def test_scenario_title_splits_coordinate_suffix():
+    template = Path("src/frontend/templates/game/domains/scenario/viewport/main.html").read_text()
+    right_template = Path("src/frontend/templates/game/domains/scenario/right_sidebar/main.html").read_text()
+    css = Path("src/frontend/static/css/pages/game/scenario.css").read_text()
+
+    assert "split_bracket_coords" not in template
+    assert "display_name_raw.rsplit" in template
+    assert "display_name_coord_parts = display_name_coords.split(':')" in template
+    assert "scene_coord_parts = scene_coords.split(':')" in right_template
+    assert "<b>X</b>" in template
+    assert "X {{ scene_coord_parts[0] }} / Y {{ scene_coord_parts[1] }}" in right_template
+    assert "scenario-title-coords" in template
+    assert ".scenario-title-coords" in css
 
 
 def test_game_shell_has_inventory_hud_window_placeholder():
@@ -414,7 +510,7 @@ def test_inventory_card_mapper_builds_grid_card_from_type_and_numeric_size():
 
 
 def test_inventory_css_has_loadout_container_and_table_contract():
-    source = Path("src/frontend/static/css/components/inventory.css").read_text()
+    source = Path("src/frontend/static/css/components/game/inventory.css").read_text()
     bundle = Path("src/frontend/static/css/game_bundle.css").read_text()
     legwear_icon = Path("src/frontend/static/images/ui/inventory-gear/legwear.svg")
     weapon_two_hand_icon = Path("src/frontend/static/images/ui/inventory-gear/weapon_two_hand.svg")
@@ -462,7 +558,7 @@ def test_inventory_css_has_loadout_container_and_table_contract():
     assert "fabric_leather_02_diff_1k.webp" in source
     assert legwear_icon.exists()
     assert weapon_two_hand_icon.exists()
-    assert '@import url("components/cards.css");' in bundle
+    assert '@import url("components/game/cards.css");' in bundle
 
 
 def test_game_shell_drag_logic_lives_in_source_js():
@@ -477,11 +573,45 @@ def test_game_shell_drag_logic_lives_in_source_js():
     assert "resizeHudWindow" in source
     assert "moveHudWindow" in source
     assert "hudOpenStorageKey" in source
+    assert "panelStateStorageKey" in source
+    assert "explorationDesktopPanelsDefaultOpen" in source
+    assert 'domain !== "exploration"' in source
+    assert 'window.matchMedia("(min-width: 1025px)")' in source
+    assert 'window.matchMedia("(max-width: 1024px)")' in source
+    assert '${domainScope}:${scope}:${viewportScope}:v1' in source
+    assert "savePanelState(this)" in source
+    assert "panelStateUserEdited" in source
+    assert "applySessionPanelState" in source
     assert "loadHudOpenState(\"inventory\")" in source
     assert "savedInventoryOpen !== false" in source
     assert "saveHudOpenState(name, hudWindow.open)" in source
     assert "closeHudWindow(name)" in source
     assert "core/game_shell.js" in config
+
+
+def test_session_panel_state_does_not_override_saved_shell_panel_choice():
+    source = Path("src/frontend/static/js/core/status.js").read_text()
+
+    assert "typeof data.applySessionPanelState === 'function'" in source
+    assert "data.applySessionPanelState(state)" in source
+    assert "data.leftOpen = Boolean(state.left_open)" in source
+    assert "data.rightOpen = Boolean(state.right_open)" in source
+
+
+def test_mobile_drawer_shell_has_panel_close_controls():
+    template = Path("src/frontend/templates/game/session_content_inner.html").read_text()
+    css = Path("src/frontend/static/css/pages/game/layout_responsive.css").read_text()
+
+    assert "side-panel-close side-panel-close--left" in template
+    assert "side-panel-close side-panel-close--right" in template
+    assert "$dispatch('panel-toggle', { side: 'left'" in template
+    assert "$dispatch('panel-toggle', { side: 'right'" in template
+    assert ".side-panel-close" in css
+    assert "@media (max-width: 1024px)" in css
+    assert "--game-header-height: 40px;" in css
+    assert "--game-header-height: 72px;" not in css
+    assert "top: var(--game-header-height);" in css
+    assert "bottom: var(--game-footer-height);" in css
 
 
 def test_inventory_frontend_route_proxies_actions_to_backend():
@@ -515,6 +645,13 @@ def test_game_runtime_loads_before_alpine_initializes():
 def test_game_header_has_system_exit_to_lobby():
     template = Path("src/frontend/templates/game/includes/header.html").read_text()
 
-    assert 'class="game-exit-link"' in template
+    assert "The Sealed World" in template
+    assert "game-system-menu" in template
+    assert "game-system-action" in template
+    assert "game-system-action-glyph--cabinet" in template
+    assert "game-system-action-glyph--restart" in template
+    assert "game-system-action-glyph--settings" in template
+    assert "<span>Restart</span>" in template
+    assert "<span>Lobby</span>" not in template
     assert 'action="/game-lobby/release"' in template
     assert 'data-session-cleanup="pending"' in template

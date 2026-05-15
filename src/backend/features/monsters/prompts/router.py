@@ -10,6 +10,10 @@ monster_prompt_router = LLMRouter()
 
 @monster_prompt_router.prompt("monster_clan_flavor")
 async def build_monster_clan_flavor(payload: dict[str, Any], **kwargs: Any) -> PromptResult:
+    return build_monster_clan_flavor_prompt(payload)
+
+
+def build_monster_clan_flavor_prompt(payload: dict[str, Any]) -> PromptResult:
     system = """ROLE: Lead Narrative Designer for a dark fantasy RPG.
 TASK: Create a unique Monster Clan identity from the provided creature family and location context.
 
@@ -34,6 +38,9 @@ Rules:
 - The clan name must include an organization word matching the group type: Банда, Стая, Рой, Клан, Орда, Легион, Гнездо.
 - Do not use a plain species name as the whole name. Use a metaphor tied to environment and influence tags.
 - Location context tags matter. Anchor/influence tags must visibly mutate appearance and behavior.
+- If rift_profile is present, write the clan as a local rift-touched faction released or empowered by that rift.
+- A rift is not a normal lair. Do not describe the creatures as living inside the rift; describe pressure, leakage, gathering, barricades, hunting grounds, or scavenging around it.
+- Use rift_profile.boss_archetype and rift_profile.context_tags as a naming and atmosphere anchor.
 - Tier 0-1 means ragged, hungry, weak, scavenging. Tier 5+ means ancient, evolved, or magically altered.
 - Unit keys are technical ids from the input. Keep the same keys and write player-facing title/text fields for them.
 - detected, ambush, and idle must describe different encounter states, not repeat appearance.
@@ -46,5 +53,5 @@ Rules:
             {"role": "user", "content": user},
         ],
         temperature=0.9,
-        max_tokens=2500,
+        max_tokens=8000,
     )

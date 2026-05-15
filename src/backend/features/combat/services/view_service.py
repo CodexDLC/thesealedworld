@@ -3,6 +3,7 @@ from __future__ import annotations
 import contextlib
 import json
 import re
+import time
 from typing import Any, Literal
 
 from src.backend.features.combat.integrations import CombatCatalogIntegrator
@@ -16,7 +17,9 @@ from src.shared.schemas.combat import (
     CombatDeltaDTO,
     CombatEffectBadgeDTO,
     CombatEventDTO,
+    CombatExchangeStateDTO,
     CombatFeintOptionDTO,
+    CombatLogActorRefDTO,
     CombatLogDTO,
     CombatLogTurnDTO,
 )
@@ -39,6 +42,7 @@ class CombatViewService:
         moves: dict[str, Any] | None = None,
     ) -> CombatDashboardDTO:
         moves = moves or {}
+        now_ms = int(time.time() * 1000)
         dead_actor_ids = self._dead_actor_ids(meta)
         hero_raw = actors.get(str(viewer_id))
         if not hero_raw:
@@ -49,8 +53,9 @@ class CombatViewService:
             actor_id=str(viewer_id),
             targets=targets,
             moves=moves,
+            now_ms=now_ms,
         )
-        target = self._resolve_target(str(viewer_id), targets, actors, moves, dead_actor_ids)
+        target = self._resolve_target(str(viewer_id), targets, actors, moves, dead_actor_ids, now_ms=now_ms)
         target_id = target.actor_id if target else None
         allies: list[CombatActorCardDTO] = []
         enemies: list[CombatActorCardDTO] = []
@@ -63,6 +68,7 @@ class CombatViewService:
                 actor_id=actor_id,
                 targets=targets,
                 moves=moves,
+                now_ms=now_ms,
             )
             if card.team == hero.team:
                 allies.append(card)
@@ -71,12 +77,24 @@ class CombatViewService:
 
         allies.sort(key=lambda actor: (actor.is_dead, actor.name))
         enemies.sort(key=lambda actor: (actor.is_dead, actor.name))
-        status = self._status(meta, hero, target)
+        winner_team = self._optional_str(meta.get("winner")) or self._inferred_winner_team(hero, allies, enemies)
+        status = self._status(meta, hero, target, winner_team=winner_team)
         pending_action_count = self._pending_action_count(moves.get(str(viewer_id), {}))
         action_state = self._action_state(status, target=target, pending_action_count=pending_action_count)
 
         log_turns = self.parse_logs_by_turn(raw_logs_by_turn) if raw_logs_by_turn is not None else []
         log_events = self._flatten_turn_events(log_turns) if log_turns else self.parse_logs(raw_logs)
+        exchange_state = self._exchange_state(
+            viewer_id=str(viewer_id),
+            status=status,
+            action_state=action_state,
+            target=target,
+            targets=targets,
+            actors=self._actor_cards_by_id(hero=hero, allies=allies, enemies=enemies),
+            moves=moves,
+            log_turns=log_turns,
+            log_events=log_events,
+        )
 
         return CombatDashboardDTO(
             session_id=session_id,
@@ -97,9 +115,10 @@ class CombatViewService:
             active_effects=hero.active_effects,
             feints=hero.feints,
             available_actions=self._available_actions(status, target, hero, pending_action_count=pending_action_count),
+            exchange_state=exchange_state,
             events_delta=CombatDeltaDTO(events=log_events, turns=log_turns),
             log_total=total_logs if total_logs is not None else len(raw_logs),
-            winner_team=self._optional_str(meta.get("winner")),
+            winner_team=winner_team,
         )
 
     def build_logs(
@@ -195,6 +214,7 @@ class CombatViewService:
         actors: dict[str, dict[str, Any] | None],
         moves: dict[str, Any],
         dead_actor_ids: set[str],
+        now_ms: int,
     ) -> CombatActorCardDTO | None:
         queue = targets.get(viewer_id)
         if not queue:
@@ -209,6 +229,7 @@ class CombatViewService:
                 actor_id=target_id,
                 targets=targets,
                 moves=moves,
+                now_ms=now_ms,
             )
             if not target.is_dead:
                 return target
@@ -273,11 +294,14 @@ class CombatViewService:
         actor_id: str,
         targets: dict[str, list[Any]],
         moves: dict[str, Any],
+        now_ms: int,
     ) -> CombatActorCardDTO:
+        commit_state = self._actor_commit_state(moves.get(actor_id, {}), now_ms=now_ms)
         return card.model_copy(
             update={
                 "target_queue_size": len(targets.get(actor_id, [])),
                 "pending_actions": self._pending_actions(moves.get(actor_id, {})),
+                **commit_state,
             }
         )
 
@@ -289,10 +313,7 @@ class CombatViewService:
         *,
         pending_action_count: int,
     ) -> list[CombatActionOptionDTO]:
-        actions = [
-            CombatActionOptionDTO(action="system", label="Обновить", enabled=True),
-            CombatActionOptionDTO(action="system", label="Сбежать", enabled=not hero.is_dead),
-        ]
+        actions = [CombatActionOptionDTO(action="system", label="Обновить", enabled=True)]
         if status == "active" and target is not None and not target.is_dead and not hero.is_dead:
             has_pending = pending_action_count > 0
             actions.insert(
@@ -322,6 +343,160 @@ class CombatViewService:
                 for ability_id in hero.known_abilities
             )
         return actions
+
+    def _exchange_state(
+        self,
+        *,
+        viewer_id: str,
+        status: str,
+        action_state: str,
+        target: CombatActorCardDTO | None,
+        targets: dict[str, list[Any]],
+        actors: dict[str, CombatActorCardDTO],
+        moves: dict[str, Any],
+        log_turns: list[CombatLogTurnDTO],
+        log_events: list[CombatEventDTO],
+    ) -> CombatExchangeStateDTO:
+        latest = self._latest_exchange_from_logs(log_turns, log_events)
+        if status == "finished":
+            return latest.model_copy(
+                update={"pair_status": "resolved", "opponent_response_state": "resolved", "title": "COMBAT COMPLETE"}
+            )
+
+        target_id = target.actor_id if target else self._first_target_id(targets.get(viewer_id))
+        opponent_responded = bool(target_id and self._has_exchange_move(moves, str(target_id), viewer_id))
+
+        if action_state == "TARGET_QUEUE_EMPTY":
+            return latest.model_copy(
+                update={
+                    "pair_status": "no_target",
+                    "opponent_response_state": "unknown",
+                    "title": "NO ACTIVE EXCHANGE",
+                    "summary_text": "Очередь целей пуста. Активного размена нет.",
+                    "source": self._actor_ref_from_card(actors.get(viewer_id)),
+                    "target": None,
+                }
+            )
+
+        if action_state == "ACTION_LOCKED":
+            pair_status = "ready_to_resolve" if opponent_responded else "waiting_response"
+            response_state = "responded" if opponent_responded else "waiting"
+            summary = (
+                "Ответ противника получен. Размен ожидает обработки движком."
+                if opponent_responded
+                else "Ход выбран. Ожидаем встречное действие противника."
+            )
+            return latest.model_copy(
+                update={
+                    "pair_status": pair_status,
+                    "opponent_response_state": response_state,
+                    "title": "WAITING FOR RESPONSE" if not opponent_responded else "PAIR READY",
+                    "summary_text": summary,
+                    "source": self._actor_ref_from_card(actors.get(viewer_id)),
+                    "target": self._actor_ref_from_card(actors.get(str(target_id))) if target_id else None,
+                }
+            )
+
+        if opponent_responded:
+            return latest.model_copy(
+                update={
+                    "pair_status": "open",
+                    "opponent_response_state": "responded",
+                    "title": "OPPONENT COMMITTED",
+                    "summary_text": "Противник уже выбрал действие против вас. Ваш ответ закроет пару размена.",
+                    "source": self._actor_ref_from_card(actors.get(str(target_id))) if target_id else None,
+                    "target": self._actor_ref_from_card(actors.get(viewer_id)),
+                }
+            )
+
+        return latest.model_copy(
+            update={
+                "pair_status": "open" if target is not None else "unknown",
+                "opponent_response_state": "waiting" if target is not None else "unknown",
+                "title": "LAST EXCHANGE" if latest.turn is not None else "COMBAT CONTACT",
+                "source": latest.source or self._actor_ref_from_card(actors.get(viewer_id)),
+                "target": latest.target or (self._actor_ref_from_card(target) if target else None),
+            }
+        )
+
+    @classmethod
+    def _latest_exchange_from_logs(
+        cls,
+        log_turns: list[CombatLogTurnDTO],
+        log_events: list[CombatEventDTO],
+    ) -> CombatExchangeStateDTO:
+        if log_turns:
+            turn = log_turns[0]
+            entry = next((entry for entry in turn.entries if entry.text), None)
+            if entry is not None:
+                return CombatExchangeStateDTO(
+                    pair_status="resolved",
+                    opponent_response_state="resolved",
+                    title=turn.title or "LAST EXCHANGE",
+                    summary_text=entry.text or "Размен завершен.",
+                    turn=turn.global_turn,
+                    source=entry.source,
+                    target=entry.target,
+                    outcome=entry.outcome,
+                    badges=entry.badges,
+                )
+        for entry in log_events:
+            if entry.text:
+                return CombatExchangeStateDTO(
+                    pair_status="resolved",
+                    opponent_response_state="resolved",
+                    title=f"Ход {entry.global_turn}" if entry.global_turn is not None else "LAST EXCHANGE",
+                    summary_text=entry.text,
+                    turn=entry.global_turn,
+                    source=entry.source,
+                    target=entry.target,
+                    outcome=entry.outcome,
+                    badges=entry.badges,
+                )
+        return CombatExchangeStateDTO()
+
+    @staticmethod
+    def _first_target_id(queue: object) -> str | None:
+        if isinstance(queue, list) and queue:
+            return str(queue[0])
+        return None
+
+    @staticmethod
+    def _actor_cards_by_id(
+        *,
+        hero: CombatActorCardDTO,
+        allies: list[CombatActorCardDTO],
+        enemies: list[CombatActorCardDTO],
+    ) -> dict[str, CombatActorCardDTO]:
+        return {actor.actor_id: actor for actor in [hero, *allies, *enemies]}
+
+    @staticmethod
+    def _has_exchange_move(moves: dict[str, Any], source_id: str, target_id: str) -> bool:
+        actor_moves = moves.get(source_id)
+        if not isinstance(actor_moves, dict):
+            return False
+        exchange_moves = actor_moves.get("exchange")
+        if not isinstance(exchange_moves, dict):
+            return False
+        for move_json in exchange_moves.values():
+            payload = move_json.get("payload") if isinstance(move_json, dict) else None
+            if isinstance(payload, dict) and str(payload.get("target_id")) == str(target_id):
+                return True
+            target = getattr(getattr(move_json, "payload", None), "target_id", None)
+            if target is not None and str(target) == str(target_id):
+                return True
+        return False
+
+    @staticmethod
+    def _actor_ref_from_card(actor: CombatActorCardDTO | None) -> CombatLogActorRefDTO | None:
+        if actor is None:
+            return None
+        return CombatLogActorRefDTO(
+            id=actor.actor_id,
+            name=actor.name,
+            team=actor.team,
+            actor_type=actor.actor_type,
+        )
 
     @staticmethod
     def _ability_enabled(hero: CombatActorCardDTO, ability_id: str) -> bool:
@@ -353,15 +528,32 @@ class CombatViewService:
 
     @staticmethod
     def _status(
-        meta: dict[str, Any], hero: CombatActorCardDTO, target: CombatActorCardDTO | None
+        meta: dict[str, Any],
+        hero: CombatActorCardDTO,
+        target: CombatActorCardDTO | None,
+        *,
+        winner_team: str | None = None,
     ) -> Literal["active", "waiting", "finished", "spectating"]:
-        if str(meta.get("active", "1")) == "0" or meta.get("winner"):
+        if str(meta.get("active", "1")) == "0" or meta.get("winner") or winner_team:
             return "finished"
         if hero.is_dead:
             return "spectating"
         if target is None:
             return "waiting"
         return "active"
+
+    @staticmethod
+    def _inferred_winner_team(
+        hero: CombatActorCardDTO,
+        allies: list[CombatActorCardDTO],
+        enemies: list[CombatActorCardDTO],
+    ) -> str | None:
+        if any(not actor.is_dead for actor in [hero, *allies]):
+            return None
+        alive_enemy_teams = sorted({actor.team for actor in enemies if not actor.is_dead and actor.team})
+        if len(alive_enemy_teams) == 1:
+            return alive_enemy_teams[0]
+        return None
 
     @staticmethod
     def _action_state(
@@ -495,6 +687,56 @@ class CombatViewService:
     @classmethod
     def _pending_action_count(cls, moves: Any) -> int:
         return sum(cls._pending_actions(moves).values())
+
+    @classmethod
+    def _actor_commit_state(cls, moves: Any, *, now_ms: int) -> dict[str, Any]:
+        pending_moves = cls._pending_move_payloads(moves)
+        if not pending_moves:
+            return {
+                "committed": False,
+                "commit_state": "idle",
+                "timeout_total_ms": None,
+                "remaining_ms": None,
+                "force_attack_at_ms": None,
+            }
+
+        deadline_move = min(
+            pending_moves,
+            key=lambda move: cls._optional_int(cls._move_field(move, "force_attack_at_ms")) or 2**63 - 1,
+        )
+        timeout_total_ms = cls._optional_int(cls._move_field(deadline_move, "timeout_ms"))
+        force_attack_at_ms = cls._optional_int(cls._move_field(deadline_move, "force_attack_at_ms"))
+        remaining_ms = max(0, force_attack_at_ms - now_ms) if force_attack_at_ms is not None else None
+
+        commit_state = "committed"
+        if remaining_ms is not None and timeout_total_ms:
+            if remaining_ms <= 10_000:
+                commit_state = "timeout_warning"
+            elif remaining_ms <= timeout_total_ms / 2:
+                commit_state = "half_time"
+
+        return {
+            "committed": True,
+            "commit_state": commit_state,
+            "timeout_total_ms": timeout_total_ms,
+            "remaining_ms": remaining_ms,
+            "force_attack_at_ms": force_attack_at_ms,
+        }
+
+    @classmethod
+    def _pending_move_payloads(cls, moves: Any) -> list[Any]:
+        moves_map = moves if isinstance(moves, dict) else {}
+        result: list[Any] = []
+        for values in moves_map.values():
+            if isinstance(values, dict):
+                result.extend(values.values())
+        return result
+
+    @staticmethod
+    def _move_field(move: Any, field: str) -> Any:
+        if isinstance(move, dict):
+            return move.get(field)
+        return getattr(move, field, None)
 
     @staticmethod
     def _dead_actor_ids(meta: dict[str, Any]) -> set[str]:

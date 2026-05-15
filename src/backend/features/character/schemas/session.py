@@ -57,6 +57,8 @@ class CharacterSessionRefsDTO(BaseModel):
     encounter_id: str | None = None
     arena_id: str | None = None
     inventory_id: str | None = None
+    death_run_id: str | None = None
+    death_corpse_id: str | None = None
 
 
 class CharacterSessionMetricsDTO(BaseModel):
@@ -95,6 +97,35 @@ class CharacterSessionItemsDTO(BaseModel):
     model_config = ConfigDict(extra="allow")
 
 
+class CharacterSessionProgressionDTO(BaseModel):
+    free_xp: float = 0.0
+
+    model_config = ConfigDict(extra="allow")
+
+
+class CharacterSessionPendingProgressDTO(BaseModel):
+    free_xp: float = 0.0
+    skills: dict[str, float] = Field(default_factory=dict)
+    weapon: dict[str, float] = Field(default_factory=dict)
+    armor: dict[str, float] = Field(default_factory=dict)
+    symbiote: dict[str, float] = Field(default_factory=dict)
+
+    model_config = ConfigDict(extra="allow")
+
+
+class CharacterSessionRiskDTO(BaseModel):
+    sync_state: str = "safe"
+    system_connect: bool = True
+    run_id: str | None = None
+    corpse_id: str | None = None
+    pending_free_xp: float = 0.0
+    pending_skill_count: int = 0
+    carried_resource_count: int = 0
+    carried_item_count: int = 0
+
+    model_config = ConfigDict(extra="allow")
+
+
 class CharacterSessionDocumentDTO(BaseModel):
     schema_version: int = 1
     char_id: int
@@ -109,6 +140,9 @@ class CharacterSessionDocumentDTO(BaseModel):
     active_quest: str | None = None
     metrics: CharacterSessionMetricsDTO = Field(default_factory=CharacterSessionMetricsDTO)
     skills: dict[str, Any] = Field(default_factory=dict)
+    progression: CharacterSessionProgressionDTO = Field(default_factory=CharacterSessionProgressionDTO)
+    pending_progress: CharacterSessionPendingProgressDTO = Field(default_factory=CharacterSessionPendingProgressDTO)
+    risk: CharacterSessionRiskDTO = Field(default_factory=CharacterSessionRiskDTO)
     items: CharacterSessionItemsDTO = Field(default_factory=CharacterSessionItemsDTO)
     symbiote: CharacterSessionSymbioteDTO = Field(default_factory=CharacterSessionSymbioteDTO)
     world_theme: WorldThemeDTO = Field(default_factory=WorldThemeDTO)

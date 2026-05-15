@@ -1,10 +1,65 @@
-/* Chat & Terminal Components (Right Sidebar) */
+/* Chat & Terminal Components */
 
-#game-chat-shell {
-    bottom: calc(var(--game-footer-height, 24px) + 8px);
+.game-chat-footer {
+    --game-chat-width: 1440px;
+    flex: 0 0 var(--game-footer-height, 30px);
+    height: var(--game-footer-height, 30px);
+    min-height: var(--game-footer-height, 30px);
+    padding: 0;
+    border-top: 1px solid rgba(255, 170, 0, 0.14);
+    background: rgba(8, 8, 10, 0.94);
+    color: var(--col-parchment-dim);
+    opacity: 1;
+    overflow: visible;
+    position: relative;
     z-index: 180;
-    z-index: calc(var(--game-panel-z, 200) - 20);
-    padding: 0 clamp(8px, 2vw, 16px);
+}
+
+.game-chat-footer-shell {
+    height: var(--game-footer-height, 30px);
+    display: block;
+    position: relative;
+}
+
+.game-chat-footer .game-chat-row {
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    width: min(100%, var(--game-chat-width));
+    max-height: min(46vh, calc(100dvh - var(--game-header-height, 40px) - var(--game-footer-height, 30px) - 18px));
+    height: var(--chat-height, 220px);
+    margin: 0 auto;
+    border-right: 0;
+    border-left: 0;
+    border-bottom: 0;
+    box-shadow: 0 -18px 34px rgba(0, 0, 0, 0.46);
+}
+
+.game-chat-footer .game-chat-row > .shell-constrained {
+    width: 100%;
+    max-width: 1600px;
+    height: 100%;
+    flex-direction: column;
+}
+
+.game-chat-panel-host {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.game-chat-panel-host .chat-main-area {
+    flex: 1;
+}
+
+@media (max-width: 767px) {
+    .game-chat-footer .game-chat-row {
+        width: 100%;
+        max-height: min(52vh, calc(100dvh - var(--game-header-height, 40px) - var(--game-footer-height, 30px) - 12px));
+    }
 }
 
 .game-chat-row {
@@ -522,11 +577,6 @@
 }
 
 @media (max-width: 1024px) {
-    #game-chat-shell {
-        bottom: calc(var(--game-footer-height, 24px) + 6px);
-        z-index: calc(var(--game-panel-z, 200) - 20);
-    }
-
     .game-chat-row {
         width: min(100%, calc(100vw - 16px));
         max-height: calc(100dvh - var(--game-header-height, 40px) - var(--game-footer-height, 24px) - 24px);
@@ -538,15 +588,10 @@
     }
 }
 
-@media (max-width: 768px) {
-    #game-chat-shell {
-        bottom: calc(var(--game-footer-height, 28px) + 4px);
-        padding: 0 6px;
-    }
-
+@media (max-width: 767px) {
     .game-chat-row {
         width: 100%;
-        max-height: calc(100dvh - var(--game-header-height, 72px) - var(--game-footer-height, 28px) - 16px);
+        max-height: calc(100dvh - var(--game-header-height, 40px) - var(--game-footer-height, 30px) - 16px);
     }
 
     .chat-users {
@@ -560,7 +605,7 @@
 
 @media (max-width: 500px) {
     .game-chat-row {
-        max-height: min(46vh, calc(100dvh - var(--game-header-height, 72px) - var(--game-footer-height, 28px) - 12px));
+        max-height: min(46vh, calc(100dvh - var(--game-header-height, 40px) - var(--game-footer-height, 30px) - 12px));
     }
 
     .chat-tabs {
@@ -608,6 +653,24 @@
 /* Step 0: hide input entirely */
 .chat-step-0 .chat-input-row {
     display: none;
+}
+
+.game-chat-footer .chat-step-0 {
+    height: var(--game-footer-height, 30px) !important;
+    max-height: var(--game-footer-height, 30px);
+    overflow: hidden;
+    box-shadow: none;
+}
+
+.game-chat-footer .chat-step-0 .chat-mini-preview,
+.game-chat-footer .chat-step-0 .chat-main-area,
+.game-chat-footer .chat-step-0 #chat-input-form {
+    display: none !important;
+}
+
+.game-chat-footer .chat-step-0 .chat-tabs {
+    height: var(--game-footer-height, 30px);
+    border-bottom: 0;
 }
 
 /* Step 1 (quarter): input hidden, reveals on hover or focus */

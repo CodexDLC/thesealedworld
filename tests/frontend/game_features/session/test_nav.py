@@ -2,18 +2,10 @@ from src.frontend.game_features.session.view_models.nav import build_game_nav
 from src.shared.enums import CoreDomain
 
 
-def test_build_game_nav_marks_center_state_active():
+def test_build_game_nav_leaves_scenario_header_navigation_empty():
     nav = build_game_nav(state=CoreDomain.SCENARIO, char_id=7)
 
-    assert nav["center"]["label"] == "SCENARIO"
-    assert nav["center"]["is_active"] is True
-    assert nav["center"]["icon"] == "talk"
-    assert nav["l1"]["is_disabled"] is True
-    assert nav["l2"]["panel"] == "left"
-    assert nav["r1"]["panel"] == "right"
-    assert nav["r1"]["label"] == "TRACE"
-    assert nav["r1"]["icon"] == "journal"
-    assert nav["r2"]["is_disabled"] is True
+    assert nav == {"l2": None, "l1": None, "center": None, "r1": None, "r2": None}
 
 
 def test_build_game_nav_exploration_does_not_offer_scenario_transition():
@@ -35,9 +27,9 @@ def test_build_game_nav_exploration_does_not_offer_scenario_transition():
 
 
 def test_global_domains_are_only_rendered_in_center_slot():
-    global_labels = {"SCENARIO", "EXPLORE", "COMBAT", "ARENA"}
+    global_labels = {"SCENARIO", "EXPLORE", "COMBAT", "ARENA", "TAVERN"}
 
-    for state in [CoreDomain.SCENARIO, CoreDomain.EXPLORATION, CoreDomain.COMBAT, CoreDomain.ARENA]:
+    for state in [CoreDomain.EXPLORATION, CoreDomain.COMBAT, CoreDomain.ARENA, CoreDomain.TAVERN]:
         nav = build_game_nav(state=state, char_id=7)
 
         assert nav["center"]["label"] in global_labels
@@ -46,7 +38,7 @@ def test_global_domains_are_only_rendered_in_center_slot():
 
 
 def test_inventory_is_far_right_for_runtime_domains():
-    for state in [CoreDomain.EXPLORATION, CoreDomain.ARENA]:
+    for state in [CoreDomain.EXPLORATION, CoreDomain.ARENA, CoreDomain.TAVERN]:
         nav = build_game_nav(state=state, char_id=7)
 
         assert nav["l1"]["label"] == "BUILDS"

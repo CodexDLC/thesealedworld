@@ -20,9 +20,6 @@
                             </div>
                         </div>
                     </template>
-                    <div x-show="!agents[selectedAgentId].skills?.symbiote" style="font-size: 8px; opacity: 0.3; padding: 5px; text-align: center;">
-                        INITIALIZING_NEURAL_LINK...
-                    </div>
                 </div>
             </div>
         </div>
@@ -52,10 +49,6 @@
                             </div>
                         </div>
                     </template>
-                    <div x-show="!agents[selectedAgentId].skills?.{{ cat }} || Object.keys(agents[selectedAgentId].skills?.{{ cat }} || {}).length === 0"
-                         style="font-size: 8px; opacity: 0.2; padding: 5px; text-align: center; letter-spacing: 0.1em;">
-                        NO_DATA_AVAILABLE
-                    </div>
                 </div>
             </div>
         </div>

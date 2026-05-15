@@ -21,17 +21,17 @@ weapon_accuracy = AffixCatalogEntryDTO(
     ),
 )
 
-armor_penetration_bonus = AffixCatalogEntryDTO(
-    id="armor_penetration_bonus",
+armor_penetration_pct_bonus = AffixCatalogEntryDTO(
+    id="armor_penetration_pct_bonus",
     group="combat_offense",
     technical=AffixTechnicalDTO(
-        modifier_id="armor_penetration_add",
+        modifier_id="armor_penetration_pct_add",
         base_value=0.003,
         value_kind="probability",
         roll_profile=AffixRollProfileDTO(step_spread=0.08, rounding="decimal", round_digits=4),
     ),
     descriptive=AffixDescriptiveDTO(
-        display_name="Armor Penetration",
+        display_name="Armor Penetration %",
         ui_template="+{value}% Armor Penetration",
         narrative_tags=("piercing", "brutal", "forceful"),
     ),
@@ -119,7 +119,7 @@ vampiric_trigger_chance_bonus = AffixCatalogEntryDTO(
 
 COMBAT_OFFENSE_AFFIXES = [
     weapon_accuracy,
-    armor_penetration_bonus,
+    armor_penetration_pct_bonus,
     crit_chance,
     crit_power,
     off_hand_accuracy,

@@ -1,12 +1,27 @@
 <div id="game-session-root" class="game-session-shell" style="display: flex; flex-direction: column; flex: 1; position: relative;">
     {# Background layer #}
+    {% set shell_background_url = background_url %}
     <div id="game-bg" class="game-scene-layer"
-         style="background-image: url('{{ background_url if background_url else '/static/images/scenes/forest.png' }}'); z-index: 0; position: absolute; inset: 0;">
+         style="background-image: url('{{ shell_background_url if shell_background_url else '/static/images/scenes/forest.png' }}'); z-index: 0; position: absolute; inset: 0;">
     </div>
+    {% if domain == 'combats' %}
+    <script>
+        (function() {
+            const bgUrl = localStorage.getItem('combat_background_url');
+            if (!bgUrl) {
+                return;
+            }
+            const shellBg = document.getElementById('game-bg');
+            if (shellBg) {
+                shellBg.style.backgroundImage = `url('${bgUrl}')`;
+            }
+        })();
+    </script>
+    {% endif %}
 
     {# Main interactive area #}
     {% set combat_layout = domain == 'combats' %}
-    {% set combat_sidebars = combat_layout %}
+    {% set combat_sidebars = false %}
     {% set shell_left_open = combat_sidebars or (not combat_layout and session_ui and session_ui.left_open) %}
     {% set shell_right_open = combat_sidebars or (not combat_layout and session_ui and session_ui.right_open) %}
     <div class="game-top-row {{ 'combat-layout' if combat_layout else '' }} {{ 'left-open' if shell_left_open else '' }} {{ 'right-open' if shell_right_open else '' }}"
@@ -24,6 +39,10 @@
                         {% elif domain == 'exploration' %}
                             {% include "game/domains/exploration/left_sidebar/main.html" %}
                         {% elif domain == 'arena' %}
+                            {% include "game/components/status/main.html" %}
+                        {% elif domain == 'tavern' %}
+                            {% include "game/components/status/main.html" %}
+                        {% elif domain == 'death' %}
                             {% include "game/components/status/main.html" %}
                         {% elif domain == 'combats' %}
                             {% include "game/domains/combat/left_sidebar/main.html" %}
@@ -56,8 +75,12 @@
                         {% include "game/domains/exploration/viewport/main.html" %}
                     {% elif domain == 'arena' %}
                         {% include "game/domains/arena/viewport/main.html" %}
+                    {% elif domain == 'tavern' %}
+                        {% include "game/domains/tavern/viewport/main.html" %}
                     {% elif domain == 'combats' %}
                         {% include "game/domains/combat/viewport/main.html" %}
+                    {% elif domain == 'death' %}
+                        {% include "game/domains/death/viewport/main.html" %}
                     {% else %}
                         {% include "game/domains/exploration/viewport/main.html" %}
                     {% endif %}
@@ -76,6 +99,8 @@
                             {% include "game/domains/exploration/right_sidebar/main.html" %}
                         {% elif domain == 'arena' %}
                             {% include "game/domains/arena/right_sidebar/main.html" %}
+                        {% elif domain == 'tavern' %}
+                            {% include "game/domains/tavern/right_sidebar/main.html" %}
                         {% elif domain == 'combats' %}
                             {% include "game/domains/combat/right_sidebar/main.html" %}
                         {% endif %}

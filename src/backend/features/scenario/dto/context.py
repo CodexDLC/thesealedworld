@@ -7,6 +7,7 @@ from typing import Any
 from pydantic import BaseModel, ConfigDict, Field
 
 from src.backend.config.settings import settings
+from src.shared.schemas.scenario import ScenarioReturnContextDTO
 
 STAT_KEYS = [
     "strength",
@@ -46,6 +47,7 @@ class ScenarioContextDTO(BaseModel):
     sys_actor: str = settings.default_symbiote_name
     prev_state: str | None = None
     prev_loc: str | None = None
+    return_context: ScenarioReturnContextDTO | None = None
     flags: dict[str, Any] = Field(default_factory=dict)
     updated_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
@@ -64,6 +66,7 @@ class ScenarioContextDTO(BaseModel):
             "prev_state": self.prev_state,
             "prev_loc": self.prev_loc,
             "p_loc": self.prev_loc,
+            "return_context": self.return_context.model_dump(mode="json") if self.return_context else None,
             "loot_queue": list(self.queues.loot),
             "skills_queue": list(self.queues.skills),
             **self.flags,
@@ -86,6 +89,10 @@ class ScenarioContextDTO(BaseModel):
                 setattr(self, key, int(value))
             elif key == "visited_nodes":
                 self.visited_nodes = list(value or [])
+            elif key == "return_context":
+                self.return_context = (
+                    ScenarioReturnContextDTO.model_validate(value) if isinstance(value, dict) else None
+                )
             elif key in {"current_node_key", "sys_actor", "prev_state", "prev_loc"}:
                 setattr(self, key, value)
             elif key not in {"scenario_session_id", "quest_key", "schema_version", "p_loc"}:

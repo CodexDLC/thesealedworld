@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from sqlalchemy import select
+from sqlalchemy import or_, select
 
 from src.backend.features.items.models import ItemInstance, ItemPlacement
 from src.shared.schemas.inventory import InventoryRuntimeItemDTO
@@ -12,24 +12,45 @@ class InventoryItemRepository:
     def __init__(self, session: Any) -> None:
         self.session = session
 
-    async def list_character_items(self, char_id: int) -> list[tuple[ItemInstance, ItemPlacement]]:
+    async def list_character_items(
+        self,
+        char_id: int,
+        *,
+        expedition_run_id: str | None = None,
+    ) -> list[tuple[ItemInstance, ItemPlacement]]:
+        holder_filters = [
+            (ItemPlacement.holder_type == "character") & (ItemPlacement.holder_id == str(char_id)),
+        ]
+        if expedition_run_id:
+            holder_filters.append(
+                (ItemPlacement.holder_type == "expedition") & (ItemPlacement.holder_id == expedition_run_id)
+            )
+        holder_clause = or_(*holder_filters)
         result = await self.session.execute(
             select(ItemInstance, ItemPlacement)
             .join(ItemPlacement, ItemPlacement.item_id == ItemInstance.id)
-            .where(ItemPlacement.holder_type == "character", ItemPlacement.holder_id == str(char_id))
+            .where(holder_clause)
             .order_by(ItemPlacement.position_index.nulls_last(), ItemInstance.name, ItemInstance.id)
         )
         return list(result.all())
 
-    async def save_placements(self, char_id: int, items: dict[str, InventoryRuntimeItemDTO]) -> None:
+    async def save_placements(
+        self,
+        char_id: int,
+        items: dict[str, InventoryRuntimeItemDTO],
+        *,
+        expedition_run_id: str | None = None,
+    ) -> None:
+        holder_filters = [
+            (ItemPlacement.holder_type == "character") & (ItemPlacement.holder_id == str(char_id)),
+        ]
+        if expedition_run_id:
+            holder_filters.append(
+                (ItemPlacement.holder_type == "expedition") & (ItemPlacement.holder_id == expedition_run_id)
+            )
         placements = {
             placement.item_id: placement
-            for placement in await self.session.scalars(
-                select(ItemPlacement).where(
-                    ItemPlacement.holder_type == "character",
-                    ItemPlacement.holder_id == str(char_id),
-                )
-            )
+            for placement in await self.session.scalars(select(ItemPlacement).where(or_(*holder_filters)))
         }
 
         for item_id, item in items.items():
@@ -38,6 +59,20 @@ class InventoryItemRepository:
                 continue
             placement.storage_type = item.placement
             placement.slot = item.slot
+        await self.session.flush()
+
+    async def save_item_mechanics(self, items: dict[str, InventoryRuntimeItemDTO]) -> None:
+        if not items:
+            return
+        instances = {
+            instance.id: instance
+            for instance in await self.session.scalars(select(ItemInstance).where(ItemInstance.id.in_(items)))
+        }
+        for item_id, item in items.items():
+            instance = instances.get(item_id)
+            if instance is None:
+                continue
+            instance.mechanics = dict(item.mechanics)
         await self.session.flush()
 
     async def flush(self) -> None:
@@ -58,6 +93,7 @@ def runtime_item_from_instance(instance: ItemInstance, placement: ItemPlacement)
     if not isinstance(valid_slots, list):
         valid_slots = [slot] if slot else []
 
+    is_unsecured = getattr(placement, "holder_type", "character") == "expedition"
     return InventoryRuntimeItemDTO(
         item_id=str(instance.id),
         base_id=instance.base_id,
@@ -70,6 +106,8 @@ def runtime_item_from_instance(instance: ItemInstance, placement: ItemPlacement)
         rarity=instance.rarity,
         rarity_tier=instance.rarity_tier,
         quantity=_quantity_from_item(metadata, mechanics),
+        sync_state="unsecured" if is_unsecured else "secured",
+        is_unsecured=is_unsecured,
         mechanics=mechanics,
         tags=list((instance.generation or {}).get("narrative_tags") or []),
         metadata=metadata,

@@ -35,8 +35,8 @@ Important files:
 - `src/frontend/site_features/auth/`
 - `src/frontend/integrations/backend_api/auth.py`
 - `src/frontend/game_features/session/`
-- `src/chat/core/security.py`
-- `src/chat/api/ws.py`
+- `src/backend/core/security.py`
+- `src/backend/chat/api/ws.py`
 
 Current behavior:
 

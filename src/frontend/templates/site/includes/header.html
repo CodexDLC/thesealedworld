@@ -1,20 +1,32 @@
-<header class="site-header">
+<header
+    class="site-header"
+    x-data="{ scrolled: false, menuOpen: false }"
+    x-init="
+        const sync = () => { scrolled = window.scrollY > 24 };
+        sync();
+        window.addEventListener('scroll', sync, { passive: true });
+    "
+    :class="{ 'is-scrolled': scrolled, 'is-open': menuOpen }"
+>
     <div class="site-header-container">
-        <div class="site-logo">
-            <a href="/">
-                <span class="logo-main">SYMBIOTE</span>
-                <span class="logo-sub">CHRONICLES</span>
-            </a>
-        </div>
+        <a class="site-logo" href="/" aria-label="The Sealed World">
+            <span class="site-logo-mark" aria-hidden="true">
+                <span></span>
+            </span>
+            <span class="site-logo-text">
+                <span class="logo-main">The Sealed World</span>
+                <span class="logo-sub">pre-alpha 0.1.0</span>
+            </span>
+        </a>
 
-        <nav class="site-nav">
+        <nav class="site-nav" aria-label="Основная навигация">
             <div class="nav-links">
-                <a href="/" class="nav-link {% if request.path == '/' %}active{% endif %}">The Wastes</a>
-                <a href="/about" class="nav-link {% if request.path == '/about' %}active{% endif %}">The Echoes</a>
-                <a href="/library" class="nav-link {% if request.path == '/library' %}active{% endif %}">Library</a>
-                <a href="/news" class="nav-link {% if request.path == '/news' %}active{% endif %}">News</a>
+                <a href="/" class="nav-link {% if request.path == '/' %}active{% endif %}">Главная</a>
+                <a href="/library" class="nav-link {% if request.path == '/library' %}active{% endif %}">Библиотека</a>
+                <a href="/news" class="nav-link {% if request.path == '/news' %}active{% endif %}">Новости</a>
+                <a href="/about" class="nav-link {% if request.path == '/about' %}active{% endif %}">О проекте</a>
                 {% if user %}
-                    <a href="/game-lobby" class="nav-link nav-link--lobby {% if request.path in ['/game-lobby', '/play'] %}active{% endif %}">Game Lobby</a>
+                    <a href="/game-lobby" class="nav-link nav-link--lobby {% if request.path in ['/game-lobby', '/play'] %}active{% endif %}">Лобби</a>
                 {% endif %}
             </div>
         </nav>
@@ -22,24 +34,57 @@
         <div class="site-actions">
             {% if user %}
                 <div class="site-account" x-data="{ open: false }" @keydown.escape="open = false" @click.outside="open = false">
-                    <button class="btn-node site-account-btn" @click="open = !open">
-                        <span>{{ user.email }}</span>
-                        <svg class="site-account-caret" :class="{ 'rotated': open }" width="10" height="6" viewBox="0 0 10 6" fill="none">
+                    <button class="site-account-btn" type="button" @click="open = !open">
+                        <span class="site-account-icon" aria-hidden="true">
+                            <img src="/static/images/ui/game-menu-icons/person.svg" alt="">
+                        </span>
+                        <span class="site-account-label">{{ user.email }}</span>
+                        <svg class="site-account-caret" :class="{ 'rotated': open }" width="10" height="6" viewBox="0 0 10 6" fill="none" aria-hidden="true">
                             <path d="M1 1L5 5L9 1" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
                         </svg>
                     </button>
                     <div class="site-account-dropdown" x-show="open" x-cloak x-transition:enter.duration.150ms x-transition:leave.duration.100ms>
-                        <a href="/cabinet" class="site-account-item">Cabinet</a>
+                        <a href="/cabinet" class="site-account-item">
+                            <span class="site-account-item-icon" aria-hidden="true">
+                                <img src="/static/images/ui/game-menu-icons/person.svg" alt="">
+                            </span>
+                            <span>Кабинет</span>
+                        </a>
+                        <a href="/game-lobby" class="site-account-item">
+                            <span class="site-account-item-icon" aria-hidden="true">
+                                <img src="/static/images/ui/service-icons/portal.svg" alt="">
+                            </span>
+                            <span>Лобби</span>
+                        </a>
                         <form action="/logout" method="post">
-                            <button type="submit" class="site-account-item site-account-item--danger">Logout</button>
+                            <button type="submit" class="site-account-item site-account-item--danger">
+                                <span class="site-account-item-icon" aria-hidden="true">↯</span>
+                                <span>Выйти</span>
+                            </button>
                         </form>
                     </div>
                 </div>
             {% else %}
-                <a href="/login" class="btn-node accent">
-                    <span>The Bond</span>
-                </a>
+                <button type="button" class="btn-node site-login-link" @click="authModal = 'login'">
+                    <span>Войти</span>
+                </button>
             {% endif %}
+
+            <button class="site-menu-button" type="button" @click="menuOpen = !menuOpen" :aria-expanded="menuOpen.toString()" aria-controls="site-mobile-nav">
+                <span>Меню</span>
+            </button>
         </div>
     </div>
+
+    <nav id="site-mobile-nav" class="site-mobile-nav" x-show="menuOpen" x-cloak x-transition:enter.duration.160ms x-transition:leave.duration.120ms aria-label="Мобильная навигация">
+        <a href="/">Главная</a>
+        <a href="/library">Библиотека</a>
+        <a href="/news">Новости</a>
+        <a href="/about">О проекте</a>
+        {% if user %}
+            <a href="/game-lobby">Лобби</a>
+        {% else %}
+            <button type="button" @click="authModal = 'login'; menuOpen = false">Войти</button>
+        {% endif %}
+    </nav>
 </header>

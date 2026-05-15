@@ -40,7 +40,14 @@ class MonsterLocationContextIntegration:
                 ),
             ),
         )
-        tags = _merge_tags(raw.get("tags"), anchor.get("tags"))
+        tags = _merge_tags(
+            raw.get("tags"),
+            world_zone.get("population_tags"),
+            [raw.get("node_type"), world_zone.get("zone_archetype"), raw.get("landmark_profile")],
+            flags.get("context_tags"),
+            _rift_tags(flags),
+            anchor.get("tags"),
+        )
         return MonsterLocationContext(
             loc_id=str(raw.get("loc_id") or loc_id),
             zone_id=str(world_zone.get("id") or raw.get("zone_id") or ""),
@@ -62,6 +69,17 @@ def _merge_tags(*values: Any) -> list[str]:
         if isinstance(value, list):
             tags.extend(str(item) for item in value if item)
     return list(dict.fromkeys(tags))
+
+
+def _rift_tags(flags: dict[str, Any]) -> list[str]:
+    rift_profile = flags.get("rift_profile")
+    if not isinstance(rift_profile, dict):
+        return []
+    tags = [str(tag) for tag in rift_profile.get("context_tags", []) if tag]
+    for key in ("id", "family_id"):
+        if rift_profile.get(key):
+            tags.append(str(rift_profile[key]))
+    return tags
 
 
 def _to_int(value: Any) -> int:

@@ -168,7 +168,7 @@ def test_builder_counts_two_hand_weapon_as_main_hand_damage_source() -> None:
 
 
 @pytest.mark.unit
-def test_builder_routes_weapon_penetration_to_equipped_hand() -> None:
+def test_builder_routes_weapon_armor_penetration_pct_to_equipped_hand() -> None:
     raw = CharacterCombatMathModelBuilder().build_raw(
         attributes={},
         items={
@@ -181,7 +181,7 @@ def test_builder_routes_weapon_penetration_to_equipped_hand() -> None:
                     "mechanics": {
                         "power": 3,
                         "damage_spread": 0.07,
-                        "implicit_bonuses": {"weapon_penetration": 0.10},
+                        "implicit_bonuses": {"weapon_armor_penetration_pct": 0.10},
                     },
                 },
                 "stiletto-2": {
@@ -191,7 +191,7 @@ def test_builder_routes_weapon_penetration_to_equipped_hand() -> None:
                     "mechanics": {
                         "power": 2,
                         "damage_spread": 0.07,
-                        "implicit_bonuses": {"weapon_penetration": 0.08},
+                        "implicit_bonuses": {"weapon_armor_penetration_pct": 0.08},
                     },
                 },
             },
@@ -199,8 +199,8 @@ def test_builder_routes_weapon_penetration_to_equipped_hand() -> None:
         skills={},
     )
 
-    assert raw["modifiers"]["main_hand_penetration"]["base"] == 0.10
-    assert raw["modifiers"]["off_hand_penetration"]["base"] == 0.08
+    assert raw["modifiers"]["main_hand_armor_penetration_pct"]["base"] == 0.10
+    assert raw["modifiers"]["off_hand_armor_penetration_pct"]["base"] == 0.08
 
 
 @pytest.mark.unit

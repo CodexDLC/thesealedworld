@@ -10,7 +10,16 @@ class WorldNavigationNode(Protocol):
     x: int
     y: int
     zone_id: str
+    biome_id: str | None
+    node_type: str
     terrain_type: str
+    navigation_profile_id: str
+    buildable_kind: str | None
+    landmark_profile: str | None
+    movement_profile: dict[str, Any]
+    background_key: str | None
+    background_pool_key: str | None
+    visual_overrides: dict[str, Any]
     services: list[str]
     content: dict[str, Any] | None
     flags: dict[str, Any]
@@ -31,11 +40,13 @@ class WorldNavigationService:
 
     def calculate_exits(self, node: WorldNavigationNode, node_map: Mapping[str, WorldNavigationNode]) -> dict[str, Any]:
         exits: dict[str, Any] = {}
-        flags = node.flags if isinstance(node.flags, dict) else {}
-        has_road = bool(flags.get("has_road", False))
-        blocked = self._blocked_exits(flags)
-        gated = flags.get("gated_exits", {})
-        gated = gated if isinstance(gated, dict) else {}
+        movement = self._movement_profile(node)
+        if movement.get("is_passable") is False:
+            return exits
+
+        has_road = bool(movement.get("has_road", False))
+        blocked = self._blocked_exits(movement)
+        gated = self._gated_exits(movement)
 
         if isinstance(node.services, list):
             for service in node.services:
@@ -60,18 +71,17 @@ class WorldNavigationService:
             if neighbor is None or not neighbor.is_active:
                 continue
 
-            neighbor_flags = neighbor.flags if isinstance(neighbor.flags, dict) else {}
-            if neighbor_flags.get("is_passable") is False:
+            neighbor_movement = self._movement_profile(neighbor)
+            if neighbor_movement.get("is_passable") is False:
                 continue
             reverse_direction = self.OPPOSITE_DIRECTIONS[direction]
-            if reverse_direction in self._blocked_exits(neighbor_flags):
+            if reverse_direction in self._blocked_exits(neighbor_movement):
                 continue
-            neighbor_gated = neighbor_flags.get("gated_exits", {})
-            neighbor_gated = neighbor_gated if isinstance(neighbor_gated, dict) else {}
+            neighbor_gated = self._gated_exits(neighbor_movement)
             if self._is_locked_gate(neighbor_gated.get(reverse_direction)):
                 continue
 
-            neighbor_has_road = bool(neighbor_flags.get("has_road", False))
+            neighbor_has_road = bool(neighbor_movement.get("has_road", False))
             if self._region_from_zone(str(node.zone_id)) != self._region_from_zone(str(neighbor.zone_id)) and not (
                 has_road and neighbor_has_road
             ):
@@ -81,7 +91,7 @@ class WorldNavigationService:
             title = content.get("title") or f"Путь в {nx}:{ny}"
             exits[f"nav:{neighbor_id}"] = {
                 "desc_next_room": title,
-                "time_duration": self._travel_time(flags, neighbor_flags),
+                "time_duration": self._travel_time(movement, neighbor_movement),
                 "text_button": f"На {self.RU_DIRECTIONS.get(direction, direction)}",
                 "type": "move",
                 "direction": direction,
@@ -105,25 +115,35 @@ class WorldNavigationService:
         return parts[0] if parts else zone_id
 
     @staticmethod
-    def _blocked_exits(flags: dict[str, Any]) -> set[str]:
-        blocked = flags.get("blocked_exits", flags.get("restricted_exits", []))
+    def _movement_profile(node: WorldNavigationNode) -> dict[str, Any]:
+        movement = node.movement_profile
+        return movement if isinstance(movement, dict) else {}
+
+    @staticmethod
+    def _blocked_exits(movement: dict[str, Any]) -> set[str]:
+        blocked = movement.get("blocked_exits", [])
         return set(blocked) if isinstance(blocked, list) else set()
+
+    @staticmethod
+    def _gated_exits(movement: dict[str, Any]) -> dict[str, Any]:
+        gated = movement.get("gated_exits", {})
+        return gated if isinstance(gated, dict) else {}
 
     @staticmethod
     def _is_locked_gate(gate_data: Any) -> bool:
         return isinstance(gate_data, dict) and gate_data.get("state") == "locked"
 
-    def _travel_time(self, flags: dict[str, Any], neighbor_flags: dict[str, Any]) -> float:
-        if flags.get("has_road") and neighbor_flags.get("has_road"):
+    def _travel_time(self, movement: dict[str, Any], neighbor_movement: dict[str, Any]) -> float:
+        if movement.get("has_road") and neighbor_movement.get("has_road"):
             return self.ROAD_STEP_SECONDS
 
-        current_cost = self._travel_cost(flags)
-        neighbor_cost = self._travel_cost(neighbor_flags)
+        current_cost = self._travel_cost(movement)
+        neighbor_cost = self._travel_cost(neighbor_movement)
         return round(self.BASE_STEP_SECONDS * max(current_cost, neighbor_cost), 2)
 
     @staticmethod
-    def _travel_cost(flags: dict[str, Any]) -> float:
-        value = flags.get("travel_cost", 1.0)
+    def _travel_cost(movement: dict[str, Any]) -> float:
+        value = movement.get("travel_cost", 1.0)
         try:
             return max(float(value), 1.0)
         except (TypeError, ValueError):

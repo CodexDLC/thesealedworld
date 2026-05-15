@@ -10,7 +10,7 @@ import uuid
 from datetime import datetime
 from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field
 
 Gender = Literal["male", "female", "other"]  # Возможные значения для пола персонажа.
 
@@ -94,12 +94,12 @@ class CharacterAttributesUpdateDTO(BaseModel):
     strength: int  # Сила: влияет на физический урон, переносимый вес.
     agility: int  # Ловкость: влияет на уклонение, точность, скорость атаки.
     endurance: int  # Выносливость: влияет на максимальное HP, физическое сопротивление.
-    intelligence: int  # Интеллект: влияет на магический урон, эффективность заклинаний.
-    wisdom: int  # Мудрость: влияет на магическое сопротивление, шанс крита заклинаний.
-    men: int  # Дух: влияет на максимальную энергию/ману, сопротивление контролю.
+    intellect: int  # Интеллект: влияет на магический урон, эффективность заклинаний.
+    memory: int  # Память: влияет на магическое сопротивление, шанс крита заклинаний.
+    mental: int  # Ментальность: влияет на максимальную энергию/ману, сопротивление контролю.
     perception: int  # Восприятие: влияет на шанс найти лут, обнаружение ловушек, слоты инвентаря.
-    charisma: int  # Харизма: влияет на цены у торговцев, эффективность питомцев, социальные навыки.
-    luck: int  # Удача: влияет на шанс крита, шанс найти лут, успех крафта.
+    projection: int  # Проекция: влияет на цены у торговцев, эффективность питомцев, социальные навыки.
+    prediction: int  # Предвидение: влияет на шанс крита, шанс найти лут, успех крафта.
 
 
 class CharacterAttributesReadDTO(CharacterAttributesUpdateDTO):
@@ -111,57 +111,10 @@ class CharacterAttributesReadDTO(CharacterAttributesUpdateDTO):
     created_at: datetime | None = None  # Дата и время создания записи атрибутов.
     updated_at: datetime | None = None  # Дата и время последнего обновления записи атрибутов.
     character_id: int = 0  # Added default value for dummy creation
-    intellect: int = 8
-    memory: int = 8
-    mental: int = 8
-    projection: int = 8
-    prediction: int = 8
 
     model_config = ConfigDict(from_attributes=True)
 
-    @model_validator(mode="before")
-    @classmethod
-    def _normalize_attribute_names(cls, data: Any) -> Any:
-        if data is None:
-            return data
 
-        keys = {
-            "character_id",
-            "strength",
-            "agility",
-            "endurance",
-            "perception",
-            "intelligence",
-            "wisdom",
-            "men",
-            "charisma",
-            "luck",
-            "intellect",
-            "memory",
-            "mental",
-            "projection",
-            "prediction",
-            "created_at",
-            "updated_at",
-        }
-        payload = (
-            dict(data) if isinstance(data, dict) else {key: getattr(data, key) for key in keys if hasattr(data, key)}
-        )
-        aliases = {
-            "intelligence": "intellect",
-            "wisdom": "memory",
-            "men": "mental",
-            "charisma": "projection",
-            "luck": "prediction",
-        }
-        for legacy_key, current_key in aliases.items():
-            if current_key not in payload and legacy_key in payload:
-                payload[current_key] = payload[legacy_key]
-            if legacy_key not in payload and current_key in payload:
-                payload[legacy_key] = payload[current_key]
-        return payload
-
-
-# Aliases for backward compatibility during refactoring (Optional, but safer)
+# Import compatibility aliases; the field contract is the new attribute naming.
 CharacterStatsUpdateDTO = CharacterAttributesUpdateDTO
 CharacterStatsReadDTO = CharacterAttributesReadDTO

@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-import json
-
 import pytest
 
 from src.backend.features.monsters.integrations.text_ai_client import MonsterClanTextAIClient
@@ -24,12 +22,9 @@ class FakeAI:
     def __init__(self) -> None:
         self.calls = 0
 
-    def include_router(self, router) -> None:
-        return None
-
-    async def process(self, prompt_name: str, **kwargs):
+    async def generate_json(self, prompt, *, schema, **kwargs):
         self.calls += 1
-        return json.dumps(
+        return schema.model_validate(
             {
                 "name_ru": "Стая Холодного Камня",
                 "description": "Хищники держатся у старых плит и нападают из тумана.",
@@ -44,8 +39,7 @@ class FakeAI:
                         "behavior": "Держит дистанцию и ищет слабое место.",
                     }
                 },
-            },
-            ensure_ascii=False,
+            }
         )
 
 
@@ -53,10 +47,7 @@ class FailingAI:
     def __init__(self) -> None:
         self.calls = 0
 
-    def include_router(self, router) -> None:
-        return None
-
-    async def process(self, prompt_name: str, **kwargs):
+    async def generate_json(self, prompt, *, schema, **kwargs):
         self.calls += 1
         raise RuntimeError("quota")
 
@@ -91,9 +82,9 @@ async def test_monster_clan_text_ai_client_rate_limits_between_requests(monkeypa
 @pytest.mark.unit
 async def test_monster_clan_text_ai_client_keeps_legacy_encounter_compatible(monkeypatch) -> None:
     class LegacyAI(FakeAI):
-        async def process(self, prompt_name: str, **kwargs):
+        async def generate_json(self, prompt, *, schema, **kwargs):
             self.calls += 1
-            return json.dumps(
+            return schema.model_validate(
                 {
                     "name_ru": "Стая Старого Прохода",
                     "description": "Волки держатся низины.",
@@ -105,8 +96,7 @@ async def test_monster_clan_text_ai_client_keeps_legacy_encounter_compatible(mon
                             "behavior": "Он кружит у камней.",
                         }
                     },
-                },
-                ensure_ascii=False,
+                }
             )
 
     monkeypatch.setattr(

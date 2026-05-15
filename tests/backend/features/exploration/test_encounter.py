@@ -91,9 +91,39 @@ async def test_encounter_combat_generation():
     assert encounter.type == EncounterType.COMBAT
     assert encounter.session_id == "combat-monster-test"
     assert encounter.status == DetectionStatus.DETECTED
+    assert encounter.description == "Rat scout spots you from the rubble."
     assert len(encounter.enemies) == 2
     assert integration.prepare_monster_group.await_count == 1
     assert integration.request_combat_session.await_count == 1
+
+
+@pytest.mark.asyncio
+async def test_encounter_ambush_uses_monster_ambush_text():
+    policy = EncounterPolicy()
+    policy.should_roll = lambda **_: True  # type: ignore[method-assign]
+    policy.roll = lambda **_: type(  # type: ignore[method-assign]
+        "Roll",
+        (),
+        {
+            "discovery_type": "monster",
+            "difficulty": "mid",
+            "status": DetectionStatus.AMBUSH,
+        },
+    )()
+    engine = EncounterEngine(policy=policy)
+    integration = FakeEncounterIntegration()
+
+    encounter = await engine.try_generate_encounter(
+        char_id=1,
+        location_data={"flags": {"is_safe_zone": False, "threat_tier": 1}},
+        scouting_skill=0.0,
+        loc_id="50_50",
+        gear_score=100,
+        encounter_integration=integration,
+    )
+
+    assert encounter is not None
+    assert encounter.description == "Rat scout bursts out before you can settle your stance."
 
 
 class FakeEncounterIntegration:
@@ -129,6 +159,9 @@ def _monster_group() -> MonsterGroupResult:
                 monster_id="m1",
                 name="Rat scout",
                 description="Small but alert.",
+                detected_ru="Rat scout spots you from the rubble.",
+                ambush_ru="Rat scout bursts out before you can settle your stance.",
+                idle_ru="Rat scout watches the passage.",
                 role="scout",
                 variant_key="rat_scout",
                 threat_rating=3,

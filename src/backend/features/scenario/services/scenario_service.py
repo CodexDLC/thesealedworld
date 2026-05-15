@@ -22,6 +22,7 @@ if TYPE_CHECKING:
     from src.backend.features.scenario.engine import ScenarioDirector, ScenarioEvaluator, ScenarioFormatter
     from src.backend.features.scenario.integrations.system_integrator import ScenarioSystemIntegrator
     from src.shared.schemas import ScenarioPayloadDTO
+    from src.shared.schemas.scenario import ScenarioReturnContextDTO
 
 log = logging.getLogger(__name__)
 
@@ -56,14 +57,24 @@ class ScenarioService:
     async def ensure_character_owner(self, *, user_id: UUID, char_id: int) -> None:
         await self.integrator.ensure_character_owner(user_id=user_id, char_id=char_id)
 
-    async def initialize(self, char_id: int, quest_key: str, source: str = "onboarding") -> ScenarioPayloadDTO:
+    async def initialize(
+        self,
+        char_id: int,
+        quest_key: str,
+        source: str = "onboarding",
+        *,
+        return_context: ScenarioReturnContextDTO | None = None,
+    ) -> ScenarioPayloadDTO:
+        _ = source
         master = await self.integrator.get_quest_master(quest_key)
         if master is None:
             log.warning("Scenario initialize rejected: master_missing char_id=%s quest_key=%s", char_id, quest_key)
             raise ScenarioNodeNotFound(quest_key, "START")
 
-        handler = self.integrator.build_handler(quest_key)
-        context = await handler.on_initialize(char_id, master)
+        handler = self.integrator.build_handler(master)
+        context = await handler.on_initialize(char_id, master, return_context=return_context)
+        if return_context is not None and context.return_context is None:
+            context.return_context = return_context
 
         await self.integrator.prepare_session(char_id, quest_key, context)
 
@@ -203,7 +214,7 @@ class ScenarioService:
             )
             raise ScenarioNodeNotFound(context.quest_key, "MASTER")
 
-        handler = self.integrator.build_handler(context.quest_key)
+        handler = self.integrator.build_handler(master)
         step_started_at = perf_counter()
         result = await handler.on_finalize(char_id, context, master)
         logger.info(
@@ -243,6 +254,20 @@ class ScenarioService:
             char_id,
             context.quest_key,
             len(attribute_bonuses),
+            _elapsed_ms(step_started_at),
+        )
+        step_started_at = perf_counter()
+        effect_metadata = await self.integrator.apply_finalize_effects(
+            char_id,
+            result.metadata,
+            quest_key=context.quest_key,
+        )
+        result.metadata = {**result.metadata, **effect_metadata}
+        logger.info(
+            "ScenarioFinalizeTiming | step=apply_finalize_effects char_id={} quest_key={} effect_count={} ms={}",
+            char_id,
+            context.quest_key,
+            len(effect_metadata.get("effects", {})) if isinstance(effect_metadata.get("effects"), dict) else 0,
             _elapsed_ms(step_started_at),
         )
         target_state = _finalize_target_state(result)

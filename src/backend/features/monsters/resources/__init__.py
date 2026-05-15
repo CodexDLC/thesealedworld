@@ -96,6 +96,15 @@ def get_available_variants_for_tier_window(family_id: str, tier: int, radius: in
     return [var.id for var in family.variants.values() if var.min_tier <= max_tier and var.max_tier >= min_tier]
 
 
+def get_available_variants_for_family_tier(family_id: str, tier: int) -> list[str]:
+    family = _FAMILY_REGISTRY.get(family_id)
+    if not family:
+        return []
+
+    max_tier = min(7, tier + 1)
+    return [var.id for var in family.variants.values() if var.min_tier <= max_tier and var.max_tier >= 0]
+
+
 def get_starter_family_ids() -> tuple[str, ...]:
     return STARTER_FAMILY_IDS
 

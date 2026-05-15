@@ -74,26 +74,6 @@
             </div>
         </section>
 
-        <section class="combat-panel combat-belt-panel">
-            <div class="combat-panel-header">QUICK BELT</div>
-            <div class="combat-belt-grid">
-                {% for slot in actor.quick_belt %}
-                    <button type="button"
-                            class="combat-belt-slot"
-                            disabled
-                            data-tippy-content="{{ slot.reason }}"
-                            data-tippy-theme="game-hint">
-                        {% if slot.is_empty %}
-                            <span>{{ slot.slot_index }}</span>
-                        {% else %}
-                            <span>{{ slot.slot_index }}</span>
-                            <small>{{ slot.label }}</small>
-                        {% endif %}
-                    </button>
-                {% endfor %}
-            </div>
-        </section>
-
         <section class="combat-panel combat-roster-panel">
             <div class="combat-panel-header">ALLIES</div>
             <div class="combat-roster">

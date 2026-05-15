@@ -6,7 +6,7 @@ from pydantic import BaseModel, Field
 
 
 class ItemPlacementRefDTO(BaseModel):
-    holder_type: Literal["character", "container", "corpse", "auction", "system", "scenario_reward"]
+    holder_type: Literal["character", "container", "corpse", "auction", "system", "scenario_reward", "expedition"]
     holder_id: str
     storage_type: str = "backpack"
     slot: str | None = None

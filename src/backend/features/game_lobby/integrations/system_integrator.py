@@ -30,7 +30,12 @@ if TYPE_CHECKING:
 
     from src.backend.core.bus import GameEventProducer
     from src.backend.features.character.managers import CharacterSessionManager
-    from src.backend.features.character.repositories import CharacterAttributesRepository, SkillRepository
+    from src.backend.features.character.repositories import (
+        CharacterAttributesRepository,
+        CharacterProgressionRepository,
+        SkillRepository,
+    )
+    from src.backend.features.expedition import CharacterExpeditionRepository
     from src.backend.features.inventory.repositories.items import InventoryItemRepository
 
 
@@ -61,6 +66,8 @@ class GameLobbyIntegration:
         character_repo: CharacterRepository | None = None,
         attributes_repo: CharacterAttributesRepository | None = None,
         skill_repo: SkillRepository | None = None,
+        progression_repo: CharacterProgressionRepository | None = None,
+        expedition_repo: CharacterExpeditionRepository | None = None,
         inventory_repo: InventoryItemRepository | None = None,
         item_persistence: ItemPersistenceIntegration | None = None,
         scenario_service: Any | None = None,
@@ -75,6 +82,8 @@ class GameLobbyIntegration:
         self.character_repo = character_repo
         self.attributes_repo = attributes_repo
         self.skill_repo = skill_repo
+        self.progression_repo = progression_repo
+        self.expedition_repo = expedition_repo
         self.inventory_repo = inventory_repo
         self.item_persistence = item_persistence
         if self.item_persistence is None and db_session is not None:
@@ -167,13 +176,24 @@ class GameLobbyIntegration:
             raise RuntimeError("skill_repo is required for lobby character bootstrap")
 
         if await self.character_sessions.exists(character_id):
-            await self.release_active_character(user_id=user_id, character_id=character_id)
-            await self.cleanup_runtime(character_id)
+            document = await self.character_sessions.get_session(character_id)
+            session_doc = CharacterSessionDocumentDTO.model_validate(document)
+            if session_doc.user_id != user_id:
+                raise BusinessLogicException("Персонаж недоступен")
+            logger.info(
+                "Lobby reused active character session: user_id={} char_id={} state={}",
+                user_id,
+                character_id,
+                session_doc.state,
+            )
+            return session_doc
 
         state_integrator = CharacterStateIntegrator(
             character_sessions=self.character_sessions,
             character_repo=self.character_repo,
             skill_repo=self.skill_repo,
+            progression_repo=self.progression_repo,
+            expedition_repo=self.expedition_repo,
             inventory_repo=self.inventory_repo,
         )
         session_doc = await state_integrator.bootstrap_active_session(user_id, character_id)
@@ -183,7 +203,7 @@ class GameLobbyIntegration:
     async def release_active_character(self, *, user_id: uuid.UUID, character_id: int) -> None:
         character = await self._characters().get_by_id_and_user_id(character_id, user_id)
         if character is None:
-            raise BusinessLogicException("Character is unavailable")
+            raise BusinessLogicException("Персонаж недоступен")
         if not await self.character_sessions.exists(character_id):
             return
         if self.attributes_repo is None or self.skill_repo is None:
@@ -194,6 +214,8 @@ class GameLobbyIntegration:
             character_repo=self.character_repo,
             attributes_repo=self.attributes_repo,
             skill_repo=self.skill_repo,
+            progression_repo=self.progression_repo,
+            expedition_repo=self.expedition_repo,
         )
         await sync.sync_active_session(character_id)
         await self.character_sessions.delete_session(character_id)
@@ -263,6 +285,8 @@ class GameLobbyIntegration:
                 character_repo=self.character_repo,
                 attributes_repo=self.attributes_repo,
                 skill_repo=self.skill_repo,
+                progression_repo=self.progression_repo,
+                expedition_repo=self.expedition_repo,
             )
             await sync.sync_active_session(character_id)
             return
@@ -277,11 +301,13 @@ class GameLobbyIntegration:
         if synced is None:
             logger.warning("Lobby active session snapshot sync skipped; character missing: char_id={}", character_id)
 
-    async def delete_owned_character(self, *, user_id: uuid.UUID, character_id: int) -> None:
+    async def delete_owned_character(self, *, user_id: uuid.UUID, character_id: int, confirm_name: str) -> None:
         repo = self._characters()
         character = await repo.get_by_id_and_user_id(character_id, user_id)
         if character is None:
-            raise BusinessLogicException("Character is unavailable")
+            raise BusinessLogicException("Персонаж недоступен")
+        if character.name != confirm_name:
+            raise BusinessLogicException("Имя подтверждения не совпадает")
 
         char_id = character.character_id
         await self.cleanup_runtime(char_id)
@@ -322,5 +348,5 @@ class GameLobbyIntegration:
             prev_game_stage=CoreDomain.LOBBY.value,
         )
         if not updated:
-            raise BusinessLogicException("Character is unavailable")
+            raise BusinessLogicException("Персонаж недоступен")
         await self._characters().commit()

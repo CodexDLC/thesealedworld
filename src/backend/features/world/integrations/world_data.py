@@ -14,6 +14,10 @@ class WorldZoneSeed:
     region_id: str
     biome_id: str
     tier: int
+    zone_archetype: str
+    navigation_profile_id: str
+    landmark_profile: str | None
+    population_tags: list[str]
     flags: dict[str, Any]
 
 
@@ -44,11 +48,43 @@ class WorldDataIntegration:
             region_id=str(zone.region_id),
             biome_id=str(zone.biome_id),
             tier=int(zone.tier),
+            zone_archetype=str(zone.zone_archetype),
+            navigation_profile_id=str(zone.navigation_profile_id),
+            landmark_profile=zone.landmark_profile,
+            population_tags=list(zone.population_tags or []),
             flags=dict(zone.flags or {}),
         )
 
-    async def upsert_region(self, region_id: str, *, climate_tags: list[str]) -> None:
-        await self.repository.upsert_region(region_id, climate_tags=climate_tags)
+    async def upsert_region(
+        self,
+        region_id: str,
+        *,
+        climate_tags: list[str],
+        context: dict[str, Any] | None = None,
+        biome_id: str | None = None,
+        biome_mix: dict[str, Any] | None = None,
+        region_archetype: str | None = None,
+        tier_min: int | None = None,
+        tier_max: int | None = None,
+        navigation_profile_id: str | None = None,
+        population_profile: dict[str, Any] | None = None,
+        anchor_influence: dict[str, Any] | None = None,
+        is_locked_frontier: bool = False,
+    ) -> None:
+        await self.repository.upsert_region(
+            region_id,
+            climate_tags=climate_tags,
+            context=context,
+            biome_id=biome_id,
+            biome_mix=biome_mix,
+            region_archetype=region_archetype,
+            tier_min=tier_min,
+            tier_max=tier_max,
+            navigation_profile_id=navigation_profile_id,
+            population_profile=population_profile,
+            anchor_influence=anchor_influence,
+            is_locked_frontier=is_locked_frontier,
+        )
 
     async def upsert_zone(
         self,
@@ -58,6 +94,10 @@ class WorldDataIntegration:
         biome_id: str,
         tier: int,
         flags: dict[str, Any],
+        zone_archetype: str = "wild_core",
+        navigation_profile_id: str = "open_frontier",
+        landmark_profile: str | None = None,
+        population_tags: list[str] | None = None,
     ) -> None:
         await self.repository.upsert_zone(
             zone_id,
@@ -65,6 +105,10 @@ class WorldDataIntegration:
             biome_id=biome_id,
             tier=tier,
             flags=flags,
+            zone_archetype=zone_archetype,
+            navigation_profile_id=navigation_profile_id,
+            landmark_profile=landmark_profile,
+            population_tags=population_tags or [],
         )
 
     async def save_zone_lore(self, zone: WorldZoneSeed, *, lore_name: str, lore_background: str) -> None:
@@ -77,10 +121,17 @@ class WorldDataIntegration:
             biome_id=zone.biome_id,
             tier=zone.tier,
             flags=flags,
+            zone_archetype=zone.zone_archetype,
+            navigation_profile_id=zone.navigation_profile_id,
+            landmark_profile=zone.landmark_profile,
+            population_tags=zone.population_tags,
         )
 
     async def flush(self) -> None:
         await self.repository.flush()
+
+    async def commit(self) -> None:
+        await self.repository.commit()
 
     async def get_nodes_in_rect(self, x: int, y: int, width: int, height: int) -> list[WorldGrid]:
         return await self.repository.get_nodes_in_rect(x, y, width, height)

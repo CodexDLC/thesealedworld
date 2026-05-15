@@ -30,13 +30,17 @@ class BackendSettings(BaseCommonSettings):
     game_database_url: str = (
         "postgresql+asyncpg://tbmmorpg:tbmmorpg_dev@127.0.0.1:5432/tbmmorpg_game"  # pragma: allowlist secret
     )
-    database_url: str = site_database_url
+    database_url: str = game_database_url
     database_echo: bool = False
     secret_key: str = "change-me-in-env-change-me-in-env-32-bytes"  # pragma: allowlist secret
     access_token_expire_minutes: int = 30
     refresh_token_expire_days: int = 30
     authx_jwt_algorithm: str = "HS256"
     authx_jwt_token_locations: list[Literal["headers", "cookies", "json", "query"]] = ["headers"]
+    site_to_game_service_key: str = "change-me-site-to-game-service-key"  # pragma: allowlist secret
+    frontend_internal_service_key: str | None = "dev-site-to-game-service-key"  # pragma: allowlist secret
+    game_access_token_expire_minutes: int = 15
+    game_refresh_token_expire_minutes: int = 12 * 60
     default_symbiote_name: str = "SYSTEM"
 
     # Event Streams
@@ -45,6 +49,8 @@ class BackendSettings(BaseCommonSettings):
     stream_consumer_group: str = "monolith"
     worker_name: str = "worker_1"
     stream_enabled_groups: list[str] | None = None  # None means all groups (monolith mode)
+    chat_buffer_maxlen: int = 5_000
+    chat_history_tail: int = 50
 
     @field_validator("stream_enabled_groups", mode="before")
     @classmethod
@@ -62,10 +68,20 @@ class BackendSettings(BaseCommonSettings):
     world_auto_generate: bool = False
     world_generation_mode: str = "test"
 
+    # Generated asset storage. Local dev can serve a mirror of these keys; prod can map them to S3/CDN.
+    asset_storage_backend: Literal["local", "s3"] = "local"
+    asset_public_base_url: str = "/static/generated-assets"
+    asset_local_root: str = "var/generated-assets"
+    asset_s3_bucket: str | None = None
+    asset_s3_region: str | None = None
+    asset_s3_endpoint_url: str | None = None
+    asset_s3_access_key_id: str | None = None
+    asset_s3_secret_access_key: str | None = None
+
     # LLM Settings
     gemini_api_key: str | None = None
     gemini_model: str = "gemini-2.5-flash"
-    gemini_fallback_models: list[str] = ["gemini-2.5-pro"]
+    gemini_image_model: str = "gemini-3.1-flash-image-preview"
     monster_clan_flavor_ai_interval_seconds: float = 30.0
     gemini_token: str | None = None
     openrouter_api_key: str | None = None

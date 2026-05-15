@@ -25,7 +25,7 @@ class TestScenarioContentIntegration:
         return ScenarioContentIntegration(repo, cache)
 
     async def test_get_master_cached(self, content, repo, cache):
-        cache.get_master = AsyncMock(return_value={"quest_key": "q1", "start_node_id": "n1"})
+        cache.get_master = AsyncMock(return_value=_master("q1", "n1"))
 
         result = await content.get_master("q1")
 
@@ -34,8 +34,8 @@ class TestScenarioContentIntegration:
         repo.get_master.assert_not_called()
 
     async def test_get_master_not_cached(self, content, repo, cache):
-        cache.get_master = AsyncMock(side_effect=[None, {"quest_key": "q1", "start_node_id": "n1"}])
-        repo.get_master = AsyncMock(return_value={"quest_key": "q1", "start_node_id": "n1"})
+        cache.get_master = AsyncMock(side_effect=[None, _master("q1", "n1")])
+        repo.get_master = AsyncMock(return_value=_master("q1", "n1"))
         repo.get_all_quest_nodes = AsyncMock(return_value=[])
 
         result = await content.get_master("q1")
@@ -62,7 +62,7 @@ class TestScenarioContentIntegration:
 
     async def test_get_node_not_cached(self, content, repo, cache):
         cache.get_node = AsyncMock(side_effect=[None, {"node_key": "n1", "quest_key": "q1"}])
-        repo.get_master = AsyncMock(return_value={"quest_key": "q1", "start_node_id": "n1"})
+        repo.get_master = AsyncMock(return_value=_master("q1", "n1"))
         repo.get_all_quest_nodes = AsyncMock(return_value=[{"node_key": "n1", "quest_key": "q1"}])
 
         result = await content.get_node("q1", "n1")
@@ -79,7 +79,7 @@ class TestScenarioContentIntegration:
         assert result is None
 
     async def test_get_nodes_by_pool(self, content, repo):
-        repo.get_master = AsyncMock(return_value={"quest_key": "q1", "start_node_id": "n1"})
+        repo.get_master = AsyncMock(return_value=_master("q1", "n1"))
         repo.get_all_quest_nodes = AsyncMock(return_value=[])
         repo.get_nodes_by_pool = AsyncMock(return_value=[{"node_key": "n1", "quest_key": "q1"}])
 
@@ -90,7 +90,7 @@ class TestScenarioContentIntegration:
 
     async def test_warm_up_cache_refreshes_existing_cache_from_repo(self, content, repo, cache):
         cache.exists = AsyncMock(return_value=True)
-        repo.get_master = AsyncMock(return_value={"quest_key": "q1", "start_node_id": "n1"})
+        repo.get_master = AsyncMock(return_value=_master("q1", "n1"))
         repo.get_all_quest_nodes = AsyncMock(return_value=[{"node_key": "n1", "quest_key": "q1"}])
 
         result = await content.warm_up_cache("q1")
@@ -104,3 +104,12 @@ class TestScenarioContentIntegration:
         await content.invalidate("q1")
 
         cache.invalidate.assert_awaited_once_with("q1")
+
+
+def _master(quest_key: str, start_node_id: str) -> dict[str, object]:
+    return {
+        "quest_key": quest_key,
+        "scenario_type": "dialogue_scenario",
+        "start_node_id": start_node_id,
+        "status_bar_fields": [],
+    }

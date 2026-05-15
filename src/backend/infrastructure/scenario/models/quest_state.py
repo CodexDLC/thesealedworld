@@ -7,13 +7,13 @@ from sqlalchemy import ForeignKey, Integer, String
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
-from src.backend.core.database import Base, TimestampMixin
+from src.backend.core.database import Base, LifecycleStatusMixin, RevisionMixin, SchemaVersionMixin, TimestampMixin
 
 if TYPE_CHECKING:
     import uuid
 
 
-class CharacterQuestState(Base, TimestampMixin):
+class CharacterQuestState(Base, TimestampMixin, LifecycleStatusMixin, SchemaVersionMixin, RevisionMixin):
     __tablename__ = "character_quest_state"
 
     character_id: Mapped[int] = mapped_column(
@@ -27,5 +27,6 @@ class CharacterQuestState(Base, TimestampMixin):
         nullable=False,
     )
     node_key: Mapped[str] = mapped_column(String(50), nullable=False)
+    variables: Mapped[dict[str, Any]] = mapped_column(JSONB, default=dict, nullable=False)
     context: Mapped[dict[str, Any]] = mapped_column(JSONB, default=dict, nullable=False)
     session_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)

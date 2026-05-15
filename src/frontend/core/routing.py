@@ -3,6 +3,15 @@ from collections.abc import Sequence
 from fastapi import APIRouter, FastAPI
 from loguru import logger
 
+from src.frontend.features.auth.api import router as auth_api_router
+
+# Architecture Note:
+# Features are split into two main categories:
+# 1. features: Site web logic (Authentication, User Cabinet, Library, Landing/Static pages)
+# 2. game_features: Core gameplay interactions (Lobby, Menu systems, Game Scenarios)
+from src.frontend.features.auth.routes.pages import router as auth_router
+from src.frontend.features.library.routes.pages import router as library_router
+from src.frontend.features.public_site.routes.pages import router as frontend_pages_router
 from src.frontend.game_features.arena.routes.actions import router as arena_router
 from src.frontend.game_features.character_status.routes.fragments import router as character_status_router
 from src.frontend.game_features.combat.routes.actions import router as combat_router
@@ -12,16 +21,12 @@ from src.frontend.game_features.game_lobby.routes.pages import router as game_lo
 from src.frontend.game_features.inventory.routes.fragments import router as inventory_router
 from src.frontend.game_features.scenario.routes.pages import router as scenario_router
 from src.frontend.game_features.session.routes.pages import router as game_session_router
-
-# Architecture Note:
-# Features are split into two main categories:
-# 1. site_features: Web-portal logic (Authentication, User Cabinet, Landing/Static pages)
-# 2. game_features: Core gameplay interactions (Lobby, Menu systems, Game Scenarios)
-from src.frontend.site_features.auth.routes.pages import router as auth_router
-from src.frontend.site_features.site.routes import router as frontend_pages_router
+from src.frontend.game_features.tavern.routes.actions import router as tavern_router
 
 FRONTEND_ROUTERS: Sequence[APIRouter] = (
     frontend_pages_router,
+    library_router,
+    auth_api_router,
     auth_router,
     arena_router,
     character_status_router,
@@ -31,6 +36,7 @@ FRONTEND_ROUTERS: Sequence[APIRouter] = (
     game_lobby_router,
     inventory_router,
     scenario_router,
+    tavern_router,
     game_session_router,
 )
 

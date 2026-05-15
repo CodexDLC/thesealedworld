@@ -119,6 +119,7 @@ def _write_master(fixture_dir: Path, *, quest_key: str, start_node_id: str) -> N
         json.dumps(
             {
                 "quest_key": quest_key,
+                "scenario_type": "dialogue_scenario",
                 "display_name": quest_key,
                 "start_node_id": start_node_id,
                 "status_bar_fields": [],

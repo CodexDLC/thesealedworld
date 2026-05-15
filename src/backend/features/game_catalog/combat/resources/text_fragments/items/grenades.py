@@ -1,0 +1,103 @@
+ITEM_GRENADE_PHRASES = {
+    "item_use": {
+        "item.grenade.fire.use.throw": {
+            "kind": "item_use",
+            "text": "{source} бросает {item}",
+            "variables": ["source", "item"],
+            "tags": ["item", "grenade", "throw"],
+        },
+        "item.grenade.fire.use.break": {
+            "kind": "item_use",
+            "text": "{source} разбивает {item}",
+            "variables": ["source", "item"],
+            "tags": ["item", "grenade", "break"],
+        },
+    },
+    "item_target_result": {
+        "item.grenade.fire.target.hit": {
+            "kind": "item_target_result",
+            "text": "{target} получает {damage} урона от взрыва",
+            "variables": ["target", "damage"],
+            "tags": ["item", "grenade", "damage"],
+        },
+        "item.grenade.fire.target.apply_burn": {
+            "kind": "item_target_result",
+            "text": "{effect} охватывает {target}",
+            "variables": ["effect", "target"],
+            "tags": ["item", "grenade", "effect"],
+        },
+        "item.grenade.fire.target.miss": {
+            "kind": "item_target_result",
+            "text": "{target} выходит из зоны взрыва",
+            "variables": ["target"],
+            "tags": ["item", "grenade", "miss"],
+        },
+    },
+    "item_resource": {
+        "item.grenade.fire.resource.no_resource": {
+            "kind": "item_resource",
+            "text": "{source} тянется к {item}, но не может использовать предмет",
+            "variables": ["source", "item"],
+            "tags": ["item", "grenade", "no_resource"],
+        },
+    },
+}
+
+GRENADE_ITEM_TEMPLATE_EXAMPLES = (
+    {
+        "template_key": "combat.item.fire_grenade.use.area",
+        "resource_type": "item",
+        "resource_id": "fire_grenade",
+        "catalog_key": "combat.item.fire_grenade",
+        "outcome": "area_result",
+        "delivery": "area",
+        "pattern": "{use}: {target_results}.",
+        "phrase_keys": {"use": "item.grenade.fire.use.throw"},
+        "slots": {"target_results": "list"},
+        "joiners": {"target_results": ", "},
+        "tags": ["item", "grenade", "area"],
+    },
+    {
+        "template_key": "combat.item.fire_grenade.no_resource",
+        "resource_type": "item",
+        "resource_id": "fire_grenade",
+        "catalog_key": "combat.item.fire_grenade",
+        "outcome": "no_resource",
+        "pattern": "{resource_result}.",
+        "phrase_keys": {"resource_result": "item.grenade.fire.resource.no_resource"},
+        "tags": ["item", "grenade", "no_resource"],
+    },
+    {
+        "template_key": "combat.item.fire_grenade.target.hit.humanoid",
+        "resource_type": "item",
+        "resource_id": "fire_grenade",
+        "catalog_key": "combat.item.fire_grenade",
+        "outcome": "hit",
+        "target_body": "humanoid",
+        "pattern": "{target_result}",
+        "phrase_keys": {"target_result": "item.grenade.fire.target.hit"},
+        "tags": ["item", "grenade", "target", "hit", "humanoid"],
+    },
+    {
+        "template_key": "combat.item.fire_grenade.target.apply.humanoid",
+        "resource_type": "item",
+        "resource_id": "fire_grenade",
+        "catalog_key": "combat.item.fire_grenade",
+        "outcome": "apply",
+        "target_body": "humanoid",
+        "pattern": "{target_result}",
+        "phrase_keys": {"target_result": "item.grenade.fire.target.apply_burn"},
+        "tags": ["item", "grenade", "target", "apply", "humanoid"],
+    },
+    {
+        "template_key": "combat.item.fire_grenade.target.miss.humanoid",
+        "resource_type": "item",
+        "resource_id": "fire_grenade",
+        "catalog_key": "combat.item.fire_grenade",
+        "outcome": "miss",
+        "target_body": "humanoid",
+        "pattern": "{target_result}",
+        "phrase_keys": {"target_result": "item.grenade.fire.target.miss"},
+        "tags": ["item", "grenade", "target", "miss", "humanoid"],
+    },
+)

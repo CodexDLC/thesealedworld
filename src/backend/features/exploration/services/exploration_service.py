@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import logging
+import random
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, cast
 
@@ -9,6 +10,11 @@ from pydantic import ValidationError
 
 from src.backend.features.exploration.dto.config import ExplorationConfig
 from src.backend.features.exploration.resources.service_registry import get_service_entry
+from src.backend.features.exploration.runtime.encounter.bypass import (
+    bypass_chance_percent,
+    calculate_bypass_chance,
+    encounter_with_bypass_chance,
+)
 from src.backend.features.exploration.runtime.navigation import NavigationEngine
 from src.shared.enums import CoreDomain
 from src.shared.schemas.exploration import (
@@ -88,7 +94,7 @@ class ExplorationService:
         target_loc_data = await self._integrator.get_location_data(target_loc_id)
         if target_loc_data:
             skills = await self._integrator.get_actor_skills(char_id)
-            scouting = skills.get("survival", 0.0)
+            scouting = self._encounter_skill_value(skills, trigger="move")
 
             encounter = await self._encounter_engine.try_generate_encounter(
                 char_id=char_id,
@@ -102,6 +108,7 @@ class ExplorationService:
                 # Still move the player to the target location where encounter happens
                 await self._integrator.move_player(char_id, current_loc_id, target_loc_id)
                 encounter = await self._attach_navigation_snapshot(char_id, target_loc_id, target_loc_data, encounter)
+                encounter = await self._attach_bypass_chance(char_id, encounter)
                 await self._persist_encounter(char_id, encounter)
                 return encounter
 
@@ -146,10 +153,33 @@ class ExplorationService:
 
         if action == "bypass":
             if active_encounter is not None:
-                await self._clear_active_encounter(char_id, active_encounter.encounter_id)
-                dto = await self._build_navigation_dto(char_id, loc_id, loc_data)
-                dto.hud = AlertHudDTO(message="Опасность миновала. Вы решили обойти угрозу.", style="info")
-                return dto
+                skills = await self._integrator.get_actor_skills(char_id)
+                chance = calculate_bypass_chance(skills)
+                roll = random.random()
+                if roll <= chance:
+                    await self._clear_active_encounter(char_id, active_encounter.encounter_id)
+                    dto = await self._build_navigation_dto(char_id, loc_id, loc_data)
+                    dto.hud = AlertHudDTO(message="Опасность миновала. Вы решили обойти угрозу.", style="info")
+                    return dto
+
+                encounter = encounter_with_bypass_chance(
+                    active_encounter.payload,
+                    chance,
+                    result={
+                        "success": False,
+                        "chance_percent": bypass_chance_percent(chance),
+                        "roll_percent": bypass_chance_percent(roll),
+                    },
+                )
+                await self._patch_active_encounter_payload(active_encounter.encounter_id, encounter)
+                return ServiceResult(
+                    data={
+                        "status": "bypass_failed_entering_combat",
+                        "encounter_id": active_encounter.encounter_id,
+                        "bypass_result": encounter.metadata.get("bypass_result"),
+                    },
+                    next_state=CoreDomain.COMBAT,
+                )
             return await self.look_around(char_id)
 
         if active_encounter is not None:
@@ -158,13 +188,14 @@ class ExplorationService:
         # --- Exploration Actions ---
         if action == "search":
             skills = await self._integrator.get_actor_skills(char_id)
-            scouting = skills.get("survival", 0.0)
+            scouting = self._encounter_skill_value(skills, trigger="search")
 
             encounter = await self._encounter_engine.try_generate_encounter(
                 char_id=char_id, location_data=loc_data, scouting_skill=scouting, trigger="search", loc_id=loc_id
             )
             if encounter:
                 encounter = await self._attach_navigation_snapshot(char_id, loc_id, loc_data, encounter)
+                encounter = await self._attach_bypass_chance(char_id, encounter)
                 await self._persist_encounter(char_id, encounter)
                 return encounter
 
@@ -286,6 +317,8 @@ class ExplorationService:
 
         # Используем NavigationEngine для сборки сетки
         exits = loc_data.get("exits", {})
+        world_zone = loc_data.get("world_zone", {})
+        world_zone = world_zone if isinstance(world_zone, dict) else {}
         grid = NavigationEngine.build_grid(loc_id, exits, flags, anchor_influence)
         navigation = NavigationEngine.build_actions(loc_id, exits, flags, anchor_influence)
 
@@ -316,6 +349,16 @@ class ExplorationService:
             hud=hud,
             threat_tier=int(flags.get("threat_tier", 0)),
             is_safe_zone=is_safe_zone,
+            zone_id=str(loc_data.get("zone_id") or world_zone.get("id") or ""),
+            terrain=str(loc_data.get("terrain") or ""),
+            biome_id=str(loc_data.get("biome_id") or world_zone.get("biome_id") or ""),
+            node_type=str(loc_data.get("node_type") or ""),
+            zone_archetype=str(world_zone.get("zone_archetype") or ""),
+            navigation_profile_id=str(loc_data.get("navigation_profile_id") or world_zone.get("navigation_profile_id") or ""),
+            buildable_kind=loc_data.get("buildable_kind"),
+            landmark_profile=loc_data.get("landmark_profile") or world_zone.get("landmark_profile"),
+            movement_profile=loc_data.get("movement_profile") if isinstance(loc_data.get("movement_profile"), dict) else {},
+            world_zone=world_zone,
         )
         if dto.world_theme is not None and hasattr(dto.world_theme, "model_dump"):
             await self._integrator.set_world_theme(char_id, dto.world_theme.model_dump(mode="json"))
@@ -325,6 +368,15 @@ class ExplorationService:
     def _safe_threat(value: object) -> float:
         try:
             return max(0.0, min(1.0, float(cast("Any", value))))
+        except (TypeError, ValueError):
+            return 0.0
+
+    @staticmethod
+    def _encounter_skill_value(skills: dict[str, Any], *, trigger: str) -> float:
+        skill_key = "skill_pathfinder" if trigger == "move" else "skill_scouting"
+        raw = skills.get(skill_key, 0.0)
+        try:
+            return max(0.0, float(cast("Any", raw)))
         except (TypeError, ValueError):
             return 0.0
 
@@ -368,6 +420,7 @@ class ExplorationService:
                         char_id,
                         encounter_id,
                     )
+        encounter = await self._attach_bypass_chance(char_id, encounter)
         return _ActiveEncounter(encounter_id=encounter_id, payload=encounter)
 
     async def _persist_encounter(self, char_id: int, encounter: EncounterDTO) -> None:
@@ -396,6 +449,24 @@ class ExplorationService:
         metadata = dict(encounter.metadata or {})
         metadata["navigation"] = navigation.model_dump(mode="json")
         return encounter.model_copy(update={"metadata": metadata})
+
+    async def _attach_bypass_chance(self, char_id: int, encounter: EncounterDTO) -> EncounterDTO:
+        skills = await self._integrator.get_actor_skills(char_id)
+        return encounter_with_bypass_chance(encounter, calculate_bypass_chance(skills))
+
+    async def _patch_active_encounter_payload(self, encounter_id: str, encounter: EncounterDTO) -> None:
+        if self._encounter_integration is None:
+            return
+        try:
+            await self._encounter_integration.patch_encounter_session(
+                encounter_id,
+                {"payload": encounter.model_dump(mode="json")},
+            )
+        except Exception:  # noqa: BLE001
+            log.warning(
+                "ExplorationService | encounter_bypass_patch_failed encounter=%s",
+                encounter_id,
+            )
 
     async def _clear_active_encounter(self, char_id: int, encounter_id: str) -> None:
         if self._encounter_integration is None:

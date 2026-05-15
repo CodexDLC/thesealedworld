@@ -1,0 +1,15 @@
+@import url("prototype_imports.css");
+@import url("components/prototype-board.css");
+@import url("components/purpose-board.css");
+@import url("components/mobile-screen.css");
+@import url("components/mobile-chat.css");
+@import url("components/game-shell.css");
+@import url("components/action-panel.css");
+@import url("components/panel-dock.css");
+@import url("components/status-panel.css");
+@import url("components/info-panel.css");
+@import url("screens/inventory.css");
+@import url("screens/panels.css");
+@import url("layouts/mobile.css");
+@import url("layouts/tablet.css");
+@import url("layouts/desktop.css");

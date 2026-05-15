@@ -16,7 +16,7 @@ MACING_DB = {
         narrative_tags=["axe", "macing", "crude", "chop"],
         implicit_bonuses={
             "accuracy_penalty": 0.12,
-            "main_hand_penetration": 0.05,
+            "main_hand_armor_penetration_pct": 0.05,
             "physical_crit_chance": 0.03,
         },
         triggers=["crit.weapon_heavy_crit"],
@@ -36,7 +36,7 @@ MACING_DB = {
         narrative_tags=["axe", "macing", "brutal", "chop"],
         implicit_bonuses={
             "accuracy_penalty": 0.16,
-            "main_hand_penetration": 0.12,
+            "main_hand_armor_penetration_pct": 0.12,
             "physical_crit_chance": 0.05,
         },
         triggers=["crit.weapon_heavy_crit"],
@@ -56,7 +56,7 @@ MACING_DB = {
         narrative_tags=["mace", "macing", "blunt", "armor_break"],
         implicit_bonuses={
             "accuracy_penalty": 0.10,
-            "main_hand_penetration": 0.10,
+            "main_hand_armor_penetration_pct": 0.10,
             "physical_crit_chance": 0.03,
         },
         triggers=["crit.weapon_impact_stun_crit"],
@@ -76,7 +76,7 @@ MACING_DB = {
         narrative_tags=["hammer", "macing", "smash", "heavy"],
         implicit_bonuses={
             "accuracy_penalty": 0.24,
-            "main_hand_penetration": 0.22,
+            "main_hand_armor_penetration_pct": 0.22,
             "physical_crit_chance": 0.05,
             "parry_chance": 0.03,
             "evasion_penalty": -0.10,
@@ -98,7 +98,7 @@ MACING_DB = {
         narrative_tags=["flail", "macing", "chain", "shield_bypass"],
         implicit_bonuses={
             "accuracy_penalty": 0.18,
-            "main_hand_penetration": 0.08,
+            "main_hand_armor_penetration_pct": 0.08,
             "physical_crit_chance": 0.06,
         },
         triggers=["crit.weapon_shieldbreaker_crit"],

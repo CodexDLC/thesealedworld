@@ -280,7 +280,7 @@ Example pool direction:
 
 ```python
 AFFIX_POOLS_BY_ITEM_TYPE = {
-    "weapon": ["weapon_accuracy", "weapon_penetration", "crit_chance"],
+    "weapon": ["weapon_accuracy", "weapon_armor_penetration_pct", "crit_chance"],
     "shield": ["block", "shield_guard_power", "parry", "armor"],
     "armor": ["armor", "physical_resistance", "evasion"],
     "garment": ["environment_heat_resistance", "environment_cold_resistance", "travel_comfort"],
@@ -289,7 +289,7 @@ AFFIX_POOLS_BY_ITEM_TYPE = {
 }
 
 AFFIX_POOLS_BY_SLOT = {
-    "main_hand": ["weapon_accuracy", "weapon_penetration", "crit_chance"],
+    "main_hand": ["weapon_accuracy", "weapon_armor_penetration_pct", "crit_chance"],
     "off_hand": ["block", "parry", "shield_guard_power"],
     "body": ["armor", "physical_resistance"],
     "feet": ["evasion", "travel_speed"],

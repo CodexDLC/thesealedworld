@@ -5,6 +5,7 @@ import pytest
 from src.backend.features.items.dto.instance import RuntimeItemProjectionDTO
 from src.backend.features.monsters.dto.generation import GeneratedClan, MonsterGenerationContext
 from src.backend.features.monsters.runtime.generation_builder import MonsterClanGenerationBuilder
+from src.backend.features.monsters.runtime.hashing import compute_context_hash, normalize_tags
 
 
 class FakeRepository:
@@ -125,17 +126,19 @@ async def test_generation_builder_creates_active_clan_with_budgeted_members_and_
     assert 1 <= len(clan.members) <= 12
     assert len(item_generation.batches) == 1
     assert len(item_generation.batches[0]) == len(clan.members) * 2
-    assert {request.base_id for request in item_generation.batches[0]} <= {"dagger", "leather_armor"}
+    assert {request.base_id for request in item_generation.batches[0]} <= {"rat_bite_claws", "light_hide"}
 
     first = clan.members[0]
-    assert first.loadout_ids["layout"]["equipment"]
-    assert first.combat_seed["schema_version"] == 2
-    template = first.combat_seed["generated_template"]
-    assert template["items"]["by_id"]
-    assert template["scaled_attributes"]["endurance"] == first.scaled_base_stats["endurance"]
-    assert template["text_content"]["detected_ru"]
-    assert template["text_content"]["ambush_ru"]
-    assert template["text_content"]["idle_ru"]
+    assert first.items["layout"]["equipment"]
+    assert first.generation_meta["schema_version"] == 2
+    assert first.generation_meta["visual"]["status"] == "fallback"
+    assert first.generation_meta["visual"]["image_url"] == "/static/images/monsters/families/rat_swarm.svg"
+    assert first.items["by_id"]
+    assert first.scaled_attributes["endurance"] > 0
+    assert first.vitals["hp"]["max"] > 0
+    assert first.text_content["detected_ru"]
+    assert first.text_content["ambush_ru"]
+    assert first.text_content["idle_ru"]
 
 
 @pytest.mark.unit
@@ -219,8 +222,30 @@ async def test_generation_builder_uses_text_ai_flavor_for_new_template() -> None
         "behavior",
     ]
     assert clan.name_ru == "Рой Черного Камня"
-    template = clan.members[0].combat_seed["generated_template"]
-    assert template["text_content"]["name_ru"] == "Каменная крыса"
-    assert template["text_content"]["detected_ru"] == "Крыса пятится к щели и следит за движением."
-    assert template["text_content"]["ambush_ru"] == "Крыса бросается из щели первой."
-    assert template["text_content"]["idle_ru"] == "Крыса грызет обломок у стены."
+    assert clan.flavor_content["visual"]["image_url"] == "/static/images/monsters/families/rat_swarm.svg"
+    text = clan.members[0].text_content
+    assert text["name_ru"] == "Каменная крыса"
+    assert text["detected_ru"] == "Крыса пятится к щели и следит за движением."
+    assert text["ambush_ru"] == "Крыса бросается из щели первой."
+    assert text["idle_ru"] == "Крыса грызет обломок у стены."
+
+
+@pytest.mark.unit
+def test_d4_context_tags_are_preserved_for_clan_hashing() -> None:
+    tags = normalize_tags(["d4_rift_rat_king", "rat_swarm", "unknown_noise"])
+
+    assert tags == ["d4_rift_rat_king", "rat_swarm"]
+    assert compute_context_hash(2, "city_ruins", tags) != compute_context_hash(2, "city_ruins", [])
+
+
+@pytest.mark.unit
+def test_d4_rat_rift_family_is_available_at_tier_two() -> None:
+    builder = MonsterClanGenerationBuilder(repository=FakeRepository(), item_generation=FakeItemGeneration())
+    context = MonsterGenerationContext(
+        zone_id="D4_0_0",
+        biome_id="city_ruins",
+        tier=2,
+        tags=["d4_rift_rat_king", "rat_swarm"],
+    )
+
+    assert builder.get_available_family_ids(context) == ["rat_swarm"]

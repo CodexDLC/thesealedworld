@@ -28,8 +28,8 @@ ENV PATH="/venv/bin:$PATH" \
     PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1
 
-COPY src/chat   ./src/chat
-COPY src/shared ./src/shared
+COPY src/backend ./src/backend
+COPY src/shared  ./src/shared
 
 RUN chown -R appuser:appuser /app
 USER appuser

@@ -23,6 +23,7 @@ class MonsterGenerationContext(BaseModel):
     difficulty: str = "mid"
     role: str | None = None
     count: int = Field(default=1, ge=1)
+    context_meta: dict[str, Any] = Field(default_factory=dict)
 
 
 class EncounterMonsterResult(BaseModel):
@@ -47,8 +48,12 @@ class MonsterGroupMemberPreview(BaseModel):
     monster_id: str
     name: str
     description: str
+    detected_ru: str = ""
+    ambush_ru: str = ""
+    idle_ru: str = ""
     role: str
     variant_key: str
+    member_tier: int = 0
     threat_rating: int
     hp: dict[str, Any] = Field(default_factory=dict)
     tags: list[str] = Field(default_factory=list)
@@ -222,6 +227,13 @@ class GeneratedMonsterTemplateDTO(BaseModel):
     balance: MonsterBalanceDTO
 
 
+class MonsterVitalsDTO(BaseModel):
+    hp: dict[str, Any] = Field(default_factory=dict)
+    energy: dict[str, Any] = Field(default_factory=dict)
+    stamina: dict[str, Any] = Field(default_factory=dict)
+    last_update: float | None = None
+
+
 @dataclass(slots=True)
 class GeneratedClan:
     id: uuid.UUID
@@ -243,14 +255,17 @@ class GeneratedMonster:
     clan_id: uuid.UUID
     variant_key: str
     role: str
+    member_tier: int
     threat_rating: int
     name_ru: str
     description: str
-    scaled_base_stats: dict[str, int]
-    loadout_ids: dict[str, str] | list[str]
-    skills_snapshot: list[str] | dict[str, Any]
-    combat_seed: dict[str, Any] = field(default_factory=dict)
-    current_state: dict[str, Any] | None = None
+    text_content: dict[str, Any]
+    scaled_attributes: dict[str, int]
+    scaled_skills: dict[str, Any]
+    items: dict[str, Any]
+    vitals: dict[str, Any]
+    ai_profile: dict[str, Any]
+    generation_meta: dict[str, Any] = field(default_factory=dict)
     clan: GeneratedClan | None = None
 
     @property

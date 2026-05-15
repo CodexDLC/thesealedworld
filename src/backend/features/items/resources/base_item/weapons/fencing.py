@@ -60,7 +60,7 @@ FENCING_DB = {
         implicit_bonuses={
             "accuracy_penalty": 0.05,
             "physical_crit_chance": 0.13,
-            "weapon_penetration": 0.10,
+            "weapon_armor_penetration_pct": 0.10,
             "parry_chance": 0.08,
         },
         triggers=["crit.weapon_piercing_crit"],
@@ -123,7 +123,7 @@ FENCING_DB = {
         implicit_bonuses={
             "accuracy_penalty": 0.08,
             "physical_crit_chance": 0.14,
-            "weapon_penetration": 0.12,
+            "weapon_armor_penetration_pct": 0.12,
             "parry_chance": 0.06,
         },
         triggers=["crit.weapon_piercing_crit"],

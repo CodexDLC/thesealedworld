@@ -68,6 +68,46 @@ window.gameShell = function(initial = {}) {
         const scope = activeCharId || "global";
         return `tbmmorpg:hud:${name}:open:${scope}:v1`;
     };
+    const panelStateStorageKey = () => {
+        const scope = activeCharId || "global";
+        const domainScope = domain || "global";
+        const viewportScope = isDrawerViewport() ? "drawer" : "desktop";
+        return `tbmmorpg:shell:panels:${domainScope}:${scope}:${viewportScope}:v1`;
+    };
+    const isDrawerViewport = () => window.matchMedia("(max-width: 1024px)").matches;
+    const explorationDesktopPanelsDefaultOpen = () => {
+        if (domain !== "exploration") return false;
+        return window.matchMedia("(min-width: 1025px)").matches;
+    };
+    const loadPanelState = () => {
+        try {
+            const raw = window.localStorage.getItem(panelStateStorageKey());
+            if (!raw) return null;
+            const saved = JSON.parse(raw);
+            if (typeof saved?.leftOpen !== "boolean" || typeof saved?.rightOpen !== "boolean") return null;
+            return {
+                leftOpen: saved.leftOpen,
+                rightOpen: saved.rightOpen,
+                leftPanelView: typeof saved.leftPanelView === "string" ? saved.leftPanelView : "status",
+                rightPanelView: typeof saved.rightPanelView === "string" ? saved.rightPanelView : "context",
+            };
+        } catch (_error) {
+            window.localStorage.removeItem(panelStateStorageKey());
+            return null;
+        }
+    };
+    const savePanelState = (state) => {
+        try {
+            window.localStorage.setItem(panelStateStorageKey(), JSON.stringify({
+                leftOpen: Boolean(state.leftOpen),
+                rightOpen: Boolean(state.rightOpen),
+                leftPanelView: state.leftPanelView || "status",
+                rightPanelView: state.rightPanelView || "context",
+            }));
+        } catch (_error) {
+            return;
+        }
+    };
     const loadHudOpenState = (name) => {
         try {
             const raw = window.localStorage.getItem(hudOpenStorageKey(name));
@@ -129,6 +169,14 @@ window.gameShell = function(initial = {}) {
         }));
     };
     loadHudGeometry("inventory", inventoryWindow);
+    const savedPanelState = loadPanelState();
+    const defaultPanelsOpen = explorationDesktopPanelsDefaultOpen();
+    const initialPanelState = savedPanelState || {
+        leftOpen: !isDrawerViewport() && (defaultPanelsOpen || Boolean(initial.leftOpen)),
+        rightOpen: !isDrawerViewport() && (defaultPanelsOpen || Boolean(initial.rightOpen)),
+        leftPanelView: "status",
+        rightPanelView: "context",
+    };
     const chatLauncher = {
         x: null,
         y: null,
@@ -143,42 +191,61 @@ window.gameShell = function(initial = {}) {
     return {
         chatTab: "global",
         chatHeight: Alpine.$persist(200),
-        chatMinimized: Alpine.$persist(false),
-        chatStep: Alpine.$persist(1),
-        chatClosed: Alpine.$persist(false),
+        chatMinimized: true,
+        chatStep: 0,
+        chatClosed: false,
         chatUnread: false,
         selectedAgentId: activeCharId,
         domain,
         agents: {
             [activeCharId]: initial.initialStatus || {},
         },
-        leftPanelView: "status",
-        rightPanelView: "context",
+        leftPanelView: initialPanelState.leftPanelView,
+        rightPanelView: initialPanelState.rightPanelView,
+        panelStateUserEdited: savedPanelState !== null,
         windows: {
             inventory: inventoryWindow,
         },
         chatLauncher,
-        leftOpen: Boolean(initial.leftOpen),
-        rightOpen: Boolean(initial.rightOpen),
+        leftOpen: initialPanelState.leftOpen,
+        rightOpen: initialPanelState.rightOpen,
 
         togglePanel(detail = {}) {
             if (detail.side === "left") {
                 const nextView = detail.view || this.leftPanelView;
                 if (this.leftOpen && this.leftPanelView === nextView) {
                     this.leftOpen = false;
+                    this.panelStateUserEdited = true;
+                    savePanelState(this);
                     return;
                 }
                 if (detail.view) this.leftPanelView = detail.view;
                 this.leftOpen = true;
+                this.panelStateUserEdited = true;
+                savePanelState(this);
             }
             if (detail.side === "right") {
                 const nextView = detail.view || this.rightPanelView;
                 if (this.rightOpen && this.rightPanelView === nextView) {
                     this.rightOpen = false;
+                    this.panelStateUserEdited = true;
+                    savePanelState(this);
                     return;
                 }
                 if (detail.view) this.rightPanelView = detail.view;
                 this.rightOpen = true;
+                this.panelStateUserEdited = true;
+                savePanelState(this);
+            }
+        },
+
+        applySessionPanelState(state = {}) {
+            if (this.panelStateUserEdited || explorationDesktopPanelsDefaultOpen()) return;
+            if (Object.prototype.hasOwnProperty.call(state, "left_open")) {
+                this.leftOpen = Boolean(state.left_open);
+            }
+            if (Object.prototype.hasOwnProperty.call(state, "right_open")) {
+                this.rightOpen = Boolean(state.right_open);
             }
         },
 

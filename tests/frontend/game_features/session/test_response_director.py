@@ -10,11 +10,22 @@ from src.shared.schemas.world_theme import WorldThemeDTO
 
 
 class FakeSessionContextBuilder:
-    async def build(self, request, *, state, char_id, quest_key=None):
+    async def build(
+        self,
+        request,
+        *,
+        state,
+        char_id,
+        quest_key=None,
+        transition_context=None,
+        transition_metadata=None,
+    ):
         return {
             "domain": state,
             "char_id": char_id,
             "quest_key": quest_key,
+            "transition_context": transition_context,
+            "transition_metadata": transition_metadata,
             "scenario": None,
             "exploration": SimpleNamespace(title="Loaded"),
         }
@@ -81,6 +92,57 @@ async def test_response_director_can_redirect_state_transition_to_session_shell(
 
 
 @pytest.mark.asyncio
+async def test_response_director_builds_arena_transition_before_redirect():
+    director = ResponseDirector(context_builder=FakeSessionContextBuilder())
+    response = CoreResponseDTO(
+        header=GameStateHeader(current_state=CoreDomain.ARENA, previous_state=CoreDomain.EXPLORATION),
+        payload=StateTransitionDTO(char_id=7, target_state=CoreDomain.ARENA, reason="exploration_service_entry"),
+        payload_type="state_transition",
+    )
+
+    template, context = await director.resolve(
+        SimpleNamespace(),
+        response,
+        source_state=CoreDomain.EXPLORATION,
+        char_id=7,
+        redirect_transitions=True,
+    )
+
+    assert template == "game/session_content.html"
+    assert context["domain"] == CoreDomain.ARENA
+    assert context["char_id"] == 7
+
+
+@pytest.mark.asyncio
+async def test_response_director_builds_tavern_transition_before_redirect():
+    director = ResponseDirector(context_builder=FakeSessionContextBuilder())
+    response = CoreResponseDTO(
+        header=GameStateHeader(current_state=CoreDomain.TAVERN, previous_state=CoreDomain.EXPLORATION),
+        payload=StateTransitionDTO(
+            char_id=7,
+            target_state=CoreDomain.TAVERN,
+            reason="exploration_service_entry",
+            context={"return_context": {"return_screen": "bar"}},
+            metadata={"tavern_id": "last_refuge"},
+        ),
+        payload_type="state_transition",
+    )
+
+    template, context = await director.resolve(
+        SimpleNamespace(),
+        response,
+        source_state=CoreDomain.EXPLORATION,
+        char_id=7,
+        redirect_transitions=True,
+    )
+
+    assert template == "game/session_content.html"
+    assert context["domain"] == CoreDomain.TAVERN
+    assert context["transition_context"] == {"return_context": {"return_screen": "bar"}}
+    assert context["transition_metadata"] == {"tavern_id": "last_refuge"}
+
+
+@pytest.mark.asyncio
 async def test_response_director_renders_exploration_center_for_same_state_payload():
     director = ResponseDirector(context_builder=FakeSessionContextBuilder())
     payload = WorldNavigationDTO(
@@ -131,3 +193,26 @@ async def test_response_director_renders_scenario_center_with_inner_oob_panels()
     assert template == "game/domains/scenario/viewport/main.html"
     assert context["oob_panels"] is True
     assert context["session_ui"] == {"left_open": True, "right_open": True}
+
+
+@pytest.mark.asyncio
+async def test_response_director_renders_tavern_center_for_same_state_payload():
+    director = ResponseDirector(context_builder=FakeSessionContextBuilder())
+    payload = SimpleNamespace(screen="bar")
+    response = CoreResponseDTO(
+        header=GameStateHeader(current_state=CoreDomain.TAVERN),
+        payload=payload,
+        payload_type="tavern_screen",
+    )
+
+    template, context = await director.resolve(
+        SimpleNamespace(),
+        response,
+        source_state=CoreDomain.TAVERN,
+        char_id=7,
+    )
+
+    assert template == "game/domains/tavern/viewport/main.html"
+    assert context["tavern"] == payload
+    assert context["payload_type"] == "tavern_screen"
+    assert context["oob_panels"] is True

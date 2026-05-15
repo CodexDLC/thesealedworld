@@ -89,7 +89,8 @@ class MainHandStatsDTO(BaseModel):
     main_hand_damage_base: float = 0.0
     main_hand_damage_spread: float = 0.1
     main_hand_damage_bonus: float = 0.0
-    main_hand_penetration: float = 0.0
+    main_hand_armor_penetration_pct: float = 0.0
+    main_hand_armor_ignore_chance: float = 0.0
     main_hand_accuracy: float = 0.0
     main_hand_crit_chance: float = 0.0
     main_hand_crit_cap: float = 0.75
@@ -101,7 +102,8 @@ class OffHandStatsDTO(BaseModel):
     off_hand_damage_base: float = 0.0
     off_hand_damage_spread: float = 0.1
     off_hand_damage_bonus: float = 0.0
-    off_hand_penetration: float = 0.0
+    off_hand_armor_penetration_pct: float = 0.0
+    off_hand_armor_ignore_chance: float = 0.0
     off_hand_accuracy: float = 0.0
     off_hand_crit_chance: float = 0.0
     off_hand_crit_cap: float = 0.75
@@ -113,7 +115,8 @@ class ItemStatsDTO(BaseModel):
     item_damage_base: float = 0.0
     item_damage_spread: float = 0.1
     item_damage_bonus: float = 0.0
-    item_penetration: float = 0.0
+    item_armor_penetration_pct: float = 0.0
+    item_armor_ignore_chance: float = 0.0
     item_accuracy: float = 0.0
     item_crit_chance: float = 0.0
     item_crit_cap: float = 0.75
@@ -125,7 +128,10 @@ class PhysicalStatsDTO(BaseModel):
     physical_damage: float = 0.0
     physical_damage_bonus: float = 0.0
     accuracy: float = 0.0
-    armor_penetration: float = 0.0
+    physical_suppression: float = 0.0
+    armor_penetration_pct: float = 0.0
+    armor_penetration_flat: float = 0.0
+    armor_ignore_chance: float = 0.0
     crit_chance: float = 0.0
     crit_power: float = 0.0
 

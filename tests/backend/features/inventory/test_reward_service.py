@@ -18,10 +18,16 @@ class FakeInventoryRepository:
         self.saved: dict[str, InventoryRuntimeItemDTO] | None = None
         self.flushed = False
 
-    async def list_character_items(self, char_id: int):
+    async def list_character_items(self, char_id: int, *, expedition_run_id: str | None = None):
         return [(FakeInstance(item), FakePlacement(item)) for item in self.items.values()]
 
-    async def save_placements(self, char_id: int, items: dict[str, InventoryRuntimeItemDTO]) -> None:
+    async def save_placements(
+        self,
+        char_id: int,
+        items: dict[str, InventoryRuntimeItemDTO],
+        *,
+        expedition_run_id: str | None = None,
+    ) -> None:
         self.saved = items
         self.items = dict(items)
 
@@ -49,6 +55,7 @@ class FakeInstance:
 
 class FakePlacement:
     def __init__(self, item: InventoryRuntimeItemDTO) -> None:
+        self.holder_type = "character"
         self.storage_type = item.placement
         self.slot = item.slot if item.placement != "backpack" else None
 

@@ -25,6 +25,9 @@ class FakeExplorationIntegrator:
     async def get_battles(self, loc_id: str) -> dict[str, str]:
         return {}
 
+    async def get_actor_skills(self, char_id: int) -> dict[str, float]:
+        return {"skill_scouting": 0.0, "skill_pathfinder": 0.0, "skill_hunting": 0.0}
+
     async def set_world_theme(self, char_id: int, world_theme: dict) -> None:
         return None
 
@@ -86,6 +89,26 @@ async def test_use_service_returns_backend_owned_arena_transition():
 
 
 @pytest.mark.asyncio
+async def test_use_service_returns_backend_owned_tavern_transition():
+    service = ExplorationService(
+        FakeExplorationIntegrator(
+            loc_id="52_53",
+            loc_data={"services": ["svc_tavern_hub"], "exits": {}},
+        ),
+        encounter_engine=object(),
+    )
+
+    result = await service.use_service(7, "svc_tavern_hub")
+
+    assert isinstance(result, ServiceResult)
+    assert result.next_state == CoreDomain.TAVERN
+    assert result.data["service_id"] == "svc_tavern_hub"
+    assert result.data["location_id"] == "52_53"
+    assert result.data["service_type"] == "tavern"
+    assert result.data["tavern_id"] == "last_refuge"
+
+
+@pytest.mark.asyncio
 async def test_use_service_denies_service_not_present_in_current_location():
     service = ExplorationService(
         FakeExplorationIntegrator(loc_data={"services": ["svc_tavern_hub"], "exits": {}}),
@@ -121,7 +144,11 @@ async def test_active_encounter_gates_exploration_actions():
 
 
 @pytest.mark.asyncio
-async def test_bypass_clears_active_encounter_and_returns_navigation_notice():
+async def test_bypass_clears_active_encounter_and_returns_navigation_notice(monkeypatch):
+    monkeypatch.setattr(
+        "src.backend.features.exploration.services.exploration_service.random.random",
+        lambda: 0.0,
+    )
     encounter_integration = FakeEncounterIntegration(encounter=_encounter())
     service = ExplorationService(
         FakeExplorationIntegrator(),
@@ -135,3 +162,28 @@ async def test_bypass_clears_active_encounter_and_returns_navigation_notice():
     assert result.hud.message == "Опасность миновала. Вы решили обойти угрозу."
     assert encounter_integration.cleared == ["enc-1"]
     assert encounter_integration.detached == [7]
+
+
+@pytest.mark.asyncio
+async def test_failed_bypass_routes_to_combat_with_roll_result(monkeypatch):
+    monkeypatch.setattr(
+        "src.backend.features.exploration.services.exploration_service.random.random",
+        lambda: 0.99,
+    )
+    encounter_integration = FakeEncounterIntegration(encounter=_encounter())
+    service = ExplorationService(
+        FakeExplorationIntegrator(),
+        encounter_engine=object(),
+        encounter_integration=encounter_integration,
+    )
+
+    result = await service.interact(7, "bypass")
+
+    assert isinstance(result, ServiceResult)
+    assert result.next_state == CoreDomain.COMBAT
+    assert result.data["status"] == "bypass_failed_entering_combat"
+    assert result.data["encounter_id"] == "enc-1"
+    assert result.data["bypass_result"]["success"] is False
+    assert encounter_integration.cleared == []
+    assert encounter_integration.detached == []
+    assert encounter_integration.patched

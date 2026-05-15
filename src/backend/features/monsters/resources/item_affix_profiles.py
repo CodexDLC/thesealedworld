@@ -26,7 +26,7 @@ MONSTER_AFFIX_STEP_COUNT_BY_TIER: dict[int, int] = {
 _BEAST_WEAPON_POOL: tuple[str, ...] = (
     "weapon_accuracy",
     "crit_chance",
-    "armor_penetration_bonus",
+    "armor_penetration_pct_bonus",
     "control_chance_bonus",
 )
 
@@ -44,7 +44,7 @@ _BEAST_ARMOR_POOL: tuple[str, ...] = (
 _HUMANOID_WEAPON_POOL: tuple[str, ...] = (
     "weapon_accuracy",
     "crit_chance",
-    "armor_penetration_bonus",
+    "armor_penetration_pct_bonus",
     "control_chance_bonus",
 )
 
@@ -94,23 +94,23 @@ MONSTER_AFFIX_POOLS: dict[str, dict[MonsterItemAffixKind, tuple[str, ...]]] = {
 
 MONSTER_BOSS_FORCED_AFFIX_SETS: dict[str, dict[str, tuple[str, ...]]] = {
     "rat_swarm": {
-        "main_hand": ("weapon_accuracy", "crit_chance", "armor_penetration_bonus", "control_chance_bonus"),
-        "off_hand": ("off_hand_accuracy", "crit_chance", "armor_penetration_bonus", "control_chance_bonus"),
+        "main_hand": ("weapon_accuracy", "crit_chance", "armor_penetration_pct_bonus", "control_chance_bonus"),
+        "off_hand": ("off_hand_accuracy", "crit_chance", "armor_penetration_pct_bonus", "control_chance_bonus"),
         "chest_armor": ("evasion_bonus", "physical_resistance_bonus", "hp_regen_bonus", "bio_resistance_bonus"),
     },
     "wolf_pack": {
-        "main_hand": ("weapon_accuracy", "crit_chance", "armor_penetration_bonus", "control_chance_bonus"),
-        "off_hand": ("off_hand_accuracy", "crit_chance", "armor_penetration_bonus", "control_chance_bonus"),
+        "main_hand": ("weapon_accuracy", "crit_chance", "armor_penetration_pct_bonus", "control_chance_bonus"),
+        "off_hand": ("off_hand_accuracy", "crit_chance", "armor_penetration_pct_bonus", "control_chance_bonus"),
         "chest_armor": ("evasion_bonus", "physical_resistance_bonus", "hp_bonus", "hp_regen_bonus"),
     },
     "bandit_gang": {
-        "main_hand": ("weapon_accuracy", "crit_chance", "armor_penetration_bonus", "control_chance_bonus"),
-        "off_hand": ("off_hand_accuracy", "crit_chance", "armor_penetration_bonus", "control_chance_bonus"),
+        "main_hand": ("weapon_accuracy", "crit_chance", "armor_penetration_pct_bonus", "control_chance_bonus"),
+        "off_hand": ("off_hand_accuracy", "crit_chance", "armor_penetration_pct_bonus", "control_chance_bonus"),
         "chest_armor": ("armor_flat", "physical_resistance_bonus", "hp_bonus", "control_resistance_bonus"),
     },
     "goblin_tribe": {
-        "main_hand": ("weapon_accuracy", "crit_chance", "armor_penetration_bonus", "control_chance_bonus"),
-        "off_hand": ("off_hand_accuracy", "crit_chance", "armor_penetration_bonus", "evasion_bonus"),
+        "main_hand": ("weapon_accuracy", "crit_chance", "armor_penetration_pct_bonus", "control_chance_bonus"),
+        "off_hand": ("off_hand_accuracy", "crit_chance", "armor_penetration_pct_bonus", "evasion_bonus"),
         "chest_armor": ("evasion_bonus", "physical_resistance_bonus", "hp_bonus", "thorns_damage_bonus"),
     },
 }

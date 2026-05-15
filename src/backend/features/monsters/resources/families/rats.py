@@ -11,39 +11,18 @@ RATS_FAMILY: MonsterFamily = {
     "archetype": "beast",
     "organization_type": "swarm",  # TSP Base: 30
     "default_tags": ["beast", "rat", "disease", "swarm"],
-    "combat_profile": {
-        "archetype": "beast",
-        "body_loadout": "small_beast",
-        "armor_class": "light_hide",
-        "natural_weapon_set": "rat_bite_claws",
-        "modifier_formula": "beast_default",
-    },
     "skill_kit": {
         "base": {
-            "skill_unarmed": 0.20,
+            "skill_fencing": 0.20,
             "skill_adaptation": 0.10,
             "skill_scouting": 0.10,
         },
         "role_bonus": {
             "minion": {},
             "veteran": {"skill_scouting": 0.10},
-            "elite": {"skill_unarmed": 0.25, "skill_adaptation": 0.15},
-            "boss": {"skill_unarmed": 0.60, "skill_tactics": 0.30},
+            "elite": {"skill_fencing": 0.25, "skill_adaptation": 0.15},
+            "boss": {"skill_fencing": 0.60, "skill_tactics": 0.30},
         },
-    },
-    "ability_map": {
-        "attack_basic": {"mechanic": "basic_attack", "presentation": "infected_bite"},
-        "attack_fast": {"mechanic": "basic_attack", "presentation": "skittering_bite"},
-        "attack_heavy": {"mechanic": "heavy_attack", "presentation": "rending_bite"},
-        "attack_ranged": {"mechanic": "ranged_attack", "presentation": "flung_refuse"},
-        "attack_aoe": {"mechanic": "area_attack", "presentation": "gnawing_swarm"},
-        "buff_rage": {"mechanic": "self_buff", "presentation": "swarm_frenzy"},
-        "debuff_bleed": {"mechanic": "debuff_attack", "presentation": "ragged_claws"},
-        "debuff_poison": {"mechanic": "debuff_attack", "presentation": "diseased_bite"},
-        "debuff_stun": {"mechanic": "control_attack", "presentation": "crushing_mass"},
-        "explode_on_death": {"mechanic": "death_trigger", "presentation": "blight_burst"},
-        "stealth": {"mechanic": "self_buff", "presentation": "tunnel_skulk"},
-        "summon_minion": {"mechanic": "summon", "presentation": "swarm_call"},
     },
     "loot_profile": {
         "salvage_type": "beast_parts",
@@ -73,15 +52,14 @@ RATS_FAMILY: MonsterFamily = {
                 "strength": 4,
                 "agility": 10,
                 "endurance": 5,
-                "intelligence": 1,
-                "wisdom": 1,
-                "men": 2,
+                "intellect": 1,
+                "memory": 1,
+                "mental": 2,
                 "perception": 6,
-                "charisma": 1,
-                "luck": 2,  # Итого: 32
+                "projection": 1,
+                "prediction": 2,  # Итого: 32
             },
             "fixed_loadout": {},
-            "skills": ["attack_basic"],
         },
         "scavenger_rat": {
             "id": "scavenger_rat",
@@ -95,15 +73,14 @@ RATS_FAMILY: MonsterFamily = {
                 "strength": 6,
                 "agility": 8,
                 "endurance": 6,
-                "intelligence": 2,
-                "wisdom": 1,
-                "men": 2,
+                "intellect": 2,
+                "memory": 1,
+                "mental": 2,
                 "perception": 6,
-                "charisma": 1,
-                "luck": 3,  # Итого: 35
+                "projection": 1,
+                "prediction": 3,  # Итого: 35
             },
             "fixed_loadout": {},
-            "skills": ["attack_ranged", "attack_basic"],
         },
         "swarm_rat": {
             "id": "swarm_rat",
@@ -117,15 +94,14 @@ RATS_FAMILY: MonsterFamily = {
                 "strength": 4,
                 "agility": 12,
                 "endurance": 4,
-                "intelligence": 1,
-                "wisdom": 1,
-                "men": 4,
+                "intellect": 1,
+                "memory": 1,
+                "mental": 4,
                 "perception": 4,
-                "charisma": 1,
-                "luck": 2,  # Итого: 33
+                "projection": 1,
+                "prediction": 2,  # Итого: 33
             },
             "fixed_loadout": {},
-            "skills": ["buff_rage", "attack_aoe"],
         },
         # --- 2. Опытные бойцы (Veterans) [TSP ~45] ---
         "tunnel_rat": {
@@ -140,15 +116,14 @@ RATS_FAMILY: MonsterFamily = {
                 "strength": 6,
                 "agility": 12,
                 "endurance": 8,
-                "intelligence": 2,
-                "wisdom": 2,
-                "men": 4,
+                "intellect": 2,
+                "memory": 2,
+                "mental": 4,
                 "perception": 8,
-                "charisma": 1,
-                "luck": 3,  # Итого: 46
+                "projection": 1,
+                "prediction": 3,  # Итого: 46
             },
             "fixed_loadout": {},
-            "skills": ["stealth", "attack_heavy"],
         },
         "pack_rat": {
             "id": "pack_rat",
@@ -162,15 +137,14 @@ RATS_FAMILY: MonsterFamily = {
                 "strength": 8,
                 "agility": 10,
                 "endurance": 10,
-                "intelligence": 3,
-                "wisdom": 2,
-                "men": 4,
+                "intellect": 3,
+                "memory": 2,
+                "mental": 4,
                 "perception": 6,
-                "charisma": 2,
-                "luck": 3,  # Итого: 48
+                "projection": 2,
+                "prediction": 3,  # Итого: 48
             },
             "fixed_loadout": {},
-            "skills": ["buff_rage"],
         },
         "screecher": {
             "id": "screecher",
@@ -184,15 +158,14 @@ RATS_FAMILY: MonsterFamily = {
                 "strength": 4,
                 "agility": 12,
                 "endurance": 6,
-                "intelligence": 3,
-                "wisdom": 2,
-                "men": 4,
+                "intellect": 3,
+                "memory": 2,
+                "mental": 4,
                 "perception": 12,
-                "charisma": 2,
-                "luck": 3,  # Итого: 48
+                "projection": 2,
+                "prediction": 3,  # Итого: 48
             },
             "fixed_loadout": {},
-            "skills": ["buff_rage", "summon_minion"],
         },
         # --- 3. Элита (Elites) [TSP ~75] ---
         "plague_rat": {
@@ -207,15 +180,14 @@ RATS_FAMILY: MonsterFamily = {
                 "strength": 10,
                 "agility": 10,
                 "endurance": 16,
-                "intelligence": 3,
-                "wisdom": 4,
-                "men": 8,
+                "intellect": 3,
+                "memory": 4,
+                "mental": 8,
                 "perception": 8,
-                "charisma": 1,
-                "luck": 2,  # Итого: 62 (но яд компенсирует)
+                "projection": 1,
+                "prediction": 2,  # Итого: 62 (но яд компенсирует)
             },
             "fixed_loadout": {},
-            "skills": ["debuff_poison", "debuff_poison"],
         },
         "rotfang": {
             "id": "rotfang",
@@ -229,15 +201,14 @@ RATS_FAMILY: MonsterFamily = {
                 "strength": 14,
                 "agility": 14,
                 "endurance": 14,
-                "intelligence": 4,
-                "wisdom": 4,
-                "men": 8,
+                "intellect": 4,
+                "memory": 4,
+                "mental": 8,
                 "perception": 10,
-                "charisma": 2,
-                "luck": 4,  # Итого: 74
+                "projection": 2,
+                "prediction": 4,  # Итого: 74
             },
             "fixed_loadout": {},
-            "skills": ["debuff_poison", "debuff_bleed"],
         },
         "blight_carrier": {
             "id": "blight_carrier",
@@ -251,15 +222,14 @@ RATS_FAMILY: MonsterFamily = {
                 "strength": 10,
                 "agility": 6,
                 "endurance": 20,
-                "intelligence": 2,
-                "wisdom": 2,
-                "men": 10,
+                "intellect": 2,
+                "memory": 2,
+                "mental": 10,
                 "perception": 6,
-                "charisma": 1,
-                "luck": 1,  # Итого: 58 (взрыв компенсирует)
+                "projection": 1,
+                "prediction": 1,  # Итого: 58 (взрыв компенсирует)
             },
             "fixed_loadout": {},
-            "skills": ["explode_on_death", "debuff_poison"],
         },
         # --- 4. Боссы (Bosses) [TSP ~120] ---
         "rat_brute": {
@@ -274,15 +244,14 @@ RATS_FAMILY: MonsterFamily = {
                 "strength": 25,
                 "agility": 10,
                 "endurance": 30,
-                "intelligence": 4,
-                "wisdom": 4,
-                "men": 15,
+                "intellect": 4,
+                "memory": 4,
+                "mental": 15,
                 "perception": 8,
-                "charisma": 5,
-                "luck": 5,  # Итого: 106
+                "projection": 5,
+                "prediction": 5,  # Итого: 106
             },
             "fixed_loadout": {},
-            "skills": ["attack_heavy", "buff_rage", "attack_ranged"],
         },
         "brood_alpha": {
             "id": "brood_alpha",
@@ -296,15 +265,14 @@ RATS_FAMILY: MonsterFamily = {
                 "strength": 16,
                 "agility": 18,
                 "endurance": 16,
-                "intelligence": 10,
-                "wisdom": 8,
-                "men": 12,
+                "intellect": 10,
+                "memory": 8,
+                "mental": 12,
                 "perception": 14,
-                "charisma": 10,
-                "luck": 8,  # Итого: 112
+                "projection": 10,
+                "prediction": 8,  # Итого: 112
             },
             "fixed_loadout": {},
-            "skills": ["buff_rage", "attack_fast", "attack_heavy"],
         },
         "rat_king": {
             "id": "rat_king",
@@ -318,15 +286,14 @@ RATS_FAMILY: MonsterFamily = {
                 "strength": 20,
                 "agility": 10,
                 "endurance": 35,
-                "intelligence": 14,
-                "wisdom": 12,
-                "men": 20,
+                "intellect": 14,
+                "memory": 12,
+                "mental": 20,
                 "perception": 15,
-                "charisma": 15,
-                "luck": 5,  # Итого: 146
+                "projection": 15,
+                "prediction": 5,  # Итого: 146
             },
             "fixed_loadout": {},
-            "skills": ["debuff_stun", "debuff_poison", "attack_fast", "summon_minion"],
         },
     },
 }

@@ -1,6 +1,8 @@
 from typing import Any
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
+
+from src.shared.enums import CoreDomain
 
 
 class ScenarioInitDTO(BaseModel):
@@ -12,11 +14,26 @@ class ScenarioInitDTO(BaseModel):
     node_id: str | None = Field(None, description="Опциональный ID стартовой ноды")
 
 
+class ScenarioReturnContextDTO(BaseModel):
+    """Typed context for returning from a scenario to the feature that opened it."""
+
+    source_state: CoreDomain
+    return_state: CoreDomain
+    return_screen: str | None = None
+    source_service_id: str | None = None
+    location_id: str | None = None
+    tavern_id: str | None = None
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+    model_config = ConfigDict(use_enum_values=True)
+
+
 class ScenarioButtonDTO(BaseModel):
     """Схема кнопки действия."""
 
     label: str = Field(..., description="Текст на кнопке")
     action_id: str = Field(..., description="ID действия, который вернется в step_scenario")
+    icon: str | None = Field(default=None, description="Семантический ключ иконки действия")
 
 
 class ScenarioPayloadDTO(BaseModel):

@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from codex_platform.redis_service import RedisService
 
 from src.backend.features.character.managers import CharacterSessionManager
+from src.backend.features.expedition.redis_manager import ExpeditionRedisManager
 from src.backend.infrastructure.actor_commitments import ActorCommitmentManager
 from src.backend.infrastructure.scenario.managers.content_manager import ScenarioContentManager
 from src.backend.infrastructure.scenario.managers.session_manager import ScenarioSessionManager
@@ -17,6 +18,7 @@ class RedisManagers:
     scenario_sessions: ScenarioSessionManager
     scenario_content: ScenarioContentManager
     world_locations: WorldLocationStore
+    expeditions: ExpeditionRedisManager
 
 
 def build_redis_managers(redis: RedisService) -> RedisManagers:
@@ -27,4 +29,5 @@ def build_redis_managers(redis: RedisService) -> RedisManagers:
         scenario_sessions=ScenarioSessionManager(redis),
         scenario_content=ScenarioContentManager(redis),
         world_locations=WorldLocationStore(redis),
+        expeditions=ExpeditionRedisManager(redis),
     )

@@ -6,10 +6,10 @@ from sqlalchemy import ForeignKey, Integer, String, UniqueConstraint
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
-from src.backend.core.database import Base
+from src.backend.core.database import Base, MetadataContextMixin, SchemaVersionMixin
 
 
-class ScenarioNode(Base):
+class ScenarioNode(Base, MetadataContextMixin, SchemaVersionMixin):
     __tablename__ = "scenario_nodes"
     __table_args__ = (UniqueConstraint("quest_key", "node_key", name="uq_scenario_nodes_quest_node_key"),)
 
@@ -21,9 +21,12 @@ class ScenarioNode(Base):
         index=True,
     )
     node_key: Mapped[str] = mapped_column(String(50), nullable=False, index=True)
+    node_type: Mapped[str] = mapped_column(String(50), default="narrative", nullable=False, index=True)
     display_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
     text: Mapped[str] = mapped_column(String, nullable=False, server_default="")
     icon: Mapped[str | None] = mapped_column(String(50), nullable=True)
     system_messages: Mapped[list[str]] = mapped_column(JSONB, default=list, nullable=False)
     node_data: Mapped[dict[str, Any]] = mapped_column(JSONB, default=dict, nullable=False)
+    requirements: Mapped[dict[str, Any]] = mapped_column(JSONB, default=dict, nullable=False)
+    effects: Mapped[dict[str, Any]] = mapped_column(JSONB, default=dict, nullable=False)
     tags: Mapped[list[str]] = mapped_column(JSONB, default=list, nullable=False)

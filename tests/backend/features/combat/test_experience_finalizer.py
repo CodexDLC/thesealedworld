@@ -11,6 +11,41 @@ from src.backend.features.combat.runtime.engine.mechanics_service import Mechani
 from src.backend.features.combat.runtime.services.experience_finalizer import CombatExperienceFinalizer
 
 
+class FakeCombatDataService:
+    async def get_meta(self, session_id: str):
+        return {"actor_ids": ["7"]}
+
+    def actor_ids_from_meta(self, meta):
+        return ["7"]
+
+    async def get_actors_batch(self, session_id: str, actor_ids: list[str]):
+        return {
+            "7": {
+                "raw": {"attributes": {"strength": {"base": 8}, "agility": {"base": 8}, "endurance": {"base": 8}}},
+                "loadout": {"layout": {}},
+                "skills": {},
+                "xp_buffer": {"free_xp": 1},
+            }
+        }
+
+
+class FakeProgressionRecorder:
+    def __init__(self) -> None:
+        self.calls = []
+
+    async def apply_progress(self, char_id: int, rewards: dict[str, float]) -> bool:
+        self.calls.append((char_id, rewards))
+        return True
+
+
+class FakeCharacterSessions:
+    def __init__(self) -> None:
+        self.calls = []
+
+    async def apply_skill_progress(self, char_id: int, rewards: dict[str, float]) -> None:
+        self.calls.append((char_id, rewards))
+
+
 @pytest.mark.unit
 def test_experience_finalizer_maps_flat_xp_buffer_to_skill_rewards() -> None:
     actor = {
@@ -59,6 +94,25 @@ def test_experience_finalizer_sends_unknown_useful_actions_to_free_xp() -> None:
     rewards = CombatExperienceFinalizer().calculate_actor_rewards(actor)
 
     assert rewards == {"free_xp": 0.0012}
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_experience_finalizer_routes_rewards_to_dirty_progression_recorder() -> None:
+    recorder = FakeProgressionRecorder()
+    sessions = FakeCharacterSessions()
+
+    results = await CombatExperienceFinalizer().finalize(
+        FakeCombatDataService(),
+        "combat-1",
+        "team_a",
+        character_sessions=sessions,
+        progression_recorder=recorder,
+    )
+
+    assert results["7"].rewards == {"free_xp": 0.0012}
+    assert recorder.calls == [(7, {"free_xp": 0.0012})]
+    assert sessions.calls == []
 
 
 @pytest.mark.unit

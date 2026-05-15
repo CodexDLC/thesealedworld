@@ -354,7 +354,7 @@ class CombatSessionService:
         except Exception:
             logs_by_turn = {}
 
-        winner = self._meta_string(meta.get("winner"))
+        winner = self._meta_string(meta.get("winner")) or self._inferred_winner_from_meta(meta)
         viewer_team = self._team_for_actor(meta, char_id)
         outcome = self._outcome_for_actor(winner=winner, viewer_team=viewer_team)
         last_turn = self._last_log_turn(logs_by_turn)
@@ -409,7 +409,48 @@ class CombatSessionService:
         status = str(meta.get("status") or "").lower()
         active = str(meta.get("active") or "")
         winner = str(meta.get("winner") or "")
-        return status == "finished" or active == "0" or bool(winner)
+        return (
+            status == "finished"
+            or active == "0"
+            or bool(winner)
+            or CombatSessionService._inferred_winner_from_meta(meta) is not None
+        )
+
+    @staticmethod
+    def _inferred_winner_from_meta(meta: dict[str, Any]) -> str | None:
+        alive_counts = CombatSessionIntegration.decode_json_field(meta.get("alive_counts"), default={})
+        if isinstance(alive_counts, dict) and alive_counts:
+            alive_teams = sorted(
+                str(team) for team, count in alive_counts.items() if CombatSessionService._int_meta(count) > 0
+            )
+            if len(alive_teams) == 1:
+                return alive_teams[0]
+            if not alive_teams:
+                return "draw"
+            return None
+
+        teams = CombatSessionIntegration.decode_json_field(meta.get("teams"), default={})
+        if not isinstance(teams, dict) or not teams:
+            return None
+        dead_actors = CombatSessionIntegration.decode_json_field(meta.get("dead_actors"), default=[])
+        dead_actor_ids = {str(actor_id) for actor_id in dead_actors} if isinstance(dead_actors, list) else set()
+        alive_teams = sorted(
+            str(team)
+            for team, members in teams.items()
+            if isinstance(members, list) and any(str(member) not in dead_actor_ids for member in members)
+        )
+        if len(alive_teams) == 1:
+            return alive_teams[0]
+        if not alive_teams:
+            return "draw"
+        return None
+
+    @staticmethod
+    def _int_meta(value: Any) -> int:
+        try:
+            return int(value)
+        except (TypeError, ValueError):
+            return 0
 
     @staticmethod
     def _meta_string(value: Any) -> str | None:

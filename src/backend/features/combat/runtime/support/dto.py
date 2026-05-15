@@ -120,6 +120,7 @@ class CombatResultSupportTaskDTO(BaseModel):
             "par": float(mods.get("parry", 0.0)),
             "blk": float(mods.get("block", 0.0)),
             "arm": float(mods.get("armor", 0.0)),
-            "pen": float(mods.get("armor_penetration", 0.0)),
+            "sup": float(mods.get("physical_suppression", 0.0)),
+            "ap": float(mods.get("armor_penetration_pct", 0.0)),
             "sp": float(skills.get("skill_parrying", 0.0)),
         }

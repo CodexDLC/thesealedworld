@@ -8,9 +8,9 @@ from src.shared.enums import CoreDomain
 from src.shared.schemas import CoreResponseDTO, GameStateHeader, StateTransitionDTO
 
 if TYPE_CHECKING:
+    from src.backend.core.auth import User
     from src.backend.features.character.schemas.session import CharacterSessionDocumentDTO, CharacterSessionRefsDTO
     from src.backend.features.game_session.integrations import GameSessionIntegrator
-    from src.backend.features_site.auth.models import User
 
 
 GameplayEntryResponse = CoreResponseDTO[StateTransitionDTO | dict[str, Any]]
@@ -24,7 +24,9 @@ class GameSessionService:
         CoreDomain.COMBAT,
         CoreDomain.COMBAT_RESULT,
         CoreDomain.ARENA,
+        CoreDomain.TAVERN,
         CoreDomain.EXPLORATION,
+        CoreDomain.DEATH,
     }
 
     def __init__(self, *, integrator: GameSessionIntegrator) -> None:
@@ -43,8 +45,13 @@ class GameSessionService:
         current_state = self._state_or_none(session_doc.state)
         previous_state = self._state_or_none(session_doc.prev_state)
 
-        selected_state = self._valid_routing_state(session_doc, current_state)
-        route_reason = "current_state"
+        selected_state = self._pending_combat_result_state(session_doc)
+        route_reason = "combat_result_pending" if selected_state is not None else "current_state"
+        if selected_state is not None and current_state != selected_state:
+            await self.integrator.set_active_session_state(session_doc.char_id, selected_state)
+
+        if selected_state is None:
+            selected_state = self._valid_routing_state(session_doc, current_state)
 
         if selected_state is None and previous_state is not None:
             selected_state = self._valid_routing_state(session_doc, previous_state)
@@ -65,6 +72,12 @@ class GameSessionService:
         )
         self._log_enter_response(char_id=session_doc.char_id, response=response)
         return response
+
+    @staticmethod
+    def _pending_combat_result_state(session_doc: CharacterSessionDocumentDTO) -> CoreDomain | None:
+        if session_doc.sessions.combat_finalization_id:
+            return CoreDomain.COMBAT_RESULT
+        return None
 
     def _valid_routing_state(
         self,
@@ -87,7 +100,33 @@ class GameSessionService:
             return bool(sessions.combat_finalization_id)
         if state == CoreDomain.ARENA:
             return bool(sessions.arena_id)
+        if state == CoreDomain.DEATH:
+            return bool(sessions.death_run_id)
         return True
+
+    async def respawn_character(self, user: User, character_id: int) -> GameplayEntryResponse:
+        session_doc = await self.integrator.get_active_session(character_id, user.id)
+        if session_doc is None:
+            return self._lobby_response(char_id=character_id, reason="active_character_unavailable")
+        if self._state_or_none(session_doc.state) != CoreDomain.DEATH:
+            return self._state_response(
+                session_doc=session_doc,
+                current_state=self._state_or_none(session_doc.state) or CoreDomain.EXPLORATION,
+                previous_state=self._state_or_none(session_doc.prev_state),
+                route_reason="respawn_not_required",
+            )
+
+        result = await self.integrator.respawn_character(character_id)
+        return CoreResponseDTO(
+            header=GameStateHeader(current_state=CoreDomain.EXPLORATION, previous_state=CoreDomain.DEATH),
+            payload=StateTransitionDTO(
+                char_id=character_id,
+                target_state=CoreDomain.EXPLORATION,
+                reason=str(result.get("status") or "respawned"),
+                metadata=result,
+            ),
+            payload_type="state_transition",
+        )
 
     @staticmethod
     def _state_or_none(value: str | CoreDomain | None) -> CoreDomain | None:

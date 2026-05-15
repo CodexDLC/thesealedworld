@@ -15,6 +15,9 @@ class FakeGameSessionIntegrator:
         self.get_active_session = AsyncMock(return_value=session_doc)
         self.set_active_session_state = AsyncMock()
         self.reset_active_session_to_exploration = AsyncMock()
+        self.respawn_character = AsyncMock(
+            return_value={"status": "respawned", "location_id": "52_52", "corpse_id": "corpse-1"}
+        )
 
 
 def active_session(
@@ -140,6 +143,67 @@ async def test_enter_character_routes_arena_only_when_arena_ref_exists():
 
     assert response.header.current_state == CoreDomain.ARENA
     assert response.payload_type == "arena_session"
+
+
+@pytest.mark.asyncio
+async def test_enter_character_routes_combat_result_before_death_when_finalization_ref_exists():
+    user_id = uuid4()
+    integrator = FakeGameSessionIntegrator(
+        session_doc=active_session(
+            user_id=user_id,
+            state=CoreDomain.DEATH,
+            prev_state=CoreDomain.COMBAT_RESULT,
+            sessions={"death_run_id": "run-1", "combat_finalization_id": "combat-final-1"},
+        )
+    )
+    service = GameSessionService(integrator=integrator)
+
+    response = await service.enter_character(SimpleNamespace(id=user_id), 7)
+
+    assert response.header.current_state == CoreDomain.COMBAT_RESULT
+    assert response.payload_type == "combat_result_session"
+    assert response.payload["route_reason"] == "combat_result_pending"
+    integrator.set_active_session_state.assert_awaited_once_with(7, CoreDomain.COMBAT_RESULT)
+
+
+@pytest.mark.asyncio
+async def test_enter_character_routes_death_when_death_ref_exists_without_pending_combat_result():
+    user_id = uuid4()
+    integrator = FakeGameSessionIntegrator(
+        session_doc=active_session(
+            user_id=user_id,
+            state=CoreDomain.DEATH,
+            prev_state=CoreDomain.COMBAT,
+            sessions={"death_run_id": "run-1"},
+        )
+    )
+    service = GameSessionService(integrator=integrator)
+
+    response = await service.enter_character(SimpleNamespace(id=user_id), 7)
+
+    assert response.header.current_state == CoreDomain.DEATH
+    assert response.payload_type == "death_session"
+
+
+@pytest.mark.asyncio
+async def test_respawn_character_calls_integrator_from_death_state():
+    user_id = uuid4()
+    session_doc = active_session(
+        user_id=user_id,
+        state=CoreDomain.DEATH,
+        prev_state=CoreDomain.COMBAT_RESULT,
+        sessions={"death_run_id": "run-1"},
+    )
+    integrator = FakeGameSessionIntegrator(session_doc=session_doc)
+    service = GameSessionService(integrator=integrator)
+
+    response = await service.respawn_character(SimpleNamespace(id=user_id), 7)
+
+    assert response.header.current_state == CoreDomain.EXPLORATION
+    assert response.header.previous_state == CoreDomain.DEATH
+    assert response.payload.target_state == CoreDomain.EXPLORATION
+    assert response.payload.metadata["corpse_id"] == "corpse-1"
+    integrator.respawn_character.assert_awaited_once_with(7)
 
 
 @pytest.mark.asyncio

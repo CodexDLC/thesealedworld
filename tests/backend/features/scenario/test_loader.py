@@ -2,6 +2,7 @@ import json
 from unittest.mock import AsyncMock
 
 import pytest
+from pydantic import ValidationError
 
 from src.backend.features.scenario.loaders.scenario_loader import ScenarioLoader
 
@@ -21,6 +22,7 @@ class TestScenarioLoader:
         scenario_data = {
             "master": {
                 "quest_key": "test_quest",
+                "scenario_type": "dialogue_scenario",
                 "start_node_id": "start",
                 "status_bar_fields": [],
             },
@@ -49,7 +51,12 @@ class TestScenarioLoader:
         importer.replace_quest.return_value = None
         loader = ScenarioLoader(importer)
         scenario_data = {
-            "master": {"quest_key": "q", "start_node_id": "s", "status_bar_fields": []},
+            "master": {
+                "quest_key": "q",
+                "scenario_type": "dialogue_scenario",
+                "start_node_id": "s",
+                "status_bar_fields": [],
+            },
             "nodes": [],
         }
         file_path = tmp_path / "scenario.json"
@@ -57,6 +64,17 @@ class TestScenarioLoader:
 
         await loader.load_from_file(file_path)
         importer.replace_quest.assert_awaited_once()
+
+    async def test_load_from_file_requires_explicit_scenario_type(self, loader, tmp_path):
+        scenario_data = {
+            "master": {"quest_key": "q", "start_node_id": "s", "status_bar_fields": []},
+            "nodes": [],
+        }
+        file_path = tmp_path / "scenario.json"
+        file_path.write_text(json.dumps(scenario_data))
+
+        with pytest.raises(ValidationError):
+            await loader.load_from_file(file_path)
 
     async def test_load_from_directory_prefers_nodes_folder(self, loader, tmp_path):
         fixture_dir = tmp_path / "split_quest"
@@ -68,6 +86,7 @@ class TestScenarioLoader:
             json.dumps(
                 {
                     "quest_key": "split_quest",
+                    "scenario_type": "dialogue_scenario",
                     "start_node_id": "start",
                     "status_bar_fields": [],
                 },

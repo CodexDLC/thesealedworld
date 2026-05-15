@@ -7,7 +7,7 @@
 </div>
 <div id="game-shell-overlays" hx-swap-oob="outerHTML">
     <div id="game-modal-root"></div>
-    {% if domain != 'combats' %}
+    {% if domain not in ['combats', 'scenario'] %}
     <section class="hud-window inventory-window"
              x-cloak
              x-show="windows.inventory.open"
@@ -30,10 +30,6 @@
     {% endif %}
 </div>
 <div id="game-footer-shell" hx-swap-oob="outerHTML">
-    {% if domain != 'combats' %}
-    <footer class="game-footer">
-        {% include "game/includes/footer.html" %}
-    </footer>
-    {% endif %}
+    {% include "game/includes/chat_footer.html" %}
 </div>
 <span hidden aria-hidden="true"></span>

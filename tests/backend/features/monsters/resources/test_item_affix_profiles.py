@@ -53,7 +53,7 @@ def test_monster_affix_profiles_expose_family_pool_and_boss_forced_sets() -> Non
     assert get_monster_boss_forced_affixes("rat_swarm", "main_hand") == (
         "weapon_accuracy",
         "crit_chance",
-        "armor_penetration_bonus",
+        "armor_penetration_pct_bonus",
         "control_chance_bonus",
     )
 

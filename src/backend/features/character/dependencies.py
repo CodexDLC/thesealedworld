@@ -6,8 +6,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.backend.core.database import get_db
 from src.backend.features.character.integrations import CharacterStateIntegrator
 from src.backend.features.character.managers.session import CharacterSessionManager
-from src.backend.features.character.repositories import CharacterRepository, SkillRepository
+from src.backend.features.character.repositories import (
+    CharacterProgressionRepository,
+    CharacterRepository,
+    SkillRepository,
+)
 from src.backend.features.character.services.status_service import CharacterStatusService
+from src.backend.features.expedition import CharacterExpeditionRepository
 from src.backend.features.inventory.repositories.items import InventoryItemRepository
 
 
@@ -24,6 +29,8 @@ def get_character_state_integrator(
         character_repo=CharacterRepository(db_session),
         inventory_repo=InventoryItemRepository(db_session),
         skill_repo=SkillRepository(db_session),
+        progression_repo=CharacterProgressionRepository(db_session),
+        expedition_repo=CharacterExpeditionRepository(db_session),
     )
 
 

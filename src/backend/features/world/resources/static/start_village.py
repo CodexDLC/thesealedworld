@@ -13,6 +13,7 @@ class _StaticLocation(TypedDict):
     is_active: bool
     services: list[str]
     flags: dict[str, Any]
+    movement_profile: dict[str, Any]
     content: _StaticLocationContent
 
 
@@ -28,7 +29,8 @@ STATIC_LOCATIONS: dict[tuple[int, int], _StaticLocation] = {
         "sector_id": "D4",
         "is_active": True,
         "services": ["svc_portal_hub"],
-        "flags": {"is_active": True, "is_safe_zone": True, "is_hub": True, "has_road": True},
+        "flags": {"is_active": True, "is_safe_zone": True, "is_hub": True},
+        "movement_profile": {"has_road": True, "blocked_exits": []},
         "content": {
             "title": "Площадь Рунного Круга",
             "description": "Центр цитадели — древняя площадка из белого камня, который не берет ни время, ни инструменты. Высеченные в полу узоры слабо мерцают. Вокруг этого вечного монолита вырос палаточный лагерь поселенцев — хаос из ткани и дерева на фоне вечности.",
@@ -52,7 +54,8 @@ STATIC_LOCATIONS: dict[tuple[int, int], _StaticLocation] = {
         "sector_id": "D4",
         "is_active": True,
         "services": ["svc_arena_main"],
-        "flags": {"is_active": True, "is_safe_zone": True, "has_road": True},
+        "flags": {"is_active": True, "is_safe_zone": True},
+        "movement_profile": {"has_road": True, "blocked_exits": []},
         "content": {
             "title": "Улица Мудрецов, Башня Испытаний",
             "description": "Мощеная плитами улица ведет к уцелевшей каменной башне без окон. Поселенцы расчистили вход и обнаружили внутри странный пространственный карман. Теперь там Арена — место, где бойцы проверяют свои силы, не боясь разрушить древние стены.",
@@ -64,7 +67,8 @@ STATIC_LOCATIONS: dict[tuple[int, int], _StaticLocation] = {
         "sector_id": "D4",
         "is_active": True,
         "services": [],
-        "flags": {"is_active": True, "is_safe_zone": True, "has_road": True},
+        "flags": {"is_active": True, "is_safe_zone": True},
+        "movement_profile": {"has_road": True, "blocked_exits": []},
         "content": {
             "title": "Квартал Теней",
             "description": "Узкие проходы петляют между высокими остовами зданий из черного камня. Здесь темно даже днем. Говорят, в этих руинах мародеры находят тайники Древних, но риск нарваться на неприятности здесь выше.",
@@ -76,7 +80,8 @@ STATIC_LOCATIONS: dict[tuple[int, int], _StaticLocation] = {
         "sector_id": "D4",
         "is_active": True,
         "services": [],
-        "flags": {"is_active": True, "is_safe_zone": True, "has_road": True},
+        "flags": {"is_active": True, "is_safe_zone": True},
+        "movement_profile": {"has_road": True, "blocked_exits": []},
         "content": {
             "title": "Руины Библиотеки",
             "description": "Когда-то здесь хранили знания. Теперь древние плиты усыпаны каменной крошкой. Среди обрушенных колонн видны следы свежих раскопок — поселенцы ищут здесь хоть что-то, что поможет понять технологии прошлого.",
@@ -89,7 +94,8 @@ STATIC_LOCATIONS: dict[tuple[int, int], _StaticLocation] = {
         "sector_id": "D4",
         "is_active": True,
         "services": ["svc_tavern_hub"],
-        "flags": {"is_active": True, "is_safe_zone": True, "has_road": True},
+        "flags": {"is_active": True, "is_safe_zone": True},
+        "movement_profile": {"has_road": True, "blocked_exits": []},
         "content": {
             "title": "Переулок Павших, Таверна",
             "description": "Широкий переулок, где жизнь кипит даже ночью. В первом этаже монументального каменного здания предприимчивые жители открыли таверну 'Последний Приют', заколотив проломы досками. Запах жареного мяса перебивает холод камня.",
@@ -101,7 +107,8 @@ STATIC_LOCATIONS: dict[tuple[int, int], _StaticLocation] = {
         "sector_id": "D4",
         "is_active": True,
         "services": [],
-        "flags": {"is_active": True, "is_safe_zone": True, "has_road": True},
+        "flags": {"is_active": True, "is_safe_zone": True},
+        "movement_profile": {"has_road": True, "blocked_exits": []},
         "content": {
             "title": "Заваленный Квартал",
             "description": "Груды гнилых досок и ржавых бочек, принесенных поселенцами, блокируют проход к древним складам. Под этим мусором наверняка скрыто что-то полезное, но завалы придется разбирать вручную.",
@@ -113,7 +120,8 @@ STATIC_LOCATIONS: dict[tuple[int, int], _StaticLocation] = {
         "sector_id": "D4",
         "is_active": True,
         "services": [],
-        "flags": {"is_active": True, "is_safe_zone": True, "has_road": True},
+        "flags": {"is_active": True, "is_safe_zone": True},
+        "movement_profile": {"has_road": True, "blocked_exits": []},
         "content": {
             "title": "Квартал Ремесленников",
             "description": "Здесь руины носят следы производства: странные остывшие печи и верстаки из неизвестного металла. Новые мастера уже обживают эти места, приспосабливая вечные инструменты под свои нужды.",
@@ -126,7 +134,8 @@ STATIC_LOCATIONS: dict[tuple[int, int], _StaticLocation] = {
         "sector_id": "D4",
         "is_active": True,
         "services": ["svc_town_hall_hub", "svc_blacksmith_repair"],
-        "flags": {"is_active": True, "is_safe_zone": True, "has_road": True},
+        "flags": {"is_active": True, "is_safe_zone": True},
+        "movement_profile": {"has_road": True, "blocked_exits": []},
         "content": {
             "title": "Проспект Старейшин",
             "description": "Главная улица, вымощенная плитами без единого шва. В сохранившемся зале заседает Совет поселения. Напротив, в старой оружейной, кузнец раздувает угли в горне, который был построен тысячи лет назад.",
@@ -139,7 +148,8 @@ STATIC_LOCATIONS: dict[tuple[int, int], _StaticLocation] = {
         "sector_id": "D4",
         "is_active": True,
         "services": ["svc_market_hub"],
-        "flags": {"is_active": True, "is_safe_zone": True, "has_road": True},
+        "flags": {"is_active": True, "is_safe_zone": True},
+        "movement_profile": {"has_road": True, "blocked_exits": []},
         "content": {
             "title": "Рыночная Площадь",
             "description": "Улица расширяется, образуя площадь. Среди величественных руин натянуты грязные тенты, а товары разложены прямо на древних постаментах. Это сердце экономики нового поселения.",
@@ -155,7 +165,8 @@ STATIC_LOCATIONS: dict[tuple[int, int], _StaticLocation] = {
         "sector_id": "D4",
         "is_active": True,
         "services": [],
-        "flags": {"is_active": True, "is_safe_zone": True, "is_gate": True, "has_road": True},
+        "flags": {"is_active": True, "is_safe_zone": True, "is_gate": True},
+        "movement_profile": {"has_road": True, "blocked_exits": []},
         "content": {
             "title": "Северные Внутренние Ворота",
             "description": "Древняя арка в монолитной стене. Родных створок давно нет, вместо них — ворота, сбитые из бревен и металлолома. Стража проверяет всех, кто приходит со стороны пустошей.",
@@ -167,7 +178,8 @@ STATIC_LOCATIONS: dict[tuple[int, int], _StaticLocation] = {
         "sector_id": "D4",
         "is_active": True,
         "services": [],
-        "flags": {"is_active": True, "is_safe_zone": True, "restricted_exits": ["north"], "has_road": True},
+        "flags": {"is_active": True, "is_safe_zone": True},
+        "movement_profile": {"has_road": True, "blocked_exits": ["north"]},
         "content": {
             "title": "Руины Казарм",
             "description": "Остов длинного здания, примыкающего к стене. Крыша обвалилась, но каменные перегородки целы. Если выгрести вековой мусор, здесь можно обустроить отличный склад или жилье.",
@@ -179,7 +191,8 @@ STATIC_LOCATIONS: dict[tuple[int, int], _StaticLocation] = {
         "sector_id": "D4",
         "is_active": True,
         "services": [],
-        "flags": {"is_active": True, "is_safe_zone": True, "restricted_exits": ["north"], "has_road": True},
+        "flags": {"is_active": True, "is_safe_zone": True},
+        "movement_profile": {"has_road": True, "blocked_exits": ["north"]},
         "content": {
             "title": "Пустые Загоны",
             "description": "Каменные стойла у северной стены. Раньше здесь держали зверей Древних, теперь — пустота и ветер. Стена надежно защищает это место с тыла.",
@@ -192,7 +205,8 @@ STATIC_LOCATIONS: dict[tuple[int, int], _StaticLocation] = {
         "sector_id": "D4",
         "is_active": True,
         "services": [],
-        "flags": {"is_active": True, "is_safe_zone": True, "is_gate": True, "has_road": True},
+        "flags": {"is_active": True, "is_safe_zone": True, "is_gate": True},
+        "movement_profile": {"has_road": True, "blocked_exits": []},
         "content": {
             "title": "Южные Внутренние Ворота",
             "description": "Выход к южным кварталам. Проход в стене свободен, древние механизмы защиты мертвы. Днем здесь кипит жизнь, рабочие таскают материалы из внешних руин.",
@@ -204,7 +218,8 @@ STATIC_LOCATIONS: dict[tuple[int, int], _StaticLocation] = {
         "sector_id": "D4",
         "is_active": True,
         "services": [],
-        "flags": {"is_active": True, "is_safe_zone": True, "restricted_exits": ["south"], "has_road": True},
+        "flags": {"is_active": True, "is_safe_zone": True},
+        "movement_profile": {"has_road": True, "blocked_exits": ["south"]},
         "content": {
             "title": "Руины Склада",
             "description": "Участок у южной стены, заваленный обломками камня. Стена здесь особенно толстая, без единой трещины. Идеальное место для защищенной постройки.",
@@ -216,7 +231,8 @@ STATIC_LOCATIONS: dict[tuple[int, int], _StaticLocation] = {
         "sector_id": "D4",
         "is_active": True,
         "services": [],
-        "flags": {"is_active": True, "is_safe_zone": True, "restricted_exits": ["south"], "has_road": True},
+        "flags": {"is_active": True, "is_safe_zone": True},
+        "movement_profile": {"has_road": True, "blocked_exits": ["south"]},
         "content": {
             "title": "Древний Горн",
             "description": "Развалины у стены с огромным дымоходом, уходящим ввысь. Горн давно остыл, но сама структура сохранилась идеально. Можно возродить здесь производство.",
@@ -229,7 +245,8 @@ STATIC_LOCATIONS: dict[tuple[int, int], _StaticLocation] = {
         "sector_id": "D4",
         "is_active": True,
         "services": [],
-        "flags": {"is_active": True, "is_safe_zone": True, "is_gate": True, "has_road": True},
+        "flags": {"is_active": True, "is_safe_zone": True, "is_gate": True},
+        "movement_profile": {"has_road": True, "blocked_exits": []},
         "content": {
             "title": "Западные Внутренние Ворота",
             "description": "Массивный проем, ведущий на Проспект. Это основной путь для доставки грузов. По бокам видны следы креплений каких-то гигантских механизмов, ныне утраченных.",
@@ -241,7 +258,8 @@ STATIC_LOCATIONS: dict[tuple[int, int], _StaticLocation] = {
         "sector_id": "D4",
         "is_active": True,
         "services": [],
-        "flags": {"is_active": True, "is_safe_zone": True, "restricted_exits": ["west"], "has_road": True},
+        "flags": {"is_active": True, "is_safe_zone": True},
+        "movement_profile": {"has_road": True, "blocked_exits": ["west"]},
         "content": {
             "title": "Руины Караульной",
             "description": "Небольшая пристройка к западной стене. Крыши нет, но стены монолитны. Отличное место для дома или лавки, защищенное от ветров.",
@@ -253,7 +271,8 @@ STATIC_LOCATIONS: dict[tuple[int, int], _StaticLocation] = {
         "sector_id": "D4",
         "is_active": True,
         "services": [],
-        "flags": {"is_active": True, "is_safe_zone": True, "restricted_exits": ["west"], "has_road": True},
+        "flags": {"is_active": True, "is_safe_zone": True},
+        "movement_profile": {"has_road": True, "blocked_exits": ["west"]},
         "content": {
             "title": "Пустой Арсенал",
             "description": "Укрепленная комната в стене. Двери выбиты, внутри пустота и пыль. Каменный каркас не пострадал от времени, готовый служить новым хозяевам.",
@@ -266,7 +285,8 @@ STATIC_LOCATIONS: dict[tuple[int, int], _StaticLocation] = {
         "sector_id": "D4",
         "is_active": True,
         "services": [],
-        "flags": {"is_active": True, "is_safe_zone": True, "is_gate": True, "has_road": True},
+        "flags": {"is_active": True, "is_safe_zone": True, "is_gate": True},
+        "movement_profile": {"has_road": True, "blocked_exits": []},
         "content": {
             "title": "Восточные Внутренние Ворота",
             "description": "Арка, выходящая прямо на Рыночную Площадь. Здесь всегда толчея, стража лениво наблюдает за потоком людей среди древних камней.",
@@ -278,7 +298,8 @@ STATIC_LOCATIONS: dict[tuple[int, int], _StaticLocation] = {
         "sector_id": "D4",
         "is_active": True,
         "services": [],
-        "flags": {"is_active": True, "is_safe_zone": True, "restricted_exits": ["east"], "has_road": True},
+        "flags": {"is_active": True, "is_safe_zone": True},
+        "movement_profile": {"has_road": True, "blocked_exits": ["east"]},
         "content": {
             "title": "Торговые Ниши",
             "description": "Ряд ниш, выдолбленных прямо в восточной стене. Место расчищено от обломков и готово принять торговцев или стать фундаментом.",
@@ -290,7 +311,8 @@ STATIC_LOCATIONS: dict[tuple[int, int], _StaticLocation] = {
         "sector_id": "D4",
         "is_active": True,
         "services": [],
-        "flags": {"is_active": True, "is_safe_zone": True, "restricted_exits": ["east"], "has_road": True},
+        "flags": {"is_active": True, "is_safe_zone": True},
+        "movement_profile": {"has_road": True, "blocked_exits": ["east"]},
         "content": {
             "title": "Разрушенное Святилище",
             "description": "Полукруглый фундамент у стены, где когда-то стояла статуя. Стена украшена выцветшей резьбой. Тихое место для постройки.",
@@ -303,7 +325,8 @@ STATIC_LOCATIONS: dict[tuple[int, int], _StaticLocation] = {
         "sector_id": "D4",
         "is_active": True,
         "services": [],
-        "flags": {"is_active": True, "is_safe_zone": True, "restricted_exits": ["north", "west"], "has_road": True},
+        "flags": {"is_active": True, "is_safe_zone": True},
+        "movement_profile": {"has_road": True, "blocked_exits": ["north", "west"]},
         "content": {
             "title": "Северо-Западный Бастион",
             "description": "Массивная угловая башня из серого монолита. Внутри сухо, несмотря на разрушенный купол. Самое надежное убежище в цитадели.",
@@ -315,7 +338,8 @@ STATIC_LOCATIONS: dict[tuple[int, int], _StaticLocation] = {
         "sector_id": "D4",
         "is_active": True,
         "services": [],
-        "flags": {"is_active": True, "is_safe_zone": True, "restricted_exits": ["north", "east"], "has_road": True},
+        "flags": {"is_active": True, "is_safe_zone": True},
+        "movement_profile": {"has_road": True, "blocked_exits": ["north", "east"]},
         "content": {
             "title": "Северо-Восточный Бастион",
             "description": "Угловая башня с широким обзором. Стены здесь невероятно толстые. Отличное место для тех, кто ценит безопасность превыше всего.",
@@ -327,7 +351,8 @@ STATIC_LOCATIONS: dict[tuple[int, int], _StaticLocation] = {
         "sector_id": "D4",
         "is_active": True,
         "services": [],
-        "flags": {"is_active": True, "is_safe_zone": True, "restricted_exits": ["south", "west"], "has_road": True},
+        "flags": {"is_active": True, "is_safe_zone": True},
+        "movement_profile": {"has_road": True, "blocked_exits": ["south", "west"]},
         "content": {
             "title": "Юго-Западный Бастион",
             "description": "Основание угловой башни, превращенное жителями в склад. Стены цитадели сходятся здесь, создавая идеальную защиту от ветров.",
@@ -339,7 +364,8 @@ STATIC_LOCATIONS: dict[tuple[int, int], _StaticLocation] = {
         "sector_id": "D4",
         "is_active": True,
         "services": [],
-        "flags": {"is_active": True, "is_safe_zone": True, "restricted_exits": ["south", "east"], "has_road": True},
+        "flags": {"is_active": True, "is_safe_zone": True},
+        "movement_profile": {"has_road": True, "blocked_exits": ["south", "east"]},
         "content": {
             "title": "Юго-Восточный Бастион",
             "description": "Руины башни, поросшие странным мхом. Каменная кладка выглядит вечной. Хорошее место для уединенного дома.",

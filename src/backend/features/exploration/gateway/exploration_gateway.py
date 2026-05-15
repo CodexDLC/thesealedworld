@@ -103,7 +103,12 @@ class ExplorationGateway:
                 return self._transition_response(result)
             return await self._screen_response(char_id, result, content_kind="encounter")
         if action == "bypass" and active is not None:
-            await self._encounters.bypass(char_id, active)
+            bypassed, encounter, _chance_percent = await self._encounters.attempt_bypass(char_id, active)
+            if not bypassed and encounter is not None:
+                result = await self._encounters.attack(char_id, encounter)
+                if isinstance(result, ExplorationTransition):
+                    return self._transition_response(result)
+                return await self._screen_response(char_id, encounter, content_kind="encounter")
             navigation = await self._navigation.build_current_navigation(
                 char_id,
                 alert=AlertHudDTO(message="Опасность миновала. Вы решили обойти угрозу.", style="info"),
@@ -209,6 +214,7 @@ class ExplorationGateway:
             target_state=transition.target_state,
             reason=transition.reason,
             combat_id=transition.combat_id,
+            location_id=str((transition.metadata or {}).get("location_id") or "") or None,
             metadata=transition.metadata or {},
         )
         return CoreResponseDTO(

@@ -1,7 +1,8 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 
+from src.backend.core.auth import User, get_current_user, require_game_character_scope
 from src.backend.features.character.repositories import CharacterRepository
 from src.backend.features.inventory.dependencies import get_character_repository, get_inventory_service
 from src.backend.features.inventory.services.inventory_service import (
@@ -9,8 +10,6 @@ from src.backend.features.inventory.services.inventory_service import (
     InventoryActionForbiddenError,
     InventoryService,
 )
-from src.backend.features_site.auth.dependencies import get_current_user
-from src.backend.features_site.auth.models import User
 from src.shared.enums import CoreDomain
 from src.shared.schemas.inventory import (
     InventoryActionRequestDTO,
@@ -24,11 +23,13 @@ router = APIRouter(prefix="/api/game/inventory", tags=["inventory"])
 
 @router.get("/{char_id}/view", response_model=CoreResponseDTO[InventoryWindowDTO])
 async def get_inventory_view(
+    request: Request,
     char_id: int,
     current_user: Annotated[User, Depends(get_current_user)],
     service: Annotated[InventoryService, Depends(get_inventory_service)],
     characters: Annotated[CharacterRepository, Depends(get_character_repository)],
 ) -> CoreResponseDTO[InventoryWindowDTO]:
+    require_game_character_scope(request, current_user, char_id)
     await _ensure_owner(characters, current_user, char_id)
     payload = await service.open_window(char_id)
     return CoreResponseDTO(
@@ -38,11 +39,13 @@ async def get_inventory_view(
 
 @router.post("/actions", response_model=CoreResponseDTO[InventoryWindowDTO])
 async def apply_inventory_action(
+    request: Request,
     dto: InventoryActionRequestDTO,
     current_user: Annotated[User, Depends(get_current_user)],
     service: Annotated[InventoryService, Depends(get_inventory_service)],
     characters: Annotated[CharacterRepository, Depends(get_character_repository)],
 ) -> CoreResponseDTO[InventoryWindowDTO]:
+    require_game_character_scope(request, current_user, dto.char_id)
     await _ensure_owner(characters, current_user, dto.char_id)
     try:
         payload = await service.apply_action(dto)
@@ -57,11 +60,13 @@ async def apply_inventory_action(
 
 @router.post("/close", response_model=CoreResponseDTO[InventoryWindowDTO])
 async def close_inventory(
+    request: Request,
     dto: InventoryCloseRequestDTO,
     current_user: Annotated[User, Depends(get_current_user)],
     service: Annotated[InventoryService, Depends(get_inventory_service)],
     characters: Annotated[CharacterRepository, Depends(get_character_repository)],
 ) -> CoreResponseDTO[InventoryWindowDTO]:
+    require_game_character_scope(request, current_user, dto.char_id)
     await _ensure_owner(characters, current_user, dto.char_id)
     payload = await service.close_window(dto.char_id)
     return CoreResponseDTO(

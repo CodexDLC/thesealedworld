@@ -15,3 +15,12 @@ class BackendGameSessionApi(BaseApiClient):
             headers={"Authorization": f"Bearer {access_token}"},
             json=dto.model_dump(mode="json"),
         )
+
+    async def respawn(self, access_token: str, dto: EnterCharacterRequestDTO) -> GameSessionEnterResponse:
+        return await self._request(
+            "POST",
+            "/game-session/respawn",
+            response_model=GameSessionEnterResponse,
+            headers={"Authorization": f"Bearer {access_token}"},
+            json=dto.model_dump(mode="json"),
+        )

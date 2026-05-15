@@ -21,7 +21,7 @@ class TestActorCommitmentManager:
         saved = await manager.save_snapshots(snapshots, ttl=123)
 
         assert len(saved) == 2
-        assert fake_redis_client.ttls["combat:snapshot:actor-player-1"] == 123
+        assert fake_redis_client.ttls["game:combat:snapshot:actor-player-1"] == 123
 
         docs = await manager.get_snapshots_batch(list(saved.values()))
         player_doc = docs[saved["actor-player-1"]]
@@ -33,8 +33,8 @@ class TestActorCommitmentManager:
 
     async def test_save_commitments_omits_partial_pipeline_failures(self, manager, fake_redis_client):
         # We need to know the actual key to fail it.
-        # Since it's flat now, it's combat:snapshot:actor-monster-m2
-        failed_key = "combat:snapshot:actor-monster-m2"
+        # Since it's flat now, it's game:combat:snapshot:actor-monster-m2
+        failed_key = "game:combat:snapshot:actor-monster-m2"
         fake_redis_client.fail_set_keys.add(failed_key)
 
         saved = await manager.save_snapshots(
@@ -48,8 +48,8 @@ class TestActorCommitmentManager:
 
     async def test_get_sections_batch_fetches_requested_section(self, manager, fake_redis_client):
         # Manually seed fake store
-        fake_redis_client.store["combat:snapshot:p1"] = {"meta": {}, "combat": {"hp": 100}, "source": {}}
-        fake_redis_client.store["combat:snapshot:m1"] = {"meta": {}, "combat": {"hp": 50}, "source": {}}
+        fake_redis_client.store["game:combat:snapshot:p1"] = {"meta": {}, "combat": {"hp": 100}, "source": {}}
+        fake_redis_client.store["game:combat:snapshot:m1"] = {"meta": {}, "combat": {"hp": 50}, "source": {}}
 
         sections = await manager.get_sections_batch(["p1", "m1"], "combat")
 
@@ -63,20 +63,20 @@ class TestActorCommitmentManager:
         key = await manager.save_snapshot(actor_id, data, ttl=3600)
 
         assert key == actor_id
-        redis_key = "combat:snapshot:actor-player-1"
+        redis_key = "game:combat:snapshot:actor-player-1"
         assert fake_redis_client.store[redis_key]["status"] == {"hp": 100}
         assert fake_redis_client.store[redis_key]["combat"] is None
         assert fake_redis_client.ttls[redis_key] == 3600
 
     async def test_get_commitment(self, manager, fake_redis_client):
-        key = "combat:snapshot:test"
+        key = "game:combat:snapshot:test"
         fake_redis_client.store[key] = {"meta": {"id": 1}}
 
         result = await manager.get_snapshot("test")
         assert result == {"meta": {"id": 1}}
 
     async def test_section_getters(self, manager, fake_redis_client):
-        key = "combat:snapshot:test"
+        key = "game:combat:snapshot:test"
         fake_redis_client.store[key] = {
             "meta": {"m": 1},
             "runtime": {"r": 1},
@@ -94,14 +94,14 @@ class TestActorCommitmentManager:
         assert await manager.get_source("test") == {"src": 1}
 
     async def test_patch_section(self, manager, fake_redis_client):
-        key = "combat:snapshot:test"
+        key = "game:combat:snapshot:test"
         fake_redis_client.store[key] = {"meta": {}}
 
         await manager.patch_section("test", "combat", {"hp": 50})
         assert fake_redis_client.store[key]["combat"] == {"hp": 50}
 
     async def test_touch_and_delete(self, manager, fake_redis_client):
-        key = "combat:snapshot:test"
+        key = "game:combat:snapshot:test"
         fake_redis_client.store[key] = {"meta": {}}
 
         await manager.touch("test", 500)

@@ -100,7 +100,7 @@ class FakeSkillRepository:
 
 
 class FakeInventoryRepository:
-    async def list_character_items(self, char_id):
+    async def list_character_items(self, char_id, *, expedition_run_id=None):
         instance = SimpleNamespace(
             id="item-weapon",
             base_id="sword",
@@ -173,6 +173,22 @@ def build_session_document():
         "perception": 8,
         "projection": 8,
         "prediction": 8,
+    }
+    return document
+
+
+def build_legacy_session_document():
+    document = build_session_document()
+    document["attributes"] = {
+        "strength": 8,
+        "agility": 8,
+        "endurance": 8,
+        "intelligence": 8,
+        "wisdom": 8,
+        "men": 8,
+        "perception": 8,
+        "charisma": 8,
+        "luck": 8,
     }
     return document
 
@@ -304,6 +320,21 @@ async def test_get_actor_core_repairs_stale_default_actor_core_from_persisted_ac
     assert sessions.updated["vitals"]["hp"]["cur"] == 60
     assert sessions.updated["vitals"]["hp"]["max"] == 60
     assert sessions.updated["skills"]["skill_macing"]["unlocked"] is True
+
+
+@pytest.mark.asyncio
+async def test_get_actor_core_rebuilds_invalid_legacy_attribute_session_to_new_contract():
+    sessions = FakeCharacterSessions(build_legacy_session_document())
+    service = build_service(RewardedCharacterRepository, sessions)
+
+    dto = await service.get_actor_core(SimpleNamespace(id=uuid4()), 7)
+
+    assert dto.attributes["intellect"] == 14
+    assert dto.attributes["projection"] == 16
+    assert sessions.updated is not None
+    assert "intelligence" not in sessions.updated["attributes"]
+    assert "charisma" not in sessions.updated["attributes"]
+    assert sessions.updated["attributes"]["intellect"] == 14
 
 
 @pytest.mark.asyncio

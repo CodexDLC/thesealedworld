@@ -149,16 +149,28 @@ class MonsterDiscoveryBuilder:
 
     @staticmethod
     def _description(status: DetectionStatus, group: MonsterGroupResult) -> str:
-        count = len(group.monster_ids)
-        family = group.family_id.replace("_", " ")
+        for preview in group.previews:
+            text = preview.ambush_ru if status == DetectionStatus.AMBUSH else preview.detected_ru
+            if text:
+                return text
+        for preview in group.previews:
+            if preview.idle_ru:
+                return preview.idle_ru
+        for preview in group.previews:
+            if preview.description:
+                return preview.description
+
         if status == DetectionStatus.AMBUSH:
-            return f"Группа монстров нападает из засады. Семейство: {family}. Целей: {count}."
-        return f"Вы замечаете группу монстров раньше, чем она успевает атаковать. Семейство: {family}. Целей: {count}."
+            return "Угроза выходит из укрытия раньше, чем вы успеваете оценить обстановку."
+        return "Вы замечаете движение впереди и успеваете выбрать, как подойти к угрозе."
 
     @staticmethod
     def _options(status: DetectionStatus) -> list[EncounterOptionDTO]:
         if status == DetectionStatus.AMBUSH:
-            return [EncounterOptionDTO(id="attack", label="В бой!", style="danger")]
+            return [
+                EncounterOptionDTO(id="attack", label="В бой!", style="danger"),
+                EncounterOptionDTO(id="bypass", label="Обойти", style="secondary"),
+            ]
         return [
             EncounterOptionDTO(id="attack", label="Атаковать", style="danger"),
             EncounterOptionDTO(id="bypass", label="Обойти", style="secondary"),

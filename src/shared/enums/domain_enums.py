@@ -18,6 +18,8 @@ class CoreDomain(StrEnum):
     ONBOARDING = "onboarding"
     LOBBY = "lobby"
     ARENA = "arena"
+    TAVERN = "tavern"
+    DEATH = "death"
 
     # --- Служебные / Специфичные домены ---
     COMBAT_ENTRY = "combat_entry"  # Вход в бой, создание сессии

@@ -5,11 +5,14 @@
 @import url("layout/ambient.css");
 @import url("layout/responsive.css");
 @import url("includes.css");
-@import url("components/buttons.css");
-@import url("components/panels.css");
-@import url("components/navigation.css");
+@import url("components/common/buttons.css");
+@import url("components/common/panels.css");
+@import url("components/common/navigation_primitives.css");
+@import url("components/common/tags_code.css");
 @import url("pages/main.css");
 @import url("pages/about.css");
 @import url("pages/login.css");
+@import url("pages/auth.css");
 @import url("pages/library.css");
 @import url("pages/site/game_lobby.css");
+@import url("pages/site/the_sealed_world_landing.css");

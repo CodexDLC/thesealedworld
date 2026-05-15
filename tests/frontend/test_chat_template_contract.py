@@ -1,13 +1,13 @@
 from pathlib import Path
 
 CHAT_TEMPLATE = Path("src/frontend/templates/shared/chat/main.html")
-CHAT_LAYOUT_CSS = Path("src/frontend/static/css/pages/game/layout.css")
+CHAT_FOOTER_TEMPLATE = Path("src/frontend/templates/game/includes/chat_footer.html")
 CHAT_CSS = Path("src/frontend/static/css/pages/game/chat.css")
 SESSION_CONTENT_TEMPLATE = Path("src/frontend/templates/game/session_content.html")
 COMBAT_VIEWPORT_TEMPLATE = Path("src/frontend/templates/game/domains/combat/viewport/main.html")
 GAME_MAIN_JS = Path("src/frontend/static/js/core/main.js")
 GAME_CATALOG_JS = Path("src/frontend/static/js/core/catalog.js")
-TOOLTIPS_CSS = Path("src/frontend/static/css/components/tooltips.css")
+TOOLTIPS_CSS = Path("src/frontend/static/css/components/game/tooltips.css")
 
 
 def test_chat_template_uses_canonical_channel_keys() -> None:
@@ -152,10 +152,12 @@ def test_game_tooltips_preserve_line_breaks_without_html() -> None:
     assert "white-space: pre-line;" in css
 
 
-def test_session_content_does_not_replace_live_chat_shell() -> None:
+def test_session_content_replaces_footer_chat_shell_only() -> None:
     template = SESSION_CONTENT_TEMPLATE.read_text(encoding="utf-8")
 
     assert 'id="game-chat-shell"' not in template
+    assert 'id="game-footer-shell" hx-swap-oob="outerHTML"' in template
+    assert 'include "game/includes/chat_footer.html"' in template
     assert 'include "shared/chat/main.html"' not in template
 
 
@@ -176,11 +178,27 @@ def test_chat_css_has_rich_combat_log_styles() -> None:
     assert ".combat-fact--effect" in css
 
 
-def test_chat_shell_is_floating_overlay() -> None:
-    css = CHAT_LAYOUT_CSS.read_text(encoding="utf-8")
+def test_chat_shell_is_collapsible_footer() -> None:
+    css = CHAT_CSS.read_text(encoding="utf-8")
+    template = CHAT_TEMPLATE.read_text(encoding="utf-8")
+    footer = CHAT_FOOTER_TEMPLATE.read_text(encoding="utf-8")
+    shell_js = Path("src/frontend/static/js/core/game_shell.js").read_text(encoding="utf-8")
 
-    assert "#game-chat-shell" in css
-    assert "position: fixed;" in css
-    assert "pointer-events: none;" in css
-    assert "width: min(100%, 1040px);" in css
-    assert "pointer-events: auto;" in css
+    assert ".game-chat-footer" in css
+    assert ".game-chat-footer .game-chat-row" in css
+    assert ".game-chat-footer .chat-step-0" in css
+    assert "bottom: 0;" in css
+    assert "--game-chat-width: 1440px;" in css
+    assert "width: min(100%, var(--game-chat-width));" in css
+    assert "#game-chat-shell" not in css
+    assert "game-chat-footer-bar" not in footer
+    assert "game-chat-footer-tabs" not in footer
+    assert "game-chat-footer-mobile" not in footer
+    assert "game-chat-footer-toggle" not in footer
+    assert 'include "shared/chat/main.html"' in footer
+    assert "is-chat-closed" not in footer
+    assert "setChatStep(1)" in footer
+    assert "setChatStep(0)" in template
+    assert "chatStep: 0" in shell_js
+    assert "chatStep: Alpine.$persist" not in shell_js
+    assert 'class="chat-users"' not in template

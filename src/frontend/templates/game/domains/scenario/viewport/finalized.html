@@ -1,19 +1,41 @@
-<article class="scenario-panel">
-    <header class="scenario-panel-head">
-        <span>awakening_rift</span>
-        <span>finalized</span>
+{% set target_domain = next_domain or 'EXPLORATION' %}
+
+<section class="scenario-screen scenario-screen--finale" id="scenario-panel-root">
+    <header class="scenario-statebar">
+        <strong>СЦЕНАРИЙ // ФИНАЛ</strong>
+        <span>OUTCOME SAVED</span>
+        <em data-tippy-content="Финальный экран сценария может использоваться специальными квестами перед переходом в следующий домен."
+            data-tippy-theme="game-hint">READY</em>
     </header>
 
-    <div class="scenario-panel-body">
-        <div class="scenario-copy">
-            Сценарий завершен. Переход в режим путешествия подготовлен.
+    <section class="scenario-result-card" aria-label="Scenario result">
+        <div class="scenario-result-art" aria-hidden="true">
+            <img src="/static/images/scenarios/awakening_rift/background_v4.png" alt="">
         </div>
+        <article>
+            <div class="scenario-kicker">ИТОГ СЦЕНАРИЯ</div>
+            <h2>Сценарий завершен.</h2>
+            <p>Переход в следующий игровой режим подготовлен. Специальные сценарии могут показывать здесь награды, флаги и итоговые последствия перед выходом.</p>
+        </article>
+        <div class="scenario-reward-grid" aria-label="Scenario result summary">
+            <span><b>TARGET</b><strong>{{ target_domain }}</strong></span>
+            <span><b>STATE</b><strong>SAVED</strong></span>
+            <span><b>EXIT</b><strong>READY</strong></span>
+        </div>
+    </section>
 
-        <div class="scenario-actions">
-            <a class="btn-node scenario-action"
-               href="/game/session/state/{{ next_domain or 'EXPLORATION' }}?char_id={{ char_id }}">
-                <span>Перейти к игровому интерфейсу</span>
-            </a>
+    <section class="game-action-panel game-action-panel--bottom scenario-action-panel scenario-action-panel--finale" aria-label="Scenario finale actions">
+        <header class="game-action-panel__head scenario-action-head">
+            <span>SCENE COMPLETE</span>
+            <strong>RETURN READY</strong>
+        </header>
+        <div class="scenario-final-actions">
+            <a class="game-action-button game-action-button--primary"
+               href="/game/session/state/{{ target_domain }}?char_id={{ char_id }}">ВЕРНУТЬСЯ</a>
+            <button class="game-action-button"
+                    type="button"
+                    data-tippy-content="Журнал сценария будет подключен отдельным диалоговым/историческим слоем."
+                    data-tippy-theme="game-hint">ЖУРНАЛ</button>
         </div>
-    </div>
-</article>
+    </section>
+</section>

@@ -14,10 +14,19 @@ class FakeInventoryRepository:
         self.saved: dict[str, InventoryRuntimeItemDTO] | None = None
         self.committed = False
 
-    async def list_character_items(self, char_id: int):
+    async def list_character_items(self, char_id: int, *, expedition_run_id: str | None = None):
         return [(FakeInstance(item), FakePlacement(item)) for item in self.items]
 
-    async def save_placements(self, char_id: int, items: dict[str, InventoryRuntimeItemDTO]) -> None:
+    async def save_placements(
+        self,
+        char_id: int,
+        items: dict[str, InventoryRuntimeItemDTO],
+        *,
+        expedition_run_id: str | None = None,
+    ) -> None:
+        self.saved = items
+
+    async def save_item_mechanics(self, items: dict[str, InventoryRuntimeItemDTO]) -> None:
         self.saved = items
 
     async def commit(self) -> None:
@@ -41,6 +50,7 @@ class FakeInstance:
 
 class FakePlacement:
     def __init__(self, item: InventoryRuntimeItemDTO) -> None:
+        self.holder_type = "expedition" if item.is_unsecured or item.sync_state == "unsecured" else "character"
         self.storage_type = item.placement
         self.slot = item.slot
 
@@ -221,7 +231,7 @@ async def test_open_window_builds_structured_item_tooltip_without_html(fake_redi
                             "source": "single:combat_control",
                         },
                         {
-                            "affix_id": "armor_penetration_bonus",
+                            "affix_id": "armor_penetration_pct_bonus",
                             "value": 0.0147,
                             "source": "single:combat_offense",
                         },
@@ -258,7 +268,7 @@ async def test_open_window_builds_structured_item_tooltip_without_html(fake_redi
         for line in details.affixes
     )
     assert any(
-        line.label == "Пробитие физ. защиты" and line.value == "+1.47%" and line.tier == 4
+        line.label == "Пробитие брони" and line.value == "+1.47%" and line.tier == 4
         for line in details.affixes
     )
     assert any(
@@ -270,7 +280,7 @@ async def test_open_window_builds_structured_item_tooltip_without_html(fake_redi
         for line in details.comparison
     )
     assert any(
-        line.label == "Пробитие физ. защиты" and line.value == "+1.47%" and line.tier == 4
+        line.label == "Пробитие брони" and line.value == "+1.47%" and line.tier == 4
         for line in details.affixes
     )
     assert all(line.label != "Физический урон" for line in details.details)
@@ -469,6 +479,60 @@ async def test_close_window_flushes_dirty_session_and_removes_redis_key(fake_red
     assert repository.saved is not None
     assert repository.committed is True
     assert "game:inventory:7" not in fake_redis_client.store
+
+
+@pytest.mark.asyncio
+async def test_apply_durability_damage_updates_equipped_items(fake_redis_service, fake_redis_client):
+    _active_character(fake_redis_client, state="combat_result")
+    repository = FakeInventoryRepository(
+        [
+            _item(
+                "sword-1",
+                "weapon",
+                slot="main_hand",
+                placement="equipped",
+                mechanics={"valid_slots": ["main_hand"], "durability_current": 10, "durability_max": 12},
+            ),
+            _item(
+                "ore-1",
+                "resource",
+                slot=None,
+                placement="backpack",
+                mechanics={"durability_current": 5, "durability_max": 5},
+            ),
+        ]
+    )
+    service = _service(fake_redis_service, [], repository=repository)
+
+    result = await service.apply_durability_damage(
+        char_id=7,
+        amount=0.1,
+        scope="equipped",
+        reason="combat_completed",
+        combat_id="combat-1",
+        idempotency_key="combat:combat-1:durability:7:combat_completed",
+    )
+
+    assert result["status"] == "ok"
+    assert result["changed"] == [{"item_id": "sword-1", "before": 10.0, "after": 9.9}]
+    assert repository.saved is not None
+    assert repository.saved["sword-1"].mechanics["durability_current"] == 9.9
+    assert repository.saved["ore-1"].mechanics["durability_current"] == 5
+    assert repository.committed is True
+    assert fake_redis_client.store["game:ac:7"]["items"]["by_id"]["sword-1"]["mechanics"]["durability_current"] == 9.9
+    assert "combat:combat-1:durability:7:combat_completed" in fake_redis_client.store["game:ac:7"]["processed_events"]
+
+    duplicate = await service.apply_durability_damage(
+        char_id=7,
+        amount=0.1,
+        scope="equipped",
+        reason="combat_completed",
+        combat_id="combat-1",
+        idempotency_key="combat:combat-1:durability:7:combat_completed",
+    )
+
+    assert duplicate == {"status": "skipped", "changed": [], "reason": "duplicate_event"}
+    assert fake_redis_client.store["game:inventory:7"]["by_id"]["sword-1"]["mechanics"]["durability_current"] == 9.9
 
 
 def _service(

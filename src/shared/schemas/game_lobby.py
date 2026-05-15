@@ -1,4 +1,5 @@
 from typing import Literal
+from uuid import UUID
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -15,7 +16,7 @@ class CreateCharacterRequestDTO(BaseModel):
     def normalize_name(cls, value: str) -> str:
         name = value.strip()
         if not name:
-            raise ValueError("Character name cannot be empty")
+            raise ValueError("Имя персонажа не может быть пустым")
         return name
 
 
@@ -32,8 +33,29 @@ class DeleteCharacterRequestDTO(BaseModel):
     def normalize_confirm_name(cls, value: str) -> str:
         name = value.strip()
         if not name:
-            raise ValueError("Character confirmation name cannot be empty")
+            raise ValueError("Имя подтверждения не может быть пустым")
         return name
+
+
+class GameLobbyUserContextDTO(BaseModel):
+    user_id: UUID
+    email: str | None = None
+
+
+class GameLobbyCharacterSelectRequestDTO(GameLobbyUserContextDTO):
+    character_id: int
+
+
+class GameLobbyCharacterCreateRequestDTO(GameLobbyUserContextDTO):
+    character: CreateCharacterRequestDTO
+
+
+class GameLobbyCharacterReleaseRequestDTO(GameLobbyUserContextDTO):
+    character: EnterCharacterRequestDTO
+
+
+class GameLobbyCharacterDeleteRequestDTO(GameLobbyUserContextDTO):
+    character: DeleteCharacterRequestDTO
 
 
 class LobbySlotDTO(BaseModel):
@@ -47,8 +69,8 @@ class LobbySlotDTO(BaseModel):
 
 
 class GameLobbyPayloadDTO(BaseModel):
-    title: str = "The Threshold"
-    description: str = "The neural gate is quiet. Begin the journey when you are ready to shape a new vessel."
+    title: str = "Порог"
+    description: str = "Врата молчат. Начни путь, когда будешь готов создать нового персонажа."
     primary_action_label: str = "Начать приключение"
     primary_action: str = "start_adventure"
     message: str | None = None

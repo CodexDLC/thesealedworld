@@ -664,7 +664,7 @@
                  });
          }
      }"
-     x-init="if (window.GameCatalogCache && window.GameCatalogCache.init) window.GameCatalogCache.init().then(() => { _refreshMessageViews(); }); window.addEventListener('htmx:wsAfterMessage', (e) => _onWsMessage(e))"
+     x-init="if (window.GameCatalogCache && window.GameCatalogCache.init) window.GameCatalogCache.init().then(() => { _refreshMessageViews(); }); window.addEventListener('htmx:wsAfterMessage', (e) => _onWsMessage(e)); window.addEventListener('chat-clear-request', () => _clearActiveChatTab())"
 >
     <!-- WS connection — on the outer wrapper so all child forms can ws-send -->
     <div hx-ext="ws"
@@ -718,9 +718,9 @@
                     x-text="chatStep === 0 ? 'MAX' : 'MIN'"
                     title="Свернуть/развернуть"></button>
             <button class="btn-node sm ghost"
-                    @click="chatClosed = true"
-                    title="Закрыть в компактную кнопку"
-                    aria-label="Close chat to launcher">×</button>
+                    @click="setChatStep(0)"
+                    title="Свернуть до панели"
+                    aria-label="Collapse chat to footer">×</button>
         </div>
     </div>
 
@@ -892,23 +892,6 @@
                         </template>
                     </div>
                 </template>
-            </template>
-        </div>
-
-        <!-- Characters Zone -->
-        <div class="chat-users" id="chat-users" x-show="chatTab !== 'system'">
-            <div class="users-header" x-text="_rosterHeading()">ОНЛАЙН ОБЩИЙ (0)</div>
-            <template x-if="_rosterItems().length === 0">
-                <div class="user-item is-empty">
-                    <div class="u-dot gray"></div>
-                    <span x-text="_rosterEmptyText()">Список пуст.</span>
-                </div>
-            </template>
-            <template x-for="agent in _rosterItems()" :key="agent.id">
-                <div class="user-item online">
-                    <div class="u-dot"></div>
-                    <span x-text="agent.name"></span>
-                </div>
             </template>
         </div>
     </div>

@@ -39,6 +39,7 @@ from src.backend.features.combat.runtime.engine.trigger_activation import activa
 from src.backend.features.combat.runtime.processors import AiProcessor, CombatCollector, CombatExecutor
 from src.backend.features.combat.runtime.processors.chaos_service import ANCHOR_FORCE_TEAM, ChaosService
 from src.backend.features.combat.runtime.support import CombatResultSupportTask, CombatResultSupportTaskDTO
+from src.backend.features.combat.workers.tasks.chaos_task import MAX_INACTIVITY_SEC, chaos_check_task
 from src.backend.features.combat.workers.tasks.chat_announcements import (
     publish_combat_final_announcement,
     publish_combat_start_announcement,
@@ -183,6 +184,36 @@ class FakeCombatSessionsForChaos:
         self.logs.append((text, tags))
 
 
+class FakeChaosTaskDataService(FakeCombatSessionsForChaos):
+    async def get_battle_meta(self, session_id: str) -> BattleMeta:
+        return battle_meta().model_copy(update={"last_activity_at": 1})
+
+
+class FakeAnchorSnapshotCache:
+    async def get_snapshot(self, variant_id: str) -> dict[str, Any] | None:
+        return {
+            "meta": {"name": "Проекция Западной Гравитации", "actor_type": "monster", "archetype": "mythic"},
+            "combat": {
+                "skills": {"skill_polearms": 1.0},
+                "loadout": {"layout": {"main_hand": "skill_polearms"}, "known_abilities": []},
+                "math_model": {
+                    "attributes": {},
+                    "modifiers": {"main_hand_damage_base": {"base": 140, "source": {}, "temp": {}}},
+                },
+            },
+            "status": {"hp": {"cur": 2500, "max": 2500}, "energy": {"cur": 1000, "max": 1000}},
+            "source": {"monster_id": variant_id, "template_id": variant_id},
+        }
+
+
+class CapturingChaosQueue:
+    def __init__(self) -> None:
+        self.jobs: list[tuple[str, Any, dict[str, Any]]] = []
+
+    async def enqueue_job(self, name: str, payload: Any, **kwargs: Any) -> None:
+        self.jobs.append((name, payload, kwargs))
+
+
 def battle_meta() -> BattleMeta:
     return BattleMeta(
         active=1,
@@ -220,10 +251,13 @@ def stats(mods: dict[str, float] | None = None, skills: dict[str, float] | None 
 
 
 @pytest.mark.unit
-async def test_chaos_service_spawns_anchor_projection_from_family_resource() -> None:
+async def test_chaos_service_spawns_anchor_projection_from_bootstrap_snapshot() -> None:
     sessions = FakeCombatSessionsForChaos(battle_type="arena")
 
-    spawned = await ChaosService(sessions).spawn_cleaner("combat-1")  # type: ignore[arg-type]
+    spawned = await ChaosService(
+        sessions,
+        anchor_snapshots=FakeAnchorSnapshotCache(),
+    ).spawn_cleaner("combat-1")  # type: ignore[arg-type]
 
     assert spawned is True
     assert sessions.hot_joined is not None
@@ -246,6 +280,25 @@ async def test_chaos_service_does_not_spawn_second_anchor_projection() -> None:
 
     assert spawned is False
     assert sessions.hot_joined is None
+
+
+@pytest.mark.unit
+async def test_chaos_task_enqueues_collector_after_anchor_spawn(monkeypatch) -> None:
+    monkeypatch.setattr(
+        "src.backend.features.combat.workers.tasks.chaos_task.time.time",
+        lambda: MAX_INACTIVITY_SEC + 2,
+    )
+    data_service = FakeChaosTaskDataService(battle_type="arena")
+    queue = CapturingChaosQueue()
+
+    await chaos_check_task({"combat_data_service": data_service, "redis": queue}, "combat-1")
+
+    assert data_service.hot_joined is not None
+    assert queue.jobs[0][0] == "combat_collector_task"
+    assert queue.jobs[0][1]["signal_type"] == "heartbeat"
+    assert queue.jobs[0][1]["move_id"] == "chaos_spawn"
+    assert queue.jobs[1][0] == "chaos_check_task"
+    assert queue.jobs[1][2].get("_defer_until") is not None
 
 
 @pytest.mark.unit
@@ -1614,7 +1667,7 @@ def test_executor_flow_refunds_used_feint_cost() -> None:
 async def test_result_support_task_payload_captures_actor_refs_and_analytics_slice() -> None:
     source = actor(1, "a")
     target = actor(2, "b")
-    source.stats = stats({"accuracy": 0.8, "crit_chance": 0.2, "armor_penetration": 0.1}, {"skill_parrying": 0.3})
+    source.stats = stats({"accuracy": 0.8, "crit_chance": 0.2, "physical_suppression": 0.1}, {"skill_parrying": 0.3})
     target.stats = stats({"evasion": 0.4, "parry": 0.5, "block": 0.6, "armor": 7.0}, {"skill_parrying": 0.2})
     ctx = BattleContext(session_id="c1", meta=battle_meta(), actors={"1": source, "2": target})
     result = InteractionResultDTO(source_id=1, target_id=2, is_hit=True, damage_final=6)
@@ -2008,6 +2061,81 @@ def test_physical_damage_attribute_bonus_applies_to_weapon_damage(monkeypatch: p
 
 
 @pytest.mark.unit
+def test_physical_suppression_reduces_resistance_before_flat_armor(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(MathCore, "random_range", staticmethod(lambda min_d, max_d: min_d))
+    monkeypatch.setattr(MathCore, "check_chance", staticmethod(lambda chance: False))
+
+    ctx = PipelineContextDTO()
+    result = InteractionResultDTO(source_id=1, target_id=2)
+
+    damage = CombatResolver._step_calculate_damage(
+        stats(
+            {
+                "main_hand_damage_base": 100.0,
+                "main_hand_damage_spread": 0.0,
+                "physical_suppression": 0.20,
+            }
+        ),
+        stats({"physical_resistance": 0.30, "armor": 10.0}),
+        ctx,
+        result,
+    )
+
+    assert damage == pytest.approx(80.0)
+    assert result.damage_trace is not None
+    assert result.damage_trace.details["physical_suppression"] == pytest.approx(0.20)
+
+
+@pytest.mark.unit
+def test_armor_penetration_pct_and_flat_reduce_only_flat_armor(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(MathCore, "random_range", staticmethod(lambda min_d, max_d: min_d))
+    monkeypatch.setattr(MathCore, "check_chance", staticmethod(lambda chance: False))
+
+    ctx = PipelineContextDTO()
+    result = InteractionResultDTO(source_id=1, target_id=2)
+
+    damage = CombatResolver._step_calculate_damage(
+        stats(
+            {
+                "main_hand_damage_base": 100.0,
+                "main_hand_damage_spread": 0.0,
+                "main_hand_armor_penetration_pct": 0.50,
+                "armor_penetration_flat": 10.0,
+            }
+        ),
+        stats({"armor": 40.0}),
+        ctx,
+        result,
+    )
+
+    assert damage == pytest.approx(90.0)
+
+
+@pytest.mark.unit
+def test_armor_ignore_chance_can_skip_flat_armor(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(MathCore, "random_range", staticmethod(lambda min_d, max_d: min_d))
+    monkeypatch.setattr(MathCore, "check_chance", staticmethod(lambda chance: True))
+
+    ctx = PipelineContextDTO()
+    result = InteractionResultDTO(source_id=1, target_id=2)
+
+    damage = CombatResolver._step_calculate_damage(
+        stats(
+            {
+                "main_hand_damage_base": 100.0,
+                "main_hand_damage_spread": 0.0,
+                "main_hand_armor_ignore_chance": 1.0,
+            }
+        ),
+        stats({"armor": 40.0}),
+        ctx,
+        result,
+    )
+
+    assert damage == pytest.approx(100.0)
+
+
+@pytest.mark.unit
 def test_shield_reflect_absorbs_percent_plus_shield_power(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(MathCore, "random_range", staticmethod(lambda min_d, max_d: min_d))
 
@@ -2156,12 +2284,12 @@ def test_item_source_type_reads_item_offensive_modifiers() -> None:
             "main_hand_damage_base": 999.0,
             "main_hand_accuracy": 0.99,
             "main_hand_crit_chance": 0.99,
-            "main_hand_penetration": 0.99,
+            "main_hand_armor_penetration_pct": 0.99,
             "item_damage_base": 12.0,
             "item_damage_spread": 0.25,
             "item_accuracy": 0.8,
             "item_crit_chance": 0.2,
-            "item_penetration": 0.1,
+            "item_armor_penetration_pct": 0.1,
         }
     )
 
@@ -2170,4 +2298,39 @@ def test_item_source_type_reads_item_offensive_modifiers() -> None:
     assert CombatResolver._get_offensive_val(actor_stats, ctx, "accuracy") == 0.8
     assert CombatResolver._get_offensive_val(actor_stats, ctx, "crit_chance") == 0.2
     assert CombatResolver._get_offensive_val(actor_stats, ctx, "crit_cap") == 0.75
-    assert CombatResolver._get_offensive_val(actor_stats, ctx, "penetration") == 0.1
+    assert CombatResolver._get_offensive_val(actor_stats, ctx, "armor_penetration_pct") == 0.1
+
+
+@pytest.mark.unit
+def test_token_award_can_double_non_excluded_combat_tokens(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(CombatResolver, "_bonus_token_roll", staticmethod(lambda: True))
+    bucket = {"hit": 1}
+
+    CombatResolver._award_token(bucket, "hit")
+
+    assert bucket["hit"] == 3
+
+
+@pytest.mark.unit
+def test_token_award_does_not_double_tempo_or_gift(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(CombatResolver, "_bonus_token_roll", staticmethod(lambda: True))
+    bucket: dict[str, int] = {}
+
+    CombatResolver._award_token(bucket, "tempo")
+    CombatResolver._award_token(bucket, "gift")
+
+    assert bucket == {"tempo": 1, "gift": 1}
+
+
+@pytest.mark.unit
+def test_trigger_token_grants_use_bonus_award_rule(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(CombatResolver, "_bonus_token_roll", staticmethod(lambda: True))
+    result = InteractionResultDTO(source_id=1, target_id=2)
+
+    CombatResolver._apply_trigger_token_grants(
+        result,
+        {"token_grants_attacker": ["hit"], "token_grants_defender": ["block", "tempo"]},
+    )
+
+    assert result.tokens_awarded_attacker == {"hit": 2}
+    assert result.tokens_awarded_defender == {"block": 2, "tempo": 1}

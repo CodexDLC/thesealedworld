@@ -1,4 +1,3 @@
-from .clan_factory import ClanFactory
 from .combat_actor_input import MonsterCombatActorInputBuilder
 from .encounter_pool import EncounterPoolSelector
 from .generation_builder import MonsterClanGenerationBuilder
@@ -18,7 +17,6 @@ from .group_assembler import MonsterGroupAssembler, MonsterGroupAssembly
 from .hashing import compute_context_hash, compute_unique_clan_hash, normalize_tags
 
 __all__ = [
-    "ClanFactory",
     "EncounterPoolSelector",
     "MonsterGroupAssembler",
     "MonsterGroupAssembly",

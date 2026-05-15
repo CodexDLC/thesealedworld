@@ -7,12 +7,14 @@ from src.backend.core.exceptions import BusinessLogicException
 from src.backend.features.character.events import CharacterEvents
 from src.backend.features.inventory.events.publisher import InventoryEvents
 from src.backend.features.items.events.publisher import ItemEvents
+from src.backend.features.scenario.dto.context import ScenarioContextDTO
 from src.backend.features.scenario.handlers.base_handler import ScenarioInitialHandlerContext
 from src.backend.features.scenario.integrations.system_integrator import (
     SCENARIO_COMBAT_TTL_SECONDS,
     ScenarioSystemIntegrator,
 )
 from src.shared.enums import CoreDomain
+from src.shared.schemas import ScenarioReturnContextDTO
 
 
 @pytest.mark.unit
@@ -199,6 +201,131 @@ async def test_finalize_session_can_persist_exploration_as_previous_state() -> N
     character_sessions.clear_scenario_session.assert_awaited_once_with(7)
     sessions.delete.assert_awaited_once_with(7)
     repo.delete_state.assert_awaited_once_with(7)
+
+
+@pytest.mark.unit
+async def test_prepare_session_uses_return_context_source_state() -> None:
+    sessions = MagicMock()
+    sessions.create = AsyncMock()
+    character_sessions = MagicMock()
+    character_sessions.transition_state = AsyncMock()
+    character_sessions.set_scenario_session = AsyncMock()
+    repo = MagicMock()
+    repo.upsert_state = AsyncMock()
+    integrator = ScenarioSystemIntegrator(
+        sessions=sessions,
+        content=MagicMock(),
+        character_sessions=character_sessions,
+        repo=repo,
+        events=MagicMock(),
+    )
+    context = ScenarioContextDTO(
+        quest_key="tavern_bartender_dialogue",
+        current_node_key="start",
+        return_context=ScenarioReturnContextDTO(
+            source_state=CoreDomain.TAVERN,
+            return_state=CoreDomain.TAVERN,
+            return_screen="bar",
+            source_service_id="svc_tavern_hub",
+            location_id="52_53",
+            tavern_id="last_refuge",
+        ),
+    )
+
+    await integrator.prepare_session(7, "tavern_bartender_dialogue", context)
+
+    character_sessions.transition_state.assert_awaited_once_with(
+        7,
+        CoreDomain.SCENARIO,
+        expected_state=CoreDomain.TAVERN.value,
+        prev_state=CoreDomain.TAVERN.value,
+    )
+    sessions.create.assert_awaited_once_with(7, context)
+    character_sessions.set_scenario_session.assert_awaited_once()
+    repo.upsert_state.assert_awaited_once()
+
+
+@pytest.mark.unit
+async def test_prepare_session_cleans_scenario_session_when_transition_fails() -> None:
+    sessions = MagicMock()
+    sessions.create = AsyncMock()
+    sessions.delete = AsyncMock()
+    character_sessions = MagicMock()
+    character_sessions.transition_state = AsyncMock(side_effect=RuntimeError("bad state"))
+    integrator = ScenarioSystemIntegrator(
+        sessions=sessions,
+        content=MagicMock(),
+        character_sessions=character_sessions,
+        repo=MagicMock(),
+        events=MagicMock(),
+    )
+    context = ScenarioContextDTO(quest_key="q1", current_node_key="start", prev_state=CoreDomain.LOBBY.value)
+
+    with pytest.raises(RuntimeError, match="bad state"):
+        await integrator.prepare_session(7, "q1", context)
+
+    sessions.create.assert_awaited_once_with(7, context)
+    sessions.delete.assert_awaited_once_with(7)
+
+
+@pytest.mark.unit
+async def test_apply_finalize_effects_grants_tavern_room() -> None:
+    events = MagicMock()
+    events.request = AsyncMock(
+        return_value={
+            "status": "ok",
+            "room_id": 10,
+            "room_key": "last_refuge_private_room",
+            "tavern_id": "last_refuge",
+            "created": False,
+        }
+    )
+    integrator = ScenarioSystemIntegrator(
+        sessions=MagicMock(),
+        content=MagicMock(),
+        character_sessions=MagicMock(),
+        repo=MagicMock(),
+        events=events,
+    )
+    metadata = {
+        "_effects": [
+            {
+                "type": "tavern.grant_room",
+                "required": True,
+                "tavern_id": "last_refuge",
+                "room_key": "last_refuge_private_room",
+            }
+        ]
+    }
+
+    result = await integrator.apply_finalize_effects(7, metadata, quest_key="tavern_bartender_dialogue")
+
+    assert metadata == {}
+    assert result["room_granted"] is True
+    assert result["room_id"] == 10
+    assert result["room_created"] is False
+    events.request.assert_awaited_once()
+    assert events.request.await_args.args[0] == "tavern.room_grant_requested"
+
+
+@pytest.mark.unit
+async def test_apply_finalize_effects_fails_required_tavern_effect() -> None:
+    events = MagicMock()
+    events.request = AsyncMock(return_value={"status": "error", "error": "db down"})
+    integrator = ScenarioSystemIntegrator(
+        sessions=MagicMock(),
+        content=MagicMock(),
+        character_sessions=MagicMock(),
+        repo=MagicMock(),
+        events=events,
+    )
+
+    with pytest.raises(RuntimeError, match="Tavern room grant effect failed"):
+        await integrator.apply_finalize_effects(
+            7,
+            {"_effects": [{"type": "tavern.grant_room", "required": True, "tavern_id": "last_refuge"}]},
+            quest_key="tavern_bartender_dialogue",
+        )
 
 
 @pytest.mark.unit

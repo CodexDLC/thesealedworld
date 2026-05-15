@@ -38,6 +38,7 @@ def build_layout_map(
         header_groups=header_groups,
         sidebar=sorted(sidebar, key=lambda item: (item.order, item.key)),
         sidebar_badges=sidebar_badges or {},
+        notification_count=0,
     )
 
 

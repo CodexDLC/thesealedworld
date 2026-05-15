@@ -15,11 +15,10 @@ from src.backend.features.inventory.events import router as inventory_router
 from src.backend.features.items.events import router as items_router
 from src.backend.features.monsters.events import router as monsters_router
 from src.backend.features.scenario.events import router as scenario_router
+from src.backend.features.tavern.events import router as tavern_router
 from src.backend.features.world.events import router as world_router
-from src.backend.features_site.auth.events import router as auth_router
 
 EVENT_ROUTERS = (
-    auth_router,
     world_router,
     character_router,
     combat_router,
@@ -28,6 +27,7 @@ EVENT_ROUTERS = (
     monsters_router,
     scenario_router,
     arena_router,
+    tavern_router,
 )
 
 
@@ -103,6 +103,9 @@ async def lifespan(app: FastAPI):
 
         if hasattr(app.state, "combat_arq"):
             await app.state.combat_arq.close()
+
+        if hasattr(app.state, "generation_ai_arq"):
+            await app.state.generation_ai_arq.close()
 
         if hasattr(app.state, "redis_client"):
             await app.state.redis_client.close()

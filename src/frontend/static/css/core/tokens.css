@@ -54,10 +54,10 @@
   --sp-10: 40px;
   --sp-12: 48px;
 
-  /* Clip-path node (used everywhere instead of border-radius) */
-  --clip-node-sm: polygon(0 0, calc(100% - 5px) 0, 100% 5px, 100% 100%, 5px 100%, 0 calc(100% - 5px));
-  --clip-node-md: polygon(0 0, calc(100% - 8px) 0, 100% 8px, 100% 100%, 8px 100%, 0 calc(100% - 8px));
-  --clip-node-lg: polygon(0 0, calc(100% - 12px) 0, 100% 12px, 100% 100%, 12px 100%, 0 calc(100% - 12px));
+  /* Clip-path node tokens */
+  --clip-node-sm: inset(0);
+  --clip-node-md: inset(0);
+  --clip-node-lg: inset(0);
 
   /* Glow — breathing box-shadow keyframes used on all membranes */
   --shadow-accent: 0 0 12px 2px rgba(255, 170, 0, 0.18);

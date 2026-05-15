@@ -7,13 +7,13 @@ from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from src.backend.config.settings import settings
-from src.backend.core.database import Base, TimestampMixin
+from src.backend.core.database import Base, MetadataContextMixin, RevisionMixin, SchemaVersionMixin, TimestampMixin
 
 if TYPE_CHECKING:
     from src.backend.features.character.models.character import Character
 
 
-class CharacterSymbiote(Base, TimestampMixin):
+class CharacterSymbiote(Base, TimestampMixin, MetadataContextMixin, SchemaVersionMixin, RevisionMixin):
     __tablename__ = "character_symbiotes"
 
     character_id: Mapped[int] = mapped_column(

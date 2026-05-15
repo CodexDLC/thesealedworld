@@ -1,0 +1,15 @@
+<div class="ds-panel">
+    <div class="ds-panel-header">TAVERN CONTEXT</div>
+    <div class="ds-panel-body">
+        {% if tavern %}
+            <div class="missing-data-block">
+                <span>{{ tavern.tavern_id }}</span>
+                <small>{{ tavern.location_id or 'NO_LOCATION' }}</small>
+            </div>
+        {% else %}
+            <div class="missing-data-block">
+                <span>NO_TAVERN_CONTEXT</span>
+            </div>
+        {% endif %}
+    </div>
+</div>

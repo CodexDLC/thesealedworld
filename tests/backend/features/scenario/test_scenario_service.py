@@ -11,14 +11,17 @@ from src.backend.features.scenario.exceptions import (
 )
 from src.backend.features.scenario.services.scenario_service import ScenarioService
 from src.shared.enums import CoreDomain
+from src.shared.schemas import ScenarioReturnContextDTO
 
 
 @pytest.mark.unit
 class TestScenarioService:
     @pytest.fixture
     def mocks(self):
+        integrator = MagicMock()
+        integrator.apply_finalize_effects = AsyncMock(return_value={})
         return {
-            "integrator": MagicMock(),
+            "integrator": integrator,
             "evaluator": MagicMock(),
             "director": MagicMock(),
             "formatter": MagicMock(),
@@ -51,6 +54,43 @@ class TestScenarioService:
         result = await service.initialize(char_id, quest_key)
         assert result.node_key == "n1"
         mocks["integrator"].prepare_session.assert_called_once()
+        mock_handler.on_initialize.assert_awaited_once_with(char_id, {"id": "q1"}, return_context=None)
+
+    async def test_initialize_passes_return_context_to_handler(self, service, mocks):
+        import uuid
+
+        char_id = 1
+        quest_key = "q1"
+        return_context = ScenarioReturnContextDTO(
+            source_state=CoreDomain.TAVERN,
+            return_state=CoreDomain.TAVERN,
+            return_screen="bar",
+            source_service_id="svc_tavern_hub",
+            location_id="52_53",
+            tavern_id="last_refuge",
+        )
+        master = {"quest_key": quest_key, "scenario_type": "dialogue_scenario", "start_node_id": "n1"}
+        mocks["integrator"].get_quest_master = AsyncMock(return_value=master)
+
+        mock_handler = MagicMock()
+        context = ScenarioContextDTO(
+            quest_key=quest_key,
+            current_node_key="n1",
+            scenario_session_id=uuid.uuid4(),
+        )
+        mock_handler.on_initialize = AsyncMock(return_value=context)
+
+        mocks["integrator"].build_handler.return_value = mock_handler
+        mocks["integrator"].prepare_session = AsyncMock()
+        mocks["integrator"].get_node = AsyncMock(return_value={"node_key": "n1", "actions_logic": {}})
+        mocks["integrator"].publish_event = AsyncMock()
+        mocks["formatter"].render_payload.return_value = MagicMock(node_key="n1", buttons=[])
+
+        result = await service.initialize(char_id, quest_key, return_context=return_context)
+
+        assert result.node_key == "n1"
+        assert context.return_context == return_context
+        mock_handler.on_initialize.assert_awaited_once_with(char_id, master, return_context=return_context)
 
     async def test_initialize_not_found(self, service, mocks):
         mocks["integrator"].get_quest_master = AsyncMock(return_value=None)
@@ -390,3 +430,40 @@ class TestScenarioService:
 
         mocks["integrator"].finalize_session.assert_called_with(char_id, CoreDomain.EXPLORATION)
         mocks["integrator"].sync_active_character_to_db.assert_called_with(char_id)
+
+    async def test_finalize_applies_structured_effect_metadata(self, service, mocks):
+        char_id = 1
+        context = ScenarioContextDTO(quest_key="q1", current_node_key="terminal")
+        mocks["integrator"].load_session = AsyncMock(return_value=context)
+        mocks["integrator"].get_quest_master = AsyncMock(return_value={"id": "q1"})
+
+        mock_handler = MagicMock()
+        result = ScenarioFinalizeResult(
+            target_state=CoreDomain.TAVERN,
+            transition_reason="dialogue_finalized",
+            metadata={"next_screen": "room", "_effects": [{"type": "tavern.grant_room", "required": True}]},
+        )
+        mock_handler.on_finalize = AsyncMock(return_value=result)
+
+        mocks["integrator"].build_handler.return_value = mock_handler
+        mocks["integrator"].grant_inventory_rewards = AsyncMock(return_value=[])
+        mocks["integrator"].unlock_skills = AsyncMock()
+        mocks["integrator"].apply_attribute_bonuses = AsyncMock()
+        mocks["integrator"].request_combat_start = AsyncMock()
+        mocks["integrator"].enter_prepared_combat = AsyncMock()
+        mocks["integrator"].finalize_session = AsyncMock()
+        mocks["integrator"].publish_event = AsyncMock()
+        mocks["integrator"].sync_active_character_to_db = AsyncMock()
+        mocks["integrator"].apply_finalize_effects = AsyncMock(return_value={"room_granted": True, "room_id": 10})
+
+        finalized = await service.finalize(char_id)
+
+        mocks["integrator"].apply_finalize_effects.assert_awaited_once()
+        effect_args = mocks["integrator"].apply_finalize_effects.await_args
+        assert effect_args.args[0] == char_id
+        assert effect_args.args[1]["next_screen"] == "room"
+        assert effect_args.args[1]["_effects"] == [{"type": "tavern.grant_room", "required": True}]
+        assert effect_args.kwargs == {"quest_key": "q1"}
+        assert finalized.metadata["room_granted"] is True
+        assert finalized.metadata["room_id"] == 10
+        mocks["integrator"].finalize_session.assert_called_with(char_id, CoreDomain.TAVERN)

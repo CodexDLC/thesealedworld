@@ -1,8 +1,15 @@
 from typing import Annotated, Any, cast
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Request
 
-from src.backend.config.settings import settings
+from src.backend.core.auth import User, get_current_user, require_game_character_scope
+from src.backend.core.game_auth import (
+    GameTokenPairDTO,
+    GameTokenRefreshRequestDTO,
+    create_game_token_pair,
+    refresh_game_token_pair,
+    require_internal_service_key,
+)
 from src.backend.features.character.dependencies import get_character_status_service
 from src.backend.features.character.services.status_service import CharacterStatusService
 from src.backend.features.game_lobby.dependencies import (
@@ -11,8 +18,6 @@ from src.backend.features.game_lobby.dependencies import (
 )
 from src.backend.features.game_lobby.services.character_creation_service import CharacterCreationService
 from src.backend.features.game_lobby.services.lobby_service import GameLobbyService
-from src.backend.features_site.auth.dependencies import get_current_user
-from src.backend.features_site.auth.models import User
 from src.shared.enums import CoreDomain
 from src.shared.schemas import (
     CharacterStatusDTO,
@@ -20,22 +25,132 @@ from src.shared.schemas import (
     CreateCharacterRequestDTO,
     DeleteCharacterRequestDTO,
     EnterCharacterRequestDTO,
+    GameLobbyCharacterCreateRequestDTO,
+    GameLobbyCharacterDeleteRequestDTO,
+    GameLobbyCharacterReleaseRequestDTO,
+    GameLobbyCharacterSelectRequestDTO,
     GameLobbyPayloadDTO,
+    GameLobbyUserContextDTO,
     GameStateHeader,
     ScenarioPayloadDTO,
 )
-from src.shared.utils.dev_utils import log_debug_payload
+from src.shared.schemas.auth import AuthenticatedUser
 
 router = APIRouter(prefix="/game-lobby", tags=["Game Lobby"])
 
 
+@router.post("/bootstrap", response_model=CoreResponseDTO[GameLobbyPayloadDTO])
+async def bootstrap_lobby_for_site_user(
+    user_context: GameLobbyUserContextDTO,
+    _service: Annotated[object, Depends(require_internal_service_key)],
+    lobby_service: Annotated[GameLobbyService, Depends(get_game_lobby_service)],
+) -> CoreResponseDTO[GameLobbyPayloadDTO]:
+    """Service-to-service lobby bootstrap for the site frontend."""
+    user = AuthenticatedUser(id=user_context.user_id, email=user_context.email)
+    payload = await lobby_service.get_start_payload(user)
+    return CoreResponseDTO(
+        header=GameStateHeader(current_state=CoreDomain.LOBBY),
+        payload=payload,
+        payload_type="lobby_start",
+    )
+
+
+@router.post("/select", response_model=CoreResponseDTO[dict[str, object]])
+async def select_lobby_character_for_site_user(
+    dto: GameLobbyCharacterSelectRequestDTO,
+    _service: Annotated[object, Depends(require_internal_service_key)],
+    lobby_service: Annotated[GameLobbyService, Depends(get_game_lobby_service)],
+) -> CoreResponseDTO[dict[str, object]]:
+    """Select an owned character and issue game tokens for gameplay API calls."""
+    user = AuthenticatedUser(id=dto.user_id, email=dto.email)
+    response = await lobby_service.enter_character(user, dto.character_id)
+    tokens = create_game_token_pair(
+        user_id=user.id,
+        character_id=dto.character_id,
+        session_id=str(dto.character_id),
+    )
+    payload = {
+        **(response.payload or {}),
+        "game_tokens": tokens.model_dump(mode="json"),
+    }
+    return CoreResponseDTO(header=response.header, payload=payload, payload_type="game_character_selected")
+
+
+@router.post("/create", response_model=CoreResponseDTO[ScenarioPayloadDTO | dict[Any, Any]])
+async def create_lobby_character_for_site_user(
+    dto: GameLobbyCharacterCreateRequestDTO,
+    _service: Annotated[object, Depends(require_internal_service_key)],
+    creation_service: Annotated[CharacterCreationService, Depends(get_character_creation_service)],
+) -> CoreResponseDTO[ScenarioPayloadDTO | dict[Any, Any]]:
+    """Create a character for a site user and issue gameplay tokens."""
+    user = AuthenticatedUser(id=dto.user_id, email=dto.email)
+    payload = await creation_service.create_and_enter(user, dto.character)
+    char_id = _char_id_from_payload(payload)
+    tokens = create_game_token_pair(
+        user_id=user.id,
+        character_id=char_id,
+        session_id=str(char_id),
+    )
+    payload.extra_data = {
+        **(payload.extra_data or {}),
+        "game_tokens": tokens.model_dump(mode="json"),
+    }
+    return CoreResponseDTO(
+        header=GameStateHeader(current_state=CoreDomain.SCENARIO, previous_state=CoreDomain.LOBBY),
+        payload=payload,
+        payload_type="scenario_screen",
+    )
+
+
+@router.post("/release-selected", response_model=CoreResponseDTO[dict[str, Any]])
+async def release_lobby_character_for_site_user(
+    dto: GameLobbyCharacterReleaseRequestDTO,
+    _service: Annotated[object, Depends(require_internal_service_key)],
+    lobby_service: Annotated[GameLobbyService, Depends(get_game_lobby_service)],
+) -> CoreResponseDTO[dict[str, Any]]:
+    """Release a selected character using the site user's internal context."""
+    user = AuthenticatedUser(id=dto.user_id, email=dto.email)
+    return await lobby_service.release_character(user, dto.character.character_id)
+
+
+@router.post("/delete-character", response_model=CoreResponseDTO[GameLobbyPayloadDTO])
+async def delete_lobby_character_for_site_user(
+    dto: GameLobbyCharacterDeleteRequestDTO,
+    _service: Annotated[object, Depends(require_internal_service_key)],
+    lobby_service: Annotated[GameLobbyService, Depends(get_game_lobby_service)],
+) -> CoreResponseDTO[GameLobbyPayloadDTO]:
+    """Delete a site user's owned character without requiring a gameplay token."""
+    user = AuthenticatedUser(id=dto.user_id, email=dto.email)
+    await lobby_service.delete_character(
+        user,
+        dto.character.character_id,
+        confirm_name=dto.character.confirm_name,
+    )
+    payload = await lobby_service.get_start_payload(user)
+    return CoreResponseDTO(
+        header=GameStateHeader(current_state=CoreDomain.LOBBY),
+        payload=payload,
+        payload_type="lobby_start",
+    )
+
+
+@router.post("/refresh-token", response_model=GameTokenPairDTO)
+async def refresh_game_token(
+    dto: GameTokenRefreshRequestDTO,
+    _service: Annotated[object, Depends(require_internal_service_key)],
+) -> GameTokenPairDTO:
+    return refresh_game_token_pair(dto.refresh_token)
+
+
 @router.get("/status", response_model=CharacterStatusDTO)
 async def get_character_status(
+    request: Request,
     char_id: int,
     current_user: Annotated[User, Depends(get_current_user)],
     status_service: Annotated[CharacterStatusService, Depends(get_character_status_service)],
 ) -> CharacterStatusDTO:
     """Compatibility wrapper for the character-status status endpoint."""
+    require_game_character_scope(request, current_user, char_id)
     return await status_service.get_status(current_user, char_id)
 
 
@@ -51,7 +166,6 @@ async def get_lobby_view(
         payload=payload,
         payload_type="lobby_start",
     )
-    log_debug_payload("game_lobby.view", response, enabled=settings.debug)
     return response
 
 
@@ -63,48 +177,61 @@ async def start_lobby_flow(
 ) -> CoreResponseDTO[ScenarioPayloadDTO | dict[Any, Any]]:
     """Creates a new character and enters the starting scenario."""
     payload = await creation_service.create_and_enter(current_user, dto)
+    char_id = _char_id_from_payload(payload)
+    tokens = create_game_token_pair(
+        user_id=current_user.id,
+        character_id=char_id,
+        session_id=str(char_id),
+    )
+    payload.extra_data = {
+        **(payload.extra_data or {}),
+        "game_tokens": tokens.model_dump(mode="json"),
+    }
     response: CoreResponseDTO[ScenarioPayloadDTO | dict[Any, Any]] = CoreResponseDTO(
         header=GameStateHeader(current_state=CoreDomain.SCENARIO, previous_state=CoreDomain.LOBBY),
         payload=payload,
         payload_type="scenario_screen",
     )
-    log_debug_payload("game_lobby.start", response, enabled=settings.debug)
     return response
 
 
 @router.post("/enter", response_model=CoreResponseDTO[ScenarioPayloadDTO | dict[str, Any]])
 async def enter_lobby_character(
+    request: Request,
     dto: EnterCharacterRequestDTO,
     current_user: Annotated[User, Depends(get_current_user)],
     lobby_service: Annotated[GameLobbyService, Depends(get_game_lobby_service)],
 ) -> CoreResponseDTO[ScenarioPayloadDTO | dict[str, Any]]:
     """Cold lobby enter: rebuilds AC from Postgres before the runtime game session starts."""
+    require_game_character_scope(request, current_user, dto.character_id)
     res = await lobby_service.enter_character(current_user, dto.character_id)
     response = cast("CoreResponseDTO[ScenarioPayloadDTO | dict[str, Any]]", res)
-    log_debug_payload("game_lobby.enter", response, enabled=settings.debug)
     return response
 
 
 @router.post("/release", response_model=CoreResponseDTO[dict[str, Any]])
 async def release_lobby_character(
+    request: Request,
     dto: EnterCharacterRequestDTO,
     current_user: Annotated[User, Depends(get_current_user)],
     lobby_service: Annotated[GameLobbyService, Depends(get_game_lobby_service)],
 ) -> CoreResponseDTO[dict[str, Any]]:
     """Saves the active AC snapshot and removes the runtime AC before returning to lobby."""
+    require_game_character_scope(request, current_user, dto.character_id)
     response = await lobby_service.release_character(current_user, dto.character_id)
-    log_debug_payload("game_lobby.release", response, enabled=settings.debug)
     return response
 
 
 @router.post("/delete", response_model=CoreResponseDTO[GameLobbyPayloadDTO])
 async def delete_lobby_character(
+    request: Request,
     dto: DeleteCharacterRequestDTO,
     current_user: Annotated[User, Depends(get_current_user)],
     lobby_service: Annotated[GameLobbyService, Depends(get_game_lobby_service)],
 ) -> CoreResponseDTO[GameLobbyPayloadDTO]:
     """Deletes a character and cleans up all associated runtime and persistent state."""
-    await lobby_service.delete_character(current_user, dto.character_id)
+    require_game_character_scope(request, current_user, dto.character_id)
+    await lobby_service.delete_character(current_user, dto.character_id, confirm_name=dto.confirm_name)
 
     payload = await lobby_service.get_start_payload(current_user)
     response = CoreResponseDTO(
@@ -112,5 +239,12 @@ async def delete_lobby_character(
         payload=payload,
         payload_type="lobby_start",
     )
-    log_debug_payload("game_lobby.delete", response, enabled=settings.debug)
     return response
+
+
+def _char_id_from_payload(payload: ScenarioPayloadDTO) -> int:
+    extra_data = payload.extra_data or {}
+    char_id = int(extra_data.get("char_id", 0))
+    if char_id <= 0:
+        raise RuntimeError("Character creation did not return character id")
+    return char_id

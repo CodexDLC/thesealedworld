@@ -28,7 +28,7 @@ Examples:
 - `hp.base` from `endurance`.
 - `evasion.base` from `agility`.
 - `physical_damage.base` from `strength`.
-- `armor_penetration.base` from `strength`.
+- `physical_suppression.base` from `strength`.
 - `main_hand_accuracy.base = 0.70` for a weapon hand.
 - `main_hand_damage_base.base` from `strength` only for unarmed combat.
 
@@ -318,17 +318,30 @@ Notes:
 
 Current design status: defined.
 
-### `armor_penetration`
+### `physical_suppression`
 
-Meaning: global physical penetration added to hand penetration.
+Meaning: natural physical suppression that reduces `physical_resistance`.
+It is not armor penetration and does not reduce flat `armor`.
 
 Mapper contract:
 
-- `base`: strength-derived physical penetration, `strength * 0.02`.
-- `source`: item affixes, weapon properties if global.
+- `base`: strength-derived physical suppression, `strength * 0.02`.
+- `source`: item affixes, feints, passives.
 - `temp`: buffs/debuffs.
 
 Current design status: defined by the Attributes design.
+
+### `armor_penetration_pct`, `armor_penetration_flat`, `armor_ignore_chance`
+
+Meaning: armor-layer penetration against flat `armor`.
+
+Mapper contract:
+
+- `base`: normally `0`.
+- `source`: weapon properties, item affixes, passives.
+- `temp`: buffs/debuffs and feints.
+
+Current design status: defined by combat resolver.
 
 ### `crit_chance`
 
@@ -531,7 +544,7 @@ Mapper contract:
 
 Current design status: partly defined.
 
-### `item_damage_base`, `item_damage_spread`, `item_accuracy`, `item_crit_chance`, `item_penetration`
+### `item_damage_base`, `item_damage_spread`, `item_accuracy`, `item_crit_chance`, `item_armor_penetration_pct`
 
 Meaning: combat items such as grenades, scrolls, throwable items.
 

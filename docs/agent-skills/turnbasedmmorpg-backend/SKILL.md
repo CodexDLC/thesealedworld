@@ -11,11 +11,21 @@ Read:
 
 - `docs/agent-skills/turnbasedmmorpg-backend/references/backend-layout.md`
 
+For service split, chat absorption, backend Alembic, game schema, site/game boundary, or frontend independence work, also read:
+
+- `docs/tasks/service_split_finalization.md`
+- `docs/tasks/service_split_backend_game.md`
+
 For Redis Streams events, also use `turnbasedmmorpg-redis-streams`.
 
 ## Core Rules
 
 - Backend is a FastAPI monolith with explicit feature ownership.
+- During the service split, treat `src/backend` as the game backend: gameplay APIs, runtime state, workers, Redis streams, game schema, and chat after absorption belong here.
+- Site auth, user/account, cabinet, library, public site rendering, and site Alembic belong to the frontend/site service, not backend.
+- Chat should be absorbed into backend ownership as a backend feature/module; a separate chat container may still run, but it should use the backend codebase instead of a duplicated app/config/database layer.
+- Backend Alembic should own only game and chat schemas after site auth is moved out.
+- Game APIs that receive `character_id` must verify `current_user.id == character.user_id`; do not rely on client-provided ownership.
 - A feature owns its DTOs, API/services, integrations, events, runtime code, workers, and feature-specific orchestration.
 - Feature `integrations/` is the normal boundary for feature code that works with infrastructure. Services, runtime code, API handlers, and workers should use semantic integration methods instead of reaching into low-level infrastructure directly.
 - Low-level domain infrastructure lives under `src/backend/infrastructure/<domain>/`. A domain infrastructure package may contain `schemas/`, `models/`, `repositories/`, `managers/`, and adapters when those modules are persistence, cache, session, Redis, or transport details rather than feature business logic.
@@ -59,3 +69,10 @@ Layer note:
 When implementing a feature that needs infrastructure access, create the feature `integrations/` layer as part of the slice. Do not skip it and wire services directly to infrastructure.
 
 Do not create empty folders just to satisfy the skeleton. For a not-yet-implemented feature, a missing `integrations/` folder means the layer has not been built yet; it does not mean services should bypass integrations once infrastructure access is added.
+
+## Service Split Closure Rule
+
+Before closing a backend/game service split task, update the relevant task document with the actual decision, file moves, deferred work, and any deviation from the planned architecture:
+
+- `docs/tasks/service_split_finalization.md`
+- `docs/tasks/service_split_backend_game.md`

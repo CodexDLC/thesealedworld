@@ -22,13 +22,15 @@ class ResponseDirector:
     ) -> tuple[str, dict[str, Any]]:
         target_state = response.header.current_state
         if response.payload_type == "state_transition" or target_state != source_state:
-            if redirect_transitions:
+            if redirect_transitions and target_state not in {CoreDomain.ARENA, CoreDomain.SCENARIO, CoreDomain.TAVERN}:
                 return "__session_redirect__", {"char_id": char_id}
             context = await self.context_builder.build(
                 request,
                 state=target_state,
                 char_id=char_id,
                 quest_key=getattr(response.payload, "quest_key", None),
+                transition_context=getattr(response.payload, "context", None),
+                transition_metadata=getattr(response.payload, "metadata", None),
             )
             return "game/session_content.html", context
 
@@ -36,6 +38,8 @@ class ResponseDirector:
             return await self._resolve_exploration(request, response, char_id)
         if target_state == CoreDomain.ARENA:
             return self._resolve_arena(response, char_id)
+        if target_state == CoreDomain.TAVERN:
+            return self._resolve_tavern(response, char_id)
         if target_state == CoreDomain.SCENARIO:
             context = await self.context_builder.build_from_response(request, response, char_id=char_id)
             context["oob_panels"] = True
@@ -67,6 +71,19 @@ class ResponseDirector:
             "domain": CoreDomain.ARENA,
             "char_id": char_id,
             "arena": response.payload,
+            "payload_type": response.payload_type,
+            "oob_panels": True,
+        }
+
+    def _resolve_tavern(
+        self,
+        response: CoreResponseDTO[Any],
+        char_id: int,
+    ) -> tuple[str, dict[str, Any]]:
+        return "game/domains/tavern/viewport/main.html", {
+            "domain": CoreDomain.TAVERN,
+            "char_id": char_id,
+            "tavern": response.payload,
             "payload_type": response.payload_type,
             "oob_panels": True,
         }

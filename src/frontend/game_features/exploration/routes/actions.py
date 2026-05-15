@@ -4,6 +4,8 @@ from fastapi import APIRouter, Depends, Form, Request, Response, status
 from fastapi.responses import RedirectResponse
 
 from src.frontend.core.renderer import UIRenderer, get_ui_renderer
+from src.frontend.features.auth.dependencies.providers import get_frontend_auth_service
+from src.frontend.features.auth.services.auth_service import FrontendAuthService
 from src.frontend.game_features.exploration.dependencies import (
     get_exploration_action_service,
     get_response_director,
@@ -11,8 +13,6 @@ from src.frontend.game_features.exploration.dependencies import (
 from src.frontend.game_features.exploration.services.exploration_action_service import ExplorationActionService
 from src.frontend.game_features.session.cookies import set_active_character_cookie
 from src.frontend.game_features.session.services.response_director import ResponseDirector
-from src.frontend.site_features.auth.dependencies.providers import get_frontend_auth_service
-from src.frontend.site_features.auth.services.auth_service import FrontendAuthService
 from src.shared.enums import CoreDomain
 
 router = APIRouter(tags=["Exploration"])

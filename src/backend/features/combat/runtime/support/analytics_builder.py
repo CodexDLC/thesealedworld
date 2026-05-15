@@ -185,6 +185,7 @@ class CombatAnalyticsFactBuilder:
             "par": mods.parry,
             "blk": mods.block,
             "arm": mods.armor,
-            "pen": mods.armor_penetration,
+            "sup": mods.physical_suppression,
+            "ap": mods.armor_penetration_pct,
             "sp": skills.skill_parrying,
         }

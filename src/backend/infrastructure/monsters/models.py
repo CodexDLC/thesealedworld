@@ -7,16 +7,25 @@ from sqlalchemy import ForeignKey, Index, Integer, String
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from src.backend.core.database import Base
+from src.backend.core.database import (
+    Base,
+    LifecycleStatusMixin,
+    MetadataContextMixin,
+    SchemaVersionMixin,
+    TimestampMixin,
+)
 
 
-class GeneratedClanORM(Base):
+class GeneratedClanORM(Base, TimestampMixin, LifecycleStatusMixin, MetadataContextMixin, SchemaVersionMixin):
     __tablename__ = "generated_clans"
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     family_id: Mapped[str] = mapped_column(String, nullable=False)
     tier: Mapped[int] = mapped_column(Integer, nullable=False)
     zone_id: Mapped[str | None] = mapped_column(String, nullable=True, index=True)
+    biome_id: Mapped[str | None] = mapped_column(String, nullable=True, index=True)
+    location_id: Mapped[str | None] = mapped_column(String, nullable=True, index=True)
+    generation_version: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
     context_hash: Mapped[str] = mapped_column(String(32), nullable=False, index=True)
     unique_hash: Mapped[str] = mapped_column(String(32), nullable=False, unique=True, index=True)
     raw_tags: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
@@ -34,7 +43,7 @@ class GeneratedClanORM(Base):
     __table_args__ = (Index("ix_clan_context_lookup", "context_hash", "tier"),)
 
 
-class Monster(Base):
+class Monster(Base, TimestampMixin, LifecycleStatusMixin, MetadataContextMixin, SchemaVersionMixin):
     __tablename__ = "generated_monsters"
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -46,14 +55,21 @@ class Monster(Base):
     )
     variant_key: Mapped[str] = mapped_column(String, nullable=False)
     role: Mapped[str] = mapped_column(String, nullable=False)
+    faction_key: Mapped[str | None] = mapped_column(String, nullable=True, index=True)
+    side_key: Mapped[str | None] = mapped_column(String, nullable=True, index=True)
+    group_key: Mapped[str | None] = mapped_column(String, nullable=True, index=True)
+    member_tier: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     threat_rating: Mapped[int] = mapped_column(Integer, nullable=False)
     name_ru: Mapped[str] = mapped_column(String, nullable=False)
     description: Mapped[str | None] = mapped_column(String, nullable=True)
-    scaled_base_stats: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
-    loadout_ids: Mapped[dict[str, Any] | list[Any]] = mapped_column(JSONB, nullable=False)
-    skills_snapshot: Mapped[dict[str, Any] | list[Any]] = mapped_column(JSONB, nullable=False)
-    combat_seed: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False, default=dict)
-    current_state: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
+    text_content: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False, default=dict)
+    scaled_attributes: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
+    scaled_skills: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False, default=dict)
+    items: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False, default=dict)
+    vitals: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False, default=dict)
+    ai_profile: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False, default=dict)
+    combat_actor_snapshot: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False, default=dict)
+    generation_meta: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False, default=dict)
 
     clan: Mapped[GeneratedClanORM] = relationship("GeneratedClanORM", back_populates="members")
 

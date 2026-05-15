@@ -2,6 +2,7 @@ import uuid
 from datetime import UTC, datetime
 
 import pytest
+from pydantic import ValidationError
 
 from src.shared.schemas.character import CharacterAttributesReadDTO, CharacterReadDTO
 
@@ -67,32 +68,21 @@ def test_character_attributes_read_dto_accepts_current_attribute_names() -> None
     assert dto.mental == 15
     assert dto.projection == 17
     assert dto.prediction == 18
-    assert dto.intelligence == 13
-    assert dto.wisdom == 14
-    assert dto.men == 15
-    assert dto.charisma == 17
-    assert dto.luck == 18
-
 
 @pytest.mark.unit
-def test_character_attributes_read_dto_keeps_legacy_attribute_names() -> None:
-    dto = CharacterAttributesReadDTO.model_validate(
-        {
-            "character_id": 1,
-            "strength": 10,
-            "agility": 11,
-            "endurance": 12,
-            "intelligence": 13,
-            "wisdom": 14,
-            "men": 15,
-            "perception": 16,
-            "charisma": 17,
-            "luck": 18,
-        }
-    )
-
-    assert dto.intellect == 13
-    assert dto.memory == 14
-    assert dto.mental == 15
-    assert dto.projection == 17
-    assert dto.prediction == 18
+def test_character_attributes_read_dto_rejects_legacy_attribute_names() -> None:
+    with pytest.raises(ValidationError):
+        CharacterAttributesReadDTO.model_validate(
+            {
+                "character_id": 1,
+                "strength": 10,
+                "agility": 11,
+                "endurance": 12,
+                "intelligence": 13,
+                "wisdom": 14,
+                "men": 15,
+                "perception": 16,
+                "charisma": 17,
+                "luck": 18,
+            }
+        )

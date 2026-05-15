@@ -8,12 +8,12 @@ class MonsterStats(TypedDict):
     strength: int
     agility: int
     endurance: int
-    intelligence: int
-    wisdom: int
-    men: int
+    intellect: int
+    memory: int
+    mental: int
     perception: int
-    charisma: int
-    luck: int
+    projection: int
+    prediction: int
 
 
 # ==========================================
@@ -22,6 +22,7 @@ class MonsterStats(TypedDict):
 class MonsterLoadout(TypedDict, total=False):
     main_hand: str | None
     off_hand: str | None
+    two_hand: str | None
     head_armor: str | None
     chest_armor: str | None
     arms_armor: str | None
@@ -37,23 +38,9 @@ class MonsterLoadout(TypedDict, total=False):
     belt_accessory: str | None
 
 
-class MonsterCombatProfile(TypedDict, total=False):
-    archetype: Literal["humanoid", "beast", "undead", "construct", "demon", "unknown"]
-    body_loadout: str
-    armor_class: str
-    natural_weapon_set: str
-    equipment_scaling: str
-    modifier_formula: str
-
-
 class MonsterSkillKit(TypedDict):
     base: dict[str, float]
     role_bonus: dict[str, dict[str, float]]
-
-
-class MonsterAbilityDefinition(TypedDict):
-    mechanic: str
-    presentation: str
 
 
 class MonsterLootProfile(TypedDict, total=False):
@@ -99,7 +86,6 @@ class MonsterMemberResourceModel(TypedDict, total=False):
     attribute_profile: dict[str, object]
     skill_profile: dict[str, object]
     item_loadout_profile: dict[str, object]
-    ability_profile: dict[str, object]
     ai_profile: dict[str, object]
     balance: dict[str, object]
 
@@ -128,9 +114,7 @@ class MonsterVariant(TypedDict):
 
     base_stats: MonsterStats
     fixed_loadout: MonsterLoadout
-    skills: list[str]
     skill_overrides: NotRequired[dict[str, float | None]]
-    ability_overrides: NotRequired[dict[str, str | None]]
     member_model: NotRequired[MonsterMemberResourceModel]
 
     # Служебные поля (проставляются в __init__ реестра)
@@ -157,9 +141,7 @@ class MonsterFamily(TypedDict):
     # А НЕ ГЕОГРАФИЯ. География только в spawn_config.
     default_tags: list[str]
 
-    combat_profile: NotRequired[MonsterCombatProfile]
     skill_kit: NotRequired[MonsterSkillKit]
-    ability_map: NotRequired[dict[str, MonsterAbilityDefinition]]
     loot_profile: NotRequired[MonsterLootProfile]
     clan_model: NotRequired[MonsterClanResourceModel]
     member_models: NotRequired[list[MonsterMemberResourceModel]]

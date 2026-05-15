@@ -1,0 +1,13 @@
+/* ── PAGE: CABINET INDEX ── */
+
+.cabinet-index-panel {
+  max-width: 760px;
+}
+
+.cabinet-index-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-start;
+  gap: var(--sp-3);
+  margin-top: var(--sp-5);
+}

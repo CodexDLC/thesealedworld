@@ -76,6 +76,8 @@ class InventoryRuntimeItemDTO(BaseModel):
     rarity: str = "shared"
     rarity_tier: int = 0
     quantity: int = 1
+    sync_state: str = "secured"
+    is_unsecured: bool = False
     mechanics: dict[str, Any] = Field(default_factory=dict)
     tags: list[str] = Field(default_factory=list)
     metadata: dict[str, Any] = Field(default_factory=dict)
@@ -329,6 +331,8 @@ class InventoryContainerRowDTO(BaseModel):
     grid_w: int = 2
     grid_h: int = 1
     is_equipped: bool = False
+    sync_state: str = "secured"
+    is_unsecured: bool = False
     comparison: list[InventoryComparisonLineDTO] = Field(default_factory=list)
     details: InventoryItemDetailsDTO | None = None
 

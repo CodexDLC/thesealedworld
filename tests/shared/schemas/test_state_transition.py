@@ -8,8 +8,10 @@ def test_state_transition_dto_is_launch_context():
         target_state=CoreDomain.SCENARIO,
         reason="quest_started",
         quest_key="awakening_rift",
+        location_id="52_53",
     )
 
     assert dto.char_id == 7
     assert dto.target_state == CoreDomain.SCENARIO
     assert dto.quest_key == "awakening_rift"
+    assert dto.location_id == "52_53"

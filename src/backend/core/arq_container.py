@@ -31,6 +31,7 @@ class ArqWorkerContainer:
         ctx["scenario_sessions"] = redis_managers.scenario_sessions
         ctx["scenario_content"] = redis_managers.scenario_content
         ctx["world_locations"] = redis_managers.world_locations
+        ctx["expeditions"] = redis_managers.expeditions
 
         logger.info("ARQ worker container bootstrap finished")
 

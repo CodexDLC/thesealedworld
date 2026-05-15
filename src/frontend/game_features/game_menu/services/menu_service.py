@@ -20,13 +20,7 @@ class GameMenuService:
         return GameMenuVM()
 
     def _build_scenario_menu(self) -> GameMenuVM:
-        return GameMenuVM(
-            l2=GameMenuItemVM(id="status", label="STATUS", icon="person", url="#", panel="left", panel_view="status"),
-            l1=GameMenuItemVM(id="empty-left", label="", icon=None, url="#", is_disabled=True),
-            center=GameMenuItemVM(id="scenario", label="SCENARIO", icon="talk", url="#", is_active=True),
-            r1=GameMenuItemVM(id="trace", label="TRACE", icon="journal", url="#", panel="right", panel_view="context"),
-            r2=GameMenuItemVM(id="empty-right", label="", icon=None, url="#", is_disabled=True),
-        )
+        return GameMenuVM()
 
     def _build_exploration_menu(self) -> GameMenuVM:
         return GameMenuVM(

@@ -57,7 +57,9 @@ class InventoryViewService:
         "anti_dodge_chance": "Против уворота",
         "arcane_resistance": "Сопротивление тайне",
         "armor": "Броня",
-        "armor_penetration": "Пробитие физ. защиты",
+        "armor_ignore_chance": "Шанс игнорирования брони",
+        "armor_penetration_flat": "Пробитие брони",
+        "armor_penetration_pct": "Пробитие брони",
         "bleed_damage_bonus": "Усиление кровотечения",
         "bleed_resistance": "Сопротивление кровотечению",
         "block": "Блок",
@@ -101,7 +103,7 @@ class InventoryViewService:
         "physical_crit_chance": "Шанс крита",
         "physical_crit_power_float": "Сила крита",
         "physical_damage_bonus": "Физический урон",
-        "physical_penetration": "Физическое пробитие",
+        "physical_suppression": "Физическое пробитие",
         "physical_resistance": "Физическая защита",
         "power": "Сила",
         "quick_slot_capacity": "Слоты пояса",
@@ -125,7 +127,7 @@ class InventoryViewService:
         "attribute_perception": "Восприятие",
         "attribute_strength": "Сила",
         "armor_flat": "Броня",
-        "armor_penetration_bonus": "Пробитие физ. защиты",
+        "armor_penetration_pct_bonus": "Пробитие брони",
         "bio_resistance": "Биозащита",
         "bio_resistance_bonus": "Биозащита",
         "block_bonus": "Шанс блока",
@@ -228,7 +230,8 @@ class InventoryViewService:
         "accuracy_penalty",
         "anti_crit_chance",
         "anti_dodge_chance",
-        "armor_penetration",
+        "armor_ignore_chance",
+        "armor_penetration_pct",
         "bleed_damage_bonus",
         "bleed_resistance",
         "counter_attack_chance",
@@ -250,7 +253,7 @@ class InventoryViewService:
         "physical_crit_chance",
         "physical_crit_power_float",
         "physical_damage_bonus",
-        "physical_penetration",
+        "physical_suppression",
         "physical_resistance",
         "phys_accuracy",
         "phys_resist",
@@ -438,6 +441,8 @@ class InventoryViewService:
                     grid_w=grid_w,
                     grid_h=grid_h,
                     is_equipped=item.placement == "equipped",
+                    sync_state=item.sync_state,
+                    is_unsecured=item.is_unsecured,
                     comparison=[
                         InventoryComparisonLineDTO(
                             label=line.label,
@@ -988,7 +993,7 @@ class InventoryViewService:
 
     @staticmethod
     def _is_quick_slot_compatible(item: InventoryRuntimeItemDTO) -> bool:
-        return bool(item.mechanics.get("is_quick_slot_compatible") or item.mechanics.get("quick_slot_compatible"))
+        return bool(item.mechanics.get("is_quick_slot_compatible"))
 
     @staticmethod
     def _first_free_belt_slot(session: InventoryRuntimeSessionDTO, capacity: int) -> str | None:

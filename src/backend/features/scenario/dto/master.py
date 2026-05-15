@@ -14,6 +14,11 @@ class ScenarioNodeType(StrEnum):
     EXIT = "exit"
 
 
+class ScenarioType(StrEnum):
+    UNIQUE = "unique_scenario"
+    DIALOGUE = "dialogue_scenario"
+
+
 class StatusBarFieldSchema(BaseModel):
     key: str
     label: str = ""
@@ -42,6 +47,7 @@ class ActionLogicSchema(BaseModel):
 
 class QuestMasterSchema(BaseModel):
     quest_key: str
+    scenario_type: ScenarioType
     display_name: str | None = "UNKNOWN_QUEST"
     background_url: str | None = None
     show_left_sidebar: bool = True

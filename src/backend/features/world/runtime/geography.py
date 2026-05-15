@@ -28,17 +28,10 @@ class WorldGeographyService:
     FIELDS = (
         BiomeField("mountains", 12, 8, 36.0, 1.35),
         BiomeField("forest", 26, 24, 42.0, 1.2),
-        BiomeField("hills", 38, 34, 30.0, 0.75),
         BiomeField("grassland", 52, 52, 40.0, 1.0),
-        BiomeField("meadow", 44, 60, 28.0, 0.78),
-        BiomeField("badlands", 85, 28, 42.0, 1.15),
-        BiomeField("canyon", 93, 48, 34.0, 1.0),
-        BiomeField("savanna", 75, 72, 36.0, 0.86),
         BiomeField("swamp", 22, 82, 38.0, 1.16),
-        BiomeField("marsh", 55, 90, 34.0, 1.0),
-        BiomeField("highlands", 70, 18, 30.0, 0.72),
         BiomeField("jungle", 91, 86, 34.0, 0.94),
-        BiomeField("wasteland", 70, 45, 25.0, 0.58),
+        BiomeField("wasteland", 78, 42, 45.0, 0.92),
     )
 
     @classmethod

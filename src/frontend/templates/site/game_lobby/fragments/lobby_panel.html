@@ -1,28 +1,18 @@
+{% set initial = namespace(slot=None) %}
+{% for slot in lobby.slots %}
+    {% if initial.slot is none and not slot.is_empty %}
+        {% set initial.slot = slot %}
+    {% endif %}
+{% endfor %}
+{% set initial_selection = {
+    "selectedSlot": initial.slot.index if initial.slot else none,
+    "selectedEmpty": initial.slot.is_empty if initial.slot else false,
+    "selectedCharacterId": initial.slot.character_id if initial.slot else "",
+    "selectedName": initial.slot.name if initial.slot else "",
+} %}
 <div
     class="lobby-panel {% if not lobby.has_characters %}lobby-panel--empty{% endif %}"
-    x-data="{
-        selectedSlot: null,
-        selectedEmpty: false,
-        selectedCharacterId: '',
-        selectedName: '',
-        creating: {{ 'true' if not lobby.has_characters else 'false' }},
-        showDeleteModal: false,
-        deleteConfirmName: '',
-        confirmDelete() {
-            if (!this.selectedCharacterId || this.selectedEmpty) return;
-            this.showDeleteModal = true;
-            this.deleteConfirmName = '';
-            this.$nextTick(() => { this.$refs.modalInput.focus(); });
-        },
-        submitDelete() {
-            if (this.deleteConfirmName.trim() !== this.selectedName) {
-                alert('Имя не совпало. Персонаж не удален.');
-                return;
-            }
-            this.$refs.confirmName.value = this.deleteConfirmName.trim();
-            this.$refs.deleteForm.submit();
-        }
-    }"
+    x-data='lobbyPanelState({{ ("select" if lobby.has_characters else "intro") | tojson }}, {{ initial_selection | tojson }})'
 >
     <!-- Deletion Modal Overlay -->
     <template x-if="showDeleteModal">
@@ -57,12 +47,12 @@
     </template>
     <div class="lobby-title-row">
         <div>
-            <div class="lobby-kicker">GAME_LOBBY // SITE_GATE</div>
-            <h1 class="lobby-title">{{ lobby.title }}</h1>
+            <div class="lobby-kicker">Порог // вход в мир</div>
+            <h1 class="lobby-title" id="lobby-modal-title">{{ lobby.title }}</h1>
             <p class="lobby-copy">{{ lobby.description }}</p>
         </div>
         {% if lobby.has_characters %}
-            <div class="ds-tag sys">AUTHENTICATED</div>
+            <div class="ds-tag sys">Сессия активна</div>
         {% endif %}
     </div>
 
@@ -71,16 +61,15 @@
     {% endif %}
 
     {% if lobby.has_characters %}
-        <div class="lobby-slots" aria-label="Character slots" x-show="!creating" x-cloak>
-            <div class="lobby-slot-row">
-                {% for slot in lobby.slots[:2] %}
+        <div class="lobby-slots lobby-slots--carousel" aria-label="Слоты персонажей" x-show="!creating">
+            <div class="lobby-carousel-track" tabindex="0" aria-label="Карусель персонажей">
+                {% for slot in lobby.slots %}
                     {% include "site/game_lobby/fragments/character_slot.html" %}
                 {% endfor %}
             </div>
-
             <div class="lobby-slot-actions">
                 <form action="/game-lobby/enter" method="post">
-                    <input type="hidden" name="character_id" :value="selectedCharacterId">
+                    <input type="hidden" name="character_id" value="{{ initial.slot.character_id if initial.slot else '' }}" :value="selectedCharacterId">
                     <button class="btn-node" type="submit" :disabled="selectedSlot === null || selectedEmpty">
                         <span>Играть</span>
                     </button>
@@ -88,13 +77,13 @@
                 <button
                     type="button"
                     class="btn-node"
-                    @click="creating = true"
-                    :disabled="selectedSlot !== null && !selectedEmpty"
+                    @click="mode = 'create'"
+                    {% if not lobby.can_create %}disabled{% endif %}
                 >
                     <span>Создать</span>
                 </button>
                 <form action="/game-lobby/delete" method="post" x-ref="deleteForm" @submit.prevent="confirmDelete()">
-                    <input type="hidden" name="character_id" :value="selectedCharacterId">
+                    <input type="hidden" name="character_id" value="{{ initial.slot.character_id if initial.slot else '' }}" :value="selectedCharacterId">
                     <input type="hidden" name="confirm_name" x-ref="confirmName">
                     <button
                         type="submit"
@@ -105,23 +94,19 @@
                     </button>
                 </form>
             </div>
-
-            <div class="lobby-slot-row">
-                {% for slot in lobby.slots[2:] %}
-                    {% include "site/game_lobby/fragments/character_slot.html" %}
-                {% endfor %}
-            </div>
         </div>
     {% else %}
-        {% include "site/game_lobby/fragments/empty_state.html" %}
+        <div x-show="mode === 'intro'" x-cloak>
+            {% include "site/game_lobby/fragments/empty_state.html" %}
+        </div>
     {% endif %}
 
     {% if lobby.can_create %}
-        <div class="lobby-creation-section" x-show="creating || !{{ 'true' if lobby.has_characters else 'false' }}" x-cloak>
+        <div class="lobby-creation-section" x-show="creating" x-cloak>
             {% include "site/game_lobby/fragments/creation_form.html" %}
         </div>
 
-        <div class="lobby-actions" x-show="creating || !{{ 'true' if lobby.has_characters else 'false' }}" x-cloak>
+        <div class="lobby-actions" x-show="creating" x-cloak>
             <form id="character-creation-form" action="/game-lobby/start" method="post">
                 <button type="submit" class="btn-node lg">
                     <span>{{ lobby.primary_action_label }}</span>

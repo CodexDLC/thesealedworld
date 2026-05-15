@@ -111,6 +111,23 @@ def test_builder_can_emit_lifecycle_compatible_snapshot() -> None:
 
 
 @pytest.mark.unit
+def test_builder_overlays_pending_expedition_skill_progress() -> None:
+    actor_input = CharacterCombatActorInputBuilder().build_input(
+        {
+            "char_id": 7,
+            "bio": {"name": "Ada"},
+            "attributes": {},
+            "skills": {"skill_swords": {"xp": 0.2}},
+            "pending_progress": {"skills": {"skill_swords": 0.1, "skill_parrying": 0.05}},
+            "items": {},
+        }
+    )
+
+    assert actor_input["skills"]["skill_swords"] == 0.3
+    assert actor_input["skills"]["skill_parrying"] == 0.05
+
+
+@pytest.mark.unit
 def test_builder_maps_two_hand_rewards_to_main_hand_combat_layout() -> None:
     actor_input = CharacterCombatActorInputBuilder().build_input(
         {

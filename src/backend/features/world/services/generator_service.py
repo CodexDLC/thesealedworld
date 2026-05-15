@@ -1,22 +1,26 @@
 import asyncio
 import logging
+import re
 from collections.abc import Iterable
 from typing import Any
 
 from src.backend.core.ai import AIService
-from src.backend.core.ai_json import parse_ai_json_mapping
+from src.backend.core.ai_json import parse_ai_json_mapping, parse_ai_json_model
+from src.backend.features.world.dto.ai import WorldLocationBatchResponseDTO, WorldZoneLoreDTO
 from src.backend.features.world.integrations import WorldDataIntegration
 from src.backend.features.world.loaders.village_loader import VillageLoader
-from src.backend.features.world.prompts.router import world_prompt_router
+from src.backend.features.world.prompts import build_batch_location_desc_prompt, build_zone_lore_prompt
 from src.backend.features.world.resources.static.start_village import STATIC_LOCATIONS
 from src.backend.features.world.runtime.config import HUB_CENTER, REGION_ROWS, REGION_SIZE, ZONE_SIZE
 from src.backend.features.world.runtime.geography import WorldGeographyService
+from src.backend.features.world.runtime.profiles import build_region_profile, build_zone_profile
 from src.backend.features.world.runtime.theme import WorldThemeService
 from src.backend.features.world.runtime.threat import ThreatService
+from src.backend.features.world.services.navigation_service import WorldNavigationService
 
 log = logging.getLogger(__name__)
 
-D4_CONTENT_BATCH_SIZE = 25
+D4_CONTENT_BATCH_SIZE = 5
 D4_CONTENT_RETRY_DELAYS_SECONDS = (2.0, 6.0, 15.0)
 ZONE_LORE_RETRY_DELAYS_SECONDS = (2.0, 6.0)
 D4_FALLBACK_TITLE = "Руины Старой Столицы"
@@ -24,10 +28,143 @@ D4_FALLBACK_DESCRIPTION = (
     "Мертвый квартал древней столицы. Координата описывает не размер, а отдельную "
     "навигационную область: улицу, площадь, двор или фрагмент квартала."
 )
+
+
+class WorldAIQuotaExhaustedError(RuntimeError):
+    """Raised when the LLM provider tells us to stop AI enrichment for now."""
+
+    def __init__(self, message: str, *, retry_after_seconds: float | None = None) -> None:
+        super().__init__(message)
+        self.retry_after_seconds = retry_after_seconds
+
+
+AI_QUOTA_ERROR_MARKERS = ("429", "RESOURCE_EXHAUSTED", "RATE_LIMIT")
 D4_NARRATIVE_CONTEXT = (
     "D4 is the ruined former capital around the protected city hub. Treat city_ruins here as old capital outskirts, "
     "collapsed districts, sealed roads, monolith walls, and scavenged streets around a safe portal-shielded center."
 )
+D4_DISTRICT_PROFILES: dict[str, dict[str, Any]] = {
+    "D4_0_0": {
+        "name": "Северо-западный бастионный квартал",
+        "role": "outer wall, old guard walks, broken defensive yards",
+        "tags": ["bastion", "outer_wall", "guard_ruins", "stasis_pressure"],
+    },
+    "D4_1_0": {
+        "name": "Северный тракт и ворота",
+        "role": "main road to the sealed northern gate, processional ruins",
+        "tags": ["north_gate", "ancient_highway", "processional_road", "stasis_pressure"],
+    },
+    "D4_2_0": {
+        "name": "Северо-восточные обсерватории",
+        "role": "collapsed towers, sightlines over the city, silent signal stones",
+        "tags": ["observatory_ruins", "signal_stones", "high_vistas", "biomass_creep"],
+    },
+    "D4_0_1": {
+        "name": "Западный рынок обломков",
+        "role": "scavenged stalls, gravity-twisted plazas, side streets",
+        "tags": ["broken_market", "scavenger_marks", "gravity_shear", "side_streets"],
+    },
+    "D4_2_1": {
+        "name": "Восточный жилой разлом",
+        "role": "collapsed residences, overgrown courtyards, mutation pressure",
+        "tags": ["residential_ruins", "overgrown_courtyards", "biomass_pressure", "cracked_halls"],
+    },
+    "D4_0_2": {
+        "name": "Юго-западные мастерские",
+        "role": "dead workshops, cracked conduits, heavy stone workrooms",
+        "tags": ["artisan_ruins", "dead_workshops", "gravity_shear", "crystal_conduits"],
+    },
+    "D4_1_2": {
+        "name": "Южный тракт и врата",
+        "role": "main road to the sealed southern gate, heated stone and dust",
+        "tags": ["south_gate", "ancient_highway", "plasma_pressure", "sealed_road"],
+    },
+    "D4_2_2": {
+        "name": "Юго-восточные святилища",
+        "role": "broken shrines, old civic ritual spaces, fire-lit mineral scars",
+        "tags": ["shrine_ruins", "ritual_plazas", "plasma_pressure", "gold_veins"],
+    },
+}
+D4_RIFT_PROFILES: dict[tuple[int, int], dict[str, Any]] = {
+    (46, 46): {
+        "id": "d4_rift_rat_king",
+        "family_id": "rat_swarm",
+        "title": "Разлом Крысиного Короля",
+        "background_key": "d4_rift_rat_king",
+        "boss_archetype": "rat_king",
+        "context_tags": [
+            "d4_city_rift",
+            "d4_rift_rat_king",
+            "rat_king_pressure",
+            "undercity_seep",
+        ],
+        "description": (
+            "Под старой канализационной аркой дрожит разрыв пространства. Из влажных швов камня идет "
+            "черный свет, а за стенами движется масса мелких тел. Неподалеку мусор, кости и сорванные "
+            "знаки складываются в грубую корону Крысиного Короля."
+        ),
+    },
+    (58, 46): {
+        "id": "d4_rift_wolf_breach",
+        "family_id": "wolf_pack",
+        "title": "Волчий Пролом",
+        "background_key": "d4_rift_wolf_breach",
+        "boss_archetype": "alpha_wolf",
+        "context_tags": [
+            "d4_city_rift",
+            "d4_rift_wolf_breach",
+            "wolf_breach_pressure",
+            "overgrown_kennel",
+        ],
+        "description": (
+            "Разлом прорезал заросшие псарни и двор старого парка. Воздух пахнет мокрой шерстью, "
+            "озоном и сломанными ветками, а из руин отвечают друг другу короткие голоса стаи. "
+            "Вокруг пролома обломки образуют охотничий круг."
+        ),
+    },
+    (46, 58): {
+        "id": "d4_rift_bandit_barricade",
+        "family_id": "bandit_gang",
+        "title": "Разлом Баррикады",
+        "background_key": "d4_rift_bandit_barricade",
+        "boss_archetype": "bandit_warlord",
+        "context_tags": [
+            "d4_city_rift",
+            "d4_rift_bandit_barricade",
+            "bandit_barricade_pressure",
+            "scavenger_barricade",
+        ],
+        "description": (
+            "Разрыв висит над заваленной торговой улицей, где вокруг него собраны щиты, костры, "
+            "трофейные знаки и грубые баррикады. Это не крепость, а удерживаемый узел давления, "
+            "из которого бандиты контролируют ближайшие проходы."
+        ),
+    },
+    (58, 58): {
+        "id": "d4_rift_goblin_scrapyard",
+        "family_id": "goblin_tribe",
+        "title": "Разлом Свалки",
+        "background_key": "d4_rift_goblin_scrapyard",
+        "boss_archetype": "scrap_king",
+        "context_tags": [
+            "d4_city_rift",
+            "d4_rift_goblin_scrapyard",
+            "goblin_scrapyard_pressure",
+            "collapsed_workshop",
+        ],
+        "description": (
+            "Разлом дрожит среди рухнувших мастерских. Вокруг него копятся железо, битое стекло, "
+            "провода и кривые тотемы, будто сама трещина выбрасывает хлам наружу. Гоблины не живут "
+            "в разломе, но используют его как источник странной силы."
+        ),
+    },
+}
+D4_CORNER_ZONE_TAGS: dict[str, list[str]] = {
+    "D4_0_0": ["d4_corner_pressure", "d4_rift_rat_king", "rat_king_pressure", "undercity_seep"],
+    "D4_2_0": ["d4_corner_pressure", "d4_rift_wolf_breach", "wolf_breach_pressure", "overgrown_kennel"],
+    "D4_0_2": ["d4_corner_pressure", "d4_rift_bandit_barricade", "bandit_barricade_pressure", "scavenger_barricade"],
+    "D4_2_2": ["d4_corner_pressure", "d4_rift_goblin_scrapyard", "goblin_scrapyard_pressure", "collapsed_workshop"],
+}
 
 
 class LLMWorldGenerator:
@@ -38,33 +175,38 @@ class LLMWorldGenerator:
         self.village_loader = VillageLoader(data)
         self.ai = ai
 
-        # Register world-specific prompts
-        if self.ai is not None:
-            self.ai.include_router(world_prompt_router)
-
     async def run(self, mode: str = "test") -> None:
         """Runs the generation process.
 
-        1. Load static village.
-        2. Generate surrounding regions and zones.
-        3. Populate with AI content if enabled.
+        ``test`` is static refresh only. ``full`` is the first-run world
+        generation mode and includes AI enrichment after the fallback seed is
+        committed.
         """
         log.info("Starting world generation (mode=%s)", mode)
 
-        # 1. Generate Shell (Regions/Zones)
-        if mode == "full":
+        generate_shell = mode in {"full", "full_ai"}
+        generate_seed = mode in {"test", "full", "full_ai"}
+        run_ai_enrichment = mode in {"ai", "enrich", "enrich_ai", "full", "full_ai"}
+
+        if generate_shell:
             await self._generate_world_shell()
 
-        # 2. Generate the first playable territory (D4 old capital).
-        await self._generate_d4_capital()
+        if generate_seed:
+            await self._generate_d4_capital()
+            await self.village_loader.load_village(STATIC_LOCATIONS)
 
-        # 3. Load static hub/village nodes over the generated D4 skeleton.
-        await self.village_loader.load_village(STATIC_LOCATIONS)
-
-        # 4. AI Enrichment (Example for Hub Zone)
-        if self.ai and mode != "test":
-            await self._enrich_zone_with_ai("D4_1_1")
-            await self._enrich_d4_capital_nodes_with_ai()
+        if self.ai and run_ai_enrichment:
+            await self.data.commit()
+            log.info("World fallback seed committed before AI enrichment")
+            try:
+                await self._enrich_zone_with_ai("D4_1_1")
+                await self._enrich_d4_capital_nodes_with_ai()
+            except WorldAIQuotaExhaustedError as exc:
+                log.warning(
+                    "World AI enrichment paused by provider quota; retry_after_seconds=%s error=%s",
+                    exc.retry_after_seconds,
+                    exc,
+                )
 
     async def _generate_d4_capital(self) -> None:
         """Generate the first playable territory: D4 old capital, 15x15 nodes."""
@@ -77,7 +219,30 @@ class LLMWorldGenerator:
         mid_x = min_x + REGION_SIZE // 2
         mid_y = min_y + REGION_SIZE // 2
 
-        await self.data.upsert_region(region_id, climate_tags=["ancient_city", "city_ruins", "portal_shield"])
+        region_influence = ThreatService.describe(mid_x, mid_y)
+        region_geography = WorldGeographyService.describe_zone(mid_x, mid_y)
+        region_profile = build_region_profile(
+            region_id=region_id,
+            center_x=mid_x,
+            center_y=mid_y,
+            geography=region_geography,
+            influence=region_influence,
+        )
+
+        await self.data.upsert_region(
+            region_id,
+            climate_tags=list(region_profile.region_tags),
+            context={"region_profile": region_profile.model_dump()},
+            biome_id=region_profile.biome_id,
+            biome_mix=region_profile.biome_mix,
+            region_archetype=region_profile.region_archetype,
+            tier_min=region_profile.tier_band[0],
+            tier_max=region_profile.tier_band[1],
+            navigation_profile_id=region_profile.navigation_profile_id,
+            population_profile=region_profile.population_profile.model_dump(),
+            anchor_influence=region_profile.anchor_influence,
+            is_locked_frontier=region_profile.is_locked_frontier,
+        )
 
         zones_per_region = REGION_SIZE // ZONE_SIZE
         for zx in range(zones_per_region):
@@ -87,18 +252,28 @@ class LLMWorldGenerator:
                 zone_center_x = min_x + zx * ZONE_SIZE + ZONE_SIZE // 2
                 zone_center_y = min_y + zy * ZONE_SIZE + ZONE_SIZE // 2
                 zone_influence = ThreatService.describe(zone_center_x, zone_center_y)
-                zone_tier = 0 if is_hub_zone else max(1, zone_influence.tier)
+                zone_tier = self._d4_zone_tier(zone_id, is_hub_zone=is_hub_zone)
+                district_profile = None if is_hub_zone else D4_DISTRICT_PROFILES.get(zone_id)
+                context_tags = [] if is_hub_zone else self._d4_zone_context_tags(zone_id)
+                zone_profile = build_zone_profile(region_profile=region_profile, zone_id=zone_id, zx=zx, zy=zy)
                 await self.data.upsert_zone(
                     zone_id,
                     region_id=region_id,
-                    biome_id="hub_district" if is_hub_zone else "city_ruins",
+                    biome_id=region_profile.biome_id,
                     tier=zone_tier,
+                    zone_archetype=zone_profile.zone_archetype,
+                    navigation_profile_id=zone_profile.navigation_profile_id,
+                    landmark_profile=zone_profile.landmark_profile,
+                    population_tags=list(zone_profile.population_tags),
                     flags={
                         "is_safe_zone": is_hub_zone,
+                        "system_connect": is_hub_zone,
                         "is_hub": is_hub_zone,
                         "portal_shield": is_hub_zone,
                         "is_old_capital": True,
                         "narrative_context": D4_NARRATIVE_CONTEXT,
+                        "district_profile": district_profile,
+                        "context_tags": context_tags,
                         "threat_tier": zone_tier,
                         "anchor_influence": {
                             "threat": zone_influence.threat,
@@ -128,6 +303,7 @@ class LLMWorldGenerator:
                     mid_x=mid_x,
                     mid_y=mid_y,
                     road_cells=road_cells,
+                    region_profile=region_profile,
                 )
                 self._preserve_existing_d4_content(node, existing_by_coord.get((x, y)))
                 nodes.append(node)
@@ -147,15 +323,22 @@ class LLMWorldGenerator:
         mid_x: int,
         mid_y: int,
         road_cells: set[tuple[int, int]],
+        region_profile: Any,
     ) -> dict[str, Any]:
         local_x = x - min_x
         local_y = y - min_y
         zone_id = f"D4_{local_x // ZONE_SIZE}_{local_y // ZONE_SIZE}"
+        zx = local_x // ZONE_SIZE
+        zy = local_y // ZONE_SIZE
+        zone_profile = build_zone_profile(region_profile=region_profile, zone_id=zone_id, zx=zx, zy=zy)
         is_hub = self._is_d4_hub_node(x, y)
         is_boundary = x in (min_x, max_x) or y in (min_y, max_y)
         is_outer_gate = is_boundary and (x == mid_x or y == mid_y)
         is_outer_wall = is_boundary and not is_outer_gate
         has_road = (x, y) in road_cells
+        travel_cost = 1.0 if is_hub else 1.25
+        gated_exits: dict[str, Any] = {}
+        route: dict[str, Any] | None = None
 
         terrain_type = "city_ruins"
         tags = ["ancient_city", "city_ruins"]
@@ -164,18 +347,19 @@ class LLMWorldGenerator:
         flags: dict[str, Any] = {
             "is_active": True,
             "is_safe_zone": is_hub,
+            "system_connect": is_hub,
             "is_old_capital": True,
             "is_passable": True,
-            "threat_tier": 0 if is_hub else 1,
-            "travel_cost": 1.0 if is_hub else 1.25,
+            "threat_tier": 0 if is_hub else self._d4_node_tier(x, y, zone_id=zone_id, has_road=has_road),
         }
+        context_tags = [] if is_hub else self._d4_node_context_tags(x, y, zone_id=zone_id, has_road=has_road)
 
         if is_hub:
             terrain_type = "ancient_pavement"
             tags.extend(["hub_district", "safe_zone"])
             title = "Внутренний район Цитадели"
             description = "Безопасный внутренний район старой столицы под защитой портального щита."
-            flags["travel_cost"] = 1.0
+            travel_cost = 1.0
 
         if is_outer_wall:
             blocked_exits = self._d4_boundary_blocked_exits(
@@ -190,19 +374,26 @@ class LLMWorldGenerator:
             )
             flags.update(
                 {
-                    "blocked_exits": blocked_exits,
                     "boundary_features": self._d4_boundary_features(
                         blocked_exits,
                         kind="outer_monolith_wall",
                         state="sealed",
                         tags=["monolithic_wall", "old_capital_outer_wall", "wall_walk"],
                     ),
-                    "travel_cost": 1.0,
                 }
             )
+            travel_cost = 1.0
 
         if is_outer_gate:
             direction = self._d4_gate_direction(x=x, y=y, min_x=min_x, min_y=min_y, max_x=max_x, max_y=max_y)
+            gated_exits = {
+                direction: {
+                    "kind": "outer_city_gate",
+                    "state": "locked",
+                    "unlock_condition": "world_gate_unlock",
+                    "tags": ["city_gate", "sealed_gate", "old_capital_outer_wall"],
+                }
+            }
             terrain_type = "city_gate_outer"
             tags.extend(["gate", "road", "locked_exit"])
             title = f"{self._ru_direction(direction)} внешние ворота D4"
@@ -213,14 +404,6 @@ class LLMWorldGenerator:
                     "gate_direction": direction,
                     "exit_locked": True,
                     "unlock_condition": "world_gate_unlock",
-                    "gated_exits": {
-                        direction: {
-                            "kind": "outer_city_gate",
-                            "state": "locked",
-                            "unlock_condition": "world_gate_unlock",
-                            "tags": ["city_gate", "sealed_gate", "old_capital_outer_wall"],
-                        }
-                    },
                     "boundary_features": {
                         direction: {
                             "kind": "outer_city_gate",
@@ -228,21 +411,36 @@ class LLMWorldGenerator:
                             "tags": ["city_gate", "sealed_gate", "old_capital_outer_wall"],
                         }
                     },
-                    "travel_cost": 1.0,
                 }
             )
+            travel_cost = 1.0
 
         if has_road:
             terrain_type = "ruin_road_main" if terrain_type == "city_ruins" else terrain_type
             tags.extend(["road", "ancient_highway"])
-            flags["has_road"] = True
-            flags["route"] = {
+            route = {
                 "type": "ancient_highway",
                 "role": "hub_to_outer_gate",
                 "tags": ["road", "ancient_highway", "main_route"],
             }
 
         influence = ThreatService.describe(x, y)
+        district_profile = None if is_hub else D4_DISTRICT_PROFILES.get(zone_id)
+        rift_profile = None if is_hub else D4_RIFT_PROFILES.get((x, y))
+        if rift_profile:
+            title = str(rift_profile["title"])
+            description = str(rift_profile["description"])
+            terrain_type = "city_rift"
+            tags.extend(["rift", "pressure_source", *rift_profile["context_tags"]])
+            flags.update(
+                {
+                    "is_rift": True,
+                    "rift_profile": rift_profile,
+                    "gate_lock_source": True,
+                    "background_key": rift_profile["background_key"],
+                }
+            )
+            travel_cost = 1.5
         flags["anchor_influence"] = {
             "threat": influence.threat,
             "tier": influence.tier,
@@ -251,25 +449,76 @@ class LLMWorldGenerator:
             "is_inside_city_shield": influence.is_inside_city_shield,
         }
         flags["narrative_context"] = D4_NARRATIVE_CONTEXT
+        flags["context_tags"] = context_tags
         flags["world_theme"] = WorldThemeService.build(x, y, loc_id=f"{x}_{y}").model_dump(mode="json")
+        if district_profile:
+            flags["district_key"] = zone_id
+            flags["district_profile"] = district_profile
+
+        node_type = self._d4_node_type(
+            x=x,
+            y=y,
+            is_hub=is_hub,
+            is_rift=bool(rift_profile),
+            is_outer_gate=is_outer_gate,
+            is_outer_wall=is_outer_wall,
+            has_road=has_road,
+            zone_archetype=zone_profile.zone_archetype,
+        )
+        if node_type == "buildable_plot":
+            flags["buildable"] = True
+            flags["buildable_kind"] = "house_plot"
+            flags["construction_tags"] = ["ruin_foundation", "old_capital_quarter"]
+        blocked_exits = self._d4_movement_blocked_exits(
+            x=x,
+            y=y,
+            min_x=min_x,
+            min_y=min_y,
+            max_x=max_x,
+            max_y=max_y,
+            mid_x=mid_x,
+            mid_y=mid_y,
+            road_cells=road_cells,
+            is_outer_gate=is_outer_gate,
+        )
+        movement_profile = self._build_node_movement_profile(
+            navigation_profile_id=zone_profile.navigation_profile_id,
+            zone_archetype=zone_profile.zone_archetype,
+            node_type=node_type,
+            is_passable=bool(flags.get("is_passable", True)),
+            has_road=has_road,
+            travel_cost=travel_cost,
+            blocked_exits=blocked_exits,
+            gated_exits=gated_exits,
+            route=route,
+        )
 
         return {
             "x": x,
             "y": y,
             "zone_id": zone_id,
+            "biome_id": "city_ruins",
+            "node_type": node_type,
             "terrain_type": terrain_type,
+            "navigation_profile_id": zone_profile.navigation_profile_id,
+            "buildable_kind": flags.get("buildable_kind"),
+            "landmark_profile": zone_profile.landmark_profile if rift_profile or is_outer_gate else None,
+            "movement_profile": movement_profile,
+            "background_key": rift_profile["background_key"] if rift_profile else None,
+            "background_pool_key": "d4_city_rift" if rift_profile else "d4_city_ruins",
+            "visual_overrides": {},
             "services": [],
             "content": {
                 "title": title,
                 "description": description,
-                "environment_tags": list(dict.fromkeys([*tags, "former_capital_ruins"])),
+                "environment_tags": list(dict.fromkeys([*tags, *context_tags, "former_capital_ruins"])),
             },
             "is_active": True,
             "flags": flags,
         }
 
     async def _enrich_d4_capital_nodes_with_ai(self) -> None:
-        """Generate D4 node titles/descriptions using the legacy tag batch contract."""
+        """Generate D4 node titles/descriptions using typed district batches."""
         if not self.ai:
             return
 
@@ -277,7 +526,7 @@ class LLMWorldGenerator:
         min_y = REGION_ROWS.index("D") * REGION_SIZE
         nodes = await self.data.get_nodes_in_rect(min_x - 1, min_y - 1, REGION_SIZE + 2, REGION_SIZE + 2)
         node_map = {(node.x, node.y): node for node in nodes}
-        payload_items = []
+        payload_items_by_district: dict[str, list[dict[str, Any]]] = {}
         static_coords = set(STATIC_LOCATIONS)
 
         for x in range(min_x, min_x + REGION_SIZE):
@@ -288,6 +537,9 @@ class LLMWorldGenerator:
                 node = node_map.get((x, y))
                 if node is None:
                     continue
+                flags = node.flags if isinstance(node.flags, dict) else {}
+                if flags.get("is_rift"):
+                    continue
 
                 tags = self._collect_location_tags(
                     x=x,
@@ -297,35 +549,50 @@ class LLMWorldGenerator:
                     chunk_start_y=min_y,
                 )
                 context = self._scan_d4_surroundings(x, y, node_map)
-                payload_items.append(
+                district_key = str(getattr(node, "zone_id", "") or "D4_unknown")
+                district_context = self._build_district_context(node)
+                payload_items_by_district.setdefault(district_key, []).append(
                     {
                         "id": f"{x}_{y}",
                         "tags": tags,
                         "context": context,
+                        "district_context": district_context,
                         "route_context": self._build_route_context(node),
                         "boundary_context": self._build_boundary_context(node),
                     }
                 )
 
-        for batch in self._chunks(payload_items, D4_CONTENT_BATCH_SIZE):
-            result_map = await self._request_location_batch_with_retries(batch)
-            if not result_map:
-                await self._mark_location_batch_ai_status(batch, "fallback")
-                continue
+        for district_key in sorted(payload_items_by_district):
+            for batch in self._chunks(payload_items_by_district[district_key], D4_CONTENT_BATCH_SIZE):
+                result_map = await self._request_location_batch_with_retries(batch)
+                if not result_map:
+                    await self._mark_location_batch_ai_status(batch, "fallback")
+                    continue
 
-            result_map = self._filter_complete_location_batch(result_map, batch)
-            if not result_map:
-                await self._mark_location_batch_ai_status(batch, "fallback")
-                continue
+                result_map = self._filter_complete_location_batch(result_map, batch)
+                if not result_map:
+                    await self._mark_location_batch_ai_status(batch, "fallback")
+                    continue
 
-            await self._save_location_batch_content(batch, result_map)
+                await self._save_location_batch_content(batch, result_map)
 
-    async def _request_location_batch_with_retries(self, batch: list[dict[str, Any]]) -> dict[str, Any] | None:
+    async def _request_location_batch_with_retries(self, batch: list[dict[str, Any]]) -> dict[str, dict[str, str]] | None:
         for attempt, delay in enumerate((*D4_CONTENT_RETRY_DELAYS_SECONDS, 0.0), start=1):
             try:
                 assert self.ai is not None
-                raw_response = await self.ai.process("batch_location_desc", payload_items=batch)
+                response = await self.ai.generate_json(
+                    build_batch_location_desc_prompt(batch),
+                    schema=WorldLocationBatchResponseDTO,
+                )
             except Exception as exc:
+                if self._is_ai_quota_error(exc):
+                    retry_after = self._extract_retry_after_seconds(exc)
+                    await self._mark_location_batch_ai_status(batch, "quota_exhausted")
+                    raise WorldAIQuotaExhaustedError(
+                        "World location AI quota exhausted",
+                        retry_after_seconds=retry_after,
+                    ) from exc
+
                 log.warning(
                     "World AI location batch failed; attempt=%d/%d first_id=%s error=%s",
                     attempt,
@@ -337,7 +604,7 @@ class LLMWorldGenerator:
                     await asyncio.sleep(delay)
                 continue
 
-            result_map = self._parse_ai_json_map(raw_response)
+            result_map = self._parse_location_batch_response(response)
             if not result_map:
                 log.warning(
                     "World AI location batch returned invalid JSON; attempt=%d/%d first_id=%s",
@@ -385,8 +652,8 @@ class LLMWorldGenerator:
 
     @staticmethod
     def _filter_complete_location_batch(
-        result_map: dict[str, Any], batch: list[dict[str, Any]]
-    ) -> dict[str, Any] | None:
+        result_map: dict[str, dict[str, str]], batch: list[dict[str, Any]]
+    ) -> dict[str, dict[str, str]] | None:
         expected_ids = {item["id"] for item in batch}
         actual_ids = set(result_map)
         missing_ids = expected_ids - actual_ids
@@ -418,8 +685,9 @@ class LLMWorldGenerator:
         )
         influence_tags = ThreatService.get_narrative_tags(x, y)
         flags = node.flags if isinstance(node.flags, dict) else {}
-        road_tags = ["road"] if flags.get("has_road") else []
-        route = flags.get("route", {})
+        movement = node.movement_profile if isinstance(getattr(node, "movement_profile", None), dict) else {}
+        road_tags = ["road"] if movement.get("has_road") else []
+        route = movement.get("route", {})
         route_tags = route.get("tags", []) if isinstance(route, dict) else []
         boundary_tags = []
         boundary_features = flags.get("boundary_features", {})
@@ -432,9 +700,22 @@ class LLMWorldGenerator:
         )
 
     @staticmethod
-    def _build_route_context(node: Any) -> dict[str, Any] | None:
+    def _build_district_context(node: Any) -> dict[str, Any] | None:
         flags = node.flags if isinstance(node.flags, dict) else {}
-        route = flags.get("route")
+        profile = flags.get("district_profile")
+        if not isinstance(profile, dict):
+            return None
+        return {
+            "key": flags.get("district_key"),
+            "name": profile.get("name"),
+            "role": profile.get("role"),
+            "tags": profile.get("tags", []),
+        }
+
+    @staticmethod
+    def _build_route_context(node: Any) -> dict[str, Any] | None:
+        movement = node.movement_profile if isinstance(getattr(node, "movement_profile", None), dict) else {}
+        route = movement.get("route")
         if not isinstance(route, dict):
             return None
         return {
@@ -509,8 +790,41 @@ class LLMWorldGenerator:
         return parse_ai_json_mapping(raw_response, context="world")
 
     @staticmethod
+    def _parse_location_batch_response(raw_response: Any) -> dict[str, dict[str, str]] | None:
+        parsed = parse_ai_json_model(raw_response, WorldLocationBatchResponseDTO, context="world.location_batch")
+        if parsed is None:
+            return None
+        return {
+            item.id: {
+                "title": item.title,
+                "description": item.description,
+            }
+            for item in parsed.locations
+        }
+
+    @staticmethod
+    def _is_ai_quota_error(exc: Exception) -> bool:
+        text = str(exc).upper()
+        return any(marker in text for marker in AI_QUOTA_ERROR_MARKERS)
+
+    @staticmethod
+    def _extract_retry_after_seconds(exc: Exception) -> float | None:
+        text = str(exc)
+        patterns = (
+            r"retryDelay['\"]?\s*:\s*['\"]?(\d+(?:\.\d+)?)s",
+            r"Please retry in (\d+(?:\.\d+)?)s",
+        )
+        for pattern in patterns:
+            match = re.search(pattern, text, flags=re.IGNORECASE)
+            if match:
+                return float(match.group(1))
+        return None
+
+    @staticmethod
     def _preserve_existing_d4_content(node: dict[str, Any], existing_node: Any | None) -> None:
         if existing_node is None:
+            return
+        if (node.get("flags") or {}).get("is_rift"):
             return
         if (node["x"], node["y"]) in STATIC_LOCATIONS:
             return
@@ -548,6 +862,96 @@ class LLMWorldGenerator:
         return 50 <= x <= 54 and 50 <= y <= 54
 
     @staticmethod
+    def _d4_zone_tier(zone_id: str, *, is_hub_zone: bool) -> int:
+        if is_hub_zone:
+            return 0
+        return 1 if zone_id in D4_CORNER_ZONE_TAGS else 0
+
+    @staticmethod
+    def _d4_zone_context_tags(zone_id: str) -> list[str]:
+        tags = ["d4_city_ruins"]
+        tags.extend(D4_CORNER_ZONE_TAGS.get(zone_id, []))
+        if zone_id not in D4_CORNER_ZONE_TAGS:
+            tags.append("d4_tier0_ruined_streets")
+        return list(dict.fromkeys(tags))
+
+    @staticmethod
+    def _d4_node_tier(x: int, y: int, *, zone_id: str, has_road: bool) -> int:
+        if (x, y) in D4_RIFT_PROFILES:
+            return 2
+        if has_road:
+            return 0
+        return 1 if zone_id in D4_CORNER_ZONE_TAGS else 0
+
+    @staticmethod
+    def _d4_node_context_tags(x: int, y: int, *, zone_id: str, has_road: bool) -> list[str]:
+        tags = ["d4_city_ruins"]
+        rift_profile = D4_RIFT_PROFILES.get((x, y))
+        if rift_profile:
+            tags.extend(rift_profile["context_tags"])
+            return list(dict.fromkeys(tags))
+        if has_road:
+            tags.append("d4_tier0_gate_cross")
+        elif zone_id in D4_CORNER_ZONE_TAGS:
+            tags.extend(D4_CORNER_ZONE_TAGS[zone_id])
+        else:
+            tags.extend(["d4_tier0_ruined_streets", "d4_tier0_scavenger_route"])
+        return list(dict.fromkeys(tags))
+
+    @staticmethod
+    def _d4_node_type(
+        *,
+        x: int,
+        y: int,
+        is_hub: bool,
+        is_rift: bool,
+        is_outer_gate: bool,
+        is_outer_wall: bool,
+        has_road: bool,
+        zone_archetype: str,
+    ) -> str:
+        if is_rift:
+            return "rift"
+        if is_hub:
+            return "hub"
+        if is_outer_gate:
+            return "sealed_gate"
+        if is_outer_wall:
+            return "outer_wall_walk"
+        if has_road:
+            return "main_road"
+        if zone_archetype == "corner_rift_district":
+            return "ruined_quarter"
+        if x % 2 == 0 and y % 2 == 0:
+            return "buildable_plot"
+        return "side_street"
+
+    @staticmethod
+    def _build_node_movement_profile(
+        *,
+        navigation_profile_id: str,
+        zone_archetype: str,
+        node_type: str,
+        is_passable: bool,
+        has_road: bool,
+        travel_cost: float,
+        blocked_exits: Any = None,
+        gated_exits: Any = None,
+        route: Any = None,
+    ) -> dict[str, Any]:
+        return {
+            "navigation_profile_id": navigation_profile_id,
+            "zone_archetype": zone_archetype,
+            "node_type": node_type,
+            "is_passable": is_passable,
+            "has_road": has_road,
+            "travel_cost": max(1.0, travel_cost),
+            "blocked_exits": list(blocked_exits) if isinstance(blocked_exits, list) else [],
+            "gated_exits": dict(gated_exits) if isinstance(gated_exits, dict) else {},
+            "route": dict(route) if isinstance(route, dict) else {},
+        }
+
+    @staticmethod
     def _d4_gate_direction(*, x: int, y: int, min_x: int, min_y: int, max_x: int, max_y: int) -> str:
         if y == min_y:
             return "north"
@@ -576,6 +980,86 @@ class LLMWorldGenerator:
             blocked.append("east")
         return blocked
 
+    def _d4_movement_blocked_exits(
+        self,
+        *,
+        x: int,
+        y: int,
+        min_x: int,
+        min_y: int,
+        max_x: int,
+        max_y: int,
+        mid_x: int,
+        mid_y: int,
+        road_cells: set[tuple[int, int]],
+        is_outer_gate: bool,
+    ) -> list[str]:
+        allowed: set[str] = set()
+        for direction, (dx, dy) in WorldNavigationService.DIRECTIONS.items():
+            nx = x + dx
+            ny = y + dy
+            if nx < min_x or nx > max_x or ny < min_y or ny > max_y:
+                if is_outer_gate and self._d4_gate_direction(
+                    x=x, y=y, min_x=min_x, min_y=min_y, max_x=max_x, max_y=max_y
+                ) == direction:
+                    allowed.add(direction)
+                continue
+
+            if self._d4_edge_is_open(
+                x=x,
+                y=y,
+                nx=nx,
+                ny=ny,
+                direction=direction,
+                min_x=min_x,
+                min_y=min_y,
+                max_x=max_x,
+                max_y=max_y,
+                mid_x=mid_x,
+                mid_y=mid_y,
+                road_cells=road_cells,
+            ):
+                allowed.add(direction)
+
+        return [direction for direction in WorldNavigationService.DIRECTIONS if direction not in allowed]
+
+    @staticmethod
+    def _d4_edge_is_open(
+        *,
+        x: int,
+        y: int,
+        nx: int,
+        ny: int,
+        direction: str,
+        min_x: int,
+        min_y: int,
+        max_x: int,
+        max_y: int,
+        mid_x: int,
+        mid_y: int,
+        road_cells: set[tuple[int, int]],
+    ) -> bool:
+        if x in (min_x, max_x) and nx == x:
+            return True
+        if y in (min_y, max_y) and ny == y:
+            return True
+
+        current_road = (x, y) in road_cells
+        neighbor_road = (nx, ny) in road_cells
+        if current_road and neighbor_road:
+            return True
+
+        if direction in {"east", "west"}:
+            return True
+
+        if x % 3 == 1 and nx % 3 == 1:
+            return True
+
+        if current_road or neighbor_road:
+            return (x == mid_x and y % 2 == 0) or (y == mid_y and x % 3 == 1)
+
+        return False
+
     @staticmethod
     def _d4_boundary_features(
         directions: list[str], *, kind: str, state: str, tags: list[str]
@@ -595,13 +1079,27 @@ class LLMWorldGenerator:
                     (col_idx - 1) * REGION_SIZE + REGION_SIZE // 2,
                     r_idx * REGION_SIZE + REGION_SIZE // 2,
                 )
-                region_tags = [
-                    "ancient_world",
-                    str(region_geo["primary_biome"]),
-                    *region_geo["secondary_biomes"],
-                    *region_influence.tags,
-                ]
-                await self.data.upsert_region(region_id, climate_tags=list(dict.fromkeys(region_tags)))
+                region_profile = build_region_profile(
+                    region_id=region_id,
+                    center_x=(col_idx - 1) * REGION_SIZE + REGION_SIZE // 2,
+                    center_y=r_idx * REGION_SIZE + REGION_SIZE // 2,
+                    geography=region_geo,
+                    influence=region_influence,
+                )
+                await self.data.upsert_region(
+                    region_id,
+                    climate_tags=list(dict.fromkeys(region_profile.region_tags)),
+                    context={"region_profile": region_profile.model_dump()},
+                    biome_id=region_profile.biome_id,
+                    biome_mix=region_profile.biome_mix,
+                    region_archetype=region_profile.region_archetype,
+                    tier_min=region_profile.tier_band[0],
+                    tier_max=region_profile.tier_band[1],
+                    navigation_profile_id=region_profile.navigation_profile_id,
+                    population_profile=region_profile.population_profile.model_dump(),
+                    anchor_influence=region_profile.anchor_influence,
+                    is_locked_frontier=region_profile.is_locked_frontier,
+                )
 
                 # Create 3x3 zones per region (simplified)
                 zones_per_region = REGION_SIZE // ZONE_SIZE
@@ -611,14 +1109,23 @@ class LLMWorldGenerator:
                         center_x = (col_idx - 1) * REGION_SIZE + zx * ZONE_SIZE + ZONE_SIZE // 2
                         center_y = r_idx * REGION_SIZE + zy * ZONE_SIZE + ZONE_SIZE // 2
                         influence = ThreatService.describe(center_x, center_y)
-                        geography = WorldGeographyService.describe_zone(center_x, center_y)
                         world_theme = WorldThemeService.build(center_x, center_y, loc_id=zone_id)
+                        zone_profile = build_zone_profile(
+                            region_profile=region_profile,
+                            zone_id=zone_id,
+                            zx=zx,
+                            zy=zy,
+                        )
 
                         await self.data.upsert_zone(
                             zone_id,
                             region_id=region_id,
-                            biome_id=str(geography["primary_biome"]),
+                            biome_id=region_profile.biome_id,
                             tier=influence.tier,
+                            zone_archetype=zone_profile.zone_archetype,
+                            navigation_profile_id=zone_profile.navigation_profile_id,
+                            landmark_profile=zone_profile.landmark_profile,
+                            population_tags=list(zone_profile.population_tags),
                             flags={
                                 "is_safe_zone": False,
                                 "threat": influence.threat,
@@ -627,8 +1134,7 @@ class LLMWorldGenerator:
                                 "anomaly_id": influence.anomaly_id,
                                 "anchor_tags": influence.tags,
                                 "is_inside_city_shield": influence.is_inside_city_shield,
-                                "secondary_biomes": geography["secondary_biomes"],
-                                "biome_mix": geography["biome_mix"],
+                                "is_locked_frontier": region_profile.is_locked_frontier,
                                 "world_theme": world_theme.model_dump(mode="json"),
                             },
                         )
@@ -643,16 +1149,24 @@ class LLMWorldGenerator:
         log.info("Enriching zone %s with AI lore...", zone_id)
         for attempt, delay in enumerate((*ZONE_LORE_RETRY_DELAYS_SECONDS, 0.0), start=1):
             try:
-                lore_raw = await self.ai.process(
-                    "zone_lore",
-                    region_id=zone.region_id,
-                    biome_id=zone.biome_id,
-                    tier=zone.tier,
-                    narrative_context=(
-                        (zone.flags or {}).get("narrative_context") if isinstance(zone.flags, dict) else None
+                lore = await self.ai.generate_json(
+                    build_zone_lore_prompt(
+                        region_id=zone.region_id,
+                        biome_id=zone.biome_id,
+                        tier=zone.tier,
+                        narrative_context=(
+                            (zone.flags or {}).get("narrative_context") if isinstance(zone.flags, dict) else None
+                        ),
                     ),
+                    schema=WorldZoneLoreDTO,
                 )
             except Exception as exc:
+                if self._is_ai_quota_error(exc):
+                    raise WorldAIQuotaExhaustedError(
+                        f"World zone lore AI quota exhausted for {zone_id}",
+                        retry_after_seconds=self._extract_retry_after_seconds(exc),
+                    ) from exc
+
                 log.warning(
                     "Zone lore AI request failed; zone=%s attempt=%d/%d error=%s",
                     zone_id,
@@ -664,7 +1178,6 @@ class LLMWorldGenerator:
                     await asyncio.sleep(delay)
                 continue
 
-            lore = self._parse_ai_json_map(lore_raw)
             if not lore:
                 log.warning(
                     "Zone lore AI response is empty or invalid JSON; zone=%s attempt=%d/%d",
@@ -676,8 +1189,10 @@ class LLMWorldGenerator:
                     await asyncio.sleep(delay)
                 continue
 
-            lore_name = lore.get("name", zone.id)
-            lore_background = lore.get("background", "")
+            if not isinstance(lore, WorldZoneLoreDTO):
+                lore = WorldZoneLoreDTO.model_validate(lore)
+            lore_name = lore.name
+            lore_background = lore.background
             await self.data.save_zone_lore(zone, lore_name=lore_name, lore_background=lore_background)
             log.info("AI Lore generated for %s: %s", zone_id, lore_name)
             return

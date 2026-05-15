@@ -4,15 +4,18 @@ from fastapi import APIRouter, Depends, Request
 from pydantic import BaseModel, ConfigDict, field_validator
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.backend.config.settings import settings
+from src.backend.core.auth import User, get_current_user, require_game_character_scope
 from src.backend.core.database import get_db
 from src.backend.features.scenario.dependencies import build_scenario_service
 from src.backend.features.scenario.services import ScenarioService
-from src.backend.features_site.auth.dependencies import get_current_user
-from src.backend.features_site.auth.models import User
 from src.shared.enums import CoreDomain
-from src.shared.schemas import CoreResponseDTO, GameStateHeader, ScenarioPayloadDTO, StateTransitionDTO
-from src.shared.utils.dev_utils import log_debug_payload
+from src.shared.schemas import (
+    CoreResponseDTO,
+    GameStateHeader,
+    ScenarioPayloadDTO,
+    ScenarioReturnContextDTO,
+    StateTransitionDTO,
+)
 
 router = APIRouter(prefix="/scenario", tags=["Scenario"])
 
@@ -36,6 +39,7 @@ class ScenarioInitializeRequestDTO(BaseModel):
 
     char_id: int
     quest_key: str
+    return_context: ScenarioReturnContextDTO | None = None
 
     @field_validator("quest_key")
     @classmethod
@@ -54,28 +58,36 @@ def get_scenario_service(
 
 @router.post("/initialize", response_model=CoreResponseDTO[ScenarioPayloadDTO])
 async def initialize_scenario(
+    request: Request,
     dto: ScenarioInitializeRequestDTO,
     current_user: Annotated[User, Depends(get_current_user)],
     scenario_service: Annotated[ScenarioService, Depends(get_scenario_service)],
 ) -> CoreResponseDTO[ScenarioPayloadDTO]:
+    require_game_character_scope(request, current_user, dto.char_id)
     await scenario_service.ensure_character_owner(user_id=current_user.id, char_id=dto.char_id)
-    payload = await scenario_service.initialize(dto.char_id, dto.quest_key, source="api")
+    payload = await scenario_service.initialize(
+        dto.char_id,
+        dto.quest_key,
+        source="api",
+        return_context=dto.return_context,
+    )
     payload.extra_data = {**(payload.extra_data or {}), "char_id": dto.char_id, "quest_key": dto.quest_key}
     response = CoreResponseDTO(
         header=GameStateHeader(current_state=CoreDomain.SCENARIO),
         payload=payload,
         payload_type="scenario_screen",
     )
-    log_debug_payload("scenario.initialize", response, enabled=settings.debug)
     return response
 
 
 @router.get("/resume/{char_id}", response_model=CoreResponseDTO[ScenarioPayloadDTO])
 async def resume_scenario(
+    request: Request,
     char_id: int,
     current_user: Annotated[User, Depends(get_current_user)],
     scenario_service: Annotated[ScenarioService, Depends(get_scenario_service)],
 ) -> CoreResponseDTO[ScenarioPayloadDTO]:
+    require_game_character_scope(request, current_user, char_id)
     await scenario_service.ensure_character_owner(user_id=current_user.id, char_id=char_id)
     payload = await scenario_service.resume(char_id)
     payload.extra_data = {**(payload.extra_data or {}), "char_id": char_id}
@@ -84,16 +96,17 @@ async def resume_scenario(
         payload=payload,
         payload_type="scenario_screen",
     )
-    log_debug_payload("scenario.resume", response, enabled=settings.debug)
     return response
 
 
 @router.post("/step", response_model=CoreResponseDTO[ScenarioPayloadDTO | StateTransitionDTO])
 async def step_scenario(
+    request: Request,
     dto: ScenarioStepRequestDTO,
     current_user: Annotated[User, Depends(get_current_user)],
     scenario_service: Annotated[ScenarioService, Depends(get_scenario_service)],
 ) -> CoreResponseDTO[ScenarioPayloadDTO | StateTransitionDTO]:
+    require_game_character_scope(request, current_user, dto.char_id)
     await scenario_service.ensure_character_owner(user_id=current_user.id, char_id=dto.char_id)
 
     payload = await scenario_service.step(dto.char_id, dto.action_id)
@@ -104,7 +117,6 @@ async def step_scenario(
             payload=payload,
             payload_type="scenario_screen",
         )
-        log_debug_payload("scenario.step", response, enabled=settings.debug)
         return response
 
     transition = StateTransitionDTO(
@@ -123,5 +135,4 @@ async def step_scenario(
         payload=transition,
         payload_type="state_transition",
     )
-    log_debug_payload("scenario.step", response, enabled=settings.debug)
     return response

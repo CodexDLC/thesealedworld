@@ -105,9 +105,13 @@ class ExplorationNavigationService:
 
         exits = loc_data.get("exits", {})
         exits = exits if isinstance(exits, dict) else {}
+        world_zone = loc_data.get("world_zone", {})
+        world_zone = world_zone if isinstance(world_zone, dict) else {}
         grid = NavigationEngine.build_grid(loc_id, exits, flags, anchor_influence)
         navigation = self._build_navigation_actions(loc_id, exits, flags, anchor_influence)
         is_safe_zone = NavigationEngine.is_safe_context(flags, anchor_influence)
+        risk_getter = getattr(self._integrator, "get_risk_state", None)
+        risk = await risk_getter(char_id) if risk_getter is not None else {}
         threat = self._safe_threat(anchor_influence.get("threat", flags.get("threat", 0.0)))
 
         hud: ExplorationHudDTO | AlertHudDTO = alert or ExplorationHudDTO(
@@ -116,6 +120,12 @@ class ExplorationNavigationService:
             players_count=players_count,
             battles_count=len(battles),
             is_safe_zone=is_safe_zone,
+            system_connect=bool(flags.get("system_connect") or flags.get("is_safe_zone", False)),
+            risk_state=str(risk.get("sync_state", "safe")),
+            pending_free_xp=float(risk.get("pending_free_xp", 0.0) or 0.0),
+            pending_skill_count=int(risk.get("pending_skill_count", 0) or 0),
+            carried_resource_count=int(risk.get("carried_resource_count", 0) or 0),
+            carried_item_count=int(risk.get("carried_item_count", 0) or 0),
             dominant_anchor=anchor_influence.get("dominant_anchor"),
             ambient_tags=anchor_influence.get("tags", []),
         )
@@ -123,7 +133,7 @@ class ExplorationNavigationService:
             loc_id=loc_id,
             title=loc_data.get("name", "Unknown"),
             description=loc_data.get("description", "..."),
-            background_url=loc_data.get("background_url"),
+            background_url=self._resolve_background_url(loc_data),
             anchor_influence=anchor_influence,
             world_theme=world_theme,
             visual_objects=[],
@@ -133,10 +143,75 @@ class ExplorationNavigationService:
             hud=hud,
             threat_tier=int(flags.get("threat_tier", 0)),
             is_safe_zone=is_safe_zone,
+            zone_id=str(loc_data.get("zone_id") or world_zone.get("id") or ""),
+            terrain=str(loc_data.get("terrain") or ""),
+            biome_id=str(loc_data.get("biome_id") or world_zone.get("biome_id") or ""),
+            node_type=str(loc_data.get("node_type") or ""),
+            zone_archetype=str(world_zone.get("zone_archetype") or ""),
+            navigation_profile_id=str(loc_data.get("navigation_profile_id") or world_zone.get("navigation_profile_id") or ""),
+            buildable_kind=loc_data.get("buildable_kind"),
+            landmark_profile=loc_data.get("landmark_profile") or world_zone.get("landmark_profile"),
+            movement_profile=loc_data.get("movement_profile") if isinstance(loc_data.get("movement_profile"), dict) else {},
+            world_zone=world_zone,
         )
         if dto.world_theme:
             await self._integrator.set_world_theme(char_id, dto.world_theme.model_dump(mode="json"))
         return dto
+
+    def _resolve_background_url(self, loc_data: dict[str, Any]) -> str | None:
+        """
+        Dynamically resolves a background image path if one is missing from static data.
+        Resolution order:
+        1. Explicit background_url in loc_data
+        2. Mapping by environment tags (most specific, e.g., tavern, forge)
+        3. Mapping by terrain type (node level)
+        4. Mapping by biome ID (zone level)
+        """
+        explicit_url = loc_data.get("background_url")
+        if explicit_url:
+            return explicit_url
+
+        # 1. Environment Tags (Special points of interest)
+        tags = loc_data.get("tags") or []
+        tag_fallback = {
+            "tavern": "tavern_refuge_exterior_01.webp",
+            "market": "market_ruins_01.webp",
+            "forge": "ancient_forge_01.webp",
+            "shrine": "broken_shrine_01.webp",
+            "shadow_quarter": "shadow_quarter_01.webp",
+            "bastion": "inner_wall_bastion_01.webp",
+            "hub_district": "ancient_pavement_hub_01.webp",
+            "gate": "city_gate_outer_01.webp",
+        }
+        for tag in tags:
+            if tag in tag_fallback:
+                return f"/static/images/exploration/terrain/{tag_fallback[tag]}"
+
+        # 2. Terrain Type (General node appearance)
+        terrain = loc_data.get("terrain")
+        terrain_fallback = {
+            "ancient_pavement": "ancient_pavement_hub_01.webp",
+            "ruin_road_main": "ruin_road_main_01.webp",
+            "city_ruins": "city_ruins_collapsed_district_01.webp",
+            "ruined_foundation": "ruined_foundation_01.webp",
+            "city_gate_outer": "city_gate_outer_01.webp",
+            "outer_monolith_wall_walk": "outer_monolith_wall_walk_01.webp",
+        }
+        if terrain in terrain_fallback:
+            return f"/static/images/exploration/terrain/{terrain_fallback[terrain]}"
+
+        # 3. Biome ID (Regional default)
+        world_zone = loc_data.get("world_zone") or {}
+        biome_id = world_zone.get("biome_id")
+        biome_fallback = {
+            "city_ruins": "city_ruins_collapsed_district_01.webp",
+            "hub_district": "ancient_pavement_hub_01.webp",
+        }
+        if biome_id in biome_fallback:
+            return f"/static/images/exploration/terrain/{biome_fallback[biome_id]}"
+
+        # 4. Universal Default (Generic ruins for now)
+        return "/static/images/exploration/terrain/city_ruins_collapsed_district_01.webp"
 
     async def attach_navigation_snapshot(
         self,

@@ -9,11 +9,11 @@ def build_game_nav(*, state: CoreDomain | str, char_id: int) -> dict[str, dict[s
     current = state.value if isinstance(state, CoreDomain) else str(state)
     if current == CoreDomain.SCENARIO.value:
         return {
-            "l2": _item("STATUS", "#", False, icon="person", panel="left"),
-            "l1": _empty_item(),
-            "center": _item("SCENARIO", "#", True, icon="talk"),
-            "r1": _item("TRACE", "#", False, icon="journal", panel="right"),
-            "r2": _empty_item(),
+            "l2": None,
+            "l1": None,
+            "center": None,
+            "r1": None,
+            "r2": None,
         }
 
     if current == CoreDomain.EXPLORATION.value:
@@ -28,10 +28,12 @@ def build_game_nav(*, state: CoreDomain | str, char_id: int) -> dict[str, dict[s
     center_labels = {
         CoreDomain.COMBAT.value: "COMBAT",
         CoreDomain.ARENA.value: "ARENA",
+        CoreDomain.TAVERN.value: "TAVERN",
     }
     center_icons = {
         CoreDomain.COMBAT.value: "swords",
         CoreDomain.ARENA.value: "swords",
+        CoreDomain.TAVERN.value: "tavern",
     }
 
     if current == CoreDomain.COMBAT.value:
@@ -39,6 +41,15 @@ def build_game_nav(*, state: CoreDomain | str, char_id: int) -> dict[str, dict[s
             "l2": _disabled_item("STATUS", icon="person"),
             "l1": _disabled_item("BUILDS", icon="bolt"),
             "center": _item("COMBAT", "#", True, icon="swords"),
+            "r1": _disabled_item("INVENTORY", icon="inventory"),
+            "r2": _disabled_item("VIEW", icon="journal"),
+        }
+
+    if current == CoreDomain.DEATH.value:
+        return {
+            "l2": _item("STATUS", "#", False, icon="person", panel="left", panel_view="status"),
+            "l1": _disabled_item("BUILDS", icon="bolt"),
+            "center": _item("DEATH", "#", True, icon="skull"),
             "r1": _disabled_item("INVENTORY", icon="inventory"),
             "r2": _disabled_item("VIEW", icon="journal"),
         }

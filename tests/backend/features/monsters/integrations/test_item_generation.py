@@ -24,7 +24,7 @@ def test_build_monster_item_request_for_natural_equipment_creates_item_runtime_o
     item_request = to_item_generation_request(monster_request)
 
     assert item_request.generation_mode == "runtime"
-    assert item_request.base_id == "dagger"
+    assert item_request.base_id == "rat_bite_claws"
     assert item_request.target_slot == "main_hand"
     assert item_request.runtime_metadata["owner_key"] == "member_0"
     assert item_request.runtime_metadata["natural_key"] == "rat_bite_claws"
@@ -78,7 +78,7 @@ def test_to_item_generation_requests_preserves_batch_order() -> None:
 
     item_requests = to_item_generation_requests(requests)
 
-    assert [request.base_id for request in item_requests] == ["katar", "leather_armor"]
+    assert [request.base_id for request in item_requests] == ["wolf_fangs_claws", "light_hide"]
     assert [request.target_slot for request in item_requests] == ["main_hand", "chest_armor"]
 
 

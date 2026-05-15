@@ -14,12 +14,14 @@ class FakeAI:
         self.included_router = None
         self.calls = []
 
-    def include_router(self, router: object) -> None:
-        self.included_router = router
-
-    async def process(self, prompt_name: str, **kwargs: object) -> object:
-        self.calls.append((prompt_name, kwargs))
-        return self.response
+    async def generate_json(self, prompt: object, *, schema: type[object], **kwargs: object) -> object:
+        self.calls.append(("generate_json", {"prompt": prompt, "schema": schema, **kwargs}))
+        if isinstance(self.response, str):
+            text = self.response.strip()
+            if text.startswith("```json"):
+                text = text.removeprefix("```json").removesuffix("```").strip()
+            return schema.model_validate(json.loads(text))  # type: ignore[attr-defined]
+        return schema.model_validate(self.response)  # type: ignore[attr-defined]
 
 
 @pytest.mark.unit
@@ -50,8 +52,9 @@ async def test_item_text_service_replaces_only_name_and_description_with_ai_text
     assert item.durability_max == mechanical_item.durability_max
     assert item.bonuses == mechanical_item.bonuses
     assert item.metadata["ai_text_status"] == "generated"
-    assert ai.calls[0][0] == "item_name_description"
-    payload = ai.calls[0][1]["payload"]
+    assert ai.calls[0][0] == "generate_json"
+    prompt = ai.calls[0][1]["prompt"]
+    payload = json.loads(prompt.messages[1].content)
     assert payload["base"]["id"] == "warhammer"
     assert payload["base"]["narrative_description"]
     assert payload["material"]["id"] == "mat_iron_ingot"
@@ -136,6 +139,7 @@ async def test_item_text_service_passes_source_context_in_payload():
 
     await ItemTextService(ItemTextAIClient(ai)).enrich(mechanical_item, request)
 
-    payload = ai.calls[0][1]["payload"]
+    prompt = ai.calls[0][1]["prompt"]
+    payload = json.loads(prompt.messages[1].content)
     assert payload["source_context"]["monster_family_id"] == "bandit_gang"
     assert payload["source_context"]["biome_id"] == "city_ruins"

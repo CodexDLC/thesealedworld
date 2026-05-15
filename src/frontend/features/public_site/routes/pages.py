@@ -1,0 +1,31 @@
+from typing import Annotated
+
+from fastapi import APIRouter, Depends
+
+from src.frontend.core.renderer import UIRenderer, get_ui_renderer
+
+router = APIRouter(tags=["Frontend Pages"])
+
+
+@router.get("/", name="index")
+async def index(ui: Annotated[UIRenderer, Depends(get_ui_renderer)]):
+    """Root endpoint rendering the landing page."""
+    return await ui.render("site/index.html")
+
+
+@router.get("/system/design", name="design_system")
+async def design_system(ui: Annotated[UIRenderer, Depends(get_ui_renderer)]):
+    """Render the Design System page using the new UIRenderer."""
+    return await ui.render("system/design_system.html")
+
+
+@router.get("/about", name="about")
+async def about(ui: Annotated[UIRenderer, Depends(get_ui_renderer)]):
+    """Render the About page."""
+    return await ui.render("site/about.html")
+
+
+@router.get("/news", name="news")
+async def news(ui: Annotated[UIRenderer, Depends(get_ui_renderer)]):
+    """Render the News placeholder page."""
+    return await ui.render("site/news.html")

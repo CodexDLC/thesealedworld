@@ -52,6 +52,7 @@ class StateTransitionDTO(BaseModel):
     quest_key: str | None = None
     combat_id: str | int | None = None
     arena_id: str | int | None = None
+    location_id: str | None = None
     action: str | None = None
     context: dict[str, Any] | None = None
     metadata: dict[str, Any] | None = None

@@ -21,12 +21,12 @@ class MonsterStatsDTO(BaseModel):
     strength: int = Field(ge=0)
     agility: int = Field(ge=0)
     endurance: int = Field(ge=0)
-    intelligence: int = Field(ge=0)
-    wisdom: int = Field(ge=0)
-    men: int = Field(ge=0)
+    intellect: int = Field(ge=0)
+    memory: int = Field(ge=0)
+    mental: int = Field(ge=0)
     perception: int = Field(ge=0)
-    charisma: int = Field(ge=0)
-    luck: int
+    projection: int = Field(ge=0)
+    prediction: int
 
 
 class MonsterLoadoutDTO(BaseModel):

@@ -4,7 +4,7 @@ import pytest
 
 from src.backend.features.arena.dto.session import ArenaCombatRequestDTO, ArenaQueueRequestDTO, ArenaRuntimeSessionDTO
 from src.backend.features.arena.integrations import ArenaSessionIntegration, ArenaSystemIntegrator
-from src.backend.features.arena.services import ArenaService
+from src.backend.features.arena.services import ArenaDuelService, ArenaGroupService, ArenaService
 from src.shared.enums import CoreDomain
 from src.shared.schemas.arena import ArenaScreenEnum
 
@@ -107,11 +107,10 @@ class FakeEvents:
         import json
 
         self.requests.append((event_type, data, timeout, correlation_id))
-        session_id = data["scope_id"]
         player_ids = json.loads(data["player_ids"])
         return {
             "status": "ok",
-            "commitments": {f"player:{char_id}": f"actor:{session_id}:player:{char_id}" for char_id in player_ids},
+            "commitments": {f"player:{char_id}": f"actor:arena-test:player:{char_id}" for char_id in player_ids},
         }
 
 
@@ -204,7 +203,7 @@ async def test_view_includes_rating_metadata_when_rating_view_is_configured():
 
 
 @pytest.mark.asyncio
-async def test_show_mode_menu_updates_arena_runtime_position():
+async def test_group_lobby_updates_arena_runtime_position():
     store = FakeStore()
     events = FakeEvents()
     sessions = FakeCharacterSessions()
@@ -213,7 +212,7 @@ async def test_show_mode_menu_updates_arena_runtime_position():
         integrator=ArenaSystemIntegrator(events=events, character_sessions=sessions),
     )
 
-    payload = await service.show_mode_menu(1, "group")
+    payload = await ArenaGroupService(arena=service).show_lobby(1)
 
     session = store.runtime_sessions[sessions.arena[1]]
     assert payload.screen == ArenaScreenEnum.MODE_MENU
@@ -227,7 +226,7 @@ async def test_join_queue_returns_searching_screen():
     events = FakeEvents()
     service = build_service(store, events)
 
-    payload = await service.join_queue(1, "one_vs_one")
+    payload = await ArenaDuelService(arena=service).join_queue(1)
 
     assert payload.screen == ArenaScreenEnum.SEARCHING
     assert payload.gs == 100
@@ -243,7 +242,7 @@ async def test_join_queue_does_not_queue_without_combat_commitment():
     events = FailingSnapshotEvents()
     service = build_service(store, events)
 
-    payload = await service.join_queue(1, "one_vs_one")
+    payload = await ArenaDuelService(arena=service).join_queue(1)
 
     assert payload.screen == ArenaScreenEnum.MODE_MENU
     assert payload.metadata["commitment_status"] == "failed"
@@ -256,7 +255,7 @@ async def test_group_mode_menu_returns_mock_lobby_contract():
     events = FakeEvents()
     service = build_service(store, events)
 
-    payload = await service.get_mode_menu("group")
+    payload = await ArenaGroupService(arena=service).get_lobby()
 
     lobby = payload.metadata["group_lobby"]
     assert payload.screen == ArenaScreenEnum.MODE_MENU
@@ -270,7 +269,11 @@ async def test_group_action_returns_mock_action_notice():
     events = FakeEvents()
     service = build_service(store, events)
 
-    payload = await service.group_action("group_pick_team", item_id="mock-request-3x3")
+    payload = await ArenaGroupService(arena=service).handle_action(
+        "group_pick_team",
+        char_id=1,
+        item_id="mock-request-3x3",
+    )
 
     assert payload.screen == ArenaScreenEnum.MODE_MENU
     assert payload.metadata["group_action"]["title"] == "Выбор команды"
@@ -282,10 +285,11 @@ async def test_check_match_creates_pvp_combat_request():
     store = FakeStore()
     events = FakeEvents()
     service = build_service(store, events)
-    await service.join_queue(1, "one_vs_one")
-    await service.join_queue(2, "one_vs_one")
+    duel = ArenaDuelService(arena=service)
+    await duel.join_queue(1)
+    await duel.join_queue(2)
 
-    payload = await service.check_match(1, "one_vs_one")
+    payload = await duel.check_match(1)
 
     assert payload.screen == ArenaScreenEnum.COMBAT_PENDING
     assert payload.title == "Противник найден"
@@ -304,10 +308,11 @@ async def test_check_match_returns_searching_when_match_lock_is_busy():
     store = FakeStore()
     events = FakeEvents()
     service = build_service(store, events)
-    await service.join_queue(1, "one_vs_one")
+    duel = ArenaDuelService(arena=service)
+    await duel.join_queue(1)
     await store.acquire_match_lock(1, "already-running")
 
-    payload = await service.check_match(1, "one_vs_one")
+    payload = await duel.check_match(1)
 
     assert payload.screen == ArenaScreenEnum.SEARCHING
     assert payload.metadata["match_lock"] == "busy"
@@ -319,10 +324,11 @@ async def test_check_match_timeout_returns_mode_menu_without_shadow_request():
     store = FakeStore()
     events = FakeEvents()
     service = build_service(store, events)
-    await service.join_queue(1, "one_vs_one")
+    duel = ArenaDuelService(arena=service)
+    await duel.join_queue(1)
     store.requests[1].start_time = time.time() - 70
 
-    payload = await service.check_match(1, "one_vs_one")
+    payload = await duel.check_match(1)
 
     assert payload.screen == ArenaScreenEnum.MODE_MENU
     assert payload.title == "Противник не найден"
@@ -335,9 +341,10 @@ async def test_continue_search_discards_shadow_offer_and_requeues():
     store = FakeStore()
     events = FakeEvents()
     service = build_service(store, events)
-    offer = await service.start_shadow(1, "one_vs_one")
+    duel = ArenaDuelService(arena=service)
+    offer = await duel.start_shadow(1)
 
-    payload = await service.continue_search(1, "one_vs_one", arena_session_id=offer.arena_session_id)
+    payload = await duel.continue_search(1, arena_session_id=offer.arena_session_id)
 
     assert payload.screen == ArenaScreenEnum.SEARCHING
     assert offer.arena_session_id not in store.matches
@@ -351,7 +358,7 @@ async def test_start_shadow_prepares_combat_without_linking_player_state():
     events = FakeEvents()
     service = build_service(store, events)
 
-    payload = await service.start_shadow(1, "one_vs_one")
+    payload = await ArenaDuelService(arena=service).start_shadow(1)
 
     assert payload.screen == ArenaScreenEnum.COMBAT_PENDING
     assert payload.title == "Арена готова"
@@ -369,9 +376,10 @@ async def test_check_combat_ready_keeps_pending_without_auto_redirect():
     store = FakeStore()
     events = FakeEvents()
     service = build_service(store, events)
-    first_payload = await service.start_shadow(1, "one_vs_one")
+    duel = ArenaDuelService(arena=service)
+    first_payload = await duel.start_shadow(1)
 
-    payload = await service.check_combat_ready(1, arena_session_id=first_payload.arena_session_id)
+    payload = await duel.check_combat_ready(1, arena_session_id=first_payload.arena_session_id)
 
     assert payload.screen == ArenaScreenEnum.COMBAT_PENDING
     assert payload.metadata["polling"] is False
@@ -398,7 +406,7 @@ async def test_check_combat_ready_does_not_enter_ready_shadow_without_confirm():
     )
     await store.create_match(match)
 
-    payload = await service.check_combat_ready(1, arena_session_id=match.arena_session_id)
+    payload = await ArenaDuelService(arena=service).check_combat_ready(1, arena_session_id=match.arena_session_id)
 
     assert payload.combat_id is None
     assert sessions.combat == {}
@@ -424,7 +432,11 @@ async def test_check_combat_ready_enters_ready_shadow_combat_with_confirm():
     )
     await store.create_match(match)
 
-    payload = await service.check_combat_ready(1, arena_session_id=match.arena_session_id, confirm=True)
+    payload = await ArenaDuelService(arena=service).check_combat_ready(
+        1,
+        arena_session_id=match.arena_session_id,
+        confirm=True,
+    )
 
     assert payload.combat_id == "combat:shadow"
     assert sessions.combat[1] == "combat:shadow"

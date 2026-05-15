@@ -123,6 +123,9 @@
                     hx-target="#library-content"
                     hx-swap="innerHTML"
                 >
+                    {% if clan.visual and clan.visual.image_url %}
+                        <img class="library-card-image" src="{{ clan.visual.image_url }}" alt="{{ clan.title }}">
+                    {% endif %}
                     <span class="library-card-kicker">Tier {{ clan.tier }} // {{ clan.danger }} // {{ clan.habitat }}</span>
                     <strong>{{ clan.title }}</strong>
                     <p>

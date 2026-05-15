@@ -14,4 +14,14 @@
             </div>
         {% endfor %}
     </nav>
+    <div class="fc-topbar-actions">
+        <a href="{{ layout.mount_path }}/inbox"
+           class="fc-bell{% if layout.notification_count %} fc-bell--has-badge{% endif %}"
+           title="Входящие">
+            <span class="fc-bell__icon">&#9993;</span>
+            {% if layout.notification_count %}
+                <span class="fc-bell__badge">{{ layout.notification_count }}</span>
+            {% endif %}
+        </a>
+    </div>
 </header>

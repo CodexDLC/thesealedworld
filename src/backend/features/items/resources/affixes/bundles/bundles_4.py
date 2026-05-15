@@ -3,7 +3,7 @@ from ..schemas import AffixBundleDTO
 duelist_weapon_4 = AffixBundleDTO(
     id="duelist_weapon_4",
     size=4,
-    affix_ids=("weapon_accuracy", "armor_penetration_bonus", "crit_chance", "control_chance_bonus"),
+    affix_ids=("weapon_accuracy", "armor_penetration_pct_bonus", "crit_chance", "control_chance_bonus"),
     allowed_item_types=("weapon",),
     min_item_tier=2,
     tags=("duelist", "weapon", "precision", "finesse"),

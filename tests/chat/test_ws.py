@@ -1,5 +1,5 @@
-from src.chat.api.ws import _with_session_scope
-from src.chat.dto.message import IncomingMessageDTO
+from src.backend.chat.api.ws import _with_session_scope
+from src.backend.chat.dto.message import IncomingMessageDTO
 
 
 def test_zone_message_without_scope_uses_session_location() -> None:

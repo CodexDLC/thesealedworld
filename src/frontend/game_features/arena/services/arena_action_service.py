@@ -2,8 +2,8 @@ from typing import Any
 
 from fastapi import Request
 
+from src.frontend.game_features.session.token_state import require_game_access_token
 from src.frontend.integrations.backend_api.arena import ArenaResponse, BackendArenaApi
-from src.frontend.site_features.auth.token_state import require_access_token
 
 
 class ArenaActionService:
@@ -20,7 +20,7 @@ class ArenaActionService:
         value: dict[str, Any] | None = None,
     ) -> ArenaResponse:
         return await self.api.action(
-            require_access_token(request),
+            require_game_access_token(request),
             char_id=char_id,
             action=action,
             mode=mode,
@@ -36,7 +36,7 @@ class ArenaActionService:
         item_id: str | None = None,
     ) -> ArenaResponse:
         return await self.api.group_action(
-            require_access_token(request),
+            require_game_access_token(request),
             char_id=char_id,
             action=action,
             item_id=item_id,

@@ -43,7 +43,7 @@ TUTORIAL_EXIT_LOCATIONS = [
 
 
 class TutorialScenarioHandler(BaseScenarioHandler):
-    async def on_initialize(self, char_id: int, quest_master: dict) -> ScenarioContextDTO:
+    async def on_initialize(self, char_id: int, quest_master: dict, **_: object) -> ScenarioContextDTO:
         initial = await self.integration.get_initial_handler_context(char_id)
         return ScenarioContextDTO(
             quest_key=quest_master["quest_key"],

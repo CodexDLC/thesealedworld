@@ -3,13 +3,13 @@ from __future__ import annotations
 import datetime as dt  # noqa: TC003
 
 from sqlalchemy import BigInteger, DateTime, ForeignKey, Index, Integer, SmallInteger, String
-from sqlalchemy.dialects.postgresql import ARRAY
+from sqlalchemy.dialects.postgresql import ARRAY, JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
-from src.backend.core.database import Base
+from src.backend.core.database import Base, MetadataContextMixin, SchemaVersionMixin
 
 
-class ArenaMatch(Base):
+class ArenaMatch(Base, MetadataContextMixin, SchemaVersionMixin):
     __tablename__ = "arena_matches"
     __table_args__ = (
         Index("ix_arena_matches_completed_at", "completed_at"),
@@ -46,5 +46,7 @@ class ArenaMatch(Base):
     team_b_rating_after: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
     winner: Mapped[str] = mapped_column(String(8), nullable=False)
+    match_context: Mapped[dict[str, object]] = mapped_column(JSONB, default=dict, nullable=False)
+    result_summary: Mapped[dict[str, object]] = mapped_column(JSONB, default=dict, nullable=False)
     created_at: Mapped[dt.datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     completed_at: Mapped[dt.datetime] = mapped_column(DateTime(timezone=True), nullable=False)

@@ -1,0 +1,5 @@
+/* Desktop-specific prototype layout overrides.
+   Use this for 1280+ composition experiments only. */
+.prototype-board--desktop {
+    --prototype-current-form: desktop;
+}

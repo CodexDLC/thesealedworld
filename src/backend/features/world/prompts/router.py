@@ -10,8 +10,22 @@ world_prompt_router = LLMRouter()
 
 @world_prompt_router.prompt("zone_lore")
 async def build_zone_lore(region_id: str, biome_id: str, tier: int, **kwargs: Any) -> PromptResult:
+    return build_zone_lore_prompt(
+        region_id=region_id,
+        biome_id=biome_id,
+        tier=tier,
+        narrative_context=kwargs.get("narrative_context"),
+    )
+
+
+def build_zone_lore_prompt(
+    *,
+    region_id: str,
+    biome_id: str,
+    tier: int,
+    narrative_context: Any = None,
+) -> PromptResult:
     """Builds a prompt to generate lore for a specific world zone."""
-    narrative_context = kwargs.get("narrative_context")
     system = (
         "You are a world-building assistant for a dark fantasy/post-apocalyptic MMORPG. "
         "The world is shaped by four Anchor Monoliths: north is stasis/ice, south is plasma/fire, "
@@ -52,7 +66,11 @@ async def build_node_content(
 
 @world_prompt_router.prompt("batch_location_desc")
 async def build_batch_location_desc(payload_items: list[dict[str, Any]], **kwargs: Any) -> PromptResult:
-    """Build the legacy batch prompt for location names/descriptions from tags."""
+    return build_batch_location_desc_prompt(payload_items)
+
+
+def build_batch_location_desc_prompt(payload_items: list[dict[str, Any]]) -> PromptResult:
+    """Build the typed batch prompt for location names/descriptions from tags."""
     system = """ROLE: Narrative Designer for 'Echo of Ancients' (Post-Apocalyptic Techno-Fantasy RPG).
 SETTING: A world of ancient, high-tech ruins ("The Ancients") reclaimed by nature and scavengers.
 
@@ -74,12 +92,13 @@ STYLE GUIDE (STRICTLY ADHERE):
 
 INPUT FORMAT:
 A JSON list of objects:
-[{"id": "52_52", "tags": ["ancient_city", "hub_center", "tents"], "context": ["На севере виднеется Шпиль"], "route_context": null, "boundary_context": {}}]
+[{"id": "52_52", "tags": ["ancient_city", "hub_center", "tents"], "context": ["На севере виднеется Шпиль"], "district_context": {"name": "Северный тракт", "role": "main road", "tags": ["road"]}, "route_context": null, "boundary_context": {}}]
+- district_context gives the district identity for this old-city area. Use it to keep locations distinct from other districts.
 - route_context is optional route metadata. If present with must_describe=true, the route/road/path is a physical navigation element in the scene and must be described.
 - boundary_context is optional directional walls, gates, blocked edges, or sealed borders. If present, describe the boundary on the correct side without turning it into a separate room.
 
 BATCH SEMANTICS:
-- A full batch may contain 25 locations. Treat it as one coherent 5x5 sector inside a region.
+- A batch contains up to 5 nearby locations from the same district. They may be non-contiguous because protected hub/static locations are skipped.
 - Each location ID is a sublocation inside that sector: a street segment, courtyard, hall, plaza edge, block entrance, collapsed house row, gate approach, or another navigable sub-area.
 - Keep continuity across the batch. Neighboring sublocations should feel like parts of the same district, not unrelated random rooms.
 - Do not make every sublocation equally epic. Give the sector a shared identity, then vary details, scale, sightlines, damage, barricades, stonework, roads, walls, and anomaly traces.
@@ -87,22 +106,24 @@ BATCH SEMANTICS:
 - Boundary tags are literal. If boundary_context contains a wall or gate, describe it as an edge/side feature of the current sublocation, not as a separate impassable room.
 
 OUTPUT FORMAT:
-A single JSON object. Keys are location IDs.
+A single JSON object with a locations array. Each item must use an exact input id.
 {
-  "52_52": {
-    "title": "Площадь Резонанса",
-    "description": "Величественная площадь из белого монолита, который не берет время. Посреди идеальных плит вырос хаотичный палаточный лагерь выживших. На севере, пронзая небо, виднеется Шпиль Хаба."
-  }
+  "locations": [
+    {
+      "id": "52_52",
+      "title": "Площадь Резонанса",
+      "description": "Величественная площадь из белого монолита, который не берет время. Посреди идеальных плит вырос хаотичный палаточный лагерь выживших. На севере, пронзая небо, виднеется Шпиль Хаба."
+    }
+  ]
 }
 
 RULES:
 1. **Language**: RUSSIAN.
 2. **Title**: Evocative, 2-5 words.
-3. **Description**: 3-5 sentences (90-140 words).
+3. **Description**: 2-3 sentences (35-60 words).
    - Sentence 1: Visuals/Atmosphere (Ancient tech + Nature/Decay).
-   - Sentence 2: Details from "tags".
-   - Sentence 3+: Integrate "context" landmarks naturally and show how this sublocation fits the surrounding sector.
-4. **Context is MANDATORY**: You MUST mention landmarks from "context" input.
+   - Sentence 2+: Details from "tags", district_context, route_context, and boundary_context.
+4. Mention landmarks from "context" only when context is non-empty. Do not invent landmarks.
 5. **Tag Logic**:
    - "_center": High intensity (e.g., "heart of the anomaly").
    - "_edge": Transition zone.
@@ -113,11 +134,11 @@ RULES:
 6. **Completeness is mandatory**: Return one entry for every input id. Do not omit ids. Do not add extra ids.
 7. **NO REPETITION**: Use varied vocabulary. Avoid starting every description with "Здесь...".
 8. **No mechanics invention**: Do not invent loot, enemies, NPCs, quests, interactable services, unlocked paths, or rewards unless directly implied by tags.
-9. **Return ONLY the complete JSON object.**
+9. Return ONLY the complete JSON object. No markdown fences, no prose before or after JSON.
 """
     user = json.dumps(payload_items, ensure_ascii=False, sort_keys=True)
     return PromptResult(
         messages=[{"role": "system", "content": system}, {"role": "user", "content": user}],
         temperature=0.7,
-        max_tokens=16000,
+        max_tokens=5000,
     )

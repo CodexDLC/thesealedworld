@@ -30,7 +30,7 @@ WEREWOLVES_EQUIPMENT = {
         "type": "weapon",
         "base_power": 10,
         "damage_spread": 0.1,
-        "implicit_bonuses": {"physical_penetration": 0.10},
+        "implicit_bonuses": {"physical_suppression": 0.10},
     },
     "claw_razor": {
         "id": "claw_razor",
@@ -102,7 +102,7 @@ WEREWOLVES_EQUIPMENT = {
         "type": "weapon",
         "base_power": 22,
         "damage_spread": 0.1,
-        "implicit_bonuses": {"physical_penetration": 0.30},
+        "implicit_bonuses": {"physical_suppression": 0.30},
     },
     "claw_ancient": {
         "id": "claw_ancient",
@@ -129,7 +129,7 @@ WEREWOLVES_EQUIPMENT = {
         "type": "weapon",
         "base_power": 38,
         "damage_spread": 0.1,
-        "implicit_bonuses": {"physical_penetration": 1.0},
+        "implicit_bonuses": {"physical_suppression": 1.0},
     },
     # --- ОДЕЖДА / БРОНЯ ---
     "rags_dirty": {
@@ -251,7 +251,7 @@ WEREWOLVES_EQUIPMENT = {
         "slot": "amulet",
         "type": "accessory",
         "base_power": 0,
-        "implicit_bonuses": {"men": 5},
+        "implicit_bonuses": {"mental": 5},
     },
     "ring_pack_leader": {
         "id": "ring_pack_leader",
@@ -259,7 +259,7 @@ WEREWOLVES_EQUIPMENT = {
         "slot": "ring_1",
         "type": "accessory",
         "base_power": 0,
-        "implicit_bonuses": {"charisma": 5, "skill_leadership": 0.2},
+        "implicit_bonuses": {"projection": 5, "skill_leadership": 0.2},
     },
     "amulet_ancestors": {
         "id": "amulet_ancestors",
@@ -267,6 +267,6 @@ WEREWOLVES_EQUIPMENT = {
         "slot": "amulet",
         "type": "accessory",
         "base_power": 0,
-        "implicit_bonuses": {"wisdom": 10},
+        "implicit_bonuses": {"memory": 10},
     },
 }

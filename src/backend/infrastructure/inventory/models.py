@@ -6,13 +6,13 @@ from sqlalchemy import ForeignKey, Integer, String
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from src.backend.core.database import Base
+from src.backend.core.database import Base, ContextSourceMixin, RevisionMixin, SchemaVersionMixin
 
 if TYPE_CHECKING:
     from src.backend.features.character.models import Character
 
 
-class InventoryItem(Base):
+class InventoryItem(Base, ContextSourceMixin, SchemaVersionMixin, RevisionMixin):
     __tablename__ = "inventory_items"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
@@ -33,7 +33,7 @@ class InventoryItem(Base):
     character: Mapped[Character] = relationship("Character", back_populates="inventory")
 
 
-class ResourceWallet(Base):
+class ResourceWallet(Base, ContextSourceMixin, SchemaVersionMixin, RevisionMixin):
     __tablename__ = "resource_wallets"
 
     character_id: Mapped[int] = mapped_column(

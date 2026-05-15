@@ -6,10 +6,10 @@ from sqlalchemy import DateTime, ForeignKey, Integer, String, UniqueConstraint, 
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
-from src.backend.core.database import Base
+from src.backend.core.database import Base, ContextSourceMixin, RevisionMixin, SchemaVersionMixin
 
 
-class ItemInstance(Base):
+class ItemInstance(Base, ContextSourceMixin, SchemaVersionMixin, RevisionMixin):
     __tablename__ = "item_instances"
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True)
@@ -31,7 +31,7 @@ class ItemInstance(Base):
     )
 
 
-class ItemPlacement(Base):
+class ItemPlacement(Base, ContextSourceMixin, SchemaVersionMixin, RevisionMixin):
     __tablename__ = "item_placements"
 
     item_id: Mapped[str] = mapped_column(
@@ -50,7 +50,7 @@ class ItemPlacement(Base):
     )
 
 
-class ResourceBalance(Base):
+class ResourceBalance(Base, ContextSourceMixin, SchemaVersionMixin, RevisionMixin):
     __tablename__ = "resource_balances"
     __table_args__ = (
         UniqueConstraint("holder_type", "holder_id", "storage_type", "resource_key", name="uq_resource_balance_place"),
@@ -68,7 +68,7 @@ class ResourceBalance(Base):
     )
 
 
-class ItemOrigin(Base):
+class ItemOrigin(Base, ContextSourceMixin, SchemaVersionMixin):
     __tablename__ = "item_origins"
 
     item_id: Mapped[str] = mapped_column(
@@ -83,7 +83,7 @@ class ItemOrigin(Base):
     created_at: Mapped[Any] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
 
-class ItemTransaction(Base):
+class ItemTransaction(Base, ContextSourceMixin, SchemaVersionMixin):
     __tablename__ = "item_transactions"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
@@ -99,7 +99,7 @@ class ItemTransaction(Base):
     created_at: Mapped[Any] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
 
-class ResourceTransaction(Base):
+class ResourceTransaction(Base, ContextSourceMixin, SchemaVersionMixin):
     __tablename__ = "resource_transactions"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)

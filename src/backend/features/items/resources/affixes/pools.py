@@ -17,7 +17,7 @@
 AFFIX_POOLS_BY_ITEM_TYPE: dict[str, list[str]] = {
     "weapon": [
         "weapon_accuracy",
-        "armor_penetration_bonus",
+        "armor_penetration_pct_bonus",
         "crit_chance",
         "off_hand_accuracy",
         "control_chance_bonus",
@@ -80,7 +80,7 @@ AFFIX_POOLS_BY_ITEM_TYPE: dict[str, list[str]] = {
 AFFIX_POOLS_BY_SLOT: dict[str, list[str]] = {
     "main_hand": [
         "weapon_accuracy",
-        "armor_penetration_bonus",
+        "armor_penetration_pct_bonus",
         "crit_chance",
         "control_chance_bonus",
     ],
@@ -198,20 +198,20 @@ AFFIX_POOLS_BY_SLOT: dict[str, list[str]] = {
 AFFIX_POOLS_BY_TAG: dict[str, list[str]] = {
     "two_handed": [
         "weapon_accuracy",
-        "armor_penetration_bonus",
+        "armor_penetration_pct_bonus",
         "crit_chance",
         "hp_bonus",
     ],
     "archery": [
         "weapon_accuracy",
         "crit_chance",
-        "armor_penetration_bonus",
+        "armor_penetration_pct_bonus",
         "scouting_bonus",
     ],
     "fencing": [
         "weapon_accuracy",
         "crit_chance",
-        "armor_penetration_bonus",
+        "armor_penetration_pct_bonus",
         "control_chance_bonus",
         "off_hand_accuracy",
         "evasion_bonus",
@@ -219,24 +219,24 @@ AFFIX_POOLS_BY_TAG: dict[str, list[str]] = {
     "dagger": [
         "weapon_accuracy",
         "crit_chance",
-        "armor_penetration_bonus",
+        "armor_penetration_pct_bonus",
         "off_hand_accuracy",
         "evasion_bonus",
     ],
     "sword": [
         "weapon_accuracy",
         "crit_chance",
-        "armor_penetration_bonus",
+        "armor_penetration_pct_bonus",
         "control_chance_bonus",
     ],
     "macing": [
-        "armor_penetration_bonus",
+        "armor_penetration_pct_bonus",
         "crit_chance",
         "control_chance_bonus",
     ],
     "polearm": [
         "weapon_accuracy",
-        "armor_penetration_bonus",
+        "armor_penetration_pct_bonus",
         "control_chance_bonus",
     ],
     "magic": [

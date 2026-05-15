@@ -1,13 +1,145 @@
-{% if scenario and scenario.extra_data and scenario.extra_data.right_panel %}
-    {% set panel = scenario.extra_data.right_panel %}
-    {% include "game/components/panel/main.html" %}
+{% set extra = scenario.extra_data if scenario and scenario.extra_data else {} %}
+{% set right_panel = extra.get('right_panel', {}) %}
+{% if right_panel is mapping %}
+    {% set right_widgets = right_panel.get('widgets', []) %}
+{% elif right_panel %}
+    {% set right_widgets = right_panel.widgets %}
 {% else %}
-    <div class="sidebar-placeholder">
-        <div class="ds-panel">
-            <div class="ds-panel-header">SCENARIO_CONTEXT_R</div>
-            <div class="ds-panel-body" style="font-size: 10px; opacity: 0.4;">
-                WAITING_FOR_DATA_SYNC...
-            </div>
-        </div>
-    </div>
+    {% set right_widgets = [] %}
 {% endif %}
+{% set reputation = extra.get('reputation', {}) %}
+{% set rewards = extra.get('rewards', []) %}
+{% set quest_title = extra.get('quest_title') %}
+{% set scene_title_raw = scenario.display_name|trim if scenario and scenario.display_name else '' %}
+{% set scene_title = scene_title_raw %}
+{% set scene_coords = none %}
+{% set scene_coord_parts = [] %}
+{% if scene_title_raw.endswith(']') and '[' in scene_title_raw %}
+    {% set scene_prefix = scene_title_raw.rsplit('[', 1)[0]|trim %}
+    {% set scene_suffix = scene_title_raw.rsplit('[', 1)[1].rstrip(']')|trim %}
+    {% if ':' in scene_suffix and scene_prefix %}
+        {% set scene_title = scene_prefix %}
+        {% set scene_coords = scene_suffix|replace(' ', '') %}
+        {% set scene_coord_parts = scene_coords.split(':') %}
+    {% endif %}
+{% endif %}
+{% set speaker_label = scenario.speaker if scenario and scenario.speaker else none %}
+{% set scene_hint = scenario.system_messages[0] if scenario and scenario.system_messages else none %}
+
+<aside class="panel-dock panel-dock--framed panel-dock--scroll scenario-info-dock"
+       aria-label="Scenario details dock">
+    <nav class="dock-nav dock-nav--bar dock-nav--two scenario-info-actions" aria-label="Scenario info actions">
+        <button class="dock-nav-button is-active" type="button">INFO</button>
+        <button class="dock-nav-button" type="button" @click="rightOpen = false">CLOSE</button>
+    </nav>
+
+    {% if quest_title or scene_title or speaker_label or scene_hint %}
+        <section class="info-widget-section scenario-info-section" aria-label="Scenario scene">
+            <header class="info-widget-title">
+                <span>SCENE</span>
+                {% if scene_coord_parts|length == 2 %}
+                    <strong>X {{ scene_coord_parts[0] }} / Y {{ scene_coord_parts[1] }}</strong>
+                {% endif %}
+            </header>
+            <div class="info-widget-list">
+                {% if quest_title %}<div><span>Quest</span><strong>{{ quest_title }}</strong></div>{% endif %}
+                {% if scene_title %}<div><span>Place</span><strong>{{ scene_title }}</strong></div>{% endif %}
+                {% if speaker_label %}<div><span>Focus</span><strong>{{ speaker_label }}</strong></div>{% endif %}
+                {% if scene_hint %}<div><span>Hint</span><strong>{{ scene_hint }}</strong></div>{% endif %}
+            </div>
+        </section>
+    {% endif %}
+
+    {% if reputation and (reputation.get('npc') or reputation.get('faction')) %}
+        <section class="info-widget-section scenario-info-section" aria-label="Reputation controls">
+            <header class="info-widget-title">
+                <span>REPUTATION</span>
+            </header>
+            <div class="info-widget-list">
+                {% if reputation.get('npc') %}<div><span>NPC</span><strong>{{ reputation.get('npc') }}</strong></div>{% endif %}
+                {% if reputation.get('faction') %}<div><span>Faction</span><strong>{{ reputation.get('faction') }}</strong></div>{% endif %}
+            </div>
+        </section>
+    {% endif %}
+
+    {% for widget in right_widgets %}
+        {% set widget_type = widget.get('type') if widget is mapping else widget.type %}
+        {% set widget_title = widget.get('title') if widget is mapping else widget.title %}
+        {% set widget_items = widget.get('items', []) if widget is mapping else widget.items %}
+        {% set widget_data = widget.get('data', {}) if widget is mapping else widget.data %}
+        {% set widget_visible = widget.get('visible', true) if widget is mapping else widget.visible %}
+        {% set widget_title_key = (widget_title or '')|lower %}
+        {% if widget_visible and widget_title_key != 'scenario' %}
+            {% if widget_type == 'meter_list' %}
+                <section class="info-widget-section scenario-info-section" aria-label="{{ widget_title }}">
+                    <header class="info-widget-title">
+                        <span data-tippy-content="Профиль выбора показывает, какие склонности набирались решениями в сценарии."
+                              data-tippy-theme="game-hint">{{ widget_title or 'CHOICE PROFILE' }}</span>
+                        <strong>{{ widget_items|length }}</strong>
+                    </header>
+                    <div class="info-widget-meters">
+                        {% for item in widget_items %}
+                            <div class="info-widget-meter"
+                                 {% if item.get('catalog') and item.get('catalog_key') %}
+                                     data-catalog="{{ item.get('catalog') }}"
+                                     data-catalog-key="{{ item.get('catalog_key') }}"
+                                     data-catalog-tooltip="description"
+                                 {% endif %}
+                                 style="--meter-fill: {{ item.get('percent', 0) }}%;">
+                                <span
+                                    {% if item.get('catalog') and item.get('catalog_key') %}
+                                        data-catalog="{{ item.get('catalog') }}"
+                                        data-catalog-key="{{ item.get('catalog_key') }}"
+                                        data-catalog-field="title"
+                                        data-catalog-tooltip="description"
+                                    {% endif %}
+                                >{{ item.get('label') }}</span>
+                                <strong>{{ item.get('display_value') or item.get('value') }}</strong>
+                                <i></i>
+                            </div>
+                        {% endfor %}
+                    </div>
+                </section>
+            {% elif widget_type in ['key_value', 'list'] %}
+                <section class="info-widget-section scenario-info-section" aria-label="{{ widget_title }}">
+                    <header class="info-widget-title">
+                        <span>{{ widget_title or widget_type|upper }}</span>
+                        <strong>{{ widget_items|length }}</strong>
+                    </header>
+                    <div class="info-widget-list">
+                        {% for item in widget_items %}
+                            {% set item_key = (item.get('key') or item.get('label') or '')|lower %}
+                            {% if item_key not in ['quest', 'node', 'step', 'phase', 'quest_key', 'node_key'] %}
+                                <div>
+                                    <span
+                                        {% if item.get('catalog') and item.get('catalog_key') %}
+                                            data-catalog="{{ item.get('catalog') }}"
+                                            data-catalog-key="{{ item.get('catalog_key') }}"
+                                            data-catalog-field="title"
+                                            data-catalog-tooltip="description"
+                                        {% endif %}
+                                    >{{ item.get('key') or item.get('label') or 'ITEM' }}</span>
+                                    <strong>{{ item.get('value') if item.get('value') is not none else item.get('display_value', '') }}</strong>
+                                </div>
+                            {% endif %}
+                        {% endfor %}
+                    </div>
+                </section>
+            {% endif %}
+        {% endif %}
+    {% endfor %}
+
+    {% if rewards %}
+        <section class="info-widget-section scenario-info-section" aria-label="Scenario rewards">
+            <header class="info-widget-title">
+                <span>REWARDS</span>
+                <strong>{{ rewards|length }}</strong>
+            </header>
+            <div class="info-widget-tags">
+                {% for reward in rewards %}
+                    <span>{{ reward }}</span>
+                {% endfor %}
+            </div>
+        </section>
+    {% endif %}
+</aside>

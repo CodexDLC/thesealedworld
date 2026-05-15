@@ -268,6 +268,24 @@
     opacity: 0.58;
 }
 
+.library-card-image,
+.library-hero-image {
+    width: 100%;
+    aspect-ratio: 16 / 10;
+    object-fit: cover;
+    border: 1px solid rgba(255, 170, 0, 0.14);
+    background: rgba(0, 0, 0, 0.24);
+}
+
+.library-card-image {
+    max-height: 150px;
+}
+
+.library-hero-image {
+    max-height: 260px;
+    margin-bottom: var(--sp-3);
+}
+
 .library-card-kicker,
 .library-card-meta {
     color: var(--col-text-secondary);

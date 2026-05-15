@@ -32,12 +32,7 @@ class EncounterPolicy:
 
     def is_safe_context(self, flags: dict[str, Any], anchor_influence: dict[str, Any] | None = None) -> bool:
         del anchor_influence
-        if flags.get("is_safe_zone", False):
-            return True
-        try:
-            return float(flags.get("threat_tier", 1)) <= 0
-        except (TypeError, ValueError):
-            return False
+        return bool(flags.get("system_connect") or flags.get("is_safe_zone", False))
 
     def should_roll(self, *, mode: EncounterMode, trigger: str) -> bool:
         if mode == EncounterMode.TRAVEL:

@@ -183,7 +183,10 @@ class CombatSystemIntegrator:
         sessions = raw_sessions if isinstance(raw_sessions, dict) else {}
         current_combat_id = sessions.get("combat_id")
         current_finalization_id = sessions.get("combat_finalization_id")
+        death_run_id = sessions.get("death_run_id")
         current_state = self._state_text(session.get("state"))
+        if current_state == CoreDomain.DEATH.value and not current_finalization_id:
+            return CoreDomain.DEATH.value
         if current_state not in {CoreDomain.COMBAT.value, CoreDomain.COMBAT_RESULT.value} and not (
             current_combat_id or current_finalization_id
         ):
@@ -197,13 +200,15 @@ class CombatSystemIntegrator:
             return None
 
         return_path = CombatReturnStateMapper.from_combat_previous(session.get("prev_state"))
+        next_state = CoreDomain.DEATH.value if death_run_id else return_path.current_state
+        previous_state = CoreDomain.COMBAT_RESULT.value if death_run_id else return_path.previous_state
         await self.character_sessions.patch_fields(
             char_id,
             {
                 "$.sessions.combat_id": None,
                 "$.sessions.combat_finalization_id": None,
-                "$.prev_state": return_path.previous_state,
-                "$.state": return_path.current_state,
+                "$.prev_state": previous_state,
+                "$.state": next_state,
             },
         )
         await self.character_sessions.mark_dirty(
@@ -213,12 +218,17 @@ class CombatSystemIntegrator:
         )
         if sync_to_db:
             await self._sync_active_character_to_db(char_id)
-        return return_path.current_state
+        return next_state
 
     async def resolve_return_state_for_character(self, char_id: int) -> str:
         session = await self.character_sessions.get_session(char_id)
         if not isinstance(session, dict):
             return CoreDomain.EXPLORATION.value
+
+        raw_sessions = session.get("sessions")
+        sessions = raw_sessions if isinstance(raw_sessions, dict) else {}
+        if sessions.get("death_run_id"):
+            return CoreDomain.DEATH.value
 
         current_state = self._state_text(session.get("state"))
         if current_state in {CoreDomain.COMBAT.value, CoreDomain.COMBAT_RESULT.value}:

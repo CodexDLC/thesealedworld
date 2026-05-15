@@ -31,7 +31,7 @@ def test_character_raw_attributes_drive_combat_modifiers_through_waterfall() -> 
     calculated, _ = StatsWaterfallCalculator.calculate_waterfall(raw)
 
     assert calculated["physical_damage"] == 15.0
-    assert calculated["armor_penetration"] == 0.3
+    assert calculated["physical_suppression"] == 0.3
     assert calculated["magical_damage"] == 11.0
     assert calculated["magical_penetration"] == 0.22
     assert calculated["hp"] == 64.0

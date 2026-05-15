@@ -34,15 +34,6 @@ class StateTransitionError(CharacterSessionError):
     """Raised when a guarded state transition sees an unexpected current state."""
 
 
-ATTRIBUTE_KEY_MIGRATIONS = {
-    "intelligence": "intellect",
-    "wisdom": "memory",
-    "men": "mental",
-    "charisma": "projection",
-    "luck": "prediction",
-}
-
-
 class CharacterSessionManager:
     """RedisJSON access layer for long-lived online character state."""
 
@@ -74,7 +65,8 @@ class CharacterSessionManager:
 
     async def update_session(self, char_id: int, data: dict[str, Any]) -> None:
         """Overwrite entire session document."""
-        await self.redis.json_module.set(self.build_key(char_id), "$", data)
+        payload = await self._preserve_sync_dirty(char_id, data)
+        await self.redis.json_module.set(self.build_key(char_id), "$", payload)
         await self.touch(char_id)
 
     async def get_session(self, char_id: int) -> dict[str, Any] | None:
@@ -86,6 +78,18 @@ class CharacterSessionManager:
         if normalized:
             await self.update_session(char_id, doc)
         return doc
+
+    async def _preserve_sync_dirty(self, char_id: int, data: dict[str, Any]) -> dict[str, Any]:
+        if "sync_dirty" in data:
+            return data
+
+        dirty_marker = await self.get_section(char_id, "sync_dirty")
+        if not isinstance(dirty_marker, dict) or dirty_marker.get("dirty") is not True:
+            return data
+
+        payload = dict(data)
+        payload["sync_dirty"] = dirty_marker
+        return payload
 
     async def get_sessions_batch(self, char_ids: list[int]) -> dict[int, dict[str, Any] | None]:
         keys = [self.build_key(char_id) for char_id in char_ids]
@@ -254,9 +258,12 @@ class CharacterSessionManager:
         )
 
     async def set_combat_session(self, char_id: int, combat_id: str) -> None:
+        current_state = await self.get_section(char_id, "state")
         await self.patch_fields(
             char_id,
             {
+                "$.prev_state": current_state or CoreDomain.EXPLORATION.value,
+                "$.state": CoreDomain.COMBAT.value,
                 "$.sessions.combat_id": str(combat_id),
                 "$.sessions.combat_finalization_id": None,
             },
@@ -264,7 +271,7 @@ class CharacterSessionManager:
         await self.mark_dirty(
             char_id,
             reason="combat_session_attached",
-            paths=["$.sessions.combat_finalization_id", "$.sessions.combat_id"],
+            paths=["$.prev_state", "$.sessions.combat_finalization_id", "$.sessions.combat_id", "$.state"],
         )
 
     async def clear_combat_session(self, char_id: int) -> None:
@@ -304,6 +311,8 @@ class CharacterSessionManager:
             "$.sessions.combat_finalization_id": None,
             "$.sessions.encounter_id": None,
             "$.sessions.arena_id": None,
+            "$.sessions.death_run_id": None,
+            "$.sessions.death_corpse_id": None,
             "$.active_quest": None,
         }
         await self.patch_fields(char_id, updates)
@@ -488,6 +497,37 @@ class CharacterSessionManager:
         await self.patch_fields(char_id, updates)
         await self.mark_dirty(char_id, reason="skill_progress_applied", paths=sorted(set(dirty_paths)))
 
+    async def apply_pending_progress(self, char_id: int, rewards: dict[str, float]) -> dict[str, Any]:
+        if not rewards:
+            return {}
+
+        document = await self.get_session(char_id)
+        if not isinstance(document, dict):
+            raise SessionNotFoundError(f"Character session not found: char_id={char_id}")
+
+        pending = dict(document.get("pending_progress") or {})
+        skills = dict(pending.get("skills") or {})
+        free_xp = float(pending.get("free_xp", 0.0) or 0.0)
+        for reward_key, delta in rewards.items():
+            value = round(float(delta or 0.0), 4)
+            if value <= 0:
+                continue
+            if reward_key == "free_xp":
+                free_xp = round(free_xp + value, 4)
+            else:
+                skills[str(reward_key)] = round(float(skills.get(str(reward_key), 0.0) or 0.0) + value, 4)
+
+        pending["free_xp"] = free_xp
+        pending["skills"] = skills
+        await self.patch_fields(char_id, {"$.pending_progress": pending})
+        return pending
+
+    async def set_pending_progress(self, char_id: int, pending: dict[str, Any]) -> None:
+        await self.patch_fields(char_id, {"$.pending_progress": pending})
+
+    async def set_risk_state(self, char_id: int, risk: dict[str, Any]) -> None:
+        await self.patch_fields(char_id, {"$.risk": risk})
+
     async def update_bio(
         self,
         char_id: int,
@@ -551,7 +591,6 @@ class CharacterSessionManager:
 
     @staticmethod
     def _normalize_session_contract(document: dict[str, Any]) -> bool:
-        attributes = document.get("attributes")
         changed = False
 
         location = document.get("location")
@@ -561,15 +600,6 @@ class CharacterSessionManager:
             del location["previous"]
             changed = True
 
-        if not isinstance(attributes, dict):
-            return changed
-
-        for old_key, new_key in ATTRIBUTE_KEY_MIGRATIONS.items():
-            if old_key not in attributes:
-                continue
-            attributes.setdefault(new_key, attributes[old_key])
-            del attributes[old_key]
-            changed = True
         return changed
 
     @staticmethod

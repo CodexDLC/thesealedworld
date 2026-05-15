@@ -9,9 +9,11 @@ if TYPE_CHECKING:
     from src.backend.features.character.managers.session import CharacterSessionManager
     from src.backend.features.character.repositories import (
         CharacterAttributesRepository,
+        CharacterProgressionRepository,
         CharacterRepository,
         SkillRepository,
     )
+    from src.backend.features.expedition import CharacterExpeditionRepository
 
 
 class CharacterSystemIntegrator:
@@ -24,11 +26,15 @@ class CharacterSystemIntegrator:
         character_repo: CharacterRepository,
         attributes_repo: CharacterAttributesRepository,
         skill_repo: SkillRepository,
+        progression_repo: CharacterProgressionRepository | None = None,
+        expedition_repo: CharacterExpeditionRepository | None = None,
     ) -> None:
         self.character_sessions = character_sessions
         self.character_repo = character_repo
         self.attributes_repo = attributes_repo
         self.skill_repo = skill_repo
+        self.progression_repo = progression_repo
+        self.expedition_repo = expedition_repo
 
     async def sync_active_session(self, char_id: int) -> dict[str, Any]:
         document = await self.character_sessions.get_session(char_id)
@@ -38,22 +44,31 @@ class CharacterSystemIntegrator:
         session_doc = CharacterSessionDocumentDTO.model_validate(document)
         dirty_marker = document.get("sync_dirty")
         dirty_targets = self._dirty_targets(dirty_marker)
+        active_expedition = (
+            await self.expedition_repo.get_active_for_character(char_id) if self.expedition_repo else None
+        )
+        unsafe_runtime = active_expedition is not None
 
         synced_character: dict[str, Any] | None = None
-        if dirty_targets is None or dirty_targets.get("character") is True:
+        if not unsafe_runtime and (dirty_targets is None or dirty_targets.get("character") is True):
             synced_character = await self.character_repo.sync_active_session_snapshot(char_id, session_doc)
             if synced_character is None:
                 raise ValueError(f"Character not found: char_id={char_id}")
 
-        if dirty_targets is None or dirty_targets.get("attributes") is True:
+        if not unsafe_runtime and (dirty_targets is None or dirty_targets.get("attributes") is True):
             await self.attributes_repo.upsert_attributes(
                 session_doc.char_id,
                 {key: int(value) for key, value in session_doc.attributes.model_dump(mode="json").items()},
             )
 
         synced_skills: list[str] = []
-        if dirty_targets is None or dirty_targets.get("skills") is True:
+        if not unsafe_runtime and (dirty_targets is None or dirty_targets.get("skills") is True):
             synced_skills = await self._sync_skills(session_doc)
+            if self.progression_repo is not None:
+                await self.progression_repo.set_free_xp(
+                    session_doc.char_id,
+                    float(session_doc.progression.free_xp or 0.0),
+                )
         await self.character_sessions.clear_dirty(char_id, generation=self._dirty_generation(dirty_marker))
         return {
             "char_id": char_id,

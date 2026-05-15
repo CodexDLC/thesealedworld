@@ -1,108 +1,138 @@
-{% from "game/domains/exploration/components/services.html" import service_card with context %}
+{% set active_encounter = encounter if encounter is defined and encounter else exploration if payload_type == 'exploration_encounter' and exploration and exploration.type is defined else none %}
+{% set location_view = exploration %}
+{% if active_encounter and not (location_view.loc_id is defined) and active_encounter.metadata is defined and active_encounter.metadata.navigation is defined %}
+    {% set location_view = active_encounter.metadata.navigation %}
+{% endif %}
+{% set loc_parts = location_view.loc_id.split('_') if location_view and location_view.loc_id is defined and '_' in location_view.loc_id else [] %}
+{% set navigation = location_view.navigation if location_view and location_view.navigation is defined else none %}
+{% set services = navigation.services if navigation else none %}
+{% set hud = location_view.hud if location_view and location_view.hud is defined else none %}
+{% set threat = hud.threat if hud and hud.threat is defined else 0 %}
+{% set battles_count = hud.battles_count if hud and hud.battles_count is defined else 0 %}
+{% set tier = hud.threat_tier if hud and hud.threat_tier is defined else location_view.threat_tier if location_view and location_view.threat_tier is defined else 0 %}
+{% set is_safe = hud.is_safe_zone if hud and hud.is_safe_zone is defined else location_view.is_safe_zone if location_view and location_view.is_safe_zone is defined else false %}
+{% set location_metadata = location_view.metadata if location_view and location_view.metadata is defined and location_view.metadata else {} %}
+{% set street = location_metadata.street if location_metadata.street is defined else location_metadata.street_name if location_metadata.street_name is defined else none %}
+{% set rifts_count = location_metadata.rifts_count if location_metadata.rifts_count is defined else location_metadata.rifts if location_metadata.rifts is defined and location_metadata.rifts is number else none %}
+{% set traces_count = location_metadata.traces_count if location_metadata.traces_count is defined else location_view.visual_objects|length if location_view and location_view.visual_objects is defined else none %}
 
-<div class="field-panel status-sidebar-surface">
-    <div class="ds-panel">
-        <div class="ds-panel-header">LOCAL_CONTEXT</div>
-        <div class="ds-panel-body">
-            {% if exploration and (payload_type == 'exploration_navigation' or payload_type == 'exploration_encounter') and exploration.loc_id is defined %}
-                <div class="status-section" style="margin-top: 0;">
-                    <div class="sec">LOCATION</div>
-                    <div class="prof-list">
-                        <div class="prof-row">
-                            <div class="prof-meta">
-                                <span>ID</span>
-                                <span>{{ exploration.loc_id }}</span>
-                            </div>
-                        </div>
-                        <div class="prof-row">
-                            <div class="prof-meta">
-                                <span>SIGNALS</span>
-                                <span>{{ exploration.players_nearby }}</span>
-                            </div>
-                        </div>
-                        {% if exploration.hud %}
-                            <div class="prof-row">
-                                <div class="prof-meta">
-                                    <span>THREAT</span>
-                                    {% set threat = exploration.hud.threat if exploration.hud.threat is defined else 0 %}
-                                    <span>{{ (threat * 100)|round|int }}%</span>
-                                </div>
-                            </div>
-                            <div class="prof-row">
-                                <div class="prof-meta">
-                                    <span>TIER</span>
-                                    <span>T{{ exploration.hud.threat_tier if exploration.hud.threat_tier is defined else 0 }}</span>
-                                </div>
-                            </div>
-                            <div class="prof-row">
-                                <div class="prof-meta">
-                                    <span>BATTLES</span>
-                                    <span>{{ exploration.hud.battles_count if exploration.hud.battles_count is defined else 0 }}</span>
-                                </div>
-                            </div>
-                        {% endif %}
-                    </div>
+<aside class="panel-dock panel-dock--framed panel-dock--scroll side-panel-drawer side-panel-drawer--right exploration-info-dock is-open"
+       data-side-panel="info"
+       aria-label="Exploration location info drawer">
+    <nav class="dock-nav dock-nav--bar dock-nav--two exploration-info-actions" aria-label="Location info actions">
+        <button class="dock-nav-button is-active" type="button">INFO</button>
+        <button class="dock-nav-button"
+                type="button"
+                @click="$dispatch('panel-toggle', { side: 'right', view: 'context' })">
+            CLOSE
+        </button>
+    </nav>
+
+    {% if location_view %}
+        <section class="info-widget-section exploration-location-card" aria-label="Location identity">
+            <header class="info-widget-title">
+                <span>{{ location_view.title if location_view.title is defined else 'LOCATION' }}</span>
+                <strong>{{ 'SAFE' if is_safe else 'DANGER' }}</strong>
+            </header>
+            <div class="info-widget-list info-widget-kv">
+                <div><span>Grid X</span><strong>{{ loc_parts[0] if loc_parts|length >= 1 else '???' }}</strong></div>
+                <div><span>Grid Y</span><strong>{{ loc_parts[1] if loc_parts|length >= 2 else '???' }}</strong></div>
+                <div><span>Street</span><strong>{{ street if street else 'NO_DATA' }}</strong></div>
+                <div><span>Tier</span><strong>T{{ tier }}</strong></div>
+                <div><span>Threat</span><strong>{{ (threat * 100)|round|int }}%</strong></div>
+            </div>
+        </section>
+
+        <details class="info-widget-section exploration-location-card">
+            <summary class="info-widget-title">
+                <span>PLAYERS</span>
+                <strong>{{ location_view.players_nearby if location_view.players_nearby is defined else 0 }}</strong>
+            </summary>
+            <div class="info-widget-list">
+                <div><span>Player list</span><strong>{{ 'NO_DATA' if (location_view.players_nearby if location_view.players_nearby is defined else 0) else 'CLEAR' }}</strong></div>
+            </div>
+        </details>
+
+        {% if active_encounter %}
+            {% set metadata = active_encounter.metadata if active_encounter.metadata is defined and active_encounter.metadata else {} %}
+            {% set group = metadata.monster_group if metadata.monster_group is defined else metadata.group if metadata.group is defined else {} %}
+            {% set previews = active_encounter.enemies if active_encounter.enemies else metadata.previews if metadata.previews is defined else group.previews if group.previews is defined else [] %}
+            <details class="info-widget-section exploration-encounter-info" open>
+                <summary class="info-widget-title">
+                    <span>ENCOUNTER</span>
+                    <strong>{{ previews|length if previews else 1 }}</strong>
+                </summary>
+                <div class="info-widget-list">
+                    <div><span>Type</span><strong>{{ active_encounter.type }}</strong></div>
+                    <div><span>Status</span><strong>{{ active_encounter.status or 'UNKNOWN' }}</strong></div>
+                    <div><span>Info level</span><strong>{{ active_encounter.info_level if active_encounter.info_level is defined else 'NO_DATA' }}</strong></div>
                 </div>
-
-                {% set navigation = exploration.navigation if exploration.navigation is defined else none %}
-                {% set services = navigation.services if navigation else none %}
-                {% if services or (exploration.grid and exploration.grid.services) %}
-                    <div class="status-section">
-                        <div class="sec">SERVICES</div>
-                        <div class="service-card-list service-card-list--sidebar">
-                            {% if services %}
-                                {% for service in services.values() %}
-                                    {{ service_card(service, compact=true) }}
-                                {% endfor %}
-                            {% else %}
-                                {% for service in exploration.grid.services %}
-                                    {{ service_card(service, compact=true) }}
-                                {% endfor %}
-                            {% endif %}
-                        </div>
-                    </div>
-                {% endif %}
-
-                {% if encounter is defined and encounter %}
-                    <div class="status-section">
-                        <div class="sec">ENCOUNTER</div>
-                        <div class="prof-list">
-                            <div class="prof-row">
-                                <div class="prof-meta">
-                                    <span>TYPE</span>
-                                    <span>{{ encounter.type }}</span>
-                                </div>
-                            </div>
-                            <div class="prof-row">
-                                <div class="prof-meta">
-                                    <span>STATUS</span>
-                                    <span>{{ encounter.status }}</span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                {% endif %}
-            {% elif exploration and payload_type == 'exploration_encounter' %}
-                <div class="status-section" style="margin-top: 0;">
-                    <div class="sec">ENCOUNTER</div>
-                    <div class="prof-list">
-                        <div class="prof-row">
-                            <div class="prof-meta">
-                                <span>TYPE</span>
-                                <span>{{ exploration.type }}</span>
-                            </div>
-                        </div>
-                        <div class="prof-row">
-                            <div class="prof-meta">
-                                <span>STATUS</span>
-                                <span>{{ exploration.status }}</span>
-                            </div>
-                        </div>
-                    </div>
+                <div class="info-widget-list exploration-monster-list">
+                    {% if previews %}
+                        {% for enemy in previews %}
+                            <details class="exploration-monster-card" {{ 'open' if loop.first else '' }}>
+                                <summary><span>{{ enemy.name if enemy.name is defined and enemy.name else 'UNKNOWN TARGET' }}</span><strong>{{ enemy.level if enemy.level is defined and enemy.level else enemy.threat_rating if enemy.threat_rating is defined else '???' }}</strong></summary>
+                                <div><span>Threat</span><strong>{{ enemy.threat_rating if enemy.threat_rating is defined else enemy.level if enemy.level is defined else '???' }}</strong></div>
+                                <div><span>HP</span><strong>{{ enemy.hp_percent ~ '%' if enemy.hp_percent is defined and enemy.hp_percent is not none else '???' }}</strong></div>
+                                <div><span>Intent</span><strong>{{ enemy.role if enemy.role is defined else enemy.variant_key if enemy.variant_key is defined else 'UNKNOWN' }}</strong></div>
+                            </details>
+                        {% endfor %}
+                    {% else %}
+                        <details class="exploration-monster-card" open>
+                            <summary><span>{{ active_encounter.title }}</span><strong>???</strong></summary>
+                            <div><span>Threat</span><strong>NO_DATA</strong></div>
+                            <div><span>HP</span><strong>???</strong></div>
+                            <div><span>Intent</span><strong>UNKNOWN</strong></div>
+                        </details>
+                    {% endif %}
                 </div>
-            {% else %}
-                <div style="font-size: 10px; opacity: 0.4;">WAITING_FOR_DATA_SYNC...</div>
-            {% endif %}
-        </div>
-    </div>
-</div>
+            </details>
+        {% endif %}
+
+        <details class="info-widget-section exploration-location-card" open>
+            <summary class="info-widget-title">
+                <span>BATTLES</span>
+                <strong>{{ battles_count }}</strong>
+            </summary>
+            <div class="info-widget-list">
+                <div><span>Active battles</span><strong>{{ battles_count }}</strong></div>
+            </div>
+        </details>
+
+        <details class="info-widget-section exploration-location-card">
+            <summary class="info-widget-title">
+                <span>RIFTS</span>
+                <strong>{{ rifts_count if rifts_count is not none else 'NO_DATA' }}</strong>
+            </summary>
+            <div class="info-widget-list">
+                <div><span>Known rifts</span><strong>{{ rifts_count if rifts_count is not none else 'NO_DATA' }}</strong></div>
+            </div>
+        </details>
+
+        <details class="info-widget-section exploration-location-card">
+            <summary class="info-widget-title">
+                <span>TRACES</span>
+                <strong>{{ traces_count if traces_count is not none else 'NO_DATA' }}</strong>
+            </summary>
+            <div class="info-widget-list">
+                {% if location_view.visual_objects is defined and location_view.visual_objects %}
+                    {% for trace in location_view.visual_objects %}
+                        <div><span>{{ trace }}</span><strong>TRACE</strong></div>
+                    {% endfor %}
+                {% else %}
+                    <div><span>Visible traces</span><strong>NO_DATA</strong></div>
+                {% endif %}
+            </div>
+        </details>
+    {% else %}
+        <section class="info-widget-section exploration-location-card">
+            <header class="info-widget-title">
+                <span>LOCATION</span>
+                <strong>NO_DATA</strong>
+            </header>
+            <div class="info-widget-list">
+                <div><span>Sync</span><strong>WAITING</strong></div>
+            </div>
+        </section>
+    {% endif %}
+</aside>

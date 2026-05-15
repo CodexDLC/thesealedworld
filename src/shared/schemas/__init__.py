@@ -16,7 +16,12 @@ from src.shared.schemas.game_lobby import (
     CreateCharacterRequestDTO,
     DeleteCharacterRequestDTO,
     EnterCharacterRequestDTO,
+    GameLobbyCharacterCreateRequestDTO,
+    GameLobbyCharacterDeleteRequestDTO,
+    GameLobbyCharacterReleaseRequestDTO,
+    GameLobbyCharacterSelectRequestDTO,
     GameLobbyPayloadDTO,
+    GameLobbyUserContextDTO,
     LobbySlotDTO,
 )
 from src.shared.schemas.messages import (
@@ -32,7 +37,17 @@ from src.shared.schemas.response import (
     ServiceResult,
     StateTransitionDTO,
 )
-from src.shared.schemas.scenario import ScenarioButtonDTO, ScenarioInitDTO, ScenarioPayloadDTO
+from src.shared.schemas.scenario import ScenarioButtonDTO, ScenarioInitDTO, ScenarioPayloadDTO, ScenarioReturnContextDTO
+from src.shared.schemas.tavern import (
+    TavernActionDTO,
+    TavernActionEnum,
+    TavernBarDTO,
+    TavernButtonDTO,
+    TavernCommonHallDTO,
+    TavernRoomDTO,
+    TavernScreenEnum,
+    TavernUIPayloadDTO,
+)
 
 __all__ = [
     "CharacterActorCoreDTO",
@@ -51,7 +66,12 @@ __all__ = [
     "CreateCharacterRequestDTO",
     "DeleteCharacterRequestDTO",
     "EnterCharacterRequestDTO",
+    "GameLobbyCharacterCreateRequestDTO",
+    "GameLobbyCharacterDeleteRequestDTO",
+    "GameLobbyCharacterReleaseRequestDTO",
+    "GameLobbyCharacterSelectRequestDTO",
     "GameLobbyPayloadDTO",
+    "GameLobbyUserContextDTO",
     "GameMessageDTO",
     "GameMessagePresentationDTO",
     "GameMessageTabDTO",
@@ -62,6 +82,15 @@ __all__ = [
     "ScenarioButtonDTO",
     "ScenarioInitDTO",
     "ScenarioPayloadDTO",
+    "ScenarioReturnContextDTO",
     "ServiceResult",
     "StateTransitionDTO",
+    "TavernActionDTO",
+    "TavernActionEnum",
+    "TavernBarDTO",
+    "TavernButtonDTO",
+    "TavernCommonHallDTO",
+    "TavernRoomDTO",
+    "TavernScreenEnum",
+    "TavernUIPayloadDTO",
 ]

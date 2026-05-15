@@ -1,5 +1,3 @@
-"""Loot runtime logic.
+from src.backend.features.loot.runtime.loot_engine import LootEngine
 
-TODO: keep pure roll-table logic here: monster profile interpretation, material
-rolls, equipment quality selection, stack sizing, and deterministic seed usage.
-"""
+__all__ = ["LootEngine"]

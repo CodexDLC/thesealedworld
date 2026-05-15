@@ -47,6 +47,7 @@ class InventoryService:
         CoreDomain.SCENARIO.value,
         CoreDomain.COMBAT.value,
         CoreDomain.COMBAT_RESULT.value,
+        CoreDomain.DEATH.value,
         "combat",
     }
 
@@ -128,7 +129,7 @@ class InventoryService:
             await self.inventory_sessions.touch(char_id)
             return session
 
-        rows = await self.repository.list_character_items(char_id)
+        rows = await self.repository.list_character_items(char_id, expedition_run_id=await self._active_run_id(char_id))
         runtime_items = [runtime_item_from_instance(instance, placement) for instance, placement in rows]
         session = build_runtime_session(char_id, runtime_items)
         session.updated_at = time.time()
@@ -138,13 +139,74 @@ class InventoryService:
         return session
 
     async def flush_session(self, session: InventoryRuntimeSessionDTO) -> None:
-        await self.repository.save_placements(session.char_id, session.by_id)
+        await self.repository.save_placements(
+            session.char_id,
+            session.by_id,
+            expedition_run_id=await self._active_run_id(session.char_id),
+        )
         await self.repository.commit()
         session.is_dirty = False
         session.dirty = {"dirty": False, "last_flushed_at": time.time()}
         session.updated_at = time.time()
         await self.inventory_sessions.set(session)
         await self._sync_active_character_items(session)
+
+    async def apply_durability_damage(
+        self,
+        *,
+        char_id: int,
+        amount: float,
+        scope: str = "equipped",
+        reason: str = "combat_completed",
+        source: str = "combat_finalization",
+        combat_id: str | None = None,
+        idempotency_key: str | None = None,
+        metadata: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        del source, combat_id, metadata
+        damage = max(0.0, float(amount or 0.0))
+        if damage <= 0:
+            return {"status": "skipped", "changed": [], "reason": "zero_damage"}
+        if idempotency_key and await self._durability_event_processed(char_id, idempotency_key):
+            return {"status": "skipped", "changed": [], "reason": "duplicate_event"}
+
+        session = await self.get_or_create_session(char_id)
+        changed: list[dict[str, Any]] = []
+        for item in self._durability_scope_items(session, scope):
+            before = self._durability_current(item)
+            maximum = self._durability_max(item)
+            if before is None and maximum is None:
+                continue
+            current = before if before is not None else maximum
+            if current is None:
+                continue
+            after = max(0.0, round(current - damage, 4))
+            if after == before:
+                continue
+            item.mechanics["durability_current"] = after
+            if maximum is not None:
+                item.mechanics["durability_max"] = maximum
+            changed.append({"item_id": item.item_id, "before": current, "after": after})
+
+        if not changed:
+            return {"status": "skipped", "changed": [], "reason": "no_durable_items"}
+
+        session.is_dirty = True
+        session.dirty = {
+            "dirty": True,
+            "reason": reason,
+            "paths": ["$.by_id"],
+            "updated_at": time.time(),
+            "idempotency_key": idempotency_key,
+        }
+        session.updated_at = time.time()
+        await self.inventory_sessions.set(session)
+        await self.repository.save_item_mechanics(session.by_id)
+        await self.repository.commit()
+        await self._sync_active_character_items(session)
+        if idempotency_key:
+            await self._mark_durability_event_processed(char_id, idempotency_key, changed=changed, reason=reason)
+        return {"status": "ok", "changed": changed, "reason": reason}
 
     async def _sync_active_character_items(self, session: InventoryRuntimeSessionDTO) -> None:
         projection = build_active_character_projection(session)
@@ -261,6 +323,71 @@ class InventoryService:
             raise InventoryActionError(f"Inventory item not found: {item_id}")
         return item
 
+    def _durability_scope_items(
+        self,
+        session: InventoryRuntimeSessionDTO,
+        scope: str,
+    ) -> list[InventoryRuntimeItemDTO]:
+        item_ids: list[str] = []
+        if scope in {"equipped", "all_active", "all_carried"}:
+            item_ids.extend(str(item_id) for item_id in session.layout.equipment.values() if item_id)
+        if scope in {"belt", "all_active", "all_carried"}:
+            item_ids.extend(str(item_id) for item_id in session.layout.belt.values() if item_id)
+        if scope == "all_carried":
+            item_ids.extend(str(item_id) for item_id in session.layout.backpack if item_id)
+        seen: set[str] = set()
+        result: list[InventoryRuntimeItemDTO] = []
+        for item_id in item_ids:
+            if item_id in seen:
+                continue
+            seen.add(item_id)
+            item = session.by_id.get(item_id)
+            if item is not None:
+                result.append(item)
+        return result
+
+    @staticmethod
+    def _durability_current(item: InventoryRuntimeItemDTO) -> float | None:
+        return InventoryService._optional_float(item.mechanics.get("durability_current"))
+
+    @staticmethod
+    def _durability_max(item: InventoryRuntimeItemDTO) -> float | None:
+        return InventoryService._optional_float(item.mechanics.get("durability_max"))
+
+    @staticmethod
+    def _optional_float(value: Any) -> float | None:
+        try:
+            return float(value)
+        except (TypeError, ValueError):
+            return None
+
+    async def _durability_event_processed(self, char_id: int, idempotency_key: str) -> bool:
+        processed = await self.character_sessions.get_section(char_id, "processed_events")
+        return isinstance(processed, dict) and idempotency_key in processed
+
+    async def _mark_durability_event_processed(
+        self,
+        char_id: int,
+        idempotency_key: str,
+        *,
+        changed: list[dict[str, Any]],
+        reason: str,
+    ) -> None:
+        processed = await self.character_sessions.get_section(char_id, "processed_events")
+        payload = dict(processed) if isinstance(processed, dict) else {}
+        payload[idempotency_key] = {
+            "type": "inventory_durability_damage",
+            "reason": reason,
+            "changed_count": len(changed),
+            "processed_at": time.time(),
+        }
+        await self.character_sessions.patch_fields(char_id, {"$.processed_events": payload})
+        await self.character_sessions.mark_dirty(
+            char_id,
+            reason="inventory_durability_damage_processed",
+            paths=["$.processed_events", "$.items"],
+        )
+
     async def _ensure_can_act(self, char_id: int) -> None:
         state = await self._current_state(char_id)
         if not self._can_act(state):
@@ -269,6 +396,13 @@ class InventoryService:
     async def _current_state(self, char_id: int) -> str | None:
         raw = await self.character_sessions.get_section(char_id, "state")
         return str(raw) if raw is not None else None
+
+    async def _active_run_id(self, char_id: int) -> str | None:
+        risk = await self.character_sessions.get_section(char_id, "risk")
+        if not isinstance(risk, dict):
+            return None
+        run_id = risk.get("run_id")
+        return str(run_id) if run_id else None
 
     def _can_act(self, state: str | None) -> bool:
         return state not in self.FORBIDDEN_ACTION_STATES

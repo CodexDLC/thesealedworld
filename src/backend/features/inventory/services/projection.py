@@ -94,4 +94,4 @@ def compatible_with_slot(item: InventoryRuntimeItemDTO, slot_id: str) -> bool:
 def is_quick_slot_compatible(item: InventoryRuntimeItemDTO) -> bool:
     if item.item_type != ItemType.CONSUMABLE.value:
         return False
-    return bool(item.mechanics.get("is_quick_slot_compatible") or item.mechanics.get("quick_slot_compatible"))
+    return bool(item.mechanics.get("is_quick_slot_compatible"))

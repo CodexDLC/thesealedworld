@@ -31,12 +31,12 @@ UNDEAD_FAMILY: MonsterFamily = {
                 "strength": 6,
                 "agility": 8,
                 "endurance": 6,
-                "intelligence": 1,
-                "wisdom": 1,
-                "men": 10,  # Нежить не знает страха
+                "intellect": 1,
+                "memory": 1,
+                "mental": 10,  # Нежить не знает страха
                 "perception": 4,
-                "charisma": 1,
-                "luck": 1,  # Итого: 38 (из-за Men)
+                "projection": 1,
+                "prediction": 1,  # Итого: 38 (из-за Men)
             },
             "fixed_loadout": {"main_hand": "dagger", "chest_garment": "shirt"},
             "skills": ["attack_basic"],
@@ -53,12 +53,12 @@ UNDEAD_FAMILY: MonsterFamily = {
                 "strength": 8,
                 "agility": 2,
                 "endurance": 12,
-                "intelligence": 1,
-                "wisdom": 1,
-                "men": 10,
+                "intellect": 1,
+                "memory": 1,
+                "mental": 10,
                 "perception": 2,
-                "charisma": 1,
-                "luck": 1,  # Итого: 38
+                "projection": 1,
+                "prediction": 1,  # Итого: 38
             },
             "fixed_loadout": {"chest_garment": "shirt", "legs_garment": "trousers"},
             "skills": ["attack_basic", "debuff_poison"],
@@ -75,12 +75,12 @@ UNDEAD_FAMILY: MonsterFamily = {
                 "strength": 8,
                 "agility": 6,
                 "endurance": 8,
-                "intelligence": 2,
-                "wisdom": 2,
-                "men": 10,
+                "intellect": 2,
+                "memory": 2,
+                "mental": 10,
                 "perception": 4,
-                "charisma": 1,
-                "luck": 2,  # Итого: 43
+                "projection": 1,
+                "prediction": 2,  # Итого: 43
             },
             "fixed_loadout": {"main_hand": "mace", "off_hand": "buckler"},
             "skills": ["attack_heavy"],
@@ -98,12 +98,12 @@ UNDEAD_FAMILY: MonsterFamily = {
                 "strength": 10,
                 "agility": 8,
                 "endurance": 10,
-                "intelligence": 2,
-                "wisdom": 2,
-                "men": 10,
+                "intellect": 2,
+                "memory": 2,
+                "mental": 10,
                 "perception": 6,
-                "charisma": 1,
-                "luck": 2,  # Итого: 51
+                "projection": 1,
+                "prediction": 2,  # Итого: 51
             },
             "fixed_loadout": {
                 "main_hand": "sword",
@@ -125,12 +125,12 @@ UNDEAD_FAMILY: MonsterFamily = {
                 "strength": 12,
                 "agility": 4,
                 "endurance": 14,
-                "intelligence": 2,
-                "wisdom": 2,
-                "men": 10,
+                "intellect": 2,
+                "memory": 2,
+                "mental": 10,
                 "perception": 6,
-                "charisma": 1,
-                "luck": 2,  # Итого: 53
+                "projection": 1,
+                "prediction": 2,  # Итого: 53
             },
             "fixed_loadout": {
                 "main_hand": "mace",
@@ -153,12 +153,12 @@ UNDEAD_FAMILY: MonsterFamily = {
                 "strength": 18,
                 "agility": 2,
                 "endurance": 20,
-                "intelligence": 1,
-                "wisdom": 1,
-                "men": 10,
+                "intellect": 1,
+                "memory": 1,
+                "mental": 10,
                 "perception": 2,
-                "charisma": 1,
-                "luck": 1,  # Итого: 56
+                "projection": 1,
+                "prediction": 1,  # Итого: 56
             },
             "fixed_loadout": {"main_hand": "warhammer"},
             "skills": ["attack_heavy", "explode_on_death"],
@@ -176,12 +176,12 @@ UNDEAD_FAMILY: MonsterFamily = {
                 "strength": 18,
                 "agility": 8,
                 "endurance": 18,
-                "intelligence": 6,
-                "wisdom": 6,
-                "men": 12,
+                "intellect": 6,
+                "memory": 6,
+                "mental": 12,
                 "perception": 8,
-                "charisma": 8,
-                "luck": 4,  # Итого: 88
+                "projection": 8,
+                "prediction": 4,  # Итого: 88
             },
             "fixed_loadout": {
                 "main_hand": "greatsword",
@@ -205,12 +205,12 @@ UNDEAD_FAMILY: MonsterFamily = {
                 "strength": 12,
                 "agility": 16,
                 "endurance": 12,
-                "intelligence": 8,
-                "wisdom": 8,
-                "men": 12,
+                "intellect": 8,
+                "memory": 8,
+                "mental": 12,
                 "perception": 10,
-                "charisma": 4,
-                "luck": 6,  # Итого: 88
+                "projection": 4,
+                "prediction": 6,  # Итого: 88
             },
             "fixed_loadout": {"main_hand": "sword", "off_hand": "dagger", "chest_garment": "cloak"},
             "skills": ["attack_lifesteal", "debuff_stun"],
@@ -227,12 +227,12 @@ UNDEAD_FAMILY: MonsterFamily = {
                 "strength": 14,
                 "agility": 18,
                 "endurance": 14,
-                "intelligence": 6,
-                "wisdom": 6,
-                "men": 10,
+                "intellect": 6,
+                "memory": 6,
+                "mental": 10,
                 "perception": 12,
-                "charisma": 4,
-                "luck": 8,  # Итого: 92
+                "projection": 4,
+                "prediction": 8,  # Итого: 92
             },
             "fixed_loadout": {"main_hand": "katana", "off_hand": "wakizashi", "chest_armor": "plate_chest"},
             "skills": ["attack_aoe", "attack_aoe"],
@@ -250,12 +250,12 @@ UNDEAD_FAMILY: MonsterFamily = {
                 "strength": 6,
                 "agility": 8,
                 "endurance": 12,
-                "intelligence": 20,
-                "wisdom": 18,
-                "men": 20,
+                "intellect": 20,
+                "memory": 18,
+                "mental": 20,
                 "perception": 14,
-                "charisma": 12,
-                "luck": 8,  # Итого: 118
+                "projection": 12,
+                "prediction": 8,  # Итого: 118
             },
             "fixed_loadout": {"main_hand": "quarterstaff", "chest_garment": "robe", "head_armor": "hood"},
             "skills": ["attack_ranged", "summon_minion", "buff_defense"],
@@ -272,12 +272,12 @@ UNDEAD_FAMILY: MonsterFamily = {
                 "strength": 8,
                 "agility": 10,
                 "endurance": 14,
-                "intelligence": 22,
-                "wisdom": 20,
-                "men": 25,
+                "intellect": 22,
+                "memory": 20,
+                "mental": 25,
                 "perception": 16,
-                "charisma": 15,
-                "luck": 10,  # Итого: 140
+                "projection": 15,
+                "prediction": 10,  # Итого: 140
             },
             "fixed_loadout": {
                 "main_hand": "dagger",
@@ -299,12 +299,12 @@ UNDEAD_FAMILY: MonsterFamily = {
                 "strength": 10,
                 "agility": 12,
                 "endurance": 20,
-                "intelligence": 30,
-                "wisdom": 30,
-                "men": 40,
+                "intellect": 30,
+                "memory": 30,
+                "mental": 40,
                 "perception": 20,
-                "charisma": 20,
-                "luck": 15,  # Итого: 197
+                "projection": 20,
+                "prediction": 15,  # Итого: 197
             },
             "fixed_loadout": {
                 "main_hand": "quarterstaff",

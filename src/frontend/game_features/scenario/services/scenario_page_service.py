@@ -5,9 +5,9 @@ from fastapi import HTTPException, Request, status
 from loguru import logger
 
 from src.frontend.game_features.scenario.view_models.scenario import ScenarioPageVM, build_scenario_page_vm
+from src.frontend.game_features.session.token_state import require_game_access_token
 from src.frontend.integrations.backend_api.character_status import BackendCharacterStatusApi
 from src.frontend.integrations.backend_api.scenario import BackendScenarioApi
-from src.frontend.site_features.auth.token_state import require_access_token
 
 
 class ScenarioPageService:
@@ -16,7 +16,7 @@ class ScenarioPageService:
         self.character_status_api = character_status_api
 
     async def initialize(self, request: Request, *, char_id: int, quest_key: str) -> ScenarioPageVM:
-        token = require_access_token(request)
+        token = require_game_access_token(request)
         response = await self.api.initialize(token, char_id=char_id, quest_key=quest_key)
         if response.payload is None:
             logger.warning("Scenario page initialize failed: empty_payload char_id={} quest_key={}", char_id, quest_key)
@@ -28,7 +28,7 @@ class ScenarioPageService:
         return vm
 
     async def resume(self, request: Request, *, char_id: int) -> ScenarioPageVM:
-        token = require_access_token(request)
+        token = require_game_access_token(request)
         response = await self.api.resume(token, char_id=char_id)
         if response.payload is None:
             logger.warning("Scenario page resume failed: empty_payload char_id={}", char_id)
@@ -40,7 +40,7 @@ class ScenarioPageService:
         return vm
 
     async def step(self, request: Request, *, char_id: int, action_id: str) -> Any:
-        token = require_access_token(request)
+        token = require_game_access_token(request)
         try:
             response = await self.api.step(token, char_id=char_id, action_id=action_id)
         except httpx.HTTPStatusError as exc:

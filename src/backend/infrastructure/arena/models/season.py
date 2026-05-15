@@ -5,10 +5,10 @@ import datetime as dt  # noqa: TC003
 from sqlalchemy import BigInteger, DateTime, String
 from sqlalchemy.orm import Mapped, mapped_column
 
-from src.backend.core.database import Base, TimestampMixin
+from src.backend.core.database import Base, MetadataContextMixin, SchemaVersionMixin, TimestampMixin
 
 
-class ArenaSeason(Base, TimestampMixin):
+class ArenaSeason(Base, TimestampMixin, MetadataContextMixin, SchemaVersionMixin):
     __tablename__ = "arena_seasons"
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)

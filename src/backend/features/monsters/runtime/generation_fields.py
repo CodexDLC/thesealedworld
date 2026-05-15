@@ -30,18 +30,6 @@ ROLE_TIER_OFFSETS: dict[str, int] = {
     "boss": 1,
 }
 
-ATTRIBUTE_KEY_MAP: dict[str, str] = {
-    "strength": "strength",
-    "agility": "agility",
-    "endurance": "endurance",
-    "intelligence": "intellect",
-    "wisdom": "memory",
-    "men": "mental",
-    "perception": "perception",
-    "charisma": "projection",
-    "luck": "prediction",
-}
-
 
 def build_member_tier(
     context_tier: int,
@@ -55,8 +43,8 @@ def build_member_tier(
     elif policy == "clan_tier":
         tier = context_tier
     else:
-        tier = context_tier + ROLE_TIER_OFFSETS.get(variant.role, 0) + explicit_offset
-    return _clamp_int(tier, variant.min_tier, variant.max_tier)
+        tier = context_tier + explicit_offset
+    return _clamp_int(tier, 0, 11)
 
 
 def build_scaled_attributes(
@@ -66,7 +54,7 @@ def build_scaled_attributes(
 ) -> MonsterScaledAttributesDTO:
     profile = member_model.attribute_profile if member_model else {}
     raw_stats = variant.base_stats.model_dump()
-    mapped = {target: int(raw_stats[source]) for source, target in ATTRIBUTE_KEY_MAP.items()}
+    mapped = {key: int(raw_stats[key]) for key in MonsterScaledAttributesDTO.model_fields}
     flat_bonus = _number_mapping(profile.get("flat_bonus"))
     tier_bonus = _number_mapping(profile.get("tier_bonus"))
     multiplier = float(profile.get("tier_multiplier", 1.0) or 1.0)
@@ -107,20 +95,7 @@ def build_granted_abilities(
     variant: MonsterVariantDTO,
     member_model: MonsterMemberResourceModelDTO | None = None,
 ) -> MonsterGrantedAbilitiesDTO:
-    raw_ids: list[str] = []
-    raw_ids.extend(variant.skills)
-    raw_ids.extend(_string_list((member_model.ability_profile if member_model else {}).get("known_abilities")))
-    raw_ids.extend(_string_list((member_model.ability_profile if member_model else {}).get("guaranteed")))
-    raw_ids.extend(str(value) for value in variant.ability_overrides.values() if value)
-
-    known_abilities: list[str] = []
-    presentations: dict[str, str] = {}
-    for ability_id in dict.fromkeys(raw_ids):
-        mapped = family.ability_map.get(ability_id)
-        mechanic = mapped.mechanic if mapped else ability_id
-        known_abilities.append(mechanic)
-        presentations[mechanic] = mapped.presentation if mapped else ability_id
-    return MonsterGrantedAbilitiesDTO(known_abilities=known_abilities, ability_presentations=presentations)
+    return MonsterGrantedAbilitiesDTO()
 
 
 def build_ai_profile(
@@ -229,12 +204,6 @@ def _number_mapping(value: object) -> dict[str, float]:
         except (TypeError, ValueError):
             continue
     return result
-
-
-def _string_list(value: object) -> list[str]:
-    if not isinstance(value, list):
-        return []
-    return [str(item) for item in value if item]
 
 
 def _normalize_text_content(value: dict[str, Any]) -> dict[str, Any]:

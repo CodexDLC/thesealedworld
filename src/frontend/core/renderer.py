@@ -1,10 +1,13 @@
+from pathlib import Path
 from typing import Any
 
 from fastapi import Request
 from fastapi.templating import Jinja2Templates
 from loguru import logger
 
-from src.frontend.site_features.auth.token_state import get_access_token
+from src.frontend.config.settings import settings
+from src.frontend.features.auth.token_state import get_access_token
+from src.frontend.game_features.session.token_state import get_game_access_token
 
 
 class UIRenderer:
@@ -28,7 +31,10 @@ class UIRenderer:
         global_context = {
             "request": self.request,
             "user": getattr(self.request.state, "user", None),
-            "access_token": get_access_token(self.request) or "",
+            "access_token": get_game_access_token(self.request) or get_access_token(self.request) or "",
+            "site_access_token": get_access_token(self.request) or "",
+            "game_access_token": get_game_access_token(self.request) or "",
+            "static_version": _static_version(),
             "is_htmx": "HX-Request" in self.request.headers,
         }
 
@@ -73,3 +79,17 @@ def get_ui_renderer(request: Request) -> UIRenderer:
     Requires 'templates' to be attached to app.state.
     """
     return UIRenderer(request, request.app.state.templates)
+
+
+def _static_version() -> str:
+    site_css = settings.static_dir / "css" / "site.css"
+    site_js = settings.static_dir / "js" / "site.js"
+    mtimes = [_mtime(path) for path in (site_css, site_js)]
+    return str(max(mtimes))
+
+
+def _mtime(path: Path) -> int:
+    try:
+        return int(path.stat().st_mtime)
+    except OSError:
+        return 0

@@ -27,15 +27,65 @@ class WorldRepository:
         result = await self.session.execute(stmt)
         return int(result.scalar_one() or 0)
 
-    async def upsert_region(self, region_id: str | WorldRegion, *, climate_tags: list[str] | None = None) -> None:
+    async def upsert_region(
+        self,
+        region_id: str | WorldRegion,
+        *,
+        climate_tags: list[str] | None = None,
+        context: dict[str, Any] | None = None,
+        biome_id: str | None = None,
+        biome_mix: dict[str, Any] | None = None,
+        region_archetype: str | None = None,
+        tier_min: int | None = None,
+        tier_max: int | None = None,
+        navigation_profile_id: str | None = None,
+        population_profile: dict[str, Any] | None = None,
+        anchor_influence: dict[str, Any] | None = None,
+        is_locked_frontier: bool = False,
+    ) -> None:
         if isinstance(region_id, WorldRegion):
             climate_tags = region_id.climate_tags
+            context = dict(region_id.context or {})
+            biome_id = region_id.biome_id
+            biome_mix = dict(region_id.biome_mix or {})
+            region_archetype = region_id.region_archetype
+            tier_min = region_id.tier_min
+            tier_max = region_id.tier_max
+            navigation_profile_id = region_id.navigation_profile_id
+            population_profile = dict(region_id.population_profile or {})
+            anchor_influence = dict(region_id.anchor_influence or {})
+            is_locked_frontier = bool(region_id.is_locked_frontier)
             region_id = region_id.id
-        stmt = pg_insert(WorldRegion).values(id=region_id, climate_tags=climate_tags or [])
+        stmt = pg_insert(WorldRegion).values(
+            id=region_id,
+            biome_id=biome_id or "wasteland",
+            biome_mix=biome_mix or {},
+            region_archetype=region_archetype or "wild_region",
+            tier_min=tier_min or 0,
+            tier_max=tier_max or 0,
+            navigation_profile_id=navigation_profile_id or "open_frontier",
+            population_profile=population_profile or {},
+            anchor_influence=anchor_influence or {},
+            is_locked_frontier=is_locked_frontier,
+            climate_tags=climate_tags or [],
+            context=context or {},
+        )
         await self.session.execute(
             stmt.on_conflict_do_update(
                 index_elements=["id"],
-                set_={"climate_tags": stmt.excluded.climate_tags},
+                set_={
+                    "biome_id": stmt.excluded.biome_id,
+                    "biome_mix": stmt.excluded.biome_mix,
+                    "region_archetype": stmt.excluded.region_archetype,
+                    "tier_min": stmt.excluded.tier_min,
+                    "tier_max": stmt.excluded.tier_max,
+                    "navigation_profile_id": stmt.excluded.navigation_profile_id,
+                    "population_profile": stmt.excluded.population_profile,
+                    "anchor_influence": stmt.excluded.anchor_influence,
+                    "is_locked_frontier": stmt.excluded.is_locked_frontier,
+                    "climate_tags": stmt.excluded.climate_tags,
+                    "context": stmt.excluded.context,
+                },
             )
         )
 
@@ -47,6 +97,10 @@ class WorldRepository:
         biome_id: str | None = None,
         tier: int | None = None,
         flags: dict[str, Any] | None = None,
+        zone_archetype: str | None = None,
+        navigation_profile_id: str | None = None,
+        landmark_profile: str | None = None,
+        population_tags: list[str] | None = None,
     ) -> None:
         if isinstance(zone_id, WorldZone):
             zone = zone_id
@@ -55,6 +109,10 @@ class WorldRepository:
             biome_id = zone.biome_id
             tier = zone.tier
             flags = zone.flags
+            zone_archetype = zone.zone_archetype
+            navigation_profile_id = zone.navigation_profile_id
+            landmark_profile = zone.landmark_profile
+            population_tags = list(zone.population_tags or [])
 
         if region_id is None or biome_id is None or tier is None:
             raise ValueError("region_id, biome_id, and tier are required for upsert_zone")
@@ -64,6 +122,10 @@ class WorldRepository:
             region_id=region_id,
             biome_id=biome_id,
             tier=tier,
+            zone_archetype=zone_archetype or "wild_core",
+            navigation_profile_id=navigation_profile_id or "open_frontier",
+            landmark_profile=landmark_profile,
+            population_tags=population_tags or [],
             flags=flags or {},
         )
         await self.session.execute(
@@ -73,6 +135,10 @@ class WorldRepository:
                     "region_id": stmt.excluded.region_id,
                     "biome_id": stmt.excluded.biome_id,
                     "tier": stmt.excluded.tier,
+                    "zone_archetype": stmt.excluded.zone_archetype,
+                    "navigation_profile_id": stmt.excluded.navigation_profile_id,
+                    "landmark_profile": stmt.excluded.landmark_profile,
+                    "population_tags": stmt.excluded.population_tags,
                     "flags": stmt.excluded.flags,
                 },
             )
@@ -80,6 +146,9 @@ class WorldRepository:
 
     async def flush(self) -> None:
         await self.session.flush()
+
+    async def commit(self) -> None:
+        await self.session.commit()
 
     async def get_region(self, region_id: str) -> WorldRegion | None:
         result = await self.session.execute(select(WorldRegion).where(WorldRegion.id == region_id))
@@ -118,7 +187,16 @@ class WorldRepository:
                 index_elements=["x", "y"],
                 set_={
                     "zone_id": stmt.excluded.zone_id,
+                    "biome_id": stmt.excluded.biome_id,
+                    "node_type": stmt.excluded.node_type,
                     "terrain_type": stmt.excluded.terrain_type,
+                    "navigation_profile_id": stmt.excluded.navigation_profile_id,
+                    "buildable_kind": stmt.excluded.buildable_kind,
+                    "landmark_profile": stmt.excluded.landmark_profile,
+                    "movement_profile": stmt.excluded.movement_profile,
+                    "background_key": stmt.excluded.background_key,
+                    "background_pool_key": stmt.excluded.background_pool_key,
+                    "visual_overrides": stmt.excluded.visual_overrides,
                     "services": stmt.excluded.services,
                     "content": stmt.excluded.content,
                     "is_active": stmt.excluded.is_active,
@@ -145,7 +223,16 @@ class WorldRepository:
                     "x": x,
                     "y": y,
                     "zone_id": zone_id,
+                    "biome_id": None,
+                    "node_type": "generic",
                     "terrain_type": terrain_type,
+                    "navigation_profile_id": "open_frontier",
+                    "buildable_kind": None,
+                    "landmark_profile": None,
+                    "movement_profile": {},
+                    "background_key": None,
+                    "background_pool_key": None,
+                    "visual_overrides": {},
                     "is_active": is_active,
                     "flags": flags or {},
                     "content": content,

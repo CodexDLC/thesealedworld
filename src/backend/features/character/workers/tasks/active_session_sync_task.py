@@ -23,6 +23,8 @@ async def sync_active_session_task(ctx: dict[str, Any], payload: dict[str, Any])
                 character_repo=actor_state.characters,
                 attributes_repo=actor_state.attributes,
                 skill_repo=actor_state.skills,
+                progression_repo=actor_state.progression,
+                expedition_repo=actor_state.expeditions,
             ),
         )
         result = await service.sync_active_session_to_db(char_id)

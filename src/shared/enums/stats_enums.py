@@ -34,7 +34,10 @@ class StatKey(StrEnum):
     CRIT_CHANCE = "crit_chance"
     CRIT_POWER = "crit_power"
     ACCURACY = "accuracy"
-    ARMOR_PENETRATION = "armor_penetration"
+    PHYSICAL_SUPPRESSION = "physical_suppression"
+    ARMOR_PENETRATION_PCT = "armor_penetration_pct"
+    ARMOR_PENETRATION_FLAT = "armor_penetration_flat"
+    ARMOR_IGNORE_CHANCE = "armor_ignore_chance"
 
     # Defense
     ARMOR = "armor"

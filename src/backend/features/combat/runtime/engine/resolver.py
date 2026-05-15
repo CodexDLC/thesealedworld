@@ -1,3 +1,4 @@
+import random
 from typing import Any
 
 from loguru import logger as log
@@ -24,6 +25,8 @@ UNARMED_MIN_EFFICIENCY = 0.5
 UNARMED_MAX_EFFICIENCY = 3.0
 UNARMED_NOVICE_SPREAD = 0.5
 UNARMED_MASTER_SPREAD = 0.1
+TOKEN_BONUS_CHANCE = 0.30
+TOKEN_BONUS_EXCLUDED = frozenset({"tempo", "gift"})
 
 
 class CombatResolver:
@@ -122,12 +125,26 @@ class CombatResolver:
                 "off_hand": stats.mods.off_hand_accuracy + stats.mods.accuracy,
             }.get(source, stats.mods.main_hand_accuracy + stats.mods.accuracy)
 
-        if key == "penetration":
+        if key == "physical_suppression":
             return {
-                "magic": stats.mods.magical_penetration,
-                "item": stats.mods.item_penetration,
-                "off_hand": stats.mods.off_hand_penetration + stats.mods.armor_penetration,
-            }.get(source, stats.mods.main_hand_penetration + stats.mods.armor_penetration)
+                "magic": 0.0,
+                "item": 0.0,
+                "off_hand": stats.mods.physical_suppression,
+            }.get(source, stats.mods.physical_suppression)
+
+        if key == "armor_penetration_pct":
+            return {
+                "magic": 0.0,
+                "item": stats.mods.item_armor_penetration_pct + stats.mods.armor_penetration_pct,
+                "off_hand": stats.mods.off_hand_armor_penetration_pct + stats.mods.armor_penetration_pct,
+            }.get(source, stats.mods.main_hand_armor_penetration_pct + stats.mods.armor_penetration_pct)
+
+        if key == "armor_ignore_chance":
+            return {
+                "magic": 0.0,
+                "item": stats.mods.item_armor_ignore_chance + stats.mods.armor_ignore_chance,
+                "off_hand": stats.mods.off_hand_armor_ignore_chance + stats.mods.armor_ignore_chance,
+            }.get(source, stats.mods.main_hand_armor_ignore_chance + stats.mods.armor_ignore_chance)
 
         # Fallback (если ключ не специфичен, например damage_spread)
         full_key = f"{prefix}_{key}"
@@ -146,7 +163,7 @@ class CombatResolver:
 
         if ctx.flags.force.miss:
             res.is_miss = True
-            res.tokens_awarded_defender["tempo"] = 1
+            CombatResolver._award_defender_token(res, "tempo")
             res.events.append(CombatEventDTO(type="MISS", source_id=source_id, target_id=target_id))
             CombatResolver._trace_step(res, "accuracy", "fail", reason="force_miss")
             return False
@@ -173,7 +190,7 @@ class CombatResolver:
 
         if not passed:
             res.is_miss = True
-            res.tokens_awarded_defender["tempo"] = 1
+            CombatResolver._award_defender_token(res, "tempo")
             res.events.append(CombatEventDTO(type="MISS", source_id=source_id, target_id=target_id))
             CombatResolver._resolve_triggers(ctx, res, "ON_MISS")
             return False
@@ -193,7 +210,7 @@ class CombatResolver:
 
         if ctx.flags.force.dodge:
             res.is_dodged = True
-            res.tokens_awarded_defender["dodge"] = 1
+            CombatResolver._award_defender_token(res, "dodge")
             res.events.append(CombatEventDTO(type="DODGE", source_id=source_id, target_id=target_id))
             CombatResolver._resolve_triggers(ctx, res, "ON_DODGE")
             ctx.flags.state.check_counter = True
@@ -244,7 +261,7 @@ class CombatResolver:
 
         if passed:
             res.is_dodged = True
-            res.tokens_awarded_defender["dodge"] = 1
+            CombatResolver._award_defender_token(res, "dodge")
             res.events.append(CombatEventDTO(type="DODGE", source_id=source_id, target_id=target_id))
             CombatResolver._resolve_triggers(ctx, res, "ON_DODGE")
             ctx.flags.state.check_counter = True
@@ -269,7 +286,7 @@ class CombatResolver:
 
         if ctx.flags.force.parry:
             res.is_parried = True
-            res.tokens_awarded_defender["parry"] = 1
+            CombatResolver._award_defender_token(res, "parry")
             res.events.append(CombatEventDTO(type="PARRY", source_id=source_id, target_id=target_id))
             CombatResolver._resolve_triggers(ctx, res, "ON_PARRY")
             if (
@@ -307,7 +324,7 @@ class CombatResolver:
 
         if passed:
             res.is_parried = True
-            res.tokens_awarded_defender["parry"] = 1
+            CombatResolver._award_defender_token(res, "parry")
             res.events.append(CombatEventDTO(type="PARRY", source_id=source_id, target_id=target_id))
             CombatResolver._resolve_triggers(ctx, res, "ON_PARRY")
 
@@ -337,7 +354,7 @@ class CombatResolver:
             return False
         if ctx.flags.force.block:
             res.is_blocked = True
-            res.tokens_awarded_defender["block"] = 1
+            CombatResolver._award_defender_token(res, "block")
             res.events.append(CombatEventDTO(type="BLOCK", source_id=source_id, target_id=target_id))
             CombatResolver._resolve_triggers(ctx, res, "ON_BLOCK")
             return True
@@ -365,7 +382,7 @@ class CombatResolver:
 
         if passed:
             res.is_blocked = True
-            res.tokens_awarded_defender["block"] = 1
+            CombatResolver._award_defender_token(res, "block")
             res.events.append(CombatEventDTO(type="BLOCK", source_id=source_id, target_id=target_id))
             CombatResolver._resolve_triggers(ctx, res, "ON_BLOCK")
             return True
@@ -400,7 +417,7 @@ class CombatResolver:
 
         if counter_chance > 0 and MathCore.check_chance(counter_chance):
             res.is_counter = True
-            res.tokens_awarded_defender["counter"] = 1
+            CombatResolver._award_defender_token(res, "counter")
             res.chain_events.trigger_counter_attack = True
 
     @staticmethod
@@ -523,18 +540,18 @@ class CombatResolver:
                         phys_dmg *= 1.0 - (heavy_skill * 0.2)
 
             phys_res_pct = def_stats.mods.physical_resistance
-            phys_pen_pct = CombatResolver._get_offensive_val(atk_stats, ctx, "penetration")
-            mitigation_pct = max(0.0, phys_res_pct - phys_pen_pct)
+            phys_suppression_pct = CombatResolver._get_offensive_val(atk_stats, ctx, "physical_suppression")
+            mitigation_pct = max(0.0, phys_res_pct - phys_suppression_pct)
             phys_dmg *= 1.0 - mitigation_pct
 
-            armor_flat = 0.0 if ctx.flags.formula.ignore_armor else def_stats.mods.armor
+            armor_flat = CombatResolver._effective_armor(atk_stats, def_stats, ctx)
             phys_dmg = max(0.0, phys_dmg - armor_flat)
             damage_parts["physical"] = phys_dmg
 
             if res.is_crit:
-                res.tokens_awarded_attacker["crit"] = 1
+                CombatResolver._award_attacker_token(res, "crit")
             else:
-                res.tokens_awarded_attacker["hit"] = 1
+                CombatResolver._award_attacker_token(res, "hit")
 
             total_damage += phys_dmg
 
@@ -609,7 +626,7 @@ class CombatResolver:
             shield_reflect_ratio=shield_reflect_ratio,
             weapon_technique_bonus_damage=ctx.mods.weapon_technique_bonus_damage,
             phys_res=getattr(def_stats.mods, "physical_resistance", 0.0),
-            penetration=CombatResolver._get_offensive_val(atk_stats, ctx, "penetration"),
+            physical_suppression=CombatResolver._get_offensive_val(atk_stats, ctx, "physical_suppression"),
             crit_mult=crit_multiplier,
         )
 
@@ -793,9 +810,43 @@ class CombatResolver:
         attacker_tokens = rule_data.get("token_grants_attacker", [])
         defender_tokens = rule_data.get("token_grants_defender", [])
         for token in attacker_tokens:
-            res.tokens_awarded_attacker[str(token)] = res.tokens_awarded_attacker.get(str(token), 0) + 1
+            CombatResolver._award_attacker_token(res, str(token))
         for token in defender_tokens:
-            res.tokens_awarded_defender[str(token)] = res.tokens_awarded_defender.get(str(token), 0) + 1
+            CombatResolver._award_defender_token(res, str(token))
+
+    @staticmethod
+    def _award_attacker_token(res: InteractionResultDTO, token: str) -> None:
+        CombatResolver._award_token(res.tokens_awarded_attacker, token)
+
+    @staticmethod
+    def _award_defender_token(res: InteractionResultDTO, token: str) -> None:
+        CombatResolver._award_token(res.tokens_awarded_defender, token)
+
+    @staticmethod
+    def _award_token(bucket: dict[str, int], token: str) -> None:
+        amount = 1
+        if token not in TOKEN_BONUS_EXCLUDED and CombatResolver._bonus_token_roll():
+            amount = 2
+        bucket[token] = bucket.get(token, 0) + amount
+
+    @staticmethod
+    def _bonus_token_roll() -> bool:
+        return random.random() < TOKEN_BONUS_CHANCE  # nosec B311
+
+    @staticmethod
+    def _effective_armor(atk_stats: ActorStats, def_stats: ActorStats, ctx: PipelineContextDTO) -> float:
+        if ctx.flags.formula.ignore_armor:
+            return 0.0
+
+        armor = max(0.0, def_stats.mods.armor)
+        ignore_chance = CombatResolver._get_offensive_val(atk_stats, ctx, "armor_ignore_chance")
+        if ignore_chance > 0.0 and MathCore.check_chance(ignore_chance):
+            return 0.0
+
+        penetration_pct = max(0.0, CombatResolver._get_offensive_val(atk_stats, ctx, "armor_penetration_pct"))
+        penetration_flat = max(0.0, atk_stats.mods.armor_penetration_flat)
+        armor *= max(0.0, 1.0 - penetration_pct)
+        return max(0.0, armor - penetration_flat)
 
     @staticmethod
     def _select_trigger_activation(

@@ -22,9 +22,11 @@ class ExplorationSystemIntegrator:
         self,
         character_sessions: CharacterSessionManager,
         world_store: WorldLocationStore,
+        expedition_service: Any | None = None,
     ) -> None:
         self.character_sessions = character_sessions
         self.world_store = world_store
+        self.expedition_service = expedition_service
 
     async def get_player_location_id(self, char_id: int) -> str | None:
         """Fetch current location ID from character session."""
@@ -53,6 +55,14 @@ class ExplorationSystemIntegrator:
 
         # 2. Update Actor State (RedisJSON ac: key)
         await self.character_sessions.set_location(char_id, to_loc, prev=from_loc)
+        if self.expedition_service is not None:
+            target_loc_data = await self.world_store.get_location(to_loc)
+            await self.expedition_service.handle_location_transition(
+                char_id=char_id,
+                from_loc=from_loc,
+                to_loc=to_loc,
+                target_loc_data=target_loc_data,
+            )
 
         log.info("ExplorationIntegrator | move_success: char_id=%s from=%s to=%s", char_id, from_loc, to_loc)
         return True
@@ -64,6 +74,10 @@ class ExplorationSystemIntegrator:
         """Fetch all character skills."""
         skills = await self.character_sessions.get_skills(char_id)
         return skills or {}
+
+    async def get_risk_state(self, char_id: int) -> dict[str, Any]:
+        risk = await self.character_sessions.get_section(char_id, "risk")
+        return risk if isinstance(risk, dict) else {}
 
     async def get_players_count(self, loc_id: str, exclude_char_id: int | None = None) -> int:
         """Count players in a location, optionally excluding one."""

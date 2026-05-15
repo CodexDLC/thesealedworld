@@ -1,12 +1,13 @@
-import httpx
 from loguru import logger
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 from starlette.responses import Response
 
-from src.frontend.config.settings import settings
-from src.frontend.integrations.backend_api.auth import BackendAuthApi
-from src.frontend.site_features.auth.services.auth_service import FrontendAuthService
+from src.frontend.core.database import get_session_context
+from src.frontend.features.auth.integrations import AuthPersistence
+from src.frontend.features.auth.repositories.token_repository import TokenRepository
+from src.frontend.features.auth.repositories.user_repository import UserRepository
+from src.frontend.features.auth.services.auth_service import FrontendAuthService
 
 ANALYTICS_SKIP_PREFIXES = ("/static/", "/library/", "/cabinet/", "/health")
 ANALYTICS_EVENT_PATHS: dict[str, str] = {
@@ -55,24 +56,50 @@ class AuthUserMiddleware(BaseHTTPMiddleware):
         if should_skip_auth_lookup(request.url.path):
             return await call_next(request)
 
+        if not request.cookies.get(FrontendAuthService.access_cookie_name) and not request.cookies.get(
+            FrontendAuthService.refresh_cookie_name
+        ):
+            return await call_next(request)
+
         try:
-            client: httpx.AsyncClient = request.app.state.backend_http_client
-            api = BackendAuthApi(client=client, base_url=settings.backend_base_url)
-            auth_service = FrontendAuthService(auth_api=api)
-            request.state.user = await auth_service.get_current_user(request)
+            async with get_session_context() as session:
+                auth_service = FrontendAuthService(
+                    auth_service=import_site_auth_service(session),
+                )
+                request.state.user = await auth_service.get_current_user(request)
             if request.state.user is not None and not getattr(request.state, "access_token", None):
                 cookie_token = request.cookies.get(FrontendAuthService.access_cookie_name)
                 if cookie_token:
                     request.state.access_token = cookie_token
-        except httpx.RequestError as exc:
-            request.state.backend_unavailable = True
-            logger.warning("Auth middleware backend user lookup unavailable: error={}", exc)
+        except Exception as exc:
+            logger.warning("Auth middleware user lookup failed: error={}", exc)
 
         response = await call_next(request)
         tokens = getattr(request.state, "auth_tokens", None)
         if tokens is not None:
-            FrontendAuthService(auth_api=api).attach_auth_cookies(response, tokens)
+            response.set_cookie(
+                FrontendAuthService.access_cookie_name,
+                tokens.access_token,
+                httponly=True,
+                samesite="lax",
+                secure=False,
+                max_age=60 * 30,
+            )
+            response.set_cookie(
+                FrontendAuthService.refresh_cookie_name,
+                tokens.refresh_token,
+                httponly=True,
+                samesite="lax",
+                secure=False,
+                max_age=60 * 60 * 24 * 30,
+            )
         elif getattr(request.state, "clear_auth_cookies", False):
             response.delete_cookie(FrontendAuthService.access_cookie_name)
             response.delete_cookie(FrontendAuthService.refresh_cookie_name)
         return response
+
+
+def import_site_auth_service(session):
+    from src.frontend.features.auth.services.site_auth_service import AuthService
+
+    return AuthService(persistence=AuthPersistence(UserRepository(session), TokenRepository(session)))

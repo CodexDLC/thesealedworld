@@ -1,0 +1,768 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>The Sealed World - Exploration Prototype</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=EB+Garamond:wght@500;600;700&family=JetBrains+Mono:wght@400;500;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/exploration.css">
+</head>
+<body class="game-body mobile-rift-body">
+    <nav class="prototype-purpose-nav" aria-label="Prototype purpose navigation">
+        <a class="is-active" href="exploration.html">Exploration</a>
+        <a href="combat.html">Combat</a>
+        <a href="scenario.html">Scenario</a>
+        <a href="arena.html">Arena</a>
+        <a href="panels.html">Panels</a>
+    </nav>
+
+    <main class="prototype-board prototype-board--purpose" aria-label="Exploration interface design board">
+        <header class="prototype-domain-head">
+            <div>
+                <strong>Exploration</strong>
+                <span>один домен · рядом mobile / tablet / desktop</span>
+            </div>
+            <nav aria-label="Exploration variants">
+                <span>navigation</span>
+                <span>encounter later</span>
+                <span>loot later</span>
+            </nav>
+        </header>
+
+        <section class="prototype-form-section" aria-label="Exploration mobile variants">
+            <div class="prototype-form-row">
+                <div class="prototype-form-column">
+                    <span class="prototype-frame-label">Mobile portrait 428x830</span>
+                    <section class="prototype-frame prototype-frame--mobile" aria-label="Exploration mobile portrait prototype">
+                        <header class="prototype-frame-header">
+                            <div>
+                                <strong>Exploration HUD</strong>
+                                <span>mobile baseline · landscape later</span>
+                            </div>
+                            <nav aria-label="Prototype variants">
+                                <button class="is-active" type="button">EXPLORE</button>
+                                <button type="button">STATUS BUILD</button>
+                                <button type="button">STATUS COMBAT</button>
+                            </nav>
+                        </header>
+                        <div class="device-mount" data-prototype-mount="explore"></div>
+                    </section>
+                </div>
+
+                <div class="prototype-form-column">
+                    <span class="prototype-frame-label">Mobile landscape 830x380</span>
+                    <section class="prototype-frame prototype-frame--mobile-landscape" aria-label="Exploration mobile landscape prototype">
+                        <header class="prototype-frame-header">
+                            <div>
+                                <strong>Exploration HUD</strong>
+                                <span>landscape · right-hand nav grid</span>
+                            </div>
+                            <nav aria-label="Prototype variants">
+                                <button class="is-active" type="button">EXPLORE</button>
+                                <button type="button">STATUS BUILD</button>
+                                <button type="button">STATUS COMBAT</button>
+                            </nav>
+                        </header>
+                        <div class="device-mount" data-prototype-mount="explore"></div>
+                    </section>
+                </div>
+
+                <div class="prototype-form-column">
+                    <span class="prototype-frame-label">Mobile encounter 428x830</span>
+                    <section class="prototype-frame prototype-frame--mobile" aria-label="Exploration mobile encounter prototype">
+                        <header class="prototype-frame-header">
+                            <div>
+                                <strong>Encounter Interrupt</strong>
+                                <span>same exploration shell · services and keyboard replaced</span>
+                            </div>
+                            <nav aria-label="Prototype variants">
+                                <button type="button">EXPLORE</button>
+                                <button class="is-active" type="button">ENCOUNTER</button>
+                                <button type="button">LOOT LATER</button>
+                            </nav>
+                        </header>
+                        <div class="device-mount" data-prototype-mount="encounter"></div>
+                    </section>
+                </div>
+
+                <div class="prototype-form-column">
+                    <span class="prototype-frame-label">Mobile encounter landscape 830x380</span>
+                    <section class="prototype-frame prototype-frame--mobile-landscape" aria-label="Exploration mobile landscape encounter prototype">
+                        <header class="prototype-frame-header">
+                            <div>
+                                <strong>Encounter Interrupt</strong>
+                                <span>landscape · compact target info and decisions</span>
+                            </div>
+                            <nav aria-label="Prototype variants">
+                                <button type="button">EXPLORE</button>
+                                <button class="is-active" type="button">ENCOUNTER</button>
+                                <button type="button">LOOT LATER</button>
+                            </nav>
+                        </header>
+                        <div class="device-mount" data-prototype-mount="encounter"></div>
+                    </section>
+                </div>
+            </div>
+        </section>
+
+        <section class="prototype-form-section" aria-label="Exploration tablet variants">
+            <div class="prototype-section-title">
+                <strong>Tablet</strong>
+                <span>рядом два рабочих поворота: landscape и portrait</span>
+            </div>
+            <div class="prototype-form-row">
+                <div class="prototype-form-column">
+                    <span class="prototype-frame-label">Tablet landscape 1024x768</span>
+                    <section class="prototype-frame prototype-frame--tablet-landscape" aria-label="Exploration tablet landscape prototype">
+                        <header class="prototype-frame-header">
+                            <div>
+                                <strong>Exploration HUD</strong>
+                                <span>wide tablet · side panel can appear later</span>
+                            </div>
+                            <nav aria-label="Prototype variants">
+                                <button class="is-active" type="button">EXPLORE</button>
+                                <button type="button">STATUS BUILD</button>
+                                <button type="button">STATUS COMBAT</button>
+                            </nav>
+                        </header>
+                        <div class="device-mount" data-prototype-mount="explore"></div>
+                    </section>
+                </div>
+
+                <div class="prototype-form-column">
+                    <span class="prototype-frame-label">Tablet portrait 768x1024</span>
+                    <section class="prototype-frame prototype-frame--tablet-portrait" aria-label="Exploration tablet portrait prototype">
+                        <header class="prototype-frame-header">
+                            <div>
+                                <strong>Exploration HUD</strong>
+                                <span>tall tablet · mobile logic with more air</span>
+                            </div>
+                            <nav aria-label="Prototype variants">
+                                <button class="is-active" type="button">EXPLORE</button>
+                                <button type="button">STATUS BUILD</button>
+                                <button type="button">STATUS COMBAT</button>
+                            </nav>
+                        </header>
+                        <div class="device-mount" data-prototype-mount="explore"></div>
+                    </section>
+                </div>
+            </div>
+        </section>
+
+        <div class="prototype-air-gap" aria-hidden="true"></div>
+
+        <section class="prototype-form-section" aria-label="Exploration desktop variants">
+            <div class="prototype-section-title">
+                <strong>Wide Tablet</strong>
+                <span>до 1440x900 считаем горизонтальным tablet; 70px высоты резерв под чат</span>
+            </div>
+            <div class="prototype-form-row">
+                <div class="prototype-form-column">
+                    <span class="prototype-frame-label">Wide tablet baseline 1440x830</span>
+                    <section class="prototype-frame prototype-frame--desktop" aria-label="Exploration wide tablet prototype">
+                        <header class="prototype-frame-header">
+                            <div>
+                                <strong>Exploration HUD</strong>
+                                <span>desktop composition preview · same domain shell</span>
+                            </div>
+                            <nav aria-label="Prototype variants">
+                                <button class="is-active" type="button">EXPLORE</button>
+                                <button type="button">STATUS BUILD</button>
+                                <button type="button">STATUS COMBAT</button>
+                            </nav>
+                        </header>
+                        <div class="device-mount" data-prototype-mount="explore"></div>
+                    </section>
+                </div>
+
+                <div class="prototype-form-column">
+                    <span class="prototype-frame-label">Desktop encounter 1440x830</span>
+                    <section class="prototype-frame prototype-frame--desktop" aria-label="Exploration desktop encounter prototype">
+                        <header class="prototype-frame-header">
+                            <div>
+                                <strong>Encounter Interrupt</strong>
+                                <span>desktop split: target list · selected enemy · decisions</span>
+                            </div>
+                            <nav aria-label="Prototype variants">
+                                <button type="button">EXPLORE</button>
+                                <button class="is-active" type="button">ENCOUNTER</button>
+                                <button type="button">LOOT LATER</button>
+                            </nav>
+                        </header>
+                        <div class="device-mount" data-prototype-mount="encounter"></div>
+                    </section>
+                </div>
+            </div>
+        </section>
+
+        <section class="prototype-notes prototype-notes--wide" aria-label="Exploration layout notes">
+            <strong>Exploration Rules</strong>
+            <ul>
+                <li>Эта страница изолирует только exploration: CSS не тянет combat/status/inventory overrides.</li>
+                <li>Mobile остается базовым экраном 380-428px; tablet и desktop рядом проверяют, где появится боковая панель.</li>
+                <li>Encounter и loot будут отдельными вариантами этого же домена, а не частью общего HTML-комбайна.</li>
+            </ul>
+        </section>
+    </main>
+
+    <template id="exploration-hud-template">
+        <div class="game-shell mobile-rift">
+            <header class="game-shell__header mobile-rift-header">
+                <div class="mobile-rift-topbar">
+                    <button class="mobile-menu-button" type="button" aria-label="Open game menu">
+                        <span class="mobile-glyph mobile-glyph--menu" aria-hidden="true"></span>
+                    </button>
+                    <div class="mobile-rift-brand">The Sealed World</div>
+                </div>
+            </header>
+
+            <main class="game-shell__main mobile-rift-main game-main layout-main layout-main--exploration">
+                <aside class="panel-dock panel-dock--framed panel-dock--scroll exploration-status-dock" aria-label="Character status dock">
+                    <nav class="dock-nav dock-nav--bar dock-nav--two exploration-status-actions" aria-label="Status actions">
+                        <button class="dock-nav-button is-active" type="button">REFRESH</button>
+                        <button class="dock-nav-button" type="button">BUILD</button>
+                    </nav>
+                    <section class="status-widget-card exploration-status-card" aria-label="Character summary">
+                        <div class="status-widget-avatar">
+                            <img src="../src/frontend/static/images/avatars/veil4.png" alt="Sealed Agent avatar">
+                        </div>
+                        <div class="status-widget-core">
+                            <div class="status-widget-name">
+                                <strong>SEALED AGENT</strong>
+                                <span>TIER 0</span>
+                            </div>
+                            <div class="status-widget-bars">
+                                <div class="status-widget-bar status-widget-bar--hp" style="--status-fill: 84%;">
+                                    <span>HP</span>
+                                    <i></i>
+                                    <b>84 / 100</b>
+                                </div>
+                                <div class="status-widget-bar status-widget-bar--en" style="--status-fill: 52%;">
+                                    <span>EN</span>
+                                    <i></i>
+                                    <b>31 / 60</b>
+                                </div>
+                                <div class="status-widget-bar status-widget-bar--sta" style="--status-fill: 60%;">
+                                    <span>STA</span>
+                                    <i></i>
+                                    <b>48 / 80</b>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    <details class="status-widget-section exploration-status-section--attributes" open>
+                        <summary class="status-widget-section-title">
+                            <span>ATTRIBUTES</span>
+                            <strong>GROUPS</strong>
+                        </summary>
+                        <div class="status-widget-attribute-body" aria-label="Attribute layout variants">
+                            <section class="status-widget-attribute-variant" aria-label="Vertical attributes variant">
+                                <div class="status-widget-attribute-list">
+                                    <div class="status-widget-attribute-group">
+                                        <em>BODY</em>
+                                        <div><span>СИЛ</span><strong>11</strong></div>
+                                        <div><span>ЛОВ</span><strong>12</strong></div>
+                                        <div><span>ВЫН</span><strong>15</strong></div>
+                                    </div>
+                                    <div class="status-widget-attribute-group">
+                                        <em>CORE</em>
+                                        <div><span>ИНТ</span><strong>14</strong></div>
+                                        <div><span>ПАМ</span><strong>17</strong></div>
+                                        <div><span>МЕН</span><strong>16</strong></div>
+                                    </div>
+                                    <div class="status-widget-attribute-group">
+                                        <em>SENSOR</em>
+                                        <div><span>ВОС</span><strong>10</strong></div>
+                                        <div><span>ПРО</span><strong>9</strong></div>
+                                        <div><span>ПРД</span><strong>13</strong></div>
+                                    </div>
+                                </div>
+                            </section>
+                        </div>
+                    </details>
+
+                    <section class="status-widget-section exploration-status-section--symbiote" hidden>
+                        <header class="status-widget-section-title">
+                            <span>SYMBIOTE</span>
+                            <strong>LOCKED</strong>
+                        </header>
+                        <p>Дар еще не открыт.</p>
+                    </section>
+
+                    <details class="status-widget-section exploration-status-section--skills" open>
+                        <summary class="status-widget-section-title">
+                            <span>SKILLS</span>
+                            <strong>GROUPS</strong>
+                        </summary>
+                        <div class="status-widget-skill-accordion">
+                            <details open>
+                                <summary><span>WEAPON MASTERY</span><strong>12</strong></summary>
+                                <div class="status-widget-skill-list">
+                                    <div><span>Древковое оружие</span><strong>10.2%</strong></div>
+                                    <div><span>Клинки</span><strong>4.8%</strong></div>
+                                    <div><span>Метательное</span><strong>2.1%</strong></div>
+                                </div>
+                            </details>
+                            <details>
+                                <summary><span>TACTICAL</span><strong>18</strong></summary>
+                                <div class="status-widget-skill-list">
+                                    <div><span>Двуручный стиль</span><strong>10%</strong></div>
+                                    <div><span>Парирование</span><strong>8.2%</strong></div>
+                                    <div><span>Разведка</span><strong>6.6%</strong></div>
+                                </div>
+                            </details>
+                            <details>
+                                <summary><span>ARMOR</span><strong>9</strong></summary>
+                                <div class="status-widget-skill-list">
+                                    <div><span>Средняя броня</span><strong>10.1%</strong></div>
+                                    <div><span>Легкая броня</span><strong>5.7%</strong></div>
+                                </div>
+                            </details>
+                            <details>
+                                <summary><span>COMBAT SUPPORT</span><strong>14</strong></summary>
+                                <div class="status-widget-skill-list">
+                                    <div><span>Маневрирование</span><strong>8.2%</strong></div>
+                                    <div><span>Выживание</span><strong>7.4%</strong></div>
+                                </div>
+                            </details>
+                        </div>
+                    </details>
+                </aside>
+
+                <section class="panel-dock panel-dock--framed exploration-main-dock" aria-label="Exploration main dock">
+                    <nav class="dock-nav dock-nav--bar dock-nav--five mobile-center-menu" aria-label="Game sections">
+                        <button class="dock-nav-button mobile-center-menu-item" type="button">
+                            <span class="mobile-nav-icon" style="--nav-icon-url: url('../src/frontend/static/images/ui/game-menu-icons/person.svg')" aria-hidden="true"></span>
+                            <span>STATUS</span>
+                        </button>
+                        <button class="dock-nav-button mobile-center-menu-item" type="button">
+                            <span class="mobile-nav-icon" style="--nav-icon-url: url('../src/frontend/static/images/ui/game-menu-icons/journal.svg')" aria-hidden="true"></span>
+                            <span>QUEST</span>
+                        </button>
+                        <button class="dock-nav-button mobile-center-menu-item is-active" type="button">
+                            <span class="mobile-nav-icon" style="--nav-icon-url: url('../src/frontend/static/images/ui/game-menu-icons/map.svg')" aria-hidden="true"></span>
+                            <span>EXPLORE</span>
+                        </button>
+                        <button class="dock-nav-button mobile-center-menu-item" type="button">
+                            <span class="mobile-nav-icon" style="--nav-icon-url: url('../src/frontend/static/images/ui/game-menu-icons/inventory.svg')" aria-hidden="true"></span>
+                            <span>INVENTORY</span>
+                        </button>
+                        <button class="dock-nav-button mobile-center-menu-item" type="button" data-side-panel-toggle="info">
+                            <span class="mobile-nav-icon" style="--nav-icon-url: url('../src/frontend/static/images/ui/game-menu-icons/unknown.svg')" aria-hidden="true"></span>
+                            <span>INFO</span>
+                        </button>
+                    </nav>
+
+                    <section class="mobile-screen game-screen-area game-screen-area--vertical is-active" data-screen="explore">
+                        <div class="game-screen-content exploration-screen-content">
+                            <section class="mobile-scene parchment is-safe"
+                             data-location-title="УЛИЦА МУДРЕЦОВ"
+                             data-threat="0%"
+                             data-tier="T0"
+                             data-signals="6"
+                             data-battles="0"
+                             data-zone="SAFE"
+                             aria-label="Scene report">
+                        <div class="mobile-scene-art">
+                            <span class="mobile-scene-title">БАШНЯ ИСПЫТАНИЙ</span>
+                            <span class="mobile-scene-coordinates" aria-label="Location coordinates">X 52 · Y 51</span>
+                            <span class="mobile-scene-signal" data-signals="6" data-battles="0">SIGNALS: 6</span>
+                        </div>
+                        <div class="mobile-scene-copy" data-collapsible-text>
+                            <p class="world-text">
+                                <span class="symbiote-readout-name">SYSTEM:</span>
+                                Мощеная плитами улица ведет к уцелевшей каменной башне без окон. Поселенцы расчистили вход и обнаружили внутри странный пространственный карман.
+                            </p>
+                            <button class="mobile-more-button"
+                                    type="button"
+                                    data-tooltip="Мощеная плитами улица ведет к уцелевшей каменной башне без окон. Поселенцы расчистили вход и обнаружили внутри странный пространственный карман.">
+                                ... MORE
+                            </button>
+                        </div>
+                    </section>
+
+                    <section class="mobile-encounter-interrupt" hidden aria-label="Encounter interrupt">
+                        <header>
+                            <span aria-hidden="true">△</span>
+                            <div>
+                                <strong>PRIORITY INTERRUPT</strong>
+                                <small>ENCOUNTER DETECTED AT X 52 · Y 51</small>
+                            </div>
+                        </header>
+                        <p>
+                            <span class="symbiote-readout-name">SYMBIOTE:</span>
+                            Обнаружена опасность. Данные нестабильны. Ресурсы выведены на предельный режим. Требуется решение.
+                        </p>
+                    </section>
+
+                    <section class="mobile-encounter-target-card" hidden data-family-id="rat_swarm" data-organization="swarm" aria-label="Enemy group encounter">
+                        <header>
+                            <span>SWARM CONTACT</span>
+                            <div aria-label="Target switcher">
+                                <button type="button" aria-label="Previous enemy">‹</button>
+                                <strong>1 / 3</strong>
+                                <button type="button" aria-label="Next enemy">›</button>
+                            </div>
+                        </header>
+                        <div class="mobile-encounter-target-main">
+                            <div class="mobile-encounter-target-art" aria-hidden="true">
+                                <span>R</span>
+                            </div>
+                            <div class="mobile-encounter-target-copy">
+                                <div class="mobile-encounter-target-title">
+                                    <strong>SCAVENGER RAT</strong>
+                                    <span>TIER 1</span>
+                                </div>
+                                <div class="mobile-encounter-target-tags">
+                                    <span>AMBUSH</span>
+                                    <span>MINION</span>
+                                </div>
+                                <p>Поведение нестабильно. Часть данных скрыта помехами симбиота.</p>
+                            </div>
+                        </div>
+                        <div class="mobile-encounter-target-stats">
+                            <div>
+                                <span>HEALTH</span>
+                                <strong>120 / 120</strong>
+                            </div>
+                            <div>
+                                <span>FAMILY</span>
+                                <strong>RUIN RATS</strong>
+                            </div>
+                        </div>
+                    </section>
+
+                    <section class="mobile-encounter-roster" hidden aria-label="Enemy roster">
+                        <header>
+                            <span>CONTACT LIST</span>
+                            <strong>3</strong>
+                        </header>
+                        <button class="is-active" type="button">
+                            <span>SCAVENGER RAT</span>
+                            <strong>120 / 120</strong>
+                        </button>
+                        <button type="button">
+                            <span>SWARM RAT</span>
+                            <strong>84 / 84</strong>
+                        </button>
+                        <button type="button">
+                            <span>TUNNEL RAT</span>
+                            <strong>???</strong>
+                        </button>
+                    </section>
+                        </div>
+
+                    <section class="game-action-panel game-action-panel--bottom exploration-action-panel" aria-label="Exploration actions">
+                        <div class="mobile-bottom-rule" aria-hidden="true"></div>
+
+                        <div class="mobile-move-cooldown" data-cooldown-state="ready" style="--move-cooldown-progress: 1;">
+                            <span class="mobile-move-cooldown-bar"></span>
+                            <strong class="sr-only">MOVE READY</strong>
+                        </div>
+
+                        <div class="exploration-action-panel__body">
+                            <details class="mobile-services" data-bottom-panel="local-services" data-service-count="2" open>
+                                <summary class="mobile-services-summary">
+                                    <span>LOCAL SERVICES</span>
+                                    <strong>: 2</strong>
+                                </summary>
+                                <div class="mobile-service-grid">
+                                    <button class="mobile-service-tile" type="button">
+                                        <span class="mobile-service-icon" style="--service-icon-url: url('../src/frontend/static/images/ui/service-icons/arena.svg')" aria-hidden="true"></span>
+                                        <strong>НА АРЕНУ</strong>
+                                    </button>
+                                    <button class="mobile-service-tile is-reversed" type="button">
+                                        <span class="mobile-service-icon" style="--service-icon-url: url('../src/frontend/static/images/ui/service-icons/portal.svg')" aria-hidden="true"></span>
+                                        <strong>РАЗЛОМ</strong>
+                                    </button>
+                                </div>
+                            </details>
+
+                            <section class="mobile-action-grid exploration-navigation-grid" aria-label="Movement grid">
+                                <button class="dp game-action-button mobile-action" type="button">
+                                    <span class="game-action-icon mobile-action-icon mobile-action-icon--scout" aria-hidden="true"></span>
+                                    <span>РАЗВЕДКА</span>
+                                </button>
+                                <button class="dp game-action-button mobile-action is-primary" type="button">
+                                    <span class="mobile-arrow" aria-hidden="true">⌃</span>
+                                    <span>NORTH</span>
+                                </button>
+                                <button class="dp game-action-button mobile-action" type="button">
+                                    <span class="game-action-icon mobile-action-icon mobile-action-icon--track" aria-hidden="true"></span>
+                                    <span>СЛЕД</span>
+                                </button>
+
+                                <button class="dp game-action-button mobile-action is-primary" type="button">
+                                    <span class="mobile-arrow" aria-hidden="true">‹</span>
+                                    <span>WEST</span>
+                                </button>
+                                <button class="dp game-action-button mobile-action is-focus" type="button">
+                                    <span class="game-action-icon mobile-action-icon mobile-action-icon--location" aria-hidden="true"></span>
+                                    <span>МЕСТО</span>
+                                </button>
+                                <button class="dp game-action-button mobile-action is-primary" type="button">
+                                    <span class="mobile-arrow" aria-hidden="true">›</span>
+                                    <span>EAST</span>
+                                </button>
+
+                                <button class="dp game-action-button mobile-action" type="button">
+                                    <span class="game-action-icon mobile-action-icon mobile-action-icon--map" aria-hidden="true"></span>
+                                    <span>КАРТА</span>
+                                </button>
+                                <button class="dp game-action-button mobile-action is-primary" type="button">
+                                    <span class="mobile-arrow" aria-hidden="true">⌄</span>
+                                    <span>SOUTH</span>
+                                </button>
+                                <button class="dp game-action-button mobile-action" type="button">
+                                    <span class="game-action-icon mobile-action-icon mobile-action-icon--look-around" aria-hidden="true"></span>
+                                    <span>ОСМОТРЕТЬСЯ</span>
+                                </button>
+                            </section>
+                        </div>
+
+                        <section class="mobile-encounter-actions" hidden aria-label="Encounter decision grid">
+                            <button class="dp game-action-button mobile-action mobile-encounter-action mobile-encounter-action--fight" type="button">
+                                <strong>ВСТУПИТЬ В БОЙ</strong>
+                                <span>контакт неизбежен</span>
+                            </button>
+                            <button class="dp game-action-button mobile-action mobile-encounter-action mobile-encounter-action--escape is-low-chance" type="button">
+                                <strong>ПОПЫТАТЬСЯ СКРЫТЬСЯ</strong>
+                                <span>шанс побега 14%</span>
+                            </button>
+                        </section>
+                    </section>
+                    </section>
+                </section>
+
+                <aside class="panel-dock panel-dock--framed panel-dock--scroll side-panel-drawer side-panel-drawer--right exploration-info-dock is-open" data-side-panel="info" aria-label="Exploration location info drawer">
+                    <nav class="dock-nav dock-nav--bar dock-nav--two exploration-info-actions" aria-label="Location info actions">
+                        <button class="dock-nav-button is-active" type="button">INFO</button>
+                        <button class="dock-nav-button" type="button" data-side-panel-close="info">CLOSE</button>
+                    </nav>
+
+                    <section class="info-widget-section exploration-location-card" aria-label="Location identity">
+                        <header class="info-widget-title">
+                            <span>БАШНЯ ИСПЫТАНИЙ</span>
+                            <strong>SAFE</strong>
+                        </header>
+                        <div class="info-widget-kv">
+                            <div><span>Grid X</span><strong>52</strong></div>
+                            <div><span>Grid Y</span><strong>51</strong></div>
+                            <div><span>Street</span><strong>УЛИЦА МУДРЕЦОВ</strong></div>
+                            <div><span>Tier</span><strong>T0</strong></div>
+                        </div>
+                    </section>
+
+                    <details class="info-widget-section exploration-location-card">
+                        <summary class="info-widget-title">
+                            <span>PLAYERS</span>
+                            <strong>2</strong>
+                        </summary>
+                        <div class="info-widget-list">
+                            <div><span>CodexDLC</span><strong>HERE</strong></div>
+                            <div><span>Sealed Agent</span><strong>NEAR</strong></div>
+                        </div>
+                    </details>
+
+                    <details class="info-widget-section exploration-encounter-info" hidden open>
+                        <summary class="info-widget-title">
+                            <span>ENCOUNTER</span>
+                            <strong>GROUP</strong>
+                        </summary>
+                        <div class="info-widget-list">
+                            <details class="exploration-monster-card" open>
+                                <summary><span>Тварь у разлома</span><strong>???</strong></summary>
+                                <div><span>Threat</span><strong>HIGH</strong></div>
+                                <div><span>HP</span><strong>???</strong></div>
+                                <div><span>Intent</span><strong>AGGRESSIVE</strong></div>
+                            </details>
+                            <details class="exploration-monster-card">
+                                <summary><span>Второй силуэт</span><strong>???</strong></summary>
+                                <div><span>Threat</span><strong>???</strong></div>
+                                <div><span>HP</span><strong>???</strong></div>
+                                <div><span>Intent</span><strong>UNKNOWN</strong></div>
+                            </details>
+                        </div>
+                    </details>
+
+                    <details class="info-widget-section exploration-location-card">
+                        <summary class="info-widget-title">
+                            <span>BATTLES</span>
+                            <strong>0</strong>
+                        </summary>
+                        <div class="info-widget-list">
+                            <div><span>Активных боев нет</span><strong>CLEAR</strong></div>
+                        </div>
+                    </details>
+
+                    <details class="info-widget-section exploration-location-card">
+                        <summary class="info-widget-title">
+                            <span>RIFTS</span>
+                            <strong>1</strong>
+                        </summary>
+                        <div class="info-widget-list">
+                            <div><span>Разлом у башни</span><strong>OPEN</strong></div>
+                        </div>
+                    </details>
+
+                    <details class="info-widget-section exploration-location-card">
+                        <summary class="info-widget-title">
+                            <span>TRACES</span>
+                            <strong>1</strong>
+                        </summary>
+                        <div class="info-widget-list">
+                            <div><span>Останки у входа</span><strong>INSPECT</strong></div>
+                        </div>
+                    </details>
+                </aside>
+            </main>
+
+            <footer class="game-shell__footer mobile-rift-footer" data-chat-channel="world">
+                <details class="mobile-chat-drawer">
+                    <summary class="mobile-chat-summary" aria-label="Toggle chat">
+                        <button class="mobile-chat-head-button mobile-chat-head-button--drop" type="button" aria-label="Chat channel menu">▼</button>
+                        <span class="mobile-chat-head-signal" aria-label="Unread chat activity">
+                            <i></i>
+                            <i></i>
+                            <i></i>
+                        </span>
+                        <span class="mobile-chat-priority-tabs" aria-label="Unread chat channels">
+                            <i class="is-priority" data-channel="private">PM</i>
+                            <i class="is-active" data-channel="world">WRLD</i>
+                            <i data-channel="zone">ZONE</i>
+                            <i data-channel="combat">CBT</i>
+                        </span>
+                        <button class="mobile-chat-head-button" type="button" aria-label="Expand chat">▲</button>
+                        <button class="mobile-chat-head-button" type="button" aria-label="Clear chat">CLR</button>
+                        <button class="mobile-chat-head-button is-active" type="button" aria-label="Minimize chat">MIN</button>
+                        <button class="mobile-chat-head-button" type="button" aria-label="Close chat">×</button>
+                    </summary>
+                    <div class="mobile-chat-panel">
+                        <header class="mobile-chat-head">
+                            <strong>WORLD SIGNAL</strong>
+                            <span>step 1 / 3</span>
+                        </header>
+                        <nav class="mobile-chat-tabs" aria-label="Chat tabs">
+                            <button class="is-active" type="button">[МИР]</button>
+                            <button type="button">[ЗОНА]</button>
+                            <button type="button">[СИСТ]</button>
+                        </nav>
+                        <div class="mobile-chat-mini-preview">
+                            <p><b>SYSTEM</b> Глобальная сеть подключена.</p>
+                            <p><b>ZONE</b> На улице мудрецов пока тихо.</p>
+                        </div>
+                        <div class="mobile-chat-input-row">
+                            <span>&gt;</span>
+                            <em>Сообщение: мир...</em>
+                            <button type="button">SEND</button>
+                        </div>
+                    </div>
+                </details>
+            </footer>
+        </div>
+    </template>
+
+    <script>
+        const explorationTemplate = document.querySelector("#exploration-hud-template");
+
+        document.querySelectorAll("[data-prototype-mount='explore']").forEach((mount) => {
+            mount.append(explorationTemplate.content.cloneNode(true));
+        });
+
+        document.querySelectorAll("[data-prototype-mount='encounter']").forEach((mount) => {
+            const fragment = explorationTemplate.content.cloneNode(true);
+            const rift = fragment.querySelector(".mobile-rift");
+
+            if (rift) {
+                rift.classList.add("mobile-rift--encounter");
+                rift.querySelector(".mobile-scene")?.classList.replace("is-safe", "is-danger");
+
+                const signal = rift.querySelector(".mobile-scene-signal");
+                if (signal) {
+                    signal.textContent = "INTERRUPT";
+                    signal.dataset.signals = "priority";
+                }
+
+                const copy = rift.querySelector(".world-text");
+                if (copy) {
+                    copy.innerHTML = '<span class="symbiote-readout-name">SYMBIOTE:</span> Помехи растут. Обнаружена группа угроз. Данные неполные, но контакт уже близко.';
+                }
+
+                rift.querySelector(".mobile-services")?.setAttribute("hidden", "");
+                rift.querySelector(".mobile-action-grid")?.setAttribute("hidden", "");
+                rift.querySelector(".mobile-encounter-interrupt")?.removeAttribute("hidden");
+                rift.querySelector(".mobile-encounter-target-card")?.removeAttribute("hidden");
+                rift.querySelector(".mobile-encounter-roster")?.removeAttribute("hidden");
+                rift.querySelector(".mobile-encounter-actions")?.removeAttribute("hidden");
+                rift.querySelector(".exploration-encounter-info")?.removeAttribute("hidden");
+            }
+
+            mount.append(fragment);
+        });
+
+        const updateOverflowState = (block) => {
+            const text = block.querySelector(".world-text");
+
+            if (!text) {
+                return;
+            }
+
+            block.classList.toggle("is-overflowing", text.scrollHeight > text.clientHeight + 1);
+        };
+
+        document.querySelectorAll("[data-collapsible-text]").forEach((block) => {
+            updateOverflowState(block);
+            requestAnimationFrame(() => updateOverflowState(block));
+
+            if (document.fonts) {
+                document.fonts.ready.then(() => updateOverflowState(block));
+            }
+
+            if ("ResizeObserver" in window) {
+                const observer = new ResizeObserver(() => updateOverflowState(block));
+                observer.observe(block);
+                observer.observe(block.closest(".mobile-scene"));
+            }
+        });
+
+        document.querySelectorAll(".mobile-rift").forEach((rift) => {
+            const setPanelState = (name, isOpen) => {
+                const panel = rift.querySelector(`[data-side-panel="${name}"]`);
+
+                if (!panel) {
+                    return;
+                }
+
+                panel.classList.toggle("is-open", isOpen);
+                rift.querySelectorAll(`[data-side-panel-toggle="${name}"]`).forEach((button) => {
+                    button.classList.toggle("is-active", isOpen);
+                    button.setAttribute("aria-expanded", String(isOpen));
+                });
+            };
+
+            rift.querySelectorAll("[data-side-panel-toggle]").forEach((button) => {
+                const name = button.dataset.sidePanelToggle;
+                const panel = rift.querySelector(`[data-side-panel="${name}"]`);
+
+                if (!panel) {
+                    return;
+                }
+
+                button.setAttribute("aria-expanded", String(panel.classList.contains("is-open")));
+                button.addEventListener("click", () => {
+                    setPanelState(name, !panel.classList.contains("is-open"));
+                });
+            });
+
+            rift.querySelectorAll("[data-side-panel-close]").forEach((button) => {
+                button.addEventListener("click", () => {
+                    setPanelState(button.dataset.sidePanelClose, false);
+                });
+            });
+        });
+    </script>
+</body>
+</html>

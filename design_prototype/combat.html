@@ -1,0 +1,921 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>The Sealed World - Combat Prototype</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=EB+Garamond:wght@500;600;700&family=JetBrains+Mono:wght@400;500;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/combat.css">
+</head>
+<body class="game-body mobile-rift-body">
+    <nav class="prototype-purpose-nav" aria-label="Prototype purpose navigation">
+        <a href="exploration.html">Exploration</a>
+        <a class="is-active" href="combat.html">Combat</a>
+        <a href="scenario.html">Scenario</a>
+        <a href="arena.html">Arena</a>
+        <a href="panels.html">Panels</a>
+    </nav>
+
+    <main class="prototype-board prototype-board--purpose combat-prototype-board" aria-label="Combat interface design board">
+        <header class="prototype-domain-head combat-domain-head">
+            <div>
+                <strong>Combat Prototype</strong>
+                <span>384-first · src combat shell · desktop canvas 1440</span>
+            </div>
+            <nav aria-label="Combat prototype rules">
+                <span>READY</span>
+                <span>LOCKED</span>
+                <span>EMPTY</span>
+                <span>RESULT</span>
+            </nav>
+        </header>
+
+        <section class="prototype-form-section combat-board-section" aria-label="Mobile combat hard checks">
+            <div class="prototype-section-title">
+                <strong>Mobile Hard Cases</strong>
+                <span>384px is the design floor; wider phones are verification only</span>
+            </div>
+            <div class="prototype-form-row combat-frame-row">
+                <div class="prototype-form-column">
+                    <span class="prototype-frame-label">Mobile hard 384x832 · safe 0</span>
+                    <section class="prototype-frame prototype-frame--mobile prototype-frame--mobile-384" aria-label="Combat mobile hard prototype">
+                        <header class="prototype-frame-header">
+                            <div>
+                                <strong>384x832</strong>
+                                <span>ready · baseline</span>
+                            </div>
+                            <nav aria-label="Variant state">
+                                <button class="is-active" type="button">READY</button>
+                                <button type="button">SAFE 0</button>
+                            </nav>
+                        </header>
+                        <div class="device-mount" data-combat-mount data-combat-form="mobile" data-combat-state="ready" data-combat-safe="0"></div>
+                    </section>
+                </div>
+
+                <div class="prototype-form-column">
+                    <span class="prototype-frame-label">Mobile 390x844 · ready</span>
+                    <section class="prototype-frame prototype-frame--mobile prototype-frame--mobile-390" aria-label="Combat mobile 390 prototype">
+                        <header class="prototype-frame-header">
+                            <div>
+                                <strong>390x844</strong>
+                                <span>ready · narrow phone</span>
+                            </div>
+                            <nav aria-label="Variant state">
+                                <button class="is-active" type="button">READY</button>
+                            </nav>
+                        </header>
+                        <div class="device-mount" data-combat-mount data-combat-form="mobile" data-combat-state="ready" data-combat-safe="0"></div>
+                    </section>
+                </div>
+
+                <div class="prototype-form-column">
+                    <span class="prototype-frame-label">Mobile 393x852 · ready</span>
+                    <section class="prototype-frame prototype-frame--mobile prototype-frame--mobile-393" aria-label="Combat mobile 393 prototype">
+                        <header class="prototype-frame-header">
+                            <div>
+                                <strong>393x852</strong>
+                                <span>ready · common phone</span>
+                            </div>
+                            <nav aria-label="Variant state">
+                                <button class="is-active" type="button">READY</button>
+                            </nav>
+                        </header>
+                        <div class="device-mount" data-combat-mount data-combat-form="mobile" data-combat-state="ready" data-combat-safe="0"></div>
+                    </section>
+                </div>
+
+                <div class="prototype-form-column">
+                    <span class="prototype-frame-label">Mobile 402x874 · ready</span>
+                    <section class="prototype-frame prototype-frame--mobile prototype-frame--mobile-402" aria-label="Combat mobile 402 prototype">
+                        <header class="prototype-frame-header">
+                            <div>
+                                <strong>402x874</strong>
+                                <span>ready · tall phone</span>
+                            </div>
+                            <nav aria-label="Variant state">
+                                <button class="is-active" type="button">READY</button>
+                            </nav>
+                        </header>
+                        <div class="device-mount" data-combat-mount data-combat-form="mobile" data-combat-state="ready" data-combat-safe="0"></div>
+                    </section>
+                </div>
+            </div>
+        </section>
+
+        <section class="prototype-form-section combat-board-section" aria-label="Wide mobile combat checks">
+            <div class="prototype-section-title">
+                <strong>Wide Mobile</strong>
+                <span>comfort checks and the 830x380 landscape squeeze</span>
+            </div>
+            <div class="prototype-form-row combat-frame-row">
+                <div class="prototype-form-column">
+                    <span class="prototype-frame-label">Mobile landscape 830x380</span>
+                    <section class="prototype-frame prototype-frame--mobile-landscape" aria-label="Combat mobile landscape prototype">
+                        <header class="prototype-frame-header">
+                            <div>
+                                <strong>830x380</strong>
+                                <span>landscape · compact bottom commands</span>
+                            </div>
+                            <nav aria-label="Variant state">
+                                <button class="is-active" type="button">READY</button>
+                            </nav>
+                        </header>
+                        <div class="device-mount" data-combat-mount data-combat-form="mobile-landscape" data-combat-state="ready" data-combat-safe="0"></div>
+                    </section>
+                </div>
+
+                <div class="prototype-form-column">
+                    <span class="prototype-frame-label">Mobile 428x926 · safe 10</span>
+                    <section class="prototype-frame prototype-frame--mobile prototype-frame--mobile-428" aria-label="Combat mobile 428 prototype">
+                        <header class="prototype-frame-header">
+                            <div>
+                                <strong>428x926</strong>
+                                <span>ready · wide phone</span>
+                            </div>
+                            <nav aria-label="Variant state">
+                                <button class="is-active" type="button">READY</button>
+                                <button type="button">SAFE 10</button>
+                            </nav>
+                        </header>
+                        <div class="device-mount" data-combat-mount data-combat-form="mobile" data-combat-state="ready" data-combat-safe="10"></div>
+                    </section>
+                </div>
+
+                <div class="prototype-form-column">
+                    <span class="prototype-frame-label">Mobile 440x956 · safe 20</span>
+                    <section class="prototype-frame prototype-frame--mobile prototype-frame--mobile-440" aria-label="Combat mobile 440 prototype">
+                        <header class="prototype-frame-header">
+                            <div>
+                                <strong>440x956</strong>
+                                <span>ready · tallest phone</span>
+                            </div>
+                            <nav aria-label="Variant state">
+                                <button class="is-active" type="button">READY</button>
+                                <button type="button">SAFE 20</button>
+                            </nav>
+                        </header>
+                        <div class="device-mount" data-combat-mount data-combat-form="mobile" data-combat-state="ready" data-combat-safe="20"></div>
+                    </section>
+                </div>
+            </div>
+        </section>
+
+        <section class="prototype-form-section combat-board-section" aria-label="Combat state variants">
+            <div class="prototype-section-title">
+                <strong>State Variants</strong>
+                <span>all states checked at 384px so the hard case drives the design</span>
+            </div>
+            <div class="prototype-form-row combat-frame-row">
+                <div class="prototype-form-column">
+                    <span class="prototype-frame-label">ACTION_READY · 384x832 · safe 0</span>
+                    <section class="prototype-frame prototype-frame--mobile prototype-frame--mobile-384" aria-label="Combat ready state prototype">
+                        <header class="prototype-frame-header">
+                            <div>
+                                <strong>ACTION_READY</strong>
+                                <span>attack, feints, instants</span>
+                            </div>
+                            <nav aria-label="Variant state">
+                                <button class="is-active" type="button">READY</button>
+                                <button type="button">SAFE 0</button>
+                            </nav>
+                        </header>
+                        <div class="device-mount" data-combat-mount data-combat-form="mobile" data-combat-state="ready" data-combat-safe="0"></div>
+                    </section>
+                </div>
+
+                <div class="prototype-form-column">
+                    <span class="prototype-frame-label">ACTION_LOCKED · 384x832 · safe 0</span>
+                    <section class="prototype-frame prototype-frame--mobile prototype-frame--mobile-384" aria-label="Combat locked state prototype">
+                        <header class="prototype-frame-header">
+                            <div>
+                                <strong>ACTION_LOCKED</strong>
+                                <span>waiting for exchange pair</span>
+                            </div>
+                            <nav aria-label="Variant state">
+                                <button class="is-active" type="button">LOCKED</button>
+                                <button type="button">SAFE 0</button>
+                            </nav>
+                        </header>
+                        <div class="device-mount" data-combat-mount data-combat-form="mobile" data-combat-state="locked" data-combat-safe="0"></div>
+                    </section>
+                </div>
+
+                <div class="prototype-form-column">
+                    <span class="prototype-frame-label">TARGET_QUEUE_EMPTY · 384x832 · safe 0</span>
+                    <section class="prototype-frame prototype-frame--mobile prototype-frame--mobile-384" aria-label="Combat empty target state prototype">
+                        <header class="prototype-frame-header">
+                            <div>
+                                <strong>TARGET_QUEUE_EMPTY</strong>
+                                <span>no attack target</span>
+                            </div>
+                            <nav aria-label="Variant state">
+                                <button class="is-active" type="button">EMPTY</button>
+                                <button type="button">SAFE 0</button>
+                            </nav>
+                        </header>
+                        <div class="device-mount" data-combat-mount data-combat-form="mobile" data-combat-state="empty" data-combat-safe="0"></div>
+                    </section>
+                </div>
+
+                <div class="prototype-form-column">
+                    <span class="prototype-frame-label">FINISHED · 384x832 · safe 0</span>
+                    <section class="prototype-frame prototype-frame--mobile prototype-frame--mobile-384" aria-label="Combat finished state prototype">
+                        <header class="prototype-frame-header">
+                            <div>
+                                <strong>FINISHED</strong>
+                                <span>result and continue</span>
+                            </div>
+                            <nav aria-label="Variant state">
+                                <button class="is-active" type="button">RESULT</button>
+                                <button type="button">SAFE 0</button>
+                            </nav>
+                        </header>
+                        <div class="device-mount" data-combat-mount data-combat-form="mobile" data-combat-state="finished" data-combat-safe="0"></div>
+                    </section>
+                </div>
+            </div>
+        </section>
+
+        <section class="prototype-form-section combat-board-section" aria-label="Tablet and desktop combat layouts">
+            <div class="prototype-section-title">
+                <strong>Tablet / Desktop</strong>
+                <span>same bottom-command model; wide screens restore status/target docks around the combat center</span>
+            </div>
+            <div class="prototype-form-row combat-frame-row">
+                <div class="prototype-form-column">
+                    <span class="prototype-frame-label">Tablet portrait 768x1024</span>
+                    <section class="prototype-frame prototype-frame--tablet-portrait" aria-label="Combat tablet portrait prototype">
+                        <header class="prototype-frame-header">
+                            <div>
+                                <strong>768x1024</strong>
+                                <span>tablet portrait · bottom commands</span>
+                            </div>
+                            <nav aria-label="Variant state">
+                                <button class="is-active" type="button">READY</button>
+                            </nav>
+                        </header>
+                        <div class="device-mount" data-combat-mount data-combat-form="tablet-portrait" data-combat-state="ready" data-combat-safe="0"></div>
+                    </section>
+                </div>
+
+                <div class="prototype-form-column">
+                    <span class="prototype-frame-label">Tablet landscape 1024x768</span>
+                    <section class="prototype-frame prototype-frame--tablet-landscape" aria-label="Combat tablet landscape prototype">
+                        <header class="prototype-frame-header">
+                            <div>
+                                <strong>1024x768</strong>
+                                <span>tablet landscape · compact field</span>
+                            </div>
+                            <nav aria-label="Variant state">
+                                <button class="is-active" type="button">READY</button>
+                            </nav>
+                        </header>
+                        <div class="device-mount" data-combat-mount data-combat-form="tablet-landscape" data-combat-state="ready" data-combat-safe="0"></div>
+                    </section>
+                </div>
+            </div>
+
+            <div class="prototype-form-row combat-frame-row">
+                <div class="prototype-form-column">
+                    <span class="prototype-frame-label">Desktop canvas 1440x900</span>
+                    <section class="prototype-frame prototype-frame--desktop prototype-frame--desktop-canvas" aria-label="Combat desktop canvas prototype">
+                        <header class="prototype-frame-header">
+                            <div>
+                                <strong>1440x900</strong>
+                                <span>desktop content canvas</span>
+                            </div>
+                            <nav aria-label="Variant state">
+                                <button class="is-active" type="button">READY</button>
+                                <button type="button">CANVAS</button>
+                            </nav>
+                        </header>
+                        <div class="device-mount" data-combat-mount data-combat-form="desktop" data-combat-state="ready" data-combat-safe="0"></div>
+                    </section>
+                </div>
+            </div>
+        </section>
+
+        <section class="prototype-form-section combat-board-section" aria-label="Ultra wide viewport check">
+            <div class="prototype-section-title">
+                <strong>Ultra-wide Check</strong>
+                <span>viewport is 2560x1440; combat canvas remains centered at 1440px</span>
+            </div>
+            <div class="prototype-form-row combat-frame-row">
+                <div class="prototype-form-column">
+                    <span class="prototype-frame-label">2560x1440 viewport · centered 1440 canvas</span>
+                    <section class="prototype-frame prototype-frame--ultrawide" aria-label="Combat ultra-wide centered canvas prototype">
+                        <header class="prototype-frame-header">
+                            <div>
+                                <strong>2560x1440</strong>
+                                <span>left/right empty space is intentional</span>
+                            </div>
+                            <nav aria-label="Variant state">
+                                <button class="is-active" type="button">READY</button>
+                                <button type="button">1440 CANVAS</button>
+                            </nav>
+                        </header>
+                        <div class="device-mount" data-combat-mount data-combat-form="ultrawide" data-combat-state="ready" data-combat-safe="0"></div>
+                    </section>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <template id="combat-hud-template">
+        <div class="game-shell mobile-rift combat-rift">
+            <header class="game-shell__header mobile-rift-header combat-shell-header">
+                <div class="mobile-rift-topbar combat-topbar">
+                    <button class="mobile-menu-button" type="button" aria-label="Open game menu">
+                        <span class="mobile-glyph mobile-glyph--menu" aria-hidden="true"></span>
+                    </button>
+                    <button class="combat-cabinet-button" type="button" aria-label="Open cabinet">КАБИНЕТ</button>
+                    <div class="mobile-rift-brand">The Sealed World</div>
+                    <div class="combat-topbar-readout">
+                        <strong>COMBAT</strong>
+                        <span data-combat-topline>Reactive Burst Combat</span>
+                    </div>
+                </div>
+            </header>
+
+            <main class="game-shell__main mobile-rift-main game-main layout-main layout-main--combat">
+                <aside class="panel-dock panel-dock--framed panel-dock--scroll combat-status-dock" aria-label="Combat status dock">
+                    <nav class="dock-nav dock-nav--bar dock-nav--two combat-dock-nav" aria-label="Combat status tabs">
+                        <button class="dock-nav-button is-active" type="button">STATUS</button>
+                        <button class="dock-nav-button" type="button">BUILD</button>
+                    </nav>
+
+                    <section class="combat-side-panel combat-side-panel--actor" aria-label="Player combat state">
+                        <div class="combat-panel-header">PLAYER <button class="combat-help" type="button" aria-label="Player status hint" data-tooltip="HP, EN и STA героя. Эффекты и stance влияют на доступные реакции.">?</button></div>
+                        <div class="combat-side-actor">
+                            <div class="combat-side-avatar combat-side-avatar--hero" aria-hidden="true">S</div>
+                            <div class="combat-side-identity">
+                                <strong>SEALED AGENT</strong>
+                                <span>GUARD · PINNED FEINT</span>
+                            </div>
+                        </div>
+                        <div class="combat-side-vitals">
+                            <div class="combat-resource combat-resource--hp">
+                                <span>HP</span>
+                                <i style="--value: 84%; --bar: var(--combat-danger);"></i>
+                                <strong>84/100</strong>
+                            </div>
+                            <div class="combat-resource combat-resource--en">
+                                <span>EN</span>
+                                <i style="--value: 58%; --bar: var(--combat-ally);"></i>
+                                <strong>31/60</strong>
+                            </div>
+                            <div class="combat-resource combat-resource--sta">
+                                <span>STA</span>
+                                <i style="--value: 78%; --bar: var(--combat-turn);"></i>
+                                <strong>117/150</strong>
+                            </div>
+                        </div>
+                    </section>
+
+                    <section class="combat-side-panel combat-side-panel--belt" aria-label="Quick belt">
+                        <div class="combat-panel-header">QUICK BELT <button class="combat-help" type="button" aria-label="Quick belt hint" data-tooltip="Быстрые предметы и инструменты. В бою работают отдельно от обычных атак.">?</button></div>
+                        <div class="combat-side-belt">
+                            <button type="button"><span>1</span><small>STIM</small></button>
+                            <button type="button"><span>2</span><small>WARD</small></button>
+                            <button type="button"><span>3</span></button>
+                            <button type="button"><span>4</span></button>
+                            <button type="button"><span>5</span></button>
+                            <button type="button"><span>6</span></button>
+                        </div>
+                    </section>
+
+                    <section class="combat-side-panel combat-side-panel--roster" aria-label="Allied combatants">
+                        <div class="combat-panel-header">ALLIES <button class="combat-help" type="button" aria-label="Allies hint" data-tooltip="Союзники в бою: HP, готовность и состояние очереди.">?</button></div>
+                        <div class="combat-roster">
+                            <div class="combat-roster-row">
+                                <span class="combat-queue-dot combat-queue-dot--ready"></span>
+                                <span class="combat-roster-name">Veyra</span>
+                                <div class="combat-roster-hp"><i style="width: 66%"></i></div>
+                                <b>66/100</b>
+                                <span class="combat-info-mark">READY</span>
+                            </div>
+                            <div class="combat-roster-row">
+                                <span class="combat-queue-dot combat-queue-dot--locked"></span>
+                                <span class="combat-roster-name">Miro</span>
+                                <div class="combat-roster-hp"><i style="width: 92%"></i></div>
+                                <b>92/100</b>
+                                <span class="combat-info-mark">LOCK</span>
+                            </div>
+                        </div>
+                    </section>
+                </aside>
+
+                <section class="combat-main-dock" aria-label="Combat center">
+                    <section class="game-screen-area game-screen-area--vertical combat-screen" aria-label="Combat exchange">
+                    <header class="combat-statebar">
+                        <strong data-combat-state-label>ACTION READY</strong>
+                        <span data-combat-turn>GLOBAL TURN 12</span>
+                        <span class="combat-enemy-count" data-combat-enemy-count>ENEMIES 2</span>
+                        <em data-combat-phase>EXCHANGE</em>
+                    </header>
+
+                    <div class="game-screen-content combat-screen-content">
+                        <section class="combat-field" aria-label="Battle field">
+                            <div class="combat-field-backdrop" aria-hidden="true"></div>
+
+                            <article class="combat-actor combat-actor--enemy" aria-label="Current enemy target">
+                                <div class="combat-portrait-stack">
+                                    <div class="combat-portrait combat-portrait--enemy" aria-hidden="true">M</div>
+                                    <div class="combat-force-ready is-warning" data-combat-force>
+                                        <span>FORCE</span>
+                                        <strong>38S</strong>
+                                    </div>
+                                </div>
+                                <div class="combat-actor-data">
+                                    <div class="combat-actor-title">
+                                        <strong data-combat-target-name>RIFT MARAUDER</strong>
+                                        <span data-combat-target-role>TARGET</span>
+                                    </div>
+                                    <div class="combat-vitals">
+                                        <div class="combat-resource combat-resource--hp">
+                                            <span>HP</span>
+                                            <i style="--value: 72%; --bar: var(--combat-danger);"></i>
+                                            <strong data-combat-target-hp>86/120</strong>
+                                        </div>
+                                        <div class="combat-resource combat-resource--en">
+                                            <span>EN</span>
+                                            <i style="--value: 48%; --bar: var(--combat-ally);"></i>
+                                            <strong data-combat-target-en>29/60</strong>
+                                        </div>
+                                        <div class="combat-resource combat-resource--sta">
+                                            <span>STA</span>
+                                            <i style="--value: 62%; --bar: var(--combat-turn);"></i>
+                                            <strong data-combat-target-sta>93/150</strong>
+                                        </div>
+                                    </div>
+                                    <div class="combat-effect-row" data-combat-target-effects>
+                                        <span>MARKED</span>
+                                        <span>BLEED 1</span>
+                                    </div>
+                                </div>
+                            </article>
+
+                            <article class="combat-target-empty-card" aria-label="No active target">
+                                <div class="combat-target-empty-art" aria-hidden="true">
+                                    <span></span>
+                                </div>
+                                <div class="combat-target-empty-copy">
+                                    <strong data-combat-empty-title>ENEMY RESPONSE</strong>
+                                    <p data-combat-empty-text>Ваш ход принят. Очередь противников разыгрывается.</p>
+                                </div>
+                                <div class="combat-target-empty-meta">
+                                    <span><b>ENEMIES</b><strong data-combat-enemy-count-plain>2</strong></span>
+                                    <span><b>QUEUE</b><strong>ACTIVE</strong></span>
+                                </div>
+                            </article>
+
+                            <article class="combat-exchange combat-log" aria-label="Combat log and current exchange">
+                                <header class="combat-exchange-head">
+                                    <strong data-combat-exchange-title>LAST EXCHANGE</strong>
+                                    <strong class="combat-log-title">BATTLE LOG</strong>
+                                    <span><button class="combat-help" type="button" aria-label="Exchange hint" data-tooltip="Размен показывает действие одной стороны, ответ другой стороны и итог контакта.">?</button><em data-combat-exchange-meta>PAIR OPEN</em></span>
+                                </header>
+                                <p class="combat-exchange-summary" data-combat-exchange-text>Sealed Agent удерживает дистанцию. Rift Marauder отвечает низким блоком и копит force-окно.</p>
+                                <div class="combat-exchange-track" aria-label="Exchange timeline">
+                                    <span class="is-active">TARGET</span>
+                                    <i></i>
+                                    <span>RESPONSE</span>
+                                    <i></i>
+                                    <span>RESOLVE</span>
+                                </div>
+                                <div class="combat-log-scroll" aria-label="Scrollable combat log">
+                                    <article class="combat-log-entry combat-turn-card is-current">
+                                        <header>
+                                            <time>TURN 12</time>
+                                            <strong>RIFT MARAUDER</strong>
+                                            <span>PAIR OPEN</span>
+                                        </header>
+                                        <div class="combat-turn-actions">
+                                            <p><b>SEALED AGENT</b><span>Ложный выпад закреплен. HIT 1 готов к размену.</span></p>
+                                            <p><b>RIFT MARAUDER</b><span>Низкий блок. Force-окно копится, ответ не закрыт.</span></p>
+                                        </div>
+                                        <footer>Итог: контакт удержан, финт остается pinned.</footer>
+                                    </article>
+                                    <article class="combat-log-entry combat-turn-card">
+                                        <header>
+                                            <time>TURN 11</time>
+                                            <strong>RIFT MARAUDER</strong>
+                                            <span>RESOLVED</span>
+                                        </header>
+                                        <div class="combat-turn-actions">
+                                            <p><b>SEALED AGENT</b><span>Сбивает темп коротким ударом в корпус.</span></p>
+                                            <p><b>RIFT MARAUDER</b><span>Принимает удар на блок, теряет позицию.</span></p>
+                                        </div>
+                                        <footer>Итог: BLEED 1, tempo +1 игроку.</footer>
+                                    </article>
+                                    <article class="combat-log-entry combat-turn-card">
+                                        <header>
+                                            <time>TURN 10</time>
+                                            <strong>ASH SCOUT</strong>
+                                            <span>QUEUE</span>
+                                        </header>
+                                        <div class="combat-turn-actions">
+                                            <p><b>ASH SCOUT</b><span>Пытается сменить линию атаки через очередь.</span></p>
+                                            <p><b>SEALED AGENT</b><span>Закрывает линию щитом и не меняет target.</span></p>
+                                        </div>
+                                        <footer>Итог: цель не сменилась, block +1.</footer>
+                                    </article>
+                                    <article class="combat-log-entry combat-turn-card">
+                                        <header>
+                                            <time>TURN 09</time>
+                                            <strong>RIFT MARAUDER</strong>
+                                            <span>RESOLVED</span>
+                                        </header>
+                                        <div class="combat-turn-actions">
+                                            <p><b>RIFT MARAUDER</b><span>Давит вперед и открывает тяжелый замах.</span></p>
+                                            <p><b>SEALED AGENT</b><span>Уходит в сторону, сохраняя дистанцию.</span></p>
+                                        </div>
+                                        <footer>Итог: dodge +1, входящий удар сорван.</footer>
+                                    </article>
+                                </div>
+                                <div class="combat-log-pager" aria-label="Combat log pages">
+                                    <button type="button">PREV</button>
+                                    <span>PAGE 1 / 3</span>
+                                    <button type="button">NEXT</button>
+                                </div>
+                                <div class="combat-tactical-readout" aria-label="Combat status summary">
+                                    <span><b>QUEUE</b><strong data-combat-queue>2</strong></span>
+                                    <span><b>PENDING</b><strong data-combat-pending>0</strong></span>
+                                    <span><b>ROUND</b><strong data-combat-round>3/4</strong></span>
+                                </div>
+                            </article>
+
+                            <article class="combat-actor combat-actor--hero" aria-label="Player combatant">
+                                <div class="combat-portrait-stack">
+                                    <div class="combat-portrait combat-portrait--hero" aria-hidden="true">S</div>
+                                    <div class="combat-stance-chip">
+                                        <span>STANCE</span>
+                                        <strong>GUARD</strong>
+                                    </div>
+                                </div>
+                                <div class="combat-actor-data">
+                                    <div class="combat-actor-title">
+                                        <strong>SEALED AGENT</strong>
+                                        <span>PLAYER</span>
+                                    </div>
+                                    <div class="combat-vitals">
+                                        <div class="combat-resource combat-resource--hp">
+                                            <span>HP</span>
+                                            <i style="--value: 84%; --bar: var(--combat-danger);"></i>
+                                            <strong>84/100</strong>
+                                        </div>
+                                        <div class="combat-resource combat-resource--en">
+                                            <span>EN</span>
+                                            <i style="--value: 58%; --bar: var(--combat-ally);"></i>
+                                            <strong>31/60</strong>
+                                        </div>
+                                        <div class="combat-resource combat-resource--sta">
+                                            <span>STA</span>
+                                            <i style="--value: 78%; --bar: var(--combat-turn);"></i>
+                                            <strong>117/150</strong>
+                                        </div>
+                                    </div>
+                                    <div class="combat-effect-row">
+                                        <span>GUARD</span>
+                                        <span>PINNED FEINT</span>
+                                    </div>
+                                </div>
+                            </article>
+
+                            <article class="combat-result-card" aria-label="Combat result">
+                                <div class="combat-result-mark">VICTORY</div>
+                                <h2>Контакт разорван</h2>
+                                <p>Цель больше не может продолжать размен. Результат боя готов, можно вернуться в сессию или открыть журнал.</p>
+                                <div class="combat-result-grid">
+                                    <span><b>XP</b><strong>+42</strong></span>
+                                    <span><b>LOOT</b><strong>1</strong></span>
+                                    <span><b>WOUNDS</b><strong>0</strong></span>
+                                </div>
+                            </article>
+                        </section>
+                    </div>
+
+                    <section class="game-action-panel game-action-panel--bottom combat-action-panel" aria-label="Combat commands">
+                        <header class="game-action-panel__head combat-command-head">
+                            <span data-combat-action-eyebrow>ACTION PANEL</span>
+                            <strong><button class="combat-help" type="button" aria-label="Action panel hint" data-tooltip="Команды закреплены снизу. Атака отправляет действие в текущий размен.">?</button><span data-combat-action-state>ACTION READY</span></strong>
+                        </header>
+
+                        <div class="combat-token-bar" aria-label="Combat tokens" data-tooltip="Токены показывают текущие тактические ресурсы: tempo, hit, crit, dodge, parry, block, counter и gift.">
+                            <span class="combat-token combat-token--tempo" aria-label="Tempo token"><b>3</b></span>
+                            <span class="combat-token combat-token--hit" aria-label="Hit token"><b>2</b></span>
+                            <span class="combat-token combat-token--crit" aria-label="Crit token"><b>1</b></span>
+                            <span class="combat-token combat-token--dodge" aria-label="Dodge token"><b>1</b></span>
+                            <span class="combat-token combat-token--parry" aria-label="Parry token"><b>0</b></span>
+                            <span class="combat-token combat-token--block" aria-label="Block token"><b>1</b></span>
+                            <span class="combat-token combat-token--counter" aria-label="Counter token"><b>0</b></span>
+                            <span class="combat-token combat-token--gift" aria-label="Gift token"><b>1</b></span>
+                        </div>
+
+                        <div class="game-action-panel__body combat-command-layout">
+                            <div class="game-action-panel__tools combat-tool-panel" aria-label="Belt and instant actions">
+                                <details class="game-action-drawer combat-belt-drawer" aria-label="Combat belt">
+                                    <summary>ПОЯС</summary>
+                                    <div class="game-action-drawer__content combat-belt-slots">
+                                        <button class="game-action-button game-action-button--icon combat-icon-button" type="button" aria-label="Belt slot: stimulant">
+                                            <span class="game-action-icon combat-action-icon combat-action-icon--item" aria-hidden="true"></span>
+                                        </button>
+                                        <button class="game-action-button game-action-button--icon combat-icon-button" type="button" aria-label="Belt slot: guard tool">
+                                            <span class="game-action-icon combat-action-icon combat-action-icon--shield" aria-hidden="true"></span>
+                                        </button>
+                                        <button class="game-action-button game-action-button--icon game-action-button--empty combat-icon-button" type="button" aria-label="Empty belt slot">
+                                            <span class="game-action-icon combat-action-icon" aria-hidden="true"></span>
+                                        </button>
+                                        <button class="game-action-button game-action-button--icon game-action-button--empty combat-icon-button" type="button" aria-label="Empty belt slot">
+                                            <span class="game-action-icon combat-action-icon" aria-hidden="true"></span>
+                                        </button>
+                                    </div>
+                                </details>
+
+                                <details class="game-action-drawer combat-ability-drawer" aria-label="Instant combat abilities">
+                                    <summary>ДАР</summary>
+                                    <div class="game-action-drawer__content combat-ability-slots">
+                                        <button class="game-action-button game-action-button--icon combat-icon-button" type="button" aria-label="Instant ability: pressure">
+                                            <span class="game-action-icon combat-action-icon combat-action-icon--swirl" aria-hidden="true"></span>
+                                        </button>
+                                        <button class="game-action-button game-action-button--icon combat-icon-button" type="button" aria-label="Instant ability: guard">
+                                            <span class="game-action-icon combat-action-icon combat-action-icon--ward" aria-hidden="true"></span>
+                                        </button>
+                                        <button class="game-action-button game-action-button--icon combat-icon-button is-costly" type="button" aria-label="Instant ability: burst">
+                                            <span class="game-action-icon combat-action-icon combat-action-icon--rays" aria-hidden="true"></span>
+                                        </button>
+                                    </div>
+                                </details>
+                            </div>
+
+                            <div class="game-action-panel__decisions combat-decision-panel" aria-label="Feints and primary decisions">
+                                <div class="combat-feint-list" aria-label="Prepared feints" data-tooltip="Финты готовят следующий размен. Один слот может быть закреплен.">
+                                    <button class="game-action-button combat-feint-button" type="button">
+                                        <span class="combat-feint-pin" aria-hidden="true"></span>
+                                        <strong>СБИТЬ ТЕМП</strong>
+                                        <small>TEMPO 1</small>
+                                    </button>
+                                    <button class="game-action-button combat-feint-button is-pinned" type="button">
+                                        <span class="combat-feint-pin is-locked" aria-hidden="true"></span>
+                                        <strong>ЛОЖНЫЙ ВЫПАД</strong>
+                                        <small>HIT 1</small>
+                                    </button>
+                                    <button class="game-action-button combat-feint-button" type="button">
+                                        <span class="combat-feint-pin" aria-hidden="true"></span>
+                                        <strong>ЗАКРЫТЬ ЛИНИЮ</strong>
+                                        <small>BLOCK 1</small>
+                                    </button>
+                                </div>
+                                <div class="combat-primary-row" aria-label="Primary combat controls">
+                                    <button class="game-action-button combat-refresh-button" type="button">ОБНОВИТЬ</button>
+                                    <button class="game-action-button game-action-button--primary combat-attack-button" type="button" data-combat-attack>АТАКОВАТЬ</button>
+                                    <button class="game-action-button combat-escape-button" type="button">СБЕЖАТЬ</button>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+                    </section>
+                </section>
+
+                <aside class="panel-dock panel-dock--framed panel-dock--scroll side-panel-drawer side-panel-drawer--right combat-info-dock is-open" aria-label="Combat target info dock">
+                    <nav class="dock-nav dock-nav--bar dock-nav--two combat-dock-nav" aria-label="Enemy team tabs">
+                        <button class="dock-nav-button is-active" type="button">ENEMIES</button>
+                        <button class="dock-nav-button" type="button">INFO</button>
+                    </nav>
+
+                    <section class="combat-side-panel combat-side-panel--roster" aria-label="Enemy queue">
+                        <div class="combat-panel-header">ENEMY TEAM <span data-combat-queue>2</span><button class="combat-help" type="button" aria-label="Enemy team hint" data-tooltip="Команда противника: очередность, HP и текущая цель. Подробности текущей цели показаны в центре.">?</button></div>
+                        <div class="combat-roster">
+                            <button class="combat-roster-row combat-roster-row--button is-target" type="button">
+                                <span class="combat-queue-dot combat-queue-dot--ready"></span>
+                                <span class="combat-roster-name">Rift Marauder</span>
+                                <div class="combat-roster-hp"><i style="width: 72%"></i></div>
+                                <b data-combat-target-hp>86/120</b>
+                                <span class="combat-info-mark">TARGET</span>
+                            </button>
+                            <button class="combat-roster-row combat-roster-row--button" type="button">
+                                <span class="combat-queue-dot combat-queue-dot--waiting"></span>
+                                <span class="combat-roster-name">Ash Scout</span>
+                                <div class="combat-roster-hp"><i style="width: 44%"></i></div>
+                                <b>31/70</b>
+                                <span class="combat-info-mark">QUEUE</span>
+                            </button>
+                        </div>
+                    </section>
+
+                    <section class="combat-side-panel combat-side-panel--info" aria-label="Enemy team info">
+                        <div class="combat-panel-header">INFO <button class="combat-help" type="button" aria-label="Info hint" data-tooltip="Открывает расширенную справку по очереди и правилам смены цели.">?</button></div>
+                        <div class="combat-side-note">
+                            <p>Очередь целей и расширенные сведения открываются отдельным слоем.</p>
+                            <button type="button">OPEN INFO</button>
+                        </div>
+                    </section>
+                </aside>
+            </main>
+
+            <footer class="game-shell__footer mobile-rift-footer" data-chat-channel="combat">
+                <details class="mobile-chat-drawer">
+                    <summary class="mobile-chat-summary" aria-label="Toggle chat">
+                        <button class="mobile-chat-head-button mobile-chat-head-button--drop" type="button" aria-label="Chat channel menu">▼</button>
+                        <span class="mobile-chat-head-signal" aria-label="Unread chat activity">
+                            <i></i><i></i><i></i>
+                        </span>
+                        <span class="mobile-chat-priority-tabs" aria-label="Unread chat channels">
+                            <i>PM</i><i>WRLD</i><i class="is-active">CBT</i>
+                        </span>
+                        <button class="mobile-chat-head-button" type="button" aria-label="Expand chat">▲</button>
+                        <button class="mobile-chat-head-button" type="button" aria-label="Clear chat">CLR</button>
+                        <button class="mobile-chat-head-button is-active" type="button" aria-label="Minimize chat">MIN</button>
+                        <button class="mobile-chat-head-button" type="button" aria-label="Close chat">×</button>
+                    </summary>
+                    <div class="mobile-chat-panel">
+                        <header class="mobile-chat-head">
+                            <strong>COMBAT</strong>
+                            <span>battle channel</span>
+                        </header>
+                        <div class="mobile-chat-tabs">
+                            <button class="is-active" type="button">COMBAT</button>
+                            <button type="button">SYSTEM</button>
+                        </div>
+                        <div class="mobile-chat-mini-preview">
+                            <p><b>System</b><span data-combat-chat-line>Размен будет разрешен после выбора действия.</span></p>
+                        </div>
+                        <div class="mobile-chat-input-row is-locked">
+                            <span>CBT</span>
+                            <em>В бою ввод заблокирован прототипом</em>
+                            <button type="button">SEND</button>
+                        </div>
+                    </div>
+                </details>
+            </footer>
+        </div>
+    </template>
+
+    <script>
+        const combatTemplate = document.querySelector("#combat-hud-template");
+
+        const combatStateCopy = {
+            ready: {
+                top: "Target selected · no pending action",
+                stateLabel: "ACTION READY",
+                turn: "GLOBAL TURN 12",
+                phase: "EXCHANGE",
+                targetName: "RIFT MARAUDER",
+                targetRole: "TARGET",
+                targetHp: "86/120",
+                targetEn: "29/60",
+                targetSta: "93/150",
+                exchangeTitle: "LAST EXCHANGE",
+                exchangeMeta: "PAIR OPEN",
+                exchangeText: "Sealed Agent удерживает дистанцию. Rift Marauder отвечает низким блоком и копит force-окно.",
+                queue: "2",
+                pending: "0",
+                round: "3/4",
+                enemies: "ENEMIES 2",
+                enemiesPlain: "2",
+                actionEyebrow: "ACTION PANEL",
+                actionState: "ACTION READY",
+                attack: "АТАКОВАТЬ",
+                chat: "Размен будет разрешен после выбора действия."
+            },
+            locked: {
+                top: "Move registered · waiting for paired exchange",
+                stateLabel: "ACTION LOCKED",
+                turn: "PERSONAL TURN 4",
+                phase: "WAITING",
+                targetName: "RIFT MARAUDER",
+                targetRole: "RESPONDING",
+                targetHp: "86/120",
+                targetEn: "29/60",
+                targetSta: "93/150",
+                exchangeTitle: "WAITING FOR RESPONSE",
+                exchangeMeta: "ACTION SENT",
+                exchangeText: "Ложный выпад закреплен. Rift Marauder задерживает ответ, force-окно открыто.",
+                queue: "2",
+                pending: "1",
+                round: "3/4",
+                enemies: "ENEMIES 2",
+                enemiesPlain: "2",
+                emptyTitle: "ENEMY RESPONSE",
+                emptyText: "Ваш ход принят. Очередь противников разыгрывается.",
+                actionEyebrow: "LOCKED",
+                actionState: "MOVE REGISTERED",
+                attack: "ХОД ВЫБРАН",
+                chat: "Ход зарегистрирован. Ожидание встречного действия."
+            },
+            empty: {
+                top: "Target queue is empty",
+                stateLabel: "TARGET QUEUE EMPTY",
+                turn: "GLOBAL TURN 12",
+                phase: "NO TARGET",
+                targetName: "NO TARGET",
+                targetRole: "QUEUE EMPTY",
+                targetHp: "NO_DATA",
+                targetEn: "NO_DATA",
+                targetSta: "NO_DATA",
+                exchangeTitle: "NO ACTIVE EXCHANGE",
+                exchangeMeta: "SCAN",
+                exchangeText: "Очередь целей пуста. Активного размена нет.",
+                queue: "0",
+                pending: "0",
+                round: "3/4",
+                enemies: "ENEMIES 0",
+                enemiesPlain: "0",
+                emptyTitle: "TARGET QUEUE EMPTY",
+                emptyText: "Очередь целей пуста. Активного размена нет.",
+                actionEyebrow: "SYSTEM ONLY",
+                actionState: "TARGET REQUIRED",
+                attack: "НЕТ ЦЕЛИ",
+                chat: "Очередь целей пуста. Боевые команды недоступны."
+            },
+            finished: {
+                top: "Combat result is ready",
+                stateLabel: "FINISHED",
+                turn: "GLOBAL TURN 13",
+                phase: "RESULT",
+                targetName: "DEFEATED TARGET",
+                targetRole: "RESULT",
+                targetHp: "0/120",
+                targetEn: "0/60",
+                targetSta: "0/150",
+                exchangeTitle: "COMBAT COMPLETE",
+                exchangeMeta: "VICTORY",
+                exchangeText: "Последний удар разорвал контакт. Бой завершен.",
+                queue: "0",
+                pending: "0",
+                round: "4/4",
+                enemies: "ENEMIES 0",
+                enemiesPlain: "0",
+                emptyTitle: "COMBAT FINISHED",
+                emptyText: "Бой завершен. Активной цели нет.",
+                actionEyebrow: "RESULT",
+                actionState: "CONTINUE READY",
+                attack: "ПРОДОЛЖИТЬ",
+                chat: "Бой завершен. Результат готов к подтверждению."
+            }
+        };
+
+        const setText = (root, selector, text) => {
+            root.querySelectorAll(selector).forEach((node) => {
+                node.textContent = text;
+            });
+        };
+
+        document.querySelectorAll("[data-combat-mount]").forEach((mount) => {
+            const state = mount.dataset.combatState || "ready";
+            const copy = combatStateCopy[state] || combatStateCopy.ready;
+            const safe = mount.dataset.combatSafe || "0";
+            const form = mount.dataset.combatForm || "mobile";
+            const fragment = combatTemplate.content.cloneNode(true);
+            const root = fragment.querySelector(".combat-rift");
+
+            root.classList.add(`combat-rift--state-${state}`, `combat-rift--form-${form}`);
+            root.style.setProperty("--combat-safe-area", `${safe}px`);
+
+            setText(root, "[data-combat-topline]", copy.top);
+            setText(root, "[data-combat-state-label]", copy.stateLabel);
+            setText(root, "[data-combat-turn]", copy.turn);
+            setText(root, "[data-combat-phase]", copy.phase);
+            setText(root, "[data-combat-target-name]", copy.targetName);
+            setText(root, "[data-combat-target-role]", copy.targetRole);
+            setText(root, "[data-combat-target-hp]", copy.targetHp);
+            setText(root, "[data-combat-target-en]", copy.targetEn);
+            setText(root, "[data-combat-target-sta]", copy.targetSta);
+            setText(root, "[data-combat-exchange-title]", copy.exchangeTitle);
+            setText(root, "[data-combat-exchange-meta]", copy.exchangeMeta);
+            setText(root, "[data-combat-exchange-text]", copy.exchangeText);
+            setText(root, "[data-combat-queue]", copy.queue);
+            setText(root, "[data-combat-pending]", copy.pending);
+            setText(root, "[data-combat-round]", copy.round);
+            setText(root, "[data-combat-enemy-count]", copy.enemies);
+            setText(root, "[data-combat-enemy-count-plain]", copy.enemiesPlain || copy.enemies.replace(/[^0-9]/g, ""));
+            setText(root, "[data-combat-empty-title]", copy.emptyTitle || "ENEMY RESPONSE");
+            setText(root, "[data-combat-empty-text]", copy.emptyText || "Ваш ход принят. Очередь противников разыгрывается.");
+            setText(root, "[data-combat-action-eyebrow]", copy.actionEyebrow);
+            setText(root, "[data-combat-action-state]", copy.actionState);
+            setText(root, "[data-combat-attack]", copy.attack);
+            setText(root, "[data-combat-chat-line]", copy.chat);
+
+            if (state !== "ready") {
+                root.querySelectorAll(".combat-feint-button, .combat-icon-button").forEach((button) => {
+                    button.disabled = true;
+                });
+            }
+
+            if (state === "empty") {
+                root.querySelector("[data-combat-attack]").disabled = true;
+                root.querySelector("[data-combat-force] strong").textContent = "NONE";
+            }
+
+            if (state === "locked") {
+                root.querySelector("[data-combat-attack]").disabled = true;
+            }
+
+            mount.append(fragment);
+        });
+    </script>
+</body>
+</html>

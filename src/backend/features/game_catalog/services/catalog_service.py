@@ -10,6 +10,7 @@ from src.backend.features.game_catalog.dto import GameCatalogBootstrapDTO, GameC
 from src.backend.features.game_catalog.skills.services import SkillCatalogService
 from src.backend.features.items.services import ItemCatalogService
 from src.backend.features.monsters.resources import get_all_family_configs
+from src.backend.features.monsters.resources.visuals import get_family_visual
 
 if TYPE_CHECKING:
     from src.backend.features.monsters.dto.generation import GeneratedClan, GeneratedMonster
@@ -72,6 +73,7 @@ class GameCatalogBootstrapService:
                 "role_counts": role_counts,
                 "loot_mode": family.loot_profile.loot_mode if family.loot_profile else "none",
                 "salvage_type": family.loot_profile.salvage_type if family.loot_profile else None,
+                "visual": get_family_visual(family_id),
                 "variant_count": len(variants),
                 "variants": [
                     {
@@ -82,8 +84,9 @@ class GameCatalogBootstrapService:
                         "tier_max": variant.max_tier,
                         "cost": variant.cost,
                         "tags": variant.extra_tags,
-                        "skills": variant.skills,
+                        "skills": sorted(variant.skill_overrides),
                         "description": variant.narrative_hint,
+                        "visual": get_family_visual(family_id),
                     }
                     for variant in variants
                 ],
@@ -104,6 +107,7 @@ class GameCatalogBootstrapService:
                 "location_label": _public_habitat(clan),
                 "danger": _public_danger(clan.tier),
                 "danger_key": _public_danger_key(clan.tier),
+                "visual": _public_clan_visual(clan),
                 "tier": clan.tier,
                 "filter_tags": _public_filter_tags(clan),
                 "member_count": len(clan.members),
@@ -119,9 +123,10 @@ class GameCatalogBootstrapService:
             "description": _public_member_description(member),
             "role_label": _ROLE_LABELS.get(member.role, _title_from_id(member.role)),
             "danger": _public_member_danger(member.threat_rating),
-            "public_stats": _public_stats(member.scaled_base_stats),
-            "public_loadout": _public_loadout(member.loadout_ids),
-            "public_skills": _public_skills(member.skills_snapshot),
+            "visual": _public_member_visual(member),
+            "public_stats": _public_stats(member.scaled_attributes),
+            "public_loadout": _public_loadout(member.items),
+            "public_skills": _public_skills(member.scaled_skills),
         }
 
 
@@ -194,32 +199,12 @@ _STAT_LABELS = {
     "strength": "Strength",
     "agility": "Agility",
     "endurance": "Endurance",
-    "intelligence": "Intellect",
-    "wisdom": "Instinct",
-    "men": "Will",
+    "intellect": "Intellect",
+    "memory": "Instinct",
+    "mental": "Will",
     "perception": "Senses",
-    "charisma": "Presence",
-    "luck": "Luck",
-}
-
-_SKILL_LABELS = {
-    "attack_basic": "Basic attack",
-    "attack_fast": "Quick strike",
-    "attack_heavy": "Heavy attack",
-    "attack_ranged": "Ranged attack",
-    "attack_pierce": "Piercing attack",
-    "attack_execute": "Finisher",
-    "attack_aoe": "Area attack",
-    "attack_lifesteal": "Blood drain",
-    "buff_defense": "Guard stance",
-    "buff_evasion": "Evasion",
-    "buff_rage": "Rage",
-    "buff_heal": "Healing chant",
-    "debuff_bleed": "Bleeding wound",
-    "debuff_burn": "Burning strike",
-    "debuff_stun": "Stunning blow",
-    "debuff_weaken": "Weakening strike",
-    "summon_minion": "Call allies",
+    "projection": "Presence",
+    "prediction": "Luck",
 }
 
 _LOADOUT_LABELS = {
@@ -257,6 +242,21 @@ def _public_clan_summary(clan: GeneratedClan) -> str:
     if clan.family_id in _FAMILY_SUMMARIES:
         return _FAMILY_SUMMARIES[clan.family_id]
     return "A documented monster group observed in the current region. Details are still being filled in by scouts."
+
+
+def _public_clan_visual(clan: GeneratedClan) -> dict[str, object]:
+    visual = clan.flavor_content.get("visual")
+    if isinstance(visual, dict):
+        return dict(visual)
+    return get_family_visual(clan.family_id)
+
+
+def _public_member_visual(member: GeneratedMonster) -> dict[str, object]:
+    visual = member.generation_meta.get("visual")
+    if isinstance(visual, dict):
+        return dict(visual)
+    family_id = member.family_id
+    return get_family_visual(family_id) if family_id else {}
 
 
 def _public_habitat(clan: GeneratedClan) -> str:
@@ -330,21 +330,27 @@ def _public_stats(stats: dict[str, int]) -> list[dict[str, object]]:
     ]
 
 
-def _public_skills(skills_snapshot: list[str] | dict[str, object]) -> list[str]:
-    if isinstance(skills_snapshot, dict):
-        skill_ids = [str(key) for key, value in skills_snapshot.items() if value]
-    else:
-        skill_ids = [str(skill) for skill in skills_snapshot]
-    return [_SKILL_LABELS.get(skill_id, _title_from_id(skill_id)) for skill_id in skill_ids]
+def _public_skills(skills: dict[str, object]) -> list[str]:
+    labels = []
+    for skill_id, value in skills.items():
+        if not value:
+            continue
+        label = _title_from_id(skill_id)
+        labels.append(label.removeprefix("Skill "))
+    return labels
 
 
-def _public_loadout(loadout_ids: dict[str, str] | list[str]) -> list[dict[str, str]]:
-    if isinstance(loadout_ids, list):
-        return [{"slot": "Equipment", "item": _title_from_id(str(item))} for item in loadout_ids if item]
+def _public_loadout(items: dict[str, object]) -> list[dict[str, str]]:
+    layout = items.get("layout") if isinstance(items, dict) else {}
+    equipment = layout.get("equipment") if isinstance(layout, dict) else {}
+    by_id = items.get("by_id") if isinstance(items, dict) else {}
     return [
-        {"slot": _LOADOUT_LABELS.get(slot, _title_from_id(slot)), "item": _title_from_id(str(item))}
-        for slot, item in loadout_ids.items()
-        if item
+        {
+            "slot": _LOADOUT_LABELS.get(str(slot), _title_from_id(str(slot))),
+            "item": _title_from_id(str((by_id.get(str(item_id)) or {}).get("base_id") or item_id)),
+        }
+        for slot, item_id in (equipment if isinstance(equipment, dict) else {}).items()
+        if item_id
     ]
 
 

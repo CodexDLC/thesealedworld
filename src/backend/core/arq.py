@@ -10,6 +10,7 @@ from src.backend.core.arq_container import ArqWorkerContainer
 
 COMBAT_ARQ_QUEUE = "tbmmorpg:arq:combat"
 SYSTEM_ARQ_QUEUE = "tbmmorpg:arq:system"
+GENERATION_AI_ARQ_QUEUE = "tbmmorpg:arq:generation_ai"
 WARNING = 30
 
 try:  # pragma: no cover - exercised only when the optional worker runtime is installed.

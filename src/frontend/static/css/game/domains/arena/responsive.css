@@ -33,6 +33,7 @@
     .arena-mode-head h2 { font-size: 12px; }
     .arena-service-exit { min-width: 0; height: 30px; }
     .arena-mode-grid { grid-template-columns: minmax(0, 1fr); align-content: stretch; }
+    .arena-duel-actions { grid-template-columns: minmax(0, 1fr); align-content: stretch; }
     .arena-repair-banner p { font-size: 12px; line-height: 1.3; }
     .arena-repair-banner--action { min-height: 100%; align-content: center; }
     .arena-card-title { font-size: 11px; }

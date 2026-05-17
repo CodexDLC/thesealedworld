@@ -1,0 +1,164 @@
+name: tbmmorpg
+
+services:
+  backend-migrate:
+    image: ${DOCKER_IMAGE_GAME:?DOCKER_IMAGE_GAME is required}
+    container_name: tbmmorpg-backend-migrate
+    restart: "no"
+    env_file:
+      - path: ${DEPLOY_ENV_FILE:-.env}
+        required: false
+    environment:
+      DATABASE_URL: ${GAME_DATABASE_URL:?GAME_DATABASE_URL is required}
+      SITE_DATABASE_URL: ${SITE_DATABASE_URL:?SITE_DATABASE_URL is required}
+      GAME_DATABASE_URL: ${GAME_DATABASE_URL:?GAME_DATABASE_URL is required}
+      REDIS_URL: ${REDIS_URL:?REDIS_URL is required}
+      DEBUG: "False"
+    entrypoint: ["python", "src/backend/manage.py", "upgrade"]
+    networks:
+      - tbmmorpg-network
+
+  backend:
+    image: ${DOCKER_IMAGE_GAME:?DOCKER_IMAGE_GAME is required}
+    container_name: tbmmorpg-backend
+    restart: unless-stopped
+    env_file:
+      - path: ${DEPLOY_ENV_FILE:-.env}
+        required: false
+    environment:
+      DATABASE_URL: ${GAME_DATABASE_URL:?GAME_DATABASE_URL is required}
+      SITE_DATABASE_URL: ${SITE_DATABASE_URL:?SITE_DATABASE_URL is required}
+      GAME_DATABASE_URL: ${GAME_DATABASE_URL:?GAME_DATABASE_URL is required}
+      REDIS_URL: ${REDIS_URL:?REDIS_URL is required}
+      DEBUG: "False"
+    entrypoint:
+      - uvicorn
+      - src.backend.app:app
+      - --host
+      - 0.0.0.0
+      - --port
+      - "8001"
+      - --log-level
+      - info
+    expose:
+      - "8001"
+    volumes:
+      - tbmmorpg-generated-assets:/app/var/generated-assets
+    depends_on:
+      backend-migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+    networks:
+      - tbmmorpg-network
+
+  chat:
+    image: ${DOCKER_IMAGE_CHAT:?DOCKER_IMAGE_CHAT is required}
+    container_name: tbmmorpg-chat
+    restart: unless-stopped
+    env_file:
+      - path: ${DEPLOY_ENV_FILE:-.env}
+        required: false
+    environment:
+      DATABASE_URL: ${GAME_DATABASE_URL:?GAME_DATABASE_URL is required}
+      SITE_DATABASE_URL: ${SITE_DATABASE_URL:?SITE_DATABASE_URL is required}
+      GAME_DATABASE_URL: ${GAME_DATABASE_URL:?GAME_DATABASE_URL is required}
+      REDIS_URL: ${REDIS_URL:?REDIS_URL is required}
+      STREAM_CONSUMER_GROUP: ${CHAT_STREAM_CONSUMER_GROUP:-chat}
+      WORKER_NAME: ${CHAT_WORKER_NAME:-chat_worker_1}
+      DEBUG: "False"
+    command:
+      - uvicorn
+      - src.backend.chat.app:app
+      - --host
+      - 0.0.0.0
+      - --port
+      - "8002"
+      - --log-level
+      - info
+    expose:
+      - "8002"
+    depends_on:
+      backend-migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8002/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+    networks:
+      - tbmmorpg-network
+
+  combat-worker:
+    image: ${DOCKER_IMAGE_WORKER:?DOCKER_IMAGE_WORKER is required}
+    container_name: tbmmorpg-combat-worker
+    restart: unless-stopped
+    env_file:
+      - path: ${DEPLOY_ENV_FILE:-.env}
+        required: false
+    environment:
+      DATABASE_URL: ${GAME_DATABASE_URL:?GAME_DATABASE_URL is required}
+      SITE_DATABASE_URL: ${SITE_DATABASE_URL:?SITE_DATABASE_URL is required}
+      GAME_DATABASE_URL: ${GAME_DATABASE_URL:?GAME_DATABASE_URL is required}
+      REDIS_URL: ${REDIS_URL:?REDIS_URL is required}
+      DEBUG: "False"
+    command: ["arq", "src.backend.features.combat.workers.arq.CombatArqSettings"]
+    depends_on:
+      backend-migrate:
+        condition: service_completed_successfully
+    networks:
+      - tbmmorpg-network
+
+  system-worker:
+    image: ${DOCKER_IMAGE_WORKER:?DOCKER_IMAGE_WORKER is required}
+    container_name: tbmmorpg-system-worker
+    restart: unless-stopped
+    env_file:
+      - path: ${DEPLOY_ENV_FILE:-.env}
+        required: false
+    environment:
+      DATABASE_URL: ${GAME_DATABASE_URL:?GAME_DATABASE_URL is required}
+      SITE_DATABASE_URL: ${SITE_DATABASE_URL:?SITE_DATABASE_URL is required}
+      GAME_DATABASE_URL: ${GAME_DATABASE_URL:?GAME_DATABASE_URL is required}
+      REDIS_URL: ${REDIS_URL:?REDIS_URL is required}
+      DEBUG: "False"
+    command: ["arq", "src.backend.features.system.workers.arq.SystemArqSettings"]
+    depends_on:
+      backend-migrate:
+        condition: service_completed_successfully
+    networks:
+      - tbmmorpg-network
+
+  generation-ai-worker:
+    image: ${DOCKER_IMAGE_WORKER:?DOCKER_IMAGE_WORKER is required}
+    container_name: tbmmorpg-generation-ai-worker
+    restart: unless-stopped
+    env_file:
+      - path: ${DEPLOY_ENV_FILE:-.env}
+        required: false
+    environment:
+      DATABASE_URL: ${GAME_DATABASE_URL:?GAME_DATABASE_URL is required}
+      SITE_DATABASE_URL: ${SITE_DATABASE_URL:?SITE_DATABASE_URL is required}
+      GAME_DATABASE_URL: ${GAME_DATABASE_URL:?GAME_DATABASE_URL is required}
+      REDIS_URL: ${REDIS_URL:?REDIS_URL is required}
+      DEBUG: "False"
+    command: ["arq", "src.backend.features.generation_ai.workers.arq.GenerationAIArqSettings"]
+    volumes:
+      - tbmmorpg-generated-assets:/app/var/generated-assets
+    depends_on:
+      backend-migrate:
+        condition: service_completed_successfully
+    networks:
+      - tbmmorpg-network
+
+volumes:
+  tbmmorpg-generated-assets:
+    name: tbmmorpg-generated-assets
+
+networks:
+  tbmmorpg-network:
+    name: tbmmorpg-network
+    driver: bridge

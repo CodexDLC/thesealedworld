@@ -3,11 +3,16 @@ from __future__ import annotations
 from typing import Annotated
 
 from fastapi import Depends, Request
+from sqlalchemy.ext.asyncio import AsyncSession  # noqa: TC002
 
 from src.backend.core.arq import ArqService
+from src.backend.core.database import get_db
 from src.backend.features.combat.integrations import CombatSessionIntegration, CombatSystemIntegrator
+from src.backend.features.combat.integrations.analytics_dashboard import CombatAnalyticsDashboardIntegration
 from src.backend.features.combat.orchestrators import CombatRuntimeOrchestrator
+from src.backend.features.combat.services.analytics_dashboard_service import CombatAnalyticsDashboardService
 from src.backend.features.combat.services.session_service import CombatSessionService
+from src.backend.infrastructure.combat.repositories import CombatAnalyticsRepository
 
 
 def get_combat_session_service(request: Request) -> CombatSessionService:
@@ -33,3 +38,17 @@ def get_combat_runtime_orchestrator(service: CombatSessionServiceDep) -> CombatR
 
 
 CombatRuntimeOrchestratorDep = Annotated[CombatRuntimeOrchestrator, Depends(get_combat_runtime_orchestrator)]
+
+
+def get_combat_analytics_dashboard_service(
+    db_session: Annotated[AsyncSession, Depends(get_db)],
+) -> CombatAnalyticsDashboardService:
+    return CombatAnalyticsDashboardService(
+        CombatAnalyticsDashboardIntegration(CombatAnalyticsRepository(db_session)),
+    )
+
+
+CombatAnalyticsDashboardServiceDep = Annotated[
+    CombatAnalyticsDashboardService,
+    Depends(get_combat_analytics_dashboard_service),
+]

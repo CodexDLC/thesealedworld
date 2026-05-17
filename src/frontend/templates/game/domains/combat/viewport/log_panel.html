@@ -1,3 +1,87 @@
+{% macro combat_log_facts(line, data) %}
+    {% set resources = line.resources if line.resources is defined and line.resources else data.get('resources', []) %}
+    {% set badges = line.badges if line.badges is defined and line.badges else data.get('badges', []) %}
+    {% set effects = line.effects if line.effects is defined and line.effects else data.get('effects', []) %}
+    {% set flags = line.flags if line.flags is defined and line.flags else data.get('flags', {}) %}
+    {% set seen = namespace(counter=false, crit=false, dodged=false, parried=false, blocked=false, death=false) %}
+    {% for badge in badges %}
+        {% set badge_kind = badge.kind if badge.kind is defined else '' %}
+        {% if badge_kind == 'counter' %}{% set seen.counter = true %}{% endif %}
+        {% if badge_kind == 'crit' %}{% set seen.crit = true %}{% endif %}
+        {% if badge_kind in ['dodge', 'dodged'] %}{% set seen.dodged = true %}{% endif %}
+        {% if badge_kind in ['parry', 'parried'] %}{% set seen.parried = true %}{% endif %}
+        {% if badge_kind in ['block', 'blocked'] %}{% set seen.blocked = true %}{% endif %}
+        {% if badge_kind == 'death' %}{% set seen.death = true %}{% endif %}
+    {% endfor %}
+    {% for effect in effects %}
+        {% set effect_id = effect.effect_id if effect.effect_id is defined else effect.id if effect.id is defined else effect.kind if effect.kind is defined else '' %}
+        {% if effect_id == 'death' %}{% set seen.death = true %}{% endif %}
+    {% endfor %}
+    {% set has_flags = (flags.counter is defined and flags.counter) or (flags.crit is defined and flags.crit) or (flags.dodged is defined and flags.dodged) or (flags.dodge is defined and flags.dodge) or (flags.parried is defined and flags.parried) or (flags.parry is defined and flags.parry) or (flags.blocked is defined and flags.blocked) or (flags.block is defined and flags.block) or (flags.death is defined and flags.death) %}
+    {% if resources or badges or effects or has_flags %}
+        <span class="combat-log-facts" aria-label="Combat facts">
+            {% for resource in resources %}
+                {% set resource_name = resource.resource if resource.resource is defined else 'resource' %}
+                {% set resource_after = resource.after if resource.after is defined else none %}
+                {% set resource_max = resource.max if resource.max is defined else none %}
+                {% set resource_delta = resource.delta if resource.delta is defined else none %}
+                {% set resource_label = resource.label if resource.label is defined and resource.label else (resource_name|upper ~ ' ' ~ resource_after ~ '/' ~ resource_max) %}
+                {% set resource_class = 'combat-log-resource--gain' if resource_delta is not none and resource_delta > 0 else 'combat-log-resource--loss' if resource_delta is not none and resource_delta < 0 else '' %}
+                <span class="combat-log-resource {{ resource_class }}{% if resource_after is not none and resource_max and resource_after / resource_max <= 0.25 %} is-low{% endif %}"
+                      title="{{ resource_label }}{% if resource_delta is not none %} // delta {{ resource_delta }}{% endif %}"
+                      data-resource="{{ resource_name }}"
+                      {% if resource.before is defined and resource.before is not none %}data-before="{{ resource.before }}"{% endif %}
+                      {% if resource_after is not none %}data-after="{{ resource_after }}"{% endif %}
+                      {% if resource_max is not none %}data-max="{{ resource_max }}"{% endif %}
+                      {% if resource_delta is not none %}data-delta="{{ resource_delta }}"{% endif %}>[{{ resource_label }}]</span>
+            {% endfor %}
+            {% for badge in badges %}
+                {% set badge_kind = badge.kind if badge.kind is defined else 'badge' %}
+                {% set badge_value = badge.value if badge.value is defined else none %}
+                {% set badge_value_text = (' +' ~ badge_value) if badge_value is not none and badge_value > 0 else (' ' ~ badge_value) if badge_value is not none else '' %}
+                {% set badge_label = badge.label if badge.label is defined and badge.label else badge.text if badge.text is defined and badge.text else badge_kind ~ badge_value_text %}
+                {% set badge_token = 'dodge' if badge_kind in ['dodge', 'dodged'] else 'parry' if badge_kind in ['parry', 'parried'] else 'block' if badge_kind in ['block', 'blocked'] else badge_kind if badge_kind in ['counter', 'crit', 'hit', 'tempo', 'gift'] else none %}
+                <span class="combat-log-badge combat-log-badge--{{ badge_kind }}"
+                      title="{{ badge_label }}"
+                      {% if badge.direction is defined and badge.direction %}data-direction="{{ badge.direction }}"{% endif %}
+                      {% if badge.resource is defined and badge.resource %}data-resource="{{ badge.resource }}"{% endif %}
+                      {% if badge_token %}data-token="{{ badge_token }}"{% endif %}
+                      {% if badge_value is not none %}data-value="{{ badge_value }}"{% endif %}>
+                    {% if badge_token %}
+                        <img class="combat-log-badge-icon" src="/static/images/ui/combat-icons/token-{{ badge_token }}.svg" alt="">
+                        {% if badge_value is not none %}<span>{{ badge_value_text|trim }}</span>{% endif %}
+                    {% else %}
+                        <span>[{{ badge_label }}]</span>
+                    {% endif %}
+                </span>
+            {% endfor %}
+            {% for effect in effects %}
+                {% set effect_id = effect.effect_id if effect.effect_id is defined else effect.id if effect.id is defined else effect.kind if effect.kind is defined else 'effect' %}
+                {% set effect_icon_raw = effect.icon if effect.icon is defined and effect.icon else '' %}
+                {% set effect_icon = '/static/images/ui/combat-icons/bleeding.svg' if effect_id in ['dot_bleed', 'bleed', 'bleeding'] or 'bleed' in effect_icon_raw else '/static/images/ui/combat-icons/burn.svg' if effect_id == 'burn' or 'burn' in effect_icon_raw else '/static/images/ui/combat-icons/poison.svg' if effect_id == 'poison' or 'poison' in effect_icon_raw else '/static/images/ui/combat-icons/stun.svg' if effect_id == 'stun' or 'stun' in effect_icon_raw else '/static/images/ui/combat-icons/target.svg' if effect_id == 'death' or 'death' in effect_icon_raw else effect_icon_raw if effect_icon_raw and effect_icon_raw[:1] == '/' else '/static/images/ui/combat-icons/token.svg' %}
+                {% set effect_tooltip = effect.tooltip if effect.tooltip is defined and effect.tooltip else effect.title if effect.title is defined and effect.title else effect_id %}
+                {% set effect_duration = effect.duration if effect.duration is defined else none %}
+                <span class="combat-log-badge combat-log-badge--effect combat-log-effect-chip"
+                      title="{{ effect_tooltip }}"
+                      data-tippy-content="{{ effect_tooltip }}"
+                      data-effect="{{ effect_id }}"
+                      {% if effect_duration is not none %}data-duration="{{ effect_duration }}"{% endif %}>
+                    <img class="combat-log-effect-icon" src="{{ effect_icon }}" alt="">
+                    <span>[{{ effect_id }}{% if effect_duration is not none %} {{ effect_duration }}{% endif %}]</span>
+                </span>
+            {% endfor %}
+            {% if flags.counter is defined and flags.counter and not seen.counter %}<span class="combat-log-badge combat-log-badge--counter combat-log-badge--flag" title="counter +1" data-token="counter"><img class="combat-log-badge-icon" src="/static/images/ui/combat-icons/token-counter.svg" alt=""><span>+1</span></span>{% endif %}
+            {% if flags.crit is defined and flags.crit and not seen.crit %}<span class="combat-log-badge combat-log-badge--crit combat-log-badge--flag" title="crit" data-token="crit"><img class="combat-log-badge-icon" src="/static/images/ui/combat-icons/token-crit.svg" alt=""></span>{% endif %}
+            {% if ((flags.dodged is defined and flags.dodged) or (flags.dodge is defined and flags.dodge)) and not seen.dodged %}<span class="combat-log-badge combat-log-badge--dodge combat-log-badge--flag" title="dodge +1" data-token="dodge"><img class="combat-log-badge-icon" src="/static/images/ui/combat-icons/token-dodge.svg" alt=""><span>+1</span></span>{% endif %}
+            {% if ((flags.parried is defined and flags.parried) or (flags.parry is defined and flags.parry)) and not seen.parried %}<span class="combat-log-badge combat-log-badge--parry combat-log-badge--flag" title="parry +1" data-token="parry"><img class="combat-log-badge-icon" src="/static/images/ui/combat-icons/token-parry.svg" alt=""><span>+1</span></span>{% endif %}
+            {% if ((flags.blocked is defined and flags.blocked) or (flags.block is defined and flags.block)) and not seen.blocked %}<span class="combat-log-badge combat-log-badge--block combat-log-badge--flag" title="block +1" data-token="block"><img class="combat-log-badge-icon" src="/static/images/ui/combat-icons/token-block.svg" alt=""><span>+1</span></span>{% endif %}
+            {% if flags.death is defined and flags.death and not seen.death %}<span class="combat-log-badge combat-log-badge--death combat-log-badge--flag">[death]</span>{% endif %}
+        </span>
+    {% endif %}
+{% endmacro %}
+{% macro combat_log_display_text(text) -%}
+    {{ (text or 'NO_DATA')|replace('; но ', ', но ')|replace('; ', ', ') }}
+{%- endmacro %}
 {% set panel_id = combat_log_panel_id|default("combat-log-panel") %}
 {% set panel_label = combat_log_label|default("EXCHANGE LOG") %}
 {% set embedded_query = "&embedded=1" if combat_log_embedded|default(false) else "" %}
@@ -81,16 +165,12 @@
                              {% if source_id %}data-source-id="{{ source_id }}"{% endif %}
                              {% if target_id %}data-target-id="{{ target_id }}"{% endif %}
                              {% if line.outcome is defined and line.outcome %}data-outcome="{{ line.outcome }}"{% endif %}
-                             {% if catalog and catalog_key %}
-                             data-catalog="{{ catalog }}"
-                             data-catalog-key="{{ catalog_key }}"
-                             data-catalog-taxonomy="{{ catalog_taxonomy or 'humanoid' }}"
-                             {% if catalog_event %}data-catalog-event="{{ catalog_event }}"{% endif %}
-                            {% endif %}>
+                             >
                             {% if line.icon_url is defined and line.icon_url %}
                                 <img class="combat-log-icon" src="{{ line.icon_url }}" alt="">
                             {% endif %}
-                            <span class="combat-log-text">{{ line.text or 'NO_DATA' }}</span>
+                            <span class="combat-log-text">{{ combat_log_display_text(line.text) }}</span>
+                            {{ combat_log_facts(line, data) }}
                         </div>
                     {% endfor %}
                 </div>
@@ -133,16 +213,12 @@
                  {% if source_id %}data-source-id="{{ source_id }}"{% endif %}
                  {% if target_id %}data-target-id="{{ target_id }}"{% endif %}
                  {% if line.outcome is defined and line.outcome %}data-outcome="{{ line.outcome }}"{% endif %}
-                 {% if catalog and catalog_key %}
-                 data-catalog="{{ catalog }}"
-                 data-catalog-key="{{ catalog_key }}"
-                 data-catalog-taxonomy="{{ catalog_taxonomy or 'humanoid' }}"
-                 {% if catalog_event %}data-catalog-event="{{ catalog_event }}"{% endif %}
-                 {% endif %}>
+                 >
                 {% if line.icon_url is defined and line.icon_url %}
                     <img class="combat-log-icon" src="{{ line.icon_url }}" alt="">
                 {% endif %}
-                <span class="combat-log-text">{{ line.text or 'NO_DATA' }}</span>
+                <span class="combat-log-text">{{ combat_log_display_text(line.text) }}</span>
+                {{ combat_log_facts(line, data) }}
             </div>
             {% if loop.last and log_group.is_open %}
                     </div>

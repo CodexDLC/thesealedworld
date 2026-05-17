@@ -562,7 +562,124 @@ def test_combat_log_panel_renders_new_uppercase_event_types():
     assert "Hero lands a clean hit." in html
     assert "combat-log-line" in html
     assert "is-player-source" in html
+    assert "data-catalog=" not in html
+    assert "data-catalog-key=" not in html
     assert "data-catalog-tooltip" not in html
+
+
+def test_combat_log_panel_renders_mechanical_facts_after_text():
+    env = Environment(loader=FileSystemLoader("src/frontend/templates"), autoescape=True)
+    template = env.get_template("game/domains/combat/viewport/log_panel.html")
+    hero_ref = CombatLogActorRefDTO(id="1", name="CodexDLC", team="team_1")
+    target_ref = CombatLogActorRefDTO(id="2", name="Shadow CodexDLC", team="team_2")
+
+    html = template.render(
+        char_id=1,
+        combat_log_panel_id="combat-battle-log-panel",
+        combat_log_label="BATTLE LOG",
+        combat_log_embedded=True,
+        combat_log_show_size_control=False,
+        combat_log_turns=[
+            CombatLogTurnDTO(
+                global_turn=8,
+                title="Ход 8",
+                entries=[
+                    CombatEventDTO(
+                        type="COUNTER",
+                        kind="COUNTER",
+                        text="CodexDLC отвечает контратакой по Shadow CodexDLC.",
+                        source=hero_ref,
+                        target=target_ref,
+                        resources=[
+                            {
+                                "actor_id": "2",
+                                "resource": "hp",
+                                "before": 33,
+                                "after": 30,
+                                "max": 56,
+                                "delta": -3,
+                                "label": "HP 30/56",
+                            }
+                        ],
+                        badges=[{"kind": "counter", "value": 1}],
+                        effects=[
+                            {
+                                "actor_id": "2",
+                                "owner": "target",
+                                "effect_id": "dot_bleed",
+                                "action": "applied",
+                                "duration": 3,
+                                "icon": "combat/effects/dot_bleed.svg",
+                                "tooltip": "Кровотечение // осталось 3 хода",
+                            }
+                        ],
+                        flags={"counter": True, "dodged": True, "crit": True},
+                    )
+                ],
+            )
+        ],
+        combat_log_entries=[],
+        combat_log_page=1,
+        combat_log_page_size=8,
+        combat_log_total=1,
+        combat_log_total_pages=1,
+        combat_log_pages=[1],
+    )
+
+    assert "CodexDLC отвечает контратакой по Shadow CodexDLC." in html
+    assert "combat-log-facts" in html
+    assert '<span class="combat-log-text">CodexDLC отвечает контратакой по Shadow CodexDLC.</span>' in html
+    assert "[HP 30/56]" in html
+    assert 'data-delta="-3"' in html
+    assert "token-counter.svg" in html
+    assert "token-dodge.svg" in html
+    assert "token-crit.svg" in html
+    assert 'data-token="counter"' in html
+    assert 'data-token="dodge"' in html
+    assert "[counter +1]" not in html
+    assert "[dodge +1]" not in html
+    assert "Кровотечение // осталось 3 хода" in html
+    assert "bleeding.svg" in html
+    assert "[-3]" not in html
+    assert "CodexDLC отвечает контратакой по Shadow CodexDLC.;" not in html
+
+
+def test_combat_log_panel_presents_semicolon_glue_as_readable_text():
+    env = Environment(loader=FileSystemLoader("src/frontend/templates"), autoescape=True)
+    template = env.get_template("game/domains/combat/viewport/log_panel.html")
+
+    html = template.render(
+        char_id=1,
+        combat_log_panel_id="combat-battle-log-panel",
+        combat_log_label="BATTLE LOG",
+        combat_log_embedded=True,
+        combat_log_show_size_control=False,
+        combat_log_turns=[
+            CombatLogTurnDTO(
+                global_turn=9,
+                title="Ход 9",
+                entries=[
+                    CombatEventDTO(
+                        type="DODGE",
+                        kind="DODGE",
+                        text=(
+                            "CodexDLC коротко отступает, проводит короткий режущий удар "
+                            "и ищет открытую сторону Shadow; но Shadow отшагивает с линии атаки."
+                        ),
+                    )
+                ],
+            )
+        ],
+        combat_log_entries=[],
+        combat_log_page=1,
+        combat_log_page_size=8,
+        combat_log_total=1,
+        combat_log_total_pages=1,
+        combat_log_pages=[1],
+    )
+
+    assert "; но" not in html
+    assert "Shadow, но Shadow отшагивает" in html
 
 
 def test_combat_screen_vm_exposes_log_pagination_contract():

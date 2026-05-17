@@ -54,6 +54,8 @@ class TestAuthRouter:
             email="test@e.com",
             is_active=True,
             is_superuser=False,
+            tester_status="none",
+            tester_approved_at=None,
             created_at=datetime.now()
         )
         app.dependency_overrides[get_current_user] = lambda: mock_user

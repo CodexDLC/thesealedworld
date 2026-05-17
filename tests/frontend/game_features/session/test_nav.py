@@ -30,9 +30,9 @@ def test_build_game_nav_exploration_does_not_offer_scenario_transition():
 
 
 def test_global_domains_are_only_rendered_in_center_slot():
-    global_labels = {"SCENARIO", "EXPLORE", "COMBAT", "ARENA", "TAVERN"}
+    global_labels = {"SCENARIO", "EXPLORE", "COMBAT", "ARENA", "SERVICE"}
 
-    for state in [CoreDomain.EXPLORATION, CoreDomain.COMBAT, CoreDomain.ARENA, CoreDomain.TAVERN]:
+    for state in [CoreDomain.EXPLORATION, CoreDomain.COMBAT, CoreDomain.ARENA, CoreDomain.CITY_SERVICES]:
         nav = build_game_nav(state=state, char_id=7)
 
         assert nav["center"]["label"] in global_labels
@@ -41,7 +41,7 @@ def test_global_domains_are_only_rendered_in_center_slot():
 
 
 def test_inventory_is_far_right_for_runtime_domains():
-    for state in [CoreDomain.EXPLORATION, CoreDomain.ARENA, CoreDomain.TAVERN]:
+    for state in [CoreDomain.EXPLORATION, CoreDomain.ARENA, CoreDomain.CITY_SERVICES]:
         nav = build_game_nav(state=state, char_id=7)
 
         assert nav["l1"]["label"] in {"QUESTS", "BUILDS"}

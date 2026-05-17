@@ -58,8 +58,9 @@
 }
 
 .combat-log-line {
-    display: flex;
+    display: block;
     align-items: flex-start;
+    flex-wrap: wrap;
     gap: 7px;
     border: 0;
     border-left: 2px solid rgba(255, 170, 0, .16);
@@ -121,22 +122,39 @@
 }
 
 .combat-log-text {
-    display: block;
+    display: inline;
+    flex: 0 1 auto;
     min-width: 0;
 }
 
+.combat-log-facts {
+    display: inline-flex;
+    flex: 0 0 auto;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 4px;
+    min-width: 0;
+    margin-left: 6px;
+    vertical-align: baseline;
+}
+
 .combat-log-icon {
+    display: inline-block;
     flex: 0 0 auto;
     width: 16px;
     height: 16px;
-    margin-top: 2px;
+    margin: 2px 7px 0 0;
     object-fit: contain;
     opacity: .88;
+    vertical-align: text-top;
     filter: sepia(1) saturate(2.15) hue-rotate(348deg) brightness(1.08);
 }
 
 .combat-log-resource,
 .combat-log-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
     flex: 0 0 auto;
     border: 1px solid rgba(255, 170, 0, .14);
     background: rgba(0, 0, 0, .32);
@@ -148,6 +166,7 @@
     letter-spacing: .10em;
     line-height: 1.2;
     text-transform: uppercase;
+    white-space: nowrap;
 }
 
 .combat-log-resource--loss,
@@ -160,6 +179,45 @@
 .combat-log-badge--heal {
     border-color: rgba(78, 220, 128, .30);
     color: rgba(150, 244, 178, .88);
+}
+
+.combat-log-badge--counter,
+.combat-log-badge--crit {
+    border-color: rgba(255, 204, 70, .34);
+    color: rgba(255, 226, 142, .92);
+}
+
+.combat-log-badge--dodge,
+.combat-log-badge--parry,
+.combat-log-badge--block {
+    border-color: rgba(88, 180, 255, .30);
+    color: rgba(170, 224, 255, .88);
+}
+
+.combat-log-badge--death {
+    border-color: rgba(255, 70, 70, .38);
+    color: rgba(255, 170, 150, .94);
+}
+
+.combat-log-badge--effect {
+    border-color: rgba(255, 170, 0, .24);
+    color: rgba(255, 218, 155, .88);
+}
+
+.combat-log-effect-icon {
+    width: 12px;
+    height: 12px;
+    object-fit: contain;
+    opacity: .9;
+    filter: sepia(1) saturate(2.1) hue-rotate(350deg) brightness(1.1);
+}
+
+.combat-log-badge-icon {
+    width: 13px;
+    height: 13px;
+    object-fit: contain;
+    opacity: .92;
+    filter: sepia(1) saturate(2.2) hue-rotate(350deg) brightness(1.08);
 }
 
 .combat-log-resource.is-low {

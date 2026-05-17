@@ -56,9 +56,13 @@ class FakeCharacterSessions:
 class FakeStore:
     def __init__(self):
         self.created = None
+        self.analytics = []
 
     async def create_session_batch(self, session_id, data, *, ttl=3600):
         self.created = (session_id, data, ttl)
+
+    async def append_analytics(self, session_id, entry):
+        self.analytics.append((session_id, entry))
 
 
 class FakeLootPreorder:
@@ -98,7 +102,12 @@ def _player_snapshot(char_id):
         },
         "combat": {
             "math_model": {"attributes": {"strength": {"base": 5}}, "modifiers": {}},
-            "loadout": {"known_feints": ["quick_cut"]},
+            "loadout": {
+                "known_feints": ["quick_cut"],
+                "weapon_tiers": {"main_hand": 2},
+                "combat_surfaces": {"main_hand": {"slot": "main_hand", "delivery": "weapon"}},
+                "equipment_refs": {"main_hand": {"item_id": "sword-1", "base_id": "short_sword"}},
+            },
             "skills": {"swords": 1.0},
         },
         "status": {"hp": {"cur": 64, "max": 64}, "energy": {"cur": 26, "max": 26}},
@@ -145,6 +154,10 @@ async def test_lifecycle_creates_arena_pvp_session():
     assert data.actors["1"]["meta"]["en"] == 26
     assert data.actors["1"]["meta"]["max_en"] == 26
     assert data.targets["1"] == ["2"]
+    assert store.analytics[0][0] == session_id
+    assert store.analytics[0][1]["k"] == "profile"
+    assert store.analytics[0][1]["_profile"]["actors"]["1"]["loadout"]["equipment_refs"]["main_hand"]["base_id"] == "short_sword"
+    assert store.analytics[0][1]["_profile"]["actors"]["1"]["loadout"]["weapon_tiers"] == {"main_hand": 2}
     assert sessions.combat == {}
     assert sessions.states == {}
     assert events.published[0][0] == "combat.session_ready"

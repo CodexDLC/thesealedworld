@@ -294,10 +294,10 @@
                                     <span class="arena-queue-title">{{ mode_menu.queue.text or 'Искать противника' }}</span>
                                     <span class="arena-queue-note">Арена сама выставит лимит поиска по очереди, максимум {{ max_wait_limit_sec // 60 }} мин.</span>
                                     <span class="arena-queue-status">
-                                        <span>В ожидании поиска</span>
-                                        <strong>{{ queue_waiting_count }}</strong>
+                                        <span>Отчет очереди</span>
+                                        <strong>{{ queue_waiting_count }} в поиске</strong>
                                     </span>
-                                    <span class="arena-queue-meter" aria-hidden="true"></span>
+                                    <span class="arena-queue-meter arena-queue-meter--ranked" aria-hidden="true"></span>
                                 </button>
                                 {% if mode_menu.shadow %}
                                     <button type="button" class="arena-queue-card arena-queue-card--secondary arena-shadow-card {{ 'arena-mode-card--missing' if mode_menu.shadow.variant == 'disabled' else '' }}"
@@ -306,10 +306,10 @@
                                         <span class="arena-queue-title">{{ mode_menu.shadow.text or 'Бой с тенью' }}</span>
                                         <span class="arena-queue-note">Тренировочная схватка без живого противника.</span>
                                         <span class="arena-queue-status">
-                                            <span>Формат</span>
-                                            <strong>SOLO</strong>
+                                            <span>Бой найден</span>
+                                            <strong>READY</strong>
                                         </span>
-                                        <span class="arena-queue-meter" aria-hidden="true"></span>
+                                        <span class="arena-queue-meter arena-queue-meter--shadow" aria-hidden="true"></span>
                                     </button>
                                 {% endif %}
                             </div>

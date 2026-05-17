@@ -62,8 +62,8 @@ class TestScenarioService:
         char_id = 1
         quest_key = "q1"
         return_context = ScenarioReturnContextDTO(
-            source_state=CoreDomain.TAVERN,
-            return_state=CoreDomain.TAVERN,
+            source_state=CoreDomain.CITY_SERVICES,
+            return_state=CoreDomain.CITY_SERVICES,
             return_screen="bar",
             source_service_id="svc_tavern_hub",
             location_id="52_53",
@@ -474,7 +474,7 @@ class TestScenarioService:
 
         mock_handler = MagicMock()
         result = ScenarioFinalizeResult(
-            target_state=CoreDomain.TAVERN,
+            target_state=CoreDomain.CITY_SERVICES,
             transition_reason="dialogue_finalized",
             metadata={"next_screen": "room", "_effects": [{"type": "tavern.grant_room", "required": True}]},
         )
@@ -501,4 +501,4 @@ class TestScenarioService:
         assert effect_args.kwargs == {"quest_key": "q1"}
         assert finalized.metadata["room_granted"] is True
         assert finalized.metadata["room_id"] == 10
-        mocks["integrator"].finalize_session.assert_called_with(char_id, CoreDomain.TAVERN)
+        mocks["integrator"].finalize_session.assert_called_with(char_id, CoreDomain.CITY_SERVICES)

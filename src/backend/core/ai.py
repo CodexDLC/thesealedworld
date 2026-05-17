@@ -36,7 +36,9 @@ class AIService:
             log.debug("AI JSON generation skipped: provider not initialized")
             return None
         prompt_text, prompt_kwargs = _normalize_prompt(prompt)
-        return await self.provider.generate_json(prompt_text, schema=schema, **_merge_prompt_kwargs(prompt_kwargs, kwargs))
+        return await self.provider.generate_json(
+            prompt_text, schema=schema, **_merge_prompt_kwargs(prompt_kwargs, kwargs)
+        )
 
     async def generate_image_bytes(
         self,

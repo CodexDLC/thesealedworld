@@ -1,0 +1,68 @@
+name: tbmmorpg
+
+services:
+  site-migrate:
+    image: ${DOCKER_IMAGE_SITE:?DOCKER_IMAGE_SITE is required}
+    container_name: tbmmorpg-site-migrate
+    restart: "no"
+    env_file:
+      - path: ${DEPLOY_ENV_FILE:-.env}
+        required: false
+    environment:
+      DATABASE_URL: ${SITE_DATABASE_URL:?SITE_DATABASE_URL is required}
+      SITE_DATABASE_URL: ${SITE_DATABASE_URL:?SITE_DATABASE_URL is required}
+      GAME_DATABASE_URL: ${GAME_DATABASE_URL:?GAME_DATABASE_URL is required}
+      REDIS_URL: ${REDIS_URL:?REDIS_URL is required}
+      BACKEND_BASE_URL: ${BACKEND_BASE_URL:-http://backend:8001}
+      DEBUG: "False"
+    entrypoint: ["alembic", "-c", "src/frontend/alembic.ini", "upgrade", "head"]
+    networks:
+      - tbmmorpg-network
+
+  frontend:
+    image: ${DOCKER_IMAGE_SITE:?DOCKER_IMAGE_SITE is required}
+    container_name: tbmmorpg-frontend
+    restart: unless-stopped
+    env_file:
+      - path: ${DEPLOY_ENV_FILE:-.env}
+        required: false
+    environment:
+      DATABASE_URL: ${SITE_DATABASE_URL:?SITE_DATABASE_URL is required}
+      SITE_DATABASE_URL: ${SITE_DATABASE_URL:?SITE_DATABASE_URL is required}
+      GAME_DATABASE_URL: ${GAME_DATABASE_URL:?GAME_DATABASE_URL is required}
+      REDIS_URL: ${REDIS_URL:?REDIS_URL is required}
+      BACKEND_BASE_URL: ${BACKEND_BASE_URL:-http://backend:8001}
+      PYTHONPATH: /app:/app/src
+      DEBUG: "False"
+    entrypoint:
+      - uvicorn
+      - src.frontend.app:app
+      - --host
+      - 0.0.0.0
+      - --port
+      - "8000"
+      - --log-level
+      - info
+    expose:
+      - "8000"
+    volumes:
+      - tbmmorpg-generated-assets:/app/var/generated-assets
+    depends_on:
+      site-migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+    networks:
+      - tbmmorpg-network
+
+volumes:
+  tbmmorpg-generated-assets:
+    name: tbmmorpg-generated-assets
+
+networks:
+  tbmmorpg-network:
+    name: tbmmorpg-network
+    driver: bridge

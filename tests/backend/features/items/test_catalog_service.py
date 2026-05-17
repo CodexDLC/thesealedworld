@@ -303,6 +303,28 @@ def test_starting_parry_rewards_reach_cap_only_near_full_parrying_skill():
 
 
 @pytest.mark.unit
+def test_primary_offhand_parry_weapons_trade_offense_for_defense():
+    catalog = ItemCatalogService.load_default()
+    main_gauche = catalog.get_base_item("main_gauche")
+    rapier = catalog.get_base_item("rapier")
+    dagger = catalog.get_base_item("dagger")
+    stiletto = catalog.get_base_item("stiletto")
+
+    assert main_gauche is not None
+    assert rapier is not None
+    assert dagger is not None
+    assert stiletto is not None
+
+    assert main_gauche.slot == "off_hand"
+    assert "main_hand" in main_gauche.extra_slots
+    assert main_gauche.implicit_bonuses["parry_chance"] >= rapier.implicit_bonuses["parry_chance"] * 2
+    assert main_gauche.base_power < dagger.base_power
+    assert main_gauche.base_power < stiletto.base_power
+    assert main_gauche.implicit_bonuses["physical_crit_chance"] < dagger.implicit_bonuses["physical_crit_chance"]
+    assert main_gauche.implicit_bonuses["physical_crit_chance"] < stiletto.implicit_bonuses["physical_crit_chance"]
+
+
+@pytest.mark.unit
 def test_base_attribute_and_capacity_bonuses_stay_in_their_expected_item_types():
     catalog = ItemCatalogService.load_default()
 

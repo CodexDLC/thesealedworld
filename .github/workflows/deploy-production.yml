@@ -1,0 +1,127 @@
+name: Deploy Production
+
+on:
+  workflow_dispatch:
+    inputs:
+      layer:
+        description: "Layer to deploy"
+        required: true
+        type: choice
+        options:
+          - infra
+          - site
+          - game
+          - full
+      image_ref:
+        description: "Image tag or commit SHA to deploy"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  packages: read
+
+jobs:
+  preflight:
+    name: Check Server Availability
+    runs-on: ubuntu-latest
+    steps:
+      - name: Test SSH Connection
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.HOST }}
+          username: ${{ secrets.USERNAME }}
+          key: ${{ secrets.SSH_KEY }}
+          script: echo "SSH connection successful"
+
+  deploy:
+    name: Deploy ${{ inputs.layer }}
+    needs: preflight
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Lowercase repo name
+        shell: bash
+        run: echo "REPO_LOWER=${GITHUB_REPOSITORY,,}" >> "$GITHUB_ENV"
+
+      - name: Copy deploy configs to server
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.HOST }}
+          username: ${{ secrets.USERNAME }}
+          key: ${{ secrets.SSH_KEY }}
+          source: "deploy/"
+          target: "/opt/turnbasedmmorpg/"
+          strip_components: 0
+          rm: false
+          overwrite: true
+
+      - name: SSH Deploy
+        uses: appleboy/ssh-action@v1.0.3
+        env:
+          DEPLOY_LAYER: ${{ inputs.layer }}
+          IMAGE_REF: ${{ inputs.image_ref }}
+          REPO_LOWER: ${{ env.REPO_LOWER }}
+          GITHUB_ACTOR: ${{ github.actor }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ENV_FILE_CONTENT: ${{ secrets.ENV_FILE }}
+        with:
+          host: ${{ secrets.HOST }}
+          username: ${{ secrets.USERNAME }}
+          key: ${{ secrets.SSH_KEY }}
+          envs: DEPLOY_LAYER,IMAGE_REF,REPO_LOWER,GITHUB_ACTOR,GITHUB_TOKEN,ENV_FILE_CONTENT
+          script: |
+            set -euo pipefail
+
+            cd /opt/turnbasedmmorpg/deploy
+
+            printf '%s\n' "$ENV_FILE_CONTENT" > .env
+
+            update_var() {
+              key="$1"
+              value="$2"
+              if grep -q "^${key}=" .env; then
+                sed -i "s|^${key}=.*|${key}=${value}|g" .env
+              else
+                printf '%s=%s\n' "$key" "$value" >> .env
+              fi
+            }
+
+            update_var "DOCKER_IMAGE_SITE" "ghcr.io/${REPO_LOWER}-site:${IMAGE_REF}"
+            update_var "DOCKER_IMAGE_GAME" "ghcr.io/${REPO_LOWER}-game:${IMAGE_REF}"
+            update_var "DOCKER_IMAGE_CHAT" "ghcr.io/${REPO_LOWER}-chat:${IMAGE_REF}"
+            update_var "DOCKER_IMAGE_WORKER" "ghcr.io/${REPO_LOWER}-worker:${IMAGE_REF}"
+            update_var "DOCKER_IMAGE_NGINX" "ghcr.io/${REPO_LOWER}-nginx:${IMAGE_REF}"
+
+            echo "$GITHUB_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+
+            deploy_compose() {
+              compose_file="$1"
+              docker compose -f "$compose_file" pull
+              docker compose -f "$compose_file" up -d --remove-orphans --wait --wait-timeout 120
+              docker compose -f "$compose_file" ps
+            }
+
+            case "$DEPLOY_LAYER" in
+              infra)
+                deploy_compose compose.infra.yml
+                ;;
+              site)
+                deploy_compose compose.site.yml
+                ;;
+              game)
+                deploy_compose compose.game.yml
+                ;;
+              full)
+                deploy_compose compose.infra.yml
+                deploy_compose compose.site.yml
+                deploy_compose compose.game.yml
+                ;;
+              *)
+                echo "Unknown deploy layer: $DEPLOY_LAYER" >&2
+                exit 1
+                ;;
+            esac
+
+            docker image prune -f

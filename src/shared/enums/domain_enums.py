@@ -18,7 +18,7 @@ class CoreDomain(StrEnum):
     ONBOARDING = "onboarding"
     LOBBY = "lobby"
     ARENA = "arena"
-    TAVERN = "tavern"
+    CITY_SERVICES = "city_services"
     DEATH = "death"
     LOOT = "loot"
 

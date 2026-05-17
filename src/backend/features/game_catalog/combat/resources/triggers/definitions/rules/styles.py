@@ -73,7 +73,9 @@ STYLE_CATALOG: list[TriggerCatalogEntryDTO] = [
             resource_type="trigger",
             resource_id="style_shield_reflect",
             display_name="Отражение (стиль)",
-            short_description="При провале блока частично гасит удар и готовит отражение.",
+            short_description=(
+                "При провале блока частично гасит прошедший удар и возвращает часть поглощенного урона."
+            ),
             humanoid_event_texts=CombatEventTextSetDTO(
                 block_proc=["{target} частично гасит удар {source} щитом."],
             ),
@@ -86,6 +88,9 @@ STYLE_CATALOG: list[TriggerCatalogEntryDTO] = [
             trigger_id="style_dual_extra",
             event="ON_ACCURACY_CHECK",
             chance=0.25,
+            chance_skill_key="skill_dual_wield",
+            chance_skill_scale=0.25,
+            chance_cap=0.50,
             pipeline_mutations=[pipeline_mutation("chain.trigger_offhand_attack")],
             allowed_sources=["style"],
             display_policy="separate",
@@ -95,9 +100,9 @@ STYLE_CATALOG: list[TriggerCatalogEntryDTO] = [
             resource_type="trigger",
             resource_id="style_dual_extra",
             display_name="Удар второй рукой",
-            short_description="Мгновенная атака второй рукой после попадания.",
+            short_description="Шанс начать атаку второй рукой после попадания основной рукой.",
             humanoid_event_texts=CombatEventTextSetDTO(
-                proc=["{source} проводит молниеносный удар второй рукой по {target}."],
+                proc=["{source} начинает замах второй рукой по {target}."],
                 extra_strike=["{source} добавляет удар второй рукой."],
             ),
             beast_event_texts=default_trigger_proc_event_texts("Удар второй рукой"),

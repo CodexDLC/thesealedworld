@@ -192,6 +192,26 @@ class FinishedCombatStore(FakeCombatStore):
         return {**meta, "active": "0", "status": "finished", "winner": "team_1"}
 
 
+class UnorderedCombatLogStore(FakeCombatStore):
+    async def get_logs_by_turn(self, session_id):
+        return {
+            "14": [json.dumps({"type": "RESULT", "text": "Ход 14. latest", "global_turn": 14})],
+            "6": [json.dumps({"type": "RESULT", "text": "Ход 6. older", "global_turn": 6})],
+            "10": [json.dumps({"type": "RESULT", "text": "Ход 10. old", "global_turn": 10})],
+            "5": [json.dumps({"type": "RESULT", "text": "Ход 5. older", "global_turn": 5})],
+            "13": [json.dumps({"type": "RESULT", "text": "Ход 13. latest", "global_turn": 13})],
+            "1": [json.dumps({"type": "RESULT", "text": "Ход 1. oldest", "global_turn": 1})],
+            "12": [json.dumps({"type": "RESULT", "text": "Ход 12. latest", "global_turn": 12})],
+            "11": [json.dumps({"type": "RESULT", "text": "Ход 11. latest", "global_turn": 11})],
+            "7": [json.dumps({"type": "RESULT", "text": "Ход 7. older", "global_turn": 7})],
+            "8": [json.dumps({"type": "RESULT", "text": "Ход 8. older", "global_turn": 8})],
+            "9": [json.dumps({"type": "RESULT", "text": "Ход 9. older", "global_turn": 9})],
+            "2": [json.dumps({"type": "RESULT", "text": "Ход 2. oldest", "global_turn": 2})],
+            "4": [json.dumps({"type": "RESULT", "text": "Ход 4. oldest", "global_turn": 4})],
+            "3": [json.dumps({"type": "RESULT", "text": "Ход 3. oldest", "global_turn": 3})],
+        }
+
+
 class FinalizedCombatStore(FinishedCombatStore):
     async def get_finalization(self, session_id):
         return {
@@ -421,6 +441,25 @@ async def test_combat_session_service_returns_logs():
     assert [entry.text for entry in logs.entries] == ["started"]
     assert logs.turns[0].global_turn == 1
     assert [entry.text for entry in logs.turns[0].entries] == ["started"]
+
+
+@pytest.mark.asyncio
+async def test_combat_logs_page_uses_latest_turns_when_storage_order_is_unstable():
+    service = CombatSessionService(store=UnorderedCombatLogStore(), system_integrator=FakeCombatSystemIntegrator())
+
+    logs = await service.get_logs(1, page=1, page_size=4)
+
+    assert [turn.global_turn for turn in logs.turns] == [14, 13, 12, 11]
+
+
+@pytest.mark.asyncio
+async def test_combat_dashboard_uses_latest_turns_when_storage_order_is_unstable():
+    service = CombatSessionService(store=UnorderedCombatLogStore(), system_integrator=FakeCombatSystemIntegrator())
+
+    dashboard = await service.get_dashboard(1)
+
+    assert dashboard.events_delta.turns[0].global_turn == 14
+    assert dashboard.events_delta.turns[1].global_turn == 13
 
 
 def test_combat_view_service_collapses_fragmented_entries_into_turn_blocks():

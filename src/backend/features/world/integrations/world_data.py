@@ -39,6 +39,9 @@ class WorldDataIntegration:
     async def get_active_nodes_by_zone_ids(self, zone_ids: list[str]) -> list[WorldGrid]:
         return await self.repository.get_active_nodes_by_zone_ids(zone_ids)
 
+    async def get_node(self, x: int, y: int) -> WorldGrid | None:
+        return await self.repository.get_node(x, y)
+
     async def region_exists(self, region_id: str) -> bool:
         return await self.repository.get_region(region_id) is not None
 

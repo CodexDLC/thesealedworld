@@ -45,7 +45,10 @@ def test_builder_creates_combat_actor_input_from_active_character_document() -> 
                     "item_type": "weapon",
                     "related_skill": "skill_swords",
                     "mechanics": {
+                        "base_id": "short_sword",
                         "power": 7,
+                        "material": {"id": "iron", "tier_mult": 1.2},
+                        "metadata": {"tier": 1},
                         "implicit_bonuses": {"parry_chance": 0.1},
                         "triggers": ["crit.weapon_serrated_bleed_crit"],
                     },
@@ -54,7 +57,7 @@ def test_builder_creates_combat_actor_input_from_active_character_document() -> 
                     "item_id": "armor-1",
                     "item_type": "armor",
                     "related_skill": "skill_light_armor",
-                    "mechanics": {"power": 4},
+                    "mechanics": {"base_id": "leather_vest", "armor_class": "light", "power": 4, "metadata": {"tier": 2}},
                 },
                 "potion-1": {
                     "item_id": "potion-1",
@@ -88,10 +91,28 @@ def test_builder_creates_combat_actor_input_from_active_character_document() -> 
         "surface": "weapon",
         "tags": [],
         "item_id": "sword-1",
-        "base_id": "",
+        "base_id": "short_sword",
         "skill_key": "skill_swords",
     }
     assert actor_input["loadout"]["equipment_layout"] == {"main_hand": "sword-1", "chest_armor": "armor-1"}
+    assert actor_input["loadout"]["equipment_refs"]["main_hand"] == {
+        "slot": "main_hand",
+        "combat_slot": "main_hand",
+        "item_id": "sword-1",
+        "base_id": "short_sword",
+        "item_type": "weapon",
+        "material_id": "iron",
+        "tier": 1,
+        "combat_tier": 2,
+        "tier_mult": 1.2,
+        "power": 7.0,
+        "armor_class": None,
+        "skill_key": "skill_swords",
+        "triggers": ["crit.weapon_serrated_bleed_crit"],
+        "tags": [],
+    }
+    assert actor_input["loadout"]["equipment_refs"]["body"]["armor_class"] == "light"
+    assert actor_input["loadout"]["equipment_refs"]["body"]["combat_tier"] == 3
     assert actor_input["loadout"]["hand_usage"] == {}
     assert actor_input["loadout"]["two_handed"] is False
     assert actor_input["loadout"]["weapon_slots"] == ["main_hand"]

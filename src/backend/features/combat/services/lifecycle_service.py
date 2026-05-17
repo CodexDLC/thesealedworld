@@ -8,6 +8,7 @@ from collections import defaultdict
 from typing import TYPE_CHECKING, Any
 
 from src.backend.features.combat.dto.session import SessionDataDTO
+from src.backend.features.combat.runtime.support.analytics_builder import CombatAnalyticsFactBuilder
 from src.backend.infrastructure.actor_commitments import ActorCommitmentManager
 
 if TYPE_CHECKING:
@@ -46,6 +47,11 @@ class CombatLifecycleService:
             session_data,
             ttl=int(request.get("ttl") or self.DEFAULT_TTL_SECONDS),
         )
+        if hasattr(self.store, "append_analytics"):
+            await self.store.append_analytics(
+                combat_id,
+                CombatAnalyticsFactBuilder.build_session_profile(combat_id=combat_id, session_data=session_data),
+            )
         return session_data
 
     async def complete_session(self, session_id: str, *, winner: str | None = None) -> None:

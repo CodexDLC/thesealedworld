@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from src.backend.features.combat.dto.pipeline import CombatPipelineMutationFactDTO
 from src.backend.features.game_catalog.combat.resources.common.pipeline_mutations import (
     PipelineMutationApplicationDTO,
     PipelineMutationContractDTO,
@@ -19,6 +20,7 @@ class PipelineMutationService:
         applications: list[PipelineMutationApplicationDTO],
         ctx: Any,
         source: PipelineMutationSource,
+        source_id: str | None = None,
     ) -> None:
         for application in applications:
             contract = get_pipeline_mutation_contract(application.mutation_id)
@@ -30,6 +32,17 @@ class PipelineMutationService:
             raw_value = application.value_override if application.value_override is not None else contract.default_value
             value = PipelineMutationService._coerce_value(contract, raw_value)
             PipelineMutationService._set_path(ctx, contract.path, value)
+            result = getattr(ctx, "result", None)
+            if result is not None and hasattr(result, "mutation_facts"):
+                result.mutation_facts.append(
+                    CombatPipelineMutationFactDTO(
+                        source=source,
+                        source_id=source_id,
+                        mutation_id=application.mutation_id,
+                        path=contract.path,
+                        value=value,
+                    )
+                )
 
     @staticmethod
     def _set_path(ctx: Any, path: str, value: Any) -> None:

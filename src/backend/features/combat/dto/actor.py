@@ -121,6 +121,23 @@ class CombatSurfaceDTO(BaseModel):
     skill_key: str = ""
 
 
+class CombatEquipmentRefDTO(BaseModel):
+    slot: str
+    combat_slot: str
+    item_id: str = ""
+    base_id: str = ""
+    item_type: str = ""
+    material_id: str = ""
+    tier: int = 0
+    combat_tier: int = 1
+    tier_mult: float = 1.0
+    power: float = 0.0
+    armor_class: str | None = None
+    skill_key: str = ""
+    triggers: list[str] = Field(default_factory=list)
+    tags: list[str] = Field(default_factory=list)
+
+
 class ActorLoadoutDTO(BaseModel):
     """
     Экипировка и доступные действия.
@@ -135,6 +152,7 @@ class ActorLoadoutDTO(BaseModel):
     weapon_slots: list[str] = Field(default_factory=list)
     weapon_tiers: dict[str, int] = Field(default_factory=dict)
     combat_surfaces: dict[str, CombatSurfaceDTO] = Field(default_factory=dict)
+    equipment_refs: dict[str, CombatEquipmentRefDTO] = Field(default_factory=dict)
     belt: list[dict[str, Any]] = Field(default_factory=list)
     known_abilities: list[str] = Field(default_factory=list)
     tags: list[str] = Field(default_factory=list)

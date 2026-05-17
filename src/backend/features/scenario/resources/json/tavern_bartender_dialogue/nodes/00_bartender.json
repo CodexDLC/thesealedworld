@@ -126,7 +126,7 @@
     "is_terminal": true,
     "metadata": {
       "finalize": {
-        "target_state": "tavern",
+        "target_state": "city_services",
         "transition_reason": "tavern_bartender_room_granted",
         "next_screen": "room",
         "response_metadata": {
@@ -156,7 +156,7 @@
     "is_terminal": true,
     "metadata": {
       "finalize": {
-        "target_state": "tavern",
+        "target_state": "city_services",
         "transition_reason": "tavern_bartender_dialogue_closed",
         "next_screen": "bar",
         "response_metadata": {

@@ -24,7 +24,7 @@ class GameSessionService:
         CoreDomain.COMBAT,
         CoreDomain.COMBAT_RESULT,
         CoreDomain.ARENA,
-        CoreDomain.TAVERN,
+        CoreDomain.CITY_SERVICES,
         CoreDomain.EXPLORATION,
         CoreDomain.DEATH,
         CoreDomain.LOOT,

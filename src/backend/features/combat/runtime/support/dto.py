@@ -21,6 +21,7 @@ class CombatLogActorContextDTO(BaseModel):
     max_hp: int | None = None
     en: int | None = None
     max_en: int | None = None
+    loadout: dict[str, Any] = Field(default_factory=dict)
     stats: dict[str, Any] = Field(default_factory=dict)
 
     @classmethod
@@ -41,6 +42,7 @@ class CombatLogActorContextDTO(BaseModel):
             max_hp=actor.meta.max_hp,
             en=actor.meta.en,
             max_en=actor.meta.max_en,
+            loadout=actor.loadout.model_dump(mode="json"),
             stats=stats,
         )
 

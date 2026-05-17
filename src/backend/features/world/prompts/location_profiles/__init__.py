@@ -1,0 +1,1 @@
+"""Location image prompt profiles."""

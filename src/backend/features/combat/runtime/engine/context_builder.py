@@ -134,7 +134,11 @@ class ContextBuilder:
                 activate_trigger(ctx, trigger_id, source="weapon", source_slot=source_type)
 
             style_trigger = actor.loadout.layout.get("tactical_style_trigger")
-            if style_trigger and actor.loadout.layout.get("tactical_style") != "skill_shield_mastery":
+            if (
+                source_type == "main_hand"
+                and style_trigger
+                and actor.loadout.layout.get("tactical_style") != "skill_shield_mastery"
+            ):
                 activate_trigger(
                     ctx,
                     style_trigger,

@@ -100,6 +100,9 @@ def get_trigger_rule(trigger_id: str) -> dict[str, Any] | None:
     return {
         "event": t.event,
         "chance": t.chance,
+        "chance_skill_key": t.chance_skill_key,
+        "chance_skill_scale": t.chance_skill_scale,
+        "chance_cap": t.chance_cap,
         "pipeline_mutations": t.pipeline_mutations,
         "applied_effect_ids": t.applied_effect_ids,
         "token_grants_attacker": t.token_grants_attacker,

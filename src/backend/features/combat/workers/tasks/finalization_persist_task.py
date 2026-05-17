@@ -3,6 +3,7 @@ from __future__ import annotations
 from loguru import logger as log
 
 from src.backend.core.database import get_session_context
+from src.backend.features.combat.runtime.analytics import CombatAnalyticsIngestionService
 from src.backend.features.combat.runtime.services.data_service import CombatDataService  # noqa: TC001
 from src.backend.infrastructure.combat.repositories import CombatFinalizationRepository
 
@@ -26,5 +27,6 @@ async def combat_finalization_persist_task(ctx: dict, payload: dict) -> None:
 
     async with get_session_context() as session:
         await CombatFinalizationRepository(session).upsert_from_payload(finalization)
+        await CombatAnalyticsIngestionService.ingest_finalization(session, finalization, aggregate_version=1)
 
     log.info("CombatFinalizationPersist | status=success combat_id={}", combat_id)

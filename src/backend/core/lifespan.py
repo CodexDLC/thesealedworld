@@ -10,13 +10,13 @@ from src.backend.core.bus import GameEventProducer
 from src.backend.core.containers import AIContainer, DatabaseContainer, GameFeatureContainer, RedisContainer
 from src.backend.features.arena.events import router as arena_router
 from src.backend.features.character.events import router as character_router
+from src.backend.features.city_services.events import router as city_services_router
 from src.backend.features.combat.events import router as combat_router
 from src.backend.features.inventory.events import router as inventory_router
 from src.backend.features.items.events import router as items_router
 from src.backend.features.loot.events import router as loot_router
 from src.backend.features.monsters.events import router as monsters_router
 from src.backend.features.scenario.events import router as scenario_router
-from src.backend.features.tavern.events import router as tavern_router
 from src.backend.features.world.events import router as world_router
 
 EVENT_ROUTERS = (
@@ -29,7 +29,7 @@ EVENT_ROUTERS = (
     monsters_router,
     scenario_router,
     arena_router,
-    tavern_router,
+    city_services_router,
 )
 
 

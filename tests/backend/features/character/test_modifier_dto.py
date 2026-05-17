@@ -40,7 +40,7 @@ def test_ported_modifier_dto_defaults_match_runtime_contract() -> None:
         "shield_block_cap": 0.75,
         "resistance_cap": 0.85,
         "shield_absorb_ratio": 0.40,
-        "shield_reflect_ratio": 1.0,
+        "shield_reflect_ratio": 0.50,
         "counter_attack_cap": 0.50,
         "pet_efficiency_mult": 1.0,
         "damage_mult": 1.0,

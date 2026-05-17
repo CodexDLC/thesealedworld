@@ -98,7 +98,7 @@ and `ctx.flags.meta.weapon_class`. `ContextBuilder._analyze_defense()` reads `bo
 `off_hand` to set mastery flags.
 
 Dual wield triggers when `source_type == "main_hand"` and `off_hand` is a non-shield skill.
-Chance: `0.25 + skill_dual_wield` (normalized, no multiplier).
+Chance: `min(0.50, 0.25 + 0.25 * skill_dual_wield)` (normalized, no multiplier).
 
 ---
 
@@ -134,7 +134,7 @@ UI display: `skill_val * 100` (as percent). Never divide by 100 in runtime math.
 Correct usage in resolver:
 ```python
 skill_multiplier = 1.0 + skill_val          # +100% at cap = 2× multiplier
-chance = 0.25 + skill_dual_wield            # 0.25 base, up to 1.25 at full mastery
+chance = min(0.50, 0.25 + 0.25 * skill_dual_wield)  # 0.25 base, 0.50 at full mastery
 ```
 
 ---

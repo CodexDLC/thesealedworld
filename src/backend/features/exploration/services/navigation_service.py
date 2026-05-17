@@ -148,10 +148,14 @@ class ExplorationNavigationService:
             biome_id=str(loc_data.get("biome_id") or world_zone.get("biome_id") or ""),
             node_type=str(loc_data.get("node_type") or ""),
             zone_archetype=str(world_zone.get("zone_archetype") or ""),
-            navigation_profile_id=str(loc_data.get("navigation_profile_id") or world_zone.get("navigation_profile_id") or ""),
+            navigation_profile_id=str(
+                loc_data.get("navigation_profile_id") or world_zone.get("navigation_profile_id") or ""
+            ),
             buildable_kind=loc_data.get("buildable_kind"),
             landmark_profile=loc_data.get("landmark_profile") or world_zone.get("landmark_profile"),
-            movement_profile=loc_data.get("movement_profile") if isinstance(loc_data.get("movement_profile"), dict) else {},
+            movement_profile=loc_data.get("movement_profile")
+            if isinstance(loc_data.get("movement_profile"), dict)
+            else {},
             world_zone=world_zone,
         )
         if dto.world_theme:

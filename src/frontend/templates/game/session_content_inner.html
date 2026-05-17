@@ -35,7 +35,7 @@
                             {% include "game/domains/exploration/left_sidebar/main.html" %}
                         {% elif domain == 'arena' %}
                             {% include "game/components/status/main.html" %}
-                        {% elif domain == 'tavern' %}
+                        {% elif domain == 'city_services' %}
                             {% include "game/components/status/main.html" %}
                         {% elif domain == 'death' %}
                             {% include "game/components/status/main.html" %}
@@ -64,8 +64,8 @@
                         {% include "game/domains/exploration/viewport/main.html" %}
                     {% elif domain == 'arena' %}
                         {% include "game/domains/arena/viewport/main.html" %}
-                    {% elif domain == 'tavern' %}
-                        {% include "game/domains/tavern/viewport/main.html" %}
+                    {% elif domain == 'city_services' %}
+                        {% include "game/domains/city_services/viewport/main.html" %}
                     {% elif domain == 'combats' %}
                         {% include "game/domains/combat/viewport/main.html" %}
                     {% elif domain == 'death' %}
@@ -90,8 +90,8 @@
                             {% include "game/domains/exploration/right_sidebar/main.html" %}
                         {% elif domain == 'arena' %}
                             {% include "game/domains/arena/right_sidebar/main.html" %}
-                        {% elif domain == 'tavern' %}
-                            {% include "game/domains/tavern/right_sidebar/main.html" %}
+                        {% elif domain == 'city_services' %}
+                            {% include "game/domains/city_services/right_sidebar/main.html" %}
                         {% elif domain == 'combats' %}
                             {% include "game/domains/combat/right_sidebar/main.html" %}
                         {% endif %}

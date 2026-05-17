@@ -213,7 +213,7 @@ class MitigationStatsDTO(BaseModel):
     armor: float = 0.0  # StatKey.ARMOR
     shield_guard_power: float = 0.0
     shield_absorb_ratio: float = 0.40
-    shield_reflect_ratio: float = 1.0
+    shield_reflect_ratio: float = 0.50
 
 
 class ElementalStatsDTO(BaseModel):

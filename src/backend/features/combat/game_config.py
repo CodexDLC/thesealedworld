@@ -7,8 +7,8 @@ class CombatConfig(BaseGameConfig):
     # Parry / Block
     PARRY_SKILL_MULT_PER_POINT: float = 4.0
     SHIELD_BLOCK_SKILL_MULT_PER_POINT: float = 1.5
-    SHIELD_MASTERY_ABSORB_RATIO_PER_POINT: float = 0.20
-    SHIELD_ABSORB_RATIO_CAP: float = 0.85
+    SHIELD_MASTERY_ABSORB_CAP_RATIO_AT_FULL: float = 0.50
+    SHIELD_MASTERY_REFLECT_RATIO_AT_FULL: float = 0.50
 
     # Unarmed combat
     UNARMED_MIN_EFFICIENCY: float = 0.5

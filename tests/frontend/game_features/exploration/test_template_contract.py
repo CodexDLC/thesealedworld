@@ -33,6 +33,8 @@ def test_exploration_center_template_has_navigation_and_encounter_surfaces():
     assert "game-action-button mobile-action" in template
     assert "location_view.navigation" in template
     assert "data-move-duration" in template
+    assert "button.tooltip" in template
+    assert "data-tippy-theme=\"game-hint\"" in template
     assert "mobile-move-cooldown" in template
     assert "mobile-move-cooldown exploration-movement-block" not in template
     assert "mobile-bottom-rule" in template

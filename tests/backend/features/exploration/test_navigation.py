@@ -48,7 +48,7 @@ def test_navigation_grid_with_walls():
 def test_navigation_actions_group_web_contract():
     current_loc = "50_50"
     exits = {
-        "nav:50_49": {"time_duration": 1.0},
+        "nav:50_49": {"time_duration": 1.0, "desc_next_room": "Северные ворота"},
         "nav:51_50": {"time_duration": 1.0},
         "svc:arena": {"text_button": "Arena"},
     }
@@ -58,6 +58,7 @@ def test_navigation_actions_group_web_contract():
 
     assert isinstance(actions, NavigationActionsDTO)
     assert actions.movement["north"].action == "move:50_49:1.0"
+    assert actions.movement["north"].tooltip == "Перейти: Северные ворота"
     assert actions.movement["east"].action == "move:51_50:1.0"
     assert actions.movement["south"].is_active is False
     assert actions.exploration["explore"].action == "interact:search"

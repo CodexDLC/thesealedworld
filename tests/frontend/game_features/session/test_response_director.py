@@ -113,16 +113,16 @@ async def test_response_director_builds_arena_transition_before_redirect():
 
 
 @pytest.mark.asyncio
-async def test_response_director_builds_tavern_transition_before_redirect():
+async def test_response_director_builds_city_services_transition_before_redirect():
     director = ResponseDirector(context_builder=FakeSessionContextBuilder())
     response = CoreResponseDTO(
-        header=GameStateHeader(current_state=CoreDomain.TAVERN, previous_state=CoreDomain.EXPLORATION),
+        header=GameStateHeader(current_state=CoreDomain.CITY_SERVICES, previous_state=CoreDomain.EXPLORATION),
         payload=StateTransitionDTO(
             char_id=7,
-            target_state=CoreDomain.TAVERN,
+            target_state=CoreDomain.CITY_SERVICES,
             reason="exploration_service_entry",
             context={"return_context": {"return_screen": "bar"}},
-            metadata={"tavern_id": "last_refuge"},
+            metadata={"service_id": "svc_tavern_hub"},
         ),
         payload_type="state_transition",
     )
@@ -136,9 +136,9 @@ async def test_response_director_builds_tavern_transition_before_redirect():
     )
 
     assert template == "game/session_content.html"
-    assert context["domain"] == CoreDomain.TAVERN
+    assert context["domain"] == CoreDomain.CITY_SERVICES
     assert context["transition_context"] == {"return_context": {"return_screen": "bar"}}
-    assert context["transition_metadata"] == {"tavern_id": "last_refuge"}
+    assert context["transition_metadata"] == {"service_id": "svc_tavern_hub"}
 
 
 @pytest.mark.asyncio
@@ -195,23 +195,23 @@ async def test_response_director_renders_scenario_center_with_inner_oob_panels()
 
 
 @pytest.mark.asyncio
-async def test_response_director_renders_tavern_center_for_same_state_payload():
+async def test_response_director_renders_city_service_center_for_same_state_payload():
     director = ResponseDirector(context_builder=FakeSessionContextBuilder())
     payload = SimpleNamespace(screen="bar")
     response = CoreResponseDTO(
-        header=GameStateHeader(current_state=CoreDomain.TAVERN),
+        header=GameStateHeader(current_state=CoreDomain.CITY_SERVICES),
         payload=payload,
-        payload_type="tavern_screen",
+        payload_type="city_service_screen",
     )
 
     template, context = await director.resolve(
         SimpleNamespace(),
         response,
-        source_state=CoreDomain.TAVERN,
+        source_state=CoreDomain.CITY_SERVICES,
         char_id=7,
     )
 
-    assert template == "game/domains/tavern/viewport/main.html"
-    assert context["tavern"] == payload
-    assert context["payload_type"] == "tavern_screen"
+    assert template == "game/domains/city_services/viewport/main.html"
+    assert context["city_service"] == payload
+    assert context["payload_type"] == "city_service_screen"
     assert context["oob_panels"] is True

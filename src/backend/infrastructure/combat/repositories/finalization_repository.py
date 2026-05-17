@@ -50,6 +50,7 @@ class CombatFinalizationRepository:
         analytics = payload.get("analytics") if isinstance(payload.get("analytics"), dict) else {}
         reward_hooks = payload.get("reward_hooks") if isinstance(payload.get("reward_hooks"), list) else []
         return {
+            "schema_version": int(payload.get("schema_version") or 2),
             "status": str(payload.get("status") or "finalized"),
             "source": _optional_str(meta.get("source")),
             "battle_type": _optional_str(meta.get("battle_type")),

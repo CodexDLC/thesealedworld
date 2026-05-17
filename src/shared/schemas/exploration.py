@@ -53,6 +53,7 @@ class GridButtonDTO(ExplorationJsonDTO):
     action: str  # API Action ("move:n", "interact:search")
     is_active: bool  # Доступна ли кнопка
     style: str = "primary"  # Стиль кнопки (primary, secondary, danger)
+    tooltip: str | None = None
 
 
 class NavigationGridDTO(BaseModel):

@@ -165,6 +165,7 @@ class NavigationEngine:
                 action=f"move:{target_id}:{travel_time}",
                 is_active=True,
                 style="primary",
+                tooltip=cls._move_tooltip(data),
             )
 
         return buttons
@@ -351,6 +352,13 @@ class NavigationEngine:
             parts = key.split(":", 1)
             return parts[0], parts[1]
         return "nav", key
+
+    @staticmethod
+    def _move_tooltip(exit_data: dict[str, Any]) -> str | None:
+        target_title = exit_data.get("desc_next_room")
+        if not isinstance(target_title, str) or not target_title.strip():
+            return None
+        return f"Перейти: {target_title.strip()}"
 
     @staticmethod
     def is_safe_context(flags: dict[str, Any], anchor_influence: dict[str, Any] | None = None) -> bool:

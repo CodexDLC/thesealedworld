@@ -224,6 +224,15 @@ class AbilityService:
         if not config or not cost_ok:
             return
 
+        ctx.result.action_facts.update(
+            {
+                "id": action_id,
+                "role": mode,
+                "cost": getattr(getattr(config, "cost", None), "model_dump", lambda **_: {})(),
+                "target_count": 1 if target is not None else 0,
+            }
+        )
+
         # [EVENT] CAST
         ctx.result.events.append(
             CombatEventDTO(
@@ -302,6 +311,7 @@ class AbilityService:
                     applications=GameData.get_pipeline_preset(config.pipeline_mutations.preset),
                     ctx=ctx,
                     source=mode,
+                    source_id=action_id,
                 )
 
             mutation_applications = (
@@ -314,6 +324,7 @@ class AbilityService:
                     applications=mutation_applications,
                     ctx=ctx,
                     source=mode,
+                    source_id=action_id,
                 )
 
         if config.triggers:

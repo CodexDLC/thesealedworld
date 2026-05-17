@@ -9,6 +9,7 @@ from src.backend.features.combat.dto.pipeline import (
     CombatDamageTraceDTO,
     CombatEventDTO,
     CombatTriggerActivationDTO,
+    CombatTriggerAttemptDTO,
     CombatTriggerFactDTO,
     InteractionResultDTO,
     PipelineContextDTO,
@@ -19,8 +20,8 @@ from src.backend.features.combat.runtime.engine.pipeline_mutation_service import
 
 PARRY_SKILL_MULT_PER_POINT = 4.0
 SHIELD_BLOCK_SKILL_MULT_PER_POINT = 1.5
-SHIELD_MASTERY_ABSORB_RATIO_PER_POINT = 0.20
-SHIELD_ABSORB_RATIO_CAP = 0.85
+SHIELD_MASTERY_ABSORB_CAP_RATIO_AT_FULL = 0.50
+SHIELD_MASTERY_REFLECT_RATIO_AT_FULL = 0.50
 UNARMED_MIN_EFFICIENCY = 0.5
 UNARMED_MAX_EFFICIENCY = 3.0
 UNARMED_NOVICE_SPREAD = 0.5
@@ -169,7 +170,7 @@ class CombatResolver:
             return False
 
         if ctx.flags.force.hit:
-            CombatResolver._resolve_triggers(ctx, res, "ON_ACCURACY_CHECK")
+            CombatResolver._resolve_triggers(ctx, res, "ON_ACCURACY_CHECK", source_stats=atk_stats)
             CombatResolver._trace_step(res, "accuracy", "pass", reason="force_hit")
             return True
 
@@ -195,7 +196,7 @@ class CombatResolver:
             CombatResolver._resolve_triggers(ctx, res, "ON_MISS")
             return False
 
-        CombatResolver._resolve_triggers(ctx, res, "ON_ACCURACY_CHECK")
+        CombatResolver._resolve_triggers(ctx, res, "ON_ACCURACY_CHECK", source_stats=atk_stats)
         return True
 
     @staticmethod
@@ -522,6 +523,27 @@ class CombatResolver:
         raw_damage = MathCore.random_range(min_d, max_d)
         total_damage = 0.0
         damage_parts: dict[str, float] = {}
+        base_before_physical = float(base or 0.0)
+        physical_added = 0.0
+        mitigation_pct = 0.0
+        armor_flat = 0.0
+        armor_trace = {
+            "raw": max(0.0, getattr(def_stats.mods, "armor", 0.0)),
+            "effective": 0.0,
+            "ignored": 0.0,
+            "chance": 0.0,
+            "roll": None,
+            "passed": False,
+        }
+        phys_res_raw = max(0.0, getattr(def_stats.mods, "physical_resistance", 0.0))
+        phys_suppression = max(0.0, CombatResolver._get_offensive_val(atk_stats, ctx, "physical_suppression"))
+        phys_res_suppression_pct = (
+            max(0.0, ctx.mods.physical_resistance_suppression_pct)
+            if ctx.flags.formula.suppress_physical_resistance
+            else 0.0
+        )
+        after_resist = raw_damage
+        after_armor = raw_damage
 
         crit_multiplier = 1.0
         if res.is_crit:
@@ -539,12 +561,13 @@ class CombatResolver:
                     if bonus_part > 0:
                         phys_dmg *= 1.0 - (heavy_skill * 0.2)
 
-            phys_suppression_pct = CombatResolver._get_offensive_val(atk_stats, ctx, "physical_suppression")
             mitigation_pct = CombatResolver._effective_physical_resistance(atk_stats, def_stats, ctx)
             phys_dmg *= 1.0 - mitigation_pct
+            after_resist = phys_dmg
 
-            armor_flat = CombatResolver._effective_armor(atk_stats, def_stats, ctx)
+            armor_flat, armor_trace = CombatResolver._effective_armor_trace(atk_stats, def_stats, ctx)
             phys_dmg = max(0.0, phys_dmg - armor_flat)
+            after_armor = phys_dmg
             damage_parts["physical"] = phys_dmg
 
             if res.is_crit:
@@ -588,18 +611,29 @@ class CombatResolver:
         shield_absorb = 0.0
         shield_reflect = 0.0
         shield_absorb_ratio = 0.0
+        shield_absorb_cap = 0.0
         shield_guard_power = 0.0
         shield_reflect_ratio = 0.0
+        shield_mastery = 0.0
         if ctx.flags.state.partial_absorb_reflect:
-            shield_guard_power = max(0.0, getattr(def_stats.mods, "shield_guard_power", 0.0))
-            shield_absorb_ratio = max(0.0, getattr(def_stats.mods, "shield_absorb_ratio", 0.40))
-            shield_absorb_ratio += (
-                max(0.0, def_stats.skills.skill_shield_mastery) * SHIELD_MASTERY_ABSORB_RATIO_PER_POINT
+            shield_mastery = min(1.0, max(0.0, def_stats.skills.skill_shield_mastery))
+            shield_guard_power_base = max(0.0, getattr(def_stats.mods, "shield_guard_power", 0.0))
+            shield_guard_power = shield_guard_power_base * shield_mastery
+            shield_absorb_cap_ratio = SHIELD_MASTERY_ABSORB_CAP_RATIO_AT_FULL * shield_mastery
+            shield_absorb_cap = total_damage * shield_absorb_cap_ratio
+            shield_absorb_ratio = shield_absorb_cap_ratio
+            shield_reflect_ratio = (
+                min(
+                    max(0.0, getattr(def_stats.mods, "shield_reflect_ratio", SHIELD_MASTERY_REFLECT_RATIO_AT_FULL)),
+                    SHIELD_MASTERY_REFLECT_RATIO_AT_FULL,
+                )
+                * shield_mastery
             )
-            shield_absorb_ratio = min(shield_absorb_ratio, SHIELD_ABSORB_RATIO_CAP)
-            shield_reflect_ratio = max(0.0, getattr(def_stats.mods, "shield_reflect_ratio", 1.0))
 
-            shield_absorb = min(total_damage, (total_damage * shield_absorb_ratio) + shield_guard_power)
+            raw_shield_absorb = (total_damage * max(0.0, getattr(def_stats.mods, "shield_absorb_ratio", 0.40))) + (
+                shield_guard_power
+            )
+            shield_absorb = min(total_damage, shield_absorb_cap, raw_shield_absorb)
             total_damage -= shield_absorb
             shield_reflect = shield_absorb * shield_reflect_ratio
             res.reflected_damage += int(shield_reflect)
@@ -608,6 +642,8 @@ class CombatResolver:
         total_damage *= ctx.mods.damage_mult
         total_damage = max(0.0, total_damage)
         res.damage_final = int(total_damage)
+        if ctx.flags.damage.physical and base is not None:
+            physical_added = max(0.0, float(base) - base_before_physical)
         CombatResolver._trace_damage(
             res,
             raw=raw_damage,
@@ -619,18 +655,36 @@ class CombatResolver:
             parts=damage_parts,
             armor=getattr(def_stats.mods, "armor", 0.0),
             shield_absorb=shield_absorb,
+            shield_absorb_cap=shield_absorb_cap,
             shield_absorb_ratio=shield_absorb_ratio,
             shield_guard_power=shield_guard_power,
             shield_reflect=shield_reflect,
             shield_reflect_ratio=shield_reflect_ratio,
+            shield_mastery=shield_mastery,
             weapon_technique_bonus_damage=ctx.mods.weapon_technique_bonus_damage,
-            phys_res=getattr(def_stats.mods, "physical_resistance", 0.0),
-            physical_suppression=CombatResolver._get_offensive_val(atk_stats, ctx, "physical_suppression"),
-            physical_resistance_suppression=ctx.mods.physical_resistance_suppression_pct
-            if ctx.flags.formula.suppress_physical_resistance
-            else 0.0,
+            phys_res=phys_res_raw,
+            physical_suppression=phys_suppression,
+            physical_resistance_suppression=phys_res_suppression_pct,
             effective_phys_res=mitigation_pct,
             crit_mult=crit_multiplier,
+            dbp={
+                "base": base_before_physical,
+                "weapon": getattr(atk_stats.mods, "physical_damage", 0.0) if ctx.flags.damage.physical else 0.0,
+                "bonus": getattr(atk_stats.mods, "physical_damage_bonus", 0.0) if ctx.flags.damage.physical else 0.0,
+                "added": physical_added,
+                "raw_roll": raw_damage,
+            },
+            resl={
+                "raw": phys_res_raw,
+                "effective": mitigation_pct,
+                "suppression": phys_suppression,
+                "suppression_pct": phys_res_suppression_pct,
+                "after": after_resist,
+            },
+            arm=armor_trace,
+            after_resist=after_resist,
+            after_armor=after_armor,
+            after_absorb=total_damage,
         )
 
         # [EVENT] HIT
@@ -714,7 +768,13 @@ class CombatResolver:
         return float(final_healing)
 
     @staticmethod
-    def _resolve_triggers(ctx: PipelineContextDTO, res: InteractionResultDTO, step_key: str):
+    def _resolve_triggers(
+        ctx: PipelineContextDTO,
+        res: InteractionResultDTO,
+        step_key: str,
+        *,
+        source_stats: ActorStats | None = None,
+    ):
         """
         Обрабатывает триггеры, используя глобальную библиотеку правил.
         Использует вложенный поиск по TriggerRulesFlagsDTO.
@@ -759,10 +819,27 @@ class CombatResolver:
                 continue
 
             # 4. Шанс
-            raw_chance = rule_data.get("chance", 0.0)
-            chance = float(raw_chance) if isinstance(raw_chance, (int, float)) else 0.0
+            chance = CombatResolver._trigger_chance(rule_data, source_stats=source_stats)
 
-            if not MathCore.check_chance(chance):
+            roll, passed = MathCore.roll_chance(chance)
+            tags = [*activation.tags, *[str(tag) for tag in rule_data.get("tags", [])]]
+            res.trigger_attempts.append(
+                CombatTriggerAttemptDTO(
+                    trigger_id=rule_id,
+                    event=step_key,
+                    source=activation.source,
+                    source_id=activation.source_id,
+                    source_slot=activation.source_slot,
+                    chance=chance,
+                    roll=roll,
+                    passed=passed,
+                    display_policy=str(rule_data.get("display_policy") or "merge"),
+                    stacking_rule=str(rule_data.get("stacking_rule") or "unique"),
+                    tags=tags,
+                )
+            )
+
+            if not passed:
                 continue
 
             res.fired_triggers.append(rule_id)
@@ -776,7 +853,7 @@ class CombatResolver:
                     chance=chance,
                     display_policy=str(rule_data.get("display_policy") or "merge"),
                     stacking_rule=str(rule_data.get("stacking_rule") or "unique"),
-                    tags=[*activation.tags, *[str(tag) for tag in rule_data.get("tags", [])]],
+                    tags=tags,
                 )
             )
 
@@ -785,9 +862,27 @@ class CombatResolver:
                 applications=rule_data.get("pipeline_mutations", []),
                 ctx=ctx,
                 source=activation.source,
+                source_id=activation.source_id or rule_id,
             )
             CombatResolver._apply_trigger_effects(res, rule_id, rule_data, step_key=step_key)
             CombatResolver._apply_trigger_token_grants(res, rule_data)
+
+    @staticmethod
+    def _trigger_chance(rule_data: dict[str, Any], *, source_stats: ActorStats | None = None) -> float:
+        raw_chance = rule_data.get("chance", 0.0)
+        chance = float(raw_chance) if isinstance(raw_chance, (int, float)) else 0.0
+
+        skill_key = rule_data.get("chance_skill_key")
+        if source_stats is not None and isinstance(skill_key, str) and skill_key:
+            raw_scale = rule_data.get("chance_skill_scale", 0.0)
+            scale = float(raw_scale) if isinstance(raw_scale, (int, float)) else 0.0
+            chance += max(0.0, getattr(source_stats.skills, skill_key, 0.0)) * scale
+
+        raw_cap = rule_data.get("chance_cap")
+        if isinstance(raw_cap, (int, float)):
+            chance = min(chance, float(raw_cap))
+
+        return max(0.0, chance)
 
     @staticmethod
     def _apply_trigger_effects(
@@ -838,22 +933,51 @@ class CombatResolver:
 
     @staticmethod
     def _effective_armor(atk_stats: ActorStats, def_stats: ActorStats, ctx: PipelineContextDTO) -> float:
-        if ctx.flags.formula.ignore_armor or ctx.flags.formula.ignore_flat_armor:
-            return 0.0
+        return CombatResolver._effective_armor_trace(atk_stats, def_stats, ctx)[0]
 
-        armor = max(0.0, def_stats.mods.armor)
+    @staticmethod
+    def _effective_armor_trace(
+        atk_stats: ActorStats, def_stats: ActorStats, ctx: PipelineContextDTO
+    ) -> tuple[float, dict[str, Any]]:
+        armor_raw = max(0.0, def_stats.mods.armor)
+        trace = {
+            "raw": armor_raw,
+            "effective": 0.0,
+            "ignored": armor_raw,
+            "chance": 0.0,
+            "roll": None,
+            "passed": False,
+            "penetration_pct": 0.0,
+            "penetration_flat": 0.0,
+        }
+        if ctx.flags.formula.ignore_armor or ctx.flags.formula.ignore_flat_armor:
+            trace["passed"] = True
+            trace["reason"] = "ignore_armor"
+            return 0.0, trace
+
+        armor = armor_raw
         ignore_chance = CombatResolver._get_offensive_val(atk_stats, ctx, "armor_ignore_chance")
         if ctx.flags.formula.roll_flat_armor_ignore:
             ignore_chance += max(0.0, ctx.mods.flat_armor_ignore_chance_bonus)
-        if ignore_chance > 0.0 and MathCore.check_chance(ignore_chance):
-            return 0.0
+        trace["chance"] = ignore_chance
+        if ignore_chance > 0.0:
+            roll, passed = MathCore.roll_chance(ignore_chance)
+            trace["roll"] = roll
+            trace["passed"] = passed
+            if passed:
+                return 0.0, trace
 
         penetration_pct = max(0.0, CombatResolver._get_offensive_val(atk_stats, ctx, "armor_penetration_pct"))
         if ctx.flags.formula.boost_flat_armor_penetration:
             penetration_pct += max(0.0, ctx.mods.flat_armor_penetration_bonus_pct)
         penetration_flat = max(0.0, atk_stats.mods.armor_penetration_flat)
         armor *= max(0.0, 1.0 - penetration_pct)
-        return max(0.0, armor - penetration_flat)
+        effective = max(0.0, armor - penetration_flat)
+        trace["effective"] = effective
+        trace["ignored"] = max(0.0, armor_raw - effective)
+        trace["penetration_pct"] = penetration_pct
+        trace["penetration_flat"] = penetration_flat
+        return effective, trace
 
     @staticmethod
     def _effective_physical_resistance(atk_stats: ActorStats, def_stats: ActorStats, ctx: PipelineContextDTO) -> float:

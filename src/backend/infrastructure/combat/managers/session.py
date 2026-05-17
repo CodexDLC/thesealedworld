@@ -837,6 +837,9 @@ class CombatSessionManager:
                 decoded = json.loads(payload)
             except json.JSONDecodeError:
                 decoded = {}
+            if isinstance(decoded, dict) and decoded.get("k") == "profile":
+                mapping["_profile"] = payload
+                continue
             turn = decoded.get("t", 0) if isinstance(decoded, dict) else 0
             seq = decoded.get("seq", index) if isinstance(decoded, dict) else index
             mapping[f"{turn}:{seq}"] = payload

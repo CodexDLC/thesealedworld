@@ -27,6 +27,29 @@ def test_removed_session_compatibility_names_do_not_return_to_live_code():
     assert matches == []
 
 
+def test_removed_tavern_feature_paths_do_not_return_to_live_code():
+    forbidden = (
+        "CoreDomain.TAVERN",
+        "features.tavern",
+        "game_features.tavern",
+        "schemas.tavern",
+        "BackendTavern",
+        "game/domains/tavern",
+        "/game/tavern",
+        "/tavern/v1",
+    )
+    live_files = [*ROOT.joinpath("src").rglob("*.py"), *ROOT.joinpath("src/frontend/templates").rglob("*.html")]
+
+    matches: list[str] = []
+    for path in live_files:
+        text = path.read_text(encoding="utf-8")
+        for token in forbidden:
+            if token in text:
+                matches.append(f"{path.relative_to(ROOT)}: {token}")
+
+    assert matches == []
+
+
 def test_session_template_keeps_alpine_root_above_sidebars_and_inner_oob_targets():
     base_game = ROOT.joinpath("src/frontend/templates/game/base_game.html").read_text(encoding="utf-8")
     session = ROOT.joinpath("src/frontend/templates/game/session_content_inner.html").read_text(encoding="utf-8")

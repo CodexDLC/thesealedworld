@@ -1,0 +1,30 @@
+<aside class="panel-dock panel-dock--framed panel-dock--scroll city-service-info-dock"
+       aria-label="City service context dock">
+    <nav class="dock-nav dock-nav--bar dock-nav--panel city-service-info-actions" aria-label="City service info actions">
+        <button class="dock-nav-button is-active" type="button">INFO</button>
+        <button class="dock-nav-button dock-nav-button--close"
+                type="button"
+                @click="$dispatch('panel-toggle', { side: 'right', view: 'context' })">CLOSE</button>
+    </nav>
+
+    {% if city_service %}
+        <section class="info-widget-section city-service-info-section" aria-label="City service identity">
+            <header class="info-widget-title">
+                <span>CITY SERVICE</span>
+                <strong>{{ city_service.service_id }}</strong>
+            </header>
+            <div class="info-widget-list info-widget-kv">
+                <div><span>Type</span><strong>{{ city_service.service_type }}</strong></div>
+                <div><span>Location</span><strong>{{ city_service.location_id or 'NO_LOCATION' }}</strong></div>
+                <div><span>Section</span><strong>{{ city_service.section_id or 'MAIN' }}</strong></div>
+            </div>
+        </section>
+    {% else %}
+        <section class="info-widget-section city-service-info-section">
+            <header class="info-widget-title">
+                <span>CITY SERVICE</span>
+                <strong>NO_DATA</strong>
+            </header>
+        </section>
+    {% endif %}
+</aside>

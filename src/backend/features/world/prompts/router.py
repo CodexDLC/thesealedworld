@@ -5,6 +5,10 @@ from typing import Any
 
 from codex_ai.core import LLMRouter, PromptResult
 
+from src.backend.features.world.prompts.location_images import (
+    build_location_image_prompt as build_location_image_prompt,
+)
+
 world_prompt_router = LLMRouter()
 
 

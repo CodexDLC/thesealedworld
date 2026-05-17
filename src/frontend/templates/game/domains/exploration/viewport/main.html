@@ -50,7 +50,8 @@
                     hx-swap="innerHTML"
                     hx-vals='{"char_id": {{ char_id }}, "target_id": "{{ action_parts[1] }}"}'
                     data-move-target="{{ action_parts[1] }}"
-                    data-move-duration="{{ move_duration }}">
+                    data-move-duration="{{ move_duration }}"
+                    {% if button.tooltip is defined and button.tooltip %}data-tippy-content="{{ button.tooltip }}" data-tippy-theme="game-hint"{% endif %}>
                 {{ action_icon(icon) }}
                 <span>{{ label }}</span>
             </button>

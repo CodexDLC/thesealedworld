@@ -31,7 +31,7 @@ GAME_TOKEN_REFRESH_PATH_PREFIXES = (
     "/exploration",
     "/inventory",
     "/arena",
-    "/tavern",
+    "/city-services",
 )
 
 

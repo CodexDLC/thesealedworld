@@ -18,19 +18,19 @@ from src.frontend.game_features.session.view_models.nav import build_game_nav
 from src.shared.enums import CoreDomain
 from src.shared.schemas import CoreResponseDTO, EnterCharacterRequestDTO
 from src.shared.schemas.arena import ArenaUIPayloadDTO
+from src.shared.schemas.city_services import CityServiceUIPayloadDTO
 from src.shared.schemas.exploration import EncounterDTO, ExplorationScreenDTO, WorldNavigationDTO
 from src.shared.schemas.loot import LootClaimRequestDTO
-from src.shared.schemas.tavern import TavernUIPayloadDTO
 
 if TYPE_CHECKING:
     from src.frontend.integrations.backend_api.arena import BackendArenaApi
     from src.frontend.integrations.backend_api.character_status import BackendCharacterStatusApi
+    from src.frontend.integrations.backend_api.city_services import BackendCityServicesApi
     from src.frontend.integrations.backend_api.combat import BackendCombatApi
     from src.frontend.integrations.backend_api.exploration import BackendExplorationApi
     from src.frontend.integrations.backend_api.game_session import BackendGameSessionApi
     from src.frontend.integrations.backend_api.inventory import BackendInventoryApi
     from src.frontend.integrations.backend_api.scenario import BackendScenarioApi
-    from src.frontend.integrations.backend_api.tavern import BackendTavernApi
     from src.shared.schemas.character_status import CharacterActorCoreDTO
     from src.shared.schemas.combat import CombatDashboardDTO, CombatResultDTO
     from src.shared.schemas.inventory import InventoryWindowDTO
@@ -46,19 +46,19 @@ class SessionContextBuilder:
         *,
         character_status_api: BackendCharacterStatusApi,
         arena_api: BackendArenaApi,
+        city_services_api: BackendCityServicesApi,
         exploration_api: BackendExplorationApi,
         scenario_api: BackendScenarioApi,
-        tavern_api: BackendTavernApi,
         game_session_api: BackendGameSessionApi,
         inventory_api: BackendInventoryApi,
         combat_api: BackendCombatApi | None = None,
     ) -> None:
         self.character_status_api = character_status_api
         self.arena_api = arena_api
+        self.city_services_api = city_services_api
         self.combat_api = combat_api
         self.exploration_api = exploration_api
         self.scenario_api = scenario_api
-        self.tavern_api = tavern_api
         self.game_session_api = game_session_api
         self.inventory_api = inventory_api
 
@@ -143,19 +143,23 @@ class SessionContextBuilder:
                 initial_inventory_open=initial_inventory_open,
             )
 
-        if state == CoreDomain.TAVERN:
-            tavern_screen = _tavern_screen_from_transition(transition_context, transition_metadata)
-            tavern_response = await self.tavern_api.view(
+        if state == CoreDomain.CITY_SERVICES:
+            service_screen = _city_service_screen_from_transition(transition_context, transition_metadata)
+            city_service_response = await self.city_services_api.view(
                 token,
                 char_id=char_id,
-                screen=tavern_screen,
-                tavern_id=_transition_value("tavern_id", transition_context, transition_metadata),
+                screen=service_screen,
                 service_id=_transition_value("service_id", transition_context, transition_metadata),
+                section_id=_city_service_section_from_transition(transition_context, transition_metadata),
+                tavern_id=_transition_value("tavern_id", transition_context, transition_metadata),
                 location_id=_transition_value("location_id", transition_context, transition_metadata),
             )
-            if tavern_response.payload is None:
-                raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail="Tavern payload is unavailable")
-            tavern_payload = TavernUIPayloadDTO.model_validate(tavern_response.payload)
+            if city_service_response.payload is None:
+                raise HTTPException(
+                    status_code=status.HTTP_502_BAD_GATEWAY,
+                    detail="City service payload is unavailable",
+                )
+            city_service_payload = CityServiceUIPayloadDTO.model_validate(city_service_response.payload)
             character_status = await self._character_status(token, char_id=char_id)
             status_payload = self._status_seed(character_status)
             initial_inventory_open, inventory_window = await self._inventory_window_state(
@@ -165,13 +169,13 @@ class SessionContextBuilder:
                 status_payload=status_payload,
             )
             return self._context(
-                state=tavern_response.header.current_state,
+                state=city_service_response.header.current_state,
                 char_id=char_id,
-                transaction_id=tavern_response.header.transaction_id,
-                payload_type=tavern_response.payload_type,
+                transaction_id=city_service_response.header.transaction_id,
+                payload_type=city_service_response.payload_type,
                 character_status=character_status,
-                tavern=tavern_payload,
-                background_url="/static/images/exploration/city/d4/52_53_last_refuge_tavern.png",
+                city_service=city_service_payload,
+                background_url=city_service_payload.background_url,
                 world_theme=getattr(character_status, "world_theme", None),
                 status_seed=status_payload,
                 inventory_window=inventory_window,
@@ -536,7 +540,7 @@ class SessionContextBuilder:
         exploration: Any | None = None,
         encounter: Any | None = None,
         arena: Any | None = None,
-        tavern: Any | None = None,
+        city_service: Any | None = None,
         combat: Any | None = None,
         combat_screen: Any | None = None,
         combat_result: Any | None = None,
@@ -562,7 +566,7 @@ class SessionContextBuilder:
             "exploration": exploration,
             "encounter": encounter,
             "arena": arena,
-            "tavern": tavern,
+            "city_service": city_service,
             "combat": combat,
             "combat_screen": combat_screen,
             "combat_result": combat_result,
@@ -701,7 +705,7 @@ def _return_context_from_transition(transition_context: dict[str, Any] | None) -
     return raw if isinstance(raw, dict) else None
 
 
-def _tavern_screen_from_transition(
+def _city_service_screen_from_transition(
     transition_context: dict[str, Any] | None,
     transition_metadata: dict[str, Any] | None,
 ) -> str | None:
@@ -710,6 +714,21 @@ def _tavern_screen_from_transition(
         transition_context,
         transition_metadata,
     )
+
+
+def _city_service_section_from_transition(
+    transition_context: dict[str, Any] | None,
+    transition_metadata: dict[str, Any] | None,
+) -> str | None:
+    section_id = _transition_value("section_id", transition_context, transition_metadata)
+    if section_id:
+        return section_id
+    return_context = _return_context_from_transition(transition_context)
+    if isinstance(return_context, dict):
+        metadata = return_context.get("metadata")
+        if isinstance(metadata, dict) and metadata.get("section_id"):
+            return str(metadata["section_id"])
+    return None
 
 
 def _transition_value(

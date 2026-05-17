@@ -11,6 +11,14 @@ from src.shared.schemas.character import (
     Gender,
 )
 from src.shared.schemas.character_status import CharacterActorCoreDTO
+from src.shared.schemas.city_services import (
+    CityServiceActionDTO,
+    CityServiceActionEnum,
+    CityServiceButtonDTO,
+    CityServiceScreenEnum,
+    CityServiceSectionDTO,
+    CityServiceUIPayloadDTO,
+)
 from src.shared.schemas.game_lobby import (
     CharacterCreationGender,
     CharacterNameAvailabilityDTO,
@@ -40,16 +48,6 @@ from src.shared.schemas.response import (
     StateTransitionDTO,
 )
 from src.shared.schemas.scenario import ScenarioButtonDTO, ScenarioInitDTO, ScenarioPayloadDTO, ScenarioReturnContextDTO
-from src.shared.schemas.tavern import (
-    TavernActionDTO,
-    TavernActionEnum,
-    TavernBarDTO,
-    TavernButtonDTO,
-    TavernCommonHallDTO,
-    TavernRoomDTO,
-    TavernScreenEnum,
-    TavernUIPayloadDTO,
-)
 
 __all__ = [
     "CharacterActorCoreDTO",
@@ -65,6 +63,12 @@ __all__ = [
     "CharacterStatsReadDTO",
     "CharacterStatsUpdateDTO",
     "CharacterStatusDTO",
+    "CityServiceActionDTO",
+    "CityServiceActionEnum",
+    "CityServiceButtonDTO",
+    "CityServiceScreenEnum",
+    "CityServiceSectionDTO",
+    "CityServiceUIPayloadDTO",
     "CoreCompositeResponseDTO",
     "CoreResponseDTO",
     "CreateCharacterRequestDTO",
@@ -89,12 +93,4 @@ __all__ = [
     "ScenarioReturnContextDTO",
     "ServiceResult",
     "StateTransitionDTO",
-    "TavernActionDTO",
-    "TavernActionEnum",
-    "TavernBarDTO",
-    "TavernButtonDTO",
-    "TavernCommonHallDTO",
-    "TavernRoomDTO",
-    "TavernScreenEnum",
-    "TavernUIPayloadDTO",
 ]

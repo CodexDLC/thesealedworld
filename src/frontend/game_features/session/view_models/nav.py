@@ -28,12 +28,12 @@ def build_game_nav(*, state: CoreDomain | str, char_id: int) -> dict[str, dict[s
     center_labels = {
         CoreDomain.COMBAT.value: "COMBAT",
         CoreDomain.ARENA.value: "ARENA",
-        CoreDomain.TAVERN.value: "TAVERN",
+        CoreDomain.CITY_SERVICES.value: "SERVICE",
     }
     center_icons = {
         CoreDomain.COMBAT.value: "swords",
         CoreDomain.ARENA.value: "swords",
-        CoreDomain.TAVERN.value: "tavern",
+        CoreDomain.CITY_SERVICES.value: "tavern",
     }
 
     if current == CoreDomain.COMBAT.value:

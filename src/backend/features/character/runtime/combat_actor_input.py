@@ -83,6 +83,7 @@ class CharacterCombatActorInputBuilder:
         weapon_slots: list[str] = []
         weapon_tiers: dict[str, int] = {}
         combat_surfaces: dict[str, dict[str, Any]] = {}
+        equipment_refs: dict[str, dict[str, Any]] = {}
         for slot, item_id in equipment_layout.items():
             if not item_id:
                 continue
@@ -90,6 +91,13 @@ class CharacterCombatActorInputBuilder:
             skill_key = CharacterCombatActorInputBuilder._skill_key_for_slot(str(slot), item)
             combat_slot = CharacterCombatActorInputBuilder._combat_slot(str(slot))
             item_type = CharacterCombatActorInputBuilder._item_type(item)
+            equipment_refs[combat_slot] = CharacterCombatActorInputBuilder._equipment_ref(
+                slot=str(slot),
+                combat_slot=combat_slot,
+                item_id=str(item_id),
+                item=item,
+                skill_key=skill_key,
+            )
             if str(slot) == "two_hand":
                 hand_usage[combat_slot] = "two_hand"
             if item_type == "weapon" and str(slot) != "two_hand":
@@ -141,6 +149,7 @@ class CharacterCombatActorInputBuilder:
             "weapon_slots": sorted(set(weapon_slots)),
             "weapon_tiers": weapon_tiers,
             "combat_surfaces": combat_surfaces,
+            "equipment_refs": equipment_refs,
             "belt": belt,
             "abilities": CharacterCombatActorInputBuilder._known_abilities(by_id),
             "known_abilities": CharacterCombatActorInputBuilder._known_abilities(by_id),
@@ -229,6 +238,43 @@ class CharacterCombatActorInputBuilder:
         }
 
     @staticmethod
+    def _equipment_ref(
+        *,
+        slot: str,
+        combat_slot: str,
+        item_id: str,
+        item: dict[str, Any],
+        skill_key: str | None,
+    ) -> dict[str, Any]:
+        mechanics = CharacterCombatActorInputBuilder._mechanics(item)
+        metadata = CharacterCombatActorInputBuilder._dict(item.get("metadata") or mechanics.get("metadata"))
+        material = CharacterCombatActorInputBuilder._dict(item.get("material") or mechanics.get("material"))
+        tags = CharacterCombatActorInputBuilder._tags(item, mechanics)
+        triggers = CharacterCombatActorInputBuilder._triggers(item)
+        tier = CharacterCombatActorInputBuilder._raw_tier(item)
+        return {
+            "slot": slot,
+            "combat_slot": combat_slot,
+            "item_id": str(item.get("item_id") or item_id),
+            "base_id": str(item.get("base_id") or mechanics.get("base_id") or metadata.get("base_id") or ""),
+            "item_type": CharacterCombatActorInputBuilder._item_type(item),
+            "material_id": str(item.get("material_id") or material.get("id") or material.get("material_id") or ""),
+            "tier": tier,
+            "combat_tier": max(1, tier + 1),
+            "tier_mult": CharacterCombatActorInputBuilder._float_value(material.get("tier_mult"), default=1.0),
+            "power": CharacterCombatActorInputBuilder._float_value(
+                item.get("power") if item.get("power") is not None else mechanics.get("power"),
+                default=0.0,
+            ),
+            "armor_class": CharacterCombatActorInputBuilder._optional_str(
+                item.get("armor_class") or mechanics.get("armor_class") or metadata.get("armor_class")
+            ),
+            "skill_key": str(skill_key or ""),
+            "triggers": triggers,
+            "tags": tags,
+        }
+
+    @staticmethod
     def _surface_from_tags(tags: list[str], *, delivery: str) -> str:
         if delivery == "natural":
             for tag in ("fangs", "bite", "claws", "talons", "paws", "natural_weapon"):
@@ -253,6 +299,10 @@ class CharacterCombatActorInputBuilder:
 
     @staticmethod
     def _weapon_tier(item: dict[str, Any]) -> int:
+        return max(1, CharacterCombatActorInputBuilder._raw_tier(item) + 1)
+
+    @staticmethod
+    def _raw_tier(item: dict[str, Any]) -> int:
         mechanics = CharacterCombatActorInputBuilder._mechanics(item)
         metadata = CharacterCombatActorInputBuilder._dict(item.get("metadata") or mechanics.get("metadata"))
         raw = (
@@ -261,9 +311,28 @@ class CharacterCombatActorInputBuilder:
             else mechanics.get("tier", item.get("rarity_tier", mechanics.get("rarity_tier", 0)))
         )
         try:
-            return max(1, int(raw) + 1) if isinstance(raw, (int, str)) else 1
+            return max(0, int(raw)) if isinstance(raw, (int, str)) else 0
         except (TypeError, ValueError):
-            return 1
+            return 0
+
+    @staticmethod
+    def _triggers(item: dict[str, Any]) -> list[str]:
+        mechanics = CharacterCombatActorInputBuilder._mechanics(item)
+        raw = item.get("triggers") or mechanics.get("triggers") or []
+        return [str(value) for value in raw if value] if isinstance(raw, list) else []
+
+    @staticmethod
+    def _float_value(value: Any, *, default: float) -> float:
+        try:
+            return float(value)
+        except (TypeError, ValueError):
+            return default
+
+    @staticmethod
+    def _optional_str(value: Any) -> str | None:
+        if value in (None, ""):
+            return None
+        return str(value)
 
     @staticmethod
     def _flat_skills(skills: dict[str, Any]) -> dict[str, float]:

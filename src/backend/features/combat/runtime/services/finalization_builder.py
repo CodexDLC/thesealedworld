@@ -5,6 +5,8 @@ import json
 import time
 from typing import TYPE_CHECKING, Any
 
+from src.backend.features.combat.runtime.support.analytics_builder import ANALYTICS_SCHEMA_VERSION, COMBAT_MATH_VERSION
+
 if TYPE_CHECKING:
     from src.backend.features.combat.runtime.services.experience_finalizer import CombatActorExperienceResult
 
@@ -47,7 +49,7 @@ class CombatFinalizationBuilder:
         )
 
         return {
-            "schema_version": 1,
+            "schema_version": 2,
             "combat_id": session_id,
             "status": "finalized",
             "winner_team": winner,
@@ -63,7 +65,7 @@ class CombatFinalizationBuilder:
             "teams": teams if isinstance(teams, dict) else {},
             "actors": actor_payloads,
             "report": report,
-            "analytics": analytics,
+            "analytics": self._normalize_analytics(analytics),
             "reward_hooks": [],
         }
 
@@ -158,6 +160,13 @@ class CombatFinalizationBuilder:
             return {}
         value = await getter(session_id)
         return value if isinstance(value, dict) else {}
+
+    @staticmethod
+    def _normalize_analytics(analytics: dict[str, Any]) -> dict[str, Any]:
+        normalized = dict(analytics)
+        normalized.setdefault("analytics_schema_version", ANALYTICS_SCHEMA_VERSION)
+        normalized.setdefault("combat_math_version", COMBAT_MATH_VERSION)
+        return normalized
 
     @staticmethod
     async def _get_logs_by_turn(data_service: Any, session_id: str) -> dict[str, list[str]]:

@@ -232,7 +232,7 @@ async def server_error_handler(request: Request, exc: Exception):
 def _auth_recovery_location(request: Request) -> str:
     path = request.url.path
     if path.startswith(
-        ("/game", "/api/game", "/scenario", "/combat", "/exploration", "/inventory", "/arena", "/tavern")
+        ("/game", "/api/game", "/scenario", "/combat", "/exploration", "/inventory", "/arena", "/city-services")
     ):
         return "/game-lobby"
     return "/login"

@@ -11,13 +11,13 @@ from typing import TYPE_CHECKING, Any
 from src.backend.config.settings import settings
 from src.backend.core.exceptions import BusinessLogicException
 from src.backend.features.character.events import CharacterEvents
+from src.backend.features.city_services.events import CityServiceEvents
 from src.backend.features.inventory.events.publisher import InventoryEvents
 from src.backend.features.items.dto.instance import ItemGenerationRequestDTO, ItemOriginRefDTO, ItemPlacementRefDTO
 from src.backend.features.items.events.publisher import ItemEvents
 from src.backend.features.scenario.dto.context import ScenarioContextDTO
 from src.backend.features.scenario.handlers import get_handler
 from src.backend.features.scenario.handlers.base_handler import ScenarioInitialHandlerContext
-from src.backend.features.tavern.events import TavernEvents
 from src.shared.enums import CoreDomain
 
 if TYPE_CHECKING:
@@ -427,7 +427,7 @@ class ScenarioSystemIntegrator:
         effect_type = str(effect.get("type") or "")
         if effect_type == "tavern.grant_room":
             response = await self.events.request(
-                TavernEvents.ROOM_GRANT_REQUESTED,
+                CityServiceEvents.TAVERN_ROOM_GRANT_REQUESTED,
                 {
                     "char_id": char_id,
                     "quest_key": quest_key,
@@ -438,7 +438,7 @@ class ScenarioSystemIntegrator:
                 timeout=30.0,
             )
             if not isinstance(response, dict) or response.get("status") != "ok":
-                raise RuntimeError(f"Tavern room grant effect failed: {response!r}")
+                raise RuntimeError(f"City service tavern room grant effect failed: {response!r}")
             return {
                 "room_granted": True,
                 "room_id": response.get("room_id"),

@@ -71,6 +71,39 @@ async def test_generation_ai_image_uses_plain_prompt_and_normalizes_to_requested
 
 
 @pytest.mark.asyncio
+async def test_generation_ai_image_can_force_target_size() -> None:
+    ai = SimpleNamespace(generate_image_bytes=AsyncMock(return_value=(_wide_png(), "image/png")))
+    storage = FakeAssetStorage()
+    executor = CodexAIExecutor(ai, asset_storage=storage)
+    task = SimpleNamespace(
+        task_type="world.location_image",
+        entity_type="world_location",
+        entity_id="52_52",
+        output_kind="image",
+    )
+
+    await executor.generate(
+        task,
+        {
+            "kind": "image",
+            "prompt": "Create location background",
+            "model": "gemini-2.5-flash-image",
+            "content_type": "image/webp",
+            "storage_key": "world/locations/d4/52_52_hash.webp",
+            "target_size": {"width": 1536, "height": 864},
+        },
+    )
+
+    metadata = storage.put_bytes.await_args.kwargs["metadata"]
+    assert metadata["width"] == 1536
+    assert metadata["height"] == 864
+    assert metadata["target_width"] == 1536
+    assert metadata["target_height"] == 864
+    assert metadata["source_width"] == 400
+    assert metadata["source_height"] == 400
+
+
+@pytest.mark.asyncio
 @pytest.mark.parametrize(
     "model",
     [
@@ -106,6 +139,12 @@ async def test_generation_ai_image_rejects_unsupported_image_models(model: str) 
 def _tiny_png() -> bytes:
     output = BytesIO()
     Image.new("RGB", (2, 2), color=(120, 20, 10)).save(output, format="PNG")
+    return output.getvalue()
+
+
+def _wide_png() -> bytes:
+    output = BytesIO()
+    Image.new("RGB", (400, 400), color=(20, 90, 120)).save(output, format="PNG")
     return output.getvalue()
 
 

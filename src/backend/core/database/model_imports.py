@@ -12,6 +12,7 @@ from src.backend.features.character.models import (
     CharacterSymbiote,
     SkillProgress,
 )
+from src.backend.features.city_services.models import CharacterTavernRoom
 from src.backend.features.expedition.models import CharacterExpedition
 from src.backend.features.generation_ai.models import AIGenerationTask
 from src.backend.features.items.models import (
@@ -22,7 +23,6 @@ from src.backend.features.items.models import (
     ResourceBalance,
     ResourceTransaction,
 )
-from src.backend.features.tavern.models import CharacterTavernRoom
 from src.backend.infrastructure.arena.models import (
     ArenaBrawlXP,
     ArenaLeague,
@@ -33,7 +33,7 @@ from src.backend.infrastructure.arena.models import (
     ArenaTeam,
     ArenaTeamMembership,
 )
-from src.backend.infrastructure.combat.models import CombatFinalization
+from src.backend.infrastructure.combat.models import CombatBalanceRollup, CombatExchangeFact, CombatFinalization
 from src.backend.infrastructure.inventory import InventoryItem, ResourceWallet
 from src.backend.infrastructure.monsters import GeneratedClanORM, GeneratedMonsterORM
 from src.backend.infrastructure.scenario.models import CharacterQuestState, ScenarioMaster, ScenarioNode
@@ -76,4 +76,6 @@ __all__ = [
     "ArenaTeam",
     "ArenaTeamMembership",
     "CombatFinalization",
+    "CombatExchangeFact",
+    "CombatBalanceRollup",
 ]

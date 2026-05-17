@@ -375,6 +375,33 @@ class CombatTriggerFactDTO(BaseModel):
     tags: list[str] = Field(default_factory=list)
 
 
+class CombatTriggerAttemptDTO(BaseModel):
+    """A trigger chance check attempt, including failed rolls."""
+
+    trigger_id: str
+    event: str
+    source: CombatTriggerSource = "system"
+    source_id: str | None = None
+    source_slot: str | None = None
+    chance: float = 1.0
+    roll: float | None = None
+    passed: bool = False
+    display_policy: str = "merge"
+    stacking_rule: str = "unique"
+    tags: list[str] = Field(default_factory=list)
+
+
+class CombatPipelineMutationFactDTO(BaseModel):
+    """A pipeline-local mutation applied by a feint, style, trigger, effect, or ability."""
+
+    source: CombatTriggerSource = "system"
+    source_id: str | None = None
+    mutation_id: str
+    path: str
+    value: Any = None
+    tags: list[str] = Field(default_factory=list)
+
+
 class InteractionResultDTO(BaseModel):
     """Итоговый отчет."""
 
@@ -422,6 +449,9 @@ class InteractionResultDTO(BaseModel):
     effect_facts: list[CombatEffectFactDTO] = Field(default_factory=list)
     death_facts: list[CombatDeathFactDTO] = Field(default_factory=list)
     trigger_facts: list[CombatTriggerFactDTO] = Field(default_factory=list)
+    trigger_attempts: list[CombatTriggerAttemptDTO] = Field(default_factory=list)
+    mutation_facts: list[CombatPipelineMutationFactDTO] = Field(default_factory=list)
+    action_facts: dict[str, Any] = Field(default_factory=dict)
 
     # === Resolver Trace (для читаемого INFO лога и аналитики) ===
     checks: list[CombatCheckTraceDTO] = Field(default_factory=list)

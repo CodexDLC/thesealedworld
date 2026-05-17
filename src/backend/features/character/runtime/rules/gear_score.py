@@ -139,7 +139,7 @@ GEAR_SCORE_BASELINES: dict[str, float] = {
     "parry_cap": 0.50,
     "shield_block_cap": 0.75,
     "shield_absorb_ratio": 0.40,
-    "shield_reflect_ratio": 1.0,
+    "shield_reflect_ratio": 0.50,
     "resistance_cap": 0.85,
     "counter_attack_cap": 0.50,
     "vampiric_trigger_cap": 1.0,

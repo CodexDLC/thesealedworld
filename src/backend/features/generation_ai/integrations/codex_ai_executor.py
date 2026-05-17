@@ -73,6 +73,7 @@ class CodexAIExecutor:
         model = _validate_gemini_image_model(task, request.get("model"))
         storage_key = _validate_image_storage_key(task, request.get("storage_key"))
         requested_content_type = _validate_image_content_type(task, request.get("content_type"))
+        target_size = _optional_target_size(task, request.get("target_size"))
         content, content_type = await generate_image_bytes(
             prompt=prompt,
             model=model,
@@ -85,6 +86,7 @@ class CodexAIExecutor:
             content,
             actual_content_type,
             target_content_type=requested_content_type,
+            target_size=target_size,
         )
 
         ref = await self.asset_storage.put_bytes(
@@ -146,3 +148,20 @@ def _validate_image_content_type(task: AIGenerationTask, content_type: Any) -> s
     if not normalized.split(";", 1)[0].lower().startswith("image/"):
         raise RuntimeError(f"AI image generation returned non-image content_type for task_type={task.task_type}")
     return normalized
+
+
+def _optional_target_size(task: AIGenerationTask, target_size: Any) -> tuple[int, int] | None:
+    if target_size is None:
+        return None
+    if not isinstance(target_size, dict):
+        raise RuntimeError(f"AI image generation target_size must be an object for task_type={task.task_type}")
+    try:
+        width = int(target_size.get("width"))
+        height = int(target_size.get("height"))
+    except (TypeError, ValueError) as exc:
+        raise RuntimeError(
+            f"AI image generation target_size must contain integer width/height for {task.task_type}"
+        ) from exc
+    if width <= 0 or height <= 0:
+        raise RuntimeError(f"AI image generation target_size must be positive for task_type={task.task_type}")
+    return width, height

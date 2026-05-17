@@ -18,8 +18,8 @@ async def test_dialogue_handler_initializes_from_return_context() -> None:
     )
     handler = DialogueScenarioHandler(integration=integration)
     return_context = ScenarioReturnContextDTO(
-        source_state=CoreDomain.TAVERN,
-        return_state=CoreDomain.TAVERN,
+        source_state=CoreDomain.CITY_SERVICES,
+        return_state=CoreDomain.CITY_SERVICES,
         return_screen="bar",
         source_service_id="svc_tavern_hub",
         location_id="52_53",
@@ -38,7 +38,7 @@ async def test_dialogue_handler_initializes_from_return_context() -> None:
 
     assert context.quest_key == "tavern_bartender_dialogue"
     assert context.current_node_key == "bartender_greeting"
-    assert context.prev_state == CoreDomain.TAVERN.value
+    assert context.prev_state == CoreDomain.CITY_SERVICES.value
     assert context.prev_loc == "52_53"
     assert context.return_context == return_context
 
@@ -48,14 +48,14 @@ async def test_dialogue_handler_finalizes_with_structured_metadata() -> None:
     integration = AsyncMock()
     integration.get_initial_handler_context.return_value = ScenarioInitialHandlerContext(
         sys_actor="Mote",
-        prev_state=CoreDomain.TAVERN.value,
+        prev_state=CoreDomain.CITY_SERVICES.value,
         prev_loc="52_53",
     )
     integration.get_node.return_value = {
         "node_key": "final_room",
         "metadata": {
             "finalize": {
-                "target_state": "tavern",
+                "target_state": "city_services",
                 "transition_reason": "tavern_bartender_room_granted",
                 "next_screen": "room",
                 "response_metadata": {"room_granted": True, "bartender_rep_delta": 1},
@@ -72,8 +72,8 @@ async def test_dialogue_handler_finalizes_with_structured_metadata() -> None:
     }
     handler = DialogueScenarioHandler(integration=integration)
     return_context = ScenarioReturnContextDTO(
-        source_state=CoreDomain.TAVERN,
-        return_state=CoreDomain.TAVERN,
+        source_state=CoreDomain.CITY_SERVICES,
+        return_state=CoreDomain.CITY_SERVICES,
         return_screen="bar",
         source_service_id="svc_tavern_hub",
         location_id="52_53",
@@ -91,7 +91,7 @@ async def test_dialogue_handler_finalizes_with_structured_metadata() -> None:
 
     result = await handler.on_finalize(7, context, {"quest_key": "tavern_bartender_dialogue"})
 
-    assert result.target_state == CoreDomain.TAVERN
+    assert result.target_state == CoreDomain.CITY_SERVICES
     assert result.transition_reason == "tavern_bartender_room_granted"
     assert result.location_id == "52_53"
     assert result.metadata["next_screen"] == "room"

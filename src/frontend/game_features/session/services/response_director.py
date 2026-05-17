@@ -22,7 +22,11 @@ class ResponseDirector:
     ) -> tuple[str, dict[str, Any]]:
         target_state = response.header.current_state
         if response.payload_type == "state_transition" or target_state != source_state:
-            if redirect_transitions and target_state not in {CoreDomain.ARENA, CoreDomain.SCENARIO, CoreDomain.TAVERN}:
+            if redirect_transitions and target_state not in {
+                CoreDomain.ARENA,
+                CoreDomain.SCENARIO,
+                CoreDomain.CITY_SERVICES,
+            }:
                 return "__session_redirect__", {"char_id": char_id}
             context = await self.context_builder.build(
                 request,
@@ -38,8 +42,8 @@ class ResponseDirector:
             return await self._resolve_exploration(request, response, char_id)
         if target_state == CoreDomain.ARENA:
             return self._resolve_arena(response, char_id)
-        if target_state == CoreDomain.TAVERN:
-            return self._resolve_tavern(response, char_id)
+        if target_state == CoreDomain.CITY_SERVICES:
+            return self._resolve_city_service(response, char_id)
         if target_state == CoreDomain.SCENARIO:
             context = await self.context_builder.build_from_response(request, response, char_id=char_id)
             context["oob_panels"] = True
@@ -75,15 +79,15 @@ class ResponseDirector:
             "oob_panels": True,
         }
 
-    def _resolve_tavern(
+    def _resolve_city_service(
         self,
         response: CoreResponseDTO[Any],
         char_id: int,
     ) -> tuple[str, dict[str, Any]]:
-        return "game/domains/tavern/viewport/main.html", {
-            "domain": CoreDomain.TAVERN,
+        return "game/domains/city_services/viewport/main.html", {
+            "domain": CoreDomain.CITY_SERVICES,
             "char_id": char_id,
-            "tavern": response.payload,
+            "city_service": response.payload,
             "payload_type": response.payload_type,
             "oob_panels": True,
         }

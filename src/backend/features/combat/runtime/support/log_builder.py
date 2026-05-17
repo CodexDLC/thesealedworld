@@ -45,6 +45,7 @@ class CombatLogBuilder:
         )
         cls._apply_combat_text_variables(variables, template, action_id=action_id)
         text = cls._render_combat_text(template, variables)
+        text = cls._append_reflect_text(text, result=result, source=source, target=target)
         catalog = cls._combat_text_catalog_fields(template)
         public_result = cls._public_result(ctx, result)
         tags = ["runtime", action.action_type, f"wave:{wave}", f"turn:{global_turn}", f"outcome:{outcome}"]
@@ -379,6 +380,20 @@ class CombatLogBuilder:
             target_results = str(variables.get("target_results") or variables.get("effect") or "результат не описан")
             return f"{source} действует на {target}: {target_results}. (F)"
 
+    @staticmethod
+    def _append_reflect_text(
+        text: str,
+        *,
+        result: InteractionResultDTO,
+        source: dict[str, Any] | None,
+        target: dict[str, Any] | None,
+    ) -> str:
+        if result.reflected_damage <= 0:
+            return text
+        source_name = str((source or {}).get("name") or "атакующему")
+        target_name = str((target or {}).get("name") or "защитника")
+        return f"{text} Щит {target_name} возвращает {source_name} {result.reflected_damage} урона."
+
     @classmethod
     def _public_result(cls, ctx: BattleContext, result: InteractionResultDTO) -> dict[str, list[dict[str, Any]]]:
         return {
@@ -651,7 +666,7 @@ class CombatLogBuilder:
         tags: list[str],
         global_turn: int,
     ) -> dict[str, Any] | None:
-        proc_event = cls._resolve_trigger_event_name(outcome)
+        proc_event = "proc" if trigger_id == "style_dual_extra" else cls._resolve_trigger_event_name(outcome)
         source = cls._actor_ref(ctx, result.source_id)
         target = cls._actor_ref(ctx, result.target_id)
         source_name = str((source or {}).get("name") or "NO_SOURCE")
@@ -892,6 +907,7 @@ class CombatLogBuilder:
             "blocked": result.is_blocked,
             "missed": result.is_miss,
             "counter": result.is_counter,
+            "reflect": result.reflected_damage > 0,
             "death": CombatLogBuilder._has_event(result, "DEATH"),
         }
 

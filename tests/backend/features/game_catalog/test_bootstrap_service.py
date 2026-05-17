@@ -115,8 +115,8 @@ def test_game_catalog_projects_generated_monster_clans():
     assert payload[0]["members"][0]["role_label"] == "Рядовая форма"
     assert payload[0]["members"][0]["visual"]["image_url"] == "/static/images/monsters/families/wolf_pack.svg"
     assert payload[0]["members"][0]["danger"] == "Незначительная угроза"
-    assert payload[0]["members"][0]["public_stats"] == [{"label": "Agility", "value": 16}]
-    assert payload[0]["members"][0]["public_skills"] == ["Fencing"]
+    assert payload[0]["members"][0]["public_stats"] == [{"label": "Ловкость", "value": 16}]
+    assert payload[0]["members"][0]["public_skills"] == ["Фехтование"]
     assert "family_id" not in payload[0]
     assert "zone_id" not in payload[0]
     assert "context_hash" not in payload[0]

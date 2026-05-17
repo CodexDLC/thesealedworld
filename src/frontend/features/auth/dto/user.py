@@ -24,4 +24,6 @@ class UserResponse(BaseResponse):
     email: str
     is_active: bool
     is_superuser: bool
+    tester_status: str = "none"
+    tester_approved_at: datetime | None = None
     created_at: datetime

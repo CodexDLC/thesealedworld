@@ -55,6 +55,37 @@ class TestUserRepository:
         await repo.commit()
         session.commit.assert_called_once()
 
+    async def test_update_tester_status(self, repo, session):
+        user_id = uuid.uuid4()
+        await repo.update_tester_status(user_id, "approved")
+        session.execute.assert_called_once()
+
+    async def test_update_tester_status_with_approved_at(self, repo, session):
+        from datetime import datetime, UTC
+        user_id = uuid.uuid4()
+        now = datetime.now(UTC)
+        await repo.update_tester_status(user_id, "approved", approved_at=now)
+        session.execute.assert_called_once()
+
+    async def test_get_pending_testers(self, repo, session):
+        mock_result = MagicMock()
+        mock_result.scalars.return_value.all.return_value = ["user1", "user2"]
+        session.execute = AsyncMock(return_value=mock_result)
+
+        result = await repo.get_pending_testers()
+        assert result == ["user1", "user2"]
+        session.execute.assert_called_once()
+
+    async def test_get_approved_testers(self, repo, session):
+        mock_result = MagicMock()
+        mock_result.scalars.return_value.all.return_value = ["tester1"]
+        session.execute = AsyncMock(return_value=mock_result)
+
+        result = await repo.get_approved_testers()
+        assert result == ["tester1"]
+        session.execute.assert_called_once()
+
+
 @pytest.mark.unit
 class TestTokenRepository:
     @pytest.fixture

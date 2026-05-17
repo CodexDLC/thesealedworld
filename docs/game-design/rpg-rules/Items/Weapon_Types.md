@@ -110,6 +110,7 @@ Runtime хранит триггеры на предметах как `section.tr
 ## 🤺 Fencing (Фехтование)
 **Философия:** «Ping 0ms». Скорость, точность, уколы.
 **Атрибуты:** `AGI (2) + PER (1) + STR (1)`.
+**Parry-баланс:** main-hand-only клинок дает примерно в 2 раза меньшую базу парирования, чем специализированный off-hand парирующий клинок. Off-hand оружие платит за защиту более слабым атакующим профилем.
 
 ### Типовые base items
 | Item | Runtime trigger | Роль |
@@ -122,7 +123,7 @@ Runtime хранит триггеры на предметах как `section.tr
 | Item | Runtime trigger | Поведение |
 |---|---|---|
 | `rapier` / Рапира | `crit.true_crit` | Main-hand дуэльное оружие: точность, parry, reliable crit. |
-| `main_gauche` / Дага | `parry.counter_on_parry` | Off-hand парирующий клинок, может использоваться как main hand. |
+| `main_gauche` / Дага | `parry.counter_on_parry` | Off-hand парирующий клинок: высокий parry и riposte, но ниже raw power, чем у основных кинжалов. |
 | `katar` / Катар | `crit.piercing_crit` | Близкий агрессивный клинок: высокий crit chance, ниже parry. |
 
 ### Planned triggers

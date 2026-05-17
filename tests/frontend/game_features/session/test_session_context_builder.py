@@ -12,6 +12,7 @@ from src.shared.enums import CoreDomain
 from src.shared.schemas import CoreResponseDTO, GameStateHeader, ScenarioPayloadDTO
 from src.shared.schemas.arena import ArenaScreenEnum, ArenaUIPayloadDTO
 from src.shared.schemas.character_status import CharacterActorCoreDTO
+from src.shared.schemas.city_services import CityServiceScreenEnum, CityServiceUIPayloadDTO
 from src.shared.schemas.combat import CombatActorCardDTO, CombatActorVitalsDTO, CombatDashboardDTO, CombatResultDTO
 from src.shared.schemas.exploration import (
     DetectionStatus,
@@ -24,7 +25,6 @@ from src.shared.schemas.exploration import (
 )
 from src.shared.schemas.inventory import InventoryWindowDTO
 from src.shared.schemas.panel import PanelDTO
-from src.shared.schemas.tavern import TavernScreenEnum, TavernUIPayloadDTO
 from src.shared.schemas.world_theme import WorldThemeDTO
 
 
@@ -250,7 +250,7 @@ class FakeArenaApi:
         )
 
 
-class FakeTavernApi:
+class FakeCityServicesApi:
     def __init__(self, payload=None):
         self.payload = payload
         self.calls = []
@@ -261,32 +261,35 @@ class FakeTavernApi:
         *,
         char_id,
         screen=None,
-        tavern_id=None,
         service_id=None,
+        section_id=None,
         location_id=None,
+        tavern_id=None,
     ):
         self.calls.append(
             {
                 "char_id": char_id,
                 "screen": screen,
-                "tavern_id": tavern_id,
                 "service_id": service_id,
+                "section_id": section_id,
                 "location_id": location_id,
+                "tavern_id": tavern_id,
             }
         )
         return CoreResponseDTO(
-            header=GameStateHeader(current_state=CoreDomain.TAVERN, transaction_id="tx-tavern"),
+            header=GameStateHeader(current_state=CoreDomain.CITY_SERVICES, transaction_id="tx-city-service"),
             payload=self.payload
-            or TavernUIPayloadDTO(
-                tavern_id="last_refuge",
+            or CityServiceUIPayloadDTO(
                 service_id="svc_tavern_hub",
+                service_type="tavern",
                 location_id=location_id or "52_53",
-                screen=TavernScreenEnum(screen or TavernScreenEnum.MAIN.value),
+                screen=CityServiceScreenEnum(screen or CityServiceScreenEnum.MAIN.value),
+                section_id=section_id,
                 title="Таверна Последнего Убежища",
                 description="Теплый свет и свободные столы.",
                 buttons=[],
             ),
-            payload_type="tavern_screen",
+            payload_type="city_service_screen",
         )
 
 
@@ -337,9 +340,9 @@ def builder(response):
     return SessionContextBuilder(
         character_status_api=FakeCharacterStatusApi(),
         arena_api=SimpleNamespace(),
+        city_services_api=FakeCityServicesApi(),
         exploration_api=SimpleNamespace(),
         scenario_api=FakeScenarioApi(response),
-        tavern_api=FakeTavernApi(),
         game_session_api=FakeGameSessionApi(response),
         inventory_api=FakeInventoryApi(),
     )
@@ -350,9 +353,9 @@ def exploration_builder(calls):
     return SessionContextBuilder(
         character_status_api=status_api,
         arena_api=SimpleNamespace(),
+        city_services_api=FakeCityServicesApi(),
         exploration_api=FakeExplorationApi(calls),
         scenario_api=FakeScenarioApi(scenario_response()),
-        tavern_api=FakeTavernApi(),
         game_session_api=FakeGameSessionApi(scenario_response()),
         inventory_api=FakeInventoryApi(),
     )
@@ -363,9 +366,9 @@ def exploration_builder_with_response(calls, response):
     return SessionContextBuilder(
         character_status_api=status_api,
         arena_api=SimpleNamespace(),
+        city_services_api=FakeCityServicesApi(),
         exploration_api=FakeExplorationApi(calls, response=response),
         scenario_api=FakeScenarioApi(scenario_response()),
-        tavern_api=FakeTavernApi(),
         game_session_api=FakeGameSessionApi(scenario_response()),
         inventory_api=FakeInventoryApi(),
     )
@@ -375,9 +378,9 @@ def combat_builder(status_api, combat_api):
     return SessionContextBuilder(
         character_status_api=status_api,
         arena_api=SimpleNamespace(),
+        city_services_api=FakeCityServicesApi(),
         exploration_api=SimpleNamespace(),
         scenario_api=FakeScenarioApi(scenario_response()),
-        tavern_api=FakeTavernApi(),
         game_session_api=FakeGameSessionApi(scenario_response()),
         inventory_api=FakeInventoryApi(),
         combat_api=combat_api,
@@ -388,21 +391,21 @@ def arena_builder(status_api, arena_api):
     return SessionContextBuilder(
         character_status_api=status_api,
         arena_api=arena_api,
+        city_services_api=FakeCityServicesApi(),
         exploration_api=SimpleNamespace(),
         scenario_api=FakeScenarioApi(scenario_response()),
-        tavern_api=FakeTavernApi(),
         game_session_api=FakeGameSessionApi(scenario_response()),
         inventory_api=FakeInventoryApi(),
     )
 
 
-def tavern_builder(status_api, tavern_api):
+def city_services_builder(status_api, city_services_api):
     return SessionContextBuilder(
         character_status_api=status_api,
         arena_api=SimpleNamespace(),
+        city_services_api=city_services_api,
         exploration_api=SimpleNamespace(),
         scenario_api=FakeScenarioApi(scenario_response()),
-        tavern_api=tavern_api,
         game_session_api=FakeGameSessionApi(scenario_response()),
         inventory_api=FakeInventoryApi(),
     )
@@ -458,9 +461,9 @@ async def test_build_current_loads_scenario_when_session_enter_returns_state_dec
     service = SessionContextBuilder(
         character_status_api=FakeCharacterStatusApi(),
         arena_api=SimpleNamespace(),
+        city_services_api=FakeCityServicesApi(),
         exploration_api=SimpleNamespace(),
         scenario_api=scenario_api,
-        tavern_api=FakeTavernApi(),
         game_session_api=FakeGameSessionApi(enter_response),
         inventory_api=FakeInventoryApi(),
     )
@@ -482,9 +485,9 @@ async def test_build_current_redirects_to_lobby_when_session_enter_returns_lobby
     service = SessionContextBuilder(
         character_status_api=FakeCharacterStatusApi(),
         arena_api=SimpleNamespace(),
+        city_services_api=FakeCityServicesApi(),
         exploration_api=SimpleNamespace(),
         scenario_api=FakeScenarioApi(scenario_response()),
-        tavern_api=FakeTavernApi(),
         game_session_api=FakeGameSessionApi(enter_response),
         inventory_api=FakeInventoryApi(),
     )
@@ -504,9 +507,9 @@ async def test_build_current_does_not_restore_inventory_window_inside_scenario()
     service = SessionContextBuilder(
         character_status_api=status_api,
         arena_api=SimpleNamespace(),
+        city_services_api=FakeCityServicesApi(),
         exploration_api=SimpleNamespace(),
         scenario_api=FakeScenarioApi(response),
-        tavern_api=FakeTavernApi(),
         game_session_api=FakeGameSessionApi(response),
         inventory_api=inventory_api,
     )
@@ -542,19 +545,20 @@ async def test_build_state_initializes_scenario_with_return_context():
     service = SessionContextBuilder(
         character_status_api=FakeCharacterStatusApi(),
         arena_api=SimpleNamespace(),
+        city_services_api=FakeCityServicesApi(),
         exploration_api=SimpleNamespace(),
         scenario_api=scenario_api,
-        tavern_api=FakeTavernApi(),
         game_session_api=FakeGameSessionApi(response),
         inventory_api=FakeInventoryApi(),
     )
     return_context = {
-        "source_state": "tavern",
-        "return_state": "tavern",
-        "return_screen": "bar",
+        "source_state": "city_services",
+        "return_state": "city_services",
+        "return_screen": "section",
         "source_service_id": "svc_tavern_hub",
         "location_id": "52_53",
         "tavern_id": "last_refuge",
+        "metadata": {"section_id": "bar"},
     }
 
     await service.build_state(
@@ -670,38 +674,41 @@ async def test_build_state_arena_normalizes_dict_payload_before_render_context()
 
 
 @pytest.mark.asyncio
-async def test_build_state_tavern_loads_shell_from_backend_payload():
+async def test_build_state_city_service_loads_shell_from_backend_payload():
     status_api = FakeCharacterStatusApi()
-    tavern_api = FakeTavernApi()
-    service = tavern_builder(status_api, tavern_api)
+    city_services_api = FakeCityServicesApi()
+    service = city_services_builder(status_api, city_services_api)
 
     context = await service.build_state(
         request(),
-        state=CoreDomain.TAVERN,
+        state=CoreDomain.CITY_SERVICES,
         char_id=7,
         transition_context={
             "return_context": {
-                "return_screen": "room",
+                "return_screen": "section",
                 "source_service_id": "svc_tavern_hub",
                 "location_id": "52_53",
                 "tavern_id": "last_refuge",
+                "metadata": {"section_id": "room"},
             }
         },
     )
 
-    assert tavern_api.calls == [
+    assert city_services_api.calls == [
         {
             "char_id": 7,
-            "screen": "room",
-            "tavern_id": "last_refuge",
+            "screen": "section",
             "service_id": "svc_tavern_hub",
+            "section_id": "room",
             "location_id": "52_53",
+            "tavern_id": "last_refuge",
         }
     ]
-    assert context["domain"] == "tavern"
-    assert context["tavern"].screen == TavernScreenEnum.ROOM
+    assert context["domain"] == "city_services"
+    assert context["city_service"].screen == CityServiceScreenEnum.SECTION
+    assert context["city_service"].section_id == "room"
     assert context["character_status"].panel is not None
-    assert context["nav"]["center"]["label"] == "TAVERN"
+    assert context["nav"]["center"]["label"] == "SERVICE"
 
 
 @pytest.mark.asyncio
@@ -800,9 +807,9 @@ async def test_build_state_loot_uses_post_combat_session_payload():
     service = SessionContextBuilder(
         character_status_api=FakeCharacterStatusApi(sessions={"post_combat": post_combat}),
         arena_api=SimpleNamespace(),
+        city_services_api=FakeCityServicesApi(),
         exploration_api=SimpleNamespace(),
         scenario_api=FakeScenarioApi(scenario_response()),
-        tavern_api=FakeTavernApi(),
         game_session_api=FakeGameSessionApi(scenario_response()),
         inventory_api=FakeInventoryApi(),
     )

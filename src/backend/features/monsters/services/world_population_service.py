@@ -17,7 +17,14 @@ D4_STARTER_FAMILY_IDS = ("bandit_gang", "goblin_tribe", "rat_swarm", "wolf_pack"
 D4_TIER0_CONTEXT_TAGS = ("d4_city_ruins", "d4_tier0_population", *D4_STARTER_FAMILY_IDS)
 D4_TIER1_CONTEXT_TAGS = ("d4_city_ruins", "d4_corner_pressure", "d4_tier1_population", *D4_STARTER_FAMILY_IDS)
 D4_CORNER_CONTEXTS: dict[str, tuple[str, ...]] = {
-    "d4_rift_rat_king": ("d4_city_ruins", "d4_corner_pressure", "d4_rift_rat_king", "rat_king_pressure", "undercity_seep", "rat_swarm"),
+    "d4_rift_rat_king": (
+        "d4_city_ruins",
+        "d4_corner_pressure",
+        "d4_rift_rat_king",
+        "rat_king_pressure",
+        "undercity_seep",
+        "rat_swarm",
+    ),
     "d4_rift_wolf_breach": (
         "d4_city_ruins",
         "d4_corner_pressure",

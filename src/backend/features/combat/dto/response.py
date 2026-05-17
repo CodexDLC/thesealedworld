@@ -124,6 +124,9 @@ class ActorLoadoutDTO(BaseModel):
     hand_usage: dict[str, str] = Field(default_factory=dict)
     two_handed: bool = False
     weapon_slots: list[str] = Field(default_factory=list)
+    weapon_tiers: dict[str, int] = Field(default_factory=dict)
+    combat_surfaces: dict[str, dict[str, Any]] = Field(default_factory=dict)
+    equipment_refs: dict[str, dict[str, Any]] = Field(default_factory=dict)
     belt: list[dict[str, Any]] = Field(default_factory=list)
     known_abilities: list[str] = Field(default_factory=list)
     tags: list[str] = Field(default_factory=list)

@@ -45,7 +45,9 @@ def upgrade() -> None:
     )
     op.add_column(
         "world_regions",
-        sa.Column("biome_mix", postgresql.JSONB(astext_type=sa.Text()), server_default=sa.text("'{}'::jsonb"), nullable=False),
+        sa.Column(
+            "biome_mix", postgresql.JSONB(astext_type=sa.Text()), server_default=sa.text("'{}'::jsonb"), nullable=False
+        ),
         if_not_exists=True,
     )
     op.add_column(

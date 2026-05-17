@@ -1,0 +1,77 @@
+{% macro city_service_action_attrs(button) -%}
+    {% set button_action = button.action.value if button.action and button.action.value is defined else button.action %}
+    {% set current_screen = city_service.screen.value if city_service.screen and city_service.screen.value is defined else city_service.screen %}
+    hx-post="/game/city-services/action"
+    hx-target="#game-center"
+    hx-swap="innerHTML"
+    hx-vals='{"char_id": {{ char_id }}, "action": "{{ button_action }}", "screen": "{{ current_screen }}", "service_id": "{{ city_service.service_id }}"{% if button.section_id %}, "section_id": "{{ button.section_id }}"{% elif city_service.section_id %}, "section_id": "{{ city_service.section_id }}"{% endif %}{% if city_service.location_id %}, "location_id": "{{ city_service.location_id }}"{% endif %}}'
+{%- endmacro %}
+
+<section id="center-screens">
+    {% if city_service %}
+        {% set service_screen = city_service.screen.value if city_service.screen and city_service.screen.value is defined else city_service.screen %}
+        <article class="cs active city-service-screen city-service-screen--{{ service_screen }}">
+            <div class="loc-tag">
+                <span class="loc-dot"></span>
+                <span>CITY SERVICE // {{ city_service.service_type or 'NO_TYPE' }}</span>
+            </div>
+
+            <div class="ds-panel">
+                <div class="ds-panel-header">{{ city_service.title }}</div>
+                <div class="ds-panel-body">
+                    {% if city_service.notice %}
+                        <div class="missing-data-block">
+                            <span>{{ city_service.notice }}</span>
+                        </div>
+                    {% endif %}
+                    <p>{{ city_service.description }}</p>
+
+                    {% if city_service.section_id == 'room' and city_service.metadata.room is defined %}
+                        <div class="missing-data-block">
+                            <span>{{ 'ROOM_READY' if city_service.metadata.room.is_owned else 'ROOM_NOT_GRANTED' }}</span>
+                            <small>{{ city_service.metadata.room.room_key or 'NO_ROOM_KEY' }}</small>
+                        </div>
+                    {% elif city_service.section_id == 'common_hall' and city_service.metadata.common_hall is defined %}
+                        <div class="missing-data-block">
+                            <span>GROUP_BOARD_EMPTY</span>
+                            <small>{{ city_service.metadata.common_hall.occupants_count }} occupants</small>
+                        </div>
+                    {% elif city_service.section_id == 'bar' and city_service.metadata.npc is defined %}
+                        <div class="missing-data-block">
+                            <span>{{ city_service.metadata.npc.bartender_key }}</span>
+                            <small>{{ city_service.metadata.npc.dialogue_quest_key }}</small>
+                        </div>
+                    {% elif city_service.sections %}
+                        <div class="missing-data-block">
+                            <span>{{ city_service.sections|length }} SERVICE_SECTIONS</span>
+                            <small>{{ city_service.service_id }}</small>
+                        </div>
+                    {% else %}
+                        <div class="missing-data-block">
+                            <span>SERVICE_PLACEHOLDER</span>
+                            <small>{{ city_service.service_id }}</small>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="arena-action-row">
+                {% for button in city_service.buttons %}
+                    <button type="button"
+                            class="arena-small-action"
+                            {% if button.is_disabled %}disabled{% else %}{{ city_service_action_attrs(button) }}{% endif %}>
+                        {{ button.label }}
+                    </button>
+                {% else %}
+                    <button type="button" class="arena-small-action" disabled>NO_ACTIONS</button>
+                {% endfor %}
+            </div>
+        </article>
+    {% else %}
+        <article class="cs active">
+            <div class="missing-data-block">
+                <span>CITY_SERVICE_PAYLOAD_MISSING</span>
+            </div>
+        </article>
+    {% endif %}
+</section>

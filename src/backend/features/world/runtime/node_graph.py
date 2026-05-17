@@ -45,7 +45,9 @@ class WorldRegionNodeGenerator:
     def build_nodes(self, request: RegionNodeGenerationInput) -> list[dict[str, Any]]:
         profile = NAVIGATION_PROFILES[request.navigation_profile_id]
         min_x, min_y = region_origin(request.region_id)
-        coords = [(min_x + local_x, min_y + local_y) for local_y in range(REGION_SIZE) for local_x in range(REGION_SIZE)]
+        coords = [
+            (min_x + local_x, min_y + local_y) for local_y in range(REGION_SIZE) for local_x in range(REGION_SIZE)
+        ]
         road_cells: set[tuple[int, int]] = set()
         route_plan = build_region_route_plan(request.region_id)
         open_edges = self._build_connected_edges(request.region_id, coords, road_cells, profile, route_plan)

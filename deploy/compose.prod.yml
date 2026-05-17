@@ -1,0 +1,6 @@
+name: tbmmorpg
+
+include:
+  - compose.infra.yml
+  - compose.site.yml
+  - compose.game.yml

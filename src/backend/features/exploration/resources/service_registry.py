@@ -21,6 +21,12 @@ class ExplorationServiceEntry:
 # service_id -> target domain/ref/access rules. This is required for player
 # homes, clan houses, and other private/dynamic buildings.
 SERVICE_REGISTRY: dict[str, ExplorationServiceEntry] = {
+    "svc_portal_hub": ExplorationServiceEntry(
+        service_id="svc_portal_hub",
+        target_state=CoreDomain.CITY_SERVICES,
+        label="К порталу",
+        metadata={"service_type": "portal"},
+    ),
     "svc_arena_main": ExplorationServiceEntry(
         service_id="svc_arena_main",
         target_state=CoreDomain.ARENA,
@@ -29,9 +35,27 @@ SERVICE_REGISTRY: dict[str, ExplorationServiceEntry] = {
     ),
     "svc_tavern_hub": ExplorationServiceEntry(
         service_id="svc_tavern_hub",
-        target_state=CoreDomain.TAVERN,
+        target_state=CoreDomain.CITY_SERVICES,
         label="В таверну",
         metadata={"service_type": "tavern", "tavern_id": "last_refuge"},
+    ),
+    "svc_town_hall_hub": ExplorationServiceEntry(
+        service_id="svc_town_hall_hub",
+        target_state=CoreDomain.CITY_SERVICES,
+        label="В ратушу",
+        metadata={"service_type": "town_hall"},
+    ),
+    "svc_blacksmith_repair": ExplorationServiceEntry(
+        service_id="svc_blacksmith_repair",
+        target_state=CoreDomain.CITY_SERVICES,
+        label="К кузнецу",
+        metadata={"service_type": "workshop.blacksmith"},
+    ),
+    "svc_market_hub": ExplorationServiceEntry(
+        service_id="svc_market_hub",
+        target_state=CoreDomain.CITY_SERVICES,
+        label="На рынок",
+        metadata={"service_type": "market"},
     ),
 }
 

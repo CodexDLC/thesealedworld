@@ -14,9 +14,14 @@ from src.backend.features.combat.dto import (
     BattleMeta,
     CollectorSignalDTO,
     CombatActionDTO,
+    CombatDeathFactDTO,
     CombatEffectFactDTO,
     CombatEventDTO,
     CombatMoveDTO,
+    CombatResourceFactDTO,
+    CombatPipelineMutationFactDTO,
+    CombatTriggerAttemptDTO,
+    CombatTriggerFactDTO,
     ExchangePayload,
     InstantPayload,
     InteractionResultDTO,
@@ -606,6 +611,67 @@ def test_executor_log_entries_use_actor_names_and_result_summary() -> None:
 
 
 @pytest.mark.unit
+def test_executor_log_entries_include_reflected_shield_damage() -> None:
+    ctx = BattleContext(session_id="c1", meta=battle_meta(), actors={"1": actor(1, "a"), "2": actor(2, "b")})
+    ctx.actors["1"].meta.hp = 88
+    ctx.actors["2"].meta.hp = 93
+    action = CombatActionDTO(
+        action_type="exchange",
+        move=CombatMoveDTO(move_id="m1", char_id=1, strategy="exchange", payload=ExchangePayload(target_id=2)),
+    )
+    result = InteractionResultDTO(source_id=1, target_id=2, damage_final=7, reflected_damage=12, is_hit=True)
+    result.events.append(
+        CombatEventDTO(
+            type="HIT",
+            source_id=1,
+            target_id=2,
+            value=7,
+            resource="hp",
+        )
+    )
+
+    CombatExecutor()._append_result_logs(ctx, result, action=action, wave=1)
+
+    entry = ctx.pending_logs[0]
+    assert "Щит A2 возвращает A1 12 урона." in entry["text"]
+    assert entry["resources"] == [
+        {"actor_id": "2", "resource": "hp", "before": 100, "after": 93, "max": 100, "delta": -7, "label": "HP 93/100"},
+        {"actor_id": "1", "resource": "hp", "before": 100, "after": 88, "max": 100, "delta": -12, "label": "HP 88/100"},
+    ]
+    assert entry["flags"]["reflect"] is True
+
+
+@pytest.mark.unit
+def test_executor_log_entries_use_dual_wield_proc_text_without_runtime_fallback() -> None:
+    ctx = BattleContext(session_id="c1", meta=battle_meta(), actors={"1": actor(1, "a"), "2": actor(2, "b")})
+    action = CombatActionDTO(
+        action_type="exchange",
+        move=CombatMoveDTO(move_id="m1", char_id=1, strategy="exchange", payload=ExchangePayload(target_id=2)),
+    )
+    result = InteractionResultDTO(source_id=1, target_id=2, damage_final=7, is_hit=True)
+    result.fired_triggers.append("style_dual_extra")
+    result.trigger_facts.append(
+        CombatTriggerFactDTO(
+            trigger_id="style_dual_extra",
+            event="ON_ACCURACY_CHECK",
+            source="style",
+            source_id="skill_dual_wield",
+            chance=0.5,
+            display_policy="separate",
+            tags=["style", "dual_wield", "extra_strike"],
+        )
+    )
+
+    CombatExecutor()._append_result_logs(ctx, result, action=action, wave=1)
+
+    assert len(ctx.pending_logs) == 2
+    trigger_entry = ctx.pending_logs[1]
+    assert trigger_entry["catalog_key"] == "combat.trigger.style.offhand_attack.proc.humanoid"
+    assert trigger_entry["text"] == "A1 начинает замах второй рукой по A2."
+    assert "(F)" not in trigger_entry["text"]
+
+
+@pytest.mark.unit
 def test_executor_log_entries_use_humanoid_feint_text_templates() -> None:
     ctx = BattleContext(session_id="c1", meta=battle_meta(), actors={"1": actor(1, "a"), "2": actor(2, "b")})
     ctx.actors["2"].meta.hp = 93
@@ -634,6 +700,34 @@ def test_executor_log_entries_use_humanoid_feint_text_templates() -> None:
     assert ctx.pending_logs[0]["result"]["resources"] == [
         {"actor_id": "2", "resource": "hp", "before": 100, "after": 93, "max": 100, "delta": -7, "label": "HP 93/100"}
     ]
+
+
+@pytest.mark.unit
+def test_executor_log_entries_use_specific_feint_avoidance_text_templates() -> None:
+    ctx = BattleContext(session_id="c1", meta=battle_meta(), actors={"1": actor(1, "a"), "2": actor(2, "b")})
+    action = CombatActionDTO(
+        action_type="exchange",
+        move=CombatMoveDTO(
+            move_id="m1",
+            char_id=1,
+            strategy="exchange",
+            payload=ExchangePayload(target_id=2, feint_id="side_cut"),
+        ),
+    )
+    result = InteractionResultDTO(source_id=1, target_id=2, is_dodged=True)
+    result.events.append(CombatEventDTO(type="CAST", source_id=1, target_id=2, action_id="side_cut"))
+    result.events.append(CombatEventDTO(type="DODGE", source_id=1, target_id=2))
+
+    CombatExecutor()._append_result_logs(ctx, result, action=action, wave=1)
+
+    entry = ctx.pending_logs[0]
+    assert entry["template"]["key"] == "combat.feint.side_cut.dodge.humanoid_to_humanoid.weapon"
+    assert entry["catalog_key"] == "combat.feint.side_cut.dodge.humanoid_to_humanoid.weapon"
+    assert entry["action"]["catalog_key"] == "combat.feint.side_cut.dodge.humanoid_to_humanoid.weapon"
+    assert entry["catalog_event"] == "dodge"
+    assert "(F)" not in entry["text"]
+    assert "Боковой срез" not in entry["text"]
+    assert "срезая боковую линию защиты" in entry["text"]
 
 
 @pytest.mark.unit
@@ -2116,6 +2210,83 @@ async def test_result_support_task_payload_captures_actor_refs_and_analytics_sli
     target.stats = stats({"evasion": 0.4, "parry": 0.5, "block": 0.6, "armor": 7.0}, {"skill_parrying": 0.2})
     ctx = BattleContext(session_id="c1", meta=battle_meta(), actors={"1": source, "2": target})
     result = InteractionResultDTO(source_id=1, target_id=2, is_hit=True, damage_final=6)
+    result.damage_trace = CombatDamageTraceDTO(
+        raw=16.0,
+        final=6.0,
+        min=14.0,
+        max=18.0,
+        details={
+            "dbp": {"attribute": 12.0, "weapon": 4.0, "bonus": 0.0},
+            "resl": {"raw": 0.2, "effective": 0.1, "suppression": 0.5, "after": 14.4},
+            "arm": {"raw": 8.0, "effective": 6.0, "ignored": 2.0, "chance": 0.25, "passed": True},
+            "after_absorb": 6.0,
+        },
+    )
+    result.fired_triggers.append("style_dual_extra")
+    result.trigger_attempts.append(
+        CombatTriggerAttemptDTO(
+            trigger_id="style_dual_extra",
+            event="ON_ACCURACY_CHECK",
+            source="style",
+            source_id="skill_dual_wield",
+            chance=0.5,
+            roll=0.25,
+            passed=True,
+            display_policy="separate",
+            tags=["style", "dual_wield"],
+        )
+    )
+    result.trigger_attempts.append(
+        CombatTriggerAttemptDTO(
+            trigger_id="crit.weapon_serrated_bleed_crit",
+            event="ON_CRIT",
+            source="weapon",
+            source_id="short_sword",
+            source_slot="main_hand",
+            chance=0.35,
+            roll=0.8,
+            passed=False,
+        )
+    )
+    result.mutation_facts.append(
+        CombatPipelineMutationFactDTO(
+            source="feint",
+            source_id="armor_slip",
+            mutation_id="m1",
+            path="mods.flat_armor_penetration_bonus_pct",
+            value=0.5,
+        )
+    )
+    result.trigger_facts.append(
+        CombatTriggerFactDTO(
+            trigger_id="style_dual_extra",
+            event="ON_ACCURACY_CHECK",
+            source="style",
+            source_id="skill_dual_wield",
+            chance=0.5,
+            display_policy="separate",
+            tags=["style", "dual_wield"],
+        )
+    )
+    result.chain_events.trigger_offhand_attack = True
+    result.reflected_damage = 2
+    result.resource_facts.append(
+        CombatResourceFactDTO(
+            actor_id=1,
+            owner="source",
+            resource="hp",
+            reason="reflect",
+            delta=-2,
+            before=50,
+            after=48,
+            max=100,
+            tags=["REFLECT"],
+        )
+    )
+    result.effect_facts.append(
+        CombatEffectFactDTO(actor_id=2, owner="target", effect_id="dot_bleed", action="apply", duration=2)
+    )
+    result.death_facts.append(CombatDeathFactDTO(actor_id=2, owner="target", reason="damage"))
     action = CombatActionDTO(
         action_type="exchange",
         move=CombatMoveDTO(move_id="m1", char_id=1, strategy="exchange", payload=ExchangePayload(target_id=2)),
@@ -2141,9 +2312,30 @@ async def test_result_support_task_payload_captures_actor_refs_and_analytics_sli
     assert payload.stat_slice["d"]["arm"] == 7.0
     assert data_service.analytics[0][0] == "c1"
     assert data_service.analytics[0][1]["seq"] == 5
+    assert data_service.analytics[0][1]["v"] == 2
+    assert data_service.analytics[0][1]["analytics_schema_version"] == 2
+    assert data_service.analytics[0][1]["combat_math_version"] == "combat-math:2026-05-17.1"
     assert data_service.analytics[0][1]["t"] == 1
     assert data_service.analytics[0][1]["w"] == 3
     assert data_service.analytics[0][1]["st"] == payload.stat_slice
+    assert data_service.analytics[0][1]["trg"] == ["style_dual_extra"]
+    assert data_service.analytics[0][1]["tf"] == [
+        ["style_dual_extra", "acc", "st", "skill_dual_wield", None, 0.5, "separate", ["style", "dual_wield"]]
+    ]
+    assert data_service.analytics[0][1]["trga"] == [
+        ["style_dual_extra", "acc", "st", "skill_dual_wield", None, 0.5, 0.25, 1, "separate", ["style", "dual_wield"]],
+        ["crit.weapon_serrated_bleed_crit", "crit", "w", "short_sword", "main_hand", 0.35, 0.8, 0, "merge", []],
+    ]
+    assert data_service.analytics[0][1]["mut"] == [
+        ["f", "armor_slip", "m1", "mods.flat_armor_penetration_bonus_pct", 0.5, []]
+    ]
+    assert data_service.analytics[0][1]["dt"]["details"]["dbp"]["weapon"] == 4.0
+    assert data_service.analytics[0][1]["dt"]["details"]["arm"]["ignored"] == 2.0
+    assert data_service.analytics[0][1]["chn"] == ["oh"]
+    assert data_service.analytics[0][1]["rf"] == [["1", "s", "hp", "reflect", -2, 50, 48, 100, ["REFLECT"]]]
+    assert data_service.analytics[0][1]["ef"] == [["2", "d", "dot_bleed", "a", None, None, 2, []]]
+    assert data_service.analytics[0][1]["df"] == [["2", "d", "damage", []]]
+    assert data_service.analytics[0][1]["x"] == {"ref": 2}
 
 
 @pytest.mark.unit
@@ -2400,6 +2592,53 @@ def test_dual_wield_style_activates_catalog_trigger_from_loadout() -> None:
 
 
 @pytest.mark.unit
+def test_dual_wield_style_does_not_activate_for_offhand_chain() -> None:
+    source = actor(1, "a")
+    target = actor(2, "b")
+    source.loadout.layout.update(
+        {
+            "main_hand": "skill_swords",
+            "off_hand": "skill_fencing",
+            "tactical_style": "skill_dual_wield",
+            "tactical_style_trigger": "accuracy.style_dual_extra",
+        }
+    )
+    move = CombatMoveDTO(move_id="m1", char_id=1, strategy="exchange", payload=ExchangePayload(target_id=2))
+
+    ctx = ContextBuilder.build_context(source, target, move, external_mods={"hand": "off"})
+
+    assert ctx.flags.meta.source_type == "off_hand"
+    assert ctx.triggers.accuracy.style_dual_extra is False
+    assert "style_dual_extra" not in ctx.trigger_activations
+
+
+@pytest.mark.unit
+def test_dual_wield_style_chance_scales_with_skill_to_half_cap(monkeypatch: pytest.MonkeyPatch) -> None:
+    ctx = PipelineContextDTO()
+    activate_trigger(ctx, "accuracy.style_dual_extra", source="style", source_id="skill_dual_wield")
+    result = InteractionResultDTO(source_id=1, target_id=2)
+    ctx.result = result
+    seen_chances: list[float] = []
+
+    def fake_roll_chance(chance: float) -> tuple[float, bool]:
+        seen_chances.append(chance)
+        return 0.1, True
+
+    monkeypatch.setattr(MathCore, "roll_chance", staticmethod(fake_roll_chance))
+
+    CombatResolver._resolve_triggers(
+        ctx,
+        result,
+        "ON_ACCURACY_CHECK",
+        source_stats=stats(skills={"skill_dual_wield": 1.0}),
+    )
+
+    assert seen_chances == [pytest.approx(0.5)]
+    assert result.chain_events.trigger_offhand_attack is True
+    assert result.trigger_facts[0].chance == pytest.approx(0.5)
+
+
+@pytest.mark.unit
 def test_two_handed_style_activates_catalog_trigger_from_loadout() -> None:
     source = actor(1, "a")
     target = actor(2, "b")
@@ -2645,7 +2884,7 @@ def test_physical_resistance_suppression_trigger_bonus_reduces_only_natural_laye
 
 
 @pytest.mark.unit
-def test_shield_reflect_absorbs_percent_plus_shield_power(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_shield_reflect_scales_absorb_and_return_by_shield_mastery(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(MathCore, "random_range", staticmethod(lambda min_d, max_d: min_d))
 
     ctx = PipelineContextDTO()
@@ -2666,17 +2905,20 @@ def test_shield_reflect_absorbs_percent_plus_shield_power(monkeypatch: pytest.Mo
         result,
     )
 
-    assert damage == pytest.approx(4.0)
-    assert result.damage_final == 4
-    assert result.reflected_damage == 8
+    assert damage == pytest.approx(15.0)
+    assert result.damage_final == 15
+    assert result.reflected_damage == 1
     assert result.damage_trace is not None
-    assert result.damage_trace.details["shield_absorb"] == pytest.approx(16.0)
-    assert result.damage_trace.details["shield_absorb_ratio"] == pytest.approx(0.5)
-    assert result.damage_trace.details["shield_guard_power"] == pytest.approx(6.0)
+    assert result.damage_trace.details["shield_mastery"] == pytest.approx(0.5)
+    assert result.damage_trace.details["shield_absorb"] == pytest.approx(5.0)
+    assert result.damage_trace.details["shield_absorb_cap"] == pytest.approx(5.0)
+    assert result.damage_trace.details["shield_absorb_ratio"] == pytest.approx(0.25)
+    assert result.damage_trace.details["shield_reflect_ratio"] == pytest.approx(0.25)
+    assert result.damage_trace.details["shield_guard_power"] == pytest.approx(3.0)
 
 
 @pytest.mark.unit
-def test_shield_reflect_absorb_is_capped_by_incoming_damage(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_shield_reflect_never_absorbs_full_hit_even_with_huge_guard(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(MathCore, "random_range", staticmethod(lambda min_d, max_d: min_d))
 
     ctx = PipelineContextDTO()
@@ -2685,14 +2927,18 @@ def test_shield_reflect_absorb_is_capped_by_incoming_damage(monkeypatch: pytest.
 
     damage = CombatResolver._step_calculate_damage(
         stats({"main_hand_damage_base": 5.0, "main_hand_damage_spread": 0.0}),
-        stats({"shield_guard_power": 100.0}),
+        stats({"shield_guard_power": 100.0}, {"skill_shield_mastery": 1.0}),
         ctx,
         result,
     )
 
-    assert damage == 0.0
-    assert result.damage_final == 0
-    assert result.reflected_damage == 5
+    assert damage == pytest.approx(2.5)
+    assert result.damage_final == 2
+    assert result.reflected_damage == 1
+    assert result.damage_trace is not None
+    assert result.damage_trace.details["shield_absorb"] == pytest.approx(2.5)
+    assert result.damage_trace.details["shield_absorb_cap"] == pytest.approx(2.5)
+    assert result.damage_trace.details["shield_reflect_ratio"] == pytest.approx(0.5)
 
 
 @pytest.mark.unit

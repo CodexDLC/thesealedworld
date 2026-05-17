@@ -228,8 +228,8 @@ async def test_prepare_session_uses_return_context_source_state() -> None:
         quest_key="tavern_bartender_dialogue",
         current_node_key="start",
         return_context=ScenarioReturnContextDTO(
-            source_state=CoreDomain.TAVERN,
-            return_state=CoreDomain.TAVERN,
+            source_state=CoreDomain.CITY_SERVICES,
+            return_state=CoreDomain.CITY_SERVICES,
             return_screen="bar",
             source_service_id="svc_tavern_hub",
             location_id="52_53",
@@ -242,8 +242,8 @@ async def test_prepare_session_uses_return_context_source_state() -> None:
     character_sessions.transition_state.assert_awaited_once_with(
         7,
         CoreDomain.SCENARIO,
-        expected_state=CoreDomain.TAVERN.value,
-        prev_state=CoreDomain.TAVERN.value,
+        expected_state=CoreDomain.CITY_SERVICES.value,
+        prev_state=CoreDomain.CITY_SERVICES.value,
     )
     sessions.create.assert_awaited_once_with(7, context)
     character_sessions.set_scenario_session.assert_awaited_once()
@@ -325,7 +325,7 @@ async def test_apply_finalize_effects_fails_required_tavern_effect() -> None:
         events=events,
     )
 
-    with pytest.raises(RuntimeError, match="Tavern room grant effect failed"):
+    with pytest.raises(RuntimeError, match="City service tavern room grant effect failed"):
         await integrator.apply_finalize_effects(
             7,
             {"_effects": [{"type": "tavern.grant_room", "required": True, "tavern_id": "last_refuge"}]},

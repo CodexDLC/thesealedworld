@@ -69,7 +69,7 @@ class CombatSessionService:
         moves = await self.store.get_moves_batch(combat_id, actor_ids)
         await self._seed_initial_ai_turns(combat_id, char_id, meta=meta, actors=actors, targets=targets, moves=moves)
         all_logs_by_turn = await self._get_logs_by_turn(combat_id)
-        raw_logs_by_turn = dict(list(all_logs_by_turn.items())[-LOG_PAGE_SIZE:])
+        raw_logs_by_turn = self._slice_log_turns_from_end(all_logs_by_turn, page=1, page_size=LOG_PAGE_SIZE)
         total_logs = len(all_logs_by_turn)
 
         return self.view.build_dashboard(
@@ -419,10 +419,16 @@ class CombatSessionService:
     def _slice_log_turns_from_end(
         logs_by_turn: dict[str, list[str]], *, page: int, page_size: int
     ) -> dict[str, list[str]]:
-        items = list(logs_by_turn.items())
+        items = sorted(logs_by_turn.items(), key=lambda item: CombatSessionService._turn_sort_key(item[0]))
         stop = max(len(items) - ((page - 1) * page_size), 0)
         start = max(stop - page_size, 0)
         return dict(items[start:stop])
+
+    @staticmethod
+    def _turn_sort_key(turn: str) -> tuple[int, str]:
+        with contextlib.suppress(TypeError, ValueError):
+            return (int(turn), str(turn))
+        return (0, str(turn))
 
     @staticmethod
     def _group_raw_logs_by_turn(raw_logs: list[str]) -> dict[str, list[str]]:

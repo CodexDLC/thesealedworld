@@ -458,6 +458,13 @@ DEFAULT_FEINT_TEMPLATE_RECIPES: tuple[CombatTextTemplateRecipeDTO, ...] = (
 )
 
 
+def _feint_descriptive_exchange_pattern(entry, outcome: str) -> str | None:
+    variant = entry.descriptive.variants.get("humanoid")
+    if variant is None:
+        return None
+    return variant.event_texts.exchange_template(outcome)
+
+
 def _build_generic_feint_template_recipes() -> tuple[CombatTextTemplateRecipeDTO, ...]:
     existing = {recipe.template_key for recipe in TRUE_STRIKE_TEMPLATE_RECIPES}
     recipes: list[CombatTextTemplateRecipeDTO] = []
@@ -490,6 +497,31 @@ def _build_generic_feint_template_recipes() -> tuple[CombatTextTemplateRecipeDTO
                         "impact": impact_key,
                         "result": "common.result.damage.hp",
                     },
+                    tags=tags,
+                )
+            )
+        for outcome, tags in (
+            ("miss", ["feint", "weapon", "avoidance", "miss"]),
+            ("dodge", ["feint", "weapon", "avoidance", "dodge"]),
+            ("parry", ["feint", "weapon", "avoidance", "parry"]),
+            ("block", ["feint", "weapon", "avoidance", "block"]),
+        ):
+            key = f"combat.feint.{feint_id}.{outcome}.humanoid_to_humanoid.weapon"
+            if key in existing:
+                continue
+            pattern = _feint_descriptive_exchange_pattern(entry, outcome)
+            if not pattern:
+                continue
+            recipes.append(
+                CombatTextTemplateRecipeDTO(
+                    template_key=key,
+                    resource_type="feint",
+                    resource_id=feint_id,
+                    catalog_key=entry.key,
+                    outcome=outcome,
+                    body_pair="humanoid_to_humanoid",
+                    delivery="weapon",
+                    pattern=pattern,
                     tags=tags,
                 )
             )
@@ -1022,7 +1054,7 @@ TRIGGER_TEMPLATE_RECIPES: tuple[CombatTextTemplateRecipeDTO, ...] = (
         catalog_key="combat.trigger.style.offhand_attack",
         outcome="proc",
         target_body="humanoid",
-        pattern="{source} проводит молниеносный удар второй рукой по {target}.",
+        pattern="{source} начинает замах второй рукой по {target}.",
         tags=["trigger", "style", "dual_wield"],
     ),
     # --- dodge / accuracy triggers ---

@@ -72,6 +72,12 @@ def test_skill_catalog_public_descriptions_explain_effects():
 
     assert "штрафов оружия к точности" in str(public_text["skill_swords"]["description"])
     assert "шанс парирования" in str(public_text["skill_parrying"]["description"])
+    assert "блоком щитом" in str(public_text["skill_parrying"]["description"])
+    assert "Shield Mastery" not in str(public_text["skill_parrying"]["description"])
+    assert "до 50% входящего урона" in str(public_text["skill_shield_mastery"]["description"])
+    assert "не парирование в 0 урона" in str(public_text["skill_shield_mastery"]["description"])
+    assert "до 50% на 100 мастерства" in str(public_text["skill_dual_wield"]["description"])
+    assert "сама не может запускать еще одну" in str(public_text["skill_dual_wield"]["description"])
     assert "жестко режет кап уклонения" in str(public_text["skill_heavy_armor"]["description"])
     assert "предпросмотр ценного лута" in str(public_text["skill_scouting"]["description"])
 

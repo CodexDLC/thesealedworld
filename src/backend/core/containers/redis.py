@@ -13,6 +13,8 @@ from src.backend.features.arena.events import router as arena_router
 from src.backend.features.character.events import bind as bind_character_events
 from src.backend.features.character.events import router as character_router
 from src.backend.features.character.events.publisher import CharacterSessionEvents
+from src.backend.features.city_services.events import bind as bind_city_services_events
+from src.backend.features.city_services.events import router as city_services_router
 from src.backend.features.combat.events import bind as bind_combat_events
 from src.backend.features.combat.events import router as combat_router
 
@@ -30,8 +32,6 @@ from src.backend.features.monsters.events import router as monsters_router
 from src.backend.features.scenario.events import bind as bind_scenario_events
 from src.backend.features.scenario.events import router as scenario_router
 from src.backend.features.scenario.game_config import ScenarioConfig
-from src.backend.features.tavern.events import bind as bind_tavern_events
-from src.backend.features.tavern.events import router as tavern_router
 from src.backend.features.world.events import router as world_router
 from src.backend.infrastructure.game_config.manager import GameConfigManager
 
@@ -51,7 +51,7 @@ EVENT_ROUTER_GROUPS = (
     ("monsters", monsters_router),
     ("scenario", scenario_router),
     ("arena", arena_router),
-    ("tavern", tavern_router),
+    ("city_services", city_services_router),
 )
 
 
@@ -105,7 +105,7 @@ class RedisContainer:
         bind_loot_events(app)
         bind_monsters_events(app)
         bind_scenario_events(app)
-        bind_tavern_events(app)
+        bind_city_services_events(app)
 
         for runtime in runtimes:
             await runtime.start()
@@ -153,4 +153,4 @@ class RedisContainer:
         runtime.include_router(monsters_router)
         runtime.include_router(scenario_router)
         runtime.include_router(arena_router)
-        runtime.include_router(tavern_router)
+        runtime.include_router(city_services_router)

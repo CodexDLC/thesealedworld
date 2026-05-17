@@ -1,3 +1,4 @@
+from pathlib import Path
 from types import SimpleNamespace
 
 from jinja2 import Environment, FileSystemLoader, select_autoescape
@@ -33,9 +34,13 @@ def test_mode_menu_renders_queue_and_back_buttons_from_lowercase_actions():
     assert "Бой с тенью" in rendered
     assert "arena-queue-card--primary" in rendered
     assert "arena-queue-card--secondary" in rendered
+    assert "arena-queue-meter--ranked" in rendered
+    assert "arena-queue-meter--shadow" in rendered
     assert "arena-duel-ranked-grid" not in rendered
-    assert "В ожидании поиска" in rendered
-    assert ">2</strong>" in rendered
+    assert "Отчет очереди" in rendered
+    assert ">2 в поиске</strong>" in rendered
+    assert "Бой найден" in rendered
+    assert ">READY</strong>" in rendered
     assert "максимум 5 мин" in rendered
     assert rendered.count('type="button"') >= 4
     assert "Назад" in rendered
@@ -47,6 +52,18 @@ def test_mode_menu_renders_queue_and_back_buttons_from_lowercase_actions():
     assert 'hx-target="#game-modal-root"' in rendered
     assert '"modal": true' in rendered
     assert '"action": "menu_main"' in rendered
+
+
+def test_mode_menu_uses_static_card_icons_and_search_screen_keeps_scanner_animation():
+    css = Path("src/frontend/static/css/game/domains/arena/matchmaking.css").read_text(encoding="utf-8")
+
+    queue_meter_block = css.split(".arena-queue-meter {", maxsplit=1)[1].split("}", maxsplit=1)[0]
+    search_orbit_block = css.split(".arena-search-orbit {", maxsplit=1)[1].split("}", maxsplit=1)[0]
+
+    assert "animation:" not in queue_meter_block
+    assert "arena-icons/sword-clash.svg" in css
+    assert "arena-icons/knight-banner.svg" in css
+    assert "animation: arena-queue-scan" in search_orbit_block
 
 
 def test_searching_poll_uses_backend_action_values():

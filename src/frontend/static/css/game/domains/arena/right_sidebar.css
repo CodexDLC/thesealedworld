@@ -190,6 +190,10 @@
         grid-template-columns: 1fr;
     }
 
+    .arena-duel-actions {
+        grid-template-columns: 1fr;
+    }
+
     .arena-duel-ranked-grid,
     .arena-group-plans,
     .arena-group-tabs,

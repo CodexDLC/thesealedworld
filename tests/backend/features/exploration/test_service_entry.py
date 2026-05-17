@@ -89,7 +89,7 @@ async def test_use_service_returns_backend_owned_arena_transition():
 
 
 @pytest.mark.asyncio
-async def test_use_service_returns_backend_owned_tavern_transition():
+async def test_use_service_returns_backend_owned_city_services_transition():
     service = ExplorationService(
         FakeExplorationIntegrator(
             loc_id="52_53",
@@ -101,11 +101,38 @@ async def test_use_service_returns_backend_owned_tavern_transition():
     result = await service.use_service(7, "svc_tavern_hub")
 
     assert isinstance(result, ServiceResult)
-    assert result.next_state == CoreDomain.TAVERN
+    assert result.next_state == CoreDomain.CITY_SERVICES
     assert result.data["service_id"] == "svc_tavern_hub"
     assert result.data["location_id"] == "52_53"
     assert result.data["service_type"] == "tavern"
     assert result.data["tavern_id"] == "last_refuge"
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("service_id", "service_type"),
+    [
+        ("svc_portal_hub", "portal"),
+        ("svc_town_hall_hub", "town_hall"),
+        ("svc_blacksmith_repair", "workshop.blacksmith"),
+        ("svc_market_hub", "market"),
+    ],
+)
+async def test_use_service_routes_start_city_placeholders_to_city_services(service_id: str, service_type: str):
+    service = ExplorationService(
+        FakeExplorationIntegrator(
+            loc_id="52_52",
+            loc_data={"services": [service_id], "exits": {}},
+        ),
+        encounter_engine=object(),
+    )
+
+    result = await service.use_service(7, service_id)
+
+    assert isinstance(result, ServiceResult)
+    assert result.next_state == CoreDomain.CITY_SERVICES
+    assert result.data["service_id"] == service_id
+    assert result.data["service_type"] == service_type
 
 
 @pytest.mark.asyncio

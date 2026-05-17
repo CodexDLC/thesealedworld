@@ -7,7 +7,17 @@ from typing import TYPE_CHECKING, Any
 from src.backend.features.generation_ai.dto import AIGenerationTaskResultDTO, AIGenerationTaskSpecDTO
 from src.backend.features.world.dto.ai import WorldLocationBatchResponseDTO, WorldZoneLoreDTO
 from src.backend.features.world.integrations import WorldDataIntegration
-from src.backend.features.world.prompts import build_batch_location_desc_prompt, build_zone_lore_prompt
+from src.backend.features.world.location_images import (
+    WORLD_LOCATION_IMAGE_SIZE,
+    WORLD_LOCATION_IMAGE_STORAGE_ROOT,
+    WORLD_LOCATION_IMAGE_TASK,
+    WorldLocationImageTaskHandler,
+    build_world_location_image_task_spec,
+)
+from src.backend.features.world.prompts import (
+    build_batch_location_desc_prompt,
+    build_zone_lore_prompt,
+)
 from src.backend.infrastructure.world.repositories import WorldRepository
 
 if TYPE_CHECKING:
@@ -18,6 +28,21 @@ if TYPE_CHECKING:
 
 WORLD_ZONE_LORE_TASK = "world.zone_lore"
 WORLD_LOCATION_BATCH_TASK = "world.location_batch"
+
+__all__ = [
+    "WORLD_LOCATION_BATCH_TASK",
+    "WORLD_LOCATION_IMAGE_SIZE",
+    "WORLD_LOCATION_IMAGE_STORAGE_ROOT",
+    "WORLD_LOCATION_IMAGE_TASK",
+    "WORLD_ZONE_LORE_TASK",
+    "WorldLocationBatchTaskHandler",
+    "WorldLocationImageTaskHandler",
+    "WorldZoneLoreTaskHandler",
+    "build_world_location_batch_task_spec",
+    "build_world_location_image_task_spec",
+    "build_world_zone_lore_task_spec",
+    "register_generation_ai_tasks",
+]
 
 
 class WorldZoneLoreTaskHandler:
@@ -170,6 +195,7 @@ def build_world_location_batch_task_spec(
 def register_generation_ai_tasks(registry: AIGenerationTaskRegistry, *, session: AsyncSession | None = None) -> None:
     registry.register(WorldZoneLoreTaskHandler(session=session))
     registry.register(WorldLocationBatchTaskHandler(session=session))
+    registry.register(WorldLocationImageTaskHandler(session=session))
 
 
 def _short_asset_hash(namespace: str, payload: dict[str, Any]) -> str:

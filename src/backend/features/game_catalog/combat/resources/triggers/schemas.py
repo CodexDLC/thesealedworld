@@ -31,6 +31,9 @@ class TriggerTechnicalDTO(BaseModel):
     event: str
 
     chance: float = 1.0
+    chance_skill_key: str | None = None
+    chance_skill_scale: float = 0.0
+    chance_cap: float | None = None
 
     # Whitelisted pipeline-local context/result mutations.
     pipeline_mutations: list[PipelineMutationApplicationDTO] = Field(default_factory=list)

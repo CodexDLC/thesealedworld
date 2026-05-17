@@ -1,0 +1,84 @@
+name: tbmmorpg
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    container_name: tbmmorpg-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-tbmmorpg}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+      POSTGRES_DB: ${POSTGRES_DB:-tbmmorpg_site}
+    volumes:
+      - tbmmorpg-postgres-data:/var/lib/postgresql/data
+      - ./postgres/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+    networks:
+      - tbmmorpg-network
+
+  redis:
+    image: redis/redis-stack-server:7.2.0-v14
+    container_name: tbmmorpg-redis
+    restart: unless-stopped
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?REDIS_PASSWORD is required}
+    command: ["redis-stack-server", "--requirepass", "${REDIS_PASSWORD:?REDIS_PASSWORD is required}"]
+    volumes:
+      - tbmmorpg-redis-data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a \"$${REDIS_PASSWORD}\" ping | grep PONG"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+    networks:
+      - tbmmorpg-network
+
+  nginx:
+    image: ${DOCKER_IMAGE_NGINX:?DOCKER_IMAGE_NGINX is required}
+    container_name: tbmmorpg-nginx
+    restart: unless-stopped
+    environment:
+      DOMAIN_NAME: ${DOMAIN_NAME:?DOMAIN_NAME is required}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - tbmmorpg-certs:/etc/letsencrypt:ro
+      - tbmmorpg-certbot-challenge:/var/www/certbot:ro
+    networks:
+      - tbmmorpg-network
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  certbot:
+    image: certbot/certbot:v2.11.0
+    container_name: tbmmorpg-certbot
+    restart: unless-stopped
+    volumes:
+      - tbmmorpg-certs:/etc/letsencrypt
+      - tbmmorpg-certbot-challenge:/var/www/certbot
+    entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew; sleep 12h & wait $${!}; done;'"
+    networks:
+      - tbmmorpg-network
+
+volumes:
+  tbmmorpg-postgres-data:
+    name: tbmmorpg-postgres-data
+  tbmmorpg-redis-data:
+    name: tbmmorpg-redis-data
+  tbmmorpg-certs:
+    name: tbmmorpg-certs
+  tbmmorpg-certbot-challenge:
+    name: tbmmorpg-certbot-challenge
+
+networks:
+  tbmmorpg-network:
+    name: tbmmorpg-network
+    driver: bridge

@@ -65,6 +65,8 @@ WEAPON_TRIGGER_CATALOG: list[TriggerCatalogEntryDTO] = [
             pipeline_mutations=[
                 pipeline_mutation("crit_damage_boost"),
                 pipeline_mutation("weapon_effect_value", 2.0),
+                pipeline_mutation("boost_flat_armor_penetration"),
+                pipeline_mutation("flat_armor_penetration_bonus_pct", 0.5),
             ],
             allowed_sources=["weapon"],
             display_policy="merge",
@@ -110,7 +112,7 @@ WEAPON_TRIGGER_CATALOG: list[TriggerCatalogEntryDTO] = [
             trigger_id="weapon_piercing_crit",
             event="ON_CRIT",
             chance=1.0,
-            pipeline_mutations=[pipeline_mutation("enable_pierce")],
+            pipeline_mutations=[pipeline_mutation("ignore_flat_armor")],
             allowed_sources=["weapon"],
             display_policy="merge",
             tags=["weapon", "piercing", "crit", "armor_bypass"],
@@ -124,6 +126,78 @@ WEAPON_TRIGGER_CATALOG: list[TriggerCatalogEntryDTO] = [
                 crit_proc=["{source} находит щель в защите {target}."],
             ),
             beast_event_texts=default_trigger_proc_event_texts("Пронзающий крит"),
+        ),
+    ),
+    TriggerCatalogEntryDTO(
+        key="combat.trigger.weapon.flat_armor_gap_crit",
+        technical=TriggerTechnicalDTO(
+            trigger_id="weapon_flat_armor_gap_crit",
+            event="ON_CRIT",
+            chance=1.0,
+            pipeline_mutations=[
+                pipeline_mutation("roll_flat_armor_ignore"),
+                pipeline_mutation("flat_armor_ignore_chance_bonus", 0.5),
+            ],
+            allowed_sources=["weapon"],
+            display_policy="merge",
+            tags=["weapon", "piercing", "crit", "armor_gap"],
+        ),
+        descriptive=build_combat_description(
+            resource_type="trigger",
+            resource_id="weapon_flat_armor_gap_crit",
+            display_name="Щель в броне",
+            short_description="Критический укол получает шанс пройти мимо плоской брони.",
+            humanoid_event_texts=CombatEventTextSetDTO(
+                crit_proc=["{source} ищет щель в броне {target}."],
+            ),
+            beast_event_texts=default_trigger_proc_event_texts("Щель в броне"),
+        ),
+    ),
+    TriggerCatalogEntryDTO(
+        key="combat.trigger.weapon.flat_armor_bypass_crit",
+        technical=TriggerTechnicalDTO(
+            trigger_id="weapon_flat_armor_bypass_crit",
+            event="ON_CRIT",
+            chance=1.0,
+            pipeline_mutations=[pipeline_mutation("ignore_flat_armor")],
+            allowed_sources=["weapon"],
+            display_policy="merge",
+            tags=["weapon", "piercing", "crit", "armor_bypass"],
+        ),
+        descriptive=build_combat_description(
+            resource_type="trigger",
+            resource_id="weapon_flat_armor_bypass_crit",
+            display_name="Обход брони",
+            short_description="Критический укол полностью обходит плоскую броню.",
+            humanoid_event_texts=CombatEventTextSetDTO(
+                crit_proc=["{source} проводит укол мимо брони {target}."],
+            ),
+            beast_event_texts=default_trigger_proc_event_texts("Обход брони"),
+        ),
+    ),
+    TriggerCatalogEntryDTO(
+        key="combat.trigger.weapon.flat_armor_crush_crit",
+        technical=TriggerTechnicalDTO(
+            trigger_id="weapon_flat_armor_crush_crit",
+            event="ON_CRIT",
+            chance=1.0,
+            pipeline_mutations=[
+                pipeline_mutation("boost_flat_armor_penetration"),
+                pipeline_mutation("flat_armor_penetration_bonus_pct", 0.5),
+            ],
+            allowed_sources=["weapon"],
+            display_policy="merge",
+            tags=["weapon", "heavy", "crit", "armor_crush"],
+        ),
+        descriptive=build_combat_description(
+            resource_type="trigger",
+            resource_id="weapon_flat_armor_crush_crit",
+            display_name="Смятие брони",
+            short_description="Критический тяжелый удар сильнее подавляет плоскую броню.",
+            humanoid_event_texts=CombatEventTextSetDTO(
+                crit_proc=["{source} сминает защиту {target} тяжелым ударом."],
+            ),
+            beast_event_texts=default_trigger_proc_event_texts("Смятие брони"),
         ),
     ),
     TriggerCatalogEntryDTO(

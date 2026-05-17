@@ -7,9 +7,11 @@ from src.backend.features.combat.runtime.services.data_service import CombatData
 from src.backend.features.combat.runtime.services.durability_policy import CombatDurabilityPolicy
 from src.backend.features.combat.runtime.services.experience_finalizer import CombatExperienceFinalizer
 from src.backend.features.combat.runtime.services.finalization_builder import CombatFinalizationBuilder
+from src.backend.features.combat.services.post_battle_router import CombatPostBattleRouter
 from src.backend.features.combat.workers.tasks.chat_announcements import publish_combat_final_announcement
 from src.backend.features.expedition import ExpeditionService
 from src.backend.features.inventory.events.publisher import InventoryEvents
+from src.backend.infrastructure.loot.managers.loot_manager import LootManager
 from src.shared.enums import CoreDomain
 
 
@@ -146,6 +148,7 @@ async def _attach_finalization_to_active_sessions(ctx: dict, session_id: str, fi
                 session=session,
                 character_sessions=character_sessions,
                 expedition_manager=ctx.get("expeditions"),
+                loot_manager=LootManager(ctx["redis_service"]) if ctx.get("redis_service") is not None else None,
                 world_store=ctx.get("world_locations"),
             )
             for char_id in dead_char_ids:
@@ -154,23 +157,35 @@ async def _attach_finalization_to_active_sessions(ctx: dict, session_id: str, fi
                     combat_id=session_id,
                     location_id=str(location_id) if location_id else None,
                 ):
+                    await expedition_service.finalize_death_corpse(char_id=char_id)
                     death_marked.add(char_id)
 
+    post_combat = await CombatPostBattleRouter().build_outcomes(ctx, finalization)
     for char_id in char_ids:
+        outcome = post_combat.get(char_id)
+        outcome_payload = outcome.model_dump(mode="json") if outcome is not None else None
         if char_id in death_marked:
+            if outcome_payload is not None:
+                await character_sessions.patch_fields(char_id, {"$.sessions.post_combat": outcome_payload})
+                await character_sessions.mark_dirty(
+                    char_id,
+                    reason="combat_post_battle_outcome_attached",
+                    paths=["$.sessions.post_combat"],
+                )
             continue
         await character_sessions.patch_fields(
             char_id,
             {
                 "$.sessions.combat_id": None,
                 "$.sessions.combat_finalization_id": str(session_id),
+                "$.sessions.post_combat": outcome_payload,
                 "$.state": CoreDomain.COMBAT_RESULT.value,
             },
         )
         await character_sessions.mark_dirty(
             char_id,
             reason="combat_finalization_attached",
-            paths=["$.sessions.combat_finalization_id", "$.sessions.combat_id", "$.state"],
+            paths=["$.sessions.combat_finalization_id", "$.sessions.combat_id", "$.sessions.post_combat", "$.state"],
         )
 
 

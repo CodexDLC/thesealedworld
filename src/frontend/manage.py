@@ -30,6 +30,33 @@ def compile_static():
     print("✅ Done!")
 
 
+async def create_superuser(email: str, password: str) -> None:
+    """Create a new superuser or promote an existing user to superuser."""
+    from src.frontend.core.database.session import create_db_tables, get_session_context
+    from src.frontend.features.auth.repositories.user_repository import UserRepository
+    from src.frontend.features.auth.security.passwords import get_password_hash
+
+    await create_db_tables()
+
+    async with get_session_context() as session:
+        repo = UserRepository(session)
+        user = await repo.get_by_email(email)
+        if user is not None:
+            user.is_superuser = True
+            print(f"✅ Promoted existing user to superuser: {email}")
+        else:
+            from src.frontend.features.auth.models import User
+
+            new_user = User(
+                email=email,
+                hashed_password=get_password_hash(password),
+                is_active=True,
+                is_superuser=True,
+            )
+            session.add(new_user)
+            print(f"✅ Created superuser: {email}")
+
+
 if __name__ == "__main__":
     args = sys.argv[1:]
 
@@ -37,5 +64,13 @@ if __name__ == "__main__":
         runserver()
     elif "compile" in args:
         compile_static()
+    elif "createsuperuser" in args:
+        import asyncio
+        import getpass
+
+        idx = args.index("createsuperuser")
+        email_arg = args[idx + 1] if len(args) > idx + 1 else input("Email: ")
+        password_arg = args[idx + 2] if len(args) > idx + 2 else getpass.getpass("Password: ")
+        asyncio.run(create_superuser(email_arg, password_arg))
     else:
-        print("Unknown command. Available: runserver, compile")
+        print("Unknown command. Available: runserver, compile, createsuperuser <email> [password]")

@@ -169,7 +169,7 @@ class TestScenarioService:
         mocks["integrator"].finalize_session.assert_called_with(char_id, CoreDomain.EXPLORATION)
         mocks["integrator"].sync_active_character_to_db.assert_called_with(char_id)
 
-    async def test_finalize_shadow_combat_closes_scenario_to_exploration_before_combat(self, service, mocks):
+    async def test_finalize_pve_combat_closes_scenario_only_after_combat_ready(self, service, mocks):
         char_id = 1
         context = ScenarioContextDTO(quest_key="awakening_rift", current_node_key="terminal")
         mocks["integrator"].load_session = AsyncMock(return_value=context)
@@ -179,9 +179,9 @@ class TestScenarioService:
         mock_handler.on_finalize = AsyncMock(
             return_value=ScenarioFinalizeResult(
                 target_state=CoreDomain.COMBAT,
-                transition_reason="scenario_shadow_combat",
-                location_id="52_58",
-                metadata={"battle_type": "shadow"},
+                transition_reason="scenario_pve_combat",
+                location_id="45_52",
+                metadata={"battle_type": "pve"},
             )
         )
 
@@ -210,22 +210,57 @@ class TestScenarioService:
 
         result = await service.finalize(char_id)
 
-        mocks["integrator"].prepare_combat_return_context.assert_awaited_once_with(char_id, location_id="52_58")
+        mocks["integrator"].prepare_combat_return_context.assert_awaited_once_with(char_id, location_id="45_52")
         assert calls[0] == (
+            "sync_active_character_to_db",
+            (char_id,),
+        )
+        assert calls[1] == (
+            "request_combat_start",
+            (char_id, "awakening_rift"),
+            {"battle_type": "pve", "location_id": "45_52"},
+        )
+        assert calls[2] == (
             "finalize_session",
             (char_id, CoreDomain.EXPLORATION),
             {"prev_state": CoreDomain.EXPLORATION},
-        )
-        assert calls[1] == ("sync_active_character_to_db", (char_id,))
-        assert calls[2] == (
-            "request_combat_start",
-            (char_id, "awakening_rift"),
-            {"battle_type": "shadow", "location_id": "52_58"},
         )
         mocks["integrator"].enter_prepared_combat.assert_awaited_once_with(char_id, "combat-1")
         assert mocks["integrator"].sync_active_character_to_db.await_count == 2
         assert result.target_state == CoreDomain.COMBAT
         assert result.combat_id == "combat-1"
+
+    async def test_finalize_pve_combat_failure_keeps_scenario_session_open(self, service, mocks):
+        char_id = 1
+        context = ScenarioContextDTO(quest_key="awakening_rift", current_node_key="terminal")
+        mocks["integrator"].load_session = AsyncMock(return_value=context)
+        mocks["integrator"].get_quest_master = AsyncMock(return_value={"quest_key": "awakening_rift"})
+
+        mock_handler = MagicMock()
+        mock_handler.on_finalize = AsyncMock(
+            return_value=ScenarioFinalizeResult(
+                target_state=CoreDomain.COMBAT,
+                transition_reason="scenario_pve_combat",
+                location_id="45_52",
+                metadata={"battle_type": "pve"},
+            )
+        )
+        mocks["integrator"].build_handler.return_value = mock_handler
+        mocks["integrator"].grant_inventory_rewards = AsyncMock(return_value=[])
+        mocks["integrator"].unlock_skills = AsyncMock()
+        mocks["integrator"].apply_attribute_bonuses = AsyncMock()
+        mocks["integrator"].prepare_combat_return_context = AsyncMock()
+        mocks["integrator"].sync_active_character_to_db = AsyncMock()
+        mocks["integrator"].request_combat_start = AsyncMock(side_effect=RuntimeError("monster group failed"))
+        mocks["integrator"].finalize_session = AsyncMock()
+        mocks["integrator"].enter_prepared_combat = AsyncMock()
+
+        with pytest.raises(RuntimeError, match="monster group failed"):
+            await service.finalize(char_id)
+
+        mocks["integrator"].prepare_combat_return_context.assert_not_awaited()
+        mocks["integrator"].finalize_session.assert_not_awaited()
+        mocks["integrator"].enter_prepared_combat.assert_not_awaited()
 
     async def test_initialize_auto_chain(self, service, mocks):
         import uuid

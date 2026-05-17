@@ -24,6 +24,7 @@ from src.shared.schemas.inventory import (
     InventoryRuntimeItemDTO,
     InventoryRuntimeSessionDTO,
     InventoryWindowDTO,
+    WalletDTO,
 )
 
 if TYPE_CHECKING:
@@ -127,16 +128,29 @@ class InventoryService:
         session = await self.inventory_sessions.get(char_id)
         if session is not None:
             await self.inventory_sessions.touch(char_id)
+            await self._refresh_wallet(session)
             return session
 
         rows = await self.repository.list_character_items(char_id, expedition_run_id=await self._active_run_id(char_id))
         runtime_items = [runtime_item_from_instance(instance, placement) for instance, placement in rows]
         session = build_runtime_session(char_id, runtime_items)
+        await self._refresh_wallet(session)
         session.updated_at = time.time()
         await self.inventory_sessions.set(session)
         await self.character_sessions.set_inventory_session(char_id, self.inventory_sessions.build_key(char_id))
         await self._sync_active_character_items(session)
         return session
+
+    async def _refresh_wallet(self, session: InventoryRuntimeSessionDTO) -> None:
+        get_wallet = getattr(self.repository, "get_wallet", None)
+        wallet = await get_wallet(session.char_id) if get_wallet is not None else WalletDTO()
+
+        run_id = await self._active_run_id(session.char_id)
+        get_expedition_wallet = getattr(self.repository, "get_expedition_wallet", None)
+        if run_id and get_expedition_wallet is not None:
+            wallet = self._merge_wallets(wallet, await get_expedition_wallet(run_id))
+
+        session.wallet = wallet
 
     async def flush_session(self, session: InventoryRuntimeSessionDTO) -> None:
         await self.repository.save_placements(
@@ -403,6 +417,24 @@ class InventoryService:
             return None
         run_id = risk.get("run_id")
         return str(run_id) if run_id else None
+
+    @staticmethod
+    def _merge_wallets(base: WalletDTO, extra: WalletDTO) -> WalletDTO:
+        return WalletDTO(
+            currency=InventoryService._merge_bucket(base.currency, extra.currency),
+            resources=InventoryService._merge_bucket(base.resources, extra.resources),
+            components=InventoryService._merge_bucket(base.components, extra.components),
+        )
+
+    @staticmethod
+    def _merge_bucket(base: dict[str, int], extra: dict[str, int]) -> dict[str, int]:
+        merged = {str(key): int(value or 0) for key, value in base.items()}
+        for key, value in extra.items():
+            amount = int(value or 0)
+            if amount <= 0:
+                continue
+            merged[str(key)] = merged.get(str(key), 0) + amount
+        return {key: value for key, value in merged.items() if value > 0}
 
     def _can_act(self, state: str | None) -> bool:
         return state not in self.FORBIDDEN_ACTION_STATES

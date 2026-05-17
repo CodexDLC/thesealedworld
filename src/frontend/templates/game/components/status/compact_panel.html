@@ -1,0 +1,189 @@
+{% set status = character_status if character_status is defined else none %}
+{% set bio = status.bio if status else {} %}
+{% set vitals = status.vitals if status else {} %}
+{% set attrs = status.attributes if status else {} %}
+{% set skills = status.skills if status else {} %}
+{% set hp = vitals.get('hp', {}) %}
+{% set en = vitals.get('energy', {}) %}
+{% set sta = vitals.get('stamina', {}) %}
+{% set hp_cur = hp.get('cur', 0) %}
+{% set hp_max = hp.get('max', 1) %}
+{% set en_cur = en.get('cur', 0) %}
+{% set en_max = en.get('max', 1) %}
+{% set sta_cur = sta.get('cur', 0) %}
+{% set sta_max = sta.get('max', 1) %}
+{% set body_attrs = [
+    ('strength', 'СИЛ', attrs.get('strength')),
+    ('agility', 'ЛОВ', attrs.get('agility')),
+    ('endurance', 'ВЫН', attrs.get('endurance')),
+] %}
+{% set core_attrs = [
+    ('intellect', 'ИНТ', attrs.get('intellect')),
+    ('memory', 'ПАМ', attrs.get('memory')),
+    ('mental', 'МЕН', attrs.get('mental')),
+] %}
+{% set sensor_attrs = [
+    ('perception', 'ВОС', attrs.get('perception')),
+    ('projection', 'ПРО', attrs.get('projection')),
+    ('prediction', 'ПРД', attrs.get('prediction')),
+] %}
+{% set skill_group_defs = [
+    ('WEAPON', ['skill_swords', 'skill_fencing', 'skill_polearms', 'skill_macing', 'skill_archery', 'skill_unarmed']),
+    ('COMBAT STYLE', ['skill_one_handed', 'skill_two_handed', 'skill_shield_mastery', 'skill_dual_wield']),
+    ('COMBAT SUPPORT', ['skill_parrying', 'skill_anatomy', 'skill_tactics']),
+    ('ARMOR', ['skill_light_armor', 'skill_medium_armor', 'skill_heavy_armor']),
+    ('WORLD', ['skill_scouting', 'skill_pathfinder', 'skill_hunting', 'skill_taming', 'skill_adaptation', 'skill_mining', 'skill_herbalism', 'skill_skinning', 'skill_woodcutting', 'skill_archaeology']),
+    ('CRAFT', ['skill_first_aid', 'skill_weapon_craft', 'skill_armor_craft', 'skill_jewelry_craft', 'skill_alchemy', 'skill_engineering', 'skill_artifact_craft']),
+    ('SOCIAL', ['skill_accounting', 'skill_brokerage', 'skill_contracts', 'skill_trade_relations', 'skill_leadership', 'skill_organization', 'skill_team_spirit', 'skill_egoism']),
+] %}
+{% set known_skill_bucket = namespace(keys=[]) %}
+{% for _, group_keys in skill_group_defs %}
+    {% set known_skill_bucket.keys = known_skill_bucket.keys + group_keys %}
+{% endfor %}
+{% set known_skill_keys = known_skill_bucket.keys %}
+
+<aside id="status-container"
+       class="panel-dock panel-dock--framed panel-dock--scroll status-panel-root status-sidebar-surface scenario-status-dock scenario-status-dock--{{ status_dock_mode }} {{ 'scenario-status-dock--glitch' if status_dock_distortion == 'glitch' else '' }} {{ status_dock_extra_class }}"
+       aria-label="Character status dock">
+    <nav class="dock-nav dock-nav--bar dock-nav--panel status-dock-actions" aria-label="Status actions">
+        <button class="dock-nav-button"
+                type="button"
+                @click="leftPanelView = 'status'"
+                :class="{ 'is-active': leftPanelView === 'status' }">STATUS</button>
+        <button class="dock-nav-button"
+                type="button"
+                @click="leftPanelView = 'builds'"
+                :class="{ 'is-active': leftPanelView === 'builds' }">BUILD</button>
+        <button class="dock-nav-button dock-nav-button--close"
+                type="button"
+                @click="$dispatch('panel-toggle', { side: 'left', view: 'status' })">CLOSE</button>
+    </nav>
+
+    {% if status %}
+        <section class="status-widget-card scenario-status-card" aria-label="Character summary">
+            <div class="status-widget-avatar">
+                {% if bio.get('avatar') %}
+                    <img src="{{ bio.get('avatar') }}" alt="{{ bio.get('name', 'Character') }}">
+                {% else %}
+                    <span>{{ (bio.get('name', 'A')[:1])|upper }}</span>
+                {% endif %}
+            </div>
+            <div class="status-widget-core">
+                <div class="status-widget-name">
+                    {% if bio.get('name') %}<strong>{{ bio.get('name') }}</strong>{% endif %}
+                    {% if status.state %}<span>{{ status.state }}</span>{% endif %}
+                </div>
+                <div class="status-widget-bars">
+                    {% if hp %}<div class="status-widget-bar status-widget-bar--hp" style="--status-fill: {{ (hp_cur / hp_max * 100) if hp_max else 0 }}%;"><span>HP</span><i></i><b>{{ hp_cur }} / {{ hp_max }}</b></div>{% endif %}
+                    {% if en %}<div class="status-widget-bar status-widget-bar--en" style="--status-fill: {{ (en_cur / en_max * 100) if en_max else 0 }}%;"><span>EN</span><i></i><b>{{ en_cur }} / {{ en_max }}</b></div>{% endif %}
+                    {% if sta %}<div class="status-widget-bar status-widget-bar--sta" style="--status-fill: {{ (sta_cur / sta_max * 100) if sta_max else 0 }}%;"><span>STA</span><i></i><b>{{ sta_cur }} / {{ sta_max }}</b></div>{% endif %}
+                </div>
+            </div>
+        </section>
+
+        {% if attrs %}
+        <details class="status-widget-section scenario-status-section" open>
+            <summary class="status-widget-section-title">
+                <span data-tippy-content="Базовые атрибуты персонажа. Сценарий может использовать их как будущие требования выбора."
+                      data-tippy-theme="game-hint">ATTRIBUTES</span>
+                <strong>GROUPS</strong>
+            </summary>
+            <div class="status-widget-attribute-body" aria-label="Character attributes">
+                <div class="status-widget-attribute-list">
+                    <div class="status-widget-attribute-group">
+                        <em>BODY</em>
+                        {% for attr_key, label, value in body_attrs %}{% if value is not none %}<div><span data-catalog="attributes" data-catalog-key="{{ attr_key }}" data-catalog-tooltip="description">{{ label }}</span><strong>{{ value }}</strong></div>{% endif %}{% endfor %}
+                    </div>
+                    <div class="status-widget-attribute-group">
+                        <em>CORE</em>
+                        {% for attr_key, label, value in core_attrs %}{% if value is not none %}<div><span data-catalog="attributes" data-catalog-key="{{ attr_key }}" data-catalog-tooltip="description">{{ label }}</span><strong>{{ value }}</strong></div>{% endif %}{% endfor %}
+                    </div>
+                    <div class="status-widget-attribute-group">
+                        <em>SENSOR</em>
+                        {% for attr_key, label, value in sensor_attrs %}{% if value is not none %}<div><span data-catalog="attributes" data-catalog-key="{{ attr_key }}" data-catalog-tooltip="description">{{ label }}</span><strong>{{ value }}</strong></div>{% endif %}{% endfor %}
+                    </div>
+                </div>
+            </div>
+        </details>
+        {% endif %}
+
+        {% if skills %}
+        <details class="status-widget-section scenario-status-section" open>
+            <summary class="status-widget-section-title">
+                <span data-tippy-content="Навыки персонажа. Сценарные проверки и диалоговые условия будут подключаться к этому слою позже."
+                      data-tippy-theme="game-hint">SKILLS</span>
+                <strong>GROUPS</strong>
+            </summary>
+            <div class="status-widget-skill-groups">
+                {% for group_title, group_keys in skill_group_defs %}
+                    {% set skill_group_count = namespace(value=0) %}
+                    {% for skill_key in group_keys %}
+                        {% if skills.get(skill_key) is not none %}
+                            {% set skill_group_count.value = skill_group_count.value + 1 %}
+                        {% endif %}
+                    {% endfor %}
+                    {% if skill_group_count.value %}
+                    <details class="status-widget-skill-group" open>
+                        <summary class="status-widget-skill-group-title">
+                            <span>{{ group_title }}</span>
+                            <strong>{{ skill_group_count.value }}</strong>
+                        </summary>
+                        <div class="status-widget-skill-group-body">
+                            {% for skill_key in group_keys %}
+                                {% set skill_value = skills.get(skill_key) %}
+                                {% if skill_value is not none %}
+                                    {% set xp = skill_value.get('xp', skill_value.get('total_xp', skill_value.get('value'))) if skill_value is mapping else skill_value %}
+                                    <div class="status-widget-skill-group-row">
+                                        <span data-catalog="skills"
+                                              data-catalog-key="{{ skill_key }}"
+                                              data-catalog-field="title"
+                                              data-catalog-tooltip="description">{{ skill_key }}</span>
+                                        <strong>{{ (xp * 100)|round(1) ~ '%' if xp is number else 'DATA' }}</strong>
+                                    </div>
+                                {% endif %}
+                            {% endfor %}
+                        </div>
+                    </details>
+                    {% endif %}
+                {% endfor %}
+
+                {% set other_skill_count = namespace(value=0) %}
+                {% for skill_key, skill_value in skills.items() %}
+                    {% if skill_key not in known_skill_keys %}
+                        {% set other_skill_count.value = other_skill_count.value + 1 %}
+                    {% endif %}
+                {% endfor %}
+                {% if other_skill_count.value %}
+                <details class="status-widget-skill-group">
+                    <summary class="status-widget-skill-group-title">
+                        <span>OTHER</span>
+                        <strong>{{ other_skill_count.value }}</strong>
+                    </summary>
+                    <div class="status-widget-skill-group-body">
+                        {% for skill_key, skill_value in skills.items() %}
+                            {% if skill_key not in known_skill_keys %}
+                                {% set xp = skill_value.get('xp', skill_value.get('total_xp', skill_value.get('value'))) if skill_value is mapping else skill_value %}
+                                <div class="status-widget-skill-group-row">
+                                    <span data-catalog="skills"
+                                          data-catalog-key="{{ skill_key }}"
+                                          data-catalog-field="title"
+                                          data-catalog-tooltip="description">{{ skill_key }}</span>
+                                    <strong>{{ (xp * 100)|round(1) ~ '%' if xp is number else 'DATA' }}</strong>
+                                </div>
+                            {% endif %}
+                        {% endfor %}
+                    </div>
+                </details>
+                {% endif %}
+            </div>
+        </details>
+        {% endif %}
+    {% else %}
+        <section class="status-widget-section scenario-status-section">
+            <header class="status-widget-section-title">
+                <span>STATUS</span>
+                <strong>NO_DATA</strong>
+            </header>
+        </section>
+    {% endif %}
+</aside>

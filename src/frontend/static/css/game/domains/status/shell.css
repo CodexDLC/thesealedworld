@@ -1,0 +1,126 @@
+.status-sidebar-surface {
+    --status-panel-padding: var(--sp-4);
+    --status-avatar-size: min(100%, calc(var(--side-panel-width, 340px) - var(--status-panel-padding) - var(--status-panel-padding)));
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+}
+
+.status-sidebar-surface,
+.status-sidebar-surface > *,
+.status-sidebar-surface .ds-panel,
+.status-sidebar-surface .ds-panel-body {
+    min-width: 0;
+}
+
+.status-sidebar-surface .ds-panel {
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+}
+
+.status-sidebar-surface .ds-panel-header {
+    min-width: 0;
+    overflow: hidden;
+}
+
+.status-sidebar-surface .ds-panel-header > span {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.status-sidebar-surface .ds-panel-body {
+    max-width: 100%;
+    padding: var(--status-panel-padding, var(--sp-4));
+    box-sizing: border-box;
+    overflow-wrap: anywhere;
+}
+
+.status-sidebar-surface.field-panel {
+    height: auto;
+    min-height: 0;
+    overflow: visible;
+}
+
+.status-sidebar-surface.arena-view-panel {
+    width: 100%;
+}
+
+.status-panel .ds-panel-body {
+    padding: var(--status-panel-padding, var(--sp-4));
+}
+
+.status-section {
+    margin-top: var(--sp-6);
+    min-width: 0;
+}
+
+.status-section--collapsible {
+    display: block;
+}
+
+.status-section-toggle {
+    cursor: pointer;
+    user-select: none;
+    list-style: none;
+}
+
+.status-section-toggle::-webkit-details-marker {
+    display: none;
+}
+
+.status-section-toggle-label {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.status-section-toggle-icon {
+    flex: 0 0 auto;
+    color: rgba(255,170,0,.48);
+    font-size: 11px;
+    line-height: 1;
+    transition: transform .18s ease, color .18s ease;
+}
+
+.status-section-toggle:hover .status-section-toggle-icon {
+    color: var(--col-accent);
+}
+
+.status-section--collapsible:not([open]) .status-section-toggle {
+    margin-bottom: 0;
+}
+
+.status-section--collapsible[open] .status-section-toggle-icon {
+    transform: rotate(90deg);
+}
+
+
+.sec {
+    font-size: 8px;
+    letter-spacing: .18em;
+    text-transform: uppercase;
+    color: var(--col-accent);
+    opacity: 0.8;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+    margin: 20px 0 12px;
+    font-weight: 800;
+    line-height: 1.35;
+    text-align: center;
+    overflow-wrap: anywhere;
+}
+
+.sec::before,
+.sec::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: rgba(255, 170, 0, 0.15);
+}

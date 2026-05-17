@@ -1,0 +1,263 @@
+.mobile-services {
+    min-height: 0;
+    display: grid;
+    grid-template-rows: auto minmax(0, 1fr);
+    gap: 6px;
+    padding-top: 2px;
+    border-top: 1px solid rgba(255, 170, 0, 0.34);
+    overflow: hidden;
+}
+
+.mobile-services-summary {
+    min-height: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    color: rgba(210, 180, 140, 0.58);
+    cursor: pointer;
+    font-family: var(--font-ui);
+    font-size: 8px;
+    font-weight: 900;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+}
+
+.mobile-services-summary::-webkit-details-marker {
+    display: none;
+}
+
+.mobile-services-summary strong {
+    color: var(--world-accent, var(--col-accent));
+}
+
+.mobile-service-empty {
+    min-height: 50px;
+    display: grid;
+    place-items: center;
+    margin: 0;
+    border: 1px solid rgba(255, 170, 0, 0.16);
+    background: rgba(0, 0, 0, 0.22);
+    color: rgba(210, 180, 140, 0.50);
+    font-family: var(--font-ui);
+    font-size: 8px;
+    font-weight: 900;
+    letter-spacing: 0.14em;
+    text-align: center;
+    text-transform: uppercase;
+}
+
+.mobile-service-grid {
+    min-height: 0;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-auto-rows: minmax(48px, 1fr);
+    gap: 6px;
+    overflow: auto;
+}
+
+.mobile-service-tile {
+    --exploration-button-texture: url("/static/images/ui/textures/button-candidates/button-surface-01-dark-wood.webp");
+    min-width: 0;
+    min-height: 50px;
+    display: grid;
+    grid-template-columns: 34px minmax(0, 1fr);
+    align-items: center;
+    gap: 8px;
+    padding: 7px;
+    border: 1px solid rgba(255, 170, 0, 0.24);
+    background:
+        linear-gradient(90deg, rgba(255, 170, 0, 0.08), rgba(5, 5, 7, 0.64)),
+        var(--exploration-button-texture) center / cover,
+        rgba(5, 5, 7, 0.70);
+    color: var(--world-accent, var(--col-accent));
+    cursor: pointer;
+    font-family: var(--font-world);
+    font-size: 13px;
+    font-weight: 700;
+    overflow: hidden;
+    text-align: left;
+}
+
+.mobile-service-tile.is-reversed {
+    grid-template-columns: minmax(0, 1fr) 34px;
+}
+
+.mobile-service-tile.is-reversed .mobile-service-icon {
+    order: 2;
+}
+
+.mobile-service-tile strong {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.mobile-service-icon {
+    width: 28px;
+    height: 28px;
+    border: 1px solid rgba(255, 170, 0, 0.22);
+    background: currentColor;
+    mask: var(--service-icon-url) center / 18px 18px no-repeat;
+    -webkit-mask: var(--service-icon-url) center / 18px 18px no-repeat;
+}
+
+
+.exploration-service-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 10px;
+}
+
+.service-card-list {
+    display: grid;
+    gap: 8px;
+}
+
+.service-card {
+    display: grid;
+    grid-template-columns: 70px minmax(0, 1fr);
+    min-height: 78px;
+    border: 1px solid color-mix(in srgb, var(--world-accent, var(--col-accent)) 24%, transparent);
+    background:
+        linear-gradient(90deg, rgba(255, 177, 48, .10), transparent 34%, rgba(0, 0, 0, .38)),
+        linear-gradient(rgba(4, 4, 4, .72), rgba(1, 1, 1, .86)),
+        url("/static/images/ui/textures/button-candidates/button-surface-04-charcoal-stone.webp");
+    background-position: center;
+    background-size: cover;
+    box-shadow:
+        inset 0 1px 0 rgba(255, 220, 145, .08),
+        inset 0 -18px 28px rgba(0, 0, 0, .36),
+        0 0 0 1px rgba(0, 0, 0, .72);
+    clip-path: var(--clip-node-sm);
+    overflow: hidden;
+    position: relative;
+}
+
+.service-card::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background:
+        linear-gradient(90deg, transparent, var(--world-accent-soft, rgba(255, 170, 0, .055)) 52%, transparent),
+        radial-gradient(circle at 11% 50%, var(--world-accent-soft, rgba(255, 170, 0, .16)), transparent 28%);
+    opacity: .55;
+    pointer-events: none;
+}
+
+.service-card-icon {
+    min-height: 78px;
+    background:
+        radial-gradient(circle at center, var(--world-accent-soft, rgba(255,170,0,.20)), transparent 58%),
+        linear-gradient(rgba(0, 0, 0, .36), rgba(0, 0, 0, .64)),
+        url("/static/images/ui/textures/button-candidates/button-surface-03-aged-bronze.webp");
+    background-position: center;
+    background-size: cover;
+    border-right: 1px solid color-mix(in srgb, var(--world-accent, var(--col-accent)) 22%, transparent);
+    position: relative;
+    z-index: 1;
+}
+
+.service-card-icon::before {
+    content: "";
+    position: absolute;
+    inset: 16px;
+    background: var(--world-accent, var(--col-accent));
+    mask: var(--service-icon-url) center / contain no-repeat;
+    -webkit-mask: var(--service-icon-url) center / contain no-repeat;
+    opacity: .86;
+    filter:
+        drop-shadow(0 1px 0 rgba(0, 0, 0, .95))
+        drop-shadow(0 0 10px var(--world-accent-glow, rgba(255,170,0,.42)));
+}
+
+.service-card-body {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    position: relative;
+    z-index: 1;
+}
+
+.service-card-title {
+    color: var(--world-accent, var(--col-accent));
+    font-family: var(--font-ui);
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    line-height: 1.35;
+}
+
+.service-card-action {
+    min-width: 60px;
+    height: 30px;
+    border: 1px solid color-mix(in srgb, var(--world-accent, var(--col-accent)) 34%, transparent);
+    background:
+        linear-gradient(180deg, rgba(255, 214, 118, .07), transparent 34%),
+        linear-gradient(rgba(1, 1, 1, .76), rgba(1, 1, 1, .88)),
+        url("/static/images/ui/textures/button-candidates/button-surface-02-blackened-metal.webp");
+    background-position: center;
+    background-size: cover;
+    color: var(--world-accent, var(--col-accent));
+    font-family: var(--font-ui);
+    font-size: 8px;
+    font-weight: 800;
+    letter-spacing: .16em;
+    cursor: pointer;
+    clip-path: var(--clip-node-sm);
+    text-shadow: 0 1px 0 #000, 0 0 8px rgba(255, 170, 0, .18);
+    box-shadow:
+        inset 0 1px 0 rgba(255, 230, 150, .10),
+        inset 0 -8px 14px rgba(0, 0, 0, .34),
+        0 0 0 1px rgba(0, 0, 0, .62);
+    transition:
+        border-color .16s ease,
+        box-shadow .16s ease,
+        color .16s ease,
+        filter .16s ease,
+        transform .16s ease;
+}
+
+.service-card-action:hover {
+    color: color-mix(in srgb, var(--world-accent, var(--col-accent)) 84%, #fff);
+    border-color: color-mix(in srgb, var(--world-accent, var(--col-accent)) 62%, transparent);
+    filter: brightness(1.14) saturate(1.08);
+    transform: translateY(-1px);
+    box-shadow:
+        inset 0 1px 0 rgba(255, 230, 150, .18),
+        inset 0 -8px 16px rgba(0, 0, 0, .26),
+        0 0 14px var(--world-accent-soft, rgba(255,170,0,.22)),
+        0 0 0 1px rgba(0, 0, 0, .70);
+}
+
+.service-card--compact {
+    grid-template-columns: 48px minmax(0, 1fr);
+    min-height: 52px;
+}
+
+.service-card--compact .service-card-icon {
+    min-height: 52px;
+}
+
+.service-card--compact .service-card-icon::before {
+    inset: 11px;
+}
+
+.service-card--compact .service-card-body {
+    grid-template-columns: 1fr;
+    gap: 6px;
+    padding: 7px 8px;
+}
+
+.service-card--compact .service-card-title {
+    font-size: 8px;
+}
+
+.service-card--compact .service-card-action {
+    width: 100%;
+    height: 24px;
+    font-size: 7px;
+}

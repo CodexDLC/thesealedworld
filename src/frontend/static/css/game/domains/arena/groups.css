@@ -1,0 +1,98 @@
+.arena-group-plans {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(240px, .82fr);
+    gap: 10px;
+    width: 100%;
+    min-width: 0;
+}
+
+.arena-group-column {
+    display: grid;
+    gap: 10px;
+}
+
+.arena-plan-card {
+    min-height: 104px;
+    min-width: 0;
+    display: grid;
+    grid-template-rows: auto auto minmax(0, 1fr) auto;
+    gap: 7px;
+    padding: 13px 15px;
+    border: 1px solid color-mix(in srgb, var(--world-accent, var(--col-accent)) 28%, transparent);
+    background:
+        linear-gradient(90deg, rgba(255, 170, 0, .075), transparent 48%),
+        linear-gradient(rgba(1, 1, 1, .70), rgba(1, 1, 1, .88)),
+        url("/static/images/ui/textures/button-candidates/button-surface-01-dark-wood.webp");
+    background-position: center;
+    background-size: cover;
+    color: var(--col-parchment);
+    cursor: pointer;
+    clip-path: var(--clip-node-sm);
+    text-align: left;
+    box-shadow:
+        inset 0 1px 0 rgba(255, 230, 150, .10),
+        inset 0 -16px 26px rgba(0, 0, 0, .34),
+        0 0 0 1px rgba(0, 0, 0, .64);
+    transition: border-color .16s ease, box-shadow .16s ease, filter .16s ease, transform .16s ease;
+}
+
+.arena-plan-card--chaos {
+    min-height: 100%;
+    background:
+        linear-gradient(135deg, rgba(255, 170, 0, .08), transparent 44%),
+        radial-gradient(circle at 82% 20%, rgba(68, 170, 255, .12), transparent 34%),
+        linear-gradient(rgba(1, 1, 1, .62), rgba(1, 1, 1, .88)),
+        url("/static/images/game/arena/backgrounds/chaotic-battle-hall.webp"),
+        url("/static/images/ui/textures/button-candidates/button-surface-03-aged-bronze.webp");
+    background-position: center;
+    background-size: cover;
+}
+
+.arena-plan-card:not(:disabled):hover {
+    border-color: color-mix(in srgb, var(--world-accent, var(--col-accent)) 62%, transparent);
+    filter: brightness(1.13) saturate(1.06);
+    transform: translateY(-1px);
+    box-shadow:
+        inset 0 1px 0 rgba(255, 230, 150, .18),
+        inset 0 -16px 24px rgba(0, 0, 0, .28),
+        0 0 18px var(--world-accent-soft, rgba(255, 170, 0, .22)),
+        0 0 0 1px rgba(0, 0, 0, .72);
+}
+
+.arena-plan-kicker,
+.arena-plan-meta,
+.arena-group-row-meta {
+    font-family: var(--font-ui);
+    text-transform: uppercase;
+}
+
+.arena-plan-kicker {
+    color: var(--col-parchment-dim);
+    font-size: 7px;
+    font-weight: 800;
+    letter-spacing: .24em;
+}
+
+.arena-plan-title {
+    color: color-mix(in srgb, var(--world-accent, var(--col-accent)) 86%, #fff);
+    font-family: var(--font-ui);
+    font-size: 13px;
+    font-weight: 900;
+    letter-spacing: .12em;
+    line-height: 1.25;
+    text-transform: uppercase;
+}
+
+.arena-plan-description {
+    color: var(--col-parchment);
+    font-family: var(--font-world);
+    font-size: 15px;
+    line-height: 1.45;
+}
+
+.arena-plan-meta {
+    color: var(--world-accent, var(--col-accent));
+    font-size: 8px;
+    font-weight: 800;
+    letter-spacing: .16em;
+}

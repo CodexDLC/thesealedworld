@@ -60,6 +60,22 @@ def test_skill_catalog_loads_public_text_projection():
     assert "stat_weights" not in public_text["skill_swords"]
 
 
+def test_skill_catalog_public_descriptions_explain_effects():
+    catalog = SkillCatalogService()
+
+    public_text = catalog.all_public_text()
+
+    for skill_key, item in public_text.items():
+        description = str(item["description"])
+        assert "\n\nДаёт:" in description, skill_key
+        assert "DATA_MISSING" not in description, skill_key
+
+    assert "штрафов оружия к точности" in str(public_text["skill_swords"]["description"])
+    assert "шанс парирования" in str(public_text["skill_parrying"]["description"])
+    assert "жестко режет кап уклонения" in str(public_text["skill_heavy_armor"]["description"])
+    assert "предпросмотр ценного лута" in str(public_text["skill_scouting"]["description"])
+
+
 def test_skill_catalog_uses_prefixed_skill_keys():
     catalog = SkillCatalogService()
 

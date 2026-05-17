@@ -16,8 +16,6 @@ class ScenarioExtraDataVM(BaseModel):
     phase: str | None = None
     speaker: str | None = None
     background_url: str | None = None
-    show_left_sidebar: bool = False
-    show_right_sidebar: bool = False
     quest_title: str | None = None
     rewards: list[dict[str, Any]] = Field(default_factory=list)
     flags: list[str] = Field(default_factory=list)
@@ -57,8 +55,6 @@ def build_scenario_page_vm(
         phase=getattr(payload, "phase", raw_extra.get("phase")),
         speaker=getattr(payload, "speaker", raw_extra.get("speaker")),
         background_url=raw_extra.get("background_url"),
-        show_left_sidebar=bool(raw_extra.get("show_left_sidebar", False)),
-        show_right_sidebar=bool(raw_extra.get("show_right_sidebar", False)),
         quest_title=raw_extra.get("quest_title"),
         rewards=raw_extra.get("rewards", []),
         flags=raw_extra.get("flags", []),

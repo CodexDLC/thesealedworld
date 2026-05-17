@@ -1,0 +1,14 @@
+/* Combat owns a prototype-style three-zone canvas on desktop.
+   On tablet/mobile the combat center keeps priority and sidebars collapse out of flow. */
+@media (min-width: 1025px) {
+    .game-top-row.combat-layout {
+        grid-template-columns: var(--side-panel-width-compact) minmax(0, 1fr) var(--side-panel-width-compact);
+    }
+
+    .game-top-row.combat-layout .col-left,
+    .game-top-row.combat-layout .col-right {
+        display: block;
+        width: var(--side-panel-width-compact);
+        max-width: var(--side-panel-width-compact);
+    }
+}

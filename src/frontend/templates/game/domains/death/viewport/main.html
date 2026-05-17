@@ -1,10 +1,20 @@
 <section class="death-screen" aria-label="Death state">
-    <div class="mobile-encounter-interrupt death-screen-panel">
-        <header>
+    {% set death_summary = (death or {}).get('death_summary') or {} %}
+    <div class="death-screen-visual">
+        <div class="death-screen-copy">
             <span>EXPEDITION FAILED</span>
-        </header>
-        <strong>Вы погибли</strong>
-        <p>Поход оборвался. Можно воскреснуть у портала и начать восстановление.</p>
+            <strong>Вы погибли</strong>
+            <p>{{ ((death or {}).get('post_combat') or {}).get('notice') or 'Поход оборвался. Можно вернуться к порталу и начать восстановление.' }}</p>
+        </div>
+    </div>
+    <div class="mobile-encounter-interrupt death-screen-panel">
+        <header><span>ПОТЕРИ</span></header>
+        <div class="death-loss-grid">
+            <div><span>Опыт</span><strong>{{ death_summary.get('pending_free_xp') or 0 }}</strong></div>
+            <div><span>Навыки</span><strong>{{ death_summary.get('pending_skill_count') or 0 }}</strong></div>
+            <div><span>Вещи</span><strong>{{ death_summary.get('carried_item_count') or 0 }}</strong></div>
+            <div><span>Ресурсы</span><strong>{{ death_summary.get('carried_resource_count') or 0 }}</strong></div>
+        </div>
         <form hx-post="{{ death.respawn_action if death else '/game/death/respawn' }}"
               hx-target="#game-session-root"
               hx-swap="outerHTML"
@@ -12,7 +22,7 @@
             <input type="hidden" name="char_id" value="{{ char_id }}">
             <button type="submit"
                     class="dp game-action-button mobile-action mobile-encounter-action mobile-encounter-action--escape death-respawn-action"
-                    data-tippy-content="Все найденное во время похода будет утеряно."
+                    data-tippy-content="Все найденное во время похода будет утеряно. Вещи и ресурсы будут перенесены в труп, накопленный опыт будет сброшен."
                     data-tippy-theme="game-hint">
                 <strong>Воскреснуть у портала</strong>
                 <span>Завершить поход</span>

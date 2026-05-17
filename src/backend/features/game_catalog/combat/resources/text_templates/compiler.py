@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import re
 from collections import defaultdict
+from functools import lru_cache
 from typing import Any
 
 from src.backend.features.game_catalog.combat.resources.text_templates.definitions import (
@@ -14,7 +15,11 @@ from src.backend.features.game_catalog.combat.resources.text_templates.schemas i
     CombatTextTemplateRecipeDTO,
 )
 
-COMBAT_TEXT_CATALOG_VERSION = "combat-text:2026-05-11.1"
+COMBAT_TEXT_CATALOG_VERSION = "combat-text:2026-05-17.2"
+
+
+class CombatTextResolutionError(RuntimeError):
+    pass
 
 
 def build_combat_text_catalog() -> dict[str, dict[str, Any]]:
@@ -63,6 +68,112 @@ def build_combat_text_catalog() -> dict[str, dict[str, Any]]:
         "templates": templates,
         "resources": resources,
     }
+
+
+@lru_cache(maxsize=1)
+def cached_combat_text_catalog() -> dict[str, dict[str, Any]]:
+    return build_combat_text_catalog()
+
+
+def get_combat_text_template(
+    *,
+    resource_type: str,
+    resource_id: str,
+    outcome: str,
+    source_body: str = "",
+    target_body: str = "",
+    delivery: str = "default",
+    tags: tuple[str, ...] = (),
+) -> dict[str, Any]:
+    body_pair = (
+        f"{source_body}_to_{target_body}"
+        if resource_type in {"basic_exchange", "feint"} and source_body and target_body
+        else ""
+    )
+    templates = list(cached_combat_text_catalog()["templates"].values())
+    for candidate_resource_id in _resource_id_candidates(resource_id):
+        candidates = [
+            template
+            for template in templates
+            if template.get("resource_type") == resource_type
+            and template.get("resource_id") == candidate_resource_id
+            and template.get("outcome") == outcome
+        ]
+        candidates = _select_combat_text_candidates(
+            candidates,
+            body_pair=body_pair,
+            target_body=target_body,
+            delivery=delivery,
+            tags=tags,
+        )
+        if candidates:
+            return dict(sorted(candidates, key=lambda template: str(template.get("key") or ""))[0])
+    raise CombatTextResolutionError(
+        "Missing combat_text template: "
+        f"resource_type={resource_type} resource_id={resource_id} outcome={outcome} "
+        f"body_pair={body_pair} target_body={target_body} delivery={delivery}"
+    )
+
+
+def _resource_id_candidates(resource_id: str) -> tuple[str, ...]:
+    if resource_id == "default":
+        return ("default",)
+    return (resource_id, "default")
+
+
+def _select_combat_text_candidates(
+    candidates: list[dict[str, Any]],
+    *,
+    body_pair: str,
+    target_body: str,
+    delivery: str,
+    tags: tuple[str, ...],
+) -> list[dict[str, Any]]:
+    candidates = _prefer_body_scope(candidates, body_pair=body_pair, target_body=target_body)
+    candidates = _prefer_delivery(candidates, delivery=delivery)
+    candidates = _prefer_tags(candidates, tags=tags)
+    return candidates
+
+
+def _prefer_body_scope(
+    candidates: list[dict[str, Any]],
+    *,
+    body_pair: str,
+    target_body: str,
+) -> list[dict[str, Any]]:
+    if not candidates:
+        return []
+    if body_pair:
+        body_pair_candidates = [template for template in candidates if template.get("body_pair") == body_pair]
+        if body_pair_candidates:
+            return body_pair_candidates
+    if target_body:
+        target_candidates = [template for template in candidates if template.get("target_body") == target_body]
+        if target_candidates:
+            return target_candidates
+    bodyless_candidates = [
+        template for template in candidates if not template.get("body_pair") and not template.get("target_body")
+    ]
+    return bodyless_candidates
+
+
+def _prefer_delivery(candidates: list[dict[str, Any]], *, delivery: str) -> list[dict[str, Any]]:
+    if not candidates or not delivery:
+        return candidates
+    exact = [template for template in candidates if template.get("delivery") == delivery]
+    if exact:
+        return exact
+    return [template for template in candidates if template.get("delivery") in {"", "default"}]
+
+
+def _prefer_tags(candidates: list[dict[str, Any]], *, tags: tuple[str, ...]) -> list[dict[str, Any]]:
+    if not candidates:
+        return []
+    for tag in tags:
+        tagged = [template for template in candidates if tag in (template.get("tags") or [])]
+        if tagged:
+            return tagged
+    return candidates
 
 
 def compile_template_recipe(

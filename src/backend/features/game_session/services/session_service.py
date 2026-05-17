@@ -27,6 +27,7 @@ class GameSessionService:
         CoreDomain.TAVERN,
         CoreDomain.EXPLORATION,
         CoreDomain.DEATH,
+        CoreDomain.LOOT,
     }
 
     def __init__(self, *, integrator: GameSessionIntegrator) -> None:
@@ -102,6 +103,8 @@ class GameSessionService:
             return bool(sessions.arena_id)
         if state == CoreDomain.DEATH:
             return bool(sessions.death_run_id)
+        if state == CoreDomain.LOOT:
+            return bool(sessions.post_combat)
         return True
 
     async def respawn_character(self, user: User, character_id: int) -> GameplayEntryResponse:
@@ -123,6 +126,27 @@ class GameSessionService:
                 char_id=character_id,
                 target_state=CoreDomain.EXPLORATION,
                 reason=str(result.get("status") or "respawned"),
+                metadata=result,
+            ),
+            payload_type="state_transition",
+        )
+
+    async def claim_post_combat_loot(
+        self,
+        user: User,
+        character_id: int,
+        corpse_ids: list[str],
+    ) -> GameplayEntryResponse:
+        session_doc = await self.integrator.get_active_session(character_id, user.id)
+        if session_doc is None:
+            return self._lobby_response(char_id=character_id, reason="active_character_unavailable")
+        result = await self.integrator.claim_post_combat_loot(character_id, corpse_ids)
+        return CoreResponseDTO(
+            header=GameStateHeader(current_state=CoreDomain.EXPLORATION, previous_state=CoreDomain.LOOT),
+            payload=StateTransitionDTO(
+                char_id=character_id,
+                target_state=CoreDomain.EXPLORATION,
+                reason=str(result.get("status") or "loot_claimed"),
                 metadata=result,
             ),
             payload_type="state_transition",

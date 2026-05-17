@@ -112,6 +112,83 @@ def test_awakening_rift_second_reward_paths_match_combat_skill_model() -> None:
     ]
 
 
+def test_awakening_rift_final_armor_rewards_grant_mvp_sets_plus_garments() -> None:
+    expected = {
+        "take_plate": (
+            {
+                "push:helmet",
+                "push:plate_chest",
+                "push:gauntlets",
+                "push:greaves",
+            },
+            "push:skill_heavy_armor",
+        ),
+        "take_scale": (
+            {
+                "push:helmet",
+                "push:plate_chest",
+                "push:gauntlets",
+                "push:greaves",
+            },
+            "push:skill_heavy_armor",
+        ),
+        "take_robe": (
+            {
+                "push:hood",
+                "push:leather_armor",
+                "push:soft_bracers",
+                "push:scout_leggings",
+            },
+            "push:skill_light_armor",
+        ),
+        "take_leather": (
+            {
+                "push:hood",
+                "push:leather_armor",
+                "push:soft_bracers",
+                "push:scout_leggings",
+            },
+            "push:skill_light_armor",
+        ),
+        "take_chainmail": (
+            {
+                "push:leather_cap",
+                "push:jerkin",
+                "push:reinforced_gloves",
+                "push:breeches",
+            },
+            "push:skill_medium_armor",
+        ),
+        "take_brigandine": (
+            {
+                "push:leather_cap",
+                "push:jerkin",
+                "push:reinforced_gloves",
+                "push:breeches",
+            },
+            "push:skill_medium_armor",
+        ),
+    }
+
+    removed_armor_rewards = {
+        "push:robe",
+        "push:sandals",
+        "push:boots",
+        "push:scale_mail",
+        "push:chainmail",
+        "push:brigandine",
+    }
+
+    for action_id, (armor_set, skill_key) in expected.items():
+        action = _find_action("90_armor_rewards.json", action_id)
+        loot = set(action["math"]["loot_queue"])
+
+        assert armor_set <= loot
+        assert "push:travel_boots" in loot
+        assert loot.isdisjoint(removed_armor_rewards)
+        assert action["math"]["skills_queue"] == [skill_key]
+
+
 def _collect_reward_values(queue_key: str) -> set[str]:
     values: set[str] = set()
     for path in sorted((QUEST_DIR / "nodes").glob("*.json")):

@@ -14,6 +14,7 @@ from src.backend.features.monsters.dto.generation import (
     MonsterTextContentDTO,
 )
 from src.backend.features.monsters.integrations.item_generation import build_member_items_projection
+from src.backend.features.monsters.skill_contract import filter_monster_combat_skills
 
 if TYPE_CHECKING:
     from src.backend.features.items.dto.instance import RuntimeItemProjectionDTO
@@ -76,8 +77,16 @@ def build_scaled_skills(
         skills.update(family.skill_kit.base)
         skills.update(family.skill_kit.role_bonus.get(variant.role, {}))
     skills.update(_number_mapping((member_model.skill_profile if member_model else {}).get("base")))
-    skills.update(_number_mapping(variant.skill_overrides))
-    return MonsterScaledSkillsDTO(skills={key: value for key, value in skills.items() if value is not None})
+    if variant.skill_overrides:
+        for key, value in variant.skill_overrides.items():
+            if value is None:
+                skills.pop(str(key), None)
+            else:
+                try:
+                    skills[str(key)] = round(float(value), 4)
+                except (TypeError, ValueError):
+                    pass
+    return MonsterScaledSkillsDTO(skills=filter_monster_combat_skills(skills))
 
 
 def build_items(
@@ -163,6 +172,17 @@ def build_meta(
     )
 
 
+def build_family_modifiers(family: MonsterFamilyDTO, member_tier: int) -> list[dict[str, Any]]:
+    result = []
+    for entry in family.family_modifiers:
+        target = entry.target
+        effective = round(entry.value + entry.per_tier * member_tier, 4)
+        result.append(
+            {"target": target, "value": entry.value, "per_tier": entry.per_tier, "effective_value": effective}
+        )
+    return result
+
+
 def build_generated_monster_template(
     family: MonsterFamilyDTO,
     variant: MonsterVariantDTO,
@@ -187,6 +207,7 @@ def build_generated_monster_template(
         granted_abilities=build_granted_abilities(family, variant, member_model),
         ai_profile=build_ai_profile(family, variant, member_model),
         balance=build_balance(family, variant, member_model),
+        family_modifiers=build_family_modifiers(family, member_tier),
     )
 
 

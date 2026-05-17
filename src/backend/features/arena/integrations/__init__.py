@@ -96,6 +96,15 @@ class ArenaSystemIntegrator:
         arena_id = ((session or {}).get("sessions") or {}).get("arena_id") if isinstance(session, dict) else None
         return str(arena_id) if arena_id else None
 
+    async def is_combat_session_active(self, char_id: int, combat_id: str | None) -> bool:
+        if not combat_id or not hasattr(self.character_sessions, "get_session"):
+            return False
+        session = await self.character_sessions.get_session(char_id)
+        raw_sessions = (session or {}).get("sessions") if isinstance(session, dict) else None
+        sessions = raw_sessions if isinstance(raw_sessions, dict) else {}
+        active_id = sessions.get("combat_id") or sessions.get("combat_finalization_id")
+        return str(active_id) == str(combat_id) if active_id else False
+
     async def set_character_state(
         self,
         char_id: int,

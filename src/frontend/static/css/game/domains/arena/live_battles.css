@@ -1,0 +1,116 @@
+.arena-view-body {
+    display: grid;
+    gap: 14px;
+}
+
+.arena-live-battles {
+    width: 100%;
+    min-width: 0;
+    display: grid;
+    gap: 10px;
+    padding: 14px 18px 18px;
+    border: 1px solid color-mix(in srgb, var(--world-accent, var(--col-accent)) 16%, transparent);
+    background:
+        linear-gradient(180deg, rgba(255, 183, 55, .035), transparent 38%),
+        linear-gradient(115deg, rgba(4, 5, 7, .78), rgba(9, 12, 16, .92)),
+        url("/static/images/ui/textures/button-candidates/button-surface-04-charcoal-stone.webp");
+    background-position: center;
+    background-size: cover;
+    box-shadow:
+        inset 0 1px 0 rgba(255, 225, 150, .07),
+        inset 0 -24px 38px rgba(0, 0, 0, .34),
+        0 0 0 1px rgba(0, 0, 0, .68);
+    clip-path: var(--clip-node-md);
+    overflow: hidden;
+}
+
+.arena-section-header {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: 12px;
+    align-items: center;
+    min-height: 24px;
+    border-bottom: 1px solid rgba(255, 170, 0, .12);
+    color: var(--col-parchment-dim);
+    font-family: var(--font-ui);
+    font-size: 8px;
+    font-weight: 800;
+    letter-spacing: .24em;
+    text-transform: uppercase;
+}
+
+.arena-section-header strong {
+    color: var(--world-accent, var(--col-accent));
+    font-size: 9px;
+    letter-spacing: .18em;
+}
+
+.arena-battle-list {
+    display: grid;
+    gap: 7px;
+}
+
+.arena-battle-row {
+    min-height: 46px;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(118px, auto);
+    gap: 12px;
+    align-items: center;
+    padding: 8px 10px;
+    border: 1px solid rgba(255, 170, 0, .12);
+    background:
+        linear-gradient(90deg, rgba(255, 170, 0, .035), transparent 46%),
+        rgba(0, 0, 0, .24);
+}
+
+.arena-battle-row--empty {
+    opacity: .78;
+}
+
+.arena-battle-name {
+    min-width: 0;
+    color: var(--col-parchment);
+    font-family: var(--font-world);
+    font-size: 15px;
+    line-height: 1.4;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.arena-battle-actions {
+    min-width: 132px;
+    max-width: 320px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    justify-content: flex-end;
+}
+
+.arena-battle-action {
+    flex: 0 1 auto;
+    min-width: 92px;
+    max-width: 100%;
+    min-height: 30px;
+    padding: 0 10px;
+    border: 1px solid color-mix(in srgb, var(--world-accent, var(--col-accent)) 24%, transparent);
+    background:
+        linear-gradient(180deg, rgba(255, 214, 118, .06), transparent 34%),
+        linear-gradient(rgba(1, 1, 1, .72), rgba(1, 1, 1, .86)),
+        url("/static/images/ui/textures/button-candidates/button-surface-02-blackened-metal.webp");
+    background-position: center;
+    background-size: cover;
+    color: var(--world-accent, var(--col-accent));
+    clip-path: var(--clip-node-sm);
+    font-family: var(--font-ui);
+    font-size: 8px;
+    font-weight: 800;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+}
+
+.arena-battle-action:disabled {
+    cursor: default;
+    opacity: .62;
+}

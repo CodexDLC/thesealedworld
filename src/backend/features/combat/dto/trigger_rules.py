@@ -25,6 +25,9 @@ class CritTriggersDTO(BaseModel):
     weapon_heavy_crit: bool = False
     weapon_impact_stun_crit: bool = False
     weapon_piercing_crit: bool = False
+    weapon_flat_armor_gap_crit: bool = False
+    weapon_flat_armor_bypass_crit: bool = False
+    weapon_flat_armor_crush_crit: bool = False
     weapon_precision_crit: bool = False
     weapon_shieldbreaker_crit: bool = False
 

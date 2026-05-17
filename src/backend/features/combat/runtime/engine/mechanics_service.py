@@ -390,6 +390,8 @@ class MechanicsService:
                 self._inc_xp(target, "defense_parry")
             if result.is_blocked:
                 self._inc_xp(target, "defense_block")
+            if self._uses_body_armor_for_xp(target, result):
+                self._inc_xp(target, "defense_armor")
 
             # 3. Kill
             if target.meta.is_dead:
@@ -397,6 +399,14 @@ class MechanicsService:
 
     def _inc_xp(self, actor: ActorSnapshot, key: str, amount: float = 1.0) -> None:
         actor.xp_buffer[key] = actor.xp_buffer.get(key, 0) + amount
+
+    @staticmethod
+    def _uses_body_armor_for_xp(target: ActorSnapshot, result: InteractionResultDTO) -> bool:
+        if not result.is_hit or result.is_dodged or result.is_parried or result.is_blocked:
+            return False
+        if not target.loadout.layout.get("body"):
+            return False
+        return result.damage_raw > 0 or result.damage_mitigated > 0 or result.damage_final > 0
 
     def _log_effect_tick(
         self, ctx: PipelineContextDTO, actor: ActorSnapshot, effect_id: str, value: int, resource: str

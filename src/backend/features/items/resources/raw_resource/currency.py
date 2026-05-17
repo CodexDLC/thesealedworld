@@ -12,7 +12,7 @@ CURRENCY_DB = {
             id="currency_dust",
             name_ru="Пыль Резидуу",
             base_price=1,
-            narrative_description="Мерцающий песок. Остаточная энергия Рифтов. Основа всей экономики.",
+            narrative_description="Мерцающий песок. Остаточная энергия Рифтов.",
         ),
         1: ResourceDTO(
             id="currency_fragment",

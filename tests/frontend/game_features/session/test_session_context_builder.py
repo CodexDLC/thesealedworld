@@ -61,7 +61,15 @@ class FakeCharacterStatusApi:
 
 def test_death_screen_uses_encounter_notice_and_respawn_tooltip():
     template = Path("src/frontend/templates/game/domains/death/viewport/main.html").read_text(encoding="utf-8")
-    viewport_css = Path("src/frontend/static/css/pages/game/viewport.css").read_text(encoding="utf-8")
+    loot_css = "\n".join(
+        path.read_text(encoding="utf-8")
+        for path in (
+            Path("src/frontend/static/css/game/domains/loot/screen.css"),
+            Path("src/frontend/static/css/game/domains/loot/actions.css"),
+            Path("src/frontend/static/css/game/domains/loot/death.css"),
+        )
+    )
+    loot_index = Path("src/frontend/static/css/game/domains/loot/index.css").read_text(encoding="utf-8")
 
     assert "CONNECTION LOST" not in template
     assert "mobile-encounter-interrupt death-screen-panel" in template
@@ -69,8 +77,41 @@ def test_death_screen_uses_encounter_notice_and_respawn_tooltip():
     assert "Воскреснуть у портала" in template
     assert "Все найденное во время похода будет утеряно." in template
     assert "death-respawn-action" in template
-    assert ".death-screen" in viewport_css
-    assert ".death-screen-actions" in viewport_css
+    assert ".death-screen" in loot_css
+    assert ".death-loss-grid" in loot_css
+    assert ".death-screen-actions" in loot_css
+    assert '@import url("death.css");' in loot_index
+
+
+def test_loot_screen_renders_table_and_claim_all_action():
+    template = Path("src/frontend/templates/game/domains/loot/viewport/main.html").read_text(encoding="utf-8")
+    css = "\n".join(
+        path.read_text(encoding="utf-8")
+        for path in (
+            Path("src/frontend/static/css/game/domains/loot/screen.css"),
+            Path("src/frontend/static/css/game/domains/loot/loot.css"),
+            Path("src/frontend/static/css/game/domains/loot/actions.css"),
+        )
+    )
+
+    assert "loot-list" in template
+    assert "loot-source-grid" in template
+    assert "loot-source-card" in template
+    assert "loot-window" in template
+    assert "openLoot(" in template
+    assert "openAllLoot()" in template
+    assert 'data-catalog="items"' in template
+    assert 'data-catalog-field="title"' in template
+    assert 'data-catalog-tooltip="description"' in template
+    assert "data-loot-item-row" in template
+    assert "Забрать источник" in template
+    assert "Посмотреть всё" in template
+    assert "Взять всё" in template
+    assert "corpse_ids" in template
+    assert ".loot-row" in css
+    assert ".loot-source-grid" in css
+    assert ".loot-window" in css
+    assert ".loot-screen-actions" in css
 
 
 class FakeGameSessionApi:
@@ -81,6 +122,14 @@ class FakeGameSessionApi:
     async def enter(self, token, dto):
         self.dto = dto
         return self.response
+
+    async def claim_loot(self, token, dto):
+        self.dto = dto
+        return CoreResponseDTO(
+            header=GameStateHeader(current_state=CoreDomain.EXPLORATION, previous_state=CoreDomain.LOOT),
+            payload={"status": "loot_claim_queued"},
+            payload_type="state_transition",
+        )
 
 
 class FakeInventoryApi:
@@ -167,6 +216,7 @@ class FakeCombatApi:
                 name="Ada Shadow",
                 actor_type="shadow",
                 team="team_2",
+                avatar_url="/static/images/avatars/rook7.png",
                 is_ai=True,
                 vitals=CombatActorVitalsDTO(
                     hp_current=65,
@@ -252,8 +302,6 @@ def scenario_response() -> CoreResponseDTO[ScenarioPayloadDTO]:
             text="Wake up.",
             extra_data={
                 "background_url": "/static/images/scenarios/awakening_rift/background.png",
-                "show_left_sidebar": True,
-                "show_right_sidebar": True,
                 "quest_key": "awakening_rift",
             },
         ),
@@ -385,7 +433,7 @@ async def test_build_current_returns_full_scenario_shell_context():
     assert context["scenario"].node_key == "rift_entry_01"
     assert context["character_status"].panel is not None
     assert context["background_url"].endswith("background.png")
-    assert context["session_ui"] == {"left_open": True, "right_open": True}
+    assert "session_ui" not in context
     assert context["status_seed"]["hp"] == 88
     assert context["status_seed"]["symbiote_name"] == "Mote"
     assert context["status_seed"]["symbiote"]["gift_rank"] == 1
@@ -484,7 +532,7 @@ async def test_build_state_initializes_scenario_with_same_context_shape():
 
     assert context["domain"] == "scenario"
     assert context["scenario"] == response.payload
-    assert context["session_ui"]["right_open"] is True
+    assert "session_ui" not in context
 
 
 @pytest.mark.asyncio
@@ -670,17 +718,20 @@ async def test_build_state_combat_uses_combat_session_without_character_status_l
     assert context["combat"].session_id == "combat-1"
     assert context["combat"].hero.avatar_url == "/static/images/avatars/rook7.png"
     assert context["combat_screen"].hero.avatar_url == "/static/images/avatars/rook7.png"
-    assert context["combat_screen"].target.avatar_url == "/static/images/avatars/veil4.png"
+    assert context["combat_screen"].target.avatar_url == "/static/images/avatars/rook7.png"
     assert len(context["combat_screen"].hero.quick_belt) == 8
     assert context["character_status"] is None
-    assert context["session_ui"] == {"left_open": True, "right_open": True}
+    assert "session_ui" not in context
     assert context["nav"]["center"]["label"] == "COMBAT"
     assert context["nav"]["l2"]["label"] == "STATUS"
     assert context["nav"]["l1"]["label"] == "BUILDS"
     assert context["nav"]["r1"]["label"] == "INVENTORY"
     assert context["nav"]["r2"]["label"] == "VIEW"
-    assert context["nav"]["l2"]["is_disabled"] is True
+    assert context["nav"]["l2"]["is_disabled"] is False
+    assert context["nav"]["l2"]["panel"] == "left"
     assert context["nav"]["r1"]["is_disabled"] is True
+    assert context["nav"]["r2"]["is_disabled"] is False
+    assert context["nav"]["r2"]["panel"] == "right"
     assert context["status_seed"]["hp"] == 70
     assert context["status_seed"]["stamina"] == 55
     assert context["status_seed"]["max_stamina"] == 120
@@ -723,5 +774,41 @@ async def test_build_state_combat_result_uses_combat_layout_domain():
     assert combat_api.calls == [("combat", 7)]
     assert context["domain"] == "combats"
     assert context["combat_result"].title == "Победа"
-    assert context["session_ui"] == {"left_open": True, "right_open": True}
+    assert "session_ui" not in context
     assert context["nav"]["center"]["label"] == "COMBAT"
+
+
+@pytest.mark.asyncio
+async def test_build_state_loot_uses_post_combat_session_payload():
+    post_combat = {
+        "char_id": 7,
+        "target_state": "loot",
+        "outcome": "loot_available",
+        "notice": "После боя остался лут.",
+        "corpse_ids": ["corpse-1"],
+        "loot_context": {
+            "corpse_ids": ["corpse-1"],
+            "corpses": [
+                {
+                    "corpse_id": "corpse-1",
+                    "name": "Bandit",
+                    "items": [{"name": "Rusty Blade", "amount": 1, "rarity": "common"}],
+                }
+            ],
+        },
+    }
+    service = SessionContextBuilder(
+        character_status_api=FakeCharacterStatusApi(sessions={"post_combat": post_combat}),
+        arena_api=SimpleNamespace(),
+        exploration_api=SimpleNamespace(),
+        scenario_api=FakeScenarioApi(scenario_response()),
+        tavern_api=FakeTavernApi(),
+        game_session_api=FakeGameSessionApi(scenario_response()),
+        inventory_api=FakeInventoryApi(),
+    )
+
+    context = await service.build_state(request(), state=CoreDomain.LOOT, char_id=7)
+
+    assert context["domain"] == CoreDomain.LOOT.value
+    assert context["loot"]["corpse_ids"] == ["corpse-1"]
+    assert context["loot"]["loot_context"]["corpses"][0]["items"][0]["name"] == "Rusty Blade"

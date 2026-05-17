@@ -1,0 +1,47 @@
+@media (max-width: 560px) {
+    .loot-screen,
+    .death-screen {
+        grid-template-rows: minmax(220px, auto) auto;
+        padding: 8px;
+    }
+
+    .loot-screen-copy strong,
+    .death-screen-copy strong {
+        font-size: 28px;
+    }
+
+    .loot-row {
+        grid-template-columns: 1fr;
+    }
+
+    .loot-row-meta {
+        grid-template-columns: 1fr auto;
+        justify-items: start;
+    }
+
+    .loot-source-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .loot-source-card {
+        min-height: 86px;
+    }
+
+    .loot-window {
+        inset: auto 8px calc(var(--game-footer-height, 24px) + 10px) 8px !important;
+        width: auto;
+        max-height: min(62dvh, 480px);
+    }
+
+    .loot-window-head {
+        cursor: default;
+    }
+
+    .loot-screen-actions {
+        grid-template-columns: 1fr;
+    }
+
+    .death-loss-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}

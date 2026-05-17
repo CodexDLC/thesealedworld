@@ -1,0 +1,102 @@
+.arena-group-browser {
+    gap: 12px;
+}
+
+.arena-group-tab-input {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.arena-group-tabs {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+}
+
+.arena-group-tab {
+    min-height: 42px;
+    min-width: 0;
+    display: grid;
+    align-content: center;
+    gap: 2px;
+    padding: 8px 10px;
+    border: 1px solid rgba(255, 170, 0, .14);
+    background:
+        linear-gradient(180deg, rgba(255, 214, 118, .045), transparent 42%),
+        rgba(0, 0, 0, .26);
+    color: var(--col-parchment-dim);
+    cursor: pointer;
+    clip-path: var(--clip-node-sm);
+    font-family: var(--font-ui);
+    text-transform: uppercase;
+}
+
+.arena-group-tab span {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 8px;
+    font-weight: 800;
+    letter-spacing: .18em;
+}
+
+.arena-group-tab strong {
+    color: var(--world-accent, var(--col-accent));
+    font-size: 7px;
+    font-weight: 800;
+    letter-spacing: .18em;
+}
+
+#arena-group-tab-current:checked ~ .arena-group-tabs .arena-group-tab--current,
+#arena-group-tab-chaos:checked ~ .arena-group-tabs .arena-group-tab--chaos,
+#arena-group-tab-requests:checked ~ .arena-group-tabs .arena-group-tab--requests {
+    border-color: color-mix(in srgb, var(--world-accent, var(--col-accent)) 54%, transparent);
+    color: var(--col-parchment);
+    box-shadow:
+        inset 0 1px 0 rgba(255, 230, 150, .12),
+        0 0 12px var(--world-accent-soft, rgba(255, 170, 0, .16));
+}
+
+.arena-group-browser-panels {
+    display: grid;
+}
+
+.arena-group-panel {
+    display: none;
+    gap: 7px;
+}
+
+#arena-group-tab-current:checked ~ .arena-group-browser-panels .arena-group-panel--current,
+#arena-group-tab-chaos:checked ~ .arena-group-browser-panels .arena-group-panel--chaos,
+#arena-group-tab-requests:checked ~ .arena-group-browser-panels .arena-group-panel--requests {
+    display: grid;
+}
+
+.arena-group-row {
+    min-height: 64px;
+}
+
+.arena-group-row-main {
+    min-width: 0;
+    display: grid;
+    gap: 3px;
+}
+
+.arena-group-row-meta {
+    color: var(--world-accent, var(--col-accent));
+    font-size: 8px;
+    font-weight: 800;
+    letter-spacing: .14em;
+}
+
+.arena-group-row-comment {
+    color: var(--col-parchment-dim);
+    font-family: var(--font-world);
+    font-size: 14px;
+    line-height: 1.35;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}

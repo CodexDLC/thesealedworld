@@ -21,8 +21,9 @@ Return JSON only:
 {
   "name_ru": "Russian clan name",
   "description": "Russian atmospheric bestiary description, 3-4 sentences",
-  "variants_flavor": {
-    "unit_key": {
+  "variants_flavor": [
+    {
+      "variant_key": "unit_key",
       "name": "Russian monster/variant title",
       "appearance": "Static visual bestiary description, 1-2 sentences",
       "detected": "Text when the player notices this monster first, 1 sentence",
@@ -31,7 +32,7 @@ Return JSON only:
       "encounter": "Legacy fallback battle-start text; duplicate detected when unsure",
       "behavior": "Short behavioral note for fallback/internal use, 1 sentence"
     }
-  }
+  ]
 }
 
 Rules:
@@ -53,5 +54,5 @@ Rules:
             {"role": "user", "content": user},
         ],
         temperature=0.9,
-        max_tokens=8000,
+        max_tokens=16000,
     )

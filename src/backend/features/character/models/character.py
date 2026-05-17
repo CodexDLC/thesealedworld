@@ -3,7 +3,7 @@ from __future__ import annotations
 import uuid  # noqa: TC003
 from typing import TYPE_CHECKING, Any
 
-from sqlalchemy import ForeignKey, Integer, String
+from sqlalchemy import ForeignKey, Integer, String, UniqueConstraint
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -25,6 +25,7 @@ if TYPE_CHECKING:
 
 class Character(Base, TimestampMixin, LifecycleStatusMixin, MetadataContextMixin, SchemaVersionMixin, RevisionMixin):
     __tablename__ = "characters"
+    __table_args__ = (UniqueConstraint("name_key", name="uq_characters_name_key"),)
 
     character_id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     user_id: Mapped[uuid.UUID] = mapped_column(
@@ -33,6 +34,7 @@ class Character(Base, TimestampMixin, LifecycleStatusMixin, MetadataContextMixin
         index=True,
     )
     name: Mapped[str] = mapped_column(String(100), default="New character", nullable=False)
+    name_key: Mapped[str] = mapped_column(String(64), nullable=False)
     gender: Mapped[str] = mapped_column(String(20), default="other", nullable=False)
     avatar_url: Mapped[str | None] = mapped_column(String(255), nullable=True)
 

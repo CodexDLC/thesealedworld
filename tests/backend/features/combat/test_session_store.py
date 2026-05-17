@@ -31,8 +31,14 @@ class FakePipeline:
     def json(self):
         return self
 
-    def hset(self, key, mapping=None, **kwargs):
-        self.commands.append(("hset", key, mapping or kwargs))
+    def hset(self, key, field=None, value=None, mapping=None, **kwargs):
+        if mapping is not None:
+            payload = mapping
+        elif field is not None and value is not None:
+            payload = {field: value}
+        else:
+            payload = kwargs
+        self.commands.append(("hset", key, payload))
 
     def expire(self, key, ttl):
         self.commands.append(("expire", key, ttl))
@@ -48,6 +54,12 @@ class FakePipeline:
 
     def delete(self, key):
         self.commands.append(("delete", key, None))
+
+    def arrappend(self, key, path, *values):
+        self.commands.append(("json_arrappend", key, path, values))
+
+    def eval(self, script, numkeys, *args):
+        self.commands.append(("eval", script, numkeys, args))
 
     async def execute(self, raise_on_error=True):
         results = []
@@ -80,6 +92,16 @@ class FakePipeline:
                 self.client.hash_store.pop(key, None)
                 self.client.lists.pop(key, None)
                 results.append(True)
+            elif name == "json_arrappend":
+                path, values = payload
+                doc = self.client.json_store.setdefault(key, {})
+                member = path.removeprefix('$["').removesuffix('"]')
+                doc.setdefault(member, []).extend(values)
+                results.append(True)
+            elif name == "eval":
+                script = key
+                numkeys, args = payload
+                results.append(await self.client.eval(script, numkeys, *args))
         return results
 
 
@@ -99,6 +121,13 @@ class FakeRedisClient:
     async def hset(self, key, mapping=None, **kwargs):
         self.hash_store.setdefault(key, {}).update(mapping or kwargs)
 
+    async def hsetnx(self, key, field, value):
+        values = self.hash_store.setdefault(key, {})
+        if field in values:
+            return False
+        values[field] = value
+        return True
+
     async def rpush(self, key, *values):
         self.lists.setdefault(key, []).extend(values)
 
@@ -108,6 +137,17 @@ class FakeRedisClient:
         return values[start:end]
 
     async def eval(self, script, numkeys, *args):
+        if "local dead = cjson.decode(ARGV[1])" in script:
+            targets_key = args[0]
+            dead_ids = {str(actor_id) for actor_id in json.loads(args[1])}
+            targets = self.json_store.get(targets_key, {})
+            for actor_id, queue in list(targets.items()):
+                if str(actor_id) in dead_ids:
+                    targets[actor_id] = []
+                else:
+                    targets[actor_id] = [target_id for target_id in queue if str(target_id) not in dead_ids]
+            return 1
+
         if "local actions = cjson.decode(ARGV[1])" not in script:
             raise NotImplementedError(script)
 
@@ -238,6 +278,82 @@ async def test_commit_battle_results_persists_meta_updates():
 
 
 @pytest.mark.asyncio
+async def test_commit_battle_results_prunes_dead_targets_from_all_queues():
+    redis = FakeRedisService()
+    store = CombatSessionManager(redis)
+    redis.redis_client.json_store["combat:rbc:c1:targets"] = {
+        "1": ["2", "3"],
+        "2": ["1"],
+        "3": ["2", "1"],
+    }
+
+    await store.commit_battle_results(
+        "c1",
+        {},
+        [],
+        0,
+        target_returns=[{"source_id": "1", "target_id": "3"}],
+        dead_actors=json.dumps(["2"]),
+        dead_actor_ids=["2"],
+    )
+
+    assert redis.redis_client.json_store["combat:rbc:c1:targets"] == {
+        "1": ["3", "3"],
+        "2": [],
+        "3": ["1"],
+    }
+    assert redis.redis_client.hash_store["combat:rbc:c1:meta"]["dead_actors"] == '["2"]'
+
+
+@pytest.mark.asyncio
+async def test_mark_started_and_initial_ai_seed_are_atomic_once():
+    redis = FakeRedisService()
+    store = CombatSessionManager(redis)
+
+    assert await store.mark_started("c1") is True
+    assert await store.mark_started("c1") is False
+    assert await store.claim_initial_ai_seed("c1") is True
+    assert await store.claim_initial_ai_seed("c1") is False
+
+
+@pytest.mark.asyncio
+async def test_refresh_session_ttl_touches_active_runtime_keys():
+    redis = FakeRedisService()
+    store = CombatSessionManager(redis)
+    redis.redis_client.hash_store["combat:rbc:c1:meta"] = {
+        "teams": json.dumps({"team_1": ["1"], "team_2": ["-1"]}),
+    }
+
+    await store.refresh_session_ttl("c1", ttl=123)
+
+    assert redis.redis_client.ttls == {
+        "combat:rbc:c1:meta": 123,
+        "combat:rbc:c1:targets": 123,
+        "combat:rbc:c1:q:actions": 123,
+        "combat:rbc:c1:logs": 123,
+        "combat:rbc:c1:analytics": 123,
+        "combat:rbc:c1:actor:1": 123,
+        "combat:rbc:c1:actor:1:moves": 123,
+        "combat:rbc:c1:actor:-1": 123,
+        "combat:rbc:c1:actor:-1:moves": 123,
+    }
+
+
+@pytest.mark.asyncio
+async def test_commit_battle_results_refreshes_session_ttl():
+    redis = FakeRedisService()
+    store = CombatSessionManager(redis)
+    redis.redis_client.hash_store["combat:rbc:c1:meta"] = {
+        "teams": json.dumps({"team_1": ["1"], "team_2": ["-1"]}),
+    }
+
+    await store.commit_battle_results("c1", {}, [{"global_turn": 1, "text": "first"}], 0)
+
+    assert redis.redis_client.ttls["combat:rbc:c1:meta"] == store.DEFAULT_TTL_SECONDS
+    assert redis.redis_client.ttls["combat:rbc:c1:actor:1:moves"] == store.DEFAULT_TTL_SECONDS
+
+
+@pytest.mark.asyncio
 async def test_load_full_context_data_preserves_actor_feints_from_meta():
     redis = FakeRedisService()
     store = CombatSessionManager(redis)
@@ -277,6 +393,14 @@ def test_exchange_registration_lua_prefers_string_target_ids():
 def test_targets_json_paths_use_bracket_notation_for_numeric_actor_ids():
     assert CombatSessionManager._json_member_path(5) == '$["5"]'
     assert CombatSessionManager._json_member_path("-5") == '$["-5"]'
+
+
+def test_prune_dead_targets_script_preserves_empty_queues_as_json_arrays():
+    script = CombatSessionManager._prune_dead_targets_script()
+
+    assert "JSON.SET', KEYS[1], path, '[]'" in script
+    assert "JSON.ARRAPPEND" in script
+    assert "cjson.encode(targets)" not in script
 
 
 @pytest.mark.asyncio

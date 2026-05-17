@@ -19,7 +19,6 @@ class WorldThemeDTO(BaseModel):
     accent_soft: str = "rgba(255, 170, 0, 0.08)"
     accent_border: str = "rgba(255, 170, 0, 0.22)"
     accent_glow: str = "rgba(255, 170, 0, 0.30)"
-    glass: str = "rgba(12, 12, 16, 0.72)"
     css_vars: dict[str, str] = Field(default_factory=dict)
 
     def model_post_init(self, __context: object) -> None:
@@ -31,6 +30,5 @@ class WorldThemeDTO(BaseModel):
             "--world-accent-soft": self.accent_soft,
             "--world-accent-border": self.accent_border,
             "--world-accent-glow": self.accent_glow,
-            "--world-glass": self.glass,
             "--world-intensity": str(self.intensity),
         }

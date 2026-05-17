@@ -6,6 +6,11 @@ The MVP combat screen uses normal HTTP/HTMX refreshes. `ACTION_LOCKED` and
 `TARGET_QUEUE_EMPTY` may poll the current snapshot, and player actions return a
 fresh dashboard or result payload.
 
+Generic post-MVP player realtime delivery is tracked separately in
+`docs/possible_improvements/realtime/player_realtime_gateway.md`. Combat state
+notifications should eventually ride that single player realtime connection
+instead of creating a second browser WebSocket.
+
 Future combat and arena WebSocket work should focus on state that changes
 without a direct player request:
 

@@ -1,5 +1,0 @@
-/* Mobile-specific prototype layout overrides.
-   Keep this file form-factor only; reusable rules belong in component or screen CSS. */
-.prototype-board--mobile {
-    --prototype-current-form: mobile;
-}

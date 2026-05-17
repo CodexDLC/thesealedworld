@@ -4,6 +4,7 @@ import pytest
 
 from src.backend.features.items.dto.instance import RuntimeItemProjectionDTO
 from src.backend.features.monsters.dto.generation import GeneratedClan, MonsterGenerationContext
+from src.backend.features.monsters.resources import get_family_config
 from src.backend.features.monsters.runtime.generation_builder import MonsterClanGenerationBuilder
 from src.backend.features.monsters.runtime.hashing import compute_context_hash, normalize_tags
 
@@ -68,37 +69,8 @@ class FakeItemGeneration:
         return projections
 
 
-class FakeTextAI:
-    def __init__(self) -> None:
-        self.payload = None
-
-    async def generate_clan_flavor(self, payload):
-        from src.backend.features.monsters.integrations.text_ai_client import (
-            MonsterClanFlavorDTO,
-            MonsterVariantFlavorDTO,
-        )
-
-        self.payload = payload
-        return MonsterClanFlavorDTO(
-            name_ru="Рой Черного Камня",
-            description="Крысы держатся у влажных плит и нападают из щелей.",
-            variants_flavor={
-                key: MonsterVariantFlavorDTO(
-                    name="Каменная крыса",
-                    appearance="Мокрая крыса с темной шерстью.",
-                    detected="Крыса пятится к щели и следит за движением.",
-                    ambush="Крыса бросается из щели первой.",
-                    idle="Крыса грызет обломок у стены.",
-                    encounter="Крыса показывается у камня.",
-                    behavior="Она держится рядом с другими крысами.",
-                )
-                for key in payload["units_to_name"]
-            },
-        )
-
-
 @pytest.mark.unit
-async def test_generation_builder_creates_active_clan_with_budgeted_members_and_items() -> None:
+async def test_generation_builder_creates_clan_template_with_all_available_members_and_items() -> None:
     repository = FakeRepository()
     item_generation = FakeItemGeneration()
     builder = MonsterClanGenerationBuilder(repository=repository, item_generation=item_generation)
@@ -111,22 +83,35 @@ async def test_generation_builder_creates_active_clan_with_budgeted_members_and_
         difficulty="mid",
     )
 
-    clan = await builder.generate_active_clan(
+    clan = await builder.generate_clan_template(
         context,
         family_id="rat_swarm",
         context_hash="a" * 32,
         unique_hash="b" * 32,
-        target_budget=18,
         reuse_existing=False,
     )
 
+    family = get_family_config("rat_swarm")
+    assert family is not None
+    max_tier = context.tier + 1
+    expected_variants = [
+        variant
+        for variant in family.variants.values()
+        if variant.min_tier <= max_tier and variant.max_tier >= 0
+    ]
     assert repository.created is not None
     assert clan.family_id == "rat_swarm"
-    assert clan.raw_tags["target_budget"] == 18
-    assert 1 <= len(clan.members) <= 12
+    assert "target_budget" not in clan.raw_tags
+    assert clan.raw_tags["variant_window"] == {"min_tier": 0, "max_tier": max_tier}
+    assert len(clan.members) == len(expected_variants)
+    assert {member.variant_key for member in clan.members} == {variant.id for variant in expected_variants}
     assert len(item_generation.batches) == 1
     assert len(item_generation.batches[0]) == len(clan.members) * 2
-    assert {request.base_id for request in item_generation.batches[0]} <= {"rat_bite_claws", "light_hide"}
+    # transmog: natural keys resolve to player item base_ids
+    rat_weapon_bases = {"knife", "dagger", "katar", "rapier"}
+    rat_armor_bases = {"leather_armor", "jerkin", "plate_chest"}
+    actual_base_ids = {request.base_id for request in item_generation.batches[0]}
+    assert actual_base_ids <= (rat_weapon_bases | rat_armor_bases)
 
     first = clan.members[0]
     assert first.items["layout"]["equipment"]
@@ -160,7 +145,7 @@ async def test_generation_builder_reuses_existing_unique_clan_when_requested() -
     item_generation = FakeItemGeneration()
     builder = MonsterClanGenerationBuilder(repository=repository, item_generation=item_generation)
 
-    clan = await builder.generate_active_clan(
+    clan = await builder.generate_clan_template(
         MonsterGenerationContext(zone_id="zone-a", biome_id="city_ruins", tier=1, tags=[]),
         family_id="rat_swarm",
         context_hash=existing.context_hash,
@@ -178,56 +163,17 @@ async def test_generation_builder_creates_humanoid_item_orders_from_fixed_loadou
     item_generation = FakeItemGeneration()
     builder = MonsterClanGenerationBuilder(repository=repository, item_generation=item_generation)
 
-    await builder.generate_active_clan(
+    await builder.generate_clan_template(
         MonsterGenerationContext(zone_id="zone-a", biome_id="city_ruins", tier=1, tags=[], threat=10),
         family_id="bandit_gang",
         context_hash="c" * 32,
         unique_hash="d" * 32,
-        target_budget=10,
         reuse_existing=False,
     )
 
     assert item_generation.batches
     requested_base_ids = {request.base_id for request in item_generation.batches[0]}
     assert requested_base_ids & {"hatchet", "buckler", "jerkin", "shortbow", "belt"}
-
-
-@pytest.mark.unit
-async def test_generation_builder_uses_text_ai_flavor_for_new_template() -> None:
-    repository = FakeRepository()
-    item_generation = FakeItemGeneration()
-    text_ai = FakeTextAI()
-    builder = MonsterClanGenerationBuilder(
-        repository=repository,
-        item_generation=item_generation,
-        text_ai=text_ai,
-    )
-
-    clan = await builder.generate_active_clan(
-        MonsterGenerationContext(zone_id="zone-a", biome_id="city_ruins", tier=1, tags=["black_stone"], threat=8),
-        family_id="rat_swarm",
-        context_hash="e" * 32,
-        unique_hash="f" * 32,
-        target_budget=8,
-        reuse_existing=False,
-    )
-
-    assert text_ai.payload["text_contract"]["member"] == [
-        "name",
-        "appearance",
-        "detected",
-        "ambush",
-        "idle",
-        "encounter",
-        "behavior",
-    ]
-    assert clan.name_ru == "Рой Черного Камня"
-    assert clan.flavor_content["visual"]["image_url"] == "/static/images/monsters/families/rat_swarm.svg"
-    text = clan.members[0].text_content
-    assert text["name_ru"] == "Каменная крыса"
-    assert text["detected_ru"] == "Крыса пятится к щели и следит за движением."
-    assert text["ambush_ru"] == "Крыса бросается из щели первой."
-    assert text["idle_ru"] == "Крыса грызет обломок у стены."
 
 
 @pytest.mark.unit

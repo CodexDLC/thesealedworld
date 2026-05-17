@@ -20,6 +20,8 @@ from src.backend.features.game_lobby.services.character_creation_service import 
 from src.backend.features.game_lobby.services.lobby_service import GameLobbyService
 from src.shared.enums import CoreDomain
 from src.shared.schemas import (
+    CharacterNameAvailabilityDTO,
+    CharacterNameAvailabilityRequestDTO,
     CharacterStatusDTO,
     CoreResponseDTO,
     CreateCharacterRequestDTO,
@@ -100,6 +102,16 @@ async def create_lobby_character_for_site_user(
         payload=payload,
         payload_type="scenario_screen",
     )
+
+
+@router.post("/name-availability", response_model=CharacterNameAvailabilityDTO)
+async def check_lobby_character_name_for_site_user(
+    dto: CharacterNameAvailabilityRequestDTO,
+    _service: Annotated[object, Depends(require_internal_service_key)],
+    creation_service: Annotated[CharacterCreationService, Depends(get_character_creation_service)],
+) -> CharacterNameAvailabilityDTO:
+    """Check normalized character-name policy and current availability."""
+    return await creation_service.check_name_availability(dto.name)
 
 
 @router.post("/release-selected", response_model=CoreResponseDTO[dict[str, Any]])

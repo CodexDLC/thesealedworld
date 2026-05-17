@@ -22,8 +22,9 @@ class GameServerAdmin(CabinetAdmin):
     group = "game_server"
     group_label = "Гейм Сервер"
     icon = "server"
-    path = "/cabinet/game-server"
-    sidebar = (SidebarItem(key="overview", label="Overview", path="/cabinet/game-server"),)
+    path = "/admin/game-server"
+    order = 80
+    sidebar = (SidebarItem(key="overview", label="Overview", path="/admin/game-server"),)
     dashboard_widgets = (
         MetricWidget(key="game_server_status", title="Game Server Status", provider="game_server.status", order=10),
         ListWidget(key="game_server_checks", title="Runtime Checks", provider="game_server.checks", order=20),

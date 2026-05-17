@@ -56,6 +56,8 @@ class MonsterGroupMemberPreview(BaseModel):
     member_tier: int = 0
     threat_rating: int
     hp: dict[str, Any] = Field(default_factory=dict)
+    image: str | None = None
+    visual: dict[str, Any] = Field(default_factory=dict)
     tags: list[str] = Field(default_factory=list)
 
 
@@ -225,6 +227,7 @@ class GeneratedMonsterTemplateDTO(BaseModel):
     granted_abilities: MonsterGrantedAbilitiesDTO = Field(default_factory=MonsterGrantedAbilitiesDTO)
     ai_profile: MonsterAIProfileDTO = Field(default_factory=MonsterAIProfileDTO)
     balance: MonsterBalanceDTO
+    family_modifiers: list[dict[str, Any]] = Field(default_factory=list)
 
 
 class MonsterVitalsDTO(BaseModel):

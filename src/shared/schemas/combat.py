@@ -174,6 +174,9 @@ class CombatEffectBadgeDTO(CombatJsonDTO):
     effect_id: str = "NO_DATA"
     expires_at_exchange: int | None = None
     impact: dict[str, Any] = Field(default_factory=dict)
+    title: str | None = None
+    description: str | None = None
+    duration_label: str | None = None
 
 
 class CombatAbilityBadgeDTO(CombatJsonDTO):
@@ -206,6 +209,12 @@ class CombatActorCardDTO(CombatJsonDTO):
     actor_type: str = "unknown"
     team: str = "neutral"
     avatar_url: str | None = None
+    archetype: str | None = None
+    role: str | None = None
+    template_id: str | None = None
+    tags: list[str] = Field(default_factory=list)
+    source: dict[str, Any] = Field(default_factory=dict)
+    visual: dict[str, Any] = Field(default_factory=dict)
     gear_score: int | None = None
     power_score: int | None = None
     is_ai: bool = False
@@ -300,6 +309,36 @@ class CombatResultActionDTO(CombatJsonDTO):
     label: str = "Понятно"
     action: str = "close"
     target_state: str | None = None
+
+
+class PostCombatLootItemDTO(CombatJsonDTO):
+    item_id: str
+    template_id: str
+    name: str
+    rarity: str = "common"
+    amount: int = 1
+    source: str | None = None
+    instance_id: str | None = None
+    is_resource: bool = False
+
+
+class PostCombatLootCorpseDTO(CombatJsonDTO):
+    corpse_id: str
+    name: str
+    corpse_type: str = "monster"
+    items: list[PostCombatLootItemDTO] = Field(default_factory=list)
+
+
+class PostCombatOutcomeDTO(CombatJsonDTO):
+    char_id: int
+    outcome: str
+    target_state: str
+    notice: str | None = None
+    combat_id: str | None = None
+    corpse_ids: list[str] = Field(default_factory=list)
+    loot_context: dict[str, Any] = Field(default_factory=dict)
+    rating_delta: dict[str, Any] | None = None
+    death_summary: dict[str, Any] = Field(default_factory=dict)
 
 
 class CombatResultDTO(CombatJsonDTO):

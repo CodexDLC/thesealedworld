@@ -1,0 +1,13 @@
+# Forbidden name fragments. Keep entries short, normalized, and review false positives.
+# Do not put reserved staff/system names here; use reserved_names.txt for exact matches.
+fuck
+shit
+bitch
+пизд
+хуй
+хуе
+еба
+ебл
+ёба
+бля
+сука

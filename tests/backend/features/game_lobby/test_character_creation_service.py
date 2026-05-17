@@ -35,6 +35,7 @@ class TestCharacterCreationService:
         )
 
         integration.count_user_characters = AsyncMock(return_value=1)
+        integration.character_name_exists = AsyncMock(return_value=False)
         integration.create_character = AsyncMock(return_value=created_character)
         integration.create_active_session = AsyncMock()
         scenario_payload = MagicMock(spec=ScenarioPayloadDTO)
@@ -46,6 +47,8 @@ class TestCharacterCreationService:
 
         assert result == scenario_payload
         assert integration.create_character.called
+        assert integration.create_character.await_args.kwargs["name"] == "NewHero"
+        assert integration.create_character.await_args.kwargs["name_key"] == "newhero"
         assert integration.create_active_session.called
         assert integration.initialize_starting_scenario.called
         integration.release_other_active_sessions.assert_awaited_once_with(user_id, 123)
@@ -58,3 +61,41 @@ class TestCharacterCreationService:
         with pytest.raises(BusinessLogicException) as exc:
             await service._ensure_slot_available(user)
         assert "Лимит персонажей достигнут" in str(exc.value)
+
+    async def test_create_and_enter_rejects_taken_name(self, service, integration):
+        user = MagicMock(id=1)
+        integration.character_name_exists = AsyncMock(return_value=True)
+
+        with pytest.raises(BusinessLogicException, match="Имя уже занято"):
+            await service.create_and_enter(user, CreateCharacterRequestDTO(name="NewHero", gender="male"))
+
+        integration.count_user_characters.assert_not_called()
+
+    async def test_create_and_enter_rejects_reserved_name(self, service, integration):
+        user = MagicMock(id=1)
+        integration.character_name_exists = AsyncMock(return_value=False)
+
+        with pytest.raises(BusinessLogicException, match="зарезервировано"):
+            await service.create_and_enter(user, CreateCharacterRequestDTO(name="admin", gender="male"))
+
+        integration.character_name_exists.assert_not_called()
+        integration.count_user_characters.assert_not_called()
+
+    async def test_name_availability_reports_taken_name(self, service, integration):
+        integration.character_name_exists = AsyncMock(return_value=True)
+
+        result = await service.check_name_availability("NewHero")
+
+        assert result.available is False
+        assert result.name == "NewHero"
+        assert result.name_key == "newhero"
+        assert result.code == "name_taken"
+
+    async def test_name_availability_rejects_reserved_name(self, service, integration):
+        integration.character_name_exists = AsyncMock(return_value=False)
+
+        result = await service.check_name_availability("admin")
+
+        assert result.available is False
+        assert result.code == "reserved_name"
+        integration.character_name_exists.assert_not_called()

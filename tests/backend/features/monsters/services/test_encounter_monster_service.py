@@ -9,7 +9,7 @@ from src.backend.features.monsters.runtime.hashing import compute_context_hash, 
 from src.backend.features.monsters.services import EncounterMonsterService
 
 
-class FakeGenerator:
+class FakeClanFactory:
     def __init__(self, repository: FakeMonsterRepository) -> None:
         self.repository = repository
 
@@ -21,18 +21,17 @@ class FakeGenerator:
         del context
         return ["wolf_pack", "goblin_tribe"]
 
-    async def generate_active_clan(
+    async def build_clan_template(
         self,
         *,
-        context_hash: str,
-        context: MonsterGenerationContext,
         family_id: str,
+        context: MonsterGenerationContext,
+        context_hash: str,
         unique_hash: str,
         normalized_tags: list[str],
-        reuse_existing: bool = True,
-        target_budget: int | None = None,
+        reuse_existing: bool = False,
     ) -> GeneratedClan:
-        del normalized_tags, reuse_existing, target_budget
+        del normalized_tags, reuse_existing
         clan = _clan(context_hash, unique_hash)
         clan.family_id = family_id
         clan.zone_id = context.zone_id
@@ -125,7 +124,7 @@ def _monster(clan_id: uuid.UUID, role: str = "minion", threat: int = 20) -> Gene
 @pytest.mark.unit
 async def test_prepare_encounter_reuses_existing_clan() -> None:
     repo = FakeMonsterRepository()
-    service = EncounterMonsterService(repo, generator=FakeGenerator(repo))
+    service = EncounterMonsterService(repo, factory=FakeClanFactory(repo))
     context = MonsterGenerationContext(biome_id="forest", tier=1, tags=["mana_leak"], difficulty="easy")
     normalized = normalize_tags(context.tags)
     actual_hash = compute_context_hash(context.tier, context.biome_id, normalized)
@@ -146,7 +145,7 @@ async def test_prepare_encounter_reuses_existing_clan() -> None:
 @pytest.mark.unit
 async def test_prepare_encounter_creates_clan_and_returns_monster_ids() -> None:
     repo = FakeMonsterRepository()
-    service = EncounterMonsterService(repo, generator=FakeGenerator(repo))
+    service = EncounterMonsterService(repo, factory=FakeClanFactory(repo))
     context = MonsterGenerationContext(
         zone_id="D4_0_1",
         biome_id="forest",
@@ -167,7 +166,7 @@ async def test_prepare_encounter_creates_clan_and_returns_monster_ids() -> None:
 @pytest.mark.unit
 async def test_ensure_clan_for_context_creates_one_requested_family() -> None:
     repo = FakeMonsterRepository()
-    service = EncounterMonsterService(repo, generator=FakeGenerator(repo))
+    service = EncounterMonsterService(repo, factory=FakeClanFactory(repo))
     context = MonsterGenerationContext(
         zone_id="D4_0_1",
         biome_id="city_ruins",
@@ -185,7 +184,7 @@ async def test_ensure_clan_for_context_creates_one_requested_family() -> None:
 @pytest.mark.unit
 async def test_ensure_clan_for_context_reuses_existing_family_context_hash() -> None:
     repo = FakeMonsterRepository()
-    service = EncounterMonsterService(repo, generator=FakeGenerator(repo))
+    service = EncounterMonsterService(repo, factory=FakeClanFactory(repo))
     context = MonsterGenerationContext(
         zone_id="D4_0_1",
         biome_id="city_ruins",

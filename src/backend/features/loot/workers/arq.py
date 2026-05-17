@@ -8,9 +8,8 @@ from loguru import logger as log
 from src.backend.core.arq import SYSTEM_ARQ_QUEUE, BaseArqSettings, base_shutdown, base_startup
 
 from .tasks.loot_claim_task import loot_claim_task
-from .tasks.loot_order_task import loot_order_task
 
-LOOT_TASKS = [loot_order_task, loot_claim_task]
+LOOT_TASKS = [loot_claim_task]
 
 
 async def loot_startup(ctx: dict) -> None:

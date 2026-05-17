@@ -1,0 +1,36 @@
+
+/* <768px: mobile shell keeps the same compact header height as desktop. */
+@media (max-width: 767px) {
+    #app-viewport {
+        --game-header-height: 40px;
+        --game-footer-height: 30px;
+        --game-drawer-width: min(340px, calc(100vw - 16px));
+        --game-ui-scale: .9;
+    }
+
+    .game-header {
+        height: var(--game-header-height);
+        min-height: var(--game-header-height);
+        padding: 3px 10px;
+        grid-template-columns: minmax(0, 1fr) 0 auto;
+        column-gap: 8px;
+    }
+
+    .header-center {
+        display: none;
+    }
+
+    .game-logo {
+        max-width: calc(100vw - 90px);
+        font-size: 16px;
+    }
+
+    .col-left,
+    .col-right {
+        top: var(--game-header-height);
+        bottom: var(--game-footer-height);
+        height: auto;
+        max-height: calc(100dvh - var(--game-header-height) - var(--game-footer-height));
+        overflow: auto;
+        z-index: var(--game-overlay-z);
+    }

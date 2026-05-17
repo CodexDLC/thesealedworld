@@ -1,0 +1,261 @@
+@media (max-width: 899px) {
+    .exploration-main-dock.mobile-rift--encounter .mobile-encounter-roster {
+        display: none;
+    }
+}
+
+@media (min-width: 900px) {
+    .exploration-main-dock .mobile-screen.is-active {
+        display: flex;
+        gap: 14px;
+    }
+
+    .exploration-main-dock .exploration-screen-content {
+        display: flex;
+    }
+
+    .exploration-main-dock .mobile-scene {
+        min-height: 300px;
+    }
+
+    .exploration-main-dock .exploration-action-panel {
+        border: 1px solid rgba(255, 170, 0, 0.16);
+    }
+
+    .exploration-main-dock .exploration-action-panel__body {
+        grid-template-rows: auto minmax(0, 1fr);
+        gap: 10px;
+    }
+
+    .exploration-main-dock .mobile-services {
+        align-self: stretch;
+        align-content: start;
+        padding: 14px 12px;
+        border: 1px solid rgba(255, 170, 0, 0.16);
+        background: rgba(5, 5, 7, 0.18);
+    }
+
+    .exploration-main-dock .mobile-move-cooldown {
+        margin-bottom: 0;
+    }
+
+    .exploration-main-dock.mobile-rift--encounter .mobile-screen.is-active {
+        display: grid;
+        grid-template-columns: 320px minmax(0, 1fr);
+        grid-template-rows: minmax(0, 1fr) auto auto;
+        gap: 10px 14px;
+    }
+
+    .exploration-main-dock.mobile-rift--encounter .exploration-screen-content {
+        display: contents;
+    }
+
+    .exploration-main-dock.mobile-rift--encounter .mobile-scene {
+        grid-column: 1 / -1;
+        grid-row: 1;
+        min-height: 0;
+    }
+
+    .exploration-main-dock.mobile-rift--encounter .mobile-services {
+        display: none;
+    }
+
+    .exploration-main-dock.mobile-rift--encounter .mobile-encounter-layout {
+        grid-column: 1 / -1;
+        grid-row: 2;
+        display: grid;
+        grid-template-columns: 320px minmax(0, 1fr);
+        grid-template-rows: auto minmax(170px, 210px);
+        gap: 10px 14px;
+        min-height: 0;
+    }
+
+    .exploration-main-dock.mobile-rift--encounter .mobile-encounter-interrupt {
+        grid-column: 1 / -1;
+        grid-row: 1;
+        display: grid;
+        grid-template-columns: minmax(220px, 0.34fr) minmax(0, 1fr);
+        align-items: stretch;
+        gap: 14px;
+        min-height: 58px;
+        padding: 10px 14px;
+    }
+
+    .exploration-main-dock.mobile-rift--encounter .mobile-encounter-interrupt p {
+        margin: 0;
+    }
+
+    .exploration-main-dock.mobile-rift--encounter .mobile-encounter-roster {
+        grid-column: 1;
+        grid-row: 2;
+        align-self: stretch;
+        align-content: start;
+        gap: 8px;
+        min-height: 0;
+        padding: 12px;
+        border: 1px solid rgba(255, 170, 0, 0.14);
+        background:
+            linear-gradient(180deg, rgba(255, 170, 0, 0.045), rgba(0, 0, 0, 0.22)),
+            rgba(5, 5, 7, 0.34);
+    }
+
+    .exploration-main-dock.mobile-rift--encounter .mobile-encounter-roster header {
+        min-height: 14px;
+    }
+
+    .exploration-main-dock.mobile-rift--encounter .mobile-encounter-roster button {
+        min-height: 42px;
+    }
+
+    .exploration-main-dock.mobile-rift--encounter .mobile-encounter-target-card {
+        grid-column: 2;
+        grid-row: 2;
+        align-self: stretch;
+        display: grid;
+        grid-template-columns: minmax(0, 1fr);
+        grid-template-rows: auto minmax(0, 1fr);
+        gap: 12px;
+        min-height: 0;
+        padding: 12px;
+    }
+
+    .exploration-main-dock.mobile-rift--encounter .mobile-encounter-target-card header {
+        grid-column: 1 / -1;
+    }
+
+    .exploration-main-dock.mobile-rift--encounter .mobile-encounter-target-switcher {
+        display: none;
+    }
+
+    .exploration-main-dock.mobile-rift--encounter .mobile-encounter-target-view {
+        min-height: 0;
+        align-content: start;
+        grid-template-rows: minmax(0, 1fr) auto;
+    }
+
+    .exploration-main-dock.mobile-rift--encounter .mobile-encounter-target-main {
+        grid-template-columns: 112px minmax(0, 1fr);
+        gap: 14px;
+        min-height: 0;
+    }
+
+    .exploration-main-dock.mobile-rift--encounter .mobile-encounter-target-art {
+        min-height: 96px;
+        font-size: 38px;
+    }
+
+    .exploration-main-dock.mobile-rift--encounter .mobile-encounter-target-stats {
+        grid-column: 1 / -1;
+    }
+
+    .exploration-main-dock.mobile-rift--encounter .exploration-action-panel {
+        grid-column: 1 / -1;
+        grid-row: 3;
+        align-self: end;
+        display: grid;
+        margin-top: 0;
+        border: 1px solid rgba(255, 170, 0, 0.16);
+        padding-top: 0;
+    }
+
+    .exploration-main-dock.mobile-rift--encounter .mobile-move-cooldown {
+        display: none;
+    }
+
+    .exploration-main-dock.mobile-rift--encounter .mobile-encounter-actions {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .exploration-main-dock.mobile-rift--encounter .mobile-encounter-action {
+        min-height: 54px;
+        aspect-ratio: auto;
+        justify-items: center;
+        text-align: center;
+    }
+}
+
+
+
+@media (max-width: 760px) {
+    #center-screens {
+        padding: 12px 10px 72px;
+        justify-content: flex-start;
+        overflow-y: auto;
+    }
+
+    .hud-strip {
+        flex-wrap: wrap;
+    }
+
+    .hud-cell {
+        flex: 1 1 calc(50% - 5px);
+    }
+
+    .service-card,
+    .service-card-body {
+        grid-template-columns: 1fr;
+    }
+
+    .service-card-icon {
+        min-height: 48px;
+        border-right: 0;
+        border-bottom: 1px solid color-mix(in srgb, var(--world-accent, var(--col-accent)) 22%, transparent);
+    }
+
+    .exploration-control-grid {
+        grid-template-columns: 1fr;
+        grid-template-areas:
+            "actions"
+            "movement"
+            "routes";
+    }
+
+    .exploration-encounter-body {
+        grid-template-columns: 1fr;
+    }
+
+    .exploration-encounter-roster {
+        grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    }
+
+    .exploration-route-block,
+    .exploration-movement-grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 500px) {
+    #center-screens {
+        padding-inline: 8px;
+    }
+
+    .parchment {
+        padding: 14px 12px;
+    }
+
+    .dpad {
+        grid-template-columns: repeat(3, minmax(42px, 1fr));
+        grid-template-rows: repeat(3, 44px);
+        width: 100%;
+    }
+
+    .exploration-movement-grid .dp,
+    .dp {
+        min-height: 44px;
+        padding-inline: 5px;
+        font-size: 8px;
+    }
+
+    .exploration-encounter-head,
+    .exploration-encounter-notice {
+        grid-template-columns: 1fr;
+    }
+
+    .exploration-encounter-state {
+        justify-content: flex-start;
+    }
+
+    .exploration-encounter-facts {
+        grid-template-columns: 1fr;
+    }
+}

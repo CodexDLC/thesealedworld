@@ -85,6 +85,11 @@ PIPELINE_MUTATION_CONTRACT_DEFINITIONS: tuple[PipelineMutationContractDTO, ...] 
     _contract("crit_damage_boost", "flags.formula.crit_damage_boost", "bool", True),
     _contract("enable_pierce", "flags.formula.can_pierce", "bool", True),
     _contract("ignore_armor", "flags.formula.ignore_armor", "bool", True),
+    _contract("ignore_flat_armor", "flags.formula.ignore_flat_armor", "bool", True),
+    _contract("roll_flat_armor_ignore", "flags.formula.roll_flat_armor_ignore", "bool", True),
+    _contract("boost_flat_armor_penetration", "flags.formula.boost_flat_armor_penetration", "bool", True),
+    _contract("suppress_physical_resistance", "flags.formula.suppress_physical_resistance", "bool", True),
+    _contract("ignore_physical_resistance", "flags.formula.ignore_physical_resistance", "bool", True),
     _contract("counter_chance_boost", "flags.formula.counter_chance_boost", "bool", True),
     # Damage type flags.
     _contract("damage.physical", "flags.damage.physical", "bool", True),
@@ -128,6 +133,9 @@ PIPELINE_MUTATION_CONTRACT_DEFINITIONS: tuple[PipelineMutationContractDTO, ...] 
     _contract("accuracy_mult", "mods.accuracy_mult", "float", 1.0),
     _contract("damage_mult", "mods.damage_mult", "float", 1.0),
     _contract("weapon_effect_value", "mods.weapon_effect_value", "float", 2.0),
+    _contract("flat_armor_penetration_bonus_pct", "mods.flat_armor_penetration_bonus_pct", "float", 0.0),
+    _contract("flat_armor_ignore_chance_bonus", "mods.flat_armor_ignore_chance_bonus", "float", 0.0),
+    _contract("physical_resistance_suppression_pct", "mods.physical_resistance_suppression_pct", "float", 0.0),
     # Resolver stages.
     _contract("stage.check_accuracy", "stages.check_accuracy", "bool", True),
     _contract("stage.check_evasion", "stages.check_evasion", "bool", True),

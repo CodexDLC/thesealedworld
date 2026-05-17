@@ -21,16 +21,11 @@
 
     {# Main interactive area #}
     {% set combat_layout = domain == 'combats' %}
-    {% set combat_sidebars = false %}
-    {% set shell_left_open = combat_sidebars or (not combat_layout and session_ui and session_ui.left_open) %}
-    {% set shell_right_open = combat_sidebars or (not combat_layout and session_ui and session_ui.right_open) %}
-    <div class="game-top-row {{ 'combat-layout' if combat_layout else '' }} {{ 'left-open' if shell_left_open else '' }} {{ 'right-open' if shell_right_open else '' }}"
-         {% if shell_left_open %}data-left-open="true"{% endif %}
-         {% if shell_right_open %}data-right-open="true"{% endif %}
+    <div class="game-top-row {{ 'combat-layout' if combat_layout else '' }}"
          style="flex: 1; position: relative; z-index: 1; min-height: 0;"
          :class="{ 'left-open': leftOpen, 'right-open': rightOpen }">
         {# Left Panel (Inventory/Stats) #}
-        <aside id="game-left" class="col-left {{ 'panel-open' if shell_left_open else '' }}" :class="{ 'panel-open': leftOpen }">
+        <aside id="game-left" class="col-left" :class="{ 'panel-open': leftOpen }">
             <div id="game-left-content">
                 {% block game_left %}
                     <div x-show="leftPanelView === 'status'">
@@ -44,21 +39,15 @@
                             {% include "game/components/status/main.html" %}
                         {% elif domain == 'death' %}
                             {% include "game/components/status/main.html" %}
+                        {% elif domain == 'loot' %}
+                            {% include "game/components/status/main.html" %}
                         {% elif domain == 'combats' %}
                             {% include "game/domains/combat/left_sidebar/main.html" %}
                         {% endif %}
                     </div>
                     {% if domain != 'combats' %}
                     <div x-show="leftPanelView === 'builds'" x-cloak>
-                        <div class="ds-panel">
-                            <div class="ds-panel-header">BUILDS</div>
-                            <div class="ds-panel-body">
-                                <div class="missing-data-block">
-                                    <span>BUILD_PANEL_PENDING</span>
-                                    <small>will use character skills and loadout later</small>
-                                </div>
-                            </div>
-                        </div>
+                        {% include "game/components/status/build_draft.html" %}
                     </div>
                     {% endif %}
                 {% endblock %}
@@ -81,6 +70,8 @@
                         {% include "game/domains/combat/viewport/main.html" %}
                     {% elif domain == 'death' %}
                         {% include "game/domains/death/viewport/main.html" %}
+                    {% elif domain == 'loot' %}
+                        {% include "game/domains/loot/viewport/main.html" %}
                     {% else %}
                         {% include "game/domains/exploration/viewport/main.html" %}
                     {% endif %}
@@ -89,7 +80,7 @@
         </main>
 
         {# Right Panel (Social/Intel/Enemies) #}
-        <aside id="game-right" class="col-right {{ 'panel-open' if shell_right_open else '' }}" :class="{ 'panel-open': rightOpen }">
+        <aside id="game-right" class="col-right" :class="{ 'panel-open': rightOpen }">
             <div id="game-right-content">
                 {% block game_right %}
                     <div x-show="rightPanelView === 'context'">
@@ -105,6 +96,11 @@
                             {% include "game/domains/combat/right_sidebar/main.html" %}
                         {% endif %}
                     </div>
+                    {% if domain not in ['combats', 'death', 'loot'] %}
+                    <div x-show="rightPanelView === 'inventory'" x-cloak>
+                        {% include "game/components/inventory/right_panel.html" %}
+                    </div>
+                    {% endif %}
                 {% endblock %}
             </div>
         </aside>

@@ -1,0 +1,163 @@
+.combat-team-mini {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 6px;
+}
+
+.combat-battle-meta div,
+.combat-team-mini span {
+    min-width: 0;
+    border: 1px solid rgba(255, 170, 0, .08);
+    background: rgba(0, 0, 0, .24);
+    padding: 6px 7px;
+}
+
+.combat-battle-meta span,
+.combat-team-summary-head span,
+.combat-team-mini span {
+    display: block;
+    color: var(--col-parchment-dim);
+    font-family: var(--font-ui);
+    font-size: 7px;
+    font-weight: 800;
+    letter-spacing: .18em;
+    text-transform: uppercase;
+}
+
+.combat-battle-meta b,
+.combat-team-mini b {
+    display: block;
+    overflow: hidden;
+    color: color-mix(in srgb, var(--world-accent, var(--col-accent)) 82%, #fff);
+    font-family: var(--font-ui);
+    font-size: 10px;
+    letter-spacing: .06em;
+    line-height: 1.3;
+    text-overflow: ellipsis;
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+
+.combat-team-bars {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
+    gap: 8px;
+}
+
+.combat-team-bar {
+    display: grid;
+    gap: 8px;
+    padding: 12px;
+}
+
+.combat-team-bar--enemy {
+    text-align: right;
+}
+
+.combat-team-summary-head {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    align-items: center;
+}
+
+.combat-team-bar--enemy .combat-team-summary-head {
+    flex-direction: row-reverse;
+}
+
+.combat-team-summary-head b {
+    color: var(--world-accent, var(--col-accent));
+    font-family: var(--font-ui);
+    font-size: 10px;
+    letter-spacing: .12em;
+}
+
+.combat-team-hp {
+    position: relative;
+    height: 18px;
+    overflow: hidden;
+    border: 1px solid rgba(255, 170, 0, .14);
+    background: rgba(255, 255, 255, .055);
+    clip-path: var(--clip-node-sm);
+}
+
+.combat-team-hp i {
+    display: block;
+    height: 100%;
+    background: linear-gradient(90deg, rgba(45, 90, 190, .86), rgba(88, 180, 255, .92));
+}
+
+.combat-team-bar--enemy .combat-team-hp i {
+    margin-left: auto;
+    background: linear-gradient(90deg, rgba(170, 28, 28, .88), rgba(255, 85, 65, .92));
+}
+
+.combat-team-hp strong {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    color: #fff4cf;
+    font-family: var(--font-ui);
+    font-size: 9px;
+    font-weight: 900;
+    letter-spacing: .12em;
+    text-shadow: 0 1px 0 #000, 0 0 8px rgba(0, 0, 0, .78);
+}
+
+.combat-team-mini {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.combat-team-mini span {
+    font-size: 7px;
+    text-align: center;
+}
+
+.combat-command-head span,
+.combat-panel-header {
+    color: var(--col-parchment-dim);
+    font-family: var(--font-ui);
+    font-size: 7px;
+    font-weight: 800;
+    letter-spacing: .22em;
+    text-transform: uppercase;
+}
+
+.combat-actor-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.combat-actor-avatar--shadow img,
+.combat-field-portrait--shadow img {
+    filter: grayscale(.78) brightness(.62) contrast(1.24) hue-rotate(180deg);
+}
+
+.combat-actor-avatar--shadow::after,
+.combat-field-portrait--shadow::after {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    content: "";
+    background:
+        radial-gradient(circle at 50% 42%, rgba(112, 74, 255, .20), transparent 58%),
+        linear-gradient(180deg, rgba(0, 0, 0, .12), rgba(0, 0, 0, .48));
+    mix-blend-mode: screen;
+}
+
+.combat-actor-name {
+    min-width: 0;
+    overflow: hidden;
+    color: color-mix(in srgb, var(--world-accent, var(--col-accent)) 82%, #fff);
+    font-family: var(--font-ui);
+    font-size: 12px;
+    font-weight: 800;
+    letter-spacing: .08em;
+    line-height: 1.28;
+    text-overflow: ellipsis;
+    text-shadow: 0 1px 0 #000, 0 0 12px var(--world-accent-soft, rgba(255, 170, 0, .20));
+    text-transform: uppercase;
+    white-space: nowrap;
+}

@@ -73,6 +73,11 @@ class FormulaFlagsDTO(BaseModel):
     # Damage
     can_pierce: bool = False  # Разрешить проверку на пронзание
     ignore_armor: bool = False
+    ignore_flat_armor: bool = False
+    roll_flat_armor_ignore: bool = False
+    boost_flat_armor_penetration: bool = False
+    suppress_physical_resistance: bool = False
+    ignore_physical_resistance: bool = False
 
     # Counter Attack
     counter_chance_boost: bool = False  # Был enable_counter (+20% chance)
@@ -166,6 +171,9 @@ class PipelineModsDTO(BaseModel):
     damage_mult: float = 1.0
     weapon_effect_value: float = 2.0  # Универсальный бонус оружия (Crit Mult / Pierce %)
     weapon_technique_bonus_damage: float = 0.0
+    flat_armor_penetration_bonus_pct: float = 0.0
+    flat_armor_ignore_chance_bonus: float = 0.0
+    physical_resistance_suppression_pct: float = 0.0
 
 
 class PipelineStagesDTO(BaseModel):

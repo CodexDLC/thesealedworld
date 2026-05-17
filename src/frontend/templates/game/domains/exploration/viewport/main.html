@@ -160,12 +160,12 @@
                             <div class="mobile-encounter-target-art"
                                  {% if enemy.image is defined and enemy.image %}style="background-image: url('{{ enemy.image }}');"{% endif %}
                                  aria-hidden="true">
-                                <span>{{ enemy_name[:1] }}</span>
+                                {% if not (enemy.image is defined and enemy.image) %}<span>{{ enemy_name[:1] }}</span>{% endif %}
                             </div>
                             <div class="mobile-encounter-target-copy">
                                 <div class="mobile-encounter-target-title">
                                     <strong>{{ enemy_name }}</strong>
-                                    <span>TIER {{ enemy.level if enemy.level is defined and enemy.level else '?' }}</span>
+                                    <span>TIER {{ enemy.member_tier if enemy.member_tier is defined and enemy.member_tier is not none else enemy.level if enemy.level is defined and enemy.level is not none else '?' }}</span>
                                 </div>
                                 <div class="mobile-encounter-target-tags">
                                     <span>{{ active_encounter.status or 'UNKNOWN' }}</span>
@@ -181,7 +181,7 @@
                             </div>
                             <div>
                                 <span>THREAT</span>
-                                <strong>{{ enemy.level if enemy.level is defined and enemy.level else '???' }}</strong>
+                                <strong>{{ enemy.threat_rating if enemy.threat_rating is defined and enemy.threat_rating is not none else '???' }}</strong>
                             </div>
                         </div>
                     </div>
@@ -297,7 +297,7 @@
         <section class="panel-dock panel-dock--framed exploration-main-dock {{ 'mobile-rift--encounter' if active_encounter else '' }}" aria-label="Exploration main dock">
             <nav class="dock-nav dock-nav--bar dock-nav--five mobile-center-menu" aria-label="Game sections">
                 {{ mobile_nav_item(nav.l2 if nav else none, 'STATUS') }}
-                {{ mobile_nav_item(nav.l1 if nav else none, 'BUILDS') }}
+                {{ mobile_nav_item(nav.l1 if nav else none, 'QUESTS') }}
                 {{ mobile_nav_item(nav.center if nav else none, 'EXPLORE', 'is-active') }}
                 {{ mobile_nav_item(nav.r1 if nav else none, 'INVENTORY') }}
                 {{ mobile_nav_item(nav.r2 if nav else none, 'INFO') }}
@@ -359,14 +359,12 @@
 
                 {% if location_view.grid is defined and location_view.grid %}
                     <section class="game-action-panel game-action-panel--bottom exploration-action-panel" aria-label="Exploration actions">
-                        <div class="mobile-move-cooldown exploration-movement-block" data-cooldown-state="ready" style="--move-cooldown-progress: 1;">
-                            <span class="mobile-move-cooldown-bar"></span>
-                            <span class="exploration-move-cooldown-label sr-only">READY</span>
-                        </div>
-
-                        {% if active_encounter %}
-                            {{ encounter_actions(active_encounter) }}
-                        {% else %}
+                        {% if not active_encounter %}
+                            <div class="mobile-bottom-rule" aria-hidden="true"></div>
+                            <div class="mobile-move-cooldown" data-cooldown-state="ready" style="--move-cooldown-progress: 1;">
+                                <span class="mobile-move-cooldown-bar"></span>
+                                <span class="exploration-move-cooldown-label sr-only">READY</span>
+                            </div>
                             <div class="exploration-action-panel__body">
                                 <details class="mobile-services {{ 'is-empty' if service_count == 0 else '' }}" data-bottom-panel="local-services" open>
                                     <summary class="mobile-services-summary">
@@ -402,6 +400,13 @@
                                     {{ exploration_button(location_view.grid.se if location_view.grid.se is defined else none, 'ОСМОТРЕТЬСЯ', 'look-around') }}
                                 </section>
                             </div>
+                        {% else %}
+                            <div class="mobile-bottom-rule" aria-hidden="true"></div>
+                            <div class="mobile-move-cooldown" data-cooldown-state="ready" style="--move-cooldown-progress: 1;">
+                                <span class="mobile-move-cooldown-bar"></span>
+                                <span class="exploration-move-cooldown-label sr-only">READY</span>
+                            </div>
+                            {{ encounter_actions(active_encounter) }}
                         {% endif %}
                     </section>
                 {% endif %}

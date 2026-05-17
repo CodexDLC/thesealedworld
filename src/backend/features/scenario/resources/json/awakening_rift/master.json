@@ -3,8 +3,6 @@
   "scenario_type": "unique_scenario",
   "display_name": "ПРОБУЖДЕНИЕ В РАЗЛОМЕ",
   "background_url": "/static/images/scenarios/awakening_rift/background.png",
-  "show_left_sidebar": true,
-  "show_right_sidebar": true,
   "ui": {
     "left_panel": {
       "mode": "character_status",

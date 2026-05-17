@@ -186,6 +186,25 @@ async def test_enter_character_routes_death_when_death_ref_exists_without_pendin
 
 
 @pytest.mark.asyncio
+async def test_enter_character_routes_loot_when_post_combat_ref_exists():
+    user_id = uuid4()
+    integrator = FakeGameSessionIntegrator(
+        session_doc=active_session(
+            user_id=user_id,
+            state=CoreDomain.LOOT,
+            prev_state=CoreDomain.COMBAT_RESULT,
+            sessions={"post_combat": {"target_state": "loot", "corpse_ids": ["corpse-1"]}},
+        )
+    )
+    service = GameSessionService(integrator=integrator)
+
+    response = await service.enter_character(SimpleNamespace(id=user_id), 7)
+
+    assert response.header.current_state == CoreDomain.LOOT
+    assert response.payload_type == "loot_session"
+
+
+@pytest.mark.asyncio
 async def test_respawn_character_calls_integrator_from_death_state():
     user_id = uuid4()
     session_doc = active_session(

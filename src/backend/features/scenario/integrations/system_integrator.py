@@ -2,7 +2,9 @@ from __future__ import annotations
 
 import json
 import logging
+import random
 import uuid
+from decimal import ROUND_HALF_UP, Decimal
 from time import perf_counter
 from typing import TYPE_CHECKING, Any
 
@@ -24,12 +26,15 @@ if TYPE_CHECKING:
     from src.backend.features.character.repositories import CharacterRepository
     from src.backend.features.scenario.handlers import BaseScenarioHandler
     from src.backend.features.scenario.integrations.content_integration import ScenarioContentIntegration
+    from src.backend.features.world.integrations import WorldDataIntegration
     from src.backend.infrastructure.scenario.managers.session_manager import ScenarioSessionManager
     from src.backend.infrastructure.scenario.repositories import ScenarioRepository
 
 log = logging.getLogger(__name__)
 BACKUP_INTERVAL = 3
 SCENARIO_COMBAT_TTL_SECONDS = 24 * 60 * 60
+MONSTER_GROUP_PREPARE_REQUESTED = "monsters.group_prepare_requested"
+TUTORIAL_PVE_CROSS_ZONE_IDS = ("D4_1_0", "D4_2_1", "D4_1_2", "D4_0_1")
 
 
 def _elapsed_ms(started_at: float) -> float:
@@ -54,6 +59,7 @@ class ScenarioSystemIntegrator:
         repo: ScenarioRepository,
         events: GameEventProducer,
         character_repo: CharacterRepository | None = None,
+        world_data: WorldDataIntegration | None = None,
     ) -> None:
         self.sessions = sessions
         self.content = content
@@ -61,6 +67,7 @@ class ScenarioSystemIntegrator:
         self.repo = repo
         self.events = events
         self.character_repo = character_repo
+        self.world_data = world_data
 
     # --- Session Management (Redis & DB) ---
 
@@ -451,16 +458,36 @@ class ScenarioSystemIntegrator:
             char_id, reason="combat_return_context_prepared", paths=sorted(updates)
         )
 
+    async def select_tutorial_pve_spawn_location(self) -> str:
+        if self.world_data is None:
+            raise RuntimeError("Scenario tutorial PvE spawn selection requires world_data integration")
+
+        nodes = await self.world_data.get_active_nodes_by_zone_ids(list(TUTORIAL_PVE_CROSS_ZONE_IDS))
+        candidates = sorted(
+            (self._loc_id(node) for node in nodes if self._is_tutorial_spawn_candidate(node)),
+            key=lambda loc_id: tuple(int(part) for part in loc_id.split("_", 1)),
+        )
+        if not candidates:
+            raise RuntimeError(
+                "Scenario tutorial PvE spawn selection failed: no active passable non-safe nodes in cross zones "
+                f"{list(TUTORIAL_PVE_CROSS_ZONE_IDS)}"
+            )
+        return random.choice(candidates)  # nosec B311
+
     async def request_combat_start(
         self,
         char_id: int,
         quest_key: str,
         *,
-        battle_type: str = "shadow",
+        battle_type: str = "pve",
         location_id: str | None = None,
     ) -> dict[str, Any]:
+        if battle_type != "pve":
+            raise RuntimeError(f"Scenario tutorial combat requires battle_type=pve, got {battle_type!r}")
+        if not location_id:
+            raise RuntimeError("Scenario tutorial combat requires a prepared location_id")
+
         combat_id = str(uuid.uuid4())
-        participants = {"team_1": [char_id]}
         started_at = perf_counter()
         await self.restore_character_vitals(char_id, reason=f"scenario:{quest_key}:combat_handoff")
         log.info(
@@ -469,17 +496,38 @@ class ScenarioSystemIntegrator:
             combat_id,
             _elapsed_ms(started_at),
         )
+        budget = await self._tutorial_monster_budget(char_id)
         started_at = perf_counter()
-        commitments = await self.prepare_combat_commitments(
+        monster_group = await self.prepare_tutorial_monster_group(
+            combat_id=combat_id,
+            location_id=location_id,
+            budget=budget,
+        )
+        log.info(
+            "ScenarioIntegratorTiming | op=prepare_tutorial_monster_group char_id=%s combat_id=%s "
+            "location_id=%s budget=%s monster_count=%s ms=%s",
+            char_id,
+            combat_id,
+            location_id,
+            budget,
+            len(monster_group["monster_ids"]),
+            _elapsed_ms(started_at),
+        )
+        started_at = perf_counter()
+        player_commitments = await self.prepare_combat_commitments(
             combat_id,
             player_ids=[char_id],
             monster_ids=[],
         )
+        commitments = {**player_commitments, **monster_group["actor_commitments"]}
+        participants = {"team_1": [char_id], "team_2": monster_group["monster_ids"]}
+        self._validate_tutorial_combat_payload(participants, commitments)
         log.info(
-            "ScenarioIntegratorTiming | op=prepare_combat_commitments_for_start char_id=%s combat_id=%s count=%s ms=%s",
+            "ScenarioIntegratorTiming | op=prepare_player_combat_commitments_for_start char_id=%s combat_id=%s "
+            "count=%s ms=%s",
             char_id,
             combat_id,
-            len(commitments),
+            len(player_commitments),
             _elapsed_ms(started_at),
         )
         started_at = perf_counter()
@@ -495,6 +543,15 @@ class ScenarioSystemIntegrator:
                 "commitments": json.dumps(commitments),
                 "location_id": location_id or "",
                 "ttl": SCENARIO_COMBAT_TTL_SECONDS,
+                "metadata": json.dumps(
+                    {
+                        "quest_key": quest_key,
+                        "monster_group_id": monster_group["group_id"],
+                        "clan_id": monster_group.get("clan_id"),
+                        "family_id": monster_group.get("family_id"),
+                        "budget": budget,
+                    }
+                ),
             },
             timeout=30.0,
             correlation_id=combat_id,
@@ -509,13 +566,51 @@ class ScenarioSystemIntegrator:
         if not isinstance(response, dict) or response.get("status") != "ready":
             raise RuntimeError(f"Scenario combat start failed: {response!r}")
         log.info(
-            "Scenario shadow combat requested: char_id=%s quest_key=%s combat_id=%s location_id=%s",
+            "Scenario PvE combat requested: char_id=%s quest_key=%s combat_id=%s location_id=%s monsters=%s",
             char_id,
             quest_key,
             response.get("combat_id"),
             location_id,
+            monster_group["monster_ids"],
         )
-        return response
+        return {**response, "monster_group": monster_group, "budget": budget}
+
+    async def prepare_tutorial_monster_group(
+        self,
+        *,
+        combat_id: str,
+        location_id: str,
+        budget: int,
+    ) -> dict[str, Any]:
+        response = await self.events.request(
+            MONSTER_GROUP_PREPARE_REQUESTED,
+            {
+                "loc_id": location_id,
+                "budget": str(budget),
+                "force_single_family": "true",
+                "scope_id": combat_id,
+                "ttl": SCENARIO_COMBAT_TTL_SECONDS,
+            },
+            timeout=30.0,
+            correlation_id=f"{combat_id}:monster_group",
+        )
+        if not isinstance(response, dict) or response.get("status") != "ok":
+            raise RuntimeError(f"Scenario tutorial monster group prepare failed: {response!r}")
+        payload = response.get("payload")
+        if not isinstance(payload, dict):
+            raise RuntimeError(f"Scenario tutorial monster group payload is invalid: {response!r}")
+        monster_ids = [str(monster_id) for monster_id in payload.get("monster_ids") or [] if monster_id]
+        actor_commitments = payload.get("actor_commitments") or {}
+        if not monster_ids:
+            raise RuntimeError(f"Scenario tutorial monster group is empty: {payload!r}")
+        if not isinstance(actor_commitments, dict):
+            raise RuntimeError(f"Scenario tutorial monster commitments are invalid: {payload!r}")
+
+        expected_refs = {f"monster:{monster_id}" for monster_id in monster_ids}
+        missing_refs = sorted(expected_refs - set(actor_commitments))
+        if missing_refs:
+            raise RuntimeError(f"Scenario tutorial monster commitments are missing: {missing_refs}")
+        return {**payload, "monster_ids": monster_ids, "actor_commitments": actor_commitments}
 
     async def prepare_combat_commitments(
         self,
@@ -555,3 +650,52 @@ class ScenarioSystemIntegrator:
 
     async def publish_event(self, event_name: str, payload: dict[str, Any]) -> None:
         await self.events.publish(event_name, payload)
+
+    async def _tutorial_monster_budget(self, char_id: int) -> int:
+        metrics = await self.character_sessions.get_section(char_id, "metrics")
+        if not isinstance(metrics, dict):
+            raise RuntimeError(f"Scenario tutorial PvE budget requires character metrics: char_id={char_id}")
+        return _budget_from_gear_score(metrics.get("gear_score"))
+
+    @staticmethod
+    def _loc_id(node: Any) -> str:
+        return f"{int(node.x)}_{int(node.y)}"
+
+    @staticmethod
+    def _is_tutorial_spawn_candidate(node: Any) -> bool:
+        if not bool(getattr(node, "is_active", True)):
+            return False
+        if str(getattr(node, "zone_id", "")) not in TUTORIAL_PVE_CROSS_ZONE_IDS:
+            return False
+        flags = getattr(node, "flags", None)
+        flags = flags if isinstance(flags, dict) else {}
+        return flags.get("is_safe_zone") is not True and flags.get("is_passable", True) is not False
+
+    @staticmethod
+    def _validate_tutorial_combat_payload(
+        participants: dict[str, list[int | str]],
+        commitments: dict[str, str],
+    ) -> None:
+        monster_ids = [str(monster_id) for monster_id in participants.get("team_2", []) if monster_id]
+        if not monster_ids:
+            raise RuntimeError("Scenario tutorial PvE combat requires at least one monster")
+        missing_refs = [
+            f"monster:{monster_id}" for monster_id in monster_ids if f"monster:{monster_id}" not in commitments
+        ]
+        if missing_refs:
+            raise RuntimeError(f"Scenario tutorial PvE combat missing monster commitments: {missing_refs}")
+        player_ids = [int(player_id) for player_id in participants.get("team_1", [])]
+        missing_players = [
+            f"player:{player_id}" for player_id in player_ids if f"player:{player_id}" not in commitments
+        ]
+        if missing_players:
+            raise RuntimeError(f"Scenario tutorial PvE combat missing player commitments: {missing_players}")
+
+
+def _budget_from_gear_score(value: Any) -> int:
+    try:
+        gear_score = Decimal(str(value or 0))
+    except Exception as exc:  # noqa: BLE001
+        raise RuntimeError(f"Scenario tutorial PvE budget has invalid gear_score: {value!r}") from exc
+    budget = (gear_score / Decimal("5")).quantize(Decimal("1"), rounding=ROUND_HALF_UP)
+    return max(1, int(budget))

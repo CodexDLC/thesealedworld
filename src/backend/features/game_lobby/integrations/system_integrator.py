@@ -6,6 +6,7 @@ from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any, Literal
 
 from loguru import logger
+from sqlalchemy.exc import IntegrityError
 
 from src.backend.core.exceptions import BusinessLogicException
 from src.backend.features.character.integrations import CharacterStateIntegrator, CharacterSystemIntegrator
@@ -116,6 +117,7 @@ class GameLobbyIntegration:
         *,
         user_id: uuid.UUID,
         name: str,
+        name_key: str,
         gender: CharacterGender,
         avatar_url: str,
         game_stage: str,
@@ -123,17 +125,24 @@ class GameLobbyIntegration:
         location_id: str,
     ) -> CreatedLobbyCharacter:
         created_at = datetime.now(UTC)
-        character = await self._characters().create_with_defaults(
-            user_id=user_id,
-            name=name,
-            gender=str(gender),
-            avatar_url=avatar_url,
-            game_stage=game_stage,
-            prev_game_stage=prev_game_stage,
-            location_id=location_id,
-        )
-        char_id = character.character_id
-        await self._characters().commit()
+        try:
+            character = await self._characters().create_with_defaults(
+                user_id=user_id,
+                name=name,
+                name_key=name_key,
+                gender=str(gender),
+                avatar_url=avatar_url,
+                game_stage=game_stage,
+                prev_game_stage=prev_game_stage,
+                location_id=location_id,
+            )
+            char_id = character.character_id
+            await self._characters().commit()
+        except IntegrityError as exc:
+            await self._characters().rollback()
+            if _is_character_name_key_violation(exc):
+                raise BusinessLogicException("Имя уже занято") from exc
+            raise
         logger.info("Character persisted: char_id={} user_id={}", char_id, user_id)
 
         return CreatedLobbyCharacter(
@@ -145,6 +154,9 @@ class GameLobbyIntegration:
             created_at=created_at,
             location_id=location_id,
         )
+
+    async def character_name_exists(self, name_key: str) -> bool:
+        return await self._characters().exists_by_name_key(name_key)
 
     async def create_active_session(self, character: CreatedLobbyCharacter) -> None:
         session_payload = CharacterSessionDocumentDTO(
@@ -350,3 +362,10 @@ class GameLobbyIntegration:
         if not updated:
             raise BusinessLogicException("Персонаж недоступен")
         await self._characters().commit()
+
+
+def _is_character_name_key_violation(exc: IntegrityError) -> bool:
+    constraint_name = getattr(getattr(exc.orig, "diag", None), "constraint_name", None)
+    if constraint_name == "uq_characters_name_key":
+        return True
+    return "uq_characters_name_key" in str(exc.orig)

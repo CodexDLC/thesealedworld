@@ -9,7 +9,7 @@ from src.frontend.features.auth.repositories.token_repository import TokenReposi
 from src.frontend.features.auth.repositories.user_repository import UserRepository
 from src.frontend.features.auth.services.auth_service import FrontendAuthService
 
-ANALYTICS_SKIP_PREFIXES = ("/static/", "/library/", "/cabinet/", "/health")
+ANALYTICS_SKIP_PREFIXES = ("/static/", "/library/", "/admin/", "/health")
 ANALYTICS_EVENT_PATHS: dict[str, str] = {
     "/auth/register": "registrations",
     "/lobby": "lobby_visits",

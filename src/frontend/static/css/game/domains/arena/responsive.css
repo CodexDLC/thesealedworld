@@ -1,0 +1,40 @@
+
+@media (max-width: 900px) and (orientation: landscape) {
+    .arena-lobby,
+    .arena-mode-stage {
+        padding: 7px;
+        min-height: 0;
+        height: 100%;
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(220px, 34%);
+        grid-template-areas:
+            "head actions"
+            "art  actions"
+            "copy actions";
+        grid-template-rows: auto minmax(70px, 1fr) auto;
+        align-content: stretch;
+        gap: 8px;
+    }
+
+    .arena-lobby-head,
+    .arena-mode-head { grid-area: head; }
+
+    .arena-header-art,
+    .arena-mode-hero { grid-area: art; min-height: 64px; }
+
+    .arena-lobby-copy,
+    .arena-mode-readout,
+    .arena-repair-banner { grid-area: copy; font-size: 12px; line-height: 1.38; }
+
+    .arena-mode-grid,
+    .arena-mode-actions { grid-area: actions; align-self: stretch; width: 100%; max-width: none; }
+
+    .arena-mode-head { grid-template-columns: minmax(0, 1fr) 72px; gap: 8px; }
+    .arena-mode-head h2 { font-size: 12px; }
+    .arena-service-exit { min-width: 0; height: 30px; }
+    .arena-mode-grid { grid-template-columns: minmax(0, 1fr); align-content: stretch; }
+    .arena-repair-banner p { font-size: 12px; line-height: 1.3; }
+    .arena-repair-banner--action { min-height: 100%; align-content: center; }
+    .arena-card-title { font-size: 11px; }
+    .arena-card-description { font-size: 12px; }
+}

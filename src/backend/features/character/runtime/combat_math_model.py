@@ -17,7 +17,6 @@ UNARMED_ACCURACY = 0.70
 UNARMED_DAMAGE_SPREAD = 0.50
 HEAVY_CHEST_DODGE_CAPS = {
     "plate_chest": 0.35,
-    "scale_mail": 0.40,
 }
 MEDIUM_CHEST_DODGE_CAP_PENALTY = -0.10
 MEDIUM_ARMOR_DODGE_CAP_RECOVERY = 0.10
@@ -381,20 +380,28 @@ class CharacterCombatMathModelBuilder:
             if slot == "off_hand" and not CharacterCombatMathModelBuilder._is_shield(item_type, tags):
                 return "off_hand_crit_chance"
             return "crit_chance"
-        if key in {
-            "weapon_armor_penetration_pct",
-            "main_hand_armor_penetration_pct",
-            "off_hand_armor_penetration_pct",
-        } and item_type == "weapon":
+        if (
+            key
+            in {
+                "weapon_armor_penetration_pct",
+                "main_hand_armor_penetration_pct",
+                "off_hand_armor_penetration_pct",
+            }
+            and item_type == "weapon"
+        ):
             if slot == "main_hand":
                 return "main_hand_armor_penetration_pct"
             if slot == "off_hand" and not CharacterCombatMathModelBuilder._is_shield(item_type, tags):
                 return "off_hand_armor_penetration_pct"
-        if key in {
-            "weapon_armor_ignore_chance",
-            "main_hand_armor_ignore_chance",
-            "off_hand_armor_ignore_chance",
-        } and item_type == "weapon":
+        if (
+            key
+            in {
+                "weapon_armor_ignore_chance",
+                "main_hand_armor_ignore_chance",
+                "off_hand_armor_ignore_chance",
+            }
+            and item_type == "weapon"
+        ):
             if slot == "main_hand":
                 return "main_hand_armor_ignore_chance"
             if slot == "off_hand" and not CharacterCombatMathModelBuilder._is_shield(item_type, tags):

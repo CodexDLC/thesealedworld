@@ -22,6 +22,10 @@ def test_game_catalog_bootstrap_contains_safe_text_catalogs():
     assert "monster_families" in payload.catalogs
     assert "battle_axe" in payload.catalogs["items"]
     assert payload.catalogs["items"]["battle_axe"]["title"] == "Боевой топор"
+    assert payload.catalogs["items"]["res_torn_pelt"]["title"] == "Дырявая шкура"
+    assert payload.catalogs["items"]["res_animal_bones"]["title"] == "Кости животных"
+    assert payload.catalogs["items"]["currency_dust"]["title"] == "Пыль Резидуу"
+    assert "Основа всей экономики" not in payload.catalogs["items"]["currency_dust"]["description"]
     assert "skill_swords" in payload.catalogs["skills"]
     assert "strength" in payload.catalogs["attributes"]
     assert payload.catalogs["abilities"]["fireball"]["title"] == "Огненный Шар"
@@ -105,12 +109,12 @@ def test_game_catalog_projects_generated_monster_clans():
     assert payload[0]["family_label"] == "Ashen Wolves"
     assert payload[0]["title"] == "Ashen Wolves"
     assert payload[0]["summary"].startswith("Lean predators")
-    assert payload[0]["danger"] == "Low threat"
+    assert payload[0]["danger"] == "Низкая угроза"
     assert payload[0]["visual"]["image_url"] == "/static/images/monsters/families/wolf_pack.svg"
     assert payload[0]["member_count"] == 1
-    assert payload[0]["members"][0]["role_label"] == "Common form"
+    assert payload[0]["members"][0]["role_label"] == "Рядовая форма"
     assert payload[0]["members"][0]["visual"]["image_url"] == "/static/images/monsters/families/wolf_pack.svg"
-    assert payload[0]["members"][0]["danger"] == "Minor threat"
+    assert payload[0]["members"][0]["danger"] == "Незначительная угроза"
     assert payload[0]["members"][0]["public_stats"] == [{"label": "Agility", "value": 16}]
     assert payload[0]["members"][0]["public_skills"] == ["Fencing"]
     assert "family_id" not in payload[0]

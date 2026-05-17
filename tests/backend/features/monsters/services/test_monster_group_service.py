@@ -39,7 +39,7 @@ class FakeStorage:
         return clan
 
 
-class FakeGenerator:
+class FakeClanFactory:
     def __init__(self, storage: FakeStorage) -> None:
         self.storage = storage
 
@@ -51,18 +51,17 @@ class FakeGenerator:
         del context
         return ["rat_swarm"]
 
-    async def generate_active_clan(
+    async def build_clan_template(
         self,
         *,
-        context_hash: str,
         context,
         family_id: str,
+        context_hash: str,
         unique_hash: str,
         normalized_tags: list[str],
-        reuse_existing: bool = True,
-        target_budget: int | None = None,
+        reuse_existing: bool = False,
     ) -> GeneratedClan:
-        del normalized_tags, reuse_existing, target_budget
+        del normalized_tags, reuse_existing
         clan = GeneratedClan(
             id=uuid.uuid4(),
             family_id=family_id,
@@ -96,11 +95,18 @@ class FakeGenerator:
                 "projection": 1,
                 "prediction": 2,
             },
-            scaled_skills={"skill_unarmed": 0.2},
+            scaled_skills={"skill_fencing": 0.2, "skill_scouting": 0.9},
             items={},
             vitals={"hp": {"current": 20, "max": 20}, "energy": {"current": 10, "max": 10}},
             ai_profile={},
-            generation_meta={"schema_version": 2, "meta": {"archetype": "beast", "tags": ["rat"]}},
+            generation_meta={
+                "schema_version": 2,
+                "meta": {"archetype": "beast", "tags": ["rat"]},
+                "visual": {
+                    "status": "generated",
+                    "image_url": "/static/generated-assets/monsters/generated/members/rat.webp",
+                },
+            },
         )
         monster.clan = clan
         clan.members.append(monster)
@@ -164,7 +170,7 @@ async def test_prepare_monster_group_creates_clan_and_actor_commitments() -> Non
         location_context=FakeLocationContext(),  # type: ignore[arg-type]
         actor_commitments=commitments,  # type: ignore[arg-type]
         group_cache=cache,  # type: ignore[arg-type]
-        generator=FakeGenerator(storage),  # type: ignore[arg-type]
+        factory=FakeClanFactory(storage),  # type: ignore[arg-type]
     )
 
     # scope_id passed here becomes group_id and is used in save_monster_sources as scope_id
@@ -182,4 +188,7 @@ async def test_prepare_monster_group_creates_clan_and_actor_commitments() -> Non
     first_source = next(iter(commitments.saved.values()))
     assert set(first_source) == {"meta", "source", "status", "combat"}
     assert first_source["meta"]["actor_type"] == "monster"
+    assert first_source["meta"]["avatar_url"] == "/static/generated-assets/monsters/generated/members/rat.webp"
+    assert first_source["combat"]["skills"] == {"skill_fencing": 0.2}
     assert first_source["combat"]["math_model"]
+    assert result.previews[0].image == "/static/generated-assets/monsters/generated/members/rat.webp"

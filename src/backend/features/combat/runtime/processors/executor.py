@@ -66,11 +66,60 @@ class CombatExecutor:
         # payload is object, use getattr
         target_id = getattr(action.move.payload, "target_id", None)
 
+        if self._skip_stale_action_if_dead(ctx, action):
+            return
+
         if action.action_type == "exchange" or (action.is_forced and target_id):
             await self._handle_exchange(ctx, action)
         else:
             # Instant / Item (Одностороннее воздействие)
             await self._handle_unidirectional(ctx, action)
+
+    def _skip_stale_action_if_dead(self, ctx: BattleContext, action: CombatActionDTO) -> bool:
+        checked = [("source", action.move.char_id), ("target", getattr(action.move.payload, "target_id", None))]
+        if action.partner_move:
+            checked.extend(
+                [
+                    ("source", action.partner_move.char_id),
+                    ("target", getattr(action.partner_move.payload, "target_id", None)),
+                ]
+            )
+
+        for role, actor_id in checked:
+            if actor_id is None:
+                continue
+            actor = ctx.get_actor(cast("ActorIdLike", actor_id))
+            if actor and not actor.is_alive:
+                self._append_stale_action_log(ctx, action, actor=actor, reason=f"{role}_dead")
+                return True
+
+        return False
+
+    @staticmethod
+    def _append_stale_action_log(
+        ctx: BattleContext, action: CombatActionDTO, *, actor: ActorSnapshot, reason: str
+    ) -> None:
+        actor_name = actor.meta.name or str(actor.meta.id)
+        text = f"{actor_name}: цель уже мертва." if reason == "target_dead" else f"{actor_name} уже мертв."
+        ctx.pending_logs.append(
+            {
+                "type": "LOG",
+                "kind": "stale_action",
+                "reason": reason,
+                "text": text,
+                "timestamp": time.time(),
+                "global_turn": ctx.meta.step_counter,
+                "source_id": str(action.move.char_id),
+                "target_id": str(getattr(action.move.payload, "target_id", "")),
+                "actor": {
+                    "id": str(actor.meta.id),
+                    "name": actor_name,
+                    "team": actor.meta.team,
+                    "actor_type": actor.meta.type,
+                },
+                "tags": ["runtime", "stale_action", "dead_actor"],
+            }
+        )
 
     # ==========================================================================
     # 🌿 BRANCHES (Logic Flow)
@@ -464,6 +513,8 @@ class CombatExecutor:
         Проверяет всех акторов в контексте и добавляет мертвых в pending_dead_actors.
         """
         for char_id, actor in ctx.actors.items():
+            if actor.meta.hp <= 0:
+                actor.meta.is_dead = True
             # Проверяем, что актор мертв и еще не в списке мертвых
             if actor.meta.is_dead and char_id not in ctx.meta.dead_actors and char_id not in ctx.pending_dead_actors:
                 ctx.pending_dead_actors.append(char_id)

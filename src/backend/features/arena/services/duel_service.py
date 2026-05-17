@@ -16,6 +16,9 @@ DUEL_MODE = ArenaModeEnum.ONE_VS_ONE.value
 COMBAT_READY_TIMEOUT = 60
 ARENA_SNAPSHOT_GRACE_SEC = 10 * 60
 ARENA_COMMITMENT_GRACE_SEC = ARENA_SNAPSHOT_GRACE_SEC
+DUEL_MIN_WAIT_SEC = 60
+DUEL_MID_WAIT_SEC = 180
+DUEL_MAX_WAIT_SEC = 300
 
 
 class ArenaDuelService:
@@ -40,20 +43,24 @@ class ArenaDuelService:
             active_match_id="",
             combat_id="",
         )
-        return await self.get_menu()
+        return await self.get_menu(char_id)
 
-    async def get_menu(self) -> ArenaUIPayloadDTO:
+    async def get_menu(self, char_id: int | None = None) -> ArenaUIPayloadDTO:
+        metadata = await self._mode_metadata(char_id)
         return ArenaUIPayloadDTO(
             screen=ArenaScreenEnum.MODE_MENU,
             mode=DUEL_MODE,
             title=ArenaResources.get_mode_title(DUEL_MODE),
             description=ArenaResources.get_mode_description(DUEL_MODE),
             buttons=ArenaResources.get_mode_buttons(DUEL_MODE),
+            metadata=metadata,
         )
 
     async def join_queue(self, char_id: int, *, wait_limit_sec: int = 60) -> ArenaUIPayloadDTO:
+        _ = wait_limit_sec
         runtime_session = await self.arena.ensure_runtime_session(char_id)
-        wait_limit_sec = self._normalize_wait_limit(wait_limit_sec)
+        waiting_before = await self.session.queue_waiting_count(DUEL_MODE, exclude_char_id=char_id)
+        wait_limit_sec = self._wait_limit_for_queue(waiting_before)
         request_id = f"arena:{uuid.uuid4().hex[:12]}"
         commitment_ttl = wait_limit_sec + ARENA_COMMITMENT_GRACE_SEC
         commitment_id = await self.integrator.create_combat_commitment(
@@ -66,7 +73,12 @@ class ArenaDuelService:
                 runtime_session,
                 ArenaScreenEnum.MODE_MENU,
                 mode=DUEL_MODE,
-                metadata={"commitment_status": "failed", "commitment_ttl": commitment_ttl},
+                metadata={
+                    "commitment_status": "failed",
+                    "commitment_ttl": commitment_ttl,
+                    "queue_waiting_count": waiting_before,
+                    "wait_limit_sec": wait_limit_sec,
+                },
             )
             return ArenaUIPayloadDTO(
                 screen=ArenaScreenEnum.MODE_MENU,
@@ -74,7 +86,12 @@ class ArenaDuelService:
                 title="Боевая сигнатура недоступна",
                 description="Арена не смогла зафиксировать боевую заявку. Повторите поиск позже.",
                 buttons=ArenaResources.get_mode_buttons(DUEL_MODE),
-                metadata={"commitment_status": "failed", "commitment_ttl": commitment_ttl},
+                metadata={
+                    "commitment_status": "failed",
+                    "commitment_ttl": commitment_ttl,
+                    "queue_waiting_count": waiting_before,
+                    "wait_limit_sec": wait_limit_sec,
+                },
             )
         gs = await self.session.join_queue(
             char_id,
@@ -92,7 +109,12 @@ class ArenaDuelService:
             queue_request_id=request.request_id if request else request_id,
             active_match_id="",
             combat_id="",
-            metadata={"queue_type": "ranked", "wait_limit_sec": wait_limit_sec, "commitment_id": commitment_id},
+            metadata={
+                "queue_type": "ranked",
+                "wait_limit_sec": wait_limit_sec,
+                "queue_waiting_count": waiting_before + 1,
+                "commitment_id": commitment_id,
+            },
         )
         return ArenaUIPayloadDTO(
             screen=ArenaScreenEnum.SEARCHING,
@@ -106,6 +128,7 @@ class ArenaDuelService:
                 "commitment_status": "ready",
                 "commitment_ttl": commitment_ttl,
                 "wait_limit_sec": wait_limit_sec,
+                "queue_waiting_count": waiting_before + 1,
             },
         )
 
@@ -154,6 +177,15 @@ class ArenaDuelService:
 
         lock_token = await self.session.acquire_match_lock(char_id)
         if lock_token is None:
+            request = await self.session.get_request_meta(char_id)
+            waiting_count = await self.session.queue_waiting_count(DUEL_MODE)
+            metadata: dict[str, object] = {
+                "match_lock": "busy",
+                "queue_waiting_count": waiting_count,
+            }
+            if request is not None:
+                metadata["queue_type"] = "ranked"
+                metadata["wait_limit_sec"] = request.wait_limit_sec
             return ArenaUIPayloadDTO(
                 screen=ArenaScreenEnum.SEARCHING,
                 mode=DUEL_MODE,
@@ -161,7 +193,7 @@ class ArenaDuelService:
                 description="Арена уже проверяет текущую заявку. Повторный импульс пропущен.",
                 wait_time_sec=0,
                 buttons=ArenaResources.get_searching_buttons(DUEL_MODE),
-                metadata={"match_lock": "busy"},
+                metadata=metadata,
             )
 
         try:
@@ -175,7 +207,7 @@ class ArenaDuelService:
             request = await self.session.get_request_meta(char_id)
             if request is None:
                 await self.session.set_runtime_screen(runtime_session, ArenaScreenEnum.MODE_MENU, mode=DUEL_MODE)
-                return await self.get_menu()
+                return await self.get_menu(char_id)
 
             opponent_id = await self.session.find_opponent(char_id, DUEL_MODE)
             if opponent_id is not None:
@@ -194,21 +226,31 @@ class ArenaDuelService:
             if wait_time >= request.wait_limit_sec:
                 await self.session.leave_queue(char_id, DUEL_MODE)
                 await self.session.set_runtime_screen(runtime_session, ArenaScreenEnum.MODE_MENU, mode=DUEL_MODE)
+                waiting_count = await self.session.queue_waiting_count(DUEL_MODE, exclude_char_id=char_id)
                 return ArenaUIPayloadDTO(
                     screen=ArenaScreenEnum.MODE_MENU,
                     mode=DUEL_MODE,
                     title="Противник не найден",
-                    description="Лимит ожидания истек. Можно повторить ранговый поиск или начать тренировку с тенью.",
+                    description="Лимит ожидания истек. В очереди нет подходящих игроков; можно повторить поиск или начать тренировку с тенью.",
                     buttons=ArenaResources.get_mode_buttons(DUEL_MODE),
-                    metadata={"queue_type": "ranked", "wait_limit_sec": request.wait_limit_sec},
+                    metadata={
+                        "queue_type": "ranked",
+                        "wait_limit_sec": request.wait_limit_sec,
+                        "queue_waiting_count": waiting_count,
+                    },
                 )
 
+            waiting_count = await self.session.queue_waiting_count(DUEL_MODE)
             await self.session.set_runtime_screen(
                 runtime_session,
                 ArenaScreenEnum.SEARCHING,
                 mode=DUEL_MODE,
                 queue_request_id=request.request_id,
-                metadata={"queue_type": "ranked", "wait_limit_sec": request.wait_limit_sec},
+                metadata={
+                    "queue_type": "ranked",
+                    "wait_limit_sec": request.wait_limit_sec,
+                    "queue_waiting_count": waiting_count,
+                },
             )
             return ArenaUIPayloadDTO(
                 screen=ArenaScreenEnum.SEARCHING,
@@ -218,7 +260,11 @@ class ArenaDuelService:
                 gs=request.gs,
                 wait_time_sec=wait_time,
                 buttons=ArenaResources.get_searching_buttons(DUEL_MODE),
-                metadata={"queue_type": "ranked", "wait_limit_sec": request.wait_limit_sec},
+                metadata={
+                    "queue_type": "ranked",
+                    "wait_limit_sec": request.wait_limit_sec,
+                    "queue_waiting_count": waiting_count,
+                },
             )
         finally:
             await self.session.release_match_lock(char_id, lock_token)
@@ -316,7 +362,7 @@ class ArenaDuelService:
             await self.session.delete_match(match)
         await self.session.leave_queue(char_id, DUEL_MODE)
         await self.session.set_runtime_screen(runtime_session, ArenaScreenEnum.MODE_MENU, mode=DUEL_MODE)
-        return await self.get_menu()
+        return await self.get_menu(char_id)
 
     async def _payload_from_runtime_session(self, session: ArenaRuntimeSessionDTO) -> ArenaUIPayloadDTO:
         match = None
@@ -325,6 +371,8 @@ class ArenaDuelService:
         if match is None:
             match = await self.session.get_match_for_char(session.char_id)
         if match is not None:
+            if await self.arena.clear_completed_entered_match(session, match):
+                return await self.get_menu(session.char_id)
             if match.battle_type == "shadow" and match.metadata.get("awaiting_player_choice"):
                 return self._shadow_offer_payload(match)
             return self._pending_payload(match)
@@ -332,6 +380,7 @@ class ArenaDuelService:
         request = await self.session.get_request_meta(session.char_id)
         if request is not None and request.mode == DUEL_MODE:
             wait_time = int(time.time() - request.start_time)
+            waiting_count = await self.session.queue_waiting_count(DUEL_MODE)
             return ArenaUIPayloadDTO(
                 screen=ArenaScreenEnum.SEARCHING,
                 mode=DUEL_MODE,
@@ -340,12 +389,16 @@ class ArenaDuelService:
                 gs=request.gs,
                 wait_time_sec=wait_time,
                 buttons=ArenaResources.get_searching_buttons(DUEL_MODE),
-                metadata={"queue_type": "ranked", "wait_limit_sec": request.wait_limit_sec},
+                metadata={
+                    "queue_type": "ranked",
+                    "wait_limit_sec": request.wait_limit_sec,
+                    "queue_waiting_count": waiting_count,
+                },
             )
 
         if session.screen in {ArenaScreenEnum.COMBAT_FAILED, ArenaScreenEnum.COMBAT_PENDING}:
             await self.session.set_runtime_screen(session, ArenaScreenEnum.MODE_MENU, mode=DUEL_MODE)
-        return await self.get_menu()
+        return await self.get_menu(session.char_id)
 
     async def _store_existing_match_screen(
         self,
@@ -449,9 +502,19 @@ class ArenaDuelService:
                 commitments[ActorCommitmentManager.source_ref("player", char_id)] = str(commitment_id)
         return commitments
 
+    async def _mode_metadata(self, char_id: int | None = None) -> dict[str, object]:
+        return {
+            "queue_waiting_count": await self.session.queue_waiting_count(DUEL_MODE, exclude_char_id=char_id),
+            "max_wait_limit_sec": DUEL_MAX_WAIT_SEC,
+        }
+
     @staticmethod
-    def _normalize_wait_limit(wait_limit_sec: int) -> int:
-        return wait_limit_sec if wait_limit_sec in {60, 180, 300} else 60
+    def _wait_limit_for_queue(waiting_count: int) -> int:
+        if waiting_count <= 0:
+            return DUEL_MIN_WAIT_SEC
+        if waiting_count <= 2:
+            return DUEL_MID_WAIT_SEC
+        return DUEL_MAX_WAIT_SEC
 
     @staticmethod
     def _shadow_offer_payload(match: ArenaCombatRequestDTO) -> ArenaUIPayloadDTO:

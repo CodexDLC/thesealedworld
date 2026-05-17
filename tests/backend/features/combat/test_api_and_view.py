@@ -36,6 +36,8 @@ class FakeCombatStore:
         self.consumed_feints = []
         self.pinned_feints = []
         self.touched_sessions = []
+        self.seeded_initial_ai_sessions = []
+        self.started_sessions = []
 
     async def get_meta(self, session_id):
         return {
@@ -82,6 +84,15 @@ class FakeCombatStore:
             for actor_id in actor_ids
         }
         actors["1"]["meta"]["avatar_url"] = "/static/images/avatars/rook7.png"
+        actors["2"]["meta"]["tags"] = ["monster", "rat_swarm"]
+        actors["2"]["meta"]["role"] = "minion"
+        actors["2"]["meta"]["template_id"] = "sewer_rat"
+        actors["2"]["meta"]["archetype"] = "beast"
+        actors["2"]["source"] = {
+            "monster_id": "m-2",
+            "family_id": "rat_swarm",
+            "visual": {"image_url": "/static/generated-assets/monsters/generated/members/rat.webp"},
+        }
         return actors
 
     async def get_targets(self, session_id):
@@ -89,6 +100,30 @@ class FakeCombatStore:
 
     async def get_moves_batch(self, session_id, actor_ids):
         return {"1": {"exchange": {}}}
+
+    async def seed_initial_ai_turns_on_dashboard(self, *, session_id, viewer_id, meta, actors, targets, moves):
+        if meta.get("started_at"):
+            return False
+        teams = json.loads(meta.get("teams", "{}"))
+        if str(viewer_id) not in {str(member) for members in teams.values() for member in members}:
+            return False
+        if session_id in self.seeded_initial_ai_sessions:
+            return False
+        actors_info = json.loads(meta.get("actors_info", "{}"))
+        dead_actors = {str(actor_id) for actor_id in json.loads(meta.get("dead_actors", "[]"))}
+        for actor_id, actor_type in actors_info.items():
+            actor_id = str(actor_id)
+            actor_state = actors.get(actor_id, {})
+            actor_meta = actor_state.get("meta", {})
+            has_live_target = any(
+                str(target_id) not in dead_actors
+                and actors.get(str(target_id), {}).get("meta", {}).get("hp", 0) > 0
+                for target_id in targets.get(actor_id, [])
+            )
+            if actor_type == "ai" and actor_id not in dead_actors and actor_meta.get("hp", 0) > 0 and has_live_target:
+                self.seeded_initial_ai_sessions.append(session_id)
+                return True
+        return False
 
     async def get_logs(self, session_id, *, start=0, stop=-1):
         return [json.dumps({"type": "log", "text": "started", "timestamp": 1, "tags": ["combat"], "data": {"x": 1}})]
@@ -133,10 +168,22 @@ class FakeCombatStore:
     async def touch_activity(self, session_id):
         self.touched_sessions.append(session_id)
 
+    async def mark_started_and_refresh_ttl(self, session_id):
+        if session_id in self.started_sessions:
+            return False
+        self.started_sessions.append(session_id)
+        return True
+
 
 class MissingCombatStore(FakeCombatStore):
     async def get_meta(self, session_id):
         return None
+
+
+class NoAiCombatStore(FakeCombatStore):
+    async def get_meta(self, session_id):
+        meta = await super().get_meta(session_id)
+        return {**meta, "actors_info": json.dumps({"1": "player", "2": "player"})}
 
 
 class FinishedCombatStore(FakeCombatStore):
@@ -286,6 +333,14 @@ class LatestFinalizedCombatStore(FinalizedCombatStore):
         return "combat-1"
 
 
+class CapturingArqQueue:
+    def __init__(self):
+        self.jobs = []
+
+    async def enqueue_job(self, function, *args, **kwargs):
+        self.jobs.append((function, args, kwargs))
+
+
 class FakeCombatSystemIntegrator:
     def __init__(self):
         self.recovered = []
@@ -412,6 +467,49 @@ async def test_combat_dashboard_exposes_actor_avatar_url():
 
 
 @pytest.mark.asyncio
+async def test_combat_dashboard_exposes_actor_metadata():
+    service = CombatSessionService(store=FakeCombatStore(), system_integrator=FakeCombatSystemIntegrator())
+
+    dashboard = await service.get_dashboard(1)
+
+    assert dashboard.target is not None
+    assert dashboard.target.archetype == "beast"
+    assert dashboard.target.role == "minion"
+    assert dashboard.target.template_id == "sewer_rat"
+    assert dashboard.target.tags == ["monster", "rat_swarm"]
+    assert dashboard.target.source["family_id"] == "rat_swarm"
+    assert dashboard.target.visual["image_url"] == "/static/generated-assets/monsters/generated/members/rat.webp"
+    assert dashboard.target.avatar_url == "/static/generated-assets/monsters/generated/members/rat.webp"
+
+
+@pytest.mark.asyncio
+async def test_combat_dashboard_seeds_initial_ai_once():
+    store = FakeCombatStore()
+    arq = CapturingArqQueue()
+    service = CombatSessionService(store=store, system_integrator=FakeCombatSystemIntegrator(), arq=arq)
+
+    await service.get_dashboard(1)
+    await service.get_dashboard(1)
+
+    assert store.seeded_initial_ai_sessions == ["combat-1"]
+    assert [job[0] for job in arq.jobs] == ["combat_collector_task"]
+    assert arq.jobs[0][1][0]["signal_type"] == "heartbeat"
+    assert arq.jobs[0][1][0]["move_id"] == "initial_ai_seed"
+
+
+@pytest.mark.asyncio
+async def test_combat_dashboard_does_not_seed_without_ai():
+    store = NoAiCombatStore()
+    arq = CapturingArqQueue()
+    service = CombatSessionService(store=store, system_integrator=FakeCombatSystemIntegrator(), arq=arq)
+
+    await service.get_dashboard(1)
+
+    assert store.seeded_initial_ai_sessions == []
+    assert arq.jobs == []
+
+
+@pytest.mark.asyncio
 async def test_combat_view_endpoint_returns_dashboard_payload_type():
     service = CombatSessionService(store=FakeCombatStore(), system_integrator=FakeCombatSystemIntegrator())
 
@@ -475,6 +573,57 @@ async def test_combat_dashboard_exposes_real_actor_contract_and_actions():
     assert [feint.feint_id for feint in dashboard.hero.feints] == ["true_strike"]
     assert dashboard.events_delta.events[0].data["x"] == 1
     assert dashboard.events_delta.turns[0].global_turn == 1
+
+
+def test_combat_view_enriches_reactive_effect_badges_from_catalog():
+    service = CombatViewService()
+
+    dashboard = service.build_dashboard(
+        session_id="combat-1",
+        viewer_id=1,
+        meta={
+            "active": "1",
+            "teams": json.dumps({"team_1": ["1"], "team_2": ["2"]}),
+            "actors_info": json.dumps({"1": "player", "2": "ai"}),
+        },
+        targets={"1": ["2"], "2": ["1"]},
+        actors={
+            "1": {
+                "meta": {
+                    "id": "1",
+                    "name": "Hero",
+                    "team": "team_1",
+                    "hp": 30,
+                    "max_hp": 40,
+                    "exchange_counter": 6,
+                },
+                "statuses": {
+                    "effects": [
+                        {
+                            "uid": "fx-riposte",
+                            "effect_id": "prep_parry_riposte",
+                            "expire_at_exchange": 1004,
+                        }
+                    ]
+                },
+            },
+            "2": {
+                "meta": {
+                    "id": "2",
+                    "name": "Shadow",
+                    "team": "team_2",
+                    "hp": 40,
+                    "max_hp": 40,
+                }
+            },
+        },
+        raw_logs=[],
+    )
+
+    effect = dashboard.hero.active_effects[0]
+    assert effect.title == "Готовый рипост"
+    assert effect.description == "Следующее успешное парирование получает повышенный шанс контратаки."
+    assert effect.duration_label == "до следующего парирования"
 
 
 @pytest.mark.asyncio
@@ -756,6 +905,7 @@ async def test_post_pin_feint_accepts_single_hand_option():
 
     assert isinstance(dashboard, CombatDashboardDTO)
     assert store.pinned_feints == [("combat-1", 1, "true_strike")]
+    assert store.started_sessions == []
 
 
 @pytest.mark.asyncio

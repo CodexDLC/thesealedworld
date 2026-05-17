@@ -9,7 +9,7 @@ from src.backend.features.game_catalog.combat.resources import CombatResourceCat
 from src.backend.features.game_catalog.dto import GameCatalogBootstrapDTO, GameCatalogManifestDTO
 from src.backend.features.game_catalog.skills.services import SkillCatalogService
 from src.backend.features.items.services import ItemCatalogService
-from src.backend.features.monsters.resources import get_all_family_configs
+from src.backend.features.monsters.resources import get_all_family_configs, get_family_config
 from src.backend.features.monsters.resources.visuals import get_family_visual
 
 if TYPE_CHECKING:
@@ -17,7 +17,7 @@ if TYPE_CHECKING:
 
 
 class GameCatalogBootstrapService:
-    VERSION = "game-catalog:2026-05-07.1"
+    VERSION = "game-catalog:2026-05-16.1"
 
     def __init__(
         self,
@@ -117,6 +117,9 @@ class GameCatalogBootstrapService:
         ]
 
     def _project_generated_member(self, member: GeneratedMonster) -> dict[str, object]:
+        skill_labels = {key: defn.name_ru for key, defn in self.skills.by_key.items()}
+        family = get_family_config(member.family_id) if member.family_id else None
+        is_humanoid = family is not None and family.archetype == "humanoid"
         return {
             "id": str(member.id),
             "title": _clean_generated_title(member.name_ru or _title_from_id(member.variant_key)),
@@ -125,8 +128,8 @@ class GameCatalogBootstrapService:
             "danger": _public_member_danger(member.threat_rating),
             "visual": _public_member_visual(member),
             "public_stats": _public_stats(member.scaled_attributes),
-            "public_loadout": _public_loadout(member.items),
-            "public_skills": _public_skills(member.scaled_skills),
+            "public_loadout": _public_loadout(member.items, self.items) if is_humanoid else [],
+            "public_skills": _public_skills(member.scaled_skills, skill_labels),
         }
 
 
@@ -135,15 +138,10 @@ def _title_from_id(value: str) -> str:
 
 
 def _tags_from_raw(raw_tags: dict[str, object]) -> list[str]:
-    tags: list[str] = []
-    for key, value in raw_tags.items():
-        if isinstance(value, str):
-            tags.append(value)
-        elif isinstance(value, list):
-            tags.extend(str(item) for item in value if item)
-        elif value is True:
-            tags.append(key)
-    return sorted(set(tags))
+    tags = raw_tags.get("tags")
+    if isinstance(tags, list):
+        return sorted({str(t) for t in tags if t})
+    return []
 
 
 _FAMILY_TITLES = {
@@ -161,75 +159,77 @@ _FAMILY_SUMMARIES = {
 }
 
 _TAG_LABELS = {
-    "city_ruins": "city ruins",
-    "forest": "wild growth",
-    "mid": "steady activity",
-    "low": "scattered signs",
-    "high": "heavy presence",
-    "wasteland": "wasteland",
-    "unnatural_chill": "unnatural chill",
-    "hoarfrost_on_runes": "frosted runes",
-    "frozen_dew": "frozen dew",
-    "thin_ice_crust": "thin ice",
-    "ice_shards": "ice shards",
-    "heat_haze": "heat haze",
-    "smell_of_sulfur": "sulfur",
-    "falling_ash": "falling ash",
-    "scorched_grass": "scorched grass",
-    "static_tingle": "static charge",
-    "dust_motes_hovering": "hovering dust",
-    "floating_pebbles": "floating stones",
-    "spores_in_light": "spores",
-    "accelerated_growth": "wild growth",
-    "mossy_patches": "moss",
-    "glowing_fungi": "glowing fungi",
-    "cursed_ground": "cursed ground",
-    "ancient_tech": "ancient tech",
-    "mana_leak": "mana leak",
+    "city_ruins": "городские руины",
+    "forest": "дикий лес",
+    "mid": "умеренная активность",
+    "low": "редкие следы",
+    "high": "плотное присутствие",
+    "wasteland": "пустошь",
+    "unnatural_chill": "неестественный холод",
+    "hoarfrost_on_runes": "иней на рунах",
+    "frozen_dew": "ледяная роса",
+    "thin_ice_crust": "тонкий лёд",
+    "ice_shards": "осколки льда",
+    "heat_haze": "тепловое марево",
+    "smell_of_sulfur": "запах серы",
+    "falling_ash": "падающий пепел",
+    "scorched_grass": "выжженная трава",
+    "static_tingle": "статический заряд",
+    "dust_motes_hovering": "парящая пыль",
+    "floating_pebbles": "плавающие камни",
+    "spores_in_light": "споры в воздухе",
+    "accelerated_growth": "буйный рост",
+    "mossy_patches": "мшистые пятна",
+    "glowing_fungi": "светящиеся грибы",
+    "cursed_ground": "проклятая земля",
+    "ancient_tech": "древние технологии",
+    "mana_leak": "утечка маны",
 }
 
 _ROLE_LABELS = {
-    "minion": "Common form",
-    "veteran": "Seasoned form",
-    "elite": "Dangerous form",
-    "boss": "Leader",
+    "minion": "Рядовая форма",
+    "veteran": "Опытная форма",
+    "elite": "Опасная форма",
+    "boss": "Вожак",
 }
 
 _STAT_LABELS = {
-    "strength": "Strength",
-    "agility": "Agility",
-    "endurance": "Endurance",
-    "intellect": "Intellect",
-    "memory": "Instinct",
-    "mental": "Will",
-    "perception": "Senses",
-    "projection": "Presence",
-    "prediction": "Luck",
+    "strength": "Сила",
+    "agility": "Ловкость",
+    "endurance": "Выносливость",
+    "intellect": "Интеллект",
+    "memory": "Инстинкт",
+    "mental": "Воля",
+    "perception": "Чувства",
+    "projection": "Присутствие",
+    "prediction": "Удача",
 }
 
 _LOADOUT_LABELS = {
-    "main_hand": "Main hand",
-    "off_hand": "Off hand",
-    "head_armor": "Head",
-    "chest_armor": "Armor",
-    "arms_armor": "Arms",
-    "legs_armor": "Legs",
-    "feetwear": "Footwear",
-    "chest_garment": "Garment",
-    "legs_garment": "Legwear",
-    "outer_garment": "Outerwear",
-    "gloves_garment": "Gloves",
-    "amulet": "Amulet",
-    "ring_1": "Ring",
-    "ring_2": "Ring",
-    "belt_accessory": "Belt",
+    "main_hand": "Основная рука",
+    "off_hand": "Вторая рука",
+    "head_armor": "Голова",
+    "chest_armor": "Броня",
+    "arms_armor": "Руки",
+    "legs_armor": "Ноги",
+    "feetwear": "Обувь",
+    "chest_garment": "Одежда",
+    "legs_garment": "Поножи",
+    "outer_garment": "Верхняя одежда",
+    "gloves_garment": "Перчатки",
+    "amulet": "Амулет",
+    "ring_1": "Кольцо",
+    "ring_2": "Кольцо",
+    "belt_accessory": "Пояс",
 }
 
 
 def _public_clan_title(clan: GeneratedClan) -> str:
+    if clan.name_ru and not _looks_technical(clan.name_ru):
+        return _clean_generated_title(clan.name_ru)
     if clan.family_id in _FAMILY_TITLES:
         return _FAMILY_TITLES[clan.family_id]
-    return _clean_generated_title(clan.name_ru or _title_from_id(clan.family_id))
+    return _clean_generated_title(_title_from_id(clan.family_id))
 
 
 def _public_family_label(clan: GeneratedClan) -> str:
@@ -259,14 +259,27 @@ def _public_member_visual(member: GeneratedMonster) -> dict[str, object]:
     return get_family_visual(family_id) if family_id else {}
 
 
+_BIOME_LABELS: dict[str, str] = {
+    "d4_city_ruins": "городские руины",
+    "wasteland": "пустошь",
+    "forest": "дикий лес",
+    "city_ruins": "городские руины",
+    "dungeon": "подземелье",
+    "swamp": "болото",
+}
+
+
 def _public_habitat(clan: GeneratedClan) -> str:
     tags = _tags_from_raw(clan.raw_tags)
     labels = [_TAG_LABELS[tag] for tag in tags if tag in _TAG_LABELS and tag not in {"mid", "low", "high"}]
     if labels:
         return ", ".join(labels)
+    biome = _public_location_key(clan)
+    if biome != "unknown":
+        return _BIOME_LABELS.get(biome, biome.replace("_", " "))
     if clan.zone_id:
-        return "charted ruins"
-    return "unknown territory"
+        return "обследованные руины"
+    return "неизвестная территория"
 
 
 def _public_location_key(clan: GeneratedClan) -> str:
@@ -278,12 +291,12 @@ def _public_location_key(clan: GeneratedClan) -> str:
 
 def _public_danger(tier: int) -> str:
     if tier <= 1:
-        return "Low threat"
+        return "Низкая угроза"
     if tier <= 3:
-        return "Rising threat"
+        return "Средняя угроза"
     if tier <= 5:
-        return "High threat"
-    return "Extreme threat"
+        return "Высокая угроза"
+    return "Смертельная угроза"
 
 
 def _public_danger_key(tier: int) -> str:
@@ -308,12 +321,12 @@ def _public_filter_tags(clan: GeneratedClan) -> list[dict[str, str]]:
 
 def _public_member_danger(threat_rating: int) -> str:
     if threat_rating < 50:
-        return "Minor threat"
+        return "Незначительная угроза"
     if threat_rating < 150:
-        return "Serious threat"
+        return "Серьёзная угроза"
     if threat_rating < 600:
-        return "Deadly threat"
-    return "Boss threat"
+        return "Смертельная угроза"
+    return "Угроза вожака"
 
 
 def _public_member_description(member: GeneratedMonster) -> str:
@@ -330,28 +343,33 @@ def _public_stats(stats: dict[str, int]) -> list[dict[str, object]]:
     ]
 
 
-def _public_skills(skills: dict[str, object]) -> list[str]:
+def _public_skills(skills: dict[str, object], skill_labels: dict[str, str] | None = None) -> list[str]:
     labels = []
     for skill_id, value in skills.items():
         if not value:
             continue
-        label = _title_from_id(skill_id)
-        labels.append(label.removeprefix("Skill "))
+        label = (skill_labels or {}).get(skill_id) or _title_from_id(skill_id).removeprefix("Skill ")
+        labels.append(label)
     return labels
 
 
-def _public_loadout(items: dict[str, object]) -> list[dict[str, str]]:
+def _public_loadout(items: dict[str, object], item_catalog: object | None = None) -> list[dict[str, str]]:
     layout = items.get("layout") if isinstance(items, dict) else {}
     equipment = layout.get("equipment") if isinstance(layout, dict) else {}
     by_id = items.get("by_id") if isinstance(items, dict) else {}
-    return [
-        {
-            "slot": _LOADOUT_LABELS.get(str(slot), _title_from_id(str(slot))),
-            "item": _title_from_id(str((by_id.get(str(item_id)) or {}).get("base_id") or item_id)),
-        }
-        for slot, item_id in (equipment if isinstance(equipment, dict) else {}).items()
-        if item_id
-    ]
+    result = []
+    for slot, item_id in (equipment if isinstance(equipment, dict) else {}).items():
+        if not item_id:
+            continue
+        base_id = str((by_id.get(str(item_id)) or {}).get("base_id") or item_id)
+        item_name: str
+        if item_catalog is not None:
+            base_entry = item_catalog.get_base_item(base_id)
+            item_name = base_entry.name_ru if base_entry is not None else _title_from_id(base_id)
+        else:
+            item_name = _title_from_id(base_id)
+        result.append({"slot": _LOADOUT_LABELS.get(str(slot), _title_from_id(str(slot))), "item": item_name})
+    return result
 
 
 def _clean_generated_title(value: str) -> str:

@@ -13,14 +13,16 @@
     {% if item and item.is_disabled %}
         disabled aria-disabled="true"
     {% elif item and item.panel %}
-        @click="$dispatch('panel-toggle', { side: '{{ item.panel }}', view: '{{ item.panel_view if item.panel_view else '' }}' })"
-    {% elif item and item.window %}
-        @click="$dispatch('hud-window-toggle', { name: '{{ item.window }}' })"
-        {% if item.window == 'inventory' and char_id is defined and char_id %}
+        @click="$dispatch('panel-toggle', { side: '{{ item.panel }}', view: '{{ item.panel_view if item.panel_view else '' }}', forceOpen: true })"
+        {% if item.panel == 'right' and item.panel_view == 'inventory' and char_id is defined and char_id %}
         hx-get="/game/inventory/window?char_id={{ char_id }}"
-        hx-target="#inventory-window-body"
+        hx-target="#right-inventory-panel-body"
         hx-swap="innerHTML"
         {% endif %}
+    {% elif item and item.window %}
+        @click="$dispatch('hud-window-toggle', { name: '{{ item.window }}' })"
+    {% elif item and item.modal %}
+        @click="$dispatch('game-modal-open', { kind: '{{ item.modal }}' })"
     {% elif item and item.url and item.url != '#' %}
         @click="window.location='{{ item.url }}'"
 {% endif %}
@@ -31,8 +33,6 @@
         {'active': leftOpen && leftPanelView === '{{ item.panel_view if item.panel_view else "status" }}'}
     {% elif item and item.panel == 'right' %}
         {'active': rightOpen && rightPanelView === '{{ item.panel_view if item.panel_view else "context" }}'}
-    {% elif item and item.window %}
-        {'active': windows.{{ item.window }} && windows.{{ item.window }}.open}
     {% else %}
         {'active': {{ 'true' if item and item.is_active else 'false' }}}
     {% endif %}

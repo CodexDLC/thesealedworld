@@ -33,6 +33,8 @@ async def game_combat_logs(
     char_id: int,
     page: int = 1,
     page_size: int = 8,
+    panel_id: str = "combat-log-panel",
+    embedded: bool = False,
 ):
     await auth_service.require_current_user(request)
     token = require_game_access_token(request)
@@ -53,6 +55,10 @@ async def game_combat_logs(
             "combat_log_total": total_turns,
             "combat_log_total_pages": total_pages,
             "combat_log_pages": _page_window(active_page, total_pages),
+            "combat_log_panel_id": _safe_panel_id(panel_id),
+            "combat_log_label": "BATTLE LOG" if embedded else "EXCHANGE LOG",
+            "combat_log_embedded": embedded,
+            "combat_log_show_size_control": not embedded,
         },
     )
 
@@ -163,6 +169,15 @@ def _page_window(active_page: int, total_pages: int) -> list[int]:
     last = min(total_pages, first + 3)
     first = max(1, last - 3)
     return list(range(first, last + 1))
+
+
+def _safe_panel_id(panel_id: str) -> str:
+    value = (panel_id or "").strip()
+    if not value:
+        return "combat-log-panel"
+    if all(char.isalnum() or char in {"-", "_"} for char in value):
+        return value
+    return "combat-log-panel"
 
 
 def _backend_combat_error(exc: httpx.HTTPStatusError) -> CombatErrorDTO:

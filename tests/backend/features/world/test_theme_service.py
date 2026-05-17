@@ -21,3 +21,11 @@ def test_world_theme_tracks_dominant_anchor_outside_city():
     assert theme.mode in {"anchor", "hybrid"}
     assert theme.intensity > 0.1
     assert theme.weights["north_prime"] == max(theme.weights.values())
+
+
+@pytest.mark.unit
+def test_world_theme_does_not_export_interface_glass_contract():
+    theme = WorldThemeService.build(7, 7, loc_id="7_7")
+
+    assert not hasattr(theme, "glass")
+    assert "--world-glass" not in theme.css_vars

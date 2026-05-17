@@ -20,6 +20,7 @@ class CoreDomain(StrEnum):
     ARENA = "arena"
     TAVERN = "tavern"
     DEATH = "death"
+    LOOT = "loot"
 
     # --- Служебные / Специфичные домены ---
     COMBAT_ENTRY = "combat_entry"  # Вход в бой, создание сессии

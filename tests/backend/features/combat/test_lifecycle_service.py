@@ -61,13 +61,21 @@ class FakeStore:
         self.created = (session_id, data, ttl)
 
 
+class FakeLootPreorder:
+    def __init__(self):
+        self.calls = []
+
+    async def enqueue(self, **kwargs):
+        self.calls.append(kwargs)
+
+
 def _decode_json_list(value):
     import json
 
     return json.loads(value) if isinstance(value, str) else value
 
 
-def _orchestrator(store, events=None, sessions=None):
+def _orchestrator(store, events=None, sessions=None, loot_preorder=None):
     return CombatCreationOrchestrator(
         lifecycle=CombatLifecycleService(store=store),
         integrator=CombatSystemIntegrator(
@@ -75,6 +83,7 @@ def _orchestrator(store, events=None, sessions=None):
             character_sessions=sessions or FakeCharacterSessions(),
             events=events or FakeEvents(),
         ),
+        loot_preorder=loot_preorder,
     )
 
 
@@ -209,8 +218,11 @@ async def test_lifecycle_creates_shadow_clone():
     _, data, ttl = store.created
     assert set(data.actors) == {"7", "-7"}
     assert data.actors["-7"]["meta"]["is_ai"] is True
+    assert data.actors["-7"]["meta"]["type"] == "shadow"
+    assert "shadow" in data.actors["-7"]["meta"]["tags"]
     assert data.actors["-7"]["meta"]["name"].startswith("Shadow ")
     assert data.actors["-7"]["meta"]["avatar_url"] == "/static/images/avatars/rook7.png"
+    assert data.actors["-7"]["meta"]["source_ref"] == "player:7"
     assert data.actors["-7"]["meta"]["hp"] == 64
     assert data.actors["-7"]["meta"]["max_hp"] == 64
     assert ttl == 900
@@ -236,3 +248,27 @@ async def test_lifecycle_clones_repeated_monster_snapshots():
     assert set(data.actors) == {"1", f"{monster_id}_1", f"{monster_id}_2"}
     assert data.actors[f"{monster_id}_1"]["meta"]["type"] == "monster"
     assert data.actors[f"{monster_id}_2"]["meta"]["template_id"] == monster_id
+
+
+@pytest.mark.asyncio
+async def test_lifecycle_preorders_hidden_loot_for_non_arena_monsters():
+    store = FakeStore()
+    loot_preorder = FakeLootPreorder()
+    service = _orchestrator(store, loot_preorder=loot_preorder)
+    monster_id = "00000000-0000-0000-0000-000000000002"
+
+    await service.create_from_request(
+        {
+            "source": "exploration",
+            "battle_type": "pve",
+            "location_id": "forest",
+            "requested_by": 1,
+            "participants": {"team_1": [1], "team_2": [monster_id]},
+        }
+    )
+
+    assert len(loot_preorder.calls) == 1
+    call = loot_preorder.calls[0]
+    assert call["battle_type"] == "pve"
+    assert call["location_id"] == "forest"
+    assert set(call["actors"]) == {"1", f"{monster_id}_1"}

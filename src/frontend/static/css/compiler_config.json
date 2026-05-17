@@ -12,6 +12,12 @@
                 "site/lobby.js"
             ]
         },
+        "app.js": {
+            "strategy": "ordered",
+            "sources": [
+                "core/main.js"
+            ]
+        },
         "game.js": {
             "strategy": "ordered",
             "sources": [

@@ -35,7 +35,6 @@ class FakeSessionContextBuilder:
             "domain": "SCENARIO",
             "char_id": char_id,
             "scenario": response.payload,
-            "session_ui": {"left_open": True, "right_open": True},
         }
 
     async def build_exploration_response(self, request, response, *, char_id):
@@ -192,7 +191,7 @@ async def test_response_director_renders_scenario_center_with_inner_oob_panels()
 
     assert template == "game/domains/scenario/viewport/main.html"
     assert context["oob_panels"] is True
-    assert context["session_ui"] == {"left_open": True, "right_open": True}
+    assert "session_ui" not in context
 
 
 @pytest.mark.asyncio

@@ -3,21 +3,28 @@ from uuid import UUID
 
 from pydantic import BaseModel, Field, field_validator
 
+from src.shared.utils.character_name import (
+    CHARACTER_NAME_MAX_LENGTH,
+    CHARACTER_NAME_MIN_LENGTH,
+    CharacterNameError,
+    normalize_character_name,
+)
+
 CharacterCreationGender = Literal["male", "female", "other"]
 
 
 class CreateCharacterRequestDTO(BaseModel):
-    name: str = Field(..., min_length=1, max_length=32)
+    name: str = Field(..., min_length=CHARACTER_NAME_MIN_LENGTH, max_length=CHARACTER_NAME_MAX_LENGTH)
     gender: CharacterCreationGender
     avatar: str | None = None
 
     @field_validator("name")
     @classmethod
     def normalize_name(cls, value: str) -> str:
-        name = value.strip()
-        if not name:
-            raise ValueError("Имя персонажа не может быть пустым")
-        return name
+        try:
+            return normalize_character_name(value).display
+        except CharacterNameError as exc:
+            raise ValueError(exc.message) from exc
 
 
 class EnterCharacterRequestDTO(BaseModel):
@@ -26,15 +33,27 @@ class EnterCharacterRequestDTO(BaseModel):
 
 class DeleteCharacterRequestDTO(BaseModel):
     character_id: int
-    confirm_name: str = Field(..., min_length=1, max_length=32)
+    confirm_name: str = Field(..., min_length=CHARACTER_NAME_MIN_LENGTH, max_length=CHARACTER_NAME_MAX_LENGTH)
 
     @field_validator("confirm_name")
     @classmethod
     def normalize_confirm_name(cls, value: str) -> str:
-        name = value.strip()
-        if not name:
-            raise ValueError("Имя подтверждения не может быть пустым")
-        return name
+        try:
+            return normalize_character_name(value).display
+        except CharacterNameError as exc:
+            raise ValueError(exc.message) from exc
+
+
+class CharacterNameAvailabilityRequestDTO(BaseModel):
+    name: str = Field(..., min_length=1, max_length=64)
+
+
+class CharacterNameAvailabilityDTO(BaseModel):
+    available: bool
+    name: str | None = None
+    name_key: str | None = None
+    code: str | None = None
+    message: str | None = None
 
 
 class GameLobbyUserContextDTO(BaseModel):

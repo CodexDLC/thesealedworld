@@ -155,13 +155,26 @@ async def test_victory_finalizer_commits_player_vitals_to_active_session() -> No
         (7, "energy", 8, 30),
         (7, "stamina", 12, 50),
     ]
-    assert character_sessions.progress == [(7, {"skill_swords": 0.0016})]
+    assert character_sessions.progress == [
+        (7, {"skill_swords": 0.0016, "skill_anatomy": 0.0008, "skill_tactics": 0.0008})
+    ]
     assert character_sessions.patches == [
         (
             7,
             {
                 "$.sessions.combat_id": None,
                 "$.sessions.combat_finalization_id": "combat-1",
+                "$.sessions.post_combat": {
+                    "char_id": 7,
+                    "combat_id": "combat-1",
+                    "corpse_ids": [],
+                    "death_summary": {},
+                    "loot_context": {},
+                    "notice": "Бой завершен. Можно осмотреться вокруг.",
+                    "outcome": "return",
+                    "rating_delta": None,
+                    "target_state": "exploration",
+                },
                 "$.state": "combat_result",
             },
         )
@@ -170,7 +183,7 @@ async def test_victory_finalizer_commits_player_vitals_to_active_session() -> No
         (
             7,
             "combat_finalization_attached",
-            ["$.sessions.combat_finalization_id", "$.sessions.combat_id", "$.state"],
+            ["$.sessions.combat_finalization_id", "$.sessions.combat_id", "$.sessions.post_combat", "$.state"],
         )
     ]
     assert data_service.saved_finalization is not None
@@ -179,7 +192,11 @@ async def test_victory_finalizer_commits_player_vitals_to_active_session() -> No
     assert char_ids == [7]
     assert ttl == 86400
     assert finalization["actors"]["7"]["xp_buffer"] == {"main_hand_hit": 1.0}
-    assert finalization["actors"]["7"]["progression"] == {"skill_swords": 0.0016}
+    assert finalization["actors"]["7"]["progression"] == {
+        "skill_swords": 0.0016,
+        "skill_anatomy": 0.0008,
+        "skill_tactics": 0.0008,
+    }
     assert finalization["report"]["last_turn"] == 1
     assert finalization["analytics"] == {"1:0": {"t": 1, "o": "H"}}
     assert queue.jobs == [("combat_finalization_persist_task", {"combat_id": "combat-1"})]
@@ -235,6 +252,26 @@ async def test_victory_finalizer_skips_durability_damage_for_arena_combat() -> N
     )
 
     assert events.requests == []
+
+
+@pytest.mark.asyncio
+async def test_victory_finalizer_attaches_arena_post_combat_outcome() -> None:
+    character_sessions = FakeCharacterSessions()
+
+    await victory_finalizer_task(
+        {
+            "combat_data_service": NoXpArenaCombatDataService(),
+            "character_sessions": character_sessions,
+            "events": FakeEvents(),
+            "redis": FakeQueue(),
+        },
+        {"session_id": "combat-1", "winner": "team_1"},
+    )
+
+    post_combat = character_sessions.patches[0][1]["$.sessions.post_combat"]
+    assert post_combat["target_state"] == "arena"
+    assert post_combat["outcome"] == "arena"
+    assert post_combat["rating_delta"] is None
 
 
 def test_durability_policy_uses_death_damage_for_dead_pve_players() -> None:

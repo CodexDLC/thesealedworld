@@ -22,8 +22,8 @@ def _family() -> MonsterFamilyDTO:
             "default_tags": ["beast", "rat"],
             "hierarchy": {"minions": ["sewer_rat"], "veterans": [], "elites": [], "boss": ["rat_king"]},
             "skill_kit": {
-                "base": {"skill_fencing": 0.2},
-                "role_bonus": {"minion": {}, "boss": {"skill_tactics": 0.3}},
+                "base": {"skill_fencing": 0.2, "skill_scouting": 0.9},
+                "role_bonus": {"minion": {}, "boss": {"skill_tactics": 0.3, "skill_adaptation": 0.8}},
             },
             "clan_model": {
                 "balance": {"organization_divisor": 5.0, "composition_profile": "many_weak"},
@@ -62,7 +62,7 @@ def _family() -> MonsterFamilyDTO:
                         "projection": 1,
                         "prediction": 2,
                     },
-                    "skill_overrides": {"skill_fencing": 0.25},
+                    "skill_overrides": {"skill_fencing": 0.25, "skill_hunting": 0.7},
                 },
                 "rat_king": {
                     "id": "rat_king",
@@ -216,3 +216,67 @@ def test_build_generated_monster_template_composes_field_builders() -> None:
     assert template.ai_profile.targeting == "lowest_hp"
     assert template.balance.base_cost == 20
     assert template.balance.effective_cost == 4
+
+
+@pytest.mark.unit
+def test_build_scaled_skills_none_override_removes_family_skill() -> None:
+    """Bug 2 regression: None in skill_overrides must delete the inherited family base skill."""
+    from src.backend.features.monsters.dto.resources import MonsterFamilyDTO
+
+    family = MonsterFamilyDTO.model_validate(
+        {
+            "id": "test_family",
+            "archetype": "humanoid",
+            "organization_type": "gang",
+            "default_tags": [],
+            "hierarchy": {"minions": ["test_var"], "veterans": [], "elites": [], "boss": []},
+            "skill_kit": {
+                "base": {"skill_one_handed": 0.25, "skill_fencing": 0.30},
+                "role_bonus": {},
+            },
+            "variants": {
+                "test_var": {
+                    "id": "test_var",
+                    "role": "minion",
+                    "cost": 20,
+                    "min_tier": 0,
+                    "max_tier": 5,
+                    "narrative_hint": "test",
+                    "base_stats": {
+                        "strength": 5,
+                        "agility": 5,
+                        "endurance": 5,
+                        "intellect": 1,
+                        "memory": 1,
+                        "mental": 2,
+                        "perception": 5,
+                        "projection": 1,
+                        "prediction": 2,
+                    },
+                    "skill_overrides": {"skill_one_handed": None},
+                }
+            },
+        }
+    )
+    variant = family.variants["test_var"]
+
+    skills = build_scaled_skills(family, variant)
+
+    assert "skill_one_handed" not in skills.skills, "None override must remove the family base skill (Bug 2)"
+    assert "skill_fencing" in skills.skills
+
+
+@pytest.mark.unit
+def test_bandit_poacher_skills_use_archery_not_one_handed() -> None:
+    """bandit_poacher uses skill_archery; skill_one_handed: None override must remove it."""
+    from src.backend.features.monsters.resources import get_family_config
+
+    family = get_family_config("bandit_gang")
+    assert family is not None, "bandit_gang family not found in registry"
+    variant = family.variants.get("bandit_poacher")
+    assert variant is not None, "bandit_poacher variant not found"
+
+    skills = build_scaled_skills(family, variant)
+
+    assert "skill_archery" in skills.skills, "bandit_poacher must have skill_archery"
+    assert "skill_one_handed" not in skills.skills, "skill_one_handed: None override must remove it"

@@ -1,0 +1,40 @@
+/* ── GAME SHELL RESPONSIVE CONTRACT ── */
+/*
+ * This file is the shared responsive layer for the game shell.
+ * Domain CSS should tune content inside these containers, not redefine panel,
+ * header, footer, or drawer behavior.
+ */
+
+#app-viewport {
+    --side-panel-width: 340px;
+    --side-panel-width-compact: 300px;
+    --center-content-max: 920px;
+    --game-header-height: 40px;
+    --game-footer-height: 30px;
+    --game-drawer-width: min(340px, calc(100vw - 20px));
+    --game-ui-scale: 1;
+    --game-panel-z: 200;
+    --game-overlay-z: 240;
+}
+
+#app-viewport .shell-constrained {
+    --side-panel-width: inherit;
+    --side-panel-width-compact: inherit;
+    --center-content-max: inherit;
+    --game-header-height: inherit;
+    --game-footer-height: inherit;
+    --game-drawer-width: inherit;
+    --game-ui-scale: inherit;
+    --game-panel-z: inherit;
+    --game-overlay-z: inherit;
+}
+
+.game-header {
+    height: var(--game-header-height);
+    min-height: var(--game-header-height);
+}
+
+.game-footer {
+    height: var(--game-footer-height);
+    min-height: var(--game-footer-height);
+}

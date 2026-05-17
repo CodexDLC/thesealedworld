@@ -10,8 +10,10 @@ from src.backend.features.scenario.engine import ScenarioDirector, ScenarioEvalu
 from src.backend.features.scenario.integrations.content_integration import ScenarioContentIntegration
 from src.backend.features.scenario.integrations.system_integrator import ScenarioSystemIntegrator
 from src.backend.features.scenario.services.scenario_service import ScenarioService
+from src.backend.features.world.integrations import WorldDataIntegration
 from src.backend.infrastructure.scenario.managers.session_manager import ScenarioSessionManager
 from src.backend.infrastructure.scenario.repositories import ScenarioRepository
+from src.backend.infrastructure.world.repositories import WorldRepository
 
 
 def build_scenario_service(request: Request | Any, db_session: AsyncSession) -> ScenarioService:
@@ -27,6 +29,7 @@ def build_scenario_service(request: Request | Any, db_session: AsyncSession) -> 
         repo=repo,
         events=request.app.state.events,
         character_repo=CharacterRepository(db_session),
+        world_data=WorldDataIntegration(WorldRepository(db_session)),
     )
     return ScenarioService(
         integrator=integrator,

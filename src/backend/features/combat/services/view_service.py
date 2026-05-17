@@ -256,13 +256,24 @@ class CombatViewService:
         metrics = metrics_raw if isinstance(metrics_raw, dict) else {}
 
         tokens = self._visible_tokens(meta)
+        source_raw = actor.get("source")
+        source = source_raw if isinstance(source_raw, dict) else {}
+        visual_raw = meta.get("visual") or source.get("visual")
+        visual = visual_raw if isinstance(visual_raw, dict) else {}
+        avatar_url = self._optional_str(meta.get("avatar_url")) or self._visual_image_url(visual)
 
         return CombatActorCardDTO(
             actor_id=str(meta.get("id") or actor_id),
             name=str(meta.get("name") or actor_id),
             actor_type=str(meta.get("type") or "unknown"),
             team=str(meta.get("team") or "neutral"),
-            avatar_url=self._optional_str(meta.get("avatar_url")),
+            avatar_url=avatar_url,
+            archetype=self._optional_str(meta.get("archetype")),
+            role=self._optional_str(meta.get("role")),
+            template_id=self._optional_str(meta.get("template_id")),
+            tags=[str(tag) for tag in meta.get("tags", []) if tag] if isinstance(meta.get("tags"), list) else [],
+            source=dict(source),
+            visual=dict(visual),
             gear_score=self._optional_int(meta.get("gear_score")) or self._optional_int(metrics.get("gear_score")),
             power_score=self._optional_int(meta.get("power_score")) or self._optional_int(metrics.get("power_score")),
             is_ai=bool(meta.get("is_ai", False)),
@@ -617,9 +628,42 @@ class CombatViewService:
                     effect_id=str(item["effect_id"]),
                     expires_at_exchange=CombatViewService._optional_int(item.get("expire_at_exchange")),
                     impact=impact,
+                    **CombatViewService._effect_catalog_badge_fields(str(item["effect_id"])),
                 )
             )
         return result
+
+    @staticmethod
+    def _effect_catalog_badge_fields(effect_id: str) -> dict[str, str | None]:
+        entry = CombatCatalogIntegrator.get_effect_catalog_entry(effect_id)
+        if entry is None:
+            return {}
+        description = entry.descriptive.variants.get(entry.descriptive.default_taxonomy)
+        if description is None:
+            return {}
+        return {
+            "title": description.display_name,
+            "description": description.tooltip or description.short_description,
+            "duration_label": CombatViewService._reactive_effect_duration_label(
+                list(entry.technical.react_on_outcomes),
+                consume_on_reaction=entry.technical.consume_on_reaction,
+            ),
+        }
+
+    @staticmethod
+    def _reactive_effect_duration_label(outcomes: list[str], *, consume_on_reaction: bool) -> str | None:
+        if not consume_on_reaction or not outcomes:
+            return None
+        normalized = {str(outcome).lower() for outcome in outcomes}
+        if normalized == {"parry"}:
+            return "до следующего парирования"
+        if normalized == {"dodge"}:
+            return "до следующего уворота"
+        if normalized <= {"hit", "crit"}:
+            return "до следующего попадания"
+        if normalized == {"block"}:
+            return "до следующего блока"
+        return "до следующего события"
 
     @staticmethod
     def _abilities(statuses: dict[str, Any]) -> list[CombatAbilityBadgeDTO]:
@@ -674,6 +718,14 @@ class CombatViewService:
                 key = str(token)
                 tokens[key] = tokens.get(key, 0) + cls._int(amount)
         return tokens
+
+    @classmethod
+    def _visual_image_url(cls, visual: dict[str, Any]) -> str | None:
+        for key in ("image_url", "generated_image_url", "fallback_image_url"):
+            url = cls._optional_str(visual.get(key))
+            if url:
+                return url
+        return None
 
     @staticmethod
     def _pending_actions(moves: Any) -> dict[str, int]:

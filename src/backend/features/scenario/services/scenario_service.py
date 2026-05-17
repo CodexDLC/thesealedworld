@@ -273,6 +273,30 @@ class ScenarioService:
         target_state = _finalize_target_state(result)
         if target_state == CoreDomain.COMBAT:
             step_started_at = perf_counter()
+            await self.integrator.sync_active_character_to_db(char_id)
+            logger.info(
+                "ScenarioFinalizeTiming | step=sync_exploration_snapshot_before_combat char_id={} quest_key={} ms={}",
+                char_id,
+                context.quest_key,
+                _elapsed_ms(step_started_at),
+            )
+            step_started_at = perf_counter()
+            combat_ready = await self.integrator.request_combat_start(
+                char_id,
+                context.quest_key,
+                battle_type=str(result.metadata.get("battle_type") or ""),
+                location_id=result.location_id,
+            )
+            logger.info(
+                "ScenarioFinalizeTiming | step=request_combat_start char_id={} quest_key={} combat_id={} ms={}",
+                char_id,
+                context.quest_key,
+                combat_ready.get("combat_id"),
+                _elapsed_ms(step_started_at),
+            )
+            result.combat_id = str(combat_ready.get("combat_id") or result.combat_id or "")
+            result.metadata = {**result.metadata, "combat_ready": combat_ready}
+            step_started_at = perf_counter()
             await self.integrator.prepare_combat_return_context(char_id, location_id=result.location_id)
             logger.info(
                 "ScenarioFinalizeTiming | step=prepare_combat_return_context char_id={} quest_key={} ms={}",
@@ -292,30 +316,6 @@ class ScenarioService:
                 context.quest_key,
                 _elapsed_ms(step_started_at),
             )
-            step_started_at = perf_counter()
-            await self.integrator.sync_active_character_to_db(char_id)
-            logger.info(
-                "ScenarioFinalizeTiming | step=sync_exploration_snapshot_before_combat char_id={} quest_key={} ms={}",
-                char_id,
-                context.quest_key,
-                _elapsed_ms(step_started_at),
-            )
-            step_started_at = perf_counter()
-            combat_ready = await self.integrator.request_combat_start(
-                char_id,
-                context.quest_key,
-                battle_type=str(result.metadata.get("battle_type") or "shadow"),
-                location_id=result.location_id,
-            )
-            logger.info(
-                "ScenarioFinalizeTiming | step=request_combat_start char_id={} quest_key={} combat_id={} ms={}",
-                char_id,
-                context.quest_key,
-                combat_ready.get("combat_id"),
-                _elapsed_ms(step_started_at),
-            )
-            result.combat_id = str(combat_ready.get("combat_id") or result.combat_id or "")
-            result.metadata = {**result.metadata, "combat_ready": combat_ready}
             step_started_at = perf_counter()
             await self.integrator.enter_prepared_combat(char_id, result.combat_id)
             logger.info(

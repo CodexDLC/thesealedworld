@@ -3,10 +3,10 @@ from pydantic import ValidationError
 
 from src.backend.features.monsters.dto.resources import MonsterFamilyDTO, MonsterVariantDTO
 
-from .families.anchor_sovereigns import ANCHOR_SOVEREIGNS_FAMILY
 from .families.bandits import BANDITS_FAMILY
 from .families.goblins import GOBLINS_FAMILY
 from .families.rats import RATS_FAMILY
+from .families.system.anchor_sovereigns import ANCHOR_SOVEREIGNS_FAMILY
 from .families.wolves import WOLVES_FAMILY
 from .monster_structs import MonsterFamily
 

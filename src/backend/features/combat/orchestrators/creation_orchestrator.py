@@ -12,6 +12,7 @@ from src.backend.features.combat.services.lifecycle_service import CombatLifecyc
 if TYPE_CHECKING:
     from src.backend.features.combat.integrations import CombatSystemIntegrator
     from src.backend.features.combat.services.lifecycle_service import CombatLifecycleService
+    from src.backend.features.combat.services.loot_preorder_service import CombatLootPreorderService
 
 
 def _elapsed_ms(started_at: float) -> float:
@@ -21,9 +22,16 @@ def _elapsed_ms(started_at: float) -> float:
 class CombatCreationOrchestrator:
     """Coordinates stream-facing combat session creation."""
 
-    def __init__(self, *, lifecycle: CombatLifecycleService, integrator: CombatSystemIntegrator) -> None:
+    def __init__(
+        self,
+        *,
+        lifecycle: CombatLifecycleService,
+        integrator: CombatSystemIntegrator,
+        loot_preorder: CombatLootPreorderService | None = None,
+    ) -> None:
         self.lifecycle = lifecycle
         self.integrator = integrator
+        self.loot_preorder = loot_preorder
 
     async def create_from_request(self, request: dict[str, Any]) -> dict[str, Any]:
         total_started_at = perf_counter()
@@ -93,7 +101,7 @@ class CombatCreationOrchestrator:
             _elapsed_ms(step_started_at),
         )
         step_started_at = perf_counter()
-        await self.lifecycle.create_session_from_snapshots(
+        session_data = await self.lifecycle.create_session_from_snapshots(
             combat_id,
             battle_type=battle_type,
             participants=participants,
@@ -106,6 +114,16 @@ class CombatCreationOrchestrator:
             sum(len(members) for members in participants.values()),
             _elapsed_ms(step_started_at),
         )
+        if self.loot_preorder is not None:
+            try:
+                await self.loot_preorder.enqueue(
+                    combat_id=combat_id,
+                    battle_type=battle_type,
+                    location_id=str(session_data.meta.get("location_id") or request.get("location_id") or "unknown"),
+                    actors=session_data.actors,
+                )
+            except Exception as exc:  # noqa: BLE001
+                logger.warning("CombatCreationTiming | loot_preorder_failed combat_id={} error={}", combat_id, exc)
         ready = {
             "status": "ready",
             "source": source,

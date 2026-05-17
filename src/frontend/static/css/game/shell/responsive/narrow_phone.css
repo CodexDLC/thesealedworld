@@ -1,0 +1,22 @@
+
+/* <=500px: narrow phone drawer and compact shell text. */
+@media (max-width: 500px) {
+    #app-viewport {
+        --game-drawer-width: 100vw;
+        --game-ui-scale: .86;
+    }
+
+    .game-footer {
+        font-size: 7px;
+    }
+
+    .game-account-button {
+        width: 28px;
+        padding: 0;
+        border-radius: 50%;
+    }
+
+    .game-account-label {
+        display: none;
+    }
+}

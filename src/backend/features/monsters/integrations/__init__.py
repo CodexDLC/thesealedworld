@@ -8,11 +8,9 @@ from .item_generation import (
     to_item_generation_requests,
 )
 from .location_context import MonsterLocationContextIntegration
-from .text_ai_client import MonsterClanTextAIClient
 
 __all__ = [
     "MonsterActorCommitmentIntegration",
-    "MonsterClanTextAIClient",
     "MonsterGenerationStorage",
     "MonsterGroupCacheIntegration",
     "MonsterLocationContextIntegration",

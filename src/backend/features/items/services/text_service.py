@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import logging
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
@@ -9,54 +8,14 @@ from src.backend.features.items.services.catalog_service import ItemCatalogServi
 
 if TYPE_CHECKING:
     from src.backend.features.items.dto.instance import GeneratedItemDTO, ItemGenerationRequestDTO
-    from src.backend.features.items.integrations import ItemTextAIClient
-
-log = logging.getLogger(__name__)
 
 
 @dataclass(slots=True)
 class ItemTextService:
-    ai_client: ItemTextAIClient | None
     catalog: ItemCatalogService
 
-    def __init__(self, ai_client: ItemTextAIClient | None, catalog: ItemCatalogService | None = None) -> None:
-        self.ai_client = ai_client
+    def __init__(self, catalog: ItemCatalogService | None = None) -> None:
         self.catalog = catalog or ItemCatalogService.load_default()
-
-    async def enrich(self, item: GeneratedItemDTO, request: ItemGenerationRequestDTO) -> GeneratedItemDTO:
-        if not request.request_ai_text:
-            return item
-
-        item_grade = str(item.metadata.get("item_grade") or "") or GRADE_BY_RARITY_TIER.get(
-            request.rarity_tier, "common"
-        )
-        if item_grade == "common":
-            return self._mark_metadata(item, ai_text_status="skipped", ai_text_reason="common_tier")
-
-        if self.ai_client is None:
-            return self._mark_metadata(item, ai_text_status="skipped", ai_text_reason="ai_unavailable")
-
-        payload = self._build_payload(item, request)
-        try:
-            item_text = await self.ai_client.generate_item_text(payload)
-        except Exception:
-            log.exception("Failed to generate AI item text for template_id=%s", item.template_id)
-            return self._mark_metadata(item, ai_text_status="failed")
-
-        if item_text is None:
-            return self._mark_metadata(item, ai_text_status="failed", ai_text_reason="empty_or_invalid_response")
-
-        return item.model_copy(
-            update={
-                "name": item_text.name,
-                "description": item_text.description,
-                "metadata": {
-                    **item.metadata,
-                    "ai_text_status": "generated",
-                    "ai_prompt": self.ai_client.prompt_name,
-                },
-            }
-        )
 
     def _build_payload(self, item: GeneratedItemDTO, request: ItemGenerationRequestDTO) -> dict[str, Any]:
         base = self.catalog.get_base_item(item.base_id)
@@ -129,6 +88,3 @@ class ItemTextService:
             payload["source_context"] = request.source_context
 
         return payload
-
-    def _mark_metadata(self, item: GeneratedItemDTO, **metadata: object) -> GeneratedItemDTO:
-        return item.model_copy(update={"metadata": {**item.metadata, **metadata}})

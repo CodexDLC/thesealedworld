@@ -74,6 +74,8 @@ class TestScenarioFormatter:
         assert payload.buttons[0].label == "Go North"
         assert payload.buttons[0].action_id == "a1"
         assert payload.buttons[0].icon == "move"
+        assert "show_left_sidebar" not in payload.extra_data
+        assert "show_right_sidebar" not in payload.extra_data
 
     def test_resolve_action_icon_infers_semantic_icon_from_math(self, formatter):
         assert formatter.resolve_action_icon({"icon": "default", "math": {"w_strength": "+3"}}) == "strength"
@@ -83,10 +85,19 @@ class TestScenarioFormatter:
         assert formatter.resolve_action_icon({"math": {"w_endurance": "+3"}}) == "guard"
         assert formatter.resolve_action_icon({"icon": "risk", "math": {"w_strength": "+3"}}) == "risk"
 
-    def test_resolve_sidebar_visibility_prefers_explicit_values_and_falls_back(self, formatter):
-        assert formatter.resolve_sidebar_visibility({"show_left_sidebar": False}, {}, "show_left_sidebar", True) is False
-        assert formatter.resolve_sidebar_visibility({"show_left_sidebar": None}, {}, "show_left_sidebar", {"mode": "x"}) is True
-        assert formatter.resolve_sidebar_visibility({}, {"show_left_sidebar": None}, "show_left_sidebar", []) is False
+    def test_resolve_action_icon_uses_main_stat_delta(self, formatter):
+        assert (
+            formatter.resolve_action_icon(
+                {"icon": "default", "math": {"w_endurance": "+3", "w_mental": "+2", "w_strength": "+1"}}
+            )
+            == "guard"
+        )
+        assert (
+            formatter.resolve_action_icon(
+                {"icon": "default", "math": {"w_agility": "+3", "w_endurance": "+2", "w_strength": "+1"}}
+            )
+            == "move"
+        )
 
     def test_format_text_stats_tag(self, formatter):
         # Pattern supports stats: prefix

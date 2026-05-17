@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING, Any
 from loguru import logger
 
 if TYPE_CHECKING:
-    from collections.abc import Sequence
+    from collections.abc import Iterable, Sequence
 
     from codex_platform.redis_service import RedisService
 
@@ -202,6 +202,26 @@ class CombatSessionManager:
             return None
         return {self._decode(k): self._decode(v) for k, v in raw.items()}
 
+    async def scan_active_sessions(self) -> list[tuple[str, dict[str, Any]]]:
+        """Scan Redis for all active combat sessions. Returns list of (session_id, meta)."""
+        client = self._client()
+        session_ids: list[str] = []
+        cursor = 0
+        while True:
+            cursor, keys = await client.scan(cursor, match="combat:rbc:*:meta", count=100)
+            for key in keys:
+                parts = self._decode(key).split(":")
+                if len(parts) == 4:
+                    session_ids.append(parts[2])
+            if cursor == 0:
+                break
+        result = []
+        for sid in session_ids:
+            meta = await self.get_meta(sid)
+            if meta and str(meta.get("active", "0")) == "1":
+                result.append((sid, meta))
+        return result
+
     async def get_rbc_session_meta(self, session_id: str) -> dict[str, Any] | None:
         return await self.get_meta(session_id)
 
@@ -213,6 +233,27 @@ class CombatSessionManager:
 
     async def touch_activity(self, session_id: str) -> None:
         await self._client().hset(self.meta_key(session_id), "last_activity_at", int(time.time()))
+        await self.refresh_session_ttl(session_id)
+
+    async def claim_initial_ai_seed(self, session_id: str) -> bool:
+        return bool(await self._client().hsetnx(self.meta_key(session_id), "initial_ai_seeded_at", int(time.time())))
+
+    async def mark_started(self, session_id: str) -> bool:
+        return bool(await self._client().hsetnx(self.meta_key(session_id), "started_at", int(time.time())))
+
+    async def refresh_session_ttl(self, session_id: str, *, ttl: int = DEFAULT_TTL_SECONDS) -> None:
+        meta = await self.get_meta(session_id)
+        actor_ids = self.actor_ids_from_meta(meta or {})
+        async with self._client().pipeline(transaction=False) as pipe:
+            pipe.expire(self.meta_key(session_id), ttl)
+            pipe.expire(self.targets_key(session_id), ttl)
+            pipe.expire(self.action_queue_key(session_id), ttl)
+            pipe.expire(self.log_key(session_id), ttl)
+            pipe.expire(self.analytics_key(session_id), ttl)
+            for actor_id in actor_ids:
+                pipe.expire(self.actor_key(session_id, actor_id), ttl)
+                pipe.expire(self.moves_key(session_id, actor_id), ttl)
+            await pipe.execute()
 
     async def get_actor(self, session_id: str, actor_id: str | int) -> dict[str, Any] | None:
         result = await self._json().get(self.actor_key(session_id, actor_id), "$")
@@ -552,6 +593,7 @@ class CombatSessionManager:
         processed_count: int,
         target_returns: Sequence[TargetReturnDTO] | None = None,
         dead_actors: str | None = None,
+        dead_actor_ids: Iterable[Any] | None = None,
         meta_update: dict[str, Any] | None = None,
         analytics: list[dict[str, Any] | str] | None = None,
     ) -> None:
@@ -580,6 +622,13 @@ class CombatSessionManager:
                 pipe.hset(self.analytics_key(session_id), mapping=analytics_entries)
             if processed_count > 0:
                 pipe.ltrim(self.action_queue_key(session_id), processed_count, -1)
+            if dead_actor_ids:
+                pipe.eval(
+                    self._prune_dead_targets_script(),
+                    1,
+                    self.targets_key(session_id),
+                    json.dumps([str(actor_id) for actor_id in dead_actor_ids]),
+                )
             if target_returns:
                 for pair in target_returns:
                     pipe.json().arrappend(
@@ -590,6 +639,53 @@ class CombatSessionManager:
             if meta_update:
                 pipe.hset(self.meta_key(session_id), mapping={k: self._redis_value(v) for k, v in meta_update.items()})
             await pipe.execute()
+        await self.refresh_session_ttl(session_id)
+
+    @staticmethod
+    def _prune_dead_targets_script() -> str:
+        return """
+        local raw = redis.call('JSON.GET', KEYS[1], '$')
+        if not raw then return 0 end
+
+        local decoded = cjson.decode(raw)
+        local targets = decoded[1] or {}
+        local dead = cjson.decode(ARGV[1])
+        local dead_set = {}
+        for _, actor_id in ipairs(dead) do
+            dead_set[tostring(actor_id)] = true
+        end
+
+        local function member_path(actor_id)
+            local escaped = tostring(actor_id):gsub('\\\\', '\\\\\\\\'):gsub('"', '\\\\"')
+            return '$["' .. escaped .. '"]'
+        end
+
+        local function set_queue(actor_id, queue)
+            local path = member_path(actor_id)
+            redis.call('JSON.SET', KEYS[1], path, '[]')
+            for _, target_id in ipairs(queue) do
+                redis.call('JSON.ARRAPPEND', KEYS[1], path, cjson.encode(target_id))
+            end
+        end
+
+        for actor_id, queue in pairs(targets) do
+            if dead_set[tostring(actor_id)] then
+                set_queue(actor_id, {})
+            else
+                local pruned = {}
+                if type(queue) == 'table' then
+                    for _, target_id in ipairs(queue) do
+                        if not dead_set[tostring(target_id)] then
+                            table.insert(pruned, target_id)
+                        end
+                    end
+                end
+                set_queue(actor_id, pruned)
+            end
+        end
+
+        return 1
+        """
 
     async def consume_feint_atomic(self, session_id: str, actor_id: str | int, feint_id: str) -> dict[str, int] | None:
         script = """

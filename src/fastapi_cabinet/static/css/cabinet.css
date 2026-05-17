@@ -163,8 +163,9 @@ body.fc-shell {
     left: 0;
     min-width: 200px;
     padding: 4px;
+    padding-top: 8px;
     position: absolute;
-    top: calc(100% + 4px);
+    top: 100%;
     z-index: 200;
 }
 
@@ -288,4 +289,94 @@ body.fc-shell {
 
 .fc-table tbody tr:hover td {
     background: #f8f9fb;
+}
+
+.fc-table--linked tbody .fc-table-row--link {
+    cursor: pointer;
+}
+
+.fc-table--linked tbody .fc-table-row--link:hover td {
+    background: #eff6ff;
+    color: #2563eb;
+}
+
+/* ── Editable Config Widget ── */
+.fc-table--config .fc-config-col-reset {
+    width: 32px;
+}
+
+.fc-config-key {
+    font-family: ui-monospace, monospace;
+    font-size: 12px;
+    color: #18202a;
+}
+
+.fc-config-default,
+.fc-config-type {
+    color: #8896a8;
+    font-size: 12px;
+}
+
+.fc-config-input {
+    background: #ffffff;
+    border: 1px solid #d1d5db;
+    border-radius: 5px;
+    color: #18202a;
+    font-size: 13px;
+    padding: 4px 8px;
+    width: 100%;
+    min-width: 120px;
+    transition: border-color 0.1s;
+}
+
+.fc-config-input:focus {
+    border-color: #2563eb;
+    outline: none;
+}
+
+.fc-config-row--modified td {
+    background: #fffbeb;
+}
+
+.fc-config-row--modified .fc-config-key {
+    font-weight: 600;
+}
+
+.fc-btn-reset {
+    background: none;
+    border: 1px solid #d1d5db;
+    border-radius: 4px;
+    color: #8896a8;
+    cursor: pointer;
+    font-size: 13px;
+    line-height: 1;
+    padding: 3px 6px;
+    transition: color 0.1s, border-color 0.1s;
+}
+
+.fc-btn-reset:hover {
+    border-color: #ef4444;
+    color: #ef4444;
+}
+
+.fc-config-actions {
+    margin-top: 16px;
+    padding-top: 16px;
+    border-top: 1px solid #f0f2f5;
+}
+
+.fc-btn-save {
+    background: #2563eb;
+    border: none;
+    border-radius: 6px;
+    color: #ffffff;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 500;
+    padding: 8px 20px;
+    transition: background 0.1s;
+}
+
+.fc-btn-save:hover {
+    background: #1d4ed8;
 }

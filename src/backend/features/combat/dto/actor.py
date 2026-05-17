@@ -111,6 +111,16 @@ class ActorRawDTO(BaseModel):
     modifiers: dict[str, Any] = Field(default_factory=dict)
 
 
+class CombatSurfaceDTO(BaseModel):
+    slot: str
+    delivery: str = "weapon"
+    surface: str = "weapon"
+    tags: list[str] = Field(default_factory=list)
+    item_id: str = ""
+    base_id: str = ""
+    skill_key: str = ""
+
+
 class ActorLoadoutDTO(BaseModel):
     """
     Экипировка и доступные действия.
@@ -124,6 +134,7 @@ class ActorLoadoutDTO(BaseModel):
     two_handed: bool = False
     weapon_slots: list[str] = Field(default_factory=list)
     weapon_tiers: dict[str, int] = Field(default_factory=dict)
+    combat_surfaces: dict[str, CombatSurfaceDTO] = Field(default_factory=dict)
     belt: list[dict[str, Any]] = Field(default_factory=list)
     known_abilities: list[str] = Field(default_factory=list)
     tags: list[str] = Field(default_factory=list)

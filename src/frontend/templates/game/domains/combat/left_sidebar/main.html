@@ -6,7 +6,7 @@
             {% set actor = combat_screen.hero %}
             <section class="combat-panel combat-actor-panel combat-result-player-panel combat-result-player-panel--{{ result_outcome }}">
                 <div class="combat-panel-header">FINAL PLAYER STATE</div>
-                <div class="combat-actor-avatar">
+                <div class="combat-actor-avatar{% if actor.is_shadow %} combat-actor-avatar--shadow{% endif %}">
                     <img src="{{ actor.avatar_url }}" alt="{{ actor.name }}">
                 </div>
                 <div class="combat-actor-name">{{ actor.name }}</div>
@@ -37,7 +37,7 @@
     <div class="combat-side combat-side--left">
         <section class="combat-panel combat-actor-panel">
             <div class="combat-panel-header">PLAYER</div>
-            <div class="combat-actor-avatar">
+            <div class="combat-actor-avatar{% if actor.is_shadow %} combat-actor-avatar--shadow{% endif %}">
                 <img src="{{ actor.avatar_url }}" alt="{{ actor.name }}">
                 <div class="combat-effect-stack">
                     {% for effect in actor.effects %}

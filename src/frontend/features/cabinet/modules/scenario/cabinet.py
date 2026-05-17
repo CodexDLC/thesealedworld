@@ -1,5 +1,69 @@
-from fastapi_cabinet import CabinetAdmin, MetricWidget, SidebarItem, TableWidget, cabinet_site
-from src.frontend.features.cabinet.modules._stub import stub_metric, stub_table
+from __future__ import annotations
+
+import httpx
+from fastapi import Request
+
+from fastapi_cabinet import CabinetAdmin, ListWidget, MetricWidget, SidebarItem, TableWidget, cabinet_site
+from fastapi_cabinet.contracts.widgets import ListWidgetMap, MetricWidgetMap, TableColumnMap, TableWidgetMap
+from src.frontend.config.settings import settings
+from src.frontend.integrations.backend_api.scenario_sessions import ScenarioSessionsApi
+
+
+async def _active_provider(request: Request) -> MetricWidgetMap:
+    return MetricWidgetMap(key="active_scenarios", title="Активных сценариев", value="—")
+
+
+async def _total_provider(request: Request) -> MetricWidgetMap:
+    return MetricWidgetMap(key="total_scenarios", title="Всего сценариев", value="—")
+
+
+async def _completed_provider(request: Request) -> MetricWidgetMap:
+    return MetricWidgetMap(key="completed", title="Завершённых", value="—")
+
+
+async def _recent_provider(request: Request) -> TableWidgetMap:
+    return TableWidgetMap(
+        key="recent",
+        title="Последние сценарии",
+        columns=[
+            TableColumnMap(key="id", label="ID"),
+            TableColumnMap(key="type", label="Тип"),
+            TableColumnMap(key="status", label="Статус"),
+            TableColumnMap(key="player", label="Игрок"),
+            TableColumnMap(key="date", label="Дата"),
+        ],
+        rows=[],
+    )
+
+
+async def _sessions_provider(request: Request) -> TableWidgetMap:
+    client: httpx.AsyncClient = request.app.state.backend_http_client
+    api = ScenarioSessionsApi(client=client, base_url=settings.backend_base_url)
+    try:
+        sessions = await api.list_active()
+    except (httpx.HTTPStatusError, httpx.RequestError):
+        sessions = []
+    return TableWidgetMap(
+        key="scenario_sessions",
+        title="Активные сценарии",
+        columns=[
+            TableColumnMap(key="char_id", label="Персонаж"),
+            TableColumnMap(key="session_id", label="Сессия"),
+            TableColumnMap(key="quest_key", label="Квест"),
+            TableColumnMap(key="current_node", label="Узел"),
+            TableColumnMap(key="step", label="Прогресс"),
+            TableColumnMap(key="updated_at", label="Обновлено"),
+        ],
+        rows=sessions,
+    )
+
+
+async def _analytics_provider(request: Request) -> ListWidgetMap:
+    return ListWidgetMap(
+        key="scenario_analytics",
+        title="Аналитика",
+        items=["Графики и метрики сценариев — будет добавлено в следующей итерации"],
+    )
 
 
 class ScenarioAdmin(CabinetAdmin):
@@ -7,11 +71,12 @@ class ScenarioAdmin(CabinetAdmin):
     label = "Сценарии"
     group = "game_server"
     group_label = "Гейм Сервер"
-    path = "/cabinet/scenario"
-    order = 20
+    path = "/admin/scenario"
+    order = 60
     sidebar = (
-        SidebarItem(key="dashboard", label="Дашборд", path="/cabinet/scenario", order=10),
-        SidebarItem(key="settings", label="Настройки", path="/cabinet/scenario/settings", order=20),
+        SidebarItem(key="dashboard", label="Дашборд", path="/admin/scenario", order=10),
+        SidebarItem(key="sessions", label="Активные сценарии", path="/admin/scenario/sessions", order=20),
+        SidebarItem(key="analytics", label="Аналитика", path="/admin/scenario/analytics", order=30),
     )
     dashboard_widgets = (
         MetricWidget(key="active_scenarios", title="Активных сценариев", provider="scenario.active", order=10),
@@ -20,25 +85,20 @@ class ScenarioAdmin(CabinetAdmin):
         TableWidget(key="recent", title="Последние сценарии", provider="scenario.recent", order=40),
     )
     sub_pages = {
-        "settings": (
-            TableWidget(
-                key="scenario_gen_settings",
-                title="Параметры генерации сценариев",
-                provider="scenario.gen_settings",
-                order=10,
-            ),
-            TableWidget(key="encounter_weights", title="Веса энкаунтеров", provider="scenario.enc_weights", order=20),
+        "sessions": (
+            TableWidget(key="scenario_sessions", title="Активные сценарии", provider="scenario.sessions", order=10),
+        ),
+        "analytics": (
+            ListWidget(key="scenario_analytics", title="Аналитика", provider="scenario.analytics", order=10),
         ),
     }
     providers = {
-        "scenario.active": stub_metric("active_scenarios", "Активных сценариев"),
-        "scenario.total": stub_metric("total_scenarios", "Всего сценариев"),
-        "scenario.completed": stub_metric("completed", "Завершённых"),
-        "scenario.recent": stub_table("recent", "Последние сценарии", ["ID", "Тип", "Статус", "Игрок", "Дата"]),
-        "scenario.gen_settings": stub_table(
-            "scenario_gen_settings", "Параметры генерации", ["Параметр", "Значение", "Описание"]
-        ),
-        "scenario.enc_weights": stub_table("encounter_weights", "Веса энкаунтеров", ["Тип энкаунтера", "Вес", "Биом"]),
+        "scenario.active": _active_provider,
+        "scenario.total": _total_provider,
+        "scenario.completed": _completed_provider,
+        "scenario.recent": _recent_provider,
+        "scenario.sessions": _sessions_provider,
+        "scenario.analytics": _analytics_provider,
     }
 
 

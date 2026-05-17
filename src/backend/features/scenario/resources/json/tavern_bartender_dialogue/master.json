@@ -3,8 +3,6 @@
   "scenario_type": "dialogue_scenario",
   "display_name": "РАЗГОВОР С БАРМЕНОМ",
   "background_url": "/static/images/exploration/city/d4/52_53_last_refuge_tavern.png",
-  "show_left_sidebar": false,
-  "show_right_sidebar": false,
   "ui": {
     "left_panel": {
       "mode": "character_status"

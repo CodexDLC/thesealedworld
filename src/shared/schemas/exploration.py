@@ -222,8 +222,11 @@ class EnemyPreviewDTO(ExplorationJsonDTO):
 
     name: str | None = None  # "Волк" или "???"
     level: int | None = None
+    member_tier: int | None = None
+    threat_rating: int | None = None
     hp_percent: int | None = None  # Примерное HP
     image: str | None = None
+    visual: dict[str, Any] = Field(default_factory=dict)
 
 
 class EncounterOptionDTO(ExplorationJsonDTO):

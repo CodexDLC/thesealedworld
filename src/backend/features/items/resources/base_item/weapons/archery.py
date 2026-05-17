@@ -16,7 +16,7 @@ ARCHERY_DB = {
         narrative_tags=["sling", "archery", "ranged", "mobile"],
         implicit_bonuses={
             "accuracy_penalty": 0.14,
-            "physical_crit_chance": 0.03,
+            "physical_crit_chance": 0.025,
             "evasion": 0.03,
         },
         triggers=["crit.weapon_impact_stun_crit"],
@@ -36,7 +36,7 @@ ARCHERY_DB = {
         narrative_tags=["bow", "archery", "ranger", "fast"],
         implicit_bonuses={
             "accuracy_penalty": 0.12,
-            "physical_crit_chance": 0.04,
+            "physical_crit_chance": 0.035,
             "evasion": 0.03,
         },
         triggers=["control.weapon_evasive_shot"],

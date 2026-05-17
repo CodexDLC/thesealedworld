@@ -51,13 +51,11 @@
          x-data='gameShell({
             activeCharId: {{ active_char_id|string|tojson }},
             domain: {{ (domain if domain is defined else '')|tojson }},
-            initialStatus: {{ initial_status|tojson }},
-            leftOpen: {{ 'true' if session_ui is defined and session_ui.left_open else 'false' }},
-            rightOpen: {{ 'true' if session_ui is defined and session_ui.right_open else 'false' }},
-            initialInventoryOpen: {{ 'true' if initial_inventory_open is defined and initial_inventory_open else 'false' }}
+            initialStatus: {{ initial_status|tojson }}
          })'
-         :style="`--chat-height: ${chatMinimized ? '100px' : chatHeight + 'px'}`"
+         :style="`--chat-height: ${chatHeight + 'px'}`"
          @panel-toggle.window="togglePanel($event.detail)"
+         @game-modal-open.window="openUnavailableModal($event.detail)"
          @hud-window-toggle.window="toggleHudWindow($event.detail?.name)"
          @chat-unread.window="if (chatClosed) chatUnread = true"
          @pointermove.window="moveHudWindow($event); moveChatLauncher($event)"
@@ -75,27 +73,6 @@
 
         <div id="game-shell-overlays">
             <div id="game-modal-root"></div>
-            {% if domain not in ['combats', 'scenario'] %}
-            <section class="hud-window inventory-window"
-                     x-cloak
-                     x-show="windows.inventory.open"
-                     x-transition.opacity
-                     :class="{ 'is-dragging': windows.inventory.dragging }"
-                     :style="hudWindowStyle('inventory')">
-                <header class="hud-window-head hud-window-drag-handle"
-                        @pointerdown.prevent="startHudWindowDrag('inventory', $event, $el.closest('.hud-window'))">
-                    <span>INVENTORY</span>
-                    <button type="button"
-                            class="hud-window-close"
-                            @pointerdown.stop
-                            @click="closeHudWindow('inventory')">×</button>
-                </header>
-                <div id="inventory-window-body" class="hud-window-body">
-                    {% include "game/components/inventory/window.html" %}
-                </div>
-                {% include "game/includes/hud_window_resize_handles.html" %}
-            </section>
-            {% endif %}
         </div>
 
         <div id="game-footer-shell">

@@ -1,0 +1,24 @@
+/* ── LAYOUT: AMBIENT ── */
+
+/* Ambient scanline — fixed on body */
+body::before {
+  content: '';
+  position: fixed;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, rgba(255,170,0,0.25), transparent);
+  animation: scan 9s linear infinite;
+  pointer-events: none;
+  z-index: 99;
+}
+
+/* Background Grids / Textures (optional for future) */
+.bg-vignette {
+  position: fixed;
+  inset: 0;
+  background: radial-gradient(circle at center, transparent 0%, rgba(0,0,0,0.4) 100%);
+  pointer-events: none;
+  z-index: 1;
+}

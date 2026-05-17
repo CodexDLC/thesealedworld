@@ -238,6 +238,48 @@ class CombatSessionIntegration:
     async def touch_activity(self, session_id: str) -> None:
         await self.combat_manager.touch_activity(session_id)
 
+    async def mark_started_and_refresh_ttl(self, session_id: str) -> bool:
+        started = await self.combat_manager.mark_started(session_id)
+        await self.combat_manager.refresh_session_ttl(session_id)
+        return started
+
+    async def seed_initial_ai_turns_on_dashboard(
+        self,
+        *,
+        session_id: str,
+        viewer_id: int | str,
+        meta: dict[str, Any],
+        actors: dict[str, Any],
+        targets: dict[str, list[Any]],
+        moves: dict[str, Any],
+    ) -> bool:
+        if meta.get("started_at"):
+            return False
+
+        teams = self.decode_json_field(meta.get("teams"), default={})
+        if not self._is_participant(viewer_id, teams):
+            return False
+
+        actors_info = self.decode_json_field(meta.get("actors_info"), default={})
+        dead_actors = self.decode_json_field(meta.get("dead_actors"), default=[])
+        dead_ids = {str(actor_id) for actor_id in dead_actors} if isinstance(dead_actors, list) else set()
+        if not isinstance(actors_info, dict):
+            return False
+
+        for actor_id, actor_type in actors_info.items():
+            actor_id_str = str(actor_id)
+            if actor_type != "ai" or actor_id_str in dead_ids:
+                continue
+            if not self._actor_alive(actors.get(actor_id_str)):
+                continue
+            if not self._has_live_target(targets.get(actor_id_str), actors, dead_ids):
+                continue
+            if self._has_pending_move(moves.get(actor_id_str)):
+                continue
+            return await self.combat_manager.claim_initial_ai_seed(session_id)
+
+        return False
+
     async def transfer_actions(self, session_id: str, actions: list[CombatActionDTO]) -> None:
         """
         Атомарный перенос действий: Push в очередь + Delete из moves.
@@ -376,11 +418,13 @@ class CombatSessionIntegration:
         # 3. Update dead_actors list if needed
         dead_actor_ids = {str(actor_id) for actor_id in ctx.meta.dead_actors}
         dead_actors_update = None
+        alive_counts_update = None
         if ctx.pending_dead_actors:
             # Merge with existing dead_actors
             updated_dead = list(set(ctx.meta.dead_actors + ctx.pending_dead_actors))
             dead_actor_ids = {str(actor_id) for actor_id in updated_dead}
             dead_actors_update = json.dumps(updated_dead)
+            alive_counts_update = self._alive_counts(ctx.meta.teams, dead_actor_ids)
         target_returns = [
             pair
             for pair in ctx.pending_target_returns
@@ -388,6 +432,9 @@ class CombatSessionIntegration:
         ]
 
         # 4. АТОМАРНЫЙ Commit (state + logs + actions + targets + dead_actors)
+        meta_update = {"step_counter": ctx.meta.step_counter, "last_activity_at": int(time.time())}
+        if alive_counts_update is not None:
+            meta_update["alive_counts"] = json.dumps(alive_counts_update)
         await self.combat_manager.commit_battle_results(
             ctx.session_id,
             updates,
@@ -395,7 +442,8 @@ class CombatSessionIntegration:
             len(processed_action_ids),
             target_returns=target_returns,
             dead_actors=dead_actors_update,
-            meta_update={"step_counter": ctx.meta.step_counter, "last_activity_at": int(time.time())},
+            dead_actor_ids=dead_actor_ids,
+            meta_update=meta_update,
         )
 
     # ==========================================================================
@@ -420,7 +468,63 @@ class CombatSessionIntegration:
             last_activity_at=int(d("last_activity_at") or 0),
             battle_type=d("battle_type") or "standard",
             location_id=d("location_id") or "unknown",
+            started_at=self._optional_int(d("started_at")),
         )
+
+    @staticmethod
+    def _alive_counts(teams: dict[str, list[Any]], dead_actor_ids: set[str]) -> dict[str, int]:
+        return {
+            str(team_name): sum(1 for member in members if str(member) not in dead_actor_ids)
+            for team_name, members in teams.items()
+        }
+
+    @staticmethod
+    def _optional_int(value: Any) -> int | None:
+        if value in (None, ""):
+            return None
+        try:
+            return int(value)
+        except (TypeError, ValueError):
+            return None
+
+    @staticmethod
+    def _is_participant(viewer_id: int | str, teams: Any) -> bool:
+        viewer = str(viewer_id)
+        if not isinstance(teams, dict):
+            return False
+        return any(
+            isinstance(members, list) and viewer in {str(member) for member in members} for members in teams.values()
+        )
+
+    @staticmethod
+    def _actor_alive(actor: Any) -> bool:
+        if not isinstance(actor, dict):
+            return False
+        meta = actor.get("meta") if isinstance(actor.get("meta"), dict) else {}
+        if bool(meta.get("is_dead")):
+            return False
+        try:
+            return int(meta.get("hp", 1) or 0) > 0
+        except (TypeError, ValueError):
+            return False
+
+    @classmethod
+    def _has_live_target(cls, target_ids: Any, actors: dict[str, Any], dead_ids: set[str]) -> bool:
+        if not isinstance(target_ids, list):
+            return False
+        return any(
+            str(target_id) not in dead_ids and cls._actor_alive(actors.get(str(target_id))) for target_id in target_ids
+        )
+
+    @staticmethod
+    def _has_pending_move(actor_moves: Any) -> bool:
+        if not isinstance(actor_moves, dict):
+            return False
+        for strategy in ("exchange", "item", "instant", "system"):
+            moves = actor_moves.get(strategy)
+            if isinstance(moves, dict) and moves:
+                return True
+        return False
 
     def _build_snapshot(
         self,

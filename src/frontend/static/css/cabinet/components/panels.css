@@ -1,0 +1,191 @@
+/* ── MEMBRANE PANELS & PARCHMENT ── */
+
+.panel-membrane {
+  background: var(--col-membrane);
+  border: 1px solid var(--col-border);
+  backdrop-filter: blur(14px);
+  animation: breathe 4.5s ease-in-out infinite;
+  padding: var(--sp-4);
+}
+
+.panel-membrane.danger {
+  border-color: rgba(255, 51, 0, 0.22);
+  animation: breathe-danger 3.5s ease-in-out infinite;
+  background: rgba(255, 51, 0, 0.03);
+}
+
+.panel-membrane.energy {
+  border-color: rgba(51, 153, 255, 0.22);
+  animation: breathe-energy 4s ease-in-out infinite;
+  background: rgba(51, 153, 255, 0.03);
+}
+
+.panel-membrane.psi {
+  border-color: rgba(119, 68, 255, 0.22);
+  background: rgba(119, 68, 255, 0.03);
+  animation: breathe-psi 4.5s ease-in-out infinite;
+}
+
+/* ── PARCHMENT PANELS ── */
+.parchment-demo {
+  background: rgba(210, 180, 140, .055);
+  border: 1px solid rgba(210, 180, 140, .16);
+  padding: var(--sp-5);
+  clip-path: polygon(0 12px, 12px 0, calc(100% - 8px) 0, 100% 8px, 100% calc(100% - 14px), calc(100% - 14px) 100%, 8px 100%, 0 calc(100% - 8px));
+  animation: breathe 6s ease-in-out infinite;
+  position: relative;
+}
+
+.parchment-demo .corner {
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  border-color: rgba(210, 180, 140, .30);
+  border-style: solid;
+}
+
+.parchment-demo .c-tl {
+  top: 4px;
+  left: 4px;
+  border-width: 1px 0 0 1px;
+}
+
+.parchment-demo .c-tr {
+  top: 4px;
+  right: 4px;
+  border-width: 1px 1px 0 0;
+}
+
+.parchment-demo .c-bl {
+  bottom: 4px;
+  left: 4px;
+  border-width: 0 0 1px 1px;
+}
+
+.parchment-demo .c-br {
+  bottom: 4px;
+  right: 4px;
+  border-width: 0 1px 1px 0;
+}
+
+.world-text {
+  font-family: var(--font-world);
+  font-size: var(--text-lg);
+  line-height: 1.78;
+  color: var(--col-text-world);
+  text-wrap: pretty;
+}
+
+.world-text em {
+  color: var(--col-accent);
+  font-style: italic;
+  text-shadow: 0 0 10px rgba(255, 170, 0, .26);
+}
+
+.world-text strong {
+  color: rgba(210, 180, 140, 1);
+  font-weight: 600;
+}
+
+/* ── SYMBIONT WHISPER ── */
+.whisper {
+  padding: var(--sp-3) var(--sp-4);
+  background: rgba(119, 68, 255, .05);
+  border: 1px solid rgba(119, 68, 255, .18);
+  border-left: 2px solid rgba(119, 68, 255, .42);
+  font-size: var(--text-sm);
+  line-height: 1.6;
+  font-style: italic;
+  color: rgba(153, 102, 255, .8);
+  clip-path: polygon(0 0, 100% 0, 100% calc(100% - 6px), calc(100% - 6px) 100%, 0 100%);
+}
+
+.whisper::before {
+  content: '◈ SYMBIONT // ';
+  font-style: normal;
+  font-size: var(--text-2xs);
+  letter-spacing: .12em;
+  color: rgba(119, 68, 255, .52);
+}
+
+/* ── CHOICE ── */
+.choice {
+  padding: var(--sp-3) var(--sp-4);
+  background: rgba(210, 180, 140, .03);
+  border: 1px solid rgba(210, 180, 140, .12);
+  cursor: pointer;
+  font-family: var(--font-world);
+  font-size: var(--text-md);
+  color: rgba(210, 180, 140, .75);
+  transition: all .2s;
+  position: relative;
+}
+
+.choice:hover {
+  background: rgba(210, 180, 140, .07);
+  border-color: rgba(210, 180, 140, .28);
+  color: var(--col-text-world);
+}
+
+.choice::before {
+  content: '›';
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: rgba(255, 170, 0, .4);
+  font-size: 16px;
+}
+
+/* ── DS PANEL (Common Structure) ── */
+.ds-panel {
+  background: color-mix(in srgb, var(--cabinet-panel-surface, rgba(10, 10, 12, .56)) 82%, transparent);
+  border: 1px solid var(--col-border);
+  backdrop-filter: blur(10px);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  position: relative;
+}
+
+.ds-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-2);
+  padding: var(--sp-2) var(--sp-4);
+  background: rgba(255, 170, 0, 0.05);
+  border-bottom: 1px solid var(--col-border);
+  font-size: var(--text-2xs);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--col-text-secondary);
+  font-weight: 600;
+}
+
+.panel-refresh-button {
+  border: 1px solid rgba(255, 170, 0, 0.18);
+  background: rgba(0, 0, 0, 0.28);
+  color: rgba(255, 170, 0, 0.72);
+  cursor: pointer;
+  font-family: var(--font-mono);
+  font-size: var(--text-3xs);
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  line-height: 1;
+  padding: 5px 7px;
+  text-transform: uppercase;
+}
+
+.panel-refresh-button:hover,
+.panel-refresh-button.htmx-request {
+  background: rgba(255, 170, 0, 0.08);
+  border-color: rgba(255, 170, 0, 0.38);
+  color: var(--col-accent);
+}
+
+.ds-panel-body {
+  padding: var(--sp-4);
+  flex: 1;
+  position: relative;
+}

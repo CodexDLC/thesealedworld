@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "model": "nano-banana-gemini-2.5-flash-preview-image",
+  "model": "gemini-2.5-flash-image",
   "purpose": "Base family images used as default fallbacks until a generated clan or member template receives a unique image.",
   "style": "dark tactical RPG bestiary art, full-body subject, readable silhouette, no text, no UI frame, no logo, square composition",
   "requests": [

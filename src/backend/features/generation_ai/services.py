@@ -29,11 +29,14 @@ class GenerationAIService:
         registry: AIGenerationTaskRegistry,
         executor: AIGenerationExecutor | None = None,
         arq: Any | None = None,
+        auto_schedule: bool = True,
     ) -> None:
         self.repository = repository
         self.registry = registry
         self.executor = executor
         self.arq = arq
+        self.auto_schedule = auto_schedule
+        self._pending_schedule_tasks: list[tuple[str, datetime | None]] = []
 
     async def enqueue_many(
         self,
@@ -58,7 +61,11 @@ class GenerationAIService:
             if task.status in {"pending", "cooldown"}:
                 schedulable_task_ids.append(task.id)
 
-        scheduled = await self._schedule_tasks(schedulable_task_ids)
+        if self.auto_schedule:
+            scheduled = await self._schedule_tasks(schedulable_task_ids)
+        else:
+            self._pending_schedule_tasks.extend((task_id, None) for task_id in schedulable_task_ids)
+            scheduled = 0
         logger.info(
             "GenerationAI | enqueue batch={} created={} reused={} scheduled={}",
             batch_id,
@@ -92,6 +99,7 @@ class GenerationAIService:
                 raise RuntimeError("AI generation executor is not configured")
 
             request = await handler.build_request(task)
+            self._validate_request(task, request)
             result = await self.executor.generate(task, request)
             if not isinstance(result, AIGenerationTaskResultDTO):
                 result = AIGenerationTaskResultDTO.model_validate(result)
@@ -115,10 +123,57 @@ class GenerationAIService:
         if not self.registry.has(spec.task_type):
             raise ValueError(f"AI generation task type is not registered: {spec.task_type}")
 
+    def _validate_request(self, task: Any, request: dict[str, Any]) -> None:
+        if not isinstance(request, dict):
+            raise ValueError(f"AI generation handler returned invalid request for task_type={task.task_type}")
+
+        kind = request.get("kind")
+        if kind != task.output_kind:
+            raise ValueError(
+                f"AI generation request kind mismatch for task_type={task.task_type}: "
+                f"request={kind!r} task_output_kind={task.output_kind!r}"
+            )
+
+        if kind == "json" and request.get("schema") is None:
+            raise ValueError(f"AI JSON generation requires schema for task_type={task.task_type}")
+
+        if kind == "image":
+            prompt = request.get("prompt")
+            if not isinstance(prompt, str) or not prompt.strip():
+                raise ValueError(
+                    f"AI image generation requires plain non-empty string prompt for task_type={task.task_type}"
+                )
+            storage_key = request.get("storage_key")
+            if not isinstance(storage_key, str) or not storage_key.strip():
+                raise ValueError(f"AI image generation requires storage_key for task_type={task.task_type}")
+            content_type = request.get("content_type")
+            if not isinstance(content_type, str) or not content_type.strip().lower().startswith("image/"):
+                raise ValueError(f"AI image generation requires image content_type for task_type={task.task_type}")
+            model = request.get("model")
+            if not isinstance(model, str) or not model.strip():
+                raise ValueError(f"AI image generation requires model for task_type={task.task_type}")
+            normalized_model = model.strip().lower()
+            if normalized_model.startswith("imagen-") or "nano-banana" in normalized_model:
+                raise ValueError(f"Unsupported image model for task_type={task.task_type}: {model}")
+            if not normalized_model.startswith("gemini-") or "image" not in normalized_model:
+                raise ValueError(f"Unsupported Gemini image model id for task_type={task.task_type}: {model}")
+
     async def _schedule_tasks(self, task_ids: list[str]) -> int:
         scheduled = 0
         for task_id in task_ids:
             if await self._schedule_task(task_id):
+                scheduled += 1
+        return scheduled
+
+    async def schedule_task_ids(self, task_ids: list[str] | tuple[str, ...]) -> int:
+        return await self._schedule_tasks(list(task_ids))
+
+    async def schedule_pending_task_ids(self) -> int:
+        pending = list(dict.fromkeys(self._pending_schedule_tasks))
+        self._pending_schedule_tasks.clear()
+        scheduled = 0
+        for task_id, not_before in pending:
+            if await self._schedule_task(task_id, not_before=not_before):
                 scheduled += 1
         return scheduled
 
@@ -149,7 +204,10 @@ class GenerationAIService:
             not_before=not_before,
             error=error,
         )
-        await self._schedule_task(task.id, not_before=not_before)
+        if self.auto_schedule:
+            await self._schedule_task(task.id, not_before=not_before)
+        else:
+            self._pending_schedule_tasks.append((task.id, not_before))
         logger.warning("GenerationAI | task cooldown task_id={} error={}", task.id, error)
 
     async def _schedule_task(self, task_id: str, *, not_before: datetime | None = None) -> bool:

@@ -8,6 +8,7 @@ from src.backend.features.world.runtime.node_graph import (
     WorldRegionNodeGenerator,
     build_region_route_plan,
 )
+from src.backend.features.world.runtime.profiles import NAVIGATION_PROFILES
 from src.backend.features.world.services.navigation_service import WorldNavigationService
 
 
@@ -121,3 +122,14 @@ def test_external_region_generator_marks_route_plan_exits() -> None:
     assert len(exits) == 3
     assert {raw["flags"]["route_plan"]["boundary_exit"]["direction"] for raw in exits} == {"south", "west", "east"}
     assert all(raw["movement_profile"]["gated_exits"] for raw in exits)
+
+
+@pytest.mark.unit
+def test_navigation_profiles_do_not_allow_four_way_danger_nodes() -> None:
+    offenders = {
+        profile_id: profile.model_dump()
+        for profile_id, profile in NAVIGATION_PROFILES.items()
+        if profile.max_degree > 3 or profile.road_degree > 3
+    }
+
+    assert offenders == {}

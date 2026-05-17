@@ -7,6 +7,7 @@ from src.backend.features.game_catalog.combat.resources import (
     get_combat_catalog_entry_by_key,
     get_combat_item_action_catalog_entry,
     get_combat_item_action_catalog_entry_by_key,
+    get_combat_text_template,
     get_effect_catalog_entry,
     get_effect_catalog_entry_by_key,
     get_feint_catalog_entry,
@@ -40,4 +41,5 @@ class CombatCatalogIntegrator:
     get_trigger_catalog_entry = staticmethod(get_trigger_catalog_entry)
     get_trigger_catalog_entry_by_key = staticmethod(get_trigger_catalog_entry_by_key)
     get_pipeline_preset = staticmethod(get_pipeline_preset)
+    get_combat_text_template = staticmethod(get_combat_text_template)
     get_basic_exchange = staticmethod(get_basic_exchange_entry)

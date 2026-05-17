@@ -145,6 +145,19 @@ def test_create_button_opens_creation_when_slots_are_available():
     assert ':disabled="selectedSlot !== null && !selectedEmpty"' not in template
 
 
+def test_creation_form_uses_mvp_name_limits():
+    template = ROOT.joinpath("src/frontend/templates/site/game_lobby/fragments/creation_form.html").read_text(
+        encoding="utf-8"
+    )
+
+    assert 'minlength="3"' in template
+    assert 'maxlength="16"' in template
+    assert 'pattern="[A-Za-zА-Яа-яЁё0-9_]{3,16}"' in template
+    assert 'x-model.trim="creationName"' in template
+    assert "checkCreationNameAvailability()" in template
+    assert 'maxlength="32"' not in template
+
+
 def test_empty_lobby_starts_with_intro_before_creation_form():
     panel_template = ROOT.joinpath("src/frontend/templates/site/game_lobby/fragments/lobby_panel.html").read_text(
         encoding="utf-8"
@@ -160,6 +173,23 @@ def test_empty_lobby_starts_with_intro_before_creation_form():
     assert '@click="mode = \'create\'"' in empty_template
 
 
+def test_empty_lobby_intro_uses_readable_text_formatting():
+    creation_template = ROOT.joinpath("src/frontend/templates/site/game_lobby/fragments/creation_form.html").read_text(
+        encoding="utf-8"
+    )
+    empty_template = ROOT.joinpath("src/frontend/templates/site/game_lobby/fragments/empty_state.html").read_text(
+        encoding="utf-8"
+    )
+    css = ROOT.joinpath("src/frontend/static/css/site/pages/game_lobby.css").read_text(encoding="utf-8")
+
+    assert "lobby-primary-action" in empty_template
+    assert "lobby-primary-action" in creation_template
+    assert ".lobby-primary-action {" in css
+    assert "letter-spacing: 0.04em;" in css
+    assert "text-transform: none;" in css
+    assert "text-align: left;" in css
+
+
 def test_lobby_panel_state_lives_in_site_js_source():
     panel_template = ROOT.joinpath("src/frontend/templates/site/game_lobby/fragments/lobby_panel.html").read_text(
         encoding="utf-8"
@@ -169,6 +199,9 @@ def test_lobby_panel_state_lives_in_site_js_source():
 
     assert "$refs.modalInput" not in panel_template
     assert "window.lobbyPanelState" in source
+    assert "checkCreationNameAvailability" in source
+    assert "/api/game-lobby/name-availability" in source
+    assert "submitCreation" in source
     assert "site/lobby.js" in compiler_config
 
 
@@ -198,14 +231,14 @@ def test_auth_pages_render_as_landing_overlay_modals():
     landing_template = ROOT.joinpath("src/frontend/templates/site/index.html").read_text(encoding="utf-8")
     auth_modal = ROOT.joinpath("src/frontend/templates/site/auth/modal.html").read_text(encoding="utf-8")
     site_bundle = ROOT.joinpath("src/frontend/static/css/site_bundle.css").read_text(encoding="utf-8")
-    auth_css = ROOT.joinpath("src/frontend/static/css/pages/auth.css").read_text(encoding="utf-8")
+    auth_css = ROOT.joinpath("src/frontend/static/css/site/pages/auth.css").read_text(encoding="utf-8")
 
     assert '"site/index.html"' in auth_routes
     assert '"auth_overlay_open": True' in auth_routes
     assert "{% include \"site/auth/modal.html\" %}" in landing_template
     assert 'class="auth-modal"' in auth_modal
     assert 'role="dialog"' in auth_modal
-    assert '@import url("pages/auth.css");' in site_bundle
+    assert '@import url("site/pages/auth.css");' in site_bundle
     assert ".auth-modal-backdrop" in auth_css
 
 
@@ -228,7 +261,7 @@ def test_landing_auth_actions_open_client_modal_without_navigation():
 
 def test_site_account_menu_is_attached_control_with_icons():
     header_template = ROOT.joinpath("src/frontend/templates/site/includes/header.html").read_text(encoding="utf-8")
-    header_css = ROOT.joinpath("src/frontend/static/css/includes/site_header.css").read_text(encoding="utf-8")
+    header_css = ROOT.joinpath("src/frontend/static/css/site/shell/header.css").read_text(encoding="utf-8")
 
     assert 'class="site-account-btn"' in header_template
     assert 'class="btn-node site-account-btn"' not in header_template
@@ -260,7 +293,7 @@ def test_lobby_slots_render_as_single_horizontal_carousel():
 
 
 def test_lobby_modal_uses_responsive_breakpoints_and_centered_actions():
-    css = ROOT.joinpath("src/frontend/static/css/pages/site/game_lobby.css").read_text(encoding="utf-8")
+    css = ROOT.joinpath("src/frontend/static/css/site/pages/game_lobby.css").read_text(encoding="utf-8")
 
     assert "width: fit-content;" in css
     assert "calc((var(--lobby-card-size) * 2) + var(--lobby-grid-gap) + (var(--lobby-panel-padding) * 2))" in css
@@ -284,7 +317,7 @@ def test_lobby_route_opens_as_landing_overlay_modal():
 
 def test_landing_rift_links_to_lobby_with_tooltip():
     landing_template = ROOT.joinpath("src/frontend/templates/site/index.html").read_text(encoding="utf-8")
-    landing_css = ROOT.joinpath("src/frontend/static/css/pages/site/the_sealed_world_landing.css").read_text(
+    landing_css = ROOT.joinpath("src/frontend/static/css/site/pages/the_sealed_world_landing.css").read_text(
         encoding="utf-8"
     )
 
@@ -301,12 +334,47 @@ def test_landing_rift_links_to_lobby_with_tooltip():
     assert "pointer-events: none;" in landing_css
 
 
+def test_landing_mobile_header_and_hero_contracts_are_explicit():
+    header_css = ROOT.joinpath("src/frontend/static/css/site/shell/header.css").read_text(encoding="utf-8")
+    landing_css = ROOT.joinpath("src/frontend/static/css/site/pages/the_sealed_world_landing.css").read_text(
+        encoding="utf-8"
+    )
+
+    assert "@media (max-width: 720px)" in header_css
+    assert ".site-account-label,\n  .site-account-caret" in header_css
+    assert "width: auto;" in header_css
+    assert "grid-template-columns: 1fr;" in header_css
+    assert "@media (max-width: 720px) and (orientation: portrait)" in landing_css
+    assert "@media (max-width: 900px) and (orientation: landscape)" in landing_css
+    assert "width: min(76vw, 340px);" in landing_css
+    assert "width: 132vw" not in landing_css
+
+
 def test_site_buttons_do_not_use_cut_corners():
-    buttons_css = ROOT.joinpath("src/frontend/static/css/components/common/buttons.css").read_text(encoding="utf-8")
+    buttons_css = ROOT.joinpath("src/frontend/static/css/site/components/buttons.css").read_text(encoding="utf-8")
 
     btn_node_block = buttons_css.split(".btn-node {", maxsplit=1)[1].split(".btn-node::before", maxsplit=1)[0]
     assert "clip-path" not in btn_node_block
     assert "border-radius: 2px;" in btn_node_block
+
+
+def test_site_css_does_not_use_legacy_app_or_game_component_entrypoints():
+    site_bundle = ROOT.joinpath("src/frontend/static/css/site_bundle.css").read_text(encoding="utf-8")
+    site_base = ROOT.joinpath("src/frontend/templates/site/base_site.html").read_text(encoding="utf-8")
+    cabinet_base = ROOT.joinpath("src/frontend/templates/site/base_cabinet.html").read_text(encoding="utf-8")
+
+    assert not ROOT.joinpath("src/frontend/static/css/app.css").exists()
+    assert not ROOT.joinpath("src/frontend/static/css/base.css").exists()
+    assert not ROOT.joinpath("src/frontend/static/css/pages/game.css").exists()
+    assert not ROOT.joinpath("src/frontend/static/css/pages/design_system.css").exists()
+    assert not ROOT.joinpath("src/frontend/templates/shared/styles.html").exists()
+
+    assert "/static/css/site.css" in site_base
+    assert "/static/css/cabinet.css" in cabinet_base
+    assert "/static/css/app.css" not in site_base
+    assert "/static/css/app.css" not in cabinet_base
+    assert "site/components/buttons.css" in site_bundle
+    assert "components/game/" not in site_bundle
 
 
 def test_guest_game_lobby_opens_auth_overlay_without_login_redirect():

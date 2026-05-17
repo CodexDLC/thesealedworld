@@ -17,10 +17,10 @@ FENCING_DB = {
         narrative_tags=["knife", "dagger", "fencing", "offhand", "swift"],
         implicit_bonuses={
             "accuracy_penalty": 0.03,
-            "physical_crit_chance": 0.10,
-            "parry_chance": 0.08,
+            "physical_crit_chance": 0.06,
+            "parry_chance": 0.02,
         },
-        triggers=["control.weapon_serrated_bleed_hit"],
+        triggers=["crit.weapon_flat_armor_gap_crit"],
     ),
     "dagger": BaseItemDTO(
         id="dagger",
@@ -38,10 +38,10 @@ FENCING_DB = {
         narrative_tags=["dagger", "fencing", "swift", "piercing"],
         implicit_bonuses={
             "accuracy_penalty": 0.04,
-            "physical_crit_chance": 0.12,
-            "parry_chance": 0.12,
+            "physical_crit_chance": 0.07,
+            "parry_chance": 0.025,
         },
-        triggers=["crit.weapon_serrated_bleed_crit"],
+        triggers=["crit.weapon_flat_armor_gap_crit"],
     ),
     "stiletto": BaseItemDTO(
         id="stiletto",
@@ -59,11 +59,11 @@ FENCING_DB = {
         narrative_tags=["stiletto", "dagger", "fencing", "piercing", "offhand"],
         implicit_bonuses={
             "accuracy_penalty": 0.05,
-            "physical_crit_chance": 0.13,
+            "physical_crit_chance": 0.075,
             "weapon_armor_penetration_pct": 0.10,
-            "parry_chance": 0.08,
+            "parry_chance": 0.02,
         },
-        triggers=["crit.weapon_piercing_crit"],
+        triggers=["crit.weapon_flat_armor_bypass_crit"],
     ),
     "rapier": BaseItemDTO(
         id="rapier",
@@ -80,8 +80,8 @@ FENCING_DB = {
         narrative_tags=["rapier", "fencing", "duelist", "precision"],
         implicit_bonuses={
             "accuracy_penalty": 0.05,
-            "physical_crit_chance": 0.11,
-            "parry_chance": 0.14,
+            "physical_crit_chance": 0.08,
+            "parry_chance": 0.035,
         },
         triggers=["crit.weapon_precision_crit"],
     ),
@@ -101,8 +101,8 @@ FENCING_DB = {
         narrative_tags=["main_gauche", "dagger", "fencing", "parry", "offhand"],
         implicit_bonuses={
             "accuracy_penalty": 0.06,
-            "physical_crit_chance": 0.08,
-            "parry_chance": 0.18,
+            "physical_crit_chance": 0.05,
+            "parry_chance": 0.10,
         },
         triggers=["parry.weapon_riposte_on_parry"],
     ),
@@ -122,11 +122,11 @@ FENCING_DB = {
         narrative_tags=["katar", "dagger", "fencing", "piercing", "unique"],
         implicit_bonuses={
             "accuracy_penalty": 0.08,
-            "physical_crit_chance": 0.14,
+            "physical_crit_chance": 0.085,
             "weapon_armor_penetration_pct": 0.12,
-            "parry_chance": 0.06,
+            "parry_chance": 0.02,
         },
-        triggers=["crit.weapon_piercing_crit"],
+        triggers=["crit.weapon_flat_armor_bypass_crit"],
     ),
 }
 

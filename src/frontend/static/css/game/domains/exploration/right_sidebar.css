@@ -1,0 +1,171 @@
+.exploration-info-dock {
+    gap: 8px;
+}
+
+.exploration-monster-card {
+    min-width: 0;
+    display: grid;
+    gap: 4px;
+    padding: 6px;
+    border: 1px solid rgba(255, 170, 0, 0.10);
+    background: rgba(0, 0, 0, 0.20);
+}
+
+.exploration-monster-card summary {
+    min-width: 0;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 8px;
+    cursor: pointer;
+    list-style: none;
+}
+
+.exploration-monster-card summary::-webkit-details-marker {
+    display: none;
+}
+
+.exploration-monster-card div {
+    min-width: 0;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 8px;
+}
+
+.exploration-minimap-card {
+    margin-top: auto;
+}
+
+.exploration-minimap {
+    min-width: 0;
+    display: grid;
+    gap: 8px;
+}
+
+.exploration-minimap-grid {
+    width: 100%;
+    aspect-ratio: 1 / 1;
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    grid-template-rows: repeat(5, minmax(0, 1fr));
+    gap: 3px;
+    padding: 6px;
+    border: 1px solid rgba(255, 170, 0, 0.18);
+    background:
+        linear-gradient(180deg, rgba(255, 170, 0, 0.05), rgba(0, 0, 0, 0.32)),
+        rgba(2, 2, 4, 0.48);
+}
+
+.exploration-minimap-cell {
+    min-width: 0;
+    min-height: 0;
+    display: grid;
+    place-items: center;
+    aspect-ratio: 1 / 1;
+    border: 1px solid rgba(255, 170, 0, 0.12);
+    background:
+        linear-gradient(135deg, rgba(255, 214, 118, 0.05), transparent 44%),
+        rgba(0, 0, 0, 0.34);
+    color: rgba(255, 214, 118, 0.56);
+    cursor: help;
+    font-family: var(--font-ui);
+    font-size: 9px;
+    font-weight: 800;
+    line-height: 1;
+    position: relative;
+}
+
+.exploration-minimap-cell.is-current {
+    border-color: color-mix(in srgb, var(--world-accent, var(--col-accent)) 58%, transparent);
+    background:
+        radial-gradient(circle, var(--world-accent-soft, rgba(255, 170, 0, 0.22)) 0, transparent 62%),
+        rgba(0, 0, 0, 0.52);
+    box-shadow:
+        inset 0 0 18px rgba(255, 170, 0, 0.16),
+        0 0 12px rgba(255, 170, 0, 0.14);
+}
+
+.exploration-minimap-cell.is-route-hint {
+    border-color: rgba(255, 170, 0, 0.22);
+    background:
+        linear-gradient(135deg, rgba(255, 170, 0, 0.08), transparent 54%),
+        rgba(0, 0, 0, 0.42);
+}
+
+.exploration-minimap-cell::after {
+    content: attr(data-map-tooltip);
+    position: absolute;
+    left: 50%;
+    bottom: calc(100% + 6px);
+    z-index: 5;
+    width: max-content;
+    max-width: 190px;
+    padding: 6px 8px;
+    border: 1px solid rgba(255, 170, 0, 0.26);
+    background: rgba(3, 3, 5, 0.96);
+    color: var(--col-parchment);
+    font-size: 8px;
+    font-weight: 800;
+    line-height: 1.25;
+    opacity: 0;
+    pointer-events: none;
+    text-align: center;
+    text-transform: uppercase;
+    transform: translate(-50%, 4px);
+    transition: opacity .12s ease, transform .12s ease;
+}
+
+.exploration-minimap-cell:hover,
+.exploration-minimap-cell:focus-visible {
+    border-color: color-mix(in srgb, var(--world-accent, var(--col-accent)) 54%, transparent);
+    outline: none;
+    box-shadow:
+        inset 0 0 14px rgba(255, 170, 0, 0.12),
+        0 0 10px rgba(255, 170, 0, 0.14);
+}
+
+.exploration-minimap-cell:hover::after,
+.exploration-minimap-cell:focus-visible::after {
+    opacity: 1;
+    transform: translate(-50%, 0);
+}
+
+.exploration-minimap-current-dot {
+    width: 34%;
+    aspect-ratio: 1 / 1;
+    display: block;
+    border: 1px solid rgba(255, 234, 176, 0.78);
+    background: var(--world-accent, var(--col-accent));
+    box-shadow: 0 0 14px rgba(255, 170, 0, 0.42);
+}
+
+.exploration-minimap-route-mark {
+    width: 24%;
+    aspect-ratio: 1 / 1;
+    display: block;
+    border: 1px solid rgba(255, 170, 0, 0.28);
+    background: rgba(255, 170, 0, 0.16);
+}
+
+.exploration-minimap-caption {
+    min-width: 0;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 8px;
+    align-items: center;
+    color: var(--col-parchment-dim);
+    font-family: var(--font-ui);
+    font-size: 8px;
+    line-height: 1.25;
+}
+
+.exploration-minimap-caption span {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.exploration-minimap-caption strong {
+    color: color-mix(in srgb, var(--world-accent, var(--col-accent)) 72%, #fff);
+    font-size: 8px;
+}

@@ -27,6 +27,7 @@ from src.frontend.core.middleware import AuthUserMiddleware, SiteAnalyticsMiddle
 from src.frontend.core.renderer import get_ui_renderer
 from src.frontend.core.routing import include_frontend_routers
 from src.frontend.features.auth.token_state import ACCESS_COOKIE_NAME, REFRESH_COOKIE_NAME
+from src.frontend.features.cabinet.middleware.admin_auth import AdminAuthMiddleware
 from src.frontend.game_features.game_menu import GameMenuMiddleware
 from src.frontend.game_features.session.cookies import clear_active_character_cookie
 from src.frontend.game_features.session.middleware import GameTokenRefreshMiddleware
@@ -120,15 +121,24 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+# Mount generated assets before the broad /static mount so runtime files are not looked up in src/frontend/static.
+settings.generated_assets_dir.mkdir(parents=True, exist_ok=True)
+app.mount(
+    "/static/generated-assets",
+    StaticFiles(directory=str(settings.generated_assets_dir)),
+    name="generated_assets",
+)
+
 # Mount static files
 app.mount("/static", StaticFiles(directory=str(settings.static_dir)), name="static")
 
+app.add_middleware(AdminAuthMiddleware)
 app.add_middleware(AuthUserMiddleware)
 app.add_middleware(SiteAnalyticsMiddleware)
 app.add_middleware(GameMenuMiddleware)
 app.add_middleware(GameTokenRefreshMiddleware)
 include_frontend_routers(app)
-include_cabinet(app, modules=CABINET_MODULES, mount_path="/cabinet")
+include_cabinet(app, modules=CABINET_MODULES, mount_path="/admin")
 
 
 @app.get("/health")

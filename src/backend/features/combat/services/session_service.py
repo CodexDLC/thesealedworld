@@ -67,6 +67,7 @@ class CombatSessionService:
         actors = await self.store.get_actors_batch(combat_id, actor_ids)
         targets = await self._get_targets(combat_id)
         moves = await self.store.get_moves_batch(combat_id, actor_ids)
+        await self._seed_initial_ai_turns(combat_id, char_id, meta=meta, actors=actors, targets=targets, moves=moves)
         all_logs_by_turn = await self._get_logs_by_turn(combat_id)
         raw_logs_by_turn = dict(list(all_logs_by_turn.items())[-LOG_PAGE_SIZE:])
         total_logs = len(all_logs_by_turn)
@@ -82,6 +83,34 @@ class CombatSessionService:
             raw_logs_by_turn=raw_logs_by_turn,
             total_logs=total_logs,
         )
+
+    async def _seed_initial_ai_turns(
+        self,
+        session_id: str,
+        viewer_id: int,
+        *,
+        meta: dict[str, Any],
+        actors: dict[str, Any],
+        targets: dict[str, list[Any]],
+        moves: dict[str, Any],
+    ) -> None:
+        seeded = await self.store.seed_initial_ai_turns_on_dashboard(
+            session_id=session_id,
+            viewer_id=viewer_id,
+            meta=meta,
+            actors=actors,
+            targets=targets,
+            moves=moves,
+        )
+        if not seeded:
+            return
+        signal = CollectorSignalDTO(
+            session_id=session_id,
+            char_id=normalize_actor_id(viewer_id),
+            signal_type="heartbeat",
+            move_id="initial_ai_seed",
+        )
+        await self.arq.enqueue_job("combat_collector_task", signal.model_dump(mode="json"))
 
     async def register_move(
         self,
@@ -231,6 +260,8 @@ class CombatSessionService:
 
     async def continue_result(self, char_id: int) -> StateTransitionDTO:
         combat_id = await self._resolve_finalization_id(char_id)
+        post_resolver = getattr(self.system_integrator, "resolve_post_combat_for_character", None)
+        post_combat = await post_resolver(char_id) if post_resolver is not None else None
         target = await self.system_integrator.complete_combat_session_return(char_id, combat_id=combat_id)
         target_state = self._core_domain(target)
         return StateTransitionDTO(
@@ -238,6 +269,7 @@ class CombatSessionService:
             target_state=target_state,
             reason="combat_result_continued",
             combat_id=combat_id,
+            metadata={"post_combat": post_combat} if post_combat else None,
         )
 
     async def get_history(self, char_id: int, *, session_id: str | None = None) -> CombatLogDTO:

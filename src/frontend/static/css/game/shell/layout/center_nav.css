@@ -1,0 +1,102 @@
+/* ── CENTER GAME NAV ── */
+.center-nav {
+    display: flex;
+    align-items: stretch;
+    height: 100%;
+    background: transparent;
+    gap: 0;
+    min-width: 0;
+}
+
+.cnav-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    min-width: 72px;
+    height: 100%;
+    padding: 0 16px;
+    border: none;
+    border-left: 1px solid rgba(255, 170, 0, 0.11);
+    background: rgba(255, 170, 0, 0.018);
+    color: rgba(255, 190, 64, 0.58);
+    cursor: pointer;
+    font-family: var(--font-ui);
+    font-size: 8px;
+    letter-spacing: 0.12em;
+    line-height: 1;
+    position: relative;
+    text-shadow: 0 0 8px rgba(255, 170, 0, 0.18);
+    transition: background 0.2s, color 0.2s;
+    user-select: none;
+}
+
+.cnav-btn:last-child {
+    border-right: 1px solid rgba(255, 170, 0, 0.11);
+}
+
+.game-menu-icon {
+    display: block;
+    width: 18px;
+    height: 18px;
+    flex: 0 0 auto;
+    background: currentColor;
+    opacity: 0.7;
+    mask: var(--game-menu-icon-url) center / contain no-repeat;
+    -webkit-mask: var(--game-menu-icon-url) center / contain no-repeat;
+    filter: drop-shadow(0 0 5px rgba(255, 170, 0, 0.18));
+    transition: opacity 0.2s, filter 0.2s;
+}
+
+.cnav-btn:hover {
+    background: rgba(255, 170, 0, 0.06);
+    color: rgba(255, 198, 86, 0.88);
+}
+
+.cnav-btn:hover .game-menu-icon {
+    opacity: 0.92;
+}
+
+.cnav-btn.active {
+    background: rgba(255, 170, 0, 0.07);
+    color: var(--col-accent);
+}
+
+.cnav-btn.active .game-menu-icon {
+    opacity: 1;
+}
+
+.cnav-btn.is-disabled {
+    background: rgba(255, 170, 0, 0.01);
+    color: rgba(255, 170, 0, 0.18);
+    cursor: default;
+    pointer-events: none;
+    text-shadow: none;
+}
+
+.cnav-btn.is-disabled .game-menu-icon {
+    filter: none;
+    opacity: 0;
+}
+
+.game-menu-icon--empty {
+    background: transparent;
+    mask: none;
+    -webkit-mask: none;
+}
+
+.cnav-btn.active::after {
+    content: "";
+    position: absolute;
+    right: 10%;
+    bottom: 0;
+    left: 10%;
+    height: 2px;
+    background: var(--col-accent);
+    box-shadow: 0 0 8px rgba(255, 170, 0, 0.6);
+}
+
+.cnav-btn--explore {
+    min-width: 82px;
+}

@@ -58,12 +58,23 @@ async def game_lobby_status(
     return await lobby_service.get_status(request, char_id)
 
 
+@router.get("/api/game-lobby/name-availability", name="api_game_lobby_name_availability")
+async def game_lobby_name_availability(
+    request: Request,
+    auth_service: Annotated[FrontendAuthService, Depends(get_frontend_auth_service)],
+    lobby_service: Annotated[GameLobbyPageService, Depends(get_game_lobby_page_service)],
+    name: str,
+):
+    user = await auth_service.require_current_user(request)
+    return await lobby_service.check_name_availability(user, name)
+
+
 @router.post("/game-lobby/start", name="game_lobby_start")
 async def game_lobby_start(
     request: Request,
     auth_service: Annotated[FrontendAuthService, Depends(get_frontend_auth_service)],
     lobby_service: Annotated[GameLobbyPageService, Depends(get_game_lobby_page_service)],
-    name: Annotated[str, Form(min_length=1, max_length=32)],
+    name: Annotated[str, Form(min_length=3, max_length=16)],
     gender: Annotated[CharacterCreationGender, Form()],
 ):
     user = await auth_service.require_current_user(request)
@@ -110,7 +121,7 @@ async def game_lobby_delete(
     auth_service: Annotated[FrontendAuthService, Depends(get_frontend_auth_service)],
     lobby_service: Annotated[GameLobbyPageService, Depends(get_game_lobby_page_service)],
     character_id: Annotated[int, Form()],
-    confirm_name: Annotated[str, Form(min_length=1, max_length=32)],
+    confirm_name: Annotated[str, Form(min_length=3, max_length=16)],
 ):
     user = await auth_service.require_current_user(request)
     response = await lobby_service.delete(

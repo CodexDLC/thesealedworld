@@ -13,12 +13,12 @@ from src.backend.features.monsters.integrations.item_generation import (
     to_item_generation_requests,
 )
 from src.backend.features.monsters.resources import get_family_config
+from src.backend.features.monsters.resources.visuals import build_member_visual
 from src.backend.features.monsters.runtime.combat_actor_input import MonsterCombatActorInputBuilder
 from src.backend.features.monsters.runtime.generation_fields import (
     build_generated_monster_template,
     build_member_tier,
 )
-from src.backend.features.monsters.resources.visuals import build_member_visual
 
 if TYPE_CHECKING:
     from src.backend.features.items.dto.instance import RuntimeItemProjectionDTO
@@ -117,6 +117,7 @@ class AnchorProjectionBootstrapService:
                     "source": "anchor_projection_bootstrap",
                     "meta": template.meta.model_dump(mode="json"),
                     "balance": template.balance.model_dump(mode="json"),
+                    "family_modifiers": template.family_modifiers,
                     "visual": build_member_visual(
                         family.id,
                         variant_key=variant.id,
@@ -132,25 +133,46 @@ class AnchorProjectionBootstrapService:
     async def _build_runtime_items(
         self, family: MonsterFamilyDTO, variants: list[MonsterVariantDTO]
     ) -> list[RuntimeItemProjectionDTO]:
+        from src.backend.features.monsters.resources.equipment_mapping import NATURAL_EQUIPMENT_MAPPINGS
+
         requests = []
         for variant in variants:
             member_tier = build_member_tier(7, variant)
-            for slot, base_id in variant.fixed_loadout.model_dump(exclude_none=True).items():
-                requests.append(
-                    build_monster_item_request(
-                        owner_key=variant.id,
-                        family_id=family.id,
-                        member_role=variant.role,
-                        member_tier=member_tier,
-                        slot=slot,
-                        base_id=str(base_id),
-                        item_kind=self._item_kind(slot, str(base_id)),
-                        item_grade="artifact",
-                        rarity_tier=7,
-                        seed=f"{ANCHOR_PROJECTION_UNIQUE_HASH}:{variant.id}:{slot}",
-                        source_context={"variant_key": variant.id, "slot": slot},
+            for slot, equipment_key in variant.fixed_loadout.model_dump(exclude_none=True).items():
+                key = str(equipment_key)
+                if key == "shield":
+                    continue  # abstract slot — no item to generate
+                if key in NATURAL_EQUIPMENT_MAPPINGS:
+                    requests.append(
+                        build_monster_item_request(
+                            owner_key=variant.id,
+                            family_id=family.id,
+                            member_role=variant.role,
+                            member_tier=member_tier,
+                            slot=slot,
+                            natural_key=key,
+                            item_grade="artifact",
+                            rarity_tier=7,
+                            seed=f"{ANCHOR_PROJECTION_UNIQUE_HASH}:{variant.id}:{slot}",
+                            source_context={"variant_key": variant.id, "slot": slot},
+                        )
                     )
-                )
+                else:
+                    requests.append(
+                        build_monster_item_request(
+                            owner_key=variant.id,
+                            family_id=family.id,
+                            member_role=variant.role,
+                            member_tier=member_tier,
+                            slot=slot,
+                            base_id=key,
+                            item_kind=self._item_kind(slot, key),
+                            item_grade="artifact",
+                            rarity_tier=7,
+                            seed=f"{ANCHOR_PROJECTION_UNIQUE_HASH}:{variant.id}:{slot}",
+                            source_context={"variant_key": variant.id, "slot": slot},
+                        )
+                    )
         return list(await self.item_generation.generate_runtime_projections(to_item_generation_requests(requests)))
 
     async def _cache_snapshots(self, snapshots: dict[str, dict[str, Any]]) -> None:

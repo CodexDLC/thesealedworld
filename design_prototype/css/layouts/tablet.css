@@ -1,5 +1,0 @@
-/* Tablet-specific prototype layout overrides.
-   Use this for 768-1024 split experiments only. */
-.prototype-board--tablet {
-    --prototype-current-form: tablet;
-}

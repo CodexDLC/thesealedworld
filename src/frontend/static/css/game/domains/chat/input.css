@@ -1,0 +1,90 @@
+.chat-input-row {
+    padding: var(--sp-2) var(--sp-3);
+    background:
+        linear-gradient(90deg, var(--chat-accent-soft), transparent 42%),
+        var(--chat-input-fill);
+    border-top: 1px solid var(--chat-accent-border);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+}
+
+#chat-prompt {
+    color: var(--chat-accent);
+    font-size: 14px;
+    font-family: var(--font-mono);
+}
+
+#chat-input {
+    flex: 1;
+    min-width: 0;
+    background: transparent;
+    border: none;
+    color: var(--col-parchment);
+    font-size: 12px;
+    padding: 8px 0;
+    font-family: var(--font-mono);
+}
+
+@media (max-width: 1024px) {
+    .game-chat-row {
+        width: min(100%, calc(100vw - 16px));
+        max-height: calc(100dvh - var(--game-header-height, 40px) - var(--game-footer-height, 24px) - 24px);
+    }
+
+    .chat-users {
+        width: 190px;
+        min-width: 160px;
+    }
+}
+
+@media (max-width: 767px) {
+    .game-chat-row {
+        width: 100%;
+        max-height: calc(100dvh - var(--game-header-height, 40px) - var(--game-footer-height, 30px) - 16px);
+    }
+
+    .chat-users {
+        display: none;
+    }
+
+    .chat-log {
+        padding: var(--sp-3);
+    }
+}
+
+@media (max-width: 500px) {
+    .game-chat-row {
+        max-height: min(46vh, calc(100dvh - var(--game-header-height, 40px) - var(--game-footer-height, 30px) - 12px));
+    }
+
+    .chat-tabs {
+        gap: 8px;
+        padding-inline: var(--sp-2);
+    }
+
+}
+
+#chat-input:focus {
+    outline: none;
+}
+
+#chat-send {
+    background: transparent;
+    border: none;
+    color: var(--chat-accent);
+    cursor: pointer;
+    opacity: 0.5;
+    transition: opacity 0.2s;
+}
+
+#chat-send:hover {
+    opacity: 1;
+}
+
+
+.chat-log::-webkit-scrollbar { width: 4px; }
+.chat-log::-webkit-scrollbar-track { background: rgba(0,0,0,0.1); }
+.chat-log::-webkit-scrollbar-thumb { background: rgba(255,170,0,0.1); }
+.chat-log::-webkit-scrollbar-thumb:hover { background: rgba(255,170,0,0.3); }

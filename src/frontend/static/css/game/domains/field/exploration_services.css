@@ -1,0 +1,70 @@
+.mobile-services {
+    min-height: 0;
+    display: grid;
+    gap: 6px;
+    padding-top: 2px;
+    border-top: 1px solid rgba(255, 170, 0, 0.34);
+}
+
+.mobile-services[hidden] {
+    display: none;
+}
+
+.mobile-services-summary {
+    min-height: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    color: rgba(210, 180, 140, 0.58);
+    font-family: var(--font-ui);
+    font-size: 8px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    cursor: pointer;
+}
+
+.mobile-services-summary::-webkit-details-marker {
+    display: none;
+}
+
+.mobile-service-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 6px;
+}
+
+.mobile-service-tile {
+    --exploration-button-texture: url("/static/images/ui/textures/button-candidates/button-surface-01-dark-wood.webp");
+    min-height: 50px;
+    display: grid;
+    grid-template-columns: 34px minmax(0, 1fr);
+    align-items: center;
+    gap: 8px;
+    padding: 7px;
+    border: 1px solid rgba(255, 170, 0, 0.24);
+    background:
+        linear-gradient(90deg, rgba(255, 170, 0, 0.08), rgba(5, 5, 7, 0.64)),
+        var(--exploration-button-texture) center / cover,
+        rgba(5, 5, 7, 0.70);
+    color: var(--col-accent);
+    font-family: var(--font-world);
+    font-size: 13px;
+    font-weight: 700;
+}
+
+.mobile-service-tile.is-reversed {
+    grid-template-columns: minmax(0, 1fr) 34px;
+}
+
+.mobile-service-tile.is-reversed .mobile-service-icon {
+    order: 2;
+}
+
+.mobile-service-icon {
+    width: 28px;
+    height: 28px;
+    border: 1px solid rgba(255, 170, 0, 0.22);
+    background: var(--col-accent);
+    mask: var(--service-icon-url) center / 18px 18px no-repeat;
+    -webkit-mask: var(--service-icon-url) center / 18px 18px no-repeat;
+}

@@ -1,0 +1,43 @@
+<article class="combat-exchange-card combat-exchange-card--{{ exchange.pair_status }}">
+    {% set target_exchange = combat_screen.target_exchange_turn %}
+    <header class="combat-exchange-head">
+        <strong>{{ exchange.title }}</strong>
+        <span>{{ exchange.pair_status|upper }} // {{ exchange.opponent_response_state|upper }}</span>
+    </header>
+    {% if target_exchange and target_exchange.lines %}
+        <section class="combat-exchange-wave" aria-label="Latest target exchange log">
+            <div class="combat-exchange-wave__head">
+                <span>{{ target_exchange.title }}</span>
+                <b>{{ target_exchange.lines|length }}</b>
+            </div>
+            <div class="combat-exchange-wave__lines">
+                {% for line in target_exchange.lines %}
+                    {% set source_id = line.source.id if line.source else none %}
+                    {% set target_id = line.target.id if line.target else none %}
+                    <div class="combat-exchange-wave__line combat-exchange-wave__line--{{ line.severity }}{% if source_id|string == char_id|string %} is-player-source{% elif target_id|string == char_id|string %} is-player-target{% endif %}">
+                        {% if line.icon_url %}
+                            <img class="combat-log-icon" src="{{ line.icon_url }}" alt="">
+                        {% endif %}
+                        <span>{{ line.text }}</span>
+                    </div>
+                {% endfor %}
+            </div>
+        </section>
+    {% else %}
+        <p class="combat-exchange-summary">{{ exchange.summary_text }}</p>
+    {% endif %}
+    <div class="combat-battle-log" aria-label="Full combat log">
+        {% set combat_log_panel_id = "combat-battle-log-panel" %}
+        {% set combat_log_label = "BATTLE LOG" %}
+        {% set combat_log_turns = combat_screen.log_turns %}
+        {% set combat_log_entries = [] %}
+        {% set combat_log_page = combat_screen.log_page %}
+        {% set combat_log_page_size = combat_screen.log_page_size %}
+        {% set combat_log_total = combat_screen.log_total %}
+        {% set combat_log_total_pages = combat_screen.log_total_pages %}
+        {% set combat_log_pages = combat_screen.log_pages %}
+        {% set combat_log_embedded = true %}
+        {% set combat_log_show_size_control = false %}
+        {% include "game/domains/combat/viewport/log_panel.html" %}
+    </div>
+</article>

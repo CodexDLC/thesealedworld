@@ -1,15 +1,10 @@
-import asyncio
 import logging
-import re
 from collections.abc import Iterable
 from typing import Any
 
-from src.backend.core.ai import AIService
-from src.backend.core.ai_json import parse_ai_json_mapping, parse_ai_json_model
-from src.backend.features.world.dto.ai import WorldLocationBatchResponseDTO, WorldZoneLoreDTO
+from src.backend.features.generation_ai import GenerationAIService
 from src.backend.features.world.integrations import WorldDataIntegration
 from src.backend.features.world.loaders.village_loader import VillageLoader
-from src.backend.features.world.prompts import build_batch_location_desc_prompt, build_zone_lore_prompt
 from src.backend.features.world.resources.static.start_village import STATIC_LOCATIONS
 from src.backend.features.world.runtime.config import HUB_CENTER, REGION_ROWS, REGION_SIZE, ZONE_SIZE
 from src.backend.features.world.runtime.geography import WorldGeographyService
@@ -17,12 +12,14 @@ from src.backend.features.world.runtime.profiles import build_region_profile, bu
 from src.backend.features.world.runtime.theme import WorldThemeService
 from src.backend.features.world.runtime.threat import ThreatService
 from src.backend.features.world.services.navigation_service import WorldNavigationService
+from src.backend.features.world.tasks_ai import (
+    build_world_location_batch_task_spec,
+    build_world_zone_lore_task_spec,
+)
 
 log = logging.getLogger(__name__)
 
 D4_CONTENT_BATCH_SIZE = 5
-D4_CONTENT_RETRY_DELAYS_SECONDS = (2.0, 6.0, 15.0)
-ZONE_LORE_RETRY_DELAYS_SECONDS = (2.0, 6.0)
 D4_FALLBACK_TITLE = "Руины Старой Столицы"
 D4_FALLBACK_DESCRIPTION = (
     "Мертвый квартал древней столицы. Координата описывает не размер, а отдельную "
@@ -30,15 +27,6 @@ D4_FALLBACK_DESCRIPTION = (
 )
 
 
-class WorldAIQuotaExhaustedError(RuntimeError):
-    """Raised when the LLM provider tells us to stop AI enrichment for now."""
-
-    def __init__(self, message: str, *, retry_after_seconds: float | None = None) -> None:
-        super().__init__(message)
-        self.retry_after_seconds = retry_after_seconds
-
-
-AI_QUOTA_ERROR_MARKERS = ("429", "RESOURCE_EXHAUSTED", "RATE_LIMIT")
 D4_NARRATIVE_CONTEXT = (
     "D4 is the ruined former capital around the protected city hub. Treat city_ruins here as old capital outskirts, "
     "collapsed districts, sealed roads, monolith walls, and scavenged streets around a safe portal-shielded center."
@@ -170,10 +158,10 @@ D4_CORNER_ZONE_TAGS: dict[str, list[str]] = {
 class LLMWorldGenerator:
     """Orchestrates world generation using static loaders and AI-driven content."""
 
-    def __init__(self, data: WorldDataIntegration, ai: AIService | None) -> None:
+    def __init__(self, data: WorldDataIntegration, generation_ai: GenerationAIService | None = None) -> None:
         self.data = data
         self.village_loader = VillageLoader(data)
-        self.ai = ai
+        self.generation_ai = generation_ai
 
     async def run(self, mode: str = "test") -> None:
         """Runs the generation process.
@@ -195,18 +183,10 @@ class LLMWorldGenerator:
             await self._generate_d4_capital()
             await self.village_loader.load_village(STATIC_LOCATIONS)
 
-        if self.ai and run_ai_enrichment:
+        if self.generation_ai and run_ai_enrichment:
             await self.data.commit()
-            log.info("World fallback seed committed before AI enrichment")
-            try:
-                await self._enrich_zone_with_ai("D4_1_1")
-                await self._enrich_d4_capital_nodes_with_ai()
-            except WorldAIQuotaExhaustedError as exc:
-                log.warning(
-                    "World AI enrichment paused by provider quota; retry_after_seconds=%s error=%s",
-                    exc.retry_after_seconds,
-                    exc,
-                )
+            log.info("World fallback seed committed before AI task enqueue")
+            await self._enqueue_world_ai_tasks()
 
     async def _generate_d4_capital(self) -> None:
         """Generate the first playable territory: D4 old capital, 15x15 nodes."""
@@ -517,10 +497,29 @@ class LLMWorldGenerator:
             "flags": flags,
         }
 
-    async def _enrich_d4_capital_nodes_with_ai(self) -> None:
-        """Generate D4 node titles/descriptions using typed district batches."""
-        if not self.ai:
+    async def _enqueue_world_ai_tasks(self) -> None:
+        if self.generation_ai is None:
             return
+
+        specs = []
+        zone = await self.data.get_zone("D4_1_1")
+        if zone is not None:
+            specs.append(build_world_zone_lore_task_spec(zone))
+        specs.extend(await self._build_d4_location_batch_task_specs())
+        if not specs:
+            return
+
+        result = await self.generation_ai.enqueue_many(specs)
+        log.info(
+            "World AI tasks enqueued: batch=%s created=%d reused=%d scheduled=%d",
+            result.batch_id,
+            result.created,
+            result.reused,
+            result.scheduled,
+        )
+
+    async def _build_d4_location_batch_task_specs(self) -> list:
+        """Build async tasks for D4 node titles/descriptions using typed district batches."""
 
         min_x = (4 - 1) * REGION_SIZE
         min_y = REGION_ROWS.index("D") * REGION_SIZE
@@ -528,6 +527,7 @@ class LLMWorldGenerator:
         node_map = {(node.x, node.y): node for node in nodes}
         payload_items_by_district: dict[str, list[dict[str, Any]]] = {}
         static_coords = set(STATIC_LOCATIONS)
+        specs = []
 
         for x in range(min_x, min_x + REGION_SIZE):
             for y in range(min_y, min_y + REGION_SIZE):
@@ -564,113 +564,8 @@ class LLMWorldGenerator:
 
         for district_key in sorted(payload_items_by_district):
             for batch in self._chunks(payload_items_by_district[district_key], D4_CONTENT_BATCH_SIZE):
-                result_map = await self._request_location_batch_with_retries(batch)
-                if not result_map:
-                    await self._mark_location_batch_ai_status(batch, "fallback")
-                    continue
-
-                result_map = self._filter_complete_location_batch(result_map, batch)
-                if not result_map:
-                    await self._mark_location_batch_ai_status(batch, "fallback")
-                    continue
-
-                await self._save_location_batch_content(batch, result_map)
-
-    async def _request_location_batch_with_retries(self, batch: list[dict[str, Any]]) -> dict[str, dict[str, str]] | None:
-        for attempt, delay in enumerate((*D4_CONTENT_RETRY_DELAYS_SECONDS, 0.0), start=1):
-            try:
-                assert self.ai is not None
-                response = await self.ai.generate_json(
-                    build_batch_location_desc_prompt(batch),
-                    schema=WorldLocationBatchResponseDTO,
-                )
-            except Exception as exc:
-                if self._is_ai_quota_error(exc):
-                    retry_after = self._extract_retry_after_seconds(exc)
-                    await self._mark_location_batch_ai_status(batch, "quota_exhausted")
-                    raise WorldAIQuotaExhaustedError(
-                        "World location AI quota exhausted",
-                        retry_after_seconds=retry_after,
-                    ) from exc
-
-                log.warning(
-                    "World AI location batch failed; attempt=%d/%d first_id=%s error=%s",
-                    attempt,
-                    len(D4_CONTENT_RETRY_DELAYS_SECONDS) + 1,
-                    batch[0]["id"] if batch else "<empty>",
-                    exc,
-                )
-                if delay:
-                    await asyncio.sleep(delay)
-                continue
-
-            result_map = self._parse_location_batch_response(response)
-            if not result_map:
-                log.warning(
-                    "World AI location batch returned invalid JSON; attempt=%d/%d first_id=%s",
-                    attempt,
-                    len(D4_CONTENT_RETRY_DELAYS_SECONDS) + 1,
-                    batch[0]["id"] if batch else "<empty>",
-                )
-                if delay:
-                    await asyncio.sleep(delay)
-                continue
-            return result_map
-
-        return None
-
-    async def _save_location_batch_content(self, batch: list[dict[str, Any]], result_map: dict[str, Any]) -> None:
-        for loc_id, text_data in result_map.items():
-            try:
-                x, y = map(int, loc_id.split("_"))
-            except ValueError:
-                continue
-
-            original_item = next((item for item in batch if item["id"] == loc_id), None)
-            if original_item is None or not isinstance(text_data, dict):
-                continue
-
-            updated = await self.data.update_content(
-                x,
-                y,
-                {
-                    "title": text_data.get("title") or D4_FALLBACK_TITLE,
-                    "description": text_data.get("description") or "...",
-                    "environment_tags": original_item["tags"],
-                },
-            )
-            if updated:
-                await self.data.update_flags(x, y, {"ai_content_status": "generated"})
-
-    async def _mark_location_batch_ai_status(self, batch: list[dict[str, Any]], status: str) -> None:
-        for item in batch:
-            try:
-                x, y = map(int, item["id"].split("_"))
-            except (KeyError, ValueError):
-                continue
-            await self.data.update_flags(x, y, {"ai_content_status": status})
-
-    @staticmethod
-    def _filter_complete_location_batch(
-        result_map: dict[str, dict[str, str]], batch: list[dict[str, Any]]
-    ) -> dict[str, dict[str, str]] | None:
-        expected_ids = {item["id"] for item in batch}
-        actual_ids = set(result_map)
-        missing_ids = expected_ids - actual_ids
-        extra_ids = actual_ids - expected_ids
-
-        if missing_ids:
-            log.warning("World AI location batch missing ids: %s", sorted(missing_ids))
-            return None
-        if extra_ids:
-            log.warning("World AI location batch returned extra ids: %s", sorted(extra_ids))
-
-        filtered = {loc_id: result_map[loc_id] for loc_id in expected_ids if isinstance(result_map.get(loc_id), dict)}
-        invalid_ids = expected_ids - set(filtered)
-        if invalid_ids:
-            log.warning("World AI location batch returned invalid entries: %s", sorted(invalid_ids))
-            return None
-        return filtered
+                specs.append(build_world_location_batch_task_spec(batch=batch, district_key=district_key))
+        return specs
 
     def _collect_location_tags(self, *, x: int, y: int, node: Any, chunk_start_x: int, chunk_start_y: int) -> list[str]:
         content = node.content if isinstance(node.content, dict) else {}
@@ -784,41 +679,6 @@ class LLMWorldGenerator:
         if abs(x - HUB_CENTER["x"]) <= 7 and abs(y - HUB_CENTER["y"]) <= 7:
             hints.append("Неподалеку виднеется Шпиль Хаба.")
         return list(dict.fromkeys(hints))
-
-    @staticmethod
-    def _parse_ai_json_map(raw_response: Any) -> dict[str, Any] | None:
-        return parse_ai_json_mapping(raw_response, context="world")
-
-    @staticmethod
-    def _parse_location_batch_response(raw_response: Any) -> dict[str, dict[str, str]] | None:
-        parsed = parse_ai_json_model(raw_response, WorldLocationBatchResponseDTO, context="world.location_batch")
-        if parsed is None:
-            return None
-        return {
-            item.id: {
-                "title": item.title,
-                "description": item.description,
-            }
-            for item in parsed.locations
-        }
-
-    @staticmethod
-    def _is_ai_quota_error(exc: Exception) -> bool:
-        text = str(exc).upper()
-        return any(marker in text for marker in AI_QUOTA_ERROR_MARKERS)
-
-    @staticmethod
-    def _extract_retry_after_seconds(exc: Exception) -> float | None:
-        text = str(exc)
-        patterns = (
-            r"retryDelay['\"]?\s*:\s*['\"]?(\d+(?:\.\d+)?)s",
-            r"Please retry in (\d+(?:\.\d+)?)s",
-        )
-        for pattern in patterns:
-            match = re.search(pattern, text, flags=re.IGNORECASE)
-            if match:
-                return float(match.group(1))
-        return None
 
     @staticmethod
     def _preserve_existing_d4_content(node: dict[str, Any], existing_node: Any | None) -> None:
@@ -999,9 +859,11 @@ class LLMWorldGenerator:
             nx = x + dx
             ny = y + dy
             if nx < min_x or nx > max_x or ny < min_y or ny > max_y:
-                if is_outer_gate and self._d4_gate_direction(
-                    x=x, y=y, min_x=min_x, min_y=min_y, max_x=max_x, max_y=max_y
-                ) == direction:
+                if (
+                    is_outer_gate
+                    and self._d4_gate_direction(x=x, y=y, min_x=min_x, min_y=min_y, max_x=max_x, max_y=max_y)
+                    == direction
+                ):
                     allowed.add(direction)
                 continue
 
@@ -1021,7 +883,59 @@ class LLMWorldGenerator:
             ):
                 allowed.add(direction)
 
+        if not is_outer_gate and not self._is_d4_hub_node(x, y):
+            allowed = self._d4_limit_allowed_directions(
+                x=x,
+                y=y,
+                mid_x=mid_x,
+                mid_y=mid_y,
+                road_cells=road_cells,
+                allowed=allowed,
+            )
+
         return [direction for direction in WorldNavigationService.DIRECTIONS if direction not in allowed]
+
+    @staticmethod
+    def _d4_limit_allowed_directions(
+        *,
+        x: int,
+        y: int,
+        mid_x: int,
+        mid_y: int,
+        road_cells: set[tuple[int, int]],
+        allowed: set[str],
+    ) -> set[str]:
+        if len(allowed) <= 3:
+            return allowed
+
+        protected: set[str] = set()
+        is_road = (x, y) in road_cells
+        if is_road and x == mid_x:
+            protected.update({"north", "south"} & allowed)
+        if is_road and y == mid_y:
+            protected.update({"west", "east"} & allowed)
+
+        if is_road and x == mid_x:
+            drop_order = ("west", "east") if y % 2 else ("east", "west")
+        elif is_road and y == mid_y:
+            drop_order = ("north", "south") if x % 2 else ("south", "north")
+        elif x % 3 == 1:
+            drop_order = ("west", "east") if y % 2 else ("east", "west")
+        else:
+            drop_order = ("north", "south") if x % 2 else ("south", "north")
+
+        for direction in (*drop_order, "north", "south", "west", "east"):
+            if len(allowed) <= 3:
+                break
+            if direction in allowed and direction not in protected:
+                allowed.remove(direction)
+
+        if len(allowed) > 3:
+            for direction in ("north", "south", "west", "east"):
+                if len(allowed) <= 3:
+                    break
+                allowed.discard(direction)
+        return allowed
 
     @staticmethod
     def _d4_edge_is_open(
@@ -1139,62 +1053,3 @@ class LLMWorldGenerator:
                             },
                         )
         log.info("World shell (regions/zones) generated.")
-
-    async def _enrich_zone_with_ai(self, zone_id: str) -> None:
-        """Uses LLM to enrich zone lore and node descriptions."""
-        zone = await self.data.get_zone(zone_id)
-        if not zone or not self.ai:
-            return
-
-        log.info("Enriching zone %s with AI lore...", zone_id)
-        for attempt, delay in enumerate((*ZONE_LORE_RETRY_DELAYS_SECONDS, 0.0), start=1):
-            try:
-                lore = await self.ai.generate_json(
-                    build_zone_lore_prompt(
-                        region_id=zone.region_id,
-                        biome_id=zone.biome_id,
-                        tier=zone.tier,
-                        narrative_context=(
-                            (zone.flags or {}).get("narrative_context") if isinstance(zone.flags, dict) else None
-                        ),
-                    ),
-                    schema=WorldZoneLoreDTO,
-                )
-            except Exception as exc:
-                if self._is_ai_quota_error(exc):
-                    raise WorldAIQuotaExhaustedError(
-                        f"World zone lore AI quota exhausted for {zone_id}",
-                        retry_after_seconds=self._extract_retry_after_seconds(exc),
-                    ) from exc
-
-                log.warning(
-                    "Zone lore AI request failed; zone=%s attempt=%d/%d error=%s",
-                    zone_id,
-                    attempt,
-                    len(ZONE_LORE_RETRY_DELAYS_SECONDS) + 1,
-                    exc,
-                )
-                if delay:
-                    await asyncio.sleep(delay)
-                continue
-
-            if not lore:
-                log.warning(
-                    "Zone lore AI response is empty or invalid JSON; zone=%s attempt=%d/%d",
-                    zone_id,
-                    attempt,
-                    len(ZONE_LORE_RETRY_DELAYS_SECONDS) + 1,
-                )
-                if delay:
-                    await asyncio.sleep(delay)
-                continue
-
-            if not isinstance(lore, WorldZoneLoreDTO):
-                lore = WorldZoneLoreDTO.model_validate(lore)
-            lore_name = lore.name
-            lore_background = lore.background
-            await self.data.save_zone_lore(zone, lore_name=lore_name, lore_background=lore_background)
-            log.info("AI Lore generated for %s: %s", zone_id, lore_name)
-            return
-
-        log.warning("Zone lore AI enrichment skipped after retries; zone=%s", zone_id)

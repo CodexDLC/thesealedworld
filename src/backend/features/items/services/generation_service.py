@@ -16,7 +16,8 @@ from src.backend.features.items.services.catalog_service import ItemCatalogServi
 from src.backend.features.items.services.text_service import ItemTextService
 
 if TYPE_CHECKING:
-    from src.backend.features.items.integrations import ItemPersistenceIntegration, ItemTextAIClient
+    from src.backend.features.generation_ai import GenerationAIService
+    from src.backend.features.items.integrations import ItemPersistenceIntegration
 
 
 @dataclass(slots=True)
@@ -42,13 +43,14 @@ class ItemGenerationService:
     def __init__(
         self,
         persistence: ItemPersistenceIntegration | None = None,
-        text_ai_client: ItemTextAIClient | None = None,
         catalog: ItemCatalogService | None = None,
+        generation_ai: GenerationAIService | None = None,
     ) -> None:
         self.persistence = persistence
         self.catalog = catalog or ItemCatalogService.load_default()
         self.factory = ItemFactory(self.catalog)
-        self.text_service = ItemTextService(text_ai_client, self.catalog)
+        self.text_service = ItemTextService(self.catalog)
+        self.generation_ai = generation_ai
 
     async def generate_mechanical(self, request: ItemGenerationRequestDTO) -> ItemGenerationResultDTO:
         if self.persistence is None:
@@ -119,17 +121,18 @@ class ItemGenerationService:
         return projections
 
     async def enrich_text(self, item_id: str, request: ItemGenerationRequestDTO) -> GeneratedItemDTO | None:
+        if self.persistence is None:
+            raise RuntimeError("Item persistence is required for item text generation")
         item = await self.persistence.get_generated_item(item_id)
         if item is None:
             return None
         if not self._should_request_ai_text(request):
             return item
-        enriched = await self.text_service.enrich(item, request)
-        if enriched.metadata.get("ai_text_status") == "generated":
-            await self.persistence.save_generated_text(item_id, enriched)
-            return enriched
-        await self.persistence.mark_text_failed(item_id, str(enriched.metadata.get("ai_text_reason") or "ai_failed"))
-        return enriched
+        if self.generation_ai is not None:
+            from src.backend.features.items.tasks_ai import build_item_text_task_spec
+
+            await self.generation_ai.enqueue_many([build_item_text_task_spec(item_id=item_id, request=request)])
+        return item
 
     def _resolve_placement_ref(self, request: ItemGenerationRequestDTO) -> ItemPlacementRefDTO:
         if request.placement_ref is not None:

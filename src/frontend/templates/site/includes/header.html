@@ -44,11 +44,12 @@
                         </svg>
                     </button>
                     <div class="site-account-dropdown" x-show="open" x-cloak x-transition:enter.duration.150ms x-transition:leave.duration.100ms>
-                        <a href="/cabinet" class="site-account-item">
+                        <div class="site-account-email">{{ user.email }}</div>
+                        <a href="/admin" class="site-account-item">
                             <span class="site-account-item-icon" aria-hidden="true">
                                 <img src="/static/images/ui/game-menu-icons/person.svg" alt="">
                             </span>
-                            <span>Кабинет</span>
+                            <span>Admin</span>
                         </a>
                         <a href="/game-lobby" class="site-account-item">
                             <span class="site-account-item-icon" aria-hidden="true">
@@ -82,6 +83,7 @@
         <a href="/news">Новости</a>
         <a href="/about">О проекте</a>
         {% if user %}
+            <span class="site-mobile-identity">{{ user.email }}</span>
             <a href="/game-lobby">Лобби</a>
         {% else %}
             <button type="button" @click="authModal = 'login'; menuOpen = false">Войти</button>

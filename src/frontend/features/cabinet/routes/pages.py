@@ -9,7 +9,7 @@ from src.frontend.features.auth.services.auth_service import FrontendAuthService
 router = APIRouter(tags=["Cabinet"])
 
 
-@router.get("/cabinet", name="cabinet")
+@router.get("/admin", name="cabinet")
 async def cabinet_page(
     request: Request,
     ui: Annotated[UIRenderer, Depends(get_ui_renderer)],

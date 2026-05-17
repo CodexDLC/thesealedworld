@@ -28,24 +28,24 @@ class CombatLogBuilder:
         action_id = cls._log_action_id(result, action)
         is_area = cls._is_area_action(action)
         event_name = "area_result" if is_area else outcome
-        catalog = cls._catalog_fields(action_type=action.action_type, action_id=action_id, event_name=event_name)
-        exchange_id = cls._derive_exchange_id(ctx, action)
-        feint_render_context = cls._feint_render_context(
-            action=action,
-            result=result,
-            outcome=event_name,
-            exchange_id=exchange_id,
-            seed=f"{ctx.meta.step_counter + 1}:{wave}:{action.move.move_id}:{action_id or ''}",
-        )
         source_id = result.source_id if result.source_id is not None else cls._first_event_source_id(result)
         target_id = result.target_id if result.target_id is not None else cls._first_event_target_id(result)
         source = cls._actor_ref(ctx, source_id)
         target = cls._actor_ref(ctx, target_id)
         targets = cls._target_refs(ctx, action=action, fallback_target_id=target_id)
         variables = cls._variables(result=result, source=source, target=target, targets_count=len(targets))
-        cls._apply_catalog_variables(variables, catalog)
-        if feint_render_context is not None:
-            variables.update(feint_render_context.variables)
+        template = cls._combat_text_template(
+            ctx=ctx,
+            result=result,
+            action=action,
+            action_id=action_id,
+            event_name=event_name,
+            source_id=source_id,
+            target_id=target_id,
+        )
+        cls._apply_combat_text_variables(variables, template, action_id=action_id)
+        text = cls._render_combat_text(template, variables)
+        catalog = cls._combat_text_catalog_fields(template)
         public_result = cls._public_result(ctx, result)
         tags = ["runtime", action.action_type, f"wave:{wave}", f"turn:{global_turn}", f"outcome:{outcome}"]
         if action.is_forced:
@@ -55,18 +55,7 @@ class CombatLogBuilder:
             "id": f"{global_turn}:{wave}:0",
             "type": "LOG",
             "kind": cls._entry_kind(result, action_type=action.action_type, is_area=is_area, catalog=catalog),
-            "text": cls._summary_text(
-                result,
-                source_name=str(variables["source"]),
-                target_name=str(variables["target"]),
-                outcome=event_name,
-                action=action,
-                action_id=action_id,
-                catalog=catalog,
-                targets_count=len(targets),
-                exchange_id=exchange_id,
-                feint_render_context=feint_render_context,
-            ),
+            "text": text,
             "timestamp": timestamp,
             "tags": tags,
             "global_turn": global_turn,
@@ -83,10 +72,11 @@ class CombatLogBuilder:
                 "taxonomy": catalog.get("catalog_taxonomy") or "humanoid",
             },
             "template": {
-                "key": catalog.get("catalog_key") or cls._template_key(action_id=action_id, event_name=event_name),
-                "event": catalog.get("catalog_event") or event_name,
+                "key": template["key"],
+                "event": template["outcome"],
                 "taxonomy": catalog.get("catalog_taxonomy") or "humanoid",
                 "variant": 0,
+                "text": template["template"],
             },
             "variables": variables,
             "result": public_result,
@@ -130,237 +120,264 @@ class CombatLogBuilder:
         return entries
 
     @classmethod
-    def _summary_text(
+    def _combat_text_template(
         cls,
-        result: InteractionResultDTO,
         *,
-        source_name: str,
-        target_name: str,
-        outcome: str,
+        ctx: BattleContext,
+        result: InteractionResultDTO,
         action: CombatActionDTO,
         action_id: str | None,
-        catalog: dict[str, Any],
-        targets_count: int,
-        exchange_id: str | None = None,
-        feint_render_context: Any | None = None,
-    ) -> str:
-        values = cls._template_values(result, source_name=source_name, target_name=target_name)
-        values["targets_count"] = targets_count
-        if feint_render_context is not None:
-            values.update(feint_render_context.variables)
-        if outcome == "tick":
-            return cls._fallback_text(
-                result,
-                action=action,
-                action_id=action_id,
-                outcome=outcome,
-                source_name=source_name,
-                target_name=target_name,
-            )
-        if result.is_counter:
-            return cls._counter_summary_text(
-                result,
-                outcome=outcome,
-                source_name=source_name,
-                target_name=target_name,
-            )
-        templated = cls._templated_action_text(
-            action_type=action.action_type,
-            action_id=action_id,
-            event_name=outcome,
-            source_name=source_name,
-            target_name=target_name,
-            values=values,
-            catalog=catalog,
-            feint_render_context=feint_render_context,
-        )
-        trigger_suffix = cls._trigger_suffix_text(
-            result, outcome=outcome, source_name=source_name, target_name=target_name
-        )
-        reaction_suffix = cls._prepared_reaction_suffix_text(
-            result, outcome=outcome, source_name=source_name, target_name=target_name
-        )
-        if trigger_suffix and reaction_suffix:
-            trigger_suffix = cls._join_inline_suffix(trigger_suffix, reaction_suffix)
-        elif reaction_suffix:
-            trigger_suffix = reaction_suffix
-        if result.skip_reason:
-            return cls._with_damage_sentence(templated, result) if templated else f"{source_name} не может действовать."
-        if templated and trigger_suffix and not cls._text_already_mentions_effect(templated, trigger_suffix):
-            return cls._with_damage_sentence(cls._join_inline_suffix(templated, trigger_suffix), result)
-        if templated:
-            return cls._with_damage_sentence(templated, result)
-        exchange_text = cls._basic_exchange_summary_text(
-            result,
-            exchange_id=exchange_id,
-            outcome=outcome,
-            source_name=source_name,
-            target_name=target_name,
-        )
-        if exchange_text and trigger_suffix:
-            return cls._with_damage_sentence(cls._join_inline_suffix(exchange_text, trigger_suffix), result)
-        if exchange_text:
-            return cls._with_damage_sentence(exchange_text, result)
-        fallback = cls._fallback_text(
-            result,
+        event_name: str,
+        source_id: int | str | None,
+        target_id: int | str | None,
+    ) -> dict[str, Any]:
+        resource_type, resource_id, delivery, tags = cls._combat_text_request(
+            ctx=ctx,
+            result=result,
             action=action,
             action_id=action_id,
-            outcome=outcome,
-            source_name=source_name,
-            target_name=target_name,
+            event_name=event_name,
+            source_id=source_id,
         )
-        if trigger_suffix:
-            return cls._with_damage_sentence(cls._join_inline_suffix(fallback, trigger_suffix), result)
-        return fallback
+        source_body = cls._actor_body(ctx, source_id)
+        target_body = cls._actor_body(ctx, target_id)
+        outcome = cls._combat_text_outcome(event_name)
+        try:
+            template = CombatCatalogIntegrator.get_combat_text_template(
+                resource_type=resource_type,
+                resource_id=resource_id,
+                outcome=outcome,
+                source_body=source_body,
+                target_body=target_body,
+                delivery=delivery,
+                tags=tags,
+            )
+        except RuntimeError as exc:
+            return cls._runtime_fallback_template(
+                resource_type=resource_type,
+                resource_id=resource_id,
+                outcome=outcome,
+                source_body=source_body,
+                target_body=target_body,
+                delivery=delivery,
+                reason=str(exc),
+            )
+        if template is None:
+            return cls._runtime_fallback_template(
+                resource_type=resource_type,
+                resource_id=resource_id,
+                outcome=outcome,
+                source_body=source_body,
+                target_body=target_body,
+                delivery=delivery,
+                reason="integrator returned no template",
+            )
+        return dict(template)
+
+    @staticmethod
+    def _runtime_fallback_template(
+        *,
+        resource_type: str,
+        resource_id: str,
+        outcome: str,
+        source_body: str = "",
+        target_body: str = "",
+        delivery: str = "default",
+        pattern: str = "{source} действует на {target}: {target_results}. (F)",
+        variables: list[str] | None = None,
+        reason: str = "",
+    ) -> dict[str, Any]:
+        return {
+            "key": f"combat_text.runtime_fallback.{resource_type or 'unknown'}.{outcome or 'unknown'}",
+            "template": pattern,
+            "variables": variables or ["source", "target", "target_results"],
+            "resource_type": resource_type or "unknown",
+            "resource_id": resource_id or "unknown",
+            "catalog_key": f"combat_text.runtime_fallback.{resource_type or 'unknown'}",
+            "outcome": outcome or "none",
+            "body_pair": f"{source_body}_to_{target_body}" if source_body and target_body else "",
+            "target_body": target_body,
+            "delivery": delivery or "default",
+            "phrase_keys": {},
+            "tags": ["runtime", "fallback", "missing_combat_text", *(["resolution_error"] if reason else [])],
+            "resolution_error": reason,
+        }
 
     @classmethod
-    def _fallback_text(
+    def _combat_text_request(
         cls,
-        result: InteractionResultDTO,
         *,
+        ctx: BattleContext,
+        result: InteractionResultDTO,
         action: CombatActionDTO,
         action_id: str | None,
-        outcome: str,
-        source_name: str,
-        target_name: str,
-    ) -> str:
-        verb = cls._summary_verb(action, action_id, source_name=source_name, target_name=target_name)
+        event_name: str,
+        source_id: int | str | None,
+    ) -> tuple[str, str, str, tuple[str, ...]]:
+        outcome = cls._combat_text_outcome(event_name)
+        if outcome == "tick" and action_id:
+            return "effect", action_id, cls._effect_tick_resource(result), ()
+        if outcome == "apply" and action_id and CombatCatalogIntegrator.get_effect_catalog_entry(action_id) is not None:
+            return "effect", action_id, "default", ()
         if outcome == "death":
-            return f"{target_name} падает и больше не держит строй."
-        if outcome == "tick":
-            effect = cls._first_effect_label(result) or "Эффект"
-            return cls._with_damage_sentence(f"{effect} действует на {target_name}", result)
-        if result.healing_final > 0:
-            return f"{verb}, восстанавливая {result.healing_final} здоровья."
-        if result.is_miss:
-            return f"{verb}, но удар проходит мимо {target_name}."
-        if result.is_dodged:
-            return f"{verb}, но {target_name} уходит в последний миг."
-        if result.is_parried:
-            return f"{verb}, но {target_name} встречает удар и сбивает траекторию."
-        if result.is_blocked:
-            return f"{verb}, но защита {target_name} гасит удар."
-        if result.is_hit:
-            if result.is_crit:
-                return f"{verb} и находит брешь, нанося {result.damage_final} урона."
-            return f"{verb}, нанося {result.damage_final} урона."
-        if result.applied_effects:
-            effect = cls._first_effect_label(result) or "эффект"
-            return f"{verb}; {target_name} получает {effect}."
-        return f"{verb}: {outcome}."
+            return "death", "death", "default", cls._death_tags(result)
+        if action.action_type == "exchange":
+            delivery, surface_tags = cls._source_delivery(ctx, source_id, action)
+            feint_id = None if result.is_counter else cls._feint_id(action)
+            if feint_id:
+                return "feint", feint_id, delivery, surface_tags
+            return "basic_exchange", "basic", delivery, surface_tags
+        if action.action_type == "item":
+            return "item", str(action_id or ""), "area" if event_name == "area_result" else "default", ()
+        if action.action_type == "instant":
+            resource_type = (
+                "gift" if action_id and CombatCatalogIntegrator.get_gift_catalog_entry(action_id) else "ability"
+            )
+            delivery = "area" if event_name == "area_result" else "default"
+            return resource_type, str(action_id or ""), delivery, ()
+        if action_id and CombatCatalogIntegrator.get_trigger_catalog_entry(action_id) is not None:
+            return "trigger", cls._trigger_resource_id(action_id), "default", ()
+        if action_id and CombatCatalogIntegrator.get_effect_catalog_entry(action_id) is not None:
+            return "effect", action_id, "default", ()
+        return "basic_exchange", "basic", cls._source_delivery(ctx, source_id, action)[0], ()
 
     @staticmethod
-    def _counter_summary_text(
-        result: InteractionResultDTO,
-        *,
-        outcome: str,
-        source_name: str,
-        target_name: str,
-    ) -> str:
-        base = f"{source_name} отвечает контрударом по {target_name}"
-        if result.is_miss or outcome == "miss":
-            return f"{base}, но удар проходит мимо."
-        if result.is_dodged or outcome == "dodge":
-            return f"{base}, но {target_name} уходит от ответа."
-        if result.is_parried or outcome == "parry":
-            return f"{base}, но {target_name} встречает контрудар и сбивает траекторию."
-        if result.is_blocked or outcome == "block":
-            return f"{base}, но защита {target_name} гасит удар."
-        if result.is_hit or result.damage_final > 0:
-            if result.is_crit:
-                return f"{base} и находит брешь, нанося {result.damage_final} урона."
-            return f"{base}, нанося {result.damage_final} урона."
-        return f"{base}."
+    def _combat_text_outcome(event_name: str) -> str:
+        if event_name == "apply_effect":
+            return "apply"
+        return event_name
 
     @staticmethod
-    def _with_damage_sentence(text: str, result: InteractionResultDTO) -> str:
-        base = text.rstrip(".")
-        if result.damage_final > 0 and "урон" not in base and "урона" not in base:
-            return f"{base}, нанося {result.damage_final} урона."
-        if result.healing_final > 0 and "здоров" not in base and "леч" not in base:
-            return f"{base}, восстанавливая {result.healing_final} здоровья."
-        return f"{base}."
+    def _effect_tick_resource(result: InteractionResultDTO) -> str:
+        for event in result.events:
+            if event.type == "TICK" and event.resource:
+                return str(event.resource)
+        return "hp"
 
     @staticmethod
-    def _join_inline_suffix(text: str, suffix: str) -> str:
-        base = text.rstrip(" .;")
-        inline = suffix.strip().lstrip(";").strip().rstrip(".")
-        if not inline:
-            return text
-        separator = ", " if inline.startswith(("и ", "а ", "но ")) else "; "
-        return f"{base}{separator}{inline}"
+    def _death_tags(result: InteractionResultDTO) -> tuple[str, ...]:
+        if result.damage_final > 0:
+            return ("damage",)
+        if CombatLogBuilder._has_event(result, "TICK"):
+            return ("dot",)
+        if CombatLogBuilder._result_action_id(result):
+            return ("ability",)
+        return ("unknown",)
 
     @staticmethod
-    def _event_template_name(event_type: str) -> str:
+    def _trigger_resource_id(trigger_id: str) -> str:
+        return trigger_id.replace(".", "_")
+
+    @staticmethod
+    def _actor_body(ctx: BattleContext, actor_id: int | str | None) -> str:
+        actor = ctx.get_actor(actor_id) if actor_id is not None else None
+        value = str(getattr(getattr(actor, "meta", None), "archetype", None) or "humanoid")
+        return value if value in {"humanoid", "beast"} else "humanoid"
+
+    @staticmethod
+    def _source_delivery(
+        ctx: BattleContext,
+        source_id: int | str | None,
+        action: CombatActionDTO,
+    ) -> tuple[str, tuple[str, ...]]:
+        if action.action_type == "instant":
+            return "magic", ()
+        if action.action_type == "item":
+            return "item", ()
+        actor = ctx.get_actor(source_id) if source_id is not None else None
+        payload = action.move.payload
+        hand = getattr(payload, "hand", None)
+        source_type = "off_hand" if hand == "off" else "main_hand"
+        surface = getattr(getattr(actor, "loadout", None), "combat_surfaces", {}).get(source_type) if actor else None
+        if surface is not None:
+            if isinstance(surface, dict):
+                delivery = str(surface.get("delivery") or "weapon")
+                tags = tuple(str(tag) for tag in surface.get("tags") or [])
+            else:
+                delivery = str(getattr(surface, "delivery", "") or "weapon")
+                tags = tuple(str(tag) for tag in getattr(surface, "tags", []) or [])
+            return delivery, tags
+        layout = getattr(getattr(actor, "loadout", None), "layout", {}) if actor else {}
+        if layout.get(source_type) == "skill_unarmed":
+            return "unarmed", ()
+        meta = getattr(actor, "meta", None)
+        if str(getattr(meta, "type", "") or "") == "monster" and str(getattr(meta, "archetype", "") or "") == "beast":
+            return "natural", ()
+        return "weapon", ()
+
+    @staticmethod
+    def _combat_text_catalog_fields(template: dict[str, Any]) -> dict[str, Any]:
         return {
-            "CAST": "use",
-            "HIT": "hit",
-            "HEAL": "heal",
-            "MISS": "miss",
-            "DODGE": "dodge",
-            "PARRY": "parry",
-            "BLOCK": "block",
-            "APPLY_EFFECT": "apply_effect",
-            "TICK": "tick",
-            "DEATH": "death",
-            "CRIT": "crit",
-        }.get(event_type, event_type.lower())
+            "catalog": "combat_text",
+            "catalog_key": template["key"],
+            "catalog_event": template.get("outcome") or "",
+            "catalog_taxonomy": template.get("body_pair") or template.get("target_body") or "humanoid",
+            "catalog_tooltip": "",
+            "resource_type": template.get("resource_type") or "",
+            "resource_id": template.get("resource_id") or "",
+        }
 
     @classmethod
-    def _catalog_fields(cls, *, action_type: str, action_id: str | None, event_name: str) -> dict[str, Any]:
-        if action_id:
-            entry, key = cls._action_catalog_entry(action_type=action_type, action_id=action_id)
-            if entry is not None:
-                return {
-                    "catalog": "combat_entries",
-                    "catalog_key": key,
-                    "catalog_event": event_name,
-                    "catalog_taxonomy": "humanoid",
-                    "catalog_tooltip": "description",
-                    "catalog_entry": entry,
-                    "resource_type": cls._catalog_resource_type(str(key)),
-                }
+    def _apply_combat_text_variables(
+        cls,
+        variables: dict[str, str | int | float],
+        template: dict[str, Any],
+        *,
+        action_id: str | None = None,
+    ) -> None:
+        resource_type = str(template.get("resource_type") or "")
+        resource_id = str(template.get("resource_id") or "")
+        label = cls._resource_label(resource_type, str(action_id or resource_id))
+        if label and resource_type in {"ability", "gift", "item", "feint", "effect", "trigger"}:
+            variables[resource_type] = label
+        variables.setdefault("resource", "hp")
+        variables.setdefault("value", variables.get("damage") or variables.get("healing") or 0)
+        variables.setdefault("target_results", cls._target_result_text(variables))
 
-        if (
-            action_id
-            and CombatCatalogIntegrator.get_feint_catalog_entry_by_key(f"combat.feint.{action_id}") is not None
-        ):
-            return {
-                "catalog": "combat_entries",
-                "catalog_key": f"combat.feint.{action_id}",
-                "catalog_event": event_name,
-                "catalog_taxonomy": "humanoid",
-                "catalog_tooltip": "description",
-                "resource_type": "feint",
-            }
+    @staticmethod
+    def _target_result_text(variables: dict[str, str | int | float]) -> str:
+        damage = int(variables.get("damage") or 0)
+        healing = int(variables.get("healing") or 0)
+        if damage > 0:
+            return f"{variables.get('target')} получает {damage} урона"
+        if healing > 0:
+            return f"{variables.get('target')} восстанавливает {healing} здоровья"
+        return str(variables.get("effect") or "эффект не закрепляется")
 
-        effect_entry = CombatCatalogIntegrator.get_effect_catalog_entry(action_id) if action_id else None
-        if effect_entry is not None:
-            return {
-                "catalog": "effects",
-                "catalog_key": action_id,
-                "catalog_event": event_name,
-                "catalog_taxonomy": "humanoid",
-                "catalog_tooltip": "description",
-            }
+    @staticmethod
+    def _resource_label(resource_type: str, resource_id: str) -> str:
+        entry = None
+        if resource_type == "ability":
+            entry = CombatCatalogIntegrator.get_ability_catalog_entry(resource_id)
+        elif resource_type == "gift":
+            entry = CombatCatalogIntegrator.get_gift_catalog_entry(resource_id)
+        elif resource_type == "item":
+            entry = CombatCatalogIntegrator.get_combat_item_action_catalog_entry(resource_id)
+        elif resource_type == "feint":
+            entry = CombatCatalogIntegrator.get_feint_catalog_entry(resource_id)
+        elif resource_type == "effect":
+            entry = CombatCatalogIntegrator.get_effect_catalog_entry(resource_id)
+        elif resource_type == "trigger":
+            entry = CombatCatalogIntegrator.get_trigger_catalog_entry(resource_id)
+        if entry is None:
+            return resource_id
+        descriptive = getattr(entry, "descriptive", None)
+        if descriptive is None:
+            return resource_id
+        variant = descriptive.variants.get(descriptive.default_taxonomy) or descriptive.variants.get("humanoid")
+        return str(getattr(variant, "display_name", None) or resource_id)
 
-        trigger_entry = CombatCatalogIntegrator.get_trigger_catalog_entry(action_id) if action_id else None
-        if trigger_entry is not None:
-            return {
-                "catalog": "combat_entries",
-                "catalog_key": trigger_entry.key,
-                "catalog_event": event_name,
-                "catalog_taxonomy": "humanoid",
-                "catalog_tooltip": "description",
-            }
-
-        return {
-            "catalog": "combat_entries",
-            "catalog_key": "combat.exchange.basic",
-            "catalog_event": event_name,
-            "catalog_taxonomy": "humanoid",
-            "catalog_tooltip": "description",
-        }
+    @staticmethod
+    def _render_combat_text(template: dict[str, Any], variables: dict[str, str | int | float]) -> str:
+        try:
+            return str(template.get("template") or "{source} действует на {target}: {target_results}. (F)").format(
+                **variables
+            )
+        except (KeyError, ValueError, IndexError):
+            source = str(variables.get("source") or "NO_SOURCE")
+            target = str(variables.get("target") or "NO_TARGET")
+            target_results = str(variables.get("target_results") or variables.get("effect") or "результат не описан")
+            return f"{source} действует на {target}: {target_results}. (F)"
 
     @classmethod
     def _public_result(cls, ctx: BattleContext, result: InteractionResultDTO) -> dict[str, list[dict[str, Any]]]:
@@ -578,12 +595,6 @@ class CombatLogBuilder:
         return str((actor or {}).get("name") or "NO_TARGET")
 
     @staticmethod
-    def _template_key(*, action_id: str | None, event_name: str) -> str:
-        if action_id:
-            return f"combat.{action_id}.{event_name}"
-        return f"combat.exchange.basic.{event_name}"
-
-    @staticmethod
     def _severity(result: InteractionResultDTO, event_name: str) -> str:
         if event_name == "death":
             return "death"
@@ -594,77 +605,6 @@ class CombatLogBuilder:
         if result.damage_final > 0:
             return "normal"
         return "normal"
-
-    @classmethod
-    def _templated_action_text(
-        cls,
-        *,
-        action_type: str = "",
-        action_id: str | None,
-        event_name: str,
-        source_name: str,
-        target_name: str,
-        values: dict[str, Any] | None = None,
-        catalog: dict[str, Any] | None = None,
-        feint_render_context: Any | None = None,
-    ) -> str | None:
-        if not action_id:
-            return None
-
-        if feint_render_context is not None:
-            render_values = dict(values or {})
-            render_values.update(feint_render_context.variables)
-            return cls._format_values(feint_render_context.template, render_values)
-
-        entry = (catalog or {}).get("catalog_entry")
-        if entry is None:
-            entry, _key = cls._action_catalog_entry(action_type=action_type, action_id=action_id)
-        if entry is not None:
-            variant = entry.descriptive.variants.get("humanoid")
-            resource_type = cls._catalog_resource_type(str(getattr(entry, "key", "")))
-            templates = cls._templates_for_event(variant, event_name, resource_type=resource_type)
-            if templates:
-                return cls._format_template(
-                    templates[0],
-                    source_name=source_name,
-                    target_name=target_name,
-                    label=variant.display_name if variant else action_id,
-                    label_key=resource_type,
-                    values=values,
-                )
-
-        effect_entry = CombatCatalogIntegrator.get_effect_catalog_entry(action_id)
-        if effect_entry is not None:
-            return cls._format_template(
-                cls._effect_template(event_name),
-                source_name=source_name,
-                target_name=target_name,
-                label=cls._effect_label(effect_entry, action_id),
-                label_key="effect",
-                values=values,
-            )
-
-        trigger_entry = CombatCatalogIntegrator.get_trigger_catalog_entry(action_id)
-        if trigger_entry is not None:
-            variant = trigger_entry.descriptive.variants.get("humanoid")
-            if variant:
-                resolved_event = cls._resolve_trigger_event_name(event_name)
-                templates = (
-                    getattr(variant.event_texts, resolved_event, [])
-                    or getattr(variant.event_texts, "proc", [])
-                    or getattr(variant.event_texts, event_name, [])
-                )
-                if templates:
-                    return cls._format_template(
-                        templates[0],
-                        source_name=source_name,
-                        target_name=target_name,
-                        label=variant.display_name,
-                        label_key="trigger",
-                        values=values,
-                    )
-
-        return None
 
     @staticmethod
     def _resolve_trigger_event_name(event_name: str) -> str:
@@ -700,99 +640,6 @@ class CombatLogBuilder:
         return "merge"
 
     @classmethod
-    def _trigger_suffix_text(
-        cls,
-        result: InteractionResultDTO,
-        *,
-        outcome: str,
-        source_name: str,
-        target_name: str,
-    ) -> str:
-        parts: list[str] = []
-        seen_parts: set[str] = set()
-        for trigger_id in result.fired_triggers:
-            if cls._trigger_display_policy(result, trigger_id) != "merge" or not cls._should_merge_trigger(trigger_id):
-                continue
-            entry = CombatCatalogIntegrator.get_trigger_catalog_entry(trigger_id)
-            if entry is None:
-                continue
-            variant = entry.descriptive.variants.get("humanoid")
-            if not variant:
-                continue
-            proc_event = cls._resolve_trigger_event_name(outcome)
-            templates = getattr(variant.event_texts, proc_event, []) or getattr(variant.event_texts, "proc", [])
-            if not templates:
-                continue
-            effect_label = cls._first_applied_effect_label(entry, result)
-            inline_effect = cls._inline_effect_trigger_suffix(effect_label)
-            if inline_effect:
-                normalized = inline_effect.casefold().strip(" .;")
-                if normalized not in seen_parts:
-                    seen_parts.add(normalized)
-                    parts.append(inline_effect)
-                continue
-            part = cls._format_values(
-                templates[0],
-                {
-                    "source": source_name,
-                    "target": target_name,
-                    "trigger": variant.display_name,
-                    "effect": effect_label,
-                    "damage": result.damage_final,
-                    "token": "",
-                },
-            )
-            normalized = part.casefold().strip(" .;")
-            if normalized not in seen_parts:
-                seen_parts.add(normalized)
-                parts.append(part)
-        return "; ".join(parts)
-
-    @staticmethod
-    def _prepared_reaction_suffix_text(
-        result: InteractionResultDTO,
-        *,
-        outcome: str,
-        source_name: str,
-        target_name: str,
-    ) -> str:
-        for fact in result.effect_facts:
-            if "prepared_reaction" not in fact.tags:
-                continue
-            if fact.effect_id == "prep_counter_on_dodge" and outcome == "dodge":
-                return f"и {target_name} отвечает сохраненным темпом"
-            if fact.effect_id == "prep_counter_on_parry" and outcome == "parry":
-                return f"и {target_name} переводит парирование в контратаку"
-            if fact.effect_id == "prep_glancing_dodge" and outcome in {"hit", "crit"}:
-                return f"но {target_name} принимает удар вскользь"
-            if fact.effect_id == "prep_counter_cap_on_dodge" and outcome == "dodge":
-                return f"и {target_name} ловит окно для ответа"
-            if fact.effect_id == "prep_brace_guard" and outcome in {"hit", "crit"}:
-                return f"но {target_name} встречает удар глухой защитой"
-            if fact.effect_id == "prep_parry_riposte" and outcome == "parry":
-                return f"и {target_name} пытается перевести парирование в рипост"
-            if fact.effect_id == "spiked_guard" and outcome == "block":
-                return f"и отдача стойки ранит {source_name}"
-        return ""
-
-    @staticmethod
-    def _inline_effect_trigger_suffix(effect_label: str) -> str | None:
-        if not effect_label:
-            return None
-        normalized = effect_label.casefold()
-        if "кровот" in normalized or "bleed" in normalized:
-            return "и открывает кровотечение"
-        return f"и накладывает {effect_label}"
-
-    @staticmethod
-    def _text_already_mentions_effect(text: str, suffix: str) -> bool:
-        normalized_text = text.casefold()
-        normalized_suffix = suffix.casefold()
-        if ("кровот" in normalized_suffix or "bleed" in normalized_suffix) and "кровот" in normalized_text:
-            return True
-        return normalized_suffix.rstrip(".") in normalized_text
-
-    @classmethod
     def _build_trigger_proc_entry(
         cls,
         *,
@@ -804,35 +651,47 @@ class CombatLogBuilder:
         tags: list[str],
         global_turn: int,
     ) -> dict[str, Any] | None:
-        entry = CombatCatalogIntegrator.get_trigger_catalog_entry(trigger_id)
-        if entry is None:
-            return None
-        variant = entry.descriptive.variants.get("humanoid")
-        if variant is None:
-            return None
-
-        source_name = cls._actor_name(ctx, result.source_id)
-        target_name = cls._actor_name(ctx, result.target_id)
         proc_event = cls._resolve_trigger_event_name(outcome)
-
-        templates = getattr(variant.event_texts, proc_event, []) or getattr(variant.event_texts, "proc", [])
-        text = ""
-        if templates:
-            effect_label = cls._first_applied_effect_label(entry, result)
-            try:
-                text = cls._format_values(
-                    templates[0],
-                    {
-                        "source": source_name,
-                        "target": target_name,
-                        "trigger": variant.display_name,
-                        "effect": effect_label,
-                        "damage": result.damage_final,
-                        "token": "",
-                    },
-                )
-            except KeyError:
-                text = templates[0]
+        source = cls._actor_ref(ctx, result.source_id)
+        target = cls._actor_ref(ctx, result.target_id)
+        source_name = str((source or {}).get("name") or "NO_SOURCE")
+        target_name = str((target or {}).get("name") or "NO_TARGET")
+        resource_id = cls._trigger_resource_id(trigger_id)
+        try:
+            template = CombatCatalogIntegrator.get_combat_text_template(
+                resource_type="trigger",
+                resource_id=resource_id,
+                outcome=proc_event,
+                source_body=cls._actor_body(ctx, result.source_id),
+                target_body=cls._actor_body(ctx, result.target_id),
+                delivery="default",
+                tags=(),
+            )
+        except RuntimeError as exc:
+            template = cls._runtime_trigger_fallback_template(
+                resource_id=resource_id,
+                outcome=proc_event,
+                target_body=cls._actor_body(ctx, result.target_id),
+                reason=str(exc),
+            )
+        if template is None:
+            template = cls._runtime_trigger_fallback_template(
+                resource_id=resource_id,
+                outcome=proc_event,
+                target_body=cls._actor_body(ctx, result.target_id),
+                reason="integrator returned no template",
+            )
+        template = dict(template)
+        variables = {
+            "source": source_name,
+            "target": target_name,
+            "trigger": cls._resource_label("trigger", resource_id),
+            "effect": cls._first_effect_label(result),
+            "damage": result.damage_final,
+            "token": "",
+        }
+        text = cls._render_combat_text(template, variables)
+        catalog = cls._combat_text_catalog_fields(template)
 
         return {
             "type": "TRIGGER_PROC",
@@ -847,24 +706,19 @@ class CombatLogBuilder:
             "source_name": source_name,
             "target_name": target_name,
             "outcome": outcome,
-            "catalog": "combat_entries",
-            "catalog_key": entry.key,
-            "catalog_event": proc_event,
-            "catalog_taxonomy": "humanoid",
+            "catalog": catalog.get("catalog"),
+            "catalog_key": catalog.get("catalog_key"),
+            "catalog_event": catalog.get("catalog_event"),
+            "catalog_taxonomy": catalog.get("catalog_taxonomy"),
             "template": {
-                "key": entry.key,
-                "event": proc_event,
-                "taxonomy": "humanoid",
+                "key": template["key"],
+                "event": template["outcome"],
+                "taxonomy": catalog.get("catalog_taxonomy") or "humanoid",
+                "text": template["template"],
             },
-            "source": cls._actor_ref(ctx, result.source_id),
-            "target": cls._actor_ref(ctx, result.target_id),
-            "variables": {
-                "source": source_name,
-                "target": target_name,
-                "trigger": variant.display_name,
-                "effect": cls._first_applied_effect_label(entry, result),
-                "damage": result.damage_final,
-            },
+            "source": source,
+            "target": target,
+            "variables": variables,
             "effects": cls._public_effects(ctx, result),
             "presentation": {
                 "player_visible": True,
@@ -872,193 +726,24 @@ class CombatLogBuilder:
             },
         }
 
-    @staticmethod
-    def _first_applied_effect_label(
-        trigger_entry: Any,
-        result: InteractionResultDTO,
-    ) -> str:
-        if hasattr(trigger_entry, "technical") and trigger_entry.technical.applied_effect_ids:
-            for effect_id in trigger_entry.technical.applied_effect_ids:
-                effect_entry = CombatCatalogIntegrator.get_effect_catalog_entry(effect_id)
-                if effect_entry:
-                    return CombatLogBuilder._effect_label(effect_entry, effect_id)
-        for effect in result.applied_effects:
-            if isinstance(effect, dict):
-                name = effect.get("name") or effect.get("id") or effect.get("effect_id") or ""
-                if name:
-                    return str(name)
-        return ""
-
     @classmethod
-    def _templates_for_event(cls, variant: Any, event_name: str, *, resource_type: str = "") -> list[str]:
-        if variant is None:
-            return []
-        templates = getattr(variant.event_texts, event_name, [])
-        if event_name == "area_result":
-            return cls._combine_area_templates(variant.event_texts.area_use, templates)
-        if resource_type == "feint" and event_name not in {"use", "no_resource"}:
-            return cls._combine_area_templates(variant.event_texts.use, templates)
-        return templates
-
-    @staticmethod
-    def _combine_area_templates(area_use: list[str], area_result: list[str]) -> list[str]:
-        if area_use and area_result:
-            return [f"{area_use[0]}, {area_result[0]}"]
-        return area_use or area_result
-
-    @classmethod
-    def _action_catalog_entry(cls, *, action_type: str, action_id: str):
-        candidate_keys = []
-        if action_type == "item":
-            candidate_keys.extend([f"combat.item.{action_id}", f"combat.ability.{action_id}"])
-        elif action_type == "instant":
-            candidate_keys.extend(
-                [f"combat.ability.{action_id}", f"combat.gift.{action_id}", f"combat.item.{action_id}"]
-            )
-        elif action_type == "exchange":
-            candidate_keys.append(f"combat.feint.{action_id}")
-        else:
-            candidate_keys.extend(
-                [
-                    f"combat.ability.{action_id}",
-                    f"combat.gift.{action_id}",
-                    f"combat.item.{action_id}",
-                    f"combat.feint.{action_id}",
-                ]
-            )
-        for key in candidate_keys:
-            entry = CombatCatalogIntegrator.get_catalog_entry_by_key(key)
-            if entry is not None:
-                return entry, key
-        return None, None
-
-    @staticmethod
-    def _catalog_resource_type(catalog_key: str) -> str:
-        parts = catalog_key.split(".")
-        if len(parts) >= 3:
-            return parts[1]
-        return "ability"
-
-    @classmethod
-    def _feint_summary_text(
+    def _runtime_trigger_fallback_template(
         cls,
-        result: InteractionResultDTO,
         *,
-        action: CombatActionDTO,
+        resource_id: str,
         outcome: str,
-        source_name: str,
-        target_name: str,
-    ) -> str | None:
-        feint_id = cls._feint_id(action)
-        if not feint_id:
-            return None
-
-        feint_entry = CombatCatalogIntegrator.get_feint_catalog_entry_by_key(f"combat.feint.{feint_id}")
-        if feint_entry is None:
-            return None
-
-        variant = feint_entry.descriptive.variants.get(
-            feint_entry.descriptive.default_taxonomy
-        ) or feint_entry.descriptive.variants.get("humanoid")
-        if variant is None:
-            return None
-
-        use_templates = variant.event_texts.use
-        outcome_templates = getattr(variant.event_texts, outcome, [])
-        if not use_templates and not outcome_templates:
-            return None
-
-        values = cls._template_values(result, source_name=source_name, target_name=target_name)
-        values["feint"] = variant.display_name
-        use_text = cls._format_values(use_templates[0], values) if use_templates else ""
-        outcome_text = cls._format_values(outcome_templates[0], values) if outcome_templates else ""
-        if use_text and outcome_text:
-            return f"{use_text}, {outcome_text}"
-        return use_text or outcome_text
-
-    @classmethod
-    def _basic_exchange_summary_text(
-        cls,
-        result: InteractionResultDTO,
-        *,
-        exchange_id: str | None,
-        outcome: str,
-        source_name: str,
-        target_name: str,
-    ) -> str | None:
-        if not exchange_id:
-            return None
-
-        entry = CombatCatalogIntegrator.get_basic_exchange(exchange_id)
-        if entry is None:
-            return None
-
-        variant = entry.descriptive.variants.get(entry.descriptive.default_taxonomy) or entry.descriptive.variants.get(
-            "humanoid"
+        target_body: str = "",
+        reason: str = "",
+    ) -> dict[str, Any]:
+        return cls._runtime_fallback_template(
+            resource_type="trigger",
+            resource_id=resource_id,
+            outcome=outcome,
+            target_body=target_body,
+            pattern="{source} активирует {trigger}. (F)",
+            variables=["source", "trigger"],
+            reason=reason,
         )
-        if variant is None:
-            return None
-
-        use_templates = variant.event_texts.use
-        outcome_templates = getattr(variant.event_texts, outcome, [])
-        if not use_templates and not outcome_templates:
-            return None
-
-        values = {
-            "source": source_name,
-            "target": target_name,
-            "weapon": entry.technical.weapon_class,
-            "damage": result.damage_final,
-            "bonus_damage": cls._bonus_damage(result),
-            "healing": result.healing_final,
-            "hand": entry.technical.hand,
-            "skill": entry.technical.skill_key,
-            "outcome": outcome,
-        }
-
-        use_text = cls._format_values(use_templates[0], values) if use_templates else ""
-        outcome_text = cls._format_values(outcome_templates[0], values) if outcome_templates else ""
-        if use_text and outcome_text:
-            return f"{use_text}, {outcome_text}"
-        return use_text or outcome_text
-
-    @staticmethod
-    def _derive_exchange_id(ctx: BattleContext, action: CombatActionDTO) -> str | None:
-        if action.action_type != "exchange":
-            return None
-        actor = ctx.get_actor(action.move.char_id)
-        if actor is None:
-            return None
-        payload = action.move.payload
-        hand = getattr(payload, "hand", None)
-        source_type = "off_hand" if hand == "off" else "main_hand"
-        skill_key = actor.loadout.layout.get(source_type)
-        if not skill_key:
-            return None
-        weapon_class = skill_key.replace("skill_", "")
-        return f"skill_{weapon_class}.{source_type}"
-
-    @staticmethod
-    def _format_values(template: str, values: dict[str, Any]) -> str:
-        return template.format(**values)
-
-    @classmethod
-    def _template_values(cls, result: InteractionResultDTO, *, source_name: str, target_name: str) -> dict[str, Any]:
-        return {
-            "source": source_name,
-            "target": target_name,
-            "ability": "",
-            "feint": "",
-            "gift": "",
-            "item": "",
-            "effect": cls._first_effect_label(result),
-            "trigger": "",
-            "damage": result.damage_final,
-            "healing": result.healing_final,
-            "resource": "hp" if result.damage_final or result.healing_final else "",
-            "outcome": cls._result_outcome(result),
-            "targets_count": 1,
-        }
 
     @classmethod
     def _first_effect_label(cls, result: InteractionResultDTO) -> str:
@@ -1076,66 +761,6 @@ class CombatLogBuilder:
             effect_entry = CombatCatalogIntegrator.get_effect_catalog_entry(str(event.action_id))
             return cls._effect_label(effect_entry, str(event.action_id))
         return ""
-
-    @staticmethod
-    def _effect_template(event_name: str) -> str:
-        return {
-            "apply_effect": "{source} накладывает {effect} на {target}",
-            "expire_effect": "{effect} на {target} заканчивается",
-            "tick": "{effect} действует на {target}",
-            "hit": "{effect} действует на {target}",
-            "miss": "{effect} не закрепляется на {target}",
-        }.get(event_name, "{source} применяет {effect} на {target}")
-
-    @staticmethod
-    def _format_template(
-        template: str,
-        *,
-        source_name: str,
-        target_name: str,
-        label: str,
-        label_key: str,
-        values: dict[str, Any] | None = None,
-    ) -> str:
-        template_values = {
-            "source": source_name,
-            "target": target_name,
-            "ability": "",
-            "feint": "",
-            "gift": "",
-            "item": "",
-            "effect": "",
-            "trigger": "",
-            "damage": 0,
-            "healing": 0,
-            "resource": "",
-            "outcome": "",
-            "targets_count": 1,
-        }
-        if values:
-            template_values.update(values)
-        for key in ("ability", "feint", "gift", "item", "effect", "trigger"):
-            if not template_values.get(key):
-                template_values[key] = label if key == label_key else template_values.get(key, "")
-        template_values[label_key] = label
-        return template.format(**template_values)
-
-    @staticmethod
-    def _summary_verb(
-        action: CombatActionDTO,
-        action_id: str | None,
-        *,
-        source_name: str,
-        target_name: str,
-    ) -> str:
-        action_text = f" {action_id}" if action_id else ""
-        if action.action_type == "exchange":
-            return f"{source_name} атакует {target_name}"
-        if action.action_type == "instant":
-            return f"{source_name} применяет{action_text} на {target_name}"
-        if action.action_type == "item":
-            return f"{source_name} использует{action_text} на {target_name}"
-        return f"{source_name} действует"
 
     @staticmethod
     def _action_id(action: CombatActionDTO) -> str | None:
@@ -1198,6 +823,7 @@ class CombatLogBuilder:
         target: dict[str, Any] | None,
         targets_count: int = 1,
     ) -> dict[str, str | int | float]:
+        value, resource = cls._event_value_and_resource(result)
         return {
             "source": str((source or {}).get("name") or "NO_SOURCE"),
             "target": str((target or {}).get("name") or "NO_TARGET"),
@@ -1206,18 +832,22 @@ class CombatLogBuilder:
             "effect": cls._first_effect_label(result),
             "targets_count": targets_count,
             "bonus_damage": cls._bonus_damage(result),
+            "value": value,
+            "resource": resource,
         }
 
     @staticmethod
-    def _apply_catalog_variables(variables: dict[str, str | int | float], catalog: dict[str, Any]) -> None:
-        entry = catalog.get("catalog_entry")
-        if entry is None:
-            return
-        variant = entry.descriptive.variants.get("humanoid")
-        label = getattr(variant, "display_name", "")
-        resource_type = str(catalog.get("resource_type") or "")
-        if label and resource_type in {"ability", "gift", "item", "feint"}:
-            variables[resource_type] = label
+    def _event_value_and_resource(result: InteractionResultDTO) -> tuple[int | float, str]:
+        for event in result.events:
+            if event.value is None or not event.resource:
+                continue
+            value = abs(float(event.value))
+            return (int(value) if value.is_integer() else value, str(event.resource))
+        if result.damage_final:
+            return result.damage_final, "hp"
+        if result.healing_final:
+            return result.healing_final, "hp"
+        return 0, "hp"
 
     @staticmethod
     def _bonus_damage(result: InteractionResultDTO) -> int | float:
@@ -1230,28 +860,6 @@ class CombatLogBuilder:
         if value.is_integer():
             return int(value)
         return round(value, 2)
-
-    @classmethod
-    def _feint_render_context(
-        cls,
-        *,
-        action: CombatActionDTO,
-        result: InteractionResultDTO,
-        outcome: str,
-        exchange_id: str | None,
-        seed: str,
-    ) -> Any | None:
-        feint_id = cls._feint_id(action)
-        if not feint_id or not exchange_id:
-            return None
-        skill_key = exchange_id.split(".", 1)[0]
-        return CombatCatalogIntegrator.get_feint_render_context(
-            feint_id,
-            skill_key=skill_key,
-            outcome=outcome,
-            seed=seed,
-            bonus_damage=cls._bonus_damage(result),
-        )
 
     @staticmethod
     def _entry_kind(

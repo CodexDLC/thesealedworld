@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import Any
 
 from src.backend.features.items.resources.affixes.catalog import AFFIX_CATALOG
+from src.backend.features.items.services.catalog_service import ItemCatalogService
 from src.shared.enums.item_enums import EquippedSlot, QuickSlot
 from src.shared.schemas.inventory import (
     InventoryAccessoryRowDTO,
@@ -264,6 +265,9 @@ class InventoryViewService:
         "water_resistance",
     }
 
+    def __init__(self, catalog: ItemCatalogService | None = None) -> None:
+        self.catalog = catalog or ItemCatalogService.load_default()
+
     def build_window(
         self,
         session: InventoryRuntimeSessionDTO,
@@ -455,7 +459,80 @@ class InventoryViewService:
                     details=details,
                 )
             )
+        rows.extend(self._wallet_rows(session))
         return rows
+
+    def _wallet_rows(self, session: InventoryRuntimeSessionDTO) -> list[InventoryContainerRowDTO]:
+        rows: list[InventoryContainerRowDTO] = []
+        rows.extend(self._wallet_bucket_rows(session.wallet.currency, item_type="currency", rarity="currency"))
+        rows.extend(self._wallet_bucket_rows(session.wallet.resources, item_type="resource", rarity="resource"))
+        rows.extend(self._wallet_bucket_rows(session.wallet.components, item_type="material", rarity="component"))
+        return rows
+
+    def _wallet_bucket_rows(
+        self,
+        bucket: dict[str, int],
+        *,
+        item_type: str,
+        rarity: str,
+    ) -> list[InventoryContainerRowDTO]:
+        rows: list[InventoryContainerRowDTO] = []
+        for resource_key, raw_amount in sorted(bucket.items()):
+            try:
+                amount = int(raw_amount)
+            except (TypeError, ValueError):
+                continue
+            if amount <= 0:
+                continue
+            details = self._resource_details(resource_key, item_type=item_type, amount=amount, rarity=rarity)
+            rows.append(
+                InventoryContainerRowDTO(
+                    item_id=f"wallet:{resource_key}",
+                    icon="resource",
+                    name=details.name,
+                    item_type=item_type,
+                    weight="-",
+                    quantity=amount,
+                    rarity=rarity,
+                    rarity_tier=0,
+                    rarity_label=details.rarity_label,
+                    grid_w=1,
+                    grid_h=1,
+                    details=details,
+                )
+            )
+        return rows
+
+    def _resource_details(
+        self,
+        resource_key: str,
+        *,
+        item_type: str,
+        amount: int,
+        rarity: str,
+    ) -> InventoryItemDetailsDTO:
+        resource = self.catalog.get_raw_resource(resource_key)
+        material = self.catalog.get_material(resource_key)
+        name = resource.name_ru if resource is not None else material.name_ru if material is not None else resource_key
+        description = (
+            resource.narrative_description
+            if resource is not None
+            else material.narrative_description
+            if material is not None and material.narrative_description
+            else ""
+        )
+        return InventoryItemDetailsDTO(
+            item_id=f"wallet:{resource_key}",
+            name=name,
+            item_type=item_type,
+            item_type_label=self._item_type_label(item_type),
+            rarity=rarity,
+            rarity_tier=0,
+            rarity_label=self._rarity_label_from_key(rarity),
+            description=description,
+            details=[InventoryDetailLineDTO(label="Количество", value=str(amount), tone="neutral")],
+            meta=[InventoryMetaFieldDTO(label="Тип", value=self._item_type_label(item_type))],
+        )
 
     def _icon_key(self, item: InventoryRuntimeItemDTO) -> str:
         slot = item.slot or (item.valid_slots[0] if item.valid_slots else "")
@@ -803,11 +880,11 @@ class InventoryViewService:
             "buckler": (2, 2),
             "shield": (2, 3),
             "leather_cap": (2, 2),
-            "goggles": (2, 1),
-            "chainmail": (2, 3),
             "jerkin": (2, 3),
-            "brigandine": (2, 3),
-            "boots": (2, 2),
+            "reinforced_gloves": (2, 2),
+            "soft_bracers": (2, 2),
+            "scout_leggings": (2, 2),
+            "travel_boots": (2, 2),
             "linen_shirt": (2, 2),
             "wool_tunic": (2, 2),
             "apron": (2, 2),
@@ -871,6 +948,15 @@ class InventoryViewService:
     @staticmethod
     def _rarity_label(item: InventoryRuntimeItemDTO) -> str:
         return InventoryViewService._RARITY_LABELS_RU[InventoryViewService._rarity_tier(item)]
+
+    @staticmethod
+    def _rarity_label_from_key(rarity: str) -> str:
+        labels = {
+            "currency": "Валюта",
+            "resource": "Ресурс",
+            "component": "Компонент",
+        }
+        return labels.get(rarity, rarity)
 
     @staticmethod
     def _flavor(item: InventoryRuntimeItemDTO) -> str | None:

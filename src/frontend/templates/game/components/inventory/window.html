@@ -1,4 +1,5 @@
 {% set inventory = inventory_window if inventory_window is defined and inventory_window else none %}
+{% set inventory_target_id = inventory_target_id if inventory_target_id is defined and inventory_target_id else 'right-inventory-panel-body' %}
 {% if inventory %}
 {% set gear_icon_keys = [
     'amulet', 'arms', 'belt', 'cloak', 'consumable', 'default', 'earrings', 'feetwear', 'garment',
@@ -203,7 +204,7 @@
                     {% if zone_has_item %}style="--inventory-item-icon-url: url('/static/images/ui/inventory-gear/{{ primary_icon if not primary_empty else secondary_icon }}.svg');"{% endif %}
                     {% if zone_has_item and inventory.can_act and zone_action_item %}
                     hx-post="/game/inventory/action"
-                    hx-target="#inventory-window-body"
+                    hx-target="#{{ inventory_target_id }}"
                     hx-swap="innerHTML"
                     hx-vals='{{ {
                         "char_id": inventory.char_id,
@@ -260,7 +261,7 @@
                     style="--inventory-item-icon-url: url('/static/images/ui/inventory-gear/{{ slot_icon }}.svg');"
                     {% if inventory.can_act and slot_item %}
                     hx-post="/game/inventory/action"
-                    hx-target="#inventory-window-body"
+                    hx-target="#{{ inventory_target_id }}"
                     hx-swap="innerHTML"
                     hx-vals='{{ {
                         "char_id": inventory.char_id,
@@ -286,7 +287,7 @@
                     {% if not slot_empty %}style="--inventory-item-icon-url: url('/static/images/ui/inventory-gear/{{ slot_icon }}.svg');"{% endif %}
                     {% if not slot_empty and inventory.can_act and slot_item %}
                     hx-post="/game/inventory/action"
-                    hx-target="#inventory-window-body"
+                    hx-target="#{{ inventory_target_id }}"
                     hx-swap="innerHTML"
                     hx-vals='{{ {
                         "char_id": inventory.char_id,
@@ -343,7 +344,7 @@
                         {% if not slot_empty %}style="--inventory-item-icon-url: url('/static/images/ui/inventory-gear/{{ slot_icon }}.svg');"{% endif %}
                         {% if not slot_empty and inventory.can_act and slot_item %}
                         hx-post="/game/inventory/action"
-                        hx-target="#inventory-window-body"
+                        hx-target="#{{ inventory_target_id }}"
                         hx-swap="innerHTML"
                         hx-vals='{{ {
                             "char_id": inventory.char_id,
@@ -397,7 +398,7 @@
                     {% if not quick_empty %}style="--inventory-item-icon-url: url('/static/images/ui/inventory-gear/{{ quick_icon }}.svg');"{% endif %}
                     {% if not quick_empty and inventory.can_act and quick_item %}
                     hx-post="/game/inventory/action"
-                    hx-target="#inventory-window-body"
+                    hx-target="#{{ inventory_target_id }}"
                     hx-swap="innerHTML"
                     hx-vals='{{ {
                         "char_id": inventory.char_id,
@@ -472,7 +473,9 @@
                      data-inventory-used-cells="{{ inventory.stats.slots_used if inventory.stats is defined else 0 }}"
                      x-init="window.inventoryGridLayout?.($el)">
                 {% set inventory_cards = inventory.visible_cards if inventory.visible_cards is defined and inventory.visible_cards else inventory.visible_rows %}
-                {% for row in inventory_cards[:inventory.rows_visible_count] %}
+                {% set resource_cards = (inventory_cards | selectattr('item_type', 'equalto', 'resource') | list) + (inventory_cards | selectattr('item_type', 'equalto', 'currency') | list) + (inventory_cards | selectattr('item_type', 'equalto', 'material') | list) %}
+                {% set quest_cards = inventory_cards | selectattr('item_type', 'equalto', 'quest') | list %}
+                {% for row in inventory_cards %}
                 {% set row_details = row.details if row.details is defined else none %}
                 {% set row_actions = row_details.actions if row_details and row_details.actions is defined else [] %}
                 {% set enabled_actions = row_actions | selectattr('enabled') | list %}
@@ -486,7 +489,7 @@
                         data-equip-target="{{ row.equip_target or '' }}"
                         {% if inventory.can_act and primary_action %}
                         hx-post="/game/inventory/action"
-                        hx-target="#inventory-window-body"
+                        hx-target="#{{ inventory_target_id }}"
                         hx-swap="innerHTML"
                         hx-vals='{{ {
                             "char_id": inventory.char_id,
@@ -520,16 +523,20 @@
                 <div class="inventory-empty-state">
                 </div>
                 {% endfor %}
-                <div class="inventory-empty-state inventory-empty-state--filtered"
-                     x-show="activeInventoryTab === 'resources'"
-                     x-cloak>
-                    РЕСУРСОВ НЕТ
-                </div>
-                <div class="inventory-empty-state inventory-empty-state--filtered"
-                     x-show="activeInventoryTab === 'quest'"
-                     x-cloak>
-                    КВЕСТОВЫХ ПРЕДМЕТОВ НЕТ
-                </div>
+                {% if not resource_cards %}
+                    <div class="inventory-empty-state inventory-empty-state--filtered"
+                         x-show="activeInventoryTab === 'resources'"
+                         x-cloak>
+                        РЕСУРСОВ НЕТ
+                    </div>
+                {% endif %}
+                {% if not quest_cards %}
+                    <div class="inventory-empty-state inventory-empty-state--filtered"
+                         x-show="activeInventoryTab === 'quest'"
+                         x-cloak>
+                        КВЕСТОВЫХ ПРЕДМЕТОВ НЕТ
+                    </div>
+                {% endif %}
                 </div>
             </div>
         </div>

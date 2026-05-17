@@ -1,0 +1,69 @@
+.loot-screen,
+.death-screen {
+    width: min(100%, 820px);
+    min-height: 100%;
+    display: grid;
+    grid-template-rows: minmax(260px, 0.9fr) auto;
+    gap: 12px;
+    padding: 12px;
+    color: var(--game-text-primary);
+}
+
+.loot-screen-visual,
+.death-screen-visual {
+    position: relative;
+    min-height: 260px;
+    border: 1px solid rgba(255, 176, 0, 0.45);
+    background:
+        linear-gradient(180deg, rgba(5, 6, 7, 0.18), rgba(5, 6, 7, 0.92)),
+        url("/static/images/scenes/ruins.png") center / cover;
+    overflow: hidden;
+}
+
+.death-screen-visual {
+    background:
+        linear-gradient(180deg, rgba(8, 5, 5, 0.18), rgba(5, 3, 3, 0.94)),
+        url("/static/images/scenes/ruins.png") center / cover;
+}
+
+.loot-screen-copy,
+.death-screen-copy {
+    position: absolute;
+    left: 18px;
+    right: 18px;
+    bottom: 18px;
+    display: grid;
+    gap: 8px;
+    max-width: 560px;
+}
+
+.loot-screen-copy span,
+.death-screen-copy span,
+.loot-screen-header span,
+.death-screen-panel header span {
+    color: var(--game-accent);
+    font: 700 10px/1 var(--font-mono);
+    letter-spacing: 2px;
+}
+
+.loot-screen-copy strong,
+.death-screen-copy strong {
+    font: 800 34px/1 var(--font-display);
+    color: var(--game-accent);
+    letter-spacing: 0;
+}
+
+.loot-screen-copy p,
+.death-screen-copy p {
+    max-width: 54ch;
+    margin: 0;
+    color: rgba(236, 226, 205, 0.88);
+    font: 600 14px/1.5 var(--font-mono);
+}
+
+.loot-screen-panel,
+.death-screen-panel {
+    border: 1px solid rgba(255, 176, 0, 0.35);
+    background: rgba(5, 5, 5, 0.82);
+    padding: 10px;
+}

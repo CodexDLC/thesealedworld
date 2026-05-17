@@ -33,6 +33,10 @@ from src.backend.features.game_catalog.combat.resources.items import (
     get_combat_item_action_catalog_entry,
     get_combat_item_action_catalog_entry_by_key,
 )
+from src.backend.features.game_catalog.combat.resources.text_templates import (
+    CombatTextResolutionError,
+    get_combat_text_template,
+)
 from src.backend.features.game_catalog.combat.resources.tokens import get_all_combat_tokens
 from src.backend.features.game_catalog.combat.resources.triggers import (
     get_all_triggers,
@@ -74,6 +78,7 @@ class GameData:
     get_basic_exchange = staticmethod(get_basic_exchange_entry)
     get_basic_exchange_by_key = staticmethod(get_basic_exchange_entry_by_key)
     get_all_basic_exchanges = staticmethod(get_all_basic_exchange_entries)
+    get_combat_text_template = staticmethod(get_combat_text_template)
 
 
 def get_combat_catalog_entry_by_key(catalog_key: str) -> Any | None:
@@ -106,6 +111,7 @@ def get_all_combat_catalog_entries() -> list[Any]:
 
 __all__ = [
     "CombatResourceCatalogService",
+    "CombatTextResolutionError",
     "GameData",
     "get_ability_catalog_entry",
     "get_ability_catalog_entry_by_key",
@@ -123,6 +129,7 @@ __all__ = [
     "get_basic_exchange_entry",
     "get_basic_exchange_entry_by_key",
     "get_combat_catalog_entry_by_key",
+    "get_combat_text_template",
     "get_combat_item_action_catalog_entry",
     "get_combat_item_action_catalog_entry_by_key",
     "get_feint_catalog_entry",

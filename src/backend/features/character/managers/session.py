@@ -309,6 +309,7 @@ class CharacterSessionManager:
             "$.sessions.scenario_id": None,
             "$.sessions.combat_id": None,
             "$.sessions.combat_finalization_id": None,
+            "$.sessions.post_combat": None,
             "$.sessions.encounter_id": None,
             "$.sessions.arena_id": None,
             "$.sessions.death_run_id": None,

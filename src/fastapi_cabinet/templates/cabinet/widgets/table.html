@@ -2,7 +2,7 @@
 
 {% block widget_content %}
     {% if widget.rows %}
-        <table class="fc-table">
+        <table class="fc-table{% if widget.row_href_key %} fc-table--linked{% endif %}">
             <thead>
                 <tr>
                     {% for column in widget.columns %}<th>{{ column.label }}</th>{% endfor %}
@@ -10,7 +10,11 @@
             </thead>
             <tbody>
                 {% for row in widget.rows %}
-                    <tr>
+                    {% if widget.row_href_key %}
+                        <tr class="fc-table-row--link" onclick="window.location.href='{{ row.get(widget.row_href_key, '#') }}'">
+                    {% else %}
+                        <tr>
+                    {% endif %}
                         {% for column in widget.columns %}
                             <td>{{ row.get(column.key, "—") }}</td>
                         {% endfor %}

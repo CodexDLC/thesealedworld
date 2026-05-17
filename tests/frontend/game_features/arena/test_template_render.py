@@ -18,6 +18,7 @@ def test_mode_menu_renders_queue_and_back_buttons_from_lowercase_actions():
         title="Схватка [1x1]",
         description="Описание",
         buttons=ArenaResources.get_mode_buttons("one_vs_one"),
+        metadata={"queue_waiting_count": 2, "max_wait_limit_sec": 300},
     )
 
     rendered = template.render(
@@ -28,19 +29,20 @@ def test_mode_menu_renders_queue_and_back_buttons_from_lowercase_actions():
 
     assert "ArenaScreenEnum.MODE_MENU" not in rendered
     assert "arena-screen--mode_menu" in rendered
-    assert "Ранг 1 мин" in rendered
-    assert "Ранг 3 мин" in rendered
-    assert "Ранг 5 мин" in rendered
+    assert "Искать противника" in rendered
     assert "Бой с тенью" in rendered
-    assert "arena-duel-ranked-grid" in rendered
-    assert rendered.count('type="button"') >= 6
+    assert "arena-queue-card--primary" in rendered
+    assert "arena-queue-card--secondary" in rendered
+    assert "arena-duel-ranked-grid" not in rendered
+    assert "В ожидании поиска" in rendered
+    assert ">2</strong>" in rendered
+    assert "максимум 5 мин" in rendered
+    assert rendered.count('type="button"') >= 4
     assert "Назад" in rendered
     assert "Текущие бои" in rendered
     assert "Смотреть" in rendered
     assert '"action": "join_queue"' in rendered
-    assert '"wait_limit_sec": 60' in rendered
-    assert '"wait_limit_sec": 180' in rendered
-    assert '"wait_limit_sec": 300' in rendered
+    assert '"wait_limit_sec"' not in rendered
     assert '"action": "start_shadow"' in rendered
     assert 'hx-target="#game-modal-root"' in rendered
     assert '"modal": true' in rendered
@@ -87,7 +89,7 @@ def test_searching_screen_renders_wait_limit():
         description="Описание",
         wait_time_sec=7,
         buttons=ArenaResources.get_searching_buttons("one_vs_one"),
-        metadata={"wait_limit_sec": 180},
+        metadata={"wait_limit_sec": 180, "queue_waiting_count": 4},
     )
 
     rendered = template.render(
@@ -98,6 +100,8 @@ def test_searching_screen_renders_wait_limit():
 
     assert "Лимит ожидания" in rendered
     assert "3 мин" in rendered
+    assert "В ожидании поиска" in rendered
+    assert ">4</strong>" in rendered
 
 
 def test_combat_pending_renders_confirmation_modal_without_scene_art():
@@ -138,7 +142,7 @@ def test_combat_pending_renders_confirmation_modal_without_scene_art():
     assert "scene-img" not in rendered
 
 
-def test_group_hall_renders_future_intervention_action():
+def test_group_hall_renders_locked_lobby_and_future_intervention_browser():
     env = Environment(
         loader=FileSystemLoader("src/frontend/templates"),
         autoescape=select_autoescape(),
@@ -159,10 +163,12 @@ def test_group_hall_renders_future_intervention_action():
         status_seed=SimpleNamespace(symbiote_name="SYSTEM"),
     )
 
-    assert "Ранговый бой" in rendered
-    assert "Создать заявку" in rendered
-    assert "Потасовка" in rendered
-    assert "arena-group-plans" in rendered
+    assert "REMOTE WORKS" in rendered
+    assert "Пока открыт только зал 1x1" in rendered
+    assert "arena-repair-banner" in rendered
+    assert "Ранговый бой" not in rendered
+    assert "Создать заявку" not in rendered
+    assert "arena-group-plans" not in rendered
     assert "arena-group-tabs" in rendered
     assert "Хаотические бои" in rendered
     assert "Групповые заявки" in rendered

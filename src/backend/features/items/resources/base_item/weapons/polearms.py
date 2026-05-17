@@ -17,8 +17,8 @@ POLEARMS_DB = {
         implicit_bonuses={
             "accuracy_penalty": 0.10,
             "main_hand_armor_penetration_pct": 0.08,
-            "physical_crit_chance": 0.04,
-            "parry_chance": 0.04,
+            "physical_crit_chance": 0.035,
+            "parry_chance": 0.025,
         },
         triggers=["crit.weapon_piercing_crit"],
     ),
@@ -38,8 +38,8 @@ POLEARMS_DB = {
         implicit_bonuses={
             "accuracy_penalty": 0.16,
             "main_hand_armor_penetration_pct": 0.16,
-            "physical_crit_chance": 0.05,
-            "parry_chance": 0.05,
+            "physical_crit_chance": 0.04,
+            "parry_chance": 0.03,
             "evasion_penalty": -0.06,
         },
         triggers=["crit.weapon_piercing_crit"],
@@ -60,8 +60,8 @@ POLEARMS_DB = {
         implicit_bonuses={
             "accuracy_penalty": 0.20,
             "main_hand_armor_penetration_pct": 0.12,
-            "physical_crit_chance": 0.06,
-            "parry_chance": 0.04,
+            "physical_crit_chance": 0.04,
+            "parry_chance": 0.025,
             "evasion_penalty": -0.08,
         },
         triggers=["crit.weapon_heavy_crit"],
@@ -83,7 +83,7 @@ POLEARMS_DB = {
         implicit_bonuses={
             "accuracy_penalty": 0.08,
             "physical_crit_chance": 0.02,
-            "parry_chance": 0.10,
+            "parry_chance": 0.05,
         },
         triggers=["crit.weapon_impact_stun_crit"],
     ),
@@ -103,8 +103,8 @@ POLEARMS_DB = {
         implicit_bonuses={
             "accuracy_penalty": 0.12,
             "main_hand_armor_penetration_pct": 0.07,
-            "physical_crit_chance": 0.04,
-            "parry_chance": 0.06,
+            "physical_crit_chance": 0.035,
+            "parry_chance": 0.03,
         },
         triggers=["control.weapon_knockdown_hit"],
     ),

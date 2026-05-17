@@ -1,0 +1,24 @@
+/* ── ANIMATIONS & UTILS (Restored) ── */
+
+@keyframes pulse {
+    0% {
+        opacity: 0.4;
+    }
+
+    50% {
+        opacity: 1;
+    }
+
+    100% {
+        opacity: 0.4;
+    }
+}
+
+.status-dot.pulse {
+    width: 6px;
+    height: 6px;
+    background: var(--col-accent);
+    border-radius: 50%;
+    box-shadow: 0 0 10px var(--col-accent);
+    animation: pulse 2s infinite;
+}

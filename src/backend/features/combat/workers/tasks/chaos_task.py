@@ -53,7 +53,9 @@ async def chaos_check_task(ctx: dict, session_id: str) -> None:
         now = int(time.time())
         delta = now - meta.last_activity_at
 
-        if delta > MAX_INACTIVITY_SEC:
+        if meta.started_at is None:
+            log.debug("ChaosSkip | reason=not_started session_id={session_id}", session_id=session_id)
+        elif delta > MAX_INACTIVITY_SEC:
             # Trigger Cleanup Event
             spawned = await chaos_service.spawn_cleaner(session_id)
             if spawned:

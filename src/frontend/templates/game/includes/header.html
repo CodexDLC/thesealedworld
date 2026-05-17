@@ -1,76 +1,62 @@
-{% if domain == 'combats' %}
-    {% set exchange = combat_screen.exchange_state if combat_screen is defined and combat_screen else none %}
-    <div class="combat-header-state" aria-label="Combat state">
-        <div class="combat-header-state__brand">
-            <span class="loc-dot"></span>
-            <strong>COMBAT</strong>
-            <em>{{ combat_screen.battle_type if combat_screen is defined and combat_screen and combat_screen.battle_type else 'BATTLE' }}</em>
-        </div>
-        <div class="combat-header-state__metrics">
-            <span>TURN <b>{{ combat_screen.turn_number if combat_screen is defined and combat_screen else 'NO_DATA' }}</b></span>
-            <span>PHASE <b>{{ combat_screen.phase if combat_screen is defined and combat_screen and combat_screen.phase else 'NO_DATA' }}</b></span>
-            <span>PAIR <b>{{ exchange.pair_status if exchange else 'unknown' }}</b></span>
-            <span>RESPONSE <b>{{ exchange.opponent_response_state if exchange else 'unknown' }}</b></span>
-        </div>
+<div class="header-left">
+    <div class="game-brand" aria-label="The Sealed World">
+        <div class="game-logo">The Sealed World</div>
     </div>
-{% else %}
-    <div class="header-left">
-        <div class="game-brand" aria-label="The Sealed World">
-            <div class="game-logo">The Sealed World</div>
-        </div>
-        {% if world_resonance %}
-        <div class="resonance-tag">
-            WORLD_RESONANCE // {{ world_resonance }}
-        </div>
-        {% endif %}
+    {% if world_resonance %}
+    <div class="resonance-tag">
+        WORLD_RESONANCE // {{ world_resonance }}
     </div>
+    {% endif %}
+</div>
 
-    <div class="header-center">
-    </div>
+<div class="header-center">
+    {% if domain != 'exploration' %}
+    {% include "game/domains/game_menu/header_nav.html" %}
+    {% endif %}
+</div>
 
-    <div class="header-right">
-        <div class="game-system-menu" x-data="{ open: false }" @keydown.escape="open = false" @click.outside="open = false">
-            <button type="button"
-                    class="game-system-menu-toggle"
-                    @click="open = !open"
-                    :aria-expanded="open.toString()"
-                    aria-haspopup="menu"
-                    aria-label="Open system menu">
-                <span class="game-system-menu-glyph" aria-hidden="true"></span>
-            </button>
-            <nav class="game-system-actions"
-                 :class="{ 'is-open': open }"
-                 role="menu"
-                 aria-label="System menu">
-                <a class="game-system-action"
-                   href="/cabinet"
-                   target="_blank"
-                   rel="noopener"
-                   role="menuitem"
-                   aria-label="Open cabinet in a separate window">
-                    <span class="game-system-action-glyph game-system-action-glyph--cabinet" aria-hidden="true"></span>
-                    <span>Cabinet</span>
-                </a>
-                <form class="game-system-form" action="/game-lobby/release" method="post" role="none">
-                    <button class="game-system-action"
-                            type="submit"
-                            data-session-cleanup="pending"
-                            role="menuitem"
-                            aria-label="Restart session and return to game lobby">
-                        <span class="game-system-action-glyph game-system-action-glyph--restart" aria-hidden="true"></span>
-                        <span>Restart</span>
-                    </button>
-                </form>
-                <button class="game-system-action game-system-action--icon is-disabled"
-                        type="button"
-                        disabled
-                        aria-label="Settings"
-                        aria-disabled="true"
-                        role="menuitem">
-                    <span class="game-system-action-glyph game-system-action-glyph--settings" aria-hidden="true"></span>
-                    <span class="sr-only">Settings</span>
+<div class="header-right">
+    <div class="game-system-menu" x-data="{ open: false }" @keydown.escape="open = false" @click.outside="open = false">
+        <button type="button"
+                class="game-system-menu-toggle"
+                @click="open = !open"
+                :aria-expanded="open.toString()"
+                aria-haspopup="menu"
+                aria-label="Open system menu">
+            <span class="game-system-menu-glyph" aria-hidden="true"></span>
+        </button>
+        <nav class="game-system-actions"
+             :class="{ 'is-open': open }"
+             role="menu"
+             aria-label="System menu">
+            <a class="game-system-action"
+               href="/admin"
+               target="_blank"
+               rel="noopener"
+               role="menuitem"
+               aria-label="Open cabinet in a separate window">
+                <span class="game-system-action-glyph game-system-action-glyph--cabinet" aria-hidden="true"></span>
+                <span>Cabinet</span>
+            </a>
+            <form class="game-system-form" action="/game-lobby/release" method="post" role="none">
+                <button class="game-system-action"
+                        type="submit"
+                        data-session-cleanup="pending"
+                        role="menuitem"
+                        aria-label="Restart session and return to game lobby">
+                    <span class="game-system-action-glyph game-system-action-glyph--restart" aria-hidden="true"></span>
+                    <span>Restart</span>
                 </button>
-            </nav>
-        </div>
+            </form>
+            <button class="game-system-action game-system-action--icon is-disabled"
+                    type="button"
+                    disabled
+                    aria-label="Settings"
+                    aria-disabled="true"
+                    role="menuitem">
+                <span class="game-system-action-glyph game-system-action-glyph--settings" aria-hidden="true"></span>
+                <span class="sr-only">Settings</span>
+            </button>
+        </nav>
     </div>
-{% endif %}
+</div>

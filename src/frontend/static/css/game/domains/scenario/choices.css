@@ -1,0 +1,172 @@
+.scenario-watch {
+    min-width: 0;
+    min-height: 42px;
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) 52px;
+    align-items: center;
+    gap: 8px;
+    padding: 7px 8px;
+    border: 1px solid rgba(153, 160, 170, 0.24);
+    background:
+        linear-gradient(90deg, var(--scenario-soft), transparent 72%),
+        rgba(5, 5, 7, 0.76);
+    position: relative;
+    z-index: 1;
+}
+
+.scenario-watch strong,
+.scenario-watch span {
+    min-width: 0;
+    overflow: hidden;
+    font-family: var(--font-ui);
+    line-height: 1.2;
+    text-overflow: ellipsis;
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+
+.scenario-watch strong {
+    color: var(--scenario-accent);
+    font-size: var(--game-panel-label-size);
+    font-weight: 900;
+    letter-spacing: 0.06em;
+}
+
+.scenario-watch span {
+    color: rgba(230, 204, 172, 0.68);
+    font-size: var(--game-panel-value-size);
+}
+
+.scenario-watch .game-action-button {
+    min-height: 24px;
+    font-size: var(--game-panel-meta-size);
+}
+
+.scenario-action-panel {
+    --game-action-gap: 6px;
+    --game-action-padding: 8px;
+    --game-action-button-height: 42px;
+    overflow: hidden;
+}
+
+.scenario-action-head strong {
+    color: var(--scenario-accent);
+}
+
+.scenario-action-layout {
+    grid-template-columns: minmax(0, 1fr);
+    align-items: end;
+}
+
+.scenario-choice-list {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 6px;
+}
+
+.scenario-choice {
+    min-width: 0;
+    display: grid;
+    grid-template-columns: 28px minmax(0, 1fr);
+    align-items: center;
+    justify-items: stretch;
+    gap: 8px;
+    padding: 7px 9px;
+    text-align: left;
+}
+
+.scenario-choice-icon {
+    width: 26px;
+    height: 26px;
+    display: grid;
+    place-items: center;
+    border: 1px solid rgba(153, 160, 170, 0.28);
+    background:
+        radial-gradient(circle at 50% 38%, rgba(153, 160, 170, 0.18), transparent 64%),
+        rgba(0, 0, 0, 0.28);
+    color: var(--scenario-accent);
+}
+
+.scenario-choice-icon::before {
+    content: "";
+    width: 15px;
+    height: 15px;
+    display: block;
+    background: currentColor;
+    filter: drop-shadow(0 0 6px rgba(153, 160, 170, 0.28));
+    mask: var(--scenario-choice-icon-url) center / contain no-repeat;
+    -webkit-mask: var(--scenario-choice-icon-url) center / contain no-repeat;
+}
+
+.scenario-choice-copy {
+    min-width: 0;
+    display: grid;
+    gap: 3px;
+}
+
+.scenario-choice-copy strong,
+.scenario-choice-copy small,
+.scenario-reward-grid b,
+.scenario-reward-grid strong {
+    min-width: 0;
+    overflow: hidden;
+    font-family: var(--font-ui);
+    line-height: 1.1;
+    text-overflow: ellipsis;
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+
+.scenario-choice-copy strong {
+    color: rgba(245, 232, 204, 0.88);
+    font-size: var(--game-panel-value-size);
+    font-weight: 900;
+    letter-spacing: 0.04em;
+    overflow-wrap: anywhere;
+    white-space: normal;
+}
+
+.scenario-choice-copy small {
+    color: rgba(210, 180, 140, 0.52);
+    font-size: var(--game-panel-meta-size);
+    font-weight: 800;
+    letter-spacing: 0.02em;
+    overflow-wrap: anywhere;
+    white-space: normal;
+}
+
+.scenario-choice--primary {
+    border-color: rgba(153, 160, 170, 0.44);
+}
+
+.scenario-choice--primary .scenario-choice-copy strong {
+    color: var(--scenario-accent-strong);
+}
+
+.scenario-choice--primary .scenario-choice-icon {
+    border-color: rgba(153, 160, 170, 0.42);
+    color: var(--scenario-accent-strong);
+}
+
+.scenario-choice--danger {
+    border-color: rgba(255, 92, 64, 0.28);
+}
+
+.scenario-choice--danger .scenario-choice-copy strong,
+.scenario-choice--danger .scenario-choice-icon {
+    color: rgba(255, 168, 118, 0.92);
+}
+
+.scenario-empty-actions {
+    min-height: 42px;
+    display: grid;
+    place-items: center;
+    border: 1px solid rgba(255, 170, 0, 0.12);
+    background: rgba(0, 0, 0, 0.24);
+    color: rgba(210, 180, 140, 0.52);
+    font-family: var(--font-ui);
+    font-size: var(--game-panel-label-size);
+    font-weight: 900;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}

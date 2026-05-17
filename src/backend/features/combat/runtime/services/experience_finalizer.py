@@ -25,6 +25,9 @@ ACTION_POWER_MULTIPLIERS: dict[str, float] = {
     "kill": 1.0,
 }
 
+TACTICAL_STYLE_ACTION_SHARE = 0.5
+SUPPORT_ACTION_SHARE = 0.5
+
 
 @dataclass(frozen=True)
 class CombatActorExperienceResult:
@@ -111,6 +114,8 @@ class CombatExperienceFinalizer:
 
         free_power += self._add_weapon_power(action_power_by_skill, xp_buffer, layout, "main_hand")
         free_power += self._add_weapon_power(action_power_by_skill, xp_buffer, layout, "off_hand")
+        free_power += self._add_tactical_style_power(action_power_by_skill, xp_buffer, layout)
+        free_power += self._add_combat_support_power(action_power_by_skill, xp_buffer)
         free_power += self._add_skill_power(
             action_power_by_skill, "skill_parrying", xp_buffer.get("defense_parry", 0.0)
         )
@@ -120,19 +125,20 @@ class CombatExperienceFinalizer:
             xp_buffer.get("defense_block", 0.0),
         )
 
-        dodge_power = xp_buffer.get("defense_dodge", 0.0) * ACTION_POWER_MULTIPLIERS["dodge"]
+        armor_power = xp_buffer.get("defense_dodge", 0.0) * ACTION_POWER_MULTIPLIERS["dodge"] + xp_buffer.get(
+            "defense_armor", 0.0
+        )
         body_skill = layout.get("body")
-        if isinstance(body_skill, str) and self.catalog.get(body_skill) is not None:
-            action_power_by_skill[body_skill] = action_power_by_skill.get(body_skill, 0.0) + dodge_power
+        if isinstance(body_skill, str) and self._combat_skill(body_skill) is not None:
+            action_power_by_skill[body_skill] = action_power_by_skill.get(body_skill, 0.0) + armor_power
         else:
-            free_power += dodge_power
+            free_power += armor_power
 
-        free_power += xp_buffer.get("kill_generic", 0.0) * ACTION_POWER_MULTIPLIERS["kill"]
         free_power += xp_buffer.get("free_xp", 0.0)
 
         entries: dict[str, SkillProgressionEntry] = {}
         for skill_key, action_power in action_power_by_skill.items():
-            skill = self.catalog.get(skill_key)
+            skill = self._combat_skill(skill_key)
             if skill is None or action_power <= 0:
                 free_power += action_power
                 continue
@@ -168,10 +174,37 @@ class CombatExperienceFinalizer:
             + xp_buffer.get(f"{source_type}_crit", 0.0) * ACTION_POWER_MULTIPLIERS["crit"]
         )
         skill_key = layout.get(source_type)
-        if isinstance(skill_key, str) and self.catalog.get(skill_key) is not None:
+        if isinstance(skill_key, str) and self._combat_skill(skill_key) is not None:
             action_power_by_skill[skill_key] = action_power_by_skill.get(skill_key, 0.0) + action_power
             return 0.0
         return action_power
+
+    def _add_tactical_style_power(
+        self,
+        action_power_by_skill: dict[str, float],
+        xp_buffer: dict[str, float],
+        layout: dict[str, Any],
+    ) -> float:
+        skill_key = layout.get("tactical_style")
+        if not isinstance(skill_key, str):
+            return 0.0
+        action_power = self._offensive_action_power(xp_buffer) * TACTICAL_STYLE_ACTION_SHARE
+        return self._add_skill_power(action_power_by_skill, skill_key, action_power)
+
+    def _add_combat_support_power(
+        self,
+        action_power_by_skill: dict[str, float],
+        xp_buffer: dict[str, float],
+    ) -> float:
+        free_power = 0.0
+        anatomy_power = self._successful_offensive_action_power(xp_buffer) * SUPPORT_ACTION_SHARE
+        tactics_power = (
+            self._offensive_action_power(xp_buffer) * SUPPORT_ACTION_SHARE
+            + xp_buffer.get("kill_generic", 0.0) * ACTION_POWER_MULTIPLIERS["kill"]
+        )
+        free_power += self._add_skill_power(action_power_by_skill, "skill_anatomy", anatomy_power)
+        free_power += self._add_skill_power(action_power_by_skill, "skill_tactics", tactics_power)
+        return free_power
 
     def _add_skill_power(
         self,
@@ -182,10 +215,37 @@ class CombatExperienceFinalizer:
         action_power = count
         if action_power <= 0:
             return 0.0
-        if self.catalog.get(skill_key) is None:
+        if self._combat_skill(skill_key) is None:
             return action_power
         action_power_by_skill[skill_key] = action_power_by_skill.get(skill_key, 0.0) + action_power
         return 0.0
+
+    def _combat_skill(self, skill_key: str) -> Any | None:
+        skill = self.catalog.get(skill_key)
+        if skill is None:
+            return None
+        category = getattr(skill, "category", None)
+        if getattr(category, "value", category) != "combat":
+            return None
+        return skill
+
+    def _offensive_action_power(self, xp_buffer: dict[str, float]) -> float:
+        return self._source_action_power(xp_buffer, "main_hand") + self._source_action_power(xp_buffer, "off_hand")
+
+    def _successful_offensive_action_power(self, xp_buffer: dict[str, float]) -> float:
+        return self._source_action_power(xp_buffer, "main_hand", include_miss=False) + self._source_action_power(
+            xp_buffer, "off_hand", include_miss=False
+        )
+
+    @staticmethod
+    def _source_action_power(xp_buffer: dict[str, float], source_type: str, *, include_miss: bool = True) -> float:
+        action_power = (
+            xp_buffer.get(f"{source_type}_hit", 0.0) * ACTION_POWER_MULTIPLIERS["hit"]
+            + xp_buffer.get(f"{source_type}_crit", 0.0) * ACTION_POWER_MULTIPLIERS["crit"]
+        )
+        if include_miss:
+            action_power += xp_buffer.get(f"{source_type}_miss", 0.0) * ACTION_POWER_MULTIPLIERS["miss"]
+        return action_power
 
     def _flat_attributes(self, actor: dict[str, Any]) -> dict[str, float]:
         raw = self._dict(actor.get("raw"))

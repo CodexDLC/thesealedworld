@@ -50,8 +50,6 @@ class QuestMasterSchema(BaseModel):
     scenario_type: ScenarioType
     display_name: str | None = "UNKNOWN_QUEST"
     background_url: str | None = None
-    show_left_sidebar: bool = True
-    show_right_sidebar: bool = True
     start_node_id: str
     status_bar_fields: list[StatusBarFieldSchema] = Field(default_factory=list)
     analytics_config: AnalyticsConfigSchema | None = None
@@ -75,8 +73,6 @@ class QuestNodeSchema(BaseModel):
     icon: str | None = None
     avatar: str | None = None
     background_url: str | None = None
-    show_left_sidebar: bool | None = None
-    show_right_sidebar: bool | None = None
     text: str = Field(default="[System: Logic Processing...]")
     system_messages: list[str] = Field(default_factory=list)
     tags: list[str] = Field(default_factory=list)

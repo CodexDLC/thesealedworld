@@ -1,0 +1,75 @@
+/* ── LOGIN PAGE & MODAL ── */
+.modal-backdrop {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.85);
+    backdrop-filter: blur(8px);
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: var(--sp-4);
+}
+
+.modal-content {
+    position: relative;
+    box-shadow: var(--shadow-accent);
+    animation: modal-glow 4s infinite alternate;
+}
+
+@keyframes modal-glow {
+    from { box-shadow: 0 0 20px rgba(255,170,0,0.1); }
+    to { box-shadow: 0 0 40px rgba(255,170,0,0.3); }
+}
+
+.modal-close {
+    background: none;
+    border: none;
+    color: var(--col-text-dim);
+    font-size: var(--text-2xl);
+    cursor: pointer;
+    padding: 0 var(--sp-2);
+    transition: color 0.2s;
+}
+
+.modal-close:hover {
+    color: var(--col-accent);
+}
+
+.login-panel {
+    width: 100%;
+    max-width: 400px;
+}
+
+.form-group {
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-2);
+    margin-bottom: var(--sp-6);
+}
+
+.form-input {
+    width: 100%;
+    background: var(--col-bg);
+    border: 1px solid var(--col-border);
+    color: var(--col-parchment);
+    padding: var(--sp-3);
+    font-family: var(--font-ui);
+    outline: none;
+    transition: border-color 0.2s ease;
+}
+
+.form-input:focus {
+    border-color: var(--col-accent);
+}
+
+/* Page specific centering */
+.page-login .main-container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 70vh;
+}

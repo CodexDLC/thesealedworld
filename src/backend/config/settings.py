@@ -81,7 +81,10 @@ class BackendSettings(BaseCommonSettings):
     # LLM Settings
     gemini_api_key: str | None = None
     gemini_model: str = "gemini-2.5-flash"
-    gemini_image_model: str = "gemini-3.1-flash-image-preview"
+    gemini_image_model: str = "gemini-2.5-flash-image"
+    gemini_monster_image_model: str = "gemini-2.5-flash-image"
+    gemini_location_image_model: str = "gemini-2.5-flash-image"
+    gemini_avatar_image_model: str = "gemini-2.5-flash-image"
     monster_clan_flavor_ai_interval_seconds: float = 30.0
     gemini_token: str | None = None
     openrouter_api_key: str | None = None

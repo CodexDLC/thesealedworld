@@ -3,16 +3,28 @@
     {% set result_title = result_screen.title if result_screen else combat_result.title %}
     {% set result_outcome = result_screen.outcome if result_screen else combat_result.outcome %}
     {% set result_art = '/static/images/game/combat/results/combat-result-victory.png' if result_outcome == 'victory' else '/static/images/game/combat/results/combat-result-defeat.png' %}
-    <div class="combat-side combat-side--right combat-result-side">
+    <aside class="panel-dock panel-dock--framed panel-dock--scroll combat-side combat-side--right combat-result-side">
+        <nav class="dock-nav dock-nav--bar dock-nav--panel combat-info-actions" aria-label="Combat info actions">
+            <button class="dock-nav-button is-active" type="button">INFO</button>
+            <button class="dock-nav-button dock-nav-button--close"
+                    type="button"
+                    @click="$dispatch('panel-toggle', { side: 'right', view: 'context' })">CLOSE</button>
+        </nav>
         <section class="combat-panel combat-result-art-panel combat-result-art-panel--{{ result_outcome }}">
             <div class="combat-panel-header">POST BATTLE</div>
             <figure class="combat-result-side-art">
                 <img src="{{ result_art }}" alt="Иллюстрация результата боя">
             </figure>
         </section>
-    </div>
+    </aside>
 {% elif combat_screen %}
-    <div class="combat-side combat-side--right">
+    <aside class="panel-dock panel-dock--framed panel-dock--scroll combat-side combat-side--right">
+        <nav class="dock-nav dock-nav--bar dock-nav--panel combat-info-actions" aria-label="Combat info actions">
+            <button class="dock-nav-button is-active" type="button">INFO</button>
+            <button class="dock-nav-button dock-nav-button--close"
+                    type="button"
+                    @click="$dispatch('panel-toggle', { side: 'right', view: 'context' })">CLOSE</button>
+        </nav>
         {% if combat_screen.action_state == 'TARGET_QUEUE_EMPTY' %}
         <section class="combat-panel combat-target-empty-panel">
             <div class="combat-panel-header">TARGET QUEUE</div>
@@ -63,12 +75,18 @@
                 {% endfor %}
             </div>
         </section>
-    </div>
+    </aside>
 {% else %}
-    <div class="combat-side combat-side--right">
+    <aside class="panel-dock panel-dock--framed panel-dock--scroll combat-side combat-side--right">
+        <nav class="dock-nav dock-nav--bar dock-nav--panel combat-info-actions" aria-label="Combat info actions">
+            <button class="dock-nav-button is-active" type="button">INFO</button>
+            <button class="dock-nav-button dock-nav-button--close"
+                    type="button"
+                    @click="$dispatch('panel-toggle', { side: 'right', view: 'context' })">CLOSE</button>
+        </nav>
         <section class="combat-panel">
             <div class="combat-panel-header">COMBAT CONTEXT</div>
             <div class="missing-data-block"><span>NO_DATA</span></div>
         </section>
-    </div>
+    </aside>
 {% endif %}

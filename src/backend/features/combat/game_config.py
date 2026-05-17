@@ -18,3 +18,4 @@ class CombatConfig(BaseGameConfig):
 
     # Chaos system
     CHAOS_FIRST_CHECK_DELAY_SECONDS: int = 300
+    SESSION_TTL_SECONDS: int = 3600

@@ -105,6 +105,6 @@ The runtime page `/system/design` is currently not a reliable truth source becau
 
 - it renders inside `site/base_site.html`
 - it inherits site shell chrome
-- its active runtime bundle does not include the original `pages/design_system.css` path
+- its active runtime bundle does not include a dedicated design-system page CSS path
 
 Use the standalone HTML file in this folder instead.

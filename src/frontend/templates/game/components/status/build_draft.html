@@ -1,0 +1,36 @@
+<aside class="panel-dock panel-dock--framed panel-dock--scroll status-panel-root status-sidebar-surface build-draft-panel"
+       aria-label="Build draft dock">
+    <nav class="dock-nav dock-nav--bar dock-nav--panel status-dock-actions" aria-label="Build actions">
+        <button class="dock-nav-button"
+                type="button"
+                @click="leftPanelView = 'status'"
+                :class="{ 'is-active': leftPanelView === 'status' }">STATUS</button>
+        <button class="dock-nav-button"
+                type="button"
+                @click="leftPanelView = 'builds'"
+                :class="{ 'is-active': leftPanelView === 'builds' }">BUILD</button>
+        <button class="dock-nav-button dock-nav-button--close"
+                type="button"
+                @click="$dispatch('panel-toggle', { side: 'left', view: 'builds' })">CLOSE</button>
+    </nav>
+
+    <section class="status-widget-card build-draft-card" aria-label="Build draft notice">
+        <div class="status-widget-core">
+            <div class="status-widget-name">
+                <strong>BUILD DRAFT</strong>
+                <span>NOT ACTIVE FUNCTIONALITY</span>
+            </div>
+        </div>
+    </section>
+
+    <section class="status-widget-section build-draft-section">
+        <header class="status-widget-section-title">
+            <span>BUILD PANEL</span>
+            <strong>DRAFT</strong>
+        </header>
+        <div class="missing-data-block">
+            <span>BUILD_DRAFT_ONLY</span>
+            <small>character skills and loadout integration is intentionally not active yet</small>
+        </div>
+    </section>
+</aside>

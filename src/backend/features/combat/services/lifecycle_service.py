@@ -122,8 +122,13 @@ class CombatLifecycleService:
 
         name = meta.get("name") or source.get("name") or f"Actor {final_id}"
         avatar_url = meta.get("avatar_url") or source.get("avatar_url")
-        if battle_type == "shadow" and final_id.startswith("-"):
+        is_shadow = battle_type == "shadow" and final_id.startswith("-")
+        actor_type = str(meta.get("actor_type") or "player")
+        if is_shadow:
             name = f"Shadow {name}"
+            actor_type = "shadow"
+        tags = self._actor_tags(meta, source, is_shadow=is_shadow)
+        visual = source.get("visual") if isinstance(source.get("visual"), dict) else {}
 
         hp = self._vital(status, runtime, "hp", "hp_current", default=100)
         max_hp = max(hp, self._vital_max(status, runtime, "hp", ("max_hp", "hp_max"), default=hp))
@@ -155,10 +160,14 @@ class CombatLifecycleService:
             "meta": {
                 "id": final_id,
                 "name": name,
-                "type": meta.get("actor_type", "player"),
+                "type": actor_type,
                 "archetype": meta.get("archetype", "humanoid"),
                 "avatar_url": avatar_url,
                 "gender": meta.get("gender") or source.get("gender"),
+                "role": meta.get("role") or source.get("role"),
+                "tags": tags,
+                "source_ref": self._source_ref(actor_type, source, final_id),
+                "visual": visual,
                 "team": team_name,
                 "template_id": str(
                     source.get("character_id")
@@ -190,6 +199,28 @@ class CombatLifecycleService:
             "explanation": {},
             "source": source,
         }
+
+    @staticmethod
+    def _actor_tags(meta: dict[str, Any], source: dict[str, Any], *, is_shadow: bool) -> list[str]:
+        tags: list[str] = []
+        for raw in (meta.get("tags"), source.get("tags")):
+            if isinstance(raw, list):
+                tags.extend(str(tag) for tag in raw if tag)
+        if is_shadow:
+            tags.append("shadow")
+        return sorted(set(tags))
+
+    @staticmethod
+    def _source_ref(actor_type: str, source: dict[str, Any], final_id: str) -> str:
+        monster_id = source.get("monster_id")
+        if monster_id:
+            return ActorCommitmentManager.source_ref("monster", str(monster_id))
+        character_id = source.get("character_id")
+        if character_id:
+            return ActorCommitmentManager.source_ref("player", str(character_id))
+        if actor_type == "monster":
+            return ActorCommitmentManager.source_ref("monster", final_id)
+        return ActorCommitmentManager.source_ref("player", final_id.lstrip("-"))
 
     @staticmethod
     def prepare_participants(request: dict[str, Any], *, battle_type: str) -> dict[str, list[int | str]]:

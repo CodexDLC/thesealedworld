@@ -1,29 +1,61 @@
-<div class="creation-form-grid" x-data="{ gender: 'male' }">
+<div class="creation-form-grid">
     <label class="gender-choice gender-choice--male" :class="{ 'is-selected': gender === 'male' }">
-        <input form="character-creation-form" type="radio" name="gender" value="male" x-model="gender" checked>
-        <span class="gender-orb">♂</span>
-        <span class="gender-label">Мужской</span>
+        <input type="radio" name="gender" value="male" x-model="gender" form="character-creation-form" checked>
         <img src="/static/images/avatars/silhouette_m.png" alt="">
+        <span class="gender-meta">
+            <span class="gender-orb">♂</span>
+            <span class="gender-label">Мужской</span>
+        </span>
     </label>
+
+    <form id="character-creation-form" class="creation-center" action="/game-lobby/start" method="post" @submit.prevent="submitCreation($event)">
+        <label class="creation-field">
+            <span>Имя персонажа</span>
+            <input
+                type="text"
+                name="name"
+                required
+                minlength="3"
+                maxlength="16"
+                pattern="[A-Za-zА-Яа-яЁё0-9_]{3,16}"
+                autocomplete="off"
+                title="3-16 символов: кириллица или латиница, цифры и подчеркивание"
+                placeholder="Введи имя"
+                x-model.trim="creationName"
+                @input.debounce.350ms="checkCreationNameAvailability()"
+                @blur="checkCreationNameAvailability()"
+                :aria-invalid="nameAvailabilityState === 'invalid' ? 'true' : 'false'"
+                aria-describedby="character-name-status"
+            >
+            <p
+                id="character-name-status"
+                class="creation-name-status"
+                :class="{
+                    'creation-name-status--pending': nameAvailabilityState === 'pending',
+                    'creation-name-status--valid': nameAvailabilityState === 'valid',
+                    'creation-name-status--invalid': nameAvailabilityState === 'invalid'
+                }"
+                x-show="creationNameStatus"
+                x-text="creationNameStatus"
+                x-cloak
+            ></p>
+        </label>
+
+        <button
+            type="submit"
+            class="btn-node lg lobby-primary-action"
+            :disabled="creationSubmitting || nameAvailabilityState === 'pending' || (creationName && nameAvailabilityState === 'invalid')"
+        >
+            <span>{{ lobby.primary_action_label }}</span>
+        </button>
+    </form>
 
     <label class="gender-choice gender-choice--female" :class="{ 'is-selected': gender === 'female' }">
-        <input form="character-creation-form" type="radio" name="gender" value="female" x-model="gender">
-        <span class="gender-orb">♀</span>
-        <span class="gender-label">Женский</span>
+        <input type="radio" name="gender" value="female" x-model="gender" form="character-creation-form">
         <img src="/static/images/avatars/silhouette_f.png" alt="">
-    </label>
-
-    <label class="creation-field">
-        <span>Имя персонажа</span>
-        <input
-            form="character-creation-form"
-            type="text"
-            name="name"
-            required
-            minlength="1"
-            maxlength="32"
-            autocomplete="off"
-            placeholder="Введи имя"
-        >
+        <span class="gender-meta">
+            <span class="gender-orb">♀</span>
+            <span class="gender-label">Женский</span>
+        </span>
     </label>
 </div>

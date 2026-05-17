@@ -9,67 +9,47 @@
 {% set arena_season = arena_meta.get('season_name', 'NO_DATA') %}
 {% set arena_hall = '1X1' if arena_mode == 'one_vs_one' else 'GROUP' if arena_mode == 'group' else 'LOBBY' %}
 
-<div class="ds-panel arena-view-panel status-sidebar-surface">
-    <div class="ds-panel-header">
-        <span>ARENA_VIEW</span>
-    </div>
+<aside class="panel-dock panel-dock--framed panel-dock--scroll arena-info-dock"
+       aria-label="Arena view dock">
+    <nav class="dock-nav dock-nav--bar dock-nav--panel arena-info-actions" aria-label="Arena info actions">
+        <button class="dock-nav-button is-active" type="button">INFO</button>
+        <button class="dock-nav-button dock-nav-button--close"
+                type="button"
+                @click="$dispatch('panel-toggle', { side: 'right', view: 'context' })">CLOSE</button>
+    </nav>
 
-    <div class="ds-panel-body arena-view-body">
-        <section class="arena-view-stat-grid" aria-label="Arena statistics">
-            <div class="arena-view-stat arena-view-stat--wide">
-                <span>MMR</span>
-                <strong>{{ arena_rating }}</strong>
-            </div>
-            <div class="arena-view-stat">
-                <span>RANK</span>
-                <strong>{{ arena_rank }}</strong>
-            </div>
-            <div class="arena-view-stat">
-                <span>HALL</span>
-                <strong>{{ arena_hall }}</strong>
-            </div>
-        </section>
+    <section class="info-widget-section arena-view-card" aria-label="Arena statistics">
+        <header class="info-widget-title">
+            <span>ARENA VIEW</span>
+            <strong>{{ arena_hall }}</strong>
+        </header>
+        <div class="info-widget-list info-widget-kv">
+            <div><span>MMR</span><strong>{{ arena_rating }}</strong></div>
+            <div><span>Rank</span><strong>{{ arena_rank }}</strong></div>
+            <div><span>Hall</span><strong>{{ arena_hall }}</strong></div>
+        </div>
+    </section>
 
-        <section class="status-section arena-view-section">
-            <div class="sec">RATING</div>
-            <div class="arena-view-list">
-                <div class="arena-view-row">
-                    <span>LEAGUE</span>
-                    <strong>{{ arena_league }}</strong>
-                </div>
-                <div class="arena-view-row">
-                    <span>RECORD</span>
-                    <strong>{{ arena_record }}</strong>
-                </div>
-                <div class="arena-view-row">
-                    <span>PLACEMENT</span>
-                    <strong>{{ arena_placement }}</strong>
-                </div>
-                <div class="arena-view-row">
-                    <span>SEASON</span>
-                    <strong>{{ arena_season }}</strong>
-                </div>
-            </div>
-        </section>
+    <details class="info-widget-section arena-view-card" open>
+        <summary class="info-widget-title">
+            <span>RATING</span>
+            <strong>{{ arena_league }}</strong>
+        </summary>
+        <div class="info-widget-list">
+            <div><span>League</span><strong>{{ arena_league }}</strong></div>
+            <div><span>Record</span><strong>{{ arena_record }}</strong></div>
+            <div><span>Placement</span><strong>{{ arena_placement }}</strong></div>
+            <div><span>Season</span><strong>{{ arena_season }}</strong></div>
+        </div>
+    </details>
 
-        <section class="status-section arena-view-section">
-            <div class="sec">HALL</div>
-            <div class="arena-view-list">
-                <div class="arena-view-row">
-                    <span>ACTIVE</span>
-                    <strong>{{ arena_hall }}</strong>
-                </div>
-            </div>
-        </section>
-
-        <section class="status-section arena-view-section">
-            <div class="sec">STATE</div>
-            <div class="arena-view-list">
-                <div class="arena-view-row">
-                    <span>SCREEN</span>
-                    <strong>{{ arena_screen }}</strong>
-                </div>
-            </div>
-        </section>
-    </div>
-</div>
+    <details class="info-widget-section arena-view-card" open>
+        <summary class="info-widget-title">
+            <span>STATE</span>
+            <strong>{{ arena_screen }}</strong>
+        </summary>
+        <div class="info-widget-list">
+            <div><span>Screen</span><strong>{{ arena_screen }}</strong></div>
+        </div>
+    </details>
+</aside>

@@ -66,16 +66,18 @@
     "actions": [
       {
         "action_id": "take_plate",
-        "label": "Облачиться в Латные Доспехи",
+        "label": "Облачиться в тяжелый комплект",
         "icon": "default",
         "to_node": "final_award_heavy",
         "math": {
           "loot_queue": [
             "push:plate_chest",
             "push:helmet",
+            "push:gauntlets",
+            "push:greaves",
             "push:wool_tunic",
             "push:fur_pants",
-            "push:boots"
+            "push:travel_boots"
           ],
           "skills_queue": [
             "push:skill_heavy_armor"
@@ -84,16 +86,18 @@
       },
       {
         "action_id": "take_scale",
-        "label": "Выбрать Чешуйчатую Броню",
+        "label": "Выбрать тяжелый комплект с плащом",
         "icon": "default",
         "to_node": "final_award_heavy",
         "math": {
           "loot_queue": [
-            "push:scale_mail",
+            "push:plate_chest",
             "push:helmet",
-            "push:wool_tunic",
+            "push:gauntlets",
+            "push:greaves",
+            "push:winter_cloak",
             "push:fur_pants",
-            "push:boots"
+            "push:travel_boots"
           ],
           "skills_queue": [
             "push:skill_heavy_armor"
@@ -113,15 +117,17 @@
     "actions": [
       {
         "action_id": "take_robe",
-        "label": "Надеть Магическую Робу",
+        "label": "Надеть легкий комплект с рубахой",
         "icon": "default",
         "to_node": "final_award_light",
         "math": {
           "loot_queue": [
-            "push:robe",
             "push:hood",
+            "push:leather_armor",
+            "push:soft_bracers",
+            "push:scout_leggings",
             "push:linen_shirt",
-            "push:sandals"
+            "push:travel_boots"
           ],
           "skills_queue": [
             "push:skill_light_armor"
@@ -130,15 +136,18 @@
       },
       {
         "action_id": "take_leather",
-        "label": "Выбрать Легкую Кожу",
+        "label": "Выбрать легкий комплект с плащом",
         "icon": "default",
         "to_node": "final_award_light",
         "math": {
           "loot_queue": [
             "push:leather_armor",
             "push:hood",
+            "push:soft_bracers",
+            "push:scout_leggings",
             "push:linen_shirt",
-            "push:boots"
+            "push:winter_cloak",
+            "push:travel_boots"
           ],
           "skills_queue": [
             "push:skill_light_armor"
@@ -158,15 +167,17 @@
     "actions": [
       {
         "action_id": "take_chainmail",
-        "label": "Надеть Кольчугу",
+        "label": "Надеть средний комплект с рубахой",
         "icon": "default",
         "to_node": "final_award_medium",
         "math": {
           "loot_queue": [
-            "push:chainmail",
+            "push:jerkin",
             "push:leather_cap",
+            "push:reinforced_gloves",
+            "push:breeches",
             "push:linen_shirt",
-            "push:boots"
+            "push:travel_boots"
           ],
           "skills_queue": [
             "push:skill_medium_armor"
@@ -175,15 +186,17 @@
       },
       {
         "action_id": "take_brigandine",
-        "label": "Выбрать Бригантину",
+        "label": "Выбрать средний комплект с рабочей одеждой",
         "icon": "default",
         "to_node": "final_award_medium",
         "math": {
           "loot_queue": [
-            "push:brigandine",
+            "push:jerkin",
             "push:leather_cap",
-            "push:linen_shirt",
-            "push:boots"
+            "push:reinforced_gloves",
+            "push:breeches",
+            "push:apron",
+            "push:travel_boots"
           ],
           "skills_queue": [
             "push:skill_medium_armor"

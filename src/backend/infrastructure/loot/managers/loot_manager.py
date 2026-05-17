@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from typing import TYPE_CHECKING, Any
 
 from loguru import logger as log
@@ -12,6 +13,7 @@ if TYPE_CHECKING:
 _CORPSE_KEY = "loot:corpse:{corpse_id}"
 _LOC_KEY = "loot:loc:{location_id}"
 _ORDERED_KEY = "loot:ordered:{session_id}"
+_PENDING_KEY = "loot:pending:{session_id}"
 
 
 def _corpse_key(corpse_id: str) -> str:
@@ -24,6 +26,10 @@ def _loc_key(location_id: str) -> str:
 
 def _ordered_key(session_id: str) -> str:
     return _ORDERED_KEY.format(session_id=session_id)
+
+
+def _pending_key(session_id: str) -> str:
+    return _PENDING_KEY.format(session_id=session_id)
 
 
 class LootManager:
@@ -141,3 +147,12 @@ class LootManager:
 
     async def is_loot_ordered(self, session_id: str) -> bool:
         return bool(await self._client().exists(_ordered_key(session_id)))
+
+    async def save_pending_actor_corpses(
+        self,
+        session_id: str,
+        corpse_ids_by_actor: dict[str, str],
+        *,
+        ttl: int = 86400,
+    ) -> None:
+        await self._client().set(_pending_key(session_id), json.dumps(corpse_ids_by_actor), ex=ttl)

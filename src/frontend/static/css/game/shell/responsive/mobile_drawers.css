@@ -1,0 +1,50 @@
+/* <768px: both side panels become off-canvas drawers over the center viewport. */
+@media (max-width: 767px) {
+    #app-viewport {
+        --side-panel-width: 300px;
+        --game-drawer-width: min(330px, calc(100vw - 20px));
+    }
+
+    .game-top-row,
+    .game-top-row.left-open,
+    .game-top-row.right-open,
+    .game-top-row.left-open.right-open {
+        grid-template-columns: minmax(0, 1fr) !important;
+    }
+
+    .col-left,
+    .col-right {
+        position: fixed;
+        top: var(--game-header-height);
+        bottom: var(--game-footer-height);
+        width: var(--game-drawer-width) !important;
+        max-width: var(--game-drawer-width);
+        display: block !important;
+        z-index: var(--game-panel-z);
+        background: var(--game-drawer-surface, rgba(8, 8, 10, .96));
+        transition: transform .28s cubic-bezier(.4, 0, .2, 1);
+    }
+
+    .col-left {
+        left: 0;
+        transform: translateX(-100%);
+    }
+
+    .col-right {
+        right: 0;
+        transform: translateX(100%);
+    }
+
+    .col-left.panel-open,
+    .col-right.panel-open {
+        transform: translateX(0);
+    }
+
+    .col-center {
+        grid-column: 1;
+        min-width: 0;
+    }
+
+    .col-center-inner {
+        min-width: 0;
+    }

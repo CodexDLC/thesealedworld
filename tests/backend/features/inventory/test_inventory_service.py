@@ -5,17 +5,30 @@ import pytest
 from src.backend.features.character.managers.session import CharacterSessionManager
 from src.backend.features.inventory.services.inventory_service import InventoryActionForbiddenError, InventoryService
 from src.backend.features.inventory.services.session_manager import InventorySessionManager
-from src.shared.schemas.inventory import InventoryActionRequestDTO, InventoryRuntimeItemDTO
+from src.shared.schemas.inventory import InventoryActionRequestDTO, InventoryRuntimeItemDTO, WalletDTO
 
 
 class FakeInventoryRepository:
-    def __init__(self, items: list[InventoryRuntimeItemDTO]) -> None:
+    def __init__(
+        self,
+        items: list[InventoryRuntimeItemDTO],
+        wallet: WalletDTO | None = None,
+        expedition_wallet: WalletDTO | None = None,
+    ) -> None:
         self.items = items
+        self.wallet = wallet or WalletDTO()
+        self.expedition_wallet = expedition_wallet or WalletDTO()
         self.saved: dict[str, InventoryRuntimeItemDTO] | None = None
         self.committed = False
 
     async def list_character_items(self, char_id: int, *, expedition_run_id: str | None = None):
         return [(FakeInstance(item), FakePlacement(item)) for item in self.items]
+
+    async def get_wallet(self, char_id: int) -> WalletDTO:
+        return self.wallet
+
+    async def get_expedition_wallet(self, run_id: str) -> WalletDTO:
+        return self.expedition_wallet
 
     async def save_placements(
         self,
@@ -304,6 +317,57 @@ async def test_open_window_builds_structured_item_tooltip_without_html(fake_redi
 
 
 @pytest.mark.asyncio
+async def test_open_window_includes_wallet_resources_from_loot_claim(fake_redis_service, fake_redis_client):
+    _active_character(fake_redis_client, state="exploration")
+    service = _service(
+        fake_redis_service,
+        [],
+        repository=FakeInventoryRepository(
+            [],
+            wallet=WalletDTO(
+                currency={"currency_dust": 3},
+                resources={"res_torn_pelt": 2, "res_animal_bones": 1},
+            ),
+        ),
+    )
+
+    window = await service.open_window(7)
+
+    rows = {row.item_id: row for row in window.visible_rows}
+    assert rows["wallet:currency_dust"].name == "Пыль Резидуу"
+    assert rows["wallet:currency_dust"].item_type == "currency"
+    assert rows["wallet:currency_dust"].quantity == 3
+    assert rows["wallet:res_torn_pelt"].name == "Дырявая шкура"
+    assert rows["wallet:res_torn_pelt"].item_type == "resource"
+    assert rows["wallet:res_torn_pelt"].quantity == 2
+    assert rows["wallet:res_animal_bones"].details.description
+
+
+@pytest.mark.asyncio
+async def test_open_window_includes_active_expedition_resources(fake_redis_service, fake_redis_client):
+    _active_character(fake_redis_client, state="exploration", risk={"run_id": "run-1"})
+    service = _service(
+        fake_redis_service,
+        [],
+        repository=FakeInventoryRepository(
+            [],
+            wallet=WalletDTO(currency={"currency_dust": 1}),
+            expedition_wallet=WalletDTO(
+                currency={"currency_dust": 2},
+                resources={"res_torn_pelt": 4},
+            ),
+        ),
+    )
+
+    window = await service.open_window(7)
+
+    rows = {row.item_id: row for row in window.visible_rows}
+    assert rows["wallet:currency_dust"].quantity == 3
+    assert rows["wallet:res_torn_pelt"].name == "Дырявая шкура"
+    assert rows["wallet:res_torn_pelt"].quantity == 4
+
+
+@pytest.mark.asyncio
 async def test_open_window_maps_power_label_by_item_role(fake_redis_service, fake_redis_client):
     _active_character(fake_redis_client, state="exploration")
     service = _service(
@@ -548,11 +612,18 @@ def _service(
     )
 
 
-def _active_character(fake_redis_client, *, state: str, attributes: dict | None = None) -> None:
+def _active_character(
+    fake_redis_client,
+    *,
+    state: str,
+    attributes: dict | None = None,
+    risk: dict | None = None,
+) -> None:
     fake_redis_client.store["game:ac:7"] = {
         "char_id": 7,
         "state": state,
         "attributes": attributes or {},
+        "risk": risk or {},
         "bio": {"name": "Ada", "avatar": "/avatar.png"},
         "sessions": {},
         "items": {},

@@ -112,6 +112,9 @@ return 0
         removed = await self._client().zrem(self.queue_key(mode), str(char_id))
         return bool(removed)
 
+    async def queue_waiting_count(self, mode: str) -> int:
+        return int(await self._client().zcard(self.queue_key(mode)))
+
     async def delete_request(self, char_id: int) -> None:
         await self._client().delete(self.request_key(char_id))
 

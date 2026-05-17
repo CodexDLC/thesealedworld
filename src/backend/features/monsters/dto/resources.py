@@ -13,6 +13,12 @@ EquipmentDropPolicy = Literal["fixed_loadout", "curated", "none"]
 MemberTierPolicy = Literal["role_offset", "fixed", "clan_tier"]
 
 
+class FamilyModifierEntryDTO(BaseModel):
+    target: str
+    value: float = 0.0
+    per_tier: float = 0.0
+
+
 class MonsterSkillKitDTO(BaseModel):
     base: dict[str, float] = Field(default_factory=dict)
     role_bonus: dict[MonsterRole, dict[str, float]] = Field(default_factory=dict)
@@ -146,6 +152,7 @@ class MonsterFamilyDTO(BaseModel):
     loot_profile: MonsterLootProfileDTO | None = None
     clan_model: MonsterClanResourceModelDTO | None = None
     member_models: list[MonsterMemberResourceModelDTO] = Field(default_factory=list)
+    family_modifiers: list[FamilyModifierEntryDTO] = Field(default_factory=list)
     variants: dict[str, MonsterVariantDTO]
 
     @model_validator(mode="after")

@@ -20,6 +20,18 @@ VISIBLE_PROFILE_ORDER = [
     "memory",
 ]
 
+ACTION_ICON_BY_PROFILE = {
+    "strength": "strength",
+    "agility": "move",
+    "endurance": "guard",
+    "intellect": "inspect",
+    "memory": "brain",
+    "mental": "guard",
+    "perception": "inspect",
+    "projection": "question",
+    "prediction": "question",
+}
+
 if TYPE_CHECKING:
     from src.backend.features.scenario.engine.director import ScenarioDirector
 
@@ -75,18 +87,6 @@ class ScenarioFormatter:
                 "speaker": node.get("speaker"),
                 "ui": ui,
                 "background_url": node.get("background_url") or master.get("background_url"),
-                "show_left_sidebar": self.resolve_sidebar_visibility(
-                    node,
-                    master,
-                    "show_left_sidebar",
-                    ui.get("left_panel"),
-                ),
-                "show_right_sidebar": self.resolve_sidebar_visibility(
-                    node,
-                    master,
-                    "show_right_sidebar",
-                    right_panel.widgets,
-                ),
                 "left_panel": ui.get("left_panel", {}),
                 "right_panel": right_panel.model_dump(mode="json"),
                 "rewards": node.get("rewards", []),
@@ -102,6 +102,10 @@ class ScenarioFormatter:
             return str(explicit_icon)
 
         math = action.get("math") or {}
+        main_profile = ScenarioFormatter._main_positive_profile_key(math)
+        if main_profile:
+            return ACTION_ICON_BY_PROFILE.get(main_profile, "default")
+
         positive_keys = {
             key
             for key, value in math.items()
@@ -109,38 +113,36 @@ class ScenarioFormatter:
         }
         label = str(action.get("label", "")).lower()
 
-        if "w_strength" in positive_keys:
-            return "strength"
-        if "w_agility" in positive_keys:
-            return "move"
-        if "w_intellect" in positive_keys or "w_perception" in positive_keys:
-            return "inspect"
-        if "w_memory" in positive_keys:
-            return "brain"
-        if "w_endurance" in positive_keys or "w_mental" in positive_keys:
-            return "guard"
         if "warning" in label or "предупреж" in label or "плам" in label or "огн" in label:
             return "risk"
         if any(key.startswith("t_fire") or key.startswith("t_dark") for key in positive_keys):
             return "risk"
-        if "w_prediction" in positive_keys:
-            return "question"
         return "default"
 
     @staticmethod
-    def resolve_sidebar_visibility(
-        node: dict[str, Any],
-        master: dict[str, Any],
-        key: str,
-        fallback: Any,
-    ) -> bool:
-        node_value = node.get(key)
-        if node_value is not None:
-            return bool(node_value)
-        master_value = master.get(key)
-        if master_value is not None:
-            return bool(master_value)
-        return bool(fallback)
+    def _main_positive_profile_key(math: dict[str, Any]) -> str | None:
+        best_key: str | None = None
+        best_delta = float("-inf")
+        for key, value in math.items():
+            if not isinstance(key, str) or not key.startswith("w_"):
+                continue
+            delta = ScenarioFormatter._positive_delta(value)
+            if delta is None:
+                continue
+            if delta > best_delta:
+                best_key = key[2:]
+                best_delta = delta
+        return best_key
+
+    @staticmethod
+    def _positive_delta(value: Any) -> float | None:
+        text = str(value).strip()
+        if not text.startswith("+"):
+            return None
+        try:
+            return float(text[1:].strip())
+        except ValueError:
+            return 1.0
 
     def format_text(self, text: Any, context: dict[str, Any]) -> str:
         if not text:

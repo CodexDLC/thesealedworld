@@ -1,4 +1,9 @@
-from src.backend.features.monsters.resources.visuals import build_clan_visual, build_member_visual, get_family_visual
+from src.backend.features.monsters.resources.visuals import (
+    build_clan_visual,
+    build_member_visual,
+    build_monster_visual_prompt,
+    get_family_visual,
+)
 
 
 def test_family_visual_exposes_content_addressed_generated_target() -> None:
@@ -52,3 +57,48 @@ def test_member_visual_hash_ignores_season_metadata_outside_payload() -> None:
 
     assert first["asset_hash"] == second["asset_hash"]
     assert first["asset_payload"] == second["asset_payload"]
+    assert first["asset_payload"]["style_version"] == 3
+
+
+def test_clan_visual_prompt_uses_roster_and_family_subject_contract() -> None:
+    visual = build_clan_visual(
+        "goblin_tribe",
+        clan_name="Племя Сломанных Ключей",
+        description="Гоблины роются в мастерских руинах.",
+        context_tags=["collapsed_workshop"],
+        member_roster=[
+            {
+                "variant_key": "goblin_sapper",
+                "role": "minion",
+                "name": "Подрывник",
+                "appearance": "Маленький гоблин с сумкой взрывчатки.",
+            }
+        ],
+    )
+
+    prompt = build_monster_visual_prompt(visual["asset_payload"])
+
+    assert "Goblins only" in prompt
+    assert "Do not render human bandit leaders" in prompt
+    assert "member_roster entries as the canonical subjects" in prompt
+    assert "Подрывник" in prompt
+
+
+def test_member_visual_prompt_requires_one_subject_without_group_composition() -> None:
+    visual = build_member_visual(
+        "wolf_pack",
+        variant_key="ash_runner",
+        role="minion",
+        member_name="Пепельный бегун",
+        appearance="Худой волк с серой шерстью.",
+    )
+
+    prompt = build_monster_visual_prompt(visual["asset_payload"])
+
+    assert "exactly one individual" in prompt
+    assert "one subject only" in prompt
+    assert "Do not render a pack" in prompt
+    assert "group portrait" not in prompt
+    assert "A lean wolf pack" not in prompt
+    assert "wolf_pack" not in prompt
+    assert "readable text" in prompt

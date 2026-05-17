@@ -18,6 +18,7 @@ if TYPE_CHECKING:
     from src.backend.features.character.integrations import CharacterStateIntegrator
     from src.backend.features.character.managers.session import CharacterSessionManager
     from src.backend.features.scenario.services import ScenarioService
+    from src.backend.infrastructure.loot.managers.loot_manager import LootManager
     from src.shared.schemas import ScenarioPayloadDTO
 
 
@@ -41,6 +42,8 @@ class GameSessionIntegrator:
         scenario_service: ScenarioService | None = None,
         expedition_service: Any | None = None,
         state_integrator: CharacterStateIntegrator | None = None,
+        loot_manager: LootManager | None = None,
+        loot_arq: Any | None = None,
     ) -> None:
         if character_repo is None and db_session is not None:
             character_repo = CharacterRepository(db_session)
@@ -49,6 +52,8 @@ class GameSessionIntegrator:
         self.scenario_service = scenario_service
         self.expedition_service = expedition_service
         self.state_integrator = state_integrator
+        self.loot_manager = loot_manager
+        self.loot_arq = loot_arq
 
     async def get_owned_character(self, character_id: int, user_id: UUID) -> GameSessionCharacter | None:
         if self.character_repo is None:
@@ -146,6 +151,48 @@ class GameSessionIntegrator:
         if self.expedition_service is None:
             raise RuntimeError("expedition_service is required for death respawn")
         return await self.expedition_service.respawn(char_id=character_id)
+
+    async def claim_post_combat_loot(self, character_id: int, corpse_ids: list[str]) -> dict[str, Any]:
+        if self.loot_manager is None:
+            raise RuntimeError("loot_manager is required for post-combat loot")
+        from src.backend.features.loot.integrations.loot_integration import LootIntegration
+        from src.backend.features.loot.services.loot_service import LootService
+
+        integration = LootIntegration(self.loot_manager)
+        service = LootService(integration)
+        requested = [str(corpse_id) for corpse_id in corpse_ids if corpse_id]
+        enqueued = 0
+        for corpse_id in requested:
+            claim = await service.claim_all(character_id, [corpse_id])
+            if not claim.instance_ids and not claim.resource_deltas:
+                continue
+            if self.loot_arq is not None:
+                await self.loot_arq.enqueue_job(
+                    "loot_claim_task",
+                    {
+                        "char_id": character_id,
+                        "corpse_id": corpse_id,
+                        "instance_ids": claim.instance_ids,
+                        "resource_deltas": claim.resource_deltas,
+                    },
+                )
+            enqueued += 1
+
+        if self.character_sessions is not None:
+            await self.character_sessions.patch_fields(
+                character_id,
+                {
+                    "$.state": CoreDomain.EXPLORATION.value,
+                    "$.prev_state": CoreDomain.LOOT.value,
+                    "$.sessions.post_combat": None,
+                },
+            )
+            await self.character_sessions.mark_dirty(
+                character_id,
+                reason="post_combat_loot_claimed",
+                paths=["$.prev_state", "$.sessions.post_combat", "$.state"],
+            )
+        return {"status": "loot_claim_queued", "corpse_ids": requested, "queued_claims": enqueued}
 
     async def reconcile_stale_combat_active_session(
         self,

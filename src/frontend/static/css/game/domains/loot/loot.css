@@ -1,0 +1,215 @@
+.loot-screen-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-bottom: 8px;
+    border-bottom: 1px solid rgba(255, 176, 0, 0.24);
+}
+
+.loot-screen-header small {
+    color: rgba(255, 176, 0, 0.78);
+    font: 700 10px/1 var(--font-mono);
+}
+
+.loot-list {
+    display: grid;
+    gap: 6px;
+    padding: 10px 0;
+}
+
+.loot-source-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 8px;
+    padding: 12px 0;
+}
+
+.loot-source-card {
+    min-width: 0;
+    min-height: 96px;
+    display: grid;
+    grid-template-rows: 30px auto auto;
+    place-items: center;
+    gap: 6px;
+    padding: 10px;
+    border: 1px solid rgba(255, 176, 0, 0.28);
+    background:
+        linear-gradient(180deg, rgba(255, 176, 0, 0.08), rgba(0, 0, 0, 0.24)),
+        rgba(24, 19, 11, 0.7);
+    color: rgba(245, 231, 204, 0.94);
+    cursor: pointer;
+    font-family: var(--font-mono);
+    text-align: center;
+}
+
+.loot-source-card:hover,
+.loot-source-card:focus-visible {
+    border-color: rgba(255, 176, 0, 0.58);
+    outline: 0;
+    box-shadow: inset 0 0 20px rgba(255, 176, 0, 0.07), 0 0 16px rgba(255, 176, 0, 0.08);
+}
+
+.loot-source-card__icon {
+    width: 28px;
+    height: 24px;
+    display: block;
+    border: 1px solid rgba(255, 176, 0, 0.38);
+    background:
+        linear-gradient(180deg, rgba(255, 176, 0, 0.18), rgba(0, 0, 0, 0.18)),
+        url("/static/images/ui/inventory-icons/items.svg") center / 18px 18px no-repeat;
+}
+
+.loot-source-card strong {
+    max-width: 100%;
+    overflow: hidden;
+    font-size: 11px;
+    line-height: 1.25;
+    text-overflow: ellipsis;
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+
+.loot-source-card small {
+    color: rgba(255, 176, 0, 0.72);
+    font-size: 8px;
+    font-weight: 800;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+}
+
+.loot-window {
+    position: fixed;
+    z-index: var(--game-overlay-z, 80);
+    width: min(560px, calc(100vw - 24px));
+    max-height: min(70dvh, 520px);
+    display: grid;
+    grid-template-rows: auto minmax(0, 1fr) auto;
+    border: 1px solid rgba(255, 176, 0, 0.45);
+    background:
+        linear-gradient(180deg, rgba(255, 176, 0, 0.06), transparent 38%),
+        rgba(5, 5, 5, 0.94);
+    box-shadow: 0 24px 70px rgba(0, 0, 0, 0.56), inset 0 1px 0 rgba(255, 226, 160, 0.08);
+}
+
+.loot-window-head {
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 10px 12px;
+    border-bottom: 1px solid rgba(255, 176, 0, 0.22);
+    background: rgba(0, 0, 0, 0.36);
+    cursor: move;
+}
+
+.loot-window-head div {
+    min-width: 0;
+    display: grid;
+    gap: 4px;
+}
+
+.loot-window-head span,
+.loot-group header {
+    color: var(--game-accent);
+    font: 800 8px/1 var(--font-mono);
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+}
+
+.loot-window-head strong {
+    min-width: 0;
+    overflow: hidden;
+    color: rgba(245, 231, 204, 0.94);
+    font: 800 13px/1.2 var(--font-mono);
+    text-overflow: ellipsis;
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+
+.loot-window-close {
+    width: 28px;
+    height: 28px;
+    border: 1px solid rgba(255, 176, 0, 0.24);
+    background: rgba(0, 0, 0, 0.42);
+    color: rgba(255, 176, 0, 0.88);
+    cursor: pointer;
+    font: 900 12px/1 var(--font-mono);
+}
+
+.loot-window .loot-list {
+    min-height: 0;
+    overflow-y: auto;
+    padding: 10px;
+}
+
+.loot-list--grouped {
+    gap: 12px;
+}
+
+.loot-group {
+    display: grid;
+    gap: 6px;
+}
+
+.loot-group header {
+    padding: 0 2px 2px;
+    color: rgba(255, 176, 0, 0.72);
+}
+
+.loot-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 12px;
+    min-height: 46px;
+    padding: 8px 10px;
+    border: 1px solid rgba(255, 176, 0, 0.22);
+    background: rgba(24, 19, 11, 0.7);
+}
+
+.loot-row-main,
+.loot-row-meta {
+    display: grid;
+    gap: 4px;
+}
+
+.loot-row-main strong {
+    min-width: 0;
+    overflow: hidden;
+    color: rgba(245, 231, 204, 0.94);
+    font: 800 12px/1.2 var(--font-mono);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.loot-row-main span,
+.loot-row-meta span {
+    color: rgba(210, 188, 145, 0.72);
+    font: 700 9px/1 var(--font-mono);
+    text-transform: uppercase;
+}
+
+.loot-row-meta {
+    justify-items: end;
+}
+
+.loot-row-meta b {
+    color: var(--game-accent);
+    font: 800 12px/1 var(--font-mono);
+}
+
+.loot-window-actions {
+    padding: 10px;
+    border-top: 1px solid rgba(255, 176, 0, 0.16);
+}
+
+
+.loot-empty {
+    display: grid;
+    place-items: center;
+    gap: 6px;
+    min-height: 120px;
+    color: rgba(210, 188, 145, 0.7);
+    font: 700 11px/1.2 var(--font-mono);
+}

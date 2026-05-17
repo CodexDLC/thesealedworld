@@ -81,23 +81,3 @@ window.CharacterStatus = {
 document.addEventListener('DOMContentLoaded', () => {
     window.CharacterStatus.init();
 });
-
-document.addEventListener('session:panel-state', (event) => {
-    const container = document.querySelector('.game-container');
-    if (!container || !window.Alpine) return;
-
-    const data = Alpine.$data(container);
-    if (!data) return;
-
-    const state = event.detail?.value || event.detail || {};
-    if (typeof data.applySessionPanelState === 'function') {
-        data.applySessionPanelState(state);
-        return;
-    }
-    if (Object.prototype.hasOwnProperty.call(state, 'left_open')) {
-        data.leftOpen = Boolean(state.left_open);
-    }
-    if (Object.prototype.hasOwnProperty.call(state, 'right_open')) {
-        data.rightOpen = Boolean(state.right_open);
-    }
-});

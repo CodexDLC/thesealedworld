@@ -177,6 +177,17 @@ class WorldRepository:
         result = await self.session.execute(stmt)
         return list(result.scalars().all())
 
+    async def get_active_nodes_by_zone_ids(self, zone_ids: list[str]) -> list[WorldGrid]:
+        if not zone_ids:
+            return []
+        stmt = (
+            select(WorldGrid)
+            .options(joinedload(WorldGrid.zone))
+            .where(WorldGrid.is_active, WorldGrid.zone_id.in_(zone_ids))
+        )
+        result = await self.session.execute(stmt)
+        return list(result.scalars().all())
+
     async def bulk_upsert_nodes(self, nodes: list[dict[str, Any]]) -> None:
         if not nodes:
             return

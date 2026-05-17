@@ -16,6 +16,8 @@ from src.frontend.integrations.backend_api.game_lobby import (
 )
 from src.shared.enums import CoreDomain
 from src.shared.schemas import (
+    CharacterNameAvailabilityDTO,
+    CharacterNameAvailabilityRequestDTO,
     CoreResponseDTO,
     CreateCharacterRequestDTO,
     DeleteCharacterRequestDTO,
@@ -77,6 +79,21 @@ async def test_lobby_page_service_creates_character_with_site_user_context() -> 
     assert payload.user_id == user.id
     assert payload.email == user.email
     assert payload.character == dto
+
+
+@pytest.mark.unit
+async def test_lobby_page_service_checks_name_availability() -> None:
+    user = _user()
+    api = SimpleNamespace(
+        check_name_availability=AsyncMock(return_value=CharacterNameAvailabilityDTO(available=True, name="Ada"))
+    )
+
+    response = await GameLobbyPageService(api).check_name_availability(user, "Ada")
+
+    assert response.available is True
+    api.check_name_availability.assert_awaited_once()
+    payload = api.check_name_availability.await_args.args[0]
+    assert payload.name == "Ada"
 
 
 @pytest.mark.unit
@@ -165,6 +182,26 @@ async def test_backend_game_lobby_api_create_uses_internal_endpoint() -> None:
     assert "headers" not in kwargs
     assert kwargs["json"]["user_id"] == str(user_id)
     assert kwargs["json"]["character"]["name"] == "Ada"
+
+
+@pytest.mark.unit
+async def test_backend_game_lobby_api_checks_name_availability() -> None:
+    calls = []
+
+    class _Api(BackendGameLobbyApi):
+        async def _request(self, method, endpoint, response_model=None, **kwargs):
+            calls.append((method, endpoint, response_model, kwargs))
+            return response_model.model_validate({"available": True, "name": "Ada", "name_key": "ada"})
+
+    api = _Api(client=SimpleNamespace(), base_url="http://backend")
+
+    response = await api.check_name_availability(CharacterNameAvailabilityRequestDTO(name="Ada"))
+
+    assert response.available is True
+    method, endpoint, _, kwargs = calls[0]
+    assert method == "POST"
+    assert endpoint == "/game-lobby/name-availability"
+    assert kwargs["json"] == {"name": "Ada"}
 
 
 @pytest.mark.unit

@@ -56,13 +56,13 @@
                     {% endif %}
                     {% if member.public_skills %}
                         <div class="library-mini-section">
-                            <span>Moves</span>
+                            <span>Навыки</span>
                             <p>{{ member.public_skills|join(", ") }}</p>
                         </div>
                     {% endif %}
                     {% if member.public_loadout %}
                         <div class="library-mini-section">
-                            <span>Gear</span>
+                            <span>Снаряжение</span>
                             <p>
                                 {% for item in member.public_loadout %}
                                     {{ item.slot }}: {{ item.item }}{% if not loop.last %}; {% endif %}

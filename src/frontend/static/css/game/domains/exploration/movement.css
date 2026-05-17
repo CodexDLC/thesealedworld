@@ -1,0 +1,299 @@
+/* Action grid — movement d-pad */
+.mobile-action-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-rows: repeat(3, minmax(44px, auto));
+    gap: 6px;
+}
+
+.mobile-action.dp {
+    --game-action-button-height: 44px;
+    min-height: 44px;
+    gap: 2px;
+    clip-path: none;
+    font-size: 7px;
+}
+
+.mobile-action-icon {
+    --game-action-icon-size: 18px;
+    flex: 0 0 auto;
+    mask: var(--action-icon-url) center / contain no-repeat;
+    -webkit-mask: var(--action-icon-url) center / contain no-repeat;
+}
+
+.mobile-action-icon--scout {
+    --action-icon-url: url("/static/images/ui/mobile-actions/scout.svg");
+}
+
+.mobile-action-icon--track {
+    --action-icon-url: url("/static/images/ui/mobile-actions/track.svg");
+}
+
+.mobile-action-icon--location {
+    --action-icon-url: url("/static/images/ui/mobile-actions/location.svg");
+}
+
+.mobile-action-icon--map {
+    --action-icon-url: url("/static/images/ui/mobile-actions/map.svg");
+}
+
+.mobile-action-icon--look-around {
+    --action-icon-url: url("/static/images/ui/mobile-actions/look-around.svg");
+}
+
+
+/* Move cooldown bar */
+.mobile-bottom-rule {
+    height: 1px;
+    margin: 2px 0 0;
+    background: linear-gradient(90deg, transparent, rgba(255, 170, 0, 0.42), transparent);
+}
+
+.mobile-move-cooldown {
+    position: relative;
+    min-height: 8px;
+    height: 8px;
+    margin: 0;
+    border: 1px solid color-mix(in srgb, var(--world-accent, var(--col-accent)) 18%, transparent);
+    background:
+        linear-gradient(rgba(0, 0, 0, 0.58), rgba(0, 0, 0, 0.78)),
+        url("/static/images/ui/textures/button-candidates/button-surface-04-charcoal-stone.webp") center / cover;
+    overflow: hidden;
+}
+
+.mobile-move-cooldown-bar {
+    width: calc(var(--move-cooldown-progress, 1) * 100%);
+    height: 100%;
+    display: block;
+    background: linear-gradient(90deg, #b11d12 0%, #d66a18 36%, #d8b136 64%, #2ed36a 100%);
+    box-shadow: 0 0 10px rgba(46, 211, 106, 0.20);
+    transition: width .08s linear;
+}
+
+.mobile-move-cooldown.is-cooling {
+    border-color: rgba(209, 67, 28, .46);
+    box-shadow: 0 0 10px rgba(209, 67, 28, .18);
+}
+
+
+/* D-pad */
+.dpad-wrap { width: 100%; display: flex; gap: 14px; align-items: center; justify-content: center; margin-top: 30px; }
+.dpad { display: grid; grid-template-columns: repeat(3, 50px); grid-template-rows: repeat(3, 50px); gap: 6px; }
+.dp {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    background:
+        linear-gradient(180deg, rgba(255, 214, 118, .07), transparent 34%),
+        linear-gradient(rgba(1, 1, 1, .78), rgba(1, 1, 1, .88)),
+        var(--exploration-button-texture, url("/static/images/ui/textures/button-candidates/button-surface-01-dark-wood.webp"));
+    background-position: center;
+    background-size: cover;
+    border: 1px solid color-mix(in srgb, var(--world-accent, var(--col-accent)) 32%, transparent);
+    cursor: pointer; color: var(--world-accent, var(--col-accent));
+    clip-path: var(--clip-node-sm);
+    font-family: var(--font-ui);
+    font-size: 11px;
+    font-weight: bold;
+    letter-spacing: .06em;
+    position: relative;
+    overflow: hidden;
+    text-shadow: 0 1px 0 #000, 0 0 8px rgba(255, 170, 0, .22);
+    box-shadow:
+        inset 0 1px 0 rgba(255, 230, 150, .10),
+        inset 0 -10px 18px rgba(0, 0, 0, .40),
+        0 0 0 1px rgba(0, 0, 0, .62);
+    transition:
+        border-color .16s ease,
+        box-shadow .16s ease,
+        color .16s ease,
+        filter .16s ease,
+        transform .16s ease;
+}
+
+.dp::before {
+    content: "";
+    position: absolute;
+    inset: 1px;
+    border: 1px solid rgba(255, 211, 125, .07);
+    clip-path: var(--clip-node-sm);
+    pointer-events: none;
+}
+
+.dp::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(circle at 50% 0, rgba(255, 196, 82, .16), transparent 58%);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity .16s ease;
+}
+
+.dp:not(:disabled):hover {
+    color: color-mix(in srgb, var(--world-accent, var(--col-accent)) 84%, #fff);
+    border-color: color-mix(in srgb, var(--world-accent, var(--col-accent)) 62%, transparent);
+    filter: brightness(1.14) saturate(1.08);
+    transform: translateY(-1px);
+    box-shadow:
+        inset 0 1px 0 rgba(255, 230, 150, .18),
+        inset 0 -10px 20px rgba(0, 0, 0, .28),
+        0 0 16px var(--world-accent-soft, rgba(255, 170, 0, .20)),
+        0 0 0 1px rgba(0, 0, 0, .70);
+}
+
+.dp:not(:disabled):hover::after {
+    opacity: 1;
+}
+
+.dp:not(:disabled):active {
+    transform: translateY(0);
+    filter: brightness(1.04);
+}
+.dp-empty { pointer-events: none; opacity: 0; }
+
+.exploration-control-panel {
+    width: min(720px, 100%);
+    min-width: 0;
+    display: grid;
+    gap: 10px;
+    margin: 28px auto 0;
+}
+
+
+.exploration-control-grid {
+    display: grid;
+    grid-template-columns: minmax(150px, .9fr) minmax(240px, 1.3fr);
+    grid-template-areas:
+        "actions movement"
+        "routes movement";
+    gap: 8px;
+    align-items: stretch;
+}
+
+.exploration-action-block,
+.exploration-route-block,
+.exploration-movement-block {
+    border: 1px solid var(--world-accent-border, rgba(255, 170, 0, .12));
+    background: rgba(0, 0, 0, .22);
+    padding: 8px;
+    clip-path: var(--clip-node-sm);
+}
+
+.exploration-action-block { grid-area: actions; }
+.exploration-route-block { grid-area: routes; }
+.exploration-movement-block { grid-area: movement; }
+
+.exploration-movement-block.is-cooling {
+    --move-cooldown-progress: 0;
+}
+
+.exploration-control-title {
+    margin-bottom: 7px;
+    color: var(--col-parchment-dim);
+    font-family: var(--font-ui);
+    font-size: 7px;
+    letter-spacing: .2em;
+    text-align: center;
+}
+
+.exploration-action-block .dp {
+    --exploration-button-texture: url("/static/images/ui/textures/button-candidates/button-surface-01-dark-wood.webp");
+    width: 100%;
+    min-height: 58px;
+}
+
+.exploration-route-block {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 6px;
+}
+
+.exploration-route-block .exploration-control-title {
+    grid-column: 1 / -1;
+}
+
+.exploration-route-placeholder {
+    --exploration-button-texture: url("/static/images/ui/textures/button-candidates/button-surface-03-aged-bronze.webp");
+    min-height: 44px;
+    opacity: .42;
+}
+
+.exploration-route-placeholder small {
+    margin-top: 3px;
+    color: var(--col-parchment-dim);
+    font-size: 6px;
+    letter-spacing: .14em;
+}
+
+.exploration-move-cooldown {
+    height: 13px;
+    display: grid;
+    align-items: center;
+    margin: -1px 0 7px;
+    border: 1px solid color-mix(in srgb, var(--world-accent, var(--col-accent)) 18%, transparent);
+    background:
+        linear-gradient(rgba(0, 0, 0, .58), rgba(0, 0, 0, .78)),
+        url("/static/images/ui/textures/button-candidates/button-surface-04-charcoal-stone.webp");
+    background-position: center;
+    background-size: cover;
+    clip-path: var(--clip-node-sm);
+    overflow: hidden;
+    position: relative;
+}
+
+.exploration-move-cooldown-bar {
+    width: calc(var(--move-cooldown-progress, 1) * 100%);
+    height: 100%;
+    background:
+        linear-gradient(
+            90deg,
+            #b11d12 0%,
+            #d66a18 36%,
+            #d8b136 64%,
+            #2ed36a 100%
+        );
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, .16),
+        0 0 12px rgba(46, 211, 106, .20);
+    transition: width .08s linear;
+}
+
+.exploration-move-cooldown-label {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    color: rgba(255, 230, 174, .78);
+    font-family: var(--font-ui);
+    font-size: 6px;
+    font-weight: 800;
+    letter-spacing: .18em;
+    line-height: 1;
+    text-shadow: 0 1px 0 #000;
+}
+
+.exploration-movement-block.is-cooling .exploration-move-cooldown {
+    border-color: rgba(209, 67, 28, .46);
+    box-shadow: 0 0 10px rgba(209, 67, 28, .18);
+}
+
+.exploration-movement-block.is-cooling .dp[data-move-duration] {
+    cursor: wait;
+    filter: grayscale(.25) brightness(.72);
+    opacity: .68;
+    transform: none;
+}
+
+.exploration-movement-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(74px, 1fr));
+    gap: 6px;
+}
+
+.exploration-movement-grid .dp {
+    --exploration-button-texture: url("/static/images/ui/textures/button-candidates/button-surface-02-blackened-metal.webp");
+    min-height: 50px;
+    padding: 0 8px;
+    font-size: 9px;
+    line-height: 1.2;
+    min-width: 0;
+}

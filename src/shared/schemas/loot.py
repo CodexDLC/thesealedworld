@@ -60,3 +60,8 @@ class LootContainerDTO(BaseModel):
 class ClaimResultDTO(BaseModel):
     instance_ids: list[str] = Field(default_factory=list)
     resource_deltas: dict[str, int] = Field(default_factory=dict)  # {template_id: amount}
+
+
+class LootClaimRequestDTO(BaseModel):
+    char_id: int
+    corpse_ids: list[str] = Field(default_factory=list)

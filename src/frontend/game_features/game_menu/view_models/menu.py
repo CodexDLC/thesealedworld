@@ -9,6 +9,7 @@ class GameMenuItemVM(BaseModel):
     panel: str | None = None
     panel_view: str | None = None
     window: str | None = None
+    modal: str | None = None
     is_active: bool = False
     is_disabled: bool = False
 

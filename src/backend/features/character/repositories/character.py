@@ -34,11 +34,17 @@ class CharacterRepository:
         await self.session.flush()
         return character
 
+    async def exists_by_name_key(self, name_key: str) -> bool:
+        log.debug("CharacterRepository | action=exists_by_name_key name_key={}", name_key)
+        stmt = select(Character.character_id).where(Character.name_key == name_key).limit(1)
+        return await self.session.scalar(stmt) is not None
+
     async def create_with_defaults(
         self,
         *,
         user_id: uuid.UUID,
         name: str,
+        name_key: str,
         gender: str,
         avatar_url: str,
         game_stage: str,
@@ -48,6 +54,7 @@ class CharacterRepository:
         character = Character(
             user_id=user_id,
             name=name,
+            name_key=name_key,
             gender=gender,
             avatar_url=avatar_url,
             game_stage=game_stage,

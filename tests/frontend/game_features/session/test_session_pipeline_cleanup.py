@@ -71,16 +71,21 @@ def test_legacy_game_menu_fallback_keeps_global_domains_in_center_only():
                 assert item.label not in global_labels
 
 
-def test_legacy_combat_menu_disables_non_combat_tabs():
+def test_legacy_combat_menu_keeps_standard_roster_drawers():
     nav = GameMenuService().build_menu(CoreDomain.COMBAT)
 
     assert nav.center is not None
     assert nav.center.label == "COMBAT"
-    for item in [nav.l2, nav.l1, nav.r1, nav.r2]:
-        assert item is not None
-        assert item.is_disabled is True
-        assert item.panel is None
-        assert item.window is None
+    assert nav.l2 is not None
+    assert nav.l2.panel == "left"
+    assert nav.l2.panel_view == "status"
+    assert nav.l1 is not None
+    assert nav.l1.is_disabled is True
+    assert nav.r1 is not None
+    assert nav.r1.is_disabled is True
+    assert nav.r2 is not None
+    assert nav.r2.panel == "right"
+    assert nav.r2.panel_view == "context"
 
 
 def test_legacy_exploration_menu_fallback_does_not_link_to_other_main_states():
@@ -91,11 +96,14 @@ def test_legacy_exploration_menu_fallback_does_not_link_to_other_main_states():
     assert nav.l2 is not None
     assert nav.l2.panel == "left"
     assert nav.l1 is not None
-    assert nav.l1.label == "BUILDS"
-    assert nav.l1.panel == "left"
+    assert nav.l1.label == "QUESTS"
+    assert nav.l1.panel is None
+    assert nav.l1.panel_view is None
+    assert nav.l1.modal == "quests"
     assert nav.r1 is not None
     assert nav.r1.label == "INVENTORY"
-    assert nav.r1.window == "inventory"
+    assert nav.r1.panel == "right"
+    assert nav.r1.panel_view == "inventory"
     assert nav.r2 is not None
     assert nav.r2.label == "VIEW"
     assert nav.r2.panel == "right"

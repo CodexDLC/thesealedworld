@@ -66,6 +66,12 @@ class CombatActorPanelVM(BaseModel):
     actor_type: str
     team: str
     avatar_url: str
+    archetype: str | None = None
+    role: str | None = None
+    template_id: str | None = None
+    tags: list[str] = Field(default_factory=list)
+    source: dict[str, Any] = Field(default_factory=dict)
+    visual: dict[str, Any] = Field(default_factory=dict)
     exchange_counter: int = 0
     is_shadow: bool = False
     is_ai: bool = False
@@ -235,7 +241,12 @@ class CombatScreenVM(BaseModel):
     token_bar: list[CombatTokenVM] = Field(default_factory=list)
     log_lines: list[CombatLogLineVM] = Field(default_factory=list)
     log_turns: list[CombatLogTurnVM] = Field(default_factory=list)
+    target_exchange_turn: CombatLogTurnVM | None = None
     log_total: int = 0
+    log_page: int = 1
+    log_page_size: int = 8
+    log_total_pages: int = 1
+    log_pages: list[int] = Field(default_factory=lambda: [1])
     exchange_state: CombatExchangeStateVM = Field(default_factory=CombatExchangeStateVM)
     winner_team: str | None = None
 
@@ -375,6 +386,10 @@ def build_combat_screen_vm(dashboard: CombatDashboardDTO) -> CombatScreenVM:
     allied_actors = [dashboard.hero, *dashboard.allies]
     enemy_actors = dashboard.enemies or ([dashboard.target] if dashboard.target else [])
     enemy_rows = [_roster_row(actor) for actor in dashboard.enemies]
+    log_turns = _log_turns(dashboard)
+    log_page_size = 8
+    log_total = dashboard.log_total or len(log_turns)
+    log_total_pages = max(1, (log_total + log_page_size - 1) // log_page_size)
     return CombatScreenVM(
         session_id=dashboard.session_id,
         status=dashboard.status,
@@ -399,8 +414,17 @@ def build_combat_screen_vm(dashboard: CombatDashboardDTO) -> CombatScreenVM:
         ability_options=abilities,
         token_bar=_token_bar(dashboard.hero.tokens),
         log_lines=[_log_line(event) for event in dashboard.events_delta.events[-8:]],
-        log_turns=_log_turns(dashboard),
-        log_total=dashboard.log_total,
+        log_turns=log_turns,
+        target_exchange_turn=_target_exchange_turn(
+            log_turns,
+            hero_id=dashboard.hero.actor_id,
+            target_id=dashboard.target.actor_id if dashboard.target else None,
+        ),
+        log_total=log_total,
+        log_page=1,
+        log_page_size=log_page_size,
+        log_total_pages=log_total_pages,
+        log_pages=_page_window(1, log_total_pages),
         exchange_state=_exchange_state(dashboard.exchange_state),
         winner_team=dashboard.winner_team,
     )
@@ -618,8 +642,16 @@ def _progression_label(key: str) -> str:
 def _log_line(event: CombatEventDTO) -> CombatLogLineVM:
     action = _model_dict(getattr(event, "action", None)) or _event_data_dict(event.data, "action")
     template = _model_dict(getattr(event, "template", None)) or _event_data_dict(event.data, "template")
-    source = _model_dict(getattr(event, "source", None)) or _event_data_dict(event.data, "source")
-    target = _model_dict(getattr(event, "target", None)) or _event_data_dict(event.data, "target")
+    source = (
+        _model_dict(getattr(event, "source", None))
+        or _event_data_dict(event.data, "source")
+        or _event_actor_ref_from_id(event, "source")
+    )
+    target = (
+        _model_dict(getattr(event, "target", None))
+        or _event_data_dict(event.data, "target")
+        or _event_actor_ref_from_id(event, "target")
+    )
     catalog = _event_data_str(event.data, "catalog") or _dict_str(action, "catalog")
     catalog_key = _event_data_str(event.data, "catalog_key") or _dict_str(action, "catalog_key")
     catalog_event = _event_data_str(event.data, "catalog_event") or _dict_str(action, "event")
@@ -647,6 +679,45 @@ def _log_line(event: CombatEventDTO) -> CombatLogLineVM:
         catalog_taxonomy=catalog_taxonomy,
         catalog_tooltip=_event_data_str(event.data, "catalog_tooltip"),
     )
+
+
+def _target_exchange_turn(
+    log_turns: list[CombatLogTurnVM],
+    *,
+    hero_id: str,
+    target_id: str | None,
+) -> CombatLogTurnVM | None:
+    if not target_id:
+        return None
+    hero_key = str(hero_id)
+    target_key = str(target_id)
+    ordered_turns = sorted(
+        log_turns,
+        key=lambda turn: turn.global_turn if turn.global_turn is not None else -1,
+        reverse=True,
+    )
+    for turn in ordered_turns:
+        lines = [
+            line
+            for line in turn.lines
+            if _combat_log_line_matches_actor_pair(line, actor_a=hero_key, actor_b=target_key)
+        ]
+        if lines:
+            return CombatLogTurnVM(global_turn=turn.global_turn, title=turn.title, lines=lines)
+    return None
+
+
+def _page_window(active_page: int, total_pages: int) -> list[int]:
+    first = max(1, active_page - 1)
+    last = min(total_pages, first + 3)
+    first = max(1, last - 3)
+    return list(range(first, last + 1))
+
+
+def _combat_log_line_matches_actor_pair(line: CombatLogLineVM, *, actor_a: str, actor_b: str) -> bool:
+    source_id = _dict_str(line.source, "id")
+    target_id = _dict_str(line.target, "id")
+    return {source_id, target_id} == {actor_a, actor_b}
 
 
 def _log_turns(dashboard: CombatDashboardDTO) -> list[CombatLogTurnVM]:
@@ -762,6 +833,15 @@ def _event_data_dict(data: dict[str, object], key: str) -> dict[str, object] | N
     return dict(value) if isinstance(value, dict) else None
 
 
+def _event_actor_ref_from_id(event: CombatEventDTO, key: str) -> dict[str, object] | None:
+    value = getattr(event, f"{key}_id", None)
+    if value in (None, ""):
+        value = event.data.get(f"{key}_id")
+    if value in (None, ""):
+        return None
+    return {"id": str(value), "name": f"#{value}", "team": None, "actor_type": None}
+
+
 def _model_dict(value: object) -> dict[str, object]:
     if value is None:
         return {}
@@ -795,6 +875,12 @@ def _actor_panel(actor: CombatActorCardDTO, *, include_belt: bool) -> CombatActo
         actor_type=actor.actor_type,
         team=actor.team,
         avatar_url=_avatar_url(actor),
+        archetype=actor.archetype,
+        role=actor.role,
+        template_id=actor.template_id,
+        tags=list(actor.tags),
+        source=dict(actor.source),
+        visual=dict(actor.visual),
         exchange_counter=actor.exchange_counter,
         is_shadow=_is_shadow(actor),
         is_ai=actor.is_ai,
@@ -893,12 +979,18 @@ def _team_summary(label: str, actors: list[CombatActorCardDTO]) -> CombatTeamSum
 def _effect_badge(effect: CombatEffectBadgeDTO, exchange_counter: int) -> CombatEffectBadgeVM:
     frame_kind = _effect_kind(effect.effect_id)
     remaining = _effect_remaining(effect.expires_at_exchange, exchange_counter)
-    title = _effect_title(effect.effect_id, frame_kind)
+    title = effect.title or _effect_title(effect.effect_id, frame_kind)
+    description = effect.description or "NO_DATA"
     impact_text = _effect_impact_text(effect.impact)
-    duration = str(remaining) if remaining is not None else None
+    duration_label = effect.duration_label
+    duration = None if duration_label else str(remaining) if remaining is not None else None
     tooltip_parts = [title]
-    if remaining is not None:
+    if duration_label:
+        tooltip_parts.append(duration_label)
+    elif remaining is not None:
         tooltip_parts.append(_turns_left_text(remaining))
+    if effect.description:
+        tooltip_parts.append(effect.description)
     if impact_text:
         tooltip_parts.append(impact_text)
     return CombatEffectBadgeVM(
@@ -907,6 +999,7 @@ def _effect_badge(effect: CombatEffectBadgeDTO, exchange_counter: int) -> Combat
         frame_kind=frame_kind,
         duration_text=duration,
         title=title,
+        description=description,
         tooltip=" // ".join(tooltip_parts),
         catalog_key=effect.effect_id,
     )
@@ -1131,10 +1224,10 @@ def _token_bar(tokens: dict[str, int]) -> list[CombatTokenVM]:
 
 
 def _avatar_url(actor: CombatActorCardDTO) -> str:
-    if _is_shadow(actor):
-        return DEFAULT_SHADOW_AVATAR_URL
     if actor.avatar_url:
         return actor.avatar_url
+    if _is_shadow(actor):
+        return DEFAULT_SHADOW_AVATAR_URL
     if actor.actor_type == "monster":
         return DEFAULT_MONSTER_AVATAR_URL
     return DEFAULT_PLAYER_AVATAR_URL

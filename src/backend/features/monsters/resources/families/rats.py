@@ -14,16 +14,27 @@ RATS_FAMILY: MonsterFamily = {
     "skill_kit": {
         "base": {
             "skill_fencing": 0.20,
-            "skill_adaptation": 0.10,
-            "skill_scouting": 0.10,
+            "skill_light_armor": 0.10,
+            "skill_one_handed": 0.10,
         },
         "role_bonus": {
             "minion": {},
-            "veteran": {"skill_scouting": 0.10},
-            "elite": {"skill_fencing": 0.25, "skill_adaptation": 0.15},
-            "boss": {"skill_fencing": 0.60, "skill_tactics": 0.30},
+            "veteran": {"skill_fencing": 0.10, "skill_medium_armor": 0.10},
+            "elite": {"skill_fencing": 0.25, "skill_anatomy": 0.15, "skill_medium_armor": 0.15},
+            "boss": {
+                "skill_fencing": 0.60,
+                "skill_anatomy": 0.25,
+                "skill_heavy_armor": 0.20,
+                "skill_tactics": 0.30,
+            },
         },
     },
+    "family_modifiers": [
+        {"target": "poison_efficiency", "value": 0.05, "per_tier": 0.02},
+        {"target": "poison_resistance", "value": 0.06, "per_tier": 0.01},
+        {"target": "bleed_resistance", "value": 0.04, "per_tier": 0.01},
+        {"target": "anti_dodge_chance", "value": 0.03, "per_tier": 0.01},
+    ],
     "loot_profile": {
         "salvage_type": "beast_parts",
         "loot_mode": "salvage",
@@ -49,17 +60,17 @@ RATS_FAMILY: MonsterFamily = {
             "narrative_hint": "A dirty, wet rat with matted fur. Scavenges for food.",
             "extra_tags": ["shared", "weak"],
             "base_stats": {
-                "strength": 4,
-                "agility": 10,
-                "endurance": 5,
+                "strength": 8,
+                "agility": 14,
+                "endurance": 10,
                 "intellect": 1,
                 "memory": 1,
-                "mental": 2,
-                "perception": 6,
+                "mental": 3,
+                "perception": 8,
                 "projection": 1,
-                "prediction": 2,  # Итого: 32
+                "prediction": 2,  # Итого: 48
             },
-            "fixed_loadout": {},
+            "fixed_loadout": {"main_hand": "rat_bite_claws", "chest_armor": "rat_light_hide"},
         },
         "scavenger_rat": {
             "id": "scavenger_rat",
@@ -70,17 +81,17 @@ RATS_FAMILY: MonsterFamily = {
             "narrative_hint": "A rat dragging a piece of refuse. Will fight to protect its treasure.",
             "extra_tags": ["scavenger", "hoarder"],
             "base_stats": {
-                "strength": 6,
-                "agility": 8,
-                "endurance": 6,
+                "strength": 10,
+                "agility": 12,
+                "endurance": 10,
                 "intellect": 2,
                 "memory": 1,
-                "mental": 2,
-                "perception": 6,
+                "mental": 3,
+                "perception": 8,
                 "projection": 1,
-                "prediction": 3,  # Итого: 35
+                "prediction": 3,  # Итого: 50
             },
-            "fixed_loadout": {},
+            "fixed_loadout": {"main_hand": "rat_bite_claws", "chest_armor": "rat_light_hide"},
         },
         "swarm_rat": {
             "id": "swarm_rat",
@@ -91,17 +102,17 @@ RATS_FAMILY: MonsterFamily = {
             "narrative_hint": "One of hundreds. Individually weak, but terrifying in numbers.",
             "extra_tags": ["swarm", "frenzied"],
             "base_stats": {
-                "strength": 4,
-                "agility": 12,
-                "endurance": 4,
+                "strength": 7,
+                "agility": 16,
+                "endurance": 8,
                 "intellect": 1,
                 "memory": 1,
-                "mental": 4,
-                "perception": 4,
+                "mental": 3,
+                "perception": 7,
                 "projection": 1,
-                "prediction": 2,  # Итого: 33
+                "prediction": 2,  # Итого: 46
             },
-            "fixed_loadout": {},
+            "fixed_loadout": {"main_hand": "rat_bite_claws", "chest_armor": "rat_light_hide"},
         },
         # --- 2. Опытные бойцы (Veterans) [TSP ~45] ---
         "tunnel_rat": {
@@ -113,17 +124,17 @@ RATS_FAMILY: MonsterFamily = {
             "narrative_hint": "A rat with large claws for digging. Moves silently in the dark.",
             "extra_tags": ["stealth", "digger"],
             "base_stats": {
-                "strength": 6,
-                "agility": 12,
-                "endurance": 8,
+                "strength": 12,
+                "agility": 16,
+                "endurance": 14,
                 "intellect": 2,
                 "memory": 2,
-                "mental": 4,
-                "perception": 8,
+                "mental": 5,
+                "perception": 10,
                 "projection": 1,
-                "prediction": 3,  # Итого: 46
+                "prediction": 3,  # Итого: 65
             },
-            "fixed_loadout": {},
+            "fixed_loadout": {"main_hand": "rat_veteran_claws", "chest_armor": "rat_medium_hide"},
         },
         "pack_rat": {
             "id": "pack_rat",
@@ -134,17 +145,17 @@ RATS_FAMILY: MonsterFamily = {
             "narrative_hint": "A rat that never fights alone. Always looks for allies.",
             "extra_tags": ["pack_tactics", "social"],
             "base_stats": {
-                "strength": 8,
-                "agility": 10,
-                "endurance": 10,
+                "strength": 14,
+                "agility": 14,
+                "endurance": 16,
                 "intellect": 3,
                 "memory": 2,
-                "mental": 4,
-                "perception": 6,
+                "mental": 5,
+                "perception": 8,
                 "projection": 2,
-                "prediction": 3,  # Итого: 48
+                "prediction": 3,  # Итого: 67
             },
-            "fixed_loadout": {},
+            "fixed_loadout": {"main_hand": "rat_veteran_claws", "chest_armor": "rat_light_hide"},
         },
         "screecher": {
             "id": "screecher",
@@ -155,17 +166,17 @@ RATS_FAMILY: MonsterFamily = {
             "narrative_hint": "A rat with an oversized throat pouch. Emits ear-piercing shrieks.",
             "extra_tags": ["support", "alarm"],
             "base_stats": {
-                "strength": 4,
-                "agility": 12,
-                "endurance": 6,
+                "strength": 8,
+                "agility": 16,
+                "endurance": 12,
                 "intellect": 3,
                 "memory": 2,
-                "mental": 4,
-                "perception": 12,
+                "mental": 6,
+                "perception": 14,
                 "projection": 2,
-                "prediction": 3,  # Итого: 48
+                "prediction": 3,  # Итого: 66
             },
-            "fixed_loadout": {},
+            "fixed_loadout": {"main_hand": "rat_veteran_claws", "chest_armor": "rat_medium_hide"},
         },
         # --- 3. Элита (Elites) [TSP ~75] ---
         "plague_rat": {
@@ -177,17 +188,17 @@ RATS_FAMILY: MonsterFamily = {
             "narrative_hint": "A rat covered in weeping sores and green pustules. Leaves a trail of sickness.",
             "extra_tags": ["plague", "poison", "aura"],
             "base_stats": {
-                "strength": 10,
-                "agility": 10,
-                "endurance": 16,
-                "intellect": 3,
+                "strength": 16,
+                "agility": 14,
+                "endurance": 22,
+                "intellect": 4,
                 "memory": 4,
-                "mental": 8,
-                "perception": 8,
-                "projection": 1,
-                "prediction": 2,  # Итого: 62 (но яд компенсирует)
+                "mental": 10,
+                "perception": 10,
+                "projection": 3,
+                "prediction": 3,  # Итого: 86
             },
-            "fixed_loadout": {},
+            "fixed_loadout": {"main_hand": "rat_elite_claws", "chest_armor": "rat_medium_hide"},
         },
         "rotfang": {
             "id": "rotfang",
@@ -198,17 +209,17 @@ RATS_FAMILY: MonsterFamily = {
             "narrative_hint": "A large rat with dripping, rotten fangs. Its bite causes necrosis.",
             "extra_tags": ["necrosis", "bleed"],
             "base_stats": {
-                "strength": 14,
-                "agility": 14,
-                "endurance": 14,
+                "strength": 20,
+                "agility": 18,
+                "endurance": 18,
                 "intellect": 4,
                 "memory": 4,
                 "mental": 8,
-                "perception": 10,
+                "perception": 12,
                 "projection": 2,
-                "prediction": 4,  # Итого: 74
+                "prediction": 4,  # Итого: 90
             },
-            "fixed_loadout": {},
+            "fixed_loadout": {"main_hand": "rat_elite_claws", "chest_armor": "rat_heavy_hide"},
         },
         "blight_carrier": {
             "id": "blight_carrier",
@@ -219,17 +230,17 @@ RATS_FAMILY: MonsterFamily = {
             "narrative_hint": "A bloated rat that explodes upon death, spreading disease.",
             "extra_tags": ["explosive", "blight"],
             "base_stats": {
-                "strength": 10,
-                "agility": 6,
-                "endurance": 20,
-                "intellect": 2,
-                "memory": 2,
-                "mental": 10,
-                "perception": 6,
-                "projection": 1,
-                "prediction": 1,  # Итого: 58 (взрыв компенсирует)
+                "strength": 14,
+                "agility": 10,
+                "endurance": 28,
+                "intellect": 3,
+                "memory": 3,
+                "mental": 12,
+                "perception": 8,
+                "projection": 2,
+                "prediction": 2,  # Итого: 82
             },
-            "fixed_loadout": {},
+            "fixed_loadout": {"main_hand": "rat_elite_claws", "chest_armor": "rat_medium_hide"},
         },
         # --- 4. Боссы (Bosses) [TSP ~120] ---
         "rat_brute": {
@@ -241,17 +252,17 @@ RATS_FAMILY: MonsterFamily = {
             "narrative_hint": "A hulking, muscular rat, possibly mutated. Smashes through obstacles.",
             "extra_tags": ["brute", "mutated", "strong"],
             "base_stats": {
-                "strength": 25,
-                "agility": 10,
-                "endurance": 30,
+                "strength": 28,
+                "agility": 14,
+                "endurance": 34,
                 "intellect": 4,
                 "memory": 4,
-                "mental": 15,
-                "perception": 8,
+                "mental": 16,
+                "perception": 10,
                 "projection": 5,
-                "prediction": 5,  # Итого: 106
+                "prediction": 5,  # Итого: 120
             },
-            "fixed_loadout": {},
+            "fixed_loadout": {"main_hand": "rat_boss_claws", "chest_armor": "rat_heavy_hide"},
         },
         "brood_alpha": {
             "id": "brood_alpha",
@@ -262,17 +273,17 @@ RATS_FAMILY: MonsterFamily = {
             "narrative_hint": "A cunning alpha rat that directs the swarm with chirps and gestures.",
             "extra_tags": ["leader", "alpha", "tactician"],
             "base_stats": {
-                "strength": 16,
-                "agility": 18,
-                "endurance": 16,
+                "strength": 18,
+                "agility": 22,
+                "endurance": 20,
                 "intellect": 10,
                 "memory": 8,
-                "mental": 12,
-                "perception": 14,
+                "mental": 14,
+                "perception": 16,
                 "projection": 10,
-                "prediction": 8,  # Итого: 112
+                "prediction": 8,  # Итого: 126
             },
-            "fixed_loadout": {},
+            "fixed_loadout": {"main_hand": "rat_boss_claws", "chest_armor": "rat_heavy_hide"},
         },
         "rat_king": {
             "id": "rat_king",
@@ -293,7 +304,7 @@ RATS_FAMILY: MonsterFamily = {
                 "projection": 15,
                 "prediction": 5,  # Итого: 146
             },
-            "fixed_loadout": {},
+            "fixed_loadout": {"main_hand": "rat_boss_claws", "chest_armor": "rat_heavy_hide"},
         },
     },
 }

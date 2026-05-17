@@ -36,7 +36,7 @@ if TYPE_CHECKING:
         MonsterMemberResourceModelDTO,
         MonsterVariantDTO,
     )
-    from src.backend.features.monsters.integrations import MonsterClanTextAIClient, MonsterGenerationStorage
+    from src.backend.features.monsters.integrations import MonsterGenerationStorage
 
 
 @dataclass(frozen=True, slots=True)
@@ -54,12 +54,10 @@ class MonsterClanGenerationBuilder:
         *,
         repository: MonsterGenerationStorage,
         item_generation,
-        text_ai: MonsterClanTextAIClient | None = None,
         generation_ai: GenerationAIService | None = None,
     ) -> None:
         self.repository = repository
         self.item_generation = item_generation
-        self.text_ai = text_ai
         self.generation_ai = generation_ai
 
     async def generate_active_clan(
@@ -67,8 +65,25 @@ class MonsterClanGenerationBuilder:
         context: MonsterGenerationContext,
         *,
         family_id: str | None = None,
-        target_budget: float | None = None,
-        max_members: int = 12,
+        context_hash: str | None = None,
+        unique_hash: str | None = None,
+        normalized_tags: Sequence[str] | None = None,
+        reuse_existing: bool = True,
+    ) -> GeneratedClan:
+        return await self.generate_clan_template(
+            context,
+            family_id=family_id,
+            context_hash=context_hash,
+            unique_hash=unique_hash,
+            normalized_tags=normalized_tags,
+            reuse_existing=reuse_existing,
+        )
+
+    async def generate_clan_template(
+        self,
+        context: MonsterGenerationContext,
+        *,
+        family_id: str | None = None,
         context_hash: str | None = None,
         unique_hash: str | None = None,
         normalized_tags: Sequence[str] | None = None,
@@ -90,8 +105,7 @@ class MonsterClanGenerationBuilder:
             if existing is not None:
                 return existing
 
-        budget = self._target_budget(context, target_budget)
-        member_plans = self._build_member_plans(family, context, budget, max_members)
+        member_plans = self._build_member_plans(family, context)
         item_requests = self._build_item_requests(family, member_plans, resolved_unique_hash)
         runtime_items = await self._generate_runtime_items(item_requests)
         flavor = await self._build_flavor(family, context, member_plans, tags)
@@ -117,7 +131,7 @@ class MonsterClanGenerationBuilder:
                 "tags": tags,
                 "biome_id": context.biome_id,
                 "difficulty": context.difficulty,
-                "target_budget": budget,
+                "variant_window": {"min_tier": 0, "max_tier": min(7, context.tier + 1)},
                 "composition": [plan.variant.id for plan in member_plans],
                 "context_meta": context.context_meta,
             },
@@ -166,24 +180,18 @@ class MonsterClanGenerationBuilder:
         self,
         family: MonsterFamilyDTO,
         context: MonsterGenerationContext,
-        target_budget: float,
-        max_members: int,
     ) -> list[_MemberPlan]:
         max_variant_tier = min(7, context.tier + 1)
         available = [
-            variant for variant in family.variants.values() if variant.min_tier <= max_variant_tier and variant.max_tier >= 0
+            variant
+            for variant in family.variants.values()
+            if variant.min_tier <= max_variant_tier and variant.max_tier >= 0
         ]
         if not available:
             raise ValueError(f"No monster variants for family={family.id} tier={context.tier}")
 
-        profile = family.clan_model.balance.composition_profile if family.clan_model else "balanced"
-        selected = (
-            self._compose_many_weak(family, available, context, target_budget, max_members)
-            if "many" in profile or family.organization_type in {"swarm", "horde"}
-            else self._compose_balanced(family, available, context, target_budget, max_members)
-        )
         plans: list[_MemberPlan] = []
-        for variant in selected:
+        for variant in sorted(available, key=lambda item: (item.min_tier, item.role, item.cost, item.id)):
             member_model = self._member_model_for(family, variant)
             member_id = uuid.uuid4()
             plans.append(
@@ -196,53 +204,6 @@ class MonsterClanGenerationBuilder:
                 )
             )
         return plans
-
-    def _compose_many_weak(
-        self,
-        family: MonsterFamilyDTO,
-        available: list[MonsterVariantDTO],
-        context: MonsterGenerationContext,
-        target_budget: float,
-        max_members: int,
-    ) -> list[MonsterVariantDTO]:
-        minions = self._role_variants(available, "minion")
-        veterans = self._role_variants(available, "veteran")
-        selected: list[MonsterVariantDTO] = []
-        remaining = target_budget
-        cheapest_minion_cost = self._effective_cost(family, minions[0]) if minions else 0.0
-        if veterans and remaining >= self._effective_cost(family, veterans[0]) + cheapest_minion_cost:
-            selected.append(self._pick(veterans, context, len(selected)))
-            remaining -= self._effective_cost(family, selected[-1])
-        while minions and len(selected) < max_members and remaining >= cheapest_minion_cost:
-            selected.append(self._pick(minions, context, len(selected)))
-            remaining -= self._effective_cost(family, selected[-1])
-        if not selected:
-            selected.append(self._pick(minions or available, context, 0))
-        return selected
-
-    def _compose_balanced(
-        self,
-        family: MonsterFamilyDTO,
-        available: list[MonsterVariantDTO],
-        context: MonsterGenerationContext,
-        target_budget: float,
-        max_members: int,
-    ) -> list[MonsterVariantDTO]:
-        selected: list[MonsterVariantDTO] = []
-        remaining = target_budget
-        ordered = sorted(
-            available, key=lambda variant: (self._effective_cost(family, variant), variant.id), reverse=True
-        )
-        cheapest = min(self._effective_cost(family, variant) for variant in available)
-        while len(selected) < max_members and remaining >= cheapest:
-            affordable = [variant for variant in ordered if self._effective_cost(family, variant) <= remaining]
-            if not affordable:
-                break
-            selected.append(self._pick(affordable, context, len(selected)))
-            remaining -= self._effective_cost(family, selected[-1])
-        if not selected:
-            selected.append(self._pick(available, context, 0))
-        return selected
 
     def _build_item_requests(
         self,
@@ -287,52 +248,12 @@ class MonsterClanGenerationBuilder:
         member_plans: list[_MemberPlan],
         normalized_tags: Sequence[str],
     ) -> dict[str, object]:
-        variant_ids = sorted({plan.variant.id for plan in member_plans})
-        if self.text_ai is not None:
-            generated = await self.text_ai.generate_clan_flavor(
-                self._build_flavor_prompt_payload(family, context, variant_ids, normalized_tags)
-            )
-            if generated is not None and all(variant_id in generated.variants_flavor for variant_id in variant_ids):
-                return generated.model_dump(mode="json")
         return self._build_fallback_flavor(family, context, member_plans)
 
     async def _enqueue_ai_flavor(self, clan: GeneratedClan) -> None:
         if self.generation_ai is None:
             return
         await self.generation_ai.enqueue_many([build_monster_clan_flavor_task_spec(clan)])
-
-    @staticmethod
-    def _build_flavor_prompt_payload(
-        family: MonsterFamilyDTO,
-        context: MonsterGenerationContext,
-        variant_ids: Sequence[str],
-        normalized_tags: Sequence[str],
-    ) -> dict[str, object]:
-        units_with_roles = {
-            variant_id: f"[{family.variants[variant_id].role.title()}] {family.variants[variant_id].narrative_hint}"
-            for variant_id in variant_ids
-        }
-        return {
-            "family_id": family.id,
-            "archetype": family.archetype,
-            "organization": family.organization_type,
-            "family_tags": family.default_tags,
-            "context_tags": list(normalized_tags),
-            "biome_id": context.biome_id,
-            "difficulty": context.difficulty,
-            "tier": context.tier,
-            "rift_profile": context.context_meta.get("rift_profile"),
-            "text_contract": {
-                "clan": ["name_ru", "description"],
-                "member": ["name", "appearance", "detected", "ambush", "idle", "encounter", "behavior"],
-                "encounter_states": {
-                    "detected": "player noticed the monster first",
-                    "ambush": "monster noticed or attacked first",
-                    "idle": "monster is observed before combat starts",
-                },
-            },
-            "units_to_name": units_with_roles,
-        }
 
     def _build_member_row(
         self,
@@ -388,6 +309,7 @@ class MonsterClanGenerationBuilder:
                 ),
                 "balance": template.balance.model_dump(mode="json"),
                 "meta": template.meta.model_dump(mode="json"),
+                "family_modifiers": template.family_modifiers,
             },
         )
 
@@ -423,31 +345,6 @@ class MonsterClanGenerationBuilder:
     def _family_bias_from_tags(tags: Sequence[str]) -> set[str]:
         starter_families = {"rat_swarm", "wolf_pack", "bandit_gang", "goblin_tribe"}
         return set(tags) & starter_families
-
-    @staticmethod
-    def _target_budget(context: MonsterGenerationContext, target_budget: float | None) -> float:
-        if target_budget is not None:
-            return max(1.0, float(target_budget))
-        if context.threat is not None:
-            return max(1.0, float(context.threat))
-        return float(max(1, context.count) * 20)
-
-    @staticmethod
-    def _effective_cost(family: MonsterFamilyDTO, variant: MonsterVariantDTO) -> float:
-        divisor = family.clan_model.balance.organization_divisor if family.clan_model else 1.0
-        return max(1.0, round(variant.cost / divisor, 4))
-
-    @staticmethod
-    def _role_variants(variants: list[MonsterVariantDTO], role: str) -> list[MonsterVariantDTO]:
-        return sorted(
-            (variant for variant in variants if variant.role == role), key=lambda variant: (variant.cost, variant.id)
-        )
-
-    @staticmethod
-    def _pick(variants: list[MonsterVariantDTO], context: MonsterGenerationContext, index: int) -> MonsterVariantDTO:
-        ordered = sorted(variants, key=lambda variant: variant.id)
-        seed = f"{context.biome_id}:{context.tier}:{context.difficulty}:{index}"
-        return ordered[int(uuid.uuid5(uuid.NAMESPACE_DNS, seed).hex[:8], 16) % len(ordered)]
 
     @staticmethod
     def _item_kind(slot: str, equipment_key: str) -> str:

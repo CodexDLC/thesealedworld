@@ -1,0 +1,59 @@
+{% extends "cabinet/includes/widget_frame.html" %}
+
+{% block widget_content %}
+    {% if widget.entries %}
+        {# Reset forms — one per row, outside the main save form (HTML5: referenced via form= attribute) #}
+        {% for entry in widget.entries %}
+            <form id="fc-reset-{{ widget.key }}-{{ loop.index }}"
+                  method="post"
+                  action="{{ widget.reset_url }}">
+                <input type="hidden" name="namespace" value="{{ widget.namespace }}">
+                <input type="hidden" name="key" value="{{ entry.key }}">
+                <input type="hidden" name="redirect_to" value="{{ widget.redirect_to }}">
+            </form>
+        {% endfor %}
+
+        {# Main save form #}
+        <form method="post" action="{{ widget.update_url }}">
+            <input type="hidden" name="namespace" value="{{ widget.namespace }}">
+            <input type="hidden" name="redirect_to" value="{{ widget.redirect_to }}">
+            <table class="fc-table fc-table--config">
+                <thead>
+                    <tr>
+                        <th class="fc-config-col-reset"></th>
+                        <th>Параметр</th>
+                        <th>Значение</th>
+                        <th>По умолчанию</th>
+                        <th>Тип</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for entry in widget.entries %}
+                        <tr class="{% if entry.is_modified %}fc-config-row--modified{% endif %}">
+                            <td>
+                                <button type="submit"
+                                        form="fc-reset-{{ widget.key }}-{{ loop.index }}"
+                                        class="fc-btn-reset"
+                                        title="Сбросить к значению по умолчанию">↺</button>
+                            </td>
+                            <td class="fc-config-key">{{ entry.key }}</td>
+                            <td>
+                                <input class="fc-config-input"
+                                       type="text"
+                                       name="values[{{ entry.key }}]"
+                                       value="{{ entry.current }}">
+                            </td>
+                            <td class="fc-config-default">{{ entry.default }}</td>
+                            <td class="fc-config-type">{{ entry.value_type }}</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            <div class="fc-config-actions">
+                <button type="submit" class="fc-btn-save">Сохранить изменения</button>
+            </div>
+        </form>
+    {% else %}
+        <p class="fc-empty">Нет параметров или бекенд недоступен.</p>
+    {% endif %}
+{% endblock %}

@@ -539,9 +539,8 @@ class CombatResolver:
                     if bonus_part > 0:
                         phys_dmg *= 1.0 - (heavy_skill * 0.2)
 
-            phys_res_pct = def_stats.mods.physical_resistance
             phys_suppression_pct = CombatResolver._get_offensive_val(atk_stats, ctx, "physical_suppression")
-            mitigation_pct = max(0.0, phys_res_pct - phys_suppression_pct)
+            mitigation_pct = CombatResolver._effective_physical_resistance(atk_stats, def_stats, ctx)
             phys_dmg *= 1.0 - mitigation_pct
 
             armor_flat = CombatResolver._effective_armor(atk_stats, def_stats, ctx)
@@ -627,6 +626,10 @@ class CombatResolver:
             weapon_technique_bonus_damage=ctx.mods.weapon_technique_bonus_damage,
             phys_res=getattr(def_stats.mods, "physical_resistance", 0.0),
             physical_suppression=CombatResolver._get_offensive_val(atk_stats, ctx, "physical_suppression"),
+            physical_resistance_suppression=ctx.mods.physical_resistance_suppression_pct
+            if ctx.flags.formula.suppress_physical_resistance
+            else 0.0,
+            effective_phys_res=mitigation_pct,
             crit_mult=crit_multiplier,
         )
 
@@ -835,18 +838,35 @@ class CombatResolver:
 
     @staticmethod
     def _effective_armor(atk_stats: ActorStats, def_stats: ActorStats, ctx: PipelineContextDTO) -> float:
-        if ctx.flags.formula.ignore_armor:
+        if ctx.flags.formula.ignore_armor or ctx.flags.formula.ignore_flat_armor:
             return 0.0
 
         armor = max(0.0, def_stats.mods.armor)
         ignore_chance = CombatResolver._get_offensive_val(atk_stats, ctx, "armor_ignore_chance")
+        if ctx.flags.formula.roll_flat_armor_ignore:
+            ignore_chance += max(0.0, ctx.mods.flat_armor_ignore_chance_bonus)
         if ignore_chance > 0.0 and MathCore.check_chance(ignore_chance):
             return 0.0
 
         penetration_pct = max(0.0, CombatResolver._get_offensive_val(atk_stats, ctx, "armor_penetration_pct"))
+        if ctx.flags.formula.boost_flat_armor_penetration:
+            penetration_pct += max(0.0, ctx.mods.flat_armor_penetration_bonus_pct)
         penetration_flat = max(0.0, atk_stats.mods.armor_penetration_flat)
         armor *= max(0.0, 1.0 - penetration_pct)
         return max(0.0, armor - penetration_flat)
+
+    @staticmethod
+    def _effective_physical_resistance(atk_stats: ActorStats, def_stats: ActorStats, ctx: PipelineContextDTO) -> float:
+        if ctx.flags.formula.ignore_physical_resistance:
+            return 0.0
+
+        phys_res = max(0.0, def_stats.mods.physical_resistance)
+        if ctx.flags.formula.suppress_physical_resistance:
+            suppression_pct = max(0.0, ctx.mods.physical_resistance_suppression_pct)
+            phys_res *= max(0.0, 1.0 - suppression_pct)
+
+        phys_suppression = max(0.0, CombatResolver._get_offensive_val(atk_stats, ctx, "physical_suppression"))
+        return max(0.0, phys_res - phys_suppression)
 
     @staticmethod
     def _select_trigger_activation(

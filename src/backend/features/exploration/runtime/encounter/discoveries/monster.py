@@ -135,9 +135,11 @@ class MonsterDiscoveryBuilder:
             hp_percent = max(0, min(100, round(hp_current / hp_max * 100)))
         return EnemyPreviewDTO(
             name=preview.name,
-            level=preview.threat_rating,
+            level=preview.member_tier,
+            member_tier=preview.member_tier,
             hp_percent=hp_percent,
-            image=None,
+            image=preview.image,
+            visual=preview.visual,
             monster_id=preview.monster_id,
             description=preview.description,
             role=preview.role,

@@ -173,6 +173,10 @@ def test_pipeline_mutation_contracts_are_technical_and_apply_to_context() -> Non
     PipelineMutationService.apply(
         applications=[
             pipeline_mutation("ignore_evasion"),
+            pipeline_mutation("roll_flat_armor_ignore"),
+            pipeline_mutation("flat_armor_ignore_chance_bonus", 0.5),
+            pipeline_mutation("boost_flat_armor_penetration"),
+            pipeline_mutation("flat_armor_penetration_bonus_pct", 0.5),
             pipeline_mutation("stage.check_parry", False),
             pipeline_mutation("weapon_effect_value", 2.0),
             pipeline_mutation("chain.preserve_feint"),
@@ -182,6 +186,10 @@ def test_pipeline_mutation_contracts_are_technical_and_apply_to_context() -> Non
     )
 
     assert ctx.flags.force.hit_evasion is True
+    assert ctx.flags.formula.roll_flat_armor_ignore is True
+    assert ctx.mods.flat_armor_ignore_chance_bonus == 0.5
+    assert ctx.flags.formula.boost_flat_armor_penetration is True
+    assert ctx.mods.flat_armor_penetration_bonus_pct == 0.5
     assert ctx.stages.check_parry is False
     assert ctx.mods.weapon_effect_value == 2.0
     assert ctx.result.chain_events.preserve_feint is True
@@ -217,7 +225,32 @@ def test_trigger_rules_use_pipeline_mutation_applications_not_raw_paths() -> Non
     assert [application.mutation_id for application in rule["pipeline_mutations"]] == [
         "crit_damage_boost",
         "weapon_effect_value",
+        "boost_flat_armor_penetration",
+        "flat_armor_penetration_bonus_pct",
     ]
+
+
+def test_weapon_armor_triggers_target_flat_armor_layers() -> None:
+    gap = CombatCatalogIntegrator.get_trigger_rule("weapon_flat_armor_gap_crit")
+    bypass = CombatCatalogIntegrator.get_trigger_rule("weapon_flat_armor_bypass_crit")
+    crush = CombatCatalogIntegrator.get_trigger_rule("weapon_flat_armor_crush_crit")
+
+    assert gap is not None
+    assert [application.mutation_id for application in gap["pipeline_mutations"]] == [
+        "roll_flat_armor_ignore",
+        "flat_armor_ignore_chance_bonus",
+    ]
+    assert gap["pipeline_mutations"][1].value_override == 0.5
+
+    assert bypass is not None
+    assert [application.mutation_id for application in bypass["pipeline_mutations"]] == ["ignore_flat_armor"]
+
+    assert crush is not None
+    assert [application.mutation_id for application in crush["pipeline_mutations"]] == [
+        "boost_flat_armor_penetration",
+        "flat_armor_penetration_bonus_pct",
+    ]
+    assert crush["pipeline_mutations"][1].value_override == 0.5
 
 
 def test_game_message_contract_wraps_template_variables_and_result() -> None:

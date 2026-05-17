@@ -135,6 +135,11 @@ class CombatSystemIntegrator:
         )
         return str(finalization_id) if finalization_id else None
 
+    async def resolve_post_combat_for_character(self, char_id: int) -> dict[str, Any] | None:
+        session = await self.character_sessions.get_session(char_id)
+        value = ((session or {}).get("sessions") or {}).get("post_combat") if isinstance(session, dict) else None
+        return value if isinstance(value, dict) else None
+
     async def mark_combat_finalized(self, char_id: int, combat_id: str) -> None:
         session = await self.character_sessions.get_session(char_id)
         if not isinstance(session, dict):
@@ -184,6 +189,7 @@ class CombatSystemIntegrator:
         current_combat_id = sessions.get("combat_id")
         current_finalization_id = sessions.get("combat_finalization_id")
         death_run_id = sessions.get("death_run_id")
+        post_combat = sessions.get("post_combat") if isinstance(sessions.get("post_combat"), dict) else None
         current_state = self._state_text(session.get("state"))
         if current_state == CoreDomain.DEATH.value and not current_finalization_id:
             return CoreDomain.DEATH.value
@@ -200,21 +206,25 @@ class CombatSystemIntegrator:
             return None
 
         return_path = CombatReturnStateMapper.from_combat_previous(session.get("prev_state"))
-        next_state = CoreDomain.DEATH.value if death_run_id else return_path.current_state
+        post_target = self._post_combat_target(post_combat)
+        next_state = post_target or (CoreDomain.DEATH.value if death_run_id else return_path.current_state)
         previous_state = CoreDomain.COMBAT_RESULT.value if death_run_id else return_path.previous_state
-        await self.character_sessions.patch_fields(
-            char_id,
-            {
-                "$.sessions.combat_id": None,
-                "$.sessions.combat_finalization_id": None,
-                "$.prev_state": previous_state,
-                "$.state": next_state,
-            },
-        )
+        keep_post_combat = next_state in {CoreDomain.DEATH.value, CoreDomain.LOOT.value}
+        updates = {
+            "$.sessions.combat_id": None,
+            "$.sessions.combat_finalization_id": None,
+            "$.prev_state": previous_state,
+            "$.state": next_state,
+        }
+        paths = ["$.prev_state", "$.sessions.combat_finalization_id", "$.sessions.combat_id", "$.state"]
+        if post_combat is not None:
+            updates["$.sessions.post_combat"] = post_combat if keep_post_combat else None
+            paths.insert(3, "$.sessions.post_combat")
+        await self.character_sessions.patch_fields(char_id, updates)
         await self.character_sessions.mark_dirty(
             char_id,
             reason=dirty_reason,
-            paths=["$.prev_state", "$.sessions.combat_finalization_id", "$.sessions.combat_id", "$.state"],
+            paths=paths,
         )
         if sync_to_db:
             await self._sync_active_character_to_db(char_id)
@@ -227,6 +237,9 @@ class CombatSystemIntegrator:
 
         raw_sessions = session.get("sessions")
         sessions = raw_sessions if isinstance(raw_sessions, dict) else {}
+        post_target = self._post_combat_target(sessions.get("post_combat"))
+        if post_target:
+            return post_target
         if sessions.get("death_run_id"):
             return CoreDomain.DEATH.value
 
@@ -279,6 +292,18 @@ class CombatSystemIntegrator:
         if value is None:
             return None
         return value.value if isinstance(value, CoreDomain) else str(value)
+
+    @staticmethod
+    def _post_combat_target(value: Any) -> str | None:
+        if not isinstance(value, dict):
+            return None
+        target = value.get("target_state")
+        if not target:
+            return None
+        try:
+            return CoreDomain(str(target)).value
+        except ValueError:
+            return None
 
 
 @dataclass(frozen=True)

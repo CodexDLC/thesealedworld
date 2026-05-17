@@ -92,6 +92,12 @@ class ArenaSessionIntegration:
         await self.store.remove_from_queue(mode, char_id)
         await self.store.delete_request(char_id)
 
+    async def queue_waiting_count(self, mode: str, *, exclude_char_id: int | None = None) -> int:
+        count = await self.store.queue_waiting_count(mode)
+        if exclude_char_id is not None and await self.store.get_request(exclude_char_id) is not None:
+            return max(0, count - 1)
+        return count
+
     async def get_request_meta(self, char_id: int) -> ArenaQueueRequestDTO | None:
         return await self.store.get_request(char_id)
 

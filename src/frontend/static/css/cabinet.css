@@ -34,6 +34,7 @@
   --col-border: rgba(255, 170, 0, 0.20);
   --col-border-strong: rgba(255, 170, 0, 0.45);
   --col-membrane: rgba(255, 170, 0, 0.06);
+  --cabinet-panel-surface: rgba(10, 10, 12, 0.56);
 
 
   --font-world: 'EB Garamond', Georgia, serif;
@@ -699,6 +700,23 @@ body::before {
   box-shadow: 0 18px 38px rgba(0, 0, 0, 0.48), inset 0 1px 0 rgba(255, 170, 0, 0.06);
 }
 
+.site-account-email,
+.site-mobile-identity {
+  min-width: 0;
+  overflow: hidden;
+  color: rgba(255, 210, 116, 0.72);
+  font-family: var(--font-ui);
+  font-size: var(--text-2xs);
+  letter-spacing: 0.08em;
+  text-overflow: ellipsis;
+}
+
+.site-account-email {
+  padding: 8px var(--sp-3) 10px;
+  border-bottom: 1px solid rgba(255, 170, 0, 0.12);
+  margin-bottom: 4px;
+}
+
 .site-account-item {
   width: 100%;
   min-height: 38px;
@@ -779,7 +797,9 @@ body::before {
     border-top: 1px solid rgba(255, 170, 0, 0.08);
   }
 
-  .site-mobile-nav a {
+  .site-mobile-nav a,
+  .site-mobile-nav button,
+  .site-mobile-identity {
     padding: var(--sp-3);
     color: var(--col-text-world);
     background: rgba(210, 180, 140, 0.035);
@@ -790,11 +810,27 @@ body::before {
     text-decoration: none;
     text-transform: uppercase;
   }
+
+  .site-mobile-nav button {
+    font: inherit;
+    cursor: pointer;
+  }
+
+  .site-mobile-identity {
+    grid-column: 1 / -1;
+    color: rgba(255, 210, 116, 0.7);
+    text-transform: none;
+  }
 }
 
-@media (max-width: 560px) {
+@media (max-width: 720px) {
+  .site-header {
+    min-height: 68px;
+  }
+
   .site-header-container {
     min-height: 68px;
+    padding-inline: clamp(12px, 3.6vw, 18px);
     gap: var(--sp-3);
   }
 
@@ -802,21 +838,93 @@ body::before {
     padding-top: 68px;
   }
 
+  .site-logo {
+    gap: var(--sp-2);
+    flex: 1 1 auto;
+    max-width: min(56vw, 260px);
+  }
+
+  .site-logo-mark {
+    width: 24px;
+    height: 24px;
+    flex-basis: 24px;
+  }
+
+  .site-logo-mark span {
+    width: 8px;
+    height: 8px;
+  }
+
   .logo-main {
-    font-size: 17px;
+    font-size: clamp(16px, 4.6vw, 18px);
+    white-space: normal;
   }
 
   .logo-sub {
-    letter-spacing: 0.18em;
+    display: none;
+  }
+
+  .site-actions {
+    flex: 0 0 auto;
+    gap: 8px;
+  }
+
+  .site-login-link {
+    width: 44px;
+    min-width: 44px;
+    min-height: 44px;
+    padding: 0;
+    overflow: hidden;
+  }
+
+  .site-login-link span {
+    width: 18px;
+    height: 18px;
+    display: block;
+    overflow: hidden;
+    color: transparent;
+    background: rgba(255, 190, 80, 0.9);
+    mask: url("/static/images/ui/game-menu-icons/person.svg") center / contain no-repeat;
+    -webkit-mask: url("/static/images/ui/game-menu-icons/person.svg") center / contain no-repeat;
   }
 
   .site-login-link,
   .site-account-btn {
-    padding-inline: var(--sp-3);
+    justify-content: center;
   }
 
   .site-account {
-    width: min(230px, 54vw);
+    width: auto;
+  }
+
+  .site-account-btn {
+    width: 44px;
+    min-width: 44px;
+    min-height: 44px;
+    grid-template-columns: 24px;
+    padding: 0;
+  }
+
+  .site-account-label,
+  .site-account-caret {
+    display: none;
+  }
+
+  .site-account-dropdown {
+    width: min(280px, calc(100vw - 24px));
+  }
+
+  .site-menu-button {
+    width: 52px;
+    min-height: 44px;
+    padding-inline: 0;
+    font-size: 9px;
+    letter-spacing: 0.08em;
+  }
+
+  .site-mobile-nav {
+    grid-template-columns: 1fr;
+    padding: 0 12px 12px;
   }
 }
 
@@ -1192,7 +1300,7 @@ a.is-action-pending .choice-label,
 
 
 .ds-panel {
-  background: color-mix(in srgb, var(--world-glass, rgba(10,10,12,.56)) 82%, transparent);
+  background: color-mix(in srgb, var(--cabinet-panel-surface, rgba(10, 10, 12, .56)) 82%, transparent);
   border: 1px solid var(--col-border);
   backdrop-filter: blur(10px);
   display: flex;

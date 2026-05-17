@@ -16,6 +16,8 @@ from src.frontend.integrations.backend_api.game_lobby import (
     GameLobbyUserContext,
 )
 from src.shared.schemas import (
+    CharacterNameAvailabilityDTO,
+    CharacterNameAvailabilityRequestDTO,
     CharacterStatusDTO,
     CreateCharacterRequestDTO,
     DeleteCharacterRequestDTO,
@@ -46,6 +48,11 @@ class GameLobbyPageService:
             )
         )
         logger.info("Lobby page character start completed")
+        return response
+
+    async def check_name_availability(self, user: UserResponse, name: str) -> CharacterNameAvailabilityDTO:
+        response = await self.api.check_name_availability(CharacterNameAvailabilityRequestDTO(name=name))
+        logger.info("Lobby page character name availability checked: user_id={}", user.id)
         return response
 
     async def select(self, user: UserResponse, dto: EnterCharacterRequestDTO) -> GameLobbySelectResponse:

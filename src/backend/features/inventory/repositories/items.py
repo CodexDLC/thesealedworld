@@ -4,8 +4,12 @@ from typing import Any
 
 from sqlalchemy import or_, select
 
-from src.backend.features.items.models import ItemInstance, ItemPlacement
-from src.shared.schemas.inventory import InventoryRuntimeItemDTO
+from src.backend.features.items.models import ItemInstance, ItemPlacement, ResourceBalance
+from src.backend.infrastructure.inventory.models import ResourceWallet
+from src.shared.schemas.inventory import InventoryRuntimeItemDTO, WalletDTO
+
+_CURRENCY_PREFIXES = ("coin_", "currency_", "gold_", "silver_", "copper_")
+_COMPONENT_PREFIXES = ("essence_", "flower_", "bark_", "supply_", "component_")
 
 
 class InventoryItemRepository:
@@ -33,6 +37,35 @@ class InventoryItemRepository:
             .order_by(ItemPlacement.position_index.nulls_last(), ItemInstance.name, ItemInstance.id)
         )
         return list(result.all())
+
+    async def get_wallet(self, char_id: int) -> WalletDTO:
+        wallet = await self.session.scalar(select(ResourceWallet).where(ResourceWallet.character_id == char_id))
+        if wallet is None:
+            return WalletDTO()
+        return WalletDTO(
+            currency=dict(wallet.currency or {}),
+            resources=dict(wallet.resources or {}),
+            components=dict(wallet.components or {}),
+        )
+
+    async def get_expedition_wallet(self, run_id: str) -> WalletDTO:
+        result = await self.session.execute(
+            select(ResourceBalance.resource_key, ResourceBalance.amount).where(
+                ResourceBalance.holder_type == "expedition",
+                ResourceBalance.holder_id == run_id,
+                ResourceBalance.storage_type == "carried",
+                ResourceBalance.amount > 0,
+            )
+        )
+        wallet = WalletDTO()
+        for resource_key, amount in result.all():
+            key = str(resource_key)
+            value = int(amount or 0)
+            if value <= 0:
+                continue
+            bucket = _wallet_bucket(wallet, key)
+            bucket[key] = bucket.get(key, 0) + value
+        return wallet
 
     async def save_placements(
         self,
@@ -80,6 +113,14 @@ class InventoryItemRepository:
 
     async def commit(self) -> None:
         await self.session.commit()
+
+
+def _wallet_bucket(wallet: WalletDTO, key: str) -> dict[str, int]:
+    if key.startswith(_CURRENCY_PREFIXES):
+        return wallet.currency
+    if key.startswith(_COMPONENT_PREFIXES):
+        return wallet.components
+    return wallet.resources
 
 
 def runtime_item_from_instance(instance: ItemInstance, placement: ItemPlacement) -> InventoryRuntimeItemDTO:

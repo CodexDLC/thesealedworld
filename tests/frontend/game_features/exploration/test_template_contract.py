@@ -20,6 +20,8 @@ def test_exploration_center_template_has_navigation_and_encounter_surfaces():
     assert "/game/exploration/interact" in template
     assert "exploration-main-dock" in template
     assert "mobile-center-menu" in template
+    assert "QUESTS" in template
+    assert "BUILDS" not in template
     assert "game-screen-content exploration-screen-content" in template
     assert "mobile-scene parchment" in template
     assert "mobile-scene-services" in template
@@ -32,7 +34,11 @@ def test_exploration_center_template_has_navigation_and_encounter_surfaces():
     assert "location_view.navigation" in template
     assert "data-move-duration" in template
     assert "mobile-move-cooldown" in template
-    assert "mobile-bottom-rule" not in template
+    assert "mobile-move-cooldown exploration-movement-block" not in template
+    assert "mobile-bottom-rule" in template
+    assert template.index("mobile-bottom-rule") < template.index("mobile-move-cooldown")
+    assert template.index("mobile-move-cooldown") < template.index("exploration-action-panel__body")
+    assert template.index("mobile-services") < template.index("mobile-action-grid exploration-navigation-grid")
     assert "game/domains/exploration/right_sidebar/main.html" in template
     assert "hx-swap-oob=\"true\"" in template
     assert "mobile-encounter-interrupt" in template
@@ -64,6 +70,43 @@ def test_exploration_center_template_has_navigation_and_encounter_surfaces():
     assert "HOSTILES" not in template
 
 
+def test_runtime_surfaces_do_not_use_legacy_world_glass_contract():
+    checked_paths = [
+        Path("src/frontend/templates/game/includes/world_theme_vars.html"),
+        Path("src/frontend/static/css/game/shell/layout/base.css"),
+        Path("src/frontend/static/css/game/shell/layout/columns.css"),
+        Path("src/frontend/static/css/game/shell/responsive/mobile_drawers.css"),
+        Path("src/frontend/static/css/game/components/panels.css"),
+        Path("src/frontend/static/css/game/domains/exploration/scene.css"),
+        Path("src/frontend/static/css/site/components/panels.css"),
+        Path("src/frontend/static/css/cabinet/components/panels.css"),
+    ]
+
+    for path in checked_paths:
+        assert "--world-glass" not in path.read_text(encoding="utf-8"), path
+
+
+def test_game_panel_and_scenario_readability_avoids_micro_text():
+    checked_paths = [
+        Path("src/frontend/static/css/game/components/panel_dock.css"),
+        Path("src/frontend/static/css/game/components/info_panel.css"),
+        Path("src/frontend/static/css/game/components/status_widgets.css"),
+        Path("src/frontend/static/css/game/domains/scenario/screen.css"),
+        Path("src/frontend/static/css/game/domains/scenario/scene.css"),
+        Path("src/frontend/static/css/game/domains/scenario/choices.css"),
+        Path("src/frontend/static/css/game/domains/scenario/panels.css"),
+    ]
+    combined = "\n".join(path.read_text(encoding="utf-8") for path in checked_paths)
+    tokens = Path("src/frontend/static/css/game/core/tokens.css").read_text(encoding="utf-8")
+
+    assert "--game-panel-label-size" in tokens
+    assert "--game-panel-value-size" in tokens
+    for path in checked_paths:
+        assert "font-size: 6px" not in path.read_text(encoding="utf-8"), path
+    assert "letter-spacing: 0.18em" not in combined
+    assert "font-size: var(--game-panel-label-size)" in combined
+
+
 def test_exploration_right_sidebar_has_navigation_and_encounter_contexts():
     template = Path("src/frontend/templates/game/domains/exploration/right_sidebar/main.html").read_text()
 
@@ -76,30 +119,125 @@ def test_exploration_right_sidebar_has_navigation_and_encounter_contexts():
     assert "exploration-monster-card" in template
     assert "hud.threat if hud and hud.threat is defined else 0" in template
     assert "<span>Tier</span>" in template
+    assert "exploration-minimap-card" in template
+    assert "exploration-minimap-grid" in template
+    assert "data-map-tooltip" in template
+    assert "is-route-hint" in template
+    assert "NO MAP DATA" in template
 
 
 def test_exploration_uses_shared_base_css_contracts():
-    panel_css = Path("src/frontend/static/css/components/game/panel_dock.css").read_text()
-    viewport_css = Path("src/frontend/static/css/pages/game/viewport.css").read_text()
+    panel_css = Path("src/frontend/static/css/game/components/panel_dock.css").read_text()
+    action_css = Path("src/frontend/static/css/game/components/action_panel.css").read_text()
+    exploration_dir = Path("src/frontend/static/css/game/domains/exploration")
+    screen_css = exploration_dir.joinpath("screen.css").read_text()
+    scene_css = exploration_dir.joinpath("scene.css").read_text()
+    services_css = exploration_dir.joinpath("services.css").read_text()
+    movement_css = exploration_dir.joinpath("movement.css").read_text()
+    encounters_css = exploration_dir.joinpath("encounters.css").read_text()
+    right_sidebar_css = exploration_dir.joinpath("right_sidebar.css").read_text()
+    responsive_css = exploration_dir.joinpath("responsive.css").read_text()
+    index_css = exploration_dir.joinpath("index.css").read_text()
     bundle = Path("src/frontend/static/css/game_bundle.css").read_text()
 
     assert ".dock-nav--five" in panel_css
     assert ".mobile-center-menu" in panel_css
     assert ".mobile-nav-icon" in panel_css
     assert ".side-panel-drawer--right" in panel_css
-    assert ".game-screen-area" in viewport_css
-    assert ".game-screen-content" in viewport_css
-    assert ".mobile-scene" in viewport_css
-    assert ".mobile-action-grid" in viewport_css
-    assert ".mobile-action-icon" in viewport_css
-    assert ".exploration-main-dock.mobile-rift--encounter .mobile-screen.is-active" in viewport_css
-    assert ".exploration-main-dock.mobile-rift--encounter .mobile-encounter-layout" in viewport_css
-    assert ".exploration-main-dock.mobile-rift--encounter .exploration-action-panel" in viewport_css
-    assert ".exploration-main-dock.mobile-rift--encounter .mobile-encounter-actions" in viewport_css
-    assert ".exploration-main-dock.mobile-rift--encounter .mobile-encounter-target-switcher" in viewport_css
-    assert "@media (max-width: 899px)" in viewport_css
-    assert '@import url("components/game/action_panel.css");' in bundle
-    assert '@import url("components/game/panel_dock.css");' in bundle
+    assert ".game-screen-area" in screen_css
+    assert ".game-screen-content" in screen_css
+    assert ".exploration-main-dock" in screen_css
+    assert "var(--game-column-gutter-top" in screen_css
+    assert ".mobile-scene" in scene_css
+    assert ".mobile-services" in services_css
+    assert ".service-card" in services_css
+    assert ".mobile-action-grid" in movement_css
+    assert ".mobile-action-icon" in movement_css
+    assert ".mobile-move-cooldown" in movement_css
+    assert ".mobile-move-cooldown.is-cooling" in movement_css
+    assert ".mobile-encounter-interrupt" in encounters_css
+    assert ".mobile-encounter-target-card" in encounters_css
+    assert ".exploration-minimap-grid" in right_sidebar_css
+    assert "aspect-ratio: 1 / 1" in right_sidebar_css
+    assert "grid-template-columns: repeat(5, minmax(0, 1fr))" in right_sidebar_css
+    assert ".exploration-minimap-cell::after" in right_sidebar_css
+    assert ".exploration-minimap-cell.is-route-hint" in right_sidebar_css
+    assert ".exploration-action-panel" in screen_css
+    assert "--game-action-padding" in screen_css
+    assert "grid-template-rows: auto auto" in screen_css
+    assert "grid-template-rows: auto minmax(0, 1fr)" in responsive_css
+    assert ".exploration-main-dock .mobile-services" in screen_css
+    assert "grid-row: 1" in screen_css
+    assert ".exploration-main-dock .mobile-move-cooldown" in screen_css
+    assert ".exploration-main-dock .mobile-action-grid" in screen_css
+    assert "grid-row: 2" in screen_css
+    assert ".exploration-main-dock .exploration-navigation-grid" in screen_css
+    assert ".exploration-main-dock .exploration-navigation-grid {\n    align-self: stretch;\n}" in screen_css
+    assert not responsive_css.lstrip().startswith("align-self:")
+    assert "margin-top: auto" in action_css
+    assert ".exploration-main-dock.mobile-rift--encounter .mobile-screen.is-active" in responsive_css
+    assert ".exploration-main-dock.mobile-rift--encounter .mobile-encounter-layout" in responsive_css
+    assert ".exploration-main-dock.mobile-rift--encounter .exploration-action-panel" in responsive_css
+    assert ".exploration-main-dock.mobile-rift--encounter .mobile-encounter-actions" in responsive_css
+    assert ".exploration-main-dock.mobile-rift--encounter .mobile-encounter-target-switcher" in responsive_css
+    assert "@media (max-width: 899px)" in responsive_css
+    assert '@import url("game/components/action_panel.css");' in bundle
+    assert '@import url("game/components/panel_dock.css");' in bundle
+    assert '@import url("game/domains/exploration/index.css");' in bundle
+    assert '@import url("screen.css");' in index_css
+    assert '@import url("responsive.css");' in index_css
+    assert 'game/domains/exploration/screen.css' not in bundle
+    assert 'game/domains/exploration/responsive.css' not in bundle
+    assert 'game/domains/exploration.css' not in bundle
+
+
+def test_game_action_panel_bottom_behavior_is_explicit_shell_contract():
+    action_css = Path("src/frontend/static/css/game/components/action_panel.css").read_text()
+    scenario_css = Path("src/frontend/static/css/game/domains/scenario/choices.css").read_text()
+    templates = "\n".join(
+        Path(path).read_text()
+        for path in (
+            "src/frontend/templates/game/domains/exploration/viewport/main.html",
+            "src/frontend/templates/game/domains/scenario/viewport/main.html",
+            "src/frontend/templates/game/domains/scenario/viewport/finalized.html",
+            "src/frontend/templates/game/domains/combat/viewport/main.html",
+            "src/frontend/templates/game/domains/arena/viewport/main.html",
+        )
+    )
+
+    bottom_contract = action_css.split(
+        ".game-screen-area--vertical > .game-action-panel--bottom {",
+        maxsplit=1,
+    )[1].split("}", maxsplit=1)[0]
+    scenario_block = scenario_css.split(".scenario-action-panel {", maxsplit=1)[1].split("}", maxsplit=1)[0]
+
+    assert ".game-action-panel--bottom" in action_css
+    assert "flex: 0 0 auto;" in bottom_contract
+    assert "grid-row: -2 / -1;" in bottom_contract
+    assert "align-self: stretch;" in bottom_contract
+    assert "margin-top: auto;" in bottom_contract
+    assert "z-index: var(--game-action-z" in bottom_contract
+    assert "align-self:" not in scenario_block
+    assert "margin-top:" not in scenario_block
+    assert "game-action-panel game-action-panel--bottom exploration-action-panel" in templates
+    assert "game-action-panel game-action-panel--bottom scenario-action-panel" in templates
+    assert "game-action-panel game-action-panel--bottom combat-action-panel" in templates
+    assert "game-action-panel game-action-panel--bottom arena-action-panel" in templates
+
+
+def test_exploration_quests_nav_opens_central_unavailable_modal():
+    nav = Path("src/frontend/templates/game/domains/game_menu/header_nav.html").read_text()
+    shell_js = Path("src/frontend/static/js/core/game_shell.js").read_text()
+    modal_css = Path("src/frontend/static/css/game/components/modal.css").read_text()
+    bundle = Path("src/frontend/static/css/game_bundle.css").read_text()
+
+    assert "item.modal" in nav
+    assert "game-modal-open" in nav
+    assert "openUnavailableModal" in shell_js
+    assert "Система квестов будет доступна позже" in shell_js
+    assert ".game-modal-backdrop" in modal_css
+    assert ".game-unavailable-modal" in modal_css
+    assert '@import url("game/components/modal.css");' in bundle
 
 
 def test_exploration_service_component_has_default_icon_mapping():
@@ -123,9 +261,10 @@ def test_arena_main_template_has_service_lobby_contract():
     assert "arena-mode-card--group" in template
     assert "arena-mode-stage" in template
     assert "arena-queue-card" in template
-    assert "arena-duel-ranked-grid" in template
+    assert "arena-queue-card--primary" in template
+    assert "queue_waiting_count" in template
     assert "arena-search-limit" in template
-    assert "arena-group-plans" in template
+    assert "arena-repair-banner" in template
     assert "arena-group-tabs" in template
     assert "arena_group_browser" in template
     assert "/game/arena/group-action" in template
@@ -145,15 +284,18 @@ def test_arena_right_sidebar_has_view_contract():
     template = Path("src/frontend/templates/game/domains/arena/right_sidebar/main.html").read_text()
 
     assert "game/domains/arena/right_sidebar/main.html" in shell
-    assert "ARENA_VIEW" in template
-    assert "RANK" in template
+    assert "panel-dock" in template
+    assert "info-widget-section" in template
+    assert "dock-nav-button--close" in template
+    assert "ARENA VIEW" in template
+    assert "Rank" in template
     assert "RATING" in template
     assert "MMR" in template
-    assert "LEAGUE" in template
-    assert "RECORD" in template
-    assert "PLACEMENT" in template
-    assert "SEASON" in template
-    assert "HALL" in template
+    assert "League" in template
+    assert "Record" in template
+    assert "Placement" in template
+    assert "Season" in template
+    assert "Hall" in template
     assert "GEAR SCORE" not in template
     assert "LIVE BATTLES" not in template
     assert "NO_DATA" in template
@@ -173,25 +315,54 @@ def test_arena_group_action_modal_contract():
 
 def test_arena_css_is_a_dedicated_game_module():
     bundle = Path("src/frontend/static/css/game_bundle.css").read_text()
-    source = Path("src/frontend/static/css/pages/game/arena.css").read_text()
+    arena_dir = Path("src/frontend/static/css/game/domains/arena")
+    index = arena_dir.joinpath("index.css").read_text()
+    lobby = arena_dir.joinpath("lobby.css").read_text()
+    modes = arena_dir.joinpath("modes.css").read_text()
+    matchmaking = arena_dir.joinpath("matchmaking.css").read_text()
+    groups = arena_dir.joinpath("groups.css").read_text()
+    live_battles = arena_dir.joinpath("live_battles.css").read_text()
+    group_browser = arena_dir.joinpath("group_browser.css").read_text()
+    modals = arena_dir.joinpath("modals.css").read_text()
+    right_sidebar = arena_dir.joinpath("right_sidebar.css").read_text()
+    responsive = arena_dir.joinpath("responsive.css").read_text()
+    source = "\n".join(
+        path.read_text()
+        for path in (
+            arena_dir / "lobby.css",
+            arena_dir / "modes.css",
+            arena_dir / "groups.css",
+            arena_dir / "matchmaking.css",
+            arena_dir / "live_battles.css",
+            arena_dir / "group_browser.css",
+            arena_dir / "modals.css",
+            arena_dir / "right_sidebar.css",
+            arena_dir / "repair.css",
+            arena_dir / "responsive.css",
+        )
+    )
 
-    assert '@import url("pages/game/arena.css");' in bundle
-    assert ".arena-lobby" in source
-    assert "#arena-poll-region" in source
-    assert ".arena-header-art" in source
-    assert ".arena-mode-stage" in source
-    assert ".arena-queue-card" in source
-    assert ".arena-duel-ranked-grid" in source
-    assert ".arena-search-limit" in source
-    assert ".arena-group-plans" in source
-    assert ".arena-group-tabs" in source
-    assert ".arena-plan-card" in source
-    assert ".arena-modal-backdrop" in source
-    assert ".arena-live-battles" in source
-    assert ".arena-battle-row" in source
-    assert ".arena-search-stage" in source
-    assert ".arena-countdown-value" in source
-    assert ".arena-view-stat-grid" in source
+    assert '@import url("game/domains/arena/index.css");' in bundle
+    assert '@import url("lobby.css");' in index
+    assert '@import url("responsive.css");' in index
+    assert ".arena-lobby" in lobby
+    assert "#arena-poll-region" in lobby
+    assert ".arena-header-art" in lobby
+    assert ".arena-mode-stage" in modes
+    assert ".arena-queue-card" in matchmaking
+    assert ".arena-queue-card--primary" in matchmaking
+    assert ".arena-center-screens" in modes
+    assert ".arena-search-limit" in matchmaking
+    assert ".arena-repair-banner" in source
+    assert ".arena-group-tabs" in group_browser
+    assert ".arena-plan-card" in groups
+    assert ".arena-modal-backdrop" in modals
+    assert ".arena-live-battles" in live_battles
+    assert ".arena-battle-row" in live_battles
+    assert ".arena-search-stage" in matchmaking
+    assert ".arena-countdown-value" in matchmaking
+    assert ".arena-view-stat-grid" in right_sidebar
+    assert "@media (max-width: 900px) and (orientation: landscape)" in responsive
     assert "arena-icons/sword-clash.svg" in source
     assert "arena-icons/knight-banner.svg" in source
     assert "arena-icons/tattered-banner.svg" in source
@@ -203,20 +374,108 @@ def test_arena_css_is_a_dedicated_game_module():
     assert "button-surface-02-blackened-metal.webp" in source
 
 
-def test_status_main_prefers_panel_renderer_before_legacy_fragments():
+def test_game_domain_css_uses_manifest_entrypoints():
+    bundle = Path("src/frontend/static/css/game_bundle.css").read_text()
+    domains = ("status", "chat", "exploration", "selection", "field", "scenario", "arena", "combat", "loot")
+
+    for domain in domains:
+        domain_dir = Path(f"src/frontend/static/css/game/domains/{domain}")
+        assert domain_dir.joinpath("index.css").exists()
+        assert not Path(f"src/frontend/static/css/game/domains/{domain}.css").exists()
+        assert f'@import url("game/domains/{domain}/index.css");' in bundle
+        assert f'@import url("game/domains/{domain}.css");' not in bundle
+
+
+def test_game_shell_layout_uses_manifest_entrypoint():
+    bundle = Path("src/frontend/static/css/game_bundle.css").read_text()
+    layout_dir = Path("src/frontend/static/css/game/shell/layout")
+    index = layout_dir.joinpath("index.css").read_text()
+    base = layout_dir.joinpath("base.css").read_text()
+    header = layout_dir.joinpath("header.css").read_text()
+    columns = layout_dir.joinpath("columns.css").read_text()
+    legacy_screen = layout_dir.joinpath("legacy_screen.css").read_text()
+    utilities = layout_dir.joinpath("utilities.css").read_text()
+
+    assert '@import url("game/shell/layout/index.css");' in bundle
+    assert '@import url("game/shell/layout.css");' not in bundle
+    assert not Path("src/frontend/static/css/game/shell/layout.css").exists()
+    assert '@import url("base.css");' in index
+    assert '@import url("utilities.css");' in index
+    assert ".game-container" in base
+    assert "#app-viewport" in base
+    assert ".game-header" in header
+    assert ".game-system-menu" in header
+    assert ".game-top-row" in columns
+    assert ".col-center-inner" in columns
+    assert "--game-column-gutter-top: 10px" in base
+    assert "#game-left-content" in columns
+    assert "#game-right-content" in columns
+    assert "var(--game-column-gutter-top" in columns
+    assert ".cs-content" in legacy_screen
+    assert ".status-dot.pulse" in utilities
+
+
+def test_game_shell_responsive_uses_manifest_entrypoint():
+    bundle = Path("src/frontend/static/css/game_bundle.css").read_text()
+    responsive_dir = Path("src/frontend/static/css/game/shell/responsive")
+    index = responsive_dir.joinpath("index.css").read_text()
+    tokens = responsive_dir.joinpath("tokens.css").read_text()
+    columns_desktop = responsive_dir.joinpath("columns_desktop.css").read_text()
+    combat_desktop = responsive_dir.joinpath("combat_desktop.css").read_text()
+    tablet_drawers = responsive_dir.joinpath("tablet_drawers.css").read_text()
+    mobile_drawers = responsive_dir.joinpath("mobile_drawers.css").read_text()
+    mobile_header = responsive_dir.joinpath("mobile_header.css").read_text()
+    system_menu = responsive_dir.joinpath("system_menu.css").read_text()
+    narrow_phone = responsive_dir.joinpath("narrow_phone.css").read_text()
+
+    assert '@import url("game/shell/responsive/index.css");' in bundle
+    assert '@import url("game/shell/layout_responsive.css");' not in bundle
+    assert not Path("src/frontend/static/css/game/shell/layout_responsive.css").exists()
+    assert '@import url("tokens.css");' in index
+    assert '@import url("narrow_phone.css");' in index
+    assert "--game-drawer-width" in tokens
+    assert "@media (min-width: 1280px)" in columns_desktop
+    assert ".game-top-row.combat-layout" in combat_desktop
+    assert "@media (min-width: 768px) and (max-width: 1279px)" in tablet_drawers
+    assert "grid-template-columns: var(--side-panel-width) minmax(0, 1fr) 0 !important;" in tablet_drawers
+    assert ".col-right {\n        position: fixed;" in tablet_drawers
+    assert "@media (max-width: 767px)" in mobile_drawers
+    assert ".col-left.panel-open" in mobile_drawers
+    assert "--game-header-height: 40px;" in mobile_header
+    assert "--game-header-height: 72px;" not in mobile_header
+    assert "@media (min-width: 768px)" in system_menu
+    assert ".game-system-menu-toggle" in system_menu
+    assert "@media (max-width: 500px)" in narrow_phone
+
+
+def test_status_main_uses_shared_compact_status_dock():
     template = Path("src/frontend/templates/game/components/status/main.html").read_text()
+    compact = Path("src/frontend/templates/game/components/status/compact_panel.html").read_text()
+    scenario_left = Path("src/frontend/templates/game/domains/scenario/left_sidebar/main.html").read_text()
+    status_shell_css = Path("src/frontend/static/css/game/domains/status/shell.css").read_text()
+    status_avatar_css = Path("src/frontend/static/css/game/domains/status/avatar.css").read_text()
 
-    assert "game/components/panel/main.html" in template
-    assert "game/components/status/fragments/" in template
-    assert template.index("game/components/panel/main.html") < template.index("game/components/status/fragments/")
+    assert "game/components/status/compact_panel.html" in template
+    assert "game/components/panel/main.html" not in template
+    assert "character_status.panel" not in template
+    assert "game/components/status/fragments/" not in template
+    assert "panel-dock" in compact
+    assert "status-widget-card" in compact
+    assert "status-widget-section" in compact
+    assert "status-widget-bar" in compact
+    assert "dock-nav-button--close" in compact
+    assert "game/components/status/main.html" in scenario_left
+    assert "status-widget-card" not in scenario_left
+    assert ".sec {\n    font-size: 8px;\n    letter-spacing: .18em;" in status_shell_css
+    assert not status_avatar_css.lstrip().startswith("letter-spacing:")
 
 
-def test_character_status_panel_header_can_refresh_itself():
-    template = Path("src/frontend/templates/game/components/panel/main.html").read_text()
+def test_build_panel_is_marked_as_draft():
+    template = Path("src/frontend/templates/game/components/status/build_draft.html").read_text()
 
-    assert "panel-refresh-button" in template
-    assert 'hx-get="/game/character-status/panel?char_id={{ char_id }}"' in template
-    assert 'hx-target="#status-container"' in template
+    assert "BUILD DRAFT" in template
+    assert "NOT ACTIVE FUNCTIONALITY" in template
+    assert "dock-nav-button--close" in template
 
 
 def test_avatar_widget_marks_missing_resource_data_explicitly():
@@ -236,6 +495,7 @@ def test_status_attribute_and_skill_widgets_are_collapsible():
     attribute_template = Path("src/frontend/templates/game/components/panel/widgets/attribute_grid.html").read_text()
     skill_template = Path("src/frontend/templates/game/components/panel/widgets/skill_groups.html").read_text()
     legacy_skill_template = Path("src/frontend/templates/game/components/status/fragments/skills.html").read_text()
+    compact_status = Path("src/frontend/templates/game/components/status/compact_panel.html").read_text()
 
     for template in (attribute_template, skill_template):
         assert 'class="status-section status-section--collapsible"' in template
@@ -243,6 +503,14 @@ def test_status_attribute_and_skill_widgets_are_collapsible():
         assert "status-section-toggle-icon" in template
 
     assert "NO_DATA_AVAILABLE" not in legacy_skill_template
+    assert "status-widget-skill-groups" in compact_status
+    assert "status-widget-skill-group" in compact_status
+    assert "status-widget-skill-group-title" in compact_status
+    assert "status-widget-skill-group-row" in compact_status
+    assert "loop.index <= 8" not in compact_status
+    assert "('COMBAT STYLE', ['skill_one_handed', 'skill_two_handed', 'skill_shield_mastery', 'skill_dual_wield'])" in compact_status
+    assert "('COMBAT SUPPORT', ['skill_parrying', 'skill_anatomy', 'skill_tactics'])" in compact_status
+    assert "('TACTICS', ['skill_one_handed'" not in compact_status
 
 
 def test_scenario_panels_hide_missing_transfer_data():
@@ -274,7 +542,7 @@ def test_scenario_panels_hide_missing_transfer_data():
 def test_scenario_title_splits_coordinate_suffix():
     template = Path("src/frontend/templates/game/domains/scenario/viewport/main.html").read_text()
     right_template = Path("src/frontend/templates/game/domains/scenario/right_sidebar/main.html").read_text()
-    css = Path("src/frontend/static/css/pages/game/scenario.css").read_text()
+    css = Path("src/frontend/static/css/game/domains/scenario/scene.css").read_text()
 
     assert "split_bracket_coords" not in template
     assert "display_name_raw.rsplit" in template
@@ -286,25 +554,29 @@ def test_scenario_title_splits_coordinate_suffix():
     assert ".scenario-title-coords" in css
 
 
-def test_game_shell_has_inventory_hud_window_placeholder():
-    template = Path("src/frontend/templates/game/base_game.html").read_text()
+def test_game_shell_uses_right_panel_inventory_instead_of_floating_hud():
+    base_template = Path("src/frontend/templates/game/base_game.html").read_text()
+    session_template = Path("src/frontend/templates/game/session_content_inner.html").read_text()
+    inventory_panel = Path("src/frontend/templates/game/components/inventory/right_panel.html").read_text()
 
-    assert "x-data='gameShell" in template
-    assert "game-modal-root" in template
-    assert "hud-window inventory-window" in template
-    assert "windows.inventory.open" in template
-    assert "windows.inventory.dragging" in template
-    assert 'id="inventory-window-body"' in template
-    assert "hud-window-drag-handle" in template
-    assert "hud_window_resize_handles.html" in template
-    assert "startHudWindowDrag('inventory'" in template
-    assert "closeHudWindow('inventory')" in template
-    assert 'game/components/inventory/window.html' in template
+    assert "x-data='gameShell" in base_template
+    assert "game-modal-root" in base_template
+    assert "hud-window inventory-window" not in base_template
+    assert "windows.inventory.open" not in base_template
+    assert 'id="inventory-window-body"' not in base_template
+    assert "hud_window_resize_handles.html" not in base_template
+    assert "rightPanelView === 'inventory'" in session_template
+    assert "game/components/inventory/right_panel.html" in session_template
+    assert 'id="right-inventory-panel-body"' in inventory_panel
+    assert "game/components/inventory/window.html" in inventory_panel
 
 
 def test_inventory_window_template_defines_frontend_contract():
     template = Path("src/frontend/templates/game/components/inventory/window.html").read_text()
 
+    assert "inventory_target_id" in template
+    assert 'hx-target="#{{ inventory_target_id }}"' in template
+    assert "inventory-window-body" not in template
     assert "inventory.contract_state" in template
     assert "inventory-loadout" in template
     assert "inventory-doll" in template
@@ -329,7 +601,9 @@ def test_inventory_window_template_defines_frontend_contract():
     assert "aria-selected" in template
     assert "inventory-search" in template
     assert "inventory.visible_cards" in template
-    assert "inventory_cards[:inventory.rows_visible_count]" in template
+    assert "for row in inventory_cards" in template
+    assert "inventory_cards[:inventory.rows_visible_count]" not in template
+    assert "resource_cards" in template
     assert "data-inventory-cells" in template
     assert "inventory-container-status" in template
     assert "inventory-feedback" in template
@@ -455,6 +729,7 @@ def test_inventory_window_template_renders_backend_contract_dto():
     assert "inventory-equipped-icon" in html
     assert "inventory-grade-r0" in html
     assert 'hx-post="/game/inventory/action"' in html
+    assert 'hx-target="#right-inventory-panel-body"' in html
     assert '"action": "unequip"' in html
     assert '"item_id": "item-1"' in html
     assert "Iron Greatsword" in html
@@ -510,12 +785,14 @@ def test_inventory_card_mapper_builds_grid_card_from_type_and_numeric_size():
 
 
 def test_inventory_css_has_loadout_container_and_table_contract():
-    source = Path("src/frontend/static/css/components/game/inventory.css").read_text()
+    source = Path("src/frontend/static/css/game/components/inventory.css").read_text()
     bundle = Path("src/frontend/static/css/game_bundle.css").read_text()
     legwear_icon = Path("src/frontend/static/images/ui/inventory-gear/legwear.svg")
     weapon_two_hand_icon = Path("src/frontend/static/images/ui/inventory-gear/weapon_two_hand.svg")
 
     assert ".inventory-loadout" in source
+    assert ".right-inventory-panel" in source
+    assert ".right-inventory-panel-body" in source
     assert ".inventory-equip-zone--head" in source
     assert ".inventory-equip-zone--outer" in source
     assert ".inventory-equip-zone--main { grid-column: 3; grid-row: 2; }" in source
@@ -544,6 +821,8 @@ def test_inventory_css_has_loadout_container_and_table_contract():
     assert ".inventory-tooltip-card" in source
     assert ".inventory-tooltip-affix" in source
     assert ".inventory-tooltip-section-title" in source
+    assert ".inventory-floating-tooltip--touch" in source
+    assert ".inventory-tooltip-action" in source
     assert ".inventory-accessory-row-label" in source
     assert ".inventory-accessory-row--rings .inventory-accessory-slot" in source
     assert ".inventory-accessory-row--split .inventory-accessory-slot-label" in source
@@ -558,7 +837,7 @@ def test_inventory_css_has_loadout_container_and_table_contract():
     assert "fabric_leather_02_diff_1k.webp" in source
     assert legwear_icon.exists()
     assert weapon_two_hand_icon.exists()
-    assert '@import url("components/game/cards.css");' in bundle
+    assert '@import url("game/components/cards.css");' in bundle
 
 
 def test_game_shell_drag_logic_lives_in_source_js():
@@ -566,8 +845,13 @@ def test_game_shell_drag_logic_lives_in_source_js():
     config = Path("src/frontend/static/css/compiler_config.json").read_text()
 
     assert "window.gameShell" in source
-    assert "this.leftOpen && this.leftPanelView === nextView" in source
-    assert "this.rightOpen && this.rightPanelView === nextView" in source
+    main_source = Path("src/frontend/static/js/core/main.js").read_text()
+    assert "isTouchInventoryMode" in main_source
+    assert "appendTouchInventoryActions" in main_source
+    assert "event.stopImmediatePropagation()" in main_source
+    assert "inventory-tooltip-action" in main_source
+    assert "!detail.forceOpen && this.leftOpen && this.leftPanelView === nextView" in source
+    assert "!detail.forceOpen && this.rightOpen && this.rightPanelView === nextView" in source
     assert "startHudWindowDrag" in source
     assert "startHudWindowResize" in source
     assert "resizeHudWindow" in source
@@ -575,43 +859,66 @@ def test_game_shell_drag_logic_lives_in_source_js():
     assert "hudOpenStorageKey" in source
     assert "panelStateStorageKey" in source
     assert "explorationDesktopPanelsDefaultOpen" in source
+    assert "clearDrawerPanelState" in source
+    assert "if (isDrawerViewport())" in source
+    assert "window.localStorage.removeItem(panelStateStorageKey())" in source
     assert 'domain !== "exploration"' in source
     assert 'window.matchMedia("(min-width: 1025px)")' in source
     assert 'window.matchMedia("(max-width: 1024px)")' in source
     assert '${domainScope}:${scope}:${viewportScope}:v1' in source
     assert "savePanelState(this)" in source
     assert "panelStateUserEdited" in source
-    assert "applySessionPanelState" in source
-    assert "loadHudOpenState(\"inventory\")" in source
-    assert "savedInventoryOpen !== false" in source
+    assert "applySessionPanelState" not in source
+    assert "initialInventoryOpen" not in source
+    assert "loadHudOpenState" not in source
+    assert "savedInventoryOpen" not in source
+    assert "inventoryWindow" not in source
     assert "saveHudOpenState(name, hudWindow.open)" in source
     assert "closeHudWindow(name)" in source
     assert "core/game_shell.js" in config
 
 
-def test_session_panel_state_does_not_override_saved_shell_panel_choice():
+def test_status_runtime_does_not_accept_server_panel_state():
     source = Path("src/frontend/static/js/core/status.js").read_text()
 
-    assert "typeof data.applySessionPanelState === 'function'" in source
-    assert "data.applySessionPanelState(state)" in source
-    assert "data.leftOpen = Boolean(state.left_open)" in source
-    assert "data.rightOpen = Boolean(state.right_open)" in source
+    assert "session:panel-state" not in source
+    assert "applySessionPanelState" not in source
+    assert "left_open" not in source
+    assert "right_open" not in source
 
 
-def test_mobile_drawer_shell_has_panel_close_controls():
+def test_mobile_drawer_close_controls_live_in_panel_nav_only():
     template = Path("src/frontend/templates/game/session_content_inner.html").read_text()
-    css = Path("src/frontend/static/css/pages/game/layout_responsive.css").read_text()
+    panel_templates = "\n".join(
+        [
+            Path("src/frontend/templates/game/components/status/compact_panel.html").read_text(),
+            Path("src/frontend/templates/game/components/status/build_draft.html").read_text(),
+            Path("src/frontend/templates/game/components/inventory/right_panel.html").read_text(),
+        ]
+    )
+    responsive_dir = Path("src/frontend/static/css/game/shell/responsive")
+    tablet_css = responsive_dir.joinpath("tablet_drawers.css").read_text()
+    mobile_css = responsive_dir.joinpath("mobile_drawers.css").read_text()
+    mobile_header_css = responsive_dir.joinpath("mobile_header.css").read_text()
+    layout_css = "\n".join((tablet_css, mobile_css, mobile_header_css))
+    panel_css = Path("src/frontend/static/css/game/components/panel_dock.css").read_text()
 
-    assert "side-panel-close side-panel-close--left" in template
-    assert "side-panel-close side-panel-close--right" in template
-    assert "$dispatch('panel-toggle', { side: 'left'" in template
-    assert "$dispatch('panel-toggle', { side: 'right'" in template
-    assert ".side-panel-close" in css
-    assert "@media (max-width: 1024px)" in css
-    assert "--game-header-height: 40px;" in css
-    assert "--game-header-height: 72px;" not in css
-    assert "top: var(--game-header-height);" in css
-    assert "bottom: var(--game-footer-height);" in css
+    assert "side-panel-close" not in template
+    assert "$dispatch('panel-toggle', { side: 'left'" in panel_templates
+    assert "$dispatch('panel-toggle', { side: 'right'" in panel_templates
+    assert ".side-panel-close" not in layout_css
+    assert ".dock-nav-button--close" in panel_css
+    assert "@media (min-width: 768px)" in panel_css
+    assert "display: none" in panel_css
+    assert "@media (min-width: 768px) and (max-width: 1279px)" in layout_css
+    assert "grid-template-columns: var(--side-panel-width) minmax(0, 1fr) 0 !important;" in layout_css
+    assert ".col-left {\n        position: relative;" in layout_css
+    assert ".col-right {\n        position: fixed;" in layout_css
+    assert "@media (max-width: 767px)" in layout_css
+    assert "--game-header-height: 40px;" in layout_css
+    assert "--game-header-height: 72px;" not in layout_css
+    assert "top: var(--game-header-height);" in layout_css
+    assert "bottom: var(--game-footer-height);" in layout_css
 
 
 def test_inventory_frontend_route_proxies_actions_to_backend():
@@ -626,14 +933,15 @@ def test_inventory_frontend_route_proxies_actions_to_backend():
     assert '"/api/game/inventory/actions"' in client
 
 
-def test_game_header_nav_marks_open_panels_and_windows_active():
+def test_game_header_nav_marks_open_panels_and_inventory_panel_active():
     template = Path("src/frontend/templates/game/domains/game_menu/header_nav.html").read_text()
 
     assert "leftOpen && leftPanelView" in template
     assert "rightOpen && rightPanelView" in template
-    assert "windows.{{ item.window }}.open" in template
+    assert "windows.{{ item.window }}.open" not in template
+    assert "forceOpen: true" in template
     assert 'hx-get="/game/inventory/window?char_id={{ char_id }}"' in template
-    assert 'hx-target="#inventory-window-body"' in template
+    assert 'hx-target="#right-inventory-panel-body"' in template
 
 
 def test_game_runtime_loads_before_alpine_initializes():
@@ -646,6 +954,7 @@ def test_game_header_has_system_exit_to_lobby():
     template = Path("src/frontend/templates/game/includes/header.html").read_text()
 
     assert "The Sealed World" in template
+    assert "domain != 'exploration'" in template
     assert "game-system-menu" in template
     assert "game-system-action" in template
     assert "game-system-action-glyph--cabinet" in template

@@ -28,6 +28,9 @@ class FakeStore:
         values.discard(char_id)
         return existed
 
+    async def queue_waiting_count(self, mode: str) -> int:
+        return len(self.queue.get(mode, set()))
+
     async def delete_request(self, char_id: int) -> None:
         self.requests.pop(char_id, None)
 
@@ -123,11 +126,19 @@ class FailingSnapshotEvents(FakeEvents):
 class FakeCharacterSessions:
     def __init__(self):
         self.combat = {}
+        self.finalization = {}
         self.arena = {}
         self.state = None
 
     async def get_session(self, char_id):
-        return {"char_id": char_id, "sessions": {"arena_id": self.arena.get(char_id)}}
+        return {
+            "char_id": char_id,
+            "sessions": {
+                "arena_id": self.arena.get(char_id),
+                "combat_id": self.combat.get(char_id),
+                "combat_finalization_id": self.finalization.get(char_id),
+            },
+        }
 
     async def set_combat_session(self, char_id, combat_id):
         self.combat[char_id] = combat_id
@@ -232,8 +243,31 @@ async def test_join_queue_returns_searching_screen():
     assert payload.gs == 100
     assert store.requests[1].mode == "one_vs_one"
     assert store.requests[1].commitment_id.endswith(":player:1")
+    assert store.requests[1].wait_limit_sec == 60
+    assert payload.metadata["queue_waiting_count"] == 1
+    assert payload.metadata["wait_limit_sec"] == 60
     assert events.requests[0][0] == "character.combat_commitments_requested"
     assert events.requests[0][1]["ttl"] == 660
+
+
+@pytest.mark.asyncio
+async def test_join_queue_extends_wait_limit_from_waiting_players_up_to_five_minutes():
+    store = FakeStore()
+    events = FakeEvents()
+    service = build_service(store, events)
+    duel = ArenaDuelService(arena=service)
+
+    await duel.join_queue(10)
+    second = await duel.join_queue(11)
+    await duel.join_queue(12)
+    payload = await duel.join_queue(1)
+
+    assert store.requests[11].wait_limit_sec == 180
+    assert second.metadata["wait_limit_sec"] == 180
+    assert store.requests[1].wait_limit_sec == 300
+    assert payload.metadata["wait_limit_sec"] == 300
+    assert payload.metadata["queue_waiting_count"] == 4
+    assert events.requests[-1][1]["ttl"] == 900
 
 
 @pytest.mark.asyncio
@@ -440,3 +474,78 @@ async def test_check_combat_ready_enters_ready_shadow_combat_with_confirm():
 
     assert payload.combat_id == "combat:shadow"
     assert sessions.combat[1] == "combat:shadow"
+
+
+@pytest.mark.asyncio
+async def test_view_clears_entered_shadow_match_after_combat_return():
+    store = FakeStore()
+    events = FakeEvents()
+    sessions = FakeCharacterSessions()
+    service = ArenaService(
+        session_service=ArenaSessionIntegration(store),
+        integrator=ArenaSystemIntegrator(events=events, character_sessions=sessions),
+    )
+    runtime = await service.ensure_runtime_session(1)
+    match = ArenaCombatRequestDTO(
+        mode="one_vs_one",
+        battle_type="shadow",
+        requested_by=1,
+        participants={"team_1": [1], "team_2": []},
+        status="ready",
+        combat_id="combat:shadow",
+    )
+    await store.create_match(match)
+    await service.session.set_runtime_screen(
+        runtime,
+        ArenaScreenEnum.COMBAT_PENDING,
+        mode="one_vs_one",
+        active_match_id=match.arena_session_id,
+        combat_id=match.combat_id,
+        metadata={"battle_type": "shadow", "entered_combat": True},
+    )
+
+    payload = await service.view(1)
+
+    assert payload.screen == ArenaScreenEnum.MODE_MENU
+    assert payload.title != "Бой готов"
+    assert payload.title != "Арена готова"
+    assert match.arena_session_id not in store.matches
+    assert store.char_matches == {}
+    assert store.runtime_sessions[runtime.arena_id].active_match_id is None
+    assert store.runtime_sessions[runtime.arena_id].combat_id is None
+
+
+@pytest.mark.asyncio
+async def test_view_keeps_entered_shadow_match_while_combat_is_active():
+    store = FakeStore()
+    events = FakeEvents()
+    sessions = FakeCharacterSessions()
+    sessions.combat[1] = "combat:shadow"
+    service = ArenaService(
+        session_service=ArenaSessionIntegration(store),
+        integrator=ArenaSystemIntegrator(events=events, character_sessions=sessions),
+    )
+    runtime = await service.ensure_runtime_session(1)
+    match = ArenaCombatRequestDTO(
+        mode="one_vs_one",
+        battle_type="shadow",
+        requested_by=1,
+        participants={"team_1": [1], "team_2": []},
+        status="ready",
+        combat_id="combat:shadow",
+    )
+    await store.create_match(match)
+    await service.session.set_runtime_screen(
+        runtime,
+        ArenaScreenEnum.COMBAT_PENDING,
+        mode="one_vs_one",
+        active_match_id=match.arena_session_id,
+        combat_id=match.combat_id,
+        metadata={"battle_type": "shadow", "entered_combat": True},
+    )
+
+    payload = await service.view(1)
+
+    assert payload.screen == ArenaScreenEnum.COMBAT_PENDING
+    assert payload.title == "Арена готова"
+    assert match.arena_session_id in store.matches

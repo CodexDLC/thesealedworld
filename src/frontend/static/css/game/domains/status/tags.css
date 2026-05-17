@@ -1,0 +1,69 @@
+.tag { display: inline-block; padding: 2px 7px; font-size: 8px; letter-spacing: .12em; text-transform: uppercase; border-radius: 2px; }
+.tag.burn   { background: rgba(255,100,0,.07); border: 1px solid rgba(255,100,0,.25); color: rgba(255,130,50,.85); }
+.tag.regen  { background: rgba(68,221,136,.06); border: 1px solid rgba(68,221,136,.20); color: rgba(68,221,136,.80); }
+.tag.sys    { background: rgba(255,170,0,.05); border: 1px solid rgba(255,170,0,.14); color: rgba(255,170,0,.60); }
+
+.status-sidebar-surface .service-card-list--sidebar,
+.status-sidebar-surface .arena-view-stat-grid,
+.status-sidebar-surface .arena-view-list {
+    min-width: 0;
+}
+
+.status-sidebar-surface .service-card-list--sidebar {
+    grid-template-columns: minmax(0, 1fr);
+}
+
+.status-sidebar-surface.arena-view-panel .arena-view-stat,
+.status-sidebar-surface.arena-view-panel .arena-view-row {
+    min-width: 0;
+}
+
+.status-sidebar-surface.arena-view-panel .arena-view-row {
+    grid-template-columns: minmax(0, 1fr) minmax(0, auto);
+}
+
+.status-sidebar-surface.arena-view-panel .arena-view-row strong {
+    min-width: 0;
+    max-width: 100%;
+    overflow-wrap: anywhere;
+}
+
+@media (max-width: 1439px) {
+    .status-sidebar-surface {
+        --status-panel-padding: var(--sp-3);
+    }
+
+    .status-sidebar-surface .attribute-grid-widget {
+        gap: 3px;
+    }
+
+    .status-sidebar-surface .attribute-grid-cards {
+        gap: 3px;
+        grid-template-rows: repeat(3, minmax(36px, auto));
+    }
+
+    .status-sidebar-surface .attribute-card-value {
+        font-size: 14px;
+    }
+
+    .status-sidebar-surface .av-corner {
+        padding: 2px 5px;
+        font-size: 7px;
+    }
+}
+
+@media (max-width: 500px) {
+    .status-sidebar-surface {
+        --status-panel-padding: 10px;
+    }
+
+    .status-sidebar-surface .sec {
+        letter-spacing: .12em;
+    }
+
+    .status-sidebar-surface .attribute-grid-title,
+    .status-sidebar-surface .attribute-card-label,
+    .status-sidebar-surface .skill-group-title {
+        font-size: 7px;
+    }
+}

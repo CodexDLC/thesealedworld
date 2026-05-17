@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import logging
-import random
 
 from src.backend.features.scenario.dto.context import ELEMENT_KEYS, STAT_KEYS, ScenarioContextDTO
 from src.backend.features.scenario.dto.finalize import (
@@ -26,21 +25,6 @@ VISIBLE_PROFILE_ORDER = [
 ]
 ATTRIBUTE_RANK_BONUSES = [9, 8, 7, 6, 5, 4, 3, 2, 1]
 
-TUTORIAL_EXIT_LOCATIONS = [
-    "52_58",
-    "52_46",
-    "58_52",
-    "46_52",
-    "56_56",
-    "48_56",
-    "56_48",
-    "48_48",
-    "55_57",
-    "57_55",
-    "49_57",
-    "47_55",
-]
-
 
 class TutorialScenarioHandler(BaseScenarioHandler):
     async def on_initialize(self, char_id: int, quest_master: dict, **_: object) -> ScenarioContextDTO:
@@ -60,8 +44,8 @@ class TutorialScenarioHandler(BaseScenarioHandler):
         context: ScenarioContextDTO,
         quest_master: dict,
     ) -> ScenarioFinalizeResult:
-        location_id = self._select_tutorial_exit_location()
-        log.info("Tutorial scenario shadow combat handoff: char_id=%s location_id=%s", char_id, location_id)
+        location_id = await self.integration.select_tutorial_pve_spawn_location()
+        log.info("Tutorial scenario PvE combat handoff: char_id=%s location_id=%s", char_id, location_id)
         bonuses = self._calculate_attribute_bonuses(context)
         return ScenarioFinalizeResult(
             rewards=ScenarioRewardsDTO(
@@ -71,17 +55,13 @@ class TutorialScenarioHandler(BaseScenarioHandler):
                 attribute_bonuses=bonuses,
             ),
             target_state=CoreDomain.COMBAT,
-            transition_reason="scenario_shadow_combat",
+            transition_reason="scenario_pve_combat",
             location_id=location_id,
             metadata={
-                "battle_type": "shadow",
+                "battle_type": "pve",
                 "quest_key": quest_master["quest_key"],
             },
         )
-
-    @staticmethod
-    def _select_tutorial_exit_location() -> str:
-        return random.choice(TUTORIAL_EXIT_LOCATIONS)  # nosec B311
 
     @staticmethod
     def _calculate_attribute_bonuses(context: ScenarioContextDTO) -> dict[str, int]:

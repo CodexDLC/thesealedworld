@@ -201,15 +201,15 @@ class ExpeditionService:
         await self._maybe_commit()
         return True
 
-    async def respawn(self, *, char_id: int) -> dict[str, Any]:
+    async def finalize_death_corpse(self, *, char_id: int) -> dict[str, Any]:
         expedition = await self.get_active_run(char_id, for_update=True)
-        if expedition is None:
-            return {"status": "no_active_expedition", "target_state": CoreDomain.EXPLORATION.value}
+        if expedition is None or expedition.status != "death_pending":
+            return {"status": "no_death_pending", "corpse_id": None}
 
-        processed_key = f"respawn:{expedition.run_id}"
-        if self.expedition_repo.is_processed(expedition, processed_key):
-            await self._restore_active_session_after_respawn(char_id, expedition)
-            return self._respawn_result(expedition)
+        processed_key = f"death_corpse:{expedition.run_id}"
+        if self.expedition_repo.is_processed(expedition, processed_key) and expedition.corpse_id:
+            await self._patch_death_corpse_session(char_id, expedition)
+            return {"status": "already_finalized", "corpse_id": expedition.corpse_id}
 
         corpse_id = expedition.corpse_id or uuid.uuid4().hex
         corpse_location_id = expedition.current_location_id or "52_52"
@@ -223,11 +223,18 @@ class ExpeditionService:
         expedition.corpse_location_id = corpse_location_id
         expedition.corpse_public_at = now
         expedition.corpse_expires_at = expires_at
-        expedition.status = "dead"
-        expedition.ended_at = now
         expedition.pending_progress_json = {}
         flag_modified(expedition, "pending_progress_json")
-        self.expedition_repo.mark_processed(expedition, processed_key)
+        self.expedition_repo.mark_processed(
+            expedition,
+            processed_key,
+            {
+                "corpse_id": corpse_id,
+                "location_id": corpse_location_id,
+                "item_count": len(item_rows),
+                "resource_count": len(resource_rows),
+            },
+        )
         flag_modified(expedition, "processed_events")
 
         await self._persist_player_corpse(
@@ -237,13 +244,43 @@ class ExpeditionService:
             now_ts=now.timestamp(),
             expires_ts=expires_at.timestamp(),
         )
+        await self._patch_death_corpse_session(char_id, expedition)
+        await self._maybe_commit()
+        logger.info(
+            "Expedition | death corpse finalized char_id={} run_id={} corpse={}", char_id, expedition.run_id, corpse_id
+        )
+        return {"status": "finalized", "corpse_id": corpse_id, "location_id": corpse_location_id}
+
+    async def respawn(self, *, char_id: int) -> dict[str, Any]:
+        expedition = await self.get_active_run(char_id, for_update=True)
+        if expedition is None:
+            return {"status": "no_active_expedition", "target_state": CoreDomain.EXPLORATION.value}
+
+        processed_key = f"respawn:{expedition.run_id}"
+        if self.expedition_repo.is_processed(expedition, processed_key):
+            await self._restore_active_session_after_respawn(char_id, expedition)
+            return self._respawn_result(expedition)
+
+        now = datetime.now(UTC)
+        death_corpse_key = f"death_corpse:{expedition.run_id}"
+        if not self.expedition_repo.is_processed(expedition, death_corpse_key):
+            await self.finalize_death_corpse(char_id=char_id)
+        expedition.status = "dead"
+        expedition.ended_at = now
+        expedition.pending_progress_json = {}
+        flag_modified(expedition, "pending_progress_json")
+        self.expedition_repo.mark_processed(expedition, processed_key)
+        flag_modified(expedition, "processed_events")
+
         if self.expedition_manager is not None:
             await self.expedition_manager.clear_active_run(char_id)
             await self.expedition_manager.delete_runtime(expedition.run_id)
 
         await self._restore_active_session_after_respawn(char_id, expedition)
         await self._maybe_commit()
-        logger.info("Expedition | respawned char_id={} run_id={} corpse={}", char_id, expedition.run_id, corpse_id)
+        logger.info(
+            "Expedition | respawned char_id={} run_id={} corpse={}", char_id, expedition.run_id, expedition.corpse_id
+        )
         return self._respawn_result(expedition)
 
     async def refresh_session_risk(
@@ -539,6 +576,20 @@ class ExpeditionService:
             timestamps=LootTimestamps(created_at=now_ts, public_at=now_ts, decay_at=expires_ts),
         )
         await self.loot_manager.save_corpse(corpse, expedition.corpse_location_id, _PLAYER_CORPSE_TTL_SECONDS)
+
+    async def _patch_death_corpse_session(self, char_id: int, expedition: CharacterExpedition) -> None:
+        if self.character_sessions is None:
+            return
+        await self.character_sessions.patch_fields(
+            char_id,
+            {
+                "$.sessions.death_run_id": expedition.run_id,
+                "$.sessions.death_corpse_id": expedition.corpse_id,
+                "$.pending_progress": self._empty_pending(),
+            },
+        )
+        await self.character_sessions.set_pending_progress(char_id, self._empty_pending())
+        await self.refresh_session_risk(char_id, expedition=expedition, system_connect=False)
 
     async def _restore_active_session_after_respawn(
         self,

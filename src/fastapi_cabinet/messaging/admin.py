@@ -20,15 +20,15 @@ class InboxAdmin(CabinetAdmin):
     icon = ""
     group = "messaging"
     group_label = "Сообщения"
-    path = "/cabinet/inbox"
+    path = "/admin/inbox"
     order = 10
 
     bridge: ClassVar[MessagingBridge]
 
     sidebar = build_messaging_sidebar(
-        inbox_path="/cabinet/inbox",
-        mailing_path="/cabinet/mailing",
-        registrations_path="/cabinet/registrations",
+        inbox_path="/admin/inbox",
+        mailing_path="/admin/mailing",
+        registrations_path="/admin/registrations",
     )
     dashboard_widgets = (
         TableWidget(key="inbox_list", title="Входящие сообщения", provider="messaging.inbox", order=10),
@@ -62,14 +62,14 @@ class MassMailingAdmin(CabinetAdmin):
     icon = ""
     group = "messaging"
     group_label = "Сообщения"
-    path = "/cabinet/mailing"
+    path = "/admin/mailing"
     order = 20
 
     bridge: ClassVar[MessagingBridge]
 
     sidebar = (
-        SidebarItem(key="overview", label="Все рассылки", path="/cabinet/mailing", order=10),
-        SidebarItem(key="new", label="Новая рассылка", path="/cabinet/mailing/new", order=20),
+        SidebarItem(key="overview", label="Все рассылки", path="/admin/mailing", order=10),
+        SidebarItem(key="new", label="Новая рассылка", path="/admin/mailing/new", order=20),
     )
     dashboard_widgets = (TableWidget(key="mailing_list", title="Рассылки", provider="messaging.mailing", order=10),)
     providers: ClassVar[dict] = {}
@@ -95,14 +95,14 @@ class RegistrationAdmin(CabinetAdmin):
     icon = ""
     group = "messaging"
     group_label = "Сообщения"
-    path = "/cabinet/registrations"
+    path = "/admin/registrations"
     order = 30
 
     bridge: ClassVar[MessagingBridge]
 
     sidebar = (
-        SidebarItem(key="pending", label="Ожидают", path="/cabinet/registrations", badge_key="pending", order=10),
-        SidebarItem(key="reviewed", label="Рассмотренные", path="/cabinet/registrations/reviewed", order=20),
+        SidebarItem(key="pending", label="Ожидают", path="/admin/registrations", badge_key="pending", order=10),
+        SidebarItem(key="reviewed", label="Рассмотренные", path="/admin/registrations/reviewed", order=20),
     )
     dashboard_widgets = (
         TableWidget(
@@ -136,13 +136,13 @@ class RegistrationAdmin(CabinetAdmin):
     async def handle_registration_action(self, request: Request) -> Response:
         bridge = getattr(self.__class__, "bridge", None)
         if bridge is None:
-            return RedirectResponse(url="/cabinet/registrations", status_code=303)
+            return RedirectResponse(url="/admin/registrations", status_code=303)
         form = await request.form()
         request_id = str(form.get("request_id", ""))
         action = str(form.get("action", ""))
         workflow = MessagingWorkflowService(bridge=bridge)
         await workflow.handle_registration_action(request=request, request_id=request_id, action=action)
-        return RedirectResponse(url="/cabinet/registrations", status_code=303)
+        return RedirectResponse(url="/admin/registrations", status_code=303)
 
 
 __all__ = ["InboxAdmin", "MassMailingAdmin", "RegistrationAdmin"]

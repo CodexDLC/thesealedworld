@@ -35,7 +35,7 @@ OFFHAND_DB = {
         narrative_tags=["buckler", "shield", "parry", "small_shield"],
         implicit_bonuses={
             "evasion_penalty": -0.15,
-            "parry_chance": 0.15,
+            "parry_chance": 0.085,
         },
         triggers=["parry.weapon_riposte_on_parry"],
     ),

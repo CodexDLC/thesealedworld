@@ -4,17 +4,17 @@ from fastapi import FastAPI
 from loguru import logger
 
 from src.backend.config.settings import settings
-from src.backend.core.database import get_session_context
+from src.backend.core.database import get_manual_session_context, get_session_context
 from src.backend.features.generation_ai.bootstrap import build_generation_ai_registry
 from src.backend.features.generation_ai.repositories import AIGenerationTaskRepository
 from src.backend.features.generation_ai.services import GenerationAIService
 
 # Feature Services
-from src.backend.features.items.integrations import ItemPersistenceIntegration, ItemTextAIClient
+from src.backend.features.items.integrations import ItemPersistenceIntegration
 from src.backend.features.items.repositories import ItemInstanceRepository
 from src.backend.features.items.services import ItemGenerationService
 from src.backend.features.monsters.repositories import MonsterGenerationRepository
-from src.backend.features.monsters.runtime import MonsterClanGenerationBuilder
+from src.backend.features.monsters.runtime import ClanFactory, MonsterClanGenerationBuilder
 from src.backend.features.monsters.services import (
     AnchorProjectionBootstrapService,
     EncounterMonsterService,
@@ -38,13 +38,19 @@ class GameFeatureContainer:
 
     async def _bootstrap_world(self, app: FastAPI) -> None:
         logger.info("Bootstrapping World feature...")
-        async with get_session_context() as session:
+        async with get_manual_session_context() as session:
             repository = WorldRepository(session)
             data = WorldDataIntegration(repository)
             locations = WorldLocationIntegration(app.state.world_locations)
             # world_locations were initialized in InfrastructureContainer
             cache = WorldCacheService(data=data, locations=locations)
-            generator = LLMWorldGenerator(data, app.state.ai)
+            generation_ai = GenerationAIService(
+                repository=AIGenerationTaskRepository(session),
+                registry=build_generation_ai_registry(session=session),
+                arq=getattr(app.state, "generation_ai_arq", None),
+                auto_schedule=False,
+            )
+            generator = LLMWorldGenerator(data, generation_ai=generation_ai)
 
             bootstrap = WorldBootstrapService(
                 data=data,
@@ -57,16 +63,13 @@ class GameFeatureContainer:
             monster_population = WorldMonsterPopulationService(
                 EncounterMonsterService(
                     MonsterGenerationRepository(session),
-                    generator=MonsterClanGenerationBuilder(
-                        repository=MonsterGenerationRepository(session),
-                        item_generation=ItemGenerationService(
-                            ItemPersistenceIntegration(ItemInstanceRepository(session)),
-                            ItemTextAIClient(getattr(app.state, "ai", None)),
-                        ),
-                        generation_ai=GenerationAIService(
-                            repository=AIGenerationTaskRepository(session),
-                            registry=build_generation_ai_registry(session=session),
-                            arq=getattr(app.state, "generation_ai_arq", None),
+                    factory=ClanFactory(
+                        MonsterClanGenerationBuilder(
+                            repository=MonsterGenerationRepository(session),
+                            item_generation=ItemGenerationService(
+                                ItemPersistenceIntegration(ItemInstanceRepository(session)),
+                            ),
+                            generation_ai=generation_ai,
                         ),
                     ),
                 )
@@ -81,12 +84,13 @@ class GameFeatureContainer:
                 population_result.contexts,
                 population_result.clans,
             )
+            await session.commit()
+            scheduled = await generation_ai.schedule_pending_task_ids()
+            logger.info("Generation AI bootstrap tasks scheduled after commit: {}", scheduled)
 
     async def _bootstrap_anchor_projections(self, app: FastAPI) -> None:
         logger.info("Bootstrapping anchor projections...")
-        item_generation = ItemGenerationService(
-            text_ai_client=ItemTextAIClient(getattr(app.state, "ai", None)),
-        )
+        item_generation = ItemGenerationService()
         bootstrap = AnchorProjectionBootstrapService(
             item_generation=item_generation,
             redis=app.state.redis,

@@ -23,6 +23,8 @@ from src.backend.features.inventory.events import bind as bind_inventory_events
 from src.backend.features.inventory.events import router as inventory_router
 from src.backend.features.items.events import bind as bind_items_events
 from src.backend.features.items.events import router as items_router
+from src.backend.features.loot.events import bind as bind_loot_events
+from src.backend.features.loot.events import router as loot_router
 from src.backend.features.monsters.events import bind as bind_monsters_events
 from src.backend.features.monsters.events import router as monsters_router
 from src.backend.features.scenario.events import bind as bind_scenario_events
@@ -45,6 +47,7 @@ EVENT_ROUTER_GROUPS = (
     ("combat", combat_router),
     ("inventory", inventory_router),
     ("items", items_router),
+    ("loot", loot_router),
     ("monsters", monsters_router),
     ("scenario", scenario_router),
     ("arena", arena_router),
@@ -99,6 +102,7 @@ class RedisContainer:
         bind_arena_events(app)
         bind_inventory_events(app)
         bind_items_events(app)
+        bind_loot_events(app)
         bind_monsters_events(app)
         bind_scenario_events(app)
         bind_tavern_events(app)
@@ -145,6 +149,7 @@ class RedisContainer:
         runtime.include_router(combat_router)
         runtime.include_router(inventory_router)
         runtime.include_router(items_router)
+        runtime.include_router(loot_router)
         runtime.include_router(monsters_router)
         runtime.include_router(scenario_router)
         runtime.include_router(arena_router)

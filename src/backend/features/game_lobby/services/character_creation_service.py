@@ -5,7 +5,10 @@ from typing import TYPE_CHECKING
 from loguru import logger
 
 from src.backend.core.exceptions import BusinessLogicException
+from src.backend.features.moderation import CharacterNamePolicy
 from src.shared.enums import CoreDomain
+from src.shared.schemas import CharacterNameAvailabilityDTO
+from src.shared.utils.character_name import CharacterNameError
 
 if TYPE_CHECKING:
     from src.backend.core.auth import User
@@ -20,8 +23,24 @@ class CharacterCreationService:
     def __init__(
         self,
         integration: GameLobbyIntegration,
+        name_policy: CharacterNamePolicy | None = None,
     ) -> None:
         self.integration = integration
+        self.name_policy = name_policy or CharacterNamePolicy()
+
+    async def check_name_availability(self, value: str) -> CharacterNameAvailabilityDTO:
+        name, code, message = self.name_policy.check(value)
+        if name is None:
+            return CharacterNameAvailabilityDTO(available=False, code=code, message=message)
+        if await self.integration.character_name_exists(name.key):
+            return CharacterNameAvailabilityDTO(
+                available=False,
+                name=name.display,
+                name_key=name.key,
+                code="name_taken",
+                message="Имя уже занято",
+            )
+        return CharacterNameAvailabilityDTO(available=True, name=name.display, name_key=name.key)
 
     async def create_and_enter(
         self,
@@ -29,6 +48,13 @@ class CharacterCreationService:
         dto: CreateCharacterRequestDTO,
     ) -> ScenarioPayloadDTO:
         logger.info("Character creation started: user_id={}", user.id)
+        try:
+            name = self.name_policy.validate(dto.name)
+        except CharacterNameError as exc:
+            raise BusinessLogicException(exc.message) from exc
+        if await self.integration.character_name_exists(name.key):
+            raise BusinessLogicException("Имя уже занято")
+
         await self._ensure_slot_available(user)
 
         # Determine default avatar based on gender if none provided
@@ -41,7 +67,8 @@ class CharacterCreationService:
 
         character = await self.integration.create_character(
             user_id=user.id,
-            name=dto.name,
+            name=name.display,
+            name_key=name.key,
             gender=dto.gender,
             avatar_url=avatar_url,
             game_stage="session_pending",

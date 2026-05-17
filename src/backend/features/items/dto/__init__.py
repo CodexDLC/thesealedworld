@@ -1,3 +1,4 @@
+from src.backend.features.items.dto.ai import GeneratedItemTextDTO
 from src.backend.features.items.dto.catalog import (
     BaseItemTemplateDTO,
     CatalogEntryDTO,
@@ -16,6 +17,7 @@ __all__ = [
     "BaseItemTemplateDTO",
     "CatalogEntryDTO",
     "EquippedSlot",
+    "GeneratedItemTextDTO",
     "GeneratedItemDTO",
     "ItemBonuses",
     "ItemGenerationBatchRequestDTO",

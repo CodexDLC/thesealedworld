@@ -185,8 +185,18 @@ class FakeCombatSessionsForChaos:
 
 
 class FakeChaosTaskDataService(FakeCombatSessionsForChaos):
+    def __init__(
+        self,
+        *,
+        battle_type: str = "arena",
+        actors_info: dict[str, str] | None = None,
+        started_at: int | None = 1,
+    ) -> None:
+        super().__init__(battle_type=battle_type, actors_info=actors_info)
+        self.started_at = started_at
+
     async def get_battle_meta(self, session_id: str) -> BattleMeta:
-        return battle_meta().model_copy(update={"last_activity_at": 1})
+        return battle_meta().model_copy(update={"last_activity_at": 1, "started_at": self.started_at})
 
 
 class FakeAnchorSnapshotCache:
@@ -241,6 +251,25 @@ def actor(actor_id: int | str, team: str, hp: int = 100) -> ActorSnapshot:
         raw=ActorRawDTO(modifiers={"main_hand_damage_base": 200, "main_hand_accuracy": 1.0}),
         loadout=ActorLoadoutDTO(),
     )
+
+
+def beast_actor(actor_id: int | str, team: str, hp: int = 100) -> ActorSnapshot:
+    snapshot = actor(actor_id, team, hp=hp)
+    snapshot.meta.type = "monster"
+    snapshot.meta.archetype = "beast"
+    snapshot.loadout.layout["main_hand"] = "skill_fencing"
+    snapshot.loadout.combat_surfaces = {
+        "main_hand": {
+            "slot": "main_hand",
+            "delivery": "natural",
+            "surface": "fangs",
+            "tags": ["natural_weapon", "fangs", "claws", "rat"],
+            "item_id": "rat_bite_claws",
+            "base_id": "rat_bite_claws",
+            "skill_key": "skill_fencing",
+        }
+    }
+    return snapshot
 
 
 def stats(mods: dict[str, float] | None = None, skills: dict[str, float] | None = None) -> ActorStats:
@@ -299,6 +328,22 @@ async def test_chaos_task_enqueues_collector_after_anchor_spawn(monkeypatch) -> 
     assert queue.jobs[0][1]["move_id"] == "chaos_spawn"
     assert queue.jobs[1][0] == "chaos_check_task"
     assert queue.jobs[1][2].get("_defer_until") is not None
+
+
+@pytest.mark.unit
+async def test_chaos_task_does_not_spawn_before_combat_started(monkeypatch) -> None:
+    monkeypatch.setattr(
+        "src.backend.features.combat.workers.tasks.chaos_task.time.time",
+        lambda: MAX_INACTIVITY_SEC + 2,
+    )
+    data_service = FakeChaosTaskDataService(battle_type="arena", started_at=None)
+    queue = CapturingChaosQueue()
+
+    await chaos_check_task({"combat_data_service": data_service, "redis": queue}, "combat-1")
+
+    assert data_service.hot_joined is None
+    assert [job[0] for job in queue.jobs] == ["chaos_check_task"]
+    assert queue.jobs[0][2].get("_defer_until") is not None
 
 
 @pytest.mark.unit
@@ -495,6 +540,27 @@ async def test_executor_returns_only_living_targets_after_exchange() -> None:
 
 
 @pytest.mark.unit
+async def test_executor_skips_queued_exchange_when_target_is_already_dead() -> None:
+    ctx = BattleContext(session_id="c1", meta=battle_meta(), actors={"1": actor(1, "a"), "2": actor(2, "b", hp=0)})
+    action = CombatActionDTO(
+        action_type="exchange",
+        move=CombatMoveDTO(move_id="m1", char_id=1, strategy="exchange", payload=ExchangePayload(target_id=2)),
+        is_forced=True,
+    )
+
+    processed = await CombatExecutor().process_batch(ctx, [action])
+
+    assert processed == ["m1"]
+    assert ctx.meta.step_counter == 0
+    assert ctx.actors["1"].meta.exchange_counter == 0
+    assert ctx.actors["2"].meta.exchange_counter == 0
+    assert ctx.pending_target_returns == []
+    assert ctx.pending_logs[0]["kind"] == "stale_action"
+    assert ctx.pending_logs[0]["reason"] == "target_dead"
+    assert "цель уже мертва" in ctx.pending_logs[0]["text"]
+
+
+@pytest.mark.unit
 def test_target_resolver_rejects_dead_direct_target_id() -> None:
     meta = battle_meta().model_copy(update={"dead_actors": [2]})
 
@@ -531,7 +597,10 @@ def test_executor_log_entries_use_actor_names_and_result_summary() -> None:
         {"actor_id": "2", "resource": "hp", "before": 100, "after": 93, "max": 100, "delta": -7, "label": "HP 93/100"}
     ]
     assert ctx.pending_logs[0]["result"]["resources"] == ctx.pending_logs[0]["resources"]
-    assert ctx.pending_logs[0]["text"] == "A1 атакует A2, нанося 7 урона."
+    assert ctx.pending_logs[0]["catalog"] == "combat_text"
+    assert ctx.pending_logs[0]["template"]["key"] == "combat.exchange.basic.hit.humanoid_to_humanoid.weapon"
+    assert ctx.pending_logs[0]["template"]["text"]
+    assert ctx.pending_logs[0]["text"].endswith("нанося 7 урона.")
     assert "damage_final" not in ctx.pending_logs[0]
     assert "chain_events" not in ctx.pending_logs[0]
 
@@ -555,19 +624,308 @@ def test_executor_log_entries_use_humanoid_feint_text_templates() -> None:
 
     CombatExecutor()._append_result_logs(ctx, result, action=action, wave=1)
 
-    assert (
-        ctx.pending_logs[0]["text"]
-        == "A1 выжидает момент и ведет удар по открытой линии A2, "
-        "и попадает, не давая A2 уйти движением, нанося 7 урона."
-    )
+    assert ctx.pending_logs[0]["text"].endswith("нанося 7 урона.")
     assert len(ctx.pending_logs) == 1
-    assert ctx.pending_logs[0]["catalog"] == "combat_entries"
-    assert ctx.pending_logs[0]["catalog_key"] == "combat.feint.true_strike"
+    assert ctx.pending_logs[0]["catalog"] == "combat_text"
+    assert ctx.pending_logs[0]["catalog_key"] == "combat.feint.true_strike.hit.humanoid_to_humanoid.weapon"
     assert ctx.pending_logs[0]["catalog_event"] == "hit"
-    assert ctx.pending_logs[0]["catalog_tooltip"] == "description"
+    assert ctx.pending_logs[0]["catalog_tooltip"] == ""
+    assert "weapon_attack_form" not in ctx.pending_logs[0]["variables"]
     assert ctx.pending_logs[0]["result"]["resources"] == [
         {"actor_id": "2", "resource": "hp", "before": 100, "after": 93, "max": 100, "delta": -7, "label": "HP 93/100"}
     ]
+
+
+@pytest.mark.unit
+def test_executor_log_entries_use_combat_text_for_beast_natural_exchange() -> None:
+    source = beast_actor(1, "a")
+    target = actor(2, "b")
+    target.meta.archetype = "humanoid"
+    ctx = BattleContext(session_id="c1", meta=battle_meta(), actors={"1": source, "2": target})
+    ctx.actors["2"].meta.hp = 93
+    action = CombatActionDTO(
+        action_type="exchange",
+        move=CombatMoveDTO(
+            move_id="m1",
+            char_id=1,
+            strategy="exchange",
+            payload=ExchangePayload(target_id=2),
+        ),
+    )
+    result = InteractionResultDTO(source_id=1, target_id=2, damage_final=7, is_hit=True)
+    result.events.append(CombatEventDTO(type="HIT", source_id=1, target_id=2, value=7, resource="hp"))
+
+    CombatExecutor()._append_result_logs(ctx, result, action=action, wave=1)
+
+    entry = ctx.pending_logs[0]
+    assert entry["catalog"] == "combat_text"
+    assert entry["template"]["key"] == "combat.exchange.basic.hit.beast_to_humanoid.natural"
+    assert entry["template"]["text"]
+    assert all(forbidden not in entry["text"].casefold() for forbidden in ("клинк", "остри", "доспех"))
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize(
+    ("result", "expected_key"),
+    [
+        (
+            InteractionResultDTO(source_id=1, target_id=2, is_miss=True),
+            "combat.exchange.basic.miss.beast_to_humanoid.natural",
+        ),
+        (
+            InteractionResultDTO(source_id=1, target_id=2, is_dodged=True),
+            "combat.exchange.basic.dodge.beast_to_humanoid.natural",
+        ),
+        (
+            InteractionResultDTO(source_id=1, target_id=2, is_parried=True),
+            "combat.exchange.basic.parry.beast_to_humanoid.natural",
+        ),
+    ],
+)
+def test_executor_log_entries_cover_beast_natural_exchange_avoidance(
+    result: InteractionResultDTO,
+    expected_key: str,
+) -> None:
+    source = beast_actor(1, "a")
+    target = actor(2, "b")
+    target.meta.archetype = "humanoid"
+    ctx = BattleContext(session_id="c1", meta=battle_meta(), actors={"1": source, "2": target})
+    action = CombatActionDTO(
+        action_type="exchange",
+        move=CombatMoveDTO(move_id="m1", char_id=1, strategy="exchange", payload=ExchangePayload(target_id=2)),
+    )
+
+    CombatExecutor()._append_result_logs(ctx, result, action=action, wave=1)
+
+    entry = ctx.pending_logs[0]
+    assert entry["catalog"] == "combat_text"
+    assert entry["template"]["key"] == expected_key
+    assert entry["catalog_key"] == expected_key
+    assert "(F)" not in entry["text"]
+
+
+@pytest.mark.unit
+def test_executor_log_entries_treat_beast_monster_without_surface_as_natural() -> None:
+    source = beast_actor(1, "a")
+    source.meta.type = "monster"
+    source.loadout.combat_surfaces = {}
+    target = actor(2, "b")
+    target.meta.archetype = "humanoid"
+    ctx = BattleContext(session_id="c1", meta=battle_meta(), actors={"1": source, "2": target})
+    action = CombatActionDTO(
+        action_type="exchange",
+        move=CombatMoveDTO(move_id="m1", char_id=1, strategy="exchange", payload=ExchangePayload(target_id=2)),
+    )
+    result = InteractionResultDTO(source_id=1, target_id=2, is_parried=True)
+
+    CombatExecutor()._append_result_logs(ctx, result, action=action, wave=1)
+
+    entry = ctx.pending_logs[0]
+    assert entry["template"]["key"] == "combat.exchange.basic.parry.beast_to_humanoid.natural"
+    assert entry["catalog_key"] == "combat.exchange.basic.parry.beast_to_humanoid.natural"
+    assert entry["catalog_tooltip"] == ""
+    assert "(F)" not in entry["text"]
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize(
+    ("result", "expected_key"),
+    [
+        (
+            InteractionResultDTO(source_id=1, target_id=2, is_miss=True),
+            "combat.exchange.basic.miss.humanoid_to_beast.weapon",
+        ),
+        (
+            InteractionResultDTO(source_id=1, target_id=2, is_dodged=True),
+            "combat.exchange.basic.dodge.humanoid_to_beast.weapon",
+        ),
+    ],
+)
+def test_executor_log_entries_cover_humanoid_weapon_exchange_against_beasts(
+    result: InteractionResultDTO,
+    expected_key: str,
+) -> None:
+    source = actor(1, "a")
+    source.meta.archetype = "humanoid"
+    source.loadout.layout["main_hand"] = "skill_swords"
+    target = beast_actor(2, "b")
+    ctx = BattleContext(session_id="c1", meta=battle_meta(), actors={"1": source, "2": target})
+    action = CombatActionDTO(
+        action_type="exchange",
+        move=CombatMoveDTO(move_id="m1", char_id=1, strategy="exchange", payload=ExchangePayload(target_id=2)),
+    )
+
+    CombatExecutor()._append_result_logs(ctx, result, action=action, wave=1)
+
+    entry = ctx.pending_logs[0]
+    assert entry["catalog"] == "combat_text"
+    assert entry["template"]["key"] == expected_key
+    assert entry["catalog_key"] == expected_key
+    assert "(F)" not in entry["text"]
+
+
+@pytest.mark.unit
+def test_executor_log_entries_use_combat_text_for_beast_natural_feint() -> None:
+    source = beast_actor(1, "a")
+    target = actor(2, "b")
+    target.meta.archetype = "humanoid"
+    ctx = BattleContext(session_id="c1", meta=battle_meta(), actors={"1": source, "2": target})
+    ctx.actors["2"].meta.hp = 93
+    action = CombatActionDTO(
+        action_type="exchange",
+        move=CombatMoveDTO(
+            move_id="m1",
+            char_id=1,
+            strategy="exchange",
+            payload=ExchangePayload(target_id=2, feint_id="true_strike"),
+        ),
+    )
+    result = InteractionResultDTO(source_id=1, target_id=2, damage_final=7, is_hit=True)
+    result.events.append(CombatEventDTO(type="CAST", source_id=1, target_id=2, action_id="true_strike"))
+    result.events.append(CombatEventDTO(type="HIT", source_id=1, target_id=2, value=7, resource="hp"))
+
+    CombatExecutor()._append_result_logs(ctx, result, action=action, wave=1)
+
+    entry = ctx.pending_logs[0]
+    assert entry["catalog"] == "combat_text"
+    assert entry["template"]["key"] == "combat.feint.true_strike.hit.beast_to_humanoid.natural"
+    assert "weapon_attack_form" not in entry["variables"]
+    assert all(forbidden not in entry["text"].casefold() for forbidden in ("клинк", "остри", "доспех"))
+
+
+@pytest.mark.unit
+def test_executor_log_entries_use_visible_combat_text_default_for_uncovered_exchange() -> None:
+    source = actor(1, "a")
+    source.meta.type = "monster"
+    source.meta.archetype = "beast"
+    source.loadout.layout["main_hand"] = "skill_fencing"
+    source.loadout.combat_surfaces = {
+        "main_hand": {
+            "slot": "main_hand",
+            "delivery": "natural",
+            "surface": "fangs",
+            "tags": ["natural_weapon", "fangs", "rat"],
+            "item_id": "rat_bite_claws",
+            "base_id": "rat_bite_claws",
+            "skill_key": "skill_fencing",
+        }
+    }
+    target = actor(2, "b")
+    target.meta.archetype = "humanoid"
+    ctx = BattleContext(session_id="c1", meta=battle_meta(), actors={"1": source, "2": target})
+    ctx.actors["2"].meta.hp = 93
+    action = CombatActionDTO(
+        action_type="exchange",
+        move=CombatMoveDTO(move_id="m1", char_id=1, strategy="exchange", payload=ExchangePayload(target_id=2)),
+    )
+    result = InteractionResultDTO(source_id=1, target_id=2, damage_final=7, is_hit=True, is_crit=True)
+    result.events.append(CombatEventDTO(type="HIT", source_id=1, target_id=2, value=7, resource="hp"))
+
+    CombatExecutor()._append_result_logs(ctx, result, action=action, wave=1)
+
+    entry = ctx.pending_logs[0]
+    assert entry["catalog"] == "combat_text"
+    assert entry["template"]["key"] == "combat.exchange.default.crit"
+    assert "(F)" in entry["text"]
+    assert entry["text"].endswith("7 урона. (F)")
+
+
+@pytest.mark.unit
+def test_executor_log_entries_use_visible_combat_text_default_for_uncovered_feint_body() -> None:
+    source = actor(1, "a")
+    source.meta.type = "monster"
+    source.meta.archetype = "beast"
+    source.loadout.layout["main_hand"] = "skill_fencing"
+    source.loadout.combat_surfaces = {
+        "main_hand": {
+            "slot": "main_hand",
+            "delivery": "natural",
+            "surface": "fangs",
+            "tags": ["natural_weapon", "fangs", "rat"],
+            "item_id": "rat_bite_claws",
+            "base_id": "rat_bite_claws",
+            "skill_key": "skill_fencing",
+        }
+    }
+    target = actor(2, "b")
+    target.meta.archetype = "humanoid"
+    ctx = BattleContext(session_id="c1", meta=battle_meta(), actors={"1": source, "2": target})
+    ctx.actors["2"].meta.hp = 93
+    action = CombatActionDTO(
+        action_type="exchange",
+        move=CombatMoveDTO(
+            move_id="m1",
+            char_id=1,
+            strategy="exchange",
+            payload=ExchangePayload(target_id=2, feint_id="sand_throw"),
+        ),
+    )
+    result = InteractionResultDTO(source_id=1, target_id=2, damage_final=7, is_hit=True)
+    result.events.append(CombatEventDTO(type="CAST", source_id=1, target_id=2, action_id="sand_throw"))
+    result.events.append(CombatEventDTO(type="HIT", source_id=1, target_id=2, value=7, resource="hp"))
+
+    CombatExecutor()._append_result_logs(ctx, result, action=action, wave=1)
+
+    entry = ctx.pending_logs[0]
+    assert entry["catalog"] == "combat_text"
+    assert entry["template"]["key"] == "combat.feint.default.hit"
+    assert entry["variables"]["feint"] == "Бросок песка"
+    assert "(F)" in entry["text"]
+    assert "weapon_attack_form" not in entry["variables"]
+
+
+@pytest.mark.unit
+def test_combat_log_missing_combat_text_template_uses_runtime_fallback(monkeypatch) -> None:
+    monkeypatch.setattr(CombatCatalogIntegrator, "get_combat_text_template", staticmethod(lambda **_kwargs: None), raising=False)
+    source = actor(1, "a")
+    source.loadout.layout["main_hand"] = "skill_swords"
+    target = actor(2, "b")
+    ctx = BattleContext(session_id="c1", meta=battle_meta(), actors={"1": source, "2": target})
+    action = CombatActionDTO(
+        action_type="exchange",
+        move=CombatMoveDTO(
+            move_id="m1",
+            char_id=1,
+            strategy="exchange",
+            payload=ExchangePayload(target_id=2),
+        ),
+    )
+    result = InteractionResultDTO(source_id=1, target_id=2, damage_final=7, is_hit=True)
+
+    CombatExecutor()._append_result_logs(ctx, result, action=action, wave=1)
+
+    entry = ctx.pending_logs[0]
+    assert entry["catalog"] == "combat_text"
+    assert entry["template"]["key"] == "combat_text.runtime_fallback.basic_exchange.hit"
+    assert entry["text"].endswith("(F)")
+    assert entry["variables"]["target_results"] == "A2 получает 7 урона"
+
+
+@pytest.mark.unit
+def test_combat_trigger_log_missing_combat_text_template_uses_runtime_fallback(monkeypatch) -> None:
+    monkeypatch.setattr(CombatCatalogIntegrator, "get_combat_text_template", staticmethod(lambda **_kwargs: None), raising=False)
+    source = actor(1, "a")
+    source.loadout.layout["main_hand"] = "skill_swords"
+    target = actor(2, "b")
+    ctx = BattleContext(session_id="c1", meta=battle_meta(), actors={"1": source, "2": target})
+    action = CombatActionDTO(
+        action_type="exchange",
+        move=CombatMoveDTO(
+            move_id="m1",
+            char_id=1,
+            strategy="exchange",
+            payload=ExchangePayload(target_id=2),
+        ),
+    )
+    result = InteractionResultDTO(source_id=1, target_id=2, is_parried=True)
+    result.fired_triggers.append("weapon_riposte_on_parry")
+
+    CombatExecutor()._append_result_logs(ctx, result, action=action, wave=1)
+
+    entry = ctx.pending_logs[1]
+    assert entry["kind"] == "trigger_proc"
+    assert entry["template"]["key"] == "combat_text.runtime_fallback.trigger.parry_proc"
+    assert entry["text"].endswith("(F)")
 
 
 @pytest.mark.unit
@@ -599,8 +957,9 @@ def test_executor_log_entries_use_actual_partner_move_template() -> None:
     CombatExecutor()._append_result_logs(ctx, result, action=result_action, wave=1)
 
     entry = ctx.pending_logs[0]
-    assert entry["catalog_key"] == "combat.feint.sand_throw"
-    assert "бросает песок" in entry["text"]
+    assert entry["catalog"] == "combat_text"
+    assert entry["catalog_key"] == "combat.feint.sand_throw.hit.humanoid_to_humanoid.weapon"
+    assert entry["template"]["key"] == "combat.feint.sand_throw.hit.humanoid_to_humanoid.weapon"
     assert "выжидает момент" not in entry["text"]
 
 
@@ -622,7 +981,9 @@ def test_executor_log_entries_render_counter_as_counterattack() -> None:
     CombatExecutor()._append_result_logs(ctx, result, action=result_action, wave=2)
 
     entry = ctx.pending_logs[0]
-    assert entry["text"] == "A2 отвечает контрударом по A1, нанося 4 урона."
+    assert entry["catalog"] == "combat_text"
+    assert entry["template"]["key"] == "combat.exchange.basic.hit.humanoid_to_humanoid.weapon"
+    assert entry["text"].endswith("нанося 4 урона.")
     assert entry["targets"] == [{"id": "1", "name": "A1", "team": "a", "actor_type": "player"}]
     assert entry["flags"]["counter"] is True
     assert "выжидает момент" not in entry["text"]
@@ -648,8 +1009,9 @@ def test_executor_tick_logs_ignore_current_move_feint_template() -> None:
 
     entry = ctx.pending_logs[0]
     assert entry["kind"] == "effect_tick"
-    assert entry["catalog_key"] == "dot_bleed"
-    assert "Кровотечение действует на A1" in entry["text"]
+    assert entry["catalog"] == "combat_text"
+    assert entry["catalog_key"] == "combat.effect.dot_bleed.tick.humanoid.hp"
+    assert entry["text"] == "Кровотечение терзает A1: -1 hp."
     assert "выжидает момент" not in entry["text"]
 
 
@@ -672,7 +1034,8 @@ def test_executor_tick_log_uses_effect_text_even_without_action_id_priority() ->
     CombatExecutor()._append_result_logs(ctx, result, action=action, wave=0)
 
     entry = ctx.pending_logs[0]
-    assert entry["text"] == "Кровотечение действует на A1."
+    assert entry["catalog"] == "combat_text"
+    assert entry["text"] == "Кровотечение терзает A1: -1 hp."
     assert "бросает песок" not in entry["text"]
 
 
@@ -699,7 +1062,9 @@ def test_executor_lethal_tick_log_stays_effect_tick_text() -> None:
     entry = ctx.pending_logs[0]
     assert entry["kind"] == "effect_tick"
     assert entry["outcome"] == "tick"
-    assert entry["text"] == "Кровотечение действует на A1."
+    assert entry["catalog"] == "combat_text"
+    assert entry["template"]["key"] == "combat.effect.dot_bleed.tick.humanoid.hp"
+    assert entry["text"] == "Кровотечение терзает A1: -3 hp."
     assert entry["flags"]["death"] is True
     assert entry["result"]["effects"][0]["effect_id"] == "death"
     assert "применяет Кровотечение" not in entry["text"]
@@ -726,8 +1091,8 @@ async def test_executor_periodic_tick_before_feint_keeps_effect_text() -> None:
     await CombatExecutor().process_batch(ctx, [action])
 
     tick_entry = next(entry for entry in ctx.pending_logs if entry["kind"] == "effect_tick")
-    assert tick_entry["text"] == "Кровотечение действует на A1."
-    assert tick_entry["catalog_key"] == "dot_bleed"
+    assert tick_entry["text"] == "Кровотечение терзает A1: -2 hp."
+    assert tick_entry["catalog_key"] == "combat.effect.dot_bleed.tick.humanoid.hp"
     assert "бросает песок" not in tick_entry["text"]
 
 
@@ -751,10 +1116,11 @@ def test_executor_log_entries_use_ability_catalog_templates() -> None:
     CombatExecutor()._append_result_logs(ctx, result, action=action, wave=1)
 
     entry = ctx.pending_logs[0]
-    assert entry["catalog_key"] == "combat.ability.fireball"
+    assert entry["catalog"] == "combat_text"
+    assert entry["catalog_key"] == "combat.ability.fireball.target.hit.humanoid"
     assert entry["template"]["event"] == "hit"
     assert entry["variables"]["ability"] == "Огненный Шар"
-    assert entry["text"] == "пламя ударяет в A2, нанося 16 урона."
+    assert entry["text"] == "A2 получает 16 урона"
     assert entry["result"]["resources"] == [
         {"actor_id": "2", "resource": "hp", "before": 100, "after": 84, "max": 100, "delta": -16, "label": "HP 84/100"}
     ]
@@ -777,10 +1143,50 @@ def test_executor_log_entries_use_ability_no_resource_template() -> None:
     CombatExecutor()._append_result_logs(ctx, result, action=action, wave=1)
 
     entry = ctx.pending_logs[0]
-    assert entry["catalog_key"] == "combat.ability.fireball"
+    assert entry["catalog"] == "combat_text"
+    assert entry["catalog_key"] == "combat.ability.fireball.no_resource"
     assert entry["template"]["event"] == "no_resource"
-    assert entry["text"] == "A1 пытается собрать Огненный Шар, но жар гаснет раньше броска."
+    assert entry["text"] == "A1 пытается применить Огненный Шар, но ресурса не хватает."
     assert entry["result"]["resources"] == []
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize(
+    ("result_kwargs", "expected_outcome"),
+    [
+        ({"damage_final": 16, "is_hit": True, "is_crit": True}, "crit"),
+        ({"is_dodged": True}, "dodge"),
+        ({"is_parried": True}, "parry"),
+        ({"is_blocked": True}, "block"),
+        ({"skip_reason": "CONTROLLED"}, "controlled"),
+        ({}, "none"),
+    ],
+)
+def test_executor_log_entries_use_runtime_fallback_for_uncovered_ability_outcomes(
+    result_kwargs: dict[str, Any], expected_outcome: str
+) -> None:
+    ctx = BattleContext(session_id="c1", meta=battle_meta(), actors={"1": actor(1, "a"), "2": actor(2, "b")})
+    action = CombatActionDTO(
+        action_type="instant",
+        move=CombatMoveDTO(
+            move_id="m1",
+            char_id=1,
+            strategy="instant",
+            payload=InstantPayload(ability_id="fireball", target_id=2),
+        ),
+    )
+    result = InteractionResultDTO(source_id=1, target_id=2, **result_kwargs)
+    result.events.append(CombatEventDTO(type="CAST", source_id=1, target_id=2, action_id="fireball"))
+
+    CombatExecutor()._append_result_logs(ctx, result, action=action, wave=1)
+
+    entry = ctx.pending_logs[0]
+    assert entry["catalog"] == "combat_text"
+    assert entry["template"]["key"] == f"combat_text.runtime_fallback.ability.{expected_outcome}"
+    assert entry["template"]["event"] == expected_outcome
+    assert entry["outcome"] == expected_outcome
+    assert entry["variables"]["ability"] == "Огненный Шар"
+    assert entry["text"].endswith("(F)")
 
 
 @pytest.mark.unit
@@ -803,9 +1209,10 @@ def test_executor_log_entries_use_item_template_when_item_delegates_to_ability()
     CombatExecutor()._append_result_logs(ctx, result, action=action, wave=1)
 
     entry = ctx.pending_logs[0]
-    assert entry["catalog_key"] == "combat.item.fire_grenade"
+    assert entry["catalog"] == "combat_text"
+    assert entry["catalog_key"] == "combat.item.fire_grenade.target.hit.humanoid"
     assert entry["variables"]["item"] == "Огненная граната"
-    assert entry["text"] == "огонь накрывает A2, нанося 10 урона."
+    assert entry["text"] == "A2 получает 10 урона от Огненная граната"
 
 
 @pytest.mark.unit
@@ -836,7 +1243,9 @@ def test_executor_log_entries_use_area_contract_for_multi_target_actions() -> No
     assert entry["template"]["event"] == "area_result"
     assert entry["variables"]["targets_count"] == 2
     assert [target["id"] for target in entry["targets"]] == ["2", "3"]
-    assert entry["text"] == "A1 бросает Огненный Шар, пламя расходится по 2 целям, нанося 9 урона."
+    assert entry["catalog"] == "combat_text"
+    assert entry["catalog_key"] == "combat.ability.fireball.cast.area"
+    assert entry["text"] == "A1 применяет Огненный Шар: A2 получает 9 урона."
     assert entry["result"]["resources"][0]["delta"] == -9
 
 
@@ -885,7 +1294,7 @@ async def test_executor_expands_all_enemy_feint_to_secondary_targets() -> None:
 
 
 @pytest.mark.unit
-def test_executor_log_entries_use_humanoid_effect_fallback_text() -> None:
+def test_executor_log_entries_use_combat_text_for_humanoid_effect_apply() -> None:
     ctx = BattleContext(session_id="c1", meta=battle_meta(), actors={"1": actor(1, "a"), "2": actor(2, "b")})
     action = CombatActionDTO(
         action_type="exchange",
@@ -897,11 +1306,11 @@ def test_executor_log_entries_use_humanoid_effect_fallback_text() -> None:
     CombatExecutor()._append_result_logs(ctx, result, action=action, wave=1)
 
     assert len(ctx.pending_logs) == 1
-    assert ctx.pending_logs[0]["text"] == "A1 накладывает Кровотечение на A2."
+    assert ctx.pending_logs[0]["text"] == "A2 получает Кровотечение."
     assert ctx.pending_logs[0]["kind"] == "effect_apply"
-    assert ctx.pending_logs[0]["catalog"] == "effects"
-    assert ctx.pending_logs[0]["catalog_key"] == "dot_bleed"
-    assert ctx.pending_logs[0]["catalog_tooltip"] == "description"
+    assert ctx.pending_logs[0]["catalog"] == "combat_text"
+    assert ctx.pending_logs[0]["catalog_key"] == "combat.effect.dot_bleed.apply.humanoid"
+    assert ctx.pending_logs[0]["catalog_tooltip"] == ""
     assert ctx.pending_logs[0]["result"]["effects"][0]["effect_id"] == "dot_bleed"
 
 
@@ -922,9 +1331,10 @@ def test_executor_hit_with_effect_event_keeps_attack_template() -> None:
     CombatExecutor()._append_result_logs(ctx, result, action=action, wave=1)
 
     entry = ctx.pending_logs[0]
-    assert entry["catalog_key"] == "combat.exchange.basic"
+    assert entry["catalog"] == "combat_text"
+    assert entry["catalog_key"] == "combat.exchange.basic.hit.humanoid_to_humanoid.weapon"
     assert "применяет Кровотечение" not in entry["text"]
-    assert "swords" in entry["text"]
+    assert entry["result"]["effects"][0]["effect_id"] == "dot_bleed"
 
 
 @pytest.mark.unit
@@ -949,11 +1359,11 @@ def test_executor_deduplicates_merged_bleed_trigger_suffixes() -> None:
     CombatExecutor()._append_result_logs(ctx, result, action=action, wave=1)
 
     entry = ctx.pending_logs[0]
-    assert entry["text"].count("открывает кровотечение") == 1
-    assert entry["text"] == (
-        "A1 выжидает момент и ведет удар по открытой линии A2, "
-        "и точно пробивает защиту A2, нанося 4 урона, и открывает кровотечение."
-    )
+    assert entry["catalog"] == "combat_text"
+    assert entry["template"]["key"] == "combat.feint.true_strike.crit.humanoid_to_humanoid.weapon"
+    assert entry["text"].endswith("нанося 4 урона.")
+    assert entry["text"].count("кровот") == 0
+    assert [effect["effect_id"] for effect in entry["result"]["effects"]] == ["dot_bleed"]
 
 
 @pytest.mark.unit
@@ -997,6 +1407,35 @@ async def test_commit_session_persists_step_and_actor_exchange_counters() -> Non
     meta_update = manager.commit_kwargs["kwargs"]["meta_update"]
     assert meta_update["step_counter"] == 3
     assert isinstance(meta_update["last_activity_at"], int)
+
+
+@pytest.mark.unit
+async def test_commit_session_sends_dead_actor_prune_and_alive_counts() -> None:
+    manager = CapturingCombatManager()
+    integration = CombatSessionIntegration(manager)  # type: ignore[arg-type]
+    meta = BattleMeta(
+        active=1,
+        step_counter=4,
+        active_actors_count=3,
+        teams={"a": ["1"], "b": ["2", "3"]},
+        actors_info={"1": "player", "2": "ai", "3": "ai"},
+        battle_type="arena",
+        location_id="arena",
+    )
+    ctx = BattleContext(
+        session_id="c1",
+        meta=meta,
+        actors={"1": actor("1", "a"), "2": actor("2", "b", hp=0), "3": actor("3", "b")},
+    )
+    ctx.pending_dead_actors = ["2"]
+
+    await integration.commit_session(ctx, ["m1"])
+
+    assert manager.commit_kwargs is not None
+    kwargs = manager.commit_kwargs["kwargs"]
+    assert kwargs["dead_actor_ids"] == {"2"}
+    assert kwargs["dead_actors"] == '["2"]'
+    assert kwargs["meta_update"]["alive_counts"] == '{"a": 1, "b": 1}'
 
 
 @pytest.mark.unit
@@ -1469,7 +1908,11 @@ def test_executor_log_merges_prepared_reaction_into_defender_outcome() -> None:
 
     CombatExecutor()._append_result_logs(ctx, result, action=action, wave=1)
 
-    assert "переводит парирование в контратаку" in ctx.pending_logs[0]["text"]
+    entry = ctx.pending_logs[0]
+    assert entry["catalog"] == "combat_text"
+    assert entry["template"]["key"] == "combat.exchange.basic.parry.humanoid_to_humanoid.weapon"
+    assert entry["outcome"] == "parry"
+    assert "переводит парирование в контратаку" not in entry["text"]
 
 
 @pytest.mark.unit
@@ -1499,7 +1942,9 @@ def test_executor_log_uses_weapon_technique_render_context_variables() -> None:
 
     entry = ctx.pending_logs[0]
     assert entry["variables"]["bonus_damage"] == 6
-    assert entry["variables"]["weapon_attack_form"]
+    assert "weapon_attack_form" not in entry["variables"]
+    assert entry["catalog"] == "combat_text"
+    assert entry["template"]["key"] == "combat.feint.measured_strike.hit.humanoid_to_humanoid.weapon"
     assert "добавляя 6 урона" in entry["text"]
 
 
@@ -1892,7 +2337,7 @@ async def test_executor_ticks_periodic_effects_before_exchange() -> None:
     assert ctx.actors["1"].meta.hp == 98
     assert any(
         entry["kind"] == "effect_tick"
-        and entry["template"]["key"] == "dot_bleed"
+        and entry["template"]["key"] == "combat.effect.dot_bleed.tick.humanoid.hp"
         and entry["result"]["resources"] == [
             {"actor_id": "1", "resource": "hp", "before": 100, "after": 98, "max": 100, "delta": -2, "label": "HP 98/100"}
         ]
@@ -2133,6 +2578,70 @@ def test_armor_ignore_chance_can_skip_flat_armor(monkeypatch: pytest.MonkeyPatch
     )
 
     assert damage == pytest.approx(100.0)
+
+
+@pytest.mark.unit
+def test_flat_armor_ignore_trigger_bonus_can_skip_flat_armor(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(MathCore, "random_range", staticmethod(lambda min_d, max_d: min_d))
+    monkeypatch.setattr(MathCore, "check_chance", staticmethod(lambda chance: chance == pytest.approx(0.5)))
+
+    ctx = PipelineContextDTO()
+    ctx.flags.formula.roll_flat_armor_ignore = True
+    ctx.mods.flat_armor_ignore_chance_bonus = 0.5
+    result = InteractionResultDTO(source_id=1, target_id=2)
+
+    damage = CombatResolver._step_calculate_damage(
+        stats({"main_hand_damage_base": 100.0, "main_hand_damage_spread": 0.0}),
+        stats({"armor": 40.0}),
+        ctx,
+        result,
+    )
+
+    assert damage == pytest.approx(100.0)
+
+
+@pytest.mark.unit
+def test_flat_armor_penetration_trigger_bonus_reduces_only_flat_armor(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(MathCore, "random_range", staticmethod(lambda min_d, max_d: min_d))
+    monkeypatch.setattr(MathCore, "check_chance", staticmethod(lambda chance: False))
+
+    ctx = PipelineContextDTO()
+    ctx.flags.formula.boost_flat_armor_penetration = True
+    ctx.mods.flat_armor_penetration_bonus_pct = 0.5
+    result = InteractionResultDTO(source_id=1, target_id=2)
+
+    damage = CombatResolver._step_calculate_damage(
+        stats({"main_hand_damage_base": 100.0, "main_hand_damage_spread": 0.0}),
+        stats({"physical_resistance": 0.25, "armor": 40.0}),
+        ctx,
+        result,
+    )
+
+    assert damage == pytest.approx(55.0)
+
+
+@pytest.mark.unit
+def test_physical_resistance_suppression_trigger_bonus_reduces_only_natural_layer(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(MathCore, "random_range", staticmethod(lambda min_d, max_d: min_d))
+    monkeypatch.setattr(MathCore, "check_chance", staticmethod(lambda chance: False))
+
+    ctx = PipelineContextDTO()
+    ctx.flags.formula.suppress_physical_resistance = True
+    ctx.mods.physical_resistance_suppression_pct = 0.5
+    result = InteractionResultDTO(source_id=1, target_id=2)
+
+    damage = CombatResolver._step_calculate_damage(
+        stats({"main_hand_damage_base": 100.0, "main_hand_damage_spread": 0.0}),
+        stats({"physical_resistance": 0.40, "armor": 10.0}),
+        ctx,
+        result,
+    )
+
+    assert damage == pytest.approx(70.0)
 
 
 @pytest.mark.unit

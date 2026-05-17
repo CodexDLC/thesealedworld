@@ -1,5 +1,4 @@
-<div class="combat-viewport">
-    {% if combat_result %}
+{% if combat_result %}
         {% set result_screen = combat_result_screen if combat_result_screen is defined else none %}
         {% set result_title = result_screen.title if result_screen else combat_result.title %}
         {% set result_summary = result_screen.summary if result_screen else combat_result.summary %}
@@ -15,75 +14,78 @@
         {% set result_experience = result_screen.experience if result_screen else none %}
         {% set result_primary_label = result_screen.primary_label if result_screen else combat_result.primary_action.label %}
         {% set result_primary_state = result_screen.primary_target_state if result_screen else (combat_result.primary_action.target_state or 'exploration') %}
-        <section id="center-screens" class="combat-screen-shell">
-            <article class="cs active combat-screen combat-result-screen">
+        <section class="combat-screen-shell">
+            <article class="combat-screen combat-result-screen">
                 <section class="combat-result-hero" role="dialog" aria-modal="true" aria-labelledby="combat-result-title">
-                    <header class="combat-result-head">
-                        <h2 id="combat-result-title" class="combat-result-title--{{ result_outcome }}">{{ result_title }}</h2>
-                        <p>
-                            {% if result_last_turn is not none %}
-                                Бой окончился на {{ result_last_turn }} ходу.
-                            {% else %}
-                                Финальный отчет готов.
-                            {% endif %}
-                        </p>
-                    </header>
-
-                    <div class="combat-result-field" role="presentation">
+                    <section class="combat-result-visual" aria-label="Combat outcome">
+                        <div class="combat-result-field" role="presentation">
                         <div class="combat-result-field__image"></div>
                         <div class="combat-result-field__caption">
                             <span>{{ result_battle_type or 'БОЙ ЗАВЕРШЕН' }}</span>
                             <strong>{{ 'ХОД ' ~ result_last_turn if result_last_turn is not none else 'ФИНАЛ' }}</strong>
                         </div>
-                    </div>
-
-                    <section class="combat-result-report combat-result-rosters">
-                        {% for team in result_teams %}
-                            <article class="combat-result-team combat-result-team--{{ team.outcome }}">
-                                <div class="combat-result-team-head">
-                                    <span>{{ 'Твоя команда' if loop.index0 == 0 else 'Противники · ' ~ team.team|upper }}</span>
-                                    <strong>{{ team.alive_count }} выжило / {{ team.total_count - team.alive_count }} погибло</strong>
-                                </div>
-                                <div class="combat-result-roster">
-                                    {% for actor in team.actors %}
-                                        <div class="combat-result-actor {% if actor.is_dead %}is-dead{% endif %}">
-                                            <span>{{ actor.name }}</span>
-                                            <div><i style="width: {{ actor.hp_percent }}%"></i></div>
-                                            <b>{{ actor.hp_current }}/{{ actor.hp_max }}</b>
-                                            <em>{{ 'ПАЛ' if actor.is_dead else 'ЖИВ' }}</em>
-                                        </div>
-                                    {% else %}
-                                        <div class="combat-result-empty">NO_ACTORS</div>
-                                    {% endfor %}
-                                </div>
-                            </article>
-                        {% else %}
-                            <article class="combat-result-team">
-                                <div class="combat-result-team-head">
-                                    <span>Состав боя</span>
-                                    <strong>NO_DATA</strong>
-                                </div>
-                                <div class="combat-result-empty">Данные участников не попали в финальный отчет.</div>
-                            </article>
-                        {% endfor %}
+                        <header class="combat-result-head">
+                            <h2 id="combat-result-title" class="combat-result-title--{{ result_outcome }}">{{ result_title }}</h2>
+                            <p>
+                                {% if result_last_turn is not none %}
+                                    Бой окончился на {{ result_last_turn }} ходу.
+                                {% else %}
+                                    Финальный отчет готов.
+                                {% endif %}
+                            </p>
+                        </header>
+                        </div>
                     </section>
 
-                    <section class="combat-result-rewards">
-                        <div class="combat-result-section-title">ПРОГРЕСС</div>
-                        <div class="combat-result-reward-grid">
-                            <div class="combat-result-reward combat-result-reward--total">
-                                <span>ПОЛУЧЕНО ОПЫТА ВСЕГО</span>
-                                <em>{{ result_experience.percent_text if result_experience else '+0.00%' }}</em>
-                            </div>
-                            {% for row in result_progression %}
-                            <div class="combat-result-reward combat-result-reward--skill">
-                                <span>{{ row.label }}</span>
-                                <em>{{ row.percent_text }}</em>
-                            </div>
+                    <section class="combat-result-summary" aria-label="Combat result summary">
+                        <section class="combat-result-report combat-result-rosters">
+                            {% for team in result_teams %}
+                                <article class="combat-result-team combat-result-team--{{ team.outcome }}">
+                                    <div class="combat-result-team-head">
+                                        <span>{{ 'Твоя команда' if loop.index0 == 0 else 'Противники · ' ~ team.team|upper }}</span>
+                                        <strong>{{ team.alive_count }} выжило / {{ team.total_count - team.alive_count }} погибло</strong>
+                                    </div>
+                                    <div class="combat-result-roster">
+                                        {% for actor in team.actors %}
+                                            <div class="combat-result-actor {% if actor.is_dead %}is-dead{% endif %}">
+                                                <span>{{ actor.name }}</span>
+                                                <div><i style="width: {{ actor.hp_percent }}%"></i></div>
+                                                <b>{{ actor.hp_current }}/{{ actor.hp_max }}</b>
+                                                <em>{{ 'ПАЛ' if actor.is_dead else 'ЖИВ' }}</em>
+                                            </div>
+                                        {% else %}
+                                            <div class="combat-result-empty">NO_ACTORS</div>
+                                        {% endfor %}
+                                    </div>
+                                </article>
                             {% else %}
-                            <div class="combat-result-empty combat-result-empty--progress">НАВЫКИ НЕ ИЗМЕНИЛИСЬ</div>
+                                <article class="combat-result-team">
+                                    <div class="combat-result-team-head">
+                                        <span>Состав боя</span>
+                                        <strong>NO_DATA</strong>
+                                    </div>
+                                    <div class="combat-result-empty">Данные участников не попали в финальный отчет.</div>
+                                </article>
                             {% endfor %}
-                        </div>
+                        </section>
+
+                        <section class="combat-result-rewards">
+                            <div class="combat-result-section-title">ПРОГРЕСС</div>
+                            <div class="combat-result-reward-grid">
+                                <div class="combat-result-reward combat-result-reward--total">
+                                    <span>ПОЛУЧЕНО ОПЫТА ВСЕГО</span>
+                                    <em>{{ result_experience.percent_text if result_experience else '+0.00%' }}</em>
+                                </div>
+                                {% for row in result_progression %}
+                                <div class="combat-result-reward combat-result-reward--skill">
+                                    <span>{{ row.label }}</span>
+                                    <em>{{ row.percent_text }}</em>
+                                </div>
+                                {% else %}
+                                <div class="combat-result-empty combat-result-empty--progress">НАВЫКИ НЕ ИЗМЕНИЛИСЬ</div>
+                                {% endfor %}
+                            </div>
+                        </section>
                     </section>
 
                     <footer class="combat-result-actions">
@@ -101,11 +103,11 @@
                 </section>
             </article>
         </section>
-    {% elif combat_screen %}
+{% elif combat_screen %}
         {% set hero = combat_screen.hero %}
         {% set target = combat_screen.target %}
-        <section id="center-screens" class="combat-screen-shell">
-            <article class="cs active game-screen-area game-screen-area--vertical combat-screen">
+        <section class="combat-screen-shell">
+            <article class="combat-screen">
                 {% set exchange = combat_screen.exchange_state %}
                 <header class="combat-statebar" aria-label="Combat state">
                     <div class="combat-statebar__brand">
@@ -126,12 +128,12 @@
 
                     {% if combat_screen.target %}
                         {% set field_target = combat_screen.target %}
-                        <article class="combat-field-actor combat-field-actor--enemy combat-commit combat-commit--{{ field_target.commit_state }}"
+                        <article class="combat-field-actor combat-field-actor--enemy{% if field_target.is_shadow %} combat-field-actor--shadow{% endif %} combat-commit combat-commit--{{ field_target.commit_state }}"
                                  aria-label="Current enemy target"
                                  data-commit-state="{{ field_target.commit_state }}"
                                  data-tippy-content="{{ field_target.commit_tooltip }}"
                                  data-tippy-theme="game-hint">
-                            <div class="combat-field-portrait combat-field-portrait--enemy combat-commit-frame combat-commit-frame--{{ field_target.commit_state }}">
+                            <div class="combat-field-portrait combat-field-portrait--enemy{% if field_target.is_shadow %} combat-field-portrait--shadow{% endif %} combat-commit-frame combat-commit-frame--{{ field_target.commit_state }}">
                                 <img src="{{ field_target.avatar_url }}" alt="{{ field_target.name }}">
                                 <strong>{{ field_target.name }}</strong>
                             </div>
@@ -153,57 +155,22 @@
                                         <strong>{{ field_target.vitals.stamina_current }}/{{ field_target.vitals.stamina_max }}</strong>
                                     </div>
                                 </div>
-                                {% if field_target.effects %}
-                                    <div class="combat-effect-row">
-                                        {% for effect in field_target.effects[:3] %}
-                                            <span>{{ effect.title }}{% if effect.duration_text %} {{ effect.duration_text }}{% endif %}</span>
-                                        {% endfor %}
-                                    </div>
-                                {% endif %}
-                            </div>
-                        </article>
-                    {% else %}
-                        <article class="combat-target-empty-card" aria-label="No active target">
-                            <div class="combat-target-empty__image" role="presentation"></div>
-                            <div class="combat-target-empty-copy">
-                                <strong>{{ exchange.title }}</strong>
-                                <p>{{ exchange.summary_text }}</p>
+                                <div class="combat-effect-row" aria-label="Enemy effects">
+                                    {% for effect in field_target.effects[:3] %}
+                                        <span>{{ effect.title }}{% if effect.duration_text %} {{ effect.duration_text }}{% endif %}</span>
+                                    {% else %}
+                                        <span class="combat-effect-empty">NO EFFECTS</span>
+                                    {% endfor %}
+                                </div>
                             </div>
                         </article>
                     {% endif %}
 
-                    <article class="combat-exchange-card combat-exchange-card--{{ exchange.pair_status }}">
-                        {% set latest_turn = combat_screen.log_turns[0] if combat_screen.log_turns else none %}
-                        <header class="combat-exchange-head">
-                            <strong>{{ exchange.title }}</strong>
-                            <span>{{ exchange.pair_status|upper }} // {{ exchange.opponent_response_state|upper }}</span>
-                        </header>
-                        <p class="combat-exchange-summary">{{ exchange.summary_text }}</p>
-                        {% if latest_turn and latest_turn.lines %}
-                            <section class="combat-exchange-wave" aria-label="Latest exchange log">
-                                <div class="combat-exchange-wave__head">
-                                    <span>{{ latest_turn.title }}</span>
-                                    <b>{{ latest_turn.lines|length }}</b>
-                                </div>
-                                <div class="combat-exchange-wave__lines">
-                                    {% for line in latest_turn.lines[:4] %}
-                                        {% set source_id = line.source.id if line.source else none %}
-                                        {% set target_id = line.target.id if line.target else none %}
-                                        <div class="combat-exchange-wave__line combat-exchange-wave__line--{{ line.severity }}{% if source_id|string == char_id|string %} is-player-source{% elif target_id|string == char_id|string %} is-player-target{% endif %}">
-                                            {% if line.icon_url %}
-                                                <img class="combat-log-icon" src="{{ line.icon_url }}" alt="">
-                                            {% endif %}
-                                            <span>{{ line.text }}</span>
-                                        </div>
-                                    {% endfor %}
-                                </div>
-                            </section>
-                        {% endif %}
-                    </article>
+                    {% include "game/domains/combat/viewport/exchange_card.html" %}
 
                     {% set field_hero = combat_screen.hero %}
-                    <article class="combat-field-actor combat-field-actor--hero" aria-label="Player combatant">
-                        <div class="combat-field-portrait combat-field-portrait--hero">
+                    <article class="combat-field-actor combat-field-actor--hero{% if field_hero.is_shadow %} combat-field-actor--shadow{% endif %}" aria-label="Player combatant">
+                        <div class="combat-field-portrait combat-field-portrait--hero{% if field_hero.is_shadow %} combat-field-portrait--shadow{% endif %}">
                             <img src="{{ field_hero.avatar_url }}" alt="{{ field_hero.name }}">
                             <strong>{{ field_hero.name }}</strong>
                         </div>
@@ -225,13 +192,13 @@
                                     <strong>{{ field_hero.vitals.stamina_current }}/{{ field_hero.vitals.stamina_max }}</strong>
                                 </div>
                             </div>
-                            {% if field_hero.effects %}
-                                <div class="combat-effect-row">
-                                    {% for effect in field_hero.effects[:3] %}
-                                        <span>{{ effect.title }}{% if effect.duration_text %} {{ effect.duration_text }}{% endif %}</span>
-                                    {% endfor %}
-                                </div>
-                            {% endif %}
+                            <div class="combat-effect-row" aria-label="Player effects">
+                                {% for effect in field_hero.effects[:3] %}
+                                    <span>{{ effect.title }}{% if effect.duration_text %} {{ effect.duration_text }}{% endif %}</span>
+                                {% else %}
+                                    <span class="combat-effect-empty">NO EFFECTS</span>
+                                {% endfor %}
+                            </div>
                         </div>
                     </article>
                 </section>
@@ -527,9 +494,9 @@
 
             </article>
         </section>
-    {% else %}
-        <section id="center-screens" class="combat-screen-shell">
-            <article class="cs active combat-screen">
+{% else %}
+        <section class="combat-screen-shell">
+            <article class="combat-screen combat-empty-screen">
                 <div class="loc-tag">
                     <span class="loc-dot"></span>
                     <span>COMBAT // NO_DATA</span>
@@ -539,5 +506,4 @@
                 </div>
             </article>
         </section>
-    {% endif %}
-</div>
+{% endif %}

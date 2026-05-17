@@ -17,6 +17,7 @@ from src.backend.features.combat.exceptions import (
     CombatTargetRequiredError,
     CombatTargetUnavailableError,
 )
+from src.backend.features.combat.game_config import CombatConfig
 from src.backend.features.combat.integrations import CombatSessionIntegration
 
 # Конфиг таймеров согласно документации
@@ -150,6 +151,7 @@ class CombatTurnManager:
         await self.arq.enqueue_job(
             "combat_collector_task", signal_timeout.model_dump(), _defer_until=self._defer_after(timeout)
         )
+        await self._enqueue_chaos_watchdog_if_started(session_id)
 
         log.info(
             "TurnManagerAccepted | session_id={session_id} actor_id={actor_id} move_id={move_id} action={action} strategy={strategy} timeout={timeout}s",
@@ -249,6 +251,8 @@ class CombatTurnManager:
                     "combat_collector_task", signal_timeout.model_dump(), _defer_until=self._defer_after(timeout)
                 )
 
+            await self._enqueue_chaos_watchdog_if_started(session_id)
+
             log.info(
                 "TurnManagerBatchAccepted | session_id={session_id} actor_id={actor_id} accepted={accepted} requested={requested} timeout={timeout}s",
                 session_id=session_id,
@@ -308,6 +312,16 @@ class CombatTurnManager:
                 "timeout_ms": timeout_ms,
                 "force_attack_at_ms": now_ms + timeout_ms,
             }
+        )
+
+    async def _enqueue_chaos_watchdog_if_started(self, session_id: str) -> None:
+        started = await self.combat_sessions.mark_started_and_refresh_ttl(session_id)
+        if not started:
+            return
+        await self.arq.enqueue_job(
+            "chaos_check_task",
+            session_id,
+            _defer_until=self._defer_after(int(CombatConfig.CHAOS_FIRST_CHECK_DELAY_SECONDS)),
         )
 
     async def _is_dead_target(self, session_id: str, target_id: ActorIdLike) -> bool:

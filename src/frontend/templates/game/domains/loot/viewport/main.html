@@ -1,0 +1,191 @@
+{% set loot_context = (loot or {}).get('loot_context') or {} %}
+{% set corpses = loot_context.get('corpses') or [] %}
+{% set corpse_ids = (loot or {}).get('corpse_ids') or loot_context.get('corpse_ids') or [] %}
+<section class="loot-screen"
+         aria-label="Post combat loot"
+         x-data="{
+            selectedLoot: null,
+            showAllLoot: false,
+            x: 96,
+            y: 92,
+            dragging: false,
+            dx: 0,
+            dy: 0,
+            openLoot(id) { this.selectedLoot = id; this.showAllLoot = false; },
+            openAllLoot() { this.selectedLoot = null; this.showAllLoot = true; },
+            closeLoot() { this.selectedLoot = null; this.showAllLoot = false; },
+            startDrag(event) {
+                if (window.matchMedia('(max-width: 700px)').matches) return;
+                const rect = event.currentTarget.closest('.loot-window').getBoundingClientRect();
+                this.dragging = true;
+                this.dx = event.clientX - rect.left;
+                this.dy = event.clientY - rect.top;
+            },
+            moveDrag(event) {
+                if (!this.dragging) return;
+                const width = Math.min(560, window.innerWidth - 24);
+                const height = 420;
+                this.x = Math.max(8, Math.min(window.innerWidth - width - 8, event.clientX - this.dx));
+                this.y = Math.max(52, Math.min(window.innerHeight - height - 36, event.clientY - this.dy));
+            },
+            stopDrag() { this.dragging = false; },
+            windowStyle() { return `left: ${this.x}px; top: ${this.y}px;`; }
+         }"
+         @pointermove.window="moveDrag($event)"
+         @pointerup.window="stopDrag()"
+         @pointercancel.window="stopDrag()">
+    <div class="loot-screen-visual">
+        <div class="loot-screen-copy">
+            <span>AFTERMATH</span>
+            <strong>После боя</strong>
+            <p>{{ (loot or {}).get('notice') or 'На поле остались вещи, которые можно забрать.' }}</p>
+        </div>
+    </div>
+
+    <div class="loot-screen-panel">
+        <header class="loot-screen-header">
+            <span>ДОБЫЧА</span>
+            <small>{{ corpse_ids|length }} источн.</small>
+        </header>
+
+        {% if corpses %}
+            <div class="loot-source-grid" aria-label="Loot sources">
+                {% for corpse in corpses %}
+                    {% set item_count = corpse.get('items', [])|length %}
+                    <button type="button"
+                            class="loot-source-card"
+                            @click="openLoot('{{ corpse.get('corpse_id') }}')"
+                            aria-label="Open loot source {{ corpse.get('name') or 'UNKNOWN' }}">
+                        <span class="loot-source-card__icon" aria-hidden="true"></span>
+                        <strong>{{ corpse.get('name') or 'UNKNOWN SOURCE' }}</strong>
+                        <small>{{ item_count }} предмет.</small>
+                    </button>
+                {% endfor %}
+            </div>
+
+            {% for corpse in corpses %}
+                <section class="loot-window"
+                         x-cloak
+                         x-show="selectedLoot === '{{ corpse.get('corpse_id') }}'"
+                         x-transition.opacity
+                         :style="windowStyle()"
+                         role="dialog"
+                         aria-modal="false"
+                         aria-label="Loot source {{ corpse.get('name') or 'UNKNOWN' }}">
+                    <header class="loot-window-head" @pointerdown.prevent="startDrag($event)">
+                        <div>
+                            <span>ИСТОЧНИК</span>
+                            <strong>{{ corpse.get('name') or 'UNKNOWN SOURCE' }}</strong>
+                        </div>
+                        <button type="button" class="loot-window-close" @click="closeLoot()" aria-label="Close loot window">x</button>
+                    </header>
+                    <div class="loot-list">
+                        {% for item in corpse.get('items', []) %}
+                            {% set item_key = item.get('template_id') or item.get('item_id') %}
+                            <div class="loot-row"
+                                 tabindex="0"
+                                 data-loot-item-row
+                                 data-catalog="items"
+                                 data-catalog-key="{{ item_key }}"
+                                 data-catalog-tooltip="description">
+                                <div class="loot-row-main">
+                                    <strong data-catalog="items"
+                                            data-catalog-key="{{ item_key }}"
+                                            data-catalog-field="title"
+                                            data-catalog-tooltip="description">{{ item.get('display_name') or 'Предмет' }}</strong>
+                                    <span>{{ item.get('rarity') or 'common' }}</span>
+                                </div>
+                                <div class="loot-row-meta">
+                                    <b>x{{ item.get('amount') or 1 }}</b>
+                                </div>
+                            </div>
+                        {% else %}
+                            <div class="loot-empty">
+                                <strong>Пусто</strong>
+                                <span>Этот источник уже пуст.</span>
+                            </div>
+                        {% endfor %}
+                    </div>
+                    <form hx-post="{{ (loot or {}).get('claim_action') or '/game/loot/claim-all' }}"
+                          hx-target="#game-session-root"
+                          hx-swap="outerHTML"
+                          class="loot-window-actions">
+                        <input type="hidden" name="char_id" value="{{ char_id }}">
+                        <input type="hidden" name="corpse_ids" value="{{ corpse.get('corpse_id') }}">
+                        <button type="submit" class="dp game-action-button loot-claim-source">
+                            <strong>Забрать источник</strong>
+                            <span>{{ corpse.get('name') or 'UNKNOWN' }}</span>
+                        </button>
+                    </form>
+                </section>
+            {% endfor %}
+
+            <section class="loot-window loot-window--all"
+                     x-cloak
+                     x-show="showAllLoot"
+                     x-transition.opacity
+                     :style="windowStyle()"
+                     role="dialog"
+                     aria-modal="false"
+                     aria-label="All loot sources">
+                <header class="loot-window-head" @pointerdown.prevent="startDrag($event)">
+                    <div>
+                        <span>ВСЕ ИСТОЧНИКИ</span>
+                        <strong>Вся добыча</strong>
+                    </div>
+                    <button type="button" class="loot-window-close" @click="closeLoot()" aria-label="Close loot window">x</button>
+                </header>
+                <div class="loot-list loot-list--grouped">
+                    {% for corpse in corpses %}
+                        <section class="loot-group">
+                            <header>{{ corpse.get('name') or 'UNKNOWN SOURCE' }}</header>
+                            {% for item in corpse.get('items', []) %}
+                                {% set item_key = item.get('template_id') or item.get('item_id') %}
+                                <div class="loot-row"
+                                     tabindex="0"
+                                     data-loot-item-row
+                                     data-catalog="items"
+                                     data-catalog-key="{{ item_key }}"
+                                     data-catalog-tooltip="description">
+                                    <div class="loot-row-main">
+                                        <strong data-catalog="items"
+                                                data-catalog-key="{{ item_key }}"
+                                                data-catalog-field="title"
+                                                data-catalog-tooltip="description">{{ item.get('display_name') or 'Предмет' }}</strong>
+                                        <span>{{ item.get('rarity') or 'common' }}</span>
+                                    </div>
+                                    <div class="loot-row-meta">
+                                        <b>x{{ item.get('amount') or 1 }}</b>
+                                    </div>
+                                </div>
+                            {% endfor %}
+                        </section>
+                    {% endfor %}
+                </div>
+            </section>
+
+            <form hx-post="{{ (loot or {}).get('claim_action') or '/game/loot/claim-all' }}"
+                  hx-target="#game-session-root"
+                  hx-swap="outerHTML"
+                  class="loot-screen-actions">
+                <input type="hidden" name="char_id" value="{{ char_id }}">
+                {% for corpse_id in corpse_ids %}
+                    <input type="hidden" name="corpse_ids" value="{{ corpse_id }}">
+                {% endfor %}
+                <button type="button" class="dp game-action-button loot-view-all" @click="openAllLoot()">
+                    <strong>Посмотреть всё</strong>
+                    <span>{{ corpse_ids|length }} источн.</span>
+                </button>
+                <button type="submit" class="dp game-action-button loot-claim-all">
+                    <strong>Взять всё</strong>
+                    <span>Вернуться к осмотру</span>
+                </button>
+            </form>
+        {% else %}
+            <div class="loot-empty">
+                <strong>Пусто</strong>
+                <span>После боя не осталось предметов.</span>
+            </div>
+        {% endif %}
+    </div>
+</section>

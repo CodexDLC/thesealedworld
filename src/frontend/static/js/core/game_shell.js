@@ -2,7 +2,7 @@ window.inventoryGridLayout = function(element) {
     if (!element) return null;
 
     const root = element.closest(".inventory-shell") || element;
-    const frame = element.closest(".inventory-window") || root;
+    const frame = element.closest(".right-inventory-panel") || root;
     const readNumber = (value, fallback) => {
         const parsed = Number.parseFloat(value);
         return Number.isFinite(parsed) ? parsed : fallback;
@@ -75,11 +75,36 @@ window.gameShell = function(initial = {}) {
         return `tbmmorpg:shell:panels:${domainScope}:${scope}:${viewportScope}:v1`;
     };
     const isDrawerViewport = () => window.matchMedia("(max-width: 1024px)").matches;
+    const clearDrawerPanelState = () => {
+        try {
+            window.localStorage.removeItem(panelStateStorageKey());
+        } catch (_error) {
+            return;
+        }
+    };
     const explorationDesktopPanelsDefaultOpen = () => {
         if (domain !== "exploration") return false;
         return window.matchMedia("(min-width: 1025px)").matches;
     };
+    const unavailableModalCopy = {
+        quests: {
+            eyebrow: "QUEST SYSTEM",
+            title: "Система квестов будет доступна позже",
+            body: "Этот раздел сейчас в разработке. Когда он будет готов, здесь появятся активные задачи, следы, цепочки событий и журнал решений.",
+        },
+    };
+    const escapeHtml = (value) => String(value).replace(/[&<>"']/g, (char) => ({
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        "\"": "&quot;",
+        "'": "&#39;",
+    })[char]);
     const loadPanelState = () => {
+        if (isDrawerViewport()) {
+            clearDrawerPanelState();
+            return null;
+        }
         try {
             const raw = window.localStorage.getItem(panelStateStorageKey());
             if (!raw) return null;
@@ -97,6 +122,10 @@ window.gameShell = function(initial = {}) {
         }
     };
     const savePanelState = (state) => {
+        if (isDrawerViewport()) {
+            clearDrawerPanelState();
+            return;
+        }
         try {
             window.localStorage.setItem(panelStateStorageKey(), JSON.stringify({
                 leftOpen: Boolean(state.leftOpen),
@@ -108,53 +137,11 @@ window.gameShell = function(initial = {}) {
             return;
         }
     };
-    const loadHudOpenState = (name) => {
-        try {
-            const raw = window.localStorage.getItem(hudOpenStorageKey(name));
-            if (!raw) return null;
-            const saved = JSON.parse(raw);
-            return typeof saved?.open === "boolean" ? saved.open : null;
-        } catch (_error) {
-            window.localStorage.removeItem(hudOpenStorageKey(name));
-            return null;
-        }
-    };
     const saveHudOpenState = (name, isOpen) => {
         try {
             window.localStorage.setItem(hudOpenStorageKey(name), JSON.stringify({ open: Boolean(isOpen) }));
         } catch (_error) {
             return;
-        }
-    };
-    const savedInventoryOpen = loadHudOpenState("inventory");
-    const inventoryWindow = {
-        open: Boolean(initial.initialInventoryOpen) && savedInventoryOpen !== false,
-        x: null,
-        y: null,
-        width: null,
-        height: null,
-        dragging: false,
-        resizing: false,
-        resizeEdge: "",
-        dragOffsetX: 0,
-        dragOffsetY: 0,
-        resizeStartX: 0,
-        resizeStartY: 0,
-        resizeStartLeft: 0,
-        resizeStartTop: 0,
-        resizeStartWidth: 0,
-        resizeStartHeight: 0,
-    };
-    const loadHudGeometry = (name, target) => {
-        try {
-            const raw = window.localStorage.getItem(hudStorageKey(name));
-            if (!raw) return;
-            const saved = JSON.parse(raw);
-            for (const key of ["x", "y", "width", "height"]) {
-                if (Number.isFinite(saved[key])) target[key] = saved[key];
-            }
-        } catch (_error) {
-            window.localStorage.removeItem(hudStorageKey(name));
         }
     };
     const saveHudGeometry = (name, hudWindow) => {
@@ -168,12 +155,11 @@ window.gameShell = function(initial = {}) {
             height: Math.round(hudWindow.height),
         }));
     };
-    loadHudGeometry("inventory", inventoryWindow);
     const savedPanelState = loadPanelState();
     const defaultPanelsOpen = explorationDesktopPanelsDefaultOpen();
     const initialPanelState = savedPanelState || {
-        leftOpen: !isDrawerViewport() && (defaultPanelsOpen || Boolean(initial.leftOpen)),
-        rightOpen: !isDrawerViewport() && (defaultPanelsOpen || Boolean(initial.rightOpen)),
+        leftOpen: !isDrawerViewport() && defaultPanelsOpen,
+        rightOpen: !isDrawerViewport() && defaultPanelsOpen,
         leftPanelView: "status",
         rightPanelView: "context",
     };
@@ -190,7 +176,7 @@ window.gameShell = function(initial = {}) {
 
     return {
         chatTab: "global",
-        chatHeight: Alpine.$persist(200),
+        chatHeight: 30,
         chatMinimized: true,
         chatStep: 0,
         chatClosed: false,
@@ -203,9 +189,7 @@ window.gameShell = function(initial = {}) {
         leftPanelView: initialPanelState.leftPanelView,
         rightPanelView: initialPanelState.rightPanelView,
         panelStateUserEdited: savedPanelState !== null,
-        windows: {
-            inventory: inventoryWindow,
-        },
+        windows: {},
         chatLauncher,
         leftOpen: initialPanelState.leftOpen,
         rightOpen: initialPanelState.rightOpen,
@@ -213,7 +197,7 @@ window.gameShell = function(initial = {}) {
         togglePanel(detail = {}) {
             if (detail.side === "left") {
                 const nextView = detail.view || this.leftPanelView;
-                if (this.leftOpen && this.leftPanelView === nextView) {
+                if (!detail.forceOpen && this.leftOpen && this.leftPanelView === nextView) {
                     this.leftOpen = false;
                     this.panelStateUserEdited = true;
                     savePanelState(this);
@@ -226,7 +210,7 @@ window.gameShell = function(initial = {}) {
             }
             if (detail.side === "right") {
                 const nextView = detail.view || this.rightPanelView;
-                if (this.rightOpen && this.rightPanelView === nextView) {
+                if (!detail.forceOpen && this.rightOpen && this.rightPanelView === nextView) {
                     this.rightOpen = false;
                     this.panelStateUserEdited = true;
                     savePanelState(this);
@@ -239,21 +223,39 @@ window.gameShell = function(initial = {}) {
             }
         },
 
-        applySessionPanelState(state = {}) {
-            if (this.panelStateUserEdited || explorationDesktopPanelsDefaultOpen()) return;
-            if (Object.prototype.hasOwnProperty.call(state, "left_open")) {
-                this.leftOpen = Boolean(state.left_open);
-            }
-            if (Object.prototype.hasOwnProperty.call(state, "right_open")) {
-                this.rightOpen = Boolean(state.right_open);
-            }
-        },
-
         toggleHudWindow(name) {
             const hudWindow = this.windows[name];
             if (!hudWindow) return;
             hudWindow.open = !hudWindow.open;
             saveHudOpenState(name, hudWindow.open);
+        },
+
+        openUnavailableModal(detail = {}) {
+            const modalRoot = document.getElementById("game-modal-root");
+            if (!modalRoot) return;
+
+            const copy = unavailableModalCopy[detail.kind] || {
+                eyebrow: "SYSTEM",
+                title: "Система будет доступна позже",
+                body: "Этот функционал сейчас находится в разработке.",
+            };
+            modalRoot.innerHTML = `
+                <div class="game-modal-backdrop" role="presentation" onclick="if (event.target === this) this.closest('#game-modal-root').innerHTML = ''">
+                    <section class="game-unavailable-modal" role="dialog" aria-modal="true" aria-labelledby="game-unavailable-modal-title">
+                        <header class="game-unavailable-modal__head">
+                            <span>${escapeHtml(copy.eyebrow)}</span>
+                            <button class="game-modal-close" type="button" aria-label="Close modal" onclick="this.closest('#game-modal-root').innerHTML = ''">x</button>
+                        </header>
+                        <div class="game-unavailable-modal__body">
+                            <h2 id="game-unavailable-modal-title">${escapeHtml(copy.title)}</h2>
+                            <p>${escapeHtml(copy.body)}</p>
+                        </div>
+                        <footer class="game-unavailable-modal__actions">
+                            <button class="game-action-button game-action-button--primary" type="button" onclick="this.closest('#game-modal-root').innerHTML = ''">Понятно</button>
+                        </footer>
+                    </section>
+                </div>
+            `;
         },
 
         closeHudWindow(name) {

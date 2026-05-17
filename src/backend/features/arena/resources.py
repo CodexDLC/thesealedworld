@@ -63,22 +63,9 @@ class ArenaResources:
         if mode == ArenaModeEnum.ONE_VS_ONE.value:
             return [
                 ArenaButtonDTO(
-                    text="Ранг 1 мин",
+                    text="Искать противника",
                     action=ArenaActionEnum.JOIN_QUEUE,
                     mode=mode,
-                    value={"wait_limit_sec": 60},
-                ),
-                ArenaButtonDTO(
-                    text="Ранг 3 мин",
-                    action=ArenaActionEnum.JOIN_QUEUE,
-                    mode=mode,
-                    value={"wait_limit_sec": 180},
-                ),
-                ArenaButtonDTO(
-                    text="Ранг 5 мин",
-                    action=ArenaActionEnum.JOIN_QUEUE,
-                    mode=mode,
-                    value={"wait_limit_sec": 300},
                 ),
                 ArenaButtonDTO(text="Бой с тенью", action=ArenaActionEnum.START_SHADOW, mode=mode, variant="ghost"),
                 ArenaButtonDTO(text="Назад", action=ArenaActionEnum.MENU_MAIN, variant="ghost"),

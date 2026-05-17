@@ -3,6 +3,8 @@ from __future__ import annotations
 from src.backend.features.game_catalog.combat.resources.abilities import get_all_ability_catalog_entries
 from src.backend.features.game_catalog.combat.resources.effects import get_all_effect_catalog_entries
 from src.backend.features.game_catalog.combat.resources.effects.schemas import EffectType
+from src.backend.features.game_catalog.combat.resources.feints import get_all_feint_catalog_entries
+from src.backend.features.game_catalog.combat.resources.items import get_all_combat_item_action_catalog_entries
 from src.backend.features.game_catalog.combat.resources.text_templates.schemas import CombatTextTemplateRecipeDTO
 
 TARGET_BODIES = ("humanoid", "beast")
@@ -151,6 +153,39 @@ BASIC_EXCHANGE_TEMPLATE_RECIPES: tuple[CombatTextTemplateRecipeDTO, ...] = (
         tags=["exchange", "weapon"],
     ),
     CombatTextTemplateRecipeDTO(
+        template_key="combat.exchange.basic.miss.humanoid_to_beast.weapon",
+        resource_type="basic_exchange",
+        resource_id="basic",
+        catalog_key="combat.exchange.basic",
+        outcome="miss",
+        body_pair="humanoid_to_beast",
+        delivery="weapon",
+        pattern="{approach}, {weapon_form}; но {reaction}.",
+        phrase_keys={
+            "approach": "body.humanoid.approach.default.short_step",
+            "weapon_form": "body.humanoid.weapon_form.skill_swords.short_cut",
+            "reaction": "body.beast.reaction.miss.pass",
+        },
+        tags=["exchange", "weapon", "miss"],
+    ),
+    CombatTextTemplateRecipeDTO(
+        template_key="combat.exchange.basic.dodge.humanoid_to_beast.weapon",
+        resource_type="basic_exchange",
+        resource_id="basic",
+        catalog_key="combat.exchange.basic",
+        outcome="dodge",
+        body_pair="humanoid_to_beast",
+        delivery="weapon",
+        pattern="{approach}, {weapon_form} и {contact}; но {reaction}.",
+        phrase_keys={
+            "approach": "body.humanoid.approach.default.short_step",
+            "weapon_form": "body.humanoid.weapon_form.skill_swords.short_cut",
+            "contact": "body.humanoid.contact_vs_beast.default.flank",
+            "reaction": "body.beast.reaction.dodge.side_leap",
+        },
+        tags=["exchange", "weapon", "dodge"],
+    ),
+    CombatTextTemplateRecipeDTO(
         template_key="combat.exchange.basic.hit.beast_to_humanoid.natural",
         resource_type="basic_exchange",
         resource_id="basic",
@@ -168,6 +203,22 @@ BASIC_EXCHANGE_TEMPLATE_RECIPES: tuple[CombatTextTemplateRecipeDTO, ...] = (
         tags=["exchange", "natural"],
     ),
     CombatTextTemplateRecipeDTO(
+        template_key="combat.exchange.basic.miss.beast_to_humanoid.natural",
+        resource_type="basic_exchange",
+        resource_id="basic",
+        catalog_key="combat.exchange.basic",
+        outcome="miss",
+        body_pair="beast_to_humanoid",
+        delivery="natural",
+        pattern="{approach} и {contact}; но {reaction}.",
+        phrase_keys={
+            "approach": "body.beast.approach.default.feint_snap",
+            "contact": "body.beast.contact_vs_humanoid.default.leg",
+            "reaction": "body.humanoid.reaction.miss.gap",
+        },
+        tags=["exchange", "natural", "miss"],
+    ),
+    CombatTextTemplateRecipeDTO(
         template_key="combat.exchange.basic.dodge.beast_to_humanoid.natural",
         resource_type="basic_exchange",
         resource_id="basic",
@@ -183,7 +234,269 @@ BASIC_EXCHANGE_TEMPLATE_RECIPES: tuple[CombatTextTemplateRecipeDTO, ...] = (
         },
         tags=["exchange", "natural", "dodge"],
     ),
+    CombatTextTemplateRecipeDTO(
+        template_key="combat.exchange.basic.parry.beast_to_humanoid.natural",
+        resource_type="basic_exchange",
+        resource_id="basic",
+        catalog_key="combat.exchange.basic",
+        outcome="parry",
+        body_pair="beast_to_humanoid",
+        delivery="natural",
+        pattern="{approach} и {contact}; но {reaction}.",
+        phrase_keys={
+            "approach": "body.beast.approach.small.dart",
+            "contact": "body.beast.contact_vs_humanoid.default.leg",
+            "reaction": "body.humanoid.reaction.parry.deflect",
+        },
+        tags=["exchange", "natural", "parry"],
+    ),
 )
+
+
+GENERIC_BASIC_EXCHANGE_TEMPLATE_RECIPES: tuple[CombatTextTemplateRecipeDTO, ...] = (
+    CombatTextTemplateRecipeDTO(
+        template_key="combat.exchange.basic.crit.humanoid_to_humanoid.weapon",
+        resource_type="basic_exchange",
+        resource_id="basic",
+        catalog_key="combat.exchange.basic",
+        outcome="crit",
+        body_pair="humanoid_to_humanoid",
+        delivery="weapon",
+        pattern="{approach}, {weapon_form} и {contact}; {impact}, {result}.",
+        phrase_keys={
+            "approach": "body.humanoid.approach.weapon.raise",
+            "weapon_form": "body.humanoid.weapon_form.skill_swords.guard_cut",
+            "contact": "body.humanoid.contact_vs_humanoid.default.open_side",
+            "impact": "body.humanoid.impact_vs_humanoid.crit.break",
+            "result": "common.result.damage.hp",
+        },
+        tags=["exchange", "weapon", "crit"],
+    ),
+    CombatTextTemplateRecipeDTO(
+        template_key="combat.exchange.basic.parry.humanoid_to_humanoid.weapon",
+        resource_type="basic_exchange",
+        resource_id="basic",
+        catalog_key="combat.exchange.basic",
+        outcome="parry",
+        body_pair="humanoid_to_humanoid",
+        delivery="weapon",
+        pattern="{approach}, {weapon_form} и {contact}; но {reaction}.",
+        phrase_keys={
+            "approach": "body.humanoid.approach.default.short_step",
+            "weapon_form": "body.humanoid.weapon_form.skill_swords.short_cut",
+            "contact": "body.humanoid.contact_vs_humanoid.default.open_side",
+            "reaction": "body.humanoid.reaction.parry.deflect",
+        },
+        tags=["exchange", "weapon", "parry"],
+    ),
+    CombatTextTemplateRecipeDTO(
+        template_key="combat.exchange.basic.dodge.humanoid_to_humanoid.weapon",
+        resource_type="basic_exchange",
+        resource_id="basic",
+        catalog_key="combat.exchange.basic",
+        outcome="dodge",
+        body_pair="humanoid_to_humanoid",
+        delivery="weapon",
+        pattern="{approach}, {weapon_form} и {contact}; но {reaction}.",
+        phrase_keys={
+            "approach": "body.humanoid.approach.default.short_step",
+            "weapon_form": "body.humanoid.weapon_form.skill_swords.short_cut",
+            "contact": "body.humanoid.contact_vs_humanoid.default.open_side",
+            "reaction": "body.humanoid.reaction.dodge.sidestep",
+        },
+        tags=["exchange", "weapon", "dodge"],
+    ),
+    CombatTextTemplateRecipeDTO(
+        template_key="combat.exchange.basic.block.humanoid_to_humanoid.weapon",
+        resource_type="basic_exchange",
+        resource_id="basic",
+        catalog_key="combat.exchange.basic",
+        outcome="block",
+        body_pair="humanoid_to_humanoid",
+        delivery="weapon",
+        pattern="{approach}, {weapon_form} и {contact}; но {reaction}.",
+        phrase_keys={
+            "approach": "body.humanoid.approach.default.short_step",
+            "weapon_form": "body.humanoid.weapon_form.skill_swords.short_cut",
+            "contact": "body.humanoid.contact_vs_humanoid.default.open_side",
+            "reaction": "body.humanoid.reaction.block.shield_take",
+        },
+        tags=["exchange", "weapon", "block"],
+    ),
+    CombatTextTemplateRecipeDTO(
+        template_key="combat.exchange.basic.miss.humanoid_to_humanoid.weapon",
+        resource_type="basic_exchange",
+        resource_id="basic",
+        catalog_key="combat.exchange.basic",
+        outcome="miss",
+        body_pair="humanoid_to_humanoid",
+        delivery="weapon",
+        pattern="{approach}, {weapon_form}; но {reaction}.",
+        phrase_keys={
+            "approach": "body.humanoid.approach.default.short_step",
+            "weapon_form": "body.humanoid.weapon_form.skill_swords.short_cut",
+            "reaction": "body.humanoid.reaction.miss.void",
+        },
+        tags=["exchange", "weapon", "miss"],
+    ),
+)
+
+
+DEFAULT_BASIC_EXCHANGE_TEMPLATE_RECIPES: tuple[CombatTextTemplateRecipeDTO, ...] = (
+    CombatTextTemplateRecipeDTO(
+        template_key="combat.exchange.default.hit",
+        resource_type="basic_exchange",
+        resource_id="default",
+        catalog_key="combat.exchange.default",
+        outcome="hit",
+        pattern="{source} атакует {target}, нанося {damage} урона. (F)",
+        tags=["exchange", "default", "fallback"],
+    ),
+    CombatTextTemplateRecipeDTO(
+        template_key="combat.exchange.default.crit",
+        resource_type="basic_exchange",
+        resource_id="default",
+        catalog_key="combat.exchange.default",
+        outcome="crit",
+        pattern="{source} атакует {target}, нанося {damage} урона. (F)",
+        tags=["exchange", "default", "fallback", "crit"],
+    ),
+    CombatTextTemplateRecipeDTO(
+        template_key="combat.exchange.default.miss",
+        resource_type="basic_exchange",
+        resource_id="default",
+        catalog_key="combat.exchange.default",
+        outcome="miss",
+        pattern="{source} атакует {target}, но промахивается. (F)",
+        tags=["exchange", "default", "fallback", "miss"],
+    ),
+    CombatTextTemplateRecipeDTO(
+        template_key="combat.exchange.default.dodge",
+        resource_type="basic_exchange",
+        resource_id="default",
+        catalog_key="combat.exchange.default",
+        outcome="dodge",
+        pattern="{source} атакует {target}, но цель уходит от атаки. (F)",
+        tags=["exchange", "default", "fallback", "dodge"],
+    ),
+    CombatTextTemplateRecipeDTO(
+        template_key="combat.exchange.default.parry",
+        resource_type="basic_exchange",
+        resource_id="default",
+        catalog_key="combat.exchange.default",
+        outcome="parry",
+        pattern="{source} атакует {target}, но атака парирована. (F)",
+        tags=["exchange", "default", "fallback", "parry"],
+    ),
+    CombatTextTemplateRecipeDTO(
+        template_key="combat.exchange.default.block",
+        resource_type="basic_exchange",
+        resource_id="default",
+        catalog_key="combat.exchange.default",
+        outcome="block",
+        pattern="{source} атакует {target}, но защита гасит удар. (F)",
+        tags=["exchange", "default", "fallback", "block"],
+    ),
+)
+
+
+DEFAULT_FEINT_TEMPLATE_RECIPES: tuple[CombatTextTemplateRecipeDTO, ...] = (
+    CombatTextTemplateRecipeDTO(
+        template_key="combat.feint.default.hit",
+        resource_type="feint",
+        resource_id="default",
+        catalog_key="combat.feint.default",
+        outcome="hit",
+        pattern="{source} применяет {feint} против {target}, нанося {damage} урона. (F)",
+        tags=["feint", "default", "fallback"],
+    ),
+    CombatTextTemplateRecipeDTO(
+        template_key="combat.feint.default.crit",
+        resource_type="feint",
+        resource_id="default",
+        catalog_key="combat.feint.default",
+        outcome="crit",
+        pattern="{source} применяет {feint} против {target}, нанося {damage} урона. (F)",
+        tags=["feint", "default", "fallback", "crit"],
+    ),
+    CombatTextTemplateRecipeDTO(
+        template_key="combat.feint.default.miss",
+        resource_type="feint",
+        resource_id="default",
+        catalog_key="combat.feint.default",
+        outcome="miss",
+        pattern="{source} применяет {feint} против {target}, но промахивается. (F)",
+        tags=["feint", "default", "fallback", "miss"],
+    ),
+    CombatTextTemplateRecipeDTO(
+        template_key="combat.feint.default.dodge",
+        resource_type="feint",
+        resource_id="default",
+        catalog_key="combat.feint.default",
+        outcome="dodge",
+        pattern="{source} применяет {feint} против {target}, но цель уходит от атаки. (F)",
+        tags=["feint", "default", "fallback", "dodge"],
+    ),
+    CombatTextTemplateRecipeDTO(
+        template_key="combat.feint.default.parry",
+        resource_type="feint",
+        resource_id="default",
+        catalog_key="combat.feint.default",
+        outcome="parry",
+        pattern="{source} применяет {feint} против {target}, но атака парирована. (F)",
+        tags=["feint", "default", "fallback", "parry"],
+    ),
+    CombatTextTemplateRecipeDTO(
+        template_key="combat.feint.default.block",
+        resource_type="feint",
+        resource_id="default",
+        catalog_key="combat.feint.default",
+        outcome="block",
+        pattern="{source} применяет {feint} против {target}, но защита гасит удар. (F)",
+        tags=["feint", "default", "fallback", "block"],
+    ),
+)
+
+
+def _build_generic_feint_template_recipes() -> tuple[CombatTextTemplateRecipeDTO, ...]:
+    existing = {recipe.template_key for recipe in TRUE_STRIKE_TEMPLATE_RECIPES}
+    recipes: list[CombatTextTemplateRecipeDTO] = []
+    for entry in get_all_feint_catalog_entries():
+        feint_id = entry.technical.feint_id
+        for outcome, impact_key, tags in (
+            ("hit", "body.humanoid.impact_vs_humanoid.hit.side", ["feint", "weapon"]),
+            ("crit", "body.humanoid.impact_vs_humanoid.crit.break", ["feint", "weapon", "crit"]),
+        ):
+            key = f"combat.feint.{feint_id}.{outcome}.humanoid_to_humanoid.weapon"
+            if key in existing:
+                continue
+            pattern = "{approach}, {weapon_form} и {contact}; {impact}, {result}."
+            if feint_id == "measured_strike" and outcome == "hit":
+                pattern = "{approach}, {weapon_form} и {contact}; {impact}, {result}, добавляя {bonus_damage} урона."
+            recipes.append(
+                CombatTextTemplateRecipeDTO(
+                    template_key=key,
+                    resource_type="feint",
+                    resource_id=feint_id,
+                    catalog_key=entry.key,
+                    outcome=outcome,
+                    body_pair="humanoid_to_humanoid",
+                    delivery="weapon",
+                    pattern=pattern,
+                    phrase_keys={
+                        "approach": "body.humanoid.approach.weapon.measured",
+                        "weapon_form": "body.humanoid.weapon_form.skill_swords.cutting_line",
+                        "contact": "body.humanoid.contact_vs_humanoid.default.open_side",
+                        "impact": impact_key,
+                        "result": "common.result.damage.hp",
+                    },
+                    tags=tags,
+                )
+            )
+    return tuple(recipes)
+
+
+GENERIC_FEINT_TEMPLATE_RECIPES = _build_generic_feint_template_recipes()
 
 
 def _effect_patterns(effect_type: EffectType) -> dict[str, str]:
@@ -346,6 +659,75 @@ def _build_ability_template_recipes() -> tuple[CombatTextTemplateRecipeDTO, ...]
 
 
 ABILITY_TEMPLATE_RECIPES = _build_ability_template_recipes()
+
+
+ABILITY_DEFAULT_TEMPLATE_RECIPES: tuple[CombatTextTemplateRecipeDTO, ...] = (
+    CombatTextTemplateRecipeDTO(
+        template_key="combat.ability.default.cast.single",
+        resource_type="ability",
+        resource_id="default",
+        catalog_key="combat.ability.default",
+        outcome="cast",
+        delivery="single",
+        pattern="{source} применяет {ability} на {target}. (F)",
+        tags=["ability", "default", "fallback", "cast"],
+    ),
+    CombatTextTemplateRecipeDTO(
+        template_key="combat.ability.default.cast.area",
+        resource_type="ability",
+        resource_id="default",
+        catalog_key="combat.ability.default",
+        outcome="area_result",
+        delivery="area",
+        pattern="{source} применяет {ability}: {target_results}. (F)",
+        tags=["ability", "default", "fallback", "area"],
+    ),
+    CombatTextTemplateRecipeDTO(
+        template_key="combat.ability.default.no_resource",
+        resource_type="ability",
+        resource_id="default",
+        catalog_key="combat.ability.default",
+        outcome="no_resource",
+        pattern="{source} не может применить {ability}. (F)",
+        tags=["ability", "default", "fallback", "no_resource"],
+    ),
+    CombatTextTemplateRecipeDTO(
+        template_key="combat.ability.default.target.hit",
+        resource_type="ability",
+        resource_id="default",
+        catalog_key="combat.ability.default",
+        outcome="hit",
+        pattern="{target} получает {damage} урона от {ability}. (F)",
+        tags=["ability", "default", "fallback", "hit"],
+    ),
+    CombatTextTemplateRecipeDTO(
+        template_key="combat.ability.default.target.heal",
+        resource_type="ability",
+        resource_id="default",
+        catalog_key="combat.ability.default",
+        outcome="heal",
+        pattern="{target} восстанавливает {healing} здоровья от {ability}. (F)",
+        tags=["ability", "default", "fallback", "heal"],
+    ),
+    CombatTextTemplateRecipeDTO(
+        template_key="combat.ability.default.target.apply",
+        resource_type="ability",
+        resource_id="default",
+        catalog_key="combat.ability.default",
+        outcome="apply",
+        pattern="{target} получает эффект от {ability}. (F)",
+        tags=["ability", "default", "fallback", "apply"],
+    ),
+    CombatTextTemplateRecipeDTO(
+        template_key="combat.ability.default.target.miss",
+        resource_type="ability",
+        resource_id="default",
+        catalog_key="combat.ability.default",
+        outcome="miss",
+        pattern="{target} избегает {ability}. (F)",
+        tags=["ability", "default", "fallback", "miss"],
+    ),
+)
 
 
 DEATH_TEMPLATE_RECIPES: tuple[CombatTextTemplateRecipeDTO, ...] = (
@@ -913,13 +1295,107 @@ ITEM_TEMPLATE_RECIPES: tuple[CombatTextTemplateRecipeDTO, ...] = (
 )
 
 
+def _build_item_template_recipes() -> tuple[CombatTextTemplateRecipeDTO, ...]:
+    recipes: list[CombatTextTemplateRecipeDTO] = []
+    for entry in get_all_combat_item_action_catalog_entries():
+        item_id = entry.technical.item_action_id
+        recipes.extend(
+            [
+                CombatTextTemplateRecipeDTO(
+                    template_key=f"combat.item.{item_id}.cast.single",
+                    resource_type="item",
+                    resource_id=item_id,
+                    catalog_key=entry.key,
+                    outcome="cast",
+                    delivery="single",
+                    pattern="{source} использует {item} на {target}.",
+                    tags=["item", item_id, "cast", "single"],
+                ),
+                CombatTextTemplateRecipeDTO(
+                    template_key=f"combat.item.{item_id}.cast.area",
+                    resource_type="item",
+                    resource_id=item_id,
+                    catalog_key=entry.key,
+                    outcome="area_result",
+                    delivery="area",
+                    pattern="{source} использует {item}: {target_results}.",
+                    tags=["item", item_id, "area"],
+                ),
+                CombatTextTemplateRecipeDTO(
+                    template_key=f"combat.item.{item_id}.no_resource",
+                    resource_type="item",
+                    resource_id=item_id,
+                    catalog_key=entry.key,
+                    outcome="no_resource",
+                    pattern="{source} не может использовать {item}.",
+                    tags=["item", item_id, "no_resource"],
+                ),
+            ]
+        )
+        for target_body in TARGET_BODIES:
+            recipes.extend(
+                [
+                    CombatTextTemplateRecipeDTO(
+                        template_key=f"combat.item.{item_id}.target.hit.{target_body}",
+                        resource_type="item",
+                        resource_id=item_id,
+                        catalog_key=entry.key,
+                        outcome="hit",
+                        target_body=target_body,
+                        pattern="{target} получает {damage} урона от {item}",
+                        tags=["item", item_id, "target", "hit", target_body],
+                    ),
+                    CombatTextTemplateRecipeDTO(
+                        template_key=f"combat.item.{item_id}.target.heal.{target_body}",
+                        resource_type="item",
+                        resource_id=item_id,
+                        catalog_key=entry.key,
+                        outcome="heal",
+                        target_body=target_body,
+                        pattern="{target} восстанавливает {healing} здоровья от {item}",
+                        tags=["item", item_id, "target", "heal", target_body],
+                    ),
+                    CombatTextTemplateRecipeDTO(
+                        template_key=f"combat.item.{item_id}.target.apply.{target_body}",
+                        resource_type="item",
+                        resource_id=item_id,
+                        catalog_key=entry.key,
+                        outcome="apply",
+                        target_body=target_body,
+                        pattern="{target} получает эффект от {item}",
+                        tags=["item", item_id, "target", "apply", target_body],
+                    ),
+                    CombatTextTemplateRecipeDTO(
+                        template_key=f"combat.item.{item_id}.target.miss.{target_body}",
+                        resource_type="item",
+                        resource_id=item_id,
+                        catalog_key=entry.key,
+                        outcome="miss",
+                        target_body=target_body,
+                        pattern="{target} избегает {item}",
+                        tags=["item", item_id, "target", "miss", target_body],
+                    ),
+                ]
+            )
+    return tuple(recipes)
+
+
+ITEM_SPECIFIC_TEMPLATE_RECIPES = _build_item_template_recipes()
+
+
 ALL_COMBAT_TEXT_TEMPLATE_RECIPES: tuple[CombatTextTemplateRecipeDTO, ...] = (
     *TRUE_STRIKE_TEMPLATE_RECIPES,
     *BASIC_EXCHANGE_TEMPLATE_RECIPES,
+    *GENERIC_BASIC_EXCHANGE_TEMPLATE_RECIPES,
+    *DEFAULT_BASIC_EXCHANGE_TEMPLATE_RECIPES,
+    *DEFAULT_FEINT_TEMPLATE_RECIPES,
+    *GENERIC_FEINT_TEMPLATE_RECIPES,
     *EFFECT_TEMPLATE_RECIPES,
     *ABILITY_TEMPLATE_RECIPES,
+    *ABILITY_DEFAULT_TEMPLATE_RECIPES,
     *DEATH_TEMPLATE_RECIPES,
     *TRIGGER_TEMPLATE_RECIPES,
     *GIFT_TEMPLATE_RECIPES,
+    *ITEM_SPECIFIC_TEMPLATE_RECIPES,
     *ITEM_TEMPLATE_RECIPES,
 )

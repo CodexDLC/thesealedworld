@@ -10,7 +10,7 @@ from src.backend.core.ai import AIService
 async def test_ai_service_initializes_direct_gemini_provider(monkeypatch):
     monkeypatch.setattr("src.backend.core.ai.settings.gemini_api_key", "test-key")  # pragma: allowlist secret
     monkeypatch.setattr("src.backend.core.ai.settings.gemini_model", "gemini-2.5-flash")
-    monkeypatch.setattr("src.backend.core.ai.settings.gemini_image_model", "gemini-3.1-flash-image-preview")
+    monkeypatch.setattr("src.backend.core.ai.settings.gemini_image_model", "gemini-2.5-flash-image")
 
     with patch("src.backend.core.ai.GeminiProvider") as provider_cls:
         provider = MagicMock()
@@ -21,7 +21,7 @@ async def test_ai_service_initializes_direct_gemini_provider(monkeypatch):
     provider_cls.assert_called_once_with(
         api_key="test-key",
         model="gemini-2.5-flash",
-        image_model="gemini-3.1-flash-image-preview",
+        image_model="gemini-2.5-flash-image",
     )
     assert service.provider is provider
 
@@ -130,13 +130,13 @@ async def test_ai_service_generate_image_bytes_delegates_to_provider(monkeypatch
 
         result = await service.generate_image_bytes(
             "prompt",
-            model="gemini-3.1-flash-image-preview",
+            model="gemini-2.5-flash-image",
             response_mime_type="image/webp",
         )
 
     assert result == (b"image", "image/webp")
     provider.generate_image_bytes.assert_awaited_once_with(
         "prompt",
-        model="gemini-3.1-flash-image-preview",
+        model="gemini-2.5-flash-image",
         response_mime_type="image/webp",
     )

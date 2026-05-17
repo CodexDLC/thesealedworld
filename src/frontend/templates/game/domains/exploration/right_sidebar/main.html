@@ -19,9 +19,9 @@
 <aside class="panel-dock panel-dock--framed panel-dock--scroll side-panel-drawer side-panel-drawer--right exploration-info-dock is-open"
        data-side-panel="info"
        aria-label="Exploration location info drawer">
-    <nav class="dock-nav dock-nav--bar dock-nav--two exploration-info-actions" aria-label="Location info actions">
+    <nav class="dock-nav dock-nav--bar dock-nav--panel exploration-info-actions" aria-label="Location info actions">
         <button class="dock-nav-button is-active" type="button">INFO</button>
-        <button class="dock-nav-button"
+        <button class="dock-nav-button dock-nav-button--close"
                 type="button"
                 @click="$dispatch('panel-toggle', { side: 'right', view: 'context' })">
             CLOSE
@@ -71,7 +71,7 @@
                     {% if previews %}
                         {% for enemy in previews %}
                             <details class="exploration-monster-card" {{ 'open' if loop.first else '' }}>
-                                <summary><span>{{ enemy.name if enemy.name is defined and enemy.name else 'UNKNOWN TARGET' }}</span><strong>{{ enemy.level if enemy.level is defined and enemy.level else enemy.threat_rating if enemy.threat_rating is defined else '???' }}</strong></summary>
+                                <summary><span>{{ enemy.name if enemy.name is defined and enemy.name else 'UNKNOWN TARGET' }}</span><strong>{{ enemy.member_tier if enemy.member_tier is defined and enemy.member_tier is not none else enemy.level if enemy.level is defined and enemy.level is not none else '???' }}</strong></summary>
                                 <div><span>Threat</span><strong>{{ enemy.threat_rating if enemy.threat_rating is defined else enemy.level if enemy.level is defined else '???' }}</strong></div>
                                 <div><span>HP</span><strong>{{ enemy.hp_percent ~ '%' if enemy.hp_percent is defined and enemy.hp_percent is not none else '???' }}</strong></div>
                                 <div><span>Intent</span><strong>{{ enemy.role if enemy.role is defined else enemy.variant_key if enemy.variant_key is defined else 'UNKNOWN' }}</strong></div>
@@ -124,6 +124,39 @@
                 {% endif %}
             </div>
         </details>
+
+        <section class="info-widget-section exploration-location-card exploration-minimap-card" aria-label="Local map preview">
+            <header class="info-widget-title">
+                <span>LOCAL MAP</span>
+                <strong>5x5</strong>
+            </header>
+            <div class="exploration-minimap" aria-label="Local navigation map placeholder">
+                <div class="exploration-minimap-grid" role="grid" aria-label="Current location centered with unknown surrounding cells">
+                    {% for row in range(5) %}
+                        {% for col in range(5) %}
+                            {% set is_current_cell = row == 2 and col == 2 %}
+                            {% set axis_hint = row == 2 or col == 2 %}
+                            <button class="exploration-minimap-cell {{ 'is-current' if is_current_cell else 'is-route-hint' if axis_hint else 'is-unknown' }}"
+                                    type="button"
+                                    aria-label="{{ 'Current location' if is_current_cell else 'Unknown map cell' }}"
+                                    data-map-tooltip="{{ location_view.title if is_current_cell and location_view.title is defined else 'NO_DATA' }}">
+                                {% if is_current_cell %}
+                                    <span class="exploration-minimap-current-dot" aria-hidden="true"></span>
+                                {% elif axis_hint %}
+                                    <span class="exploration-minimap-route-mark" aria-hidden="true"></span>
+                                {% else %}
+                                    <span aria-hidden="true">?</span>
+                                {% endif %}
+                            </button>
+                        {% endfor %}
+                    {% endfor %}
+                </div>
+                <div class="exploration-minimap-caption">
+                    <span>{{ location_view.title if location_view.title is defined else 'CURRENT LOCATION' }}</span>
+                    <strong>NO MAP DATA</strong>
+                </div>
+            </div>
+        </section>
     {% else %}
         <section class="info-widget-section exploration-location-card">
             <header class="info-widget-title">

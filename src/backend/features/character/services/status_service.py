@@ -44,8 +44,8 @@ ATTRIBUTE_GROUPS = [
 SKILL_GROUP_ORDER = [
     SkillUiGroup.WEAPON_MASTERY.value,
     SkillUiGroup.TACTICAL.value,
-    SkillUiGroup.ARMOR.value,
     SkillUiGroup.COMBAT_SUPPORT.value,
+    SkillUiGroup.ARMOR.value,
     SkillUiGroup.GATHERING.value,
     SkillUiGroup.SURVIVAL.value,
     SkillUiGroup.CRAFTING.value,
@@ -55,7 +55,7 @@ SKILL_GROUP_ORDER = [
 
 SKILL_GROUP_TITLES = {
     SkillUiGroup.WEAPON_MASTERY.value: "WEAPON MASTERY",
-    SkillUiGroup.TACTICAL.value: "TACTICAL",
+    SkillUiGroup.TACTICAL.value: "COMBAT STYLE",
     SkillUiGroup.ARMOR.value: "ARMOR",
     SkillUiGroup.COMBAT_SUPPORT.value: "COMBAT SUPPORT",
     SkillUiGroup.GATHERING.value: "GATHERING",

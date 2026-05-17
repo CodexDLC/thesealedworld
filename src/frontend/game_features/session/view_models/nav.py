@@ -19,9 +19,9 @@ def build_game_nav(*, state: CoreDomain | str, char_id: int) -> dict[str, dict[s
     if current == CoreDomain.EXPLORATION.value:
         return {
             "l2": _item("STATUS", "#", False, icon="person", panel="left", panel_view="status"),
-            "l1": _item("BUILDS", "#", False, icon="bolt", panel="left", panel_view="builds"),
+            "l1": _item("QUESTS", "#", False, icon="journal", modal="quests"),
             "center": _item("EXPLORE", "#", True, icon="map"),
-            "r1": _item("INVENTORY", "#", False, icon="inventory", window="inventory"),
+            "r1": _item("INVENTORY", "#", False, icon="inventory", panel="right", panel_view="inventory"),
             "r2": _item("VIEW", "#", False, icon="journal", panel="right", panel_view="context"),
         }
 
@@ -38,11 +38,11 @@ def build_game_nav(*, state: CoreDomain | str, char_id: int) -> dict[str, dict[s
 
     if current == CoreDomain.COMBAT.value:
         return {
-            "l2": _disabled_item("STATUS", icon="person"),
+            "l2": _item("STATUS", "#", False, icon="person", panel="left", panel_view="status"),
             "l1": _disabled_item("BUILDS", icon="bolt"),
             "center": _item("COMBAT", "#", True, icon="swords"),
             "r1": _disabled_item("INVENTORY", icon="inventory"),
-            "r2": _disabled_item("VIEW", icon="journal"),
+            "r2": _item("VIEW", "#", False, icon="journal", panel="right", panel_view="context"),
         }
 
     if current == CoreDomain.DEATH.value:
@@ -54,11 +54,20 @@ def build_game_nav(*, state: CoreDomain | str, char_id: int) -> dict[str, dict[s
             "r2": _disabled_item("VIEW", icon="journal"),
         }
 
+    if current == CoreDomain.LOOT.value:
+        return {
+            "l2": _item("STATUS", "#", False, icon="person", panel="left", panel_view="status"),
+            "l1": _disabled_item("BUILDS", icon="bolt"),
+            "center": _item("LOOT", "#", True, icon="inventory"),
+            "r1": _disabled_item("INVENTORY", icon="inventory"),
+            "r2": _disabled_item("VIEW", icon="journal"),
+        }
+
     return {
         "l2": _item("STATUS", "#", False, icon="person", panel="left", panel_view="status"),
         "l1": _item("BUILDS", "#", False, icon="bolt", panel="left", panel_view="builds"),
         "center": _item(center_labels.get(current, current), "#", True, icon=center_icons.get(current, "unknown")),
-        "r1": _item("INVENTORY", "#", False, icon="inventory", window="inventory"),
+        "r1": _item("INVENTORY", "#", False, icon="inventory", panel="right", panel_view="inventory"),
         "r2": _item("VIEW", "#", False, icon="journal", panel="right", panel_view="context"),
     }
 
@@ -72,6 +81,7 @@ def _item(
     panel: str | None = None,
     panel_view: str | None = None,
     window: str | None = None,
+    modal: str | None = None,
 ) -> dict[str, Any]:
     return {
         "label": label,
@@ -81,6 +91,7 @@ def _item(
         "panel": panel,
         "panel_view": panel_view,
         "window": window,
+        "modal": modal,
         "is_disabled": False,
     }
 
@@ -94,6 +105,7 @@ def _empty_item() -> dict[str, Any]:
         "panel": None,
         "panel_view": None,
         "window": None,
+        "modal": None,
         "is_disabled": True,
     }
 

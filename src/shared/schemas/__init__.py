@@ -13,6 +13,8 @@ from src.shared.schemas.character import (
 from src.shared.schemas.character_status import CharacterActorCoreDTO
 from src.shared.schemas.game_lobby import (
     CharacterCreationGender,
+    CharacterNameAvailabilityDTO,
+    CharacterNameAvailabilityRequestDTO,
     CreateCharacterRequestDTO,
     DeleteCharacterRequestDTO,
     EnterCharacterRequestDTO,
@@ -54,6 +56,8 @@ __all__ = [
     "CharacterAttributesReadDTO",
     "CharacterAttributesUpdateDTO",
     "CharacterCreationGender",
+    "CharacterNameAvailabilityDTO",
+    "CharacterNameAvailabilityRequestDTO",
     "CharacterOnboardingUpdateDTO",
     "CharacterReadDTO",
     "CharacterShellCreateDTO",

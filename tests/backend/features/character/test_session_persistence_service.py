@@ -168,6 +168,7 @@ async def test_character_repository_syncs_active_session_snapshot() -> None:
         "death_run_id": None,
         "death_corpse_id": None,
         "active_quest": None,
+        "post_combat": None,
     }
     assert character.vitals_snapshot["hp"]["cur"] == 90
     session.flush.assert_awaited_once()

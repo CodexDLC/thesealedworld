@@ -8,11 +8,11 @@ from src.frontend.cabinet import CABINET_MODULES
 def test_project_cabinet_modules_render_engine_cabinet() -> None:
     app = FastAPI()
 
-    include_cabinet(app, modules=CABINET_MODULES, mount_path="/cabinet")
+    include_cabinet(app, modules=CABINET_MODULES, mount_path="/admin")
 
-    response = TestClient(app).get("/cabinet")
+    response = TestClient(app).get("/admin")
     assert response.status_code == 200
-    # Cabinet redirects to first registered module (combat); verify Russian labels render
+    # Admin cabinet redirects to the first registered project module; verify shared labels render.
     assert "Гейм Сервер" in response.text
     assert "Бой" in response.text
 
@@ -20,8 +20,8 @@ def test_project_cabinet_modules_render_engine_cabinet() -> None:
 def test_project_cabinet_module_route_renders() -> None:
     app = FastAPI()
 
-    include_cabinet(app, modules=CABINET_MODULES, mount_path="/cabinet")
+    include_cabinet(app, modules=CABINET_MODULES, mount_path="/admin")
 
-    response = TestClient(app).get("/cabinet/game-server")
+    response = TestClient(app).get("/admin/game-server")
     assert response.status_code == 200
     assert "Game Server" in response.text

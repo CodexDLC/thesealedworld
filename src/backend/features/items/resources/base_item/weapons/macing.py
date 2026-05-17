@@ -37,7 +37,7 @@ MACING_DB = {
         implicit_bonuses={
             "accuracy_penalty": 0.16,
             "main_hand_armor_penetration_pct": 0.12,
-            "physical_crit_chance": 0.05,
+            "physical_crit_chance": 0.04,
         },
         triggers=["crit.weapon_heavy_crit"],
     ),
@@ -57,7 +57,7 @@ MACING_DB = {
         implicit_bonuses={
             "accuracy_penalty": 0.10,
             "main_hand_armor_penetration_pct": 0.10,
-            "physical_crit_chance": 0.03,
+            "physical_crit_chance": 0.025,
         },
         triggers=["crit.weapon_impact_stun_crit"],
     ),
@@ -77,8 +77,8 @@ MACING_DB = {
         implicit_bonuses={
             "accuracy_penalty": 0.24,
             "main_hand_armor_penetration_pct": 0.22,
-            "physical_crit_chance": 0.05,
-            "parry_chance": 0.03,
+            "physical_crit_chance": 0.035,
+            "parry_chance": 0.02,
             "evasion_penalty": -0.10,
         },
         triggers=["crit.weapon_impact_stun_crit"],
@@ -99,7 +99,7 @@ MACING_DB = {
         implicit_bonuses={
             "accuracy_penalty": 0.18,
             "main_hand_armor_penetration_pct": 0.08,
-            "physical_crit_chance": 0.06,
+            "physical_crit_chance": 0.04,
         },
         triggers=["crit.weapon_shieldbreaker_crit"],
     ),

@@ -12,6 +12,7 @@
 } %}
 <div
     class="lobby-panel {% if not lobby.has_characters %}lobby-panel--empty{% endif %}"
+    :class="{ 'is-creating': creating }"
     x-data='lobbyPanelState({{ ("select" if lobby.has_characters else "intro") | tojson }}, {{ initial_selection | tojson }})'
 >
     <!-- Deletion Modal Overlay -->
@@ -30,6 +31,8 @@
                            class="modal-input"
                            x-model="deleteConfirmName"
                            x-ref="modalInput"
+                           minlength="3"
+                           maxlength="16"
                            @keydown.enter="submitDelete()"
                            placeholder="Введите имя...">
                 </div>
@@ -104,14 +107,6 @@
     {% if lobby.can_create %}
         <div class="lobby-creation-section" x-show="creating" x-cloak>
             {% include "site/game_lobby/fragments/creation_form.html" %}
-        </div>
-
-        <div class="lobby-actions" x-show="creating" x-cloak>
-            <form id="character-creation-form" action="/game-lobby/start" method="post">
-                <button type="submit" class="btn-node lg">
-                    <span>{{ lobby.primary_action_label }}</span>
-                </button>
-            </form>
         </div>
     {% else %}
         <div class="lobby-message sys-error">

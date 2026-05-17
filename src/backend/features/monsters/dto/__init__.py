@@ -1,3 +1,4 @@
+from .ai import MonsterClanFlavorDTO, MonsterVariantFlavorDTO
 from .generation import (
     EncounterMonsterResult,
     GeneratedClan,
@@ -33,6 +34,7 @@ __all__ = [
     "GeneratedMonster",
     "GeneratedMonsterTemplateDTO",
     "MonsterAIProfileDTO",
+    "MonsterClanFlavorDTO",
     "MonsterBalanceDTO",
     "MonsterGenerationContext",
     "MonsterGrantedAbilitiesDTO",
@@ -52,4 +54,5 @@ __all__ = [
     "MonsterMemberResourceModelDTO",
     "MonsterStatsDTO",
     "MonsterVariantDTO",
+    "MonsterVariantFlavorDTO",
 ]

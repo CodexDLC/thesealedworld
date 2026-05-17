@@ -106,16 +106,19 @@ class ArenaService:
         if match is None:
             match = await self.session.get_match_for_char(session.char_id)
         if match is not None:
+            if await self.clear_completed_entered_match(session, match):
+                return await self._mode_payload(session.mode or match.mode, char_id=session.char_id)
             if match.battle_type == "shadow" and match.metadata.get("awaiting_player_choice"):
                 return self._shadow_offer_payload(match)
             return self._pending_payload(match)
 
         if session.screen == ArenaScreenEnum.MODE_MENU and session.mode:
-            return await self._mode_payload(session.mode)
+            return await self._mode_payload(session.mode, char_id=session.char_id)
 
         request = await self.session.get_request_meta(session.char_id)
         if request is not None:
             wait_time = int(time.time() - request.start_time)
+            waiting_count = await self.session.queue_waiting_count(request.mode)
             return ArenaUIPayloadDTO(
                 screen=ArenaScreenEnum.SEARCHING,
                 mode=request.mode,
@@ -124,17 +127,24 @@ class ArenaService:
                 gs=request.gs,
                 wait_time_sec=wait_time,
                 buttons=ArenaResources.get_searching_buttons(request.mode),
-                metadata={"queue_type": "ranked", "wait_limit_sec": request.wait_limit_sec},
+                metadata={
+                    "queue_type": "ranked",
+                    "wait_limit_sec": request.wait_limit_sec,
+                    "queue_waiting_count": waiting_count,
+                },
             )
 
         if session.screen in {ArenaScreenEnum.COMBAT_FAILED, ArenaScreenEnum.COMBAT_PENDING}:
             await self.session.set_runtime_screen(session, ArenaScreenEnum.MAIN_MENU, mode=None)
         return await self.get_main_menu()
 
-    async def _mode_payload(self, mode: str) -> ArenaUIPayloadDTO:
+    async def _mode_payload(self, mode: str, *, char_id: int | None = None) -> ArenaUIPayloadDTO:
         metadata = {}
         if mode == ArenaModeEnum.GROUP.value:
             metadata["group_lobby"] = ArenaResources.get_group_lobby_mock()
+        if mode == ArenaModeEnum.ONE_VS_ONE.value:
+            metadata["queue_waiting_count"] = await self.session.queue_waiting_count(mode, exclude_char_id=char_id)
+            metadata["max_wait_limit_sec"] = 300
         return ArenaUIPayloadDTO(
             screen=ArenaScreenEnum.MODE_MENU,
             mode=mode,
@@ -143,6 +153,27 @@ class ArenaService:
             buttons=ArenaResources.get_mode_buttons(mode),
             metadata=metadata,
         )
+
+    async def clear_completed_entered_match(
+        self,
+        session: ArenaRuntimeSessionDTO,
+        match: ArenaCombatRequestDTO,
+    ) -> bool:
+        if not session.metadata.get("entered_combat") or not match.combat_id:
+            return False
+        is_active = await self.integrator.is_combat_session_active(session.char_id, match.combat_id)
+        if is_active:
+            return False
+        await self.session.delete_match(match)
+        session.metadata = {}
+        await self.session.set_runtime_screen(
+            session,
+            ArenaScreenEnum.MODE_MENU,
+            mode=match.mode,
+            active_match_id="",
+            combat_id="",
+        )
+        return True
 
     def _pending_payload(
         self,

@@ -1,0 +1,19 @@
+.loot-screen-actions,
+.death-screen-actions {
+    width: min(420px, 100%);
+    margin: 8px auto 0;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+}
+
+.loot-claim-all,
+.loot-claim-source,
+.loot-view-all,
+.death-respawn-action {
+    width: 100%;
+}
+
+.loot-window-actions .loot-claim-source {
+    min-height: 44px;
+}

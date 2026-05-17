@@ -42,5 +42,7 @@ def get_game_session_service(
             world_store=request.app.state.world_locations,
             commit_on_write=True,
         ),
+        loot_manager=LootManager(redis),
+        loot_arq=getattr(request.app.state, "system_arq", None),
     )
     return GameSessionService(integrator=integrator)

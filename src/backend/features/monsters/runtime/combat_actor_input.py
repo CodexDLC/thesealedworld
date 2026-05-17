@@ -6,6 +6,7 @@ from typing import Any
 from src.backend.features.character.runtime.combat_actor_input import CharacterCombatActorInputBuilder
 from src.backend.features.character.runtime.combat_math_model import CharacterCombatMathModelBuilder
 from src.backend.features.game_catalog.combat.resources.feints.availability import build_known_feints
+from src.backend.features.monsters.skill_contract import filter_monster_combat_skills
 
 
 class MonsterCombatActorInputBuilder:
@@ -22,6 +23,12 @@ class MonsterCombatActorInputBuilder:
             items=items,
             skills=skills,
         )
+        generation_meta = dict(getattr(monster, "generation_meta", None) or {})
+        family_modifiers = generation_meta.get("family_modifiers") or []
+        if family_modifiers:
+            meta = generation_meta.get("meta") or {}
+            family_id = str(meta.get("family_id") or "unknown")
+            self._apply_family_modifiers(raw["modifiers"], family_modifiers, family_id)
         raw["tags"] = self._meta_tags(monster)
         loadout = self._loadout(monster, items, skills)
         return {
@@ -47,17 +54,28 @@ class MonsterCombatActorInputBuilder:
         }
 
     @staticmethod
+    def _apply_family_modifiers(
+        modifiers: dict[str, Any],
+        family_modifiers: list[dict[str, Any]],
+        family_id: str,
+    ) -> None:
+        from src.backend.features.character.runtime.combat_math_model import COMBAT_MODIFIER_KEYS, MODIFIER_ALIASES
+
+        source = f"family:{family_id}"
+        for entry in family_modifiers:
+            target = str(entry.get("target") or "")
+            effective = entry.get("effective_value")
+            if not target or effective is None:
+                continue
+            key = MODIFIER_ALIASES.get(target, target)
+            if key not in COMBAT_MODIFIER_KEYS:
+                continue
+            modifiers.setdefault(key, {"base": 0.0, "source": {}, "temp": {}})
+            modifiers[key]["source"][source] = round(float(effective), 4)
+
+    @staticmethod
     def _scaled_skills(raw: dict[str, Any]) -> dict[str, float]:
-        skills = raw.get("skills") if isinstance(raw, dict) and "skills" in raw else raw
-        if not isinstance(skills, dict):
-            return {}
-        result: dict[str, float] = {}
-        for key, value in skills.items():
-            try:
-                result[str(key)] = round(float(value or 0.0), 4)
-            except (TypeError, ValueError):
-                result[str(key)] = 0.0
-        return result
+        return filter_monster_combat_skills(raw)
 
     @staticmethod
     def _items_for_player_mapper(items: dict[str, Any]) -> dict[str, Any]:
@@ -103,7 +121,7 @@ class MonsterCombatActorInputBuilder:
             "power": combat.get("power"),
             "damage_spread": combat.get("damage_spread"),
             "implicit_bonuses": combat.get("implicit_bonuses") or {},
-            "bonuses": {} if affixes else combat.get("bonuses") or {},
+            "bonuses": combat.get("bonuses") or {},
             "triggers": combat.get("triggers") or [],
             "tags": combat.get("tags") or [],
             "related_skill": combat.get("related_skill"),

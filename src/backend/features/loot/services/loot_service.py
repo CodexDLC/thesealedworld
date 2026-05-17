@@ -19,7 +19,7 @@ class LootService:
         self._engine = engine or LootEngine()
 
     # ------------------------------------------------------------------
-    # Generation — called from loot_order_task
+    # Generation - called from loot order handlers
     # ------------------------------------------------------------------
 
     async def order_loot_for_combat(
@@ -28,23 +28,35 @@ class LootService:
         actors: list[dict[str, Any]],
         location_id: str,
         battle_type: str = "",
-    ) -> list[str]:
+    ) -> dict[str, str]:
         if not await self._integration.mark_loot_ordered(session_id):
             log.info("LootService | already ordered session={}", session_id)
-            return []
+            return {}
 
-        corpse_ids: list[str] = []
+        corpse_ids_by_actor: dict[str, str] = {}
         for actor in actors:
             if actor.get("meta", {}).get("type") != "monster":
+                continue
+            actor_id = self._actor_id(actor)
+            if not actor_id:
+                log.warning("LootService | skip corpse without actor_id session={}", session_id)
                 continue
             corpse = await self._build_corpse(actor, session_id, battle_type)
             if corpse is None:
                 continue
             await self._integration.persist_corpse(corpse, location_id)
-            corpse_ids.append(corpse.id)
-            log.info("LootService | corpse {} for {} at {}", corpse.id, corpse.monster_name, location_id)
+            corpse_ids_by_actor[actor_id] = corpse.id
+            log.info(
+                "LootService | corpse {} for actor={} {} at {}", corpse.id, actor_id, corpse.monster_name, location_id
+            )
 
-        return corpse_ids
+        return corpse_ids_by_actor
+
+    @staticmethod
+    def _actor_id(actor: dict[str, Any]) -> str | None:
+        meta = actor.get("meta") if isinstance(actor.get("meta"), dict) else {}
+        value = actor.get("actor_id") or meta.get("id") or meta.get("actor_id")
+        return str(value) if value is not None else None
 
     async def _build_corpse(self, actor: dict[str, Any], session_id: str, battle_type: str) -> CorpseDTO | None:
         meta = actor.get("meta", {})

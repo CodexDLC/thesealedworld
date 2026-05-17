@@ -196,6 +196,13 @@
              if (channelKey.startsWith('combat_')) return 'бой';
              return { global: 'мир', zone: 'зона', system: 'система', trade: 'торговля', party: 'группа' }[channelKey] || channelKey;
          },
+         _tabSelectLabel(key) {
+             if (this.channels.dynamic[key]) {
+                 const tab = this.channels.dynamic[key].tab || {};
+                 return (this._isUnread(key) ? '* ' : '') + (tab.title || key);
+             }
+             return (this._isUnread(key) ? '* ' : '') + this._channelLabel(key).toUpperCase();
+         },
          _activeDynamicTab() {
              return this.channels.dynamic[chatTab] || null;
          },
@@ -264,9 +271,11 @@
          },
          _templateTexts(m) {
              if (!m) return [];
+             const combatTemplate = this._combatTextTemplate(m);
+             if (combatTemplate) return [combatTemplate.template || ''];
              const texts = [
                  ...this._templateTextsFrom(m.templates),
-                 ...this._templateTextsFrom(m.template)
+                 ...this._templateTextsFrom(this._legacyMessageTemplate(m))
              ];
              const seen = {};
              return texts.filter((text) => {
@@ -274,6 +283,23 @@
                  seen[text] = true;
                  return true;
              });
+         },
+         _legacyMessageTemplate(m) {
+             return m ? m.template : null;
+         },
+         _combatTextTemplate(msg) {
+             if (!this._isCombatLog(msg)) return null;
+             const template = (msg && msg.template) || {};
+             if (!template.key) return null;
+             const cache = this._catalogCache();
+             if (!cache || !cache.getCombatTextTemplate) return null;
+             return cache.getCombatTextTemplate(template.key);
+         },
+         _renderCombatText(msg) {
+             const template = (msg && msg.template) || {};
+             const cache = this._catalogCache();
+             if (!this._isCombatLog(msg) || !template.key || !cache || !cache.renderCombatText) return '';
+             return cache.renderCombatText(template.key, msg.variables || {});
          },
          _joinTemplateTexts(parts) {
              return parts
@@ -361,6 +387,12 @@
              last.text = String(last.text || '').replace(/[\\s.,;:]+$/g, '');
          },
          _combatLogParts(msg) {
+             const renderedCombatText = this._renderCombatText(msg);
+             if (renderedCombatText) {
+                 const parts = [];
+                 this._pushRenderedTextParts(parts, renderedCombatText, msg.variables || {});
+                 return parts;
+             }
              const texts = this._templateTexts(msg);
              const variables = msg.variables || {};
              const parts = [];
@@ -693,7 +725,20 @@
             </template>
         </div>
 
-        <div class="chat-win-controls">
+        <label class="chat-tab-select-wrap" aria-label="Выбор канала чата">
+            <select class="chat-tab-select"
+                    :value="chatTab"
+                    @change="_activateTab($event.target.value)">
+                <option value="global" x-text="_tabSelectLabel('global')"></option>
+                <option value="zone" x-text="_tabSelectLabel('zone')"></option>
+                <option value="system" x-text="_tabSelectLabel('system')"></option>
+                <template x-for="(entry, key) in channels.dynamic" :key="key">
+                    <option :value="key" x-text="_tabSelectLabel(key)"></option>
+                </template>
+            </select>
+        </label>
+
+        <div class="chat-win-controls" @click.stop>
             <div class="chat-tab chat-tab-system-toggle"
                  data-channel="system"
                  :class="{ 'active': chatTab === 'system', 'unread': _isUnread('system') }"
@@ -714,9 +759,9 @@
                     title="Очистить видимые сообщения вкладки"
                     aria-label="Очистить видимые сообщения вкладки">CLR</button>
             <button class="btn-node sm"
-                    @click="chatStep === 0 ? stepChatSize('max') : stepChatSize('min')"
-                    x-text="chatStep === 0 ? 'MAX' : 'MIN'"
-                    title="Свернуть/развернуть"></button>
+                    @click="toggleChatMinMax()"
+                    data-chat-minmax-label
+                    title="Свернуть/развернуть">MAX</button>
             <button class="btn-node sm ghost"
                     @click="setChatStep(0)"
                     title="Свернуть до панели"

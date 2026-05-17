@@ -4,6 +4,8 @@ from pydantic import BaseModel, Field
 
 from src.frontend.integrations.backend_api.base import BaseApiClient
 from src.shared.schemas import (
+    CharacterNameAvailabilityDTO,
+    CharacterNameAvailabilityRequestDTO,
     CharacterStatusDTO,
     CoreResponseDTO,
     GameLobbyCharacterCreateRequestDTO,
@@ -78,6 +80,14 @@ class BackendGameLobbyApi(BaseApiClient):
             "POST",
             "/game-lobby/create",
             response_model=GameLobbyStartResponse,
+            json=dto.model_dump(mode="json"),
+        )
+
+    async def check_name_availability(self, dto: CharacterNameAvailabilityRequestDTO) -> CharacterNameAvailabilityDTO:
+        return await self._request(
+            "POST",
+            "/game-lobby/name-availability",
+            response_model=CharacterNameAvailabilityDTO,
             json=dto.model_dump(mode="json"),
         )
 

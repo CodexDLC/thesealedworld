@@ -60,10 +60,10 @@ class LibraryFrontendService:
 
 
 _SORT_LABELS = {
-    "tier_title": "Tier, name",
-    "title": "Name",
-    "forms_desc": "Most forms",
-    "forms_asc": "Fewest forms",
+    "tier_title": "Тир, название",
+    "title": "Название",
+    "forms_desc": "Больше форм",
+    "forms_asc": "Меньше форм",
 }
 
 
@@ -132,7 +132,7 @@ def _build_filter_options(clans: list[dict]) -> dict[str, list[dict[str, str]]]:
                 tags[str(item["key"])] = str(item.get("label") or item["key"])
 
     return {
-        "tiers": [{"key": str(tier), "label": f"Tier {tier}"} for tier in tiers],
+        "tiers": [{"key": str(tier), "label": f"Тир {tier}"} for tier in tiers],
         "locations": [{"key": key, "label": locations[key]} for key in sorted(locations, key=lambda k: locations[k])],
         "families": [{"key": key, "label": families[key]} for key in sorted(families, key=lambda k: families[k])],
         "dangers": [{"key": key, "label": dangers[key]} for key in sorted(dangers, key=lambda k: dangers[k])],

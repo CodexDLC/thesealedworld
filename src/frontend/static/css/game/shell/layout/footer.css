@@ -1,0 +1,45 @@
+/* ── GAME FOOTER ── */
+.game-footer {
+    height: var(--game-footer-height);
+    background: rgba(12, 12, 16, 0.9);
+    border-top: 1px solid rgba(255, 170, 0, 0.05);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 30px;
+    font-size: 8px;
+    color: var(--col-parchment-dim);
+    opacity: 0.4;
+    letter-spacing: 0.05em;
+    font-family: 'JetBrains Mono', monospace;
+    z-index: 100;
+    width: 100%;
+}
+
+.footer-technical-status {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    min-width: 0;
+}
+
+.footer-copyright {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    white-space: nowrap;
+}
+
+.copyright-sym {
+    font-size: 10px;
+}
+
+.all-rights {
+    opacity: 0.5;
+    font-size: 7px;
+}
+
+.footer-status-log {
+    font-weight: 400;
+    white-space: nowrap;
+}

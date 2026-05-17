@@ -122,10 +122,10 @@ def test_builder_does_not_count_feetwear_as_flat_armor() -> None:
     raw = CharacterCombatMathModelBuilder().build_raw(
         attributes={},
         items={
-            "layout": {"equipment": {"feetwear": "boots-1"}},
+            "layout": {"equipment": {"feetwear": "travel-shoes-1"}},
             "by_id": {
-                "boots-1": {
-                    "item_id": "boots-1",
+                "travel-shoes-1": {
+                    "item_id": "travel-shoes-1",
                     "item_type": "armor",
                     "slot": "feetwear",
                     "mechanics": {"power": 1.6},
@@ -242,13 +242,13 @@ def test_builder_applies_medium_chest_dodge_cap_penalty_and_skill_recovery() -> 
     raw = CharacterCombatMathModelBuilder().build_raw(
         attributes={},
         items={
-            "layout": {"equipment": {"chest_armor": "chainmail-1"}},
+            "layout": {"equipment": {"chest_armor": "jerkin-1"}},
             "by_id": {
-                "chainmail-1": {
-                    "item_id": "chainmail-1",
-                    "base_id": "chainmail",
+                "jerkin-1": {
+                    "item_id": "jerkin-1",
+                    "base_id": "jerkin",
                     "item_type": "armor",
-                    "mechanics": {"armor_class": "medium", "power": 7},
+                    "mechanics": {"armor_class": "medium", "power": 4},
                 }
             },
         },
@@ -257,7 +257,7 @@ def test_builder_applies_medium_chest_dodge_cap_penalty_and_skill_recovery() -> 
 
     sources = raw["modifiers"]["dodge_cap"]["source"]
 
-    assert sources["item:chainmail-1:medium_cap_penalty"] == pytest.approx(-0.10)
+    assert sources["item:jerkin-1:medium_cap_penalty"] == pytest.approx(-0.10)
     assert sources["skill:skill_medium_armor"] == pytest.approx(0.05)
 
 

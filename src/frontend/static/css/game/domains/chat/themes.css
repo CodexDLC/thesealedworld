@@ -1,0 +1,49 @@
+.chat-theme-world {
+    --chat-accent: var(--col-chat-world);
+    --chat-accent-soft: rgba(255, 170, 0, .13);
+    --chat-accent-border: rgba(255, 170, 0, .24);
+    --chat-panel-fill: rgba(13, 8, 4, .62);
+    --chat-side-fill: rgba(10, 7, 4, .70);
+    --chat-input-fill: rgba(22, 13, 5, .60);
+    --chat-surface-texture: url("/static/images/ui/textures/button-candidates/button-surface-01-dark-wood.webp");
+}
+
+.chat-theme-zone {
+    --chat-accent: var(--col-chat-local);
+    --chat-accent-soft: rgba(85, 238, 153, .10);
+    --chat-accent-border: rgba(85, 238, 153, .20);
+    --chat-panel-fill: rgba(4, 12, 8, .64);
+    --chat-side-fill: rgba(3, 10, 7, .72);
+    --chat-input-fill: rgba(5, 17, 10, .58);
+    --chat-surface-texture: url("/static/images/ui/textures/button-candidates/button-surface-04-charcoal-stone.webp");
+}
+
+.chat-theme-system {
+    --chat-accent: var(--col-chat-system);
+    --chat-accent-soft: rgba(153, 153, 170, .11);
+    --chat-accent-border: rgba(153, 153, 170, .20);
+    --chat-panel-fill: rgba(5, 6, 8, .68);
+    --chat-side-fill: rgba(4, 5, 7, .76);
+    --chat-input-fill: rgba(9, 10, 13, .62);
+    --chat-surface-texture: url("/static/images/ui/textures/button-candidates/button-surface-02-blackened-metal.webp");
+}
+
+.chat-theme-private {
+    --chat-accent: var(--col-chat-private);
+    --chat-accent-soft: rgba(136, 102, 255, .11);
+    --chat-accent-border: rgba(136, 102, 255, .22);
+    --chat-panel-fill: rgba(11, 7, 16, .64);
+    --chat-side-fill: rgba(9, 6, 14, .72);
+    --chat-input-fill: rgba(16, 9, 24, .58);
+    --chat-surface-texture: url("/static/images/ui/textures/button-candidates/button-surface-03-aged-bronze.webp");
+}
+
+.chat-theme-combat {
+    --chat-accent: var(--col-chat-combat, #ff4d2e);
+    --chat-accent-soft: rgba(255, 77, 46, .13);
+    --chat-accent-border: rgba(255, 77, 46, .24);
+    --chat-panel-fill: rgba(15, 5, 3, .66);
+    --chat-side-fill: rgba(12, 4, 3, .74);
+    --chat-input-fill: rgba(21, 7, 4, .60);
+    --chat-surface-texture: url("/static/images/ui/textures/button-candidates/button-surface-02-blackened-metal.webp");
+}

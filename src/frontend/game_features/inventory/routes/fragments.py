@@ -30,7 +30,11 @@ async def inventory_window(
     inventory = InventoryWindowDTO.model_validate(response.payload)
     return await ui.render(
         "game/components/inventory/window.html",
-        context={"char_id": char_id, "inventory_window": inventory},
+        context={
+            "char_id": char_id,
+            "inventory_window": inventory,
+            "inventory_target_id": "right-inventory-panel-body",
+        },
     )
 
 
@@ -63,7 +67,12 @@ async def inventory_action(
     inventory = InventoryWindowDTO.model_validate(response.payload)
     return await ui.render(
         "game/components/inventory/window.html",
-        context={"char_id": char_id, "inventory_window": inventory, "inventory_notice": notice},
+        context={
+            "char_id": char_id,
+            "inventory_window": inventory,
+            "inventory_notice": notice,
+            "inventory_target_id": "right-inventory-panel-body",
+        },
     )
 
 

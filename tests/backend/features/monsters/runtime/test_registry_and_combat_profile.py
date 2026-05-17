@@ -73,7 +73,7 @@ class FakeItemGeneration:
                         "damage_spread": 0.0,
                         "implicit_bonuses": {},
                         "bonuses": {"main_hand_accuracy": "+0.01"},
-                        "triggers": ["crit.weapon_serrated_bleed_crit"],
+                        "triggers": ["crit.weapon_flat_armor_gap_crit"],
                         "tags": ["shield"] if request.base_id == "buckler" else [],
                         "related_skill": related_skill,
                     },
@@ -93,7 +93,7 @@ async def _build_member(family_id: str, variant_key: str | None = None):
         item_generation=FakeItemGeneration(),
     )
     if variant_key is None:
-        clan = await builder.generate_active_clan(
+        clan = await builder.generate_clan_template(
             family_id=family_id,
             context=context,
             context_hash=context_hash,
@@ -259,24 +259,35 @@ def test_beast_families_are_marked_for_salvage_loot(family_id: str) -> None:
 
 @pytest.mark.unit
 def test_monster_natural_equipment_is_registered_as_item_base() -> None:
-    weapon = get_base_by_id("rat_bite_claws")
-    armor = get_base_by_id("light_hide")
-    anchor_weapon = get_base_by_id("anchor_gravity_storm_lance")
-    anchor_armor = get_base_by_id("anchor_projection_aegis")
+    from src.backend.features.monsters.resources.equipment_mapping import NATURAL_EQUIPMENT_MAPPINGS
 
-    assert weapon is not None
-    assert weapon["slot"] == "main_hand"
-    assert weapon["type"] == "weapon"
-    assert weapon["related_skill"] == "skill_fencing"
-    assert weapon["triggers"] == ["crit.weapon_serrated_bleed_crit"]
-    assert armor is not None
-    assert armor["slot"] == "chest_armor"
-    assert armor["type"] == "armor"
-    assert anchor_weapon is not None
-    assert anchor_weapon["related_skill"] == "skill_polearms"
-    assert anchor_weapon["base_power"] >= 100
-    assert anchor_armor is not None
-    assert anchor_armor["related_skill"] == "skill_heavy_armor"
+    # Natural equipment uses transmog: each natural key maps to a player item base_id
+    rat_weapon_mapping = NATURAL_EQUIPMENT_MAPPINGS["rat_bite_claws"]
+    rat_armor_mapping = NATURAL_EQUIPMENT_MAPPINGS["rat_light_hide"]
+    anchor_weapon_mapping = NATURAL_EQUIPMENT_MAPPINGS["anchor_gravity_storm_lance"]
+    anchor_armor_mapping = NATURAL_EQUIPMENT_MAPPINGS["anchor_projection_aegis"]
+
+    assert rat_weapon_mapping.item_kind == "weapon"
+    assert rat_weapon_mapping.default_slot == "main_hand"
+    assert rat_weapon_mapping.name_ru is not None
+
+    assert rat_armor_mapping.item_kind == "armor"
+    assert rat_armor_mapping.default_slot == "chest_armor"
+
+    # The base_ids must resolve to real player item entries
+    rat_weapon_base = get_base_by_id(rat_weapon_mapping.base_id)
+    rat_armor_base = get_base_by_id(rat_armor_mapping.base_id)
+    anchor_weapon_base = get_base_by_id(anchor_weapon_mapping.base_id)
+    anchor_armor_base = get_base_by_id(anchor_armor_mapping.base_id)
+
+    assert rat_weapon_base is not None, f"{rat_weapon_mapping.base_id!r} not in item catalog"
+    assert rat_weapon_base["type"] == "weapon"
+    assert rat_armor_base is not None, f"{rat_armor_mapping.base_id!r} not in item catalog"
+    assert rat_armor_base["type"] == "armor"
+    assert anchor_weapon_base is not None, f"{anchor_weapon_mapping.base_id!r} not in item catalog"
+    assert anchor_weapon_base["type"] == "weapon"
+    assert anchor_armor_base is not None, f"{anchor_armor_mapping.base_id!r} not in item catalog"
+    assert anchor_armor_base["type"] == "armor"
 
 
 @pytest.mark.unit
@@ -321,11 +332,17 @@ def test_anchor_sovereigns_family_defines_four_tier_seven_bosses() -> None:
     assert family.variants["east_evolution_sovereign"].skill_overrides["skill_dual_wield"] == 1.0
     for variant in family.variants.values():
         assert all(value == 1.0 for value in variant.skill_overrides.values())
+    from src.backend.features.monsters.resources.equipment_mapping import NATURAL_EQUIPMENT_MAPPINGS
+
     for variant in family.variants.values():
-        for slot, base_id in variant.fixed_loadout.model_dump(exclude_none=True).items():
-            base = get_base_by_id(base_id)
-            assert base is not None
-            assert slot in {str(base["slot"]), *(str(extra) for extra in base.get("extra_slots", []))}
+        for slot, natural_key in variant.fixed_loadout.model_dump(exclude_none=True).items():
+            if natural_key == "shield":
+                continue  # abstract shield slot — no direct base item
+            # Fixed loadout values are natural keys resolved through NATURAL_EQUIPMENT_MAPPINGS
+            mapping = NATURAL_EQUIPMENT_MAPPINGS.get(natural_key)
+            assert mapping is not None, f"{natural_key!r} not in NATURAL_EQUIPMENT_MAPPINGS"
+            base = get_base_by_id(mapping.base_id)
+            assert base is not None, f"transmog base_id {mapping.base_id!r} not in item catalog"
 
 
 @pytest.mark.unit
@@ -338,7 +355,7 @@ async def test_rat_beast_profile_builds_combat_ready_context() -> None:
     assert combat["math_model"]["attributes"]["intellect"]["base"] >= 0
     assert combat["math_model"]["modifiers"]["main_hand_damage_base"]["base"] > 0
     assert combat["loadout"]["layout"]["main_hand"] == "skill_fencing"
-    assert combat["loadout"]["layout"]["main_hand_trigger"] == "crit.weapon_serrated_bleed_crit"
+    assert combat["loadout"]["layout"]["main_hand_trigger"] == "crit.weapon_flat_armor_gap_crit"
     assert combat["loadout"]["layout"]["body"] == "skill_light_armor"
     assert combat["loadout"]["equipment_layout"]["main_hand"]
     assert combat["loadout"]["equipment_layout"]["chest_armor"]

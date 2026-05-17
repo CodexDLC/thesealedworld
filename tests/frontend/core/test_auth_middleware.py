@@ -28,7 +28,7 @@ def test_should_skip_auth_lookup_for_public_technical_paths(path: str) -> None:
     [
         "/",
         "/login",
-        "/cabinet",
+        "/admin",
         "/game/session",
         "/game/catalog/bootstrap",
         "/game/character-status/panel",

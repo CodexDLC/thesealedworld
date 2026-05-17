@@ -1,3 +1,5 @@
+import json
+from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock
 from uuid import uuid4
 
@@ -10,8 +12,11 @@ from src.backend.features.items.events.publisher import ItemEvents
 from src.backend.features.scenario.dto.context import ScenarioContextDTO
 from src.backend.features.scenario.handlers.base_handler import ScenarioInitialHandlerContext
 from src.backend.features.scenario.integrations.system_integrator import (
+    MONSTER_GROUP_PREPARE_REQUESTED,
     SCENARIO_COMBAT_TTL_SECONDS,
+    TUTORIAL_PVE_CROSS_ZONE_IDS,
     ScenarioSystemIntegrator,
+    _budget_from_gear_score,
 )
 from src.shared.enums import CoreDomain
 from src.shared.schemas import ScenarioReturnContextDTO
@@ -352,13 +357,15 @@ async def test_enter_prepared_combat_attaches_combat_and_switches_state() -> Non
 
 
 @pytest.mark.unit
-async def test_request_combat_start_uses_day_ttl() -> None:
-    events = MagicMock()
-    events.request = AsyncMock(
-        side_effect=[
-            {"status": "ok", "vitals": {"hp": {"cur": 64, "max": 64}}},
-            {"status": "ok", "commitments": {"player:7": "snapshot-1"}},
-            {"status": "ready", "combat_id": "combat-1"},
+async def test_select_tutorial_pve_spawn_location_uses_cross_zone_passable_non_safe_nodes() -> None:
+    world_data = MagicMock()
+    world_data.get_active_nodes_by_zone_ids = AsyncMock(
+        return_value=[
+            SimpleNamespace(x=46, y=46, zone_id="D4_0_0", is_active=True, flags={"is_passable": True}),
+            SimpleNamespace(x=52, y=52, zone_id="D4_1_1", is_active=True, flags={"is_safe_zone": True}),
+            SimpleNamespace(x=52, y=45, zone_id="D4_1_0", is_active=True, flags={"is_passable": False}),
+            SimpleNamespace(x=55, y=52, zone_id="D4_2_1", is_active=False, flags={"is_passable": True}),
+            SimpleNamespace(x=45, y=52, zone_id="D4_0_1", is_active=True, flags={"is_passable": True}),
         ]
     )
     integrator = ScenarioSystemIntegrator(
@@ -366,15 +373,75 @@ async def test_request_combat_start_uses_day_ttl() -> None:
         content=MagicMock(),
         character_sessions=MagicMock(),
         repo=MagicMock(),
+        events=MagicMock(),
+        world_data=world_data,
+    )
+
+    loc_id = await integrator.select_tutorial_pve_spawn_location()
+
+    assert loc_id == "45_52"
+    world_data.get_active_nodes_by_zone_ids.assert_awaited_once_with(list(TUTORIAL_PVE_CROSS_ZONE_IDS))
+
+
+@pytest.mark.unit
+def test_tutorial_pve_budget_uses_round_half_up_with_minimum() -> None:
+    assert _budget_from_gear_score(13) == 3
+    assert _budget_from_gear_score(12.5) == 3
+    assert _budget_from_gear_score(2) == 1
+    assert _budget_from_gear_score(0) == 1
+
+
+@pytest.mark.unit
+async def test_request_combat_start_prepares_monster_group_and_pve_combat() -> None:
+    events = MagicMock()
+    events.request = AsyncMock(
+        side_effect=[
+            {"status": "ok", "vitals": {"hp": {"cur": 64, "max": 64}}},
+            {
+                "status": "ok",
+                "payload": {
+                    "group_id": "combat-1",
+                    "clan_id": "clan-1",
+                    "family_id": "wolf_pack",
+                    "monster_ids": ["m1", "m2"],
+                    "actor_commitments": {
+                        "monster:m1": "snapshot-m1",
+                        "monster:m2": "snapshot-m2",
+                    },
+                },
+            },
+            {"status": "ok", "commitments": {"player:7": "snapshot-1"}},
+            {"status": "ready", "combat_id": "combat-1", "battle_type": "pve"},
+        ]
+    )
+    character_sessions = MagicMock()
+    character_sessions.get_section = AsyncMock(return_value={"gear_score": 13})
+    integrator = ScenarioSystemIntegrator(
+        sessions=MagicMock(),
+        content=MagicMock(),
+        character_sessions=character_sessions,
+        repo=MagicMock(),
         events=events,
     )
 
-    await integrator.request_combat_start(7, "awakening_rift", battle_type="shadow", location_id="52_58")
+    result = await integrator.request_combat_start(7, "awakening_rift", battle_type="pve", location_id="45_52")
 
-    restore_event, commitment_event, combat_event = events.request.await_args_list
+    restore_event, monster_event, commitment_event, combat_event = events.request.await_args_list
     assert restore_event.args[0] == CharacterEvents.VITALS_RESTORE_REQUESTED
     assert restore_event.args[1]["char_id"] == 7
+    assert monster_event.args[0] == MONSTER_GROUP_PREPARE_REQUESTED
+    assert monster_event.args[1]["loc_id"] == "45_52"
+    assert monster_event.args[1]["budget"] == "3"
+    assert monster_event.args[1]["ttl"] == SCENARIO_COMBAT_TTL_SECONDS
     assert commitment_event.args[0] == CharacterEvents.COMBAT_COMMITMENTS_REQUESTED
     payload = combat_event.args[1]
     assert payload["ttl"] == SCENARIO_COMBAT_TTL_SECONDS
-    assert payload["commitments"] == '{"player:7": "snapshot-1"}'
+    assert payload["battle_type"] == "pve"
+    assert json.loads(payload["participants"]) == {"team_1": [7], "team_2": ["m1", "m2"]}
+    assert json.loads(payload["commitments"]) == {
+        "player:7": "snapshot-1",
+        "monster:m1": "snapshot-m1",
+        "monster:m2": "snapshot-m2",
+    }
+    assert payload["location_id"] == "45_52"
+    assert result["monster_group"]["monster_ids"] == ["m1", "m2"]

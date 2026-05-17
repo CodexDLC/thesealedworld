@@ -1,15 +1,4 @@
-<div id="status-container" class="status-panel-root status-sidebar-surface">
-    {% if panel %}
-        {% include "game/components/panel/main.html" %}
-    {% elif character_status and character_status.panel %}
-        {% set panel = character_status.panel %}
-        {% include "game/components/panel/main.html" %}
-    {% else %}
-        {% set layout = status_layout or ['vitals', 'avatar', 'attributes', 'skills'] %}
-        <div x-show="selectedAgentId">
-            {% for fragment in layout %}
-                {% include "game/components/status/fragments/" ~ fragment ~ ".html" %}
-            {% endfor %}
-        </div>
-    {% endif %}
-</div>
+{% set status_dock_mode = status_mode if status_mode is defined and status_mode else 'normal' %}
+{% set status_dock_distortion = distortion if distortion is defined and distortion else 'none' %}
+{% set status_dock_extra_class = status_panel_class if status_panel_class is defined and status_panel_class else '' %}
+{% include "game/components/status/compact_panel.html" %}

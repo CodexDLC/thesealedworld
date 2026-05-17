@@ -1,0 +1,128 @@
+/* ── COMPONENTS: BUTTONS ── */
+
+.btn-node {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--sp-2) var(--sp-4);
+  background: rgba(255,170,0,0.04);
+  border: 1px solid rgba(255,170,0,0.18);
+  border-radius: 2px;
+  cursor: pointer;
+  font-family: var(--font-ui);
+  font-size: var(--text-xs);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: rgba(255,170,0,0.70);
+  transition: all 0.18s;
+  position: relative;
+  overflow: hidden;
+}
+
+.btn-node::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, transparent 55%, rgba(255,170,0,0.05));
+}
+
+.btn-node:hover {
+  background: rgba(255,170,0,0.10);
+  border-color: rgba(255,170,0,0.40);
+  color: var(--col-accent);
+  box-shadow: 0 0 14px rgba(255,170,0,0.18);
+}
+
+.btn-node.sm {
+  padding: var(--sp-1) var(--sp-3);
+  font-size: var(--text-2xs);
+  border-radius: 2px;
+}
+
+.btn-node.lg {
+  padding: var(--sp-3) var(--sp-6);
+  font-size: var(--text-sm);
+  border-radius: 2px;
+}
+
+.btn-node.danger {
+  border-color: rgba(255,51,0,0.22);
+  color: rgba(255,80,50,0.70);
+}
+
+.btn-node.danger:hover {
+  background: rgba(255,51,0,0.09);
+  border-color: rgba(255,51,0,0.42);
+  color: var(--col-danger);
+  box-shadow: 0 0 14px rgba(255,51,0,0.16);
+}
+
+.btn-node.ghost {
+  background: transparent;
+  border-color: rgba(255,170,0,0.09);
+  color: rgba(255,170,0,0.35);
+}
+
+.btn-node.ghost:hover {
+  background: rgba(255,170,0,0.05);
+  color: rgba(255,170,0,0.65);
+}
+
+.btn-node.psi {
+  border-color: rgba(119,68,255,0.25);
+  color: rgba(153,102,255,0.75);
+  background: rgba(119,68,255,0.04);
+}
+
+.btn-node.psi:hover {
+  background: rgba(119,68,255,0.10);
+  border-color: rgba(119,68,255,0.45);
+  color: #aa88ff;
+}
+
+button.is-action-pending,
+a.is-action-pending,
+[role="button"].is-action-pending,
+input[type="submit"].is-action-pending,
+input[type="button"].is-action-pending {
+  cursor: progress;
+  filter: brightness(1.14) saturate(1.08);
+  box-shadow:
+    0 0 0 1px rgba(255, 170, 0, 0.28),
+    0 0 18px rgba(255, 170, 0, 0.24);
+}
+
+button.is-action-pending,
+a.is-action-pending,
+[role="button"].is-action-pending {
+  position: relative;
+}
+
+button.is-action-pending::after,
+a.is-action-pending::after,
+[role="button"].is-action-pending::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  right: 12px;
+  width: 12px;
+  height: 12px;
+  margin-top: -6px;
+  border: 2px solid rgba(255, 220, 140, 0.36);
+  border-top-color: rgba(255, 220, 140, 0.95);
+  border-radius: 50%;
+  animation: action-feedback-spin 0.72s linear infinite;
+  pointer-events: none;
+}
+
+button.is-action-pending .choice-label,
+a.is-action-pending .choice-label,
+[role="button"].is-action-pending .choice-label {
+  padding-right: 20px;
+}
+
+@keyframes action-feedback-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}

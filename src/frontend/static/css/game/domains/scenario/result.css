@@ -1,0 +1,274 @@
+.scenario-result-card {
+    min-width: 0;
+    min-height: 0;
+    display: grid;
+    grid-template-rows: 170px minmax(0, 1fr) auto;
+    gap: 10px;
+    padding: 10px;
+    border: 1px solid rgba(153, 160, 170, 0.22);
+    background:
+        linear-gradient(180deg, rgba(153, 160, 170, 0.08), rgba(5, 5, 7, 0.72)),
+        rgba(5, 5, 7, 0.86);
+    overflow: hidden;
+}
+
+.scenario-result-art {
+    min-width: 0;
+    min-height: 0;
+    border: 1px solid rgba(245, 232, 204, 0.12);
+    overflow: hidden;
+}
+
+.scenario-result-art img {
+    width: 100%;
+    height: 100%;
+    display: block;
+    object-fit: cover;
+}
+
+.scenario-result-card article {
+    min-width: 0;
+    min-height: 0;
+    overflow: auto;
+}
+
+.scenario-reward-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 6px;
+}
+
+.scenario-reward-grid span {
+    min-width: 0;
+    display: grid;
+    gap: 5px;
+    padding: 8px;
+    border: 1px solid rgba(153, 160, 170, 0.18);
+    background: rgba(0, 0, 0, 0.26);
+}
+
+.scenario-reward-grid b {
+    color: rgba(210, 180, 140, 0.48);
+    font-size: 6px;
+    font-weight: 900;
+    letter-spacing: 0.12em;
+}
+
+.scenario-reward-grid strong {
+    color: var(--scenario-accent);
+    font-size: 10px;
+    font-weight: 900;
+    letter-spacing: 0.08em;
+}
+
+.scenario-final-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 6px;
+}
+
+@keyframes scenario-alert-flicker {
+    0%,
+    98% {
+        opacity: 1;
+        transform: translateX(0);
+    }
+
+    99% {
+        opacity: 0.8;
+        transform: translateX(2px);
+    }
+
+    100% {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+@keyframes scenario-glitch-scan {
+    0% {
+        opacity: 0.45;
+        transform: translateY(-12px);
+    }
+
+    100% {
+        opacity: 0.7;
+        transform: translateY(12px);
+    }
+}
+
+@keyframes scenario-glitch-flicker {
+    0%,
+    91%,
+    100% {
+        opacity: 0.26;
+        transform: translateX(0);
+    }
+
+    92% {
+        opacity: 0.55;
+        transform: translateX(-1px);
+    }
+
+    94% {
+        opacity: 0.18;
+        transform: translateX(1px);
+    }
+
+    97% {
+        opacity: 0.62;
+        transform: translateX(0);
+    }
+}
+
+@media (min-width: 900px) {
+    .scenario-result-card {
+        grid-template-columns: 300px minmax(0, 1fr);
+        grid-template-rows: minmax(0, 1fr) auto;
+        gap: 16px;
+        padding: 16px;
+    }
+
+    .scenario-result-art {
+        grid-row: 1 / -1;
+    }
+
+    .scenario-reward-grid {
+        grid-column: 2;
+    }
+}
+
+@media (max-width: 1279px) {
+    .scenario-copy h2,
+    .scenario-result-card h2 {
+        font-size: 24px;
+    }
+
+    .scenario-text,
+    .scenario-result-card p {
+        font-size: 12px;
+    }
+
+    .scenario-choice-list {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 768px) {
+    .scenario-screen {
+        --scenario-padding: 8px;
+        width: 100%;
+    }
+
+    .scenario-statebar {
+        grid-template-columns: minmax(0, 1fr) auto;
+        min-height: 34px;
+    }
+
+    .scenario-statebar em {
+        display: none;
+    }
+
+    .scenario-stage {
+        padding: 8px;
+    }
+
+    .scenario-copy {
+        padding: 10px;
+    }
+
+    .scenario-copy h2,
+    .scenario-result-card h2 {
+        font-size: 19px;
+    }
+
+    .scenario-title {
+        gap: 5px;
+    }
+
+    .scenario-title-coords {
+        gap: 3px;
+        padding: 2px 4px;
+        font-size: 8px;
+    }
+
+    .scenario-text,
+    .scenario-result-card p {
+        font-size: 10px;
+    }
+
+    .scenario-choice-list,
+    .scenario-final-actions {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .scenario-choice {
+        min-height: 36px;
+    }
+
+    .scenario-reward-grid {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}
+
+@media (max-width: 500px) {
+    .scenario-screen {
+        --scenario-gap: 6px;
+        --scenario-padding: 6px;
+    }
+
+    .scenario-statebar strong,
+    .scenario-statebar span {
+        font-size: 7px;
+    }
+
+    .scenario-title-coords {
+        font-size: 7px;
+    }
+
+    .scenario-subject {
+        min-width: 78px;
+        margin-left: 9px;
+    }
+
+    .scenario-watch {
+        grid-template-columns: auto minmax(0, 1fr) 44px;
+        min-height: 38px;
+        gap: 6px;
+        padding: 6px;
+    }
+
+    .scenario-choice {
+        grid-template-columns: 24px minmax(0, 1fr);
+        gap: 7px;
+        padding: 6px 8px;
+    }
+
+    .scenario-choice-icon {
+        width: 22px;
+        height: 22px;
+    }
+
+    .scenario-choice-icon::before {
+        width: 13px;
+        height: 13px;
+    }
+
+    .scenario-choice-copy strong {
+        font-size: 8px;
+    }
+
+    .scenario-choice-copy small {
+        font-size: 6px;
+    }
+}
+
+
+
+
+.arena-screen {
+    --center-content-max: 1040px;
+    align-items: stretch;
+    gap: 8px;
+    min-width: 0;
+}

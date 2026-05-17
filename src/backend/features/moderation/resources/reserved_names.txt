@@ -1,0 +1,25 @@
+# One exact reserved character name per line.
+# Lines may contain comments after '#'. Comma-separated values are also accepted.
+admin
+administrator
+moderator
+mod
+gm
+game_master
+system
+support
+root
+server
+developer
+dev
+codex
+the_sealed_world
+sealed_world
+порог
+система
+админ
+администратор
+модератор
+поддержка
+сервер
+разработчик

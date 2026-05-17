@@ -38,16 +38,19 @@ def test_tutorial_attribute_bonuses_rank_visible_profile_weights() -> None:
 
 
 @pytest.mark.unit
-async def test_tutorial_finalize_requests_shadow_combat_transition() -> None:
-    handler = TutorialScenarioHandler(integration=AsyncMock())
+async def test_tutorial_finalize_requests_pve_combat_transition() -> None:
+    integration = AsyncMock()
+    integration.select_tutorial_pve_spawn_location.return_value = "52_45"
+    handler = TutorialScenarioHandler(integration=integration)
     context = ScenarioContextDTO(quest_key="awakening_rift", current_node_key="final")
 
     result = await handler.on_finalize(1, context, {"quest_key": "awakening_rift"})
 
+    integration.select_tutorial_pve_spawn_location.assert_awaited_once_with()
     assert result.target_state == CoreDomain.COMBAT
-    assert result.transition_reason == "scenario_shadow_combat"
-    assert result.location_id
-    assert result.metadata["battle_type"] == "shadow"
+    assert result.transition_reason == "scenario_pve_combat"
+    assert result.location_id == "52_45"
+    assert result.metadata["battle_type"] == "pve"
 
 
 @pytest.mark.unit

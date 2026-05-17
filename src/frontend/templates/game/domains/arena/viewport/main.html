@@ -146,7 +146,7 @@
 {% set symbiote_name = status_seed.symbiote_name if status_seed is defined and status_seed.symbiote_name else 'SYSTEM' %}
 {% set arena_modal_screens = ['match_found', 'shadow_offer', 'combat_pending', 'combat_failed'] %}
 
-<section id="center-screens">
+<section id="center-screens" class="arena-center-screens">
     {% if arena %}
         {% set arena_screen = arena.screen.value if arena.screen and arena.screen.value is defined else arena.screen %}
         <div class="game-screen-area game-screen-area--vertical arena-screen arena-screen--{{ arena_screen }}{{ ' arena-group-underwork' if arena_screen == 'mode_menu' and arena.mode == 'group' else '' }}">
@@ -239,6 +239,8 @@
                 {% set arena_buttons = arena.buttons or [] %}
                 {% set mode_menu = namespace(queue=none, shadow=none, back=none, ranked=[]) %}
                 {% set group_lobby = arena.metadata.get('group_lobby', {}) if arena.metadata else {} %}
+                {% set queue_waiting_count = arena.metadata.get('queue_waiting_count', 0) if arena.metadata else 0 %}
+                {% set max_wait_limit_sec = arena.metadata.get('max_wait_limit_sec', 300) if arena.metadata else 300 %}
                 {% for button in arena_buttons %}
                     {% set button_action = button.action.value if button.action and button.action.value is defined else button.action %}
                     {% if button_action == 'join_queue' %}
@@ -284,25 +286,29 @@
                                 <strong>Пока открыт только зал 1x1</strong>
                                 <p>Групповой зал закрыт: работники арены приводят в порядок комнаты ожидания, роли и стойки заявок. Командные бои временно не принимают участников.</p>
                             </button>
-                        {% elif mode_menu.ranked %}
+                        {% elif mode_menu.queue %}
                             <div class="arena-duel-actions">
-                                <div class="arena-duel-ranked">
-                                    <span class="arena-duel-kicker">RANKED MATCH</span>
-                                    <div class="arena-duel-ranked-grid">
-                                        {% for button in mode_menu.ranked %}
-                                            <button type="button" class="arena-queue-card arena-queue-card--compact {{ 'arena-mode-card--missing' if button.variant == 'disabled' else '' }}"
-                                                    {% if button.variant == 'disabled' %}disabled{% else %}{{ arena_action_attrs(button) }}{% endif %}>
-                                                <span class="arena-queue-kicker">WAIT LIMIT</span>
-                                                <span class="arena-queue-title">{{ button.text or 'Ранг' }}</span>
-                                            </button>
-                                        {% endfor %}
-                                    </div>
-                                </div>
+                                <button type="button" class="arena-queue-card arena-queue-card--primary {{ 'arena-mode-card--missing' if mode_menu.queue.variant == 'disabled' else '' }}"
+                                        {% if mode_menu.queue.variant == 'disabled' %}disabled{% else %}{{ arena_action_attrs(mode_menu.queue) }}{% endif %}>
+                                    <span class="arena-queue-kicker">RANKED MATCH</span>
+                                    <span class="arena-queue-title">{{ mode_menu.queue.text or 'Искать противника' }}</span>
+                                    <span class="arena-queue-note">Арена сама выставит лимит поиска по очереди, максимум {{ max_wait_limit_sec // 60 }} мин.</span>
+                                    <span class="arena-queue-status">
+                                        <span>В ожидании поиска</span>
+                                        <strong>{{ queue_waiting_count }}</strong>
+                                    </span>
+                                    <span class="arena-queue-meter" aria-hidden="true"></span>
+                                </button>
                                 {% if mode_menu.shadow %}
-                                    <button type="button" class="arena-queue-card arena-shadow-card {{ 'arena-mode-card--missing' if mode_menu.shadow.variant == 'disabled' else '' }}"
+                                    <button type="button" class="arena-queue-card arena-queue-card--secondary arena-shadow-card {{ 'arena-mode-card--missing' if mode_menu.shadow.variant == 'disabled' else '' }}"
                                             {% if mode_menu.shadow.variant == 'disabled' %}disabled{% else %}{{ arena_action_attrs(mode_menu.shadow) }}{% endif %}>
                                         <span class="arena-queue-kicker">TRAINING</span>
                                         <span class="arena-queue-title">{{ mode_menu.shadow.text or 'Бой с тенью' }}</span>
+                                        <span class="arena-queue-note">Тренировочная схватка без живого противника.</span>
+                                        <span class="arena-queue-status">
+                                            <span>Формат</span>
+                                            <strong>SOLO</strong>
+                                        </span>
                                         <span class="arena-queue-meter" aria-hidden="true"></span>
                                     </button>
                                 {% endif %}
@@ -336,6 +342,12 @@
                         <div class="arena-search-limit">
                             <span>Лимит ожидания</span>
                             <strong>{{ (arena.metadata.get('wait_limit_sec') // 60) }} мин</strong>
+                        </div>
+                    {% endif %}
+                    {% if arena.metadata and arena.metadata.get('queue_waiting_count') is not none %}
+                        <div class="arena-search-limit arena-search-queue">
+                            <span>В ожидании поиска</span>
+                            <strong>{{ arena.metadata.get('queue_waiting_count') }}</strong>
                         </div>
                     {% endif %}
 

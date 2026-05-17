@@ -82,6 +82,15 @@ def test_builder_creates_combat_actor_input_from_active_character_document() -> 
     assert actor_input["loadout"]["layout"]["main_hand"] == "skill_swords"
     assert actor_input["loadout"]["layout"]["main_hand_trigger"] == "crit.weapon_serrated_bleed_crit"
     assert actor_input["loadout"]["layout"]["body"] == "skill_light_armor"
+    assert actor_input["loadout"]["combat_surfaces"]["main_hand"] == {
+        "slot": "main_hand",
+        "delivery": "weapon",
+        "surface": "weapon",
+        "tags": [],
+        "item_id": "sword-1",
+        "base_id": "",
+        "skill_key": "skill_swords",
+    }
     assert actor_input["loadout"]["equipment_layout"] == {"main_hand": "sword-1", "chest_armor": "armor-1"}
     assert actor_input["loadout"]["hand_usage"] == {}
     assert actor_input["loadout"]["two_handed"] is False
@@ -107,6 +116,15 @@ def test_builder_can_emit_lifecycle_compatible_snapshot() -> None:
     assert "attributes" in snapshot["combat"]["math_model"]
     assert snapshot["combat"]["skills"] == {}
     assert snapshot["combat"]["loadout"]["layout"] == {"main_hand": "skill_unarmed"}
+    assert snapshot["combat"]["loadout"]["combat_surfaces"]["main_hand"] == {
+        "slot": "main_hand",
+        "delivery": "unarmed",
+        "surface": "hands",
+        "tags": [],
+        "item_id": "",
+        "base_id": "",
+        "skill_key": "skill_unarmed",
+    }
     assert snapshot["combat"]["loadout"]["known_feints"] == []
 
 

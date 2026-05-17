@@ -1,0 +1,98 @@
+/* ── INCLUDE: FOOTER ── */
+.app-footer {
+  width: 100%;
+  background:
+    linear-gradient(180deg, rgba(10, 10, 12, 0.92), rgba(3, 3, 5, 0.98)),
+    var(--col-bg-darker);
+  border-top: 1px solid rgba(255, 170, 0, 0.14);
+  color: var(--col-text-dim);
+}
+
+.footer-container {
+  width: 100%;
+  max-width: 1440px;
+  min-height: 128px;
+  margin: 0 auto;
+  padding: var(--sp-8) clamp(var(--sp-4), 4vw, var(--sp-10));
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  gap: var(--sp-8);
+}
+
+.footer-brand {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+
+.footer-title {
+  font-family: var(--font-world);
+  font-size: var(--text-xl);
+  color: var(--col-parchment);
+}
+
+.footer-note,
+.footer-status {
+  font-size: var(--text-2xs);
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.footer-links {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--sp-4) var(--sp-6);
+}
+
+.footer-links a {
+  color: rgba(230, 204, 172, 0.62);
+  font-size: var(--text-xs);
+  letter-spacing: 0.14em;
+  text-decoration: none;
+  text-transform: uppercase;
+}
+
+.footer-links a:hover {
+  color: var(--col-accent);
+}
+
+.footer-status {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: var(--sp-2);
+  color: rgba(255, 170, 0, 0.46);
+}
+
+.page-the-sealed-world .app-footer {
+  padding-bottom: 86px;
+}
+
+/* ── GAME SPECIFIC FOOTER ── */
+.game-footer {
+  justify-content: space-between !important;
+  padding: 0 var(--sp-6) !important;
+  color: rgba(255, 255, 255, 0.3) !important;
+}
+
+.game-footer div {
+  white-space: nowrap;
+}
+
+@media (max-width: 860px) {
+  .footer-container {
+    grid-template-columns: 1fr;
+    align-items: start;
+    gap: var(--sp-6);
+  }
+
+  .footer-links {
+    justify-content: flex-start;
+  }
+
+  .footer-status {
+    align-items: flex-start;
+  }
+}

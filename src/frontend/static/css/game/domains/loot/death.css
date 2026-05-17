@@ -1,0 +1,25 @@
+.death-loss-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 6px;
+    margin: 10px 0;
+}
+
+.death-loss-grid div {
+    display: grid;
+    gap: 5px;
+    padding: 8px;
+    border: 1px solid rgba(255, 176, 0, 0.18);
+    background: rgba(22, 12, 10, 0.72);
+}
+
+.death-loss-grid span {
+    color: rgba(210, 188, 145, 0.72);
+    font: 700 9px/1 var(--font-mono);
+    text-transform: uppercase;
+}
+
+.death-loss-grid strong {
+    color: var(--game-accent);
+    font: 800 14px/1 var(--font-mono);
+}

@@ -2,12 +2,27 @@ from pathlib import Path
 
 CHAT_TEMPLATE = Path("src/frontend/templates/shared/chat/main.html")
 CHAT_FOOTER_TEMPLATE = Path("src/frontend/templates/game/includes/chat_footer.html")
-CHAT_CSS = Path("src/frontend/static/css/pages/game/chat.css")
+CHAT_CSS_DIR = Path("src/frontend/static/css/game/domains/chat")
 SESSION_CONTENT_TEMPLATE = Path("src/frontend/templates/game/session_content.html")
 COMBAT_VIEWPORT_TEMPLATE = Path("src/frontend/templates/game/domains/combat/viewport/main.html")
 GAME_MAIN_JS = Path("src/frontend/static/js/core/main.js")
 GAME_CATALOG_JS = Path("src/frontend/static/js/core/catalog.js")
-TOOLTIPS_CSS = Path("src/frontend/static/css/components/game/tooltips.css")
+TOOLTIPS_CSS = Path("src/frontend/static/css/game/components/tooltips.css")
+
+
+def read_chat_css() -> str:
+    return "\n".join(
+        path.read_text(encoding="utf-8")
+        for path in (
+            CHAT_CSS_DIR / "shell.css",
+            CHAT_CSS_DIR / "themes.css",
+            CHAT_CSS_DIR / "panel.css",
+            CHAT_CSS_DIR / "tabs.css",
+            CHAT_CSS_DIR / "messages.css",
+            CHAT_CSS_DIR / "input.css",
+            CHAT_CSS_DIR / "responsive_states.css",
+        )
+    )
 
 
 def test_chat_template_uses_canonical_channel_keys() -> None:
@@ -103,6 +118,17 @@ def test_chat_template_renders_combat_logs_from_templates_and_structured_facts()
     assert "(result.triggers || [])" in template
 
 
+def test_chat_template_resolves_combat_log_text_from_combat_text_catalog() -> None:
+    template = CHAT_TEMPLATE.read_text(encoding="utf-8")
+
+    assert "_combatTextTemplate(msg)" in template
+    assert "cache.getCombatTextTemplate(template.key)" in template
+    assert "cache.renderCombatText(template.key, msg.variables || {})" in template
+    assert "_combatLogParts(msg)" in template
+    assert "_templateTexts(msg)" in template
+    assert "_templateTextsFrom(m.template)" not in template
+
+
 def test_chat_template_resolves_combat_token_facts_from_catalog() -> None:
     template = CHAT_TEMPLATE.read_text(encoding="utf-8")
 
@@ -169,7 +195,7 @@ def test_combat_refresh_selects_only_main_content_shell() -> None:
 
 
 def test_chat_css_has_rich_combat_log_styles() -> None:
-    css = CHAT_CSS.read_text(encoding="utf-8")
+    css = read_chat_css()
 
     assert ".combat-log-var--source" in css
     assert ".combat-log-var--target" in css
@@ -179,17 +205,32 @@ def test_chat_css_has_rich_combat_log_styles() -> None:
 
 
 def test_chat_shell_is_collapsible_footer() -> None:
-    css = CHAT_CSS.read_text(encoding="utf-8")
+    css = read_chat_css()
+    index = CHAT_CSS_DIR.joinpath("index.css").read_text(encoding="utf-8")
     template = CHAT_TEMPLATE.read_text(encoding="utf-8")
     footer = CHAT_FOOTER_TEMPLATE.read_text(encoding="utf-8")
+    base = Path("src/frontend/templates/game/base_game.html").read_text(encoding="utf-8")
     shell_js = Path("src/frontend/static/js/core/game_shell.js").read_text(encoding="utf-8")
+    main_js = GAME_MAIN_JS.read_text(encoding="utf-8")
 
     assert ".game-chat-footer" in css
+    assert ".game-chat-footer-shell" in css
+    assert "flex: 1 1 auto;" in css
+    assert "width: 100%;" in css
     assert ".game-chat-footer .game-chat-row" in css
     assert ".game-chat-footer .chat-step-0" in css
+    assert ".game-chat-footer .chat-step-0 .chat-tabs" in css
+    assert "display: flex !important;" in css
+    assert ".game-chat-footer .chat-step-0 .chat-main-area" in css
+    assert ".game-chat-footer .chat-step-0 #chat-input-form" in css
     assert "bottom: 0;" in css
     assert "--game-chat-width: 1440px;" in css
     assert "width: min(100%, var(--game-chat-width));" in css
+    assert ".chat-tab-select-wrap" in css
+    assert ".chat-tab-select" in css
+    assert "@media (max-width: 767px)" in css
+    assert '@import url("shell.css");' in index
+    assert '@import url("responsive_states.css");' in index
     assert "#game-chat-shell" not in css
     assert "game-chat-footer-bar" not in footer
     assert "game-chat-footer-tabs" not in footer
@@ -199,6 +240,20 @@ def test_chat_shell_is_collapsible_footer() -> None:
     assert "is-chat-closed" not in footer
     assert "setChatStep(1)" in footer
     assert "setChatStep(0)" in template
+    assert 'class="chat-win-controls" @click.stop' in template
+    assert "chat-tab-select-wrap" in template
+    assert "chat-tab-select" in template
+    assert "_tabSelectLabel(key)" in template
+    assert "@change=\"_activateTab($event.target.value)\"" in template
+    assert "data-chat-minmax-label" in template
+    assert "toggleChatMinMax()" in template
+    assert "chatMinimized ? '100px'" not in base
+    assert "getPropertyValue('--game-footer-height')" in main_js
+    assert "chatRow.classList.remove('chat-step-0'" in main_js
+    assert "chatRow.style.removeProperty('height')" in main_js
+    assert "data-chat-minmax-label" in main_js
+    assert "window.toggleChatMinMax" in main_js
     assert "chatStep: 0" in shell_js
     assert "chatStep: Alpine.$persist" not in shell_js
+    assert "chatHeight: Alpine.$persist" not in shell_js
     assert 'class="chat-users"' not in template

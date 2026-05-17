@@ -59,7 +59,6 @@ class WorldThemeService:
             accent_soft=cls._rgba(accent_rgb, 0.08 + intensity * 0.08),
             accent_border=cls._rgba(accent_rgb, 0.18 + intensity * 0.18),
             accent_glow=cls._rgba(accent_rgb, 0.24 + intensity * 0.28),
-            glass=cls._rgba((10, 10, 12), 0.56 + intensity * 0.08),
         )
         dto.css_vars = {
             "--world-accent": dto.accent,
@@ -67,7 +66,6 @@ class WorldThemeService:
             "--world-accent-soft": dto.accent_soft,
             "--world-accent-border": dto.accent_border,
             "--world-accent-glow": dto.accent_glow,
-            "--world-glass": dto.glass,
             "--world-intensity": str(dto.intensity),
         }
         return dto

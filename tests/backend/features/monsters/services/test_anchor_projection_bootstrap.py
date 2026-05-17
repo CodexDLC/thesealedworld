@@ -13,18 +13,20 @@ from src.backend.features.monsters.services.anchor_projection_bootstrap import (
 
 class FakeItemGeneration:
     async def generate_runtime_projections(self, requests):
+        # natural_key → related_skill (player item transmog: rapier→skill_fencing, warhammer→skill_macing, plate_chest→skill_heavy_armor)
+        _natural_key_skill = {
+            "anchor_stasis_crown_blade": "skill_fencing",
+            "anchor_entropy_cinder_maul": "skill_macing",
+            "anchor_gravity_storm_lance": "skill_fencing",
+            "anchor_evolution_bloom_talons": "skill_fencing",
+            "anchor_projection_aegis": "skill_heavy_armor",
+        }
         projections = []
         for index, request in enumerate(requests):
             base_id = str(request.base_id)
-            related_skill = {
-                "anchor_stasis_crown_blade": "skill_swords",
-                "anchor_entropy_cinder_maul": "skill_macing",
-                "anchor_gravity_storm_lance": "skill_polearms",
-                "anchor_evolution_bloom_talons": "skill_fencing",
-                "anchor_projection_aegis": "skill_heavy_armor",
-                "shield": "skill_shield_mastery",
-            }[base_id]
-            item_type = "armor" if request.target_slot.endswith("_armor") or base_id == "shield" else "weapon"
+            natural_key = str(request.runtime_metadata.get("natural_key", ""))
+            related_skill = _natural_key_skill.get(natural_key, "skill_fencing")
+            item_type = "armor" if request.target_slot.endswith("_armor") else "weapon"
             projections.append(
                 RuntimeItemProjectionDTO(
                     item_id=f"anchor-item-{index}",
@@ -38,7 +40,7 @@ class FakeItemGeneration:
                         "implicit_bonuses": {},
                         "bonuses": {},
                         "triggers": [],
-                        "tags": ["shield"] if base_id == "shield" else [],
+                        "tags": [],
                         "related_skill": related_skill,
                     },
                     generation={"item_grade": "artifact", "rarity_tier": 7, "affixes": []},
@@ -82,7 +84,8 @@ async def test_anchor_projection_bootstrap_creates_four_boss_snapshots_and_cache
     west_key = f"{ANCHOR_PROJECTION_REDIS_PREFIX}:west_gravity_sovereign"
     west_snapshot = redis.json_module.values[west_key]
     assert west_snapshot["meta"]["name"] == "Проекция Западной Гравитации"
-    assert west_snapshot["combat"]["loadout"]["layout"]["main_hand"] == "skill_polearms"
+    # rapier transmog → related_skill="skill_fencing" (polearm base not yet in player catalog)
+    assert west_snapshot["combat"]["loadout"]["layout"]["main_hand"] == "skill_fencing"
     assert west_snapshot["combat"]["loadout"]["layout"]["tactical_style"] == "skill_one_handed"
     assert west_snapshot["combat"]["skills"]["skill_polearms"] == 1.0
     assert west_snapshot["status"]["hp"]["max"] > 0

@@ -1,20 +1,23 @@
-<section id="combat-log-panel" class="combat-log-panel">
+{% set panel_id = combat_log_panel_id|default("combat-log-panel") %}
+{% set panel_label = combat_log_label|default("EXCHANGE LOG") %}
+{% set embedded_query = "&embedded=1" if combat_log_embedded|default(false) else "" %}
+<section id="{{ panel_id }}" class="combat-log-panel{% if combat_log_embedded|default(false) %} combat-log-panel--embedded{% endif %}">
     <div class="combat-command-head">
-        <span>EXCHANGE LOG</span>
+        <span>{{ panel_label }}</span>
         <div class="combat-log-controls" aria-label="Combat log controls">
             <button type="button"
                     class="combat-log-page-arrow"
                     aria-label="Previous log page"
-                    hx-get="/game/combat/logs?char_id={{ char_id }}&page={{ combat_log_page - 1 }}&page_size={{ combat_log_page_size }}"
-                    hx-target="#combat-log-panel"
+                    hx-get="/game/combat/logs?char_id={{ char_id }}&page={{ combat_log_page - 1 }}&page_size={{ combat_log_page_size }}&panel_id={{ panel_id }}{{ embedded_query }}"
+                    hx-target="#{{ panel_id }}"
                     hx-swap="outerHTML"
                     {% if combat_log_page <= 1 %}disabled{% endif %}>‹</button>
             <div class="combat-log-pages" aria-label="Combat log pages">
                 {% for page in combat_log_pages %}
                     <button type="button"
                             class="{{ 'is-active' if page == combat_log_page else '' }}"
-                            hx-get="/game/combat/logs?char_id={{ char_id }}&page={{ page }}&page_size={{ combat_log_page_size }}"
-                            hx-target="#combat-log-panel"
+                            hx-get="/game/combat/logs?char_id={{ char_id }}&page={{ page }}&page_size={{ combat_log_page_size }}&panel_id={{ panel_id }}{{ embedded_query }}"
+                            hx-target="#{{ panel_id }}"
                             hx-swap="outerHTML"
                             {% if page == combat_log_page %}disabled{% endif %}>{{ page }}</button>
                 {% endfor %}
@@ -22,10 +25,11 @@
             <button type="button"
                     class="combat-log-page-arrow"
                     aria-label="Next log page"
-                    hx-get="/game/combat/logs?char_id={{ char_id }}&page={{ combat_log_page + 1 }}&page_size={{ combat_log_page_size }}"
-                    hx-target="#combat-log-panel"
+                    hx-get="/game/combat/logs?char_id={{ char_id }}&page={{ combat_log_page + 1 }}&page_size={{ combat_log_page_size }}&panel_id={{ panel_id }}{{ embedded_query }}"
+                    hx-target="#{{ panel_id }}"
                     hx-swap="outerHTML"
                     {% if combat_log_page >= combat_log_total_pages %}disabled{% endif %}>›</button>
+            {% if combat_log_show_size_control|default(true) %}
             <label class="combat-log-size">
                 <span>TURNS</span>
                 <input type="number"
@@ -34,11 +38,12 @@
                        min="1"
                        max="50"
                        step="1"
-                       hx-get="/game/combat/logs?char_id={{ char_id }}&page=1"
+                       hx-get="/game/combat/logs?char_id={{ char_id }}&page=1&panel_id={{ panel_id }}{{ embedded_query }}"
                        hx-trigger="change, keyup changed delay:500ms"
-                       hx-target="#combat-log-panel"
+                       hx-target="#{{ panel_id }}"
                        hx-swap="outerHTML">
             </label>
+            {% endif %}
         </div>
     </div>
     <div class="combat-log-list">
@@ -60,7 +65,6 @@
                     {% for line in lines %}
                         {% set data = line.data if line.data is defined and line.data else {} %}
                         {% set line_kind = line.kind if line.kind is defined and line.kind else line.type if line.type is defined else data.get('kind', data.get('type', 'log')) %}
-                        {% if line_kind in ['result', 'death', 'log'] %}
                         {% set action = line.action if line.action is defined and line.action else data.get('action', {}) %}
                         {% set catalog = line.catalog if line.catalog is defined and line.catalog else action.catalog if action.catalog is defined else action.get('catalog') if action else data.get('catalog') %}
                         {% set catalog_key = line.catalog_key if line.catalog_key is defined and line.catalog_key else action.catalog_key if action.catalog_key is defined else action.get('catalog_key') if action else data.get('catalog_key') %}
@@ -82,14 +86,12 @@
                              data-catalog-key="{{ catalog_key }}"
                              data-catalog-taxonomy="{{ catalog_taxonomy or 'humanoid' }}"
                              {% if catalog_event %}data-catalog-event="{{ catalog_event }}"{% endif %}
-                             {% if catalog_tooltip %}data-catalog-tooltip="{{ catalog_tooltip }}"{% endif %}
-                             {% endif %}>
+                            {% endif %}>
                             {% if line.icon_url is defined and line.icon_url %}
                                 <img class="combat-log-icon" src="{{ line.icon_url }}" alt="">
                             {% endif %}
                             <span class="combat-log-text">{{ line.text or 'NO_DATA' }}</span>
                         </div>
-                        {% endif %}
                     {% endfor %}
                 </div>
             </article>
@@ -117,7 +119,6 @@
                 {% set log_group.is_open = true %}
             {% endif %}
             {% set line_kind = line.kind if line.kind is defined and line.kind else line.type if line.type is defined else data.get('kind', data.get('type', 'log')) %}
-            {% if line_kind in ['result', 'death', 'log'] %}
             {% set catalog = line.catalog if line.catalog is defined else data.get('catalog') %}
             {% set catalog_key = line.catalog_key if line.catalog_key is defined else data.get('catalog_key') %}
             {% set catalog_event = line.catalog_event if line.catalog_event is defined else data.get('catalog_event') %}
@@ -137,14 +138,12 @@
                  data-catalog-key="{{ catalog_key }}"
                  data-catalog-taxonomy="{{ catalog_taxonomy or 'humanoid' }}"
                  {% if catalog_event %}data-catalog-event="{{ catalog_event }}"{% endif %}
-                 {% if catalog_tooltip %}data-catalog-tooltip="{{ catalog_tooltip }}"{% endif %}
                  {% endif %}>
                 {% if line.icon_url is defined and line.icon_url %}
                     <img class="combat-log-icon" src="{{ line.icon_url }}" alt="">
                 {% endif %}
                 <span class="combat-log-text">{{ line.text or 'NO_DATA' }}</span>
             </div>
-            {% endif %}
             {% if loop.last and log_group.is_open %}
                     </div>
                 </article>

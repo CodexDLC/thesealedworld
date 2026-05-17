@@ -5,12 +5,17 @@ from typing import TYPE_CHECKING, Any
 
 from codex_platform.streams import StreamRouter
 
-from src.backend.core.database.session import get_session_context
+from src.backend.core.database.session import get_manual_session_context, get_session_context
+from src.backend.features.generation_ai.bootstrap import build_generation_ai_registry
+from src.backend.features.generation_ai.repositories import AIGenerationTaskRepository
+from src.backend.features.generation_ai.services import GenerationAIService
 from src.backend.features.items.dto.instance import ItemGenerationBatchRequestDTO, ItemGenerationRequestDTO
 from src.backend.features.items.events.publisher import ItemEvents
-from src.backend.features.items.integrations import ItemPersistenceIntegration, ItemTextAIClient
+from src.backend.features.items.integrations import ItemPersistenceIntegration
 from src.backend.features.items.repositories import ItemInstanceRepository
+from src.backend.features.items.resources.item_grade import GRADE_BY_RARITY_TIER
 from src.backend.features.items.services import ItemGenerationService
+from src.backend.features.items.tasks_ai import build_item_text_task_spec
 
 if TYPE_CHECKING:
     from fastapi import FastAPI
@@ -116,30 +121,29 @@ async def on_text_requested(payload: dict[str, Any]) -> None:
             request.rarity_tier,
         )
         return
-    async with get_session_context() as session:
-        service = _build_generation_service(session)
-        item = await service.enrich_text(str(item_id), request)
-    if item is None:
-        log.warning("Item text request skipped: item_not_found item_id=%s", item_id)
-        return
-
-    await _app.state.events.publish(
-        "items.text_generated" if item.metadata.get("ai_text_status") == "generated" else "items.text_failed",
-        {"item_id": item_id, "item": item.model_dump(mode="json")},
-        correlation_id=payload.get("correlation_id"),
-    )
+    async with get_manual_session_context() as session:
+        generation_ai = GenerationAIService(
+            repository=AIGenerationTaskRepository(session),
+            registry=build_generation_ai_registry(session=session),
+            arq=getattr(_app.state, "generation_ai_arq", None),
+            auto_schedule=False,
+        )
+        await generation_ai.enqueue_many([build_item_text_task_spec(item_id=str(item_id), request=request)])
+        await session.commit()
+        await generation_ai.schedule_pending_task_ids()
 
 
 def _build_generation_service(session: Any) -> ItemGenerationService:
-    ai = getattr(_app.state, "ai", None) if _app is not None else None
     return ItemGenerationService(
         ItemPersistenceIntegration(ItemInstanceRepository(session)),
-        ItemTextAIClient(ai) if ai is not None else None,
     )
 
 
 def _should_request_ai_text(request: ItemGenerationRequestDTO) -> bool:
-    return request.generation_mode == "player" and request.request_ai_text and request.rarity_tier > 0
+    if request.generation_mode != "player" or not request.request_ai_text:
+        return False
+    item_grade = request.item_grade or GRADE_BY_RARITY_TIER.get(request.rarity_tier, "common")
+    return item_grade != "common"
 
 
 __all__ = ["ItemEvents", "bind", "router"]

@@ -32,6 +32,57 @@ def test_item_catalog_loads_structured_base_resources_through_pydantic():
 
 
 @pytest.mark.unit
+def test_mvp_armor_catalog_has_exact_three_four_piece_sets():
+    catalog = ItemCatalogService.load_default()
+    expected_sets = {
+        "light": {
+            "hood": ("head_armor", 1),
+            "leather_armor": ("chest_armor", 2),
+            "soft_bracers": ("arms_armor", 1),
+            "scout_leggings": ("legs_armor", 1),
+        },
+        "medium": {
+            "leather_cap": ("head_armor", 1),
+            "jerkin": ("chest_armor", 4),
+            "reinforced_gloves": ("arms_armor", 1),
+            "breeches": ("legs_armor", 2),
+        },
+        "heavy": {
+            "helmet": ("head_armor", 2),
+            "plate_chest": ("chest_armor", 5),
+            "gauntlets": ("arms_armor", 2),
+            "greaves": ("legs_armor", 3),
+        },
+    }
+    removed_armor_ids = {
+        "robe",
+        "sandals",
+        "goggles",
+        "chainmail",
+        "brigandine",
+        "boots",
+        "scale_mail",
+        "sabatons",
+    }
+
+    armor_ids = {
+        item_id
+        for item_id, entry in catalog.entries.items()
+        if entry.meta_type == "base" and entry.category == "armor"
+    }
+
+    assert armor_ids == {item_id for armor_set in expected_sets.values() for item_id in armor_set}
+    assert armor_ids.isdisjoint(removed_armor_ids)
+    for armor_class, armor_set in expected_sets.items():
+        for item_id, (slot, power) in armor_set.items():
+            item = catalog.get_base_item(item_id)
+            assert item is not None
+            assert item.slot == slot
+            assert item.armor_class == armor_class
+            assert item.base_power == power
+
+
+@pytest.mark.unit
 def test_item_catalog_exposes_new_affix_bundle_lookup():
     catalog = ItemCatalogService.load_default()
 
@@ -116,6 +167,60 @@ def test_daggerlike_fencing_weapons_support_main_and_off_hand():
 
 
 @pytest.mark.unit
+def test_piercing_fencing_weapons_work_flat_armor_instead_of_bleeding():
+    catalog = ItemCatalogService.load_default()
+
+    expected_triggers = {
+        "knife": ["crit.weapon_flat_armor_gap_crit"],
+        "dagger": ["crit.weapon_flat_armor_gap_crit"],
+        "stiletto": ["crit.weapon_flat_armor_bypass_crit"],
+        "katar": ["crit.weapon_flat_armor_bypass_crit"],
+    }
+
+    for item_id, triggers in expected_triggers.items():
+        item = catalog.get_base_item(item_id)
+        assert item is not None
+        assert item.triggers == triggers
+        assert all("bleed" not in trigger for trigger in item.triggers)
+
+
+@pytest.mark.unit
+def test_weapon_base_crit_chance_is_balanced_for_skill_multiplier_model():
+    catalog = ItemCatalogService.load_default()
+
+    expected_crit = {
+        "sling": 0.025,
+        "shortbow": 0.035,
+        "knife": 0.06,
+        "dagger": 0.07,
+        "stiletto": 0.075,
+        "rapier": 0.08,
+        "main_gauche": 0.05,
+        "katar": 0.085,
+        "hatchet": 0.03,
+        "battle_axe": 0.04,
+        "mace": 0.025,
+        "warhammer": 0.035,
+        "flail": 0.04,
+        "spear": 0.035,
+        "pike": 0.04,
+        "halberd": 0.04,
+        "quarterstaff": 0.02,
+        "trident": 0.035,
+        "sword": 0.045,
+        "longsword": 0.05,
+        "greatsword": 0.04,
+        "katana": 0.10,
+        "scimitar": 0.07,
+    }
+
+    for item_id, expected in expected_crit.items():
+        item = catalog.get_base_item(item_id)
+        assert item is not None
+        assert item.implicit_bonuses["physical_crit_chance"] == pytest.approx(expected)
+
+
+@pytest.mark.unit
 def test_base_item_triggers_reference_runtime_trigger_flags():
     catalog = ItemCatalogService.load_default()
     flags = TriggerRulesFlagsDTO()
@@ -172,6 +277,29 @@ def test_parry_base_bonus_is_limited_to_weapons_and_parrying_offhand():
         offenders.append(item_id)
 
     assert offenders == []
+
+
+@pytest.mark.unit
+def test_starting_parry_rewards_reach_cap_only_near_full_parrying_skill():
+    catalog = ItemCatalogService.load_default()
+
+    def base_parry(*item_ids: str) -> float:
+        # Scenario rewards are generated at rarity tier 0, so starter ingot/wood items use tier_mult=0.8.
+        return sum(float(catalog.get_base_item(item_id).implicit_bonuses.get("parry_chance", 0.0)) for item_id in item_ids) * 0.8
+
+    def final_parry(raw_base: float, skill: float) -> float:
+        return min(raw_base * (1.0 + 4.0 * skill), 0.50)
+
+    parry_builds = {
+        "dagger_main_gauche": base_parry("dagger", "main_gauche"),
+        "sword_buckler": base_parry("sword", "buckler"),
+    }
+
+    for raw_base in parry_builds.values():
+        assert final_parry(raw_base, 0.25) <= 0.25
+        assert final_parry(raw_base, 1.0) == pytest.approx(0.50)
+
+    assert final_parry(base_parry("dagger", "dagger"), 1.0) < 0.30
 
 
 @pytest.mark.unit

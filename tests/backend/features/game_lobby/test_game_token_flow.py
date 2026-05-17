@@ -8,6 +8,7 @@ from src.backend.core.exceptions import BusinessLogicException
 from src.backend.core.game_auth import decode_game_access_token
 from src.backend.features.game_lobby.api.router import (
     bootstrap_lobby_for_site_user,
+    check_lobby_character_name_for_site_user,
     create_lobby_character_for_site_user,
     delete_lobby_character_for_site_user,
     release_lobby_character_for_site_user,
@@ -17,6 +18,8 @@ from src.backend.features.game_lobby.integrations import LobbyCharacterSummary
 from src.backend.features.game_lobby.services.lobby_service import GameLobbyService
 from src.shared.enums import CoreDomain
 from src.shared.schemas import (
+    CharacterNameAvailabilityDTO,
+    CharacterNameAvailabilityRequestDTO,
     CoreResponseDTO,
     CreateCharacterRequestDTO,
     DeleteCharacterRequestDTO,
@@ -129,6 +132,25 @@ async def test_create_character_for_site_user_returns_scenario_and_game_tokens()
     claims = decode_game_access_token(tokens["access_token"])
     assert claims.sub == user_id
     assert claims.character_id == 7
+
+
+@pytest.mark.unit
+async def test_name_availability_for_site_user_uses_creation_service() -> None:
+    service = SimpleNamespace(
+        check_name_availability=AsyncMock(
+            return_value=CharacterNameAvailabilityDTO(available=False, code="name_taken")
+        )
+    )
+
+    response = await check_lobby_character_name_for_site_user(
+        CharacterNameAvailabilityRequestDTO(name="Ada"),
+        object(),
+        service,
+    )
+
+    assert response.available is False
+    assert response.code == "name_taken"
+    service.check_name_availability.assert_awaited_once_with("Ada")
 
 
 @pytest.mark.unit

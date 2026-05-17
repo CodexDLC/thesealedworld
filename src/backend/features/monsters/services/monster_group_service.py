@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import random
 import uuid
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from src.backend.features.monsters.dto.generation import (
     GeneratedClan,
@@ -23,7 +23,7 @@ if TYPE_CHECKING:
         MonsterGroupCacheIntegration,
         MonsterLocationContextIntegration,
     )
-    from src.backend.features.monsters.runtime.generation_builder import MonsterClanGenerationBuilder
+    from src.backend.features.monsters.runtime.clan_factory import ClanFactory
 
 
 class MonsterGroupService:
@@ -34,7 +34,7 @@ class MonsterGroupService:
         location_context: MonsterLocationContextIntegration,
         actor_commitments: MonsterActorCommitmentIntegration,
         group_cache: MonsterGroupCacheIntegration | None = None,
-        generator: MonsterClanGenerationBuilder,
+        factory: ClanFactory,
         assembler: MonsterGroupAssembler | None = None,
         rng: random.Random | None = None,
     ) -> None:
@@ -42,7 +42,7 @@ class MonsterGroupService:
         self.location_context = location_context
         self.actor_commitments = actor_commitments
         self.group_cache = group_cache
-        self.generator = generator
+        self.factory = factory
         self.assembler = assembler or MonsterGroupAssembler()
         self.actor_builder = MonsterCombatActorInputBuilder()
         self._rng = rng or random.Random()  # nosec B311
@@ -144,7 +144,7 @@ class MonsterGroupService:
         if existing:
             return self._choose_existing_clan(existing), True
 
-        family_id = preferred_family_id or self.generator.select_family_id(context, context_hash)
+        family_id = preferred_family_id or self.factory.select_family_id(context, context_hash)
         if family_id is None:
             raise ValueError(f"No monster families available for biome={context.biome_id} tier={context.tier}")
 
@@ -153,13 +153,12 @@ class MonsterGroupService:
         if clan is not None:
             return clan, True
 
-        clan = await self.generator.generate_active_clan(
-            context_hash=context_hash,
+        clan = await self.factory.build_clan_template(
             context=context,
             family_id=family_id,
+            context_hash=context_hash,
             unique_hash=unique_hash,
             normalized_tags=normalized_tags,
-            reuse_existing=False,
         )
         return clan, False
 
@@ -167,7 +166,7 @@ class MonsterGroupService:
         family = get_family_config(family_id)
         if family is None:
             raise ValueError(f"Unknown monster family: {family_id}")
-        available = set(self.generator.get_available_family_ids(context))
+        available = set(self.factory.get_available_family_ids(context))
         if family_id not in available or not get_available_variants_for_family_tier(family_id, context.tier):
             raise ValueError(
                 f"Monster family is not available for biome={context.biome_id} tier={context.tier}: {family_id}"
@@ -193,6 +192,7 @@ class MonsterGroupService:
         tags = ["monster", monster.role]
         if family is not None:
             tags.extend([family.id, family.archetype, *family.default_tags])
+        visual = self._monster_visual(monster)
         return MonsterGroupMemberPreview(
             monster_id=str(monster.id),
             name=monster.name_ru,
@@ -205,8 +205,24 @@ class MonsterGroupService:
             member_tier=monster.member_tier,
             threat_rating=monster.threat_rating,
             hp=dict((monster.vitals or {}).get("hp") or {}),
+            image=self._visual_image_url(visual),
+            visual=visual,
             tags=sorted(set(tags)),
         )
+
+    @staticmethod
+    def _monster_visual(monster: GeneratedMonster) -> dict[str, Any]:
+        meta = dict(monster.generation_meta or {})
+        visual = meta.get("visual")
+        return dict(visual) if isinstance(visual, dict) else {}
+
+    @staticmethod
+    def _visual_image_url(visual: dict[str, Any]) -> str | None:
+        for key in ("image_url", "generated_image_url", "fallback_image_url"):
+            value = visual.get(key)
+            if value:
+                return str(value)
+        return None
 
     @staticmethod
     def _variant_text(monster: GeneratedMonster, key: str) -> str:

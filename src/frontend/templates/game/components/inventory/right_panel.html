@@ -1,0 +1,13 @@
+<aside class="panel-dock panel-dock--framed panel-dock--scroll right-inventory-panel"
+       aria-label="Inventory dock">
+    <nav class="dock-nav dock-nav--bar dock-nav--panel inventory-panel-actions" aria-label="Inventory actions">
+        <button class="dock-nav-button is-active" type="button">INVENTORY</button>
+        <button class="dock-nav-button dock-nav-button--close"
+                type="button"
+                @click="$dispatch('panel-toggle', { side: 'right', view: 'inventory' })">CLOSE</button>
+    </nav>
+    <div id="right-inventory-panel-body" class="right-inventory-panel-body">
+        {% set inventory_target_id = 'right-inventory-panel-body' %}
+        {% include "game/components/inventory/window.html" %}
+    </div>
+</aside>

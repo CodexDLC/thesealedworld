@@ -93,6 +93,10 @@ async def test_encounter_combat_generation():
     assert encounter.status == DetectionStatus.DETECTED
     assert encounter.description == "Rat scout spots you from the rubble."
     assert len(encounter.enemies) == 2
+    assert encounter.enemies[0].level == 1
+    assert encounter.enemies[0].member_tier == 1
+    assert encounter.enemies[0].threat_rating == 3
+    assert encounter.enemies[0].image == "/static/generated-assets/monsters/generated/members/rat-scout.webp"
     assert integration.prepare_monster_group.await_count == 1
     assert integration.request_combat_session.await_count == 1
 
@@ -164,8 +168,11 @@ def _monster_group() -> MonsterGroupResult:
                 idle_ru="Rat scout watches the passage.",
                 role="scout",
                 variant_key="rat_scout",
+                member_tier=1,
                 threat_rating=3,
                 hp={"current": 12, "max": 12},
+                image="/static/generated-assets/monsters/generated/members/rat-scout.webp",
+                visual={"image_url": "/static/generated-assets/monsters/generated/members/rat-scout.webp"},
             ),
             MonsterGroupMemberPreview(
                 monster_id="m2",
@@ -173,6 +180,7 @@ def _monster_group() -> MonsterGroupResult:
                 description="Larger and meaner.",
                 role="bruiser",
                 variant_key="rat_bruiser",
+                member_tier=1,
                 threat_rating=5,
                 hp={"current": 20, "max": 20},
             ),

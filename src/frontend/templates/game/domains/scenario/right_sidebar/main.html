@@ -28,9 +28,11 @@
 
 <aside class="panel-dock panel-dock--framed panel-dock--scroll scenario-info-dock"
        aria-label="Scenario details dock">
-    <nav class="dock-nav dock-nav--bar dock-nav--two scenario-info-actions" aria-label="Scenario info actions">
+    <nav class="dock-nav dock-nav--bar dock-nav--panel scenario-info-actions" aria-label="Scenario info actions">
         <button class="dock-nav-button is-active" type="button">INFO</button>
-        <button class="dock-nav-button" type="button" @click="rightOpen = false">CLOSE</button>
+        <button class="dock-nav-button dock-nav-button--close"
+                type="button"
+                @click="$dispatch('panel-toggle', { side: 'right', view: 'context' })">CLOSE</button>
     </nav>
 
     {% if quest_title or scene_title or speaker_label or scene_hint %}

@@ -1,0 +1,27 @@
+
+@media (min-width: 768px) {
+    .game-system-menu-toggle {
+        display: none;
+    }
+
+    .game-system-actions {
+        position: static;
+        min-width: 0;
+        padding: 0;
+        display: flex;
+        flex-direction: row;
+        gap: 6px;
+        border: 0;
+        background: transparent;
+        box-shadow: none;
+    }
+
+    .game-system-action {
+        min-height: 28px;
+        grid-template-columns: 18px minmax(0, auto);
+    }
+
+    .game-system-action--icon {
+        min-width: 28px;
+        grid-template-columns: 1fr;
+    }

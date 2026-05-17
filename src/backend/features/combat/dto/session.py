@@ -51,6 +51,7 @@ class BattleMeta(BaseModel):
     actors_info: dict[str, str] = Field(default_factory=dict)
     dead_actors: list[ActorIdLike] = Field(default_factory=list)
     last_activity_at: int = 0
+    started_at: int | None = None
     battle_type: str
     location_id: str
 

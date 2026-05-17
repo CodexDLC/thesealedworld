@@ -42,6 +42,7 @@ class FrontendSettings(BaseCommonSettings):
     # Paths
     templates_dir: Path = BASE_DIR / "src" / "frontend" / "templates"
     static_dir: Path = BASE_DIR / "src" / "frontend" / "static"
+    generated_assets_dir: Path = BASE_DIR / "var" / "generated-assets"
 
     model_config = SettingsConfigDict(
         env_file=BASE_DIR / ".env",

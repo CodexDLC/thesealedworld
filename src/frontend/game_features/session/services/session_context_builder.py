@@ -19,6 +19,7 @@ from src.shared.enums import CoreDomain
 from src.shared.schemas import CoreResponseDTO, EnterCharacterRequestDTO
 from src.shared.schemas.arena import ArenaUIPayloadDTO
 from src.shared.schemas.exploration import EncounterDTO, ExplorationScreenDTO, WorldNavigationDTO
+from src.shared.schemas.loot import LootClaimRequestDTO
 from src.shared.schemas.tavern import TavernUIPayloadDTO
 
 if TYPE_CHECKING:
@@ -256,6 +257,7 @@ class SessionContextBuilder:
             character_status = await self._character_status(token, char_id=char_id)
             status_payload = self._status_seed(character_status)
             sessions = getattr(character_status, "sessions", {}) or {}
+            post_combat = _post_combat_from_sources(transition_metadata, sessions)
             return self._context(
                 state=CoreDomain.DEATH,
                 char_id=char_id,
@@ -270,6 +272,33 @@ class SessionContextBuilder:
                     "run_id": sessions.get("death_run_id") if isinstance(sessions, dict) else None,
                     "corpse_id": sessions.get("death_corpse_id") if isinstance(sessions, dict) else None,
                     "respawn_action": "/game/death/respawn",
+                    "post_combat": post_combat,
+                    "death_summary": (post_combat or {}).get("death_summary", {}),
+                },
+                initial_inventory_open=False,
+            )
+
+        if state == CoreDomain.LOOT:
+            character_status = await self._character_status(token, char_id=char_id)
+            status_payload = self._status_seed(character_status)
+            sessions = getattr(character_status, "sessions", {}) or {}
+            post_combat = _post_combat_from_sources(transition_metadata, sessions) or {}
+            return self._context(
+                state=CoreDomain.LOOT,
+                char_id=char_id,
+                transaction_id="",
+                payload_type="loot_session",
+                character_status=character_status,
+                background_url="/static/images/scenes/ruins.png",
+                world_theme=getattr(character_status, "world_theme", None),
+                status_seed=status_payload,
+                loot={
+                    "char_id": char_id,
+                    "claim_action": "/game/loot/claim-all",
+                    "post_combat": post_combat,
+                    "notice": post_combat.get("notice"),
+                    "corpse_ids": post_combat.get("corpse_ids") or [],
+                    "loot_context": post_combat.get("loot_context") or {},
                 },
                 initial_inventory_open=False,
             )
@@ -335,6 +364,14 @@ class SessionContextBuilder:
     async def respawn(self, request: Request, *, char_id: int) -> dict[str, Any]:
         token = require_game_access_token(request)
         response = await self.game_session_api.respawn(token, EnterCharacterRequestDTO(character_id=char_id))
+        return await self.build_from_response(request, response, char_id=char_id)
+
+    async def claim_loot(self, request: Request, *, char_id: int, corpse_ids: list[str]) -> dict[str, Any]:
+        token = require_game_access_token(request)
+        response = await self.game_session_api.claim_loot(
+            token,
+            LootClaimRequestDTO(char_id=char_id, corpse_ids=corpse_ids),
+        )
         return await self.build_from_response(request, response, char_id=char_id)
 
     async def build_exploration_response(
@@ -505,6 +542,7 @@ class SessionContextBuilder:
         combat_result: Any | None = None,
         combat_result_screen: Any | None = None,
         death: dict[str, Any] | None = None,
+        loot: dict[str, Any] | None = None,
         background_url: str | None = None,
         world_theme: Any | None = None,
         status_seed: dict[str, Any] | None = None,
@@ -512,7 +550,6 @@ class SessionContextBuilder:
         initial_inventory_open: bool = False,
     ) -> dict[str, Any]:
         domain = self._layout_domain(state)
-        session_ui = self._session_ui(domain=domain, scenario=scenario)
         status_payload = status_seed or self._status_seed(character_status)
         inventory_payload = inventory_window or build_inventory_window_vm(status_payload)
         return {
@@ -531,11 +568,11 @@ class SessionContextBuilder:
             "combat_result": combat_result,
             "combat_result_screen": combat_result_screen,
             "death": death,
+            "loot": loot,
             "combat_chat_session_id": getattr(combat_screen, "session_id", None),
             "background_url": background_url,
             "world_theme": world_theme,
             "nav": build_game_nav(state=domain, char_id=char_id),
-            "session_ui": session_ui,
             "status_seed": status_payload,
             "inventory_window": inventory_payload,
             "initial_inventory_open": initial_inventory_open,
@@ -576,18 +613,6 @@ class SessionContextBuilder:
         if domain == CoreDomain.COMBAT_RESULT.value:
             return CoreDomain.COMBAT.value
         return domain
-
-    @staticmethod
-    def _session_ui(*, domain: str, scenario: Any | None) -> dict[str, bool]:
-        if domain == CoreDomain.COMBAT.value:
-            return {"left_open": True, "right_open": True}
-        if domain != CoreDomain.SCENARIO.value or scenario is None:
-            return {"left_open": False, "right_open": False}
-        extra_data = getattr(scenario, "extra_data", None) or {}
-        return {
-            "left_open": bool(extra_data.get("show_left_sidebar")),
-            "right_open": bool(extra_data.get("show_right_sidebar")),
-        }
 
     @staticmethod
     def _status_seed(character_status: CharacterActorCoreDTO | None) -> dict[str, Any]:
@@ -704,4 +729,15 @@ def _transition_value(
         }.get(key, key)
         if return_context.get(mapped_key):
             return str(return_context[mapped_key])
+    return None
+
+
+def _post_combat_from_sources(
+    transition_metadata: dict[str, Any] | None,
+    sessions: dict[str, Any] | None,
+) -> dict[str, Any] | None:
+    if isinstance(transition_metadata, dict) and isinstance(transition_metadata.get("post_combat"), dict):
+        return transition_metadata["post_combat"]
+    if isinstance(sessions, dict) and isinstance(sessions.get("post_combat"), dict):
+        return sessions["post_combat"]
     return None

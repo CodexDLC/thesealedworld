@@ -237,6 +237,35 @@ async def test_get_actor_core_formats_skill_values_as_percentages():
 
 
 @pytest.mark.asyncio
+async def test_get_actor_core_separates_combat_style_and_support_skills():
+    document = build_actor_core_document()
+    document["skills"] = {
+        "skill_one_handed": {"xp": 0.009},
+        "skill_parrying": {"xp": 0.1},
+        "skill_anatomy": {"xp": 0.007},
+        "skill_tactics": {"xp": 0.018},
+        "skill_heavy_armor": {"xp": 0.102},
+    }
+    service = build_service(FakeCharacterRepository, FakeCharacterSessions(document))
+
+    dto = await service.get_actor_core(SimpleNamespace(id=uuid4()), 7)
+
+    skills_widget = next(widget for widget in dto.panel.widgets if widget.title == "SKILLS")
+    assert [group["title"] for group in skills_widget.data["groups"]] == [
+        "COMBAT STYLE",
+        "COMBAT SUPPORT",
+        "ARMOR",
+    ]
+    assert [item["catalog_key"] for item in skills_widget.data["groups"][0]["items"]] == ["skill_one_handed"]
+    assert [item["catalog_key"] for item in skills_widget.data["groups"][1]["items"]] == [
+        "skill_parrying",
+        "skill_anatomy",
+        "skill_tactics",
+    ]
+    assert [item["catalog_key"] for item in skills_widget.data["groups"][2]["items"]] == ["skill_heavy_armor"]
+
+
+@pytest.mark.asyncio
 async def test_get_actor_core_rejects_unowned_character():
     service = build_service(MissingCharacterRepository, FakeCharacterSessions(build_actor_core_document()))
 

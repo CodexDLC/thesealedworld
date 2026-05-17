@@ -1,0 +1,96 @@
+.scenario-panel-debug {
+    padding: 4px 8px;
+    border-top: 1px solid rgba(255, 170, 0, 0.08);
+    background: rgba(0, 0, 0, 0.72);
+    color: rgba(255, 170, 0, 0.24);
+    font-family: var(--font-mono);
+    font-size: 9px;
+}
+
+.scenario-status-dock,
+.scenario-info-dock {
+    height: 100%;
+    max-height: 100%;
+    min-height: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 0 8px 8px;
+    box-sizing: border-box;
+}
+
+.scenario-status-dock .status-widget-card,
+.scenario-status-section,
+.scenario-info-section {
+    margin: 0;
+    flex: 0 0 auto;
+}
+
+.scenario-status-actions,
+.scenario-info-actions {
+    flex: 0 0 auto;
+}
+
+.scenario-status-dock .status-widget-skill-list {
+    padding: 0 8px 8px;
+}
+
+.scenario-status-dock--error {
+    filter: saturate(0.68) contrast(1.12);
+}
+
+.scenario-status-dock--error .status-widget-card,
+.scenario-status-dock--error .status-widget-section {
+    border-color: rgba(255, 51, 0, 0.24);
+    box-shadow: inset 0 0 20px rgba(255, 51, 0, 0.045);
+}
+
+.scenario-status-dock--glitch {
+    position: relative;
+}
+
+.scenario-status-dock--glitch::before,
+.scenario-status-dock--glitch::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 8;
+}
+
+.scenario-status-dock--glitch::before {
+    background: repeating-linear-gradient(
+        0deg,
+        transparent 0 5px,
+        rgba(255, 51, 0, 0.055) 5px 6px,
+        transparent 6px 11px
+    );
+    animation: scenario-glitch-scan 2.7s linear infinite;
+    mix-blend-mode: screen;
+}
+
+.scenario-status-dock--glitch::after {
+    background:
+        linear-gradient(90deg, rgba(255, 51, 0, 0.08), transparent 14%, transparent 84%, rgba(51, 153, 255, 0.07)),
+        radial-gradient(circle at 30% 20%, rgba(255, 51, 0, 0.08), transparent 35%);
+    opacity: 0.55;
+    animation: scenario-glitch-flicker 3.6s steps(7) infinite;
+}
+
+.missing-data-block {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    color: var(--col-danger);
+    font-family: var(--font-ui);
+    font-size: var(--game-panel-label-size);
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+.missing-data-block small {
+    color: var(--col-text-dim);
+    font-size: var(--game-panel-meta-size);
+    letter-spacing: 0;
+    text-transform: none;
+}

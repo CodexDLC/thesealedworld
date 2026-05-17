@@ -1,0 +1,54 @@
+.col-left,
+.col-right {
+    width: 0;
+    max-width: var(--side-panel-width);
+}
+
+.left-open .col-left,
+.right-open .col-right {
+    width: var(--side-panel-width);
+}
+
+.col-left,
+.col-center,
+.col-right {
+    scrollbar-width: thin;
+    overscroll-behavior: contain;
+}
+
+.col-left > *,
+.col-right > * {
+    min-width: 0;
+}
+
+.game-top-row {
+    grid-template-columns: 0 minmax(0, 1fr) 0;
+}
+
+.game-top-row.left-open {
+    grid-template-columns: var(--side-panel-width) minmax(0, 1fr) 0;
+}
+
+.game-top-row.right-open {
+    grid-template-columns: 0 minmax(0, 1fr) var(--side-panel-width);
+}
+
+.game-top-row.left-open.right-open {
+    grid-template-columns: var(--side-panel-width) minmax(0, 1fr) var(--side-panel-width);
+}
+
+@media (min-width: 1280px) {
+    .game-top-row,
+    .game-top-row.left-open,
+    .game-top-row.right-open,
+    .game-top-row.left-open.right-open {
+        grid-template-columns: var(--side-panel-width) minmax(0, 1fr) var(--side-panel-width);
+    }
+
+    .col-left,
+    .col-right {
+        width: var(--side-panel-width);
+        max-width: var(--side-panel-width);
+        display: block;
+    }
+}

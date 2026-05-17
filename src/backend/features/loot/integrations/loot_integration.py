@@ -74,6 +74,9 @@ class LootIntegration:
     async def is_loot_ordered(self, session_id: str) -> bool:
         return await self._manager.is_loot_ordered(session_id)
 
+    async def save_pending_actor_corpses(self, session_id: str, corpse_ids_by_actor: dict[str, str]) -> None:
+        await self._manager.save_pending_actor_corpses(session_id, corpse_ids_by_actor)
+
     # ------------------------------------------------------------------
     # Item Service RPC
     # ------------------------------------------------------------------

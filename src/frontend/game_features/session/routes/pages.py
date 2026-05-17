@@ -58,3 +58,17 @@ async def game_death_respawn(
     await auth_service.require_current_user(request)
     context = await context_builder.respawn(request, char_id=char_id)
     return await ui.render("game/session_content_inner.html", context=context)
+
+
+@router.post("/game/loot/claim-all", name="game_loot_claim_all")
+async def game_loot_claim_all(
+    request: Request,
+    ui: Annotated[UIRenderer, Depends(get_ui_renderer)],
+    auth_service: Annotated[FrontendAuthService, Depends(get_frontend_auth_service)],
+    context_builder: Annotated[SessionContextBuilder, Depends(get_session_context_builder)],
+    char_id: Annotated[int, Form()],
+    corpse_ids: Annotated[list[str], Form(default_factory=list)],
+):
+    await auth_service.require_current_user(request)
+    context = await context_builder.claim_loot(request, char_id=char_id, corpse_ids=corpse_ids)
+    return await ui.render("game/session_content_inner.html", context=context)

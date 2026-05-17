@@ -13,6 +13,7 @@ from src.backend.features.character.events import router as character_router
 from src.backend.features.combat.events import router as combat_router
 from src.backend.features.inventory.events import router as inventory_router
 from src.backend.features.items.events import router as items_router
+from src.backend.features.loot.events import router as loot_router
 from src.backend.features.monsters.events import router as monsters_router
 from src.backend.features.scenario.events import router as scenario_router
 from src.backend.features.tavern.events import router as tavern_router
@@ -24,6 +25,7 @@ EVENT_ROUTERS = (
     combat_router,
     inventory_router,
     items_router,
+    loot_router,
     monsters_router,
     scenario_router,
     arena_router,

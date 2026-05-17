@@ -115,6 +115,7 @@ def to_item_generation_request(request: MonsterItemBuildRequestDTO) -> ItemGener
         source="monster_runtime_item",
         origin_ref=ItemOriginRefDTO(origin_type="system", origin_ref="monster_runtime_item", seed=request.seed),
         return_item=True,
+        presentation_name_ru=mapping.name_ru if mapping else None,
     )
 
 

@@ -21,11 +21,12 @@ async def loot_order_task(ctx: dict[str, Any], payload: dict[str, Any]) -> None:
         session_id  — combat session ID
         actors      — list of actor snapshots (from CombatDataService.get_actors_batch)
         location_id — location where corpses should appear
-        char_ids    — winning team char_ids (filled in on enqueue if known, else empty)
+        battle_type — combat battle type
     """
     session_id: str = str(payload.get("session_id", ""))
     actors: list[dict] = payload.get("actors") or []
     location_id: str = str(payload.get("location_id", "unknown"))
+    battle_type: str = str(payload.get("battle_type") or "")
 
     if not session_id:
         log.error("LootOrderTask | missing session_id in payload")
@@ -42,24 +43,25 @@ async def loot_order_task(ctx: dict[str, Any], payload: dict[str, Any]) -> None:
     integration = LootIntegration(manager)  # no events needed for generation
     service = LootService(integration, LootEngine())
 
-    corpse_ids = await service.order_loot_for_combat(
+    corpse_ids_by_actor = await service.order_loot_for_combat(
         session_id=session_id,
         actors=actors,
         location_id=location_id,
+        battle_type=battle_type,
     )
 
     log.info(
         "LootOrderTask | session={} generated {} corpses at {}",
         session_id,
-        len(corpse_ids),
+        len(corpse_ids_by_actor),
         location_id,
     )
 
-    # Store generated corpse_ids back into session meta so victory_finalizer can activate them.
+    # Store actor_id -> corpse_id so victory_finalizer can activate only actually dead actors.
     # Uses a short-lived Redis key (session lifetime ~24h matches invisible corpse TTL).
-    if corpse_ids:
+    if corpse_ids_by_actor:
         client = manager._client()
         key = f"loot:pending:{session_id}"
         import json
 
-        await client.set(key, json.dumps(corpse_ids), ex=86400)
+        await client.set(key, json.dumps(corpse_ids_by_actor), ex=86400)

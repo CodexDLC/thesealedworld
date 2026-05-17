@@ -1,6 +1,7 @@
 import pytest
 
 from src.backend.features.combat.dto import (
+    ActorLoadoutDTO,
     ActorMetaDTO,
     ActorRawDTO,
     ActorSnapshot,
@@ -62,13 +63,27 @@ def test_experience_finalizer_maps_flat_xp_buffer_to_skill_rewards() -> None:
                 "prediction": {"base": 8},
             }
         },
-        "loadout": {"layout": {"main_hand": "skill_swords"}},
-        "skills": {"skill_swords": 0.0, "skill_parrying": 0.0},
+        "loadout": {
+            "layout": {
+                "main_hand": "skill_swords",
+                "body": "skill_heavy_armor",
+                "tactical_style": "skill_two_handed",
+            }
+        },
+        "skills": {
+            "skill_swords": 0.0,
+            "skill_two_handed": 0.0,
+            "skill_heavy_armor": 0.0,
+            "skill_parrying": 0.0,
+            "skill_anatomy": 0.0,
+            "skill_tactics": 0.0,
+        },
         "xp_buffer": {
             "main_hand_hit": 2,
             "main_hand_miss": 1,
             "main_hand_crit": 1,
             "defense_parry": 1,
+            "defense_armor": 2,
             "kill_generic": 1,
         },
     }
@@ -77,8 +92,11 @@ def test_experience_finalizer_maps_flat_xp_buffer_to_skill_rewards() -> None:
 
     assert rewards == {
         "skill_swords": 0.0048,
+        "skill_two_handed": 0.0024,
+        "skill_heavy_armor": 0.0032,
         "skill_parrying": 0.0016,
-        "free_xp": 0.0016,
+        "skill_anatomy": 0.0022,
+        "skill_tactics": 0.004,
     }
 
 
@@ -94,6 +112,41 @@ def test_experience_finalizer_sends_unknown_useful_actions_to_free_xp() -> None:
     rewards = CombatExperienceFinalizer().calculate_actor_rewards(actor)
 
     assert rewards == {"free_xp": 0.0012}
+
+
+@pytest.mark.unit
+def test_experience_finalizer_does_not_unlock_non_combat_skills_from_combat() -> None:
+    actor = {
+        "raw": {"attributes": {"strength": {"base": 8}, "agility": {"base": 8}, "endurance": {"base": 8}}},
+        "loadout": {"layout": {"main_hand": "skill_scouting"}},
+        "skills": {},
+        "xp_buffer": {"main_hand_hit": 1},
+    }
+
+    rewards = CombatExperienceFinalizer().calculate_actor_rewards(actor)
+
+    assert rewards == {"free_xp": 0.0012}
+    assert "skill_scouting" not in rewards
+
+
+@pytest.mark.unit
+def test_experience_finalizer_routes_block_to_shield_mastery_even_when_skill_was_not_present() -> None:
+    actor = {
+        "raw": {
+            "attributes": {
+                "strength": {"base": 8},
+                "agility": {"base": 8},
+                "endurance": {"base": 8},
+            }
+        },
+        "loadout": {"layout": {"off_hand": "skill_shield_mastery", "tactical_style": "skill_shield_mastery"}},
+        "skills": {},
+        "xp_buffer": {"defense_block": 1},
+    }
+
+    rewards = CombatExperienceFinalizer().calculate_actor_rewards(actor)
+
+    assert rewards == {"skill_shield_mastery": 0.0016}
 
 
 @pytest.mark.unit
@@ -132,3 +185,29 @@ def test_mechanics_service_records_flat_source_aware_xp_counters() -> None:
     assert source.xp_buffer["off_hand_hit"] == 1.0
     assert source.xp_buffer["off_hand_crit"] == 1.0
     assert "action_hit" not in source.xp_buffer
+
+
+@pytest.mark.unit
+def test_mechanics_service_records_body_armor_xp_counter_for_landed_damage() -> None:
+    source = ActorSnapshot(
+        meta=ActorMetaDTO(id=1, name="Attacker", type="monster", team="b", hp=10, max_hp=10),
+        raw=ActorRawDTO(),
+    )
+    target = ActorSnapshot(
+        meta=ActorMetaDTO(id=2, name="Hero", type="player", team="a", hp=10, max_hp=10),
+        raw=ActorRawDTO(),
+        loadout=ActorLoadoutDTO(layout={"body": "skill_heavy_armor"}),
+    )
+    result = InteractionResultDTO(
+        source_id=1,
+        target_id=2,
+        hand="main_hand",
+        is_hit=True,
+        damage_raw=7,
+        damage_mitigated=3,
+        damage_final=4,
+    )
+
+    MechanicsService().apply_interaction_result(PipelineContextDTO(), source, target, result)
+
+    assert target.xp_buffer["defense_armor"] == 1.0

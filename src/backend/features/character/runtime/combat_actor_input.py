@@ -82,6 +82,7 @@ class CharacterCombatActorInputBuilder:
         hand_usage: dict[str, str] = {}
         weapon_slots: list[str] = []
         weapon_tiers: dict[str, int] = {}
+        combat_surfaces: dict[str, dict[str, Any]] = {}
         for slot, item_id in equipment_layout.items():
             if not item_id:
                 continue
@@ -95,6 +96,12 @@ class CharacterCombatActorInputBuilder:
                 weapon_slots.append(combat_slot)
             if item_type == "weapon" and combat_slot in {"main_hand", "off_hand"}:
                 weapon_tiers[combat_slot] = CharacterCombatActorInputBuilder._weapon_tier(item)
+                combat_surfaces[combat_slot] = CharacterCombatActorInputBuilder._combat_surface(
+                    slot=combat_slot,
+                    item_id=str(item_id),
+                    item=item,
+                    skill_key=skill_key,
+                )
             if skill_key:
                 combat_layout[combat_slot] = skill_key
             trigger_id = CharacterCombatActorInputBuilder._first_trigger(item)
@@ -103,6 +110,15 @@ class CharacterCombatActorInputBuilder:
 
         if "main_hand" not in combat_layout:
             combat_layout["main_hand"] = "skill_unarmed"
+            combat_surfaces["main_hand"] = {
+                "slot": "main_hand",
+                "delivery": "unarmed",
+                "surface": "hands",
+                "tags": [],
+                "item_id": "",
+                "base_id": "",
+                "skill_key": "skill_unarmed",
+            }
 
         tactical_style = CharacterCombatActorInputBuilder._tactical_style(combat_layout, hand_usage, weapon_slots)
         if tactical_style:
@@ -124,6 +140,7 @@ class CharacterCombatActorInputBuilder:
             "two_handed": bool(hand_usage),
             "weapon_slots": sorted(set(weapon_slots)),
             "weapon_tiers": weapon_tiers,
+            "combat_surfaces": combat_surfaces,
             "belt": belt,
             "abilities": CharacterCombatActorInputBuilder._known_abilities(by_id),
             "known_abilities": CharacterCombatActorInputBuilder._known_abilities(by_id),
@@ -188,6 +205,40 @@ class CharacterCombatActorInputBuilder:
         mechanics = CharacterCombatActorInputBuilder._mechanics(item)
         raw = item.get("triggers") or mechanics.get("triggers") or []
         return str(raw[0]) if isinstance(raw, list) and raw else None
+
+    @staticmethod
+    def _combat_surface(
+        *,
+        slot: str,
+        item_id: str,
+        item: dict[str, Any],
+        skill_key: str | None,
+    ) -> dict[str, Any]:
+        mechanics = CharacterCombatActorInputBuilder._mechanics(item)
+        tags = CharacterCombatActorInputBuilder._tags(item, mechanics)
+        delivery = "natural" if "natural_weapon" in tags else "weapon"
+        surface = CharacterCombatActorInputBuilder._surface_from_tags(tags, delivery=delivery)
+        return {
+            "slot": slot,
+            "delivery": delivery,
+            "surface": surface,
+            "tags": tags,
+            "item_id": str(item.get("item_id") or item_id),
+            "base_id": str(item.get("base_id") or mechanics.get("base_id") or ""),
+            "skill_key": str(skill_key or ""),
+        }
+
+    @staticmethod
+    def _surface_from_tags(tags: list[str], *, delivery: str) -> str:
+        if delivery == "natural":
+            for tag in ("fangs", "bite", "claws", "talons", "paws", "natural_weapon"):
+                if tag in tags:
+                    return tag
+            return "natural_weapon"
+        for tag in ("sword", "blade", "dagger", "spear", "polearm", "axe", "mace", "hammer", "bow", "weapon"):
+            if tag in tags:
+                return tag
+        return "weapon"
 
     @staticmethod
     def _known_abilities(by_id: dict[str, Any]) -> list[str]:

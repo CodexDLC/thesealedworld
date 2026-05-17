@@ -38,7 +38,7 @@ async def test_backend_401_on_game_page_redirects_to_lobby_and_clears_game_state
 
 @pytest.mark.asyncio
 async def test_frontend_login_redirect_clears_site_auth_cookies() -> None:
-    request = _request("/cabinet")
+    request = _request("/admin")
 
     response = await frontend_http_exception_handler(
         request,

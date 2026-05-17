@@ -9,6 +9,7 @@ from src.frontend.features.auth.api import router as auth_api_router
 # Features are split into two main categories:
 # 1. features: Site web logic (Authentication, User Cabinet, Library, Landing/Static pages)
 # 2. game_features: Core gameplay interactions (Lobby, Menu systems, Game Scenarios)
+from src.frontend.features.account.routes.pages import router as account_router
 from src.frontend.features.auth.routes.pages import router as auth_router
 from src.frontend.features.library.routes.pages import router as library_router
 from src.frontend.features.public_site.routes.pages import router as frontend_pages_router
@@ -28,6 +29,7 @@ FRONTEND_ROUTERS: Sequence[APIRouter] = (
     library_router,
     auth_api_router,
     auth_router,
+    account_router,
     arena_router,
     character_status_router,
     city_services_router,

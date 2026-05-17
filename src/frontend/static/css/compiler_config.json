@@ -2,6 +2,7 @@
     "css": {
         "site_bundle.css": "site.css",
         "cabinet_bundle.css": "cabinet.css",
+        "account_bundle.css": "account.css",
         "game_bundle.css": "game.css",
         "vendor/nprogress.css": "vendor.css"
     },

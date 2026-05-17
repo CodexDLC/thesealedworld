@@ -1,0 +1,66 @@
+:root {
+  /* Color */
+  --col-bg: #08080a;
+  --col-surface: #121218;
+  --col-parchment: #d2b48c;
+  --col-parchment-dim: rgba(210, 180, 140, 0.6);
+  --col-bg-base: #050505;
+  --col-bg-surface: #0a0a0c;
+  --col-bg-surface-light: #121215;
+  --col-bg-darker: #020202;
+  --col-accent: #ffaa00;
+  --col-accent-dim: rgba(255, 170, 0, 0.4);
+  --col-danger: #ff3300;
+  --col-energy: #44aaff;
+  --col-stamina: #55ee99;
+  --col-psi: #8866ff;
+  --col-neutral: #9999aa;
+  --col-success: #44dd88;
+  --col-info: #3399ff;
+  --col-warning: #ffaa00;
+
+  /* Semantic */
+  --col-text-primary: rgba(255, 170, 0, 1.0);
+  --col-text-secondary: rgba(255, 170, 0, 0.75);
+  --col-text-world: rgba(230, 204, 172, 1.0);
+  --col-text-dim: rgba(230, 204, 172, 0.55);
+  --col-border: rgba(255, 170, 0, 0.20);
+  --col-border-strong: rgba(255, 170, 0, 0.45);
+  --col-membrane: rgba(255, 170, 0, 0.06);
+
+  /* Account-specific surface */
+  --account-panel-surface: rgba(10, 10, 12, 0.56);
+  --cabinet-panel-surface: var(--account-panel-surface);
+
+  /* Typography */
+  --font-world: 'EB Garamond', Georgia, serif;
+  --font-ui: 'JetBrains Mono', 'Courier New', monospace;
+
+  /* Type scale */
+  --text-3xl: 32px;
+  --text-2xl: 24px;
+  --text-xl: 20px;
+  --text-lg: 17px;
+  --text-md: 14px;
+  --text-base: 12px;
+  --text-sm: 10px;
+  --text-xs: 9px;
+  --text-2xs: 8px;
+
+  /* Spacing scale (4pt grid) */
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-5: 20px;
+  --sp-6: 24px;
+  --sp-8: 32px;
+  --sp-10: 40px;
+  --sp-12: 48px;
+
+  /* Glow */
+  --shadow-accent: 0 0 12px 2px rgba(255, 170, 0, 0.18);
+  --shadow-danger: 0 0 12px 2px rgba(255, 51, 0, 0.20);
+  --shadow-energy: 0 0 12px 2px rgba(51, 153, 255, 0.18);
+  --shadow-psi:    0 0 12px 2px rgba(119, 68, 255, 0.18);
+}

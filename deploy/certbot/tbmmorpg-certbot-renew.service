@@ -1,0 +1,14 @@
+[Unit]
+Description=Renew TurnBasedMMORPG Let's Encrypt certificates
+Requires=docker.service
+After=docker.service network-online.target
+
+[Service]
+Type=oneshot
+Environment=PROJECT_NAME=tbmmorpg
+Environment=COMPOSE_NETWORK=tbmmorpg-network
+Environment=CERTS_VOLUME=tbmmorpg-certs
+Environment=CHALLENGE_VOLUME=tbmmorpg-certbot-challenge
+Environment=NGINX_CONTAINER=tbmmorpg-nginx
+Environment=CERTBOT_IMAGE=certbot/certbot:v2.11.0
+ExecStart=/usr/local/sbin/tbmmorpg-certbot-renew.sh

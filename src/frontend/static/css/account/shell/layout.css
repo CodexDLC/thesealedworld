@@ -1,0 +1,116 @@
+/* ── ACCOUNT SHELL ── */
+
+.account-body {
+  background: var(--col-bg-darker);
+}
+
+.account-body #main-content {
+  min-height: calc(100svh - 56px);
+  padding-top: 56px;
+  background:
+    radial-gradient(circle at 18% 0%, rgba(255, 170, 0, 0.06), transparent 28rem),
+    radial-gradient(circle at 84% 12%, rgba(119, 68, 255, 0.05), transparent 30rem),
+    var(--col-bg-darker);
+}
+
+/* Header */
+.account-header {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 56px;
+  background: rgba(5, 5, 5, 0.92);
+  border-bottom: 1px solid var(--col-border);
+  backdrop-filter: blur(10px);
+  z-index: 100;
+}
+
+.account-header-inner {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-6);
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 0 var(--sp-4);
+  height: 100%;
+}
+
+.account-logo {
+  font-family: var(--font-world);
+  font-size: var(--text-lg);
+  color: var(--col-text-world);
+  white-space: nowrap;
+}
+
+.account-nav {
+  display: flex;
+  gap: var(--sp-4);
+  font-size: var(--text-xs);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.account-nav a {
+  color: var(--col-text-dim);
+  transition: color 0.2s;
+}
+
+.account-nav a:hover {
+  color: var(--col-text-primary);
+  opacity: 1;
+}
+
+.account-header-actions {
+  margin-left: auto;
+  display: flex;
+  gap: var(--sp-2);
+  align-items: center;
+}
+
+/* Main layout */
+.account-main {
+  flex: 1;
+}
+
+.account-wrap {
+  display: grid;
+  grid-template-columns: 220px 1fr;
+  gap: var(--sp-6);
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: var(--sp-8) var(--sp-4);
+}
+
+.account-content {
+  min-width: 0;
+}
+
+/* Sidebar */
+.account-sidebar {
+  position: sticky;
+  top: calc(56px + var(--sp-8));
+  align-self: start;
+}
+
+.account-sidebar-nav {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+}
+
+.account-sidebar-link {
+  display: block;
+  padding: var(--sp-2) var(--sp-3);
+  font-size: var(--text-xs);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--col-text-dim);
+  transition: all 0.2s;
+}
+
+.account-sidebar-link:hover {
+  color: var(--col-text-primary);
+  background: rgba(255, 170, 0, 0.04);
+  opacity: 1;
+}

@@ -1,0 +1,15 @@
+/* ── ANIMATIONS ── */
+
+@keyframes breathe {
+  0%, 100% {
+    box-shadow: 0 0 8px 1px rgba(255,170,0,.10), 0 0 28px 2px rgba(255,170,0,.04);
+  }
+  50% {
+    box-shadow: 0 0 18px 3px rgba(255,170,0,.22), 0 0 52px 6px rgba(255,170,0,.09);
+  }
+}
+
+@keyframes fade-up {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}

@@ -1,0 +1,69 @@
+{% extends "account/base_account.html" %}
+
+{% block content %}
+<section class="account-profile">
+    <div class="ds-panel">
+        <div class="ds-panel-header">Профиль</div>
+        <div class="ds-panel-body">
+            <div class="account-profile-grid">
+                <div class="account-profile-row">
+                    <span class="account-profile-label">Статус</span>
+                    <span class="account-profile-value">
+                        {% include "account/includes/status_badge.html" %}
+                    </span>
+                </div>
+                <div class="account-profile-row">
+                    <span class="account-profile-label">Email</span>
+                    <span class="account-profile-value">{{ profile.email }}</span>
+                </div>
+                <div class="account-profile-row">
+                    <span class="account-profile-label">Дата регистрации</span>
+                    <span class="account-profile-value">{{ profile.created_at }}</span>
+                </div>
+                {% if profile.tester_approved_at %}
+                <div class="account-profile-row">
+                    <span class="account-profile-label">Принят в тест</span>
+                    <span class="account-profile-value">{{ profile.tester_approved_at }}</span>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    {% if profile.tester_status == "none" %}
+    <div class="ds-panel" style="margin-top: var(--sp-4);">
+        <div class="ds-panel-header">Тестирование</div>
+        <div class="ds-panel-body">
+            <p>Хотите помочь с тестированием pre-alpha версии?</p>
+            <form method="post" action="/account/apply-tester" style="margin-top: var(--sp-3);">
+                <button type="submit" class="btn-node"><span>Подать заявку на тестирование</span></button>
+            </form>
+        </div>
+    </div>
+    {% elif profile.tester_status == "pending" %}
+    <div class="ds-panel" style="margin-top: var(--sp-4);">
+        <div class="ds-panel-header">Тестирование</div>
+        <div class="ds-panel-body">
+            <p>Ваша заявка на рассмотрении. Мы свяжемся с вами по email.</p>
+        </div>
+    </div>
+    {% elif profile.is_tester %}
+    <div class="ds-panel" style="margin-top: var(--sp-4);">
+        <div class="ds-panel-header">Возможности тестера</div>
+        <div class="ds-panel-body">
+            <div class="account-tester-actions">
+                <a href="/game-lobby" class="btn-node"><span>Играть</span></a>
+                <a href="/account/feedback" class="btn-node ghost"><span>Обратная связь</span></a>
+            </div>
+        </div>
+    </div>
+    {% elif profile.tester_status == "denied" %}
+    <div class="ds-panel" style="margin-top: var(--sp-4);">
+        <div class="ds-panel-header">Тестирование</div>
+        <div class="ds-panel-body">
+            <p>К сожалению, ваша заявка была отклонена.</p>
+        </div>
+    </div>
+    {% endif %}
+</section>
+{% endblock content %}

@@ -1,0 +1,9 @@
+{% if profile.tester_status == "approved" %}
+    <span class="tag safe">Тестер · Pre-Alpha</span>
+{% elif profile.tester_status == "pending" %}
+    <span class="tag sys">Заявка на рассмотрении</span>
+{% elif profile.tester_status == "denied" %}
+    <span class="tag danger">Заявка отклонена</span>
+{% else %}
+    <span class="tag">Игрок</span>
+{% endif %}

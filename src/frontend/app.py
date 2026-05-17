@@ -27,6 +27,7 @@ from src.frontend.core.middleware import AuthUserMiddleware, SiteAnalyticsMiddle
 from src.frontend.core.renderer import get_ui_renderer
 from src.frontend.core.routing import include_frontend_routers
 from src.frontend.features.auth.token_state import ACCESS_COOKIE_NAME, REFRESH_COOKIE_NAME
+from src.frontend.features.account.middleware.account_auth import AccountAuthMiddleware
 from src.frontend.features.cabinet.middleware.admin_auth import AdminAuthMiddleware
 from src.frontend.game_features.game_menu import GameMenuMiddleware
 from src.frontend.game_features.session.cookies import clear_active_character_cookie
@@ -132,6 +133,7 @@ app.mount(
 # Mount static files
 app.mount("/static", StaticFiles(directory=str(settings.static_dir)), name="static")
 
+app.add_middleware(AccountAuthMiddleware)
 app.add_middleware(AdminAuthMiddleware)
 app.add_middleware(AuthUserMiddleware)
 app.add_middleware(SiteAnalyticsMiddleware)

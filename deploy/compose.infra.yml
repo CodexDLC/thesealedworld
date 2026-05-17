@@ -60,11 +60,13 @@ services:
   certbot:
     image: certbot/certbot:v2.11.0
     container_name: tbmmorpg-certbot
-    restart: unless-stopped
+    profiles:
+      - manual
+    restart: "no"
     volumes:
       - tbmmorpg-certs:/etc/letsencrypt
       - tbmmorpg-certbot-challenge:/var/www/certbot
-    entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew; sleep 12h & wait $${!}; done;'"
+    command: ["--help"]
     networks:
       - tbmmorpg-network
 

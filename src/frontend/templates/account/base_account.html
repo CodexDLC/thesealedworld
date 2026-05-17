@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    {% block meta %}
+        {% include "shared/meta.html" %}
+    {% endblock meta %}
+
+    {% block styles %}
+        <link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400..800;1,400..800&family=JetBrains+Mono:wght@300;400;500;600&display=swap" rel="stylesheet">
+        <link rel="stylesheet" href="/static/css/account.css?v={{ static_version }}">
+    {% endblock styles %}
+
+    {% block extra_head %}{% endblock extra_head %}
+    <style>[x-cloak] { display: none !important; }</style>
+</head>
+<body class="cabinet-body account-body">
+    <div id="app-viewport">
+        <header class="account-header">
+            <div class="account-header-inner">
+                <a href="/" class="account-logo">The Sealed World</a>
+                <nav class="account-nav">
+                    <a href="/account/profile">Профиль</a>
+                    {% if profile and profile.is_tester %}
+                        <a href="/account/feedback">Обратная связь</a>
+                    {% endif %}
+                </nav>
+                <div class="account-header-actions">
+                    <a href="/game-lobby" class="btn-node sm"><span>В игру</span></a>
+                    <form method="post" action="/logout" style="display:inline">
+                        <button type="submit" class="btn-node ghost sm"><span>Выйти</span></button>
+                    </form>
+                </div>
+            </div>
+        </header>
+
+        <main id="main-content" class="account-main">
+            <div class="account-wrap">
+                {% block sidebar %}
+                    {% include "account/includes/sidebar.html" %}
+                {% endblock sidebar %}
+
+                <div class="account-content">
+                    {% block content %}{% endblock content %}
+                </div>
+            </div>
+        </main>
+    </div>
+
+    {% block scripts %}{% endblock scripts %}
+</body>
+</html>

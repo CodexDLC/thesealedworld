@@ -1,0 +1,13 @@
+<aside class="account-sidebar">
+    <div class="ds-panel">
+        <div class="ds-panel-header">Мой аккаунт</div>
+        <div class="ds-panel-body">
+            <nav class="account-sidebar-nav">
+                <a href="/account/profile" class="account-sidebar-link">Профиль</a>
+                {% if profile and profile.is_tester %}
+                    <a href="/account/feedback" class="account-sidebar-link">Обратная связь</a>
+                {% endif %}
+            </nav>
+        </div>
+    </div>
+</aside>

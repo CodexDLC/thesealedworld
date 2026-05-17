@@ -1,0 +1,25 @@
+/* ── ACCOUNT RESPONSIVE ── */
+
+@media (max-width: 768px) {
+  .account-wrap {
+    grid-template-columns: 1fr;
+  }
+
+  .account-sidebar {
+    position: static;
+  }
+
+  .account-sidebar-nav {
+    flex-direction: row;
+    gap: var(--sp-2);
+    overflow-x: auto;
+  }
+
+  .account-header-inner {
+    gap: var(--sp-3);
+  }
+
+  .account-nav {
+    display: none;
+  }
+}

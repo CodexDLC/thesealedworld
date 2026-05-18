@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING, Any
 
 from loguru import logger
 
+from src.backend.features.exploration.runtime.experience import flat_attribute_snapshot
 from src.backend.features.monsters.dto import MonsterGroupResult
 
 if TYPE_CHECKING:
@@ -87,6 +88,17 @@ class EncounterIntegration:
             _elapsed_ms(started_at),
         )
         return snapshot
+
+    async def get_ac_attribute_snapshot(self, char_id: int) -> dict[str, float]:
+        started_at = perf_counter()
+        raw_attributes = await self.character_sessions.get_section(char_id, "attributes")
+        attributes = flat_attribute_snapshot(raw_attributes)
+        logger.debug(
+            "EncounterIntegrationTiming | op=get_ac_attribute_snapshot char_id={} ms={}",
+            char_id,
+            _elapsed_ms(started_at),
+        )
+        return attributes
 
     async def apply_skill_progress(self, char_id: int, rewards: dict[str, float]) -> None:
         clean_rewards = {

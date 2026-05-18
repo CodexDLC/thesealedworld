@@ -30,6 +30,8 @@ class EncounterEngine:
         *,
         mode: EncounterMode | str = EncounterMode.TRAVEL,
         gear_score: float = 0.0,
+        hunting_skill: float = 0.0,
+        pathfinder_skill: float = 0.0,
         encounter_integration: EncounterIntegration | None = None,
     ) -> EncounterDTO | None:
         flags = location_data.get("flags", {})
@@ -42,7 +44,13 @@ class EncounterEngine:
             return None
 
         encounter_mode = EncounterMode(mode)
-        if not self._policy.should_roll(mode=encounter_mode, trigger=trigger):
+        if not self._policy.should_roll(
+            mode=encounter_mode,
+            trigger=trigger,
+            scouting_skill=scouting_skill,
+            hunting_skill=hunting_skill,
+            pathfinder_skill=pathfinder_skill,
+        ):
             return None
 
         tier = _safe_int(flags.get("threat_tier", 1), default=1)
@@ -56,6 +64,7 @@ class EncounterEngine:
             difficulty=roll.difficulty,
             status=roll.status,
             gear_score=gear_score,
+            hunting_skill=hunting_skill,
             integration=encounter_integration,
         )
 

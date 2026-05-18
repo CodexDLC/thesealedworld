@@ -29,6 +29,7 @@ class MonsterDiscoveryBuilder:
         difficulty: str,
         status: DetectionStatus,
         budget: float,
+        hunting_skill: float = 0.0,
         integration: EncounterIntegration,
     ) -> EncounterDTO:
         encounter_id = f"monster-{uuid.uuid4().hex[:12]}"
@@ -46,7 +47,8 @@ class MonsterDiscoveryBuilder:
             group=group,
         )
         combat = await self._request_combat(integration, combat_request, encounter_id)
-        enemies = [self._enemy_preview(preview) for preview in group.previews]
+        intel_level = hunting_intel_level(hunting_skill)
+        enemies = [self._enemy_preview(preview, intel_level=intel_level) for preview in group.previews]
         description = self._description(status, group)
         options = self._options(status)
         return EncounterDTO(
@@ -56,6 +58,7 @@ class MonsterDiscoveryBuilder:
             title="ЗАСАДА!" if status == DetectionStatus.AMBUSH else "УГРОЗА ОБНАРУЖЕНА",
             description=description,
             enemies=enemies,
+            info_level=intel_level,
             options=options,
             session_id=str(combat.get("combat_id") or combat_request["combat_id"]),
             metadata={
@@ -64,6 +67,11 @@ class MonsterDiscoveryBuilder:
                 "tier": tier,
                 "difficulty": difficulty,
                 "budget": budget,
+                "intel": {
+                    "skill_key": "skill_hunting",
+                    "level": intel_level,
+                    "value": _normalized_skill(hunting_skill),
+                },
                 "monster_group": group.model_dump(mode="json"),
                 "combat": {
                     "status": combat.get("status") or "requested",
@@ -126,27 +134,31 @@ class MonsterDiscoveryBuilder:
         return commitments
 
     @staticmethod
-    def _enemy_preview(preview: MonsterGroupMemberPreview) -> EnemyPreviewDTO:
+    def _enemy_preview(preview: MonsterGroupMemberPreview, *, intel_level: int) -> EnemyPreviewDTO:
         hp = preview.hp or {}
         hp_current = _int_or_none(hp.get("current") or hp.get("hp") or hp.get("hp_current"))
         hp_max = _int_or_none(hp.get("max") or hp.get("max_hp") or hp.get("hp_max"))
         hp_percent = None
         if hp_current is not None and hp_max:
             hp_percent = max(0, min(100, round(hp_current / hp_max * 100)))
+        show_identity = intel_level >= 1
+        show_combat_estimate = intel_level >= 2
+        show_details = intel_level >= 3
         return EnemyPreviewDTO(
-            name=preview.name,
-            level=preview.member_tier,
-            member_tier=preview.member_tier,
-            hp_percent=hp_percent,
+            name=preview.name if show_identity else "???",
+            level=preview.member_tier if show_identity else None,
+            member_tier=preview.member_tier if show_identity else None,
+            hp_percent=hp_percent if show_combat_estimate else None,
             image=preview.image,
             visual=preview.visual,
-            monster_id=preview.monster_id,
-            description=preview.description,
-            role=preview.role,
-            variant_key=preview.variant_key,
-            threat_rating=preview.threat_rating,
-            hp=preview.hp,
-            tags=preview.tags,
+            monster_id=preview.monster_id if show_identity else None,
+            description=preview.description if show_combat_estimate else "???",
+            role=preview.role if show_identity else "???",
+            variant_key=preview.variant_key if show_identity else "???",
+            threat_rating=preview.threat_rating if show_combat_estimate else None,
+            hp=preview.hp if show_details else {},
+            tags=preview.tags if show_details else [],
+            intel_level=intel_level,
         )
 
     @staticmethod
@@ -185,3 +197,24 @@ def _int_or_none(value: Any) -> int | None:
         return int(value)
     except (TypeError, ValueError):
         return None
+
+
+def hunting_intel_level(hunting_skill: Any) -> int:
+    value = _normalized_skill(hunting_skill)
+    if value >= 0.8:
+        return 4
+    if value >= 0.6:
+        return 3
+    if value >= 0.4:
+        return 2
+    if value >= 0.2:
+        return 1
+    return 0
+
+
+def _normalized_skill(value: Any) -> float:
+    try:
+        raw = max(0.0, float(value or 0.0))
+    except (TypeError, ValueError):
+        return 0.0
+    return min(1.0, raw / 100.0 if raw > 1.0 else raw)

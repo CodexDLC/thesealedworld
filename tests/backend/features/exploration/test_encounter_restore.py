@@ -71,9 +71,21 @@ class FakeEncounterIntegration:
         self.detached: list[int] = []
         self.cleared: list[str] = []
         self.patched: list[tuple[str, dict]] = []
+        self.progress: list[tuple[int, dict[str, float]]] = []
 
-    async def get_ac_skill_snapshot(self, char_id: int) -> dict[str, float]:
-        return {"skill_scouting": 0.0, "skill_pathfinder": 0.0, "skill_hunting": 0.0, "skill_taming": 0.0}
+    async def get_ac_skill_snapshot(self, char_id: int) -> _SkillSnapshot:
+        return _SkillSnapshot()
+
+    async def get_ac_attribute_snapshot(self, char_id: int) -> dict[str, float]:
+        return {
+            "perception": 8.0,
+            "memory": 8.0,
+            "agility": 8.0,
+            "endurance": 8.0,
+        }
+
+    async def apply_skill_progress(self, char_id: int, rewards: dict[str, float]) -> None:
+        self.progress.append((char_id, rewards))
 
     async def get_active_encounter_id(self, char_id: int) -> str | None:
         return self.active_id
@@ -127,6 +139,21 @@ def _encounter(encounter_id: str = "enc-1") -> EncounterDTO:
         description="An active encounter",
         options=[EncounterOptionDTO(id="bypass", label="Bypass")],
     )
+
+
+class _SkillSnapshot:
+    skill_scouting = 0.0
+    skill_pathfinder = 0.0
+    skill_hunting = 0.0
+    skill_taming = 0.0
+
+    def as_dict(self) -> dict[str, float]:
+        return {
+            "skill_scouting": self.skill_scouting,
+            "skill_pathfinder": self.skill_pathfinder,
+            "skill_hunting": self.skill_hunting,
+            "skill_taming": self.skill_taming,
+        }
 
 
 def _ready_combat_encounter(encounter_id: str = "enc-1", combat_id: str = "combat-enc-1") -> EncounterDTO:
@@ -244,6 +271,7 @@ async def test_failed_gateway_bypass_routes_active_encounter_to_combat(monkeypat
     assert response.payload_type == "state_transition"
     assert response.payload.combat_id == "combat-enc-1"
     assert response.payload.reason == "exploration_attack"
+    assert encounter_integration.progress == [(7, {"skill_scouting": 0.0008, "skill_hunting": 0.0008})]
     assert encounter_integration.combat_sessions == [(7, "combat-enc-1")]
     assert encounter_integration.cleared == ["enc-1"]
     assert encounter_integration.detached == [7]

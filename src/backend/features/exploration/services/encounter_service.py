@@ -11,6 +11,7 @@ from src.backend.features.exploration.runtime.encounter.bypass import (
     calculate_bypass_chance,
     encounter_with_bypass_chance,
 )
+from src.backend.features.exploration.runtime.experience import ExplorationExperienceService
 from src.shared.enums import CoreDomain
 
 log = logging.getLogger(__name__)
@@ -38,6 +39,7 @@ class ExplorationEncounterService:
         self._integration = integration
         self._session = session
         self._navigation = navigation
+        self._experience = ExplorationExperienceService()
 
     async def active_payload(self, char_id: int) -> EncounterDTO | None:
         encounter = await self._session.get_active(char_id)
@@ -137,6 +139,15 @@ class ExplorationEncounterService:
         if self._integration is None:
             return None
         skills = await self._integration.get_ac_skill_snapshot(char_id)
+        attributes = await self._integration.get_ac_attribute_snapshot(char_id)
+        await self._grant_experience(
+            char_id,
+            skills=skills.as_dict(),
+            attributes=attributes,
+            action_power_by_skill={"skill_pathfinder": 1.0}
+            if mode == EncounterMode.TRAVEL
+            else {"skill_scouting": 1.0},
+        )
         gear_score = await self._gear_score(char_id)
         encounter = await self._engine.try_generate_encounter(
             char_id=char_id,
@@ -146,14 +157,31 @@ class ExplorationEncounterService:
             loc_id=loc_id,
             mode=mode,
             gear_score=gear_score,
+            hunting_skill=skills.skill_hunting,
+            pathfinder_skill=skills.skill_pathfinder,
             encounter_integration=self._integration,
         )
         if encounter is None:
             return None
+        if _monster_encounter(encounter):
+            await self._grant_experience(
+                char_id,
+                skills=skills.as_dict(),
+                attributes=attributes,
+                action_power_by_skill={"skill_hunting": 1.0},
+            )
         return encounter_with_bypass_chance(encounter, calculate_bypass_chance(skills))
 
     async def attempt_bypass(self, char_id: int, encounter: EncounterDTO) -> tuple[bool, EncounterDTO | None, int]:
         skills = await self._skill_snapshot(char_id)
+        if self._integration is not None:
+            attributes = await self._integration.get_ac_attribute_snapshot(char_id)
+            await self._grant_experience(
+                char_id,
+                skills=skills.as_dict() if hasattr(skills, "as_dict") else {},
+                attributes=attributes,
+                action_power_by_skill={"skill_scouting": 0.5, "skill_hunting": 0.5},
+            )
         chance = calculate_bypass_chance(skills)
         chance_percent = bypass_chance_percent(chance)
         roll = random.random()
@@ -211,3 +239,25 @@ class ExplorationEncounterService:
         if self._integration is None:
             return {}
         return await self._integration.get_ac_skill_snapshot(char_id)
+
+    async def _grant_experience(
+        self,
+        char_id: int,
+        *,
+        skills: dict[str, float],
+        attributes: dict[str, float],
+        action_power_by_skill: dict[str, float],
+    ) -> None:
+        if self._integration is None:
+            return
+        rewards = self._experience.calculate_rewards(
+            action_power_by_skill=action_power_by_skill,
+            current_skills=skills,
+            attributes=attributes,
+        )
+        await self._integration.apply_skill_progress(char_id, rewards)
+
+
+def _monster_encounter(encounter: EncounterDTO) -> bool:
+    metadata = encounter.metadata if isinstance(encounter.metadata, dict) else {}
+    return metadata.get("kind") == "monster_group"

@@ -32,6 +32,7 @@ class TravelEncounterRuntime:
         difficulty: str,
         status: Any,
         gear_score: float,
+        hunting_skill: float = 0.0,
         integration: EncounterIntegration,
     ) -> EncounterDTO | None:
         if roll_type == "monster":
@@ -42,6 +43,7 @@ class TravelEncounterRuntime:
                 difficulty=difficulty,
                 status=status,
                 budget=self._policy.monster_budget(gear_score),
+                hunting_skill=hunting_skill,
                 integration=integration,
             )
         if roll_type == "rift":

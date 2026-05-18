@@ -167,7 +167,7 @@ async def test_active_encounter_gates_exploration_actions():
     assert move_result.id == encounter.id
     assert search_result.id == encounter.id
     assert service_result.id == encounter.id
-    assert move_result.metadata["navigation"]["loc_id"] == "52_51"
+    assert move_result.metadata["navigation"]["loc_id"] == "51_51"
 
 
 @pytest.mark.asyncio

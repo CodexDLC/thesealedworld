@@ -9,6 +9,27 @@ from src.backend.features.monsters.dto import MonsterGroupMemberPreview, Monster
 from src.shared.schemas.exploration import DetectionStatus, EncounterType
 
 
+def test_encounter_chance_uses_hunting_and_pathfinder_roles():
+    assert EncounterPolicy.encounter_chance(
+        base_chance=0.45,
+        trigger="move",
+        hunting_skill=0.8,
+        pathfinder_skill=0.2,
+    ) == pytest.approx(0.60)
+    assert EncounterPolicy.encounter_chance(
+        base_chance=0.45,
+        trigger="move",
+        hunting_skill=0.2,
+        pathfinder_skill=0.8,
+    ) == pytest.approx(0.30)
+    assert EncounterPolicy.encounter_chance(
+        base_chance=0.80,
+        trigger="search",
+        scouting_skill=0.5,
+        hunting_skill=0.5,
+    ) == pytest.approx(0.95)
+
+
 @pytest.mark.asyncio
 async def test_encounter_safe_zone():
     engine = EncounterEngine()
@@ -84,6 +105,7 @@ async def test_encounter_combat_generation():
         scouting_skill=100.0, # High skill for DETECTED status
         loc_id="50_50",
         gear_score=100,
+        hunting_skill=1.0,
         encounter_integration=integration,
     )
 
@@ -99,6 +121,41 @@ async def test_encounter_combat_generation():
     assert encounter.enemies[0].image == "/static/generated-assets/monsters/generated/members/rat-scout.webp"
     assert integration.prepare_monster_group.await_count == 1
     assert integration.request_combat_session.await_count == 1
+
+
+@pytest.mark.asyncio
+async def test_encounter_masks_monster_preview_when_hunting_is_low():
+    policy = EncounterPolicy()
+    policy.should_roll = lambda **_: True  # type: ignore[method-assign]
+    policy.roll = lambda **_: type(  # type: ignore[method-assign]
+        "Roll",
+        (),
+        {
+            "discovery_type": "monster",
+            "difficulty": "mid",
+            "status": DetectionStatus.DETECTED,
+        },
+    )()
+    engine = EncounterEngine(policy=policy)
+    integration = FakeEncounterIntegration()
+
+    encounter = await engine.try_generate_encounter(
+        char_id=1,
+        location_data={"flags": {"is_safe_zone": False, "threat_tier": 1}},
+        scouting_skill=100.0,
+        loc_id="50_50",
+        gear_score=100,
+        hunting_skill=0.0,
+        encounter_integration=integration,
+    )
+
+    assert encounter is not None
+    assert encounter.info_level == 0
+    assert encounter.metadata["intel"] == {"skill_key": "skill_hunting", "level": 0, "value": 0.0}
+    assert encounter.enemies[0].name == "???"
+    assert encounter.enemies[0].member_tier is None
+    assert encounter.enemies[0].threat_rating is None
+    assert encounter.enemies[0].hp_percent is None
 
 
 @pytest.mark.asyncio

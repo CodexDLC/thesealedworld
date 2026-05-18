@@ -24,6 +24,7 @@ class TerritoryScoutingRuntime:
         difficulty: str,
         status: Any,
         gear_score: float,
+        hunting_skill: float = 0.0,
         integration: EncounterIntegration,
     ) -> EncounterDTO | None:
         return await self._travel_runtime.build(
@@ -34,5 +35,6 @@ class TerritoryScoutingRuntime:
             difficulty=difficulty,
             status=status,
             gear_score=gear_score,
+            hunting_skill=hunting_skill,
             integration=integration,
         )

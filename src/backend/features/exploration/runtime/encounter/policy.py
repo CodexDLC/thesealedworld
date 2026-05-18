@@ -32,14 +32,47 @@ class EncounterPolicy:
         del anchor_influence
         return bool(flags.get("system_connect") or flags.get("is_safe_zone", False))
 
-    def should_roll(self, *, mode: EncounterMode, trigger: str) -> bool:
+    def should_roll(
+        self,
+        *,
+        mode: EncounterMode,
+        trigger: str,
+        scouting_skill: float = 0.0,
+        hunting_skill: float = 0.0,
+        pathfinder_skill: float = 0.0,
+    ) -> bool:
         if mode == EncounterMode.TRAVEL:
             chance = ExplorationConfig.CHANCE_COMBAT_BASE
         elif trigger == "search":
             chance = ExplorationConfig.CHANCE_COMBAT_SEARCH
         else:
             chance = ExplorationConfig.CHANCE_COMBAT_BASE
-        return self._rng.random() < float(chance)
+        chance = self.encounter_chance(
+            base_chance=chance,
+            trigger=trigger,
+            scouting_skill=scouting_skill,
+            hunting_skill=hunting_skill,
+            pathfinder_skill=pathfinder_skill,
+        )
+        return self._rng.random() < chance
+
+    @staticmethod
+    def encounter_chance(
+        *,
+        base_chance: float,
+        trigger: str,
+        scouting_skill: float = 0.0,
+        hunting_skill: float = 0.0,
+        pathfinder_skill: float = 0.0,
+    ) -> float:
+        scouting = _normalized_skill(scouting_skill)
+        hunting = _normalized_skill(hunting_skill)
+        pathfinder = _normalized_skill(pathfinder_skill)
+        if trigger == "search":
+            chance = float(base_chance) + hunting * 0.20 + scouting * 0.10
+        else:
+            chance = float(base_chance) + (hunting - pathfinder) * 0.25
+        return max(0.0, min(1.0, chance))
 
     def roll(self, *, mode: EncounterMode, tier: int, scouting_skill: float) -> EncounterRoll:
         difficulty = self._weighted_choice(
@@ -77,3 +110,11 @@ class EncounterPolicy:
             if marker <= current:
                 return key
         return positive[-1][0]
+
+
+def _normalized_skill(value: Any) -> float:
+    try:
+        raw = max(0.0, float(value or 0.0))
+    except (TypeError, ValueError):
+        return 0.0
+    return min(1.0, raw / 100.0 if raw > 1.0 else raw)

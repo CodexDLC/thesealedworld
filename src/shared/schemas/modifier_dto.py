@@ -301,14 +301,6 @@ class EnvironmentalStatsDTO(BaseModel):
     environment_bio_resistance: float = 0.0
 
 
-class SpeedStatsDTO(BaseModel):
-    """Скоростные характеристики."""
-
-    attack_speed: float = 0.0  # StatKey.ATTACK_SPEED
-    cast_speed: float = 0.0  # StatKey.CAST_SPEED
-    movement_speed: float = 0.0  # StatKey.MOVEMENT_SPEED
-
-
 # ==============================================================================
 # 2. COMBAT MODIFIERS (Основной DTO)
 # ==============================================================================
@@ -328,7 +320,6 @@ class CombatModifiersDTO(
     StatusStatsDTO,
     SpecialStatsDTO,
     EnvironmentalStatsDTO,
-    SpeedStatsDTO,  # <--- NEW
 ):
     """
     Только боевые модификаторы (без скиллов).

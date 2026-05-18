@@ -116,14 +116,11 @@ GEAR_SCORE_WEIGHTS: dict[str, float] = {
     "damage_mult": 80.0,
     "thorns_damage_flat": 0.8,
     "hand_size": 3.0,
-    # Environment and speed
+    # Environment
     "environment_cold_resistance": 20.0,
     "environment_heat_resistance": 20.0,
     "environment_gravity_resistance": 20.0,
     "environment_bio_resistance": 20.0,
-    "attack_speed": 60.0,
-    "cast_speed": 60.0,
-    "movement_speed": 35.0,
 }
 
 GEAR_SCORE_BASELINES: dict[str, float] = {

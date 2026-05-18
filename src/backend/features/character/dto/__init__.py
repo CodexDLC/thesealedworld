@@ -16,7 +16,6 @@ from src.backend.features.character.dto.modifiers import (
     PhysicalStatsDTO,
     SecondarySkillsDTO,
     SpecialStatsDTO,
-    SpeedStatsDTO,
     StatusStatsDTO,
     VitalsDTO,
 )
@@ -39,7 +38,6 @@ __all__ = [
     "PhysicalStatsDTO",
     "SecondarySkillsDTO",
     "SpecialStatsDTO",
-    "SpeedStatsDTO",
     "StatusStatsDTO",
     "VitalsDTO",
 ]

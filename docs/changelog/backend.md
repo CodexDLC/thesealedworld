@@ -4,7 +4,7 @@ Detailed milestone history for the `src/backend` game runtime layer.
 
 ## [Unreleased]
 
-- No backend runtime changes yet for the future `v0.1.0` release.
+- Character combat modifier DTOs no longer expose unused attack, cast, or movement speed fields.
 
 ## [v0.0.0] - MVP Baseline
 

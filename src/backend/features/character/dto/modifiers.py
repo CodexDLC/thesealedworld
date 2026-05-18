@@ -249,14 +249,6 @@ class EnvironmentalStatsDTO(BaseModel):
     environment_bio_resistance: float = 0.0
 
 
-class SpeedStatsDTO(BaseModel):
-    """Speed modifiers."""
-
-    attack_speed: float = 0.0
-    cast_speed: float = 0.0
-    movement_speed: float = 0.0
-
-
 COMBAT_MODIFIER_BLOCKS: tuple[type[BaseModel], ...] = (
     MainHandStatsDTO,
     OffHandStatsDTO,
@@ -269,7 +261,6 @@ COMBAT_MODIFIER_BLOCKS: tuple[type[BaseModel], ...] = (
     StatusStatsDTO,
     SpecialStatsDTO,
     EnvironmentalStatsDTO,
-    SpeedStatsDTO,
 )
 
 
@@ -286,7 +277,6 @@ class CombatModifiersDTO(
     StatusStatsDTO,
     SpecialStatsDTO,
     EnvironmentalStatsDTO,
-    SpeedStatsDTO,
 ):
     """Combat-only modifiers used by actor combat stats."""
 

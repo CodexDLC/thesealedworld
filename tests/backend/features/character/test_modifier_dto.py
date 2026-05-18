@@ -15,7 +15,6 @@ LEGACY_PORTED_DTOS = [
     "StatusStatsDTO",
     "SpecialStatsDTO",
     "EnvironmentalStatsDTO",
-    "SpeedStatsDTO",
     "CombatModifiersDTO",
     "CharacterWorldStatsDTO",
     "FullModifiersDTO",

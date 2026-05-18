@@ -1,0 +1,50 @@
+{% extends "account/base_account.html" %}
+
+{% block content %}
+<section class="account-profile">
+    <div class="ds-panel">
+        <div class="ds-panel-header">Новый отзыв</div>
+        <div class="ds-panel-body">
+            {% if error %}
+            <div class="feedback-error">{{ error }}</div>
+            {% endif %}
+
+            <form method="post" action="/account/feedback/new" class="feedback-form">
+                <div class="feedback-field">
+                    <label class="account-profile-label">Тип</label>
+                    <select name="type" required>
+                        {% for value, label in form.types %}
+                        <option value="{{ value }}" {% if preselect_type == value %}selected{% endif %}>{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="feedback-field">
+                    <label class="account-profile-label">Заголовок</label>
+                    <input type="text" name="title" required minlength="3" maxlength="200" placeholder="Кратко опишите">
+                </div>
+
+                <div class="feedback-field feedback-field--priority" id="priority-field">
+                    <label class="account-profile-label">Приоритет (только для багов)</label>
+                    <select name="priority">
+                        <option value="">— не указан —</option>
+                        {% for value, label in form.priorities %}
+                        <option value="{{ value }}">{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="feedback-field">
+                    <label class="account-profile-label">Описание</label>
+                    <textarea name="body" required minlength="10" rows="6" placeholder="Подробное описание"></textarea>
+                </div>
+
+                <div class="feedback-actions">
+                    <button type="submit" class="btn-node"><span>Отправить</span></button>
+                    <a href="/account/feedback" class="btn-node ghost"><span>Отмена</span></a>
+                </div>
+            </form>
+        </div>
+    </div>
+</section>
+{% endblock content %}

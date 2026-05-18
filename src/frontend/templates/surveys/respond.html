@@ -1,0 +1,47 @@
+{% extends "site/base_site.html" %}
+
+{% block content %}
+<div style="max-width: 640px; margin: 60px auto; padding: 0 var(--sp-4);">
+    <div class="ds-panel">
+        <div class="ds-panel-header">{{ survey.title }}</div>
+        <div class="ds-panel-body">
+            {% if survey.description %}
+            <p style="margin-bottom: var(--sp-4); color: var(--col-text-dim);">{{ survey.description }}</p>
+            {% endif %}
+
+            <form method="post" action="/survey/{{ token }}" class="feedback-form">
+                {% for q in questions %}
+                <div class="feedback-field">
+                    <label class="account-profile-label">{{ q.text }}</label>
+
+                    {% if q.type == "text" %}
+                    <textarea name="q_{{ q.id }}" rows="3" required></textarea>
+
+                    {% elif q.type == "scale" %}
+                    <div style="display: flex; gap: var(--sp-2); flex-wrap: wrap;">
+                        {% for i in range(1, 6) %}
+                        <label style="display: flex; align-items: center; gap: 4px; cursor: pointer;">
+                            <input type="radio" name="q_{{ q.id }}" value="{{ i }}" required> {{ i }}
+                        </label>
+                        {% endfor %}
+                    </div>
+
+                    {% elif q.type == "choice" and q.choices %}
+                    <select name="q_{{ q.id }}" required>
+                        <option value="">— выберите —</option>
+                        {% for choice in q.choices %}
+                        <option value="{{ choice }}">{{ choice }}</option>
+                        {% endfor %}
+                    </select>
+                    {% endif %}
+                </div>
+                {% endfor %}
+
+                <div class="feedback-actions">
+                    <button type="submit" class="btn-node"><span>Отправить ответы</span></button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock content %}

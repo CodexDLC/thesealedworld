@@ -1,0 +1,37 @@
+{% extends "account/base_account.html" %}
+
+{% block content %}
+<section class="account-profile">
+    <div class="ds-panel">
+        <div class="ds-panel-header">
+            <span>{{ feedback.title }}</span>
+            <span class="tag {{ feedback.type }}">{{ feedback.type }}</span>
+        </div>
+        <div class="ds-panel-body">
+            <div class="account-profile-grid">
+                <div class="account-profile-row">
+                    <span class="account-profile-label">Статус</span>
+                    <span class="account-profile-value"><span class="tag">{{ feedback.status }}</span></span>
+                </div>
+                {% if feedback.priority %}
+                <div class="account-profile-row">
+                    <span class="account-profile-label">Приоритет</span>
+                    <span class="account-profile-value"><span class="tag danger">{{ feedback.priority }}</span></span>
+                </div>
+                {% endif %}
+                <div class="account-profile-row">
+                    <span class="account-profile-label">Дата</span>
+                    <span class="account-profile-value">{{ feedback.created_at.strftime("%d.%m.%Y %H:%M") }}</span>
+                </div>
+            </div>
+            <div class="feedback-body">
+                {{ feedback.body }}
+            </div>
+        </div>
+    </div>
+
+    <div style="margin-top: var(--sp-3);">
+        <a href="/account/feedback" class="btn-node ghost sm"><span>Назад к списку</span></a>
+    </div>
+</section>
+{% endblock content %}

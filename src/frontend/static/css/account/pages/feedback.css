@@ -1,0 +1,125 @@
+/* ── FEEDBACK PAGES ── */
+
+.feedback-table {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.feedback-row {
+  display: grid;
+  grid-template-columns: 90px 1fr 80px 120px;
+  gap: var(--sp-3);
+  align-items: center;
+  padding: var(--sp-2) var(--sp-3);
+  text-decoration: none;
+  color: var(--col-text-primary);
+  border-bottom: 1px solid rgba(255, 170, 0, 0.04);
+  transition: background 0.15s;
+}
+
+.feedback-row:hover {
+  background: rgba(255, 170, 0, 0.04);
+}
+
+.feedback-title {
+  font-size: var(--text-sm);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.feedback-date {
+  font-size: var(--text-2xs);
+  color: var(--col-text-dim);
+  text-align: right;
+}
+
+.feedback-empty {
+  color: var(--col-text-dim);
+  font-size: var(--text-sm);
+  text-align: center;
+  padding: var(--sp-6) 0;
+}
+
+.feedback-body {
+  margin-top: var(--sp-4);
+  padding-top: var(--sp-4);
+  border-top: 1px solid rgba(255, 170, 0, 0.06);
+  line-height: 1.7;
+  font-size: var(--text-sm);
+  white-space: pre-wrap;
+}
+
+/* ── FORM ── */
+
+.feedback-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+}
+
+.feedback-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+}
+
+.feedback-field select,
+.feedback-field input,
+.feedback-field textarea {
+  background: rgba(10, 10, 12, 0.6);
+  border: 1px solid var(--col-border);
+  color: var(--col-text-primary);
+  font-family: var(--font-ui);
+  font-size: var(--text-sm);
+  padding: var(--sp-2) var(--sp-3);
+}
+
+.feedback-field select:focus,
+.feedback-field input:focus,
+.feedback-field textarea:focus {
+  outline: none;
+  border-color: rgba(255, 170, 0, 0.3);
+}
+
+.feedback-field textarea {
+  resize: vertical;
+  min-height: 120px;
+}
+
+.feedback-actions {
+  display: flex;
+  gap: var(--sp-3);
+  margin-top: var(--sp-2);
+}
+
+.feedback-error {
+  padding: var(--sp-2) var(--sp-3);
+  border: 1px solid rgba(255, 51, 0, 0.25);
+  color: var(--col-danger);
+  font-size: var(--text-xs);
+  margin-bottom: var(--sp-2);
+}
+
+/* ── TYPE TAGS ── */
+
+.tag.bug {
+  border-color: rgba(255, 51, 0, 0.25);
+  color: var(--col-danger);
+}
+
+.tag.wish {
+  border-color: rgba(51, 153, 255, 0.25);
+  color: rgba(102, 178, 255, 0.85);
+}
+
+.tag.impression {
+  border-color: rgba(85, 238, 153, 0.25);
+  color: var(--col-stamina);
+}
+
+.tag.balance {
+  border-color: rgba(119, 68, 255, 0.25);
+  color: rgba(153, 102, 255, 0.85);
+}

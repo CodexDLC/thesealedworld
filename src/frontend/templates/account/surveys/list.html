@@ -1,0 +1,28 @@
+{% extends "account/base_account.html" %}
+
+{% block content %}
+<section class="account-profile">
+    <div class="ds-panel">
+        <div class="ds-panel-header">Мои опросники</div>
+        <div class="ds-panel-body">
+            {% if surveys %}
+            <div class="feedback-table">
+                {% for s in surveys %}
+                <div class="feedback-row" style="grid-template-columns: 1fr 120px 100px;">
+                    <span class="feedback-title">{{ s.title }}</span>
+                    <span class="feedback-date">{{ s.sent_at }}</span>
+                    {% if s.completed %}
+                    <span class="tag safe">Пройден</span>
+                    {% else %}
+                    <a href="/survey/{{ s.token }}" class="btn-node sm"><span>Пройти</span></a>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <p class="feedback-empty">Опросники пока не назначены</p>
+            {% endif %}
+        </div>
+    </div>
+</section>
+{% endblock content %}

@@ -1,0 +1,28 @@
+{% extends "account/base_account.html" %}
+
+{% block content %}
+<section class="account-profile">
+    <div class="ds-panel">
+        <div class="ds-panel-header">
+            <span>Обратная связь</span>
+            <a href="/account/feedback/new" class="btn-node sm"><span>Новый отзыв</span></a>
+        </div>
+        <div class="ds-panel-body">
+            {% if feedback_list.items %}
+            <div class="feedback-table">
+                {% for item in feedback_list.items %}
+                <a href="/account/feedback/{{ item.id }}" class="feedback-row">
+                    <span class="feedback-type tag {{ item.type }}">{{ item.type }}</span>
+                    <span class="feedback-title">{{ item.title }}</span>
+                    <span class="feedback-status tag">{{ item.status }}</span>
+                    <span class="feedback-date">{{ item.created_at }}</span>
+                </a>
+                {% endfor %}
+            </div>
+            {% else %}
+            <p class="feedback-empty">{{ feedback_list.empty_message }}</p>
+            {% endif %}
+        </div>
+    </div>
+</section>
+{% endblock content %}

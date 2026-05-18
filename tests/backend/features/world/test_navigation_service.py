@@ -152,6 +152,6 @@ class TestWorldNavigationService:
 
     def test_service_labels(self):
         service = WorldNavigationService()
-        assert service._service_labels("tavern") == ("В Таверну", "Войти в Таверну")
+        assert service._service_labels("tavern") == ("В Постоялый Двор", "Войти в Постоялый Двор")
         assert service._service_labels("arena") == ("На Арену", "Выйти на Арену")
         assert service._service_labels("unknown") == ("Войти", "Вход в Сервис")

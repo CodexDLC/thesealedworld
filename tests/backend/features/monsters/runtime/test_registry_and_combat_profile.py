@@ -377,7 +377,8 @@ async def test_bandit_humanoid_loadout_resolves_into_modifiers_and_layout() -> N
     assert combat["loadout"]["equipment_layout"]["off_hand"]
     assert combat["loadout"]["equipment_layout"]["chest_armor"]
     assert combat["math_model"]["modifiers"]["main_hand_damage_base"]["base"] > 0
-    assert combat["math_model"]["modifiers"]["main_hand_accuracy"]["base"] > 0
+    assert combat["math_model"]["modifiers"]["main_hand_accuracy"]["base"] == 0.0
+    assert combat["math_model"]["modifiers"]["accuracy"]["source"]["family:bandit_gang"] == pytest.approx(-0.10)
     assert combat["math_model"]["modifiers"]["armor"]["base"] > 0
     assert combat["skills"]["skill_macing"] >= 0.2
     assert "measured_strike" in combat["loadout"]["known_feints"]
@@ -392,6 +393,7 @@ async def test_goblin_humanoid_loadout_resolves_into_damage_and_accuracy() -> No
     assert combat["loadout"]["layout"]["main_hand"] == "skill_macing"
     assert combat["loadout"]["layout"]["off_hand"] == "skill_shield_mastery"
     assert combat["math_model"]["modifiers"]["main_hand_damage_base"]["base"] > 0
-    assert combat["math_model"]["modifiers"]["main_hand_accuracy"]["base"] > 0
+    assert combat["math_model"]["modifiers"]["main_hand_accuracy"]["base"] == 0.0
+    assert combat["math_model"]["modifiers"]["accuracy"]["source"]["family:goblin_tribe"] == pytest.approx(-0.10)
     assert combat["math_model"]["modifiers"]["shield_guard_power"]["base"] > 0
     assert combat["skills"]["skill_macing"] >= 0.2

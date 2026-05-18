@@ -18,15 +18,22 @@ from src.backend.features.world.resources.static.start_village import STATIC_LOC
 from src.backend.infrastructure.world.models import WorldGrid
 
 D4_TEST_LOCATION_IDS = ("52_52", "53_52", "52_53", "52_50", "50_50")
+D4_BUILDABLE_TEST_LOCATION_IDS = ("50_50", "51_50", "51_54", "50_51", "54_51", "54_53")
+D4_EAST_WALL_TEST_LOCATION_IDS = ("54_50", "54_51", "54_52", "54_53", "54_54")
+MANUAL_D4_LOCATION_IMAGE_MODEL = "gemini-3-pro-image-preview"
+MANUAL_D4_LOCATION_PROMPT_CONTRACT_VERSION = "d4-location-elite-wall-continuity-v8"
 
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Enqueue generated background images for D4 world locations.")
     parser.add_argument(
         "--scope",
-        choices=("test", "all"),
+        choices=("test", "buildable", "east-wall", "all"),
         default="test",
-        help="Use the approved 5-node D4 test batch or all 25 static D4 hub locations.",
+        help=(
+            "Use the 5-node D4 service test, the buildable-plot test batch, "
+            "the east wall line test, or all 25 static D4 hub locations."
+        ),
     )
     parser.add_argument(
         "--no-schedule",
@@ -37,6 +44,14 @@ def parse_args() -> argparse.Namespace:
         "--replace-existing-tasks",
         action="store_true",
         help="Delete existing tasks with the same visual identity before enqueueing new tasks.",
+    )
+    parser.add_argument(
+        "--image-model",
+        default=MANUAL_D4_LOCATION_IMAGE_MODEL,
+        help=(
+            "Gemini image model for this manual D4 enqueue run. Defaults to Nano Banana Pro "
+            f"({MANUAL_D4_LOCATION_IMAGE_MODEL}) so automated background defaults can remain cheaper."
+        ),
     )
     parser.add_argument("--dry-run", action="store_true", help="Print tasks without writing DB changes.")
     return parser.parse_args()
@@ -49,14 +64,18 @@ async def async_main(args: argparse.Namespace | None = None) -> None:
         await arq.init()
 
     try:
-        loc_ids = D4_TEST_LOCATION_IDS if options.scope == "test" else tuple(_static_loc_ids())
+        loc_ids = _loc_ids_for_scope(options.scope)
         async with get_manual_session_context() as session:
             nodes = await _load_nodes(session, loc_ids)
-            specs = [_build_spec_from_node(node) for node in nodes]
+            specs = _build_specs_from_nodes(nodes, options=options)
             missing = sorted(set(loc_ids) - {f"{node.x}_{node.y}" for node in nodes})
 
             if options.dry_run:
-                print(f"dry-run scope={options.scope} nodes={len(nodes)} missing={missing} tasks={len(specs)}")
+                print(
+                    f"dry-run scope={options.scope} nodes={len(nodes)} missing={missing} "
+                    f"tasks={len(specs)} image_model={options.image_model} "
+                    f"prompt_contract_version={MANUAL_D4_LOCATION_PROMPT_CONTRACT_VERSION}"
+                )
                 for spec in specs:
                     print(f"{spec.entity_id} -> {spec.input_payload['storage_key']}")
                 return
@@ -76,6 +95,8 @@ async def async_main(args: argparse.Namespace | None = None) -> None:
             scheduled = 0 if options.no_schedule else await service.schedule_pending_task_ids()
             print(
                 f"world location image generation queued scope={options.scope} nodes={len(nodes)} missing={missing} "
+                f"image_model={options.image_model} "
+                f"prompt_contract_version={MANUAL_D4_LOCATION_PROMPT_CONTRACT_VERSION} "
                 f"tasks={len(specs)} created={getattr(result, 'created', 0)} reused={getattr(result, 'reused', 0)} "
                 f"scheduled={scheduled}"
             )
@@ -90,18 +111,49 @@ async def _load_nodes(session: Any, loc_ids: tuple[str, ...]) -> list[WorldGrid]
     return list((await session.scalars(stmt)).all())
 
 
-def _build_spec_from_node(node: WorldGrid):
+def _build_specs_from_nodes(nodes: list[WorldGrid], *, options: argparse.Namespace):
+    return [
+        _build_spec_from_node(
+            node,
+            image_model=options.image_model,
+            prompt_contract_version=MANUAL_D4_LOCATION_PROMPT_CONTRACT_VERSION,
+        )
+        for node in nodes
+    ]
+
+
+def _location_payload_from_node(node: WorldGrid) -> dict[str, Any]:
     loc_id = f"{node.x}_{node.y}"
     content = dict(node.content or {})
+    return {
+        "loc_id": loc_id,
+        "title": str(content.get("title") or loc_id),
+        "description": str(content.get("description") or ""),
+        "biome_id": str(node.biome_id or ""),
+        "terrain_type": str(node.terrain_type or ""),
+        "environment_tags": [str(tag) for tag in content.get("environment_tags") or []],
+        "visual_overrides": dict(node.visual_overrides or {}),
+    }
+
+
+def _build_spec_from_node(
+    node: WorldGrid,
+    *,
+    image_model: str | None = None,
+    prompt_contract_version: str | None = None,
+):
+    payload = _location_payload_from_node(node)
     return build_world_location_image_task_spec(
-        loc_id=loc_id,
-        title=str(content.get("title") or loc_id),
-        description=str(content.get("description") or ""),
-        biome_id=str(node.biome_id or ""),
-        terrain_type=str(node.terrain_type or ""),
-        environment_tags=[str(tag) for tag in content.get("environment_tags") or []],
-        visual_overrides=dict(node.visual_overrides or {}),
+        loc_id=str(payload["loc_id"]),
+        title=str(payload["title"]),
+        description=str(payload["description"]),
+        biome_id=str(payload["biome_id"]),
+        terrain_type=str(payload["terrain_type"]),
+        environment_tags=list(payload["environment_tags"]),
+        visual_overrides=dict(payload["visual_overrides"]),
         region_id="D4",
+        image_model=image_model,
+        prompt_contract_version=prompt_contract_version,
     )
 
 
@@ -112,6 +164,16 @@ def _parse_loc_id(loc_id: str) -> tuple[int, int]:
 
 def _static_loc_ids() -> list[str]:
     return [f"{x}_{y}" for x, y in STATIC_LOCATIONS]
+
+
+def _loc_ids_for_scope(scope: str) -> tuple[str, ...]:
+    if scope == "test":
+        return D4_TEST_LOCATION_IDS
+    if scope == "buildable":
+        return D4_BUILDABLE_TEST_LOCATION_IDS
+    if scope == "east-wall":
+        return D4_EAST_WALL_TEST_LOCATION_IDS
+    return tuple(_static_loc_ids())
 
 
 def main() -> None:

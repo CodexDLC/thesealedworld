@@ -26,7 +26,7 @@ class FakeCityServiceIntegrator:
         tavern_id: str | None = None,
     ):
         _ = char_id, tavern_id
-        return get_city_service_definition(service_id or "svc_tavern_hub"), location_id or "52_53"
+        return get_city_service_definition(service_id or "svc_tavern_hub"), location_id or "53_53"
 
     async def enter_city_service(self, char_id: int) -> None:
         self.entered.append(char_id)
@@ -64,7 +64,8 @@ async def test_city_service_view_returns_tavern_main_screen_and_enters_domain() 
     assert payload.service_id == "svc_tavern_hub"
     assert payload.service_type == "tavern"
     assert payload.screen == CityServiceScreenEnum.MAIN
-    assert payload.location_id == "52_53"
+    assert payload.location_id == "53_53"
+    assert payload.background_url is None
     assert integrator.entered == [7]
 
 
@@ -72,12 +73,13 @@ async def test_city_service_view_returns_tavern_main_screen_and_enters_domain() 
 async def test_city_service_placeholder_returns_live_text_screen() -> None:
     service = CityService(integrator=FakeCityServiceIntegrator())
 
-    payload = await service.view(7, service_id="svc_market_hub", location_id="53_52")
+    payload = await service.view(7, service_id="svc_market_hub", location_id="53_51")
 
     assert payload.service_id == "svc_market_hub"
     assert payload.service_type == "market"
     assert payload.screen == CityServiceScreenEnum.MAIN
-    assert "рынок собирает торговцев" in payload.description.lower()
+    assert payload.background_url is None
+    assert "аукционные доски" in payload.description.lower()
     assert payload.buttons
 
 
@@ -85,11 +87,11 @@ async def test_city_service_placeholder_returns_live_text_screen() -> None:
 async def test_city_service_tavern_dialogue_returns_scenario_transition_with_return_context() -> None:
     service = CityService(integrator=FakeCityServiceIntegrator())
 
-    transition = await service.start_dialogue(7, service_id="svc_tavern_hub", location_id="52_53", section_id="bar")
+    transition = await service.start_dialogue(7, service_id="svc_tavern_hub", location_id="53_53", section_id="bar")
 
     assert transition.target_state == CoreDomain.SCENARIO
     assert transition.quest_key == "tavern_bartender_dialogue"
-    assert transition.location_id == "52_53"
+    assert transition.location_id == "53_53"
     assert transition.metadata["service_id"] == "svc_tavern_hub"
     return_context = transition.context["return_context"]
     assert return_context["source_state"] == CoreDomain.CITY_SERVICES.value
@@ -167,7 +169,7 @@ async def test_city_service_gateway_start_dialogue_returns_transition_response()
     body = CityServiceActionDTO(
         action=CityServiceActionEnum.START_DIALOGUE,
         service_id="svc_tavern_hub",
-        location_id="52_53",
+        location_id="53_53",
         section_id="bar",
     )
 

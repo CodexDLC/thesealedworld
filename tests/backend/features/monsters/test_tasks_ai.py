@@ -83,6 +83,19 @@ def test_monster_clan_image_spec_uses_visual_contract() -> None:
     assert spec.input_payload["visual"]["storage_key"] == clan.flavor_content["visual"]["storage_key"]
 
 
+def test_monster_clan_flavor_payload_includes_loot_culture_contract() -> None:
+    payload = build_monster_clan_flavor_payload(
+        family_id="bandit_gang",
+        tier=2,
+        raw_tags={"tags": ["city_ruins"], "biome_id": "city_ruins"},
+        variant_ids=["bandit_knife_rat"],
+    )
+
+    assert payload["loot_culture_contract"]["purpose"]
+    assert "loot_culture" in payload["text_contract"]["clan"]
+    assert "location, biome, context tags, and rift profile" in payload["loot_culture_contract"]["must_reflect"]
+
+
 @pytest.mark.asyncio
 async def test_monster_clan_flavor_handler_builds_json_request_with_schema() -> None:
     task = MagicMock(
@@ -119,6 +132,13 @@ async def test_monster_clan_flavor_handler_applies_structured_json_and_returns_i
             output_payload={
                 "name_ru": "Стая Черного Камня",
                 "description": "Крысы держатся у влажных плит.",
+                "loot_culture": {
+                    "craft_style": "собирают снаряжение из сырого мусора",
+                    "craft_skill_hint": "тащат в гнездо все, что можно грызть и привязать",
+                    "salvage_sources": ["ржавые решетки", "кости"],
+                    "tone_hints": ["грязная сборка"],
+                    "equipment_origin_notes": ["снаряжение пахнет сыростью"],
+                },
                 "variants_flavor": [
                     {
                         "variant_key": "runner",
@@ -136,6 +156,7 @@ async def test_monster_clan_flavor_handler_applies_structured_json_and_returns_i
     )
 
     assert clan.name_ru == "Стая Черного Камня"
+    assert clan.flavor_content["loot_culture"]["craft_style"] == "собирают снаряжение из сырого мусора"
     assert member.name_ru == "Каменная крыса"
     assert followups[0].task_type == MONSTER_CLAN_IMAGE_TASK
     assert followups[1].task_type == MONSTER_MEMBER_IMAGE_TASK

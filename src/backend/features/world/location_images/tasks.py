@@ -94,6 +94,7 @@ def build_world_location_image_task_spec(
     visual_overrides: dict[str, Any] | None = None,
     region_id: str = "D4",
     image_model: str | None = None,
+    prompt_contract_version: str | None = None,
 ) -> AIGenerationTaskSpecDTO:
     visual_overrides = dict(visual_overrides or {})
     asset_payload = {
@@ -106,8 +107,12 @@ def build_world_location_image_task_spec(
         "visual_overrides": visual_overrides,
         "image_model": image_model or settings.gemini_location_image_model,
     }
+    if prompt_contract_version:
+        asset_payload["prompt_contract_version"] = prompt_contract_version
     asset_hash = _short_asset_hash("world.location_image", asset_payload)
-    storage_key = f"{WORLD_LOCATION_IMAGE_STORAGE_ROOT}/{region_id.lower()}/{loc_id}_{asset_hash.rsplit(':', 1)[-1]}.webp"
+    storage_key = (
+        f"{WORLD_LOCATION_IMAGE_STORAGE_ROOT}/{region_id.lower()}/{loc_id}_{asset_hash.rsplit(':', 1)[-1]}.webp"
+    )
     return AIGenerationTaskSpecDTO(
         task_type=WORLD_LOCATION_IMAGE_TASK,
         entity_type="world_location",

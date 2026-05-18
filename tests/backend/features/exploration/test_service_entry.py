@@ -9,7 +9,7 @@ from src.shared.schemas.response import ServiceResult
 
 
 class FakeExplorationIntegrator:
-    def __init__(self, *, loc_id: str = "52_51", loc_data: dict | None = None) -> None:
+    def __init__(self, *, loc_id: str = "51_51", loc_data: dict | None = None) -> None:
         self.loc_id = loc_id
         self.loc_data = loc_data or {"services": ["svc_arena_main"], "exits": {}}
 
@@ -85,14 +85,14 @@ async def test_use_service_returns_backend_owned_arena_transition():
     assert isinstance(result, ServiceResult)
     assert result.next_state == CoreDomain.ARENA
     assert result.data["service_id"] == "svc_arena_main"
-    assert result.data["location_id"] == "52_51"
+    assert result.data["location_id"] == "51_51"
 
 
 @pytest.mark.asyncio
 async def test_use_service_returns_backend_owned_city_services_transition():
     service = ExplorationService(
         FakeExplorationIntegrator(
-            loc_id="52_53",
+            loc_id="53_53",
             loc_data={"services": ["svc_tavern_hub"], "exits": {}},
         ),
         encounter_engine=object(),
@@ -103,7 +103,7 @@ async def test_use_service_returns_backend_owned_city_services_transition():
     assert isinstance(result, ServiceResult)
     assert result.next_state == CoreDomain.CITY_SERVICES
     assert result.data["service_id"] == "svc_tavern_hub"
-    assert result.data["location_id"] == "52_53"
+    assert result.data["location_id"] == "53_53"
     assert result.data["service_type"] == "tavern"
     assert result.data["tavern_id"] == "last_refuge"
 

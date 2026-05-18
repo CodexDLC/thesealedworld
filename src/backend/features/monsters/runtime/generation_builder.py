@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING
 from src.backend.features.character.runtime import CharacterVitalsCalculator
 from src.backend.features.character.schemas.session import CharacterSessionAttributesDTO
 from src.backend.features.monsters.dto.generation import GeneratedClan, GeneratedMonster
+from src.backend.features.monsters.dto.loot_culture import default_loot_culture_payload
 from src.backend.features.monsters.integrations.item_generation import (
     build_monster_item_request,
     to_item_generation_requests,
@@ -364,6 +365,7 @@ class MonsterClanGenerationBuilder:
         return {
             "name_ru": f"{title} T{context.tier}",
             "description": f"{family.organization_type} generated for {context.biome_id} at tier {context.tier}.",
+            "loot_culture": _fallback_loot_culture(family),
             "variants_flavor": {
                 plan.variant.id: {
                     "name": plan.variant.id.replace("_", " ").title(),
@@ -385,6 +387,14 @@ def _variant_flavor(flavor: dict[str, object], variant_id: str) -> dict[str, obj
         return {}
     entry = variants.get(variant_id)
     return entry if isinstance(entry, dict) else {}
+
+
+def _fallback_loot_culture(family: MonsterFamilyDTO) -> dict[str, object]:
+    return default_loot_culture_payload(
+        family_id=family.id,
+        archetype=family.archetype,
+        organization_type=family.organization_type,
+    )
 
 
 def _string_mapping(value: dict[str, object]) -> dict[str, str]:

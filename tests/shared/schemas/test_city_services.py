@@ -20,9 +20,9 @@ def test_city_service_payload_validates_sections_and_actions() -> None:
             "service_type": "tavern",
             "screen": "section",
             "section_id": "bar",
-            "title": "Барная стойка",
+            "title": "Стойка кормчего",
             "description": "Ключи и слухи.",
-            "sections": [{"id": "bar", "title": "Барная стойка"}],
+            "sections": [{"id": "bar", "title": "Стойка кормчего"}],
             "buttons": [{"label": "Поговорить", "action": "start_dialogue", "section_id": "bar"}],
         }
     )

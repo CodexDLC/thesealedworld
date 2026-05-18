@@ -101,6 +101,8 @@ async def test_generation_builder_creates_clan_template_with_all_available_membe
     ]
     assert repository.created is not None
     assert clan.family_id == "rat_swarm"
+    assert clan.flavor_content["loot_culture"]["craft_style"]
+    assert clan.flavor_content["loot_culture"]["tone_hints"]
     assert "target_budget" not in clan.raw_tags
     assert clan.raw_tags["variant_window"] == {"min_tier": 0, "max_tier": max_tier}
     assert len(clan.members) == len(expected_variants)

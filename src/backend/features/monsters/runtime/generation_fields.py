@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import contextlib
 from typing import TYPE_CHECKING, Any
 
 from src.backend.features.monsters.dto.generation import (
@@ -82,10 +83,8 @@ def build_scaled_skills(
             if value is None:
                 skills.pop(str(key), None)
             else:
-                try:
+                with contextlib.suppress(TypeError, ValueError):
                     skills[str(key)] = round(float(value), 4)
-                except (TypeError, ValueError):
-                    pass
     return MonsterScaledSkillsDTO(skills=filter_monster_combat_skills(skills))
 
 

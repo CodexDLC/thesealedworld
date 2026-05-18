@@ -21,6 +21,13 @@ Return JSON only:
 {
   "name_ru": "Russian clan name",
   "description": "Russian atmospheric bestiary description, 3-4 sentences",
+  "loot_culture": {
+    "craft_style": "How this clan obtains, makes, steals, repairs, or repurposes equipment",
+    "craft_skill_hint": "What their equipment workmanship looks like and what they can/cannot craft",
+    "salvage_sources": ["3-8 concrete materials or objects they reuse for gear"],
+    "tone_hints": ["3-8 item-description mood/style hints"],
+    "equipment_origin_notes": ["2-6 concrete notes for item descriptions"]
+  },
   "variants_flavor": [
     {
       "variant_key": "unit_key",
@@ -42,6 +49,9 @@ Rules:
 - If rift_profile is present, write the clan as a local rift-touched faction released or empowered by that rift.
 - A rift is not a normal lair. Do not describe the creatures as living inside the rift; describe pressure, leakage, gathering, barricades, hunting grounds, or scavenging around it.
 - Use rift_profile.boss_archetype and rift_profile.context_tags as a naming and atmosphere anchor.
+- loot_culture is family-level equipment culture, not a specific dropped item. It must explain what this clan's gear is usually made from, how crude/skilled the workmanship is, and what environmental scraps shape their weapons, armor, shields, garments, or trophies.
+- If loot_culture_seed is present, preserve its design direction but adapt it to the current location, biome, tags, tier, and rift_profile.
+- For humanoid gangs in city ruins, prefer scavenged and stolen gear: gate plating, door boards, shop shutters, straps, nails, scrap metal, and repaired armor. For rift-touched clans, include rift-specific salvage from the payload.
 - Tier 0-1 means ragged, hungry, weak, scavenging. Tier 5+ means ancient, evolved, or magically altered.
 - Unit keys are technical ids from the input. Keep the same keys and write player-facing title/text fields for them.
 - detected, ambush, and idle must describe different encounter states, not repeat appearance.

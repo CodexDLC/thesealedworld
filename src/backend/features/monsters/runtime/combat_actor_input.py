@@ -4,16 +4,17 @@ import time
 from typing import Any
 
 from src.backend.features.character.runtime.combat_actor_input import CharacterCombatActorInputBuilder
-from src.backend.features.character.runtime.combat_math_model import CharacterCombatMathModelBuilder
 from src.backend.features.game_catalog.combat.resources.feints.availability import build_known_feints
+from src.backend.features.monsters.resources import get_family_config
+from src.backend.features.monsters.runtime.combat_math_model import MonsterCombatMathModelBuilder
 from src.backend.features.monsters.skill_contract import filter_monster_combat_skills
 
 
 class MonsterCombatActorInputBuilder:
     """Builds combat-facing actor input from a generated monster row."""
 
-    def __init__(self, math_model: CharacterCombatMathModelBuilder | None = None) -> None:
-        self.math_model = math_model or CharacterCombatMathModelBuilder()
+    def __init__(self, math_model: MonsterCombatMathModelBuilder | None = None) -> None:
+        self.math_model = math_model or MonsterCombatMathModelBuilder()
 
     def build_input(self, monster: Any) -> dict[str, Any]:
         items = self._items_for_player_mapper(monster.items)
@@ -22,6 +23,8 @@ class MonsterCombatActorInputBuilder:
             attributes=dict(monster.scaled_attributes or {}),
             items=items,
             skills=skills,
+            monster_meta=self._math_meta(monster),
+            balance=self._balance(monster),
         )
         generation_meta = dict(getattr(monster, "generation_meta", None) or {})
         family_modifiers = generation_meta.get("family_modifiers") or []
@@ -160,6 +163,20 @@ class MonsterCombatActorInputBuilder:
         }
 
     @staticmethod
+    def _math_meta(monster: Any) -> dict[str, Any]:
+        generation_meta = dict(getattr(monster, "generation_meta", None) or {})
+        meta = generation_meta.get("meta")
+        meta_data = dict(meta) if isinstance(meta, dict) else {}
+        meta_data["role"] = str(getattr(monster, "role", "") or meta_data.get("role") or "")
+        return meta_data
+
+    @staticmethod
+    def _balance(monster: Any) -> dict[str, Any]:
+        generation_meta = dict(getattr(monster, "generation_meta", None) or {})
+        balance = generation_meta.get("balance")
+        return dict(balance) if isinstance(balance, dict) else {}
+
+    @staticmethod
     def _source(monster: Any) -> dict[str, Any]:
         meta = dict(monster.generation_meta or {})
         source = meta.get("source")
@@ -170,6 +187,7 @@ class MonsterCombatActorInputBuilder:
             "monster_id": str(monster.id),
             "clan_id": str(monster.clan_id),
             "family_id": family_id,
+            "owner_family": MonsterCombatActorInputBuilder._owner_family(monster, family_id),
             "template_id": monster.variant_key,
             "member_tier": int(getattr(monster, "member_tier", 0) or 0),
             "visual": MonsterCombatActorInputBuilder._visual(monster),
@@ -177,6 +195,22 @@ class MonsterCombatActorInputBuilder:
                 "generated_monsters": str(monster.id),
                 "generated_clans": str(monster.clan_id),
             },
+        }
+
+    @staticmethod
+    def _owner_family(monster: Any, family_id: str | None) -> dict[str, Any]:
+        clan = getattr(monster, "clan", None)
+        flavor_content = dict(getattr(clan, "flavor_content", None) or {}) if clan is not None else {}
+        family = get_family_config(str(family_id)) if family_id else None
+        return {
+            "clan_id": str(getattr(monster, "clan_id", "")),
+            "family_resource_id": str(family_id or ""),
+            "clan_name_ru": str(getattr(clan, "name_ru", "") or ""),
+            "clan_description": str(getattr(clan, "description", "") or ""),
+            "archetype": family.archetype if family is not None else MonsterCombatActorInputBuilder._archetype(monster),
+            "organization_type": family.organization_type if family is not None else "",
+            "tags": list(family.default_tags) if family is not None else [],
+            "loot_culture": dict(flavor_content.get("loot_culture") or {}),
         }
 
     @staticmethod

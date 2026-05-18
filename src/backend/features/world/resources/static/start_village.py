@@ -1,29 +1,19 @@
-from typing import Any, NotRequired, TypedDict
-
-
-class _StaticLocationContent(TypedDict):
-    title: str
-    description: str
-    background_url: NotRequired[str]
-    environment_tags: list[str]
-
-
-class _StaticLocation(TypedDict):
-    sector_id: str
-    is_active: bool
-    services: list[str]
-    flags: dict[str, Any]
-    movement_profile: dict[str, Any]
-    visual_overrides: NotRequired[dict[str, Any]]
-    content: _StaticLocationContent
-
+from src.backend.features.world.resources.static.d4_east import STATIC_LOCATIONS as D4_EAST_LOCATIONS
+from src.backend.features.world.resources.static.d4_north import STATIC_LOCATIONS as D4_NORTH_LOCATIONS
+from src.backend.features.world.resources.static.d4_northeast import STATIC_LOCATIONS as D4_NORTHEAST_LOCATIONS
+from src.backend.features.world.resources.static.d4_northwest import STATIC_LOCATIONS as D4_NORTHWEST_LOCATIONS
+from src.backend.features.world.resources.static.d4_south import STATIC_LOCATIONS as D4_SOUTH_LOCATIONS
+from src.backend.features.world.resources.static.d4_southeast import STATIC_LOCATIONS as D4_SOUTHEAST_LOCATIONS
+from src.backend.features.world.resources.static.d4_southwest import STATIC_LOCATIONS as D4_SOUTHWEST_LOCATIONS
+from src.backend.features.world.resources.static.d4_types import StaticLocationMap
+from src.backend.features.world.resources.static.d4_west import STATIC_LOCATIONS as D4_WEST_LOCATIONS
 
 # ==============================================================================
 # СТАТИЧНЫЕ ЛОКАЦИИ: КРУГ ИСХОДА, СТАБИЛЬНЫЙ ЦЕНТР АУР-ЭНТАРА (5x5)
 # Сеттинг: древняя техномагическая столица Аур-Энтар вокруг портальной площади Исхода.
 # Временные постройки выживших вторичны и не должны вытеснять монолитную архитектуру.
 # ==============================================================================
-STATIC_LOCATIONS: dict[tuple[int, int], _StaticLocation] = {
+START_VILLAGE_LOCATIONS: StaticLocationMap = {
     # ---------------------------------------------------------
     # ЦЕНТР: РУННЫЙ КРУГ
     # ---------------------------------------------------------
@@ -33,19 +23,9 @@ STATIC_LOCATIONS: dict[tuple[int, int], _StaticLocation] = {
         "services": ["svc_portal_hub"],
         "flags": {"is_active": True, "is_safe_zone": True, "is_hub": True},
         "movement_profile": {"has_road": True, "blocked_exits": []},
-        "visual_overrides": {
-            "image_profile": "d4_capital_hub",
-            "node_role": "portal_plaza",
-            "composition": (
-                "the preserved portal plaza is the landmark; the central circular platform stays almost perfect, "
-                "broken ceremonial arches frame the distance, survivor tents remain small at the outer rim"
-            ),
-            "forbidden": ["sci-fi terminal", "hologram", "readable runes", "crowd of people"],
-        },
         "content": {
             "title": "Площадь Исхода",
-            "description": "Центральная платформа Аур-Энтара лежит под открытым небом: огромный круг из белого и черного монолита, где радиальные каналы сходятся к мертвому портальному ядру. Планетарный ИИ удерживает здесь ровное, почти стерильное пространство, а бедные палатки и костры жмутся только к дальним краям площади.",
-            "background_url": "/static/images/exploration/city/d4/52_52_runic_circle_plaza.png",
+            "description": "Центральная платформа Аур-Энтара лежит под открытым небом: огромный круг из белого и черного монолита, где радиальные каналы сходятся к мертвому портальному ядру. От площади расходятся широкие проходы к северному проспекту, восточному тракту, западной административной линии и южному павильону; бедные палатки и костры жмутся к дальним краям, не перекрывая сам круг.",
             "environment_tags": [
                 "hub_center",
                 "active_portal",
@@ -64,126 +44,116 @@ STATIC_LOCATIONS: dict[tuple[int, int], _StaticLocation] = {
     (52, 51): {
         "sector_id": "D4",
         "is_active": True,
-        "services": ["svc_arena_main"],
+        "services": [],
         "flags": {"is_active": True, "is_safe_zone": True},
         "movement_profile": {"has_road": True, "blocked_exits": []},
         "content": {
             "title": "Северный Проспект Башни",
-            "description": "Северный проспект тянется от Площади Исхода к глухой башне без окон, выточенной из цельного черного монолита. Сама улица остается частью эвакуационного маршрута, а арена внутри башни — уже позднее использование сохранившегося тренировочного объема.",
-            "background_url": "/static/images/exploration/city/d4/52_51_trial_tower_street.png",
-            "environment_tags": ["ancient_tower", "magic_pocket", "ruins", "street", "arena"],
+            "description": "Северный проспект тянется от Площади Исхода к глухой башне без окон, выточенной из цельного черного монолита. На западе виден вход в тренировочный блок арены, на востоке за стенами проступает торговый зал, а дальше к северу улица упирается в линию внутренних ворот.",
+            "environment_tags": ["ancient_tower", "magic_pocket", "ruins", "street", "north_tract"],
         },
     },
     (51, 51): {
         "sector_id": "D4",
         "is_active": True,
-        "services": [],
+        "services": ["svc_arena_main"],
         "flags": {"is_active": True, "is_safe_zone": True},
-        "movement_profile": {"has_road": True, "blocked_exits": []},
+        "movement_profile": {"has_road": True, "blocked_exits": ["north", "west"]},
         "content": {
-            "title": "Квартал Теней",
-            "description": "Здесь улицы сжаты между высокими фасадами черного монолита, и свет словно вязнет в гладких стенах. Старые сервисные ниши закрыты мертвыми створками, но иногда в глубине вспыхивает тонкая золотая жила, напоминая, что Круг Исхода все еще поддерживается.",
-            "background_url": "/static/images/exploration/city/d4/51_51_shadow_quarter.png",
-            "environment_tags": ["ruins", "debris", "resource_spot", "street", "dark_alley", "monolith"],
+            "title": "Арена Теневого Блока",
+            "description": "Северо-западный блок старого города сжат между высокими фасадами черного монолита. Расчищенный вход в арену открыт со стороны северного проспекта; северная и западная стороны упираются в стены корпуса, к югу остается проход к административным зданиям, а восточнее просматривается центральная площадь.",
+            "environment_tags": ["arena", "training_block", "ruins", "street", "dark_alley", "monolith", "safe_zone"],
         },
     },
     (53, 51): {
         "sector_id": "D4",
         "is_active": True,
-        "services": [],
+        "services": ["svc_market_hub"],
         "flags": {"is_active": True, "is_safe_zone": True},
-        "movement_profile": {"has_road": True, "blocked_exits": []},
+        "movement_profile": {"has_road": True, "blocked_exits": ["north", "east"]},
         "content": {
-            "title": "Руины Библиотеки",
-            "description": "Библиотечный блок Аур-Энтара обрушился не как обычное здание: плиты архива лежат ровными слоями, будто их отключили посреди эвакуации. Между колоннами видны осторожные раскопы, но главная тяжесть места — молчащие хранилища знаний, которые пережили десятки тысяч лет.",
-            "background_url": "/static/images/exploration/city/d4/53_51_library_ruins.png",
-            "environment_tags": ["ruins", "debris", "resource_spot", "street", "ancient_knowledge"],
+            "title": "Торговый зал Старого Распорядка",
+            "description": "К северу от восточного тракта стоит длинное административное здание с каменными галереями и глубокими нишами. Северная и восточная стороны закрыты стенами корпуса, поэтому входы читаются с южного тракта и западного прохода к Площади Исхода. Внутри уже ставят аукционные доски, временные палатки и первые лавки.",
+            "environment_tags": [
+                "market",
+                "auction",
+                "shop_stalls",
+                "administrative_hall",
+                "ruins",
+                "street",
+                "safe_zone",
+            ],
         },
     },
     # --- Южный сектор ---
     (52, 53): {
         "sector_id": "D4",
         "is_active": True,
-        "services": ["svc_tavern_hub"],
+        "services": [],
         "flags": {"is_active": True, "is_safe_zone": True},
         "movement_profile": {"has_road": True, "blocked_exits": []},
-        "visual_overrides": {
-            "image_profile": "d4_capital_hub",
-            "node_role": "tavern_refuge",
-            "composition": (
-                "the southern reception pavilion and its monolith street approach are the main scene; the warm refuge "
-                "tavern occupies only one lower hall edge as a secondary human layer"
-            ),
-            "forbidden": ["busy crowd", "ordinary inn cottage", "medieval castle courtyard"],
-        },
         "content": {
             "title": "Южный Приемный Павильон",
-            "description": "Южнее площади раскрывается приемный павильон Аур-Энтара: широкий монолитный зал, боковые арки и потускневшие эфирные жилы в ребрах потолка. В одном нижнем пролете устроен 'Последний Приют', но таверна выглядит временным теплым углом внутри гораздо более древнего места.",
-            "background_url": "/static/images/exploration/city/d4/52_53_last_refuge_tavern.png",
-            "environment_tags": ["tavern", "ruins", "street", "safe_zone", "lively", "wood_patch"],
+            "description": "Южнее площади раскрывается приемный павильон: широкий монолитный зал, боковые арки и потускневшие жилы в ребрах потолка. Северный проход возвращает к портальному кругу, западная сторона смотрит на палату гильдий, а восточнее начинается путь к постоялому двору.",
+            "environment_tags": ["ruins", "street", "safe_zone", "reception_pavilion", "monolith_hall"],
         },
     },
     (51, 53): {
         "sector_id": "D4",
         "is_active": True,
-        "services": [],
+        "services": ["svc_town_hall_hub"],
         "flags": {"is_active": True, "is_safe_zone": True},
-        "movement_profile": {"has_road": True, "blocked_exits": []},
+        "movement_profile": {"has_road": True, "blocked_exits": ["west", "south"]},
         "content": {
-            "title": "Заваленный Квартал",
-            "description": "Складской квартал перекрыт осевшими плитами, разорванными контейнерными нишами и мусором первых лет заселения. Под завалами угадываются входы в древние распределительные камеры, но ИИ держит проходы закрытыми, пока сектор не станет достаточно устойчивым.",
-            "background_url": "/static/images/exploration/city/d4/51_53_blocked_quarter.png",
-            "environment_tags": ["ruins", "debris", "resource_spot", "street", "barrels"],
+            "title": "Палата Гильдий Старого Реестра",
+            "description": "На юго-западной диагонали от Площади Исхода стоит административный корпус с длинными залами учета, закрытыми архивными дверями и нишами под печати. Здесь держат реестр поселения, доски заявок и будущие комнаты гильдий. Западная и южная стороны закрыты стенами корпуса; читаемые проходы идут с севера от западной административной линии и с востока от южного павильона.",
+            "environment_tags": [
+                "town_hall",
+                "administrative_hall",
+                "guild_hall",
+                "registry",
+                "ruins",
+                "street",
+                "safe_zone",
+            ],
         },
     },
     (53, 53): {
         "sector_id": "D4",
         "is_active": True,
-        "services": [],
+        "services": ["svc_tavern_hub"],
         "flags": {"is_active": True, "is_safe_zone": True},
-        "movement_profile": {"has_road": True, "blocked_exits": []},
+        "movement_profile": {"has_road": True, "blocked_exits": ["east", "south"]},
         "content": {
-            "title": "Квартал Ремесленников",
-            "description": "В этих мастерских техномагия Аур-Энтара похожа на ремесло богов: цельные верстаки, холодные горны и каналы энергии встроены прямо в камень. Новые мастера используют лишь края этого наследия, чиня простые вещи там, где когда-то собирали механизмы эвакуации.",
-            "background_url": "/static/images/exploration/city/d4/53_53_artisan_quarter.png",
-            "environment_tags": ["ruins", "debris", "resource_spot", "street", "workshop"],
+            "title": "Постоялый двор Последний Приют",
+            "description": "В юго-восточном углу внутреннего кольца стоит крупное здание с десятками бывших служебных комнат. Нижние залы приспособили под постоялый двор: у входа держится теплая таверна, кормчий ведет ключи и пайки. Читаемый выход отсюда идет на север к восточному тракту; южная и восточная стороны закрыты стенами корпуса.",
+            "environment_tags": ["tavern", "inn", "rooms", "safe_zone", "street", "monolith_hall", "patched_roof"],
         },
     },
     # --- Западный сектор ---
     (51, 52): {
         "sector_id": "D4",
         "is_active": True,
-        "services": ["svc_town_hall_hub", "svc_blacksmith_repair"],
+        "services": [],
         "flags": {"is_active": True, "is_safe_zone": True},
         "movement_profile": {"has_road": True, "blocked_exits": []},
         "content": {
             "title": "Проспект Старейшин",
-            "description": "Западный проспект сложен из плит без швов и держит строгую ось между административным залом и старой оружейной-мастерской. Совет и кузнечная служба занимают уцелевшие помещения по сторонам улицы, но главным здесь остается гражданское ядро древней столицы.",
-            "background_url": "/static/images/exploration/city/d4/51_52_elders_avenue.png",
-            "environment_tags": ["town_hall", "blacksmith", "ruins", "street", "paved_road"],
+            "description": "Западный проспект сложен из плит без швов и держит строгую ось между Площадью Исхода и гражданским ядром старой столицы. Это проход, а не административная палата: к северу виден темный блок арены, к югу начинается палата гильдий, а западная линия выводит к внутренней арке.",
+            "environment_tags": ["civic_avenue", "ruins", "street", "paved_road", "safe_zone"],
         },
     },
     # --- Восточный сектор ---
     (53, 52): {
         "sector_id": "D4",
         "is_active": True,
-        "services": ["svc_market_hub"],
+        "services": [],
         "flags": {"is_active": True, "is_safe_zone": True},
         "movement_profile": {"has_road": True, "blocked_exits": []},
-        "visual_overrides": {
-            "image_profile": "d4_capital_hub",
-            "node_role": "market_square",
-            "composition": (
-                "the old eastern supply plaza is the main landmark, with monolith plinths and floor channels; poor barter "
-                "tables and torn awnings sit on top as a secondary human layer without crowding the scene"
-            ),
-            "forbidden": ["people shopping", "readable shop signs", "normal medieval marketplace"],
-        },
         "content": {
-            "title": "Восточная Площадь Снабжения",
-            "description": "Восточная площадь когда-то была узлом снабжения перед Исходом: низкие монолитные постаменты и сухие каналы в полу до сих пор задают ее порядок. Рынок новых жителей занимает только верхний слой этого места — товары, тенты и обменные столы разложены поверх древней схемы.",
-            "background_url": "/static/images/exploration/city/d4/53_52_market_square.png",
-            "environment_tags": ["market", "barter", "ruins", "street", "crowd", "tents"],
+            "title": "Восточный Тракт к Воротам",
+            "description": "От Площади Исхода на восток уходит широкая улица старого города, рассчитанная на движение грузов и караванов. Севернее виден торговый зал с аукционными досками и лавками, южнее раскрывается постоялый двор Последний Приют, а дальше на востоке тракт ведет к внутренним воротам.",
+            "environment_tags": ["wide_street", "east_tract", "gate_route", "ruins", "street", "safe_zone"],
         },
     },
     # ---------------------------------------------------------
@@ -196,19 +166,9 @@ STATIC_LOCATIONS: dict[tuple[int, int], _StaticLocation] = {
         "services": [],
         "flags": {"is_active": True, "is_safe_zone": True, "is_gate": True},
         "movement_profile": {"has_road": True, "blocked_exits": []},
-        "visual_overrides": {
-            "image_profile": "d4_capital_hub",
-            "node_role": "inner_gate",
-            "composition": (
-                "a massive northern inner ceremonial gate is the landmark; primitive wood reinforcement is visible "
-                "but small against the ancient monolith arch and dead mechanisms"
-            ),
-            "forbidden": ["castle portcullis as main style", "guards", "letter D4"],
-        },
         "content": {
             "title": "Северные Внутренние Ворота",
-            "description": "Северная арка — часть внутреннего кольца консервации, а не крепостные ворота в обычном смысле. Родные створки исчезли во время Исхода, и грубая деревянная преграда лишь обозначает проход там, где мертвые механизмы стены все еще ждут команды.",
-            "background_url": "/static/images/exploration/city/d4/52_50_north_inner_gate.png",
+            "description": "Перед северной аркой лежит широкая предвратная площадка у внутренней стены. На юг отсюда уходит северный проспект к Площади Исхода, на запад и восток тянутся проходы вдоль стены, а северный проем выводит за пределы обжитого кольца.",
             "environment_tags": ["gate", "defense", "inner_wall", "ancient_city", "street", "wood_gate"],
         },
     },
@@ -217,11 +177,10 @@ STATIC_LOCATIONS: dict[tuple[int, int], _StaticLocation] = {
         "is_active": True,
         "services": [],
         "flags": {"is_active": True, "is_safe_zone": True},
-        "movement_profile": {"has_road": True, "blocked_exits": ["north"]},
+        "movement_profile": {"has_road": True, "blocked_exits": ["north", "south"]},
         "content": {
             "title": "Руины Казарм",
-            "description": "Длинный блок у северной стены похож на казармы только для нынешних глаз; раньше это был отсек размещения эвакуационных команд. Крыша разрушена, но монолитные перегородки целы, и пространство можно расчистить под склад, жилье или будущую службу охраны.",
-            "background_url": "/static/images/exploration/city/d4/51_50_barracks_plot.png",
+            "description": "Длинный блок у северной стены похож на казармы только для нынешних глаз; раньше это был отсек размещения эвакуационных команд. Северная стена и южный фасад аренного корпуса закрывают вертикальный проход, зато вдоль внутренней стены можно двигаться на запад и восток.",
             "environment_tags": ["buildable_plot", "inner_wall", "ruins", "barracks", "street"],
         },
     },
@@ -230,11 +189,10 @@ STATIC_LOCATIONS: dict[tuple[int, int], _StaticLocation] = {
         "is_active": True,
         "services": [],
         "flags": {"is_active": True, "is_safe_zone": True},
-        "movement_profile": {"has_road": True, "blocked_exits": ["north"]},
+        "movement_profile": {"has_road": True, "blocked_exits": ["north", "south"]},
         "content": {
             "title": "Пустые Загоны",
-            "description": "Ряд каменных ячеек у стены напоминает стойла, хотя их гладкая геометрия явно создана не для обычных животных. Сейчас здесь пусто и сухо; северная стена гасит ветер, а древние крепления в полу ждут нового назначения.",
-            "background_url": "/static/images/exploration/city/d4/53_50_empty_stables.png",
+            "description": "Ряд каменных ячеек у стены напоминает стойла, хотя их гладкая геометрия явно создана не для обычных животных. Северная стена и южный фасад торгового зала закрывают вертикальный проход, а движение остается вдоль внутренней стены к воротам и бастионам.",
             "environment_tags": ["buildable_plot", "inner_wall", "ruins", "stable", "street"],
         },
     },
@@ -247,8 +205,7 @@ STATIC_LOCATIONS: dict[tuple[int, int], _StaticLocation] = {
         "movement_profile": {"has_road": True, "blocked_exits": []},
         "content": {
             "title": "Южные Внутренние Ворота",
-            "description": "Южный проход ведет к менее стабильным кварталам столицы, где защита ИИ уже не так ровна. Арка свободна, но вдоль ее ребер видны погасшие узлы отсечения: когда-то они могли закрыть сектор без створок и засовов.",
-            "background_url": "/static/images/exploration/city/d4/52_54_south_inner_gate.png",
+            "description": "Южный проход ведет к менее обжитым кварталам за внутренним кольцом. Арка свободна, но вдоль ее ребер видны погасшие узлы отсечения: когда-то они могли закрыть сектор без створок и засовов.",
             "environment_tags": ["gate", "defense", "inner_wall", "ruins", "street"],
         },
     },
@@ -261,7 +218,6 @@ STATIC_LOCATIONS: dict[tuple[int, int], _StaticLocation] = {
         "content": {
             "title": "Руины Склада",
             "description": "У южной стены сохранился фундамент распределительного склада, заваленный крупными обломками белого монолита. Стена здесь особенно толстая и без трещин, поэтому участок ценят как редкое место, где можно строить, не опасаясь ночного сдвига руин.",
-            "background_url": "/static/images/exploration/city/d4/51_54_warehouse_plot.png",
             "environment_tags": ["buildable_plot", "inner_wall", "ruins", "warehouse", "street"],
         },
     },
@@ -270,11 +226,10 @@ STATIC_LOCATIONS: dict[tuple[int, int], _StaticLocation] = {
         "is_active": True,
         "services": [],
         "flags": {"is_active": True, "is_safe_zone": True},
-        "movement_profile": {"has_road": True, "blocked_exits": ["south"]},
+        "movement_profile": {"has_road": True, "blocked_exits": ["north", "south"]},
         "content": {
             "title": "Древний Горн",
-            "description": "Высокий горн у южной стены не похож на кузницу: его дымоход сливается с каналами стены, а чаша печи вырезана из цельного черного камня. Пламя давно погасло, но если разбудить контуры, здесь снова можно будет вести производство.",
-            "background_url": "/static/images/exploration/city/d4/53_54_ancient_forge.png",
+            "description": "Высокий горн у южной стены стоит отдельно от постоялого двора: между ними лежит глухой корпус и заваленный разрыв. Пламя давно погасло, но если разбудить контуры, здесь снова можно будет вести производство; проход читается вдоль южной линии стены, а не через северное здание.",
             "environment_tags": ["buildable_plot", "inner_wall", "ruins", "forge", "street"],
         },
     },
@@ -288,7 +243,6 @@ STATIC_LOCATIONS: dict[tuple[int, int], _StaticLocation] = {
         "content": {
             "title": "Западные Внутренние Ворота",
             "description": "Западный проем соединяет Проспект Старейшин с периметром и выглядит как разомкнутый шлюз древнего города. По бокам остались гнезда огромных механизмов перехода, но сейчас через них проходят только повозки, носилки и редкие караваны.",
-            "background_url": "/static/images/exploration/city/d4/50_52_west_inner_gate.png",
             "environment_tags": ["gate", "defense", "inner_wall", "ruins", "street"],
         },
     },
@@ -297,11 +251,10 @@ STATIC_LOCATIONS: dict[tuple[int, int], _StaticLocation] = {
         "is_active": True,
         "services": [],
         "flags": {"is_active": True, "is_safe_zone": True},
-        "movement_profile": {"has_road": True, "blocked_exits": ["west"]},
+        "movement_profile": {"has_road": True, "blocked_exits": ["west", "east"]},
         "content": {
             "title": "Руины Караульной",
-            "description": "Небольшой блок у западной стены был пунктом наблюдения за внутренним кольцом, а не простой караульной. Крыша исчезла, но стены стоят идеально ровно; защищенная ниша годится для дома, лавки или будущего поста.",
-            "background_url": "/static/images/exploration/city/d4/50_51_guardhouse_plot.png",
+            "description": "Небольшой блок у западной стены был пунктом наблюдения за внутренним кольцом, а не простой караульной. Западная стена и восточный фасад арены закрывают поперечный проход; вдоль периметра можно идти к северному бастиону или западной арке.",
             "environment_tags": ["buildable_plot", "inner_wall", "ruins", "guardhouse", "street"],
         },
     },
@@ -314,7 +267,6 @@ STATIC_LOCATIONS: dict[tuple[int, int], _StaticLocation] = {
         "content": {
             "title": "Пустой Арсенал",
             "description": "Встроенная в стену камера сохранила форму арсенала, но не содержимое: все ценное ушло вместе с Исходом или было забрано позже. Пустые пазы в монолите и толстый порог делают место надежным, хотя оно больше похоже на оболочку забытой системы.",
-            "background_url": "/static/images/exploration/city/d4/50_53_empty_armory.png",
             "environment_tags": ["buildable_plot", "inner_wall", "ruins", "armory", "street"],
         },
     },
@@ -327,8 +279,7 @@ STATIC_LOCATIONS: dict[tuple[int, int], _StaticLocation] = {
         "movement_profile": {"has_road": True, "blocked_exits": []},
         "content": {
             "title": "Восточные Внутренние Ворота",
-            "description": "Восточная арка открывается прямо к Площади Снабжения и держит самый живой поток внутри Круга Исхода. Над проходом тянутся погасшие линии контроля, а грубые настилы и веревочные ограждения лишь помогают людям пользоваться тем, что построено не для них.",
-            "background_url": "/static/images/exploration/city/d4/54_52_east_inner_gate.png",
+            "description": "Восточный тракт упирается в широкую арку внутренней стены. На запад отсюда идет прямая дорога к Площади Исхода, на север и юг тянется пристенная улица, а восточный проем выводит за пределы обжитого кольца к следующему кварталу. Над аркой видны погасшие линии контроля, внизу разбиты настилы и маленький двор проверки.",
             "environment_tags": ["gate", "defense", "inner_wall", "ruins", "street", "crowd"],
         },
     },
@@ -337,11 +288,10 @@ STATIC_LOCATIONS: dict[tuple[int, int], _StaticLocation] = {
         "is_active": True,
         "services": [],
         "flags": {"is_active": True, "is_safe_zone": True},
-        "movement_profile": {"has_road": True, "blocked_exits": ["east"]},
+        "movement_profile": {"has_road": True, "blocked_exits": ["east", "west"]},
         "content": {
             "title": "Торговые Ниши",
-            "description": "В восточной стене тянется ряд одинаковых ниш, похожих на древние пункты выдачи снабжения. Их расчистили от обломков, и теперь каждая ячейка может стать лавкой, складом или маленькой мастерской без нарушения монолитной стены.",
-            "background_url": "/static/images/exploration/city/d4/54_51_trading_niches.png",
+            "description": "Улица вдоль восточной стены сужается в ряд торговых ниш: одинаковые каменные проемы уходят в монолит, а перед ними остается длинная полоса мощеного прохода. Восточная стена и западный фасад торгового зала закрывают поперечный проход; движение идет вдоль периметра к арке или северному бастиону.",
             "environment_tags": ["buildable_plot", "inner_wall", "ruins", "market_stall", "street"],
         },
     },
@@ -350,11 +300,10 @@ STATIC_LOCATIONS: dict[tuple[int, int], _StaticLocation] = {
         "is_active": True,
         "services": [],
         "flags": {"is_active": True, "is_safe_zone": True},
-        "movement_profile": {"has_road": True, "blocked_exits": ["east"]},
+        "movement_profile": {"has_road": True, "blocked_exits": ["east", "west"]},
         "content": {
             "title": "Разрушенное Святилище",
-            "description": "Полукруглая площадка у стены выглядит как святилище, хотя ее линии больше похожи на узел настройки портальной сети. Центральная статуя или прибор давно исчезли, а выцветшие рельефы не складываются в читаемые знаки.",
-            "background_url": "/static/images/exploration/city/d4/54_53_broken_shrine.png",
+            "description": "Южнее ворот пристенная улица раскрывается в полукруглый карман у восточной стены. На западе стоит глухая сторона постоялого двора, поэтому проход туда не читается; движение идет вдоль стены на север к арке или на юг к угловому двору. Остатки святилища стоят прямо в этом кармане: основание исчезло, рельефы выцвели, вокруг размечены очищенные участки и груды камня.",
             "environment_tags": ["buildable_plot", "inner_wall", "ruins", "chapel", "street"],
         },
     },
@@ -365,19 +314,9 @@ STATIC_LOCATIONS: dict[tuple[int, int], _StaticLocation] = {
         "services": [],
         "flags": {"is_active": True, "is_safe_zone": True},
         "movement_profile": {"has_road": True, "blocked_exits": ["north", "west"]},
-        "visual_overrides": {
-            "image_profile": "d4_capital_hub",
-            "node_role": "bastion",
-            "composition": (
-                "a northwest corner bastion encloses a protected empty interior; thick monolith wall geometry and "
-                "broken parapets define the scene, with only sparse survivor storage at the edges"
-            ),
-            "forbidden": ["active soldiers", "standard stone castle keep", "square crop"],
-        },
         "content": {
             "title": "Северо-Западный Бастион",
-            "description": "Северо-западный бастион — массивный узел внутренней стены, где черный и белый монолит сходятся в толстую угловую оболочку. Купол проломлен, но внутри сухо и тихо; ИИ удерживает это место как один из опорных анкеров стабильного сектора.",
-            "background_url": "/static/images/exploration/city/d4/50_50_northwest_bastion.png",
+            "description": "Северо-западный бастион — массивный узел внутренней стены, где черный и белый монолит сходятся в толстую угловую оболочку. Купол проломлен, но внутри сухо и тихо; отсюда южный проход идет к руинам караульной, а восточный выводит вдоль северной стены.",
             "environment_tags": ["buildable_plot", "bastion", "inner_wall", "ancient_city", "street"],
         },
     },
@@ -389,22 +328,29 @@ STATIC_LOCATIONS: dict[tuple[int, int], _StaticLocation] = {
         "movement_profile": {"has_road": True, "blocked_exits": ["north", "east"]},
         "content": {
             "title": "Северо-Восточный Бастион",
-            "description": "Северо-восточный бастион дает широкий обзор на внутренний рынок и северную линию стены. Его стены слишком гладкие и толстые для обычной обороны: скорее это был стабилизатор периметра, переживший обвал столицы почти без повреждений.",
-            "background_url": "/static/images/exploration/city/d4/54_50_northeast_bastion.png",
+            "description": "В северо-восточном углу бывшего элитного центра пристенная улица входит в бастион, где восточная стена поворачивает в северную и оставляет проход дальше вдоль периметра. Внизу видны очищенные квадраты, кучки обломков и сложенные балки: место уже можно занять под будущую постройку, но сам угол стены остается главным ориентиром.",
             "environment_tags": ["buildable_plot", "bastion", "inner_wall", "ruins", "street"],
         },
     },
     (50, 54): {
         "sector_id": "D4",
         "is_active": True,
-        "services": [],
+        "services": ["svc_blacksmith_repair"],
         "flags": {"is_active": True, "is_safe_zone": True},
         "movement_profile": {"has_road": True, "blocked_exits": ["south", "west"]},
         "content": {
-            "title": "Юго-Западный Бастион",
-            "description": "В юго-западном углу стены сходятся под тяжелым углом, образуя сухую защищенную полость. Сейчас здесь складывают материалы и закрывают их тканью, но под временным порядком чувствуется древний узел, рассчитанный на удержание давления извне.",
-            "background_url": "/static/images/exploration/city/d4/50_54_southwest_bastion.png",
-            "environment_tags": ["buildable_plot", "bastion", "inner_wall", "camp", "street"],
+            "title": "Ремесленный Двор Южной Стены",
+            "description": "В юго-западном углу внутреннего кольца стены сходятся под тяжелым углом и дают сухой защищенный двор. Здесь уже складывают камень, металл и балки, ставят рабочие столы и будят старый ремонтный горн; вокруг остаются пустые ячейки, которые игроки смогут занять под мастерские, лавки или складские комнаты.",
+            "environment_tags": [
+                "buildable_plot",
+                "bastion",
+                "inner_wall",
+                "craft_district",
+                "workshop",
+                "blacksmith",
+                "street",
+                "safe_zone",
+            ],
         },
     },
     (54, 54): {
@@ -415,9 +361,21 @@ STATIC_LOCATIONS: dict[tuple[int, int], _StaticLocation] = {
         "movement_profile": {"has_road": True, "blocked_exits": ["south", "east"]},
         "content": {
             "title": "Юго-Восточный Бастион",
-            "description": "Юго-восточный бастион сильнее других тронут внешним влиянием: по белому монолиту ползет темный мох, не разрушая камень, а словно проверяя его границы. Защитная геометрия еще держится, поэтому место подходит для уединенной постройки, но не выглядит полностью спокойным.",
-            "background_url": "/static/images/exploration/city/d4/54_54_southeast_bastion.png",
+            "description": "На юго-востоке пристенная улица бывшего элитного центра проходит через угловой двор, где восточная стена уходит в южную линию и оставляет выход вдоль периметра. По темному и белому монолиту ползет мох, но внизу еще читаются площадки под застройку, временные навесы и очищенный проход между грудами камня.",
             "environment_tags": ["buildable_plot", "bastion", "inner_wall", "ruins", "street", "overgrowth"],
         },
     },
+}
+
+
+STATIC_LOCATIONS: StaticLocationMap = {
+    **START_VILLAGE_LOCATIONS,
+    **D4_NORTHWEST_LOCATIONS,
+    **D4_NORTH_LOCATIONS,
+    **D4_NORTHEAST_LOCATIONS,
+    **D4_WEST_LOCATIONS,
+    **D4_EAST_LOCATIONS,
+    **D4_SOUTHWEST_LOCATIONS,
+    **D4_SOUTH_LOCATIONS,
+    **D4_SOUTHEAST_LOCATIONS,
 }

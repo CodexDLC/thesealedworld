@@ -5,6 +5,7 @@ from typing import Any
 from src.backend.features.generation_ai import GenerationAIService
 from src.backend.features.world.integrations import WorldDataIntegration
 from src.backend.features.world.loaders.village_loader import VillageLoader
+from src.backend.features.world.resources.static.d4_city_map import build_d4_city_map_node_metadata
 from src.backend.features.world.resources.static.start_village import STATIC_LOCATIONS
 from src.backend.features.world.runtime.config import HUB_CENTER, REGION_ROWS, REGION_SIZE, ZONE_SIZE
 from src.backend.features.world.runtime.geography import WorldGeographyService
@@ -74,7 +75,7 @@ D4_DISTRICT_PROFILES: dict[str, dict[str, Any]] = {
     },
 }
 D4_RIFT_PROFILES: dict[tuple[int, int], dict[str, Any]] = {
-    (46, 46): {
+    (47, 47): {
         "id": "d4_rift_rat_king",
         "family_id": "rat_swarm",
         "title": "Разлом Крысиного Короля",
@@ -87,12 +88,12 @@ D4_RIFT_PROFILES: dict[tuple[int, int], dict[str, Any]] = {
             "undercity_seep",
         ],
         "description": (
-            "Под старой канализационной аркой дрожит разрыв пространства. Из влажных швов камня идет "
-            "черный свет, а за стенами движется масса мелких тел. Неподалеку мусор, кости и сорванные "
-            "знаки складываются в грубую корону Крысиного Короля."
+            "В северо-западном квартале разлом сидит в круглом провале старого двора. К нему ведут "
+            "треснувшие плиты и низкие арки, а из нижних щелей тянет влажным камнем. Мусор, кости "
+            "и сорванные знаки вокруг провала складываются в грубую корону Крысиного Короля."
         ),
     },
-    (58, 46): {
+    (57, 48): {
         "id": "d4_rift_wolf_breach",
         "family_id": "wolf_pack",
         "title": "Волчий Пролом",
@@ -105,12 +106,12 @@ D4_RIFT_PROFILES: dict[tuple[int, int], dict[str, Any]] = {
             "overgrown_kennel",
         ],
         "description": (
-            "Разлом прорезал заросшие псарни и двор старого парка. Воздух пахнет мокрой шерстью, "
-            "озоном и сломанными ветками, а из руин отвечают друг другу короткие голоса стаи. "
-            "Вокруг пролома обломки образуют охотничий круг."
+            "На северо-востоке пролом открылся в чаше бывшего зрительного двора. Ступени и "
+            "сломанные ложи образуют охотничий круг, где эхо шагов отвечает коротким воем. "
+            "С востока к месту подходят узкие проходы между башенными руинами."
         ),
     },
-    (46, 58): {
+    (47, 57): {
         "id": "d4_rift_bandit_barricade",
         "family_id": "bandit_gang",
         "title": "Разлом Баррикады",
@@ -123,12 +124,12 @@ D4_RIFT_PROFILES: dict[tuple[int, int], dict[str, Any]] = {
             "scavenger_barricade",
         ],
         "description": (
-            "Разрыв висит над заваленной торговой улицей, где вокруг него собраны щиты, костры, "
-            "трофейные знаки и грубые баррикады. Это не крепость, а удерживаемый узел давления, "
-            "из которого бандиты контролируют ближайшие проходы."
+            "В юго-западных мастерских черная шахта разорвала каменную площадку между рухнувшими "
+            "корпусами. Вокруг нее собраны щиты, трофейные знаки и грубые баррикады. Это не крепость, "
+            "а удерживаемый узел давления, из которого бандиты контролируют ближайшие проходы."
         ),
     },
-    (58, 58): {
+    (57, 58): {
         "id": "d4_rift_goblin_scrapyard",
         "family_id": "goblin_tribe",
         "title": "Разлом Свалки",
@@ -141,9 +142,9 @@ D4_RIFT_PROFILES: dict[tuple[int, int], dict[str, Any]] = {
             "collapsed_workshop",
         ],
         "description": (
-            "Разлом дрожит среди рухнувших мастерских. Вокруг него копятся железо, битое стекло, "
-            "провода и кривые тотемы, будто сама трещина выбрасывает хлам наружу. Гоблины не живут "
-            "в разломе, но используют его как источник странной силы."
+            "В юго-восточном святилищном блоке разлом дрожит между двумя синими колодцами старого "
+            "механизма. Вокруг копятся железо, битое стекло, провода и кривые тотемы, будто сама "
+            "трещина выбрасывает хлам наружу. Гоблины держат здесь свалку и сторожевой двор."
         ),
     },
 }
@@ -153,8 +154,6 @@ D4_CORNER_ZONE_TAGS: dict[str, list[str]] = {
     "D4_0_2": ["d4_corner_pressure", "d4_rift_bandit_barricade", "bandit_barricade_pressure", "scavenger_barricade"],
     "D4_2_2": ["d4_corner_pressure", "d4_rift_goblin_scrapyard", "goblin_scrapyard_pressure", "collapsed_workshop"],
 }
-
-
 class LLMWorldGenerator:
     """Orchestrates world generation using static loaders and AI-driven content."""
 
@@ -180,7 +179,6 @@ class LLMWorldGenerator:
             await self._generate_world_shell()
 
         if generate_seed:
-            await self._generate_d4_capital()
             await self.village_loader.load_village(STATIC_LOCATIONS)
 
         if self.generation_ai and run_ai_enrichment:
@@ -189,7 +187,7 @@ class LLMWorldGenerator:
             await self._enqueue_world_ai_tasks()
 
     async def _generate_d4_capital(self) -> None:
-        """Generate the first playable territory: D4 old capital, 15x15 nodes."""
+        """Generate D4 city gameplay nodes: playable 15x15 inside a loadable 17x17 visual map."""
         region_id = "D4"
         d4_row_idx = REGION_ROWS.index("D")
         min_x = (4 - 1) * REGION_SIZE
@@ -431,6 +429,7 @@ class LLMWorldGenerator:
         flags["narrative_context"] = D4_NARRATIVE_CONTEXT
         flags["context_tags"] = context_tags
         flags["world_theme"] = WorldThemeService.build(x, y, loc_id=f"{x}_{y}").model_dump(mode="json")
+        flags["city_map"] = build_d4_city_map_node_metadata(x, y)
         if district_profile:
             flags["district_key"] = zone_id
             flags["district_profile"] = district_profile

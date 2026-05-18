@@ -1,5 +1,6 @@
 from .clan_factory import ClanFactory
 from .combat_actor_input import MonsterCombatActorInputBuilder
+from .combat_math_model import MonsterCombatMathModelBuilder, MonsterPipelineProfile
 from .encounter_pool import EncounterPoolSelector
 from .generation_builder import MonsterClanGenerationBuilder
 from .generation_fields import (
@@ -24,6 +25,8 @@ __all__ = [
     "MonsterGroupAssembly",
     "MonsterClanGenerationBuilder",
     "MonsterCombatActorInputBuilder",
+    "MonsterCombatMathModelBuilder",
+    "MonsterPipelineProfile",
     "build_ai_profile",
     "build_balance",
     "build_generated_monster_template",

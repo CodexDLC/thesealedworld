@@ -1,5 +1,5 @@
 from enum import StrEnum
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
@@ -88,6 +88,59 @@ class NavigationActionsDTO(ExplorationJsonDTO):
     context: dict[str, Any] = Field(default_factory=dict)
 
 
+# --- Local Map DTOs ---
+
+
+MapEdgeState = Literal["open", "blocked", "locked", "unknown"]
+
+
+class ExplorationMapEdgeDTO(ExplorationJsonDTO):
+    direction: Literal["north", "south", "west", "east"]
+    state: MapEdgeState = "unknown"
+    target_loc_id: str | None = None
+    label: str | None = None
+    travel_time: float | None = None
+    tooltip: str | None = None
+
+
+class ExplorationMapCellDTO(ExplorationJsonDTO):
+    loc_id: str
+    x: int
+    y: int
+    dx: int
+    dy: int
+    is_current: bool = False
+    is_known: bool = False
+    title: str | None = None
+    description: str | None = None
+    zone_id: str = ""
+    terrain: str = ""
+    node_type: str = ""
+    is_safe_zone: bool = False
+    system_connect: bool = False
+    threat: float | None = None
+    threat_tier: int | None = None
+    dominant_anchor: str | None = None
+    tags: list[str] = Field(default_factory=list)
+    service_count: int = 0
+    service_labels: list[str] = Field(default_factory=list)
+    players_count: int = 0
+    battles_count: int = 0
+    corpse_count: int | None = None
+    background_available: bool = False
+    edges: dict[str, ExplorationMapEdgeDTO] = Field(default_factory=dict)
+    render_edges: dict[str, ExplorationMapEdgeDTO] = Field(default_factory=dict)
+    tooltip: dict[str, Any] = Field(default_factory=dict)
+
+
+class ExplorationLocalMapDTO(ExplorationJsonDTO):
+    char_id: int
+    current_loc_id: str
+    radius: int = 2
+    size: int = 5
+    rows: list[list[ExplorationMapCellDTO]] = Field(default_factory=list)
+
+
 # --- HUD DTOs ---
 
 
@@ -169,6 +222,7 @@ class WorldNavigationDTO(ExplorationJsonDTO):
     landmark_profile: str | None = None
     movement_profile: dict[str, Any] = Field(default_factory=dict)
     world_zone: dict[str, Any] = Field(default_factory=dict)
+    city_map: dict[str, Any] = Field(default_factory=dict)
 
     # Legacy Support
     metadata: dict[str, Any] = Field(default_factory=dict)

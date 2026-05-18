@@ -3,9 +3,24 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from src.backend.features.world.prompts.router import build_batch_location_desc
-from src.backend.features.world.resources.static.start_village import STATIC_LOCATIONS
 from src.backend.features.world.loaders.village_loader import VillageLoader
+from src.backend.features.world.prompts.router import build_batch_location_desc
+from src.backend.features.world.resources.static import (
+    d4_east,
+    d4_north,
+    d4_northeast,
+    d4_northwest,
+    d4_south,
+    d4_southeast,
+    d4_southwest,
+    d4_west,
+)
+from src.backend.features.world.resources.static.d4_city_map import (
+    D4_CITY_TILE_BASE_URL,
+    build_d4_city_map_node_metadata,
+    build_d4_city_map_tile_manifest,
+)
+from src.backend.features.world.resources.static.start_village import START_VILLAGE_LOCATIONS, STATIC_LOCATIONS
 from src.backend.features.world.services.generator_service import LLMWorldGenerator
 from src.backend.features.world.services.navigation_service import WorldNavigationService
 
@@ -44,9 +59,21 @@ def _runtime_nav_degrees(raw_nodes: list[dict]) -> dict[str, int]:
     }
 
 
+def by_coord(raw_nodes: list[dict], x: int, y: int) -> dict:
+    return {(node["x"], node["y"]): node for node in raw_nodes}[(x, y)]
+
+
 def _is_four_way_exempt(raw_node: dict) -> bool:
     flags = raw_node.get("flags", {})
-    return bool(isinstance(flags, dict) and (flags.get("is_safe_zone") or flags.get("is_gate")))
+    return bool(
+        isinstance(flags, dict)
+        and (
+            flags.get("is_safe_zone")
+            or flags.get("is_gate")
+            or flags.get("inner_wall_ring")
+            or flags.get("map_intersection")
+        )
+    )
 
 
 def _non_exempt_four_way_nodes(raw_nodes: list[dict]) -> dict[str, int]:
@@ -155,13 +182,17 @@ async def test_generate_d4_capital_creates_first_playable_territory():
     assert by_coord[(52, 45)]["node_type"] == "sealed_gate"
     assert by_coord[(52, 45)]["landmark_profile"] == "sealed_city_gate"
     assert "d4_tier0_gate_cross" in by_coord[(52, 45)]["flags"]["context_tags"]
-    assert by_coord[(46, 46)]["node_type"] == "rift"
-    assert by_coord[(46, 46)]["flags"]["threat_tier"] == 2
-    assert by_coord[(46, 46)]["flags"]["rift_profile"]["family_id"] == "rat_swarm"
-    assert "d4_rift_rat_king" in by_coord[(46, 46)]["content"]["environment_tags"]
+    assert by_coord[(47, 47)]["node_type"] == "rift"
+    assert by_coord[(47, 47)]["flags"]["threat_tier"] == 2
+    assert by_coord[(47, 47)]["flags"]["rift_profile"]["family_id"] == "rat_swarm"
+    assert "d4_rift_rat_king" in by_coord[(47, 47)]["content"]["environment_tags"]
     assert by_coord[(45, 45)]["terrain_type"] == "outer_monolith_wall_walk"
     assert by_coord[(45, 45)]["node_type"] == "outer_wall_walk"
     assert by_coord[(45, 45)]["flags"]["is_passable"] is True
+    assert by_coord[(45, 45)]["flags"]["city_map"]["tile_url"] == f"{D4_CITY_TILE_BASE_URL}/d4_01_01.webp"
+    assert by_coord[(45, 45)]["flags"]["city_map"]["is_playable"] is True
+    assert by_coord[(45, 45)]["flags"]["city_map"]["is_visual_contour"] is False
+    assert by_coord[(45, 45)]["flags"]["city_map"]["district"]["key"] == "D4_CITY_0_0"
     assert set(by_coord[(45, 45)]["movement_profile"]["blocked_exits"]) == {"north", "west"}
     assert by_coord[(45, 46)]["movement_profile"]["blocked_exits"] == ["west"]
 
@@ -173,6 +204,29 @@ async def test_generate_d4_capital_creates_first_playable_territory():
         gate["movement_profile"]["gated_exits"][gate["flags"]["gate_direction"]]["state"] == "locked"
         for gate in gates
     )
+
+
+def test_d4_city_map_manifest_keeps_outer_contour_loadable_but_non_playable():
+    manifest = build_d4_city_map_tile_manifest()
+
+    assert len(manifest) == 17 * 17
+    by_visual = {(tile["visual_x"], tile["visual_y"]): tile for tile in manifest}
+    northwest_contour = by_visual[(0, 0)]
+    center = by_visual[(8, 8)]
+    southeast_contour = by_visual[(16, 16)]
+
+    assert northwest_contour["tile_url"] == f"{D4_CITY_TILE_BASE_URL}/d4_00_00.webp"
+    assert northwest_contour["is_playable"] is False
+    assert northwest_contour["is_visual_contour"] is True
+    assert northwest_contour["wall_blocks_city_crossing"] is True
+    assert northwest_contour["district"] is None
+    assert center["tile_url"] == f"{D4_CITY_TILE_BASE_URL}/d4_08_08.webp"
+    assert center["is_playable"] is True
+    assert center["district"]["key"] == "D4_CITY_1_1"
+    assert center["district"]["local_x"] == 2
+    assert center["district"]["local_y"] == 2
+    assert southeast_contour["tile_url"] == f"{D4_CITY_TILE_BASE_URL}/d4_16_16.webp"
+    assert southeast_contour["is_playable"] is False
 
 
 @pytest.mark.unit
@@ -237,7 +291,7 @@ async def test_d4_static_seed_has_no_four_way_navigation_nodes_outside_safe_zone
 
 
 @pytest.mark.unit
-async def test_generate_d4_capital_preserves_enriched_non_static_content():
+async def test_generate_d4_capital_does_not_preserve_existing_content_for_static_d4_nodes():
     data = MagicMock()
     data.upsert_region = AsyncMock()
     data.upsert_zone = AsyncMock()
@@ -274,9 +328,7 @@ async def test_generate_d4_capital_preserves_enriched_non_static_content():
 
     nodes = data.bulk_upsert_nodes.await_args.args[0]
     by_coord = {(node["x"], node["y"]): node for node in nodes}
-    assert by_coord[(48, 56)]["content"]["title"] == "Пепельный Двор"
-    assert by_coord[(48, 56)]["content"]["description"] == "AI описание квартала."
-    assert by_coord[(49, 56)]["content"]["title"] == "Руины Старой Столицы"
+    assert by_coord[(48, 56)]["content"]["title"] != "Пепельный Двор"
     assert by_coord[(49, 56)]["content"]["environment_tags"] != ["old_fallback_tag"]
 
 
@@ -286,8 +338,141 @@ def test_static_inner_city_gates_are_safe_locations():
     assert all(STATIC_LOCATIONS[coord]["flags"]["is_safe_zone"] is True for coord in inner_gate_coords)
 
 
+def test_d4_static_services_place_market_on_trade_hall_and_inn_on_southeast_corner():
+    assert all("ИИ" not in data["content"]["description"] for data in STATIC_LOCATIONS.values())
+    assert all("visual_overrides" not in data for data in STATIC_LOCATIONS.values())
+    assert all("background_url" not in data["content"] for data in STATIC_LOCATIONS.values())
+    assert "Планетарный" not in STATIC_LOCATIONS[(52, 52)]["content"]["description"]
+    assert "северному проспекту" in STATIC_LOCATIONS[(52, 52)]["content"]["description"]
+    assert "южному павильону" in STATIC_LOCATIONS[(52, 52)]["content"]["description"]
+    assert STATIC_LOCATIONS[(52, 52)]["movement_profile"]["blocked_exits"] == []
+
+    assert STATIC_LOCATIONS[(51, 51)]["services"] == ["svc_arena_main"]
+    assert "visual_overrides" not in STATIC_LOCATIONS[(51, 51)]
+    assert STATIC_LOCATIONS[(51, 51)]["content"]["title"] == "Арена Теневого Блока"
+    assert set(STATIC_LOCATIONS[(51, 51)]["movement_profile"]["blocked_exits"]) == {"north", "west"}
+    assert "arena" in STATIC_LOCATIONS[(51, 51)]["content"]["environment_tags"]
+    assert STATIC_LOCATIONS[(52, 51)]["services"] == []
+    assert STATIC_LOCATIONS[(52, 51)]["content"]["title"] == "Северный Проспект Башни"
+
+    assert STATIC_LOCATIONS[(51, 52)]["services"] == []
+    assert "blacksmith" not in STATIC_LOCATIONS[(51, 52)]["content"]["environment_tags"]
+
+    assert STATIC_LOCATIONS[(51, 53)]["services"] == ["svc_town_hall_hub"]
+    assert "visual_overrides" not in STATIC_LOCATIONS[(51, 53)]
+    assert STATIC_LOCATIONS[(51, 53)]["content"]["title"] == "Палата Гильдий Старого Реестра"
+    assert "На юго-западной диагонали" in STATIC_LOCATIONS[(51, 53)]["content"]["description"]
+    assert set(STATIC_LOCATIONS[(51, 53)]["movement_profile"]["blocked_exits"]) == {"west", "south"}
+    assert STATIC_LOCATIONS[(52, 53)]["movement_profile"]["blocked_exits"] == []
+    assert "guild_hall" in STATIC_LOCATIONS[(51, 53)]["content"]["environment_tags"]
+
+    assert STATIC_LOCATIONS[(53, 51)]["services"] == ["svc_market_hub"]
+    assert "visual_overrides" not in STATIC_LOCATIONS[(53, 51)]
+    assert STATIC_LOCATIONS[(53, 51)]["content"]["title"] == "Торговый зал Старого Распорядка"
+    assert "аукционные доски" in STATIC_LOCATIONS[(53, 51)]["content"]["description"]
+    assert "market" in STATIC_LOCATIONS[(53, 51)]["content"]["environment_tags"]
+
+    assert STATIC_LOCATIONS[(53, 52)]["services"] == []
+    assert STATIC_LOCATIONS[(53, 52)]["content"]["title"] == "Восточный Тракт к Воротам"
+    assert "постоялый двор" in STATIC_LOCATIONS[(53, 52)]["content"]["description"].lower()
+
+    assert STATIC_LOCATIONS[(53, 53)]["services"] == ["svc_tavern_hub"]
+    assert "visual_overrides" not in STATIC_LOCATIONS[(53, 53)]
+    assert STATIC_LOCATIONS[(53, 53)]["content"]["title"] == "Постоялый двор Последний Приют"
+    assert set(STATIC_LOCATIONS[(53, 53)]["movement_profile"]["blocked_exits"]) == {"east", "south"}
+    assert "южная и восточная стороны закрыты" in STATIC_LOCATIONS[(53, 53)]["content"]["description"]
+    assert "north" in STATIC_LOCATIONS[(53, 54)]["movement_profile"]["blocked_exits"]
+    assert "west" in STATIC_LOCATIONS[(54, 53)]["movement_profile"]["blocked_exits"]
+
+    assert STATIC_LOCATIONS[(50, 54)]["services"] == ["svc_blacksmith_repair"]
+    assert "visual_overrides" not in STATIC_LOCATIONS[(50, 54)]
+    assert STATIC_LOCATIONS[(50, 54)]["content"]["title"] == "Ремесленный Двор Южной Стены"
+    assert "craft_district" in STATIC_LOCATIONS[(50, 54)]["content"]["environment_tags"]
+
+
+def test_d4_static_seed_covers_full_playable_map_with_manual_topology():
+    assert len(STATIC_LOCATIONS) == 225
+    assert set(STATIC_LOCATIONS) == {(x, y) for x in range(45, 60) for y in range(45, 60)}
+    assert all(data["flags"].get("manual_topology") for coord, data in STATIC_LOCATIONS.items() if coord not in START_VILLAGE_LOCATIONS)
+    assert all(data["content"]["title"] != "Руины Старой Столицы" for data in STATIC_LOCATIONS.values())
+    assert all(
+        "Координата описывает не размер" not in data["content"]["description"] for data in STATIC_LOCATIONS.values()
+    )
+    assert STATIC_LOCATIONS[(47, 47)]["flags"]["rift_profile"]["family_id"] == "rat_swarm"
+    assert STATIC_LOCATIONS[(57, 48)]["content"]["title"] == "Волчий Пролом"
+    assert STATIC_LOCATIONS[(47, 57)]["flags"]["rift_profile"]["family_id"] == "bandit_gang"
+    assert STATIC_LOCATIONS[(57, 58)]["flags"]["rift_profile"]["family_id"] == "goblin_tribe"
+
+
+def test_d4_west_inner_wall_ring_keeps_visible_pavement_open():
+    assert STATIC_LOCATIONS[(45, 50)]["movement_profile"]["blocked_exits"] == ["west"]
+    assert STATIC_LOCATIONS[(46, 50)]["movement_profile"]["blocked_exits"] == ["north"]
+    assert STATIC_LOCATIONS[(47, 50)]["movement_profile"]["blocked_exits"] == []
+    assert STATIC_LOCATIONS[(48, 50)]["movement_profile"]["blocked_exits"] == ["north", "east"]
+    assert STATIC_LOCATIONS[(49, 50)]["movement_profile"]["blocked_exits"] == ["west"]
+    assert STATIC_LOCATIONS[(45, 51)]["movement_profile"]["blocked_exits"] == ["west"]
+    assert STATIC_LOCATIONS[(46, 51)]["movement_profile"]["blocked_exits"] == ["south"]
+    assert STATIC_LOCATIONS[(47, 51)]["movement_profile"]["blocked_exits"] == []
+    assert STATIC_LOCATIONS[(48, 51)]["movement_profile"]["blocked_exits"] == ["north"]
+    assert STATIC_LOCATIONS[(49, 51)]["movement_profile"]["blocked_exits"] == []
+    assert STATIC_LOCATIONS[(45, 52)]["movement_profile"]["blocked_exits"] == []
+    assert STATIC_LOCATIONS[(45, 52)]["movement_profile"]["gated_exits"]["west"]["state"] == "locked"
+    assert STATIC_LOCATIONS[(46, 52)]["movement_profile"]["blocked_exits"] == ["north", "south"]
+    assert STATIC_LOCATIONS[(47, 52)]["movement_profile"]["blocked_exits"] == []
+    assert STATIC_LOCATIONS[(48, 52)]["movement_profile"]["blocked_exits"] == ["north"]
+    assert STATIC_LOCATIONS[(48, 53)]["movement_profile"]["blocked_exits"] == ["north"]
+    assert STATIC_LOCATIONS[(46, 53)]["movement_profile"]["blocked_exits"] == []
+    assert STATIC_LOCATIONS[(46, 54)]["movement_profile"]["blocked_exits"] == ["west", "east"]
+    assert STATIC_LOCATIONS[(46, 55)]["movement_profile"]["blocked_exits"] == ["north", "south"]
+    assert STATIC_LOCATIONS[(46, 56)]["movement_profile"]["blocked_exits"] == ["north", "west"]
+    assert STATIC_LOCATIONS[(47, 56)]["movement_profile"]["blocked_exits"] == ["north"]
+    assert STATIC_LOCATIONS[(47, 57)]["movement_profile"]["blocked_exits"] == []
+    assert STATIC_LOCATIONS[(47, 57)]["flags"]["map_intersection"] is True
+    assert STATIC_LOCATIONS[(46, 58)]["movement_profile"]["blocked_exits"] == ["west", "south"]
+    assert STATIC_LOCATIONS[(47, 58)]["movement_profile"]["blocked_exits"] == ["south"]
+    assert STATIC_LOCATIONS[(48, 56)]["movement_profile"]["blocked_exits"] == []
+    assert STATIC_LOCATIONS[(48, 56)]["flags"]["map_intersection"] is True
+    assert STATIC_LOCATIONS[(48, 57)]["movement_profile"]["blocked_exits"] == []
+    assert STATIC_LOCATIONS[(48, 58)]["movement_profile"]["blocked_exits"] == ["south", "east"]
+    assert STATIC_LOCATIONS[(49, 56)]["movement_profile"]["blocked_exits"] == ["south", "east"]
+    assert STATIC_LOCATIONS[(47, 54)]["movement_profile"]["blocked_exits"] == []
+    assert STATIC_LOCATIONS[(47, 55)]["movement_profile"]["blocked_exits"] == ["south"]
+    assert STATIC_LOCATIONS[(48, 54)]["movement_profile"]["blocked_exits"] == []
+    assert STATIC_LOCATIONS[(48, 54)]["flags"]["map_intersection"] is True
+    assert STATIC_LOCATIONS[(48, 55)]["movement_profile"]["blocked_exits"] == ["north", "west", "east"]
+    assert STATIC_LOCATIONS[(49, 52)]["flags"]["inner_wall_ring"] is True
+    assert STATIC_LOCATIONS[(49, 52)]["movement_profile"]["blocked_exits"] == []
+
+
+def test_d4_static_locations_are_split_into_center_and_outer_5x5_blocks():
+    assert set(START_VILLAGE_LOCATIONS).issubset(STATIC_LOCATIONS)
+    assert all(50 <= x <= 54 and 50 <= y <= 54 for x, y in START_VILLAGE_LOCATIONS)
+    assert len(START_VILLAGE_LOCATIONS) == 25
+
+    outer_blocks = [
+        d4_northwest.STATIC_LOCATIONS,
+        d4_north.STATIC_LOCATIONS,
+        d4_northeast.STATIC_LOCATIONS,
+        d4_west.STATIC_LOCATIONS,
+        d4_east.STATIC_LOCATIONS,
+        d4_southwest.STATIC_LOCATIONS,
+        d4_south.STATIC_LOCATIONS,
+        d4_southeast.STATIC_LOCATIONS,
+    ]
+    assert all(len(block) == 25 for block in outer_blocks)
+    assert sum(len(block) for block in outer_blocks) == 200
+
+
+def test_d4_static_loader_attaches_city_map_metadata():
+    flags = VillageLoader._build_node_flags(52, 52, {"is_active": True, "is_safe_zone": True})
+
+    assert flags["city_map"] == build_d4_city_map_node_metadata(52, 52)
+    assert flags["city_map"]["tile_url"] == f"{D4_CITY_TILE_BASE_URL}/d4_08_08.webp"
+    assert flags["city_map"]["district"]["key"] == "D4_CITY_1_1"
+
+
 @pytest.mark.unit
-async def test_run_test_mode_generates_d4_then_loads_static_hub():
+async def test_run_test_mode_loads_static_d4_seed_without_generated_location_content():
     data = MagicMock()
     data.upsert_region = AsyncMock()
     data.upsert_zone = AsyncMock()
@@ -297,11 +482,12 @@ async def test_run_test_mode_generates_d4_then_loads_static_hub():
     data.region_exists = AsyncMock(return_value=True)
     data.get_zone = AsyncMock(return_value=True)
     generator = LLMWorldGenerator(data, generation_ai=None)
+    generator._generate_d4_capital = AsyncMock()
     generator.village_loader.load_village = AsyncMock()
 
     await generator.run("test")
 
-    data.bulk_upsert_nodes.assert_awaited_once()
+    generator._generate_d4_capital.assert_not_awaited()
     generator.village_loader.load_village.assert_awaited_once()
 
 
@@ -341,7 +527,7 @@ async def test_batch_location_desc_prompt_uses_typed_district_contract():
 
 
 @pytest.mark.unit
-async def test_build_d4_location_batch_tasks_use_typed_payload_and_preserve_tags():
+async def test_build_d4_location_batch_tasks_skip_static_manual_d4_nodes():
     data = MagicMock()
     data.commit = AsyncMock()
     data.get_zone = AsyncMock(return_value=None)
@@ -385,16 +571,7 @@ async def test_build_d4_location_batch_tasks_use_typed_payload_and_preserve_tags
 
     specs = await generator._build_d4_location_batch_task_specs()
 
-    assert len(specs) == 1
-    assert specs[0].task_type == "world.location_batch"
-    payload = specs[0].input_payload["batch"]
-    assert payload[0]["id"] == "45_52"
-    assert "city_ruins_edge" in payload[0]["tags"]
-    assert "road" in payload[0]["tags"]
-    assert payload[0]["context"]
-    assert payload[0]["district_context"]["name"] == "Западный рынок обломков"
-    assert "route_context" in payload[0]
-    assert "boundary_context" in payload[0]
+    assert specs == []
     data.update_content.assert_not_awaited()
     data.update_flags.assert_not_awaited()
 
@@ -416,7 +593,7 @@ async def test_run_full_mode_commits_seed_before_ai_enrichment():
     data.commit.assert_awaited_once()
     assert events == ["commit", "enqueue_ai"]
     generator._generate_world_shell.assert_awaited_once()
-    generator._generate_d4_capital.assert_awaited_once()
+    generator._generate_d4_capital.assert_not_awaited()
     generator.village_loader.load_village.assert_awaited_once()
     generator._enqueue_world_ai_tasks.assert_awaited_once()
 
@@ -440,7 +617,7 @@ async def test_run_full_ai_mode_commits_seed_before_ai_enrichment():
 
 
 @pytest.mark.unit
-async def test_build_d4_location_batch_tasks_batch_district_as_five_sublocations():
+async def test_build_d4_location_batch_tasks_do_not_enqueue_static_outer_blocks():
     data = MagicMock()
     data.commit = AsyncMock()
     data.get_zone = AsyncMock(return_value=None)
@@ -464,9 +641,7 @@ async def test_build_d4_location_batch_tasks_batch_district_as_five_sublocations
     generator = LLMWorldGenerator(data, generation_ai=None)
 
     specs = await generator._build_d4_location_batch_task_specs()
-    payloads = [spec.input_payload["batch"] for spec in specs]
-    assert [len(payload) for payload in payloads] == [5, 5, 5, 5, 5]
-    assert all(item["district_context"] is None for payload in payloads for item in payload)
+    assert specs == []
 
 
 @pytest.mark.unit
@@ -498,6 +673,6 @@ async def test_run_ai_mode_enqueues_world_ai_tasks_without_provider_calls():
     await generator.run("ai")
 
     assert generation_ai.specs is not None
-    assert {spec.task_type for spec in generation_ai.specs} == {"world.zone_lore", "world.location_batch"}
+    assert {spec.task_type for spec in generation_ai.specs} == {"world.zone_lore"}
     data.update_content.assert_not_called()
     data.update_flags.assert_not_called()

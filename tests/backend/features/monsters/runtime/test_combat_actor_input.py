@@ -256,6 +256,7 @@ def test_monster_combat_actor_input_uses_generated_template_contract() -> None:
     assert snapshot["status"]["hp"]["max"] > 0
     combat = snapshot["combat"]
     assert combat["math_model"]["attributes"]["strength"]["base"] == 4.0
+    assert combat["math_model"]["rules"] == {"attribute_profile": "monster:beast"}
     assert combat["math_model"]["modifiers"]["main_hand_damage_base"]["base"] == 7.0
     assert combat["math_model"]["modifiers"]["armor"]["base"] == 3.0
     assert combat["math_model"]["modifiers"]["main_hand_accuracy"]["source"]["item:claws-1"] == 0.02
@@ -295,6 +296,55 @@ def test_monster_with_affixed_item_preserves_bonuses() -> None:
 
 
 @pytest.mark.unit
+def test_monster_family_accuracy_penalty_is_applied_as_global_modifier() -> None:
+    clan = _make_clan()
+    monster = _make_humanoid_monster(clan)
+    monster.generation_meta["family_modifiers"] = [
+        {"target": "accuracy", "value": -0.10, "per_tier": 0.0, "effective_value": -0.10}
+    ]
+
+    snapshot = MonsterCombatActorInputBuilder().build_snapshot(monster)
+
+    modifiers = snapshot["combat"]["math_model"]["modifiers"]
+    assert modifiers["accuracy"]["source"]["family:bandit_gang"] == pytest.approx(-0.10)
+    assert snapshot["combat"]["math_model"]["rules"] == {"attribute_profile": "monster:humanoid"}
+
+
+@pytest.mark.unit
+def test_monster_math_model_adds_pipeline_profile_for_size_and_organization() -> None:
+    clan = _make_clan("rat_swarm")
+    monster = _make_humanoid_monster(clan)
+    monster.role = "minion"
+    monster.generation_meta["meta"] = {
+        **monster.generation_meta["meta"],
+        "archetype": "beast",
+        "family_id": "rat_swarm",
+        "tags": ["monster", "rat", "small"],
+    }
+    monster.generation_meta["balance"] = {
+        **monster.generation_meta["balance"],
+        "organization_type": "swarm",
+    }
+
+    snapshot = MonsterCombatActorInputBuilder().build_snapshot(monster)
+
+    math_model = snapshot["combat"]["math_model"]
+    assert math_model["pipeline"] == {
+        "actor_kind": "monster",
+        "family_id": "rat_swarm",
+        "role": "minion",
+        "size_class": "small",
+        "organization_type": "swarm",
+        "pipeline_tags": ["monster:organization:swarm", "monster:size:small"],
+    }
+    assert math_model["rules"] == {"attribute_profile": "monster:beast"}
+    modifiers = math_model["modifiers"]
+    assert modifiers["evasion"]["source"]["monster_size:small"] == pytest.approx(0.05)
+    assert modifiers["damage_mult"]["source"]["monster_size:small"] == "*0.9"
+    assert modifiers["accuracy"]["source"]["monster_organization:swarm"] == pytest.approx(-0.05)
+
+
+@pytest.mark.unit
 def test_humanoid_monster_has_nonzero_damage_potential() -> None:
     """Humanoid monster with a melee weapon must produce main_hand_damage_base > 0."""
     clan = _make_clan()
@@ -306,3 +356,28 @@ def test_humanoid_monster_has_nonzero_damage_potential() -> None:
     assert combat["math_model"]["modifiers"]["main_hand_damage_base"]["base"] == 10.0
     assert "main_hand" in combat["loadout"]["combat_surfaces"]
     assert combat["loadout"]["combat_surfaces"]["main_hand"]["delivery"] == "weapon"
+
+
+@pytest.mark.unit
+def test_monster_source_exposes_clan_owner_family_loot_culture() -> None:
+    clan = _make_clan()
+    clan.flavor_content = {
+        "loot_culture": {
+            "craft_style": "грубая переделка найденных вещей",
+            "craft_skill_hint": "не кузнецы; используют лом, двери и ремни",
+            "salvage_sources": ["городские ворота"],
+            "tone_hints": ["уличная практичность"],
+            "equipment_origin_notes": ["щит может быть куском двери"],
+        }
+    }
+    clan.name_ru = "Банда Воротной Щепы"
+    clan.description = "Разбойники держат пролом у старых ворот."
+    monster = _make_humanoid_monster(clan)
+
+    snapshot = MonsterCombatActorInputBuilder().build_snapshot(monster)
+
+    owner_family = snapshot["source"]["owner_family"]
+    assert owner_family["clan_id"] == str(clan.id)
+    assert owner_family["family_resource_id"] == "bandit_gang"
+    assert owner_family["clan_name_ru"] == "Банда Воротной Щепы"
+    assert owner_family["loot_culture"]["salvage_sources"] == ["городские ворота"]

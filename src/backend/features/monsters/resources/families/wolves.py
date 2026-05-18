@@ -30,6 +30,7 @@ WOLVES_FAMILY: MonsterFamily = {
         },
     },
     "family_modifiers": [
+        {"target": "accuracy", "value": -0.10, "per_tier": 0.0},
         {"target": "physical_resistance", "value": 0.03, "per_tier": 0.01},
         {"target": "physical_damage_bonus", "value": 0.04, "per_tier": 0.015},
         {"target": "dodge_chance", "value": 0.04, "per_tier": 0.01},

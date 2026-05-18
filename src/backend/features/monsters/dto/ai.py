@@ -4,6 +4,8 @@ from typing import Any
 
 from pydantic import BaseModel, Field, model_validator
 
+from src.backend.features.monsters.dto.loot_culture import MonsterLootCultureDTO, default_loot_culture_payload
+
 
 class MonsterVariantFlavorDTO(BaseModel):
     variant_key: str = Field(default="", max_length=80)
@@ -60,6 +62,15 @@ class MonsterVariantFlavorDTO(BaseModel):
 class MonsterClanFlavorDTO(BaseModel):
     name_ru: str = Field(min_length=1, max_length=80)
     description: str = Field(min_length=1, max_length=1200)
+    loot_culture: MonsterLootCultureDTO = Field(
+        default_factory=lambda: MonsterLootCultureDTO.model_validate(
+            default_loot_culture_payload(
+                family_id="unknown_family",
+                archetype="unknown",
+                organization_type="unknown",
+            )
+        )
+    )
     variants_flavor: list[MonsterVariantFlavorDTO] = Field(default_factory=list)
 
     @model_validator(mode="before")

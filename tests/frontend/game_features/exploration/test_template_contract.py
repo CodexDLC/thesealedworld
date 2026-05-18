@@ -9,6 +9,13 @@ from src.frontend.game_features.inventory.view_models.window import (
     inventory_card_class,
     inventory_card_dimensions,
 )
+from src.shared.schemas.exploration import (
+    ExplorationLocalMapDTO,
+    ExplorationMapCellDTO,
+    ExplorationMapEdgeDTO,
+    NavigationGridDTO,
+    WorldNavigationDTO,
+)
 from src.shared.schemas.inventory import InventoryWindowDTO
 
 
@@ -25,6 +32,19 @@ def test_exploration_center_template_has_navigation_and_encounter_surfaces():
     assert "game-screen-content exploration-screen-content" in template
     assert "mobile-scene parchment" in template
     assert "mobile-scene-services" in template
+    assert "location_view.city_map" in template
+    assert "city_map_layout = city_map and not active_encounter" in template
+    assert "has-city-map-layout" in template
+    assert "has-city-map-scene" in template
+    assert "mobile-scene-copy mobile-scene-copy--map" in template
+    assert "is-mobile-row-trim" in template
+    assert "exploration-city-map" in template
+    assert "exploration-city-map-tile" in template
+    assert "exploration-city-map-marker" in template
+    assert "map_cell.service_markers" in template
+    assert "[map_cell.service_marker]" not in template
+    assert "exploration-city-map-service-marker" in template
+    assert "is-{{ service_marker_corner }}" in template
     assert "data-services" in template
     assert "NO SERVICES" in template
     assert "mobile-services" in template
@@ -42,7 +62,7 @@ def test_exploration_center_template_has_navigation_and_encounter_surfaces():
     assert template.index("mobile-move-cooldown") < template.index("exploration-action-panel__body")
     assert template.index("mobile-services") < template.index("mobile-action-grid exploration-navigation-grid")
     assert "game/domains/exploration/right_sidebar/main.html" in template
-    assert "hx-swap-oob=\"true\"" in template
+    assert 'id="game-right-context-content" hx-swap-oob="innerHTML"' in template
     assert "mobile-encounter-interrupt" in template
     assert "mobile-encounter-layout" in template
     assert "mobile-encounter-target-card" in template
@@ -128,6 +148,82 @@ def test_exploration_right_sidebar_has_navigation_and_encounter_contexts():
     assert "NO MAP DATA" in template
 
 
+def test_exploration_right_sidebar_renders_runtime_local_radar():
+    env = Environment(loader=FileSystemLoader("src/frontend/templates"), autoescape=True)
+    template = env.get_template("game/domains/exploration/right_sidebar/main.html")
+    radar = ExplorationLocalMapDTO(
+        char_id=7,
+        current_loc_id="52_52",
+        radius=1,
+        size=3,
+        rows=[
+            [
+                ExplorationMapCellDTO(
+                    loc_id="52_52",
+                    x=52,
+                    y=52,
+                    dx=0,
+                    dy=0,
+                    is_current=True,
+                    is_known=True,
+                    title="Площадь Исхода",
+                    is_safe_zone=True,
+                    threat_tier=0,
+                    zone_id="D4_1_1",
+                    terrain="ancient_pavement",
+                    service_count=1,
+                    service_labels=["В постоялый двор"],
+                    players_count=2,
+                    battles_count=1,
+                    edges={
+                        "north": ExplorationMapEdgeDTO(
+                            direction="north",
+                            state="open",
+                            target_loc_id="52_51",
+                            label="Северный проспект",
+                        ),
+                        "south": ExplorationMapEdgeDTO(direction="south", state="locked"),
+                        "west": ExplorationMapEdgeDTO(direction="west", state="blocked"),
+                        "east": ExplorationMapEdgeDTO(direction="east", state="open", target_loc_id="53_52"),
+                    },
+                    render_edges={
+                        "south": ExplorationMapEdgeDTO(direction="south", state="locked"),
+                        "west": ExplorationMapEdgeDTO(direction="west", state="blocked"),
+                    },
+                    tooltip={"title": "Площадь Исхода"},
+                )
+            ]
+        ],
+    )
+
+    html = template.render(
+        payload_type="exploration_navigation",
+        exploration=WorldNavigationDTO(
+            loc_id="52_52",
+            title="Площадь Исхода",
+            description="Центральная площадь.",
+            grid=NavigationGridDTO(),
+        ),
+        exploration_local_map=radar,
+    )
+
+    assert "LOCAL RADAR" in html
+    assert "RADAR DATA" in html
+    assert 'data-map-cell="52_52"' in html
+    assert "is-zone-safe" in html
+    assert "is-tier-0" not in html
+    assert 'data-zone-id="D4_1_1"' in html
+    assert 'data-terrain="ancient_pavement"' in html
+    assert 'data-tippy-content="Площадь Исхода // X 52 / Y 52 // SAFE · T0 // Entrances: В постоялый двор // People 2 · Battles 1 · Corpses NO_DATA"' in html
+    assert "exploration-minimap-marker is-players" in html
+    assert "exploration-minimap-marker is-battles" in html
+    assert "exploration-minimap-marker is-services" in html
+    assert "Площадь Исхода" in html
+    assert "exploration-minimap-wall--south is-locked" in html
+    assert "exploration-minimap-wall--west" in html
+    assert "NO MAP DATA" not in html
+
+
 def test_exploration_uses_shared_base_css_contracts():
     panel_css = Path("src/frontend/static/css/game/components/panel_dock.css").read_text()
     action_css = Path("src/frontend/static/css/game/components/action_panel.css").read_text()
@@ -151,6 +247,28 @@ def test_exploration_uses_shared_base_css_contracts():
     assert ".exploration-main-dock" in screen_css
     assert "var(--game-column-gutter-top" in screen_css
     assert ".mobile-scene" in scene_css
+    assert ".mobile-scene-art.has-city-map" in scene_css
+    assert ".mobile-scene.parchment.has-city-map-scene" in scene_css
+    assert ".mobile-scene-copy--map" in scene_css
+    assert ".exploration-city-map" in scene_css
+    assert "width: min(100cqw, calc(100cqh - var(--city-map-copy-reserve, 132px)))" in scene_css
+    assert "height: min(100cqw, calc(100cqh - var(--city-map-copy-reserve, 132px)))" in scene_css
+    assert "grid-template-columns: repeat(var(--city-map-columns, var(--city-map-size, 5)), minmax(0, 1fr))" in scene_css
+    assert "grid-template-rows: repeat(var(--city-map-rows, var(--city-map-size, 5)), minmax(0, 1fr))" in scene_css
+    assert "background-size: 100% 100%" in scene_css
+    assert ".exploration-city-map-marker" in scene_css
+    assert ".exploration-city-map-service-marker" in scene_css
+    assert ".exploration-city-map-service-marker.is-top-left" in scene_css
+    assert ".exploration-city-map-service-marker.is-top-right" in scene_css
+    assert ".exploration-city-map-service-marker.is-bottom-left" in scene_css
+    assert ".exploration-city-map-service-marker.is-bottom-right" in scene_css
+    assert "right: auto" in scene_css
+    assert "bottom: auto" in scene_css
+    assert "top: auto" in scene_css
+    assert "left: auto" in scene_css
+    assert "aspect-ratio: 7 / 5" in scene_css
+    assert "--city-map-rows: 5" in scene_css
+    assert ".exploration-city-map-tile.is-mobile-row-trim" in scene_css
     assert ".mobile-services" in services_css
     assert ".service-card" in services_css
     assert ".mobile-action-grid" in movement_css
@@ -162,13 +280,22 @@ def test_exploration_uses_shared_base_css_contracts():
     assert ".exploration-minimap-grid" in right_sidebar_css
     assert "aspect-ratio: 1 / 1" in right_sidebar_css
     assert "grid-template-columns: repeat(5, minmax(0, 1fr))" in right_sidebar_css
-    assert ".exploration-minimap-cell::after" in right_sidebar_css
+    assert ".exploration-minimap-cell:not([data-tippy-content])::after" in right_sidebar_css
     assert ".exploration-minimap-cell.is-route-hint" in right_sidebar_css
+    assert ".exploration-minimap-cell.is-zone-safe::before" in right_sidebar_css
+    assert ".exploration-minimap-cell.is-tier-1::before" in right_sidebar_css
+    assert ".exploration-minimap-cell.is-tier-3::before" in right_sidebar_css
+    assert ".exploration-minimap-markers" in right_sidebar_css
     assert ".exploration-action-panel" in screen_css
+    assert ".exploration-screen-content.has-city-map-layout" in screen_css
+    assert "container-type: size" in screen_css
+    assert "--city-map-copy-reserve" in screen_css
     assert "--game-action-padding" in screen_css
     assert "grid-template-rows: auto auto" in screen_css
-    assert "grid-template-rows: auto minmax(0, 1fr)" in responsive_css
+    assert "grid-template-columns: minmax(220px, 0.4fr) minmax(0, 0.6fr)" in responsive_css
+    assert "grid-template-rows: auto" in responsive_css
     assert ".exploration-main-dock .mobile-services" in screen_css
+    assert "grid-column: 1" in responsive_css
     assert "grid-row: 1" in screen_css
     assert ".exploration-main-dock .mobile-move-cooldown" in screen_css
     assert ".exploration-main-dock .mobile-action-grid" in screen_css
@@ -568,6 +695,7 @@ def test_game_shell_uses_right_panel_inventory_instead_of_floating_hud():
     assert 'id="inventory-window-body"' not in base_template
     assert "hud_window_resize_handles.html" not in base_template
     assert "rightPanelView === 'inventory'" in session_template
+    assert 'id="game-right-context-content"' in session_template
     assert "game/components/inventory/right_panel.html" in session_template
     assert 'id="right-inventory-panel-body"' in inventory_panel
     assert "game/components/inventory/window.html" in inventory_panel
@@ -591,12 +719,18 @@ def test_inventory_window_template_defines_frontend_contract():
     assert "inventory-accessory-row--{{ row.row_id }}" in template
     assert "'ring_1': 'Кольцо 1'" in template
     assert "'ring_2': 'Кольцо 2'" in template
+    assert "base_icon_map" in template
+    assert "'scout_leggings': 'legs_light'" in template
+    assert "'breeches': 'legs_medium'" in template
+    assert "'greaves': 'legs_heavy'" in template
     assert "'legs_garment': 'legwear'" in template
     assert "'feetwear': 'feetwear'" in template
     assert "weapon_icon_base_map" in template
     assert "'greatsword': 'weapon_two_hand'" in template
     assert "'dagger': 'weapon_dagger'" in template
     assert "'battle_axe': 'weapon_axe'" in template
+    assert "'spear': 'weapon_spear'" in template
+    assert "'quarterstaff': 'weapon_staff'" in template
     assert "slot.slot_id == 'two_hand'" in template
     assert "inventory-equip-zone--two-shadow" in template
     assert "inventory-tabs" in template
@@ -696,6 +830,7 @@ def test_inventory_window_template_renders_backend_contract_dto():
                     "quantity": 1,
                     "rarity": "shared",
                     "equip_target": "main_hand",
+                    "valid_slots": ["main_hand", "off_hand"],
                     "details": {
                         "item_id": "item-2",
                         "name": "Bronze Sword",
@@ -739,7 +874,10 @@ def test_inventory_window_template_renders_backend_contract_dto():
     assert '"item_id": "item-3"' in html
     assert '"slot_id": "two_hand"' in html
     assert '"action": "equip"' in html
-    assert '"slot_id": "main_hand"' in html
+    assert "x-bind:hx-vals" in html
+    assert '["main_hand", "off_hand"].includes(selectedSlot)' in html
+    assert '? selectedSlot : "main_hand"' in html
+    assert "|| ['main_hand', 'off_hand'].includes(selectedSlot)" not in html
     assert 'data-inventory-cells="64"' in html
 
     locked_html = template.render(
@@ -790,6 +928,11 @@ def test_inventory_css_has_loadout_container_and_table_contract():
     source = Path("src/frontend/static/css/game/components/inventory.css").read_text()
     bundle = Path("src/frontend/static/css/game_bundle.css").read_text()
     legwear_icon = Path("src/frontend/static/images/ui/inventory-gear/legwear.svg")
+    legs_light_icon = Path("src/frontend/static/images/ui/inventory-gear/legs_light.svg")
+    legs_medium_icon = Path("src/frontend/static/images/ui/inventory-gear/legs_medium.svg")
+    legs_heavy_icon = Path("src/frontend/static/images/ui/inventory-gear/legs_heavy.svg")
+    weapon_spear_icon = Path("src/frontend/static/images/ui/inventory-gear/weapon_spear.svg")
+    weapon_staff_icon = Path("src/frontend/static/images/ui/inventory-gear/weapon_staff.svg")
     weapon_two_hand_icon = Path("src/frontend/static/images/ui/inventory-gear/weapon_two_hand.svg")
 
     assert ".inventory-loadout" in source
@@ -838,6 +981,11 @@ def test_inventory_css_has_loadout_container_and_table_contract():
     assert ".inventory-card--wide" in source
     assert "fabric_leather_02_diff_1k.webp" in source
     assert legwear_icon.exists()
+    assert legs_light_icon.exists()
+    assert legs_medium_icon.exists()
+    assert legs_heavy_icon.exists()
+    assert weapon_spear_icon.exists()
+    assert weapon_staff_icon.exists()
     assert weapon_two_hand_icon.exists()
     assert '@import url("game/components/cards.css");' in bundle
 
@@ -949,6 +1097,7 @@ def test_game_header_nav_marks_open_panels_and_inventory_panel_active():
 def test_game_runtime_loads_before_alpine_initializes():
     template = Path("src/frontend/templates/game/base_game.html").read_text()
 
+    assert '/static/css/game.css?v={{ static_version }}' in template
     assert template.index('/static/js/game.js') < template.index('/static/js/vendor/alpine.js')
 
 

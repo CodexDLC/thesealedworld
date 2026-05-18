@@ -27,6 +27,7 @@ GOBLINS_FAMILY: MonsterFamily = {
         },
     },
     "family_modifiers": [
+        {"target": "accuracy", "value": -0.10, "per_tier": 0.0},
         {"target": "dodge_chance", "value": 0.06, "per_tier": 0.01},
         {"target": "poison_efficiency", "value": 0.04, "per_tier": 0.01},
         {"target": "magical_resistance", "value": -0.04, "per_tier": 0.0},

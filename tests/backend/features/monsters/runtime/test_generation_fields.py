@@ -2,7 +2,9 @@ import pytest
 
 from src.backend.features.items.dto.instance import RuntimeItemProjectionDTO
 from src.backend.features.monsters.dto.resources import MonsterFamilyDTO
+from src.backend.features.monsters.resources import get_all_family_configs
 from src.backend.features.monsters.runtime.generation_fields import (
+    build_family_modifiers,
     build_generated_monster_template,
     build_granted_abilities,
     build_items,
@@ -216,6 +218,56 @@ def test_build_generated_monster_template_composes_field_builders() -> None:
     assert template.ai_profile.targeting == "lowest_hp"
     assert template.balance.base_cost == 20
     assert template.balance.effective_cost == 4
+
+
+@pytest.mark.unit
+def test_all_monster_families_carry_flat_accuracy_penalty() -> None:
+    offenders = []
+    for family in get_all_family_configs().values():
+        matching = [entry for entry in family.family_modifiers if entry.target == "accuracy"]
+        if len(matching) != 1 or matching[0].value != pytest.approx(-0.10) or matching[0].per_tier != 0.0:
+            offenders.append(family.id)
+
+    assert offenders == []
+
+
+@pytest.mark.unit
+def test_build_family_modifiers_keeps_accuracy_penalty_flat_across_tiers() -> None:
+    family = MonsterFamilyDTO.model_validate(
+        {
+            "id": "test_family",
+            "archetype": "beast",
+            "organization_type": "pack",
+            "default_tags": [],
+            "family_modifiers": [{"target": "accuracy", "value": -0.10, "per_tier": 0.0}],
+            "hierarchy": {"minions": ["test_var"], "veterans": [], "elites": [], "boss": []},
+            "variants": {
+                "test_var": {
+                    "id": "test_var",
+                    "role": "minion",
+                    "cost": 20,
+                    "min_tier": 0,
+                    "max_tier": 5,
+                    "narrative_hint": "test",
+                    "base_stats": {
+                        "strength": 5,
+                        "agility": 5,
+                        "endurance": 5,
+                        "intellect": 1,
+                        "memory": 1,
+                        "mental": 2,
+                        "perception": 5,
+                        "projection": 1,
+                        "prediction": 2,
+                    },
+                }
+            },
+        }
+    )
+
+    assert build_family_modifiers(family, member_tier=7) == [
+        {"target": "accuracy", "value": -0.10, "per_tier": 0.0, "effective_value": -0.10}
+    ]
 
 
 @pytest.mark.unit

@@ -104,7 +104,7 @@ class WorldNavigationService:
         if "portal" in service:
             return "К Порталу", "Войти в Портал"
         if "tavern" in service:
-            return "В Таверну", "Войти в Таверну"
+            return "В Постоялый Двор", "Войти в Постоялый Двор"
         if "arena" in service:
             return "На Арену", "Выйти на Арену"
         return "Войти", "Вход в Сервис"

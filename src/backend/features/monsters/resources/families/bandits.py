@@ -25,6 +25,7 @@ BANDITS_FAMILY: MonsterFamily = {
         },
     },
     "family_modifiers": [
+        {"target": "accuracy", "value": -0.10, "per_tier": 0.0},
         {"target": "physical_resistance", "value": 0.03, "per_tier": 0.01},
         {"target": "anti_dodge_chance", "value": 0.04, "per_tier": 0.01},
         {"target": "control_resistance", "value": 0.04, "per_tier": 0.01},

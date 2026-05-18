@@ -346,7 +346,7 @@ def build_monster_clan_flavor_payload(
         "tier": tier,
         "rift_profile": context_meta.get("rift_profile"),
         "text_contract": {
-            "clan": ["name_ru", "description"],
+            "clan": ["name_ru", "description", "loot_culture"],
             "member": ["name", "appearance", "detected", "ambush", "idle", "encounter", "behavior"],
             "encounter_states": {
                 "detected": "player noticed the monster first",
@@ -355,6 +355,20 @@ def build_monster_clan_flavor_payload(
             },
         },
         "units_to_name": units_with_roles,
+        "loot_culture_contract": {
+            "purpose": "Generate family-level equipment culture for future item names, descriptions, and images.",
+            "must_reflect": [
+                "family archetype and organization",
+                "location, biome, context tags, and rift profile",
+                "how this concrete clan obtains, repairs, carries, or repurposes gear",
+                "what materials and objects should appear on this clan's weapons, shields, armor, garments, and trophies",
+            ],
+            "do_not": [
+                "do not return generic fantasy gear culture",
+                "do not describe a single individual monster",
+                "do not make loot_culture a drop table or mechanical loot profile",
+            ],
+        },
     }
 
 

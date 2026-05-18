@@ -102,18 +102,22 @@ async def test_world_location_batch_task_builds_json_request_and_updates_nodes(m
 @pytest.mark.unit
 async def test_world_location_image_task_builds_plain_image_request() -> None:
     spec = build_world_location_image_task_spec(
-        loc_id="52_52",
-        title="Площадь Рунного Круга",
-        description="Центр цитадели.",
+        loc_id="54_52",
+        title="Восточные Ворота",
+        description=(
+            "Под восточной стеной тянется широкая пристенная улица, и в ее середине монолитная арка открывает "
+            "проход к Площади Снабжения."
+        ),
         biome_id="city_ruins",
         terrain_type="ancient_pavement",
-        environment_tags=["hub_center", "active_portal", "runic_circle", "tents"],
+        environment_tags=["gate", "inner_wall", "market"],
         visual_overrides={
             "image_profile": "d4_capital_hub",
-            "node_role": "portal_plaza",
-            "composition": "central portal plaza with survivor tents only at the rim",
+            "node_role": "inner_gate",
+            "composition": "eastern gate cell with supply plaza readable inside the wall",
             "forbidden": ["readable runes"],
         },
+        prompt_contract_version="test-elite-wall-continuity-v8",
     )
     task = SimpleNamespace(entity_id=spec.entity_id, input_payload=spec.input_payload)
     handler = WorldLocationImageTaskHandler()
@@ -126,10 +130,28 @@ async def test_world_location_image_task_builds_plain_image_request() -> None:
     assert request["kind"] == "image"
     assert request["content_type"] == "image/webp"
     assert request["target_size"] == WORLD_LOCATION_IMAGE_SIZE
-    assert request["storage_key"].startswith("world/locations/d4/52_52_")
+    assert request["storage_key"].startswith("world/locations/d4/54_52_")
+    assert spec.input_payload["prompt_contract_version"] == "test-elite-wall-continuity-v8"
     assert "ancient technomagical sacred architecture" in request["prompt"]
     assert "Aur-Entar is the last capital" in request["prompt"]
-    assert "NODE_ROLE (portal_plaza)" in request["prompt"]
+    assert "LOCATION_TEXT_LAYER_CONTRACT" in request["prompt"]
+    assert "first paragraph describes the location identity" in request["prompt"]
+    assert "service layer visible enough" in request["prompt"]
+    assert "TACTICAL_SERIES_CONTRACT" in request["prompt"]
+    assert "elevated 3/4 tactical location background" in request["prompt"]
+    assert "not a 10-meter room" in request["prompt"]
+    assert "street or quarter-sized ground area" in request["prompt"]
+    assert "former elite city center" in request["prompt"]
+    assert "WALL_STYLE_CONTRACT" in request["prompt"]
+    assert "one continuous elite-district monolith boundary" in request["prompt"]
+    assert "Do not change it into bright sunlit limestone" in request["prompt"]
+    assert "EAST_WALL_SERIES" in request["prompt"]
+    assert "same city, same wall material, same lighting, same camera height" in request["prompt"]
+    assert "not only a close-up of the wall itself" in request["prompt"]
+    assert "avoiding bright sunlit white wall style" in request["prompt"]
+    assert "Под восточной стеной тянется широкая пристенная улица" in request["prompt"]
+    assert "east gate through the shared wall" in request["prompt"]
+    assert "NODE_ROLE (inner_gate)" in request["prompt"]
     assert "no characters" in request["prompt"]
     assert "readable runes" in request["prompt"]
 

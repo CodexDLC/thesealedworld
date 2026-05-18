@@ -38,6 +38,9 @@ ANCHOR_SOVEREIGNS_FAMILY: MonsterFamily = {
             },
         },
     },
+    "family_modifiers": [
+        {"target": "accuracy", "value": -0.10, "per_tier": 0.0},
+    ],
     "loot_profile": {
         "salvage_type": "anchor_residue",
         "loot_mode": "hybrid",

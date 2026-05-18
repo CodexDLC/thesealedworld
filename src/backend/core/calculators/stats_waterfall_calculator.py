@@ -5,7 +5,7 @@ from typing import Any
 
 from loguru import logger
 
-from src.backend.core.calculators.data.stats_formulas import MODIFIER_RULES
+from src.backend.core.calculators.data.stats_formulas import resolve_attribute_rules
 
 _OPS: dict[type[ast.AST], Callable[..., Any]] = {
     ast.Add: operator.add,
@@ -46,22 +46,24 @@ class StatsWaterfallCalculator:
     """
 
     # Кеш для трансформированных правил (Source -> [Target, Factor])
-    _SOURCE_TO_TARGET_RULES: dict[str, list[dict[str, Any]]] = {}
+    _SOURCE_TO_TARGET_RULES: dict[str, dict[str, list[dict[str, Any]]]] = {}
 
     @classmethod
-    def _get_rules(cls) -> dict[str, list[dict[str, Any]]]:
+    def _get_rules(cls, profile_key: str | None = None) -> dict[str, list[dict[str, Any]]]:
         """
-        Ленивая инициализация и трансформация правил из MODIFIER_RULES.
+        Ленивая инициализация и трансформация правил выбранного attribute profile.
         """
-        if not cls._SOURCE_TO_TARGET_RULES:
+        resolved_key = str(profile_key or "player")
+        if resolved_key not in cls._SOURCE_TO_TARGET_RULES:
+            modifier_rules = resolve_attribute_rules(resolved_key)
             transformed: dict[str, list[dict[str, Any]]] = {}
-            for target_mod, sources in MODIFIER_RULES.items():
+            for target_mod, sources in modifier_rules.items():
                 for source_attr, factor in sources.items():
                     if source_attr not in transformed:
                         transformed[source_attr] = []
                     transformed[source_attr].append({"target": target_mod, "factor": factor})
-            cls._SOURCE_TO_TARGET_RULES = transformed
-        return cls._SOURCE_TO_TARGET_RULES
+            cls._SOURCE_TO_TARGET_RULES[resolved_key] = transformed
+        return cls._SOURCE_TO_TARGET_RULES[resolved_key]
 
     @staticmethod
     def calculate_waterfall(raw_data: dict[str, Any]) -> tuple[dict[str, float], dict[str, str]]:
@@ -80,7 +82,8 @@ class StatsWaterfallCalculator:
         final_attributes, attr_explanations = StatsWaterfallCalculator._calculate_attributes(raw_attributes)
 
         # 2. Конвертация (Derivation Bridge)
-        derived_bonuses = StatsWaterfallCalculator._derive_bonuses(final_attributes)
+        rules_profile = raw_data.get("rules", {}).get("attribute_profile", "player")
+        derived_bonuses = StatsWaterfallCalculator._derive_bonuses(final_attributes, rules_profile)
 
         # 3. Расчет Модификаторов (Secondary Stats)
         raw_modifiers = raw_data.get("modifiers", {})
@@ -154,12 +157,12 @@ class StatsWaterfallCalculator:
         return results, explanations
 
     @staticmethod
-    def _derive_bonuses(attributes: dict[str, float]) -> dict[str, list[str]]:
+    def _derive_bonuses(attributes: dict[str, float], profile_key: str | None = None) -> dict[str, list[str]]:
         """
         Фаза 2: Генерация бонусов от атрибутов (Bridge).
         """
         derived: dict[str, list[str]] = {}
-        rules_map = StatsWaterfallCalculator._get_rules()
+        rules_map = StatsWaterfallCalculator._get_rules(profile_key)
 
         for attr_name, attr_value in attributes.items():
             rules = rules_map.get(attr_name, [])

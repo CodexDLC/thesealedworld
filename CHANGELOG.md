@@ -1,50 +1,66 @@
 # Changelog
 
-All notable changes to this project will be documented in this file. This project is currently in the **Legacy Code Migration** phase, transitioning to a new platform.
+This root changelog is the short release view for **The Sealed World**.
 
-## [In Progress] - Legacy Migration & Modernization
+We treat `v0.0.0` as the new MVP baseline. The changelog records meaningful
+product and architecture milestones, not every small fix. Package versions are
+resolved from git tags through `hatch-vcs`; a tag such as `v0.0.0` builds package
+version `0.0.0`.
 
-### Backend
+Full layer changelogs live in:
 
-- **Event Bus Architecture**: Integrated `codex-platform` streams with `StreamProducer`, `StreamConsumer`, and `StreamProcessor`.
-- **Game Streams**: Implemented `GameStreamRouter` for decoupled event handling across features (combat, inventory, actor_state).
-- **Core Features**: Ported Arena, Combat, Chat, and Exploration modules to the new backend.
-- **Bio-Fantasy Content**: Integrated Gemini API for dynamic generation of narrative elements.
+- [Backend / game service](docs/changelog/backend.md)
+- [Frontend / site service](docs/changelog/frontend-site.md)
+- [Frontend / game client](docs/changelog/frontend-game-client.md)
 
-### Frontend
+## [Unreleased]
 
-- **User Management**: Implementation of registration and authentication flows via `FrontendAuthService`.
-- **Gateway Architecture**: New gateway designed for horizontal scalability and stateless operation.
-- **Bio-Fantasy UI/UX**: Transitioned theme to Dark Fantasy Post-Apocalyptic with "symbiote" narrative elements.
-- **Real-time Updates**: Implemented World Data Stream visualization in game scene templates.
+This section is the working list for the future `v0.1.0` release. It is allowed
+to stay more granular until release prep, when it will be collapsed into a
+compact version summary.
 
----
+### Release Prep
 
-## 2026-04-29
-### Added [2026-04-29]
+- Renamed the Python package identity to `thesealedworld`.
+- Added dynamic package versioning from git tags with `hatch-vcs`.
+- Updated `uv.lock` for the dynamic `thesealedworld` package.
+- Connected the local repository to `https://github.com/CodexDLC/thesealedworld.git`.
 
-- **Game Stream Router**: Implemented `GameStreamRouter` in the backend core to handle events across all modules.
-- **Event Bus Integration**: Fully integrated `StreamProcessor` for real-time event distribution.
-- **Architecture Scalability**: Optimized frontend gateway to be stateless, enabling multi-instance deployment.
-- **Frontend Core**: Refined `src/frontend/app.py` for improved performance.
+### Environment And Deploy
 
----
+- Added `.env.prod` as a local-only production env copy ignored by git.
+- Added `.env.example` with documented production variables and layer settings.
+- Added a `uv`-friendly secret generator for production passwords and service keys.
 
-## 2026-04-28
-### Added [2026-04-28]
+### Documentation
 
-- **User Registration**: Implemented full user creation flow, including `register` service and themed forms.
-- **Bio-Fantasy Theme**: Applied a new visual style across the site, replacing the previous cyberpunk aesthetic.
-- **Symbiote Elements**: Integrated narrative-driven UI components for authentication.
-- **Health Checks**: Added `/health` endpoint to frontend for service monitoring.
-- **Site Structure**: Implemented global `base_site.html` template and shared CSS components (header, footer).
-- **Authentication Pages**: Built new Login and Registration pages with themed styling.
+- Added the root `README.md` as the private MVP project entry point.
+- Added layer changelogs for backend, site frontend, and game client frontend.
+- Added the changelog release skill for commit-time markers and tag-time summaries.
 
----
+## [v0.0.0] - MVP Baseline
 
-## 2026-04-27
-### Added [2026-04-27]
+### Product
 
-- **Project Initialization**: Setup core directory structure and dependency management via `uv`.
-- **Legacy Reference**: Imported legacy source code to `temp/` for migration reference.
-- **Configuration**: Basic `.gitignore`, `.env`, and pre-commit hooks.
+- Kept **The Sealed World** as the public game name and product language.
+- Framed the repository as a private MVP product workspace, not an open-source package.
+- Defined the repository as a from-scratch product baseline rather than a patch
+  history of small migration fixes.
+
+### Architecture
+
+- Continued the service split into three operational layers:
+  - `infra`: Postgres, Redis, Nginx, volumes, networks, TLS helpers.
+  - `site`: public site, auth, account, cabinet, library, server-rendered web UI.
+  - `game`: backend game API, chat/ws, workers, runtime state, game/chat migrations.
+- Kept frontend-to-backend communication behind typed HTTP clients under
+  `src/frontend/integrations/backend_api/`.
+- Kept game runtime ownership in `src/backend` and site ownership in `src/frontend`.
+
+### Release And Deploy
+
+- Uses tag-based release thinking as the target process.
+
+### Documentation
+
+- Uses root and layer changelogs as the target release-note shape.

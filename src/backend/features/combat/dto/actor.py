@@ -109,6 +109,8 @@ class ActorRawDTO(BaseModel):
 
     attributes: dict[str, Any] = Field(default_factory=dict)
     modifiers: dict[str, Any] = Field(default_factory=dict)
+    pipeline: dict[str, Any] = Field(default_factory=dict)
+    rules: dict[str, Any] = Field(default_factory=dict)
 
 
 class CombatSurfaceDTO(BaseModel):

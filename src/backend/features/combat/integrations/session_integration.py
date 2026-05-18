@@ -574,6 +574,8 @@ class CombatSessionIntegration:
         merged_raw = {
             "attributes": raw_dict.get("attributes", {}),
             "modifiers": raw_dict.get("modifiers", {}),
+            "pipeline": raw_dict.get("pipeline", {}),
+            "rules": raw_dict.get("rules", {}),
         }
 
         loadout = ActorLoadoutDTO(

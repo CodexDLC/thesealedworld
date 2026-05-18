@@ -54,6 +54,7 @@ class CharacterCombatMathModelBuilder:
         return {
             "attributes": raw_attributes,
             "modifiers": self._build_modifiers(equipped, attributes_data, skills or {}, raw_attributes),
+            "rules": {"attribute_profile": "player"},
             "tags": ["player"],
         }
 

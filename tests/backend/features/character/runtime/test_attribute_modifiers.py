@@ -1,6 +1,9 @@
 import pytest
 
-from src.backend.core.calculators.data.stats_formulas import MODIFIER_RULES as CORE_MODIFIER_RULES
+from src.backend.core.calculators.data.stats_formulas import (
+    ATTRIBUTE_RULE_PROFILES,
+    MODIFIER_RULES as CORE_MODIFIER_RULES,
+)
 from src.backend.core.calculators.stats_waterfall_calculator import StatsWaterfallCalculator
 from src.backend.features.character.runtime import CharacterCombatMathModelBuilder
 from src.backend.features.character.runtime.rules.attribute_modifiers import ATTRIBUTE_MODIFIER_RULES
@@ -9,6 +12,9 @@ from src.backend.features.character.runtime.rules.attribute_modifiers import ATT
 @pytest.mark.unit
 def test_core_calculator_uses_character_attribute_modifier_rules() -> None:
     assert CORE_MODIFIER_RULES is ATTRIBUTE_MODIFIER_RULES
+    assert ATTRIBUTE_RULE_PROFILES["player"] is ATTRIBUTE_MODIFIER_RULES
+    assert "hp_regen" not in ATTRIBUTE_RULE_PROFILES["monster:humanoid"]
+    assert "hp_regen" not in ATTRIBUTE_RULE_PROFILES["monster:beast"]
 
 
 @pytest.mark.unit
@@ -56,3 +62,17 @@ def test_character_raw_attributes_drive_combat_modifiers_through_waterfall() -> 
     assert calculated["armor"] == 0.0
     assert calculated["block"] == 0.0
     assert calculated["parry"] == 0.0
+
+
+@pytest.mark.unit
+def test_monster_attribute_profiles_do_not_derive_hp_regen_from_endurance() -> None:
+    raw = {
+        "attributes": {"endurance": {"base": 16, "source": {}, "temp": {}}},
+        "modifiers": {},
+        "rules": {"attribute_profile": "monster:beast"},
+    }
+
+    calculated, _ = StatsWaterfallCalculator.calculate_waterfall(raw)
+
+    assert calculated["hp"] == 64.0
+    assert calculated.get("hp_regen", 0.0) == 0.0

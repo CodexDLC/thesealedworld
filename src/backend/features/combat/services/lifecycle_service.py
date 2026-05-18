@@ -196,7 +196,12 @@ class CombatLifecycleService:
                 "tokens": {},
                 "feints": {"arsenal": known_feints, "hand": {}, "pinned": None},
             },
-            "raw": {"attributes": raw.get("attributes", {}), "modifiers": raw.get("modifiers", {})},
+            "raw": {
+                "attributes": raw.get("attributes", {}),
+                "modifiers": raw.get("modifiers", {}),
+                "pipeline": raw.get("pipeline", {}),
+                "rules": raw.get("rules", {}),
+            },
             "skills": copy.deepcopy(combat.get("skills") or {}),
             "loadout": loadout,
             "statuses": {"abilities": [], "effects": []},

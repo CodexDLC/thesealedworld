@@ -81,6 +81,7 @@ def test_builder_wraps_active_character_attributes_and_equipped_item_mechanics()
 
     assert raw["attributes"]["strength"] == {"base": 15.0, "source": {}, "temp": {}}
     assert raw["attributes"]["agility"] == {"base": 9.0, "source": {}, "temp": {}}
+    assert raw["rules"] == {"attribute_profile": "player"}
     assert raw["modifiers"]["main_hand_damage_base"]["base"] == 7.0
     assert raw["modifiers"]["main_hand_damage_spread"]["base"] == 0.2
     assert raw["modifiers"]["main_hand_accuracy"]["base"] == 0.7

@@ -128,6 +128,7 @@ class SessionContextBuilder:
                 exploration_payload,
                 payload_type=exploration_response.payload_type,
             )
+            exploration_local_map = await self.exploration_api.local_map(token, char_id=char_id)
             return self._context(
                 state=exploration_response.header.current_state,
                 char_id=char_id,
@@ -136,6 +137,7 @@ class SessionContextBuilder:
                 character_status=character_status,
                 exploration=exploration_payload,
                 encounter=encounter_payload,
+                exploration_local_map=exploration_local_map,
                 world_theme=getattr(exploration_payload, "world_theme", None)
                 or getattr(character_status, "world_theme", None),
                 status_seed=status_payload,
@@ -418,6 +420,7 @@ class SessionContextBuilder:
                     if navigation_payload is not None:
                         exploration_payload = navigation_payload
 
+        exploration_local_map = await self.exploration_api.local_map(token, char_id=char_id)
         return self._context(
             state=response.header.current_state,
             char_id=char_id,
@@ -426,6 +429,7 @@ class SessionContextBuilder:
             character_status=character_status,
             exploration=exploration_payload,
             encounter=encounter_payload,
+            exploration_local_map=exploration_local_map,
             world_theme=getattr(exploration_payload, "world_theme", None)
             or getattr(character_status, "world_theme", None),
             status_seed=status_payload,
@@ -538,6 +542,7 @@ class SessionContextBuilder:
         character_status: CharacterActorCoreDTO | None = None,
         scenario: Any | None = None,
         exploration: Any | None = None,
+        exploration_local_map: Any | None = None,
         encounter: Any | None = None,
         arena: Any | None = None,
         city_service: Any | None = None,
@@ -564,6 +569,7 @@ class SessionContextBuilder:
             "character_status": character_status,
             "scenario": scenario,
             "exploration": exploration,
+            "exploration_local_map": exploration_local_map,
             "encounter": encounter,
             "arena": arena,
             "city_service": city_service,

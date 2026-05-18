@@ -15,6 +15,7 @@
 {% set street = location_metadata.street if location_metadata.street is defined else location_metadata.street_name if location_metadata.street_name is defined else none %}
 {% set rifts_count = location_metadata.rifts_count if location_metadata.rifts_count is defined else location_metadata.rifts if location_metadata.rifts is defined and location_metadata.rifts is number else none %}
 {% set traces_count = location_metadata.traces_count if location_metadata.traces_count is defined else location_view.visual_objects|length if location_view and location_view.visual_objects is defined else none %}
+{% set local_map = exploration_local_map if exploration_local_map is defined and exploration_local_map else none %}
 
 <aside class="panel-dock panel-dock--framed panel-dock--scroll side-panel-drawer side-panel-drawer--right exploration-info-dock is-open"
        data-side-panel="info"
@@ -127,33 +128,102 @@
 
         <section class="info-widget-section exploration-location-card exploration-minimap-card" aria-label="Local map preview">
             <header class="info-widget-title">
-                <span>LOCAL MAP</span>
-                <strong>5x5</strong>
+                <span>LOCAL RADAR</span>
+                <strong>{{ local_map.size ~ 'x' ~ local_map.size if local_map and local_map.size is defined else '5x5' }}</strong>
             </header>
-            <div class="exploration-minimap" aria-label="Local navigation map placeholder">
-                <div class="exploration-minimap-grid" role="grid" aria-label="Current location centered with unknown surrounding cells">
-                    {% for row in range(5) %}
-                        {% for col in range(5) %}
-                            {% set is_current_cell = row == 2 and col == 2 %}
-                            {% set axis_hint = row == 2 or col == 2 %}
-                            <button class="exploration-minimap-cell {{ 'is-current' if is_current_cell else 'is-route-hint' if axis_hint else 'is-unknown' }}"
-                                    type="button"
-                                    aria-label="{{ 'Current location' if is_current_cell else 'Unknown map cell' }}"
-                                    data-map-tooltip="{{ location_view.title if is_current_cell and location_view.title is defined else 'NO_DATA' }}">
-                                {% if is_current_cell %}
-                                    <span class="exploration-minimap-current-dot" aria-hidden="true"></span>
-                                {% elif axis_hint %}
-                                    <span class="exploration-minimap-route-mark" aria-hidden="true"></span>
+            <div class="exploration-minimap" aria-label="Local navigation radar">
+                <div class="exploration-minimap-grid" role="grid" aria-label="Current location centered with nearby cells">
+                    {% if local_map and local_map.rows %}
+                        {% for map_row in local_map.rows %}
+                            {% for cell in map_row %}
+                                {% set tooltip_title = cell.tooltip.title if cell.tooltip is defined and cell.tooltip.title is defined else cell.title if cell.title else 'NO_DATA' %}
+                                {% set tooltip_status = 'SAFE' if cell.is_safe_zone else 'DANGER' if cell.is_known else 'UNKNOWN' %}
+                                {% set tooltip_threat = cell.threat_tier if cell.threat_tier is not none else '?' %}
+                                {% set tooltip_corpses = cell.corpse_count if cell.corpse_count is not none else 'NO_DATA' %}
+                                {% set tooltip_services = cell.service_labels|join(', ') if cell.service_labels is defined and cell.service_labels else 'NO ENTRANCES' %}
+                                {% set cell_tier = cell.threat_tier if cell.threat_tier is not none else 'unknown' %}
+                                {% if cell.is_safe_zone %}
+                                    {% set radar_zone_class = 'is-zone-safe' %}
+                                {% elif cell.is_known %}
+                                    {% set radar_zone_class = 'is-tier-' ~ cell_tier %}
                                 {% else %}
-                                    <span aria-hidden="true">?</span>
+                                    {% set radar_zone_class = 'is-zone-unknown' %}
                                 {% endif %}
-                            </button>
+                                <button class="exploration-minimap-cell {{ 'is-current' if cell.is_current else 'is-route-hint' if cell.is_known else 'is-unknown' }} {{ 'is-known' if cell.is_known else '' }} {{ 'is-safe' if cell.is_safe_zone else 'is-danger' if cell.is_known else '' }} {{ radar_zone_class }}"
+                                        type="button"
+                                        aria-label="{{ tooltip_title }} {{ cell.loc_id }}"
+                                        data-map-cell="{{ cell.loc_id }}"
+                                        data-zone-id="{{ cell.zone_id if cell.zone_id is defined else '' }}"
+                                        data-terrain="{{ cell.terrain if cell.terrain is defined else '' }}"
+                                        data-map-tooltip="{{ tooltip_title }} · X {{ cell.x }} / Y {{ cell.y }} · {{ tooltip_status }} · T{{ tooltip_threat }} · {{ tooltip_services }} · PPL {{ cell.players_count }} · BTL {{ cell.battles_count }} · CRP {{ tooltip_corpses }}"
+                                        data-tippy-content="{{ tooltip_title }} // X {{ cell.x }} / Y {{ cell.y }} // {{ tooltip_status }} · T{{ tooltip_threat }} // Entrances: {{ tooltip_services }} // People {{ cell.players_count }} · Battles {{ cell.battles_count }} · Corpses {{ tooltip_corpses }}"
+                                        data-tippy-theme="game-hint">
+                                    {% if cell.is_current %}
+                                        <span class="exploration-minimap-current-dot" aria-hidden="true"></span>
+                                    {% elif cell.is_known %}
+                                        <span class="exploration-minimap-status-code {{ 'is-safe' if cell.is_safe_zone else 'is-danger' }}" aria-hidden="true">
+                                            {{ 'S' if cell.is_safe_zone else 'D' }}
+                                        </span>
+                                    {% else %}
+                                        <span aria-hidden="true">?</span>
+                                    {% endif %}
+                                    {% if cell.is_current and cell.is_known %}
+                                        <span class="exploration-minimap-status-code {{ 'is-safe' if cell.is_safe_zone else 'is-danger' }}" aria-hidden="true">
+                                            {{ 'S' if cell.is_safe_zone else 'D' }}
+                                        </span>
+                                    {% endif %}
+                                    {% if cell.render_edges is defined %}
+                                        {% for direction, edge in cell.render_edges.items() %}
+                                            {% if edge.state in ['blocked', 'locked'] %}
+                                                <span class="exploration-minimap-wall exploration-minimap-wall--{{ direction }} {{ 'is-locked' if edge.state == 'locked' else '' }}" aria-hidden="true"></span>
+                                            {% endif %}
+                                        {% endfor %}
+                                    {% endif %}
+                                    {% if cell.is_known %}
+                                        <span class="exploration-minimap-markers" aria-hidden="true">
+                                            {% if cell.players_count %}
+                                                <span class="exploration-minimap-marker is-players"></span>
+                                            {% endif %}
+                                            {% if cell.battles_count %}
+                                                <span class="exploration-minimap-marker is-battles"></span>
+                                            {% endif %}
+                                            {% if cell.corpse_count %}
+                                                <span class="exploration-minimap-marker is-corpses"></span>
+                                            {% endif %}
+                                            {% if cell.service_count %}
+                                                <span class="exploration-minimap-marker is-services"></span>
+                                            {% endif %}
+                                        </span>
+                                    {% endif %}
+                                </button>
+                            {% endfor %}
                         {% endfor %}
-                    {% endfor %}
+                    {% else %}
+                        {% for row in range(5) %}
+                            {% for col in range(5) %}
+                                {% set is_current_cell = row == 2 and col == 2 %}
+                                {% set axis_hint = row == 2 or col == 2 %}
+                                <button class="exploration-minimap-cell {{ 'is-current' if is_current_cell else 'is-route-hint' if axis_hint else 'is-unknown' }}"
+                                        type="button"
+                                        aria-label="{{ 'Current location' if is_current_cell else 'Unknown map cell' }}"
+                                        data-map-tooltip="{{ location_view.title if is_current_cell and location_view.title is defined else 'NO_DATA' }}"
+                                        data-tippy-content="{{ location_view.title if is_current_cell and location_view.title is defined else 'NO_DATA' }}"
+                                        data-tippy-theme="game-hint">
+                                    {% if is_current_cell %}
+                                        <span class="exploration-minimap-current-dot" aria-hidden="true"></span>
+                                    {% elif axis_hint %}
+                                        <span class="exploration-minimap-route-mark" aria-hidden="true"></span>
+                                    {% else %}
+                                        <span aria-hidden="true">?</span>
+                                    {% endif %}
+                                </button>
+                            {% endfor %}
+                        {% endfor %}
+                    {% endif %}
                 </div>
                 <div class="exploration-minimap-caption">
                     <span>{{ location_view.title if location_view.title is defined else 'CURRENT LOCATION' }}</span>
-                    <strong>NO MAP DATA</strong>
+                    <strong>{{ 'RADAR DATA' if local_map and local_map.rows else 'NO MAP DATA' }}</strong>
                 </div>
             </div>
         </section>

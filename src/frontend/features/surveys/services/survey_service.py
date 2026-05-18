@@ -18,7 +18,11 @@ class SurveyService:
         self._repo = repo
 
     async def create_survey(
-        self, *, title: str, description: str | None, questions: list[dict],
+        self,
+        *,
+        title: str,
+        description: str | None,
+        questions: list[dict],
     ) -> Survey:
         survey = Survey(title=title, description=description)
         for i, q in enumerate(questions):

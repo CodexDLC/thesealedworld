@@ -4,9 +4,17 @@
 {% set gear_icon_keys = [
     'amulet', 'arms', 'belt', 'cloak', 'consumable', 'default', 'earrings', 'feetwear', 'garment',
     'head', 'legs', 'legwear', 'quest', 'resource', 'ring', 'shield', 'torso', 'weapon',
-    'weapon_axe', 'weapon_bow', 'weapon_dagger', 'weapon_hammer', 'weapon_mace', 'weapon_polearm',
-    'weapon_sword', 'weapon_two_hand'
+    'legs_heavy', 'legs_light', 'legs_medium', 'weapon_axe', 'weapon_bow', 'weapon_dagger',
+    'weapon_halberd', 'weapon_hammer', 'weapon_mace', 'weapon_pike', 'weapon_polearm',
+    'weapon_spear', 'weapon_staff', 'weapon_sword', 'weapon_trident', 'weapon_two_hand'
 ] %}
+{% set base_icon_map = {
+    'scout_leggings': 'legs_light',
+    'breeches': 'legs_medium',
+    'greaves': 'legs_heavy',
+    'fur_pants': 'legwear',
+    'travel_boots': 'feetwear'
+} %}
 {% set slot_icon_map = {
     'head_armor': 'head',
     'outer_garment': 'cloak',
@@ -47,11 +55,11 @@
     'mace': 'weapon_mace',
     'flail': 'weapon_mace',
     'warhammer': 'weapon_hammer',
-    'spear': 'weapon_polearm',
-    'pike': 'weapon_polearm',
-    'halberd': 'weapon_polearm',
-    'quarterstaff': 'weapon_polearm',
-    'trident': 'weapon_polearm',
+    'spear': 'weapon_spear',
+    'pike': 'weapon_pike',
+    'halberd': 'weapon_halberd',
+    'quarterstaff': 'weapon_staff',
+    'trident': 'weapon_trident',
     'shortbow': 'weapon_bow',
     'sling': 'weapon_bow'
 } %}
@@ -185,13 +193,13 @@
             {% set primary_name = zone.primary_slot.item_name if zone.primary_slot.item_name is defined else (primary_item.name if primary_item else 'EMPTY') %}
             {% set primary_tier = zone.primary_slot.details.rarity_tier if zone.primary_slot.details else (primary_item.rarity_tier if primary_item and primary_item.rarity_tier is defined else 0) %}
             {% set primary_rarity = zone.primary_slot.details.rarity_label if zone.primary_slot.details else (primary_item.rarity if primary_item else 'Без грейда') %}
-            {% set primary_icon = slot_icon_map.get(zone.primary_slot.slot_id, type_icon_map.get(primary_item.item_type if primary_item else '', 'default')) %}
+            {% set primary_icon = base_icon_map.get(primary_item.base_id if primary_item else '', slot_icon_map.get(zone.primary_slot.slot_id, type_icon_map.get(primary_item.item_type if primary_item else '', 'default'))) %}
             {% set secondary_item = zone.secondary_slot.item if zone.secondary_slot and zone.secondary_slot.item is defined else none %}
             {% set secondary_empty = zone.secondary_slot.is_empty if zone.secondary_slot and zone.secondary_slot.is_empty is defined else not secondary_item %}
             {% set secondary_name = zone.secondary_slot.item_name if zone.secondary_slot and zone.secondary_slot.item_name is defined else (secondary_item.name if secondary_item else 'EMPTY') %}
             {% set secondary_tier = zone.secondary_slot.details.rarity_tier if zone.secondary_slot and zone.secondary_slot.details else (secondary_item.rarity_tier if secondary_item and secondary_item.rarity_tier is defined else 0) %}
             {% set secondary_rarity = zone.secondary_slot.details.rarity_label if zone.secondary_slot and zone.secondary_slot.details else (secondary_item.rarity if secondary_item else 'Без грейда') %}
-            {% set secondary_icon = slot_icon_map.get(zone.secondary_slot.slot_id if zone.secondary_slot else '', type_icon_map.get(secondary_item.item_type if secondary_item else '', 'default')) %}
+            {% set secondary_icon = base_icon_map.get(secondary_item.base_id if secondary_item else '', slot_icon_map.get(zone.secondary_slot.slot_id if zone.secondary_slot else '', type_icon_map.get(secondary_item.item_type if secondary_item else '', 'default'))) %}
             {% set zone_has_item = (not primary_empty) or (not secondary_empty) %}
             {% set zone_action_item = primary_item if primary_item else secondary_item %}
             {% set zone_action_slot = zone.primary_slot.slot_id if primary_item else (zone.secondary_slot.slot_id if zone.secondary_slot else zone.primary_slot.slot_id) %}
@@ -482,6 +490,7 @@
                 {% set primary_action = enabled_actions[0] if enabled_actions else none %}
                 {% set row_icon = row.icon if row.icon in gear_icon_keys else type_icon_map.get(row.item_type, 'default') %}
                 {% set row_tier = row.rarity_tier if row.rarity_tier is defined else 0 %}
+                {% set row_valid_slots = row.valid_slots if row.valid_slots is defined else [] %}
                 <button type="button"
                         class="inventory-card {{ row.card_class if row.card_class is defined else '' }} {{ 'is-equipped' if row.is_equipped else '' }} inventory-grade-r{{ row_tier }}"
                         aria-label="{{ row.name }}"
@@ -491,17 +500,21 @@
                         hx-post="/game/inventory/action"
                         hx-target="#{{ inventory_target_id }}"
                         hx-swap="innerHTML"
-                        hx-vals='{{ {
-                            "char_id": inventory.char_id,
-                            "action": primary_action.action,
-                            "item_id": row.item_id if row.item_id is defined else row.row_id,
-                            "slot_id": primary_action.slot_id
-                        } | tojson }}'
+                        x-bind:hx-vals='JSON.stringify({
+                            "char_id": {{ inventory.char_id | tojson }},
+                            "action": {{ primary_action.action | tojson }},
+                            "item_id": {{ (row.item_id if row.item_id is defined else row.row_id) | tojson }},
+                            "slot_id": (
+                                {{ primary_action.action | tojson }} === "equip"
+                                && selectedSlot
+                                && {{ row_valid_slots | tojson }}.includes(selectedSlot)
+                            ) ? selectedSlot : {{ primary_action.slot_id | tojson }}
+                        })'
                         {% elif not inventory.can_act and inventory.forbidden_reason %}
                         @click="inventoryNotice = {{ inventory.forbidden_reason | tojson | forceescape }}"
                         {% endif %}
                         style="{{ row.style if row.style is defined and row.style else '--item-w: ' ~ (row.grid_w if row.grid_w is defined else 2) ~ '; --item-h: ' ~ (row.grid_h if row.grid_h is defined else 1) ~ ';' }} --inventory-item-icon-url: url('/static/images/ui/inventory-gear/{{ row_icon }}.svg');"
-                        x-show="(!selectedSlot || '{{ row.equip_target or '' }}' === selectedSlot) && (
+                        x-show="(!selectedSlot || '{{ row.equip_target or '' }}' === selectedSlot || {{ row_valid_slots | tojson }}.includes(selectedSlot)) && (
                             (activeInventoryTab === 'items' && !['resource', 'currency', 'material', 'quest'].includes('{{ row.item_type }}'))
                             || (activeInventoryTab === 'resources' && ['resource', 'currency', 'material'].includes('{{ row.item_type }}'))
                             || (activeInventoryTab === 'quest' && '{{ row.item_type }}' === 'quest')

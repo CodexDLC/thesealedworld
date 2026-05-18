@@ -8,6 +8,7 @@ from src.frontend.game_features.combat.view_models.screen import (
     build_combat_screen_vm,
 )
 from src.shared.schemas.combat import (
+    CombatActionOptionDTO,
     CombatActorCardDTO,
     CombatActorVitalsDTO,
     CombatDashboardDTO,
@@ -723,6 +724,8 @@ def test_combat_result_template_renders_without_result_screen_vm():
     assert "LAST TURN" not in html
     assert "OUTCOME" not in html
     assert 'hx-post="/game/combat/result/continue"' in html
+    assert 'hx-target="#game-session-root"' in html
+    assert 'hx-swap="outerHTML"' in html
     assert 'hx-vals=\'{"char_id": 5}\'' in html
     assert 'data-target-state="exploration"' in html
 
@@ -918,6 +921,29 @@ def test_combat_vm_marks_pinned_feints_and_costs():
     assert screen.feint_options[0].cost_items[0].amount == 2
     assert screen.feint_options[0].cost_items[0].icon_url.endswith("/token-hit.svg")
     assert screen.feint_options[0].cost_items[0].catalog_key == "hit"
+
+
+def test_combat_vm_disables_feint_when_concentration_is_too_low():
+    dashboard = CombatDashboardDTO(
+        session_id="combat-1",
+        turn_number=3,
+        status="active",
+        hero=CombatActorCardDTO(
+            actor_id="1",
+            name="Hero",
+            team="team_1",
+            vitals=CombatActorVitalsDTO(stamina_current=9, stamina_max=100),
+            feints=[CombatFeintOptionDTO(feint_id="true_strike", cost={"hit": 2})],
+        ),
+        available_actions=[
+            CombatActionOptionDTO(action="exchange", label="Атака", enabled=True, target_id="2"),
+        ],
+    )
+
+    screen = build_combat_screen_vm(dashboard)
+
+    assert screen.feint_options[0].enabled is False
+    assert screen.feint_options[0].reason == "CONC 9/10"
 
 
 def test_combat_vm_preserves_log_catalog_metadata():

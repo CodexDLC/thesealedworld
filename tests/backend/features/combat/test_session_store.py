@@ -362,6 +362,8 @@ async def test_load_full_context_data_preserves_actor_feints_from_meta():
             "id": "1",
             "hp": 10,
             "max_hp": 10,
+            "stamina": 37,
+            "max_stamina": 80,
             "tokens": {"hit": 2},
             "feints": {"arsenal": ["true_strike"], "hand": {"true_strike": {"hit": 2}}, "pinned": "true_strike"},
         },
@@ -373,6 +375,8 @@ async def test_load_full_context_data_preserves_actor_feints_from_meta():
 
     data = await store.load_full_context_data("c1", ["1"])
 
+    assert data["1"]["state"]["stamina"] == 37
+    assert data["1"]["state"]["max_stamina"] == 80
     assert data["1"]["state"]["feints"] == {
         "arsenal": ["true_strike"],
         "hand": {"true_strike": {"hit": 2}},

@@ -1,7 +1,11 @@
 from __future__ import annotations
 
-from fastapi_cabinet.contracts.widgets import TableColumnMap, TableWidgetMap
-from fastapi_cabinet.messaging.types import InboxListState, MailingListState, RegistrationListState
+from typing import TYPE_CHECKING
+
+from fastapi_cabinet.contracts.widgets import TableActionMap, TableColumnMap, TableWidgetMap
+
+if TYPE_CHECKING:
+    from fastapi_cabinet.messaging.types import InboxListState, MailingListState, RegistrationListState
 
 
 class MessagingCabinetPresenter:
@@ -59,12 +63,19 @@ class MessagingCabinetPresenter:
             ],
             rows=[
                 {
+                    "id": row.id,
                     "email": row.email,
                     "username": row.username,
                     "status": row.status,
                     "submitted_at": row.submitted_at,
                 }
                 for row in state.rows
+            ],
+            action_url="/admin/registrations/action",
+            id_key="id",
+            actions=[
+                TableActionMap(action="approve", label="Одобрить", css_class="fc-action-btn--approve"),
+                TableActionMap(action="deny", label="Отклонить", css_class="fc-action-btn--deny"),
             ],
         )
 

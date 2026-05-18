@@ -92,8 +92,8 @@
                         <button type="button"
                            class="combat-primary-action"
                            hx-post="/game/combat/result/continue"
-                           hx-target="#main-content .shell-constrained"
-                           hx-swap="innerHTML"
+                           hx-target="#game-session-root"
+                           hx-swap="outerHTML"
                            hx-disabled-elt="this"
                            hx-vals='{"char_id": {{ char_id }}}'
                            data-target-state="{{ result_primary_state }}">
@@ -150,7 +150,7 @@
                                         <strong>{{ field_target.vitals.energy_current }}/{{ field_target.vitals.energy_max }}</strong>
                                     </div>
                                     <div class="combat-resource combat-resource--sta">
-                                        <span>STA</span>
+                                        <span>CONC</span>
                                         <i style="--value: {{ field_target.vitals.stamina_percent }}%"></i>
                                         <strong>{{ field_target.vitals.stamina_current }}/{{ field_target.vitals.stamina_max }}</strong>
                                     </div>
@@ -187,7 +187,7 @@
                                     <strong>{{ field_hero.vitals.energy_current }}/{{ field_hero.vitals.energy_max }}</strong>
                                 </div>
                                 <div class="combat-resource combat-resource--sta">
-                                    <span>STA</span>
+                                    <span>CONC</span>
                                     <i style="--value: {{ field_hero.vitals.stamina_percent }}%"></i>
                                     <strong>{{ field_hero.vitals.stamina_current }}/{{ field_hero.vitals.stamina_max }}</strong>
                                 </div>

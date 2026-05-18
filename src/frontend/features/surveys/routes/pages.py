@@ -33,12 +33,14 @@ async def survey_respond(
     parsed_questions = []
     for q in questions:
         choices = json.loads(q.choices_json) if q.choices_json else None
-        parsed_questions.append({
-            "id": q.id,
-            "text": q.text,
-            "type": q.question_type,
-            "choices": choices,
-        })
+        parsed_questions.append(
+            {
+                "id": q.id,
+                "text": q.text,
+                "type": q.question_type,
+                "choices": choices,
+            }
+        )
 
     return await ui.render(
         "surveys/respond.html",
@@ -86,11 +88,13 @@ async def account_surveys(
 
     items = []
     for s in sends:
-        items.append({
-            "title": s.survey.title,
-            "sent_at": s.sent_at.strftime("%d.%m.%Y"),
-            "completed": s.response is not None,
-            "token": s.token,
-        })
+        items.append(
+            {
+                "title": s.survey.title,
+                "sent_at": s.sent_at.strftime("%d.%m.%Y"),
+                "completed": s.response is not None,
+                "token": s.token,
+            }
+        )
 
     return await ui.render("account/surveys/list.html", context={"surveys": items})

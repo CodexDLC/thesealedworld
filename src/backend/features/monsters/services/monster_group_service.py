@@ -95,7 +95,8 @@ class MonsterGroupService:
             sources=sources,
             ttl=ttl,
         )
-        if len(actor_commitments) != len(sources):
+        expected_source_refs = {f"monster:{source['source']['monster_id']}" for source in sources}
+        if set(actor_commitments) != expected_source_refs:
             raise RuntimeError("Failed to save all monster actor commitments")
 
         previews = [self._preview(member) for member in assembly.members]

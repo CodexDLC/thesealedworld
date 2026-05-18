@@ -1,11 +1,16 @@
 # tests/backend/features/exploration/test_navigation.py
+from pathlib import Path
+
 import pytest
 
+from src.backend.features.exploration.gateway.exploration_gateway import ExplorationGateway
 from src.backend.features.exploration.runtime.city_map import build_city_map_payload
 from src.backend.features.exploration.runtime.navigation import NavigationEngine
 from src.backend.features.exploration.services.navigation_service import ExplorationNavigationService
 from src.backend.features.world.resources.static.d4_city_map import build_d4_city_map_node_metadata
 from src.shared.schemas.exploration import MoveRequest, NavigationActionsDTO, NavigationGridDTO
+
+PROJECT_ROOT = Path(__file__).resolve().parents[4]
 
 
 def test_navigation_grid_generation():
@@ -253,6 +258,7 @@ async def test_navigation_builds_city_map_district_payload_from_runtime_flags() 
 
     result = await service.build_current_navigation(char_id=7)
 
+    assert result.background_url is None
     assert result.city_map["mode"] == "viewport_7x7"
     assert result.city_map["size"] == 7
     assert result.city_map["district"]["key"] == "D4_CITY_1_1"
@@ -281,6 +287,28 @@ async def test_navigation_builds_city_map_district_payload_from_runtime_flags() 
     assert result.city_map["rows"][5][1]["service_markers"][0]["label"] == "Ремесленный двор"
     assert result.city_map["rows"][5][1]["service_markers"][0]["corner"] == "top-right"
     assert result.city_map["rows"][6][6]["tile_url"].endswith("/d4_11_11.webp")
+
+
+@pytest.mark.asyncio
+async def test_exploration_screen_context_keeps_city_map_and_drops_legacy_d4_background() -> None:
+    service = ExplorationNavigationService(FakeLocalMapIntegrator())  # type: ignore[arg-type]
+
+    navigation = await service.build_current_navigation(char_id=7)
+    context = ExplorationGateway._screen_context(navigation)
+
+    assert context.background_url is None
+    assert context.city_map == navigation.city_map
+    assert context.city_map["rows"][3][3]["is_current"] is True
+
+
+def test_navigation_service_has_no_generated_terrain_background_fallback() -> None:
+    source = (PROJECT_ROOT / "src/backend/features/exploration/services/navigation_service.py").read_text(
+        encoding="utf-8"
+    )
+
+    assert "terrain_fallback" not in source
+    assert "biome_fallback" not in source
+    assert "city_ruins_collapsed_district_01.webp" not in source
 
 
 def test_city_map_viewport_clamps_to_visual_contour_near_city_edge() -> None:

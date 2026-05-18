@@ -293,7 +293,7 @@ def test_builder_maps_empty_hands_to_unarmed_layout() -> None:
     )
 
     assert actor_input["loadout"]["layout"]["main_hand"] == "skill_unarmed"
-    assert actor_input["raw"]["modifiers"]["main_hand_accuracy"]["base"] == 0.7
+    assert actor_input["raw"]["modifiers"]["main_hand_accuracy"]["base"] == 0.0
     assert actor_input["raw"]["modifiers"]["main_hand_damage_base"]["base"] == 12.0
     assert "measured_strike" in actor_input["loadout"]["known_feints"]
     assert "close_grapple" not in actor_input["loadout"]["known_feints"]

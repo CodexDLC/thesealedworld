@@ -1,12 +1,13 @@
 from __future__ import annotations
 
-import uuid
 from typing import TYPE_CHECKING
 
 from src.frontend.features.account.view_models.profile_vm import AccountProfileVM
 from src.shared.exceptions import BusinessLogicException
 
 if TYPE_CHECKING:
+    import uuid
+
     from src.frontend.features.auth.dto.user import UserResponse
     from src.frontend.features.auth.repositories.user_repository import UserRepository
 

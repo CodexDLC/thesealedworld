@@ -61,13 +61,32 @@ def test_session_template_keeps_alpine_root_above_sidebars_and_inner_oob_targets
     assert session.index('id="game-left"') < session.index('id="game-right"')
     assert 'id="game-left-content"' in session
     assert 'id="game-right-content"' in session
+    assert 'id="game-right-context-content"' in session
+    assert session.index('id="game-right-context-content"') < session.index("rightPanelView === 'inventory'")
     assert 'id="game-left-content" hx-swap-oob="true"' in scenario_viewport
-    assert 'id="game-right-content" hx-swap-oob="true"' in scenario_viewport
+    assert 'id="game-right-context-content" hx-swap-oob="innerHTML"' in scenario_viewport
+    assert 'id="game-right-content" hx-swap-oob' not in scenario_viewport
     assert "domain == 'SCENARIO' and session_ui" not in session
     assert "session_ui and session_ui.left_open" not in scenario_viewport
     assert "session_ui and session_ui.right_open" not in scenario_viewport
     assert 'id="game-left" class="col-left" :class="{ \'panel-open\': leftOpen }" hx-swap-oob' not in scenario_viewport
     assert 'id="game-right" class="col-right" :class="{ \'panel-open\': rightOpen }" hx-swap-oob' not in scenario_viewport
+
+
+def test_domain_viewports_do_not_replace_right_panel_shell():
+    viewport_templates = [
+        ROOT.joinpath("src/frontend/templates/game/domains/arena/viewport/main.html"),
+        ROOT.joinpath("src/frontend/templates/game/domains/exploration/viewport/main.html"),
+        ROOT.joinpath("src/frontend/templates/game/domains/scenario/viewport/main.html"),
+    ]
+
+    offenders: list[str] = []
+    for path in viewport_templates:
+        text = path.read_text(encoding="utf-8")
+        if 'id="game-right-content" hx-swap-oob' in text:
+            offenders.append(str(path.relative_to(ROOT)))
+
+    assert offenders == []
 
 
 def test_legacy_scenario_menu_fallback_keeps_panel_controls():

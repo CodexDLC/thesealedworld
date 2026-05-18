@@ -137,13 +137,17 @@ class MechanicsService:
         if ctx.flags.mechanics.pay_cost:
             hp_changes: list[tuple[str, str]] = []
             en_changes: list[tuple[str, str]] = []
+            stamina_changes: list[tuple[str, str]] = []
 
-            # Пример: {"hp": {"cost": "-10"}, "en": {"cost": "-20"}}
+            # Пример: {"hp": {"cost": "-10"}, "en": {"cost": "-20"}, "stamina": {"cost": "-10"}}
             if "hp" in result.resource_changes:
                 hp_changes.extend(result.resource_changes["hp"].items())
 
             if "en" in result.resource_changes:
                 en_changes.extend(result.resource_changes["en"].items())
+
+            if "stamina" in result.resource_changes:
+                stamina_changes.extend(result.resource_changes["stamina"].items())
 
             # Apply Costs
             if hp_changes:
@@ -164,6 +168,16 @@ class MechanicsService:
                     owner="source",
                     resource="en",
                     reason=self._resource_change_reason(en_changes),
+                    applied=applied,
+                )
+            if stamina_changes:
+                applied = self._apply_resource_delta(source, "stamina", [val for _key, val in stamina_changes])
+                self._record_resource_fact(
+                    result,
+                    actor=source,
+                    owner="source",
+                    resource="stamina",
+                    reason=self._resource_change_reason(stamina_changes),
                     applied=applied,
                 )
 
@@ -301,6 +315,9 @@ class MechanicsService:
         elif resource == "en":
             new_val = actor.meta.en + delta_int
             actor.meta.en = max(0, min(new_val, actor.meta.max_en))
+        elif resource == "stamina":
+            new_val = actor.meta.stamina + delta_int
+            actor.meta.stamina = max(0, min(new_val, actor.meta.max_stamina))
         else:
             return None
 
@@ -315,6 +332,8 @@ class MechanicsService:
             return actor.meta.hp, actor.meta.max_hp
         if resource == "en":
             return actor.meta.en, actor.meta.max_en
+        if resource == "stamina":
+            return actor.meta.stamina, actor.meta.max_stamina
         return None, None
 
     @staticmethod

@@ -16,11 +16,18 @@ During active migration, new code should start with clean unit tests. Integratio
 
 ## Coverage Targets
 
-Target project coverage is 90% or higher.
+Target project coverage is 90% or higher, with an interim pre-alpha threshold set appropriately in `pyproject.toml` (e.g., `fail_under = 74`).
 
-Core modules are treated as critical infrastructure and should reach 100% coverage where practical. Provider and dependency wiring code should target 90% or higher.
+### AI-Agent Development Constraints (The "AI Squad" Workflow)
 
-Coverage configuration should live in `pyproject.toml` under `[tool.coverage.report]` using `fail_under = 90`. Do not put `--cov-fail-under` in pytest `addopts`, because that makes selective test runs unnecessarily painful.
+When developing with AI agents, strict rules apply to prevent technical debt:
+
+1. **Patch Coverage Strictness:** Any *new* code written by an agent must have 100% patch coverage. The agent must write tests for its own logic before declaring the task complete. Do not break existing tests, and do not lower the global coverage.
+2. **The Boy Scout Rule (Coverage Expansion):** If an agent modifies an existing feature or module (e.g., an item service) that lacks tests, the agent MUST write tests to cover the surrounding uncovered logic in the module they just touched. This organic expansion is how legacy debt is paid down.
+3. **Tech Debt Quotas (Refactoring Sessions):** For heavy legacy modules (e.g., `expedition/service.py`, `engine/resolver.py`), do not write "dummy" tests just for lines. Instead, allocate dedicated AI sessions purely to refactor and test specific edge cases or behaviors within those files.
+4. **Critical Boundaries:** Modules touching `auth/session`, `migrations`, `config parsing`, and critical state transitions must aim for strict 90%+ local coverage.
+
+Coverage configuration lives in `pyproject.toml` under `[tool.coverage.report]`. Do not put `--cov-fail-under` in pytest `addopts`.
 
 Recommended pytest addopts shape:
 
@@ -99,7 +106,13 @@ Use layered fixtures:
 - `tests/shared/conftest.py`: shared schema and enum helpers.
 - domain-local `conftest.py`: only when the domain needs reusable setup.
 
-Patch objects where they are used, not where they are declared. Prefer `unittest.mock.AsyncMock` and `MagicMock` for isolated unit tests.
+### Test Doubles over Heavy Mocks
+
+For AI-assisted development, **In-Memory Doubles (Fakes)** are vastly superior to heavy `MagicMock`/`patch` configurations.
+
+- Avoid relying on complex `unittest.mock` assertions for infrastructure like Redis or the Database.
+- Instead, create or reuse simple `InMemoryRepository` or `FakeRedisService` classes that store data in Python `dict`s and implement the same Protocol.
+- This ensures tests execute quickly, verify actual logical transitions, and prevent agents from writing brittle, configuration-bound tests. Patch objects where they are used only if a Fake is unavailable.
 
 ## Current Development Rule
 

@@ -6,8 +6,9 @@ Structure:
 - game_features: Core game logic (lobby, menu, scenario interaction)
 """
 
+import asyncio
 import re
-from contextlib import asynccontextmanager
+from contextlib import asynccontextmanager, suppress
 from datetime import datetime
 from typing import Any, cast
 
@@ -26,9 +27,10 @@ from src.frontend.core.database.session import close_db_engine, create_db_tables
 from src.frontend.core.middleware import AuthUserMiddleware, SiteAnalyticsMiddleware
 from src.frontend.core.renderer import get_ui_renderer
 from src.frontend.core.routing import include_frontend_routers
-from src.frontend.features.auth.token_state import ACCESS_COOKIE_NAME, REFRESH_COOKIE_NAME
 from src.frontend.features.account.middleware.account_auth import AccountAuthMiddleware
+from src.frontend.features.auth.token_state import ACCESS_COOKIE_NAME, REFRESH_COOKIE_NAME
 from src.frontend.features.cabinet.middleware.admin_auth import AdminAuthMiddleware
+from src.frontend.features.player_analytics.tasks.rollup_task import player_presence_rollup_loop
 from src.frontend.game_features.game_menu import GameMenuMiddleware
 from src.frontend.game_features.session.cookies import clear_active_character_cookie
 from src.frontend.game_features.session.middleware import GameTokenRefreshMiddleware
@@ -96,6 +98,7 @@ async def lifespan(app: FastAPI):
 
         app.state.backend_http_client = httpx.AsyncClient(timeout=10.0)
         app.state.site_analytics = {}
+        app.state.player_presence = {}
     except Exception:
         logger.opt(exception=True).critical("Frontend startup failed")
         raise
@@ -103,9 +106,15 @@ async def lifespan(app: FastAPI):
         "Frontend startup finished: templates_dir={} static_dir={}", settings.templates_dir, settings.static_dir
     )
 
+    rollup_task = asyncio.create_task(player_presence_rollup_loop(app))
+
     yield
 
     # Shutdown logic
+    rollup_task.cancel()
+    with suppress(asyncio.CancelledError):
+        await rollup_task
+
     try:
         await app.state.backend_http_client.aclose()
         await close_db_engine()

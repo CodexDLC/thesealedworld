@@ -230,6 +230,10 @@ body.fc-shell {
     grid-column: 1 / -1;
 }
 
+.fc-widget--wide {
+    grid-column: span 2;
+}
+
 .fc-widget h2 {
     color: #6b7a92;
     font-size: 11px;
@@ -298,6 +302,46 @@ body.fc-shell {
 .fc-table--linked tbody .fc-table-row--link:hover td {
     background: #eff6ff;
     color: #2563eb;
+}
+
+/* ── Table Action Buttons ── */
+.fc-table-actions {
+    white-space: nowrap;
+    text-align: right;
+}
+
+.fc-action-btn {
+    display: inline-block;
+    padding: 4px 12px;
+    border: 1px solid #d1d5db;
+    border-radius: 4px;
+    background: #fff;
+    font-size: 12px;
+    cursor: pointer;
+    margin-left: 4px;
+    transition: background 0.15s, border-color 0.15s;
+}
+
+.fc-action-btn:hover {
+    background: #f3f4f6;
+}
+
+.fc-action-btn--approve {
+    color: #15803d;
+    border-color: #86efac;
+}
+
+.fc-action-btn--approve:hover {
+    background: #f0fdf4;
+}
+
+.fc-action-btn--deny {
+    color: #b91c1c;
+    border-color: #fca5a5;
+}
+
+.fc-action-btn--deny:hover {
+    background: #fef2f2;
 }
 
 /* ── Editable Config Widget ── */

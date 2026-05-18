@@ -10,6 +10,7 @@ from pydantic import ValidationError
 
 from src.backend.features.exploration.dto.config import ExplorationConfig
 from src.backend.features.exploration.resources.service_registry import get_service_entry
+from src.backend.features.exploration.runtime.city_map import build_city_map_payload
 from src.backend.features.exploration.runtime.encounter.bypass import (
     bypass_chance_percent,
     calculate_bypass_chance,
@@ -190,14 +191,14 @@ class ExplorationService:
             skills = await self._integrator.get_actor_skills(char_id)
             scouting = self._encounter_skill_value(skills, trigger="search")
 
-            encounter = await self._encounter_engine.try_generate_encounter(
+            search_encounter = await self._encounter_engine.try_generate_encounter(
                 char_id=char_id, location_data=loc_data, scouting_skill=scouting, trigger="search", loc_id=loc_id
             )
-            if encounter:
-                encounter = await self._attach_navigation_snapshot(char_id, loc_id, loc_data, encounter)
-                encounter = await self._attach_bypass_chance(char_id, encounter)
-                await self._persist_encounter(char_id, encounter)
-                return encounter
+            if search_encounter:
+                search_encounter = await self._attach_navigation_snapshot(char_id, loc_id, loc_data, search_encounter)
+                search_encounter = await self._attach_bypass_chance(char_id, search_encounter)
+                await self._persist_encounter(char_id, search_encounter)
+                return search_encounter
 
             # Empty search -> Alert HUD
             dto = await self._build_navigation_dto(char_id, loc_id, loc_data)
@@ -359,10 +360,9 @@ class ExplorationService:
             ),
             buildable_kind=loc_data.get("buildable_kind"),
             landmark_profile=loc_data.get("landmark_profile") or world_zone.get("landmark_profile"),
-            movement_profile=loc_data.get("movement_profile")
-            if isinstance(loc_data.get("movement_profile"), dict)
-            else {},
+            movement_profile=_safe_dict(loc_data.get("movement_profile")),
             world_zone=world_zone,
+            city_map=build_city_map_payload(loc_id, loc_data),
         )
         if dto.world_theme is not None and hasattr(dto.world_theme, "model_dump"):
             await self._integrator.set_world_theme(char_id, dto.world_theme.model_dump(mode="json"))
@@ -477,6 +477,10 @@ class ExplorationService:
             return
         await self._encounter_integration.clear_encounter_session(encounter_id)
         await self._encounter_integration.detach_encounter_session(char_id)
+
+
+def _safe_dict(value: object) -> dict[str, Any]:
+    return dict(value) if isinstance(value, dict) else {}
 
 
 @dataclass(frozen=True, slots=True)

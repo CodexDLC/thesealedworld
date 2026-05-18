@@ -212,6 +212,8 @@ def test_exploration_right_sidebar_renders_runtime_local_radar():
     assert 'data-map-cell="52_52"' in html
     assert "is-zone-safe" in html
     assert "is-tier-0" not in html
+    assert "exploration-minimap-status-code is-safe" in html
+    assert ">S<" in html.replace("\n", "").replace(" ", "")
     assert 'data-zone-id="D4_1_1"' in html
     assert 'data-terrain="ancient_pavement"' in html
     assert 'data-tippy-content="Площадь Исхода // X 52 / Y 52 // SAFE · T0 // Entrances: В постоялый двор // People 2 · Battles 1 · Corpses NO_DATA"' in html
@@ -285,6 +287,9 @@ def test_exploration_uses_shared_base_css_contracts():
     assert ".exploration-minimap-cell.is-zone-safe::before" in right_sidebar_css
     assert ".exploration-minimap-cell.is-tier-1::before" in right_sidebar_css
     assert ".exploration-minimap-cell.is-tier-3::before" in right_sidebar_css
+    assert ".exploration-minimap-status-code" in right_sidebar_css
+    assert ".exploration-minimap-status-code.is-safe" in right_sidebar_css
+    assert ".exploration-minimap-status-code.is-danger" in right_sidebar_css
     assert ".exploration-minimap-markers" in right_sidebar_css
     assert ".exploration-action-panel" in screen_css
     assert ".exploration-screen-content.has-city-map-layout" in screen_css

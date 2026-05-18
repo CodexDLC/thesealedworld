@@ -7,11 +7,15 @@
 @media (min-width: 900px) {
     .exploration-main-dock .mobile-screen.is-active {
         display: flex;
-        gap: 14px;
+        gap: 0;
     }
 
     .exploration-main-dock .exploration-screen-content {
         display: flex;
+    }
+
+    .exploration-main-dock .exploration-screen-content.has-city-map-layout {
+        display: grid;
     }
 
     .exploration-main-dock .mobile-scene {
@@ -23,11 +27,15 @@
     }
 
     .exploration-main-dock .exploration-action-panel__body {
-        grid-template-rows: auto minmax(0, 1fr);
+        grid-template-columns: minmax(220px, 0.4fr) minmax(0, 0.6fr);
+        grid-template-rows: auto;
         gap: 10px;
+        align-items: stretch;
     }
 
     .exploration-main-dock .mobile-services {
+        grid-column: 1;
+        grid-row: 1;
         align-self: stretch;
         align-content: start;
         padding: 14px 12px;
@@ -35,8 +43,18 @@
         background: rgba(5, 5, 7, 0.18);
     }
 
+    .exploration-main-dock .mobile-service-grid {
+        grid-template-columns: minmax(0, 1fr);
+        grid-auto-rows: minmax(46px, auto);
+    }
+
     .exploration-main-dock .mobile-move-cooldown {
         margin-bottom: 0;
+    }
+
+    .exploration-main-dock .exploration-navigation-grid {
+        grid-column: 2;
+        grid-row: 1;
     }
 
     .exploration-main-dock.mobile-rift--encounter .mobile-screen.is-active {
@@ -178,9 +196,17 @@
 
 @media (max-width: 760px) {
     #center-screens {
-        padding: 12px 10px 72px;
+        padding: 12px 10px 0;
         justify-content: flex-start;
         overflow-y: auto;
+    }
+
+    .exploration-center-screens {
+        padding-bottom: 0;
+    }
+
+    .exploration-screen-content.has-city-map-layout {
+        --city-map-copy-reserve: 124px;
     }
 
     .hud-strip {

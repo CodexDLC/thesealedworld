@@ -19,8 +19,6 @@ class EncounterRoll:
 class EncounterPolicy:
     """Shared encounter policy. Modes supply weights; discoveries build payloads."""
 
-    DEFAULT_GEAR_SCORE_DIVISOR = 10.0
-
     DISCOVERY_WEIGHTS: dict[EncounterMode, dict[str, float]] = {
         EncounterMode.TRAVEL: {"monster": 100.0, "rift": 0.0, "merchant": 0.0, "resource": 0.0},
         EncounterMode.TERRITORY_SCOUTING: {"monster": 70.0, "rift": 10.0, "merchant": 10.0, "resource": 10.0},
@@ -58,7 +56,7 @@ class EncounterPolicy:
         return EncounterRoll(discovery_type=discovery_type, difficulty=difficulty, status=status)
 
     def monster_budget(self, gear_score: float) -> float:
-        return max(1.0, round(max(0.0, float(gear_score)) / self.DEFAULT_GEAR_SCORE_DIVISOR, 2))
+        return max(1.0, round(max(0.0, float(gear_score)), 2))
 
     def detection_status(self, *, tier: int, difficulty: str, scouting_skill: float) -> DetectionStatus:
         diff_mod = ExplorationConfig.DETECTION_MODIFIERS.get(difficulty, 0)

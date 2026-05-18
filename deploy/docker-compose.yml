@@ -98,6 +98,31 @@ services:
     networks:
       - tbmmorpg-network
 
+  site-migrate:
+    build:
+      context: ..
+      dockerfile: deploy/frontend/Dockerfile
+    container_name: tbmmorpg-site-migrate
+    restart: "no"
+    env_file: ../.env
+    environment:
+      BACKEND_BASE_URL: http://backend:8001
+      SITE_DATABASE_URL: postgresql+asyncpg://tbmmorpg:tbmmorpg_dev@postgres:5432/tbmmorpg_site  # pragma: allowlist secret
+      GAME_DATABASE_URL: postgresql+asyncpg://tbmmorpg:tbmmorpg_dev@postgres:5432/tbmmorpg_game  # pragma: allowlist secret
+      DATABASE_URL: postgresql+asyncpg://tbmmorpg:tbmmorpg_dev@postgres:5432/tbmmorpg_site  # pragma: allowlist secret
+      REDIS_URL: redis://:${REDIS_PASSWORD:-dev_redis_password}@redis:6379/0
+      PYTHONPATH: /app:/app/src
+    volumes:
+      - ../src/frontend:/app/src/frontend
+      - ../src/fastapi_cabinet:/app/src/fastapi_cabinet
+      - ../src/shared:/app/src/shared
+    entrypoint: ["alembic", "-c", "src/frontend/alembic.ini", "upgrade", "head"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - tbmmorpg-network
+
   frontend:
     build:
       context: ..
@@ -126,6 +151,8 @@ services:
       --reload
       --log-level info
     depends_on:
+      site-migrate:
+        condition: service_completed_successfully
       backend:
         condition: service_started
     networks:

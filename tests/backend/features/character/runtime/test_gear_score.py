@@ -15,6 +15,32 @@ def test_gear_score_weights_cover_all_combat_modifiers() -> None:
 
 
 @pytest.mark.unit
+def test_gear_score_does_not_add_constant_base_or_default_modifier_offset() -> None:
+    score = CharacterGearScoreCalculator().calculate_from_active_character(
+        {
+            "attributes": {},
+            "items": {},
+            "skills": {},
+        }
+    )
+
+    assert score == 1
+
+
+@pytest.mark.unit
+def test_gear_score_accepts_fractional_waterfall_vitals() -> None:
+    score = CharacterGearScoreCalculator.calculate_from_calculated(
+        {
+            "hp": 53.3333,
+            "en": 8.6667,
+            "physical_damage": 15.0,
+        }
+    )
+
+    assert score >= 1
+
+
+@pytest.mark.unit
 def test_combat_math_model_outputs_only_combat_modifier_keys() -> None:
     raw = CharacterCombatMathModelBuilder().build_raw(
         attributes={"strength": 10},

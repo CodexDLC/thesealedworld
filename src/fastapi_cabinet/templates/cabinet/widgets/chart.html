@@ -1,0 +1,40 @@
+{% extends "cabinet/includes/widget_frame.html" %}
+
+{% block widget_content %}
+<div style="height:{{ widget.height }}px; position:relative;">
+    <canvas id="chart-{{ widget.key }}"></canvas>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
+<script>
+(function(){
+    var el = document.getElementById("chart-{{ widget.key }}");
+    if (!el) return;
+    var defaults = {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { position: "bottom" } }
+    };
+    var extra = {{ widget.options | tojson }};
+    function deepMerge(base, override) {
+        var out = Object.assign({}, base);
+        for (var k in override) {
+            if (override[k] !== null && typeof override[k] === "object" && !Array.isArray(override[k]) &&
+                base[k] !== null && typeof base[k] === "object" && !Array.isArray(base[k])) {
+                out[k] = deepMerge(base[k], override[k]);
+            } else {
+                out[k] = override[k];
+            }
+        }
+        return out;
+    }
+    new Chart(el, {
+        type: {{ widget.chart_type | tojson }},
+        data: {
+            labels: {{ widget.labels | tojson }},
+            datasets: {{ widget.datasets | tojson }}
+        },
+        options: deepMerge(defaults, extra)
+    });
+})();
+</script>
+{% endblock %}

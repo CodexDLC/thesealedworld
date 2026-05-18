@@ -155,7 +155,8 @@ class ChaosService:
         attributes = variant.base_stats.model_dump(mode="json")
         skills = build_scaled_skills(family, variant).skills
         vitals = CharacterVitalsCalculator.build_initial_vitals(
-            CharacterSessionAttributesDTO.model_validate(attributes)
+            CharacterSessionAttributesDTO.model_validate(attributes),
+            profile_key=f"monster:{family.archetype}",
         ).model_dump(mode="json")
         hp = int((vitals.get("hp") or {}).get("cur") or 1)
         max_hp = int((vitals.get("hp") or {}).get("max") or hp)

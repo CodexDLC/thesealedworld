@@ -53,7 +53,7 @@
     padding:
         var(--game-column-gutter-top, 10px)
         var(--game-column-gutter-x, 12px)
-        var(--game-column-gutter-bottom, 36px);
+        var(--game-column-gutter-top, 10px);
 }
 
 .exploration-main-dock {
@@ -72,7 +72,7 @@
     min-height: 0;
     display: none;
     flex-direction: column;
-    gap: 10px;
+    gap: 0;
 }
 
 .exploration-main-dock > .mobile-screen.is-active {
@@ -81,10 +81,22 @@
 
 .exploration-screen-content {
     min-height: 0;
-    flex: 1 1 auto;
+    flex: 1 1 0;
     display: flex;
     flex-direction: column;
     gap: 6px;
+    margin-bottom: 8px;
+}
+
+.exploration-screen-content.has-city-map-layout {
+    --city-map-copy-reserve: 132px;
+    container-type: size;
+    display: grid;
+    grid-template-rows: auto auto;
+    align-content: start;
+    align-items: start;
+    justify-items: center;
+    gap: 8px;
 }
 
 .exploration-navigation-grid {

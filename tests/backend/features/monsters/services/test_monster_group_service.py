@@ -102,6 +102,7 @@ class FakeClanFactory:
             generation_meta={
                 "schema_version": 2,
                 "meta": {"archetype": "beast", "tags": ["rat"]},
+                "balance": {"gear_score": 40, "organization_type": "swarm"},
                 "visual": {
                     "status": "generated",
                     "image_url": "/static/generated-assets/monsters/generated/members/rat.webp",
@@ -192,3 +193,20 @@ async def test_prepare_monster_group_creates_clan_and_actor_commitments() -> Non
     assert first_source["combat"]["skills"] == {"skill_fencing": 0.2}
     assert first_source["combat"]["math_model"]
     assert result.previews[0].image == "/static/generated-assets/monsters/generated/members/rat.webp"
+
+
+async def test_prepare_monster_group_allows_repeated_monster_templates() -> None:
+    storage = FakeStorage()
+    service = MonsterGroupService(
+        repository=storage,
+        location_context=FakeLocationContext(),  # type: ignore[arg-type]
+        actor_commitments=FakeActorCommitments(),  # type: ignore[arg-type]
+        factory=FakeClanFactory(storage),  # type: ignore[arg-type]
+    )
+
+    result = await service.prepare_monster_group("45_45", budget=120, scope_id="encounter:test", ttl=120)
+
+    assert len(result.monster_ids) == 2
+    assert len(set(result.monster_ids)) == 1
+    assert len(result.previews) == 2
+    assert set(result.actor_commitments) == {f"monster:{result.monster_ids[0]}"}

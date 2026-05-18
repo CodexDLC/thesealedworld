@@ -55,3 +55,27 @@ class CombatAnalyticsDashboardIntegration:
 
     async def get_raw_analytics(self, combat_id: str) -> dict[str, Any] | None:
         return await self.repository.get_finalization_analytics(combat_id)
+
+    async def query_combats_per_day(
+        self,
+        *,
+        start: datetime | None,
+        end: datetime | None,
+    ) -> list[dict[str, Any]]:
+        return await self.repository.query_combats_per_day(start=start, end=end)
+
+    async def query_win_stats(
+        self,
+        *,
+        start: datetime | None,
+        end: datetime | None,
+    ) -> list[dict[str, Any]]:
+        return await self.repository.query_win_stats(start=start, end=end)
+
+    async def query_avg_rounds(
+        self,
+        *,
+        start: datetime | None,
+        end: datetime | None,
+    ) -> dict[str, Any]:
+        return await self.repository.query_avg_rounds(start=start, end=end)

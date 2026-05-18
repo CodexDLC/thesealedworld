@@ -2,8 +2,14 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from src.backend.features.monsters.dto.generation import EncounterMonsterResult, GeneratedClan, MonsterGenerationContext
+from src.backend.features.monsters.dto.generation import (
+    EncounterMonsterResult,
+    GeneratedClan,
+    GeneratedMonster,
+    MonsterGenerationContext,
+)
 from src.backend.features.monsters.runtime.encounter_pool import EncounterPoolSelector
+from src.backend.features.monsters.runtime.group_assembler import MonsterGroupAssembler
 from src.backend.features.monsters.runtime.hashing import compute_context_hash, compute_unique_clan_hash, normalize_tags
 
 if TYPE_CHECKING:
@@ -17,21 +23,23 @@ class EncounterMonsterService:
         repository: MonsterGenerationStorage,
         factory: ClanFactory,
         pool: EncounterPoolSelector | None = None,
+        assembler: MonsterGroupAssembler | None = None,
     ) -> None:
         self.repository = repository
         self.factory = factory
         self.pool = pool or EncounterPoolSelector()
+        self.assembler = assembler or MonsterGroupAssembler()
 
     async def prepare_encounter_monsters(self, context: MonsterGenerationContext) -> EncounterMonsterResult:
         normalized_tags = normalize_tags(context.tags)
         context_hash = compute_context_hash(context.tier, context.biome_id, normalized_tags)
 
-        existing_clan = self.pool.choose_existing_clan(
+        existing_clan = await self._choose_existing_clan(
             await self.repository.get_clans_by_context_hash(context_hash),
             context,
         )
         if existing_clan is not None:
-            members = self.pool.select_monsters(await self.repository.get_clan_members(existing_clan.id), context)
+            members = self._select_members(await self.repository.get_clan_members(existing_clan.id), context)
             return EncounterMonsterResult(
                 clan_id=str(existing_clan.id),
                 monster_ids=[str(member.id) for member in members],
@@ -56,7 +64,7 @@ class EncounterMonsterService:
                 normalized_tags=normalized_tags,
             )
 
-        members = self.pool.select_monsters(await self.repository.get_clan_members(clan.id), context)
+        members = self._select_members(await self.repository.get_clan_members(clan.id), context)
         return EncounterMonsterResult(
             clan_id=str(clan.id),
             monster_ids=[str(member.id) for member in members],
@@ -89,3 +97,38 @@ class EncounterMonsterService:
             unique_hash=unique_hash,
             normalized_tags=normalized_tags,
         )
+
+    async def _choose_existing_clan(
+        self,
+        clans: list[GeneratedClan],
+        context: MonsterGenerationContext,
+    ) -> GeneratedClan | None:
+        if context.threat is None:
+            return self.pool.choose_existing_clan(clans, context)
+        for clan in sorted(clans, key=lambda existing: existing.unique_hash):
+            if self._select_members(await self.repository.get_clan_members(clan.id), context):
+                return clan
+        return None
+
+    def _select_members(
+        self,
+        members: list[GeneratedMonster],
+        context: MonsterGenerationContext,
+    ) -> list[GeneratedMonster]:
+        if context.threat is None:
+            return self.pool.select_monsters(members, context)
+        assembly = self.assembler.assemble(
+            members,
+            budget=float(context.threat),
+            tier=context.tier,
+            danger=_context_danger(context),
+        )
+        return assembly.members
+
+
+def _context_danger(context: MonsterGenerationContext) -> float:
+    raw = context.context_meta.get("danger", 0.0)
+    try:
+        return float(raw or 0.0)
+    except (TypeError, ValueError):
+        return 0.0

@@ -166,16 +166,17 @@ class GameSessionIntegrator:
             claim = await service.claim_all(character_id, [corpse_id])
             if not claim.instance_ids and not claim.resource_deltas:
                 continue
-            if self.loot_arq is not None:
-                await self.loot_arq.enqueue_job(
-                    "loot_claim_task",
-                    {
-                        "char_id": character_id,
-                        "corpse_id": corpse_id,
-                        "instance_ids": claim.instance_ids,
-                        "resource_deltas": claim.resource_deltas,
-                    },
-                )
+            if self.loot_arq is None:
+                raise RuntimeError("loot_arq is required for post-combat loot claim")
+            await self.loot_arq.enqueue_job(
+                "loot_claim_task",
+                {
+                    "char_id": character_id,
+                    "corpse_id": corpse_id,
+                    "instance_ids": claim.instance_ids,
+                    "resource_deltas": claim.resource_deltas,
+                },
+            )
             enqueued += 1
 
         if self.character_sessions is not None:

@@ -335,6 +335,7 @@ class ExplorationScreenContextDTO(ExplorationJsonDTO):
     is_safe_zone: bool = False
     location_understanding_percent: float | None = None
     location_research_cap_reached: bool | None = None
+    city_map: dict[str, Any] = Field(default_factory=dict)
     metadata: dict[str, Any] = Field(default_factory=dict)
 
 

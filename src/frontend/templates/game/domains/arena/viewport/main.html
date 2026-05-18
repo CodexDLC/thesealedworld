@@ -418,9 +418,7 @@
     {% endif %}
 </section>
 {% if oob_panels|default(false) %}
-    <div id="game-right-content" hx-swap-oob="innerHTML">
-        <div x-show="rightPanelView === 'context'">
-            {% include "game/domains/arena/right_sidebar/main.html" %}
-        </div>
+    <div id="game-right-context-content" hx-swap-oob="innerHTML">
+        {% include "game/domains/arena/right_sidebar/main.html" %}
     </div>
 {% endif %}

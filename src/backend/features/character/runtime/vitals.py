@@ -4,18 +4,14 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any
 
+from src.backend.core.calculators.stats_waterfall_calculator import StatsWaterfallCalculator
+from src.backend.features.character.runtime.rules.attribute_modifiers import DEFAULT_MODIFIER_VALUES
+from src.backend.features.character.runtime.rules.vital_constants import REGEN_TICK_SECONDS
 from src.backend.features.character.schemas.session import (
     CharacterSessionAttributesDTO,
     CharacterSessionVitalsDTO,
     VitalValueDTO,
 )
-
-HP_PER_ENDURANCE = 4.0
-HP_REGEN_PER_ENDURANCE = 0.5
-ENERGY_PER_MENTAL = 2.0
-ENERGY_REGEN_PER_MENTAL = 0.5
-STAMINA_PER_ENDURANCE = 10.0
-STAMINA_REGEN_PER_ENDURANCE = 0.2
 
 
 @dataclass(frozen=True)
@@ -28,8 +24,13 @@ class CharacterVitalsCalculator:
     """Builds AC vitals from character attributes while keeping current values separate."""
 
     @classmethod
-    def build_initial_vitals(cls, attributes: CharacterSessionAttributesDTO) -> CharacterSessionVitalsDTO:
-        max_vitals = cls.calculate_max_vitals(attributes)
+    def build_initial_vitals(
+        cls,
+        attributes: CharacterSessionAttributesDTO,
+        *,
+        profile_key: str = "player",
+    ) -> CharacterSessionVitalsDTO:
+        max_vitals = cls.calculate_max_vitals(attributes, profile_key=profile_key)
         return CharacterSessionVitalsDTO(
             hp=VitalValueDTO(cur=max_vitals.hp.max, max=max_vitals.hp.max, regen=max_vitals.hp.regen),
             energy=VitalValueDTO(
@@ -49,12 +50,14 @@ class CharacterVitalsCalculator:
         cls,
         snapshot: dict[str, Any] | None,
         attributes: CharacterSessionAttributesDTO,
+        *,
+        profile_key: str = "player",
     ) -> CharacterSessionVitalsDTO:
         if not snapshot:
-            return cls.build_initial_vitals(attributes)
+            return cls.build_initial_vitals(attributes, profile_key=profile_key)
 
         snapshot_vitals = CharacterSessionVitalsDTO.model_validate(snapshot)
-        return cls.refresh_max_vitals(snapshot_vitals, attributes)
+        return cls.refresh_max_vitals(snapshot_vitals, attributes, profile_key=profile_key)
 
     @classmethod
     def refresh_max_vitals(
@@ -62,9 +65,10 @@ class CharacterVitalsCalculator:
         current_vitals: CharacterSessionVitalsDTO,
         attributes: CharacterSessionAttributesDTO,
         *,
+        profile_key: str = "player",
         fill_if_default: bool = False,
     ) -> CharacterSessionVitalsDTO:
-        max_vitals = cls.calculate_max_vitals(attributes)
+        max_vitals = cls.calculate_max_vitals(attributes, profile_key=profile_key)
         all_default = cls._is_default_vitals(current_vitals)
 
         return CharacterSessionVitalsDTO(
@@ -86,8 +90,10 @@ class CharacterVitalsCalculator:
     def restore_to_max_vitals(
         cls,
         attributes: CharacterSessionAttributesDTO,
+        *,
+        profile_key: str = "player",
     ) -> CharacterSessionVitalsDTO:
-        max_vitals = cls.calculate_max_vitals(attributes)
+        max_vitals = cls.calculate_max_vitals(attributes, profile_key=profile_key)
         now = datetime.now(UTC).timestamp()
         return CharacterSessionVitalsDTO(
             hp=VitalValueDTO(cur=max_vitals.hp.max, max=max_vitals.hp.max, regen=max_vitals.hp.regen),
@@ -105,18 +111,32 @@ class CharacterVitalsCalculator:
         )
 
     @classmethod
-    def calculate_max_vitals(cls, attributes: CharacterSessionAttributesDTO) -> CharacterSessionVitalsDTO:
-        endurance = attributes.endurance
-        mental = attributes.mental
+    def calculate_max_vitals(
+        cls,
+        attributes: CharacterSessionAttributesDTO,
+        *,
+        profile_key: str = "player",
+    ) -> CharacterSessionVitalsDTO:
+        calculated, _ = StatsWaterfallCalculator.calculate_waterfall(
+            {
+                "attributes": cls._raw_attributes(attributes),
+                "modifiers": cls._base_modifiers(),
+                "rules": {"attribute_profile": profile_key},
+            }
+        )
 
-        hp = cls._resource_max(endurance * HP_PER_ENDURANCE)
-        energy = cls._resource_max(mental * ENERGY_PER_MENTAL)
-        stamina = cls._resource_max(endurance * STAMINA_PER_ENDURANCE)
+        hp = cls._resource_max(calculated.get("hp", 0.0))
+        energy = cls._resource_max(calculated.get("en", 0.0))
+        stamina = cls._resource_max(calculated.get("stamina", 0.0))
 
         return CharacterSessionVitalsDTO(
-            hp=VitalValueDTO(cur=hp, max=hp, regen=round(endurance * HP_REGEN_PER_ENDURANCE, 4)),
-            energy=VitalValueDTO(cur=energy, max=energy, regen=round(mental * ENERGY_REGEN_PER_MENTAL, 4)),
-            stamina=VitalValueDTO(cur=stamina, max=stamina, regen=round(endurance * STAMINA_REGEN_PER_ENDURANCE, 4)),
+            hp=VitalValueDTO(cur=hp, max=hp, regen=round(float(calculated.get("hp_regen", 0.0) or 0.0), 4)),
+            energy=VitalValueDTO(cur=energy, max=energy, regen=round(float(calculated.get("en_regen", 0.0) or 0.0), 4)),
+            stamina=VitalValueDTO(
+                cur=stamina,
+                max=stamina,
+                regen=round(float(calculated.get("stamina_regen", 0.0) or 0.0), 4),
+            ),
         )
 
     @classmethod
@@ -127,20 +147,21 @@ class CharacterVitalsCalculator:
             return vitals
 
         elapsed = now - vitals.last_update
-        if elapsed < 1.0:
+        tick_count = int(elapsed // REGEN_TICK_SECONDS)
+        if tick_count <= 0:
             return vitals
 
         changed = False
         for attr_name in ("hp", "energy", "stamina"):
             value = getattr(vitals, attr_name)
             if value.cur < value.max and value.regen > 0:
-                new_value = min(value.max, int(value.cur + value.regen * elapsed))
+                new_value = min(value.max, int(value.cur + value.regen * tick_count))
                 if new_value != value.cur:
                     value.cur = new_value
                     changed = True
 
         if changed or cls._is_full(vitals):
-            vitals.last_update = now
+            vitals.last_update += tick_count * REGEN_TICK_SECONDS
         return vitals
 
     @staticmethod
@@ -151,6 +172,20 @@ class CharacterVitalsCalculator:
     @staticmethod
     def _resource_max(value: float) -> int:
         return max(1, int(round(value)))
+
+    @staticmethod
+    def _raw_attributes(attributes: CharacterSessionAttributesDTO) -> dict[str, dict[str, Any]]:
+        return {
+            key: {"base": float(value or 0), "source": {}, "temp": {}}
+            for key, value in attributes.model_dump(mode="json").items()
+        }
+
+    @staticmethod
+    def _base_modifiers() -> dict[str, dict[str, Any]]:
+        return {
+            key: {"base": float(value or 0.0), "source": {}, "temp": {}}
+            for key, value in DEFAULT_MODIFIER_VALUES.items()
+        }
 
     @staticmethod
     def _is_default_vitals(vitals: CharacterSessionVitalsDTO) -> bool:

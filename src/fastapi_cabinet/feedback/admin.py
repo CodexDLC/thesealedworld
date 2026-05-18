@@ -34,9 +34,7 @@ class FeedbackAdmin(CabinetAdmin):
         SidebarItem(key="balance", label="Баланс", path="/admin/feedback/balance", order=50),
     )
 
-    dashboard_widgets = (
-        TableWidget(key="feedback_list", title="Фидбек", provider="feedback.list", order=10),
-    )
+    dashboard_widgets = (TableWidget(key="feedback_list", title="Фидбек", provider="feedback.list", order=10),)
     providers: ClassVar[dict] = {}
     sub_pages: ClassVar[dict] = {
         "bugs": (),

@@ -173,7 +173,7 @@
     "actions": [
       {
         "action_id": "choice_1",
-        "label": "Замереть и на выносливости дождаться стабилизации",
+        "label": "Замереть и на концентрации дождаться стабилизации",
         "icon": "default",
         "to_node": "cycle_3_logic_router",
         "math": {

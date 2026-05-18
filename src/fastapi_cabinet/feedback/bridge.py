@@ -19,11 +19,18 @@ class FeedbackActionResult:
 @runtime_checkable
 class FeedbackBridge(Protocol):
     async def get_feedback_list_state(
-        self, *, request: Request, type_filter: str | None = None,
+        self,
+        *,
+        request: Request,
+        type_filter: str | None = None,
     ) -> FeedbackListState: ...
 
     async def update_feedback_status(
-        self, *, request: Request, feedback_id: str, status: str,
+        self,
+        *,
+        request: Request,
+        feedback_id: str,
+        status: str,
     ) -> FeedbackActionResult: ...
 
 

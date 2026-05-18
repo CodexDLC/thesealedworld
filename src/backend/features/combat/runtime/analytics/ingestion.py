@@ -42,7 +42,7 @@ class CombatAnalyticsIngestionService:
         finished_values = [fact["finished_at"] for fact in facts if fact.get("finished_at") is not None]
         if not finished_values:
             return
-        start = min(finished_values).replace(hour=0, minute=0, second=0, microsecond=0)
+        start = min(finished_values).replace(day=1, hour=0, minute=0, second=0, microsecond=0)
         end = cls._next_month(max(finished_values))
         bucket_facts = await repo.facts_for_buckets(start=start, end=end)
         rollups = cls.build_rollups(bucket_facts, aggregate_version=aggregate_version)
@@ -50,17 +50,26 @@ class CombatAnalyticsIngestionService:
 
     @classmethod
     def extract_exchange_facts(cls, finalization: dict[str, Any]) -> list[dict[str, Any]]:
-        analytics = finalization.get("analytics") if isinstance(finalization.get("analytics"), dict) else {}
+        analytics: dict[str, Any] = (
+            finalization.get("analytics") if isinstance(finalization.get("analytics"), dict) else {}
+        )
         profile_entry = analytics.get("_profile")
-        profile = profile_entry.get("_profile") if isinstance(profile_entry, dict) and "_profile" in profile_entry else profile_entry
-        if not isinstance(profile, dict) or int(profile.get("analytics_schema_version") or 0) < ANALYTICS_SCHEMA_VERSION:
+        profile = (
+            profile_entry.get("_profile")
+            if isinstance(profile_entry, dict) and "_profile" in profile_entry
+            else profile_entry
+        )
+        if (
+            not isinstance(profile, dict)
+            or int(profile.get("analytics_schema_version") or 0) < ANALYTICS_SCHEMA_VERSION
+        ):
             return []
 
         combat_id = str(finalization.get("combat_id") or profile.get("combat_id") or "")
         if not combat_id:
             return []
         finished_at = cls._datetime_from_epoch(finalization.get("finished_at"))
-        meta = finalization.get("meta") if isinstance(finalization.get("meta"), dict) else {}
+        meta: dict[str, Any] = finalization.get("meta") if isinstance(finalization.get("meta"), dict) else {}
         battle_type = meta.get("battle_type") or profile.get("battle_type")
         location_id = meta.get("location_id") or profile.get("location_id")
 
@@ -84,6 +93,11 @@ class CombatAnalyticsIngestionService:
                 facts.append(fact)
         return facts
 
+    _METRIC_CONFIGS: list[tuple[str, str]] = [
+        ("damage_by_weapon_armor", "_dimensions_damage"),
+        ("action_usage", "_dimensions_action"),
+    ]
+
     @classmethod
     def build_rollups(cls, facts: list[dict[str, Any]], *, aggregate_version: int) -> list[dict[str, Any]]:
         buckets: dict[tuple[datetime, str, str, str], dict[str, Any]] = {}
@@ -93,23 +107,24 @@ class CombatAnalyticsIngestionService:
                 continue
             for grain in ("day", "month"):
                 bucket_start = cls._bucket_start(finished_at, grain)
-                metric_key = "damage_by_weapon_armor"
-                dimensions = cls._dimensions(fact)
-                dimensions_hash = cls._dimensions_hash(dimensions)
-                key = (bucket_start, grain, metric_key, dimensions_hash)
-                bucket = buckets.setdefault(
-                    key,
-                    {
-                        "bucket_start": bucket_start,
-                        "bucket_grain": grain,
-                        "metric_key": metric_key,
-                        "dimensions_hash": dimensions_hash,
-                        "dimensions": dimensions,
-                        "aggregate_version": int(aggregate_version),
-                        "_acc": cls._empty_accumulator(),
-                    },
-                )
-                cls._accumulate(bucket["_acc"], fact)
+                for metric_key, dim_fn_name in cls._METRIC_CONFIGS:
+                    dim_fn = getattr(cls, dim_fn_name)
+                    dimensions = dim_fn(fact)
+                    dimensions_hash = cls._dimensions_hash(dimensions)
+                    key = (bucket_start, grain, metric_key, dimensions_hash)
+                    bucket = buckets.setdefault(
+                        key,
+                        {
+                            "bucket_start": bucket_start,
+                            "bucket_grain": grain,
+                            "metric_key": metric_key,
+                            "dimensions_hash": dimensions_hash,
+                            "dimensions": dimensions,
+                            "aggregate_version": int(aggregate_version),
+                            "_acc": cls._empty_accumulator(),
+                        },
+                    )
+                    cls._accumulate(bucket["_acc"], fact)
 
         rows: list[dict[str, Any]] = []
         for bucket in buckets.values():
@@ -126,14 +141,18 @@ class CombatAnalyticsIngestionService:
         location_id: Any,
         entry: dict[str, Any],
     ) -> dict[str, Any] | None:
-        damage_trace = entry.get("dt") if isinstance(entry.get("dt"), dict) else {}
-        details = damage_trace.get("details") if isinstance(damage_trace.get("details"), dict) else {}
-        arm = details.get("arm") if isinstance(details.get("arm"), dict) else {}
-        resl = details.get("resl") if isinstance(details.get("resl"), dict) else {}
-        equipment = entry.get("eq") if isinstance(entry.get("eq"), dict) else {}
-        weapon = ((equipment.get("s") or {}).get("weapon") or {}) if isinstance(equipment.get("s"), dict) else {}
-        armor = ((equipment.get("d") or {}).get("armor") or {}) if isinstance(equipment.get("d"), dict) else {}
-        action = entry.get("act") if isinstance(entry.get("act"), dict) else {}
+        damage_trace: dict[str, Any] = entry.get("dt") if isinstance(entry.get("dt"), dict) else {}
+        details: dict[str, Any] = damage_trace.get("details") if isinstance(damage_trace.get("details"), dict) else {}
+        arm: dict[str, Any] = details.get("arm") if isinstance(details.get("arm"), dict) else {}
+        resl: dict[str, Any] = details.get("resl") if isinstance(details.get("resl"), dict) else {}
+        equipment: dict[str, Any] = entry.get("eq") if isinstance(entry.get("eq"), dict) else {}
+        weapon: dict[str, Any] = (
+            ((equipment.get("s") or {}).get("weapon") or {}) if isinstance(equipment.get("s"), dict) else {}
+        )
+        armor: dict[str, Any] = (
+            ((equipment.get("d") or {}).get("armor") or {}) if isinstance(equipment.get("d"), dict) else {}
+        )
+        action: dict[str, Any] = entry.get("act") if isinstance(entry.get("act"), dict) else {}
         outcome = OUTCOME_BY_CODE.get(str(entry.get("o") or ""), str(entry.get("o") or "none"))
         damage = entry.get("dmg") if isinstance(entry.get("dmg"), list) else []
         raw_damage = CombatAnalyticsIngestionService._float_at(damage, 0, damage_trace.get("raw"))
@@ -179,7 +198,16 @@ class CombatAnalyticsIngestionService:
 
     @staticmethod
     def _empty_accumulator() -> dict[str, Any]:
-        return defaultdict(float, {"attempts": 0, "min_raw_damage": None, "max_raw_damage": None, "min_final_damage": None, "max_final_damage": None})
+        return defaultdict(
+            float,
+            {
+                "attempts": 0,
+                "min_raw_damage": None,
+                "max_raw_damage": None,
+                "min_final_damage": None,
+                "max_final_damage": None,
+            },
+        )
 
     @staticmethod
     def _accumulate(acc: dict[str, Any], fact: dict[str, Any]) -> None:
@@ -216,6 +244,10 @@ class CombatAnalyticsIngestionService:
         )
         if armor_ignored > 0.0:
             acc["armor_ignore_count"] += 1
+        if fact.get("is_counter"):
+            acc["counters"] += 1
+        if fact.get("is_extra_strike"):
+            acc["extra_strikes"] += 1
         for attempt in fact.get("trigger_attempts") or []:
             if isinstance(attempt, list) and len(attempt) > 7:
                 acc["trigger_attempts"] += 1
@@ -250,10 +282,12 @@ class CombatAnalyticsIngestionService:
             "proc_rate": round(float(acc["trigger_passes"]) / trigger_attempts, 6) if acc["trigger_attempts"] else 0.0,
             "armor_ignore_rate": round(float(acc["armor_ignore_count"]) / attempts, 6),
             "damage_after_armor_avg": round(float(acc["sum_damage_after_armor"]) / attempts, 6),
+            "counters": int(acc["counters"]),
+            "extra_strikes": int(acc["extra_strikes"]),
         }
 
     @staticmethod
-    def _dimensions(fact: dict[str, Any]) -> dict[str, Any]:
+    def _dimensions_damage(fact: dict[str, Any]) -> dict[str, Any]:
         trigger_id = None
         attempts = fact.get("trigger_attempts") or []
         if attempts and isinstance(attempts[0], list) and attempts[0]:
@@ -265,6 +299,17 @@ class CombatAnalyticsIngestionService:
             "armor_tier": fact.get("armor_tier"),
             "feint_id": fact.get("feint_id"),
             "trigger_id": trigger_id,
+            "battle_type": fact.get("battle_type"),
+            "location_id": fact.get("location_id"),
+            "source_type": fact.get("source_type"),
+        }
+
+    @staticmethod
+    def _dimensions_action(fact: dict[str, Any]) -> dict[str, Any]:
+        return {
+            "action_id": fact.get("action_id"),
+            "feint_id": fact.get("feint_id"),
+            "source_type": fact.get("source_type"),
             "battle_type": fact.get("battle_type"),
             "location_id": fact.get("location_id"),
         }

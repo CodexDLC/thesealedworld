@@ -52,7 +52,6 @@ class InventoryViewService:
         "quest": "Квестовый предмет",
     }
     _STAT_LABELS_RU = {
-        "accuracy_penalty": "Штраф точности",
         "agility": "Ловкость",
         "anti_crit_chance": "Защита от крита",
         "anti_dodge_chance": "Против уворота",
@@ -112,7 +111,7 @@ class InventoryViewService:
         "scouting": "Разведка",
         "shield_block_chance": "Блок щитом",
         "shield_guard_power": "Сила щита",
-        "stamina_regen": "Восстановление выносливости",
+        "stamina_regen": "Восстановление концентрации",
         "strength": "Сила",
         "thorns_damage": "Шипы",
         "trade_bonus": "Торговля",
@@ -228,7 +227,6 @@ class InventoryViewService:
         "strength",
     }
     _PERCENT_STAT_KEYS = {
-        "accuracy_penalty",
         "anti_crit_chance",
         "anti_dodge_chance",
         "armor_ignore_chance",
@@ -440,7 +438,7 @@ class InventoryViewService:
                     rarity=item.rarity,
                     rarity_tier=details.rarity_tier,
                     rarity_label=details.rarity_label,
-                    equip_target=(item.valid_slots[0] if item.valid_slots else item.slot),
+                    equip_target=self._equip_target(session, item),
                     valid_slots=item.valid_slots,
                     grid_w=grid_w,
                     grid_h=grid_h,
@@ -538,6 +536,15 @@ class InventoryViewService:
         slot = item.slot or (item.valid_slots[0] if item.valid_slots else "")
         if item.item_type == "weapon":
             return self._weapon_icon_key(item)
+        base_icons = {
+            "scout_leggings": "legs_light",
+            "breeches": "legs_medium",
+            "greaves": "legs_heavy",
+            "fur_pants": "legwear",
+            "travel_boots": "feetwear",
+        }
+        if item.base_id in base_icons:
+            return base_icons[item.base_id]
         slot_icons = {
             EquippedSlot.HEAD_ARMOR.value: "head",
             EquippedSlot.OUTER_GARMENT.value: "cloak",
@@ -594,7 +601,17 @@ class InventoryViewService:
             return "weapon_hammer"
         if haystack & {"mace", "flail", "blunt", "macing"}:
             return "weapon_mace"
-        if haystack & {"spear", "pike", "halberd", "quarterstaff", "trident", "polearm", "staff"}:
+        if "halberd" in haystack:
+            return "weapon_halberd"
+        if "quarterstaff" in haystack or "staff" in haystack:
+            return "weapon_staff"
+        if "trident" in haystack:
+            return "weapon_trident"
+        if "pike" in haystack:
+            return "weapon_pike"
+        if "spear" in haystack:
+            return "weapon_spear"
+        if "polearm" in haystack:
             return "weapon_polearm"
         if haystack & {"sword", "longsword", "scimitar", "rapier", "blade", "fast_blade"}:
             return "weapon_sword"
@@ -634,8 +651,9 @@ class InventoryViewService:
     ) -> InventoryRuntimeItemDTO | None:
         if item.placement == "equipped":
             return None
-        for slot_id in item.valid_slots or ([item.slot] if item.slot else []):
-            equipped_id = session.layout.equipment.get(slot_id)
+        target_slot = self._equip_target(session, item)
+        if target_slot:
+            equipped_id = session.layout.equipment.get(target_slot)
             if equipped_id and equipped_id != item.item_id:
                 return session.by_id.get(equipped_id)
         return None
@@ -712,7 +730,7 @@ class InventoryViewService:
     ) -> list[InventoryItemActionDTO]:
         requirements_met = all(requirement.met for requirement in requirements)
         actions: list[InventoryItemActionDTO] = []
-        equip_target = item.valid_slots[0] if item.valid_slots else item.slot
+        equip_target = self._equip_target(session, item)
         if item.placement == "equipped":
             actions.append(InventoryItemActionDTO(action="unequip", label="Unequip", slot_id=item.slot))
         elif item.placement == "belt":
@@ -744,6 +762,21 @@ class InventoryViewService:
             )
         return actions
 
+    @staticmethod
+    def _equip_target(session: InventoryRuntimeSessionDTO, item: InventoryRuntimeItemDTO) -> str | None:
+        valid_slots = item.valid_slots or ([item.slot] if item.slot else [])
+        if not valid_slots:
+            return None
+
+        for slot_id in valid_slots:
+            if not session.layout.equipment.get(slot_id):
+                return slot_id
+
+        primary_slot = item.slot or item.mechanics.get("slot")
+        if isinstance(primary_slot, str) and primary_slot in valid_slots:
+            return primary_slot
+        return valid_slots[0]
+
     def _effect_tags(self, item: InventoryRuntimeItemDTO) -> list[InventoryEffectTagDTO]:
         raw_effects = item.mechanics.get("effects") or item.metadata.get("effects") or []
         if isinstance(raw_effects, str):
@@ -773,6 +806,8 @@ class InventoryViewService:
             if not isinstance(source, dict):
                 continue
             for key, raw in source.items():
+                if key == "accuracy_penalty":
+                    continue
                 value = self._float_value(raw)
                 if value is not None:
                     stats[str(key)] = stats.get(str(key), 0.0) + value
@@ -786,6 +821,8 @@ class InventoryViewService:
     def _bonus_lines(self, bonuses: dict[str, object]) -> list[InventoryDetailLineDTO]:
         lines: list[InventoryDetailLineDTO] = []
         for key, raw in bonuses.items():
+            if key == "accuracy_penalty":
+                continue
             value = self._float_value(raw)
             if value is None:
                 lines.append(InventoryDetailLineDTO(label=self._label(key), value=str(raw), tone="neutral"))

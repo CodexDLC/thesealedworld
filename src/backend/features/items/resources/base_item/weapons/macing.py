@@ -15,7 +15,6 @@ MACING_DB = {
         base_durability=45,
         narrative_tags=["axe", "macing", "crude", "chop"],
         implicit_bonuses={
-            "accuracy_penalty": 0.12,
             "main_hand_armor_penetration_pct": 0.05,
             "physical_crit_chance": 0.03,
         },
@@ -35,7 +34,6 @@ MACING_DB = {
         base_durability=55,
         narrative_tags=["axe", "macing", "brutal", "chop"],
         implicit_bonuses={
-            "accuracy_penalty": 0.16,
             "main_hand_armor_penetration_pct": 0.12,
             "physical_crit_chance": 0.04,
         },
@@ -55,7 +53,6 @@ MACING_DB = {
         base_durability=60,
         narrative_tags=["mace", "macing", "blunt", "armor_break"],
         implicit_bonuses={
-            "accuracy_penalty": 0.10,
             "main_hand_armor_penetration_pct": 0.10,
             "physical_crit_chance": 0.025,
         },
@@ -75,7 +72,6 @@ MACING_DB = {
         base_durability=90,
         narrative_tags=["hammer", "macing", "smash", "heavy"],
         implicit_bonuses={
-            "accuracy_penalty": 0.24,
             "main_hand_armor_penetration_pct": 0.22,
             "physical_crit_chance": 0.035,
             "parry_chance": 0.02,
@@ -97,7 +93,6 @@ MACING_DB = {
         base_durability=50,
         narrative_tags=["flail", "macing", "chain", "shield_bypass"],
         implicit_bonuses={
-            "accuracy_penalty": 0.18,
             "main_hand_armor_penetration_pct": 0.08,
             "physical_crit_chance": 0.04,
         },

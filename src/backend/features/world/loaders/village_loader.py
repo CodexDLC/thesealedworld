@@ -105,8 +105,12 @@ class VillageLoader:
             )
             raw_flags = data.get("flags", {})
             is_safe = bool(raw_flags.get("is_safe_zone", False))
-            node_type = str(data.get("node_type") or raw_flags.get("node_type") or ("hub" if is_safe else "side_street"))
-            terrain_type = str(data.get("terrain_type") or raw_flags.get("terrain_type") or _terrain_type_from_tags(tags))
+            node_type = str(
+                data.get("node_type") or raw_flags.get("node_type") or ("hub" if is_safe else "side_street")
+            )
+            terrain_type = str(
+                data.get("terrain_type") or raw_flags.get("terrain_type") or _terrain_type_from_tags(tags)
+            )
 
             nodes_to_upsert.append(
                 {

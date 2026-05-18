@@ -6,6 +6,7 @@
             <thead>
                 <tr>
                     {% for column in widget.columns %}<th>{{ column.label }}</th>{% endfor %}
+                    {% if widget.actions %}<th>Действия</th>{% endif %}
                 </tr>
             </thead>
             <tbody>
@@ -18,6 +19,17 @@
                         {% for column in widget.columns %}
                             <td>{{ row.get(column.key, "—") }}</td>
                         {% endfor %}
+                        {% if widget.actions %}
+                        <td class="fc-table-actions">
+                            {% for act in widget.actions %}
+                            <form method="post" action="{{ widget.action_url }}" style="display:inline">
+                                <input type="hidden" name="request_id" value="{{ row.get(widget.id_key, '') }}">
+                                <input type="hidden" name="action" value="{{ act.action }}">
+                                <button type="submit" class="fc-action-btn {{ act.css_class }}">{{ act.label }}</button>
+                            </form>
+                            {% endfor %}
+                        </td>
+                        {% endif %}
                     </tr>
                 {% endfor %}
             </tbody>

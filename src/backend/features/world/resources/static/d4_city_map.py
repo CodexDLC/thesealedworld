@@ -87,7 +87,9 @@ def is_d4_city_visual_coord(x: int, y: int) -> bool:
 
 
 def is_d4_city_playable_coord(x: int, y: int) -> bool:
-    return D4_CITY_PLAYABLE_MIN_X <= x <= D4_CITY_PLAYABLE_MAX_X and D4_CITY_PLAYABLE_MIN_Y <= y <= D4_CITY_PLAYABLE_MAX_Y
+    return (
+        D4_CITY_PLAYABLE_MIN_X <= x <= D4_CITY_PLAYABLE_MAX_X and D4_CITY_PLAYABLE_MIN_Y <= y <= D4_CITY_PLAYABLE_MAX_Y
+    )
 
 
 def d4_city_service_markers_for_world(x: int, y: int) -> list[dict[str, str]]:

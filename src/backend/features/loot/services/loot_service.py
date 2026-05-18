@@ -41,7 +41,7 @@ class LootService:
             if not actor_id:
                 log.warning("LootService | skip corpse without actor_id session={}", session_id)
                 continue
-            corpse = await self._build_corpse(actor, session_id, battle_type)
+            corpse = await self._build_corpse(actor, session_id, battle_type, location_id)
             if corpse is None:
                 continue
             await self._integration.persist_corpse(corpse, location_id)
@@ -58,7 +58,13 @@ class LootService:
         value = actor.get("actor_id") or meta.get("id") or meta.get("actor_id")
         return str(value) if value is not None else None
 
-    async def _build_corpse(self, actor: dict[str, Any], session_id: str, battle_type: str) -> CorpseDTO | None:
+    async def _build_corpse(
+        self,
+        actor: dict[str, Any],
+        session_id: str,
+        battle_type: str,
+        location_id: str,
+    ) -> CorpseDTO | None:
         meta = actor.get("meta", {})
         source = actor.get("source", {})
 
@@ -71,10 +77,9 @@ class LootService:
 
         engine = self._engine
 
-        # Build resource items (drop + salvage + spoil)
+        # Ordinary post-combat loot only materializes plain drop.
+        # Salvage/spoil require explicit future actions and skills/tools.
         drop_items = engine.build_drop_items(role_profile, monster_tier, role, battle_type)
-        salvage_items = engine.build_salvage_items(role_profile, monster_tier, role)
-        spoil_items = engine.build_spoil_items(role_profile, monster_tier, role)
 
         # For humanoids: request equipment instance_ids from Item Service
         equipment_items = [i for i in drop_items if not i.is_resource]
@@ -87,16 +92,17 @@ class LootService:
             instance_id = await self._integration.request_item_instance(
                 base_id=item.template_id,
                 tier=eq_tier,
-                source_context={
-                    "family_id": profile_id,
-                    "member_role": role,
-                    "member_tier": monster_tier,
-                },
+                source_context=self._item_source_context(
+                    source=source,
+                    profile_id=str(profile_id),
+                    location_id=location_id,
+                    monster_tier=monster_tier,
+                ),
             )
             if instance_id:
                 fulfilled_equipment.append(item.model_copy(update={"instance_id": instance_id}))
 
-        all_items = resource_items + fulfilled_equipment + salvage_items + spoil_items
+        all_items = resource_items + fulfilled_equipment
         if not all_items:
             return None
 
@@ -107,6 +113,28 @@ class LootService:
             combat_id=session_id,
             timestamps=LootTimestamps(created_at=time.time()),
         )
+
+    @staticmethod
+    def _item_source_context(
+        *,
+        source: dict[str, Any],
+        profile_id: str,
+        location_id: str,
+        monster_tier: int,
+    ) -> dict[str, Any]:
+        owner_family = source.get("owner_family")
+        source_context: dict[str, Any] = {
+            "family_id": source.get("family_id") or profile_id,
+            "monster_family_id": source.get("family_id") or profile_id,
+            "location_id": location_id,
+            "source_tier": monster_tier,
+        }
+        clan_id = source.get("clan_id")
+        if clan_id:
+            source_context["clan_id"] = str(clan_id)
+        if isinstance(owner_family, dict):
+            source_context["owner_family"] = dict(owner_family)
+        return source_context
 
     # ------------------------------------------------------------------
     # Activation — called after combat ends

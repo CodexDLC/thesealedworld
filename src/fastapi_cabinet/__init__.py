@@ -1,6 +1,8 @@
 from fastapi_cabinet.contracts.admin import CabinetAdmin
 from fastapi_cabinet.contracts.navigation import HeaderItem, SidebarItem
 from fastapi_cabinet.contracts.widgets import (
+    ChartWidget,
+    ChartWidgetMap,
     DashboardWidget,
     EditableConfigWidget,
     ListWidget,
@@ -15,6 +17,8 @@ __all__ = [
     "CabinetAdmin",
     "CabinetRegistry",
     "CabinetSite",
+    "ChartWidget",
+    "ChartWidgetMap",
     "DashboardWidget",
     "EditableConfigWidget",
     "HeaderItem",

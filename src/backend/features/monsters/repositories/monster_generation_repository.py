@@ -4,7 +4,7 @@ import uuid
 from typing import TYPE_CHECKING, Any
 
 from loguru import logger as log
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import selectinload
 
 from src.backend.features.monsters.dto.generation import GeneratedClan, GeneratedMonster
@@ -56,6 +56,35 @@ class MonsterGenerationRepository:
             .order_by(GeneratedClanORM.zone_id, GeneratedClanORM.tier, GeneratedClanORM.family_id)
             .limit(limit)
         )
+        result = await self.session.scalars(stmt)
+        return [_to_generated_clan(clan) for clan in result.all()]
+
+    async def count_generated_clans(
+        self,
+        *,
+        family_id: str | None = None,
+        clan_id: uuid.UUID | str | None = None,
+    ) -> int:
+        stmt = select(func.count(GeneratedClanORM.id))
+        stmt = self._filter_clans(stmt, family_id=family_id, clan_id=clan_id)
+        return int(await self.session.scalar(stmt) or 0)
+
+    async def list_generated_clans_page(
+        self,
+        *,
+        family_id: str | None = None,
+        clan_id: uuid.UUID | str | None = None,
+        limit: int = 25,
+        offset: int = 0,
+    ) -> list[GeneratedClan]:
+        stmt = (
+            select(GeneratedClanORM)
+            .options(selectinload(GeneratedClanORM.members))
+            .order_by(GeneratedClanORM.family_id, GeneratedClanORM.tier, GeneratedClanORM.id)
+            .limit(limit)
+            .offset(offset)
+        )
+        stmt = self._filter_clans(stmt, family_id=family_id, clan_id=clan_id)
         result = await self.session.scalars(stmt)
         return [_to_generated_clan(clan) for clan in result.all()]
 
@@ -128,6 +157,14 @@ class MonsterGenerationRepository:
         )
         result = await self.session.scalars(stmt)
         return [_to_generated_monster(monster) for monster in result.all()]
+
+    @staticmethod
+    def _filter_clans(stmt, *, family_id: str | None, clan_id: uuid.UUID | str | None):
+        if family_id:
+            stmt = stmt.where(GeneratedClanORM.family_id == family_id)
+        if clan_id:
+            stmt = stmt.where(GeneratedClanORM.id == uuid.UUID(str(clan_id)))
+        return stmt
 
 
 def _to_generated_clan(clan: GeneratedClanORM) -> GeneratedClan:

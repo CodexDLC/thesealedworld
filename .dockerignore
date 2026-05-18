@@ -16,6 +16,12 @@ tests/
 tools/
 docs/
 graphify-out/
+var/
+logs/
+scratch/
+.uv-cache/
+.idea/
+.vscode/
 .claude/
 .coverage
 coverage.xml

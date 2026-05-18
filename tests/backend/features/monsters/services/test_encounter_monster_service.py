@@ -92,7 +92,14 @@ def _clan(context_hash: str, unique_hash: str = "unique") -> GeneratedClan:
     )
 
 
-def _monster(clan_id: uuid.UUID, role: str = "minion", threat: int = 20) -> GeneratedMonster:
+def _monster(
+    clan_id: uuid.UUID,
+    role: str = "minion",
+    threat: int = 20,
+    *,
+    gear_score: int | None = None,
+    organization_type: str = "swarm",
+) -> GeneratedMonster:
     return GeneratedMonster(
         id=uuid.uuid4(),
         clan_id=clan_id,
@@ -118,6 +125,12 @@ def _monster(clan_id: uuid.UUID, role: str = "minion", threat: int = 20) -> Gene
         items={},
         vitals={"hp": {"current": 20, "max": 20}},
         ai_profile={},
+        generation_meta={
+            "balance": {
+                "gear_score": gear_score if gear_score is not None else threat,
+                "organization_type": organization_type,
+            }
+        },
     )
 
 
@@ -161,6 +174,28 @@ async def test_prepare_encounter_creates_clan_and_returns_monster_ids() -> None:
     assert result.reused_existing_clan is False
     assert result.clan_id
     assert 1 <= len(result.monster_ids) <= 2
+
+
+@pytest.mark.unit
+async def test_prepare_encounter_uses_gear_score_budget_when_context_threat_is_present() -> None:
+    repo = FakeMonsterRepository()
+    service = EncounterMonsterService(repo, factory=FakeClanFactory(repo))
+    context = MonsterGenerationContext(biome_id="forest", tier=1, tags=["mana_leak"], threat=90)
+    normalized = normalize_tags(context.tags)
+    actual_hash = compute_context_hash(context.tier, context.biome_id, normalized)
+    clan = _clan(actual_hash)
+    expensive = _monster(clan.id, threat=10, gear_score=200)
+    cheap = _monster(clan.id, threat=100, gear_score=40)
+    mid = _monster(clan.id, threat=50, gear_score=45)
+    for monster in (expensive, cheap, mid):
+        monster.clan = clan
+        clan.members.append(monster)
+    repo.clans_by_context[actual_hash] = [clan]
+    repo.members_by_clan[clan.id] = [expensive, cheap, mid]
+
+    result = await service.prepare_encounter_monsters(context)
+
+    assert result.monster_ids == [str(cheap.id), str(mid.id)]
 
 
 @pytest.mark.unit

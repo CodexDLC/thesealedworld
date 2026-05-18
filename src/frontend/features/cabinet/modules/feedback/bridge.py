@@ -30,7 +30,10 @@ class SiteFeedbackBridge:
             yield FeedbackRepository(session=session)
 
     async def get_feedback_list_state(
-        self, *, request: Request, type_filter: str | None = None,
+        self,
+        *,
+        request: Request,
+        type_filter: str | None = None,
     ) -> FeedbackListState:
         async with self._get_repo() as repo:
             if type_filter:
@@ -55,7 +58,11 @@ class SiteFeedbackBridge:
         return FeedbackListState(rows=rows, total_count=len(rows), new_count=new_count)
 
     async def update_feedback_status(
-        self, *, request: Request, feedback_id: str, status: str,
+        self,
+        *,
+        request: Request,
+        feedback_id: str,
+        status: str,
     ) -> FeedbackActionResult:
         async with self._get_repo() as repo:
             fb = await repo.get_by_id(int(feedback_id))

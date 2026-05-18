@@ -19,6 +19,7 @@ from src.backend.features.combat.exceptions import (
 )
 from src.backend.features.combat.game_config import CombatConfig
 from src.backend.features.combat.integrations import CombatSessionIntegration
+from src.backend.features.combat.runtime.engine.feint_service import FeintService
 
 # Конфиг таймеров согласно документации
 AFK_TIMEOUTS = {
@@ -92,6 +93,19 @@ class CombatTurnManager:
                 raise CombatFeintUnavailableError(
                     f"Feint {feint_id} is not in hand",
                     context={"feint_id": feint_id},
+                )
+            stamina_cost = FeintService.activation_stamina_cost(cost)
+            actor_state = await self.combat_sessions.get_actor_state(session_id, char_id)
+            actor_stamina = self._int((actor_state or {}).get("stamina"))
+            if actor_stamina < stamina_cost:
+                await self.combat_sessions.return_feint(session_id, char_id, feint_id, cost)
+                raise CombatFeintUnavailableError(
+                    f"Feint {feint_id} requires concentration",
+                    context={
+                        "feint_id": feint_id,
+                        "required_stamina": stamina_cost,
+                        "current_stamina": actor_stamina,
+                    },
                 )
 
         # 4. Записываем в буфер (Multi-Targeting / Spamming)
@@ -338,3 +352,10 @@ class CombatTurnManager:
     @staticmethod
     def _defer_after(seconds: int) -> datetime:
         return datetime.now(UTC) + timedelta(seconds=seconds)
+
+    @staticmethod
+    def _int(value: Any) -> int:
+        try:
+            return int(value or 0)
+        except (TypeError, ValueError):
+            return 0

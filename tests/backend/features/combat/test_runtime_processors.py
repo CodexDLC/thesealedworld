@@ -18,8 +18,8 @@ from src.backend.features.combat.dto import (
     CombatEffectFactDTO,
     CombatEventDTO,
     CombatMoveDTO,
-    CombatResourceFactDTO,
     CombatPipelineMutationFactDTO,
+    CombatResourceFactDTO,
     CombatTriggerAttemptDTO,
     CombatTriggerFactDTO,
     ExchangePayload,
@@ -252,7 +252,16 @@ def move_payload(move_id: str, actor_id: int, target_id: int) -> dict[str, Any]:
 
 def actor(actor_id: int | str, team: str, hp: int = 100) -> ActorSnapshot:
     return ActorSnapshot(
-        meta=ActorMetaDTO(id=actor_id, name=f"A{actor_id}", type="player", team=team, hp=hp, max_hp=max(hp, 1)),
+        meta=ActorMetaDTO(
+            id=actor_id,
+            name=f"A{actor_id}",
+            type="player",
+            team=team,
+            hp=hp,
+            max_hp=max(hp, 1),
+            stamina=100,
+            max_stamina=100,
+        ),
         raw=ActorRawDTO(modifiers={"main_hand_damage_base": 200, "main_hand_accuracy": 1.0}),
         loadout=ActorLoadoutDTO(),
     )
@@ -1504,6 +1513,43 @@ async def test_commit_session_persists_step_and_actor_exchange_counters() -> Non
 
 
 @pytest.mark.unit
+async def test_session_integration_round_trips_stamina_state() -> None:
+    manager = CapturingCombatManager()
+    integration = CombatSessionIntegration(manager)  # type: ignore[arg-type]
+    snapshot = integration._build_snapshot(
+        "1",
+        "a",
+        {
+            "hp": 50,
+            "max_hp": 100,
+            "en": 20,
+            "max_en": 30,
+            "stamina": 37,
+            "max_stamina": 80,
+            "tokens": {},
+        },
+        {},
+        {},
+        {"name": "Hero", "type": "player"},
+        {},
+        {},
+        {},
+    )
+
+    assert snapshot.meta.stamina == 37
+    assert snapshot.meta.max_stamina == 80
+
+    ctx = BattleContext(session_id="c1", meta=battle_meta(), actors={"1": snapshot})
+    snapshot.meta.stamina = 12
+
+    await integration.commit_session(ctx, ["m1"])
+
+    updates = manager.commit_kwargs["args"][1]
+    assert updates["1"]["state"]["stamina"] == 12
+    assert updates["1"]["state"]["max_stamina"] == 80
+
+
+@pytest.mark.unit
 async def test_commit_session_sends_dead_actor_prune_and_alive_counts() -> None:
     manager = CapturingCombatManager()
     integration = CombatSessionIntegration(manager)  # type: ignore[arg-type]
@@ -1609,6 +1655,26 @@ def test_session_integration_snapshot_reuses_persisted_stats() -> None:
     StatsEngine.ensure_stats(snapshot)
 
     assert snapshot.stats.mods.accuracy == 0.77
+
+
+@pytest.mark.unit
+def test_stats_engine_rounds_fractional_resource_maxima_for_dto_contract() -> None:
+    snapshot = actor(1, "a")
+    snapshot.raw = ActorRawDTO(
+        attributes={
+            "perception": {"base": 12.0, "source": {}, "temp": {}},
+            "projection": {"base": 9.0, "source": {}, "temp": {}},
+            "prediction": {"base": 13.0, "source": {}, "temp": {}},
+        },
+        modifiers={"stamina_regen": {"base": 1.0, "source": {}, "temp": {}}},
+        rules={"attribute_profile": "player"},
+    )
+
+    StatsEngine.ensure_stats(snapshot)
+
+    assert snapshot.stats is not None
+    assert snapshot.stats.mods.stamina == 113
+    assert snapshot.stats.mods.stamina_regen == pytest.approx(4.4)
 
 
 @pytest.mark.unit
@@ -2140,6 +2206,74 @@ def test_ability_service_applies_ability_cost_and_pipeline_flags() -> None:
 
 
 @pytest.mark.unit
+def test_ability_service_registers_feint_stamina_cost_on_activation() -> None:
+    source = actor(1, "a")
+    source.meta.stamina = 100
+    target = actor(2, "b")
+    move = CombatMoveDTO(
+        move_id="m1",
+        char_id=1,
+        strategy="exchange",
+        payload=ExchangePayload(feint_id="steady_hand", target_id=2),
+    )
+    ctx = PipelineContextDTO()
+
+    AbilityService().pre_process(ctx, move, source, target)
+
+    assert ctx.result.resource_changes["stamina"]["cost"] == "-10"
+
+
+@pytest.mark.unit
+def test_ability_service_rejects_feint_when_stamina_is_missing() -> None:
+    source = actor(1, "a")
+    source.meta.stamina = 9
+    target = actor(2, "b")
+    move = CombatMoveDTO(
+        move_id="m1",
+        char_id=1,
+        strategy="exchange",
+        payload=ExchangePayload(feint_id="steady_hand", target_id=2),
+    )
+    ctx = PipelineContextDTO()
+
+    AbilityService().pre_process(ctx, move, source, target)
+
+    assert ctx.phases.run_calculator is False
+    assert ctx.result.skip_reason == "NO_RESOURCE"
+    assert ctx.result.chain_events.preserve_feint is True
+    assert "stamina" not in ctx.result.resource_changes
+
+
+@pytest.mark.unit
+def test_mechanics_applies_stamina_resource_changes() -> None:
+    source = actor(1, "a")
+    source.meta.stamina = 11
+    source.meta.max_stamina = 100
+    target = actor(2, "b")
+    result = InteractionResultDTO(source_id=1, target_id=2, resource_changes={"stamina": {"cost": "-10"}})
+
+    MechanicsService().apply_interaction_result(PipelineContextDTO(), source, target, result)
+
+    assert source.meta.stamina == 1
+    assert [fact.model_dump() for fact in result.resource_facts] == [
+        {
+            "actor_id": "1",
+            "owner": "source",
+            "resource": "stamina",
+            "reason": "cost",
+            "delta": -10,
+            "before": 11,
+            "after": 1,
+            "max": 100,
+            "source_action_id": None,
+            "source_effect_id": None,
+            "source_trigger_id": None,
+            "tags": [],
+        }
+    ]
+
+
+@pytest.mark.unit
 def test_feint_service_refill_hand_uses_token_costs() -> None:
     source = actor(1, "a")
     source.meta.feints.arsenal = ["true_strike"]
@@ -2455,6 +2589,38 @@ def test_mechanics_applies_defender_tokens_from_resolver_result() -> None:
 
 
 @pytest.mark.unit
+def test_ability_post_process_registers_combat_regen_as_resource_changes() -> None:
+    source = actor(1, "a")
+    source.meta.hp = 10
+    source.meta.max_hp = 20
+    source.meta.en = 4
+    source.meta.max_en = 10
+    source.meta.stamina = 5
+    source.meta.max_stamina = 15
+    source.stats = stats({"hp_regen": 0.96, "en_regen": 2.4, "stamina_regen": 3.0})
+    ctx = PipelineContextDTO()
+    move = CombatMoveDTO(move_id="m1", char_id=1, strategy="exchange", payload=ExchangePayload(target_id=2))
+
+    AbilityService().post_process(ctx, source, None, move)
+
+    assert ctx.result.resource_changes == {
+        "hp": {"combat_regen": "+1"},
+        "en": {"combat_regen": "+2"},
+        "stamina": {"combat_regen": "+3"},
+    }
+
+    MechanicsService().apply_interaction_result(ctx, source, None, ctx.result)
+    assert source.meta.hp == 11
+    assert source.meta.en == 6
+    assert source.meta.stamina == 8
+    assert [(fact.actor_id, fact.resource, fact.reason, fact.delta) for fact in ctx.result.resource_facts] == [
+        ("1", "hp", "combat_regen", 1),
+        ("1", "en", "combat_regen", 2),
+        ("1", "stamina", "combat_regen", 3),
+    ]
+
+
+@pytest.mark.unit
 def test_mechanics_applies_periodic_effect_ticks_and_death() -> None:
     source = actor(1, "a", hp=2)
     source.statuses.effects.append(
@@ -2535,6 +2701,64 @@ async def test_executor_ticks_periodic_effects_before_exchange() -> None:
         ]
         for entry in ctx.pending_logs
     )
+
+
+@pytest.mark.unit
+async def test_executor_applies_combat_regen_only_to_current_exchange_actors(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    async def fixed_result(self, source, target, move, exchange_count=0, external_mods=None):
+        result = InteractionResultDTO(
+            source_id=source.char_id,
+            target_id=target.char_id,
+            resource_changes={
+                "hp": {"combat_regen": "+1"},
+                "en": {"combat_regen": "+2"},
+                "stamina": {"combat_regen": "+3"},
+            },
+        )
+        MechanicsService().apply_interaction_result(PipelineContextDTO(), source, target, result)
+        return result
+
+    monkeypatch.setattr(CombatPipeline, "calculate", fixed_result)
+    ctx = BattleContext(
+        session_id="c1",
+        meta=battle_meta(),
+        actors={"1": actor(1, "a"), "2": actor(2, "b"), "3": actor(3, "b", hp=0)},
+    )
+    ctx.actors["1"].meta.hp = 10
+    ctx.actors["1"].meta.en = 4
+    ctx.actors["1"].meta.max_en = 10
+    ctx.actors["1"].meta.stamina = 5
+    ctx.actors["1"].stats = stats({"hp_regen": 1.0, "en_regen": 2.0, "stamina_regen": 3.0})
+    ctx.actors["2"].meta.hp = 10
+    ctx.actors["2"].meta.en = 4
+    ctx.actors["2"].meta.max_en = 10
+    ctx.actors["2"].meta.stamina = 5
+    ctx.actors["2"].stats = stats({"hp_regen": 1.0, "en_regen": 2.0, "stamina_regen": 3.0})
+    ctx.actors["3"].meta.hp = 10
+    ctx.actors["3"].meta.en = 4
+    ctx.actors["3"].meta.max_en = 10
+    ctx.actors["3"].meta.stamina = 5
+    ctx.actors["3"].stats = stats({"hp_regen": 10.0, "en_regen": 10.0, "stamina_regen": 10.0})
+    action = CombatActionDTO(
+        action_type="exchange",
+        move=CombatMoveDTO(move_id="m1", char_id=1, strategy="exchange", payload=ExchangePayload(target_id=2)),
+        partner_move=CombatMoveDTO(move_id="m2", char_id=2, strategy="exchange", payload=ExchangePayload(target_id=1)),
+        is_forced=True,
+    )
+
+    await CombatExecutor().process_batch(ctx, [action])
+
+    assert ctx.actors["1"].meta.hp == 11
+    assert ctx.actors["1"].meta.en == 6
+    assert ctx.actors["1"].meta.stamina == 8
+    assert ctx.actors["2"].meta.hp == 11
+    assert ctx.actors["2"].meta.en == 6
+    assert ctx.actors["2"].meta.stamina == 8
+    assert ctx.actors["3"].meta.hp == 10
+    assert ctx.actors["3"].meta.en == 4
+    assert ctx.actors["3"].meta.stamina == 5
 
 
 @pytest.mark.unit
@@ -2723,6 +2947,61 @@ def test_crit_roll_uses_normalized_weapon_skill_and_default_cap(monkeypatch: pyt
 
     assert stats().mods.main_hand_crit_cap == 0.75
     assert captured_chances == [0.75]
+
+
+@pytest.mark.unit
+def test_accuracy_roll_starts_at_seventy_and_scales_to_cap_with_weapon_skill(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    captured_chances: list[float] = []
+
+    def capture_roll(chance: float) -> tuple[float | None, bool]:
+        captured_chances.append(chance)
+        return None, True
+
+    monkeypatch.setattr(MathCore, "roll_chance", staticmethod(capture_roll))
+
+    ctx = PipelineContextDTO()
+    ctx.flags.meta.weapon_class = "swords"
+    result = InteractionResultDTO(source_id=1, target_id=2)
+
+    passed = CombatResolver._step_accuracy_roll(
+        stats(skills={"skill_swords": 1.0}),
+        ctx,
+        result,
+    )
+
+    assert passed is True
+    assert captured_chances == [1.0]
+    assert result.checks[-1].details["base"] == pytest.approx(0.70)
+    assert result.checks[-1].details["skill_bonus"] == pytest.approx(0.30)
+
+
+@pytest.mark.unit
+def test_accuracy_roll_applies_family_and_item_modifiers_after_skill(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    captured_chances: list[float] = []
+
+    def capture_roll(chance: float) -> tuple[float | None, bool]:
+        captured_chances.append(chance)
+        return None, True
+
+    monkeypatch.setattr(MathCore, "roll_chance", staticmethod(capture_roll))
+
+    ctx = PipelineContextDTO()
+    ctx.flags.meta.weapon_class = "swords"
+    result = InteractionResultDTO(source_id=1, target_id=2)
+
+    CombatResolver._step_accuracy_roll(
+        stats({"main_hand_accuracy": 0.05, "accuracy": -0.10}, {"skill_swords": 0.5}),
+        ctx,
+        result,
+    )
+
+    assert captured_chances == [pytest.approx(0.80)]
+    assert result.checks[-1].details["modifier"] == pytest.approx(-0.05)
+    assert result.checks[-1].details["skill_bonus"] == pytest.approx(0.15)
 
 
 @pytest.mark.unit

@@ -12,8 +12,6 @@ RawCombatMathModel = dict[str, Any]
 
 ATTRIBUTE_KEYS = tuple(CharacterSessionAttributesDTO.model_fields)
 COMBAT_MODIFIER_KEYS = frozenset(CombatModifiersDTO.model_fields)
-WEAPON_BASE_ACCURACY = 0.70
-UNARMED_ACCURACY = 0.70
 UNARMED_DAMAGE_SPREAD = 0.50
 HEAVY_CHEST_DODGE_CAPS = {
     "plate_chest": 0.35,
@@ -105,17 +103,7 @@ class CharacterCombatMathModelBuilder:
                 elif combat_slot == "off_hand" and not self._is_shield(item_type, tags):
                     self._replace_base_modifier(modifiers, "off_hand_damage_spread", damage_spread)
 
-            if item_type == "weapon" and combat_slot in {"main_hand", "off_hand"}:
-                self._apply_weapon_accuracy_base(modifiers, slot=combat_slot)
-
             for bonus_key, value in (mechanics.get("implicit_bonuses") or {}).items():
-                if (
-                    bonus_key == "accuracy_penalty"
-                    and item_type == "weapon"
-                    and combat_slot in {"main_hand", "off_hand"}
-                ):
-                    self._add_accuracy_penalty(modifiers, slot=combat_slot, source=source, value=value)
-                    continue
                 self._add_item_base_modifier(
                     modifiers,
                     str(bonus_key),
@@ -223,18 +211,6 @@ class CharacterCombatMathModelBuilder:
         CharacterCombatMathModelBuilder._replace_base_modifier(
             modifiers, "main_hand_damage_spread", UNARMED_DAMAGE_SPREAD
         )
-        CharacterCombatMathModelBuilder._set_base_modifier(modifiers, "main_hand_accuracy", UNARMED_ACCURACY)
-
-    def _apply_weapon_accuracy_base(self, modifiers: RawStatBlock, *, slot: str) -> None:
-        key = "off_hand_accuracy" if slot == "off_hand" else "main_hand_accuracy"
-        self._replace_base_modifier(modifiers, key, WEAPON_BASE_ACCURACY)
-
-    def _add_accuracy_penalty(self, modifiers: RawStatBlock, *, slot: str, source: str, value: Any) -> None:
-        penalty = self._float_value(value)
-        if penalty is None:
-            return
-        key = "off_hand_accuracy" if slot == "off_hand" else "main_hand_accuracy"
-        self._add_modifier(modifiers, key, source, -abs(penalty))
 
     def _add_power_modifier(
         self,
@@ -411,7 +387,12 @@ class CharacterCombatMathModelBuilder:
 
     @staticmethod
     def _empty_modifiers() -> RawStatBlock:
-        defaults = CombatModifiersDTO().model_dump(mode="json")
+        from src.backend.features.character.runtime.rules.attribute_modifiers import DEFAULT_MODIFIER_VALUES
+
+        defaults = {
+            **CombatModifiersDTO().model_dump(mode="json"),
+            **DEFAULT_MODIFIER_VALUES,
+        }
         return {
             key: {"base": float(value or 0.0), "source": {}, "temp": {}}
             for key, value in defaults.items()
@@ -445,5 +426,4 @@ __all__ = [
     "CharacterCombatMathModelBuilder",
     "RawCombatMathModel",
     "RawStatBlock",
-    "WEAPON_BASE_ACCURACY",
 ]

@@ -30,14 +30,25 @@
              role="menu"
              aria-label="System menu">
             <a class="game-system-action"
+               href="/account"
+               target="_blank"
+               rel="noopener"
+               role="menuitem"
+               aria-label="Open account in a separate window">
+                <span class="game-system-action-glyph game-system-action-glyph--cabinet" aria-hidden="true"></span>
+                <span>Account</span>
+            </a>
+            {% if user and user.is_superuser %}
+            <a class="game-system-action"
                href="/admin"
                target="_blank"
                rel="noopener"
                role="menuitem"
-               aria-label="Open cabinet in a separate window">
-                <span class="game-system-action-glyph game-system-action-glyph--cabinet" aria-hidden="true"></span>
-                <span>Cabinet</span>
+               aria-label="Open admin panel">
+                <span class="game-system-action-glyph game-system-action-glyph--settings" aria-hidden="true"></span>
+                <span>Admin</span>
             </a>
+            {% endif %}
             <form class="game-system-form" action="/game-lobby/release" method="post" role="none">
                 <button class="game-system-action"
                         type="submit"

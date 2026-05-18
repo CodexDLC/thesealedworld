@@ -102,6 +102,34 @@ async def test_encounter_combat_generation():
 
 
 @pytest.mark.asyncio
+async def test_encounter_uses_full_player_gear_score_as_monster_budget():
+    policy = EncounterPolicy()
+    policy.should_roll = lambda **_: True  # type: ignore[method-assign]
+    policy.roll = lambda **_: type(  # type: ignore[method-assign]
+        "Roll",
+        (),
+        {
+            "discovery_type": "monster",
+            "difficulty": "mid",
+            "status": DetectionStatus.DETECTED,
+        },
+    )()
+    engine = EncounterEngine(policy=policy)
+    integration = FakeEncounterIntegration()
+
+    await engine.try_generate_encounter(
+        char_id=1,
+        location_data={"flags": {"is_safe_zone": False, "threat_tier": 1}},
+        scouting_skill=100.0,
+        loc_id="50_50",
+        gear_score=506,
+        encounter_integration=integration,
+    )
+
+    assert integration.prepare_monster_group.await_args.args[1] == 506
+
+
+@pytest.mark.asyncio
 async def test_encounter_ambush_uses_monster_ambush_text():
     policy = EncounterPolicy()
     policy.should_roll = lambda **_: True  # type: ignore[method-assign]

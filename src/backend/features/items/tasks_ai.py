@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING, Any
 from src.backend.features.generation_ai.dto import AIGenerationTaskResultDTO, AIGenerationTaskSpecDTO
 from src.backend.features.items.dto.ai import GeneratedItemTextDTO
 from src.backend.features.items.dto.instance import ItemGenerationRequestDTO
+from src.backend.features.items.integrations.monster_narrative import ItemMonsterNarrativeIntegration
 from src.backend.features.items.integrations.persistence import ItemPersistenceIntegration
 from src.backend.features.items.prompts.router import build_item_name_description_prompt
 from src.backend.features.items.repositories import ItemInstanceRepository
@@ -29,6 +30,7 @@ class ItemTextTaskHandler:
             raise RuntimeError("ItemTextTaskHandler requires a database session to build request")
 
         request = ItemGenerationRequestDTO.model_validate((task.input_payload or {}).get("request") or {})
+        request = await ItemMonsterNarrativeIntegration(self.session).enrich_request_from_db_clan(request)
         persistence = ItemPersistenceIntegration(ItemInstanceRepository(self.session))
         item = await persistence.get_generated_item(str(task.entity_id))
         if item is None:

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 import uuid
 from typing import TYPE_CHECKING, Any, Literal
 
@@ -18,8 +19,10 @@ from src.backend.features.combat.dto import (
 )
 from src.backend.features.combat.integrations import CombatCatalogIntegrator as GameData
 from src.backend.features.combat.runtime.engine.effect_factory import EffectFactory
+from src.backend.features.combat.runtime.engine.feint_service import FeintService
 from src.backend.features.combat.runtime.engine.modifier_application_service import ModifierApplicationService
 from src.backend.features.combat.runtime.engine.pipeline_mutation_service import PipelineMutationService
+from src.backend.features.combat.runtime.engine.stats_engine import StatsEngine
 from src.backend.features.combat.runtime.engine.trigger_activation import activate_trigger
 from src.backend.features.game_catalog.combat.resources.common.modifier_applications import ModifierApplicationDTO
 
@@ -97,6 +100,9 @@ class AbilityService:
 
         # 3. [EXECUTE EFFECTS]
         self._apply_queued_effects(ctx, source, target)
+
+        # 4. [PASSIVE COMBAT REGEN]
+        self._register_combat_regen(ctx, source)
 
     # ==============================================================================
     # ATOMIC STEPS: STATUS EFFECTS (FLAGS & MODS)
@@ -218,8 +224,15 @@ class AbilityService:
             feint_entry = GameData.get_feint_catalog_entry(action_id)
             if feint_entry:
                 config = feint_entry.technical
-                # Финты уже оплачены (при получении в руку) и списаны (в TurnManager)
-                cost_ok = True
+                stamina_cost = FeintService.activation_stamina_cost(config.cost.tactics)
+                cost_ok = actor.meta.stamina >= stamina_cost
+                if cost_ok:
+                    AbilityService._register_feint_activation_cost(ctx, stamina_cost)
+                else:
+                    ctx.phases.run_calculator = False
+                    ctx.result.skip_reason = "NO_RESOURCE"
+                    ctx.result.chain_events.preserve_feint = True
+                    log.info(f"AbilityService | Not enough stamina for feint {config.feint_id}")
 
         if not config or not cost_ok:
             return
@@ -586,6 +599,33 @@ class AbilityService:
             )
 
     @staticmethod
+    def _register_combat_regen(ctx: PipelineContextDTO, source: ActorSnapshot) -> None:
+        if not source.is_alive:
+            return
+
+        StatsEngine.ensure_stats(source)
+        if not source.stats:
+            return
+
+        regen_sources = (
+            ("hp", source.stats.mods.hp_regen),
+            ("en", source.stats.mods.en_regen),
+            ("stamina", source.stats.mods.stamina_regen),
+        )
+        for resource, regen_value in regen_sources:
+            delta = AbilityService._combat_regen_delta(regen_value)
+            if delta <= 0:
+                continue
+            ctx.result.resource_changes.setdefault(resource, {})["combat_regen"] = f"+{delta}"
+
+    @staticmethod
+    def _combat_regen_delta(value: float) -> int:
+        numeric = max(0.0, float(value or 0.0))
+        if numeric <= 0:
+            return 0
+        return max(1, int(math.floor(numeric)))
+
+    @staticmethod
     def _effect_conditions_met(ctx: PipelineContextDTO, effect_data: dict[str, Any]) -> bool:
         conditions = effect_data.get("conditions")
         if not isinstance(conditions, dict):
@@ -684,6 +724,14 @@ class AbilityService:
             if "gift" not in ctx.result.resource_changes:
                 ctx.result.resource_changes["gift"] = {}
             ctx.result.resource_changes["gift"]["cost"] = f"-{cost.gift_tokens}"
+
+    @staticmethod
+    def _register_feint_activation_cost(ctx: PipelineContextDTO, stamina_cost: int) -> None:
+        if stamina_cost <= 0:
+            return
+        if "stamina" not in ctx.result.resource_changes:
+            ctx.result.resource_changes["stamina"] = {}
+        ctx.result.resource_changes["stamina"]["cost"] = f"-{stamina_cost}"
 
     @staticmethod
     def _ability_expire_exchange(current_exchange: int, config: AbilityTechnicalDTO | FeintTechnicalDTO) -> int:

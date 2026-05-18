@@ -40,6 +40,8 @@ TRACE_MOD_KEYS = (
     "counter_attack_chance",
 )
 
+RESOURCE_INT_MOD_KEYS = frozenset({"hp", "en", "stamina"})
+
 
 class StatsEngine:
     """
@@ -75,6 +77,7 @@ class StatsEngine:
         # 2. Расчет (Waterfall)
         # Возвращает плоский словарь модификаторов и словарь формул
         calculated_mods, explanation = StatsWaterfallCalculator.calculate_waterfall(raw_data)
+        calculated_mods = StatsEngine._normalize_calculated_mods(calculated_mods)
 
         # 3. Сборка ActorStats
         # Берем скиллы из Snapshot (они не считаются в Waterfall, а просто копируются)
@@ -123,3 +126,11 @@ class StatsEngine:
             values=values,
             formulas=formulas,
         )
+
+    @staticmethod
+    def _normalize_calculated_mods(calculated_mods: dict[str, float]) -> dict[str, float | int]:
+        normalized: dict[str, float | int] = dict(calculated_mods)
+        for key in RESOURCE_INT_MOD_KEYS:
+            if key in normalized:
+                normalized[key] = max(0, int(round(float(normalized[key] or 0.0))))
+        return normalized

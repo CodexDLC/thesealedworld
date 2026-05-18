@@ -18,10 +18,13 @@ class Survey(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     questions: Mapped[list["SurveyQuestion"]] = relationship(
-        back_populates="survey", cascade="all, delete-orphan", order_by="SurveyQuestion.order",
+        back_populates="survey",
+        cascade="all, delete-orphan",
+        order_by="SurveyQuestion.order",
     )
     sends: Mapped[list["SurveySend"]] = relationship(
-        back_populates="survey", cascade="all, delete-orphan",
+        back_populates="survey",
+        cascade="all, delete-orphan",
     )
 
 

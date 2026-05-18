@@ -1,15 +1,16 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Protocol, runtime_checkable
+from typing import TYPE_CHECKING, Protocol, runtime_checkable
 
-from fastapi import Request
+if TYPE_CHECKING:
+    from fastapi import Request
 
-from fastapi_cabinet.messaging.types import (
-    InboxListState,
-    MailingListState,
-    RegistrationListState,
-)
+    from fastapi_cabinet.messaging.types import (
+        InboxListState,
+        MailingListState,
+        RegistrationListState,
+    )
 
 
 @dataclass(frozen=True)

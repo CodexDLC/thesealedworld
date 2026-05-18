@@ -16,6 +16,7 @@ from src.backend.features.city_services.models import CharacterTavernRoom
 from src.backend.features.expedition.models import CharacterExpedition
 from src.backend.features.generation_ai.models import AIGenerationTask
 from src.backend.features.items.models import (
+    ItemGeneratedTemplate,
     ItemInstance,
     ItemOrigin,
     ItemPlacement,
@@ -44,6 +45,7 @@ __all__ = [
     "ChatSession",
     "ChatSessionMessage",
     "ItemInstance",
+    "ItemGeneratedTemplate",
     "ItemOrigin",
     "ItemPlacement",
     "ItemTransaction",

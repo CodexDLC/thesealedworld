@@ -35,10 +35,10 @@ class CharacterGearScoreCalculator:
 
     @staticmethod
     def calculate_from_calculated(calculated: dict[str, Any]) -> int:
-        modifiers = CombatModifiersDTO(**calculated).model_dump(mode="json")
+        default_modifiers = CombatModifiersDTO().model_dump(mode="json")
         score = GEAR_SCORE_BASE
         for key, weight in GEAR_SCORE_WEIGHTS.items():
-            value = CharacterGearScoreCalculator._float_value(modifiers.get(key))
+            value = CharacterGearScoreCalculator._float_value(calculated.get(key, default_modifiers.get(key)))
             if value is None:
                 continue
             baseline = GEAR_SCORE_BASELINES.get(key, 0.0)

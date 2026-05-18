@@ -84,17 +84,19 @@
             <div id="game-right-content">
                 {% block game_right %}
                     <div x-show="rightPanelView === 'context'">
-                        {% if domain == 'scenario' %}
-                            {% include "game/domains/scenario/right_sidebar/main.html" %}
-                        {% elif domain == 'exploration' %}
-                            {% include "game/domains/exploration/right_sidebar/main.html" %}
-                        {% elif domain == 'arena' %}
-                            {% include "game/domains/arena/right_sidebar/main.html" %}
-                        {% elif domain == 'city_services' %}
-                            {% include "game/domains/city_services/right_sidebar/main.html" %}
-                        {% elif domain == 'combats' %}
-                            {% include "game/domains/combat/right_sidebar/main.html" %}
-                        {% endif %}
+                        <div id="game-right-context-content">
+                            {% if domain == 'scenario' %}
+                                {% include "game/domains/scenario/right_sidebar/main.html" %}
+                            {% elif domain == 'exploration' %}
+                                {% include "game/domains/exploration/right_sidebar/main.html" %}
+                            {% elif domain == 'arena' %}
+                                {% include "game/domains/arena/right_sidebar/main.html" %}
+                            {% elif domain == 'city_services' %}
+                                {% include "game/domains/city_services/right_sidebar/main.html" %}
+                            {% elif domain == 'combats' %}
+                                {% include "game/domains/combat/right_sidebar/main.html" %}
+                            {% endif %}
+                        </div>
                     </div>
                     {% if domain not in ['combats', 'death', 'loot'] %}
                     <div x-show="rightPanelView === 'inventory'" x-cloak>

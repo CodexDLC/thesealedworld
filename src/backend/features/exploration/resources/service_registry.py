@@ -36,7 +36,7 @@ SERVICE_REGISTRY: dict[str, ExplorationServiceEntry] = {
     "svc_tavern_hub": ExplorationServiceEntry(
         service_id="svc_tavern_hub",
         target_state=CoreDomain.CITY_SERVICES,
-        label="В таверну",
+        label="В постоялый двор",
         metadata={"service_type": "tavern", "tavern_id": "last_refuge"},
     ),
     "svc_town_hall_hub": ExplorationServiceEntry(
@@ -54,7 +54,7 @@ SERVICE_REGISTRY: dict[str, ExplorationServiceEntry] = {
     "svc_market_hub": ExplorationServiceEntry(
         service_id="svc_market_hub",
         target_state=CoreDomain.CITY_SERVICES,
-        label="На рынок",
+        label="В торговый зал",
         metadata={"service_type": "market"},
     ),
 }

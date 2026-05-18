@@ -1,3 +1,5 @@
+import time
+
 from loguru import logger
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
@@ -22,13 +24,23 @@ class SiteAnalyticsMiddleware(BaseHTTPMiddleware):
 
     async def dispatch(self, request: Request, call_next) -> Response:
         path = request.url.path
-        if not path.startswith(ANALYTICS_SKIP_PREFIXES):
+        track = not path.startswith(ANALYTICS_SKIP_PREFIXES)
+        if track:
             counters: dict[str, int] = getattr(request.app.state, "site_analytics", {})
             counters["visits"] = counters.get("visits", 0) + 1
             event_key = ANALYTICS_EVENT_PATHS.get(path)
             if event_key:
                 counters[event_key] = counters.get(event_key, 0) + 1
-        return await call_next(request)
+
+        response = await call_next(request)
+
+        if track:
+            user = getattr(request.state, "user", None)
+            if user is not None:
+                presence: dict[str, float] = getattr(request.app.state, "player_presence", {})
+                presence[str(user.id)] = time.time()
+
+        return response
 
 
 AUTH_LOOKUP_SKIP_EXACT_PATHS = {

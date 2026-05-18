@@ -69,7 +69,7 @@ InteractionResultDTO
 
 ### What Is Calculated INSIDE Resolver (Never Pre-Compute These)
 
-- Accuracy roll: `(hand_accuracy + global_accuracy) * ctx.mods.accuracy_mult`
+- Accuracy roll: `(0.70 + min(skill_val, 1.0) * 0.30 + source_accuracy_modifier) * ctx.mods.accuracy_mult`, clamped to `0..1`
 - Crit roll: `(hand_crit_chance + global_crit_chance) * (1.0 + skill_val)`
 - Evasion check: `min(evasion - atk.anti_dodge_chance, dodge_cap)`
 - Parry check: `min(parry * (1 + PARRY_SKILL_MULT_PER_POINT * skill_parrying), parry_cap)`
@@ -106,7 +106,7 @@ Chance: `min(0.50, 0.25 + 0.25 * skill_dual_wield)` (normalized, no multiplier).
 
 | Layer | Rule | Examples |
 |---|---|---|
-| `base` | Systemic or attribute-derived intrinsic baseline; numeric | `evasion.base = agility * 0.05`; `main_hand_accuracy.base = 0.70` |
+| `base` | Systemic or attribute-derived intrinsic baseline; numeric | `evasion.base = agility * 0.05`; hand accuracy bases stay `0.0` because hit baseline is resolver-owned |
 | `source` | Stable pre-combat: items, affixes, passives, equipment properties | `{"item:sword_01": 12.0}` |
 | `temp` | Runtime: buffs, debuffs, stances, control, round-local mutations | Applied by EffectService, cleared on effect expiry |
 
@@ -145,10 +145,10 @@ chance = min(0.50, 0.25 + 0.25 * skill_dual_wield)  # 0.25 base, 0.50 at full ma
 
 | source_type | damage_base | accuracy | armor_penetration_pct | crit_chance |
 |---|---|---|---|---|
-| `main_hand` | `main_hand_damage_base` | `main_hand_accuracy + accuracy` | `main_hand_armor_penetration_pct + armor_penetration_pct` | `main_hand_crit_chance + crit_chance` |
-| `off_hand` | `off_hand_damage_base` | `off_hand_accuracy + accuracy` | `off_hand_armor_penetration_pct + armor_penetration_pct` | `off_hand_crit_chance + crit_chance` |
-| `magic` | `magical_damage` | `magical_accuracy + accuracy` | `0.0` | `magical_crit_chance` (no global crit) |
-| `item` | `item_damage_base` | `item_accuracy` | `item_armor_penetration_pct + armor_penetration_pct` | `item_crit_chance` |
+| `main_hand` | `main_hand_damage_base` | `0.70 + skill_bonus + main_hand_accuracy + accuracy` | `main_hand_armor_penetration_pct + armor_penetration_pct` | `main_hand_crit_chance + crit_chance` |
+| `off_hand` | `off_hand_damage_base` | `0.70 + skill_bonus + off_hand_accuracy + accuracy` | `off_hand_armor_penetration_pct + armor_penetration_pct` | `off_hand_crit_chance + crit_chance` |
+| `magic` | `magical_damage` | `0.70 + skill_bonus + magical_accuracy + accuracy` | `0.0` | `magical_crit_chance` (no global crit) |
+| `item` | `item_damage_base` | `0.70 + skill_bonus + item_accuracy` | `item_armor_penetration_pct + armor_penetration_pct` | `item_crit_chance` |
 
 `ContextBuilder._analyze_intent()` sets `source_type`:
 - `strategy == "instant"` → `"magic"`
@@ -161,9 +161,9 @@ chance = min(0.50, 0.25 + 0.25 * skill_dual_wield)  # 0.25 base, 0.50 at full ma
 
 | Resolver reads | ActorStats path | Populated by | Status |
 |---|---|---|---|
-| accuracy (main) | `atk.mods.main_hand_accuracy + atk.mods.accuracy` | CharMathModel / MonsterProfile | OK |
-| accuracy (off) | `atk.mods.off_hand_accuracy + atk.mods.accuracy` | CharMathModel / MonsterProfile | OK |
-| accuracy (magic) | `atk.mods.magical_accuracy + atk.mods.accuracy` | CharMathModel / MonsterProfile | OK |
+| accuracy (main) | `0.70 + weapon skill bonus + atk.mods.main_hand_accuracy + atk.mods.accuracy` | Resolver + CharMathModel / MonsterProfile modifiers | OK |
+| accuracy (off) | `0.70 + weapon skill bonus + atk.mods.off_hand_accuracy + atk.mods.accuracy` | Resolver + CharMathModel / MonsterProfile modifiers | OK |
+| accuracy (magic) | `0.70 + skill bonus + atk.mods.magical_accuracy + atk.mods.accuracy` | Resolver + CharMathModel / MonsterProfile modifiers | OK |
 | damage_base (main) | `atk.mods.main_hand_damage_base` | CharMathModel / MonsterProfile | OK |
 | damage_base (off) | `atk.mods.off_hand_damage_base` | CharMathModel / MonsterProfile | OK |
 | damage_base (magic) | `atk.mods.magical_damage` | CharMathModel / MonsterProfile | OK |
@@ -274,7 +274,7 @@ the `skill_unarmed` efficiency curve instead.
 # CharacterCombatMathModelBuilder._apply_unarmed_base:
 main_hand_damage_base.base = strength           # strength value
 main_hand_damage_spread.base = 0.50             # 50% spread
-main_hand_accuracy.base = 0.70                  # same as weapon base
+main_hand_accuracy.base = 0.0                   # hit baseline lives in resolver
 ```
 
 Unarmed resolver curve:
@@ -312,8 +312,8 @@ or `ctx.stages` — these are pipeline-local and do NOT persist to the snapshot.
 ## Common Mistakes Agents Make
 
 **DO NOT duplicate resolver math in mappers.**
-Wrong: computing `base = 0.70 - 0.08 + 0.04 = 0.66` and writing it to `base`.
-Correct: write `base = 0.70`, source `{"item:sword:penalty": -0.08, "skill:polearms:refund": +0.04}`.
+Wrong: computing `base = 0.70 + 0.30 * skill - 0.10` and writing it to `main_hand_accuracy.base`.
+Correct: keep hand accuracy as modifier-only and let resolver combine built-in base, skill bonus, and sources.
 
 **DO NOT pre-apply parry/block skill bonuses in mappers.**
 Parry and shield block base chances come from equipment. `CombatResolver` applies

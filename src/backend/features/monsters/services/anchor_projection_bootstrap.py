@@ -95,7 +95,8 @@ class AnchorProjectionBootstrapService:
                 },
             )
             vitals = CharacterVitalsCalculator.build_initial_vitals(
-                CharacterSessionAttributesDTO.model_validate(template.scaled_attributes.model_dump(mode="json"))
+                CharacterSessionAttributesDTO.model_validate(template.scaled_attributes.model_dump(mode="json")),
+                profile_key=f"monster:{family.archetype}",
             ).model_dump(mode="json")
             member = GeneratedMonster(
                 id=member_id,

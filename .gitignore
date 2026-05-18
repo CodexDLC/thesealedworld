@@ -173,6 +173,8 @@ brain/
 artifacts/
 scratch/
 graphify-out/
+*_diff.txt
+*_diff_utf8.txt
 
 # Cloud / Infrastructure
 .terraform/

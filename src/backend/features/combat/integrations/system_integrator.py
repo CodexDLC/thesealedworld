@@ -196,7 +196,7 @@ class CombatSystemIntegrator:
         if current_state not in {CoreDomain.COMBAT.value, CoreDomain.COMBAT_RESULT.value} and not (
             current_combat_id or current_finalization_id
         ):
-            return None
+            return CombatReturnStateMapper.normalize_current(current_state)
 
         if (
             combat_id is not None

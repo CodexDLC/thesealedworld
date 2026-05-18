@@ -6,10 +6,10 @@
 
 
 :root {
-  
+
   --col-bg: #08080a;
   --col-surface: #121218;
-  --col-parchment: #d2b48c; 
+  --col-parchment: #d2b48c;
   --col-parchment-dim: rgba(210, 180, 140, 0.6);
   --col-bg-base: #050505;
   --col-bg-surface: #0a0a0c;
@@ -26,7 +26,7 @@
   --col-info: #3399ff;
   --col-warning: #ffaa00;
 
-  
+
   --col-text-primary: rgba(255, 170, 0, 1.0);
   --col-text-secondary: rgba(255, 170, 0, 0.75);
   --col-text-world: rgba(230, 204, 172, 1.0);
@@ -39,11 +39,11 @@
   --game-panel-surface: rgba(10, 10, 12, 0.56);
   --game-scene-surface: rgba(10, 10, 12, 0.56);
 
-  
+
   --font-world: 'EB Garamond', Georgia, serif;
   --font-ui: 'JetBrains Mono', 'Courier New', monospace;
 
-  
+
   --text-3xl: 32px;
   --text-2xl: 24px;
   --text-xl: 20px;
@@ -60,7 +60,7 @@
   --game-story-body-size: 14px;
   --game-story-title-size: 30px;
 
-  
+
   --sp-1: 4px;
   --sp-2: 8px;
   --sp-3: 12px;
@@ -71,49 +71,49 @@
   --sp-10: 40px;
   --sp-12: 48px;
 
-  
+
   --clip-node-sm: inset(0);
   --clip-node-md: inset(0);
   --clip-node-lg: inset(0);
 
-  
+
   --shadow-accent: 0 0 12px 2px rgba(255, 170, 0, 0.18);
   --shadow-danger: 0 0 12px 2px rgba(255, 51, 0, 0.20);
   --shadow-energy: 0 0 12px 2px rgba(51, 153, 255, 0.18);
   --shadow-psi:    0 0 12px 2px rgba(119, 68, 255, 0.18);
 
-  
-  
-  --col-chat-world:   var(--col-accent);   
-  --col-chat-local:   var(--col-stamina);  
-  --col-chat-system:  var(--col-neutral);  
-  --col-chat-private: var(--col-psi);      
+
+
+  --col-chat-world:   var(--col-accent);
+  --col-chat-local:   var(--col-stamina);
+  --col-chat-system:  var(--col-neutral);
+  --col-chat-private: var(--col-psi);
   --col-chat-combat:  #ff4d2e;
 
-  
-  
+
+
   --shadow-notify-world:   0 0 10px 2px rgba(255, 170, 0,  0.55);
   --shadow-notify-local:   0 0 10px 2px rgba(85,  238, 153, 0.50);
   --shadow-notify-system:  0 0 10px 2px rgba(153, 153, 170, 0.45);
   --shadow-notify-private: 0 0 10px 2px rgba(136, 102, 255, 0.60);
 
-  
+
   --r0: #6f6b62;
-  
+
   --r1: #c8bfa8;
-  
+
   --r2: #4fa86b;
-  
+
   --r3: #2f8fd3;
-  
+
   --r4: #8c55d8;
-  
+
   --r5: #d06835;
-  
+
   --r6: #c99a3a;
-  
+
   --r7: #ffffff;
-  
+
 }
 
 
@@ -129,7 +129,7 @@
 
 html,
 body {
-  background: #000; 
+  background: #000;
   font-family: var(--font-ui);
   color: var(--col-text-primary);
   line-height: 1.5;
@@ -6633,7 +6633,7 @@ html, body {
     padding:
         var(--game-column-gutter-top, 10px)
         var(--game-column-gutter-x, 12px)
-        var(--game-column-gutter-bottom, 36px);
+        var(--game-column-gutter-top, 10px);
 }
 
 .exploration-main-dock {
@@ -6652,7 +6652,7 @@ html, body {
     min-height: 0;
     display: none;
     flex-direction: column;
-    gap: 10px;
+    gap: 0;
 }
 
 .exploration-main-dock > .mobile-screen.is-active {
@@ -6661,10 +6661,22 @@ html, body {
 
 .exploration-screen-content {
     min-height: 0;
-    flex: 1 1 auto;
+    flex: 1 1 0;
     display: flex;
     flex-direction: column;
     gap: 6px;
+    margin-bottom: 8px;
+}
+
+.exploration-screen-content.has-city-map-layout {
+    --city-map-copy-reserve: 132px;
+    container-type: size;
+    display: grid;
+    grid-template-rows: auto auto;
+    align-content: start;
+    align-items: start;
+    justify-items: center;
+    gap: 8px;
 }
 
 .exploration-navigation-grid {
@@ -6757,6 +6769,17 @@ html, body {
     --danger-glow-color: rgba(255, 58, 42, 0.44);
 }
 
+.mobile-scene.parchment.has-city-map-scene {
+    width: min(100cqw, calc(100cqh - var(--city-map-copy-reserve, 132px)));
+    height: min(100cqw, calc(100cqh - var(--city-map-copy-reserve, 132px)));
+    max-width: 100%;
+    aspect-ratio: 1 / 1;
+    flex: none;
+    justify-self: center;
+    align-self: start;
+    justify-content: flex-start;
+}
+
 .mobile-scene::before,
 .mobile-scene::after {
     content: "";
@@ -6787,6 +6810,7 @@ html, body {
 .mobile-scene-art {
     position: absolute;
     inset: var(--scene-safe-inset);
+    container-type: size;
     display: flex;
     align-items: flex-start;
     justify-content: space-between;
@@ -6798,6 +6822,122 @@ html, body {
     clip-path: none;
     background-position: center;
     background-size: cover;
+}
+
+.mobile-scene-art.has-city-map {
+    background:
+        linear-gradient(180deg, rgba(245, 232, 204, 0.025), transparent 34%, rgba(5, 5, 7, 0.16)),
+        rgba(0, 0, 0, 0.84);
+    overflow: hidden;
+}
+
+.exploration-city-map {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    z-index: 0;
+    width: 100%;
+    height: 100%;
+    display: grid;
+    grid-template-columns: repeat(var(--city-map-columns, var(--city-map-size, 5)), minmax(0, 1fr));
+    grid-template-rows: repeat(var(--city-map-rows, var(--city-map-size, 5)), minmax(0, 1fr));
+    gap: 0;
+    overflow: hidden;
+    transform: translate(-50%, -50%);
+}
+
+.mobile-scene-art.has-city-map .exploration-city-map {
+    width: min(100cqw, 100cqh);
+    height: min(100cqw, 100cqh);
+}
+
+.mobile-scene.parchment.has-city-map-scene .exploration-city-map {
+    width: 100%;
+    height: 100%;
+}
+
+.exploration-city-map-tile {
+    min-width: 0;
+    min-height: 0;
+    position: relative;
+    display: block;
+    aspect-ratio: 1 / 1;
+    background-position: center;
+    background-repeat: no-repeat;
+    background-size: 100% 100%;
+}
+
+.exploration-city-map-marker {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    z-index: 3;
+    width: 18%;
+    height: 18%;
+    min-width: 11px;
+    min-height: 11px;
+    border: 2px solid rgba(255, 234, 176, 0.95);
+    border-radius: 2px;
+    background: var(--world-accent, var(--col-accent));
+    box-shadow:
+        0 0 0 5px rgba(255, 170, 0, 0.12),
+        0 0 18px rgba(255, 170, 0, 0.52);
+    transform: translate(-50%, -50%);
+}
+
+.exploration-city-map-service-marker {
+    position: absolute;
+    --service-marker-inset: 10%;
+    z-index: 2;
+    width: 22%;
+    height: 22%;
+    min-width: 13px;
+    min-height: 13px;
+    border: 1px solid rgba(255, 196, 82, 0.72);
+    border-radius: 2px;
+    background:
+        linear-gradient(180deg, rgba(255, 170, 0, 0.22), rgba(5, 5, 7, 0.84)),
+        rgba(5, 5, 7, 0.86);
+    box-shadow:
+        inset 0 1px 0 rgba(255, 230, 160, 0.14),
+        0 0 10px rgba(255, 170, 0, 0.28);
+}
+
+.exploration-city-map-service-marker.is-top-left {
+    top: var(--service-marker-inset);
+    left: var(--service-marker-inset);
+    right: auto;
+    bottom: auto;
+}
+
+.exploration-city-map-service-marker.is-top-right {
+    top: var(--service-marker-inset);
+    right: var(--service-marker-inset);
+    bottom: auto;
+    left: auto;
+}
+
+.exploration-city-map-service-marker.is-bottom-left {
+    bottom: var(--service-marker-inset);
+    left: var(--service-marker-inset);
+    top: auto;
+    right: auto;
+}
+
+.exploration-city-map-service-marker.is-bottom-right {
+    right: var(--service-marker-inset);
+    bottom: var(--service-marker-inset);
+    top: auto;
+    left: auto;
+}
+
+.exploration-city-map-service-marker::before {
+    content: "";
+    position: absolute;
+    inset: 3px;
+    background: var(--world-accent, var(--col-accent));
+    mask: var(--service-marker-url) center / contain no-repeat;
+    -webkit-mask: var(--service-marker-url) center / contain no-repeat;
 }
 
 .mobile-scene-art::before {
@@ -6823,6 +6963,11 @@ html, body {
     height: 46%;
     background: linear-gradient(180deg, transparent, rgba(5, 5, 7, 0.34) 26%, rgba(5, 5, 7, 0.62) 100%);
     pointer-events: none;
+}
+
+.mobile-scene-art.has-city-map::after {
+    height: 18%;
+    background: linear-gradient(180deg, transparent, rgba(5, 5, 7, 0.34) 100%);
 }
 
 .mobile-scene-title,
@@ -6927,6 +7072,18 @@ html, body {
     pointer-events: auto;
 }
 
+.mobile-scene-copy--map {
+    width: 100%;
+    max-height: 118px;
+    flex: 0 0 auto;
+    padding: 14px 14px 20px;
+    border-color: rgba(255, 170, 0, 0.16);
+    background:
+        linear-gradient(180deg, rgba(255, 170, 0, 0.035), rgba(5, 5, 7, 0.34)),
+        rgba(5, 5, 7, 0.56);
+    box-shadow: inset 0 1px 0 rgba(245, 232, 204, 0.04);
+}
+
 
 
 .loc-tag { display: flex; align-items: center; gap: 7px; font-size: 8px; letter-spacing: .26em; text-transform: uppercase; color: var(--col-parchment-dim); align-self: flex-start; }
@@ -6985,6 +7142,23 @@ html, body {
     letter-spacing: .12em;
     text-transform: uppercase;
     margin-right: 6px;
+}
+
+@media (max-width: 760px) {
+    .mobile-scene.parchment.has-city-map-scene {
+        width: 100%;
+        height: auto;
+        aspect-ratio: 7 / 5;
+    }
+
+    .exploration-city-map {
+        --city-map-columns: 7;
+        --city-map-rows: 5;
+    }
+
+    .exploration-city-map-tile.is-mobile-row-trim {
+        display: none;
+    }
 }
 
 
@@ -8308,11 +8482,13 @@ html, body {
     display: grid;
     grid-template-columns: repeat(5, minmax(0, 1fr));
     grid-template-rows: repeat(5, minmax(0, 1fr));
-    gap: 3px;
-    padding: 6px;
+    gap: 0;
+    padding: 10px;
     border: 1px solid rgba(255, 170, 0, 0.18);
     background:
-        linear-gradient(180deg, rgba(255, 170, 0, 0.05), rgba(0, 0, 0, 0.32)),
+        linear-gradient(rgba(255, 170, 0, 0.12) 1px, transparent 1px) 0 0 / 20% 20%,
+        linear-gradient(90deg, rgba(255, 170, 0, 0.12) 1px, transparent 1px) 0 0 / 20% 20%,
+        linear-gradient(180deg, rgba(255, 170, 0, 0.04), rgba(0, 0, 0, 0.34)),
         rgba(2, 2, 4, 0.48);
 }
 
@@ -8322,10 +8498,8 @@ html, body {
     display: grid;
     place-items: center;
     aspect-ratio: 1 / 1;
-    border: 1px solid rgba(255, 170, 0, 0.12);
-    background:
-        linear-gradient(135deg, rgba(255, 214, 118, 0.05), transparent 44%),
-        rgba(0, 0, 0, 0.34);
+    border: 0;
+    background: transparent;
     color: rgba(255, 214, 118, 0.56);
     cursor: help;
     font-family: var(--font-ui);
@@ -8335,24 +8509,88 @@ html, body {
     position: relative;
 }
 
-.exploration-minimap-cell.is-current {
-    border-color: color-mix(in srgb, var(--world-accent, var(--col-accent)) 58%, transparent);
+.exploration-minimap-cell::before {
+    content: "";
+    position: absolute;
+    inset: 1px;
+    z-index: 0;
+    display: block;
+    border-radius: 0;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity .12s ease, transform .12s ease;
+}
+
+.exploration-minimap-cell.is-known::before {
+    opacity: .24;
+}
+
+.exploration-minimap-cell.is-zone-safe::before {
     background:
-        radial-gradient(circle, var(--world-accent-soft, rgba(255, 170, 0, 0.22)) 0, transparent 62%),
-        rgba(0, 0, 0, 0.52);
-    box-shadow:
-        inset 0 0 18px rgba(255, 170, 0, 0.16),
-        0 0 12px rgba(255, 170, 0, 0.14);
+        linear-gradient(180deg, rgba(68, 146, 94, 0.32), rgba(38, 96, 66, 0.16));
+}
+
+.exploration-minimap-cell.is-tier-0::before {
+    background:
+        linear-gradient(180deg, rgba(142, 154, 84, 0.24), rgba(92, 104, 58, 0.12));
+}
+
+.exploration-minimap-cell.is-tier-1::before {
+    background:
+        linear-gradient(180deg, rgba(186, 144, 58, 0.28), rgba(122, 86, 42, 0.14));
+}
+
+.exploration-minimap-cell.is-tier-2::before {
+    background:
+        linear-gradient(180deg, rgba(184, 94, 52, 0.30), rgba(122, 58, 38, 0.15));
+}
+
+.exploration-minimap-cell.is-tier-3::before {
+    background:
+        linear-gradient(180deg, rgba(166, 58, 54, 0.34), rgba(104, 36, 38, 0.16));
+}
+
+.exploration-minimap-cell.is-tier-4::before,
+.exploration-minimap-cell.is-tier-5::before {
+    background:
+        linear-gradient(180deg, rgba(130, 70, 176, 0.34), rgba(74, 42, 112, 0.16));
+}
+
+.exploration-minimap-cell.is-zone-unknown::before {
+    background:
+        linear-gradient(180deg, rgba(128, 128, 128, 0.10), rgba(64, 64, 64, 0.04));
+    opacity: .12;
+}
+
+.exploration-minimap-current-dot,
+.exploration-minimap-status-code,
+.exploration-minimap-route-mark,
+.exploration-minimap-markers {
+    position: relative;
+    z-index: 1;
+}
+
+.exploration-minimap-cell.is-current {
+    color: var(--world-accent, var(--col-accent));
 }
 
 .exploration-minimap-cell.is-route-hint {
-    border-color: rgba(255, 170, 0, 0.22);
-    background:
-        linear-gradient(135deg, rgba(255, 170, 0, 0.08), transparent 54%),
-        rgba(0, 0, 0, 0.42);
+    color: rgba(255, 214, 118, 0.64);
 }
 
-.exploration-minimap-cell::after {
+.exploration-minimap-cell.is-known {
+    color: rgba(230, 214, 176, 0.74);
+}
+
+.exploration-minimap-cell.is-safe {
+    color: rgba(134, 184, 148, 0.72);
+}
+
+.exploration-minimap-cell.is-danger {
+    color: rgba(210, 118, 92, 0.76);
+}
+
+.exploration-minimap-cell:not([data-tippy-content])::after {
     content: attr(data-map-tooltip);
     position: absolute;
     left: 50%;
@@ -8377,35 +8615,115 @@ html, body {
 
 .exploration-minimap-cell:hover,
 .exploration-minimap-cell:focus-visible {
-    border-color: color-mix(in srgb, var(--world-accent, var(--col-accent)) 54%, transparent);
     outline: none;
-    box-shadow:
-        inset 0 0 14px rgba(255, 170, 0, 0.12),
-        0 0 10px rgba(255, 170, 0, 0.14);
+    background: rgba(255, 170, 0, 0.06);
+    box-shadow: inset 0 0 0 1px rgba(255, 170, 0, 0.18);
 }
 
-.exploration-minimap-cell:hover::after,
-.exploration-minimap-cell:focus-visible::after {
+.exploration-minimap-cell:not([data-tippy-content]):hover::after,
+.exploration-minimap-cell:not([data-tippy-content]):focus-visible::after {
     opacity: 1;
     transform: translate(-50%, 0);
 }
 
 .exploration-minimap-current-dot {
-    width: 34%;
-    aspect-ratio: 1 / 1;
+    width: 28%;
+    height: 28%;
     display: block;
-    border: 1px solid rgba(255, 234, 176, 0.78);
+    border: 1px solid rgba(255, 234, 176, 0.82);
+    border-radius: 1px;
     background: var(--world-accent, var(--col-accent));
-    box-shadow: 0 0 14px rgba(255, 170, 0, 0.42);
+    box-shadow:
+        0 0 0 4px rgba(255, 170, 0, 0.08),
+        0 0 12px rgba(255, 170, 0, 0.36);
+}
+
+.exploration-minimap-status-code {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    z-index: 3;
+    display: block;
+    font-family: var(--font-ui);
+    font-size: 9px;
+    font-weight: 900;
+    line-height: 1;
+    text-shadow: 0 0 6px rgba(0, 0, 0, 0.92);
+}
+
+.exploration-minimap-status-code.is-safe {
+    color: rgba(92, 226, 136, 0.92);
+}
+
+.exploration-minimap-status-code.is-danger {
+    color: rgba(238, 82, 72, 0.94);
 }
 
 .exploration-minimap-route-mark {
-    width: 24%;
-    aspect-ratio: 1 / 1;
+    width: 18%;
+    height: 2px;
     display: block;
-    border: 1px solid rgba(255, 170, 0, 0.28);
-    background: rgba(255, 170, 0, 0.16);
+    border: 0;
+    border-radius: 1px;
+    background: rgba(255, 170, 0, 0.34);
 }
+
+.exploration-minimap-wall {
+    position: absolute;
+    z-index: 2;
+    display: block;
+    background: rgba(255, 214, 118, 0.46);
+    box-shadow: 0 0 8px rgba(255, 170, 0, 0.20);
+    pointer-events: none;
+}
+
+.exploration-minimap-wall.is-locked {
+    background: rgba(206, 72, 54, 0.70);
+    box-shadow: 0 0 9px rgba(206, 72, 54, 0.28);
+}
+
+.exploration-minimap-wall--north,
+.exploration-minimap-wall--south {
+    left: 18%;
+    right: 18%;
+    height: 2px;
+}
+
+.exploration-minimap-wall--west,
+.exploration-minimap-wall--east {
+    top: 18%;
+    bottom: 18%;
+    width: 2px;
+}
+
+.exploration-minimap-wall--north { top: 0; }
+.exploration-minimap-wall--south { bottom: 0; }
+.exploration-minimap-wall--west { left: 0; }
+.exploration-minimap-wall--east { right: 0; }
+
+.exploration-minimap-markers {
+    position: absolute;
+    left: 50%;
+    bottom: 12%;
+    display: flex;
+    gap: 2px;
+    transform: translateX(-50%);
+    pointer-events: none;
+}
+
+.exploration-minimap-marker {
+    width: 3px;
+    height: 3px;
+    display: block;
+    border-radius: 1px;
+    background: rgba(230, 214, 176, 0.72);
+    box-shadow: 0 0 5px rgba(255, 170, 0, 0.18);
+}
+
+.exploration-minimap-marker.is-players { background: rgba(130, 180, 255, 0.86); }
+.exploration-minimap-marker.is-battles { background: rgba(222, 104, 82, 0.92); }
+.exploration-minimap-marker.is-corpses { background: rgba(168, 128, 212, 0.86); }
+.exploration-minimap-marker.is-services { background: rgba(255, 190, 70, 0.92); }
 
 .exploration-minimap-caption {
     min-width: 0;
@@ -8441,11 +8759,15 @@ html, body {
 @media (min-width: 900px) {
     .exploration-main-dock .mobile-screen.is-active {
         display: flex;
-        gap: 14px;
+        gap: 0;
     }
 
     .exploration-main-dock .exploration-screen-content {
         display: flex;
+    }
+
+    .exploration-main-dock .exploration-screen-content.has-city-map-layout {
+        display: grid;
     }
 
     .exploration-main-dock .mobile-scene {
@@ -8457,11 +8779,15 @@ html, body {
     }
 
     .exploration-main-dock .exploration-action-panel__body {
-        grid-template-rows: auto minmax(0, 1fr);
+        grid-template-columns: minmax(220px, 0.4fr) minmax(0, 0.6fr);
+        grid-template-rows: auto;
         gap: 10px;
+        align-items: stretch;
     }
 
     .exploration-main-dock .mobile-services {
+        grid-column: 1;
+        grid-row: 1;
         align-self: stretch;
         align-content: start;
         padding: 14px 12px;
@@ -8469,8 +8795,18 @@ html, body {
         background: rgba(5, 5, 7, 0.18);
     }
 
+    .exploration-main-dock .mobile-service-grid {
+        grid-template-columns: minmax(0, 1fr);
+        grid-auto-rows: minmax(46px, auto);
+    }
+
     .exploration-main-dock .mobile-move-cooldown {
         margin-bottom: 0;
+    }
+
+    .exploration-main-dock .exploration-navigation-grid {
+        grid-column: 2;
+        grid-row: 1;
     }
 
     .exploration-main-dock.mobile-rift--encounter .mobile-screen.is-active {
@@ -8612,9 +8948,17 @@ html, body {
 
 @media (max-width: 760px) {
     #center-screens {
-        padding: 12px 10px 72px;
+        padding: 12px 10px 0;
         justify-content: flex-start;
         overflow-y: auto;
+    }
+
+    .exploration-center-screens {
+        padding-bottom: 0;
+    }
+
+    .exploration-screen-content.has-city-map-layout {
+        --city-map-copy-reserve: 124px;
     }
 
     .hud-strip {
@@ -14821,6 +15165,443 @@ html, body {
 
 
 
+
+.combat-mobile-roster {
+    display: grid;
+    gap: 5px;
+    padding: 0 7px 7px;
+}
+
+.combat-mobile-roster span {
+    min-width: 0;
+    display: grid;
+    grid-template-columns: minmax(0, .9fr) minmax(46px, 1fr) auto;
+    gap: 6px;
+    align-items: center;
+    padding: 5px;
+    border: 1px solid rgba(255, 170, 0, .10);
+    background: rgba(0, 0, 0, .28);
+}
+
+.combat-mobile-roster b,
+.combat-mobile-roster em {
+    overflow: hidden;
+    color: rgba(255, 231, 190, .78);
+    font-family: var(--font-mono);
+    font-size: 7px;
+    font-style: normal;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.combat-mobile-roster i {
+    height: 5px;
+    background: linear-gradient(90deg, rgba(255, 72, 56, .92) var(--value, 0%), rgba(255, 255, 255, .06) 0);
+}
+
+
+.side-panel-close {
+    display: none;
+}
+
+
+@media (max-width: 1120px) {
+    .combat-action-group--feints .combat-action-list {
+        grid-template-columns: 1fr;
+    }
+}
+
+
+@media (min-width: 1025px) {
+    .combat-screen {
+        --center-content-max: 820px;
+        display: grid;
+        grid-template-rows: auto auto auto;
+        align-content: start;
+        gap: 10px;
+    }
+
+    .combat-statebar,
+    .combat-field,
+    .combat-action-panel {
+        width: 100%;
+        justify-self: stretch;
+        box-sizing: border-box;
+    }
+
+    .combat-field {
+        --combat-target-card-width: clamp(340px, 52cqw, 620px);
+        --combat-target-portrait-size: clamp(100px, min(16cqw, 30cqh), 190px);
+        --combat-target-gap: clamp(10px, 1.6cqw, 18px);
+        min-height: clamp(500px, calc(100vh - var(--game-header-height, 40px) - var(--game-footer-height, 30px) - 280px), 620px);
+        grid-template-columns: minmax(0, 1fr);
+        grid-template-rows: minmax(138px, auto) minmax(0, 1fr);
+        align-items: stretch;
+        gap: 8px;
+        padding: 10px 12px;
+    }
+
+    .combat-field > .combat-field-actor--hero {
+        display: none;
+    }
+
+    .combat-field > .combat-field-actor--enemy {
+        width: min(100%, var(--combat-target-card-width));
+        justify-self: end;
+        grid-template-columns: minmax(0, 1fr) var(--combat-target-portrait-size);
+        align-items: center;
+        gap: var(--combat-target-gap);
+        padding: clamp(10px, 1.8cqw, 18px);
+        text-align: right;
+    }
+
+    .combat-field > .combat-field-actor--enemy .combat-field-actor-data {
+        width: 100%;
+        max-width: none;
+        justify-self: stretch;
+        align-content: center;
+        gap: 6px;
+    }
+
+    .combat-field > .combat-field-actor--enemy .combat-field-vitals {
+        width: 100%;
+        justify-self: stretch;
+    }
+
+    .combat-field > .combat-field-actor--enemy .combat-field-portrait {
+        order: 2;
+        width: var(--combat-target-portrait-size);
+        height: var(--combat-target-portrait-size);
+        justify-self: end;
+    }
+
+    .combat-field > .combat-field-actor--enemy .combat-field-title {
+        align-items: baseline;
+        flex-direction: row;
+        gap: 8px;
+    }
+
+    .combat-field > .combat-field-actor--enemy .combat-field-title span {
+        max-width: min(100%, 18ch);
+    }
+
+    .combat-field > .combat-field-actor--enemy .combat-effect-row {
+        justify-content: flex-end;
+    }
+
+    .combat-field > .combat-exchange-card {
+        min-height: 0;
+        align-content: stretch;
+        padding: 12px;
+        border-color: rgba(255, 214, 150, .20);
+        background:
+            linear-gradient(180deg, rgba(255, 244, 210, .10), rgba(255, 244, 210, .025)),
+            linear-gradient(90deg, rgba(70, 120, 160, .10), rgba(0, 0, 0, .22) 34%, rgba(120, 72, 40, .10)),
+            rgba(5, 5, 7, .48);
+        box-shadow:
+            inset 0 1px 0 rgba(255, 244, 210, .14),
+            inset 0 -18px 40px rgba(0, 0, 0, .24),
+            0 12px 30px rgba(0, 0, 0, .18);
+    }
+
+    .combat-action-panel {
+        align-self: start;
+    }
+}
+
+
+@media (max-width: 860px) {
+    .combat-statebar {
+        display: none;
+    }
+
+    .combat-header-state,
+    .combat-header-state__metrics {
+        grid-template-columns: 1fr;
+    }
+
+    .combat-header-state {
+        gap: 4px;
+        padding: 0 8px;
+    }
+
+    .combat-header-state__metrics {
+        display: grid;
+        justify-content: stretch;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .combat-action-topline {
+        grid-template-columns: 1fr;
+    }
+
+    .combat-battle-header,
+    .combat-battle-meta,
+    .combat-team-mini,
+    .combat-wait-scene {
+        grid-template-columns: 1fr;
+    }
+
+    .combat-wait-scene__image {
+        min-height: 110px;
+    }
+
+    .combat-log-panel {
+        max-height: calc(100vh - var(--game-header-height, 40px) - var(--game-footer-height, 24px) - 52px);
+    }
+
+    .combat-log-list {
+        max-height: min(320px, 45vh);
+    }
+
+    .combat-statebar__metrics {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        justify-content: stretch;
+    }
+
+    .combat-command-layout {
+        grid-template-columns: 1fr;
+    }
+
+    .combat-tool-panel {
+        order: -1;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .combat-action-group--desktop {
+        display: none;
+    }
+
+    .combat-action-group--mobile {
+        display: block;
+    }
+
+    .combat-mobile-dock {
+        display: grid;
+    }
+}
+
+
+@media (max-width: 767px) {
+    .game-top-row.combat-layout .col-left,
+    .game-top-row.combat-layout .col-right {
+        display: none !important;
+        width: 0 !important;
+        max-width: 0;
+        transform: none !important;
+    }
+
+    .side-panel-close {
+        position: sticky;
+        top: 0;
+        z-index: 3;
+        width: 100%;
+        min-height: 30px;
+        display: grid;
+        place-items: center;
+        border: 0;
+        border-bottom: 1px solid rgba(255, 170, 0, 0.24);
+        background:
+            linear-gradient(180deg, rgba(255, 170, 0, 0.10), rgba(0, 0, 0, 0.28)),
+            rgba(5, 5, 7, 0.92);
+        color: var(--world-accent, var(--col-accent));
+        cursor: pointer;
+        font-family: var(--font-ui);
+        font-size: 8px;
+        font-weight: 900;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+    }
+}
+
+
+@media (max-width: 520px) {
+    .combat-screen-shell {
+        padding: 6px 6px 12px;
+    }
+
+    .combat-screen {
+        gap: 6px;
+    }
+
+    .combat-battle-header,
+    .combat-team-bars {
+        display: none;
+    }
+
+    .combat-field {
+        --combat-target-card-width: min(100%, 300px);
+        --combat-target-portrait-size: clamp(46px, 14cqw, 68px);
+        --combat-target-gap: 7px;
+        min-height: min(430px, calc(100dvh - var(--game-header-height, 40px) - var(--game-footer-height, 28px) - 280px));
+        grid-template-rows: auto minmax(104px, 1fr) auto;
+        padding: 6px;
+    }
+
+    .combat-field-actor,
+    .combat-field-actor--enemy {
+        grid-template-columns: 46px minmax(0, 1fr);
+        text-align: left;
+    }
+
+    .combat-field-actor--enemy .combat-field-portrait {
+        order: 0;
+    }
+
+    .combat-field-actor--enemy .combat-effect-row {
+        justify-content: flex-start;
+    }
+
+    .combat-field-actor--enemy .combat-resource {
+        grid-template-columns: 24px minmax(0, 1fr) 50px;
+    }
+
+    .combat-field-actor--enemy .combat-resource span,
+    .combat-field-actor--enemy .combat-resource i,
+    .combat-field-actor--enemy .combat-resource strong {
+        order: initial;
+    }
+
+    .combat-field-actor--enemy .combat-resource span {
+        text-align: left;
+    }
+
+    .combat-field-actor--enemy .combat-resource strong {
+        text-align: right;
+    }
+
+    .combat-field-portrait {
+        width: var(--combat-target-portrait-size);
+        height: var(--combat-target-portrait-size);
+    }
+
+    .combat-field-title {
+        align-items: start;
+        flex-direction: column;
+        gap: 3px;
+    }
+
+    .combat-resource {
+        grid-template-columns: 24px minmax(0, 1fr) 50px;
+    }
+
+    .combat-exchange-summary {
+        font-size: 13px;
+    }
+
+    .combat-exchange-wave__lines {
+        max-height: 74px;
+    }
+
+    .combat-exchange-wave__line {
+        padding: 4px 6px;
+        font-size: 11px;
+    }
+
+    .combat-target-empty-card {
+        grid-template-columns: 1fr;
+    }
+
+    .combat-command-deck {
+        gap: 6px;
+        padding: 8px;
+    }
+
+    .combat-statebar {
+        padding: 5px 7px;
+    }
+
+    .combat-statebar__metrics span {
+        min-height: 21px;
+        padding: 0 5px;
+    }
+
+    .combat-action-panel {
+        gap: 6px;
+        padding: 7px;
+    }
+
+    .combat-action-panel .combat-token-strip {
+        padding: 5px;
+    }
+
+    .combat-action-panel .combat-token-bar {
+        justify-content: space-between;
+        gap: 4px;
+    }
+
+    .combat-action-panel .combat-token {
+        min-width: 32px;
+        height: 28px;
+    }
+
+    .combat-action-panel .combat-token img,
+    .combat-action-panel .combat-feint-option img,
+    .combat-action-panel .combat-ability-option img {
+        width: 14px;
+        height: 14px;
+    }
+
+    .combat-tool-panel {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 5px;
+    }
+
+    .combat-decision-panel {
+        order: 1;
+        gap: 5px;
+    }
+
+    .combat-decision-panel .combat-action-list {
+        gap: 5px;
+    }
+
+    .combat-primary-row {
+        grid-template-columns: minmax(86px, .42fr) minmax(0, 1fr);
+        gap: 5px;
+    }
+
+    .combat-action-panel .combat-action-group summary {
+        min-height: 16px;
+        padding: 0 7px;
+        font-size: 7px;
+    }
+
+    .combat-belt-slots,
+    .combat-ability-grid {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 4px;
+    }
+
+    .combat-belt-slot,
+    .combat-ability-option {
+        min-height: 28px;
+        aspect-ratio: auto;
+    }
+
+    .combat-primary-action {
+        min-height: 40px;
+    }
+
+    .combat-refresh-button {
+        min-height: 40px;
+        padding: 0 8px;
+    }
+
+    .combat-feint-option,
+    .combat-feint-option--debug {
+        min-height: 34px;
+    }
+
+    .combat-mobile-dock {
+        grid-template-columns: 1fr;
+    }
+}
+
+
+
+
 .loot-screen,
 .death-screen {
     width: min(100%, 820px);
@@ -15547,5 +16328,3 @@ html, body {
         display: none;
     }
 }
-
-

@@ -119,7 +119,12 @@ def _monster_snapshot(monster_id):
     return {
         "meta": {"actor_type": "monster", "actor_id": monster_id, "name": "Rat"},
         "combat": {
-            "math_model": {"attributes": {"agility": {"base": 4}}, "modifiers": {}},
+            "math_model": {
+                "attributes": {"agility": {"base": 4}},
+                "modifiers": {},
+                "pipeline": {"actor_kind": "monster", "size_class": "small", "organization_type": "swarm"},
+                "rules": {"attribute_profile": "monster:beast"},
+            },
             "loadout": {"known_feints": ["bite"]},
             "skills": {"natural_weapon": 1.0},
         },
@@ -127,6 +132,29 @@ def _monster_snapshot(monster_id):
         "status": {"hp": {"cur": 20}, "energy": {"cur": 10}},
         "source": {"monster_id": monster_id, "template_id": "rat"},
     }
+
+
+@pytest.mark.asyncio
+async def test_lifecycle_preserves_monster_pipeline_profile_in_actor_raw():
+    store = FakeStore()
+    service = _orchestrator(store)
+
+    await service.create_from_request(
+        {
+            "combat_id": "combat-monster-pipeline",
+            "participants": {"team_1": [1], "team_2": ["rat-1"]},
+            "battle_type": "expedition",
+        }
+    )
+
+    data = store.created[1]
+    monster_doc = next(actor for actor in data.actors.values() if actor["meta"]["type"] == "monster")
+    assert monster_doc["raw"]["pipeline"] == {
+        "actor_kind": "monster",
+        "size_class": "small",
+        "organization_type": "swarm",
+    }
+    assert monster_doc["raw"]["rules"] == {"attribute_profile": "monster:beast"}
 
 
 @pytest.mark.asyncio

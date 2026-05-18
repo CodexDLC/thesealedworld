@@ -2,13 +2,13 @@ from contextlib import asynccontextmanager
 from typing import Any, Literal
 import pytest
 
-import src.backend.features.character.integrations.combat_commitment_integration as commitment_module
 from src.backend.features.character.integrations import CharacterCombatCommitmentIntegration
 
 
 class FakeCharacterSessions:
-    def __init__(self):
+    def __init__(self, items: dict[str, Any] | None = None):
         self.regenerated = []
+        self.items = items or {}
 
     async def apply_vitals_regen(self, char_id):
         self.regenerated.append(char_id)
@@ -26,7 +26,7 @@ class FakeCharacterSessions:
                 "bio": {"name": f"Hero {char_id}"},
                 "vitals": {"hp": {"cur": 64, "max": 64}, "energy": {"cur": 26, "max": 26}},
                 "attributes": {"strength": 15, "agility": 9},
-                "items": {},
+                "items": self.items,
                 "skills": {},
             }
             for char_id in char_ids
@@ -53,48 +53,19 @@ class FakeCommitmentManager:
         return {actor_id: actor_id for actor_id in snapshots}
 
 
-class FakeItemRepository:
-    def __init__(self, session):
-        self.session = session
-
-    async def get_equipped_for_characters(self, char_ids):
-        return {char_id: [] for char_id in char_ids}
-
-
-class FakeEquippedItemRepository:
-    def __init__(self, session):
-        self.session = session
-
-    async def get_equipped_for_characters(self, char_ids):
-        return {
-            7: [
-                {
-                    "item_id": "katana-1",
-                    "base_id": "katana",
-                    "item_type": "weapon",
-                    "slot": "two_hand",
-                    "placement": "equipped",
-                    "mechanics": {
-                        "power": 9,
-                        "damage_spread": 0.1,
-                        "related_skill": "skill_swords",
-                        "triggers": ["crit.weapon_serrated_bleed_crit"],
-                    },
-                    "tags": ["katana"],
-                    "metadata": {"related_skill": "skill_swords"},
-                }
-            ]
-        }
-
-
 @asynccontextmanager
 async def fake_session_factory():
     yield object()
 
 
+@asynccontextmanager
+async def player_commitment_must_not_open_db():
+    raise AssertionError("player combat commitments must not read item state from DB")
+    yield
+
+
 @pytest.mark.asyncio
-async def test_character_combat_commitment_integration_builds_player_commitments_from_ac(monkeypatch):
-    monkeypatch.setattr(commitment_module, "ItemInstanceRepository", FakeItemRepository)
+async def test_character_combat_commitment_integration_builds_player_commitments_from_ac():
     commitment_manager = FakeCommitmentManager()
     character_sessions = FakeCharacterSessions()
     result = await CharacterCombatCommitmentIntegration(
@@ -119,14 +90,35 @@ async def test_character_combat_commitment_integration_builds_player_commitments
 
 
 @pytest.mark.asyncio
-async def test_character_combat_commitment_materializes_equipped_items_from_items_store(monkeypatch):
-    monkeypatch.setattr(commitment_module, "ItemInstanceRepository", FakeEquippedItemRepository)
+async def test_character_combat_commitment_uses_ac_items_without_player_db_lookup():
     commitment_manager = FakeCommitmentManager()
+    character_sessions = FakeCharacterSessions(
+        items={
+            "layout": {"equipment": {"two_hand": "katana-1"}},
+            "by_id": {
+                "katana-1": {
+                    "item_id": "katana-1",
+                    "base_id": "katana",
+                    "item_type": "weapon",
+                    "slot": "two_hand",
+                    "placement": "equipped",
+                    "mechanics": {
+                        "power": 9,
+                        "damage_spread": 0.1,
+                        "related_skill": "skill_swords",
+                        "triggers": ["crit.weapon_serrated_bleed_crit"],
+                    },
+                    "tags": ["katana"],
+                    "metadata": {"related_skill": "skill_swords"},
+                },
+            },
+        }
+    )
 
     await CharacterCombatCommitmentIntegration(
-        character_sessions=FakeCharacterSessions(),
+        character_sessions=character_sessions,
         commitment_manager=commitment_manager,
-        session_factory=fake_session_factory,
+        session_factory=player_commitment_must_not_open_db,
     ).prepare_commitments(
         player_ids=[7],
         monster_ids=[],

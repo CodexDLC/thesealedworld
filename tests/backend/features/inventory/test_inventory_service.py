@@ -166,6 +166,89 @@ async def test_open_window_maps_real_item_card_fields(fake_redis_service, fake_r
 
 
 @pytest.mark.asyncio
+async def test_open_window_prefers_free_dual_wield_slot_before_replacement(
+    fake_redis_service,
+    fake_redis_client,
+):
+    _active_character(fake_redis_client, state="exploration")
+    service = _service(
+        fake_redis_service,
+        [
+            _item(
+                "dagger-1",
+                "weapon",
+                slot="main_hand",
+                placement="equipped",
+                mechanics={"slot": "main_hand", "valid_slots": ["main_hand", "off_hand"]},
+            ),
+            _item(
+                "dagger-2",
+                "weapon",
+                slot="main_hand",
+                mechanics={"slot": "main_hand", "valid_slots": ["main_hand", "off_hand"]},
+            ),
+        ],
+    )
+
+    window = await service.open_window(7)
+
+    row = next(row for row in window.visible_rows if row.item_id == "dagger-2")
+    assert row.equip_target == "off_hand"
+    assert row.details is not None
+    assert row.details.actions[0].action == "equip"
+    assert row.details.actions[0].slot_id == "off_hand"
+
+
+@pytest.mark.asyncio
+async def test_open_window_replaces_primary_slot_when_all_valid_slots_are_full(
+    fake_redis_service,
+    fake_redis_client,
+):
+    _active_character(fake_redis_client, state="exploration")
+    service = _service(
+        fake_redis_service,
+        [
+            _item(
+                "dagger-1",
+                "weapon",
+                slot="main_hand",
+                placement="equipped",
+                mechanics={"slot": "main_hand", "valid_slots": ["main_hand", "off_hand"]},
+            ),
+            _item(
+                "main_gauche-1",
+                "weapon",
+                slot="off_hand",
+                placement="equipped",
+                mechanics={"slot": "off_hand", "valid_slots": ["off_hand", "main_hand"]},
+            ),
+            _item(
+                "dagger-2",
+                "weapon",
+                slot="main_hand",
+                mechanics={"slot": "main_hand", "valid_slots": ["main_hand", "off_hand"]},
+            ),
+            _item(
+                "main_gauche-2",
+                "weapon",
+                slot="off_hand",
+                mechanics={"slot": "off_hand", "valid_slots": ["off_hand", "main_hand"]},
+            ),
+        ],
+    )
+
+    window = await service.open_window(7)
+
+    rows = {row.item_id: row for row in window.visible_rows}
+    assert rows["dagger-2"].equip_target == "main_hand"
+    assert rows["dagger-2"].details is not None
+    assert rows["dagger-2"].details.actions[0].slot_id == "main_hand"
+    assert rows["main_gauche-2"].equip_target == "off_hand"
+    assert rows["main_gauche-2"].details is not None
+    assert rows["main_gauche-2"].details.actions[0].slot_id == "off_hand"
+
+
+@pytest.mark.asyncio
 async def test_open_window_uses_distinct_legwear_and_feetwear_icons(fake_redis_service, fake_redis_client):
     _active_character(fake_redis_client, state="exploration")
     service = _service(
@@ -182,7 +265,7 @@ async def test_open_window_uses_distinct_legwear_and_feetwear_icons(fake_redis_s
     rows = {row.item_id: row for row in window.visible_rows}
     assert rows["pants-1"].icon == "legwear"
     assert rows["boots-1"].icon == "feetwear"
-    assert rows["greaves-1"].icon == "legs"
+    assert rows["greaves-1"].icon == "legs_heavy"
 
 
 @pytest.mark.asyncio

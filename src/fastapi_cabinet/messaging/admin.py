@@ -1,17 +1,20 @@
 from __future__ import annotations
 
-from typing import ClassVar
+from typing import TYPE_CHECKING, ClassVar
 
-from fastapi import Request
 from starlette.responses import RedirectResponse, Response
 
 from fastapi_cabinet.contracts.admin import CabinetAdmin
 from fastapi_cabinet.contracts.navigation import SidebarItem
 from fastapi_cabinet.contracts.widgets import TableWidget
-from fastapi_cabinet.messaging.bridge import MessagingBridge
 from fastapi_cabinet.messaging.navigation import build_messaging_sidebar
 from fastapi_cabinet.messaging.presenter import MessagingCabinetPresenter
 from fastapi_cabinet.messaging.workflows import MessagingWorkflowService
+
+if TYPE_CHECKING:
+    from fastapi import Request
+
+    from fastapi_cabinet.messaging.bridge import MessagingBridge
 
 
 class InboxAdmin(CabinetAdmin):

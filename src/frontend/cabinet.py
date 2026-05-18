@@ -1,6 +1,7 @@
 CABINET_MODULES = (
     # Сайт
     "src.frontend.features.cabinet.modules.site_analytics.cabinet",
+    "src.frontend.features.cabinet.modules.player_analytics.cabinet",
     # Гейм Сервер
     "src.frontend.features.cabinet.modules.combat.cabinet",
     "src.frontend.features.cabinet.modules.scenario.cabinet",
@@ -9,4 +10,5 @@ CABINET_MODULES = (
     "src.frontend.features.cabinet.modules.game_settings.cabinet",
     # Сообщения
     "src.frontend.features.cabinet.modules.messaging.cabinet",
+    "src.frontend.features.cabinet.modules.feedback.cabinet",
 )

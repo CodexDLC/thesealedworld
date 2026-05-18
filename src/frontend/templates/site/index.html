@@ -284,6 +284,38 @@
         </div>
 
         <div class="ds-panel tsw-feedback-panel">
+            {% if user and user.tester_status == "approved" %}
+            <div class="ds-panel-header">Канал тестеров</div>
+            <div class="ds-panel-body">
+                <h3>Помогите понять, где игра цепляет.</h3>
+                <div class="tsw-feedback-actions">
+                    <a class="choice" href="/account/feedback/new?type=bug">Сообщить баг</a>
+                    <a class="choice" href="/account/feedback/new?type=wish">Оставить пожелание</a>
+                    <a class="choice" href="/account/feedback/new?type=impression">Описать впечатление</a>
+                    <a class="choice" href="/account/feedback">Мои отзывы</a>
+                </div>
+                <p class="tsw-feedback-note">Баги · баланс · темп боя · понятность интерфейса · идеи для вылазок</p>
+            </div>
+            {% elif user and user.tester_status == "pending" %}
+            <div class="ds-panel-header">Канал тестеров</div>
+            <div class="ds-panel-body">
+                <h3>Ваша заявка на рассмотрении.</h3>
+                <p>Мы свяжемся с вами по email, когда примем решение.</p>
+                <div class="tsw-feedback-actions">
+                    <a class="choice" href="/account/profile">Посмотреть статус заявки</a>
+                </div>
+            </div>
+            {% elif user and user.tester_status == "none" %}
+            <div class="ds-panel-header">Канал тестеров · откроется вместе с 0.1.0</div>
+            <div class="ds-panel-body">
+                <h3>Помогите понять, где игра цепляет.</h3>
+                <p>Подайте заявку на тестирование, чтобы получить доступ к каналу обратной связи.</p>
+                <div class="tsw-feedback-actions">
+                    <a class="choice" href="/account/profile">Подать заявку на тестирование</a>
+                </div>
+                <p class="tsw-feedback-note">Баги · баланс · темп боя · понятность интерфейса · идеи для вылазок</p>
+            </div>
+            {% else %}
             <div class="ds-panel-header">Канал тестеров · откроется вместе с 0.1.0</div>
             <div class="ds-panel-body">
                 <h3>Помогите понять, где игра цепляет.</h3>
@@ -295,6 +327,7 @@
                 </div>
                 <p class="tsw-feedback-note">Баги · баланс · темп боя · понятность интерфейса · идеи для вылазок</p>
             </div>
+            {% endif %}
         </div>
     </div>
 </section>

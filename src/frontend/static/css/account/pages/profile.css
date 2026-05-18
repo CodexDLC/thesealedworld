@@ -40,3 +40,13 @@
   gap: var(--sp-3);
   flex-wrap: wrap;
 }
+
+.ds-panel--success {
+  border-color: rgba(34, 197, 94, 0.3);
+  background: rgba(34, 197, 94, 0.08);
+}
+
+.ds-panel--success .ds-panel-body p {
+  color: rgba(34, 197, 94, 0.9);
+  font-size: var(--text-sm);
+}

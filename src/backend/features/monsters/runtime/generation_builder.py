@@ -24,6 +24,7 @@ from src.backend.features.monsters.runtime.generation_fields import (
     build_member_tier,
 )
 from src.backend.features.monsters.runtime.hashing import compute_context_hash, compute_unique_clan_hash, normalize_tags
+from src.backend.features.monsters.services.gear_score_service import MonsterGearScoreService
 from src.backend.features.monsters.tasks_ai import build_monster_clan_flavor_task_spec
 
 if TYPE_CHECKING:
@@ -60,6 +61,7 @@ class MonsterClanGenerationBuilder:
         self.repository = repository
         self.item_generation = item_generation
         self.generation_ai = generation_ai
+        self.gear_score_service = MonsterGearScoreService()
 
     async def generate_active_clan(
         self,
@@ -281,7 +283,7 @@ class MonsterClanGenerationBuilder:
                 "owner_key": plan.owner_key,
             },
         )
-        return GeneratedMonster(
+        member = GeneratedMonster(
             id=plan.member_id,
             clan_id=clan_id,
             variant_key=plan.variant.id,
@@ -294,7 +296,10 @@ class MonsterClanGenerationBuilder:
             scaled_attributes=template.scaled_attributes.model_dump(mode="json"),
             scaled_skills=template.scaled_skills.model_dump(mode="json")["skills"],
             items=template.items.model_dump(mode="json"),
-            vitals=_build_vitals(template.scaled_attributes.model_dump(mode="json")),
+            vitals=_build_vitals(
+                template.scaled_attributes.model_dump(mode="json"),
+                profile_key=f"monster:{family.archetype}",
+            ),
             ai_profile=template.ai_profile.model_dump(mode="json"),
             generation_meta={
                 "schema_version": 2,
@@ -313,6 +318,8 @@ class MonsterClanGenerationBuilder:
                 "family_modifiers": template.family_modifiers,
             },
         )
+        self.gear_score_service.apply_monster_gear_score(member)
+        return member
 
     def _member_loadout(self, family: MonsterFamilyDTO, plan: _MemberPlan) -> dict[str, str]:
         if plan.member_model and plan.member_model.item_loadout_profile:
@@ -401,9 +408,9 @@ def _string_mapping(value: dict[str, object]) -> dict[str, str]:
     return {str(key): str(raw) for key, raw in value.items() if raw}
 
 
-def _build_vitals(attributes: dict[str, int]) -> dict[str, object]:
+def _build_vitals(attributes: dict[str, int], *, profile_key: str) -> dict[str, object]:
     dto = CharacterSessionAttributesDTO.model_validate(attributes)
-    return CharacterVitalsCalculator.build_initial_vitals(dto).model_dump(mode="json")
+    return CharacterVitalsCalculator.build_initial_vitals(dto, profile_key=profile_key).model_dump(mode="json")
 
 
 _NATURAL_DEFAULT_LOADOUTS: dict[str, dict[str, str]] = {

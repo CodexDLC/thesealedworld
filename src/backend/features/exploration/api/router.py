@@ -6,6 +6,7 @@ from src.backend.features.exploration.dependencies import ExplorationGatewayDep
 from src.shared.schemas.exploration import (
     EncounterDTO,
     ExplorationListDTO,
+    ExplorationLocalMapDTO,
     ExplorationScreenDTO,
     InteractRequest,
     MoveRequest,
@@ -40,6 +41,18 @@ async def look_around(
     Обзор текущей локации (обновление данных).
     """
     return cast("CoreResponseDTO[ExplorationPayload]", await gateway.look_around(char_id))
+
+
+@router.get("/local_map", response_model=ExplorationLocalMapDTO)
+async def local_map(
+    gateway: ExplorationGatewayDep,
+    char_id: int = Query(...),
+    radius: int = Query(2, ge=1, le=4),
+) -> ExplorationLocalMapDTO:
+    """
+    Local map area centered on the player's current location.
+    """
+    return await gateway.local_map(char_id, radius=radius)
 
 
 @router.post("/interact", response_model=CoreResponseDTO[ExplorationPayload])

@@ -232,7 +232,7 @@ async def test_prepare_session_uses_return_context_source_state() -> None:
             return_state=CoreDomain.CITY_SERVICES,
             return_screen="bar",
             source_service_id="svc_tavern_hub",
-            location_id="52_53",
+            location_id="53_53",
             tavern_id="last_refuge",
         ),
     )
@@ -384,10 +384,10 @@ async def test_select_tutorial_pve_spawn_location_uses_cross_zone_passable_non_s
 
 
 @pytest.mark.unit
-def test_tutorial_pve_budget_uses_round_half_up_with_minimum() -> None:
-    assert _budget_from_gear_score(13) == 3
-    assert _budget_from_gear_score(12.5) == 3
-    assert _budget_from_gear_score(2) == 1
+def test_tutorial_pve_budget_uses_full_gear_score_with_round_half_up_minimum() -> None:
+    assert _budget_from_gear_score(13) == 13
+    assert _budget_from_gear_score(12.5) == 13
+    assert _budget_from_gear_score(0.2) == 1
     assert _budget_from_gear_score(0) == 1
 
 
@@ -431,7 +431,7 @@ async def test_request_combat_start_prepares_monster_group_and_pve_combat() -> N
     assert restore_event.args[1]["char_id"] == 7
     assert monster_event.args[0] == MONSTER_GROUP_PREPARE_REQUESTED
     assert monster_event.args[1]["loc_id"] == "45_52"
-    assert monster_event.args[1]["budget"] == "3"
+    assert monster_event.args[1]["budget"] == "13"
     assert monster_event.args[1]["ttl"] == SCENARIO_COMBAT_TTL_SECONDS
     assert commitment_event.args[0] == CharacterEvents.COMBAT_COMMITMENTS_REQUESTED
     payload = combat_event.args[1]

@@ -7,6 +7,7 @@ from pydantic import BaseModel, ValidationError
 from fastapi_cabinet.contracts.admin import CabinetAdmin
 from fastapi_cabinet.contracts.providers import WidgetMap
 from fastapi_cabinet.contracts.widgets import (
+    ChartWidgetMap,
     DashboardWidget,
     EditableConfigWidgetMap,
     ListWidgetMap,
@@ -62,4 +63,6 @@ def _model_for_kind(kind: str) -> type[BaseModel]:
         return ListWidgetMap
     if kind == "editable_config":
         return EditableConfigWidgetMap
+    if kind == "chart":
+        return ChartWidgetMap
     raise CabinetProviderError(f"Unsupported dashboard widget kind {kind!r}.")

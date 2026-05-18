@@ -107,6 +107,7 @@ class LootIntegration:
             },
             "source": "loot_drop",
             "source_context": source_context or {},
+            "request_ai_text": True,
             "return_item": False,
         }
 

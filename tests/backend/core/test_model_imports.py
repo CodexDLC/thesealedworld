@@ -9,6 +9,13 @@ def test_backend_metadata_includes_chat_schema_models() -> None:
     assert "chat.chat_session_messages" in Base.metadata.tables
 
 
+def test_backend_metadata_includes_item_generated_templates() -> None:
+    _ = model_imports
+
+    assert "item_generated_templates" in Base.metadata.tables
+    assert "generated_template_id" in Base.metadata.tables["item_instances"].c
+
+
 def test_backend_metadata_does_not_own_site_auth_models() -> None:
     _ = model_imports
 

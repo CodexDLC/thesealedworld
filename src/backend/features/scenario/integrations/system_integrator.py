@@ -697,5 +697,5 @@ def _budget_from_gear_score(value: Any) -> int:
         gear_score = Decimal(str(value or 0))
     except Exception as exc:  # noqa: BLE001
         raise RuntimeError(f"Scenario tutorial PvE budget has invalid gear_score: {value!r}") from exc
-    budget = (gear_score / Decimal("5")).quantize(Decimal("1"), rounding=ROUND_HALF_UP)
+    budget = gear_score.quantize(Decimal("1"), rounding=ROUND_HALF_UP)
     return max(1, int(budget))

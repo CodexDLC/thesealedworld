@@ -21,14 +21,18 @@ class FeedbackListVM:
 
 @dataclass(frozen=True)
 class FeedbackFormVM:
-    types: list[tuple[str, str]] = field(default_factory=lambda: [
-        ("bug", "Баг"),
-        ("wish", "Пожелание"),
-        ("impression", "Впечатление"),
-        ("balance", "Баланс"),
-    ])
-    priorities: list[tuple[str, str]] = field(default_factory=lambda: [
-        ("minor", "Незначительный"),
-        ("blocking", "Блокирующий"),
-        ("critical", "Критический"),
-    ])
+    types: list[tuple[str, str]] = field(
+        default_factory=lambda: [
+            ("bug", "Баг"),
+            ("wish", "Пожелание"),
+            ("impression", "Впечатление"),
+            ("balance", "Баланс"),
+        ]
+    )
+    priorities: list[tuple[str, str]] = field(
+        default_factory=lambda: [
+            ("minor", "Незначительный"),
+            ("blocking", "Блокирующий"),
+            ("critical", "Критический"),
+        ]
+    )

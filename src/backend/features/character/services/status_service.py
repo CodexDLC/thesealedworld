@@ -148,7 +148,7 @@ class CharacterStatusService:
                     items=[
                         self._vital_item("HP", vitals.get("hp"), "hp"),
                         self._vital_item("EN", vitals.get("energy"), "en"),
-                        self._vital_item("STAMINA", vitals.get("stamina"), "sta"),
+                        self._vital_item("CONC", vitals.get("stamina"), "sta"),
                     ],
                 ),
                 PanelWidgetDTO(

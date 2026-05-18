@@ -145,7 +145,7 @@ class FakeCombatStore:
         }
 
     async def get_actor_state(self, session_id, actor_id):
-        return {"afk_level": 0}
+        return {"afk_level": 0, "stamina": 100, "max_stamina": 100}
 
     async def consume_feint(self, session_id, actor_id, feint_id):
         self.consumed_feints.append((session_id, actor_id, feint_id))
@@ -184,6 +184,18 @@ class NoAiCombatStore(FakeCombatStore):
     async def get_meta(self, session_id):
         meta = await super().get_meta(session_id)
         return {**meta, "actors_info": json.dumps({"1": "player", "2": "player"})}
+
+
+class LowStaminaCombatStore(FakeCombatStore):
+    def __init__(self):
+        super().__init__()
+        self.returned_feints = []
+
+    async def get_actor_state(self, session_id, actor_id):
+        return {"afk_level": 0, "stamina": 4, "max_stamina": 100}
+
+    async def return_feint(self, session_id, actor_id, feint_id, cost):
+        self.returned_feints.append((session_id, actor_id, feint_id, cost))
 
 
 class FinishedCombatStore(FakeCombatStore):
@@ -852,6 +864,26 @@ async def test_post_exchange_accepts_feint_id():
 
 
 @pytest.mark.asyncio
+async def test_post_exchange_rejects_feint_when_concentration_is_too_low():
+    store = LowStaminaCombatStore()
+    service = CombatSessionService(store=store, system_integrator=FakeCombatSystemIntegrator())
+
+    with pytest.raises(HTTPException) as exc_info:
+        await register_combat_move(
+            1,
+            CombatRegisterMoveRequestDTO(action="exchange", target_id="2", feint_id="true_strike"),
+            CombatRuntimeOrchestrator(service),
+        )
+
+    assert exc_info.value.status_code == 400
+    assert exc_info.value.error_code == "combat_feint_unavailable"
+    assert exc_info.value.extra["context"]["required_stamina"] == 5
+    assert exc_info.value.extra["context"]["current_stamina"] == 4
+    assert store.exchange_moves == []
+    assert store.returned_feints == [("combat-1", 1, "true_strike", {"hit": 1})]
+
+
+@pytest.mark.asyncio
 async def test_post_exchange_returns_result_when_move_finishes_session():
     service = CombatSessionService(store=FinishesAfterMoveCombatStore(), system_integrator=FakeCombatSystemIntegrator())
 
@@ -1225,6 +1257,61 @@ async def test_continue_combat_result_recovers_latest_finalization_and_clears_st
     assert response.payload.combat_id == "combat-1"
     assert sessions.patches[0][1]["$.sessions.combat_id"] is None
     assert sessions.patches[0][1]["$.sessions.combat_finalization_id"] is None
+
+
+@pytest.mark.asyncio
+async def test_continue_combat_result_clears_active_combat_when_latest_finalization_differs() -> None:
+    events = FakeEvents()
+    sessions = FakeCharacterSessions(
+        {
+            "state": CoreDomain.COMBAT.value,
+            "prev_state": CoreDomain.EXPLORATION.value,
+            "sessions": {"combat_id": "combat-2", "combat_finalization_id": None},
+        }
+    )
+    service = CombatSessionService(
+        store=LatestFinalizedCombatStore(),
+        system_integrator=CombatSystemIntegrator(
+            actor_commitments=FakeCommitments(),
+            character_sessions=sessions,
+            events=events,
+        ),
+    )
+
+    response = await continue_combat_result(7, CombatRuntimeOrchestrator(service))
+
+    assert response.payload_type == "state_transition"
+    assert response.header.current_state == CoreDomain.EXPLORATION
+    assert response.payload.combat_id == "combat-1"
+    assert sessions.patches[0][1]["$.sessions.combat_id"] is None
+    assert sessions.patches[0][1]["$.sessions.combat_finalization_id"] is None
+    assert sessions.patches[0][1]["$.state"] == CoreDomain.EXPLORATION.value
+
+
+@pytest.mark.asyncio
+async def test_continue_combat_result_is_idempotent_when_combat_refs_are_already_clean() -> None:
+    sessions = FakeCharacterSessions(
+        {
+            "state": CoreDomain.EXPLORATION.value,
+            "prev_state": None,
+            "sessions": {"combat_id": None, "combat_finalization_id": None},
+        }
+    )
+    service = CombatSessionService(
+        store=FakeCombatStore(),
+        system_integrator=CombatSystemIntegrator(
+            actor_commitments=FakeCommitments(),
+            character_sessions=sessions,
+            events=FakeEvents(),
+        ),
+    )
+
+    response = await continue_combat_result(7, CombatRuntimeOrchestrator(service))
+
+    assert response.payload_type == "state_transition"
+    assert response.header.current_state == CoreDomain.EXPLORATION
+    assert response.payload.target_state == CoreDomain.EXPLORATION
+    assert sessions.patches == []
 
 
 @pytest.mark.asyncio

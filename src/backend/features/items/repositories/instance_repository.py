@@ -3,9 +3,15 @@ from __future__ import annotations
 import uuid
 from typing import TYPE_CHECKING, Any
 
-from sqlalchemy import select
+from sqlalchemy import select, update
 
-from src.backend.features.items.models import ItemInstance, ItemOrigin, ItemPlacement, ItemTransaction
+from src.backend.features.items.models import (
+    ItemGeneratedTemplate,
+    ItemInstance,
+    ItemOrigin,
+    ItemPlacement,
+    ItemTransaction,
+)
 
 if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession
@@ -25,6 +31,7 @@ class ItemInstanceRepository:
         text_status: str,
         origin_ref: ItemOriginRefDTO | None = None,
         correlation_id: str | None = None,
+        generated_template_id: str | None = None,
     ) -> ItemInstance:
         instance_id = item.instance_id or str(uuid.uuid4())
         mechanics = {
@@ -42,6 +49,7 @@ class ItemInstanceRepository:
         }
         instance = ItemInstance(
             id=instance_id,
+            generated_template_id=generated_template_id,
             base_id=item.base_id,
             item_type=item.item_type,
             rarity=item.rarity,
@@ -91,6 +99,56 @@ class ItemInstanceRepository:
             )
         await self.session.flush()
         return instance
+
+    async def get_text_visual_template_by_hash(self, text_visual_hash: str) -> ItemGeneratedTemplate | None:
+        return await self.session.scalar(
+            select(ItemGeneratedTemplate).where(ItemGeneratedTemplate.text_visual_hash == text_visual_hash)
+        )
+
+    async def create_text_visual_template(
+        self,
+        item: GeneratedItemDTO,
+        *,
+        text_visual_hash: str,
+        text_payload: dict[str, Any],
+        prompt_version: str,
+        text_status: str,
+    ) -> ItemGeneratedTemplate:
+        template = ItemGeneratedTemplate(
+            id=str(uuid.uuid4()),
+            text_visual_hash=text_visual_hash,
+            prompt_version=prompt_version,
+            base_id=item.base_id,
+            item_type=item.item_type,
+            rarity=item.rarity,
+            rarity_tier=item.rarity_tier,
+            item_grade=str(item.metadata.get("item_grade") or ""),
+            material_id=item.material_id,
+            name=item.name,
+            description=item.description,
+            image_url=None,
+            icon_key=str(item.metadata.get("icon_key") or "") or None,
+            text_status=text_status,
+            text_payload=text_payload,
+            appearance={
+                "width_cells": item.metadata.get("width_cells", 1),
+                "height_cells": item.metadata.get("height_cells", 1),
+                "volume_units": item.metadata.get("volume_units", 1),
+                "icon_key": item.metadata.get("icon_key"),
+            },
+            generation={
+                "material_id": item.material_id,
+                "affix_bundle_ids": item.affix_bundle_ids,
+                "narrative_tags": item.narrative_tags,
+                "source": item.metadata.get("source"),
+                "damage_type": item.metadata.get("damage_type"),
+                "defense_type": item.metadata.get("defense_type"),
+            },
+            metadata_=item.metadata,
+        )
+        self.session.add(template)
+        await self.session.flush()
+        return template
 
     async def get(self, item_id: str) -> ItemInstance | None:
         return await self.session.scalar(select(ItemInstance).where(ItemInstance.id == item_id))
@@ -172,6 +230,33 @@ class ItemInstanceRepository:
             instance.lifecycle_status = "ready"
         await self.session.flush()
         return instance
+
+    async def update_template_text_for_item(
+        self,
+        item_id: str,
+        *,
+        name: str,
+        description: str,
+        text_status: str,
+        metadata: dict[str, Any] | None = None,
+    ) -> None:
+        instance = await self.get(item_id)
+        if instance is None or not instance.generated_template_id:
+            return
+        template = await self.session.get(ItemGeneratedTemplate, instance.generated_template_id)
+        if template is None:
+            return
+        template.name = name
+        template.description = description
+        template.text_status = text_status
+        if metadata:
+            template.metadata_ = {**dict(template.metadata_ or {}), **metadata}
+        await self.session.execute(
+            update(ItemInstance)
+            .where(ItemInstance.generated_template_id == instance.generated_template_id)
+            .values(name=name, description=description, text_status=text_status)
+        )
+        await self.session.flush()
 
     async def mark_text_failed(self, item_id: str, reason: str | None = None) -> ItemInstance | None:
         instance = await self.get(item_id)

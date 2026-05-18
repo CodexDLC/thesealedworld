@@ -82,9 +82,15 @@ def get_ui_renderer(request: Request) -> UIRenderer:
 
 
 def _static_version() -> str:
-    site_css = settings.static_dir / "css" / "site.css"
-    site_js = settings.static_dir / "js" / "site.js"
-    mtimes = [_mtime(path) for path in (site_css, site_js)]
+    asset_paths = (
+        settings.static_dir / "css" / "site.css",
+        settings.static_dir / "js" / "site.js",
+        settings.static_dir / "css" / "game.css",
+        settings.static_dir / "js" / "game.js",
+        settings.static_dir / "css" / "account.css",
+        settings.static_dir / "css" / "cabinet.css",
+    )
+    mtimes = [_mtime(path) for path in asset_paths]
     return str(max(mtimes))
 
 

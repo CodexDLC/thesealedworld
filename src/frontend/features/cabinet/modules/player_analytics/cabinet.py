@@ -1,8 +1,7 @@
 from __future__ import annotations
 
 import time
-
-from fastapi import Request
+from typing import TYPE_CHECKING
 
 from fastapi_cabinet import CabinetAdmin, MetricWidget, SidebarItem, TableWidget, cabinet_site
 from fastapi_cabinet.contracts.widgets import MetricWidgetMap, TableColumnMap, TableWidgetMap
@@ -10,6 +9,9 @@ from src.frontend.core.database.session import get_session_context
 from src.frontend.features.player_analytics.repositories.daily_activity_repository import (
     PlayerDailyActivityRepository,
 )
+
+if TYPE_CHECKING:
+    from fastapi import Request
 
 _ONLINE_WINDOW = 300  # 5 minutes — player is "online" if active within this window
 
@@ -67,9 +69,7 @@ class PlayerAnalyticsAdmin(CabinetAdmin):
     group_label = "Сайт"
     path = "/admin/player-analytics"
     order = 2
-    sidebar = (
-        SidebarItem(key="overview", label="Онлайн / DAU", path="/admin/player-analytics", order=10),
-    )
+    sidebar = (SidebarItem(key="overview", label="Онлайн / DAU", path="/admin/player-analytics", order=10),)
     dashboard_widgets = (
         MetricWidget(key="online_now", title="Онлайн сейчас", provider="player.online_now", order=10),
         MetricWidget(key="dau_today", title="Игроков сегодня", provider="player.dau_today", order=20),

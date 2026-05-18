@@ -2,7 +2,13 @@ from typing import Any
 
 from src.frontend.integrations.backend_api.base import BaseApiClient
 from src.shared.schemas import CoreResponseDTO, StateTransitionDTO
-from src.shared.schemas.exploration import EncounterDTO, ExplorationListDTO, ExplorationScreenDTO, WorldNavigationDTO
+from src.shared.schemas.exploration import (
+    EncounterDTO,
+    ExplorationListDTO,
+    ExplorationLocalMapDTO,
+    ExplorationScreenDTO,
+    WorldNavigationDTO,
+)
 
 ExplorationPayload = (
     ExplorationScreenDTO | WorldNavigationDTO | EncounterDTO | ExplorationListDTO | StateTransitionDTO | dict[str, Any]
@@ -18,6 +24,15 @@ class BackendExplorationApi(BaseApiClient):
             response_model=ExplorationResponse,
             headers={"Authorization": f"Bearer {access_token}"},
             params={"char_id": char_id},
+        )
+
+    async def local_map(self, access_token: str, *, char_id: int, radius: int = 2) -> ExplorationLocalMapDTO:
+        return await self._request(
+            "GET",
+            "/exploration/local_map",
+            response_model=ExplorationLocalMapDTO,
+            headers={"Authorization": f"Bearer {access_token}"},
+            params={"char_id": char_id, "radius": radius},
         )
 
     async def move(

@@ -76,7 +76,7 @@
                 <div class="status-widget-bars">
                     {% if hp %}<div class="status-widget-bar status-widget-bar--hp" style="--status-fill: {{ (hp_cur / hp_max * 100) if hp_max else 0 }}%;"><span>HP</span><i></i><b>{{ hp_cur }} / {{ hp_max }}</b></div>{% endif %}
                     {% if en %}<div class="status-widget-bar status-widget-bar--en" style="--status-fill: {{ (en_cur / en_max * 100) if en_max else 0 }}%;"><span>EN</span><i></i><b>{{ en_cur }} / {{ en_max }}</b></div>{% endif %}
-                    {% if sta %}<div class="status-widget-bar status-widget-bar--sta" style="--status-fill: {{ (sta_cur / sta_max * 100) if sta_max else 0 }}%;"><span>STA</span><i></i><b>{{ sta_cur }} / {{ sta_max }}</b></div>{% endif %}
+                    {% if sta %}<div class="status-widget-bar status-widget-bar--sta" style="--status-fill: {{ (sta_cur / sta_max * 100) if sta_max else 0 }}%;"><span>CONC</span><i></i><b>{{ sta_cur }} / {{ sta_max }}</b></div>{% endif %}
                 </div>
             </div>
         </section>

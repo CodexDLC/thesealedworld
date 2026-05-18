@@ -20,6 +20,8 @@ from src.shared.schemas.exploration import (
     EncounterType,
     EnemyPreviewDTO,
     ExplorationHudDTO,
+    ExplorationLocalMapDTO,
+    ExplorationMapCellDTO,
     NavigationGridDTO,
     WorldNavigationDTO,
 )
@@ -168,6 +170,29 @@ class FakeExplorationApi:
             payload_type="exploration_navigation",
         )
 
+    async def local_map(self, token, *, char_id, radius=2):
+        self.calls.append(("local_map", char_id, radius))
+        return ExplorationLocalMapDTO(
+            char_id=char_id,
+            current_loc_id="52_52",
+            radius=radius,
+            size=radius * 2 + 1,
+            rows=[
+                [
+                    ExplorationMapCellDTO(
+                        loc_id="52_52",
+                        x=52,
+                        y=52,
+                        dx=0,
+                        dy=0,
+                        is_current=True,
+                        is_known=True,
+                        title="Runic Circle",
+                    )
+                ]
+            ],
+        )
+
 
 class FakeScenarioApi:
     def __init__(self, response):
@@ -282,10 +307,10 @@ class FakeCityServicesApi:
             or CityServiceUIPayloadDTO(
                 service_id="svc_tavern_hub",
                 service_type="tavern",
-                location_id=location_id or "52_53",
+                location_id=location_id or "53_53",
                 screen=CityServiceScreenEnum(screen or CityServiceScreenEnum.MAIN.value),
                 section_id=section_id,
-                title="Таверна Последнего Убежища",
+                title="Постоялый двор Последний Приют",
                 description="Теплый свет и свободные столы.",
                 buttons=[],
             ),
@@ -556,7 +581,7 @@ async def test_build_state_initializes_scenario_with_return_context():
         "return_state": "city_services",
         "return_screen": "section",
         "source_service_id": "svc_tavern_hub",
-        "location_id": "52_53",
+        "location_id": "53_53",
         "tavern_id": "last_refuge",
         "metadata": {"section_id": "bar"},
     }
@@ -580,9 +605,10 @@ async def test_build_state_restores_actor_core_before_exploration_lookup():
 
     context = await service.build_state(request(), state=CoreDomain.EXPLORATION, char_id=7)
 
-    assert calls == [("status", 7), ("exploration", 7)]
+    assert calls == [("status", 7), ("exploration", 7), ("local_map", 7, 2)]
     assert context["domain"] == "exploration"
     assert context["exploration"].loc_id == "52_52"
+    assert context["exploration_local_map"].current_loc_id == "52_52"
 
 
 @pytest.mark.asyncio
@@ -608,7 +634,7 @@ async def test_build_exploration_response_keeps_location_context_for_encounter()
 
     context = await service.build_exploration_response(request(), response, char_id=7)
 
-    assert calls == [("status", 7), ("exploration", 7)]
+    assert calls == [("status", 7), ("exploration", 7), ("local_map", 7, 2)]
     assert context["payload_type"] == "exploration_encounter"
     assert context["encounter"] == encounter
     assert context["exploration"].loc_id == "52_52"
@@ -644,7 +670,7 @@ async def test_build_exploration_response_uses_encounter_navigation_snapshot_whe
 
     context = await service.build_exploration_response(request(), gated_response, char_id=7)
 
-    assert calls == [("status", 7)]
+    assert calls == [("status", 7), ("local_map", 7, 2)]
     assert context["payload_type"] == "exploration_encounter"
     assert context["encounter"] == encounter
     assert context["exploration"].loc_id == "52_52"
@@ -687,7 +713,7 @@ async def test_build_state_city_service_loads_shell_from_backend_payload():
             "return_context": {
                 "return_screen": "section",
                 "source_service_id": "svc_tavern_hub",
-                "location_id": "52_53",
+                "location_id": "53_53",
                 "tavern_id": "last_refuge",
                 "metadata": {"section_id": "room"},
             }
@@ -700,7 +726,7 @@ async def test_build_state_city_service_loads_shell_from_backend_payload():
             "screen": "section",
             "service_id": "svc_tavern_hub",
             "section_id": "room",
-            "location_id": "52_53",
+            "location_id": "53_53",
             "tavern_id": "last_refuge",
         }
     ]

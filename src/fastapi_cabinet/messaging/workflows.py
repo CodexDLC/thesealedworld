@@ -1,8 +1,11 @@
 from __future__ import annotations
 
-from fastapi import Request
+from typing import TYPE_CHECKING
 
 from fastapi_cabinet.messaging.bridge import MessagingActionResult, MessagingBridge
+
+if TYPE_CHECKING:
+    from fastapi import Request
 
 
 class MessagingWorkflowService:

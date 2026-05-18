@@ -444,6 +444,84 @@ def test_d4_west_inner_wall_ring_keeps_visible_pavement_open():
     assert STATIC_LOCATIONS[(49, 52)]["movement_profile"]["blocked_exits"] == []
 
 
+def test_d4_south_gate_sector_starts_with_center_cross_to_gate():
+    assert d4_south.STATIC_LOCATIONS[(52, 55)]["movement_profile"]["blocked_exits"] == []
+    assert d4_south.STATIC_LOCATIONS[(52, 55)]["flags"]["map_intersection"] is True
+    assert d4_south.STATIC_LOCATIONS[(53, 55)]["movement_profile"]["blocked_exits"] == ["north"]
+    assert d4_south.STATIC_LOCATIONS[(54, 55)]["movement_profile"]["blocked_exits"] == ["north", "south"]
+    assert d4_southeast.STATIC_LOCATIONS[(55, 55)]["movement_profile"]["blocked_exits"] == []
+    assert d4_southeast.STATIC_LOCATIONS[(55, 55)]["flags"]["map_intersection"] is True
+    assert d4_southeast.STATIC_LOCATIONS[(56, 55)]["movement_profile"]["blocked_exits"] == []
+    assert d4_southeast.STATIC_LOCATIONS[(56, 55)]["flags"]["map_intersection"] is True
+    assert d4_south.STATIC_LOCATIONS[(52, 56)]["movement_profile"]["blocked_exits"] == ["west", "east"]
+    assert d4_south.STATIC_LOCATIONS[(53, 56)]["movement_profile"]["blocked_exits"] == ["south"]
+    assert d4_southeast.STATIC_LOCATIONS[(55, 56)]["movement_profile"]["blocked_exits"] == []
+    assert d4_southeast.STATIC_LOCATIONS[(55, 56)]["flags"]["map_intersection"] is True
+    assert d4_southeast.STATIC_LOCATIONS[(56, 56)]["movement_profile"]["blocked_exits"] == ["south"]
+    assert d4_south.STATIC_LOCATIONS[(52, 57)]["movement_profile"]["blocked_exits"] == []
+    assert d4_south.STATIC_LOCATIONS[(52, 57)]["flags"]["map_intersection"] is True
+    assert d4_south.STATIC_LOCATIONS[(51, 57)]["movement_profile"]["blocked_exits"] == []
+    assert d4_south.STATIC_LOCATIONS[(51, 57)]["flags"]["map_intersection"] is True
+    assert d4_south.STATIC_LOCATIONS[(53, 57)]["movement_profile"]["blocked_exits"] == ["north"]
+    assert d4_south.STATIC_LOCATIONS[(53, 58)]["movement_profile"]["blocked_exits"] == ["south"]
+    assert d4_south.STATIC_LOCATIONS[(54, 58)]["movement_profile"]["blocked_exits"] == ["north", "south", "east"]
+    assert d4_southeast.STATIC_LOCATIONS[(55, 58)]["movement_profile"]["blocked_exits"] == ["west", "east"]
+    assert d4_south.STATIC_LOCATIONS[(52, 58)]["movement_profile"]["blocked_exits"] == ["west", "east"]
+    assert d4_south.STATIC_LOCATIONS[(52, 59)]["movement_profile"]["blocked_exits"] == []
+    assert d4_south.STATIC_LOCATIONS[(52, 59)]["movement_profile"]["gated_exits"]["south"]["state"] == "locked"
+
+
+def test_d4_east_gate_sector_starts_with_center_cross_to_gate():
+    assert d4_east.STATIC_LOCATIONS[(55, 52)]["movement_profile"]["blocked_exits"] == []
+    assert d4_east.STATIC_LOCATIONS[(55, 52)]["flags"]["map_intersection"] is True
+
+    assert d4_east.STATIC_LOCATIONS[(56, 50)]["movement_profile"]["blocked_exits"] == ["north", "west", "east"]
+    assert d4_east.STATIC_LOCATIONS[(56, 51)]["movement_profile"]["blocked_exits"] == ["west", "south"]
+    assert d4_northeast.STATIC_LOCATIONS[(57, 49)]["movement_profile"]["blocked_exits"] == ["north"]
+    assert d4_east.STATIC_LOCATIONS[(57, 50)]["movement_profile"]["blocked_exits"] == ["west", "east"]
+    assert d4_east.STATIC_LOCATIONS[(57, 51)]["movement_profile"]["blocked_exits"] == ["east"]
+    assert d4_east.STATIC_LOCATIONS[(57, 52)]["movement_profile"]["blocked_exits"] == []
+    assert d4_east.STATIC_LOCATIONS[(57, 52)]["flags"]["map_intersection"] is True
+    assert d4_east.STATIC_LOCATIONS[(56, 52)]["movement_profile"]["blocked_exits"] == ["north"]
+    assert d4_east.STATIC_LOCATIONS[(56, 53)]["movement_profile"]["blocked_exits"] == ["west", "south"]
+    assert d4_east.STATIC_LOCATIONS[(57, 53)]["movement_profile"]["blocked_exits"] == ["west"]
+    assert d4_east.STATIC_LOCATIONS[(56, 54)]["movement_profile"]["blocked_exits"] == ["north", "west", "east"]
+    assert d4_southeast.STATIC_LOCATIONS[(56, 55)]["movement_profile"]["blocked_exits"] == []
+    assert d4_east.STATIC_LOCATIONS[(57, 54)]["movement_profile"]["blocked_exits"] == ["east"]
+    assert d4_southeast.STATIC_LOCATIONS[(57, 55)]["movement_profile"]["blocked_exits"] == []
+    assert d4_south.STATIC_LOCATIONS[(54, 57)]["movement_profile"]["blocked_exits"] == ["north", "south"]
+    assert d4_southeast.STATIC_LOCATIONS[(55, 56)]["movement_profile"]["blocked_exits"] == []
+    assert d4_southeast.STATIC_LOCATIONS[(55, 57)]["movement_profile"]["blocked_exits"] == ["east"]
+    assert d4_southeast.STATIC_LOCATIONS[(57, 56)]["movement_profile"]["blocked_exits"] == []
+    assert d4_southeast.STATIC_LOCATIONS[(57, 56)]["flags"]["map_intersection"] is True
+    assert d4_southeast.STATIC_LOCATIONS[(56, 57)]["movement_profile"]["blocked_exits"] == ["north", "west"]
+    assert d4_southeast.STATIC_LOCATIONS[(57, 57)]["movement_profile"]["blocked_exits"] == []
+    assert d4_southeast.STATIC_LOCATIONS[(57, 57)]["flags"]["map_intersection"] is True
+    assert d4_southeast.STATIC_LOCATIONS[(56, 58)]["movement_profile"]["blocked_exits"] == ["south"]
+    assert d4_southeast.STATIC_LOCATIONS[(57, 58)]["movement_profile"]["blocked_exits"] == ["south"]
+    assert d4_southeast.STATIC_LOCATIONS[(56, 59)]["movement_profile"]["blocked_exits"] == ["north", "south"]
+    assert d4_southeast.STATIC_LOCATIONS[(57, 59)]["movement_profile"]["blocked_exits"] == ["north", "south"]
+    assert d4_southeast.STATIC_LOCATIONS[(58, 56)]["movement_profile"]["blocked_exits"] == ["north", "east"]
+    assert d4_southeast.STATIC_LOCATIONS[(58, 57)]["movement_profile"]["blocked_exits"] == ["east"]
+    assert d4_southeast.STATIC_LOCATIONS[(58, 58)]["movement_profile"]["blocked_exits"] == ["east"]
+    assert d4_southeast.STATIC_LOCATIONS[(59, 56)]["movement_profile"]["blocked_exits"] == ["west", "east"]
+    assert d4_southeast.STATIC_LOCATIONS[(59, 57)]["movement_profile"]["blocked_exits"] == ["west", "east"]
+
+    assert d4_east.STATIC_LOCATIONS[(58, 50)]["movement_profile"]["blocked_exits"] == ["north", "west"]
+    assert d4_east.STATIC_LOCATIONS[(58, 51)]["movement_profile"]["blocked_exits"] == ["west", "east", "south"]
+    assert d4_east.STATIC_LOCATIONS[(58, 52)]["movement_profile"]["blocked_exits"] == ["north", "south"]
+    assert d4_east.STATIC_LOCATIONS[(58, 53)]["movement_profile"]["blocked_exits"] == ["north", "east"]
+    assert d4_east.STATIC_LOCATIONS[(58, 54)]["movement_profile"]["blocked_exits"] == ["south", "west", "east"]
+    assert d4_southeast.STATIC_LOCATIONS[(58, 55)]["movement_profile"]["blocked_exits"] == ["west"]
+
+    assert d4_east.STATIC_LOCATIONS[(59, 50)]["movement_profile"]["blocked_exits"] == ["east"]
+    assert d4_east.STATIC_LOCATIONS[(59, 51)]["movement_profile"]["blocked_exits"] == ["west", "east"]
+    assert d4_east.STATIC_LOCATIONS[(59, 52)]["movement_profile"]["blocked_exits"] == []
+    assert d4_east.STATIC_LOCATIONS[(59, 52)]["movement_profile"]["gated_exits"]["east"]["state"] == "locked"
+    assert d4_east.STATIC_LOCATIONS[(59, 53)]["movement_profile"]["blocked_exits"] == ["west", "east"]
+    assert d4_east.STATIC_LOCATIONS[(59, 54)]["movement_profile"]["blocked_exits"] == ["west", "east"]
+
+
 def test_d4_static_locations_are_split_into_center_and_outer_5x5_blocks():
     assert set(START_VILLAGE_LOCATIONS).issubset(STATIC_LOCATIONS)
     assert all(50 <= x <= 54 and 50 <= y <= 54 for x, y in START_VILLAGE_LOCATIONS)

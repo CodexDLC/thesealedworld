@@ -6,10 +6,10 @@
 
 
 :root {
-  
+
   --col-bg: #08080a;
   --col-surface: #121218;
-  --col-parchment: #d2b48c; 
+  --col-parchment: #d2b48c;
   --col-parchment-dim: rgba(210, 180, 140, 0.6);
   --col-bg-base: #050505;
   --col-bg-surface: #0a0a0c;
@@ -26,7 +26,7 @@
   --col-info: #3399ff;
   --col-warning: #ffaa00;
 
-  
+
   --col-text-primary: rgba(255, 170, 0, 1.0);
   --col-text-secondary: rgba(255, 170, 0, 0.75);
   --col-text-world: rgba(230, 204, 172, 1.0);
@@ -36,11 +36,11 @@
   --col-membrane: rgba(255, 170, 0, 0.06);
   --cabinet-panel-surface: rgba(10, 10, 12, 0.56);
 
-  
+
   --font-world: 'EB Garamond', Georgia, serif;
   --font-ui: 'JetBrains Mono', 'Courier New', monospace;
 
-  
+
   --text-3xl: 32px;
   --text-2xl: 24px;
   --text-xl: 20px;
@@ -51,7 +51,7 @@
   --text-xs: 9px;
   --text-2xs: 8px;
 
-  
+
   --sp-1: 4px;
   --sp-2: 8px;
   --sp-3: 12px;
@@ -62,49 +62,49 @@
   --sp-10: 40px;
   --sp-12: 48px;
 
-  
+
   --clip-node-sm: inset(0);
   --clip-node-md: inset(0);
   --clip-node-lg: inset(0);
 
-  
+
   --shadow-accent: 0 0 12px 2px rgba(255, 170, 0, 0.18);
   --shadow-danger: 0 0 12px 2px rgba(255, 51, 0, 0.20);
   --shadow-energy: 0 0 12px 2px rgba(51, 153, 255, 0.18);
   --shadow-psi:    0 0 12px 2px rgba(119, 68, 255, 0.18);
 
-  
-  
-  --col-chat-world:   var(--col-accent);   
-  --col-chat-local:   var(--col-stamina);  
-  --col-chat-system:  var(--col-neutral);  
-  --col-chat-private: var(--col-psi);      
+
+
+  --col-chat-world:   var(--col-accent);
+  --col-chat-local:   var(--col-stamina);
+  --col-chat-system:  var(--col-neutral);
+  --col-chat-private: var(--col-psi);
   --col-chat-combat:  #ff4d2e;
 
-  
-  
+
+
   --shadow-notify-world:   0 0 10px 2px rgba(255, 170, 0,  0.55);
   --shadow-notify-local:   0 0 10px 2px rgba(85,  238, 153, 0.50);
   --shadow-notify-system:  0 0 10px 2px rgba(153, 153, 170, 0.45);
   --shadow-notify-private: 0 0 10px 2px rgba(136, 102, 255, 0.60);
 
-  
+
   --r0: #6f6b62;
-  
+
   --r1: #c8bfa8;
-  
+
   --r2: #4fa86b;
-  
+
   --r3: #2f8fd3;
-  
+
   --r4: #8c55d8;
-  
+
   --r5: #d06835;
-  
+
   --r6: #c99a3a;
-  
+
   --r7: #ffffff;
-  
+
 }
 
 
@@ -120,7 +120,7 @@
 
 html,
 body {
-  background: #000; 
+  background: #000;
   font-family: var(--font-ui);
   color: var(--col-text-primary);
   line-height: 1.5;
@@ -431,7 +431,7 @@ body::before {
 
 
 @media (max-width: 480px) {
-  
+
 }
 
 
@@ -463,12 +463,12 @@ body::before {
         display: flex;
     }
 
-    
+
     .game-logo {
         font-size: var(--text-xs);
     }
 
-    
+
     .header-left,
     .header-right {
         display: flex;
@@ -1656,4 +1656,3 @@ a.is-action-pending .choice-label,
   gap: var(--sp-3);
   margin-top: var(--sp-5);
 }
-

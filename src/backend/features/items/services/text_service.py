@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import hashlib
+import json
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
@@ -8,6 +10,8 @@ from src.backend.features.items.services.catalog_service import ItemCatalogServi
 
 if TYPE_CHECKING:
     from src.backend.features.items.dto.instance import GeneratedItemDTO, ItemGenerationRequestDTO
+
+ITEM_TEXT_PROMPT_VERSION = "item_name_description:mvp_text_visual_no_affixes:v1"
 
 
 @dataclass(slots=True)
@@ -22,44 +26,14 @@ class ItemTextService:
         material = self.catalog.get_material(item.material_id) if item.material_id else None
         item_grade = str(item.metadata.get("item_grade") or "") or GRADE_BY_RARITY_TIER.get(item.rarity_tier, "common")
 
-        # Resolve affix narrative tags from new catalog
-        affixes_payload: list[dict[str, Any]] = []
-        mechanics = item.mechanics
-        if isinstance(mechanics, dict):
-            affixes = mechanics.get("affixes")
-            if isinstance(affixes, list):
-                for affix_record in affixes:
-                    if not isinstance(affix_record, dict):
-                        continue
-                    affix_id = str(affix_record.get("affix_id", ""))
-                    source = str(affix_record.get("source", ""))
-                    entry = self.catalog.get_affix_entry(affix_id)
-                    affix_tags = list(entry.descriptive.narrative_tags) if entry else []
-
-                    if source.startswith("bundle:"):
-                        bundle_id = source[len("bundle:") :]
-                        bundle = self.catalog.get_new_bundle(bundle_id)
-                        bundle_tags = list(bundle.tags) if bundle else []
-                        # Group by bundle — accumulate affix_tags under same bundle entry
-                        existing = next((a for a in affixes_payload if a.get("source") == source), None)
-                        if existing is not None:
-                            existing["affix_tags"].append(affix_tags)
-                        else:
-                            affixes_payload.append(
-                                {
-                                    "source": source,
-                                    "bundle_tags": bundle_tags,
-                                    "affix_tags": [affix_tags],
-                                }
-                            )
-                    else:
-                        affixes_payload.append(
-                            {
-                                "source": source,
-                                "affix_tags": [affix_tags],
-                            }
-                        )
-
+        narrative_tags = list(
+            dict.fromkeys(
+                [
+                    *(base.narrative_tags if base else []),
+                    *(material.narrative_tags if material else []),
+                ]
+            )
+        )
         payload: dict[str, Any] = {
             "type": item.item_type,
             "slot": item.slot,
@@ -80,11 +54,33 @@ class ItemTextService:
                 "tags": material.narrative_tags if material else [],
             },
             "grade": item_grade,
-            "affixes": affixes_payload,
-            "narrative_tags": item.narrative_tags,
+            "narrative_tags": narrative_tags,
         }
 
         if request.source_context:
             payload["source_context"] = request.source_context
 
         return payload
+
+    def _build_template_hash_payload(self, item: GeneratedItemDTO, request: ItemGenerationRequestDTO) -> dict[str, Any]:
+        source_context = request.source_context or {}
+        owner_family = source_context.get("owner_family")
+        clan_id = source_context.get("clan_id")
+        if clan_id is None and isinstance(owner_family, dict):
+            clan_id = owner_family.get("clan_id")
+
+        return {
+            "clan_id": str(clan_id) if clan_id is not None else None,
+            "base_id": item.base_id,
+            "item_tier": item.rarity_tier,
+            "material_id": item.material_id,
+        }
+
+    def build_text_visual_hash(self, payload: dict[str, Any]) -> str:
+        body = json.dumps(
+            {"prompt_version": ITEM_TEXT_PROMPT_VERSION, "payload": payload},
+            ensure_ascii=False,
+            sort_keys=True,
+            separators=(",", ":"),
+        )
+        return hashlib.sha256(body.encode("utf-8")).hexdigest()

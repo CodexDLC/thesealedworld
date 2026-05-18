@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from src.backend.features.character.managers import CharacterSessionManager
+    from src.backend.infrastructure.loot.managers.loot_manager import LootManager
     from src.backend.infrastructure.world.location_store import WorldLocationStore
 
 log = logging.getLogger(__name__)
@@ -22,10 +23,12 @@ class ExplorationSystemIntegrator:
         self,
         character_sessions: CharacterSessionManager,
         world_store: WorldLocationStore,
+        loot_manager: LootManager | None = None,
         expedition_service: Any | None = None,
     ) -> None:
         self.character_sessions = character_sessions
         self.world_store = world_store
+        self.loot_manager = loot_manager
         self.expedition_service = expedition_service
 
     async def get_player_location_id(self, char_id: int) -> str | None:
@@ -89,3 +92,9 @@ class ExplorationSystemIntegrator:
     async def get_battles(self, loc_id: str) -> dict[str, str]:
         """Fetch active battles in a location."""
         return await self.world_store.get_battles(loc_id)
+
+    async def get_corpse_count(self, loc_id: str) -> int | None:
+        """Count visible corpse references indexed for a location, if loot runtime is wired."""
+        if self.loot_manager is None:
+            return None
+        return len(await self.loot_manager.get_location_corpse_ids(loc_id))

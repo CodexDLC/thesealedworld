@@ -1,16 +1,20 @@
 from __future__ import annotations
 
-from collections.abc import Callable
-from typing import ClassVar
+import contextlib
+from typing import TYPE_CHECKING, ClassVar
 
 import httpx
-from fastapi import Request
 from starlette.responses import RedirectResponse, Response
 
 from fastapi_cabinet import CabinetAdmin, EditableConfigWidget, ListWidget, SidebarItem, cabinet_site
 from fastapi_cabinet.contracts.widgets import ConfigEntryRow, EditableConfigWidgetMap, ListWidgetMap
 from src.frontend.config.settings import settings
 from src.frontend.integrations.backend_api.game_config import GameConfigApi
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
+    from fastapi import Request
 
 _UPDATE_URL = "/admin/game-settings/update-config"
 _RESET_URL = "/admin/game-settings/reset-config"
@@ -147,10 +151,8 @@ class GameSettingsAdmin(CabinetAdmin):
         for raw_key, value in form.multi_items():
             if raw_key.startswith("values[") and raw_key.endswith("]"):
                 key = raw_key[7:-1]
-                try:
+                with contextlib.suppress(httpx.HTTPStatusError, httpx.RequestError):
                     await api.set_value(namespace, key, str(value))
-                except (httpx.HTTPStatusError, httpx.RequestError):
-                    pass
         return RedirectResponse(url=redirect_to, status_code=303)
 
     async def handle_reset_config(self, request: Request) -> Response:
@@ -160,10 +162,8 @@ class GameSettingsAdmin(CabinetAdmin):
         redirect_to = str(form.get("redirect_to", "/admin/game-settings"))
         client: httpx.AsyncClient = request.app.state.backend_http_client
         api = GameConfigApi(client=client, base_url=settings.backend_base_url)
-        try:
+        with contextlib.suppress(httpx.HTTPStatusError, httpx.RequestError):
             await api.reset_key(namespace, key)
-        except (httpx.HTTPStatusError, httpx.RequestError):
-            pass
         return RedirectResponse(url=redirect_to, status_code=303)
 
 

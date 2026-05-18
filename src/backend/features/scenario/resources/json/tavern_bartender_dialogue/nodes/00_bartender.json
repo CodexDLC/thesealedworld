@@ -3,11 +3,11 @@
     "node_key": "bartender_greeting",
     "node_type": "dialog",
     "phase": "bar",
-    "speaker": "last_refuge_bartender",
-    "display_name": "Барная стойка",
-    "text": "Бармен поднимает взгляд от недописанного списка припасов.\n\n— Новое лицо. Если пришел за тишиной, она тут только наверху. Если за ответами — спрашивай короче.",
+    "speaker": "last_refuge_keeper",
+    "display_name": "Стойка кормчего",
+    "text": "Кормчий поднимает взгляд от недописанного списка припасов.\n\n— Новое лицо. Если пришел за тишиной, она тут только наверху. Если за ответами — спрашивай короче.",
     "metadata": {
-      "location": "Таверна Последнее Убежище"
+      "location": "Постоялый двор Последний Приют"
     },
     "actions": [
       {
@@ -30,7 +30,7 @@
       },
       {
         "action_id": "be_rude",
-        "label": "Поторопить бармена",
+        "label": "Поторопить кормчего",
         "icon": "warning",
         "to_node": "rude_reply",
         "math": {
@@ -50,7 +50,7 @@
     "node_key": "room_offer",
     "node_type": "dialog",
     "phase": "bar",
-    "speaker": "last_refuge_bartender",
+    "speaker": "last_refuge_keeper",
     "display_name": "Ключ от комнаты",
     "text": "— Плату пока не беру. Первые прибывшие держатся на доверии, пока оно не кончилось.\n\nОн кладет на стойку простой ключ с выжженной меткой.\n\n— Комната наверху. Закрой дверь, если хочешь отдохнуть.",
     "actions": [
@@ -76,7 +76,7 @@
     "node_key": "rumors_placeholder",
     "node_type": "dialog",
     "phase": "bar",
-    "speaker": "last_refuge_bartender",
+    "speaker": "last_refuge_keeper",
     "display_name": "Слухи",
     "text": "— Слухи будут, когда люди перестанут только выживать. Сейчас все новости одинаковые: кто-то пришел, кто-то не вернулся, кто-то нашел проход и боится назвать его проходом.",
     "actions": [
@@ -93,9 +93,9 @@
     "node_key": "rude_reply",
     "node_type": "dialog",
     "phase": "bar",
-    "speaker": "last_refuge_bartender",
+    "speaker": "last_refuge_keeper",
     "display_name": "Холодный ответ",
-    "text": "Бармен медленно закрывает список.\n\n— Хамить в новом мире научились быстрее, чем строить крыши. Хорошо. Тогда разговор короткий.",
+    "text": "Кормчий медленно закрывает список.\n\n— Хамить в новом мире научились быстрее, чем строить крыши. Хорошо. Тогда разговор короткий.",
     "actions": [
       {
         "action_id": "apologize",
@@ -120,7 +120,7 @@
     "node_key": "final_room",
     "node_type": "dialog",
     "phase": "bar",
-    "speaker": "last_refuge_bartender",
+    "speaker": "last_refuge_keeper",
     "display_name": "Комната получена",
     "text": "Ключ оказывается тяжелее, чем выглядел.",
     "is_terminal": true,
@@ -150,9 +150,9 @@
     "node_key": "final_bar",
     "node_type": "dialog",
     "phase": "bar",
-    "speaker": "last_refuge_bartender",
+    "speaker": "last_refuge_keeper",
     "display_name": "Возвращение к стойке",
-    "text": "Разговор обрывается, и шум таверны снова становится главным голосом в помещении.",
+    "text": "Разговор обрывается, и шум нижней таверны снова становится главным голосом постоялого двора.",
     "is_terminal": true,
     "metadata": {
       "finalize": {

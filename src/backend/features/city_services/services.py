@@ -203,10 +203,13 @@ class CityService:
         if definition.service_type == "tavern" and section_id == "room" and "room" not in service_metadata:
             service_metadata["room"] = self._room_payload(definition, room)
         if definition.service_type == "tavern" and section_id == "bar":
-            service_metadata.setdefault("npc", {
-                "bartender_key": definition.metadata.get("bartender_key"),
-                "dialogue_quest_key": definition.metadata.get("dialogue_quest_key"),
-            })
+            service_metadata.setdefault(
+                "npc",
+                {
+                    "bartender_key": definition.metadata.get("bartender_key"),
+                    "dialogue_quest_key": definition.metadata.get("dialogue_quest_key"),
+                },
+            )
         if definition.service_type == "tavern" and section_id == "common_hall":
             service_metadata.setdefault("common_hall", {"occupants_count": 0, "group_requests": [], "notices": []})
 
@@ -248,7 +251,7 @@ class CityService:
             room = metadata.get("room") if isinstance(metadata.get("room"), dict) else {}
             if room.get("is_owned"):
                 return "Небольшая закрытая комната наверху. Здесь можно восстановить силы."
-            return "Комната еще не закреплена. Бармен может выдать ключ первым прибывшим."
+            return "Комната еще не закреплена. Кормчий может выдать ключ первым прибывшим."
         if section_id:
             for section in definition.sections:
                 if section.id == section_id:
@@ -256,7 +259,9 @@ class CityService:
         return definition.description
 
     @staticmethod
-    def _buttons(definition: CityServiceDefinition, section_id: str | None, metadata: dict[str, Any]) -> list[CityServiceButtonDTO]:
+    def _buttons(
+        definition: CityServiceDefinition, section_id: str | None, metadata: dict[str, Any]
+    ) -> list[CityServiceButtonDTO]:
         buttons = [
             CityServiceButtonDTO(label="Главный зал", action=CityServiceActionEnum.MENU_MAIN, icon="home"),
             *[
@@ -274,7 +279,7 @@ class CityService:
             buttons.insert(
                 1,
                 CityServiceButtonDTO(
-                    label="Поговорить с барменом",
+                    label="Поговорить с кормчим",
                     action=CityServiceActionEnum.START_DIALOGUE,
                     icon="talk",
                     section_id="bar",
@@ -308,7 +313,13 @@ class CityService:
     def _room_payload(definition: CityServiceDefinition, room: CharacterTavernRoom | None) -> dict[str, Any]:
         tavern_id = str(definition.metadata.get("tavern_id") or "")
         if room is None:
-            return {"tavern_id": tavern_id, "room_key": None, "status": "unclaimed", "is_owned": False, "can_rest": False}
+            return {
+                "tavern_id": tavern_id,
+                "room_key": None,
+                "status": "unclaimed",
+                "is_owned": False,
+                "can_rest": False,
+            }
         return {
             "tavern_id": tavern_id,
             "room_key": room.room_key,

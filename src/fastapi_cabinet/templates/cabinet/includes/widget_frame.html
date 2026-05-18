@@ -1,4 +1,4 @@
-<section class="fc-widget fc-widget--{{ widget.kind }}">
+<section class="fc-widget fc-widget--{{ widget.kind }}{% if widget.span is defined and widget.span > 1 %} fc-widget--wide{% endif %}">
     <h2>{{ widget.title }}</h2>
     {% block widget_content %}{% endblock %}
 </section>

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from src.backend.features.character.dto.modifiers import CombatModifiersDTO
 
-GEAR_SCORE_BASE = 50.0
+GEAR_SCORE_BASE = 0.0
 GEAR_SCORE_MINIMUM = 1
 
 # Starter balancing weights for waterfall-calculated combat modifiers.
@@ -146,6 +146,8 @@ GEAR_SCORE_BASELINES: dict[str, float] = {
     "damage_mult": 1.0,
     "pet_efficiency_mult": 1.0,
     "hand_size": 3.0,
+    "spell_land_chance": 1.0,
+    "stamina_regen": 1.0,
 }
 
 GEAR_SCORE_CAPS: dict[str, float] = {

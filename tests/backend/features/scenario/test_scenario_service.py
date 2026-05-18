@@ -66,7 +66,7 @@ class TestScenarioService:
             return_state=CoreDomain.CITY_SERVICES,
             return_screen="bar",
             source_service_id="svc_tavern_hub",
-            location_id="52_53",
+            location_id="53_53",
             tavern_id="last_refuge",
         )
         master = {"quest_key": quest_key, "scenario_type": "dialogue_scenario", "start_node_id": "n1"}

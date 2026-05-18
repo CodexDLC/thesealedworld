@@ -58,7 +58,7 @@ Runtime хранит триггеры на предметах как `section.tr
 | Trigger | Предлагаемая реализация |
 |---|---|
 | `crit.armor_crush_on_crit` | На критическом ударе накладывать `debuff_armor` или отдельный stackable armor-break effect. |
-| `damage.concussion_on_hit` | При попадании снижать ресурс выносливости/энергии цели, когда EN runtime станет боевым ресурсом. |
+| `damage.concussion_on_hit` | При попадании снижать концентрацию/энергию цели, когда EN runtime станет боевым ресурсом. |
 
 ---
 

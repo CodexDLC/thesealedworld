@@ -1,5 +1,5 @@
 # src/backend/features/exploration/dependencies.py
-from typing import Annotated
+from typing import Annotated, Any
 
 from fastapi import Depends, Request
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -30,17 +30,19 @@ def build_exploration_service(
     redis = getattr(request.app.state, "redis", None)
     event_bus = getattr(request.app.state, "events", None)
 
+    loot_manager = _build_loot_manager(redis)
     expedition_service = ExpeditionService(
         session=db_session,
         character_sessions=character_sessions,
         expedition_manager=request.app.state.redis_managers.expeditions,
-        loot_manager=LootManager(redis),
+        loot_manager=loot_manager,
         world_store=world_store,
         commit_on_write=True,
     )
     integrator = ExplorationSystemIntegrator(
         character_sessions=character_sessions,
         world_store=world_store,
+        loot_manager=loot_manager,
         expedition_service=expedition_service,
     )
     encounter_integration = EncounterIntegration(
@@ -71,17 +73,19 @@ def build_exploration_gateway(
     redis = getattr(request.app.state, "redis", None)
     event_bus = getattr(request.app.state, "events", None)
 
+    loot_manager = _build_loot_manager(redis)
     expedition_service = ExpeditionService(
         session=db_session,
         character_sessions=character_sessions,
         expedition_manager=request.app.state.redis_managers.expeditions,
-        loot_manager=LootManager(redis),
+        loot_manager=loot_manager,
         world_store=world_store,
         commit_on_write=True,
     )
     integrator = ExplorationSystemIntegrator(
         character_sessions=character_sessions,
         world_store=world_store,
+        loot_manager=loot_manager,
         expedition_service=expedition_service,
     )
     encounter_integration = EncounterIntegration(
@@ -102,3 +106,9 @@ def build_exploration_gateway(
 
 
 ExplorationGatewayDep = Annotated[ExplorationGateway, Depends(build_exploration_gateway)]
+
+
+def _build_loot_manager(redis: Any | None) -> LootManager | None:
+    if redis is None:
+        return None
+    return LootManager(redis)

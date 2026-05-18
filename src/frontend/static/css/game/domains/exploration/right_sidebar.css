@@ -47,11 +47,13 @@
     display: grid;
     grid-template-columns: repeat(5, minmax(0, 1fr));
     grid-template-rows: repeat(5, minmax(0, 1fr));
-    gap: 3px;
-    padding: 6px;
+    gap: 0;
+    padding: 10px;
     border: 1px solid rgba(255, 170, 0, 0.18);
     background:
-        linear-gradient(180deg, rgba(255, 170, 0, 0.05), rgba(0, 0, 0, 0.32)),
+        linear-gradient(rgba(255, 170, 0, 0.12) 1px, transparent 1px) 0 0 / 20% 20%,
+        linear-gradient(90deg, rgba(255, 170, 0, 0.12) 1px, transparent 1px) 0 0 / 20% 20%,
+        linear-gradient(180deg, rgba(255, 170, 0, 0.04), rgba(0, 0, 0, 0.34)),
         rgba(2, 2, 4, 0.48);
 }
 
@@ -61,10 +63,8 @@
     display: grid;
     place-items: center;
     aspect-ratio: 1 / 1;
-    border: 1px solid rgba(255, 170, 0, 0.12);
-    background:
-        linear-gradient(135deg, rgba(255, 214, 118, 0.05), transparent 44%),
-        rgba(0, 0, 0, 0.34);
+    border: 0;
+    background: transparent;
     color: rgba(255, 214, 118, 0.56);
     cursor: help;
     font-family: var(--font-ui);
@@ -74,24 +74,88 @@
     position: relative;
 }
 
-.exploration-minimap-cell.is-current {
-    border-color: color-mix(in srgb, var(--world-accent, var(--col-accent)) 58%, transparent);
+.exploration-minimap-cell::before {
+    content: "";
+    position: absolute;
+    inset: 1px;
+    z-index: 0;
+    display: block;
+    border-radius: 0;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity .12s ease, transform .12s ease;
+}
+
+.exploration-minimap-cell.is-known::before {
+    opacity: .24;
+}
+
+.exploration-minimap-cell.is-zone-safe::before {
     background:
-        radial-gradient(circle, var(--world-accent-soft, rgba(255, 170, 0, 0.22)) 0, transparent 62%),
-        rgba(0, 0, 0, 0.52);
-    box-shadow:
-        inset 0 0 18px rgba(255, 170, 0, 0.16),
-        0 0 12px rgba(255, 170, 0, 0.14);
+        linear-gradient(180deg, rgba(68, 146, 94, 0.32), rgba(38, 96, 66, 0.16));
+}
+
+.exploration-minimap-cell.is-tier-0::before {
+    background:
+        linear-gradient(180deg, rgba(142, 154, 84, 0.24), rgba(92, 104, 58, 0.12));
+}
+
+.exploration-minimap-cell.is-tier-1::before {
+    background:
+        linear-gradient(180deg, rgba(186, 144, 58, 0.28), rgba(122, 86, 42, 0.14));
+}
+
+.exploration-minimap-cell.is-tier-2::before {
+    background:
+        linear-gradient(180deg, rgba(184, 94, 52, 0.30), rgba(122, 58, 38, 0.15));
+}
+
+.exploration-minimap-cell.is-tier-3::before {
+    background:
+        linear-gradient(180deg, rgba(166, 58, 54, 0.34), rgba(104, 36, 38, 0.16));
+}
+
+.exploration-minimap-cell.is-tier-4::before,
+.exploration-minimap-cell.is-tier-5::before {
+    background:
+        linear-gradient(180deg, rgba(130, 70, 176, 0.34), rgba(74, 42, 112, 0.16));
+}
+
+.exploration-minimap-cell.is-zone-unknown::before {
+    background:
+        linear-gradient(180deg, rgba(128, 128, 128, 0.10), rgba(64, 64, 64, 0.04));
+    opacity: .12;
+}
+
+.exploration-minimap-current-dot,
+.exploration-minimap-status-code,
+.exploration-minimap-route-mark,
+.exploration-minimap-markers {
+    position: relative;
+    z-index: 1;
+}
+
+.exploration-minimap-cell.is-current {
+    color: var(--world-accent, var(--col-accent));
 }
 
 .exploration-minimap-cell.is-route-hint {
-    border-color: rgba(255, 170, 0, 0.22);
-    background:
-        linear-gradient(135deg, rgba(255, 170, 0, 0.08), transparent 54%),
-        rgba(0, 0, 0, 0.42);
+    color: rgba(255, 214, 118, 0.64);
 }
 
-.exploration-minimap-cell::after {
+.exploration-minimap-cell.is-known {
+    color: rgba(230, 214, 176, 0.74);
+}
+
+.exploration-minimap-cell.is-safe {
+    color: rgba(134, 184, 148, 0.72);
+}
+
+.exploration-minimap-cell.is-danger {
+    color: rgba(210, 118, 92, 0.76);
+}
+
+.exploration-minimap-cell:not([data-tippy-content])::after {
     content: attr(data-map-tooltip);
     position: absolute;
     left: 50%;
@@ -116,35 +180,115 @@
 
 .exploration-minimap-cell:hover,
 .exploration-minimap-cell:focus-visible {
-    border-color: color-mix(in srgb, var(--world-accent, var(--col-accent)) 54%, transparent);
     outline: none;
-    box-shadow:
-        inset 0 0 14px rgba(255, 170, 0, 0.12),
-        0 0 10px rgba(255, 170, 0, 0.14);
+    background: rgba(255, 170, 0, 0.06);
+    box-shadow: inset 0 0 0 1px rgba(255, 170, 0, 0.18);
 }
 
-.exploration-minimap-cell:hover::after,
-.exploration-minimap-cell:focus-visible::after {
+.exploration-minimap-cell:not([data-tippy-content]):hover::after,
+.exploration-minimap-cell:not([data-tippy-content]):focus-visible::after {
     opacity: 1;
     transform: translate(-50%, 0);
 }
 
 .exploration-minimap-current-dot {
-    width: 34%;
-    aspect-ratio: 1 / 1;
+    width: 28%;
+    height: 28%;
     display: block;
-    border: 1px solid rgba(255, 234, 176, 0.78);
+    border: 1px solid rgba(255, 234, 176, 0.82);
+    border-radius: 1px;
     background: var(--world-accent, var(--col-accent));
-    box-shadow: 0 0 14px rgba(255, 170, 0, 0.42);
+    box-shadow:
+        0 0 0 4px rgba(255, 170, 0, 0.08),
+        0 0 12px rgba(255, 170, 0, 0.36);
+}
+
+.exploration-minimap-status-code {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    z-index: 3;
+    display: block;
+    font-family: var(--font-ui);
+    font-size: 9px;
+    font-weight: 900;
+    line-height: 1;
+    text-shadow: 0 0 6px rgba(0, 0, 0, 0.92);
+}
+
+.exploration-minimap-status-code.is-safe {
+    color: rgba(92, 226, 136, 0.92);
+}
+
+.exploration-minimap-status-code.is-danger {
+    color: rgba(238, 82, 72, 0.94);
 }
 
 .exploration-minimap-route-mark {
-    width: 24%;
-    aspect-ratio: 1 / 1;
+    width: 18%;
+    height: 2px;
     display: block;
-    border: 1px solid rgba(255, 170, 0, 0.28);
-    background: rgba(255, 170, 0, 0.16);
+    border: 0;
+    border-radius: 1px;
+    background: rgba(255, 170, 0, 0.34);
 }
+
+.exploration-minimap-wall {
+    position: absolute;
+    z-index: 2;
+    display: block;
+    background: rgba(255, 214, 118, 0.46);
+    box-shadow: 0 0 8px rgba(255, 170, 0, 0.20);
+    pointer-events: none;
+}
+
+.exploration-minimap-wall.is-locked {
+    background: rgba(206, 72, 54, 0.70);
+    box-shadow: 0 0 9px rgba(206, 72, 54, 0.28);
+}
+
+.exploration-minimap-wall--north,
+.exploration-minimap-wall--south {
+    left: 18%;
+    right: 18%;
+    height: 2px;
+}
+
+.exploration-minimap-wall--west,
+.exploration-minimap-wall--east {
+    top: 18%;
+    bottom: 18%;
+    width: 2px;
+}
+
+.exploration-minimap-wall--north { top: 0; }
+.exploration-minimap-wall--south { bottom: 0; }
+.exploration-minimap-wall--west { left: 0; }
+.exploration-minimap-wall--east { right: 0; }
+
+.exploration-minimap-markers {
+    position: absolute;
+    left: 50%;
+    bottom: 12%;
+    display: flex;
+    gap: 2px;
+    transform: translateX(-50%);
+    pointer-events: none;
+}
+
+.exploration-minimap-marker {
+    width: 3px;
+    height: 3px;
+    display: block;
+    border-radius: 1px;
+    background: rgba(230, 214, 176, 0.72);
+    box-shadow: 0 0 5px rgba(255, 170, 0, 0.18);
+}
+
+.exploration-minimap-marker.is-players { background: rgba(130, 180, 255, 0.86); }
+.exploration-minimap-marker.is-battles { background: rgba(222, 104, 82, 0.92); }
+.exploration-minimap-marker.is-corpses { background: rgba(168, 128, 212, 0.86); }
+.exploration-minimap-marker.is-services { background: rgba(255, 190, 70, 0.92); }
 
 .exploration-minimap-caption {
     min-width: 0;

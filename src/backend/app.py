@@ -24,6 +24,7 @@ from src.backend.features.game_catalog.api import router as game_catalog_router 
 from src.backend.features.game_lobby.api import router as game_lobby_router  # noqa: E402
 from src.backend.features.game_session.api import router as game_session_router  # noqa: E402
 from src.backend.features.inventory.api import router as inventory_router  # noqa: E402
+from src.backend.features.monsters.api import router as monsters_router  # noqa: E402
 from src.backend.features.scenario.api import router as scenario_router  # noqa: E402
 from src.backend.features_site.combat.router import router as combat_internal_router  # noqa: E402
 from src.backend.features_site.exploration.router import router as exploration_internal_router  # noqa: E402
@@ -48,12 +49,13 @@ app.include_router(combat_analytics_router)
 app.include_router(combat_router)
 app.include_router(game_catalog_router)
 app.include_router(inventory_router)
+app.include_router(monsters_router)
 app.include_router(game_lobby_router)
 app.include_router(game_session_router)
 app.include_router(scenario_router)
 app.include_router(exploration_router)
 logger.info(
-    "Backend routers registered: arena, character, city_services, combat_analytics, combat, game_catalog, inventory, game_lobby, game_session, scenario, exploration"
+    "Backend routers registered: arena, character, city_services, combat_analytics, combat, game_catalog, inventory, monsters, game_lobby, game_session, scenario, exploration"
 )
 
 

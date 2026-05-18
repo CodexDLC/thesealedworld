@@ -39,6 +39,14 @@ class FrontendSettings(BaseCommonSettings):
     authx_jwt_token_locations: list[str] = ["headers"]
     default_symbiote_name: str = "SYSTEM"
 
+    # Email
+    smtp_host: str = "smtp.gmail.com"
+    smtp_port: int = 587
+    smtp_user: str = ""
+    smtp_password: str = ""
+    email_from: str = "noreply@thesealed.world"
+    email_admin: str = "primecodex@gmail.com"
+
     # Paths
     templates_dir: Path = BASE_DIR / "src" / "frontend" / "templates"
     static_dir: Path = BASE_DIR / "src" / "frontend" / "static"

@@ -1,8 +1,7 @@
 {
   "quest_key": "tavern_bartender_dialogue",
   "scenario_type": "dialogue_scenario",
-  "display_name": "РАЗГОВОР С БАРМЕНОМ",
-  "background_url": "/static/images/exploration/city/d4/52_53_last_refuge_tavern.png",
+  "display_name": "РАЗГОВОР С КОРМЧИМ",
   "ui": {
     "left_panel": {
       "mode": "character_status"

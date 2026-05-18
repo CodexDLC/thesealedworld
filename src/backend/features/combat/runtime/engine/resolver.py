@@ -22,6 +22,8 @@ PARRY_SKILL_MULT_PER_POINT = 4.0
 SHIELD_BLOCK_SKILL_MULT_PER_POINT = 1.5
 SHIELD_MASTERY_ABSORB_CAP_RATIO_AT_FULL = 0.50
 SHIELD_MASTERY_REFLECT_RATIO_AT_FULL = 0.50
+BASE_ACCURACY_CHANCE = 0.70
+SKILL_ACCURACY_BONUS_AT_FULL = 0.30
 UNARMED_MIN_EFFICIENCY = 0.5
 UNARMED_MAX_EFFICIENCY = 3.0
 UNARMED_NOVICE_SPREAD = 0.5
@@ -174,9 +176,10 @@ class CombatResolver:
             CombatResolver._trace_step(res, "accuracy", "pass", reason="force_hit")
             return True
 
-        base_acc = CombatResolver._get_offensive_val(atk_stats, ctx, "accuracy")
+        accuracy_modifier = CombatResolver._get_offensive_val(atk_stats, ctx, "accuracy")
+        skill_bonus = CombatResolver._accuracy_skill_bonus(atk_stats, ctx)
         multiplier = ctx.mods.accuracy_mult
-        final_acc = base_acc * multiplier
+        final_acc = max(0.0, min(1.0, (BASE_ACCURACY_CHANCE + skill_bonus + accuracy_modifier) * multiplier))
         roll, passed = MathCore.roll_chance(final_acc)
         CombatResolver._trace_roll(
             res,
@@ -184,7 +187,9 @@ class CombatResolver:
             final_acc,
             roll,
             passed,
-            base=base_acc,
+            base=BASE_ACCURACY_CHANCE,
+            skill_bonus=skill_bonus,
+            modifier=accuracy_modifier,
             mult=multiplier,
             source_type=ctx.flags.meta.source_type,
         )
@@ -198,6 +203,15 @@ class CombatResolver:
 
         CombatResolver._resolve_triggers(ctx, res, "ON_ACCURACY_CHECK", source_stats=atk_stats)
         return True
+
+    @staticmethod
+    def _accuracy_skill_bonus(atk_stats: ActorStats, ctx: PipelineContextDTO) -> float:
+        weapon_class = ctx.flags.meta.weapon_class
+        if not weapon_class:
+            return 0.0
+        skill_val = getattr(atk_stats.skills, f"skill_{weapon_class}", 0.0)
+        normalized = max(0.0, min(1.0, float(skill_val or 0.0)))
+        return normalized * SKILL_ACCURACY_BONUS_AT_FULL
 
     @staticmethod
     def _step_evasion_roll(

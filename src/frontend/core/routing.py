@@ -3,16 +3,17 @@ from collections.abc import Sequence
 from fastapi import APIRouter, FastAPI
 from loguru import logger
 
-from src.frontend.features.auth.api import router as auth_api_router
-
 # Architecture Note:
 # Features are split into two main categories:
 # 1. features: Site web logic (Authentication, User Cabinet, Library, Landing/Static pages)
 # 2. game_features: Core gameplay interactions (Lobby, Menu systems, Game Scenarios)
 from src.frontend.features.account.routes.pages import router as account_router
+from src.frontend.features.auth.api import router as auth_api_router
 from src.frontend.features.auth.routes.pages import router as auth_router
+from src.frontend.features.feedback.routes.pages import router as feedback_router
 from src.frontend.features.library.routes.pages import router as library_router
 from src.frontend.features.public_site.routes.pages import router as frontend_pages_router
+from src.frontend.features.surveys.routes.pages import router as surveys_router
 from src.frontend.game_features.arena.routes.actions import router as arena_router
 from src.frontend.game_features.character_status.routes.fragments import router as character_status_router
 from src.frontend.game_features.city_services.routes.actions import router as city_services_router
@@ -30,6 +31,8 @@ FRONTEND_ROUTERS: Sequence[APIRouter] = (
     auth_api_router,
     auth_router,
     account_router,
+    feedback_router,
+    surveys_router,
     arena_router,
     character_status_router,
     city_services_router,

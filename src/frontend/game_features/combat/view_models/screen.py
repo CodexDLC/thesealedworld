@@ -15,7 +15,6 @@ if TYPE_CHECKING:
         CombatEffectBadgeDTO,
         CombatEventDTO,
         CombatExchangeStateDTO,
-        CombatFeintOptionDTO,
         CombatResultDTO,
     )
 
@@ -382,7 +381,7 @@ def build_combat_screen_from_result_vm(result: CombatResultDTO) -> CombatScreenV
 
 
 def build_combat_screen_vm(dashboard: CombatDashboardDTO) -> CombatScreenVM:
-    primary_attack, feints, abilities = _split_actions(dashboard.available_actions, dashboard.hero.feints)
+    primary_attack, feints, abilities = _split_actions(dashboard.available_actions, dashboard.hero)
     allied_actors = [dashboard.hero, *dashboard.allies]
     enemy_actors = dashboard.enemies or ([dashboard.target] if dashboard.target else [])
     enemy_rows = [_roster_row(actor) for actor in dashboard.enemies]
@@ -1107,7 +1106,7 @@ def _remaining_text(remaining_ms: int | None, *, prefix: str) -> str:
 
 def _split_actions(
     actions: list[CombatActionOptionDTO],
-    feint_hand: list[CombatFeintOptionDTO],
+    hero: CombatActorCardDTO,
 ) -> tuple[CombatActionVM | None, list[CombatActionVM], list[CombatActionVM]]:
     primary: CombatActionVM | None = None
     abilities: list[CombatActionVM] = []
@@ -1118,24 +1117,33 @@ def _split_actions(
         elif action.ability_id:
             abilities.append(_action_vm(action, kind="ability", icon="gift-token"))
 
-    feints = [
-        CombatActionVM(
-            id=feint.feint_id,
-            label=feint.feint_id,
-            kind="feint",
-            icon_url=f"{COMBAT_ICON_ROOT}/feint.svg",
-            enabled=primary.enabled if primary else False,
-            target_id=primary.target_id if primary else None,
-            feint_id=feint.feint_id,
-            catalog="feints",
-            catalog_key=feint.feint_id,
-            pinned=feint.pinned,
-            cost=feint.cost,
-            cost_items=_action_cost_items(feint.cost),
+    feints: list[CombatActionVM] = []
+    for feint in hero.feints:
+        stamina_cost = _feint_stamina_cost(feint.cost)
+        has_concentration = hero.vitals.stamina_current >= stamina_cost
+        enabled = bool(primary.enabled if primary else False) and has_concentration
+        feints.append(
+            CombatActionVM(
+                id=feint.feint_id,
+                label=feint.feint_id,
+                kind="feint",
+                icon_url=f"{COMBAT_ICON_ROOT}/feint.svg",
+                enabled=enabled,
+                target_id=primary.target_id if primary else None,
+                feint_id=feint.feint_id,
+                catalog="feints",
+                catalog_key=feint.feint_id,
+                pinned=feint.pinned,
+                cost=feint.cost,
+                cost_items=_action_cost_items(feint.cost),
+                reason=None if enabled else f"CONC {hero.vitals.stamina_current}/{stamina_cost}",
+            )
         )
-        for feint in feint_hand
-    ]
     return primary, feints, abilities
+
+
+def _feint_stamina_cost(cost: dict[str, int]) -> int:
+    return max(0, sum(max(0, int(amount or 0)) for amount in cost.values()) * 5)
 
 
 def _action_vm(action: CombatActionOptionDTO, *, kind: str, icon: str) -> CombatActionVM:

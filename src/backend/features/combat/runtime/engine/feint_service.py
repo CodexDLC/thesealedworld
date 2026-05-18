@@ -11,6 +11,8 @@ import random
 from src.backend.features.combat.dto.actor import ActorMetaDTO
 from src.backend.features.combat.integrations import CombatCatalogIntegrator
 
+FEINT_STAMINA_PER_TOKEN = 5
+
 # === ОСНОВНОЙ СЕРВИС ===
 
 
@@ -115,6 +117,10 @@ class FeintService:
     def refund_cost(actor: ActorMetaDTO, cost: dict[str, int]) -> None:
         """Возвращает замороженную стоимость использованного финта в свободные токены."""
         FeintService._return_tokens(actor.tokens, cost)
+
+    @staticmethod
+    def activation_stamina_cost(cost: dict[str, int]) -> int:
+        return max(0, sum(max(0, int(amount)) for amount in cost.values())) * FEINT_STAMINA_PER_TOKEN
 
     @staticmethod
     def get_hand_for_dashboard(actor: ActorMetaDTO) -> dict[str, str]:

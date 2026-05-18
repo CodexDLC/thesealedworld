@@ -154,6 +154,8 @@ D4_CORNER_ZONE_TAGS: dict[str, list[str]] = {
     "D4_0_2": ["d4_corner_pressure", "d4_rift_bandit_barricade", "bandit_barricade_pressure", "scavenger_barricade"],
     "D4_2_2": ["d4_corner_pressure", "d4_rift_goblin_scrapyard", "goblin_scrapyard_pressure", "collapsed_workshop"],
 }
+
+
 class LLMWorldGenerator:
     """Orchestrates world generation using static loaders and AI-driven content."""
 

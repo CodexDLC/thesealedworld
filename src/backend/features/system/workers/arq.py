@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from arq import cron
 from loguru import logger
 
 from src.backend.core.arq import SYSTEM_ARQ_QUEUE, ArqService, BaseArqSettings, base_shutdown, base_startup
@@ -11,9 +12,11 @@ from src.backend.core.arq_logging import setup_arq_worker_logging
 setup_arq_worker_logging("system-worker")
 
 from src.backend.features.character.workers.tasks import CHARACTER_TASKS
-from src.backend.features.inventory.workers.tasks import INVENTORY_TASKS
+from src.backend.features.inventory.workers.tasks import INVENTORY_TASKS, inventory_dirty_sweeper_task
+from src.backend.features.loot.workers.tasks.loot_claim_task import loot_claim_task
 
-SYSTEM_TASKS = (*CHARACTER_TASKS, *INVENTORY_TASKS)
+SYSTEM_TASKS = (*CHARACTER_TASKS, *INVENTORY_TASKS, loot_claim_task)
+INVENTORY_SWEEPER_MINUTES = set(range(0, 60, 3))
 
 
 async def system_startup(ctx: dict[str, Any]) -> None:
@@ -41,3 +44,6 @@ class SystemArqSettings(BaseArqSettings):
     on_startup = system_startup
     on_shutdown = system_shutdown
     functions = SYSTEM_TASKS
+    cron_jobs = [
+        cron(inventory_dirty_sweeper_task, minute=INVENTORY_SWEEPER_MINUTES),
+    ]

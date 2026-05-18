@@ -1,4 +1,5 @@
 from src.backend.features.items.models.instance import (
+    ItemGeneratedTemplate,
     ItemInstance,
     ItemOrigin,
     ItemPlacement,
@@ -8,6 +9,7 @@ from src.backend.features.items.models.instance import (
 )
 
 __all__ = [
+    "ItemGeneratedTemplate",
     "ItemInstance",
     "ItemOrigin",
     "ItemPlacement",

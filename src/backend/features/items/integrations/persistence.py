@@ -22,14 +22,36 @@ class ItemPersistenceIntegration:
         *,
         text_status: str,
         origin_ref: ItemOriginRefDTO | None = None,
+        generated_template_id: str | None = None,
     ) -> str:
         instance = await self.repo.create_mechanical(
             item,
             placement_ref,
             text_status=text_status,
             origin_ref=origin_ref,
+            generated_template_id=generated_template_id,
         )
         return str(instance.id)
+
+    async def get_text_visual_template_by_hash(self, text_visual_hash: str) -> Any | None:
+        return await self.repo.get_text_visual_template_by_hash(text_visual_hash)
+
+    async def create_text_visual_template(
+        self,
+        item: GeneratedItemDTO,
+        *,
+        text_visual_hash: str,
+        text_payload: dict[str, Any],
+        prompt_version: str,
+        text_status: str,
+    ) -> Any:
+        return await self.repo.create_text_visual_template(
+            item,
+            text_visual_hash=text_visual_hash,
+            text_payload=text_payload,
+            prompt_version=prompt_version,
+            text_status=text_status,
+        )
 
     async def get_generated_item(self, item_id: str) -> GeneratedItemDTO | None:
         instance = await self.repo.get(item_id)
@@ -43,6 +65,16 @@ class ItemPersistenceIntegration:
             name=item.name,
             description=item.description,
             text_status="generated",
+        )
+        await self.repo.update_template_text_for_item(
+            item_id,
+            name=item.name,
+            description=item.description,
+            text_status="generated",
+            metadata={
+                "ai_text_status": item.metadata.get("ai_text_status"),
+                "ai_prompt": item.metadata.get("ai_prompt"),
+            },
         )
 
     async def mark_text_failed(self, item_id: str, reason: str | None = None) -> None:
@@ -73,5 +105,8 @@ class ItemPersistenceIntegration:
             triggers=list(instance.mechanics.get("triggers") or []),
             narrative_tags=list(instance.generation.get("narrative_tags") or []),
             mechanics=dict(instance.mechanics or {}),
-            metadata=instance.metadata_,
+            metadata={
+                **dict(instance.metadata_ or {}),
+                "generated_template_id": getattr(instance, "generated_template_id", None),
+            },
         )

@@ -23,6 +23,21 @@ class CombatAnalyticsApi(BaseApiClient):
         raw = await self._request("GET", "/api/game/combat/analytics/rollups", params=params)
         return raw if isinstance(raw, dict) else {"rows": []}
 
+    async def get_combat_summary(
+        self,
+        *,
+        date_from: str | None = None,
+        date_to: str | None = None,
+        days: int = 30,
+    ) -> dict:
+        params: dict = {"days": days}
+        if date_from:
+            params["date_from"] = date_from
+        if date_to:
+            params["date_to"] = date_to
+        raw = await self._request("GET", "/api/game/combat/analytics/combat-summary", params=params)
+        return raw if isinstance(raw, dict) else {}
+
     async def get_drilldown(
         self,
         *,

@@ -60,8 +60,9 @@ async def on_generate_requested(payload: dict[str, Any]) -> None:
             correlation_id=cid,
         )
         persisted_requests = [request for request in requests if request.generation_mode == "player"]
+        text_requested_ids = set(result.text_requested_item_ids or [])
         for item_id, request in zip(result.item_ids, persisted_requests, strict=True):
-            if not _should_request_ai_text(request):
+            if str(item_id) not in text_requested_ids or not _should_request_ai_text(request):
                 continue
             await _app.state.events.publish(
                 "items.text_requested",

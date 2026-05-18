@@ -107,6 +107,8 @@ async def test_reward_service_generates_to_backpack_then_applies_inventory_equip
     assert result.backpack_item_ids == []
     event_type, payload = events.request.await_args.args[:2]
     assert event_type == ItemEvents.GENERATE_REQUESTED
+    assert payload["items"][0]["placement_ref"]["holder_type"] == "character"
+    assert payload["items"][0]["placement_ref"]["holder_id"] == "7"
     assert payload["items"][0]["placement_ref"]["storage_type"] == "backpack"
     assert payload["items"][0]["placement_ref"]["slot"] is None
     assert repository.saved is not None

@@ -7,6 +7,9 @@ Copied source filenames:
 - lucasms/shirt.svg
 - delapouite/gauntlet.svg
 - delapouite/leg-armor.svg
+- irongamer/armored-pants.svg
+- delapouite/armor-cuisses.svg
+- delapouite/greaves.svg
 - lucasms/trousers.svg
 - lorc/leather-boot.svg
 - lorc/plain-dagger.svg
@@ -17,6 +20,11 @@ Copied source filenames:
 - lorc/spears.svg
 - delapouite/bow-arrow.svg
 - delapouite/two-handed-sword.svg
+- lorc/stone-spear.svg
+- lorc/barbed-spear.svg
+- lorc/halberd.svg
+- delapouite/bo.svg
+- lorc/trident.svg
 - sbed/shield.svg
 - lorc/gem-chain.svg
 - delapouite/earrings.svg

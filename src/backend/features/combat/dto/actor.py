@@ -91,6 +91,8 @@ class ActorMetaDTO(BaseModel):
     max_hp: int = 0
     en: int = 0
     max_en: int = 0
+    stamina: int = 0
+    max_stamina: int = 0
     tactics: int = 0
     is_dead: bool = False
     afk_level: int = 0

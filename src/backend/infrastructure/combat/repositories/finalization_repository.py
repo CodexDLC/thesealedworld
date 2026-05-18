@@ -33,6 +33,14 @@ class CombatFinalizationRepository:
         )
         return result.scalar_one_or_none()
 
+    async def get_all_for_backfill(self, *, limit: int = 500) -> list[CombatFinalization]:
+        result = await self.session.execute(
+            select(CombatFinalization)
+            .order_by(CombatFinalization.finished_at.desc().nullslast(), CombatFinalization.id.desc())
+            .limit(int(limit))
+        )
+        return list(result.scalars().all())
+
     async def get_latest_for_character(self, char_id: int) -> CombatFinalization | None:
         result = await self.session.execute(
             select(CombatFinalization)

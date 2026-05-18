@@ -7,7 +7,6 @@ from typing import TYPE_CHECKING, Any
 
 from src.backend.core.database import get_session_context
 from src.backend.features.character.runtime.combat_actor_input import CharacterCombatActorInputBuilder
-from src.backend.features.items.repositories import ItemInstanceRepository
 from src.backend.features.monsters.runtime.combat_actor_input import MonsterCombatActorInputBuilder
 from src.backend.infrastructure.monsters import MonsterRepository
 
@@ -104,9 +103,6 @@ class CharacterCombatCommitmentIntegration:
                 await apply_vitals_regen(char_id)
 
         sessions = await self.character_sessions.get_sessions_batch(player_ids)
-        async with self.session_factory() as session:
-            equipped_by_char = await ItemInstanceRepository(session).get_equipped_for_characters(player_ids)
-
         snapshots: dict[str, dict[str, Any]] = {}
         refs: dict[str, str] = {}
         failed: list[int] = []
@@ -115,44 +111,10 @@ class CharacterCombatCommitmentIntegration:
             if not isinstance(active_character, dict):
                 failed.append(char_id)
                 continue
-            active_character = self._with_equipped_items(active_character, equipped_by_char.get(char_id, []))
             actor_id = self.commitment_manager.actor_uuid("player", char_id)
             snapshots[actor_id] = self.player_builder.build_snapshot(active_character)
             refs[actor_id] = self.commitment_manager.source_ref("player", char_id)
         return snapshots, refs, failed
-
-    @staticmethod
-    def _with_equipped_items(active_character: dict[str, Any], equipped_items: list[dict[str, Any]]) -> dict[str, Any]:
-        if not equipped_items:
-            return active_character
-
-        items = dict(active_character.get("items") or {})
-        layout = dict(items.get("layout") or {})
-        equipment = dict(layout.get("equipment") or {})
-        by_id = dict(items.get("by_id") or {})
-
-        for item in equipped_items:
-            item_id = str(item.get("item_id") or "")
-            slot = str(item.get("slot") or "")
-            if not item_id:
-                continue
-            by_id[item_id] = item
-            if not slot:
-                continue
-            equipment[slot] = item_id
-            if slot == "two_hand":
-                equipment["off_hand"] = None
-            elif slot in {"main_hand", "off_hand"} and equipment.get("two_hand"):
-                equipment["two_hand"] = None
-
-        return {
-            **active_character,
-            "items": {
-                **items,
-                "layout": {**layout, "equipment": equipment},
-                "by_id": by_id,
-            },
-        }
 
     async def _monster_commitments(
         self,

@@ -9,10 +9,42 @@ from sqlalchemy.orm import Mapped, mapped_column
 from src.backend.core.database import Base, ContextSourceMixin, RevisionMixin, SchemaVersionMixin
 
 
+class ItemGeneratedTemplate(Base, ContextSourceMixin, SchemaVersionMixin, RevisionMixin):
+    __tablename__ = "item_generated_templates"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    text_visual_hash: Mapped[str] = mapped_column(String(128), nullable=False, unique=True, index=True)
+    prompt_version: Mapped[str] = mapped_column(String(80), nullable=False, index=True)
+    base_id: Mapped[str] = mapped_column(String(80), nullable=False, index=True)
+    item_type: Mapped[str] = mapped_column(String(40), nullable=False)
+    rarity: Mapped[str] = mapped_column(String(30), nullable=False, index=True)
+    rarity_tier: Mapped[int] = mapped_column(nullable=False, index=True)
+    item_grade: Mapped[str] = mapped_column(String(40), default="", nullable=False, index=True)
+    material_id: Mapped[str | None] = mapped_column(String(80), nullable=True, index=True)
+    name: Mapped[str] = mapped_column(String(160), nullable=False)
+    description: Mapped[str] = mapped_column(String(1000), nullable=False)
+    image_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    icon_key: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    text_status: Mapped[str] = mapped_column(String(40), default="not_requested", nullable=False, index=True)
+    text_payload: Mapped[dict[str, Any]] = mapped_column(JSONB, default=dict, nullable=False)
+    appearance: Mapped[dict[str, Any]] = mapped_column(JSONB, default=dict, nullable=False)
+    generation: Mapped[dict[str, Any]] = mapped_column(JSONB, default=dict, nullable=False)
+    metadata_: Mapped[dict[str, Any]] = mapped_column("metadata", JSONB, default=dict, nullable=False)
+    created_at: Mapped[Any] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at: Mapped[Any] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False
+    )
+
+
 class ItemInstance(Base, ContextSourceMixin, SchemaVersionMixin, RevisionMixin):
     __tablename__ = "item_instances"
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    generated_template_id: Mapped[str | None] = mapped_column(
+        ForeignKey("item_generated_templates.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
     base_id: Mapped[str] = mapped_column(String(80), nullable=False, index=True)
     item_type: Mapped[str] = mapped_column(String(40), nullable=False)
     rarity: Mapped[str] = mapped_column(String(30), nullable=False, index=True)

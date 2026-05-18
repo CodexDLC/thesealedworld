@@ -104,6 +104,46 @@ async def test_generation_ai_image_can_force_target_size() -> None:
 
 
 @pytest.mark.asyncio
+async def test_generation_ai_image_forwards_provider_kwargs() -> None:
+    ai = SimpleNamespace(generate_image_bytes=AsyncMock(return_value=(_tiny_png(), "image/png")))
+    storage = FakeAssetStorage()
+    executor = CodexAIExecutor(ai, asset_storage=storage)
+    task = SimpleNamespace(
+        task_type="world.region_map_image",
+        entity_type="world_region",
+        entity_id="D4",
+        output_kind="image",
+    )
+
+    await executor.generate(
+        task,
+        {
+            "kind": "image",
+            "prompt": "Create square region map",
+            "model": "gemini-3-pro-image-preview",
+            "content_type": "image/png",
+            "storage_key": "world/maps/d4/master.png",
+            "kwargs": {
+                "image_config": {
+                    "aspect_ratio": "1:1",
+                    "image_size": "4K",
+                }
+            },
+        },
+    )
+
+    ai.generate_image_bytes.assert_awaited_once_with(
+        prompt="Create square region map",
+        model="gemini-3-pro-image-preview",
+        response_mime_type="image/png",
+        image_config={
+            "aspect_ratio": "1:1",
+            "image_size": "4K",
+        },
+    )
+
+
+@pytest.mark.asyncio
 @pytest.mark.parametrize(
     "model",
     [

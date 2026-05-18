@@ -63,7 +63,7 @@ GARMENT_DB = {
             "damage_spread": 0.0,
             "narrative_description": "Прочные ботинки для камня, грязи и долгого пути после выхода из Рифта.",
             "narrative_tags": ["boots", "garment", "travel", "feetwear"],
-            "implicit_bonuses": {},
+            "implicit_bonuses": {"stamina_regen": 1.5},
         },
         "work_gloves": {
             "id": "work_gloves",

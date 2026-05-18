@@ -1,12 +1,16 @@
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 import httpx
-from fastapi import Request
 
 from fastapi_cabinet import CabinetAdmin, ListWidget, MetricWidget, SidebarItem, TableWidget, cabinet_site
 from fastapi_cabinet.contracts.widgets import ListWidgetMap, MetricWidgetMap, TableColumnMap, TableWidgetMap
 from src.frontend.config.settings import settings
 from src.frontend.integrations.backend_api.scenario_sessions import ScenarioSessionsApi
+
+if TYPE_CHECKING:
+    from fastapi import Request
 
 
 async def _active_provider(request: Request) -> MetricWidgetMap:

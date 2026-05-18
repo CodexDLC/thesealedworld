@@ -24,7 +24,7 @@ class StatKey(StrEnum):
     # --- 2. VITALS (Resources) ---
     HP = "hp"
     EN = "en"  # Energy (основной ресурс для абилок)
-    STAMINA = "stamina"  # Выносливость (для физических действий, бега)
+    STAMINA = "stamina"  # Концентрация (ресурс приемов; legacy key in Redis/DTO)
 
     # --- 3. COMBAT STATS (Secondary) ---
     # Offense

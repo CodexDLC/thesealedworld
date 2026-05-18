@@ -48,16 +48,6 @@ class MonsterCombatMathModelBuilder:
         },
     }
 
-    ORGANIZATION_MODIFIERS: dict[MonsterOrganizationType, dict[str, float | str]] = {
-        "solitary": {"hand_size": 4.0},
-        "pack": {"accuracy": 0.03, "counter_attack_chance": 0.02},
-        "gang": {"accuracy": 0.02},
-        "clan": {"physical_resistance": 0.02},
-        "legion": {"physical_resistance": 0.04, "counter_attack_chance": 0.03},
-        "horde": {"accuracy": -0.03, "damage_mult": "*1.05"},
-        "swarm": {"accuracy": -0.05, "evasion": 0.05},
-    }
-
     ROLE_SIZE_DEFAULTS: dict[str, MonsterSizeClass] = {
         "minion": "small",
         "veteran": "medium",
@@ -65,7 +55,7 @@ class MonsterCombatMathModelBuilder:
         "boss": "huge",
     }
 
-    VALID_ORGANIZATIONS: set[str] = set(ORGANIZATION_MODIFIERS)
+    VALID_ORGANIZATIONS: set[str] = {"solitary", "pack", "gang", "clan", "legion", "horde", "swarm"}
     VALID_SIZES: set[str] = set(SIZE_MODIFIERS)
 
     def __init__(self, base_builder: CharacterCombatMathModelBuilder | None = None) -> None:
@@ -138,11 +128,8 @@ class MonsterCombatMathModelBuilder:
 
     @classmethod
     def _apply_profile_modifiers(cls, modifiers: dict[str, Any], profile: MonsterPipelineProfile) -> None:
-        cls._apply_modifier_group(modifiers, f"monster_size:{profile.size_class}", cls.SIZE_MODIFIERS[profile.size_class])
         cls._apply_modifier_group(
-            modifiers,
-            f"monster_organization:{profile.organization_type}",
-            cls.ORGANIZATION_MODIFIERS[profile.organization_type],
+            modifiers, f"monster_size:{profile.size_class}", cls.SIZE_MODIFIERS[profile.size_class]
         )
 
     @staticmethod

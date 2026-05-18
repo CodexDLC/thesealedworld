@@ -74,10 +74,12 @@ class CodexAIExecutor:
         storage_key = _validate_image_storage_key(task, request.get("storage_key"))
         requested_content_type = _validate_image_content_type(task, request.get("content_type"))
         target_size = _optional_target_size(task, request.get("target_size"))
+        kwargs = dict(request.get("kwargs") or {})
         content, content_type = await generate_image_bytes(
             prompt=prompt,
             model=model,
             response_mime_type=requested_content_type,
+            **kwargs,
         )
         if not isinstance(content, bytes) or not content:
             raise RuntimeError(f"AI image provider returned no binary content for task_type={task.task_type}")

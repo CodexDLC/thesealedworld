@@ -10,6 +10,7 @@ from src.shared.schemas.exploration import (
     AlertHudDTO,
     EncounterDTO,
     ExplorationListDTO,
+    ExplorationLocalMapDTO,
     ExplorationScreenContentDTO,
     ExplorationScreenContextDTO,
     ExplorationScreenDTO,
@@ -88,6 +89,9 @@ class ExplorationGateway:
             return await self._screen_response(char_id, active, content_kind="encounter")
         navigation = await self._navigation.build_current_navigation(char_id)
         return await self._screen_response(char_id, navigation, content_kind="navigation")
+
+    async def local_map(self, char_id: int, *, radius: int = 2) -> ExplorationLocalMapDTO:
+        return await self._navigation.build_local_map(char_id, radius=radius)
 
     async def interact(
         self,
@@ -235,6 +239,7 @@ class ExplorationGateway:
             hud=source.hud,
             threat_tier=source.threat_tier,
             is_safe_zone=source.is_safe_zone,
+            city_map=source.city_map,
             metadata=source.metadata,
         )
 

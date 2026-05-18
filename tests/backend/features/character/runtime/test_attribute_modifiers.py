@@ -2,6 +2,8 @@ import pytest
 
 from src.backend.core.calculators.data.stats_formulas import (
     ATTRIBUTE_RULE_PROFILES,
+)
+from src.backend.core.calculators.data.stats_formulas import (
     MODIFIER_RULES as CORE_MODIFIER_RULES,
 )
 from src.backend.core.calculators.stats_waterfall_calculator import StatsWaterfallCalculator
@@ -28,6 +30,7 @@ def test_character_raw_attributes_drive_combat_modifiers_through_waterfall() -> 
             "memory": 10,
             "mental": 13,
             "perception": 8,
+            "projection": 7,
             "prediction": 6,
         },
         items={},
@@ -40,12 +43,12 @@ def test_character_raw_attributes_drive_combat_modifiers_through_waterfall() -> 
     assert calculated["physical_suppression"] == 0.3
     assert calculated["magical_damage"] == 11.0
     assert calculated["magical_penetration"] == 0.22
-    assert calculated["hp"] == 64.0
-    assert calculated["en"] == 26.0
-    assert calculated["stamina"] == 160.0
-    assert calculated["hp_regen"] == 8.0
-    assert calculated["en_regen"] == 6.5
-    assert calculated["stamina_regen"] == 3.2
+    assert calculated["hp"] == pytest.approx(53.3333)
+    assert calculated["en"] == pytest.approx(22.6667)
+    assert calculated["stamina"] == pytest.approx(70.0)
+    assert calculated["hp_regen"] == pytest.approx(1.3333)
+    assert calculated["en_regen"] == pytest.approx(5.6667)
+    assert calculated["stamina_regen"] == pytest.approx(3.1)
     assert calculated["physical_resistance"] == 0.32
     assert calculated["magic_resist"] == 0.26
     assert calculated["poison_resistance"] == 0.32

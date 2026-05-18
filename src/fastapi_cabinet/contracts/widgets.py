@@ -1,3 +1,5 @@
+from typing import Any
+
 from pydantic import BaseModel, Field
 
 
@@ -38,6 +40,12 @@ class TableColumnMap(BaseModel):
     align: str = "left"
 
 
+class TableActionMap(BaseModel):
+    action: str
+    label: str
+    css_class: str = ""
+
+
 class TableWidgetMap(BaseModel):
     kind: str = "table"
     key: str
@@ -45,6 +53,9 @@ class TableWidgetMap(BaseModel):
     columns: list[TableColumnMap]
     rows: list[dict[str, object]]
     row_href_key: str | None = None  # if set, rows become clickable links using this key's value as href
+    action_url: str | None = None
+    id_key: str | None = None
+    actions: list[TableActionMap] = Field(default_factory=list)
 
 
 class ListWidgetMap(BaseModel):
@@ -75,3 +86,20 @@ class EditableConfigWidgetMap(BaseModel):
     update_url: str
     reset_url: str
     entries: list[ConfigEntryRow] = Field(default_factory=list)
+
+
+class ChartWidget(DashboardWidget):
+    kind: str = "chart"
+    chart_type: str = "bar"  # "bar" | "pie" | "doughnut" | "line"
+
+
+class ChartWidgetMap(BaseModel):
+    kind: str = "chart"
+    key: str
+    title: str
+    chart_type: str  # "bar" | "pie" | "doughnut" | "line"
+    labels: list[str]
+    datasets: list[dict[str, Any]]  # Chart.js dataset format
+    height: int = 280  # px
+    options: dict[str, Any] = Field(default_factory=dict)  # extra Chart.js options merged on top of defaults
+    span: int = 1  # grid column span: 1 = normal, 2 = full-width

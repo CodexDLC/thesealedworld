@@ -160,6 +160,64 @@ class CombatAnalyticsDashboardService:
             rows=[CombatAnalyticsExchangeFactDTO.model_validate(row) for row in rows],
         )
 
+    async def combat_summary(
+        self,
+        *,
+        date_from: str | None = None,
+        date_to: str | None = None,
+        days: int = 30,
+    ) -> dict[str, Any]:
+        if date_from is None and date_to is None:
+            end = datetime.now(tz=UTC)
+            start = end - timedelta(days=days)
+        else:
+            start = _parse_datetime_bound(date_from, is_end=False)
+            end = _parse_datetime_bound(date_to, is_end=True)
+
+        combats_per_day = await self.integration.query_combats_per_day(start=start, end=end)
+        win_stats = await self.integration.query_win_stats(start=start, end=end)
+        avg_rounds = await self.integration.query_avg_rounds(start=start, end=end)
+
+        total_combats = sum(row["total"] for row in combats_per_day)
+        pve_total = sum(row["pve_total"] for row in combats_per_day)
+        pve_wins = sum(row["pve_wins"] for row in combats_per_day)
+        pvp_total = sum(row["pvp_total"] for row in combats_per_day)
+
+        pve_win_rate_pct = round(pve_wins / pve_total * 100, 1) if pve_total > 0 else 0.0
+
+        # Group win_stats by battle_type for the table
+        by_type: dict[str, dict[str, Any]] = {}
+        for row in win_stats:
+            bt = row.get("battle_type") or "unknown"
+            key = bt
+            if key not in by_type:
+                by_type[key] = {"battle_type": bt, "total": 0, "team_wins": {}}
+            by_type[key]["total"] += row["cnt"]
+            team = row.get("winner_team") or "draw"
+            by_type[key]["team_wins"][team] = by_type[key]["team_wins"].get(team, 0) + row["cnt"]
+
+        win_stats_out = [
+            {
+                "battle_type": v["battle_type"],
+                "total": v["total"],
+                "team_wins": v["team_wins"],
+            }
+            for v in sorted(by_type.values(), key=lambda x: -x["total"])
+        ]
+
+        return {
+            "pve_win_rate_pct": pve_win_rate_pct,
+            "pve_total": pve_total,
+            "pve_wins": pve_wins,
+            "pvp_total": pvp_total,
+            "avg_rounds": avg_rounds.get("avg", 0.0),
+            "min_rounds": avg_rounds.get("min", 0),
+            "max_rounds": avg_rounds.get("max", 0),
+            "total_combats": total_combats,
+            "combats_per_day": combats_per_day,
+            "win_stats": win_stats_out,
+        }
+
     async def raw_debug(self, combat_id: str) -> CombatAnalyticsRawDebugDTO | None:
         row = await self.integration.get_raw_analytics(combat_id)
         if row is None:

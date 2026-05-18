@@ -28,10 +28,11 @@ async def account_profile(
 
     service = AccountService()
     profile = service.build_profile_vm(user)
+    applied = request.query_params.get("applied") == "1"
 
     return await ui.render(
         "account/profile.html",
-        context={"profile": profile},
+        context={"profile": profile, "applied": applied},
     )
 
 
@@ -46,6 +47,9 @@ async def apply_tester(
 
     repo = UserRepository(session=db)
     service = AccountService(repo=repo)
-    await service.apply_for_testing(user.id)
+    try:
+        await service.apply_for_testing(user.id)
+    except Exception:
+        return RedirectResponse(url="/account/profile", status_code=303)
 
-    return RedirectResponse(url="/account/profile", status_code=303)
+    return RedirectResponse(url="/account/profile?applied=1", status_code=303)

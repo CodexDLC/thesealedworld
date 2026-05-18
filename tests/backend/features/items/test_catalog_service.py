@@ -131,18 +131,33 @@ def test_starting_weapons_match_combat_snapshot_contract():
         "warhammer",
     }
 
-    missing_penalty = []
+    accuracy_penalty_items = []
     missing_skill = []
     for item_id in starting_weapon_ids:
         item = catalog.get_base_item(item_id)
         assert item is not None
         if not item.related_skill:
             missing_skill.append(item_id)
-        if "accuracy_penalty" not in item.implicit_bonuses:
-            missing_penalty.append(item_id)
+        if "accuracy_penalty" in item.implicit_bonuses:
+            accuracy_penalty_items.append(item_id)
 
     assert missing_skill == []
-    assert missing_penalty == []
+    assert accuracy_penalty_items == []
+
+
+@pytest.mark.unit
+def test_player_weapons_do_not_carry_base_accuracy_penalty() -> None:
+    catalog = ItemCatalogService.load_default()
+
+    offenders = [
+        item_id
+        for item_id, item in catalog.base_items.items()
+        if item.type == "weapon"
+        and catalog.entries[item_id].category != "monster_equipment"
+        and "accuracy_penalty" in item.implicit_bonuses
+    ]
+
+    assert offenders == []
 
 
 @pytest.mark.unit

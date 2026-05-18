@@ -272,7 +272,7 @@
 {% set symbiote_name = status_seed.symbiote_name if status_seed is defined and status_seed.symbiote_name else 'SYSTEM' %}
 
 {% if oob_panels %}
-    <div id="game-right-content" hx-swap-oob="true">
+    <div id="game-right-context-content" hx-swap-oob="innerHTML">
         {% include "game/domains/exploration/right_sidebar/main.html" %}
     </div>
 {% endif %}
@@ -294,6 +294,8 @@
         {% set threat = location_view.hud.threat if location_view.hud is defined and location_view.hud and location_view.hud.threat is defined else 0 %}
         {% set is_safe = location_view.hud is defined and location_view.hud and location_view.hud.is_safe_zone %}
         {% set is_danger = active_encounter %}
+        {% set city_map = location_view.city_map if location_view.city_map is defined and location_view.city_map.rows is defined and location_view.city_map.rows else none %}
+        {% set city_map_layout = city_map and not active_encounter %}
 
         <section class="panel-dock panel-dock--framed exploration-main-dock {{ 'mobile-rift--encounter' if active_encounter else '' }}" aria-label="Exploration main dock">
             <nav class="dock-nav dock-nav--bar dock-nav--five mobile-center-menu" aria-label="Game sections">
@@ -305,8 +307,8 @@
             </nav>
 
             <section class="mobile-screen game-screen-area game-screen-area--vertical is-active" data-screen="explore">
-                <div class="game-screen-content exploration-screen-content">
-                    <section class="mobile-scene parchment {{ 'is-danger' if is_danger else 'is-safe' if is_safe else '' }}"
+                <div class="game-screen-content exploration-screen-content {{ 'has-city-map-layout' if city_map_layout else '' }}">
+                    <section class="mobile-scene parchment {{ 'is-danger' if is_danger else 'is-safe' if is_safe else '' }} {{ 'has-city-map-scene' if city_map_layout else '' }}"
                              data-risk-frame
                              data-safe-zone="{{ 'true' if is_safe else 'false' }}"
                              data-threat="{{ threat }}"
@@ -318,8 +320,35 @@
                              data-battles="{{ location_view.hud.battles_count if location_view.hud is defined and location_view.hud and location_view.hud.battles_count is defined else 0 }}"
                              data-zone="{{ 'SAFE' if is_safe else 'OPEN' }}"
                              aria-label="Scene report">
-                        <div class="mobile-scene-art"
-                             {% if location_view.background_url is defined and location_view.background_url %}style="background-image: url('{{ location_view.background_url }}');"{% endif %}>
+                        <div class="mobile-scene-art {{ 'has-city-map' if city_map else '' }}"
+                             {% if not city_map and location_view.background_url is defined and location_view.background_url %}style="background-image: url('{{ location_view.background_url }}');"{% endif %}>
+                            {% if city_map %}
+                                <div class="exploration-city-map"
+                                     style="--city-map-size: {{ city_map.size if city_map.size is defined else 5 }};"
+                                     aria-label="Current city district map">
+                                    {% for map_row in city_map.rows %}
+                                        {% set is_mobile_trim_row = loop.first or loop.last %}
+                                        {% for map_cell in map_row %}
+                                            <span class="exploration-city-map-tile {{ 'is-current' if map_cell.is_current else '' }} {{ 'is-mobile-row-trim' if is_mobile_trim_row else '' }}"
+                                                  style="background-image: url('{{ map_cell.tile_url }}');"
+                                                  data-city-map-tile="{{ map_cell.visual_x }},{{ map_cell.visual_y }}"
+                                                  aria-hidden="true">
+                                                {% set service_markers = map_cell.service_markers if map_cell.service_markers is defined and map_cell.service_markers else [] %}
+                                                {% for service_marker in service_markers %}
+                                                    {% set service_marker_corner = service_marker.corner if service_marker.corner is defined and service_marker.corner else 'bottom-right' %}
+                                                    <span class="exploration-city-map-service-marker is-{{ service_marker_corner }}"
+                                                          style="--service-marker-url: url('{{ service_marker.icon_url }}');"
+                                                          title="{{ service_marker.label }}"
+                                                          aria-hidden="true"></span>
+                                                {% endfor %}
+                                                {% if map_cell.is_current %}
+                                                    <span class="exploration-city-map-marker" aria-hidden="true"></span>
+                                                {% endif %}
+                                            </span>
+                                        {% endfor %}
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
                             <span class="mobile-scene-title">{{ location_view.title if location_view.title is defined else active_encounter.title if active_encounter else 'LOCATION' }}</span>
                             <span class="mobile-scene-coordinates" aria-label="Location coordinates">
                                 {% if loc_parts|length >= 2 %}X {{ loc_parts[0] }} · Y {{ loc_parts[1] }}{% else %}{{ location_view.loc_id if location_view.loc_id is defined else 'NO_DATA' }}{% endif %}
@@ -331,7 +360,22 @@
                                 {{ 'SERVICES: ' ~ service_count if service_count else 'NO SERVICES' }}
                             </span>
                         </div>
-                        <div class="mobile-scene-copy" data-collapsible-text>
+                        {% if not city_map_layout %}
+                            <div class="mobile-scene-copy" data-collapsible-text>
+                                <p class="world-text">
+                                    <span class="symbiote-readout-name">{{ symbiote_name }}:</span>
+                                    {{ location_view.description if location_view.description is defined else active_encounter.description if active_encounter else '' }}
+                                </p>
+                                <button class="mobile-more-button"
+                                        type="button"
+                                        data-tooltip="{{ location_view.description if location_view.description is defined else active_encounter.description if active_encounter else '' }}">
+                                    ... MORE
+                                </button>
+                            </div>
+                        {% endif %}
+                    </section>
+                    {% if city_map_layout %}
+                        <div class="mobile-scene-copy mobile-scene-copy--map" data-collapsible-text>
                             <p class="world-text">
                                 <span class="symbiote-readout-name">{{ symbiote_name }}:</span>
                                 {{ location_view.description if location_view.description is defined else active_encounter.description if active_encounter else '' }}
@@ -342,7 +386,7 @@
                                 ... MORE
                             </button>
                         </div>
-                    </section>
+                    {% endif %}
 
                     {% if active_encounter %}
                         {{ encounter_surfaces(active_encounter, symbiote_name) }}

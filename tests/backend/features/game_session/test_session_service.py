@@ -8,6 +8,7 @@ from src.backend.features.character.schemas.session import CharacterSessionDocum
 from src.backend.features.game_session.integrations import GameSessionIntegrator
 from src.backend.features.game_session.services.session_service import GameSessionService
 from src.shared.enums import CoreDomain
+from src.shared.schemas.loot import ClaimResultDTO
 
 
 class FakeGameSessionIntegrator:
@@ -18,6 +19,22 @@ class FakeGameSessionIntegrator:
         self.respawn_character = AsyncMock(
             return_value={"status": "respawned", "location_id": "52_52", "corpse_id": "corpse-1"}
         )
+
+
+class FakeLootService:
+    def __init__(self, *_args, **_kwargs) -> None:
+        pass
+
+    async def claim_all(self, _character_id: int, _corpse_ids: list[str]) -> ClaimResultDTO:
+        return ClaimResultDTO(instance_ids=["item-1"], resource_deltas={"coin_copper": 3})
+
+
+class FakeArq:
+    def __init__(self) -> None:
+        self.jobs: list[tuple[str, dict]] = []
+
+    async def enqueue_job(self, name: str, payload: dict) -> None:
+        self.jobs.append((name, payload))
 
 
 def active_session(
@@ -288,3 +305,35 @@ async def test_integrator_resets_active_session_to_exploration():
     await integrator.reset_active_session_to_exploration(7)
 
     sessions.reset_main_runtime_refs_to_exploration.assert_awaited_once_with(7)
+
+
+@pytest.mark.asyncio
+async def test_claim_post_combat_loot_enqueues_claim_job(mocker):
+    mocker.patch("src.backend.features.loot.services.loot_service.LootService", FakeLootService)
+    sessions = SimpleNamespace(patch_fields=AsyncMock(), mark_dirty=AsyncMock())
+    arq = FakeArq()
+    integrator = GameSessionIntegrator(character_sessions=sessions, loot_manager=object(), loot_arq=arq)
+
+    result = await integrator.claim_post_combat_loot(7, ["corpse-1"])
+
+    assert result["queued_claims"] == 1
+    assert arq.jobs == [
+        (
+            "loot_claim_task",
+            {
+                "char_id": 7,
+                "corpse_id": "corpse-1",
+                "instance_ids": ["item-1"],
+                "resource_deltas": {"coin_copper": 3},
+            },
+        )
+    ]
+
+
+@pytest.mark.asyncio
+async def test_claim_post_combat_loot_fails_when_claim_worker_queue_is_unavailable(mocker):
+    mocker.patch("src.backend.features.loot.services.loot_service.LootService", FakeLootService)
+    integrator = GameSessionIntegrator(character_sessions=None, loot_manager=object(), loot_arq=None)
+
+    with pytest.raises(RuntimeError, match="loot_arq is required"):
+        await integrator.claim_post_combat_loot(7, ["corpse-1"])

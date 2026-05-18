@@ -25,8 +25,8 @@ def test_item_factory_generates_combat_ready_item_spec():
     assert item.slot == "two_hand"
     # power = base_power(13) * tier_mult(1.0)
     assert item.power == pytest.approx(13.0)
-    # implicit_bonuses scaled by tier_mult=1.0 — values unchanged
-    assert item.implicit_bonuses["accuracy_penalty"] == pytest.approx(0.24)
+    # base weapon accuracy is resolver-owned; weapons no longer carry tier-scaled miss penalties
+    assert "accuracy_penalty" not in item.implicit_bonuses
     assert item.implicit_bonuses["main_hand_armor_penetration_pct"] == pytest.approx(0.22)
     assert item.implicit_bonuses["evasion_penalty"] == pytest.approx(-0.10)
     # bonuses is intentionally empty — projection is runtime-only
@@ -60,8 +60,8 @@ def test_item_factory_scales_power_and_affixes_with_material_tier_mult():
     assert high.power == pytest.approx(low.power * 1.5)
     assert high.durability_max == pytest.approx(low.durability_max * 1.5)
 
-    # implicit bonuses scale proportionally
-    assert high.implicit_bonuses["accuracy_penalty"] == pytest.approx(low.implicit_bonuses["accuracy_penalty"] * 1.5)
+    assert "accuracy_penalty" not in low.implicit_bonuses
+    assert "accuracy_penalty" not in high.implicit_bonuses
 
     # affix values also scale with tier_mult when both draw the same affix
     low_affixes = {a["affix_id"]: a["value"] for a in low.mechanics["affixes"]}
@@ -152,6 +152,28 @@ def test_item_factory_scales_belt_capacity_by_material_tier_not_tier_mult():
     assert "inventory_cell_capacity" not in low.mechanics["implicit_bonuses"]
     assert high.implicit_bonuses["quick_slot_capacity"] == 8.0
     assert high.power == 16.0
+
+
+@pytest.mark.unit
+def test_item_factory_scales_travel_boots_concentration_regen_by_material_tier_mult():
+    low = ItemFactory().generate(
+        ItemGenerationRequestDTO(
+            base_id="travel_boots",
+            material_id="mat_cured_leather",
+            item_grade="common",
+        )
+    )
+    high = ItemFactory().generate(
+        ItemGenerationRequestDTO(
+            base_id="travel_boots",
+            material_id="mat_ancient_dragonhide",
+            item_grade="common",
+        )
+    )
+
+    assert low.implicit_bonuses["stamina_regen"] == pytest.approx(1.5)
+    assert low.mechanics["implicit_bonuses"]["stamina_regen"] == pytest.approx(1.5)
+    assert high.implicit_bonuses["stamina_regen"] == pytest.approx(10.2)
 
 
 @pytest.mark.unit

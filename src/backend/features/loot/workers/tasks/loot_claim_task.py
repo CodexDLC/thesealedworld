@@ -187,6 +187,7 @@ async def _transfer_to_inventory(
                 flag_modified(expedition, "processed_events")
                 await expedition_service.refresh_session_risk(char_id, expedition=expedition, system_connect=False)
 
+        await _clear_inventory_runtime_cache(ctx, char_id)
         return True
     except Exception:
         log.exception("LootClaimTask | _transfer_to_inventory failed char={}", char_id)
@@ -201,6 +202,16 @@ def _claim_key(corpse_id: str, instance_ids: list[str], resource_deltas: dict[st
     }
     digest = hashlib.sha256(json.dumps(payload, sort_keys=True).encode("utf-8")).hexdigest()[:24]
     return f"loot_claim:{digest}"
+
+
+async def _clear_inventory_runtime_cache(ctx: dict[str, Any], char_id: int) -> None:
+    redis_service = ctx.get("redis_service")
+    if redis_service is None:
+        return
+    try:
+        await redis_service.string.delete(f"game:inventory:{char_id}")
+    except Exception:
+        log.warning("LootClaimTask | inventory runtime cache clear failed char={}", char_id, exc_info=True)
 
 
 async def _consume_corpse_resource_balances(session: Any, corpse_id: str, resource_deltas: dict[str, int]) -> None:

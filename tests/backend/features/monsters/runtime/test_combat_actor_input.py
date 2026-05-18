@@ -311,7 +311,7 @@ def test_monster_family_accuracy_penalty_is_applied_as_global_modifier() -> None
 
 
 @pytest.mark.unit
-def test_monster_math_model_adds_pipeline_profile_for_size_and_organization() -> None:
+def test_monster_math_model_keeps_organization_as_metadata_without_combat_bonus() -> None:
     clan = _make_clan("rat_swarm")
     monster = _make_humanoid_monster(clan)
     monster.role = "minion"
@@ -341,7 +341,8 @@ def test_monster_math_model_adds_pipeline_profile_for_size_and_organization() ->
     modifiers = math_model["modifiers"]
     assert modifiers["evasion"]["source"]["monster_size:small"] == pytest.approx(0.05)
     assert modifiers["damage_mult"]["source"]["monster_size:small"] == "*0.9"
-    assert modifiers["accuracy"]["source"]["monster_organization:swarm"] == pytest.approx(-0.05)
+    for modifier in modifiers.values():
+        assert not any(str(source).startswith("monster_organization:") for source in modifier["source"])
 
 
 @pytest.mark.unit

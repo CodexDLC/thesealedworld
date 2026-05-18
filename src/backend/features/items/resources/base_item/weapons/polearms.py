@@ -15,7 +15,6 @@ POLEARMS_DB = {
         base_durability=65,
         narrative_tags=["spear", "polearm", "reach", "piercing"],
         implicit_bonuses={
-            "accuracy_penalty": 0.10,
             "main_hand_armor_penetration_pct": 0.08,
             "physical_crit_chance": 0.035,
             "parry_chance": 0.025,
@@ -36,7 +35,6 @@ POLEARMS_DB = {
         base_durability=70,
         narrative_tags=["pike", "polearm", "reach", "piercing"],
         implicit_bonuses={
-            "accuracy_penalty": 0.16,
             "main_hand_armor_penetration_pct": 0.16,
             "physical_crit_chance": 0.04,
             "parry_chance": 0.03,
@@ -58,7 +56,6 @@ POLEARMS_DB = {
         base_durability=80,
         narrative_tags=["halberd", "polearm", "cleave", "heavy"],
         implicit_bonuses={
-            "accuracy_penalty": 0.20,
             "main_hand_armor_penetration_pct": 0.12,
             "physical_crit_chance": 0.04,
             "parry_chance": 0.025,
@@ -81,7 +78,6 @@ POLEARMS_DB = {
         base_durability=100,
         narrative_tags=["staff", "polearm", "defensive", "monk"],
         implicit_bonuses={
-            "accuracy_penalty": 0.08,
             "physical_crit_chance": 0.02,
             "parry_chance": 0.05,
         },
@@ -101,7 +97,6 @@ POLEARMS_DB = {
         base_durability=60,
         narrative_tags=["trident", "polearm", "control", "hook"],
         implicit_bonuses={
-            "accuracy_penalty": 0.12,
             "main_hand_armor_penetration_pct": 0.07,
             "physical_crit_chance": 0.035,
             "parry_chance": 0.03,

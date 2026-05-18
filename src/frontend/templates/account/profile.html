@@ -2,6 +2,14 @@
 
 {% block content %}
 <section class="account-profile">
+    {% if applied %}
+    <div class="ds-panel ds-panel--success" style="margin-bottom: var(--sp-4);">
+        <div class="ds-panel-body">
+            <p>Ваша заявка на тестирование принята! Мы рассмотрим её в ближайшее время и свяжемся с вами по email.</p>
+        </div>
+    </div>
+    {% endif %}
+
     <div class="ds-panel">
         <div class="ds-panel-header">Профиль</div>
         <div class="ds-panel-body">

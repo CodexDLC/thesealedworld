@@ -259,10 +259,14 @@ class CombatSessionService:
         )
 
     async def continue_result(self, char_id: int) -> StateTransitionDTO:
-        combat_id = await self._resolve_finalization_id(char_id)
+        current_finalization_id = await self._resolve_current_finalization_id(char_id)
+        combat_id = current_finalization_id or await self._resolve_latest_finalization_id(char_id)
         post_resolver = getattr(self.system_integrator, "resolve_post_combat_for_character", None)
         post_combat = await post_resolver(char_id) if post_resolver is not None else None
-        target = await self.system_integrator.complete_combat_session_return(char_id, combat_id=combat_id)
+        target = await self.system_integrator.complete_combat_session_return(
+            char_id,
+            combat_id=current_finalization_id,
+        )
         target_state = self._core_domain(target)
         return StateTransitionDTO(
             char_id=char_id,
@@ -291,10 +295,16 @@ class CombatSessionService:
         return combat_id
 
     async def _resolve_finalization_id(self, char_id: int) -> str | None:
-        resolver = getattr(self.system_integrator, "resolve_combat_finalization_for_character", None)
-        finalization_id = await resolver(char_id) if resolver is not None else None
+        finalization_id = await self._resolve_current_finalization_id(char_id)
         if finalization_id:
             return finalization_id
+        return await self._resolve_latest_finalization_id(char_id)
+
+    async def _resolve_current_finalization_id(self, char_id: int) -> str | None:
+        resolver = getattr(self.system_integrator, "resolve_combat_finalization_for_character", None)
+        return await resolver(char_id) if resolver is not None else None
+
+    async def _resolve_latest_finalization_id(self, char_id: int) -> str | None:
         latest = getattr(self.store, "get_latest_finalization_id_for_character", None)
         if latest is None:
             return None

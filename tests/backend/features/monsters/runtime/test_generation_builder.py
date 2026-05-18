@@ -126,6 +126,8 @@ async def test_generation_builder_creates_clan_template_with_all_available_membe
     assert first.text_content["detected_ru"]
     assert first.text_content["ambush_ru"]
     assert first.text_content["idle_ru"]
+    assert first.generation_meta["balance"]["gear_score"] > 0
+    assert first.generation_meta["balance"]["gear_score_version"] == 1
 
 
 @pytest.mark.unit

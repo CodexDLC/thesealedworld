@@ -91,6 +91,7 @@ class CityService:
             raise ValueError(f"City service has no dialogue configured: {service_id}")
 
         tavern_id = _optional_str(definition.metadata.get("tavern_id"))
+        dialogue_section_id = str(section_id or definition.metadata.get("dialogue_section_id") or "bar")
         return_context = ScenarioReturnContextDTO(
             source_state=CoreDomain.CITY_SERVICES,
             return_state=CoreDomain.CITY_SERVICES,
@@ -98,7 +99,7 @@ class CityService:
             source_service_id=definition.service_id,
             location_id=resolved_location_id,
             tavern_id=tavern_id,
-            metadata={"section_id": section_id or "bar"},
+            metadata={"section_id": dialogue_section_id},
         )
         return StateTransitionDTO(
             char_id=char_id,
@@ -111,7 +112,7 @@ class CityService:
                 "service_id": definition.service_id,
                 "service_type": definition.service_type,
                 "location_id": resolved_location_id,
-                "section_id": section_id or "bar",
+                "section_id": dialogue_section_id,
                 "tavern_id": tavern_id,
             },
         )
@@ -200,6 +201,8 @@ class CityService:
                 tavern_id=str(definition.metadata["tavern_id"]),
             )
         service_metadata = dict(metadata or {})
+        if isinstance(definition.metadata.get("npc"), dict):
+            service_metadata.setdefault("npc", dict(definition.metadata["npc"]))
         if definition.service_type == "tavern" and section_id == "room" and "room" not in service_metadata:
             service_metadata["room"] = self._room_payload(definition, room)
         if definition.service_type == "tavern" and section_id == "bar":
@@ -262,6 +265,16 @@ class CityService:
     def _buttons(
         definition: CityServiceDefinition, section_id: str | None, metadata: dict[str, Any]
     ) -> list[CityServiceButtonDTO]:
+        if definition.service_type == "portal":
+            return [
+                CityServiceButtonDTO(
+                    label="Войти в портал",
+                    action=CityServiceActionEnum.PLACEHOLDER,
+                    icon="portal",
+                    is_disabled=True,
+                ),
+                CityServiceButtonDTO(label="Выйти", action=CityServiceActionEnum.LEAVE, icon="back"),
+            ]
         buttons = [
             CityServiceButtonDTO(label="Главный зал", action=CityServiceActionEnum.MENU_MAIN, icon="home"),
             *[

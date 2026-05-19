@@ -7,68 +7,124 @@
     hx-vals='{"char_id": {{ char_id }}, "action": "{{ button_action }}", "screen": "{{ current_screen }}", "service_id": "{{ city_service.service_id }}"{% if button.section_id %}, "section_id": "{{ button.section_id }}"{% elif city_service.section_id %}, "section_id": "{{ city_service.section_id }}"{% endif %}{% if city_service.location_id %}, "location_id": "{{ city_service.location_id }}"{% endif %}}'
 {%- endmacro %}
 
-<section id="center-screens">
+{% macro city_service_dialogue_attrs(npc) -%}
+    {% set current_screen = city_service.screen.value if city_service.screen and city_service.screen.value is defined else city_service.screen %}
+    {% set npc_section_id = npc.section_id if npc and npc.section_id is defined and npc.section_id else city_service.section_id %}
+    hx-post="/game/city-services/action"
+    hx-target="#game-center"
+    hx-swap="innerHTML"
+    hx-vals='{"char_id": {{ char_id }}, "action": "start_dialogue", "screen": "{{ current_screen }}", "service_id": "{{ city_service.service_id }}"{% if npc_section_id %}, "section_id": "{{ npc_section_id }}"{% endif %}{% if city_service.location_id %}, "location_id": "{{ city_service.location_id }}"{% endif %}}'
+{%- endmacro %}
+
+<section id="center-screens" class="city-service-center-screens">
     {% if city_service %}
         {% set service_screen = city_service.screen.value if city_service.screen and city_service.screen.value is defined else city_service.screen %}
-        <article class="cs active city-service-screen city-service-screen--{{ service_screen }}">
-            <div class="loc-tag">
-                <span class="loc-dot"></span>
-                <span>CITY SERVICE // {{ city_service.service_type or 'NO_TYPE' }}</span>
-            </div>
+        {% set service_background = city_service.background_url or '/static/images/scenes/forest.png' %}
+        {% set service_npc = city_service.metadata.npc if city_service.metadata is defined and city_service.metadata.npc is defined else none %}
+        <article class="city-service-screen city-service-screen--{{ service_screen }} game-screen-area game-screen-area--vertical">
+            <header class="city-service-statebar">
+                <strong>CITY SERVICE</strong>
+                <span>{{ city_service.service_type or 'NO_TYPE' }}</span>
+                <em>{{ city_service.service_id }}</em>
+            </header>
 
-            <div class="ds-panel">
-                <div class="ds-panel-header">{{ city_service.title }}</div>
-                <div class="ds-panel-body">
+            <section class="city-service-stage"
+                     aria-label="City service view"
+                     style="--city-service-stage-image: url('{{ service_background }}');">
+                <article class="city-service-view" aria-label="City service information">
+                    <div class="city-service-kicker">{{ city_service.service_type or 'SERVICE' }}</div>
+                    <h2>{{ city_service.title }}</h2>
                     {% if city_service.notice %}
-                        <div class="missing-data-block">
-                            <span>{{ city_service.notice }}</span>
-                        </div>
+                        <p class="city-service-notice">{{ city_service.notice }}</p>
                     {% endif %}
                     <p>{{ city_service.description }}</p>
 
                     {% if city_service.section_id == 'room' and city_service.metadata.room is defined %}
-                        <div class="missing-data-block">
-                            <span>{{ 'ROOM_READY' if city_service.metadata.room.is_owned else 'ROOM_NOT_GRANTED' }}</span>
-                            <small>{{ city_service.metadata.room.room_key or 'NO_ROOM_KEY' }}</small>
-                        </div>
+                        <dl class="city-service-readout">
+                            <div>
+                                <dt>ROOM</dt>
+                                <dd>{{ 'READY' if city_service.metadata.room.is_owned else 'NOT GRANTED' }}</dd>
+                            </div>
+                            <div>
+                                <dt>KEY</dt>
+                                <dd>{{ city_service.metadata.room.room_key or 'NO_ROOM_KEY' }}</dd>
+                            </div>
+                        </dl>
                     {% elif city_service.section_id == 'common_hall' and city_service.metadata.common_hall is defined %}
-                        <div class="missing-data-block">
-                            <span>GROUP_BOARD_EMPTY</span>
-                            <small>{{ city_service.metadata.common_hall.occupants_count }} occupants</small>
-                        </div>
+                        <dl class="city-service-readout">
+                            <div>
+                                <dt>GROUP BOARD</dt>
+                                <dd>EMPTY</dd>
+                            </div>
+                            <div>
+                                <dt>OCCUPANTS</dt>
+                                <dd>{{ city_service.metadata.common_hall.occupants_count }}</dd>
+                            </div>
+                        </dl>
                     {% elif city_service.section_id == 'bar' and city_service.metadata.npc is defined %}
-                        <div class="missing-data-block">
-                            <span>{{ city_service.metadata.npc.bartender_key }}</span>
-                            <small>{{ city_service.metadata.npc.dialogue_quest_key }}</small>
-                        </div>
+                        <dl class="city-service-readout">
+                            <div>
+                                <dt>NPC</dt>
+                                <dd>{{ city_service.metadata.npc.bartender_key }}</dd>
+                            </div>
+                            <div>
+                                <dt>DIALOGUE</dt>
+                                <dd>{{ city_service.metadata.npc.dialogue_quest_key }}</dd>
+                            </div>
+                        </dl>
                     {% elif city_service.sections %}
-                        <div class="missing-data-block">
-                            <span>{{ city_service.sections|length }} SERVICE_SECTIONS</span>
-                            <small>{{ city_service.service_id }}</small>
+                        <div class="city-service-section-grid" aria-label="Service sections">
+                            {% for section in city_service.sections %}
+                                <div class="city-service-section-chip {{ 'is-active' if section.id == city_service.section_id else '' }}">
+                                    <span>{{ section.title }}</span>
+                                    <small>{{ section.description or section.id }}</small>
+                                </div>
+                            {% endfor %}
                         </div>
-                    {% else %}
-                        <div class="missing-data-block">
-                            <span>SERVICE_PLACEHOLDER</span>
-                            <small>{{ city_service.service_id }}</small>
-                        </div>
+                    {% elif city_service.service_type != 'portal' %}
+                        <p class="city-service-empty">SERVICE_PLACEHOLDER // {{ city_service.service_id }}</p>
                     {% endif %}
-                </div>
-            </div>
+                </article>
 
-            <div class="arena-action-row">
-                {% for button in city_service.buttons %}
+                {% if service_npc %}
+                    {% set npc_name = service_npc.name if service_npc.name is defined and service_npc.name else 'UNKNOWN CONTACT' %}
+                    {% set npc_role = service_npc.role if service_npc.role is defined and service_npc.role else 'CONTACT' %}
+                    {% set npc_position = service_npc.stage_position if service_npc.stage_position is defined and service_npc.stage_position else 'bottom-right' %}
                     <button type="button"
-                            class="arena-small-action"
-                            {% if button.is_disabled %}disabled{% else %}{{ city_service_action_attrs(button) }}{% endif %}>
-                        {{ button.label }}
+                            class="city-service-npc-contact city-service-npc-contact--{{ npc_position }} city-service-npc-contact--{{ city_service.service_type|replace('.', '-') }}"
+                            {{ city_service_dialogue_attrs(service_npc) }}>
+                        <span class="city-service-npc-portrait">
+                            {% if service_npc.portrait_url is defined and service_npc.portrait_url %}
+                                <img src="{{ service_npc.portrait_url }}" alt="{{ npc_name }}">
+                            {% else %}
+                                <span aria-hidden="true">{{ npc_name[:1] }}</span>
+                            {% endif %}
+                        </span>
+                        <span class="city-service-npc-caption">
+                            <strong>{{ npc_name }}</strong>
+                            <small>{{ npc_role }}</small>
+                        </span>
                     </button>
-                {% else %}
-                    <button type="button" class="arena-small-action" disabled>NO_ACTIONS</button>
-                {% endfor %}
-            </div>
+                {% endif %}
+
+                <section class="game-action-panel game-action-panel--bottom city-service-action-panel"
+                         aria-label="City service actions">
+                    <div class="game-action-panel__body city-service-action-grid">
+                        {% for button in city_service.buttons %}
+                            <button type="button"
+                                    class="game-action-button city-service-action-button {{ 'city-service-action-button--exit' if button.action.value == 'leave' else '' }} {{ 'is-active' if button.section_id and button.section_id == city_service.section_id else '' }}"
+                                    {% if button.is_disabled %}disabled{% else %}{{ city_service_action_attrs(button) }}{% endif %}>
+                                <strong>{{ button.label }}</strong>
+                            </button>
+                        {% else %}
+                            <button type="button" class="game-action-button city-service-action-button" disabled>NO_ACTIONS</button>
+                        {% endfor %}
+                    </div>
+                </section>
+            </section>
         </article>
     {% else %}
-        <article class="cs active">
+        <article class="city-service-screen game-screen-area game-screen-area--vertical">
             <div class="missing-data-block">
                 <span>CITY_SERVICE_PAYLOAD_MISSING</span>
             </div>

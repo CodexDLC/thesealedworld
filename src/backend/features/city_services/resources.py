@@ -58,7 +58,22 @@ CITY_SERVICE_DEFINITIONS: dict[str, CityServiceDefinition] = {
         service_id="svc_portal_hub",
         service_type="portal",
         title="Площадь Рунного Круга",
-        description="Портал обустраивается. Камни уже держат стабильный контур, но проходы пока закрыты для жителей.",
+        description=(
+            "Внутри рунического круга слышен ровный низкий гул. Камни держат стабильный контур, "
+            "а закрытые проходы ждут калибровки."
+        ),
+        background_url="/static/images/exploration/city/d4/52_52_runic_circle_plaza.png",
+        metadata={
+            "dialogue_quest_key": "awakening_rift",
+            "dialogue_section_id": "portal_contact",
+            "npc": {
+                "id": "portal_first_contact",
+                "name": "Проводник Круга",
+                "role": "FIRST CONTACT",
+                "stage_position": "bottom-right",
+                "dialogue_quest_key": "awakening_rift",
+            },
+        },
     ),
     "svc_town_hall_hub": CityServiceDefinition(
         service_id="svc_town_hall_hub",

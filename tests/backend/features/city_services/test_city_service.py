@@ -84,6 +84,41 @@ async def test_city_service_placeholder_returns_live_text_screen() -> None:
 
 
 @pytest.mark.unit
+async def test_city_service_portal_returns_service_view_background_and_portal_actions() -> None:
+    service = CityService(integrator=FakeCityServiceIntegrator())
+
+    payload = await service.view(7, service_id="svc_portal_hub", location_id="52_52")
+
+    assert payload.service_id == "svc_portal_hub"
+    assert payload.service_type == "portal"
+    assert payload.location_id == "52_52"
+    assert payload.background_url == "/static/images/exploration/city/d4/52_52_runic_circle_plaza.png"
+    assert payload.sections == []
+    assert payload.metadata["npc"]["id"] == "portal_first_contact"
+    assert payload.metadata["npc"]["stage_position"] == "bottom-right"
+    assert payload.metadata["npc"]["dialogue_quest_key"] == "awakening_rift"
+    assert [button.label for button in payload.buttons] == ["Войти в портал", "Выйти"]
+    assert payload.buttons[0].is_disabled is True
+
+
+@pytest.mark.unit
+async def test_city_service_portal_contact_starts_dialogue() -> None:
+    service = CityService(integrator=FakeCityServiceIntegrator())
+
+    transition = await service.start_dialogue(
+        7,
+        service_id="svc_portal_hub",
+        location_id="52_52",
+        section_id="portal_contact",
+    )
+
+    assert transition.target_state == CoreDomain.SCENARIO
+    assert transition.quest_key == "awakening_rift"
+    assert transition.metadata["section_id"] == "portal_contact"
+    assert transition.context["return_context"]["metadata"]["section_id"] == "portal_contact"
+
+
+@pytest.mark.unit
 async def test_city_service_tavern_dialogue_returns_scenario_transition_with_return_context() -> None:
     service = CityService(integrator=FakeCityServiceIntegrator())
 

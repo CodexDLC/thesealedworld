@@ -55,6 +55,15 @@ Rules:
 - Tier 0-1 means ragged, hungry, weak, scavenging. Tier 5+ means ancient, evolved, or magically altered.
 - Unit keys are technical ids from the input. Keep the same keys and write player-facing title/text fields for them.
 - detected, ambush, and idle must describe different encounter states, not repeat appearance.
+- Respect field length limits strictly:
+  name_ru <= 80 chars;
+  description <= 1200 chars;
+  loot_culture.craft_style <= 300 chars and preferably 1 short sentence;
+  loot_culture.craft_skill_hint <= 500 chars;
+  variant.name <= 80 chars;
+  variant.appearance <= 500 chars;
+  variant.detected / ambush / idle / encounter <= 500 chars each;
+  variant.behavior <= 300 chars.
 - Russian only for player-facing strings.
 - No markdown, no explanations."""
     user = json.dumps(payload, ensure_ascii=False, sort_keys=True)

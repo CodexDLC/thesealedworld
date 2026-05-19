@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-import uuid
-from datetime import date, datetime
+import uuid  # noqa: TC003
+from datetime import date, datetime  # noqa: TC003
 
 from sqlalchemy import Date, DateTime, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column

@@ -71,7 +71,7 @@ def create_game_access_token(
     expires_delta: timedelta | None = None,
 ) -> str:
     return _encode_game_token(
-        token_type="game_access",
+        token_type="game_access",  # nosec B106
         user_id=user_id,
         character_id=character_id,
         session_id=session_id,
@@ -87,7 +87,7 @@ def create_game_refresh_token(
     expires_delta: timedelta | None = None,
 ) -> str:
     return _encode_game_token(
-        token_type="game_refresh",
+        token_type="game_refresh",  # nosec B106
         user_id=user_id,
         character_id=character_id,
         session_id=session_id,

@@ -7,7 +7,7 @@ WORKDIR /build
 RUN pip install --no-cache-dir uv==0.11.8
 
 COPY pyproject.toml uv.lock ./
-RUN uv export --frozen --no-dev --format requirements-txt -o requirements.txt
+RUN uv export --frozen --no-dev --group backend-runtime --no-emit-project --format requirements-txt -o requirements.txt
 
 RUN python -m venv /venv && \
     /venv/bin/pip install --no-cache-dir -r requirements.txt

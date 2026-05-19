@@ -196,6 +196,14 @@ STAT_SHEET_SPEED_KEYS = frozenset({"attack_speed", "cast_speed", "movement_speed
 
 _ATTRIBUTE_DISPLAY_KEYS: tuple[str, ...] = (
     "strength",
+    "agility",
+    "endurance",
+    "intellect",
+    "memory",
+    "mental",
+    "perception",
+    "projection",
+    "prediction",
     "dexterity",
     "constitution",
     "intelligence",

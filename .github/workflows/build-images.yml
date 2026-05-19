@@ -30,7 +30,7 @@ jobs:
 
       - name: Run project quality gate
         env:
-          SECRET_KEY: test-secret-key-for-ci-32-bytes
+          SECRET_KEY: test-secret-key-for-ci-32-bytes # pragma: allowlist secret
           ENVIRONMENT: testing
           DEBUG: "False"
         run: uv run python tools/dev/check.py --ci

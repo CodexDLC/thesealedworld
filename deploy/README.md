@@ -19,6 +19,13 @@ python tools/deploy/nginx_smoke.py
 
 The smoke check targets `http://127.0.0.1:8080` and verifies nginx, frontend, backend, chat, static files, and backend OpenAPI routing through nginx.
 
+Local email capture is available through Mailpit:
+
+- SMTP endpoint inside Docker: `mailpit:1025`
+- Web UI on the host: `http://127.0.0.1:8025`
+
+The local `frontend` container is wired to Mailpit automatically, so tester-flow emails can be inspected without a real SMTP account.
+
 ## Production Layers
 
 Production deploy is split by operational boundary:
@@ -77,8 +84,8 @@ Verify that behavior locally:
 ```powershell
 $env:DOMAIN_NAME="example.com"
 $env:DOCKER_IMAGE_NGINX="tbmmorpg-nginx:test"
-$env:POSTGRES_PASSWORD="example"
-$env:REDIS_PASSWORD="example"
+$env:POSTGRES_PASSWORD="example"  # pragma: allowlist secret
+$env:REDIS_PASSWORD="example"  # pragma: allowlist secret
 docker compose -f deploy/compose.infra.yml config --services
 docker compose -f deploy/compose.infra.yml --profile manual config --services
 ```

@@ -48,19 +48,29 @@ async def victory_finalizer_task(ctx: dict, data: dict) -> None:
         await _commit_player_vitals_to_active_sessions(ctx, data_service, session_id)
 
         # 3. Convert flat runtime xp_buffer counters into character progression rewards.
-        async with get_session_context() as session:
-            expedition_service = ExpeditionService(
-                session=session,
-                character_sessions=ctx.get("character_sessions"),
-                expedition_manager=ctx.get("expeditions"),
-                world_store=ctx.get("world_locations"),
-            )
+        progression_recorder = None
+        if ctx.get("expeditions") is not None or ctx.get("world_locations") is not None:
+            async with get_session_context() as session:
+                progression_recorder = ExpeditionService(
+                    session=session,
+                    character_sessions=ctx.get("character_sessions"),
+                    expedition_manager=ctx.get("expeditions"),
+                    world_store=ctx.get("world_locations"),
+                )
+                progression_results = await CombatExperienceFinalizer().finalize(
+                    data_service,
+                    session_id,
+                    winner,
+                    character_sessions=ctx.get("character_sessions"),
+                    progression_recorder=progression_recorder,
+                )
+        else:
             progression_results = await CombatExperienceFinalizer().finalize(
                 data_service,
                 session_id,
                 winner,
                 character_sessions=ctx.get("character_sessions"),
-                progression_recorder=expedition_service,
+                progression_recorder=None,
             )
 
         # 4. Freeze final combat facts before runtime cleanup can remove actor/session keys.

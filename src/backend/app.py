@@ -19,17 +19,17 @@ from src.backend.features.character.api import router as character_router  # noq
 from src.backend.features.city_services.api import router as city_services_router  # noqa: E402
 from src.backend.features.combat.api import router as combat_router  # noqa: E402
 from src.backend.features.combat.api.analytics_router import router as combat_analytics_router  # noqa: E402
+from src.backend.features.combat.api.internal_router import router as combat_internal_router  # noqa: E402
 from src.backend.features.exploration.api import router as exploration_router  # noqa: E402
+from src.backend.features.exploration.api.internal_router import router as exploration_internal_router  # noqa: E402
 from src.backend.features.game_catalog.api import router as game_catalog_router  # noqa: E402
+from src.backend.features.game_config.api import router as game_config_router  # noqa: E402
 from src.backend.features.game_lobby.api import router as game_lobby_router  # noqa: E402
 from src.backend.features.game_session.api import router as game_session_router  # noqa: E402
 from src.backend.features.inventory.api import router as inventory_router  # noqa: E402
 from src.backend.features.monsters.api import router as monsters_router  # noqa: E402
 from src.backend.features.scenario.api import router as scenario_router  # noqa: E402
-from src.backend.features_site.combat.router import router as combat_internal_router  # noqa: E402
-from src.backend.features_site.exploration.router import router as exploration_internal_router  # noqa: E402
-from src.backend.features_site.game_config.router import router as game_config_router  # noqa: E402
-from src.backend.features_site.scenario.router import router as scenario_internal_router  # noqa: E402
+from src.backend.features.scenario.api.internal_router import router as scenario_internal_router  # noqa: E402
 
 app = FastAPI(
     title="TurnBasedMMORPG Backend",

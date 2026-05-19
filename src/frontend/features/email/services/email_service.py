@@ -18,6 +18,7 @@ class EmailService:
         *,
         smtp_host: str,
         smtp_port: int,
+        smtp_start_tls: bool,
         smtp_user: str,
         smtp_password: str,
         email_from: str,
@@ -25,8 +26,9 @@ class EmailService:
     ) -> None:
         self._smtp_host = smtp_host
         self._smtp_port = smtp_port
-        self._smtp_user = smtp_user
-        self._smtp_password = smtp_password
+        self._smtp_start_tls = smtp_start_tls
+        self._smtp_user = smtp_user or None
+        self._smtp_password = smtp_password or None
         self._email_from = email_from
         tpl_dir = templates_dir or _DEFAULT_TEMPLATES_DIR
         self._jinja = Environment(loader=FileSystemLoader(str(tpl_dir)), autoescape=True)
@@ -55,7 +57,7 @@ class EmailService:
             port=self._smtp_port,
             username=self._smtp_user,
             password=self._smtp_password,
-            start_tls=True,
+            start_tls=self._smtp_start_tls,
         )
         logger.info("Email sent to={}", to)
 

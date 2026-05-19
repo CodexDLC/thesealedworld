@@ -2053,24 +2053,17 @@ wheels = [
 name = "thesealedworld"
 source = { editable = "." }
 dependencies = [
-    { name = "aiosmtplib" },
     { name = "aiosqlite" },
     { name = "alembic" },
-    { name = "arq" },
     { name = "asyncpg" },
     { name = "authx" },
-    { name = "codex-ai", extra = ["gemini"] },
     { name = "codex-core" },
     { name = "codex-platform" },
     { name = "fastapi" },
-    { name = "httpx" },
-    { name = "jinja2" },
     { name = "loguru" },
     { name = "mako" },
-    { name = "pillow" },
     { name = "pydantic" },
     { name = "pydantic-settings" },
-    { name = "python-multipart" },
     { name = "redis" },
     { name = "rich" },
     { name = "sqlalchemy" },
@@ -2079,6 +2072,11 @@ dependencies = [
 ]
 
 [package.dev-dependencies]
+backend-runtime = [
+    { name = "arq" },
+    { name = "codex-ai", extra = ["gemini"] },
+    { name = "pillow" },
+]
 dev = [
     { name = "bandit" },
     { name = "djlint" },
@@ -2097,27 +2095,26 @@ docs = [
     { name = "mkdocs-material" },
     { name = "mkdocstrings", extra = ["python"] },
 ]
+frontend-runtime = [
+    { name = "aiosmtplib" },
+    { name = "httpx" },
+    { name = "jinja2" },
+    { name = "python-multipart" },
+]
 
 [package.metadata]
 requires-dist = [
-    { name = "aiosmtplib", specifier = ">=3.0.0" },
     { name = "aiosqlite", specifier = ">=0.22.0" },
     { name = "alembic", specifier = ">=1.18.4" },
-    { name = "arq", specifier = ">=0.26.3" },
     { name = "asyncpg", specifier = ">=0.31.0" },
     { name = "authx", specifier = "==1.6.0" },
-    { name = "codex-ai", extras = ["gemini"], specifier = "==0.2.3" },
     { name = "codex-core", specifier = ">=0.3.0" },
     { name = "codex-platform", specifier = ">=0.5.2" },
     { name = "fastapi", specifier = ">=0.136.1" },
-    { name = "httpx", specifier = ">=0.28.1" },
-    { name = "jinja2", specifier = ">=3.1.6" },
     { name = "loguru", specifier = ">=0.7.3" },
     { name = "mako", specifier = ">=1.3.12" },
-    { name = "pillow", specifier = ">=12.0.0" },
     { name = "pydantic", specifier = ">=2.13.3" },
     { name = "pydantic-settings", specifier = ">=2.14.0" },
-    { name = "python-multipart", specifier = ">=0.0.20" },
     { name = "redis", specifier = ">=5.0,<6" },
     { name = "rich", specifier = ">=13.9.4" },
     { name = "sqlalchemy", specifier = ">=2.0.49" },
@@ -2126,6 +2123,11 @@ requires-dist = [
 ]
 
 [package.metadata.requires-dev]
+backend-runtime = [
+    { name = "arq", specifier = ">=0.26.3" },
+    { name = "codex-ai", extras = ["gemini"], specifier = "==0.2.3" },
+    { name = "pillow", specifier = ">=12.0.0" },
+]
 dev = [
     { name = "bandit", extras = ["toml"] },
     { name = "djlint", specifier = ">=1.36.4" },
@@ -2143,6 +2145,12 @@ docs = [
     { name = "mkdocs", specifier = "==1.6.1" },
     { name = "mkdocs-material", specifier = "==9.5.49" },
     { name = "mkdocstrings", extras = ["python"], specifier = "==0.27.0" },
+]
+frontend-runtime = [
+    { name = "aiosmtplib", specifier = ">=3.0.0" },
+    { name = "httpx", specifier = ">=0.28.1" },
+    { name = "jinja2", specifier = ">=3.1.6" },
+    { name = "python-multipart", specifier = ">=0.0.20" },
 ]
 
 [[package]]

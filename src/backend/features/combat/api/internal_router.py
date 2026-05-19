@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import time
 
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, HTTPException, Request
 
 from src.backend.infrastructure.combat.managers.session import CombatSessionManager
 
@@ -26,8 +26,6 @@ def _fmt_ts(ts: str | int | None) -> str:
 
 @router.get("/sessions/{session_id}")
 async def get_session(session_id: str, request: Request) -> dict:
-    from fastapi import HTTPException
-
     mgr = _session_manager(request)
     meta = await mgr.get_meta(session_id)
     if not meta:

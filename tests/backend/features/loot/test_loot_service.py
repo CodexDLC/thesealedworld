@@ -112,6 +112,9 @@ class FakeEquipmentEngine:
     def roll_equipment_tier(self, monster_tier: int, role: str):
         return 2
 
+    def pick_equipment_base_id(self, eq_profile, role: str):
+        return "shield"
+
 
 @pytest.mark.asyncio
 async def test_order_loot_passes_family_level_owner_context_to_item_generation() -> None:

@@ -746,9 +746,9 @@ def test_combat_view_builds_flat_actor_stat_sheet_from_stats_and_attributes():
     sections = {section.key: section for section in dashboard.hero.stat_sheet.sections}
     assert [item.key for item in sections["attributes"].items] == ["strength", "perception"]
     assert sections["attributes"].items[0].value == 12
-    assert [item.key for item in sections["physical"].items] == ["accuracy"]
     assert [item.key for item in sections["defense"].items] == ["block"]
     all_keys = {item.key for section in dashboard.hero.stat_sheet.sections for item in section.items}
+    assert "accuracy" not in all_keys
     assert "attack_speed" not in all_keys
     assert "skill_parrying" not in all_keys
 

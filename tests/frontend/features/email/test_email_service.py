@@ -12,8 +12,9 @@ class TestEmailService:
         return EmailService(
             smtp_host="smtp.test.com",
             smtp_port=587,
+            smtp_start_tls=True,
             smtp_user="test@test.com",
-            smtp_password="secret",
+            smtp_password="secret",  # pragma: allowlist secret
             email_from="noreply@thesealed.world",
             templates_dir=None,
         )
@@ -65,8 +66,32 @@ class TestEmailService:
         assert call_kwargs["hostname"] == "smtp.test.com"
         assert call_kwargs["port"] == 587
         assert call_kwargs["username"] == "test@test.com"
-        assert call_kwargs["password"] == "secret"
+        assert call_kwargs["password"] == "secret"  # pragma: allowlist secret
         assert call_kwargs["start_tls"] is True
+
+    @pytest.mark.asyncio
+    @patch("src.frontend.features.email.services.email_service.aiosmtplib")
+    async def test_send_disables_starttls_and_auth_when_not_configured(self, mock_smtp):
+        mock_smtp.send = AsyncMock()
+        service = EmailService(
+            smtp_host="mailpit",
+            smtp_port=1025,
+            smtp_start_tls=False,
+            smtp_user="",
+            smtp_password="",
+            email_from="noreply@thesealed.world",
+        )
+
+        await service.send(
+            to="test@example.com",
+            subject="Test",
+            body_html="<p>Test</p>",
+        )
+
+        call_kwargs = mock_smtp.send.call_args[1]
+        assert call_kwargs["username"] is None
+        assert call_kwargs["password"] is None
+        assert call_kwargs["start_tls"] is False
 
 
 @pytest.mark.unit
@@ -78,6 +103,7 @@ class TestEmailTemplates:
         return EmailService(
             smtp_host="smtp.test.com",
             smtp_port=587,
+            smtp_start_tls=True,
             smtp_user="",
             smtp_password="",
             email_from="noreply@thesealed.world",

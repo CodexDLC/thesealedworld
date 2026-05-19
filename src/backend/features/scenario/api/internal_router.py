@@ -46,7 +46,7 @@ async def list_scenario_sessions(request: Request) -> list[dict]:
                     "updated_at": doc.get("updated_at", "—"),
                 }
             )
-        except Exception:
+        except Exception:  # nosec B112
             continue
 
     return results

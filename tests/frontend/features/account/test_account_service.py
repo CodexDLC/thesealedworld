@@ -20,8 +20,14 @@ class TestAccountService:
         return repo
 
     @pytest.fixture
-    def service(self, repo):
-        return AccountService(repo=repo)
+    def email_service(self):
+        service = AsyncMock()
+        service.send_template = AsyncMock()
+        return service
+
+    @pytest.fixture
+    def service(self, repo, email_service):
+        return AccountService(repo=repo, email_service=email_service, email_admin="admin@example.com")
 
     def test_build_profile_vm_for_regular_user(self, service):
         user = MagicMock(
@@ -90,24 +96,31 @@ class TestApplyForTesting:
         return repo
 
     @pytest.fixture
-    def service(self, repo):
-        return AccountService(repo=repo)
+    def email_service(self):
+        service = AsyncMock()
+        service.send_template = AsyncMock()
+        return service
+
+    @pytest.fixture
+    def service(self, repo, email_service):
+        return AccountService(repo=repo, email_service=email_service, email_admin="admin@example.com")
 
     @pytest.mark.asyncio
-    async def test_apply_for_testing_changes_status_to_pending(self, service, repo):
+    async def test_apply_for_testing_changes_status_to_pending(self, service, repo, email_service):
         user_id = uuid.uuid4()
-        user = MagicMock(id=user_id, tester_status="none")
+        user = MagicMock(id=user_id, tester_status="none", email="player@example.com")
         repo.get_by_id.return_value = user
 
         await service.apply_for_testing(user_id)
 
         repo.update_tester_status.assert_awaited_once_with(user_id, "pending")
         repo.commit.assert_awaited_once()
+        assert email_service.send_template.await_count == 2
 
     @pytest.mark.asyncio
     async def test_apply_for_testing_fails_if_already_pending(self, service, repo):
         user_id = uuid.uuid4()
-        user = MagicMock(id=user_id, tester_status="pending")
+        user = MagicMock(id=user_id, tester_status="pending", email="player@example.com")
         repo.get_by_id.return_value = user
 
         with pytest.raises(BusinessLogicException):
@@ -118,7 +131,7 @@ class TestApplyForTesting:
     @pytest.mark.asyncio
     async def test_apply_for_testing_fails_if_already_approved(self, service, repo):
         user_id = uuid.uuid4()
-        user = MagicMock(id=user_id, tester_status="approved")
+        user = MagicMock(id=user_id, tester_status="approved", email="player@example.com")
         repo.get_by_id.return_value = user
 
         with pytest.raises(BusinessLogicException):
@@ -132,3 +145,17 @@ class TestApplyForTesting:
 
         with pytest.raises(BusinessLogicException):
             await service.apply_for_testing(uuid.uuid4())
+
+    @pytest.mark.asyncio
+    async def test_apply_for_testing_does_not_fail_when_email_delivery_breaks(self, repo):
+        email_service = AsyncMock()
+        email_service.send_template = AsyncMock(side_effect=RuntimeError("smtp unavailable"))
+        service = AccountService(repo=repo, email_service=email_service, email_admin="admin@example.com")
+        user_id = uuid.uuid4()
+        user = MagicMock(id=user_id, tester_status="none", email="player@example.com")
+        repo.get_by_id.return_value = user
+
+        await service.apply_for_testing(user_id)
+
+        repo.update_tester_status.assert_awaited_once_with(user_id, "pending")
+        repo.commit.assert_awaited_once()

@@ -3101,7 +3101,7 @@ def test_armor_ignore_chance_can_skip_flat_armor(monkeypatch: pytest.MonkeyPatch
 @pytest.mark.unit
 def test_flat_armor_ignore_trigger_bonus_can_skip_flat_armor(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(MathCore, "random_range", staticmethod(lambda min_d, max_d: min_d))
-    monkeypatch.setattr(MathCore, "check_chance", staticmethod(lambda chance: chance == pytest.approx(0.5)))
+    monkeypatch.setattr(MathCore, "roll_chance", staticmethod(lambda chance: (0.0, chance == pytest.approx(0.5))))
 
     ctx = PipelineContextDTO()
     ctx.flags.formula.roll_flat_armor_ignore = True

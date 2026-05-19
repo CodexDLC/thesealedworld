@@ -15,9 +15,15 @@ class TestSiteMessagingBridge:
         return AsyncMock()
 
     @pytest.fixture
-    def bridge(self, repo):
+    def email_service(self):
+        service = AsyncMock()
+        service.send_template = AsyncMock()
+        return service
+
+    @pytest.fixture
+    def bridge(self, repo, email_service):
         from src.frontend.features.cabinet.modules.messaging.bridge import SiteMessagingBridge
-        return SiteMessagingBridge(repo=repo)
+        return SiteMessagingBridge(repo=repo, email_service=email_service)
 
     @pytest.fixture
     def request_mock(self):
@@ -50,9 +56,9 @@ class TestSiteMessagingBridge:
         assert state.pending_count == 0
 
     @pytest.mark.asyncio
-    async def test_approve_registration_changes_status(self, bridge, repo, request_mock):
+    async def test_approve_registration_changes_status(self, bridge, repo, request_mock, email_service):
         user_id = uuid.uuid4()
-        user = MagicMock(id=user_id, tester_status="pending")
+        user = MagicMock(id=user_id, tester_status="pending", email="player@example.com")
         repo.get_by_id.return_value = user
 
         result = await bridge.approve_registration(request=request_mock, request_id=str(user_id))
@@ -64,11 +70,12 @@ class TestSiteMessagingBridge:
         assert call_args[0][1] == "approved"
         assert call_args[1]["approved_at"] is not None
         repo.commit.assert_awaited_once()
+        email_service.send_template.assert_awaited_once()
 
     @pytest.mark.asyncio
     async def test_approve_sets_tester_approved_at(self, bridge, repo, request_mock):
         user_id = uuid.uuid4()
-        user = MagicMock(id=user_id, tester_status="pending")
+        user = MagicMock(id=user_id, tester_status="pending", email="player@example.com")
         repo.get_by_id.return_value = user
 
         before = datetime.now(UTC)
@@ -79,9 +86,9 @@ class TestSiteMessagingBridge:
         assert approved_at >= before
 
     @pytest.mark.asyncio
-    async def test_deny_registration_changes_status(self, bridge, repo, request_mock):
+    async def test_deny_registration_changes_status(self, bridge, repo, request_mock, email_service):
         user_id = uuid.uuid4()
-        user = MagicMock(id=user_id, tester_status="pending")
+        user = MagicMock(id=user_id, tester_status="pending", email="player@example.com")
         repo.get_by_id.return_value = user
 
         result = await bridge.deny_registration(request=request_mock, request_id=str(user_id))
@@ -89,6 +96,7 @@ class TestSiteMessagingBridge:
         assert result.ok is True
         repo.update_tester_status.assert_awaited_once_with(user_id, "denied")
         repo.commit.assert_awaited_once()
+        email_service.send_template.assert_awaited_once()
 
     @pytest.mark.asyncio
     async def test_approve_user_not_found_returns_error(self, bridge, repo, request_mock):
@@ -102,10 +110,28 @@ class TestSiteMessagingBridge:
     @pytest.mark.asyncio
     async def test_approve_already_approved_returns_error(self, bridge, repo, request_mock):
         user_id = uuid.uuid4()
-        user = MagicMock(id=user_id, tester_status="approved")
+        user = MagicMock(id=user_id, tester_status="approved", email="player@example.com")
         repo.get_by_id.return_value = user
 
         result = await bridge.approve_registration(request=request_mock, request_id=str(user_id))
 
         assert result.ok is False
         repo.update_tester_status.assert_not_awaited()
+
+    @pytest.mark.asyncio
+    async def test_approve_registration_ignores_email_failures(self, repo, request_mock):
+        email_service = AsyncMock()
+        email_service.send_template = AsyncMock(side_effect=RuntimeError("smtp unavailable"))
+        from src.frontend.features.cabinet.modules.messaging.bridge import SiteMessagingBridge
+
+        bridge = SiteMessagingBridge(repo=repo, email_service=email_service)
+        user_id = uuid.uuid4()
+        user = MagicMock(id=user_id, tester_status="pending", email="player@example.com")
+        repo.get_by_id.return_value = user
+
+        result = await bridge.approve_registration(request=request_mock, request_id=str(user_id))
+
+        assert isinstance(result, MessagingActionResult)
+        assert result.ok is True
+        repo.update_tester_status.assert_awaited_once()
+        repo.commit.assert_awaited_once()

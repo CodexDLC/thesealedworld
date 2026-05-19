@@ -318,14 +318,14 @@ async def test_get_actor_core_initializes_actor_core_from_persisted_actor_state(
 
     assert dto.attributes["agility"] == 17
     assert dto.attributes["projection"] == 16
-    assert dto.vitals["hp"]["max"] == 60
-    assert dto.vitals["hp"]["cur"] == 60
-    assert dto.vitals["energy"]["max"] == 24
-    assert dto.vitals["stamina"]["max"] == 120
+    assert dto.vitals["hp"]["max"] == 56
+    assert dto.vitals["hp"]["cur"] == 56
+    assert dto.vitals["energy"]["max"] == 23
+    assert dto.vitals["stamina"]["max"] == 133
     assert dto.skills["skill_macing"]["state"] == "PLUS"
     assert "locked_skill" not in dto.skills
     assert sessions.created["attributes"]["agility"] == 17
-    assert sessions.created["vitals"]["hp"]["max"] == 60
+    assert sessions.created["vitals"]["hp"]["max"] == 56
     assert sessions.created["skills"]["skill_macing"]["unlocked"] is True
 
 
@@ -340,14 +340,14 @@ async def test_get_actor_core_repairs_stale_default_actor_core_from_persisted_ac
 
     assert dto.attributes["agility"] == 17
     assert dto.attributes["projection"] == 16
-    assert dto.vitals["hp"]["max"] == 60
+    assert dto.vitals["hp"]["max"] == 56
     assert dto.vitals["hp"]["cur"] == 51
-    assert dto.vitals["energy"]["max"] == 24
+    assert dto.vitals["energy"]["max"] == 23
     assert dto.skills["skill_macing"]["state"] == "PLUS"
     assert sessions.updated is not None
     assert sessions.updated["attributes"]["agility"] == 17
     assert sessions.updated["vitals"]["hp"]["cur"] == 51
-    assert sessions.updated["vitals"]["hp"]["max"] == 60
+    assert sessions.updated["vitals"]["hp"]["max"] == 56
     assert sessions.updated["skills"]["skill_macing"]["unlocked"] is True
 
 
@@ -376,8 +376,8 @@ async def test_get_actor_core_keeps_runtime_attributes_when_not_default():
     dto = await service.get_actor_core(SimpleNamespace(id=uuid4()), 7)
 
     assert dto.attributes["agility"] == 21
-    assert dto.vitals["hp"]["cur"] == 32
-    assert dto.vitals["hp"]["max"] == 32
+    assert dto.vitals["hp"]["cur"] == 49
+    assert dto.vitals["hp"]["max"] == 49
 
 
 @pytest.mark.asyncio

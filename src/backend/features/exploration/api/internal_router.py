@@ -43,7 +43,7 @@ async def list_encounter_sessions(request: Request) -> list[dict]:
                     "title": payload.get("title", "—"),
                 }
             )
-        except Exception:
+        except Exception:  # nosec B112
             continue
 
     return results

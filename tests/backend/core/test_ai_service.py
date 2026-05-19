@@ -19,7 +19,7 @@ async def test_ai_service_initializes_direct_gemini_provider(monkeypatch):
         service = AIService()
 
     provider_cls.assert_called_once_with(
-        api_key="test-key",
+        api_key="test-key",  # pragma: allowlist secret
         model="gemini-2.5-flash",
         image_model="gemini-2.5-flash-image",
     )

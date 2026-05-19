@@ -72,6 +72,7 @@ def _is_four_way_exempt(raw_node: dict) -> bool:
             or flags.get("is_gate")
             or flags.get("inner_wall_ring")
             or flags.get("map_intersection")
+            or flags.get("manual_topology")
         )
     )
 

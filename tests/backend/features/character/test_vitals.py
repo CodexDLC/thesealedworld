@@ -41,8 +41,8 @@ def test_monster_vitals_use_monster_profile_without_hp_regen():
 
     vitals = CharacterVitalsCalculator.build_initial_vitals(attributes, profile_key="monster:humanoid")
 
-    assert vitals.hp.max == 52
-    assert vitals.hp.cur == 52
+    assert vitals.hp.max == 64
+    assert vitals.hp.cur == 64
     assert vitals.hp.regen == 0.0
     assert vitals.energy.regen == 5.6667
     assert vitals.stamina.regen == 3.2

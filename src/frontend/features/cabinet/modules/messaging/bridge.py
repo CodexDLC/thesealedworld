@@ -5,6 +5,8 @@ from contextlib import asynccontextmanager
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
+from loguru import logger
+
 from fastapi_cabinet.messaging.bridge import MessagingActionResult
 from fastapi_cabinet.messaging.types import (
     InboxListState,
@@ -20,11 +22,13 @@ if TYPE_CHECKING:
     from fastapi import Request
 
     from src.frontend.features.auth.repositories.user_repository import UserRepository
+    from src.frontend.features.email.services.email_service import EmailService
 
 
 class SiteMessagingBridge:
-    def __init__(self, repo: UserRepository | None = None) -> None:
+    def __init__(self, repo: UserRepository | None = None, *, email_service: EmailService | None = None) -> None:
         self._repo = repo
+        self._email_service = email_service
 
     @asynccontextmanager
     async def _get_repo(self) -> AsyncGenerator[UserRepository]:
@@ -68,6 +72,7 @@ class SiteMessagingBridge:
                 return MessagingActionResult(ok=False, code="invalid_status", message="Заявка не в статусе ожидания")
             await repo.update_tester_status(user_id, "approved", approved_at=datetime.now(UTC))
             await repo.commit()
+            await self._notify_status_change(email=user.email, approved=True)
         return MessagingActionResult(ok=True, code="approved", message=f"Тестер {user.email} одобрен")
 
     async def deny_registration(self, *, request: Request, request_id: str) -> MessagingActionResult:
@@ -80,4 +85,18 @@ class SiteMessagingBridge:
                 return MessagingActionResult(ok=False, code="invalid_status", message="Заявка не в статусе ожидания")
             await repo.update_tester_status(user_id, "denied")
             await repo.commit()
+            await self._notify_status_change(email=user.email, approved=False)
         return MessagingActionResult(ok=True, code="denied", message=f"Заявка {user.email} отклонена")
+
+    async def _notify_status_change(self, *, email: str, approved: bool) -> None:
+        if self._email_service is None:
+            return
+        try:
+            await self._email_service.send_template(
+                to=email,
+                subject="Заявка на тестирование одобрена" if approved else "Заявка на тестирование отклонена",
+                template="tester_approved.html" if approved else "tester_denied.html",
+                email=email,
+            )
+        except Exception:
+            logger.exception("Tester status email delivery failed for {}", email)

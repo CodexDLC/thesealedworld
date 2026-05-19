@@ -4,10 +4,12 @@ from fastapi import APIRouter, Depends, Request
 from fastapi.responses import RedirectResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.frontend.config.settings import settings
 from src.frontend.core.database import get_db
 from src.frontend.core.renderer import UIRenderer, get_ui_renderer
 from src.frontend.features.account.services.account_service import AccountService
 from src.frontend.features.auth.repositories.user_repository import UserRepository
+from src.frontend.features.email.config import get_email_service
 
 router = APIRouter(prefix="/account", tags=["Account"])
 
@@ -46,7 +48,7 @@ async def apply_tester(
         return RedirectResponse(url="/login", status_code=303)
 
     repo = UserRepository(session=db)
-    service = AccountService(repo=repo)
+    service = AccountService(repo=repo, email_service=get_email_service(), email_admin=settings.email_admin)
     try:
         await service.apply_for_testing(user.id)
     except Exception:

@@ -2,12 +2,15 @@ from __future__ import annotations
 
 import uuid
 from datetime import date, datetime, timedelta
+from typing import TYPE_CHECKING
 
 from sqlalchemy import func, select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.frontend.features.player_analytics.models.daily_activity import PlayerDailyActivity
+
+if TYPE_CHECKING:
+    from sqlalchemy.ext.asyncio import AsyncSession
 
 
 class PlayerDailyActivityRepository:

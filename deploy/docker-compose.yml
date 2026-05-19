@@ -42,6 +42,16 @@ services:
     networks:
       - tbmmorpg-network
 
+  mailpit:
+    image: axllent/mailpit:v1.26
+    container_name: tbmmorpg-mailpit
+    restart: unless-stopped
+    ports:
+      - "8025:8025"
+      - "1025:1025"
+    networks:
+      - tbmmorpg-network
+
   # ── Application ───────────────────────────────────────────────────────────
 
   backend-migrate:
@@ -112,6 +122,13 @@ services:
       DATABASE_URL: postgresql+asyncpg://tbmmorpg:tbmmorpg_dev@postgres:5432/tbmmorpg_site  # pragma: allowlist secret
       REDIS_URL: redis://:${REDIS_PASSWORD:-dev_redis_password}@redis:6379/0
       PYTHONPATH: /app:/app/src
+      SMTP_HOST: mailpit
+      SMTP_PORT: 1025
+      SMTP_START_TLS: "False"
+      SMTP_USER: ""
+      SMTP_PASSWORD: ""
+      EMAIL_FROM: noreply@tbmmorpg.local
+      EMAIL_ADMIN: admin@tbmmorpg.local
     volumes:
       - ../src/frontend:/app/src/frontend
       - ../src/fastapi_cabinet:/app/src/fastapi_cabinet
@@ -137,6 +154,13 @@ services:
       DATABASE_URL: postgresql+asyncpg://tbmmorpg:tbmmorpg_dev@postgres:5432/tbmmorpg_site  # pragma: allowlist secret
       REDIS_URL: redis://:${REDIS_PASSWORD:-dev_redis_password}@redis:6379/0
       PYTHONPATH: /app:/app/src
+      SMTP_HOST: mailpit
+      SMTP_PORT: 1025
+      SMTP_START_TLS: "False"
+      SMTP_USER: ""
+      SMTP_PASSWORD: ""
+      EMAIL_FROM: noreply@tbmmorpg.local
+      EMAIL_ADMIN: admin@tbmmorpg.local
     ports:
       - "8000:8000"
     volumes:
@@ -154,6 +178,8 @@ services:
       site-migrate:
         condition: service_completed_successfully
       backend:
+        condition: service_started
+      mailpit:
         condition: service_started
     networks:
       - tbmmorpg-network

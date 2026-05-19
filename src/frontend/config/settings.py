@@ -42,6 +42,7 @@ class FrontendSettings(BaseCommonSettings):
     # Email
     smtp_host: str = "smtp.gmail.com"
     smtp_port: int = 587
+    smtp_start_tls: bool = True
     smtp_user: str = ""
     smtp_password: str = ""
     email_from: str = "noreply@thesealed.world"

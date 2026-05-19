@@ -1,0 +1,46 @@
+{% macro actor_stat_sheet_panel(actor, sheet_key) %}
+    {% if actor and actor.stat_sheet %}
+        <section class="combat-stat-sheet"
+                 x-cloak
+                 x-show="activeStatSheet === '{{ sheet_key }}'"
+                 x-transition.opacity
+                 :style="statSheetStyle()"
+                 @click.outside="activeStatSheet = null"
+                 role="dialog"
+                 aria-modal="false"
+                 aria-label="{{ actor.name }} stats">
+            <header class="combat-stat-sheet__head" @pointerdown="beginStatSheetDrag($event)">
+                <span>ACTOR STATS</span>
+                <strong>{{ actor.name }}</strong>
+                <button type="button" class="combat-stat-sheet__close" @click="activeStatSheet = null" aria-label="Close actor stats">x</button>
+            </header>
+            <div class="combat-stat-sheet__body">
+                {% for section in actor.stat_sheet.sections %}
+                    <details class="combat-stat-group" {% if loop.first %}open{% endif %}>
+                        <summary>
+                            <span>{{ section.label }}</span>
+                            <b>{{ section.items|length }}</b>
+                        </summary>
+                        <div class="combat-stat-list">
+                            {% for item in section.items %}
+                                <div class="combat-stat-row">
+                                    <span>{{ item.label }}</span>
+                                    <strong>{{ item.value_text }}</strong>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    </details>
+                {% endfor %}
+            </div>
+        </section>
+    {% endif %}
+{% endmacro %}
+
+{% if combat_screen %}
+    <div class="combat-stat-sheet-layer" aria-live="polite">
+        {{ actor_stat_sheet_panel(combat_screen.target, 'target') }}
+        {% for enemy in combat_screen.enemies %}
+            {{ actor_stat_sheet_panel(enemy, 'enemy-' ~ enemy.actor_id) }}
+        {% endfor %}
+    </div>
+{% endif %}

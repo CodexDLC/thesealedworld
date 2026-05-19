@@ -203,6 +203,26 @@ class CombatActionOptionDTO(CombatJsonDTO):
     reason: str | None = None
 
 
+class CombatStatValueDTO(CombatJsonDTO):
+    key: str
+    label: str
+    value: int | float
+    value_text: str
+
+
+class CombatStatSectionDTO(CombatJsonDTO):
+    key: str
+    label: str
+    items: list[CombatStatValueDTO] = Field(default_factory=list)
+
+
+class CombatActorStatSheetDTO(CombatJsonDTO):
+    actor_id: str
+    name: str
+    sections: list[CombatStatSectionDTO] = Field(default_factory=list)
+    total_count: int = 0
+
+
 class CombatActorCardDTO(CombatJsonDTO):
     actor_id: str = "NO_DATA"
     name: str = "NO_DATA"
@@ -236,6 +256,7 @@ class CombatActorCardDTO(CombatJsonDTO):
     active_effects: list[CombatEffectBadgeDTO] = Field(default_factory=list)
     active_abilities: list[CombatAbilityBadgeDTO] = Field(default_factory=list)
     feints: list[CombatFeintOptionDTO] = Field(default_factory=list)
+    stat_sheet: CombatActorStatSheetDTO | None = None
 
 
 class ActorShortInfo(CombatJsonDTO):

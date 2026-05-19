@@ -59,6 +59,25 @@ class CombatQuickSlotVM(BaseModel):
     reason: str = "quick_belt_not_exposed"
 
 
+class CombatStatValueVM(BaseModel):
+    key: str
+    label: str
+    value_text: str
+
+
+class CombatStatSectionVM(BaseModel):
+    key: str
+    label: str
+    items: list[CombatStatValueVM] = Field(default_factory=list)
+
+
+class CombatActorStatSheetVM(BaseModel):
+    actor_id: str
+    name: str
+    sections: list[CombatStatSectionVM] = Field(default_factory=list)
+    total_count: int = 0
+
+
 class CombatActorPanelVM(BaseModel):
     actor_id: str
     name: str
@@ -83,6 +102,7 @@ class CombatActorPanelVM(BaseModel):
     vitals: CombatVitalsVM
     effects: list[CombatEffectBadgeVM] = Field(default_factory=list)
     quick_belt: list[CombatQuickSlotVM] = Field(default_factory=list)
+    stat_sheet: CombatActorStatSheetVM | None = None
 
 
 class CombatRosterRowVM(BaseModel):
@@ -102,6 +122,7 @@ class CombatRosterRowVM(BaseModel):
     remaining_ms: int | None = None
     queue_state: str = "NO_DATA"
     queue_indicator: str = "unknown"
+    stat_sheet: CombatActorStatSheetVM | None = None
 
 
 class CombatRosterGroupVM(BaseModel):
@@ -892,6 +913,34 @@ def _actor_panel(actor: CombatActorCardDTO, *, include_belt: bool) -> CombatActo
         vitals=_vitals(actor),
         effects=[_effect_badge(effect, actor.exchange_counter) for effect in actor.active_effects],
         quick_belt=_quick_belt(actor.quick_items) if include_belt else [],
+        stat_sheet=_stat_sheet(actor),
+    )
+
+
+def _stat_sheet(actor: CombatActorCardDTO) -> CombatActorStatSheetVM | None:
+    sheet = actor.stat_sheet
+    if sheet is None or not sheet.sections:
+        return None
+    return CombatActorStatSheetVM(
+        actor_id=sheet.actor_id,
+        name=sheet.name,
+        total_count=sheet.total_count,
+        sections=[
+            CombatStatSectionVM(
+                key=section.key,
+                label=section.label,
+                items=[
+                    CombatStatValueVM(
+                        key=item.key,
+                        label=item.label,
+                        value_text=item.value_text,
+                    )
+                    for item in section.items
+                ],
+            )
+            for section in sheet.sections
+            if section.items
+        ],
     )
 
 
@@ -932,6 +981,7 @@ def _roster_row(actor: CombatActorCardDTO) -> CombatRosterRowVM:
         remaining_ms=actor.remaining_ms,
         queue_state=_queue_state(actor),
         queue_indicator=_queue_indicator(actor),
+        stat_sheet=_stat_sheet(actor),
     )
 
 

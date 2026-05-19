@@ -677,6 +677,59 @@ def test_combat_view_enriches_reactive_effect_badges_from_catalog():
     assert effect.duration_label == "до следующего парирования"
 
 
+def test_combat_view_builds_flat_actor_stat_sheet_from_stats_and_attributes():
+    service = CombatViewService()
+
+    dashboard = service.build_dashboard(
+        session_id="combat-1",
+        viewer_id=1,
+        meta={
+            "active": "1",
+            "teams": json.dumps({"team_1": ["1"], "team_2": ["2"]}),
+            "actors_info": json.dumps({"1": "player", "2": "ai"}),
+        },
+        targets={"1": ["2"], "2": ["1"]},
+        actors={
+            "1": {
+                "meta": {"id": "1", "name": "Hero", "team": "team_1", "hp": 30, "max_hp": 40},
+                "raw": {
+                    "attributes": {
+                        "strength": {"base": 10, "source": {"item": "+2"}, "temp": {}},
+                        "perception": {"base": 4, "source": {}, "temp": {}},
+                        "dexterity": {"base": 0, "source": {}, "temp": {}},
+                    },
+                    "modifiers": {},
+                    "rules": {},
+                },
+                "stats": {
+                    "mods": {
+                        "accuracy": 12.5,
+                        "parry": 0,
+                        "block": 8,
+                        "attack_speed": 3,
+                    },
+                    "skills": {"skill_parrying": 99},
+                },
+            },
+            "2": {
+                "meta": {"id": "2", "name": "Shadow", "team": "team_2", "hp": 40, "max_hp": 40},
+                "stats": {"mods": {"armor": 11}},
+            },
+        },
+        raw_logs=[],
+    )
+
+    assert dashboard.hero.stat_sheet is not None
+    sections = {section.key: section for section in dashboard.hero.stat_sheet.sections}
+    assert [item.key for item in sections["attributes"].items] == ["strength", "perception"]
+    assert sections["attributes"].items[0].value == 12
+    assert [item.key for item in sections["physical"].items] == ["accuracy"]
+    assert [item.key for item in sections["defense"].items] == ["block"]
+    all_keys = {item.key for section in dashboard.hero.stat_sheet.sections for item in section.items}
+    assert "attack_speed" not in all_keys
+    assert "skill_parrying" not in all_keys
+
+
 @pytest.mark.asyncio
 async def test_available_actions_contains_exchange_and_no_feint_instant_actions():
     service = CombatSessionService(store=FakeCombatStore(), system_integrator=FakeCombatSystemIntegrator())

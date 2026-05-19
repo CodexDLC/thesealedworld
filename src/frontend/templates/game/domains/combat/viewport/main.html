@@ -123,7 +123,8 @@
                     </div>
                 </header>
 
-                <section class="combat-field" aria-label="Combat field">
+                <section class="combat-field"
+                         aria-label="Combat field">
                     <div class="combat-field-backdrop" aria-hidden="true"></div>
 
                     {% if combat_screen.target %}
@@ -138,6 +139,21 @@
                                 <strong>{{ field_target.name }}</strong>
                             </div>
                             <div class="combat-field-actor-data">
+                                <div class="combat-field-title">
+                                    <span>ENEMY</span>
+                                    {% if field_target.stat_sheet %}
+                                        <button type="button"
+                                                class="combat-stat-trigger"
+                                                @click.stop="openStatSheet('target')"
+                                                aria-label="Open {{ field_target.name }} stats">
+                                            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                                                <circle cx="12" cy="12" r="9"></circle>
+                                                <path d="M12 10v7"></path>
+                                                <path d="M12 7h.01"></path>
+                                            </svg>
+                                        </button>
+                                    {% endif %}
+                                </div>
                                 <div class="combat-field-vitals">
                                     <div class="combat-resource combat-resource--hp">
                                         <span>HP</span>
@@ -175,6 +191,9 @@
                             <strong>{{ field_hero.name }}</strong>
                         </div>
                         <div class="combat-field-actor-data">
+                            <div class="combat-field-title">
+                                <span>PLAYER</span>
+                            </div>
                             <div class="combat-field-vitals">
                                 <div class="combat-resource combat-resource--hp">
                                     <span>HP</span>
@@ -491,7 +510,6 @@
                          hx-select="#main-content > .shell-constrained"
                          hx-swap="outerHTML"></div>
                 {% endif %}
-
             </article>
         </section>
 {% else %}

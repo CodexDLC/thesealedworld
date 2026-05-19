@@ -6,12 +6,14 @@ import re
 import time
 from typing import Any, Literal
 
+from src.backend.core.calculators.stats_waterfall_calculator import StatsWaterfallCalculator
 from src.backend.features.combat.integrations import CombatCatalogIntegrator
 from src.backend.features.game_catalog.combat.resources.common.targeting import TargetType
 from src.shared.schemas.combat import (
     CombatAbilityBadgeDTO,
     CombatActionOptionDTO,
     CombatActorCardDTO,
+    CombatActorStatSheetDTO,
     CombatActorVitalsDTO,
     CombatDashboardDTO,
     CombatDeltaDTO,
@@ -22,7 +24,175 @@ from src.shared.schemas.combat import (
     CombatLogActorRefDTO,
     CombatLogDTO,
     CombatLogTurnDTO,
+    CombatStatSectionDTO,
+    CombatStatValueDTO,
 )
+
+STAT_SHEET_SECTION_KEYS: tuple[tuple[str, str, tuple[str, ...]], ...] = (
+    ("attributes", "ATTRIBUTES", ("strength", "dexterity", "constitution", "intelligence", "wisdom", "charisma")),
+    (
+        "vitals",
+        "VITALS",
+        ("hp", "hp_regen", "en", "en_regen", "stamina", "stamina_regen", "resource_cost_reduction", "initiative"),
+    ),
+    (
+        "main_hand",
+        "MAIN HAND",
+        (
+            "main_hand_damage_base",
+            "main_hand_damage_spread",
+            "main_hand_damage_bonus",
+            "main_hand_armor_penetration_pct",
+            "main_hand_armor_ignore_chance",
+            "main_hand_accuracy",
+            "main_hand_crit_chance",
+            "main_hand_crit_cap",
+        ),
+    ),
+    (
+        "off_hand",
+        "OFF HAND",
+        (
+            "off_hand_damage_base",
+            "off_hand_damage_spread",
+            "off_hand_damage_bonus",
+            "off_hand_armor_penetration_pct",
+            "off_hand_armor_ignore_chance",
+            "off_hand_accuracy",
+            "off_hand_crit_chance",
+            "off_hand_crit_cap",
+        ),
+    ),
+    (
+        "item",
+        "ITEM",
+        (
+            "item_damage_base",
+            "item_damage_spread",
+            "item_damage_bonus",
+            "item_armor_penetration_pct",
+            "item_armor_ignore_chance",
+            "item_accuracy",
+            "item_crit_chance",
+            "item_crit_cap",
+        ),
+    ),
+    (
+        "physical",
+        "PHYSICAL",
+        (
+            "physical_damage",
+            "physical_damage_bonus",
+            "accuracy",
+            "physical_suppression",
+            "armor_penetration_pct",
+            "armor_penetration_flat",
+            "armor_ignore_chance",
+            "crit_chance",
+            "crit_power",
+        ),
+    ),
+    (
+        "magical",
+        "MAGICAL",
+        (
+            "magical_damage",
+            "magical_damage_spread",
+            "magical_damage_bonus",
+            "magical_accuracy",
+            "magical_damage_power",
+            "magical_penetration",
+            "spell_land_chance",
+            "magical_crit_chance",
+            "magical_crit_cap",
+        ),
+    ),
+    (
+        "defense",
+        "DEFENSE",
+        ("evasion", "dodge_cap", "anti_dodge_chance", "parry", "parry_cap", "block", "shield_block_cap"),
+    ),
+    (
+        "mitigation",
+        "MITIGATION",
+        (
+            "physical_resistance",
+            "magic_resist",
+            "resistance_cap",
+            "armor",
+            "shield_guard_power",
+            "shield_absorb_ratio",
+            "shield_reflect_ratio",
+        ),
+    ),
+    (
+        "elemental",
+        "ELEMENTAL",
+        (
+            "fire_damage_bonus",
+            "fire_resistance",
+            "water_damage_bonus",
+            "water_resistance",
+            "air_damage_bonus",
+            "air_resistance",
+            "earth_damage_bonus",
+            "earth_resistance",
+            "light_damage_bonus",
+            "light_resistance",
+            "dark_damage_bonus",
+            "dark_resistance",
+            "arcane_damage_bonus",
+            "arcane_resistance",
+            "nature_damage_bonus",
+            "nature_resistance",
+        ),
+    ),
+    (
+        "status",
+        "STATUS",
+        (
+            "control_chance_bonus",
+            "control_resistance",
+            "mental_resistance",
+            "debuff_avoidance",
+            "shock_resistance",
+            "poison_damage_bonus",
+            "poison_resistance",
+            "poison_efficiency",
+            "bleed_damage_bonus",
+            "bleed_resistance",
+        ),
+    ),
+    (
+        "special",
+        "SPECIAL",
+        (
+            "counter_attack_chance",
+            "counter_attack_cap",
+            "vampiric_power",
+            "vampiric_trigger_chance",
+            "vampiric_trigger_cap",
+            "healing_power",
+            "received_healing_bonus",
+            "pet_efficiency_mult",
+            "damage_mult",
+            "thorns_damage_flat",
+            "hand_size",
+        ),
+    ),
+    (
+        "environment",
+        "ENVIRONMENT",
+        (
+            "environment_cold_resistance",
+            "environment_heat_resistance",
+            "environment_gravity_resistance",
+            "environment_bio_resistance",
+        ),
+    ),
+)
+
+STAT_SHEET_SPEED_KEYS = frozenset({"attack_speed", "cast_speed", "movement_speed"})
 
 
 class CombatViewService:
@@ -262,9 +432,10 @@ class CombatViewService:
         visual = visual_raw if isinstance(visual_raw, dict) else {}
         avatar_url = self._optional_str(meta.get("avatar_url")) or self._visual_image_url(visual)
 
+        actor_name = str(meta.get("name") or actor_id)
         return CombatActorCardDTO(
             actor_id=str(meta.get("id") or actor_id),
-            name=str(meta.get("name") or actor_id),
+            name=actor_name,
             actor_type=str(meta.get("type") or "unknown"),
             team=str(meta.get("team") or "neutral"),
             avatar_url=avatar_url,
@@ -296,6 +467,7 @@ class CombatViewService:
             active_effects=self._effects(statuses),
             active_abilities=self._abilities(statuses),
             feints=self._feints(meta),
+            stat_sheet=self._stat_sheet(actor, actor_id=str(meta.get("id") or actor_id), actor_name=actor_name),
         )
 
     def _enrich_actor_card(
@@ -611,6 +783,115 @@ class CombatViewService:
         belt_raw = loadout.get("belt")
         belt = belt_raw if isinstance(belt_raw, list) else []
         return [dict(item) for item in belt if isinstance(item, dict)]
+
+    @classmethod
+    def _stat_sheet(cls, actor: dict[str, Any], *, actor_id: str, actor_name: str) -> CombatActorStatSheetDTO | None:
+        values = cls._stat_sheet_values(actor)
+        if not values:
+            return None
+
+        attribute_keys = cls._stat_sheet_attribute_keys(actor)
+        used_keys: set[str] = set()
+        sections: list[CombatStatSectionDTO] = []
+        for section_key, label, keys in STAT_SHEET_SECTION_KEYS:
+            section_keys = (*keys, *attribute_keys) if section_key == "attributes" else keys
+            items = [cls._stat_value_item(key, values[key]) for key in section_keys if key in values]
+            used_keys.update(item.key for item in items)
+            if items:
+                sections.append(CombatStatSectionDTO(key=section_key, label=label, items=items))
+
+        misc_items = [
+            cls._stat_value_item(key, value)
+            for key, value in sorted(values.items())
+            if key not in used_keys and key not in STAT_SHEET_SPEED_KEYS
+        ]
+        if misc_items:
+            sections.append(CombatStatSectionDTO(key="other", label="OTHER", items=misc_items))
+
+        total_count = sum(len(section.items) for section in sections)
+        if total_count == 0:
+            return None
+        return CombatActorStatSheetDTO(actor_id=actor_id, name=actor_name, sections=sections, total_count=total_count)
+
+    @classmethod
+    def _stat_sheet_values(cls, actor: dict[str, Any]) -> dict[str, float | int]:
+        values: dict[str, float | int] = {}
+        stats_raw = actor.get("stats")
+        stats = stats_raw if isinstance(stats_raw, dict) else {}
+
+        mods_raw = stats.get("mods")
+        if isinstance(mods_raw, dict):
+            values.update(cls._numeric_nonzero_values(mods_raw))
+        else:
+            values.update(
+                cls._numeric_nonzero_values(
+                    {key: value for key, value in stats.items() if key not in {"skills", "calculated_at"}}
+                )
+            )
+
+        raw = actor.get("raw")
+        raw_data = raw if isinstance(raw, dict) else {}
+        raw_attributes = raw_data.get("attributes")
+        if isinstance(raw_attributes, dict) and raw_attributes:
+            try:
+                calculated, _ = StatsWaterfallCalculator.calculate_waterfall(raw_data)
+            except Exception:  # noqa: BLE001
+                calculated = {}
+            for key in raw_attributes:
+                numeric = cls._numeric_value(calculated.get(key))
+                if numeric is not None and numeric != 0:
+                    values[str(key)] = numeric
+
+        return {key: value for key, value in values.items() if key not in STAT_SHEET_SPEED_KEYS}
+
+    @staticmethod
+    def _stat_sheet_attribute_keys(actor: dict[str, Any]) -> tuple[str, ...]:
+        raw = actor.get("raw")
+        raw_data = raw if isinstance(raw, dict) else {}
+        raw_attributes = raw_data.get("attributes")
+        if not isinstance(raw_attributes, dict):
+            return ()
+        known = set(STAT_SHEET_SECTION_KEYS[0][2])
+        return tuple(str(key) for key in raw_attributes if str(key) not in known)
+
+    @classmethod
+    def _numeric_nonzero_values(cls, values: dict[str, Any]) -> dict[str, float | int]:
+        result: dict[str, float | int] = {}
+        for key, value in values.items():
+            numeric = cls._numeric_value(value)
+            if numeric is None or numeric == 0:
+                continue
+            result[str(key)] = numeric
+        return result
+
+    @staticmethod
+    def _numeric_value(value: Any) -> float | int | None:
+        if isinstance(value, bool) or value in (None, ""):
+            return None
+        if isinstance(value, int):
+            return value
+        if isinstance(value, float):
+            return int(value) if value.is_integer() else value
+        with contextlib.suppress(TypeError, ValueError):
+            parsed = float(value)
+            return int(parsed) if parsed.is_integer() else parsed
+        return None
+
+    @staticmethod
+    def _stat_value_item(key: str, value: float | int) -> CombatStatValueDTO:
+        return CombatStatValueDTO(
+            key=key,
+            label=key.replace("_", " ").upper(),
+            value=value,
+            value_text=CombatViewService._stat_value_text(value),
+        )
+
+    @staticmethod
+    def _stat_value_text(value: float | int) -> str:
+        if isinstance(value, int):
+            return str(value)
+        rounded = round(value, 4)
+        return str(int(rounded)) if rounded.is_integer() else f"{rounded:g}"
 
     @staticmethod
     def _effects(statuses: dict[str, Any]) -> list[CombatEffectBadgeDTO]:

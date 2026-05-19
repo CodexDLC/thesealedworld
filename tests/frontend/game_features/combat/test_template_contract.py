@@ -10,6 +10,7 @@ from src.frontend.game_features.combat.view_models.screen import (
 from src.shared.schemas.combat import (
     CombatActionOptionDTO,
     CombatActorCardDTO,
+    CombatActorStatSheetDTO,
     CombatActorVitalsDTO,
     CombatDashboardDTO,
     CombatDeltaDTO,
@@ -21,6 +22,8 @@ from src.shared.schemas.combat import (
     CombatLogTurnDTO,
     CombatResultActionDTO,
     CombatResultDTO,
+    CombatStatSectionDTO,
+    CombatStatValueDTO,
 )
 
 
@@ -62,7 +65,7 @@ def test_combat_shell_renders_standard_header_and_footer_chat():
     assert "combat-header-actions" not in header
     assert "combat-header-panel-toggle" not in header
     assert "game-system-menu" in header
-    assert 'include "game/domains/game_menu/header_nav.html"' in header
+    assert 'include "game/domains/game_menu/header_nav.html"' not in header
 
 
 def test_combat_viewport_uses_prototype_field_and_bottom_action_panel():
@@ -289,6 +292,52 @@ def test_combat_empty_target_state_does_not_duplicate_exchange_text():
     assert html.count("Очередь целей пуста. Активного размена нет.") == 1
 
 
+def test_combat_template_renders_draggable_actor_stat_sheet():
+    env = Environment(loader=FileSystemLoader("src/frontend/templates"), autoescape=True)
+    template = env.get_template("game/session_content_inner.html")
+    stat_sheet = CombatActorStatSheetDTO(
+        actor_id="2",
+        name="Shadow",
+        total_count=2,
+        sections=[
+            CombatStatSectionDTO(
+                key="defense",
+                label="DEFENSE",
+                items=[
+                    CombatStatValueDTO(key="parry", label="PARRY", value=12, value_text="12"),
+                    CombatStatValueDTO(key="block", label="BLOCK", value=7.5, value_text="7.5"),
+                ],
+            )
+        ],
+    )
+    hero = CombatActorCardDTO(actor_id="1", name="Hero", team="team_1")
+    target = CombatActorCardDTO(actor_id="2", name="Shadow", team="team_2", is_target=True, stat_sheet=stat_sheet)
+    screen = build_combat_screen_vm(
+        CombatDashboardDTO(
+            session_id="combat-stats",
+            turn_number=1,
+            status="active",
+            action_state="ACTION_READY",
+            hero=hero,
+            target=target,
+            enemies=[target],
+        )
+    )
+
+    html = template.render(char_id=1, domain="combats", combat_screen=screen, combat_result=None)
+
+    assert "combat-stat-trigger" in html
+    assert "combat-stat-sheet-layer" in html
+    assert "combat-stat-sheet" in html
+    assert "beginStatSheetDrag" in html
+    assert "openStatSheet('target')" in html
+    assert "openStatSheet('enemy-2')" in html
+    assert "openStatSheet('hero')" not in html
+    assert "DEFENSE" in html
+    assert "PARRY" in html
+    assert "7.5" in html
+
+
 def test_combat_active_template_renders_prototype_layout():
     env = Environment(loader=FileSystemLoader("src/frontend/templates"), autoescape=True)
     template = env.get_template("game/domains/combat/viewport/main.html")
@@ -363,6 +412,10 @@ def test_combat_sidebars_use_combat_panels():
     assert "combat-panel combat-actor-panel" not in right.split("{% elif combat_screen %}", maxsplit=1)[1].split("{% else %}", maxsplit=1)[0]
     assert "combat-panel-header" in left
     assert "combat-panel-header" in right
+    assert "combat-actor-name--with-action" not in left
+    assert "openStatSheet('hero')" not in left
+    assert "openStatSheet('ally-{{ ally.actor_id }}')" not in left
+    assert "{{ ally.queue_state }}" not in left
     assert "combat_screen.exchange_state.pair_status" in right
     assert "combat_screen.exchange_state.opponent_response_state" in right
     assert "combat-commit-row--{{ enemy.commit_state }}" in right
@@ -370,6 +423,9 @@ def test_combat_sidebars_use_combat_panels():
     assert "enemy.commit_tooltip" in right
     assert "combat_screen.enemy_groups" in right
     assert "combat-roster-group" in right
+    assert "combat-roster-info-button" in right
+    assert "openStatSheet('enemy-{{ enemy.actor_id }}')" in right
+    assert "{{ enemy.queue_state }}" not in right
     assert 'data-team="{{ enemy.team }}"' in right
     assert "combat-target-empty-panel" in right
     assert "TARGET_QUEUE_EMPTY" in right
@@ -498,8 +554,9 @@ def test_combat_css_contains_texture_surfaces_without_shell_overrides():
     assert ".combat-primary-row {\n        order: 3;" in source
     assert "position: sticky;\n        bottom: 0;" in source
     assert ".combat-primary-row {\n        order: -1;" not in source
-    assert "@media (max-width: 860px) {\n    .combat-field {\n        min-height: auto;\n        grid-template-rows: auto auto auto;\n        align-content: start;" in actions
-    assert "minmax(240px, 1fr)" not in actions.split("@media (max-width: 860px)", maxsplit=1)[1]
+    mobile_actions = actions.split("@media (max-width: 860px)", maxsplit=1)[1]
+    assert ".combat-field {\n        min-height: auto;\n        grid-template-rows: auto auto auto;\n        align-content: start;" in mobile_actions
+    assert "minmax(240px, 1fr)" not in mobile_actions
     assert ".combat-exchange-card {\n        align-content: start;" in actions
     assert ".combat-belt-slot--empty" in source
     assert ".combat-ability-option--empty" in source

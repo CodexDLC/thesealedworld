@@ -56,18 +56,32 @@
                             <b>{{ group.alive_count }}/{{ group.total_count }}</b>
                         </div>
                         {% for enemy in group.rows %}
-                            <button type="button"
-                                    class="combat-roster-row combat-roster-row--button combat-commit-row combat-commit-row--{{ enemy.commit_state }} {% if enemy.is_target %}is-target{% endif %}"
-                                    data-team="{{ enemy.team }}"
-                                    data-commit-state="{{ enemy.commit_state }}"
-                                    data-tippy-content="{{ enemy.commit_tooltip }}"
-                                    data-tippy-theme="game-hint">
+                            <div class="combat-roster-row combat-roster-row--button combat-commit-row combat-commit-row--{{ enemy.commit_state }} {% if enemy.is_target %}is-target{% endif %}"
+                                 data-team="{{ enemy.team }}"
+                                 data-commit-state="{{ enemy.commit_state }}"
+                                 data-tippy-content="{{ enemy.commit_tooltip }}"
+                                 data-tippy-theme="game-hint">
                                 <span class="combat-queue-dot combat-queue-dot--{{ enemy.commit_state }}"></span>
                                 <span class="combat-roster-name">{{ enemy.name }}</span>
                                 <div class="combat-roster-hp"><i style="width: {{ enemy.hp_percent }}%"></i></div>
                                 <b>{{ enemy.hp_current }}/{{ enemy.hp_max }}</b>
-                                <span class="combat-info-mark">{{ enemy.queue_state }}</span>
-                            </button>
+                                {% if enemy.stat_sheet %}
+                                    <span class="combat-info-mark combat-info-mark--button">
+                                        <button type="button"
+                                                class="combat-stat-trigger combat-roster-info-button"
+                                                @click.stop="openStatSheet('enemy-{{ enemy.actor_id }}')"
+                                                aria-label="Open {{ enemy.name }} stats">
+                                            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                                                <circle cx="12" cy="12" r="9"></circle>
+                                                <path d="M12 10v7"></path>
+                                                <path d="M12 7h.01"></path>
+                                            </svg>
+                                        </button>
+                                    </span>
+                                {% else %}
+                                    <span class="combat-info-mark"></span>
+                                {% endif %}
+                            </div>
                         {% endfor %}
                     </div>
                 {% else %}

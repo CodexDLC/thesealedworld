@@ -4,15 +4,54 @@
     padding: 10px;
 }
 
+.combat-side--right {
+    gap: 8px;
+    padding: 8px 10px;
+}
+
+.combat-side--right.combat-side {
+    border-color: rgba(255, 170, 0, .08);
+    background: rgba(3, 3, 5, .10);
+}
+
 .combat-panel {
     display: grid;
     gap: 9px;
     padding: 10px;
 }
 
+.combat-side--right .combat-panel {
+    gap: 7px;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    box-shadow: none;
+    clip-path: none;
+    overflow: visible;
+}
+
+.combat-side--right .combat-panel::before {
+    content: none;
+}
+
 .combat-panel-header {
     padding-bottom: 7px;
     border-bottom: 1px solid rgba(255, 170, 0, .10);
+}
+
+.combat-side--right .combat-panel-header {
+    padding: 2px 0 6px;
+    border-bottom-color: rgba(255, 170, 0, .14);
+}
+
+.combat-side--right .combat-info-actions {
+    min-height: 30px;
+    height: 30px;
+    margin: 0 0 6px;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    box-shadow: none;
 }
 
 .combat-actor-avatar {
@@ -69,6 +108,20 @@
     margin-top: 0;
 }
 
+.combat-actor-name--with-action {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 8px;
+}
+
+.combat-actor-name--with-action span {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
 .combat-vitals,
 .combat-roster {
     display: grid;
@@ -81,6 +134,11 @@
     gap: 5px;
     padding: 6px 0 0;
     border-top: 1px solid rgba(255, 170, 0, .12);
+}
+
+.combat-side--right .combat-roster-group {
+    padding-top: 4px;
+    border-top-color: rgba(255, 170, 0, .08);
 }
 
 .combat-roster-group:first-child {
@@ -183,6 +241,11 @@
     text-align: left;
 }
 
+.combat-side--right .combat-roster-row {
+    border-color: rgba(255, 170, 0, .14);
+    background: rgba(0, 0, 0, .22);
+}
+
 .combat-info-list {
     display: grid;
     gap: 7px;
@@ -249,6 +312,16 @@
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+}
+
+.combat-info-mark--button {
+    display: flex;
+    justify-content: flex-end;
+}
+
+.combat-roster-info-button {
+    width: 22px;
+    height: 22px;
 }
 
 .combat-vital-bar,

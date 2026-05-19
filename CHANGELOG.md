@@ -38,6 +38,14 @@ compact version summary.
 - Added layer changelogs for backend, site frontend, and game client frontend.
 - Added the changelog release skill for commit-time markers and tag-time summaries.
 
+### Product
+
+- Added first-death NPC dialogue routing after respawn, tab-aware inventory resources, and a spectating combat outcome shell.
+
+### Release And Deploy
+
+- Production deploy now preserves sibling layer containers, and management docs publish the deployment contract for layer-specific rollouts.
+
 ## [v0.0.0] - MVP Baseline
 
 ### Product

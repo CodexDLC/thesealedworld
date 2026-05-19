@@ -99,7 +99,7 @@ jobs:
             deploy_compose() {
               compose_file="$1"
               docker compose -f "$compose_file" pull
-              docker compose -f "$compose_file" up -d --remove-orphans --wait --wait-timeout 120
+              docker compose -f "$compose_file" up -d --wait --wait-timeout 120
               docker compose -f "$compose_file" ps
             }
 

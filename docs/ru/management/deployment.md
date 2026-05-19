@@ -6,6 +6,8 @@
 
 Главная цель: сайт должен оставаться живым, даже если игровой backend, workers или chat/ws перезапускаются.
 
+Operational contract для границ ответственности и перезапуска описан в [контракте деплоя](deployment-contract.md).
+
 ## Слои
 
 Production compose нужно вести к трем слоям:
@@ -183,9 +185,17 @@ infra -> только ручной rollback после отдельного пл
 
 Game rollback требует осторожности из-за Redis sessions, workers и миграций. Для game deploy лучше иметь manual maintenance mode на site.
 
-## Следующий практический шаг
+## Текущее состояние
 
-1. Сначала описать целевые compose-файлы без удаления локального `deploy/docker-compose.yml`.
-2. Потом вынести production split в отдельные compose-файлы.
-3. Потом добавить CI jobs: tests, docs build, image build.
-4. Потом добавить manual deploy jobs по слоям.
+Production split уже вынесен в отдельные compose-файлы:
+
+```text
+deploy/compose.infra.yml
+deploy/compose.site.yml
+deploy/compose.game.yml
+deploy/compose.prod.yml
+```
+
+CI уже собирает документацию и проверяет Docker build. Release images собираются отдельным workflow, а production deploy запускается вручную через layer-specific workflow.
+
+Следующий практический шаг перед реальным production rollout: проверить на сервере layer-specific деплой и подтвердить, что `deploy site` не трогает game services, а `deploy game` не трогает site service.

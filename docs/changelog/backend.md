@@ -5,6 +5,8 @@ Detailed milestone history for the `src/backend` game runtime layer.
 ## [Unreleased]
 
 - Character combat modifier DTOs no longer expose unused attack, cast, or movement speed fields.
+- Scenario and game-session runtime now support NPC-aware dialogue handoffs, including the first-death respawn portal guide flow.
+- Inventory runtime now rebuilds by active risk run and keeps resource wallet projections aligned with the current expedition context.
 
 ## [v0.0.0] - MVP Baseline
 

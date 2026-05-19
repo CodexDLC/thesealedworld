@@ -6,6 +6,8 @@ Detailed milestone history for browser-facing gameplay surfaces inside
 ## [Unreleased]
 
 - No gameplay client changes yet for the future `v0.1.0` release.
+- Combat outcome screens now support spectating mode with summary and log tabs plus an explicit refresh-status action after player death.
+- Inventory UI now separates items and resources through tab-aware backend actions and resource-specific icon rendering.
 
 ## [v0.0.0] - MVP Baseline
 

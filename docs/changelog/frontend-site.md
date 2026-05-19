@@ -7,6 +7,7 @@ Detailed milestone history for the `src/frontend` site-web layer.
 - Added the root README as the private MVP project entry point.
 - Added baseline changelog links for site, backend, and game client layers.
 - Added production env documentation through `.env.example`.
+- Account and cabinet shell styling now aligns with the updated dock navigation and responsive layout pass.
 
 ## [v0.0.0] - MVP Baseline
 

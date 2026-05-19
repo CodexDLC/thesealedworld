@@ -47,6 +47,11 @@ markdown_extensions:
 nav:
   - Обзор: index.md
 
+  - Management:
+    - Обзор: management/index.md
+    - Деплой: management/deployment.md
+    - Контракт деплоя: management/deployment-contract.md
+
   - Shared:
     - Обзор: shared/index.md
     - Enums: shared/enums.md

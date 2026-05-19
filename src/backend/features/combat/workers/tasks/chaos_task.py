@@ -22,8 +22,13 @@ async def chaos_check_task(ctx: dict, session_id: str) -> None:
     3. Перезапускает саму себя через 5 минут.
 
     Args:
-        ctx: Контекст ARQ.
-        session_id: ID боевой сессии.
+        ctx: ARQ worker context with runtime and queue dependencies.
+        session_id: Active combat session id to inspect.
+
+    Side Effects:
+        - May hot-join the chaos cleaner actor into a stalled combat.
+        - May enqueue a collector heartbeat after a chaos spawn.
+        - Always re-enqueues itself while the session remains active.
     """
     try:
         # Service Resolution (Lazy Load Pattern)

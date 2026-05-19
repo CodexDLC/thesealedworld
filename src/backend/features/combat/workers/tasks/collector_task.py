@@ -14,8 +14,13 @@ async def combat_collector_task(ctx: dict, signal_data: dict) -> None:
     для исполнителя (Executor). Также запускает AI, если пришло время.
 
     Args:
-        ctx: Контекст ARQ с инъекциями сервисов.
-        signal_data: Данные сигнала (CollectorSignalDTO).
+        ctx: ARQ worker context with collector/data-service dependencies.
+        signal_data: Serialized collector signal describing why this cycle ran.
+
+    Side Effects:
+        - Enqueues AI jobs for uncovered NPC intents.
+        - Enqueues executor jobs when a runnable batch is ready.
+        - Enqueues victory finalization when battle end is detected.
     """
     session_id = "unknown"
     try:

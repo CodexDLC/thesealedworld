@@ -13,10 +13,13 @@ COMBAT_ACTION_QUEUE_LIMIT = 50
 
 
 class CombatCollector:
-    """
-    Коллектор (Collector Processor).
-    Отвечает за сбор намерений (Moves), матчмейкинг и формирование задач для Исполнителя.
-    Цикл: Load Snapshot -> Logic (AI, Instant, Exchange) -> Batch Save -> Return Tasks.
+    """Collect runtime intents and convert them into executable combat actions.
+
+    The collector is the matchmaker stage between the intent buffer and the
+    executor queue. It reads pending moves and target queues, identifies missing
+    AI actions, resolves instant/item targeting, matches exchange pairs, creates
+    forced exchanges on timeout, and atomically transfers runnable actions into
+    the executor action queue.
     """
 
     def __init__(self, data_service: CombatDataService):
@@ -26,12 +29,18 @@ class CombatCollector:
     async def collect_actions(
         self, session_id: str, signal: CollectorSignalDTO | None = None
     ) -> tuple[int, list[AiTurnRequestDTO], str | None]:
-        """
-        Основной метод коллектора.
-        Возвращает:
-        - batch_size (int): Рекомендуемый размер батча для Исполнителя (0, если действий нет).
-        - ai_tasks (List[AiTurnRequestDTO]): Список задач для AI агентов.
-        - victory_result (str | None): Результат проверки победы ("team_name" / "draw" / None).
+        """Collect runnable combat actions for one combat session.
+
+        Args:
+            session_id: Active combat session id.
+            signal: Optional collector signal describing heartbeat/timeout cause.
+
+        Returns:
+            A tuple of ``(batch_size, ai_tasks, victory_result)`` where
+            ``batch_size`` is the recommended executor pull size,
+            ``ai_tasks`` contains uncovered NPC target requests, and
+            ``victory_result`` contains the winning team when battle end is
+            detectable without new runnable actions.
         """
         # 0. Load Meta first so stale delayed timeout jobs from finished
         # sessions exit before touching queues, moves, or targets.
@@ -103,11 +112,7 @@ class CombatCollector:
     def _check_ai_turns(
         self, session_id: str, meta: BattleMeta, moves_map: dict[str, Any], targets_map: dict[str, list[ActorId]]
     ) -> list[AiTurnRequestDTO]:
-        """
-        Проверяет, кто из AI еще не сделал ход.
-        Сравнивает очередь целей (targets) с заявленными мувами (exchange).
-        Фильтрует мертвых акторов (оптимизация).
-        """
+        """Return AI task requests for bots that still have uncovered targets."""
         tasks: list[AiTurnRequestDTO] = []
         dead_set = set(str(x) for x in meta.dead_actors)
 
@@ -154,7 +159,7 @@ class CombatCollector:
         return tasks
 
     def _harvest_instant(self, moves_map: dict[str, Any], meta: BattleMeta) -> tuple[list[CombatActionDTO], list[str]]:
-        """Собирает Instant и Item мувы, резолвит цели."""
+        """Resolve item/instant intents into runnable action DTOs."""
         actions = []
         to_delete = []
 
@@ -194,7 +199,7 @@ class CombatCollector:
     def _matchmake_exchange(
         self, moves_map: dict[str, Any], signal: CollectorSignalDTO | None = None
     ) -> tuple[list[CombatActionDTO], list[str]]:
-        """Ищет пары для обмена ударами. Обрабатывает Force Attack по таймауту."""
+        """Match paired exchange intents and synthesize forced timeout actions."""
         actions = []
         to_delete = []
 

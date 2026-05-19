@@ -14,9 +14,11 @@ from src.backend.features.combat.runtime.engine.trigger_activation import activa
 
 
 class ContextBuilder:
-    """
-    Фабрика контекста боя (Context Builder).
-    Создает 'пульт управления' (PipelineContextDTO) для конкретного взаимодействия.
+    """Build the mutable pipeline control context for one interaction.
+
+    ``ContextBuilder`` converts actor equipment, move strategy, external branch
+    modifiers, and defensive posture into the normalized flag/mod/stage DTOs
+    consumed by the rest of the combat pipeline.
     """
 
     @staticmethod
@@ -26,9 +28,17 @@ class ContextBuilder:
         move: CombatMoveDTO,
         external_mods: dict[str, Any] | None = None,
     ) -> PipelineContextDTO:
-        """
-        Сборка контекста.
-        НЕ сохраняет actor/target в DTO, только настраивает флаги.
+        """Construct a fresh pipeline context for one source-target interaction.
+
+        Args:
+            actor: Acting snapshot.
+            target: Target snapshot when present.
+            move: Runtime move being resolved.
+            external_mods: Executor-injected branch modifiers such as counters.
+
+        Returns:
+            A fresh ``PipelineContextDTO`` with phases, flags, mods, stages,
+            trigger flags, and result metadata initialized.
         """
         # 1. Базовая инициализация (Чистый DTO)
         # result создается автоматически через default_factory
@@ -61,9 +71,7 @@ class ContextBuilder:
 
     @staticmethod
     def _apply_external_mods(ctx: PipelineContextDTO, mods: dict[str, Any]) -> None:
-        """
-        Применяет модификаторы от InterferenceService.
-        """
+        """Apply executor-level branch modifiers before semantic analysis."""
         if mods.get("disable_attack"):
             ctx.phases.run_calculator = False
 
@@ -83,9 +91,7 @@ class ContextBuilder:
     def _analyze_intent(
         ctx: PipelineContextDTO, actor: ActorSnapshot, move: CombatMoveDTO, external_mods: dict[str, Any] | None
     ) -> None:
-        """
-        Настраивает мета-флаги Атаки (Source Type, Weapon Class).
-        """
+        """Infer source-type, weapon-class, and trigger context from the move."""
         strategy = move.strategy
 
         # 1. MAGIC / SKILL
@@ -148,19 +154,12 @@ class ContextBuilder:
 
     @staticmethod
     def _activate_trigger_flag(ctx: PipelineContextDTO, trigger_id: str) -> None:
-        """
-        Активирует флаг триггера по ID.
-        Поддерживает:
-        1. Путь через точку: "accuracy.true_strike"
-        2. Простое имя: "true_strike" (ищет во всех секциях)
-        """
+        """Activate one trigger into the pipeline trigger-flag surface."""
         activate_trigger(ctx, trigger_id, source="system")
 
     @staticmethod
     def _analyze_defense(ctx: PipelineContextDTO, target: ActorSnapshot) -> None:
-        """
-        Настраивает флаги Защиты (Armor Type, Shield).
-        """
+        """Infer defensive mastery flags and style triggers from target loadout."""
         layout = target.loadout.layout
 
         # 1. Armor Type (Body)

@@ -5,23 +5,23 @@ from src.backend.features.combat.dto.actor import ActorSnapshot
 
 
 class AiProcessor:
-    """
-    Процессор принятия решений для AI (NPC).
-    v2.0: Работает с полными данными ActorSnapshot.
+    """Produce runtime move payloads for NPC-controlled combat actors.
+
+    The current implementation is intentionally simple and heuristic-driven. It
+    chooses an exchange attack against a specific target and may attach a feint
+    from the bot hand. This keeps AI on the same intent contract as players.
     """
 
     def decide_exchange(self, bot: ActorSnapshot, target: ActorSnapshot) -> dict[str, Any]:
-        """
-        Генерирует payload для атаки на конкретную цель.
-
-        Простая реализация: всегда атакует, иногда использует финт.
+        """Build one exchange move payload for a concrete bot-target pairing.
 
         Args:
-            bot: Полные данные бота (HP, EN, экипировка, финты).
-            target: Полные данные цели (HP, EN, команда).
+            bot: Full acting NPC snapshot.
+            target: Full chosen target snapshot.
 
         Returns:
-            Payload для регистрации хода.
+            A normalized move payload that can be sent through the turn-manager
+            registration path without any AI-specific contract branch.
         """
         payload = {
             "action": "attack",

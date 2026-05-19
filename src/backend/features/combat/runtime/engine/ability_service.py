@@ -32,9 +32,16 @@ if TYPE_CHECKING:
 
 
 class AbilityService:
-    """
-    Универсальный обработчик способностей (Abilities) и финтов (Feints).
-    Архитектура: Оркестратор -> Роутер -> Атомарные методы.
+    """Apply ability, feint, and effect semantics around resolver execution.
+
+    ``AbilityService`` owns the pre/post-calculation semantic layer of the inner
+    combat pipeline. It inspects source and target statuses, spends ability or
+    feint costs, injects pipeline mutations and triggers, queues effect payloads,
+    consumes prepared reactions, and converts queued effect descriptions into
+    concrete runtime effects.
+
+    The resolver stays focused on hit/damage math. This service is where combat
+    actions and statuses change the meaning of that math.
     """
 
     # ==============================================================================
@@ -48,8 +55,19 @@ class AbilityService:
         source: ActorSnapshot,
         target: ActorSnapshot | None = None,
     ) -> None:
-        """
-        Pre-Calc этап: Подготовка контекста, проверка статусов, применение мутаций.
+        """Prepare the pipeline context before resolver math runs.
+
+        Args:
+            ctx: Mutable pipeline context for the current interaction.
+            move: Runtime move being resolved.
+            source: Acting snapshot.
+            target: Defending snapshot when the interaction has one.
+
+        Side Effects:
+            - Cleans up expired status effects.
+            - Applies control/status mutations to pipeline flags and phases.
+            - Spends ability or feint costs.
+            - Registers triggers, temporary modifiers, and override damage rules.
         """
         # 1. [CLEANUP EXPIRED EFFECTS]
         AbilityService._cleanup_expired_effects_pre_calc(source)
@@ -86,8 +104,18 @@ class AbilityService:
         target: ActorSnapshot | None,
         move: CombatMoveDTO,
     ) -> None:
-        """
-        Post-Calc этап: Очистка временных мутаций, применение эффектов.
+        """Finalize ability/effect consequences after resolver math completes.
+
+        Args:
+            ctx: Mutable pipeline context containing the interaction result.
+            source: Acting snapshot.
+            target: Defending snapshot when present.
+            move: Runtime move that produced the interaction result.
+
+        Side Effects:
+            - Removes expired temporary ability modifiers.
+            - Consumes prepared reactions tied to the current outcome.
+            - Materializes queued effects and passive combat regeneration.
         """
         if not ctx.result:
             return
@@ -110,9 +138,7 @@ class AbilityService:
 
     @staticmethod
     def _apply_status_effects(ctx: PipelineContextDTO, actor: ActorSnapshot, mode: Literal["source", "target"]) -> None:
-        """
-        Применяет влияние активных эффектов на контекст.
-        """
+        """Apply active status effects into pipeline flags, phases, and mods."""
         for effect in actor.statuses.effects:
             effect_entry = GameData.get_effect_catalog_entry(effect.effect_id)
             effect_config = effect_entry.technical if effect_entry else None
@@ -157,9 +183,7 @@ class AbilityService:
 
     @staticmethod
     def _extract_action_id(move: CombatMoveDTO, mode: Literal["ability", "feint"]) -> str | None:
-        """
-        Безопасное извлечение ID действия из payload с проверкой типов.
-        """
+        """Extract the relevant ability or feint id from a normalized move payload."""
         payload = move.payload
 
         # 1. Fallback для словарей (если Pydantic не сработал или legacy)
@@ -193,9 +217,7 @@ class AbilityService:
         target: ActorSnapshot | None,
         mode: Literal["ability", "feint"],
     ) -> None:
-        """
-        Универсальная логика обработки действия (Абилка или Финт).
-        """
+        """Apply one ability or feint contract into the current pipeline context."""
         config: AbilityTechnicalDTO | FeintTechnicalDTO | None = None
         cost_ok = False
         action_id: str | None = None
@@ -355,9 +377,7 @@ class AbilityService:
     def _process_temp_abilities_post_calc(
         ctx: PipelineContextDTO, source: ActorSnapshot, target: ActorSnapshot | None
     ) -> None:
-        """
-        Шаг 1 Post-Calc: Очистка RAW и перенос эффектов из Payload в очередь applied_effects.
-        """
+        """Expire temporary abilities and queue their deferred effect payloads."""
         current_exchange = source.meta.exchange_counter
         to_remove = []
 
@@ -466,9 +486,7 @@ class AbilityService:
     def _queue_effect(
         ctx: PipelineContextDTO, effect_data: dict, source: ActorSnapshot, target: ActorSnapshot | None
     ) -> None:
-        """
-        Хелпер: Добавляет эффект в очередь.
-        """
+        """Append one effect payload to the post-calculation application queue."""
         if "target_id" not in effect_data:
             target_actor = effect_data.get("target_actor")
             if target_actor == "source":
@@ -499,10 +517,7 @@ class AbilityService:
 
     @staticmethod
     def _apply_queued_effects(ctx: PipelineContextDTO, source: ActorSnapshot, target: ActorSnapshot | None) -> None:
-        """
-        Шаг 2 Post-Calc: Физическое создание эффектов из очереди applied_effects.
-        Использует EffectFactory.
-        """
+        """Convert queued effect payloads into concrete runtime state mutations."""
         for effect_data in ctx.result.applied_effects:
             if not AbilityService._effect_conditions_met(ctx, effect_data):
                 continue
@@ -682,9 +697,7 @@ class AbilityService:
 
     @staticmethod
     def _cleanup_expired_effects_pre_calc(actor: ActorSnapshot) -> None:
-        """
-        Удаляет эффекты, которые истекли в ПРОШЛОМ ходу.
-        """
+        """Remove effects that expired before the current exchange starts."""
         current_exchange = actor.meta.exchange_counter
         to_remove = []
 

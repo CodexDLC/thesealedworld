@@ -9,6 +9,7 @@ from src.backend.infrastructure.combat.repositories import CombatFinalizationRep
 
 
 async def combat_finalization_persist_task(ctx: dict, payload: dict) -> None:
+    """Persist frozen combat finalization data into durable storage."""
     combat_id = str(payload.get("combat_id") or "")
     if not combat_id:
         log.warning("CombatFinalizationPersist | reason=missing_combat_id")

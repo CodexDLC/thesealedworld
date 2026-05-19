@@ -32,9 +32,15 @@ MIN_TIMEOUT = 20
 
 
 class CombatTurnManager:
-    """
-    Постановщик задач (RBC v3.0).
-    Управляет буфером намерений и очередями ARQ (Immediate + Delayed).
+    """Owns runtime intent registration and collector scheduling.
+
+    ``CombatTurnManager`` is the write-side entry point for combat moves. It
+    validates incoming payloads, maps them into runtime DTOs, performs atomic
+    feint/target checks, writes intents into the Redis-backed move buffer, and
+    schedules collector/timeout/chaos jobs in ARQ.
+
+    It does not resolve combat math. It only prepares intent state so the
+    collector/executor pipeline can process it asynchronously.
     """
 
     def __init__(self, combat_sessions: CombatSessionIntegration, arq_service: ArqService):
@@ -42,9 +48,24 @@ class CombatTurnManager:
         self.arq = arq_service
 
     async def register_move_request(self, session_id: str, char_id: ActorIdLike, payload: dict[str, Any]) -> None:
-        """
-        Основной метод регистрации хода.
-        Записывает 'пулю' (Intent) и ставит две задачи в ARQ.
+        """Register one player intent into the runtime buffer.
+
+        Args:
+            session_id: Active combat session id.
+            char_id: Acting actor id.
+            payload: Normalized move payload from the API/service layer.
+
+        Raises:
+            CombatTargetRequiredError: Exchange move was submitted without a target.
+            CombatInvalidMovePayloadError: Payload cannot be mapped into a move DTO.
+            CombatFeintUnavailableError: Feint cannot be consumed or afforded.
+            CombatTargetUnavailableError: Target is dead or no longer available.
+
+        Side Effects:
+            - Mutates actor move buffers in Redis.
+            - Consumes and may return feints atomically.
+            - Enqueues immediate and delayed collector jobs.
+            - Starts the chaos watchdog once combat is marked as started.
         """
         # 1. Определяем тип действия
         action_type = payload.get("action", "attack")
@@ -178,10 +199,17 @@ class CombatTurnManager:
         )
 
     async def register_moves_batch(self, session_id: str, char_id: ActorIdLike, payloads: list[dict[str, Any]]) -> None:
-        """
-        Батчевая регистрация ходов (для AI).
-        Поддерживает и Exchange (с удалением целей), и Instant/Item (без удаления).
-        Ставит таймер Force Attack.
+        """Register multiple intents at once, primarily for AI actors.
+
+        Args:
+            session_id: Active combat session id.
+            char_id: Acting actor id.
+            payloads: List of normalized move payloads to register.
+
+        Side Effects:
+            - Performs atomic exchange registration with target queue removal.
+            - Writes non-exchange intents into the move buffer.
+            - Enqueues collector and delayed timeout jobs for accepted moves.
         """
         if not payloads:
             return
@@ -279,9 +307,7 @@ class CombatTurnManager:
             log.warning(f"TurnManager | Batch failed or empty for {char_id}")
 
     def _build_move_dto(self, char_id: ActorIdLike, action: str, data: dict) -> CombatMoveDTO:
-        """
-        Маппинг входящих данных в правильную стратегию и Payload.
-        """
+        """Map a public action payload into the canonical runtime move DTO."""
         strategy: Literal["exchange", "item", "instant", "system"] = "exchange"
         validated_payload: ExchangePayload | InstantPayload | dict[str, Any] = {}
 
@@ -318,6 +344,7 @@ class CombatTurnManager:
 
     @staticmethod
     def _with_timeout(move: CombatMoveDTO, timeout_seconds: int) -> CombatMoveDTO:
+        """Attach registration and forced-timeout timestamps to a move DTO."""
         now_ms = int(datetime.now(UTC).timestamp() * 1000)
         timeout_ms = max(0, int(timeout_seconds * 1000))
         return move.model_copy(
@@ -329,6 +356,7 @@ class CombatTurnManager:
         )
 
     async def _enqueue_chaos_watchdog_if_started(self, session_id: str) -> None:
+        """Start the chaos watchdog once for a combat that just became active."""
         started = await self.combat_sessions.mark_started_and_refresh_ttl(session_id)
         if not started:
             return
@@ -339,6 +367,7 @@ class CombatTurnManager:
         )
 
     async def _is_dead_target(self, session_id: str, target_id: ActorIdLike) -> bool:
+        """Return whether the target is already dead in runtime state."""
         state = await self.combat_sessions.get_actor_state(session_id, target_id)
         if not isinstance(state, dict):
             return False

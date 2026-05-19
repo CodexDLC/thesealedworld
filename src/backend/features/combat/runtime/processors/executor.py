@@ -23,10 +23,15 @@ from src.backend.features.game_catalog.combat.resources.common.targeting import 
 
 
 class CombatExecutor:
-    """
-    Исполнитель (Executor Processor).
-    Чистая бизнес-логика обработки батча действий.
-    Управляет потоком выполнения (Flow Control), делегируя расчеты в Pipeline.
+    """Execute runnable combat actions inside an in-memory battle context.
+
+    The executor is the runtime stage that owns combat action routing after
+    collector matchmaking has already happened. It resolves exchange and
+    unidirectional actions through ``CombatPipeline``, accumulates logs/support
+    payloads, marks dead actors, and prepares target returns for commit.
+
+    It does not fetch Redis state, acquire locks, or enqueue ARQ jobs directly.
+    Those concerns stay in the executor task and integration layers.
     """
 
     def __init__(self):
@@ -34,9 +39,15 @@ class CombatExecutor:
         self.target_resolver = TargetResolver()
 
     async def process_batch(self, ctx: BattleContext, actions: list[CombatActionDTO]) -> list[str]:
-        """
-        Обрабатывает список действий, изменяя BattleContext in-place.
-        Возвращает список ID успешно обработанных действий.
+        """Process one executor batch against a loaded battle context.
+
+        Args:
+            ctx: Mutable in-memory battle context for the current executor run.
+            actions: Runnable combat actions already prepared by the collector.
+
+        Returns:
+            List of move ids that were consumed from the action queue, even when
+            individual actions failed after validation.
         """
         processed_ids = []
 
@@ -54,10 +65,7 @@ class CombatExecutor:
         return processed_ids
 
     async def _process_single_action(self, ctx: BattleContext, action: CombatActionDTO) -> None:
-        """
-        Обработка одного действия.
-        Точка входа и маршрутизации (Routing).
-        """
+        """Route one runnable combat action into the correct executor branch."""
         if not action.move:
             log.warning("Executor | Action has no move data")
             return
@@ -126,10 +134,21 @@ class CombatExecutor:
     # ==========================================================================
 
     async def _handle_exchange(self, ctx: BattleContext, action: CombatActionDTO) -> None:
-        """
-        Ветка: Обмен ударами (Exchange).
-        Обрабатывает цепочку атак (Waves) внутри одного контекста.
-        Использует Chain Reactions из DTO результата.
+        """Resolve one paired or forced exchange.
+
+        Args:
+            ctx: Mutable in-memory battle context for the current batch.
+            action: Exchange action that may include a partner move or be forced.
+
+        Side Effects:
+            - Applies periodic turn-start effects.
+            - Resolves one or more combat waves through the pipeline.
+            - Appends combat logs and support payloads.
+            - Collects target returns and advances global step state.
+
+        Runtime Contract:
+            - Collector already decided pairing/force-attack semantics.
+            - No Redis I/O is allowed inside this method.
         """
         source = ctx.get_actor(action.move.char_id)
         target_id = getattr(action.move.payload, "target_id", None)
@@ -284,9 +303,7 @@ class CombatExecutor:
         )
 
     async def _handle_unidirectional(self, ctx: BattleContext, action: CombatActionDTO) -> None:
-        """
-        Ветка: Одностороннее действие.
-        """
+        """Resolve an item/instant/system-style one-way action."""
         source = ctx.get_actor(action.move.char_id)
         if not source:
             return
@@ -325,10 +342,7 @@ class CombatExecutor:
         move: CombatMoveDTO,
         mods: dict[str, Any] | None = None,
     ) -> Awaitable[InteractionResultDTO]:
-        """
-        Создает задачу для Pipeline.
-        Инкапсулирует передачу exchange_count и других параметров.
-        """
+        """Create one pipeline calculation task for a concrete source/target pair."""
         return self.pipeline.calculate(
             source=source,
             target=target,
@@ -367,6 +381,7 @@ class CombatExecutor:
     def _process_periodic_effects(
         self, ctx: BattleContext, actors: list[Any], *, action: CombatActionDTO, wave: int
     ) -> None:
+        """Apply turn-start periodic effects before the main action branch resolves."""
         seen: set[ActorId] = set()
         for actor in actors:
             actor_id = actor.char_id
@@ -474,13 +489,10 @@ class CombatExecutor:
         )
 
     def _collect_target_returns(self, ctx: BattleContext, action: CombatActionDTO) -> None:
-        """
-        Собирает пары (source_id, target_id) для возврата в очереди после Exchange.
+        """Collect target queue return pairs after a resolved exchange.
 
-        Логика:
-        - Source всегда возвращает target в свою очередь
-        - Target возвращает source в свою очередь (если был partner_move)
-        - Если не было partner_move (forced attack) - target не возвращает
+        Source regains the target when both survive. The defending target also
+        regains the source only when a partner move existed.
         """
         source_id = action.move.char_id
         target_id_raw = getattr(action.move.payload, "target_id", None)
@@ -508,10 +520,7 @@ class CombatExecutor:
         return bool(source and source.is_alive and target and target.is_alive)
 
     def _collect_dead_actors(self, ctx: BattleContext) -> None:
-        """
-        Собирает ID умерших акторов для обновления meta.dead_actors.
-        Проверяет всех акторов в контексте и добавляет мертвых в pending_dead_actors.
-        """
+        """Collect newly dead actors so commit can update battle meta."""
         for char_id, actor in ctx.actors.items():
             if actor.meta.hp <= 0:
                 actor.meta.is_dead = True

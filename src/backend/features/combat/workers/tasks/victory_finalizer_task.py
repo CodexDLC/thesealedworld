@@ -23,8 +23,14 @@ async def victory_finalizer_task(ctx: dict, data: dict) -> None:
     Отвечает за завершение боя и начисление наград.
 
     Args:
-        ctx: Контекст ARQ.
-        data: Данные финализации (session_id, winner).
+        ctx: ARQ worker context with runtime, persistence, and cross-feature deps.
+        data: Finalization payload containing ``session_id`` and ``winner``.
+
+    Side Effects:
+        - Marks the winner in runtime storage.
+        - Finalizes XP/progression and persists frozen finalization payloads.
+        - Commits post-combat outcomes back into active character sessions.
+        - Enqueues the long-term finalization persistence job.
     """
     session_id = data.get("session_id", "unknown")
     winner = data.get("winner", "unknown")

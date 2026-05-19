@@ -16,8 +16,12 @@ async def ai_turn_task(ctx: dict, request_data: dict) -> None:
     v2.0: Загрузка полного BattleContext + валидация (is_alive).
 
     Args:
-        ctx: Контекст ARQ.
-        request_data: Данные запроса (AiTurnRequestDTO).
+        ctx: ARQ worker context with AI/runtime dependencies.
+        request_data: Serialized AI turn request payload.
+
+    Side Effects:
+        Registers one or more runtime intents for the acting NPC through the
+        same turn-manager path used by player-authored moves.
     """
     try:
         request = AiTurnRequestDTO(**request_data)

@@ -16,10 +16,12 @@ from src.backend.features.combat.runtime.engine.feint_service import FeintServic
 
 
 class MechanicsService:
-    """
-    Сервис мутации состояния (State Mutation).
-    Отвечает за изменение HP, Energy, Tokens и регистрацию XP.
-    Использует StatsWaterfallCalculator для расчета дельты ресурсов.
+    """Apply resolved interaction results to mutable actor runtime state.
+
+    ``MechanicsService`` is the state-mutation layer after resolver math and
+    ability post-processing. It turns resource deltas, damage, tokens, effect
+    ticks, death checks, and XP events into concrete changes on actor snapshots
+    plus structured combat facts for logging and commit.
     """
 
     # ==============================================================================
@@ -27,9 +29,7 @@ class MechanicsService:
     # ==============================================================================
 
     def process_turn_start(self, ctx: PipelineContextDTO, actor: ActorSnapshot) -> None:
-        """
-        Обработка начала хода: Тики эффектов (DOT/HOT).
-        """
+        """Apply start-of-turn periodic effects for a single actor."""
         # Проверка флага: применять ли периодические эффекты
         if ctx.flags.mechanics.apply_periodic:
             # 1. Collect Ticks
@@ -99,8 +99,13 @@ class MechanicsService:
     def apply_interaction_result(
         self, ctx: PipelineContextDTO, source: ActorSnapshot, target: ActorSnapshot | None, result: InteractionResultDTO
     ) -> None:
-        """
-        Применение результатов боя (Урон, Косты, Токены, XP).
+        """Apply one interaction result to source and target actor state.
+
+        Args:
+            ctx: Mutable pipeline context for the resolved interaction.
+            source: Acting snapshot to mutate with costs, tokens, and XP.
+            target: Defending snapshot to mutate with damage/tokens when present.
+            result: Resolver/post-process output to materialize.
         """
         # 1. [SOURCE] Apply Costs & Tokens
         self._apply_source_changes(ctx, source, result)
@@ -130,9 +135,7 @@ class MechanicsService:
     def _apply_source_changes(
         self, ctx: PipelineContextDTO, source: ActorSnapshot, result: InteractionResultDTO
     ) -> None:
-        """
-        Изменения для Атакующего: Косты, Токены.
-        """
+        """Apply source-side costs, token awards, and reflected damage."""
         # A. Costs (из resource_changes)
         if ctx.flags.mechanics.pay_cost:
             hp_changes: list[tuple[str, str]] = []
@@ -238,9 +241,7 @@ class MechanicsService:
     def _apply_target_changes(
         self, ctx: PipelineContextDTO, target: ActorSnapshot, result: InteractionResultDTO
     ) -> None:
-        """
-        Изменения для Защитника: Урон, защитные токены.
-        """
+        """Apply target-side damage, death checks, and defensive token awards."""
         # A. Damage Final
         if ctx.flags.mechanics.apply_damage:
             hp_sources = []
@@ -294,9 +295,7 @@ class MechanicsService:
     def _apply_resource_delta(
         self, actor: ActorSnapshot, resource: str, sources: list[str]
     ) -> tuple[int, int, int, int] | None:
-        """
-        Универсальный метод изменения ресурса через StatsWaterfallCalculator.
-        """
+        """Evaluate and clamp a resource delta against the actor snapshot."""
         before, max_value = self._resource_state(actor, resource)
         if before is None or max_value is None:
             return None
@@ -384,9 +383,7 @@ class MechanicsService:
         target: ActorSnapshot | None,
         result: InteractionResultDTO,
     ) -> None:
-        """
-        Регистрация событий для XP Buffer.
-        """
+        """Record combat outcome XP into actor-local runtime buffers."""
         if not ctx.flags.mechanics.grant_xp:
             return
 
@@ -430,9 +427,7 @@ class MechanicsService:
     def _log_effect_tick(
         self, ctx: PipelineContextDTO, actor: ActorSnapshot, effect_id: str, value: int, resource: str
     ) -> None:
-        """
-        Формирует лог тика эффекта.
-        """
+        """Append structured combat facts/events for one periodic effect tick."""
         ctx.result.effect_facts.append(
             CombatEffectFactDTO(
                 actor_id=actor.char_id,

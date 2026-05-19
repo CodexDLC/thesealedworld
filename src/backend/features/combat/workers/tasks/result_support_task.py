@@ -5,6 +5,7 @@ from src.backend.features.combat.runtime.support import CombatResultSupportTask,
 
 
 async def combat_result_support_task(ctx: dict, payload: dict) -> None:
+    """Process deferred support work emitted by the combat executor."""
     session_id = str(payload.get("session_id", "unknown"))
     data_service: CombatDataService | None = ctx.get("combat_data_service")
     if data_service is None:

@@ -23,8 +23,14 @@ async def execute_batch_task(ctx: dict, job_data: dict) -> None:
     6. Сигнал коллектору (Heartbeat).
 
     Args:
-        ctx: Контекст ARQ.
-        job_data: Данные задачи (WorkerBatchJobDTO).
+        ctx: ARQ worker context with executor and data-service dependencies.
+        job_data: Serialized executor batch job contract.
+
+    Side Effects:
+        - Loads full battle context from runtime storage.
+        - Acquires and releases the distributed executor lock.
+        - Commits battle state, logs, dead actors, and target returns.
+        - Enqueues support jobs and a collector heartbeat.
     """
     session_id = "unknown"
     try:
@@ -141,6 +147,7 @@ async def execute_batch_task(ctx: dict, job_data: dict) -> None:
 
 
 async def _publish_combat_logs_to_chat(ctx: dict, battle_ctx) -> None:
+    """Publish committed combat log entries into the shared chat/game stream."""
     if not battle_ctx.pending_logs:
         return
 
@@ -182,6 +189,7 @@ async def _publish_combat_logs_to_chat(ctx: dict, battle_ctx) -> None:
 
 
 async def _enqueue_result_support_tasks(ctx: dict, battle_ctx) -> None:
+    """Enqueue post-resolution support tasks produced during executor processing."""
     payloads = getattr(battle_ctx, "pending_result_support_tasks", None) or []
     if not payloads:
         return

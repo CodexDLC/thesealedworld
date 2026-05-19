@@ -16,9 +16,12 @@ from src.backend.features.combat.runtime.engine.stats_engine import StatsEngine
 
 
 class CombatPipeline:
-    """
-    Оркестратор боевого взаимодействия (Combat Pipeline).
-    Выполняет полный цикл обработки одного удара/действия.
+    """Resolve one combat interaction through the inner combat pipeline.
+
+    The pipeline is the semantic core of a single interaction. It builds the
+    pipeline context, lets abilities mutate pre/post-calculation state, ensures
+    actor stats exist, delegates pure hit/damage math to the resolver, and then
+    applies concrete runtime consequences through the mechanics layer.
     """
 
     def __init__(self):
@@ -34,8 +37,18 @@ class CombatPipeline:
         exchange_count: int = 0,
         external_mods: dict[str, Any] | None = None,
     ) -> InteractionResultDTO:
-        """
-        Запуск пайплайна (Async).
+        """Run the full interaction pipeline for one source-target pair.
+
+        Args:
+            source: Acting combat snapshot.
+            target: Target combat snapshot, when the interaction has one.
+            move: Runtime move DTO being resolved.
+            exchange_count: Current exchange counter for the acting snapshot.
+            external_mods: Runtime-only branch modifiers injected by the executor.
+
+        Returns:
+            A fully populated interaction result with checks, events, and applied
+            outcome data.
         """
         # 0. Context Build
         # ContextBuilder создает ctx и инициализирует ctx.result (заполняет ID и hand)
@@ -73,10 +86,7 @@ class CombatPipeline:
         return ctx.result
 
     def _check_liveness(self, ctx: PipelineContextDTO, source: ActorSnapshot, target: ActorSnapshot | None) -> None:
-        """
-        Проверяет, живы ли участники.
-        Если нет - отключает фазу калькуляции и пост-процессинга.
-        """
+        """Disable expensive phases when either side is already dead."""
         if not source.is_alive:
             ctx.phases.run_calculator = False
             ctx.phases.run_post_calc = False

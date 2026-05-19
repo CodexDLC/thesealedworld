@@ -36,6 +36,7 @@ router = APIRouter(prefix="/api/game/combat", tags=["combat"], responses=COMBAT_
 async def get_combat_view(
     char_id: int, orchestrator: CombatRuntimeOrchestratorDep
 ) -> CoreResponseDTO[CombatDashboardDTO | CombatResultDTO | StateTransitionDTO]:
+    """Return the public combat surface for a character entry into combat UI."""
     try:
         payload: CombatDashboardDTO | CombatResultDTO = await orchestrator.get_initial_view(char_id)
         current_state = CoreDomain.COMBAT_RESULT if isinstance(payload, CombatResultDTO) else CoreDomain.COMBAT
@@ -62,6 +63,7 @@ async def get_combat_view(
 
 @router.get("/{char_id}/snapshot", response_model=CombatDashboardDTO)
 async def get_combat_snapshot(char_id: int, orchestrator: CombatRuntimeOrchestratorDep) -> CombatDashboardDTO:
+    """Return the current live combat dashboard without CoreResponse wrapping."""
     try:
         return await orchestrator.get_dashboard(char_id)
     except CombatError as exc:
@@ -75,6 +77,7 @@ async def get_combat_logs(
     page: int = 1,
     page_size: int = 20,
 ) -> CombatLogDTO:
+    """Return paginated combat logs from the live or archived combat source."""
     try:
         return await orchestrator.get_logs(char_id, page=page, page_size=page_size)
     except CombatError as exc:
@@ -87,6 +90,7 @@ async def register_combat_move(
     body: CombatRegisterMoveRequestDTO,
     orchestrator: CombatRuntimeOrchestratorDep,
 ) -> CombatDashboardDTO | CombatResultDTO:
+    """Accept one combat move request and return the updated runtime surface."""
     try:
         return await orchestrator.register_move(char_id, body)
     except CombatError as exc:
@@ -106,6 +110,7 @@ async def pin_combat_feint(
     body: CombatPinFeintRequestDTO,
     orchestrator: CombatRuntimeOrchestratorDep,
 ) -> CombatDashboardDTO:
+    """Pin or unpin one feint in the player's live combat hand."""
     try:
         return await orchestrator.pin_feint(char_id, body)
     except CombatError as exc:
@@ -124,6 +129,7 @@ async def continue_combat_result(
     char_id: int,
     orchestrator: CombatRuntimeOrchestratorDep,
 ) -> CoreResponseDTO[StateTransitionDTO]:
+    """Advance the player out of post-combat result state into the next state."""
     transition = await orchestrator.continue_result(char_id)
     return CoreResponseDTO(
         header=GameStateHeader(current_state=transition.target_state),

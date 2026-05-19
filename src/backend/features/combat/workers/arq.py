@@ -32,6 +32,7 @@ COMBAT_TASKS = [
 
 
 async def combat_startup(ctx: dict) -> None:
+    """Initialize combat worker dependencies and register runtime processors."""
     log.info("WorkerInit | stage=start worker_type=combat")
     await base_startup(ctx)
     redis_service = ctx["redis_service"]
@@ -48,6 +49,7 @@ async def combat_startup(ctx: dict) -> None:
 
 
 async def combat_shutdown(ctx: dict) -> None:
+    """Close worker-local runtime services during ARQ shutdown."""
     log.info("WorkerShutdown | stage=start")
     arq_service = ctx.get("arq_service")
     if arq_service is not None:
@@ -57,6 +59,8 @@ async def combat_shutdown(ctx: dict) -> None:
 
 
 class CombatArqSettings(BaseArqSettings):
+    """ARQ worker settings for the combat runtime queue."""
+
     redis_settings = BaseArqSettings.redis_settings
     queue_name = COMBAT_ARQ_QUEUE
     max_jobs: int = 50

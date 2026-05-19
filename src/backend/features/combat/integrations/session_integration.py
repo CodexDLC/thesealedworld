@@ -281,9 +281,7 @@ class CombatSessionIntegration:
         return False
 
     async def transfer_actions(self, session_id: str, actions: list[CombatActionDTO]) -> None:
-        """
-        Атомарный перенос действий: Push в очередь + Delete из moves.
-        """
+        """Atomically push runnable actions and delete consumed intents."""
         if not actions:
             return
 
@@ -316,9 +314,14 @@ class CombatSessionIntegration:
     # ==========================================================================
 
     async def load_battle_context(self, session_id: str) -> BattleContext | None:
-        """
-        Полная пакетная загрузка контекста и всей очереди задач.
-        Использует CombatSessionManager.load_full_context_data.
+        """Load the full in-memory battle context for executor/AI runtime work.
+
+        Args:
+            session_id: Active combat session id.
+
+        Returns:
+            A populated ``BattleContext`` with actor snapshots, meta, and cached
+            move data, or ``None`` when the session no longer exists.
         """
         # 1. Meta
         meta_raw = await self.combat_manager.get_rbc_session_meta(session_id)
@@ -384,9 +387,17 @@ class CombatSessionIntegration:
         return await self.load_battle_context(session_id)
 
     async def commit_session(self, ctx: BattleContext, processed_action_ids: list[str]) -> None:
-        """
-        Атомарное сохранение изменений актёров, логов и возврат целей.
-        ВСЕ операции выполняются в ОДНОЙ транзакции Redis.
+        """Commit executor mutations back into runtime storage atomically.
+
+        Args:
+            ctx: Battle context mutated in memory by the executor.
+            processed_action_ids: Move ids consumed from the action queue.
+
+        Side Effects:
+            - Writes actor state, raw data, statuses, stats, xp, and logs.
+            - Trims consumed action queue entries.
+            - Updates dead actor meta and target return queues.
+            - Refreshes last activity and battle step counters.
         """
         updates = {}
 

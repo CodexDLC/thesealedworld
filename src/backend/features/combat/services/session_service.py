@@ -42,7 +42,18 @@ CombatSessionNotFound = CombatSessionNotFoundError
 
 
 class CombatSessionService:
-    """Read-only combat facade for current session state."""
+    """High-level combat session facade for API/orchestrator use cases.
+
+    The service owns browser-facing runtime use cases such as loading the
+    current dashboard, registering player intents, pinning feints, resolving
+    archived results, and transitioning out of post-combat state.
+
+    It delegates:
+        - intent queueing to ``CombatTurnManager``
+        - live view assembly to ``CombatViewService``
+        - runtime/Redis access to ``CombatSessionIntegration``
+        - archived result reconstruction to ``CombatResultArchiveService``
+    """
 
     def __init__(
         self, *, store: CombatSessionIntegration, system_integrator: CombatSystemIntegrator, arq: Any | None = None
@@ -58,6 +69,16 @@ class CombatSessionService:
         self.turn_manager = CombatTurnManager(self.store, self.arq)
 
     async def get_dashboard(self, char_id: int, *, session_id: str | None = None) -> CombatDashboardDTO:
+        """Build the live combat dashboard from runtime session state.
+
+        Args:
+            char_id: Viewing player character.
+            session_id: Optional resolved combat session id.
+
+        Returns:
+            A frontend-ready combat dashboard built from runtime actors, targets,
+            moves, and recent grouped logs.
+        """
         combat_id = session_id or await self._resolve_session_id(char_id)
         meta = await self.store.get_meta(combat_id)
         if meta is None:
@@ -119,6 +140,20 @@ class CombatSessionService:
         *,
         session_id: str | None = None,
     ) -> CombatDashboardDTO:
+        """Register one browser/API move request against the live combat.
+
+        The service delegates semantic move registration to ``CombatTurnManager``
+        and then waits briefly for collector/executor workers to settle a fresh
+        dashboard view.
+
+        Args:
+            char_id: Acting player character.
+            body: Public combat move request.
+            session_id: Optional resolved combat session id.
+
+        Returns:
+            The refreshed live combat dashboard after the request is accepted.
+        """
         combat_id = session_id or await self._resolve_session_id(char_id)
         payload = {**body.payload, **body.model_dump(mode="json", exclude={"payload"})}
         await self.register_move_request(combat_id, char_id, payload)
@@ -132,6 +167,7 @@ class CombatSessionService:
         *,
         session_id: str | None = None,
     ) -> CombatDashboardDTO:
+        """Pin or unpin a feint inside the live runtime hand state."""
         combat_id = session_id or await self._resolve_session_id(char_id)
         success = await self.store.pin_feint(combat_id, char_id, body.feint_id)
         if not success:
@@ -139,11 +175,25 @@ class CombatSessionService:
         return await self.get_dashboard(char_id, session_id=combat_id)
 
     async def register_move_request(self, session_id: str, actor_id: int, payload: dict[str, Any]) -> CombatMoveDTO:
+        """Translate a public move payload into the runtime intent buffer.
+
+        Args:
+            session_id: Active combat session id.
+            actor_id: Acting character id.
+            payload: Raw move payload after request normalization.
+
+        Returns:
+            The runtime move DTO shape that was accepted for registration.
+
+        Side Effects:
+            Enqueues collector jobs through ``CombatTurnManager``.
+        """
         move = self.turn_manager._build_move_dto(actor_id, str(payload.get("action") or "attack"), payload)
         await self.turn_manager.register_move_request(session_id, actor_id, payload)
         return move
 
     async def register_moves_batch(self, session_id: str, actor_id: int, payloads: list[dict[str, Any]]) -> int:
+        """Register multiple runtime intents, primarily for AI actors."""
         await self.turn_manager.register_moves_batch(session_id, actor_id, payloads)
         return len(payloads)
 
@@ -172,6 +222,7 @@ class CombatSessionService:
         page_size: int = LOG_PAGE_SIZE,
         session_id: str | None = None,
     ) -> CombatLogDTO:
+        """Return paginated combat logs from live or archived runtime storage."""
         combat_id = session_id
         if not combat_id:
             try:
@@ -220,6 +271,7 @@ class CombatSessionService:
         *,
         reason: str = "combat_session_not_found",
     ) -> CombatResultDTO | None:
+        """Resolve a finished combat result from finalization or runtime history."""
         combat_id = await self.system_integrator.resolve_combat_session_for_character(char_id)
         finalization_id = await self._resolve_finalization_id(char_id)
         target_state = await self.system_integrator.resolve_return_state_for_character(char_id)
@@ -266,6 +318,7 @@ class CombatSessionService:
         )
 
     async def continue_result(self, char_id: int) -> StateTransitionDTO:
+        """Complete the post-combat result flow and return the next game state."""
         current_finalization_id = await self._resolve_current_finalization_id(char_id)
         combat_id = current_finalization_id or await self._resolve_latest_finalization_id(char_id)
         post_resolver = getattr(self.system_integrator, "resolve_post_combat_for_character", None)

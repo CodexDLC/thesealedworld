@@ -3,6 +3,8 @@ from pathlib import Path
 from jinja2 import Environment, FileSystemLoader
 
 from src.frontend.game_features.combat.view_models.screen import (
+    build_combat_outcome_screen_from_dashboard_vm,
+    build_combat_outcome_screen_from_result_vm,
     build_combat_result_screen_vm,
     build_combat_screen_from_result_vm,
     build_combat_screen_vm,
@@ -154,18 +156,29 @@ def test_combat_viewport_uses_prototype_field_and_bottom_action_panel():
     assert "ability-debug-swirl.svg" not in template
     assert "DEBUG_ABILITY_PLACEHOLDER" not in template
     assert 'include "game/domains/combat/viewport/log_panel.html"' not in template
-    assert "combat-log-panel" not in template
     assert "combat_result" in template
+    assert "combat_outcome_screen" in template
     assert "combat-result-hero" in template
     assert "combat-result-visual" in template
     assert "combat-result-summary" in template
+    assert "combat-result-log" in template
     assert "combat-result-field" in template
     assert "combat-result-report" in template
     assert "combat-result-rewards" in template
+    assert "combat-outcome-tabs" in template
+    assert "SUMMARY" in template
+    assert "LOG" in template
+    assert "outcomeTab === 'summary'" in template
+    assert "outcomeTab === 'log'" in template
+    assert "/game/combat/logs?char_id={{ char_id }}" in template
+    assert "loadOutcomeLog()" in template
+    assert "htmx.ajax('GET', '/game/combat/logs?char_id={{ char_id }}" in template
+    assert 'x-ref="outcomeLogHost"' in template
+    assert 'data-loaded="0"' in template
+    assert "combat-outcome-log-panel" in template
     assert "ПОЛУЧЕНО ОПЫТА ВСЕГО" in template
     assert "НАВЫКИ НЕ ИЗМЕНИЛИСЬ" in template
     assert "result_primary_state" in template
-    assert "combat_result_screen is defined" in template
     assert "'Противники · ' ~ team.team|upper" in template
     assert template.index("combat-result-visual") < template.index("combat-result-summary")
     assert template.index("combat-result-summary") < template.index("combat-result-actions")
@@ -327,10 +340,8 @@ def test_combat_template_renders_draggable_actor_stat_sheet():
     html = template.render(char_id=1, domain="combats", combat_screen=screen, combat_result=None)
 
     assert "combat-stat-trigger" in html
-    assert "combat-stat-sheet-layer" in html
-    assert "combat-stat-sheet" in html
-    assert "beginStatSheetDrag" in html
-    assert "openStatSheet('target')" in html
+    assert "activeStatSheet: null" in html
+    assert "@keydown.escape.window=\"activeStatSheet = null\"" in html
     assert "openStatSheet('enemy-2')" in html
     assert "openStatSheet('hero')" not in html
     assert "DEFENSE" in html
@@ -484,7 +495,7 @@ def test_combat_css_contains_texture_surfaces_without_shell_overrides():
     assert ".combat-result-field" in result
     assert ".combat-result-title--defeat" in result
     assert ".combat-result-empty--progress" in result
-    assert "grid-template-rows: minmax(260px, .72fr) minmax(0, auto) auto;" in result
+    assert "grid-template-rows: auto minmax(260px, .72fr) minmax(0, auto) auto;" in result
     assert ".combat-result-head {\n    position: absolute;" in result
     assert ".combat-result-actions" in result
     assert ".combat-result-actions .combat-primary-action" in result
@@ -776,6 +787,8 @@ def test_combat_result_template_renders_without_result_screen_vm():
     )
 
     assert "Поражение" in html
+    assert "SUMMARY" in html
+    assert "LOG" in html
     assert "ПОЛУЧЕНО ОПЫТА ВСЕГО" in html
     assert "НАВЫКИ НЕ ИЗМЕНИЛИСЬ" in html
     assert "LAST TURN" not in html
@@ -785,6 +798,57 @@ def test_combat_result_template_renders_without_result_screen_vm():
     assert 'hx-swap="outerHTML"' in html
     assert 'hx-vals=\'{"char_id": 5}\'' in html
     assert 'data-target-state="exploration"' in html
+
+
+def test_combat_spectating_template_renders_outcome_shell_with_refresh_and_log_tab():
+    env = Environment(loader=FileSystemLoader("src/frontend/templates"), autoescape=True)
+    template = env.get_template("game/domains/combat/viewport/main.html")
+    dashboard = CombatDashboardDTO(
+        session_id="combat-1",
+        turn_number=3,
+        status="spectating",
+        battle_type="shadow",
+        hero=CombatActorCardDTO(
+            actor_id="5",
+            name="Hero",
+            team="team_1",
+            is_dead=True,
+            vitals=CombatActorVitalsDTO(hp_current=0, hp_max=63),
+        ),
+        allies=[
+            CombatActorCardDTO(
+                actor_id="6",
+                name="Ally",
+                team="team_1",
+                vitals=CombatActorVitalsDTO(hp_current=18, hp_max=30),
+            )
+        ],
+        enemies=[
+            CombatActorCardDTO(
+                actor_id="9",
+                name="Shadow Hero",
+                team="team_2",
+                vitals=CombatActorVitalsDTO(hp_current=25, hp_max=40),
+            )
+        ],
+    )
+
+    html = template.render(
+        char_id=5,
+        combat=dashboard,
+        combat_screen=build_combat_screen_vm(dashboard),
+        combat_outcome_screen=build_combat_outcome_screen_from_dashboard_vm(dashboard),
+    )
+
+    assert "Ты пал" in html
+    assert "Бой продолжается" in html
+    assert "SUMMARY" in html
+    assert "LOG" in html
+    assert "Обновить статус боя" in html
+    assert 'hx-get="/game/session/state/combats?char_id=5"' in html
+    assert "htmx.ajax('GET', '/game/combat/logs?char_id=5&page=1&page_size=8&panel_id=combat-outcome-log-panel&embedded=1'" in html
+    assert "ПОЛУЧЕНО ОПЫТА ВСЕГО" not in html
+    assert "ИТОГ БОЯ ЕЩЕ НЕ ОПРЕДЕЛЕН" in html
 
 
 def test_combat_result_sidebars_render_without_runtime_screen():
@@ -1134,6 +1198,81 @@ def test_combat_result_vm_builds_report_and_progression_rows():
     assert screen.experience.amount_text == "+0.0003"
     assert screen.experience.percent_text == "+0.03%"
     assert screen.primary_target_state == "arena"
+
+
+def test_combat_outcome_result_vm_matches_final_result_payload():
+    result = CombatResultDTO(
+        combat_id="combat-1",
+        char_id=7,
+        status="finished",
+        outcome="victory",
+        title="Победа",
+        message="Бой завершен.",
+        summary="Ваша команда победила.",
+        reason="combat_session_finished",
+        archived=True,
+        teams={"team_1": ["7"], "team_2": ["-7"]},
+        actors={
+            "7": {"name": "Hero", "team": "team_1", "vitals_final": {"hp": 25, "max_hp": 40}},
+            "-7": {"name": "Shadow", "team": "team_2", "is_dead": True, "vitals_final": {"hp": 0, "max_hp": 40}},
+        },
+        report={"last_turn": 9, "turns": 4},
+        rewards={"progression": {"skill_swords": 0.0003}},
+        metadata={"battle_type": "arena"},
+        primary_action=CombatResultActionDTO(label="Продолжить", target_state="arena"),
+    )
+
+    screen = build_combat_outcome_screen_from_result_vm(result)
+
+    assert screen.mode == "final"
+    assert screen.title == "Победа"
+    assert screen.last_turn == 9
+    assert screen.primary_label == "Продолжить"
+    assert screen.primary_action_kind == "continue"
+    assert screen.primary_target_state == "arena"
+
+
+def test_combat_outcome_spectating_vm_uses_refresh_action_and_current_teams():
+    dashboard = CombatDashboardDTO(
+        session_id="combat-1",
+        turn_number=3,
+        status="spectating",
+        battle_type="shadow",
+        hero=CombatActorCardDTO(
+            actor_id="1",
+            name="Hero",
+            team="team_1",
+            is_dead=True,
+            vitals=CombatActorVitalsDTO(hp_current=0, hp_max=63),
+        ),
+        allies=[
+            CombatActorCardDTO(
+                actor_id="2",
+                name="Ally",
+                team="team_1",
+                vitals=CombatActorVitalsDTO(hp_current=15, hp_max=30),
+            )
+        ],
+        enemies=[
+            CombatActorCardDTO(
+                actor_id="3",
+                name="Enemy",
+                team="team_2",
+                vitals=CombatActorVitalsDTO(hp_current=40, hp_max=50),
+            )
+        ],
+    )
+
+    screen = build_combat_outcome_screen_from_dashboard_vm(dashboard)
+
+    assert screen is not None
+    assert screen.mode == "spectating"
+    assert screen.message == "Бой продолжается"
+    assert screen.primary_label == "Обновить статус боя"
+    assert screen.primary_action_kind == "refresh_status"
+    assert screen.teams[0].alive_count == 1
+    assert screen.teams[0].total_count == 2
+    assert screen.teams[1].team == "team_2"
 
 
 def test_combat_result_vm_builds_standard_combat_sidebars_from_finalization():

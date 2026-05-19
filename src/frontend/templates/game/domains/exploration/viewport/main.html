@@ -272,6 +272,9 @@
 {% set symbiote_name = status_seed.symbiote_name if status_seed is defined and status_seed.symbiote_name else 'SYSTEM' %}
 
 {% if oob_panels %}
+    <div id="game-left-content" hx-swap-oob="true">
+        {% include "game/domains/exploration/left_sidebar/main.html" %}
+    </div>
     <div id="game-right-context-content" hx-swap-oob="innerHTML">
         {% include "game/domains/exploration/right_sidebar/main.html" %}
     </div>

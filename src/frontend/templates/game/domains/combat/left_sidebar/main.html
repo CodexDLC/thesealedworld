@@ -74,6 +74,27 @@
             </div>
         </section>
 
+        {% if actor.stat_sheet and actor.stat_sheet.sections %}
+        <section class="combat-panel combat-hero-stats-panel">
+            <div class="combat-panel-header">CHARACTER STATS</div>
+            <div class="combat-hero-stat-body">
+                {% for section in actor.stat_sheet.sections %}
+                <details class="combat-stat-group combat-stat-group--compact" {% if loop.first %}open{% endif %}>
+                    <summary><span>{{ section.label }}</span></summary>
+                    <div class="combat-stat-list">
+                        {% for item in section.items %}
+                        <div class="combat-stat-row">
+                            <span>{{ item.label }}</span>
+                            <strong>{{ item.value_text }}</strong>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </details>
+                {% endfor %}
+            </div>
+        </section>
+        {% endif %}
+
         <section class="combat-panel combat-roster-panel">
             <div class="combat-panel-header">ALLIES</div>
             <div class="combat-roster">

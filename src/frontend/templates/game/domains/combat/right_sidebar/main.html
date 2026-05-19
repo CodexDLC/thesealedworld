@@ -20,11 +20,19 @@
 {% elif combat_screen %}
     <aside class="panel-dock panel-dock--framed panel-dock--scroll combat-side combat-side--right">
         <nav class="dock-nav dock-nav--bar dock-nav--panel combat-info-actions" aria-label="Combat info actions">
-            <button class="dock-nav-button is-active" type="button">INFO</button>
+            <button class="dock-nav-button is-active"
+                    type="button"
+                    x-show="!activeStatSheet">INFO</button>
+            <button class="dock-nav-button combat-stat-back-btn"
+                    type="button"
+                    style="display:none"
+                    x-show="activeStatSheet"
+                    @click="activeStatSheet = null">← BACK</button>
             <button class="dock-nav-button dock-nav-button--close"
                     type="button"
                     @click="$dispatch('panel-toggle', { side: 'right', view: 'context' })">CLOSE</button>
         </nav>
+
         {% if combat_screen.action_state == 'TARGET_QUEUE_EMPTY' %}
         <section class="combat-panel combat-target-empty-panel">
             <div class="combat-panel-header">TARGET QUEUE</div>
@@ -36,7 +44,36 @@
             </div>
         </section>
         {% else %}
-        <section class="combat-panel">
+
+        {# Inline stat panels — one per enemy, shown instead of INFO #}
+        {% for enemy in combat_screen.enemies %}
+            {% if enemy.stat_sheet %}
+            <section class="combat-panel combat-enemy-stat-panel"
+                     x-show="activeStatSheet === 'enemy-{{ enemy.actor_id }}'"
+                     x-cloak>
+                <div class="combat-panel-header combat-enemy-stat-header">
+                    <strong>{{ enemy.name }}</strong>
+                </div>
+                <div class="combat-enemy-stat-body">
+                    {% for section in enemy.stat_sheet.sections %}
+                    <details class="combat-stat-group combat-stat-group--compact" {% if loop.first %}open{% endif %}>
+                        <summary><span>{{ section.label }}</span></summary>
+                        <div class="combat-stat-list">
+                            {% for item in section.items %}
+                            <div class="combat-stat-row">
+                                <span>{{ item.label }}</span>
+                                <strong>{{ item.value_text }}</strong>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </details>
+                    {% endfor %}
+                </div>
+            </section>
+            {% endif %}
+        {% endfor %}
+
+        <section class="combat-panel" x-show="!activeStatSheet">
             <div class="combat-panel-header">INFO</div>
             <div class="combat-info-list">
                 <span><b>PAIR</b><em>{{ combat_screen.exchange_state.pair_status }}</em></span>
@@ -69,6 +106,7 @@
                                     <span class="combat-info-mark combat-info-mark--button">
                                         <button type="button"
                                                 class="combat-stat-trigger combat-roster-info-button"
+                                                :class="{ 'is-active': activeStatSheet === 'enemy-{{ enemy.actor_id }}' }"
                                                 @click.stop="openStatSheet('enemy-{{ enemy.actor_id }}')"
                                                 aria-label="Open {{ enemy.name }} stats">
                                             <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">

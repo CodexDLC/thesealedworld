@@ -748,11 +748,39 @@
 }
 
 .combat-stat-row strong {
-    color: rgba(255, 232, 190, .88);
+    color: color-mix(in srgb, var(--world-accent, var(--col-accent)) 88%, #fff);
     font-family: var(--font-mono);
     font-size: 9px;
     letter-spacing: 0;
     text-align: right;
+}
+
+.combat-stat-group--compact summary {
+    min-height: 22px;
+    font-size: 7px;
+    padding: 0 6px;
+}
+
+.combat-stat-group--compact summary b {
+    display: none;
+}
+
+.combat-stat-group--compact .combat-stat-list {
+    padding: 0 4px 4px;
+    gap: 1px;
+}
+
+.combat-stat-group--compact .combat-stat-row {
+    min-height: 20px;
+    padding: 3px 4px;
+}
+
+.combat-stat-group--compact .combat-stat-row span {
+    font-size: 6.5px;
+}
+
+.combat-stat-group--compact .combat-stat-row strong {
+    font-size: 8px;
 }
 
 .combat-exchange-card {

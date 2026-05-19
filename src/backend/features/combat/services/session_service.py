@@ -172,7 +172,14 @@ class CombatSessionService:
         page_size: int = LOG_PAGE_SIZE,
         session_id: str | None = None,
     ) -> CombatLogDTO:
-        combat_id = session_id or await self._resolve_session_id(char_id)
+        combat_id = session_id
+        if not combat_id:
+            try:
+                combat_id = await self._resolve_session_id(char_id)
+            except CombatSessionNotFoundError:
+                combat_id = await self._resolve_finalization_id(char_id)
+                if not combat_id:
+                    raise
         page = max(1, page)
         page_size = max(1, page_size)
         all_logs_by_turn = await self._get_logs_by_turn(combat_id)

@@ -1293,6 +1293,10 @@
   clip-path: var(--clip-node-sm);
 }
 
+.inventory-hidden {
+  display: none !important;
+}
+
 .inventory-card--compact {
   grid-template-columns: minmax(0, 1fr);
   grid-template-rows: minmax(0, 1fr);

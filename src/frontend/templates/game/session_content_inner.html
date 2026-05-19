@@ -27,51 +27,10 @@
          {% if combat_layout %}
          x-data="{
             activeStatSheet: null,
-            statSheetX: 18,
-            statSheetY: 18,
-            draggingStatSheet: false,
-            statSheetStartX: 0,
-            statSheetStartY: 0,
-            statSheetOriginX: 0,
-            statSheetOriginY: 0,
-            isMobileStatSheet() { return window.matchMedia('(max-width: 860px)').matches; },
             openStatSheet(key) {
-                if (this.activeStatSheet === key) {
-                    this.activeStatSheet = null;
-                    return;
-                }
-                this.activeStatSheet = key;
-                const width = Math.min(425, window.innerWidth - 16);
-                const height = Math.min(830, window.innerHeight - 16);
-                this.statSheetX = Math.max(8, Math.min(window.innerWidth - width - 8, Math.round((window.innerWidth - width) / 2)));
-                this.statSheetY = Math.max(8, Math.min(window.innerHeight - height - 8, 72));
-                if (this.isMobileStatSheet()) {
-                    this.statSheetX = 0;
-                    this.statSheetY = 0;
-                }
-            },
-            beginStatSheetDrag(event) {
-                if (this.isMobileStatSheet()) return;
-                this.draggingStatSheet = true;
-                this.statSheetStartX = event.clientX;
-                this.statSheetStartY = event.clientY;
-                this.statSheetOriginX = this.statSheetX;
-                this.statSheetOriginY = this.statSheetY;
-                event.currentTarget.setPointerCapture?.(event.pointerId);
-            },
-            moveStatSheet(event) {
-                if (!this.draggingStatSheet || this.isMobileStatSheet()) return;
-                const width = Math.min(425, window.innerWidth - 16);
-                const height = Math.min(830, window.innerHeight - 16);
-                this.statSheetX = Math.max(8, Math.min(window.innerWidth - width - 8, this.statSheetOriginX + event.clientX - this.statSheetStartX));
-                this.statSheetY = Math.max(8, Math.min(window.innerHeight - height - 8, this.statSheetOriginY + event.clientY - this.statSheetStartY));
-            },
-            endStatSheetDrag() { this.draggingStatSheet = false; },
-            statSheetStyle() { return `--stat-sheet-x: ${this.statSheetX}px; --stat-sheet-y: ${this.statSheetY}px`; }
+                this.activeStatSheet = this.activeStatSheet === key ? null : key;
+            }
          }"
-         @pointermove.window="moveStatSheet($event)"
-         @pointerup.window="endStatSheetDrag()"
-         @pointercancel.window="endStatSheetDrag()"
          @keydown.escape.window="activeStatSheet = null"
          {% endif %}>
         {# Left Panel (Inventory/Stats) #}

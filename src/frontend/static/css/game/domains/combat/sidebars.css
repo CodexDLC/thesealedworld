@@ -428,6 +428,43 @@
     white-space: nowrap;
 }
 
+.combat-hero-stat-body,
+.combat-enemy-stat-body {
+    display: grid;
+    gap: 4px;
+    max-height: 320px;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+}
+
+.combat-enemy-stat-header {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+}
+
+.combat-enemy-stat-header strong {
+    overflow: hidden;
+    color: var(--world-accent, var(--col-accent));
+    font-family: var(--font-ui);
+    font-size: 11px;
+    font-weight: 900;
+    letter-spacing: .10em;
+    text-overflow: ellipsis;
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+
+.combat-stat-back-btn {
+    color: rgba(255, 232, 190, .72);
+    letter-spacing: .06em;
+}
+
+.combat-roster-info-button.is-active {
+    border-color: var(--world-accent, var(--col-accent));
+    background: rgba(255, 170, 0, .12);
+    color: var(--world-accent, var(--col-accent));
+}
+
 .combat-wait-scene {
     display: grid;
     grid-template-columns: minmax(180px, .54fr) minmax(0, .46fr);

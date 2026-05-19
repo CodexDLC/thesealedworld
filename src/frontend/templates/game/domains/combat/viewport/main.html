@@ -1,22 +1,51 @@
-{% if combat_result %}
+{% if (combat_outcome_screen is defined and combat_outcome_screen) or combat_result %}
+        {% set outcome_screen = combat_outcome_screen if combat_outcome_screen is defined and combat_outcome_screen else none %}
         {% set result_screen = combat_result_screen if combat_result_screen is defined else none %}
-        {% set result_title = result_screen.title if result_screen else combat_result.title %}
-        {% set result_summary = result_screen.summary if result_screen else combat_result.summary %}
-        {% set result_message = result_screen.message if result_screen else combat_result.message %}
-        {% set result_outcome = result_screen.outcome if result_screen else combat_result.outcome %}
-        {% set result_reason = result_screen.reason if result_screen else combat_result.reason %}
-        {% set result_archived = result_screen.archived if result_screen else combat_result.archived %}
-        {% set result_combat_id = result_screen.combat_id if result_screen else (combat_result.combat_id or 'NO_DATA') %}
-        {% set result_battle_type = result_screen.battle_type if result_screen else none %}
-        {% set result_last_turn = result_screen.last_turn if result_screen else none %}
-        {% set result_teams = result_screen.teams if result_screen else [] %}
-        {% set result_progression = result_screen.progression if result_screen else [] %}
-        {% set result_experience = result_screen.experience if result_screen else none %}
-        {% set result_primary_label = result_screen.primary_label if result_screen else combat_result.primary_action.label %}
-        {% set result_primary_state = result_screen.primary_target_state if result_screen else (combat_result.primary_action.target_state or 'exploration') %}
+        {% set outcome_mode = outcome_screen.mode if outcome_screen else 'final' %}
+        {% set result_title = outcome_screen.title if outcome_screen else (result_screen.title if result_screen else combat_result.title) %}
+        {% set result_summary = outcome_screen.summary if outcome_screen else (result_screen.summary if result_screen else combat_result.summary) %}
+        {% set result_message = outcome_screen.message if outcome_screen else (result_screen.message if result_screen else combat_result.message) %}
+        {% set result_outcome = outcome_screen.outcome if outcome_screen else (result_screen.outcome if result_screen else combat_result.outcome) %}
+        {% set result_combat_id = outcome_screen.combat_id if outcome_screen else (result_screen.combat_id if result_screen else (combat_result.combat_id or 'NO_DATA')) %}
+        {% set result_battle_type = outcome_screen.battle_type if outcome_screen else (result_screen.battle_type if result_screen else none) %}
+        {% set result_last_turn = outcome_screen.last_turn if outcome_screen else (result_screen.last_turn if result_screen else none) %}
+        {% set result_teams = outcome_screen.teams if outcome_screen else (result_screen.teams if result_screen else []) %}
+        {% set result_progression = outcome_screen.progression if outcome_screen else (result_screen.progression if result_screen else []) %}
+        {% set result_experience = outcome_screen.experience if outcome_screen else (result_screen.experience if result_screen else none) %}
+        {% set result_primary_label = outcome_screen.primary_label if outcome_screen else (result_screen.primary_label if result_screen else combat_result.primary_action.label) %}
+        {% set result_primary_state = outcome_screen.primary_target_state if outcome_screen else (result_screen.primary_target_state if result_screen else (combat_result.primary_action.target_state or 'exploration')) %}
+        {% set result_primary_kind = outcome_screen.primary_action_kind if outcome_screen else 'continue' %}
+        {% set result_log_panel_id = outcome_screen.log_panel_id if outcome_screen else 'combat-outcome-log-panel' %}
         <section class="combat-screen-shell">
             <article class="combat-screen combat-result-screen">
-                <section class="combat-result-hero" role="dialog" aria-modal="true" aria-labelledby="combat-result-title">
+                <section class="combat-result-hero"
+                         x-data="{
+                            outcomeTab: 'summary',
+                            loadOutcomeLog() {
+                                if (this.outcomeTab !== 'log' || !$refs.outcomeLogHost || $refs.outcomeLogHost.dataset.loaded === '1') {
+                                    return;
+                                }
+                                $refs.outcomeLogHost.dataset.loaded = '1';
+                                htmx.ajax('GET', '/game/combat/logs?char_id={{ char_id }}&page=1&page_size=8&panel_id={{ result_log_panel_id }}&embedded=1', {
+                                    target: $refs.outcomeLogHost,
+                                    swap: 'outerHTML'
+                                });
+                            }
+                         }"
+                         role="dialog"
+                         aria-modal="true"
+                         aria-labelledby="combat-result-title"
+                         x-effect="loadOutcomeLog()">
+                    <nav class="dock-nav dock-nav--bar dock-nav--panel combat-outcome-tabs" aria-label="Combat outcome tabs">
+                        <button class="dock-nav-button"
+                                type="button"
+                                :class="{ 'is-active': outcomeTab === 'summary' }"
+                                @click="outcomeTab = 'summary'">SUMMARY</button>
+                        <button class="dock-nav-button"
+                                type="button"
+                                :class="{ 'is-active': outcomeTab === 'log' }"
+                                @click="outcomeTab = 'log'">LOG</button>
+                    </nav>
                     <section class="combat-result-visual" aria-label="Combat outcome">
                         <div class="combat-result-field" role="presentation">
                         <div class="combat-result-field__image"></div>
@@ -27,7 +56,13 @@
                         <header class="combat-result-head">
                             <h2 id="combat-result-title" class="combat-result-title--{{ result_outcome }}">{{ result_title }}</h2>
                             <p>
-                                {% if result_last_turn is not none %}
+                                {% if outcome_mode == 'spectating' %}
+                                    {% if result_last_turn is not none %}
+                                        Игрок выбыл на {{ result_last_turn }} ходу.
+                                    {% else %}
+                                        Игрок выбыл из боя.
+                                    {% endif %}
+                                {% elif result_last_turn is not none %}
                                     Бой окончился на {{ result_last_turn }} ходу.
                                 {% else %}
                                     Финальный отчет готов.
@@ -37,7 +72,13 @@
                         </div>
                     </section>
 
-                    <section class="combat-result-summary" aria-label="Combat result summary">
+                    <section class="combat-result-summary"
+                             aria-label="Combat result summary"
+                             x-show="outcomeTab === 'summary'">
+                        <section class="combat-result-status">
+                            <div class="combat-result-section-title">{{ result_message }}</div>
+                            <p>{{ result_summary }}</p>
+                        </section>
                         <section class="combat-result-report combat-result-rosters">
                             {% for team in result_teams %}
                                 <article class="combat-result-team combat-result-team--{{ team.outcome }}">
@@ -69,6 +110,7 @@
                             {% endfor %}
                         </section>
 
+                        {% if outcome_mode == 'final' %}
                         <section class="combat-result-rewards">
                             <div class="combat-result-section-title">ПРОГРЕСС</div>
                             <div class="combat-result-reward-grid">
@@ -86,9 +128,46 @@
                                 {% endfor %}
                             </div>
                         </section>
+                        {% else %}
+                        <section class="combat-result-rewards combat-result-rewards--spectating">
+                            <div class="combat-result-section-title">СТАТУС</div>
+                            <div class="combat-result-empty combat-result-empty--progress">
+                                ИТОГ БОЯ ЕЩЕ НЕ ОПРЕДЕЛЕН. ОТКРОЙ LOG ИЛИ ОБНОВИ СТАТУС.
+                            </div>
+                        </section>
+                        {% endif %}
+                    </section>
+
+                    <section class="combat-result-log"
+                             aria-label="Combat result log"
+                             x-show="outcomeTab === 'log'">
+                        <div id="{{ result_log_panel_id }}-host"
+                             x-ref="outcomeLogHost"
+                             data-loaded="0">
+                            <section class="combat-log-panel combat-log-panel--embedded">
+                                <div class="combat-command-head">
+                                    <span>BATTLE LOG</span>
+                                </div>
+                                <div class="combat-log-list">
+                                    <div class="combat-log-line">LOG_LOADING</div>
+                                </div>
+                            </section>
+                        </div>
                     </section>
 
                     <footer class="combat-result-actions">
+                        {% if result_primary_kind == 'refresh_status' %}
+                        <button type="button"
+                           class="combat-primary-action"
+                           hx-get="/game/session/state/combats?char_id={{ char_id }}"
+                           hx-target="#main-content .shell-constrained"
+                           hx-select="#main-content > .shell-constrained"
+                           hx-swap="outerHTML"
+                           hx-disabled-elt="this"
+                           data-target-state="{{ result_primary_state }}">
+                            <span>{{ result_primary_label }}</span>
+                        </button>
+                        {% else %}
                         <button type="button"
                            class="combat-primary-action"
                            hx-post="/game/combat/result/continue"
@@ -99,6 +178,7 @@
                            data-target-state="{{ result_primary_state }}">
                             <span>{{ result_primary_label }}</span>
                         </button>
+                        {% endif %}
                     </footer>
                 </section>
             </article>
@@ -144,7 +224,7 @@
                                     {% if field_target.stat_sheet %}
                                         <button type="button"
                                                 class="combat-stat-trigger"
-                                                @click.stop="openStatSheet('target')"
+                                                @click.stop="openStatSheet('enemy-{{ field_target.actor_id }}')"
                                                 aria-label="Open {{ field_target.name }} stats">
                                             <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
                                                 <circle cx="12" cy="12" r="9"></circle>

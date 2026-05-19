@@ -304,6 +304,25 @@ class CombatResultTeamVM(BaseModel):
     total_count: int = 0
 
 
+class CombatOutcomeScreenVM(BaseModel):
+    mode: str = "final"
+    combat_id: str = "NO_DATA"
+    title: str
+    message: str
+    summary: str
+    outcome: str
+    battle_type: str | None = None
+    turns: int | None = None
+    last_turn: int | None = None
+    teams: list[CombatResultTeamVM] = Field(default_factory=list)
+    progression: list[CombatResultProgressionVM] = Field(default_factory=list)
+    experience: CombatResultExperienceVM = Field(default_factory=CombatResultExperienceVM)
+    primary_label: str = "Продолжить"
+    primary_target_state: str = "exploration"
+    primary_action_kind: str = "continue"
+    log_panel_id: str = "combat-outcome-log-panel"
+
+
 class CombatResultScreenVM(BaseModel):
     combat_id: str
     title: str
@@ -342,6 +361,29 @@ def build_combat_result_screen_vm(result: CombatResultDTO) -> CombatResultScreen
         experience=_result_experience(result),
         primary_label=result.primary_action.label,
         primary_target_state=result.primary_action.target_state or "exploration",
+    )
+
+
+def build_combat_outcome_screen_from_result_vm(result: CombatResultDTO) -> CombatOutcomeScreenVM:
+    report = result.report if isinstance(result.report, dict) else {}
+    actors = result.actors if isinstance(result.actors, dict) else {}
+    metadata = result.metadata if isinstance(result.metadata, dict) else {}
+    return CombatOutcomeScreenVM(
+        mode="final",
+        combat_id=result.combat_id or "NO_DATA",
+        title=result.title,
+        message=result.message,
+        summary=result.summary,
+        outcome=result.outcome,
+        battle_type=_optional_str(metadata.get("battle_type")),
+        turns=_optional_int(report.get("turns")),
+        last_turn=_optional_int(report.get("last_turn")),
+        teams=_result_teams(result, actors),
+        progression=_result_progression(result),
+        experience=_result_experience(result),
+        primary_label=result.primary_action.label,
+        primary_target_state=result.primary_action.target_state or "exploration",
+        primary_action_kind="continue",
     )
 
 
@@ -399,6 +441,36 @@ def build_combat_screen_from_result_vm(result: CombatResultDTO) -> CombatScreenV
         enemies=enemies,
     )
     return build_combat_screen_vm(dashboard)
+
+
+def build_combat_outcome_screen_from_dashboard_vm(dashboard: CombatDashboardDTO) -> CombatOutcomeScreenVM | None:
+    if dashboard.status != "spectating" or not dashboard.hero.is_dead:
+        return None
+    allied_actors = [dashboard.hero, *dashboard.allies]
+    enemy_groups = _dashboard_team_groups(dashboard.enemies or ([dashboard.target] if dashboard.target else []))
+    summary = (
+        f"Ты выбыл на {dashboard.turn_number} ходу. Бой продолжается, можно следить за исходом и полным логом."
+        if dashboard.turn_number
+        else "Ты выбыл из боя. Бой продолжается, можно следить за исходом и полным логом."
+    )
+    return CombatOutcomeScreenVM(
+        mode="spectating",
+        combat_id=dashboard.session_id,
+        title="Ты пал",
+        message="Бой продолжается",
+        summary=summary,
+        outcome="defeat",
+        battle_type=dashboard.battle_type,
+        turns=dashboard.turn_number,
+        last_turn=dashboard.turn_number,
+        teams=[
+            _dashboard_team_vm(dashboard.hero.team or "team_1", allied_actors),
+            *[_dashboard_team_vm(team, members) for team, members in enemy_groups],
+        ],
+        primary_label="Обновить статус боя",
+        primary_target_state="combat",
+        primary_action_kind="refresh_status",
+    )
 
 
 def build_combat_screen_vm(dashboard: CombatDashboardDTO) -> CombatScreenVM:
@@ -586,6 +658,39 @@ def _result_actor(actor_id: str, value: object) -> CombatResultActorVM:
         hp_current=hp_current,
         hp_max=hp_max,
         hp_percent=max(0, min(100, round(hp_current / hp_max * 100))),
+    )
+
+
+def _dashboard_team_groups(actors: list[CombatActorCardDTO]) -> list[tuple[str, list[CombatActorCardDTO]]]:
+    grouped: dict[str, list[CombatActorCardDTO]] = {}
+    for actor in actors:
+        grouped.setdefault(actor.team or "neutral", []).append(actor)
+    return list(grouped.items())
+
+
+def _dashboard_team_vm(team_id: str, actors: list[CombatActorCardDTO]) -> CombatResultTeamVM:
+    rows = [_dashboard_result_actor(actor) for actor in actors]
+    return CombatResultTeamVM(
+        team=team_id,
+        label=_combat_team_label(team_id),
+        outcome="ongoing",
+        actors=rows,
+        alive_count=sum(1 for actor in rows if not actor.is_dead),
+        total_count=len(rows),
+    )
+
+
+def _dashboard_result_actor(actor: CombatActorCardDTO) -> CombatResultActorVM:
+    vitals = _vitals(actor)
+    return CombatResultActorVM(
+        actor_id=actor.actor_id,
+        name=actor.name,
+        team=actor.team,
+        actor_type=actor.actor_type,
+        is_dead=actor.is_dead,
+        hp_current=vitals.hp_current,
+        hp_max=vitals.hp_max,
+        hp_percent=vitals.hp_percent,
     )
 
 

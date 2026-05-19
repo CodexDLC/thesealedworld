@@ -194,6 +194,60 @@ STAT_SHEET_SECTION_KEYS: tuple[tuple[str, str, tuple[str, ...]], ...] = (
 
 STAT_SHEET_SPEED_KEYS = frozenset({"attack_speed", "cast_speed", "movement_speed"})
 
+_ATTRIBUTE_DISPLAY_KEYS: tuple[str, ...] = (
+    "strength",
+    "dexterity",
+    "constitution",
+    "intelligence",
+    "wisdom",
+    "charisma",
+)
+
+_OFFENSE_WEAPON_SLOTS: tuple[tuple[str, str], ...] = (
+    ("main_hand", "MH"),
+    ("off_hand", "OH"),
+    ("item", "ITEM"),
+)
+
+_STATUS_RESIST_ROWS: tuple[tuple[str, str], ...] = (
+    ("control_resistance", "CONTROL RES"),
+    ("mental_resistance", "MENTAL RES"),
+    ("debuff_avoidance", "DEBUFF AVOID"),
+    ("shock_resistance", "SHOCK RES"),
+    ("bleed_resistance", "BLEED RES"),
+    ("bleed_damage_bonus", "BLEED BONUS"),
+    ("poison_resistance", "POISON RES"),
+    ("poison_damage_bonus", "POISON BONUS"),
+    ("poison_efficiency", "POISON EFF"),
+    ("control_chance_bonus", "CONTROL BONUS"),
+)
+
+_ELEMENTAL_NAMES: tuple[str, ...] = (
+    "fire",
+    "water",
+    "air",
+    "earth",
+    "light",
+    "dark",
+    "arcane",
+    "nature",
+)
+
+_STAT_SHEET_BASE_HIT_CHANCE = 0.70
+
+_CAP_ROWS: tuple[tuple[str, str], ...] = (
+    ("dodge_cap", "EVASION CAP"),
+    ("parry_cap", "PARRY CAP"),
+    ("shield_block_cap", "BLOCK CAP"),
+    ("resistance_cap", "RESIST CAP"),
+    ("main_hand_crit_cap", "MH CRIT CAP"),
+    ("off_hand_crit_cap", "OH CRIT CAP"),
+    ("item_crit_cap", "ITEM CRIT CAP"),
+    ("magical_crit_cap", "MAG CRIT CAP"),
+    ("counter_attack_cap", "COUNTER CAP"),
+    ("vampiric_trigger_cap", "VAMP CAP"),
+)
+
 
 class CombatViewService:
     """Maps combat Redis snapshots into frontend-facing read models."""
@@ -790,25 +844,37 @@ class CombatViewService:
         if not values:
             return None
 
-        attribute_keys = cls._stat_sheet_attribute_keys(actor)
-        used_keys: set[str] = set()
         sections: list[CombatStatSectionDTO] = []
-        for section_key, label, keys in STAT_SHEET_SECTION_KEYS:
-            section_keys = (*keys, *attribute_keys) if section_key == "attributes" else keys
-            items = [cls._stat_value_item(key, values[key]) for key in section_keys if key in values]
-            used_keys.update(item.key for item in items)
-            if items:
-                sections.append(CombatStatSectionDTO(key=section_key, label=label, items=items))
 
-        misc_items = [
-            cls._stat_value_item(key, value)
-            for key, value in sorted(values.items())
-            if key not in used_keys and key not in STAT_SHEET_SPEED_KEYS
-        ]
-        if misc_items:
-            sections.append(CombatStatSectionDTO(key="other", label="OTHER", items=misc_items))
+        attr_items = [cls._stat_item_raw(k, k.upper(), values[k]) for k in _ATTRIBUTE_DISPLAY_KEYS if values.get(k)]
+        if attr_items:
+            sections.append(CombatStatSectionDTO(key="attributes", label="ATTRIBUTES", items=attr_items))
 
-        total_count = sum(len(section.items) for section in sections)
+        offense_items = cls._offense_items(values)
+        if offense_items:
+            sections.append(CombatStatSectionDTO(key="offense", label="OFFENSE", items=offense_items))
+
+        defense_items = cls._defense_items(values)
+        if defense_items:
+            sections.append(CombatStatSectionDTO(key="defense", label="DEFENSE", items=defense_items))
+
+        vitals_items = cls._vitals_regen_items(values)
+        if vitals_items:
+            sections.append(CombatStatSectionDTO(key="vitals", label="VITALS", items=vitals_items))
+
+        status_items = cls._status_resist_items(values)
+        if status_items:
+            sections.append(CombatStatSectionDTO(key="status", label="STATUS", items=status_items))
+
+        elemental_items = cls._elemental_items(values)
+        if elemental_items:
+            sections.append(CombatStatSectionDTO(key="elemental", label="ELEMENTAL", items=elemental_items))
+
+        caps_items = cls._caps_items(values)
+        if caps_items:
+            sections.append(CombatStatSectionDTO(key="caps", label="CAPS", items=caps_items))
+
+        total_count = sum(len(s.items) for s in sections)
         if total_count == 0:
             return None
         return CombatActorStatSheetDTO(actor_id=actor_id, name=actor_name, sections=sections, total_count=total_count)
@@ -892,6 +958,153 @@ class CombatViewService:
             return str(value)
         rounded = round(value, 4)
         return str(int(rounded)) if rounded.is_integer() else f"{rounded:g}"
+
+    @classmethod
+    def _offense_items(cls, values: dict[str, float | int]) -> list[CombatStatValueDTO]:
+        items: list[CombatStatValueDTO] = []
+        phys_flat = float(values.get("physical_damage") or 0)
+        phys_bonus_pct = float(values.get("physical_damage_bonus") or 0)
+        global_acc = float(values.get("accuracy") or 0)
+        global_crit = float(values.get("crit_chance") or 0)
+        global_pen = float(values.get("armor_penetration_pct") or 0)
+        anti_dodge = float(values.get("anti_dodge_chance") or 0)
+
+        # Aggregate armor pen across all weapon slots + global
+        total_pen = global_pen
+
+        for prefix, hand in _OFFENSE_WEAPON_SLOTS:
+            base = float(values.get(f"{prefix}_damage_base") or 0)
+            if not base:
+                continue
+            spread = float(values.get(f"{prefix}_damage_spread") or 0.1)
+            effective = base + phys_flat
+            min_d = max(0.0, effective * (1.0 - spread))
+            max_d = max(0.0, effective * (1.0 + spread))
+            items.append(
+                CombatStatValueDTO(
+                    key=f"{prefix}_damage",
+                    label=f"{hand} DAMAGE",
+                    value=effective,
+                    value_text=f"{round(min_d)} — {round(max_d)}",
+                )
+            )
+
+            wpn_acc = float(values.get(f"{prefix}_accuracy") or 0)
+            total_acc = round((_STAT_SHEET_BASE_HIT_CHANCE + wpn_acc + global_acc) * 100)
+            items.append(
+                CombatStatValueDTO(
+                    key=f"{prefix}_accuracy",
+                    label=f"{hand} ACCURACY",
+                    value=total_acc,
+                    value_text=f"{total_acc}%",
+                )
+            )
+
+            wpn_crit = float(values.get(f"{prefix}_crit_chance") or 0)
+            total_crit = round((wpn_crit + global_crit) * 100)
+            if total_crit:
+                items.append(
+                    CombatStatValueDTO(
+                        key=f"{prefix}_crit_chance",
+                        label=f"{hand} CRIT",
+                        value=total_crit,
+                        value_text=f"{total_crit}%",
+                    )
+                )
+
+            total_pen += float(values.get(f"{prefix}_armor_penetration_pct") or 0)
+
+        if phys_bonus_pct:
+            items.append(cls._stat_item_pct("physical_damage_bonus", "DMG BONUS", phys_bonus_pct))
+        if anti_dodge:
+            items.append(cls._stat_item_pct("anti_dodge_chance", "ANTI-DODGE", anti_dodge))
+        if total_pen:
+            items.append(cls._stat_item_pct("armor_penetration_pct", "ARMOR PEN", total_pen))
+        phys_suppress = float(values.get("physical_suppression") or 0)
+        if phys_suppress:
+            items.append(cls._stat_item_pct("physical_suppression", "PHYS SUPPRESS", phys_suppress))
+
+        return items
+
+    @classmethod
+    def _defense_items(cls, values: dict[str, float | int]) -> list[CombatStatValueDTO]:
+        items: list[CombatStatValueDTO] = []
+
+        armor = float(values.get("armor") or 0)
+        if armor:
+            items.append(cls._stat_item_raw("armor", "ARMOR", armor))
+
+        phys_res = float(values.get("physical_resistance") or 0)
+        if phys_res:
+            items.append(cls._stat_item_pct("physical_resistance", "PHYS RESIST", phys_res))
+
+        evasion = float(values.get("evasion") or 0)
+        if evasion:
+            items.append(cls._stat_item_pct("evasion", "EVASION", evasion))
+
+        parry = float(values.get("parry") or 0)
+        if parry:
+            items.append(cls._stat_item_pct("parry", "PARRY", parry))
+
+        block = float(values.get("block") or 0)
+        if block:
+            items.append(cls._stat_item_pct("block", "BLOCK", block))
+
+        magic_resist = float(values.get("magic_resist") or 0)
+        if magic_resist:
+            items.append(cls._stat_item_pct("magic_resist", "MAGIC RESIST", magic_resist))
+
+        return items
+
+    @classmethod
+    def _vitals_regen_items(cls, values: dict[str, float | int]) -> list[CombatStatValueDTO]:
+        items: list[CombatStatValueDTO] = []
+        for key, label in (("hp_regen", "HP REGEN"), ("en_regen", "EN REGEN"), ("stamina_regen", "CONC REGEN")):
+            val = float(values.get(key) or 0)
+            if val:
+                items.append(CombatStatValueDTO(key=key, label=label, value=val, value_text=f"{val:.1f}"))
+        initiative = values.get("initiative")
+        if initiative:
+            items.append(cls._stat_item_raw("initiative", "INITIATIVE", initiative))
+        return items
+
+    @classmethod
+    def _status_resist_items(cls, values: dict[str, float | int]) -> list[CombatStatValueDTO]:
+        return [
+            cls._stat_item_pct(key, label, float(values[key])) for key, label in _STATUS_RESIST_ROWS if values.get(key)
+        ]
+
+    @classmethod
+    def _caps_items(cls, values: dict[str, float | int]) -> list[CombatStatValueDTO]:
+        return [cls._stat_item_pct(key, label, float(values[key])) for key, label in _CAP_ROWS if values.get(key)]
+
+    @classmethod
+    def _elemental_items(cls, values: dict[str, float | int]) -> list[CombatStatValueDTO]:
+        items: list[CombatStatValueDTO] = []
+        for elem in _ELEMENTAL_NAMES:
+            name = elem.capitalize()
+            dmg = float(values.get(f"{elem}_damage_bonus") or 0)
+            res = float(values.get(f"{elem}_resistance") or 0)
+            if dmg:
+                items.append(cls._stat_item_pct(f"{elem}_damage_bonus", f"{name} DMG", dmg))
+            if res:
+                items.append(cls._stat_item_pct(f"{elem}_resistance", f"{name} RES", res))
+        return items
+
+    @staticmethod
+    def _stat_item_pct(key: str, label: str, value: float) -> CombatStatValueDTO:
+        pct = round(value * 100, 1)
+        value_text = f"{int(pct)}%" if pct == int(pct) else f"{pct}%"
+        return CombatStatValueDTO(key=key, label=label, value=value, value_text=value_text)
+
+    @staticmethod
+    def _stat_item_raw(key: str, label: str, value: float | int) -> CombatStatValueDTO:
+        if isinstance(value, float):
+            rounded = round(value, 1)
+            value_text = str(int(rounded)) if rounded == int(rounded) else f"{rounded}"
+        else:
+            value_text = str(int(value)) if value == int(value) else str(value)
+        return CombatStatValueDTO(key=key, label=label, value=value, value_text=value_text)
 
     @staticmethod
     def _effects(statuses: dict[str, Any]) -> list[CombatEffectBadgeDTO]:

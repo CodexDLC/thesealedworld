@@ -506,6 +506,7 @@ window.gameShell = function(initial = {}) {
         "\"": "&quot;",
         "'": "&#39;",
     })[char]);
+    const noInventoryDomains = ["combats", "death", "loot"];
     const loadPanelState = () => {
         if (isDrawerViewport()) {
             clearDrawerPanelState();
@@ -516,11 +517,12 @@ window.gameShell = function(initial = {}) {
             if (!raw) return null;
             const saved = JSON.parse(raw);
             if (typeof saved?.leftOpen !== "boolean" || typeof saved?.rightOpen !== "boolean") return null;
+            const savedRightView = typeof saved.rightPanelView === "string" ? saved.rightPanelView : "context";
             return {
                 leftOpen: saved.leftOpen,
                 rightOpen: saved.rightOpen,
                 leftPanelView: typeof saved.leftPanelView === "string" ? saved.leftPanelView : "status",
-                rightPanelView: typeof saved.rightPanelView === "string" ? saved.rightPanelView : "context",
+                rightPanelView: noInventoryDomains.includes(domain) ? "context" : savedRightView,
             };
         } catch (_error) {
             window.localStorage.removeItem(panelStateStorageKey());

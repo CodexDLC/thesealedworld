@@ -401,6 +401,15 @@ class FakeCombatSystemIntegrator:
         return "exploration"
 
 
+class FinalizationOnlyCombatSystemIntegrator(FakeCombatSystemIntegrator):
+    def __init__(self):
+        super().__init__()
+        self.finalization_id = "combat-1"
+
+    async def resolve_combat_session_for_character(self, char_id):
+        return None
+
+
 class FakeCharacterSessions:
     def __init__(self, session):
         self.session = session
@@ -462,6 +471,20 @@ async def test_combat_logs_page_uses_latest_turns_when_storage_order_is_unstable
     logs = await service.get_logs(1, page=1, page_size=4)
 
     assert [turn.global_turn for turn in logs.turns] == [14, 13, 12, 11]
+
+
+@pytest.mark.asyncio
+async def test_combat_logs_fallback_to_finalization_when_active_session_is_gone():
+    service = CombatSessionService(
+        store=FakeCombatStore(),
+        system_integrator=FinalizationOnlyCombatSystemIntegrator(),
+    )
+
+    logs = await service.get_logs(1)
+
+    assert [entry.text for entry in logs.entries] == ["started"]
+    assert logs.session_id == "combat-1"
+    assert logs.turns[0].global_turn == 1
 
 
 @pytest.mark.asyncio

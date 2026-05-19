@@ -3,7 +3,9 @@
 {% if inventory %}
 {% set gear_icon_keys = [
     'amulet', 'arms', 'belt', 'cloak', 'consumable', 'default', 'earrings', 'feetwear', 'garment',
-    'head', 'legs', 'legwear', 'quest', 'resource', 'ring', 'shield', 'torso', 'weapon',
+    'head', 'legs', 'legwear', 'quest', 'resource', 'resource_currency', 'resource_essence',
+    'resource_fiber', 'resource_flower', 'resource_hide', 'resource_ore', 'resource_parts',
+    'resource_stone', 'resource_wood', 'ring', 'shield', 'torso', 'weapon',
     'legs_heavy', 'legs_light', 'legs_medium', 'weapon_axe', 'weapon_bow', 'weapon_dagger',
     'weapon_halberd', 'weapon_hammer', 'weapon_mace', 'weapon_pike', 'weapon_polearm',
     'weapon_spear', 'weapon_staff', 'weapon_sword', 'weapon_trident', 'weapon_two_hand'
@@ -181,6 +183,7 @@
 <div class="inventory-shell"
      data-contract-state="{{ inventory.contract_state }}"
      x-data='{"activeInventoryTab": {{ active_inventory_tab | tojson }}, "selectedSlot": null, "inventoryNotice": {{ inventory_state_notice | tojson }}, "searchQuery": ""}'>
+    <input type="hidden" name="tab_id" :value="activeInventoryTab">
     <section class="inventory-loadout" aria-label="Character equipment">
         <div class="inventory-doll" aria-label="Character doll">
             <button type="button" class="inventory-avatar-frame" aria-label="Choose character avatar">
@@ -214,12 +217,13 @@
                     hx-post="/game/inventory/action"
                     hx-target="#{{ inventory_target_id }}"
                     hx-swap="innerHTML"
-                    hx-vals='{{ {
-                        "char_id": inventory.char_id,
+                    x-bind:hx-vals='JSON.stringify({
+                        "char_id": {{ inventory.char_id | tojson }},
                         "action": "unequip",
-                        "item_id": zone_action_item.item_id,
-                        "slot_id": zone_action_slot
-                    } | tojson }}'
+                        "item_id": {{ zone_action_item.item_id | tojson }},
+                        "slot_id": {{ zone_action_slot | tojson }},
+                        "tab_id": activeInventoryTab
+                    })'
                     {% elif zone_has_item and inventory.forbidden_reason %}
                     @click="inventoryNotice = {{ inventory.forbidden_reason | tojson | forceescape }}"
                     {% else %}
@@ -271,12 +275,13 @@
                     hx-post="/game/inventory/action"
                     hx-target="#{{ inventory_target_id }}"
                     hx-swap="innerHTML"
-                    hx-vals='{{ {
-                        "char_id": inventory.char_id,
+                    x-bind:hx-vals='JSON.stringify({
+                        "char_id": {{ inventory.char_id | tojson }},
                         "action": "unequip",
-                        "item_id": slot_item.item_id,
-                        "slot_id": slot.slot_id
-                    } | tojson }}'
+                        "item_id": {{ slot_item.item_id | tojson }},
+                        "slot_id": {{ slot.slot_id | tojson }},
+                        "tab_id": activeInventoryTab
+                    })'
                     {% elif inventory.forbidden_reason %}
                     @click="inventoryNotice = {{ inventory.forbidden_reason | tojson | forceescape }}"
                     {% else %}
@@ -297,12 +302,13 @@
                     hx-post="/game/inventory/action"
                     hx-target="#{{ inventory_target_id }}"
                     hx-swap="innerHTML"
-                    hx-vals='{{ {
-                        "char_id": inventory.char_id,
+                    x-bind:hx-vals='JSON.stringify({
+                        "char_id": {{ inventory.char_id | tojson }},
                         "action": "unequip",
-                        "item_id": slot_item.item_id,
-                        "slot_id": slot.slot_id
-                    } | tojson }}'
+                        "item_id": {{ slot_item.item_id | tojson }},
+                        "slot_id": {{ slot.slot_id | tojson }},
+                        "tab_id": activeInventoryTab
+                    })'
                     {% elif not slot_empty and inventory.forbidden_reason %}
                     @click="inventoryNotice = {{ inventory.forbidden_reason | tojson | forceescape }}"
                     {% else %}
@@ -354,12 +360,13 @@
                         hx-post="/game/inventory/action"
                         hx-target="#{{ inventory_target_id }}"
                         hx-swap="innerHTML"
-                        hx-vals='{{ {
-                            "char_id": inventory.char_id,
+                        x-bind:hx-vals='JSON.stringify({
+                            "char_id": {{ inventory.char_id | tojson }},
                             "action": "unequip",
-                            "item_id": slot_item.item_id,
-                            "slot_id": slot.slot_id
-                        } | tojson }}'
+                            "item_id": {{ slot_item.item_id | tojson }},
+                            "slot_id": {{ slot.slot_id | tojson }},
+                            "tab_id": activeInventoryTab
+                        })'
                         {% elif not slot_empty and inventory.forbidden_reason %}
                         @click="inventoryNotice = {{ inventory.forbidden_reason | tojson | forceescape }}"
                         {% else %}
@@ -408,12 +415,13 @@
                     hx-post="/game/inventory/action"
                     hx-target="#{{ inventory_target_id }}"
                     hx-swap="innerHTML"
-                    hx-vals='{{ {
-                        "char_id": inventory.char_id,
+                    x-bind:hx-vals='JSON.stringify({
+                        "char_id": {{ inventory.char_id | tojson }},
                         "action": "remove_from_belt",
-                        "item_id": quick_item.item_id,
-                        "slot_id": slot.slot_id
-                    } | tojson }}'
+                        "item_id": {{ quick_item.item_id | tojson }},
+                        "slot_id": {{ slot.slot_id | tojson }},
+                        "tab_id": activeInventoryTab
+                    })'
                     {% elif not quick_empty and inventory.forbidden_reason %}
                     @click="inventoryNotice = {{ inventory.forbidden_reason | tojson | forceescape }}"
                     {% endif %}>
@@ -454,6 +462,9 @@
                         class="inventory-tab"
                         :class="{ 'is-active': activeInventoryTab === '{{ tab.tab_id }}' }"
                         :aria-selected="activeInventoryTab === '{{ tab.tab_id }}' ? 'true' : 'false'"
+                        hx-get="/game/inventory/window?char_id={{ inventory.char_id }}&tab={{ tab.tab_id }}"
+                        hx-target="#{{ inventory_target_id }}"
+                        hx-swap="innerHTML"
                         @click="activeInventoryTab = '{{ tab.tab_id }}'"
                         data-tab-id="{{ tab.tab_id }}"
                         title="{{ tab.label }}"
@@ -481,8 +492,8 @@
                      data-inventory-used-cells="{{ inventory.stats.slots_used if inventory.stats is defined else 0 }}"
                      x-init="window.inventoryGridLayout?.($el)">
                 {% set inventory_cards = inventory.visible_cards if inventory.visible_cards is defined and inventory.visible_cards else inventory.visible_rows %}
-                {% set resource_cards = (inventory_cards | selectattr('item_type', 'equalto', 'resource') | list) + (inventory_cards | selectattr('item_type', 'equalto', 'currency') | list) + (inventory_cards | selectattr('item_type', 'equalto', 'material') | list) %}
-                {% set quest_cards = inventory_cards | selectattr('item_type', 'equalto', 'quest') | list %}
+                {% set resource_cards = inventory_cards | selectattr('filter_group', 'equalto', 'resources') | list %}
+                {% set quest_cards = inventory_cards | selectattr('filter_group', 'equalto', 'quest') | list %}
                 {% for row in inventory_cards %}
                 {% set row_details = row.details if row.details is defined else none %}
                 {% set row_actions = row_details.actions if row_details and row_details.actions is defined else [] %}
@@ -493,6 +504,8 @@
                 {% set row_valid_slots = row.valid_slots if row.valid_slots is defined else [] %}
                 <button type="button"
                         class="inventory-card {{ row.card_class if row.card_class is defined else '' }} {{ 'is-equipped' if row.is_equipped else '' }} inventory-grade-r{{ row_tier }}"
+                        x-bind:class="{ 'inventory-hidden': !((!selectedSlot || '{{ row.equip_target or '' }}' === selectedSlot || {{ row_valid_slots | tojson }}.includes(selectedSlot))
+                            && (!searchQuery.trim() || {{ row.name | tojson | forceescape }}.toLowerCase().includes(searchQuery.toLowerCase()))) }"
                         aria-label="{{ row.name }}"
                         data-inventory-tooltip-trigger
                         data-equip-target="{{ row.equip_target or '' }}"
@@ -504,6 +517,7 @@
                             "char_id": {{ inventory.char_id | tojson }},
                             "action": {{ primary_action.action | tojson }},
                             "item_id": {{ (row.item_id if row.item_id is defined else row.row_id) | tojson }},
+                            "tab_id": activeInventoryTab,
                             "slot_id": (
                                 {{ primary_action.action | tojson }} === "equip"
                                 && selectedSlot
@@ -513,12 +527,7 @@
                         {% elif not inventory.can_act and inventory.forbidden_reason %}
                         @click="inventoryNotice = {{ inventory.forbidden_reason | tojson | forceescape }}"
                         {% endif %}
-                        style="{{ row.style if row.style is defined and row.style else '--item-w: ' ~ (row.grid_w if row.grid_w is defined else 2) ~ '; --item-h: ' ~ (row.grid_h if row.grid_h is defined else 1) ~ ';' }} --inventory-item-icon-url: url('/static/images/ui/inventory-gear/{{ row_icon }}.svg');"
-                        x-show="(!selectedSlot || '{{ row.equip_target or '' }}' === selectedSlot || {{ row_valid_slots | tojson }}.includes(selectedSlot)) && (
-                            (activeInventoryTab === 'items' && !['resource', 'currency', 'material', 'quest'].includes('{{ row.item_type }}'))
-                            || (activeInventoryTab === 'resources' && ['resource', 'currency', 'material'].includes('{{ row.item_type }}'))
-                            || (activeInventoryTab === 'quest' && '{{ row.item_type }}' === 'quest')
-                        ) && (!searchQuery.trim() || {{ row.name | tojson | forceescape }}.toLowerCase().includes(searchQuery.toLowerCase()))">
+                        style="{{ row.style if row.style is defined and row.style else '--item-w: ' ~ (row.grid_w if row.grid_w is defined else 2) ~ '; --item-h: ' ~ (row.grid_h if row.grid_h is defined else 1) ~ ';' }} --inventory-item-icon-url: url('/static/images/ui/inventory-gear/{{ row_icon }}.svg');">
                     <span class="inventory-card-icon" aria-hidden="true"></span>
                     <span class="inventory-card-name">{{ row.name }}</span>
                     {% if row.quantity != "1" and row.quantity != 1 %}

@@ -32,5 +32,13 @@ Copied source filenames:
 - lucasms/belt.svg
 - delapouite/health-potion.svg
 - faithtoken/ore.svg
+- delapouite/animal-hide.svg
+- delapouite/coins-pile.svg
+- delapouite/cotton-flower.svg
+- delapouite/log.svg
+- delapouite/packed-planks.svg
+- delapouite/stone-pile.svg
+- lorc/crystal-cluster.svg
+- lorc/flowers.svg
 - lorc/scroll-unfurled.svg
 - delapouite/backpack.svg

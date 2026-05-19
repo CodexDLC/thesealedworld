@@ -1,7 +1,9 @@
+from src.backend.features.loot.resources import equipment_pool as equipment_pool
+from src.backend.features.loot.resources.equipment_pool import get_pool, merged_pool
 from src.backend.features.loot.resources.profiles import LOOT_PROFILES
 from src.backend.features.loot.resources.resolver import resolve_resource
 from src.backend.features.loot.resources.types import (
-    EquipmentEntry,
+    FamilyEquipmentProfile,
     LootEntry,
     LootScheme,
     MonsterLootProfile,
@@ -12,7 +14,10 @@ from src.backend.features.loot.resources.types import (
 __all__ = [
     "LOOT_PROFILES",
     "resolve_resource",
-    "EquipmentEntry",
+    "get_pool",
+    "merged_pool",
+    "equipment_pool",
+    "FamilyEquipmentProfile",
     "LootEntry",
     "LootScheme",
     "MonsterLootProfile",

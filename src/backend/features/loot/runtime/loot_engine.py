@@ -2,9 +2,10 @@ from __future__ import annotations
 
 import random
 
+from src.backend.features.loot.resources.equipment_pool import merged_pool
 from src.backend.features.loot.resources.resolver import resolve_resource
 from src.backend.features.loot.resources.types import (
-    EquipmentEntry,
+    FamilyEquipmentProfile,
     ResourceEntry,
     RoleLootProfile,
 )
@@ -63,16 +64,6 @@ class LootEngine:
                         is_resource=True,
                     )
                 )
-            elif isinstance(entry, EquipmentEntry):
-                # Equipment entries return a request dict consumed by LootService → Item Service
-                items.append(
-                    LootItemDTO(
-                        template_id=entry.base_id,
-                        name=entry.base_id,
-                        layer="drop",
-                        is_resource=False,
-                    )
-                )
         return items
 
     def build_salvage_items(
@@ -113,3 +104,16 @@ class LootEngine:
 
     def roll_equipment_tier(self, monster_tier: int, role: str) -> int:
         return max(0, monster_tier + self.roll_tier_modifier(role))
+
+    def pick_equipment_base_id(
+        self,
+        eq_profile: FamilyEquipmentProfile,
+        role: str,
+    ) -> str | None:
+        chance = eq_profile.role_chances.get(role, eq_profile.default_chance)
+        if random.random() >= chance:
+            return None
+        pool = merged_pool(eq_profile.enabled_subcategories)
+        if not pool:
+            return None
+        return random.choice(pool)

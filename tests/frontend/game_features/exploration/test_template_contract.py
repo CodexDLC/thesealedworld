@@ -63,6 +63,8 @@ def test_exploration_center_template_has_navigation_and_encounter_surfaces():
     assert template.index("mobile-services") < template.index("mobile-action-grid exploration-navigation-grid")
     assert "game/domains/exploration/right_sidebar/main.html" in template
     assert 'id="game-right-context-content" hx-swap-oob="innerHTML"' in template
+    assert "game/domains/exploration/left_sidebar/main.html" in template
+    assert 'id="game-left-content" hx-swap-oob="true"' in template
     assert "mobile-encounter-interrupt" in template
     assert "mobile-encounter-layout" in template
     assert "mobile-encounter-target-card" in template
@@ -832,6 +834,7 @@ def test_inventory_window_template_renders_backend_contract_dto():
                     "icon": "B",
                     "name": "Bronze Sword",
                     "item_type": "weapon",
+                    "filter_group": "items",
                     "quantity": 1,
                     "rarity": "shared",
                     "equip_target": "main_hand",
@@ -882,7 +885,7 @@ def test_inventory_window_template_renders_backend_contract_dto():
     assert "x-bind:hx-vals" in html
     assert '["main_hand", "off_hand"].includes(selectedSlot)' in html
     assert '? selectedSlot : "main_hand"' in html
-    assert "|| ['main_hand', 'off_hand'].includes(selectedSlot)" not in html
+    assert "activeInventoryTab === 'items'" in html
     assert 'data-inventory-cells="64"' in html
 
     locked_html = template.render(
@@ -1085,7 +1088,7 @@ def test_inventory_frontend_route_proxies_actions_to_backend():
     assert "inventory_api.action" in route
     assert "HTTP_409_CONFLICT" in route
     assert "async def action" in client
-    assert '"/api/game/inventory/actions"' in client
+    assert '"/api/game/inventory/actions?{query}"' in client
 
 
 def test_game_header_nav_marks_open_panels_and_inventory_panel_active():

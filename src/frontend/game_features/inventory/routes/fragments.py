@@ -9,7 +9,7 @@ from src.frontend.features.auth.services.auth_service import FrontendAuthService
 from src.frontend.game_features.inventory.dependencies import get_backend_inventory_api
 from src.frontend.game_features.session.token_state import require_game_access_token
 from src.frontend.integrations.backend_api.inventory import BackendInventoryApi
-from src.shared.schemas.inventory import InventoryActionRequestDTO, InventoryWindowDTO
+from src.shared.schemas.inventory import InventoryActionRequestDTO, InventoryTabId, InventoryWindowDTO
 
 router = APIRouter(tags=["Inventory"])
 
@@ -21,10 +21,11 @@ async def inventory_window(
     auth_service: Annotated[FrontendAuthService, Depends(get_frontend_auth_service)],
     inventory_api: Annotated[BackendInventoryApi, Depends(get_backend_inventory_api)],
     char_id: Annotated[int, Query()],
+    tab: Annotated[InventoryTabId, Query()] = "items",
 ):
     await auth_service.require_current_user(request)
     token = require_game_access_token(request)
-    response = await inventory_api.view(token, char_id=char_id)
+    response = await inventory_api.view(token, char_id=char_id, tab=tab)
     if response.payload is None:
         raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail="Inventory payload is unavailable")
     inventory = InventoryWindowDTO.model_validate(response.payload)
@@ -32,6 +33,7 @@ async def inventory_window(
         "game/components/inventory/window.html",
         context={
             "char_id": char_id,
+            "inventory_active_tab": tab,
             "inventory_window": inventory,
             "inventory_target_id": "right-inventory-panel-body",
         },
@@ -47,6 +49,7 @@ async def inventory_action(
     char_id: Annotated[int, Form()],
     action: Annotated[str, Form()],
     item_id: Annotated[str, Form()],
+    tab_id: Annotated[InventoryTabId, Form()] = "items",
     slot_id: Annotated[str | None, Form()] = None,
 ):
     await auth_service.require_current_user(request)
@@ -56,12 +59,12 @@ async def inventory_action(
     )
     notice: str | None = None
     try:
-        response = await inventory_api.action(token, dto)
+        response = await inventory_api.action(token, dto, tab=tab_id)
     except httpx.HTTPStatusError as exc:
         if exc.response.status_code not in {status.HTTP_400_BAD_REQUEST, status.HTTP_409_CONFLICT}:
             raise
         notice = _inventory_error_notice(exc)
-        response = await inventory_api.view(token, char_id=char_id)
+        response = await inventory_api.view(token, char_id=char_id, tab=tab_id)
     if response.payload is None:
         raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail="Inventory payload is unavailable")
     inventory = InventoryWindowDTO.model_validate(response.payload)
@@ -69,6 +72,7 @@ async def inventory_action(
         "game/components/inventory/window.html",
         context={
             "char_id": char_id,
+            "inventory_active_tab": tab_id,
             "inventory_window": inventory,
             "inventory_notice": notice,
             "inventory_target_id": "right-inventory-panel-body",

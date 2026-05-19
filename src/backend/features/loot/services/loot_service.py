@@ -80,27 +80,36 @@ class LootService:
         # Ordinary post-combat loot only materializes plain drop.
         # Salvage/spoil require explicit future actions and skills/tools.
         drop_items = engine.build_drop_items(role_profile, monster_tier, role, battle_type)
+        resource_items = list(drop_items)
 
-        # For humanoids: request equipment instance_ids from Item Service
-        equipment_items = [i for i in drop_items if not i.is_resource]
-        resource_items = [i for i in drop_items if i.is_resource]
-
+        # Pool-based equipment roll — one item per monster, chance driven by family config
         fulfilled_equipment = []
-        for item in equipment_items:
-            # Find the matching EquipmentEntry to get exact tier
-            eq_tier = engine.roll_equipment_tier(monster_tier, role)
-            instance_id = await self._integration.request_item_instance(
-                base_id=item.template_id,
-                tier=eq_tier,
-                source_context=self._item_source_context(
-                    source=source,
-                    profile_id=str(profile_id),
-                    location_id=location_id,
-                    monster_tier=monster_tier,
-                ),
-            )
-            if instance_id:
-                fulfilled_equipment.append(item.model_copy(update={"instance_id": instance_id}))
+        if profile.equipment is not None:
+            base_id = engine.pick_equipment_base_id(profile.equipment, role)
+            if base_id is not None:
+                eq_tier = engine.roll_equipment_tier(monster_tier, role)
+                instance_id = await self._integration.request_item_instance(
+                    base_id=base_id,
+                    tier=eq_tier,
+                    source_context=self._item_source_context(
+                        source=source,
+                        profile_id=str(profile_id),
+                        location_id=location_id,
+                        monster_tier=monster_tier,
+                    ),
+                )
+                if instance_id:
+                    from src.shared.schemas.loot import LootItemDTO  # noqa: PLC0415
+
+                    fulfilled_equipment.append(
+                        LootItemDTO(
+                            template_id=base_id,
+                            name=base_id,
+                            layer="drop",
+                            is_resource=False,
+                            instance_id=instance_id,
+                        )
+                    )
 
         all_items = resource_items + fulfilled_equipment
         if not all_items:

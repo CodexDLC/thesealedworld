@@ -32,14 +32,21 @@ class ResourceEntry:
 
 
 @dataclass(frozen=True)
-class EquipmentEntry:
-    base_id: str  # Item Service base_id
-    chance: float
+class FamilyEquipmentProfile:
+    """Family-level equipment pool configuration.
+
+    enabled_subcategories is an allowlist: only pools listed here are eligible
+    for drops. role_chances overrides the default per-role drop probability.
+    """
+
+    enabled_subcategories: tuple[str, ...]
+    role_chances: dict[str, float] = field(default_factory=dict)
+    default_chance: float = 0.10
 
 
 @dataclass
 class RoleLootProfile:
-    drop: Sequence[ResourceEntry | EquipmentEntry] = field(default_factory=list)
+    drop: Sequence[ResourceEntry] = field(default_factory=list)
     salvage: Sequence[ResourceEntry] = field(default_factory=list)
     spoil: Sequence[ResourceEntry] = field(default_factory=list)
 
@@ -49,6 +56,7 @@ class MonsterLootProfile:
     id: str
     archetype: Literal["beast", "humanoid", "construct"]
     roles: dict[str, RoleLootProfile] = field(default_factory=dict)
+    equipment: FamilyEquipmentProfile | None = None
 
     def get_role(self, role: str) -> RoleLootProfile:
         return self.roles.get(role) or self.roles.get("minion") or RoleLootProfile()

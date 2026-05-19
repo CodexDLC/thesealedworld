@@ -89,6 +89,7 @@ class InventoryRuntimeSessionDTO(BaseModel):
     by_id: dict[str, InventoryRuntimeItemDTO] = Field(default_factory=dict)
     wallet: WalletDTO = Field(default_factory=WalletDTO)
     stats: InventoryStatsDTO = Field(default_factory=InventoryStatsDTO)
+    risk_run_id: str | None = None
     is_dirty: bool = False
     dirty: dict[str, Any] = Field(default_factory=dict)
     version: int = 1
@@ -205,6 +206,7 @@ class InventoryUIPayloadDTO(BaseModel):
 InventorySlotLayer = Literal["armor", "garment", "equipment", "accessory", "quick"]
 InventoryLineTone = Literal["positive", "negative", "neutral"]
 InventoryActionStyle = Literal["primary", "secondary", "danger"]
+InventoryTabId = Literal["items", "resources", "quest"]
 
 
 class InventoryDetailLineDTO(BaseModel):
@@ -303,7 +305,7 @@ class InventoryQuickSlotDTO(BaseModel):
 
 
 class InventoryTabDTO(BaseModel):
-    tab_id: str
+    tab_id: InventoryTabId
     label: str
     icon: str
     is_active: bool = False
@@ -321,6 +323,7 @@ class InventoryContainerRowDTO(BaseModel):
     icon: str | None = None
     name: str
     item_type: str
+    filter_group: Literal["items", "resources", "quest"] = "items"
     weight: str = "-"
     quantity: int = 1
     rarity: str = "shared"

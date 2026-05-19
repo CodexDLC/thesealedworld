@@ -23,6 +23,7 @@ from src.shared.schemas.inventory import (
     InventoryActionRequestDTO,
     InventoryRuntimeItemDTO,
     InventoryRuntimeSessionDTO,
+    InventoryTabId,
     InventoryWindowDTO,
     WalletDTO,
 )
@@ -67,19 +68,22 @@ class InventoryService:
         self.view_service = view_service or InventoryViewService()
         self.gear_score_calculator = gear_score_calculator or CharacterGearScoreCalculator()
 
-    async def open_window(self, char_id: int) -> InventoryWindowDTO:
+    async def open_window(self, char_id: int, *, active_tab: InventoryTabId = "items") -> InventoryWindowDTO:
         session = await self.get_or_create_session(char_id)
         state = await self._current_state(char_id)
         can_act = self._can_act(state)
         return self.view_service.build_window(
             session,
             can_act=can_act,
+            active_tab=active_tab,
             forbidden_reason=None if can_act else InventoryActionForbiddenDTO(state=state).message,
             **await self._avatar_context(char_id),
             **await self._attribute_context(char_id),
         )
 
-    async def apply_action(self, dto: InventoryActionRequestDTO) -> InventoryWindowDTO:
+    async def apply_action(
+        self, dto: InventoryActionRequestDTO, *, active_tab: InventoryTabId = "items"
+    ) -> InventoryWindowDTO:
         await self._ensure_can_act(dto.char_id)
         session = await self.get_or_create_session(dto.char_id)
 
@@ -107,6 +111,7 @@ class InventoryService:
         return self.view_service.build_window(
             session,
             can_act=True,
+            active_tab=active_tab,
             **await self._avatar_context(dto.char_id),
             **await self._attribute_context(dto.char_id),
         )
@@ -125,15 +130,21 @@ class InventoryService:
         )
 
     async def get_or_create_session(self, char_id: int) -> InventoryRuntimeSessionDTO:
+        active_run_id = await self._active_run_id(char_id)
         session = await self.inventory_sessions.get(char_id)
         if session is not None:
-            await self.inventory_sessions.touch(char_id)
-            await self._refresh_wallet(session)
-            return session
+            if self._session_run_context_changed(session, active_run_id):
+                await self.inventory_sessions.delete(char_id)
+                session = None
+            else:
+                session.risk_run_id = active_run_id
+                await self.inventory_sessions.touch(char_id)
+                await self._refresh_wallet(session)
+                return session
 
-        rows = await self.repository.list_character_items(char_id, expedition_run_id=await self._active_run_id(char_id))
+        rows = await self.repository.list_character_items(char_id, expedition_run_id=active_run_id)
         runtime_items = [runtime_item_from_instance(instance, placement) for instance, placement in rows]
-        session = build_runtime_session(char_id, runtime_items)
+        session = build_runtime_session(char_id, runtime_items, risk_run_id=active_run_id)
         await self._refresh_wallet(session)
         session.updated_at = time.time()
         await self.inventory_sessions.set(session)
@@ -417,6 +428,14 @@ class InventoryService:
             return None
         run_id = risk.get("run_id")
         return str(run_id) if run_id else None
+
+    @staticmethod
+    def _session_run_context_changed(session: InventoryRuntimeSessionDTO, active_run_id: str | None) -> bool:
+        if session.risk_run_id != active_run_id:
+            return True
+        if active_run_id is None:
+            return any(item.is_unsecured or item.sync_state == "unsecured" for item in session.by_id.values())
+        return False
 
     @staticmethod
     def _merge_wallets(base: WalletDTO, extra: WalletDTO) -> WalletDTO:

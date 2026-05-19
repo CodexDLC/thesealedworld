@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Literal
 
 from src.backend.features.items.resources.affixes.catalog import AFFIX_CATALOG
 from src.backend.features.items.services.catalog_service import ItemCatalogService
@@ -21,6 +21,7 @@ from src.shared.schemas.inventory import (
     InventoryRuntimeItemDTO,
     InventoryRuntimeSessionDTO,
     InventoryTabDTO,
+    InventoryTabId,
     InventoryWindowDTO,
     InventoryWindowSlotDTO,
 )
@@ -271,6 +272,7 @@ class InventoryViewService:
         session: InventoryRuntimeSessionDTO,
         *,
         can_act: bool,
+        active_tab: InventoryTabId = "items",
         forbidden_reason: str | None = None,
         avatar_url: str | None = None,
         avatar_name: str = "NO_DATA",
@@ -349,12 +351,8 @@ class InventoryViewService:
                 ),
             ],
             quick_slots=self._quick_slots(session),
-            tabs=[
-                InventoryTabDTO(tab_id="items", label="Предметы", icon="I", is_active=True),
-                InventoryTabDTO(tab_id="resources", label="Ресурсы", icon="R"),
-                InventoryTabDTO(tab_id="quest", label="Квест", icon="Q"),
-            ],
-            visible_rows=self._rows(session),
+            tabs=self._tabs(active_tab),
+            visible_rows=self._rows(session, active_tab=active_tab),
         )
 
     def _zone(
@@ -420,52 +418,67 @@ class InventoryViewService:
             )
         return result
 
-    def _rows(self, session: InventoryRuntimeSessionDTO) -> list[InventoryContainerRowDTO]:
+    def _rows(
+        self, session: InventoryRuntimeSessionDTO, active_tab: InventoryTabId = "items"
+    ) -> list[InventoryContainerRowDTO]:
         rows: list[InventoryContainerRowDTO] = []
         for item in session.by_id.values():
             if item.placement != "backpack":
                 continue
             grid_w, grid_h = self._grid_dimensions(item)
             details = self._item_details(session, item)
-            rows.append(
-                InventoryContainerRowDTO(
-                    item_id=item.item_id,
-                    icon=self._icon_key(item),
-                    name=item.name,
-                    item_type=item.item_type,
-                    weight=self._weight_label(item),
-                    quantity=item.quantity,
-                    rarity=item.rarity,
-                    rarity_tier=details.rarity_tier,
-                    rarity_label=details.rarity_label,
-                    equip_target=self._equip_target(session, item),
-                    valid_slots=item.valid_slots,
-                    grid_w=grid_w,
-                    grid_h=grid_h,
-                    is_equipped=item.placement == "equipped",
-                    sync_state=item.sync_state,
-                    is_unsecured=item.is_unsecured,
-                    comparison=[
-                        InventoryComparisonLineDTO(
-                            label=line.label,
-                            value=line.value,
-                            delta=line.delta,
-                            tone=line.tone,
-                        )
-                        for line in details.comparison
-                    ],
-                    details=details,
-                )
+            row = InventoryContainerRowDTO(
+                item_id=item.item_id,
+                icon=self._icon_key(item),
+                name=item.name,
+                item_type=item.item_type,
+                filter_group=self._filter_group(item.item_type),
+                weight=self._weight_label(item),
+                quantity=item.quantity,
+                rarity=item.rarity,
+                rarity_tier=details.rarity_tier,
+                rarity_label=details.rarity_label,
+                equip_target=self._equip_target(session, item),
+                valid_slots=item.valid_slots,
+                grid_w=grid_w,
+                grid_h=grid_h,
+                is_equipped=item.placement == "equipped",
+                sync_state=item.sync_state,
+                is_unsecured=item.is_unsecured,
+                comparison=[
+                    InventoryComparisonLineDTO(
+                        label=line.label,
+                        value=line.value,
+                        delta=line.delta,
+                        tone=line.tone,
+                    )
+                    for line in details.comparison
+                ],
+                details=details,
             )
-        rows.extend(self._wallet_rows(session))
+            if row.filter_group == active_tab:
+                rows.append(row)
+        rows.extend(self._wallet_rows(session, active_tab=active_tab))
         return rows
 
-    def _wallet_rows(self, session: InventoryRuntimeSessionDTO) -> list[InventoryContainerRowDTO]:
+    def _wallet_rows(
+        self, session: InventoryRuntimeSessionDTO, active_tab: InventoryTabId = "items"
+    ) -> list[InventoryContainerRowDTO]:
+        if active_tab != "resources":
+            return []
         rows: list[InventoryContainerRowDTO] = []
         rows.extend(self._wallet_bucket_rows(session.wallet.currency, item_type="currency", rarity="currency"))
         rows.extend(self._wallet_bucket_rows(session.wallet.resources, item_type="resource", rarity="resource"))
         rows.extend(self._wallet_bucket_rows(session.wallet.components, item_type="material", rarity="component"))
         return rows
+
+    @staticmethod
+    def _tabs(active_tab: InventoryTabId) -> list[InventoryTabDTO]:
+        return [
+            InventoryTabDTO(tab_id="items", label="Предметы", icon="I", is_active=active_tab == "items"),
+            InventoryTabDTO(tab_id="resources", label="Ресурсы", icon="R", is_active=active_tab == "resources"),
+            InventoryTabDTO(tab_id="quest", label="Квест", icon="Q", is_active=active_tab == "quest"),
+        ]
 
     def _wallet_bucket_rows(
         self,
@@ -486,9 +499,10 @@ class InventoryViewService:
             rows.append(
                 InventoryContainerRowDTO(
                     item_id=f"wallet:{resource_key}",
-                    icon="resource",
+                    icon=self._resource_icon_key(resource_key, item_type=item_type),
                     name=details.name,
                     item_type=item_type,
+                    filter_group="resources",
                     weight="-",
                     quantity=amount,
                     rarity=rarity,
@@ -583,6 +597,42 @@ class InventoryViewService:
             "quest": "quest",
         }
         return type_icons.get(item.item_type, "default")
+
+    def _resource_icon_key(self, resource_key: str, *, item_type: str) -> str:
+        if item_type == "currency":
+            return "resource_currency"
+
+        entry = self.catalog.by_id(resource_key)
+        category = str(entry.category).lower() if entry is not None and entry.category else ""
+        category_icons = {
+            "currency": "resource_currency",
+            "essences": "resource_essence",
+            "ores": "resource_ore",
+            "ingots": "resource_ore",
+            "stone": "resource_stone",
+            "woods": "resource_wood",
+            "bark": "resource_wood",
+            "fibers": "resource_fiber",
+            "cloths": "resource_fiber",
+            "flowers": "resource_flower",
+            "hides": "resource_hide",
+            "leathers": "resource_hide",
+            "parts": "resource_parts",
+            "common_supplies": "resource_parts",
+        }
+        if category in category_icons:
+            return category_icons[category]
+        if item_type == "material":
+            return "resource_parts"
+        return "resource"
+
+    @staticmethod
+    def _filter_group(item_type: str) -> Literal["items", "resources", "quest"]:
+        if item_type in {"resource", "currency", "material"}:
+            return "resources"
+        if item_type == "quest":
+            return "quest"
+        return "items"
 
     @staticmethod
     def _weapon_icon_key(item: InventoryRuntimeItemDTO) -> str:

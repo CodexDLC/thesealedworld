@@ -54,3 +54,23 @@ def test_humanoid_loot_profiles_drop_valid_equipment_and_tier_zero_junk(family_i
     assert missing_equipment_roles == []
     assert missing_junk_roles == []
     assert invalid_equipment == []
+
+
+@pytest.mark.unit
+def test_all_loot_resource_entries_use_existing_items() -> None:
+    from src.backend.features.items.resources import ITEM_REGISTRY
+
+    invalid_resources = []
+    for profile_id, profile in LOOT_PROFILES.items():
+        for role, role_profile in profile.roles.items():
+            entries = list(role_profile.drop) + list(role_profile.salvage) + list(role_profile.spoil)
+            for entry in entries:
+                if isinstance(entry, ResourceEntry):
+                    # Check all possible tiers that a resource could resolve to (0 to 7)
+                    tiers_to_check = [entry.fixed_tier] if entry.fixed_tier is not None else range(8)
+                    for t in tiers_to_check:
+                        resolved_id = resolve_resource(entry.profile, t)
+                        if resolved_id not in ITEM_REGISTRY:
+                            invalid_resources.append((profile_id, role, entry.profile, t, resolved_id))
+
+    assert invalid_resources == []

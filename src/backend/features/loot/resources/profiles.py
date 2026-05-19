@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from src.backend.features.loot.resources.types import (
-    EquipmentEntry,
+    FamilyEquipmentProfile,
     MonsterLootProfile,
     ResourceEntry,
     RoleLootProfile,
@@ -41,88 +41,62 @@ _goblin_junk = [
 
 _BANDIT_ROLES = {
     "minion": RoleLootProfile(
-        drop=[
-            *_bandit_junk,
-            EquipmentEntry("hatchet", 0.12),
-            EquipmentEntry("dagger", 0.10),
-            EquipmentEntry("buckler", 0.08),
-            EquipmentEntry("jerkin", 0.08),
-        ],
+        drop=[*_bandit_junk],
     ),
     "veteran": RoleLootProfile(
         drop=[
             ResourceEntry("currency", 0.85, (4, 14), fixed_tier=0),
             *_bandit_junk[1:],
-            EquipmentEntry("mace", 0.16),
-            EquipmentEntry("spear", 0.14),
-            EquipmentEntry("shortbow", 0.12),
-            EquipmentEntry("jerkin", 0.12),
-            EquipmentEntry("breeches", 0.08),
         ],
     ),
     "elite": RoleLootProfile(
         drop=[
             ResourceEntry("currency", 0.90, (8, 24), fixed_tier=0),
             *_bandit_junk[1:],
-            EquipmentEntry("longsword", 0.20),
-            EquipmentEntry("mace", 0.18),
-            EquipmentEntry("jerkin", 0.16),
-            EquipmentEntry("helmet", 0.12),
         ],
     ),
     "boss": RoleLootProfile(
         drop=[
             ResourceEntry("currency", 0.95, (18, 60), fixed_tier=0),
             *_bandit_junk[1:],
-            EquipmentEntry("warhammer", 0.35),
-            EquipmentEntry("longsword", 0.30),
-            EquipmentEntry("plate_chest", 0.25),
-            EquipmentEntry("shield", 0.20),
         ],
     ),
 }
 
 _GOBLIN_ROLES = {
     "minion": RoleLootProfile(
-        drop=[
-            *_goblin_junk,
-            EquipmentEntry("dagger", 0.12),
-            EquipmentEntry("mace", 0.10),
-            EquipmentEntry("knife", 0.10),
-            EquipmentEntry("hood", 0.08),
-        ],
+        drop=[*_goblin_junk],
     ),
     "veteran": RoleLootProfile(
         drop=[
             ResourceEntry("currency", 0.75, (3, 10), fixed_tier=0),
             *_goblin_junk[1:],
-            EquipmentEntry("spear", 0.16),
-            EquipmentEntry("sling", 0.14),
-            EquipmentEntry("shield", 0.12),
-            EquipmentEntry("jerkin", 0.12),
         ],
     ),
     "elite": RoleLootProfile(
         drop=[
             ResourceEntry("currency", 0.85, (6, 20), fixed_tier=0),
             *_goblin_junk[1:],
-            EquipmentEntry("dagger", 0.20),
-            EquipmentEntry("sling", 0.18),
-            EquipmentEntry("leather_cap", 0.16),
-            EquipmentEntry("jerkin", 0.14),
         ],
     ),
     "boss": RoleLootProfile(
         drop=[
             ResourceEntry("currency", 0.90, (14, 45), fixed_tier=0),
             *_goblin_junk[1:],
-            EquipmentEntry("battle_axe", 0.30),
-            EquipmentEntry("warhammer", 0.25),
-            EquipmentEntry("plate_chest", 0.20),
-            EquipmentEntry("helmet", 0.18),
         ],
     ),
 }
+
+# Equipment pool configs — families own which subcategories can drop and at what rates
+_BANDIT_EQUIPMENT = FamilyEquipmentProfile(
+    enabled_subcategories=("fencing", "macing", "polearms", "archery", "offhand", "armor_medium"),
+    role_chances={"minion": 0.18, "veteran": 0.25, "elite": 0.35, "boss": 0.55},
+)
+
+_GOBLIN_EQUIPMENT = FamilyEquipmentProfile(
+    enabled_subcategories=("fencing", "macing", "archery", "offhand", "armor_light", "armor_medium"),
+    role_chances={"minion": 0.15, "veteran": 0.22, "elite": 0.30, "boss": 0.50},
+)
 
 LOOT_PROFILES: dict[str, MonsterLootProfile] = {
     # ------------------------------------------------------------------
@@ -184,20 +158,22 @@ LOOT_PROFILES: dict[str, MonsterLootProfile] = {
         },
     ),
     # ------------------------------------------------------------------
-    # Humanoid bandits - basic gear plus tier-0 junk resources.
+    # Humanoid bandits - junk resources + pool-based equipment drops
     # ------------------------------------------------------------------
     "bandit_gang": MonsterLootProfile(
         id="bandit_gang",
         archetype="humanoid",
         roles=_BANDIT_ROLES,
+        equipment=_BANDIT_EQUIPMENT,
     ),
     # ------------------------------------------------------------------
-    # Goblins - scavenged basic gear plus tier-0 junk resources.
+    # Goblins - junk resources + pool-based equipment drops
     # ------------------------------------------------------------------
     "goblin_tribe": MonsterLootProfile(
         id="goblin_tribe",
         archetype="humanoid",
         roles=_GOBLIN_ROLES,
+        equipment=_GOBLIN_EQUIPMENT,
     ),
     # ------------------------------------------------------------------
     # Legacy alias for older actor sources.
@@ -206,9 +182,10 @@ LOOT_PROFILES: dict[str, MonsterLootProfile] = {
         id="humanoid_bandit",
         archetype="humanoid",
         roles=_BANDIT_ROLES,
+        equipment=_BANDIT_EQUIPMENT,
     ),
     # ------------------------------------------------------------------
-    # Fallback — minimal drop, no salvage
+    # Fallback — minimal drop, no salvage, no equipment
     # ------------------------------------------------------------------
     "default": MonsterLootProfile(
         id="default",

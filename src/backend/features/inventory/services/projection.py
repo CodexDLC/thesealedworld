@@ -13,7 +13,12 @@ BELT_STORAGE = "belt"
 BACKPACK_STORAGE = "backpack"
 
 
-def build_runtime_session(char_id: int, items: list[InventoryRuntimeItemDTO]) -> InventoryRuntimeSessionDTO:
+def build_runtime_session(
+    char_id: int,
+    items: list[InventoryRuntimeItemDTO],
+    *,
+    risk_run_id: str | None = None,
+) -> InventoryRuntimeSessionDTO:
     layout = InventoryLayoutDTO()
     by_id: dict[str, InventoryRuntimeItemDTO] = {}
 
@@ -26,7 +31,7 @@ def build_runtime_session(char_id: int, items: list[InventoryRuntimeItemDTO]) ->
         elif item.placement == BACKPACK_STORAGE:
             layout.backpack.append(item.item_id)
 
-    return InventoryRuntimeSessionDTO(char_id=char_id, layout=layout, by_id=by_id)
+    return InventoryRuntimeSessionDTO(char_id=char_id, layout=layout, by_id=by_id, risk_run_id=risk_run_id)
 
 
 def build_active_character_projection(session: InventoryRuntimeSessionDTO) -> ActiveCharacterItemsProjectionDTO:

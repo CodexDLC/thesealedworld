@@ -1,6 +1,6 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 
 from src.backend.core.auth import User, get_current_user, require_game_character_scope
 from src.backend.features.character.repositories import CharacterRepository
@@ -14,6 +14,7 @@ from src.shared.enums import CoreDomain
 from src.shared.schemas.inventory import (
     InventoryActionRequestDTO,
     InventoryCloseRequestDTO,
+    InventoryTabId,
     InventoryWindowDTO,
 )
 from src.shared.schemas.response import CoreResponseDTO, GameStateHeader
@@ -28,10 +29,11 @@ async def get_inventory_view(
     current_user: Annotated[User, Depends(get_current_user)],
     service: Annotated[InventoryService, Depends(get_inventory_service)],
     characters: Annotated[CharacterRepository, Depends(get_character_repository)],
+    tab: Annotated[InventoryTabId, Query()] = "items",
 ) -> CoreResponseDTO[InventoryWindowDTO]:
     require_game_character_scope(request, current_user, char_id)
     await _ensure_owner(characters, current_user, char_id)
-    payload = await service.open_window(char_id)
+    payload = await service.open_window(char_id, active_tab=tab)
     return CoreResponseDTO(
         header=GameStateHeader(current_state=CoreDomain.INVENTORY), payload=payload, payload_type="inventory"
     )
@@ -44,11 +46,12 @@ async def apply_inventory_action(
     current_user: Annotated[User, Depends(get_current_user)],
     service: Annotated[InventoryService, Depends(get_inventory_service)],
     characters: Annotated[CharacterRepository, Depends(get_character_repository)],
+    tab: Annotated[InventoryTabId, Query()] = "items",
 ) -> CoreResponseDTO[InventoryWindowDTO]:
     require_game_character_scope(request, current_user, dto.char_id)
     await _ensure_owner(characters, current_user, dto.char_id)
     try:
-        payload = await service.apply_action(dto)
+        payload = await service.apply_action(dto, active_tab=tab)
     except InventoryActionForbiddenError as exc:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=exc.payload.model_dump(mode="json")) from exc
     except InventoryActionError as exc:

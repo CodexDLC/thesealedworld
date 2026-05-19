@@ -414,14 +414,18 @@ async def test_open_window_includes_wallet_resources_from_loot_claim(fake_redis_
         ),
     )
 
-    window = await service.open_window(7)
+    window = await service.open_window(7, active_tab="resources")
 
     rows = {row.item_id: row for row in window.visible_rows}
     assert rows["wallet:currency_dust"].name == "Пыль Резидуу"
     assert rows["wallet:currency_dust"].item_type == "currency"
+    assert rows["wallet:currency_dust"].filter_group == "resources"
+    assert rows["wallet:currency_dust"].icon == "resource_currency"
     assert rows["wallet:currency_dust"].quantity == 3
     assert rows["wallet:res_torn_pelt"].name == "Дырявая шкура"
     assert rows["wallet:res_torn_pelt"].item_type == "resource"
+    assert rows["wallet:res_torn_pelt"].filter_group == "resources"
+    assert rows["wallet:res_torn_pelt"].icon == "resource_hide"
     assert rows["wallet:res_torn_pelt"].quantity == 2
     assert rows["wallet:res_animal_bones"].details.description
 
@@ -442,12 +446,61 @@ async def test_open_window_includes_active_expedition_resources(fake_redis_servi
         ),
     )
 
-    window = await service.open_window(7)
+    window = await service.open_window(7, active_tab="resources")
 
     rows = {row.item_id: row for row in window.visible_rows}
     assert rows["wallet:currency_dust"].quantity == 3
     assert rows["wallet:res_torn_pelt"].name == "Дырявая шкура"
     assert rows["wallet:res_torn_pelt"].quantity == 4
+
+
+@pytest.mark.asyncio
+async def test_open_window_filters_rows_by_resources_tab(fake_redis_service, fake_redis_client):
+    _active_character(fake_redis_client, state="exploration")
+    service = _service(
+        fake_redis_service,
+        [_item("sword-1", "weapon", slot="main_hand")],
+        repository=FakeInventoryRepository(
+            [_item("sword-1", "weapon", slot="main_hand")],
+            wallet=WalletDTO(resources={"res_iron_ore": 2}),
+        ),
+    )
+
+    window = await service.open_window(7, active_tab="resources")
+
+    rows = {row.item_id: row for row in window.visible_rows}
+    assert "sword-1" not in rows
+    assert rows["wallet:res_iron_ore"].filter_group == "resources"
+    assert next(tab for tab in window.tabs if tab.tab_id == "resources").is_active is True
+    assert next(tab for tab in window.tabs if tab.tab_id == "items").is_active is False
+
+
+@pytest.mark.asyncio
+async def test_open_window_reloads_cached_session_when_risk_run_context_changes(fake_redis_service, fake_redis_client):
+    _active_character(fake_redis_client, state="exploration", risk={"run_id": "run-old"})
+    service = _service(
+        fake_redis_service,
+        [_item("unsafe-axe", "weapon", slot="main_hand", is_unsecured=True)],
+    )
+
+    first_window = await service.open_window(7)
+    first_rows = {row.item_id: row for row in first_window.visible_rows}
+    assert first_rows["unsafe-axe"].is_unsecured is True
+
+    fake_redis_client.store["game:ac:7"]["risk"] = {"run_id": None}
+    service.repository = FakeInventoryRepository(
+        [_item("safe-axe", "weapon", slot="main_hand", is_unsecured=False)],
+        wallet=WalletDTO(resources={"res_iron_ore": 2}),
+    )
+
+    second_items_window = await service.open_window(7, active_tab="items")
+    second_item_rows = {row.item_id: row for row in second_items_window.visible_rows}
+    assert "unsafe-axe" not in second_item_rows
+    assert second_item_rows["safe-axe"].is_unsecured is False
+
+    second_resources_window = await service.open_window(7, active_tab="resources")
+    second_resource_rows = {row.item_id: row for row in second_resources_window.visible_rows}
+    assert second_resource_rows["wallet:res_iron_ore"].icon == "resource_ore"
 
 
 @pytest.mark.asyncio
@@ -725,6 +778,7 @@ def _item(
     rarity_tier: int = 0,
     description: str = "",
     tags: list[str] | None = None,
+    is_unsecured: bool = False,
 ) -> InventoryRuntimeItemDTO:
     mechanics = mechanics or {"valid_slots": [slot] if slot else []}
     return InventoryRuntimeItemDTO(
@@ -738,6 +792,8 @@ def _item(
         description=description,
         rarity=rarity,
         rarity_tier=rarity_tier,
+        sync_state="unsecured" if is_unsecured else "secured",
+        is_unsecured=is_unsecured,
         mechanics=mechanics,
         tags=tags or [],
         metadata=metadata or {},

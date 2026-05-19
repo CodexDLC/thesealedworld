@@ -135,6 +135,29 @@
         },
         "effects": [
           {
+            "type": "npc.set_flag",
+            "npc_key": "tavern_bartender",
+            "flag": "met",
+            "value": true
+          },
+          {
+            "type": "npc.set_flag",
+            "npc_key": "tavern_bartender",
+            "flag": "bartender_intro_seen",
+            "value": true
+          },
+          {
+            "type": "npc.bump_counter",
+            "npc_key": "tavern_bartender",
+            "counter": "meetings",
+            "amount": 1
+          },
+          {
+            "type": "npc.adjust_reputation",
+            "npc_key": "tavern_bartender",
+            "amount": 1
+          },
+          {
             "type": "tavern.grant_room",
             "required": true,
             "tavern_id": "last_refuge",
@@ -162,7 +185,27 @@
         "response_metadata": {
           "room_granted": false,
           "bartender_rep_delta": 0
-        }
+        },
+        "effects": [
+          {
+            "type": "npc.set_flag",
+            "npc_key": "tavern_bartender",
+            "flag": "met",
+            "value": true
+          },
+          {
+            "type": "npc.set_flag",
+            "npc_key": "tavern_bartender",
+            "flag": "bartender_intro_seen",
+            "value": true
+          },
+          {
+            "type": "npc.bump_counter",
+            "npc_key": "tavern_bartender",
+            "counter": "meetings",
+            "amount": 1
+          }
+        ]
       }
     },
     "actions": [],

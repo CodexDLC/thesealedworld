@@ -65,6 +65,7 @@ class FakeEncounterIntegration:
     def __init__(self, *, active_id: str | None = None, sessions: dict[str, dict] | None = None) -> None:
         self.active_id = active_id
         self.sessions = sessions or {}
+        self.character_sessions = _FakeCharacterSessions()
         self.created: list[tuple[str, dict]] = []
         self.attached: list[tuple[int, str]] = []
         self.combat_sessions: list[tuple[int, str]] = []
@@ -118,6 +119,11 @@ class FakeEncounterIntegration:
 
     async def attach_combat_session(self, char_id: int, combat_id: str) -> None:
         self.combat_sessions.append((char_id, combat_id))
+
+
+class _FakeCharacterSessions:
+    async def get_section(self, char_id: int, section: str) -> dict:
+        return {}
 
 
 class FakeEncounterEngine:
@@ -241,6 +247,94 @@ async def test_active_encounter_blocks_move_search_and_use_service_progression()
     assert move_result.id == search_result.id == service_result.id == "enc-1"
     assert integrator.moves == []
     assert engine.calls == []
+
+
+@pytest.mark.asyncio
+async def test_gateway_move_skips_pathfinder_progress_in_safe_target_location() -> None:
+    integrator = FakeExplorationIntegrator()
+    integrator.locations["52_52"]["flags"] = {"is_safe_zone": True, "threat_tier": 0}
+    encounter_integration = FakeEncounterIntegration()
+    navigation = ExplorationNavigationService(integrator)  # type: ignore[arg-type]
+    gateway = ExplorationGateway(
+        navigation=navigation,
+        encounters=ExplorationEncounterService(
+            engine=FakeEncounterEngine(),  # type: ignore[arg-type]
+            integration=encounter_integration,  # type: ignore[arg-type]
+            session=ExplorationEncounterSessionService(encounter_integration),  # type: ignore[arg-type]
+            navigation=navigation,
+        ),
+    )
+
+    response = await gateway.move(char_id=7, target_id="52_52")
+
+    assert response.payload_type == "exploration_navigation"
+    assert integrator.moves == [(7, "52_51", "52_52")]
+    assert encounter_integration.progress == []
+
+
+@pytest.mark.asyncio
+async def test_gateway_move_keeps_pathfinder_progress_in_unsafe_target_location() -> None:
+    integrator = FakeExplorationIntegrator()
+    encounter_integration = FakeEncounterIntegration()
+    navigation = ExplorationNavigationService(integrator)  # type: ignore[arg-type]
+    gateway = ExplorationGateway(
+        navigation=navigation,
+        encounters=ExplorationEncounterService(
+            engine=FakeEncounterEngine(),  # type: ignore[arg-type]
+            integration=encounter_integration,  # type: ignore[arg-type]
+            session=ExplorationEncounterSessionService(encounter_integration),  # type: ignore[arg-type]
+            navigation=navigation,
+        ),
+    )
+
+    response = await gateway.move(char_id=7, target_id="52_52")
+
+    assert response.payload_type == "exploration_navigation"
+    assert integrator.moves == [(7, "52_51", "52_52")]
+    assert encounter_integration.progress == [(7, {"skill_pathfinder": 0.0016})]
+
+
+@pytest.mark.asyncio
+async def test_gateway_search_skips_scouting_progress_in_safe_current_location() -> None:
+    integrator = FakeExplorationIntegrator()
+    integrator.locations["52_51"]["flags"] = {"system_connect": True, "threat_tier": 0}
+    encounter_integration = FakeEncounterIntegration()
+    navigation = ExplorationNavigationService(integrator)  # type: ignore[arg-type]
+    gateway = ExplorationGateway(
+        navigation=navigation,
+        encounters=ExplorationEncounterService(
+            engine=FakeEncounterEngine(),  # type: ignore[arg-type]
+            integration=encounter_integration,  # type: ignore[arg-type]
+            session=ExplorationEncounterSessionService(encounter_integration),  # type: ignore[arg-type]
+            navigation=navigation,
+        ),
+    )
+
+    response = await gateway.interact(char_id=7, action="search")
+
+    assert response.payload_type == "exploration_navigation"
+    assert encounter_integration.progress == []
+
+
+@pytest.mark.asyncio
+async def test_gateway_search_keeps_scouting_progress_in_unsafe_current_location() -> None:
+    integrator = FakeExplorationIntegrator()
+    encounter_integration = FakeEncounterIntegration()
+    navigation = ExplorationNavigationService(integrator)  # type: ignore[arg-type]
+    gateway = ExplorationGateway(
+        navigation=navigation,
+        encounters=ExplorationEncounterService(
+            engine=FakeEncounterEngine(),  # type: ignore[arg-type]
+            integration=encounter_integration,  # type: ignore[arg-type]
+            session=ExplorationEncounterSessionService(encounter_integration),  # type: ignore[arg-type]
+            navigation=navigation,
+        ),
+    )
+
+    response = await gateway.interact(char_id=7, action="search")
+
+    assert response.payload_type == "exploration_navigation"
+    assert encounter_integration.progress == [(7, {"skill_scouting": 0.0016})]
 
 
 @pytest.mark.asyncio

@@ -24,6 +24,7 @@ from src.backend.features.items.models import (
     ResourceBalance,
     ResourceTransaction,
 )
+from src.backend.features.npc.models import CharacterNpcEffectLog, CharacterNpcState
 from src.backend.infrastructure.arena.models import (
     ArenaBrawlXP,
     ArenaLeague,
@@ -51,6 +52,8 @@ __all__ = [
     "ItemTransaction",
     "ResourceBalance",
     "ResourceTransaction",
+    "CharacterNpcEffectLog",
+    "CharacterNpcState",
     "Character",
     "CharacterAttributes",
     "CharacterProgression",

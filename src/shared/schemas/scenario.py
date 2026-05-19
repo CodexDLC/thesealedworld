@@ -12,6 +12,7 @@ class ScenarioInitDTO(BaseModel):
 
     quest_key: str = Field(..., description="Ключ квеста/сценария для запуска")
     node_id: str | None = Field(None, description="Опциональный ID стартовой ноды")
+    npc_key: str | None = Field(None, description="Ключ основного NPC сценария")
 
 
 class ScenarioReturnContextDTO(BaseModel):
@@ -23,6 +24,7 @@ class ScenarioReturnContextDTO(BaseModel):
     source_service_id: str | None = None
     location_id: str | None = None
     tavern_id: str | None = None
+    npc_key: str | None = None
     metadata: dict[str, Any] = Field(default_factory=dict)
 
     model_config = ConfigDict(use_enum_values=True)

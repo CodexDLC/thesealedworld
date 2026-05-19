@@ -41,6 +41,30 @@ async def test_dialogue_handler_initializes_from_return_context() -> None:
     assert context.prev_state == CoreDomain.CITY_SERVICES.value
     assert context.prev_loc == "53_53"
     assert context.return_context == return_context
+    assert context.npc_key is None
+
+
+@pytest.mark.unit
+async def test_dialogue_handler_resolves_npc_key_from_master() -> None:
+    integration = AsyncMock()
+    integration.get_initial_handler_context.return_value = ScenarioInitialHandlerContext(
+        sys_actor="Mote",
+        prev_state=CoreDomain.EXPLORATION.value,
+        prev_loc="52_52",
+    )
+    handler = DialogueScenarioHandler(integration=integration)
+
+    context = await handler.on_initialize(
+        7,
+        {
+            "quest_key": "first_death_portal_dialogue",
+            "scenario_type": "dialogue_scenario",
+            "start_node_id": "first_contact",
+            "npc_key": "portal_pad_guide",
+        },
+    )
+
+    assert context.npc_key == "portal_pad_guide"
 
 
 @pytest.mark.unit

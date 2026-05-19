@@ -72,3 +72,23 @@ async def test_tutorial_initialize_uses_integration_context() -> None:
     assert context.sys_actor == "Eidolon"
     assert context.prev_state == "LOBBY"
     assert context.prev_loc == "52_52"
+    integration.apply_initialize_effects.assert_not_awaited()
+
+
+@pytest.mark.unit
+async def test_tutorial_initialize_applies_npc_initialize_effects() -> None:
+    integration = AsyncMock()
+    integration.get_initial_handler_context.return_value = ScenarioInitialHandlerContext(
+        sys_actor="Eidolon",
+        prev_state="LOBBY",
+        prev_loc="52_52",
+    )
+    handler = TutorialScenarioHandler(integration=integration)
+
+    context = await handler.on_initialize(
+        7,
+        {"quest_key": "awakening_rift", "start_node_id": "start", "npc_key": "portal_pad_guide"},
+    )
+
+    assert context.npc_key == "portal_pad_guide"
+    integration.apply_initialize_effects.assert_awaited_once()

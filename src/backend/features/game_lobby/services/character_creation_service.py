@@ -19,6 +19,7 @@ if TYPE_CHECKING:
 class CharacterCreationService:
     MAX_SLOTS = 4
     INITIAL_LOCATION_ID = "52_52"
+    INITIAL_NPC_KEY = "portal_pad_guide"
 
     def __init__(
         self,
@@ -83,6 +84,7 @@ class CharacterCreationService:
                 char_id,
                 "awakening_rift",
                 source="onboarding",
+                npc_key=self.INITIAL_NPC_KEY,
             )
         except Exception:
             logger.exception("Character creation failed; cleanup started: char_id={} user_id={}", char_id, user.id)

@@ -24,6 +24,7 @@ if TYPE_CHECKING:
     from src.backend.core.bus import GameEventProducer
     from src.backend.features.character.managers import CharacterSessionManager
     from src.backend.features.character.repositories import CharacterRepository
+    from src.backend.features.npc.services import NpcService
     from src.backend.features.scenario.handlers import BaseScenarioHandler
     from src.backend.features.scenario.integrations.content_integration import ScenarioContentIntegration
     from src.backend.features.world.integrations import WorldDataIntegration
@@ -60,6 +61,7 @@ class ScenarioSystemIntegrator:
         events: GameEventProducer,
         character_repo: CharacterRepository | None = None,
         world_data: WorldDataIntegration | None = None,
+        npc_service: NpcService | None = None,
     ) -> None:
         self.sessions = sessions
         self.content = content
@@ -68,6 +70,7 @@ class ScenarioSystemIntegrator:
         self.events = events
         self.character_repo = character_repo
         self.world_data = world_data
+        self.npc_service = npc_service
 
     # --- Session Management (Redis & DB) ---
 
@@ -394,6 +397,56 @@ class ScenarioSystemIntegrator:
         if bonuses:
             await self.character_sessions.apply_attribute_bonus(char_id, bonuses)
 
+    async def attach_npc_context(self, char_id: int, context: ScenarioContextDTO) -> None:
+        if self.npc_service is None or not context.npc_key:
+            return
+        npc_context = await self.npc_service.load_dialogue_context(character_id=char_id, npc_key=context.npc_key)
+        for key in [
+            name for name in list(context.flags) if name.startswith("npc_flag_") or name.startswith("npc_counter_")
+        ]:
+            context.flags.pop(key, None)
+        context.flags["npc_reputation"] = npc_context.reputation
+        context.flags["npc_affinity"] = npc_context.affinity
+        for key, value in npc_context.flatten().items():
+            if key == "npc_key":
+                continue
+            context.flags[key] = value
+
+    async def apply_action_effects(
+        self,
+        char_id: int,
+        context: ScenarioContextDTO,
+        *,
+        effects: list[dict[str, Any]],
+        action_id: str,
+    ) -> dict[str, Any]:
+        if self.npc_service is None or not context.npc_key or not effects:
+            return {}
+        idempotency_key = f"scenario:{context.scenario_session_id}:node:{context.current_node_key}:action:{action_id}"
+        return await self.npc_service.apply_effects(
+            character_id=char_id,
+            npc_key=context.npc_key,
+            effects=effects,
+            idempotency_key=idempotency_key,
+        )
+
+    async def apply_initialize_effects(
+        self,
+        char_id: int,
+        context: ScenarioContextDTO,
+        *,
+        effects: list[dict[str, Any]],
+    ) -> dict[str, Any]:
+        if self.npc_service is None or not context.npc_key or not effects:
+            return {}
+        idempotency_key = f"scenario:{context.scenario_session_id}:initialize:{context.current_node_key}"
+        return await self.npc_service.apply_effects(
+            character_id=char_id,
+            npc_key=context.npc_key,
+            effects=effects,
+            idempotency_key=idempotency_key,
+        )
+
     async def apply_finalize_effects(self, char_id: int, metadata: dict[str, Any], *, quest_key: str) -> dict[str, Any]:
         effects = metadata.pop("_effects", [])
         if not effects:
@@ -425,6 +478,19 @@ class ScenarioSystemIntegrator:
 
     async def _apply_finalize_effect(self, char_id: int, effect: dict[str, Any], *, quest_key: str) -> dict[str, Any]:
         effect_type = str(effect.get("type") or "")
+        if effect_type.startswith("npc."):
+            npc_key = str(effect.get("npc_key") or "")
+            if self.npc_service is None:
+                raise RuntimeError("NPC service is not configured for scenario finalize effects")
+            if not npc_key:
+                raise RuntimeError(f"NPC finalize effect requires npc_key: {effect!r}")
+            idempotency_key = f"scenario:{quest_key}:npc:{npc_key}:{effect_type}"
+            return await self.npc_service.apply_effects(
+                character_id=char_id,
+                npc_key=npc_key,
+                effects=[effect],
+                idempotency_key=idempotency_key,
+            )
         if effect_type == "tavern.grant_room":
             response = await self.events.request(
                 CityServiceEvents.TAVERN_ROOM_GRANT_REQUESTED,

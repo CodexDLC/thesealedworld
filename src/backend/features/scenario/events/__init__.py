@@ -40,10 +40,11 @@ async def on_scenario_start_requested(payload: dict[str, Any]) -> None:
         char_id = int(payload["char_id"])
         quest_key = str(payload["quest_key"])
         source = str(payload.get("source") or "onboarding")
+        npc_key = str(payload.get("npc_key") or "") or None
 
         async with get_session_context() as db:
             service = build_scenario_service(types.SimpleNamespace(app=_app), db)
-            result = await service.initialize(char_id, quest_key, source=source)
+            result = await service.initialize(char_id, quest_key, source=source, npc_key=npc_key)
 
         ack = {"status": "ok", "payload": result.model_dump(mode="json")}
     except Exception as exc:

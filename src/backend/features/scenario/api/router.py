@@ -39,6 +39,7 @@ class ScenarioInitializeRequestDTO(BaseModel):
 
     char_id: int
     quest_key: str
+    npc_key: str | None = None
     return_context: ScenarioReturnContextDTO | None = None
 
     @field_validator("quest_key")
@@ -70,6 +71,7 @@ async def initialize_scenario(
         dto.quest_key,
         source="api",
         return_context=dto.return_context,
+        npc_key=dto.npc_key,
     )
     payload.extra_data = {**(payload.extra_data or {}), "char_id": dto.char_id, "quest_key": dto.quest_key}
     response = CoreResponseDTO(

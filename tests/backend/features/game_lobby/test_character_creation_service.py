@@ -51,6 +51,7 @@ class TestCharacterCreationService:
         assert integration.create_character.await_args.kwargs["name_key"] == "newhero"
         assert integration.create_active_session.called
         assert integration.initialize_starting_scenario.called
+        assert integration.initialize_starting_scenario.await_args.kwargs["npc_key"] == "portal_pad_guide"
         integration.release_other_active_sessions.assert_awaited_once_with(user_id, 123)
         assert integration.mark_character_entered_scenario.called
 

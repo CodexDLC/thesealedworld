@@ -27,16 +27,34 @@ ATTRIBUTE_RANK_BONUSES = [9, 8, 7, 6, 5, 4, 3, 2, 1]
 
 
 class TutorialScenarioHandler(BaseScenarioHandler):
-    async def on_initialize(self, char_id: int, quest_master: dict, **_: object) -> ScenarioContextDTO:
+    async def on_initialize(
+        self,
+        char_id: int,
+        quest_master: dict,
+        *,
+        npc_key: str | None = None,
+        **_: object,
+    ) -> ScenarioContextDTO:
         initial = await self.integration.get_initial_handler_context(char_id)
-        return ScenarioContextDTO(
+        context = ScenarioContextDTO(
             quest_key=quest_master["quest_key"],
             current_node_key=quest_master["start_node_id"],
             sys_actor=initial.sys_actor,
+            npc_key=npc_key or str(quest_master.get("npc_key") or "") or None,
             prev_state=initial.prev_state,
             prev_loc=initial.prev_loc,
             flags={"is_two_handed": 0},
         )
+        if context.npc_key:
+            await self.integration.apply_initialize_effects(
+                char_id,
+                context,
+                effects=[
+                    {"type": "npc.set_flag", "npc_key": context.npc_key, "flag": "met", "value": True},
+                    {"type": "npc.bump_counter", "npc_key": context.npc_key, "counter": "meetings", "amount": 1},
+                ],
+            )
+        return context
 
     async def on_finalize(
         self,

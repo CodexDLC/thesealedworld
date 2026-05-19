@@ -64,6 +64,7 @@ class ScenarioService:
         source: str = "onboarding",
         *,
         return_context: ScenarioReturnContextDTO | None = None,
+        npc_key: str | None = None,
     ) -> ScenarioPayloadDTO:
         _ = source
         master = await self.integrator.get_quest_master(quest_key)
@@ -72,9 +73,20 @@ class ScenarioService:
             raise ScenarioNodeNotFound(quest_key, "START")
 
         handler = self.integrator.build_handler(master)
-        context = await handler.on_initialize(char_id, master, return_context=return_context)
+        resolved_npc_key = npc_key or (return_context.npc_key if return_context is not None else None)
+        if not resolved_npc_key:
+            master_npc_key = master.get("npc_key")
+            resolved_npc_key = str(master_npc_key) if master_npc_key else None
+        context = await handler.on_initialize(
+            char_id,
+            master,
+            return_context=return_context,
+            npc_key=resolved_npc_key,
+        )
         if return_context is not None and context.return_context is None:
             context.return_context = return_context
+        if context.npc_key:
+            await self.integrator.attach_npc_context(char_id, context)
 
         await self.integrator.prepare_session(char_id, quest_key, context)
 
@@ -115,6 +127,8 @@ class ScenarioService:
         if master is None:
             log.warning("Scenario resume rejected: master_missing char_id=%s quest_key=%s", char_id, context.quest_key)
             raise ScenarioNodeNotFound(context.quest_key, "MASTER")
+        if context.npc_key:
+            await self.integrator.attach_npc_context(char_id, context)
         node = await self._current_or_raise(context)
         flat = context.flatten()
         if "auto" in self.director._get_node_actions(node):
@@ -171,6 +185,16 @@ class ScenarioService:
 
         if action.get("type") == "finish_quest":
             return await self.finalize(char_id)
+        if action.get("effects"):
+            await self.integrator.apply_action_effects(
+                char_id,
+                context,
+                effects=list(action.get("effects") or []),
+                action_id=action_id,
+            )
+            if context.npc_key:
+                await self.integrator.attach_npc_context(char_id, context)
+            flat = context.flatten()
 
         resolved = await self.director.resolve_next_node(context.quest_key, action, flat, self.integrator)
         prev_node = context.current_node_key

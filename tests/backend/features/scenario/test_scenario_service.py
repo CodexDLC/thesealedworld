@@ -20,6 +20,8 @@ class TestScenarioService:
     def mocks(self):
         integrator = MagicMock()
         integrator.apply_finalize_effects = AsyncMock(return_value={})
+        integrator.attach_npc_context = AsyncMock()
+        integrator.apply_action_effects = AsyncMock(return_value={})
         return {
             "integrator": integrator,
             "evaluator": MagicMock(),
@@ -54,7 +56,7 @@ class TestScenarioService:
         result = await service.initialize(char_id, quest_key)
         assert result.node_key == "n1"
         mocks["integrator"].prepare_session.assert_called_once()
-        mock_handler.on_initialize.assert_awaited_once_with(char_id, {"id": "q1"}, return_context=None)
+        mock_handler.on_initialize.assert_awaited_once_with(char_id, {"id": "q1"}, return_context=None, npc_key=None)
 
     async def test_initialize_passes_return_context_to_handler(self, service, mocks):
         import uuid
@@ -90,7 +92,12 @@ class TestScenarioService:
 
         assert result.node_key == "n1"
         assert context.return_context == return_context
-        mock_handler.on_initialize.assert_awaited_once_with(char_id, master, return_context=return_context)
+        mock_handler.on_initialize.assert_awaited_once_with(
+            char_id,
+            master,
+            return_context=return_context,
+            npc_key=None,
+        )
 
     async def test_initialize_not_found(self, service, mocks):
         mocks["integrator"].get_quest_master = AsyncMock(return_value=None)
@@ -134,6 +141,54 @@ class TestScenarioService:
         await service.step(char_id, "a1")
         assert context.current_node_key == "n2"
         mocks["integrator"].update_progress.assert_called_once()
+
+    async def test_initialize_attaches_npc_context_when_npc_key_resolved(self, service, mocks):
+        import uuid
+
+        char_id = 1
+        quest_key = "q1"
+        master = {"quest_key": quest_key, "start_node_id": "n1", "npc_key": "portal_pad_guide"}
+        mocks["integrator"].get_quest_master = AsyncMock(return_value=master)
+
+        mock_handler = MagicMock()
+        context = ScenarioContextDTO(
+            quest_key=quest_key,
+            current_node_key="n1",
+            scenario_session_id=uuid.uuid4(),
+            npc_key="portal_pad_guide",
+        )
+        mock_handler.on_initialize = AsyncMock(return_value=context)
+
+        mocks["integrator"].build_handler.return_value = mock_handler
+        mocks["integrator"].prepare_session = AsyncMock()
+        mocks["integrator"].get_node = AsyncMock(return_value={"node_key": "n1", "actions_logic": {}})
+        mocks["integrator"].publish_event = AsyncMock()
+        mocks["formatter"].render_payload.return_value = MagicMock(node_key="n1", buttons=[])
+
+        await service.initialize(char_id, quest_key)
+
+        mocks["integrator"].attach_npc_context.assert_awaited_once_with(char_id, context)
+
+    async def test_step_applies_action_effects_and_refreshes_npc_context(self, service, mocks):
+        char_id = 1
+        context = ScenarioContextDTO(quest_key="q1", current_node_key="n1", npc_key="portal_pad_guide")
+        mocks["integrator"].load_session = AsyncMock(return_value=context)
+        mocks["integrator"].get_node = AsyncMock(
+            return_value={"node_key": "n1", "actions_logic": {"a1": {"type": "move", "effects": [{"type": "npc.set_flag"}]}}}
+        )
+
+        mock_resolved = MagicMock()
+        mock_resolved.node = {"node_key": "n2"}
+        mock_resolved.context = {}
+        mocks["director"].resolve_next_node = AsyncMock(return_value=mock_resolved)
+        mocks["integrator"].update_progress = AsyncMock()
+        mocks["integrator"].get_quest_master = AsyncMock(return_value={"quest_key": "q1"})
+        mocks["integrator"].publish_event = AsyncMock()
+
+        await service.step(char_id, "a1")
+
+        mocks["integrator"].apply_action_effects.assert_awaited_once()
+        mocks["integrator"].attach_npc_context.assert_awaited_once_with(char_id, context)
 
     async def test_step_terminal(self, service, mocks):
         char_id = 1

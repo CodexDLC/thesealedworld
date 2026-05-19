@@ -50,7 +50,8 @@ CITY_SERVICE_DEFINITIONS: dict[str, CityServiceDefinition] = {
         metadata={
             "tavern_id": "last_refuge",
             "room_key": "last_refuge_private_room",
-            "bartender_key": "last_refuge_keeper",
+            "bartender_key": "tavern_bartender",
+            "npc_key": "tavern_bartender",
             "dialogue_quest_key": "tavern_bartender_dialogue",
         },
     ),
@@ -64,10 +65,12 @@ CITY_SERVICE_DEFINITIONS: dict[str, CityServiceDefinition] = {
         ),
         background_url="/static/images/exploration/city/d4/52_52_runic_circle_plaza.png",
         metadata={
+            "npc_key": "portal_pad_guide",
             "dialogue_quest_key": "awakening_rift",
             "dialogue_section_id": "portal_contact",
             "npc": {
                 "id": "portal_first_contact",
+                "npc_key": "portal_pad_guide",
                 "name": "Проводник Круга",
                 "role": "FIRST CONTACT",
                 "stage_position": "bottom-right",

@@ -45,6 +45,7 @@ class ScenarioContextDTO(BaseModel):
     weights: ScenarioWeightsDTO = Field(default_factory=ScenarioWeightsDTO)
     queues: ScenarioQueuesDTO = Field(default_factory=ScenarioQueuesDTO)
     sys_actor: str = settings.default_symbiote_name
+    npc_key: str | None = None
     prev_state: str | None = None
     prev_loc: str | None = None
     return_context: ScenarioReturnContextDTO | None = None
@@ -63,6 +64,7 @@ class ScenarioContextDTO(BaseModel):
             "total_steps": self.total_steps,
             "visited_nodes": list(self.visited_nodes),
             "sys_actor": self.sys_actor,
+            "npc_key": self.npc_key,
             "prev_state": self.prev_state,
             "prev_loc": self.prev_loc,
             "p_loc": self.prev_loc,
@@ -93,7 +95,7 @@ class ScenarioContextDTO(BaseModel):
                 self.return_context = (
                     ScenarioReturnContextDTO.model_validate(value) if isinstance(value, dict) else None
                 )
-            elif key in {"current_node_key", "sys_actor", "prev_state", "prev_loc"}:
+            elif key in {"current_node_key", "sys_actor", "npc_key", "prev_state", "prev_loc"}:
                 setattr(self, key, value)
             elif key not in {"scenario_session_id", "quest_key", "schema_version", "p_loc"}:
                 self.flags[key] = value

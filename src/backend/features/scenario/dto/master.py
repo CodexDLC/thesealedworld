@@ -42,6 +42,7 @@ class ActionLogicSchema(BaseModel):
     to_node: str | None = None
     math: dict[str, Any] = Field(default_factory=dict)
     branching: list[BranchSchema] = Field(default_factory=list)
+    effects: list[dict[str, Any]] = Field(default_factory=list)
     type: Literal["finish_quest", "next", "auto", "logic_gate"] | str | None = None
 
 
@@ -49,6 +50,7 @@ class QuestMasterSchema(BaseModel):
     quest_key: str
     scenario_type: ScenarioType
     display_name: str | None = "UNKNOWN_QUEST"
+    npc_key: str | None = None
     background_url: str | None = None
     start_node_id: str
     status_bar_fields: list[StatusBarFieldSchema] = Field(default_factory=list)

@@ -94,7 +94,9 @@ async def test_city_service_portal_returns_service_view_background_and_portal_ac
     assert payload.location_id == "52_52"
     assert payload.background_url == "/static/images/exploration/city/d4/52_52_runic_circle_plaza.png"
     assert payload.sections == []
+    assert payload.metadata["npc_key"] == "portal_pad_guide"
     assert payload.metadata["npc"]["id"] == "portal_first_contact"
+    assert payload.metadata["npc"]["npc_key"] == "portal_pad_guide"
     assert payload.metadata["npc"]["stage_position"] == "bottom-right"
     assert payload.metadata["npc"]["dialogue_quest_key"] == "awakening_rift"
     assert [button.label for button in payload.buttons] == ["Войти в портал", "Выйти"]
@@ -114,6 +116,8 @@ async def test_city_service_portal_contact_starts_dialogue() -> None:
 
     assert transition.target_state == CoreDomain.SCENARIO
     assert transition.quest_key == "awakening_rift"
+    assert transition.metadata["npc_key"] == "portal_pad_guide"
+    assert transition.context["return_context"]["npc_key"] == "portal_pad_guide"
     assert transition.metadata["section_id"] == "portal_contact"
     assert transition.context["return_context"]["metadata"]["section_id"] == "portal_contact"
 
@@ -128,11 +132,13 @@ async def test_city_service_tavern_dialogue_returns_scenario_transition_with_ret
     assert transition.quest_key == "tavern_bartender_dialogue"
     assert transition.location_id == "53_53"
     assert transition.metadata["service_id"] == "svc_tavern_hub"
+    assert transition.metadata["npc_key"] == "tavern_bartender"
     return_context = transition.context["return_context"]
     assert return_context["source_state"] == CoreDomain.CITY_SERVICES.value
     assert return_context["return_state"] == CoreDomain.CITY_SERVICES.value
     assert return_context["return_screen"] == CityServiceScreenEnum.SECTION.value
     assert return_context["source_service_id"] == "svc_tavern_hub"
+    assert return_context["npc_key"] == "tavern_bartender"
 
 
 @pytest.mark.unit

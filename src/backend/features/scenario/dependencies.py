@@ -6,6 +6,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.backend.core.bus import GameEventProducer
 from src.backend.features.character.managers import CharacterSessionManager
 from src.backend.features.character.repositories import CharacterRepository
+from src.backend.features.npc.repositories import NpcStateRepository
+from src.backend.features.npc.services import NpcService
 from src.backend.features.scenario.engine import ScenarioDirector, ScenarioEvaluator, ScenarioFormatter
 from src.backend.features.scenario.integrations.content_integration import ScenarioContentIntegration
 from src.backend.features.scenario.integrations.system_integrator import ScenarioSystemIntegrator
@@ -18,6 +20,7 @@ from src.backend.infrastructure.world.repositories import WorldRepository
 
 def build_scenario_service(request: Request | Any, db_session: AsyncSession) -> ScenarioService:
     repo = ScenarioRepository(db_session)
+    npc_service = NpcService(NpcStateRepository(db_session))
     evaluator = ScenarioEvaluator()
     director = ScenarioDirector(evaluator)
     formatter = ScenarioFormatter(director)
@@ -30,6 +33,7 @@ def build_scenario_service(request: Request | Any, db_session: AsyncSession) -> 
         events=request.app.state.events,
         character_repo=CharacterRepository(db_session),
         world_data=WorldDataIntegration(WorldRepository(db_session)),
+        npc_service=npc_service,
     )
     return ScenarioService(
         integrator=integrator,

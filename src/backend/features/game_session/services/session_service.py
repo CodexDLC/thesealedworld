@@ -5,12 +5,13 @@ from typing import TYPE_CHECKING, Any
 from loguru import logger
 
 from src.shared.enums import CoreDomain
-from src.shared.schemas import CoreResponseDTO, GameStateHeader, StateTransitionDTO
+from src.shared.schemas import CoreResponseDTO, GameStateHeader, ScenarioReturnContextDTO, StateTransitionDTO
 
 if TYPE_CHECKING:
     from src.backend.core.auth import User
     from src.backend.features.character.schemas.session import CharacterSessionDocumentDTO, CharacterSessionRefsDTO
     from src.backend.features.game_session.integrations import GameSessionIntegrator
+    from src.backend.features.npc.services import NpcService
 
 
 GameplayEntryResponse = CoreResponseDTO[StateTransitionDTO | dict[str, Any]]
@@ -32,6 +33,11 @@ class GameSessionService:
 
     def __init__(self, *, integrator: GameSessionIntegrator) -> None:
         self.integrator = integrator
+        self.npc_service: NpcService | None = None
+
+    def bind_npc_service(self, npc_service: NpcService | None) -> GameSessionService:
+        self.npc_service = npc_service
+        return self
 
     async def enter_character(self, user: User, character_id: int) -> GameplayEntryResponse:
         session_doc = await self.integrator.get_active_session(character_id, user.id)
@@ -120,6 +126,13 @@ class GameSessionService:
             )
 
         result = await self.integrator.respawn_character(character_id)
+        post_respawn_transition = await self._post_respawn_dialogue_transition(character_id, result)
+        if post_respawn_transition is not None:
+            return CoreResponseDTO(
+                header=GameStateHeader(current_state=CoreDomain.SCENARIO, previous_state=CoreDomain.DEATH),
+                payload=post_respawn_transition,
+                payload_type="state_transition",
+            )
         return CoreResponseDTO(
             header=GameStateHeader(current_state=CoreDomain.EXPLORATION, previous_state=CoreDomain.DEATH),
             payload=StateTransitionDTO(
@@ -129,6 +142,37 @@ class GameSessionService:
                 metadata=result,
             ),
             payload_type="state_transition",
+        )
+
+    async def _post_respawn_dialogue_transition(
+        self,
+        character_id: int,
+        result: dict[str, Any],
+    ) -> StateTransitionDTO | None:
+        if self.npc_service is None:
+            return None
+        location_id = str(result.get("location_id") or "")
+        if location_id != "52_52":
+            return None
+        npc_key = "portal_pad_guide"
+        npc_state = await self.npc_service.get_or_create_state(character_id=character_id, npc_key=npc_key)
+        if bool((npc_state.flags or {}).get("first_death_dialogue_seen")):
+            return None
+        return_context = ScenarioReturnContextDTO(
+            source_state=CoreDomain.EXPLORATION,
+            return_state=CoreDomain.EXPLORATION,
+            location_id=location_id,
+            npc_key=npc_key,
+            metadata={"trigger_reason": "respawn_first_death"},
+        )
+        return StateTransitionDTO(
+            char_id=character_id,
+            target_state=CoreDomain.SCENARIO,
+            reason="respawn_first_death_dialogue",
+            quest_key="first_death_portal_dialogue",
+            location_id=location_id,
+            context={"return_context": return_context.model_dump(mode="json")},
+            metadata={"npc_key": npc_key, "location_id": location_id, "trigger_reason": "respawn_first_death"},
         )
 
     async def claim_post_combat_loot(

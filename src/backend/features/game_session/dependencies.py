@@ -14,6 +14,8 @@ from src.backend.features.expedition import CharacterExpeditionRepository, Exped
 from src.backend.features.game_session.integrations import GameSessionIntegrator
 from src.backend.features.game_session.services import GameSessionService
 from src.backend.features.inventory.repositories.items import InventoryItemRepository
+from src.backend.features.npc.repositories import NpcStateRepository
+from src.backend.features.npc.services import NpcService
 from src.backend.infrastructure.loot.managers.loot_manager import LootManager
 
 
@@ -45,4 +47,5 @@ def get_game_session_service(
         loot_manager=LootManager(redis),
         loot_arq=getattr(request.app.state, "system_arq", None),
     )
-    return GameSessionService(integrator=integrator)
+    npc_service = NpcService(NpcStateRepository(db_session))
+    return GameSessionService(integrator=integrator).bind_npc_service(npc_service)

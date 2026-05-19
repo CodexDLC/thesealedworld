@@ -1,8 +1,8 @@
 {
-  "quest_key": "tavern_bartender_dialogue",
+  "quest_key": "first_death_portal_dialogue",
   "scenario_type": "dialogue_scenario",
-  "display_name": "РАЗГОВОР С КОРМЧИМ",
-  "npc_key": "tavern_bartender",
+  "display_name": "ПЕРВЫЙ ВОЗВРАТ К КРУГУ",
+  "npc_key": "portal_pad_guide",
   "ui": {
     "left_panel": {
       "mode": "character_status"
@@ -11,6 +11,6 @@
       "mode": "dialogue_context"
     }
   },
-  "start_node_id": "bartender_greeting",
+  "start_node_id": "death_return_greeting",
   "status_bar_fields": []
 }

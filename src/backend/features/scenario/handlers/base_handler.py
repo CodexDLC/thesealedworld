@@ -24,6 +24,15 @@ class ScenarioHandlerIntegration(Protocol):
     async def get_node(self, quest_key: str, node_key: str) -> dict[str, Any] | None:
         pass
 
+    async def apply_initialize_effects(
+        self,
+        char_id: int,
+        context: ScenarioContextDTO,
+        *,
+        effects: list[dict[str, Any]],
+    ) -> dict[str, Any]:
+        pass
+
 
 class BaseScenarioHandler(ABC):
     def __init__(self, integration: ScenarioHandlerIntegration) -> None:
@@ -36,6 +45,7 @@ class BaseScenarioHandler(ABC):
         quest_master: dict,
         *,
         return_context: ScenarioReturnContextDTO | None = None,
+        npc_key: str | None = None,
     ) -> ScenarioContextDTO:
         pass
 

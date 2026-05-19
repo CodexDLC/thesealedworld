@@ -2,6 +2,7 @@
   "quest_key": "awakening_rift",
   "scenario_type": "unique_scenario",
   "display_name": "ПРОБУЖДЕНИЕ В РАЗЛОМЕ",
+  "npc_key": "portal_pad_guide",
   "background_url": "/static/images/scenarios/awakening_rift/background.png",
   "ui": {
     "left_panel": {

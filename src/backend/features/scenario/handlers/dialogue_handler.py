@@ -20,8 +20,10 @@ class DialogueScenarioHandler(BaseScenarioHandler):
         quest_master: dict[str, Any],
         *,
         return_context: ScenarioReturnContextDTO | None = None,
+        npc_key: str | None = None,
     ) -> ScenarioContextDTO:
         initial = await self.integration.get_initial_handler_context(char_id)
+        resolved_npc_key = npc_key or str(quest_master.get("npc_key") or "") or None
         if return_context is not None:
             initial_prev_state = str(return_context.source_state)
             initial_prev_loc = return_context.location_id or initial.prev_loc
@@ -33,6 +35,7 @@ class DialogueScenarioHandler(BaseScenarioHandler):
             quest_key=str(quest_master["quest_key"]),
             current_node_key=str(quest_master["start_node_id"]),
             sys_actor=initial.sys_actor,
+            npc_key=resolved_npc_key,
             prev_state=initial_prev_state,
             prev_loc=initial_prev_loc,
             return_context=return_context,

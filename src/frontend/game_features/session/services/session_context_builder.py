@@ -8,6 +8,8 @@ from loguru import logger
 
 from src.frontend.config.settings import settings
 from src.frontend.game_features.combat.view_models.screen import (
+    build_combat_outcome_screen_from_dashboard_vm,
+    build_combat_outcome_screen_from_result_vm,
     build_combat_result_screen_vm,
     build_combat_screen_from_result_vm,
     build_combat_screen_vm,
@@ -97,11 +99,13 @@ class SessionContextBuilder:
 
         if state == CoreDomain.SCENARIO:
             return_context = _return_context_from_transition(transition_context)
+            npc_key = _transition_value("npc_key", transition_context, transition_metadata)
             scenario_response = (
                 await self.scenario_api.initialize(
                     token,
                     char_id=char_id,
                     quest_key=quest_key,
+                    npc_key=npc_key,
                     return_context=return_context,
                 )
                 if quest_key
@@ -241,6 +245,7 @@ class SessionContextBuilder:
                     combat_result=combat_payload,
                     combat_result_screen=build_combat_result_screen_vm(combat_payload),
                     combat_screen=build_combat_screen_from_result_vm(combat_payload),
+                    combat_outcome_screen=build_combat_outcome_screen_from_result_vm(combat_payload),
                     background_url="/static/images/scenes/ruins.png",
                     status_seed=self._empty_combat_status_seed(char_id),
                 )
@@ -255,6 +260,7 @@ class SessionContextBuilder:
                 payload_type=combat_response.payload_type,
                 combat=combat_payload,
                 combat_screen=build_combat_screen_vm(combat_payload),
+                combat_outcome_screen=build_combat_outcome_screen_from_dashboard_vm(combat_payload),
                 background_url="/static/images/scenes/ruins.png",
                 status_seed=self._combat_status_seed(combat_payload),
             )
@@ -505,6 +511,7 @@ class SessionContextBuilder:
             payload_type=payload_type,
             combat=dashboard,
             combat_screen=build_combat_screen_vm(dashboard),
+            combat_outcome_screen=build_combat_outcome_screen_from_dashboard_vm(dashboard),
             background_url="/static/images/scenes/ruins.png",
             status_seed=self._combat_status_seed(dashboard),
         )
@@ -525,6 +532,7 @@ class SessionContextBuilder:
             combat_result=result,
             combat_result_screen=build_combat_result_screen_vm(result),
             combat_screen=build_combat_screen_from_result_vm(result),
+            combat_outcome_screen=build_combat_outcome_screen_from_result_vm(result),
             background_url="/static/images/scenes/ruins.png",
             status_seed=self._empty_combat_status_seed(char_id),
         )
@@ -550,6 +558,7 @@ class SessionContextBuilder:
         combat_screen: Any | None = None,
         combat_result: Any | None = None,
         combat_result_screen: Any | None = None,
+        combat_outcome_screen: Any | None = None,
         death: dict[str, Any] | None = None,
         loot: dict[str, Any] | None = None,
         background_url: str | None = None,
@@ -577,6 +586,7 @@ class SessionContextBuilder:
             "combat_screen": combat_screen,
             "combat_result": combat_result,
             "combat_result_screen": combat_result_screen,
+            "combat_outcome_screen": combat_outcome_screen,
             "death": death,
             "loot": loot,
             "combat_chat_session_id": getattr(combat_screen, "session_id", None),

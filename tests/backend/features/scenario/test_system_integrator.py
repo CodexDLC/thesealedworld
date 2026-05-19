@@ -314,6 +314,70 @@ async def test_apply_finalize_effects_grants_tavern_room() -> None:
 
 
 @pytest.mark.unit
+async def test_attach_npc_context_flattens_relationship_state() -> None:
+    npc_service = MagicMock()
+    npc_service.load_dialogue_context = AsyncMock(
+        return_value=SimpleNamespace(
+            reputation=3,
+            affinity=1,
+            flatten=lambda: {
+                "npc_key": "portal_pad_guide",
+                "npc_reputation": 3,
+                "npc_affinity": 1,
+                "npc_flag_met": 1,
+                "npc_counter_meetings": 2,
+            },
+        )
+    )
+    integrator = ScenarioSystemIntegrator(
+        sessions=MagicMock(),
+        content=MagicMock(),
+        character_sessions=MagicMock(),
+        repo=MagicMock(),
+        events=MagicMock(),
+        npc_service=npc_service,
+    )
+    context = ScenarioContextDTO(
+        quest_key="first_death_portal_dialogue",
+        current_node_key="start",
+        npc_key="portal_pad_guide",
+        flags={"npc_flag_old": 1, "npc_counter_old": 9},
+    )
+
+    await integrator.attach_npc_context(7, context)
+
+    assert context.flags["npc_reputation"] == 3
+    assert context.flags["npc_affinity"] == 1
+    assert context.flags["npc_flag_met"] == 1
+    assert context.flags["npc_counter_meetings"] == 2
+    assert "npc_flag_old" not in context.flags
+    assert "npc_counter_old" not in context.flags
+
+
+@pytest.mark.unit
+async def test_apply_finalize_effects_delegates_npc_effects_to_service() -> None:
+    npc_service = MagicMock()
+    npc_service.apply_effects = AsyncMock(return_value={"applied": True, "duplicate": False})
+    integrator = ScenarioSystemIntegrator(
+        sessions=MagicMock(),
+        content=MagicMock(),
+        character_sessions=MagicMock(),
+        repo=MagicMock(),
+        events=MagicMock(),
+        npc_service=npc_service,
+    )
+
+    result = await integrator.apply_finalize_effects(
+        7,
+        {"_effects": [{"type": "npc.set_flag", "npc_key": "portal_pad_guide", "flag": "met", "value": True}]},
+        quest_key="awakening_rift",
+    )
+
+    assert result["effects"]["npc.set_flag"]["applied"] is True
+    npc_service.apply_effects.assert_awaited_once()
+
+
+@pytest.mark.unit
 async def test_apply_finalize_effects_fails_required_tavern_effect() -> None:
     events = MagicMock()
     events.request = AsyncMock(return_value={"status": "error", "error": "db down"})

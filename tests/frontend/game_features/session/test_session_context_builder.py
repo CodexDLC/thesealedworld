@@ -199,8 +199,8 @@ class FakeScenarioApi:
         self.response = response
         self.initialized = None
 
-    async def initialize(self, token, *, char_id, quest_key, return_context=None):
-        self.initialized = (char_id, quest_key, return_context)
+    async def initialize(self, token, *, char_id, quest_key, npc_key=None, return_context=None):
+        self.initialized = (char_id, quest_key, npc_key, return_context)
         return self.response
 
     async def resume(self, token, *, char_id):
@@ -594,7 +594,32 @@ async def test_build_state_initializes_scenario_with_return_context():
         transition_context={"return_context": return_context},
     )
 
-    assert scenario_api.initialized == (7, "tavern_bartender_dialogue", return_context)
+    assert scenario_api.initialized == (7, "tavern_bartender_dialogue", None, return_context)
+
+
+@pytest.mark.asyncio
+async def test_build_state_initializes_scenario_with_npc_key_from_transition_metadata():
+    response = scenario_response()
+    scenario_api = FakeScenarioApi(response)
+    service = SessionContextBuilder(
+        character_status_api=FakeCharacterStatusApi(),
+        arena_api=SimpleNamespace(),
+        city_services_api=FakeCityServicesApi(),
+        exploration_api=SimpleNamespace(),
+        scenario_api=scenario_api,
+        game_session_api=FakeGameSessionApi(response),
+        inventory_api=FakeInventoryApi(),
+    )
+
+    await service.build_state(
+        request(),
+        state=CoreDomain.SCENARIO,
+        char_id=7,
+        quest_key="first_death_portal_dialogue",
+        transition_metadata={"npc_key": "portal_pad_guide"},
+    )
+
+    assert scenario_api.initialized == (7, "first_death_portal_dialogue", "portal_pad_guide", None)
 
 
 @pytest.mark.asyncio
@@ -792,8 +817,53 @@ async def test_build_state_combat_accepts_archived_result_payload():
     assert context["combat_result"].title == "Итоги боя недоступны"
     assert context["combat_screen"].status == "finished"
     assert context["combat_screen"].action_state == "COMBAT_FINALIZED"
+    assert context["combat_outcome_screen"].mode == "final"
     assert context["payload_type"] == "CombatResult"
     assert context["status_seed"]["character_id"] == 7
+
+
+@pytest.mark.asyncio
+async def test_build_state_combat_spectating_uses_outcome_shell_context():
+    status_api = FakeCharacterStatusApi()
+    combat_api = FakeCombatApi(
+        payload=CombatDashboardDTO(
+            session_id="combat-1",
+            turn_number=3,
+            status="spectating",
+            battle_type="shadow",
+            hero=CombatActorCardDTO(
+                actor_id="7",
+                name="Ada",
+                team="team_1",
+                is_dead=True,
+                vitals=CombatActorVitalsDTO(hp_current=0, hp_max=63),
+            ),
+            allies=[
+                CombatActorCardDTO(
+                    actor_id="8",
+                    name="Ally",
+                    team="team_1",
+                    vitals=CombatActorVitalsDTO(hp_current=12, hp_max=20),
+                )
+            ],
+            enemies=[
+                CombatActorCardDTO(
+                    actor_id="9",
+                    name="Enemy",
+                    team="team_2",
+                    vitals=CombatActorVitalsDTO(hp_current=21, hp_max=30),
+                )
+            ],
+        )
+    )
+    service = combat_builder(status_api, combat_api)
+
+    context = await service.build_state(request(), state=CoreDomain.COMBAT, char_id=7)
+
+    assert context["combat_screen"].status == "spectating"
+    assert context["combat_outcome_screen"].mode == "spectating"
+    assert context["combat_outcome_screen"].primary_action_kind == "refresh_status"
+    assert context["combat_outcome_screen"].primary_label == "Обновить статус боя"
 
 
 @pytest.mark.asyncio

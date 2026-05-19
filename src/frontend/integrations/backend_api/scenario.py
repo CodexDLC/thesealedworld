@@ -13,10 +13,13 @@ class BackendScenarioApi(BaseApiClient):
         *,
         char_id: int,
         quest_key: str,
+        npc_key: str | None = None,
         return_context: ScenarioReturnContextDTO | dict | None = None,
     ) -> ScenarioResponse:
         """Start a new scenario quest."""
         payload: dict[str, Any] = {"char_id": char_id, "quest_key": quest_key}
+        if npc_key:
+            payload["npc_key"] = npc_key
         if return_context is not None:
             payload["return_context"] = (
                 return_context.model_dump(mode="json")

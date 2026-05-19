@@ -1,3 +1,4 @@
+from importlib import import_module
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
 from uuid import uuid4
@@ -243,6 +244,30 @@ async def test_respawn_character_calls_integrator_from_death_state():
 
 
 @pytest.mark.asyncio
+async def test_respawn_character_starts_first_death_dialogue_on_portal_pad():
+    user_id = uuid4()
+    session_doc = active_session(
+        user_id=user_id,
+        state=CoreDomain.DEATH,
+        prev_state=CoreDomain.COMBAT_RESULT,
+        sessions={"death_run_id": "run-1"},
+    )
+    integrator = FakeGameSessionIntegrator(session_doc=session_doc)
+    npc_service = SimpleNamespace(
+        get_or_create_state=AsyncMock(return_value=SimpleNamespace(flags={})),
+    )
+    service = GameSessionService(integrator=integrator).bind_npc_service(npc_service)
+
+    response = await service.respawn_character(SimpleNamespace(id=user_id), 7)
+
+    assert response.header.current_state == CoreDomain.SCENARIO
+    assert response.payload.target_state == CoreDomain.SCENARIO
+    assert response.payload.quest_key == "first_death_portal_dialogue"
+    assert response.payload.metadata["npc_key"] == "portal_pad_guide"
+    assert response.payload.context["return_context"]["npc_key"] == "portal_pad_guide"
+
+
+@pytest.mark.asyncio
 async def test_enter_character_uses_previous_valid_state_when_current_ref_is_missing():
     user_id = uuid4()
     integrator = FakeGameSessionIntegrator(
@@ -309,7 +334,8 @@ async def test_integrator_resets_active_session_to_exploration():
 
 @pytest.mark.asyncio
 async def test_claim_post_combat_loot_enqueues_claim_job(mocker):
-    mocker.patch("src.backend.features.loot.services.loot_service.LootService", FakeLootService)
+    loot_service_module = import_module("src.backend.features.loot.services.loot_service")
+    mocker.patch.object(loot_service_module, "LootService", FakeLootService)
     sessions = SimpleNamespace(patch_fields=AsyncMock(), mark_dirty=AsyncMock())
     arq = FakeArq()
     integrator = GameSessionIntegrator(character_sessions=sessions, loot_manager=object(), loot_arq=arq)
@@ -332,7 +358,8 @@ async def test_claim_post_combat_loot_enqueues_claim_job(mocker):
 
 @pytest.mark.asyncio
 async def test_claim_post_combat_loot_fails_when_claim_worker_queue_is_unavailable(mocker):
-    mocker.patch("src.backend.features.loot.services.loot_service.LootService", FakeLootService)
+    loot_service_module = import_module("src.backend.features.loot.services.loot_service")
+    mocker.patch.object(loot_service_module, "LootService", FakeLootService)
     integrator = GameSessionIntegrator(character_sessions=None, loot_manager=object(), loot_arq=None)
 
     with pytest.raises(RuntimeError, match="loot_arq is required"):

@@ -92,6 +92,7 @@ class CityService:
 
         tavern_id = _optional_str(definition.metadata.get("tavern_id"))
         dialogue_section_id = str(section_id or definition.metadata.get("dialogue_section_id") or "bar")
+        npc_key = _optional_str(definition.metadata.get("npc_key"))
         return_context = ScenarioReturnContextDTO(
             source_state=CoreDomain.CITY_SERVICES,
             return_state=CoreDomain.CITY_SERVICES,
@@ -99,6 +100,7 @@ class CityService:
             source_service_id=definition.service_id,
             location_id=resolved_location_id,
             tavern_id=tavern_id,
+            npc_key=npc_key,
             metadata={"section_id": dialogue_section_id},
         )
         return StateTransitionDTO(
@@ -111,6 +113,7 @@ class CityService:
             metadata={
                 "service_id": definition.service_id,
                 "service_type": definition.service_type,
+                "npc_key": npc_key,
                 "location_id": resolved_location_id,
                 "section_id": dialogue_section_id,
                 "tavern_id": tavern_id,
@@ -201,6 +204,8 @@ class CityService:
                 tavern_id=str(definition.metadata["tavern_id"]),
             )
         service_metadata = dict(metadata or {})
+        if definition.metadata.get("npc_key"):
+            service_metadata.setdefault("npc_key", definition.metadata.get("npc_key"))
         if isinstance(definition.metadata.get("npc"), dict):
             service_metadata.setdefault("npc", dict(definition.metadata["npc"]))
         if definition.service_type == "tavern" and section_id == "room" and "room" not in service_metadata:
@@ -210,6 +215,7 @@ class CityService:
                 "npc",
                 {
                     "bartender_key": definition.metadata.get("bartender_key"),
+                    "npc_key": definition.metadata.get("npc_key"),
                     "dialogue_quest_key": definition.metadata.get("dialogue_quest_key"),
                 },
             )

@@ -240,12 +240,13 @@ class GameLobbyIntegration:
         quest_key: str,
         *,
         source: str,
+        npc_key: str | None = None,
     ) -> ScenarioPayloadDTO:
         if self.events is None:
             raise RuntimeError("events bus is required for scenario initialization")
         response = await self.events.request(
             "scenario.start_requested",
-            {"char_id": char_id, "quest_key": quest_key, "source": source},
+            {"char_id": char_id, "quest_key": quest_key, "source": source, "npc_key": npc_key or ""},
             timeout=30.0,
         )
         if not isinstance(response, dict) or response.get("status") != "ok":

@@ -140,14 +140,15 @@ class ExplorationEncounterService:
             return None
         skills = await self._integration.get_ac_skill_snapshot(char_id)
         attributes = await self._integration.get_ac_attribute_snapshot(char_id)
-        await self._grant_experience(
-            char_id,
-            skills=skills.as_dict(),
-            attributes=attributes,
-            action_power_by_skill={"skill_pathfinder": 1.0}
-            if mode == EncounterMode.TRAVEL
-            else {"skill_scouting": 1.0},
-        )
+        if not _safe_location(loc_data):
+            await self._grant_experience(
+                char_id,
+                skills=skills.as_dict(),
+                attributes=attributes,
+                action_power_by_skill={"skill_pathfinder": 1.0}
+                if mode == EncounterMode.TRAVEL
+                else {"skill_scouting": 1.0},
+            )
         gear_score = await self._gear_score(char_id)
         encounter = await self._engine.try_generate_encounter(
             char_id=char_id,
@@ -261,3 +262,9 @@ class ExplorationEncounterService:
 def _monster_encounter(encounter: EncounterDTO) -> bool:
     metadata = encounter.metadata if isinstance(encounter.metadata, dict) else {}
     return metadata.get("kind") == "monster_group"
+
+
+def _safe_location(loc_data: dict[str, Any]) -> bool:
+    flags = loc_data.get("flags", {})
+    flags = flags if isinstance(flags, dict) else {}
+    return bool(flags.get("system_connect") or flags.get("is_safe_zone", False))

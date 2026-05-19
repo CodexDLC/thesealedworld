@@ -1,3 +1,33 @@
+{% from "game/domains/game_menu/header_nav.html" import nav_action, nav_state_class with context %}
+
+{% macro arena_menu_icon(item) -%}
+    {% set icon_key = item.icon if item and item.icon else 'unknown' %}
+    {% if item and item.is_disabled %}
+        <span class="mobile-nav-icon mobile-nav-icon--empty" aria-hidden="true"></span>
+    {% else %}
+        <span class="mobile-nav-icon mobile-nav-icon--{{ icon_key }}"
+              style="--nav-icon-url: url('/static/images/ui/game-menu-icons/{{ icon_key }}.svg')"
+              aria-hidden="true"></span>
+    {% endif %}
+{%- endmacro %}
+
+{% macro arena_nav_item(item, fallback_label, extra_class='') %}
+    {% if item %}
+        <button type="button"
+                class="dock-nav-button mobile-center-menu-item {{ extra_class }} {{ 'is-disabled' if item.is_disabled else '' }} {{ 'is-active' if item.is_active else '' }}"
+                {{ nav_action(item) }}
+                :class="{{ nav_state_class(item) }}">
+            {{ arena_menu_icon(item) }}
+            <span>{{ item.label }}</span>
+        </button>
+    {% else %}
+        <button type="button" class="dock-nav-button mobile-center-menu-item is-disabled {{ extra_class }}" disabled aria-disabled="true">
+            <span class="mobile-nav-icon mobile-nav-icon--empty" aria-hidden="true"></span>
+            <span>{{ fallback_label }}</span>
+        </button>
+    {% endif %}
+{% endmacro %}
+
 {% macro arena_action_attrs(button) -%}
     {% set button_action = button.action.value if button.action and button.action.value is defined else button.action %}
     {% set button_mode = button.mode.value if button.mode and button.mode.value is defined else button.mode %}
@@ -150,6 +180,13 @@
     {% if arena %}
         {% set arena_screen = arena.screen.value if arena.screen and arena.screen.value is defined else arena.screen %}
         <div class="game-screen-area game-screen-area--vertical arena-screen arena-screen--{{ arena_screen }}{{ ' arena-group-underwork' if arena_screen == 'mode_menu' and arena.mode == 'group' else '' }}">
+            <nav class="dock-nav dock-nav--bar dock-nav--five mobile-center-menu arena-center-menu" aria-label="Arena sections">
+                {{ arena_nav_item(nav.l2 if nav else none, 'STATUS') }}
+                {{ arena_nav_item(nav.l1 if nav else none, 'QUESTS') }}
+                {{ arena_nav_item(nav.center if nav else none, 'ARENA', 'is-active') }}
+                {{ arena_nav_item(nav.r1 if nav else none, 'INVENTORY') }}
+                {{ arena_nav_item(nav.r2 if nav else none, 'VIEW') }}
+            </nav>
             <div id="arena-poll-region">
                 <div class="loc-tag">
                     <span class="loc-dot"></span>

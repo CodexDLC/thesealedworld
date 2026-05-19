@@ -9,6 +9,11 @@
     justify-content: flex-start;
 }
 
+.arena-center-menu {
+    width: 100%;
+    margin: 0 0 10px;
+}
+
 .arena-mode-card {
     --arena-mode-icon: url("/static/images/ui/arena-icons/sword-clash.svg");
     --arena-mode-background: url("/static/images/game/arena/backgrounds/duel-hall.webp");

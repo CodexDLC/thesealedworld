@@ -1094,7 +1094,7 @@ def test_game_header_nav_marks_open_panels_and_inventory_panel_active():
     assert "leftOpen && leftPanelView" in template
     assert "rightOpen && rightPanelView" in template
     assert "windows.{{ item.window }}.open" not in template
-    assert "forceOpen: true" in template
+    assert "forceOpen: true" not in template
     assert 'hx-get="/game/inventory/window?char_id={{ char_id }}"' in template
     assert 'hx-target="#right-inventory-panel-body"' in template
 
@@ -1110,7 +1110,8 @@ def test_game_header_has_system_exit_to_lobby():
     template = Path("src/frontend/templates/game/includes/header.html").read_text()
 
     assert "The Sealed World" in template
-    assert "domain != 'exploration'" in template
+    assert "header_nav.html" not in template
+    assert "center-nav" not in template
     assert "game-system-menu" in template
     assert "game-system-action" in template
     assert "game-system-action-glyph--cabinet" in template

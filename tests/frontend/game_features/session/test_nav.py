@@ -45,7 +45,7 @@ def test_inventory_is_far_right_for_runtime_domains():
         nav = build_game_nav(state=state, char_id=7)
 
         assert nav["l1"]["label"] in {"QUESTS", "BUILDS"}
-        if state == CoreDomain.EXPLORATION:
+        if state in {CoreDomain.EXPLORATION, CoreDomain.ARENA}:
             assert nav["l1"]["modal"] == "quests"
             assert nav["l1"]["panel"] is None
         else:
@@ -56,6 +56,18 @@ def test_inventory_is_far_right_for_runtime_domains():
         assert nav["r1"]["window"] is None
         assert nav["r2"]["label"] == "VIEW"
         assert nav["r2"]["panel"] == "right"
+
+
+def test_arena_nav_uses_quests_inventory_and_rank_view():
+    nav = build_game_nav(state=CoreDomain.ARENA, char_id=7)
+
+    assert nav["center"]["label"] == "ARENA"
+    assert nav["l1"]["label"] == "QUESTS"
+    assert nav["l1"]["modal"] == "quests"
+    assert nav["r1"]["label"] == "INVENTORY"
+    assert nav["r1"]["panel_view"] == "inventory"
+    assert nav["r2"]["label"] == "VIEW"
+    assert nav["r2"]["panel_view"] == "context"
 
 
 def test_combat_nav_keeps_standard_shell_slots_for_rosters():

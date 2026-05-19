@@ -54,6 +54,59 @@ def test_mode_menu_renders_queue_and_back_buttons_from_lowercase_actions():
     assert '"action": "menu_main"' in rendered
 
 
+def test_arena_viewport_renders_center_menu_inside_viewport():
+    env = Environment(
+        loader=FileSystemLoader("src/frontend/templates"),
+        autoescape=select_autoescape(),
+    )
+    template = env.get_template("game/domains/arena/viewport/main.html")
+    arena = ArenaUIPayloadDTO(
+        screen=ArenaScreenEnum.MAIN_MENU,
+        mode="one_vs_one",
+        title="Арена",
+        description="Описание",
+        buttons=ArenaResources.get_main_buttons(),
+    )
+    def nav_item(label, **overrides):
+        values = {
+            "label": label,
+            "icon": "arena",
+            "is_disabled": False,
+            "is_active": False,
+            "panel": None,
+            "panel_view": None,
+            "window": None,
+            "modal": None,
+            "url": None,
+        }
+        values.update(overrides)
+        return SimpleNamespace(**values)
+
+    nav = SimpleNamespace(
+        l2=nav_item("STATUS", panel="left", panel_view="status"),
+        l1=nav_item("QUESTS", modal="quests"),
+        center=nav_item("ARENA", is_active=True),
+        r1=nav_item("INVENTORY", panel="right", panel_view="inventory"),
+        r2=nav_item("VIEW", panel="right", panel_view="context"),
+    )
+
+    rendered = template.render(
+        arena=arena,
+        char_id=7,
+        nav=nav,
+        status_seed=SimpleNamespace(symbiote_name="SYSTEM"),
+    )
+
+    assert "arena-center-menu" in rendered
+    assert 'aria-label="Arena sections"' in rendered
+    assert "dock-nav--five" in rendered
+    assert ">QUESTS</span>" in rendered
+    assert ">ARENA</span>" in rendered
+    assert ">VIEW</span>" in rendered
+    assert "$dispatch('game-modal-open', { kind: 'quests' })" in rendered
+    assert "$dispatch('panel-toggle'" in rendered
+
+
 def test_mode_menu_uses_static_card_icons_and_search_screen_keeps_scanner_animation():
     css = Path("src/frontend/static/css/game/domains/arena/matchmaking.css").read_text(encoding="utf-8")
 
@@ -219,7 +272,7 @@ def test_arena_viewport_can_oob_refresh_right_sidebar():
         oob_panels=True,
     )
 
-    assert 'id="game-right-content"' in rendered
+    assert 'id="game-right-context-content"' in rendered
     assert 'hx-swap-oob="innerHTML"' in rendered
     assert "MMR" in rendered
     assert "1000" in rendered

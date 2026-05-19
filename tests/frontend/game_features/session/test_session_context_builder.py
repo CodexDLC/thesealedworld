@@ -697,6 +697,10 @@ async def test_build_state_arena_normalizes_dict_payload_before_render_context()
     assert context["arena"].screen == ArenaScreenEnum.MAIN_MENU
     assert context["domain"] == "arena"
     assert context["character_status"].panel is not None
+    assert context["nav"]["l1"]["label"] == "QUESTS"
+    assert context["nav"]["l1"]["modal"] == "quests"
+    assert context["nav"]["r1"]["panel_view"] == "inventory"
+    assert context["nav"]["r2"]["panel_view"] == "context"
 
 
 @pytest.mark.asyncio

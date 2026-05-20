@@ -424,3 +424,134 @@ body.fc-shell {
 .fc-btn-save:hover {
     background: #1d4ed8;
 }
+
+/* ══════════════════════════════════════════
+   ARTICLE FORM WIDGET
+══════════════════════════════════════════ */
+
+.fc-widget--article-form {
+    grid-column: 1 / -1;
+}
+
+.fc-article-form {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.fc-form-row {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.fc-form-label {
+    color: #4a5568;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.03em;
+}
+
+.fc-form-input {
+    background: #ffffff;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    color: #18202a;
+    font-size: 14px;
+    padding: 8px 12px;
+    transition: border-color 0.12s;
+    width: 100%;
+}
+
+.fc-form-input:focus {
+    border-color: #2563eb;
+    outline: none;
+}
+
+.fc-form-textarea {
+    background: #ffffff;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    color: #18202a;
+    font-family: ui-monospace, monospace;
+    font-size: 13px;
+    line-height: 1.5;
+    padding: 10px 12px;
+    resize: vertical;
+    transition: border-color 0.12s;
+    width: 100%;
+}
+
+.fc-form-textarea:focus {
+    border-color: #2563eb;
+    outline: none;
+}
+
+.fc-form-textarea--sm {
+    min-height: 80px;
+}
+
+.fc-form-textarea--lg {
+    min-height: 280px;
+}
+
+.fc-form-actions {
+    align-items: center;
+    border-top: 1px solid #f0f2f5;
+    display: flex;
+    gap: 12px;
+    margin-top: 8px;
+    padding-top: 16px;
+}
+
+.fc-btn-cancel {
+    border-radius: 6px;
+    color: #6b7a92;
+    font-size: 13px;
+    padding: 8px 16px;
+    text-decoration: none;
+    transition: background 0.1s, color 0.1s;
+}
+
+.fc-btn-cancel:hover {
+    background: #f0f2f5;
+    color: #18202a;
+}
+
+.fc-article-extra-actions {
+    align-items: center;
+    border-top: 1px solid #f0f2f5;
+    display: flex;
+    gap: 12px;
+    margin-top: 20px;
+    padding-top: 16px;
+}
+
+.fc-action-btn--unpublish {
+    border-color: #fcd34d;
+    color: #b45309;
+}
+
+.fc-action-btn--unpublish:hover {
+    background: #fffbeb;
+}
+
+.fc-status-badge {
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    margin-left: auto;
+    padding: 4px 12px;
+    text-transform: uppercase;
+}
+
+.fc-status-badge--published {
+    background: #f0fdf4;
+    color: #15803d;
+}
+
+.fc-status-badge--draft {
+    background: #fef3c7;
+    color: #92400e;
+}

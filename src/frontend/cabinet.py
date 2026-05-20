@@ -1,5 +1,6 @@
 CABINET_MODULES = (
     # Сайт
+    "src.frontend.features.cabinet.modules.news_management.cabinet",
     "src.frontend.features.cabinet.modules.site_analytics.cabinet",
     "src.frontend.features.cabinet.modules.player_analytics.cabinet",
     # Гейм Сервер

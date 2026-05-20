@@ -1,0 +1,76 @@
+{% extends "cabinet/base.html" %}
+
+{% block content %}
+    <section class="fc-widget fc-widget--article-form fc-widget--wide">
+        <h2>{{ form.title }}</h2>
+        <form method="post" action="{{ form.action_url }}" class="fc-article-form">
+            {% if form.article_id %}
+                <input type="hidden" name="article_id" value="{{ form.article_id }}">
+            {% endif %}
+
+            <div class="fc-form-row">
+                <label class="fc-form-label" for="field-title">Заголовок</label>
+                <input class="fc-form-input" type="text" id="field-title" name="title"
+                       value="{{ form.article_title }}" required maxlength="200"
+                       placeholder="Название статьи">
+            </div>
+
+            <div class="fc-form-row">
+                <label class="fc-form-label" for="field-slug">Slug (URL)</label>
+                <input class="fc-form-input" type="text" id="field-slug" name="slug"
+                       value="{{ form.slug }}" required maxlength="200"
+                       placeholder="url-friendly-slug" pattern="[a-z0-9\-]+">
+            </div>
+
+            <div class="fc-form-row">
+                <label class="fc-form-label" for="field-preview">Превью</label>
+                <textarea class="fc-form-textarea fc-form-textarea--sm" id="field-preview" name="preview"
+                          required maxlength="400"
+                          placeholder="Краткое описание для карточки в списке">{{ form.preview }}</textarea>
+            </div>
+
+            <div class="fc-form-row">
+                <label class="fc-form-label" for="field-body">Текст статьи (HTML)</label>
+                <textarea class="fc-form-textarea fc-form-textarea--lg" id="field-body" name="body"
+                          required
+                          placeholder="HTML-контент статьи">{{ form.body }}</textarea>
+            </div>
+
+            <div class="fc-form-row">
+                <label class="fc-form-label" for="field-cover">Обложка (URL)</label>
+                <input class="fc-form-input" type="text" id="field-cover" name="cover_image"
+                       value="{{ form.cover_image }}" maxlength="500"
+                       placeholder="/static/images/news/cover.jpg">
+            </div>
+
+            <div class="fc-form-actions">
+                <button type="submit" class="fc-btn-save">
+                    {% if form.article_id %}Сохранить{% else %}Создать{% endif %}
+                </button>
+                <a href="{{ form.cancel_url }}" class="fc-btn-cancel">Отмена</a>
+            </div>
+        </form>
+
+        {% if form.article_id %}
+            <div class="fc-article-extra-actions">
+                <form method="post" action="/admin/news/toggle-publish" style="display:inline">
+                    <input type="hidden" name="article_id" value="{{ form.article_id }}">
+                    <button type="submit" class="fc-action-btn {% if form.is_published %}fc-action-btn--unpublish{% else %}fc-action-btn--approve{% endif %}">
+                        {% if form.is_published %}Снять с публикации{% else %}Опубликовать{% endif %}
+                    </button>
+                </form>
+                <form method="post" action="/admin/news/delete" style="display:inline"
+                      onsubmit="return confirm('Удалить статью? Это действие необратимо.')">
+                    <input type="hidden" name="article_id" value="{{ form.article_id }}">
+                    <button type="submit" class="fc-action-btn fc-action-btn--deny">Удалить</button>
+                </form>
+
+                {% if form.is_published %}
+                    <span class="fc-status-badge fc-status-badge--published">Опубликована</span>
+                {% else %}
+                    <span class="fc-status-badge fc-status-badge--draft">Черновик</span>
+                {% endif %}
+            </div>
+        {% endif %}
+    </section>
+{% endblock %}

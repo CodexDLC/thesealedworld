@@ -4,7 +4,8 @@ Detailed milestone history for the `src/frontend` site-web layer.
 
 ## [Unreleased]
 
-No unreleased site changes yet.
+- Public landing imagery now serves compressed WebP variants with fallbacks and LCP priority hints.
+- Site, account, cabinet, and game shells now use self-hosted fonts plus a root favicon route.
 
 ## [v0.1.0a1] - First Alpha
 

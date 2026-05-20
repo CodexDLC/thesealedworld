@@ -55,6 +55,58 @@ Deploy rules:
 - `site` deploys must not restart game services.
 - `game` deploys must not restart the site service.
 
+## Production Admin Tools
+
+The optional tools layer starts browser UIs for inspecting production data:
+
+- CloudBeaver on server-local `127.0.0.1:8978` for PostgreSQL.
+- RedisInsight on server-local `127.0.0.1:5540` for Redis.
+
+These ports intentionally bind only to the server loopback interface. Do not
+publish them through Nginx for the alpha environment.
+
+Start or update the tools on the server:
+
+```bash
+cd /opt/turnbasedmmorpg/deploy
+docker compose -f compose.tools.yml up -d
+docker compose -f compose.tools.yml ps
+```
+
+Open an SSH tunnel from the operator workstation:
+
+```powershell
+ssh -N -L 8978:127.0.0.1:8978 -L 5540:127.0.0.1:5540 my_game
+```
+
+Then open locally:
+
+- CloudBeaver: `http://127.0.0.1:8978`
+- RedisInsight: `http://127.0.0.1:5540`
+
+CloudBeaver connection settings:
+
+```text
+Host: postgres
+Port: 5432
+Database: tbmmorpg_site
+User: value of POSTGRES_USER
+Password: value of POSTGRES_PASSWORD
+```
+
+Create a second PostgreSQL connection for `tbmmorpg_game` with the same host,
+port, user, and password.
+
+RedisInsight connection settings:
+
+```text
+Host: redis
+Port: 6379
+Username: default or empty
+Password: value of REDIS_PASSWORD
+TLS: disabled
+```
+
 ## Production TLS
 
 Production TLS uses Let's Encrypt through the Nginx webroot flow. Do not use

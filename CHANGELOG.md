@@ -14,7 +14,14 @@ Full layer changelogs live in:
 
 ## [Unreleased]
 
-No unreleased changes yet.
+### Fixed
+
+- Ensures the production generated-assets Docker volume is initialized with
+  `appuser` ownership before site and game services write generated files.
+- Adds a loopback-only production admin tools compose layer for PostgreSQL and
+  Redis inspection over SSH tunnels.
+- Hardens production Nginx defaults by hiding server tokens and rejecting
+  unknown TLS hosts with the default server.
 
 ## [v0.1.0a1] - First Alpha
 

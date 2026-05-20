@@ -329,8 +329,15 @@ def test_landing_rift_links_to_lobby_with_tooltip():
     assert '<a class="tsw-hero-rift" href="/game-lobby" aria-label="Заглянуть в мир">' in landing_template
     assert '<button type="button" class="tsw-hero-rift" @click="authModal = \'login\'"' in landing_template
     assert 'class="tsw-rift-tooltip"' in landing_template
+    assert 'href="/static/images/site/the-sealed-world/hero-rift.webp"' in landing_template
+    assert 'fetchpriority="high"' in landing_template
+    assert 'srcset="/static/images/site/the-sealed-world/hero-rift.webp"' in landing_template
+    assert 'srcset="/static/images/site/the-sealed-world/hero-main.webp"' in landing_template
+    assert 'srcset="/static/images/site/the-sealed-world/premise-fig.webp"' in landing_template
     assert ".tsw-rift-tooltip" in landing_css
     assert ".tsw-hero-rift:hover .tsw-rift-tooltip" in landing_css
+    assert 'url("/static/images/site/the-sealed-world/tex-dust.webp") type("image/webp")' in landing_css
+    assert 'url("/static/images/site/the-sealed-world/cta-bg.webp") type("image/webp")' in landing_css
     assert "z-index: 6;" in landing_css
     assert "aspect-ratio: 1 / 1;" in landing_css
     assert "object-fit: contain;" in landing_css

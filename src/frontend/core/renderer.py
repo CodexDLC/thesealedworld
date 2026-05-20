@@ -85,6 +85,7 @@ def get_ui_renderer(request: Request) -> UIRenderer:
 
 def _static_version() -> str:
     asset_paths = (
+        settings.static_dir / "css" / "fonts.css",
         settings.static_dir / "css" / "site.css",
         settings.static_dir / "js" / "site.js",
         settings.static_dir / "css" / "game.css",

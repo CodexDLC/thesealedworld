@@ -14,7 +14,7 @@ from typing import Any, cast
 
 import httpx
 from fastapi import FastAPI, HTTPException, status
-from fastapi.responses import JSONResponse, RedirectResponse
+from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from loguru import logger
@@ -150,6 +150,11 @@ app.add_middleware(GameMenuMiddleware)
 app.add_middleware(GameTokenRefreshMiddleware)
 include_frontend_routers(app)
 include_cabinet(app, modules=CABINET_MODULES, mount_path="/admin")
+
+
+@app.get("/favicon.ico", include_in_schema=False)
+async def favicon() -> FileResponse:
+    return FileResponse(settings.static_dir / "favicon.ico", media_type="image/x-icon")
 
 
 @app.get("/health")

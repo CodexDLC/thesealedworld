@@ -2,6 +2,10 @@
 
 {% block title %}The Sealed World — Запечатанный мир{% endblock title %}
 
+{% block extra_head %}
+<link rel="preload" as="image" href="/static/images/site/the-sealed-world/hero-rift.webp" type="image/webp" fetchpriority="high">
+{% endblock extra_head %}
+
 {% block body_class %}page-the-sealed-world{% if lobby_overlay_open %} has-lobby-modal{% endif %}{% if auth_overlay_open %} has-auth-modal{% endif %}{% endblock body_class %}
 
 {% block content %}
@@ -16,7 +20,10 @@
 
 <section class="tsw-hero" id="top">
     <div class="tsw-hero-bg" aria-hidden="true">
-        <img class="tsw-hero-main" src="/static/images/site/the-sealed-world/hero-main.jpg" alt="">
+        <picture class="tsw-hero-picture">
+            <source srcset="/static/images/site/the-sealed-world/hero-main.webp" type="image/webp">
+            <img class="tsw-hero-main" src="/static/images/site/the-sealed-world/hero-main.jpg" width="1024" height="1024" alt="" decoding="async">
+        </picture>
         <div class="tsw-dust"></div>
     </div>
 
@@ -33,12 +40,18 @@
         </div>
         {% if user %}
         <a class="tsw-hero-rift" href="/game-lobby" aria-label="Заглянуть в мир">
-            <img src="/static/images/site/the-sealed-world/hero-rift.png" alt="">
+            <picture>
+                <source srcset="/static/images/site/the-sealed-world/hero-rift.webp" type="image/webp">
+                <img src="/static/images/site/the-sealed-world/hero-rift.png" width="500" height="500" alt="" fetchpriority="high" decoding="async">
+            </picture>
             <span class="tsw-rift-tooltip">Заглянуть в мир</span>
         </a>
         {% else %}
         <button type="button" class="tsw-hero-rift" @click="authModal = 'login'" aria-label="Заглянуть в мир">
-            <img src="/static/images/site/the-sealed-world/hero-rift.png" alt="">
+            <picture>
+                <source srcset="/static/images/site/the-sealed-world/hero-rift.webp" type="image/webp">
+                <img src="/static/images/site/the-sealed-world/hero-rift.png" width="500" height="500" alt="" fetchpriority="high" decoding="async">
+            </picture>
             <span class="tsw-rift-tooltip">Заглянуть в мир</span>
         </button>
         {% endif %}
@@ -85,7 +98,10 @@
         </div>
 
         <figure class="tsw-premise-figure">
-            <img src="/static/images/site/the-sealed-world/premise-fig.jpg" alt="Вид из уцелевшего города на внешние руины">
+            <picture class="tsw-premise-picture">
+                <source srcset="/static/images/site/the-sealed-world/premise-fig.webp" type="image/webp">
+                <img src="/static/images/site/the-sealed-world/premise-fig.jpg" width="720" height="720" alt="Вид из уцелевшего города на внешние руины" loading="lazy" decoding="async">
+            </picture>
             <figcaption>Вид на внешний район · Западная стена</figcaption>
         </figure>
     </div>

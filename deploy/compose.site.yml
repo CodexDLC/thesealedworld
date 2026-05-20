@@ -1,6 +1,19 @@
 name: tbmmorpg
 
 services:
+  generated-assets-init:
+    image: alpine:3.20
+    restart: "no"
+    command:
+      - sh
+      - -c
+      - >
+        mkdir -p /app/var/generated-assets/monsters
+        && chown -R 1000:1000 /app/var/generated-assets
+        && chmod -R u+rwX,g+rwX /app/var/generated-assets
+    volumes:
+      - tbmmorpg-generated-assets:/app/var/generated-assets
+
   site-migrate:
     image: ${DOCKER_IMAGE_SITE:?DOCKER_IMAGE_SITE is required}
     container_name: tbmmorpg-site-migrate
@@ -48,6 +61,8 @@ services:
     volumes:
       - tbmmorpg-generated-assets:/app/var/generated-assets
     depends_on:
+      generated-assets-init:
+        condition: service_completed_successfully
       site-migrate:
         condition: service_completed_successfully
     healthcheck:

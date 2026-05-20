@@ -7,6 +7,19 @@ server {
 }
 
 server {
+    listen 443 ssl default_server;
+    listen [::]:443 ssl default_server;
+    server_name _;
+
+    ssl_certificate ${TLS_CERTIFICATE_PATH};
+    ssl_certificate_key ${TLS_CERTIFICATE_KEY_PATH};
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_prefer_server_ciphers on;
+
+    return 444;
+}
+
+server {
     listen 80;
     listen [::]:80;
     server_name ${DOMAIN_NAME} www.${DOMAIN_NAME};

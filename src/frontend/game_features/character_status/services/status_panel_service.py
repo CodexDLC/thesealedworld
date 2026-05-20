@@ -15,3 +15,6 @@ class StatusPanelService:
 
     async def get_status(self, request: Request, *, char_id: int) -> CharacterStatusDTO:
         return await self.api.get_status(require_game_access_token(request), char_id=char_id)
+
+    async def update_avatar(self, request: Request, *, char_id: int, avatar_url: str) -> None:
+        await self.api.update_avatar(require_game_access_token(request), char_id=char_id, avatar_url=avatar_url)

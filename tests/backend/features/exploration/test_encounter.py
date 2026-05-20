@@ -1,4 +1,5 @@
 # tests/backend/features/exploration/test_encounter.py
+import random
 from unittest.mock import AsyncMock
 
 import pytest
@@ -9,25 +10,25 @@ from src.backend.features.monsters.dto import MonsterGroupMemberPreview, Monster
 from src.shared.schemas.exploration import DetectionStatus, EncounterType
 
 
-def test_encounter_chance_uses_hunting_and_pathfinder_roles():
+def test_encounter_chance_does_not_use_skills():
     assert EncounterPolicy.encounter_chance(
         base_chance=0.45,
         trigger="move",
         hunting_skill=0.8,
         pathfinder_skill=0.2,
-    ) == pytest.approx(0.60)
+    ) == pytest.approx(0.45)
     assert EncounterPolicy.encounter_chance(
         base_chance=0.45,
         trigger="move",
         hunting_skill=0.2,
         pathfinder_skill=0.8,
-    ) == pytest.approx(0.30)
+    ) == pytest.approx(0.45)
     assert EncounterPolicy.encounter_chance(
         base_chance=0.80,
         trigger="search",
         scouting_skill=0.5,
         hunting_skill=0.5,
-    ) == pytest.approx(0.95)
+    ) == pytest.approx(0.80)
 
 
 @pytest.mark.asyncio
@@ -159,7 +160,7 @@ async def test_encounter_masks_monster_preview_when_hunting_is_low():
 
 
 @pytest.mark.asyncio
-async def test_encounter_uses_full_player_gear_score_as_monster_budget():
+async def test_encounter_uses_full_player_gear_score_as_monster_budget_at_high_hunting():
     policy = EncounterPolicy()
     policy.should_roll = lambda **_: True  # type: ignore[method-assign]
     policy.roll = lambda **_: type(  # type: ignore[method-assign]
@@ -180,10 +181,22 @@ async def test_encounter_uses_full_player_gear_score_as_monster_budget():
         scouting_skill=100.0,
         loc_id="50_50",
         gear_score=506,
+        hunting_skill=1.0,
         encounter_integration=integration,
     )
 
     assert integration.prepare_monster_group.await_args.args[1] == 506
+
+
+def test_monster_budget_rolls_wider_when_hunting_is_low():
+    low_policy = EncounterPolicy(rng=random.Random(1))
+    high_policy = EncounterPolicy(rng=random.Random(1))
+
+    low_budget = low_policy.monster_budget(gear_score=506, hunting_skill=0.0)
+    high_budget = high_policy.monster_budget(gear_score=506, hunting_skill=0.8)
+
+    assert low_budget == pytest.approx(339.49)
+    assert high_budget == pytest.approx(472.7)
 
 
 @pytest.mark.asyncio

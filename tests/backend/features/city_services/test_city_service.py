@@ -65,7 +65,7 @@ async def test_city_service_view_returns_tavern_main_screen_and_enters_domain() 
     assert payload.service_type == "tavern"
     assert payload.screen == CityServiceScreenEnum.MAIN
     assert payload.location_id == "53_53"
-    assert payload.background_url is None
+    assert payload.background_url == "/static/images/scenes/tavern.png"
     assert integrator.entered == [7]
 
 
@@ -78,7 +78,7 @@ async def test_city_service_placeholder_returns_live_text_screen() -> None:
     assert payload.service_id == "svc_market_hub"
     assert payload.service_type == "market"
     assert payload.screen == CityServiceScreenEnum.MAIN
-    assert payload.background_url is None
+    assert payload.background_url == "/static/images/exploration/terrain/market_ruins_01.webp"
     assert "аукционные доски" in payload.description.lower()
     assert payload.buttons
 
@@ -98,7 +98,7 @@ async def test_city_service_portal_returns_service_view_background_and_portal_ac
     assert payload.metadata["npc"]["id"] == "portal_first_contact"
     assert payload.metadata["npc"]["npc_key"] == "portal_pad_guide"
     assert payload.metadata["npc"]["stage_position"] == "bottom-right"
-    assert payload.metadata["npc"]["dialogue_quest_key"] == "awakening_rift"
+    assert payload.metadata["npc"]["dialogue_quest_key"] == "portal_guide_dialogue"
     assert [button.label for button in payload.buttons] == ["Войти в портал", "Выйти"]
     assert payload.buttons[0].is_disabled is True
 
@@ -115,7 +115,7 @@ async def test_city_service_portal_contact_starts_dialogue() -> None:
     )
 
     assert transition.target_state == CoreDomain.SCENARIO
-    assert transition.quest_key == "awakening_rift"
+    assert transition.quest_key == "portal_guide_dialogue"
     assert transition.metadata["npc_key"] == "portal_pad_guide"
     assert transition.context["return_context"]["npc_key"] == "portal_pad_guide"
     assert transition.metadata["section_id"] == "portal_contact"

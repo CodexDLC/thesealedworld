@@ -643,6 +643,9 @@ def test_status_attribute_and_skill_widgets_are_collapsible():
     assert "status-widget-skill-group" in compact_status
     assert "status-widget-skill-group-title" in compact_status
     assert "status-widget-skill-group-row" in compact_status
+    assert "status-widget-metrics" in compact_status
+    assert "status-widget-metric-card--primary" in compact_status
+    assert ">GS<" in compact_status
     assert "loop.index <= 8" not in compact_status
     assert "('COMBAT STYLE', ['skill_one_handed', 'skill_two_handed', 'skill_shield_mastery', 'skill_dual_wield'])" in compact_status
     assert "('COMBAT SUPPORT', ['skill_parrying', 'skill_anatomy', 'skill_tactics'])" in compact_status
@@ -710,6 +713,7 @@ def test_game_shell_uses_right_panel_inventory_instead_of_floating_hud():
 
 def test_inventory_window_template_defines_frontend_contract():
     template = Path("src/frontend/templates/game/components/inventory/window.html").read_text()
+    compact_status = Path("src/frontend/templates/game/components/status/compact_panel.html").read_text()
 
     assert "inventory_target_id" in template
     assert 'hx-target="#{{ inventory_target_id }}"' in template
@@ -755,6 +759,9 @@ def test_inventory_window_template_defines_frontend_contract():
     assert "inventory-grade-r" in template
     assert "inventory-gear/" in template
     assert "data-inventory-tooltip-trigger" in template
+    assert "data-inventory-menu-trigger" in template
+    assert "data-inventory-actions" in template
+    assert "data-inventory-valid-slots" in template
     assert "inventory-tooltip-template" in template
     assert "activeInventoryTab === 'resources'" in template
     assert "activeInventoryTab === 'quest'" in template
@@ -765,6 +772,10 @@ def test_inventory_window_template_defines_frontend_contract():
     assert "row.card_class" in template
     assert "row.comparison" in template
     assert "INVENTORY_LINK_PENDING" not in template
+    assert 'hx-get="/game/character-status/panel?char_id={{ char_id }}"' in compact_status
+    assert 'hx-trigger="character-status-refresh from:body"' in compact_status
+    assert 'hx-target="this"' in compact_status
+    assert 'hx-swap="outerHTML"' in compact_status
 
 
 def test_inventory_window_template_renders_contract_view_model():
@@ -976,6 +987,8 @@ def test_inventory_css_has_loadout_container_and_table_contract():
     assert ".inventory-tooltip-section-title" in source
     assert ".inventory-floating-tooltip--touch" in source
     assert ".inventory-tooltip-action" in source
+    assert ".inventory-context-menu" in source
+    assert ".inventory-context-menu-action" in source
     assert ".inventory-accessory-row-label" in source
     assert ".inventory-accessory-row--rings .inventory-accessory-slot" in source
     assert ".inventory-accessory-row--split .inventory-accessory-slot-label" in source
@@ -1008,6 +1021,10 @@ def test_game_shell_drag_logic_lives_in_source_js():
     assert "appendTouchInventoryActions" in main_source
     assert "event.stopImmediatePropagation()" in main_source
     assert "inventory-tooltip-action" in main_source
+    assert "contextmenu" in main_source
+    assert "inventory-context-menu-host" in main_source
+    assert "data-inventory-menu-trigger" in main_source
+    assert "setTimeout" in main_source
     assert "!detail.forceOpen && this.leftOpen && this.leftPanelView === nextView" in source
     assert "!detail.forceOpen && this.rightOpen && this.rightPanelView === nextView" in source
     assert "startHudWindowDrag" in source
@@ -1086,9 +1103,19 @@ def test_inventory_frontend_route_proxies_actions_to_backend():
     assert '@router.post("/game/inventory/action"' in route
     assert "InventoryActionRequestDTO.model_validate" in route
     assert "inventory_api.action" in route
+    assert 'http_response.headers["HX-Trigger"] = "character-status-refresh"' in route
     assert "HTTP_409_CONFLICT" in route
     assert "async def action" in client
     assert '"/api/game/inventory/actions?{query}"' in client
+
+
+def test_status_runtime_has_no_legacy_agent_polling():
+    source = Path("src/frontend/static/js/core/status.js").read_text()
+
+    assert "pollingEnabled" not in source
+    assert "setInterval" not in source
+    assert "agents[charId]" not in source
+    assert "/api/game/character-status" not in source
 
 
 def test_game_header_nav_marks_open_panels_and_inventory_panel_active():

@@ -727,6 +727,8 @@ def test_combat_view_builds_flat_actor_stat_sheet_from_stats_and_attributes():
                 "stats": {
                     "mods": {
                         "accuracy": 12.5,
+                        "main_hand_damage_base": 14,
+                        "main_hand_damage_spread": 0.25,
                         "parry": 0,
                         "block": 8,
                         "attack_speed": 3,
@@ -743,7 +745,13 @@ def test_combat_view_builds_flat_actor_stat_sheet_from_stats_and_attributes():
     )
 
     assert dashboard.hero.stat_sheet is not None
+    assert [section.key for section in dashboard.hero.stat_sheet.sections] == [
+        "offense",
+        "defense",
+        "attributes",
+    ]
     sections = {section.key: section for section in dashboard.hero.stat_sheet.sections}
+    assert sections["offense"].items[0].key == "main_hand_damage"
     assert [item.key for item in sections["attributes"].items] == ["strength", "perception"]
     assert sections["attributes"].items[0].value == 12
     assert [item.key for item in sections["defense"].items] == ["block"]

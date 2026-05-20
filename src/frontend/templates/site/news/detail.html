@@ -1,0 +1,32 @@
+{% extends "site/base_site.html" %}
+
+{% block title %}{{ article.title }} — The Sealed World{% endblock title %}
+
+{% block content %}
+<section class="main-container" style="max-width: 760px; padding-top: var(--sp-6); padding-bottom: var(--sp-8);">
+    <nav class="news-back">
+        <a href="/news" class="btn-node ghost sm"><span>← Все новости</span></a>
+    </nav>
+
+    <article class="ds-panel news-article">
+        {% if article.cover_image %}
+        <div class="news-article-cover">
+            <img src="{{ article.cover_image }}" alt="">
+        </div>
+        {% endif %}
+        <div class="ds-panel-body">
+            <div class="news-card-meta">
+                <span class="tag sys">{{ article.published_at }}</span>
+            </div>
+            <h1 class="news-article-title">{{ article.title }}</h1>
+            <div class="news-article-body">
+                {{ article.body | safe }}
+            </div>
+        </div>
+    </article>
+
+    <nav class="news-back" style="margin-top: var(--sp-4);">
+        <a href="/news" class="btn-node ghost sm"><span>← Все новости</span></a>
+    </nav>
+</section>
+{% endblock content %}

@@ -42,7 +42,7 @@ class TravelEncounterRuntime:
                 tier=tier,
                 difficulty=difficulty,
                 status=status,
-                budget=self._policy.monster_budget(gear_score),
+                budget=self._policy.monster_budget(gear_score, hunting_skill=hunting_skill),
                 hunting_skill=hunting_skill,
                 integration=integration,
             )

@@ -1,0 +1,47 @@
+.status-widget-metric-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 6px;
+    padding: 7px;
+    border-top: 1px solid rgba(255,170,0,.06);
+    background: rgba(0,0,0,.18);
+}
+
+.status-widget-metric-card {
+    min-width: 0;
+    min-height: 42px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 7px 8px;
+    border: 1px solid rgba(255,170,0,.12);
+    background:
+        linear-gradient(180deg, rgba(255,170,0,.045), rgba(255,170,0,.01)),
+        rgba(0,0,0,.36);
+}
+
+.status-widget-metric-card span,
+.status-widget-metric-card strong {
+    font-family: var(--font-mono);
+    line-height: 1;
+}
+
+.status-widget-metric-card span {
+    color: rgba(210,180,140,.74);
+    font-size: 8px;
+    font-weight: 900;
+    text-transform: uppercase;
+}
+
+.status-widget-metric-card strong {
+    color: var(--col-accent);
+    font-size: 16px;
+    font-weight: 900;
+    text-align: right;
+    text-shadow: 0 0 10px rgba(255,170,0,.28);
+}
+
+.status-widget-metric-card--primary {
+    grid-column: 1 / -1;
+}

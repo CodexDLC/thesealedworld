@@ -1,7 +1,7 @@
 {
-  "quest_key": "first_death_portal_dialogue",
+  "quest_key": "portal_guide_dialogue",
   "scenario_type": "dialogue_scenario",
-  "display_name": "ПЕРВЫЙ ВОЗВРАТ К КРУГУ",
+  "display_name": "РАЗГОВОР С ПРОВОДНИКОМ КРУГА",
   "npc_key": "portal_pad_guide",
   "ui": {
     "left_panel": {
@@ -11,6 +11,6 @@
       "mode": "dialogue_context"
     }
   },
-  "start_node_id": "death_return_greeting",
+  "start_node_id": "guide_dialogue_hub",
   "status_bar_fields": []
 }

@@ -537,7 +537,24 @@ class CharacterSessionManager:
         gender: str | None = None,
         avatar: str | None = None,
     ) -> None:
-        raise NotImplementedError("Bio point-updates are planned for iteration 2.")
+        updates: dict[str, Any] = {}
+        dirty_paths: list[str] = []
+
+        if avatar is not None:
+            updates["$.bio.avatar"] = avatar
+            dirty_paths.append("$.bio.avatar")
+        if name is not None:
+            updates["$.bio.name"] = name
+            dirty_paths.append("$.bio.name")
+        if gender is not None:
+            updates["$.bio.gender"] = gender
+            dirty_paths.append("$.bio.gender")
+
+        if not updates:
+            return
+
+        await self.patch_fields(char_id, updates)
+        await self.mark_dirty(char_id, reason="bio_updated", paths=dirty_paths)
 
     async def get_location(self, char_id: int) -> dict[str, Any] | None:
         """Get current and previous location IDs."""

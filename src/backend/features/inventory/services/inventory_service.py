@@ -3,7 +3,6 @@ from __future__ import annotations
 import time
 from typing import TYPE_CHECKING, Any
 
-from src.backend.features.character.runtime.gear_score import CharacterGearScoreCalculator
 from src.backend.features.inventory.repositories.items import runtime_item_from_instance
 from src.backend.features.inventory.services.projection import (
     BACKPACK_STORAGE,
@@ -30,6 +29,7 @@ from src.shared.schemas.inventory import (
 
 if TYPE_CHECKING:
     from src.backend.features.character.managers.session import CharacterSessionManager
+    from src.backend.features.inventory.integrations import InventoryStreamClient
     from src.backend.features.inventory.repositories.items import InventoryItemRepository
     from src.backend.features.inventory.services.session_manager import InventorySessionManager
 
@@ -59,14 +59,14 @@ class InventoryService:
         repository: InventoryItemRepository,
         inventory_sessions: InventorySessionManager,
         character_sessions: CharacterSessionManager,
+        stream_client: InventoryStreamClient,
         view_service: InventoryViewService | None = None,
-        gear_score_calculator: CharacterGearScoreCalculator | None = None,
     ) -> None:
         self.repository = repository
         self.inventory_sessions = inventory_sessions
         self.character_sessions = character_sessions
+        self.stream_client = stream_client
         self.view_service = view_service or InventoryViewService()
-        self.gear_score_calculator = gear_score_calculator or CharacterGearScoreCalculator()
 
     async def open_window(self, char_id: int, *, active_tab: InventoryTabId = "items") -> InventoryWindowDTO:
         session = await self.get_or_create_session(char_id)
@@ -95,6 +95,8 @@ class InventoryService:
             self._move_to_belt(session, dto.item_id, self._require_slot(dto))
         elif dto.action == "remove_from_belt":
             self._remove_from_belt(session, dto.item_id)
+        elif dto.action == "drop":
+            await self._drop(session, dto.item_id)
         else:
             raise InventoryActionError(f"Inventory action is not implemented yet: {dto.action}")
 
@@ -107,7 +109,7 @@ class InventoryService:
         }
         session.updated_at = time.time()
         await self.inventory_sessions.set(session)
-        await self._sync_active_character_items(session)
+        await self._sync_active_character_items(session, reason=dto.action)
         return self.view_service.build_window(
             session,
             can_act=True,
@@ -149,7 +151,7 @@ class InventoryService:
         session.updated_at = time.time()
         await self.inventory_sessions.set(session)
         await self.character_sessions.set_inventory_session(char_id, self.inventory_sessions.build_key(char_id))
-        await self._sync_active_character_items(session)
+        await self._sync_active_character_items(session, reason="inventory_opened")
         return session
 
     async def _refresh_wallet(self, session: InventoryRuntimeSessionDTO) -> None:
@@ -174,7 +176,7 @@ class InventoryService:
         session.dirty = {"dirty": False, "last_flushed_at": time.time()}
         session.updated_at = time.time()
         await self.inventory_sessions.set(session)
-        await self._sync_active_character_items(session)
+        await self._sync_active_character_items(session, reason="inventory_flushed")
 
     async def apply_durability_damage(
         self,
@@ -228,27 +230,15 @@ class InventoryService:
         await self.inventory_sessions.set(session)
         await self.repository.save_item_mechanics(session.by_id)
         await self.repository.commit()
-        await self._sync_active_character_items(session)
+        await self._sync_active_character_items(session, reason=reason)
         if idempotency_key:
             await self._mark_durability_event_processed(char_id, idempotency_key, changed=changed, reason=reason)
         return {"status": "ok", "changed": changed, "reason": reason}
 
-    async def _sync_active_character_items(self, session: InventoryRuntimeSessionDTO) -> None:
+    async def _sync_active_character_items(self, session: InventoryRuntimeSessionDTO, *, reason: str) -> None:
         projection = build_active_character_projection(session)
         await self.character_sessions.set_items_projection(session.char_id, projection.model_dump(mode="json"))
-        await self._sync_gear_score(session, projection.model_dump(mode="json"))
-
-    async def _sync_gear_score(self, session: InventoryRuntimeSessionDTO, items: dict[str, Any]) -> None:
-        attributes = await self.character_sessions.get_section(session.char_id, "attributes")
-        skills = await self.character_sessions.get_section(session.char_id, "skills")
-        gear_score = self.gear_score_calculator.calculate_from_active_character(
-            {
-                "attributes": attributes if isinstance(attributes, dict) else {},
-                "items": items,
-                "skills": skills if isinstance(skills, dict) else {},
-            }
-        )
-        await self.character_sessions.patch_fields(session.char_id, {"$.metrics.gear_score": gear_score})
+        await self.stream_client.request_gear_score_recalculation(char_id=session.char_id, reason=reason)
 
     def _equip(self, session: InventoryRuntimeSessionDTO, item_id: str, slot_id: str) -> None:
         if slot_id not in {slot.value for slot in EquippedSlot}:
@@ -304,6 +294,20 @@ class InventoryService:
         item.slot = None
         if item_id not in session.layout.backpack:
             session.layout.backpack.append(item_id)
+
+    async def _drop(self, session: InventoryRuntimeSessionDTO, item_id: str) -> None:
+        self._item(session, item_id)
+        discarded = await self.repository.discard_character_item(
+            session.char_id,
+            item_id,
+            expedition_run_id=await self._active_run_id(session.char_id),
+            reason="inventory_drop",
+        )
+        if not discarded:
+            raise InventoryActionError(f"Inventory item cannot be dropped: {item_id}")
+        await self.repository.commit()
+        self._detach_item(session, item_id)
+        session.by_id.pop(item_id, None)
 
     def _detach_item(self, session: InventoryRuntimeSessionDTO, item_id: str) -> None:
         for slot, equipped_id in list(session.layout.equipment.items()):

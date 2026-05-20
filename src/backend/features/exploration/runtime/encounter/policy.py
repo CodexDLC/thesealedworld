@@ -65,14 +65,8 @@ class EncounterPolicy:
         hunting_skill: float = 0.0,
         pathfinder_skill: float = 0.0,
     ) -> float:
-        scouting = _normalized_skill(scouting_skill)
-        hunting = _normalized_skill(hunting_skill)
-        pathfinder = _normalized_skill(pathfinder_skill)
-        if trigger == "search":
-            chance = float(base_chance) + hunting * 0.20 + scouting * 0.10
-        else:
-            chance = float(base_chance) + (hunting - pathfinder) * 0.25
-        return max(0.0, min(1.0, chance))
+        del trigger, scouting_skill, hunting_skill, pathfinder_skill
+        return max(0.0, min(1.0, float(base_chance)))
 
     def roll(self, *, mode: EncounterMode, tier: int, scouting_skill: float) -> EncounterRoll:
         difficulty = self._weighted_choice(
@@ -88,8 +82,14 @@ class EncounterPolicy:
         status = self.detection_status(tier=tier, difficulty=difficulty, scouting_skill=scouting_skill)
         return EncounterRoll(discovery_type=discovery_type, difficulty=difficulty, status=status)
 
-    def monster_budget(self, gear_score: float) -> float:
-        return max(1.0, round(max(0.0, float(gear_score)), 2))
+    def monster_budget(self, gear_score: float, *, hunting_skill: float = 0.0) -> float:
+        base_budget = max(0.0, float(gear_score))
+        normalized_hunting = _normalized_skill(hunting_skill)
+        variance = (1.0 - normalized_hunting) * 0.45
+        if variance <= 0:
+            return max(1.0, round(base_budget, 2))
+        multiplier = self._rng.uniform(1.0 - variance, 1.0 + variance)
+        return max(1.0, round(base_budget * multiplier, 2))
 
     def detection_status(self, *, tier: int, difficulty: str, scouting_skill: float) -> DetectionStatus:
         diff_mod = ExplorationConfig.DETECTION_MODIFIERS.get(difficulty, 0)
@@ -114,7 +114,9 @@ class EncounterPolicy:
 
 def _normalized_skill(value: Any) -> float:
     try:
-        raw = max(0.0, float(value or 0.0))
+        raw = float(value or 0.0)
     except (TypeError, ValueError):
         return 0.0
-    return min(1.0, raw / 100.0 if raw > 1.0 else raw)
+    if raw > 1.0:
+        raw /= 100.0
+    return max(0.0, min(1.0, raw))

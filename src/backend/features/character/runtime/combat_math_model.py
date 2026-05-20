@@ -232,6 +232,9 @@ class CharacterCombatMathModelBuilder:
             return
         if slot.endswith("_armor"):
             self._set_base_modifier(modifiers, "armor", value)
+            return
+        if item_type == "garment" and (slot.endswith("_garment") or slot == "feetwear"):
+            self._set_base_modifier(modifiers, "armor", value)
 
     @staticmethod
     def _combat_slot(slot: str) -> str:

@@ -4,9 +4,11 @@ from typing import Any
 
 import redis.asyncio as redis
 from codex_platform.redis_service import RedisService
+from codex_platform.streams.producer import StreamProducer
 from loguru import logger
 
 from src.backend.config.settings import settings
+from src.backend.core.bus import GameEventProducer
 from src.backend.core.database import load_orm_models
 from src.backend.core.repository_factory import RepositoryFactory
 from src.backend.infrastructure.redis.managers import build_redis_managers
@@ -24,6 +26,10 @@ class ArqWorkerContainer:
         ctx["redis_client_internal"] = redis_client
         ctx["redis_service"] = redis_service
         ctx["redis_managers"] = redis_managers
+        ctx["events"] = GameEventProducer(
+            StreamProducer(redis_client, settings.game_stream_name),
+            maxlen=settings.game_stream_maxlen,
+        )
         ctx["repositories"] = RepositoryFactory()
 
         ctx["character_sessions"] = redis_managers.character_sessions

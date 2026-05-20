@@ -4,6 +4,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 import pytest
+from pydantic import BaseModel
 
 from src.backend.features.generation_ai.dto import AIGenerationTaskResultDTO, AIGenerationTaskSpecDTO
 from src.backend.features.generation_ai.handlers import AIGenerationTaskHandler
@@ -170,6 +171,20 @@ class FakeBadImageModelHandler(AIGenerationTaskHandler):
         return None
 
 
+class _SimpleJsonSchema(BaseModel):
+    value: str
+
+
+class FakeSchemaJsonHandler(AIGenerationTaskHandler):
+    task_type = "item.schema_json"
+
+    async def build_request(self, task: FakeTask) -> dict[str, Any]:
+        return {"kind": "json", "prompt": "Return JSON", "schema": _SimpleJsonSchema}
+
+    async def apply_result(self, task: FakeTask, result: AIGenerationTaskResultDTO) -> None:
+        return None
+
+
 class FakeChainedHandler(FakeHandler):
     async def apply_result(
         self,
@@ -199,6 +214,17 @@ class FakeExecutor:
 class FailingExecutor:
     async def generate(self, task: FakeTask, request: dict[str, Any]) -> AIGenerationTaskResultDTO:
         raise RuntimeError("provider down")
+
+
+class LLMProviderError(RuntimeError):
+    pass
+
+
+class SchemaFailingExecutor:
+    async def generate(self, task: FakeTask, request: dict[str, Any]) -> AIGenerationTaskResultDTO:
+        raise LLMProviderError(
+            "Gemini JSON generation failed schema validation: 1 validation error for DemoDTO"
+        )
 
 
 def _spec(entity_id: str = "item-1") -> AIGenerationTaskSpecDTO:
@@ -237,6 +263,16 @@ def _bad_image_model_spec() -> AIGenerationTaskSpecDTO:
         entity_type="item",
         entity_id="item-1",
         output_kind="image",
+        input_payload={"item_id": "item-1"},
+    )
+
+
+def _schema_json_spec() -> AIGenerationTaskSpecDTO:
+    return AIGenerationTaskSpecDTO(
+        task_type="item.schema_json",
+        entity_type="item",
+        entity_id="item-1",
+        output_kind="json",
         input_payload={"item_id": "item-1"},
     )
 
@@ -374,6 +410,28 @@ async def test_process_task_rejects_unsupported_image_model_before_executor() ->
     assert task.status == "cooldown"
     assert repository.cooldown == [task.id]
     assert "Unsupported image model" in task.error["message"]
+
+
+@pytest.mark.asyncio
+async def test_process_task_extends_retry_budget_for_json_schema_provider_errors() -> None:
+    registry = AIGenerationTaskRegistry()
+    registry.register(FakeSchemaJsonHandler())
+    repository = FakeRepository()
+    service = GenerationAIService(
+        repository=repository,
+        registry=registry,
+        executor=SchemaFailingExecutor(),
+    )
+    task = await repository.create(_schema_json_spec(), batch_id="batch-1", identity_key="identity-1")
+    task.attempts = 2
+
+    result = await service.process_task(task.id)
+
+    assert result is None
+    assert task.status == "cooldown"
+    assert repository.cooldown == [task.id]
+    assert task.attempts == 3
+    assert task.error["type"] == "LLMProviderError"
 
 
 @pytest.mark.asyncio

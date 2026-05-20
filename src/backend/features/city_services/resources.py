@@ -33,6 +33,7 @@ CITY_SERVICE_DEFINITIONS: dict[str, CityServiceDefinition] = {
             "Древнее здание с десятками комнат приспособили под постоялый двор. "
             "Внизу работает таверна, у стойки кормчий ведет ключи, пайки и первые правила ночлега."
         ),
+        background_url="/static/images/scenes/tavern.png",
         sections=(
             CityServiceSection(
                 "bar", "Стойка кормчего", "У стойки держат первые слухи, ключи, пайки и договоренности.", "talk"
@@ -66,15 +67,15 @@ CITY_SERVICE_DEFINITIONS: dict[str, CityServiceDefinition] = {
         background_url="/static/images/exploration/city/d4/52_52_runic_circle_plaza.png",
         metadata={
             "npc_key": "portal_pad_guide",
-            "dialogue_quest_key": "awakening_rift",
+            "dialogue_quest_key": "portal_guide_dialogue",
             "dialogue_section_id": "portal_contact",
             "npc": {
                 "id": "portal_first_contact",
                 "npc_key": "portal_pad_guide",
-                "name": "Проводник Круга",
-                "role": "FIRST CONTACT",
+                "name": "Оценщик",
+                "role": "FIRST CONTACT ASSESSOR",
                 "stage_position": "bottom-right",
-                "dialogue_quest_key": "awakening_rift",
+                "dialogue_quest_key": "portal_guide_dialogue",
             },
         },
     ),
@@ -83,6 +84,7 @@ CITY_SERVICE_DEFINITIONS: dict[str, CityServiceDefinition] = {
         service_type="town_hall",
         title="Совет поселения",
         description="Совет поселения принимает только срочные обращения. Доски законов и заявок еще приводят в порядок.",
+        background_url="/static/images/exploration/terrain/ancient_pavement_hub_01.webp",
     ),
     "svc_blacksmith_repair": CityServiceDefinition(
         service_id="svc_blacksmith_repair",
@@ -92,6 +94,7 @@ CITY_SERVICE_DEFINITIONS: dict[str, CityServiceDefinition] = {
             "Ремесленный двор у южной стены запускает ремонтный горн. Уголь уже горит, материалы сложены под навесами, "
             "но полноценные заказы пока не принимаются."
         ),
+        background_url="/static/images/exploration/terrain/ancient_forge_01.webp",
     ),
     "svc_market_hub": CityServiceDefinition(
         service_id="svc_market_hub",
@@ -101,6 +104,7 @@ CITY_SERVICE_DEFINITIONS: dict[str, CityServiceDefinition] = {
             "Старое административное здание приспособили под торговый узел: здесь готовят аукционные доски, "
             "временные палатки и первые лавки, которые игроки смогут открывать в расчищенных нишах."
         ),
+        background_url="/static/images/exploration/terrain/market_ruins_01.webp",
     ),
 }
 

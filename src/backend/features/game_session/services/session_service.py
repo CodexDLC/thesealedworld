@@ -163,16 +163,24 @@ class GameSessionService:
             return_state=CoreDomain.EXPLORATION,
             location_id=location_id,
             npc_key=npc_key,
-            metadata={"trigger_reason": "respawn_first_death"},
+            metadata={
+                "trigger_reason": "respawn_first_death",
+                "initial_node_key": "death_return_greeting",
+            },
         )
         return StateTransitionDTO(
             char_id=character_id,
             target_state=CoreDomain.SCENARIO,
             reason="respawn_first_death_dialogue",
-            quest_key="first_death_portal_dialogue",
+            quest_key="portal_guide_dialogue",
             location_id=location_id,
             context={"return_context": return_context.model_dump(mode="json")},
-            metadata={"npc_key": npc_key, "location_id": location_id, "trigger_reason": "respawn_first_death"},
+            metadata={
+                "npc_key": npc_key,
+                "location_id": location_id,
+                "trigger_reason": "respawn_first_death",
+                "initial_node_key": "death_return_greeting",
+            },
         )
 
     async def claim_post_combat_loot(

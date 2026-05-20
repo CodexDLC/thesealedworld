@@ -25,9 +25,15 @@ def test_system_worker_consumes_loot_claim_jobs_from_system_queue() -> None:
     assert "loot_claim_task" in function_names
 
 
-def test_system_worker_schedules_inventory_dirty_sweeper() -> None:
+def test_system_worker_schedules_system_dirty_sweeper() -> None:
     cron_jobs = getattr(SystemArqSettings, "cron_jobs", [])
-    sweeper_jobs = [job for job in cron_jobs if job.coroutine.__name__ == "inventory_dirty_sweeper_task"]
+    sweeper_jobs = [job for job in cron_jobs if job.coroutine.__name__ == "system_dirty_sweeper_task"]
 
     assert len(sweeper_jobs) == 1
     assert sweeper_jobs[0].minute == set(range(0, 60, 3))
+
+
+def test_system_worker_consumes_exploration_knowledge_flush_jobs() -> None:
+    function_names = {function.__name__ for function in SystemArqSettings.functions}
+
+    assert "flush_exploration_knowledge_task" in function_names

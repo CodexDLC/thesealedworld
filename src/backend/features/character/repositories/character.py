@@ -146,6 +146,7 @@ class CharacterRepository:
             **session_doc.sessions.model_dump(mode="json"),
             "active_quest": session_doc.active_quest,
         }
+        character.avatar_url = session_doc.bio.avatar
 
         await self.session.flush()
         return {

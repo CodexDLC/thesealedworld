@@ -60,6 +60,14 @@ class FakePlacement:
         self.slot = item.slot if item.placement != "backpack" else None
 
 
+class FakeInventoryStreamClient:
+    def __init__(self) -> None:
+        self.recalculate_requests: list[dict[str, object]] = []
+
+    async def request_gear_score_recalculation(self, *, char_id: int, reason: str) -> None:
+        self.recalculate_requests.append({"char_id": char_id, "reason": reason})
+
+
 @pytest.mark.asyncio
 async def test_reward_service_generates_to_backpack_then_applies_inventory_equip_rules(
     fake_redis_service,
@@ -85,10 +93,12 @@ async def test_reward_service_generates_to_backpack_then_applies_inventory_equip
     events = MagicMock()
     events.request = AsyncMock(return_value={"status": "ok", "item_ids": ["new-sword"]})
     inventory_sessions = InventorySessionManager(fake_redis_service)
+    stream_client = FakeInventoryStreamClient()
     inventory_service = InventoryService(
         repository=repository,
         inventory_sessions=inventory_sessions,
         character_sessions=CharacterSessionManager(fake_redis_service),
+        stream_client=stream_client,
     )
 
     result = await InventoryRewardService(
@@ -119,6 +129,7 @@ async def test_reward_service_generates_to_backpack_then_applies_inventory_equip
     assert repository.flushed is True
     assert fake_redis_client.store["game:inventory:7"]["layout"]["equipment"]["main_hand"] == "new-sword"
     assert fake_redis_client.store["game:ac:7"]["items"]["layout"]["equipment"]["main_hand"] == "new-sword"
+    assert stream_client.recalculate_requests == [{"char_id": 7, "reason": "reward_granted"}]
 
 
 def _item(item_id: str, base_id: str, *, placement: str) -> InventoryRuntimeItemDTO:

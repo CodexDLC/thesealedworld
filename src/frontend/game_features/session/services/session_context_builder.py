@@ -335,14 +335,14 @@ class SessionContextBuilder:
             raise HTTPException(status_code=status.HTTP_303_SEE_OTHER, headers={"Location": "/game-lobby"})
 
         if response.payload_type == "state_transition" or state != CoreDomain.SCENARIO:
-            quest_key = getattr(response.payload, "quest_key", None)
+            quest_key = _payload_value(response.payload, "quest_key")
             return await self.build_state(
                 request,
                 state=state,
                 char_id=char_id,
                 quest_key=quest_key,
-                transition_context=getattr(response.payload, "context", None),
-                transition_metadata=getattr(response.payload, "metadata", None),
+                transition_context=_payload_value(response.payload, "context"),
+                transition_metadata=_payload_value(response.payload, "metadata"),
             )
 
         if response.payload_type != "scenario_screen":
@@ -765,6 +765,12 @@ def _transition_value(
         if return_context.get(mapped_key):
             return str(return_context[mapped_key])
     return None
+
+
+def _payload_value(payload: Any, key: str) -> Any:
+    if isinstance(payload, dict):
+        return payload.get(key)
+    return getattr(payload, key, None)
 
 
 def _post_combat_from_sources(

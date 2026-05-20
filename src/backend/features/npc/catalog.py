@@ -17,11 +17,11 @@ class NpcDefinition:
 _NPC_CATALOG: dict[str, NpcDefinition] = {
     "portal_pad_guide": NpcDefinition(
         npc_key="portal_pad_guide",
-        display_name="Проводник Круга",
-        role="PORTAL PAD GUIDE",
+        display_name="Оценщик",
+        role="FIRST CONTACT ASSESSOR",
         avatar_url=None,
         tags=("portal_pad", "first_contact", "death_explainer"),
-        dialogue_quest_keys=("awakening_rift", "first_death_portal_dialogue"),
+        dialogue_quest_keys=("awakening_rift", "portal_guide_dialogue"),
         home_location_id="52_52",
     ),
     "tavern_bartender": NpcDefinition(

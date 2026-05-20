@@ -1,0 +1,53 @@
+{% extends "site/base_site.html" %}
+
+{% block title %}Новости — The Sealed World{% endblock title %}
+
+{% block content %}
+<section class="hero-section" style="min-height: auto; padding-bottom: var(--sp-6);">
+    <div class="ds-tag sys hero-badge">SIGNAL // DISPATCHES</div>
+    <h1 class="hero-title">News</h1>
+    <p class="hero-subtitle">Dispatches from the Rift</p>
+</section>
+
+<section class="main-container" style="max-width: 860px; padding-bottom: var(--sp-8);">
+    {% if news.articles %}
+    <div class="news-list">
+        {% for card in news.articles %}
+        <a href="/news/{{ card.slug }}" class="ds-panel news-card">
+            {% if card.cover_image %}
+            <div class="news-card-cover">
+                <img src="{{ card.cover_image }}" alt="" loading="lazy">
+            </div>
+            {% endif %}
+            <div class="ds-panel-body">
+                <div class="news-card-meta">
+                    <span class="tag sys">{{ card.published_at }}</span>
+                </div>
+                <h2 class="news-card-title">{{ card.title }}</h2>
+                <p class="news-card-preview">{{ card.preview }}</p>
+            </div>
+        </a>
+        {% endfor %}
+    </div>
+
+    {% if news.total_pages > 1 %}
+    <nav class="news-pagination" aria-label="Страницы новостей">
+        {% if news.has_prev %}
+        <a href="/news?page={{ news.page - 1 }}" class="btn-node ghost sm"><span>← Назад</span></a>
+        {% endif %}
+        <span class="news-pagination-info">{{ news.page }} / {{ news.total_pages }}</span>
+        {% if news.has_next %}
+        <a href="/news?page={{ news.page + 1 }}" class="btn-node ghost sm"><span>Далее →</span></a>
+        {% endif %}
+    </nav>
+    {% endif %}
+
+    {% else %}
+    <div class="ds-panel">
+        <div class="ds-panel-body">
+            <p class="feature-text">{{ news.empty_message }}</p>
+        </div>
+    </div>
+    {% endif %}
+</section>
+{% endblock content %}

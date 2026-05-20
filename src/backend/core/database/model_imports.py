@@ -14,6 +14,7 @@ from src.backend.features.character.models import (
 )
 from src.backend.features.city_services.models import CharacterTavernRoom
 from src.backend.features.expedition.models import CharacterExpedition
+from src.backend.features.exploration.models import CharacterLocationKnowledge
 from src.backend.features.generation_ai.models import AIGenerationTask
 from src.backend.features.items.models import (
     ItemGeneratedTemplate,
@@ -58,6 +59,7 @@ __all__ = [
     "CharacterAttributes",
     "CharacterProgression",
     "CharacterExpedition",
+    "CharacterLocationKnowledge",
     "AIGenerationTask",
     "InventoryItem",
     "ResourceWallet",

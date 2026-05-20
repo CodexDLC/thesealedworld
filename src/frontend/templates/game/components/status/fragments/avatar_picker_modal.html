@@ -1,0 +1,55 @@
+<div id="game-modal-root">
+    <div class="game-modal-backdrop avatar-picker-backdrop"
+         role="presentation"
+         onclick="if (event.target === this) this.closest('#game-modal-root').innerHTML = ''">
+        <section class="game-unavailable-modal avatar-picker-modal"
+                 role="dialog"
+                 aria-modal="true"
+                 x-data="{ activeTab: '{{ default_tab }}', selected: '{{ current_avatar or '' }}' }">
+
+            <header class="game-unavailable-modal__head">
+                <span>AVATAR // SELECT</span>
+                <button class="game-modal-close"
+                        type="button"
+                        onclick="this.closest('#game-modal-root').innerHTML = ''">x</button>
+            </header>
+
+            <div class="avatar-picker-body">
+                <nav class="avatar-picker-tabs">
+                    {% for category in avatar_catalog %}
+                    <button type="button"
+                            class="avatar-picker-tab"
+                            :class="{ 'is-active': activeTab === '{{ category }}' }"
+                            @click="activeTab = '{{ category }}'">{{ category|upper }}</button>
+                    {% endfor %}
+                </nav>
+
+                {% for category, avatars in avatar_catalog.items() %}
+                <div class="avatar-picker-grid" x-show="activeTab === '{{ category }}'">
+                    {% for avatar_path in avatars %}
+                    <button type="button"
+                            class="avatar-picker-cell"
+                            :class="{ 'is-selected': selected === '{{ avatar_path }}' }"
+                            @click="selected = '{{ avatar_path }}'">
+                        <img src="{{ avatar_path }}" alt="Avatar" loading="lazy">
+                    </button>
+                    {% endfor %}
+                </div>
+                {% endfor %}
+            </div>
+
+            <footer class="game-unavailable-modal__actions">
+                <button class="game-modal-close"
+                        type="button"
+                        onclick="this.closest('#game-modal-root').innerHTML = ''">CANCEL</button>
+                <button class="game-modal-close avatar-picker-apply"
+                        type="button"
+                        :disabled="!selected"
+                        hx-post="/game/character-status/avatar-picker"
+                        hx-target="#game-modal-root"
+                        hx-swap="outerHTML"
+                        :hx-vals="JSON.stringify({char_id: {{ char_id }}, avatar_url: selected})">APPLY</button>
+            </footer>
+        </section>
+    </div>
+</div>

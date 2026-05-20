@@ -9,7 +9,7 @@ from fastapi import HTTPException
 from src.frontend.game_features.session.services.session_context_builder import SessionContextBuilder
 from src.frontend.integrations.backend_api.combat import CombatViewResponse
 from src.shared.enums import CoreDomain
-from src.shared.schemas import CoreResponseDTO, GameStateHeader, ScenarioPayloadDTO
+from src.shared.schemas import CoreResponseDTO, GameStateHeader, ScenarioPayloadDTO, StateTransitionDTO
 from src.shared.schemas.arena import ArenaScreenEnum, ArenaUIPayloadDTO
 from src.shared.schemas.character_status import CharacterActorCoreDTO
 from src.shared.schemas.city_services import CityServiceScreenEnum, CityServiceUIPayloadDTO
@@ -122,6 +122,10 @@ class FakeGameSessionApi:
         self.dto = None
 
     async def enter(self, token, dto):
+        self.dto = dto
+        return self.response
+
+    async def respawn(self, token, dto):
         self.dto = dto
         return self.response
 
@@ -615,11 +619,112 @@ async def test_build_state_initializes_scenario_with_npc_key_from_transition_met
         request(),
         state=CoreDomain.SCENARIO,
         char_id=7,
-        quest_key="first_death_portal_dialogue",
+        quest_key="portal_guide_dialogue",
         transition_metadata={"npc_key": "portal_pad_guide"},
     )
 
-    assert scenario_api.initialized == (7, "first_death_portal_dialogue", "portal_pad_guide", None)
+    assert scenario_api.initialized == (7, "portal_guide_dialogue", "portal_pad_guide", None)
+
+
+@pytest.mark.asyncio
+async def test_respawn_transition_initializes_first_death_scenario_from_dict_payload():
+    scenario = scenario_response()
+    scenario_api = FakeScenarioApi(scenario)
+    respawn_response = CoreResponseDTO(
+        header=GameStateHeader(current_state=CoreDomain.SCENARIO, previous_state=CoreDomain.DEATH),
+        payload={
+            "char_id": 7,
+            "target_state": "scenario",
+            "reason": "respawn_first_death_dialogue",
+            "quest_key": "portal_guide_dialogue",
+            "context": {
+                "return_context": {
+                    "source_state": "exploration",
+                    "return_state": "exploration",
+                    "location_id": "52_52",
+                    "npc_key": "portal_pad_guide",
+                    "metadata": {
+                        "trigger_reason": "respawn_first_death",
+                        "initial_node_key": "death_return_greeting",
+                    },
+                }
+            },
+            "metadata": {
+                "npc_key": "portal_pad_guide",
+                "location_id": "52_52",
+                "trigger_reason": "respawn_first_death",
+                "initial_node_key": "death_return_greeting",
+            },
+        },
+        payload_type="state_transition",
+    )
+    service = SessionContextBuilder(
+        character_status_api=FakeCharacterStatusApi(),
+        arena_api=SimpleNamespace(),
+        city_services_api=FakeCityServicesApi(),
+        exploration_api=SimpleNamespace(),
+        scenario_api=scenario_api,
+        game_session_api=FakeGameSessionApi(respawn_response),
+        inventory_api=FakeInventoryApi(),
+    )
+
+    context = await service.respawn(request(), char_id=7)
+
+    assert context["domain"] == "scenario"
+    assert scenario_api.initialized == (
+        7,
+        "portal_guide_dialogue",
+        "portal_pad_guide",
+        respawn_response.payload["context"]["return_context"],
+    )
+
+
+@pytest.mark.asyncio
+async def test_respawn_transition_initializes_first_death_scenario_from_dto_payload():
+    scenario = scenario_response()
+    scenario_api = FakeScenarioApi(scenario)
+    respawn_response = CoreResponseDTO(
+        header=GameStateHeader(current_state=CoreDomain.SCENARIO, previous_state=CoreDomain.DEATH),
+        payload=StateTransitionDTO(
+            char_id=7,
+            target_state=CoreDomain.SCENARIO,
+            reason="respawn_first_death_dialogue",
+            quest_key="portal_guide_dialogue",
+            context={
+                "return_context": {
+                    "source_state": "exploration",
+                    "return_state": "exploration",
+                    "location_id": "52_52",
+                    "npc_key": "portal_pad_guide",
+                    "metadata": {
+                        "trigger_reason": "respawn_first_death",
+                        "initial_node_key": "death_return_greeting",
+                    },
+                }
+            },
+            metadata={"npc_key": "portal_pad_guide", "initial_node_key": "death_return_greeting"},
+        ),
+        payload_type="state_transition",
+    )
+    service = SessionContextBuilder(
+        character_status_api=FakeCharacterStatusApi(),
+        arena_api=SimpleNamespace(),
+        city_services_api=FakeCityServicesApi(),
+        exploration_api=SimpleNamespace(),
+        scenario_api=scenario_api,
+        game_session_api=FakeGameSessionApi(respawn_response),
+        inventory_api=FakeInventoryApi(),
+    )
+
+    context = await service.respawn(request(), char_id=7)
+
+    assert context["domain"] == "scenario"
+    assert scenario_api.initialized == (
+        7,
+        "portal_guide_dialogue",
+        "portal_pad_guide",
+        respawn_response.payload.context["return_context"],
+    )
 
 
 @pytest.mark.asyncio

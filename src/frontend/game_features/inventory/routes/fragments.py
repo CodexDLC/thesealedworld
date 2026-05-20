@@ -1,7 +1,7 @@
 from typing import Annotated
 
 import httpx
-from fastapi import APIRouter, Depends, Form, HTTPException, Query, Request, status
+from fastapi import APIRouter, Depends, Form, HTTPException, Query, Request, Response, status
 
 from src.frontend.core.renderer import UIRenderer, get_ui_renderer
 from src.frontend.features.auth.dependencies.providers import get_frontend_auth_service
@@ -43,6 +43,7 @@ async def inventory_window(
 @router.post("/game/inventory/action", name="game_inventory_action")
 async def inventory_action(
     request: Request,
+    http_response: Response,
     ui: Annotated[UIRenderer, Depends(get_ui_renderer)],
     auth_service: Annotated[FrontendAuthService, Depends(get_frontend_auth_service)],
     inventory_api: Annotated[BackendInventoryApi, Depends(get_backend_inventory_api)],
@@ -59,15 +60,16 @@ async def inventory_action(
     )
     notice: str | None = None
     try:
-        response = await inventory_api.action(token, dto, tab=tab_id)
+        backend_response = await inventory_api.action(token, dto, tab=tab_id)
     except httpx.HTTPStatusError as exc:
         if exc.response.status_code not in {status.HTTP_400_BAD_REQUEST, status.HTTP_409_CONFLICT}:
             raise
         notice = _inventory_error_notice(exc)
-        response = await inventory_api.view(token, char_id=char_id, tab=tab_id)
-    if response.payload is None:
+        backend_response = await inventory_api.view(token, char_id=char_id, tab=tab_id)
+    if backend_response.payload is None:
         raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail="Inventory payload is unavailable")
-    inventory = InventoryWindowDTO.model_validate(response.payload)
+    inventory = InventoryWindowDTO.model_validate(backend_response.payload)
+    http_response.headers["HX-Trigger"] = "character-status-refresh"
     return await ui.render(
         "game/components/inventory/window.html",
         context={

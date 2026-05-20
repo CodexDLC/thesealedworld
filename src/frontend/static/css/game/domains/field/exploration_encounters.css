@@ -139,6 +139,9 @@
     background:
         radial-gradient(circle, rgba(255, 170, 0, 0.16), transparent 58%),
         rgba(230, 204, 172, 0.08);
+    background-position: center;
+    background-size: cover;
+    background-repeat: no-repeat;
     color: rgba(255, 190, 96, 0.90);
     font-family: var(--font-ui);
     font-size: 28px;

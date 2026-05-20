@@ -93,6 +93,9 @@ class CharacterStateIntegrator:
         await self.character_sessions.replace_session(char_id, session_doc.model_dump(mode="json"))
         return session_doc
 
+    async def update_avatar(self, char_id: int, avatar_url: str) -> None:
+        await self.character_sessions.update_bio(char_id, avatar=avatar_url)
+
     async def unlock_skills(
         self,
         char_id: int,

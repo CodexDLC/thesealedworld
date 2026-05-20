@@ -1,3 +1,20 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>{% block title %}The Sealed World{% endblock %}</title>
+{% set _path = request.url.path %}
+{% if _path.startswith(('/login', '/register', '/logout', '/account', '/admin',
+                        '/game-lobby', '/game', '/api', '/system', '/survey')) %}
+<meta name="robots" content="noindex, nofollow">
+{% else %}
+<meta name="robots" content="index, follow">
+{% endif %}
+{% if google_site_verification %}
+<meta name="google-site-verification" content="{{ google_site_verification }}">
+{% endif %}
+{% if google_analytics_id %}
+<script async src="https://www.googletagmanager.com/gtag/js?id={{ google_analytics_id }}"></script>
+<script>
+window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}
+gtag('js',new Date());gtag('config','{{ google_analytics_id }}');
+</script>
+{% endif %}

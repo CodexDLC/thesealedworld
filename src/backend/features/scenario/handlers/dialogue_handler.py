@@ -31,9 +31,15 @@ class DialogueScenarioHandler(BaseScenarioHandler):
             initial_prev_state = initial.prev_state
             initial_prev_loc = initial.prev_loc
 
+        start_node_id = str(quest_master["start_node_id"])
+        if return_context is not None and isinstance(return_context.metadata, dict):
+            override = return_context.metadata.get("initial_node_key") or return_context.metadata.get("start_node_id")
+            if override:
+                start_node_id = str(override)
+
         return ScenarioContextDTO(
             quest_key=str(quest_master["quest_key"]),
-            current_node_key=str(quest_master["start_node_id"]),
+            current_node_key=start_node_id,
             sys_actor=initial.sys_actor,
             npc_key=resolved_npc_key,
             prev_state=initial_prev_state,

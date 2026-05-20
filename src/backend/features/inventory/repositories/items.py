@@ -4,7 +4,7 @@ from typing import Any
 
 from sqlalchemy import or_, select
 
-from src.backend.features.items.models import ItemInstance, ItemPlacement, ResourceBalance
+from src.backend.features.items.models import ItemInstance, ItemPlacement, ItemTransaction, ResourceBalance
 from src.backend.infrastructure.inventory.models import ResourceWallet
 from src.shared.schemas.inventory import InventoryRuntimeItemDTO, WalletDTO
 
@@ -107,6 +107,51 @@ class InventoryItemRepository:
                 continue
             instance.mechanics = dict(item.mechanics)
         await self.session.flush()
+
+    async def discard_character_item(
+        self,
+        char_id: int,
+        item_id: str,
+        *,
+        expedition_run_id: str | None = None,
+        reason: str = "inventory_drop",
+    ) -> bool:
+        holder_filters = [
+            (ItemPlacement.holder_type == "character") & (ItemPlacement.holder_id == str(char_id)),
+        ]
+        if expedition_run_id:
+            holder_filters.append(
+                (ItemPlacement.holder_type == "expedition") & (ItemPlacement.holder_id == expedition_run_id)
+            )
+        placement = await self.session.scalar(
+            select(ItemPlacement).where(
+                ItemPlacement.item_id == item_id,
+                or_(*holder_filters),
+            )
+        )
+        if placement is None:
+            return False
+
+        self.session.add(
+            ItemTransaction(
+                item_id=placement.item_id,
+                from_holder_type=placement.holder_type,
+                from_holder_id=placement.holder_id,
+                from_storage_type=placement.storage_type,
+                to_holder_type="system",
+                to_holder_id=f"discarded:{char_id}",
+                to_storage_type="discarded",
+                reason=reason,
+            )
+        )
+        placement.holder_type = "system"
+        placement.holder_id = f"discarded:{char_id}"
+        placement.storage_type = "discarded"
+        placement.slot = None
+        placement.position_index = None
+        placement.locked_by = None
+        await self.session.flush()
+        return True
 
     async def flush(self) -> None:
         await self.session.flush()

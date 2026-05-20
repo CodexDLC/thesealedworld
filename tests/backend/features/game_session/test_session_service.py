@@ -262,9 +262,11 @@ async def test_respawn_character_starts_first_death_dialogue_on_portal_pad():
 
     assert response.header.current_state == CoreDomain.SCENARIO
     assert response.payload.target_state == CoreDomain.SCENARIO
-    assert response.payload.quest_key == "first_death_portal_dialogue"
+    assert response.payload.quest_key == "portal_guide_dialogue"
     assert response.payload.metadata["npc_key"] == "portal_pad_guide"
+    assert response.payload.metadata["initial_node_key"] == "death_return_greeting"
     assert response.payload.context["return_context"]["npc_key"] == "portal_pad_guide"
+    assert response.payload.context["return_context"]["metadata"]["initial_node_key"] == "death_return_greeting"
 
 
 @pytest.mark.asyncio

@@ -30,3 +30,13 @@ def test_character_user_id_has_no_site_auth_foreign_key() -> None:
 
     character_table = Base.metadata.tables["characters"]
     assert not character_table.c.user_id.foreign_keys
+
+
+def test_backend_metadata_includes_character_location_knowledge() -> None:
+    _ = model_imports
+
+    table = Base.metadata.tables["character_location_knowledge"]
+    assert "character_id" in table.c
+    assert "loc_id" in table.c
+    assert "movement_xp_spent" in table.c
+    assert "scouting_xp_cap" in table.c

@@ -182,6 +182,7 @@
 {% set inventory_state_notice = inventory_notice if inventory_notice is defined and inventory_notice else inventory.forbidden_reason if inventory.forbidden_reason else '' %}
 <div class="inventory-shell"
      data-contract-state="{{ inventory.contract_state }}"
+     data-inventory-target="#{{ inventory_target_id }}"
      x-data='{"activeInventoryTab": {{ active_inventory_tab | tojson }}, "selectedSlot": null, "inventoryNotice": {{ inventory_state_notice | tojson }}, "searchQuery": ""}'>
     <input type="hidden" name="tab_id" :value="activeInventoryTab">
     <section class="inventory-loadout" aria-label="Character equipment">
@@ -508,6 +509,21 @@
                             && (!searchQuery.trim() || {{ row.name | tojson | forceescape }}.toLowerCase().includes(searchQuery.toLowerCase()))) }"
                         aria-label="{{ row.name }}"
                         data-inventory-tooltip-trigger
+                        data-inventory-menu-trigger
+                        data-inventory-char-id="{{ inventory.char_id }}"
+                        data-inventory-item-id="{{ row.item_id if row.item_id is defined else row.row_id }}"
+                        data-inventory-valid-slots='{{ row_valid_slots | tojson | forceescape }}'
+                        data-inventory-actions='[
+                            {% for action in row_actions %}
+                            {
+                                "action": {{ action.action | tojson }},
+                                "label": {{ action.label | tojson }},
+                                "slot_id": {{ action.slot_id | tojson }},
+                                "enabled": {{ action.enabled | tojson }},
+                                "reason": {{ action.reason | tojson }}
+                            }{{ "," if not loop.last else "" }}
+                            {% endfor %}
+                        ]'
                         data-equip-target="{{ row.equip_target or '' }}"
                         {% if inventory.can_act and primary_action %}
                         hx-post="/game/inventory/action"

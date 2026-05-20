@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession  # noqa: TC002
 
 from src.backend.core.database import get_db
 from src.backend.features.character.repositories import CharacterRepository
+from src.backend.features.inventory.integrations import InventoryStreamClient
 from src.backend.features.inventory.repositories.items import InventoryItemRepository
 from src.backend.features.inventory.services.inventory_service import InventoryService
 from src.backend.features.inventory.services.session_manager import InventorySessionManager
@@ -24,6 +25,7 @@ def get_inventory_service(
         repository=InventoryItemRepository(db_session),
         inventory_sessions=InventorySessionManager(request.app.state.redis),
         character_sessions=character_sessions,
+        stream_client=InventoryStreamClient(request.app.state.events),
     )
 
 

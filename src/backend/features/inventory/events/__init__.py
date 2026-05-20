@@ -7,6 +7,7 @@ from codex_platform.streams import StreamRouter
 
 from src.backend.core.database.session import get_session_context
 from src.backend.features.inventory.events.publisher import InventoryEvents
+from src.backend.features.inventory.integrations import InventoryStreamClient
 from src.backend.features.inventory.repositories.items import InventoryItemRepository
 from src.backend.features.inventory.services.inventory_service import InventoryService
 from src.backend.features.inventory.services.reward_service import InventoryRewardService
@@ -150,6 +151,7 @@ def _build_reward_service(session: Any) -> InventoryRewardService:
         repository=repository,
         inventory_sessions=inventory_sessions,
         character_sessions=character_sessions,
+        stream_client=InventoryStreamClient(_app.state.events),
     )
     return InventoryRewardService(
         repository=repository,
@@ -166,6 +168,7 @@ def _build_inventory_service(session: Any) -> InventoryService:
         repository=InventoryItemRepository(session),
         inventory_sessions=InventorySessionManager(_app.state.redis),
         character_sessions=_app.state.character_sessions,
+        stream_client=InventoryStreamClient(_app.state.events),
     )
 
 

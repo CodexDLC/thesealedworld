@@ -19,7 +19,7 @@
 <section id="center-screens" class="city-service-center-screens">
     {% if city_service %}
         {% set service_screen = city_service.screen.value if city_service.screen and city_service.screen.value is defined else city_service.screen %}
-        {% set service_background = city_service.background_url or '/static/images/scenes/forest.png' %}
+        {% set service_background = city_service.background_url or '/static/images/exploration/terrain/ancient_pavement_hub_01.webp' %}
         {% set service_npc = city_service.metadata.npc if city_service.metadata is defined and city_service.metadata.npc is defined else none %}
         <article class="city-service-screen city-service-screen--{{ service_screen }} game-screen-area game-screen-area--vertical">
             <header class="city-service-statebar">

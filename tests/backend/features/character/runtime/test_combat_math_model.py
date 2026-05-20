@@ -119,7 +119,7 @@ def test_builder_maps_shield_block_chance_without_skill_scaling() -> None:
 
 
 @pytest.mark.unit
-def test_builder_does_not_count_feetwear_as_flat_armor() -> None:
+def test_builder_counts_garment_power_as_flat_armor() -> None:
     raw = CharacterCombatMathModelBuilder().build_raw(
         attributes={},
         items={
@@ -127,7 +127,7 @@ def test_builder_does_not_count_feetwear_as_flat_armor() -> None:
             "by_id": {
                 "travel-shoes-1": {
                     "item_id": "travel-shoes-1",
-                    "item_type": "armor",
+                    "item_type": "garment",
                     "slot": "feetwear",
                     "mechanics": {"power": 1.6},
                 }
@@ -136,7 +136,7 @@ def test_builder_does_not_count_feetwear_as_flat_armor() -> None:
         skills={},
     )
 
-    assert raw["modifiers"]["armor"]["base"] == 0.0
+    assert raw["modifiers"]["armor"]["base"] == 1.6
 
 
 @pytest.mark.unit

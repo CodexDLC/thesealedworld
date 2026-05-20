@@ -200,7 +200,11 @@ def test_lobby_panel_state_lives_in_site_js_source():
     assert "$refs.modalInput" not in panel_template
     assert "window.lobbyPanelState" in source
     assert "checkCreationNameAvailability" in source
-    assert "/api/game-lobby/name-availability" in source
+    assert "/game-lobby/name-availability" in source
+    assert "/api/game-lobby/name-availability" not in source
+    assert 'method: "POST"' in source
+    assert '"Content-Type": "application/json"' in source
+    assert "readNameAvailabilityError" in source
     assert "submitCreation" in source
     assert "site/lobby.js" in compiler_config
 

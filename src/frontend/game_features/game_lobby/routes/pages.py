@@ -20,7 +20,12 @@ from src.frontend.game_features.session.token_state import (
     attach_game_tokens_from_backend_response,
     clear_game_token_cookies,
 )
-from src.shared.schemas import CreateCharacterRequestDTO, DeleteCharacterRequestDTO, EnterCharacterRequestDTO
+from src.shared.schemas import (
+    CharacterNameAvailabilityRequestDTO,
+    CreateCharacterRequestDTO,
+    DeleteCharacterRequestDTO,
+    EnterCharacterRequestDTO,
+)
 from src.shared.schemas.game_lobby import CharacterCreationGender
 
 router = APIRouter(tags=["Game Lobby"])
@@ -58,7 +63,7 @@ async def game_lobby_status(
     return await lobby_service.get_status(request, char_id)
 
 
-@router.get("/api/game-lobby/name-availability", name="api_game_lobby_name_availability")
+@router.get("/game-lobby/name-availability", name="game_lobby_name_availability")
 async def game_lobby_name_availability(
     request: Request,
     auth_service: Annotated[FrontendAuthService, Depends(get_frontend_auth_service)],
@@ -67,6 +72,17 @@ async def game_lobby_name_availability(
 ):
     user = await auth_service.require_current_user(request)
     return await lobby_service.check_name_availability(user, name)
+
+
+@router.post("/game-lobby/name-availability", name="game_lobby_name_availability_post")
+async def game_lobby_name_availability_post(
+    request: Request,
+    dto: CharacterNameAvailabilityRequestDTO,
+    auth_service: Annotated[FrontendAuthService, Depends(get_frontend_auth_service)],
+    lobby_service: Annotated[GameLobbyPageService, Depends(get_game_lobby_page_service)],
+):
+    user = await auth_service.require_current_user(request)
+    return await lobby_service.check_name_availability(user, dto.name)
 
 
 @router.post("/game-lobby/start", name="game_lobby_start")

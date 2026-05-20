@@ -162,7 +162,7 @@ class InventoryRewardService:
     async def _refresh_runtime_state(self, session: InventoryRuntimeSessionDTO) -> None:
         if await self.inventory_sessions.get(session.char_id) is not None:
             await self.inventory_sessions.set(session)
-        await self.inventory_service._sync_active_character_items(session)
+        await self.inventory_service._sync_active_character_items(session, reason="reward_granted")
 
 
 __all__ = ["InventoryRewardGrantResult", "InventoryRewardService"]

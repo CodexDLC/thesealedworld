@@ -70,6 +70,7 @@ class InventoryViewService:
         "control_resistance": "Сопротивление контролю",
         "counter_attack_chance": "Шанс контратаки",
         "crafting_speed": "Скорость ремесла",
+        "crit_chance": "Шанс крита",
         "damage": "Урон",
         "debuff_avoidance": "Избежание ослаблений",
         "defense": "Защита",
@@ -88,6 +89,8 @@ class InventoryViewService:
         "initiative": "Инициатива",
         "intelligence": "Интеллект",
         "inventory_cell_capacity": "Ячейки инвентаря",
+        "item_armor_penetration_pct": "Пробитие брони",
+        "item_crit_chance": "Шанс крита",
         "luck": "Удача",
         "magic_damage": "Магический урон",
         "magic_penetration": "Пробитие магии",
@@ -96,8 +99,13 @@ class InventoryViewService:
         "magical_penetration": "Пробитие магии",
         "magical_resistance": "Магическая защита",
         "main_hand_accuracy": "Точность основной руки",
+        "main_hand_armor_penetration_pct": "Пробитие брони",
+        "main_hand_crit_chance": "Шанс крита",
         "maximum_energy": "Максимум энергии",
         "maximum_hp": "Максимум здоровья",
+        "off_hand_accuracy": "Точность второй руки",
+        "off_hand_armor_penetration_pct": "Пробитие брони",
+        "off_hand_crit_chance": "Шанс крита",
         "parry_chance": "Парирование",
         "perception": "Восприятие",
         "physical_accuracy": "Физическая точность",
@@ -119,6 +127,9 @@ class InventoryViewService:
         "travel_speed": "Скорость пути",
         "vampiric_power": "Вампиризм",
         "vampiric_trigger_chance": "Шанс вампиризма",
+        "weapon_accuracy": "Точность",
+        "weapon_armor_penetration_pct": "Пробитие брони",
+        "weapon_crit_chance": "Шанс крита",
     }
     _AFFIX_LABELS_RU = {
         "agility": "Ловкость",
@@ -232,6 +243,7 @@ class InventoryViewService:
         "anti_dodge_chance",
         "armor_ignore_chance",
         "armor_penetration_pct",
+        "item_armor_penetration_pct",
         "bleed_damage_bonus",
         "bleed_resistance",
         "counter_attack_chance",
@@ -244,10 +256,15 @@ class InventoryViewService:
         "fire_damage_bonus",
         "fire_resistance",
         "main_hand_accuracy",
+        "main_hand_armor_penetration_pct",
+        "main_hand_crit_chance",
         "magical_damage_bonus",
         "magical_penetration",
         "magical_resistance",
         "magic_resist",
+        "off_hand_accuracy",
+        "off_hand_armor_penetration_pct",
+        "off_hand_crit_chance",
         "parry_chance",
         "physical_accuracy",
         "physical_crit_chance",
@@ -262,6 +279,9 @@ class InventoryViewService:
         "thorns_damage_reflect",
         "vampiric_power",
         "water_resistance",
+        "weapon_accuracy",
+        "weapon_armor_penetration_pct",
+        "weapon_crit_chance",
     }
 
     def __init__(self, catalog: ItemCatalogService | None = None) -> None:
@@ -810,6 +830,7 @@ class InventoryViewService:
                     slot_id=first_free,
                 )
             )
+        actions.append(InventoryItemActionDTO(action="drop", label="Выбросить", style="danger"))
         return actions
 
     @staticmethod
@@ -1120,6 +1141,7 @@ class InventoryViewService:
                 "_penalty",
                 "_accuracy",
                 "_penetration",
+                "_pct",
                 "_damage_bonus",
             )
         )

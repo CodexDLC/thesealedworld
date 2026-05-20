@@ -3,6 +3,8 @@
 {% set vitals = status.vitals if status else {} %}
 {% set attrs = status.attributes if status else {} %}
 {% set skills = status.skills if status else {} %}
+{% set metrics = status.metrics if status and status.metrics is defined else {} %}
+{% set gear_score = metrics.get('gear_score') if metrics else none %}
 {% set hp = vitals.get('hp', {}) %}
 {% set en = vitals.get('energy', {}) %}
 {% set sta = vitals.get('stamina', {}) %}
@@ -44,6 +46,10 @@
 
 <aside id="status-container"
        class="panel-dock panel-dock--framed panel-dock--scroll status-panel-root status-sidebar-surface scenario-status-dock scenario-status-dock--{{ status_dock_mode }} {{ 'scenario-status-dock--glitch' if status_dock_distortion == 'glitch' else '' }} {{ status_dock_extra_class }}"
+       hx-get="/game/character-status/panel?char_id={{ char_id }}"
+       hx-trigger="character-status-refresh from:body"
+       hx-target="this"
+       hx-swap="outerHTML"
        aria-label="Character status dock">
     <nav class="dock-nav dock-nav--bar dock-nav--panel status-dock-actions" aria-label="Status actions">
         <button class="dock-nav-button"
@@ -61,7 +67,11 @@
 
     {% if status %}
         <section class="status-widget-card scenario-status-card" aria-label="Character summary">
-            <div class="status-widget-avatar">
+            <div class="status-widget-avatar status-widget-avatar--clickable"
+                 hx-get="/game/character-status/avatar-picker?char_id={{ char_id }}"
+                 hx-target="#game-modal-root"
+                 hx-swap="outerHTML"
+                 title="Change avatar">
                 {% if bio.get('avatar') %}
                     <img src="{{ bio.get('avatar') }}" alt="{{ bio.get('name', 'Character') }}">
                 {% else %}
@@ -102,6 +112,22 @@
                         <em>SENSOR</em>
                         {% for attr_key, label, value in sensor_attrs %}{% if value is not none %}<div><span data-catalog="attributes" data-catalog-key="{{ attr_key }}" data-catalog-tooltip="description">{{ label }}</span><strong>{{ value }}</strong></div>{% endif %}{% endfor %}
                     </div>
+                </div>
+            </div>
+        </details>
+        {% endif %}
+
+        {% if gear_score is not none %}
+        <details class="status-widget-section scenario-status-section status-widget-metrics" open>
+            <summary class="status-widget-section-title">
+                <span data-tippy-content="Сводная оценка боевой готовности персонажа по текущим предметам, атрибутам и навыкам."
+                      data-tippy-theme="game-hint">POWER</span>
+                <strong>RATING</strong>
+            </summary>
+            <div class="status-widget-metric-grid" aria-label="Character power metrics">
+                <div class="status-widget-metric-card status-widget-metric-card--primary">
+                    <span>GS</span>
+                    <strong>{{ gear_score }}</strong>
                 </div>
             </div>
         </details>

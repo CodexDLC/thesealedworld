@@ -712,6 +712,51 @@
   text-transform: uppercase;
 }
 
+.inventory-context-menu {
+  position: fixed;
+  z-index: 2600;
+  display: none;
+  min-width: 168px;
+  padding: 4px;
+  border: 1px solid rgba(255, 170, 0, .42);
+  background:
+    linear-gradient(180deg, rgba(27, 19, 12, .98), rgba(8, 6, 5, .98)),
+    var(--inventory-control-texture) center / cover no-repeat;
+  box-shadow: 0 14px 28px rgba(0, 0, 0, .55);
+  clip-path: var(--clip-node-sm);
+}
+
+.inventory-context-menu.is-visible {
+  display: grid;
+  gap: 3px;
+}
+
+.inventory-context-menu-action {
+  min-height: 30px;
+  padding: 7px 10px;
+  border: 1px solid rgba(255, 170, 0, .22);
+  background: linear-gradient(180deg, rgba(45, 27, 12, .88), rgba(12, 8, 5, .94));
+  color: var(--col-text-primary);
+  font: 800 10px/1.1 var(--font-ui);
+  letter-spacing: 0;
+  text-align: left;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.inventory-context-menu-action:hover,
+.inventory-context-menu-action:focus-visible {
+  border-color: rgba(255, 170, 0, .54);
+  color: var(--col-accent);
+  outline: none;
+}
+
+.inventory-context-menu-action:disabled {
+  color: var(--inventory-muted);
+  cursor: not-allowed;
+  opacity: .58;
+}
+
 .item-card.inventory-tooltip-card {
   position: relative;
   width: 100%;

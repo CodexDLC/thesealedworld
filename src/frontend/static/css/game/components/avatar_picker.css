@@ -1,0 +1,96 @@
+.avatar-picker-modal {
+    width: min(520px, 100%);
+}
+
+.avatar-picker-body {
+    padding: 12px 14px;
+}
+
+.avatar-picker-tabs {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 14px;
+}
+
+.avatar-picker-tab {
+    flex: 1;
+    min-height: 28px;
+    border: 1px solid rgba(255, 170, 0, 0.20);
+    border-radius: 4px;
+    background: rgba(0, 0, 0, 0.35);
+    color: rgba(210, 180, 140, 0.62);
+    font: 800 9px/1 var(--font-mono);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: border-color 140ms, color 140ms;
+}
+
+.avatar-picker-tab:hover {
+    border-color: rgba(255, 170, 0, 0.35);
+    color: rgba(210, 180, 140, 0.82);
+}
+
+.avatar-picker-tab.is-active {
+    border-color: rgba(255, 170, 0, 0.48);
+    color: var(--col-accent);
+    background: rgba(255, 170, 0, 0.06);
+}
+
+.avatar-picker-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+}
+
+.avatar-picker-cell {
+    aspect-ratio: 1;
+    border: 2px solid rgba(255, 170, 0, 0.12);
+    border-radius: 4px;
+    background: rgba(0, 0, 0, 0.24);
+    cursor: pointer;
+    overflow: hidden;
+    transition: border-color 140ms, box-shadow 140ms;
+    padding: 0;
+}
+
+.avatar-picker-cell img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+.avatar-picker-cell:hover {
+    border-color: rgba(255, 170, 0, 0.38);
+}
+
+.avatar-picker-cell.is-selected {
+    border-color: var(--col-accent);
+    box-shadow: 0 0 12px rgba(255, 170, 0, 0.24),
+                inset 0 0 0 1px rgba(255, 170, 0, 0.16);
+}
+
+.avatar-picker-apply {
+    background: rgba(255, 170, 0, 0.12);
+    border-color: rgba(255, 170, 0, 0.48);
+    color: var(--col-accent);
+}
+
+.avatar-picker-apply:hover:not(:disabled) {
+    background: rgba(255, 170, 0, 0.18);
+}
+
+.avatar-picker-apply:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+}
+
+.status-widget-avatar--clickable {
+    cursor: pointer;
+    transition: border-color 180ms ease;
+}
+
+.status-widget-avatar--clickable:hover {
+    border-color: rgba(255, 170, 0, 0.52);
+}

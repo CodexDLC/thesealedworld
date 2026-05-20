@@ -36,6 +36,8 @@ class UIRenderer:
             "game_access_token": get_game_access_token(self.request) or "",
             "static_version": _static_version(),
             "is_htmx": "HX-Request" in self.request.headers,
+            "google_analytics_id": settings.google_analytics_id,
+            "google_site_verification": settings.google_site_verification,
         }
 
         # 2. Dynamic Game Menu (if domain is provided in context)

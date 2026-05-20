@@ -12,6 +12,8 @@ from src.backend.features.exploration.runtime.encounter.bypass import (
     encounter_with_bypass_chance,
 )
 from src.backend.features.exploration.runtime.experience import ExplorationExperienceService
+from src.backend.features.exploration.services.knowledge_runtime import ExplorationKnowledgeRuntimeManager
+from src.backend.features.exploration.services.knowledge_service import ExplorationKnowledgeService
 from src.shared.enums import CoreDomain
 
 log = logging.getLogger(__name__)
@@ -40,6 +42,12 @@ class ExplorationEncounterService:
         self._session = session
         self._navigation = navigation
         self._experience = ExplorationExperienceService()
+        redis = getattr(integration, "redis", None)
+        self._knowledge = (
+            ExplorationKnowledgeService(ExplorationKnowledgeRuntimeManager(redis))
+            if integration is not None and redis is not None
+            else None
+        )
 
     async def active_payload(self, char_id: int) -> EncounterDTO | None:
         encounter = await self._session.get_active(char_id)
@@ -143,6 +151,7 @@ class ExplorationEncounterService:
         if not _safe_location(loc_data):
             await self._grant_experience(
                 char_id,
+                loc_id=loc_id,
                 skills=skills.as_dict(),
                 attributes=attributes,
                 action_power_by_skill={"skill_pathfinder": 1.0}
@@ -167,6 +176,7 @@ class ExplorationEncounterService:
         if _monster_encounter(encounter):
             await self._grant_experience(
                 char_id,
+                loc_id=loc_id,
                 skills=skills.as_dict(),
                 attributes=attributes,
                 action_power_by_skill={"skill_hunting": 1.0},
@@ -179,6 +189,7 @@ class ExplorationEncounterService:
             attributes = await self._integration.get_ac_attribute_snapshot(char_id)
             await self._grant_experience(
                 char_id,
+                loc_id=_encounter_loc_id(encounter),
                 skills=skills.as_dict() if hasattr(skills, "as_dict") else {},
                 attributes=attributes,
                 action_power_by_skill={"skill_scouting": 0.5, "skill_hunting": 0.5},
@@ -245,6 +256,7 @@ class ExplorationEncounterService:
         self,
         char_id: int,
         *,
+        loc_id: str | None,
         skills: dict[str, float],
         attributes: dict[str, float],
         action_power_by_skill: dict[str, float],
@@ -256,6 +268,8 @@ class ExplorationEncounterService:
             current_skills=skills,
             attributes=attributes,
         )
+        if self._knowledge is not None and loc_id:
+            rewards = await self._knowledge.cap_rewards(char_id, loc_id, rewards)
         await self._integration.apply_skill_progress(char_id, rewards)
 
 
@@ -268,3 +282,15 @@ def _safe_location(loc_data: dict[str, Any]) -> bool:
     flags = loc_data.get("flags", {})
     flags = flags if isinstance(flags, dict) else {}
     return bool(flags.get("system_connect") or flags.get("is_safe_zone", False))
+
+
+def _encounter_loc_id(encounter: EncounterDTO) -> str | None:
+    metadata = encounter.metadata if isinstance(encounter.metadata, dict) else {}
+    for key in ("loc_id", "location_id"):
+        value = metadata.get(key)
+        if value:
+            return str(value)
+    navigation = metadata.get("navigation")
+    if isinstance(navigation, dict) and navigation.get("loc_id"):
+        return str(navigation["loc_id"])
+    return None

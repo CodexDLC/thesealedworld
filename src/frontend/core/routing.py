@@ -12,6 +12,7 @@ from src.frontend.features.auth.api import router as auth_api_router
 from src.frontend.features.auth.routes.pages import router as auth_router
 from src.frontend.features.feedback.routes.pages import router as feedback_router
 from src.frontend.features.library.routes.pages import router as library_router
+from src.frontend.features.news.routes.pages import router as news_router
 from src.frontend.features.public_site.routes.pages import router as frontend_pages_router
 from src.frontend.features.surveys.routes.pages import router as surveys_router
 from src.frontend.game_features.arena.routes.actions import router as arena_router
@@ -27,6 +28,7 @@ from src.frontend.game_features.session.routes.pages import router as game_sessi
 
 FRONTEND_ROUTERS: Sequence[APIRouter] = (
     frontend_pages_router,
+    news_router,
     library_router,
     auth_api_router,
     auth_router,

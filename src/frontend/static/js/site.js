@@ -72,10 +72,18 @@ window.lobbyPanelState = function lobbyPanelState(initialMode, initialSelection)
             };
 
             try {
-                const response = await fetch(`/api/game-lobby/name-availability?name=${encodeURIComponent(name)}`, {
-                    headers: { Accept: "application/json" },
+                const response = await fetch("/game-lobby/name-availability", {
+                    method: "POST",
+                    headers: {
+                        Accept: "application/json",
+                        "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify({ name }),
                 });
-                if (!response.ok) throw new Error(`Name availability failed: ${response.status}`);
+                if (!response.ok) {
+                    const detail = await this.readNameAvailabilityError(response);
+                    throw new Error(detail || `Name availability failed: ${response.status}`);
+                }
 
                 const result = await response.json();
                 if (this.normalizedCreationName() !== name) return false;
@@ -95,10 +103,20 @@ window.lobbyPanelState = function lobbyPanelState(initialMode, initialSelection)
                     state: "invalid",
                     checked: name,
                     available: false,
-                    message: "Не удалось проверить имя",
+                    message: error instanceof Error && error.message ? error.message : "Не удалось проверить имя",
                 };
                 return false;
             }
+        },
+        async readNameAvailabilityError(response) {
+            try {
+                const payload = await response.json();
+                if (payload && typeof payload.detail === "string" && payload.detail) return payload.detail;
+                if (payload && typeof payload.message === "string" && payload.message) return payload.message;
+            } catch (error) {
+                console.warn("Name availability error payload parse failed", error);
+            }
+            return "";
         },
         async submitCreation(event) {
             const form = event.target;

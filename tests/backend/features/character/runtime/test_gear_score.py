@@ -101,3 +101,35 @@ def test_gear_score_uses_waterfall_calculated_raw_and_equipment() -> None:
     calculator = CharacterGearScoreCalculator()
 
     assert calculator.calculate_from_active_character(equipped_ac) > calculator.calculate_from_active_character(base_ac)
+
+
+@pytest.mark.unit
+def test_gear_score_changes_when_equipping_garment_power() -> None:
+    base_ac = {
+        "attributes": {
+            "strength": 15,
+            "agility": 9,
+            "endurance": 16,
+            "mental": 13,
+        },
+        "items": {},
+        "skills": {},
+    }
+    equipped_ac = {
+        **base_ac,
+        "items": {
+            "layout": {"equipment": {"feetwear": "boots-1"}},
+            "by_id": {
+                "boots-1": {
+                    "item_id": "boots-1",
+                    "item_type": "garment",
+                    "slot": "feetwear",
+                    "mechanics": {"power": 8},
+                },
+            },
+        },
+    }
+
+    calculator = CharacterGearScoreCalculator()
+
+    assert calculator.calculate_from_active_character(equipped_ac) > calculator.calculate_from_active_character(base_ac)

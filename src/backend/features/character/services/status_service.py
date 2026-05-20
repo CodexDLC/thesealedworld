@@ -3,8 +3,10 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
 
+from src.backend.core.exceptions import BusinessLogicException
 from src.backend.features.game_catalog.skills.dto import SkillUiGroup
 from src.backend.features.game_catalog.skills.services import SkillCatalogService
+from src.shared.avatars import ALL_VALID_AVATAR_URLS
 from src.shared.schemas.character import CharacterStatusDTO
 from src.shared.schemas.character_status import CharacterActorCoreDTO
 from src.shared.schemas.panel import PanelDTO, PanelWidgetDTO
@@ -97,6 +99,11 @@ class CharacterStatusService:
         char_id: int,
     ) -> CharacterStatusDTO:
         return self._format_status(await self.state_integrator.get_status_document(user.id, char_id))
+
+    async def update_avatar(self, char_id: int, avatar_url: str) -> None:
+        if avatar_url not in ALL_VALID_AVATAR_URLS:
+            raise BusinessLogicException("Invalid avatar selection")
+        await self.state_integrator.update_avatar(char_id, avatar_url)
 
     @staticmethod
     def _format_status(doc: dict[str, Any]) -> CharacterStatusDTO:

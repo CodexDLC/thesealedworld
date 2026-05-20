@@ -48,6 +48,10 @@ class FrontendSettings(BaseCommonSettings):
     email_from: str = "noreply@thesealed.world"
     email_admin: str = "primecodex@gmail.com"
 
+    # SEO / Analytics
+    google_analytics_id: str = ""
+    google_site_verification: str = ""
+
     # Paths
     templates_dir: Path = BASE_DIR / "src" / "frontend" / "templates"
     static_dir: Path = BASE_DIR / "src" / "frontend" / "static"

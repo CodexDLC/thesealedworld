@@ -57,13 +57,46 @@ async def test_dialogue_handler_resolves_npc_key_from_master() -> None:
     context = await handler.on_initialize(
         7,
         {
-            "quest_key": "first_death_portal_dialogue",
+            "quest_key": "portal_guide_dialogue",
             "scenario_type": "dialogue_scenario",
             "start_node_id": "first_contact",
             "npc_key": "portal_pad_guide",
         },
     )
 
+    assert context.npc_key == "portal_pad_guide"
+
+
+@pytest.mark.unit
+async def test_dialogue_handler_uses_return_context_initial_node_override() -> None:
+    integration = AsyncMock()
+    integration.get_initial_handler_context.return_value = ScenarioInitialHandlerContext(
+        sys_actor="Mote",
+        prev_state=CoreDomain.EXPLORATION.value,
+        prev_loc="52_52",
+    )
+    handler = DialogueScenarioHandler(integration=integration)
+    return_context = ScenarioReturnContextDTO(
+        source_state=CoreDomain.EXPLORATION,
+        return_state=CoreDomain.EXPLORATION,
+        location_id="52_52",
+        npc_key="portal_pad_guide",
+        metadata={"initial_node_key": "death_return_greeting"},
+    )
+
+    context = await handler.on_initialize(
+        7,
+        {
+            "quest_key": "portal_guide_dialogue",
+            "scenario_type": "dialogue_scenario",
+            "start_node_id": "guide_dialogue_hub",
+            "npc_key": "portal_pad_guide",
+        },
+        return_context=return_context,
+    )
+
+    assert context.quest_key == "portal_guide_dialogue"
+    assert context.current_node_key == "death_return_greeting"
     assert context.npc_key == "portal_pad_guide"
 
 

@@ -107,6 +107,9 @@ function initGameTooltips(root = document) {
 }
 
 let activeInventoryTooltipTrigger = null;
+let activeInventoryMenuTrigger = null;
+let inventoryMenuLongPressTimer = null;
+let inventoryMenuSuppressNextClick = false;
 
 function isTouchInventoryMode() {
     return window.matchMedia?.('(hover: none), (pointer: coarse)')?.matches || false;
@@ -137,6 +140,122 @@ function inventoryActionLabel(action) {
         use: 'ИСПОЛЬЗОВАТЬ',
         drop: 'ВЫБРОСИТЬ',
     }[action] || 'ДЕЙСТВИЕ';
+}
+
+function inventoryContextMenuHost() {
+    let host = document.getElementById('inventory-context-menu-host');
+    if (host) return host;
+
+    host = document.createElement('div');
+    host.id = 'inventory-context-menu-host';
+    host.className = 'inventory-context-menu';
+    host.setAttribute('role', 'menu');
+    document.body.appendChild(host);
+    return host;
+}
+
+function inventoryDatasetJson(trigger, key, fallback) {
+    const raw = trigger?.dataset?.[key];
+    if (!raw) return fallback;
+    try {
+        return JSON.parse(raw);
+    } catch (_error) {
+        return fallback;
+    }
+}
+
+function inventoryAlpineState(trigger) {
+    const root = trigger?.closest?.('.inventory-shell');
+    if (!root || !window.Alpine?.$data) return {};
+    try {
+        return window.Alpine.$data(root) || {};
+    } catch (_error) {
+        return {};
+    }
+}
+
+function inventoryActionPayload(trigger, action) {
+    const state = inventoryAlpineState(trigger);
+    const validSlots = inventoryDatasetJson(trigger, 'inventoryValidSlots', []);
+    const selectedSlot = state.selectedSlot || null;
+    const actionId = String(action.action || '');
+    const slotId = (
+        actionId === 'equip'
+        && selectedSlot
+        && Array.isArray(validSlots)
+        && validSlots.includes(selectedSlot)
+    ) ? selectedSlot : action.slot_id;
+    return {
+        char_id: Number(trigger.dataset.inventoryCharId),
+        action: actionId,
+        item_id: trigger.dataset.inventoryItemId,
+        tab_id: state.activeInventoryTab || 'items',
+        slot_id: slotId || null,
+    };
+}
+
+function positionInventoryContextMenu(host, event) {
+    const margin = 8;
+    const width = host.offsetWidth || 176;
+    const height = host.offsetHeight || 120;
+    let left = event.clientX;
+    let top = event.clientY;
+    if (left + width > window.innerWidth - margin) {
+        left = window.innerWidth - width - margin;
+    }
+    if (top + height > window.innerHeight - margin) {
+        top = window.innerHeight - height - margin;
+    }
+    host.style.left = `${Math.max(margin, left)}px`;
+    host.style.top = `${Math.max(margin, top)}px`;
+}
+
+function runInventoryMenuAction(trigger, action) {
+    const root = trigger.closest('.inventory-shell');
+    const target = root?.dataset?.inventoryTarget || trigger.getAttribute('hx-target') || '#right-inventory-panel-body';
+    hideInventoryContextMenu();
+    hideInventoryTooltip();
+    if (!window.htmx) return;
+    window.htmx.ajax('POST', '/game/inventory/action', {
+        target,
+        swap: 'innerHTML',
+        values: inventoryActionPayload(trigger, action),
+    });
+}
+
+function showInventoryContextMenu(trigger, event) {
+    const actions = inventoryDatasetJson(trigger, 'inventoryActions', []);
+    if (!Array.isArray(actions) || !actions.length) return;
+
+    const host = inventoryContextMenuHost();
+    activeInventoryMenuTrigger = trigger;
+    host.innerHTML = '';
+    actions.forEach((action) => {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'inventory-context-menu-action';
+        button.setAttribute('role', 'menuitem');
+        button.textContent = action.label || inventoryActionLabel(action.action);
+        if (action.enabled === false) {
+            button.disabled = true;
+            if (action.reason) {
+                button.title = String(action.reason);
+            }
+        } else {
+            button.addEventListener('click', () => runInventoryMenuAction(trigger, action));
+        }
+        host.appendChild(button);
+    });
+    host.classList.add('is-visible');
+    positionInventoryContextMenu(host, event);
+}
+
+function hideInventoryContextMenu() {
+    const host = document.getElementById('inventory-context-menu-host');
+    activeInventoryMenuTrigger = null;
+    if (!host) return;
+    host.classList.remove('is-visible');
+    host.innerHTML = '';
 }
 
 function appendTouchInventoryActions(host, trigger) {
@@ -225,7 +344,60 @@ function hideInventoryTooltip() {
     host.innerHTML = '';
 }
 
+function clearInventoryLongPress() {
+    if (!inventoryMenuLongPressTimer) return;
+    window.clearTimeout(inventoryMenuLongPressTimer);
+    inventoryMenuLongPressTimer = null;
+}
+
 function initInventoryTooltips() {
+    document.addEventListener('contextmenu', (event) => {
+        const trigger = event.target?.closest?.('[data-inventory-menu-trigger]');
+        if (!trigger) return;
+        event.preventDefault();
+        event.stopPropagation();
+        hideInventoryTooltip();
+        showInventoryContextMenu(trigger, event);
+    });
+
+    document.addEventListener('pointerdown', (event) => {
+        if (!isTouchInventoryMode() || event.pointerType === 'mouse') return;
+        const trigger = event.target?.closest?.('[data-inventory-menu-trigger]');
+        if (!trigger) return;
+        clearInventoryLongPress();
+        inventoryMenuLongPressTimer = window.setTimeout(() => {
+            inventoryMenuSuppressNextClick = true;
+            hideInventoryTooltip();
+            showInventoryContextMenu(trigger, event);
+        }, 520);
+    }, true);
+
+    document.addEventListener('pointerup', clearInventoryLongPress, true);
+    document.addEventListener('pointercancel', clearInventoryLongPress, true);
+    document.addEventListener('scroll', () => {
+        clearInventoryLongPress();
+        hideInventoryContextMenu();
+    }, true);
+
+    document.addEventListener('click', (event) => {
+        if (inventoryMenuSuppressNextClick) {
+            inventoryMenuSuppressNextClick = false;
+            event.preventDefault();
+            event.stopImmediatePropagation();
+            return;
+        }
+        if (!activeInventoryMenuTrigger) return;
+        if (event.target?.closest?.('#inventory-context-menu-host')) return;
+        hideInventoryContextMenu();
+    }, true);
+
+    document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape') {
+            hideInventoryContextMenu();
+            hideInventoryTooltip();
+        }
+    });
+
     document.addEventListener('pointerover', (event) => {
         if (isTouchInventoryMode() || event.pointerType === 'touch' || event.pointerType === 'pen') return;
         const trigger = event.target?.closest?.('[data-inventory-tooltip-trigger]');
@@ -263,7 +435,10 @@ function initInventoryTooltips() {
         showInventoryTooltip(trigger, event);
     }, true);
 
-    document.addEventListener('htmx:beforeSwap', () => hideInventoryTooltip());
+    document.addEventListener('htmx:beforeSwap', () => {
+        hideInventoryTooltip();
+        hideInventoryContextMenu();
+    });
 }
 
 window.initGameTooltips = initGameTooltips;

@@ -6,6 +6,7 @@ from loguru import logger
 
 from src.backend.core.arq import SYSTEM_ARQ_QUEUE, ArqService
 from src.backend.core.database.session import get_session_context
+from src.backend.features.inventory.integrations import InventoryStreamClient
 from src.backend.features.inventory.repositories.items import InventoryItemRepository
 from src.backend.features.inventory.services.inventory_service import InventoryService
 from src.backend.features.inventory.services.session_manager import InventorySessionManager
@@ -29,6 +30,7 @@ async def flush_inventory_session_task(ctx: dict[str, Any], payload: dict[str, A
             repository=InventoryItemRepository(db),
             inventory_sessions=inventory_sessions,
             character_sessions=redis_managers.character_sessions,
+            stream_client=InventoryStreamClient(ctx["events"]),
         )
         await service.flush_session(session)
 

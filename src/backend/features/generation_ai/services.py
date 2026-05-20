@@ -193,9 +193,16 @@ class GenerationAIService:
             "type": type(exc).__name__,
             "message": str(exc),
         }
-        if int(task.attempts or 0) >= int(task.max_attempts or 1):
+        retry_limit = self._retry_limit(task, exc)
+        if int(task.attempts or 0) >= retry_limit:
             await self.repository.mark_failed(task.id, error)
-            logger.warning("GenerationAI | task failed task_id={} error={}", task.id, error)
+            logger.warning(
+                "GenerationAI | task failed task_id={} attempts={} retry_limit={} error={}",
+                task.id,
+                task.attempts,
+                retry_limit,
+                error,
+            )
             return
 
         not_before = datetime.now(UTC) + timedelta(seconds=30)
@@ -208,7 +215,30 @@ class GenerationAIService:
             await self._schedule_task(task.id, not_before=not_before)
         else:
             self._pending_schedule_tasks.append((task.id, not_before))
-        logger.warning("GenerationAI | task cooldown task_id={} error={}", task.id, error)
+        logger.warning(
+            "GenerationAI | task cooldown task_id={} attempts={} retry_limit={} error={}",
+            task.id,
+            task.attempts,
+            retry_limit,
+            error,
+        )
+
+    @staticmethod
+    def _retry_limit(task: Any, exc: Exception) -> int:
+        base_limit = max(1, int(task.max_attempts or 1))
+        if GenerationAIService._is_retryable_json_schema_error(task, exc):
+            return max(base_limit, 8)
+        return base_limit
+
+    @staticmethod
+    def _is_retryable_json_schema_error(task: Any, exc: Exception) -> bool:
+        if getattr(task, "output_kind", None) != "json":
+            return False
+        error_type = type(exc).__name__
+        message = str(exc).lower()
+        if error_type == "LLMProviderError" and "schema validation" in message:
+            return True
+        return "json generation failed schema validation" in message or "validation error for" in message
 
     async def _schedule_task(self, task_id: str, *, not_before: datetime | None = None) -> bool:
         if self.arq is None:

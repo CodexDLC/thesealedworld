@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import pytest
 
+from src.backend.features.character.events import CharacterEvents
 from src.backend.features.character.managers.session import CharacterSessionManager
 from src.backend.features.inventory.services.inventory_service import InventoryActionForbiddenError, InventoryService
 from src.backend.features.inventory.services.session_manager import InventorySessionManager
@@ -19,6 +20,7 @@ class FakeInventoryRepository:
         self.wallet = wallet or WalletDTO()
         self.expedition_wallet = expedition_wallet or WalletDTO()
         self.saved: dict[str, InventoryRuntimeItemDTO] | None = None
+        self.discarded: list[dict[str, object]] = []
         self.committed = False
 
     async def list_character_items(self, char_id: int, *, expedition_run_id: str | None = None):
@@ -41,6 +43,19 @@ class FakeInventoryRepository:
 
     async def save_item_mechanics(self, items: dict[str, InventoryRuntimeItemDTO]) -> None:
         self.saved = items
+
+    async def discard_character_item(
+        self,
+        char_id: int,
+        item_id: str,
+        *,
+        expedition_run_id: str | None = None,
+        reason: str = "inventory_drop",
+    ) -> bool:
+        self.discarded.append(
+            {"char_id": char_id, "item_id": item_id, "expedition_run_id": expedition_run_id, "reason": reason}
+        )
+        return True
 
     async def commit(self) -> None:
         self.committed = True
@@ -66,6 +81,24 @@ class FakePlacement:
         self.holder_type = "expedition" if item.is_unsecured or item.sync_state == "unsecured" else "character"
         self.storage_type = item.placement
         self.slot = item.slot
+
+
+class FakeInventoryStreamClient:
+    def __init__(self) -> None:
+        self.recalculate_requests: list[dict[str, object]] = []
+
+    async def request_gear_score_recalculation(self, *, char_id: int, reason: str) -> None:
+        self.recalculate_requests.append({"char_id": char_id, "reason": reason})
+
+
+class FakeEvents:
+    def __init__(self) -> None:
+        self.published: list[tuple[str, dict[str, object]]] = []
+
+    async def publish(self, event_type: str, data: dict[str, object], correlation_id: str | None = None) -> str:
+        del correlation_id
+        self.published.append((event_type, data))
+        return "event-1"
 
 
 @pytest.mark.asyncio
@@ -307,7 +340,11 @@ async def test_open_window_builds_structured_item_tooltip_without_html(fake_redi
                 mechanics={
                     "valid_slots": ["main_hand"],
                     "power": 5,
-                    "implicit_bonuses": {"initiative": 1, "parry_chance": 0.04},
+                    "implicit_bonuses": {
+                        "initiative": 1,
+                        "main_hand_armor_penetration_pct": 0.06,
+                        "parry_chance": 0.04,
+                    },
                 },
                 rarity_tier=1,
             ),
@@ -318,7 +355,12 @@ async def test_open_window_builds_structured_item_tooltip_without_html(fake_redi
                 mechanics={
                     "valid_slots": ["main_hand"],
                     "power": 9,
-                    "implicit_bonuses": {"initiative": 3, "parry_chance": 0.12, "stamina_regen": -1},
+                    "implicit_bonuses": {
+                        "initiative": 3,
+                        "parry_chance": 0.12,
+                        "stamina_regen": -1,
+                        "weapon_armor_penetration_pct": 0.08,
+                    },
                     "affixes": [
                         {"affix_id": "crit_chance", "value": 0.045, "source": "single:combat_offense"},
                         {
@@ -359,6 +401,11 @@ async def test_open_window_builds_structured_item_tooltip_without_html(fake_redi
     assert any(
         line.label == "Парирование" and line.value == "12%" and line.tone == "neutral" for line in details.details
     )
+    assert any(
+        line.label == "Пробитие брони" and line.value == "8%" and line.tone == "neutral"
+        for line in details.details
+    )
+    assert all("Armor Penetration" not in line.label for line in details.details)
     assert any(
         line.label == "Сопротивление контролю" and line.value == "+1.25%" and line.tier == 4
         for line in details.affixes
@@ -591,6 +638,89 @@ async def test_equip_action_updates_inventory_session_and_active_character_items
 
 
 @pytest.mark.asyncio
+async def test_equip_action_requests_active_character_gear_score_recalculation(
+    fake_redis_service,
+    fake_redis_client,
+):
+    _active_character(fake_redis_client, state="exploration", attributes={"strength": 10})
+    stream_client = FakeInventoryStreamClient()
+    service = _service(
+        fake_redis_service,
+        [
+            _item(
+                "sword-1",
+                "weapon",
+                slot="main_hand",
+                mechanics={"valid_slots": ["main_hand"], "power": 25},
+            )
+        ],
+        stream_client=stream_client,
+    )
+
+    await service.apply_action(
+        InventoryActionRequestDTO(char_id=7, action="equip", item_id="sword-1", slot_id="main_hand")
+    )
+
+    active_doc = fake_redis_client.store["game:ac:7"]
+    assert active_doc["items"]["layout"]["equipment"]["main_hand"] == "sword-1"
+    assert "metrics" not in active_doc
+    assert stream_client.recalculate_requests == [
+        {"char_id": 7, "reason": "inventory_opened"},
+        {"char_id": 7, "reason": "equip"},
+    ]
+
+
+@pytest.mark.asyncio
+async def test_equip_garment_action_requests_active_character_gear_score_recalculation(
+    fake_redis_service,
+    fake_redis_client,
+):
+    _active_character(
+        fake_redis_client,
+        state="exploration",
+        attributes={"strength": 15, "agility": 9, "endurance": 16, "mental": 13},
+    )
+    stream_client = FakeInventoryStreamClient()
+    service = _service(
+        fake_redis_service,
+        [
+            _item(
+                "boots-1",
+                "garment",
+                slot="feetwear",
+                mechanics={"valid_slots": ["feetwear"], "power": 8},
+            )
+        ],
+        stream_client=stream_client,
+    )
+
+    await service.apply_action(
+        InventoryActionRequestDTO(char_id=7, action="equip", item_id="boots-1", slot_id="feetwear")
+    )
+
+    active_doc = fake_redis_client.store["game:ac:7"]
+    assert active_doc["items"]["layout"]["equipment"]["feetwear"] == "boots-1"
+    assert "metrics" not in active_doc
+    assert stream_client.recalculate_requests == [
+        {"char_id": 7, "reason": "inventory_opened"},
+        {"char_id": 7, "reason": "equip"},
+    ]
+
+
+@pytest.mark.asyncio
+async def test_inventory_stream_client_publishes_gear_score_recalculation_task():
+    from src.backend.features.inventory.integrations import InventoryStreamClient
+
+    events = FakeEvents()
+
+    await InventoryStreamClient(events).request_gear_score_recalculation(char_id=7, reason="equip")
+
+    assert events.published == [
+        (CharacterEvents.GEAR_SCORE_RECALCULATE_REQUESTED, {"char_id": 7, "reason": "equip"})
+    ]
+
+
+@pytest.mark.asyncio
 async def test_move_to_belt_requires_capacity_and_consumable_compatibility(fake_redis_service, fake_redis_client):
     _active_character(fake_redis_client, state="exploration")
     service = _service(
@@ -663,6 +793,47 @@ async def test_remove_from_belt_only_removes_belt_items(fake_redis_service, fake
         await service.apply_action(
             InventoryActionRequestDTO(char_id=7, action="remove_from_belt", item_id="boots-1", slot_id="belt_slot_1")
         )
+
+
+@pytest.mark.asyncio
+async def test_drop_removes_item_from_runtime_session_and_discards_persistence(
+    fake_redis_service,
+    fake_redis_client,
+):
+    _active_character(fake_redis_client, state="exploration")
+    repository = FakeInventoryRepository(
+        [
+            _item("boots-1", "garment", slot="feetwear"),
+            _item("sword-1", "weapon", slot="main_hand", placement="equipped"),
+        ]
+    )
+    stream_client = FakeInventoryStreamClient()
+    service = _service(fake_redis_service, repository.items, repository=repository, stream_client=stream_client)
+
+    window = await service.apply_action(InventoryActionRequestDTO(char_id=7, action="drop", item_id="boots-1"))
+
+    assert repository.discarded == [
+        {"char_id": 7, "item_id": "boots-1", "expedition_run_id": None, "reason": "inventory_drop"}
+    ]
+    assert repository.committed is True
+    assert "boots-1" not in fake_redis_client.store["game:inventory:7"]["by_id"]
+    assert "boots-1" not in fake_redis_client.store["game:inventory:7"]["layout"]["backpack"]
+    assert "boots-1" not in fake_redis_client.store["game:ac:7"]["items"]["by_id"]
+    assert [row.item_id for row in window.visible_rows] == []
+    assert stream_client.recalculate_requests[-1] == {"char_id": 7, "reason": "drop"}
+
+
+@pytest.mark.asyncio
+async def test_backpack_item_details_expose_drop_action(fake_redis_service, fake_redis_client):
+    _active_character(fake_redis_client, state="exploration")
+    service = _service(fake_redis_service, [_item("boots-1", "garment", slot="feetwear")])
+
+    window = await service.open_window(7)
+
+    row = next(row for row in window.visible_rows if row.item_id == "boots-1")
+    assert row.details is not None
+    assert row.details.actions[-1].action == "drop"
+    assert row.details.actions[-1].style == "danger"
 
 
 @pytest.mark.asyncio
@@ -740,11 +911,13 @@ def _service(
     items: list[InventoryRuntimeItemDTO],
     *,
     repository: FakeInventoryRepository | None = None,
+    stream_client: FakeInventoryStreamClient | None = None,
 ) -> InventoryService:
     return InventoryService(
         repository=repository or FakeInventoryRepository(items),
         inventory_sessions=InventorySessionManager(fake_redis_service),
         character_sessions=CharacterSessionManager(fake_redis_service),
+        stream_client=stream_client or FakeInventoryStreamClient(),
     )
 
 

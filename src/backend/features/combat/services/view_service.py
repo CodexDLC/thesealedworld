@@ -854,10 +854,6 @@ class CombatViewService:
 
         sections: list[CombatStatSectionDTO] = []
 
-        attr_items = [cls._stat_item_raw(k, k.upper(), values[k]) for k in _ATTRIBUTE_DISPLAY_KEYS if values.get(k)]
-        if attr_items:
-            sections.append(CombatStatSectionDTO(key="attributes", label="ATTRIBUTES", items=attr_items))
-
         offense_items = cls._offense_items(values)
         if offense_items:
             sections.append(CombatStatSectionDTO(key="offense", label="OFFENSE", items=offense_items))
@@ -881,6 +877,10 @@ class CombatViewService:
         caps_items = cls._caps_items(values)
         if caps_items:
             sections.append(CombatStatSectionDTO(key="caps", label="CAPS", items=caps_items))
+
+        attr_items = [cls._stat_item_raw(k, k.upper(), values[k]) for k in _ATTRIBUTE_DISPLAY_KEYS if values.get(k)]
+        if attr_items:
+            sections.append(CombatStatSectionDTO(key="attributes", label="ATTRIBUTES", items=attr_items))
 
         total_count = sum(len(s.items) for s in sections)
         if total_count == 0:

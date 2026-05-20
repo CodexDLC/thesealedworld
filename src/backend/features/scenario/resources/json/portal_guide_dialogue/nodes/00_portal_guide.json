@@ -1,0 +1,330 @@
+[
+  {
+    "node_key": "guide_dialogue_hub",
+    "node_type": "dialog",
+    "phase": "portal_pad",
+    "speaker": "portal_pad_guide",
+    "avatar": "/static/images/scenarios/overseer.png",
+    "display_name": "Оценщик",
+    "text": "Оценщик держится рядом с краем рунного круга, как человек, который слишком давно привык ждать новых лиц.\n\n— Спрашивай. Только отделяй то, что мы знаем, от того, во что люди заставляют себя верить.",
+    "metadata": {
+      "location": "Площадь Рунного Круга"
+    },
+    "actions": [
+      {
+        "action_id": "ask_first_death_again",
+        "label": "Вернуться к разговору о смерти",
+        "icon": "inspect",
+        "to_node": "death_return_greeting",
+        "condition": "npc_flag_first_death_dialogue_seen == 1"
+      },
+      {
+        "action_id": "ask_what_people_know",
+        "label": "Что поняли переселенцы?",
+        "icon": "journal",
+        "to_node": "settlers_experience"
+      },
+      {
+        "action_id": "ask_about_items",
+        "label": "Почему вещи пропадают?",
+        "icon": "inventory",
+        "to_node": "items_and_memory"
+      },
+      {
+        "action_id": "ask_about_circle",
+        "label": "Что это за круг?",
+        "icon": "inspect",
+        "to_node": "circle_known_limits"
+      },
+      {
+        "action_id": "leave",
+        "label": "Закончить разговор",
+        "icon": "back",
+        "to_node": "final_hub_closed"
+      }
+    ],
+    "ui": {}
+  },
+  {
+    "node_key": "death_return_greeting",
+    "node_type": "dialog",
+    "phase": "portal_pad",
+    "speaker": "portal_pad_guide",
+    "avatar": "/static/images/scenarios/overseer.png",
+    "display_name": "Первый возврат",
+    "text": "Оценщик смотрит не на раны, а на пустые места там, где еще недавно висели найденные вещи.\n\n— Первый возврат всегда путает сильнее самой смерти. Ты не исчез. Круг вытянул тебя назад. Но он не переносит всё, что было с тобой в разломе.",
+    "metadata": {
+      "location": "Площадь Рунного Круга"
+    },
+    "actions": [
+      {
+        "action_id": "ask_lost_items",
+        "label": "Почему часть вещей пропала?",
+        "icon": "inventory",
+        "to_node": "death_items_lost"
+      },
+      {
+        "action_id": "ask_kept_items",
+        "label": "Почему что-то осталось?",
+        "icon": "journal",
+        "to_node": "death_items_kept"
+      },
+      {
+        "action_id": "ask_who_knows",
+        "label": "Откуда вы это знаете?",
+        "icon": "inspect",
+        "to_node": "settlers_witnessed"
+      }
+    ],
+    "ui": {}
+  },
+  {
+    "node_key": "death_items_lost",
+    "node_type": "dialog",
+    "phase": "portal_pad",
+    "speaker": "portal_pad_guide",
+    "avatar": "/static/images/scenarios/overseer.png",
+    "display_name": "Потерянное в разломе",
+    "text": "— Всё, что ты нашел там и не успел закрепить здесь, считается добычей разлома. При возврате она чаще всего остается на месте падения или распадается вместе со следом похода.\n\nОценщик говорит это без торжества.\n\n— Мы называем такие вещи грязными. Не потому что они плохие. Потому что круг еще не признал их твоими.",
+    "actions": [
+      {
+        "action_id": "ask_kept_items",
+        "label": "А что тогда остается?",
+        "icon": "journal",
+        "to_node": "death_items_kept"
+      },
+      {
+        "action_id": "ask_who_knows",
+        "label": "Кто это проверил?",
+        "icon": "inspect",
+        "to_node": "settlers_witnessed"
+      },
+      {
+        "action_id": "accept_lesson",
+        "label": "Запомнить правило",
+        "icon": "default",
+        "to_node": "final_first_death_lesson"
+      }
+    ],
+    "ui": {}
+  },
+  {
+    "node_key": "death_items_kept",
+    "node_type": "dialog",
+    "phase": "portal_pad",
+    "speaker": "portal_pad_guide",
+    "avatar": "/static/images/scenarios/overseer.png",
+    "display_name": "То, что удержалось",
+    "text": "— То, что уже было признано твоим до выхода, обычно возвращается вместе с тобой. Снаряжение, закрепленные навыки, часть памяти тела. Иногда поврежденное. Иногда обедненное. Но твое.\n\n— Опыт тоже не весь одинаковый. Одно дело — понять удар. Другое — донести из разлома трофей, который еще не успел стать частью тебя.",
+    "actions": [
+      {
+        "action_id": "ask_lost_items",
+        "label": "Вернуться к потерянному",
+        "icon": "inventory",
+        "to_node": "death_items_lost"
+      },
+      {
+        "action_id": "ask_who_knows",
+        "label": "Кто это заметил?",
+        "icon": "inspect",
+        "to_node": "settlers_witnessed"
+      },
+      {
+        "action_id": "accept_lesson",
+        "label": "Запомнить правило",
+        "icon": "default",
+        "to_node": "final_first_death_lesson"
+      }
+    ],
+    "ui": {}
+  },
+  {
+    "node_key": "settlers_witnessed",
+    "node_type": "dialog",
+    "phase": "portal_pad",
+    "speaker": "portal_pad_guide",
+    "avatar": "/static/images/scenarios/overseer.png",
+    "display_name": "Опыт переселенцев",
+    "text": "— Потому что ты не первый. Есть те, кто появился здесь полгода назад. Есть те, кто считает, что год. Время тут не всегда спорит честно.\n\n— Они возвращались к кругу без мешков, но с теми же шрамами. Теряли свежую добычу, но сохраняли старое железо. Потом начали вести списки. Не пророчества. Просто отметки выживших.",
+    "actions": [
+      {
+        "action_id": "ask_about_lists",
+        "label": "Что было в этих списках?",
+        "icon": "journal",
+        "to_node": "settlers_experience"
+      },
+      {
+        "action_id": "accept_lesson",
+        "label": "Достаточно на сейчас",
+        "icon": "default",
+        "to_node": "final_first_death_lesson"
+      }
+    ],
+    "ui": {}
+  },
+  {
+    "node_key": "settlers_experience",
+    "node_type": "dialog",
+    "phase": "portal_pad",
+    "speaker": "portal_pad_guide",
+    "avatar": "/static/images/scenarios/overseer.png",
+    "display_name": "То, что известно",
+    "text": "— Известно немного. Возврат не отменяет смерть, он только не дает ей забрать тебя целиком. Разлом забирает незакрепленное. Круг возвращает то, что успел связать с тобой.\n\n— Остальное — догадки переселенцев. Кто-то говорит о долге. Кто-то о цене. Кто-то о том, что нас просто перебрасывает туда, где мы еще нужны. Я не продаю догадки как истину.",
+    "actions": [
+      {
+        "action_id": "ask_about_items",
+        "label": "Еще раз про вещи",
+        "icon": "inventory",
+        "to_node": "items_and_memory"
+      },
+      {
+        "action_id": "return_hub",
+        "label": "Вернуться к темам",
+        "icon": "back",
+        "to_node": "guide_dialogue_hub"
+      },
+      {
+        "action_id": "leave",
+        "label": "Закончить разговор",
+        "icon": "back",
+        "to_node": "final_hub_closed"
+      }
+    ],
+    "ui": {}
+  },
+  {
+    "node_key": "items_and_memory",
+    "node_type": "dialog",
+    "phase": "portal_pad",
+    "speaker": "portal_pad_guide",
+    "avatar": "/static/images/scenarios/overseer.png",
+    "display_name": "Вещи и привязка",
+    "text": "— Думай не о сумке, а о связи. Вещь, с которой ты пришел сюда, уже вписана в тебя и в круг. Вещь, поднятая в походе, еще спорная. Пока ты не вернулся с ней живым, мир не считает ее твоей окончательно.\n\n— Поэтому перед глубокой вылазкой спрашивай себя, что готов потерять.",
+    "actions": [
+      {
+        "action_id": "return_hub",
+        "label": "Вернуться к темам",
+        "icon": "back",
+        "to_node": "guide_dialogue_hub"
+      },
+      {
+        "action_id": "leave",
+        "label": "Закончить разговор",
+        "icon": "back",
+        "to_node": "final_hub_closed"
+      }
+    ],
+    "ui": {}
+  },
+  {
+    "node_key": "circle_known_limits",
+    "node_type": "dialog",
+    "phase": "portal_pad",
+    "speaker": "portal_pad_guide",
+    "avatar": "/static/images/scenarios/overseer.png",
+    "display_name": "Границы знания",
+    "text": "— Круг не объясняет себя. Он работает, когда хочет работать, и молчит, когда люди требуют ответа.\n\n— Мы знаем правила по следам: где люди возвращаются, что теряют, что остается, как меняется тело после походов. Этого достаточно, чтобы жить осторожнее. Недостаточно, чтобы назвать хозяина этого места.",
+    "actions": [
+      {
+        "action_id": "return_hub",
+        "label": "Вернуться к темам",
+        "icon": "back",
+        "to_node": "guide_dialogue_hub"
+      },
+      {
+        "action_id": "leave",
+        "label": "Закончить разговор",
+        "icon": "back",
+        "to_node": "final_hub_closed"
+      }
+    ],
+    "ui": {}
+  },
+  {
+    "node_key": "final_first_death_lesson",
+    "node_type": "dialog",
+    "phase": "portal_pad",
+    "speaker": "portal_pad_guide",
+    "avatar": "/static/images/scenarios/overseer.png",
+    "display_name": "Правило принято",
+    "text": "Оценщик отступает на полшага, возвращая тебе площадь, портал и выбор следующего движения.\n\n— Живым возвращай то, что хочешь сохранить. Мертвым возвращается не всё.",
+    "is_terminal": true,
+    "metadata": {
+      "finalize": {
+        "target_state": "exploration",
+        "transition_reason": "portal_guide_first_death_lesson_closed",
+        "response_metadata": {
+          "death_dialogue": "explained"
+        },
+        "effects": [
+          {
+            "type": "npc.set_flag",
+            "npc_key": "portal_pad_guide",
+            "flag": "met",
+            "value": true
+          },
+          {
+            "type": "npc.set_flag",
+            "npc_key": "portal_pad_guide",
+            "flag": "first_death_dialogue_seen",
+            "value": true
+          },
+          {
+            "type": "npc.bump_counter",
+            "npc_key": "portal_pad_guide",
+            "counter": "death_dialogues",
+            "amount": 1
+          },
+          {
+            "type": "npc.bump_counter",
+            "npc_key": "portal_pad_guide",
+            "counter": "meetings",
+            "amount": 1
+          },
+          {
+            "type": "npc.adjust_affinity",
+            "npc_key": "portal_pad_guide",
+            "amount": 1
+          }
+        ]
+      }
+    },
+    "actions": [],
+    "ui": {}
+  },
+  {
+    "node_key": "final_hub_closed",
+    "node_type": "dialog",
+    "phase": "portal_pad",
+    "speaker": "portal_pad_guide",
+    "avatar": "/static/images/scenarios/overseer.png",
+    "display_name": "Разговор окончен",
+    "text": "Оценщик снова занимает место у края круга. Разговор закончен, но он явно не считает вопросы исчерпанными.",
+    "is_terminal": true,
+    "metadata": {
+      "finalize": {
+        "target_state": "exploration",
+        "transition_reason": "portal_guide_dialogue_closed",
+        "response_metadata": {
+          "portal_guide_dialogue": "closed"
+        },
+        "effects": [
+          {
+            "type": "npc.set_flag",
+            "npc_key": "portal_pad_guide",
+            "flag": "met",
+            "value": true
+          },
+          {
+            "type": "npc.bump_counter",
+            "npc_key": "portal_pad_guide",
+            "counter": "meetings",
+            "amount": 1
+          }
+        ]
+      }
+    },
+    "actions": [],
+    "ui": {}
+  }
+]

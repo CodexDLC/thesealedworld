@@ -240,7 +240,7 @@ def build_monster_clan_flavor_task_spec(clan: GeneratedClan) -> AIGenerationTask
         season_id=str((clan.raw_tags or {}).get("season_id") or ""),
         asset_hash=clan.unique_hash,
         priority=50,
-        max_attempts=4,
+        max_attempts=8,
         metadata={
             "family_id": clan.family_id,
             "zone_id": clan.zone_id,

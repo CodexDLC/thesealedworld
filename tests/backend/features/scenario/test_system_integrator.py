@@ -338,7 +338,7 @@ async def test_attach_npc_context_flattens_relationship_state() -> None:
         npc_service=npc_service,
     )
     context = ScenarioContextDTO(
-        quest_key="first_death_portal_dialogue",
+        quest_key="portal_guide_dialogue",
         current_node_key="start",
         npc_key="portal_pad_guide",
         flags={"npc_flag_old": 1, "npc_counter_old": 9},

@@ -30,3 +30,5 @@ No unreleased backend changes yet.
   including the first-death respawn portal guide flow.
 - Inventory runtime rebuilds by active risk run and keeps resource wallet
   projections aligned with the current expedition context.
+- Backend Alembic starts from a first-alpha game/chat schema baseline; future
+  schema changes should be added as follow-up revisions.

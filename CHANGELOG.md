@@ -35,6 +35,7 @@ No unreleased changes yet.
 
 - Adds production compose layers, layer-specific deployment contract docs, and manual GitHub production deploy flow.
 - Adds full production env templates plus a `uv`-friendly secret generator for passwords, service keys, and matching database/Redis URLs.
+- Collapses site and game Alembic history into first-alpha baseline migrations; future schema changes should add normal follow-up revisions.
 - Production deploy preserves sibling layer containers and accepts immutable image refs from release tags or commit SHAs.
 
 ### Documentation

@@ -28,3 +28,5 @@ No unreleased site changes yet.
   first alpha operating model.
 - Account and cabinet shell styling aligns with the updated dock navigation and
   responsive layout pass.
+- Site Alembic starts from a first-alpha site schema baseline; future schema
+  changes should be added as follow-up revisions.

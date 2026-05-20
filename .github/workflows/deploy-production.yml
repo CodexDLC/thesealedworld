@@ -21,6 +21,9 @@ permissions:
   contents: read
   packages: read
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
 jobs:
   preflight:
     name: Check Server Availability

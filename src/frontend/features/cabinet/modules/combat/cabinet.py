@@ -2,9 +2,11 @@ from __future__ import annotations
 
 from collections import defaultdict
 from datetime import UTC, datetime, timedelta
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 import httpx
+from fastapi import Request
+from starlette.responses import Response
 
 from fastapi_cabinet import CabinetAdmin, ChartWidget, MetricWidget, SidebarItem, TableWidget, cabinet_site
 from fastapi_cabinet.contracts.widgets import ChartWidgetMap, MetricWidgetMap, TableColumnMap, TableWidgetMap
@@ -16,10 +18,6 @@ from src.frontend.features.cabinet.modules.combat.mapper import CombatCabinetMap
 from src.frontend.features.cabinet.modules.combat.service import CombatCabinetService
 from src.frontend.integrations.backend_api.combat_analytics import CombatAnalyticsApi
 from src.frontend.integrations.backend_api.combat_sessions import CombatSessionsApi
-
-if TYPE_CHECKING:
-    from fastapi import Request
-    from starlette.responses import Response
 
 _MOUNT_PATH = "/admin"
 _DETAIL_URL = "/admin/combat/session-detail"

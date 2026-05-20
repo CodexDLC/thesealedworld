@@ -1,20 +1,17 @@
 from __future__ import annotations
 
 import contextlib
-from typing import TYPE_CHECKING, ClassVar
+from collections.abc import Callable
+from typing import ClassVar
 
 import httpx
+from fastapi import Request
 from starlette.responses import RedirectResponse, Response
 
 from fastapi_cabinet import CabinetAdmin, EditableConfigWidget, ListWidget, SidebarItem, cabinet_site
 from fastapi_cabinet.contracts.widgets import ConfigEntryRow, EditableConfigWidgetMap, ListWidgetMap
 from src.frontend.config.settings import settings
 from src.frontend.integrations.backend_api.game_config import GameConfigApi
-
-if TYPE_CHECKING:
-    from collections.abc import Callable
-
-    from fastapi import Request
 
 _UPDATE_URL = "/admin/game-settings/update-config"
 _RESET_URL = "/admin/game-settings/reset-config"

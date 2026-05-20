@@ -4,11 +4,9 @@ Detailed milestone history for the `src/backend` game runtime layer.
 
 ## [Unreleased]
 
-- Character combat modifier DTOs no longer expose unused attack, cast, or movement speed fields.
-- Scenario and game-session runtime now support NPC-aware dialogue handoffs, including the first-death respawn portal guide flow.
-- Inventory runtime now rebuilds by active risk run and keeps resource wallet projections aligned with the current expedition context.
+No unreleased backend changes yet.
 
-## [v0.0.0] - MVP Baseline
+## [v0.1.0a1] - First Alpha
 
 - Backend ownership is focused on game APIs, runtime state, workers, Redis
   streams, chat/ws, game schema migrations, and game/chat persistence.
@@ -26,3 +24,9 @@ Detailed milestone history for the `src/backend` game runtime layer.
   ownership.
 - Generation AI work now supports deterministic game-content generation flows
   for world, monster, item, and image-related tasks.
+- Character combat modifier DTOs no longer expose unused attack, cast, or
+  movement speed fields.
+- Scenario and game-session runtime support NPC-aware dialogue handoffs,
+  including the first-death respawn portal guide flow.
+- Inventory runtime rebuilds by active risk run and keeps resource wallet
+  projections aligned with the current expedition context.

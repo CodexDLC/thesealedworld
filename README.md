@@ -54,9 +54,9 @@ remain available even while the game runtime is restarted or under maintenance.
 ## Release Model
 
 The package name is `thesealedworld`. Versions come from git tags through
-`hatch-vcs`; for example, `v0.0.0` builds as package version `0.0.0`.
+`hatch-vcs`; for example, `v0.1.0a1` builds as package version `0.1.0a1`.
 
-The first baseline is `v0.0.0`. Changelogs describe meaningful product,
+The first alpha baseline is `v0.1.0a1`. Changelogs describe meaningful product,
 architecture, and layer milestones rather than every small fix.
 
 Release images are intended to be tagged by both release version and commit SHA.

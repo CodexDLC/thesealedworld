@@ -4,12 +4,9 @@ Detailed milestone history for the `src/frontend` site-web layer.
 
 ## [Unreleased]
 
-- Added the root README as the private MVP project entry point.
-- Added baseline changelog links for site, backend, and game client layers.
-- Added production env documentation through `.env.example`.
-- Account and cabinet shell styling now aligns with the updated dock navigation and responsive layout pass.
+No unreleased site changes yet.
 
-## [v0.0.0] - MVP Baseline
+## [v0.1.0a1] - First Alpha
 
 - Site ownership is centered on public pages, auth, account, cabinet, library,
   server-rendered templates, frontend routes, and the `site` database schema.
@@ -27,3 +24,7 @@ Detailed milestone history for the `src/frontend` site-web layer.
 - Public website branding is aligned around **The Sealed World**.
 - Account and email flows gained production-oriented settings such as SMTP
   configuration and secure-cookie controls.
+- The root README, production env templates, and changelog links now document the
+  first alpha operating model.
+- Account and cabinet shell styling aligns with the updated dock navigation and
+  responsive layout pass.

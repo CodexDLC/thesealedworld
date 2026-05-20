@@ -5,11 +5,9 @@ Detailed milestone history for browser-facing gameplay surfaces inside
 
 ## [Unreleased]
 
-- No gameplay client changes yet for the future `v0.1.0` release.
-- Combat outcome screens now support spectating mode with summary and log tabs plus an explicit refresh-status action after player death.
-- Inventory UI now separates items and resources through tab-aware backend actions and resource-specific icon rendering.
+No unreleased game client changes yet.
 
-## [v0.0.0] - MVP Baseline
+## [v0.1.0a1] - First Alpha
 
 - Game-facing frontend orchestration lives separately from the public site under
   `src/frontend/game_features/`.
@@ -27,3 +25,7 @@ Detailed milestone history for browser-facing gameplay surfaces inside
   component layers.
 - The game header and gameplay surfaces use **The Sealed World** as the player
   facing product name.
+- Combat outcome screens support spectating mode with summary and log tabs plus
+  an explicit refresh-status action after player death.
+- Inventory UI separates items and resources through tab-aware backend actions
+  and resource-specific icon rendering.

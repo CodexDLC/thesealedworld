@@ -62,14 +62,14 @@
 
 ---
 
-## DuelService / GroupService
+## ArenaDuelService / ArenaGroupService
 
-::: backend.features.arena.services.duel_service.DuelService
+::: backend.features.arena.services.duel_service.ArenaDuelService
     options:
       show_source: false
       show_root_heading: false
 
-::: backend.features.arena.services.group_service.GroupService
+::: backend.features.arena.services.group_service.ArenaGroupService
     options:
       show_source: false
       show_root_heading: false

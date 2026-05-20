@@ -36,7 +36,10 @@ from src.frontend.game_features.session.cookies import clear_active_character_co
 from src.frontend.game_features.session.middleware import GameTokenRefreshMiddleware
 from src.frontend.game_features.session.token_state import clear_game_token_cookies
 from src.shared.exceptions import BaseAPIException
+from src.shared.log_middleware import LogContextMiddleware
 from src.shared.logging_config import setup_logging
+from src.shared.metrics_endpoint import metrics_router
+from src.shared.metrics_middleware import PrometheusMiddleware
 
 setup_logging(
     settings=settings,
@@ -170,8 +173,11 @@ app.add_middleware(AuthUserMiddleware)
 app.add_middleware(SiteAnalyticsMiddleware)
 app.add_middleware(GameMenuMiddleware)
 app.add_middleware(GameTokenRefreshMiddleware)
+app.add_middleware(PrometheusMiddleware, service_name="frontend")
+app.add_middleware(LogContextMiddleware)
 include_frontend_routers(app)
 include_cabinet(app, modules=CABINET_MODULES, mount_path="/admin")
+app.include_router(metrics_router)
 
 
 @app.get("/favicon.ico", include_in_schema=False)

@@ -316,15 +316,15 @@ wheels = [
 
 [[package]]
 name = "codex-ai"
-version = "0.2.3"
+version = "0.2.4"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "codex-core" },
     { name = "pydantic" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/76/39/cb5a25f35bef84c78ad2982dffc4bc25ff4da984edcd2e91b2d3f9d67c1a/codex_ai-0.2.3.tar.gz", hash = "sha256:21721e625a5a815478e7939bfa75890fe0acbcaee3661b1a22cbd3c78417441c", size = 132111, upload-time = "2026-05-17T19:37:37.204Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/3b/b5/46dd9f2b9a1bbc2ee41e0bb760a894887dee476b1d5f783cdc6033a251e8/codex_ai-0.2.4.tar.gz", hash = "sha256:68fb08d3235c364f8f1a4f8eaa175fc7bedaa62e1513ee043bafe2fde62a0434", size = 132316, upload-time = "2026-05-20T23:44:13.562Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/a3/9a/27b6f80b07769883592952398dc227f7d6a4c705d3b8167d37741bfdd264/codex_ai-0.2.3-py3-none-any.whl", hash = "sha256:ab8a42ec6c57f5a03bfb1984d033c2c872721fac294f61dad14daa0a77e4e3aa", size = 19468, upload-time = "2026-05-17T19:37:35.515Z" },
+    { url = "https://files.pythonhosted.org/packages/a2/93/b8de5a746be97bc4dfa123a03b8d0ddefb94b7f03f0a6cfebcf82f371eab/codex_ai-0.2.4-py3-none-any.whl", hash = "sha256:174fb2645df06ab33e8ded65bc6eefab48bd55df81ac63043cf9dd6684476f01", size = 19756, upload-time = "2026-05-20T23:44:11.97Z" },
 ]
 
 [package.optional-dependencies]
@@ -334,15 +334,15 @@ gemini = [
 
 [[package]]
 name = "codex-core"
-version = "0.3.0"
+version = "0.4.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "pydantic" },
     { name = "pydantic-settings" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/8d/55/11335e1bfa46861b9e7a38678bf8d8438419c23affbe7a1d6210a986d963/codex_core-0.3.0.tar.gz", hash = "sha256:3dc573d1c3f8e1b88ceb563835bd4fec14c498884a76bca11daffbb3d9d78347", size = 125208, upload-time = "2026-04-04T21:32:34.837Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/9d/4b/f052df0934e1086198e4137888cf18ef3266c39f07293a2eed8845650784/codex_core-0.4.0.tar.gz", hash = "sha256:656acbf400fbf00c59ff3707e924043b12a99e2e7de66f4abea155831412b349", size = 125494, upload-time = "2026-05-20T20:46:14.494Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/a7/67/7ab0dea9a79ff0085343468a473b084e3bbefe03b75ea67da6307eb3cc1e/codex_core-0.3.0-py3-none-any.whl", hash = "sha256:c1ee78a1f1629d5bdc79d511870fc65c14d29f3ab6287ecc62f31a199c216772", size = 33021, upload-time = "2026-04-04T21:32:33.426Z" },
+    { url = "https://files.pythonhosted.org/packages/4c/f2/fdb6a1cafa42ff6b3c8a7d64eda5a6123a03af200a97dc1237bdd705d639/codex_core-0.4.0-py3-none-any.whl", hash = "sha256:f4527c463c1017e946ad1834493a14d3ec54fed56c66eb94d67be34724613f82", size = 32738, upload-time = "2026-05-20T20:46:12.511Z" },
 ]
 
 [[package]]
@@ -1486,6 +1486,15 @@ wheels = [
 ]
 
 [[package]]
+name = "prometheus-client"
+version = "0.25.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/1b/fb/d9aa83ffe43ce1f19e557c0971d04b90561b0cfd50762aafb01968285553/prometheus_client-0.25.0.tar.gz", hash = "sha256:5e373b75c31afb3c86f1a52fa1ad470c9aace18082d39ec0d2f918d11cc9ba28", size = 86035, upload-time = "2026-04-09T19:53:42.359Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/8d/9b/d4b1e644385499c8346fa9b622a3f030dce14cd6ef8a1871c221a17a67e7/prometheus_client-0.25.0-py3-none-any.whl", hash = "sha256:d5aec89e349a6ec230805d0df882f3807f74fd6c1a2fa86864e3c2279059fed1", size = 64154, upload-time = "2026-04-09T19:53:41.324Z" },
+]
+
+[[package]]
 name = "py-serializable"
 version = "2.1.0"
 source = { registry = "https://pypi.org/simple" }
@@ -2062,6 +2071,7 @@ dependencies = [
     { name = "fastapi" },
     { name = "loguru" },
     { name = "mako" },
+    { name = "prometheus-client" },
     { name = "pydantic" },
     { name = "pydantic-settings" },
     { name = "redis" },
@@ -2108,11 +2118,12 @@ requires-dist = [
     { name = "alembic", specifier = ">=1.18.4" },
     { name = "asyncpg", specifier = ">=0.31.0" },
     { name = "authx", specifier = "==1.6.0" },
-    { name = "codex-core", specifier = ">=0.3.0" },
+    { name = "codex-core", specifier = ">=0.4.0" },
     { name = "codex-platform", specifier = ">=0.5.2" },
     { name = "fastapi", specifier = ">=0.136.1" },
     { name = "loguru", specifier = ">=0.7.3" },
     { name = "mako", specifier = ">=1.3.12" },
+    { name = "prometheus-client", specifier = ">=0.25.0" },
     { name = "pydantic", specifier = ">=2.13.3" },
     { name = "pydantic-settings", specifier = ">=2.14.0" },
     { name = "redis", specifier = ">=5.0,<6" },
@@ -2125,7 +2136,7 @@ requires-dist = [
 [package.metadata.requires-dev]
 backend-runtime = [
     { name = "arq", specifier = ">=0.26.3" },
-    { name = "codex-ai", extras = ["gemini"], specifier = "==0.2.3" },
+    { name = "codex-ai", extras = ["gemini"], specifier = "==0.2.4" },
     { name = "pillow", specifier = ">=12.0.0" },
 ]
 dev = [

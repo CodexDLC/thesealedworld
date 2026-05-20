@@ -6824,7 +6824,7 @@ html, body {
   gap: 10px;
 }
 
-.exploration-center-screens {
+#center-screens.exploration-center-screens {
     justify-content: stretch;
     padding:
         var(--game-column-gutter-top, 10px)
@@ -8969,6 +8969,10 @@ html, body {
 
     .exploration-main-dock .mobile-scene {
         min-height: 300px;
+    }
+
+    .exploration-main-dock .mobile-scene.has-city-map-scene {
+        min-height: 0;
     }
 
     .exploration-main-dock .exploration-action-panel {

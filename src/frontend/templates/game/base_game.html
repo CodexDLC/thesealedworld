@@ -9,6 +9,11 @@
 
     {% block styles %}
         <style>{{ inline_css('css/fonts.css') | safe }}</style>
+        <!-- Font Preloads to eliminate Critical Request Chains -->
+        <link rel="preload" href="/static/fonts/google/s_ebgaramond_v32_SlGUmQSNjdsmc35JDF1K5GRxSDktYw.woff2" as="font" type="font/woff2" crossorigin>
+        <link rel="preload" href="/static/fonts/google/s_ebgaramond_v32_SlGUmQSNjdsmc35JDF1K5GR1SDk.woff2" as="font" type="font/woff2" crossorigin>
+        <link rel="preload" href="/static/fonts/google/s_jetbrainsmono_v24_tDbV2o-flEEny0FZhsfKu5WU4xD_OwG_TA.woff2" as="font" type="font/woff2" crossorigin>
+        <link rel="preload" href="/static/fonts/google/s_jetbrainsmono_v24_tDbV2o-flEEny0FZhsfKu5WU4xD7OwE.woff2" as="font" type="font/woff2" crossorigin>
         <!-- Game Specific Styles -->
         <link rel="preload" href="/static/css/game.css?v={{ static_version }}" as="style">
         <link rel="stylesheet" href="/static/css/game.css?v={{ static_version }}">

@@ -12,10 +12,12 @@ def _make_app(user=None):
     from fastapi import FastAPI
     from fastapi.templating import Jinja2Templates
     from src.frontend.config.settings import settings
+    from src.frontend.app import inline_css
 
     app = FastAPI()
     app.include_router(router)
     templates = Jinja2Templates(directory=str(settings.templates_dir))
+    templates.env.globals["inline_css"] = inline_css
     app.state.templates = templates
 
     @app.middleware("http")

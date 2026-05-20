@@ -56,6 +56,26 @@ def split_bracket_coords_label(text: str | None) -> dict[str, str | None]:
     return {"label": match.group("label").strip(), "coords": match.group("coords").replace(" ", "")}
 
 
+# CSS inlining utility with in-memory caching for production environments
+_css_cache: dict[str, str] = {}
+
+
+def inline_css(file_path: str) -> str:
+    """Read a CSS file from static directory and return its content. Caches in production."""
+    if not settings.debug and file_path in _css_cache:
+        return _css_cache[file_path]
+
+    full_path = settings.static_dir / file_path
+    try:
+        content = full_path.read_text(encoding="utf-8")
+        if not settings.debug:
+            _css_cache[file_path] = content
+        return content
+    except Exception as e:
+        logger.warning("Failed to inline CSS file: {} - {}", full_path, e)
+        return ""
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup logic
@@ -68,6 +88,8 @@ async def lifespan(app: FastAPI):
         await create_db_tables()
 
         app.state.templates = Jinja2Templates(directory=str(settings.templates_dir))
+        # Register global functions in templates
+        app.state.templates.env.globals["inline_css"] = inline_css
 
         # Scenario rich text filter for automatic CAPS wrapping
         def scenario_rich_text_filter(text: str) -> str:

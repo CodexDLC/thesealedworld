@@ -51,6 +51,7 @@ nav:
     - Обзор: management/index.md
     - Деплой: management/deployment.md
     - Контракт деплоя: management/deployment-contract.md
+    - Стратегия тестирования: management/testing_strategy.md
 
   - Shared:
     - Обзор: shared/index.md

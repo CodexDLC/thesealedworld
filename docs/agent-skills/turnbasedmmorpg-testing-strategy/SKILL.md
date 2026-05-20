@@ -9,7 +9,7 @@ description: Testing guidelines and coverage targets for TurnBasedMMORPG, especi
 
 When writing tests or evaluating coverage for this project, you MUST strictly adhere to the guidelines outlined in:
 
-- `docs/TESTING_STRATEGY.md`
+- `docs/ru/management/testing_strategy.md`
 
 ## Key AI-Workflow Rules
 
@@ -19,4 +19,4 @@ When writing tests or evaluating coverage for this project, you MUST strictly ad
 4. **In-Memory Doubles:** Prefer creating `InMemoryRepository` or `FakeRedisService` (using Python `dict`s) over complex `MagicMock` or `patch` setups when interacting with database/Redis layers. This guarantees faster, less brittle testing.
 5. **Target Thresholds:** The global coverage threshold is managed in `pyproject.toml` (e.g., `fail_under = 74` during pre-alpha). Do not attempt to force 90% globally across legacy code in a single PR, but aim for 90%+ in critical boundaries (Auth, Config, State Transitions).
 
-Read `docs/TESTING_STRATEGY.md` for complete details before implementing extensive test suites.
+Read `docs/ru/management/testing_strategy.md` for complete details before implementing extensive test suites.

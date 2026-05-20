@@ -1,32 +1,29 @@
-# 🧬 Домен: RPG Система (RPG System Domain)
+# RPG System Legacy Workbench
 
-Этот раздел описывает фундаментальные законы развития персонажа, природу его характеристик и философию прогрессии. Здесь мы отвечаем на вопрос: «Как цифры превращаются в опыт игрока?».
+Status: legacy design workbench.
 
-> **Implementation Note:** Техническую реализацию (калькуляторы, формулы, базы данных) ищи в `docs/architecture/rpg_system/`.
+This folder contains old RPG design notes. These files are not source of truth.
+Use current reviewed docs instead:
 
----
+- player-facing RPG library: `../../library/rpg/`;
+- technical RPG rules: `../../rules/`;
+- Gifts domain: `../../domains/gifts/`;
+- planning ideas and tasks: `../../../planning/`.
 
-## 📖 Содержание домена
+## Reviewed Or Removed
 
-### 1. [Система Атрибутов (Attribute System)](./01_attribute_system.md)
-**О чем:** Логика 9 базовых атрибутов (Body, Core, Sensor) и роль Симбиота как множителя потенциала.
+- Attributes were reviewed into `../../library/rpg/attributes.md` and
+  `../../rules/attributes/technical_reference.md`.
+- Skill progression was reviewed into `../../library/rpg/skills/README.md`,
+  `../../rules/skills/progression_reference.md`, and
+  `../../domains/gifts/progression_and_ranks.md`.
+- Skill balance was reviewed into `../../rules/skills/catalog_reference.md`.
+- Ability action taxonomy was reviewed into
+  `../../rules/combat/active_actions.md`.
+- Vitals and resilience were already covered by attributes and modifiers docs.
+- Status effects were moved to a future combat review idea:
+  `../../../planning/ideas/combat/status_effect_review.md`.
 
-### 2. [Философия Прогрессии (Progression Philosophy)](./02_progression_philosophy.md)
-**О чем:** Отказ от уровней персонажа. Система развития навыков 0-100% через использование (Use-Based). Кривая обучения и забывания.
-
-### 3. [Матрица Баланса (Skill Balance Matrix)](./03_skill_balance_matrix.md)
-**О чем:** Математическая модель распределения весов. Правило «Суммы 4» для балансировки влияния статов на навыки.
-
-### 4. [Манифест Способностей (Ability Manifesto)](./04_ability_manifesto.md)
-**О чем:** Природа Даров (магия Симбионта) и Боевых маневров (физическое мастерство). Чем они отличаются и как взаимодействуют.
-
-### 5. [Живучесть и Сопротивление (Vitals & Resilience)](./05_vitals_and_resilience.md)
-**О чем:** Формулы здоровья (HP), многослойная защита (Броня vs Резисты) и типология урона.
-
-### 6. [Логика Состояний (Status Effects Logic)](./06_status_effects_logic.md)
-**О чем:** Классификация баффов и дебаффов. Механика наложения через Проекцию и сопротивление через Резисты.
-
----
-
-## 🎯 Основная цель домена
-Создать глубокую, но интуитивную ролевую систему, где развитие персонажа отражает реальный стиль игры пользователя, а не просто накопление абстрактного опыта.
+The old files that remain in this folder should be reviewed before use. Do not
+copy their formulas or terminology into runtime docs without checking current
+code and reviewed design sources.

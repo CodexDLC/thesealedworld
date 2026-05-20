@@ -11,9 +11,9 @@ Read these before changing skill ids, skill definitions, skill value math, or an
 
 - `docs/agent-skills/turnbasedmmorpg-project/SKILL.md`
 - `docs/agent-skills/turnbasedmmorpg-backend/SKILL.md`
-- `docs/game-design/rpg-rules/Skills/README.md`
-- `docs/game-design/rpg-rules/Skills/data_schema.md`
-- `docs/game-design/rpg-rules/Skills/Core_Mechanics/Balance_Matrix.md`
+- `docs/game-design/rules/skills/catalog_reference.md`
+- `docs/game-design/rules/skills/progression_reference.md`
+- `docs/game-design/rules/skills/combat_runtime_reference.md`
 - `src/backend/features/game_catalog/skills`
 - `src/backend/features/character/dto/modifiers.py`
 - `src/shared/schemas/modifier_dto.py`
@@ -108,7 +108,7 @@ Skills grow via a Ultima Online–style formula: using a skill awards XP, but gr
 delta = (base_power × global_rate × rate_mod) / (1 + current_skill × effective_wall)
 ```
 
-- `global_rate = 0.000005` — base growth speed per action
+- `global_rate = 0.00005` — current alpha base growth speed per action
 - `effective_wall = global_wall × wall_mod` — difficulty ceiling (default `100.0`)
 - `current_skill` — current normalized value (`0.0..1.0`)
 - At `skill = 1.0` the denominator is `1 + 100 = 101`, delta approaches zero
@@ -194,11 +194,12 @@ For a rename:
 
 Record these when planning skill work:
 
-- `docs/game-design/rpg-rules/Skills/data_schema.md` mentions `SKILL_REGISTRY`, while code uses `load_skill_definitions()`, `build_indexes()`, and `SkillCatalogService`.
 - Some docs use `Skill / 100`; canonical internal runtime/storage values are normalized `0.0..1.0`.
 - Some combat resolver paths still divide by `100.0`; inspect before relying on those formulas.
 - Exploration currently has legacy aggregate reads such as `skills.get("survival")`; intended contract is explicit `skill_*` keys.
-- `Balance_Matrix.md` includes a generic `Gathering` row that has no catalog id.
+- `docs/game-design/rules/skills/catalog_reference.md` preserves the reviewed
+  current catalog weights; do not resurrect old generic rows that have no
+  catalog id.
 - Scenario designer docs mention `skill_power_strike`, which is not a catalog skill.
 - Combat still imports `src/shared/schemas/modifier_dto.py` in some places even though the active owner is the character feature DTO.
 

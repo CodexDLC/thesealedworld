@@ -31,18 +31,18 @@ remain available even while the game runtime is restarted or under maintenance.
 - `src/frontend/integrations/backend_api/` - typed site-to-game HTTP boundary.
 - `src/shared/` - narrow shared DTOs and contracts.
 - `deploy/` - Docker, production compose layers, Nginx, certbot helper flow.
-- `docs/tasks/` - active architecture and migration workplans.
+- `docs/planning/` - roadmap, active task plans, ideas, and technical debt.
 - `docs/game-design/` - world, RPG, combat, economy, interface, and scenario design.
 - `docs/ru/` - Russian technical documentation.
 - `docs/changelog/` - detailed layer history.
 
 ## Start Here
 
-- [Service split finalization](docs/tasks/service_split_finalization.md)
-- [Backend game workplan](docs/tasks/service_split_backend_game.md)
-- [Frontend site workplan](docs/tasks/service_split_frontend_site.md)
+- [Backend overview](docs/ru/backend/index.md)
+- [Frontend overview](docs/ru/frontend/index.md)
+- [Deployment contract](docs/ru/management/deployment-contract.md)
 - [Deployment management](docs/ru/management/deployment.md)
-- [Testing strategy](docs/TESTING_STRATEGY.md)
+- [Testing strategy](docs/ru/management/testing_strategy.md)
 - [Root changelog](CHANGELOG.md)
 
 ## Layer Changelogs

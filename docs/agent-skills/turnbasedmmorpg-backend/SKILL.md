@@ -13,15 +13,17 @@ Read:
 
 For service split, chat absorption, backend Alembic, game schema, site/game boundary, or frontend independence work, also read:
 
-- `docs/tasks/service_split_finalization.md`
-- `docs/tasks/service_split_backend_game.md`
+- `docs/ru/backend/index.md`
+- `docs/ru/frontend/index.md`
+- `docs/ru/frontend/integrations.md`
+- `docs/ru/management/deployment-contract.md`
 
 For Redis Streams events, also use `turnbasedmmorpg-redis-streams`.
 
 ## Core Rules
 
 - Backend is a FastAPI monolith with explicit feature ownership.
-- During the service split, treat `src/backend` as the game backend: gameplay APIs, runtime state, workers, Redis streams, game schema, and chat after absorption belong here.
+- Treat `src/backend` as the game backend: gameplay APIs, runtime state, workers, Redis streams, game schema, and backend-owned chat belong here.
 - Site auth, user/account, cabinet, library, public site rendering, and site Alembic belong to the frontend/site service, not backend.
 - Chat should be absorbed into backend ownership as a backend feature/module; a separate chat container may still run, but it should use the backend codebase instead of a duplicated app/config/database layer.
 - Backend Alembic should own only game and chat schemas after site auth is moved out.
@@ -70,9 +72,8 @@ When implementing a feature that needs infrastructure access, create the feature
 
 Do not create empty folders just to satisfy the skeleton. For a not-yet-implemented feature, a missing `integrations/` folder means the layer has not been built yet; it does not mean services should bypass integrations once infrastructure access is added.
 
-## Service Split Closure Rule
+## Stable Documentation Rule
 
-Before closing a backend/game service split task, update the relevant task document with the actual decision, file moves, deferred work, and any deviation from the planned architecture:
-
-- `docs/tasks/service_split_finalization.md`
-- `docs/tasks/service_split_backend_game.md`
+When backend/game ownership, service boundaries, schemas, or deployment behavior
+change, update the stable documentation in `docs/ru/` and the relevant changelog.
+Planning task files are temporary and should be removed after implementation.

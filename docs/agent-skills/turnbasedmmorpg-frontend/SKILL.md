@@ -13,8 +13,10 @@ Read:
 
 For service split, auth/user, cabinet, library, frontend database, frontend Alembic, game-backend availability, or site/game boundary work, also read:
 
-- `docs/tasks/service_split_finalization.md`
-- `docs/tasks/service_split_frontend_site.md`
+- `docs/ru/frontend/index.md`
+- `docs/ru/frontend/integrations.md`
+- `docs/ru/backend/index.md`
+- `docs/ru/management/deployment-contract.md`
 
 If backend API contracts are involved, also use `turnbasedmmorpg-backend`.
 
@@ -30,7 +32,7 @@ If the task changes UI design, choose the surface-specific design skill before e
 
 - Frontend renders UI and calls backend APIs.
 - Frontend must not access databases or import backend feature internals.
-- During the service split, treat `src/frontend` as the server-side site service: user layer, auth, cabinet, library, public site, templates, site-owned repositories, and site Alembic belong here.
+- Treat `src/frontend` as the server-side site service: user layer, auth, cabinet, library, public site, templates, site-owned repositories, and site Alembic belong here.
 - Site-owned feature folders live under `src/frontend/features/<feature>/`.
 - Site-owned repositories may live inside the owning frontend feature folder; do not add a broad shared repository layer until real model count or reuse justifies it.
 - Game data access must go through typed clients under `src/frontend/integrations/backend_api/`.
@@ -71,9 +73,9 @@ src/frontend/features/<feature>/middleware/
 
 Do not place lobby-only, scenario-only, game-menu-only, or cabinet-only behavior in core middleware.
 
-## Service Split Closure Rule
+## Stable Documentation Rule
 
-Before closing a frontend/site service split task, update the relevant task document with the actual decision, file moves, deferred work, and any deviation from the planned architecture:
-
-- `docs/tasks/service_split_finalization.md`
-- `docs/tasks/service_split_frontend_site.md`
+When frontend/site ownership, service boundaries, schemas, integrations, or
+game-backend availability behavior change, update the stable documentation in
+`docs/ru/` and the relevant changelog. Planning task files are temporary and
+should be removed after implementation.

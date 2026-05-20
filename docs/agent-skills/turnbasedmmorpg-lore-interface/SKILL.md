@@ -35,23 +35,28 @@ routers, DTOs, templates, CSS, service boundaries, or Redis/event rules.
 Use these entry points:
 
 - Attributes and naming rationale:
-  `docs/game-design/rpg-rules/Attributes/README.md`
+  `docs/game-design/library/rpg/attributes.md`
+- Attribute runtime mapping:
+  `docs/game-design/rules/attributes/technical_reference.md`
 - Skill philosophy and skill families:
-  `docs/game-design/rpg-rules/Skills/README.md`
+  `docs/game-design/library/rpg/skills/README.md`
 - Attribute weights behind skills:
-  `docs/game-design/rpg-rules/Skills/Core_Mechanics/Balance_Matrix.md`
+  `docs/game-design/rules/skills/catalog_reference.md`
 - Skill progression concept:
-  `docs/game-design/rpg-rules/Skills/Core_Mechanics/Progression_Math.md`
+  `docs/game-design/rules/skills/progression_reference.md`
 - Combat skill groups:
-  `docs/game-design/rpg-rules/Skills/Weapon_Mastery.md`,
-  `Armor_Skills.md`, `Combat_Support_Skills.md`, `Tactical_Skills.md`
+  `docs/game-design/library/rpg/skills/combat.md`,
+  `docs/game-design/rules/skills/combat_runtime_reference.md`
 - Crafting, gathering, social, and survival skills:
-  `Crafting_Skills.md`, `Gathering_Skills.md`, `Social_Skills.md`,
-  `Survival_Skills.md`
+  `docs/game-design/library/rpg/skills/crafting.md`,
+  `docs/game-design/library/rpg/skills/world.md`,
+  `docs/game-design/library/rpg/skills/social.md`
 - Gifts and magic schools:
   `docs/game-design/rpg-rules/Gifts/README.md`
 - Modifier vocabulary:
-  `docs/game-design/rpg-rules/Modifiers/Modifiers_Reference.md`
+  `docs/game-design/rules/modifiers/modifier_vocabulary.md`
+- Actor mapper reference:
+  `docs/game-design/rules/modifiers/actor_mapper_reference.md`
 - World, lore, and scenario design:
   `docs/game-design/designer/world/`,
   `docs/game-design/designer/scenarios/`

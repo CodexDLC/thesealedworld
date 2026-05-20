@@ -13,8 +13,8 @@ Read this skill before touching:
 - `src/backend/core/calculators/stats_waterfall_calculator.py`
 
 Also read:
-- `docs/game-design/rpg-rules/Modifiers/Actor_Mapper_Contract.md`
-- `docs/game-design/rpg-rules/Modifiers/Modifiers_Reference.md`
+- `docs/game-design/rules/modifiers/actor_mapper_reference.md`
+- `docs/game-design/rules/modifiers/modifier_vocabulary.md`
 
 ---
 
@@ -110,9 +110,10 @@ Chance: `min(0.50, 0.25 + 0.25 * skill_dual_wield)` (normalized, no multiplier).
 | `source` | Stable pre-combat: items, affixes, passives, equipment properties | `{"item:sword_01": 12.0}` |
 | `temp` | Runtime: buffs, debuffs, stances, control, round-local mutations | Applied by EffectService, cleared on effect expiry |
 
-Current state: mappers write plain floats into `source`. Operation strings (`+x`, `-x`, `*x`,
-`=x`) described in `Actor_Mapper_Contract.md` are a planned enhancement — waterfall currently
-treats source values as additive.
+Current state: mapper sources can be plain numeric additive values or operation
+commands such as `+x`, `-x`, `*x`, `/x`, and `=x`. Compiled item modifier
+contracts can emit operation commands; older or direct mapper values may still
+be plain numeric additions.
 
 `temp` entries are written by `EffectService` using `ActiveEffectDTO.modified_keys` for
 rollback. Waterfall is rebuilt after any temp change.
@@ -206,9 +207,9 @@ chance = min(0.50, 0.25 + 0.25 * skill_dual_wield)  # 0.25 base, 0.50 at full ma
 | `counter_attack_cap` | 0.50 | `resolver._step_counter_check` |
 | `resistance_cap` | 0.85 | NOT in resolver — pending waterfall layer |
 | `vampiric_trigger_cap` | 1.0 | NOT in resolver — trigger-driven, pending |
-| `main_hand_crit_cap` | **MISSING from DTO** | Returns 0.0 — crits blocked in normal flow |
-| `off_hand_crit_cap` | **MISSING from DTO** | Returns 0.0 — crits blocked in normal flow |
-| `magical_crit_cap` | **MISSING from DTO** | Returns 0.0 — crits blocked in normal flow |
+| `main_hand_crit_cap` | 0.75 | `resolver._step_critical_roll` |
+| `off_hand_crit_cap` | 0.75 | `resolver._step_critical_roll` |
+| `magical_crit_cap` | 0.75 | `resolver._step_critical_roll` |
 
 ---
 
@@ -256,7 +257,7 @@ dodge_chance       → evasion
 parry_chance       → parry
 shield_block_chance → block
 damage_reduction_flat → armor
-magical_damage_base   → magical_damage    (Modifiers_Reference.md uses old name)
+magical_damage_base   → magical_damage    (old design docs used this name)
 magical_resistance    → magic_resist
 ```
 
@@ -265,7 +266,8 @@ magical_resistance    → magic_resist
 ## Unarmed / Strength Interaction
 
 Strength flows into `physical_damage` through the attribute waterfall. For weapon attacks,
-resolver adds that value to the hand damage base according to `Attributes/README.md`.
+resolver adds that value to the hand damage base according to
+`docs/game-design/rules/attributes/technical_reference.md`.
 For unarmed attacks, the mapper already uses Strength as `main_hand_damage_base`, so
 resolver skips the extra `physical_damage` addition to avoid double counting and applies
 the `skill_unarmed` efficiency curve instead.

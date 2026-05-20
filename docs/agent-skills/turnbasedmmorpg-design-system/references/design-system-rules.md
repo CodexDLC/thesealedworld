@@ -4,10 +4,12 @@
 
 Read:
 
-- `docs/design-system/README.md`
-- `docs/design-system/Design System.html`
+- current CSS under `src/frontend/static/css/`
+- current templates under `src/frontend/templates/`
+- archived reference under `docs/archive/design-system/` only if historical intent is useful
 
-Use the README as the text source of truth and the HTML file as the visual source of truth.
+Use the current CSS/templates as the source of truth. The archived design-system
+folder is not canonical.
 
 ## Priority Order
 

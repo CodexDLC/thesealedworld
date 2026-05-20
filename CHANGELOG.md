@@ -14,6 +14,24 @@ Full layer changelogs live in:
 
 ## [Unreleased]
 
+No unreleased product changes yet.
+
+## [v0.1.0a4] - Alpha 4
+
+### Site And Cabinet
+
+- Adds the cabinet news-management module with article CRUD surfaces and
+  shared cabinet form styling.
+- Keeps cabinet action routes aligned with the runtime request import contract.
+
+### Release And CI
+
+- Extends CI push coverage to the `develop` branch.
+- Keeps Ruff type-checking import rules aligned with the current FastAPI
+  runtime import patterns.
+
+## [v0.1.0a3] - Alpha 3 Production Patch
+
 ### Fixed
 
 - Ensures the production generated-assets Docker volume is initialized with

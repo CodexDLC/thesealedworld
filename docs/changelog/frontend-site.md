@@ -4,6 +4,21 @@ Detailed milestone history for the `src/frontend` site-web layer.
 
 ## [Unreleased]
 
+No unreleased site changes yet.
+
+## [v0.1.0a4] - Alpha 4
+
+- Cabinet now includes a news-management module for listing, creating, editing,
+  publishing, and deleting site news articles.
+- Cabinet article forms use shared static styling for consistent admin
+  workflows.
+- Site, account, cabinet, and game shells now preload view stylesheets and
+  critical self-hosted font assets for faster first paint.
+- Cabinet action routes now use the runtime `Request` import expected by the
+  action routing layer.
+
+## [v0.1.0a3] - Alpha 3 Production Patch
+
 - Public landing imagery now serves compressed WebP variants with fallbacks and LCP priority hints.
 - Site, account, cabinet, and game shells now use self-hosted fonts plus a root favicon route.
 

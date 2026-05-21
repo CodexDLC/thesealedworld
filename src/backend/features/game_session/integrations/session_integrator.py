@@ -91,12 +91,11 @@ class GameSessionIntegrator:
             persisted_any = True
             await self.scenario_service.cleanup(character_id)
             await self.character_sessions.delete_session(character_id)
-            logger.info(
-                "Released previous active character session: user_id={} selected_char_id={} released_char_id={}",
-                user_id,
-                selected_character_id,
-                character_id,
-            )
+            logger.bind(
+                user_id=str(user_id),
+                selected_char_id=selected_character_id,
+                released_char_id=character_id,
+            ).info("GameSessionPreviousActiveCharacterSessionReleased")
 
         if persisted_any:
             await self.character_repo.commit()
@@ -112,21 +111,18 @@ class GameSessionIntegrator:
             try:
                 return await self.state_integrator.bootstrap_active_session(user_id, character_id)
             except Exception:
-                logger.warning("Game session cold AC bootstrap failed: char_id={}", character_id, exc_info=True)
+                logger.bind(char_id=character_id).exception("GameSessionColdActiveCharacterBootstrapFailed")
                 return None
 
         try:
             session_doc = CharacterSessionDocumentDTO.model_validate(document)
         except Exception:
-            logger.warning("Game session hot AC validation failed: char_id={}", character_id, exc_info=True)
+            logger.bind(char_id=character_id).exception("GameSessionHotActiveCharacterValidationFailed")
             return None
 
         if session_doc.user_id != user_id:
-            logger.warning(
-                "Game session hot AC ownership mismatch: char_id={} owner={} requested_by={}",
-                character_id,
-                session_doc.user_id,
-                user_id,
+            logger.bind(char_id=character_id, owner_id=str(session_doc.user_id), requested_by=str(user_id)).warning(
+                "GameSessionHotActiveCharacterOwnershipMismatch"
             )
             return None
 
@@ -220,11 +216,8 @@ class GameSessionIntegrator:
             reason="stale_combat_session_reconciled",
             paths=["$.prev_state", "$.sessions.combat_id", "$.state"],
         )
-        logger.warning(
-            "Reconciled stale hot combat session from persistent state: char_id={} state={} prev_state={}",
-            character_id,
-            state_value,
-            previous_value,
+        logger.bind(char_id=character_id, state=state_value, previous_state=previous_value).warning(
+            "GameSessionStaleCombatActiveSessionReconciled"
         )
 
     async def _persist_active_session_snapshot(self, character_id: int, document: dict[str, object]) -> None:
@@ -233,14 +226,12 @@ class GameSessionIntegrator:
         try:
             session_doc = CharacterSessionDocumentDTO.model_validate(document)
         except Exception:
-            logger.warning(
-                "Skipping invalid active session snapshot before release: char_id={}", character_id, exc_info=True
-            )
+            logger.bind(char_id=character_id).exception("GameSessionActiveSessionSnapshotInvalid")
             return
 
         synced = await self.character_repo.sync_active_session_snapshot(character_id, session_doc)
         if synced is None:
-            logger.warning("Skipping active session snapshot sync; character missing: char_id={}", character_id)
+            logger.bind(char_id=character_id).warning("GameSessionActiveSessionSnapshotSyncSkipped")
 
     async def resume_or_initialize_scenario(
         self,
@@ -263,7 +254,7 @@ class GameSessionIntegrator:
             "char_id": char_id,
             "quest_key": (payload.extra_data or {}).get("quest_key", quest_key),
         }
-        logger.info("Game session scenario payload resolved: char_id={} node={}", char_id, payload.node_key)
+        logger.bind(char_id=char_id, node_key=payload.node_key).info("GameSessionScenarioPayloadResolved")
         return payload
 
     async def set_character_state(
@@ -281,7 +272,7 @@ class GameSessionIntegrator:
             prev_game_stage=self._state_value(previous_state),
         )
         if not updated:
-            logger.warning("Game session persistent state update skipped; character missing: char_id={}", char_id)
+            logger.bind(char_id=char_id).warning("GameSessionPersistentStateUpdateSkipped")
             return
 
         await self.character_repo.commit()

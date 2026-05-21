@@ -24,7 +24,7 @@ class RedisFrontendAuthUserCache:
         try:
             raw = await self.redis.string.get(key)
         except Exception:
-            logger.opt(exception=True).warning("Frontend auth user cache read failed: user_id={}", user_id)
+            logger.bind(user_id=str(user_id)).opt(exception=True).warning("FrontendAuthUserCacheReadFailed")
             return None
 
         if not raw:
@@ -33,10 +33,10 @@ class RedisFrontendAuthUserCache:
         try:
             user = UserResponse.model_validate_json(raw)
         except Exception:
-            logger.opt(exception=True).warning("Frontend auth user cache payload invalid: user_id={}", user_id)
+            logger.bind(user_id=str(user_id)).opt(exception=True).warning("FrontendAuthUserCachePayloadInvalid")
             return None
 
-        logger.info("Frontend auth user cache hit: user_id={}", user_id)
+        logger.bind(user_id=str(user_id)).debug("FrontendAuthUserCacheHit")
         return user
 
     async def set(self, user: UserResponse) -> None:
@@ -45,9 +45,9 @@ class RedisFrontendAuthUserCache:
         try:
             await self.redis.string.set(key, user.model_dump_json(), ttl=ttl)
         except Exception:
-            logger.opt(exception=True).warning("Frontend auth user cache write failed: user_id={}", user.id)
+            logger.bind(user_id=str(user.id)).opt(exception=True).warning("FrontendAuthUserCacheWriteFailed")
             return
-        logger.info("Frontend auth user cache stored: user_id={} ttl={}", user.id, ttl)
+        logger.bind(user_id=str(user.id), ttl_seconds=ttl).debug("FrontendAuthUserCacheStored")
 
     @classmethod
     def _key(cls, user_id: uuid.UUID) -> str:

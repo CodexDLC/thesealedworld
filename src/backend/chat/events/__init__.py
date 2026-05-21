@@ -1,16 +1,15 @@
 from __future__ import annotations
 
-import logging
 from typing import TYPE_CHECKING, Any
 
 from codex_platform.streams import StreamRouter
+from loguru import logger as log
 
 if TYPE_CHECKING:
     from fastapi import FastAPI
 
 router = StreamRouter()
 _app: FastAPI | None = None
-log = logging.getLogger(__name__)
 
 
 class ChatEvents:
@@ -38,14 +37,14 @@ async def on_location_changed(payload: dict[str, Any]) -> None:
         if user_uuid:
             await _app.state.chat_sessions.set_location(user_uuid, location_id)
     except Exception:
-        log.exception("Failed to update chat location for char_id=%s", char_id)
+        log.bind(char_id=char_id).exception("ChatLocationUpdateFailed")
 
 
 @router.on(ChatEvents.SYSTEM_MESSAGE, group="chat")
 async def on_system_message(payload: dict[str, Any]) -> None:
     """Receive system notification from main backend, deliver to player(s) via WS."""
     if _app is None:
-        log.warning("chat.system_message ignored: app not bound")
+        log.warning("ChatSystemMessageIgnored")
         return
 
     content: str = payload.get("content", "")
@@ -66,14 +65,14 @@ async def on_system_message(payload: dict[str, Any]) -> None:
         try:
             await msg_service.push_system(cid, content)
         except Exception:
-            log.exception("Failed to push system message to character %s", cid)
+            log.bind(char_id=cid).exception("ChatSystemMessagePushFailed")
 
 
 @router.on(ChatEvents.COMBAT_MESSAGE, group="chat")
 async def on_combat_message(payload: dict[str, Any]) -> None:
     """Receive a combat chat message and deliver it to combat participants."""
     if _app is None:
-        log.warning("chat.combat_message ignored: app not bound")
+        log.warning("ChatCombatMessageIgnored")
         return
 
     if not payload.get("scope_id"):
@@ -88,14 +87,14 @@ async def on_combat_message(payload: dict[str, Any]) -> None:
     try:
         await msg_service.push_combat(payload)
     except Exception:
-        log.exception("Failed to push combat message scope_id=%s", payload.get("scope_id"))
+        log.bind(scope_id=payload.get("scope_id")).exception("ChatCombatMessagePushFailed")
 
 
 @router.on(ChatEvents.COMBAT_LOG_MESSAGE, group="chat")
 async def on_combat_log_message(payload: dict[str, Any]) -> None:
     """Receive an assembled combat log and deliver it through the system tab."""
     if _app is None:
-        log.warning("chat.combat_log_message ignored: app not bound")
+        log.warning("ChatCombatLogMessageIgnored")
         return
 
     if not payload.get("scope_id") or not payload.get("recipients"):
@@ -110,7 +109,7 @@ async def on_combat_log_message(payload: dict[str, Any]) -> None:
     try:
         await msg_service.push_combat_log(payload)
     except Exception:
-        log.exception("Failed to push combat log message scope_id=%s", payload.get("scope_id"))
+        log.bind(scope_id=payload.get("scope_id")).exception("ChatCombatLogMessagePushFailed")
 
 
 __all__ = ["ChatEvents", "bind", "router"]

@@ -118,14 +118,13 @@ class StatsEngine:
             if key in calculated_mods or calculated_mods.get(key, 0.0) != 0.0
         }
         formulas = {key: explanation.get(key) for key in values if explanation.get(key)}
-        log.opt(colors=True).debug(
-            "<green>CombatStats</green> | actor={actor_id} name={name} dirty={dirty} values={values} formulas={formulas}",
+        log.bind(
             actor_id=actor.char_id,
-            name=actor.meta.name,
-            dirty=sorted(actor.dirty_stats),
+            actor_name=actor.meta.name,
+            dirty_stats=sorted(actor.dirty_stats),
             values=values,
             formulas=formulas,
-        )
+        ).debug("CombatStats")
 
     @staticmethod
     def _normalize_calculated_mods(calculated_mods: dict[str, float]) -> dict[str, float | int]:

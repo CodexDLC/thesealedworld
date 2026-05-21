@@ -63,7 +63,7 @@ async def start_event_bus(app: FastAPI) -> None:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    logger.info("Backend startup started")
+    logger.info("BackendStartupStarted")
 
     # Initialize containers
     db = DatabaseContainer()
@@ -85,14 +85,14 @@ async def lifespan(app: FastAPI):
         await game.bootstrap(app)
 
     except Exception:
-        logger.critical("Backend startup failed", exc_info=True)
+        logger.opt(exception=True).critical("BackendStartupFailed")
         raise
 
-    logger.info("Backend startup finished")
+    logger.info("BackendStartupFinished")
 
     yield
 
-    logger.info("Backend shutdown started")
+    logger.info("BackendShutdownStarted")
     try:
         if hasattr(app.state, "stream_runtimes"):
             for runtime in app.state.stream_runtimes:
@@ -113,6 +113,6 @@ async def lifespan(app: FastAPI):
             await app.state.redis_client.close()
 
     except Exception:
-        logger.critical("Backend shutdown failed", exc_info=True)
+        logger.opt(exception=True).critical("BackendShutdownFailed")
         raise
-    logger.info("Backend shutdown finished")
+    logger.info("BackendShutdownFinished")

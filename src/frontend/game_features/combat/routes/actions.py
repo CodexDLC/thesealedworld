@@ -91,9 +91,7 @@ async def game_combat_move(
         )
     except httpx.HTTPStatusError as exc:
         error = _backend_combat_error(exc)
-        logger.warning(
-            "Combat move rejected: char_id={} action={} code={} detail={}", char_id, action, error.code, error.message
-        )
+        logger.bind(char_id=char_id, action=action, code=error.code, detail=error.message).warning("CombatMoveRejected")
         combat_payload = await combat_api.snapshot(token, char_id=char_id)
         dashboard = combat_payload
         _append_rejected_move_event(dashboard, error)
@@ -141,12 +139,8 @@ async def game_combat_feint_pin(
         )
     except httpx.HTTPStatusError as exc:
         error = _backend_combat_error(exc)
-        logger.warning(
-            "Combat feint pin rejected: char_id={} feint_id={} code={} detail={}",
-            char_id,
-            feint_id,
-            error.code,
-            error.message,
+        logger.bind(char_id=char_id, feint_id=feint_id, code=error.code, detail=error.message).warning(
+            "CombatFeintPinRejected"
         )
         dashboard = await combat_api.snapshot(token, char_id=char_id)
         _append_rejected_move_event(dashboard, error)

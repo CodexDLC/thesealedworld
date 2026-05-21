@@ -143,7 +143,7 @@ class GameLobbyIntegration:
             if _is_character_name_key_violation(exc):
                 raise BusinessLogicException("Имя уже занято") from exc
             raise
-        logger.info("Character persisted: char_id={} user_id={}", char_id, user_id)
+        logger.bind(char_id=char_id, user_id=str(user_id)).info("CharacterPersisted")
 
         return CreatedLobbyCharacter(
             character_id=char_id,
@@ -192,11 +192,8 @@ class GameLobbyIntegration:
             session_doc = CharacterSessionDocumentDTO.model_validate(document)
             if session_doc.user_id != user_id:
                 raise BusinessLogicException("Персонаж недоступен")
-            logger.info(
-                "Lobby reused active character session: user_id={} char_id={} state={}",
-                user_id,
-                character_id,
-                session_doc.state,
+            logger.bind(user_id=str(user_id), char_id=character_id, state=session_doc.state).info(
+                "LobbyActiveCharacterSessionReused"
             )
             return session_doc
 
@@ -209,7 +206,7 @@ class GameLobbyIntegration:
             inventory_repo=self.inventory_repo,
         )
         session_doc = await state_integrator.bootstrap_active_session(user_id, character_id)
-        logger.info("Lobby bootstrapped active character session: user_id={} char_id={}", user_id, character_id)
+        logger.bind(user_id=str(user_id), char_id=character_id).info("LobbyActiveCharacterSessionBootstrapped")
         return session_doc
 
     async def release_active_character(self, *, user_id: uuid.UUID, character_id: int) -> None:
@@ -232,7 +229,7 @@ class GameLobbyIntegration:
         await sync.sync_active_session(character_id)
         await self.character_sessions.delete_session(character_id)
         await self._characters().commit()
-        logger.info("Lobby released active character session: user_id={} char_id={}", user_id, character_id)
+        logger.bind(user_id=str(user_id), char_id=character_id).info("LobbyActiveCharacterSessionReleased")
 
     async def initialize_starting_scenario(
         self,
@@ -281,12 +278,11 @@ class GameLobbyIntegration:
             await self._persist_active_session_snapshot(character_id, document)
             persisted_any = True
             await self.cleanup_runtime(character_id)
-            logger.info(
-                "Lobby released previous active character session: user_id={} selected_char_id={} released_char_id={}",
-                user_id,
-                selected_character_id,
-                character_id,
-            )
+            logger.bind(
+                user_id=str(user_id),
+                selected_char_id=selected_character_id,
+                released_char_id=character_id,
+            ).info("LobbyPreviousActiveCharacterSessionReleased")
 
         if persisted_any:
             await self._characters().commit()
@@ -307,12 +303,12 @@ class GameLobbyIntegration:
         try:
             session_doc = CharacterSessionDocumentDTO.model_validate(document)
         except Exception:
-            logger.warning("Lobby active session snapshot validation failed: char_id={}", character_id, exc_info=True)
+            logger.bind(char_id=character_id).exception("LobbyActiveSessionSnapshotValidationFailed")
             return
 
         synced = await self._characters().sync_active_session_snapshot(character_id, session_doc)
         if synced is None:
-            logger.warning("Lobby active session snapshot sync skipped; character missing: char_id={}", character_id)
+            logger.bind(char_id=character_id).warning("LobbyActiveSessionSnapshotSyncSkipped")
 
     async def delete_owned_character(self, *, user_id: uuid.UUID, character_id: int, confirm_name: str) -> None:
         repo = self._characters()
@@ -327,11 +323,7 @@ class GameLobbyIntegration:
         if self.item_persistence is not None:
             transferred_count = await self.item_persistence.transfer_deleted_character_items_to_system(char_id)
             if transferred_count:
-                logger.info(
-                    "Lobby transferred deleted character item instances to system custody: char_id={} count={}",
-                    char_id,
-                    transferred_count,
-                )
+                logger.bind(char_id=char_id, item_count=transferred_count).info("LobbyDeletedCharacterItemsTransferred")
         await repo.delete(char_id)
         await repo.commit()
 

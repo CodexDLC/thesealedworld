@@ -44,13 +44,13 @@ class CombatCreationOrchestrator:
         if battle_type == "shadow" or self.lifecycle.is_shadow_participants(request, participants):
             participants = self.lifecycle.shadow_participants(request, participants)
             battle_type = "shadow"
-        logger.info(
-            "CombatCreationTiming | step=prepare_participants combat_id={} source={} battle_type={} ms={}",
-            combat_id,
-            source,
-            battle_type,
-            _elapsed_ms(step_started_at),
-        )
+        logger.bind(
+            step="prepare_participants",
+            combat_id=combat_id,
+            source=source,
+            battle_type=battle_type,
+            duration_ms=_elapsed_ms(step_started_at),
+        ).debug("CombatCreationTiming")
 
         player_ids = self.lifecycle.player_snapshot_ids(participants)
         monster_ids = self.lifecycle.monster_snapshot_ids(participants)
@@ -59,12 +59,12 @@ class CombatCreationOrchestrator:
 
         step_started_at = perf_counter()
         commitments = self._provided_commitments(participants, request)
-        logger.info(
-            "CombatCreationTiming | step=provided_commitments combat_id={} commitment_count={} ms={}",
-            combat_id,
-            len(commitments),
-            _elapsed_ms(step_started_at),
-        )
+        logger.bind(
+            step="provided_commitments",
+            combat_id=combat_id,
+            commitment_count=len(commitments),
+            duration_ms=_elapsed_ms(step_started_at),
+        ).debug("CombatCreationTiming")
         missing_player_ids = [
             player_id for player_id in player_ids if self.integrator.source_ref("player", player_id) not in commitments
         ]
@@ -82,24 +82,22 @@ class CombatCreationOrchestrator:
                     monster_ids=missing_monster_ids,
                 )
             )
-            logger.info(
-                "CombatCreationTiming | step=prepare_missing_commitments combat_id={} missing_players={} "
-                "missing_monsters={} ms={}",
-                combat_id,
-                len(missing_player_ids),
-                len(missing_monster_ids),
-                _elapsed_ms(step_started_at),
-            )
+            logger.bind(
+                step="prepare_missing_commitments",
+                combat_id=combat_id,
+                missing_player_count=len(missing_player_ids),
+                missing_monster_count=len(missing_monster_ids),
+                duration_ms=_elapsed_ms(step_started_at),
+            ).debug("CombatCreationTiming")
         step_started_at = perf_counter()
         snapshots = await self.integrator.load_actor_commitments(commitments)
-        logger.info(
-            "CombatCreationTiming | step=load_actor_commitments combat_id={} commitment_count={} snapshot_count={} "
-            "ms={}",
-            combat_id,
-            len(commitments),
-            len(snapshots),
-            _elapsed_ms(step_started_at),
-        )
+        logger.bind(
+            step="load_actor_commitments",
+            combat_id=combat_id,
+            commitment_count=len(commitments),
+            snapshot_count=len(snapshots),
+            duration_ms=_elapsed_ms(step_started_at),
+        ).debug("CombatCreationTiming")
         step_started_at = perf_counter()
         session_data = await self.lifecycle.create_session_from_snapshots(
             combat_id,
@@ -108,12 +106,12 @@ class CombatCreationOrchestrator:
             snapshots=snapshots,
             request=request,
         )
-        logger.info(
-            "CombatCreationTiming | step=create_session_from_snapshots combat_id={} actor_count={} ms={}",
-            combat_id,
-            sum(len(members) for members in participants.values()),
-            _elapsed_ms(step_started_at),
-        )
+        logger.bind(
+            step="create_session_from_snapshots",
+            combat_id=combat_id,
+            actor_count=sum(len(members) for members in participants.values()),
+            duration_ms=_elapsed_ms(step_started_at),
+        ).debug("CombatCreationTiming")
         if self.loot_preorder is not None:
             try:
                 await self.loot_preorder.enqueue(
@@ -122,8 +120,8 @@ class CombatCreationOrchestrator:
                     location_id=str(session_data.meta.get("location_id") or request.get("location_id") or "unknown"),
                     actors=session_data.actors,
                 )
-            except Exception as exc:  # noqa: BLE001
-                logger.warning("CombatCreationTiming | loot_preorder_failed combat_id={} error={}", combat_id, exc)
+            except Exception:  # noqa: BLE001
+                logger.bind(combat_id=combat_id).exception("CombatLootPreorderFailed")
         ready = {
             "status": "ready",
             "source": source,
@@ -136,19 +134,19 @@ class CombatCreationOrchestrator:
         }
         step_started_at = perf_counter()
         await self.integrator.publish_session_ready(ready)
-        logger.info(
-            "CombatCreationTiming | step=publish_session_ready combat_id={} ms={}",
-            combat_id,
-            _elapsed_ms(step_started_at),
-        )
-        logger.info(
-            "CombatCreationTiming | step=total combat_id={} source={} battle_type={} ms={}",
-            combat_id,
-            source,
-            battle_type,
-            _elapsed_ms(total_started_at),
-        )
-        logger.info("Combat lifecycle ready: combat_id={} source={}", combat_id, source)
+        logger.bind(
+            step="publish_session_ready",
+            combat_id=combat_id,
+            duration_ms=_elapsed_ms(step_started_at),
+        ).debug("CombatCreationTiming")
+        logger.bind(
+            step="total",
+            combat_id=combat_id,
+            source=source,
+            battle_type=battle_type,
+            duration_ms=_elapsed_ms(total_started_at),
+        ).info("CombatCreationTiming")
+        logger.bind(combat_id=combat_id, source=source).info("CombatLifecycleReady")
         return ready
 
     async def fail_request(self, request: dict[str, Any], error: str) -> dict[str, Any]:

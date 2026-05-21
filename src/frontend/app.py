@@ -74,17 +74,17 @@ def inline_css(file_path: str) -> str:
         if not settings.debug:
             _css_cache[file_path] = content
         return content
-    except Exception as e:
-        logger.warning("Failed to inline CSS file: {} - {}", full_path, e)
+    except Exception:
+        logger.bind(path=str(full_path)).exception("FrontendCssInlineFailed")
         return ""
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup logic
-    logger.info("Frontend startup started")
+    logger.info("FrontendStartupStarted")
     if settings.debug:
-        logger.info("Frontend running in DEBUG mode")
+        logger.info("FrontendDebugModeEnabled")
 
     # Store templates in state for the UIRenderer dependency
     try:
@@ -125,10 +125,10 @@ async def lifespan(app: FastAPI):
         app.state.site_analytics = {}
         app.state.player_presence = {}
     except Exception:
-        logger.opt(exception=True).critical("Frontend startup failed")
+        logger.opt(exception=True).critical("FrontendStartupFailed")
         raise
-    logger.info(
-        "Frontend startup finished: templates_dir={} static_dir={}", settings.templates_dir, settings.static_dir
+    logger.bind(templates_dir=str(settings.templates_dir), static_dir=str(settings.static_dir)).info(
+        "FrontendStartupFinished"
     )
 
     rollup_task = asyncio.create_task(player_presence_rollup_loop(app))
@@ -144,9 +144,9 @@ async def lifespan(app: FastAPI):
         await app.state.backend_http_client.aclose()
         await close_db_engine()
     except Exception:
-        logger.opt(exception=True).critical("Frontend shutdown failed")
+        logger.opt(exception=True).critical("FrontendShutdownFailed")
         raise
-    logger.info("Frontend shutdown finished")
+    logger.info("FrontendShutdownFinished")
 
 
 # Initialize FastAPI app
@@ -196,7 +196,7 @@ async def health():
 
 @app.exception_handler(404)
 async def not_found_handler(request: Request, exc: Exception):
-    logger.warning("Frontend 404: method={} path={}", request.method, request.url.path)
+    logger.bind(method=request.method, path=request.url.path).warning("FrontendNotFound")
     ui = get_ui_renderer(request)
     return await ui.render("errors/404.html", context={"error": "PAGE_NOT_FOUND"}, status_code=404)
 
@@ -227,13 +227,12 @@ async def frontend_http_exception_handler(request: Request, exc: HTTPException):
 @app.exception_handler(httpx.HTTPStatusError)
 async def backend_http_status_handler(request: Request, exc: httpx.HTTPStatusError):
     backend_status = exc.response.status_code
-    logger.warning(
-        "Frontend backend request failed: method={} path={} backend_status={} backend_url={}",
-        request.method,
-        request.url.path,
-        backend_status,
-        exc.request.url,
-    )
+    logger.bind(
+        method=request.method,
+        path=request.url.path,
+        backend_status=backend_status,
+        backend_url=str(exc.request.url),
+    ).warning("FrontendBackendRequestFailed")
     if backend_status in {status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN}:
         return _redirect_and_clear_expired_state(request, _auth_recovery_location(request))
 
@@ -247,12 +246,7 @@ async def backend_http_status_handler(request: Request, exc: httpx.HTTPStatusErr
 
 @app.exception_handler(httpx.RequestError)
 async def backend_request_error_handler(request: Request, exc: httpx.RequestError):
-    logger.warning(
-        "Frontend backend unavailable: method={} path={} error={}",
-        request.method,
-        request.url.path,
-        exc,
-    )
+    logger.bind(method=request.method, path=request.url.path, error=str(exc)).warning("FrontendBackendUnavailable")
     ui = get_ui_renderer(request)
     return await ui.render(
         "errors/500.html",
@@ -263,12 +257,9 @@ async def backend_request_error_handler(request: Request, exc: httpx.RequestErro
 
 @app.exception_handler(500)
 async def server_error_handler(request: Request, exc: Exception):
-    logger.opt(exception=exc).critical(
-        "Frontend 500: method={} path={} error={}",
-        request.method,
-        request.url.path,
-        exc.__class__.__name__,
-    )
+    logger.bind(method=request.method, path=request.url.path, error_type=exc.__class__.__name__).opt(
+        exception=exc
+    ).critical("FrontendServerError")
     ui = get_ui_renderer(request)
     return await ui.render("errors/500.html", context={"error": str(exc)}, status_code=500)
 

@@ -1,14 +1,13 @@
 import json
-import logging
 import uuid
 
 from fastapi import APIRouter, Query, WebSocket, WebSocketDisconnect
+from loguru import logger as log
 
 from src.backend.chat.dto.message import IncomingMessageDTO
 from src.backend.chat.services.message_service import MessageService
 from src.backend.core.security import decode_access_token
 
-log = logging.getLogger(__name__)
 router = APIRouter()
 
 _TAIL_COUNT = 50
@@ -62,7 +61,7 @@ async def chat_ws(
             # Store reverse mapping char_id → user_uuid for location_changed events
             await redis.set(f"chat:char_to_user:{char_id}", character_id, ex=3600)
         except Exception:
-            log.debug("chat bootstrap skipped for char_id=%s", char_id)
+            log.bind(char_id=char_id).debug("ChatBootstrapSkipped")
 
     # 3. Load hot session state
     state = await chat_sessions.get_state(character_id)
@@ -121,7 +120,7 @@ async def chat_ws(
             try:
                 await msg_service.handle_incoming(msg, uuid.UUID(character_id), sender_name)
             except Exception:
-                log.exception("Failed to handle chat message from %s", character_id)
+                log.bind(character_id=character_id).exception("ChatMessageHandleFailed")
 
     except WebSocketDisconnect:
         pass

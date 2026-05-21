@@ -64,21 +64,18 @@ class BaseApiClient:
             response = await self.client.request(method, url, **kwargs)
             response.raise_for_status()
         except httpx.HTTPStatusError as exc:
-            logger.warning(
-                "Backend request rejected: method={} endpoint={} status={} detail={}",
-                method,
-                endpoint,
-                exc.response.status_code,
-                _response_detail(exc.response),
-            )
+            logger.bind(
+                method=method,
+                endpoint=endpoint,
+                status_code=exc.response.status_code,
+                detail=_response_detail(exc.response),
+            ).warning("BackendRequestRejected")
             raise
         except httpx.RequestError as exc:
-            logger.warning("Backend request unavailable: method={} endpoint={} error={}", method, endpoint, exc)
+            logger.bind(method=method, endpoint=endpoint, error=str(exc)).warning("BackendRequestUnavailable")
             raise
 
-        logger.info(
-            "Backend request completed: method={} endpoint={} status={}", method, endpoint, response.status_code
-        )
+        logger.bind(method=method, endpoint=endpoint, status_code=response.status_code).debug("BackendRequestCompleted")
         if response.status_code == 204 or not response.content:
             return None
 

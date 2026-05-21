@@ -1,14 +1,13 @@
 from __future__ import annotations
 
-import logging
 from typing import TYPE_CHECKING, Any
+
+from loguru import logger as log
 
 if TYPE_CHECKING:
     from src.backend.features.character.managers import CharacterSessionManager
     from src.backend.infrastructure.loot.managers.loot_manager import LootManager
     from src.backend.infrastructure.world.location_store import WorldLocationStore
-
-log = logging.getLogger(__name__)
 
 
 class ExplorationSystemIntegrator:
@@ -48,7 +47,7 @@ class ExplorationSystemIntegrator:
         Handles both world-level player sets and actor-level location field.
         """
         if not await self.world_store.location_exists(to_loc):
-            log.warning("ExplorationIntegrator | move_failed: target_not_found to=%s", to_loc)
+            log.bind(to_location_id=to_loc).warning("ExplorationIntegratorMoveTargetNotFound")
             return False
 
         # 1. Update World State (player sets in locations)
@@ -67,7 +66,9 @@ class ExplorationSystemIntegrator:
                 target_loc_data=target_loc_data,
             )
 
-        log.info("ExplorationIntegrator | move_success: char_id=%s from=%s to=%s", char_id, from_loc, to_loc)
+        log.bind(char_id=char_id, from_location_id=from_loc, to_location_id=to_loc).info(
+            "ExplorationIntegratorMoveSuccess"
+        )
         return True
 
     async def set_world_theme(self, char_id: int, world_theme: dict[str, Any]) -> None:

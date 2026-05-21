@@ -40,5 +40,5 @@ class ScenarioImportIntegration:
             return None
 
         cached_nodes = await self.content.warm_up_cache(quest_key)
-        logger.info("Scenario fixture cache warmed: quest_key={} nodes={}", quest_key, cached_nodes)
+        logger.bind(quest_key=quest_key, node_count=cached_nodes).info("ScenarioFixtureCacheWarmed")
         return cached_nodes

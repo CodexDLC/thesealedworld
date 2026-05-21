@@ -22,7 +22,7 @@ def _register_abilities(ability_entries: list[AbilityCatalogEntryDTO]) -> None:
     for entry in ability_entries:
         ability = entry.technical
         if ability.ability_id in ABILITY_CATALOG_REGISTRY:
-            log.warning(f"AbilityLibrary | Duplicate ability ID: '{ability.ability_id}'. Overwriting.")
+            log.bind(ability_id=ability.ability_id).warning("AbilityLibraryDuplicateAbilityId")
         ABILITY_CATALOG_REGISTRY[ability.ability_id] = entry
         ABILITY_CATALOG_BY_KEY[entry.key] = entry
 
@@ -32,7 +32,7 @@ def _initialize_library() -> None:
     if _INITIALIZED:
         return
 
-    log.info("AbilityLibrary | Initializing...")
+    log.info("AbilityLibraryInitializing")
 
     # Собираем все группы определений (пока только одна)
     # Преобразуем values() словаря в список для регистрации
@@ -44,7 +44,7 @@ def _initialize_library() -> None:
         _register_abilities(group)
         count += len(group)
 
-    log.info(f"AbilityLibrary | Loaded {count} abilities.")
+    log.bind(ability_count=count).info("AbilityLibraryLoaded")
     _INITIALIZED = True
 
 

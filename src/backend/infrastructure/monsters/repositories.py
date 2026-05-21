@@ -15,18 +15,18 @@ class MonsterRepository:
         self.session = session
 
     async def get_by_id(self, monster_id: uuid.UUID) -> Monster | None:
-        log.debug(f"MonsterRepository | action=get_by_id monster_id={monster_id}")
+        log.bind(monster_id=str(monster_id)).debug("MonsterRepositoryGetById")
         stmt = select(Monster).where(Monster.id == monster_id)
         return await self.session.scalar(stmt)
 
     async def get_all(self) -> list[Monster]:
-        log.debug("MonsterRepository | action=get_all")
+        log.debug("MonsterRepositoryGetAll")
         stmt = select(Monster)
         result = await self.session.scalars(stmt)
         return list(result.all())
 
     async def get_monsters_batch(self, monster_ids: Sequence[uuid.UUID | str]) -> list[Monster]:
-        log.debug(f"MonsterRepository | action=get_monsters_batch count={len(monster_ids)}")
+        log.bind(monster_count=len(monster_ids)).debug("MonsterRepositoryGetMonstersBatch")
 
         valid_ids = [m for m in monster_ids if isinstance(m, uuid.UUID) or self._is_valid_uuid(m)]
         if not valid_ids:

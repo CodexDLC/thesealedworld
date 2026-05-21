@@ -1,9 +1,11 @@
 from __future__ import annotations
 
-import logging
+from collections.abc import Awaitable, Callable
 from typing import TYPE_CHECKING, Any
 
+from codex_core.common.log_context import clear_log_context, set_log_context
 from codex_platform.streams import StreamRouter
+from loguru import logger
 
 from src.backend.core.database.session import get_manual_session_context, get_session_context
 from src.backend.features.generation_ai.bootstrap import build_generation_ai_registry
@@ -22,7 +24,19 @@ if TYPE_CHECKING:
 
 router = StreamRouter()
 _app: FastAPI | None = None
-log = logging.getLogger(__name__)
+
+
+def with_log_context(
+    handler: Callable[[dict[str, Any]], Awaitable[None]],
+) -> Callable[[dict[str, Any]], Awaitable[None]]:
+    async def wrapped(payload: dict[str, Any]) -> None:
+        set_log_context(correlation_id=payload.get("correlation_id"))
+        try:
+            await handler(payload)
+        finally:
+            clear_log_context()
+
+    return wrapped
 
 
 def bind(app: FastAPI) -> None:
@@ -31,10 +45,11 @@ def bind(app: FastAPI) -> None:
 
 
 @router.on(ItemEvents.GENERATE_REQUESTED, group="items", reply=True)
+@with_log_context
 async def on_generate_requested(payload: dict[str, Any]) -> None:
     cid = payload.get("correlation_id")
     if _app is None:
-        log.warning("Item generation request ignored: app_not_bound cid=%s", cid)
+        logger.warning("ItemGenerationRequestIgnored")
         return
 
     try:
@@ -70,7 +85,7 @@ async def on_generate_requested(payload: dict[str, Any]) -> None:
                 correlation_id=cid,
             )
     except Exception as exc:  # noqa: BLE001
-        log.exception("Item generation request failed")
+        logger.exception("ItemGenerationRequestFailed")
         ack = {"status": "error", "error": f"{exc.__class__.__name__}: {exc}"}
         try:
             await _app.state.events.publish(
@@ -79,13 +94,13 @@ async def on_generate_requested(payload: dict[str, Any]) -> None:
                 correlation_id=cid,
             )
         except Exception:
-            log.exception("Item generation failure event delivery failed")
+            logger.exception("ItemGenerationFailureEventDeliveryFailed")
 
     if cid:
         try:
             await _app.state.events.publish_reply(cid, ack, ttl=30)
         except Exception:
-            log.exception("Item generation ack delivery failed: cid=%s", cid)
+            logger.exception("ItemGenerationAckDeliveryFailed")
 
 
 def _parse_generation_requests(payload: dict[str, Any]) -> list[ItemGenerationRequestDTO]:
@@ -104,23 +119,20 @@ def _parse_generation_requests(payload: dict[str, Any]) -> list[ItemGenerationRe
 
 
 @router.on("items.text_requested", group="items")
+@with_log_context
 async def on_text_requested(payload: dict[str, Any]) -> None:
     if _app is None:
-        log.warning("Item text request ignored: app_not_bound")
+        logger.warning("ItemTextRequestIgnored")
         return
     item_id = payload.get("item_id")
     request_payload = payload.get("request")
     if not item_id or not isinstance(request_payload, dict):
-        log.warning("Item text request ignored: invalid_payload item_id=%s", item_id)
+        logger.bind(item_id=item_id).warning("ItemTextRequestInvalidPayload")
         return
 
     request = ItemGenerationRequestDTO.model_validate(request_payload)
     if not _should_request_ai_text(request):
-        log.info(
-            "Item text request skipped: ai_text_not_allowed item_id=%s rarity_tier=%s",
-            item_id,
-            request.rarity_tier,
-        )
+        logger.bind(item_id=item_id, rarity_tier=request.rarity_tier).debug("ItemTextRequestSkipped")
         return
     async with get_manual_session_context() as session:
         generation_ai = GenerationAIService(

@@ -175,7 +175,7 @@ class AbilityService:
                 obj = getattr(obj, part)
             setattr(obj, parts[-1], value)
         except (AttributeError, ValueError):
-            log.warning(f"AbilityService | Invalid flag path: {path}")
+            log.bind(path=path).warning("AbilityServiceInvalidFlagPath")
 
     # ==============================================================================
     # UNIVERSAL LOGIC HANDLER (PRE-CALC)
@@ -236,7 +236,7 @@ class AbilityService:
                 else:
                     ctx.phases.run_calculator = False
                     ctx.result.skip_reason = "NO_RESOURCE"
-                    log.info(f"AbilityService | Not enough resources for ability {config.ability_id}")
+                    log.bind(ability_id=config.ability_id).debug("AbilityServiceInsufficientResources")
 
         elif mode == "feint":
             action_id = AbilityService._extract_action_id(move, mode="feint")
@@ -254,7 +254,7 @@ class AbilityService:
                     ctx.phases.run_calculator = False
                     ctx.result.skip_reason = "NO_RESOURCE"
                     ctx.result.chain_events.preserve_feint = True
-                    log.info(f"AbilityService | Not enough stamina for feint {config.feint_id}")
+                    log.bind(feint_id=config.feint_id).debug("AbilityServiceInsufficientStamina")
 
         if not config or not cost_ok:
             return

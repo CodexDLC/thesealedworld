@@ -12,13 +12,13 @@ class InventoryRepository:
         self.dto_adapter = TypeAdapter(dict)
 
     async def get_by_character_id(self, char_id: int) -> list[InventoryItem]:
-        log.debug(f"InventoryRepository | action=get_by_character_id char_id={char_id}")
+        log.bind(char_id=char_id).debug("InventoryRepositoryGetByCharacterId")
         stmt = select(InventoryItem).where(InventoryItem.character_id == char_id)
         result = await self.session.scalars(stmt)
         return list(result.all())
 
     async def get_items_by_location_batch(self, char_ids: list[int], location: str) -> dict[int, list[dict]]:
-        log.debug(f"InventoryRepository | action=get_items_by_location_batch count={len(char_ids)} location={location}")
+        log.bind(char_id_count=len(char_ids), location=location).debug("InventoryRepositoryGetItemsByLocationBatch")
         if not char_ids:
             return {}
         stmt = select(InventoryItem).where(InventoryItem.character_id.in_(char_ids), InventoryItem.location == location)
@@ -48,7 +48,7 @@ class WalletRepository:
         self.session = session
 
     async def get_by_character_id(self, char_id: int) -> ResourceWallet | None:
-        log.debug(f"WalletRepository | action=get_by_character_id char_id={char_id}")
+        log.bind(char_id=char_id).debug("WalletRepositoryGetByCharacterId")
         stmt = select(ResourceWallet).where(ResourceWallet.character_id == char_id)
         return await self.session.scalar(stmt)
 

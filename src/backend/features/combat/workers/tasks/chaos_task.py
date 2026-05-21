@@ -7,11 +7,13 @@ from src.backend.features.combat.dto.worker import CollectorSignalDTO
 from src.backend.features.combat.runtime.processors.chaos_service import ChaosService
 from src.backend.features.combat.runtime.services.data_service import CombatDataService  # noqa: TC001
 from src.backend.features.monsters.services import AnchorProjectionSnapshotCache
+from src.shared.infrastructure.log_task_wrapper import logged_task
 
 # Константа таймаута (10 минут)
 MAX_INACTIVITY_SEC = 600
 
 
+@logged_task
 async def chaos_check_task(ctx: dict, session_id: str) -> None:
     """
     Задача Хаоса (Watchdog / Garbage Collector).
@@ -39,7 +41,7 @@ async def chaos_check_task(ctx: dict, session_id: str) -> None:
             if "combat_collector" in ctx:
                 data_service = ctx["combat_collector"].data_service
             else:
-                log.error("ChaosError | reason=service_not_found")
+                log.bind(reason="service_not_found").error("ChaosError")
                 return
 
         # ChaosService легковесный, создаем on-demand
@@ -51,7 +53,7 @@ async def chaos_check_task(ctx: dict, session_id: str) -> None:
         meta = await data_service.get_battle_meta(session_id)
 
         if not meta or not meta.active:
-            log.info("ChaosStop | reason=session_inactive session_id={session_id}", session_id=session_id)
+            log.bind(reason="session_inactive", session_id=session_id).info("ChaosStop")
             return
 
         # 2. Check Inactivity (Zombie Session Detection)
@@ -59,16 +61,12 @@ async def chaos_check_task(ctx: dict, session_id: str) -> None:
         delta = now - meta.last_activity_at
 
         if meta.started_at is None:
-            log.debug("ChaosSkip | reason=not_started session_id={session_id}", session_id=session_id)
+            log.bind(reason="not_started", session_id=session_id).debug("ChaosSkipped")
         elif delta > MAX_INACTIVITY_SEC:
             # Trigger Cleanup Event
             spawned = await chaos_service.spawn_cleaner(session_id)
             if spawned:
-                log.warning(
-                    "ChaosCleanerSpawned | session_id={session_id} inactivity_sec={delta}",
-                    session_id=session_id,
-                    delta=delta,
-                )
+                log.bind(session_id=session_id, inactivity_sec=delta).warning("ChaosCleanerSpawned")
                 signal = CollectorSignalDTO(
                     session_id=session_id,
                     char_id="0",
@@ -77,7 +75,7 @@ async def chaos_check_task(ctx: dict, session_id: str) -> None:
                 )
                 await ctx["redis"].enqueue_job("combat_collector_task", signal.model_dump())
             else:
-                log.debug("ChaosCleanerSkip | reason=already_spawned session_id={session_id}", session_id=session_id)
+                log.bind(reason="already_spawned", session_id=session_id).debug("ChaosCleanerSkipped")
 
         # 3. Relay (Self-Requeue)
         # Планируем следующий чек через 5 минут (300 сек)
@@ -88,10 +86,8 @@ async def chaos_check_task(ctx: dict, session_id: str) -> None:
             _defer_until=datetime.now(UTC) + timedelta(seconds=next_check_delay),
         )
 
-        log.debug(
-            "ChaosRelay | session_id={session_id} next_run_in={delay}s", session_id=session_id, delay=next_check_delay
-        )
+        log.bind(session_id=session_id, next_run_in_sec=next_check_delay).debug("ChaosRelay")
 
     except Exception:  # noqa: BLE001
-        log.exception("ChaosCriticalError | session_id={session_id}", session_id=session_id)
+        log.bind(session_id=session_id).exception("ChaosCriticalError")
         # Не делаем raise, чтобы не забить очередь ретраями упавшей "мусорной" задачи

@@ -42,6 +42,10 @@ def _elapsed_ms(started_at: float) -> float:
     return round((perf_counter() - started_at) * 1000, 2)
 
 
+def _log_session_timing(step: str, *, started_at: float, char_id: int, **extra: Any) -> None:
+    logger.bind(step=step, char_id=char_id, duration_ms=_elapsed_ms(started_at), **extra).debug("FrontendSessionTiming")
+
+
 class SessionContextBuilder:
     def __init__(
         self,
@@ -68,20 +72,20 @@ class SessionContextBuilder:
         token = require_game_access_token(request)
         started_at = perf_counter()
         response = await self.game_session_api.enter(token, EnterCharacterRequestDTO(character_id=char_id))
-        logger.info(
-            "FrontendSessionTiming | step=game_session_enter char_id={} state={} payload_type={} ms={}",
-            char_id,
-            response.header.current_state,
-            response.payload_type,
-            _elapsed_ms(started_at),
+        _log_session_timing(
+            "game_session_enter",
+            started_at=started_at,
+            char_id=char_id,
+            state=response.header.current_state,
+            payload_type=response.payload_type,
         )
         started_at = perf_counter()
         context = await self.build_from_response(request, response, char_id=char_id)
-        logger.info(
-            "FrontendSessionTiming | step=build_current_total_after_enter char_id={} domain={} ms={}",
-            char_id,
-            context.get("domain"),
-            _elapsed_ms(started_at),
+        _log_session_timing(
+            "build_current_total_after_enter",
+            started_at=started_at,
+            char_id=char_id,
+            domain=context.get("domain"),
         )
         return context
 
@@ -220,11 +224,11 @@ class SessionContextBuilder:
                 raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail="Combat API client is unavailable")
             started_at = perf_counter()
             combat_response = await self.combat_api.view(token, char_id=char_id)
-            logger.info(
-                "FrontendSessionTiming | step=combat_view char_id={} payload_type={} ms={}",
-                char_id,
-                combat_response.payload_type,
-                _elapsed_ms(started_at),
+            _log_session_timing(
+                "combat_view",
+                started_at=started_at,
+                char_id=char_id,
+                payload_type=combat_response.payload_type,
             )
             combat_payload = combat_response.payload
             if combat_payload is None:
@@ -315,7 +319,7 @@ class SessionContextBuilder:
                 initial_inventory_open=False,
             )
 
-        logger.warning("Session state requested for unsupported state: state={} char_id={}", state, char_id)
+        logger.bind(state=state, char_id=char_id).warning("SessionStateUnsupported")
         raise HTTPException(
             status_code=status.HTTP_501_NOT_IMPLEMENTED, detail=f"{state} screen is not implemented yet"
         )

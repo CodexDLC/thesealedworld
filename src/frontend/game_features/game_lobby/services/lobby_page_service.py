@@ -31,12 +31,12 @@ class GameLobbyPageService:
 
     async def get_view(self, user: UserResponse) -> GameLobbyResponse:
         response = await self.api.bootstrap(_user_context(user))
-        logger.info("Lobby page view loaded")
+        logger.debug("LobbyPageViewLoaded")
         return response
 
     async def get_status(self, request: Request, char_id: int) -> CharacterStatusDTO:
         response = await self.api.get_status(require_game_access_token(request), char_id)
-        logger.info("Lobby page status loaded: character_id={}", char_id)
+        logger.bind(char_id=char_id).debug("LobbyPageStatusLoaded")
         return response
 
     async def start(self, user: UserResponse, dto: CreateCharacterRequestDTO) -> GameLobbyStartResponse:
@@ -47,12 +47,12 @@ class GameLobbyPageService:
                 character=dto,
             )
         )
-        logger.info("Lobby page character start completed")
+        logger.info("LobbyPageCharacterStartCompleted")
         return response
 
     async def check_name_availability(self, user: UserResponse, name: str) -> CharacterNameAvailabilityDTO:
         response = await self.api.check_name_availability(CharacterNameAvailabilityRequestDTO(name=name))
-        logger.info("Lobby page character name availability checked: user_id={}", user.id)
+        logger.bind(user_id=str(user.id)).debug("LobbyPageCharacterNameAvailabilityChecked")
         return response
 
     async def select(self, user: UserResponse, dto: EnterCharacterRequestDTO) -> GameLobbySelectResponse:
@@ -63,7 +63,7 @@ class GameLobbyPageService:
                 character_id=dto.character_id,
             )
         )
-        logger.info("Lobby page character enter completed: character_id={}", dto.character_id)
+        logger.bind(char_id=dto.character_id).info("LobbyPageCharacterEnterCompleted")
         return response
 
     async def release(self, user: UserResponse, dto: EnterCharacterRequestDTO) -> GameLobbyReleaseResponse:
@@ -74,7 +74,7 @@ class GameLobbyPageService:
                 character=dto,
             )
         )
-        logger.info("Lobby page character release completed: character_id={}", dto.character_id)
+        logger.bind(char_id=dto.character_id).info("LobbyPageCharacterReleaseCompleted")
         return response
 
     async def delete(self, user: UserResponse, dto: DeleteCharacterRequestDTO) -> GameLobbyResponse:
@@ -85,7 +85,7 @@ class GameLobbyPageService:
                 character=dto,
             )
         )
-        logger.warning("Lobby page character deleted: character_id={}", dto.character_id)
+        logger.bind(char_id=dto.character_id).warning("LobbyPageCharacterDeleted")
         return response
 
 

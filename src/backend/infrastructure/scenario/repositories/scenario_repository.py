@@ -80,7 +80,9 @@ class ScenarioRepository:
                 duplicates.append(key)
 
         if duplicates:
-            logger.warning(f"Found {len(duplicates)} duplicate nodes in bulk_insert_nodes: {duplicates[:10]}")
+            logger.bind(duplicate_count=len(duplicates), duplicate_nodes=duplicates[:10]).warning(
+                "ScenarioDuplicateNodesFound"
+            )
 
         values = [
             {
@@ -109,8 +111,8 @@ class ScenarioRepository:
         )
         try:
             await self.session.execute(stmt)
-        except Exception as e:
-            logger.error(f"Failed to bulk insert nodes: {e}")
+        except Exception:
+            logger.exception("ScenarioBulkInsertNodesFailed")
             raise
 
     async def delete_quest_nodes(self, quest_key: str) -> None:

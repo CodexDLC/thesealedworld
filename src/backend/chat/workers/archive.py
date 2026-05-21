@@ -3,13 +3,13 @@
 from __future__ import annotations
 
 import json
-import logging
 import uuid
 from datetime import UTC, datetime
 
 import redis.asyncio as aioredis
 from arq import cron
 from arq.connections import RedisSettings
+from loguru import logger as log
 
 from src.backend.chat.models.message import ChatMessage
 from src.backend.chat.models.session import ChatSessionMessage
@@ -17,8 +17,6 @@ from src.backend.chat.repositories.message_repo import ChatMessageRepository
 from src.backend.chat.repositories.session_repo import ChatSessionRepository
 from src.backend.config.settings import settings
 from src.backend.core.database import get_session_context
-
-log = logging.getLogger(__name__)
 
 _CURSOR_KEY = "chat:archive:cursor:{stream}"
 _BATCH_SIZE = 500
@@ -90,7 +88,7 @@ async def archive_chat_buffers(ctx: dict) -> None:
                             )
                         )
                 except Exception:
-                    log.exception("Failed to parse chat buffer entry %s", entry_id)
+                    log.bind(entry_id=entry_id).exception("ChatBufferEntryParseFailed")
 
         await redis.set(cursor_field, new_last_id)
 
@@ -103,10 +101,8 @@ async def archive_chat_buffers(ctx: dict) -> None:
                 dm_repo = ChatSessionRepository(session)
                 await dm_repo.bulk_insert_messages(dm_messages)
 
-        log.info(
-            "Archived %d channel messages and %d DM messages",
-            len(channel_messages),
-            len(dm_messages),
+        log.bind(channel_message_count=len(channel_messages), dm_message_count=len(dm_messages)).info(
+            "ChatMessagesArchived"
         )
 
 

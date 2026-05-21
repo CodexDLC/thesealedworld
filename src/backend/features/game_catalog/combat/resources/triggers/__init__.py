@@ -39,7 +39,7 @@ def _register_triggers(entries: list[TriggerCatalogEntryDTO]) -> None:
         trigger_id = t.trigger_id
 
         if trigger_id in TRIGGER_REGISTRY:
-            log.warning(f"TriggerLibrary | Duplicate trigger_id: '{trigger_id}'. Overwriting.")
+            log.bind(trigger_id=trigger_id).warning("TriggerLibraryDuplicateTriggerId")
 
         TRIGGER_REGISTRY[trigger_id] = t
         TRIGGER_CATALOG_REGISTRY[trigger_id] = entry
@@ -64,11 +64,9 @@ def _initialize_library() -> None:
     if _INITIALIZED:
         return
 
-    log.info("TriggerLibrary | Initializing...")
+    log.info("TriggerLibraryInitializing")
     _register_triggers(ALL_TRIGGER_CATALOG_ENTRIES)
-    log.info(
-        f"TriggerLibrary | Loaded {len(TRIGGER_REGISTRY)} triggers. Rules compiled for {len(TRIGGER_RULES)} events."
-    )
+    log.bind(trigger_count=len(TRIGGER_REGISTRY), event_count=len(TRIGGER_RULES)).info("TriggerLibraryLoaded")
     _INITIALIZED = True
 
 

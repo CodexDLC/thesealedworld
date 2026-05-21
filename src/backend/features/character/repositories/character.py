@@ -23,19 +23,19 @@ class CharacterRepository:
         self.session = session
 
     async def count_by_user_id(self, user_id: uuid.UUID) -> int:
-        log.debug(f"CharacterRepository | action=count_by_user_id user_id={user_id}")
+        log.bind(user_id=str(user_id)).debug("CharacterRepositoryCountByUserId")
         stmt = select(func.count()).select_from(Character).where(Character.user_id == user_id)
         result = await self.session.scalar(stmt)
         return int(result or 0)
 
     async def save(self, character: Character) -> Character:
-        log.debug(f"CharacterRepository | action=save character={character.name}")
+        log.bind(character_name=character.name).debug("CharacterRepositorySave")
         self.session.add(character)
         await self.session.flush()
         return character
 
     async def exists_by_name_key(self, name_key: str) -> bool:
-        log.debug("CharacterRepository | action=exists_by_name_key name_key={}", name_key)
+        log.bind(name_key=name_key).debug("CharacterRepositoryExistsByNameKey")
         stmt = select(Character.character_id).where(Character.name_key == name_key).limit(1)
         return await self.session.scalar(stmt) is not None
 
@@ -71,7 +71,7 @@ class CharacterRepository:
         await self.session.flush()
 
     async def get_by_user_id(self, user_id: uuid.UUID) -> list[Character]:
-        log.debug(f"CharacterRepository | action=get_by_user_id user_id={user_id}")
+        log.bind(user_id=str(user_id)).debug("CharacterRepositoryGetByUserId")
         stmt = (
             select(Character).where(Character.user_id == user_id).order_by(Character.created_at, Character.character_id)
         )
@@ -79,12 +79,12 @@ class CharacterRepository:
         return list(result.all())
 
     async def get_by_id(self, character_id: int) -> Character | None:
-        log.debug(f"CharacterRepository | action=get_by_id char_id={character_id}")
+        log.bind(char_id=character_id).debug("CharacterRepositoryGetById")
         stmt = select(Character).where(Character.character_id == character_id)
         return await self.session.scalar(stmt)
 
     async def get_by_id_and_user_id(self, character_id: int, user_id: uuid.UUID) -> Character | None:
-        log.debug(f"CharacterRepository | action=get_by_id_and_user_id char_id={character_id} user_id={user_id}")
+        log.bind(char_id=character_id, user_id=str(user_id)).debug("CharacterRepositoryGetByIdAndUserId")
         stmt = (
             select(Character)
             .options(
@@ -97,7 +97,7 @@ class CharacterRepository:
         return await self.session.scalar(stmt)
 
     async def delete(self, character_id: int) -> None:
-        log.warning(f"CharacterRepository | action=delete char_id={character_id}")
+        log.bind(char_id=character_id).warning("CharacterRepositoryDelete")
         await self.session.execute(delete(Character).where(Character.character_id == character_id))
 
     async def delete_owned(self, *, user_id: uuid.UUID, character_id: int) -> Character | None:
@@ -168,7 +168,7 @@ class CharacterRepository:
         await self.session.rollback()
 
     async def get_characters_batch(self, char_ids: list[int]) -> list[CharacterReadDTO]:
-        log.debug(f"CharacterRepository | action=get_characters_batch count={len(char_ids)}")
+        log.bind(char_id_count=len(char_ids)).debug("CharacterRepositoryGetCharactersBatch")
         if not char_ids:
             return []
 
@@ -176,6 +176,6 @@ class CharacterRepository:
         try:
             result = await self.session.scalars(stmt)
             return [CharacterReadDTO.model_validate(character) for character in result.all()]
-        except SQLAlchemyError as exc:
-            log.exception(f"CharacterRepository | action=get_characters_batch status=failed error={exc}")
+        except SQLAlchemyError:
+            log.exception("CharacterRepositoryGetCharactersBatchFailed")
             raise

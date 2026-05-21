@@ -12,7 +12,7 @@ from src.backend.config.settings import settings
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    logger.info("Chat service startup")
+    logger.info("ChatServiceStartup")
 
     # Chat persistence is managed by backend Alembic, not by runtime create_all().
     app.state.redis = aioredis.from_url(settings.effective_redis_url, decode_responses=True)
@@ -38,9 +38,9 @@ async def lifespan(app: FastAPI):
     app.state.stream_runtime = runtime
     await runtime.start()
 
-    logger.info("Chat service ready")
+    logger.info("ChatServiceReady")
     yield
 
-    logger.info("Chat service shutdown")
+    logger.info("ChatServiceShutdown")
     await runtime.stop()
     await app.state.redis.aclose()

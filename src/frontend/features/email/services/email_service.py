@@ -50,7 +50,7 @@ class EmailService:
         msg["Subject"] = subject
         msg.attach(MIMEText(body_html, "html", "utf-8"))
 
-        logger.info("Sending email to={} subject={!r}", to, subject)
+        logger.bind(to=to, subject=subject).info("EmailSending")
         await aiosmtplib.send(
             msg,
             hostname=self._smtp_host,
@@ -59,7 +59,7 @@ class EmailService:
             password=self._smtp_password,
             start_tls=self._smtp_start_tls,
         )
-        logger.info("Email sent to={}", to)
+        logger.bind(to=to).info("EmailSent")
 
     async def send_template(
         self,

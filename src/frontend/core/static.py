@@ -19,10 +19,10 @@ def compile_static_assets(minify: bool = False) -> bool:
     Используется в lifespan приложения FastAPI или как отдельный скрипт.
     """
     if not CONFIG_PATH.exists():
-        logger.warning(f"Static compiler config not found at {CONFIG_PATH}. Skipping compilation.")
+        logger.bind(path=str(CONFIG_PATH)).warning("StaticCompilerConfigMissing")
         return False
 
-    logger.info("🎨 Compiling static assets...")
+    logger.info("StaticAssetsCompilationStarted")
 
     # Инициализируем компилятор из codex-core
     compiler = StaticCompiler(
@@ -39,9 +39,9 @@ def compile_static_assets(minify: bool = False) -> bool:
     )
 
     if success:
-        logger.info("✅ Static assets compiled successfully")
+        logger.info("StaticAssetsCompilationFinished")
     else:
-        logger.error("❌ Static assets compilation failed")
+        logger.error("StaticAssetsCompilationFailed")
 
     return success
 

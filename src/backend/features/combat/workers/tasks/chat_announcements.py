@@ -14,7 +14,7 @@ _ANNOUNCEMENT_TTL_SECONDS = 86400
 async def publish_combat_start_announcement(ctx: dict[str, Any], data_service: Any, session_id: str) -> None:
     redis = ctx.get("redis_client_internal")
     if redis is None:
-        log.warning("CombatAnnouncementSkip | reason=no_redis kind=start session_id={}", session_id)
+        log.bind(reason="no_redis", kind="start", session_id=session_id).warning("CombatAnnouncementSkipped")
         return
     if not await _claim_once(redis, session_id, "start"):
         return
@@ -51,7 +51,7 @@ async def publish_combat_final_announcement(ctx: dict[str, Any], finalization: d
     redis = ctx.get("redis_client_internal")
     session_id = str(finalization.get("combat_id") or "")
     if redis is None or not session_id:
-        log.warning("CombatAnnouncementSkip | reason=no_redis_or_session kind=final session_id={}", session_id)
+        log.bind(reason="no_redis_or_session", kind="final", session_id=session_id).warning("CombatAnnouncementSkipped")
         return
     if not await _claim_once(redis, session_id, "final"):
         return
@@ -101,7 +101,7 @@ async def _claim_once(redis: Any, session_id: str, kind: str) -> bool:
     try:
         return bool(await redis.set(key, "1", nx=True, ex=_ANNOUNCEMENT_TTL_SECONDS))
     except Exception:
-        log.exception("CombatAnnouncementClaimFailed | session_id={} kind={}", session_id, kind)
+        log.bind(session_id=session_id, kind=kind).exception("CombatAnnouncementClaimFailed")
         return False
 
 
@@ -145,7 +145,7 @@ async def _publish_announcement(
             approximate=True,
         )
     except Exception:
-        log.exception("CombatAnnouncementPublishFailed | session_id={} kind={}", session_id, kind)
+        log.bind(session_id=session_id, kind=kind).exception("CombatAnnouncementPublishFailed")
 
 
 def _team_summaries(teams: Any, actors: dict[str, Any], *, final: bool) -> list[str]:

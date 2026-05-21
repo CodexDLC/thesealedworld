@@ -11,8 +11,10 @@ from src.backend.features.generation_ai.bootstrap import build_generation_ai_reg
 from src.backend.features.generation_ai.integrations import CodexAIExecutor
 from src.backend.features.generation_ai.repositories import AIGenerationTaskRepository
 from src.backend.features.generation_ai.services import GenerationAIService
+from src.shared.infrastructure.log_task_wrapper import logged_task
 
 
+@logged_task
 async def generation_ai_process_task(ctx: dict[str, Any], task_id: str) -> dict[str, Any]:
     async with get_manual_session_context() as session:
         ai = ctx.get("ai")
@@ -31,7 +33,7 @@ async def generation_ai_process_task(ctx: dict[str, Any], task_id: str) -> dict[
         await session.commit()
         await service.schedule_pending_task_ids()
 
-    logger.info("GenerationAI | worker processed task_id={}", task_id)
+    logger.bind(task_id=task_id).info("GenerationAiWorkerTaskProcessed")
     return {"status": "ok", "task_id": task_id}
 
 

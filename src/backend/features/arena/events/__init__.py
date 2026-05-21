@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 from typing import TYPE_CHECKING, Any
 
+from codex_core.common.log_context import clear_log_context, set_log_context
 from codex_platform.streams import StreamRouter
 from loguru import logger
 
@@ -22,47 +23,55 @@ def bind(app: FastAPI) -> None:
 
 @router.on("combat.session_ready", group="arena")
 async def on_combat_session_ready(payload: dict[str, Any]) -> None:
-    if _app is None or payload.get("source") != "arena":
-        return
-    arena_session_id = payload.get("arena_session_id")
-    combat_id = payload.get("combat_id")
-    if not arena_session_id or not combat_id:
-        logger.warning("Arena combat ready ignored: missing ids payload={}", payload)
-        return
+    set_log_context(correlation_id=payload.get("correlation_id"))
+    try:
+        if _app is None or payload.get("source") != "arena":
+            return
+        arena_session_id = payload.get("arena_session_id")
+        combat_id = payload.get("combat_id")
+        if not arena_session_id or not combat_id:
+            logger.bind(payload=payload).warning("ArenaCombatReadyIgnored")
+            return
 
-    store = ArenaSessionStore(_app.state.redis)
-    match = await store.get_match(str(arena_session_id))
-    if match is None:
-        logger.warning("Arena combat ready ignored: match_not_found arena_session_id={}", arena_session_id)
-        return
-    match.status = "ready"
-    match.combat_id = str(combat_id)
-    match.updated_at = _timestamp(payload)
-    await store.update_match(match)
-    logger.info("Arena match marked ready: arena_session_id={} combat_id={}", arena_session_id, combat_id)
+        store = ArenaSessionStore(_app.state.redis)
+        match = await store.get_match(str(arena_session_id))
+        if match is None:
+            logger.bind(arena_session_id=arena_session_id).warning("ArenaCombatReadyMatchMissing")
+            return
+        match.status = "ready"
+        match.combat_id = str(combat_id)
+        match.updated_at = _timestamp(payload)
+        await store.update_match(match)
+        logger.bind(arena_session_id=arena_session_id, combat_id=combat_id).info("ArenaMatchMarkedReady")
+    finally:
+        clear_log_context()
 
 
 @router.on("combat.session_failed", group="arena")
 async def on_combat_session_failed(payload: dict[str, Any]) -> None:
-    if _app is None or payload.get("source") != "arena":
-        return
-    arena_session_id = payload.get("arena_session_id")
-    if not arena_session_id:
-        return
+    set_log_context(correlation_id=payload.get("correlation_id"))
+    try:
+        if _app is None or payload.get("source") != "arena":
+            return
+        arena_session_id = payload.get("arena_session_id")
+        if not arena_session_id:
+            return
 
-    store = ArenaSessionStore(_app.state.redis)
-    match = await store.get_match(str(arena_session_id))
-    if match is None:
-        logger.warning("Arena combat failure ignored: match_not_found arena_session_id={}", arena_session_id)
-        return
-    match.status = "failed"
-    match.updated_at = _timestamp(payload)
-    metadata = dict(match.metadata)
-    if payload.get("error"):
-        metadata["combat_error"] = str(payload["error"])
-    match.metadata = metadata
-    await store.update_match(match)
-    logger.info("Arena match marked failed: arena_session_id={}", arena_session_id)
+        store = ArenaSessionStore(_app.state.redis)
+        match = await store.get_match(str(arena_session_id))
+        if match is None:
+            logger.bind(arena_session_id=arena_session_id).warning("ArenaCombatFailureMatchMissing")
+            return
+        match.status = "failed"
+        match.updated_at = _timestamp(payload)
+        metadata = dict(match.metadata)
+        if payload.get("error"):
+            metadata["combat_error"] = str(payload["error"])
+        match.metadata = metadata
+        await store.update_match(match)
+        logger.bind(arena_session_id=arena_session_id).info("ArenaMatchMarkedFailed")
+    finally:
+        clear_log_context()
 
 
 def _timestamp(payload: dict[str, Any]) -> float:

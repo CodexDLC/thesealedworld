@@ -33,7 +33,7 @@ COMBAT_TASKS = [
 
 async def combat_startup(ctx: dict) -> None:
     """Initialize combat worker dependencies and register runtime processors."""
-    log.info("WorkerInit | stage=start worker_type=combat")
+    log.bind(stage="start", worker_type="combat").info("WorkerInit")
     await base_startup(ctx)
     redis_service = ctx["redis_service"]
     combat_data_service = CombatSessionIntegration.from_redis(redis_service)
@@ -45,17 +45,17 @@ async def combat_startup(ctx: dict) -> None:
     ctx["ai_processor"] = AiProcessor()
     ctx["turn_manager"] = CombatTurnManager(combat_data_service, arq_service)
     ctx["arq_service"] = arq_service
-    log.info("WorkerInit | stage=complete worker_type=combat")
+    log.bind(stage="complete", worker_type="combat").info("WorkerInit")
 
 
 async def combat_shutdown(ctx: dict) -> None:
     """Close worker-local runtime services during ARQ shutdown."""
-    log.info("WorkerShutdown | stage=start")
+    log.bind(stage="start", worker_type="combat").info("WorkerShutdown")
     arq_service = ctx.get("arq_service")
     if arq_service is not None:
         await arq_service.close()
     await base_shutdown(ctx)
-    log.info("WorkerShutdown | stage=complete")
+    log.bind(stage="complete", worker_type="combat").info("WorkerShutdown")
 
 
 class CombatArqSettings(BaseArqSettings):

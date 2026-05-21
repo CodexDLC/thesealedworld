@@ -68,4 +68,4 @@ class AccountService:
                     email=email,
                 )
         except Exception:
-            logger.exception("Tester application email delivery failed for {}", email)
+            logger.bind(email=email).exception("TesterApplicationEmailDeliveryFailed")

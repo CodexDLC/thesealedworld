@@ -65,7 +65,7 @@ async def base_startup(ctx: dict[str, Any]) -> None:
     _quiet_arq_lifecycle_logs()
     container = ArqWorkerContainer()
     await container.bootstrap(ctx)
-    logger.info("ARQ worker base context initialized")
+    logger.info("ArqWorkerBaseContextInitialized")
 
 
 async def base_shutdown(ctx: dict[str, Any]) -> None:

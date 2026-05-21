@@ -52,7 +52,7 @@ class CombatCollector:
         # Если очередь Исполнителя забита, не добавляем новые задачи.
         queue_size = await self.data_service.get_action_queue_size(session_id)
         if queue_size > COMBAT_ACTION_QUEUE_LIMIT:
-            log.warning(f"Collector | Queue full ({queue_size}), skipping cycle. session_id={session_id}")
+            log.bind(queue_size=queue_size, session_id=session_id).warning("CollectorQueueFull")
             return 0, [], None
 
         # Получаем список всех участников из Meta
@@ -99,11 +99,7 @@ class CombatCollector:
         if queue_size == 0 and not actions_to_queue:
             victory_result = VictoryChecker.check_battle_end(meta)
             if victory_result:
-                log.warning(
-                    "VictoryDetected | session_id={session_id} winner={winner}",
-                    session_id=session_id,
-                    winner=victory_result,
-                )
+                log.bind(session_id=session_id, winner=victory_result).warning("VictoryDetected")
                 # Возвращаем результат, чтобы CollectorTask запустил финализатор
                 return 0, ai_tasks, victory_result
 
@@ -191,8 +187,8 @@ class CombatCollector:
                         actions.append(action)
                         to_delete.append(move_id)  # Удаляем мув после обработки
 
-                    except Exception as e:  # noqa: BLE001
-                        log.error(f"Collector | Failed to parse {strategy} move {move_id}: {e}")
+                    except Exception:  # noqa: BLE001
+                        log.bind(strategy=strategy, move_id=move_id).exception("CollectorMoveParseFailed")
 
         return actions, to_delete
 
@@ -267,11 +263,11 @@ class CombatCollector:
             force_candidates = []
 
             if signal.move_id == "batch":
-                log.warning(
-                    "CollectorTimeoutIgnored | reason=unsafe_batch_timeout session_id={session_id} actor_id={actor_id}",
+                log.bind(
+                    reason="unsafe_batch_timeout",
                     session_id=signal.session_id,
                     actor_id=signal.char_id,
-                )
+                ).warning("CollectorTimeoutIgnored")
             else:
                 # Specific move
                 for _order, move in pool:
@@ -290,6 +286,6 @@ class CombatCollector:
                 actions.append(action)
                 matched_ids.add(move.move_id)
                 to_delete.append(move.move_id)
-                log.warning(f"Collector | Force Attack triggered for {move.move_id}")
+                log.bind(move_id=move.move_id).warning("CollectorForceAttackTriggered")
 
         return actions, to_delete

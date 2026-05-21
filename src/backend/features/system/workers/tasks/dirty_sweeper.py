@@ -7,8 +7,10 @@ from loguru import logger
 from src.backend.core.arq import SYSTEM_ARQ_QUEUE, ArqService
 from src.backend.features.exploration.services.knowledge_runtime import ExplorationKnowledgeRuntimeManager
 from src.backend.features.inventory.services.session_manager import InventorySessionManager
+from src.shared.infrastructure.log_task_wrapper import logged_task
 
 
+@logged_task
 async def system_dirty_sweeper_task(ctx: dict[str, Any], payload: dict[str, Any] | None = None) -> dict[str, Any]:
     payload = payload or {}
     limit = int(payload.get("limit") or 100)
@@ -34,7 +36,10 @@ async def system_dirty_sweeper_task(ctx: dict[str, Any], payload: dict[str, Any]
         "exploration_knowledge_enqueued": len(knowledge_char_ids),
         "exploration_knowledge_char_ids": knowledge_char_ids,
     }
-    logger.info("SystemDirtySweeper | result={}", result)
+    logger.bind(
+        inventory_enqueued=result["inventory_enqueued"],
+        exploration_knowledge_enqueued=result["exploration_knowledge_enqueued"],
+    ).info("SystemDirtySweeperCompleted")
     return result
 
 

@@ -45,9 +45,11 @@ class ScenarioDirector:
         logic = node.get("actions_logic", {}).copy()
         actions_list = node.get("actions", [])
 
-        logger.debug(
-            f"Node '{node.get('node_key')}': found {len(actions_list)} actions in list and {len(logic)} in logic dict"
-        )
+        logger.bind(
+            node_key=node.get("node_key"),
+            action_list_count=len(actions_list),
+            action_logic_count=len(logic),
+        ).debug("ScenarioNodeActionsCollected")
 
         for action in actions_list:
             aid = action.get("action_id")
@@ -129,19 +131,19 @@ class ScenarioDirector:
 
     def get_available_actions(self, node: dict[str, Any], context: dict[str, Any]) -> list[dict[str, Any]]:
         actions_logic = self._get_node_actions(node)
-        logger.debug(f"Actions in logic to check: {list(actions_logic.keys())}")
+        logger.bind(action_ids=list(actions_logic.keys())).debug("ScenarioActionsLogicChecked")
         available = []
         for action_id, action in actions_logic.items():
             if action_id == "auto":
                 continue
             condition = action.get("condition")
-            logger.debug(f"Checking action '{action_id}' with condition: {condition}")
+            logger.bind(action_id=action_id, condition=condition).debug("ScenarioActionConditionChecked")
             if not condition or self.evaluator.check_condition(condition, context):
                 available.append({"action_id": action_id, "label": action.get("label", "Далее"), "payload": action})
             else:
-                logger.debug(f"Action '{action_id}' filtered out by evaluator")
+                logger.bind(action_id=action_id).debug("ScenarioActionFilteredOut")
 
-        logger.info(f"Node '{node.get('node_key')}': total available actions: {len(available)}")
+        logger.bind(node_key=node.get("node_key"), action_count=len(available)).debug("ScenarioNodeAvailableActions")
         return available
 
     def _resolve_branching(

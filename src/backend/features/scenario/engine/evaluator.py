@@ -41,10 +41,10 @@ class ScenarioEvaluator:
             parsed = ast.parse(expression, mode="eval")
             result = bool(self._eval_node(parsed.body, context))
             if not result:
-                logger.debug(f"Condition '{expression}' evaluated to False")
+                logger.bind(expression=expression).debug("ScenarioConditionEvaluatedFalse")
             return result
-        except Exception as e:
-            logger.error(f"Error evaluating condition '{expression}': {e}")
+        except Exception:
+            logger.bind(expression=expression).exception("ScenarioConditionEvaluationFailed")
             return False
 
     def apply_math(self, updates: dict[str, Any] | None, context: dict[str, Any]) -> dict[str, Any]:

@@ -6,7 +6,7 @@ from src.backend.core.containers import DatabaseContainer, GameFeatureContainer,
 
 async def bootstrap_scenarios() -> None:
     """Standalone bootstrap for scenarios (used by manage.py)."""
-    logger.info("Starting standalone scenario bootstrap...")
+    logger.info("StandaloneScenarioBootstrapStarted")
     app = FastAPI()
 
     # 1. Database (for session context)
@@ -21,4 +21,4 @@ async def bootstrap_scenarios() -> None:
     game = GameFeatureContainer()
     await game.bootstrap_scenarios(app)
 
-    logger.info("Standalone scenario bootstrap finished")
+    logger.info("StandaloneScenarioBootstrapFinished")

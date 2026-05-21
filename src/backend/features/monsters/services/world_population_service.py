@@ -1,8 +1,9 @@
 from __future__ import annotations
 
-import logging
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
+
+from loguru import logger as log
 
 from src.backend.features.monsters.dto import MonsterGenerationContext
 from src.backend.features.monsters.runtime.hashing import normalize_tags
@@ -10,8 +11,6 @@ from src.backend.features.monsters.runtime.hashing import normalize_tags
 if TYPE_CHECKING:
     from src.backend.features.monsters.services.encounter_monster_service import EncounterMonsterService
     from src.backend.infrastructure.world.models import WorldGrid
-
-log = logging.getLogger(__name__)
 
 D4_STARTER_FAMILY_IDS = ("bandit_gang", "goblin_tribe", "rat_swarm", "wolf_pack")
 D4_TIER0_CONTEXT_TAGS = ("d4_city_ruins", "d4_tier0_population", *D4_STARTER_FAMILY_IDS)
@@ -73,7 +72,7 @@ class WorldMonsterPopulationService:
                 await self.encounter_service.ensure_clan_for_context(context, family_id)
                 clans_count += 1
 
-        log.info("Monster world population ensured: contexts=%s clans=%s", len(contexts), clans_count)
+        log.bind(context_count=len(contexts), clan_count=clans_count).info("MonsterWorldPopulationEnsured")
         return MonsterPopulationResult(contexts=len(contexts), clans=clans_count)
 
     def _build_unique_contexts(self, nodes: list[WorldGrid]) -> list[MonsterGenerationContext]:

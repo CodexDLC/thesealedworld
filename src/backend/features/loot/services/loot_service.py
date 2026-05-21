@@ -30,7 +30,7 @@ class LootService:
         battle_type: str = "",
     ) -> dict[str, str]:
         if not await self._integration.mark_loot_ordered(session_id):
-            log.info("LootService | already ordered session={}", session_id)
+            log.bind(session_id=session_id).debug("LootServiceAlreadyOrdered")
             return {}
 
         corpse_ids_by_actor: dict[str, str] = {}
@@ -39,16 +39,19 @@ class LootService:
                 continue
             actor_id = self._actor_id(actor)
             if not actor_id:
-                log.warning("LootService | skip corpse without actor_id session={}", session_id)
+                log.bind(session_id=session_id).warning("LootCorpseSkipped")
                 continue
             corpse = await self._build_corpse(actor, session_id, battle_type, location_id)
             if corpse is None:
                 continue
             await self._integration.persist_corpse(corpse, location_id)
             corpse_ids_by_actor[actor_id] = corpse.id
-            log.info(
-                "LootService | corpse {} for actor={} {} at {}", corpse.id, actor_id, corpse.monster_name, location_id
-            )
+            log.bind(
+                corpse_id=corpse.id,
+                actor_id=actor_id,
+                monster_name=corpse.monster_name,
+                location_id=location_id,
+            ).info("LootCorpseCreated")
 
         return corpse_ids_by_actor
 
@@ -158,7 +161,9 @@ class LootService:
         if not corpse_ids:
             return
         await self._integration.activate_corpses(corpse_ids, char_ids, location_id)
-        log.info("LootService | activated {} corpses location={} locked_to={}", len(corpse_ids), location_id, char_ids)
+        log.bind(corpse_count=len(corpse_ids), location_id=location_id, char_ids=char_ids).info(
+            "LootServiceCorpsesActivated"
+        )
 
     # ------------------------------------------------------------------
     # Query
@@ -180,9 +185,7 @@ class LootService:
             if corpse is None:
                 continue
             if not self._integration.can_claim(corpse, char_id):
-                log.info(
-                    "LootService | char {} cannot claim corpse {} locked_to={}", char_id, corpse_id, corpse.locked_to
-                )
+                log.bind(char_id=char_id, corpse_id=corpse_id, locked_to=corpse.locked_to).info("LootCorpseClaimDenied")
                 continue
             for item in corpse.items:
                 if item.layer not in ("drop",):  # salvage/spoil require skill check (future)

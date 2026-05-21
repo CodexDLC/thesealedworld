@@ -1,11 +1,9 @@
-import logging
 from typing import Any
 
 from codex_ai import GeminiProvider
+from loguru import logger as log
 
 from src.backend.config.settings import settings
-
-log = logging.getLogger(__name__)
 
 
 class AIService:
@@ -15,25 +13,25 @@ class AIService:
         self.provider: GeminiProvider | None = None
 
         if settings.gemini_api_key:
-            log.info("Initializing AIService with GeminiProvider")
+            log.info("AiServiceInitializing")
             self.provider = GeminiProvider(
                 api_key=settings.gemini_api_key,
                 model=settings.gemini_model,
                 image_model=settings.gemini_image_model,
             )
         else:
-            log.warning("Gemini API key not found. AIService will be disabled.")
+            log.warning("AiServiceGeminiApiKeyMissing")
 
     async def generate_text(self, prompt: Any, **kwargs: Any) -> str | None:
         if self.provider is None:
-            log.debug("AI text generation skipped: provider not initialized")
+            log.debug("AiTextGenerationSkipped")
             return None
         prompt_text, prompt_kwargs = _normalize_prompt(prompt)
         return await self.provider.generate_text(prompt_text, **_merge_prompt_kwargs(prompt_kwargs, kwargs))
 
     async def generate_json(self, prompt: Any, *, schema: type[Any], **kwargs: Any) -> Any | None:
         if self.provider is None:
-            log.debug("AI JSON generation skipped: provider not initialized")
+            log.debug("AiJsonGenerationSkipped")
             return None
         prompt_text, prompt_kwargs = _normalize_prompt(prompt)
         return await self.provider.generate_json(

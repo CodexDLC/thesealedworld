@@ -43,23 +43,25 @@ def _init_monster_registry():
 
             # Регистрируем семью
             if family_dto.id in _FAMILY_REGISTRY:
-                log.warning(f"Duplicate Family ID: {family_dto.id}")
+                log.bind(family_id=family_dto.id).warning("MonsterDuplicateFamilyId")
                 continue
             _FAMILY_REGISTRY[family_dto.id] = family_dto
 
             # Регистрируем варианты (они уже тоже DTO)
             for variant in family_dto.variants.values():
                 if variant.id in _MONSTER_TEMPLATE_REGISTRY:
-                    log.warning(f"Duplicate Variant ID: {variant.id}")
+                    log.bind(variant_id=variant.id).warning("MonsterDuplicateVariantId")
                     continue
                 _MONSTER_TEMPLATE_REGISTRY[variant.id] = variant
 
-        except ValidationError as e:
+        except ValidationError:
             # Критическая ошибка: конфиг битый. Лучше увидеть это при старте.
-            log.error(f"❌ CONFIG ERROR in family {raw_data.get('id', 'UNKNOWN')}: {e}")
+            log.bind(family_id=raw_data.get("id", "UNKNOWN")).exception("MonsterFamilyConfigError")
             # Можно сделать raise e, если хочешь, чтобы бот падал при ошибке в конфиге
 
-    log.info(f"Registry loaded: {len(_FAMILY_REGISTRY)} starter families, {len(_MONSTER_TEMPLATE_REGISTRY)} variants.")
+    log.bind(family_count=len(_FAMILY_REGISTRY), variant_count=len(_MONSTER_TEMPLATE_REGISTRY)).info(
+        "MonsterRegistryLoaded"
+    )
     _INITIALIZED = True
 
 

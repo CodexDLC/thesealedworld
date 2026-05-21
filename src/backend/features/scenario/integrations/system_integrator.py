@@ -1,12 +1,13 @@
 from __future__ import annotations
 
 import json
-import logging
 import random
 import uuid
 from decimal import ROUND_HALF_UP, Decimal
 from time import perf_counter
 from typing import TYPE_CHECKING, Any
+
+from loguru import logger as log
 
 from src.backend.config.settings import settings
 from src.backend.core.exceptions import BusinessLogicException
@@ -31,7 +32,6 @@ if TYPE_CHECKING:
     from src.backend.infrastructure.scenario.managers.session_manager import ScenarioSessionManager
     from src.backend.infrastructure.scenario.repositories import ScenarioRepository
 
-log = logging.getLogger(__name__)
 BACKUP_INTERVAL = 3
 SCENARIO_COMBAT_TTL_SECONDS = 24 * 60 * 60
 MONSTER_GROUP_PREPARE_REQUESTED = "monsters.group_prepare_requested"
@@ -40,6 +40,14 @@ TUTORIAL_PVE_CROSS_ZONE_IDS = ("D4_1_0", "D4_2_1", "D4_1_2", "D4_0_1")
 
 def _elapsed_ms(started_at: float) -> float:
     return round((perf_counter() - started_at) * 1000, 2)
+
+
+def _response_status(response: Any) -> str:
+    return str(response.get("status") if isinstance(response, dict) else type(response).__name__)
+
+
+def _log_timing(op: str, *, started_at: float, **extra: Any) -> None:
+    log.bind(op=op, duration_ms=_elapsed_ms(started_at), **extra).info("ScenarioIntegratorTiming")
 
 
 class ScenarioSystemIntegrator:
@@ -146,7 +154,7 @@ class ScenarioSystemIntegrator:
         # Fallback to DB
         state = await self.repo.get_active_state(char_id)
         if not state:
-            log.warning("Scenario backup repair unavailable: char_id=%s", char_id)
+            log.bind(char_id=char_id).warning("ScenarioBackupRepairUnavailable")
             return None
 
         context = ScenarioContextDTO.model_validate(state["context"])
@@ -156,7 +164,7 @@ class ScenarioSystemIntegrator:
             str(context.scenario_session_id),
             active_quest=context.quest_key,
         )
-        log.info("Scenario session repaired from backup: char_id=%s quest_key=%s", char_id, context.quest_key)
+        log.bind(char_id=char_id, quest_key=context.quest_key).info("ScenarioSessionRepairedFromBackup")
         return context
 
     async def update_progress(self, char_id: int, context: ScenarioContextDTO, *, force_backup: bool = False) -> None:
@@ -229,11 +237,11 @@ class ScenarioSystemIntegrator:
             {"char_id": char_id},
             timeout=30.0,
         )
-        log.info(
-            "ScenarioIntegratorTiming | op=sync_active_character_to_db char_id=%s status=%s ms=%s",
-            char_id,
-            response.get("status") if isinstance(response, dict) else type(response).__name__,
-            _elapsed_ms(started_at),
+        _log_timing(
+            "sync_active_character_to_db",
+            started_at=started_at,
+            char_id=char_id,
+            status=_response_status(response),
         )
         if not isinstance(response, dict) or response.get("status") != "ok":
             raise RuntimeError(f"Scenario active character sync failed: {response!r}")
@@ -278,23 +286,19 @@ class ScenarioSystemIntegrator:
             },
             timeout=30.0,
         )
-        log.info(
-            "ScenarioIntegratorTiming | op=inventory_rewards_grant char_id=%s quest_key=%s item_count=%s status=%s ms=%s",
-            char_id,
-            quest_key,
-            len(item_ids),
-            response.get("status") if isinstance(response, dict) else type(response).__name__,
-            _elapsed_ms(started_at),
+        _log_timing(
+            "inventory_rewards_grant",
+            started_at=started_at,
+            char_id=char_id,
+            quest_key=quest_key,
+            item_count=len(item_ids),
+            status=_response_status(response),
         )
         if not isinstance(response, dict) or response.get("status") != "ok":
             raise RuntimeError(f"Scenario inventory reward grant failed: {response!r}")
         granted_item_ids = [str(item_id) for item_id in response.get("item_ids", [])]
-        log.info(
-            "Scenario inventory rewards granted: char_id=%s quest_key=%s base_items=%s item_ids=%s",
-            char_id,
-            quest_key,
-            items,
-            granted_item_ids,
+        log.bind(char_id=char_id, quest_key=quest_key, base_items=items, item_ids=granted_item_ids).info(
+            "ScenarioInventoryRewardsGranted"
         )
         return granted_item_ids
 
@@ -328,13 +332,13 @@ class ScenarioSystemIntegrator:
             {"items": requests, "delivery_mode": "forward", "return_items": False},
             timeout=30.0,
         )
-        log.info(
-            "ScenarioIntegratorTiming | op=generate_reward_items char_id=%s quest_key=%s base_count=%s status=%s ms=%s",
-            char_id,
-            quest_key,
-            len(base_item_ids),
-            response.get("status") if isinstance(response, dict) else type(response).__name__,
-            _elapsed_ms(started_at),
+        _log_timing(
+            "generate_reward_items",
+            started_at=started_at,
+            char_id=char_id,
+            quest_key=quest_key,
+            base_count=len(base_item_ids),
+            status=_response_status(response),
         )
         if not isinstance(response, dict) or response.get("status") != "ok":
             raise RuntimeError(f"Scenario reward item generation failed: {response!r}")
@@ -344,12 +348,8 @@ class ScenarioSystemIntegrator:
                 "Scenario reward item generation returned an unexpected item count: "
                 f"expected={len(base_item_ids)} actual={len(item_ids)}"
             )
-        log.info(
-            "Scenario reward items generated: char_id=%s quest_key=%s base_items=%s item_ids=%s",
-            char_id,
-            quest_key,
-            base_item_ids,
-            item_ids,
+        log.bind(char_id=char_id, quest_key=quest_key, base_items=base_item_ids, item_ids=item_ids).info(
+            "ScenarioRewardItemsGenerated"
         )
         return item_ids
 
@@ -365,12 +365,12 @@ class ScenarioSystemIntegrator:
             payload,
             timeout=30.0,
         )
-        log.info(
-            "ScenarioIntegratorTiming | op=unlock_skills char_id=%s skill_count=%s status=%s ms=%s",
-            char_id,
-            len(skills),
-            response.get("status") if isinstance(response, dict) else type(response).__name__,
-            _elapsed_ms(started_at),
+        _log_timing(
+            "unlock_skills",
+            started_at=started_at,
+            char_id=char_id,
+            skill_count=len(skills),
+            status=_response_status(response),
         )
         if not isinstance(response, dict) or response.get("status") != "ok":
             raise RuntimeError(f"Scenario skill unlock failed: {response!r}")
@@ -382,11 +382,11 @@ class ScenarioSystemIntegrator:
             {"char_id": char_id, "reason": reason},
             timeout=30.0,
         )
-        log.info(
-            "ScenarioIntegratorTiming | op=restore_character_vitals char_id=%s status=%s ms=%s",
-            char_id,
-            response.get("status") if isinstance(response, dict) else type(response).__name__,
-            _elapsed_ms(started_at),
+        _log_timing(
+            "restore_character_vitals",
+            started_at=started_at,
+            char_id=char_id,
+            status=_response_status(response),
         )
         if not isinstance(response, dict) or response.get("status") != "ok":
             raise RuntimeError(f"Scenario character vitals restore failed: {response!r}")
@@ -465,11 +465,8 @@ class ScenarioSystemIntegrator:
             except Exception:
                 if required:
                     raise
-                log.exception(
-                    "Optional scenario finalize effect failed: char_id=%s quest_key=%s effect=%s",
-                    char_id,
-                    quest_key,
-                    effect,
+                log.bind(char_id=char_id, quest_key=quest_key, effect=effect).exception(
+                    "OptionalScenarioFinalizeEffectFailed"
                 )
                 continue
             results.update(effect_result)
@@ -556,12 +553,7 @@ class ScenarioSystemIntegrator:
         combat_id = str(uuid.uuid4())
         started_at = perf_counter()
         await self.restore_character_vitals(char_id, reason=f"scenario:{quest_key}:combat_handoff")
-        log.info(
-            "ScenarioIntegratorTiming | op=restore_vitals_for_combat char_id=%s combat_id=%s ms=%s",
-            char_id,
-            combat_id,
-            _elapsed_ms(started_at),
-        )
+        _log_timing("restore_vitals_for_combat", started_at=started_at, char_id=char_id, combat_id=combat_id)
         budget = await self._tutorial_monster_budget(char_id)
         started_at = perf_counter()
         monster_group = await self.prepare_tutorial_monster_group(
@@ -569,15 +561,14 @@ class ScenarioSystemIntegrator:
             location_id=location_id,
             budget=budget,
         )
-        log.info(
-            "ScenarioIntegratorTiming | op=prepare_tutorial_monster_group char_id=%s combat_id=%s "
-            "location_id=%s budget=%s monster_count=%s ms=%s",
-            char_id,
-            combat_id,
-            location_id,
-            budget,
-            len(monster_group["monster_ids"]),
-            _elapsed_ms(started_at),
+        _log_timing(
+            "prepare_tutorial_monster_group",
+            started_at=started_at,
+            char_id=char_id,
+            combat_id=combat_id,
+            location_id=location_id,
+            budget=budget,
+            monster_count=len(monster_group["monster_ids"]),
         )
         started_at = perf_counter()
         player_commitments = await self.prepare_combat_commitments(
@@ -588,13 +579,12 @@ class ScenarioSystemIntegrator:
         commitments = {**player_commitments, **monster_group["actor_commitments"]}
         participants = {"team_1": [char_id], "team_2": monster_group["monster_ids"]}
         self._validate_tutorial_combat_payload(participants, commitments)
-        log.info(
-            "ScenarioIntegratorTiming | op=prepare_player_combat_commitments_for_start char_id=%s combat_id=%s "
-            "count=%s ms=%s",
-            char_id,
-            combat_id,
-            len(player_commitments),
-            _elapsed_ms(started_at),
+        _log_timing(
+            "prepare_player_combat_commitments_for_start",
+            started_at=started_at,
+            char_id=char_id,
+            combat_id=combat_id,
+            commitment_count=len(player_commitments),
         )
         started_at = perf_counter()
         response = await self.events.request(
@@ -622,23 +612,22 @@ class ScenarioSystemIntegrator:
             timeout=30.0,
             correlation_id=combat_id,
         )
-        log.info(
-            "ScenarioIntegratorTiming | op=combat_session_requested char_id=%s combat_id=%s status=%s ms=%s",
-            char_id,
-            combat_id,
-            response.get("status") if isinstance(response, dict) else type(response).__name__,
-            _elapsed_ms(started_at),
+        _log_timing(
+            "combat_session_requested",
+            started_at=started_at,
+            char_id=char_id,
+            combat_id=combat_id,
+            status=_response_status(response),
         )
         if not isinstance(response, dict) or response.get("status") != "ready":
             raise RuntimeError(f"Scenario combat start failed: {response!r}")
-        log.info(
-            "Scenario PvE combat requested: char_id=%s quest_key=%s combat_id=%s location_id=%s monsters=%s",
-            char_id,
-            quest_key,
-            response.get("combat_id"),
-            location_id,
-            monster_group["monster_ids"],
-        )
+        log.bind(
+            char_id=char_id,
+            quest_key=quest_key,
+            combat_id=response.get("combat_id"),
+            location_id=location_id,
+            monster_ids=monster_group["monster_ids"],
+        ).info("ScenarioPveCombatRequested")
         return {**response, "monster_group": monster_group, "budget": budget}
 
     async def prepare_tutorial_monster_group(
@@ -696,14 +685,13 @@ class ScenarioSystemIntegrator:
             },
             timeout=30.0,
         )
-        log.info(
-            "ScenarioIntegratorTiming | op=prepare_combat_commitments combat_id=%s player_count=%s monster_count=%s "
-            "status=%s ms=%s",
-            combat_id,
-            len(player_ids),
-            len(monster_ids),
-            response.get("status") if isinstance(response, dict) else type(response).__name__,
-            _elapsed_ms(started_at),
+        _log_timing(
+            "prepare_combat_commitments",
+            started_at=started_at,
+            combat_id=combat_id,
+            player_count=len(player_ids),
+            monster_count=len(monster_ids),
+            status=_response_status(response),
         )
         if not isinstance(response, dict) or response.get("status") not in ("ok", "partial"):
             raise RuntimeError(f"Scenario combat commitment preparation failed: {response!r}")

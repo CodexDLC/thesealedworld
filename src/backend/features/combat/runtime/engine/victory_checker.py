@@ -32,12 +32,12 @@ class VictoryChecker:
                 alive_teams.add(team_name)
 
         if len(alive_teams) == 0:
-            log.info("VictoryChecker | event=battle_ended result=draw")
+            log.bind(result="draw").info("VictoryCheckerBattleEnded")
             return "draw"
         elif len(alive_teams) == 1:
             winner_team = list(alive_teams)[0]
-            log.info(f"VictoryChecker | event=battle_ended result=victory winner_team='{winner_team}'")
+            log.bind(result="victory", winner_team=winner_team).info("VictoryCheckerBattleEnded")
             return winner_team
 
-        log.debug("VictoryChecker | event=battle_continues")
+        log.debug("VictoryCheckerBattleContinues")
         return None

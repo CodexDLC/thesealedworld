@@ -34,7 +34,7 @@ class CharacterAttributesRepository:
         await self.session.execute(stmt)
 
     async def get_attributes_batch(self, char_ids: list[int]) -> list[CharacterAttributesReadDTO]:
-        log.debug(f"CharacterAttributesRepository | action=get_attributes_batch count={len(char_ids)}")
+        log.bind(char_id_count=len(char_ids)).debug("CharacterAttributesRepositoryGetAttributesBatch")
         if not char_ids:
             return []
 
@@ -42,6 +42,6 @@ class CharacterAttributesRepository:
         try:
             result = await self.session.scalars(stmt)
             return [CharacterAttributesReadDTO.model_validate(attributes) for attributes in result.all()]
-        except SQLAlchemyError as exc:
-            log.exception(f"CharacterAttributesRepository | action=get_attributes_batch status=failed error={exc}")
+        except SQLAlchemyError:
+            log.exception("CharacterAttributesRepositoryGetAttributesBatchFailed")
             raise

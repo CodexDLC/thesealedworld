@@ -48,7 +48,7 @@ class CharacterCreationService:
         user: User,
         dto: CreateCharacterRequestDTO,
     ) -> ScenarioPayloadDTO:
-        logger.info("Character creation started: user_id={}", user.id)
+        logger.bind(user_id=str(user.id)).info("CharacterCreationStarted")
         try:
             name = self.name_policy.validate(dto.name)
         except CharacterNameError as exc:
@@ -87,9 +87,9 @@ class CharacterCreationService:
                 npc_key=self.INITIAL_NPC_KEY,
             )
         except Exception:
-            logger.exception("Character creation failed; cleanup started: char_id={} user_id={}", char_id, user.id)
+            logger.bind(char_id=char_id, user_id=str(user.id)).exception("CharacterCreationFailed")
             await self.integration.cleanup_failed_character_creation(char_id)
-            logger.warning("Character creation cleanup finished: char_id={} user_id={}", char_id, user.id)
+            logger.bind(char_id=char_id, user_id=str(user.id)).warning("CharacterCreationCleanupFinished")
             raise
 
         await self.integration.release_other_active_sessions(user.id, char_id)
@@ -99,11 +99,13 @@ class CharacterCreationService:
             "quest_key": "awakening_rift",
         }
         await self.integration.mark_character_entered_scenario(char_id)
-        logger.info("Character entered scenario: char_id={} user_id={}", char_id, user.id)
+        logger.bind(char_id=char_id, user_id=str(user.id)).info("CharacterEnteredScenario")
         return payload
 
     async def _ensure_slot_available(self, user: User) -> None:
         characters_count = await self.integration.count_user_characters(user.id)
         if characters_count >= self.MAX_SLOTS:
-            logger.warning("Character creation rejected: slot_limit user_id={} count={}", user.id, characters_count)
+            logger.bind(user_id=str(user.id), character_count=characters_count, reason="slot_limit").warning(
+                "CharacterCreationRejected"
+            )
             raise BusinessLogicException("Лимит персонажей достигнут")

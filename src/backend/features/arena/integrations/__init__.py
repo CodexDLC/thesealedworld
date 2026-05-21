@@ -38,12 +38,11 @@ class ArenaSystemIntegrator:
             request.model_dump(mode="json"),
             correlation_id=request.arena_session_id,
         )
-        logger.info(
-            "Arena requested combat session: arena_session_id={} battle_type={} mode={}",
-            request.arena_session_id,
-            request.battle_type,
-            request.mode,
-        )
+        logger.bind(
+            arena_session_id=request.arena_session_id,
+            battle_type=request.battle_type,
+            mode=request.mode,
+        ).info("ArenaCombatSessionRequested")
 
     async def create_combat_commitment(self, *, request_id: str, char_id: int, ttl: int) -> str | None:
         response = await self.events.request(
@@ -57,7 +56,7 @@ class ArenaSystemIntegrator:
             timeout=self.COMMITMENT_TIMEOUT_SECONDS,
         )
         if not isinstance(response, dict) or response.get("status") not in ("ok", "partial"):
-            logger.warning("Arena combat commitment request failed: request_id={} char_id={}", request_id, char_id)
+            logger.bind(request_id=request_id, char_id=char_id).warning("ArenaCombatCommitmentRequestFailed")
             return None
         commitments = response.get("commitments") or {}
         if isinstance(commitments, str):
@@ -115,7 +114,7 @@ class ArenaSystemIntegrator:
         try:
             await self.character_sessions.set_state(char_id, state, prev_state=prev_state)
         except Exception:
-            logger.warning("Arena runtime state update skipped: char_id={} state={}", char_id, state.value)
+            logger.bind(char_id=char_id, state=state.value).warning("ArenaRuntimeStateUpdateSkipped")
 
 
 __all__ = ["ArenaIntegration", "ArenaSessionIntegration", "ArenaStreamClient", "ArenaSystemIntegrator"]

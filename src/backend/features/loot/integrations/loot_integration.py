@@ -93,7 +93,7 @@ class LootIntegration:
         Rarity, affixes, name — all decided by Item Service.
         """
         if self._events is None:
-            log.warning("LootIntegration | no events producer, cannot request item instance")
+            log.warning("LootItemInstanceRequestSkipped")
             return None
 
         payload: dict[str, Any] = {
@@ -116,10 +116,10 @@ class LootIntegration:
             if isinstance(response, dict) and response.get("status") == "ok":
                 ids = response.get("item_ids") or []
                 return str(ids[0]) if ids else None
-            log.warning("LootIntegration | item RPC non-ok: {}", response)
+            log.bind(response=response).warning("LootItemRpcNonOk")
             return None
-        except Exception as exc:
-            log.error("LootIntegration | item RPC failed base_id={}: {}", base_id, exc)
+        except Exception:
+            log.bind(base_id=base_id).exception("LootItemRpcFailed")
             return None
 
     # ------------------------------------------------------------------

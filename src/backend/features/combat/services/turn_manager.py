@@ -71,19 +71,14 @@ class CombatTurnManager:
         action_type = payload.get("action", "attack")
         if action_type in {"attack", "exchange"} and not payload.get("target_id"):
             raise CombatTargetRequiredError("Target ID is required for exchange")
-        log.debug(
-            "TurnManagerStart | session_id={session_id} actor_id={actor_id} action={action}",
-            session_id=session_id,
-            actor_id=char_id,
-            action=action_type,
-        )
+        log.bind(session_id=session_id, actor_id=char_id, action=action_type).debug("TurnManagerStart")
 
         # 2. Получаем данные персонажа (нужен afk_level для таймера)
         # get_actor_state возвращает словарь из $.meta
         state_dict = await self.combat_sessions.get_actor_state(session_id, char_id)
 
         if not state_dict:
-            log.warning(f"TurnManager | Actor {char_id} not found in session {session_id}. Assuming AFK 0.")
+            log.bind(char_id=char_id, session_id=session_id).warning("TurnManagerActorMissing")
             afk_level = 0
         else:
             afk_level = int(state_dict.get("afk_level", 0))
@@ -92,7 +87,7 @@ class CombatTurnManager:
         try:
             move_dto = self._build_move_dto(char_id, action_type, payload)
         except ValidationError as e:
-            log.error(f"TurnManager | Payload validation failed: {e}")
+            log.exception("TurnManagerPayloadValidationFailed")
             raise CombatInvalidMovePayloadError("Invalid move payload structure") from e
 
         timeout = AFK_TIMEOUTS.get(afk_level, MIN_TIMEOUT)
@@ -151,13 +146,12 @@ class CombatTurnManager:
                 if feint_id and cost:
                     await self.combat_sessions.return_feint(session_id, char_id, feint_id, cost)
                 targets = await self.combat_sessions.get_targets(session_id)
-                log.warning(
-                    "TurnManager | Exchange target rejected: session_id={} char_id={} target_id={} queue={}",
-                    session_id,
-                    char_id,
-                    target_id,
-                    targets.get(str(char_id)),
-                )
+                log.bind(
+                    session_id=session_id,
+                    char_id=char_id,
+                    target_id=target_id,
+                    queue=targets.get(str(char_id)),
+                ).warning("TurnManagerExchangeTargetRejected")
                 raise CombatTargetUnavailableError(
                     "Target is not available in your queue",
                     context={"target_id": str(target_id)},
@@ -188,15 +182,14 @@ class CombatTurnManager:
         )
         await self._enqueue_chaos_watchdog_if_started(session_id)
 
-        log.info(
-            "TurnManagerAccepted | session_id={session_id} actor_id={actor_id} move_id={move_id} action={action} strategy={strategy} timeout={timeout}s",
+        log.bind(
             session_id=session_id,
             actor_id=char_id,
             move_id=move_dto.move_id,
             action=action_type,
             strategy=move_dto.strategy,
-            timeout=timeout,
-        )
+            timeout_sec=timeout,
+        ).info("TurnManagerAccepted")
 
     async def register_moves_batch(self, session_id: str, char_id: ActorIdLike, payloads: list[dict[str, Any]]) -> None:
         """Register multiple intents at once, primarily for AI actors.
@@ -247,7 +240,7 @@ class CombatTurnManager:
                 if feint_id:
                     cost = await self.combat_sessions.consume_feint(session_id, char_id, feint_id)
                     if not cost:
-                        log.warning(f"TurnManager | AI tried to use missing feint {feint_id}. Skipping move.")
+                        log.bind(feint_id=feint_id).warning("TurnManagerAiMissingFeint")
                         continue  # Пропускаем этот ход, так как финта нет
 
             except ValidationError:
@@ -295,16 +288,15 @@ class CombatTurnManager:
 
             await self._enqueue_chaos_watchdog_if_started(session_id)
 
-            log.info(
-                "TurnManagerBatchAccepted | session_id={session_id} actor_id={actor_id} accepted={accepted} requested={requested} timeout={timeout}s",
+            log.bind(
                 session_id=session_id,
                 actor_id=char_id,
-                accepted=len(accepted_move_ids),
-                requested=len(payloads),
-                timeout=timeout,
-            )
+                accepted_count=len(accepted_move_ids),
+                requested_count=len(payloads),
+                timeout_sec=timeout,
+            ).info("TurnManagerBatchAccepted")
         else:
-            log.warning(f"TurnManager | Batch failed or empty for {char_id}")
+            log.bind(char_id=char_id).warning("TurnManagerBatchEmpty")
 
     def _build_move_dto(self, char_id: ActorIdLike, action: str, data: dict) -> CombatMoveDTO:
         """Map a public action payload into the canonical runtime move DTO."""

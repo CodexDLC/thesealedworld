@@ -8,8 +8,10 @@ from loguru import logger
 from src.backend.core.database.session import get_session_context
 from src.backend.features.exploration.repositories.knowledge import CharacterLocationKnowledgeRepository
 from src.backend.features.exploration.services.knowledge_runtime import ExplorationKnowledgeRuntimeManager
+from src.shared.infrastructure.log_task_wrapper import logged_task
 
 
+@logged_task
 async def flush_exploration_knowledge_task(ctx: dict[str, Any], payload: dict[str, Any]) -> dict[str, Any]:
     char_id = int(payload["char_id"])
     limit = int(payload.get("limit") or 100)
@@ -17,7 +19,7 @@ async def flush_exploration_knowledge_task(ctx: dict[str, Any], payload: dict[st
     runtime = ExplorationKnowledgeRuntimeManager(redis_managers.redis)
     loc_ids = await runtime.dirty_loc_ids(char_id, limit=limit)
     if not loc_ids:
-        logger.info("ExplorationKnowledgeTask | flush skipped clean char_id={}", char_id)
+        logger.bind(char_id=char_id).debug("ExplorationKnowledgeFlushSkipped")
         return {"status": "skipped", "reason": "clean", "char_id": char_id}
 
     rows: list[dict[str, Any]] = []
@@ -36,11 +38,8 @@ async def flush_exploration_knowledge_task(ctx: dict[str, Any], payload: dict[st
             await repository.upsert_rows(rows)
 
     await runtime.clear_dirty(char_id, cleared)
-    logger.info(
-        "ExplorationKnowledgeTask | flush complete char_id={} rows={} cleared={}",
-        char_id,
-        len(rows),
-        len(cleared),
+    logger.bind(char_id=char_id, row_count=len(rows), cleared_count=len(cleared)).info(
+        "ExplorationKnowledgeFlushCompleted"
     )
     return {"status": "ok", "char_id": char_id, "rows": len(rows), "cleared": len(cleared)}
 

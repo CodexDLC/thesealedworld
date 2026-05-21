@@ -88,11 +88,8 @@ class ChaosService:
             return False  # Уже здесь
 
         projection = self._select_projection(session_id, meta_raw)
-        log.warning(
-            "AnchorIntervention | session_id={} projection={} variant={}",
-            session_id,
-            projection.name,
-            projection.variant_id,
+        log.bind(session_id=session_id, projection=projection.name, variant_id=projection.variant_id).warning(
+            "AnchorIntervention"
         )
 
         # 2. Создаем actor document из monster family resource
@@ -140,16 +137,16 @@ class ChaosService:
                     snapshot,
                     battle_type=battle_type,
                 )
-            log.error("AnchorIntervention | missing_cached_snapshot variant_id={}", projection.variant_id)
+            log.bind(variant_id=projection.variant_id).error("AnchorInterventionCachedSnapshotMissing")
 
         family = get_family_config(ANCHOR_FAMILY_ID)
         if family is None:
-            log.error("AnchorIntervention | missing_family family_id={}", ANCHOR_FAMILY_ID)
+            log.bind(family_id=ANCHOR_FAMILY_ID).error("AnchorInterventionFamilyMissing")
             return self._create_fallback_projection_data(projection)
 
         variant = family.variants.get(projection.variant_id)
         if variant is None:
-            log.error("AnchorIntervention | missing_variant variant_id={}", projection.variant_id)
+            log.bind(variant_id=projection.variant_id).error("AnchorInterventionVariantMissing")
             return self._create_fallback_projection_data(projection)
 
         attributes = variant.base_stats.model_dump(mode="json")

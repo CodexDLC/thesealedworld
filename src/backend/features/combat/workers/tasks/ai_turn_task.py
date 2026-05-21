@@ -3,8 +3,10 @@ from loguru import logger as log
 from src.backend.features.combat.dto.worker import AiTurnRequestDTO
 from src.backend.features.combat.runtime.services.data_service import CombatDataService  # noqa: TC001
 from src.backend.features.combat.services.turn_manager import CombatTurnManager  # noqa: TC001
+from src.shared.infrastructure.log_task_wrapper import logged_task
 
 
+@logged_task
 async def ai_turn_task(ctx: dict, request_data: dict) -> None:
     """
     Задача ИИ Агента (AI Agent).
@@ -36,26 +38,26 @@ async def ai_turn_task(ctx: dict, request_data: dict) -> None:
             data_service = ctx["combat_collector"].data_service
 
         if not data_service:
-            log.error("AiTurnError | reason=no_data_service bot_id={bot_id}", bot_id=request.bot_id)
+            log.bind(reason="no_data_service", bot_id=request.bot_id).error("AiTurnError")
             return
 
         # 1. ЗАГРУЗКА ПОЛНОГО КОНТЕКСТА (как в Executor)
         battle_ctx = await data_service.load_battle_context(request.session_id)
 
         if not battle_ctx or not battle_ctx.meta.active:
-            log.warning("AiTurnSkip | reason=inactive_session session_id={session_id}", session_id=request.session_id)
+            log.bind(reason="inactive_session", session_id=request.session_id).warning("AiTurnSkipped")
             return
 
         # 2. ИЗВЛЕЧЕНИЕ ДАННЫХ БОТА
         bot = battle_ctx.get_actor(request.bot_id)
 
         if not bot:
-            log.warning("AiTurnSkip | reason=bot_not_found bot_id={bot_id}", bot_id=request.bot_id)
+            log.bind(reason="bot_not_found", bot_id=request.bot_id).warning("AiTurnSkipped")
             return
 
         # 3. ВАЛИДАЦИЯ БОТА (только is_alive, CC игнорируем)
         if not bot.is_alive:
-            log.warning("AiTurnSkip | reason=bot_is_dead bot_id={bot_id}", bot_id=request.bot_id)
+            log.bind(reason="bot_is_dead", bot_id=request.bot_id).warning("AiTurnSkipped")
             return
 
         # 4. ИЗВЛЕЧЕНИЕ ДАННЫХ ЦЕЛЕЙ
@@ -66,15 +68,14 @@ async def ai_turn_task(ctx: dict, request_data: dict) -> None:
                 targets.append(target)
 
         if not targets:
-            log.warning("AiTurnSkip | reason=no_valid_targets bot_id={bot_id}", bot_id=request.bot_id)
+            log.bind(reason="no_valid_targets", bot_id=request.bot_id).warning("AiTurnSkipped")
             return
 
-        log.debug(
-            "AiTurnPlan | session_id={session_id} bot_id={bot_id} valid_targets={targets}",
+        log.bind(
             session_id=request.session_id,
             bot_id=request.bot_id,
-            targets=[target.meta.id for target in targets],
-        )
+            valid_targets=[target.meta.id for target in targets],
+        ).debug("AiTurnPlan")
 
         # 5. ПРИНЯТИЕ РЕШЕНИЙ (AI Processor)
         payloads = []
@@ -86,13 +87,8 @@ async def ai_turn_task(ctx: dict, request_data: dict) -> None:
         if payloads:
             await turn_manager.register_moves_batch(request.session_id, request.bot_id, payloads)
 
-        log.info(
-            "AiTurnSuccess | session_id={session_id} bot_id={bot_id} moves={count}",
-            session_id=request.session_id,
-            bot_id=request.bot_id,
-            count=len(payloads),
-        )
+        log.bind(session_id=request.session_id, bot_id=request.bot_id, move_count=len(payloads)).info("AiTurnSuccess")
 
     except Exception:
-        log.exception("AiTurnError | bot_id={bot_id}", bot_id=request_data.get("bot_id", "unknown"))
+        log.bind(bot_id=request_data.get("bot_id", "unknown")).exception("AiTurnError")
         raise

@@ -1,6 +1,7 @@
-import logging
 from collections.abc import Iterable
 from typing import Any
+
+from loguru import logger as log
 
 from src.backend.features.generation_ai import GenerationAIService
 from src.backend.features.world.integrations import WorldDataIntegration
@@ -17,8 +18,6 @@ from src.backend.features.world.tasks_ai import (
     build_world_location_batch_task_spec,
     build_world_zone_lore_task_spec,
 )
-
-log = logging.getLogger(__name__)
 
 D4_CONTENT_BATCH_SIZE = 5
 D4_FALLBACK_TITLE = "Руины Старой Столицы"
@@ -171,7 +170,7 @@ class LLMWorldGenerator:
         generation mode and includes AI enrichment after the fallback seed is
         committed.
         """
-        log.info("Starting world generation (mode=%s)", mode)
+        log.bind(mode=mode).info("WorldGenerationStarted")
 
         generate_shell = mode in {"full", "full_ai"}
         generate_seed = mode in {"test", "full", "full_ai"}
@@ -185,7 +184,7 @@ class LLMWorldGenerator:
 
         if self.generation_ai and run_ai_enrichment:
             await self.data.commit()
-            log.info("World fallback seed committed before AI task enqueue")
+            log.info("WorldFallbackSeedCommitted")
             await self._enqueue_world_ai_tasks()
 
     async def _generate_d4_capital(self) -> None:
@@ -289,7 +288,7 @@ class LLMWorldGenerator:
                 nodes.append(node)
 
         await self.data.bulk_upsert_nodes(nodes)
-        log.info("D4 capital generated: %d nodes", len(nodes))
+        log.bind(node_count=len(nodes)).info("WorldD4CapitalGenerated")
 
     def _build_d4_node(
         self,
@@ -511,13 +510,12 @@ class LLMWorldGenerator:
             return
 
         result = await self.generation_ai.enqueue_many(specs)
-        log.info(
-            "World AI tasks enqueued: batch=%s created=%d reused=%d scheduled=%d",
-            result.batch_id,
-            result.created,
-            result.reused,
-            result.scheduled,
-        )
+        log.bind(
+            batch_id=result.batch_id,
+            created_count=result.created,
+            reused_count=result.reused,
+            scheduled_count=result.scheduled,
+        ).info("WorldAiTasksEnqueued")
 
     async def _build_d4_location_batch_task_specs(self) -> list:
         """Build async tasks for D4 node titles/descriptions using typed district batches."""
@@ -1053,4 +1051,4 @@ class LLMWorldGenerator:
                                 "world_theme": world_theme.model_dump(mode="json"),
                             },
                         )
-        log.info("World shell (regions/zones) generated.")
+        log.info("WorldShellGenerated")

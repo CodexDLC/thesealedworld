@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 import json
-import logging
+from collections.abc import Awaitable, Callable
 from typing import TYPE_CHECKING, Any
 
+from codex_core.common.log_context import clear_log_context, set_log_context
 from codex_platform.streams import StreamRouter
+from loguru import logger
 
 from src.backend.core.database.session import get_session_context
 from src.backend.features.character.integrations import (
@@ -26,7 +28,19 @@ if TYPE_CHECKING:
 
 router = StreamRouter()
 _app: FastAPI | None = None
-log = logging.getLogger(__name__)
+
+
+def with_log_context(
+    handler: Callable[[dict[str, Any]], Awaitable[None]],
+) -> Callable[[dict[str, Any]], Awaitable[None]]:
+    async def wrapped(payload: dict[str, Any]) -> None:
+        set_log_context(correlation_id=payload.get("correlation_id"))
+        try:
+            await handler(payload)
+        finally:
+            clear_log_context()
+
+    return wrapped
 
 
 class CharacterEvents:
@@ -53,10 +67,11 @@ def bind(app: FastAPI) -> None:
 
 
 @router.on(CharacterEvents.ACTIVE_SESSION_SYNC_REQUESTED, group="character", reply=True)
+@with_log_context
 async def on_active_session_sync_requested(payload: dict[str, Any]) -> None:
     cid = payload.get("correlation_id")
     if _app is None:
-        log.warning("Character active session sync ignored: app_not_bound cid=%s", cid)
+        logger.warning("CharacterActiveSessionSyncIgnored")
         return
 
     try:
@@ -75,25 +90,26 @@ async def on_active_session_sync_requested(payload: dict[str, Any]) -> None:
         ack: dict[str, Any] = {"status": "ok", **synced}
         await _app.state.events.publish(CharacterEvents.ACTIVE_SESSION_SYNCED, synced, correlation_id=cid)
     except Exception as exc:  # noqa: BLE001
-        log.exception("Character active session sync failed")
+        logger.exception("CharacterActiveSessionSyncFailed")
         ack = {"status": "error", "error": f"{exc.__class__.__name__}: {exc}"}
         try:
             await _app.state.events.publish(CharacterEvents.ACTIVE_SESSION_SYNC_FAILED, {"request": payload, **ack})
         except Exception:
-            log.exception("Character active session sync failure event delivery failed")
+            logger.exception("CharacterActiveSessionSyncFailureEventDeliveryFailed")
 
     if cid:
         try:
             await _app.state.events.publish_reply(cid, ack, ttl=30)
         except Exception:
-            log.exception("Character active session sync ack delivery failed: cid=%s", cid)
+            logger.exception("CharacterActiveSessionSyncAckDeliveryFailed")
 
 
 @router.on(CharacterEvents.COMBAT_COMMITMENTS_REQUESTED, group="character", reply=True)
+@with_log_context
 async def on_combat_commitments_requested(payload: dict[str, Any]) -> None:
     cid = payload.get("correlation_id")
     if _app is None:
-        log.warning("Character combat commitments ignored: app_not_bound cid=%s", cid)
+        logger.warning("CharacterCombatCommitmentsIgnored")
         return
 
     try:
@@ -117,25 +133,26 @@ async def on_combat_commitments_requested(payload: dict[str, Any]) -> None:
         }
         await _app.state.events.publish(CharacterEvents.COMBAT_COMMITMENTS_READY, ack, correlation_id=cid)
     except Exception as exc:  # noqa: BLE001
-        log.exception("Character combat commitment request failed")
+        logger.exception("CharacterCombatCommitmentRequestFailed")
         ack = {"status": "error", "error": f"{exc.__class__.__name__}: {exc}"}
         try:
             await _app.state.events.publish(CharacterEvents.COMBAT_COMMITMENTS_FAILED, {"request": payload, **ack})
         except Exception:
-            log.exception("Character combat commitments failure event delivery failed")
+            logger.exception("CharacterCombatCommitmentsFailureEventDeliveryFailed")
 
     if cid:
         try:
             await _app.state.events.publish_reply(cid, ack, ttl=30)
         except Exception:
-            log.exception("Character combat commitments ack delivery failed: cid=%s", cid)
+            logger.exception("CharacterCombatCommitmentsAckDeliveryFailed")
 
 
 @router.on(CharacterEvents.VITALS_RESTORE_REQUESTED, group="character", reply=True)
+@with_log_context
 async def on_vitals_restore_requested(payload: dict[str, Any]) -> None:
     cid = payload.get("correlation_id")
     if _app is None:
-        log.warning("Character vitals restore ignored: app_not_bound cid=%s", cid)
+        logger.warning("CharacterVitalsRestoreIgnored")
         return
 
     try:
@@ -148,25 +165,26 @@ async def on_vitals_restore_requested(payload: dict[str, Any]) -> None:
             correlation_id=cid,
         )
     except Exception as exc:  # noqa: BLE001
-        log.exception("Character vitals restore failed")
+        logger.exception("CharacterVitalsRestoreFailed")
         ack = {"status": "error", "error": f"{exc.__class__.__name__}: {exc}"}
         try:
             await _app.state.events.publish(CharacterEvents.VITALS_RESTORE_FAILED, {"request": payload, **ack})
         except Exception:
-            log.exception("Character vitals restore failure event delivery failed")
+            logger.exception("CharacterVitalsRestoreFailureEventDeliveryFailed")
 
     if cid:
         try:
             await _app.state.events.publish_reply(cid, ack, ttl=30)
         except Exception:
-            log.exception("Character vitals restore ack delivery failed: cid=%s", cid)
+            logger.exception("CharacterVitalsRestoreAckDeliveryFailed")
 
 
 @router.on(CharacterEvents.GEAR_SCORE_RECALCULATE_REQUESTED, group="character", reply=True)
+@with_log_context
 async def on_gear_score_recalculate_requested(payload: dict[str, Any]) -> None:
     cid = payload.get("correlation_id")
     if _app is None:
-        log.warning("Character gear score recalculation ignored: app_not_bound cid=%s", cid)
+        logger.warning("CharacterGearScoreRecalculationIgnored")
         return
 
     try:
@@ -191,25 +209,26 @@ async def on_gear_score_recalculate_requested(payload: dict[str, Any]) -> None:
         ack = {"status": "partial" if failed else "ok", "gear_scores": gear_scores, "failed": failed}
         await _app.state.events.publish(CharacterEvents.GEAR_SCORE_RECALCULATED, ack, correlation_id=cid)
     except Exception as exc:  # noqa: BLE001
-        log.exception("Character gear score recalculation failed")
+        logger.exception("CharacterGearScoreRecalculationFailed")
         ack = {"status": "error", "error": f"{exc.__class__.__name__}: {exc}"}
         try:
             await _app.state.events.publish(CharacterEvents.GEAR_SCORE_RECALCULATE_FAILED, {"request": payload, **ack})
         except Exception:
-            log.exception("Character gear score failure event delivery failed")
+            logger.exception("CharacterGearScoreFailureEventDeliveryFailed")
 
     if cid:
         try:
             await _app.state.events.publish_reply(cid, ack, ttl=30)
         except Exception:
-            log.exception("Character gear score ack delivery failed: cid=%s", cid)
+            logger.exception("CharacterGearScoreAckDeliveryFailed")
 
 
 @router.on(CharacterEvents.SKILLS_UNLOCK_REQUESTED, group="character", reply=True)
+@with_log_context
 async def on_skills_unlock_requested(payload: dict[str, Any]) -> None:
     cid = payload.get("correlation_id")
     if _app is None:
-        log.warning("Character skills unlock ignored: app_not_bound cid=%s", cid)
+        logger.warning("CharacterSkillsUnlockIgnored")
         return
 
     try:
@@ -239,18 +258,18 @@ async def on_skills_unlock_requested(payload: dict[str, Any]) -> None:
             correlation_id=cid,
         )
     except Exception as exc:  # noqa: BLE001
-        log.exception("Character skills unlock failed")
+        logger.exception("CharacterSkillsUnlockFailed")
         ack = {"status": "error", "error": f"{exc.__class__.__name__}: {exc}"}
         try:
             await _app.state.events.publish(CharacterEvents.SKILLS_UNLOCK_FAILED, {"request": payload, **ack})
         except Exception:
-            log.exception("Character skills unlock failure event delivery failed")
+            logger.exception("CharacterSkillsUnlockFailureEventDeliveryFailed")
 
     if cid:
         try:
             await _app.state.events.publish_reply(cid, ack, ttl=30)
         except Exception:
-            log.exception("Character skills unlock ack delivery failed: cid=%s", cid)
+            logger.exception("CharacterSkillsUnlockAckDeliveryFailed")
 
 
 def _parse_skill_keys(payload: dict[str, Any]) -> list[str]:

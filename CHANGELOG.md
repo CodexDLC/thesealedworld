@@ -14,10 +14,50 @@ Full layer changelogs live in:
 
 ## [Unreleased]
 
+## [v0.1.0a6] - Alpha 6
+
+### Telegram And News
+
+- Adds the Telegram bot/community feed runtime for news auto-publishing,
+  announcement delivery, and moderated community group stream handling.
+- Publishes site news article events to the `game_events` stream so runtime
+  integrations can react to article publication.
+
+### Observability
+
+- Suppresses noisy `uvicorn.access` output through the structured logging
+  pipeline while keeping application logs readable in production.
+
+## [v0.1.0a5] - Alpha 5
+
+### Observability
+
+- Adds the structured logging foundation, Prometheus metrics plumbing, and the
+  local development observability stack.
+- Completes the codebase logging sweep: logger messages now use PascalCase event
+  names, structured fields are emitted through `bind()`, and noisy request/page
+  traces are kept at debug level.
+- Keeps logging infrastructure under `src/shared/infrastructure/` while moving
+  business logging call sites to the structured project format.
+
 ### Release And CI
 
 - Splits CI so `develop` runs lint and type checks only, while `main` keeps the
   full quality gate, documentation build, and Docker image verification.
+- Keeps release image publication on tag/manual workflows while preserving
+  Docker build verification on `main`.
+
+### Site And Documentation
+
+- Adds the news-management agent skill with official community links and article
+  formatting guidance.
+- Reorganizes design and planning documentation sources.
+- Keeps cabinet framework documentation bundled with the package.
+
+### Performance
+
+- Reduces the public site font critical path and keeps render-blocking font
+  loading lighter for first paint.
 
 ## [v0.1.0a4] - Alpha 4
 

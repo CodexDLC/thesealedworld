@@ -119,6 +119,7 @@ class ArticleRepository:
 
             import redis.asyncio as redis
             from codex_platform.streams.producer import StreamProducer
+
             from src.frontend.config.settings import settings
 
             redis_url = os.getenv("REDIS_URL") or getattr(settings, "redis_url", "redis://localhost:6379/0")

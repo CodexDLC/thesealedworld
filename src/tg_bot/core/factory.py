@@ -1,16 +1,19 @@
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from aiogram import Bot, Dispatcher
 from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram.fsm.storage.redis import RedisStorage
 from codex_bot.engine.factory.bot_builder import BotBuilder
 from codex_bot.engine.protocols import ContainerProtocol
-
 from loguru import logger as log
 from redis.asyncio import Redis
 
-from tg_bot.core.config import BotSettings
 from tg_bot.core.settings import CUSTOM_MIDDLEWARES
+
+if TYPE_CHECKING:
+    from tg_bot.core.config import BotSettings
 
 
 def build_bot(

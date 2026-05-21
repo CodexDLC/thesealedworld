@@ -4,11 +4,12 @@ from typing import TYPE_CHECKING, Any
 
 from codex_bot.base import BaseBotOrchestrator, UnifiedViewDTO, ViewResultDTO
 
-from ..contracts.auth_contract import AuthDataProvider
 from ..ui.commands_ui import CommandsUI
 
 if TYPE_CHECKING:
     from codex_bot.director import Director
+
+    from ..contracts.auth_contract import AuthDataProvider
 
 
 class StartOrchestrator(BaseBotOrchestrator[Any]):
@@ -24,7 +25,7 @@ class StartOrchestrator(BaseBotOrchestrator[Any]):
         self.ui = CommandsUI()
 
     async def render_content(
-        self, director: "Director" | None = None, payload: Any = None
+        self, director: Director | None = None, payload: Any = None
     ) -> ViewResultDTO | UnifiedViewDTO:
         """
         Delegates the welcome screen rendering to the UI layer.
@@ -44,7 +45,7 @@ class StartOrchestrator(BaseBotOrchestrator[Any]):
         # 3. Call UI layer for presentation
         return self.ui.render_welcome_screen(name=user_name, is_admin=is_admin)
 
-    async def handle_entry(self, director: "Director", payload: Any = None) -> UnifiedViewDTO:
+    async def handle_entry(self, director: Director, payload: Any = None) -> UnifiedViewDTO:
         """
         Entry point for /start command.
         Registers the user and renders the welcome screen.

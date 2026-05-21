@@ -21,7 +21,7 @@ class BotMenuOrchestrator(BaseBotOrchestrator[Any]):
         super().__init__(expected_state=None)
         self.ui = BotMenuUI()
 
-    async def render_content(self, director: "Director" | None = None, payload: Any = None) -> ViewResultDTO:
+    async def render_content(self, director: Director | None = None, payload: Any = None) -> ViewResultDTO:
         """
         Required implementation of BaseBotOrchestrator.
         Generates the main status text for the Dashboard.
@@ -30,7 +30,7 @@ class BotMenuOrchestrator(BaseBotOrchestrator[Any]):
         session_id = director.session_key if director else "N/A"
 
         text = (
-            "🤖 <b>Codex-Bot Dashboard</b>\n"
+            "🤖 <b>Codex-Bot Dashboard</b>\n"  # nosec B608
             "━━━━━━━━━━━━━━━━━━━━\n"
             f"👤 <b>Session:</b> <code>{session_id}</code>\n"
             "⚙️ <b>Status:</b> System Operational\n\n"
@@ -41,14 +41,14 @@ class BotMenuOrchestrator(BaseBotOrchestrator[Any]):
 
     async def handle_entry(
         self,
-        director: "Director",
+        director: Director,
         payload: Any = None,
     ) -> UnifiedViewDTO:
         """Entry point for the dashboard."""
         mode = payload if isinstance(payload, str) else "bot_menu"
         return await self.render_dashboard(director, mode=mode)
 
-    async def render_dashboard(self, director: "Director", mode: str = "bot_menu") -> UnifiedViewDTO:
+    async def render_dashboard(self, director: Director, mode: str = "bot_menu") -> UnifiedViewDTO:
         """Collects buttons from all features and renders the UI."""
         is_admin_mode = mode == "dashboard_admin"
 
@@ -78,7 +78,7 @@ class BotMenuOrchestrator(BaseBotOrchestrator[Any]):
             session_key=director.session_key,
         )
 
-    async def handle_callback(self, director: "Director", payload: Any) -> UnifiedViewDTO | None:
+    async def handle_callback(self, director: Director, payload: Any) -> UnifiedViewDTO | None:
         """Handles menu navigation clicks."""
         action = getattr(payload, "action", None)
         target = getattr(payload, "target", None)

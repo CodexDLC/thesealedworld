@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import logging
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from aiogram import F, Router, types
 from aiogram.filters import Command
@@ -9,7 +9,9 @@ from aiogram_i18n import I18nContext
 from codex_bot.director import Director
 
 from ..feature_setting import CommunityFeedStates
-from ..logic.orchestrator import CommunityFeedOrchestrator
+
+if TYPE_CHECKING:
+    from ..logic.orchestrator import CommunityFeedOrchestrator
 
 log = logging.getLogger(__name__)
 

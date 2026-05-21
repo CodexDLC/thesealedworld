@@ -1,9 +1,13 @@
-from typing import Any, cast
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Any, cast
 
 from aiogram.fsm.state import State, StatesGroup
 
-from .contracts.auth_contract import AuthDataProvider
 from .logic.orchestrator import StartOrchestrator
+
+if TYPE_CHECKING:
+    from .contracts.auth_contract import AuthDataProvider
 
 
 # 1. States Definition

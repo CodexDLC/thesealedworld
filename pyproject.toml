@@ -28,7 +28,8 @@ dependencies = [
 ]
 
 [tool.uv]
-default-groups = ["dev", "backend-runtime", "frontend-runtime"]
+default-groups = ["dev", "backend-runtime", "frontend-runtime", "tg-bot"]
+
 
 [tool.hatch.version]
 source = "vcs"
@@ -67,6 +68,11 @@ frontend-runtime = [
     "jinja2>=3.1.6",
     "python-multipart>=0.0.20",
 ]
+tg-bot = [
+    "aiogram>=3.0",
+    "codex-bot>=0.3.0",
+]
+
 
 # === Ruff ===
 [tool.ruff]

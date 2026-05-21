@@ -1,0 +1,1 @@
+from .menu_contract import MenuDiscoveryProvider as MenuDiscoveryProvider

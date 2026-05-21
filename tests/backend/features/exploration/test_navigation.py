@@ -126,7 +126,7 @@ class FakeLocalMapIntegrator:
                 "loc_id": "52_52",
                 "name": "Площадь Исхода",
                 "description": "Центральная площадь.",
-                "background_url": "/static/images/exploration/city/d4/52_52_runic_circle_plaza.png",
+                "background_url": "/static/images/exploration/city/d4/52_52_runic_circle_plaza.webp",
                 "exits": {
                     "nav:52_51": {"desc_next_room": "Северный проспект", "time_duration": 2.0},
                     "nav:53_52": {"desc_next_room": "Восточный тракт", "time_duration": 2.0},

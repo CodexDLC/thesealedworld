@@ -14,6 +14,25 @@ Full layer changelogs live in:
 
 ## [Unreleased]
 
+- Telegram news announcements now use a persistent media sender that can replace
+  or delete channel posts through the shared sender coordinate storage.
+
+## [v0.1.0a6] - Alpha 6
+
+### Telegram And News
+
+- Adds the Telegram bot/community feed runtime for news auto-publishing,
+  announcement delivery, and moderated community group stream handling.
+- Adds a local Docker Compose service for running the Telegram bot against the
+  development Redis/backend stack.
+- Publishes site news article events to the `game_events` stream so runtime
+  integrations can react to article publication.
+
+### Observability
+
+- Suppresses noisy `uvicorn.access` output through the structured logging
+  pipeline while keeping application logs readable in production.
+
 ## [v0.1.0a5] - Alpha 5
 
 ### Observability

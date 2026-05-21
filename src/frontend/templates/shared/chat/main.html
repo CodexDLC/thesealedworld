@@ -700,7 +700,7 @@
 >
     <!-- WS connection — on the outer wrapper so all child forms can ws-send -->
     <div hx-ext="ws"
-         ws-connect="{{ chat_ws_url }}/ws/chat?token={{ access_token }}&char_id={{ char_id }}{% if combat_chat_session_id %}&combat_session_id={{ combat_chat_session_id }}{% endif %}"
+         ws-connect="{{ chat_ws_endpoint }}?token={{ access_token }}&char_id={{ char_id }}{% if combat_chat_session_id %}&combat_session_id={{ combat_chat_session_id }}{% endif %}"
          style="display:contents;">
 
     <!-- ── TAB BAR ── -->

@@ -8,6 +8,7 @@ from loguru import logger
 from src.frontend.config.settings import settings
 from src.frontend.features.auth.token_state import get_access_token
 from src.frontend.game_features.session.token_state import get_game_access_token
+from src.shared.utils.url import build_absolute_url, build_public_base_url
 
 
 class UIRenderer:
@@ -36,6 +37,7 @@ class UIRenderer:
             "game_access_token": get_game_access_token(self.request) or "",
             "static_version": _static_version(),
             "is_htmx": "HX-Request" in self.request.headers,
+            "google_tag_manager_id": settings.google_tag_manager_id,
             "google_analytics_id": settings.google_analytics_id,
             "google_site_verification": settings.google_site_verification,
         }
@@ -50,6 +52,7 @@ class UIRenderer:
 
         # 2. Merge contexts
         final_context = {**global_context, **context}
+        final_context["meta"] = _meta_context(self.request, final_context)
 
         # 3. Handle HTMX Fragments (optional logic)
         # If we want to automatically switch base templates based on HX-Request,
@@ -99,3 +102,72 @@ def _mtime(path: Path) -> int:
         return int(path.stat().st_mtime)
     except OSError:
         return 0
+
+
+def _meta_context(request: Request, context: dict[str, Any]) -> dict[str, str]:
+    provided = context.get("meta") or {}
+    if not isinstance(provided, dict):
+        provided = {}
+
+    path = _request_path(request)
+    canonical_url = _canonical_url(request, path)
+    default_meta = {
+        "site_name": settings.site_name,
+        "title": settings.site_meta_title,
+        "description": settings.site_meta_description,
+        "image": settings.site_meta_image,
+        "type": "website",
+        "url": canonical_url,
+        "robots": _robots_for_path(path),
+        "locale": "ru_RU",
+    }
+    meta = {**default_meta, **provided}
+    base_url = _site_base_url(request)
+    meta["url"] = _absolute_url(str(meta.get("url") or canonical_url), base_url)
+    meta["image"] = _absolute_url(str(meta.get("image") or settings.site_meta_image), base_url)
+    return meta
+
+
+def _site_base_url(request: Request) -> str:
+    return build_public_base_url(
+        configured_base_url=settings.site_base_url,
+        domain_name=str(getattr(settings, "domain_name", "") or ""),
+        request_base_url=str(getattr(request, "base_url", "http://testserver/")),
+    )
+
+
+def _request_path(request: Request) -> str:
+    url = getattr(request, "url", None)
+    return str(getattr(url, "path", "/") or "/")
+
+
+def _canonical_url(request: Request, path: str) -> str:
+    url = getattr(request, "url", None)
+    if url is not None:
+        try:
+            return str(url.replace(query=None, fragment=None))
+        except (AttributeError, TypeError, ValueError):
+            pass
+    return f"{_site_base_url(request)}{path}"
+
+
+def _absolute_url(value: str, base_url: str) -> str:
+    return build_absolute_url(base_url=base_url, path_or_url=value)
+
+
+def _robots_for_path(path: str) -> str:
+    noindex_prefixes = (
+        "/login",
+        "/register",
+        "/logout",
+        "/account",
+        "/admin",
+        "/game-lobby",
+        "/game",
+        "/api",
+        "/system",
+        "/survey",
+    )
+    if path.startswith(noindex_prefixes):
+        return "noindex, nofollow"
+    return "index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1"

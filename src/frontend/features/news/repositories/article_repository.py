@@ -1,10 +1,15 @@
 from __future__ import annotations
 
+import os
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
+import redis.asyncio as redis
+from codex_platform.streams.producer import StreamProducer
+from loguru import logger
 from sqlalchemy import func, select
 
+from src.frontend.config.settings import settings
 from src.frontend.features.news.models.article import Article
 
 if TYPE_CHECKING:
@@ -101,12 +106,39 @@ class ArticleRepository:
         if article.is_published:
             article.is_published = False
             article.published_at = None
+            event_type = "news.unpublished"
         else:
             article.is_published = True
             article.published_at = datetime.now(UTC)
+            event_type = "news.published"
         await self.session.commit()
         await self.session.refresh(article)
+
+        await self._publish_news_event(article, event_type=event_type)
+
         return article
+
+    async def _publish_news_event(self, article: Article, *, event_type: str) -> None:
+        redis_client = None
+        try:
+            redis_url = os.getenv("REDIS_URL") or getattr(settings, "redis_url", "redis://localhost:6379/0")
+            redis_client = redis.from_url(redis_url, decode_responses=True)
+            stream_name = getattr(settings, "game_stream_name", "game_events")
+
+            producer = StreamProducer(redis_client, stream_name)
+            event_data = {
+                "id": str(article.id),
+                "title": article.title,
+                "slug": article.slug,
+                "preview": article.preview or "",
+                "cover_image": article.cover_image or "",
+            }
+            await producer.publish(event_type, event_data)
+        except Exception as e:
+            logger.opt(exception=True).error(f"Failed to publish {event_type} event to Redis Stream: {e}")
+        finally:
+            if redis_client is not None:
+                await redis_client.aclose()
 
     async def delete(self, article: Article) -> None:
         await self.session.delete(article)

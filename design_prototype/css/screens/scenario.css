@@ -231,7 +231,7 @@
     border: 1px solid rgba(255, 170, 0, 0.20);
     background:
         linear-gradient(180deg, rgba(153, 160, 170, 0.08), rgba(5, 5, 7, 0.62)),
-        url("../../../src/frontend/static/images/scenarios/awakening_rift/background_v4.png") center / cover,
+        url("../../../src/frontend/static/images/scenarios/awakening_rift/background_v4.webp") center / cover,
         rgba(5, 5, 7, 0.92);
     box-shadow:
         inset 0 0 0 1px rgba(255, 170, 0, 0.10),

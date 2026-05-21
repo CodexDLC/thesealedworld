@@ -2,7 +2,7 @@
     {# Background layer #}
     {% set shell_background_url = background_url %}
     <div id="game-bg" class="game-scene-layer"
-         style="background-image: url('{{ shell_background_url if shell_background_url else '/static/images/scenes/forest.png' }}'); z-index: 0; position: absolute; inset: 0;">
+         style="background-image: url('{{ shell_background_url if shell_background_url else '/static/images/scenes/forest.webp' }}'); z-index: 0; position: absolute; inset: 0;">
     </div>
     {% if domain == 'combats' %}
     <script>

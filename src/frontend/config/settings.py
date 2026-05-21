@@ -49,6 +49,14 @@ class FrontendSettings(BaseCommonSettings):
     email_admin: str = "primecodex@gmail.com"
 
     # SEO / Analytics
+    site_name: str = "The Sealed World"
+    site_base_url: str = ""
+    site_meta_title: str = "The Sealed World"
+    site_meta_description: str = (
+        "Browser-based turn-based MMORPG about dangerous expeditions beyond the wall, loot, and making it home alive."
+    )
+    site_meta_image: str = "/static/images/site/the-sealed-world/hero-main.webp"
+    google_tag_manager_id: str = ""
     google_analytics_id: str = ""
     google_site_verification: str = ""
 

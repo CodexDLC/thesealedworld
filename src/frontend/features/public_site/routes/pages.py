@@ -3,7 +3,9 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import PlainTextResponse, Response
 
+from src.frontend.config.settings import settings
 from src.frontend.core.renderer import UIRenderer, get_ui_renderer
+from src.shared.utils.url import build_public_base_url
 
 router = APIRouter(tags=["Frontend Pages"])
 
@@ -11,7 +13,17 @@ router = APIRouter(tags=["Frontend Pages"])
 @router.get("/", name="index")
 async def index(ui: Annotated[UIRenderer, Depends(get_ui_renderer)]):
     """Root endpoint rendering the landing page."""
-    return await ui.render("site/index.html")
+    return await ui.render(
+        "site/index.html",
+        context={
+            "meta": {
+                "title": "The Sealed World - Запечатанный мир",
+                "description": "Браузерная MMORPG об опасных вылазках за стену, добыче и возвращении домой живым.",
+                "url": "/",
+                "image": "/static/images/site/the-sealed-world/hero-main.webp",
+            }
+        },
+    )
 
 
 @router.get("/system/design", name="design_system")
@@ -23,7 +35,16 @@ async def design_system(ui: Annotated[UIRenderer, Depends(get_ui_renderer)]):
 @router.get("/about", name="about")
 async def about(ui: Annotated[UIRenderer, Depends(get_ui_renderer)]):
     """Render the About page."""
-    return await ui.render("site/about.html")
+    return await ui.render(
+        "site/about.html",
+        context={
+            "meta": {
+                "title": "О проекте - The Sealed World",
+                "description": "Лор, сеттинг и основные идеи мира The Sealed World.",
+                "url": "/about",
+            }
+        },
+    )
 
 
 # ── SEO / Crawler Layer ──
@@ -83,7 +104,7 @@ Pre-alpha. Recruiting testers.
 
 @router.get("/robots.txt", name="robots_txt")
 async def robots_txt(request: Request) -> PlainTextResponse:
-    base = str(request.base_url).rstrip("/")
+    base = _public_base_url(request)
     return PlainTextResponse(_ROBOTS_TXT.format(base=base))
 
 
@@ -97,7 +118,7 @@ _SITEMAP_PATHS = ("/", "/about", "/news", "/library")
 
 @router.get("/sitemap.xml", name="sitemap_xml")
 async def sitemap_xml(request: Request) -> Response:
-    base = str(request.base_url).rstrip("/")
+    base = _public_base_url(request)
     urls = "\n".join(f"  <url><loc>{base}{path}</loc></url>" for path in _SITEMAP_PATHS)
     xml = (
         '<?xml version="1.0" encoding="UTF-8"?>\n'
@@ -106,3 +127,11 @@ async def sitemap_xml(request: Request) -> Response:
         "</urlset>\n"
     )
     return Response(content=xml, media_type="application/xml")
+
+
+def _public_base_url(request: Request) -> str:
+    return build_public_base_url(
+        configured_base_url=settings.site_base_url,
+        domain_name=str(getattr(settings, "domain_name", "") or ""),
+        request_base_url=str(request.base_url),
+    )

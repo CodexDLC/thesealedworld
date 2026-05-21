@@ -33,7 +33,7 @@ CITY_SERVICE_DEFINITIONS: dict[str, CityServiceDefinition] = {
             "Древнее здание с десятками комнат приспособили под постоялый двор. "
             "Внизу работает таверна, у стойки кормчий ведет ключи, пайки и первые правила ночлега."
         ),
-        background_url="/static/images/scenes/tavern.png",
+        background_url="/static/images/scenes/tavern.webp",
         sections=(
             CityServiceSection(
                 "bar", "Стойка кормчего", "У стойки держат первые слухи, ключи, пайки и договоренности.", "talk"
@@ -64,7 +64,7 @@ CITY_SERVICE_DEFINITIONS: dict[str, CityServiceDefinition] = {
             "Внутри рунического круга слышен ровный низкий гул. Камни держат стабильный контур, "
             "а закрытые проходы ждут калибровки."
         ),
-        background_url="/static/images/exploration/city/d4/52_52_runic_circle_plaza.png",
+        background_url="/static/images/exploration/city/d4/52_52_runic_circle_plaza.webp",
         metadata={
             "npc_key": "portal_pad_guide",
             "dialogue_quest_key": "portal_guide_dialogue",

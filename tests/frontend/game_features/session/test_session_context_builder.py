@@ -6,7 +6,7 @@ from uuid import uuid4
 import pytest
 from fastapi import HTTPException
 
-from src.frontend.game_features.session.services.session_context_builder import SessionContextBuilder
+from src.frontend.game_features.session.services.session_context_builder import SessionContextBuilder, _chat_ws_endpoint
 from src.frontend.integrations.backend_api.combat import CombatViewResponse
 from src.shared.enums import CoreDomain
 from src.shared.schemas import CoreResponseDTO, GameStateHeader, ScenarioPayloadDTO, StateTransitionDTO
@@ -59,6 +59,19 @@ class FakeCharacterStatusApi:
                 "panel": PanelDTO(id="character_status", title="STATUS", widgets=[]),
             }
         )
+
+
+@pytest.mark.parametrize(
+    ("raw_url", "endpoint"),
+    [
+        ("ws://127.0.0.1:8002", "ws://127.0.0.1:8002/ws/chat"),
+        ("wss://thesealedworld.com", "wss://thesealedworld.com/ws/chat"),
+        ("wss://thesealedworld.com/ws/chat", "wss://thesealedworld.com/ws/chat"),
+        ("wss://thesealedworld.com/ws/chat/", "wss://thesealedworld.com/ws/chat"),
+    ],
+)
+def test_chat_ws_endpoint_accepts_base_origin_and_full_endpoint(raw_url, endpoint):
+    assert _chat_ws_endpoint(raw_url) == endpoint
 
 
 def test_death_screen_uses_encounter_notice_and_respawn_tooltip():
@@ -229,7 +242,7 @@ class FakeCombatApi:
                 name="Ada",
                 actor_type="player",
                 team="team_1",
-                avatar_url="/static/images/avatars/rook7.png",
+                avatar_url="/static/images/avatars/rook7.webp",
                 vitals=CombatActorVitalsDTO(
                     hp_current=70,
                     hp_max=100,
@@ -245,7 +258,7 @@ class FakeCombatApi:
                 name="Ada Shadow",
                 actor_type="shadow",
                 team="team_2",
-                avatar_url="/static/images/avatars/rook7.png",
+                avatar_url="/static/images/avatars/rook7.webp",
                 is_ai=True,
                 vitals=CombatActorVitalsDTO(
                     hp_current=65,
@@ -333,7 +346,7 @@ def scenario_response() -> CoreResponseDTO[ScenarioPayloadDTO]:
             node_key="rift_entry_01",
             text="Wake up.",
             extra_data={
-                "background_url": "/static/images/scenarios/awakening_rift/background.png",
+                "background_url": "/static/images/scenarios/awakening_rift/background.webp",
                 "quest_key": "awakening_rift",
             },
         ),
@@ -464,7 +477,7 @@ async def test_build_current_returns_full_scenario_shell_context():
     assert context["char_id"] == 7
     assert context["scenario"].node_key == "rift_entry_01"
     assert context["character_status"].panel is not None
-    assert context["background_url"].endswith("background.png")
+    assert context["background_url"].endswith("background.webp")
     assert "session_ui" not in context
     assert context["status_seed"]["hp"] == 88
     assert context["status_seed"]["symbiote_name"] == "Mote"
@@ -883,9 +896,9 @@ async def test_build_state_combat_uses_combat_session_without_character_status_l
     assert status_api.calls == []
     assert context["domain"] == "combats"
     assert context["combat"].session_id == "combat-1"
-    assert context["combat"].hero.avatar_url == "/static/images/avatars/rook7.png"
-    assert context["combat_screen"].hero.avatar_url == "/static/images/avatars/rook7.png"
-    assert context["combat_screen"].target.avatar_url == "/static/images/avatars/rook7.png"
+    assert context["combat"].hero.avatar_url == "/static/images/avatars/rook7.webp"
+    assert context["combat_screen"].hero.avatar_url == "/static/images/avatars/rook7.webp"
+    assert context["combat_screen"].target.avatar_url == "/static/images/avatars/rook7.webp"
     assert len(context["combat_screen"].hero.quick_belt) == 8
     assert context["character_status"] is None
     assert "session_ui" not in context

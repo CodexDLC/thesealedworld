@@ -2,7 +2,7 @@
     {% set result_screen = combat_result_screen if combat_result_screen is defined else none %}
     {% set result_title = result_screen.title if result_screen else combat_result.title %}
     {% set result_outcome = result_screen.outcome if result_screen else combat_result.outcome %}
-    {% set result_art = '/static/images/game/combat/results/combat-result-victory.png' if result_outcome == 'victory' else '/static/images/game/combat/results/combat-result-defeat.png' %}
+    {% set result_art = '/static/images/game/combat/results/combat-result-victory.webp' if result_outcome == 'victory' else '/static/images/game/combat/results/combat-result-defeat.webp' %}
     <aside class="panel-dock panel-dock--framed panel-dock--scroll combat-side combat-side--right combat-result-side">
         <nav class="dock-nav dock-nav--bar dock-nav--panel combat-info-actions" aria-label="Combat info actions">
             <button class="dock-nav-button is-active" type="button">INFO</button>

@@ -44,8 +44,8 @@ from src.shared.infrastructure.metrics_middleware import PrometheusMiddleware
 setup_logging(
     settings=settings,
     service_name="frontend",
-    intercept_loggers=["uvicorn", "fastapi"],
-    log_levels={"httpx": 30},
+    intercept_loggers=["uvicorn", "uvicorn.access", "uvicorn.error", "fastapi"],
+    log_levels={"httpx": 30, "uvicorn.access": 30},
 )
 
 

@@ -37,7 +37,17 @@ async def news_list(
         page=page,
         total=total,
     )
-    return await ui.render("site/news/list.html", context={"news": vm})
+    return await ui.render(
+        "site/news/list.html",
+        context={
+            "news": vm,
+            "meta": {
+                "title": "Новости - The Sealed World",
+                "description": "Новости разработки, альфа-патчи и заметки мира The Sealed World.",
+                "url": "/news",
+            },
+        },
+    )
 
 
 @router.get("/news/{slug}", name="news_detail")
@@ -56,8 +66,21 @@ async def news_detail(
     vm = ArticleDetailVM(
         slug=article.slug,
         title=article.title,
+        preview=article.preview,
         body=article.body,
         published_at=article.published_at.strftime("%d.%m.%Y") if article.published_at else "",
         cover_image=article.cover_image,
     )
-    return await ui.render("site/news/detail.html", context={"article": vm})
+    return await ui.render(
+        "site/news/detail.html",
+        context={
+            "article": vm,
+            "meta": {
+                "title": f"{article.title} - The Sealed World",
+                "description": article.preview,
+                "image": article.cover_image or "/static/images/site/the-sealed-world/hero-main.webp",
+                "type": "article",
+                "url": f"/news/{article.slug}",
+            },
+        },
+    )

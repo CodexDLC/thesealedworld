@@ -10,8 +10,8 @@
 {% set extra = scenario.extra_data if scenario and scenario.extra_data else {} %}
 {% set scenario_char_id = char_id if char_id is defined and char_id else extra.get('char_id') %}
 {% set quest_title = extra.get('quest_title') or 'СЦЕНАРИЙ' %}
-{% set scenario_background = extra.get('background_url') or (background_url if background_url is defined else none) or '/static/images/scenarios/awakening_rift/background_v4.png' %}
-{% set subject_avatar = scenario.avatar if scenario and scenario.avatar else '/static/images/scenarios/symbiont.png' %}
+{% set scenario_background = extra.get('background_url') or (background_url if background_url is defined else none) or '/static/images/scenarios/awakening_rift/background_v4.webp' %}
+{% set subject_avatar = scenario.avatar if scenario and scenario.avatar else '/static/images/scenarios/symbiont.webp' %}
 {% set subject_label = scenario.speaker|upper if scenario and scenario.speaker else 'SCENE' %}
 {% set watch_text = scenario.system_messages[0] if scenario and scenario.system_messages else 'Состояние сцены обновлено.' %}
 {% set display_name_raw = scenario.display_name|trim if scenario and scenario.display_name else '' %}

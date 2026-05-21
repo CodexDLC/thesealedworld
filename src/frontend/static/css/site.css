@@ -38,6 +38,7 @@
 
 
   --font-world: 'EB Garamond', Georgia, serif;
+  --font-page: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   --font-ui: ui-monospace, SFMono-Regular, Consolas, 'Liberation Mono', monospace;
 
 
@@ -121,7 +122,7 @@
 html,
 body {
   background: #000;
-  font-family: var(--font-ui);
+  font-family: var(--font-page);
   color: var(--col-text-primary);
   line-height: 1.5;
   min-height: 100vh;
@@ -503,7 +504,6 @@ body::before {
 
 .logo-text {
     font-family: var(--font-world);
-    font-style: italic;
     color: var(--col-accent);
     letter-spacing: 0.1em;
 }
@@ -588,6 +588,7 @@ body::before {
 .logo-main {
   font-family: var(--font-world);
   font-size: clamp(18px, 2vw, 24px);
+  font-weight: 500;
   line-height: 1;
   color: rgba(245, 232, 204, 0.96);
 }
@@ -3601,15 +3602,12 @@ a.is-action-pending .choice-label,
     radial-gradient(circle at 12% 20%, rgba(245, 232, 204, 0.34) 0 0.7px, transparent 1.1px),
     radial-gradient(circle at 78% 12%, rgba(255, 170, 0, 0.22) 0 0.6px, transparent 1px),
     radial-gradient(circle at 45% 72%, rgba(230, 204, 172, 0.22) 0 0.7px, transparent 1.1px),
-    url("/static/images/site/the-sealed-world/tex-dust.png");
+    url("/static/images/site/the-sealed-world/tex-dust.webp");
   background-image:
     radial-gradient(circle at 12% 20%, rgba(245, 232, 204, 0.34) 0 0.7px, transparent 1.1px),
     radial-gradient(circle at 78% 12%, rgba(255, 170, 0, 0.22) 0 0.6px, transparent 1px),
     radial-gradient(circle at 45% 72%, rgba(230, 204, 172, 0.22) 0 0.7px, transparent 1.1px),
-    image-set(
-      url("/static/images/site/the-sealed-world/tex-dust.webp") type("image/webp"),
-      url("/static/images/site/the-sealed-world/tex-dust.png") type("image/png")
-    );
+    image-set(url("/static/images/site/the-sealed-world/tex-dust.webp") type("image/webp"));
   background-size: 180px 180px, 280px 280px, 420px 420px, 920px;
   background-position: 0 0, 30px 60px, 90px 20px, center;
   opacity: 0.14;
@@ -3717,15 +3715,12 @@ a.is-action-pending .choice-label,
     radial-gradient(circle, rgba(245, 232, 204, 0.3) 0 0.65px, transparent 1px),
     radial-gradient(circle, rgba(255, 170, 0, 0.16) 0 0.55px, transparent 0.95px),
     radial-gradient(circle, rgba(230, 204, 172, 0.14) 0 0.75px, transparent 1.15px),
-    url("/static/images/site/the-sealed-world/tex-dust.png");
+    url("/static/images/site/the-sealed-world/tex-dust.webp");
   background-image:
     radial-gradient(circle, rgba(245, 232, 204, 0.3) 0 0.65px, transparent 1px),
     radial-gradient(circle, rgba(255, 170, 0, 0.16) 0 0.55px, transparent 0.95px),
     radial-gradient(circle, rgba(230, 204, 172, 0.14) 0 0.75px, transparent 1.15px),
-    image-set(
-      url("/static/images/site/the-sealed-world/tex-dust.webp") type("image/webp"),
-      url("/static/images/site/the-sealed-world/tex-dust.png") type("image/png")
-    );
+    image-set(url("/static/images/site/the-sealed-world/tex-dust.webp") type("image/webp"));
   background-size: 220px 220px, 380px 380px, 680px 680px, 1120px;
   background-position: 10px 40px, 120px 20px, 60px 120px, center;
   opacity: 0.12;
@@ -3747,18 +3742,27 @@ a.is-action-pending .choice-label,
   margin-bottom: var(--sp-6);
 }
 
-.tsw-hero h1,
-.tsw-band h2,
-.tsw-cta h2 {
+.tsw-hero h1 {
   font-family: var(--font-world);
   color: rgba(245, 232, 204, 0.96);
   line-height: 0.92;
   text-wrap: balance;
 }
 
+.tsw-band h2,
+.tsw-cta h2 {
+  font-family: var(--font-page);
+  color: rgba(245, 232, 204, 0.96);
+  font-weight: 600;
+  letter-spacing: 0;
+  line-height: 1.12;
+  text-wrap: balance;
+}
+
 .tsw-hero h1 {
   max-width: 11ch;
   font-size: clamp(64px, 9.4vw, 148px);
+  font-weight: 500;
   margin-bottom: var(--sp-5);
   text-shadow: 0 22px 70px rgba(0, 0, 0, 0.64);
 }
@@ -3767,16 +3771,16 @@ a.is-action-pending .choice-label,
 .tsw-band h2 em,
 .tsw-cta h2 em {
   color: var(--col-parchment);
-  font-style: italic;
+  font-style: normal;
 }
 
 .tsw-hero-lede {
   max-width: 600px;
   color: rgba(230, 204, 172, 0.86);
-  font-family: var(--font-world);
-  font-size: clamp(22px, 2.05vw, 30px);
-  font-style: italic;
-  line-height: 1.42;
+  font-family: var(--font-page);
+  font-size: clamp(19px, 1.65vw, 24px);
+  font-weight: 500;
+  line-height: 1.5;
 }
 
 .tsw-hero-meta {
@@ -3839,11 +3843,8 @@ a.is-action-pending .choice-label,
   content: "";
   position: absolute;
   inset: 0;
-  background-image: url("/static/images/site/the-sealed-world/tex-dust.png");
-  background-image: image-set(
-    url("/static/images/site/the-sealed-world/tex-dust.webp") type("image/webp"),
-    url("/static/images/site/the-sealed-world/tex-dust.png") type("image/png")
-  );
+  background-image: url("/static/images/site/the-sealed-world/tex-dust.webp");
+  background-image: image-set(url("/static/images/site/the-sealed-world/tex-dust.webp") type("image/webp"));
   background-size: 820px;
   opacity: 0.035;
   pointer-events: none;
@@ -3876,7 +3877,7 @@ a.is-action-pending .choice-label,
 
 .tsw-band h2,
 .tsw-cta h2 {
-  font-size: clamp(38px, 6vw, 82px);
+  font-size: clamp(30px, 3.8vw, 56px);
 }
 
 .tsw-copy > p,
@@ -3884,7 +3885,7 @@ a.is-action-pending .choice-label,
 .tsw-cta p {
   max-width: 68ch;
   color: rgba(230, 204, 172, 0.72);
-  font-family: var(--font-world);
+  font-family: var(--font-page);
   font-size: clamp(17px, 1.6vw, 21px);
   line-height: 1.72;
 }
@@ -3905,9 +3906,9 @@ a.is-action-pending .choice-label,
 
 .tsw-zone-list strong {
   color: var(--col-parchment);
-  font-family: var(--font-world);
+  font-family: var(--font-page);
   font-size: var(--text-xl);
-  font-weight: 600;
+  font-weight: 650;
 }
 
 .tsw-zone-list span:last-child {
@@ -3993,8 +3994,9 @@ a.is-action-pending .choice-label,
 .tsw-loop h3,
 .tsw-feedback-panel h3 {
   color: var(--col-parchment);
-  font-family: var(--font-world);
+  font-family: var(--font-page);
   font-size: clamp(22px, 2vw, 30px);
+  font-weight: 650;
   line-height: 1.12;
 }
 
@@ -4040,13 +4042,23 @@ a.is-action-pending .choice-label,
 }
 
 .tsw-loop .panel-membrane {
-  min-height: 280px;
+  min-height: 240px;
   display: flex;
   flex-direction: column;
   gap: var(--sp-4);
   border: 0;
   background-color: #08080a;
   animation: none;
+}
+
+.tsw-loop h3 {
+  font-size: clamp(20px, 1.55vw, 25px);
+  font-weight: 600;
+}
+
+.tsw-loop p {
+  font-size: 13px;
+  line-height: 1.62;
 }
 
 .tsw-loop span {
@@ -4090,14 +4102,11 @@ a.is-action-pending .choice-label,
   background:
     radial-gradient(circle at 50% 46%, rgba(3, 3, 5, 0.2), rgba(3, 3, 5, 0.48) 54%, rgba(3, 3, 5, 0.72) 100%),
     linear-gradient(180deg, rgba(3, 3, 5, 0.34), rgba(3, 3, 5, 0.56)),
-    url("/static/images/site/the-sealed-world/cta-bg.jpg") center / cover;
+    url("/static/images/site/the-sealed-world/cta-bg.webp") center / cover;
   background:
     radial-gradient(circle at 50% 46%, rgba(3, 3, 5, 0.2), rgba(3, 3, 5, 0.48) 54%, rgba(3, 3, 5, 0.72) 100%),
     linear-gradient(180deg, rgba(3, 3, 5, 0.34), rgba(3, 3, 5, 0.56)),
-    image-set(
-      url("/static/images/site/the-sealed-world/cta-bg.webp") type("image/webp"),
-      url("/static/images/site/the-sealed-world/cta-bg.jpg") type("image/jpeg")
-    ) center / cover;
+    image-set(url("/static/images/site/the-sealed-world/cta-bg.webp") type("image/webp")) center / cover;
   filter: saturate(0.96) brightness(1.08);
 }
 

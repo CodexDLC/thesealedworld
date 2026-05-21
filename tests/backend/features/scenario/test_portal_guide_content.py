@@ -23,7 +23,7 @@ def test_portal_guide_dialogue_hub_is_repeatable_npc_topic_list() -> None:
 def test_portal_guide_nodes_use_overseer_avatar() -> None:
     for node in _nodes_by_key().values():
         if node.get("speaker") == "portal_pad_guide":
-            assert node.get("avatar") == "/static/images/scenarios/overseer.png"
+            assert node.get("avatar") == "/static/images/scenarios/overseer.webp"
 
 
 def test_portal_guide_uses_first_quest_visible_name() -> None:

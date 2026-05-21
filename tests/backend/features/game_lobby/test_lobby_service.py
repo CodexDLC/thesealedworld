@@ -21,7 +21,7 @@ class TestGameLobbyService:
                 LobbyCharacterSummary(
                     character_id=10,
                     name="Hero",
-                    avatar_url="/static/images/avatars/silhouette_m.png",
+                    avatar_url="/static/images/avatars/silhouette_m.webp",
                     status="lobby",
                     presence_status="online",
                 )
@@ -35,7 +35,7 @@ class TestGameLobbyService:
         assert len(payload.slots) == 4
         assert payload.slots[0].is_empty is False
         assert payload.slots[0].name == "Hero"
-        assert payload.slots[0].avatar_url == "/static/images/avatars/silhouette_m.png"
+        assert payload.slots[0].avatar_url == "/static/images/avatars/silhouette_m.webp"
         assert payload.slots[0].presence_status == "online"
         assert payload.slots[1].is_empty is True
         assert payload.slots[1].presence_status == "offline"

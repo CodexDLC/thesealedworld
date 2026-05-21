@@ -4,9 +4,10 @@
     {% block meta %}
         {% include "shared/meta.html" %}
     {% endblock meta %}
+    {% include "shared/analytics_head.html" %}
 
     {% block styles %}
-        <style>{{ inline_css('css/fonts.css') | safe }}</style>
+        <style>{{ inline_css('css/fonts-site-critical.css') | safe }}</style>
         <!-- Site Specific Styles -->
         <link rel="preload" href="/static/css/site.css?v={{ static_version }}" as="style">
         <link rel="stylesheet" href="/static/css/site.css?v={{ static_version }}">
@@ -20,6 +21,7 @@
     <script src="/static/js/vendor/alpine.js" defer></script>
 </head>
 <body class="site-body {% block body_class %}{% endblock body_class %}">
+    {% include "shared/analytics_body.html" %}
     <div x-data="{ authModal: null }" style="display: contents;">
         {% include "site/includes/login_modal.html" %}
 

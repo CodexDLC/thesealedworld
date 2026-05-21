@@ -20,7 +20,16 @@ def get_library_service(ui: Annotated[UIRenderer, Depends(get_ui_renderer)]) -> 
 @router.get("/library", name="library")
 async def library(ui: Annotated[UIRenderer, Depends(get_ui_renderer)]):
     """Render the Library page."""
-    return await ui.render("site/library.html")
+    return await ui.render(
+        "site/library.html",
+        context={
+            "meta": {
+                "title": "Библиотека - The Sealed World",
+                "description": "Архив мира The Sealed World: заметки, существа, фрагменты лора и игровые справочники.",
+                "url": "/library",
+            }
+        },
+    )
 
 
 @router.get("/library/fragments/intro", name="library_intro_fragment")

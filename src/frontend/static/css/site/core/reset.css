@@ -11,7 +11,7 @@
 html,
 body {
   background: #000; /* Force black background */
-  font-family: var(--font-ui);
+  font-family: var(--font-page);
   color: var(--col-text-primary);
   line-height: 1.5;
   min-height: 100vh;

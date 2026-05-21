@@ -23,19 +23,3 @@
     display: flex;
     flex-direction: column;
 }
-
-.cs::after {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background:
-        url('/static/images/neuron_mask.png') left center/100px contain no-repeat,
-        url('/static/images/neuron_mask.png') right center/100px contain no-repeat;
-    opacity: 0.12;
-    z-index: 1;
-    pointer-events: none;
-    mix-blend-mode: overlay;
-}

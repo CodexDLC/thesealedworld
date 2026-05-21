@@ -42,6 +42,13 @@ def _elapsed_ms(started_at: float) -> float:
     return round((perf_counter() - started_at) * 1000, 2)
 
 
+def _chat_ws_endpoint(raw_url: str) -> str:
+    base = raw_url.rstrip("/")
+    if base.endswith("/ws/chat"):
+        return base
+    return f"{base}/ws/chat"
+
+
 def _log_session_timing(step: str, *, started_at: float, char_id: int, **extra: Any) -> None:
     logger.bind(step=step, char_id=char_id, duration_ms=_elapsed_ms(started_at), **extra).debug("FrontendSessionTiming")
 
@@ -212,7 +219,7 @@ class SessionContextBuilder:
                 payload_type=arena_response.payload_type,
                 character_status=character_status,
                 arena=arena_payload,
-                background_url="/static/images/scenes/forest.png",
+                background_url="/static/images/scenes/forest.webp",
                 world_theme=getattr(character_status, "world_theme", None),
                 status_seed=status_payload,
                 inventory_window=inventory_window,
@@ -250,7 +257,7 @@ class SessionContextBuilder:
                     combat_result_screen=build_combat_result_screen_vm(combat_payload),
                     combat_screen=build_combat_screen_from_result_vm(combat_payload),
                     combat_outcome_screen=build_combat_outcome_screen_from_result_vm(combat_payload),
-                    background_url="/static/images/scenes/ruins.png",
+                    background_url="/static/images/scenes/ruins.webp",
                     status_seed=self._empty_combat_status_seed(char_id),
                 )
 
@@ -265,7 +272,7 @@ class SessionContextBuilder:
                 combat=combat_payload,
                 combat_screen=build_combat_screen_vm(combat_payload),
                 combat_outcome_screen=build_combat_outcome_screen_from_dashboard_vm(combat_payload),
-                background_url="/static/images/scenes/ruins.png",
+                background_url="/static/images/scenes/ruins.webp",
                 status_seed=self._combat_status_seed(combat_payload),
             )
 
@@ -280,7 +287,7 @@ class SessionContextBuilder:
                 transaction_id="",
                 payload_type="death_session",
                 character_status=character_status,
-                background_url="/static/images/scenes/ruins.png",
+                background_url="/static/images/scenes/ruins.webp",
                 world_theme=getattr(character_status, "world_theme", None),
                 status_seed=status_payload,
                 death={
@@ -305,7 +312,7 @@ class SessionContextBuilder:
                 transaction_id="",
                 payload_type="loot_session",
                 character_status=character_status,
-                background_url="/static/images/scenes/ruins.png",
+                background_url="/static/images/scenes/ruins.webp",
                 world_theme=getattr(character_status, "world_theme", None),
                 status_seed=status_payload,
                 loot={
@@ -516,7 +523,7 @@ class SessionContextBuilder:
             combat=dashboard,
             combat_screen=build_combat_screen_vm(dashboard),
             combat_outcome_screen=build_combat_outcome_screen_from_dashboard_vm(dashboard),
-            background_url="/static/images/scenes/ruins.png",
+            background_url="/static/images/scenes/ruins.webp",
             status_seed=self._combat_status_seed(dashboard),
         )
 
@@ -537,7 +544,7 @@ class SessionContextBuilder:
             combat_result_screen=build_combat_result_screen_vm(result),
             combat_screen=build_combat_screen_from_result_vm(result),
             combat_outcome_screen=build_combat_outcome_screen_from_result_vm(result),
-            background_url="/static/images/scenes/ruins.png",
+            background_url="/static/images/scenes/ruins.webp",
             status_seed=self._empty_combat_status_seed(char_id),
         )
 
@@ -602,6 +609,7 @@ class SessionContextBuilder:
             "initial_inventory_open": initial_inventory_open,
             "debug_enabled": settings.debug,
             "chat_ws_url": settings.chat_ws_url,
+            "chat_ws_endpoint": _chat_ws_endpoint(settings.chat_ws_url),
         }
 
     async def _inventory_window_state(

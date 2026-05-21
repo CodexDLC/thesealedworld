@@ -293,6 +293,27 @@ services:
     networks:
       - tbmmorpg-network
 
+  tg-bot:
+    build:
+      context: ..
+      dockerfile: deploy/tg_bot/Dockerfile
+    container_name: tbmmorpg-tg-bot
+    restart: unless-stopped
+    env_file: ../.env
+    environment:
+      REDIS_URL: redis://:${REDIS_PASSWORD:-dev_redis_password}@redis:6379/0
+      BACKEND_BASE_URL: http://backend:8001
+      REDIS_STREAM_NAME: game_events
+      REDIS_CONSUMER_GROUP: tg_bot
+      DEBUG: "False"
+    depends_on:
+      redis:
+        condition: service_healthy
+      backend:
+        condition: service_started
+    networks:
+      - tbmmorpg-network
+
   # ── Nginx (disabled — uncomment when ready to put behind reverse proxy) ──
 
   # nginx:

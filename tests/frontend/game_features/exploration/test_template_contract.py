@@ -771,6 +771,7 @@ def test_inventory_window_template_defines_frontend_contract():
     assert "inventory_notice" in template
     assert "row.card_class" in template
     assert "row.comparison" in template
+    assert "row_valid_slots | tojson | forceescape" in template
     assert "INVENTORY_LINK_PENDING" not in template
     assert 'hx-get="/game/character-status/panel?char_id={{ char_id }}"' in compact_status
     assert 'hx-trigger="character-status-refresh from:body"' in compact_status
@@ -898,6 +899,10 @@ def test_inventory_window_template_renders_backend_contract_dto():
     assert '? selectedSlot : "main_hand"' in html
     assert "activeInventoryTab === 'items'" in html
     assert 'data-inventory-cells="64"' in html
+    assert (
+        "{ 'inventory-hidden': !((!selectedSlot || 'main_hand' === selectedSlot || "
+        "[&#34;main_hand&#34;, &#34;off_hand&#34;].includes(selectedSlot))"
+    ) in html
 
     locked_html = template.render(
         inventory_window=inventory.model_copy(
@@ -1134,6 +1139,13 @@ def test_game_runtime_loads_before_alpine_initializes():
 
     assert '/static/css/game.css?v={{ static_version }}' in template
     assert template.index('/static/js/game.js') < template.index('/static/js/vendor/alpine.js')
+
+
+def test_chat_template_uses_normalized_websocket_endpoint():
+    template = Path("src/frontend/templates/shared/chat/main.html").read_text(encoding="utf-8")
+
+    assert 'ws-connect="{{ chat_ws_endpoint }}?token={{ access_token }}&char_id={{ char_id }}' in template
+    assert "{{ chat_ws_url }}/ws/chat" not in template
 
 
 def test_game_header_has_system_exit_to_lobby():

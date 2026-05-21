@@ -101,11 +101,39 @@ class ArticleRepository:
         if article.is_published:
             article.is_published = False
             article.published_at = None
+            newly_published = False
         else:
             article.is_published = True
             article.published_at = datetime.now(UTC)
+            newly_published = True
         await self.session.commit()
         await self.session.refresh(article)
+
+        if newly_published:
+            try:
+                import os
+                import redis.asyncio as redis
+                from codex_platform.streams.producer import StreamProducer
+                from src.frontend.config.settings import settings
+                
+                redis_url = os.getenv("REDIS_URL") or getattr(settings, "redis_url", "redis://localhost:6379/0")
+                redis_client = redis.from_url(redis_url, decode_responses=True)
+                stream_name = getattr(settings, "game_stream_name", "game_events")
+                
+                producer = StreamProducer(redis_client, stream_name)
+                event_data = {
+                    "id": str(article.id),
+                    "title": article.title,
+                    "slug": article.slug,
+                    "preview": article.preview or "",
+                    "cover_image": article.cover_image or "",
+                }
+                await producer.publish("news.published", event_data)
+                await redis_client.aclose()
+            except Exception as e:
+                from loguru import logger
+                logger.opt(exception=True).error(f"Failed to publish news.published event to Redis Stream: {e}")
+
         return article
 
     async def delete(self, article: Article) -> None:

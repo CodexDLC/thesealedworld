@@ -14,6 +14,9 @@ Full layer changelogs live in:
 
 ## [Unreleased]
 
+- Production deployment now builds and deploys the Telegram bot as its own
+  release image/layer instead of leaving it only in the local Docker Compose
+  stack.
 - Telegram news announcements now use a persistent media sender that can replace
   or delete channel posts through the shared sender coordinate storage.
 

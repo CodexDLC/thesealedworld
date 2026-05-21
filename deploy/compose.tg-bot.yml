@@ -1,0 +1,30 @@
+name: tbmmorpg
+
+services:
+  tg-bot:
+    image: ${DOCKER_IMAGE_TG_BOT:?DOCKER_IMAGE_TG_BOT is required}
+    container_name: tbmmorpg-tg-bot
+    restart: unless-stopped
+    env_file:
+      - path: ${DEPLOY_ENV_FILE:-.env}
+        required: false
+    environment:
+      BOT_TOKEN: ${BOT_TOKEN:?BOT_TOKEN is required}
+      TELEGRAM_CHANNEL_ID: ${TELEGRAM_CHANNEL_ID:?TELEGRAM_CHANNEL_ID is required}
+      DOMAIN_NAME: ${DOMAIN_NAME:?DOMAIN_NAME is required}
+      SECRET_KEY: ${SECRET_KEY:?SECRET_KEY is required}
+      REDIS_URL: ${REDIS_URL:?REDIS_URL is required}
+      BACKEND_BASE_URL: ${BACKEND_BASE_URL:-http://backend:8001}
+      REDIS_STREAM_NAME: ${GAME_STREAM_NAME:-game_events}
+      REDIS_CONSUMER_GROUP: tg_bot
+      USE_REDIS: "True"
+      USE_REDIS_FSM: "True"
+      USE_REDIS_STREAMS: "True"
+      DEBUG: "False"
+    networks:
+      - tbmmorpg-network
+
+networks:
+  tbmmorpg-network:
+    name: tbmmorpg-network
+    driver: bridge

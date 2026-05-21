@@ -23,7 +23,6 @@
 
 .logo-text {
     font-family: var(--font-world);
-    font-style: italic;
     color: var(--col-accent);
     letter-spacing: 0.1em;
 }

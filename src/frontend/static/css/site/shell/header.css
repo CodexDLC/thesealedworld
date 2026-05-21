@@ -71,6 +71,7 @@
 .logo-main {
   font-family: var(--font-world);
   font-size: clamp(18px, 2vw, 24px);
+  font-weight: 500;
   line-height: 1;
   color: rgba(245, 232, 204, 0.96);
 }

@@ -6,7 +6,7 @@
     {% endblock meta %}
 
     {% block styles %}
-        <style>{{ inline_css('css/fonts.css') | safe }}</style>
+        <style>{{ inline_css('css/fonts-site-critical.css') | safe }}</style>
         <!-- Site Specific Styles -->
         <link rel="preload" href="/static/css/site.css?v={{ static_version }}" as="style">
         <link rel="stylesheet" href="/static/css/site.css?v={{ static_version }}">

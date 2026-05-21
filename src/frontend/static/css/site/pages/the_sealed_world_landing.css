@@ -227,18 +227,27 @@
   margin-bottom: var(--sp-6);
 }
 
-.tsw-hero h1,
-.tsw-band h2,
-.tsw-cta h2 {
+.tsw-hero h1 {
   font-family: var(--font-world);
   color: rgba(245, 232, 204, 0.96);
   line-height: 0.92;
   text-wrap: balance;
 }
 
+.tsw-band h2,
+.tsw-cta h2 {
+  font-family: var(--font-page);
+  color: rgba(245, 232, 204, 0.96);
+  font-weight: 600;
+  letter-spacing: 0;
+  line-height: 1.12;
+  text-wrap: balance;
+}
+
 .tsw-hero h1 {
   max-width: 11ch;
   font-size: clamp(64px, 9.4vw, 148px);
+  font-weight: 500;
   margin-bottom: var(--sp-5);
   text-shadow: 0 22px 70px rgba(0, 0, 0, 0.64);
 }
@@ -247,16 +256,16 @@
 .tsw-band h2 em,
 .tsw-cta h2 em {
   color: var(--col-parchment);
-  font-style: italic;
+  font-style: normal;
 }
 
 .tsw-hero-lede {
   max-width: 600px;
   color: rgba(230, 204, 172, 0.86);
-  font-family: var(--font-world);
-  font-size: clamp(22px, 2.05vw, 30px);
-  font-style: italic;
-  line-height: 1.42;
+  font-family: var(--font-page);
+  font-size: clamp(19px, 1.65vw, 24px);
+  font-weight: 500;
+  line-height: 1.5;
 }
 
 .tsw-hero-meta {
@@ -356,7 +365,7 @@
 
 .tsw-band h2,
 .tsw-cta h2 {
-  font-size: clamp(38px, 6vw, 82px);
+  font-size: clamp(30px, 3.8vw, 56px);
 }
 
 .tsw-copy > p,
@@ -364,7 +373,7 @@
 .tsw-cta p {
   max-width: 68ch;
   color: rgba(230, 204, 172, 0.72);
-  font-family: var(--font-world);
+  font-family: var(--font-page);
   font-size: clamp(17px, 1.6vw, 21px);
   line-height: 1.72;
 }
@@ -385,9 +394,9 @@
 
 .tsw-zone-list strong {
   color: var(--col-parchment);
-  font-family: var(--font-world);
+  font-family: var(--font-page);
   font-size: var(--text-xl);
-  font-weight: 600;
+  font-weight: 650;
 }
 
 .tsw-zone-list span:last-child {
@@ -473,8 +482,9 @@
 .tsw-loop h3,
 .tsw-feedback-panel h3 {
   color: var(--col-parchment);
-  font-family: var(--font-world);
+  font-family: var(--font-page);
   font-size: clamp(22px, 2vw, 30px);
+  font-weight: 650;
   line-height: 1.12;
 }
 
@@ -520,13 +530,23 @@
 }
 
 .tsw-loop .panel-membrane {
-  min-height: 280px;
+  min-height: 240px;
   display: flex;
   flex-direction: column;
   gap: var(--sp-4);
   border: 0;
   background-color: #08080a;
   animation: none;
+}
+
+.tsw-loop h3 {
+  font-size: clamp(20px, 1.55vw, 25px);
+  font-weight: 600;
+}
+
+.tsw-loop p {
+  font-size: 13px;
+  line-height: 1.62;
 }
 
 .tsw-loop span {

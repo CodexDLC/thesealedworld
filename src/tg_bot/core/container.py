@@ -16,6 +16,7 @@ from redis.asyncio import Redis
 from tg_bot.core.config import BotSettings
 from tg_bot.core.settings import INSTALLED_FEATURES, INSTALLED_REDIS_FEATURES
 from tg_bot.infrastructure.redis.stream_storage import RedisStreamStorageAdapter
+from tg_bot.sender import TelegramMediaSender
 
 
 class BotContainer(BaseBotContainer):
@@ -70,6 +71,8 @@ class BotContainer(BaseBotContainer):
             # Connect Redis dispatcher to the container and worker
             self.redis_dispatcher.setup(container=self)
             self.stream_processor.set_message_callback(self.redis_dispatcher.process_message)
+
+        self.media_sender = TelegramMediaSender(bot=bot, manager=self.view_sender.manager)
 
     def _include_feature_redis_routers(self) -> None:
         """Register Redis routers declared by each redis feature setting module."""

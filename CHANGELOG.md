@@ -14,6 +14,9 @@ Full layer changelogs live in:
 
 ## [Unreleased]
 
+- Telegram news announcements now use a persistent media sender that can replace
+  or delete channel posts through the shared sender coordinate storage.
+
 ## [v0.1.0a6] - Alpha 6
 
 ### Telegram And News

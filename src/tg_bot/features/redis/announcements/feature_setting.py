@@ -26,3 +26,12 @@ def create_orchestrator(container: Any) -> Any:
     from .logic.orchestrator import AnnouncementsOrchestrator
 
     return AnnouncementsOrchestrator(container)
+
+
+def get_redis_router() -> Any:
+    """
+    Returns the Redis router for this feature.
+    """
+    from .handlers import redis_router
+
+    return redis_router

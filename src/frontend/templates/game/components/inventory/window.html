@@ -505,7 +505,7 @@
                 {% set row_valid_slots = row.valid_slots if row.valid_slots is defined else [] %}
                 <button type="button"
                         class="inventory-card {{ row.card_class if row.card_class is defined else '' }} {{ 'is-equipped' if row.is_equipped else '' }} inventory-grade-r{{ row_tier }}"
-                        x-bind:class="{ 'inventory-hidden': !((!selectedSlot || '{{ row.equip_target or '' }}' === selectedSlot || {{ row_valid_slots | tojson }}.includes(selectedSlot))
+                        x-bind:class="{ 'inventory-hidden': !((!selectedSlot || '{{ row.equip_target or '' }}' === selectedSlot || {{ row_valid_slots | tojson | forceescape }}.includes(selectedSlot))
                             && (!searchQuery.trim() || {{ row.name | tojson | forceescape }}.toLowerCase().includes(searchQuery.toLowerCase()))) }"
                         aria-label="{{ row.name }}"
                         data-inventory-tooltip-trigger

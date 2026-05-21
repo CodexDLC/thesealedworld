@@ -4,7 +4,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field, model_validator
 
-DEFAULT_INVENTORY_AVATAR_URL = "/static/images/avatars/silhouette_m.png"
+DEFAULT_INVENTORY_AVATAR_URL = "/static/images/avatars/silhouette_m.webp"
 
 SlotLayer = Literal["armor", "garment", "equipment", "accessory", "quick"]
 

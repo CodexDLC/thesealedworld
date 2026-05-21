@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from typing import TYPE_CHECKING, Any
 
 from codex_bot.base import BaseBotOrchestrator, UnifiedViewDTO, ViewResultDTO

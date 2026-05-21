@@ -65,7 +65,7 @@ async def test_city_service_view_returns_tavern_main_screen_and_enters_domain() 
     assert payload.service_type == "tavern"
     assert payload.screen == CityServiceScreenEnum.MAIN
     assert payload.location_id == "53_53"
-    assert payload.background_url == "/static/images/scenes/tavern.png"
+    assert payload.background_url == "/static/images/scenes/tavern.webp"
     assert integrator.entered == [7]
 
 
@@ -92,7 +92,7 @@ async def test_city_service_portal_returns_service_view_background_and_portal_ac
     assert payload.service_id == "svc_portal_hub"
     assert payload.service_type == "portal"
     assert payload.location_id == "52_52"
-    assert payload.background_url == "/static/images/exploration/city/d4/52_52_runic_circle_plaza.png"
+    assert payload.background_url == "/static/images/exploration/city/d4/52_52_runic_circle_plaza.webp"
     assert payload.sections == []
     assert payload.metadata["npc_key"] == "portal_pad_guide"
     assert payload.metadata["npc"]["id"] == "portal_first_contact"

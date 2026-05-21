@@ -1,7 +1,11 @@
+from __future__ import annotations
+
 from typing import TYPE_CHECKING, Any
 
 from codex_bot.base import UnifiedViewDTO, ViewResultDTO
 from loguru import logger as log
+from tg_bot.features.redis.announcements.storage import TelegramMessageStore
+from tg_bot.sender import TelegramMediaSender
 
 if TYPE_CHECKING:
     from codex_bot.director.director import Director
@@ -12,6 +16,8 @@ class AnnouncementsOrchestrator:
 
     def __init__(self, container: Any) -> None:
         self.container = container
+        self.message_store = TelegramMessageStore(container.redis_client)
+        self.sender = TelegramMediaSender(container.bot)
 
     async def process_news(self, payload: dict[str, Any]) -> None:
         """Processes published news events and posts announcements to the Telegram channel.
@@ -27,53 +33,62 @@ class AnnouncementsOrchestrator:
         preview = payload.get("preview", "")
         slug = payload.get("slug", "")
         cover_image = payload.get("cover_image", "")
+        article_id = str(payload.get("id", "")).strip()
+        if not article_id:
+            log.warning("AnnouncementsOrchestrator | news.published payload has no article id. Skipping publication.")
+            return
 
-        # Format URL
         domain = self.container.settings.domain_name
-        if not domain.startswith(("http://", "https://")):
-            protocol = "http://" if "localhost" in domain or "127.0.0.1" in domain else "https://"
-            link = f"{protocol}{domain}/news/{slug}"
-        else:
-            link = f"{domain}/news/{slug}"
-
-        # Format HTML message
+        link = self.sender.build_absolute_url(domain=domain, path_or_url=f"/news/{slug}")
+        photo_url = self.sender.build_absolute_url(domain=domain, path_or_url=cover_image)
         text = f'📰 <b>{title}</b>\n\n{preview}\n\n🔗 <a href="{link}">Читать далее на сайте</a>'
 
         try:
-            # Handle cover image URL if provided
-            has_valid_photo = False
-            photo_url = ""
-            if cover_image:
-                if cover_image.startswith(("http://", "https://")):
-                    photo_url = cover_image
-                    has_valid_photo = True
-                else:
-                    # Resolve relative path using domain_name
-                    base_domain = domain
-                    if base_domain.startswith(("http://", "https://")):
-                        from urllib.parse import urlparse
+            await self._delete_stored_message(scope="news", entity_id=article_id)
 
-                        parsed = urlparse(base_domain)
-                        base_domain = parsed.netloc
+            log.info(f"AnnouncementsOrchestrator | Sending announcement to channel {chat_id}.")
+            result = await self.sender.send_html(chat_id=chat_id, text=text, link=link, photo_url=photo_url)
 
-                    protocol = "http://" if "localhost" in base_domain or "127.0.0.1" in base_domain else "https://"
-                    photo_url = f"{protocol}{base_domain}{'/' if not cover_image.startswith('/') else ''}{cover_image}"
-
-                    # Telegram servers cannot fetch from localhost/127.0.0.1
-                    if "localhost" not in photo_url and "127.0.0.1" not in photo_url:
-                        has_valid_photo = True
-
-            if has_valid_photo:
-                log.info(f"AnnouncementsOrchestrator | Sending photo to channel {chat_id} with caption.")
-                await self.container.bot.send_photo(chat_id=chat_id, photo=photo_url, caption=text, parse_mode="HTML")
-            else:
-                log.info(f"AnnouncementsOrchestrator | Sending HTML text to channel {chat_id}.")
-                await self.container.bot.send_message(
-                    chat_id=chat_id, text=text, parse_mode="HTML", disable_web_page_preview=False
-                )
+            await self.message_store.save(
+                scope="news",
+                entity_id=article_id,
+                chat_id=result.chat_id,
+                message_id=result.message_id,
+                slug=slug,
+                kind=result.kind,
+            )
         except Exception as e:
             log.error(f"AnnouncementsOrchestrator | Failed to send telegram announcement: {e}")
             raise
+
+    async def process_news_unpublished(self, payload: dict[str, Any]) -> None:
+        article_id = str(payload.get("id", "")).strip()
+        if not article_id:
+            log.warning("AnnouncementsOrchestrator | news.unpublished payload has no article id. Skipping deletion.")
+            return
+
+        await self._delete_stored_message(scope="news", entity_id=article_id)
+
+    async def _delete_stored_message(self, *, scope: str, entity_id: str) -> None:
+        stored = await self.message_store.get(scope=scope, entity_id=entity_id)
+        if not stored:
+            return
+
+        chat_id = stored.get("chat_id")
+        message_id = stored.get("message_id")
+        if chat_id and message_id:
+            try:
+                await self.sender.delete(chat_id=chat_id, message_id=message_id)
+                log.info(
+                    f"AnnouncementsOrchestrator | Deleted stored Telegram message scope='{scope}' entity_id='{entity_id}'"
+                )
+            except Exception as e:
+                log.warning(
+                    f"AnnouncementsOrchestrator | Failed to delete Telegram message "
+                    f"scope='{scope}' entity_id='{entity_id}': {e}"
+                )
+
+        await self.message_store.delete(scope=scope, entity_id=entity_id)
 
     async def render_content(
         self, director: "Director" | None = None, payload: Any = None

@@ -39,6 +39,7 @@ class NewsListVM:
 class ArticleDetailVM:
     slug: str
     title: str
+    preview: str
     body: str
     published_at: str
     cover_image: str | None = None

@@ -2,7 +2,7 @@ from pydantic import BaseModel
 
 from src.frontend.integrations.backend_api.game_lobby import GameLobbyResponse, LobbySlotPayload
 
-DEFAULT_CHARACTER_AVATAR_URL = "/static/images/avatars/silhouette_m.png"
+DEFAULT_CHARACTER_AVATAR_URL = "/static/images/avatars/silhouette_m.webp"
 
 
 class LobbySlotVM(BaseModel):

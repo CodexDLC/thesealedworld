@@ -20,6 +20,8 @@ Full layer changelogs live in:
 
 - Adds the Telegram bot/community feed runtime for news auto-publishing,
   announcement delivery, and moderated community group stream handling.
+- Adds a local Docker Compose service for running the Telegram bot against the
+  development Redis/backend stack.
 - Publishes site news article events to the `game_events` stream so runtime
   integrations can react to article publication.
 

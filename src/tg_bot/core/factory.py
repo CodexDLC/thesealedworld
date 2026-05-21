@@ -6,7 +6,7 @@ from aiogram.fsm.storage.redis import RedisStorage
 from codex_bot.engine.factory.bot_builder import BotBuilder
 from codex_bot.engine.protocols import ContainerProtocol
 
-# from loguru import logger as log
+from loguru import logger as log
 from redis.asyncio import Redis
 
 from tg_bot.core.config import BotSettings
@@ -49,4 +49,12 @@ def build_bot(
         builder.add_project_middleware(mw)
 
     # --- 4. Build Core ---
-    return builder.build()
+    bot, dp = builder.build()
+
+    discovery = getattr(container, "discovery_service", None)
+    if discovery:
+        for router in discovery.collect_aiogram_routers():
+            dp.include_router(router)
+            log.info(f"BotFactory | Aiogram router included: {router.name}")
+
+    return bot, dp

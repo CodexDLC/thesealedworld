@@ -83,7 +83,7 @@ class FakeCombatStore:
             }
             for actor_id in actor_ids
         }
-        actors["1"]["meta"]["avatar_url"] = "/static/images/avatars/rook7.png"
+        actors["1"]["meta"]["avatar_url"] = "/static/images/avatars/rook7.webp"
         actors["2"]["meta"]["tags"] = ["monster", "rat_swarm"]
         actors["2"]["meta"]["role"] = "minion"
         actors["2"]["meta"]["template_id"] = "sewer_rat"
@@ -537,7 +537,7 @@ async def test_combat_dashboard_exposes_actor_avatar_url():
 
     dashboard = await service.get_dashboard(1)
 
-    assert dashboard.hero.avatar_url == "/static/images/avatars/rook7.png"
+    assert dashboard.hero.avatar_url == "/static/images/avatars/rook7.webp"
 
 
 @pytest.mark.asyncio

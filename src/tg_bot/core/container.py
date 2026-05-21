@@ -1,4 +1,5 @@
 import asyncio
+import importlib
 from typing import Any
 
 from aiogram import Bot
@@ -14,6 +15,7 @@ from redis.asyncio import Redis
 # 2. Local Project Imports
 from tg_bot.core.config import BotSettings
 from tg_bot.core.settings import INSTALLED_FEATURES, INSTALLED_REDIS_FEATURES
+from tg_bot.infrastructure.redis.stream_storage import RedisStreamStorageAdapter
 
 
 class BotContainer(BaseBotContainer):
@@ -32,8 +34,9 @@ class BotContainer(BaseBotContainer):
 
         # Stream processor is initialized only if redis is active
         # The stream and consumer group are settings-driven for independence from monolith defaults
+        stream_storage = RedisStreamStorageAdapter(redis_client) if redis_client else None
         self.stream_processor = RedisStreamProcessor(
-            storage=redis_client,
+            storage=stream_storage,
             stream_name=settings.redis_stream_name,
             consumer_group_name=settings.redis_consumer_group,
             consumer_name=f"bot_worker_{settings.secret_key[:5]}",
@@ -54,6 +57,7 @@ class BotContainer(BaseBotContainer):
 
         # Discover routers and configurations
         self.discovery_service.discover_all()
+        self._include_feature_redis_routers()
 
         # Instantiate all discovered feature orchestrators
         self.features = self.discovery_service.create_feature_orchestrators(self)
@@ -66,6 +70,23 @@ class BotContainer(BaseBotContainer):
             # Connect Redis dispatcher to the container and worker
             self.redis_dispatcher.setup(container=self)
             self.stream_processor.set_message_callback(self.redis_dispatcher.process_message)
+
+    def _include_feature_redis_routers(self) -> None:
+        """Register Redis routers declared by each redis feature setting module."""
+        for feature_name in INSTALLED_REDIS_FEATURES:
+            module_path = f"tg_bot.features.redis.{feature_name}.feature_setting"
+            try:
+                module = importlib.import_module(module_path)
+            except ImportError as exc:
+                log.warning(f"BotContainer | Failed to import redis feature settings '{module_path}': {exc}")
+                continue
+
+            router_factory = getattr(module, "get_redis_router", None)
+            if not callable(router_factory):
+                log.debug(f"BotContainer | Redis feature '{feature_name}' has no get_redis_router()")
+                continue
+
+            self.redis_dispatcher.include_router(router_factory())
 
     async def shutdown(self) -> None:
         """Gracefully cleanup all infrastructure resources."""

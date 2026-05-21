@@ -162,7 +162,7 @@ async def test_world_location_image_task_applies_result_to_node_content(mocker):
         content={
             "title": "Площадь Рунного Круга",
             "description": "Центр цитадели.",
-            "background_url": "/static/images/exploration/city/d4/52_52_runic_circle_plaza.png",
+            "background_url": "/static/images/exploration/city/d4/52_52_runic_circle_plaza.webp",
         }
     )
     data = mocker.MagicMock()
@@ -190,7 +190,7 @@ async def test_world_location_image_task_applies_result_to_node_content(mocker):
     updated = data.update_content.await_args.args[2]
     assert updated["background_url"] == "/static/generated-assets/world/locations/d4/52_52_hash.webp"
     assert updated["visual"]["status"] == "generated"
-    assert updated["visual"]["previous_background_url"] == "/static/images/exploration/city/d4/52_52_runic_circle_plaza.png"
+    assert updated["visual"]["previous_background_url"] == "/static/images/exploration/city/d4/52_52_runic_circle_plaza.webp"
     assert updated["visual"]["width"] == 1536
     assert updated["visual"]["height"] == 864
     data.update_flags.assert_awaited_once_with(52, 52, {"ai_image_status": "generated"})

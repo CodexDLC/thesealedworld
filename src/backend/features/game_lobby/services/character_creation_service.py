@@ -62,9 +62,9 @@ class CharacterCreationService:
         avatar_url = dto.avatar
         if not avatar_url:
             if dto.gender == "female":
-                avatar_url = "/static/images/avatars/silhouette_f.png"
+                avatar_url = "/static/images/avatars/silhouette_f.webp"
             else:
-                avatar_url = "/static/images/avatars/silhouette_m.png"
+                avatar_url = "/static/images/avatars/silhouette_m.webp"
 
         character = await self.integration.create_character(
             user_id=user.id,

@@ -4,6 +4,7 @@
     {% block meta %}
         {% include "shared/meta.html" %}
     {% endblock meta %}
+    {% include "shared/analytics_head.html" %}
 
     {% block styles %}
         <style>{{ inline_css('css/fonts-site-critical.css') | safe }}</style>
@@ -20,6 +21,7 @@
     <script src="/static/js/vendor/alpine.js" defer></script>
 </head>
 <body class="site-body {% block body_class %}{% endblock body_class %}">
+    {% include "shared/analytics_body.html" %}
     <div x-data="{ authModal: null }" style="display: contents;">
         {% include "site/includes/login_modal.html" %}
 

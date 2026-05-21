@@ -97,7 +97,7 @@ def _player_snapshot(char_id):
             "actor_type": "player",
             "actor_id": char_id,
             "name": f"Hero {char_id}",
-            "avatar_url": "/static/images/avatars/rook7.png",
+            "avatar_url": "/static/images/avatars/rook7.webp",
             "gender": "male",
         },
         "combat": {
@@ -262,7 +262,7 @@ async def test_lifecycle_creates_shadow_clone():
     assert data.actors["-7"]["meta"]["type"] == "shadow"
     assert "shadow" in data.actors["-7"]["meta"]["tags"]
     assert data.actors["-7"]["meta"]["name"].startswith("Shadow ")
-    assert data.actors["-7"]["meta"]["avatar_url"] == "/static/images/avatars/rook7.png"
+    assert data.actors["-7"]["meta"]["avatar_url"] == "/static/images/avatars/rook7.webp"
     assert data.actors["-7"]["meta"]["source_ref"] == "player:7"
     assert data.actors["-7"]["meta"]["hp"] == 64
     assert data.actors["-7"]["meta"]["max_hp"] == 64

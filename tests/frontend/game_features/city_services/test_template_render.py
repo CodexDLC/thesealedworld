@@ -53,4 +53,4 @@ def test_city_service_viewport_uses_city_fallback_background_instead_of_forest()
     rendered = template.render(city_service=city_service, char_id=7)
 
     assert "/static/images/exploration/terrain/ancient_pavement_hub_01.webp" in rendered
-    assert "/static/images/scenes/forest.png" not in rendered
+    assert "/static/images/scenes/forest.webp" not in rendered

@@ -81,15 +81,12 @@
     radial-gradient(circle at 12% 20%, rgba(245, 232, 204, 0.34) 0 0.7px, transparent 1.1px),
     radial-gradient(circle at 78% 12%, rgba(255, 170, 0, 0.22) 0 0.6px, transparent 1px),
     radial-gradient(circle at 45% 72%, rgba(230, 204, 172, 0.22) 0 0.7px, transparent 1.1px),
-    url("/static/images/site/the-sealed-world/tex-dust.png");
+    url("/static/images/site/the-sealed-world/tex-dust.webp");
   background-image:
     radial-gradient(circle at 12% 20%, rgba(245, 232, 204, 0.34) 0 0.7px, transparent 1.1px),
     radial-gradient(circle at 78% 12%, rgba(255, 170, 0, 0.22) 0 0.6px, transparent 1px),
     radial-gradient(circle at 45% 72%, rgba(230, 204, 172, 0.22) 0 0.7px, transparent 1.1px),
-    image-set(
-      url("/static/images/site/the-sealed-world/tex-dust.webp") type("image/webp"),
-      url("/static/images/site/the-sealed-world/tex-dust.png") type("image/png")
-    );
+    image-set(url("/static/images/site/the-sealed-world/tex-dust.webp") type("image/webp"));
   background-size: 180px 180px, 280px 280px, 420px 420px, 920px;
   background-position: 0 0, 30px 60px, 90px 20px, center;
   opacity: 0.14;
@@ -197,15 +194,12 @@
     radial-gradient(circle, rgba(245, 232, 204, 0.3) 0 0.65px, transparent 1px),
     radial-gradient(circle, rgba(255, 170, 0, 0.16) 0 0.55px, transparent 0.95px),
     radial-gradient(circle, rgba(230, 204, 172, 0.14) 0 0.75px, transparent 1.15px),
-    url("/static/images/site/the-sealed-world/tex-dust.png");
+    url("/static/images/site/the-sealed-world/tex-dust.webp");
   background-image:
     radial-gradient(circle, rgba(245, 232, 204, 0.3) 0 0.65px, transparent 1px),
     radial-gradient(circle, rgba(255, 170, 0, 0.16) 0 0.55px, transparent 0.95px),
     radial-gradient(circle, rgba(230, 204, 172, 0.14) 0 0.75px, transparent 1.15px),
-    image-set(
-      url("/static/images/site/the-sealed-world/tex-dust.webp") type("image/webp"),
-      url("/static/images/site/the-sealed-world/tex-dust.png") type("image/png")
-    );
+    image-set(url("/static/images/site/the-sealed-world/tex-dust.webp") type("image/webp"));
   background-size: 220px 220px, 380px 380px, 680px 680px, 1120px;
   background-position: 10px 40px, 120px 20px, 60px 120px, center;
   opacity: 0.12;
@@ -328,11 +322,8 @@
   content: "";
   position: absolute;
   inset: 0;
-  background-image: url("/static/images/site/the-sealed-world/tex-dust.png");
-  background-image: image-set(
-    url("/static/images/site/the-sealed-world/tex-dust.webp") type("image/webp"),
-    url("/static/images/site/the-sealed-world/tex-dust.png") type("image/png")
-  );
+  background-image: url("/static/images/site/the-sealed-world/tex-dust.webp");
+  background-image: image-set(url("/static/images/site/the-sealed-world/tex-dust.webp") type("image/webp"));
   background-size: 820px;
   opacity: 0.035;
   pointer-events: none;
@@ -590,14 +581,11 @@
   background:
     radial-gradient(circle at 50% 46%, rgba(3, 3, 5, 0.2), rgba(3, 3, 5, 0.48) 54%, rgba(3, 3, 5, 0.72) 100%),
     linear-gradient(180deg, rgba(3, 3, 5, 0.34), rgba(3, 3, 5, 0.56)),
-    url("/static/images/site/the-sealed-world/cta-bg.jpg") center / cover;
+    url("/static/images/site/the-sealed-world/cta-bg.webp") center / cover;
   background:
     radial-gradient(circle at 50% 46%, rgba(3, 3, 5, 0.2), rgba(3, 3, 5, 0.48) 54%, rgba(3, 3, 5, 0.72) 100%),
     linear-gradient(180deg, rgba(3, 3, 5, 0.34), rgba(3, 3, 5, 0.56)),
-    image-set(
-      url("/static/images/site/the-sealed-world/cta-bg.webp") type("image/webp"),
-      url("/static/images/site/the-sealed-world/cta-bg.jpg") type("image/jpeg")
-    ) center / cover;
+    image-set(url("/static/images/site/the-sealed-world/cta-bg.webp") type("image/webp")) center / cover;
   filter: saturate(0.96) brightness(1.08);
 }
 

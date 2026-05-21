@@ -29,7 +29,7 @@ class TestCharacterCreationService:
             user_id=user_id,
             name="NewHero",
             gender="male",
-            avatar_url="/static/images/avatars/silhouette_m.png",
+            avatar_url="/static/images/avatars/silhouette_m.webp",
             created_at=datetime.now(UTC),
             location_id="52_52",
         )

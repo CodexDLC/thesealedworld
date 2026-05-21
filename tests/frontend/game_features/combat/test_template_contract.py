@@ -445,8 +445,8 @@ def test_combat_sidebars_use_combat_panels():
     assert "FINAL PLAYER STATE" in left
     assert "FINAL TEAMS" not in left
     assert "combat-result-art-panel" in right
-    assert "combat-result-victory.png" in right
-    assert "combat-result-defeat.png" in right
+    assert "combat-result-victory.webp" in right
+    assert "combat-result-defeat.webp" in right
     assert "DEBUG_EFFECT_PLACEHOLDER" not in left
     assert "DEBUG_EFFECT_PLACEHOLDER" not in right
     assert "DEBUG_BLEED" not in left
@@ -510,7 +510,7 @@ def test_combat_css_contains_texture_surfaces_without_shell_overrides():
     token_block = source.split(".combat-token {", maxsplit=1)[1].split(".combat-token img", maxsplit=1)[0]
     assert "button-surface-03-aged-bronze.webp" not in token_block
     assert "duel-hall.webp" in source
-    assert "universal-combat-bg.png" in source
+    assert "universal-combat-bg.webp" in source
     assert ".combat-log-icon" in source
     assert ".combat-exchange-wave" in source
     assert ".combat-exchange-wave__line" in source
@@ -874,7 +874,7 @@ def test_combat_result_sidebars_render_without_runtime_screen():
     assert "COMBAT CONTEXT" not in right_html
     assert "AFTERMATH" not in right_html
     assert "combat_session_finished" not in right_html
-    assert "combat-result-defeat.png" in right_html
+    assert "combat-result-defeat.webp" in right_html
     assert "Поражение" not in right_html
 
 
@@ -1334,7 +1334,7 @@ def test_combat_screen_vm_uses_shadow_actor_avatar_before_shadow_fallback():
             name="CodexDLC",
             actor_type="player",
             team="team_1",
-            avatar_url="/static/images/avatars/rook7.png",
+            avatar_url="/static/images/avatars/rook7.webp",
             vitals=CombatActorVitalsDTO(hp_current=40, hp_max=40),
         ),
         target=CombatActorCardDTO(
@@ -1342,7 +1342,7 @@ def test_combat_screen_vm_uses_shadow_actor_avatar_before_shadow_fallback():
             name="Shadow CodexDLC",
             actor_type="shadow",
             team="team_2",
-            avatar_url="/static/images/avatars/rook7.png",
+            avatar_url="/static/images/avatars/rook7.webp",
             vitals=CombatActorVitalsDTO(hp_current=40, hp_max=40),
         ),
     )
@@ -1351,4 +1351,4 @@ def test_combat_screen_vm_uses_shadow_actor_avatar_before_shadow_fallback():
 
     assert screen.target is not None
     assert screen.target.is_shadow is True
-    assert screen.target.avatar_url == "/static/images/avatars/rook7.png"
+    assert screen.target.avatar_url == "/static/images/avatars/rook7.webp"

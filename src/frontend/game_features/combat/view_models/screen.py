@@ -18,9 +18,9 @@ if TYPE_CHECKING:
         CombatResultDTO,
     )
 
-DEFAULT_PLAYER_AVATAR_URL = "/static/images/avatars/silhouette_m.png"
-DEFAULT_SHADOW_AVATAR_URL = "/static/images/avatars/veil4.png"
-DEFAULT_MONSTER_AVATAR_URL = "/static/images/avatars/silhouette_f.png"
+DEFAULT_PLAYER_AVATAR_URL = "/static/images/avatars/silhouette_m.webp"
+DEFAULT_SHADOW_AVATAR_URL = "/static/images/avatars/veil4.webp"
+DEFAULT_MONSTER_AVATAR_URL = "/static/images/avatars/silhouette_f.webp"
 COMBAT_ICON_ROOT = "/static/images/ui/combat-icons"
 
 

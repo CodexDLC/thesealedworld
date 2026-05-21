@@ -54,3 +54,4 @@ async def cmd_menu(message: Message, director: Director) -> None:
 # --- Developer Tools ---
 # You can safely comment out or delete this command in production
 router.message(Command("id"))(inspect_ids_handler)
+router.channel_post(Command("id"))(inspect_ids_handler)

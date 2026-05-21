@@ -35,13 +35,14 @@ class BotContainer(BaseBotContainer):
 
         # Stream processor is initialized only if redis is active
         # The stream and consumer group are settings-driven for independence from monolith defaults
-        stream_storage = RedisStreamStorageAdapter(redis_client) if redis_client else None
-        self.stream_processor = RedisStreamProcessor(
-            storage=stream_storage,
-            stream_name=settings.redis_stream_name,
-            consumer_group_name=settings.redis_consumer_group,
-            consumer_name=f"bot_worker_{settings.secret_key[:5]}",
-        )
+        self.stream_processor: RedisStreamProcessor | None = None
+        if redis_client:
+            self.stream_processor = RedisStreamProcessor(
+                storage=RedisStreamStorageAdapter(redis_client),
+                stream_name=settings.redis_stream_name,
+                consumer_group_name=settings.redis_consumer_group,
+                consumer_name=f"bot_worker_{settings.secret_key[:5]}",
+            )
 
         # --- 2. Data Persistence (SQLAlchemy) ---
 
@@ -67,7 +68,7 @@ class BotContainer(BaseBotContainer):
         """Configures services that require an active Bot instance."""
         super().set_bot(bot)
 
-        if self.redis_client:
+        if self.redis_client and self.stream_processor:
             # Connect Redis dispatcher to the container and worker
             self.redis_dispatcher.setup(container=self)
             self.stream_processor.set_message_callback(self.redis_dispatcher.process_message)
@@ -101,8 +102,8 @@ class BotContainer(BaseBotContainer):
         # 2. Then, close infrastructure connections
         cleanup_tasks = []
 
-        if hasattr(self.stream_processor, "stop"):
-            cleanup_tasks.append(self.stream_processor.stop())
+        if self.stream_processor:
+            cleanup_tasks.append(self.stream_processor.stop_listening())
 
         if cleanup_tasks:
             await asyncio.gather(*cleanup_tasks, return_exceptions=True)

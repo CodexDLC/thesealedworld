@@ -5,6 +5,8 @@ from typing import TYPE_CHECKING, Any
 from codex_bot.base import UnifiedViewDTO, ViewResultDTO
 from loguru import logger as log
 
+from src.shared.utils.url import build_public_absolute_url
+
 if TYPE_CHECKING:
     from codex_bot.director.director import Director
 
@@ -34,8 +36,8 @@ class AnnouncementsOrchestrator:
 
         sender = self.container.media_sender
         domain = self.container.settings.domain_name
-        link = sender.build_absolute_url(domain=domain, path_or_url=f"/news/{slug}")
-        photo_url = sender.build_absolute_url(domain=domain, path_or_url=cover_image)
+        link = build_public_absolute_url(domain_name=domain, path_or_url=f"/news/{slug}")
+        photo_url = build_public_absolute_url(domain_name=domain, path_or_url=cover_image)
         text = f'📰 <b>{title}</b>\n\n{preview}\n\n🔗 <a href="{link}">Читать далее на сайте</a>'
 
         try:

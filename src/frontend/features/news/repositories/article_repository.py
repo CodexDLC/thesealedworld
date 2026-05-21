@@ -1,10 +1,15 @@
 from __future__ import annotations
 
+import os
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
+import redis.asyncio as redis
+from codex_platform.streams.producer import StreamProducer
+from loguru import logger
 from sqlalchemy import func, select
 
+from src.frontend.config.settings import settings
 from src.frontend.features.news.models.article import Article
 
 if TYPE_CHECKING:
@@ -114,14 +119,8 @@ class ArticleRepository:
         return article
 
     async def _publish_news_event(self, article: Article, *, event_type: str) -> None:
+        redis_client = None
         try:
-            import os
-
-            import redis.asyncio as redis
-            from codex_platform.streams.producer import StreamProducer
-
-            from src.frontend.config.settings import settings
-
             redis_url = os.getenv("REDIS_URL") or getattr(settings, "redis_url", "redis://localhost:6379/0")
             redis_client = redis.from_url(redis_url, decode_responses=True)
             stream_name = getattr(settings, "game_stream_name", "game_events")
@@ -135,11 +134,11 @@ class ArticleRepository:
                 "cover_image": article.cover_image or "",
             }
             await producer.publish(event_type, event_data)
-            await redis_client.aclose()
         except Exception as e:
-            from loguru import logger
-
             logger.opt(exception=True).error(f"Failed to publish {event_type} event to Redis Stream: {e}")
+        finally:
+            if redis_client is not None:
+                await redis_client.aclose()
 
     async def delete(self, article: Article) -> None:
         await self.session.delete(article)

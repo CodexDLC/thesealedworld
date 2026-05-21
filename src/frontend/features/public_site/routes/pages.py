@@ -5,6 +5,7 @@ from fastapi.responses import PlainTextResponse, Response
 
 from src.frontend.config.settings import settings
 from src.frontend.core.renderer import UIRenderer, get_ui_renderer
+from src.shared.utils.url import build_public_base_url
 
 router = APIRouter(tags=["Frontend Pages"])
 
@@ -129,13 +130,8 @@ async def sitemap_xml(request: Request) -> Response:
 
 
 def _public_base_url(request: Request) -> str:
-    configured = settings.site_base_url.strip()
-    if configured:
-        return configured.rstrip("/")
-    domain_name = str(getattr(settings, "domain_name", "") or "").strip()
-    if domain_name:
-        if domain_name.startswith(("http://", "https://")):
-            return domain_name.rstrip("/")
-        scheme = "http" if domain_name.startswith(("localhost", "127.0.0.1")) else "https"
-        return f"{scheme}://{domain_name}".rstrip("/")
-    return str(request.base_url).rstrip("/")
+    return build_public_base_url(
+        configured_base_url=settings.site_base_url,
+        domain_name=str(getattr(settings, "domain_name", "") or ""),
+        request_base_url=str(request.base_url),
+    )

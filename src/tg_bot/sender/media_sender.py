@@ -61,24 +61,6 @@ class TelegramMediaSender:
         await self.manager.clear_coords(session_key, is_channel)
 
     @staticmethod
-    def build_absolute_url(*, domain: str, path_or_url: str) -> str:
-        if not path_or_url:
-            return ""
-        if path_or_url.startswith(("http://", "https://")):
-            return path_or_url
-
-        base_domain = domain
-        if base_domain.startswith(("http://", "https://")):
-            from urllib.parse import urlparse
-
-            parsed = urlparse(base_domain)
-            base_domain = parsed.netloc
-
-        protocol = "http://" if "localhost" in base_domain or "127.0.0.1" in base_domain else "https://"
-        separator = "" if path_or_url.startswith("/") else "/"
-        return f"{protocol}{base_domain}{separator}{path_or_url}"
-
-    @staticmethod
     def _is_public_photo_url(photo_url: str) -> bool:
         if not photo_url.startswith(("http://", "https://")):
             return False

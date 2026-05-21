@@ -1,6 +1,5 @@
 from pathlib import Path
 from typing import Any
-from urllib.parse import urlsplit
 
 from fastapi import Request
 from fastapi.templating import Jinja2Templates
@@ -9,6 +8,7 @@ from loguru import logger
 from src.frontend.config.settings import settings
 from src.frontend.features.auth.token_state import get_access_token
 from src.frontend.game_features.session.token_state import get_game_access_token
+from src.shared.utils.url import build_absolute_url, build_public_base_url
 
 
 class UIRenderer:
@@ -129,18 +129,11 @@ def _meta_context(request: Request, context: dict[str, Any]) -> dict[str, str]:
 
 
 def _site_base_url(request: Request) -> str:
-    configured = settings.site_base_url.strip()
-    if configured:
-        return configured.rstrip("/")
-
-    domain_name = str(getattr(settings, "domain_name", "") or "").strip()
-    if domain_name:
-        if domain_name.startswith(("http://", "https://")):
-            return domain_name.rstrip("/")
-        scheme = "http" if domain_name.startswith(("localhost", "127.0.0.1")) else "https"
-        return f"{scheme}://{domain_name}".rstrip("/")
-
-    return str(getattr(request, "base_url", "http://testserver/")).rstrip("/")
+    return build_public_base_url(
+        configured_base_url=settings.site_base_url,
+        domain_name=str(getattr(settings, "domain_name", "") or ""),
+        request_base_url=str(getattr(request, "base_url", "http://testserver/")),
+    )
 
 
 def _request_path(request: Request) -> str:
@@ -159,13 +152,7 @@ def _canonical_url(request: Request, path: str) -> str:
 
 
 def _absolute_url(value: str, base_url: str) -> str:
-    if not value:
-        return ""
-    if urlsplit(value).scheme:
-        return value
-    if not value.startswith("/"):
-        value = f"/{value}"
-    return f"{base_url}{value}"
+    return build_absolute_url(base_url=base_url, path_or_url=value)
 
 
 def _robots_for_path(path: str) -> str:

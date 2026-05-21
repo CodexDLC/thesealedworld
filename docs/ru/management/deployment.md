@@ -137,6 +137,7 @@ deploy full
 deploy/compose.infra.yml
 deploy/compose.site.yml
 deploy/compose.game.yml
+deploy/compose.tg-bot.yml
 deploy/compose.prod.yml        # optional aggregator
 deploy/compose.local.yml       # optional local override later
 ```
@@ -147,6 +148,7 @@ deploy/compose.local.yml       # optional local override later
 docker compose -f deploy/compose.infra.yml up -d
 docker compose -f deploy/compose.site.yml up -d --pull always
 docker compose -f deploy/compose.game.yml up -d --pull always
+docker compose -f deploy/compose.tg-bot.yml up -d --pull always
 ```
 
 Перед принятием compose changes нужно проверять:
@@ -155,6 +157,7 @@ docker compose -f deploy/compose.game.yml up -d --pull always
 docker compose -f deploy/compose.infra.yml config
 docker compose -f deploy/compose.site.yml config
 docker compose -f deploy/compose.game.yml config
+docker compose -f deploy/compose.tg-bot.yml config
 ```
 
 ## Management Layer
@@ -193,6 +196,7 @@ Production split уже вынесен в отдельные compose-файлы:
 deploy/compose.infra.yml
 deploy/compose.site.yml
 deploy/compose.game.yml
+deploy/compose.tg-bot.yml
 deploy/compose.prod.yml
 ```
 

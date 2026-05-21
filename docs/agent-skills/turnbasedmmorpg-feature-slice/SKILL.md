@@ -24,7 +24,7 @@ Use these skills together:
 5. Implement backend service/repository/runtime changes inside the owning feature. Services/runtime code should call semantic integration methods for infrastructure work.
 6. Add or update the frontend backend API client.
 7. Add frontend routes, services, view models, forms, and templates inside the owning frontend feature.
-8. Add Redis Streams events only for cross-feature backend communication.
+8. Add Redis Streams events only for cross-feature backend communication. **Handlers must be thin** — get service, call method, done. No business logic in handlers. See `turnbasedmmorpg-redis-streams` skill for the mandatory thin handler rule and the tg_bot reference pattern.
 9. Add focused tests for the changed backend, shared contracts, and frontend integration points.
 10. Run the strongest practical quality gate through `tools/dev/check.py` or documented targeted fallback checks.
 

@@ -227,10 +227,10 @@ class CombatPostBattleRouter:
         try:
             value = json.loads(raw)
         except json.JSONDecodeError:
-            logger.warning("CombatPostBattleRouter | invalid pending loot json combat_id={}", combat_id)
+            logger.bind(combat_id=combat_id).warning("CombatPostBattlePendingLootInvalidJson")
             return {}
         if not isinstance(value, dict):
-            logger.warning("CombatPostBattleRouter | pending loot is not actor map combat_id={}", combat_id)
+            logger.bind(combat_id=combat_id).warning("CombatPostBattlePendingLootInvalidActorMap")
             return {}
         return {str(actor_id): str(corpse_id) for actor_id, corpse_id in value.items() if corpse_id}
 

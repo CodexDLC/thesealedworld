@@ -1,8 +1,9 @@
 from __future__ import annotations
 
-import logging
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
+
+from loguru import logger as log
 
 from src.backend.features.inventory.repositories.items import runtime_item_from_instance
 from src.backend.features.inventory.services.inventory_service import InventoryActionError, InventoryService
@@ -16,8 +17,6 @@ if TYPE_CHECKING:
     from src.backend.features.inventory.repositories.items import InventoryItemRepository
     from src.backend.features.inventory.services.session_manager import InventorySessionManager
     from src.shared.schemas.inventory import InventoryRuntimeSessionDTO
-
-log = logging.getLogger(__name__)
 
 
 @dataclass(slots=True)
@@ -138,9 +137,7 @@ class InventoryRewardService:
     def _equip_reward(self, session: InventoryRuntimeSessionDTO, item_id: str) -> bool:
         item = session.by_id.get(item_id)
         if item is None:
-            log.warning(
-                "Inventory reward item missing after generation: char_id=%s item_id=%s", session.char_id, item_id
-            )
+            log.bind(char_id=session.char_id, item_id=item_id).warning("InventoryRewardItemMissing")
             return False
 
         slot_id = item.slot or str(item.mechanics.get("slot") or "")
@@ -150,12 +147,7 @@ class InventoryRewardService:
         try:
             self.inventory_service._equip(session, item_id, slot_id)
         except InventoryActionError:
-            log.info(
-                "Inventory reward kept in backpack: char_id=%s item_id=%s slot=%s",
-                session.char_id,
-                item_id,
-                slot_id,
-            )
+            log.bind(char_id=session.char_id, item_id=item_id, slot_id=slot_id).info("InventoryRewardKeptInBackpack")
             return False
         return True
 

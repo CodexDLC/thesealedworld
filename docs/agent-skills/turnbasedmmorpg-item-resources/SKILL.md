@@ -12,7 +12,7 @@ Read these before changing item resources or generation:
 - `docs/agent-skills/turnbasedmmorpg-project/SKILL.md`
 - `docs/agent-skills/turnbasedmmorpg-backend/SKILL.md`
 - `docs/agent-skills/turnbasedmmorpg-combat-contract/SKILL.md` when item stats touch combat actor math
-- `docs/tasks/item_resource_refactor_notes.md`
+- `docs/planning/tasks/item_catalog_content_expansion.md` when adding base items or consumables
 - `src/backend/features/items/resources`
 - `src/backend/features/items/runtime/item_factory.py`
 - `src/backend/features/character/runtime/combat_math_model.py`
@@ -20,11 +20,18 @@ Read these before changing item resources or generation:
 
 ## Current Phase
 
-This project is pre-alpha. Prefer clean target design over compatibility layers. Do not add legacy fallbacks, dual systems, or soft migration scaffolding unless the user explicitly asks.
+The MVP item-resource refactor is complete. Current planned item work is catalog
+content expansion: base items, consumables, and combat-usable item actions.
+Prefer clean target design over compatibility layers. Do not add legacy
+fallbacks, dual systems, or soft migration scaffolding unless the user
+explicitly asks.
 
 ## Core Rules
 
-- Treat `docs/tasks/item_resource_refactor_notes.md` as the living reference for item-resource decisions.
+- Treat current item resource code as the source of truth for implemented item
+  mechanics.
+- Use `docs/planning/tasks/item_catalog_content_expansion.md` only for expected
+  future content expansion.
 - Base item semantics and modifier contracts are different layers.
 - Base/implicit item data does not need an `operation`. The actor/item mapper interprets it by item type, slot, tags, and specific key.
 - Affixes, buffs, debuffs, feints, abilities, passives, sockets, and gems must use a shared modifier contract when they change numeric actor/world values.

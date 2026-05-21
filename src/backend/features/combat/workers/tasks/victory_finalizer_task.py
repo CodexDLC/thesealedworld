@@ -13,8 +13,10 @@ from src.backend.features.expedition import ExpeditionService
 from src.backend.features.inventory.events.publisher import InventoryEvents
 from src.backend.infrastructure.loot.managers.loot_manager import LootManager
 from src.shared.enums import CoreDomain
+from src.shared.infrastructure.log_task_wrapper import logged_task
 
 
+@logged_task
 async def victory_finalizer_task(ctx: dict, data: dict) -> None:
     """
     Финализатор боя (Victory Finalizer).
@@ -35,15 +37,11 @@ async def victory_finalizer_task(ctx: dict, data: dict) -> None:
     session_id = data.get("session_id", "unknown")
     winner = data.get("winner", "unknown")
 
-    log.info(
-        "VictoryFinalizer | session_id={session_id} winner={winner} status=processing",
-        session_id=session_id,
-        winner=winner,
-    )
+    log.bind(session_id=session_id, winner=winner, status="processing").info("VictoryFinalizerStarted")
 
     data_service: CombatDataService | None = ctx.get("combat_data_service")
     if not data_service:
-        log.error("VictoryFinalizer | CombatDataService not found in context")
+        log.bind(reason="no_data_service").error("VictoryFinalizerFailed")
         return
 
     try:
@@ -99,10 +97,10 @@ async def victory_finalizer_task(ctx: dict, data: dict) -> None:
             await publish_combat_final_announcement(ctx, finalization)
             await _enqueue_finalization_persist(ctx, session_id)
 
-        log.info(f"VictoryFinalizer | Battle {session_id} finalized successfully")
+        log.bind(session_id=session_id).info("VictoryFinalizerCompleted")
 
-    except Exception as e:  # noqa: BLE001
-        log.exception(f"VictoryFinalizer | Failed to finalize battle {session_id}: {e}")
+    except Exception:  # noqa: BLE001
+        log.bind(session_id=session_id).exception("VictoryFinalizerFailed")
 
 
 async def _enqueue_finalization_persist(ctx: dict, session_id: str) -> None:
@@ -128,19 +126,16 @@ async def _apply_durability_consequences(ctx: dict, finalization: dict[str, Any]
                 correlation_id=durability_request.idempotency_key,
             )
             if isinstance(response, dict) and response.get("status") == "error":
-                log.warning(
-                    "VictoryFinalizer | durability damage failed char_id={} combat_id={} error={}",
-                    durability_request.char_id,
-                    durability_request.combat_id,
-                    response.get("error"),
-                )
-        except Exception as exc:  # noqa: BLE001
-            log.warning(
-                "VictoryFinalizer | durability damage request failed char_id={} combat_id={} error={}",
-                durability_request.char_id,
-                durability_request.combat_id,
-                exc,
-            )
+                log.bind(
+                    char_id=durability_request.char_id,
+                    combat_id=durability_request.combat_id,
+                    error=response.get("error"),
+                ).warning("VictoryFinalizerDurabilityDamageFailed")
+        except Exception:  # noqa: BLE001
+            log.bind(
+                char_id=durability_request.char_id,
+                combat_id=durability_request.combat_id,
+            ).exception("VictoryFinalizerDurabilityDamageRequestFailed")
 
 
 async def _attach_finalization_to_active_sessions(ctx: dict, session_id: str, finalization: dict[str, Any]) -> None:
@@ -208,12 +203,12 @@ async def _attach_finalization_to_active_sessions(ctx: dict, session_id: str, fi
 async def _commit_player_vitals_to_active_sessions(ctx: dict, data_service: CombatDataService, session_id: str) -> None:
     character_sessions = ctx.get("character_sessions")
     if character_sessions is None:
-        log.warning("VictoryFinalizer | active character sessions unavailable session_id={}", session_id)
+        log.bind(session_id=session_id).warning("VictoryFinalizerActiveCharacterSessionsUnavailable")
         return
 
     meta = await data_service.get_meta(session_id)
     if not isinstance(meta, dict):
-        log.warning("VictoryFinalizer | combat meta unavailable for vitals commit session_id={}", session_id)
+        log.bind(session_id=session_id).warning("VictoryFinalizerCombatMetaUnavailable")
         return
 
     actor_ids = [actor_id for actor_id in data_service.actor_ids_from_meta(meta) if str(actor_id).isdigit()]

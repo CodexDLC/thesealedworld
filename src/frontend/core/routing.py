@@ -51,4 +51,4 @@ FRONTEND_ROUTERS: Sequence[APIRouter] = (
 def include_frontend_routers(app: FastAPI) -> None:
     for router in FRONTEND_ROUTERS:
         app.include_router(router)
-        logger.info("Frontend router registered: tags={}", router.tags)
+        logger.bind(tags=router.tags).debug("FrontendRouterRegistered")

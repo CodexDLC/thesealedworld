@@ -55,7 +55,7 @@ class LibraryFrontendService:
         try:
             return await self.catalog_api.get_public_generated_monster_clans()
         except Exception:
-            logger.opt(exception=True).warning("Generated monster clan catalog unavailable")
+            logger.opt(exception=True).warning("GeneratedMonsterClanCatalogUnavailable")
             return []
 
 

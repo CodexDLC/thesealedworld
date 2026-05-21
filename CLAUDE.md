@@ -14,6 +14,7 @@ Use:
 - `docs/agent-skills/turnbasedmmorpg-feature-slice/SKILL.md` when a task spans backend, frontend, shared contracts, templates, tests, or events.
 - `docs/agent-skills/turnbasedmmorpg-quality-gate/SKILL.md` before declaring code complete, before commits/PRs, or when choosing between full and targeted local validation.
 - `docs/agent-skills/turnbasedmmorpg-combat-triggers/SKILL.md` before any work with combat triggers: adding a new trigger, weapon trigger, changing log_builder trigger rendering, event_texts, or merge rules.
+- `docs/agent-skills/turnbasedmmorpg-logging-quality/SKILL.md` when writing or reviewing code with logger calls, adding new features with logging, or before commits. References `docs/logging-rules.md`.
 
 Rule of thumb: if a task changes structure or crosses feature boundaries, read the project skill plus the specific frontend/backend/event skill before editing code. After code edits, use the quality-gate skill and report the verification command that ran.
 

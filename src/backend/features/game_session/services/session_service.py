@@ -219,7 +219,7 @@ class GameSessionService:
             try:
                 return CoreDomain[text.upper()]
             except KeyError:
-                logger.warning("Unknown active character state: state={}", value)
+                logger.bind(state=value).warning("GameSessionUnknownActiveCharacterState")
                 return None
 
     @staticmethod
@@ -258,4 +258,4 @@ class GameSessionService:
             previous_state=response.header.previous_state.value if response.header.previous_state else None,
             payload_type=response.payload_type,
             transaction_id=response.header.transaction_id,
-        ).info("Game session entry routed")
+        ).info("GameSessionEntryRouted")

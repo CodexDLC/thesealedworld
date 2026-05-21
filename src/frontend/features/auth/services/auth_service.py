@@ -24,21 +24,21 @@ class FrontendAuthService:
         if user is None:
             raise AuthException(detail="Incorrect email or password")
         tokens = await self.auth_service.create_tokens(user)
-        logger.info("Frontend auth login completed")
+        logger.info("FrontendAuthLoginCompleted")
         return tokens
 
     async def register(self, email: str, password: str) -> UserResponse:
         user = await self.auth_service.register_user(UserCreate(email=email, password=password))
-        logger.info("Frontend auth registration completed: user_id={}", user.id)
+        logger.bind(user_id=str(user.id)).info("FrontendAuthRegistrationCompleted")
         return user
 
     async def logout(self, refresh_token: str) -> None:
         await self.auth_service.logout(refresh_token)
-        logger.info("Frontend auth logout completed")
+        logger.info("FrontendAuthLogoutCompleted")
 
     async def refresh(self, refresh_token: str) -> TokenResponse:
         tokens = await self.auth_service.refresh_token(refresh_token)
-        logger.info("Frontend auth refresh completed")
+        logger.debug("FrontendAuthRefreshCompleted")
         return tokens
 
     async def get_current_user(self, request: Request) -> UserResponse | None:
@@ -55,16 +55,16 @@ class FrontendAuthService:
         user = await self._current_user_or_refresh(request, access_token)
         if user is not None:
             request.state.user = user
-            logger.info("Frontend current user resolved: user_id={}", user.id)
+            logger.bind(user_id=str(user.id)).debug("FrontendCurrentUserResolved")
         return user
 
     async def require_current_user(self, request: Request) -> UserResponse:
         user = await self.get_current_user(request)
         if user is None:
             if getattr(request.state, "backend_unavailable", False):
-                logger.warning("Frontend auth required while backend is unavailable: path={}", request.url.path)
+                logger.bind(path=request.url.path).warning("FrontendAuthRequiredBackendUnavailable")
                 raise _backend_starting_redirect()
-            logger.warning("Frontend auth required: redirecting_to_login path={}", request.url.path)
+            logger.bind(path=request.url.path).warning("FrontendAuthRequired")
             raise _login_redirect()
         return user
 
@@ -97,7 +97,7 @@ class FrontendAuthService:
             user = await self.auth_service.get_user_by_id(user_id)
             return UserResponse.model_validate(user) if user is not None else None
         except (AuthException, ValueError, TypeError) as exc:
-            logger.warning("Frontend current user lookup rejected: error={}", exc)
+            logger.bind(error=str(exc)).warning("FrontendCurrentUserLookupRejected")
             tokens = await self._refresh_from_request(request)
             if not tokens:
                 return None
@@ -106,7 +106,7 @@ class FrontendAuthService:
                 user = await self.auth_service.get_user_by_id(uuid.UUID(str(payload.get("sub"))))
                 return UserResponse.model_validate(user) if user is not None else None
             except Exception as refresh_exc:
-                logger.warning("Frontend current user lookup rejected after refresh: error={}", refresh_exc)
+                logger.bind(error=str(refresh_exc)).warning("FrontendCurrentUserLookupRejectedAfterRefresh")
                 return None
         except Exception:
             tokens = await self._refresh_from_request(request)
@@ -117,7 +117,7 @@ class FrontendAuthService:
                 user = await self.auth_service.get_user_by_id(uuid.UUID(str(payload.get("sub"))))
                 return UserResponse.model_validate(user) if user is not None else None
             except Exception as refresh_exc:
-                logger.warning("Frontend current user lookup rejected after refresh: error={}", refresh_exc)
+                logger.bind(error=str(refresh_exc)).warning("FrontendCurrentUserLookupRejectedAfterRefresh")
                 return None
 
     async def _refresh_from_request(self, request: Request) -> TokenResponse | None:
@@ -128,7 +128,7 @@ class FrontendAuthService:
         try:
             tokens = await self.refresh(refresh_token)
         except AuthException as exc:
-            logger.warning("Frontend auth refresh rejected: error={}", exc)
+            logger.bind(error=str(exc)).warning("FrontendAuthRefreshRejected")
             request.state.clear_auth_cookies = True
             return None
 

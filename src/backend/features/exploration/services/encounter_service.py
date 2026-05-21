@@ -1,8 +1,9 @@
 from __future__ import annotations
 
-import logging
 import random
 from typing import TYPE_CHECKING, Any
+
+from loguru import logger as log
 
 from src.backend.features.exploration.dto.result import ExplorationTransition
 from src.backend.features.exploration.runtime.encounter import EncounterMode
@@ -15,8 +16,6 @@ from src.backend.features.exploration.runtime.experience import ExplorationExper
 from src.backend.features.exploration.services.knowledge_runtime import ExplorationKnowledgeRuntimeManager
 from src.backend.features.exploration.services.knowledge_service import ExplorationKnowledgeService
 from src.shared.enums import CoreDomain
-
-log = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from src.backend.features.exploration.integrations.encounter_integration import EncounterIntegration
@@ -63,11 +62,7 @@ class ExplorationEncounterService:
         try:
             await self._session.patch_payload(hydrated)
         except Exception:  # noqa: BLE001
-            log.warning(
-                "ExplorationEncounterService | active_snapshot_patch_failed char_id=%s encounter=%s",
-                char_id,
-                encounter.id,
-            )
+            log.bind(char_id=char_id, encounter_id=encounter.id).warning("ExplorationEncounterSnapshotPatchFailed")
         return hydrated
 
     async def roll_travel(

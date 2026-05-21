@@ -5,7 +5,10 @@ from src.backend.config.settings import settings
 from src.backend.core.exceptions import BaseAPIException, api_exception_handler
 from src.backend.core.lifespan import lifespan
 from src.backend.core.middleware import ActiveCharacterDirtySyncMiddleware
-from src.shared.logging_config import setup_logging
+from src.shared.infrastructure.log_middleware import LogContextMiddleware
+from src.shared.infrastructure.logging_config import setup_logging
+from src.shared.infrastructure.metrics_endpoint import metrics_router
+from src.shared.infrastructure.metrics_middleware import PrometheusMiddleware
 
 setup_logging(
     settings=settings,
@@ -37,7 +40,10 @@ app = FastAPI(
 )
 
 app.add_middleware(ActiveCharacterDirtySyncMiddleware)
+app.add_middleware(PrometheusMiddleware, service_name="backend")
+app.add_middleware(LogContextMiddleware)
 app.add_exception_handler(BaseAPIException, api_exception_handler)  # type: ignore[arg-type]
+app.include_router(metrics_router)
 app.include_router(game_config_router)
 app.include_router(combat_internal_router)
 app.include_router(scenario_internal_router)
@@ -54,9 +60,22 @@ app.include_router(game_lobby_router)
 app.include_router(game_session_router)
 app.include_router(scenario_router)
 app.include_router(exploration_router)
-logger.info(
-    "Backend routers registered: arena, character, city_services, combat_analytics, combat, game_catalog, inventory, monsters, game_lobby, game_session, scenario, exploration"
-)
+logger.bind(
+    routers=[
+        "arena",
+        "character",
+        "city_services",
+        "combat_analytics",
+        "combat",
+        "game_catalog",
+        "inventory",
+        "monsters",
+        "game_lobby",
+        "game_session",
+        "scenario",
+        "exploration",
+    ],
+).info("BackendRoutersRegistered")
 
 
 @app.get("/")

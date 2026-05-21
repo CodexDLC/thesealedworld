@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import logging
 from time import perf_counter
 from typing import TYPE_CHECKING, Any
 
@@ -24,7 +23,7 @@ if TYPE_CHECKING:
     from src.shared.schemas import ScenarioPayloadDTO
     from src.shared.schemas.scenario import ScenarioReturnContextDTO
 
-log = logging.getLogger(__name__)
+log = logger
 
 
 def _elapsed_ms(started_at: float) -> float:
@@ -38,6 +37,19 @@ def _finalize_target_state(result: ScenarioFinalizeResult) -> CoreDomain:
     if isinstance(target_state, str):
         return CoreDomain(target_state)
     return CoreDomain.EXPLORATION
+
+
+def _log_finalize_timing(
+    step: str,
+    *,
+    char_id: int,
+    quest_key: str,
+    started_at: float,
+    **extra: Any,
+) -> None:
+    logger.bind(step=step, char_id=char_id, quest_key=quest_key, duration_ms=_elapsed_ms(started_at), **extra).info(
+        "ScenarioFinalizeTiming"
+    )
 
 
 class ScenarioService:
@@ -69,7 +81,9 @@ class ScenarioService:
         _ = source
         master = await self.integrator.get_quest_master(quest_key)
         if master is None:
-            log.warning("Scenario initialize rejected: master_missing char_id=%s quest_key=%s", char_id, quest_key)
+            log.bind(char_id=char_id, quest_key=quest_key, reason="master_missing").warning(
+                "ScenarioInitializeRejected"
+            )
             raise ScenarioNodeNotFound(quest_key, "START")
 
         handler = self.integrator.build_handler(master)
@@ -101,8 +115,8 @@ class ScenarioService:
             await self.integrator.update_progress(char_id, context, force_backup=True)
 
         payload = self.formatter.render_payload(node, context.flatten(), master)
-        logger.info(f"Scenario initialized: char_id={char_id} quest={quest_key} node={payload.node_key}")
-        logger.debug(f"Buttons sent: {[b.label for b in payload.buttons]}")
+        logger.bind(char_id=char_id, quest_key=quest_key, node_key=payload.node_key).info("ScenarioInitialized")
+        logger.bind(button_labels=[b.label for b in payload.buttons]).debug("ScenarioButtonsSent")
         await self.integrator.publish_event(
             "scenario.initialized",
             {
@@ -120,12 +134,14 @@ class ScenarioService:
             await self.integrator.publish_event(
                 "scenario.failed", {"char_id": char_id, "quest_key": "", "error": "session_not_found"}
             )
-            log.warning("Scenario resume rejected: session_not_found char_id=%s", char_id)
+            log.bind(char_id=char_id, reason="session_not_found").warning("ScenarioResumeRejected")
             raise ScenarioSessionNotFound(char_id)
 
         master = await self.integrator.get_quest_master(context.quest_key)
         if master is None:
-            log.warning("Scenario resume rejected: master_missing char_id=%s quest_key=%s", char_id, context.quest_key)
+            log.bind(char_id=char_id, quest_key=context.quest_key, reason="master_missing").warning(
+                "ScenarioResumeRejected"
+            )
             raise ScenarioNodeNotFound(context.quest_key, "MASTER")
         if context.npc_key:
             await self.integrator.attach_npc_context(char_id, context)
@@ -144,8 +160,8 @@ class ScenarioService:
             {"char_id": char_id, "quest_key": context.quest_key, "node_key": context.current_node_key},
         )
         payload = self.formatter.render_payload(node, context.flatten(), master)
-        logger.info(f"Scenario resumed: char_id={char_id} node={payload.node_key}")
-        logger.debug(f"Buttons sent: {[b.label for b in payload.buttons]}")
+        logger.bind(char_id=char_id, node_key=payload.node_key).info("ScenarioResumed")
+        logger.bind(button_labels=[b.label for b in payload.buttons]).debug("ScenarioButtonsSent")
         return payload
 
     async def step(self, char_id: int, action_id: str) -> ScenarioPayloadDTO | ScenarioFinalizeResult:
@@ -162,13 +178,13 @@ class ScenarioService:
                         "target_state": CoreDomain.EXPLORATION.value,
                     },
                 )
-                log.warning("Scenario finish recovered: session_not_found char_id=%s", char_id)
+                log.bind(char_id=char_id, reason="session_not_found").warning("ScenarioFinishRecovered")
                 return ScenarioFinalizeResult(
                     target_state=CoreDomain.EXPLORATION,
                     transition_reason="scenario_session_missing_recovered",
                     metadata={"recovered": True, "missing_session": True},
                 )
-            log.warning("Scenario step rejected: session_not_found char_id=%s action_id=%s", char_id, action_id)
+            log.bind(char_id=char_id, action_id=action_id, reason="session_not_found").warning("ScenarioStepRejected")
             raise ScenarioSessionNotFound(char_id)
 
         current = await self._current_or_raise(context)
@@ -176,11 +192,11 @@ class ScenarioService:
         action = actions.get(action_id)
 
         if action is None:
-            log.warning("Scenario step rejected: invalid_action char_id=%s action_id=%s", char_id, action_id)
+            log.bind(char_id=char_id, action_id=action_id, reason="invalid_action").warning("ScenarioStepRejected")
             raise InvalidScenarioAction(action_id)
         flat = context.flatten()
         if action.get("condition") and not self.evaluator.check_condition(action["condition"], flat):
-            log.warning("Scenario step rejected: condition_failed char_id=%s action_id=%s", char_id, action_id)
+            log.bind(char_id=char_id, action_id=action_id, reason="condition_failed").warning("ScenarioStepRejected")
             raise ScenarioConditionFailed(action_id)
 
         if action.get("type") == "finish_quest":
@@ -221,31 +237,28 @@ class ScenarioService:
 
         master = await self.integrator.get_quest_master(context.quest_key) or {}
         payload = self.formatter.render_payload(resolved.node, context.flatten(), master)
-        logger.info(f"Scenario stepped: char_id={char_id} action={action_id} -> next_node={payload.node_key}")
-        logger.debug(f"Buttons sent: {[b.label for b in payload.buttons]}")
+        logger.bind(char_id=char_id, action_id=action_id, next_node=payload.node_key).info("ScenarioStepped")
+        logger.bind(button_labels=[b.label for b in payload.buttons]).debug("ScenarioButtonsSent")
         return payload
 
     async def finalize(self, char_id: int) -> ScenarioFinalizeResult:
         finalize_started_at = perf_counter()
         context = await self.integrator.load_session(char_id)
         if context is None:
-            log.warning("Scenario finalize rejected: session_not_found char_id=%s", char_id)
+            log.bind(char_id=char_id, reason="session_not_found").warning("ScenarioFinalizeRejected")
             raise ScenarioSessionNotFound(char_id)
         master = await self.integrator.get_quest_master(context.quest_key)
         if master is None:
-            log.warning(
-                "Scenario finalize rejected: master_missing char_id=%s quest_key=%s", char_id, context.quest_key
+            log.bind(char_id=char_id, quest_key=context.quest_key, reason="master_missing").warning(
+                "ScenarioFinalizeRejected"
             )
             raise ScenarioNodeNotFound(context.quest_key, "MASTER")
 
         handler = self.integrator.build_handler(master)
         step_started_at = perf_counter()
         result = await handler.on_finalize(char_id, context, master)
-        logger.info(
-            "ScenarioFinalizeTiming | step=handler_finalize char_id={} quest_key={} ms={}",
-            char_id,
-            context.quest_key,
-            _elapsed_ms(step_started_at),
+        _log_finalize_timing(
+            "handler_finalize", char_id=char_id, quest_key=context.quest_key, started_at=step_started_at
         )
 
         reward_items = result.rewards.items or []
@@ -255,30 +268,30 @@ class ScenarioService:
 
         step_started_at = perf_counter()
         item_ids = await self.integrator.grant_inventory_rewards(char_id, reward_items, quest_key=context.quest_key)
-        logger.info(
-            "ScenarioFinalizeTiming | step=grant_inventory_rewards char_id={} quest_key={} reward_count={} ms={}",
-            char_id,
-            context.quest_key,
-            len(reward_items),
-            _elapsed_ms(step_started_at),
+        _log_finalize_timing(
+            "grant_inventory_rewards",
+            char_id=char_id,
+            quest_key=context.quest_key,
+            started_at=step_started_at,
+            reward_count=len(reward_items),
         )
         step_started_at = perf_counter()
         await self.integrator.unlock_skills(char_id, reward_skills, initial_xp=reward_skill_initial_xp)
-        logger.info(
-            "ScenarioFinalizeTiming | step=unlock_skills char_id={} quest_key={} skill_count={} ms={}",
-            char_id,
-            context.quest_key,
-            len(reward_skills),
-            _elapsed_ms(step_started_at),
+        _log_finalize_timing(
+            "unlock_skills",
+            char_id=char_id,
+            quest_key=context.quest_key,
+            started_at=step_started_at,
+            skill_count=len(reward_skills),
         )
         step_started_at = perf_counter()
         await self.integrator.apply_attribute_bonuses(char_id, attribute_bonuses)
-        logger.info(
-            "ScenarioFinalizeTiming | step=apply_attribute_bonuses char_id={} quest_key={} bonus_count={} ms={}",
-            char_id,
-            context.quest_key,
-            len(attribute_bonuses),
-            _elapsed_ms(step_started_at),
+        _log_finalize_timing(
+            "apply_attribute_bonuses",
+            char_id=char_id,
+            quest_key=context.quest_key,
+            started_at=step_started_at,
+            bonus_count=len(attribute_bonuses),
         )
         step_started_at = perf_counter()
         effect_metadata = await self.integrator.apply_finalize_effects(
@@ -287,22 +300,24 @@ class ScenarioService:
             quest_key=context.quest_key,
         )
         result.metadata = {**result.metadata, **effect_metadata}
-        logger.info(
-            "ScenarioFinalizeTiming | step=apply_finalize_effects char_id={} quest_key={} effect_count={} ms={}",
-            char_id,
-            context.quest_key,
-            len(effect_metadata.get("effects", {})) if isinstance(effect_metadata.get("effects"), dict) else 0,
-            _elapsed_ms(step_started_at),
+        _log_finalize_timing(
+            "apply_finalize_effects",
+            char_id=char_id,
+            quest_key=context.quest_key,
+            started_at=step_started_at,
+            effect_count=len(effect_metadata.get("effects", {}))
+            if isinstance(effect_metadata.get("effects"), dict)
+            else 0,
         )
         target_state = _finalize_target_state(result)
         if target_state == CoreDomain.COMBAT:
             step_started_at = perf_counter()
             await self.integrator.sync_active_character_to_db(char_id)
-            logger.info(
-                "ScenarioFinalizeTiming | step=sync_exploration_snapshot_before_combat char_id={} quest_key={} ms={}",
-                char_id,
-                context.quest_key,
-                _elapsed_ms(step_started_at),
+            _log_finalize_timing(
+                "sync_exploration_snapshot_before_combat",
+                char_id=char_id,
+                quest_key=context.quest_key,
+                started_at=step_started_at,
             )
             step_started_at = perf_counter()
             combat_ready = await self.integrator.request_combat_start(
@@ -311,22 +326,22 @@ class ScenarioService:
                 battle_type=str(result.metadata.get("battle_type") or ""),
                 location_id=result.location_id,
             )
-            logger.info(
-                "ScenarioFinalizeTiming | step=request_combat_start char_id={} quest_key={} combat_id={} ms={}",
-                char_id,
-                context.quest_key,
-                combat_ready.get("combat_id"),
-                _elapsed_ms(step_started_at),
+            _log_finalize_timing(
+                "request_combat_start",
+                char_id=char_id,
+                quest_key=context.quest_key,
+                started_at=step_started_at,
+                combat_id=combat_ready.get("combat_id"),
             )
             result.combat_id = str(combat_ready.get("combat_id") or result.combat_id or "")
             result.metadata = {**result.metadata, "combat_ready": combat_ready}
             step_started_at = perf_counter()
             await self.integrator.prepare_combat_return_context(char_id, location_id=result.location_id)
-            logger.info(
-                "ScenarioFinalizeTiming | step=prepare_combat_return_context char_id={} quest_key={} ms={}",
-                char_id,
-                context.quest_key,
-                _elapsed_ms(step_started_at),
+            _log_finalize_timing(
+                "prepare_combat_return_context",
+                char_id=char_id,
+                quest_key=context.quest_key,
+                started_at=step_started_at,
             )
             step_started_at = perf_counter()
             await self.integrator.finalize_session(
@@ -334,38 +349,38 @@ class ScenarioService:
                 CoreDomain.EXPLORATION,
                 prev_state=CoreDomain.EXPLORATION,
             )
-            logger.info(
-                "ScenarioFinalizeTiming | step=finalize_session_to_exploration char_id={} quest_key={} ms={}",
-                char_id,
-                context.quest_key,
-                _elapsed_ms(step_started_at),
+            _log_finalize_timing(
+                "finalize_session_to_exploration",
+                char_id=char_id,
+                quest_key=context.quest_key,
+                started_at=step_started_at,
             )
             step_started_at = perf_counter()
             await self.integrator.enter_prepared_combat(char_id, result.combat_id)
-            logger.info(
-                "ScenarioFinalizeTiming | step=enter_prepared_combat char_id={} quest_key={} combat_id={} ms={}",
-                char_id,
-                context.quest_key,
-                result.combat_id,
-                _elapsed_ms(step_started_at),
+            _log_finalize_timing(
+                "enter_prepared_combat",
+                char_id=char_id,
+                quest_key=context.quest_key,
+                started_at=step_started_at,
+                combat_id=result.combat_id,
             )
         else:
             step_started_at = perf_counter()
             await self.integrator.finalize_session(char_id, target_state)
-            logger.info(
-                "ScenarioFinalizeTiming | step=finalize_session char_id={} quest_key={} target_state={} ms={}",
-                char_id,
-                context.quest_key,
-                target_state.value,
-                _elapsed_ms(step_started_at),
+            _log_finalize_timing(
+                "finalize_session",
+                char_id=char_id,
+                quest_key=context.quest_key,
+                started_at=step_started_at,
+                target_state=target_state.value,
             )
         step_started_at = perf_counter()
         await self.integrator.sync_active_character_to_db(char_id)
-        logger.info(
-            "ScenarioFinalizeTiming | step=sync_active_character_to_db char_id={} quest_key={} ms={}",
-            char_id,
-            context.quest_key,
-            _elapsed_ms(step_started_at),
+        _log_finalize_timing(
+            "sync_active_character_to_db",
+            char_id=char_id,
+            quest_key=context.quest_key,
+            started_at=step_started_at,
         )
 
         step_started_at = perf_counter()
@@ -381,20 +396,20 @@ class ScenarioService:
                 "location_id": result.location_id,
             },
         )
-        logger.info(
-            "ScenarioFinalizeTiming | step=publish_finalized_event char_id={} quest_key={} ms={}",
-            char_id,
-            context.quest_key,
-            _elapsed_ms(step_started_at),
+        _log_finalize_timing(
+            "publish_finalized_event",
+            char_id=char_id,
+            quest_key=context.quest_key,
+            started_at=step_started_at,
         )
-        logger.info(
-            "ScenarioFinalizeTiming | step=total char_id={} quest_key={} target_state={} ms={}",
-            char_id,
-            context.quest_key,
-            target_state.value,
-            _elapsed_ms(finalize_started_at),
+        _log_finalize_timing(
+            "total",
+            char_id=char_id,
+            quest_key=context.quest_key,
+            started_at=finalize_started_at,
+            target_state=target_state.value,
         )
-        logger.info(f"Scenario finalized: char_id={char_id} quest={context.quest_key}")
+        logger.bind(char_id=char_id, quest_key=context.quest_key).info("ScenarioFinalized")
         return result
 
     async def cleanup(self, char_id: int) -> None:

@@ -10,12 +10,12 @@ class SymbioteRepository:
         self.session = session
 
     async def get_by_character_id(self, char_id: int) -> CharacterSymbiote | None:
-        log.debug(f"SymbioteRepository | action=get_by_character_id char_id={char_id}")
+        log.bind(char_id=char_id).debug("SymbioteRepositoryGetByCharacterId")
         stmt = select(CharacterSymbiote).where(CharacterSymbiote.character_id == char_id)
         return await self.session.scalar(stmt)
 
     async def get_symbiotes_batch(self, char_ids: list[int]) -> list[CharacterSymbiote]:
-        log.debug(f"SymbioteRepository | action=get_symbiotes_batch count={len(char_ids)}")
+        log.bind(char_id_count=len(char_ids)).debug("SymbioteRepositoryGetSymbiotesBatch")
         if not char_ids:
             return []
         stmt = select(CharacterSymbiote).where(CharacterSymbiote.character_id.in_(char_ids))

@@ -46,7 +46,7 @@ class UIRenderer:
             if menu_service:
                 global_context["nav"] = menu_service.build_menu(context["domain"])
             else:
-                logger.warning("Menu service missing while rendering domain page: template={}", template_name)
+                logger.bind(template=template_name).warning("MenuServiceMissing")
 
         # 2. Merge contexts
         final_context = {**global_context, **context}
@@ -61,11 +61,8 @@ class UIRenderer:
         elif "base_template" not in final_context:
             final_context["base_template"] = "site/base_site.html"
 
-        logger.info(
-            "Template rendered: template={} status={} htmx={}",
-            template_name,
-            status_code,
-            global_context["is_htmx"],
+        logger.bind(template=template_name, status_code=status_code, htmx=global_context["is_htmx"]).debug(
+            "TemplateRendered"
         )
         return self.templates.TemplateResponse(
             request=self.request,

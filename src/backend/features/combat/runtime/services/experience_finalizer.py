@@ -58,7 +58,7 @@ class CombatExperienceFinalizer:
     ) -> dict[str, CombatActorExperienceResult]:
         meta = await data_service.get_meta(session_id)
         if not isinstance(meta, dict):
-            log.warning("CombatXPFinalizer | status=skipped reason=missing_meta session_id={}", session_id)
+            log.bind(status="skipped", reason="missing_meta", session_id=session_id).warning("CombatXpFinalizerSkipped")
             return {}
 
         actor_ids = data_service.actor_ids_from_meta(meta)
@@ -90,13 +90,13 @@ class CombatExperienceFinalizer:
             ):
                 await character_sessions.apply_skill_progress(char_id, rewards)
 
-        log.info(
-            "CombatXPFinalizer | status=success session_id={} winner={} actors={} rewarded={}",
-            session_id,
-            winner,
-            len(results),
-            len([result for result in results.values() if result.rewards]),
-        )
+        log.bind(
+            status="success",
+            session_id=session_id,
+            winner=winner,
+            actor_count=len(results),
+            rewarded_count=len([result for result in results.values() if result.rewards]),
+        ).info("CombatXpFinalizerCompleted")
         return results
 
     def calculate_actor_rewards(self, actor: dict[str, Any]) -> dict[str, float]:

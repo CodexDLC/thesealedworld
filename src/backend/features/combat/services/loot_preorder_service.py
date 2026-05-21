@@ -40,9 +40,6 @@ class CombatLootPreorderService:
             location_id=location_id,
             actors=monster_actors,
         )
-        logger.info(
-            "CombatLootPreorder | requested hidden corpses combat_id={} monsters={} location={}",
-            combat_id,
-            len(monster_actors),
-            location_id,
+        logger.bind(combat_id=combat_id, monster_count=len(monster_actors), location_id=location_id).info(
+            "CombatLootPreorderRequested"
         )

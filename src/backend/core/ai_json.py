@@ -1,19 +1,17 @@
 from __future__ import annotations
 
 import json
-import logging
 from typing import Any
 
+from loguru import logger as log
 from pydantic import BaseModel, ValidationError
-
-log = logging.getLogger(__name__)
 
 
 def parse_ai_json_mapping(raw_response: Any, *, context: str = "ai") -> dict[str, Any] | None:
     payload = parse_ai_json(raw_response, context=context)
     if isinstance(payload, dict):
         return payload
-    log.warning("AI JSON response is not an object: context=%s", context)
+    log.bind(context=context).warning("AiJsonResponseNotObject")
     return None
 
 
@@ -26,7 +24,7 @@ def parse_ai_json_model[TModel: BaseModel](
     try:
         return model_type.model_validate(payload)
     except ValidationError:
-        log.warning("AI JSON response failed schema validation: context=%s payload=%r", context, payload)
+        log.bind(context=context, payload=payload).warning("AiJsonResponseSchemaValidationFailed")
         return None
 
 
@@ -40,7 +38,7 @@ def parse_ai_json(raw_response: Any, *, context: str = "ai") -> Any | None:
     try:
         return json.loads(text)
     except json.JSONDecodeError:
-        log.warning("AI JSON response is invalid: context=%s raw=%r", context, raw_response)
+        log.bind(context=context, raw_response=raw_response).warning("AiJsonResponseInvalid")
         return None
 
 

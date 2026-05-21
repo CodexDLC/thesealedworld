@@ -1,7 +1,8 @@
 from __future__ import annotations
 
-import logging
 from typing import TYPE_CHECKING, Any
+
+from loguru import logger as log
 
 from src.backend.features.world.services.navigation_service import WorldNavigationNode, WorldNavigationService
 
@@ -9,8 +10,6 @@ if TYPE_CHECKING:
     from collections.abc import Mapping
 
     from src.backend.features.world.integrations import WorldDataIntegration, WorldLocationIntegration
-
-log = logging.getLogger(__name__)
 
 
 class WorldCacheService:
@@ -29,7 +28,7 @@ class WorldCacheService:
         node_map = {self._loc_id(node): node for node in active_nodes}
         payload = {self._loc_id(node): self._to_location_cache(node, node_map) for node in active_nodes}
         count = await self.locations.write_locations(payload)
-        log.info("World cache warmed: active_nodes=%s cached=%s", len(active_nodes), count)
+        log.bind(active_node_count=len(active_nodes), cached_count=count).info("WorldCacheWarmed")
         return count
 
     def _to_location_cache(

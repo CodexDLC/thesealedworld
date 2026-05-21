@@ -14,7 +14,10 @@ Full layer changelogs live in:
 
 ## [Unreleased]
 
-No unreleased product changes yet.
+### Release And CI
+
+- Splits CI so `develop` runs lint and type checks only, while `main` keeps the
+  full quality gate, documentation build, and Docker image verification.
 
 ## [v0.1.0a4] - Alpha 4
 

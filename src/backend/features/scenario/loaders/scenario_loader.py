@@ -18,13 +18,13 @@ class ScenarioLoader:
 
     async def load_from_file(self, path: str | Path) -> str:
         path = Path(path)
-        logger.info("Scenario fixture load started: path={}", path)
+        logger.bind(path=str(path)).info("ScenarioFixtureLoadStarted")
 
         if path.is_dir():
             # Directory loading logic
             master_file = path / "master.json"
             if not master_file.exists():
-                logger.warning("Scenario fixture master is missing: path={}", master_file)
+                logger.bind(path=str(master_file)).warning("ScenarioFixtureMasterMissing")
                 raise FileNotFoundError(f"master.json not found in {path}")
 
             with master_file.open(encoding="utf-8") as h:
@@ -59,15 +59,15 @@ class ScenarioLoader:
         for node in all_nodes:
             key = (node["quest_key"], node["node_key"])
             if key in deduplicated:
-                logger.warning(f"Duplicate node_key found in scenario files: {key}. Keeping last one.")
+                logger.bind(node_key=key).warning("ScenarioDuplicateNodeKeyFound")
             deduplicated[key] = node
 
         all_nodes = list(deduplicated.values())
 
         cached_nodes = await self.importer.replace_quest(master_data, all_nodes)
         if cached_nodes is not None:
-            logger.info("Scenario fixture cache available: quest_key={} nodes={}", quest_key, cached_nodes)
-        logger.info("Scenario fixture load finished: quest_key={} nodes={}", quest_key, len(all_nodes))
+            logger.bind(quest_key=quest_key, node_count=cached_nodes).info("ScenarioFixtureCacheAvailable")
+        logger.bind(quest_key=quest_key, node_count=len(all_nodes)).info("ScenarioFixtureLoadFinished")
         return quest_key
 
     @staticmethod

@@ -29,7 +29,7 @@ def _register_gifts(gift_entries: list[GiftCatalogEntryDTO]) -> None:
     for entry in gift_entries:
         gift = entry.technical
         if gift.gift_id in GIFT_CATALOG_REGISTRY:
-            log.warning(f"GiftLibrary | Duplicate gift ID: '{gift.gift_id}'. Overwriting.")
+            log.bind(gift_id=gift.gift_id).warning("GiftLibraryDuplicateGiftId")
 
         GIFT_CATALOG_REGISTRY[gift.gift_id] = entry
         GIFT_CATALOG_BY_KEY[entry.key] = entry
@@ -41,7 +41,7 @@ def _initialize_library() -> None:
     if _INITIALIZED:
         return
 
-    log.info("GiftLibrary | Initializing Gift Library...")
+    log.info("GiftLibraryInitializing")
 
     all_gifts = [
         list(FIRE_GIFTS_CATALOG.values()),
@@ -56,7 +56,7 @@ def _initialize_library() -> None:
         _register_gifts(group)
         count += len(group)
 
-    log.info(f"GiftLibrary | Initialization complete. Loaded {count} gifts.")
+    log.bind(gift_count=count).info("GiftLibraryLoaded")
     _INITIALIZED = True
 
 

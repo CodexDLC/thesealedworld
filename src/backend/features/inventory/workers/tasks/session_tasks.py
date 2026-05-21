@@ -10,8 +10,10 @@ from src.backend.features.inventory.integrations import InventoryStreamClient
 from src.backend.features.inventory.repositories.items import InventoryItemRepository
 from src.backend.features.inventory.services.inventory_service import InventoryService
 from src.backend.features.inventory.services.session_manager import InventorySessionManager
+from src.shared.infrastructure.log_task_wrapper import logged_task
 
 
+@logged_task
 async def flush_inventory_session_task(ctx: dict[str, Any], payload: dict[str, Any]) -> dict[str, Any]:
     char_id = int(payload["char_id"])
     redis_managers = ctx["redis_managers"]
@@ -19,10 +21,10 @@ async def flush_inventory_session_task(ctx: dict[str, Any], payload: dict[str, A
     inventory_sessions = InventorySessionManager(redis_managers.redis)
     session = await inventory_sessions.get(char_id)
     if session is None:
-        logger.info("InventoryTask | flush skipped missing_session char_id={}", char_id)
+        logger.bind(char_id=char_id).debug("InventoryFlushSkippedMissingSession")
         return {"status": "skipped", "reason": "missing_session", "char_id": char_id}
     if not session.is_dirty and session.dirty.get("dirty") is not True:
-        logger.info("InventoryTask | flush skipped clean_session char_id={}", char_id)
+        logger.bind(char_id=char_id).debug("InventoryFlushSkippedCleanSession")
         return {"status": "skipped", "reason": "clean_session", "char_id": char_id}
 
     async with get_session_context() as db:
@@ -35,10 +37,11 @@ async def flush_inventory_session_task(ctx: dict[str, Any], payload: dict[str, A
         await service.flush_session(session)
 
     await inventory_sessions.clear_dirty(char_id)
-    logger.info("InventoryTask | flush complete char_id={} item_count={}", char_id, len(session.by_id))
+    logger.bind(char_id=char_id, item_count=len(session.by_id)).info("InventoryFlushCompleted")
     return {"status": "ok", "char_id": char_id, "item_count": len(session.by_id)}
 
 
+@logged_task
 async def inventory_dirty_sweeper_task(ctx: dict[str, Any], payload: dict[str, Any] | None = None) -> dict[str, Any]:
     payload = payload or {}
     redis_managers = ctx["redis_managers"]
@@ -61,5 +64,5 @@ async def inventory_dirty_sweeper_task(ctx: dict[str, Any], payload: dict[str, A
         if owns_arq:
             await arq.close()
 
-    logger.info("InventoryTask | dirty_sweeper enqueued count={}", len(dirty_char_ids))
+    logger.bind(enqueued_count=len(dirty_char_ids)).info("InventoryDirtySweeperEnqueued")
     return {"status": "ok", "enqueued": len(dirty_char_ids), "char_ids": dirty_char_ids}

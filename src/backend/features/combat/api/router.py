@@ -94,10 +94,10 @@ async def register_combat_move(
     try:
         return await orchestrator.register_move(char_id, body)
     except CombatError as exc:
-        logger.warning("Combat move rejected: char_id={} code={} detail={}", char_id, exc.code, exc.message)
+        logger.bind(char_id=char_id, code=exc.code, detail=exc.message).warning("CombatMoveRejected")
         raise CombatAPIError(exc, context={"char_id": char_id}) from exc
     except ValueError as exc:
-        logger.warning("Combat move rejected: char_id={} detail={}", char_id, str(exc))
+        logger.bind(char_id=char_id, detail=str(exc)).warning("CombatMoveRejected")
         raise CombatAPIError(
             CombatActionRejectedError("Combat action rejected", context={"reason": str(exc)}),
             context={"char_id": char_id},
@@ -114,10 +114,10 @@ async def pin_combat_feint(
     try:
         return await orchestrator.pin_feint(char_id, body)
     except CombatError as exc:
-        logger.warning("Combat feint pin rejected: char_id={} code={} detail={}", char_id, exc.code, exc.message)
+        logger.bind(char_id=char_id, code=exc.code, detail=exc.message).warning("CombatFeintPinRejected")
         raise CombatAPIError(exc, context={"char_id": char_id}) from exc
     except ValueError as exc:
-        logger.warning("Combat feint pin rejected: char_id={} detail={}", char_id, str(exc))
+        logger.bind(char_id=char_id, detail=str(exc)).warning("CombatFeintPinRejected")
         raise CombatAPIError(
             CombatActionRejectedError("Combat feint pin rejected", context={"reason": str(exc)}),
             context={"char_id": char_id},

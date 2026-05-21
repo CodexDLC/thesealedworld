@@ -65,6 +65,18 @@ Deploy workflow получает production `.env` из GitHub secret `ENV_FILE`
 - `deploy/` не должен импортировать gameplay/runtime internals напрямую.
 - Взаимодействие deploy layer с runtime происходит через published operational contracts: image tags, env vars, entrypoints, health endpoints и migration commands.
 
+## Service Boundary
+
+Production runtime разделен на site и game layers:
+
+- `frontend` / site-web владеет public site, auth/account, cabinet, library,
+  site templates/static и `site` schema migrations.
+- `backend` / game владеет gameplay APIs, runtime state, workers, game catalog,
+  chat/ws и `game` + `chat` schema migrations.
+- Site обращается к game backend через typed HTTP clients и internal service key.
+- Backend не рендерит public site.
+- Site должен оставаться доступным при restart/maintenance game runtime.
+
 ## Проверки перед деплоем
 
 ```powershell

@@ -69,7 +69,7 @@ class GameTokenRefreshMiddleware(BaseHTTPMiddleware):
             )
             tokens = await api.refresh_token(refresh_token)
         except Exception as exc:
-            logger.warning("Frontend game token refresh rejected: error={}", exc)
+            logger.bind(error=str(exc)).warning("FrontendGameTokenRefreshRejected")
             request.state.clear_game_token_cookies = True
             return
 
@@ -77,7 +77,7 @@ class GameTokenRefreshMiddleware(BaseHTTPMiddleware):
         if tokens.refresh_token:
             request.state.game_refresh_token = tokens.refresh_token
         request.state.game_tokens = tokens
-        logger.info("Frontend game token refreshed")
+        logger.debug("FrontendGameTokenRefreshed")
 
 
 def _should_refresh_for_path(path: str) -> bool:

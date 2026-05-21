@@ -106,7 +106,7 @@ class CombatSessionManager:
             pipe.delete(self.log_key(session_id))
             pipe.delete(self.analytics_key(session_id))
             await pipe.execute()
-        logger.info("Combat session created: session_id={} actors={}", session_id, len(data.actors))
+        logger.bind(session_id=session_id, actor_count=len(data.actors)).info("CombatSessionCreated")
 
     async def universal_hot_join(
         self,
@@ -194,7 +194,7 @@ class CombatSessionManager:
             team_name,
             "1" if is_ai else "0",
         )
-        logger.info("Combat actor hot-joined: session_id={} actor_id={}", session_id, actor_id)
+        logger.bind(session_id=session_id, actor_id=actor_id).info("CombatActorHotJoined")
 
     async def get_meta(self, session_id: str) -> dict[str, Any] | None:
         raw = await self._client().hgetall(self.meta_key(session_id))

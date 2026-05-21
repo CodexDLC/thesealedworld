@@ -55,8 +55,8 @@ class CombatExecutor:
             try:
                 await self._process_single_action(ctx, action)
                 processed_ids.append(action.move.move_id)
-            except Exception as e:  # noqa: BLE001
-                log.error(f"Executor | Action {action.move.move_id} failed: {e}")
+            except Exception:  # noqa: BLE001
+                log.bind(move_id=action.move.move_id).exception("ExecutorActionFailed")
                 processed_ids.append(action.move.move_id)
 
         # Сбор мертвых акторов после обработки батча
@@ -67,7 +67,7 @@ class CombatExecutor:
     async def _process_single_action(self, ctx: BattleContext, action: CombatActionDTO) -> None:
         """Route one runnable combat action into the correct executor branch."""
         if not action.move:
-            log.warning("Executor | Action has no move data")
+            log.warning("ExecutorActionMissingMoveData")
             return
 
         # Routing Logic
@@ -155,7 +155,7 @@ class CombatExecutor:
         target = ctx.get_actor(cast("ActorIdLike", target_id)) if target_id else None
 
         if not source or not target:
-            log.warning(f"Executor | Exchange participants not found: {action.move.char_id} -> {target_id}")
+            log.bind(char_id=action.move.char_id, target_id=target_id).warning("ExecutorExchangeParticipantsMissing")
             return
 
         self._process_periodic_effects(ctx, [source, target], action=action, wave=0)
@@ -177,7 +177,7 @@ class CombatExecutor:
                 )
             )
         elif not action.is_forced:
-            log.error("Executor | Exchange without partner_move and not forced")
+            log.error("ExecutorExchangePartnerMissing")
             return
 
         for secondary_target in self._secondary_feint_targets(
@@ -212,24 +212,23 @@ class CombatExecutor:
                 s_id = result.source_id
                 t_id = result.target_id
 
-                log.debug(
-                    "Executor | Result [{}->{}] ({}): outcome={} hit={} crit={} dmg={} heal={} events={}",
-                    s_id,
-                    t_id,
-                    result.hand,
-                    self._result_outcome(result),
-                    result.is_hit,
-                    result.is_crit,
-                    result.damage_final,
-                    result.healing_final,
-                    [event.type for event in result.events],
-                )
+                log.bind(
+                    source_id=s_id,
+                    target_id=t_id,
+                    hand=result.hand,
+                    outcome=self._result_outcome(result),
+                    is_hit=result.is_hit,
+                    is_crit=result.is_crit,
+                    damage_final=result.damage_final,
+                    healing_final=result.healing_final,
+                    events=[event.type for event in result.events],
+                ).debug("ExecutorResult")
                 self._append_result_logs(ctx, result, action=result_action, wave=wave)
                 self._append_result_support_payload(ctx, result, action=result_action, wave=wave)
                 self._log_result_info(ctx, result, wave=wave)
                 self._refund_feint_cost_if_needed(ctx, result, move)
                 if s_id is None or t_id is None:
-                    log.warning("Executor | Result has no actor ids; skipping chain reactions")
+                    log.warning("ExecutorResultActorIdsMissing")
                     continue
 
                 # --- CHAIN REACTIONS ---
@@ -240,7 +239,7 @@ class CombatExecutor:
                     attacker = ctx.get_actor(s_id)
 
                     if defender and attacker:
-                        log.info(f"Executor | Chain: Counter-Attack {t_id} -> {s_id}")
+                        log.bind(source_id=t_id, target_id=s_id).info("ExecutorCounterAttackTriggered")
                         counter_move = action.partner_move if action.partner_move else action.move
                         pending_tasks.append(
                             (
@@ -260,7 +259,7 @@ class CombatExecutor:
                     defender = ctx.get_actor(t_id)
 
                     if attacker and defender:
-                        log.info(f"Executor | Chain: Off-Hand Attack {s_id} -> {t_id}")
+                        log.bind(source_id=s_id, target_id=t_id).info("ExecutorOffHandAttackTriggered")
                         pending_tasks.append(
                             (
                                 self._create_task(
@@ -284,7 +283,7 @@ class CombatExecutor:
         # НОВОЕ: Собираем пары для возврата целей
         self._collect_target_returns(ctx, action)
 
-        log.info(f"Executor | Exchange complete. Waves={wave}. Global step={ctx.meta.step_counter}")
+        log.bind(wave_count=wave, global_step=ctx.meta.step_counter).info("ExecutorExchangeCompleted")
 
     @staticmethod
     def _action_for_move(
@@ -329,7 +328,7 @@ class CombatExecutor:
                 self._append_result_logs(ctx, result, action=action, wave=1)
                 self._append_result_support_payload(ctx, result, action=action, wave=1)
                 self._log_result_info(ctx, result, wave=1)
-            log.info(f"Executor | Unidirectional complete. Targets={len(tasks)}")
+            log.bind(target_count=len(tasks)).info("ExecutorUnidirectionalCompleted")
 
     # ==========================================================================
     # 🛠️ HELPERS
@@ -412,7 +411,7 @@ class CombatExecutor:
 
         feint_entry = CombatCatalogIntegrator.get_feint_catalog_entry(feint_id)
         if not feint_entry:
-            log.warning("Executor | Feint refund failed: unknown feint_id={}", feint_id)
+            log.bind(feint_id=feint_id).warning("ExecutorFeintRefundFailed")
             return
 
         feint_config = feint_entry.technical
@@ -474,19 +473,18 @@ class CombatExecutor:
             f"{CombatAnalyticsFactBuilder.STAGES.get(check.stage, check.stage)}{'✓' if check.passed else '×'}"
             for check in result.checks
         )
-        log.info(
-            "CombatExchange | session={} turn={} wave={} {}->{} outcome={} checks={} dmg={} heal={} events={}",
-            ctx.session_id,
-            ctx.meta.step_counter + 1,
-            wave,
-            result.source_id,
-            result.target_id,
-            CombatAnalyticsFactBuilder.OUTCOMES.get(CombatAnalyticsFactBuilder._outcome(result), "N"),
-            checks or "-",
-            result.damage_final,
-            result.healing_final,
-            [event.type for event in result.events],
-        )
+        log.bind(
+            session_id=ctx.session_id,
+            turn=ctx.meta.step_counter + 1,
+            wave=wave,
+            source_id=result.source_id,
+            target_id=result.target_id,
+            outcome=CombatAnalyticsFactBuilder.OUTCOMES.get(CombatAnalyticsFactBuilder._outcome(result), "N"),
+            checks=checks or "-",
+            damage=result.damage_final,
+            healing=result.healing_final,
+            events=[event.type for event in result.events],
+        ).debug("CombatExchange")
 
     def _collect_target_returns(self, ctx: BattleContext, action: CombatActionDTO) -> None:
         """Collect target queue return pairs after a resolved exchange.

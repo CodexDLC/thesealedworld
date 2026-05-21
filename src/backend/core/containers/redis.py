@@ -1,9 +1,8 @@
-import logging
-
 import redis.asyncio as redis
 from codex_platform.redis_service import RedisService
 from codex_platform.streams import StreamRuntime, StreamRuntimeConfig
 from fastapi import FastAPI
+from loguru import logger as log
 
 from src.backend.config.settings import settings
 from src.backend.core.arq import GENERATION_AI_ARQ_QUEUE, SYSTEM_ARQ_QUEUE, ArqService
@@ -40,8 +39,6 @@ from src.backend.infrastructure.redis.managers import build_redis_managers
 
 _GAME_CONFIGS = (CombatConfig, ExplorationConfig, ScenarioConfig)
 
-log = logging.getLogger(__name__)
-
 EVENT_ROUTER_GROUPS = (
     ("character", character_router),
     ("combat", combat_router),
@@ -59,7 +56,7 @@ class RedisContainer:
     """Manages Redis connection, managers, and Event Bus."""
 
     async def bootstrap(self, app: FastAPI) -> None:
-        log.info("Bootstrapping Redis & Event Bus...")
+        log.info("RedisBootstrapStarted")
 
         # 1. Redis Client & Service
         app.state.redis_client = redis.from_url(
@@ -110,8 +107,8 @@ class RedisContainer:
         for runtime in runtimes:
             await runtime.start()
 
-        log.info("Redis stream runtimes started: groups=%s", [runtime.config.consumer_group for runtime in runtimes])
-        log.info("Redis bootstrap finished")
+        log.bind(groups=[runtime.config.consumer_group for runtime in runtimes]).info("RedisStreamRuntimesStarted")
+        log.info("RedisBootstrapFinished")
 
     def _build_stream_runtimes(self, app: FastAPI) -> list[StreamRuntime]:
         if settings.stream_enabled_groups is not None:

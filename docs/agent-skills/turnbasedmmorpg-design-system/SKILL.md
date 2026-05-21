@@ -13,8 +13,9 @@ Read:
 
 Then open, only as needed:
 
-- `docs/design-system/README.md`
-- `docs/design-system/Design System.html`
+- current CSS under `src/frontend/static/css/`
+- current templates under `src/frontend/templates/`
+- archived reference under `docs/archive/design-system/` only for historical context
 
 If the task changes frontend structure broadly, also use `turnbasedmmorpg-frontend`.
 
@@ -28,8 +29,8 @@ If the task is UI design work, also use exactly the relevant surface skill:
 
 ## Core Rules
 
-- Treat `docs/design-system/Design System.html` as the visual canon.
-- Treat `docs/design-system/README.md` as the textual canon.
+- Treat the current code in `src/frontend/static/css/` and `src/frontend/templates/` as the active UI contract.
+- Treat `docs/archive/design-system/` as historical reference only, not as canon.
 - Do not treat `/system/design` as canonical.
 - Reuse existing shared classes before introducing new CSS.
 - Extend shared components before adding page-local styles.
@@ -79,7 +80,7 @@ Before changing header, footer, or navigation, inspect both sides of the contrac
 
 - template
 - shared CSS
-- design-system reference
+- archived design-system reference only if historical intent is useful
 
 Current known drift lives in:
 
@@ -100,6 +101,6 @@ Do not patch around these with page-level CSS if the task is really a shared-she
 
 When the task changes shared UI:
 
-- verify class reuse against the design-system docs
+- verify class reuse against the current CSS/templates
 - verify no new shared class was added where an existing class already fit
 - verify shared template class names still match the shared CSS that claims to style them

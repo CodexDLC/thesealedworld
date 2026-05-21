@@ -1,0 +1,36 @@
+services:
+
+  prometheus:
+    image: prom/prometheus:v2.53.0
+    container_name: tbmmorpg-prometheus
+    restart: unless-stopped
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - tbmmorpg-prometheus-data:/prometheus
+    networks:
+      - tbmmorpg-network
+
+  grafana:
+    image: grafana/grafana:11.0.0
+    container_name: tbmmorpg-grafana
+    restart: unless-stopped
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: admin  # pragma: allowlist secret
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Viewer
+    ports:
+      - "3000:3000"
+    volumes:
+      - tbmmorpg-grafana-data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+    depends_on:
+      - prometheus
+    networks:
+      - tbmmorpg-network
+
+volumes:
+  tbmmorpg-prometheus-data:
+  tbmmorpg-grafana-data:

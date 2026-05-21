@@ -1,7 +1,8 @@
 from __future__ import annotations
 
-import logging
 from typing import TYPE_CHECKING, Any
+
+from loguru import logger as log
 
 from src.backend.features.world.resources.static.d4_city_map import build_d4_city_map_node_metadata
 from src.backend.features.world.runtime.config import REGION_ROWS, REGION_SIZE, ZONE_SIZE
@@ -14,8 +15,6 @@ if TYPE_CHECKING:
     from collections.abc import Mapping
 
     from src.backend.features.world.integrations import WorldDataIntegration
-
-log = logging.getLogger(__name__)
 
 
 class VillageLoader:
@@ -40,7 +39,7 @@ class VillageLoader:
             influence=region_influence,
         )
         if not await self.data.region_exists(region_id):
-            log.info("Creating Region %s", region_id)
+            log.bind(region_id=region_id).info("WorldRegionCreating")
             await self.data.upsert_region(
                 region_id,
                 climate_tags=list(region_profile.region_tags),
@@ -68,7 +67,7 @@ class VillageLoader:
                 zone_center_x = _d4_min_x() + zx * ZONE_SIZE + ZONE_SIZE // 2
                 zone_center_y = _d4_min_y() + zy * ZONE_SIZE + ZONE_SIZE // 2
                 influence = ThreatService.describe(zone_center_x, zone_center_y)
-                log.info("Creating Zone %s", zone_id)
+                log.bind(zone_id=zone_id).info("WorldZoneCreating")
                 await self.data.upsert_zone(
                     zone_id,
                     region_id=region_id,
@@ -146,7 +145,7 @@ class VillageLoader:
 
         if nodes_to_upsert:
             await self.data.bulk_upsert_nodes(nodes_to_upsert)
-            log.info("Successfully upserted %d village nodes", len(nodes_to_upsert))
+            log.bind(node_count=len(nodes_to_upsert)).info("WorldVillageNodesUpserted")
             return len(nodes_to_upsert)
 
         return 0

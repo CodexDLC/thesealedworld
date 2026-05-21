@@ -1,15 +1,14 @@
 from __future__ import annotations
 
-import logging
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
+
+from loguru import logger as log
 
 if TYPE_CHECKING:
     import redis.asyncio as aioredis
 
     from src.backend.infrastructure.game_config.base import BaseGameConfig
-
-log = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -35,8 +34,8 @@ class GameConfigManager:
 
     def register(self, config_cls: type[BaseGameConfig]) -> None:
         self._registry[config_cls.namespace] = config_cls
-        log.debug(
-            "GameConfigManager: registered namespace=%s keys=%s", config_cls.namespace, list(config_cls.defaults())
+        log.bind(namespace=config_cls.namespace, keys=list(config_cls.defaults())).debug(
+            "GameConfigNamespaceRegistered"
         )
 
     async def bootstrap(self) -> None:
@@ -45,7 +44,7 @@ class GameConfigManager:
             for key, default in config_cls.defaults().items():
                 redis_key = config_cls.redis_key(key)
                 await self._redis.set(redis_key, str(default))
-        log.info("GameConfigManager: bootstrapped %d namespaces", len(self._registry))
+        log.bind(namespace_count=len(self._registry)).info("GameConfigBootstrapped")
 
     # ── Read ──────────────────────────────────────────────────────────────────
 
@@ -89,7 +88,7 @@ class GameConfigManager:
         if config_cls is None or key not in config_cls.defaults():
             return False
         await self._redis.set(config_cls.redis_key(key), value)
-        log.info("GameConfigManager: set %s.%s = %r", namespace, key, value)
+        log.bind(namespace=namespace, key=key).info("GameConfigSet")
         return True
 
     async def reset(self, namespace: str, key: str) -> bool:

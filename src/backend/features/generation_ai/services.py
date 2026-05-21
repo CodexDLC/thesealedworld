@@ -66,12 +66,8 @@ class GenerationAIService:
         else:
             self._pending_schedule_tasks.extend((task_id, None) for task_id in schedulable_task_ids)
             scheduled = 0
-        logger.info(
-            "GenerationAI | enqueue batch={} created={} reused={} scheduled={}",
-            batch_id,
-            created,
-            reused,
-            scheduled,
+        logger.bind(batch_id=batch_id, created_count=created, reused_count=reused, scheduled_count=scheduled).info(
+            "GenerationAiBatchEnqueued"
         )
         return AIGenerationEnqueueResultDTO(
             batch_id=batch_id,
@@ -86,9 +82,9 @@ class GenerationAIService:
         if task is None:
             existing = await self.repository.get(task_id)
             if existing is None:
-                logger.warning("GenerationAI | task missing task_id={}", task_id)
+                logger.bind(task_id=task_id).warning("GenerationAiTaskMissing")
             else:
-                logger.info("GenerationAI | task skipped task_id={} status={}", task_id, existing.status)
+                logger.bind(task_id=task_id, status=existing.status).info("GenerationAiTaskSkipped")
             return None
         return await self._execute_claimed_task(task)
 
@@ -106,7 +102,7 @@ class GenerationAIService:
             followup_specs = await handler.apply_result(task, result)
             await self.repository.mark_done(task.id, result)
             await self._enqueue_followups(followup_specs)
-            logger.info("GenerationAI | task done task_id={} task_type={}", task.id, task.task_type)
+            logger.bind(task_id=task.id, task_type=task.task_type).info("GenerationAiTaskDone")
             return result
         except Exception as exc:
             await self._mark_retry_or_failed(task.id, exc)
@@ -196,12 +192,8 @@ class GenerationAIService:
         retry_limit = self._retry_limit(task, exc)
         if int(task.attempts or 0) >= retry_limit:
             await self.repository.mark_failed(task.id, error)
-            logger.warning(
-                "GenerationAI | task failed task_id={} attempts={} retry_limit={} error={}",
-                task.id,
-                task.attempts,
-                retry_limit,
-                error,
+            logger.bind(task_id=task.id, attempt_count=task.attempts, retry_limit=retry_limit, error=error).warning(
+                "GenerationAiTaskFailed"
             )
             return
 
@@ -215,12 +207,8 @@ class GenerationAIService:
             await self._schedule_task(task.id, not_before=not_before)
         else:
             self._pending_schedule_tasks.append((task.id, not_before))
-        logger.warning(
-            "GenerationAI | task cooldown task_id={} attempts={} retry_limit={} error={}",
-            task.id,
-            task.attempts,
-            retry_limit,
-            error,
+        logger.bind(task_id=task.id, attempt_count=task.attempts, retry_limit=retry_limit, error=error).warning(
+            "GenerationAiTaskCooldown"
         )
 
     @staticmethod

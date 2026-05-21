@@ -82,10 +82,8 @@ class EncounterIntegration:
             skill_taming=_skill_value(skills.get("skill_taming")),
             raw=dict(skills),
         )
-        logger.debug(
-            "EncounterIntegrationTiming | op=get_ac_skill_snapshot char_id={} ms={}",
-            char_id,
-            _elapsed_ms(started_at),
+        logger.bind(op="get_ac_skill_snapshot", char_id=char_id, duration_ms=_elapsed_ms(started_at)).debug(
+            "EncounterIntegrationTiming"
         )
         return snapshot
 
@@ -93,10 +91,8 @@ class EncounterIntegration:
         started_at = perf_counter()
         raw_attributes = await self.character_sessions.get_section(char_id, "attributes")
         attributes = flat_attribute_snapshot(raw_attributes)
-        logger.debug(
-            "EncounterIntegrationTiming | op=get_ac_attribute_snapshot char_id={} ms={}",
-            char_id,
-            _elapsed_ms(started_at),
+        logger.bind(op="get_ac_attribute_snapshot", char_id=char_id, duration_ms=_elapsed_ms(started_at)).debug(
+            "EncounterIntegrationTiming"
         )
         return attributes
 
@@ -110,12 +106,12 @@ class EncounterIntegration:
             return
         started_at = perf_counter()
         await self.character_sessions.apply_skill_progress(char_id, clean_rewards)
-        logger.debug(
-            "EncounterIntegrationTiming | op=apply_skill_progress char_id={} rewards={} ms={}",
-            char_id,
-            sorted(clean_rewards),
-            _elapsed_ms(started_at),
-        )
+        logger.bind(
+            op="apply_skill_progress",
+            char_id=char_id,
+            reward_keys=sorted(clean_rewards),
+            duration_ms=_elapsed_ms(started_at),
+        ).debug("EncounterIntegrationTiming")
 
     async def get_active_encounter_id(self, char_id: int) -> str | None:
         sessions = await self.character_sessions.get_section(char_id, "sessions")
@@ -186,10 +182,8 @@ class EncounterIntegration:
         raw_influence = data.get("anchor_influence")
         anchor_influence = raw_influence if isinstance(raw_influence, dict) else {}
 
-        logger.debug(
-            "EncounterIntegrationTiming | op=get_location_context loc_id={} ms={}",
-            loc_id,
-            _elapsed_ms(started_at),
+        logger.bind(op="get_location_context", loc_id=loc_id, duration_ms=_elapsed_ms(started_at)).debug(
+            "EncounterIntegrationTiming"
         )
         return EncounterLocationContext(
             loc_id=loc_id,
@@ -208,13 +202,13 @@ class EncounterIntegration:
             await self.world_store.remove_player(from_loc, char_id)
         await self.world_store.add_player(to_loc, char_id)
         await self.character_sessions.set_location(char_id, to_loc, prev=from_loc)
-        logger.debug(
-            "EncounterIntegrationTiming | op=move_actor char_id={} from={} to={} ms={}",
-            char_id,
-            from_loc,
-            to_loc,
-            _elapsed_ms(started_at),
-        )
+        logger.bind(
+            op="move_actor",
+            char_id=char_id,
+            from_loc=from_loc,
+            to_loc=to_loc,
+            duration_ms=_elapsed_ms(started_at),
+        ).debug("EncounterIntegrationTiming")
         return True
 
     async def get_cached_encounter_monsters(self, cache_key: str) -> dict[str, Any] | None:

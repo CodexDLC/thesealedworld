@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-import logging
+from loguru import logger as log
 
 from src.backend.features.scenario.dto.context import ELEMENT_KEYS, STAT_KEYS, ScenarioContextDTO
 from src.backend.features.scenario.dto.finalize import (
@@ -9,8 +9,6 @@ from src.backend.features.scenario.dto.finalize import (
 )
 from src.backend.features.scenario.handlers.base_handler import BaseScenarioHandler
 from src.shared.enums import CoreDomain
-
-log = logging.getLogger(__name__)
 
 VISIBLE_PROFILE_ORDER = [
     "agility",
@@ -63,7 +61,7 @@ class TutorialScenarioHandler(BaseScenarioHandler):
         quest_master: dict,
     ) -> ScenarioFinalizeResult:
         location_id = await self.integration.select_tutorial_pve_spawn_location()
-        log.info("Tutorial scenario PvE combat handoff: char_id=%s location_id=%s", char_id, location_id)
+        log.bind(char_id=char_id, location_id=location_id).info("TutorialScenarioPveCombatHandoff")
         bonuses = self._calculate_attribute_bonuses(context)
         return ScenarioFinalizeResult(
             rewards=ScenarioRewardsDTO(

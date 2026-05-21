@@ -30,10 +30,10 @@ async def player_presence_rollup_loop(app: FastAPI) -> None:
             try:
                 await _rollup_and_cleanup(app)
             except Exception:
-                logger.exception("player_presence final flush failed")
+                logger.exception("PlayerPresenceFinalFlushFailed")
             break
         except Exception:
-            logger.exception("player_presence_rollup_loop error")
+            logger.exception("PlayerPresenceRollupLoopFailed")
 
 
 async def _rollup_and_cleanup(app: FastAPI) -> None:
@@ -66,4 +66,4 @@ async def _rollup_and_cleanup(app: FastAPI) -> None:
         for player_id in active_ids:
             await repo.upsert_activity(player_id, today, now_dt)
 
-    logger.debug("player_presence_rollup: persisted={} evicted={}", len(active_ids), len(stale_ids))
+    logger.bind(persisted_count=len(active_ids), evicted_count=len(stale_ids)).debug("PlayerPresenceRollupPersisted")

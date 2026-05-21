@@ -24,13 +24,13 @@ class ActiveCharacterDirtySyncMiddleware(BaseHTTPMiddleware):
 
         character_sessions = getattr(request.app.state, "character_sessions", None)
         if character_sessions is None:
-            logger.warning("AC dirty sync skipped: character session manager unavailable char_id={}", char_id)
+            logger.bind(char_id=char_id).warning("ActiveCharacterDirtySyncSkipped")
             return response
 
         try:
             is_dirty = await character_sessions.is_dirty(char_id)
         except Exception:  # noqa: BLE001
-            logger.exception("AC dirty sync check failed: char_id={}", char_id)
+            logger.bind(char_id=char_id).exception("ActiveCharacterDirtySyncCheckFailed")
             return response
 
         if not is_dirty:
@@ -53,7 +53,7 @@ class ActiveCharacterDirtySyncMiddleware(BaseHTTPMiddleware):
                 },
             )
         except Exception:  # noqa: BLE001
-            logger.exception("AC dirty sync enqueue failed: char_id={}", char_id)
+            logger.bind(char_id=char_id).exception("ActiveCharacterDirtySyncEnqueueFailed")
 
     async def _system_arq(self, request: Request) -> Any | None:
         arq = getattr(request.app.state, "system_arq", None)
@@ -63,7 +63,7 @@ class ActiveCharacterDirtySyncMiddleware(BaseHTTPMiddleware):
         try:
             arq = ArqService(queue_name=SYSTEM_ARQ_QUEUE)
         except Exception:  # noqa: BLE001
-            logger.exception("AC dirty sync skipped: system ARQ unavailable")
+            logger.exception("ActiveCharacterDirtySyncSystemArqUnavailable")
             return None
 
         request.app.state.system_arq = arq
@@ -83,7 +83,7 @@ class ActiveCharacterDirtySyncMiddleware(BaseHTTPMiddleware):
             try:
                 return int(raw)
             except (TypeError, ValueError):
-                logger.warning("AC dirty sync skipped: invalid {}={}", key, raw)
+                logger.bind(param=key, value=raw).warning("ActiveCharacterDirtySyncInvalidCharacterId")
                 return None
 
         return None

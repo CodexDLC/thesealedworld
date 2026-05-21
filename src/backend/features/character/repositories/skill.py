@@ -14,7 +14,7 @@ class SkillRepository:
         self.session = session
 
     async def get_by_character_id(self, char_id: int) -> list[SkillProgress]:
-        log.debug(f"SkillRepository | action=get_by_character_id char_id={char_id}")
+        log.bind(char_id=char_id).debug("SkillRepositoryGetByCharacterId")
         stmt = select(SkillProgress).where(SkillProgress.character_id == char_id)
         result = await self.session.scalars(stmt)
         return list(result.all())
@@ -50,7 +50,7 @@ class SkillRepository:
         await self.session.execute(stmt)
 
     async def get_all_skills_progress_batch(self, char_ids: list[int]) -> dict[int, list[SkillProgress]]:
-        log.debug(f"SkillRepository | action=get_all_skills_progress_batch count={len(char_ids)}")
+        log.bind(char_id_count=len(char_ids)).debug("SkillRepositoryGetAllSkillsProgressBatch")
         if not char_ids:
             return {}
         stmt = select(SkillProgress).where(SkillProgress.character_id.in_(char_ids))

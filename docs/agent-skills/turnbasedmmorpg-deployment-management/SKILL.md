@@ -11,7 +11,7 @@ Read:
 
 - `docs/agent-skills/turnbasedmmorpg-project/SKILL.md`
 - `docs/ru/management/deployment.md`
-- `docs/tasks/service_split_finalization.md`
+- `docs/ru/management/deployment-contract.md`
 
 Use `turnbasedmmorpg-frontend` when site/frontend containers or routes change.
 Use `turnbasedmmorpg-backend` when game, chat, workers, Redis Streams, or backend containers change.

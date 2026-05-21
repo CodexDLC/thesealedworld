@@ -8,8 +8,10 @@ from src.backend.features.combat.dto.action import CombatActionDTO
 from src.backend.features.combat.dto.worker import CollectorSignalDTO, WorkerBatchJobDTO
 from src.backend.features.combat.runtime.processors.executor import CombatExecutor  # noqa: TC001
 from src.backend.features.combat.runtime.services.data_service import CombatDataService  # noqa: TC001
+from src.shared.infrastructure.log_task_wrapper import logged_task
 
 
+@logged_task
 async def execute_batch_task(ctx: dict, job_data: dict) -> None:
     """
     Выполняет пакетную обработку действий (Batch Processing).
@@ -47,14 +49,14 @@ async def execute_batch_task(ctx: dict, job_data: dict) -> None:
             if "combat_collector" in ctx:
                 data_service = ctx["combat_collector"].data_service
             else:
-                log.error("ExecutorFail | reason=service_not_found")
+                log.bind(reason="service_not_found").error("ExecutorFailed")
                 return
 
         # 1. Load Context (Heavy IO)
         battle_ctx = await data_service.load_battle_context(session_id)
 
         if not battle_ctx or not battle_ctx.meta.active:
-            log.warning("ExecutorSkip | reason=inactive_session", session_id=session_id)
+            log.bind(reason="inactive_session", session_id=session_id).warning("ExecutorSkipped")
             # Снимаем зависшие блокировки, если есть
             if data_service:
                 await data_service.combat_manager.release_worker_lock_safe(session_id, "force")
@@ -64,7 +66,7 @@ async def execute_batch_task(ctx: dict, job_data: dict) -> None:
         # Гарантирует, что только один executor пишет в базу для этой сессии
         acquired = await data_service.combat_manager.acquire_worker_lock(session_id, my_id)
         if not acquired:
-            log.warning("ExecutorSkip | reason=locked_by_other", session_id=session_id)
+            log.bind(reason="locked_by_other", session_id=session_id).warning("ExecutorSkipped")
             return
 
         try:
@@ -73,7 +75,7 @@ async def execute_batch_task(ctx: dict, job_data: dict) -> None:
             raw_actions = await data_service.load_actions_batch(session_id, job.batch_size)
 
             if not raw_actions:
-                log.info("ExecutorEmpty | session_id={session_id}")
+                log.bind(session_id=session_id).debug("ExecutorEmpty")
                 return
 
             actions = []
@@ -85,35 +87,33 @@ async def execute_batch_task(ctx: dict, job_data: dict) -> None:
                 except Exception:
                     invalid_actions += 1
 
-            log.info(
-                "ExecutorBatchLoaded | session_id={session_id} requested={requested} raw={raw} parsed={parsed} invalid={invalid} step={step}",
+            log.bind(
                 session_id=session_id,
-                requested=job.batch_size,
-                raw=len(raw_actions),
-                parsed=len(actions),
-                invalid=invalid_actions,
+                requested_count=job.batch_size,
+                raw_count=len(raw_actions),
+                parsed_count=len(actions),
+                invalid_count=invalid_actions,
                 step=battle_ctx.meta.step_counter,
-            )
+            ).debug("ExecutorBatchLoaded")
 
             # 4. Process Batch (Pure Logic Calculation)
             # Вся математика происходит тут
             processed_ids = await executor.process_batch(battle_ctx, actions)
-            log.info(
-                "ExecutorBatchProcessed | session_id={session_id} processed={processed} step={step} logs={logs} deaths={deaths} target_returns={returns}",
+            log.bind(
                 session_id=session_id,
-                processed=len(processed_ids),
+                processed_count=len(processed_ids),
                 step=battle_ctx.meta.step_counter,
-                logs=len(battle_ctx.pending_logs),
-                deaths=len(battle_ctx.pending_dead_actors),
-                returns=len(battle_ctx.pending_target_returns),
-            )
+                log_count=len(battle_ctx.pending_logs),
+                death_count=len(battle_ctx.pending_dead_actors),
+                target_return_count=len(battle_ctx.pending_target_returns),
+            ).debug("ExecutorBatchProcessed")
 
             # 5. Commit (Zombie Check & Save)
             # Перед записью проверяем, не истек ли наш лок пока мы считали
             is_mine = await data_service.combat_manager.check_worker_lock(session_id, my_id)
 
             if not is_mine:
-                log.error("ExecutorZombie | error=lock_lost_during_calc", session_id=session_id)
+                log.bind(session_id=session_id, error="lock_lost_during_calc").error("ExecutorZombieDetected")
                 return
 
             # 5.1. АТОМАРНЫЙ Save (state + logs + actions + targets)
@@ -121,15 +121,14 @@ async def execute_batch_task(ctx: dict, job_data: dict) -> None:
             await _enqueue_result_support_tasks(ctx, battle_ctx)
             await _publish_combat_logs_to_chat(ctx, battle_ctx)
 
-            log.info(
-                "ExecutorSuccess | session_id={session_id} processed={count} step={step} logs={logs} deaths={deaths} target_returns={returns}",
+            log.bind(
                 session_id=session_id,
-                count=len(processed_ids),
+                processed_count=len(processed_ids),
                 step=battle_ctx.meta.step_counter,
-                logs=len(battle_ctx.pending_logs),
-                deaths=len(battle_ctx.pending_dead_actors),
-                returns=len(battle_ctx.pending_target_returns),
-            )
+                log_count=len(battle_ctx.pending_logs),
+                death_count=len(battle_ctx.pending_dead_actors),
+                target_return_count=len(battle_ctx.pending_target_returns),
+            ).info("ExecutorCompleted")
 
         finally:
             # 6. Release Lock
@@ -142,7 +141,7 @@ async def execute_batch_task(ctx: dict, job_data: dict) -> None:
 
     except Exception:
         # Ловим любые ошибки, чтобы воркер не упал насмерть
-        log.exception("ExecutorCriticalError | session_id={session_id}", session_id=session_id)
+        log.bind(session_id=session_id).exception("ExecutorCriticalError")
         raise  # Reraise нужен, чтобы ARQ увидел ошибку и (возможно) сделал retry
 
 
@@ -153,12 +152,12 @@ async def _publish_combat_logs_to_chat(ctx: dict, battle_ctx) -> None:
 
     redis = ctx.get("redis_client_internal")
     if redis is None:
-        log.warning("CombatChatPublishSkip | reason=no_redis session_id={}", battle_ctx.session_id)
+        log.bind(reason="no_redis", session_id=battle_ctx.session_id).warning("CombatChatPublishSkipped")
         return
 
     recipients = _player_recipients(battle_ctx)
     if not recipients:
-        log.warning("CombatChatPublishSkip | reason=no_recipients session_id={}", battle_ctx.session_id)
+        log.bind(reason="no_recipients", session_id=battle_ctx.session_id).warning("CombatChatPublishSkipped")
         return
 
     published = 0
@@ -173,18 +172,11 @@ async def _publish_combat_logs_to_chat(ctx: dict, battle_ctx) -> None:
             )
             published += 1
         except Exception:
-            log.exception(
-                "CombatChatPublishFailed | session_id={session_id} seq={seq}",
-                session_id=battle_ctx.session_id,
-                seq=entry.get("id"),
-            )
+            log.bind(session_id=battle_ctx.session_id, seq=entry.get("id")).exception("CombatChatPublishFailed")
             continue
 
-    log.info(
-        "CombatChatPublished | session_id={session_id} messages={count} recipients={recipients}",
-        session_id=battle_ctx.session_id,
-        count=published,
-        recipients=recipients,
+    log.bind(session_id=battle_ctx.session_id, message_count=published, recipients=recipients).info(
+        "CombatChatPublished"
     )
 
 
@@ -196,7 +188,7 @@ async def _enqueue_result_support_tasks(ctx: dict, battle_ctx) -> None:
 
     queue = ctx.get("redis")
     if queue is None:
-        log.warning("CombatResultSupportSkip | reason=no_arq session_id={}", battle_ctx.session_id)
+        log.bind(reason="no_arq", session_id=battle_ctx.session_id).warning("CombatResultSupportSkipped")
         return
 
     enqueued = 0
@@ -205,18 +197,12 @@ async def _enqueue_result_support_tasks(ctx: dict, battle_ctx) -> None:
             await queue.enqueue_job("combat_result_support_task", payload)
             enqueued += 1
         except Exception:
-            log.exception(
-                "CombatResultSupportEnqueueFailed | session_id={session_id} seq={seq}",
-                session_id=battle_ctx.session_id,
-                seq=payload.get("seq"),
+            log.bind(session_id=battle_ctx.session_id, seq=payload.get("seq")).exception(
+                "CombatResultSupportEnqueueFailed"
             )
             continue
 
-    log.info(
-        "CombatResultSupportEnqueued | session_id={session_id} tasks={count}",
-        session_id=battle_ctx.session_id,
-        count=enqueued,
-    )
+    log.bind(session_id=battle_ctx.session_id, task_count=enqueued).info("CombatResultSupportEnqueued")
 
 
 def _player_recipients(battle_ctx) -> list[str]:

@@ -30,14 +30,14 @@ class GameFeatureContainer:
     """Manages game-specific features like World and Scenarios."""
 
     async def bootstrap(self, app: FastAPI) -> None:
-        logger.info("Bootstrapping Game Features...")
+        logger.info("GameFeaturesBootstrapStarted")
         await self.bootstrap_scenarios(app)
         await self._bootstrap_world(app)
         await self._bootstrap_anchor_projections(app)
-        logger.info("Game Features bootstrap finished")
+        logger.info("GameFeaturesBootstrapFinished")
 
     async def _bootstrap_world(self, app: FastAPI) -> None:
-        logger.info("Bootstrapping World feature...")
+        logger.info("WorldFeatureBootstrapStarted")
         async with get_manual_session_context() as session:
             repository = WorldRepository(session)
             data = WorldDataIntegration(repository)
@@ -78,18 +78,17 @@ class GameFeatureContainer:
             app.state.world_cache_loaded_count = loaded_count
             app.state.monster_population_contexts = population_result.contexts
             app.state.monster_population_clans = population_result.clans
-            logger.info(f"World bootstrap: {loaded_count} locations loaded")
-            logger.info(
-                "Monster population bootstrap: contexts={} clans={}",
-                population_result.contexts,
-                population_result.clans,
-            )
+            logger.bind(location_count=loaded_count).info("WorldBootstrapFinished")
+            logger.bind(
+                context_count=population_result.contexts,
+                clan_count=population_result.clans,
+            ).info("MonsterPopulationBootstrapFinished")
             await session.commit()
             scheduled = await generation_ai.schedule_pending_task_ids()
-            logger.info("Generation AI bootstrap tasks scheduled after commit: {}", scheduled)
+            logger.bind(task_count=scheduled).info("GenerationAiBootstrapTasksScheduled")
 
     async def _bootstrap_anchor_projections(self, app: FastAPI) -> None:
-        logger.info("Bootstrapping anchor projections...")
+        logger.info("AnchorProjectionsBootstrapStarted")
         item_generation = ItemGenerationService()
         bootstrap = AnchorProjectionBootstrapService(
             item_generation=item_generation,
@@ -97,20 +96,19 @@ class GameFeatureContainer:
         )
         result = await bootstrap.bootstrap()
         app.state.anchor_projection_bootstrap = result
-        logger.info(
-            "Anchor projections bootstrap: clan_id={} members={} redis_cached={}",
-            result["clan_id"],
-            result["members"],
-            result["redis_cached"],
-        )
+        logger.bind(
+            clan_id=result["clan_id"],
+            member_count=result["members"],
+            redis_cached=result["redis_cached"],
+        ).info("AnchorProjectionsBootstrapFinished")
 
     async def bootstrap_scenarios(self, app: FastAPI) -> None:
-        logger.info("Bootstrapping Scenarios feature...")
+        logger.info("ScenariosFeatureBootstrapStarted")
         from src.backend.features.scenario.loaders.scenario_loader import ScenarioLoader
 
         scenario_root = Path(__file__).resolve().parents[2] / "features" / "scenario" / "resources" / "json"
         if not scenario_root.exists():
-            logger.warning(f"Scenario fixtures are missing: path={scenario_root}")
+            logger.bind(path=str(scenario_root)).warning("ScenarioFixturesMissing")
             return
 
         async with get_session_context() as session:
@@ -122,4 +120,4 @@ class GameFeatureContainer:
                 loaded_quest_keys.append(quest_key)
             app.state.scenario_bootstrap_quest_key = "awakening_rift"
             app.state.scenario_bootstrap_quest_keys = loaded_quest_keys
-            logger.info(f"Scenarios bootstrap: quest_keys={loaded_quest_keys} loaded")
+            logger.bind(quest_keys=loaded_quest_keys).info("ScenariosBootstrapFinished")

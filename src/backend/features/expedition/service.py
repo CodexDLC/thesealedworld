@@ -83,7 +83,7 @@ class ExpeditionService:
                 current_location_id=to_loc,
                 respawn_anchor_location_id=anchor,
             )
-            logger.info("Expedition | started char_id={} run_id={} loc={}", char_id, expedition.run_id, to_loc)
+            logger.bind(char_id=char_id, run_id=expedition.run_id, location_id=to_loc).info("ExpeditionStarted")
         else:
             expedition.current_location_id = to_loc
 
@@ -154,7 +154,7 @@ class ExpeditionService:
             await self.character_sessions.set_pending_progress(char_id, self._empty_pending())
             await self.refresh_session_risk(char_id, expedition=None, system_connect=True)
 
-        logger.info("Expedition | synced char_id={} run_id={} loc={}", char_id, expedition.run_id, location_id)
+        logger.bind(char_id=char_id, run_id=expedition.run_id, location_id=location_id).info("ExpeditionSynced")
         await self._maybe_commit()
 
     async def mark_death_pending(
@@ -246,8 +246,8 @@ class ExpeditionService:
         )
         await self._patch_death_corpse_session(char_id, expedition)
         await self._maybe_commit()
-        logger.info(
-            "Expedition | death corpse finalized char_id={} run_id={} corpse={}", char_id, expedition.run_id, corpse_id
+        logger.bind(char_id=char_id, run_id=expedition.run_id, corpse_id=corpse_id).info(
+            "ExpeditionDeathCorpseFinalized"
         )
         return {"status": "finalized", "corpse_id": corpse_id, "location_id": corpse_location_id}
 
@@ -278,8 +278,8 @@ class ExpeditionService:
 
         await self._restore_active_session_after_respawn(char_id, expedition)
         await self._maybe_commit()
-        logger.info(
-            "Expedition | respawned char_id={} run_id={} corpse={}", char_id, expedition.run_id, expedition.corpse_id
+        logger.bind(char_id=char_id, run_id=expedition.run_id, corpse_id=expedition.corpse_id).info(
+            "ExpeditionRespawned"
         )
         return self._respawn_result(expedition)
 

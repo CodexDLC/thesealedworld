@@ -38,7 +38,7 @@
 
 
   --font-world: 'EB Garamond', Georgia, serif;
-  --font-ui: 'JetBrains Mono', 'Courier New', monospace;
+  --font-ui: ui-monospace, SFMono-Regular, Consolas, 'Liberation Mono', monospace;
 
 
   --text-3xl: 32px;

@@ -17,7 +17,7 @@ def _initialize_library() -> None:
     if _INITIALIZED:
         return
 
-    log.info("EffectLibrary | Initializing...")
+    log.info("EffectLibraryInitializing")
 
     all_catalogs = [
         DOT_EFFECTS_CATALOG,
@@ -29,11 +29,11 @@ def _initialize_library() -> None:
     for catalog in all_catalogs:
         for effect_id, entry in catalog.items():
             if effect_id in EFFECT_CATALOG_REGISTRY:
-                log.warning(f"EffectLibrary | Duplicate effect ID: '{effect_id}'. Overwriting.")
+                log.bind(effect_id=effect_id).warning("EffectLibraryDuplicateEffectId")
             EFFECT_CATALOG_REGISTRY[effect_id] = entry
             EFFECT_CATALOG_BY_KEY[entry.key] = entry
 
-    log.info(f"EffectLibrary | Loaded {len(EFFECT_CATALOG_REGISTRY)} effects.")
+    log.bind(effect_count=len(EFFECT_CATALOG_REGISTRY)).info("EffectLibraryLoaded")
     _INITIALIZED = True
 
 

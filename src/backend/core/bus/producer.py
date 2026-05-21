@@ -3,6 +3,8 @@ from typing import Any
 from codex_platform.streams.producer import StreamProducer
 from loguru import logger
 
+from src.shared.infrastructure.metrics import EVENT_PUBLISHED_TOTAL
+
 
 class GameEventProducer:
     """Thin adapter for StreamProducer to maintain backward compatibility."""
@@ -19,7 +21,8 @@ class GameEventProducer:
     ) -> str:
         message_id = await self._producer.publish(event_type, data, correlation_id=correlation_id)
         await self._trim_stream()
-        logger.info("Event published: type={} message_id={} correlation_id={}", event_type, message_id, correlation_id)
+        EVENT_PUBLISHED_TOTAL.labels(service="backend", event_type=event_type).inc()
+        logger.bind(event_type=event_type, message_id=message_id, correlation_id=correlation_id).info("EventPublished")
         return message_id
 
     async def request(
@@ -29,16 +32,15 @@ class GameEventProducer:
         timeout: float = 30.0,
         correlation_id: str | None = None,
     ) -> Any:
-        logger.info("Event request started: type={} correlation_id={} timeout={}", event_type, correlation_id, timeout)
+        logger.bind(event_type=event_type, correlation_id=correlation_id, timeout=timeout).info("EventRequestStarted")
+        EVENT_PUBLISHED_TOTAL.labels(service="backend", event_type=event_type).inc()
         response = await self._producer.request(event_type, data, timeout=timeout, correlation_id=correlation_id)
-        logger.info("Event request completed: type={} correlation_id={}", event_type, correlation_id)
+        logger.bind(event_type=event_type, correlation_id=correlation_id).info("EventRequestCompleted")
         return response
 
     async def publish_reply(self, correlation_id: str, data: dict[str, Any], ttl: int | None = None) -> None:
         await self._producer.publish_reply(correlation_id, data, ttl=ttl)
-        logger.info(
-            "Event reply published: correlation_id={} status={} ttl={}", correlation_id, data.get("status"), ttl
-        )
+        logger.bind(correlation_id=correlation_id, status=data.get("status"), ttl=ttl).info("EventReplyPublished")
 
     async def publish_with_correlation(
         self,

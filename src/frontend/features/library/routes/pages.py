@@ -26,14 +26,14 @@ async def library(ui: Annotated[UIRenderer, Depends(get_ui_renderer)]):
 @router.get("/library/fragments/intro", name="library_intro_fragment")
 async def library_intro_fragment(ui: Annotated[UIRenderer, Depends(get_ui_renderer)]):
     """Render the Library introduction fragment."""
-    logger.info("Library fragment requested: intro")
+    logger.bind(fragment="intro").debug("LibraryFragmentRequested")
     return await ui.render("site/library/fragments/intro.html")
 
 
 @router.get("/library/fragments/monsters", name="library_monsters_fragment")
 async def library_monsters_fragment(ui: Annotated[UIRenderer, Depends(get_ui_renderer)]):
     """Render the Library monsters fragment."""
-    logger.info("Library fragment requested: monsters")
+    logger.bind(fragment="monsters").debug("LibraryFragmentRequested")
     return await ui.render("site/library/fragments/monsters.html")
 
 
@@ -51,7 +51,7 @@ async def library_monster_clans_fragment(
     q: Annotated[str | None, Query()] = None,
 ):
     """Render the Library monster clans fragment."""
-    logger.info("Library fragment requested: monster-clans")
+    logger.bind(fragment="monster-clans").debug("LibraryFragmentRequested")
     result = await library_service.monster_clans(
         tier=tier,
         location=location,
@@ -72,7 +72,7 @@ async def library_monster_clan_detail_fragment(
     library_service: Annotated[LibraryFrontendService, Depends(get_library_service)],
 ):
     """Render a Library monster clan detail fragment."""
-    logger.info("Library fragment requested: monster-clan-detail clan_id={}", clan_id)
+    logger.bind(fragment="monster-clan-detail", clan_id=clan_id).debug("LibraryFragmentRequested")
     clan = await library_service.monster_clan_detail(clan_id)
     return await ui.render(
         "site/library/fragments/monster_clan_detail.html",

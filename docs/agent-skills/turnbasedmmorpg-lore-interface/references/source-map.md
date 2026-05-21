@@ -4,35 +4,40 @@ Use this map to load only the files relevant to the current task.
 
 ## RPG Rules
 
-Root: `docs/game-design/rpg-rules/`
+Root: `docs/game-design/`
 
-- `Attributes/README.md` - attribute taxonomy and naming rationale:
-  Body, Mind, Soul; Strength, Agility, Endurance, Perception, Intellect,
-  Memory, Mental, Projection, Predestination.
-- `Skills/README.md` - high-level skill philosophy and skill families.
-- `Skills/Core_Mechanics/Balance_Matrix.md` - attribute weight philosophy for
-  each skill, including the Sum 4 rule.
-- `Skills/Core_Mechanics/Progression_Math.md` - progression concept and growth
-  pressure. Use as design intent, not final formula unless verified against code.
-- `Skills/Weapon_Mastery.md` - weapon class mastery, accuracy, damage
-  stability, triggers, and unarmed combat fantasy.
-- `Skills/Armor_Skills.md` - light, medium, and heavy armor identity.
-- `Skills/Combat_Support_Skills.md` - parrying, tactics, anatomy, and support
-  combat concepts.
-- `Skills/Tactical_Skills.md` - tactical combat style direction.
-- `Skills/Crafting_Skills.md` - first aid, alchemy, weapon craft, armor craft,
-  jewelry, artifacts.
-- `Skills/Gathering_Skills.md` - mining, herbalism, skinning, woodcutting,
-  hunting, archaeology, gathering.
-- `Skills/Social_Skills.md` - leadership, organization, team spirit, egoism,
-  and social progression.
-- `Skills/Survival_Skills.md` - taming, adaptation, scouting, pathfinder.
-- `Gifts/README.md` - gift fantasy, magic schools, and progression.
-- `Items/Weapon_Types.md` - weapon type fantasy and combat identity.
-- `Modifiers/Modifiers_Reference.md` - vocabulary for vitals, weapon stats,
-  defenses, elemental/status effects, special modifiers, economy/world modifiers.
-- `Data_Schemas/` - old schema notes. Read only for historical context; current
-  `src/shared/schemas` wins for active contracts.
+- `library/rpg/attributes.md` - player-facing attribute library source:
+  Body, Core, Sensor; Strength, Agility, Endurance, Intellect, Memory, Mental,
+  Perception, Projection, Prediction.
+- `rules/attributes/technical_reference.md` - runtime attribute mapping,
+  player formulas, monster profile overrides, and future/non-runtime ideas.
+- `library/rpg/skills/README.md` - player-facing skills overview source for
+  future library articles and tooltip copy.
+- `library/rpg/skills/combat.md` - player-facing weapon, tactical style, armor,
+  and combat support skill identity.
+- `library/rpg/skills/crafting.md` - player-facing crafting skill identity.
+- `library/rpg/skills/world.md` - player-facing gathering and survival skill identity.
+- `library/rpg/skills/social.md` - player-facing trade and leadership skill identity.
+- `rules/skills/catalog_reference.md` - current skill catalog, ui groups, weights,
+  and progression modifiers.
+- `rules/skills/progression_reference.md` - current skill progression formula,
+  runtime scale, and alpha tuning notes.
+- `rules/skills/combat_runtime_reference.md` - current combat skill runtime hooks
+  and future design boundaries.
+- `rpg-rules/Gifts/README.md` - older gift fantasy and progression source material.
+- `domains/gifts/README.md` - reviewed Gifts and Symbiote concept source.
+- `library/rpg/items.md` - player-facing item model library source.
+- `rules/items/item_model_reference.md` - item source model, material, grade,
+  implicit bonus, affix, socket, projection, and text reference.
+- `rules/items/weapon_type_source.md` - weapon type design and catalog expansion
+  source; verify ids against runtime catalogs before implementation.
+- `rules/modifiers/modifier_vocabulary.md` - current modifier vocabulary for
+  vitals, weapon stats, defenses, elemental/status effects, special modifiers,
+  world stats, and active aliases.
+- `rules/modifiers/actor_mapper_reference.md` - current mapper/waterfall layer
+  reference for actor raw math, item affixes, and monster profile additions.
+- `library/rpg/modifiers.md` - player-facing modifier explanation source for
+  future library articles and tooltip copy.
 
 ## Designer Docs
 
@@ -63,9 +68,6 @@ Root: `docs/game-design/interface/`
 - `handler_and_ui_standard.md` - old handler/UI guidance; use only for intent.
 - `design_doc_helper.md` - library/help interface concept.
 
-Root: `docs/game-design/drafts/`
-
-- `gifts/` - gift and symbiote drafts.
-- `07_gifts_skills_interaction.md` - interaction idea between gifts and skills.
-
-Drafts need review before becoming canon.
+Reviewed Gifts drafts were migrated into `docs/game-design/domains/gifts/`.
+Original source drafts are archived under
+`docs/archive/game-design/old-drafts/gifts/`.

@@ -23,7 +23,7 @@ class GameLobbyService:
         characters = await self.integration.list_user_characters(user.id)
 
         occupied_count = len(characters)
-        logger.info("Lobby payload built: user_id={} occupied_slots={}", user.id, occupied_count)
+        logger.bind(user_id=str(user.id), occupied_slot_count=occupied_count).debug("LobbyPayloadBuilt")
 
         occupied_slots = [
             LobbySlotDTO(

@@ -61,8 +61,8 @@ class LootManager:
         data = result[0] if isinstance(result, list) else result
         try:
             return CorpseDTO.model_validate(data)
-        except Exception as exc:
-            log.error("LootManager | failed to parse corpse {}: {}", corpse_id, exc)
+        except Exception:
+            log.bind(corpse_id=corpse_id).exception("LootManagerCorpseParseFailed")
             return None
 
     async def patch_corpse(self, corpse_id: str, fields: dict[str, Any]) -> None:

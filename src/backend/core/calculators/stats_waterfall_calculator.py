@@ -286,8 +286,8 @@ class StatsWaterfallCalculator:
         try:
             raw_result = _simple_eval(full_expression)
             final_value = round(float(raw_result), 4)
-        except Exception as e:  # noqa: BLE001
-            logger.error(f"StatsWaterfallCalculator | Eval error: {e} expr='{full_expression}'")
+        except Exception:  # noqa: BLE001
+            logger.bind(expression=full_expression).exception("StatsWaterfallEvaluationFailed")
             final_value = 0.0
 
         return final_value, full_expression

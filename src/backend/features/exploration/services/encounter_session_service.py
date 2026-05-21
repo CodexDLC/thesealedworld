@@ -1,16 +1,14 @@
 from __future__ import annotations
 
-import logging
 from typing import TYPE_CHECKING
 
+from loguru import logger as log
 from pydantic import ValidationError
 
 from src.shared.schemas.exploration import EncounterDTO
 
 if TYPE_CHECKING:
     from src.backend.features.exploration.integrations.encounter_integration import EncounterIntegration
-
-log = logging.getLogger(__name__)
 
 
 class ExplorationEncounterSessionService:
@@ -31,7 +29,7 @@ class ExplorationEncounterSessionService:
             return None
         session = await self._integration.get_encounter_session(encounter_id)
         if session is None:
-            log.warning("ExplorationEncounterSessionService | stale_ref char_id=%s encounter=%s", char_id, encounter_id)
+            log.bind(char_id=char_id, encounter_id=encounter_id).warning("ExplorationEncounterStaleRef")
             await self._integration.detach_encounter_session(char_id)
             return None
         payload = session.get("payload", session)
@@ -41,9 +39,7 @@ class ExplorationEncounterSessionService:
         try:
             return EncounterDTO.model_validate(payload)
         except ValidationError:
-            log.warning(
-                "ExplorationEncounterSessionService | invalid_payload char_id=%s encounter=%s", char_id, encounter_id
-            )
+            log.bind(char_id=char_id, encounter_id=encounter_id).warning("ExplorationEncounterInvalidPayload")
             await self.clear(char_id, encounter_id)
             return None
 

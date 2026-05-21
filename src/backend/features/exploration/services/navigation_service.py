@@ -1,7 +1,8 @@
 from __future__ import annotations
 
-import logging
 from typing import TYPE_CHECKING, Any, cast
+
+from loguru import logger as log
 
 from src.backend.features.exploration.dto.config import ExplorationConfig
 from src.backend.features.exploration.dto.result import MoveResolution
@@ -18,8 +19,6 @@ from src.shared.schemas.exploration import (
     WorldNavigationDTO,
 )
 from src.shared.schemas.world_theme import WorldThemeDTO
-
-log = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from src.backend.features.exploration.integrations.system_integrator import ExplorationSystemIntegrator
@@ -65,7 +64,7 @@ class ExplorationNavigationService:
 
         target_loc_data = await self.location_data(target_loc_id)
         if not target_loc_data:
-            log.warning("ExplorationNavigationService | target_not_found char_id=%s target=%s", char_id, target_loc_id)
+            log.bind(char_id=char_id, target_loc_id=target_loc_id).warning("ExplorationNavigationTargetNotFound")
             return MoveResolution(
                 current_loc_id=current_loc_id,
                 current_loc_data=current_loc_data,

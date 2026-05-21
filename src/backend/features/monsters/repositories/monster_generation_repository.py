@@ -103,11 +103,7 @@ class MonsterGenerationRepository:
         clan: GeneratedClan,
         members: Sequence[GeneratedMonster],
     ) -> GeneratedClan:
-        log.debug(
-            "MonsterGenerationRepository | action=create_clan_with_members clan_id={} members={}",
-            clan.id,
-            len(members),
-        )
+        log.bind(clan_id=str(clan.id), member_count=len(members)).debug("MonsterGenerationClanWithMembersCreated")
         clan_orm = _to_clan_orm(clan)
         member_orms = [_to_monster_orm(member) for member in members]
         clan_orm.members.extend(member_orms)

@@ -15,12 +15,14 @@ from src.backend.features.items.models import ItemPlacement, ResourceBalance
 from src.backend.features.loot.integrations.loot_integration import LootIntegration
 from src.backend.infrastructure.inventory.models import ResourceWallet
 from src.backend.infrastructure.loot.managers.loot_manager import LootManager
+from src.shared.infrastructure.log_task_wrapper import logged_task
 from src.shared.schemas.loot import ClaimResultDTO
 
 _CURRENCY_PREFIXES = ("coin_", "currency_", "gold_", "silver_", "copper_")
 _COMPONENT_PREFIXES = ("essence_", "flower_", "bark_", "supply_", "component_")
 
 
+@logged_task
 async def loot_claim_task(ctx: dict[str, Any], payload: dict[str, Any]) -> None:
     """
     ARQ coordinator for atomic loot claiming.
@@ -40,20 +42,19 @@ async def loot_claim_task(ctx: dict[str, Any], payload: dict[str, Any]) -> None:
     resource_deltas: dict[str, int] = payload.get("resource_deltas") or {}
 
     if not char_id or not corpse_id:
-        log.error("LootClaimTask | missing char_id or corpse_id in payload")
+        log.error("LootClaimPayloadInvalid")
         return
 
-    log.info(
-        "LootClaimTask | char={} corpse={} items={} resources={}",
-        char_id,
-        corpse_id,
-        len(instance_ids),
-        len(resource_deltas),
-    )
+    log.bind(
+        char_id=char_id,
+        corpse_id=corpse_id,
+        item_count=len(instance_ids),
+        resource_count=len(resource_deltas),
+    ).info("LootClaimTaskStarted")
 
     redis_service = ctx.get("redis_service")
     if redis_service is None:
-        log.error("LootClaimTask | redis_service not in context")
+        log.error("LootClaimRedisServiceMissing")
         return
 
     # -----------------------------------------------------------------
@@ -61,7 +62,7 @@ async def loot_claim_task(ctx: dict[str, Any], payload: dict[str, Any]) -> None:
     # -----------------------------------------------------------------
     pg_success = await _transfer_to_inventory(ctx, char_id, corpse_id, instance_ids, resource_deltas)
     if not pg_success:
-        log.warning("LootClaimTask | PG transfer failed, will retry — corpse {} untouched", corpse_id)
+        log.bind(corpse_id=corpse_id).warning("LootClaimTransferFailed")
         raise RuntimeError(f"inventory transfer failed for char={char_id} corpse={corpse_id}")
 
     # -----------------------------------------------------------------
@@ -73,11 +74,11 @@ async def loot_claim_task(ctx: dict[str, Any], payload: dict[str, Any]) -> None:
     updated_corpse = await integration.mark_items_claimed(corpse_id, claim)
 
     if updated_corpse is None:
-        log.warning("LootClaimTask | corpse {} already gone from Redis (TTL expired?)", corpse_id)
+        log.bind(corpse_id=corpse_id).warning("LootClaimCorpseMissing")
     elif updated_corpse.is_empty:
-        log.info("LootClaimTask | corpse {} is now empty, TTL set to 5 min", corpse_id)
+        log.bind(corpse_id=corpse_id).info("LootClaimCorpseEmptied")
 
-    log.info("LootClaimTask | claim complete char={} corpse={}", char_id, corpse_id)
+    log.bind(char_id=char_id, corpse_id=corpse_id).info("LootClaimTaskCompleted")
 
 
 def _split_resource_buckets(
@@ -190,7 +191,7 @@ async def _transfer_to_inventory(
         await _clear_inventory_runtime_cache(ctx, char_id)
         return True
     except Exception:
-        log.exception("LootClaimTask | _transfer_to_inventory failed char={}", char_id)
+        log.bind(char_id=char_id).exception("LootClaimTransferToInventoryFailed")
         return False
 
 
@@ -211,7 +212,7 @@ async def _clear_inventory_runtime_cache(ctx: dict[str, Any], char_id: int) -> N
     try:
         await redis_service.string.delete(f"game:inventory:{char_id}")
     except Exception:
-        log.warning("LootClaimTask | inventory runtime cache clear failed char={}", char_id, exc_info=True)
+        log.bind(char_id=char_id).exception("LootClaimInventoryRuntimeCacheClearFailed")
 
 
 async def _consume_corpse_resource_balances(session: Any, corpse_id: str, resource_deltas: dict[str, int]) -> None:

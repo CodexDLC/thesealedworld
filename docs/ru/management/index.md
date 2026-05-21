@@ -8,3 +8,4 @@ Management layer не является runtime-модулем и не долже
 
 - [Деплой](deployment.md) — текущая схема CI/CD, production compose files и выпуск образов.
 - [Контракт деплоя](deployment-contract.md) — ownership matrix, границы перезапуска, rollback и правила взаимодействия слоев.
+- [Стратегия тестирования](testing_strategy.md) — тестовая пирамида, coverage-правила, структура тестов и quality gate для разработки.

@@ -22,19 +22,19 @@ DIRTY_SWEEPER_MINUTES = set(range(0, 60, 3))
 
 
 async def system_startup(ctx: dict[str, Any]) -> None:
-    logger.info("WorkerInit | stage=start worker_type=system")
+    logger.bind(stage="start", worker_type="system").info("WorkerInit")
     await base_startup(ctx)
     ctx["system_arq"] = ArqService(queue_name=SYSTEM_ARQ_QUEUE)
-    logger.info("WorkerInit | stage=complete worker_type=system")
+    logger.bind(stage="complete", worker_type="system").info("WorkerInit")
 
 
 async def system_shutdown(ctx: dict[str, Any]) -> None:
-    logger.info("WorkerShutdown | stage=start worker_type=system")
+    logger.bind(stage="start", worker_type="system").info("WorkerShutdown")
     arq = ctx.get("system_arq")
     if arq is not None:
         await arq.close()
     await base_shutdown(ctx)
-    logger.info("WorkerShutdown | stage=complete worker_type=system")
+    logger.bind(stage="complete", worker_type="system").info("WorkerShutdown")
 
 
 class SystemArqSettings(BaseArqSettings):

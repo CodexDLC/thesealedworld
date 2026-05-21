@@ -1,0 +1,79 @@
+// ══════════════════════════════════════════════════════════════════════════════
+// TurnBasedMMORPG — Alloy additions for structured app logs + Prometheus
+//
+// Append these blocks to the existing /etc/alloy/config.alloy on the server.
+// The existing node_exporter, cAdvisor, journal, and docker log blocks remain
+// unchanged.
+// ══════════════════════════════════════════════════════════════════════════════
+
+// ── JSON log parsing for application containers ──────────────────────────────
+//
+// App containers (backend, frontend, chat, workers) emit JSON to stdout when
+// DEBUG=False.  This pipeline extracts structured fields and sets Loki labels.
+
+loki.process "app_json_logs" {
+  // Parse top-level JSON emitted by Loguru serialize=True
+  stage.json {
+    expressions = {
+      level      = "record.level.name",
+      service    = "record.extra.service",
+      request_id = "record.extra.request_id",
+      msg        = "text",
+    }
+  }
+
+  // Promote low-cardinality fields to Loki labels for fast filtering
+  stage.labels {
+    values = {
+      level   = "",
+      service = "",
+    }
+  }
+
+  // High-cardinality fields go to structured metadata (queryable but not indexed)
+  stage.structured_metadata {
+    values = {
+      request_id = "",
+    }
+  }
+
+  forward_to = [loki.write.grafana_cloud_loki.receiver]
+}
+
+// ── Route app containers through the JSON pipeline ───────────────────────────
+//
+// Replace the forward_to in the existing loki.source.docker block:
+//
+//   BEFORE:  forward_to = [loki.write.grafana_cloud_loki.receiver]
+//   AFTER:   forward_to = [loki.process.app_json_logs.receiver]
+//
+// Alternatively, add a relabel rule to split app vs infra containers:
+//
+//   discovery.relabel "logs_integrations_docker" {
+//     rule {
+//       source_labels = ["__meta_docker_container_name"]
+//       regex         = "/tbmmorpg-(backend|frontend|chat|combat-worker|system-worker|generation-ai-worker|loot-worker)"
+//       target_label  = "__app_container__"
+//       replacement   = "true"
+//     }
+//   }
+
+// ── Prometheus scrape for application /metrics endpoints ─────────────────────
+//
+// NOTE: Alloy runs on the host, outside the Docker network.  The containers
+// expose ports via docker-compose:
+//   backend:8001, frontend:8000, chat:8002
+//
+// If containers do NOT publish ports to the host, use the Docker bridge IP
+// or run Alloy inside the Docker network.
+
+prometheus.scrape "app_metrics" {
+  targets = [
+    {"__address__" = "127.0.0.1:8001", "service" = "backend",  "instance" = "my_game_prealpha"},
+    {"__address__" = "127.0.0.1:8000", "service" = "frontend", "instance" = "my_game_prealpha"},
+    {"__address__" = "127.0.0.1:8002", "service" = "chat",     "instance" = "my_game_prealpha"},
+  ]
+  metrics_path    = "/metrics"
+  scrape_interval = "15s"
+  forward_to      = [prometheus.remote_write.metrics_service.receiver]
+}

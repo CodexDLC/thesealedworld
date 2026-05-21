@@ -166,6 +166,7 @@ Desktop.ini
 .cline/
 .cursor/
 .windsurf/
+.claude/settings.local.json
 .claude/worktrees/
 .aider*
 .agent/

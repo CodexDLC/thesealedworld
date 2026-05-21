@@ -1,15 +1,14 @@
 from __future__ import annotations
 
-import logging
 from typing import TYPE_CHECKING, Any
+
+from loguru import logger as log
 
 from src.backend.features.scenario.dto.master import QuestMasterSchema, QuestNodeSchema
 
 if TYPE_CHECKING:
     from src.backend.infrastructure.scenario.managers.content_manager import ScenarioContentManager
     from src.backend.infrastructure.scenario.repositories import ScenarioRepository
-
-log = logging.getLogger(__name__)
 
 
 class ScenarioContentIntegration:
@@ -46,13 +45,13 @@ class ScenarioContentIntegration:
         nodes = await self.repo.get_nodes_by_pool(quest_key, pool_tag)
         result = [QuestNodeSchema.model_validate(node).model_dump(mode="json") for node in nodes]
         if not result:
-            log.warning("Scenario pool returned no nodes: quest_key=%s pool_tag=%s", quest_key, pool_tag)
+            log.bind(quest_key=quest_key, pool_tag=pool_tag).warning("ScenarioPoolEmpty")
         return result
 
     async def warm_up_cache(self, quest_key: str) -> int:
         master = await self.repo.get_master(quest_key)
         if not master:
-            log.warning("Scenario cache warmup skipped: master_not_found quest_key=%s", quest_key)
+            log.bind(quest_key=quest_key, reason="master_not_found").warning("ScenarioCacheWarmupSkipped")
             return 0
 
         master_data = QuestMasterSchema.model_validate(master).model_dump(mode="json")
@@ -61,9 +60,9 @@ class ScenarioContentIntegration:
             for node in await self.repo.get_all_quest_nodes(quest_key)
         ]
         await self.cache.cache_quest_data(quest_key, master_data, nodes)
-        log.info("Scenario cache warmed: quest_key=%s nodes=%s", quest_key, len(nodes))
+        log.bind(quest_key=quest_key, node_count=len(nodes)).info("ScenarioCacheWarmed")
         return len(nodes)
 
     async def invalidate(self, quest_key: str) -> None:
         await self.cache.invalidate(quest_key)
-        log.info("Scenario cache invalidated: quest_key=%s", quest_key)
+        log.bind(quest_key=quest_key).info("ScenarioCacheInvalidated")

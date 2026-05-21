@@ -43,7 +43,7 @@ class ModifierApplicationService:
 
             contract = get_modifier_contract(application.modifier_id)
             if contract is None:
-                log.warning(f"ModifierApplicationService | Unknown modifier contract: {application.modifier_id}")
+                log.bind(modifier_id=application.modifier_id).warning("ModifierApplicationUnknownContract")
                 continue
 
             value = ModifierApplicationService._resolve_value(application)

@@ -1041,26 +1041,20 @@ class CombatResolver:
                 details=compact_details,
             )
         )
-        log.opt(colors=True).debug(
-            "<cyan>CombatRoll</cyan> | {src}->{dst} stage={stage} chance={chance:.3f} roll={roll} pass={passed} {details}",
-            src=res.source_id,
-            dst=res.target_id,
+        log.bind(
+            source_id=res.source_id,
+            target_id=res.target_id,
             stage=stage,
             chance=chance,
-            roll="auto" if roll is None else f"{roll:.3f}",
+            roll="auto" if roll is None else round(roll, 3),
             passed=passed,
-            details=CombatResolver._compact_details(compact_details),
-        )
+            details=compact_details,
+        ).debug("CombatRoll")
 
     @staticmethod
     def _trace_step(res: InteractionResultDTO, stage: str, outcome: str, **details: Any) -> None:
-        log.opt(colors=True).debug(
-            "<cyan>CombatStep</cyan> | {src}->{dst} stage={stage} outcome={outcome} {details}",
-            src=res.source_id,
-            dst=res.target_id,
-            stage=stage,
-            outcome=outcome,
-            details=CombatResolver._compact_details(details),
+        log.bind(source_id=res.source_id, target_id=res.target_id, stage=stage, outcome=outcome, details=details).debug(
+            "CombatStep"
         )
 
     @staticmethod
@@ -1077,16 +1071,15 @@ class CombatResolver:
             max=float(max_d),
             details=compact_details,
         )
-        log.opt(colors=True).debug(
-            "<magenta>CombatDamage</magenta> | {src}->{dst} final={final:.2f} raw={raw:.2f} range={min_d:.2f}-{max_d:.2f} {details}",
-            src=res.source_id,
-            dst=res.target_id,
-            final=final,
-            raw=raw,
-            min_d=min_d,
-            max_d=max_d,
-            details=CombatResolver._compact_details(compact_details),
-        )
+        log.bind(
+            source_id=res.source_id,
+            target_id=res.target_id,
+            final=round(float(final), 2),
+            raw=round(float(raw), 2),
+            min_damage=round(float(min_d), 2),
+            max_damage=round(float(max_d), 2),
+            details=compact_details,
+        ).debug("CombatDamage")
 
     @staticmethod
     def _compact_details(details: dict[str, Any]) -> str:

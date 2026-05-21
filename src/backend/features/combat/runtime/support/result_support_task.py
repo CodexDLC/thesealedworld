@@ -24,4 +24,4 @@ class CombatResultSupportTask:
             await append(session_id, fact)
             return
 
-        log.warning("CombatResultSupport | skip=analytics reason=no_append_method session_id={}", session_id)
+        log.bind(reason="no_append_method", session_id=session_id).warning("CombatResultSupportAnalyticsSkipped")

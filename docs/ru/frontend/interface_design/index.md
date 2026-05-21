@@ -79,7 +79,7 @@
 
 Этот раздел дополняет:
 
-- `docs/design-system/README.md` — визуальные токены и общие компоненты;
+- `src/frontend/static/css/` и `src/frontend/templates/` — текущий источник визуальных токенов, общих компонентов и активной разметки;
 - `docs/agent-skills/turnbasedmmorpg-game-css-shell/references/responsive-shell.md`
   — технический responsive-контракт игрового shell;
 - `docs/ru/frontend/game_features/` — описание конкретных игровых экранов.

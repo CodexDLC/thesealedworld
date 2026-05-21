@@ -8,8 +8,10 @@ from src.backend.features.loot.integrations.loot_integration import LootIntegrat
 from src.backend.features.loot.runtime.loot_engine import LootEngine
 from src.backend.features.loot.services.loot_service import LootService
 from src.backend.infrastructure.loot.managers.loot_manager import LootManager
+from src.shared.infrastructure.log_task_wrapper import logged_task
 
 
+@logged_task
 async def loot_order_task(ctx: dict[str, Any], payload: dict[str, Any]) -> None:
     """
     Background task: pre-generate invisible loot corpses at the start of combat.
@@ -29,14 +31,14 @@ async def loot_order_task(ctx: dict[str, Any], payload: dict[str, Any]) -> None:
     battle_type: str = str(payload.get("battle_type") or "")
 
     if not session_id:
-        log.error("LootOrderTask | missing session_id in payload")
+        log.error("LootOrderPayloadInvalid")
         return
 
-    log.info("LootOrderTask | session={} location={} actors={}", session_id, location_id, len(actors))
+    log.bind(session_id=session_id, location_id=location_id, actor_count=len(actors)).info("LootOrderTaskProcessed")
 
     redis_service = ctx.get("redis_service")
     if redis_service is None:
-        log.error("LootOrderTask | redis_service not in context")
+        log.error("LootOrderRedisServiceMissing")
         return
 
     manager = LootManager(redis_service)
@@ -50,11 +52,8 @@ async def loot_order_task(ctx: dict[str, Any], payload: dict[str, Any]) -> None:
         battle_type=battle_type,
     )
 
-    log.info(
-        "LootOrderTask | session={} generated {} corpses at {}",
-        session_id,
-        len(corpse_ids_by_actor),
-        location_id,
+    log.bind(session_id=session_id, corpse_count=len(corpse_ids_by_actor), location_id=location_id).info(
+        "LootOrderCorpsesGenerated"
     )
 
     # Store actor_id -> corpse_id so victory_finalizer can activate only actually dead actors.

@@ -181,7 +181,7 @@ class AnchorProjectionBootstrapService:
         await self.redis.json_module.set(index_key, "$", {"variants": sorted(snapshots)})
         for variant_id, snapshot in snapshots.items():
             await self.redis.json_module.set(self.build_snapshot_key(variant_id), "$", snapshot)
-        logger.info("Anchor projection snapshots cached: variants={}", sorted(snapshots))
+        logger.bind(variants=sorted(snapshots)).info("AnchorProjectionSnapshotsCached")
 
     @staticmethod
     def build_snapshot_key(variant_id: str) -> str:

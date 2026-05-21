@@ -1,13 +1,12 @@
 from __future__ import annotations
 
-import logging
 from typing import TYPE_CHECKING, Protocol
+
+from loguru import logger as log
 
 if TYPE_CHECKING:
     from src.backend.features.world.integrations import WorldDataIntegration
     from src.backend.features.world.services.cache_service import WorldCacheService
-
-log = logging.getLogger(__name__)
 
 
 class WorldGenerator(Protocol):
@@ -42,21 +41,21 @@ class WorldBootstrapService:
         has_world = await self.data.has_world_data()
         if not has_world:
             if self.auto_generate and self.generator is not None:
-                log.info("World data missing; running generator mode=%s", self.generation_mode)
+                log.bind(mode=self.generation_mode).info("WorldGeneratorStarted")
                 await self.generator.run(self.generation_mode)
             elif self.refresh_static_seed and self.generator is not None:
-                log.info("World data missing; loading static world seed")
+                log.info("WorldStaticSeedLoading")
                 await self.generator.run("test")
             else:
-                log.warning("World data missing; startup generation is disabled")
+                log.warning("WorldStartupGenerationDisabled")
                 return 0
         elif self.refresh_static_seed and self.generator is not None:
-            log.info("World data exists; refreshing static world seed")
+            log.info("WorldStaticSeedRefreshing")
             await self.generator.run("test")
 
         active_nodes = await self.data.count_active_nodes()
         if active_nodes <= 0:
-            log.warning("World data exists but no active nodes are available for runtime cache")
+            log.warning("WorldRuntimeCacheWarmupSkipped")
             return 0
 
         return await self.cache.warm_runtime_cache()

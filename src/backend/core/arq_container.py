@@ -39,10 +39,10 @@ class ArqWorkerContainer:
         ctx["world_locations"] = redis_managers.world_locations
         ctx["expeditions"] = redis_managers.expeditions
 
-        logger.info("ARQ worker container bootstrap finished")
+        logger.info("ArqWorkerContainerBootstrapFinished")
 
     async def shutdown(self, ctx: dict[str, Any]) -> None:
         client = ctx.get("redis_client_internal")
         if client is not None:
             await client.aclose()
-            logger.info("ARQ worker Redis client closed")
+            logger.info("ArqWorkerRedisClientClosed")

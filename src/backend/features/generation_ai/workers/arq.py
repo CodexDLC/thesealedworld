@@ -14,23 +14,23 @@ setup_arq_worker_logging("generation-ai-worker")
 
 
 async def generation_ai_startup(ctx: dict[str, Any]) -> None:
-    logger.info("WorkerInit | stage=start worker_type=generation_ai")
+    logger.bind(stage="start", worker_type="generation_ai").info("WorkerInit")
     await base_startup(ctx)
 
     ai = AIService()
 
     ctx["ai"] = ai
     ctx["generation_ai_arq"] = ArqService(queue_name=GENERATION_AI_ARQ_QUEUE)
-    logger.info("WorkerInit | stage=complete worker_type=generation_ai")
+    logger.bind(stage="complete", worker_type="generation_ai").info("WorkerInit")
 
 
 async def generation_ai_shutdown(ctx: dict[str, Any]) -> None:
-    logger.info("WorkerShutdown | stage=start worker_type=generation_ai")
+    logger.bind(stage="start", worker_type="generation_ai").info("WorkerShutdown")
     arq = ctx.get("generation_ai_arq")
     if arq is not None:
         await arq.close()
     await base_shutdown(ctx)
-    logger.info("WorkerShutdown | stage=complete worker_type=generation_ai")
+    logger.bind(stage="complete", worker_type="generation_ai").info("WorkerShutdown")
 
 
 class GenerationAIArqSettings(BaseArqSettings):

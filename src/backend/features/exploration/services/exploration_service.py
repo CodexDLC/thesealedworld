@@ -1,11 +1,11 @@
 # src/backend/features/exploration/services/exploration_service.py
 from __future__ import annotations
 
-import logging
 import random
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, cast
 
+from loguru import logger as log
 from pydantic import ValidationError
 
 from src.backend.features.exploration.dto.config import ExplorationConfig
@@ -33,8 +33,6 @@ if TYPE_CHECKING:
     from src.backend.features.exploration.integrations.encounter_integration import EncounterIntegration
     from src.backend.features.exploration.integrations.system_integrator import ExplorationSystemIntegrator
     from src.backend.features.exploration.runtime.encounter import EncounterEngine
-
-log = logging.getLogger(__name__)
 
 
 class ExplorationService:
@@ -75,7 +73,7 @@ class ExplorationService:
         loc_data = await self._integrator.get_location_data(current_loc_id)
 
         if not loc_data:
-            log.error("ExplorationService | loc_not_found char_id=%s loc=%s", char_id, current_loc_id)
+            log.bind(char_id=char_id, loc_id=current_loc_id).error("ExplorationLocationNotFound")
             return await self._build_navigation_dto(char_id, current_loc_id, {})
 
         exits = loc_data.get("exits", {})
@@ -88,7 +86,7 @@ class ExplorationService:
             target_loc_id = direction
 
         if not target_loc_id:
-            log.warning("ExplorationService | invalid_move char_id=%s target=%s dir=%s", char_id, target_id, direction)
+            log.bind(char_id=char_id, target_id=target_id, direction=direction).warning("ExplorationInvalidMove")
             return await self._build_navigation_dto(char_id, current_loc_id, loc_data)
 
         # 2. Encounter Check (before moving)
@@ -222,28 +220,25 @@ class ExplorationService:
 
         loc_data = await self._integrator.get_location_data(loc_id) or {}
         if not self._service_allowed_in_location(loc_data, service_id):
-            log.warning("ExplorationService | service_denied char_id=%s loc=%s service=%s", char_id, loc_id, service_id)
+            log.bind(char_id=char_id, loc_id=loc_id, service_id=service_id).warning("ExplorationServiceDenied")
             dto = await self._build_navigation_dto(char_id, loc_id, loc_data)
             dto.hud = AlertHudDTO(message="Сервис недоступен из этой локации.", style="danger")
             return dto
 
         entry = get_service_entry(service_id)
         if entry is None:
-            log.warning(
-                "ExplorationService | service_unknown char_id=%s loc=%s service=%s", char_id, loc_id, service_id
-            )
+            log.bind(char_id=char_id, loc_id=loc_id, service_id=service_id).warning("ExplorationServiceUnknown")
             dto = await self._build_navigation_dto(char_id, loc_id, loc_data)
             dto.hud = AlertHudDTO(message="Сервис пока не подключен.", style="info")
             return dto
 
         if entry.access_policy != "public":
-            log.warning(
-                "ExplorationService | service_access_not_implemented char_id=%s loc=%s service=%s policy=%s",
-                char_id,
-                loc_id,
-                service_id,
-                entry.access_policy,
-            )
+            log.bind(
+                char_id=char_id,
+                loc_id=loc_id,
+                service_id=service_id,
+                access_policy=entry.access_policy,
+            ).warning("ExplorationServiceAccessNotImplemented")
             dto = await self._build_navigation_dto(char_id, loc_id, loc_data)
             dto.hud = AlertHudDTO(message="Доступ к сервису пока не подключен.", style="info")
             return dto
@@ -394,7 +389,7 @@ class ExplorationService:
 
         session = await self._encounter_integration.get_encounter_session(encounter_id)
         if session is None:
-            log.warning("ExplorationService | stale_encounter_ref char_id=%s encounter=%s", char_id, encounter_id)
+            log.bind(char_id=char_id, encounter_id=encounter_id).warning("ExplorationStaleEncounterRef")
             await self._encounter_integration.detach_encounter_session(char_id)
             return None
 
@@ -405,7 +400,7 @@ class ExplorationService:
         try:
             encounter = EncounterDTO.model_validate(payload)
         except ValidationError:
-            log.warning("ExplorationService | invalid_encounter_session char_id=%s encounter=%s", char_id, encounter_id)
+            log.bind(char_id=char_id, encounter_id=encounter_id).warning("ExplorationInvalidEncounterSession")
             await self._clear_active_encounter(char_id, encounter_id)
             return None
         if not isinstance(encounter.metadata.get("navigation"), dict):
@@ -419,10 +414,8 @@ class ExplorationService:
                         {"payload": encounter.model_dump(mode="json")},
                     )
                 except Exception:  # noqa: BLE001
-                    log.warning(
-                        "ExplorationService | encounter_navigation_snapshot_patch_failed char_id=%s encounter=%s",
-                        char_id,
-                        encounter_id,
+                    log.bind(char_id=char_id, encounter_id=encounter_id).warning(
+                        "ExplorationEncounterNavigationSnapshotPatchFailed"
                     )
         encounter = await self._attach_bypass_chance(char_id, encounter)
         return _ActiveEncounter(encounter_id=encounter_id, payload=encounter)
@@ -467,10 +460,7 @@ class ExplorationService:
                 {"payload": encounter.model_dump(mode="json")},
             )
         except Exception:  # noqa: BLE001
-            log.warning(
-                "ExplorationService | encounter_bypass_patch_failed encounter=%s",
-                encounter_id,
-            )
+            log.bind(encounter_id=encounter_id).warning("ExplorationEncounterBypassPatchFailed")
 
     async def _clear_active_encounter(self, char_id: int, encounter_id: str) -> None:
         if self._encounter_integration is None:

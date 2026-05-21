@@ -13,15 +13,15 @@ LOOT_TASKS = [loot_claim_task]
 
 
 async def loot_startup(ctx: dict) -> None:
-    log.info("WorkerInit | stage=start worker_type=loot")
+    log.bind(stage="start", worker_type="loot").info("WorkerInit")
     await base_startup(ctx)
-    log.info("WorkerInit | stage=complete worker_type=loot")
+    log.bind(stage="complete", worker_type="loot").info("WorkerInit")
 
 
 async def loot_shutdown(ctx: dict) -> None:
-    log.info("WorkerShutdown | stage=start worker_type=loot")
+    log.bind(stage="start", worker_type="loot").info("WorkerShutdown")
     await base_shutdown(ctx)
-    log.info("WorkerShutdown | stage=complete worker_type=loot")
+    log.bind(stage="complete", worker_type="loot").info("WorkerShutdown")
 
 
 class LootArqSettings(BaseArqSettings):

@@ -1,3 +1,5 @@
+import logging
+
 from codex_core.common.loguru_setup import setup_logging as codex_setup_logging
 from codex_core.settings import BaseCommonSettings
 
@@ -28,3 +30,11 @@ def setup_logging(
         intercept_loggers=intercept_loggers or [],
         log_levels=effective_log_levels,
     )
+
+    # Prevent duplicates: codex_core installs InterceptHandler on both the
+    # root logger (via basicConfig) and each named logger.  Without
+    # propagate=False the message is caught by the named handler AND
+    # bubbles up to root — producing two identical log lines.
+    if intercept_loggers:
+        for name in intercept_loggers:
+            logging.getLogger(name).propagate = False

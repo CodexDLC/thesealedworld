@@ -12,8 +12,8 @@ from src.shared.infrastructure.metrics_middleware import PrometheusMiddleware
 setup_logging(
     settings=settings,
     service_name="chat",
-    intercept_loggers=["uvicorn", "uvicorn.access", "uvicorn.error", "fastapi"],
-    log_levels={"httpx": 30, "uvicorn.access": 30},
+    intercept_loggers=["uvicorn", "uvicorn.access", "uvicorn.error", "fastapi", "websockets"],
+    log_levels={"httpx": 30, "uvicorn.access": 30, "websockets": 30},
 )
 
 app = FastAPI(title="TurnBasedMMORPG Chat Service", lifespan=lifespan)

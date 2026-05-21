@@ -36,10 +36,10 @@ from src.frontend.game_features.session.cookies import clear_active_character_co
 from src.frontend.game_features.session.middleware import GameTokenRefreshMiddleware
 from src.frontend.game_features.session.token_state import clear_game_token_cookies
 from src.shared.exceptions import BaseAPIException
-from src.shared.log_middleware import LogContextMiddleware
-from src.shared.logging_config import setup_logging
-from src.shared.metrics_endpoint import metrics_router
-from src.shared.metrics_middleware import PrometheusMiddleware
+from src.shared.infrastructure.log_middleware import LogContextMiddleware
+from src.shared.infrastructure.logging_config import setup_logging
+from src.shared.infrastructure.metrics_endpoint import metrics_router
+from src.shared.infrastructure.metrics_middleware import PrometheusMiddleware
 
 setup_logging(
     settings=settings,

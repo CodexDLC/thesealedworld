@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from src.backend.config.settings import settings
-from src.shared.logging_config import setup_logging
+from src.shared.infrastructure.logging_config import setup_logging
 
 ARQ_INTERCEPT_LOGGERS = [
     "arq",

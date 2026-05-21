@@ -80,7 +80,7 @@ In files: `src/backend/features/combat/workers/`, `src/backend/features/system/w
 `src/backend/features/generation_ai/workers/`, `src/backend/features/loot/workers/`.
 
 ```python
-from src.shared.log_task_wrapper import logged_task
+from src.shared.infrastructure.log_task_wrapper import logged_task
 
 @logged_task
 async def my_task(ctx, payload):

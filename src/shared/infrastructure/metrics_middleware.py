@@ -6,7 +6,7 @@ from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoin
 from starlette.requests import Request
 from starlette.responses import Response
 
-from src.shared.metrics import HTTP_REQUEST_DURATION, HTTP_REQUESTS_IN_FLIGHT, HTTP_REQUESTS_TOTAL
+from src.shared.infrastructure.metrics import HTTP_REQUEST_DURATION, HTTP_REQUESTS_IN_FLIGHT, HTTP_REQUESTS_TOTAL
 
 _SKIP_PATHS = frozenset({"/metrics", "/health"})
 

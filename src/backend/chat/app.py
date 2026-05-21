@@ -4,10 +4,10 @@ from src.backend.chat.api.router import router as chat_rest_router
 from src.backend.chat.api.ws import router as chat_ws_router
 from src.backend.chat.core.lifespan import lifespan
 from src.backend.config.settings import settings
-from src.shared.log_middleware import LogContextMiddleware
-from src.shared.logging_config import setup_logging
-from src.shared.metrics_endpoint import metrics_router
-from src.shared.metrics_middleware import PrometheusMiddleware
+from src.shared.infrastructure.log_middleware import LogContextMiddleware
+from src.shared.infrastructure.logging_config import setup_logging
+from src.shared.infrastructure.metrics_endpoint import metrics_router
+from src.shared.infrastructure.metrics_middleware import PrometheusMiddleware
 
 setup_logging(
     settings=settings,

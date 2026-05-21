@@ -4,7 +4,7 @@ from fastapi import APIRouter
 from fastapi.responses import PlainTextResponse
 from prometheus_client import generate_latest
 
-from src.shared.metrics import REGISTRY
+from src.shared.infrastructure.metrics import REGISTRY
 
 metrics_router = APIRouter()
 

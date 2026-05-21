@@ -3,7 +3,7 @@ from typing import Any
 from codex_platform.streams.producer import StreamProducer
 from loguru import logger
 
-from src.shared.metrics import EVENT_PUBLISHED_TOTAL
+from src.shared.infrastructure.metrics import EVENT_PUBLISHED_TOTAL
 
 
 class GameEventProducer:

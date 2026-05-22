@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import mimetypes
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
@@ -46,6 +47,26 @@ class S3GeneratedAssetReader:
         else:
             content = bytes(body or b"")
         content_type = str(response.get("ContentType") or "application/octet-stream")
+        return GeneratedAssetObject(content=content, content_type=content_type)
+
+
+class LocalGeneratedAssetReader:
+    def __init__(self, *, root: Path) -> None:
+        self.root = root
+
+    async def get_object(self, storage_key: str) -> GeneratedAssetObject | None:
+        safe_key = normalize_generated_asset_storage_key(storage_key)
+        path = self.root.joinpath(*safe_key.split("/"))
+        try:
+            resolved = path.resolve(strict=True)
+            root = self.root.resolve(strict=True)
+        except FileNotFoundError:
+            return None
+        if root not in resolved.parents and resolved != root:
+            raise ValueError(f"Unsafe generated asset key: {storage_key!r}")
+
+        content = await asyncio.to_thread(resolved.read_bytes)
+        content_type = mimetypes.guess_type(resolved.name)[0] or "application/octet-stream"
         return GeneratedAssetObject(content=content, content_type=content_type)
 
 
@@ -120,6 +141,7 @@ def configure_generated_asset_serving(
 
     if config.asset_storage_backend == "s3":
         cached_reader: GeneratedAssetReader | None = None
+        local_reader = _build_optional_local_generated_asset_reader(config)
 
         def get_reader() -> GeneratedAssetReader:
             nonlocal cached_reader
@@ -134,6 +156,8 @@ def configure_generated_asset_serving(
             reader = get_reader()
             try:
                 asset = await reader.get_object(storage_key)
+                if asset is None and local_reader is not None:
+                    asset = await local_reader.get_object(storage_key)
             except ValueError as exc:
                 raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Generated asset not found") from exc
             if asset is None:
@@ -143,6 +167,16 @@ def configure_generated_asset_serving(
         return
 
     raise RuntimeError(f"Unsupported generated asset storage backend: {config.asset_storage_backend!r}")
+
+
+def _build_optional_local_generated_asset_reader(config: Any) -> LocalGeneratedAssetReader | None:
+    generated_assets_dir = getattr(config, "generated_assets_dir", None)
+    if generated_assets_dir is None:
+        return None
+    root = Path(generated_assets_dir)
+    if not root.exists():
+        return None
+    return LocalGeneratedAssetReader(root=root)
 
 
 def _is_missing_s3_object(exc: Exception) -> bool:

@@ -9,6 +9,7 @@ from fastapi.testclient import TestClient
 
 from src.frontend.integrations.generated_assets import (
     GeneratedAssetObject,
+    LocalGeneratedAssetReader,
     S3GeneratedAssetReader,
     build_generated_asset_response,
     configure_generated_asset_serving,
@@ -60,6 +61,20 @@ async def test_s3_generated_asset_reader_returns_none_for_missing_object() -> No
     assert await reader.get_object("missing.webp") is None
 
 
+@pytest.mark.asyncio
+async def test_local_generated_asset_reader_returns_mirrored_object(tmp_path) -> None:
+    asset_path = tmp_path / "monsters" / "rat.webp"
+    asset_path.parent.mkdir(parents=True)
+    asset_path.write_bytes(b"local-image")
+    reader = LocalGeneratedAssetReader(root=tmp_path)
+
+    asset = await reader.get_object("monsters/rat.webp")
+
+    assert asset is not None
+    assert asset.content == b"local-image"
+    assert asset.content_type == "image/webp"
+
+
 def test_generated_asset_key_normalization_rejects_unsafe_paths() -> None:
     assert normalize_generated_asset_storage_key(" monsters//rat.webp ") == "monsters/rat.webp"
 
@@ -96,6 +111,24 @@ def test_configure_generated_asset_serving_routes_s3_public_contract() -> None:
 
     assert response.status_code == 200
     assert response.content == b"rat-image"
+    assert response.headers["content-type"] == "image/webp"
+
+
+def test_configure_generated_asset_serving_falls_back_to_local_mirror_for_missing_s3_asset(tmp_path) -> None:
+    app = FastAPI()
+    asset_path = tmp_path / "monsters" / "rat.webp"
+    asset_path.parent.mkdir(parents=True)
+    asset_path.write_bytes(b"local-rat-image")
+    configure_generated_asset_serving(
+        app,
+        config=SimpleNamespace(asset_storage_backend="s3", generated_assets_dir=tmp_path),
+        reader_provider=lambda: FakeGeneratedAssetReader({}),
+    )
+
+    response = TestClient(app).get("/static/generated-assets/monsters/rat.webp")
+
+    assert response.status_code == 200
+    assert response.content == b"local-rat-image"
     assert response.headers["content-type"] == "image/webp"
 
 

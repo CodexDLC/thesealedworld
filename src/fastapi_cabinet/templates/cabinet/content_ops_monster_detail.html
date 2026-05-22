@@ -47,8 +47,7 @@
                         <th>Имя</th>
                         <th>Роль</th>
                         <th>Уровень</th>
-                        <th>Угроза</th>
-                        <th>Снаряжение</th>
+                        <th>Сила</th>
                         <th>Изображение</th>
                         <th>Хранилище</th>
                         <th>Экипировка</th>
@@ -62,9 +61,14 @@
                             <td>{{ member.name_ru or member.variant_key }}</td>
                             <td>{{ member.role }}</td>
                             <td>{{ member.member_tier }}</td>
-                            <td>{{ member.threat_rating }}</td>
                             <td>{{ member.gear_score if member.gear_score is not none else "—" }}</td>
-                            <td>{{ member.visual.image_url or "нет" }}</td>
+                            <td>
+                                {% if member.visual.image_url %}
+                                    <img class="fc-asset-thumb" src="{{ member.visual.image_url }}" alt="{{ member.name_ru or member.variant_key }}">
+                                {% else %}
+                                    <span class="fc-pill fc-pill--warn">нет</span>
+                                {% endif %}
+                            </td>
                             <td>{{ member.visual.storage_backend or "—" }}</td>
                             <td>{{ member.equipment|join(", ") if member.equipment else "—" }}</td>
                             <td>{{ member.affixes|join(", ") if member.affixes else "—" }}</td>

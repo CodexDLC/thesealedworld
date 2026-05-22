@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Annotated
+from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 
@@ -13,21 +13,16 @@ from src.backend.features.monsters.repositories import MonsterGenerationReposito
 from src.backend.features.monsters.services.generated_view_service import GeneratedMonsterViewService
 from src.backend.features.monsters.services.visual_regeneration_service import MonsterVisualRegenerationService
 
-if TYPE_CHECKING:
-    from sqlalchemy.ext.asyncio import AsyncSession
-
 router = APIRouter(prefix="/api/admin/monsters", tags=["monsters-admin"])
 
 
-def get_generated_monster_view_service(
-    db_session: Annotated[AsyncSession, Depends(get_db)],
-) -> GeneratedMonsterViewService:
+def get_generated_monster_view_service(db_session=Depends(get_db)) -> GeneratedMonsterViewService:
     return GeneratedMonsterViewService(MonsterGenerationRepository(db_session))
 
 
 def get_monster_visual_regeneration_service(
     request: Request,
-    db_session: Annotated[AsyncSession, Depends(get_db)],
+    db_session=Depends(get_db),
 ) -> MonsterVisualRegenerationService:
     return MonsterVisualRegenerationService(
         session=db_session,

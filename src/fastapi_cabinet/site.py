@@ -17,11 +17,12 @@ class CabinetSite:
     def __init__(self) -> None:
         self.registry = CabinetRegistry()
         self.templates = Jinja2Templates(directory=Path(__file__).parent / "templates")
+        self.static_mount_path: str | None = None
 
     def register(self, admin: type[CabinetAdmin] | CabinetAdmin) -> CabinetAdmin:
         return self.registry.register(admin)
 
-    def build_router(self, mount_path: str = "/cabinet") -> APIRouter:
+    def build_router(self, mount_path: str = "/cabinet", static_mount_path: str | None = None) -> APIRouter:
         router = APIRouter(prefix=mount_path.rstrip("/"))
 
         @router.get("")
@@ -32,6 +33,7 @@ class CabinetSite:
             layout = build_layout_map(
                 self.registry,
                 mount_path=mount_path,
+                static_mount_path=static_mount_path,
                 active_admin=None,
                 active_path=str(request.url.path),
             )
@@ -43,12 +45,12 @@ class CabinetSite:
 
         for admin in self.registry.all():
             router.get(admin_route_path(admin, mount_path), name=f"cabinet:{admin.key}")(
-                self._build_module_endpoint(admin, mount_path)
+                self._build_module_endpoint(admin, mount_path, static_mount_path)
             )
             for suffix, page_widgets in admin.sub_pages.items():
                 sub_route = f"{admin_route_path(admin, mount_path)}/{suffix}"
                 router.get(sub_route, name=f"cabinet:{admin.key}:{suffix}")(
-                    self._build_subpage_endpoint(admin, suffix, page_widgets, mount_path)
+                    self._build_subpage_endpoint(admin, suffix, page_widgets, mount_path, static_mount_path)
                 )
             for suffix, (method, handler_name) in admin.action_routes.items():
                 action_route = f"{admin_route_path(admin, mount_path)}/{suffix}"
@@ -61,6 +63,7 @@ class CabinetSite:
         self,
         admin: CabinetAdmin,
         mount_path: str,
+        static_mount_path: str | None,
     ) -> Callable[[Request], Awaitable[Response]]:
         async def module_page(request: Request) -> Response:
             active_admin = resolve_active_admin(request.url.path, self.registry, mount_path)
@@ -68,6 +71,7 @@ class CabinetSite:
             layout = build_layout_map(
                 self.registry,
                 mount_path=mount_path,
+                static_mount_path=static_mount_path,
                 active_admin=active_admin,
                 active_path=str(request.url.path),
                 sidebar_badges=sidebar_badges,
@@ -93,6 +97,7 @@ class CabinetSite:
         suffix: str,
         page_widgets: tuple[DashboardWidget, ...],
         mount_path: str,
+        static_mount_path: str | None,
     ) -> Callable[[Request], Awaitable[Response]]:
         async def subpage(request: Request) -> Response:
             active_admin = resolve_active_admin(request.url.path, self.registry, mount_path)
@@ -100,6 +105,7 @@ class CabinetSite:
             layout = build_layout_map(
                 self.registry,
                 mount_path=mount_path,
+                static_mount_path=static_mount_path,
                 active_admin=active_admin,
                 active_path=str(request.url.path),
                 sidebar_badges=sidebar_badges,

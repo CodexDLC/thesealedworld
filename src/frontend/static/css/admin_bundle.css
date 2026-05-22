@@ -1,0 +1,15 @@
+@import url("admin/core/tokens.css");
+@import url("admin/core/reset.css");
+@import url("admin/core/animations.css");
+@import url("admin/shell/containers.css");
+@import url("admin/shell/ambient.css");
+@import url("admin/shell/responsive.css");
+@import url("admin/shell/header.css");
+@import url("admin/shell/footer.css");
+@import url("admin/components/buttons.css");
+@import url("admin/components/panels.css");
+@import url("admin/components/navigation_primitives.css");
+@import url("admin/components/tags_code.css");
+@import url("admin/shell/layout.css");
+@import url("admin/pages/login.css");
+@import url("admin/pages/index.css");

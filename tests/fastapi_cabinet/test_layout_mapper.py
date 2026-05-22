@@ -31,5 +31,7 @@ def test_layout_mapper_sorts_header_and_sidebar() -> None:
     )
 
     assert [item.key for item in layout.header] == [first.key, later.key]
+    assert layout.static_mount_path == "/cabinet/static"
+    assert layout.static_version != "0"
     assert [item.key for item in layout.sidebar] == ["first", "second"]
     assert layout.sidebar_badges == {"second": 5}

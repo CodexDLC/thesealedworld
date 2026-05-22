@@ -44,7 +44,7 @@ def test_static_version_tracks_fonts_css(monkeypatch, tmp_path: Path) -> None:
         css_dir / "game.css",
         js_dir / "game.js",
         css_dir / "account.css",
-        css_dir / "cabinet.css",
+        css_dir / "admin.css",
     )
     for path in older_assets:
         path.write_text("", encoding="utf-8")

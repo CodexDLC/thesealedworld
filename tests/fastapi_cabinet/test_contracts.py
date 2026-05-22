@@ -17,6 +17,7 @@ def test_navigation_contracts_validate() -> None:
 
     layout = CabinetLayoutMap(
         mount_path="/cabinet",
+        static_mount_path="/cabinet/static",
         title="Cabinet",
         active_module="world",
         header=[header],

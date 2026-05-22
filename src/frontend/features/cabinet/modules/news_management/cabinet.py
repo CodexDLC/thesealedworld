@@ -119,6 +119,7 @@ def _render_news_page(admin: Any, request: Request, title: str, widgets: list) -
         cabinet_site.registry,
         mount_path=_MOUNT_PATH,
         active_admin=active_admin,
+        static_mount_path=cabinet_site.static_mount_path,
         active_path=active_path,
         title=title,
     )
@@ -233,6 +234,7 @@ class NewsManagementAdmin(CabinetAdmin):
             cabinet_site.registry,
             mount_path=_MOUNT_PATH,
             active_admin=active_admin,
+            static_mount_path=cabinet_site.static_mount_path,
             active_path=str(request.url.path),
             title="Создать статью",
         )
@@ -300,6 +302,7 @@ class NewsManagementAdmin(CabinetAdmin):
             cabinet_site.registry,
             mount_path=_MOUNT_PATH,
             active_admin=active_admin,
+            static_mount_path=cabinet_site.static_mount_path,
             active_path=str(request.url.path),
             title=f"Редактировать: {article.title}",
         )

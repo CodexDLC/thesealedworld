@@ -153,6 +153,7 @@ def _render_custom(admin: Any, request: Request, template: str, context: dict[st
         cabinet_site.registry,
         mount_path=_MOUNT_PATH,
         active_admin=active_admin,
+        static_mount_path=cabinet_site.static_mount_path,
         active_path=active_path,
         title=admin.label,
     )

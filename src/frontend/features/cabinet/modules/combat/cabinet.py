@@ -294,6 +294,7 @@ def _render_analytics_page(admin: Any, request: Request, title: str, widgets: li
         cabinet_site.registry,
         mount_path=_MOUNT_PATH,
         active_admin=active_admin,
+        static_mount_path=cabinet_site.static_mount_path,
         active_path=active_path,
         title=title,
     )
@@ -880,6 +881,7 @@ class CombatAdmin(CabinetAdmin):
             cabinet_site.registry,
             mount_path=_MOUNT_PATH,
             active_admin=active_admin,
+            static_mount_path=cabinet_site.static_mount_path,
             active_path=request.url.path,
             title=f"Бой {short_id}",
         )

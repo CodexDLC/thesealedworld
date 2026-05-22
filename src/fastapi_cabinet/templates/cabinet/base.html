@@ -4,7 +4,7 @@
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <title>{{ layout.title }}</title>
-        <link rel="stylesheet" href="{{ layout.mount_path }}/static/css/cabinet.css">
+        <link rel="stylesheet" href="{{ layout.static_mount_path }}/css/cabinet.css?v={{ layout.static_version }}">
     </head>
     <body class="fc-shell">
         <aside class="fc-sidebar-col">
@@ -20,6 +20,6 @@
                 {% block content %}{% endblock %}
             </main>
         </div>
-        <script src="{{ layout.mount_path }}/static/js/cabinet.js"></script>
+        <script src="{{ layout.static_mount_path }}/js/cabinet.js?v={{ layout.static_version }}"></script>
     </body>
 </html>

@@ -381,7 +381,7 @@ def test_site_css_does_not_use_legacy_app_or_game_component_entrypoints():
     assert not ROOT.joinpath("src/frontend/templates/shared/styles.html").exists()
 
     assert "/static/css/site.css" in site_base
-    assert "/static/css/cabinet.css" in cabinet_base
+    assert "/static/css/admin.css" in cabinet_base
     assert "/static/css/app.css" not in site_base
     assert "/static/css/app.css" not in cabinet_base
     assert "site/components/buttons.css" in site_bundle

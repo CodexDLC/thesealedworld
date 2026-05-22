@@ -103,7 +103,7 @@ def test_runtime_surfaces_do_not_use_legacy_world_glass_contract():
         Path("src/frontend/static/css/game/components/panels.css"),
         Path("src/frontend/static/css/game/domains/exploration/scene.css"),
         Path("src/frontend/static/css/site/components/panels.css"),
-        Path("src/frontend/static/css/cabinet/components/panels.css"),
+        Path("src/frontend/static/css/admin/components/panels.css"),
     ]
 
     for path in checked_paths:

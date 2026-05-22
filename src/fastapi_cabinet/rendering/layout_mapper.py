@@ -1,8 +1,12 @@
+from pathlib import Path
+
 from fastapi_cabinet.contracts.admin import CabinetAdmin
 from fastapi_cabinet.contracts.layout import CabinetLayoutMap, HeaderGroup
 from fastapi_cabinet.contracts.navigation import HeaderItem
 from fastapi_cabinet.registry import CabinetRegistry
 from fastapi_cabinet.runtime import admin_public_path
+
+_STATIC_DIR = Path(__file__).parents[1] / "static"
 
 
 def build_layout_map(
@@ -10,6 +14,7 @@ def build_layout_map(
     *,
     mount_path: str,
     active_admin: CabinetAdmin | None,
+    static_mount_path: str | None = None,
     active_path: str = "",
     sidebar_badges: dict[str, int | str] | None = None,
     title: str = "Cabinet",
@@ -31,6 +36,8 @@ def build_layout_map(
     sidebar = list(active_admin.sidebar) if active_admin else []
     return CabinetLayoutMap(
         mount_path=mount_path,
+        static_mount_path=(static_mount_path or f"{mount_path.rstrip('/')}/static"),
+        static_version=_static_version(),
         title=title,
         active_module=active_admin.key if active_admin else None,
         active_path=active_path,
@@ -54,3 +61,17 @@ def _build_header_groups(header: list[HeaderItem]) -> list[HeaderGroup]:
             )
         seen[group_key].items.append(item)
     return list(seen.values())
+
+
+def _static_version() -> str:
+    asset_paths = (
+        _STATIC_DIR / "css" / "cabinet.css",
+        _STATIC_DIR / "js" / "cabinet.js",
+    )
+    mtimes = []
+    for path in asset_paths:
+        try:
+            mtimes.append(int(path.stat().st_mtime))
+        except OSError:
+            mtimes.append(0)
+    return str(max(mtimes))

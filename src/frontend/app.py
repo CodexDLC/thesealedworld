@@ -46,7 +46,14 @@ setup_logging(
     settings=settings,
     service_name="frontend",
     intercept_loggers=["uvicorn", "uvicorn.access", "uvicorn.error", "fastapi"],
-    log_levels={"httpx": 30, "uvicorn.access": 30},
+    log_levels={
+        "boto3": 30,
+        "botocore": 30,
+        "httpx": 30,
+        "s3transfer": 30,
+        "urllib3": 30,
+        "uvicorn.access": 30,
+    },
 )
 
 
@@ -172,7 +179,7 @@ app.add_middleware(GameTokenRefreshMiddleware)
 app.add_middleware(PrometheusMiddleware, service_name="frontend")
 app.add_middleware(LogContextMiddleware)
 include_frontend_routers(app)
-include_cabinet(app, modules=CABINET_MODULES, mount_path="/admin")
+include_cabinet(app, modules=CABINET_MODULES, mount_path="/admin", static_mount_path="/cabinet-assets")
 app.include_router(metrics_router)
 
 
@@ -192,7 +199,11 @@ async def health():
 
 @app.exception_handler(404)
 async def not_found_handler(request: Request, exc: Exception):
-    logger.bind(method=request.method, path=request.url.path).warning("FrontendNotFound")
+    logger.bind(method=request.method, path=request.url.path).warning(
+        "FrontendNotFound method={} path={}",
+        request.method,
+        request.url.path,
+    )
     ui = get_ui_renderer(request)
     return await ui.render("errors/404.html", context={"error": "PAGE_NOT_FOUND"}, status_code=404)
 

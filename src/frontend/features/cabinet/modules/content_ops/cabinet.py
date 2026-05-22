@@ -41,10 +41,10 @@ async def _overview_provider(request: Request) -> ListWidgetMap:
         key="content_ops_overview",
         title="Операционные зоны",
         items=[
-            "Monsters: рабочий browser с фильтрами, image metadata, detail и safe regeneration actions.",
-            "News covers: генерация и approve/reject остаются в News Management; Content Ops показывает operational entrypoint.",
-            "Generated assets: storage mode, S3 contract, serving contract и backfill operator commands.",
-            "Future: items, locations, users and moderation queues без raw table editor.",
+            "Generated monsters: семьи, индивиды, визуалы, metadata и safe regeneration actions.",
+            "Generated world: будущая секция для сгенерированных локаций, текстов и фоновых изображений.",
+            "Item templates: будущая секция для статических шаблонов и AI-generated descriptions/images.",
+            "Static resources: будущий read-only browser словарей, которые сейчас живут в кодовых resource-модулях.",
         ],
     )
 
@@ -104,18 +104,6 @@ async def _monster_table_provider(request: Request) -> TableWidgetMap:
             for clan in clans
         ],
         row_href_key="href",
-    )
-
-
-async def _assets_provider(request: Request) -> ListWidgetMap:
-    return ListWidgetMap(
-        key="content_ops_assets",
-        title="Generated assets",
-        items=[
-            f"ASSET_STORAGE_BACKEND={settings.asset_storage_backend}.",
-            f"Public URL contract: {settings.asset_public_base_url}/<storage_key>.",
-            "Backfill is an operator script with dry-run and skip-existing modes.",
-        ],
     )
 
 
@@ -181,75 +169,16 @@ def _filter_monster_clans(
     return result
 
 
-def _asset_status_rows() -> list[dict[str, str]]:
-    s3_configured = all(
-        [
-            settings.asset_s3_bucket,
-            settings.asset_s3_region,
-            settings.asset_s3_endpoint_url,
-            settings.asset_s3_access_key_id,
-            settings.asset_s3_secret_access_key,
-        ]
-    )
-    return [
-        {
-            "label": "Storage backend",
-            "value": settings.asset_storage_backend,
-            "status": "active" if settings.asset_storage_backend == "s3" else "local",
-        },
-        {
-            "label": "Public URL",
-            "value": f"{settings.asset_public_base_url}/<storage_key>",
-            "status": "canonical",
-        },
-        {
-            "label": "S3 bucket",
-            "value": settings.asset_s3_bucket or "not configured",
-            "status": "ready" if settings.asset_s3_bucket else "missing",
-        },
-        {
-            "label": "S3 endpoint",
-            "value": settings.asset_s3_endpoint_url or "not configured",
-            "status": "ready" if settings.asset_s3_endpoint_url else "missing",
-        },
-        {
-            "label": "S3 credentials",
-            "value": "configured" if s3_configured else "missing",
-            "status": "ready" if s3_configured else "missing",
-        },
-        {
-            "label": "Local fallback root",
-            "value": settings.asset_local_root,
-            "status": "fallback",
-        },
-    ]
-
-
-def _operator_commands() -> list[dict[str, str]]:
-    return [
-        {
-            "label": "Backfill dry-run",
-            "command": "uv run python scripts/backfill_generated_assets_to_s3.py --local-root var/generated-assets --dry-run",
-        },
-        {
-            "label": "Backfill upload",
-            "command": "uv run python scripts/backfill_generated_assets_to_s3.py --local-root var/generated-assets --skip-existing",
-        },
-    ]
-
-
 class ContentOpsAdmin(CabinetAdmin):
     key = "content_ops"
-    label = "Content Ops"
+    label = "Content"
     group = "content_ops"
-    group_label = "Content Ops"
+    group_label = "Content"
     path = "/admin/content-ops"
     order = 10
     sidebar: ClassVar = (
         SidebarItem(key="overview", label="Overview", path="/admin/content-ops", order=10),
-        SidebarItem(key="monsters", label="Monsters", path="/admin/content-ops/monster-browser", order=20),
-        SidebarItem(key="news_covers", label="News covers", path="/admin/content-ops/news-covers", order=30),
-        SidebarItem(key="assets", label="Generated assets", path="/admin/content-ops/generated-assets", order=40),
+        SidebarItem(key="monsters", label="Generated monsters", path="/admin/content-ops/monster-browser", order=20),
     )
     dashboard_widgets: ClassVar = (
         MetricWidget(key="content_ops_monsters", title="Generated Monsters", provider="content_ops.monster_count"),
@@ -258,8 +187,6 @@ class ContentOpsAdmin(CabinetAdmin):
     sub_pages: ClassVar = {}
     action_routes: ClassVar = {
         "monster-browser": ("GET", "handle_monster_browser"),
-        "generated-assets": ("GET", "handle_generated_assets"),
-        "news-covers": ("GET", "handle_news_covers"),
         "monster-detail": ("GET", "handle_monster_detail"),
         "regenerate-clan-image": ("POST", "handle_regenerate_clan_image"),
         "regenerate-member-image": ("POST", "handle_regenerate_member_image"),
@@ -268,7 +195,6 @@ class ContentOpsAdmin(CabinetAdmin):
         "content_ops.overview": _overview_provider,
         "content_ops.monster_count": _monster_count_provider,
         "content_ops.monster_table": _monster_table_provider,
-        "content_ops.assets": _assets_provider,
     }
 
     async def get_dashboard_context(self, request: Request) -> dict[str, Any]:
@@ -282,16 +208,10 @@ class ContentOpsAdmin(CabinetAdmin):
                     "detail": f"{browser.total_clans} clans / {browser.total_members} members",
                 },
                 {
-                    "label": "Generated assets",
-                    "href": f"{_BASE}/generated-assets",
-                    "status": settings.asset_storage_backend,
-                    "detail": f"{settings.asset_public_base_url}/<storage_key>",
-                },
-                {
-                    "label": "News covers",
-                    "href": f"{_BASE}/news-covers",
-                    "status": "workflow",
-                    "detail": "Generate in News Management, inspect from Content Ops",
+                    "label": "Static resources",
+                    "href": _BASE,
+                    "status": "planned",
+                    "detail": "read-only dictionaries/resources browser",
                 },
             ]
         }
@@ -303,35 +223,6 @@ class ContentOpsAdmin(CabinetAdmin):
             request,
             "cabinet/content_ops_monsters.html",
             {"browser": browser, "base_url": _BASE},
-        )
-
-    async def handle_generated_assets(self, request: Request) -> Response:
-        return _render_custom(
-            self,
-            request,
-            "cabinet/content_ops_assets.html",
-            {
-                "asset_rows": _asset_status_rows(),
-                "operator_commands": _operator_commands(),
-                "public_base_url": settings.asset_public_base_url,
-            },
-        )
-
-    async def handle_news_covers(self, request: Request) -> Response:
-        return _render_custom(
-            self,
-            request,
-            "cabinet/content_ops_news_covers.html",
-            {
-                "news_url": "/admin/news",
-                "news_create_url": "/admin/news/create",
-                "workflow_steps": [
-                    "Open a draft article in News Management.",
-                    "Generate a cover preview from title, preview, status, and body excerpt.",
-                    "Approve the preview to write the generated URL into the article.",
-                    "Reject keeps the article unchanged and leaves the generated asset for inspection/backfill.",
-                ],
-            },
         )
 
     async def handle_monster_detail(self, request: Request) -> Response:

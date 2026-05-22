@@ -3,14 +3,13 @@
 {% block content %}
     <div class="fc-page-head">
         <div>
-            <h1 class="fc-page-title">Generated assets</h1>
-            <p class="fc-page-subtitle">Operational view for generated asset storage, S3 serving, and backfill commands.</p>
+            <h1 class="fc-page-title">S3 storage OPS</h1>
+            <p class="fc-page-subtitle">Monitoring state for generated asset storage and the public serving contract.</p>
         </div>
-        <a class="fc-action-btn" href="/admin/content-ops">Overview</a>
     </div>
 
     <section class="fc-widget fc-widget--table">
-        <h2>Storage contract</h2>
+        <h2>Storage state</h2>
         <table class="fc-table">
             <thead>
                 <tr>
@@ -52,12 +51,11 @@
     </section>
 
     <section class="fc-widget fc-widget--list">
-        <h2>Rules</h2>
+        <h2>Contract</h2>
         <ul>
             <li>Canonical data remains <code>storage_key</code> plus <code>{{ public_base_url }}/&lt;storage_key&gt;</code>.</li>
-            <li>Provider bucket URLs are not stored in articles, monsters, or future generated content.</li>
-            <li>Backfill copies existing files; it does not regenerate production images.</li>
-            <li>No raw S3 object editor is exposed from the cabinet.</li>
+            <li>Provider bucket URLs are not stored in domain content.</li>
+            <li>This page is monitoring/operator visibility only, not a content editor.</li>
         </ul>
     </section>
 {% endblock %}

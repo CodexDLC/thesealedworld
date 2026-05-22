@@ -13,9 +13,9 @@ from src.frontend.features.auth.services.auth_service import FrontendAuthService
 
 ANALYTICS_SKIP_PREFIXES = ("/static/", "/library/", "/admin/", "/health")
 ANALYTICS_EVENT_PATHS: dict[str, str] = {
-    "/auth/register": "registrations",
-    "/lobby": "lobby_visits",
-    "/game/join": "game_joins",
+    "/game-lobby": "lobby_visits",
+    "/game-lobby/enter": "game_joins",
+    "/game-lobby/start": "game_joins",
 }
 
 

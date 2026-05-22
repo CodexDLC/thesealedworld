@@ -11,13 +11,6 @@ class SiteAnalyticsCabinetMapper:
             subtitle="Сбрасывается при перезапуске сервера",
         )
 
-    def registrations_metric(self, snapshot: SiteAnalyticsSnapshot) -> MetricWidgetMap:
-        return MetricWidgetMap(
-            key="registrations",
-            title="Регистраций",
-            value=str(snapshot.registrations),
-        )
-
     def lobby_metric(self, snapshot: SiteAnalyticsSnapshot) -> MetricWidgetMap:
         return MetricWidgetMap(
             key="lobby_visits",

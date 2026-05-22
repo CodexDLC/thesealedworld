@@ -61,6 +61,10 @@ class GameLobbyUserContextDTO(BaseModel):
     email: str | None = None
 
 
+class GameLobbyPopulationStatsDTO(BaseModel):
+    characters_total: int = 0
+
+
 class GameLobbyCharacterSelectRequestDTO(GameLobbyUserContextDTO):
     character_id: int
 

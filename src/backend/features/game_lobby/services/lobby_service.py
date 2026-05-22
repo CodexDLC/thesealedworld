@@ -8,6 +8,7 @@ from src.shared.enums import CoreDomain
 from src.shared.schemas import (
     CoreResponseDTO,
     GameLobbyPayloadDTO,
+    GameLobbyPopulationStatsDTO,
     GameStateHeader,
     LobbySlotDTO,
 )
@@ -48,6 +49,9 @@ class GameLobbyService:
             slots=[*occupied_slots, *empty_slots],
             max_slots=self.MAX_SLOTS,
         )
+
+    async def get_population_stats(self) -> GameLobbyPopulationStatsDTO:
+        return GameLobbyPopulationStatsDTO(characters_total=await self.integration.count_all_characters())
 
     async def delete_character(
         self,

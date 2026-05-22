@@ -28,6 +28,12 @@ class CharacterRepository:
         result = await self.session.scalar(stmt)
         return int(result or 0)
 
+    async def count_all(self) -> int:
+        log.debug("CharacterRepositoryCountAll")
+        stmt = select(func.count()).select_from(Character)
+        result = await self.session.scalar(stmt)
+        return int(result or 0)
+
     async def save(self, character: Character) -> Character:
         log.bind(character_name=character.name).debug("CharacterRepositorySave")
         self.session.add(character)

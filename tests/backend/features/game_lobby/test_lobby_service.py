@@ -61,6 +61,16 @@ class TestGameLobbyService:
         assert payload.can_start is False
         assert all(not slot.is_empty for slot in payload.slots)
 
+    async def test_get_population_stats_counts_all_characters(self):
+        integration = MagicMock()
+        integration.count_all_characters = AsyncMock(return_value=9)
+        service = GameLobbyService(integration)
+
+        stats = await service.get_population_stats()
+
+        assert stats.characters_total == 9
+        integration.count_all_characters.assert_awaited_once_with()
+
 
 @pytest.mark.unit
 async def test_delete_owned_character_transfers_item_instances_to_system_before_delete():

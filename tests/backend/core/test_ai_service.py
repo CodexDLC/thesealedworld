@@ -12,7 +12,10 @@ async def test_ai_service_initializes_direct_gemini_provider(monkeypatch):
     monkeypatch.setattr("src.backend.core.ai.settings.gemini_model", "gemini-2.5-flash")
     monkeypatch.setattr("src.backend.core.ai.settings.gemini_image_model", "gemini-2.5-flash-image")
 
-    with patch("src.backend.core.ai.GeminiProvider") as provider_cls:
+    with (
+        patch("src.backend.core.ai.GeminiProvider") as provider_cls,
+        patch("src.backend.core.ai.genai.Client") as genai_client_cls,
+    ):
         provider = MagicMock()
         provider_cls.return_value = provider
 
@@ -23,13 +26,17 @@ async def test_ai_service_initializes_direct_gemini_provider(monkeypatch):
         model="gemini-2.5-flash",
         image_model="gemini-2.5-flash-image",
     )
+    genai_client_cls.assert_called_once_with(api_key="test-key")  # pragma: allowlist secret
     assert service.provider is provider
 
 
 @pytest.mark.unit
 async def test_ai_service_generate_text_delegates_to_provider(monkeypatch):
     monkeypatch.setattr("src.backend.core.ai.settings.gemini_api_key", "test-key")  # pragma: allowlist secret
-    with patch("src.backend.core.ai.GeminiProvider") as provider_cls:
+    with (
+        patch("src.backend.core.ai.GeminiProvider") as provider_cls,
+        patch("src.backend.core.ai.genai.Client"),
+    ):
         provider = MagicMock()
         provider.generate_text = AsyncMock(return_value="text")
         provider_cls.return_value = provider
@@ -44,7 +51,10 @@ async def test_ai_service_generate_text_delegates_to_provider(monkeypatch):
 @pytest.mark.unit
 async def test_ai_service_generate_text_flattens_prompt_result(monkeypatch):
     monkeypatch.setattr("src.backend.core.ai.settings.gemini_api_key", "test-key")  # pragma: allowlist secret
-    with patch("src.backend.core.ai.GeminiProvider") as provider_cls:
+    with (
+        patch("src.backend.core.ai.GeminiProvider") as provider_cls,
+        patch("src.backend.core.ai.genai.Client"),
+    ):
         provider = MagicMock()
         provider.generate_text = AsyncMock(return_value="text")
         provider_cls.return_value = provider
@@ -75,7 +85,10 @@ async def test_ai_service_generate_json_delegates_to_provider(monkeypatch):
         pass
 
     monkeypatch.setattr("src.backend.core.ai.settings.gemini_api_key", "test-key")  # pragma: allowlist secret
-    with patch("src.backend.core.ai.GeminiProvider") as provider_cls:
+    with (
+        patch("src.backend.core.ai.GeminiProvider") as provider_cls,
+        patch("src.backend.core.ai.genai.Client"),
+    ):
         provider = MagicMock()
         provider.generate_json = AsyncMock(return_value={"ok": True})
         provider_cls.return_value = provider
@@ -93,7 +106,10 @@ async def test_ai_service_generate_json_flattens_prompt_result(monkeypatch):
         pass
 
     monkeypatch.setattr("src.backend.core.ai.settings.gemini_api_key", "test-key")  # pragma: allowlist secret
-    with patch("src.backend.core.ai.GeminiProvider") as provider_cls:
+    with (
+        patch("src.backend.core.ai.GeminiProvider") as provider_cls,
+        patch("src.backend.core.ai.genai.Client"),
+    ):
         provider = MagicMock()
         provider.generate_json = AsyncMock(return_value={"ok": True})
         provider_cls.return_value = provider
@@ -122,7 +138,10 @@ async def test_ai_service_generate_json_flattens_prompt_result(monkeypatch):
 @pytest.mark.unit
 async def test_ai_service_generate_image_bytes_delegates_to_provider(monkeypatch):
     monkeypatch.setattr("src.backend.core.ai.settings.gemini_api_key", "test-key")  # pragma: allowlist secret
-    with patch("src.backend.core.ai.GeminiProvider") as provider_cls:
+    with (
+        patch("src.backend.core.ai.GeminiProvider") as provider_cls,
+        patch("src.backend.core.ai.genai.Client"),
+    ):
         provider = MagicMock()
         provider.generate_image_bytes = AsyncMock(return_value=(b"image", "image/webp"))
         provider_cls.return_value = provider
@@ -146,14 +165,19 @@ async def test_ai_service_generate_image_bytes_delegates_to_provider(monkeypatch
 async def test_ai_service_validate_generated_image_no_text_uses_gemini_vision_schema(monkeypatch):
     monkeypatch.setattr("src.backend.core.ai.settings.gemini_api_key", "test-key")  # pragma: allowlist secret
     monkeypatch.setattr("src.backend.core.ai.settings.gemini_model", "gemini-2.5-flash")
-    with patch("src.backend.core.ai.GeminiProvider") as provider_cls:
+    with (
+        patch("src.backend.core.ai.GeminiProvider") as provider_cls,
+        patch("src.backend.core.ai.genai.Client") as genai_client_cls,
+    ):
         provider = MagicMock()
-        provider._client.aio.models.generate_content = AsyncMock(
+        image_text_client = MagicMock()
+        image_text_client.aio.models.generate_content = AsyncMock(
             return_value=MagicMock(
                 text='{"visible_text": false, "confidence": 0.01, "reason": "clean", "detected_text": ""}'
             )
         )
         provider_cls.return_value = provider
+        genai_client_cls.return_value = image_text_client
         service = AIService()
 
         result = await service.validate_generated_image_no_text(image_bytes=b"image", content_type="image/png")
@@ -164,7 +188,7 @@ async def test_ai_service_validate_generated_image_no_text_uses_gemini_vision_sc
         reason="clean",
         detected_text="",
     )
-    call = provider._client.aio.models.generate_content.await_args.kwargs
+    call = image_text_client.aio.models.generate_content.await_args.kwargs
     assert call["model"] == "gemini-2.5-flash"
     assert call["config"].response_mime_type == "application/json"
     assert call["config"].response_schema is ImageTextValidationDTO

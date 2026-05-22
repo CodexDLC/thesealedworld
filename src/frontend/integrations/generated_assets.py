@@ -8,19 +8,30 @@ from pathlib import Path
 from typing import Any, Protocol
 
 from fastapi import FastAPI, HTTPException, Response, status
+from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
 from src.frontend.config.settings import FrontendSettings, settings
 
+_S3_PRESIGNED_ASSET_TTL_SECONDS = 300
+
 
 @dataclass(frozen=True, slots=True)
 class GeneratedAssetObject:
-    content: bytes
     content_type: str
+    content: bytes = b""
+    redirect_url: str | None = None
 
 
 class S3ObjectClient(Protocol):
-    def get_object(self, *, Bucket: str, Key: str) -> dict[str, Any]: ...  # noqa: N803
+    def head_object(self, *, Bucket: str, Key: str) -> dict[str, Any]: ...  # noqa: N803
+
+    def generate_presigned_url(
+        self,
+        ClientMethod: str,  # noqa: N803
+        Params: dict[str, str],  # noqa: N803
+        ExpiresIn: int,  # noqa: N803
+    ) -> str: ...
 
 
 class GeneratedAssetReader(Protocol):
@@ -35,20 +46,20 @@ class S3GeneratedAssetReader:
     async def get_object(self, storage_key: str) -> GeneratedAssetObject | None:
         safe_key = normalize_generated_asset_storage_key(storage_key)
         try:
-            response = await asyncio.to_thread(self.client.get_object, Bucket=self.bucket, Key=safe_key)
+            response = await asyncio.to_thread(self.client.head_object, Bucket=self.bucket, Key=safe_key)
         except Exception as exc:
             if _is_missing_s3_object(exc):
                 return None
             raise
 
-        body = response.get("Body")
-        read = getattr(body, "read", None)
-        if callable(read):
-            content = await asyncio.to_thread(read)
-        else:
-            content = bytes(body or b"")
+        redirect_url = await asyncio.to_thread(
+            self.client.generate_presigned_url,
+            "get_object",
+            Params={"Bucket": self.bucket, "Key": safe_key},
+            ExpiresIn=_S3_PRESIGNED_ASSET_TTL_SECONDS,
+        )
         content_type = str(response.get("ContentType") or "application/octet-stream")
-        return GeneratedAssetObject(content=content, content_type=content_type)
+        return GeneratedAssetObject(content_type=content_type, redirect_url=redirect_url)
 
 
 class LocalGeneratedAssetReader:
@@ -116,7 +127,18 @@ def normalize_generated_asset_storage_key(storage_key: str) -> str:
     return "/".join(parts)
 
 
-def build_generated_asset_response(*, content: bytes, content_type: str) -> Response:
+def build_generated_asset_response(
+    *,
+    content: bytes = b"",
+    content_type: str,
+    redirect_url: str | None = None,
+) -> Response:
+    if redirect_url:
+        return RedirectResponse(
+            url=redirect_url,
+            status_code=status.HTTP_307_TEMPORARY_REDIRECT,
+            headers={"Cache-Control": "public, max-age=300"},
+        )
     return Response(
         content=content,
         media_type=content_type,
@@ -163,7 +185,11 @@ def configure_generated_asset_serving(
                 raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Generated asset not found") from exc
             if asset is None:
                 raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Generated asset not found")
-            return build_generated_asset_response(content=asset.content, content_type=asset.content_type)
+            return build_generated_asset_response(
+                content=asset.content,
+                content_type=asset.content_type,
+                redirect_url=asset.redirect_url,
+            )
 
         return
 

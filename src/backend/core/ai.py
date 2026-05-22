@@ -2,6 +2,7 @@ import json
 from typing import Any
 
 from codex_ai import GeminiProvider
+from google import genai
 from loguru import logger as log
 from pydantic import BaseModel, Field
 
@@ -20,6 +21,7 @@ class AIService:
 
     def __init__(self) -> None:
         self.provider: GeminiProvider | None = None
+        self._image_text_validation_client: Any | None = None
 
         if settings.gemini_api_key:
             log.info("AiServiceInitializing")
@@ -28,6 +30,7 @@ class AIService:
                 model=settings.gemini_model,
                 image_model=settings.gemini_image_model,
             )
+            self._image_text_validation_client = genai.Client(api_key=settings.gemini_api_key)
         else:
             log.warning("AiServiceGeminiApiKeyMissing")
 
@@ -73,7 +76,7 @@ class AIService:
     ) -> ImageTextValidationDTO:
         if self.provider is None:
             raise RuntimeError("AI image text validation provider is not initialized")
-        client = getattr(self.provider, "_client", None)
+        client = self._image_text_validation_client
         if client is None:
             raise RuntimeError("AI image text validation requires Gemini client access")
 

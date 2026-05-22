@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from io import BytesIO
 from types import SimpleNamespace
 
 import pytest
@@ -21,13 +20,16 @@ class FakeS3Client:
     def __init__(self) -> None:
         self.objects: dict[tuple[str, str], dict[str, object]] = {}
 
-    def get_object(self, *, Bucket: str, Key: str) -> dict[str, object]:  # noqa: N803
+    def head_object(self, *, Bucket: str, Key: str) -> dict[str, object]:  # noqa: N803
         obj = self.objects.get((Bucket, Key))
         if obj is None:
             exc = RuntimeError("missing")
             exc.response = {"Error": {"Code": "NoSuchKey"}}  # type: ignore[attr-defined]
             raise exc
         return obj
+
+    def generate_presigned_url(self, ClientMethod: str, Params: dict[str, str], ExpiresIn: int) -> str:  # noqa: N803
+        return f"https://assets.example/{Params['Key']}?ttl={ExpiresIn}&method={ClientMethod}"
 
 
 class FakeGeneratedAssetReader:
@@ -39,10 +41,9 @@ class FakeGeneratedAssetReader:
 
 
 @pytest.mark.asyncio
-async def test_s3_generated_asset_reader_returns_object_content() -> None:
+async def test_s3_generated_asset_reader_returns_presigned_redirect_object() -> None:
     client = FakeS3Client()
     client.objects[("assets", "monsters/generated/rat.webp")] = {
-        "Body": BytesIO(b"image-bytes"),
         "ContentType": "image/webp",
     }
     reader = S3GeneratedAssetReader(bucket="assets", client=client)
@@ -50,8 +51,9 @@ async def test_s3_generated_asset_reader_returns_object_content() -> None:
     asset = await reader.get_object("monsters/generated/rat.webp")
 
     assert asset is not None
-    assert asset.content == b"image-bytes"
+    assert asset.content == b""
     assert asset.content_type == "image/webp"
+    assert asset.redirect_url == "https://assets.example/monsters/generated/rat.webp?ttl=300&method=get_object"
 
 
 @pytest.mark.asyncio
@@ -89,6 +91,17 @@ def test_build_generated_asset_response_sets_cache_headers() -> None:
     assert response.body == b"asset"
     assert response.media_type == "image/webp"
     assert response.headers["cache-control"] == "public, max-age=31536000, immutable"
+
+
+def test_build_generated_asset_response_can_redirect_to_presigned_url() -> None:
+    response = build_generated_asset_response(
+        content_type="image/webp",
+        redirect_url="https://assets.example/monsters/rat.webp?signature=1",
+    )
+
+    assert response.status_code == 307
+    assert response.headers["location"] == "https://assets.example/monsters/rat.webp?signature=1"
+    assert response.headers["cache-control"] == "public, max-age=300"
 
 
 def test_configure_generated_asset_serving_routes_s3_public_contract() -> None:

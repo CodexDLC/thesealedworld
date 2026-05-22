@@ -1,3 +1,4 @@
+from functools import lru_cache
 from pathlib import Path
 
 from fastapi_cabinet.contracts.admin import CabinetAdmin
@@ -63,6 +64,7 @@ def _build_header_groups(header: list[HeaderItem]) -> list[HeaderGroup]:
     return list(seen.values())
 
 
+@lru_cache(maxsize=1)
 def _static_version() -> str:
     asset_paths = (
         _STATIC_DIR / "css" / "cabinet.css",

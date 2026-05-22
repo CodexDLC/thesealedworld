@@ -4,6 +4,7 @@ Detailed milestone history for the `src/backend` game runtime layer.
 
 ## [Unreleased]
 
+- AI image text validation now uses an explicit Google GenAI SDK dependency and a dedicated Gemini client.
 - Generated monster admin projections now expose member description and generated text content for cabinet inspection.
 - Monster admin APIs can enqueue clan-image batches and full family visual regeneration tasks for generated monsters.
 - Game lobby now exposes an internal population counter for cabinet character analytics.

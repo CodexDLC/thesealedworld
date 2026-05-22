@@ -3,7 +3,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from codex_ai.core import PromptResult
 
-from src.backend.core.ai import AIService
+from src.backend.core.ai import AIService, ImageTextValidationDTO
 
 
 @pytest.mark.unit
@@ -140,3 +140,31 @@ async def test_ai_service_generate_image_bytes_delegates_to_provider(monkeypatch
         model="gemini-2.5-flash-image",
         response_mime_type="image/webp",
     )
+
+
+@pytest.mark.unit
+async def test_ai_service_validate_generated_image_no_text_uses_gemini_vision_schema(monkeypatch):
+    monkeypatch.setattr("src.backend.core.ai.settings.gemini_api_key", "test-key")  # pragma: allowlist secret
+    monkeypatch.setattr("src.backend.core.ai.settings.gemini_model", "gemini-2.5-flash")
+    with patch("src.backend.core.ai.GeminiProvider") as provider_cls:
+        provider = MagicMock()
+        provider._client.aio.models.generate_content = AsyncMock(
+            return_value=MagicMock(
+                text='{"visible_text": false, "confidence": 0.01, "reason": "clean", "detected_text": ""}'
+            )
+        )
+        provider_cls.return_value = provider
+        service = AIService()
+
+        result = await service.validate_generated_image_no_text(image_bytes=b"image", content_type="image/png")
+
+    assert result == ImageTextValidationDTO(
+        visible_text=False,
+        confidence=0.01,
+        reason="clean",
+        detected_text="",
+    )
+    call = provider._client.aio.models.generate_content.await_args.kwargs
+    assert call["model"] == "gemini-2.5-flash"
+    assert call["config"].response_mime_type == "application/json"
+    assert call["config"].response_schema is ImageTextValidationDTO

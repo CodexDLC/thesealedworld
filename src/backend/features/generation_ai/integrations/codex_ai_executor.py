@@ -85,6 +85,7 @@ class CodexAIExecutor:
         if not isinstance(content, bytes) or not content:
             raise RuntimeError(f"AI image provider returned no binary content for task_type={task.task_type}")
         actual_content_type = _validate_image_content_type(task, content_type or requested_content_type)
+        text_validation = await _validate_generated_image_has_no_text(task, self.ai, content, actual_content_type)
         normalized = normalize_generated_image(
             content,
             actual_content_type,
@@ -103,6 +104,7 @@ class CodexAIExecutor:
                 "model": model,
                 "requested_content_type": requested_content_type,
                 "provider_content_type": actual_content_type,
+                **_image_text_validation_metadata(text_validation),
                 **normalized.metadata,
             },
         )
@@ -118,6 +120,42 @@ def _validate_image_prompt(task: AIGenerationTask, prompt: Any) -> str:
     if not isinstance(prompt, str) or not prompt.strip():
         raise RuntimeError(f"AI image generation requires plain non-empty string prompt for task_type={task.task_type}")
     return prompt
+
+
+async def _validate_generated_image_has_no_text(
+    task: AIGenerationTask,
+    ai: AIService,
+    content: bytes,
+    content_type: str,
+) -> Any:
+    validate_generated_image_no_text = getattr(ai, "validate_generated_image_no_text", None)
+    if validate_generated_image_no_text is None:
+        raise RuntimeError(f"AI image text validation is required for task_type={task.task_type}")
+
+    result = await validate_generated_image_no_text(image_bytes=content, content_type=content_type)
+    if bool(_validation_field(result, "visible_text", False)):
+        reason = str(_validation_field(result, "reason", "") or "visible text detected")
+        detected_text = str(_validation_field(result, "detected_text", "") or "")
+        details = f": {reason}"
+        if detected_text:
+            details = f"{details}; detected={detected_text!r}"
+        raise RuntimeError(f"AI image validation rejected visible text for task_type={task.task_type}{details}")
+    return result
+
+
+def _image_text_validation_metadata(result: Any) -> dict[str, Any]:
+    return {
+        "image_text_checked": True,
+        "image_text_visible": bool(_validation_field(result, "visible_text", False)),
+        "image_text_confidence": str(_validation_field(result, "confidence", "")),
+        "image_text_reason": str(_validation_field(result, "reason", ""))[:180],
+    }
+
+
+def _validation_field(result: Any, key: str, default: Any) -> Any:
+    if isinstance(result, dict):
+        return result.get(key, default)
+    return getattr(result, key, default)
 
 
 def _validate_gemini_image_model(task: AIGenerationTask, model: Any) -> str:

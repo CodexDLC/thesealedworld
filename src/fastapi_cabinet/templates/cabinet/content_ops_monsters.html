@@ -85,7 +85,7 @@
                             <td>{{ clan.members|length }}</td>
                             <td>
                                 {% if clan.visual.image_url %}
-                                    <span class="fc-pill fc-pill--ok">есть</span>
+                                    <img class="fc-asset-thumb" src="{{ clan.visual.image_url }}" alt="{{ clan.name_ru or clan.family_id }}">
                                 {% else %}
                                     <span class="fc-pill fc-pill--warn">нет</span>
                                 {% endif %}

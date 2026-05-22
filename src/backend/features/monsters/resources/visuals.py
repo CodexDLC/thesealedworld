@@ -6,10 +6,11 @@ from dataclasses import dataclass
 from typing import Any
 
 from src.backend.config.settings import settings
+from src.backend.features.generation_ai.image_prompt_contract import NO_TEXT_IMAGE_CONTRACT
 
 DEFAULT_IMAGE_MODEL = settings.gemini_monster_image_model
-CLAN_STYLE_VERSION = 2
-MEMBER_STYLE_VERSION = 3
+CLAN_STYLE_VERSION = 3
+MEMBER_STYLE_VERSION = 4
 GENERATED_MONSTER_STORAGE_ROOT = "monsters/generated"
 
 
@@ -221,7 +222,7 @@ def build_monster_visual_prompt(asset_payload: dict[str, Any]) -> str:
         f"Base visual direction: {prompt_seed}",
         f"Specific generated context: {json.dumps(prompt_context, ensure_ascii=False, sort_keys=True)}",
         "Style: painterly high-detail creature concept art, grounded materials.",
-        "Do not render UI, labels, captions, readable text, title cards, watermark, artist signature, or logo.",
+        NO_TEXT_IMAGE_CONTRACT,
     ]
     if scope == "monster_member_template":
         lines.extend(

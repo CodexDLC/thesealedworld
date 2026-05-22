@@ -4,6 +4,7 @@ from typing import TYPE_CHECKING, Any
 
 from src.backend.features.generation_ai.dto import AIGenerationTaskResultDTO
 from src.backend.features.generation_ai.image_normalization import normalize_generated_image
+from src.backend.features.generation_ai.image_prompt_contract import apply_no_text_image_contract
 
 if TYPE_CHECKING:
     from src.backend.core.ai import AIService
@@ -69,7 +70,7 @@ class CodexAIExecutor:
         if generate_image_bytes is None:
             raise RuntimeError("AI image generation provider is not configured")
 
-        prompt = _validate_image_prompt(task, request.get("prompt"))
+        prompt = apply_no_text_image_contract(_validate_image_prompt(task, request.get("prompt")))
         model = _validate_gemini_image_model(task, request.get("model"))
         storage_key = _validate_image_storage_key(task, request.get("storage_key"))
         requested_content_type = _validate_image_content_type(task, request.get("content_type"))

@@ -20,11 +20,11 @@ def build_news_cover_prompt(data: NewsCoverPromptInput) -> str:
         [
             "Create a dark fantasy news cover image for The Sealed World.",
             f"Article status: {status}.",
-            f"Article slug: {data.slug}.",
-            f"Title: {data.title.strip()}",
-            f"Preview: {data.preview.strip()}",
-            f"Body excerpt: {body_excerpt}",
-            "Composition: editorial game update cover, readable focal subject, no text, no logos, no UI.",
+            "Use the article content below only as private visual context; never render article words as text.",
+            f"Visual context: {data.preview.strip()}",
+            f"Narrative context: {body_excerpt}",
+            "Composition: editorial game update cover, strong focal subject, no posters or signboards.",
+            "No visible text contract: no letters, no words, no numbers, no signs, no logos, no UI, no watermark.",
             "Style: grounded painterly fantasy, production-ready website cover, 16:9 composition.",
         ]
     )

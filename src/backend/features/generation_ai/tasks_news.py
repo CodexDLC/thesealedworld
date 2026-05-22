@@ -6,6 +6,7 @@ from typing import Any
 
 from src.backend.config.settings import settings
 from src.backend.features.generation_ai.dto import AIGenerationTaskSpecDTO
+from src.backend.features.generation_ai.image_prompt_contract import apply_no_text_image_contract
 
 NEWS_COVER_IMAGE_TASK = "news.cover_image"
 
@@ -23,7 +24,7 @@ class NewsCoverImageTaskHandler:
             raise ValueError("News cover image task requires storage_key")
         return {
             "kind": "image",
-            "prompt": prompt,
+            "prompt": apply_no_text_image_contract(prompt),
             "model": payload.get("model") or settings.gemini_image_model,
             "content_type": payload.get("content_type") or "image/webp",
             "storage_key": storage_key,

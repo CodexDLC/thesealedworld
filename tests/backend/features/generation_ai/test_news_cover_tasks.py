@@ -57,10 +57,9 @@ async def test_news_cover_handler_builds_image_request() -> None:
 
     request = await NewsCoverImageTaskHandler().build_request(task)
 
-    assert request == {
-        "kind": "image",
-        "prompt": "Create cover",
-        "model": "gemini-2.5-flash-image",
-        "content_type": "image/webp",
-        "storage_key": "news/covers/launch/hash.webp",
-    }
+    assert request["kind"] == "image"
+    assert request["prompt"].startswith("Create cover")
+    assert "No visible text" in request["prompt"]
+    assert request["model"] == "gemini-2.5-flash-image"
+    assert request["content_type"] == "image/webp"
+    assert request["storage_key"] == "news/covers/launch/hash.webp"

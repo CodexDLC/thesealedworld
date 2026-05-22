@@ -7,6 +7,7 @@ from unittest.mock import AsyncMock
 import pytest
 from PIL import Image
 
+from src.backend.features.generation_ai.image_prompt_contract import NO_TEXT_IMAGE_CONTRACT
 from src.backend.features.generation_ai.integrations.codex_ai_executor import CodexAIExecutor
 
 
@@ -56,8 +57,11 @@ async def test_generation_ai_image_uses_plain_prompt_and_normalizes_to_requested
         },
     )
 
+    provider_prompt = ai.generate_image_bytes.await_args.kwargs["prompt"]
+    assert provider_prompt.startswith("Create monster image")
+    assert NO_TEXT_IMAGE_CONTRACT in provider_prompt
     ai.generate_image_bytes.assert_awaited_once_with(
-        prompt="Create monster image",
+        prompt=provider_prompt,
         model="gemini-2.5-flash-image",
         response_mime_type="image/webp",
     )
@@ -68,6 +72,33 @@ async def test_generation_ai_image_uses_plain_prompt_and_normalizes_to_requested
     assert storage.put_bytes.await_args.kwargs["metadata"]["image_normalized"] is True
     assert result.storage_key == "monsters/generated/clans/hash.webp"
     assert result.content_type == "image/webp"
+    assert result.output_payload["prompt"] == provider_prompt
+
+
+@pytest.mark.asyncio
+async def test_generation_ai_image_does_not_duplicate_no_text_contract() -> None:
+    ai = SimpleNamespace(generate_image_bytes=AsyncMock(return_value=(_tiny_png(), "image/png")))
+    executor = CodexAIExecutor(ai, asset_storage=FakeAssetStorage())
+    task = SimpleNamespace(
+        task_type="monster.clan_image",
+        entity_type="monster_clan",
+        entity_id="clan-1",
+        output_kind="image",
+    )
+
+    await executor.generate(
+        task,
+        {
+            "kind": "image",
+            "prompt": f"Create monster image\n\n{NO_TEXT_IMAGE_CONTRACT}",
+            "model": "gemini-2.5-flash-image",
+            "content_type": "image/webp",
+            "storage_key": "monsters/generated/clans/hash.webp",
+        },
+    )
+
+    provider_prompt = ai.generate_image_bytes.await_args.kwargs["prompt"]
+    assert provider_prompt.count(NO_TEXT_IMAGE_CONTRACT) == 1
 
 
 @pytest.mark.asyncio
@@ -132,8 +163,11 @@ async def test_generation_ai_image_forwards_provider_kwargs() -> None:
         },
     )
 
+    provider_prompt = ai.generate_image_bytes.await_args.kwargs["prompt"]
+    assert provider_prompt.startswith("Create square region map")
+    assert NO_TEXT_IMAGE_CONTRACT in provider_prompt
     ai.generate_image_bytes.assert_awaited_once_with(
-        prompt="Create square region map",
+        prompt=provider_prompt,
         model="gemini-3-pro-image-preview",
         response_mime_type="image/png",
         image_config={

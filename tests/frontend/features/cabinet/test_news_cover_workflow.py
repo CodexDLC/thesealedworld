@@ -18,11 +18,15 @@ def test_news_cover_prompt_uses_article_content_without_html_tags() -> None:
         )
     )
 
-    assert "Patch 0.2" in prompt
     assert "New monsters" in prompt
     assert "Added goblin clans." in prompt
+    assert "Patch 0.2" not in prompt
+    assert "patch-0-2" not in prompt
+    assert "Title:" not in prompt
+    assert "Article slug:" not in prompt
     assert "<strong>" not in prompt
-    assert "no text" in prompt
+    assert "No visible text" in prompt
+    assert "no letters, no words, no numbers" in prompt
 
 
 def test_news_cover_excerpt_is_compact_and_bounded() -> None:

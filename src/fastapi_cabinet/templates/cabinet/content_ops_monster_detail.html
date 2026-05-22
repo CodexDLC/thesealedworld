@@ -2,14 +2,14 @@
 
 {% block content %}
     {% if not clan %}
-        <p class="fc-empty">Generated monster family not found.</p>
+        <p class="fc-empty">Сгенерированная семья монстров не найдена.</p>
     {% else %}
         <div class="fc-page-head">
             <div>
                 <h1 class="fc-page-title">{{ clan.name_ru or clan.family_id }}</h1>
-                <p class="fc-page-subtitle">{{ clan.family_id }} / tier {{ clan.tier }} / zone {{ clan.zone_id or "—" }}</p>
+                <p class="fc-page-subtitle">{{ clan.family_id }} / уровень {{ clan.tier }} / зона {{ clan.zone_id or "—" }}</p>
             </div>
-            <a class="fc-action-btn" href="/admin/content-ops/monster-browser">Back to monsters</a>
+            <a class="fc-action-btn" href="/admin/content-ops/monster-browser">К монстрам</a>
         </div>
 
         <section class="fc-widget fc-widget--wide fc-detail-grid">
@@ -17,43 +17,43 @@
                 {% if clan.visual.image_url %}
                     <img src="{{ clan.visual.image_url }}" alt="{{ clan.name_ru or clan.family_id }}">
                 {% else %}
-                    <span>missing image</span>
+                    <span>нет изображения</span>
                 {% endif %}
             </div>
             <div>
-                <h2>Clan visual</h2>
-                <p>{{ clan.description or "No description." }}</p>
+                <h2>Визуал семьи</h2>
+                <p>{{ clan.description or "Описание отсутствует." }}</p>
                 <table class="fc-table">
                     <tbody>
-                        <tr><th>Image</th><td>{{ clan.visual.image_url or "missing" }}</td></tr>
-                        <tr><th>Storage key</th><td>{{ clan.visual.storage_key or "—" }}</td></tr>
-                        <tr><th>Storage backend</th><td>{{ clan.visual.storage_backend or "—" }}</td></tr>
-                        <tr><th>Status</th><td>{{ clan.visual.status or "—" }}</td></tr>
-                        <tr><th>Pending task</th><td>{{ clan.visual.pending_task_id or "—" }}</td></tr>
+                        <tr><th>Изображение</th><td>{{ clan.visual.image_url or "нет" }}</td></tr>
+                        <tr><th>Ключ хранения</th><td>{{ clan.visual.storage_key or "—" }}</td></tr>
+                        <tr><th>Хранилище</th><td>{{ clan.visual.storage_backend or "—" }}</td></tr>
+                        <tr><th>Статус</th><td>{{ clan.visual.status or "—" }}</td></tr>
+                        <tr><th>Задача</th><td>{{ clan.visual.pending_task_id or "—" }}</td></tr>
                     </tbody>
                 </table>
                 <form method="post" action="/admin/content-ops/regenerate-clan-image" class="fc-inline-action">
                     <input type="hidden" name="clan_id" value="{{ clan.clan_id }}">
-                    <button type="submit" class="fc-action-btn fc-action-btn--approve">Regenerate clan image</button>
+                    <button type="submit" class="fc-action-btn fc-action-btn--approve">Перегенерировать изображение семьи</button>
                 </form>
             </div>
         </section>
 
         <section class="fc-widget fc-widget--wide">
-            <h2>Members</h2>
+            <h2>Участники</h2>
             <table class="fc-table">
                 <thead>
                     <tr>
-                        <th>Name</th>
-                        <th>Role</th>
-                        <th>Tier</th>
-                        <th>Threat</th>
-                        <th>Gear</th>
-                        <th>Image</th>
-                        <th>Storage</th>
-                        <th>Equipment</th>
-                        <th>Affixes</th>
-                        <th>Action</th>
+                        <th>Имя</th>
+                        <th>Роль</th>
+                        <th>Уровень</th>
+                        <th>Угроза</th>
+                        <th>Снаряжение</th>
+                        <th>Изображение</th>
+                        <th>Хранилище</th>
+                        <th>Экипировка</th>
+                        <th>Аффиксы</th>
+                        <th>Действие</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -64,7 +64,7 @@
                             <td>{{ member.member_tier }}</td>
                             <td>{{ member.threat_rating }}</td>
                             <td>{{ member.gear_score if member.gear_score is not none else "—" }}</td>
-                            <td>{{ member.visual.image_url or "missing" }}</td>
+                            <td>{{ member.visual.image_url or "нет" }}</td>
                             <td>{{ member.visual.storage_backend or "—" }}</td>
                             <td>{{ member.equipment|join(", ") if member.equipment else "—" }}</td>
                             <td>{{ member.affixes|join(", ") if member.affixes else "—" }}</td>
@@ -72,7 +72,7 @@
                                 <form method="post" action="/admin/content-ops/regenerate-member-image">
                                     <input type="hidden" name="clan_id" value="{{ clan.clan_id }}">
                                     <input type="hidden" name="member_id" value="{{ member.monster_id }}">
-                                    <button type="submit" class="fc-action-btn">Regenerate</button>
+                                    <button type="submit" class="fc-action-btn">Перегенерировать</button>
                                 </form>
                             </td>
                         </tr>

@@ -24,9 +24,10 @@ from src.frontend.integrations.backend_api.admin_monsters import (
 def test_content_ops_admin_declares_operational_sections() -> None:
     assert ContentOpsAdmin.key == "content_ops"
     assert ContentOpsAdmin.path == "/admin/content-ops"
-    assert ContentOpsAdmin.label == "Content"
-    assert ContentOpsAdmin.group_label == "Content"
+    assert ContentOpsAdmin.label == "Монстры"
+    assert ContentOpsAdmin.group_label == "Контент"
     assert [item.key for item in ContentOpsAdmin.sidebar] == ["overview", "monsters"]
+    assert [item.label for item in ContentOpsAdmin.sidebar] == ["Обзор", "Сгенерированные монстры"]
     assert [item.path for item in ContentOpsAdmin.sidebar] == [
         "/admin/content-ops",
         "/admin/content-ops/monster-browser",
@@ -65,8 +66,8 @@ def test_content_ops_custom_pages_render_operational_surfaces() -> None:
 
     monsters = client.get("/admin/content-ops/monster-browser")
     assert monsters.status_code == 200
-    assert "Generated monsters" in monsters.text
-    assert "Missing image" in monsters.text
+    assert "Сгенерированные монстры" in monsters.text
+    assert "Без изображения" in monsters.text
 
 
 @pytest.mark.asyncio

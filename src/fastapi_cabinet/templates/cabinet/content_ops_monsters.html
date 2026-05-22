@@ -3,36 +3,36 @@
 {% block content %}
     <div class="fc-page-head">
         <div>
-            <h1 class="fc-page-title">Generated monsters</h1>
-            <p class="fc-page-subtitle">Read-only browser for generated clans and members with safe regeneration actions in detail views.</p>
+            <h1 class="fc-page-title">Сгенерированные монстры</h1>
+            <p class="fc-page-subtitle">Просмотр сгенерированных семей и участников с безопасной перегенерацией в карточке.</p>
         </div>
-        <a class="fc-action-btn" href="{{ base_url }}">Overview</a>
+        <a class="fc-action-btn" href="{{ base_url }}">Обзор</a>
     </div>
 
     <section class="fc-toolbar">
         <form class="fc-filter-form" method="get" action="{{ base_url }}/monster-browser">
             <label class="fc-filter-field">
-                <span>Family</span>
+                <span>Тип семьи</span>
                 <select name="family_id" class="fc-form-input">
-                    <option value="">All</option>
+                    <option value="">Все</option>
                     {% for family in browser.family_options %}
                         <option value="{{ family }}" {% if browser.filters.family_id == family %}selected{% endif %}>{{ family }}</option>
                     {% endfor %}
                 </select>
             </label>
             <label class="fc-filter-field">
-                <span>Role</span>
+                <span>Роль</span>
                 <select name="role" class="fc-form-input">
-                    <option value="">All</option>
+                    <option value="">Все</option>
                     {% for role in browser.role_options %}
                         <option value="{{ role }}" {% if browser.filters.role == role %}selected{% endif %}>{{ role }}</option>
                     {% endfor %}
                 </select>
             </label>
             <label class="fc-filter-field">
-                <span>Storage</span>
+                <span>Хранилище</span>
                 <select name="storage_backend" class="fc-form-input">
-                    <option value="">All</option>
+                    <option value="">Все</option>
                     {% for storage in browser.storage_options %}
                         <option value="{{ storage }}" {% if browser.filters.storage_backend == storage %}selected{% endif %}>{{ storage }}</option>
                     {% endfor %}
@@ -40,36 +40,36 @@
             </label>
             <label class="fc-filter-check">
                 <input type="checkbox" name="missing_image" value="1" {% if browser.filters.missing_image %}checked{% endif %}>
-                Missing image
+                Без изображения
             </label>
-            <button type="submit" class="fc-btn-save">Apply</button>
-            <a class="fc-btn-cancel" href="{{ base_url }}/monster-browser">Reset</a>
+            <button type="submit" class="fc-btn-save">Применить</button>
+            <a class="fc-btn-cancel" href="{{ base_url }}/monster-browser">Сбросить</a>
         </form>
     </section>
 
     <div class="fc-stat-strip">
-        <div><strong>{{ browser.total_clans }}</strong><span>clans</span></div>
-        <div><strong>{{ browser.total_members }}</strong><span>members</span></div>
-        <div><strong>{{ browser.missing_images }}</strong><span>missing image</span></div>
+        <div><strong>{{ browser.total_clans }}</strong><span>семьи</span></div>
+        <div><strong>{{ browser.total_members }}</strong><span>участники</span></div>
+        <div><strong>{{ browser.missing_images }}</strong><span>без изображения</span></div>
     </div>
 
     {% if browser.error %}
         <p class="fc-empty">{{ browser.error }}</p>
     {% elif not browser.clans %}
-        <p class="fc-empty">No generated monster families match the selected filters.</p>
+        <p class="fc-empty">По выбранным фильтрам сгенерированных семей монстров нет.</p>
     {% else %}
         <section class="fc-widget fc-widget--table">
-            <h2>Generated monster families</h2>
+            <h2>Семьи сгенерированных монстров</h2>
             <table class="fc-table fc-table--linked">
                 <thead>
                     <tr>
-                        <th>Clan</th>
-                        <th>Family</th>
-                        <th>Tier</th>
-                        <th>Zone</th>
-                        <th>Members</th>
-                        <th>Image</th>
-                        <th>Storage</th>
+                        <th>Семья</th>
+                        <th>Тип</th>
+                        <th>Уровень</th>
+                        <th>Зона</th>
+                        <th>Участники</th>
+                        <th>Изображение</th>
+                        <th>Хранилище</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -85,9 +85,9 @@
                             <td>{{ clan.members|length }}</td>
                             <td>
                                 {% if clan.visual.image_url %}
-                                    <span class="fc-pill fc-pill--ok">ok</span>
+                                    <span class="fc-pill fc-pill--ok">есть</span>
                                 {% else %}
-                                    <span class="fc-pill fc-pill--warn">missing</span>
+                                    <span class="fc-pill fc-pill--warn">нет</span>
                                 {% endif %}
                             </td>
                             <td>{{ clan.visual.storage_backend or "—" }}</td>

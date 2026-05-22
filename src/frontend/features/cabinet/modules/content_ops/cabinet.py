@@ -42,10 +42,10 @@ async def _overview_provider(request: Request) -> ListWidgetMap:
         key="content_ops_overview",
         title="Операционные зоны",
         items=[
-            "Generated monsters: семьи, индивиды, визуалы, metadata и safe regeneration actions.",
-            "Generated world: будущая секция для сгенерированных локаций, текстов и фоновых изображений.",
-            "Item templates: будущая секция для статических шаблонов и AI-generated descriptions/images.",
-            "Static resources: будущий read-only browser словарей, которые сейчас живут в кодовых resource-модулях.",
+            "Сгенерированные монстры: семьи, индивиды, визуалы, метаданные и безопасная перегенерация.",
+            "Сгенерированный мир: будущая секция для локаций, текстов и фоновых изображений.",
+            "Шаблоны предметов: будущая секция для статических шаблонов и AI-сгенерированных описаний/изображений.",
+            "Статические ресурсы: будущий просмотр словарей и ресурсных модулей в режиме только чтения.",
         ],
     )
 
@@ -56,17 +56,17 @@ async def _monster_count_provider(request: Request) -> MetricWidgetMap:
     except (AttributeError, httpx.HTTPStatusError, httpx.RequestError):
         return MetricWidgetMap(
             key="content_ops_monsters",
-            title="Generated Monsters",
+            title="Сгенерированные монстры",
             value="—",
-            subtitle="backend unavailable",
+            subtitle="backend недоступен",
         )
     member_count = sum(len(clan.members) for clan in clans)
     missing = sum(1 for clan in clans if _has_missing_image(clan))
     return MetricWidgetMap(
         key="content_ops_monsters",
-        title="Generated Monsters",
+        title="Сгенерированные монстры",
         value=str(len(clans)),
-        subtitle=f"members {member_count} / missing image {missing}",
+        subtitle=f"участников {member_count} / без изображения {missing}",
     )
 
 
@@ -83,14 +83,14 @@ async def _monster_table_provider(request: Request) -> TableWidgetMap:
         clans = []
     return TableWidgetMap(
         key="content_ops_monster_families",
-        title="Generated monster families",
+        title="Семьи сгенерированных монстров",
         columns=[
-            TableColumnMap(key="name", label="Clan"),
-            TableColumnMap(key="family", label="Family"),
-            TableColumnMap(key="tier", label="Tier"),
-            TableColumnMap(key="members", label="Members"),
-            TableColumnMap(key="storage", label="Storage"),
-            TableColumnMap(key="image", label="Image"),
+            TableColumnMap(key="name", label="Семья"),
+            TableColumnMap(key="family", label="Тип"),
+            TableColumnMap(key="tier", label="Уровень"),
+            TableColumnMap(key="members", label="Участники"),
+            TableColumnMap(key="storage", label="Хранилище"),
+            TableColumnMap(key="image", label="Изображение"),
         ],
         rows=[
             {
@@ -99,7 +99,7 @@ async def _monster_table_provider(request: Request) -> TableWidgetMap:
                 "tier": clan.tier,
                 "members": len(clan.members),
                 "storage": clan.visual.storage_backend or "—",
-                "image": "missing" if _has_missing_image(clan) else "ok",
+                "image": "нет" if _has_missing_image(clan) else "есть",
                 "href": f"{_BASE}/monster-detail?id={clan.clan_id}",
             }
             for clan in clans
@@ -128,7 +128,7 @@ async def _load_monster_browser_context(request: Request) -> MonsterBrowserConte
             total_clans=0,
             total_members=0,
             missing_images=0,
-            error=f"backend unavailable: {exc.__class__.__name__}",
+            error=f"backend недоступен: {exc.__class__.__name__}",
         )
 
     clans = _filter_monster_clans(source, filters)
@@ -172,17 +172,26 @@ def _filter_monster_clans(
 
 class ContentOpsAdmin(CabinetAdmin):
     key = "content_ops"
-    label = "Content"
+    label = "Монстры"
     group = "content_ops"
-    group_label = "Content"
+    group_label = "Контент"
     path = "/admin/content-ops"
     order = 10
     sidebar: ClassVar = (
-        SidebarItem(key="overview", label="Overview", path="/admin/content-ops", order=10),
-        SidebarItem(key="monsters", label="Generated monsters", path="/admin/content-ops/monster-browser", order=20),
+        SidebarItem(key="overview", label="Обзор", path="/admin/content-ops", order=10),
+        SidebarItem(
+            key="monsters",
+            label="Сгенерированные монстры",
+            path="/admin/content-ops/monster-browser",
+            order=20,
+        ),
     )
     dashboard_widgets: ClassVar = (
-        MetricWidget(key="content_ops_monsters", title="Generated Monsters", provider="content_ops.monster_count"),
+        MetricWidget(
+            key="content_ops_monsters",
+            title="Сгенерированные монстры",
+            provider="content_ops.monster_count",
+        ),
         ListWidget(key="content_ops_overview", title="Операционные зоны", provider="content_ops.overview", order=20),
     )
     sub_pages: ClassVar = {}
@@ -203,16 +212,16 @@ class ContentOpsAdmin(CabinetAdmin):
         return {
             "sections": [
                 {
-                    "label": "Monsters",
+                    "label": "Монстры",
                     "href": f"{_BASE}/monster-browser",
-                    "status": "ready" if not browser.error else "unavailable",
-                    "detail": f"{browser.total_clans} clans / {browser.total_members} members",
+                    "status": "готово" if not browser.error else "недоступно",
+                    "detail": f"{browser.total_clans} семей / {browser.total_members} участников",
                 },
                 {
-                    "label": "Static resources",
+                    "label": "Статические ресурсы",
                     "href": _BASE,
-                    "status": "planned",
-                    "detail": "read-only dictionaries/resources browser",
+                    "status": "планируется",
+                    "detail": "просмотр словарей и ресурсных модулей в режиме только чтения",
                 },
             ]
         }

@@ -1,0 +1,53 @@
+{% extends "cabinet/base.html" %}
+
+{% block content %}
+    <div class="fc-page-head">
+        <div>
+            <h1 class="fc-page-title">News cover workflow</h1>
+            <p class="fc-page-subtitle">Operational entrypoint for AI-generated covers without moving article ownership out of News Management.</p>
+        </div>
+        <div class="fc-page-actions">
+            <a class="fc-action-btn" href="{{ news_url }}">All articles</a>
+            <a class="fc-action-btn fc-action-btn--approve" href="{{ news_create_url }}">Create article</a>
+        </div>
+    </div>
+
+    <section class="fc-widget fc-widget--list">
+        <h2>Workflow</h2>
+        <ol class="fc-ordered-list">
+            {% for step in workflow_steps %}
+                <li>{{ step }}</li>
+            {% endfor %}
+        </ol>
+    </section>
+
+    <section class="fc-widget fc-widget--table">
+        <h2>Ownership</h2>
+        <table class="fc-table">
+            <thead>
+                <tr>
+                    <th>Surface</th>
+                    <th>Owns</th>
+                    <th>Boundary</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>News Management</td>
+                    <td>Create/edit/publish articles and approve generated covers</td>
+                    <td>Site-owned editorial workflow</td>
+                </tr>
+                <tr>
+                    <td>Generation AI</td>
+                    <td>Image task, prompt payload, generated asset storage key</td>
+                    <td>Backend task queue and storage abstraction</td>
+                </tr>
+                <tr>
+                    <td>Content Ops</td>
+                    <td>Inspection, navigation, operational status</td>
+                    <td>No raw article table or S3 object mutation</td>
+                </tr>
+            </tbody>
+        </table>
+    </section>
+{% endblock %}

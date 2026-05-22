@@ -1,0 +1,63 @@
+{% extends "cabinet/base.html" %}
+
+{% block content %}
+    <div class="fc-page-head">
+        <div>
+            <h1 class="fc-page-title">Generated assets</h1>
+            <p class="fc-page-subtitle">Operational view for generated asset storage, S3 serving, and backfill commands.</p>
+        </div>
+        <a class="fc-action-btn" href="/admin/content-ops">Overview</a>
+    </div>
+
+    <section class="fc-widget fc-widget--table">
+        <h2>Storage contract</h2>
+        <table class="fc-table">
+            <thead>
+                <tr>
+                    <th>Check</th>
+                    <th>Value</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in asset_rows %}
+                    <tr>
+                        <td>{{ row.label }}</td>
+                        <td><code>{{ row.value }}</code></td>
+                        <td>
+                            {% if row.status in ["active", "ready", "canonical"] %}
+                                <span class="fc-pill fc-pill--ok">{{ row.status }}</span>
+                            {% elif row.status == "missing" %}
+                                <span class="fc-pill fc-pill--warn">{{ row.status }}</span>
+                            {% else %}
+                                <span class="fc-pill">{{ row.status }}</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </section>
+
+    <section class="fc-widget fc-widget--list">
+        <h2>Operator commands</h2>
+        <div class="fc-command-list">
+            {% for item in operator_commands %}
+                <div class="fc-command-row">
+                    <span>{{ item.label }}</span>
+                    <code>{{ item.command }}</code>
+                </div>
+            {% endfor %}
+        </div>
+    </section>
+
+    <section class="fc-widget fc-widget--list">
+        <h2>Rules</h2>
+        <ul>
+            <li>Canonical data remains <code>storage_key</code> plus <code>{{ public_base_url }}/&lt;storage_key&gt;</code>.</li>
+            <li>Provider bucket URLs are not stored in articles, monsters, or future generated content.</li>
+            <li>Backfill copies existing files; it does not regenerate production images.</li>
+            <li>No raw S3 object editor is exposed from the cabinet.</li>
+        </ul>
+    </section>
+{% endblock %}

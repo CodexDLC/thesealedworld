@@ -68,6 +68,8 @@ class FrontendSettings(BaseCommonSettings):
 
     # Generated asset serving. S3 keeps the public URL contract at /static/generated-assets/<storage_key>.
     asset_storage_backend: Literal["local", "s3"] = "local"
+    asset_public_base_url: str = "/static/generated-assets"
+    asset_local_root: str = "var/generated-assets"
     asset_s3_bucket: str | None = None
     asset_s3_region: str | None = None
     asset_s3_endpoint_url: str | None = None

@@ -1,0 +1,100 @@
+{% extends "cabinet/base.html" %}
+
+{% block content %}
+    <div class="fc-page-head">
+        <div>
+            <h1 class="fc-page-title">Generated monsters</h1>
+            <p class="fc-page-subtitle">Read-only browser for generated clans and members with safe regeneration actions in detail views.</p>
+        </div>
+        <a class="fc-action-btn" href="{{ base_url }}">Overview</a>
+    </div>
+
+    <section class="fc-toolbar">
+        <form class="fc-filter-form" method="get" action="{{ base_url }}/monster-browser">
+            <label class="fc-filter-field">
+                <span>Family</span>
+                <select name="family_id" class="fc-form-input">
+                    <option value="">All</option>
+                    {% for family in browser.family_options %}
+                        <option value="{{ family }}" {% if browser.filters.family_id == family %}selected{% endif %}>{{ family }}</option>
+                    {% endfor %}
+                </select>
+            </label>
+            <label class="fc-filter-field">
+                <span>Role</span>
+                <select name="role" class="fc-form-input">
+                    <option value="">All</option>
+                    {% for role in browser.role_options %}
+                        <option value="{{ role }}" {% if browser.filters.role == role %}selected{% endif %}>{{ role }}</option>
+                    {% endfor %}
+                </select>
+            </label>
+            <label class="fc-filter-field">
+                <span>Storage</span>
+                <select name="storage_backend" class="fc-form-input">
+                    <option value="">All</option>
+                    {% for storage in browser.storage_options %}
+                        <option value="{{ storage }}" {% if browser.filters.storage_backend == storage %}selected{% endif %}>{{ storage }}</option>
+                    {% endfor %}
+                </select>
+            </label>
+            <label class="fc-filter-check">
+                <input type="checkbox" name="missing_image" value="1" {% if browser.filters.missing_image %}checked{% endif %}>
+                Missing image
+            </label>
+            <button type="submit" class="fc-btn-save">Apply</button>
+            <a class="fc-btn-cancel" href="{{ base_url }}/monster-browser">Reset</a>
+        </form>
+    </section>
+
+    <div class="fc-stat-strip">
+        <div><strong>{{ browser.total_clans }}</strong><span>clans</span></div>
+        <div><strong>{{ browser.total_members }}</strong><span>members</span></div>
+        <div><strong>{{ browser.missing_images }}</strong><span>missing image</span></div>
+    </div>
+
+    {% if browser.error %}
+        <p class="fc-empty">{{ browser.error }}</p>
+    {% elif not browser.clans %}
+        <p class="fc-empty">No generated monster families match the selected filters.</p>
+    {% else %}
+        <section class="fc-widget fc-widget--table">
+            <h2>Generated monster families</h2>
+            <table class="fc-table fc-table--linked">
+                <thead>
+                    <tr>
+                        <th>Clan</th>
+                        <th>Family</th>
+                        <th>Tier</th>
+                        <th>Zone</th>
+                        <th>Members</th>
+                        <th>Image</th>
+                        <th>Storage</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for clan in browser.clans %}
+                        <tr class="fc-table-row--link" onclick="window.location.href='{{ base_url }}/monster-detail?id={{ clan.clan_id }}'">
+                            <td>
+                                <strong>{{ clan.name_ru or clan.clan_id }}</strong>
+                                <div class="fc-muted">{{ clan.clan_id }}</div>
+                            </td>
+                            <td>{{ clan.family_id }}</td>
+                            <td>{{ clan.tier }}</td>
+                            <td>{{ clan.zone_id or "—" }}</td>
+                            <td>{{ clan.members|length }}</td>
+                            <td>
+                                {% if clan.visual.image_url %}
+                                    <span class="fc-pill fc-pill--ok">ok</span>
+                                {% else %}
+                                    <span class="fc-pill fc-pill--warn">missing</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ clan.visual.storage_backend or "—" }}</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </section>
+    {% endif %}
+{% endblock %}

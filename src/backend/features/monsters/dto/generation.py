@@ -7,6 +7,7 @@ from pydantic import BaseModel, Field, model_validator
 
 if TYPE_CHECKING:
     import uuid
+    from datetime import datetime
 
 GeneratedMonsterRole = Literal["minion", "veteran", "elite", "boss"]
 GeneratedMonsterOrganizationType = Literal["solitary", "pack", "gang", "clan", "legion", "horde", "swarm"]
@@ -249,6 +250,15 @@ class GeneratedClan:
     flavor_content: dict[str, Any]
     name_ru: str
     description: str
+    metadata_: dict[str, Any] = field(default_factory=dict)
+    context: dict[str, Any] = field(default_factory=dict)
+    source_context: dict[str, Any] = field(default_factory=dict)
+    lifecycle_status: str = "active"
+    archived_at: datetime | None = None
+    expires_at: datetime | None = None
+    schema_version: int = 1
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
     members: list[GeneratedMonster] = field(default_factory=list)
 
 
@@ -269,6 +279,16 @@ class GeneratedMonster:
     vitals: dict[str, Any]
     ai_profile: dict[str, Any]
     generation_meta: dict[str, Any] = field(default_factory=dict)
+    combat_actor_snapshot: dict[str, Any] = field(default_factory=dict)
+    metadata_: dict[str, Any] = field(default_factory=dict)
+    context: dict[str, Any] = field(default_factory=dict)
+    source_context: dict[str, Any] = field(default_factory=dict)
+    lifecycle_status: str = "active"
+    archived_at: datetime | None = None
+    expires_at: datetime | None = None
+    schema_version: int = 1
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
     clan: GeneratedClan | None = None
 
     @property

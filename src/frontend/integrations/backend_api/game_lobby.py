@@ -12,6 +12,7 @@ from src.shared.schemas import (
     GameLobbyCharacterDeleteRequestDTO,
     GameLobbyCharacterReleaseRequestDTO,
     GameLobbyCharacterSelectRequestDTO,
+    GameLobbyPopulationStatsDTO,
     GameLobbyUserContextDTO,
     ScenarioPayloadDTO,
 )
@@ -65,6 +66,13 @@ class BackendGameLobbyApi(BaseApiClient):
             "/game-lobby/bootstrap",
             response_model=GameLobbyResponse,
             json=user.model_dump(mode="json"),
+        )
+
+    async def get_population_stats(self) -> GameLobbyPopulationStatsDTO:
+        return await self._request(
+            "GET",
+            "/game-lobby/population-stats",
+            response_model=GameLobbyPopulationStatsDTO,
         )
 
     async def select(self, dto: GameLobbyCharacterSelectRequest) -> GameLobbySelectResponse:

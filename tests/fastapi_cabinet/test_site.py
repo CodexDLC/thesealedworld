@@ -72,3 +72,17 @@ def test_cabinet_static_assets_are_mounted() -> None:
     response = TestClient(app).get("/cabinet/static/css/cabinet.css")
     assert response.status_code == 200
     assert ".fc-shell" in response.text
+
+
+def test_cabinet_static_assets_can_use_public_mount_path() -> None:
+    app = FastAPI()
+
+    include_cabinet(app, modules=(), site=CabinetSite(), static_mount_path="/cabinet-assets")
+
+    client = TestClient(app)
+    response = client.get("/cabinet-assets/css/cabinet.css")
+    page = client.get("/cabinet")
+
+    assert response.status_code == 200
+    assert ".fc-shell" in response.text
+    assert "/cabinet-assets/css/cabinet.css?v=" in page.text

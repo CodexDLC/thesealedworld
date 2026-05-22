@@ -11,6 +11,7 @@ from src.backend.features.game_lobby.api.router import (
     check_lobby_character_name_for_site_user,
     create_lobby_character_for_site_user,
     delete_lobby_character_for_site_user,
+    get_lobby_population_stats,
     release_lobby_character_for_site_user,
     select_lobby_character_for_site_user,
 )
@@ -29,6 +30,7 @@ from src.shared.schemas import (
     GameLobbyCharacterReleaseRequestDTO,
     GameLobbyCharacterSelectRequestDTO,
     GameLobbyPayloadDTO,
+    GameLobbyPopulationStatsDTO,
     GameLobbyUserContextDTO,
     GameStateHeader,
     ScenarioPayloadDTO,
@@ -61,6 +63,18 @@ async def test_service_bootstrap_filters_lobby_by_user_id() -> None:
     integration.list_user_characters.assert_awaited_once_with(user_id)
     assert response.payload is not None
     assert response.payload.slots[0].character_id == "7"
+
+
+@pytest.mark.unit
+async def test_population_stats_for_site_user_uses_lobby_service() -> None:
+    service = SimpleNamespace(
+        get_population_stats=AsyncMock(return_value=GameLobbyPopulationStatsDTO(characters_total=11))
+    )
+
+    response = await get_lobby_population_stats(object(), service)
+
+    service.get_population_stats.assert_awaited_once_with()
+    assert response.characters_total == 11
 
 
 @pytest.mark.unit

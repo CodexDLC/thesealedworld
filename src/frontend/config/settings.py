@@ -1,4 +1,5 @@
 from pathlib import Path
+from typing import Literal
 
 from codex_core.settings import BaseCommonSettings
 from pydantic_settings import SettingsConfigDict
@@ -64,6 +65,16 @@ class FrontendSettings(BaseCommonSettings):
     templates_dir: Path = BASE_DIR / "src" / "frontend" / "templates"
     static_dir: Path = BASE_DIR / "src" / "frontend" / "static"
     generated_assets_dir: Path = BASE_DIR / "var" / "generated-assets"
+
+    # Generated asset serving. S3 keeps the public URL contract at /static/generated-assets/<storage_key>.
+    asset_storage_backend: Literal["local", "s3"] = "local"
+    asset_public_base_url: str = "/static/generated-assets"
+    asset_local_root: str = "var/generated-assets"
+    asset_s3_bucket: str | None = None
+    asset_s3_region: str | None = None
+    asset_s3_endpoint_url: str | None = None
+    asset_s3_access_key_id: str | None = None
+    asset_s3_secret_access_key: str | None = None
 
     model_config = SettingsConfigDict(
         env_file=BASE_DIR / ".env",

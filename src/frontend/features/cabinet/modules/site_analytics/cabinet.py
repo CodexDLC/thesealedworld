@@ -1,9 +1,16 @@
+import httpx
 from fastapi import Request
 
 from fastapi_cabinet import CabinetAdmin, MetricWidget, SidebarItem, cabinet_site
 from fastapi_cabinet.contracts.widgets import MetricWidgetMap
+from src.frontend.config.settings import settings
+from src.frontend.core.database.session import get_session_context
+from src.frontend.features.auth.repositories.user_repository import UserRepository
 from src.frontend.features.cabinet.modules.site_analytics.mapper import SiteAnalyticsCabinetMapper
 from src.frontend.features.cabinet.modules.site_analytics.service import SiteAnalyticsCabinetService
+from src.frontend.integrations.backend_api.combat_sessions import CombatSessionsApi
+from src.frontend.integrations.backend_api.exploration_sessions import ExplorationSessionsApi
+from src.frontend.integrations.backend_api.scenario_sessions import ScenarioSessionsApi
 
 
 async def _visits_provider(request: Request) -> MetricWidgetMap:
@@ -12,8 +19,19 @@ async def _visits_provider(request: Request) -> MetricWidgetMap:
 
 
 async def _registrations_provider(request: Request) -> MetricWidgetMap:
-    snapshot = await SiteAnalyticsCabinetService().get_snapshot(request)
-    return SiteAnalyticsCabinetMapper().registrations_metric(snapshot)
+    value = "—"
+    subtitle = "site.auth_users"
+    try:
+        async with get_session_context() as session:
+            value = str(await UserRepository(session).count_all())
+    except Exception:
+        subtitle = "site DB недоступна"
+    return MetricWidgetMap(
+        key="registrations",
+        title="Регистраций",
+        value=value,
+        subtitle=subtitle,
+    )
 
 
 async def _lobby_provider(request: Request) -> MetricWidgetMap:
@@ -27,22 +45,42 @@ async def _game_joins_provider(request: Request) -> MetricWidgetMap:
 
 
 async def _active_combats_provider(request: Request) -> MetricWidgetMap:
-    counters: dict[str, int] = getattr(request.app.state, "site_analytics", {})
-    return MetricWidgetMap(key="active_combats", title="Активных боёв", value=str(counters.get("combat_active", 0)))
+    return await _active_sessions_metric(
+        request,
+        api_cls=CombatSessionsApi,
+        key="active_combats",
+        title="Активных боёв",
+    )
 
 
 async def _active_scenarios_provider(request: Request) -> MetricWidgetMap:
-    counters: dict[str, int] = getattr(request.app.state, "site_analytics", {})
-    return MetricWidgetMap(
-        key="active_scenarios", title="Активных сценариев", value=str(counters.get("scenario_active", 0))
+    return await _active_sessions_metric(
+        request,
+        api_cls=ScenarioSessionsApi,
+        key="active_scenarios",
+        title="Активных сценариев",
     )
 
 
 async def _active_travels_provider(request: Request) -> MetricWidgetMap:
-    counters: dict[str, int] = getattr(request.app.state, "site_analytics", {})
-    return MetricWidgetMap(
-        key="active_travels", title="Активных путешествий", value=str(counters.get("exploration_active", 0))
+    return await _active_sessions_metric(
+        request,
+        api_cls=ExplorationSessionsApi,
+        key="active_travels",
+        title="Активных путешествий",
     )
+
+
+async def _active_sessions_metric(request: Request, *, api_cls, key: str, title: str) -> MetricWidgetMap:
+    subtitle = "game backend"
+    try:
+        client: httpx.AsyncClient = request.app.state.backend_http_client
+        api = api_cls(client=client, base_url=settings.backend_base_url)
+        value = str(len(await api.list_active()))
+    except (AttributeError, httpx.HTTPStatusError, httpx.RequestError):
+        value = "0"
+        subtitle = "game backend недоступен"
+    return MetricWidgetMap(key=key, title=title, value=value, subtitle=subtitle)
 
 
 class SiteAnalyticsAdmin(CabinetAdmin):

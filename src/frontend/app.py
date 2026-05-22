@@ -35,6 +35,7 @@ from src.frontend.game_features.game_menu import GameMenuMiddleware
 from src.frontend.game_features.session.cookies import clear_active_character_cookie
 from src.frontend.game_features.session.middleware import GameTokenRefreshMiddleware
 from src.frontend.game_features.session.token_state import clear_game_token_cookies
+from src.frontend.integrations.generated_assets import configure_generated_asset_serving
 from src.shared.exceptions import BaseAPIException
 from src.shared.infrastructure.log_middleware import LogContextMiddleware
 from src.shared.infrastructure.logging_config import setup_logging
@@ -45,7 +46,14 @@ setup_logging(
     settings=settings,
     service_name="frontend",
     intercept_loggers=["uvicorn", "uvicorn.access", "uvicorn.error", "fastapi"],
-    log_levels={"httpx": 30, "uvicorn.access": 30},
+    log_levels={
+        "boto3": 30,
+        "botocore": 30,
+        "httpx": 30,
+        "s3transfer": 30,
+        "urllib3": 30,
+        "uvicorn.access": 30,
+    },
 )
 
 
@@ -156,13 +164,8 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# Mount generated assets before the broad /static mount so runtime files are not looked up in src/frontend/static.
-settings.generated_assets_dir.mkdir(parents=True, exist_ok=True)
-app.mount(
-    "/static/generated-assets",
-    StaticFiles(directory=str(settings.generated_assets_dir)),
-    name="generated_assets",
-)
+# Configure generated assets before the broad /static mount so runtime files are not looked up in src/frontend/static.
+configure_generated_asset_serving(app, config=settings)
 
 # Mount static files
 app.mount("/static", StaticFiles(directory=str(settings.static_dir)), name="static")
@@ -176,7 +179,7 @@ app.add_middleware(GameTokenRefreshMiddleware)
 app.add_middleware(PrometheusMiddleware, service_name="frontend")
 app.add_middleware(LogContextMiddleware)
 include_frontend_routers(app)
-include_cabinet(app, modules=CABINET_MODULES, mount_path="/admin")
+include_cabinet(app, modules=CABINET_MODULES, mount_path="/admin", static_mount_path="/cabinet-assets")
 app.include_router(metrics_router)
 
 
@@ -196,7 +199,11 @@ async def health():
 
 @app.exception_handler(404)
 async def not_found_handler(request: Request, exc: Exception):
-    logger.bind(method=request.method, path=request.url.path).warning("FrontendNotFound")
+    logger.bind(method=request.method, path=request.url.path).warning(
+        "FrontendNotFound method={} path={}",
+        request.method,
+        request.url.path,
+    )
     ui = get_ui_renderer(request)
     return await ui.render("errors/404.html", context={"error": "PAGE_NOT_FOUND"}, status_code=404)
 

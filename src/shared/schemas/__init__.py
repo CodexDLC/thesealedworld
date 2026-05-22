@@ -31,6 +31,7 @@ from src.shared.schemas.game_lobby import (
     GameLobbyCharacterReleaseRequestDTO,
     GameLobbyCharacterSelectRequestDTO,
     GameLobbyPayloadDTO,
+    GameLobbyPopulationStatsDTO,
     GameLobbyUserContextDTO,
     LobbySlotDTO,
 )
@@ -79,6 +80,7 @@ __all__ = [
     "GameLobbyCharacterReleaseRequestDTO",
     "GameLobbyCharacterSelectRequestDTO",
     "GameLobbyPayloadDTO",
+    "GameLobbyPopulationStatsDTO",
     "GameLobbyUserContextDTO",
     "GameMessageDTO",
     "GameMessagePresentationDTO",

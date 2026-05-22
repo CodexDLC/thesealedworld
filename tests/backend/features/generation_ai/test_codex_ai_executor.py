@@ -7,6 +7,7 @@ from unittest.mock import AsyncMock
 import pytest
 from PIL import Image
 
+from src.backend.features.generation_ai.image_prompt_contract import NO_TEXT_IMAGE_CONTRACT
 from src.backend.features.generation_ai.integrations.codex_ai_executor import CodexAIExecutor
 
 
@@ -33,9 +34,27 @@ class FakeAssetStorage:
         return FakeAssetRef(storage_key=storage_key, content_type=content_type)
 
 
+def _ai_with_image_result(
+    image_result: tuple[bytes, str],
+    *,
+    visible_text: bool = False,
+):
+    return SimpleNamespace(
+        generate_image_bytes=AsyncMock(return_value=image_result),
+        validate_generated_image_no_text=AsyncMock(
+            return_value=SimpleNamespace(
+                visible_text=visible_text,
+                confidence=0.99 if visible_text else 0.01,
+                reason="visible labels" if visible_text else "no visible text",
+                detected_text="label" if visible_text else "",
+            )
+        ),
+    )
+
+
 @pytest.mark.asyncio
 async def test_generation_ai_image_uses_plain_prompt_and_normalizes_to_requested_webp() -> None:
-    ai = SimpleNamespace(generate_image_bytes=AsyncMock(return_value=(_tiny_png(), "image/png")))
+    ai = _ai_with_image_result((_tiny_png(), "image/png"))
     storage = FakeAssetStorage()
     executor = CodexAIExecutor(ai, asset_storage=storage)
     task = SimpleNamespace(
@@ -56,23 +75,82 @@ async def test_generation_ai_image_uses_plain_prompt_and_normalizes_to_requested
         },
     )
 
+    provider_prompt = ai.generate_image_bytes.await_args.kwargs["prompt"]
+    assert provider_prompt.startswith("Create monster image")
+    assert NO_TEXT_IMAGE_CONTRACT in provider_prompt
     ai.generate_image_bytes.assert_awaited_once_with(
-        prompt="Create monster image",
+        prompt=provider_prompt,
         model="gemini-2.5-flash-image",
         response_mime_type="image/webp",
     )
     storage.put_bytes.assert_awaited_once()
+    ai.validate_generated_image_no_text.assert_awaited_once()
     assert storage.put_bytes.await_args.kwargs["content"].startswith(b"RIFF")
     assert storage.put_bytes.await_args.kwargs["content_type"] == "image/webp"
     assert storage.put_bytes.await_args.kwargs["metadata"]["provider_content_type"] == "image/png"
     assert storage.put_bytes.await_args.kwargs["metadata"]["image_normalized"] is True
     assert result.storage_key == "monsters/generated/clans/hash.webp"
     assert result.content_type == "image/webp"
+    assert result.output_payload["prompt"] == provider_prompt
+
+
+@pytest.mark.asyncio
+async def test_generation_ai_image_does_not_duplicate_no_text_contract() -> None:
+    ai = _ai_with_image_result((_tiny_png(), "image/png"))
+    executor = CodexAIExecutor(ai, asset_storage=FakeAssetStorage())
+    task = SimpleNamespace(
+        task_type="monster.clan_image",
+        entity_type="monster_clan",
+        entity_id="clan-1",
+        output_kind="image",
+    )
+
+    await executor.generate(
+        task,
+        {
+            "kind": "image",
+            "prompt": f"Create monster image\n\n{NO_TEXT_IMAGE_CONTRACT}",
+            "model": "gemini-2.5-flash-image",
+            "content_type": "image/webp",
+            "storage_key": "monsters/generated/clans/hash.webp",
+        },
+    )
+
+    provider_prompt = ai.generate_image_bytes.await_args.kwargs["prompt"]
+    assert provider_prompt.count(NO_TEXT_IMAGE_CONTRACT) == 1
+
+
+@pytest.mark.asyncio
+async def test_generation_ai_image_rejects_visible_text_before_upload() -> None:
+    ai = _ai_with_image_result((_tiny_png(), "image/png"), visible_text=True)
+    storage = FakeAssetStorage()
+    executor = CodexAIExecutor(ai, asset_storage=storage)
+    task = SimpleNamespace(
+        task_type="monster.clan_image",
+        entity_type="monster_clan",
+        entity_id="clan-1",
+        output_kind="image",
+    )
+
+    with pytest.raises(RuntimeError, match="visible text"):
+        await executor.generate(
+            task,
+            {
+                "kind": "image",
+                "prompt": "Create monster image",
+                "model": "gemini-2.5-flash-image",
+                "content_type": "image/webp",
+                "storage_key": "monsters/generated/clans/hash.webp",
+            },
+        )
+
+    ai.validate_generated_image_no_text.assert_awaited_once()
+    storage.put_bytes.assert_not_awaited()
 
 
 @pytest.mark.asyncio
 async def test_generation_ai_image_can_force_target_size() -> None:
-    ai = SimpleNamespace(generate_image_bytes=AsyncMock(return_value=(_wide_png(), "image/png")))
+    ai = _ai_with_image_result((_wide_png(), "image/png"))
     storage = FakeAssetStorage()
     executor = CodexAIExecutor(ai, asset_storage=storage)
     task = SimpleNamespace(
@@ -105,7 +183,7 @@ async def test_generation_ai_image_can_force_target_size() -> None:
 
 @pytest.mark.asyncio
 async def test_generation_ai_image_forwards_provider_kwargs() -> None:
-    ai = SimpleNamespace(generate_image_bytes=AsyncMock(return_value=(_tiny_png(), "image/png")))
+    ai = _ai_with_image_result((_tiny_png(), "image/png"))
     storage = FakeAssetStorage()
     executor = CodexAIExecutor(ai, asset_storage=storage)
     task = SimpleNamespace(
@@ -132,8 +210,11 @@ async def test_generation_ai_image_forwards_provider_kwargs() -> None:
         },
     )
 
+    provider_prompt = ai.generate_image_bytes.await_args.kwargs["prompt"]
+    assert provider_prompt.startswith("Create square region map")
+    assert NO_TEXT_IMAGE_CONTRACT in provider_prompt
     ai.generate_image_bytes.assert_awaited_once_with(
-        prompt="Create square region map",
+        prompt=provider_prompt,
         model="gemini-3-pro-image-preview",
         response_mime_type="image/png",
         image_config={
@@ -152,7 +233,7 @@ async def test_generation_ai_image_forwards_provider_kwargs() -> None:
     ],
 )
 async def test_generation_ai_image_rejects_unsupported_image_models(model: str) -> None:
-    ai = SimpleNamespace(generate_image_bytes=AsyncMock(return_value=(b"png-bytes", "image/png")))
+    ai = _ai_with_image_result((b"png-bytes", "image/png"))
     executor = CodexAIExecutor(ai, asset_storage=FakeAssetStorage())
     task = SimpleNamespace(
         task_type="monster.clan_image",
@@ -190,7 +271,7 @@ def _wide_png() -> bytes:
 
 @pytest.mark.asyncio
 async def test_generation_ai_image_rejects_message_bundle_prompt() -> None:
-    ai = SimpleNamespace(generate_image_bytes=AsyncMock(return_value=(b"png-bytes", "image/png")))
+    ai = _ai_with_image_result((b"png-bytes", "image/png"))
     executor = CodexAIExecutor(ai, asset_storage=FakeAssetStorage())
     task = SimpleNamespace(
         task_type="monster.clan_image",

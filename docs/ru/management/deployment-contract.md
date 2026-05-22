@@ -13,6 +13,7 @@ Production deploy разделен на независимые operational layer
 | `infra` | Postgres, Redis, Nginx, certbot helper, networks, volumes | Нет прикладных миграций | Только infra-сервисы | Ручной rollback после отдельного плана |
 | `site` | `frontend` / site-web, site static/generated assets mount | `site` schema через frontend Alembic | `site-migrate`, `frontend` | Предыдущий `site` image SHA |
 | `game` | Backend/game API, chat/ws, ARQ workers, game runtime mounts | `game` и `chat` schemas через backend migration command | `backend-migrate`, `backend`, `chat`, workers | Предыдущие `game`, `chat`, `worker` image SHA |
+| `tg-bot` | Telegram polling worker, Redis Stream news announcements | Нет прикладных миграций | `tg-bot` | Предыдущий `tg-bot` image SHA |
 
 ## Границы перезапуска
 
@@ -30,10 +31,11 @@ Production deploy использует:
 deploy/compose.infra.yml
 deploy/compose.site.yml
 deploy/compose.game.yml
+deploy/compose.tg-bot.yml
 deploy/compose.prod.yml
 ```
 
-`compose.prod.yml` является агрегатором для проверки или осознанного full-stack сценария. Он не должен становиться обычной командой для site-only или game-only деплоя.
+`compose.prod.yml` является агрегатором для проверки или осознанного full-stack сценария и включает `infra`, `site`, `game` и `tg-bot`. Он не должен становиться обычной командой для site-only, game-only или tg-bot-only деплоя.
 
 ## Image Contract
 
@@ -44,6 +46,7 @@ DOCKER_IMAGE_SITE=ghcr.io/<repo>-site:<image_ref>
 DOCKER_IMAGE_GAME=ghcr.io/<repo>-game:<image_ref>
 DOCKER_IMAGE_CHAT=ghcr.io/<repo>-chat:<image_ref>
 DOCKER_IMAGE_WORKER=ghcr.io/<repo>-worker:<image_ref>
+DOCKER_IMAGE_TG_BOT=ghcr.io/<repo>-tg-bot:<image_ref>
 DOCKER_IMAGE_NGINX=ghcr.io/<repo>-nginx:<image_ref>
 ```
 
@@ -76,6 +79,9 @@ Production runtime разделен на site и game layers:
 - Site обращается к game backend через typed HTTP clients и internal service key.
 - Backend не рендерит public site.
 - Site должен оставаться доступным при restart/maintenance game runtime.
+- Generated asset URLs остаются site-facing контрактом `/static/generated-assets/<storage_key>`.
+  S3/Object Storage является backend storage implementation detail; прямые provider URLs не являются
+  каноническими значениями для статей, монстров или будущих generated assets.
 
 ## Проверки перед деплоем
 
@@ -83,6 +89,7 @@ Production runtime разделен на site и game layers:
 docker compose -f deploy/compose.infra.yml config
 docker compose -f deploy/compose.site.yml config
 docker compose -f deploy/compose.game.yml config
+docker compose -f deploy/compose.tg-bot.yml config
 docker compose -f deploy/compose.prod.yml config
 ```
 

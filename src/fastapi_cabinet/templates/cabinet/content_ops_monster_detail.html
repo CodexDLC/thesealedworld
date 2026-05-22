@@ -1,0 +1,121 @@
+{% extends "cabinet/base.html" %}
+
+{% block content %}
+    {% if not clan %}
+        <p class="fc-empty">Сгенерированная семья монстров не найдена.</p>
+    {% else %}
+        <div class="fc-page-head">
+            <div>
+                <h1 class="fc-page-title">{{ clan.name_ru or clan.family_id }}</h1>
+                <p class="fc-page-subtitle">{{ clan.family_id }} / тир семьи {{ clan.tier }} / зона {{ clan.zone_id or "—" }}</p>
+            </div>
+            <a class="fc-action-btn" href="/admin/content-ops/monster-browser">К монстрам</a>
+        </div>
+
+        <section class="fc-widget fc-widget--wide fc-detail-grid">
+            <div class="fc-preview-box">
+                {% if clan.visual.image_url %}
+                    <img src="{{ clan.visual.image_url }}" alt="{{ clan.name_ru or clan.family_id }}">
+                {% else %}
+                    <span>нет изображения</span>
+                {% endif %}
+            </div>
+            <div>
+                <h2>Визуал семьи</h2>
+                <p>{{ clan.description or "Описание отсутствует." }}</p>
+                <table class="fc-table">
+                    <tbody>
+                        <tr><th>Изображение</th><td>{{ clan.visual.image_url or "нет" }}</td></tr>
+                        <tr><th>Ключ хранения</th><td>{{ clan.visual.storage_key or "—" }}</td></tr>
+                        <tr><th>Хранилище</th><td>{{ clan.visual.storage_backend or "—" }}</td></tr>
+                        <tr><th>Статус</th><td>{{ clan.visual.status or "—" }}</td></tr>
+                        <tr><th>Задача</th><td>{{ clan.visual.pending_task_id or "—" }}</td></tr>
+                        <tr><th>Context hash</th><td>{{ clan.context_hash or "—" }}</td></tr>
+                        <tr><th>Unique hash</th><td>{{ clan.unique_hash or "—" }}</td></tr>
+                        <tr><th>Schema version</th><td>{{ clan.schema_version }}</td></tr>
+                        <tr><th>Lifecycle</th><td>{{ clan.lifecycle_status or "—" }}</td></tr>
+                        <tr><th>Created</th><td>{{ clan.created_at or "—" }}</td></tr>
+                        <tr><th>Updated</th><td>{{ clan.updated_at or "—" }}</td></tr>
+                    </tbody>
+                </table>
+                <form method="post" action="/admin/content-ops/regenerate-clan-image" class="fc-inline-action">
+                    <input type="hidden" name="clan_id" value="{{ clan.clan_id }}">
+                    <button type="submit" class="fc-action-btn fc-action-btn--approve">Перегенерировать изображение семьи</button>
+                </form>
+                <form method="post" action="/admin/content-ops/regenerate-clan-family-images" class="fc-inline-action">
+                    <input type="hidden" name="clan_id" value="{{ clan.clan_id }}">
+                    <button type="submit" class="fc-action-btn fc-action-btn--approve">Перегенерировать все изображения семьи</button>
+                </form>
+            </div>
+        </section>
+
+        <section class="fc-widget fc-widget--wide">
+            <h2>Участники</h2>
+            <table class="fc-table">
+                <thead>
+                    <tr>
+                        <th>Имя</th>
+                        <th>Роль</th>
+                        <th>Тир монстра</th>
+                        <th>Сила</th>
+                        <th>Изображение</th>
+                        <th>Хранилище</th>
+                        <th>Экипировка</th>
+                        <th>Аффиксы</th>
+                        <th>Действие</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for member in clan.members %}
+                        <tr>
+                            <td>
+                                <a href="/admin/content-ops/monster-member-detail?clan_id={{ clan.clan_id }}&member_id={{ member.monster_id }}">
+                                    <strong>{{ member.name_ru or member.variant_key }}</strong>
+                                </a>
+                                <div class="fc-muted">{{ member.variant_key }}</div>
+                            </td>
+                            <td>{{ member.role }}</td>
+                            <td>{{ member.member_tier }}</td>
+                            <td>{{ member.gear_score if member.gear_score is not none else "—" }}</td>
+                            <td>
+                                {% if member.visual.image_url %}
+                                    <img class="fc-asset-thumb" src="{{ member.visual.image_url }}" alt="{{ member.name_ru or member.variant_key }}">
+                                {% else %}
+                                    <span class="fc-pill fc-pill--warn">нет</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ member.visual.storage_backend or "—" }}</td>
+                            <td>{{ member.equipment|join(", ") if member.equipment else "—" }}</td>
+                            <td>{{ member.affixes|join(", ") if member.affixes else "—" }}</td>
+                            <td>
+                                <form method="post" action="/admin/content-ops/regenerate-member-image">
+                                    <input type="hidden" name="clan_id" value="{{ clan.clan_id }}">
+                                    <input type="hidden" name="member_id" value="{{ member.monster_id }}">
+                                    <button type="submit" class="fc-action-btn">Перегенерировать</button>
+                                </form>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </section>
+
+        <section class="fc-widget fc-widget--wide">
+            <h2>Persisted JSON семьи</h2>
+            <div class="fc-json-grid">
+                <section>
+                    <h3>raw_tags</h3>
+                    <pre class="fc-json-block">{{ clan.raw_tags|tojson(indent=2) }}</pre>
+                </section>
+                <section>
+                    <h3>flavor_content</h3>
+                    <pre class="fc-json-block">{{ clan.flavor_content|tojson(indent=2) }}</pre>
+                </section>
+                <section>
+                    <h3>metadata/context/source_context</h3>
+                    <pre class="fc-json-block">{{ {"metadata": clan.metadata_, "context": clan.context, "source_context": clan.source_context}|tojson(indent=2) }}</pre>
+                </section>
+            </div>
+        </section>
+    {% endif %}
+{% endblock %}

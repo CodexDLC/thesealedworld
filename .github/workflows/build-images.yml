@@ -120,6 +120,19 @@ jobs:
           cache-from: type=registry,ref=ghcr.io/${{ env.REPO_LOWER }}-worker:buildcache
           cache-to: type=registry,ref=ghcr.io/${{ env.REPO_LOWER }}-worker:buildcache,mode=max
 
+      - name: Build and Push Telegram Bot
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: deploy/tg_bot/Dockerfile
+          push: true
+          tags: |
+            ghcr.io/${{ env.REPO_LOWER }}-tg-bot:${{ env.VERSION }}
+            ghcr.io/${{ env.REPO_LOWER }}-tg-bot:${{ github.sha }}
+            ghcr.io/${{ env.REPO_LOWER }}-tg-bot:latest
+          cache-from: type=registry,ref=ghcr.io/${{ env.REPO_LOWER }}-tg-bot:buildcache
+          cache-to: type=registry,ref=ghcr.io/${{ env.REPO_LOWER }}-tg-bot:buildcache,mode=max
+
       - name: Build and Push Nginx
         uses: docker/build-push-action@v6
         with:

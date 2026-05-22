@@ -34,7 +34,7 @@ Production deploy is split by operational boundary:
 docker compose -f deploy/compose.infra.yml config
 docker compose -f deploy/compose.site.yml config
 docker compose -f deploy/compose.game.yml config
-docker compose -f deploy/compose.prod.yml config
+docker compose -f deploy/compose.tg-bot.yml config
 ```
 
 Required image variables:
@@ -44,6 +44,7 @@ DOCKER_IMAGE_SITE
 DOCKER_IMAGE_GAME
 DOCKER_IMAGE_CHAT
 DOCKER_IMAGE_WORKER
+DOCKER_IMAGE_TG_BOT
 DOCKER_IMAGE_NGINX
 ```
 
@@ -52,8 +53,10 @@ Deploy rules:
 - `infra` owns postgres, redis, nginx, certbot helper profile, networks, and volumes.
 - `site` owns frontend/site and site migrations.
 - `game` owns backend/game API, chat/ws, workers, and game/chat migrations.
+- `tg-bot` owns the Telegram polling worker and Redis Stream news announcements.
 - `site` deploys must not restart game services.
 - `game` deploys must not restart the site service.
+- `tg-bot` deploys must not restart site or game services.
 
 ## Production Admin Tools
 

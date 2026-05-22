@@ -41,6 +41,8 @@ packages = ["src"]
 [dependency-groups]
 backend-runtime = [
     "arq>=0.26.3",
+    "boto3>=1.35.0",
+    "google-genai>=0.3.0",
     "codex-ai[gemini]==0.2.4",
     "pillow>=12.0.0",
 ]

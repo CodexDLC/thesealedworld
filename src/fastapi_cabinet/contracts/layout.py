@@ -11,6 +11,8 @@ class HeaderGroup(BaseModel):
 
 class CabinetLayoutMap(BaseModel):
     mount_path: str
+    static_mount_path: str
+    static_version: str = "0"
     title: str
     active_module: str | None
     active_path: str = ""

@@ -75,7 +75,7 @@ Feature services and runtime services must not call `GameEventProducer.publish()
 
 Use `dependencies/` for FastAPI dependency providers and local wiring.
 
-Use `events/` for inbound Redis Streams event handlers and stream-facing entrypoints. Handlers validate/map incoming payloads, call feature services or integrations, and delegate reply/error transport details to integration helpers when possible.
+Use `events/` for inbound Redis Streams event handlers and stream-facing entrypoints. **Handlers must be thin transport wrappers only** — get service/orchestrator, call one method, done. No payload parsing, no business logic, no error formatting, no reply mechanics in the handler body. The reference implementation is `src/tg_bot/features/redis/announcements/handlers/handlers.py` (3-line handlers). See `turnbasedmmorpg-redis-streams` skill for the full thin handler rule and examples.
 
 Keep outbound Redis Streams clients under `integrations/`, for example:
 

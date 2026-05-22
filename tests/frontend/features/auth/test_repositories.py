@@ -42,6 +42,16 @@ class TestUserRepository:
         assert result == "user"
         session.execute.assert_called_once()
 
+    async def test_count_all(self, repo, session):
+        mock_result = MagicMock()
+        mock_result.scalar_one.return_value = 7
+        session.execute = AsyncMock(return_value=mock_result)
+
+        result = await repo.count_all()
+
+        assert result == 7
+        session.execute.assert_called_once()
+
     async def test_create_user(self, repo, session):
         user_in = UserCreate(email="test@e.com", password="password123")
 
@@ -61,7 +71,8 @@ class TestUserRepository:
         session.execute.assert_called_once()
 
     async def test_update_tester_status_with_approved_at(self, repo, session):
-        from datetime import datetime, UTC
+        from datetime import UTC, datetime
+
         user_id = uuid.uuid4()
         now = datetime.now(UTC)
         await repo.update_tester_status(user_id, "approved", approved_at=now)

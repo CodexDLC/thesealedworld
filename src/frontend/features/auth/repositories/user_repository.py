@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import select, update
+from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.frontend.features.auth.dto.user import UserCreate
@@ -19,6 +19,10 @@ class UserRepository:
     async def get_by_email(self, email: str) -> User | None:
         result = await self.session.execute(select(User).where(User.email == email))
         return result.scalar_one_or_none()
+
+    async def count_all(self) -> int:
+        result = await self.session.execute(select(func.count()).select_from(User))
+        return int(result.scalar_one() or 0)
 
     async def create(self, user_in: UserCreate) -> User:
         db_user = User(

@@ -137,6 +137,7 @@ deploy full
 deploy/compose.infra.yml
 deploy/compose.site.yml
 deploy/compose.game.yml
+deploy/compose.tg-bot.yml
 deploy/compose.prod.yml        # optional aggregator
 deploy/compose.local.yml       # optional local override later
 ```
@@ -147,6 +148,7 @@ deploy/compose.local.yml       # optional local override later
 docker compose -f deploy/compose.infra.yml up -d
 docker compose -f deploy/compose.site.yml up -d --pull always
 docker compose -f deploy/compose.game.yml up -d --pull always
+docker compose -f deploy/compose.tg-bot.yml up -d --pull always
 ```
 
 Перед принятием compose changes нужно проверять:
@@ -155,6 +157,7 @@ docker compose -f deploy/compose.game.yml up -d --pull always
 docker compose -f deploy/compose.infra.yml config
 docker compose -f deploy/compose.site.yml config
 docker compose -f deploy/compose.game.yml config
+docker compose -f deploy/compose.tg-bot.yml config
 ```
 
 ## Management Layer
@@ -193,9 +196,41 @@ Production split уже вынесен в отдельные compose-файлы:
 deploy/compose.infra.yml
 deploy/compose.site.yml
 deploy/compose.game.yml
+deploy/compose.tg-bot.yml
 deploy/compose.prod.yml
 ```
 
 CI уже собирает документацию и проверяет Docker build. Release images собираются отдельным workflow, а production deploy запускается вручную через layer-specific workflow.
 
 Следующий практический шаг перед реальным production rollout: проверить на сервере layer-specific деплой и подтвердить, что `deploy site` не трогает game services, а `deploy game` не трогает site service.
+
+## Generated Assets и S3
+
+Сгенерированные изображения должны ссылаться на канонический `storage_key` и публичный URL под
+`/static/generated-assets/<storage_key>`. Production может хранить bytes в S3-compatible Object Storage,
+но код и база не должны зависеть от прямых bucket URLs.
+
+Для Hetzner Object Storage в Nuremberg использовать примерный контракт:
+
+```env
+ASSET_STORAGE_BACKEND=s3
+ASSET_PUBLIC_BASE_URL=/static/generated-assets
+ASSET_S3_BUCKET=thesealedworld-generated-assets
+ASSET_S3_REGION=nbg1
+ASSET_S3_ENDPOINT_URL=https://nbg1.your-objectstorage.com
+ASSET_S3_ACCESS_KEY_ID=<secret>
+ASSET_S3_SECRET_ACCESS_KEY=<secret>
+```
+
+Когда `ASSET_STORAGE_BACKEND=s3`, frontend отдаёт `/static/generated-assets/<storage_key>`
+из Object Storage. Не сохранять прямые provider bucket URLs в статьях, монстрах или future generated
+content: публичный контракт сайта остаётся `/static/generated-assets/...`.
+
+Перед переносом production assets сначала выполнить dry-run:
+
+```powershell
+uv run python scripts/backfill_generated_assets_to_s3.py --local-root var/generated-assets --dry-run
+```
+
+Реальный backfill должен копировать файлы, а не регенерировать изображения. Старый volume нужно оставить
+как rollback/cache минимум на один release.

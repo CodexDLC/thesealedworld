@@ -32,6 +32,7 @@ from src.shared.schemas import (
     GameLobbyCharacterReleaseRequestDTO,
     GameLobbyCharacterSelectRequestDTO,
     GameLobbyPayloadDTO,
+    GameLobbyPopulationStatsDTO,
     GameLobbyUserContextDTO,
     GameStateHeader,
     ScenarioPayloadDTO,
@@ -55,6 +56,15 @@ async def bootstrap_lobby_for_site_user(
         payload=payload,
         payload_type="lobby_start",
     )
+
+
+@router.get("/population-stats", response_model=GameLobbyPopulationStatsDTO)
+async def get_lobby_population_stats(
+    _service: Annotated[object, Depends(require_internal_service_key)],
+    lobby_service: Annotated[GameLobbyService, Depends(get_game_lobby_service)],
+) -> GameLobbyPopulationStatsDTO:
+    """Service-to-service population counters for site cabinet analytics."""
+    return await lobby_service.get_population_stats()
 
 
 @router.post("/select", response_model=CoreResponseDTO[dict[str, object]])

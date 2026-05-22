@@ -1,0 +1,119 @@
+{% extends "cabinet/base.html" %}
+
+{% block content %}
+    {% if not clan or not member %}
+        <p class="fc-empty">Сгенерированный монстр не найден.</p>
+    {% else %}
+        <div class="fc-page-head">
+            <div>
+                <h1 class="fc-page-title">{{ member.name_ru or member.variant_key }}</h1>
+                <p class="fc-page-subtitle">
+                    {{ clan.name_ru or clan.family_id }} / {{ member.role }} / тир монстра {{ member.member_tier }}
+                </p>
+            </div>
+            <a class="fc-action-btn" href="/admin/content-ops/monster-detail?id={{ clan.clan_id }}">К семье</a>
+        </div>
+
+        <section class="fc-widget fc-widget--wide fc-detail-grid">
+            <div class="fc-preview-box">
+                {% if member.visual.image_url %}
+                    <img src="{{ member.visual.image_url }}" alt="{{ member.name_ru or member.variant_key }}">
+                {% else %}
+                    <span>нет изображения</span>
+                {% endif %}
+            </div>
+            <div>
+                <h2>Визуал индивида</h2>
+                <table class="fc-table">
+                    <tbody>
+                        <tr><th>Изображение</th><td>{{ member.visual.image_url or "нет" }}</td></tr>
+                        <tr><th>Ключ хранения</th><td>{{ member.visual.storage_key or "—" }}</td></tr>
+                        <tr><th>Хранилище</th><td>{{ member.visual.storage_backend or "—" }}</td></tr>
+                        <tr><th>Статус</th><td>{{ member.visual.status or "—" }}</td></tr>
+                        <tr><th>Задача</th><td>{{ member.visual.pending_task_id or "—" }}</td></tr>
+                    </tbody>
+                </table>
+                <form method="post" action="/admin/content-ops/regenerate-member-image" class="fc-inline-action">
+                    <input type="hidden" name="clan_id" value="{{ clan.clan_id }}">
+                    <input type="hidden" name="member_id" value="{{ member.monster_id }}">
+                    <input type="hidden" name="return_member_detail" value="1">
+                    <button type="submit" class="fc-action-btn fc-action-btn--approve">Перегенерировать изображение</button>
+                </form>
+            </div>
+        </section>
+
+        <section class="fc-widget fc-widget--wide">
+            <h2>Сгенерированный текст</h2>
+            <table class="fc-table">
+                <tbody>
+                    <tr><th>Описание</th><td>{{ member.description or "—" }}</td></tr>
+                    {% for key, value in member.text_content.items() %}
+                        <tr>
+                            <th>{{ key }}</th>
+                            <td>{{ value }}</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </section>
+
+        <section class="fc-widget fc-widget--wide">
+            <h2>Игровые данные</h2>
+            <table class="fc-table">
+                <tbody>
+                    <tr><th>ID</th><td>{{ member.monster_id }}</td></tr>
+                    <tr><th>Clan ID</th><td>{{ clan.clan_id }}</td></tr>
+                    <tr><th>Вариант</th><td>{{ member.variant_key }}</td></tr>
+                    <tr><th>Роль</th><td>{{ member.role }}</td></tr>
+                    <tr><th>Тир монстра</th><td>{{ member.member_tier }}</td></tr>
+                    <tr><th>Threat rating</th><td>{{ member.threat_rating }}</td></tr>
+                    <tr><th>Сила</th><td>{{ member.gear_score if member.gear_score is not none else "—" }}</td></tr>
+                    <tr><th>Schema version</th><td>{{ member.schema_version }}</td></tr>
+                    <tr><th>Lifecycle</th><td>{{ member.lifecycle_status or "—" }}</td></tr>
+                    <tr><th>Created</th><td>{{ member.created_at or "—" }}</td></tr>
+                    <tr><th>Updated</th><td>{{ member.updated_at or "—" }}</td></tr>
+                    <tr><th>Экипировка</th><td>{{ member.equipment|join(", ") if member.equipment else "—" }}</td></tr>
+                    <tr><th>Аффиксы</th><td>{{ member.affixes|join(", ") if member.affixes else "—" }}</td></tr>
+                </tbody>
+            </table>
+        </section>
+
+        <section class="fc-widget fc-widget--wide">
+            <h2>Persisted JSON</h2>
+            <div class="fc-json-grid">
+                <section>
+                    <h3>scaled_attributes</h3>
+                    <pre class="fc-json-block">{{ member.scaled_attributes|tojson(indent=2) }}</pre>
+                </section>
+                <section>
+                    <h3>scaled_skills</h3>
+                    <pre class="fc-json-block">{{ member.scaled_skills|tojson(indent=2) }}</pre>
+                </section>
+                <section>
+                    <h3>items</h3>
+                    <pre class="fc-json-block">{{ member.items|tojson(indent=2) }}</pre>
+                </section>
+                <section>
+                    <h3>vitals</h3>
+                    <pre class="fc-json-block">{{ member.vitals|tojson(indent=2) }}</pre>
+                </section>
+                <section>
+                    <h3>ai_profile</h3>
+                    <pre class="fc-json-block">{{ member.ai_profile|tojson(indent=2) }}</pre>
+                </section>
+                <section>
+                    <h3>generation_meta</h3>
+                    <pre class="fc-json-block">{{ member.generation_meta|tojson(indent=2) }}</pre>
+                </section>
+                <section>
+                    <h3>combat_actor_snapshot</h3>
+                    <pre class="fc-json-block">{{ member.combat_actor_snapshot|tojson(indent=2) }}</pre>
+                </section>
+                <section>
+                    <h3>metadata/context/source_context</h3>
+                    <pre class="fc-json-block">{{ {"metadata": member.metadata_, "context": member.context, "source_context": member.source_context}|tojson(indent=2) }}</pre>
+                </section>
+            </div>
+        </section>
+    {% endif %}
+{% endblock %}

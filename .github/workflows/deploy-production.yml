@@ -11,6 +11,7 @@ on:
           - infra
           - site
           - game
+          - tg-bot
           - full
       image_ref:
         description: "Image tag or commit SHA to deploy"
@@ -95,6 +96,7 @@ jobs:
             update_var "DOCKER_IMAGE_GAME" "ghcr.io/${REPO_LOWER}-game:${IMAGE_REF}"
             update_var "DOCKER_IMAGE_CHAT" "ghcr.io/${REPO_LOWER}-chat:${IMAGE_REF}"
             update_var "DOCKER_IMAGE_WORKER" "ghcr.io/${REPO_LOWER}-worker:${IMAGE_REF}"
+            update_var "DOCKER_IMAGE_TG_BOT" "ghcr.io/${REPO_LOWER}-tg-bot:${IMAGE_REF}"
             update_var "DOCKER_IMAGE_NGINX" "ghcr.io/${REPO_LOWER}-nginx:${IMAGE_REF}"
 
             echo "$GITHUB_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
@@ -116,10 +118,14 @@ jobs:
               game)
                 deploy_compose compose.game.yml
                 ;;
+              tg-bot)
+                deploy_compose compose.tg-bot.yml
+                ;;
               full)
                 deploy_compose compose.infra.yml
                 deploy_compose compose.site.yml
                 deploy_compose compose.game.yml
+                deploy_compose compose.tg-bot.yml
                 ;;
               *)
                 echo "Unknown deploy layer: $DEPLOY_LAYER" >&2

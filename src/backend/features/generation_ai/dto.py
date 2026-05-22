@@ -48,3 +48,46 @@ class AIGenerationEnqueueResultDTO(BaseModel):
     created: int = 0
     reused: int = 0
     scheduled: int = 0
+
+
+class AIGenerationTaskViewDTO(BaseModel):
+    task_id: str
+    task_type: str
+    entity_type: str
+    entity_id: str
+    output_kind: AIGenerationOutputKind
+    status: AIGenerationTaskStatus
+    storage_key: str | None = None
+    generated_url: str | None = None
+    asset_hash: str | None = None
+    metadata: dict[str, Any] = Field(default_factory=dict)
+    error: dict[str, Any] = Field(default_factory=dict)
+
+
+class AIGenerationTaskCreateResponseDTO(BaseModel):
+    task_id: str
+    status: AIGenerationTaskStatus
+    created: bool
+    scheduled: int = 0
+    storage_key: str | None = None
+    generated_url: str | None = None
+
+
+class NewsCoverGenerationRequestDTO(BaseModel):
+    article_id: str
+    slug: str
+    title: str
+    preview: str = ""
+    body_excerpt: str = ""
+    prompt: str
+    content_type: str = "image/webp"
+
+    @model_validator(mode="after")
+    def validate_news_cover_request(self) -> NewsCoverGenerationRequestDTO:
+        if not self.article_id.strip():
+            raise ValueError("article_id must not be empty")
+        if not self.slug.strip():
+            raise ValueError("slug must not be empty")
+        if not self.prompt.strip():
+            raise ValueError("prompt must not be empty")
+        return self

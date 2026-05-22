@@ -43,7 +43,7 @@ class CombatStreamClient:
         )
 ```
 
-Inbound handler in `features/<feature>/events/__init__.py`:
+Inbound handler in `features/<feature>/events/__init__.py` — **must be thin**:
 
 ```python
 from src.backend.core.bus import GameStreamRouter
@@ -52,8 +52,11 @@ router = GameStreamRouter()
 
 @router.on("combat.started")
 async def on_combat_started(payload: dict) -> None:
-    combat_id = payload["combat_id"]
+    service = get_combat_notification_service()
+    await service.handle_combat_started(payload)
 ```
+
+The handler extracts nothing, builds nothing, catches nothing. It delegates to a service. This is the only acceptable handler shape.
 
 Feature services/runtime services should call semantic integration methods, not `GameEventProducer.publish()` directly.
 
@@ -81,22 +84,18 @@ class CharacterCombatSnapshotStreamClient:
         return str(response["snapshot_key"])
 ```
 
-Handler:
+Handler — **must be thin**, even for request/reply:
 
 ```python
 @router.on("character.combat_snapshots_requested")
 async def on_combat_snapshot_requested(payload: dict) -> None:
-    cid = payload.get("correlation_id")
-    player_ids = payload["player_ids"]
-
-    snapshot_keys = await build_combat_snapshots(player_ids)
-
-    if cid:
-        await redis.lpush(f"reply:{cid}", snapshot_keys)
-        await redis.expire(f"reply:{cid}", 30)
+    service = get_character_snapshot_service()
+    await service.handle_combat_snapshot_request(payload)
 ```
 
-If a handler needs to publish a reply or error, prefer delegating the reply mapping and transport details to an integration helper. Handlers should stay focused on inbound payload validation and dispatch.
+The service method internally parses `player_ids`, builds snapshots, and publishes the reply. The handler does not touch `correlation_id`, `redis.lpush`, payload parsing, or error formatting.
+
+**Never put reply mechanics, error recovery, or payload parsing in a handler.** All of that belongs in the service or integration layer.
 
 `character.combat_snapshots_requested` prepares temporary combat actor projections from `game:ac:<char_id>` and monster runtime sources. It must not be used as the live character session itself. The live selected-character runtime document is `game:ac:<char_id>`; snapshot keys such as `game:actor:snapshot:*` are derived transport/cache objects for combat sessions.
 
@@ -106,7 +105,9 @@ If a handler needs to publish a reply or error, prefer delegating the reply mapp
 2. Ensure `router = GameStreamRouter()` exists.
 3. Add `@router.on("feature.event_name")`.
 4. Keep payload flat and string-safe.
-5. Add tests for routing or handler behavior when meaningful.
+5. **Verify the handler is thin**: get service/orchestrator, call one method, done. If the handler body exceeds ~10 lines of non-boilerplate code, it is too fat — move logic to a service.
+6. **Compare against the tg_bot reference** (`src/tg_bot/features/redis/announcements/handlers/handlers.py`): the handler should look structurally identical — 3 lines max.
+7. Add tests for routing or handler behavior when meaningful.
 
 ## Checklist: Publisher
 

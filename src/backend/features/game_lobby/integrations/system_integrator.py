@@ -112,6 +112,9 @@ class GameLobbyIntegration:
     async def count_user_characters(self, user_id: uuid.UUID) -> int:
         return await self._characters().count_by_user_id(user_id)
 
+    async def count_all_characters(self) -> int:
+        return await self._characters().count_all()
+
     async def create_character(
         self,
         *,

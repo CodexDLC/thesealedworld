@@ -176,7 +176,8 @@ async def test_monster_clan_image_handler_builds_provider_request_from_visual_pa
     assert request["content_type"] == "image/webp"
     assert request["storage_key"] == clan.flavor_content["visual"]["storage_key"]
     assert "Рой Черного Камня" in request["prompt"]
-    assert "readable text" in request["prompt"]
+    assert "No visible text" in request["prompt"]
+    assert "no letters, no words, no numbers" in request["prompt"]
 
 
 @pytest.mark.asyncio
@@ -242,7 +243,8 @@ async def test_monster_member_image_handler_builds_provider_request_from_visual_
     assert "monster_member_template" in request["prompt"]
     assert "exactly one individual" in request["prompt"]
     assert "Do not render a pack" in request["prompt"]
-    assert "readable text" in request["prompt"]
+    assert "No visible text" in request["prompt"]
+    assert "no letters, no words, no numbers" in request["prompt"]
 
 
 @pytest.mark.asyncio

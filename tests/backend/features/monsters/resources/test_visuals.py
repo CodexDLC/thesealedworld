@@ -57,7 +57,7 @@ def test_member_visual_hash_ignores_season_metadata_outside_payload() -> None:
 
     assert first["asset_hash"] == second["asset_hash"]
     assert first["asset_payload"] == second["asset_payload"]
-    assert first["asset_payload"]["style_version"] == 3
+    assert first["asset_payload"]["style_version"] == 4
 
 
 def test_clan_visual_prompt_uses_roster_and_family_subject_contract() -> None:
@@ -101,4 +101,4 @@ def test_member_visual_prompt_requires_one_subject_without_group_composition() -
     assert "group portrait" not in prompt
     assert "A lean wolf pack" not in prompt
     assert "wolf_pack" not in prompt
-    assert "readable text" in prompt
+    assert "readable or pseudo-readable symbols" in prompt

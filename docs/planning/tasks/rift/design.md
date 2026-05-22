@@ -163,27 +163,32 @@ Nearby exploration encounters may include:
 - Rift visual and lore effects.
 - Higher anomaly pressure.
 
-## Graph And Nodes
+## Graph And Nodes (Event-Based Topology)
 
-Rifts use graph structure, but graph nodes are interpreted flexibly.
+Rifts use a graph structure of events rather than a classic 2D movement grid. The grid is only used internally during generation to plan coordinates and layout.
 
-Suggested node data:
+### 1. The 3x3 Sector and 9x9 Macro-Location
+*   **3x3 Sector (Micro-Shard):** The basic mathematical unit of generation (up to 9 nodes). Provides highly concentrated, dense gameplay where every node contains a significant event (combat, gathering, puzzle).
+*   **9x9 Macro-Location:** Formed by a 3x3 grid of sectors. Neighboring sectors are generated lazily (on-the-fly) when players reach border gateways.
+*   **Verticality (Floors):** Sinking deeper (changing floors) resets the map and builds a new event graph with increased threat levels (`tier`) and richer rewards.
 
+### 2. World $\times$ Biome Generation Matrix
+Each Rift instance is a clean recombination of two dimensions:
+*   **World (Lore & Faction):** Dictates monster families, AI behaviour, narrative descriptions, and symbiote reactions (e.g., `Techno-Orcs`, `Medieval-Werewolves`).
+*   **Biome (Environment & Mechanics):** Dictates visual themes, background asset keys, environmental hazards, and harvestable resource profiles (e.g., `Volcanic`, `Gothic-Ruins`, `Spaceship-Decks`).
+
+### 3. Node Structure
+A node represents an indivisible point of interest (Encounter Node):
 ```text
-node_id
-node_type
-tags
-description
-connected_nodes
-resource_possible
-encounter_possible
-boss_possible
-core_possible
-gathering_profile
-danger_profile
+node_id: unique identifier (e.g., rift_instance_123:sector_A1:node_1_2)
+world_id: reference to the World setting (lore, monsters)
+biome_id: reference to the Biome (visuals, resources, hazards)
+event_type: combat, gathering, hazard, elite_boss, exit_portal, safe_haven
+tags: context hashes (e.g., ["wet", "narrow", "electric"])
+title / description: AI-generated narrative
+entry_transitions / exit_transitions: Destination-Driven Russian verb templates
+gated_exits: Virtual Walls (keys, blockers, hazard locks)
 ```
-
-Structure and descriptions may be stable. Concrete events can be rolled per instance or per visit.
 
 ## Template Versus Instance
 

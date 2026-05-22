@@ -1,0 +1,61 @@
+{% extends "cabinet/base.html" %}
+
+{% block content %}
+    <div class="fc-page-head">
+        <div>
+            <h1 class="fc-page-title">S3 storage OPS</h1>
+            <p class="fc-page-subtitle">Monitoring state for generated asset storage and the public serving contract.</p>
+        </div>
+    </div>
+
+    <section class="fc-widget fc-widget--table">
+        <h2>Storage state</h2>
+        <table class="fc-table">
+            <thead>
+                <tr>
+                    <th>Check</th>
+                    <th>Value</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in asset_rows %}
+                    <tr>
+                        <td>{{ row.label }}</td>
+                        <td><code>{{ row.value }}</code></td>
+                        <td>
+                            {% if row.status in ["active", "ready", "canonical"] %}
+                                <span class="fc-pill fc-pill--ok">{{ row.status }}</span>
+                            {% elif row.status == "missing" %}
+                                <span class="fc-pill fc-pill--warn">{{ row.status }}</span>
+                            {% else %}
+                                <span class="fc-pill">{{ row.status }}</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </section>
+
+    <section class="fc-widget fc-widget--list">
+        <h2>Operator commands</h2>
+        <div class="fc-command-list">
+            {% for item in operator_commands %}
+                <div class="fc-command-row">
+                    <span>{{ item.label }}</span>
+                    <code>{{ item.command }}</code>
+                </div>
+            {% endfor %}
+        </div>
+    </section>
+
+    <section class="fc-widget fc-widget--list">
+        <h2>Contract</h2>
+        <ul>
+            <li>Canonical data remains <code>storage_key</code> plus <code>{{ public_base_url }}/&lt;storage_key&gt;</code>.</li>
+            <li>Provider bucket URLs are not stored in domain content.</li>
+            <li>This page is monitoring/operator visibility only, not a content editor.</li>
+        </ul>
+    </section>
+{% endblock %}

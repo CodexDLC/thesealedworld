@@ -1,8 +1,8 @@
 @import url("account/core/tokens.css");
 @import url("account/core/reset.css");
 @import url("account/core/animations.css");
-@import url("cabinet/components/buttons.css");
-@import url("cabinet/components/panels.css");
+@import url("admin/components/buttons.css");
+@import url("admin/components/panels.css");
 @import url("account/shell/layout.css");
 @import url("account/shell/responsive.css");
 @import url("account/components/badges.css");

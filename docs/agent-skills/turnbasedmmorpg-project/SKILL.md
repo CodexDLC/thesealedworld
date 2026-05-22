@@ -24,6 +24,21 @@ For backend feature/API/service/repository work, also use `turnbasedmmorpg-backe
 - Prefer feature-owned modules over global managers, global repositories, or a central dispatcher.
 - Keep changes scoped to the active feature unless a documented architecture rule requires otherwise.
 
+## Local Cabinet Access
+
+Local browser checks for `/admin` require a site user with `is_superuser=True`.
+After resetting or recreating the local site database, restore a dev admin through
+the frontend management command before opening cabinet pages:
+
+```powershell
+.\.venv\Scripts\python.exe -m src.frontend.manage createsuperuser dev-admin@example.test <local-password>
+```
+
+Do not commit the local password. If the user has not provided one, choose a
+throwaway local-only password for the current workspace and tell the user in the
+thread. The command is idempotent for the email: it creates the user or promotes
+an existing user to superuser.
+
 ## Handoff Prompt Shape
 
 When preparing another agent or chat, include:

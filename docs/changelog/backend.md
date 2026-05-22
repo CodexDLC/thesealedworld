@@ -4,7 +4,7 @@ Detailed milestone history for the `src/backend` game runtime layer.
 
 ## [Unreleased]
 
-No unreleased backend changes yet.
+- Monster admin APIs can enqueue clan-image batches and full family visual regeneration tasks for generated monsters.
 
 ## [v0.1.0a1] - First Alpha
 

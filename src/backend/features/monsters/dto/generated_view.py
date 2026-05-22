@@ -81,12 +81,27 @@ class MonsterImageRegenerationResponseDTO(BaseModel):
     image_url: str
 
 
+class MonsterImageRegenerationBatchRequestDTO(BaseModel):
+    clan_ids: list[str] = Field(min_length=1, max_length=100)
+
+
+class MonsterImageRegenerationBatchResponseDTO(BaseModel):
+    task_ids: list[str]
+    entity_type: str
+    entity_id: str | None = None
+    status: str
+    requested: int
+    storage_keys: list[str]
+
+
 __all__ = [
     "GearScoreSummaryDTO",
     "GeneratedAssetVisualDTO",
     "GeneratedClanViewDTO",
     "GeneratedMonsterEquipmentSummaryDTO",
     "GeneratedMonsterViewDTO",
+    "MonsterImageRegenerationBatchRequestDTO",
+    "MonsterImageRegenerationBatchResponseDTO",
     "GeneratedMonstersResponseDTO",
     "MonsterImageRegenerationResponseDTO",
     "PaginationDTO",

@@ -4,7 +4,7 @@ Detailed milestone history for the `src/frontend` site-web layer.
 
 ## [Unreleased]
 
-No unreleased site changes yet.
+- Content cabinet generated-monster pages now filter families by family tier and expose bulk image regeneration actions.
 
 ## [v0.1.0a4] - Alpha 4
 

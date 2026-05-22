@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from typing import Any, ClassVar
+from urllib.parse import urlencode
 
 import httpx
 from fastapi import Request
@@ -23,7 +24,7 @@ _GENERATED_MONSTER_PAGE_LIMIT = 100
 class MonsterBrowserContext:
     clans: list[AdminGeneratedMonsterClan]
     family_options: list[str]
-    role_options: list[str]
+    tier_options: list[int]
     storage_options: list[str]
     filters: dict[str, str]
     total_clans: int
@@ -75,9 +76,17 @@ async def _monster_table_provider(request: Request) -> TableWidgetMap:
     try:
         clans = await _api(request).list_generated(
             family_id=params.get("family_id") or None,
-            role=params.get("role") or None,
             missing_image=params.get("missing_image") == "1",
             limit=100,
+        )
+        clans = _filter_monster_clans(
+            clans,
+            {
+                "family_id": "",
+                "tier": (params.get("tier") or "").strip(),
+                "storage_backend": (params.get("storage_backend") or "").strip(),
+                "missing_image": "",
+            },
         )
     except (AttributeError, httpx.HTTPStatusError, httpx.RequestError):
         clans = []
@@ -87,7 +96,7 @@ async def _monster_table_provider(request: Request) -> TableWidgetMap:
         columns=[
             TableColumnMap(key="name", label="Семья"),
             TableColumnMap(key="family", label="Тип"),
-            TableColumnMap(key="tier", label="Тир монстра"),
+            TableColumnMap(key="tier", label="Тир семьи"),
             TableColumnMap(key="members", label="Участники"),
             TableColumnMap(key="storage", label="Хранилище"),
             TableColumnMap(key="image", label="Изображение"),
@@ -112,7 +121,7 @@ async def _load_monster_browser_context(request: Request) -> MonsterBrowserConte
     params = request.query_params
     filters = {
         "family_id": (params.get("family_id") or "").strip(),
-        "role": (params.get("role") or "").strip(),
+        "tier": (params.get("tier") or "").strip(),
         "storage_backend": (params.get("storage_backend") or "").strip(),
         "missing_image": "1" if params.get("missing_image") == "1" else "",
     }
@@ -122,7 +131,7 @@ async def _load_monster_browser_context(request: Request) -> MonsterBrowserConte
         return MonsterBrowserContext(
             clans=[],
             family_options=[],
-            role_options=[],
+            tier_options=[],
             storage_options=[],
             filters=filters,
             total_clans=0,
@@ -135,7 +144,7 @@ async def _load_monster_browser_context(request: Request) -> MonsterBrowserConte
     return MonsterBrowserContext(
         clans=clans,
         family_options=sorted({clan.family_id for clan in source if clan.family_id}),
-        role_options=sorted({member.role for clan in source for member in clan.members if member.role}),
+        tier_options=sorted({clan.tier for clan in source}),
         storage_options=sorted(
             {
                 backend
@@ -161,8 +170,8 @@ def _filter_monster_clans(
     result = clans
     if filters.get("family_id"):
         result = [clan for clan in result if clan.family_id == filters["family_id"]]
-    if filters.get("role"):
-        result = [clan for clan in result if any(member.role == filters["role"] for member in clan.members)]
+    if filters.get("tier"):
+        result = [clan for clan in result if str(clan.tier) == filters["tier"]]
     if filters.get("storage_backend"):
         result = [clan for clan in result if _clan_uses_storage_backend(clan, filters["storage_backend"])]
     if filters.get("missing_image"):
@@ -199,6 +208,8 @@ class ContentOpsAdmin(CabinetAdmin):
         "monster-browser": ("GET", "handle_monster_browser"),
         "monster-detail": ("GET", "handle_monster_detail"),
         "regenerate-clan-image": ("POST", "handle_regenerate_clan_image"),
+        "regenerate-clan-family-images": ("POST", "handle_regenerate_clan_family_images"),
+        "regenerate-visible-clan-images": ("POST", "handle_regenerate_visible_clan_images"),
         "regenerate-member-image": ("POST", "handle_regenerate_member_image"),
     }
     providers: ClassVar = {
@@ -247,6 +258,20 @@ class ContentOpsAdmin(CabinetAdmin):
             await _api(request).regenerate_clan_image(clan_id)
         return RedirectResponse(url=f"{_BASE}/monster-detail?id={clan_id}", status_code=303)
 
+    async def handle_regenerate_clan_family_images(self, request: Request) -> Response:
+        form = await request.form()
+        clan_id = str(form.get("clan_id") or "")
+        if clan_id:
+            await _api(request).regenerate_clan_family_images(clan_id)
+        return RedirectResponse(url=f"{_BASE}/monster-detail?id={clan_id}", status_code=303)
+
+    async def handle_regenerate_visible_clan_images(self, request: Request) -> Response:
+        form = await request.form()
+        clan_ids = [str(value) for value in form.getlist("clan_ids") if str(value)]
+        if clan_ids:
+            await _api(request).regenerate_clan_images(clan_ids)
+        return RedirectResponse(url=_monster_browser_redirect_url(form), status_code=303)
+
     async def handle_regenerate_member_image(self, request: Request) -> Response:
         form = await request.form()
         clan_id = str(form.get("clan_id") or "")
@@ -282,6 +307,18 @@ def _clan_uses_storage_backend(clan: AdminGeneratedMonsterClan, storage_backend:
     if clan.visual.storage_backend == storage_backend:
         return True
     return any(member.visual.storage_backend == storage_backend for member in clan.members)
+
+
+def _monster_browser_redirect_url(form: Any) -> str:
+    params: dict[str, str] = {}
+    for key in ("family_id", "tier", "storage_backend"):
+        value = str(form.get(key) or "").strip()
+        if value:
+            params[key] = value
+    if form.get("missing_image") == "1":
+        params["missing_image"] = "1"
+    query = urlencode(params)
+    return f"{_BASE}/monster-browser?{query}" if query else f"{_BASE}/monster-browser"
 
 
 cabinet_site.register(ContentOpsAdmin)

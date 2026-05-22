@@ -123,6 +123,21 @@ class AdminMonstersApi(BaseApiClient):
             await self._request("POST", f"/api/admin/monsters/generated/clans/{clan_id}/regenerate-image") or {}
         )
 
+    async def regenerate_clan_family_images(self, clan_id: str) -> dict[str, Any]:
+        return dict(
+            await self._request("POST", f"/api/admin/monsters/generated/clans/{clan_id}/regenerate-family-images") or {}
+        )
+
+    async def regenerate_clan_images(self, clan_ids: list[str]) -> dict[str, Any]:
+        return dict(
+            await self._request(
+                "POST",
+                "/api/admin/monsters/generated/clans/regenerate-images",
+                json={"clan_ids": clan_ids},
+            )
+            or {}
+        )
+
     async def regenerate_member_image(self, member_id: str) -> dict[str, Any]:
         return dict(
             await self._request("POST", f"/api/admin/monsters/generated/members/{member_id}/regenerate-image") or {}

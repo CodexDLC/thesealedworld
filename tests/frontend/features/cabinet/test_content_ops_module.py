@@ -13,6 +13,7 @@ from src.frontend.features.cabinet.modules.content_ops.cabinet import (
     ContentOpsAdmin,
     _filter_monster_clans,
     _load_monster_browser_context,
+    _monster_browser_redirect_url,
 )
 from src.frontend.integrations.backend_api.admin_monsters import (
     AdminGeneratedMonsterClan,
@@ -34,27 +35,29 @@ def test_content_ops_admin_declares_operational_sections() -> None:
     ]
     assert "monster-browser" in ContentOpsAdmin.action_routes
     assert "monster-detail" in ContentOpsAdmin.action_routes
+    assert "regenerate-clan-family-images" in ContentOpsAdmin.action_routes
+    assert "regenerate-visible-clan-images" in ContentOpsAdmin.action_routes
 
 
 def test_content_ops_filters_monsters_by_domain_safe_fields() -> None:
-    rat = _clan("rat-clan", family="rats", storage="s3", roles=("scout", "brute"), missing_member=False)
-    spider = _clan("spider-clan", family="spiders", storage="local", roles=("caster",), missing_member=True)
+    rat = _clan("rat-clan", family="rats", tier=1, storage="s3", roles=("scout", "brute"), missing_member=False)
+    spider = _clan("spider-clan", family="spiders", tier=2, storage="local", roles=("caster",), missing_member=True)
 
     filtered = _filter_monster_clans(
         [rat, spider],
-        {"family_id": "spiders", "role": "", "storage_backend": "", "missing_image": ""},
+        {"family_id": "spiders", "tier": "", "storage_backend": "", "missing_image": ""},
     )
     assert [clan.clan_id for clan in filtered] == ["spider-clan"]
 
     filtered = _filter_monster_clans(
         [rat, spider],
-        {"family_id": "", "role": "scout", "storage_backend": "s3", "missing_image": ""},
+        {"family_id": "", "tier": "1", "storage_backend": "s3", "missing_image": ""},
     )
     assert [clan.clan_id for clan in filtered] == ["rat-clan"]
 
     filtered = _filter_monster_clans(
         [rat, spider],
-        {"family_id": "", "role": "", "storage_backend": "", "missing_image": "1"},
+        {"family_id": "", "tier": "", "storage_backend": "", "missing_image": "1"},
     )
     assert [clan.clan_id for clan in filtered] == ["spider-clan"]
 
@@ -67,7 +70,23 @@ def test_content_ops_custom_pages_render_operational_surfaces() -> None:
     monsters = client.get("/admin/content-ops/monster-browser")
     assert monsters.status_code == 200
     assert "Сгенерированные монстры" in monsters.text
+    assert "Тир семьи" in monsters.text
     assert "Без изображения" in monsters.text
+    assert "Перегенерировать видимые" in monsters.text
+
+
+def test_monster_browser_redirect_preserves_bulk_filters() -> None:
+    form = {
+        "family_id": "rat_swarm",
+        "tier": "1",
+        "storage_backend": "s3",
+        "missing_image": "1",
+    }
+
+    assert (
+        _monster_browser_redirect_url(form)
+        == "/admin/content-ops/monster-browser?family_id=rat_swarm&tier=1&storage_backend=s3&missing_image=1"
+    )
 
 
 @pytest.mark.asyncio
@@ -84,12 +103,14 @@ async def test_monster_browser_uses_backend_contract_limit(monkeypatch: pytest.M
     assert browser.error == ""
     assert browser.total_clans == 1
     assert browser.total_members == 1
+    assert browser.tier_options == [1]
 
 
 def _clan(
     clan_id: str,
     *,
     family: str,
+    tier: int = 1,
     storage: str,
     roles: tuple[str, ...],
     missing_member: bool,
@@ -97,7 +118,7 @@ def _clan(
     return AdminGeneratedMonsterClan(
         clan_id=clan_id,
         family_id=family,
-        tier=1,
+        tier=tier,
         zone_id="zone",
         name_ru=clan_id,
         description="",

@@ -7,6 +7,8 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from src.backend.core.database import get_db
 from src.backend.features.monsters.dto.generated_view import (
     GeneratedMonstersResponseDTO,
+    MonsterImageRegenerationBatchRequestDTO,
+    MonsterImageRegenerationBatchResponseDTO,
     MonsterImageRegenerationResponseDTO,
 )
 from src.backend.features.monsters.repositories import MonsterGenerationRepository
@@ -57,6 +59,31 @@ async def regenerate_generated_clan_image(
 ) -> MonsterImageRegenerationResponseDTO:
     try:
         return await service.request_clan_image(clan_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
+@router.post(
+    "/generated/clans/{clan_id}/regenerate-family-images",
+    response_model=MonsterImageRegenerationBatchResponseDTO,
+)
+async def regenerate_generated_clan_family_images(
+    clan_id: str,
+    service: Annotated[MonsterVisualRegenerationService, Depends(get_monster_visual_regeneration_service)],
+) -> MonsterImageRegenerationBatchResponseDTO:
+    try:
+        return await service.request_clan_family_images(clan_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
+@router.post("/generated/clans/regenerate-images", response_model=MonsterImageRegenerationBatchResponseDTO)
+async def regenerate_generated_clan_images(
+    payload: MonsterImageRegenerationBatchRequestDTO,
+    service: Annotated[MonsterVisualRegenerationService, Depends(get_monster_visual_regeneration_service)],
+) -> MonsterImageRegenerationBatchResponseDTO:
+    try:
+        return await service.request_clan_images(payload.clan_ids)
     except ValueError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
 

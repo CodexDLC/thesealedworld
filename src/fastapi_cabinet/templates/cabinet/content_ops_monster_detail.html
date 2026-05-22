@@ -7,7 +7,7 @@
         <div class="fc-page-head">
             <div>
                 <h1 class="fc-page-title">{{ clan.name_ru or clan.family_id }}</h1>
-                <p class="fc-page-subtitle">{{ clan.family_id }} / тир монстра {{ clan.tier }} / зона {{ clan.zone_id or "—" }}</p>
+                <p class="fc-page-subtitle">{{ clan.family_id }} / тир семьи {{ clan.tier }} / зона {{ clan.zone_id or "—" }}</p>
             </div>
             <a class="fc-action-btn" href="/admin/content-ops/monster-browser">К монстрам</a>
         </div>
@@ -35,6 +35,10 @@
                 <form method="post" action="/admin/content-ops/regenerate-clan-image" class="fc-inline-action">
                     <input type="hidden" name="clan_id" value="{{ clan.clan_id }}">
                     <button type="submit" class="fc-action-btn fc-action-btn--approve">Перегенерировать изображение семьи</button>
+                </form>
+                <form method="post" action="/admin/content-ops/regenerate-clan-family-images" class="fc-inline-action">
+                    <input type="hidden" name="clan_id" value="{{ clan.clan_id }}">
+                    <button type="submit" class="fc-action-btn fc-action-btn--approve">Перегенерировать все изображения семьи</button>
                 </form>
             </div>
         </section>

@@ -326,6 +326,22 @@ body.fc-shell {
     background: #f3f4f6;
 }
 
+.fc-action-btn:disabled {
+    cursor: not-allowed;
+    opacity: 0.55;
+}
+
+.fc-action-btn--primary {
+    background: #2563eb;
+    border-color: #2563eb;
+    color: #ffffff;
+}
+
+.fc-action-btn--primary:hover {
+    background: #1d4ed8;
+    border-color: #1d4ed8;
+}
+
 .fc-action-btn--approve {
     color: #15803d;
     border-color: #86efac;
@@ -583,8 +599,20 @@ body.fc-shell {
 }
 
 .fc-page-actions {
+    align-items: center;
     display: flex;
     gap: 8px;
+    justify-content: flex-end;
+}
+
+.fc-page-actions .fc-action-btn {
+    align-items: center;
+    display: inline-flex;
+    height: 34px;
+    justify-content: center;
+    margin-left: 0;
+    padding: 0 14px;
+    white-space: nowrap;
 }
 
 .fc-toolbar {
@@ -712,6 +740,10 @@ body.fc-shell {
 
 .fc-inline-action {
     margin-top: 12px;
+}
+
+.fc-page-actions .fc-inline-action {
+    margin-top: 0;
 }
 
 .fc-command-list {

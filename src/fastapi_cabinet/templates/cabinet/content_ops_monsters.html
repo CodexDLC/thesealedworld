@@ -6,7 +6,28 @@
             <h1 class="fc-page-title">Сгенерированные монстры</h1>
             <p class="fc-page-subtitle">Просмотр сгенерированных семей и участников с безопасной перегенерацией в карточке.</p>
         </div>
-        <a class="fc-action-btn" href="{{ base_url }}">Обзор</a>
+        <div class="fc-page-actions">
+            <form method="post" action="{{ base_url }}/regenerate-visible-clan-images" class="fc-inline-action">
+                {% for clan in browser.clans %}
+                    <input type="hidden" name="clan_ids" value="{{ clan.clan_id }}">
+                {% endfor %}
+                <input type="hidden" name="family_id" value="{{ browser.filters.family_id }}">
+                <input type="hidden" name="tier" value="{{ browser.filters.tier }}">
+                <input type="hidden" name="storage_backend" value="{{ browser.filters.storage_backend }}">
+                {% if browser.filters.missing_image %}
+                    <input type="hidden" name="missing_image" value="1">
+                {% endif %}
+                <button
+                    type="submit"
+                    class="fc-action-btn fc-action-btn--primary"
+                    title="Поставить задачи генерации изображений для всех семей в текущей выдаче"
+                    {% if not browser.clans %}disabled{% endif %}
+                >
+                    Перегенерировать видимые
+                </button>
+            </form>
+            <a class="fc-action-btn" href="{{ base_url }}">Обзор</a>
+        </div>
     </div>
 
     <section class="fc-toolbar">
@@ -21,11 +42,11 @@
                 </select>
             </label>
             <label class="fc-filter-field">
-                <span>Роль</span>
-                <select name="role" class="fc-form-input">
+                <span>Тир семьи</span>
+                <select name="tier" class="fc-form-input">
                     <option value="">Все</option>
-                    {% for role in browser.role_options %}
-                        <option value="{{ role }}" {% if browser.filters.role == role %}selected{% endif %}>{{ role }}</option>
+                    {% for tier in browser.tier_options %}
+                        <option value="{{ tier }}" {% if browser.filters.tier == tier|string %}selected{% endif %}>{{ tier }}</option>
                     {% endfor %}
                 </select>
             </label>
@@ -65,7 +86,7 @@
                     <tr>
                         <th>Семья</th>
                         <th>Тип</th>
-                        <th>Тир монстра</th>
+                        <th>Тир семьи</th>
                         <th>Зона</th>
                         <th>Участники</th>
                         <th>Изображение</th>

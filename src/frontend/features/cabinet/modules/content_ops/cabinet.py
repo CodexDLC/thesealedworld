@@ -16,6 +16,7 @@ from src.frontend.integrations.backend_api.admin_monsters import AdminGeneratedM
 
 _MOUNT_PATH = "/admin"
 _BASE = "/admin/content-ops"
+_GENERATED_MONSTER_PAGE_LIMIT = 100
 
 
 @dataclass(frozen=True)
@@ -116,7 +117,7 @@ async def _load_monster_browser_context(request: Request) -> MonsterBrowserConte
         "missing_image": "1" if params.get("missing_image") == "1" else "",
     }
     try:
-        source = await _api(request).list_generated(limit=200)
+        source = await _api(request).list_generated(limit=_GENERATED_MONSTER_PAGE_LIMIT)
     except (AttributeError, httpx.HTTPStatusError, httpx.RequestError) as exc:
         return MonsterBrowserContext(
             clans=[],

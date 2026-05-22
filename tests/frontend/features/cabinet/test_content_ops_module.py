@@ -1,13 +1,18 @@
 from __future__ import annotations
 
+from types import SimpleNamespace
+
+import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
+import src.frontend.features.cabinet.modules.content_ops.cabinet as content_ops
 from fastapi_cabinet import include_cabinet
 from src.frontend.cabinet import CABINET_MODULES
 from src.frontend.features.cabinet.modules.content_ops.cabinet import (
     ContentOpsAdmin,
     _filter_monster_clans,
+    _load_monster_browser_context,
 )
 from src.frontend.integrations.backend_api.admin_monsters import (
     AdminGeneratedMonsterClan,
@@ -62,6 +67,22 @@ def test_content_ops_custom_pages_render_operational_surfaces() -> None:
     assert monsters.status_code == 200
     assert "Generated monsters" in monsters.text
     assert "Missing image" in monsters.text
+
+
+@pytest.mark.asyncio
+async def test_monster_browser_uses_backend_contract_limit(monkeypatch: pytest.MonkeyPatch) -> None:
+    class FakeAdminMonstersApi:
+        async def list_generated(self, *, limit: int, **kwargs):
+            assert limit == 100
+            return [_clan("rat-clan", family="rats", storage="local", roles=("scout",), missing_member=False)]
+
+    monkeypatch.setattr(content_ops, "_api", lambda request: FakeAdminMonstersApi())
+
+    browser = await _load_monster_browser_context(SimpleNamespace(query_params={}))
+
+    assert browser.error == ""
+    assert browser.total_clans == 1
+    assert browser.total_members == 1
 
 
 def _clan(

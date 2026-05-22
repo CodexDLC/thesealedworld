@@ -7,7 +7,7 @@
         <div class="fc-page-head">
             <div>
                 <h1 class="fc-page-title">{{ clan.name_ru or clan.family_id }}</h1>
-                <p class="fc-page-subtitle">{{ clan.family_id }} / уровень {{ clan.tier }} / зона {{ clan.zone_id or "—" }}</p>
+                <p class="fc-page-subtitle">{{ clan.family_id }} / тир монстра {{ clan.tier }} / зона {{ clan.zone_id or "—" }}</p>
             </div>
             <a class="fc-action-btn" href="/admin/content-ops/monster-browser">К монстрам</a>
         </div>
@@ -46,7 +46,7 @@
                     <tr>
                         <th>Имя</th>
                         <th>Роль</th>
-                        <th>Уровень</th>
+                        <th>Тир монстра</th>
                         <th>Сила</th>
                         <th>Изображение</th>
                         <th>Хранилище</th>

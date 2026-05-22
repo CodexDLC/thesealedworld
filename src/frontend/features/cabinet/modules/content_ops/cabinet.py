@@ -87,7 +87,7 @@ async def _monster_table_provider(request: Request) -> TableWidgetMap:
         columns=[
             TableColumnMap(key="name", label="Семья"),
             TableColumnMap(key="family", label="Тип"),
-            TableColumnMap(key="tier", label="Уровень"),
+            TableColumnMap(key="tier", label="Тир монстра"),
             TableColumnMap(key="members", label="Участники"),
             TableColumnMap(key="storage", label="Хранилище"),
             TableColumnMap(key="image", label="Изображение"),

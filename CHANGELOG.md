@@ -14,11 +14,26 @@ Full layer changelogs live in:
 
 ## [Unreleased]
 
+## [v0.1.0a7] - Alpha 7
+
+### Content Operations
+
+- Adds the cabinet Content Ops section for generated monster families, member
+  detail inspection, image regeneration actions, and news cover AI workflow
+  wiring.
+- Keeps generated asset URLs stable under `/static/generated-assets/...` while
+  allowing production bytes to live in S3-compatible object storage.
+- Adds production asset backfill tooling with dry-run and skip-existing modes.
+
+### Release And Deploy
+
 - Production deployment now builds and deploys the Telegram bot as its own
   release image/layer instead of leaving it only in the local Docker Compose
   stack.
 - Telegram news announcements now use a persistent media sender that can replace
   or delete channel posts through the shared sender coordinate storage.
+- Generated image validation now rejects visible text through the Google GenAI
+  SDK path used by the production AI provider.
 
 ## [v0.1.0a6] - Alpha 6
 

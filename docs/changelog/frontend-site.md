@@ -4,6 +4,8 @@ Detailed milestone history for the `src/frontend` site-web layer.
 
 ## [Unreleased]
 
+## [v0.1.0a7] - Alpha 7
+
 - Generated asset serving now redirects S3-backed assets to presigned object URLs instead of buffering images through the site process.
 - Cabinet static asset versioning is cached after the first filesystem check per process.
 - Generated monster cabinet rows now drill down into individual member detail pages with generated text and visual metadata.

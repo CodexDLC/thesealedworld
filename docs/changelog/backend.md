@@ -4,6 +4,8 @@ Detailed milestone history for the `src/backend` game runtime layer.
 
 ## [Unreleased]
 
+## [v0.1.0a7] - Alpha 7
+
 - AI image text validation now uses an explicit Google GenAI SDK dependency and a dedicated Gemini client.
 - Generated monster admin projections now expose member description and generated text content for cabinet inspection.
 - Monster admin APIs can enqueue clan-image batches and full family visual regeneration tasks for generated monsters.

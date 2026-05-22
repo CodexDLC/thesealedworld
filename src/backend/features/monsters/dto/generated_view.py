@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+from datetime import datetime
+from typing import Any
+
 from pydantic import BaseModel, Field
 
 
@@ -40,6 +43,24 @@ class GeneratedMonsterViewDTO(BaseModel):
     role: str
     member_tier: int
     name_ru: str
+    description: str = ""
+    text_content: dict[str, Any] = Field(default_factory=dict)
+    scaled_attributes: dict[str, Any] = Field(default_factory=dict)
+    scaled_skills: dict[str, Any] = Field(default_factory=dict)
+    items: dict[str, Any] = Field(default_factory=dict)
+    vitals: dict[str, Any] = Field(default_factory=dict)
+    ai_profile: dict[str, Any] = Field(default_factory=dict)
+    generation_meta: dict[str, Any] = Field(default_factory=dict)
+    combat_actor_snapshot: dict[str, Any] = Field(default_factory=dict)
+    metadata_: dict[str, Any] = Field(default_factory=dict)
+    context: dict[str, Any] = Field(default_factory=dict)
+    source_context: dict[str, Any] = Field(default_factory=dict)
+    lifecycle_status: str = "active"
+    archived_at: datetime | None = None
+    expires_at: datetime | None = None
+    schema_version: int = 1
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
     threat_rating: int
     gear_score: int | None = None
     base_cost: int | None = None
@@ -53,8 +74,21 @@ class GeneratedClanViewDTO(BaseModel):
     family_id: str
     tier: int
     zone_id: str | None = None
+    context_hash: str = ""
+    unique_hash: str = ""
+    raw_tags: dict[str, Any] = Field(default_factory=dict)
+    flavor_content: dict[str, Any] = Field(default_factory=dict)
     name_ru: str
     description: str
+    metadata_: dict[str, Any] = Field(default_factory=dict)
+    context: dict[str, Any] = Field(default_factory=dict)
+    source_context: dict[str, Any] = Field(default_factory=dict)
+    lifecycle_status: str = "active"
+    archived_at: datetime | None = None
+    expires_at: datetime | None = None
+    schema_version: int = 1
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
     visual: GeneratedAssetVisualDTO = Field(default_factory=GeneratedAssetVisualDTO)
     gear_score_summary: GearScoreSummaryDTO
     members: list[GeneratedMonsterViewDTO] = Field(default_factory=list)

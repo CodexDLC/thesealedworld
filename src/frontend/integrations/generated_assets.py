@@ -42,8 +42,9 @@ class S3GeneratedAssetReader:
             raise
 
         body = response.get("Body")
-        if hasattr(body, "read"):
-            content = await asyncio.to_thread(body.read)
+        read = getattr(body, "read", None)
+        if callable(read):
+            content = await asyncio.to_thread(read)
         else:
             content = bytes(body or b"")
         content_type = str(response.get("ContentType") or "application/octet-stream")

@@ -72,12 +72,12 @@ async def _active_travels_provider(request: Request) -> MetricWidgetMap:
 
 
 async def _active_sessions_metric(request: Request, *, api_cls, key: str, title: str) -> MetricWidgetMap:
-    client: httpx.AsyncClient = request.app.state.backend_http_client
-    api = api_cls(client=client, base_url=settings.backend_base_url)
     subtitle = "game backend"
     try:
+        client: httpx.AsyncClient = request.app.state.backend_http_client
+        api = api_cls(client=client, base_url=settings.backend_base_url)
         value = str(len(await api.list_active()))
-    except (httpx.HTTPStatusError, httpx.RequestError):
+    except (AttributeError, httpx.HTTPStatusError, httpx.RequestError):
         value = "0"
         subtitle = "game backend недоступен"
     return MetricWidgetMap(key=key, title=title, value=value, subtitle=subtitle)

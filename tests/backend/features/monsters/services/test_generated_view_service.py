@@ -31,10 +31,10 @@ async def test_generated_view_projects_visual_storage_and_equipment_summary() ->
         member_tier=2,
         threat_rating=31,
         name_ru="Cutthroat",
-        description="",
-        text_content={},
-        scaled_attributes={},
-        scaled_skills={},
+        description="A quick knife fighter.",
+        text_content={"appearance_ru": "В плаще с ржавым ножом.", "behavior_ru": "Держится сбоку."},
+        scaled_attributes={"strength": 12},
+        scaled_skills={"skill_swords": 0.3},
         items={
             "layout": {"equipment": {"main_hand": "knife-1", "body": "coat-1"}},
             "by_id": {
@@ -42,8 +42,8 @@ async def test_generated_view_projects_visual_storage_and_equipment_summary() ->
                 "coat-1": {"name_ru": "Patched coat", "kind": "armor", "affixes": ["worn"]},
             },
         },
-        vitals={},
-        ai_profile={},
+        vitals={"hp": {"current": 50, "max": 50}},
+        ai_profile={"profile": "aggressive"},
         generation_meta={
             "balance": {"gear_score": 11, "base_cost": 20, "effective_cost": 22.5},
             "visual": {
@@ -53,6 +53,7 @@ async def test_generated_view_projects_visual_storage_and_equipment_summary() ->
                 "storage_backend": "local",
             },
         },
+        combat_actor_snapshot={"meta": {"source": "generated_monsters"}},
     )
     clan = GeneratedClan(
         id=clan_id,
@@ -72,6 +73,9 @@ async def test_generated_view_projects_visual_storage_and_equipment_summary() ->
         },
         name_ru="Bandits",
         description="A gang",
+        metadata_={"seed": "test"},
+        context={"biome": "ruins"},
+        source_context={"source": "test"},
         members=[member],
     )
     member.clan = clan
@@ -82,6 +86,20 @@ async def test_generated_view_projects_visual_storage_and_equipment_summary() ->
     assert item.visual.image_url == "/static/generated-assets/monsters/clan.webp"
     assert item.visual.storage_key == "monsters/clan.webp"
     assert item.members[0].visual.image_url == "/static/generated-assets/monsters/member.webp"
+    assert item.members[0].description == "A quick knife fighter."
+    assert item.members[0].text_content == {
+        "appearance_ru": "В плаще с ржавым ножом.",
+        "behavior_ru": "Держится сбоку.",
+    }
+    assert item.metadata_ == {"seed": "test"}
+    assert item.context == {"biome": "ruins"}
+    assert item.source_context == {"source": "test"}
+    assert item.members[0].scaled_attributes == {"strength": 12}
+    assert item.members[0].scaled_skills == {"skill_swords": 0.3}
+    assert item.members[0].items["layout"]["equipment"]["main_hand"] == "knife-1"
+    assert item.members[0].vitals == {"hp": {"current": 50, "max": 50}}
+    assert item.members[0].ai_profile == {"profile": "aggressive"}
+    assert item.members[0].combat_actor_snapshot == {"meta": {"source": "generated_monsters"}}
     assert item.members[0].equipment_summary.equipment == ["body: Patched coat", "main_hand: Rust knife"]
     assert item.members[0].equipment_summary.weapons == ["main_hand: Rust knife"]
     assert item.members[0].equipment_summary.armor == ["body: Patched coat"]

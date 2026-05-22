@@ -13,7 +13,11 @@ from fastapi_cabinet.contracts.widgets import ListWidgetMap, MetricWidgetMap, Ta
 from fastapi_cabinet.rendering.layout_mapper import build_layout_map
 from fastapi_cabinet.runtime import resolve_active_admin
 from src.frontend.config.settings import settings
-from src.frontend.integrations.backend_api.admin_monsters import AdminGeneratedMonsterClan, AdminMonstersApi
+from src.frontend.integrations.backend_api.admin_monsters import (
+    AdminGeneratedMonsterClan,
+    AdminGeneratedMonsterMember,
+    AdminMonstersApi,
+)
 
 _MOUNT_PATH = "/admin"
 _BASE = "/admin/content-ops"
@@ -203,10 +207,11 @@ class ContentOpsAdmin(CabinetAdmin):
         ),
         ListWidget(key="content_ops_overview", title="Операционные зоны", provider="content_ops.overview", order=20),
     )
-    sub_pages: ClassVar = {}
+    sub_pages: ClassVar[dict[str, Any]] = {}
     action_routes: ClassVar = {
         "monster-browser": ("GET", "handle_monster_browser"),
         "monster-detail": ("GET", "handle_monster_detail"),
+        "monster-member-detail": ("GET", "handle_monster_member_detail"),
         "regenerate-clan-image": ("POST", "handle_regenerate_clan_image"),
         "regenerate-clan-family-images": ("POST", "handle_regenerate_clan_family_images"),
         "regenerate-visible-clan-images": ("POST", "handle_regenerate_visible_clan_images"),
@@ -251,6 +256,18 @@ class ContentOpsAdmin(CabinetAdmin):
         clan = await _api(request).get_generated_clan(clan_id) if clan_id else None
         return _render_custom(self, request, "cabinet/content_ops_monster_detail.html", {"clan": clan})
 
+    async def handle_monster_member_detail(self, request: Request) -> Response:
+        clan_id = request.query_params.get("clan_id", "")
+        member_id = request.query_params.get("member_id", "")
+        clan = await _api(request).get_generated_clan(clan_id) if clan_id else None
+        member = _find_member(clan, member_id) if clan and member_id else None
+        return _render_custom(
+            self,
+            request,
+            "cabinet/content_ops_monster_member_detail.html",
+            {"clan": clan, "member": member},
+        )
+
     async def handle_regenerate_clan_image(self, request: Request) -> Response:
         form = await request.form()
         clan_id = str(form.get("clan_id") or "")
@@ -278,6 +295,11 @@ class ContentOpsAdmin(CabinetAdmin):
         member_id = str(form.get("member_id") or "")
         if member_id:
             await _api(request).regenerate_member_image(member_id)
+        if form.get("return_member_detail") == "1":
+            return RedirectResponse(
+                url=f"{_BASE}/monster-member-detail?clan_id={clan_id}&member_id={member_id}",
+                status_code=303,
+            )
         return RedirectResponse(url=f"{_BASE}/monster-detail?id={clan_id}", status_code=303)
 
 
@@ -307,6 +329,15 @@ def _clan_uses_storage_backend(clan: AdminGeneratedMonsterClan, storage_backend:
     if clan.visual.storage_backend == storage_backend:
         return True
     return any(member.visual.storage_backend == storage_backend for member in clan.members)
+
+
+def _find_member(
+    clan: AdminGeneratedMonsterClan | None,
+    member_id: str,
+) -> AdminGeneratedMonsterMember | None:
+    if clan is None:
+        return None
+    return next((member for member in clan.members if member.monster_id == member_id), None)
 
 
 def _monster_browser_redirect_url(form: Any) -> str:

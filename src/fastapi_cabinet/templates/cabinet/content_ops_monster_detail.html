@@ -30,6 +30,12 @@
                         <tr><th>Хранилище</th><td>{{ clan.visual.storage_backend or "—" }}</td></tr>
                         <tr><th>Статус</th><td>{{ clan.visual.status or "—" }}</td></tr>
                         <tr><th>Задача</th><td>{{ clan.visual.pending_task_id or "—" }}</td></tr>
+                        <tr><th>Context hash</th><td>{{ clan.context_hash or "—" }}</td></tr>
+                        <tr><th>Unique hash</th><td>{{ clan.unique_hash or "—" }}</td></tr>
+                        <tr><th>Schema version</th><td>{{ clan.schema_version }}</td></tr>
+                        <tr><th>Lifecycle</th><td>{{ clan.lifecycle_status or "—" }}</td></tr>
+                        <tr><th>Created</th><td>{{ clan.created_at or "—" }}</td></tr>
+                        <tr><th>Updated</th><td>{{ clan.updated_at or "—" }}</td></tr>
                     </tbody>
                 </table>
                 <form method="post" action="/admin/content-ops/regenerate-clan-image" class="fc-inline-action">
@@ -62,7 +68,12 @@
                 <tbody>
                     {% for member in clan.members %}
                         <tr>
-                            <td>{{ member.name_ru or member.variant_key }}</td>
+                            <td>
+                                <a href="/admin/content-ops/monster-member-detail?clan_id={{ clan.clan_id }}&member_id={{ member.monster_id }}">
+                                    <strong>{{ member.name_ru or member.variant_key }}</strong>
+                                </a>
+                                <div class="fc-muted">{{ member.variant_key }}</div>
+                            </td>
                             <td>{{ member.role }}</td>
                             <td>{{ member.member_tier }}</td>
                             <td>{{ member.gear_score if member.gear_score is not none else "—" }}</td>
@@ -87,6 +98,24 @@
                     {% endfor %}
                 </tbody>
             </table>
+        </section>
+
+        <section class="fc-widget fc-widget--wide">
+            <h2>Persisted JSON семьи</h2>
+            <div class="fc-json-grid">
+                <section>
+                    <h3>raw_tags</h3>
+                    <pre class="fc-json-block">{{ clan.raw_tags|tojson(indent=2) }}</pre>
+                </section>
+                <section>
+                    <h3>flavor_content</h3>
+                    <pre class="fc-json-block">{{ clan.flavor_content|tojson(indent=2) }}</pre>
+                </section>
+                <section>
+                    <h3>metadata/context/source_context</h3>
+                    <pre class="fc-json-block">{{ {"metadata": clan.metadata_, "context": clan.context, "source_context": clan.source_context}|tojson(indent=2) }}</pre>
+                </section>
+            </div>
         </section>
     {% endif %}
 {% endblock %}

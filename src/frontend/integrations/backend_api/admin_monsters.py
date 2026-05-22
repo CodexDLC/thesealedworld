@@ -33,6 +33,24 @@ class AdminGeneratedMonsterMember:
     role: str
     member_tier: int
     name_ru: str
+    description: str
+    text_content: dict[str, Any]
+    scaled_attributes: dict[str, Any]
+    scaled_skills: dict[str, Any]
+    items: dict[str, Any]
+    vitals: dict[str, Any]
+    ai_profile: dict[str, Any]
+    generation_meta: dict[str, Any]
+    combat_actor_snapshot: dict[str, Any]
+    metadata_: dict[str, Any]
+    context: dict[str, Any]
+    source_context: dict[str, Any]
+    lifecycle_status: str
+    archived_at: str
+    expires_at: str
+    schema_version: int
+    created_at: str
+    updated_at: str
     threat_rating: int
     gear_score: int | None
     visual: AdminMonsterVisual
@@ -48,6 +66,24 @@ class AdminGeneratedMonsterMember:
             role=str(data.get("role") or ""),
             member_tier=int(data.get("member_tier") or 0),
             name_ru=str(data.get("name_ru") or ""),
+            description=str(data.get("description") or ""),
+            text_content=dict(data.get("text_content") or {}),
+            scaled_attributes=dict(data.get("scaled_attributes") or {}),
+            scaled_skills=dict(data.get("scaled_skills") or {}),
+            items=dict(data.get("items") or {}),
+            vitals=dict(data.get("vitals") or {}),
+            ai_profile=dict(data.get("ai_profile") or {}),
+            generation_meta=dict(data.get("generation_meta") or {}),
+            combat_actor_snapshot=dict(data.get("combat_actor_snapshot") or {}),
+            metadata_=dict(data.get("metadata_") or {}),
+            context=dict(data.get("context") or {}),
+            source_context=dict(data.get("source_context") or {}),
+            lifecycle_status=str(data.get("lifecycle_status") or ""),
+            archived_at=str(data.get("archived_at") or ""),
+            expires_at=str(data.get("expires_at") or ""),
+            schema_version=int(data.get("schema_version") or 1),
+            created_at=str(data.get("created_at") or ""),
+            updated_at=str(data.get("updated_at") or ""),
             threat_rating=int(data.get("threat_rating") or 0),
             gear_score=int(data["gear_score"]) if data.get("gear_score") is not None else None,
             visual=AdminMonsterVisual.from_dict(data.get("visual")),
@@ -62,8 +98,21 @@ class AdminGeneratedMonsterClan:
     family_id: str
     tier: int
     zone_id: str
+    context_hash: str
+    unique_hash: str
+    raw_tags: dict[str, Any]
+    flavor_content: dict[str, Any]
     name_ru: str
     description: str
+    metadata_: dict[str, Any]
+    context: dict[str, Any]
+    source_context: dict[str, Any]
+    lifecycle_status: str
+    archived_at: str
+    expires_at: str
+    schema_version: int
+    created_at: str
+    updated_at: str
     visual: AdminMonsterVisual
     members: list[AdminGeneratedMonsterMember] = field(default_factory=list)
 
@@ -74,8 +123,21 @@ class AdminGeneratedMonsterClan:
             family_id=str(data.get("family_id") or ""),
             tier=int(data.get("tier") or 0),
             zone_id=str(data.get("zone_id") or ""),
+            context_hash=str(data.get("context_hash") or ""),
+            unique_hash=str(data.get("unique_hash") or ""),
+            raw_tags=dict(data.get("raw_tags") or {}),
+            flavor_content=dict(data.get("flavor_content") or {}),
             name_ru=str(data.get("name_ru") or ""),
             description=str(data.get("description") or ""),
+            metadata_=dict(data.get("metadata_") or {}),
+            context=dict(data.get("context") or {}),
+            source_context=dict(data.get("source_context") or {}),
+            lifecycle_status=str(data.get("lifecycle_status") or ""),
+            archived_at=str(data.get("archived_at") or ""),
+            expires_at=str(data.get("expires_at") or ""),
+            schema_version=int(data.get("schema_version") or 1),
+            created_at=str(data.get("created_at") or ""),
+            updated_at=str(data.get("updated_at") or ""),
             visual=AdminMonsterVisual.from_dict(data.get("visual")),
             members=[AdminGeneratedMonsterMember.from_dict(row) for row in data.get("members") or []],
         )

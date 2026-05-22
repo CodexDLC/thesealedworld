@@ -69,9 +69,9 @@ Use `project owner` for the human design decision maker. If a task needs a Russi
 - How much risk remains on cleared floors?
 - Which skills affect rift gathering first?
 
-## Browser Interface
+## Browser Interface (Resolved Decisions)
 
-- Should the rift show a literal map, a stylized graph, or a scene-first view with route cards?
-- Should node descriptions be generated upfront, lazily, or only after discovery?
-- How much monster/resource state is visible before scouting?
-- How should symbiote commentary appear without turning the screen back into pure text scenario?
+- **Map visualization:** The UI displays a stylized, high-tech neon "Symbiote Scanner" (Event Graph Map) instead of a literal retro 2D grid. The central viewport shows a gorgeous AI-generated scene artwork, the current encounter state, and contextual action buttons.
+- **Node & Text Generation:** Generation is lazy and modular. It happens in three stages (Skeleton $\rightarrow$ Spawn $\rightarrow$ AI Narrative Writer) per **3x3 Sector**.
+- **Visibility & Scouting:** Standard "fog of war" hides unscouted sectors. Symbiote acts as a scanner, highlighting adjacent nodes' threat levels, resources, and lore comments before entering.
+- **Symbiote Commentary:** Rendered as clean, atmospheric overlay messages, holographic audio-logs, or subtle side-dialogue panels in the text card area, ensuring it feels organic rather than intrusive.

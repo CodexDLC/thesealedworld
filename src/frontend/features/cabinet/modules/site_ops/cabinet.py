@@ -63,7 +63,7 @@ class SiteOpsAdmin(CabinetAdmin):
             order=20,
         ),
     )
-    sub_pages: ClassVar = {}
+    sub_pages: ClassVar[dict[str, Any]] = {}
     action_routes: ClassVar = {
         "storage": ("GET", "handle_storage"),
     }

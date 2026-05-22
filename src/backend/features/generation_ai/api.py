@@ -1,13 +1,15 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Annotated
+from typing import TYPE_CHECKING, Annotated, cast
 
 from fastapi import APIRouter, Depends, Request
 
 from src.backend.core.database import get_db
 from src.backend.features.generation_ai.bootstrap import build_generation_ai_registry
 from src.backend.features.generation_ai.dto import (
+    AIGenerationOutputKind,
     AIGenerationTaskCreateResponseDTO,
+    AIGenerationTaskStatus,
     AIGenerationTaskViewDTO,
     NewsCoverGenerationRequestDTO,
 )
@@ -54,7 +56,7 @@ async def request_news_cover_generation(
     task = await repository.get(task_id)
     return AIGenerationTaskCreateResponseDTO(
         task_id=task_id,
-        status=task.status if task is not None else "pending",
+        status=cast("AIGenerationTaskStatus", task.status) if task is not None else "pending",
         created=result.created > 0,
         scheduled=scheduled,
         storage_key=spec.input_payload.get("storage_key"),
@@ -81,8 +83,8 @@ def _task_view(task: AIGenerationTask) -> AIGenerationTaskViewDTO:
         task_type=task.task_type,
         entity_type=task.entity_type,
         entity_id=task.entity_id,
-        output_kind=task.output_kind,
-        status=task.status,
+        output_kind=cast("AIGenerationOutputKind", task.output_kind),
+        status=cast("AIGenerationTaskStatus", task.status),
         storage_key=task.storage_key,
         generated_url=task.generated_url,
         asset_hash=task.asset_hash,

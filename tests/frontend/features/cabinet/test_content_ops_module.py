@@ -12,6 +12,7 @@ from src.frontend.cabinet import CABINET_MODULES
 from src.frontend.features.cabinet.modules.content_ops.cabinet import (
     ContentOpsAdmin,
     _filter_monster_clans,
+    _find_member,
     _load_monster_browser_context,
     _monster_browser_redirect_url,
 )
@@ -35,6 +36,7 @@ def test_content_ops_admin_declares_operational_sections() -> None:
     ]
     assert "monster-browser" in ContentOpsAdmin.action_routes
     assert "monster-detail" in ContentOpsAdmin.action_routes
+    assert "monster-member-detail" in ContentOpsAdmin.action_routes
     assert "regenerate-clan-family-images" in ContentOpsAdmin.action_routes
     assert "regenerate-visible-clan-images" in ContentOpsAdmin.action_routes
 
@@ -89,6 +91,18 @@ def test_monster_browser_redirect_preserves_bulk_filters() -> None:
     )
 
 
+def test_content_ops_finds_member_for_detail_page() -> None:
+    clan = _clan("rat-clan", family="rats", storage="local", roles=("scout",), missing_member=False)
+
+    member = _find_member(clan, "rat-clan-scout")
+
+    assert member is not None
+    assert member.description == "scout description"
+    assert member.text_content == {"appearance_ru": "scout appearance"}
+    assert member.items == {"layout": {"equipment": {"main_hand": "hatchet"}}}
+    assert member.scaled_attributes == {"strength": 10}
+
+
 @pytest.mark.asyncio
 async def test_monster_browser_uses_backend_contract_limit(monkeypatch: pytest.MonkeyPatch) -> None:
     class FakeAdminMonstersApi:
@@ -120,8 +134,21 @@ def _clan(
         family_id=family,
         tier=tier,
         zone_id="zone",
+        context_hash="context",
+        unique_hash="unique",
+        raw_tags={"tag": "value"},
+        flavor_content={"visual": {}},
         name_ru=clan_id,
         description="",
+        metadata_={},
+        context={},
+        source_context={},
+        lifecycle_status="active",
+        archived_at="",
+        expires_at="",
+        schema_version=1,
+        created_at="",
+        updated_at="",
         visual=AdminMonsterVisual(image_url="/static/generated-assets/clan.webp", storage_backend=storage),
         members=[
             AdminGeneratedMonsterMember(
@@ -130,6 +157,24 @@ def _clan(
                 role=role,
                 member_tier=1,
                 name_ru=role,
+                description=f"{role} description",
+                text_content={"appearance_ru": f"{role} appearance"},
+                scaled_attributes={"strength": 10},
+                scaled_skills={"skill_swords": 0.2},
+                items={"layout": {"equipment": {"main_hand": "hatchet"}}},
+                vitals={"hp": {"max": 50}},
+                ai_profile={"profile": "aggressive"},
+                generation_meta={"balance": {"gear_score": 1}},
+                combat_actor_snapshot={"meta": {}},
+                metadata_={},
+                context={},
+                source_context={},
+                lifecycle_status="active",
+                archived_at="",
+                expires_at="",
+                schema_version=1,
+                created_at="",
+                updated_at="",
                 threat_rating=1,
                 gear_score=1,
                 visual=AdminMonsterVisual(

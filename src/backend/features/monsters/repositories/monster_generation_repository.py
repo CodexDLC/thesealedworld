@@ -175,6 +175,15 @@ def _to_generated_clan(clan: GeneratedClanORM) -> GeneratedClan:
         flavor_content=dict(clan.flavor_content or {}),
         name_ru=clan.name_ru or "",
         description=clan.description or "",
+        metadata_=dict(clan.metadata_ or {}),
+        context=dict(clan.context or {}),
+        source_context=dict(clan.source_context or {}),
+        lifecycle_status=str(clan.lifecycle_status or "active"),
+        archived_at=clan.archived_at,
+        expires_at=clan.expires_at,
+        schema_version=int(clan.schema_version or 1),
+        created_at=clan.created_at,
+        updated_at=clan.updated_at,
     )
     generated.members.extend(_to_generated_monster(member, generated) for member in clan.members)
     return generated
@@ -202,6 +211,16 @@ def _to_generated_monster(monster: GeneratedMonsterORM, clan: GeneratedClan | No
         vitals=dict(monster.vitals or {}),
         ai_profile=dict(monster.ai_profile or {}),
         generation_meta=dict(monster.generation_meta or {}),
+        combat_actor_snapshot=dict(monster.combat_actor_snapshot or {}),
+        metadata_=dict(monster.metadata_ or {}),
+        context=dict(monster.context or {}),
+        source_context=dict(monster.source_context or {}),
+        lifecycle_status=str(monster.lifecycle_status or "active"),
+        archived_at=monster.archived_at,
+        expires_at=monster.expires_at,
+        schema_version=int(monster.schema_version or 1),
+        created_at=monster.created_at,
+        updated_at=monster.updated_at,
         clan=generated_clan,
     )
 
@@ -218,6 +237,15 @@ def _to_generated_clan_without_members(clan: GeneratedClanORM) -> GeneratedClan:
         flavor_content=dict(clan.flavor_content or {}),
         name_ru=clan.name_ru or "",
         description=clan.description or "",
+        metadata_=dict(clan.metadata_ or {}),
+        context=dict(clan.context or {}),
+        source_context=dict(clan.source_context or {}),
+        lifecycle_status=str(clan.lifecycle_status or "active"),
+        archived_at=clan.archived_at,
+        expires_at=clan.expires_at,
+        schema_version=int(clan.schema_version or 1),
+        created_at=clan.created_at,
+        updated_at=clan.updated_at,
     )
 
 
@@ -253,6 +281,7 @@ def _to_monster_orm(monster: GeneratedMonster) -> GeneratedMonsterORM:
         vitals=dict(monster.vitals),
         ai_profile=dict(monster.ai_profile),
         generation_meta=dict(monster.generation_meta),
+        combat_actor_snapshot=dict(monster.combat_actor_snapshot),
     )
 
 

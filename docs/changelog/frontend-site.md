@@ -4,7 +4,10 @@ Detailed milestone history for the `src/frontend` site-web layer.
 
 ## [Unreleased]
 
+- Generated monster cabinet rows now drill down into individual member detail pages with generated text and visual metadata.
 - Content cabinet generated-monster pages now filter families by family tier and expose bulk image regeneration actions.
+- Player analytics cabinet now shows registered account and created character totals separately.
+- Site analytics cabinet now uses current lobby routes, site user totals, and backend session APIs for active counters.
 
 ## [v0.1.0a4] - Alpha 4
 

@@ -79,6 +79,9 @@ Production runtime разделен на site и game layers:
 - Site обращается к game backend через typed HTTP clients и internal service key.
 - Backend не рендерит public site.
 - Site должен оставаться доступным при restart/maintenance game runtime.
+- Generated asset URLs остаются site-facing контрактом `/static/generated-assets/<storage_key>`.
+  S3/Object Storage является backend storage implementation detail; прямые provider URLs не являются
+  каноническими значениями для статей, монстров или будущих generated assets.
 
 ## Проверки перед деплоем
 

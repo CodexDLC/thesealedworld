@@ -35,6 +35,7 @@ from src.frontend.game_features.game_menu import GameMenuMiddleware
 from src.frontend.game_features.session.cookies import clear_active_character_cookie
 from src.frontend.game_features.session.middleware import GameTokenRefreshMiddleware
 from src.frontend.game_features.session.token_state import clear_game_token_cookies
+from src.frontend.integrations.generated_assets import configure_generated_asset_serving
 from src.shared.exceptions import BaseAPIException
 from src.shared.infrastructure.log_middleware import LogContextMiddleware
 from src.shared.infrastructure.logging_config import setup_logging
@@ -156,13 +157,8 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# Mount generated assets before the broad /static mount so runtime files are not looked up in src/frontend/static.
-settings.generated_assets_dir.mkdir(parents=True, exist_ok=True)
-app.mount(
-    "/static/generated-assets",
-    StaticFiles(directory=str(settings.generated_assets_dir)),
-    name="generated_assets",
-)
+# Configure generated assets before the broad /static mount so runtime files are not looked up in src/frontend/static.
+configure_generated_asset_serving(app, config=settings)
 
 # Mount static files
 app.mount("/static", StaticFiles(directory=str(settings.static_dir)), name="static")

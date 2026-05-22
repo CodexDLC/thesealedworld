@@ -52,6 +52,7 @@ class GeneratedMonsterViewService:
             "zone_id": clan.zone_id,
             "name_ru": clan.name_ru,
             "description": clan.description,
+            "visual": _visual((clan.flavor_content or {}).get("visual")),
             "gear_score_summary": summary,
             "members": [self._member_payload(member) for member in self._sort_members(members)]
             if include_members
@@ -77,6 +78,8 @@ class GeneratedMonsterViewService:
             "gear_score": _optional_int(balance.get("gear_score")),
             "base_cost": _optional_int(balance.get("base_cost")),
             "effective_cost": _optional_float(balance.get("effective_cost")),
+            "visual": _visual((member.generation_meta or {}).get("visual")),
+            "equipment_summary": _equipment_summary(member.items),
         }
 
     @staticmethod
@@ -96,6 +99,55 @@ def _balance(member: GeneratedMonster) -> dict[str, Any]:
     generation_meta = member.generation_meta if isinstance(member.generation_meta, dict) else {}
     balance = generation_meta.get("balance")
     return dict(balance) if isinstance(balance, dict) else {}
+
+
+def _visual(value: Any) -> dict[str, Any]:
+    visual = dict(value) if isinstance(value, dict) else {}
+    return {
+        "status": str(visual.get("status") or ""),
+        "source": str(visual.get("source") or ""),
+        "image_url": str(visual.get("image_url") or ""),
+        "generated_image_url": str(visual.get("generated_image_url") or ""),
+        "fallback_image_url": str(visual.get("fallback_image_url") or ""),
+        "storage_key": str(visual.get("storage_key") or ""),
+        "storage_backend": str(visual.get("storage_backend") or ""),
+        "asset_hash": str(visual.get("asset_hash") or ""),
+        "content_type": str(visual.get("content_type") or ""),
+        "size_bytes": _optional_int(visual.get("size_bytes")),
+        "pending_task_id": str(visual.get("pending_task_id")) if visual.get("pending_task_id") else None,
+    }
+
+
+def _equipment_summary(items: dict[str, Any]) -> dict[str, list[str]]:
+    if not isinstance(items, dict):
+        return {"equipment": [], "weapons": [], "armor": [], "affixes": []}
+    layout = dict(items.get("layout") or {})
+    equipment_layout = dict(layout.get("equipment") or {})
+    by_id = dict(items.get("by_id") or {})
+    equipment: list[str] = []
+    weapons: list[str] = []
+    armor: list[str] = []
+    affixes: list[str] = []
+
+    for slot, item_id in sorted(equipment_layout.items()):
+        item = dict(by_id.get(item_id) or {})
+        label = str(item.get("name_ru") or item.get("name") or item.get("base_id") or item_id)
+        row = f"{slot}: {label}"
+        equipment.append(row)
+        kind = str(item.get("kind") or item.get("item_kind") or "")
+        if kind in {"weapon", "main_hand", "off_hand"} or slot in {"main_hand", "off_hand"}:
+            weapons.append(row)
+        if kind in {"armor", "body"} or slot == "body":
+            armor.append(row)
+        for affix in item.get("affixes") or item.get("bonus_ids") or []:
+            affixes.append(str(affix))
+
+    return {
+        "equipment": equipment,
+        "weapons": weapons,
+        "armor": armor,
+        "affixes": sorted(set(affixes)),
+    }
 
 
 def _optional_int(value: Any) -> int | None:

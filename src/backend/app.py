@@ -29,6 +29,7 @@ from src.backend.features.game_catalog.api import router as game_catalog_router 
 from src.backend.features.game_config.api import router as game_config_router  # noqa: E402
 from src.backend.features.game_lobby.api import router as game_lobby_router  # noqa: E402
 from src.backend.features.game_session.api import router as game_session_router  # noqa: E402
+from src.backend.features.generation_ai.api import router as generation_ai_router  # noqa: E402
 from src.backend.features.inventory.api import router as inventory_router  # noqa: E402
 from src.backend.features.monsters.api import router as monsters_router  # noqa: E402
 from src.backend.features.scenario.api import router as scenario_router  # noqa: E402
@@ -45,6 +46,7 @@ app.add_middleware(LogContextMiddleware)
 app.add_exception_handler(BaseAPIException, api_exception_handler)  # type: ignore[arg-type]
 app.include_router(metrics_router)
 app.include_router(game_config_router)
+app.include_router(generation_ai_router)
 app.include_router(combat_internal_router)
 app.include_router(scenario_internal_router)
 app.include_router(exploration_internal_router)

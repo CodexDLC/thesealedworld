@@ -64,6 +64,10 @@
                     <input type="hidden" name="article_id" value="{{ form.article_id }}">
                     <button type="submit" class="fc-action-btn fc-action-btn--deny">Удалить</button>
                 </form>
+                <form method="post" action="/admin/news/generate-cover" style="display:inline">
+                    <input type="hidden" name="article_id" value="{{ form.article_id }}">
+                    <button type="submit" class="fc-action-btn">Сгенерировать обложку</button>
+                </form>
 
                 {% if form.is_published %}
                     <span class="fc-status-badge fc-status-badge--published">Опубликована</span>
@@ -71,6 +75,27 @@
                     <span class="fc-status-badge fc-status-badge--draft">Черновик</span>
                 {% endif %}
             </div>
+
+            {% if form.cover_task_id %}
+                <div class="fc-article-extra-actions">
+                    <span class="fc-status-badge">Cover task: {{ form.cover_preview_status or "pending" }}</span>
+                    {% if form.cover_preview_error %}
+                        <span class="fc-status-badge fc-status-badge--draft">{{ form.cover_preview_error }}</span>
+                    {% endif %}
+                    {% if form.cover_preview_url %}
+                        <span class="fc-status-badge">{{ form.cover_preview_url }}</span>
+                        <form method="post" action="/admin/news/approve-cover" style="display:inline">
+                            <input type="hidden" name="article_id" value="{{ form.article_id }}">
+                            <input type="hidden" name="cover_url" value="{{ form.cover_preview_url }}">
+                            <button type="submit" class="fc-action-btn fc-action-btn--approve">Применить обложку</button>
+                        </form>
+                    {% endif %}
+                    <form method="post" action="/admin/news/reject-cover" style="display:inline">
+                        <input type="hidden" name="article_id" value="{{ form.article_id }}">
+                        <button type="submit" class="fc-action-btn fc-action-btn--deny">Отклонить</button>
+                    </form>
+                </div>
+            {% endif %}
         {% endif %}
     </section>
 {% endblock %}

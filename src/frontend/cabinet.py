@@ -3,6 +3,7 @@ CABINET_MODULES = (
     "src.frontend.features.cabinet.modules.news_management.cabinet",
     "src.frontend.features.cabinet.modules.site_analytics.cabinet",
     "src.frontend.features.cabinet.modules.player_analytics.cabinet",
+    "src.frontend.features.cabinet.modules.content_ops.cabinet",
     # Гейм Сервер
     "src.frontend.features.cabinet.modules.combat.cabinet",
     "src.frontend.features.cabinet.modules.scenario.cabinet",

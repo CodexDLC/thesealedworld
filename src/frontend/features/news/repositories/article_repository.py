@@ -102,6 +102,12 @@ class ArticleRepository:
         await self.session.refresh(article)
         return article
 
+    async def update_cover_image(self, article: Article, *, cover_image: str | None) -> Article:
+        article.cover_image = cover_image
+        await self.session.commit()
+        await self.session.refresh(article)
+        return article
+
     async def toggle_publish(self, article: Article) -> Article:
         if article.is_published:
             article.is_published = False

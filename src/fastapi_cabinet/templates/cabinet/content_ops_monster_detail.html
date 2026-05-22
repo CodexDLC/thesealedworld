@@ -1,0 +1,63 @@
+{% extends "cabinet/base.html" %}
+
+{% block content %}
+    {% if not clan %}
+        <p class="fc-empty">Generated monster family not found.</p>
+    {% else %}
+        <section class="fc-widget fc-widget--wide">
+            <h2>{{ clan.name_ru or clan.family_id }}</h2>
+            <p class="fc-muted">{{ clan.family_id }} / tier {{ clan.tier }} / zone {{ clan.zone_id or "—" }}</p>
+            <p>{{ clan.description or "No description." }}</p>
+            <table class="fc-table">
+                <tbody>
+                    <tr><th>Image</th><td>{{ clan.visual.image_url or "missing" }}</td></tr>
+                    <tr><th>Storage key</th><td>{{ clan.visual.storage_key or "—" }}</td></tr>
+                    <tr><th>Storage backend</th><td>{{ clan.visual.storage_backend or "—" }}</td></tr>
+                    <tr><th>Status</th><td>{{ clan.visual.status or "—" }}</td></tr>
+                </tbody>
+            </table>
+            <form method="post" action="/admin/content-ops/regenerate-clan-image" style="margin-top: 12px">
+                <input type="hidden" name="clan_id" value="{{ clan.clan_id }}">
+                <button type="submit" class="fc-action-btn fc-action-btn--approve">Regenerate clan image</button>
+            </form>
+        </section>
+
+        <section class="fc-widget fc-widget--wide">
+            <h2>Members</h2>
+            <table class="fc-table">
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Role</th>
+                        <th>Tier</th>
+                        <th>Threat</th>
+                        <th>Gear</th>
+                        <th>Image</th>
+                        <th>Storage</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for member in clan.members %}
+                        <tr>
+                            <td>{{ member.name_ru or member.variant_key }}</td>
+                            <td>{{ member.role }}</td>
+                            <td>{{ member.member_tier }}</td>
+                            <td>{{ member.threat_rating }}</td>
+                            <td>{{ member.gear_score if member.gear_score is not none else "—" }}</td>
+                            <td>{{ member.visual.image_url or "missing" }}</td>
+                            <td>{{ member.visual.storage_backend or "—" }}</td>
+                            <td>
+                                <form method="post" action="/admin/content-ops/regenerate-member-image">
+                                    <input type="hidden" name="clan_id" value="{{ clan.clan_id }}">
+                                    <input type="hidden" name="member_id" value="{{ member.monster_id }}">
+                                    <button type="submit" class="fc-action-btn">Regenerate</button>
+                                </form>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </section>
+    {% endif %}
+{% endblock %}

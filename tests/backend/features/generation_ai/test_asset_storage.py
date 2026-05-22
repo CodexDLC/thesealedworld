@@ -6,10 +6,31 @@ import pytest
 
 from src.backend.features.generation_ai.asset_storage import (
     LocalGeneratedAssetStorage,
+    S3GeneratedAssetStorage,
     build_asset_public_url,
+    build_generated_asset_storage,
     normalize_asset_storage_key,
     storage_key_with_content_type_extension,
 )
+
+
+class FakeS3Client:
+    def __init__(self) -> None:
+        self.objects: dict[tuple[str, str], dict] = {}
+        self.head_failures: dict[tuple[str, str], Exception] = {}
+
+    def put_object(self, **kwargs):
+        self.objects[(kwargs["Bucket"], kwargs["Key"])] = kwargs
+
+    def head_object(self, **kwargs):
+        key = (kwargs["Bucket"], kwargs["Key"])
+        if key in self.head_failures:
+            raise self.head_failures[key]
+        return self.objects[key]
+
+
+class FakeNotFoundError(Exception):
+    response = {"Error": {"Code": "404"}}
 
 
 @pytest.mark.asyncio
@@ -69,3 +90,59 @@ def test_storage_key_extension_tracks_actual_image_content_type() -> None:
     assert storage_key_with_content_type_extension("monsters/generated/clans/hash.webp", "image/webp") == (
         "monsters/generated/clans/hash.webp"
     )
+
+
+@pytest.mark.asyncio
+async def test_s3_asset_storage_puts_object_and_returns_public_contract() -> None:
+    client = FakeS3Client()
+    storage = S3GeneratedAssetStorage(
+        bucket="generated-assets",
+        public_base_url="/static/generated-assets",
+        client=client,
+    )
+    content = b"image"
+
+    ref = await storage.put_bytes(
+        storage_key="news/covers/launch/raw-name.png",
+        content=content,
+        content_type="image/webp",
+        metadata={"article": "launch"},
+    )
+
+    uploaded = client.objects[("generated-assets", "news/covers/launch/raw-name.webp")]
+    assert uploaded["Body"] == content
+    assert uploaded["ContentType"] == "image/webp"
+    assert uploaded["Metadata"] == {"article": "launch"}
+    assert ref.storage_backend == "s3"
+    assert ref.storage_key == "news/covers/launch/raw-name.webp"
+    assert ref.public_url == "/static/generated-assets/news/covers/launch/raw-name.webp"
+    assert ref.asset_hash == sha256(content).hexdigest()
+
+
+@pytest.mark.asyncio
+async def test_s3_asset_storage_exists_uses_head_object() -> None:
+    client = FakeS3Client()
+    storage = S3GeneratedAssetStorage(bucket="bucket", public_base_url="/assets", client=client)
+    await storage.put_bytes(
+        storage_key="monsters/generated/clans/a.webp",
+        content=b"image",
+        content_type="image/webp",
+    )
+    client.head_failures[("bucket", "missing.webp")] = FakeNotFoundError()
+
+    assert await storage.exists("monsters/generated/clans/a.webp") is True
+    assert await storage.exists("missing.webp") is False
+
+
+def test_s3_storage_config_fails_fast_when_required_values_are_missing() -> None:
+    class Config:
+        asset_storage_backend = "s3"
+        asset_public_base_url = "/static/generated-assets"
+        asset_s3_bucket = "bucket"
+        asset_s3_region = None
+        asset_s3_endpoint_url = "https://nbg1.your-objectstorage.com"
+        asset_s3_access_key_id = "key"
+        asset_s3_secret_access_key = "secret"  # pragma: allowlist secret
+
+    with pytest.raises(RuntimeError, match="ASSET_S3_REGION"):
+        build_generated_asset_storage(Config())  # type: ignore[arg-type]

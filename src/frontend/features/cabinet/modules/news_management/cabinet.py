@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import Any, ClassVar
 
+import httpx
 from fastapi import Request
 from starlette.responses import RedirectResponse, Response
 
@@ -9,8 +10,15 @@ from fastapi_cabinet import CabinetAdmin, MetricWidget, SidebarItem, TableWidget
 from fastapi_cabinet.contracts.widgets import MetricWidgetMap, TableColumnMap, TableWidgetMap
 from fastapi_cabinet.rendering.layout_mapper import build_layout_map
 from fastapi_cabinet.runtime import resolve_active_admin
+from src.frontend.config.settings import settings
 from src.frontend.core.database.session import async_session_factory
+from src.frontend.features.cabinet.modules.news_management.cover_workflow import (
+    NewsCoverPromptInput,
+    build_news_cover_prompt,
+    extract_body_excerpt,
+)
 from src.frontend.features.news.repositories.article_repository import ArticleRepository
+from src.frontend.integrations.backend_api.generation_ai import GenerationAIAdminApi
 
 _MOUNT_PATH = "/admin"
 _BASE = "/admin/news"
@@ -19,6 +27,11 @@ _BASE = "/admin/news"
 async def _get_repo() -> tuple[Any, ArticleRepository]:
     session = async_session_factory()
     return session, ArticleRepository(session)
+
+
+def _generation_api(request: Request) -> GenerationAIAdminApi:
+    client: httpx.AsyncClient = request.app.state.backend_http_client
+    return GenerationAIAdminApi(client=client, base_url=settings.backend_base_url)
 
 
 # ── Dashboard providers ──────────────────────────────────────────────────────
@@ -136,6 +149,10 @@ class ArticleFormWidgetMap:
         cover_image: str = "",
         is_published: bool = False,
         cancel_url: str = "/admin/news",
+        cover_task_id: str = "",
+        cover_preview_url: str = "",
+        cover_preview_status: str = "",
+        cover_preview_error: str = "",
     ) -> None:
         self.key = key
         self.title = title
@@ -148,6 +165,10 @@ class ArticleFormWidgetMap:
         self.cover_image = cover_image
         self.is_published = is_published
         self.cancel_url = cancel_url
+        self.cover_task_id = cover_task_id
+        self.cover_preview_url = cover_preview_url
+        self.cover_preview_status = cover_preview_status
+        self.cover_preview_error = cover_preview_error
 
 
 # ── Admin class ──────────────────────────────────────────────────────────────
@@ -181,6 +202,9 @@ class NewsManagementAdmin(CabinetAdmin):
         "update": ("POST", "handle_update"),
         "toggle-publish": ("POST", "handle_toggle_publish"),
         "delete": ("POST", "handle_delete"),
+        "generate-cover": ("POST", "handle_generate_cover"),
+        "approve-cover": ("POST", "handle_approve_cover"),
+        "reject-cover": ("POST", "handle_reject_cover"),
     }
     providers: ClassVar = {
         "news.total": _total_provider,
@@ -235,11 +259,25 @@ class NewsManagementAdmin(CabinetAdmin):
 
     async def handle_edit_form(self, request: Request) -> Response:
         article_id = int(request.query_params.get("id", 0))
+        cover_task_id = str(request.query_params.get("cover_task_id", "")).strip()
         session, repo = await _get_repo()
         async with session:
             article = await repo.get_by_id(article_id)
         if article is None:
             return RedirectResponse(url=_BASE, status_code=303)
+
+        cover_preview_url = ""
+        cover_preview_status = ""
+        cover_preview_error = ""
+        if cover_task_id:
+            try:
+                task = await _generation_api(request).get_task(cover_task_id)
+                cover_preview_status = task.status
+                cover_preview_url = task.generated_url
+                cover_preview_error = str(task.error.get("message") or "") if task.error else ""
+            except (httpx.HTTPStatusError, httpx.RequestError):
+                cover_preview_status = "unavailable"
+                cover_preview_error = "generation backend unavailable"
 
         form_widget = ArticleFormWidgetMap(
             key="article_form",
@@ -252,6 +290,10 @@ class NewsManagementAdmin(CabinetAdmin):
             body=article.body,
             cover_image=article.cover_image or "",
             is_published=article.is_published,
+            cover_task_id=cover_task_id,
+            cover_preview_url=cover_preview_url,
+            cover_preview_status=cover_preview_status,
+            cover_preview_error=cover_preview_error,
         )
         active_admin = resolve_active_admin(request.url.path, cabinet_site.registry, _MOUNT_PATH)
         layout = build_layout_map(
@@ -307,6 +349,50 @@ class NewsManagementAdmin(CabinetAdmin):
             if article is not None:
                 await repo.delete(article)
         return RedirectResponse(url=_BASE, status_code=303)
+
+    async def handle_generate_cover(self, request: Request) -> Response:
+        form = await request.form()
+        article_id = int(form.get("article_id", 0))  # type: ignore[arg-type]
+        session, repo = await _get_repo()
+        async with session:
+            article = await repo.get_by_id(article_id)
+            if article is None:
+                return RedirectResponse(url=_BASE, status_code=303)
+            prompt = build_news_cover_prompt(
+                NewsCoverPromptInput(
+                    title=article.title,
+                    preview=article.preview,
+                    body=article.body,
+                    slug=article.slug,
+                    is_published=article.is_published,
+                )
+            )
+            body_excerpt = extract_body_excerpt(article.body)
+        result = await _generation_api(request).request_news_cover(
+            article_id=str(article_id),
+            slug=article.slug,
+            title=article.title,
+            preview=article.preview,
+            body_excerpt=body_excerpt,
+            prompt=prompt,
+        )
+        return RedirectResponse(url=f"{_BASE}/edit?id={article_id}&cover_task_id={result.task_id}", status_code=303)
+
+    async def handle_approve_cover(self, request: Request) -> Response:
+        form = await request.form()
+        article_id = int(form.get("article_id", 0))  # type: ignore[arg-type]
+        cover_url = str(form.get("cover_url") or "").strip()
+        session, repo = await _get_repo()
+        async with session:
+            article = await repo.get_by_id(article_id)
+            if article is not None and cover_url:
+                await repo.update_cover_image(article, cover_image=cover_url)
+        return RedirectResponse(url=f"{_BASE}/edit?id={article_id}", status_code=303)
+
+    async def handle_reject_cover(self, request: Request) -> Response:
+        form = await request.form()
+        article_id = int(form.get("article_id", 0))  # type: ignore[arg-type]
+        return RedirectResponse(url=f"{_BASE}/edit?id={article_id}", status_code=303)
 
 
 cabinet_site.register(NewsManagementAdmin)

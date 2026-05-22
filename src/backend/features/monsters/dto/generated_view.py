@@ -13,6 +13,27 @@ class GearScoreSummaryDTO(BaseModel):
     by_role: dict[str, dict[str, int | float]] = Field(default_factory=dict)
 
 
+class GeneratedAssetVisualDTO(BaseModel):
+    status: str = ""
+    source: str = ""
+    image_url: str = ""
+    generated_image_url: str = ""
+    fallback_image_url: str = ""
+    storage_key: str = ""
+    storage_backend: str = ""
+    asset_hash: str = ""
+    content_type: str = ""
+    size_bytes: int | None = None
+    pending_task_id: str | None = None
+
+
+class GeneratedMonsterEquipmentSummaryDTO(BaseModel):
+    equipment: list[str] = Field(default_factory=list)
+    weapons: list[str] = Field(default_factory=list)
+    armor: list[str] = Field(default_factory=list)
+    affixes: list[str] = Field(default_factory=list)
+
+
 class GeneratedMonsterViewDTO(BaseModel):
     monster_id: str
     variant_key: str
@@ -23,6 +44,8 @@ class GeneratedMonsterViewDTO(BaseModel):
     gear_score: int | None = None
     base_cost: int | None = None
     effective_cost: float | None = None
+    visual: GeneratedAssetVisualDTO = Field(default_factory=GeneratedAssetVisualDTO)
+    equipment_summary: GeneratedMonsterEquipmentSummaryDTO = Field(default_factory=GeneratedMonsterEquipmentSummaryDTO)
 
 
 class GeneratedClanViewDTO(BaseModel):
@@ -32,6 +55,7 @@ class GeneratedClanViewDTO(BaseModel):
     zone_id: str | None = None
     name_ru: str
     description: str
+    visual: GeneratedAssetVisualDTO = Field(default_factory=GeneratedAssetVisualDTO)
     gear_score_summary: GearScoreSummaryDTO
     members: list[GeneratedMonsterViewDTO] = Field(default_factory=list)
 
@@ -48,10 +72,22 @@ class GeneratedMonstersResponseDTO(BaseModel):
     pagination: PaginationDTO
 
 
+class MonsterImageRegenerationResponseDTO(BaseModel):
+    task_id: str
+    entity_type: str
+    entity_id: str
+    status: str
+    storage_key: str
+    image_url: str
+
+
 __all__ = [
     "GearScoreSummaryDTO",
+    "GeneratedAssetVisualDTO",
     "GeneratedClanViewDTO",
+    "GeneratedMonsterEquipmentSummaryDTO",
     "GeneratedMonsterViewDTO",
     "GeneratedMonstersResponseDTO",
+    "MonsterImageRegenerationResponseDTO",
     "PaginationDTO",
 ]

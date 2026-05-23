@@ -13,12 +13,12 @@ async def handle_news_published(message_data: dict[str, Any], container: Any) ->
 
     Do NOT catch exceptions here — let them propagate to the dispatcher.
     """
-    log.info(f"Announcements | Processing event type='{message_data.get('type')}'")
+    log.bind(event_type=message_data.get("type")).info("AnnouncementEventProcessing")
 
     try:
         orchestrator = container.get_feature("redis_announcements")
     except KeyError:
-        log.warning("Announcements | Orchestrator 'redis_announcements' not found in container features")
+        log.bind(feature_key="redis_announcements").warning("AnnouncementOrchestratorMissing")
         return
 
     # Call orchestrator processing logic
@@ -28,12 +28,12 @@ async def handle_news_published(message_data: dict[str, Any], container: Any) ->
 @redis_router.message("news.unpublished")
 async def handle_news_unpublished(message_data: dict[str, Any], container: Any) -> None:
     """Handler for news.unpublished events from Redis Stream."""
-    log.info(f"Announcements | Processing event type='{message_data.get('type')}'")
+    log.bind(event_type=message_data.get("type")).info("AnnouncementEventProcessing")
 
     try:
         orchestrator = container.get_feature("redis_announcements")
     except KeyError:
-        log.warning("Announcements | Orchestrator 'redis_announcements' not found in container features")
+        log.bind(feature_key="redis_announcements").warning("AnnouncementOrchestratorMissing")
         return
 
     await orchestrator.process_news_unpublished(message_data)

@@ -58,14 +58,14 @@ class BotMenuOrchestrator(BaseBotOrchestrator[Any]):
         # 1. Fetch available buttons from Discovery Service
         discovery = getattr(container, "discovery_service", None)
         if not discovery:
-            log.error("BotMenu | DiscoveryService not found in container")
+            log.error("BotMenuDiscoveryServiceMissing")
             available_features: dict[str, Any] = {}
         else:
             available_features = discovery.get_menu_buttons(is_admin=is_admin_mode)
 
         # 2. RBAC check for admin mode
         if is_admin_mode and hasattr(container, "is_admin") and not container.is_admin(director.session_key):
-            log.warning(f"Access Denied to Admin Dashboard for session {director.session_key}")
+            log.bind(session_key=director.session_key).warning("BotMenuAdminAccessDenied")
             return await self.render_dashboard(director, mode="bot_menu")
 
         # 3. Render

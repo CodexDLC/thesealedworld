@@ -21,12 +21,12 @@ class AnnouncementsOrchestrator:
         """Posts a published news announcement to the configured Telegram channel."""
         chat_id = self.container.settings.telegram_channel_id
         if not chat_id:
-            log.warning("AnnouncementsOrchestrator | TELEGRAM_CHANNEL_ID is not configured. Skipping publication.")
+            log.warning("AnnouncementPublishSkipped")
             return
 
         article_id = str(payload.get("id", "")).strip()
         if not article_id:
-            log.warning("AnnouncementsOrchestrator | news.published payload has no article id. Skipping publication.")
+            log.warning("AnnouncementPublishPayloadInvalid")
             return
 
         title = payload.get("title", "")
@@ -41,7 +41,7 @@ class AnnouncementsOrchestrator:
         text = f'📰 <b>{title}</b>\n\n{preview}\n\n🔗 <a href="{link}">Читать далее на сайте</a>'
 
         try:
-            log.info(f"AnnouncementsOrchestrator | Sending announcement to channel {chat_id}.")
+            log.bind(article_id=article_id, chat_id=chat_id).info("AnnouncementPublishStarted")
             await sender.send_or_replace_html(
                 session_key=self._news_session_key(article_id),
                 chat_id=chat_id,
@@ -49,20 +49,20 @@ class AnnouncementsOrchestrator:
                 link=link,
                 photo_url=photo_url,
             )
-        except Exception as e:
-            log.error(f"AnnouncementsOrchestrator | Failed to send telegram announcement: {e}")
+        except Exception:
+            log.bind(article_id=article_id, chat_id=chat_id).exception("AnnouncementPublishFailed")
             raise
 
     async def process_news_unpublished(self, payload: dict[str, Any]) -> None:
         """Deletes a previously sent Telegram announcement for unpublished news."""
         article_id = str(payload.get("id", "")).strip()
         if not article_id:
-            log.warning("AnnouncementsOrchestrator | news.unpublished payload has no article id. Skipping deletion.")
+            log.warning("AnnouncementDeletePayloadInvalid")
             return
 
         chat_id = self.container.settings.telegram_channel_id
         if not chat_id:
-            log.warning("AnnouncementsOrchestrator | TELEGRAM_CHANNEL_ID is not configured. Skipping deletion.")
+            log.warning("AnnouncementDeleteSkipped")
             return
 
         await self.container.media_sender.delete(session_key=self._news_session_key(article_id), chat_id=chat_id)
@@ -71,7 +71,9 @@ class AnnouncementsOrchestrator:
         self, director: Director | None = None, payload: Any = None
     ) -> ViewResultDTO | UnifiedViewDTO:
         """Incoming data processing for the background worker."""
-        log.debug(f"AnnouncementsOrchestrator | Handling payload: {payload}")
+        log.bind(event_type=payload.get("type") if isinstance(payload, dict) else None).debug(
+            "AnnouncementPayloadHandled"
+        )
         return ViewResultDTO(text="OK")
 
     @staticmethod

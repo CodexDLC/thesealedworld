@@ -1,11 +1,8 @@
 from __future__ import annotations
 
-import logging
 from typing import Any
 
 from codex_bot.base import UnifiedViewDTO, ViewResultDTO
-
-log = logging.getLogger(__name__)
 
 
 class CommunityFeedUI:

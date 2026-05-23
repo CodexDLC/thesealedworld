@@ -21,11 +21,12 @@ RUN adduser --disabled-password --uid 1000 appuser
 COPY --from=builder /venv /venv
 
 ENV PATH="/venv/bin:$PATH" \
-    PYTHONPATH="/app/src" \
+    PYTHONPATH="/app:/app/src" \
     PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1
 
 COPY src/tg_bot ./src/tg_bot
+COPY src/shared ./src/shared
 
 RUN chown -R appuser:appuser /app
 USER appuser

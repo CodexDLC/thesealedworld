@@ -1,19 +1,17 @@
 from __future__ import annotations
 
-import logging
 from typing import TYPE_CHECKING, Any
 
 from aiogram import F, Router, types
 from aiogram.filters import Command
 from aiogram_i18n import I18nContext
 from codex_bot.director import Director
+from loguru import logger as log
 
 from ..feature_setting import CommunityFeedStates
 
 if TYPE_CHECKING:
     from ..logic.orchestrator import CommunityFeedOrchestrator
-
-log = logging.getLogger(__name__)
 
 router = Router(name="_router")
 
@@ -29,7 +27,7 @@ async def handle__entry(
     """
     Main entry handler for the CommunityFeed feature.
     """
-    log.debug(f"CommunityFeed | Command Handler | user_id={message.from_user.id if message.from_user else 'unknown'}")
+    log.bind(telegram_user_id=message.from_user.id if message.from_user else None).debug("CommunityFeedCommandReceived")
 
     # Example of calling the orchestrator for rendering
     view = await orchestrator.handle_entry(director=director)
@@ -43,5 +41,5 @@ async def handle_group_message(
     orchestrator: CommunityFeedOrchestrator,
 ) -> None:
     """Intercepts and moderates public group messages, then publishes to Redis Stream."""
-    log.debug(f"CommunityFeed | Group message from chat={message.chat.id}")
+    log.bind(chat_id=message.chat.id).debug("CommunityFeedGroupMessageReceived")
     await orchestrator.process_group_message(message, director.container)

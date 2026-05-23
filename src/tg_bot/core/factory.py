@@ -58,6 +58,6 @@ def build_bot(
     if discovery:
         for router in discovery.collect_aiogram_routers():
             dp.include_router(router)
-            log.info(f"BotFactory | Aiogram router included: {router.name}")
+            log.bind(router_name=router.name).info("BotFactoryAiogramRouterIncluded")
 
     return bot, dp

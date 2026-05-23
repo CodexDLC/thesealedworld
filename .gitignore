@@ -115,6 +115,7 @@ celerybeat.pid
 # Environments
 .env
 .env.prod
+.env.grafana-cleanup
 .venv
 env/
 venv/

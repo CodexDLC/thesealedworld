@@ -21,7 +21,7 @@ async def cmd_start(message: Message, director: Director) -> None:
     if not message.from_user:
         return
 
-    log.info(f"Start command received from user {message.from_user.id}")
+    log.bind(telegram_user_id=message.from_user.id).info("TelegramStartCommandReceived")
 
     # Launch the initial scene via Director
     view_dto = await director.set_scene("commands", payload=message.from_user)
@@ -42,7 +42,7 @@ async def cmd_menu(message: Message, director: Director) -> None:
     if not message.from_user:
         return
 
-    log.debug(f"Menu command received from user {message.from_user.id}")
+    log.bind(telegram_user_id=message.from_user.id).debug("TelegramMenuCommandReceived")
 
     view_dto = await director.set_scene("bot_menu")
 

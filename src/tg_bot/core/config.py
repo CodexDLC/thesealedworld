@@ -1,6 +1,8 @@
 from __future__ import annotations
 
-from pydantic import AliasChoices, Field
+from typing import Self
+
+from pydantic import AliasChoices, Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -14,6 +16,10 @@ class BotSettings(BaseSettings):
     bot_token: str = Field(alias="BOT_TOKEN")
     secret_key: str = Field(alias="SECRET_KEY")
     debug: bool = Field(default=True, alias="DEBUG")
+    log_level_console: str = Field(default="", alias="LOG_LEVEL_CONSOLE")
+    log_level_file: str = Field(default="DEBUG", alias="LOG_LEVEL_FILE")
+    log_rotation: str = Field(default="10 MB", alias="LOG_ROTATION")
+    log_dir: str = Field(default="logs", alias="LOG_DIR")
     telegram_channel_id: str = Field(default="", alias="TELEGRAM_CHANNEL_ID")
     domain_name: str = Field(default="localhost:8000", alias="DOMAIN_NAME")
 
@@ -49,6 +55,12 @@ class BotSettings(BaseSettings):
     )
     backend_api_key: str | None = Field(default=None, alias="BACKEND_API_KEY")
     backend_api_timeout: float = Field(default=10.0, alias="BACKEND_API_TIMEOUT")
+
+    @model_validator(mode="after")
+    def set_default_log_level(self) -> Self:
+        if not self.log_level_console:
+            self.log_level_console = "DEBUG" if self.debug else "INFO"
+        return self
 
     @property
     def superuser_ids_list(self) -> list[int]:

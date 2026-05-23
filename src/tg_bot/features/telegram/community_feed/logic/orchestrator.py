@@ -1,14 +1,12 @@
 from __future__ import annotations
 
-import logging
 from typing import TYPE_CHECKING, Any
 
 from codex_bot.base import BaseBotOrchestrator, UnifiedViewDTO, ViewResultDTO
+from loguru import logger as log
 
 from ..feature_setting import CommunityFeedStates
 from ..ui.ui import CommunityFeedUI
-
-log = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from codex_bot.director import Director
@@ -38,14 +36,14 @@ class CommunityFeedOrchestrator(BaseBotOrchestrator[Any]):
 
         # Skip excessively short messages
         if len(text) < 4:
-            log.debug("CommunityFeed | Message too short, skipped.")
+            log.bind(message_length=len(text)).debug("CommunityFeedMessageTooShort")
             return
 
         # Simple keyword blacklist for moderation
         blacklist = ["spam", "buy crypto", "casino", "poker", "scam", "реклама", "продам"]
         text_lower = text.lower()
         if any(keyword in text_lower for keyword in blacklist):
-            log.info(f"CommunityFeed | Message contains blacklisted word. Blocked message: {text[:30]}...")
+            log.bind(message_length=len(text), chat_id=message.chat.id).info("CommunityFeedMessageBlocked")
             return
 
         # 3. Message Approved! Prepare the stream payload.
@@ -81,16 +79,12 @@ class CommunityFeedOrchestrator(BaseBotOrchestrator[Any]):
                 stream_name = container.settings.redis_stream_name
                 producer = StreamProducer(container.redis_client, stream_name)
 
-                log.info(
-                    f"CommunityFeed | Publishing approved community message from {author_name} to stream '{stream_name}'"
-                )
+                log.bind(stream_name=stream_name, chat_id=message.chat.id).info("CommunityFeedMessagePublishing")
                 await producer.publish("community.message.approved", event_data)
-            except Exception as e:
-                log.error(f"CommunityFeed | Failed to publish approved community message to Redis: {e}")
+            except Exception:
+                log.bind(chat_id=message.chat.id).exception("CommunityFeedPublishFailed")
         else:
-            log.warning(
-                "CommunityFeed | Redis client is not initialized or container not passed. Skipping stream publication."
-            )
+            log.warning("CommunityFeedPublishSkipped")
 
     async def render_content(
         self, director: Director | None = None, payload: Any = None
@@ -99,7 +93,7 @@ class CommunityFeedOrchestrator(BaseBotOrchestrator[Any]):
         Main logic for rendering feature content.
         """
         if director:
-            log.debug(f"CommunityFeed | Rendering Content | session_key={director.session_key}")
+            log.bind(session_key=director.session_key).debug("CommunityFeedContentRendered")
 
         return self.ui.render_main(payload)
 
@@ -109,6 +103,6 @@ class CommunityFeedOrchestrator(BaseBotOrchestrator[Any]):
         payload: Any = None,
     ) -> UnifiedViewDTO:
         """Entry point into the feature. Called by Director on set_scene()."""
-        log.debug(f"CommunityFeed | Action: Entry | session_key={director.session_key}")
+        log.bind(session_key=director.session_key).debug("CommunityFeedEntryHandled")
 
         return await self.render(director=director, payload=payload)

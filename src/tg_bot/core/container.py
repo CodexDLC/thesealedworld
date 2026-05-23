@@ -41,7 +41,7 @@ class BotContainer(BaseBotContainer):
                 storage=RedisStreamStorageAdapter(redis_client),
                 stream_name=settings.redis_stream_name,
                 consumer_group_name=settings.redis_consumer_group,
-                consumer_name=f"bot_worker_{settings.secret_key[:5]}",
+                consumer_name="bot_worker_tg_bot",
             )
 
         # --- 2. Data Persistence (SQLAlchemy) ---
@@ -82,19 +82,21 @@ class BotContainer(BaseBotContainer):
             try:
                 module = importlib.import_module(module_path)
             except ImportError as exc:
-                log.warning(f"BotContainer | Failed to import redis feature settings '{module_path}': {exc}")
+                log.bind(module_path=module_path, error_type=exc.__class__.__name__).warning(
+                    "BotRedisFeatureSettingsImportFailed"
+                )
                 continue
 
             router_factory = getattr(module, "get_redis_router", None)
             if not callable(router_factory):
-                log.debug(f"BotContainer | Redis feature '{feature_name}' has no get_redis_router()")
+                log.bind(feature_name=feature_name).debug("BotRedisFeatureRouterMissing")
                 continue
 
             self.redis_dispatcher.include_router(router_factory())
 
     async def shutdown(self) -> None:
         """Gracefully cleanup all infrastructure resources."""
-        log.info("Starting project container shutdown...")
+        log.info("BotContainerShutdownStarted")
 
         # 1. First, shutdown features while DB/Redis are still alive
         await super().shutdown()
@@ -108,4 +110,4 @@ class BotContainer(BaseBotContainer):
         if cleanup_tasks:
             await asyncio.gather(*cleanup_tasks, return_exceptions=True)
 
-        log.info("Project container shutdown completed.")
+        log.info("BotContainerShutdownCompleted")

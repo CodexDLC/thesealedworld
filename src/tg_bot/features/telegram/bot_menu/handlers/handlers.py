@@ -26,7 +26,7 @@ async def handle_dashboard_callback(
 
     await call.answer()
 
-    log.info(f"Menu action '{callback_data.action}' triggered in session {director.session_key}")
+    log.bind(action=callback_data.action, session_key=director.session_key).info("BotMenuActionTriggered")
 
     # Access container via director to reach the orchestrator
     container: Any = director.container
@@ -35,7 +35,7 @@ async def handle_dashboard_callback(
     orchestrator = getattr(container, "features", {}).get("bot_menu")
 
     if not orchestrator:
-        log.error("BotMenu | Orchestrator 'bot_menu' not found in container")
+        log.bind(feature_key="bot_menu").error("BotMenuOrchestratorMissing")
         return
 
     view_dto = await orchestrator.handle_callback(director, payload=callback_data)

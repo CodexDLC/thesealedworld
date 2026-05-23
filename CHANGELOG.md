@@ -14,6 +14,12 @@ Full layer changelogs live in:
 
 ## [Unreleased]
 
+### Telegram And News
+
+- Telegram news announcements now edit existing media posts before falling back
+  to safe send-then-delete replacement, preventing retry failures from removing
+  visible channel posts.
+
 ## [v0.1.0a7] - Alpha 7
 
 ### Content Operations

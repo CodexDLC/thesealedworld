@@ -18,15 +18,15 @@ jobs:
     name: Quality Gate
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: "3.13"
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v5
+        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b
 
       - name: Install dependencies
         run: uv sync --all-groups
@@ -46,7 +46,7 @@ jobs:
     needs: quality
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Extract image metadata
         shell: bash
@@ -59,17 +59,17 @@ jobs:
           echo "REPO_LOWER=${GITHUB_REPOSITORY,,}" >> "$GITHUB_ENV"
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@v4
 
       - name: Log in to GHCR
-        uses: docker/login-action@v3
+        uses: docker/login-action@v4
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build and Push Site
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: .
           file: deploy/frontend/Dockerfile
@@ -82,7 +82,7 @@ jobs:
           cache-to: type=registry,ref=ghcr.io/${{ env.REPO_LOWER }}-site:buildcache,mode=max
 
       - name: Build and Push Game
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: .
           file: deploy/backend/Dockerfile
@@ -95,7 +95,7 @@ jobs:
           cache-to: type=registry,ref=ghcr.io/${{ env.REPO_LOWER }}-game:buildcache,mode=max
 
       - name: Build and Push Chat
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: .
           file: deploy/chat/Dockerfile
@@ -108,7 +108,7 @@ jobs:
           cache-to: type=registry,ref=ghcr.io/${{ env.REPO_LOWER }}-chat:buildcache,mode=max
 
       - name: Build and Push Worker
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: .
           file: deploy/worker/Dockerfile
@@ -121,7 +121,7 @@ jobs:
           cache-to: type=registry,ref=ghcr.io/${{ env.REPO_LOWER }}-worker:buildcache,mode=max
 
       - name: Build and Push Telegram Bot
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: .
           file: deploy/tg_bot/Dockerfile
@@ -134,7 +134,7 @@ jobs:
           cache-to: type=registry,ref=ghcr.io/${{ env.REPO_LOWER }}-tg-bot:buildcache,mode=max
 
       - name: Build and Push Nginx
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: .
           file: deploy/nginx/Dockerfile

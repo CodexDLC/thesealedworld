@@ -31,7 +31,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Test SSH Connection
-        uses: appleboy/ssh-action@v1.0.3
+        uses: appleboy/ssh-action@v1.2.5
         with:
           host: ${{ secrets.HOST }}
           username: ${{ secrets.USERNAME }}
@@ -43,14 +43,14 @@ jobs:
     needs: preflight
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Lowercase repo name
         shell: bash
         run: echo "REPO_LOWER=${GITHUB_REPOSITORY,,}" >> "$GITHUB_ENV"
 
       - name: Copy deploy configs to server
-        uses: appleboy/scp-action@v0.1.7
+        uses: appleboy/scp-action@v1.0.0
         with:
           host: ${{ secrets.HOST }}
           username: ${{ secrets.USERNAME }}
@@ -62,7 +62,7 @@ jobs:
           overwrite: true
 
       - name: SSH Deploy
-        uses: appleboy/ssh-action@v1.0.3
+        uses: appleboy/ssh-action@v1.2.5
         env:
           DEPLOY_LAYER: ${{ inputs.layer }}
           IMAGE_REF: ${{ inputs.image_ref }}

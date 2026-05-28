@@ -5,22 +5,19 @@ from src.backend.features.character.dto.modifiers import CombatModifiersDTO
 GEAR_SCORE_BASE = 0.0
 GEAR_SCORE_MINIMUM = 1
 
-# Starter balancing weights for waterfall-calculated combat modifiers.
+# Starter balancing weights for combat-effective modifiers.
 # Percent values are stored as 0..1, so they intentionally use larger weights.
 GEAR_SCORE_WEIGHTS: dict[str, float] = {
-    # Vitals
+    # Resources and combat regen used by the combat pipeline.
     "hp": 0.04,
     "hp_regen": 2.0,
     "en": 0.02,
     "en_regen": 2.0,
     "stamina": 0.015,
     "stamina_regen": 1.0,
-    "resource_cost_reduction": 60.0,
-    "initiative": 0.15,
-    # Hand and item stats
+    # Hand and item attack stats read by CombatResolver._get_offensive_val.
     "main_hand_damage_base": 1.2,
     "main_hand_damage_spread": -80.0,
-    "main_hand_damage_bonus": 1.0,
     "main_hand_armor_penetration_pct": 70.0,
     "main_hand_armor_ignore_chance": 90.0,
     "main_hand_accuracy": 55.0,
@@ -28,7 +25,6 @@ GEAR_SCORE_WEIGHTS: dict[str, float] = {
     "main_hand_crit_cap": 20.0,
     "off_hand_damage_base": 0.8,
     "off_hand_damage_spread": -50.0,
-    "off_hand_damage_bonus": 0.7,
     "off_hand_armor_penetration_pct": 45.0,
     "off_hand_armor_ignore_chance": 60.0,
     "off_hand_accuracy": 35.0,
@@ -36,14 +32,13 @@ GEAR_SCORE_WEIGHTS: dict[str, float] = {
     "off_hand_crit_cap": 15.0,
     "item_damage_base": 0.4,
     "item_damage_spread": -20.0,
-    "item_damage_bonus": 0.3,
     "item_armor_penetration_pct": 20.0,
     "item_armor_ignore_chance": 30.0,
     "item_accuracy": 15.0,
     "item_crit_chance": 20.0,
     "item_crit_cap": 10.0,
-    # Global offense
-    "physical_damage": 1.0,
+    # Physical and magical damage math currently used by resolver.
+    # Weapon stat power is already assembled into hand damage bases before scoring.
     "physical_damage_bonus": 1.0,
     "accuracy": 55.0,
     "physical_suppression": 70.0,
@@ -51,18 +46,13 @@ GEAR_SCORE_WEIGHTS: dict[str, float] = {
     "armor_penetration_flat": 0.8,
     "armor_ignore_chance": 90.0,
     "crit_chance": 70.0,
-    "crit_power": 40.0,
-    # Magic
     "magical_damage": 1.0,
     "magical_damage_spread": -80.0,
-    "magical_damage_bonus": 1.0,
     "magical_accuracy": 55.0,
-    "magical_damage_power": 35.0,
     "magical_penetration": 70.0,
-    "spell_land_chance": 35.0,
     "magical_crit_chance": 70.0,
     "magical_crit_cap": 20.0,
-    # Defense
+    # Avoidance, mitigation, shield, and counter stages.
     "evasion": 80.0,
     "dodge_cap": 20.0,
     "anti_dodge_chance": 50.0,
@@ -77,50 +67,19 @@ GEAR_SCORE_WEIGHTS: dict[str, float] = {
     "shield_guard_power": 0.8,
     "shield_absorb_ratio": 50.0,
     "shield_reflect_ratio": 20.0,
-    # Elements
-    "fire_damage_bonus": 25.0,
+    # Elemental resistances are read dynamically by damage flags.
     "fire_resistance": 35.0,
-    "water_damage_bonus": 25.0,
     "water_resistance": 35.0,
-    "air_damage_bonus": 25.0,
     "air_resistance": 35.0,
-    "earth_damage_bonus": 25.0,
     "earth_resistance": 35.0,
-    "light_damage_bonus": 25.0,
     "light_resistance": 35.0,
-    "dark_damage_bonus": 25.0,
-    "dark_resistance": 35.0,
-    "arcane_damage_bonus": 25.0,
     "arcane_resistance": 35.0,
-    "nature_damage_bonus": 25.0,
     "nature_resistance": 35.0,
-    # Status and special
-    "control_chance_bonus": 30.0,
-    "control_resistance": 35.0,
-    "mental_resistance": 35.0,
-    "debuff_avoidance": 35.0,
-    "shock_resistance": 35.0,
-    "poison_damage_bonus": 25.0,
-    "poison_resistance": 35.0,
-    "poison_efficiency": 25.0,
-    "bleed_damage_bonus": 0.6,
-    "bleed_resistance": 35.0,
+    # Special mechanics directly read by resolver/mechanics.
     "counter_attack_chance": 75.0,
     "counter_attack_cap": 20.0,
-    "vampiric_power": 35.0,
-    "vampiric_trigger_chance": 35.0,
-    "vampiric_trigger_cap": 20.0,
-    "healing_power": 25.0,
-    "received_healing_bonus": 20.0,
-    "pet_efficiency_mult": 40.0,
     "damage_mult": 80.0,
-    "thorns_damage_flat": 0.8,
     "hand_size": 3.0,
-    # Environment
-    "environment_cold_resistance": 20.0,
-    "environment_heat_resistance": 20.0,
-    "environment_gravity_resistance": 20.0,
-    "environment_bio_resistance": 20.0,
 }
 
 GEAR_SCORE_BASELINES: dict[str, float] = {
@@ -152,7 +111,6 @@ GEAR_SCORE_CAPS: dict[str, float] = {
     "en": 1000.0,
     "stamina": 1500.0,
     "armor": 500.0,
-    "physical_damage": 500.0,
     "magical_damage": 500.0,
     "main_hand_damage_base": 500.0,
     "off_hand_damage_base": 500.0,

@@ -101,7 +101,7 @@ combat.trigger.{group}.{trigger_id}
 | Effect applicator | `bleed_on_crit`, `stun_on_crit`, `stun_on_hit`, `bleed_on_hit` | **Нет** — вплетается в summary |
 | Tactical pipeline flag | `true_crit`, `piercing_crit`, `unblockable_crit`, `heavy_strike_on_crit` | **Нет** |
 | Token grant | `rage_on_miss` | **Нет** — видно через badge |
-| Accuracy / evasion override | `true_strike`, `style_1h_flow`, `style_2h_ignore` | **Нет** |
+| Accuracy / evasion override | `true_strike`, `style_ranged_perfect_backstep`, `style_2h_ignore` | **Нет** |
 | Counter-attack | `counter_on_parry`, `counter_on_dodge` | **Да** — генерирует собственный обмен |
 | Extra strike | `style_dual_extra`, `bash_on_block` | **Да** — собственный обмен и damage |
 

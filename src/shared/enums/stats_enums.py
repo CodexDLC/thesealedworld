@@ -29,6 +29,9 @@ class StatKey(StrEnum):
     # --- 3. COMBAT STATS (Secondary) ---
     # Offense
     PHYSICAL_DAMAGE = "physical_damage"
+    PHYSICAL_STRENGTH_POWER = "physical_strength_power"
+    PHYSICAL_AGILITY_POWER = "physical_agility_power"
+    PHYSICAL_ENDURANCE_POWER = "physical_endurance_power"
     MAGICAL_DAMAGE = "magical_damage"
     MAGICAL_PENETRATION = "magical_penetration"
     CRIT_CHANCE = "crit_chance"

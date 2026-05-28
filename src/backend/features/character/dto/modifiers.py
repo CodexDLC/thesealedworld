@@ -35,7 +35,7 @@ class CombatSkillsDTO(BaseModel):
     skill_archery: float = 0.0
     skill_unarmed: float = 0.0
 
-    skill_one_handed: float = 0.0
+    skill_ranged_combat: float = 0.0
     skill_two_handed: float = 0.0
     skill_shield_mastery: float = 0.0
     skill_dual_wield: float = 0.0
@@ -89,6 +89,11 @@ class MainHandStatsDTO(BaseModel):
     main_hand_damage_base: float = 0.0
     main_hand_damage_spread: float = 0.1
     main_hand_damage_bonus: float = 0.0
+    main_hand_weapon_power: float = 0.0
+    main_hand_stat_damage_raw: float = 0.0
+    main_hand_stat_damage_effective: float = 0.0
+    main_hand_mastery_factor: float = 0.0
+    main_hand_damage_spread_raw: float = 0.0
     main_hand_armor_penetration_pct: float = 0.0
     main_hand_armor_ignore_chance: float = 0.0
     main_hand_accuracy: float = 0.0
@@ -102,6 +107,11 @@ class OffHandStatsDTO(BaseModel):
     off_hand_damage_base: float = 0.0
     off_hand_damage_spread: float = 0.1
     off_hand_damage_bonus: float = 0.0
+    off_hand_weapon_power: float = 0.0
+    off_hand_stat_damage_raw: float = 0.0
+    off_hand_stat_damage_effective: float = 0.0
+    off_hand_mastery_factor: float = 0.0
+    off_hand_damage_spread_raw: float = 0.0
     off_hand_armor_penetration_pct: float = 0.0
     off_hand_armor_ignore_chance: float = 0.0
     off_hand_accuracy: float = 0.0
@@ -126,6 +136,9 @@ class PhysicalStatsDTO(BaseModel):
     """Global physical attack modifiers."""
 
     physical_damage: float = 0.0
+    physical_strength_power: float = 0.0
+    physical_agility_power: float = 0.0
+    physical_endurance_power: float = 0.0
     physical_damage_bonus: float = 0.0
     accuracy: float = 0.0
     physical_suppression: float = 0.0

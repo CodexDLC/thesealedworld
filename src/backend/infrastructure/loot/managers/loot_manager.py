@@ -156,3 +156,19 @@ class LootManager:
         ttl: int = 86400,
     ) -> None:
         await self._client().set(_pending_key(session_id), json.dumps(corpse_ids_by_actor), ex=ttl)
+
+    async def get_pending_actor_corpses(self, session_id: str) -> dict[str, str]:
+        raw = await self._client().get(_pending_key(session_id))
+        if not raw:
+            return {}
+        if isinstance(raw, bytes):
+            raw = raw.decode()
+        try:
+            value = json.loads(str(raw))
+        except json.JSONDecodeError:
+            log.bind(session_id=session_id).warning("LootManagerPendingLootInvalidJson")
+            return {}
+        if not isinstance(value, dict):
+            log.bind(session_id=session_id).warning("LootManagerPendingLootInvalidActorMap")
+            return {}
+        return {str(actor_id): str(corpse_id) for actor_id, corpse_id in value.items() if corpse_id}

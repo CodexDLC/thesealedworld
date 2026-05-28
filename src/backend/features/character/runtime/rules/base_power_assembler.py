@@ -1,0 +1,107 @@
+from __future__ import annotations
+
+from typing import Any
+
+MASTERY_STAT_DAMAGE_FLOOR = 0.25
+SPREAD_REDUCTION_AT_FULL_MASTERY = 0.35
+
+WEAPON_STAT_DAMAGE_WEIGHTS: dict[str, dict[str, float]] = {
+    "swords": {"strength": 0.7, "agility": 0.5, "endurance": 0.2},
+    "fencing": {"strength": 0.5, "agility": 1.0, "endurance": 0.0},
+    "polearms": {"strength": 0.8, "agility": 0.5, "endurance": 0.2},
+    "macing": {"strength": 1.0, "agility": 0.2, "endurance": 0.4},
+    "archery": {"strength": 0.5, "agility": 1.0, "endurance": 0.0},
+}
+
+
+class BasePowerAssembler:
+    """Build weapon base power from item power, body stats, and mastery."""
+
+    @classmethod
+    def apply(cls, actor: Any, calculated_mods: dict[str, Any]) -> None:
+        cls.apply_to_values(
+            calculated_mods,
+            loadout_layout=actor.loadout.layout,
+            skills=actor.skills,
+        )
+
+    @classmethod
+    def apply_to_values(
+        cls,
+        calculated_mods: dict[str, Any],
+        *,
+        loadout_layout: dict[str, str],
+        skills: dict[str, Any],
+    ) -> None:
+        for slot in ("main_hand", "off_hand"):
+            cls._apply_slot(calculated_mods, slot, loadout_layout=loadout_layout, skills=skills)
+
+    @classmethod
+    def _apply_slot(
+        cls,
+        calculated_mods: dict[str, Any],
+        slot: str,
+        *,
+        loadout_layout: dict[str, str],
+        skills: dict[str, Any],
+    ) -> None:
+        skill_key = loadout_layout.get(slot)
+        if not skill_key or not skill_key.startswith("skill_"):
+            return
+
+        weapon_class = skill_key.removeprefix("skill_")
+        if weapon_class == "unarmed":
+            return
+
+        weights = WEAPON_STAT_DAMAGE_WEIGHTS.get(weapon_class)
+        if weights is None:
+            return
+
+        damage_key = f"{slot}_damage_base"
+        weapon_power = cls._float(calculated_mods.get(damage_key))
+        if weapon_power <= 0:
+            return
+
+        mastery = cls._clamp(cls._float(skills.get(skill_key)), 0.0, 1.0)
+        mastery_factor = MASTERY_STAT_DAMAGE_FLOOR + ((1.0 - MASTERY_STAT_DAMAGE_FLOOR) * mastery)
+        stat_raw = cls._weighted_stat_power(calculated_mods, weights)
+        stat_effective = stat_raw * mastery_factor
+
+        calculated_mods[f"{slot}_weapon_power"] = round(weapon_power, 4)
+        calculated_mods[f"{slot}_stat_damage_raw"] = round(stat_raw, 4)
+        calculated_mods[f"{slot}_stat_damage_effective"] = round(stat_effective, 4)
+        calculated_mods[f"{slot}_mastery_factor"] = round(mastery_factor, 4)
+        calculated_mods[damage_key] = round(weapon_power + stat_effective, 4)
+
+        spread_key = f"{slot}_damage_spread"
+        raw_spread = cls._float(calculated_mods.get(spread_key, 0.1))
+        calculated_mods[f"{slot}_damage_spread_raw"] = round(raw_spread, 4)
+        calculated_mods[spread_key] = round(
+            max(0.0, raw_spread * (1.0 - (SPREAD_REDUCTION_AT_FULL_MASTERY * mastery))), 4
+        )
+
+    @classmethod
+    def _weighted_stat_power(cls, calculated_mods: dict[str, Any], weights: dict[str, float]) -> float:
+        total = 0.0
+        for stat_key, weight in weights.items():
+            total += cls._float(calculated_mods.get(f"physical_{stat_key}_power")) * weight
+        return total
+
+    @staticmethod
+    def _float(value: Any) -> float:
+        try:
+            return float(value or 0.0)
+        except (TypeError, ValueError):
+            return 0.0
+
+    @staticmethod
+    def _clamp(value: float, low: float, high: float) -> float:
+        return max(low, min(high, value))
+
+
+__all__ = [
+    "BasePowerAssembler",
+    "MASTERY_STAT_DAMAGE_FLOOR",
+    "SPREAD_REDUCTION_AT_FULL_MASTERY",
+    "WEAPON_STAT_DAMAGE_WEIGHTS",
+]

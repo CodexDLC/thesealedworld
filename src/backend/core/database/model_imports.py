@@ -39,6 +39,13 @@ from src.backend.infrastructure.arena.models import (
 from src.backend.infrastructure.combat.models import CombatBalanceRollup, CombatExchangeFact, CombatFinalization
 from src.backend.infrastructure.inventory import InventoryItem, ResourceWallet
 from src.backend.infrastructure.monsters import GeneratedClanORM, GeneratedMonsterORM
+from src.backend.infrastructure.rift import (
+    RiftInstanceState,
+    RiftNodePoolRecord,
+    RiftPortalKey,
+    RiftRunState,
+    RiftSetting,
+)
 from src.backend.infrastructure.scenario.models import CharacterQuestState, ScenarioMaster, ScenarioNode
 from src.backend.infrastructure.world.models import WorldGrid, WorldRegion, WorldZone
 
@@ -68,6 +75,11 @@ __all__ = [
     "CharacterTavernRoom",
     "GeneratedClanORM",
     "GeneratedMonsterORM",
+    "RiftSetting",
+    "RiftNodePoolRecord",
+    "RiftPortalKey",
+    "RiftInstanceState",
+    "RiftRunState",
     "ScenarioMaster",
     "ScenarioNode",
     "CharacterQuestState",

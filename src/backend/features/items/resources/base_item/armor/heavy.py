@@ -17,7 +17,6 @@ HEAVY_ARMOR_DB = {
         narrative_tags=["helmet", "heavy", "visor", "protection"],
         implicit_bonuses={
             "control_resistance": 0.006,
-            "evasion_penalty": -0.002,
         },
     ),
     "plate_chest": BaseItemDTO(
@@ -36,7 +35,6 @@ HEAVY_ARMOR_DB = {
         narrative_tags=["plate", "heavy", "metal"],
         implicit_bonuses={
             "physical_resistance": 0.012,
-            "evasion_penalty": -0.010,
             "thorns_damage_flat": 0.20,
         },
     ),
@@ -75,7 +73,6 @@ HEAVY_ARMOR_DB = {
         implicit_bonuses={
             "physical_resistance": 0.006,
             "shock_resistance": 0.006,
-            "evasion_penalty": -0.004,
         },
     ),
 }

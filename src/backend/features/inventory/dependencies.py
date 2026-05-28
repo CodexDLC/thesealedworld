@@ -10,10 +10,10 @@ from src.backend.features.character.repositories import CharacterRepository
 from src.backend.features.inventory.integrations import InventoryStreamClient
 from src.backend.features.inventory.repositories.items import InventoryItemRepository
 from src.backend.features.inventory.services.inventory_service import InventoryService
-from src.backend.features.inventory.services.session_manager import InventorySessionManager
+from src.backend.infrastructure.inventory.managers import InventorySessionManager
 
 if TYPE_CHECKING:
-    from src.backend.features.character.managers.session import CharacterSessionManager
+    from src.backend.infrastructure.actor_state.managers import CharacterSessionManager
 
 
 def get_inventory_service(

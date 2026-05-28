@@ -7,7 +7,7 @@ from loguru import logger
 
 from src.backend.core.database.session import get_session_context
 from src.backend.features.exploration.repositories.knowledge import CharacterLocationKnowledgeRepository
-from src.backend.features.exploration.services.knowledge_runtime import ExplorationKnowledgeRuntimeManager
+from src.backend.infrastructure.exploration.managers import ExplorationKnowledgeRuntimeManager
 from src.shared.infrastructure.log_task_wrapper import logged_task
 
 

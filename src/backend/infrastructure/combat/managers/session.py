@@ -274,6 +274,7 @@ class CombatSessionManager:
             "tactics": meta.get("tactics"),
             "is_dead": meta.get("is_dead"),
             "tokens": meta.get("tokens"),
+            "token_progress": meta.get("token_progress"),
             "afk_level": meta.get("afk_level"),
             "exchange_counter": meta.get("exchange_counter"),
             "feints": meta.get("feints"),
@@ -574,6 +575,7 @@ class CombatSessionManager:
                     "exchange_counter": meta.get("exchange_counter", 0),
                     "is_dead": meta.get("is_dead", False),
                     "tokens": meta.get("tokens", {}),
+                    "token_progress": meta.get("token_progress", {}),
                     "feints": meta.get("feints", {}),
                 },
                 "raw": actor_data.get("raw", {}),
@@ -607,7 +609,10 @@ class CombatSessionManager:
             for actor_id, actor_update in updates.items():
                 key = self.actor_key(session_id, actor_id)
                 if "state" in actor_update:
-                    pipe.json().merge(key, "$.meta", actor_update["state"])
+                    state_update = actor_update["state"]
+                    pipe.json().merge(key, "$.meta", state_update)
+                    if "feints" in state_update:
+                        pipe.json().set(key, "$.meta.feints", state_update["feints"])
                 if "statuses" in actor_update:
                     pipe.json().set(key, "$.statuses", actor_update["statuses"])
                 if "xp" in actor_update:
@@ -974,6 +979,8 @@ class CombatSessionManager:
 
     @staticmethod
     def _redis_value(value: Any) -> str | int | float:
+        if isinstance(value, bool):
+            return int(value)
         if isinstance(value, str | int | float):
             return value
         return json.dumps(value)

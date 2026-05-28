@@ -5,7 +5,7 @@ payload-ы намерений через обычный путь `CombatTurnMana
 **только оффлайн**, отдельным скриптом, на синтетических сценариях.
 
 > Дизайнерский контекст и тактические оси: см.
-> [`docs/game-design/designer/combat/06_ai_brain.md`](../../../../game-design/designer/combat/06_ai_brain.md).
+> [`docs/game-design/designer/combat/07_ai_brain.md`](../../../../game-design/designer/combat/07_ai_brain.md).
 
 ## Где код
 

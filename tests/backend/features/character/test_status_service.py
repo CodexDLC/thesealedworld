@@ -240,7 +240,7 @@ async def test_get_actor_core_formats_skill_values_as_percentages():
 async def test_get_actor_core_separates_combat_style_and_support_skills():
     document = build_actor_core_document()
     document["skills"] = {
-        "skill_one_handed": {"xp": 0.009},
+        "skill_ranged_combat": {"xp": 0.009},
         "skill_parrying": {"xp": 0.1},
         "skill_anatomy": {"xp": 0.007},
         "skill_tactics": {"xp": 0.018},
@@ -256,7 +256,7 @@ async def test_get_actor_core_separates_combat_style_and_support_skills():
         "COMBAT SUPPORT",
         "ARMOR",
     ]
-    assert [item["catalog_key"] for item in skills_widget.data["groups"][0]["items"]] == ["skill_one_handed"]
+    assert [item["catalog_key"] for item in skills_widget.data["groups"][0]["items"]] == ["skill_ranged_combat"]
     assert [item["catalog_key"] for item in skills_widget.data["groups"][1]["items"]] == [
         "skill_parrying",
         "skill_anatomy",
@@ -320,8 +320,8 @@ async def test_get_actor_core_initializes_actor_core_from_persisted_actor_state(
     assert dto.attributes["projection"] == 16
     assert dto.vitals["hp"]["max"] == 56
     assert dto.vitals["hp"]["cur"] == 56
-    assert dto.vitals["energy"]["max"] == 23
-    assert dto.vitals["stamina"]["max"] == 133
+    assert dto.vitals["energy"]["max"] == 35
+    assert dto.vitals["stamina"]["max"] == 67
     assert dto.skills["skill_macing"]["state"] == "PLUS"
     assert "locked_skill" not in dto.skills
     assert sessions.created["attributes"]["agility"] == 17
@@ -342,7 +342,7 @@ async def test_get_actor_core_repairs_stale_default_actor_core_from_persisted_ac
     assert dto.attributes["projection"] == 16
     assert dto.vitals["hp"]["max"] == 56
     assert dto.vitals["hp"]["cur"] == 51
-    assert dto.vitals["energy"]["max"] == 23
+    assert dto.vitals["energy"]["max"] == 35
     assert dto.skills["skill_macing"]["state"] == "PLUS"
     assert sessions.updated is not None
     assert sessions.updated["attributes"]["agility"] == 17

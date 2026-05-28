@@ -80,6 +80,10 @@ class ContextBuilder:
             mode = mods["action_mode"]
             if mode in ["exchange", "unidirectional"]:
                 ctx.flags.meta.action_mode = mode
+                ctx.flags.meta.grant_exchange_gift = mode == "exchange"
+
+        if mods.get("is_counter_attack") or mods.get("feint_role") == "secondary" or mods.get("hand") == "off":
+            ctx.flags.meta.grant_exchange_gift = False
 
         if "damage_mult" in mods:
             ctx.mods.damage_mult = float(mods["damage_mult"])
@@ -127,6 +131,9 @@ class ContextBuilder:
         # Определяем Weapon Class (для скиллов и триггеров)
         if source_type in ["main_hand", "off_hand"]:
             weapon_skill_key = actor.loadout.layout.get(source_type)
+            if source_type == "main_hand" and weapon_skill_key == "skill_archery":
+                ctx.flags.restriction.ignore_parry = True
+                ContextBuilder._attach_ammo_effect_payload(ctx, actor, source_type)
             # Пример: "skill_swords" -> "swords"
             if weapon_skill_key and weapon_skill_key.startswith("skill_"):
                 ctx.flags.meta.weapon_class = weapon_skill_key.replace("skill_", "")
@@ -158,6 +165,15 @@ class ContextBuilder:
         activate_trigger(ctx, trigger_id, source="system")
 
     @staticmethod
+    def _attach_ammo_effect_payload(ctx: PipelineContextDTO, actor: ActorSnapshot, source_slot: str) -> None:
+        payload = actor.loadout.ammo_effects.get(source_slot)
+        if not isinstance(payload, dict):
+            return
+        if not isinstance(payload.get("id") or payload.get("effect_id"), str):
+            return
+        ctx.trigger_effect_payloads.setdefault(source_slot, []).append(dict(payload))
+
+    @staticmethod
     def _analyze_defense(ctx: PipelineContextDTO, target: ActorSnapshot) -> None:
         """Infer defensive mastery flags and style triggers from target loadout."""
         layout = target.loadout.layout
@@ -175,4 +191,9 @@ class ContextBuilder:
             ctx.flags.mastery.shield_reflect = True
             style_trigger = layout.get("tactical_style_trigger")
             if layout.get("tactical_style") == "skill_shield_mastery" and style_trigger:
+                activate_trigger(ctx, style_trigger, source="style", source_id=layout.get("tactical_style"))
+
+        if layout.get("tactical_style") == "skill_ranged_combat":
+            style_trigger = layout.get("tactical_style_trigger")
+            if style_trigger:
                 activate_trigger(ctx, style_trigger, source="style", source_id=layout.get("tactical_style"))

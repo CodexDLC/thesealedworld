@@ -1,0 +1,188 @@
+.rift-side-dock {
+    height: 100%;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.rift-side-section {
+    flex: 0 0 auto;
+}
+
+.rift-side-copy {
+    margin: 0;
+    color: rgba(236, 221, 190, 0.78);
+    font-size: var(--game-panel-value-size);
+    line-height: 1.35;
+}
+
+.rift-info-dock {
+    height: 100%;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.rift-info-actions {
+    flex: 0 0 auto;
+}
+
+.rift-info-card {
+    flex: 0 0 auto;
+}
+
+.rift-info-card[open] {
+    display: block;
+}
+
+.rift-info-card > summary {
+    cursor: pointer;
+    list-style: none;
+}
+
+.rift-info-card > summary::-webkit-details-marker {
+    display: none;
+}
+
+.rift-info-card .info-widget-title {
+    gap: 8px;
+}
+
+.rift-info-card .info-widget-title strong {
+    max-width: 48%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.rift-info-card .info-widget-list {
+    margin-top: 8px;
+}
+
+.rift-info-card .info-widget-list > div {
+    min-width: 0;
+}
+
+.rift-info-card .info-widget-list strong {
+    min-width: 0;
+    overflow: hidden;
+    text-align: right;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.rift-debug-card {
+    margin-top: 2px;
+}
+
+.rift-debug-reset {
+    width: 100%;
+    margin-top: 10px;
+}
+
+.rift-debug-map {
+    width: min(100%, calc(var(--rift-map-width, 5) * 52px + 16px));
+    aspect-ratio: var(--rift-map-width, 5) / var(--rift-map-height, 5);
+    display: grid;
+    grid-template-columns: repeat(var(--rift-map-width, 5), minmax(0, 1fr));
+    grid-template-rows: repeat(var(--rift-map-height, 5), minmax(0, 1fr));
+    gap: 0;
+    padding: 8px;
+    border: 1px solid rgba(255, 170, 0, 0.18);
+    background:
+        rgba(0, 0, 0, 0.34);
+}
+
+.rift-debug-edge {
+    z-index: 2;
+    pointer-events: none;
+    background: rgba(88, 214, 126, 0.62);
+    box-shadow: 0 0 8px rgba(72, 200, 112, 0.24);
+}
+
+.rift-debug-edge--horizontal {
+    grid-column: var(--rift-edge-col) / span 2;
+    grid-row: var(--rift-edge-row);
+    align-self: center;
+    justify-self: stretch;
+    height: 2px;
+    margin-inline: calc(25% + 2px);
+}
+
+.rift-debug-edge--vertical {
+    grid-column: var(--rift-edge-col);
+    grid-row: var(--rift-edge-row) / span 2;
+    align-self: stretch;
+    justify-self: center;
+    width: 2px;
+    margin-block: calc(25% + 2px);
+}
+
+.rift-debug-edge.is-state-blocked_temporary {
+    background: rgba(255, 174, 48, 0.72);
+    box-shadow: 0 0 9px rgba(255, 174, 48, 0.28);
+}
+
+.rift-debug-cell {
+    min-width: 0;
+    min-height: 0;
+    display: grid;
+    place-items: center;
+    color: rgba(230, 214, 176, 0.42);
+    font-family: var(--font-ui);
+    font-size: var(--game-panel-meta-size);
+    font-weight: 900;
+    line-height: 1;
+    position: relative;
+    z-index: 1;
+}
+
+.rift-debug-cell::before {
+    content: "";
+    position: absolute;
+    inset: 1px;
+    opacity: 0.12;
+    background: rgba(255, 170, 0, 0.10);
+}
+
+.rift-debug-cell.is-discovered::before {
+    opacity: 0.28;
+}
+
+.rift-debug-cell.is-current::before {
+    opacity: 0.62;
+    background: rgba(255, 170, 0, 0.38);
+}
+
+.rift-debug-cell.is-void::before {
+    opacity: 0.48;
+    background: rgba(0, 0, 0, 0.78);
+}
+
+.rift-debug-cell.is-canvas-void::before {
+    opacity: 0.72;
+    background: rgba(0, 0, 0, 0.92);
+}
+
+.rift-debug-cell.is-canvas-void {
+    color: transparent;
+}
+
+.rift-debug-cell.is-visited {
+    color: var(--col-accent);
+}
+
+.rift-debug-cell > span {
+    position: relative;
+    z-index: 1;
+}
+
+.rift-debug-current-dot {
+    width: 30%;
+    height: 30%;
+    border: 1px solid rgba(255, 234, 176, 0.86);
+    background: var(--col-accent);
+    box-shadow: 0 0 12px rgba(255, 170, 0, 0.38);
+}

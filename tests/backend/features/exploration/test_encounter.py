@@ -118,8 +118,10 @@ async def test_encounter_combat_generation():
     assert len(encounter.enemies) == 2
     assert encounter.enemies[0].level == 1
     assert encounter.enemies[0].member_tier == 1
-    assert encounter.enemies[0].threat_rating == 3
-    assert encounter.enemies[0].image == "/static/generated-assets/monsters/generated/members/rat-scout.webp"
+    assert encounter.enemies[0].threat_rating is None
+    assert encounter.enemies[0].intel["danger_band"] == "низкая"
+    assert encounter.enemies[0].intel["vitals"]["hp"] == {"current": 12, "max": 12, "label": "12/12"}
+    assert encounter.enemies[0].image == "/static/generated-assets/monsters/generated/members/rat-scout.webp?v=rat-scout-bytes"
     assert integration.prepare_monster_group.await_count == 1
     assert integration.request_combat_session.await_count == 1
 
@@ -269,8 +271,11 @@ def _monster_group() -> MonsterGroupResult:
                 member_tier=1,
                 threat_rating=3,
                 hp={"current": 12, "max": 12},
-                image="/static/generated-assets/monsters/generated/members/rat-scout.webp",
-                visual={"image_url": "/static/generated-assets/monsters/generated/members/rat-scout.webp"},
+                image="/static/generated-assets/monsters/generated/members/rat-scout.webp?v=rat-scout-bytes",
+                visual={
+                    "image_url": "/static/generated-assets/monsters/generated/members/rat-scout.webp?v=rat-scout-bytes",
+                    "asset_hash": "rat-scout-bytes",
+                },
             ),
             MonsterGroupMemberPreview(
                 monster_id="m2",

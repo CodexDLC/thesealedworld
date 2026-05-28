@@ -198,6 +198,12 @@ class ContentOpsAdmin(CabinetAdmin):
             path="/admin/content-ops/monster-browser",
             order=20,
         ),
+        SidebarItem(
+            key="monster_maintenance",
+            label="Обслуживание монстров",
+            path="/admin/content-ops/monster-maintenance",
+            order=30,
+        ),
     )
     dashboard_widgets: ClassVar = (
         MetricWidget(
@@ -212,6 +218,9 @@ class ContentOpsAdmin(CabinetAdmin):
         "monster-browser": ("GET", "handle_monster_browser"),
         "monster-detail": ("GET", "handle_monster_detail"),
         "monster-member-detail": ("GET", "handle_monster_member_detail"),
+        "monster-maintenance": ("GET", "handle_monster_maintenance"),
+        "monster-rebuild-plan": ("POST", "handle_monster_rebuild_plan"),
+        "monster-rebuild-apply": ("POST", "handle_monster_rebuild_apply"),
         "regenerate-clan-image": ("POST", "handle_regenerate_clan_image"),
         "regenerate-clan-family-images": ("POST", "handle_regenerate_clan_family_images"),
         "regenerate-visible-clan-images": ("POST", "handle_regenerate_visible_clan_images"),
@@ -268,6 +277,19 @@ class ContentOpsAdmin(CabinetAdmin):
             {"clan": clan, "member": member},
         )
 
+    async def handle_monster_maintenance(self, request: Request) -> Response:
+        return await _render_monster_maintenance(self, request)
+
+    async def handle_monster_rebuild_plan(self, request: Request) -> Response:
+        form = await request.form()
+        result = await _api(request).plan_generated_rebuild(**_rebuild_options_from_form(form))
+        return await _render_monster_maintenance(self, request, result=result, form=form)
+
+    async def handle_monster_rebuild_apply(self, request: Request) -> Response:
+        form = await request.form()
+        result = await _api(request).apply_generated_rebuild(**_rebuild_options_from_form(form))
+        return await _render_monster_maintenance(self, request, result=result, form=form)
+
     async def handle_regenerate_clan_image(self, request: Request) -> Response:
         form = await request.form()
         clan_id = str(form.get("clan_id") or "")
@@ -321,6 +343,44 @@ def _render_custom(admin: Any, request: Request, template: str, context: dict[st
     )
 
 
+async def _render_monster_maintenance(
+    admin: Any,
+    request: Request,
+    *,
+    result: dict[str, Any] | None = None,
+    form: Any | None = None,
+) -> Response:
+    try:
+        clans = await _api(request).list_generated(limit=_GENERATED_MONSTER_PAGE_LIMIT)
+        error = ""
+    except (AttributeError, httpx.HTTPStatusError, httpx.RequestError) as exc:
+        clans = []
+        error = f"backend недоступен: {exc.__class__.__name__}"
+
+    selected = {
+        "family_id": str(form.get("family_id") or "") if form is not None else "",
+        "clan_id": str(form.get("clan_id") or "") if form is not None else "",
+        "limit": str(form.get("limit") or _GENERATED_MONSTER_PAGE_LIMIT)
+        if form is not None
+        else str(_GENERATED_MONSTER_PAGE_LIMIT),
+        "force": form.get("force") == "1" if form is not None else False,
+        "remove_obsolete_members": form.get("remove_obsolete_members") == "1" if form is not None else True,
+    }
+    return _render_custom(
+        admin,
+        request,
+        "cabinet/content_ops_monster_maintenance.html",
+        {
+            "base_url": _BASE,
+            "families": sorted({clan.family_id for clan in clans if clan.family_id}),
+            "clans": clans,
+            "selected": selected,
+            "result": result or {},
+            "error": error,
+        },
+    )
+
+
 def _has_missing_image(clan: AdminGeneratedMonsterClan) -> bool:
     return not clan.visual.image_url or any(not member.visual.image_url for member in clan.members)
 
@@ -350,6 +410,21 @@ def _monster_browser_redirect_url(form: Any) -> str:
         params["missing_image"] = "1"
     query = urlencode(params)
     return f"{_BASE}/monster-browser?{query}" if query else f"{_BASE}/monster-browser"
+
+
+def _rebuild_options_from_form(form: Any) -> dict[str, Any]:
+    raw_limit = str(form.get("limit") or _GENERATED_MONSTER_PAGE_LIMIT)
+    try:
+        limit = int(raw_limit)
+    except ValueError:
+        limit = _GENERATED_MONSTER_PAGE_LIMIT
+    return {
+        "family_id": str(form.get("family_id") or "").strip() or None,
+        "clan_id": str(form.get("clan_id") or "").strip() or None,
+        "limit": max(1, min(500, limit)),
+        "force": form.get("force") == "1",
+        "remove_obsolete_members": form.get("remove_obsolete_members") == "1",
+    }
 
 
 cabinet_site.register(ContentOpsAdmin)

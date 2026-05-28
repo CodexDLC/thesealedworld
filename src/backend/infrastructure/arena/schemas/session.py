@@ -6,6 +6,24 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
+from src.shared.schemas.arena import ArenaScreenEnum
+
+
+class ArenaRuntimeSessionSchema(BaseModel):
+    arena_id: str = Field(default_factory=lambda: f"arena:runtime:{uuid.uuid4().hex}")
+    char_id: int
+    screen: ArenaScreenEnum = ArenaScreenEnum.MAIN_MENU
+    mode: str | None = None
+    mode_size: int = 1
+    queue_request_id: str | None = None
+    active_match_id: str | None = None
+    combat_id: str | None = None
+    season_id: int | None = None
+    rating_snapshot: dict[str, Any] = Field(default_factory=dict)
+    metadata: dict[str, Any] = Field(default_factory=dict)
+    created_at: float = Field(default_factory=time.time)
+    updated_at: float = Field(default_factory=time.time)
+
 
 class ArenaQueueSessionSchema(BaseModel):
     request_id: str = Field(default_factory=lambda: f"arena:request:{uuid.uuid4().hex}")

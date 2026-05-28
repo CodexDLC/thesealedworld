@@ -1,7 +1,7 @@
 from typing import Any
 
 from loguru import logger as log
-from sqlalchemy import func, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -18,6 +18,10 @@ class SkillRepository:
         stmt = select(SkillProgress).where(SkillProgress.character_id == char_id)
         result = await self.session.scalars(stmt)
         return list(result.all())
+
+    async def delete_by_character_id(self, char_id: int) -> None:
+        log.bind(char_id=char_id).warning("SkillRepositoryDeleteByCharacterId")
+        await self.session.execute(delete(SkillProgress).where(SkillProgress.character_id == char_id))
 
     async def upsert_progress_rows(self, rows: list[dict[str, Any]]) -> None:
         if not rows:

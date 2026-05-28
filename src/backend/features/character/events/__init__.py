@@ -18,6 +18,7 @@ from src.backend.features.character.repositories import (
     CharacterAttributesRepository,
     CharacterRepository,
     SkillRepository,
+    SymbioteRepository,
 )
 from src.backend.features.character.runtime.gear_score import CharacterGearScoreCalculator
 from src.backend.features.character.services import CharacterSessionPersistenceService, CharacterSkillService
@@ -83,6 +84,7 @@ async def on_active_session_sync_requested(payload: dict[str, Any]) -> None:
                     character_repo=CharacterRepository(session),
                     attributes_repo=CharacterAttributesRepository(session),
                     skill_repo=SkillRepository(session),
+                    symbiote_repo=SymbioteRepository(session),
                 ),
             )
             synced = await service.sync_active_session_to_db(char_id)

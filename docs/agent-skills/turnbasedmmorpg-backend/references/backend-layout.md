@@ -42,7 +42,7 @@ runtime/
 
 ## Layer Responsibilities
 
-Use `api/` for FastAPI routers and HTTP boundary code.
+Use `api/` for FastAPI routers and HTTP boundary code. FastAPI inspects endpoint signatures at runtime, so router and dependency signatures must use runtime-imported annotation types. Do not put service, DTO, dependency alias, request, or response types used in `Annotated[..., Depends(...)]`, endpoint parameters, or `response_model` behind `if TYPE_CHECKING:`. If a runtime import creates a cycle, fix the feature boundary or dependency wiring; do not hide the type from FastAPI.
 
 Use `dto/` for backend DTOs owned by the feature, unless a DTO is a shared frontend/backend API contract.
 
@@ -57,6 +57,18 @@ Use `src/backend/infrastructure/<domain>/` for low-level domain infrastructure. 
 - adapters that do not belong to one feature's business/runtime logic.
 
 Use feature `repositories/` only for data access that is genuinely feature-local and not already represented by the infrastructure layer.
+
+## Redis Runtime Ownership
+
+Redis key ownership is infrastructure, not feature business logic.
+
+Use `src/backend/infrastructure/<domain>/managers/` for Redis/cache/session managers that own key prefixes, TTLs, RedisJSON documents, locks, Lua scripts, scan patterns, serialization, delete/touch behavior, or subdocument paths.
+
+Each Redis key-space must have exactly one owning manager. Do not split ownership of a key prefix between services, workers, event handlers, and ad hoc helpers. If a feature needs to delete, touch, scan, lock, patch, or read a Redis key, add a method to the owning manager or to the feature integration that wraps it.
+
+For RedisJSON documents, do not make callers know stable internal paths such as `$.layout.equipment.main_hand` or `$.dirty`. The owning manager should expose methods for stable document sections and common subdocument operations. Generic `patch_fields()` is acceptable as a low-level escape hatch inside the manager boundary, but feature code should prefer semantic methods when the path is part of the domain contract.
+
+Feature services, runtime code, API handlers, events, and workers must not build Redis keys or RedisJSON paths directly. A worker may import an infrastructure manager directly only when it is technical plumbing around that manager. If the worker applies feature rules, validation, orchestration, or cross-feature behavior, route it through a feature integration/service.
 
 Use feature `integrations/` as the main feature-facing layer for infrastructure access. Integrations encapsulate external dependencies behind cohesive feature-level operations:
 

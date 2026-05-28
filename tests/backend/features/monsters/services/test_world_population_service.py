@@ -105,7 +105,7 @@ def _d4_node(zone_id: str, tags: list[str], threat_tier: int = 0, *, is_rift: bo
     )
 
 
-async def test_world_population_d4_start_region_builds_tiered_clan_contexts() -> None:
+async def test_world_population_d4_start_region_excludes_rift_owned_contexts() -> None:
     service = D4EncounterService()
     population = WorldMonsterPopulationService(service)  # type: ignore[arg-type]
 
@@ -138,8 +138,8 @@ async def test_world_population_d4_start_region_builds_tiered_clan_contexts() ->
         ]
     )
 
-    assert result.contexts == 6
-    assert result.clans == 12
+    assert result.contexts == 2
+    assert result.clans == 8
     calls_by_zone = [(context.zone_id, context.tier, family_id) for context, family_id in service.calls]
     assert calls_by_zone == [
         ("D4_tier0_start", 0, "bandit_gang"),
@@ -150,8 +150,4 @@ async def test_world_population_d4_start_region_builds_tiered_clan_contexts() ->
         ("D4_tier1_corner_pressure", 1, "goblin_tribe"),
         ("D4_tier1_corner_pressure", 1, "rat_swarm"),
         ("D4_tier1_corner_pressure", 1, "wolf_pack"),
-        ("D4_0_0", 2, "rat_swarm"),
-        ("D4_2_0", 2, "wolf_pack"),
-        ("D4_0_2", 2, "bandit_gang"),
-        ("D4_2_2", 2, "goblin_tribe"),
     ]

@@ -1,19 +1,16 @@
 import pytest
 
 from src.backend.features.character.runtime import CharacterCombatActorInputBuilder
-
-SWORD_LIGHT_PARRY_FEINTS = [
-    "measured_strike",
-    "steady_strike",
-    "weapon_bind",
-    "line_catch",
-    "armor_slip",
-    "low_line_step",
-    "side_cut",
-    "glancing_step",
-    "parry_riposte",
-    "counter_parry",
-]
+from src.backend.features.game_catalog.combat.resources.feints.availability import (
+    ARCHERY_WEAPON_FEINTS,
+    BASIC_ARCHERY_FEINTS,
+    BASIC_FEINTS,
+    MACING_WEAPON_FEINTS,
+    RANGED_TACTICAL_FEINTS,
+    SHIELD_TACTICAL_FEINTS,
+    SWORD_WEAPON_FEINTS,
+    TWO_HANDED_TACTICAL_FEINTS,
+)
 
 
 @pytest.mark.unit
@@ -118,7 +115,7 @@ def test_builder_creates_combat_actor_input_from_active_character_document() -> 
     assert actor_input["loadout"]["weapon_slots"] == ["main_hand"]
     assert actor_input["loadout"]["belt"][0]["belt_slot"] == "belt_slot_1"
     assert actor_input["loadout"]["known_abilities"] == ["minor_heal"]
-    assert actor_input["loadout"]["known_feints"] == SWORD_LIGHT_PARRY_FEINTS
+    assert actor_input["loadout"]["known_feints"] == [*BASIC_FEINTS, *SWORD_WEAPON_FEINTS]
 
 
 @pytest.mark.unit
@@ -146,7 +143,7 @@ def test_builder_can_emit_lifecycle_compatible_snapshot() -> None:
         "base_id": "",
         "skill_key": "skill_unarmed",
     }
-    assert snapshot["combat"]["loadout"]["known_feints"] == []
+    assert snapshot["combat"]["loadout"]["known_feints"] == list(BASIC_FEINTS)
 
 
 @pytest.mark.unit
@@ -201,10 +198,128 @@ def test_builder_maps_two_hand_rewards_to_main_hand_combat_layout() -> None:
     assert actor_input["loadout"]["weapon_slots"] == []
     assert actor_input["loadout"]["layout"]["tactical_style"] == "skill_two_handed"
     assert actor_input["loadout"]["layout"]["tactical_style_trigger"] == "accuracy.style_2h_ignore"
-    assert "measured_strike" in actor_input["loadout"]["known_feints"]
-    assert "decisive_attack" in actor_input["loadout"]["known_feints"]
-    assert "cleave" not in actor_input["loadout"]["known_feints"]
-    assert "pommel_strike" not in actor_input["loadout"]["known_feints"]
+    assert actor_input["loadout"]["known_feints"] == [*BASIC_FEINTS, *SWORD_WEAPON_FEINTS, *TWO_HANDED_TACTICAL_FEINTS]
+
+
+@pytest.mark.unit
+def test_builder_maps_archery_two_hand_to_ranged_combat_style() -> None:
+    actor_input = CharacterCombatActorInputBuilder().build_input(
+        {
+            "char_id": 7,
+            "bio": {"name": "Ada"},
+            "attributes": {},
+            "skills": {"skill_archery": 0.3, "skill_ranged_combat": 0.2},
+            "items": {
+                "layout": {"equipment": {"two_hand": "shortbow-1"}},
+                "by_id": {
+                    "shortbow-1": {
+                        "item_id": "shortbow-1",
+                        "item_type": "weapon",
+                        "slot": "two_hand",
+                        "mechanics": {
+                            "power": 7,
+                            "related_skill": "skill_archery",
+                        },
+                    }
+                },
+            },
+        }
+    )
+
+    assert actor_input["loadout"]["layout"]["main_hand"] == "skill_archery"
+    assert actor_input["loadout"]["hand_usage"] == {"main_hand": "two_hand"}
+    assert actor_input["loadout"]["layout"]["tactical_style"] == "skill_ranged_combat"
+    assert actor_input["loadout"]["layout"]["tactical_style_trigger"] == "dodge.style_ranged_perfect_backstep"
+    assert actor_input["loadout"]["known_feints"] == [
+        *BASIC_ARCHERY_FEINTS,
+        *ARCHERY_WEAPON_FEINTS,
+        *RANGED_TACTICAL_FEINTS,
+    ]
+
+
+@pytest.mark.unit
+def test_builder_maps_equipped_quiver_payload_to_archery_main_hand() -> None:
+    actor_input = CharacterCombatActorInputBuilder().build_input(
+        {
+            "char_id": 7,
+            "bio": {"name": "Ada"},
+            "attributes": {},
+            "skills": {"skill_archery": 0.3, "skill_ranged_combat": 0.2},
+            "items": {
+                "layout": {"equipment": {"two_hand": "shortbow-1", "quiver": "fire-quiver-1"}},
+                "by_id": {
+                    "shortbow-1": {
+                        "item_id": "shortbow-1",
+                        "item_type": "weapon",
+                        "slot": "two_hand",
+                        "mechanics": {
+                            "power": 7,
+                            "related_skill": "skill_archery",
+                        },
+                    },
+                    "fire-quiver-1": {
+                        "item_id": "fire-quiver-1",
+                        "item_type": "ammo",
+                        "slot": "quiver",
+                        "mechanics": {
+                            "ammo_effect_payload": {
+                                "id": "dot_burn",
+                                "params": {"power": 1.0},
+                                "tags": ["arrow", "fire", "burn"],
+                            },
+                        },
+                    },
+                },
+            },
+        }
+    )
+
+    assert actor_input["loadout"]["ammo_effects"] == {
+        "main_hand": {
+            "id": "dot_burn",
+            "params": {"power": 1.0},
+            "tags": ["arrow", "fire", "burn"],
+        }
+    }
+
+
+@pytest.mark.unit
+def test_builder_ignores_equipped_quiver_payload_without_archery_weapon() -> None:
+    actor_input = CharacterCombatActorInputBuilder().build_input(
+        {
+            "char_id": 7,
+            "bio": {"name": "Ada"},
+            "attributes": {},
+            "skills": {"skill_swords": 0.3},
+            "items": {
+                "layout": {"equipment": {"main_hand": "sword-1", "quiver": "fire-quiver-1"}},
+                "by_id": {
+                    "sword-1": {
+                        "item_id": "sword-1",
+                        "item_type": "weapon",
+                        "slot": "main_hand",
+                        "mechanics": {
+                            "power": 7,
+                            "related_skill": "skill_swords",
+                        },
+                    },
+                    "fire-quiver-1": {
+                        "item_id": "fire-quiver-1",
+                        "item_type": "ammo",
+                        "slot": "quiver",
+                        "mechanics": {
+                            "ammo_effect_payload": {
+                                "id": "dot_burn",
+                                "params": {"power": 1.0},
+                            },
+                        },
+                    },
+                },
+            },
+        }
+    )
+
+    assert actor_input["loadout"]["ammo_effects"] == {}
 
 
 @pytest.mark.unit
@@ -240,10 +355,7 @@ def test_builder_marks_only_real_offhand_weapons_for_dual_wield() -> None:
     assert actor_input["loadout"]["layout"]["tactical_style_trigger"] == "block.style_shield_reflect"
     assert actor_input["loadout"]["equipment_layout"]["off_hand"] == "shield-1"
     assert actor_input["loadout"]["weapon_slots"] == ["main_hand"]
-    assert "measured_strike" in actor_input["loadout"]["known_feints"]
-    assert "guard_breaker" not in actor_input["loadout"]["known_feints"]
-    assert "spiked_guard" in actor_input["loadout"]["known_feints"]
-    assert "shield_bash" not in actor_input["loadout"]["known_feints"]
+    assert actor_input["loadout"]["known_feints"] == [*BASIC_FEINTS, *MACING_WEAPON_FEINTS, *SHIELD_TACTICAL_FEINTS]
 
 
 @pytest.mark.unit
@@ -275,9 +387,9 @@ def test_builder_keeps_buckler_on_parrying_not_shield_mastery() -> None:
     )
 
     assert actor_input["loadout"]["layout"]["off_hand"] == "skill_parrying"
-    assert actor_input["loadout"]["layout"]["tactical_style"] == "skill_one_handed"
+    assert "tactical_style" not in actor_input["loadout"]["layout"]
     assert actor_input["loadout"]["equipment_layout"]["off_hand"] == "buckler-1"
-    assert "shield_bash" not in actor_input["loadout"]["known_feints"]
+    assert actor_input["loadout"]["known_feints"] == [*BASIC_FEINTS, *SWORD_WEAPON_FEINTS]
 
 
 @pytest.mark.unit
@@ -295,5 +407,4 @@ def test_builder_maps_empty_hands_to_unarmed_layout() -> None:
     assert actor_input["loadout"]["layout"]["main_hand"] == "skill_unarmed"
     assert actor_input["raw"]["modifiers"]["main_hand_accuracy"]["base"] == 0.0
     assert actor_input["raw"]["modifiers"]["main_hand_damage_base"]["base"] == 12.0
-    assert "measured_strike" in actor_input["loadout"]["known_feints"]
-    assert "close_grapple" not in actor_input["loadout"]["known_feints"]
+    assert actor_input["loadout"]["known_feints"] == list(BASIC_FEINTS)

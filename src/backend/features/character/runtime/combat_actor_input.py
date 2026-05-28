@@ -84,10 +84,13 @@ class CharacterCombatActorInputBuilder:
         weapon_tiers: dict[str, int] = {}
         combat_surfaces: dict[str, dict[str, Any]] = {}
         equipment_refs: dict[str, dict[str, Any]] = {}
+        quiver_payload: dict[str, Any] | None = None
         for slot, item_id in equipment_layout.items():
             if not item_id:
                 continue
             item = CharacterCombatActorInputBuilder._dict(by_id.get(str(item_id)))
+            if str(slot) == "quiver":
+                quiver_payload = CharacterCombatActorInputBuilder._ammo_effect_payload(item)
             skill_key = CharacterCombatActorInputBuilder._skill_key_for_slot(str(slot), item)
             combat_slot = CharacterCombatActorInputBuilder._combat_slot(str(slot))
             item_type = CharacterCombatActorInputBuilder._item_type(item)
@@ -133,6 +136,10 @@ class CharacterCombatActorInputBuilder:
             combat_layout["tactical_style"] = tactical_style[0]
             combat_layout["tactical_style_trigger"] = tactical_style[1]
 
+        ammo_effects: dict[str, dict[str, Any]] = {}
+        if quiver_payload and combat_layout.get("main_hand") == "skill_archery":
+            ammo_effects["main_hand"] = quiver_payload
+
         belt = []
         for belt_slot, item_id in belt_layout.items():
             if not item_id:
@@ -150,6 +157,7 @@ class CharacterCombatActorInputBuilder:
             "weapon_tiers": weapon_tiers,
             "combat_surfaces": combat_surfaces,
             "equipment_refs": equipment_refs,
+            "ammo_effects": ammo_effects,
             "belt": belt,
             "abilities": CharacterCombatActorInputBuilder._known_abilities(by_id),
             "known_abilities": CharacterCombatActorInputBuilder._known_abilities(by_id),
@@ -162,6 +170,9 @@ class CharacterCombatActorInputBuilder:
     def _tactical_style(
         combat_layout: dict[str, str], hand_usage: dict[str, str], weapon_slots: list[str]
     ) -> tuple[str, str] | None:
+        if combat_layout.get("main_hand") == "skill_archery":
+            return "skill_ranged_combat", "dodge.style_ranged_perfect_backstep"
+
         if hand_usage.get("main_hand") == "two_hand":
             return "skill_two_handed", "accuracy.style_2h_ignore"
 
@@ -171,9 +182,6 @@ class CharacterCombatActorInputBuilder:
         weapon_slot_set = set(weapon_slots)
         if {"main_hand", "off_hand"}.issubset(weapon_slot_set):
             return "skill_dual_wield", "accuracy.style_dual_extra"
-
-        if "main_hand" in weapon_slot_set and "off_hand" not in weapon_slot_set:
-            return "skill_one_handed", "accuracy.style_1h_flow"
 
         return None
 
@@ -296,6 +304,16 @@ class CharacterCombatActorInputBuilder:
             if isinstance(raw, list):
                 abilities.extend(str(value) for value in raw if value)
         return list(dict.fromkeys(abilities))
+
+    @staticmethod
+    def _ammo_effect_payload(item: dict[str, Any]) -> dict[str, Any] | None:
+        mechanics = CharacterCombatActorInputBuilder._mechanics(item)
+        raw = item.get("ammo_effect_payload") or mechanics.get("ammo_effect_payload")
+        if not isinstance(raw, dict):
+            return None
+        payload = dict(raw)
+        effect_id = payload.get("id") or payload.get("effect_id")
+        return payload if isinstance(effect_id, str) and effect_id else None
 
     @staticmethod
     def _weapon_tier(item: dict[str, Any]) -> int:

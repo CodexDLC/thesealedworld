@@ -1,0 +1,553 @@
+{
+  "schema_version": 1,
+  "setting_key": "starter_rift",
+  "axis_schema_version": 1,
+  "nodes": [
+    {
+      "pool_node_id": "starter_rift:001_broken_milestone",
+      "node_hex": "sr0000000001",
+      "source": "manual",
+      "axis_schema_version": 1,
+      "pool_order": 0,
+      "axes": {
+        "room_archetype": "road",
+        "room_function": "transit",
+        "dominant_feature": "broken_marker",
+        "material_palette": "dry_clay",
+        "damage_state": "tilted",
+        "mood": "wrong",
+        "title_seed": "broken_milestone"
+      },
+      "role_fit": [
+        "start",
+        "generic"
+      ],
+      "tags": [
+        "road",
+        "starter_rift"
+      ],
+      "generated_text": {
+        "title": "Вход у разбитой вехи",
+        "description": "Старая дорожная веха торчит из земли под невозможным углом. На камне остались следы стрелок, но все они указывают в разные стороны, будто дорогу несколько раз рвали и сшивали заново.",
+        "approach_view": {
+          "open_suffix": "видна разбитая дорожная веха, вокруг которой пыль ложится кольцами",
+          "void_suffix": "чернеет место, где от дорожной вехи остался только каменный обломок у края"
+        },
+        "transition_text": {
+          "verb": "Пойти",
+          "enter_target": "к разбитой вехе"
+        }
+      }
+    },
+    {
+      "pool_node_id": "starter_rift:002_sunken_track",
+      "node_hex": "sr0000000002",
+      "source": "manual",
+      "axis_schema_version": 1,
+      "pool_order": 1,
+      "axes": {
+        "room_archetype": "road",
+        "room_function": "transit",
+        "dominant_feature": "sunken_ruts",
+        "material_palette": "dry_clay",
+        "damage_state": "torn_out",
+        "mood": "quiet",
+        "title_seed": "sunken_track"
+      },
+      "role_fit": [
+        "generic"
+      ],
+      "tags": [
+        "road",
+        "ruts"
+      ],
+      "generated_text": {
+        "title": "Просевший тракт",
+        "description": "Колеи старого тракта провалились почти по ступицу колеса. В сухой глине застыли следы людей и мелких лап, а между ними тянется тонкая черная трещина.",
+        "approach_view": {
+          "open_suffix": "тянется просевший тракт с глубокими колеями и черной трещиной",
+          "void_suffix": "обрывается просевший тракт, оставляя над пустотой только рваные колеи"
+        },
+        "transition_text": {
+          "verb": "Пойти",
+          "enter_target": "к просевшему тракту"
+        }
+      }
+    },
+    {
+      "pool_node_id": "starter_rift:003_cold_campfire",
+      "node_hex": "sr0000000003",
+      "source": "manual",
+      "axis_schema_version": 1,
+      "pool_order": 2,
+      "axes": {
+        "room_archetype": "camp",
+        "room_function": "cover",
+        "dominant_feature": "campfire",
+        "material_palette": "ash",
+        "damage_state": "burned",
+        "mood": "watchful",
+        "title_seed": "cold_campfire"
+      },
+      "role_fit": [
+        "generic",
+        "combat"
+      ],
+      "tags": [
+        "camp",
+        "smoke",
+        "bandit"
+      ],
+      "generated_text": {
+        "title": "Холодное кострище",
+        "description": "Костер давно погас, но зола в нем все еще светится изнутри тусклым желтым цветом. Вокруг лежат обглоданные кости, обрывки ремней и следы коротких поспешных шагов.",
+        "approach_view": {
+          "open_suffix": "дымит холодное кострище с желтой золой под камнями",
+          "void_suffix": "осталось холодное кострище у края, где зола сыплется прямо в черноту"
+        },
+        "transition_text": {
+          "verb": "Пойти",
+          "enter_target": "к холодному кострищу"
+        }
+      }
+    },
+    {
+      "pool_node_id": "starter_rift:004_wagon_jam",
+      "node_hex": "sr0000000004",
+      "source": "manual",
+      "axis_schema_version": 1,
+      "pool_order": 3,
+      "axes": {
+        "room_archetype": "wagon",
+        "room_function": "cover",
+        "dominant_feature": "splintered_wagon",
+        "material_palette": "old_wood",
+        "damage_state": "looted",
+        "mood": "hungry",
+        "title_seed": "wagon_jam"
+      },
+      "role_fit": [
+        "generic",
+        "loot"
+      ],
+      "tags": [
+        "wagon",
+        "debris",
+        "cache"
+      ],
+      "generated_text": {
+        "title": "Тележный завал",
+        "description": "Две телеги врезаны друг в друга так плотно, будто их сжали огромные пальцы. Под сломанными досками видны пустые мешки, ржавые гвозди и куски ткани с чужими метками.",
+        "approach_view": {
+          "open_suffix": "громоздится тележный завал из досок, колес и пустых мешков",
+          "void_suffix": "чернеет раздавленный тележный завал, наполовину сорванный в пустоту"
+        },
+        "transition_text": {
+          "verb": "Пойти",
+          "enter_target": "к тележному завалу"
+        }
+      }
+    },
+    {
+      "pool_node_id": "starter_rift:005_dry_ditch",
+      "node_hex": "sr0000000005",
+      "source": "manual",
+      "axis_schema_version": 1,
+      "pool_order": 4,
+      "axes": {
+        "room_archetype": "ditch",
+        "room_function": "transit",
+        "dominant_feature": "dry_ravine",
+        "material_palette": "dry_clay",
+        "damage_state": "split_by_void",
+        "mood": "quiet",
+        "title_seed": "dry_ditch"
+      },
+      "role_fit": [
+        "generic"
+      ],
+      "tags": [
+        "ditch",
+        "clay"
+      ],
+      "generated_text": {
+        "title": "Сухой ров",
+        "description": "Ров должен был отводить дождевую воду, но дождя здесь не бывает. На дне лежит сухая глина, растрескавшаяся на острые плитки, и каждая трещина уходит глубже, чем должна.",
+        "approach_view": {
+          "open_suffix": "уходит сухой ров с ломкими глиняными плитками на дне",
+          "void_suffix": "проваливается сухой ров, оставляя только рваные стенки из глины"
+        },
+        "transition_text": {
+          "verb": "Спуститься",
+          "enter_target": "в сухой ров"
+        }
+      }
+    },
+    {
+      "pool_node_id": "starter_rift:006_crooked_palisade",
+      "node_hex": "sr0000000006",
+      "source": "manual",
+      "axis_schema_version": 1,
+      "pool_order": 5,
+      "axes": {
+        "room_archetype": "yard",
+        "room_function": "threshold",
+        "dominant_feature": "palisade",
+        "material_palette": "old_wood",
+        "damage_state": "tilted",
+        "mood": "watchful",
+        "title_seed": "crooked_palisade"
+      },
+      "role_fit": [
+        "generic",
+        "threshold"
+      ],
+      "tags": [
+        "palisade",
+        "camp"
+      ],
+      "generated_text": {
+        "title": "Кривой частокол",
+        "description": "Частокол собран из тележных досок, сухих кольев и полос ржавого железа. Он не столько защищает лагерь, сколько показывает, что внутри кто-то привык жить рядом с разломом.",
+        "approach_view": {
+          "open_suffix": "стоит кривой частокол с просветами между черными досками",
+          "void_suffix": "торчит кривой частокол, за которым вместо лагеря зияет пустота"
+        },
+        "transition_text": {
+          "verb": "Пойти",
+          "enter_target": "к кривому частоколу"
+        }
+      }
+    },
+    {
+      "pool_node_id": "starter_rift:007_squeaking_plank_bridge",
+      "node_hex": "sr0000000007",
+      "source": "manual",
+      "axis_schema_version": 1,
+      "pool_order": 6,
+      "axes": {
+        "room_archetype": "bridge",
+        "room_function": "transit",
+        "dominant_feature": "plank_bridge",
+        "material_palette": "old_wood",
+        "damage_state": "tilted",
+        "mood": "wrong",
+        "title_seed": "squeaking_plank_bridge"
+      },
+      "role_fit": [
+        "generic"
+      ],
+      "tags": [
+        "bridge",
+        "wood"
+      ],
+      "generated_text": {
+        "title": "Скрипучий мосток",
+        "description": "Несколько досок перекинуты через разрыв дороги. Они скрипят даже без ветра, а снизу тянет холодом, будто под мостком не ров, а слишком большое расстояние.",
+        "approach_view": {
+          "open_suffix": "перекинут скрипучий мосток из неровных досок",
+          "void_suffix": "обрывается скрипучий мосток, не доходя до другого края"
+        },
+        "transition_text": {
+          "verb": "Перейти",
+          "enter_target": "к скрипучему мостку"
+        }
+      }
+    },
+    {
+      "pool_node_id": "starter_rift:008_watch_awning",
+      "node_hex": "sr0000000008",
+      "source": "manual",
+      "axis_schema_version": 1,
+      "pool_order": 7,
+      "axes": {
+        "room_archetype": "watchpost",
+        "room_function": "guard",
+        "dominant_feature": "torn_awning",
+        "material_palette": "torn_canvas",
+        "damage_state": "looted",
+        "mood": "watchful",
+        "title_seed": "watch_awning"
+      },
+      "role_fit": [
+        "generic",
+        "combat",
+        "guard"
+      ],
+      "tags": [
+        "watchpost",
+        "guard",
+        "bandit"
+      ],
+      "generated_text": {
+        "title": "Сторожевой навес",
+        "description": "Навес из старого полотна прикрывает низкую площадку у дороги. На стойках висят колокольчики из костей и железа, а под навесом видны следы тех, кто долго сидел и смотрел на вход.",
+        "approach_view": {
+          "open_suffix": "виден сторожевой навес с костяными колокольчиками на стойках",
+          "void_suffix": "болтается сторожевой навес над краем, где площадка сорвана вниз"
+        },
+        "transition_text": {
+          "verb": "Пойти",
+          "enter_target": "к сторожевому навесу"
+        }
+      }
+    },
+    {
+      "pool_node_id": "starter_rift:009_looted_wagon",
+      "node_hex": "sr0000000009",
+      "source": "manual",
+      "axis_schema_version": 1,
+      "pool_order": 8,
+      "axes": {
+        "room_archetype": "wagon",
+        "room_function": "loot",
+        "dominant_feature": "opened_chest",
+        "material_palette": "old_wood",
+        "damage_state": "looted",
+        "mood": "hungry",
+        "title_seed": "looted_wagon"
+      },
+      "role_fit": [
+        "generic",
+        "loot"
+      ],
+      "tags": [
+        "wagon",
+        "loot",
+        "starter_item"
+      ],
+      "generated_text": {
+        "title": "Разграбленный фургон",
+        "description": "Фургон стоит без колес, просев на бок. Все ценное уже вынесли, но в щелях пола еще могли остаться мелочи, которые мародеры приняли за мусор.",
+        "approach_view": {
+          "open_suffix": "стоит разграбленный фургон с раскрытым боком и пустыми ящиками",
+          "void_suffix": "качается разграбленный фургон, наполовину утянутый за край осколка"
+        },
+        "transition_text": {
+          "verb": "Осмотреть",
+          "enter_target": "разграбленный фургон"
+        }
+      }
+    },
+    {
+      "pool_node_id": "starter_rift:010_low_stone_arch",
+      "node_hex": "sr0000000010",
+      "source": "manual",
+      "axis_schema_version": 1,
+      "pool_order": 9,
+      "axes": {
+        "room_archetype": "threshold",
+        "room_function": "transit",
+        "dominant_feature": "stone_arch",
+        "material_palette": "dry_clay",
+        "damage_state": "torn_out",
+        "mood": "quiet",
+        "title_seed": "low_stone_arch"
+      },
+      "role_fit": [
+        "generic",
+        "threshold"
+      ],
+      "tags": [
+        "arch",
+        "stone"
+      ],
+      "generated_text": {
+        "title": "Низкая каменная арка",
+        "description": "Арка похожа на остаток ворот, но вокруг нет стены. На камнях вырезаны грубые знаки, поверх которых кто-то нацарапал свежие отметки лагеря.",
+        "approach_view": {
+          "open_suffix": "видна низкая каменная арка с грубыми знаками на боках",
+          "void_suffix": "торчит низкая каменная арка, за которой сразу начинается черный разрыв"
+        },
+        "transition_text": {
+          "verb": "Пройти",
+          "enter_target": "под низкую каменную арку"
+        }
+      }
+    },
+    {
+      "pool_node_id": "starter_rift:011_black_crack",
+      "node_hex": "sr0000000011",
+      "source": "manual",
+      "axis_schema_version": 1,
+      "pool_order": 10,
+      "axes": {
+        "room_archetype": "ditch",
+        "room_function": "cover",
+        "dominant_feature": "rift_crack",
+        "material_palette": "ash",
+        "damage_state": "split_by_void",
+        "mood": "wrong",
+        "title_seed": "black_crack"
+      },
+      "role_fit": [
+        "generic"
+      ],
+      "tags": [
+        "rift_crack",
+        "void"
+      ],
+      "generated_text": {
+        "title": "Черная расщелина",
+        "description": "Расщелина прорезает дорогу поперек, но не похожа на трещину в земле. Она слишком ровная, слишком темная, и от нее пахнет холодным железом.",
+        "approach_view": {
+          "open_suffix": "раскрыта черная расщелина с холодным железным запахом",
+          "void_suffix": "темнеет черная расщелина, расширенная до непроходимого провала"
+        },
+        "transition_text": {
+          "verb": "Подойти",
+          "enter_target": "к черной расщелине"
+        }
+      }
+    },
+    {
+      "pool_node_id": "starter_rift:012_stake_yard",
+      "node_hex": "sr0000000012",
+      "source": "manual",
+      "axis_schema_version": 1,
+      "pool_order": 11,
+      "axes": {
+        "room_archetype": "yard",
+        "room_function": "guard",
+        "dominant_feature": "stakes",
+        "material_palette": "black_iron",
+        "damage_state": "burned",
+        "mood": "watchful",
+        "title_seed": "stake_yard"
+      },
+      "role_fit": [
+        "combat",
+        "guard",
+        "crystal_guard"
+      ],
+      "tags": [
+        "guard",
+        "stakes",
+        "heart_path"
+      ],
+      "generated_text": {
+        "title": "Площадка с кольями",
+        "description": "Колья вбиты в землю полукругом, и на каждом висит что-то свое: ремень, обрывок плаща, высохшая кисть, связка костей. Дальше дорога становится слишком ровной и тихой.",
+        "approach_view": {
+          "open_suffix": "открывается площадка с кольями и грубыми трофеями на них",
+          "void_suffix": "видна площадка с кольями, оборванная так, будто охрана стояла прямо у края мира"
+        },
+        "transition_text": {
+          "verb": "Войти",
+          "enter_target": "на площадку с кольями"
+        }
+      }
+    },
+    {
+      "pool_node_id": "starter_rift:013_ash_well",
+      "node_hex": "sr0000000013",
+      "source": "manual",
+      "axis_schema_version": 1,
+      "pool_order": 12,
+      "axes": {
+        "room_archetype": "shrine",
+        "room_function": "cover",
+        "dominant_feature": "ash_well",
+        "material_palette": "ash",
+        "damage_state": "burned",
+        "mood": "quiet",
+        "title_seed": "ash_well"
+      },
+      "role_fit": [
+        "generic",
+        "lore"
+      ],
+      "tags": [
+        "well",
+        "ash",
+        "lore"
+      ],
+      "generated_text": {
+        "title": "Пепельный колодец",
+        "description": "Колодец забит не водой, а серой золой. Если смотреть слишком долго, кажется, что под ней шевелится отражение дороги, которой здесь никогда не было.",
+        "approach_view": {
+          "open_suffix": "стоит пепельный колодец с серой золой вместо воды",
+          "void_suffix": "остался пепельный колодец, треснувший и раскрытый в черноту"
+        },
+        "transition_text": {
+          "verb": "Подойти",
+          "enter_target": "к пепельному колодцу"
+        }
+      }
+    },
+    {
+      "pool_node_id": "starter_rift:014_heart_path",
+      "node_hex": "sr0000000014",
+      "source": "manual",
+      "axis_schema_version": 1,
+      "pool_order": 13,
+      "axes": {
+        "room_archetype": "road",
+        "room_function": "threshold",
+        "dominant_feature": "yellow_light",
+        "material_palette": "dry_clay",
+        "damage_state": "torn_out",
+        "mood": "wrong",
+        "title_seed": "heart_path"
+      },
+      "role_fit": [
+        "generic",
+        "threshold",
+        "objective_gate"
+      ],
+      "tags": [
+        "heart_path",
+        "yellow_light"
+      ],
+      "generated_text": {
+        "title": "Тропа к сердцу",
+        "description": "Здесь дорога уже не похожа на дорогу. Пыль вытянута тонкими линиями к центру разлома, а каждый шаг отзывается низким стуком, будто под землей работает чужое сердце.",
+        "approach_view": {
+          "open_suffix": "уходит тропа к сердцу с желтым светом в пыльных бороздах",
+          "void_suffix": "обрывается тропа к сердцу, но желтый свет продолжает висеть над пустотой"
+        },
+        "transition_text": {
+          "verb": "Пойти",
+          "enter_target": "по тропе к сердцу"
+        }
+      }
+    },
+    {
+      "pool_node_id": "starter_rift:015_rift_heart",
+      "node_hex": "sr0000000015",
+      "source": "manual",
+      "axis_schema_version": 1,
+      "pool_order": 14,
+      "axes": {
+        "room_archetype": "heart_chamber",
+        "room_function": "objective",
+        "dominant_feature": "black_crystal",
+        "material_palette": "black_iron",
+        "damage_state": "split_by_void",
+        "mood": "wrong",
+        "title_seed": "rift_heart"
+      },
+      "role_fit": [
+        "crystal_chamber",
+        "objective"
+      ],
+      "tags": [
+        "rift_heart",
+        "black_crystal",
+        "objective"
+      ],
+      "generated_text": {
+        "title": "Сердце рваного тракта",
+        "description": "Черный кристалл висит над землей, сжимая вокруг себя обломки дороги, колья, пыль и чужие следы. Пока он цел, рифт держит этот кусок мира открытым.",
+        "approach_view": {
+          "open_suffix": "мерцает сердце рваного тракта, черный кристалл в желтом свете",
+          "void_suffix": "виднеется сердце рваного тракта, отрезанное пустотой и дрожащим светом"
+        },
+        "transition_text": {
+          "verb": "Подойти",
+          "enter_target": "к сердцу рваного тракта"
+        }
+      }
+    }
+  ]
+}

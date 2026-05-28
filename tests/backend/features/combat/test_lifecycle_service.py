@@ -240,6 +240,37 @@ async def test_lifecycle_does_not_link_players_during_session_creation():
 
 
 @pytest.mark.asyncio
+async def test_lifecycle_preserves_rift_result_context_in_combat_meta():
+    store = FakeStore()
+    service = _orchestrator(store)
+
+    await service.create_from_request(
+        {
+            "source": "rift",
+            "battle_type": "rift",
+            "requested_by": 1,
+            "participants": {"team_1": [1], "team_2": ["rat-1"]},
+            "rift_session_id": "rift-run-1",
+            "rift_instance_id": "rift-instance-1",
+            "rift_node_id": "node-start",
+            "rift_event_scope": "transition",
+            "rift_travel_id": "trv-1",
+            "rift_event_key": "",
+            "rift_target_node_id": "node-next",
+        }
+    )
+
+    _, data, _ = store.created
+    assert data.meta["rift_session_id"] == "rift-run-1"
+    assert data.meta["rift_instance_id"] == "rift-instance-1"
+    assert data.meta["rift_node_id"] == "node-start"
+    assert data.meta["rift_event_scope"] == "transition"
+    assert data.meta["rift_travel_id"] == "trv-1"
+    assert data.meta["rift_event_key"] == ""
+    assert data.meta["rift_target_node_id"] == "node-next"
+
+
+@pytest.mark.asyncio
 async def test_lifecycle_creates_shadow_clone():
     store = FakeStore()
     sessions = FakeCharacterSessions()

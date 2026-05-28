@@ -60,5 +60,17 @@ HUMANOID_IMPACT_VS_HUMANOID_PHRASES = {
             "variables": ["source", "target"],
             "tags": ["crit"],
         },
+        "body.humanoid.impact_vs_humanoid.ranged.hit.arrow": {
+            "kind": "impact",
+            "text": "стрела находит {target}",
+            "variables": ["target"],
+            "tags": ["hit", "weapon", "ranged", "archery"],
+        },
+        "body.humanoid.impact_vs_humanoid.ranged.crit.arrow": {
+            "kind": "impact",
+            "text": "{source} вгоняет стрелу в уязвимую линию {target}",
+            "variables": ["source", "target"],
+            "tags": ["crit", "weapon", "ranged", "archery"],
+        },
     },
 }

@@ -11,8 +11,8 @@ from src.backend.features.monsters.runtime.combat_actor_input import MonsterComb
 from src.backend.infrastructure.monsters import MonsterRepository
 
 if TYPE_CHECKING:
-    from src.backend.features.character.managers.session import CharacterSessionManager
     from src.backend.infrastructure.actor_commitments.manager import ActorCommitmentManager
+    from src.backend.infrastructure.actor_state.managers import CharacterSessionManager
 
 
 SessionContextFactory = Callable[[], AbstractAsyncContextManager[Any]]

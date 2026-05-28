@@ -1,4 +1,16 @@
-<div id="game-session-root" class="game-session-shell" style="display: flex; flex-direction: column; flex: 1; position: relative;">
+{% set game_state_name = domain if domain is defined else '' %}
+{% set game_scripts = game_state_scripts if game_state_scripts is defined else [] %}
+{% set versioned_game_scripts = namespace(items=[]) %}
+{% for script_src in game_scripts %}
+    {% set separator = '&' if '?' in script_src else '?' %}
+    {% set _ = versioned_game_scripts.items.append(script_src ~ separator ~ 'v=' ~ static_version) %}
+{% endfor %}
+<div id="game-session-root"
+     class="game-session-shell"
+     data-game-state="{{ game_state_name }}"
+     data-game-scripts='{{ versioned_game_scripts.items|tojson|forceescape }}'
+     {% if domain in ['combats', 'death', 'loot'] %}x-init="rightPanelView = 'context'"{% endif %}
+     style="display: flex; flex-direction: column; flex: 1; position: relative;">
     {# Background layer #}
     {% set shell_background_url = background_url %}
     <div id="game-bg" class="game-scene-layer"
@@ -33,25 +45,15 @@
          }"
          @keydown.escape.window="activeStatSheet = null"
          {% endif %}>
-        {# Left Panel (Inventory/Stats) #}
+        {# Left Panel (Status/Build). Combat owns a separate tactical left panel. #}
         <aside id="game-left" class="col-left" :class="{ 'panel-open': leftOpen }">
             <div id="game-left-content">
                 {% block game_left %}
                     <div x-show="leftPanelView === 'status'">
-                        {% if domain == 'scenario' %}
-                            {% include "game/domains/scenario/left_sidebar/main.html" %}
-                        {% elif domain == 'exploration' %}
-                            {% include "game/domains/exploration/left_sidebar/main.html" %}
-                        {% elif domain == 'arena' %}
-                            {% include "game/components/status/main.html" %}
-                        {% elif domain == 'city_services' %}
-                            {% include "game/components/status/main.html" %}
-                        {% elif domain == 'death' %}
-                            {% include "game/components/status/main.html" %}
-                        {% elif domain == 'loot' %}
-                            {% include "game/components/status/main.html" %}
-                        {% elif domain == 'combats' %}
+                        {% if domain == 'combats' %}
                             {% include "game/domains/combat/left_sidebar/main.html" %}
+                        {% else %}
+                            {% include "game/components/status/main.html" %}
                         {% endif %}
                     </div>
                     {% if domain != 'combats' %}
@@ -81,6 +83,8 @@
                         {% include "game/domains/death/viewport/main.html" %}
                     {% elif domain == 'loot' %}
                         {% include "game/domains/loot/viewport/main.html" %}
+                    {% elif domain == 'rift' %}
+                        {% include "game/domains/rift/viewport/main.html" %}
                     {% else %}
                         {% include "game/domains/exploration/viewport/main.html" %}
                     {% endif %}
@@ -92,7 +96,7 @@
         <aside id="game-right" class="col-right" :class="{ 'panel-open': rightOpen }">
             <div id="game-right-content">
                 {% block game_right %}
-                    <div x-show="rightPanelView === 'context'">
+                    <div {% if domain in ['combats', 'death', 'loot'] %}x-show="true"{% else %}x-show="rightPanelView === 'context'"{% endif %}>
                         <div id="game-right-context-content">
                             {% if domain == 'scenario' %}
                                 {% include "game/domains/scenario/right_sidebar/main.html" %}
@@ -104,6 +108,8 @@
                                 {% include "game/domains/city_services/right_sidebar/main.html" %}
                             {% elif domain == 'combats' %}
                                 {% include "game/domains/combat/right_sidebar/main.html" %}
+                            {% elif domain == 'rift' %}
+                                {% include "game/domains/rift/right_sidebar/main.html" %}
                             {% endif %}
                         </div>
                     </div>

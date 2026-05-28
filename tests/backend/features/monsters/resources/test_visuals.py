@@ -3,6 +3,8 @@ from src.backend.features.monsters.resources.visuals import (
     build_member_visual,
     build_monster_visual_prompt,
     get_family_visual,
+    version_generated_asset_url,
+    version_visual_image_urls,
 )
 
 
@@ -58,6 +60,33 @@ def test_member_visual_hash_ignores_season_metadata_outside_payload() -> None:
     assert first["asset_hash"] == second["asset_hash"]
     assert first["asset_payload"] == second["asset_payload"]
     assert first["asset_payload"]["style_version"] == 4
+
+
+def test_generated_visual_urls_are_versioned_for_browser_cache_busting() -> None:
+    visual = {
+        "image_url": "/static/generated-assets/monsters/generated/members/rat.webp",
+        "generated_image_url": "/static/generated-assets/monsters/generated/members/rat.webp",
+        "fallback_image_url": "/static/images/monsters/families/rat_swarm.svg",
+        "asset_hash": "rat-image-bytes",
+    }
+
+    assert version_generated_asset_url(str(visual["image_url"]), visual) == (
+        "/static/generated-assets/monsters/generated/members/rat.webp?v=rat-image-bytes"
+    )
+    assert version_visual_image_urls(visual)["fallback_image_url"] == "/static/images/monsters/families/rat_swarm.svg"
+
+
+def test_pending_visual_uses_previous_hash_for_previous_image_url() -> None:
+    visual = {
+        "image_url": "/static/generated-assets/monsters/generated/members/rat.webp",
+        "previous_image_url": "/static/generated-assets/monsters/generated/members/rat.webp",
+        "asset_hash": "next-prompt-hash",
+        "previous_asset_hash": "previous-image-bytes",
+    }
+
+    assert version_visual_image_urls(visual)["image_url"] == (
+        "/static/generated-assets/monsters/generated/members/rat.webp?v=previous-image-bytes"
+    )
 
 
 def test_clan_visual_prompt_uses_roster_and_family_subject_contract() -> None:

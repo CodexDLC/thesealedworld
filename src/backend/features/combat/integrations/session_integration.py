@@ -414,6 +414,7 @@ class CombatSessionIntegration:
                     "tactics": actor.meta.tactics,
                     "is_dead": actor.meta.is_dead,
                     "tokens": actor.meta.tokens,
+                    "token_progress": actor.meta.token_progress,
                     "feints": actor.meta.feints.model_dump(mode="json"),
                     "exchange_counter": actor.meta.exchange_counter,
                 },
@@ -581,6 +582,7 @@ class CombatSessionIntegration:
             is_dead=bool(r_state.get("is_dead", False)),
             exchange_counter=int(r_state.get("exchange_counter", 0)),
             tokens=r_state.get("tokens") or {},
+            token_progress=r_state.get("token_progress") or {},
             feints=FeintHandDTO.model_validate(feints),
         )
 

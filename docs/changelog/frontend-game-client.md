@@ -5,7 +5,8 @@ Detailed milestone history for browser-facing gameplay surfaces inside
 
 ## [Unreleased]
 
-No unreleased game client changes yet.
+- Combat log now keeps the newest exchange turns visible after the first eight turns instead of pinning the embedded page to old entries.
+- Combat token counters now show only free tokens, while reserved feint costs stay visible on the feint buttons.
 
 ## [v0.1.0a1] - First Alpha
 

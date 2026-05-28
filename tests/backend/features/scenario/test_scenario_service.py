@@ -22,6 +22,7 @@ class TestScenarioService:
         integrator.apply_finalize_effects = AsyncMock(return_value={})
         integrator.attach_npc_context = AsyncMock()
         integrator.apply_action_effects = AsyncMock(return_value={})
+        integrator.prepare_exploration_return_context = AsyncMock()
         return {
             "integrator": integrator,
             "evaluator": MagicMock(),
@@ -142,6 +143,75 @@ class TestScenarioService:
         assert context.current_node_key == "n2"
         mocks["integrator"].update_progress.assert_called_once()
 
+    async def test_step_prepares_rift_when_entering_prepare_node(self, service, mocks):
+        char_id = 1
+        context = ScenarioContextDTO(quest_key="awakening_rift", current_node_key="overseer_dialogue_01")
+        target_node = {
+            "node_key": "crash_sequence_02",
+            "metadata": {
+                "rift_entry": {
+                    "prepare_on_show": True,
+                    "rift_key": "starter_rift",
+                    "entry_reason": "knockout",
+                }
+            },
+        }
+        mocks["integrator"].load_session = AsyncMock(return_value=context)
+        mocks["integrator"].get_node = AsyncMock(
+            return_value={"node_key": "overseer_dialogue_01", "actions_logic": {"fall": {"to_node": "crash_sequence_02"}}}
+        )
+        mocks["integrator"].has_prepared_rift_entry = AsyncMock(return_value=False)
+        mocks["integrator"].publish_rift_entry_requested = AsyncMock(return_value={"request_id": "rift-request-1"})
+
+        mock_resolved = MagicMock()
+        mock_resolved.node = target_node
+        mock_resolved.context = {}
+        mocks["director"].resolve_next_node = AsyncMock(return_value=mock_resolved)
+        mocks["integrator"].update_progress = AsyncMock()
+        mocks["integrator"].get_quest_master = AsyncMock(return_value={"quest_key": "awakening_rift"})
+        mocks["integrator"].publish_event = AsyncMock()
+        mocks["formatter"].render_payload.return_value = MagicMock(node_key="crash_sequence_02", buttons=[])
+
+        await service.step(char_id, "fall")
+
+        mocks["integrator"].publish_rift_entry_requested.assert_awaited_once_with(
+            char_id,
+            context,
+            target_node,
+        )
+        assert context.flags["rift_entry_status"] == "requested"
+        assert context.flags["rift_entry_request_id"] == "rift-request-1"
+        assert mocks["integrator"].update_progress.await_count == 2
+
+    async def test_enter_prepared_rift_action_activates_existing_run_without_requesting_new_one(self, service, mocks):
+        char_id = 1
+        context = ScenarioContextDTO(quest_key="awakening_rift", current_node_key="crash_sequence_02")
+        current_node = {
+            "node_key": "crash_sequence_02",
+            "actions_logic": {"fall": {"type": "enter_prepared_rift"}},
+        }
+        mocks["integrator"].load_session = AsyncMock(return_value=context)
+        mocks["integrator"].get_node = AsyncMock(return_value=current_node)
+        mocks["director"]._get_node_actions.return_value = current_node["actions_logic"]
+        mocks["integrator"].has_prepared_rift_entry = AsyncMock(return_value=True)
+        mocks["integrator"].activate_prepared_rift_entry = AsyncMock(
+            return_value={
+                "rift_session_id": "rift-run-1",
+                "rift_instance_id": "rift-instance-1",
+            }
+        )
+        mocks["integrator"].sync_active_character_to_db = AsyncMock()
+        mocks["integrator"].publish_event = AsyncMock()
+
+        result = await service.step(char_id, "fall")
+
+        assert result.target_state == CoreDomain.RIFT
+        assert result.transition_reason == "scenario_rift_entry"
+        assert result.metadata["rift_session_id"] == "rift-run-1"
+        mocks["integrator"].activate_prepared_rift_entry.assert_awaited_once_with(char_id, context)
+        mocks["integrator"].publish_rift_entry_requested.assert_not_called()
+        mocks["integrator"].sync_active_character_to_db.assert_awaited_once_with(char_id)
+
     async def test_initialize_attaches_npc_context_when_npc_key_resolved(self, service, mocks):
         import uuid
 
@@ -211,6 +281,7 @@ class TestScenarioService:
         mock_result.rewards.items = []
         mock_result.rewards.skills = []
         mock_result.rewards.attribute_bonuses = None
+        mock_result.location_id = None
         mock_handler.on_finalize = AsyncMock(return_value=mock_result)
         mocks["integrator"].build_handler.return_value = mock_handler
         mocks["integrator"].finalize_session = AsyncMock()
@@ -246,7 +317,7 @@ class TestScenarioService:
             calls.append(("finalize_session", args, kwargs))
 
         async def sync_active_character_to_db(*args):
-            calls.append(("sync_active_character_to_db", args))
+            calls.append(("sync_active_character_to_db", args, {}))
 
         async def request_combat_start(*args, **kwargs):
             calls.append(("request_combat_start", args, kwargs))
@@ -269,6 +340,7 @@ class TestScenarioService:
         assert calls[0] == (
             "sync_active_character_to_db",
             (char_id,),
+            {},
         )
         assert calls[1] == (
             "request_combat_start",
@@ -317,6 +389,42 @@ class TestScenarioService:
         mocks["integrator"].finalize_session.assert_not_awaited()
         mocks["integrator"].enter_prepared_combat.assert_not_awaited()
 
+    async def test_finalize_exploration_handoff_prepares_selected_location(self, service, mocks):
+        char_id = 1
+        context = ScenarioContextDTO(quest_key="awakening_rift", current_node_key="terminal")
+        mocks["integrator"].load_session = AsyncMock(return_value=context)
+        mocks["integrator"].get_quest_master = AsyncMock(return_value={"quest_key": "awakening_rift"})
+
+        mock_handler = MagicMock()
+        mock_handler.on_finalize = AsyncMock(
+            return_value=ScenarioFinalizeResult(
+                target_state=CoreDomain.EXPLORATION,
+                transition_reason="scenario_outskirts_handoff",
+                location_id="45_52",
+                metadata={"quest_key": "awakening_rift"},
+            )
+        )
+        mocks["integrator"].build_handler.return_value = mock_handler
+        mocks["integrator"].grant_inventory_rewards = AsyncMock(return_value=[])
+        mocks["integrator"].unlock_skills = AsyncMock()
+        mocks["integrator"].apply_attribute_bonuses = AsyncMock()
+        mocks["integrator"].request_combat_start = AsyncMock()
+        mocks["integrator"].enter_prepared_combat = AsyncMock()
+        mocks["integrator"].finalize_session = AsyncMock()
+        mocks["integrator"].publish_event = AsyncMock()
+        mocks["integrator"].sync_active_character_to_db = AsyncMock()
+
+        result = await service.finalize(char_id)
+
+        mocks["integrator"].prepare_exploration_return_context.assert_awaited_once_with(
+            char_id,
+            location_id="45_52",
+        )
+        mocks["integrator"].finalize_session.assert_awaited_once_with(char_id, CoreDomain.EXPLORATION)
+        mocks["integrator"].request_combat_start.assert_not_awaited()
+        mocks["integrator"].enter_prepared_combat.assert_not_awaited()
+        assert result.transition_reason == "scenario_outskirts_handoff"
+
     async def test_initialize_auto_chain(self, service, mocks):
         import uuid
         char_id = 1
@@ -355,7 +463,7 @@ class TestScenarioService:
     async def test_initialize_state_transition_error(self, service, mocks):
         import uuid
 
-        from src.backend.features.character.managers.session import StateTransitionError
+        from src.backend.infrastructure.actor_state.managers import StateTransitionError
         char_id = 1
         quest_key = "q1"
         mocks["integrator"].get_quest_master = AsyncMock(return_value={"id": "q1"})
@@ -395,6 +503,7 @@ class TestScenarioService:
         mock_result.rewards.items = []
         mock_result.rewards.skills = []
         mock_result.rewards.attribute_bonuses = None
+        mock_result.location_id = None
         mock_handler.on_finalize = AsyncMock(return_value=mock_result)
 
         mocks["integrator"].build_handler.return_value = mock_handler
@@ -504,6 +613,7 @@ class TestScenarioService:
         result.rewards.items = ["item1"]
         result.rewards.skills = ["skill1"]
         result.rewards.attribute_bonuses = {"str": 1}
+        result.location_id = None
         mock_handler.on_finalize = AsyncMock(return_value=result)
 
         mocks["integrator"].build_handler.return_value = mock_handler
@@ -531,6 +641,7 @@ class TestScenarioService:
         result = ScenarioFinalizeResult(
             target_state=CoreDomain.CITY_SERVICES,
             transition_reason="dialogue_finalized",
+            location_id="53_53",
             metadata={"next_screen": "room", "_effects": [{"type": "tavern.grant_room", "required": True}]},
         )
         mock_handler.on_finalize = AsyncMock(return_value=result)
@@ -556,4 +667,5 @@ class TestScenarioService:
         assert effect_args.kwargs == {"quest_key": "q1"}
         assert finalized.metadata["room_granted"] is True
         assert finalized.metadata["room_id"] == 10
+        mocks["integrator"].prepare_exploration_return_context.assert_not_awaited()
         mocks["integrator"].finalize_session.assert_called_with(char_id, CoreDomain.CITY_SERVICES)

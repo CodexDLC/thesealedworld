@@ -168,12 +168,6 @@ HUMANOID_WEAPON_FORM_PHRASES = {
             "variables": [],
             "tags": ["skill_dual_wield", "pressure", "dual"],
         },
-        "body.humanoid.weapon_form.skill_one_handed.free_hand": {
-            "kind": "weapon_form",
-            "text": "оставляет свободную руку для равновесия",
-            "variables": [],
-            "tags": ["skill_one_handed", "balance", "tactical"],
-        },
         "body.humanoid.weapon_form.skill_two_handed.full_weight": {
             "kind": "weapon_form",
             "text": "вкладывает обе руки в удар",

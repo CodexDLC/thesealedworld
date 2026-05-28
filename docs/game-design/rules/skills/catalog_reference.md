@@ -30,7 +30,7 @@ Skill values are normalized floats. Player UI may show them as `0..100`.
 | `skill_macing` | Дробящее оружие | weapon mastery | `strength 2`, `endurance 1`, `mental 1` |
 | `skill_archery` | Стрельба из лука | weapon mastery | `agility 2`, `perception 1`, `strength 1` |
 | `skill_unarmed` | Рукопашный бой | weapon mastery | `agility 2`, `strength 1`, `endurance 1` |
-| `skill_one_handed` | Одноручный стиль | tactical | `agility 2`, `perception 1`, `strength 1` |
+| `skill_ranged_combat` | Дальний бой | tactical | `agility 1`, `memory 1`, `perception 1`, `prediction 1` |
 | `skill_two_handed` | Двуручный стиль | tactical | `strength 2`, `endurance 1`, `agility 1` |
 | `skill_shield_mastery` | Владение щитом | tactical | `strength 2`, `endurance 1`, `agility 1` |
 | `skill_dual_wield` | Бой двумя руками | tactical | `agility 2`, `perception 1`, `strength 1` |

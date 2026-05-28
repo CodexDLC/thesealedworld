@@ -49,6 +49,15 @@ async def bootstrap_data():
     print("✅ Data loaded!")
 
 
+def rebuild_generated_monsters(args: list[str]):
+    """Rebuild generated monster mechanics from current resource code."""
+    import asyncio
+
+    from src.backend.features.monsters.scripts.rebuild_generated import async_main, parse_args
+
+    asyncio.run(async_main(parse_args(args)))
+
+
 if __name__ == "__main__":
     args = sys.argv[1:]
 
@@ -63,6 +72,9 @@ if __name__ == "__main__":
         import asyncio
 
         asyncio.run(bootstrap_data())
+    elif "rebuild-monsters" in args:
+        command_index = args.index("rebuild-monsters")
+        rebuild_generated_monsters(args[command_index + 1 :])
     elif "prepare" in args:
         # Run everything for setup
         import asyncio
@@ -70,4 +82,4 @@ if __name__ == "__main__":
         run_migrations()
         asyncio.run(bootstrap_data())
     else:
-        print("Unknown command. Available: runserver, upgrade, migrate, bootstrap, prepare")
+        print("Unknown command. Available: runserver, upgrade, migrate, bootstrap, rebuild-monsters, prepare")

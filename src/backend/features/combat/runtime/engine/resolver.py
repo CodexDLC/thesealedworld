@@ -223,6 +223,8 @@ class CombatResolver:
         source_id = res.source_id if res.source_id is not None else "0"
         target_id = res.target_id if res.target_id is not None else "0"
 
+        CombatResolver._resolve_triggers(ctx, res, "ON_PRE_EVASION", source_stats=def_stats)
+
         if ctx.flags.force.dodge:
             res.is_dodged = True
             CombatResolver._award_defender_token(res, "dodge")
@@ -248,6 +250,9 @@ class CombatResolver:
             final_chance = base_evasion - anti_evasion
             final_chance = min(final_chance, evasion_cap)
 
+        evasion_mult = max(0.0, ctx.mods.target_evasion_mult)
+        final_chance = max(0.0, min(1.0, final_chance * evasion_mult))
+
         if final_chance <= 0:
             CombatResolver._resolve_triggers(ctx, res, "ON_DODGE_FAIL")
             CombatResolver._trace_roll(
@@ -259,6 +264,7 @@ class CombatResolver:
                 base=base_evasion,
                 cap=evasion_cap,
                 anti=anti_evasion,
+                target_evasion_mult=evasion_mult,
             )
             return False
 
@@ -272,6 +278,7 @@ class CombatResolver:
             base=base_evasion,
             cap=evasion_cap,
             anti=anti_evasion,
+            target_evasion_mult=evasion_mult,
         )
 
         if passed:
@@ -324,6 +331,9 @@ class CombatResolver:
             final_chance = parry_chance
             final_chance = min(final_chance, parry_cap)
 
+        parry_mult = max(0.0, ctx.mods.target_parry_mult)
+        final_chance = max(0.0, min(1.0, final_chance * parry_mult))
+
         roll, passed = MathCore.roll_chance(final_chance)
         CombatResolver._trace_roll(
             res,
@@ -335,6 +345,7 @@ class CombatResolver:
             cap=parry_cap,
             skill=parrying,
             skill_mult=skill_mult,
+            target_parry_mult=parry_mult,
         )
 
         if passed:
@@ -422,6 +433,12 @@ class CombatResolver:
         if ctx.flags.formula.counter_chance_boost:
             counter_chance += 0.20
 
+        if res.is_dodged:
+            counter_chance += ctx.mods.counter_chance_bonus_on_dodge
+
+        if res.is_parried:
+            counter_chance += ctx.mods.counter_chance_bonus_on_parry
+
         if res.is_dodged and ctx.flags.state.counter_to_cap_on_dodge:
             counter_chance = max(counter_chance, cap)
 
@@ -444,7 +461,8 @@ class CombatResolver:
 
         if ctx.flags.force.crit:
             res.is_crit = True
-            CombatResolver._resolve_triggers(ctx, res, "ON_CRIT")
+            if not ctx.flags.restriction.suppress_crit_triggers:
+                CombatResolver._resolve_triggers(ctx, res, "ON_CRIT")
             return
 
         if ctx.flags.restriction.cannot_crit:
@@ -487,7 +505,8 @@ class CombatResolver:
 
         if passed:
             res.is_crit = True
-            CombatResolver._resolve_triggers(ctx, res, "ON_CRIT")
+            if not ctx.flags.restriction.suppress_crit_triggers:
+                CombatResolver._resolve_triggers(ctx, res, "ON_CRIT")
         else:
             CombatResolver._resolve_triggers(ctx, res, "ON_CRIT_FAIL")
 
@@ -527,8 +546,6 @@ class CombatResolver:
                     efficiency = UNARMED_MIN_EFFICIENCY + ((UNARMED_MAX_EFFICIENCY - UNARMED_MIN_EFFICIENCY) * unarmed)
                     base *= efficiency
                     spread = max(UNARMED_MASTER_SPREAD, UNARMED_NOVICE_SPREAD - (0.4 * unarmed))
-                else:
-                    base += atk_stats.mods.physical_damage
                 base += atk_stats.mods.physical_damage_bonus
 
             min_d = base * (1.0 - spread)
@@ -599,8 +616,10 @@ class CombatResolver:
             damage_parts["pure"] = pure_dmg
 
         elements = ["fire", "water", "air", "earth", "light", "darkness", "arcane", "nature"]
+        elemental_damage_enabled = False
         for elem in elements:
             if getattr(ctx.flags.damage, elem, False):
+                elemental_damage_enabled = True
                 elem_dmg = raw_damage
 
                 if res.is_crit:
@@ -655,6 +674,12 @@ class CombatResolver:
         total_damage *= max(0.0, getattr(atk_stats.mods, "damage_mult", 1.0))
         total_damage *= ctx.mods.damage_mult
         total_damage = max(0.0, total_damage)
+        damage_channel_enabled = ctx.flags.damage.physical or ctx.flags.damage.pure or elemental_damage_enabled
+        if damage_channel_enabled and raw_damage > 0.0:
+            total_damage = max(1.0, total_damage)
+        incoming_damage_cap = max(0, int(ctx.mods.incoming_damage_cap or 0))
+        if incoming_damage_cap > 0 and total_damage > 0.0:
+            total_damage = min(total_damage, float(incoming_damage_cap))
         res.damage_final = int(total_damage)
         if ctx.flags.damage.physical and base is not None:
             physical_added = max(0.0, float(base) - base_before_physical)
@@ -699,6 +724,7 @@ class CombatResolver:
             after_resist=after_resist,
             after_armor=after_armor,
             after_absorb=total_damage,
+            incoming_damage_cap=incoming_damage_cap or None,
         )
 
         # [EVENT] HIT
@@ -799,7 +825,7 @@ class CombatResolver:
             dto_section = ctx.triggers.accuracy
         elif step_key == "ON_CRIT" or step_key == "ON_CRIT_FAIL":
             dto_section = ctx.triggers.crit
-        elif step_key == "ON_DODGE" or step_key == "ON_DODGE_FAIL":
+        elif step_key in {"ON_PRE_EVASION", "ON_DODGE", "ON_DODGE_FAIL"}:
             dto_section = ctx.triggers.dodge
         elif step_key == "ON_PARRY" or step_key == "ON_PARRY_FAIL":
             dto_section = ctx.triggers.parry
@@ -878,7 +904,7 @@ class CombatResolver:
                 source=activation.source,
                 source_id=activation.source_id or rule_id,
             )
-            CombatResolver._apply_trigger_effects(res, rule_id, rule_data, step_key=step_key)
+            CombatResolver._apply_trigger_effects(ctx, res, activation, rule_id, rule_data, step_key=step_key)
             CombatResolver._apply_trigger_token_grants(res, rule_data)
 
     @staticmethod
@@ -900,7 +926,9 @@ class CombatResolver:
 
     @staticmethod
     def _apply_trigger_effects(
+        ctx: PipelineContextDTO,
         res: InteractionResultDTO,
+        activation: CombatTriggerActivationDTO,
         rule_id: str,
         rule_data: dict[str, Any],
         *,
@@ -908,8 +936,26 @@ class CombatResolver:
     ) -> None:
         for effect_id in rule_data.get("applied_effect_ids", []):
             effect_data = {"id": effect_id, "source_trigger_id": rule_id}
-            conditions = effect_data.setdefault("conditions", {})
             if step_key == "ON_CRIT":
+                conditions = effect_data.setdefault("conditions", {})
+                conditions.setdefault("is_hit", True)
+                conditions.setdefault("is_crit", True)
+            res.applied_effects.append(effect_data)
+
+        if activation.source != "weapon" or not activation.source_slot:
+            return
+
+        for payload in ctx.trigger_effect_payloads.get(activation.source_slot, []):
+            if not isinstance(payload, dict):
+                continue
+            effect_id = payload.get("id") or payload.get("effect_id")
+            if not isinstance(effect_id, str):
+                continue
+            effect_data = dict(payload)
+            effect_data["id"] = effect_id
+            effect_data.setdefault("source_trigger_id", rule_id)
+            if step_key == "ON_CRIT":
+                conditions = effect_data.setdefault("conditions", {})
                 conditions.setdefault("is_hit", True)
                 conditions.setdefault("is_crit", True)
             res.applied_effects.append(effect_data)

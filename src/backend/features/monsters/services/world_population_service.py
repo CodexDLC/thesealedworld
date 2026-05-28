@@ -15,40 +15,6 @@ if TYPE_CHECKING:
 D4_STARTER_FAMILY_IDS = ("bandit_gang", "goblin_tribe", "rat_swarm", "wolf_pack")
 D4_TIER0_CONTEXT_TAGS = ("d4_city_ruins", "d4_tier0_population", *D4_STARTER_FAMILY_IDS)
 D4_TIER1_CONTEXT_TAGS = ("d4_city_ruins", "d4_corner_pressure", "d4_tier1_population", *D4_STARTER_FAMILY_IDS)
-D4_CORNER_CONTEXTS: dict[str, tuple[str, ...]] = {
-    "d4_rift_rat_king": (
-        "d4_city_ruins",
-        "d4_corner_pressure",
-        "d4_rift_rat_king",
-        "rat_king_pressure",
-        "undercity_seep",
-        "rat_swarm",
-    ),
-    "d4_rift_wolf_breach": (
-        "d4_city_ruins",
-        "d4_corner_pressure",
-        "d4_rift_wolf_breach",
-        "wolf_breach_pressure",
-        "overgrown_kennel",
-        "wolf_pack",
-    ),
-    "d4_rift_bandit_barricade": (
-        "d4_city_ruins",
-        "d4_corner_pressure",
-        "d4_rift_bandit_barricade",
-        "bandit_barricade_pressure",
-        "scavenger_barricade",
-        "bandit_gang",
-    ),
-    "d4_rift_goblin_scrapyard": (
-        "d4_city_ruins",
-        "d4_corner_pressure",
-        "d4_rift_goblin_scrapyard",
-        "goblin_scrapyard_pressure",
-        "collapsed_workshop",
-        "goblin_tribe",
-    ),
-}
 
 
 @dataclass(frozen=True, slots=True)
@@ -86,6 +52,8 @@ class WorldMonsterPopulationService:
             zone = getattr(node, "zone", None)
             zone_flags = getattr(zone, "flags", None)
             if isinstance(zone_flags, dict) and bool(zone_flags.get("is_safe_zone")):
+                continue
+            if bool(flags.get("is_rift")) or flags.get("rift_profile"):
                 continue
 
             biome_id = str(getattr(zone, "biome_id", None) or "wasteland")
@@ -125,20 +93,7 @@ class WorldMonsterPopulationService:
         if biome_id != "city_ruins" or not zone_id.startswith("D4_"):
             return None
 
-        tag_set = set(tags)
-        for marker, context_tags in D4_CORNER_CONTEXTS.items():
-            if marker in tag_set:
-                if not bool(flags.get("is_rift")) and not flags.get("rift_profile"):
-                    continue
-                return MonsterGenerationContext(
-                    zone_id=zone_id,
-                    biome_id=biome_id,
-                    tier=2,
-                    tags=list(context_tags),
-                    difficulty="mid",
-                )
-
-        if "d4_corner_pressure" in tag_set:
+        if "d4_corner_pressure" in set(tags):
             return MonsterGenerationContext(
                 zone_id="D4_tier1_corner_pressure",
                 biome_id=biome_id,

@@ -19,6 +19,9 @@ from src.backend.features.monsters.runtime.generation_fields import (
     build_generated_monster_template,
     build_member_tier,
 )
+from src.backend.infrastructure.monsters.managers import (
+    AnchorProjectionSnapshotCacheManager,
+)
 
 if TYPE_CHECKING:
     from src.backend.features.items.dto.instance import RuntimeItemProjectionDTO
@@ -29,8 +32,6 @@ ANCHOR_PROJECTION_FAMILY_ID = "anchor_sovereigns"
 ANCHOR_PROJECTION_ZONE_ID = "system:anchor_projections"
 ANCHOR_PROJECTION_CONTEXT_HASH = "system:anchor_projections:v1"
 ANCHOR_PROJECTION_UNIQUE_HASH = "system:anchor_projections:anchor_sovereigns:v1"
-ANCHOR_PROJECTION_REDIS_PREFIX = "game:monster:anchor_projection"
-
 ANCHOR_PROJECTION_NAMES_RU: dict[str, str] = {
     "north_stasis_sovereign": "Проекция Северного Стазиса",
     "south_entropy_sovereign": "Проекция Южной Энтропии",
@@ -61,7 +62,8 @@ class AnchorProjectionBootstrapService:
         members = await self._build_members(family)
         snapshots = {member.variant_key: self.actor_builder.build_snapshot(member) for member in members}
         if self.redis is not None:
-            await self._cache_snapshots(snapshots)
+            await AnchorProjectionSnapshotCacheManager(self.redis).save_snapshots(snapshots)
+            logger.bind(variants=sorted(snapshots)).info("AnchorProjectionSnapshotsCached")
 
         return {
             "family_id": family.id,
@@ -176,17 +178,6 @@ class AnchorProjectionBootstrapService:
                     )
         return list(await self.item_generation.generate_runtime_projections(to_item_generation_requests(requests)))
 
-    async def _cache_snapshots(self, snapshots: dict[str, dict[str, Any]]) -> None:
-        index_key = f"{ANCHOR_PROJECTION_REDIS_PREFIX}:index"
-        await self.redis.json_module.set(index_key, "$", {"variants": sorted(snapshots)})
-        for variant_id, snapshot in snapshots.items():
-            await self.redis.json_module.set(self.build_snapshot_key(variant_id), "$", snapshot)
-        logger.bind(variants=sorted(snapshots)).info("AnchorProjectionSnapshotsCached")
-
-    @staticmethod
-    def build_snapshot_key(variant_id: str) -> str:
-        return f"{ANCHOR_PROJECTION_REDIS_PREFIX}:{variant_id}"
-
     @staticmethod
     def _item_kind(slot: str, base_id: str) -> str:
         if base_id == "shield":
@@ -194,16 +185,3 @@ class AnchorProjectionBootstrapService:
         if slot.endswith("_armor"):
             return "armor"
         return "weapon"
-
-
-class AnchorProjectionSnapshotCache:
-    """Reads system anchor combat snapshots prepared during game bootstrap."""
-
-    def __init__(self, redis: Any) -> None:
-        self.redis = redis
-
-    async def get_snapshot(self, variant_id: str) -> dict[str, Any] | None:
-        result = await self.redis.json_module.get(AnchorProjectionBootstrapService.build_snapshot_key(variant_id), "$")
-        if isinstance(result, list):
-            return result[0] if result and isinstance(result[0], dict) else None
-        return result if isinstance(result, dict) else None

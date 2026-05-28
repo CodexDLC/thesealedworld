@@ -9,7 +9,7 @@ from src.backend.core.database.session import get_session_context
 from src.backend.features.inventory.integrations import InventoryStreamClient
 from src.backend.features.inventory.repositories.items import InventoryItemRepository
 from src.backend.features.inventory.services.inventory_service import InventoryService
-from src.backend.features.inventory.services.session_manager import InventorySessionManager
+from src.backend.infrastructure.inventory.managers import InventorySessionManager
 from src.shared.infrastructure.log_task_wrapper import logged_task
 
 

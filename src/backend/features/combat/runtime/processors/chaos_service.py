@@ -150,7 +150,7 @@ class ChaosService:
             return self._create_fallback_projection_data(projection)
 
         attributes = variant.base_stats.model_dump(mode="json")
-        skills = build_scaled_skills(family, variant).skills
+        skills = build_scaled_skills(family, variant, member_tier=7).skills
         vitals = CharacterVitalsCalculator.build_initial_vitals(
             CharacterSessionAttributesDTO.model_validate(attributes),
             profile_key=f"monster:{family.archetype}",

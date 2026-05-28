@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import copy
 from dataclasses import dataclass
 from time import perf_counter
 from typing import TYPE_CHECKING, Any
@@ -9,12 +8,13 @@ from loguru import logger
 
 from src.backend.features.exploration.runtime.experience import flat_attribute_snapshot
 from src.backend.features.monsters.dto import MonsterGroupResult
+from src.backend.infrastructure.exploration.managers import ExplorationEncounterRuntimeManager
 
 if TYPE_CHECKING:
     from codex_platform.redis_service import RedisService
 
     from src.backend.core.bus import GameEventProducer
-    from src.backend.features.character.managers import CharacterSessionManager
+    from src.backend.infrastructure.actor_state.managers import CharacterSessionManager
     from src.backend.infrastructure.world.location_store import WorldLocationStore
 
 
@@ -65,11 +65,14 @@ class EncounterIntegration:
         world_store: WorldLocationStore | None = None,
         events: GameEventProducer | None = None,
         redis: RedisService | None = None,
+        encounter_runtime: ExplorationEncounterRuntimeManager | None = None,
     ) -> None:
         self.character_sessions = character_sessions
         self.world_store = world_store
         self.events = events
-        self.redis = redis
+        self.encounter_runtime = encounter_runtime or (
+            ExplorationEncounterRuntimeManager(redis) if redis is not None else None
+        )
 
     async def get_ac_skill_snapshot(self, char_id: int) -> EncounterSkillSnapshot:
         started_at = perf_counter()
@@ -126,9 +129,6 @@ class EncounterIntegration:
     async def detach_encounter_session(self, char_id: int) -> None:
         await self.character_sessions.clear_encounter_session(char_id)
 
-    def build_encounter_key(self, encounter_id: str) -> str:
-        return f"game:encounter:{encounter_id}"
-
     async def create_encounter_session(
         self,
         encounter_id: str,
@@ -136,38 +136,24 @@ class EncounterIntegration:
         *,
         ttl_seconds: int = ENCOUNTER_SESSION_TTL_SECONDS,
     ) -> dict[str, Any]:
-        if self.redis is None:
+        if self.encounter_runtime is None:
             raise RuntimeError("EncounterIntegration requires redis for encounter session writes")
-        session = dict(payload)
-        session.setdefault("encounter_id", encounter_id)
-        key = self.build_encounter_key(encounter_id)
-        await self.redis.json_module.set(key, "$", copy.deepcopy(session))
-        await self.redis.string.expire(key, int(ttl_seconds))
-        return copy.deepcopy(session)
+        return await self.encounter_runtime.create_session(encounter_id, payload, ttl_seconds=ttl_seconds)
 
     async def get_encounter_session(self, encounter_id: str) -> dict[str, Any] | None:
-        if self.redis is None:
+        if self.encounter_runtime is None:
             return None
-        result = await self.redis.json_module.get(self.build_encounter_key(encounter_id), "$")
-        payload = _first(result)
-        return copy.deepcopy(payload) if isinstance(payload, dict) else None
+        return await self.encounter_runtime.get_session(encounter_id)
 
     async def patch_encounter_session(self, encounter_id: str, updates: dict[str, Any]) -> None:
-        if self.redis is None:
+        if self.encounter_runtime is None:
             raise RuntimeError("EncounterIntegration requires redis for encounter session patches")
-        if not updates:
-            return
-        key = self.build_encounter_key(encounter_id)
-        async with self._redis_client().pipeline(transaction=False) as pipe:
-            for path, value in updates.items():
-                json_path = path if path.startswith("$.") else f"$.{path}"
-                pipe.json().set(key, json_path, value)
-            await pipe.execute()
+        await self.encounter_runtime.patch_session(encounter_id, updates)
 
     async def clear_encounter_session(self, encounter_id: str) -> None:
-        if self.redis is None:
+        if self.encounter_runtime is None:
             return
-        await self.redis.string.delete(self.build_encounter_key(encounter_id))
+        await self.encounter_runtime.clear_session(encounter_id)
 
     async def get_location_context(self, loc_id: str) -> EncounterLocationContext | None:
         if self.world_store is None:
@@ -212,11 +198,9 @@ class EncounterIntegration:
         return True
 
     async def get_cached_encounter_monsters(self, cache_key: str) -> dict[str, Any] | None:
-        if self.redis is None:
+        if self.encounter_runtime is None:
             return None
-        result = await self.redis.json_module.get(cache_key, "$")
-        payload = _first(result)
-        return copy.deepcopy(payload) if isinstance(payload, dict) else None
+        return await self.encounter_runtime.get_monster_cache(cache_key)
 
     async def set_cached_encounter_monsters(
         self,
@@ -225,11 +209,9 @@ class EncounterIntegration:
         *,
         ttl_seconds: int | None = None,
     ) -> None:
-        if self.redis is None:
+        if self.encounter_runtime is None:
             raise RuntimeError("EncounterIntegration requires redis for encounter monster cache writes")
-        await self.redis.json_module.set(cache_key, "$", dict(payload))
-        if ttl_seconds is not None:
-            await self.redis.string.expire(cache_key, int(ttl_seconds))
+        await self.encounter_runtime.set_monster_cache(cache_key, payload, ttl_seconds=ttl_seconds)
 
     async def prepare_monster_group(
         self,
@@ -289,13 +271,6 @@ class EncounterIntegration:
     async def attach_combat_session(self, char_id: int, combat_id: str) -> None:
         await self.character_sessions.set_combat_session(char_id, combat_id)
 
-    def _redis_client(self) -> Any:
-        if self.redis is None:
-            raise RuntimeError("EncounterIntegration requires redis")
-        if hasattr(self.redis, "redis_client"):
-            return self.redis.redis_client
-        return self.redis.pipeline.client
-
 
 def _skill_value(raw: Any) -> float:
     if isinstance(raw, dict):
@@ -318,12 +293,6 @@ def _positive_number(value: Any) -> bool:
 def _number_payload_value(value: float) -> str:
     number = float(value)
     return str(int(number)) if number.is_integer() else str(number)
-
-
-def _first(result: Any) -> Any:
-    if isinstance(result, list):
-        return result[0] if result else None
-    return result
 
 
 def _elapsed_ms(started_at: float) -> float:

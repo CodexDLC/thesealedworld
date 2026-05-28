@@ -17,6 +17,17 @@ class FakeStorage:
     async def get_clan_by_unique_hash(self, unique_hash: str) -> GeneratedClan | None:
         return self.clans_by_unique.get(unique_hash)
 
+    async def get_generated_clan(self, clan_id: uuid.UUID | str) -> GeneratedClan | None:
+        clan_uuid = uuid.UUID(str(clan_id))
+        for clan in self.clans_by_unique.values():
+            if clan.id == clan_uuid:
+                return clan
+        for clans in self.clans_by_context.values():
+            for clan in clans:
+                if clan.id == clan_uuid:
+                    return clan
+        return None
+
     async def get_clans_by_context_hash(self, context_hash: str) -> list[GeneratedClan]:
         return self.clans_by_context.get(context_hash, [])
 
@@ -74,16 +85,36 @@ class FakeClanFactory:
             name_ru="Rat Swarm",
             description="Rat Swarm",
         )
-        monster = GeneratedMonster(
-            id=uuid.uuid4(),
+        monster = _generated_monster(
             clan_id=clan.id,
             variant_key="sewer_rat",
             role="minion",
+            gear_score=40,
+            organization_type="swarm",
+        )
+        monster.clan = clan
+        clan.members.append(monster)
+        return await self.storage.create_clan_with_members(clan, [monster])
+
+
+def _generated_monster(
+    *,
+    clan_id: uuid.UUID,
+    variant_key: str,
+    role: str,
+    gear_score: int,
+    organization_type: str,
+) -> GeneratedMonster:
+    return GeneratedMonster(
+            id=uuid.uuid4(),
+            clan_id=clan_id,
+            variant_key=variant_key,
+            role=role,
             member_tier=0,
-            threat_rating=20,
-            name_ru="Rat",
-            description="Rat",
-            text_content={"name_ru": "Rat"},
+            threat_rating=gear_score,
+            name_ru=variant_key,
+            description=variant_key,
+            text_content={"name_ru": variant_key},
             scaled_attributes={
                 "strength": 4,
                 "agility": 10,
@@ -102,20 +133,22 @@ class FakeClanFactory:
             generation_meta={
                 "schema_version": 2,
                 "meta": {"archetype": "beast", "tags": ["rat"]},
-                "balance": {"gear_score": 40, "organization_type": "swarm"},
+                "balance": {"gear_score": gear_score, "organization_type": organization_type},
                 "visual": {
                     "status": "generated",
                     "image_url": "/static/generated-assets/monsters/generated/members/rat.webp",
+                    "asset_hash": "rat-image-bytes",
                 },
             },
         )
-        monster.clan = clan
-        clan.members.append(monster)
-        return await self.storage.create_clan_with_members(clan, [monster])
 
 
 class FakeLocationContext:
+    def __init__(self) -> None:
+        self.calls: list[str] = []
+
     async def get_location_context(self, loc_id: str) -> MonsterLocationContext:
+        self.calls.append(loc_id)
         return MonsterLocationContext(
             loc_id=loc_id,
             zone_id="D4_0_0",
@@ -189,10 +222,15 @@ async def test_prepare_monster_group_creates_clan_and_actor_commitments() -> Non
     first_source = next(iter(commitments.saved.values()))
     assert set(first_source) == {"meta", "source", "status", "combat"}
     assert first_source["meta"]["actor_type"] == "monster"
-    assert first_source["meta"]["avatar_url"] == "/static/generated-assets/monsters/generated/members/rat.webp"
+    assert first_source["meta"]["avatar_url"] == (
+        "/static/generated-assets/monsters/generated/members/rat.webp?v=rat-image-bytes"
+    )
     assert first_source["combat"]["skills"] == {"skill_fencing": 0.2}
     assert first_source["combat"]["math_model"]
-    assert result.previews[0].image == "/static/generated-assets/monsters/generated/members/rat.webp"
+    assert result.previews[0].image == "/static/generated-assets/monsters/generated/members/rat.webp?v=rat-image-bytes"
+    assert result.previews[0].visual["image_url"] == (
+        "/static/generated-assets/monsters/generated/members/rat.webp?v=rat-image-bytes"
+    )
 
 
 async def test_prepare_monster_group_allows_repeated_monster_templates() -> None:
@@ -210,3 +248,123 @@ async def test_prepare_monster_group_allows_repeated_monster_templates() -> None
     assert len(set(result.monster_ids)) == 1
     assert len(result.previews) == 2
     assert set(result.actor_commitments) == {f"monster:{result.monster_ids[0]}"}
+
+
+async def test_prepare_monster_group_from_clan_skips_world_location_and_hash_selection() -> None:
+    storage = FakeStorage()
+    commitments = FakeActorCommitments()
+    cache = FakeGroupCache()
+    location_context = FakeLocationContext()
+    factory = FakeClanFactory(storage)
+    world_context = type(
+        "WorldContext",
+        (),
+        {"tier": 1, "zone_id": "D4_0_0"},
+    )()
+    clan = await factory.build_clan_template(
+        context=world_context,
+        family_id="rat_swarm",
+        context_hash="rift-slot-context-hash",
+        unique_hash="rift-slot-unique-hash",
+        normalized_tags=["starter_rift", "primary"],
+    )
+    service = MonsterGroupService(
+        repository=storage,
+        location_context=location_context,  # type: ignore[arg-type]
+        actor_commitments=commitments,  # type: ignore[arg-type]
+        group_cache=cache,  # type: ignore[arg-type]
+        factory=factory,  # type: ignore[arg-type]
+    )
+
+    result = await service.prepare_monster_group_from_clan(
+        clan.id,
+        budget=40,
+        tier=1,
+        danger=0.35,
+        biome_id="broken_road",
+        loc_id="rift:starter_rift:primary",
+        zone_id="rift:starter_rift",
+        tags=["starter_rift", "primary"],
+        scope_id="rift:encounter:test",
+        ttl=120,
+    )
+
+    assert location_context.calls == []
+    assert storage.created is True
+    assert result.group_id == "rift:encounter:test"
+    assert result.group_key == "game:monster:group:rift:encounter:test"
+    assert result.clan_id == str(clan.id)
+    assert result.family_id == "rat_swarm"
+    assert result.loc_id == "rift:starter_rift:primary"
+    assert result.zone_id == "rift:starter_rift"
+    assert result.biome_id == "broken_road"
+    assert result.context_hash == "rift-slot-context-hash"
+    assert result.unique_hash == "rift-slot-unique-hash"
+    assert result.tags == ["starter_rift", "primary"]
+    assert result.reused_existing_clan is True
+    assert result.monster_ids
+    assert set(result.actor_commitments.values()) == set(commitments.saved)
+
+
+async def test_prepare_monster_group_from_clan_applies_rift_composition_policy() -> None:
+    storage = FakeStorage()
+    commitments = FakeActorCommitments()
+    clan = GeneratedClan(
+        id=uuid.uuid4(),
+        family_id="rat_swarm",
+        tier=1,
+        zone_id="rift:starter_rift",
+        context_hash="rift-boss-context-hash",
+        unique_hash="rift-boss-unique-hash",
+        raw_tags={},
+        flavor_content={},
+        name_ru="Rift Rats",
+        description="Rift Rats",
+    )
+    minion = _generated_monster(
+        clan_id=clan.id,
+        variant_key="minion",
+        role="minion",
+        gear_score=20,
+        organization_type="swarm",
+    )
+    boss = _generated_monster(
+        clan_id=clan.id,
+        variant_key="heart_boss",
+        role="boss",
+        gear_score=160,
+        organization_type="swarm",
+    )
+    for member in (minion, boss):
+        member.clan = clan
+        clan.members.append(member)
+    storage.clans_by_unique[clan.unique_hash] = clan
+    storage.members_by_clan[clan.id] = [minion, boss]
+    service = MonsterGroupService(
+        repository=storage,
+        location_context=FakeLocationContext(),  # type: ignore[arg-type]
+        actor_commitments=commitments,  # type: ignore[arg-type]
+        factory=FakeClanFactory(storage),  # type: ignore[arg-type]
+    )
+
+    result = await service.prepare_monster_group_from_clan(
+        clan.id,
+        budget=60,
+        tier=1,
+        danger=0.0,
+        biome_id="broken_road",
+        loc_id="rift:starter_rift:heart",
+        zone_id="rift:starter_rift",
+        tags=["starter_rift", "heart_guard"],
+        composition_policy={
+            "allowed_roles": ["boss"],
+            "required_roles": ["boss"],
+            "max_units": 1,
+            "allow_repeated_members": False,
+        },
+        scope_id="rift:boss:test",
+        ttl=120,
+    )
+
+    assert result.monster_ids == [str(boss.id)]
+    assert result.previews[0].role == "boss"

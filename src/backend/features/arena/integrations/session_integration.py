@@ -8,7 +8,7 @@ from src.backend.features.arena.dto.session import ArenaCombatRequestDTO, ArenaQ
 from src.shared.schemas.arena import ArenaScreenEnum
 
 if TYPE_CHECKING:
-    from src.backend.features.arena.repositories.session_store import ArenaSessionStore
+    from src.backend.infrastructure.arena.managers import ArenaSessionManager
 
 
 class ArenaSessionIntegration:
@@ -16,7 +16,10 @@ class ArenaSessionIntegration:
     DEFAULT_GS = 100
     REQUEST_TTL_SEC = 300
 
-    def __init__(self, store: ArenaSessionStore) -> None:
+    def __init__(
+        self,
+        store: ArenaSessionManager[ArenaQueueRequestDTO, ArenaCombatRequestDTO, ArenaRuntimeSessionDTO],
+    ) -> None:
         self.store = store
 
     async def join_queue(
@@ -30,17 +33,16 @@ class ArenaSessionIntegration:
         commitment_ttl: int | None = None,
     ) -> int:
         gs = await self.get_gear_score(char_id)
-        await self.store.add_to_queue(
-            ArenaQueueRequestDTO(
-                char_id=char_id,
-                mode=mode,
-                gs=gs,
-                wait_limit_sec=wait_limit_sec,
-                commitment_id=commitment_id,
-                commitment_ttl=commitment_ttl,
-                request_id=request_id or uuid.uuid4().hex,
-            )
+        request = ArenaQueueRequestDTO(
+            char_id=char_id,
+            mode=mode,
+            gs=gs,
+            wait_limit_sec=wait_limit_sec,
+            commitment_id=commitment_id,
+            commitment_ttl=commitment_ttl,
+            request_id=request_id or uuid.uuid4().hex,
         )
+        await self.store.add_to_queue(mode, request, mode_size=request.mode_size)
         return gs
 
     async def create_runtime_session(self, char_id: int) -> ArenaRuntimeSessionDTO:
@@ -112,10 +114,10 @@ class ArenaSessionIntegration:
 
     async def acquire_match_lock(self, char_id: int) -> str | None:
         token = uuid.uuid4().hex
-        return token if await self.store.acquire_match_lock(char_id, token) else None
+        return token if await self.store.acquire_match_lock("match", char_id, token) else None
 
     async def release_match_lock(self, char_id: int, token: str) -> None:
-        await self.store.release_match_lock(char_id, token)
+        await self.store.release_match_lock("match", char_id, token)
 
     async def prepare_match(self, char_id: int, opponent_id: int | None, mode: str) -> None:
         await self.leave_queue(char_id, mode)

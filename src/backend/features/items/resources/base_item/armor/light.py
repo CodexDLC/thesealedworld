@@ -35,7 +35,7 @@ LIGHT_ARMOR_DB = {
         damage_spread=0.0,
         narrative_tags=["leather_armor", "light", "mobile", "scout"],
         implicit_bonuses={
-            "evasion": 0.010,
+            "evasion": 0.050,
         },
     ),
     "soft_bracers": BaseItemDTO(

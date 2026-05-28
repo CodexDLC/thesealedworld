@@ -13,8 +13,8 @@ from src.backend.features.exploration.runtime.encounter.bypass import (
     encounter_with_bypass_chance,
 )
 from src.backend.features.exploration.runtime.experience import ExplorationExperienceService
-from src.backend.features.exploration.services.knowledge_runtime import ExplorationKnowledgeRuntimeManager
 from src.backend.features.exploration.services.knowledge_service import ExplorationKnowledgeService
+from src.backend.infrastructure.exploration.managers import ExplorationKnowledgeRuntimeManager
 from src.shared.enums import CoreDomain
 
 if TYPE_CHECKING:

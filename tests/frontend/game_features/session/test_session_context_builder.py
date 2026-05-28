@@ -292,6 +292,34 @@ class FakeArenaApi:
         )
 
 
+class FakeRiftApi:
+    def __init__(self):
+        self.calls = []
+
+    async def view(self, token, *, char_id):
+        self.calls.append(("rift", char_id))
+        return {
+            "meta": {"rift_instance_id": "rift-1", "zone_instance_id": "zone-1", "schema_version": "dev"},
+            "hud": {
+                "title": "Рваный тракт",
+                "subtitle": "Зона 1",
+                "tier": 1,
+                "danger_label": "DANGER I",
+                "objective": {"title": "Выбраться", "description": "Закрыть сердце.", "progress_label": "0/1"},
+            },
+            "current_node": {
+                "node_id": "z01:2_2",
+                "title": "Вход",
+                "description": "Сухая глина.",
+                "coord": {"x": 2, "y": 2},
+                "tags": [],
+            },
+            "movement": [],
+            "surroundings": [],
+            "map_view": {"center_node_id": "z01:2_2", "visible_nodes": [], "visible_edges": []},
+        }
+
+
 class FakeCityServicesApi:
     def __init__(self, payload=None):
         self.payload = payload
@@ -450,6 +478,19 @@ def city_services_builder(status_api, city_services_api):
         scenario_api=FakeScenarioApi(scenario_response()),
         game_session_api=FakeGameSessionApi(scenario_response()),
         inventory_api=FakeInventoryApi(),
+    )
+
+
+def rift_builder(status_api, rift_api):
+    return SessionContextBuilder(
+        character_status_api=status_api,
+        arena_api=SimpleNamespace(),
+        city_services_api=FakeCityServicesApi(),
+        exploration_api=SimpleNamespace(),
+        scenario_api=FakeScenarioApi(scenario_response()),
+        game_session_api=FakeGameSessionApi(scenario_response()),
+        inventory_api=FakeInventoryApi(),
+        rift_api=rift_api,
     )
 
 
@@ -844,6 +885,23 @@ async def test_build_state_arena_normalizes_dict_payload_before_render_context()
     assert context["nav"]["l1"]["modal"] == "quests"
     assert context["nav"]["r1"]["panel_view"] == "inventory"
     assert context["nav"]["r2"]["panel_view"] == "context"
+
+
+@pytest.mark.asyncio
+async def test_build_state_rift_loads_runtime_screen_with_status_and_inventory_contract():
+    status_api = FakeCharacterStatusApi()
+    rift_api = FakeRiftApi()
+    service = rift_builder(status_api, rift_api)
+
+    context = await service.build_state(request(), state=CoreDomain.RIFT, char_id=7)
+
+    assert rift_api.calls == [("rift", 7)]
+    assert status_api.calls == [("status", 7)]
+    assert context["domain"] == "rift"
+    assert context["rift"]["hud"]["title"] == "Рваный тракт"
+    assert context["status_seed"]["hp"] == 88
+    assert context["inventory_window"].contract_state == "FRONTEND_CONTRACT_PENDING"
+    assert context["game_state_scripts"] == ["/static/js/game/states/rift.js"]
 
 
 @pytest.mark.asyncio

@@ -25,7 +25,7 @@ from src.shared.schemas.modifier_dto import (
 class FeintCostDTO(BaseModel):
     """
     Стоимость финта в тактических токенах.
-    Ключи: "hit", "crit", "block", "parry", "dodge", "tempo"
+    Ключи: "hit", "crit", "block", "parry", "dodge", "tempo", "blood"
     Значения: количество токенов для списания
     """
 
@@ -97,6 +97,7 @@ class ActorMetaDTO(BaseModel):
     afk_level: int = 0
     exchange_counter: int = 0  # Счетчик участий в разменах (для кулдаунов и XP)
     tokens: dict[str, int] = Field(default_factory=dict)
+    token_progress: dict[str, int] = Field(default_factory=dict)
 
     # === НОВОЕ ПОЛЕ ===
     feints: FeintHandDTO = Field(default_factory=FeintHandDTO)

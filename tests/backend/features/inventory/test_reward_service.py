@@ -4,11 +4,11 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from src.backend.features.character.managers.session import CharacterSessionManager
 from src.backend.features.inventory.services.inventory_service import InventoryService
 from src.backend.features.inventory.services.reward_service import InventoryRewardService
-from src.backend.features.inventory.services.session_manager import InventorySessionManager
 from src.backend.features.items.events.publisher import ItemEvents
+from src.backend.infrastructure.actor_state.managers import CharacterSessionManager
+from src.backend.infrastructure.inventory.managers import InventorySessionManager
 from src.shared.schemas.inventory import InventoryRuntimeItemDTO
 
 

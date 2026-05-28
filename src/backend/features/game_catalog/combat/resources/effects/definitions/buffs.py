@@ -5,6 +5,7 @@ from src.backend.features.game_catalog.combat.resources.common.descriptions impo
 from src.backend.features.game_catalog.combat.resources.common.modifier_applications import ModifierApplicationDTO
 from src.backend.features.game_catalog.combat.resources.common.pipeline_mutations import pipeline_mutation
 from src.backend.features.game_catalog.combat.resources.effects.schemas import (
+    ControlInstructionDTO,
     EffectCatalogEntryDTO,
     EffectTechnicalDTO,
     EffectType,
@@ -215,6 +216,88 @@ _prep_counter_on_parry_catalog = EffectCatalogEntryDTO(
     ),
 )
 
+_prep_foresight_parry_catalog = EffectCatalogEntryDTO(
+    key="combat.effect.prep_foresight_parry",
+    technical=EffectTechnicalDTO(
+        effect_id="prep_foresight_parry",
+        type=EffectType.BUFF,
+        duration=999,
+        pipeline_mutations=[
+            pipeline_mutation("force.parry"),
+        ],
+        pipeline_mutation_role="target",
+        react_on_outcomes=["parry"],
+        consume_on_reaction=True,
+        tags=["buff", "preparation", "parry", "forced_parry"],
+    ),
+    descriptive=build_combat_description(
+        resource_type="effects",
+        resource_id="prep_foresight_parry",
+        icon="combat/effects/prep_foresight_parry.svg",
+        display_name="Предвидение",
+        short_description="Следующий входящий удар будет парирован.",
+        humanoid_event_texts=CombatEventTextSetDTO(
+            apply_effect=["{target} читает линию следующей атаки."],
+            expire_effect=["{target} переводит предвидение в парирование."],
+        ),
+        beast_event_texts=_BUFF_APPLY_BEAST,
+    ),
+)
+
+_prep_second_breath_catalog = EffectCatalogEntryDTO(
+    key="combat.effect.prep_second_breath",
+    technical=EffectTechnicalDTO(
+        effect_id="prep_second_breath",
+        type=EffectType.BUFF,
+        duration=999,
+        pipeline_mutation_role="target",
+        react_on_outcomes=["parry"],
+        consume_on_reaction=True,
+        tags=["buff", "preparation", "parry", "heal"],
+    ),
+    descriptive=build_combat_description(
+        resource_type="effects",
+        resource_id="prep_second_breath",
+        icon="combat/effects/prep_second_breath.svg",
+        display_name="Второе дыхание",
+        short_description="Следующее успешное парирование восстанавливает HP.",
+        humanoid_event_texts=CombatEventTextSetDTO(
+            apply_effect=["{target} выравнивает дыхание перед встречной защитой."],
+            expire_effect=["{target} восстанавливается на успешном парировании."],
+        ),
+        beast_event_texts=_BUFF_APPLY_BEAST,
+    ),
+)
+
+_prep_perfect_riposte_catalog = EffectCatalogEntryDTO(
+    key="combat.effect.prep_perfect_riposte",
+    technical=EffectTechnicalDTO(
+        effect_id="prep_perfect_riposte",
+        type=EffectType.BUFF,
+        duration=999,
+        pipeline_mutations=[
+            pipeline_mutation("force_counter_on_parry"),
+            pipeline_mutation("allow_counter_on_parry"),
+        ],
+        pipeline_mutation_role="target",
+        react_on_outcomes=["parry"],
+        consume_on_reaction=True,
+        tags=["buff", "preparation", "parry", "heal", "counter"],
+    ),
+    descriptive=build_combat_description(
+        resource_type="effects",
+        resource_id="prep_perfect_riposte",
+        icon="combat/effects/prep_perfect_riposte.svg",
+        display_name="Совершенный рипост",
+        short_description="Следующее успешное парирование восстанавливает HP и вызывает контратаку.",
+        humanoid_event_texts=CombatEventTextSetDTO(
+            apply_effect=["{target} удерживает линию для совершенного рипоста."],
+            expire_effect=["{target} переводит парирование в восстановление и ответ."],
+        ),
+        beast_event_texts=_BUFF_APPLY_BEAST,
+    ),
+)
+
 _prep_glancing_dodge_catalog = EffectCatalogEntryDTO(
     key="combat.effect.prep_glancing_dodge",
     technical=EffectTechnicalDTO(
@@ -299,6 +382,151 @@ _prep_brace_guard_catalog = EffectCatalogEntryDTO(
     ),
 )
 
+
+_prep_active_defense_catalog = EffectCatalogEntryDTO(
+    key="combat.effect.prep_active_defense",
+    technical=EffectTechnicalDTO(
+        effect_id="prep_active_defense",
+        type=EffectType.BUFF,
+        duration=999,
+        pipeline_mutations=[
+            pipeline_mutation("damage_mult", 0.5),
+        ],
+        pipeline_mutation_role="target",
+        react_on_outcomes=["hit", "crit"],
+        consume_on_reaction=True,
+        tags=["buff", "preparation", "block", "shield", "damage_reduction"],
+    ),
+    descriptive=build_combat_description(
+        resource_type="effects",
+        resource_id="prep_active_defense",
+        icon="combat/effects/prep_active_defense.svg",
+        display_name="Активная защита",
+        short_description="Следующий входящий урон через resolver уменьшается вдвое.",
+        humanoid_event_texts=CombatEventTextSetDTO(
+            apply_effect=["{target} поднимает щит в активную защиту."],
+            expire_effect=["{target} гасит удар активной защитой."],
+        ),
+        beast_event_texts=_BUFF_APPLY_BEAST,
+    ),
+)
+
+
+_prep_full_defense_catalog = EffectCatalogEntryDTO(
+    key="combat.effect.prep_full_defense",
+    technical=EffectTechnicalDTO(
+        effect_id="prep_full_defense",
+        type=EffectType.BUFF,
+        duration=999,
+        pipeline_mutations=[
+            pipeline_mutation("incoming_damage_cap", 1),
+        ],
+        pipeline_mutation_role="target",
+        react_on_outcomes=["hit", "crit"],
+        consume_on_reaction=True,
+        tags=["buff", "preparation", "block", "shield", "damage_cap"],
+    ),
+    descriptive=build_combat_description(
+        resource_type="effects",
+        resource_id="prep_full_defense",
+        icon="combat/effects/prep_full_defense.svg",
+        display_name="Полная защита",
+        short_description="Следующий входящий урон через resolver становится не больше 1.",
+        humanoid_event_texts=CombatEventTextSetDTO(
+            apply_effect=["{target} закрывается полной защитой."],
+            expire_effect=["{target} сводит удар к минимуму полной защитой."],
+        ),
+        beast_event_texts=_BUFF_APPLY_BEAST,
+    ),
+)
+
+
+_prep_absolute_defense_catalog = EffectCatalogEntryDTO(
+    key="combat.effect.prep_absolute_defense",
+    technical=EffectTechnicalDTO(
+        effect_id="prep_absolute_defense",
+        type=EffectType.BUFF,
+        duration=1,
+        pipeline_mutations=[
+            pipeline_mutation("incoming_damage_cap", 1),
+        ],
+        pipeline_mutation_role="target",
+        react_on_outcomes=["hit", "crit"],
+        consume_on_reaction=False,
+        tags=["buff", "preparation", "block", "shield", "damage_cap", "absolute_defense"],
+    ),
+    descriptive=build_combat_description(
+        resource_type="effects",
+        resource_id="prep_absolute_defense",
+        icon="combat/effects/prep_absolute_defense.svg",
+        display_name="Абсолютная защита",
+        short_description="До следующего размена входящий урон через resolver становится не больше 1.",
+        humanoid_event_texts=CombatEventTextSetDTO(
+            apply_effect=["{target} собирает абсолютную защиту."],
+            tick=["Абсолютная защита {target} сводит удар к минимуму."],
+            expire_effect=["Абсолютная защита {target} рассеивается."],
+        ),
+        beast_event_texts=_BUFF_APPLY_BEAST,
+    ),
+)
+
+
+_prep_aggressive_defense_catalog = EffectCatalogEntryDTO(
+    key="combat.effect.prep_aggressive_defense",
+    technical=EffectTechnicalDTO(
+        effect_id="prep_aggressive_defense",
+        type=EffectType.BUFF,
+        duration=999,
+        pipeline_mutations=[
+            pipeline_mutation("incoming_damage_cap", 1),
+        ],
+        pipeline_mutation_role="target",
+        react_on_outcomes=["hit", "crit"],
+        consume_on_reaction=True,
+        tags=["buff", "preparation", "block", "shield", "damage_cap", "reflect"],
+    ),
+    descriptive=build_combat_description(
+        resource_type="effects",
+        resource_id="prep_aggressive_defense",
+        icon="combat/effects/prep_aggressive_defense.svg",
+        display_name="Агрессивная защита",
+        short_description="Следующий входящий урон через resolver становится не больше 1 и отражает урон щитом.",
+        humanoid_event_texts=CombatEventTextSetDTO(
+            apply_effect=["{target} поднимает щит в агрессивную защиту."],
+            expire_effect=["{target} встречает удар агрессивной защитой."],
+        ),
+        beast_event_texts=_BUFF_APPLY_BEAST,
+    ),
+)
+
+
+_concussed_no_feints_catalog = EffectCatalogEntryDTO(
+    key="combat.effect.concussed_no_feints",
+    technical=EffectTechnicalDTO(
+        effect_id="concussed_no_feints",
+        type=EffectType.CONTROL,
+        duration=1,
+        control_logic=ControlInstructionDTO(
+            status_name="forbid_feints",
+            source_behavior={"forbid_feints": True},
+        ),
+        tags=["control", "shield", "forbid_feints"],
+    ),
+    descriptive=build_combat_description(
+        resource_type="effects",
+        resource_id="concussed_no_feints",
+        icon="combat/effects/concussed_no_feints.svg",
+        display_name="Контузия",
+        short_description="Следующий размен нельзя использовать финты.",
+        humanoid_event_texts=CombatEventTextSetDTO(
+            apply_effect=["{target} теряет возможность использовать приемы в следующем размене."],
+            expire_effect=["{target} приходит в себя после контузии."],
+        ),
+        beast_event_texts=_BUFF_APPLY_BEAST,
+    ),
+)
+
+
 _prep_parry_riposte_catalog = EffectCatalogEntryDTO(
     key="combat.effect.prep_parry_riposte",
     technical=EffectTechnicalDTO(
@@ -353,6 +581,340 @@ _spiked_guard_catalog = EffectCatalogEntryDTO(
     ),
 )
 
+_prep_2h_steel_line_catalog = EffectCatalogEntryDTO(
+    key="combat.effect.prep_2h_steel_line",
+    technical=EffectTechnicalDTO(
+        effect_id="prep_2h_steel_line",
+        type=EffectType.BUFF,
+        duration=999,
+        pipeline_mutations=[pipeline_mutation("force.parry")],
+        pipeline_mutation_role="target",
+        react_on_outcomes=["parry"],
+        consume_on_reaction=True,
+        tags=["buff", "preparation", "two_handed", "parry", "forced_parry"],
+    ),
+    descriptive=build_combat_description(
+        resource_type="effects",
+        resource_id="prep_2h_steel_line",
+        icon="combat/effects/prep_2h_steel_line.svg",
+        display_name="Стальная линия",
+        short_description="Следующая атака по вам будет парирована.",
+        humanoid_event_texts=CombatEventTextSetDTO(
+            apply_effect=["{target} ставит оружие в стальную линию."],
+            expire_effect=["{target} переводит стальную линию в парирование."],
+        ),
+        beast_event_texts=_BUFF_APPLY_BEAST,
+    ),
+)
+
+_prep_2h_blade_return_catalog = EffectCatalogEntryDTO(
+    key="combat.effect.prep_2h_blade_return",
+    technical=EffectTechnicalDTO(
+        effect_id="prep_2h_blade_return",
+        type=EffectType.BUFF,
+        duration=999,
+        modifier_applications=[
+            ModifierApplicationDTO(
+                modifier_id="parry_mult",
+                value_override=1.3,
+                scope="duration",
+                duration_exchanges=999,
+            )
+        ],
+        pipeline_mutation_role="target",
+        react_on_outcomes=["hit", "crit", "miss", "dodge", "parry", "block"],
+        consume_on_reaction=True,
+        tags=["buff", "preparation", "two_handed", "parry", "parry_boost"],
+    ),
+    descriptive=build_combat_description(
+        resource_type="effects",
+        resource_id="prep_2h_blade_return",
+        icon="combat/effects/prep_2h_blade_return.svg",
+        display_name="Возврат клинка",
+        short_description="Следующая входящая атака проходит против усиленного парирования.",
+        humanoid_event_texts=CombatEventTextSetDTO(
+            apply_effect=["{target} возвращает клинок в защитную линию."],
+            expire_effect=["{target} тратит возврат клинка."],
+        ),
+        beast_event_texts=_BUFF_APPLY_BEAST,
+    ),
+)
+
+_prep_2h_hard_intercept_catalog = EffectCatalogEntryDTO(
+    key="combat.effect.prep_2h_hard_intercept",
+    technical=EffectTechnicalDTO(
+        effect_id="prep_2h_hard_intercept",
+        type=EffectType.BUFF,
+        duration=999,
+        pipeline_mutations=[pipeline_mutation("force.parry")],
+        pipeline_mutation_role="target",
+        react_on_outcomes=["parry"],
+        consume_on_reaction=True,
+        tags=["buff", "preparation", "two_handed", "parry", "debuff"],
+    ),
+    descriptive=build_combat_description(
+        resource_type="effects",
+        resource_id="prep_2h_hard_intercept",
+        icon="combat/effects/prep_2h_hard_intercept.svg",
+        display_name="Жесткий перехват",
+        short_description="Следующая атака парируется и сбивает размах противника.",
+        humanoid_event_texts=CombatEventTextSetDTO(
+            apply_effect=["{target} готовит жесткий перехват."],
+            expire_effect=["{target} сбивает атаку жестким перехватом."],
+        ),
+        beast_event_texts=_BUFF_APPLY_BEAST,
+    ),
+)
+
+_prep_2h_answering_stance_catalog = EffectCatalogEntryDTO(
+    key="combat.effect.prep_2h_answering_stance",
+    technical=EffectTechnicalDTO(
+        effect_id="prep_2h_answering_stance",
+        type=EffectType.BUFF,
+        duration=999,
+        pipeline_mutations=[
+            pipeline_mutation("force.parry"),
+            pipeline_mutation("force_counter_on_parry"),
+            pipeline_mutation("allow_counter_on_parry"),
+        ],
+        pipeline_mutation_role="target",
+        react_on_outcomes=["parry"],
+        consume_on_reaction=True,
+        tags=["buff", "preparation", "two_handed", "parry", "counter"],
+    ),
+    descriptive=build_combat_description(
+        resource_type="effects",
+        resource_id="prep_2h_answering_stance",
+        icon="combat/effects/prep_2h_answering_stance.svg",
+        display_name="Ответная стойка",
+        short_description="Следующая атака парируется и вызывает контратаку.",
+        humanoid_event_texts=CombatEventTextSetDTO(
+            apply_effect=["{target} закрывает линию в ответную стойку."],
+            expire_effect=["{target} переводит парирование в ответную стойку."],
+        ),
+        beast_event_texts=_BUFF_APPLY_BEAST,
+    ),
+)
+
+_prep_2h_closed_distance_catalog = EffectCatalogEntryDTO(
+    key="combat.effect.prep_2h_closed_distance",
+    technical=EffectTechnicalDTO(
+        effect_id="prep_2h_closed_distance",
+        type=EffectType.BUFF,
+        duration=999,
+        pipeline_mutations=[
+            pipeline_mutation("force.parry"),
+            pipeline_mutation("force_counter_on_parry"),
+            pipeline_mutation("allow_counter_on_parry"),
+        ],
+        pipeline_mutation_role="target",
+        react_on_outcomes=["parry"],
+        consume_on_reaction=True,
+        tags=["buff", "preparation", "two_handed", "parry", "counter", "high_cost"],
+    ),
+    descriptive=build_combat_description(
+        resource_type="effects",
+        resource_id="prep_2h_closed_distance",
+        icon="combat/effects/prep_2h_closed_distance.svg",
+        display_name="Закрытая дистанция",
+        short_description="Следующая атака парируется и вызывает жесткую контратаку.",
+        humanoid_event_texts=CombatEventTextSetDTO(
+            apply_effect=["{target} закрывает дистанцию для встречного ответа."],
+            expire_effect=["{target} парирует и рвет дистанцию ответом."],
+        ),
+        beast_event_texts=_BUFF_APPLY_BEAST,
+    ),
+)
+
+_prep_2h_hidden_agility_catalog = EffectCatalogEntryDTO(
+    key="combat.effect.prep_2h_hidden_agility",
+    technical=EffectTechnicalDTO(
+        effect_id="prep_2h_hidden_agility",
+        type=EffectType.BUFF,
+        duration=999,
+        pipeline_mutations=[
+            pipeline_mutation("force.dodge"),
+            pipeline_mutation("force_counter_on_dodge"),
+        ],
+        pipeline_mutation_role="target",
+        react_on_outcomes=["dodge"],
+        consume_on_reaction=True,
+        tags=["buff", "preparation", "two_handed", "dodge", "counter"],
+    ),
+    descriptive=build_combat_description(
+        resource_type="effects",
+        resource_id="prep_2h_hidden_agility",
+        icon="combat/effects/prep_2h_hidden_agility.svg",
+        display_name="Скрытая ловкость",
+        short_description="Следующая атака уходит в уворот и вызывает контратаку.",
+        humanoid_event_texts=CombatEventTextSetDTO(
+            apply_effect=["{target} скрывает движение за весом оружия."],
+            expire_effect=["{target} уходит с линии и отвечает."],
+        ),
+        beast_event_texts=_BUFF_APPLY_BEAST,
+    ),
+)
+
+
+def _dual_prep_catalog(
+    *,
+    effect_id: str,
+    display_name: str,
+    short_description: str,
+    pipeline_mutations: list | None = None,
+    pipeline_mutation_role: str = "target",
+    react_on_outcomes: list[str] | None = None,
+    tags: list[str] | None = None,
+) -> EffectCatalogEntryDTO:
+    return EffectCatalogEntryDTO(
+        key=f"combat.effect.{effect_id}",
+        technical=EffectTechnicalDTO(
+            effect_id=effect_id,
+            type=EffectType.BUFF,
+            duration=999,
+            pipeline_mutations=pipeline_mutations or [],
+            pipeline_mutation_role=pipeline_mutation_role,
+            react_on_outcomes=react_on_outcomes or ["hit", "crit", "miss", "dodge", "parry", "block"],
+            consume_on_reaction=True,
+            tags=["buff", "preparation", "dual_wield", *(tags or [])],
+        ),
+        descriptive=build_combat_description(
+            resource_type="effects",
+            resource_id=effect_id,
+            icon=f"combat/effects/{effect_id}.svg",
+            display_name=display_name,
+            short_description=short_description,
+            humanoid_event_texts=CombatEventTextSetDTO(
+                apply_effect=[f"{{target}} готовит {display_name.lower()}."],
+                expire_effect=[f"{{target}} тратит {display_name.lower()}."],
+            ),
+            beast_event_texts=_BUFF_APPLY_BEAST,
+        ),
+    )
+
+
+_prep_dual_broken_step_catalog = _dual_prep_catalog(
+    effect_id="prep_dual_broken_step",
+    display_name="Ломаный шаг",
+    short_description="Следующий успешный уворот получает повышенный шанс контратаки.",
+    pipeline_mutations=[pipeline_mutation("counter_chance_bonus_on_dodge")],
+    react_on_outcomes=["dodge"],
+    tags=["dodge", "counter"],
+)
+
+_prep_dual_shifting_line_catalog = EffectCatalogEntryDTO(
+    key="combat.effect.prep_dual_shifting_line",
+    technical=EffectTechnicalDTO(
+        effect_id="prep_dual_shifting_line",
+        type=EffectType.BUFF,
+        duration=999,
+        modifier_applications=[
+            ModifierApplicationDTO(
+                modifier_id="parry_mult",
+                value_override=1.25,
+                scope="duration",
+                duration_exchanges=999,
+            )
+        ],
+        pipeline_mutation_role="target",
+        react_on_outcomes=["hit", "crit", "miss", "dodge", "parry", "block"],
+        consume_on_reaction=True,
+        tags=["buff", "preparation", "dual_wield", "dodge", "parry_boost"],
+    ),
+    descriptive=build_combat_description(
+        resource_type="effects",
+        resource_id="prep_dual_shifting_line",
+        icon="combat/effects/prep_dual_shifting_line.svg",
+        display_name="Смена линии",
+        short_description="Следующая входящая атака проходит против усиленного парирования.",
+        humanoid_event_texts=CombatEventTextSetDTO(
+            apply_effect=["{target} смещает линию второй рукой."],
+            expire_effect=["{target} тратит смену линии."],
+        ),
+        beast_event_texts=_BUFF_APPLY_BEAST,
+    ),
+)
+
+_prep_dual_empty_line_catalog = _dual_prep_catalog(
+    effect_id="prep_dual_empty_line",
+    display_name="Пустая линия",
+    short_description="Следующий входящий удар наносит половину урона.",
+    pipeline_mutations=[pipeline_mutation("damage_mult", 0.5)],
+    react_on_outcomes=["hit", "crit"],
+    tags=["dodge", "damage_reduction"],
+)
+
+_prep_dual_torn_rhythm_catalog = _dual_prep_catalog(
+    effect_id="prep_dual_torn_rhythm",
+    display_name="Рваный ритм",
+    short_description="Следующий успешный уворот проверяет контратаку от капа.",
+    pipeline_mutations=[pipeline_mutation("counter_to_cap_on_dodge")],
+    react_on_outcomes=["dodge"],
+    tags=["dodge", "counter_cap"],
+)
+
+_prep_dual_bind_blade_catalog = _dual_prep_catalog(
+    effect_id="prep_dual_bind_blade",
+    display_name="Связать клинок",
+    short_description="Следующее успешное парирование снижает следующий исходящий урон атакующего.",
+    react_on_outcomes=["parry"],
+    tags=["parry", "debuff"],
+)
+
+_prep_dual_offhand_over_catalog = _dual_prep_catalog(
+    effect_id="prep_dual_offhand_over",
+    display_name="Вторая рука сверху",
+    short_description="Следующее успешное парирование открывает контратаку и повышает ее шанс.",
+    pipeline_mutations=[
+        pipeline_mutation("allow_counter_on_parry"),
+        pipeline_mutation("counter_chance_bonus_on_parry"),
+    ],
+    react_on_outcomes=["parry"],
+    tags=["parry", "counter"],
+)
+
+_prep_dual_answering_series_counter_catalog = _dual_prep_catalog(
+    effect_id="prep_dual_answering_series_counter",
+    display_name="Ответная серия",
+    short_description="Следующая успешная контратака наносит больше урона.",
+    pipeline_mutations=[pipeline_mutation("damage_mult", 1.25)],
+    pipeline_mutation_role="source",
+    react_on_outcomes=["hit", "crit"],
+    tags=["counter", "counter_only", "damage"],
+)
+
+_prep_dual_blade_mill_counter_catalog = _dual_prep_catalog(
+    effect_id="prep_dual_blade_mill_counter",
+    display_name="Мельница двух рук",
+    short_description="Следующая успешная контратака наносит больше урона и запускает штатный offhand.",
+    pipeline_mutations=[pipeline_mutation("damage_mult", 1.5)],
+    pipeline_mutation_role="source",
+    react_on_outcomes=["hit", "crit"],
+    tags=["counter", "counter_only", "damage", "offhand"],
+)
+
+_prep_dual_blade_loop_parry_catalog = _dual_prep_catalog(
+    effect_id="prep_dual_blade_loop_parry",
+    display_name="Петля клинков",
+    short_description="Следующее успешное парирование вызывает усиленную контратаку.",
+    pipeline_mutations=[
+        pipeline_mutation("force_counter_on_parry"),
+        pipeline_mutation("allow_counter_on_parry"),
+    ],
+    react_on_outcomes=["parry"],
+    tags=["parry", "counter", "high_cost"],
+)
+
+_prep_dual_blade_loop_counter_catalog = _dual_prep_catalog(
+    effect_id="prep_dual_blade_loop_counter",
+    display_name="Петля клинков: ответ",
+    short_description="Контратака Петли наносит больше урона и снижает следующий исходящий урон цели.",
+    pipeline_mutations=[pipeline_mutation("damage_mult", 1.5)],
+    pipeline_mutation_role="source",
+    react_on_outcomes=["hit", "crit"],
+    tags=["counter", "counter_only", "damage", "debuff", "high_cost"],
+)
+
 # ── REGISTRY ──────────────────────────────────────────────────────────────────
 
 BUFF_EFFECTS_CATALOG: dict[str, EffectCatalogEntryDTO] = {
@@ -367,9 +929,33 @@ BUFF_EFFECTS_CATALOG: dict[str, EffectCatalogEntryDTO] = {
     "buff_phys_dmg": _buff_phys_dmg_catalog,
     "prep_counter_on_dodge": _prep_counter_on_dodge_catalog,
     "prep_counter_on_parry": _prep_counter_on_parry_catalog,
+    "prep_foresight_parry": _prep_foresight_parry_catalog,
+    "prep_second_breath": _prep_second_breath_catalog,
+    "prep_perfect_riposte": _prep_perfect_riposte_catalog,
     "prep_glancing_dodge": _prep_glancing_dodge_catalog,
     "prep_counter_cap_on_dodge": _prep_counter_cap_on_dodge_catalog,
     "prep_brace_guard": _prep_brace_guard_catalog,
+    "prep_active_defense": _prep_active_defense_catalog,
+    "prep_full_defense": _prep_full_defense_catalog,
+    "prep_absolute_defense": _prep_absolute_defense_catalog,
+    "prep_aggressive_defense": _prep_aggressive_defense_catalog,
+    "concussed_no_feints": _concussed_no_feints_catalog,
     "prep_parry_riposte": _prep_parry_riposte_catalog,
     "spiked_guard": _spiked_guard_catalog,
+    "prep_2h_steel_line": _prep_2h_steel_line_catalog,
+    "prep_2h_blade_return": _prep_2h_blade_return_catalog,
+    "prep_2h_hard_intercept": _prep_2h_hard_intercept_catalog,
+    "prep_2h_answering_stance": _prep_2h_answering_stance_catalog,
+    "prep_2h_closed_distance": _prep_2h_closed_distance_catalog,
+    "prep_2h_hidden_agility": _prep_2h_hidden_agility_catalog,
+    "prep_dual_broken_step": _prep_dual_broken_step_catalog,
+    "prep_dual_shifting_line": _prep_dual_shifting_line_catalog,
+    "prep_dual_empty_line": _prep_dual_empty_line_catalog,
+    "prep_dual_torn_rhythm": _prep_dual_torn_rhythm_catalog,
+    "prep_dual_bind_blade": _prep_dual_bind_blade_catalog,
+    "prep_dual_offhand_over": _prep_dual_offhand_over_catalog,
+    "prep_dual_answering_series_counter": _prep_dual_answering_series_counter_catalog,
+    "prep_dual_blade_mill_counter": _prep_dual_blade_mill_counter_catalog,
+    "prep_dual_blade_loop_parry": _prep_dual_blade_loop_parry_catalog,
+    "prep_dual_blade_loop_counter": _prep_dual_blade_loop_counter_catalog,
 }

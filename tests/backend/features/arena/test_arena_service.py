@@ -16,19 +16,22 @@ class FakeStore:
         self.runtime_sessions: dict[str, ArenaRuntimeSessionDTO] = {}
         self.char_matches: dict[int, str] = {}
         self.queue: dict[str, set[int]] = {}
-        self.locks: set[int] = set()
+        self.locks: set[tuple[str, int]] = set()
 
-    async def add_to_queue(self, request: ArenaQueueRequestDTO) -> None:
+    async def add_to_queue(self, mode: str, request: ArenaQueueRequestDTO, *, mode_size: int = 1) -> None:
+        _ = mode_size
         self.requests[request.char_id] = request
-        self.queue.setdefault(request.mode, set()).add(request.char_id)
+        self.queue.setdefault(mode, set()).add(request.char_id)
 
-    async def remove_from_queue(self, mode: str, char_id: int) -> bool:
+    async def remove_from_queue(self, mode: str, char_id: int, *, mode_size: int = 1) -> bool:
+        _ = mode_size
         values = self.queue.setdefault(mode, set())
         existed = char_id in values
         values.discard(char_id)
         return existed
 
-    async def queue_waiting_count(self, mode: str) -> int:
+    async def queue_waiting_count(self, mode: str, *, mode_size: int = 1) -> int:
+        _ = mode_size
         return len(self.queue.get(mode, set()))
 
     async def delete_request(self, char_id: int) -> None:
@@ -49,12 +52,14 @@ class FakeStore:
     async def delete_runtime_session(self, arena_id: str) -> None:
         self.runtime_sessions.pop(arena_id, None)
 
-    async def get_candidates(self, mode: str, min_gs: float, max_gs: float) -> list[int]:
-        _ = min_gs, max_gs
+    async def get_candidates(self, mode: str, min_gs: float, max_gs: float, *, mode_size: int = 1) -> list[int]:
+        _ = min_gs, max_gs, mode_size
         return sorted(self.queue.get(mode, set()))
 
-    async def claim_opponent(self, mode: str, char_id: int, min_gs: float, max_gs: float) -> int | None:
-        _ = min_gs, max_gs
+    async def claim_opponent(
+        self, mode: str, char_id: int, min_gs: float, max_gs: float, *, mode_size: int = 1
+    ) -> int | None:
+        _ = min_gs, max_gs, mode_size
         for candidate_id in sorted(self.queue.get(mode, set())):
             if candidate_id == char_id or candidate_id not in self.requests:
                 continue
@@ -63,16 +68,17 @@ class FakeStore:
             return candidate_id
         return None
 
-    async def acquire_match_lock(self, char_id: int, token: str) -> bool:
+    async def acquire_match_lock(self, entity_type: str, entity_id: int, token: str) -> bool:
         _ = token
-        if char_id in self.locks:
+        lock = (entity_type, entity_id)
+        if lock in self.locks:
             return False
-        self.locks.add(char_id)
+        self.locks.add(lock)
         return True
 
-    async def release_match_lock(self, char_id: int, token: str) -> None:
+    async def release_match_lock(self, entity_type: str, entity_id: int, token: str) -> None:
         _ = token
-        self.locks.discard(char_id)
+        self.locks.discard((entity_type, entity_id))
 
     async def create_match(self, request: ArenaCombatRequestDTO) -> None:
         self.matches[request.arena_session_id] = request
@@ -344,7 +350,7 @@ async def test_check_match_returns_searching_when_match_lock_is_busy():
     service = build_service(store, events)
     duel = ArenaDuelService(arena=service)
     await duel.join_queue(1)
-    await store.acquire_match_lock(1, "already-running")
+    await store.acquire_match_lock("match", 1, "already-running")
 
     payload = await duel.check_match(1)
 

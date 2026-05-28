@@ -42,6 +42,7 @@ class BackendSettings(BaseCommonSettings):
     game_access_token_expire_minutes: int = 15
     game_refresh_token_expire_minutes: int = 12 * 60
     default_symbiote_name: str = "SYSTEM"
+    enable_dev_rift_routes: bool = True
 
     # Event Streams
     game_stream_name: str = "game_events"

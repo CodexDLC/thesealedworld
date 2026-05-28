@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING, Any
 from loguru import logger as log
 
 if TYPE_CHECKING:
-    from src.backend.features.character.managers import CharacterSessionManager
+    from src.backend.infrastructure.actor_state.managers import CharacterSessionManager
     from src.backend.infrastructure.loot.managers.loot_manager import LootManager
     from src.backend.infrastructure.world.location_store import WorldLocationStore
 

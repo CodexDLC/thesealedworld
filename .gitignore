@@ -169,6 +169,7 @@ Desktop.ini
 .claude/worktrees/
 .aider*
 .agent/
+.codex/run-logs/
 .codex-scratch/
 brain/
 artifacts/

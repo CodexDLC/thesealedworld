@@ -6,6 +6,7 @@ from typing import Any
 from src.backend.features.character.runtime.combat_actor_input import CharacterCombatActorInputBuilder
 from src.backend.features.game_catalog.combat.resources.feints.availability import build_known_feints
 from src.backend.features.monsters.resources import get_family_config
+from src.backend.features.monsters.resources.visuals import version_generated_asset_url
 from src.backend.features.monsters.runtime.combat_math_model import MonsterCombatMathModelBuilder
 from src.backend.features.monsters.skill_contract import filter_monster_combat_skills
 
@@ -157,7 +158,7 @@ class MonsterCombatActorInputBuilder:
             "actor_id": str(monster.id),
             "name": monster.name_ru,
             "role": monster.role,
-            "avatar_url": visual.get("image_url") or visual.get("fallback_image_url"),
+            "avatar_url": MonsterCombatActorInputBuilder._avatar_url(visual),
             "tags": MonsterCombatActorInputBuilder._meta_tags(monster),
             "archetype": MonsterCombatActorInputBuilder._archetype(monster),
         }
@@ -218,6 +219,19 @@ class MonsterCombatActorInputBuilder:
         generation_meta = dict(getattr(monster, "generation_meta", None) or {})
         visual = generation_meta.get("visual")
         return dict(visual) if isinstance(visual, dict) else {}
+
+    @staticmethod
+    def _avatar_url(visual: dict[str, Any]) -> str | None:
+        for key in ("image_url", "generated_image_url"):
+            url = visual.get(key)
+            if not isinstance(url, str) or not url:
+                continue
+            if "/static/images/monsters/families/" in url:
+                continue
+            if key == "generated_image_url" and visual.get("status") != "generated":
+                continue
+            return version_generated_asset_url(url, visual)
+        return None
 
     @staticmethod
     def _meta_tags(monster: Any) -> list[str]:

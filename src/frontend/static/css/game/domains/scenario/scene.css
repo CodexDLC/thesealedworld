@@ -44,21 +44,18 @@
     scrollbar-color: rgba(255, 170, 0, 0.22) transparent;
 }
 
-.scenario-status-dock,
 .scenario-info-dock {
     scrollbar-width: none;
 }
 
 .scenario-copy::-webkit-scrollbar,
-.scenario-info-dock::-webkit-scrollbar,
-.scenario-status-dock::-webkit-scrollbar {
+.scenario-info-dock::-webkit-scrollbar {
     width: 0;
     height: 0;
 }
 
 .scenario-copy::-webkit-scrollbar-thumb,
-.scenario-info-dock::-webkit-scrollbar-thumb,
-.scenario-status-dock::-webkit-scrollbar-thumb {
+.scenario-info-dock::-webkit-scrollbar-thumb {
     background: rgba(255, 170, 0, 0.22);
 }
 

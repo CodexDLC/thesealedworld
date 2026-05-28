@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import pytest
 
-from src.backend.features.exploration.services.knowledge_runtime import ExplorationKnowledgeRuntimeManager
 from src.backend.features.exploration.services.knowledge_service import ExplorationKnowledgeService
+from src.backend.infrastructure.exploration.managers import ExplorationKnowledgeRuntimeManager
 
 
 @pytest.mark.asyncio

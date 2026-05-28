@@ -25,9 +25,14 @@ This document uses the active modifier field names from
 
 | Field | Meaning |
 | --- | --- |
-| `main_hand_damage_base` | Main-hand or two-handed weapon damage base. For unarmed actors, Strength can be mapped here directly. |
-| `main_hand_damage_spread` | Main-hand damage variance. |
+| `main_hand_damage_base` | Final main-hand or two-handed strike base after weapon power plus mastered stat power. For unarmed actors, Strength can be mapped here directly. |
+| `main_hand_damage_spread` | Final main-hand damage variance after mastery stabilization. |
 | `main_hand_damage_bonus` | Reserved extra main-hand damage bonus. |
+| `main_hand_weapon_power` | Trace value: weapon/item power before stat power is added. |
+| `main_hand_stat_damage_raw` | Trace value: weighted Strength/Agility/Endurance power before mastery gating. |
+| `main_hand_stat_damage_effective` | Trace value: stat damage actually added after mastery gating. |
+| `main_hand_mastery_factor` | Trace value: normalized mastery factor applied to stat damage. |
+| `main_hand_damage_spread_raw` | Trace value: damage variance before mastery stabilization. |
 | `main_hand_armor_penetration_pct` | Percent armor penetration from the main hand. |
 | `main_hand_armor_ignore_chance` | Chance to ignore armor from the main hand. |
 | `main_hand_accuracy` | Main-hand accuracy modifier. The built-in `0.70` hit baseline lives in the resolver, not here. |
@@ -38,9 +43,14 @@ This document uses the active modifier field names from
 
 | Field | Meaning |
 | --- | --- |
-| `off_hand_damage_base` | Off-hand weapon damage base. |
-| `off_hand_damage_spread` | Off-hand damage variance. |
+| `off_hand_damage_base` | Final off-hand weapon strike base after weapon power plus mastered stat power. |
+| `off_hand_damage_spread` | Final off-hand damage variance after mastery stabilization. |
 | `off_hand_damage_bonus` | Reserved extra off-hand damage bonus. |
+| `off_hand_weapon_power` | Trace value: weapon/item power before stat power is added. |
+| `off_hand_stat_damage_raw` | Trace value: weighted Strength/Agility/Endurance power before mastery gating. |
+| `off_hand_stat_damage_effective` | Trace value: stat damage actually added after mastery gating. |
+| `off_hand_mastery_factor` | Trace value: normalized mastery factor applied to stat damage. |
+| `off_hand_damage_spread_raw` | Trace value: damage variance before mastery stabilization. |
 | `off_hand_armor_penetration_pct` | Percent armor penetration from the off hand. |
 | `off_hand_armor_ignore_chance` | Chance to ignore armor from the off hand. |
 | `off_hand_accuracy` | Off-hand accuracy modifier. |
@@ -67,7 +77,10 @@ similar instant item actions.
 
 | Field | Meaning |
 | --- | --- |
-| `physical_damage` | Attribute-derived physical damage bonus, currently from Strength. |
+| `physical_damage` | Legacy/reserved flat physical damage field. Weapon attacks no longer add this automatically. |
+| `physical_strength_power` | Attribute-derived Strength power used by the base-power assembler. |
+| `physical_agility_power` | Attribute-derived Agility power used by the base-power assembler. |
+| `physical_endurance_power` | Attribute-derived Endurance power used by the base-power assembler. |
 | `physical_damage_bonus` | Additional global physical damage bonus. |
 | `accuracy` | Global accuracy modifier added to relevant offensive branches. |
 | `physical_suppression` | Physical resistance suppression, currently from Strength. |

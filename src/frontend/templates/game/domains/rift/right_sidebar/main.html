@@ -1,0 +1,191 @@
+{% set hud = rift.hud if rift and rift.hud is defined else none %}
+{% set objective = rift.hud.objective if rift and rift.hud and rift.hud.objective else none %}
+{% set node = rift.current_node if rift else none %}
+{% set heart = rift.heart if rift and rift.heart is defined else none %}
+{% set exit_state = rift.exit if rift and rift.exit is defined else none %}
+{% set map_view = rift.map_view if rift and rift.map_view else none %}
+{% set debug_map = rift.debug_map if rift and rift.debug_map else none %}
+{% set visible_nodes = map_view.visible_nodes if map_view and map_view.visible_nodes else [] %}
+{% set discovered_nodes = visible_nodes | selectattr('discovered') | list %}
+{% set visited_nodes = visible_nodes | selectattr('visited') | list %}
+{% set effects = rift.effects if rift and rift.effects is defined and rift.effects else rift.rift_effects if rift and rift.rift_effects is defined and rift.rift_effects else [] %}
+
+<aside class="panel-dock panel-dock--framed panel-dock--scroll side-panel-drawer side-panel-drawer--right rift-info-dock is-open"
+       data-side-panel="info"
+       aria-label="Rift info drawer">
+    <nav class="dock-nav dock-nav--bar dock-nav--panel rift-info-actions" aria-label="Rift info actions">
+        <button class="dock-nav-button is-active" type="button">RIFT</button>
+        <button class="dock-nav-button dock-nav-button--close"
+                type="button"
+                @click="$dispatch('panel-toggle', { side: 'right', view: 'context' })">
+            CLOSE
+        </button>
+    </nav>
+
+    <section class="info-widget-section rift-info-card" aria-label="Rift identity">
+        <header class="info-widget-title">
+            <span>{{ hud.title if hud and hud.title else 'RIFT' }}</span>
+            <strong>{{ hud.danger_label if hud and hud.danger_label else 'NO_DATA' }}</strong>
+        </header>
+        <div class="info-widget-list info-widget-kv">
+            <div><span>Setting</span><strong>{{ hud.subtitle if hud and hud.subtitle else 'NO_DATA' }}</strong></div>
+            <div><span>Tier</span><strong>T{{ hud.tier if hud and hud.tier is defined else 'NO_DATA' }}</strong></div>
+            <div><span>Zone</span><strong>{{ rift.meta.current_zone_key if rift and rift.meta and rift.meta.current_zone_key else 'NO_DATA' }}</strong></div>
+            <div><span>Depth</span><strong>{{ (rift.meta.zone_depth ~ '/' ~ rift.meta.zone_chain_total) if rift and rift.meta and rift.meta.zone_depth else 'NO_DATA' }}</strong></div>
+        </div>
+    </section>
+
+    <details class="info-widget-section rift-info-card" open>
+        <summary class="info-widget-title">
+            <span>OBJECTIVE</span>
+            <strong>{{ objective.progress_label if objective and objective.progress_label else 'PENDING' }}</strong>
+        </summary>
+        {% if objective %}
+            <p class="rift-side-copy world-text">{{ objective.description }}</p>
+        {% else %}
+            <p class="rift-side-copy world-text">NO_OBJECTIVE_DATA</p>
+        {% endif %}
+    </details>
+
+    <details class="info-widget-section rift-info-card" open>
+        <summary class="info-widget-title">
+            <span>HEART</span>
+            <strong>{{ heart.status if heart and heart.status is defined else 'UNKNOWN' }}</strong>
+        </summary>
+        <div class="info-widget-list">
+            <div><span>Tier</span><strong>{{ heart.tier if heart and heart.tier is defined else (hud.tier if hud and hud.tier is defined else 'NO_DATA') }}</strong></div>
+            <div><span>Value</span><strong>{{ heart.base_value if heart and heart.base_value is defined else 'NO_DATA' }}</strong></div>
+            <div><span>Exit</span><strong>{{ 'OPEN' if heart and heart.can_exit else (exit_state.mode if exit_state and exit_state.mode is defined else 'LOCKED') }}</strong></div>
+        </div>
+    </details>
+
+    <details class="info-widget-section rift-info-card" open>
+        <summary class="info-widget-title">
+            <span>PROGRESS</span>
+            <strong>{{ visited_nodes|length }}/{{ visible_nodes|length if visible_nodes else 'NO_DATA' }}</strong>
+        </summary>
+        <div class="info-widget-list">
+            <div><span>Visible</span><strong>{{ visible_nodes|length }}</strong></div>
+            <div><span>Discovered</span><strong>{{ discovered_nodes|length }}</strong></div>
+            <div><span>Visited</span><strong>{{ visited_nodes|length }}</strong></div>
+            <div><span>Current</span><strong>{{ node.title if node and node.title else 'NO_DATA' }}</strong></div>
+        </div>
+        {% if node and node.tags %}
+            <div class="info-widget-tags">
+                {% for tag in node.tags %}
+                    <span>{{ tag }}</span>
+                {% endfor %}
+            </div>
+        {% endif %}
+    </details>
+
+    <details class="info-widget-section rift-info-card">
+        <summary class="info-widget-title">
+            <span>EFFECTS</span>
+            <strong>{{ effects|length if effects else 0 }}</strong>
+        </summary>
+        <div class="info-widget-list">
+            {% if effects %}
+                {% for effect in effects %}
+                    <div>
+                        <span>{{ effect.label if effect.label is defined else effect.name if effect.name is defined else effect.key if effect.key is defined else 'EFFECT' }}</span>
+                        <strong>{{ effect.state if effect.state is defined else effect.value if effect.value is defined else 'ACTIVE' }}</strong>
+                    </div>
+                {% endfor %}
+            {% else %}
+                <div><span>Active rift effects</span><strong>NONE</strong></div>
+            {% endif %}
+        </div>
+    </details>
+
+    <details class="info-widget-section rift-info-card">
+        <summary class="info-widget-title">
+            <span>PARTY</span>
+            <strong>SOLO</strong>
+        </summary>
+        <div class="info-widget-list">
+            <div><span>Mode</span><strong>SOLO</strong></div>
+            <div><span>Members</span><strong>1</strong></div>
+            <div><span>Sync</span><strong>ON REQUEST</strong></div>
+        </div>
+    </details>
+
+    {% if debug_enabled %}
+        <details class="info-widget-section rift-info-card rift-debug-card">
+            <summary class="info-widget-title">
+                <span>DEBUG MAP</span>
+                <strong>{{ debug_map.width ~ 'x' ~ debug_map.height if debug_map else 'NO_DATA' }}</strong>
+            </summary>
+            {% if debug_map %}
+                <div class="rift-debug-map"
+                     style="--rift-map-width: {{ debug_map.width }}; --rift-map-height: {{ debug_map.height }};"
+                     aria-label="{{ debug_map.width }} by {{ debug_map.height }} rift zone debug map">
+                    {% if debug_map.passage_edges is defined and debug_map.passage_edges %}
+                        {% for edge in debug_map.passage_edges %}
+                            {% if edge.state in ['open', 'blocked_temporary'] and edge.from_coord and edge.to_coord %}
+                                {% set edge_dx = edge.from_coord.x - edge.to_coord.x %}
+                                {% set edge_dy = edge.from_coord.y - edge.to_coord.y %}
+                                {% if edge.from_coord.y == edge.to_coord.y and edge_dx in [-1, 1] %}
+                                    {% set edge_col = (edge.from_coord.x if edge.from_coord.x < edge.to_coord.x else edge.to_coord.x) + 1 %}
+                                    {% set edge_row = edge.from_coord.y + 1 %}
+                                    <span class="rift-debug-edge rift-debug-edge--horizontal is-state-{{ edge.state }}"
+                                          style="--rift-edge-col: {{ edge_col }}; --rift-edge-row: {{ edge_row }};"
+                                          aria-hidden="true"></span>
+                                {% elif edge.from_coord.x == edge.to_coord.x and edge_dy in [-1, 1] %}
+                                    {% set edge_col = edge.from_coord.x + 1 %}
+                                    {% set edge_row = (edge.from_coord.y if edge.from_coord.y < edge.to_coord.y else edge.to_coord.y) + 1 %}
+                                    <span class="rift-debug-edge rift-debug-edge--vertical is-state-{{ edge.state }}"
+                                          style="--rift-edge-col: {{ edge_col }}; --rift-edge-row: {{ edge_row }};"
+                                          aria-hidden="true"></span>
+                                {% endif %}
+                            {% endif %}
+                        {% endfor %}
+                    {% endif %}
+                    {% for cell in debug_map.cells %}
+                        {% set has_node = cell.node_id is not none %}
+                        {% set cell_title = cell.title if cell.title is not none else 'VOID' %}
+                        <span class="rift-debug-cell is-{{ cell.state }} {{ 'is-canvas-void' if not has_node else '' }} {{ 'is-visited' if cell.visited else '' }} {{ 'is-discovered' if cell.discovered else '' }}"
+                              data-rift-cell="{{ cell.coord.x }},{{ cell.coord.y }}"
+                              {% if has_node %}data-rift-node-id="{{ cell.node_id }}"{% endif %}
+                              data-map-tooltip="{{ cell_title }} // {{ cell.coord.x }}:{{ cell.coord.y }}"
+                              style="grid-column: {{ cell.coord.x + 1 }}; grid-row: {{ cell.coord.y + 1 }};">
+                            {% if cell.state == 'current' %}
+                                <span class="rift-debug-current-dot" aria-hidden="true"></span>
+                            {% elif cell.discovered and has_node %}
+                                <span>{{ cell.coord.x }}:{{ cell.coord.y }}</span>
+                            {% endif %}
+                        </span>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <p class="rift-side-copy world-text">NO_DEBUG_MAP</p>
+            {% endif %}
+        </details>
+
+        <details class="info-widget-section rift-info-card">
+            <summary class="info-widget-title">
+                <span>PAYLOAD</span>
+                <strong>v{{ rift.meta.schema_version if rift and rift.meta else 'NO_DATA' }}</strong>
+            </summary>
+            <div class="info-widget-list">
+                <div><span>Rift</span><strong>{{ rift.meta.rift_instance_id if rift and rift.meta else 'NO_DATA' }}</strong></div>
+                <div><span>Preset</span><strong>{{ rift.meta.zone_canvas_key if rift and rift.meta else 'NO_DATA' }}</strong></div>
+                <div><span>Chain</span><strong>{{ rift.meta.zone_chain_order|join(' -> ') if rift and rift.meta and rift.meta.zone_chain_order else 'NO_DATA' }}</strong></div>
+                <div><span>Instance</span><strong>{{ rift.meta.zone_instance_id if rift and rift.meta else 'NO_DATA' }}</strong></div>
+                <div><span>Mode</span><strong>{{ 'DEBUG' if rift and rift.meta.debug else 'PLAYER' }}</strong></div>
+            </div>
+            {% if rift and rift.meta and rift.meta.debug %}
+                <button type="button"
+                        class="dock-nav-button rift-debug-reset"
+                        data-rift-reset-map="true"
+                        hx-post="/game/rift/rebuild"
+                        hx-target="#game-session-root"
+                        hx-swap="outerHTML"
+                        hx-vals='{{ {"rift_instance_id": rift.meta.rift_instance_id}|tojson }}'
+                        hx-disabled-elt="closest .rift-info-dock">
+                    RESET
+                </button>
+            {% endif %}
+        </details>
+    {% endif %}
+</aside>

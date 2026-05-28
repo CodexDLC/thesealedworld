@@ -11,14 +11,19 @@ if TYPE_CHECKING:
 
 
 class MonsterGearScoreService:
-    VERSION = 1
+    VERSION = 3
 
     def __init__(self, actor_builder: MonsterCombatActorInputBuilder | None = None) -> None:
         self.actor_builder = actor_builder or MonsterCombatActorInputBuilder()
 
     def calculate_monster_gear_score(self, monster: GeneratedMonster) -> int:
         snapshot = self.actor_builder.build_snapshot(monster)
-        return CharacterGearScoreCalculator.calculate_from_raw(snapshot["combat"]["math_model"])
+        combat = snapshot["combat"]
+        return CharacterGearScoreCalculator.calculate_from_raw(
+            combat["math_model"],
+            skills=combat["skills"],
+            loadout=combat["loadout"],
+        )
 
     def apply_monster_gear_score(self, monster: GeneratedMonster) -> int:
         score = self.calculate_monster_gear_score(monster)
@@ -29,6 +34,27 @@ class MonsterGearScoreService:
         generation_meta["balance"] = balance
         monster.generation_meta = generation_meta
         return score
+
+    def refresh_stale_monster_scores(self, members: list[GeneratedMonster]) -> int:
+        refreshed = 0
+        for member in members:
+            if not self.needs_recalculation(member):
+                continue
+            self.apply_monster_gear_score(member)
+            refreshed += 1
+        return refreshed
+
+    def needs_recalculation(self, monster: GeneratedMonster) -> bool:
+        generation_meta = monster.generation_meta if isinstance(monster.generation_meta, dict) else {}
+        balance = generation_meta.get("balance")
+        if not isinstance(balance, dict):
+            return True
+        try:
+            version = int(balance["gear_score_version"])
+            int(balance["gear_score"])
+        except (KeyError, TypeError, ValueError):
+            return True
+        return version != self.VERSION
 
     def apply_clan_summary(self, clan: GeneratedClan) -> dict[str, Any]:
         summary = self.build_clan_summary(clan.members)

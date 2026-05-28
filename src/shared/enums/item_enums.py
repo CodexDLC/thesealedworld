@@ -24,6 +24,7 @@ class EquippedSlot(StrEnum):
     RING_1 = "ring_1"
     RING_2 = "ring_2"
     BELT_ACCESSORY = "belt_accessory"
+    QUIVER = "quiver"
 
 
 class QuickSlot(StrEnum):

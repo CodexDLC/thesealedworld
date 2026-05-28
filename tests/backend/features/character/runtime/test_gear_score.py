@@ -7,11 +7,26 @@ from src.backend.features.character.runtime.combat_math_model import (
 )
 from src.backend.features.character.runtime.gear_score import CharacterGearScoreCalculator
 from src.backend.features.character.runtime.rules.gear_score import GEAR_SCORE_WEIGHTS
+from src.backend.features.character.services import StartingImprintService
+from src.backend.features.items.dto.instance import ItemGenerationRequestDTO
+from src.backend.features.items.runtime.item_factory import ItemFactory
 
 
 @pytest.mark.unit
-def test_gear_score_weights_cover_all_combat_modifiers() -> None:
-    assert set(GEAR_SCORE_WEIGHTS) == set(CombatModifiersDTO.model_fields)
+def test_gear_score_weights_are_combat_runtime_subset() -> None:
+    assert set(GEAR_SCORE_WEIGHTS) <= set(CombatModifiersDTO.model_fields)
+    assert "environment_cold_resistance" not in GEAR_SCORE_WEIGHTS
+    assert "environment_heat_resistance" not in GEAR_SCORE_WEIGHTS
+    assert "environment_gravity_resistance" not in GEAR_SCORE_WEIGHTS
+    assert "environment_bio_resistance" not in GEAR_SCORE_WEIGHTS
+    assert "resource_cost_reduction" not in GEAR_SCORE_WEIGHTS
+    assert "initiative" not in GEAR_SCORE_WEIGHTS
+    assert "crit_power" not in GEAR_SCORE_WEIGHTS
+    assert "control_resistance" not in GEAR_SCORE_WEIGHTS
+    assert "physical_damage" not in GEAR_SCORE_WEIGHTS
+    assert "physical_strength_power" not in GEAR_SCORE_WEIGHTS
+    assert "physical_agility_power" not in GEAR_SCORE_WEIGHTS
+    assert "physical_endurance_power" not in GEAR_SCORE_WEIGHTS
 
 
 @pytest.mark.unit
@@ -33,11 +48,25 @@ def test_gear_score_accepts_fractional_waterfall_vitals() -> None:
         {
             "hp": 53.3333,
             "en": 8.6667,
-            "physical_damage": 15.0,
+            "main_hand_damage_base": 15.0,
         }
     )
 
     assert score >= 1
+
+
+@pytest.mark.unit
+def test_gear_score_ignores_environment_only_modifiers() -> None:
+    score = CharacterGearScoreCalculator.calculate_from_calculated(
+        {
+            "environment_cold_resistance": 10.0,
+            "environment_heat_resistance": 10.0,
+            "environment_gravity_resistance": 10.0,
+            "environment_bio_resistance": 10.0,
+        }
+    )
+
+    assert score == 1
 
 
 @pytest.mark.unit
@@ -104,6 +133,38 @@ def test_gear_score_uses_waterfall_calculated_raw_and_equipment() -> None:
 
 
 @pytest.mark.unit
+def test_gear_score_uses_assembled_weapon_power_after_mastery() -> None:
+    base_ac = {
+        "attributes": {
+            "strength": 17,
+            "agility": 10,
+            "endurance": 8,
+        },
+        "items": {
+            "layout": {"equipment": {"main_hand": "weapon-1"}},
+            "by_id": {
+                "weapon-1": {
+                    "item_id": "weapon-1",
+                    "item_type": "weapon",
+                    "slot": "main_hand",
+                    "mechanics": {
+                        "power": 7,
+                        "damage_spread": 0.12,
+                        "skill_key": "skill_fencing",
+                    },
+                },
+            },
+        },
+    }
+    novice_ac = {**base_ac, "skills": {"skill_fencing": 0.0}}
+    master_ac = {**base_ac, "skills": {"skill_fencing": 1.0}}
+
+    calculator = CharacterGearScoreCalculator()
+
+    assert calculator.calculate_from_active_character(master_ac) > calculator.calculate_from_active_character(novice_ac)
+
+
+@pytest.mark.unit
 def test_gear_score_changes_when_equipping_garment_power() -> None:
     base_ac = {
         "attributes": {
@@ -133,3 +194,45 @@ def test_gear_score_changes_when_equipping_garment_power() -> None:
     calculator = CharacterGearScoreCalculator()
 
     assert calculator.calculate_from_active_character(equipped_ac) > calculator.calculate_from_active_character(base_ac)
+
+
+@pytest.mark.unit
+def test_starter_breaker_imprint_is_not_inflated_by_survival_garments() -> None:
+    active_character = _build_starting_imprint_active_character("starter_breaker_01")
+
+    score = CharacterGearScoreCalculator().calculate_from_active_character(active_character)
+
+    assert 240 <= score <= 320
+
+
+def _build_starting_imprint_active_character(imprint_key: str) -> dict[str, object]:
+    build = StartingImprintService().build(imprint_key)
+    item_factory = ItemFactory()
+    equipment: dict[str, str] = {}
+    by_id: dict[str, dict[str, object]] = {}
+    for index, base_id in enumerate(build.item_base_ids, start=1):
+        item = item_factory.generate(
+            ItemGenerationRequestDTO(
+                base_id=base_id,
+                rarity_tier=0,
+                source="test:starting_imprint",
+                request_ai_text=False,
+            )
+        )
+        item_id = f"item-{index}"
+        equipment[item.slot] = item_id
+        by_id[item_id] = {
+            "item_id": item_id,
+            "base_id": item.base_id,
+            "item_type": item.item_type,
+            "slot": item.slot,
+            "mechanics": item.mechanics,
+            "tags": list(item.narrative_tags),
+        }
+    return {
+        "attributes": build.attributes,
+        "skills": {
+            skill_key: {"xp": xp, "unlocked": True, "state": "PLUS"} for skill_key, xp in build.skill_xp.items()
+        },
+        "items": {"layout": {"equipment": equipment}, "by_id": by_id},
+    }

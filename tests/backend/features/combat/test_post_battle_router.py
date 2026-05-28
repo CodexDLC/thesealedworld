@@ -125,6 +125,54 @@ async def test_post_battle_router_activates_only_dead_monster_corpses(monkeypatc
 
 
 @pytest.mark.asyncio
+async def test_post_battle_router_routes_empty_corpse_to_loot_for_future_gathering(monkeypatch) -> None:
+    FakeLootIntegration.activated = []
+    FakeLootIntegration.corpses = {
+        "corpse-empty": CorpseDTO(
+            id="corpse-empty",
+            monster_name="Scavenger",
+            is_visible=True,
+            items=[],
+        )
+    }
+    monkeypatch.setattr(
+        "src.backend.features.combat.services.post_battle_router.LootIntegration",
+        FakeLootIntegration,
+    )
+
+    finalization = {
+        "combat_id": "combat-empty-corpse",
+        "winner_team": "team_1",
+        "participant_char_ids": [7],
+        "meta": {"battle_type": "rift", "rift_session_id": "rift-run-1", "location_id": "rift:node"},
+        "actors": {
+            "7": {"char_id": 7, "team": "team_1", "is_dead": False},
+            "scavenger_1": {"char_id": None, "team": "team_2", "is_dead": True},
+        },
+    }
+    ctx = {
+        "redis_service": FakeRedisService(
+            {"loot:pending:combat-empty-corpse": json.dumps({"scavenger_1": "corpse-empty"})}
+        )
+    }
+
+    outcomes = await CombatPostBattleRouter().build_outcomes(ctx, finalization)
+
+    assert FakeLootIntegration.activated == [(["corpse-empty"], [7], "rift:node")]
+    assert outcomes[7].target_state == "loot"
+    assert outcomes[7].return_state == "rift"
+    assert outcomes[7].corpse_ids == ["corpse-empty"]
+    assert outcomes[7].loot_context["corpses"] == [
+        {
+            "corpse_id": "corpse-empty",
+            "corpse_type": "monster",
+            "items": [],
+            "name": "Scavenger",
+        }
+    ]
+
+
+@pytest.mark.asyncio
 async def test_post_battle_router_routes_dead_player_to_death_even_with_monster_corpse(monkeypatch) -> None:
     FakeLootIntegration.activated = []
     FakeLootIntegration.corpses = {
@@ -169,3 +217,113 @@ async def test_post_battle_router_routes_dead_player_to_death_even_with_monster_
     assert outcomes[7].target_state == "death"
     assert outcomes[7].death_summary["corpse_id"] == "player-corpse"
     assert outcomes[7].death_summary["dropped_items"][0]["template_id"] == "coin_copper"
+
+
+@pytest.mark.asyncio
+async def test_post_battle_router_adds_rift_death_policy_to_dead_player() -> None:
+    finalization = {
+        "combat_id": "combat-rift-death",
+        "winner_team": "team_2",
+        "participant_char_ids": [7],
+        "meta": {
+            "battle_type": "rift",
+            "rift_session_id": "rift-run-1",
+            "rift_instance_id": "rift-instance-1",
+            "rift_entrance_seals_on_entry": True,
+        },
+        "actors": {
+            "7": {"char_id": 7, "team": "team_1", "is_dead": True},
+        },
+    }
+    ctx = {"character_sessions": FakeCharacterSessions()}
+
+    outcomes = await CombatPostBattleRouter().build_outcomes(ctx, finalization)
+
+    assert outcomes[7].target_state == "death"
+    assert outcomes[7].death_summary["rift"] == {
+        "rift_session_id": "rift-run-1",
+        "rift_instance_id": "rift-instance-1",
+        "entrance_seals_on_entry": True,
+        "death_policy": "sealed_access_lost",
+    }
+
+
+@pytest.mark.asyncio
+async def test_post_battle_router_routes_rift_combat_back_to_rift_when_no_loot(monkeypatch) -> None:
+    FakeLootIntegration.activated = []
+    FakeLootIntegration.corpses = {}
+    monkeypatch.setattr(
+        "src.backend.features.combat.services.post_battle_router.LootIntegration",
+        FakeLootIntegration,
+    )
+
+    finalization = {
+        "combat_id": "combat-rift-1",
+        "winner_team": "team_1",
+        "participant_char_ids": [7],
+        "meta": {"battle_type": "rift", "rift_session_id": "rift-run-1", "location_id": ""},
+        "actors": {
+            "7": {"char_id": 7, "team": "team_1", "is_dead": False},
+            "scavenger_1": {"char_id": None, "team": "team_2", "is_dead": True},
+        },
+    }
+    ctx = {"redis_service": FakeRedisService({"loot:pending:combat-rift-1": json.dumps({})})}
+
+    outcomes = await CombatPostBattleRouter().build_outcomes(ctx, finalization)
+
+    assert outcomes[7].target_state == "rift"
+    assert outcomes[7].loot_context == {
+        "rift_session_id": "rift-run-1",
+        "rift_instance_id": "",
+        "rift_node_id": "",
+        "rift_event_scope": "",
+        "rift_travel_id": "",
+        "rift_event_key": "",
+        "rift_target_node_id": "",
+        "rift_location_id": "",
+    }
+
+
+@pytest.mark.asyncio
+async def test_post_battle_router_routes_rift_loot_to_loot_with_rift_return_context(monkeypatch) -> None:
+    FakeLootIntegration.activated = []
+    FakeLootIntegration.corpses = {
+        "corpse-rift": CorpseDTO(
+            id="corpse-rift",
+            monster_name="Scavenger",
+            is_visible=True,
+            items=[LootItemDTO(template_id="rusted_hook", name="Rusted hook")],
+        )
+    }
+    monkeypatch.setattr(
+        "src.backend.features.combat.services.post_battle_router.LootIntegration",
+        FakeLootIntegration,
+    )
+
+    finalization = {
+        "combat_id": "combat-rift-loot",
+        "winner_team": "team_1",
+        "participant_char_ids": [7],
+        "meta": {
+            "battle_type": "rift",
+            "rift_session_id": "rift-run-1",
+            "rift_instance_id": "rift-instance-1",
+            "rift_node_id": "node-road",
+            "location_id": "rift:rift-instance-1:node-road",
+        },
+        "actors": {
+            "7": {"char_id": 7, "team": "team_1", "is_dead": False},
+            "scavenger_1": {"char_id": None, "team": "team_2", "is_dead": True},
+        },
+    }
+    ctx = {"redis_service": FakeRedisService({"loot:pending:combat-rift-loot": json.dumps({"scavenger_1": "corpse-rift"})})}
+
+    outcomes = await CombatPostBattleRouter().build_outcomes(ctx, finalization)
+
+    assert FakeLootIntegration.activated == [(["corpse-rift"], [7], "rift:rift-instance-1:node-road")]
+    assert outcomes[7].target_state == "loot"
+    assert outcomes[7].return_state == "rift"
+    assert outcomes[7].loot_context["return_state"] == "rift"
+    assert outcomes[7].loot_context["rift_session_id"] == "rift-run-1"
+    assert outcomes[7].loot_context["rift_instance_id"] == "rift-instance-1"
+    assert outcomes[7].loot_context["rift_node_id"] == "node-road"

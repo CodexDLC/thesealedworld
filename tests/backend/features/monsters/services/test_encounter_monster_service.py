@@ -5,8 +5,9 @@ import uuid
 import pytest
 
 from src.backend.features.monsters.dto.generation import GeneratedClan, GeneratedMonster, MonsterGenerationContext
-from src.backend.features.monsters.runtime.hashing import compute_context_hash, normalize_tags
+from src.backend.features.monsters.runtime.hashing import compute_context_hash, compute_unique_clan_hash, normalize_tags
 from src.backend.features.monsters.services import EncounterMonsterService
+from src.backend.features.monsters.services.gear_score_service import MonsterGearScoreService
 
 
 class FakeClanFactory:
@@ -128,6 +129,7 @@ def _monster(
         generation_meta={
             "balance": {
                 "gear_score": gear_score if gear_score is not None else threat,
+                "gear_score_version": MonsterGearScoreService.VERSION,
                 "organization_type": organization_type,
             }
         },
@@ -195,7 +197,7 @@ async def test_prepare_encounter_uses_gear_score_budget_when_context_threat_is_p
 
     result = await service.prepare_encounter_monsters(context)
 
-    assert result.monster_ids == [str(cheap.id), str(mid.id)]
+    assert result.monster_ids == [str(cheap.id), str(cheap.id)]
 
 
 @pytest.mark.unit
@@ -233,3 +235,28 @@ async def test_ensure_clan_for_context_reuses_existing_family_context_hash() -> 
 
     assert second.id == first.id
     assert len(repo.clans_by_unique) == 1
+
+
+@pytest.mark.unit
+async def test_ensure_clan_for_precomputed_context_hash_uses_rift_hash_without_world_rehash() -> None:
+    repo = FakeMonsterRepository()
+    service = EncounterMonsterService(repo, factory=FakeClanFactory(repo))
+    context = MonsterGenerationContext(
+        zone_id="rift:starter_rift:primary",
+        biome_id="broken_road",
+        tier=1,
+        tags=["starter_rift", "broken_caravan"],
+        difficulty="mid",
+    )
+    rift_context_hash = "1234567890abcdef1234567890abcdef"  # pragma: allowlist secret
+
+    clan = await service.ensure_clan_for_precomputed_context_hash(
+        context,
+        "goblin_tribe",
+        context_hash=rift_context_hash,
+        normalized_tags=["starter_rift", "broken_caravan"],
+    )
+
+    assert clan.context_hash == rift_context_hash
+    assert clan.unique_hash == compute_unique_clan_hash("goblin_tribe", rift_context_hash)
+    assert compute_context_hash(context.tier, context.biome_id, normalize_tags(context.tags)) != rift_context_hash

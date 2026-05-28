@@ -29,20 +29,119 @@ def test_game_catalog_bootstrap_contains_safe_text_catalogs():
     assert "skill_swords" in payload.catalogs["skills"]
     assert "strength" in payload.catalogs["attributes"]
     assert payload.catalogs["abilities"]["fireball"]["title"] == "Огненный Шар"
-    assert payload.catalogs["feints"]["true_strike"]["title"] == "Верный удар"
+    assert set(payload.catalogs["feints"]) == {
+        "blade_dance",
+        "absolute_defense",
+        "aggressive_defense",
+        "active_defense",
+        "answering_stance",
+        "answering_series",
+        "backstep_shot",
+        "blade_return",
+        "blade_loop",
+        "blade_mill",
+        "bind_blade",
+        "blinding_shot",
+        "broken_step",
+        "closed_distance",
+        "concussion",
+        "covering_position",
+        "crushing_pressure",
+        "empty_line",
+        "fencing_corner_entry",
+        "fencing_gap_probe",
+        "fencing_hidden_entry",
+        "fencing_inside_line",
+        "fencing_needle_gap",
+        "fencing_precise_prick",
+        "fencing_slip_guard",
+        "flawless_strike",
+        "foresight_parry",
+        "full_defense",
+        "glancing_step",
+        "hard_intercept",
+        "heavy_swing",
+        "headshot",
+        "hidden_agility",
+        "hidden_strength",
+        "ignore_guard",
+        "lucky_break",
+        "macing_armor_crush",
+        "macing_break_stance",
+        "macing_break_swing",
+        "macing_guard_cracker",
+        "macing_heavy_line",
+        "macing_skullbreaker",
+        "measured_strike",
+        "offhand_over",
+        "open_distance",
+        "open_wound",
+        "open_vein",
+        "perfect_riposte",
+        "piercing_arrow",
+        "polearm_guard_intercept",
+        "polearm_hook_step",
+        "polearm_leg_sweep",
+        "polearm_locked_distance",
+        "polearm_long_line",
+        "polearm_pinning_point",
+        "polearm_stunning_intercept",
+        "precise_weak_spot",
+        "push_stance",
+        "quiet_weak_spot",
+        "read_tactic",
+        "reveal_intentions",
+        "second_breath",
+        "shifting_line",
+        "silent_puncture",
+        "snap_shot",
+        "steel_line",
+        "steady_strike",
+        "sword_blade_bind",
+        "sword_clean_path",
+        "sword_cut_angle",
+        "sword_hard_bind",
+        "sword_low_angle",
+        "sword_measured_line",
+        "sword_open_line",
+        "torn_rhythm",
+        "wind_dance",
+    }
+    assert payload.catalogs["feints"]["measured_strike"]["cost"]["tactics"] == {"hit": 3}
+    assert payload.catalogs["feints"]["wind_dance"]["cost"]["tactics"] == {"dodge": 5}
+    assert payload.catalogs["feints"]["second_breath"]["cost"]["tactics"] == {"parry": 5}
+    assert payload.catalogs["feints"]["full_defense"]["cost"]["tactics"] == {"block": 5}
+    assert payload.catalogs["feints"]["aggressive_defense"]["cost"]["tactics"] == {"hit": 2, "block": 5}
+    assert payload.catalogs["feints"]["hidden_strength"]["cost"]["tactics"] == {"hit": 3, "parry": 3}
+    assert payload.catalogs["feints"]["lucky_break"]["cost"]["tactics"] == {"crit": 5}
+    assert payload.catalogs["feints"]["blade_mill"]["cost"]["tactics"] == {"hit": 5, "counter": 4}
+    assert payload.catalogs["feints"]["blade_loop"]["cost"]["tactics"] == {"hit": 6, "parry": 3, "counter": 3}
+    assert payload.catalogs["feints"]["snap_shot"]["cost"]["tactics"] == {"hit": 3}
+    assert payload.catalogs["feints"]["sword_measured_line"]["cost"]["tactics"] == {"hit": 3}
+    assert payload.catalogs["feints"]["sword_cut_angle"]["cost"]["tactics"] == {"hit": 3, "dodge": 5}
+    assert payload.catalogs["feints"]["fencing_hidden_entry"]["cost"]["tactics"] == {"hit": 3, "dodge": 5}
+    assert payload.catalogs["feints"]["fencing_inside_line"]["cost"]["tactics"] == {"hit": 3, "parry": 5}
+    assert payload.catalogs["feints"]["polearm_leg_sweep"]["cost"]["tactics"] == {"hit": 3, "dodge": 5}
+    assert payload.catalogs["feints"]["polearm_stunning_intercept"]["cost"]["tactics"] == {"hit": 3, "parry": 5}
+    assert payload.catalogs["feints"]["macing_heavy_line"]["cost"]["tactics"] == {"hit": 3}
+    assert payload.catalogs["feints"]["macing_skullbreaker"]["cost"]["tactics"] == {"hit": 3, "crit": 5}
+    assert payload.catalogs["feints"]["reveal_intentions"]["cost"]["tactics"] == {"hit": 2, "dodge": 1}
     assert payload.catalogs["combat_entries"]["combat.ability.fireball"]["resource_id"] == "fireball"
+    assert payload.catalogs["combat_entries"]["combat.feint.measured_strike"]["resource_id"] == "measured_strike"
+    assert payload.catalogs["combat_entries"]["combat.feint.full_defense"]["resource_id"] == "full_defense"
     assert payload.catalogs["combat_entries"]["combat.ability.fireball"]["taxonomy_variants"]["humanoid"]["event_texts"][
         "area_result"
     ]
     assert payload.catalogs["combat_entries"]["combat.gift.gift_true_fire"]["resource_id"] == "gift_true_fire"
     assert payload.catalogs["combat_entries"]["combat.item.fire_grenade"]["resource_id"] == "fire_grenade"
-    assert payload.catalogs["combat_entries"]["combat.feint.cleave"]["resource_id"] == "cleave"
-    assert payload.catalogs["combat_entries"]["combat.feint.cleave"]["taxonomy_variants"]["beast"]["event_texts"]["hit"]
+    assert "combat.feint.true_strike" not in payload.catalogs["combat_entries"]
     assert payload.catalogs["combat_text"]["templates"]
     assert payload.catalogs["combat_text"]["resources"]["abilities"]["fireball"]["template_keys"]
     assert payload.catalogs["effects"]["dot_burn"]["title"] == "Ожог"
     assert payload.catalogs["gifts"]["gift_true_fire"]["title"] == "Истинное Пламя"
     assert payload.catalogs["combat_tokens"]["tempo"]["title"] == "Темп"
+    assert payload.catalogs["combat_tokens"]["blood"]["title"] == "Кровь"
+    assert payload.catalogs["combat_tokens"]["blood"]["icon"] == "token-blood"
     assert payload.catalogs["combat_tokens"]["parry"]["icon"] == "token-parry"
     assert payload.catalogs["monster_families"]["wolf_pack"]["variant_count"] > 0
     assert payload.catalogs["monster_families"]["wolf_pack"]["visual"]["image_url"].endswith("wolf_pack.svg")

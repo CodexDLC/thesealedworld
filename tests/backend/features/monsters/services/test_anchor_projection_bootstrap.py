@@ -5,10 +5,8 @@ from typing import Any
 import pytest
 
 from src.backend.features.items.dto.instance import RuntimeItemProjectionDTO
-from src.backend.features.monsters.services.anchor_projection_bootstrap import (
-    ANCHOR_PROJECTION_REDIS_PREFIX,
-    AnchorProjectionBootstrapService,
-)
+from src.backend.features.monsters.services.anchor_projection_bootstrap import AnchorProjectionBootstrapService
+from src.backend.infrastructure.monsters.managers import ANCHOR_PROJECTION_REDIS_PREFIX
 
 
 class FakeItemGeneration:
@@ -86,7 +84,7 @@ async def test_anchor_projection_bootstrap_creates_four_boss_snapshots_and_cache
     assert west_snapshot["meta"]["name"] == "Проекция Западной Гравитации"
     # rapier transmog → related_skill="skill_fencing" (polearm base not yet in player catalog)
     assert west_snapshot["combat"]["loadout"]["layout"]["main_hand"] == "skill_fencing"
-    assert west_snapshot["combat"]["loadout"]["layout"]["tactical_style"] == "skill_one_handed"
+    assert "tactical_style" not in west_snapshot["combat"]["loadout"]["layout"]
     assert west_snapshot["combat"]["skills"]["skill_polearms"] == 1.0
     assert west_snapshot["status"]["hp"]["max"] > 0
 

@@ -4,8 +4,8 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from src.backend.features.inventory.services.session_manager import InventorySessionManager
 from src.backend.features.inventory.workers.tasks.session_tasks import inventory_dirty_sweeper_task
+from src.backend.infrastructure.inventory.managers import InventorySessionManager
 from src.shared.schemas.inventory import InventoryRuntimeItemDTO, InventoryRuntimeSessionDTO
 
 

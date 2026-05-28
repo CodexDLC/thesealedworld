@@ -3,9 +3,9 @@ from __future__ import annotations
 import pytest
 
 from src.backend.features.character.events import CharacterEvents
-from src.backend.features.character.managers.session import CharacterSessionManager
 from src.backend.features.inventory.services.inventory_service import InventoryActionForbiddenError, InventoryService
-from src.backend.features.inventory.services.session_manager import InventorySessionManager
+from src.backend.infrastructure.actor_state.managers import CharacterSessionManager
+from src.backend.infrastructure.inventory.managers import InventorySessionManager
 from src.shared.schemas.inventory import InventoryActionRequestDTO, InventoryRuntimeItemDTO, WalletDTO
 
 

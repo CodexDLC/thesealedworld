@@ -19,11 +19,6 @@ class FamilyModifierEntryDTO(BaseModel):
     per_tier: float = 0.0
 
 
-class MonsterSkillKitDTO(BaseModel):
-    base: dict[str, float] = Field(default_factory=dict)
-    role_bonus: dict[MonsterRole, dict[str, float]] = Field(default_factory=dict)
-
-
 class MonsterLootProfileDTO(BaseModel):
     salvage_type: str
     loot_mode: LootMode
@@ -63,6 +58,7 @@ class MonsterLoadoutDTO(BaseModel):
     ring_1: str | None = None
     ring_2: str | None = None
     belt_accessory: str | None = None
+    quiver: str | None = None
 
 
 class MonsterTierRangeDTO(BaseModel):
@@ -125,7 +121,7 @@ class MonsterVariantDTO(BaseModel):
     max_tier: int = Field(default=11, ge=0, le=11)
     base_stats: MonsterStatsDTO
     fixed_loadout: MonsterLoadoutDTO = Field(default_factory=MonsterLoadoutDTO)
-    skill_overrides: dict[str, float | None] = Field(default_factory=dict)
+    skills: list[str] = Field(default_factory=list)
     member_model: MonsterMemberResourceModelDTO | None = None
 
     @model_validator(mode="after")
@@ -148,7 +144,6 @@ class MonsterFamilyDTO(BaseModel):
     organization_type: OrganizationType
     default_tags: list[str] = Field(default_factory=list)
     hierarchy: FamilyHierarchyDTO
-    skill_kit: MonsterSkillKitDTO | None = None
     loot_profile: MonsterLootProfileDTO | None = None
     clan_model: MonsterClanResourceModelDTO | None = None
     member_models: list[MonsterMemberResourceModelDTO] = Field(default_factory=list)

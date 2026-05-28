@@ -17,6 +17,7 @@ setup_logging(
     log_levels={"httpx": 30, "sqlalchemy.engine": 30, "uvicorn.access": 30},
 )
 
+from src.backend.features.admin_players.api import router as admin_players_router  # noqa: E402
 from src.backend.features.arena.api import router as arena_router  # noqa: E402
 from src.backend.features.character.api import router as character_router  # noqa: E402
 from src.backend.features.city_services.api import router as city_services_router  # noqa: E402
@@ -32,6 +33,7 @@ from src.backend.features.game_session.api import router as game_session_router 
 from src.backend.features.generation_ai.api import router as generation_ai_router  # noqa: E402
 from src.backend.features.inventory.api import router as inventory_router  # noqa: E402
 from src.backend.features.monsters.api import router as monsters_router  # noqa: E402
+from src.backend.features.rift.api import router as rift_router  # noqa: E402
 from src.backend.features.scenario.api import router as scenario_router  # noqa: E402
 from src.backend.features.scenario.api.internal_router import router as scenario_internal_router  # noqa: E402
 
@@ -47,6 +49,7 @@ app.add_exception_handler(BaseAPIException, api_exception_handler)  # type: igno
 app.include_router(metrics_router)
 app.include_router(game_config_router)
 app.include_router(generation_ai_router)
+app.include_router(admin_players_router)
 app.include_router(combat_internal_router)
 app.include_router(scenario_internal_router)
 app.include_router(exploration_internal_router)
@@ -58,6 +61,7 @@ app.include_router(combat_router)
 app.include_router(game_catalog_router)
 app.include_router(inventory_router)
 app.include_router(monsters_router)
+app.include_router(rift_router)
 app.include_router(game_lobby_router)
 app.include_router(game_session_router)
 app.include_router(scenario_router)
@@ -72,6 +76,7 @@ logger.bind(
         "game_catalog",
         "inventory",
         "monsters",
+        "rift",
         "game_lobby",
         "game_session",
         "scenario",

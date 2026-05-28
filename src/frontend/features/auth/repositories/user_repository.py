@@ -24,6 +24,20 @@ class UserRepository:
         result = await self.session.execute(select(func.count()).select_from(User))
         return int(result.scalar_one() or 0)
 
+    async def count_matching(self, query: str = "") -> int:
+        stmt = select(func.count()).select_from(User)
+        if query:
+            stmt = stmt.where(User.email.ilike(f"%{query}%"))
+        result = await self.session.execute(stmt)
+        return int(result.scalar_one() or 0)
+
+    async def list_page(self, *, limit: int, offset: int, query: str = "") -> list[User]:
+        stmt = select(User)
+        if query:
+            stmt = stmt.where(User.email.ilike(f"%{query}%"))
+        result = await self.session.execute(stmt.order_by(User.created_at.desc()).limit(limit).offset(offset))
+        return list(result.scalars().all())
+
     async def create(self, user_in: UserCreate) -> User:
         db_user = User(
             email=user_in.email,

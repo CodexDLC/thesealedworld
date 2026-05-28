@@ -13,9 +13,9 @@ from src.shared.enums import CoreDomain
 
 if TYPE_CHECKING:
     from src.backend.core.bus import GameEventProducer
-    from src.backend.features.character.managers import CharacterSessionManager
     from src.backend.features.city_services.models import CharacterTavernRoom
     from src.backend.features.city_services.repositories import TavernRoomRepository
+    from src.backend.infrastructure.actor_state.managers import CharacterSessionManager
     from src.backend.infrastructure.world.location_store import WorldLocationStore
 
 

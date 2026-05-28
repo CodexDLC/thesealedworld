@@ -6,7 +6,7 @@ from loguru import logger as log
 from src.backend.features.combat.dto.worker import CollectorSignalDTO
 from src.backend.features.combat.runtime.processors.chaos_service import ChaosService
 from src.backend.features.combat.runtime.services.data_service import CombatDataService  # noqa: TC001
-from src.backend.features.monsters.services import AnchorProjectionSnapshotCache
+from src.backend.infrastructure.monsters.managers import AnchorProjectionSnapshotCache
 from src.shared.infrastructure.log_task_wrapper import logged_task
 
 # Константа таймаута (10 минут)

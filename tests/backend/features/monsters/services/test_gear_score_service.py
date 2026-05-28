@@ -44,6 +44,30 @@ def _monster(
     )
 
 
+def _armed_monster(*, clan_id: uuid.UUID, skill_value: float) -> GeneratedMonster:
+    monster = _monster(clan_id=clan_id, strength=17, endurance=8)
+    monster.scaled_attributes["agility"] = 10
+    monster.scaled_skills = {"skill_fencing": skill_value}
+    monster.items = {
+        "layout": {"equipment": {"main_hand": "weapon-1"}},
+        "by_id": {
+            "weapon-1": {
+                "base_id": "test_dagger",
+                "item_type": "weapon",
+                "slot": "main_hand",
+                "combat": {
+                    "power": 7,
+                    "damage_spread": 0.12,
+                    "related_skill": "skill_fencing",
+                    "tags": ["weapon", "dagger"],
+                },
+                "generation": {},
+            },
+        },
+    }
+    return monster
+
+
 def test_apply_monster_gear_score_persists_balance_snapshot() -> None:
     service = MonsterGearScoreService()
     monster = _monster(clan_id=uuid.uuid4())
@@ -54,6 +78,40 @@ def test_apply_monster_gear_score_persists_balance_snapshot() -> None:
     assert monster.generation_meta["balance"]["gear_score"] == score
     assert monster.generation_meta["balance"]["gear_score_version"] == MonsterGearScoreService.VERSION
     assert monster.generation_meta["balance"]["base_cost"] == 20
+
+
+def test_monster_gear_score_uses_assembled_weapon_power_after_mastery() -> None:
+    clan_id = uuid.uuid4()
+    service = MonsterGearScoreService()
+    novice = _armed_monster(clan_id=clan_id, skill_value=0.0)
+    master = _armed_monster(clan_id=clan_id, skill_value=1.0)
+
+    assert service.calculate_monster_gear_score(master) > service.calculate_monster_gear_score(novice)
+
+
+def test_refresh_stale_monster_scores_replaces_old_balance_version() -> None:
+    service = MonsterGearScoreService()
+    monster = _monster(clan_id=uuid.uuid4())
+    monster.generation_meta["balance"]["gear_score"] = 999
+    monster.generation_meta["balance"]["gear_score_version"] = MonsterGearScoreService.VERSION - 1
+
+    refreshed = service.refresh_stale_monster_scores([monster])
+
+    assert refreshed == 1
+    assert monster.generation_meta["balance"]["gear_score"] != 999
+    assert monster.generation_meta["balance"]["gear_score_version"] == MonsterGearScoreService.VERSION
+
+
+def test_refresh_stale_monster_scores_keeps_current_version() -> None:
+    service = MonsterGearScoreService()
+    monster = _monster(clan_id=uuid.uuid4())
+    service.apply_monster_gear_score(monster)
+    score = monster.generation_meta["balance"]["gear_score"]
+
+    refreshed = service.refresh_stale_monster_scores([monster])
+
+    assert refreshed == 0
+    assert monster.generation_meta["balance"]["gear_score"] == score
 
 
 def test_apply_clan_summary_groups_scores_by_role() -> None:

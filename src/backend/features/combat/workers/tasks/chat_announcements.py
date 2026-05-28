@@ -7,8 +7,7 @@ from codex_platform.streams.codec import encode_stream_payload
 from loguru import logger as log
 
 from src.backend.config.settings import settings
-
-_ANNOUNCEMENT_TTL_SECONDS = 86400
+from src.backend.infrastructure.combat.managers import CombatAnnouncementManager
 
 
 async def publish_combat_start_announcement(ctx: dict[str, Any], data_service: Any, session_id: str) -> None:
@@ -16,7 +15,7 @@ async def publish_combat_start_announcement(ctx: dict[str, Any], data_service: A
     if redis is None:
         log.bind(reason="no_redis", kind="start", session_id=session_id).warning("CombatAnnouncementSkipped")
         return
-    if not await _claim_once(redis, session_id, "start"):
+    if not await _claim_once(CombatAnnouncementManager(redis), session_id, "start"):
         return
 
     meta = await data_service.get_meta(session_id)
@@ -53,7 +52,7 @@ async def publish_combat_final_announcement(ctx: dict[str, Any], finalization: d
     if redis is None or not session_id:
         log.bind(reason="no_redis_or_session", kind="final", session_id=session_id).warning("CombatAnnouncementSkipped")
         return
-    if not await _claim_once(redis, session_id, "final"):
+    if not await _claim_once(CombatAnnouncementManager(redis), session_id, "final"):
         return
 
     recipients = [str(char_id) for char_id in finalization.get("participant_char_ids", []) if char_id is not None]
@@ -96,10 +95,9 @@ async def publish_combat_final_announcement(ctx: dict[str, Any], finalization: d
     )
 
 
-async def _claim_once(redis: Any, session_id: str, kind: str) -> bool:
-    key = f"combat:announcement:{session_id}:{kind}"
+async def _claim_once(announcements: CombatAnnouncementManager, session_id: str, kind: str) -> bool:
     try:
-        return bool(await redis.set(key, "1", nx=True, ex=_ANNOUNCEMENT_TTL_SECONDS))
+        return await announcements.claim_once(session_id, kind)
     except Exception:
         log.bind(session_id=session_id, kind=kind).exception("CombatAnnouncementClaimFailed")
         return False

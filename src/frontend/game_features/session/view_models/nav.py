@@ -54,6 +54,15 @@ def build_game_nav(*, state: CoreDomain | str, char_id: int) -> dict[str, dict[s
             "r2": _item("VIEW", "#", False, icon="journal", panel="right", panel_view="context"),
         }
 
+    if current == CoreDomain.RIFT.value:
+        return {
+            "l2": _item("STATUS", "#", False, icon="person", panel="left", panel_view="status"),
+            "l1": _disabled_item("PARTY", icon="journal"),
+            "center": _item("RIFT", "#", True, icon="map"),
+            "r1": _item("INVENTORY", "#", False, icon="inventory", panel="right", panel_view="inventory"),
+            "r2": _item("INFO", "#", False, icon="journal", panel="right", panel_view="context"),
+        }
+
     if current == CoreDomain.DEATH.value:
         return {
             "l2": _item("STATUS", "#", False, icon="person", panel="left", panel_view="status"),

@@ -1,6 +1,6 @@
 ---
 name: turnbasedmmorpg-monster-family
-description: Monster family resource guidance for TurnBasedMMORPG. Use when creating, editing, registering, validating, or reviewing monster families, variants, roles, skill_kit values, monster item inputs, narrow monster loadouts, loot profiles, generated monster templates, or monster actor snapshot compatibility.
+description: Monster family resource guidance for TurnBasedMMORPG. Use when creating, editing, registering, validating, or reviewing monster families, variants, roles, variant skill lists, monster item inputs, narrow monster loadouts, loot profiles, generated monster templates, or monster actor snapshot compatibility.
 ---
 
 # TurnBasedMMORPG Monster Family
@@ -48,15 +48,15 @@ Required top-level fields:
 
 Effectively required for combat-ready families:
 
-- `skill_kit`
 - `loot_profile`
+- each combat-ready variant has an explicit `skills` list
 
 Defaulted or optional fields:
 
-- Top level: `default_tags`, `skill_kit`, `loot_profile`, `clan_model`, `member_models`.
-- Variant: `extra_tags`, `min_tier`, `max_tier`, `fixed_loadout`, `skill_overrides`, `member_model`.
+- Top level: `default_tags`, `loot_profile`, `clan_model`, `member_models`.
+- Variant: `extra_tags`, `min_tier`, `max_tier`, `fixed_loadout`, `skills`, `member_model`.
 
-Do not add old/future-hook fields such as `variant.skills`, `ability_map`, `combat_profile`, `ability_overrides`, `body_loadout`, `equipment_scaling`, or `modifier_formula` unless the runtime DTOs and consumers are implemented in the same task.
+Do not add old/future-hook fields such as `ability_map`, `combat_profile`, `ability_overrides`, `body_loadout`, `equipment_scaling`, or `modifier_formula` unless the runtime DTOs and consumers are implemented in the same task.
 
 ## Variants And Roles
 
@@ -81,27 +81,18 @@ Rules:
 - Keep the variant dict key equal to `variant.id`; current DTO validation does not enforce this, but registry and generated monster code assume stable ids.
 - Use `min_tier` and `max_tier` to gate variant availability. `get_available_variants_for_tier_window()` may include neighbor-tier variants around the current tier.
 - `base_stats` must include `strength`, `agility`, `endurance`, `intellect`, `memory`, `mental`, `perception`, `projection`, and `prediction`.
-- Do not add `variant.skills`; the current `MonsterVariantDTO` has no such field.
+- Put combat skill availability in `variant.skills`; do not store skill percentages in resources.
 
 ## Skills
 
 Skills are numeric, trainable game skills. They are not abilities.
 
-Monster numeric skill values are stored in family resources under:
+Monster resources store skill availability, not skill percentages.
 
-- `skill_kit.base`
-- `skill_kit.role_bonus`
-- `member_model.skill_profile.base`
-- `variant.skill_overrides`
-
-Current generated monster skills are filtered through `filter_monster_combat_skills()` and only actor-snapshot combat skill keys are kept. Values should be normalized floats (`0.0..1.0`) unless a task explicitly adds a boundary conversion.
-
-Merge order:
-
-1. Start with `skill_kit.base`.
-2. Apply `skill_kit.role_bonus[variant.role]`.
-3. Apply `member_model.skill_profile.base`.
-4. Apply `variant.skill_overrides`.
+- `variant.skills` is the explicit skill set for that monster variant.
+- `member_model.skill_profile.base` may add skill keys for generated member models.
+- Generated skill values are computed centrally from `member_tier / 7`, capped at `1.0`.
+- Current generated monster skills are filtered through `filter_monster_combat_skills()` and only actor-snapshot combat skill keys are kept.
 
 Use only real catalog ids such as `skill_unarmed`, `skill_archery`, or `skill_light_armor`; do not use ability ids, aggregate keys such as `survival`, or invented monster ability names in skill maps.
 
@@ -129,9 +120,8 @@ Humanoid/item-using families should use item/equipment drop profiles. Beast and 
 
 Monster abilities are currently empty in the active generation path.
 
-- Do not add `variant.skills` for abilities.
 - Do not add `ability_map`.
-- Do not mix abilities into `skill_kit` or `skill_overrides`.
+- Do not mix abilities into `variant.skills`.
 - `build_granted_abilities()` currently returns an empty `MonsterGrantedAbilitiesDTO`.
 
 `loot_profile` is declarative today. Tests and game catalog projections read it, but no active loot resolver was found. Current conventions:
@@ -169,8 +159,8 @@ Monster actor snapshots are built by `MonsterCombatActorInputBuilder` from gener
 
 - Adding a family module but not importing it into `ALL_FAMILIES_RAW`.
 - Adding a family to `spawn_config.py` without registering it.
-- Adding `variant.skills`, `ability_map`, or `combat_profile` because an old design note mentions them.
-- Mixing abilities into numeric skill maps.
+- Adding `ability_map` or `combat_profile` because an old design note mentions them.
+- Mixing abilities into `variant.skills`.
 - Expanding monster loadouts into full humanoid gear slots.
 - Treating humanoids as full paperdoll actors instead of item-using monsters with narrow combat slots and generated item drops.
 - Referencing item ids that are not registered as item bases.
@@ -181,7 +171,7 @@ Monster actor snapshots are built by `MonsterCombatActorInputBuilder` from gener
 ## Known Docs/Code Disagreements
 
 - `docs/game-design/rpg-rules/Monsters` does not exist in the current workspace.
-- Older notes mention `variant.skills`, `ability_map`, `combat_profile`, `skills_snapshot`, and monster combat seeds, but the current DTO/generation path does not use those fields.
+- Older notes mention `ability_map`, `combat_profile`, `skills_snapshot`, and monster combat seeds, but the current DTO/generation path does not use those fields.
 - Skill design docs may describe `0..100`, while current generated monster runtime expects normalized floats.
 - `monster_structs.py` includes fields ignored by DTO/runtime, including presentation and service fields.
 - Dormant family files validate but are not loaded by the current starter registry.

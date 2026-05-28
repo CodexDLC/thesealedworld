@@ -1,3 +1,5 @@
+from typing import Literal
+
 from pydantic import BaseModel, Field
 
 from src.backend.features.game_catalog.combat.resources.common.descriptions import (
@@ -47,14 +49,22 @@ class FeintTechnicalDTO(BaseModel):
 
     # 3. Вероятностные и Реактивные правила (Triggers)
     # Список путей к флагам в TriggerRulesFlagsDTO
-    # Пример: ["accuracy.true_strike", "dodge.counter_on_dodge"]
+    # Пример для будущего набора: ["accuracy.some_feint_rule"]
     triggers: list[str] | None = None
 
     # Catalog tags used by weapon/style mappers.
     applicability_tags: list[str] = Field(default_factory=list)
 
+    # Purchase group used by FeintService to reserve one preferred feint per hand slot type.
+    purchase_group: Literal["basic", "weapon", "tactical"] = "basic"
+
     # Weapon technique flat damage added only when the exchange reaches damage calculation.
     hit_damage_bonus_per_tier: float = 0.0
+
+    # Shield technique damage derived from the acting shield guard power.
+    shield_guard_damage_ratio: float = 0.0
+    shield_guard_damage_min: int = 0
+    shield_guard_damage_tier_fallback: int = 0
 
     # Полная замена урона (редко, но бывает)
     override_damage: tuple[float, float] | None = None

@@ -25,7 +25,6 @@ AFFIX_POOLS_BY_ITEM_TYPE: dict[str, list[str]] = {
     "shield": [
         "block_bonus",
         "shield_guard_power_bonus",
-        "armor_flat",
         "physical_resistance_bonus",
         "evasion_bonus",
         "control_resistance_bonus",
@@ -90,7 +89,7 @@ AFFIX_POOLS_BY_SLOT: dict[str, list[str]] = {
         "off_hand_accuracy",
         "evasion_bonus",
         "physical_resistance_bonus",
-        "armor_flat",
+        "control_resistance_bonus",
     ],
     "head_armor": [
         "armor_flat",
@@ -283,7 +282,6 @@ AFFIX_POOLS_BY_TAG: dict[str, list[str]] = {
     "shield": [
         "block_bonus",
         "shield_guard_power_bonus",
-        "armor_flat",
         "physical_resistance_bonus",
         "control_resistance_bonus",
     ],

@@ -92,8 +92,21 @@ async def test_delete_owned_character_transfers_item_instances_to_system_before_
             operations.append(f"cleanup_scenario:{character_id}")
 
     class FakeCharacterSessions:
+        async def get_session(self, character_id):
+            operations.append(f"get_session:{character_id}")
+            return {
+                "sessions": {
+                    "rift_session_id": "rift-run-42",
+                    "rift_instance_id": "rift-instance-42",
+                }
+            }
+
         async def delete_session(self, character_id):
             operations.append(f"delete_session:{character_id}")
+
+    class FakeRiftRuntime:
+        async def abandon_run_for_deleted_character(self, *, rift_session_id, rift_instance_id, char_id):
+            operations.append(f"abandon_rift:{char_id}:{rift_session_id}:{rift_instance_id}")
 
     class FakeItemPersistence:
         async def transfer_deleted_character_items_to_system(self, character_id):
@@ -105,13 +118,16 @@ async def test_delete_owned_character_transfers_item_instances_to_system_before_
         item_persistence=FakeItemPersistence(),
         character_sessions=FakeCharacterSessions(),
         scenario_service=FakeScenarioService(),
+        rift_runtime=FakeRiftRuntime(),
     )
 
     await integration.delete_owned_character(user_id=uuid.uuid4(), character_id=42, confirm_name="Ada")
 
     assert operations == [
         "load_character",
+        "get_session:42",
         "cleanup_scenario:42",
+        "abandon_rift:42:rift-run-42:rift-instance-42",
         "delete_session:42",
         "transfer_items:42",
         "delete:42",

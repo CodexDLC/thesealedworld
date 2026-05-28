@@ -1,6 +1,5 @@
 from .actor_commitments import MonsterActorCommitmentIntegration
 from .generation_storage import MonsterGenerationStorage
-from .group_cache import MonsterGroupCacheIntegration
 from .item_generation import (
     build_member_items_projection,
     build_monster_item_request,
@@ -12,7 +11,6 @@ from .location_context import MonsterLocationContextIntegration
 __all__ = [
     "MonsterActorCommitmentIntegration",
     "MonsterGenerationStorage",
-    "MonsterGroupCacheIntegration",
     "MonsterLocationContextIntegration",
     "build_member_items_projection",
     "build_monster_item_request",

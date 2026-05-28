@@ -107,6 +107,14 @@ class CombatLifecycleService:
             "location_id": str(request.get("location_id") or request.get("loc_id") or "arena"),
             "source": str(request.get("source") or "unknown"),
             "arena_session_id": str(request.get("arena_session_id") or ""),
+            "rift_session_id": str(request.get("rift_session_id") or ""),
+            "rift_instance_id": str(request.get("rift_instance_id") or ""),
+            "rift_node_id": str(request.get("rift_node_id") or ""),
+            "rift_event_scope": str(request.get("rift_event_scope") or ""),
+            "rift_travel_id": str(request.get("rift_travel_id") or ""),
+            "rift_event_key": str(request.get("rift_event_key") or ""),
+            "rift_target_node_id": str(request.get("rift_target_node_id") or ""),
+            "rift_entrance_seals_on_entry": bool(request.get("rift_entrance_seals_on_entry")),
         }
         return SessionDataDTO(meta=meta, actors=actors, targets=self._build_targets(id_to_team))
 
@@ -194,6 +202,7 @@ class CombatLifecycleService:
                 "afk_level": 0,
                 "exchange_counter": 0,
                 "tokens": {},
+                "token_progress": {},
                 "feints": {"arsenal": known_feints, "hand": {}, "pinned": None},
             },
             "raw": {

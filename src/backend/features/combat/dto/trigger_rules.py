@@ -13,7 +13,6 @@ class AccuracyTriggersDTO(BaseModel):
     rage_on_miss: bool = False  # Бонус при промахе
 
     # Styles
-    style_1h_flow: bool = False  # Возврат токенов
     style_2h_ignore: bool = False  # Игнор брони + Дебафф
     style_dual_extra: bool = False  # Доп. атака
 
@@ -36,6 +35,7 @@ class DodgeTriggersDTO(BaseModel):
     """Триггеры этапа Уклонения (ON_DODGE, ON_DODGE_FAIL)."""
 
     counter_on_dodge: bool = False
+    style_ranged_perfect_backstep: bool = False
 
 
 class ParryTriggersDTO(BaseModel):

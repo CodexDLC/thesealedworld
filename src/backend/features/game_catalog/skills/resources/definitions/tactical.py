@@ -2,19 +2,19 @@ from src.backend.features.game_catalog.skills.dto.catalog import SkillCategory, 
 
 TACTICAL_SKILLS = [
     SkillDTO(
-        skill_key="skill_one_handed",
-        name_en="One Handed Style",
-        name_ru="Одноручный стиль",
+        skill_key="skill_ranged_combat",
+        name_en="Ranged Combat",
+        name_ru="Дальний бой",
         category=SkillCategory.COMBAT,
         group=SkillGroup.COMBAT,
         ui_group=SkillUiGroup.TACTICAL,
-        stat_weights={"agility": 2, "perception": 1, "strength": 1},
+        stat_weights={"agility": 1, "memory": 1, "perception": 1, "prediction": 1},
         rate_mod=1.0,
         wall_mod=1.0,
         description=(
-            "Стиль одной руки: оружие в основной руке, вторая рука свободна или не задает отдельный стиль.\n\n"
-            "Даёт: стабильный базовый темп без врожденного штрафа стиля; стильный триггер Flow может "
-            "сохранять тактические токены при использовании финтов."
+            "Тактика стрелка в размене: уход с линии, сохранение дистанции и работа против ответных атак.\n\n"
+            "Даёт: триггер Идеальный отскок с шансом до 25% может превратить входящую атаку в гарантированный "
+            "уворот. Стрелковые тактические финты выдаются отдельно и не открываются в тяжелой броне."
         ),
     ),
     SkillDTO(
@@ -24,7 +24,7 @@ TACTICAL_SKILLS = [
         category=SkillCategory.COMBAT,
         group=SkillGroup.COMBAT,
         ui_group=SkillUiGroup.TACTICAL,
-        stat_weights={"strength": 2, "endurance": 1, "agility": 1},
+        stat_weights={"strength": 2, "endurance": 1, "perception": 1},
         rate_mod=1.0,
         wall_mod=1.0,
         description=(
@@ -40,7 +40,7 @@ TACTICAL_SKILLS = [
         category=SkillCategory.COMBAT,
         group=SkillGroup.COMBAT,
         ui_group=SkillUiGroup.TACTICAL,
-        stat_weights={"strength": 2, "endurance": 1, "agility": 1},
+        stat_weights={"endurance": 1, "strength": 1, "mental": 1, "memory": 1},
         rate_mod=1.0,
         wall_mod=1.0,
         description=(
@@ -59,7 +59,7 @@ TACTICAL_SKILLS = [
         category=SkillCategory.COMBAT,
         group=SkillGroup.COMBAT,
         ui_group=SkillUiGroup.TACTICAL,
-        stat_weights={"agility": 2, "perception": 1, "strength": 1},
+        stat_weights={"agility": 1, "perception": 1, "prediction": 1, "memory": 1},
         rate_mod=1.0,
         wall_mod=1.0,
         description=(

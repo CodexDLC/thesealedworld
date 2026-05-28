@@ -1,0 +1,83 @@
+@media (max-width: 1024px) {
+    .rift-screen-content {
+        grid-template-rows: minmax(220px, 0.40fr) minmax(0, 1fr);
+    }
+
+    .rift-map-canvas {
+        --rift-map-step: 76px;
+        --rift-node-size: 48px;
+    }
+
+}
+
+@media (max-width: 767px) {
+    .rift-center-screens {
+        padding: 6px;
+    }
+
+    .rift-screen-content {
+        grid-template-rows: minmax(188px, 0.34fr) minmax(0, 1fr);
+        gap: 6px;
+        margin-bottom: 6px;
+    }
+
+    .rift-map-stage,
+    .rift-text-stage {
+        padding: 7px;
+    }
+
+    .rift-map-canvas {
+        --rift-map-step: 64px;
+        --rift-node-size: 40px;
+    }
+
+    .rift-map-node {
+        width: var(--rift-node-size);
+    }
+
+    .rift-hud-strip {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .rift-node-copy h2 {
+        font-size: 28px;
+    }
+
+    .rift-node-copy p {
+        font-size: 16px;
+        line-height: 1.44;
+    }
+
+    .rift-surrounding-line {
+        font-size: 16px;
+    }
+
+    .rift-action-button {
+        min-height: 44px;
+    }
+
+    .rift-combat-actions__body,
+    .rift-combat-prompt .exploration-encounter-body {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}
+
+@media (max-width: 500px) {
+    .rift-screen-content {
+        grid-template-rows: minmax(168px, 0.32fr) minmax(0, 1fr);
+    }
+
+    .rift-node-copy h2 {
+        font-size: 24px;
+    }
+
+    .rift-map-canvas {
+        --rift-map-step: 56px;
+        --rift-node-size: 36px;
+    }
+
+    .rift-node-copy p {
+        font-size: 15px;
+    }
+
+}

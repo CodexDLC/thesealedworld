@@ -32,6 +32,7 @@ class GeneratedMonsterViewService:
             limit=limit,
             offset=offset,
         )
+        clans = await self._refresh_stale_clans(clans)
         return GeneratedMonstersResponseDTO(
             items=[self._clan_payload(clan, role=role, include_members=include_members) for clan in clans],
             pagination={
@@ -41,6 +42,33 @@ class GeneratedMonsterViewService:
                 "has_more": offset + limit < total,
             },
         )
+
+    async def _refresh_stale_clans(self, clans: list[GeneratedClan]) -> list[GeneratedClan]:
+        refresh = getattr(self.repository, "refresh_clan_gear_scores", None)
+        if refresh is None:
+            for clan in clans:
+                self.gear_score_service.refresh_stale_monster_scores(clan.members)
+                self.gear_score_service.apply_clan_summary(clan)
+            return clans
+
+        refreshed_clans: list[GeneratedClan] = []
+        for clan in clans:
+            if not self._needs_gear_score_refresh(clan):
+                refreshed_clans.append(clan)
+                continue
+            refreshed_members = await refresh(clan.id, gear_score_service=self.gear_score_service, persist=True)
+            clan.members = list(refreshed_members)
+            for member in clan.members:
+                member.clan = clan
+            self.gear_score_service.apply_clan_summary(clan)
+            refreshed_clans.append(clan)
+        return refreshed_clans
+
+    def _needs_gear_score_refresh(self, clan: GeneratedClan) -> bool:
+        raw_summary = (clan.raw_tags or {}).get("gear_score_summary")
+        if not isinstance(raw_summary, dict) or raw_summary.get("version") != self.gear_score_service.VERSION:
+            return True
+        return any(self.gear_score_service.needs_recalculation(member) for member in clan.members)
 
     def _clan_payload(self, clan: GeneratedClan, *, role: str | None, include_members: bool) -> dict[str, Any]:
         members = [member for member in clan.members if role is None or member.role == role]

@@ -142,6 +142,7 @@ class MonsterGroupAssembler:
         tier: int,
         danger: float,
         force_single_family: bool = True,
+        composition_policy: dict[str, Any] | None = None,
     ) -> MonsterGroupAssembly:
         del force_single_family  # Current caller already passes members from one clan.
         target_budget = self._target_budget(budget)
@@ -151,8 +152,14 @@ class MonsterGroupAssembler:
             return MonsterGroupAssembly([], target_budget, adjusted_budget, 0)
 
         organization = self._organization_type(candidates)
-        rule = self._organization_rule(organization)
+        policy = _normalize_composition_policy(composition_policy)
+        candidates = self._filter_candidates_by_policy(candidates, policy)
+        if not candidates:
+            return MonsterGroupAssembly([], target_budget, adjusted_budget, 0)
+
+        rule = self._rule_with_policy_overrides(self._organization_rule(organization), policy)
         selected = self._select_by_rule(candidates, adjusted_budget, rule)
+        selected = self._ensure_required_roles(selected, candidates, adjusted_budget, rule, policy["required_roles"])
         total_power = sum(self._member_power(member) for member in selected)
         return MonsterGroupAssembly(
             members=selected,
@@ -220,7 +227,7 @@ class MonsterGroupAssembler:
         rule: dict[str, Any],
     ) -> None:
         while len(selected) < target_count:
-            added = self._try_add_from_pool(selected, self._role_candidates(candidates, role), budget, rule)
+            added = self._try_add_weakest_from_pool(selected, self._role_candidates(candidates, role), budget, rule)
             if not added:
                 break
 
@@ -232,7 +239,7 @@ class MonsterGroupAssembler:
         rule: dict[str, Any],
     ) -> None:
         while len(selected) < int(rule["min_units"]):
-            added = self._try_add_from_pool(selected, candidates, budget, rule)
+            added = self._try_add_weakest_from_pool(selected, candidates, budget, rule)
             if not added:
                 break
 
@@ -259,31 +266,44 @@ class MonsterGroupAssembler:
         rule: dict[str, Any],
         role: str,
     ) -> bool:
-        for candidate in self._role_candidates(candidates, role):
+        allow_repeated = bool(rule.get("allow_repeated_members", self.config["global"]["allow_repeated_members"]))
+        for candidate in self._weakest_first(self._role_candidates(candidates, role)):
+            if not allow_repeated and any(member.id == candidate.id for member in selected):
+                continue
             replacement = self._replacement_for(selected, role)
             if replacement is not None and self._fits_replacement(selected, replacement, candidate, budget):
                 selected.remove(replacement)
                 selected.append(candidate)
                 return True
-            if replacement is None and self._try_add(selected, candidate, budget, rule):
-                return True
         return False
 
-    def _try_add_from_pool(
+    def _try_add_weakest_from_pool(
         self,
         selected: list[GeneratedMonster],
         candidates: list[GeneratedMonster],
         budget: float,
         rule: dict[str, Any],
     ) -> bool:
-        unique_candidates = [member for member in candidates if member not in selected]
-        repeated_candidates = [member for member in candidates if member in selected]
-        fitting_unique = [member for member in unique_candidates if self._fits_budget([*selected, member], budget)]
-        fitting_repeated = [member for member in repeated_candidates if self._fits_budget([*selected, member], budget)]
-        overflow_unique = [member for member in unique_candidates if member not in fitting_unique]
-        overflow_repeated = [member for member in repeated_candidates if member not in fitting_repeated]
-        pool = [*fitting_unique, *fitting_repeated, *overflow_unique, *overflow_repeated]
-        return any(self._try_add(selected, member, budget, rule) for member in pool)
+        allow_repeated = bool(rule.get("allow_repeated_members", self.config["global"]["allow_repeated_members"]))
+        selected_ids = {member.id for member in selected}
+        if bool(rule.get("prefer_distinct_members", False)):
+            unique_pool = [member for member in candidates if member.id not in selected_ids]
+            ordered_unique = self._weakest_first(unique_pool)
+            if any(self._try_add(selected, member, budget, rule) for member in ordered_unique):
+                return True
+        if not allow_repeated:
+            return False
+        ordered_repeated = self._weakest_first(candidates)
+        return any(self._try_add(selected, member, budget, rule) for member in ordered_repeated)
+
+    def _weakest_first(
+        self,
+        candidates: list[GeneratedMonster],
+    ) -> list[GeneratedMonster]:
+        return sorted(
+            candidates,
+            key=lambda member: (self._member_power(member), ROLE_ORDER.get(member.role, 9), member.variant_key),
+        )
 
     def _try_add(
         self,
@@ -292,7 +312,8 @@ class MonsterGroupAssembler:
         budget: float,
         rule: dict[str, Any],
     ) -> bool:
-        if not bool(self.config["global"]["allow_repeated_members"]) and member in selected:
+        allow_repeated = bool(rule.get("allow_repeated_members", self.config["global"]["allow_repeated_members"]))
+        if not allow_repeated and any(existing.id == member.id for existing in selected):
             return False
         if len(selected) >= int(rule["max_units"]):
             return False
@@ -315,7 +336,13 @@ class MonsterGroupAssembler:
         new_member: GeneratedMonster,
         budget: float,
     ) -> bool:
-        next_members = [member for member in selected if member is not old_member]
+        removed_one = False
+        next_members = []
+        for member in selected:
+            if not removed_one and member is old_member:
+                removed_one = True
+                continue
+            next_members.append(member)
         next_members.append(new_member)
         return self._fits_budget(next_members, budget)
 
@@ -357,6 +384,72 @@ class MonsterGroupAssembler:
     def _organization_rule(self, organization: str) -> dict[str, Any]:
         return dict(self.config["organizations"].get(organization) or self.config["organizations"]["solitary"])
 
+    def _filter_candidates_by_policy(
+        self,
+        candidates: list[GeneratedMonster],
+        policy: dict[str, Any],
+    ) -> list[GeneratedMonster]:
+        allowed_roles = set(policy["allowed_roles"])
+        if not allowed_roles:
+            return candidates
+        return [member for member in candidates if member.role in allowed_roles]
+
+    def _rule_with_policy_overrides(self, rule: dict[str, Any], policy: dict[str, Any]) -> dict[str, Any]:
+        result = dict(rule)
+        if policy["max_units"] is not None:
+            result["max_units"] = max(1, int(policy["max_units"]))
+        if policy["min_units"] is not None:
+            result["min_units"] = min(int(result["max_units"]), max(0, int(policy["min_units"])))
+        if policy["allow_repeated_members"] is not None:
+            result["allow_repeated_members"] = bool(policy["allow_repeated_members"])
+        if policy["prefer_distinct_members"] is not None:
+            result["prefer_distinct_members"] = bool(policy["prefer_distinct_members"])
+
+        allowed_roles = set(policy["allowed_roles"])
+        required_roles = set(policy["required_roles"])
+        if "boss" in allowed_roles or "boss" in required_roles:
+            result["boss_allowed"] = True
+        if allowed_roles:
+            if "veteran" not in allowed_roles:
+                result["max_veterans"] = 0
+            if "elite" not in allowed_roles:
+                result["max_elites"] = 0
+            if "boss" not in allowed_roles:
+                result["boss_allowed"] = False
+        if "veteran" in required_roles:
+            result["max_veterans"] = max(1, int(result["max_veterans"]))
+        if "elite" in required_roles:
+            result["max_elites"] = max(1, int(result["max_elites"]))
+        if required_roles and "minion" not in required_roles:
+            result["start_minions"] = 0
+        return result
+
+    def _ensure_required_roles(
+        self,
+        selected: list[GeneratedMonster],
+        candidates: list[GeneratedMonster],
+        budget: float,
+        rule: dict[str, Any],
+        required_roles: list[str],
+    ) -> list[GeneratedMonster]:
+        result = list(selected)
+        for role in required_roles:
+            if self._role_count(result, role) > 0:
+                continue
+            role_candidates = self._role_candidates(candidates, role)
+            if not role_candidates:
+                continue
+            if self._try_add(result, role_candidates[0], budget, rule):
+                continue
+            replacement = self._replacement_for_required_role(result, role)
+            if replacement is not None:
+                result.remove(replacement)
+                result.append(role_candidates[0])
+        return sorted(
+            result,
+            key=lambda member: (ROLE_ORDER.get(member.role, 9), self._member_power(member), member.variant_key),
+        )
+
     def _role_candidates(
         self,
         candidates: list[GeneratedMonster],
@@ -397,6 +490,15 @@ class MonsterGroupAssembler:
             return 1 if bool(rule["boss_allowed"]) else 0
         return 0
 
+    @staticmethod
+    def _replacement_for_required_role(selected: list[GeneratedMonster], target_role: str) -> GeneratedMonster | None:
+        lower_roles = LOWER_ROLE_ORDER.get(target_role, ("minion", "veteran", "elite"))
+        for role in lower_roles:
+            matching = [member for member in selected if member.role == role]
+            if matching:
+                return sorted(matching, key=lambda member: (ROLE_ORDER.get(member.role, 9), member.variant_key))[0]
+        return selected[0] if selected else None
+
     def _action_economy_multiplier(self, count: int) -> float:
         if not self.config["action_economy"]["enabled"] or count <= 0:
             return 1.0
@@ -421,6 +523,41 @@ def _balance(member: GeneratedMonster) -> dict[str, Any]:
 def _single_score(power: int, budget: float) -> tuple[int, float, int]:
     overshoot = 1 if power > budget else 0
     return overshoot, abs(power - budget), -power
+
+
+def _normalize_composition_policy(policy: dict[str, Any] | None) -> dict[str, Any]:
+    raw = dict(policy or {})
+    return {
+        "allowed_roles": _string_list(raw.get("allowed_roles")),
+        "required_roles": _string_list(raw.get("required_roles")),
+        "min_units": _optional_int(raw.get("min_units")),
+        "max_units": _optional_int(raw.get("max_units")),
+        "allow_repeated_members": _optional_bool(raw.get("allow_repeated_members")),
+        "prefer_distinct_members": _optional_bool(raw.get("prefer_distinct_members")),
+    }
+
+
+def _string_list(value: Any) -> list[str]:
+    if isinstance(value, str):
+        values = [value]
+    elif isinstance(value, (list, tuple, set)):
+        values = list(value)
+    else:
+        values = []
+    return [text for raw in values if (text := str(raw).strip())]
+
+
+def _optional_int(value: Any) -> int | None:
+    if value is None:
+        return None
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _optional_bool(value: Any) -> bool | None:
+    return value if isinstance(value, bool) else None
 
 
 __all__ = ["ENCOUNTER_BALANCE_CONFIG", "MonsterGroupAssembler", "MonsterGroupAssembly"]

@@ -1,0 +1,17 @@
+{
+  "snapshot_key": "starter_rift_dev_character",
+  "source": "dev_resource_snapshot",
+  "character": {
+    "character_id": "dev-character-rift-tester",
+    "name": "Rift Dev Tester",
+    "tier": 0,
+    "gear_score": 25,
+    "attributes": {
+      "strength": 14,
+      "intelligence": 16,
+      "dexterity": 12
+    },
+    "skills": {},
+    "items": []
+  }
+}

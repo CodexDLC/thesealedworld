@@ -39,6 +39,7 @@ class FrontendSettings(BaseCommonSettings):
     authx_jwt_algorithm: str = "HS256"
     authx_jwt_token_locations: list[str] = ["headers"]
     default_symbiote_name: str = "SYSTEM"
+    enable_dev_rift_routes: bool = True
 
     # Email
     smtp_host: str = "smtp.gmail.com"

@@ -50,7 +50,7 @@ class FakeCharacterSessions:
             "active_quest": None,
             "metrics": {"gear_score": 0},
             "skills": {"skill_swords": {"xp": 0.25, "unlocked": True, "state": "PLUS"}},
-            "symbiote": {"name": "SYSTEM"},
+            "symbiote": {"name": "SYSTEM", "gift_id": "starter", "gift_xp": 35, "gift_rank": 1},
             "updated_at": datetime.now(UTC),
         }
 
@@ -103,6 +103,36 @@ async def test_system_integrator_persists_character_attributes_and_skills() -> N
     attributes_repo.upsert_attributes.assert_awaited_once()
     skill_repo.upsert_progress_rows.assert_awaited_once()
     assert character_sessions.cleared_dirty_ids == [7]
+
+
+@pytest.mark.unit
+async def test_system_integrator_persists_symbiote_when_dirty() -> None:
+    character_repo = MagicMock()
+    character_repo.sync_active_session_snapshot = AsyncMock(
+        return_value={"state": "exploration", "location_id": "52_58"}
+    )
+    attributes_repo = MagicMock()
+    attributes_repo.upsert_attributes = AsyncMock()
+    skill_repo = MagicMock()
+    skill_repo.upsert_progress_rows = AsyncMock()
+    symbiote_repo = MagicMock()
+    symbiote_repo.upsert_from_session = AsyncMock()
+
+    character_sessions = FakeCharacterSessions()
+    integrator = CharacterSystemIntegrator(
+        character_sessions=character_sessions,
+        character_repo=character_repo,
+        attributes_repo=attributes_repo,
+        skill_repo=skill_repo,
+        symbiote_repo=symbiote_repo,
+    )
+
+    await integrator.sync_active_session(7)
+
+    symbiote_repo.upsert_from_session.assert_awaited_once_with(
+        7,
+        {"name": "SYSTEM", "gift_id": "starter", "gift_xp": 35, "gift_rank": 1},
+    )
 
 
 @pytest.mark.unit
@@ -164,6 +194,9 @@ async def test_character_repository_syncs_active_session_snapshot() -> None:
         "combat_finalization_id": None,
         "encounter_id": None,
         "arena_id": None,
+        "rift_session_id": None,
+        "rift_instance_id": None,
+        "rift_entry_request_id": None,
         "inventory_id": None,
         "death_run_id": None,
         "death_corpse_id": None,

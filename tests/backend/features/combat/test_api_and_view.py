@@ -91,7 +91,10 @@ class FakeCombatStore:
         actors["2"]["source"] = {
             "monster_id": "m-2",
             "family_id": "rat_swarm",
-            "visual": {"image_url": "/static/generated-assets/monsters/generated/members/rat.webp"},
+            "visual": {
+                "image_url": "/static/generated-assets/monsters/generated/members/rat.webp",
+                "asset_hash": "rat-image-bytes",
+            },
         }
         return actors
 
@@ -442,6 +445,19 @@ class FakeEvents:
         return {"status": "ok"}
 
 
+class FakeRiftRuntime:
+    def __init__(self):
+        self.cleared = []
+        self.applied = []
+
+    async def clear_run_active_encounter(self, rift_session_id):
+        self.cleared.append(rift_session_id)
+
+    async def apply_combat_result(self, **kwargs):
+        self.applied.append(kwargs)
+        return {"applied": True}
+
+
 @pytest.mark.asyncio
 async def test_combat_session_service_returns_snapshot():
     service = CombatSessionService(store=FakeCombatStore(), system_integrator=FakeCombatSystemIntegrator())
@@ -518,6 +534,49 @@ def test_combat_view_service_collapses_fragmented_entries_into_turn_blocks():
     ]
 
 
+def test_combat_view_service_ignores_monster_family_visual_as_avatar():
+    dashboard = CombatViewService().build_dashboard(
+        session_id="combat-family-fallback",
+        viewer_id=1,
+        meta={
+            "active": "1",
+            "teams": json.dumps({"team_1": ["1"], "team_2": ["2"]}),
+            "actors_info": json.dumps({"1": "player", "2": "ai"}),
+            "alive_counts": json.dumps({"team_1": 1, "team_2": 1}),
+            "dead_actors": "[]",
+        },
+        targets={"1": ["2"], "2": ["1"]},
+        actors={
+            "1": {
+                "meta": {"id": "1", "name": "Hero", "team": "team_1", "type": "player", "hp": 10, "max_hp": 10},
+            },
+            "2": {
+                "meta": {
+                    "id": "2",
+                    "name": "Bandit",
+                    "team": "team_2",
+                    "type": "monster",
+                    "hp": 10,
+                    "max_hp": 10,
+                    "avatar_url": "/static/images/monsters/families/bandit_gang.svg",
+                },
+                "source": {
+                    "visual": {
+                        "status": "fallback",
+                        "image_url": "/static/images/monsters/families/bandit_gang.svg",
+                        "generated_image_url": "/static/generated-assets/monsters/generated/members/not-ready.webp",
+                        "fallback_image_url": "/static/images/monsters/families/bandit_gang.svg",
+                    }
+                },
+            },
+        },
+        raw_logs=[],
+    )
+
+    assert dashboard.target is not None
+    assert dashboard.target.avatar_url is None
+
+
 def test_combat_view_service_returns_latest_turn_first():
     service = CombatViewService()
     turns = service.parse_logs_by_turn(
@@ -553,7 +612,7 @@ async def test_combat_dashboard_exposes_actor_metadata():
     assert dashboard.target.tags == ["monster", "rat_swarm"]
     assert dashboard.target.source["family_id"] == "rat_swarm"
     assert dashboard.target.visual["image_url"] == "/static/generated-assets/monsters/generated/members/rat.webp"
-    assert dashboard.target.avatar_url == "/static/generated-assets/monsters/generated/members/rat.webp"
+    assert dashboard.target.avatar_url == "/static/generated-assets/monsters/generated/members/rat.webp?v=rat-image-bytes"
 
 
 @pytest.mark.asyncio
@@ -641,10 +700,11 @@ async def test_combat_dashboard_exposes_real_actor_contract_and_actions():
     assert dashboard.hero.actor_id == "1"
     assert dashboard.target.actor_id == "2"
     assert [actor.actor_id for actor in dashboard.enemies] == ["2"]
-    assert dashboard.hero.tokens == {"hit": 3, "gift": 1}
+    assert dashboard.hero.tokens == {"hit": 2, "gift": 1}
     assert [effect.effect_id for effect in dashboard.hero.active_effects] == ["burn"]
     assert [ability.ability_id for ability in dashboard.hero.active_abilities] == ["true_strike"]
     assert [feint.feint_id for feint in dashboard.hero.feints] == ["true_strike"]
+    assert dashboard.hero.feints[0].cost == {"hit": 1}
     assert dashboard.events_delta.events[0].data["x"] == 1
     assert dashboard.events_delta.turns[0].global_turn == 1
 
@@ -1253,6 +1313,36 @@ async def test_combat_finalized_return_clears_ac_and_syncs_to_db() -> None:
 
 
 @pytest.mark.asyncio
+async def test_combat_finalized_return_restores_rift_state() -> None:
+    events = FakeEvents()
+    sessions = FakeCharacterSessions(
+        {
+            "state": CoreDomain.COMBAT_RESULT.value,
+            "prev_state": CoreDomain.RIFT.value,
+            "sessions": {
+                "combat_id": None,
+                "combat_finalization_id": "combat-1",
+                "rift_session_id": "rift-run-1",
+                "rift_instance_id": "rift-instance-1",
+            },
+        }
+    )
+    integrator = CombatSystemIntegrator(
+        actor_commitments=FakeCommitments(),
+        character_sessions=sessions,
+        events=events,
+    )
+
+    returned = await integrator.complete_combat_session_return(7, combat_id="combat-1")
+
+    assert returned == CoreDomain.RIFT.value
+    assert sessions.patches[0][1]["$.state"] == CoreDomain.RIFT.value
+    assert sessions.patches[0][1]["$.prev_state"] == CoreDomain.EXPLORATION.value
+    assert sessions.patches[0][1]["$.sessions.combat_finalization_id"] is None
+    assert sessions.patches[0][1]["$.sessions.combat_id"] is None
+
+
+@pytest.mark.asyncio
 async def test_continue_combat_result_clears_ac_and_returns_transition() -> None:
     events = FakeEvents()
     sessions = FakeCharacterSessions(
@@ -1370,6 +1460,50 @@ async def test_continue_combat_result_clears_active_combat_when_latest_finalizat
     assert sessions.patches[0][1]["$.sessions.combat_id"] is None
     assert sessions.patches[0][1]["$.sessions.combat_finalization_id"] is None
     assert sessions.patches[0][1]["$.state"] == CoreDomain.EXPLORATION.value
+
+
+@pytest.mark.asyncio
+async def test_continue_combat_result_returning_to_rift_clears_rift_active_encounter() -> None:
+    rift_runtime = FakeRiftRuntime()
+    sessions = FakeCharacterSessions(
+        {
+            "state": CoreDomain.COMBAT_RESULT.value,
+            "prev_state": CoreDomain.RIFT.value,
+            "sessions": {
+                "combat_id": None,
+                "combat_finalization_id": "combat-1",
+                "rift_session_id": "rift-run-1",
+                "post_combat": {"target_state": "rift", "loot_context": {"rift_session_id": "rift-run-1"}},
+            },
+        }
+    )
+    service = CombatSessionService(
+        store=LatestFinalizedCombatStore(),
+        system_integrator=CombatSystemIntegrator(
+            actor_commitments=FakeCommitments(),
+            character_sessions=sessions,
+            events=FakeEvents(),
+            rift_runtime=rift_runtime,
+        ),
+    )
+
+    response = await continue_combat_result(7, CombatRuntimeOrchestrator(service))
+
+    assert response.payload_type == "state_transition"
+    assert response.header.current_state == CoreDomain.RIFT
+    assert rift_runtime.applied == [
+        {
+            "combat_id": "combat-1",
+            "result": "victory",
+            "rift_session_id": "rift-run-1",
+            "rift_instance_id": "",
+            "event_scope": "",
+            "travel_id": "",
+            "event_key": "",
+            "participant_ref": "",
+        }
+    ]
+    assert rift_runtime.cleared == []
 
 
 @pytest.mark.asyncio

@@ -11,21 +11,6 @@ GOBLINS_FAMILY: MonsterFamily = {
     "archetype": "humanoid",
     "organization_type": "horde",  # TSP Base: 30
     "default_tags": ["goblin", "small", "cunning", "tinkerer"],
-    "skill_kit": {
-        "base": {
-            "skill_swords": 0.15,
-            "skill_macing": 0.10,
-            "skill_polearms": 0.10,
-            "skill_one_handed": 0.15,
-            "skill_light_armor": 0.10,
-        },
-        "role_bonus": {
-            "minion": {},
-            "veteran": {"skill_polearms": 0.15, "skill_one_handed": 0.15},
-            "elite": {"skill_swords": 0.30, "skill_one_handed": 0.30, "skill_tactics": 0.30},
-            "boss": {"skill_macing": 0.65, "skill_one_handed": 0.65, "skill_tactics": 0.55},
-        },
-    },
     "family_modifiers": [
         {"target": "accuracy", "value": -0.10, "per_tier": 0.0},
         {"target": "dodge_chance", "value": 0.06, "per_tier": 0.01},
@@ -69,7 +54,7 @@ GOBLINS_FAMILY: MonsterFamily = {
                 "prediction": 4,  # Итого: 48
             },
             "fixed_loadout": {"main_hand": "dagger", "off_hand": "dagger"},
-            "skill_overrides": {"skill_dual_wield": 0.15},
+            "skills": ["skill_fencing", "skill_dual_wield"],
         },
         "goblin_scavenger": {
             "id": "goblin_scavenger",
@@ -91,6 +76,7 @@ GOBLINS_FAMILY: MonsterFamily = {
                 "prediction": 4,  # Итого: 46
             },
             "fixed_loadout": {"main_hand": "mace"},
+            "skills": ["skill_macing"],
         },
         "goblin_cutter": {
             "id": "goblin_cutter",
@@ -112,7 +98,7 @@ GOBLINS_FAMILY: MonsterFamily = {
                 "prediction": 3,  # Итого: 48
             },
             "fixed_loadout": {"main_hand": "dagger"},
-            "skill_overrides": {"skill_fencing": 0.18, "skill_one_handed": 0.08},
+            "skills": ["skill_fencing"],
         },
         "goblin_sparkpick": {
             "id": "goblin_sparkpick",
@@ -134,6 +120,7 @@ GOBLINS_FAMILY: MonsterFamily = {
                 "prediction": 2,  # Итого: 49
             },
             "fixed_loadout": {"main_hand": "hatchet"},
+            "skills": ["skill_macing"],
         },
         # --- 2. Бойцы (Veterans) [TSP ~45] ---
         "goblin_spearman": {
@@ -156,6 +143,7 @@ GOBLINS_FAMILY: MonsterFamily = {
                 "prediction": 2,  # Итого: 61
             },
             "fixed_loadout": {"main_hand": "spear", "off_hand": "shield", "chest_armor": "jerkin"},
+            "skills": ["skill_polearms", "skill_medium_armor", "skill_shield_mastery"],
         },
         "goblin_slinger": {
             "id": "goblin_slinger",
@@ -163,8 +151,8 @@ GOBLINS_FAMILY: MonsterFamily = {
             "cost": 50,
             "min_tier": 1,
             "max_tier": 5,
-            "narrative_hint": "A fast goblin with a sling, constantly moving and throwing rocks.",
-            "extra_tags": ["ranged", "fast"],
+            "narrative_hint": "A fast goblin with a short bow and a simple quiver of training arrows.",
+            "extra_tags": ["ranged", "archer", "fast"],
             "base_stats": {
                 "strength": 5,
                 "agility": 16,
@@ -176,8 +164,8 @@ GOBLINS_FAMILY: MonsterFamily = {
                 "projection": 2,
                 "prediction": 4,  # Итого: 58
             },
-            "fixed_loadout": {"main_hand": "sling"},
-            "skill_overrides": {"skill_archery": 0.20, "skill_one_handed": None},
+            "fixed_loadout": {"two_hand": "shortbow", "quiver": "quiver_training"},
+            "skills": ["skill_archery", "skill_ranged_combat"],
         },
         "goblin_scrapguard": {
             "id": "goblin_scrapguard",
@@ -199,7 +187,7 @@ GOBLINS_FAMILY: MonsterFamily = {
                 "prediction": 2,  # Итого: 62
             },
             "fixed_loadout": {"main_hand": "mace", "off_hand": "shield", "chest_armor": "jerkin"},
-            "skill_overrides": {"skill_macing": 0.20, "skill_shield_mastery": 0.25},
+            "skills": ["skill_macing", "skill_medium_armor", "skill_shield_mastery"],
         },
         # --- 3. Инженеры (Elites) [TSP ~75] ---
         "goblin_tinkerer": {
@@ -222,7 +210,7 @@ GOBLINS_FAMILY: MonsterFamily = {
                 "prediction": 4,  # Итого: 85
             },
             "fixed_loadout": {"main_hand": "dagger"},
-            "skill_overrides": {"skill_tactics": 0.45},
+            "skills": ["skill_fencing", "skill_tactics"],
         },
         "goblin_bomber": {
             "id": "goblin_bomber",
@@ -244,7 +232,7 @@ GOBLINS_FAMILY: MonsterFamily = {
                 "prediction": 6,  # Итого: 84
             },
             "fixed_loadout": {"main_hand": "sling", "chest_armor": "jerkin"},
-            "skill_overrides": {"skill_archery": 0.25, "skill_tactics": 0.40},
+            "skills": ["skill_archery", "skill_medium_armor", "skill_ranged_combat", "skill_tactics"],
         },
         "goblin_trapmaster": {
             "id": "goblin_trapmaster",
@@ -266,7 +254,7 @@ GOBLINS_FAMILY: MonsterFamily = {
                 "prediction": 8,
             },
             "fixed_loadout": {"main_hand": "dagger"},
-            "skill_overrides": {"skill_tactics": 0.55, "skill_fencing": 0.18},
+            "skills": ["skill_fencing", "skill_tactics", "skill_anatomy"],
         },
         # --- 4. Вожди (Bosses) [TSP ~120] ---
         "goblin_chief": {
@@ -289,7 +277,7 @@ GOBLINS_FAMILY: MonsterFamily = {
                 "prediction": 8,  # Итого: 116
             },
             "fixed_loadout": {"main_hand": "battle_axe", "chest_armor": "plate_chest"},
-            "skill_overrides": {"skill_heavy_armor": 0.25},
+            "skills": ["skill_macing", "skill_heavy_armor", "skill_tactics", "skill_anatomy"],
         },
         "scrap_king": {
             "id": "scrap_king",
@@ -314,7 +302,7 @@ GOBLINS_FAMILY: MonsterFamily = {
                 "two_hand": "warhammer",
                 "chest_armor": "plate_chest",
             },
-            "skill_overrides": {"skill_two_handed": 0.55, "skill_heavy_armor": 0.45},
+            "skills": ["skill_macing", "skill_heavy_armor", "skill_two_handed", "skill_tactics", "skill_anatomy"],
         },
     },
 }

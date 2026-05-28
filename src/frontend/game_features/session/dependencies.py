@@ -12,6 +12,7 @@ from src.frontend.integrations.backend_api.combat import BackendCombatApi
 from src.frontend.integrations.backend_api.exploration import BackendExplorationApi
 from src.frontend.integrations.backend_api.game_session import BackendGameSessionApi
 from src.frontend.integrations.backend_api.inventory import BackendInventoryApi
+from src.frontend.integrations.backend_api.rift import BackendRiftApi
 from src.frontend.integrations.backend_api.scenario import BackendScenarioApi
 
 
@@ -47,6 +48,10 @@ def get_backend_inventory_api(request: Request) -> BackendInventoryApi:
     return BackendInventoryApi(client=get_backend_http_client(request), base_url=settings.backend_base_url)
 
 
+def get_backend_rift_api(request: Request) -> BackendRiftApi:
+    return BackendRiftApi(client=get_backend_http_client(request), base_url=settings.backend_base_url)
+
+
 def get_session_context_builder(
     character_status_api: Annotated[BackendCharacterStatusApi, Depends(get_backend_character_status_api)],
     arena_api: Annotated[BackendArenaApi, Depends(get_backend_arena_api)],
@@ -56,6 +61,7 @@ def get_session_context_builder(
     scenario_api: Annotated[BackendScenarioApi, Depends(get_backend_scenario_api)],
     game_session_api: Annotated[BackendGameSessionApi, Depends(get_backend_game_session_api)],
     inventory_api: Annotated[BackendInventoryApi, Depends(get_backend_inventory_api)],
+    rift_api: Annotated[BackendRiftApi, Depends(get_backend_rift_api)],
 ) -> SessionContextBuilder:
     return SessionContextBuilder(
         character_status_api=character_status_api,
@@ -66,4 +72,5 @@ def get_session_context_builder(
         scenario_api=scenario_api,
         game_session_api=game_session_api,
         inventory_api=inventory_api,
+        rift_api=rift_api,
     )

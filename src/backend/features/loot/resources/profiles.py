@@ -17,23 +17,19 @@ from src.backend.features.loot.resources.types import (
 _rat_drop = [
     ResourceEntry("hide", 0.70, (1, 1), fixed_tier=0),
     ResourceEntry("bones", 0.60, (1, 1)),
-    ResourceEntry("currency", 0.40, (1, 1)),
 ]
 
 _wolf_drop = [
     ResourceEntry("hide", 0.70, (1, 1), fixed_tier=0),
     ResourceEntry("bones", 0.60, (1, 2)),
-    ResourceEntry("currency", 0.40, (1, 1)),
 ]
 
 _bandit_junk = [
-    ResourceEntry("currency", 0.80, (2, 8), fixed_tier=0),
     ResourceEntry("res_dirty_rags", 0.55, (1, 2), fixed_tier=0),
     ResourceEntry("res_rust_flakes", 0.35, (1, 2), fixed_tier=0),
 ]
 
 _goblin_junk = [
-    ResourceEntry("currency", 0.70, (1, 6), fixed_tier=0),
     ResourceEntry("res_dirty_rags", 0.60, (1, 3), fixed_tier=0),
     ResourceEntry("res_rust_flakes", 0.45, (1, 3), fixed_tier=0),
     ResourceEntry("res_charcoal", 0.25, (1, 1), fixed_tier=0),
@@ -42,48 +38,38 @@ _goblin_junk = [
 _BANDIT_ROLES = {
     "minion": RoleLootProfile(
         drop=[*_bandit_junk],
+        salvage=[ResourceEntry("currency", 0.80, (1, 2), fixed_tier=0)],
     ),
     "veteran": RoleLootProfile(
-        drop=[
-            ResourceEntry("currency", 0.85, (4, 14), fixed_tier=0),
-            *_bandit_junk[1:],
-        ],
+        drop=[*_bandit_junk],
+        salvage=[ResourceEntry("currency", 0.85, (1, 2), fixed_tier=0)],
     ),
     "elite": RoleLootProfile(
-        drop=[
-            ResourceEntry("currency", 0.90, (8, 24), fixed_tier=0),
-            *_bandit_junk[1:],
-        ],
+        drop=[*_bandit_junk],
+        salvage=[ResourceEntry("currency", 0.90, (1, 2), fixed_tier=0)],
     ),
     "boss": RoleLootProfile(
-        drop=[
-            ResourceEntry("currency", 0.95, (18, 60), fixed_tier=0),
-            *_bandit_junk[1:],
-        ],
+        drop=[*_bandit_junk],
+        salvage=[ResourceEntry("currency", 0.95, (1, 2), fixed_tier=0)],
     ),
 }
 
 _GOBLIN_ROLES = {
     "minion": RoleLootProfile(
         drop=[*_goblin_junk],
+        salvage=[ResourceEntry("currency", 0.70, (1, 2), fixed_tier=0)],
     ),
     "veteran": RoleLootProfile(
-        drop=[
-            ResourceEntry("currency", 0.75, (3, 10), fixed_tier=0),
-            *_goblin_junk[1:],
-        ],
+        drop=[*_goblin_junk],
+        salvage=[ResourceEntry("currency", 0.75, (1, 2), fixed_tier=0)],
     ),
     "elite": RoleLootProfile(
-        drop=[
-            ResourceEntry("currency", 0.85, (6, 20), fixed_tier=0),
-            *_goblin_junk[1:],
-        ],
+        drop=[*_goblin_junk],
+        salvage=[ResourceEntry("currency", 0.85, (1, 2), fixed_tier=0)],
     ),
     "boss": RoleLootProfile(
-        drop=[
-            ResourceEntry("currency", 0.90, (14, 45), fixed_tier=0),
-            *_goblin_junk[1:],
-        ],
+        drop=[*_goblin_junk],
+        salvage=[ResourceEntry("currency", 0.90, (1, 2), fixed_tier=0)],
     ),
 }
 
@@ -108,23 +94,22 @@ LOOT_PROFILES: dict[str, MonsterLootProfile] = {
         roles={
             "minion": RoleLootProfile(
                 drop=_rat_drop,
-                salvage=[ResourceEntry("hide", 0.70, (1, 1))],
+                salvage=[ResourceEntry("hide", 0.70, (1, 1)), ResourceEntry("currency", 0.40, (1, 2))],
             ),
             "veteran": RoleLootProfile(
                 drop=_rat_drop,
-                salvage=[ResourceEntry("hide", 0.75, (1, 1))],
+                salvage=[ResourceEntry("hide", 0.75, (1, 1)), ResourceEntry("currency", 0.40, (1, 2))],
             ),
             "elite": RoleLootProfile(
                 drop=_rat_drop,
-                salvage=[ResourceEntry("hide", 0.80, (1, 1))],
+                salvage=[ResourceEntry("hide", 0.80, (1, 1)), ResourceEntry("currency", 0.40, (1, 2))],
             ),
             "boss": RoleLootProfile(
                 drop=[
                     ResourceEntry("hide", 0.80, (1, 2), fixed_tier=0),
                     ResourceEntry("bones", 0.70, (1, 3)),
-                    ResourceEntry("currency", 0.60, (2, 5)),
                 ],
-                salvage=[ResourceEntry("hide", 0.90, (1, 2))],
+                salvage=[ResourceEntry("hide", 0.90, (1, 2)), ResourceEntry("currency", 0.60, (1, 2))],
             ),
         },
     ),
@@ -137,23 +122,22 @@ LOOT_PROFILES: dict[str, MonsterLootProfile] = {
         roles={
             "minion": RoleLootProfile(
                 drop=_wolf_drop,
-                salvage=[ResourceEntry("hide", 0.80, (1, 2))],
+                salvage=[ResourceEntry("hide", 0.80, (1, 2)), ResourceEntry("currency", 0.40, (1, 2))],
             ),
             "veteran": RoleLootProfile(
                 drop=_wolf_drop,
-                salvage=[ResourceEntry("hide", 0.80, (1, 2))],
+                salvage=[ResourceEntry("hide", 0.80, (1, 2)), ResourceEntry("currency", 0.40, (1, 2))],
             ),
             "elite": RoleLootProfile(
                 drop=_wolf_drop,
-                salvage=[ResourceEntry("hide", 0.85, (1, 2))],
+                salvage=[ResourceEntry("hide", 0.85, (1, 2)), ResourceEntry("currency", 0.40, (1, 2))],
             ),
             "boss": RoleLootProfile(
                 drop=[
                     ResourceEntry("hide", 0.80, (2, 3), fixed_tier=0),
                     ResourceEntry("bones", 0.70, (2, 4)),
-                    ResourceEntry("currency", 0.60, (3, 8)),
                 ],
-                salvage=[ResourceEntry("hide", 0.90, (2, 3))],
+                salvage=[ResourceEntry("hide", 0.90, (2, 3)), ResourceEntry("currency", 0.60, (1, 2))],
             ),
         },
     ),
@@ -192,7 +176,7 @@ LOOT_PROFILES: dict[str, MonsterLootProfile] = {
         archetype="beast",
         roles={
             "minion": RoleLootProfile(
-                drop=[ResourceEntry("currency", 0.50, (1, 5))],
+                salvage=[ResourceEntry("currency", 0.50, (1, 2))],
             ),
         },
     ),

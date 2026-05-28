@@ -1,0 +1,430 @@
+{
+  "schema_version": 1,
+  "setting_key": "starter_rift",
+  "setting_hash": "v1_starter_rift_broken_caravan",
+  "source": "manual",
+  "axis_schema_version": 1,
+  "profile": {
+    "title": "Рваный тракт",
+    "summary": "Стартовый лорный разлом: кусок старой дороги, разбитый караван, чужой лагерь нулевого тира и сердце рифта за линией охраны.",
+    "sky": "низкое черное небо с желтыми трещинами света",
+    "materials": [
+      "dry_clay",
+      "splintered_wood",
+      "black_iron",
+      "old_canvas",
+      "ash_dust"
+    ],
+    "flora": [
+      "сухой бурьян",
+      "корни у края разлома",
+      "черная трава у костров"
+    ],
+    "atmosphere": [
+      "smoke",
+      "cold_ash",
+      "bandit_camp",
+      "broken_road",
+      "low_tier_threat"
+    ]
+  },
+  "screen": {
+    "title": "Стартовый разлом",
+    "subtitle": "Рваный тракт",
+    "tier": 1,
+    "danger_label": "низкая угроза",
+    "objective": {
+      "type": "reach_heart",
+      "title": "Найти сердце разлома",
+      "description": "Пройдите через осколок дороги и доберитесь до сердца, которое держит этот рифт открытым.",
+      "progress_label": "Сердце не найдено"
+    }
+  },
+  "heart": {
+    "tier": 1,
+    "value_by_tier": {
+      "1": 100,
+      "2": 1000
+    },
+    "available_methods": [
+      "shatter"
+    ],
+    "locked_methods": {
+      "absorb": "not_unlocked",
+      "dismantle": "artifact_craft_required"
+    }
+  },
+  "exit_policy": {
+    "mode": "heart_exit_only",
+    "completion_exit": "from_heart"
+  },
+  "assembly_options": {
+    "default_seed": "starter-rift-dev",
+    "default_scale_preset_key": "small",
+    "allowed_scale_preset_keys": [
+      "small",
+      "medium"
+    ],
+    "allowed_zone_assembly_preset_keys": [
+      "grid_5x5_active_15"
+    ]
+  },
+  "text_templates": {
+    "relative_direction_labels": {
+      "forward": "прямо",
+      "left": "налево",
+      "right": "направо",
+      "back": "назад"
+    },
+    "open_surrounding": "{relative_capitalized} {open_suffix}.",
+    "void_surrounding": "{relative_capitalized} {void_suffix}.",
+    "open_button": "{verb} {relative} {enter_target}",
+    "back_button": "Вернуться назад {enter_target}",
+    "void_button": "{relative_capitalized} прохода нет"
+  },
+  "node_pool_generation": {
+    "initial_pool_target": 25,
+    "batch_size": 5,
+    "node_hex_strategy": "hash(setting_key + axis_schema_version + canonical_axes)",
+    "axes_dictionary": {
+      "room_archetype": [
+        "road",
+        "camp",
+        "wagon",
+        "ditch",
+        "bridge",
+        "yard",
+        "watchpost",
+        "shrine",
+        "heart_chamber"
+      ],
+      "room_function": [
+        "transit",
+        "cover",
+        "loot",
+        "guard",
+        "threshold",
+        "objective"
+      ],
+      "dominant_feature": [
+        "broken_marker",
+        "campfire",
+        "splintered_wagon",
+        "palisade",
+        "ash_well",
+        "rift_crack",
+        "black_crystal"
+      ],
+      "material_palette": [
+        "dry_clay",
+        "old_wood",
+        "black_iron",
+        "torn_canvas",
+        "ash"
+      ],
+      "damage_state": [
+        "torn_out",
+        "burned",
+        "looted",
+        "tilted",
+        "split_by_void"
+      ],
+      "mood": [
+        "watchful",
+        "smoky",
+        "hungry",
+        "quiet",
+        "wrong"
+      ]
+    }
+  },
+  "blocker_vocabulary": {
+    "hard_void": [
+      {
+        "key": "rift_cut_road",
+        "approach_prefix": "Край дороги оборван",
+        "approach_suffix": "черной пустотой под желтой пленкой света",
+        "button_label": "Дорога оборвана"
+      },
+      {
+        "key": "splintered_cart_wall",
+        "approach_prefix": "Проход забит",
+        "approach_suffix": "обломками телег, кольями и сухой землей",
+        "button_label": "Завал телег"
+      }
+    ],
+    "void_surface_descriptors": [
+      {
+        "key": "black_sky_drop",
+        "kind": "boundary_descriptor",
+        "tags": [
+          "rift",
+          "void_gap",
+          "broken_road"
+        ],
+        "narrative_lines": [
+          "дорога там срезана начисто; за краем висит черное небо, в котором пыль не падает, а стоит неподвижным слоем",
+          "земля обрывается в темный просвет, будто кусок тракта вырвали вместе с корнями и не вернули на место",
+          "у края разлома желтый свет ложится тонкой пленкой, а дальше нет ни пола, ни стены, только чужая пустота"
+        ],
+        "button_labels": [
+          "Край разлома",
+          "Пути нет"
+        ]
+      },
+      {
+        "key": "thorn_palisade",
+        "kind": "boundary_descriptor",
+        "tags": [
+          "camp",
+          "wood",
+          "sealed_wall"
+        ],
+        "narrative_lines": [
+          "дорогу закрывает кривой частокол из досок и сухих кольев; между ними забита глина, зола и старые тряпки",
+          "за неровной стеной из тележных досок слышно, как скребет песок, но прохода там уже не осталось",
+          "частокол втянут в сам край рифта: дерево чернеет, гнется внутрь и держится крепче нормальной стены"
+        ],
+        "button_labels": [
+          "Кривой частокол",
+          "Проход забит"
+        ]
+      },
+      {
+        "key": "collapsed_wagon_mass",
+        "kind": "boundary_descriptor",
+        "tags": [
+          "wagon",
+          "debris",
+          "blocked"
+        ],
+        "narrative_lines": [
+          "обломки фургона сложились в плотную стену; наружу торчат спицы колес, ремни и осколки черного железа",
+          "сломанная повозка перекрывает путь до потолка разлома, хотя потолка здесь быть не должно",
+          "кузов фургона расплющен поперек прохода, а под ним видны только зола и застывшие следы"
+        ],
+        "button_labels": [
+          "Завал фургона",
+          "Обломки дороги"
+        ]
+      }
+    ],
+    "soft_blocker": [
+      {
+        "key": "jammed_service_gate",
+        "requires": [
+          "single_attribute_check"
+        ],
+        "interaction": {
+          "mode": "single_attribute_check",
+          "status": "implemented",
+          "check_pool": [
+            {
+              "kind": "attribute",
+              "key": "strength",
+              "dc": 15,
+              "label": "Разломать частокол",
+              "result": "force_open"
+            },
+            {
+              "kind": "attribute",
+              "key": "intelligence",
+              "dc": 15,
+              "label": "Найти слабый крепеж",
+              "result": "read_weak_joint"
+            },
+            {
+              "kind": "attribute",
+              "key": "dexterity",
+              "dc": 15,
+              "label": "Пролезть в просвет",
+              "result": "slip_through_gap"
+            }
+          ]
+        },
+        "approach_prefix": "В частоколе есть слабое место",
+        "approach_suffix": "но доски держатся на натянутых ремнях и ржавых скобах",
+        "button_label": "Разобрать частокол"
+      }
+    ],
+    "locked_blocker": [
+      {
+        "key": "guarded_service_bulkhead",
+        "requires": [
+          "rift_flag"
+        ],
+        "interaction": {
+          "mode": "rift_flag",
+          "status": "implemented",
+          "source_event_type": "guard_combat"
+        },
+        "approach_prefix": "Проход к сердцу держит охрана",
+        "approach_suffix": "и рифт не выпускает дальше, пока сторожа не сломлены",
+        "button_label": "Охрана не пропускает"
+      }
+    ]
+  },
+  "transition_combat_rules": {
+    "base_chance_per_tick": 0.35,
+    "tick_interval_ms": 1000,
+    "exploration_duration_ms": 3000,
+    "return_duration_ms": 1000,
+    "rules": {
+      "only_for_unvisited_target": true,
+      "disabled_for_scripted_combat_target": true,
+      "disabled_for_return": true,
+      "suppress_node_random_combat_after_transition_combat": true
+    },
+    "opening_context": {
+      "status": "contract_placeholder",
+      "applies_to": [
+        "rift_transition_combat",
+        "future_world_travel_combat"
+      ],
+      "default_result": "neutral_opening",
+      "possible_results": [
+        "neutral_opening",
+        "player_advantage",
+        "enemy_advantage",
+        "ambush_detected",
+        "bad_position"
+      ],
+      "skill_hooks": [
+        {
+          "skill_key": "skill_scouting",
+          "result_bias": [
+            "ambush_detected",
+            "player_advantage"
+          ],
+          "future_effects": [],
+          "notes": "Scouting improves the opening state, it does not lower the chance of combat."
+        },
+        {
+          "skill_key": "skill_pathfinder",
+          "result_bias": [
+            "player_advantage"
+          ],
+          "future_effects": [],
+          "notes": "Pathfinder can improve route position before contact."
+        },
+        {
+          "skill_key": "skill_hunting",
+          "result_bias": [
+            "ambush_detected",
+            "player_advantage"
+          ],
+          "future_effects": [],
+          "notes": "Hunting can expose tracks and movement lines."
+        },
+        {
+          "skill_key": "skill_adaptation",
+          "result_bias": [
+            "neutral_opening"
+          ],
+          "future_effects": [],
+          "notes": "Adaptation can reduce terrain penalties in later combat integration."
+        },
+        {
+          "skill_key": "skill_tactics",
+          "result_bias": [
+            "player_advantage"
+          ],
+          "future_effects": [],
+          "notes": "Tactics can convert detected contact into a better first exchange."
+        }
+      ]
+    }
+  },
+  "ordinary_node_combat_rules": {
+    "enabled": true,
+    "first_visit_only": true,
+    "combat_chance": 0.3,
+    "possible_events": [
+      "none",
+      "combat"
+    ],
+    "rules": {
+      "scripted_nodes_do_not_roll": true,
+      "visited_nodes_do_not_roll": true,
+      "transition_combat_suppresses_ordinary_combat": true
+    }
+  },
+  "encounter_vocabulary": {
+    "transition_combat": [
+      {
+        "key": "roadside_ambush",
+        "title": "Засада у обочины",
+        "description": "Сухая трава у дороги дергается слишком поздно. Кто-то ждал, пока вы выйдете на открытый участок.",
+        "enemy_description": "Налетчики держатся низко, в старых тряпках и с грубым оружием нулевого тира."
+      },
+      {
+        "key": "camp_scouts",
+        "title": "Дозор лагеря",
+        "description": "Из дыма выходит пара сторожей. Они не выглядят сильными, но путь назад уже перекрыт.",
+        "enemy_description": "Глаза блестят из-под капюшонов, а железо в руках больше похоже на обломки, чем на нормальное оружие."
+      },
+      {
+        "key": "goblin_scrap_pack",
+        "title": "Шумная стая у завала",
+        "description": "За обломками фургона поднимается визг и скрежет. Мелкая группа бросается на звук шагов.",
+        "enemy_description": "Короткие силуэты несут кривые ножи, ремни и щиты из тележных досок."
+      },
+      {
+        "key": "heart_pressure_response",
+        "title": "Отклик сердца",
+        "description": "Разлом вздрагивает, и ближайшие обитатели будто слышат этот толчок раньше вас.",
+        "enemy_description": "Они выходят не строем, а рваными рывками, словно сам рифт подталкивает их к дороге."
+      }
+    ]
+  },
+  "population_generation": {
+    "status": "runtime_context",
+    "strategy": "rift_static_hash",
+    "biome_id": "broken_road",
+    "tier": 1,
+    "selection_profile_id": "starter_broken_road_raiders",
+    "selection_tags": [
+      "humanoid",
+      "raider",
+      "scavenger",
+      "roadside_camp"
+    ],
+    "family_slots": [
+      {
+        "slot_id": "primary",
+        "role": "main_population",
+        "family_profile_key": "broken_road_humanoid_raiders",
+        "archetype": "humanoid",
+        "selection_tags": [
+          "humanoid",
+          "raider",
+          "camp_guard",
+          "roadside_camp"
+        ],
+        "prototype_family_key": "bandit_gang"
+      },
+      {
+        "slot_id": "secondary",
+        "role": "support_population",
+        "family_profile_key": "roadside_scavenger_beasts",
+        "archetype": "beast",
+        "selection_tags": [
+          "beast",
+          "rat",
+          "scavenger",
+          "broken_caravan"
+        ],
+        "prototype_family_key": "rat_swarm"
+      }
+    ],
+    "context_tags": [
+      "starter_rift",
+      "tier_1_rift",
+      "broken_caravan",
+      "roadside_camp",
+      "bandit_scavengers",
+      "rift_scavenger_beasts"
+    ],
+    "family_hash_intent": "Use setting_key + biome_id + tier + context_tags as the DB clan context. Resolve each authored family slot inside the monster generation layer against active monster family definitions."
+  }
+}

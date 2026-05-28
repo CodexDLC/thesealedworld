@@ -57,6 +57,9 @@ class CharacterSessionRefsDTO(BaseModel):
     post_combat: dict[str, Any] | None = None
     encounter_id: str | None = None
     arena_id: str | None = None
+    rift_session_id: str | None = None
+    rift_instance_id: str | None = None
+    rift_entry_request_id: str | None = None
     inventory_id: str | None = None
     death_run_id: str | None = None
     death_corpse_id: str | None = None
@@ -69,6 +72,7 @@ class CharacterSessionMetricsDTO(BaseModel):
 class CharacterSessionSymbioteDTO(BaseModel):
     name: str = settings.default_symbiote_name
     gift_id: str | None = None
+    gift_xp: int = 0
     gift_rank: int = 1
 
 

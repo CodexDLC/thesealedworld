@@ -1,0 +1,281 @@
+{
+  "schema_version": 1,
+  "presets": [
+    {
+      "preset_key": "chain_2x_grid_4x4_active_12",
+      "scale_tags": [
+        "small",
+        "medium"
+      ],
+      "geometry": {
+        "width": 4,
+        "height": 4
+      },
+      "active_nodes": {
+        "target": 12,
+        "min": 12,
+        "max": 12
+      },
+      "zone_chain": {
+        "levels": 2,
+        "transition_policy": "finish_node_guard_combat"
+      },
+      "anchors": {
+        "start": [
+          "west_middle",
+          "north_west"
+        ],
+        "finish": [
+          "east_middle",
+          "south_east"
+        ],
+        "core": [
+          "deep_half"
+        ]
+      },
+      "graph_policy": {
+        "builder": "main_path_branches",
+        "main_path": {
+          "min_length_ratio": 0.55,
+          "max_length_ratio": 0.9,
+          "attempts": 28
+        },
+        "branches": {
+          "branch_count_range": {
+            "min": 2,
+            "max": 4
+          },
+          "branch_length_range": {
+            "min": 1,
+            "max": 3
+          }
+        },
+        "fill": {
+          "outside_graph_state": "void"
+        }
+      },
+      "blocker_policy": {
+        "hard_void_count": 4,
+        "max_hard_void_count": 4,
+        "must_keep_path_start_to_finish": true,
+        "avoid_full_row_cut": true,
+        "avoid_full_column_cut": true,
+        "soft_blockers": {
+          "status": "draft",
+          "count_range": {
+            "min": 1,
+            "max": 2
+          }
+        }
+      },
+      "node_selection_policy": {
+        "selection_mode": "stable_shuffle"
+      },
+      "default_heading": "east"
+    },
+    {
+      "preset_key": "grid_5x5_active_15",
+      "scale_tags": [
+        "small",
+        "medium"
+      ],
+      "geometry": {
+        "width": 5,
+        "height": 5
+      },
+      "active_nodes": {
+        "target": 15,
+        "min": 15,
+        "max": 15
+      },
+      "anchors": {
+        "start": [
+          "west_middle",
+          "north_west"
+        ],
+        "finish": [
+          "east_middle",
+          "south_east"
+        ],
+        "core": [
+          "deep_half"
+        ]
+      },
+      "graph_policy": {
+        "builder": "main_path_branches",
+        "main_path": {
+          "min_length_ratio": 0.55,
+          "max_length_ratio": 0.85,
+          "attempts": 32
+        },
+        "branches": {
+          "branch_count_range": {
+            "min": 2,
+            "max": 5
+          },
+          "branch_length_range": {
+            "min": 1,
+            "max": 3
+          }
+        },
+        "fill": {
+          "outside_graph_state": "void"
+        }
+      },
+      "blocker_policy": {
+        "hard_void_count": 10,
+        "max_hard_void_count": 10,
+        "must_keep_path_start_to_finish": true,
+        "avoid_full_row_cut": true,
+        "avoid_full_column_cut": true,
+        "soft_blockers": {
+          "status": "draft",
+          "count_range": {
+            "min": 1,
+            "max": 3
+          }
+        }
+      },
+      "node_selection_policy": {
+        "selection_mode": "stable_shuffle"
+      },
+      "default_heading": "east"
+    },
+    {
+      "preset_key": "grid_6x6_active_20",
+      "scale_tags": [
+        "medium",
+        "large"
+      ],
+      "geometry": {
+        "width": 6,
+        "height": 6
+      },
+      "active_nodes": {
+        "target": 20,
+        "min": 20,
+        "max": 20
+      },
+      "anchors": {
+        "start": [
+          "north_edge",
+          "north_west"
+        ],
+        "finish": [
+          "south_edge",
+          "south_east"
+        ],
+        "core": [
+          "south_half"
+        ]
+      },
+      "graph_policy": {
+        "builder": "main_path_branches",
+        "main_path": {
+          "min_length_ratio": 0.55,
+          "max_length_ratio": 0.85,
+          "attempts": 40
+        },
+        "branches": {
+          "branch_count_range": {
+            "min": 3,
+            "max": 7
+          },
+          "branch_length_range": {
+            "min": 1,
+            "max": 4
+          }
+        },
+        "fill": {
+          "outside_graph_state": "void"
+        }
+      },
+      "blocker_policy": {
+        "hard_void_count": 16,
+        "max_hard_void_count": 16,
+        "must_keep_path_start_to_finish": true,
+        "avoid_full_row_cut": true,
+        "avoid_full_column_cut": true,
+        "soft_blockers": {
+          "status": "draft",
+          "count_range": {
+            "min": 2,
+            "max": 4
+          }
+        }
+      },
+      "node_selection_policy": {
+        "selection_mode": "stable_shuffle"
+      },
+      "default_heading": "south"
+    },
+    {
+      "preset_key": "grid_7x7_active_25",
+      "scale_tags": [
+        "medium",
+        "large",
+        "xl"
+      ],
+      "geometry": {
+        "width": 7,
+        "height": 7
+      },
+      "active_nodes": {
+        "target": 25,
+        "min": 25,
+        "max": 25
+      },
+      "anchors": {
+        "start": [
+          "west_middle"
+        ],
+        "finish": [
+          "east_middle"
+        ],
+        "core": [
+          "deep_half",
+          "east_middle"
+        ]
+      },
+      "graph_policy": {
+        "builder": "main_path_branches",
+        "main_path": {
+          "min_length_ratio": 0.55,
+          "max_length_ratio": 0.9,
+          "attempts": 48
+        },
+        "branches": {
+          "branch_count_range": {
+            "min": 4,
+            "max": 9
+          },
+          "branch_length_range": {
+            "min": 1,
+            "max": 4
+          }
+        },
+        "fill": {
+          "outside_graph_state": "void"
+        }
+      },
+      "blocker_policy": {
+        "hard_void_count": 24,
+        "max_hard_void_count": 24,
+        "must_keep_path_start_to_finish": true,
+        "avoid_full_row_cut": true,
+        "avoid_full_column_cut": true,
+        "soft_blockers": {
+          "status": "draft",
+          "count_range": {
+            "min": 2,
+            "max": 5
+          }
+        }
+      },
+      "node_selection_policy": {
+        "selection_mode": "stable_shuffle"
+      },
+      "default_heading": "east"
+    }
+  ]
+}

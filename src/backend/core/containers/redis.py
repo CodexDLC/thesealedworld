@@ -28,6 +28,8 @@ from src.backend.features.loot.events import bind as bind_loot_events
 from src.backend.features.loot.events import router as loot_router
 from src.backend.features.monsters.events import bind as bind_monsters_events
 from src.backend.features.monsters.events import router as monsters_router
+from src.backend.features.rift.events import bind as bind_rift_events
+from src.backend.features.rift.events import router as rift_router
 from src.backend.features.scenario.events import bind as bind_scenario_events
 from src.backend.features.scenario.events import router as scenario_router
 from src.backend.features.scenario.game_config import ScenarioConfig
@@ -47,6 +49,7 @@ EVENT_ROUTER_GROUPS = (
     ("loot", loot_router),
     ("monsters", monsters_router),
     ("scenario", scenario_router),
+    ("rift", rift_router),
     ("arena", arena_router),
     ("city_services", city_services_router),
 )
@@ -102,6 +105,7 @@ class RedisContainer:
         bind_loot_events(app)
         bind_monsters_events(app)
         bind_scenario_events(app)
+        bind_rift_events(app)
         bind_city_services_events(app)
 
         for runtime in runtimes:
@@ -149,5 +153,6 @@ class RedisContainer:
         runtime.include_router(loot_router)
         runtime.include_router(monsters_router)
         runtime.include_router(scenario_router)
+        runtime.include_router(rift_router)
         runtime.include_router(arena_router)
         runtime.include_router(city_services_router)

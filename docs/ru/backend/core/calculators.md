@@ -19,13 +19,13 @@ flowchart TD
     end
 
     subgraph P2[Фаза 2 — Bridge / Derivation]
-        A2 --> B1[ATTRIBUTE_MODIFIER_RULES\nStrength × 1.0 → physical_damage\nEndurance × HP_PER_ENDURANCE → hp\nAgility × 0.05 → evasion\n...]
+        A2 --> B1[ATTRIBUTE_MODIFIER_RULES\nStrength × 1.0 → physical_strength_power\nEndurance × HP_PER_ENDURANCE → hp\nAgility × 0.05 → evasion\n...]
         B1 --> B2[derived bonuses\nсписок +X для каждого модификатора]
     end
 
     subgraph P3[Фаза 3 — Модификаторы]
         B2 --> M1[derived + items source + buffs temp]
-        M1 --> M2[финальные значения\nphysical_damage, armor, evasion...]
+        M1 --> M2[финальные значения\nphysical_strength_power, armor, evasion...]
     end
 
     P3 --> CACHE[v:cache — плоский dict]
@@ -51,7 +51,9 @@ Bridge-правила живут в `src/backend/features/character/runtime/rule
 
 | Атрибут | Модификатор | Коэффициент |
 |---------|------------|-------------|
-| `strength` | `physical_damage` | 1.0 |
+| `strength` | `physical_strength_power` | 1.0 |
+| `agility` | `physical_agility_power` | 1.0 |
+| `endurance` | `physical_endurance_power` | 1.0 |
 | `endurance` | `hp` | HP_PER_ENDURANCE |
 | `agility` | `evasion` | 0.05 |
 | `agility` | `initiative` | 0.5 |

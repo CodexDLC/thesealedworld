@@ -44,12 +44,25 @@ class ControlInstructionDTO(BaseModel):
     target_behavior: dict[str, Any] = Field(default_factory=dict)
 
 
+class EffectResistanceProfileDTO(BaseModel):
+    """Chance gate configuration for applying an effect to a target."""
+
+    profile_id: str
+    base_chance: float = 1.0
+    source_modifiers: list[str] = Field(default_factory=list)
+    target_modifiers: list[str] = Field(default_factory=list)
+    floor: float = 0.05
+    cap: float = 1.0
+    tags: list[str] = Field(default_factory=list)
+
+
 class EffectTechnicalDTO(BaseModel):
     """Pure technical configuration for an effect (no display text)."""
 
     effect_id: str
     type: EffectType
     duration: int
+    resistance_profile_id: str | None = None
     resource_impact: dict[str, int] = Field(default_factory=dict)
     modifier_applications: list[ModifierApplicationDTO] = Field(default_factory=list)
     pipeline_mutations: list[PipelineMutationApplicationDTO] = Field(default_factory=list)

@@ -31,7 +31,7 @@
 ] %}
 {% set skill_group_defs = [
     ('WEAPON', ['skill_swords', 'skill_fencing', 'skill_polearms', 'skill_macing', 'skill_archery', 'skill_unarmed']),
-    ('COMBAT STYLE', ['skill_one_handed', 'skill_two_handed', 'skill_shield_mastery', 'skill_dual_wield']),
+    ('COMBAT STYLE', ['skill_ranged_combat', 'skill_two_handed', 'skill_shield_mastery', 'skill_dual_wield']),
     ('COMBAT SUPPORT', ['skill_parrying', 'skill_anatomy', 'skill_tactics']),
     ('ARMOR', ['skill_light_armor', 'skill_medium_armor', 'skill_heavy_armor']),
     ('WORLD', ['skill_scouting', 'skill_pathfinder', 'skill_hunting', 'skill_taming', 'skill_adaptation', 'skill_mining', 'skill_herbalism', 'skill_skinning', 'skill_woodcutting', 'skill_archaeology']),
@@ -45,25 +45,15 @@
 {% set known_skill_keys = known_skill_bucket.keys %}
 
 <aside id="status-container"
-       class="panel-dock panel-dock--framed panel-dock--scroll status-panel-root status-sidebar-surface scenario-status-dock scenario-status-dock--{{ status_dock_mode }} {{ 'scenario-status-dock--glitch' if status_dock_distortion == 'glitch' else '' }} {{ status_dock_extra_class }}"
+       class="panel-dock panel-dock--framed panel-dock--scroll status-panel-root status-sidebar-surface status-dock"
        hx-get="/game/character-status/panel?char_id={{ char_id }}"
        hx-trigger="character-status-refresh from:body"
        hx-target="this"
        hx-swap="outerHTML"
        aria-label="Character status dock">
-    <nav class="dock-nav dock-nav--bar dock-nav--panel status-dock-actions" aria-label="Status actions">
-        <button class="dock-nav-button"
-                type="button"
-                @click="leftPanelView = 'status'"
-                :class="{ 'is-active': leftPanelView === 'status' }">STATUS</button>
-        <button class="dock-nav-button"
-                type="button"
-                @click="leftPanelView = 'builds'"
-                :class="{ 'is-active': leftPanelView === 'builds' }">BUILD</button>
-        <button class="dock-nav-button dock-nav-button--close"
-                type="button"
-                @click="$dispatch('panel-toggle', { side: 'left', view: 'status' })">CLOSE</button>
-    </nav>
+    {% set status_nav_label = 'Status actions' %}
+    {% set status_nav_close_view = 'status' %}
+    {% include "game/components/status/nav.html" %}
 
     {% if status %}
         <section class="status-widget-card scenario-status-card" aria-label="Character summary">

@@ -19,9 +19,13 @@ from src.backend.features.character.schemas.session import (
     CharacterSessionLocationDTO,
     CharacterSessionSymbioteDTO,
 )
+from src.backend.features.character.services import StartingImprintBuild, StartingImprintService
+from src.backend.features.items.dto.instance import ItemGenerationRequestDTO, ItemOriginRefDTO, ItemPlacementRefDTO
 from src.backend.features.items.integrations import ItemPersistenceIntegration
 from src.backend.features.items.repositories import ItemInstanceRepository
+from src.backend.features.items.services import ItemCatalogService, ItemGenerationService
 from src.shared.enums import CoreDomain
+from src.shared.enums.skill_enums import SkillProgressState
 from src.shared.schemas import ScenarioPayloadDTO
 
 if TYPE_CHECKING:
@@ -30,14 +34,16 @@ if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession
 
     from src.backend.core.bus import GameEventProducer
-    from src.backend.features.character.managers import CharacterSessionManager
     from src.backend.features.character.repositories import (
         CharacterAttributesRepository,
         CharacterProgressionRepository,
         SkillRepository,
+        SymbioteRepository,
     )
     from src.backend.features.expedition import CharacterExpeditionRepository
     from src.backend.features.inventory.repositories.items import InventoryItemRepository
+    from src.backend.features.rift.integrations import RiftRuntimeIntegration
+    from src.backend.infrastructure.actor_state.managers import CharacterSessionManager
 
 
 @dataclass(frozen=True, slots=True)
@@ -68,6 +74,7 @@ class GameLobbyIntegration:
         attributes_repo: CharacterAttributesRepository | None = None,
         skill_repo: SkillRepository | None = None,
         progression_repo: CharacterProgressionRepository | None = None,
+        symbiote_repo: SymbioteRepository | None = None,
         expedition_repo: CharacterExpeditionRepository | None = None,
         inventory_repo: InventoryItemRepository | None = None,
         item_persistence: ItemPersistenceIntegration | None = None,
@@ -75,6 +82,7 @@ class GameLobbyIntegration:
         db_session: AsyncSession | None = None,
         character_sessions: CharacterSessionManager,
         events: GameEventProducer | None = None,
+        rift_runtime: RiftRuntimeIntegration | None = None,
     ) -> None:
         if character_repo is None:
             if db_session is None:
@@ -84,6 +92,7 @@ class GameLobbyIntegration:
         self.attributes_repo = attributes_repo
         self.skill_repo = skill_repo
         self.progression_repo = progression_repo
+        self.symbiote_repo = symbiote_repo
         self.expedition_repo = expedition_repo
         self.inventory_repo = inventory_repo
         self.item_persistence = item_persistence
@@ -92,6 +101,7 @@ class GameLobbyIntegration:
         self.character_sessions = character_sessions
         self.events = events
         self.scenario_service = scenario_service
+        self.rift_runtime = rift_runtime
 
     def _characters(self) -> CharacterRepository:
         return self.character_repo
@@ -162,6 +172,18 @@ class GameLobbyIntegration:
         return await self._characters().exists_by_name_key(name_key)
 
     async def create_active_session(self, character: CreatedLobbyCharacter) -> None:
+        if self.skill_repo is not None:
+            state_integrator = CharacterStateIntegrator(
+                character_sessions=self.character_sessions,
+                character_repo=self.character_repo,
+                skill_repo=self.skill_repo,
+                progression_repo=self.progression_repo,
+                expedition_repo=self.expedition_repo,
+                inventory_repo=self.inventory_repo,
+            )
+            await state_integrator.bootstrap_active_session(character.user_id, character.character_id)
+            return
+
         session_payload = CharacterSessionDocumentDTO(
             char_id=character.character_id,
             user_id=character.user_id,
@@ -180,6 +202,175 @@ class GameLobbyIntegration:
         ).model_dump(mode="json")
 
         await self.character_sessions.create_session(character.character_id, session_payload)
+
+    async def materialize_starting_imprint(
+        self,
+        character: CreatedLobbyCharacter,
+        *,
+        seed: str | None = None,
+        imprint_key: str | None = None,
+    ) -> dict[str, Any]:
+        self._ensure_starting_imprint_dependencies()
+        service = StartingImprintService()
+        build = service.build(imprint_key) if imprint_key else service.build_random(seed=seed)
+        char_id = character.character_id
+
+        await self.attributes_repo.upsert_attributes(char_id, build.attributes)
+        if self.progression_repo is not None:
+            await self.progression_repo.set_free_xp(char_id, 0.0)
+        await self._materialize_starting_skills(char_id, build)
+        item_ids = await self._materialize_starting_items(char_id, build, seed=seed)
+        self._expire_identity_map()
+        await self.character_repo.commit()
+        logger.bind(
+            char_id=char_id,
+            imprint_key=build.imprint_key,
+            item_count=len(item_ids),
+            skill_count=len(build.skill_keys),
+        ).info("StartingImprintMaterialized")
+        return {
+            "imprint_key": build.imprint_key,
+            "title": build.title,
+            "item_ids": item_ids,
+            "skill_keys": list(build.skill_keys),
+            "attributes": dict(build.attributes),
+        }
+
+    async def reset_character_to_starting_imprint(
+        self,
+        *,
+        user_id: uuid.UUID,
+        character_id: int,
+        seed: str | None = None,
+        imprint_key: str | None = None,
+    ) -> dict[str, Any]:
+        character = await self._characters().get_by_id_and_user_id(character_id, user_id)
+        if character is None:
+            raise BusinessLogicException("Персонаж недоступен")
+
+        avatar_url = _default_avatar_url(character.gender)
+        character.avatar_url = avatar_url
+        character.game_stage = CoreDomain.EXPLORATION.value
+        character.prev_game_stage = CoreDomain.DEATH.value
+        character.location_id = "52_52"
+        character.prev_location_id = None
+        character.vitals_snapshot = None
+        character.active_sessions = {}
+        character.respawn_anchor_location_id = "52_52"
+
+        reset_character = CreatedLobbyCharacter(
+            character_id=character.character_id,
+            user_id=character.user_id,
+            name=character.name,
+            gender=character.gender,
+            avatar_url=avatar_url,
+            created_at=character.created_at,
+            location_id="52_52",
+        )
+
+        await self.cleanup_runtime(character_id)
+        transferred_items = 0
+        if self.item_persistence is not None:
+            transferred_items = await self.item_persistence.transfer_deleted_character_items_to_system(character_id)
+        if self.skill_repo is not None:
+            await self.skill_repo.delete_by_character_id(character_id)
+
+        starting_imprint = await self.materialize_starting_imprint(
+            reset_character,
+            seed=seed,
+            imprint_key=imprint_key,
+        )
+        await self.create_active_session(reset_character)
+        logger.bind(
+            char_id=character_id,
+            user_id=str(user_id),
+            imprint_key=starting_imprint.get("imprint_key"),
+            transferred_items=transferred_items,
+        ).info("LobbyCharacterResetToStartingImprint")
+        return {
+            "status": "reset",
+            "character_id": character_id,
+            "starting_imprint": starting_imprint,
+            "transferred_item_count": transferred_items,
+        }
+
+    def _ensure_starting_imprint_dependencies(self) -> None:
+        missing = [
+            name
+            for name, dependency in {
+                "attributes_repo": self.attributes_repo,
+                "skill_repo": self.skill_repo,
+                "item_persistence": self.item_persistence,
+            }.items()
+            if dependency is None
+        ]
+        if missing:
+            raise RuntimeError(f"Starting imprint materialization is not configured: missing={', '.join(missing)}")
+
+    async def _materialize_starting_skills(self, char_id: int, build: StartingImprintBuild) -> None:
+        rows = [
+            {
+                "character_id": char_id,
+                "skill_key": skill_key,
+                "total_xp": float(xp),
+                "is_unlocked": True,
+                "progress_state": SkillProgressState.PLUS,
+            }
+            for skill_key, xp in build.skill_xp.items()
+        ]
+        await self.skill_repo.upsert_progress_rows(rows)
+
+    async def _materialize_starting_items(
+        self,
+        char_id: int,
+        build: StartingImprintBuild,
+        *,
+        seed: str | None = None,
+    ) -> list[str]:
+        item_generation = ItemGenerationService(self.item_persistence)
+        catalog = ItemCatalogService.load_default()
+        item_ids: list[str] = []
+        for index, base_id in enumerate(build.item_base_ids, start=1):
+            base = catalog.get_base_item(base_id)
+            if base is None:
+                raise RuntimeError(f"Starting imprint item base is missing: {base_id}")
+            result = await item_generation.generate_mechanical(
+                ItemGenerationRequestDTO(
+                    base_id=base_id,
+                    rarity_tier=0,
+                    source="character_creation:starting_imprint",
+                    char_id=char_id,
+                    request_ai_text=False,
+                    placement_ref=ItemPlacementRefDTO(
+                        holder_type="character",
+                        holder_id=str(char_id),
+                        storage_type="equipped",
+                        slot=base.slot,
+                    ),
+                    origin_ref=ItemOriginRefDTO(
+                        origin_type="system",
+                        origin_ref=f"starting_imprint:{build.imprint_key}",
+                        seed=f"{seed or build.imprint_key}:{char_id}:{index}:{base_id}",
+                    ),
+                    source_context={
+                        "starting_imprint": True,
+                        "imprint_key": build.imprint_key,
+                        "imprint_title": build.title,
+                        "combat_style": build.combat_style,
+                        "armor_pack": build.armor_pack,
+                        "utility_pack": build.utility_pack,
+                    },
+                    return_item=False,
+                )
+            )
+            item_ids.extend(result.item_ids)
+        return item_ids
+
+    def _expire_identity_map(self) -> None:
+        session = getattr(self.character_repo, "session", None)
+        expire_all = getattr(session, "expire_all", None)
+        if callable(expire_all):
+            expire_all()
 
     async def bootstrap_active_character(
         self,
@@ -254,6 +445,7 @@ class GameLobbyIntegration:
         return ScenarioPayloadDTO(**response["payload"])
 
     async def cleanup_runtime(self, char_id: int) -> None:
+        document = await self._active_character_document(char_id)
         if self.events is not None:
             await self.events.request(
                 "scenario.cleanup_requested",
@@ -262,7 +454,35 @@ class GameLobbyIntegration:
             )
         elif self.scenario_service is not None and hasattr(self.scenario_service, "cleanup"):
             await self.scenario_service.cleanup(char_id)
+        await self._abandon_active_rift(char_id, document)
         await self.character_sessions.delete_session(char_id)
+
+    async def _active_character_document(self, char_id: int) -> dict[str, Any] | None:
+        getter = getattr(self.character_sessions, "get_session", None)
+        if getter is None:
+            return None
+        with suppress(Exception):
+            document = await getter(char_id)
+            return document if isinstance(document, dict) else None
+        return None
+
+    async def _abandon_active_rift(self, char_id: int, document: dict[str, Any] | None) -> None:
+        if self.rift_runtime is None or not isinstance(document, dict):
+            return
+        sessions = document.get("sessions")
+        sessions = sessions if isinstance(sessions, dict) else {}
+        rift_session_id = str(sessions.get("rift_session_id") or "")
+        rift_instance_id = str(sessions.get("rift_instance_id") or "")
+        if not rift_session_id or not rift_instance_id:
+            return
+        try:
+            await self.rift_runtime.abandon_run_for_deleted_character(
+                rift_session_id=rift_session_id,
+                rift_instance_id=rift_instance_id,
+                char_id=char_id,
+            )
+        except Exception:  # noqa: BLE001
+            logger.bind(char_id=char_id, rift_session_id=rift_session_id).exception("LobbyRiftCleanupFailed")
 
     async def release_other_active_sessions(self, user_id: uuid.UUID, selected_character_id: int) -> None:
         characters = await self._characters().get_by_user_id(user_id)
@@ -345,6 +565,9 @@ class GameLobbyIntegration:
         with suppress(Exception):
             await self.character_sessions.delete_session(char_id)
         with suppress(Exception):
+            if self.item_persistence is not None:
+                await self.item_persistence.transfer_deleted_character_items_to_system(char_id)
+        with suppress(Exception):
             await repo.delete(char_id)
 
         await repo.commit()
@@ -365,3 +588,9 @@ def _is_character_name_key_violation(exc: IntegrityError) -> bool:
     if constraint_name == "uq_characters_name_key":
         return True
     return "uq_characters_name_key" in str(exc.orig)
+
+
+def _default_avatar_url(gender: str | None) -> str:
+    if gender == "female":
+        return "/static/images/avatars/silhouette_f.webp"
+    return "/static/images/avatars/silhouette_m.webp"

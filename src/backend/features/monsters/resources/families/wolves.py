@@ -11,24 +11,6 @@ WOLVES_FAMILY: MonsterFamily = {
     "archetype": "beast",
     "organization_type": "pack",  # TSP Base: 50
     "default_tags": ["beast", "wolf", "predator", "pack"],
-    "skill_kit": {
-        "base": {
-            "skill_fencing": 0.30,
-            "skill_light_armor": 0.15,
-            "skill_one_handed": 0.15,
-        },
-        "role_bonus": {
-            "minion": {},
-            "veteran": {"skill_fencing": 0.15, "skill_medium_armor": 0.10},
-            "elite": {"skill_fencing": 0.35, "skill_anatomy": 0.20, "skill_medium_armor": 0.15},
-            "boss": {
-                "skill_fencing": 0.75,
-                "skill_anatomy": 0.35,
-                "skill_heavy_armor": 0.25,
-                "skill_tactics": 0.45,
-            },
-        },
-    },
     "family_modifiers": [
         {"target": "accuracy", "value": -0.10, "per_tier": 0.0},
         {"target": "physical_resistance", "value": 0.03, "per_tier": 0.01},
@@ -72,6 +54,7 @@ WOLVES_FAMILY: MonsterFamily = {
                 "prediction": 3,  # Итого: 48
             },
             "fixed_loadout": {"main_hand": "wolf_young_fangs", "chest_armor": "wolf_hide"},
+            "skills": ["skill_fencing", "skill_light_armor"],
         },
         "runner": {
             "id": "runner",
@@ -93,6 +76,7 @@ WOLVES_FAMILY: MonsterFamily = {
                 "prediction": 3,  # Итого: 59
             },
             "fixed_loadout": {"main_hand": "wolf_young_fangs", "chest_armor": "wolf_hide"},
+            "skills": ["skill_fencing", "skill_light_armor"],
         },
         "mangy_biter": {
             "id": "mangy_biter",
@@ -114,6 +98,7 @@ WOLVES_FAMILY: MonsterFamily = {
                 "prediction": 4,
             },
             "fixed_loadout": {"main_hand": "wolf_young_fangs", "chest_armor": "wolf_hide"},
+            "skills": ["skill_fencing", "skill_light_armor"],
         },
         # --- 2. Охотники (Veterans) [TSP ~75] ---
         "stalker": {
@@ -136,6 +121,7 @@ WOLVES_FAMILY: MonsterFamily = {
                 "prediction": 4,  # Итого: 75
             },
             "fixed_loadout": {"main_hand": "wolf_bite_claws", "chest_armor": "wolf_hide"},
+            "skills": ["skill_fencing", "skill_light_armor"],
         },
         "flanker": {
             "id": "flanker",
@@ -157,6 +143,7 @@ WOLVES_FAMILY: MonsterFamily = {
                 "prediction": 4,  # Итого: 75
             },
             "fixed_loadout": {"main_hand": "wolf_bite_claws", "chest_armor": "wolf_medium_hide"},
+            "skills": ["skill_fencing", "skill_medium_armor"],
         },
         "snapper": {
             "id": "snapper",
@@ -178,6 +165,7 @@ WOLVES_FAMILY: MonsterFamily = {
                 "prediction": 4,  # Итого: 73
             },
             "fixed_loadout": {"main_hand": "wolf_bite_claws", "chest_armor": "wolf_hide"},
+            "skills": ["skill_fencing", "skill_light_armor"],
         },
         # --- 3. Альфы (Elites) [TSP ~125] ---
         "pack_leader": {
@@ -200,6 +188,7 @@ WOLVES_FAMILY: MonsterFamily = {
                 "prediction": 5,  # Итого: 111
             },
             "fixed_loadout": {"main_hand": "wolf_elite_fangs", "chest_armor": "wolf_medium_hide"},
+            "skills": ["skill_fencing", "skill_medium_armor", "skill_tactics", "skill_anatomy"],
         },
         "dire_wolf": {
             "id": "dire_wolf",
@@ -221,6 +210,7 @@ WOLVES_FAMILY: MonsterFamily = {
                 "prediction": 5,  # Итого: 116
             },
             "fixed_loadout": {"main_hand": "wolf_elite_fangs", "chest_armor": "wolf_heavy_hide"},
+            "skills": ["skill_fencing", "skill_heavy_armor", "skill_anatomy"],
         },
         "old_fang": {
             "id": "old_fang",
@@ -242,6 +232,7 @@ WOLVES_FAMILY: MonsterFamily = {
                 "prediction": 10,  # Итого: 119
             },
             "fixed_loadout": {"main_hand": "wolf_elite_fangs", "chest_armor": "wolf_medium_hide"},
+            "skills": ["skill_fencing", "skill_medium_armor", "skill_tactics", "skill_anatomy"],
         },
         # --- 4. Боссы (Bosses) [TSP ~200] ---
         "alpha_prime": {
@@ -264,6 +255,7 @@ WOLVES_FAMILY: MonsterFamily = {
                 "prediction": 10,  # Итого: 197
             },
             "fixed_loadout": {"main_hand": "wolf_alpha_fangs", "chest_armor": "wolf_heavy_hide"},
+            "skills": ["skill_fencing", "skill_heavy_armor", "skill_tactics", "skill_anatomy"],
         },
         "winter_maw": {
             "id": "winter_maw",
@@ -285,6 +277,7 @@ WOLVES_FAMILY: MonsterFamily = {
                 "prediction": 8,  # Итого: 198
             },
             "fixed_loadout": {"main_hand": "wolf_alpha_fangs", "chest_armor": "wolf_heavy_hide"},
+            "skills": ["skill_fencing", "skill_heavy_armor", "skill_tactics", "skill_anatomy"],
         },
         "blood_howl": {
             "id": "blood_howl",
@@ -306,6 +299,7 @@ WOLVES_FAMILY: MonsterFamily = {
                 "prediction": 12,  # Итого: 205
             },
             "fixed_loadout": {"main_hand": "wolf_alpha_fangs", "chest_armor": "wolf_heavy_hide"},
+            "skills": ["skill_fencing", "skill_heavy_armor", "skill_tactics", "skill_anatomy"],
         },
     },
 }

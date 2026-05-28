@@ -132,7 +132,7 @@ async def test_bootstrap_active_session_restores_persisted_runtime_refs_progress
                 progress_state=SkillProgressState.PAUSE,
             ),
         ],
-        symbiote=SimpleNamespace(symbiote_name="SYSTEM", gift_rank=1),
+        symbiote=SimpleNamespace(symbiote_name="SYSTEM", gift_id="gift-flame", gift_xp=42, gift_rank=1),
     )
     sessions = FakeCharacterSessions()
     integrator = CharacterStateIntegrator(
@@ -155,10 +155,16 @@ async def test_bootstrap_active_session_restores_persisted_runtime_refs_progress
     assert session_doc.active_quest == "awakening_rift"
     assert session_doc.vitals.hp.cur == 64
     assert session_doc.vitals.hp.max == 64
+    assert session_doc.vitals.energy.cur == 39
+    assert session_doc.vitals.energy.max == 39
+    assert session_doc.vitals.stamina.cur == 50
+    assert session_doc.vitals.stamina.max == 50
     assert session_doc.attributes.strength == 17
     assert session_doc.skills["skill_swords"]["xp"] == 0.25
     assert "locked_skill" not in session_doc.skills
     assert session_doc.progression.free_xp == 12.5
+    assert session_doc.symbiote.gift_id == "gift-flame"
+    assert session_doc.symbiote.gift_xp == 42
     assert session_doc.items.layout.equipment["main_hand"] == "item-weapon"
     assert session_doc.metrics.gear_score == 777
 
@@ -168,6 +174,8 @@ async def test_bootstrap_active_session_restores_persisted_runtime_refs_progress
     assert sessions.replaced["active_quest"] == "awakening_rift"
     assert sessions.replaced["skills"]["skill_swords"]["xp"] == 0.25
     assert sessions.replaced["progression"]["free_xp"] == 12.5
+    assert sessions.replaced["symbiote"]["gift_id"] == "gift-flame"
+    assert sessions.replaced["symbiote"]["gift_xp"] == 42
     assert sessions.replaced["items"]["layout"]["equipment"]["main_hand"] == "item-weapon"
 
 

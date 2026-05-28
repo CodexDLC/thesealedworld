@@ -13,8 +13,9 @@ if TYPE_CHECKING:
     from codex_platform.redis_service import RedisService
 
     from src.backend.core.bus import GameEventProducer
-    from src.backend.features.character.managers import CharacterSessionManager
+    from src.backend.features.rift.integrations import RiftRuntimeIntegration
     from src.backend.infrastructure.actor_commitments import ActorCommitmentManager
+    from src.backend.infrastructure.actor_state.managers import CharacterSessionManager
 
 
 class CombatSystemIntegrator:
@@ -29,11 +30,13 @@ class CombatSystemIntegrator:
         character_sessions: CharacterSessionManager,
         events: GameEventProducer,
         redis: RedisService | None = None,
+        rift_runtime: RiftRuntimeIntegration | None = None,
     ) -> None:
         self.actor_commitments = actor_commitments
         self.character_sessions = character_sessions
         self.events = events
         self.redis = redis
+        self.rift_runtime = rift_runtime
 
     async def prepare_actor_commitments(
         self,
@@ -228,7 +231,41 @@ class CombatSystemIntegrator:
         )
         if sync_to_db:
             await self._sync_active_character_to_db(char_id)
+        if next_state == CoreDomain.RIFT.value:
+            await self._apply_rift_combat_result(
+                sessions,
+                post_combat=post_combat,
+                combat_id=str(combat_id or current_finalization_id or current_combat_id or ""),
+            )
         return next_state
+
+    async def _apply_rift_combat_result(
+        self,
+        sessions: dict[str, Any],
+        *,
+        post_combat: dict[str, Any] | None,
+        combat_id: str,
+    ) -> None:
+        if self.rift_runtime is None:
+            return
+        loot_context = dict((post_combat or {}).get("loot_context") or {})
+        rift_session_id = str(sessions.get("rift_session_id") or loot_context.get("rift_session_id") or "")
+        if not rift_session_id:
+            return
+        apply_combat_result = getattr(self.rift_runtime, "apply_combat_result", None)
+        if apply_combat_result is None:
+            await self.rift_runtime.clear_run_active_encounter(rift_session_id)
+            return
+        await apply_combat_result(
+            combat_id=combat_id,
+            result="victory",
+            rift_session_id=rift_session_id,
+            rift_instance_id=str(sessions.get("rift_instance_id") or loot_context.get("rift_instance_id") or ""),
+            event_scope=str(loot_context.get("rift_event_scope") or ""),
+            travel_id=str(loot_context.get("rift_travel_id") or ""),
+            event_key=str(loot_context.get("rift_event_key") or ""),
+            participant_ref=str(sessions.get("participant_ref") or ""),
+        )
 
     async def resolve_return_state_for_character(self, char_id: int) -> str:
         session = await self.character_sessions.get_session(char_id)
@@ -317,6 +354,7 @@ class CombatReturnStateMapper:
 
     PARENT_BY_STATE = {
         CoreDomain.ARENA.value: CoreDomain.EXPLORATION.value,
+        CoreDomain.RIFT.value: CoreDomain.EXPLORATION.value,
         CoreDomain.SCENARIO.value: CoreDomain.EXPLORATION.value,
         CoreDomain.INVENTORY.value: CoreDomain.EXPLORATION.value,
         CoreDomain.STATUS.value: CoreDomain.EXPLORATION.value,

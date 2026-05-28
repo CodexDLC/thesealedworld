@@ -31,7 +31,12 @@ Character / Monster builder
 StatsWaterfallCalculator
   src/backend/core/calculators/stats_waterfall_calculator.py
         │
-        │  sums base + source values + temp values → flat ActorStats
+        │  sums base + source values + temp values → flat modifier values
+        ▼
+BasePowerAssembler
+  src/backend/features/combat/runtime/engine/base_power_assembler.py
+        │
+        │  turns weapon power + weighted stat power + mastery into final hand base
         │  called once on session entry, then on dirty_stats after effect apply/remove
         ▼
 ActorStats  (in-memory only, not persisted to Redis)
@@ -75,7 +80,8 @@ InteractionResultDTO
 - Parry check: `min(parry * (1 + PARRY_SKILL_MULT_PER_POINT * skill_parrying), parry_cap)`
 - Block check: `min(block * (1 + SHIELD_BLOCK_SKILL_MULT_PER_POINT * skill_parrying), shield_block_cap)`
 - Counter check: `min(counter_attack_chance, counter_attack_cap)`
-- Weapon damage: `rand((base + physical_damage + physical_damage_bonus)*(1-spread), ... ) - resist - armor`.
+- Weapon damage: `rand((assembled_base + physical_damage_bonus)*(1-spread), ... ) - resist - armor`.
+- Assembled weapon base: `weapon_power + ((strength_power*wS + agility_power*wA + endurance_power*wE) * mastery_factor)`.
 - Unarmed damage: `rand((strength_base * unarmed_efficiency + physical_damage_bonus)*(1-spread), ... ) - resist - armor`; unarmed does not add `physical_damage` twice.
 - Healing: `rand(magical_damage*0.9, magical_damage*1.1) [* 1.5 if crit]`
 
@@ -176,7 +182,10 @@ chance = min(0.50, 0.25 + 0.25 * skill_dual_wield)  # 0.25 base, 0.50 at full ma
 | crit_chance (main/off) | `atk.mods.{prefix}_crit_chance + crit_chance` | CharMathModel | OK |
 | crit_chance (magic) | `atk.mods.magical_crit_chance` only | CharMathModel | OK (asymmetric) |
 | crit_cap (all) | `atk.mods.{prefix}_crit_cap` | DTO defaults | OK |
-| physical_damage | `atk.mods.physical_damage` for non-unarmed physical attacks | Waterfall from Strength | OK |
+| physical_strength_power | `atk.mods.physical_strength_power` for base-power assembly | Waterfall from Strength | OK |
+| physical_agility_power | `atk.mods.physical_agility_power` for base-power assembly | Waterfall from Agility | OK |
+| physical_endurance_power | `atk.mods.physical_endurance_power` for base-power assembly | Waterfall from Endurance | OK |
+| physical_damage | legacy/reserved flat field; weapon resolver does not add it automatically | DTO / compatibility | OK |
 | physical_damage_bonus | `atk.mods.physical_damage_bonus` | CharMathModel | OK |
 | evasion | `def.mods.evasion` | CharMathModel / MonsterProfile | OK |
 | dodge_cap | `def.mods.dodge_cap` (default 0.75) | DTO default | OK |
@@ -215,13 +224,17 @@ chance = min(0.50, 0.25 + 0.25 * skill_dual_wield)  # 0.25 base, 0.50 at full ma
 
 ## Modifier Key Status
 
-### Active — Used by Resolver
+### Active — Used by Resolver Or Base-Power Assembly
 
 ```
-main_hand_damage_base    main_hand_damage_spread    main_hand_accuracy
+main_hand_damage_base    main_hand_damage_spread    main_hand_weapon_power
+main_hand_stat_damage_raw main_hand_stat_damage_effective main_hand_mastery_factor
+main_hand_damage_spread_raw main_hand_accuracy
 main_hand_crit_chance    main_hand_armor_penetration_pct
 main_hand_armor_ignore_chance
-off_hand_damage_base     off_hand_damage_spread     off_hand_accuracy
+off_hand_damage_base     off_hand_damage_spread     off_hand_weapon_power
+off_hand_stat_damage_raw off_hand_stat_damage_effective off_hand_mastery_factor
+off_hand_damage_spread_raw off_hand_accuracy
 off_hand_crit_chance     off_hand_armor_penetration_pct
 off_hand_armor_ignore_chance
 item_damage_base         item_accuracy              item_crit_chance
@@ -230,6 +243,7 @@ magical_damage           magical_damage_spread      magical_accuracy
 magical_crit_chance      magical_penetration
 accuracy                 crit_chance                physical_suppression
 armor_penetration_pct    armor_penetration_flat     armor_ignore_chance
+physical_strength_power  physical_agility_power     physical_endurance_power
 physical_damage_bonus
 evasion                  dodge_cap                  anti_dodge_chance
 parry                    parry_cap
@@ -265,12 +279,16 @@ magical_resistance    → magic_resist
 
 ## Unarmed / Strength Interaction
 
-Strength flows into `physical_damage` through the attribute waterfall. For weapon attacks,
-resolver adds that value to the hand damage base according to
-`docs/game-design/rules/attributes/technical_reference.md`.
-For unarmed attacks, the mapper already uses Strength as `main_hand_damage_base`, so
-resolver skips the extra `physical_damage` addition to avoid double counting and applies
-the `skill_unarmed` efficiency curve instead.
+Strength flows into `physical_strength_power` through the attribute waterfall.
+Agility and Endurance flow into their own physical power fields. For weapon
+attacks, `BasePowerAssembler` combines weapon power, class-specific stat
+weights, and weapon mastery into the final hand damage base before
+`ActorStats` is created. The resolver reads that assembled base and does not
+add `physical_damage`.
+
+For unarmed attacks, the mapper already uses Strength as `main_hand_damage_base`,
+so `BasePowerAssembler` skips the `unarmed` class and the resolver applies the
+`skill_unarmed` efficiency curve.
 
 ```python
 # CharacterCombatMathModelBuilder._apply_unarmed_base:
@@ -322,9 +340,11 @@ Parry and shield block base chances come from equipment. `CombatResolver` applie
 the normalized `skill_parrying` multiplier during the exchange.
 
 **DO NOT write attributes into modifiers.**
-Strength goes into `raw.attributes.strength`. WaterfallCalculator derives
-`physical_damage` from it. Mappers put strength directly into
-`main_hand_damage_base` only for unarmed.
+Strength, Agility, and Endurance go into `raw.attributes`. WaterfallCalculator
+derives `physical_strength_power`, `physical_agility_power`, and
+`physical_endurance_power`; `BasePowerAssembler` decides how those powers affect
+each weapon class. Mappers put strength directly into `main_hand_damage_base`
+only for unarmed.
 
 **DO NOT assume skills are 0..100.**
 `actor.skills["skill_swords"] = 0.75` means 75% mastery. Use directly: `1.0 + skill_val`.

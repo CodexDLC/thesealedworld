@@ -15,7 +15,7 @@ from src.backend.features.items.services.catalog_service import ItemCatalogServi
 if TYPE_CHECKING:
     from src.backend.core.bus import GameEventProducer
     from src.backend.features.inventory.repositories.items import InventoryItemRepository
-    from src.backend.features.inventory.services.session_manager import InventorySessionManager
+    from src.backend.infrastructure.inventory.managers import InventorySessionManager
     from src.shared.schemas.inventory import InventoryRuntimeSessionDTO
 
 

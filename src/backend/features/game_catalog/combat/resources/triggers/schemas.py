@@ -27,7 +27,8 @@ class TriggerTechnicalDTO(BaseModel):
     trigger_id: str  # Matches the flag name in TriggerRulesFlagsDTO, e.g. "weapon_heavy_crit"
 
     # Activation event: "ON_CRIT", "ON_MISS", "ON_DODGE", "ON_PARRY",
-    # "ON_BLOCK", "ON_BLOCK_FAIL", "ON_CHECK_CONTROL", "ON_ACCURACY_CHECK", "ON_DAMAGE"
+    # "ON_BLOCK", "ON_BLOCK_FAIL", "ON_CHECK_CONTROL", "ON_ACCURACY_CHECK",
+    # "ON_PRE_EVASION", "ON_DAMAGE"
     event: str
 
     chance: float = 1.0

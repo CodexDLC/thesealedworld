@@ -14,6 +14,11 @@ from src.backend.features.combat.dto import (
 )
 from src.backend.features.combat.runtime.engine.feint_service import FeintService
 
+BLOOD_TOKEN_DAMAGE_STEP = 10
+GIFT_TOKEN_PER_EXCHANGE = 1
+BLOOD_MARKER = "blood"
+GIFT_MARKER = "gift"
+
 
 class MechanicsService:
     """Apply resolved interaction results to mutable actor runtime state.
@@ -141,6 +146,7 @@ class MechanicsService:
             hp_changes: list[tuple[str, str]] = []
             en_changes: list[tuple[str, str]] = []
             stamina_changes: list[tuple[str, str]] = []
+            gift_changes: list[tuple[str, str]] = []
 
             # Пример: {"hp": {"cost": "-10"}, "en": {"cost": "-20"}, "stamina": {"cost": "-10"}}
             if "hp" in result.resource_changes:
@@ -151,6 +157,9 @@ class MechanicsService:
 
             if "stamina" in result.resource_changes:
                 stamina_changes.extend(result.resource_changes["stamina"].items())
+
+            if "gift" in result.resource_changes:
+                gift_changes.extend(result.resource_changes["gift"].items())
 
             # Apply Costs
             if hp_changes:
@@ -183,6 +192,15 @@ class MechanicsService:
                     reason=self._resource_change_reason(stamina_changes),
                     applied=applied,
                 )
+            if gift_changes:
+                self._apply_token_delta(
+                    result,
+                    actor=source,
+                    owner="source",
+                    token=GIFT_MARKER,
+                    sources=[val for _key, val in gift_changes],
+                    reason=self._resource_change_reason(gift_changes),
+                )
 
         # B. Tokens Awarded (Всегда начисляем, если не сказано иное? Пока оставим безусловно)
         if result.tokens_awarded_attacker:
@@ -201,6 +219,8 @@ class MechanicsService:
                     )
                 )
 
+        self._grant_exchange_gift_token(ctx, source, result)
+
         # C. Reflected damage from defender-side block style.
         if ctx.flags.mechanics.apply_damage and result.reflected_damage > 0:
             applied = self._apply_resource_delta(source, "hp", [f"-{result.reflected_damage}"])
@@ -212,6 +232,13 @@ class MechanicsService:
                 reason="reflect",
                 applied=applied,
                 tags=["REFLECT"],
+            )
+            self._apply_damage_taken_token_progress(
+                result,
+                actor=source,
+                owner="source",
+                applied=applied,
+                token_bucket=result.tokens_awarded_attacker,
             )
             ctx.result.events.append(
                 CombatEventDTO(
@@ -242,6 +269,8 @@ class MechanicsService:
         self, ctx: PipelineContextDTO, target: ActorSnapshot, result: InteractionResultDTO
     ) -> None:
         """Apply target-side damage, death checks, and defensive token awards."""
+        damage_applied: tuple[int, int, int, int] | None = None
+
         # A. Damage Final
         if ctx.flags.mechanics.apply_damage:
             hp_sources = []
@@ -250,14 +279,14 @@ class MechanicsService:
 
             # Apply
             if hp_sources:
-                applied = self._apply_resource_delta(target, "hp", hp_sources)
+                damage_applied = self._apply_resource_delta(target, "hp", hp_sources)
                 self._record_resource_fact(
                     result,
                     actor=target,
                     owner="target",
                     resource="hp",
                     reason="damage",
-                    applied=applied,
+                    applied=damage_applied,
                 )
 
         # B. Death Check
@@ -291,6 +320,14 @@ class MechanicsService:
                         reason="award",
                     )
                 )
+
+        self._apply_damage_taken_token_progress(
+            result,
+            actor=target,
+            owner="target",
+            applied=damage_applied,
+            token_bucket=result.tokens_awarded_defender,
+        )
 
     def _apply_resource_delta(
         self, actor: ActorSnapshot, resource: str, sources: list[str]
@@ -373,6 +410,123 @@ class MechanicsService:
                 source_effect_id=source_effect_id,
                 source_trigger_id=source_trigger_id,
                 tags=tags or [],
+            )
+        )
+
+    @staticmethod
+    def _apply_damage_taken_token_progress(
+        result: InteractionResultDTO,
+        *,
+        actor: ActorSnapshot,
+        owner: Literal["source", "target", "self", "other"],
+        applied: tuple[int, int, int, int] | None,
+        token_bucket: dict[str, int],
+    ) -> None:
+        if applied is None:
+            return
+
+        before_hp, after_hp, _max_hp, delta = applied
+        if delta >= 0 or after_hp <= 0:
+            return
+
+        hp_lost = max(0, before_hp - after_hp)
+        if hp_lost <= 0:
+            return
+
+        old_progress = MechanicsService._token_progress_value(actor, BLOOD_MARKER)
+        new_progress = old_progress + hp_lost
+        token_gain = new_progress // BLOOD_TOKEN_DAMAGE_STEP
+        actor.meta.token_progress[BLOOD_MARKER] = new_progress % BLOOD_TOKEN_DAMAGE_STEP
+
+        if token_gain <= 0:
+            return
+
+        before_tokens = actor.meta.tokens.get(BLOOD_MARKER, 0)
+        after_tokens = before_tokens + token_gain
+        actor.meta.tokens[BLOOD_MARKER] = after_tokens
+        token_bucket[BLOOD_MARKER] = token_bucket.get(BLOOD_MARKER, 0) + token_gain
+        result.token_facts.append(
+            CombatTokenFactDTO(
+                actor_id=actor.char_id,
+                owner=owner,
+                token=BLOOD_MARKER,
+                amount=token_gain,
+                before=before_tokens,
+                after=after_tokens,
+                reason="damage_taken",
+                tags=["damage_taken"],
+            )
+        )
+
+    @staticmethod
+    def _token_progress_value(actor: ActorSnapshot, token: str) -> int:
+        try:
+            return max(0, int(actor.meta.token_progress.get(token, 0)))
+        except (TypeError, ValueError):
+            return 0
+
+    def _grant_exchange_gift_token(
+        self,
+        ctx: PipelineContextDTO,
+        actor: ActorSnapshot,
+        result: InteractionResultDTO,
+    ) -> None:
+        if not ctx.flags.meta.grant_exchange_gift:
+            return
+        if ctx.flags.meta.action_mode != "exchange":
+            return
+        if ctx.flags.meta.source_type != "main_hand":
+            return
+        if result.is_counter:
+            return
+
+        before = actor.meta.tokens.get(GIFT_MARKER, 0)
+        after = before + GIFT_TOKEN_PER_EXCHANGE
+        actor.meta.tokens[GIFT_MARKER] = after
+        result.tokens_awarded_attacker[GIFT_MARKER] = (
+            result.tokens_awarded_attacker.get(GIFT_MARKER, 0) + GIFT_TOKEN_PER_EXCHANGE
+        )
+        result.token_facts.append(
+            CombatTokenFactDTO(
+                actor_id=actor.char_id,
+                owner="source",
+                token=GIFT_MARKER,
+                amount=GIFT_TOKEN_PER_EXCHANGE,
+                before=before,
+                after=after,
+                reason="exchange",
+                tags=["exchange"],
+            )
+        )
+
+    def _apply_token_delta(
+        self,
+        result: InteractionResultDTO,
+        *,
+        actor: ActorSnapshot,
+        owner: Literal["source", "target", "self", "other"],
+        token: str,
+        sources: list[str],
+        reason: str,
+    ) -> None:
+        delta, _ = StatsWaterfallCalculator.evaluate_sources(sources, base_value=0.0)
+        delta_int = int(delta)
+        if delta_int == 0:
+            return
+
+        before = actor.meta.tokens.get(token, 0)
+        after = max(0, before + delta_int)
+        actor.meta.tokens[token] = after
+        result.token_facts.append(
+            CombatTokenFactDTO(
+                actor_id=actor.char_id,
+                owner=owner,
+                token=token,
+                amount=after - before,
+                before=before,
+                after=after,
+                reason=reason,
+                tags=[reason],
             )
         )
 

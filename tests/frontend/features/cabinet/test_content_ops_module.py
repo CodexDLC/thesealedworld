@@ -28,15 +28,23 @@ def test_content_ops_admin_declares_operational_sections() -> None:
     assert ContentOpsAdmin.path == "/admin/content-ops"
     assert ContentOpsAdmin.label == "Монстры"
     assert ContentOpsAdmin.group_label == "Контент"
-    assert [item.key for item in ContentOpsAdmin.sidebar] == ["overview", "monsters"]
-    assert [item.label for item in ContentOpsAdmin.sidebar] == ["Обзор", "Сгенерированные монстры"]
+    assert [item.key for item in ContentOpsAdmin.sidebar] == ["overview", "monsters", "monster_maintenance"]
+    assert [item.label for item in ContentOpsAdmin.sidebar] == [
+        "Обзор",
+        "Сгенерированные монстры",
+        "Обслуживание монстров",
+    ]
     assert [item.path for item in ContentOpsAdmin.sidebar] == [
         "/admin/content-ops",
         "/admin/content-ops/monster-browser",
+        "/admin/content-ops/monster-maintenance",
     ]
     assert "monster-browser" in ContentOpsAdmin.action_routes
     assert "monster-detail" in ContentOpsAdmin.action_routes
     assert "monster-member-detail" in ContentOpsAdmin.action_routes
+    assert "monster-maintenance" in ContentOpsAdmin.action_routes
+    assert "monster-rebuild-plan" in ContentOpsAdmin.action_routes
+    assert "monster-rebuild-apply" in ContentOpsAdmin.action_routes
     assert "regenerate-clan-family-images" in ContentOpsAdmin.action_routes
     assert "regenerate-visible-clan-images" in ContentOpsAdmin.action_routes
 
@@ -75,6 +83,58 @@ def test_content_ops_custom_pages_render_operational_surfaces() -> None:
     assert "Тир семьи" in monsters.text
     assert "Без изображения" in monsters.text
     assert "Перегенерировать видимые" in monsters.text
+
+    maintenance = client.get("/admin/content-ops/monster-maintenance")
+    assert maintenance.status_code == 200
+    assert "Обслуживание монстров" in maintenance.text
+    assert "Проверить расхождения" in maintenance.text
+    assert "Пересобрать" in maintenance.text
+
+
+def test_content_ops_rebuild_plan_renders_result_items(monkeypatch: pytest.MonkeyPatch) -> None:
+    class FakeAdminMonstersApi:
+        async def list_generated(self, *, limit: int, **kwargs):
+            assert limit == 100
+            return [_clan("rat-clan", family="rats", storage="local", roles=("scout",), missing_member=False)]
+
+        async def plan_generated_rebuild(self, **kwargs):
+            assert kwargs["family_id"] == "rats"
+            return {
+                "dry_run": True,
+                "status": "ok",
+                "scanned": 1,
+                "stale": 1,
+                "rebuilt": 0,
+                "skipped": 0,
+                "errors": [],
+                "items": [
+                    {
+                        "clan_id": "rat-clan",
+                        "family_id": "rats",
+                        "status": "stale",
+                        "members_expected": 12,
+                        "members_changed": 2,
+                        "members_created": 0,
+                        "members_removed": 0,
+                        "reason": "changed=2",
+                    }
+                ],
+            }
+
+    monkeypatch.setattr(content_ops, "_api", lambda request: FakeAdminMonstersApi())
+    app = FastAPI()
+    include_cabinet(app, modules=CABINET_MODULES, mount_path="/admin")
+    client = TestClient(app)
+
+    response = client.post(
+        "/admin/content-ops/monster-rebuild-plan",
+        data={"family_id": "rats", "limit": "100", "remove_obsolete_members": "1"},
+    )
+
+    assert response.status_code == 200
+    assert "План пересборки" in response.text
+    assert "rat-clan" in response.text
+    assert "changed=2" in response.text
 
 
 def test_monster_browser_redirect_preserves_bulk_filters() -> None:

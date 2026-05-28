@@ -26,6 +26,7 @@ async def sync_active_session_task(ctx: dict[str, Any], payload: dict[str, Any])
                 attributes_repo=actor_state.attributes,
                 skill_repo=actor_state.skills,
                 progression_repo=actor_state.progression,
+                symbiote_repo=actor_state.symbiote,
                 expedition_repo=actor_state.expeditions,
             ),
         )

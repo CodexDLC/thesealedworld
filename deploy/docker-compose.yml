@@ -69,7 +69,10 @@ services:
     volumes:
       - ../src/backend:/app/src/backend
       - ../src/shared:/app/src/shared
-    entrypoint: ["python", "src/backend/manage.py", "upgrade"]
+    entrypoint:
+      - sh
+      - -c
+      - python src/backend/manage.py upgrade && python src/backend/manage.py rebuild-monsters --apply
     depends_on:
       postgres:
         condition: service_healthy

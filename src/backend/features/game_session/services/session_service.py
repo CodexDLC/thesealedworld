@@ -11,7 +11,7 @@ if TYPE_CHECKING:
     from src.backend.core.auth import User
     from src.backend.features.character.schemas.session import CharacterSessionDocumentDTO, CharacterSessionRefsDTO
     from src.backend.features.game_session.integrations import GameSessionIntegrator
-    from src.backend.features.npc.services import NpcService
+    from src.backend.features.npc.integrations import NpcIntegration
 
 
 GameplayEntryResponse = CoreResponseDTO[StateTransitionDTO | dict[str, Any]]
@@ -25,6 +25,7 @@ class GameSessionService:
         CoreDomain.COMBAT,
         CoreDomain.COMBAT_RESULT,
         CoreDomain.ARENA,
+        CoreDomain.RIFT,
         CoreDomain.CITY_SERVICES,
         CoreDomain.EXPLORATION,
         CoreDomain.DEATH,
@@ -33,10 +34,10 @@ class GameSessionService:
 
     def __init__(self, *, integrator: GameSessionIntegrator) -> None:
         self.integrator = integrator
-        self.npc_service: NpcService | None = None
+        self.npc: NpcIntegration | None = None
 
-    def bind_npc_service(self, npc_service: NpcService | None) -> GameSessionService:
-        self.npc_service = npc_service
+    def bind_npc(self, npc: NpcIntegration | None) -> GameSessionService:
+        self.npc = npc
         return self
 
     async def enter_character(self, user: User, character_id: int) -> GameplayEntryResponse:
@@ -107,6 +108,8 @@ class GameSessionService:
             return bool(sessions.combat_finalization_id)
         if state == CoreDomain.ARENA:
             return bool(sessions.arena_id)
+        if state == CoreDomain.RIFT:
+            return bool(sessions.rift_session_id and sessions.rift_instance_id)
         if state == CoreDomain.DEATH:
             return bool(sessions.death_run_id)
         if state == CoreDomain.LOOT:
@@ -125,7 +128,26 @@ class GameSessionService:
                 route_reason="respawn_not_required",
             )
 
+        starter_context = await self.integrator.resolve_starter_rift_death_context(session_doc)
         result = await self.integrator.respawn_character(character_id)
+        if starter_context is not None:
+            reset_result = await self.integrator.reset_starter_rift_character(
+                character_id,
+                user_id=user.id,
+                starter_context=starter_context,
+                respawn_result=result,
+            )
+            return CoreResponseDTO(
+                header=GameStateHeader(current_state=CoreDomain.SCENARIO, previous_state=CoreDomain.DEATH),
+                payload=self._starter_rift_reset_transition(
+                    character_id=character_id,
+                    respawn_result=result,
+                    reset_result=reset_result,
+                    starter_context=starter_context,
+                ),
+                payload_type="state_transition",
+            )
+
         post_respawn_transition = await self._post_respawn_dialogue_transition(character_id, result)
         if post_respawn_transition is not None:
             return CoreResponseDTO(
@@ -144,18 +166,58 @@ class GameSessionService:
             payload_type="state_transition",
         )
 
+    @staticmethod
+    def _starter_rift_reset_transition(
+        *,
+        character_id: int,
+        respawn_result: dict[str, Any],
+        reset_result: dict[str, Any],
+        starter_context: dict[str, Any],
+    ) -> StateTransitionDTO:
+        location_id = str(respawn_result.get("location_id") or "")
+        starting_imprint = reset_result.get("starting_imprint") or {}
+        return_context = ScenarioReturnContextDTO(
+            source_state=CoreDomain.EXPLORATION,
+            return_state=CoreDomain.SCENARIO,
+            location_id=location_id,
+            metadata={
+                "trigger_reason": "starter_rift_reset",
+                "original_source_state": CoreDomain.RIFT.value,
+                "initial_node_key": "rift_entry_01",
+                "attempt_index": reset_result.get("attempt_index"),
+                "starting_imprint_key": starting_imprint.get("imprint_key"),
+                "rift_session_id": starter_context.get("rift_session_id"),
+                "rift_instance_id": starter_context.get("rift_instance_id"),
+            },
+        )
+        return StateTransitionDTO(
+            char_id=character_id,
+            target_state=CoreDomain.SCENARIO,
+            reason="starter_rift_reset",
+            quest_key="awakening_rift",
+            location_id=location_id,
+            context={"return_context": return_context.model_dump(mode="json")},
+            metadata={
+                **respawn_result,
+                "trigger_reason": "starter_rift_reset",
+                "attempt_index": reset_result.get("attempt_index"),
+                "starting_imprint": starting_imprint,
+                "reset_seed": reset_result.get("reset_seed"),
+            },
+        )
+
     async def _post_respawn_dialogue_transition(
         self,
         character_id: int,
         result: dict[str, Any],
     ) -> StateTransitionDTO | None:
-        if self.npc_service is None:
+        if self.npc is None:
             return None
         location_id = str(result.get("location_id") or "")
         if location_id != "52_52":
             return None
         npc_key = "portal_pad_guide"
-        npc_state = await self.npc_service.get_or_create_state(character_id=character_id, npc_key=npc_key)
+        npc_state = await self.npc.get_or_create_state(character_id=character_id, npc_key=npc_key)
         if bool((npc_state.flags or {}).get("first_death_dialogue_seen")):
             return None
         return_context = ScenarioReturnContextDTO(
@@ -193,11 +255,12 @@ class GameSessionService:
         if session_doc is None:
             return self._lobby_response(char_id=character_id, reason="active_character_unavailable")
         result = await self.integrator.claim_post_combat_loot(character_id, corpse_ids)
+        target_state = self._state_or_none(result.get("target_state")) or CoreDomain.EXPLORATION
         return CoreResponseDTO(
-            header=GameStateHeader(current_state=CoreDomain.EXPLORATION, previous_state=CoreDomain.LOOT),
+            header=GameStateHeader(current_state=target_state, previous_state=CoreDomain.LOOT),
             payload=StateTransitionDTO(
                 char_id=character_id,
-                target_state=CoreDomain.EXPLORATION,
+                target_state=target_state,
                 reason=str(result.get("status") or "loot_claimed"),
                 metadata=result,
             ),

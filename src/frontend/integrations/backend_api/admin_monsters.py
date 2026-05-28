@@ -204,3 +204,71 @@ class AdminMonstersApi(BaseApiClient):
         return dict(
             await self._request("POST", f"/api/admin/monsters/generated/members/{member_id}/regenerate-image") or {}
         )
+
+    async def plan_generated_rebuild(
+        self,
+        *,
+        family_id: str | None = None,
+        clan_id: str | None = None,
+        limit: int = 100,
+        force: bool = False,
+        remove_obsolete_members: bool = True,
+    ) -> dict[str, Any]:
+        return (
+            await self._request(
+                "POST",
+                "/api/admin/monsters/generated/rebuild/plan",
+                json=_rebuild_payload(
+                    family_id=family_id,
+                    clan_id=clan_id,
+                    limit=limit,
+                    force=force,
+                    remove_obsolete_members=remove_obsolete_members,
+                ),
+            )
+            or {}
+        )
+
+    async def apply_generated_rebuild(
+        self,
+        *,
+        family_id: str | None = None,
+        clan_id: str | None = None,
+        limit: int = 100,
+        force: bool = False,
+        remove_obsolete_members: bool = True,
+    ) -> dict[str, Any]:
+        return (
+            await self._request(
+                "POST",
+                "/api/admin/monsters/generated/rebuild/apply",
+                json=_rebuild_payload(
+                    family_id=family_id,
+                    clan_id=clan_id,
+                    limit=limit,
+                    force=force,
+                    remove_obsolete_members=remove_obsolete_members,
+                ),
+            )
+            or {}
+        )
+
+
+def _rebuild_payload(
+    *,
+    family_id: str | None,
+    clan_id: str | None,
+    limit: int,
+    force: bool,
+    remove_obsolete_members: bool,
+) -> dict[str, Any]:
+    payload: dict[str, Any] = {
+        "limit": limit,
+        "force": force,
+        "remove_obsolete_members": remove_obsolete_members,
+    }
+    if family_id:
+        payload["family_id"] = family_id
+    if clan_id:
+        payload["clan_id"] = clan_id
+    return payload

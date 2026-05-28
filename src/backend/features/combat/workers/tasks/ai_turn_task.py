@@ -78,10 +78,21 @@ async def ai_turn_task(ctx: dict, request_data: dict) -> None:
         ).debug("AiTurnPlan")
 
         # 5. ПРИНЯТИЕ РЕШЕНИЙ (AI Processor)
-        payloads = []
-        for target in targets:
-            payload = ai_processor.decide_exchange(bot, target)
-            payloads.append(payload)
+        # Prefer turn-level planning: the brain sees all candidate targets at
+        # once and allocates finite resources (feint hand, stamina) across the
+        # per-target intents. Fallback to per-target decide_exchange only when
+        # a custom processor double does not implement decide_turn.
+        payloads: list = []
+        decide_turn = getattr(ai_processor, "decide_turn", None)
+        if callable(decide_turn):
+            try:
+                payloads = list(decide_turn(bot, battle_ctx, targets))
+            except Exception:  # noqa: BLE001 — fall back to legacy path on any inference error
+                log.bind(bot_id=request.bot_id, mode="decide_turn").exception("AiDecideTurnFailed")
+                payloads = []
+        if not payloads:
+            for target in targets:
+                payloads.append(ai_processor.decide_exchange(bot, target))
 
         # 6. РЕГИСТРАЦИЯ ХОДОВ
         if payloads:

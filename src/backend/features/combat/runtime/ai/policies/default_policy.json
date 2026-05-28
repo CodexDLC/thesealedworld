@@ -1,0 +1,30 @@
+{
+  "metadata": {
+    "algorithm": "manual_seed",
+    "created_by": "combat-ai-mvp",
+    "note": "Hand-tuned baseline. Replace with trained artifact via COMBAT_AI_POLICY_PATH or PolicyStore.load(path)."
+  },
+  "policy_id": "default_v1",
+  "version": 1,
+  "weights": {
+    "anti_block": 1.6,
+    "anti_evasion": 1.2,
+    "anti_parry": 1.5,
+    "armor_bypass": 1.3,
+    "bleed": 0.9,
+    "control": 1.4,
+    "counter": 0.4,
+    "damage_tag": 0.7,
+    "expected_damage": 1.0,
+    "finishable": 3.0,
+    "multi_target": 0.8,
+    "preparation": 0.3,
+    "randomness": 0.05,
+    "self_low_hp_resource_save": -1.0,
+    "self_low_stamina_save": -0.6,
+    "stamina_cost": -0.04,
+    "target_high_hp": -0.2,
+    "target_low_hp": 1.5,
+    "token_cost": -0.5
+  }
+}

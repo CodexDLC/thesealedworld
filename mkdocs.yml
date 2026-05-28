@@ -107,6 +107,7 @@ nav:
           - Processors: backend/features/combat/runtime/processors.md
           - Services: backend/features/combat/runtime/services.md
           - Support: backend/features/combat/runtime/support.md
+          - AI: backend/features/combat/runtime/ai.md
       - Exploration: backend/features/exploration/index.md
       - Game Catalog: backend/features/game_catalog/index.md
       - Game Lobby: backend/features/game_lobby/index.md

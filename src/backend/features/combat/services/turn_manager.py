@@ -210,6 +210,11 @@ class CombatTurnManager:
         timeout = 60
         exchange_moves_data = []
         other_moves_dtos = []
+        # Per-move feint bookkeeping for refunds. Key: move_id (str). Value:
+        # (feint_id, cost) consumed for that move. Used after batch registration
+        # to return feints whose move_id was not accepted by the atomic Lua
+        # script (e.g. target died between consume_feint and Redis script).
+        consumed_feints: dict[str, tuple[str, dict[str, int]]] = {}
 
         # 1. Build DTOs and Separate.
         #
@@ -231,9 +236,10 @@ class CombatTurnManager:
             if isinstance(move_dto.payload, (ExchangePayload, InstantPayload)):
                 feint_id = move_dto.payload.feint_id
 
+            consumed_cost: dict[str, int] | None = None
             if feint_id:
-                cost = await self.combat_sessions.consume_feint(session_id, char_id, feint_id)
-                if not cost:
+                consumed_cost = await self.combat_sessions.consume_feint(session_id, char_id, feint_id)
+                if not consumed_cost:
                     log.bind(feint_id=feint_id).warning("TurnManagerAiMissingFeint")
                     continue  # skip this move — feint was not consumed
 
@@ -248,9 +254,13 @@ class CombatTurnManager:
                             "move_id": move_dto.move_id,
                         }
                     )
+                    if feint_id and consumed_cost:
+                        consumed_feints[str(move_dto.move_id)] = (feint_id, dict(consumed_cost))
             else:
                 # Instant / Item
                 other_moves_dtos.append(move_dto)
+                if feint_id and consumed_cost:
+                    consumed_feints[str(move_dto.move_id)] = (feint_id, dict(consumed_cost))
 
         accepted_move_ids: list[str] = []
 
@@ -264,6 +274,21 @@ class CombatTurnManager:
         if other_moves_dtos:
             await self.combat_sessions.append_moves_batch(session_id, char_id, other_moves_dtos)
             accepted_move_ids.extend(str(move.move_id) for move in other_moves_dtos)
+
+        # 3a. Refund feints for moves whose move_id was not accepted by the
+        #     atomic Lua script. consume_feint already ran for these but the
+        #     intent was rejected (e.g. target died between consume and Lua).
+        if consumed_feints:
+            accepted_set = {str(mid) for mid in accepted_move_ids}
+            for move_id, (feint_id, cost) in consumed_feints.items():
+                if move_id in accepted_set:
+                    continue
+                try:
+                    await self.combat_sessions.return_feint(session_id, char_id, feint_id, cost)
+                except Exception:  # noqa: BLE001 — refund is best-effort; never break the response
+                    log.bind(feint_id=feint_id, move_id=move_id).exception("TurnManagerBatchRefundFailed")
+                else:
+                    log.bind(feint_id=feint_id, move_id=move_id).warning("TurnManagerBatchRefundedFeint")
 
         # 4. Signals (Immediate + Timeout)
         if accepted_move_ids:

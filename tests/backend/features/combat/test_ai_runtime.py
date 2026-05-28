@@ -1,7 +1,17 @@
 """Tests for the runtime combat AI package.
 
-Covers observation extraction, legal-action enumeration, scorer behaviour,
-greedy resource allocation, and the policy store fallback chain.
+Covers observation extraction, legal-action enumeration, scorer behaviour
+under the post-overhaul feint catalog, the per-exchange decide_exchange
+contract, planning-budget semantics of decide_turn, and the policy store
+fallback chain.
+
+The product-level contracts asserted here:
+
+* A dodger target draws the anti_evasion feint.
+* A blocker target draws the anti_block feint.
+* A finishable target (low HP) gets a basic attack, not an expensive feint.
+* decide_turn never over-commits stamina across the batch.
+* With zero stamina the brain emits only basic attacks.
 """
 
 from __future__ import annotations
@@ -27,6 +37,7 @@ from src.backend.features.combat.runtime.ai.action_space import (
 )
 from src.backend.features.combat.runtime.ai.observation import extract_self, extract_target
 from src.backend.features.combat.runtime.ai.scorer import PolicyScorer
+from src.backend.features.combat.runtime.engine.feint_service import FeintService
 from src.backend.features.combat.runtime.processors.ai_processor import AiProcessor
 from src.shared.schemas.modifier_dto import CombatModifiersDTO, CombatSkillsDTO
 
@@ -81,7 +92,10 @@ def _battle(actors: list[ActorSnapshot]) -> BattleContext:
             active=1,
             step_counter=0,
             active_actors_count=len(actors),
-            teams={"red": [a.meta.id for a in actors if a.meta.team == "red"], "blue": [a.meta.id for a in actors if a.meta.team == "blue"]},
+            teams={
+                "red": [a.meta.id for a in actors if a.meta.team == "red"],
+                "blue": [a.meta.id for a in actors if a.meta.team == "blue"],
+            },
             battle_type="arena",
             location_id="arena",
         ),
@@ -90,13 +104,15 @@ def _battle(actors: list[ActorSnapshot]) -> BattleContext:
 
 
 # ---------------------------------------------------------------------------
-# 1. Observation extraction
+# Observation extraction
 # ---------------------------------------------------------------------------
 
 
 @pytest.mark.unit
 def test_observation_target_features_match_known_stats() -> None:
-    target = _actor("t1", team="blue", hp=20, max_hp=80, mods={"armor": 12.0, "evasion": 0.3, "parry": 0.1, "block": 0.4})
+    target = _actor(
+        "t1", team="blue", hp=20, max_hp=80, mods={"armor": 12.0, "evasion": 0.3, "parry": 0.1, "block": 0.4}
+    )
     obs = extract_target(target)
 
     assert obs.hp_pct == pytest.approx(0.25)
@@ -109,7 +125,9 @@ def test_observation_target_features_match_known_stats() -> None:
 
 @pytest.mark.unit
 def test_observation_self_features_include_resources_and_enemy_count() -> None:
-    bot = _actor("bot", team="red", is_ai=True, hp=30, max_hp=100, stamina=10, max_stamina=50, tokens={"hit": 2})
+    bot = _actor(
+        "bot", team="red", is_ai=True, hp=30, max_hp=100, stamina=10, max_stamina=50, tokens={"hit": 2}
+    )
     obs = extract_self(bot, alive_enemy_count=3)
 
     assert obs.hp_pct == pytest.approx(0.3)
@@ -121,7 +139,7 @@ def test_observation_self_features_include_resources_and_enemy_count() -> None:
 
 
 # ---------------------------------------------------------------------------
-# 2-3. Legal actions: include basic + affordable feints, exclude unaffordable
+# Legal actions
 # ---------------------------------------------------------------------------
 
 
@@ -141,7 +159,7 @@ def test_legal_actions_include_basic_and_each_affordable_hand_feint() -> None:
     actions = build_legal_actions_for_target(bot, target)
 
     feint_ids = {a.feint_id for a in actions}
-    assert None in feint_ids  # basic attack always present
+    assert None in feint_ids
     assert "sword_blade_bind" in feint_ids
     assert "sword_low_angle" in feint_ids
     assert len(actions) == 3
@@ -167,7 +185,7 @@ def test_legal_actions_exclude_feints_when_stamina_insufficient() -> None:
 
 
 # ---------------------------------------------------------------------------
-# 4. Scorer prefers anti_block tag against high-block target
+# Scorer: anti-defence axes
 # ---------------------------------------------------------------------------
 
 
@@ -178,7 +196,9 @@ def test_scorer_prefers_anti_block_against_high_block_target() -> None:
     target_obs = extract_target(target)
     self_obs = extract_self(bot, alive_enemy_count=1)
 
-    policy = Policy.with_defaults({"anti_block": 2.0, "damage_tag": 0.5, "stamina_cost": 0.0, "token_cost": 0.0})
+    policy = Policy.with_defaults(
+        {"anti_block": 2.0, "damage_tag": 0.5, "stamina_cost": 0.0, "token_cost": 0.0}
+    )
 
     basic = LegalAction(action_type="attack", target_id="t1", feint_id=None, tags=frozenset({"damage_tag"}))
     anti_block = LegalAction(
@@ -193,11 +213,6 @@ def test_scorer_prefers_anti_block_against_high_block_target() -> None:
     score_basic = PolicyScorer.score(self_obs, target_obs, basic, policy)
     score_anti = PolicyScorer.score(self_obs, target_obs, anti_block, policy)
     assert score_anti > score_basic
-
-
-# ---------------------------------------------------------------------------
-# 5. Scorer prefers low-hp / finishable target across the population.
-# ---------------------------------------------------------------------------
 
 
 @pytest.mark.unit
@@ -217,11 +232,6 @@ def test_scorer_prefers_finishable_target_for_same_action() -> None:
     assert score_low > score_high
 
 
-# ---------------------------------------------------------------------------
-# 6. High cost flips the choice toward basic attack.
-# ---------------------------------------------------------------------------
-
-
 @pytest.mark.unit
 def test_high_token_cost_makes_basic_attack_win_over_feint() -> None:
     target = _actor("t1", team="blue", mods={"block": 0.4})
@@ -229,7 +239,9 @@ def test_high_token_cost_makes_basic_attack_win_over_feint() -> None:
     target_obs = extract_target(target)
     self_obs = extract_self(bot, alive_enemy_count=1)
 
-    policy = Policy.with_defaults({"anti_block": 0.5, "damage_tag": 0.3, "token_cost": -3.0, "stamina_cost": 0.0})
+    policy = Policy.with_defaults(
+        {"anti_block": 0.5, "damage_tag": 0.3, "token_cost": -3.0, "stamina_cost": 0.0}
+    )
 
     basic = LegalAction("attack", "t1", None, tags=frozenset({"damage_tag"}))
     feint = LegalAction(
@@ -247,41 +259,192 @@ def test_high_token_cost_makes_basic_attack_win_over_feint() -> None:
 
 
 # ---------------------------------------------------------------------------
-# 7. Greedy allocation prefers high-defence target for the only feint.
+# Product contracts on the brain (decide_exchange)
 # ---------------------------------------------------------------------------
 
 
 @pytest.mark.unit
-def test_greedy_allocator_sends_anti_parry_feint_to_high_parry_target() -> None:
+def test_decide_exchange_picks_anti_evasion_feint_against_dodger() -> None:
     bot = _actor(
         "bot",
         team="red",
         is_ai=True,
-        hand={"sword_blade_bind": {"hit": 3, "parry": 2}},
+        stamina=60,
+        hand={
+            "measured_strike": {"hit": 3},  # basic, no defence tag
+            "sword_low_angle": {"hit": 3, "dodge": 2},  # weapon, anti_evasion via dodge token
+        },
     )
-    high_parry = _actor("hp", team="blue", mods={"parry": 0.5})
-    low_def = _actor("ld", team="blue", mods={"parry": 0.05})
-    battle = _battle([bot, high_parry, low_def])
+    target = _actor("dodger", team="blue", hp=80, mods={"evasion": 0.5, "block": 0.05, "parry": 0.05})
+    battle = _battle([bot, target])
 
-    policy = Policy.with_defaults(
-        {
-            "anti_parry": 2.0,
-            "damage_tag": 0.5,
-            "token_cost": -0.1,
-            "stamina_cost": -0.01,
-        }
+    brain = MonsterCombatBrain()  # bundled default_policy
+    payload = brain.decide_exchange(bot, target, battle)
+
+    assert payload["target_id"] == "dodger"
+    assert payload.get("feint_id") == "sword_low_angle"
+
+
+@pytest.mark.unit
+def test_decide_exchange_picks_anti_parry_feint_against_blocker() -> None:
+    bot = _actor(
+        "bot",
+        team="red",
+        is_ai=True,
+        stamina=60,
+        hand={
+            "measured_strike": {"hit": 3},
+            "sword_blade_bind": {"hit": 3, "parry": 2},  # anti_parry via parry token
+        },
     )
-    brain = MonsterCombatBrain(policy=policy)
+    target = _actor("parry_master", team="blue", hp=80, mods={"parry": 0.5, "block": 0.05})
+    battle = _battle([bot, target])
 
-    payloads = brain.decide_turn(bot, battle, [high_parry, low_def])
-    by_target = {p["target_id"]: p for p in payloads}
+    brain = MonsterCombatBrain()  # bundled default_policy
+    payload = brain.decide_exchange(bot, target, battle)
 
-    assert by_target["hp"].get("feint_id") == "sword_blade_bind"
-    assert "feint_id" not in by_target["ld"]
+    assert payload["target_id"] == "parry_master"
+    assert payload.get("feint_id") == "sword_blade_bind"
+
+
+@pytest.mark.unit
+def test_decide_exchange_avoids_expensive_feint_on_dying_target() -> None:
+    """3-HP target → basic attack, not the expensive feint.
+
+    With ``finishable_resource_save`` negative and `finishable` constant
+    bonus applied to any action, the cheap basic attack must outscore the
+    expensive feint against a target already in the finishing window.
+    """
+    bot = _actor(
+        "bot",
+        team="red",
+        is_ai=True,
+        stamina=60,
+        hand={
+            "measured_strike": {"hit": 3},  # cheap basic
+            "sword_blade_bind": {"hit": 3, "parry": 2},  # would normally win on parry, but target is dying
+        },
+    )
+    target = _actor("dying_blocker", team="blue", hp=3, max_hp=100, mods={"parry": 0.6})
+    battle = _battle([bot, target])
+
+    brain = MonsterCombatBrain()  # bundled default_policy
+    payload = brain.decide_exchange(bot, target, battle)
+
+    assert payload["target_id"] == "dying_blocker"
+    assert "feint_id" not in payload
 
 
 # ---------------------------------------------------------------------------
-# 8. decide_turn emits one payload per target.
+# decide_turn: planning-budget semantics
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.unit
+def test_decide_turn_does_not_overcommit_stamina_across_targets() -> None:
+    """Anchor test for the planning-budget contract.
+
+    Bot has stamina 60. Two targets both ideal for an anti_parry feint that
+    costs 5 tokens × 5 = 25 stamina each. With two such feints the bot can
+    only pay 50 stamina total, which is fine. But with one expensive
+    (sword_clean_path, 8 tokens × 5 = 40 stam) and one cheaper
+    (sword_blade_bind, 25 stam), the planner must pick at most one of each
+    that fits the budget, not greedily commit two 40-cost actions.
+    """
+    bot = _actor(
+        "bot",
+        team="red",
+        is_ai=True,
+        stamina=60,
+        hand={
+            "measured_strike": {"hit": 3},  # cheap basic, 15 stam
+            "sword_clean_path": {"hit": 3, "crit": 5},  # expensive, 40 stam
+            "sword_blade_bind": {"hit": 3, "parry": 2},  # mid, 25 stam, anti_parry
+        },
+    )
+    t1 = _actor("t1", team="blue", hp=80, mods={"parry": 0.55})
+    t2 = _actor("t2", team="blue", hp=80, mods={"parry": 0.55})
+    battle = _battle([bot, t1, t2])
+
+    brain = MonsterCombatBrain()
+    payloads = brain.decide_turn(bot, battle, [t1, t2])
+
+    # Budget contract: total planned stamina ≤ original 60.
+    total_stamina = 0
+    for payload in payloads:
+        feint_id = payload.get("feint_id")
+        if not feint_id:
+            continue
+        # In a real flow the cost dict would come from catalog; in the test
+        # bot hand we know each feint's cost.
+        cost = bot.meta.feints.hand.get(feint_id) or {
+            "sword_clean_path": {"hit": 3, "crit": 5},
+            "sword_blade_bind": {"hit": 3, "parry": 2},
+            "measured_strike": {"hit": 3},
+        }[feint_id]
+        total_stamina += FeintService.activation_stamina_cost(cost)
+
+    assert total_stamina <= 60, (
+        f"Planner over-committed stamina: {total_stamina} > 60. Payloads: {payloads}"
+    )
+
+    # And the original bot snapshot must NOT have been mutated by planning.
+    assert int(bot.meta.stamina) == 60
+    assert "sword_clean_path" in bot.meta.feints.hand
+    assert "sword_blade_bind" in bot.meta.feints.hand
+
+
+@pytest.mark.unit
+def test_decide_turn_does_not_use_the_same_feint_twice() -> None:
+    """Across a batch the same feint id must not appear twice."""
+    bot = _actor(
+        "bot",
+        team="red",
+        is_ai=True,
+        stamina=60,
+        hand={
+            "measured_strike": {"hit": 3},
+            "sword_blade_bind": {"hit": 3, "parry": 2},
+        },
+    )
+    t1 = _actor("t1", team="blue", hp=80, mods={"parry": 0.55})
+    t2 = _actor("t2", team="blue", hp=80, mods={"parry": 0.55})
+    battle = _battle([bot, t1, t2])
+
+    payloads = MonsterCombatBrain().decide_turn(bot, battle, [t1, t2])
+    chosen_feints = [p.get("feint_id") for p in payloads if p.get("feint_id")]
+    assert len(chosen_feints) == len(set(chosen_feints)), (
+        f"Same feint emitted twice: {payloads}"
+    )
+
+
+@pytest.mark.unit
+def test_decide_turn_with_zero_initial_stamina_emits_only_basic_attacks() -> None:
+    """Alternate path: stamina=0 → no feint candidates clear the filter."""
+    bot = _actor(
+        "bot",
+        team="red",
+        is_ai=True,
+        stamina=0,
+        max_stamina=60,
+        hand={
+            "sword_blade_bind": {"hit": 3, "parry": 2},
+            "sword_low_angle": {"hit": 3, "dodge": 2},
+        },
+    )
+    targets = [_actor(f"t{i}", team="blue", mods={"parry": 0.5}) for i in range(3)]
+    battle = _battle([bot, *targets])
+
+    payloads = MonsterCombatBrain().decide_turn(bot, battle, targets)
+
+    assert len(payloads) == 3
+    for payload in payloads:
+        assert "feint_id" not in payload
+        assert payload["action"] == "attack"
+
+
+# ---------------------------------------------------------------------------
+# Payload shape / AiProcessor wiring
 # ---------------------------------------------------------------------------
 
 
@@ -297,14 +460,11 @@ def test_decide_turn_emits_one_payload_per_target() -> None:
     assert target_ids == {"t0", "t1", "t2"}
 
 
-# ---------------------------------------------------------------------------
-# 9. Payload shape stays TurnManager-compatible.
-# ---------------------------------------------------------------------------
-
-
 @pytest.mark.unit
 def test_payload_shape_is_turn_manager_compatible() -> None:
-    bot = _actor("bot", team="red", is_ai=True, hand={"sword_blade_bind": {"hit": 3, "parry": 2}})
+    bot = _actor(
+        "bot", team="red", is_ai=True, hand={"sword_blade_bind": {"hit": 3, "parry": 2}}
+    )
     target = _actor("t1", team="blue", mods={"parry": 0.5})
     battle = _battle([bot, target])
 
@@ -314,11 +474,6 @@ def test_payload_shape_is_turn_manager_compatible() -> None:
         assert payload["action"] == "attack"
         assert "target_id" in payload
         assert set(payload.keys()) <= {"action", "target_id", "feint_id"}
-
-
-# ---------------------------------------------------------------------------
-# 10. decide_exchange backward compatibility.
-# ---------------------------------------------------------------------------
 
 
 @pytest.mark.unit
@@ -332,7 +487,7 @@ def test_decide_exchange_returns_legacy_payload_shape() -> None:
 
 
 # ---------------------------------------------------------------------------
-# 11. PolicyStore: default, explicit path, malformed → fallback.
+# PolicyStore
 # ---------------------------------------------------------------------------
 
 
@@ -362,7 +517,6 @@ def test_policy_store_falls_back_to_default_on_malformed_external(tmp_path: Path
     bad.write_text("{not valid json", encoding="utf-8")
 
     fallback = PolicyStore().load(bad)
-    # The default policy uses a specific id; either way we should get a valid policy.
     assert isinstance(fallback.weights, dict)
     assert fallback.get("randomness") >= 0.0
 

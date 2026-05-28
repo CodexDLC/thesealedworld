@@ -109,6 +109,11 @@ class PolicyScorer:
                 score += policy.get("self_low_hp_resource_save")
             if self_obs.low_stamina:
                 score += policy.get("self_low_stamina_save")
+            # Hard contract: do not burn a feint on a target that is already
+            # in the finishing window. Basic attack will kill anyway, so the
+            # marginal feint benefit can't compensate the lost resource.
+            if target_obs.finishable:
+                score += policy.get("finishable_resource_save")
 
         # === Controlled exploration noise ===
         randomness = policy.get("randomness")

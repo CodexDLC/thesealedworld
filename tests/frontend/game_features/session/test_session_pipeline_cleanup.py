@@ -64,6 +64,11 @@ def test_session_template_keeps_alpine_root_above_sidebars_and_inner_oob_targets
     assert 'id="game-right-context-content"' in session
     assert session.index('id="game-right-context-content"') < session.index("rightPanelView === 'inventory'")
     assert 'id="game-left-content" hx-swap-oob="true"' in scenario_viewport
+    assert 'include "game/components/status/main.html"' in scenario_viewport
+    assert "game/domains/scenario/left_sidebar/main.html" not in session
+    assert "game/domains/exploration/left_sidebar/main.html" not in session
+    assert "game/domains/rift/left_sidebar/main.html" not in session
+    assert "game/domains/combat/left_sidebar/main.html" in session
     assert 'id="game-right-context-content" hx-swap-oob="innerHTML"' in scenario_viewport
     assert 'id="game-right-content" hx-swap-oob' not in scenario_viewport
     assert "domain == 'SCENARIO' and session_ui" not in session

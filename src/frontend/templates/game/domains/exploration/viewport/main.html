@@ -156,6 +156,8 @@
                 {% for enemy in previews %}
                     {% set enemy_name = enemy.name if enemy.name is defined and enemy.name else 'UNKNOWN TARGET' %}
                     {% set enemy_description = enemy.description if enemy.description is defined and enemy.description else active_encounter.description %}
+                    {% set enemy_intel = enemy.intel if enemy.intel is defined and enemy.intel else {} %}
+                    {% set enemy_vitals = enemy_intel.vitals if enemy_intel.vitals is defined else {} %}
                     <div class="mobile-encounter-target-view" x-show="selected === {{ loop.index0 }}" {% if not loop.first %}x-cloak{% endif %}>
                         <div class="mobile-encounter-target-main">
                             <div class="mobile-encounter-target-art"
@@ -178,11 +180,19 @@
                         <div class="mobile-encounter-target-stats">
                             <div>
                                 <span>HEALTH</span>
-                                <strong>{{ enemy.hp_percent ~ '%' if enemy.hp_percent is defined and enemy.hp_percent is not none else '???' }}</strong>
+                                <strong>{{ enemy_vitals.hp.label if enemy_vitals.hp is defined and enemy_vitals.hp.label is defined else enemy.hp_percent ~ '%' if enemy.hp_percent is defined and enemy.hp_percent is not none else '???' }}</strong>
                             </div>
                             <div>
-                                <span>THREAT</span>
-                                <strong>{{ enemy.threat_rating if enemy.threat_rating is defined and enemy.threat_rating is not none else '???' }}</strong>
+                                <span>ENERGY</span>
+                                <strong>{{ enemy_vitals.energy.label if enemy_vitals.energy is defined and enemy_vitals.energy.label is defined else '???' }}</strong>
+                            </div>
+                            <div>
+                                <span>CONC</span>
+                                <strong>{{ enemy_vitals.concentration.label if enemy_vitals.concentration is defined and enemy_vitals.concentration.label is defined else '???' }}</strong>
+                            </div>
+                            <div>
+                                <span>DANGER</span>
+                                <strong>{{ enemy_intel.danger_band if enemy_intel.danger_band is defined else '???' }}</strong>
                             </div>
                         </div>
                     </div>
@@ -273,7 +283,7 @@
 
 {% if oob_panels %}
     <div id="game-left-content" hx-swap-oob="true">
-        {% include "game/domains/exploration/left_sidebar/main.html" %}
+        {% include "game/components/status/main.html" %}
     </div>
     <div id="game-right-context-content" hx-swap-oob="innerHTML">
         {% include "game/domains/exploration/right_sidebar/main.html" %}

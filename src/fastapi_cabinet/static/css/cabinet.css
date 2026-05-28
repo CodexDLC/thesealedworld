@@ -810,6 +810,24 @@ body.fc-shell {
     white-space: pre-wrap;
 }
 
+.fc-modal {
+    border: 1px solid #d7dde6;
+    border-radius: 8px;
+    box-shadow: 0 24px 80px rgb(15 23 42 / 20%);
+    max-width: min(760px, calc(100vw - 32px));
+    padding: 20px;
+    width: 720px;
+}
+
+.fc-modal::backdrop {
+    background: rgb(15 23 42 / 35%);
+}
+
+.fc-form-grid {
+    display: grid;
+    gap: 14px;
+}
+
 @media (max-width: 760px) {
     .fc-page-head,
     .fc-page-actions,

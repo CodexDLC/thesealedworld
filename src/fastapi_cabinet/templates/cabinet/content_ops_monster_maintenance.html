@@ -1,0 +1,118 @@
+{% extends "cabinet/base.html" %}
+
+{% block content %}
+    <div class="fc-page-head">
+        <div>
+            <h1 class="fc-page-title">Обслуживание монстров</h1>
+            <p class="fc-page-subtitle">Пересборка игровых данных сгенерированных монстров без перегенерации изображений.</p>
+        </div>
+        <a class="fc-action-btn" href="{{ base_url }}/monster-browser">К монстрам</a>
+    </div>
+
+    {% if error %}
+        <p class="fc-empty">{{ error }}</p>
+    {% endif %}
+
+    <section class="fc-widget fc-widget--wide">
+        <h2>Пересборка данных</h2>
+        <form method="post" class="fc-filter-form">
+            <label class="fc-filter-field">
+                <span>Тип семьи</span>
+                <select name="family_id" class="fc-form-input">
+                    <option value="">Все</option>
+                    {% for family in families %}
+                        <option value="{{ family }}" {% if selected.family_id == family %}selected{% endif %}>{{ family }}</option>
+                    {% endfor %}
+                </select>
+            </label>
+            <label class="fc-filter-field">
+                <span>Клан</span>
+                <select name="clan_id" class="fc-form-input">
+                    <option value="">Все</option>
+                    {% for clan in clans %}
+                        <option value="{{ clan.clan_id }}" {% if selected.clan_id == clan.clan_id %}selected{% endif %}>
+                            {{ clan.name_ru or clan.clan_id }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </label>
+            <label class="fc-filter-field">
+                <span>Лимит</span>
+                <input name="limit" type="number" min="1" max="500" value="{{ selected.limit }}" class="fc-form-input">
+            </label>
+            <label class="fc-filter-check">
+                <input type="checkbox" name="force" value="1" {% if selected.force %}checked{% endif %}>
+                Принудительно
+            </label>
+            <label class="fc-filter-check">
+                <input
+                    type="checkbox"
+                    name="remove_obsolete_members"
+                    value="1"
+                    {% if selected.remove_obsolete_members %}checked{% endif %}
+                >
+                Удалять старые варианты
+            </label>
+            <button type="submit" formaction="{{ base_url }}/monster-rebuild-plan" class="fc-action-btn">
+                Проверить расхождения
+            </button>
+            <button type="submit" formaction="{{ base_url }}/monster-rebuild-apply" class="fc-action-btn fc-action-btn--approve">
+                Пересобрать
+            </button>
+        </form>
+    </section>
+
+    {% if result %}
+        <section class="fc-stat-strip">
+            <div><strong>{{ result.scanned }}</strong><span>проверено</span></div>
+            <div><strong>{{ result.stale }}</strong><span>расхождения</span></div>
+            <div><strong>{{ result.rebuilt }}</strong><span>пересобрано</span></div>
+            <div><strong>{{ result.skipped }}</strong><span>пропущено</span></div>
+        </section>
+
+        {% if result.errors %}
+            <section class="fc-widget fc-widget--wide">
+                <h2>Ошибки</h2>
+                <ul>
+                    {% for item in result.errors %}
+                        <li>{{ item }}</li>
+                    {% endfor %}
+                </ul>
+            </section>
+        {% endif %}
+
+        <section class="fc-widget fc-widget--table">
+            <h2>{% if result.dry_run %}План пересборки{% else %}Результат пересборки{% endif %}</h2>
+            <table class="fc-table">
+                <thead>
+                    <tr>
+                        <th>Клан</th>
+                        <th>Тип</th>
+                        <th>Статус</th>
+                        <th>Ожидается</th>
+                        <th>Изменено</th>
+                        <th>Создано</th>
+                        <th>Удалено</th>
+                        <th>Причина</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in result["items"] %}
+                        <tr>
+                            <td>
+                                <a href="{{ base_url }}/monster-detail?id={{ item.clan_id }}">{{ item.clan_id }}</a>
+                            </td>
+                            <td>{{ item.family_id }}</td>
+                            <td>{{ item.status }}</td>
+                            <td>{{ item.members_expected }}</td>
+                            <td>{{ item.members_changed }}</td>
+                            <td>{{ item.members_created }}</td>
+                            <td>{{ item.members_removed }}</td>
+                            <td>{{ item.reason or "—" }}</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </section>
+    {% endif %}
+{% endblock %}

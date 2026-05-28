@@ -70,6 +70,25 @@ def test_arena_nav_uses_quests_inventory_and_rank_view():
     assert nav["r2"]["panel_view"] == "context"
 
 
+def test_rift_nav_uses_status_inventory_and_info_view():
+    nav = build_game_nav(state=CoreDomain.RIFT, char_id=7)
+
+    assert nav["center"]["label"] == "RIFT"
+    assert nav["center"]["is_active"] is True
+    assert nav["center"]["icon"] == "map"
+    assert nav["l2"]["label"] == "STATUS"
+    assert nav["l2"]["panel"] == "left"
+    assert nav["l2"]["panel_view"] == "status"
+    assert nav["l1"]["label"] == "PARTY"
+    assert nav["l1"]["is_disabled"] is True
+    assert nav["r1"]["label"] == "INVENTORY"
+    assert nav["r1"]["panel"] == "right"
+    assert nav["r1"]["panel_view"] == "inventory"
+    assert nav["r2"]["label"] == "INFO"
+    assert nav["r2"]["panel"] == "right"
+    assert nav["r2"]["panel_view"] == "context"
+
+
 def test_combat_nav_keeps_standard_shell_slots_for_rosters():
     nav = build_game_nav(state=CoreDomain.COMBAT, char_id=7)
 

@@ -13,4 +13,5 @@ Source pack: Game-icons.net reserve files under `tools/icon-reserve/game-icons-n
 | `shield.svg` | `sbed/shield.svg` |
 | `stun.svg` | `delapouite/stun-grenade.svg` |
 | `target.svg` | `delapouite/target-prize.svg` |
+| `token-blood.svg` | `skoll/blood.svg` |
 | `token.svg` | `delapouite/token.svg` |

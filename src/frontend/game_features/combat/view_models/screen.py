@@ -22,6 +22,7 @@ DEFAULT_PLAYER_AVATAR_URL = "/static/images/avatars/silhouette_m.webp"
 DEFAULT_SHADOW_AVATAR_URL = "/static/images/avatars/veil4.webp"
 DEFAULT_MONSTER_AVATAR_URL = "/static/images/avatars/silhouette_f.webp"
 COMBAT_ICON_ROOT = "/static/images/ui/combat-icons"
+COMBAT_LOG_PAGE_SIZE = 8
 
 
 class CombatEffectBadgeVM(BaseModel):
@@ -63,6 +64,7 @@ class CombatStatValueVM(BaseModel):
     key: str
     label: str
     value_text: str
+    tooltip: str | None = None
 
 
 class CombatStatSectionVM(BaseModel):
@@ -479,7 +481,7 @@ def build_combat_screen_vm(dashboard: CombatDashboardDTO) -> CombatScreenVM:
     enemy_actors = dashboard.enemies or ([dashboard.target] if dashboard.target else [])
     enemy_rows = [_roster_row(actor) for actor in dashboard.enemies]
     log_turns = _log_turns(dashboard)
-    log_page_size = 8
+    log_page_size = COMBAT_LOG_PAGE_SIZE
     log_total = dashboard.log_total or len(log_turns)
     log_total_pages = max(1, (log_total + log_page_size - 1) // log_page_size)
     return CombatScreenVM(
@@ -849,25 +851,44 @@ def _log_turns(dashboard: CombatDashboardDTO) -> list[CombatLogTurnVM]:
     turns = dashboard.events_delta.turns
     if not turns:
         grouped: dict[int | None, list[CombatEventDTO]] = {}
-        for event in dashboard.events_delta.events[-8:]:
+        for event in dashboard.events_delta.events:
             grouped.setdefault(_event_data_int(event, "global_turn"), []).append(event)
-        return [
-            CombatLogTurnVM(
-                global_turn=turn,
-                title=f"Ход {turn}" if turn is not None else "Ход NO_DATA",
-                lines=[_log_line(event) for event in events],
-            )
-            for turn, events in grouped.items()
-        ]
-
-    return [
-        CombatLogTurnVM(
-            global_turn=turn.global_turn,
-            title=turn.title,
-            lines=[_log_line(event) for event in turn.entries],
+        return _latest_log_turns(
+            [
+                CombatLogTurnVM(
+                    global_turn=turn,
+                    title=f"Ход {turn}" if turn is not None else "Ход NO_DATA",
+                    lines=[_log_line(event) for event in events],
+                )
+                for turn, events in grouped.items()
+            ],
+            limit=COMBAT_LOG_PAGE_SIZE,
         )
-        for turn in turns[-8:]
-    ]
+
+    return _latest_log_turns(
+        [
+            CombatLogTurnVM(
+                global_turn=turn.global_turn,
+                title=turn.title,
+                lines=[_log_line(event) for event in turn.entries],
+            )
+            for turn in turns
+        ],
+        limit=COMBAT_LOG_PAGE_SIZE,
+    )
+
+
+def _latest_log_turns(log_turns: list[CombatLogTurnVM], *, limit: int) -> list[CombatLogTurnVM]:
+    indexed = list(enumerate(log_turns))
+    indexed.sort(
+        key=lambda item: (
+            item[1].global_turn is not None,
+            item[1].global_turn if item[1].global_turn is not None else -1,
+            -item[0],
+        ),
+        reverse=True,
+    )
+    return [turn for _, turn in indexed[:limit]]
 
 
 def _exchange_state(exchange: CombatExchangeStateDTO | None) -> CombatExchangeStateVM:
@@ -1039,6 +1060,7 @@ def _stat_sheet(actor: CombatActorCardDTO) -> CombatActorStatSheetVM | None:
                         key=item.key,
                         label=item.label,
                         value_text=item.value_text,
+                        tooltip=item.tooltip,
                     )
                     for item in section.items
                 ],
@@ -1348,6 +1370,7 @@ COMBAT_TOKEN_CATALOG: tuple[tuple[str, str, str], ...] = (
     ("parry", "PARRY", "token-parry"),
     ("block", "BLOCK", "token-block"),
     ("counter", "COUNTER", "token-counter"),
+    ("blood", "BLOOD", "token-blood"),
     ("gift", "GIFT", "token-gift"),
 )
 
@@ -1408,11 +1431,19 @@ def _effect_kind(effect_id: str) -> str:
         return "poison"
     if "burn" in key or "fire" in key:
         return "burn"
-    if "stun" in key or "control" in key or "root" in key:
+    if any(token in key for token in ("stun", "control", "root", "sleep", "knockdown")):
         return "stun"
+    if key.startswith("prep_") or "preparation" in key:
+        return "preparation"
+    if key.startswith("debuff_") or "debuff" in key:
+        return "debuff"
+    if key.startswith("buff_") or "buff" in key:
+        return "buff"
+    if "heal" in key or "regen" in key:
+        return "heal"
     if "shield" in key or "guard" in key:
         return "shield"
-    return "shield"
+    return "effect"
 
 
 def _effect_title(effect_id: str, frame_kind: str) -> str:
@@ -1422,6 +1453,11 @@ def _effect_title(effect_id: str, frame_kind: str) -> str:
         "burn": "Ожог",
         "stun": "Оглушение",
         "shield": "Защита",
+        "preparation": "Подготовка",
+        "buff": "Усиление",
+        "debuff": "Ослабление",
+        "heal": "Восстановление",
+        "effect": "Эффект",
     }
     return titles.get(frame_kind, effect_id)
 
@@ -1433,4 +1469,9 @@ def _effect_icon(frame_kind: str) -> str:
         "burn": "burn",
         "stun": "stun",
         "shield": "shield",
-    }.get(frame_kind, "shield")
+        "preparation": "feint",
+        "buff": "token",
+        "debuff": "token",
+        "heal": "token",
+        "effect": "token",
+    }.get(frame_kind, "token")

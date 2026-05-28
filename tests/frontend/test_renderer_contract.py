@@ -35,14 +35,17 @@ def test_static_version_tracks_fonts_css(monkeypatch, tmp_path: Path) -> None:
     static_dir = tmp_path / "static"
     css_dir = static_dir / "css"
     js_dir = static_dir / "js"
+    state_js_dir = js_dir / "game" / "states"
     css_dir.mkdir(parents=True)
     js_dir.mkdir(parents=True)
+    state_js_dir.mkdir(parents=True)
 
     older_assets = (
         css_dir / "site.css",
         js_dir / "site.js",
         css_dir / "game.css",
         js_dir / "game.js",
+        state_js_dir / "rift.js",
         css_dir / "account.css",
         css_dir / "admin.css",
     )

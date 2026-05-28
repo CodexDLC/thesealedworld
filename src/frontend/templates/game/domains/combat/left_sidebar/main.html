@@ -46,7 +46,7 @@
                               data-catalog-key="{{ effect.catalog_key }}"
                               data-tippy-content="{{ effect.tooltip }}"
                               data-tippy-theme="game-hint">
-                            <img src="{{ effect.icon_url }}" alt="{{ effect.effect_id }}">
+                            <span class="combat-effect-mark" aria-hidden="true"></span>
                             {% if effect.duration_text %}
                                 <b>{{ effect.duration_text }}</b>
                             {% endif %}
@@ -83,7 +83,8 @@
                     <summary><span>{{ section.label }}</span></summary>
                     <div class="combat-stat-list">
                         {% for item in section.items %}
-                        <div class="combat-stat-row">
+                        <div class="combat-stat-row"
+                             {% if item.tooltip %}data-tippy-content="{{ item.tooltip }}" data-tippy-theme="game-hint"{% endif %}>
                             <span>{{ item.label }}</span>
                             <strong>{{ item.value_text }}</strong>
                         </div>

@@ -236,11 +236,14 @@ window.gameShell = function(initial = {}) {
             const modalRoot = document.getElementById("game-modal-root");
             if (!modalRoot) return;
 
-            const copy = unavailableModalCopy[detail.kind] || {
+            const copy = Object.assign({}, unavailableModalCopy[detail.kind] || {
                 eyebrow: "SYSTEM",
                 title: "Система будет доступна позже",
                 body: "Этот функционал сейчас находится в разработке.",
-            };
+            });
+            if (detail.eyebrow) copy.eyebrow = detail.eyebrow;
+            if (detail.title) copy.title = detail.title;
+            if (detail.body) copy.body = detail.body;
             modalRoot.innerHTML = `
                 <div class="game-modal-backdrop" role="presentation" onclick="if (event.target === this) this.closest('#game-modal-root').innerHTML = ''">
                     <section class="game-unavailable-modal" role="dialog" aria-modal="true" aria-labelledby="game-unavailable-modal-title">

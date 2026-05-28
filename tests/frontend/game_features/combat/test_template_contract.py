@@ -44,6 +44,8 @@ def test_combat_shell_uses_desktop_docks_without_forcing_mobile_panels():
     assert "shell_left_open" not in template
     assert "shell_right_open" not in template
     assert "session_ui" not in template
+    assert "x-init=\"rightPanelView = 'context'\"" in template
+    assert '{% if domain in [\'combats\', \'death\', \'loot\'] %}x-show="true"' in template
     assert "@media (min-width: 1025px)" in combat_desktop_css
     assert ".game-top-row.combat-layout" in combat_desktop_css
     assert ".game-top-row.combat-layout .col-left" in combat_desktop_css
@@ -103,6 +105,10 @@ def test_combat_viewport_uses_prototype_field_and_bottom_action_panel():
     assert "field_target.commit_tooltip" in template
     assert 'aria-label="Enemy effects"' in template
     assert 'aria-label="Player effects"' in template
+    assert "combat-effect-stack combat-effect-stack--field" in template
+    assert "combat-effect combat-effect--{{ effect.frame_kind }}" in template
+    assert "data-tippy-content=\"{{ effect.tooltip }}\"" in template
+    assert "{{ effect.title }}{% if effect.duration_text %} {{ effect.duration_text }}{% endif %}" not in template
     assert "combat-effect-empty" in template
     assert "combat-exchange-card" in exchange_card
     assert "combat-exchange-wave" in exchange_card
@@ -317,7 +323,13 @@ def test_combat_template_renders_draggable_actor_stat_sheet():
                 key="defense",
                 label="DEFENSE",
                 items=[
-                    CombatStatValueDTO(key="parry", label="PARRY", value=12, value_text="12"),
+                    CombatStatValueDTO(
+                        key="parry",
+                        label="PARRY",
+                        value=12,
+                        value_text="12",
+                        tooltip="Оружие: 7 // Статы: 5 из 14",
+                    ),
                     CombatStatValueDTO(key="block", label="BLOCK", value=7.5, value_text="7.5"),
                 ],
             )
@@ -347,6 +359,7 @@ def test_combat_template_renders_draggable_actor_stat_sheet():
     assert "DEFENSE" in html
     assert "PARRY" in html
     assert "7.5" in html
+    assert 'data-tippy-content="Оружие: 7 // Статы: 5 из 14"' in html
 
 
 def test_combat_active_template_renders_prototype_layout():
@@ -768,6 +781,46 @@ def test_combat_screen_vm_exposes_log_pagination_contract():
     assert screen.log_pages == [1, 2, 3]
 
 
+def test_combat_screen_vm_embedded_log_keeps_latest_eight_turns_when_backend_returns_newest_first():
+    screen = build_combat_screen_vm(
+        CombatDashboardDTO(
+            session_id="combat-1",
+            turn_number=12,
+            status="active",
+            hero=CombatActorCardDTO(actor_id="1", name="Hero", team="team_1"),
+            events_delta=CombatDeltaDTO(
+                turns=[
+                    CombatLogTurnDTO(
+                        global_turn=turn,
+                        title=f"Ход {turn}",
+                        entries=[
+                            CombatEventDTO(
+                                type="RESULT",
+                                text=f"Turn {turn} exchange",
+                                global_turn=turn,
+                            )
+                        ],
+                    )
+                    for turn in range(12, 0, -1)
+                ]
+            ),
+            log_total=12,
+        )
+    )
+
+    assert [turn.global_turn for turn in screen.log_turns] == [12, 11, 10, 9, 8, 7, 6, 5]
+    assert [turn.lines[0].text for turn in screen.log_turns] == [
+        "Turn 12 exchange",
+        "Turn 11 exchange",
+        "Turn 10 exchange",
+        "Turn 9 exchange",
+        "Turn 8 exchange",
+        "Turn 7 exchange",
+        "Turn 6 exchange",
+        "Turn 5 exchange",
+    ]
+
+
 def test_combat_result_template_renders_without_result_screen_vm():
     env = Environment(loader=FileSystemLoader("src/frontend/templates"), autoescape=True)
     template = env.get_template("game/domains/combat/viewport/main.html")
@@ -937,7 +990,7 @@ def test_combat_vm_exposes_full_token_strip_from_backend_key_values():
             actor_id="1",
             name="Hero",
             team="team_1",
-            tokens={"hit": 2, "gift": 1},
+            tokens={"hit": 2, "blood": 1, "gift": 1},
             vitals=CombatActorVitalsDTO(hp_current=70, hp_max=100),
         ),
     )
@@ -952,10 +1005,12 @@ def test_combat_vm_exposes_full_token_strip_from_backend_key_values():
         "parry",
         "block",
         "counter",
+        "blood",
         "gift",
     ]
-    assert [token.value for token in screen.token_bar] == [0, 2, 0, 0, 0, 0, 0, 1]
+    assert [token.value for token in screen.token_bar] == [0, 2, 0, 0, 0, 0, 0, 1, 1]
     assert screen.token_bar[1].icon_url.endswith("/token-hit.svg")
+    assert screen.token_bar[-2].icon_url.endswith("/token-blood.svg")
     assert screen.token_bar[-1].icon_url.endswith("/token-gift.svg")
     assert screen.token_bar[0].catalog == "combat_tokens"
     assert screen.token_bar[0].catalog_key == "tempo"
@@ -1019,6 +1074,20 @@ def test_combat_vm_reactive_effect_badge_uses_event_duration_label():
         "Готовый рипост // до следующего парирования // "
         "Следующее успешное парирование получает повышенный шанс контратаки."
     )
+
+
+def test_combat_effect_badges_render_colored_marks_instead_of_shared_shield_icons():
+    template = Path("src/frontend/templates/game/domains/combat/left_sidebar/main.html").read_text(encoding="utf-8")
+    viewport = Path("src/frontend/templates/game/domains/combat/viewport/main.html").read_text(encoding="utf-8")
+    css = Path("src/frontend/static/css/game/domains/combat/sidebars.css").read_text(encoding="utf-8")
+
+    assert "combat-effect-mark" in template
+    assert "combat-effect-mark" in viewport
+    assert '<img src="{{ effect.icon_url }}"' not in template
+    assert '<img src="{{ effect.icon_url }}"' not in viewport
+    assert ".combat-effect--effect" in css
+    assert ".combat-effect-mark" in css
+    assert ".combat-effect-stack--field" in css
 
 
 def test_combat_vm_marks_pinned_feints_and_costs():

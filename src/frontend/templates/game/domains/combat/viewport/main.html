@@ -251,9 +251,18 @@
                                         <strong>{{ field_target.vitals.stamina_current }}/{{ field_target.vitals.stamina_max }}</strong>
                                     </div>
                                 </div>
-                                <div class="combat-effect-row" aria-label="Enemy effects">
+                                <div class="combat-effect-stack combat-effect-stack--field" aria-label="Enemy effects">
                                     {% for effect in field_target.effects[:3] %}
-                                        <span>{{ effect.title }}{% if effect.duration_text %} {{ effect.duration_text }}{% endif %}</span>
+                                        <span class="combat-effect combat-effect--{{ effect.frame_kind }}"
+                                              data-catalog="{{ effect.catalog }}"
+                                              data-catalog-key="{{ effect.catalog_key }}"
+                                              data-tippy-content="{{ effect.tooltip }}"
+                                              data-tippy-theme="game-hint">
+                                            <span class="combat-effect-mark" aria-hidden="true"></span>
+                                            {% if effect.duration_text %}
+                                                <b>{{ effect.duration_text }}</b>
+                                            {% endif %}
+                                        </span>
                                     {% else %}
                                         <span class="combat-effect-empty">NO EFFECTS</span>
                                     {% endfor %}
@@ -291,9 +300,18 @@
                                     <strong>{{ field_hero.vitals.stamina_current }}/{{ field_hero.vitals.stamina_max }}</strong>
                                 </div>
                             </div>
-                            <div class="combat-effect-row" aria-label="Player effects">
+                            <div class="combat-effect-stack combat-effect-stack--field" aria-label="Player effects">
                                 {% for effect in field_hero.effects[:3] %}
-                                    <span>{{ effect.title }}{% if effect.duration_text %} {{ effect.duration_text }}{% endif %}</span>
+                                    <span class="combat-effect combat-effect--{{ effect.frame_kind }}"
+                                          data-catalog="{{ effect.catalog }}"
+                                          data-catalog-key="{{ effect.catalog_key }}"
+                                          data-tippy-content="{{ effect.tooltip }}"
+                                          data-tippy-theme="game-hint">
+                                        <span class="combat-effect-mark" aria-hidden="true"></span>
+                                        {% if effect.duration_text %}
+                                            <b>{{ effect.duration_text }}</b>
+                                        {% endif %}
+                                    </span>
                                 {% else %}
                                     <span class="combat-effect-empty">NO EFFECTS</span>
                                 {% endfor %}

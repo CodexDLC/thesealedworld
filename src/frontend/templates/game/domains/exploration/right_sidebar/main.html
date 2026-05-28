@@ -71,17 +71,19 @@
                 <div class="info-widget-list exploration-monster-list">
                     {% if previews %}
                         {% for enemy in previews %}
+                            {% set enemy_intel = enemy.intel if enemy.intel is defined and enemy.intel else {} %}
+                            {% set enemy_vitals = enemy_intel.vitals if enemy_intel.vitals is defined else {} %}
                             <details class="exploration-monster-card" {{ 'open' if loop.first else '' }}>
                                 <summary><span>{{ enemy.name if enemy.name is defined and enemy.name else 'UNKNOWN TARGET' }}</span><strong>{{ enemy.member_tier if enemy.member_tier is defined and enemy.member_tier is not none else enemy.level if enemy.level is defined and enemy.level is not none else '???' }}</strong></summary>
-                                <div><span>Threat</span><strong>{{ enemy.threat_rating if enemy.threat_rating is defined else enemy.level if enemy.level is defined else '???' }}</strong></div>
-                                <div><span>HP</span><strong>{{ enemy.hp_percent ~ '%' if enemy.hp_percent is defined and enemy.hp_percent is not none else '???' }}</strong></div>
+                                <div><span>Danger</span><strong>{{ enemy_intel.danger_band if enemy_intel.danger_band is defined else '???' }}</strong></div>
+                                <div><span>HP</span><strong>{{ enemy_vitals.hp.label if enemy_vitals.hp is defined and enemy_vitals.hp.label is defined else enemy.hp_percent ~ '%' if enemy.hp_percent is defined and enemy.hp_percent is not none else '???' }}</strong></div>
                                 <div><span>Intent</span><strong>{{ enemy.role if enemy.role is defined else enemy.variant_key if enemy.variant_key is defined else 'UNKNOWN' }}</strong></div>
                             </details>
                         {% endfor %}
                     {% else %}
                         <details class="exploration-monster-card" open>
                             <summary><span>{{ active_encounter.title }}</span><strong>???</strong></summary>
-                            <div><span>Threat</span><strong>NO_DATA</strong></div>
+                            <div><span>Danger</span><strong>NO_DATA</strong></div>
                             <div><span>HP</span><strong>???</strong></div>
                             <div><span>Intent</span><strong>UNKNOWN</strong></div>
                         </details>

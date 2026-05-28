@@ -1,0 +1,403 @@
+{% from "game/domains/game_menu/header_nav.html" import nav_action, nav_state_class with context %}
+
+{% macro rift_nav_item(item, fallback_label, extra_class='') %}
+    {% if item %}
+        <button type="button"
+                class="dock-nav-button mobile-center-menu-item {{ extra_class }} {{ 'is-disabled' if item.is_disabled else '' }} {{ 'is-active' if item.is_active else '' }}"
+                {{ nav_action(item) }}
+                :class="{{ nav_state_class(item) }}">
+            {% set icon_key = item.icon if item.icon else 'unknown' %}
+            <span class="mobile-nav-icon mobile-nav-icon--{{ icon_key }}"
+                  style="--nav-icon-url: url('/static/images/ui/game-menu-icons/{{ icon_key }}.svg')"
+                  aria-hidden="true"></span>
+            <span>{{ item.label }}</span>
+        </button>
+    {% else %}
+        <button type="button"
+                class="dock-nav-button mobile-center-menu-item is-disabled {{ extra_class }}"
+                disabled>
+            <span class="mobile-nav-icon mobile-nav-icon--empty" aria-hidden="true"></span>
+            <span>{{ fallback_label }}</span>
+        </button>
+    {% endif %}
+{% endmacro %}
+
+{% set node = rift.current_node if rift else none %}
+{% set hud = rift.hud if rift else none %}
+{% set objective = hud.objective if hud and hud.objective else none %}
+{% set heart = rift.heart if rift and rift.heart is defined else none %}
+{% set exit_state = rift.exit if rift and rift.exit is defined else none %}
+{% set heart_methods = heart["methods"] if heart and heart["methods"] is defined else [] %}
+{% set visible_heart_method_count = namespace(value=0) %}
+{% for method in heart_methods %}
+    {% set method_enabled = method["enabled"] if method["enabled"] is defined else method.enabled %}
+    {% if method_enabled %}
+        {% set visible_heart_method_count.value = visible_heart_method_count.value + 1 %}
+    {% endif %}
+{% endfor %}
+{% set current_node_is_heart = node and node.tags and 'rift_heart' in node.tags and 'objective' in node.tags %}
+{% set heart_is_current = heart and heart.is_current_node and heart.status == 'intact' and current_node_is_heart %}
+{% set heart_result_visible = heart and heart.is_current_node and heart.status != 'intact' %}
+{% set heart_reward = heart.reward if heart and heart.reward is defined and heart.reward else none %}
+{% set node_entry_event = rift.node_entry_event if rift and rift.node_entry_event else none %}
+{% set map_view = rift.map_view if rift and rift.map_view else none %}
+{% set current_coord = map_view.current_coord if map_view and map_view.current_coord else (node.coord if node and node.coord else none) %}
+{% set current_x = current_coord.x if current_coord else 0 %}
+{% set current_y = current_coord.y if current_coord else 0 %}
+{% set rift_form_ids = {"rift_instance_id": rift.meta.rift_instance_id, "char_id": char_id} if rift and rift.meta else {"char_id": char_id} %}
+{% set heading_rotation = {
+    "north": "0deg",
+    "east": "90deg",
+    "south": "180deg",
+    "west": "270deg"
+} %}
+{% set marker_rotation = heading_rotation.get(map_view.heading if map_view and map_view.heading else "north", "0deg") %}
+{% set visible_nodes_by_id = {} %}
+{% if map_view and map_view.visible_nodes %}
+    {% for visible_node in map_view.visible_nodes %}
+        {% set _ = visible_nodes_by_id.update({visible_node.node_id: visible_node}) %}
+    {% endfor %}
+{% endif %}
+
+<section id="center-screens"
+         class="rift-center-screens {{ 'has-heart-event' if heart_is_current or heart_result_visible else '' }}"
+         data-rift-instance-id="{{ rift.meta.rift_instance_id }}"
+         data-rift-char-id="{{ char_id }}"
+         data-rift-map-scope-id="{{ rift.meta.zone_instance_id if rift.meta.zone_instance_id else (rift.meta.zone_canvas_key if rift.meta.zone_canvas_key else rift.meta.rift_instance_id) }}"
+         data-rift-travel-start-url="/game/rift/travel/start"
+         data-rift-travel-tick-url="/game/rift/travel/tick"
+         data-rift-action-url="/game/rift/action"
+         data-rift-combat-enter-url="/game/rift/combat/enter"
+         data-rift-map-view='{{ rift.map_view|tojson|forceescape }}'>
+    <section class="panel-dock panel-dock--framed rift-main-dock" aria-label="Rift traversal screen">
+        <nav class="dock-nav dock-nav--bar dock-nav--five mobile-center-menu" aria-label="Rift sections">
+            {{ rift_nav_item(nav.l2 if nav else none, 'STATUS') }}
+            {{ rift_nav_item(nav.l1 if nav else none, 'PARTY') }}
+            {{ rift_nav_item(nav.center if nav else none, 'RIFT', 'is-active') }}
+            {{ rift_nav_item(nav.r1 if nav else none, 'INVENTORY') }}
+            {{ rift_nav_item(nav.r2 if nav else none, 'INFO') }}
+        </nav>
+
+        <section class="rift-screen game-screen-area game-screen-area--vertical is-active" data-screen="rift">
+            <div class="game-screen-content rift-screen-content">
+                <section class="rift-map-stage" aria-label="Rift map">
+                    <div class="rift-travel-overlay"
+                         data-rift-travel-overlay
+                         hidden
+                         aria-live="polite">
+                        <div class="rift-travel-overlay__head">
+                            <strong data-rift-travel-label></strong>
+                            <span data-rift-travel-time>0.0s</span>
+                        </div>
+                        <div class="rift-travel-track" aria-hidden="true">
+                            <span data-rift-travel-fill></span>
+                            <div class="rift-travel-ticks" data-rift-travel-ticks></div>
+                        </div>
+                    </div>
+                    <div class="rift-map-canvas"
+                         data-rift-map-canvas
+                         data-rift-heading="{{ map_view.heading if map_view and map_view.heading else 'unknown' }}">
+                        <div class="rift-map-world">
+                            {% if map_view and map_view.visible_edges %}
+                                {% for edge in map_view.visible_edges %}
+                                    {% if edge.state in ['open', 'blocked_temporary'] and edge.to_node_id %}
+                                        {% set edge_direction = edge.relative_direction if edge.relative_direction else edge.absolute_direction %}
+                                        {% set edge_visual_direction = 'north' if edge_direction == 'forward' else ('east' if edge_direction == 'right' else ('south' if edge_direction == 'back' else ('west' if edge_direction == 'left' else edge_direction))) %}
+                                        <span class="rift-map-edge rift-map-edge--{{ edge_visual_direction }} is-state-{{ edge.state }}"
+                                              data-rift-direction="{{ edge.absolute_direction }}"
+                                              data-rift-relative-direction="{{ edge.relative_direction or '' }}"
+                                              data-rift-target="{{ edge.to_node_id or '' }}"
+                                              aria-hidden="true"></span>
+                                    {% endif %}
+                                {% endfor %}
+                            {% endif %}
+
+                            {% if map_view and map_view.visible_nodes %}
+                                {% for visible_node in map_view.visible_nodes %}
+                                    {% set node_position = namespace(dx=visible_node.coord.x - current_x, dy=visible_node.coord.y - current_y) %}
+                                    {% if visible_node.node_id == map_view.center_node_id %}
+                                        {% set node_position.dx = 0 %}
+                                        {% set node_position.dy = 0 %}
+                                    {% else %}
+                                        {% for edge in map_view.visible_edges %}
+                                            {% if edge.to_node_id == visible_node.node_id and edge.relative_direction %}
+                                                {% if edge.relative_direction == 'forward' %}
+                                                    {% set node_position.dx = 0 %}
+                                                    {% set node_position.dy = -1 %}
+                                                {% elif edge.relative_direction == 'right' %}
+                                                    {% set node_position.dx = 1 %}
+                                                    {% set node_position.dy = 0 %}
+                                                {% elif edge.relative_direction == 'back' %}
+                                                    {% set node_position.dx = 0 %}
+                                                    {% set node_position.dy = 1 %}
+                                                {% elif edge.relative_direction == 'left' %}
+                                                    {% set node_position.dx = -1 %}
+                                                    {% set node_position.dy = 0 %}
+                                                {% endif %}
+                                            {% endif %}
+                                        {% endfor %}
+                                    {% endif %}
+                                    {% set node_state_label = 'текущая' if visible_node.state == 'current' else ('открыта' if visible_node.state == 'open' else ('временный блок' if visible_node.state == 'blocked_temporary' else ('пустота' if visible_node.state == 'void' else ('неизвестно' if visible_node.state == 'unknown' else visible_node.state)))) %}
+                                    <article class="rift-map-node is-state-{{ visible_node.state }} {{ 'is-current' if visible_node.node_id == map_view.center_node_id else '' }} {{ 'is-visited' if visible_node.visited else '' }}"
+                                             style="--rift-node-dx: {{ node_position.dx }}; --rift-node-dy: {{ node_position.dy }};{% if visible_node.node_id == map_view.center_node_id %} --rift-current-marker-rotation: {{ marker_rotation }};{% endif %}"
+                                             data-rift-node-id="{{ visible_node.node_id }}"
+                                             data-tippy-content="{{ visible_node.title }} // {{ node_state_label }}"
+                                             data-tippy-theme="game-hint"
+                                             aria-label="{{ visible_node.title }}"
+                                             tabindex="0">
+                                        <span aria-hidden="true"></span>
+                                        <strong>{{ visible_node.title }}</strong>
+                                    </article>
+                                {% endfor %}
+                            {% endif %}
+                        </div>
+                    </div>
+                </section>
+
+                <section class="rift-text-stage" aria-label="Current rift node">
+                    <header class="rift-hud-strip">
+                        <div>
+                            <span>{{ hud.subtitle if hud and hud.subtitle else 'NO_DATA' }}</span>
+                            <strong>{{ hud.title if hud else 'NO_DATA' }}</strong>
+                        </div>
+                        <div>
+                            <span>{{ objective.title if objective else 'OBJECTIVE_UNKNOWN' }}</span>
+                            <strong>{{ hud.danger_label if hud and hud.danger_label else 'NO_DATA' }}</strong>
+                        </div>
+                    </header>
+
+                    {% if heart_is_current %}
+                    <article class="rift-heart-event"
+                             data-rift-heart-event
+                             data-rift-heart-state="choice"
+                             aria-label="Rift heart event">
+                        <span class="rift-heart-kicker">Сердце разлома</span>
+                        <h2>{{ node.title if node else 'Сердце разлома' }}</h2>
+                        <p class="world-text">
+                            Черный кристалл висит в желтом свете и тянет к себе линии лабиринта.
+                            Выберите способ завершить сердце разлома.
+                        </p>
+                    </article>
+                    {% elif heart_result_visible %}
+                    <article class="rift-heart-event rift-heart-event--result"
+                             data-rift-heart-event
+                             data-rift-heart-state="result"
+                             aria-label="Rift heart result">
+                        <span class="rift-heart-kicker">Сердце разрушено</span>
+                        <h2>Лабиринт потерял устойчивость</h2>
+                        <p class="world-text">
+                            Сердце рваного тракта ломается, и весь разлом отвечает низким гулом.
+                            Проходы больше не держатся уверенно. Нужно двигаться к выходу из рифта.
+                        </p>
+                        {% if heart_reward %}
+                        <div class="rift-heart-reward" aria-label="Heart reward">
+                            <div>
+                                <span>Опыт дара</span>
+                                <strong>+{{ heart_reward.symbiote_xp if heart_reward.symbiote_xp is defined else 0 }}</strong>
+                            </div>
+                            <div>
+                                <span>Осколочная пыль</span>
+                                <strong>+{{ heart_reward.resource_value if heart_reward.resource_value is defined else 0 }}</strong>
+                            </div>
+                            <div>
+                                <span>Ресурс</span>
+                                <strong>{{ heart_reward.resource_template_id if heart_reward.resource_template_id is defined else 'currency_dust' }}</strong>
+                            </div>
+                        </div>
+                        {% endif %}
+                    </article>
+                    {% endif %}
+
+                    <article class="rift-node-copy">
+                        <h2>{{ node.title if node else 'NO_NODE_DATA' }}</h2>
+                        <p class="world-text">{{ node.description if node else 'NO_DESCRIPTION_DATA' }}</p>
+                        {% if rift.surroundings %}
+                            <p class="world-text rift-surroundings-copy" aria-label="Surrounding passages">
+                                {% for line in rift.surroundings %}
+                                    {{ line.text }}{% if not loop.last %} {% endif %}
+                                {% endfor %}
+                            </p>
+                        {% endif %}
+                    </article>
+                    <article class="rift-combat-prompt"
+                             data-rift-combat-prompt
+                             hidden
+                             aria-label="Rift transition combat prompt">
+                        <section class="mobile-encounter-layout" aria-label="Encounter contact report">
+                            <section class="mobile-encounter-interrupt" aria-label="Encounter interrupt">
+                                <header>
+                                    <span aria-hidden="true">△</span>
+                                    <div>
+                                        <strong>PRIORITY INTERRUPT</strong>
+                                        <small data-rift-combat-prompt-source>ENCOUNTER DETECTED</small>
+                                    </div>
+                                </header>
+                                <p>
+                                    <span class="symbiote-readout-name">SYSTEM:</span>
+                                    <span data-rift-combat-prompt-description></span>
+                                </p>
+                            </section>
+
+                            <section class="mobile-encounter-roster" aria-label="Enemy roster">
+                                <header>
+                                    <span>CONTACT LIST</span>
+                                    <strong data-rift-combat-prompt-count>0</strong>
+                                </header>
+                                <div>
+                                    <div data-rift-combat-enemies
+                                         aria-label="Rift enemy roster"></div>
+                                </div>
+                            </section>
+
+                            <section class="mobile-encounter-target-card" aria-label="Enemy group encounter">
+                                <header>
+                                    <span data-rift-combat-prompt-title></span>
+                                    <div class="mobile-encounter-target-switcher" aria-label="Target switcher">
+                                        <button type="button" aria-label="Previous enemy" data-rift-enemy-prev>‹</button>
+                                        <strong data-rift-combat-prompt-position>1 / 1</strong>
+                                        <button type="button" aria-label="Next enemy" data-rift-enemy-next>›</button>
+                                    </div>
+                                </header>
+                                <div data-rift-combat-detail
+                                     aria-label="Rift enemy detail"></div>
+                            </section>
+                        </section>
+                    </article>
+                </section>
+            </div>
+
+            {% set visible_movement_count = namespace(value=0) %}
+            {% for action in rift.movement %}
+                {% if action.state in ['open', 'blocked_temporary'] %}
+                    {% set visible_movement_count.value = visible_movement_count.value + 1 %}
+                {% endif %}
+            {% endfor %}
+            <section class="game-action-panel game-action-panel--bottom rift-action-panel" aria-label="Rift movement actions">
+                <header class="game-action-panel__head">
+                    <span>{{ 'Сердце' if heart_is_current else 'Событие сердца' if heart_result_visible else 'Переходы' }}</span>
+                    <strong>{{ visible_heart_method_count.value if heart_is_current else (exit_state.actions|length if heart_result_visible and exit_state and exit_state.actions else visible_movement_count.value) }}</strong>
+                </header>
+                {% if heart_is_current %}
+                <div class="game-action-panel__body rift-heart-action-grid">
+                    {% for method in heart_methods %}
+                        {% set method_key = method["method"] if method["method"] is defined else method.method %}
+                        {% set method_enabled = method["enabled"] if method["enabled"] is defined else method.enabled %}
+                        {% set method_label = method["label"] if method["label"] is defined else method.label %}
+                        {% if method_enabled %}
+                        <button class="game-action-button rift-heart-action is-method-{{ method_key }} {{ 'is-primary is-style-danger' if method_key == 'shatter' else 'is-disabled' }}"
+                                type="button"
+                                data-rift-heart-method="{{ method_key }}"
+                                data-rift-action="resolve_heart"
+                                hx-post="/game/rift/action"
+                                hx-target="#game-session-root"
+                                hx-swap="outerHTML"
+                                hx-vals='{{ dict(rift_form_ids, action_type="resolve_heart", action_id=method_key)|tojson }}'
+                                hx-disabled-elt="closest .rift-action-panel">
+                            <strong>{{ method_label }}</strong>
+                            <small>{{ method_key }}</small>
+                        </button>
+                        {% endif %}
+                    {% endfor %}
+                </div>
+                {% elif heart_result_visible %}
+                <div class="game-action-panel__body rift-heart-action-grid rift-heart-result-actions" data-rift-heart-result-actions>
+                    <button class="game-action-button rift-heart-action is-primary"
+                            type="button"
+                            data-rift-dismiss-heart-result="true">
+                        <strong>Продолжить путь</strong>
+                        <small>Навигация по рифту</small>
+                    </button>
+                    {% if exit_state and exit_state.actions %}
+                        {% for exit_action in exit_state.actions %}
+                            {% if exit_action.action == 'complete_rift' %}
+                            <button class="game-action-button rift-heart-action is-style-primary"
+                                    type="button"
+                                    {% if char_id %}
+                                    hx-post="/game/rift/complete"
+                                    hx-target="#game-session-root"
+                                    hx-swap="outerHTML"
+                                    hx-vals='{{ {"char_id": char_id}|tojson }}'
+                                    hx-disabled-elt="closest .rift-action-panel"
+                                    {% else %}
+                                    disabled aria-disabled="true"
+                                    data-tippy-content="Complete rift is available only for a player character session."
+                                    data-tippy-theme="game-hint"
+                                    {% endif %}>
+                                <strong>{{ exit_action.label }}</strong>
+                                <small>{{ exit_action.action }}</small>
+                            </button>
+                            {% endif %}
+                        {% endfor %}
+                    {% endif %}
+                </div>
+                {% endif %}
+                <div class="game-action-panel__body rift-action-grid {{ 'is-heart-event-navigation' if heart_is_current or heart_result_visible else '' }}">
+                    {% for action in rift.movement %}
+                        {% if action.state in ['open', 'blocked_temporary'] %}
+                            {% set action_direction = action.relative_direction or action.absolute_direction or 'unknown' %}
+                            {% set travel = action.travel if action.travel is defined and action.travel else none %}
+                            {% set target_node = visible_nodes_by_id.get(action.target_node_id) if action.target_node_id else none %}
+                            {% set target_visit_class = 'is-target-visited' if target_node and target_node.visited else ('is-target-new' if target_node and target_node.discovered and action.state == 'open' else '') %}
+                            {% set blocker_key = action.debug_text_parts.blocker_key if action.debug_text_parts and action.debug_text_parts.blocker_key is defined else none %}
+                            {% set blocker_requirements = action.debug_text_parts.requirements if action.debug_text_parts and action.debug_text_parts.requirements is defined else [] %}
+                            {% set blocker_tooltip = blocker_key ~ (' // ' ~ blocker_requirements|join(', ') if blocker_requirements else '') if blocker_key else none %}
+                            <button class="game-action-button rift-action-button rift-action-button--{{ action_direction }} is-style-{{ action.style }} is-state-{{ action.state }} {{ target_visit_class }} {{ 'is-primary' if action.style == 'primary' else '' }} {{ 'is-inspect-blocker' if action.action == 'inspect_blocker' else '' }} {{ 'is-disabled' if not action.is_active else '' }}"
+                                type="button"
+                                data-rift-action="{{ action.action }}"
+                                data-rift-target="{{ action.target_node_id or '' }}"
+                                data-rift-direction="{{ action_direction }}"
+                                {% if travel %}
+                                data-rift-travel-kind="{{ travel.kind or '' }}"
+                                data-rift-travel-duration="{{ travel.duration_ms or 0 }}"
+                                data-rift-travel-tick-interval="{{ travel.tick_interval_ms or 0 }}"
+                                data-rift-travel-check-count="{{ travel.event_check_count or 0 }}"
+                                data-rift-travel-event-scope="{{ travel.event_scope or '' }}"
+                                data-rift-travel-possible-events='{{ travel.possible_events|default([], true)|tojson|forceescape }}'
+                                data-rift-travel-can-trigger-event="{{ 'true' if travel.can_trigger_event else 'false' }}"
+                                data-rift-travel-event-chance="{{ travel.event_chance|default(0.0, true) }}"
+                                {% endif %}
+                                {% if blocker_key %}data-rift-blocker-key="{{ blocker_key }}"{% endif %}
+                                {% if blocker_requirements %}data-rift-blocker-requirements="{{ blocker_requirements|join(',') }}"{% endif %}
+                                {% if action.action == 'inspect_blocker' and not action.is_active and action.tooltip %}
+                                data-rift-blocker-feedback="{{ action.tooltip }}"
+                                aria-disabled="true"
+                                {% endif %}
+                                {% if action.is_active and action.action == 'move' and action.target_node_id %}
+                                hx-post="/game/rift/move"
+                                hx-target="#game-session-root"
+                                hx-swap="outerHTML"
+                                hx-vals='{{ dict(rift_form_ids, target_node_id=action.target_node_id)|tojson }}'
+                                hx-disabled-elt="closest .rift-action-panel"
+                                {% endif %}
+                                {% if action.is_active and action.action == 'inspect_blocker' and action.target_node_id %}
+                                hx-post="/game/rift/action"
+                                hx-target="#game-session-root"
+                                hx-swap="outerHTML"
+                                hx-vals='{{ dict(rift_form_ids, action_type="resolve_blocker", target_node_id=action.target_node_id, direction=action.absolute_direction)|tojson }}'
+                                hx-disabled-elt="closest .rift-action-panel"
+                                {% endif %}
+                                {% if action.tooltip or blocker_tooltip %}data-tippy-content="{{ action.tooltip if action.tooltip else blocker_tooltip }}" data-tippy-theme="game-hint"{% endif %}
+                                {% if not action.is_active and action.action != 'inspect_blocker' %}disabled aria-disabled="true"{% endif %}>
+                            <strong>{{ action.label }}</strong>
+                            <small>{{ action.state }}</small>
+                            </button>
+                        {% endif %}
+                    {% endfor %}
+                </div>
+                <section class="rift-combat-actions"
+                         data-rift-combat-actions
+                         hidden
+                         aria-label="Rift combat actions">
+                    <header class="rift-combat-actions__head">
+                        <span data-rift-combat-actions-source></span>
+                        <strong data-rift-combat-actions-title></strong>
+                    </header>
+                    <div class="rift-combat-actions__body">
+                        <div class="rift-combat-action-grid"
+                             data-rift-combat-action-grid></div>
+                    </div>
+                </section>
+            </section>
+        </section>
+    </section>
+</section>

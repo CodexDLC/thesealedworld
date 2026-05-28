@@ -1,6 +1,0 @@
-{% set extra = scenario.extra_data if scenario and scenario.extra_data else {} %}
-{% set left_cfg = extra.get('left_panel', {}) %}
-{% set status_mode = left_cfg.get('status', 'normal') if left_cfg else 'normal' %}
-{% set distortion = left_cfg.get('distortion', 'none') if left_cfg else 'none' %}
-{% set status_panel_class = 'scenario-status-dock--scenario' %}
-{% include "game/components/status/main.html" %}

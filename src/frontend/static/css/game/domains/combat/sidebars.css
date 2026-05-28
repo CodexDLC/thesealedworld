@@ -74,6 +74,18 @@
     max-width: calc(100% - 16px);
 }
 
+.combat-effect-stack--field {
+    position: static;
+    inset: auto;
+    z-index: auto;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px;
+    min-height: 24px;
+    max-width: 100%;
+}
+
 .combat-effect {
     position: relative;
     width: 28px;
@@ -87,6 +99,26 @@
     clip-path: var(--clip-node-sm);
 }
 
+.combat-effect-stack--field .combat-effect {
+    width: 24px;
+    height: 24px;
+}
+
+.combat-effect-mark {
+    width: 16px;
+    height: 16px;
+    display: block;
+    border: 1px solid rgba(255, 238, 190, .32);
+    background: var(--effect-color, rgba(255, 170, 0, .72));
+    box-shadow: 0 0 10px var(--effect-glow, rgba(255, 170, 0, .22));
+    clip-path: var(--clip-node-sm);
+}
+
+.combat-effect-stack--field .combat-effect-mark {
+    width: 13px;
+    height: 13px;
+}
+
 .combat-effect b {
     position: absolute;
     right: 1px;
@@ -98,11 +130,16 @@
     text-shadow: 0 0 5px #000;
 }
 
-.combat-effect--bleeding { border-color: rgba(220, 48, 48, .72); box-shadow: 0 0 10px rgba(220, 48, 48, .18); }
-.combat-effect--poison { border-color: rgba(70, 210, 92, .68); box-shadow: 0 0 10px rgba(70, 210, 92, .16); }
-.combat-effect--burn { border-color: rgba(255, 110, 35, .74); box-shadow: 0 0 10px rgba(255, 110, 35, .18); }
-.combat-effect--stun { border-color: rgba(118, 130, 255, .70); box-shadow: 0 0 10px rgba(118, 130, 255, .18); }
-.combat-effect--shield { border-color: rgba(88, 190, 255, .65); box-shadow: 0 0 10px rgba(88, 190, 255, .14); }
+.combat-effect--bleeding { --effect-color: rgba(220, 48, 48, .82); --effect-glow: rgba(220, 48, 48, .24); border-color: rgba(220, 48, 48, .72); box-shadow: 0 0 10px rgba(220, 48, 48, .18); }
+.combat-effect--poison { --effect-color: rgba(70, 210, 92, .78); --effect-glow: rgba(70, 210, 92, .22); border-color: rgba(70, 210, 92, .68); box-shadow: 0 0 10px rgba(70, 210, 92, .16); }
+.combat-effect--burn { --effect-color: rgba(255, 110, 35, .84); --effect-glow: rgba(255, 110, 35, .24); border-color: rgba(255, 110, 35, .74); box-shadow: 0 0 10px rgba(255, 110, 35, .18); }
+.combat-effect--stun { --effect-color: rgba(118, 130, 255, .82); --effect-glow: rgba(118, 130, 255, .24); border-color: rgba(118, 130, 255, .70); box-shadow: 0 0 10px rgba(118, 130, 255, .18); }
+.combat-effect--shield { --effect-color: rgba(88, 190, 255, .76); --effect-glow: rgba(88, 190, 255, .20); border-color: rgba(88, 190, 255, .65); box-shadow: 0 0 10px rgba(88, 190, 255, .14); }
+.combat-effect--preparation { --effect-color: rgba(255, 202, 86, .78); --effect-glow: rgba(255, 202, 86, .22); border-color: rgba(255, 202, 86, .66); box-shadow: 0 0 10px rgba(255, 202, 86, .14); }
+.combat-effect--buff { --effect-color: rgba(90, 176, 255, .76); --effect-glow: rgba(90, 176, 255, .20); border-color: rgba(90, 176, 255, .64); box-shadow: 0 0 10px rgba(90, 176, 255, .14); }
+.combat-effect--debuff { --effect-color: rgba(190, 94, 255, .76); --effect-glow: rgba(190, 94, 255, .20); border-color: rgba(190, 94, 255, .64); box-shadow: 0 0 10px rgba(190, 94, 255, .14); }
+.combat-effect--heal { --effect-color: rgba(82, 224, 170, .76); --effect-glow: rgba(82, 224, 170, .20); border-color: rgba(82, 224, 170, .64); box-shadow: 0 0 10px rgba(82, 224, 170, .14); }
+.combat-effect--effect { --effect-color: rgba(210, 180, 140, .72); --effect-glow: rgba(210, 180, 140, .18); border-color: rgba(210, 180, 140, .56); box-shadow: 0 0 10px rgba(210, 180, 140, .12); }
 
 .combat-actor-name {
     margin-top: 0;

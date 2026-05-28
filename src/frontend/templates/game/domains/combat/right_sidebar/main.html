@@ -60,7 +60,8 @@
                         <summary><span>{{ section.label }}</span></summary>
                         <div class="combat-stat-list">
                             {% for item in section.items %}
-                            <div class="combat-stat-row">
+                            <div class="combat-stat-row"
+                                 {% if item.tooltip %}data-tippy-content="{{ item.tooltip }}" data-tippy-theme="game-hint"{% endif %}>
                                 <span>{{ item.label }}</span>
                                 <strong>{{ item.value_text }}</strong>
                             </div>

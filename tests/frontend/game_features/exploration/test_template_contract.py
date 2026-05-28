@@ -63,7 +63,8 @@ def test_exploration_center_template_has_navigation_and_encounter_surfaces():
     assert template.index("mobile-services") < template.index("mobile-action-grid exploration-navigation-grid")
     assert "game/domains/exploration/right_sidebar/main.html" in template
     assert 'id="game-right-context-content" hx-swap-oob="innerHTML"' in template
-    assert "game/domains/exploration/left_sidebar/main.html" in template
+    assert "game/components/status/main.html" in template
+    assert "game/domains/exploration/left_sidebar/main.html" not in template
     assert 'id="game-left-content" hx-swap-oob="true"' in template
     assert "mobile-encounter-interrupt" in template
     assert "mobile-encounter-layout" in template
@@ -80,7 +81,10 @@ def test_exploration_center_template_has_navigation_and_encounter_surfaces():
     assert "enemy.hp_percent" in template
     assert "hp.cur" not in template
     assert "POWER" not in template
-    assert "<span>THREAT</span>" in template
+    assert "<span>THREAT</span>" not in template
+    assert "<span>ENERGY</span>" in template
+    assert "<span>CONC</span>" in template
+    assert "<span>DANGER</span>" in template
     assert "NORTH" in template
     assert "service_tile(service" in template
     assert "service_icon_url(service)" in template
@@ -371,6 +375,8 @@ def test_exploration_quests_nav_opens_central_unavailable_modal():
     assert "game-modal-open" in nav
     assert "openUnavailableModal" in shell_js
     assert "Система квестов будет доступна позже" in shell_js
+    assert "if (detail.title) copy.title = detail.title" in shell_js
+    assert "if (detail.body) copy.body = detail.body" in shell_js
     assert ".game-modal-backdrop" in modal_css
     assert ".game-unavailable-modal" in modal_css
     assert '@import url("game/components/modal.css");' in bundle
@@ -587,21 +593,30 @@ def test_game_shell_responsive_uses_manifest_entrypoint():
 def test_status_main_uses_shared_compact_status_dock():
     template = Path("src/frontend/templates/game/components/status/main.html").read_text()
     compact = Path("src/frontend/templates/game/components/status/compact_panel.html").read_text()
-    scenario_left = Path("src/frontend/templates/game/domains/scenario/left_sidebar/main.html").read_text()
+    status_nav = Path("src/frontend/templates/game/components/status/nav.html").read_text()
     status_shell_css = Path("src/frontend/static/css/game/domains/status/shell.css").read_text()
     status_avatar_css = Path("src/frontend/static/css/game/domains/status/avatar.css").read_text()
+    obsolete_left_sidebars = [
+        Path("src/frontend/templates/game/domains/scenario/left_sidebar/main.html"),
+        Path("src/frontend/templates/game/domains/exploration/left_sidebar/main.html"),
+        Path("src/frontend/templates/game/domains/rift/left_sidebar/main.html"),
+    ]
 
     assert "game/components/status/compact_panel.html" in template
     assert "game/components/panel/main.html" not in template
     assert "character_status.panel" not in template
     assert "game/components/status/fragments/" not in template
+    assert "status_mode" not in template
+    assert "distortion" not in template
+    assert "status_panel_class" not in template
     assert "panel-dock" in compact
+    assert "status-dock" in compact
+    assert "scenario-status-dock" not in compact
     assert "status-widget-card" in compact
     assert "status-widget-section" in compact
     assert "status-widget-bar" in compact
-    assert "dock-nav-button--close" in compact
-    assert "game/components/status/main.html" in scenario_left
-    assert "status-widget-card" not in scenario_left
+    assert "dock-nav-button--close" in status_nav
+    assert not any(path.exists() for path in obsolete_left_sidebars)
     assert ".sec {\n    font-size: 8px;\n    letter-spacing: .18em;" in status_shell_css
     assert not status_avatar_css.lstrip().startswith("letter-spacing:")
 
@@ -611,7 +626,7 @@ def test_build_panel_is_marked_as_draft():
 
     assert "BUILD DRAFT" in template
     assert "NOT ACTIVE FUNCTIONALITY" in template
-    assert "dock-nav-button--close" in template
+    assert 'include "game/components/status/nav.html"' in template
 
 
 def test_avatar_widget_marks_missing_resource_data_explicitly():
@@ -647,20 +662,21 @@ def test_status_attribute_and_skill_widgets_are_collapsible():
     assert "status-widget-metric-card--primary" in compact_status
     assert ">GS<" in compact_status
     assert "loop.index <= 8" not in compact_status
-    assert "('COMBAT STYLE', ['skill_one_handed', 'skill_two_handed', 'skill_shield_mastery', 'skill_dual_wield'])" in compact_status
+    assert (
+        "('COMBAT STYLE', ['skill_ranged_combat', 'skill_two_handed', "
+        "'skill_shield_mastery', 'skill_dual_wield'])"
+    ) in compact_status
     assert "('COMBAT SUPPORT', ['skill_parrying', 'skill_anatomy', 'skill_tactics'])" in compact_status
-    assert "('TACTICS', ['skill_one_handed'" not in compact_status
+    assert "('TACTICS', ['skill_ranged_combat'" not in compact_status
 
 
 def test_scenario_panels_hide_missing_transfer_data():
     right_template = Path("src/frontend/templates/game/domains/scenario/right_sidebar/main.html").read_text()
-    left_template = Path("src/frontend/templates/game/domains/scenario/left_sidebar/main.html").read_text()
     viewport_template = Path("src/frontend/templates/game/domains/scenario/viewport/main.html").read_text()
     finalized_template = Path("src/frontend/templates/game/domains/scenario/viewport/finalized.html").read_text()
 
     for marker in ("NO_DATA", "NO_SKILLS", "DATA_MISSING", "FUTURE"):
         assert marker not in right_template
-        assert marker not in left_template
 
     for marker in ("<span>Quest</span>", "<span>Node</span>", "<span>Step</span>", "<span>Phase</span>"):
         if marker != "<span>Quest</span>":
@@ -714,6 +730,7 @@ def test_game_shell_uses_right_panel_inventory_instead_of_floating_hud():
 def test_inventory_window_template_defines_frontend_contract():
     template = Path("src/frontend/templates/game/components/inventory/window.html").read_text()
     compact_status = Path("src/frontend/templates/game/components/status/compact_panel.html").read_text()
+    status_nav = Path("src/frontend/templates/game/components/status/nav.html").read_text()
 
     assert "inventory_target_id" in template
     assert 'hx-target="#{{ inventory_target_id }}"' in template
@@ -773,10 +790,13 @@ def test_inventory_window_template_defines_frontend_contract():
     assert "row.comparison" in template
     assert "row_valid_slots | tojson | forceescape" in template
     assert "INVENTORY_LINK_PENDING" not in template
-    assert 'hx-get="/game/character-status/panel?char_id={{ char_id }}"' in compact_status
+    assert 'include "game/components/status/nav.html"' in compact_status
+    assert 'hx-get="/game/character-status/panel?char_id={{ char_id }}"' in status_nav
     assert 'hx-trigger="character-status-refresh from:body"' in compact_status
     assert 'hx-target="this"' in compact_status
     assert 'hx-swap="outerHTML"' in compact_status
+    assert ">SYNC</button>" in status_nav
+    assert 'hx-target="#status-container"' in status_nav
 
 
 def test_inventory_window_template_renders_contract_view_model():
@@ -1071,6 +1091,7 @@ def test_mobile_drawer_close_controls_live_in_panel_nav_only():
     template = Path("src/frontend/templates/game/session_content_inner.html").read_text()
     panel_templates = "\n".join(
         [
+            Path("src/frontend/templates/game/components/status/nav.html").read_text(),
             Path("src/frontend/templates/game/components/status/compact_panel.html").read_text(),
             Path("src/frontend/templates/game/components/status/build_draft.html").read_text(),
             Path("src/frontend/templates/game/components/inventory/right_panel.html").read_text(),
@@ -1138,6 +1159,7 @@ def test_game_runtime_loads_before_alpine_initializes():
     template = Path("src/frontend/templates/game/base_game.html").read_text()
 
     assert '/static/css/game.css?v={{ static_version }}' in template
+    assert '/static/js/game.js?v={{ static_version }}' in template
     assert template.index('/static/js/game.js') < template.index('/static/js/vendor/alpine.js')
 
 

@@ -1,0 +1,192 @@
+{% extends "cabinet/base.html" %}
+
+{% block content %}
+    {% if account_view.error and not account_view.account %}
+        <p class="fc-empty">{{ account_view.error }}</p>
+    {% else %}
+        <div class="fc-page-head">
+            <div>
+                <h1 class="fc-page-title">{{ account_view.account.email }}</h1>
+                <p class="fc-page-subtitle">{{ account_view.account.user_id }}</p>
+            </div>
+            <a class="fc-action-btn" href="{{ base_url }}/browser">К аккаунтам</a>
+        </div>
+
+        <section class="fc-widget fc-widget--wide">
+            <h2>Аккаунт</h2>
+            <table class="fc-table">
+                <tbody>
+                    <tr><th>Email</th><td>{{ account_view.account.email }}</td></tr>
+                    <tr><th>User ID</th><td>{{ account_view.account.user_id }}</td></tr>
+                    <tr><th>Активен</th><td>{{ "да" if account_view.account.is_active else "нет" }}</td></tr>
+                    <tr><th>Superuser</th><td>{{ "да" if account_view.account.is_superuser else "нет" }}</td></tr>
+                    <tr><th>Tester status</th><td>{{ account_view.account.tester_status }}</td></tr>
+                    <tr><th>Created</th><td>{{ account_view.account.created_at or "—" }}</td></tr>
+                </tbody>
+            </table>
+        </section>
+
+        <section class="fc-widget fc-widget--wide">
+            <h2>Слоты персонажей</h2>
+            {% if account_view.error %}
+                <p class="fc-empty">{{ account_view.error }}</p>
+            {% endif %}
+            <table class="fc-table fc-table--linked">
+                <thead>
+                    <tr>
+                        <th>Слот</th>
+                        <th>Персонаж</th>
+                        <th>ID</th>
+                        <th>Состояние</th>
+                        <th>Локация</th>
+                        <th>Набор</th>
+                        <th>Действие</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for slot in account_view.slots %}
+                        {% if slot.character %}
+                            <tr class="fc-table-row--link" onclick="window.location.href='{{ base_url }}/character-detail?user_id={{ account_view.account.user_id }}&character_id={{ slot.character.character_id }}'">
+                                <td><strong>#{{ slot.index }}</strong></td>
+                                <td>
+                                    <strong>{{ slot.character.name }}</strong>
+                                    <div class="fc-muted">{{ slot.character.name_key }}</div>
+                                </td>
+                                <td>{{ slot.character.character_id }}</td>
+                                <td>{{ slot.character.game_stage }}</td>
+                                <td>{{ slot.character.location_id }}</td>
+                                <td><span class="fc-pill">существующий</span></td>
+                                <td><a class="fc-action-btn" href="{{ base_url }}/character-detail?user_id={{ account_view.account.user_id }}&character_id={{ slot.character.character_id }}">Открыть</a></td>
+                            </tr>
+                        {% else %}
+                            <tr>
+                                <td><strong>#{{ slot.index }}</strong></td>
+                                <td>
+                                    <strong>Пустой слот</strong>
+                                    <div class="fc-muted">Место под тестового персонажа</div>
+                                </td>
+                                <td>—</td>
+                                <td>{{ slot.state }}</td>
+                                <td>—</td>
+                                <td>
+                                    <span class="fc-pill fc-pill--warn">preset позже</span>
+                                    <div class="fc-muted">скиллы, тир предметов, полная экипировка</div>
+                                </td>
+                                <td>
+                                    {% if slot.state == "пустой" and account_view.generation_options %}
+                                        <button
+                                            type="button"
+                                            class="fc-action-btn"
+                                            onclick="
+                                                document.getElementById('generation-slot-index').value='{{ slot.index }}';
+                                                document.getElementById('generation-dialog-title').textContent='Создать персонажа в слот #{{ slot.index }}';
+                                                document.getElementById('generation-dialog').showModal();
+                                            "
+                                        >{{ slot.action_label }}</button>
+                                    {% elif slot.state == "пустой" %}
+                                        <button type="button" class="fc-action-btn" disabled>нет кланов</button>
+                                    {% else %}
+                                        <button type="button" class="fc-action-btn" disabled>{{ slot.action_label }}</button>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                        {% endif %}
+                    {% endfor %}
+                </tbody>
+            </table>
+        </section>
+
+        {% if account_view.characters and account_view.characters.total > 4 %}
+            <section class="fc-widget fc-widget--wide">
+                <h2>Остальные персонажи</h2>
+                <table class="fc-table fc-table--linked">
+                    <thead>
+                        <tr>
+                            <th>Имя</th>
+                            <th>ID</th>
+                            <th>Состояние</th>
+                            <th>Локация</th>
+                            <th>Создан</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for character in account_view.characters.items[4:] %}
+                            <tr class="fc-table-row--link" onclick="window.location.href='{{ base_url }}/character-detail?user_id={{ account_view.account.user_id }}&character_id={{ character.character_id }}'">
+                                <td>
+                                    <strong>{{ character.name }}</strong>
+                                    <div class="fc-muted">{{ character.name_key }}</div>
+                                </td>
+                                <td>{{ character.character_id }}</td>
+                                <td>{{ character.game_stage }}</td>
+                                <td>{{ character.location_id }}</td>
+                                <td>{{ character.created_at or "—" }}</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </section>
+        {% endif %}
+
+        <div class="fc-page-actions">
+            {% if account_view.prev_url %}<a class="fc-action-btn" href="{{ account_view.prev_url }}">Назад</a>{% endif %}
+            {% if account_view.next_url %}<a class="fc-action-btn" href="{{ account_view.next_url }}">Вперед</a>{% endif %}
+        </div>
+
+        <dialog id="generation-dialog" class="fc-modal">
+            <form method="post" action="{{ base_url }}/generate-character" class="fc-form-grid">
+                <div class="fc-page-head">
+                    <div>
+                        <h2 id="generation-dialog-title">Создать персонажа</h2>
+                        <p class="fc-page-subtitle">Тестовый персонаж будет создан в game backend с выбранным тиром предметов и прокачкой скиллов.</p>
+                    </div>
+                    <button type="button" class="fc-action-btn" onclick="document.getElementById('generation-dialog').close()">Закрыть</button>
+                </div>
+                <input type="hidden" name="user_id" value="{{ account_view.account.user_id }}">
+                <input id="generation-slot-index" type="hidden" name="slot_index" value="1">
+                <label class="fc-filter-field">
+                    <span>Имя</span>
+                    <input class="fc-form-input" name="name" type="text" placeholder="пусто = сгенерировать, пробелы нельзя">
+                </label>
+                <label class="fc-filter-field">
+                    <span>Пол</span>
+                    <select name="gender" class="fc-form-input">
+                        <option value="random">Случайно</option>
+                        <option value="male">Мужской</option>
+                        <option value="female">Женский</option>
+                        <option value="other">Другой</option>
+                    </select>
+                </label>
+                <label class="fc-filter-field">
+                    <span>Тир предметов</span>
+                    <select name="item_tier" class="fc-form-input">
+                        {% for tier in [0, 1, 2, 3, 4, 5, 6, 7] %}
+                            <option value="{{ tier }}" {% if tier == 1 %}selected{% endif %}>{{ tier }}</option>
+                        {% endfor %}
+                    </select>
+                </label>
+                <label class="fc-filter-field">
+                    <span>Скиллы, %</span>
+                    <input class="fc-form-input" name="skill_progress_percent" type="number" min="0" max="100" value="75">
+                </label>
+                <label class="fc-filter-field">
+                    <span>Сгенерированный клан</span>
+                    <select name="source_clan_id" class="fc-form-input" required>
+                        {% for clan in account_view.generation_options %}
+                            <option value="{{ clan.clan_id }}">
+                                {{ clan.label }} / {{ clan.family_id }} / tier {{ clan.tier }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </label>
+                <label class="fc-filter-check">
+                    <input type="checkbox" name="request_ai_text" value="1">
+                    Запросить AI-текст предметов
+                </label>
+                <div class="fc-page-actions">
+                    <button type="submit" class="fc-action-btn fc-action-btn--primary">Создать</button>
+                    <button type="button" class="fc-action-btn" onclick="document.getElementById('generation-dialog').close()">Отмена</button>
+                </div>
+            </form>
+        </dialog>
+    {% endif %}
+{% endblock %}

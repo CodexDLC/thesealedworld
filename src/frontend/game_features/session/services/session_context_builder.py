@@ -32,6 +32,7 @@ if TYPE_CHECKING:
     from src.frontend.integrations.backend_api.exploration import BackendExplorationApi
     from src.frontend.integrations.backend_api.game_session import BackendGameSessionApi
     from src.frontend.integrations.backend_api.inventory import BackendInventoryApi
+    from src.frontend.integrations.backend_api.rift import BackendRiftApi
     from src.frontend.integrations.backend_api.scenario import BackendScenarioApi
     from src.shared.schemas.character_status import CharacterActorCoreDTO
     from src.shared.schemas.combat import CombatDashboardDTO, CombatResultDTO
@@ -65,6 +66,7 @@ class SessionContextBuilder:
         game_session_api: BackendGameSessionApi,
         inventory_api: BackendInventoryApi,
         combat_api: BackendCombatApi | None = None,
+        rift_api: BackendRiftApi | None = None,
     ) -> None:
         self.character_status_api = character_status_api
         self.arena_api = arena_api
@@ -74,6 +76,7 @@ class SessionContextBuilder:
         self.scenario_api = scenario_api
         self.game_session_api = game_session_api
         self.inventory_api = inventory_api
+        self.rift_api = rift_api
 
     async def build_current(self, request: Request, *, char_id: int) -> dict[str, Any]:
         token = require_game_access_token(request)
@@ -224,6 +227,35 @@ class SessionContextBuilder:
                 status_seed=status_payload,
                 inventory_window=inventory_window,
                 initial_inventory_open=initial_inventory_open,
+            )
+
+        if state == CoreDomain.RIFT:
+            if self.rift_api is None:
+                raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail="Rift API client is unavailable")
+            character_status = await self._character_status(token, char_id=char_id)
+            status_payload = self._status_seed(character_status)
+            initial_inventory_open, inventory_window = await self._inventory_window_state(
+                token,
+                char_id=char_id,
+                character_status=character_status,
+                status_payload=status_payload,
+            )
+            rift_payload = await self.rift_api.view(token, char_id=char_id)
+            if not rift_payload:
+                raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail="Rift payload is unavailable")
+            return self._context(
+                state=CoreDomain.RIFT,
+                char_id=char_id,
+                transaction_id="",
+                payload_type="rift_screen",
+                character_status=character_status,
+                rift=rift_payload,
+                background_url="/static/images/exploration/city/d4/52_52_runic_circle_plaza.webp",
+                world_theme=getattr(character_status, "world_theme", None),
+                status_seed=status_payload,
+                inventory_window=inventory_window,
+                initial_inventory_open=initial_inventory_open,
+                game_state_scripts=["/static/js/game/states/rift.js"],
             )
 
         if state in {CoreDomain.COMBAT, CoreDomain.COMBAT_RESULT}:
@@ -572,11 +604,13 @@ class SessionContextBuilder:
         combat_outcome_screen: Any | None = None,
         death: dict[str, Any] | None = None,
         loot: dict[str, Any] | None = None,
+        rift: dict[str, Any] | None = None,
         background_url: str | None = None,
         world_theme: Any | None = None,
         status_seed: dict[str, Any] | None = None,
         inventory_window: InventoryWindowDTO | Any | None = None,
         initial_inventory_open: bool = False,
+        game_state_scripts: list[str] | None = None,
     ) -> dict[str, Any]:
         domain = self._layout_domain(state)
         status_payload = status_seed or self._status_seed(character_status)
@@ -600,6 +634,7 @@ class SessionContextBuilder:
             "combat_outcome_screen": combat_outcome_screen,
             "death": death,
             "loot": loot,
+            "rift": rift,
             "combat_chat_session_id": getattr(combat_screen, "session_id", None),
             "background_url": background_url,
             "world_theme": world_theme,
@@ -608,6 +643,7 @@ class SessionContextBuilder:
             "inventory_window": inventory_payload,
             "initial_inventory_open": initial_inventory_open,
             "debug_enabled": settings.debug,
+            "game_state_scripts": game_state_scripts or [],
             "chat_ws_url": settings.chat_ws_url,
             "chat_ws_endpoint": _chat_ws_endpoint(settings.chat_ws_url),
         }

@@ -357,7 +357,7 @@
     order: 2;
 }
 
-.combat-field-actor--enemy .combat-effect-row {
+.combat-field-actor--enemy .combat-effect-stack--field {
     justify-content: flex-end;
 }
 
@@ -483,7 +483,8 @@
 .combat-field-actor-data,
 .combat-field-title,
 .combat-field-vitals,
-.combat-effect-row {
+.combat-effect-row,
+.combat-effect-stack--field {
     min-width: 0;
 }
 

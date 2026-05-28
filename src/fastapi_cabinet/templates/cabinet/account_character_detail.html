@@ -1,0 +1,163 @@
+{% extends "cabinet/base.html" %}
+
+{% block content %}
+    {% if character_view.error and not character_view.detail %}
+        <p class="fc-empty">{{ character_view.error }}</p>
+    {% else %}
+        {% set detail = character_view.detail %}
+        <div class="fc-page-head">
+            <div>
+                <h1 class="fc-page-title">{{ detail.character.name }}</h1>
+                <p class="fc-page-subtitle">
+                    character {{ detail.character.character_id }} / account {{ detail.character.user_id }}
+                </p>
+            </div>
+            <div class="fc-page-actions">
+                <a class="fc-action-btn" href="{{ base_url }}/account-detail?user_id={{ character_view.account_id or detail.character.user_id }}">К аккаунту</a>
+                <a class="fc-action-btn" href="{{ base_url }}/browser">К аккаунтам</a>
+            </div>
+        </div>
+
+        <section class="fc-widget fc-widget--wide">
+            <h2>Персонаж</h2>
+            <table class="fc-table">
+                <tbody>
+                    <tr><th>ID</th><td>{{ detail.character.character_id }}</td></tr>
+                    <tr><th>Имя</th><td>{{ detail.character.name }}</td></tr>
+                    <tr><th>Name key</th><td>{{ detail.character.name_key }}</td></tr>
+                    <tr><th>State</th><td>{{ detail.character.game_stage }}</td></tr>
+                    <tr><th>Prev state</th><td>{{ detail.character.prev_game_stage or "—" }}</td></tr>
+                    <tr><th>Location</th><td>{{ detail.character.location_id }}</td></tr>
+                    <tr><th>Gender</th><td>{{ detail.character.gender }}</td></tr>
+                    <tr><th>Free XP</th><td>{{ detail.free_xp }}</td></tr>
+                    <tr><th>Created</th><td>{{ detail.character.created_at or "—" }}</td></tr>
+                    <tr><th>Updated</th><td>{{ detail.character.updated_at or "—" }}</td></tr>
+                </tbody>
+            </table>
+        </section>
+
+        <section class="fc-widget fc-widget--wide">
+            <h2>Атрибуты</h2>
+            <table class="fc-table">
+                <tbody>
+                    {% for key, value in detail.attributes.items() %}
+                        <tr><th>{{ key }}</th><td>{{ value }}</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </section>
+
+        <section class="fc-widget fc-widget--wide">
+            <h2>Экипировка</h2>
+            <table class="fc-table">
+                <thead>
+                    <tr>
+                        <th>Слот</th>
+                        <th>Предмет</th>
+                        <th>Base</th>
+                        <th>Tier</th>
+                        <th>Статус</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for slot in detail.equipment_slots %}
+                        <tr>
+                            <td>
+                                <strong>{{ slot.label }}</strong>
+                                <div class="fc-muted">{{ slot.slot_id }}</div>
+                            </td>
+                            {% if slot.item %}
+                                <td>{{ slot.item.name }}</td>
+                                <td>{{ slot.item.base_id }}</td>
+                                <td>{{ slot.item.rarity_tier }}</td>
+                                <td>{{ slot.item.lifecycle_status }}</td>
+                            {% else %}
+                                <td colspan="4"><span class="fc-pill fc-pill--warn">пусто</span></td>
+                            {% endif %}
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </section>
+
+        <section class="fc-widget fc-widget--wide">
+            <h2>Быстрые слоты</h2>
+            <table class="fc-table">
+                <thead>
+                    <tr>
+                        <th>Слот</th>
+                        <th>Предмет</th>
+                        <th>Base</th>
+                        <th>Tier</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for slot in detail.belt_slots %}
+                        <tr>
+                            <td>{{ slot.label }} <span class="fc-muted">{{ slot.slot_id }}</span></td>
+                            {% if slot.item %}
+                                <td>{{ slot.item.name }}</td>
+                                <td>{{ slot.item.base_id }}</td>
+                                <td>{{ slot.item.rarity_tier }}</td>
+                            {% else %}
+                                <td colspan="3"><span class="fc-pill fc-pill--warn">пусто</span></td>
+                            {% endif %}
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </section>
+
+        <section class="fc-widget fc-widget--wide">
+            <h2>Рюкзак</h2>
+            {% if not detail.carried_items %}
+                <p class="fc-empty">Рюкзак пуст.</p>
+            {% else %}
+                <table class="fc-table">
+                    <thead>
+                        <tr>
+                            <th>Предмет</th>
+                            <th>Base</th>
+                            <th>Тип</th>
+                            <th>Tier</th>
+                            <th>Слот</th>
+                            <th>Text</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in detail.carried_items %}
+                            <tr>
+                                <td>
+                                    <strong>{{ item.name }}</strong>
+                                    <div class="fc-muted">{{ item.item_id }}</div>
+                                </td>
+                                <td>{{ item.base_id }}</td>
+                                <td>{{ item.item_type }}</td>
+                                <td>{{ item.rarity_tier }}</td>
+                                <td>{{ item.slot or "—" }}</td>
+                                <td>{{ item.text_status }}</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            {% endif %}
+            <div class="fc-muted">Всего в рюкзаке: {{ detail.carried_total }} / offset {{ detail.inventory_offset }}</div>
+        </section>
+
+        {% if detail.skills %}
+            <section class="fc-widget fc-widget--wide">
+                <h2>Скиллы</h2>
+                <div class="fc-json-grid">
+                    <section>
+                        <pre class="fc-json-block">{{ detail.skills|tojson(indent=2) }}</pre>
+                    </section>
+                </div>
+            </section>
+        {% endif %}
+
+        <div class="fc-page-actions">
+            {% if character_view.prev_url %}<a class="fc-action-btn" href="{{ character_view.prev_url }}">Назад</a>{% endif %}
+            {% if character_view.next_url %}<a class="fc-action-btn" href="{{ character_view.next_url }}">Вперед</a>{% endif %}
+        </div>
+    {% endif %}
+{% endblock %}

@@ -1,17 +1,48 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Protocol, Self
 
-from src.backend.infrastructure.arena.schemas.session import ArenaCombatSessionSchema, ArenaQueueSessionSchema
+from src.backend.infrastructure.arena.schemas.session import (
+    ArenaCombatSessionSchema,
+    ArenaQueueSessionSchema,
+    ArenaRuntimeSessionSchema,
+)
 
 if TYPE_CHECKING:
     from codex_platform.redis_service import RedisService
 
 
-class ArenaSessionManager[QueueT: ArenaQueueSessionSchema, CombatT: ArenaCombatSessionSchema]:
+class ModelJsonPayload(Protocol):
+    def model_dump_json(self, *args: Any, **kwargs: Any) -> str: ...
+
+    @classmethod
+    def model_validate_json(cls, json_data: str | bytes | bytearray, *args: Any, **kwargs: Any) -> Self: ...
+
+
+class QueueSessionPayload(ModelJsonPayload, Protocol):
+    char_id: int
+    gs: int
+    wait_limit_sec: int
+
+
+class CombatSessionPayload(ModelJsonPayload, Protocol):
+    arena_session_id: str
+    participants: dict[str, list[int]]
+
+
+class RuntimeSessionPayload(ModelJsonPayload, Protocol):
+    arena_id: str
+
+
+class ArenaSessionManager[
+    QueueT: QueueSessionPayload,
+    CombatT: CombatSessionPayload,
+    RuntimeT: RuntimeSessionPayload,
+]:
     REQUEST_TTL_SEC = 300
     MATCH_TTL_SEC = 900
     MATCH_LOCK_TTL_SEC = 8
+    RUNTIME_TTL_SEC = 6 * 60 * 60
     CLAIM_OPPONENT_SCRIPT = """
 local queue_key = KEYS[1]
 local request_prefix = ARGV[4]
@@ -45,10 +76,12 @@ return 0
         *,
         queue_schema: type[QueueT] = ArenaQueueSessionSchema,  # type: ignore[assignment]
         combat_schema: type[CombatT] = ArenaCombatSessionSchema,  # type: ignore[assignment]
+        runtime_schema: type[RuntimeT] = ArenaRuntimeSessionSchema,  # type: ignore[assignment]
     ) -> None:
         self.redis = redis
         self.queue_schema = queue_schema
         self.combat_schema = combat_schema
+        self.runtime_schema = runtime_schema
 
     def _client(self):
         if hasattr(self.redis, "redis_client"):
@@ -73,6 +106,9 @@ return 0
     def match_lock_key(self, entity_type: str, entity_id: int) -> str:
         return f"arena:lock:{entity_type}:{entity_id}"
 
+    def runtime_key(self, arena_id: str) -> str:
+        return f"arena:runtime_session:{arena_id}"
+
     async def add_to_queue(self, mode: str, request: QueueT, *, mode_size: int = 1) -> None:
         client = self._client()
         await client.zadd(self.queue_key(mode, mode_size), {str(request.char_id): float(request.gs)})
@@ -86,6 +122,9 @@ return 0
         removed = await self._client().zrem(self.queue_key(mode, mode_size), str(char_id))
         return bool(removed)
 
+    async def queue_waiting_count(self, mode: str, *, mode_size: int = 1) -> int:
+        return int(await self._client().zcard(self.queue_key(mode, mode_size)))
+
     async def delete_request(self, char_id: int) -> None:
         await self._client().delete(self.request_key(char_id))
 
@@ -94,6 +133,10 @@ return 0
         if raw is None:
             return None
         return self.queue_schema.model_validate_json(raw)
+
+    async def get_candidates(self, mode: str, min_gs: float, max_gs: float, *, mode_size: int = 1) -> list[int]:
+        values = await self._client().zrangebyscore(self.queue_key(mode, mode_size), min_gs, max_gs)
+        return [int(value) for value in values]
 
     async def claim_opponent(
         self, mode: str, char_id: int, min_gs: float, max_gs: float, *, mode_size: int = 1
@@ -151,3 +194,26 @@ return 0
         for participants in match.participants.values():
             keys.extend(self.char_match_key(char_id) for char_id in participants)
         await client.delete(*keys)
+
+    async def create_runtime_session(self, session: RuntimeT) -> None:
+        await self._client().set(
+            self.runtime_key(session.arena_id),
+            session.model_dump_json(),
+            ex=self.RUNTIME_TTL_SEC,
+        )
+
+    async def get_runtime_session(self, arena_id: str) -> RuntimeT | None:
+        raw = await self._client().get(self.runtime_key(arena_id))
+        if raw is None:
+            return None
+        return self.runtime_schema.model_validate_json(raw)
+
+    async def update_runtime_session(self, session: RuntimeT) -> None:
+        await self._client().set(
+            self.runtime_key(session.arena_id),
+            session.model_dump_json(),
+            ex=self.RUNTIME_TTL_SEC,
+        )
+
+    async def delete_runtime_session(self, arena_id: str) -> None:
+        await self._client().delete(self.runtime_key(arena_id))

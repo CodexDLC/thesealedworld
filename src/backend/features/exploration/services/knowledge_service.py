@@ -4,7 +4,7 @@ from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from src.backend.features.exploration.services.knowledge_runtime import ExplorationKnowledgeRuntimeManager
+    from src.backend.infrastructure.exploration.managers import ExplorationKnowledgeRuntimeManager
 
 DEFAULT_LOCATION_XP_CAPS: dict[str, float] = {
     "movement": 10.0,

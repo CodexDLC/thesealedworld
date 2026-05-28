@@ -16,7 +16,7 @@ class FakeArenaStore:
     )
     updated = None
 
-    def __init__(self, redis):
+    def __init__(self, redis, **_schemas):
         self.redis = redis
 
     async def get_match(self, arena_session_id):
@@ -28,7 +28,7 @@ class FakeArenaStore:
 
 @pytest.mark.asyncio
 async def test_combat_ready_marks_arena_match_ready(monkeypatch):
-    monkeypatch.setattr(arena_events, "ArenaSessionStore", FakeArenaStore)
+    monkeypatch.setattr(arena_events, "ArenaSessionManager", FakeArenaStore)
     arena_events.bind(SimpleNamespace(state=SimpleNamespace(redis=object())))
 
     await arena_events.on_combat_session_ready(
@@ -44,7 +44,7 @@ async def test_combat_failed_marks_arena_match_failed(monkeypatch):
     FakeArenaStore.match.status = "pending"
     FakeArenaStore.match.combat_id = None
     FakeArenaStore.updated = None
-    monkeypatch.setattr(arena_events, "ArenaSessionStore", FakeArenaStore)
+    monkeypatch.setattr(arena_events, "ArenaSessionManager", FakeArenaStore)
     arena_events.bind(SimpleNamespace(state=SimpleNamespace(redis=object())))
 
     await arena_events.on_combat_session_failed(

@@ -11,12 +11,27 @@ from src.backend.features.monsters.services.generated_view_service import Genera
 class FakeGeneratedMonsterRepository:
     def __init__(self, clans: list[GeneratedClan]) -> None:
         self.clans = clans
+        self.refresh_calls: list[uuid.UUID] = []
 
     async def count_generated_clans(self, **kwargs) -> int:
         return len(self.clans)
 
     async def list_generated_clans_page(self, **kwargs) -> list[GeneratedClan]:
         return self.clans
+
+    async def refresh_clan_gear_scores(
+        self,
+        clan_id,
+        *,
+        gear_score_service,
+        persist: bool = False,
+    ) -> list[GeneratedMonster]:
+        assert persist is True
+        self.refresh_calls.append(clan_id)
+        clan = next(clan for clan in self.clans if clan.id == clan_id)
+        gear_score_service.refresh_stale_monster_scores(clan.members)
+        gear_score_service.apply_clan_summary(clan)
+        return clan.members
 
 
 @pytest.mark.unit
@@ -104,3 +119,57 @@ async def test_generated_view_projects_visual_storage_and_equipment_summary() ->
     assert item.members[0].equipment_summary.weapons == ["main_hand: Rust knife"]
     assert item.members[0].equipment_summary.armor == ["body: Patched coat"]
     assert item.members[0].equipment_summary.affixes == ["sharp", "worn"]
+
+
+@pytest.mark.unit
+async def test_generated_view_refreshes_stale_gear_scores_before_projection() -> None:
+    clan_id = uuid.uuid4()
+    member = GeneratedMonster(
+        id=uuid.uuid4(),
+        clan_id=clan_id,
+        variant_key="bandit_thug",
+        role="minion",
+        member_tier=0,
+        threat_rating=20,
+        name_ru="Thug",
+        description="",
+        text_content={},
+        scaled_attributes={
+            "strength": 8,
+            "agility": 6,
+            "endurance": 8,
+            "intellect": 1,
+            "memory": 1,
+            "mental": 2,
+            "perception": 4,
+            "projection": 1,
+            "prediction": 2,
+        },
+        scaled_skills={"skill_tactics": 0.1},
+        items={},
+        vitals={},
+        ai_profile={},
+        generation_meta={"balance": {"gear_score": 999, "gear_score_version": 1}},
+    )
+    clan = GeneratedClan(
+        id=clan_id,
+        family_id="bandit_gang",
+        tier=1,
+        zone_id="zone-a",
+        context_hash="ctx",
+        unique_hash="unique",
+        raw_tags={"gear_score_summary": {"version": 1, "count": 1, "min": 999, "avg": 999, "max": 999}},
+        flavor_content={},
+        name_ru="Bandits",
+        description="A gang",
+        members=[member],
+    )
+    member.clan = clan
+    repository = FakeGeneratedMonsterRepository([clan])
+
+    result = await GeneratedMonsterViewService(repository).list_generated()
+
+    assert repository.refresh_calls == [clan_id]
+    assert result.items[0].members[0].gear_score != 999
+    assert result.items[0].members[0].generation_meta["balance"]["gear_score_version"] == 3
+    assert result.items[0].gear_score_summary.version == 3

@@ -87,7 +87,7 @@ def test_scenario_pending_rewards_use_catalog_metadata():
             "quest_key": "awakening_rift",
             "step_counter": 3,
             "loot_queue": ["battle_axe"],
-            "skills_queue": ["skill_one_handed"],
+            "skills_queue": ["skill_ranged_combat"],
         },
         {"display_name": "Quest"},
     )
@@ -96,4 +96,4 @@ def test_scenario_pending_rewards_use_catalog_metadata():
     skills = next(widget for widget in panel.widgets if widget.title == "PENDING SKILLS")
 
     assert gear.items == [{"label": "battle_axe", "catalog": "items", "catalog_key": "battle_axe"}]
-    assert skills.items == [{"label": "skill_one_handed", "catalog": "skills", "catalog_key": "skill_one_handed"}]
+    assert skills.items == [{"label": "skill_ranged_combat", "catalog": "skills", "catalog_key": "skill_ranged_combat"}]

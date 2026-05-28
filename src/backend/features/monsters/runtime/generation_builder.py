@@ -356,6 +356,8 @@ class MonsterClanGenerationBuilder:
 
     @staticmethod
     def _item_kind(slot: str, equipment_key: str) -> str:
+        if slot == "quiver" or equipment_key.startswith("quiver_"):
+            return "ammo"
         if equipment_key in {"shield", "buckler"}:
             return "shield"
         if slot in {"main_hand", "off_hand", "two_hand"}:

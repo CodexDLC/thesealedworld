@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from time import perf_counter
 from typing import TYPE_CHECKING, Any
+from uuid import uuid4
 
 from loguru import logger
 
@@ -199,6 +200,32 @@ class ScenarioService:
             log.bind(char_id=char_id, action_id=action_id, reason="condition_failed").warning("ScenarioStepRejected")
             raise ScenarioConditionFailed(action_id)
 
+        if action.get("type") == "enter_prepared_rift":
+            if not await self.integrator.has_prepared_rift_entry(char_id):
+                await self._prepare_rift_entry_for_node(char_id, context, current)
+                master = await self.integrator.get_quest_master(context.quest_key) or {}
+                return self.formatter.render_payload(current, context.flatten(), master)
+            metadata = await self.integrator.activate_prepared_rift_entry(char_id, context)
+            await self.integrator.sync_active_character_to_db(char_id)
+            await self.integrator.publish_event(
+                "scenario.finalized",
+                {
+                    "char_id": char_id,
+                    "quest_key": context.quest_key,
+                    "target_state": CoreDomain.RIFT.value,
+                    "rift_session_id": metadata.get("rift_session_id"),
+                    "rift_instance_id": metadata.get("rift_instance_id"),
+                },
+            )
+            return ScenarioFinalizeResult(
+                target_state=CoreDomain.RIFT,
+                transition_reason="scenario_rift_entry",
+                metadata={
+                    "quest_key": context.quest_key,
+                    **metadata,
+                },
+            )
+
         if action.get("type") == "finish_quest":
             return await self.finalize(char_id)
         if action.get("effects"):
@@ -221,6 +248,7 @@ class ScenarioService:
             context.visited_nodes.append(prev_node)
 
         await self.integrator.update_progress(char_id, context)
+        await self._prepare_rift_entry_for_node(char_id, context, resolved.node)
 
         await self.integrator.publish_event(
             "scenario.step_completed",
@@ -365,6 +393,16 @@ class ScenarioService:
                 combat_id=result.combat_id,
             )
         else:
+            if target_state == CoreDomain.EXPLORATION and result.location_id:
+                step_started_at = perf_counter()
+                await self.integrator.prepare_exploration_return_context(char_id, location_id=result.location_id)
+                _log_finalize_timing(
+                    "prepare_exploration_return_context",
+                    char_id=char_id,
+                    quest_key=context.quest_key,
+                    started_at=step_started_at,
+                    location_id=result.location_id,
+                )
             step_started_at = perf_counter()
             await self.integrator.finalize_session(char_id, target_state)
             _log_finalize_timing(
@@ -414,6 +452,26 @@ class ScenarioService:
 
     async def cleanup(self, char_id: int) -> None:
         await self.integrator.cleanup_session(char_id)
+
+    async def _prepare_rift_entry_for_node(
+        self,
+        char_id: int,
+        context: ScenarioContextDTO,
+        node: dict[str, Any],
+    ) -> None:
+        metadata = node.get("metadata") if isinstance(node.get("metadata"), dict) else {}
+        rift_entry = metadata.get("rift_entry") if isinstance(metadata.get("rift_entry"), dict) else {}
+        if not bool(rift_entry.get("prepare_on_show")):
+            return
+        if await self.integrator.has_prepared_rift_entry(char_id):
+            context.flags["rift_entry_status"] = "ready"
+            return
+        if not context.flags.get("rift_entry_request_id"):
+            context.flags["rift_entry_request_id"] = uuid4().hex
+        result = await self.integrator.publish_rift_entry_requested(char_id, context, node)
+        context.flags["rift_entry_status"] = "requested"
+        context.flags["rift_entry_request_id"] = str(result.get("request_id") or context.flags["rift_entry_request_id"])
+        await self.integrator.update_progress(char_id, context, force_backup=True)
 
     async def _current_or_raise(self, context: ScenarioContextDTO) -> dict[str, Any]:
         node = await self.integrator.get_node(context.quest_key, context.current_node_key)

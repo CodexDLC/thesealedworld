@@ -2,6 +2,7 @@ import pytest
 
 from src.backend.features.monsters.runtime.hashing import (
     compute_context_hash,
+    compute_rift_context_hash,
     compute_unique_clan_hash,
     normalize_tags,
 )
@@ -22,3 +23,42 @@ def test_unique_clan_hash_depends_on_family_and_context() -> None:
 
     assert compute_unique_clan_hash("wolf_pack", context_hash) == compute_unique_clan_hash("wolf_pack", context_hash)
     assert compute_unique_clan_hash("wolf_pack", context_hash) != compute_unique_clan_hash("rat_swarm", context_hash)
+
+
+@pytest.mark.unit
+def test_rift_context_hash_keeps_rift_tags_without_world_whitelist() -> None:
+    left_hash = compute_rift_context_hash(
+        setting_key="starter_rift",
+        biome_id="broken_road",
+        tier=1,
+        tags=["broken_caravan", "roadside_camp", "starter_rift"],
+    )
+    right_hash = compute_rift_context_hash(
+        setting_key="starter_rift",
+        biome_id="broken_road",
+        tier=1,
+        tags=["starter_rift", "roadside_camp", "broken_caravan"],
+    )
+    world_hash = compute_context_hash(1, "broken_road", normalize_tags(["broken_caravan", "roadside_camp"]))
+
+    assert normalize_tags(["broken_caravan", "roadside_camp"]) == []
+    assert left_hash == right_hash
+    assert left_hash != world_hash
+
+
+@pytest.mark.unit
+def test_rift_context_hash_depends_on_setting_key() -> None:
+    starter_hash = compute_rift_context_hash(
+        setting_key="starter_rift",
+        biome_id="broken_road",
+        tier=1,
+        tags=["broken_caravan"],
+    )
+    quarry_hash = compute_rift_context_hash(
+        setting_key="quarry_rift",
+        biome_id="broken_road",
+        tier=1,
+        tags=["broken_caravan"],
+    )
+
+    assert starter_hash != quarry_hash

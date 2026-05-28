@@ -79,6 +79,10 @@ class CharacterCreationService:
         char_id = character.character_id
 
         try:
+            starting_imprint = await self.integration.materialize_starting_imprint(
+                character,
+                seed=f"{user.id}:{char_id}:{name.key}",
+            )
             await self.integration.create_active_session(character)
             payload = await self.integration.initialize_starting_scenario(
                 char_id,
@@ -97,6 +101,7 @@ class CharacterCreationService:
             **(getattr(payload, "extra_data", None) or {}),
             "char_id": char_id,
             "quest_key": "awakening_rift",
+            "starting_imprint": starting_imprint,
         }
         await self.integration.mark_character_entered_scenario(char_id)
         logger.bind(char_id=char_id, user_id=str(user.id)).info("CharacterEnteredScenario")

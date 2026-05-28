@@ -24,20 +24,6 @@ ANCHOR_SOVEREIGNS_FAMILY: MonsterFamily = {
             "east_evolution_sovereign",
         ],
     },
-    "skill_kit": {
-        "base": {
-            "skill_tactics": 1.0,
-            "skill_anatomy": 1.0,
-            "skill_parrying": 1.0,
-            "skill_adaptation": 1.0,
-        },
-        "role_bonus": {
-            "boss": {
-                "skill_leadership": 1.0,
-                "skill_team_spirit": 1.0,
-            },
-        },
-    },
     "family_modifiers": [
         {"target": "accuracy", "value": -0.10, "per_tier": 0.0},
     ],
@@ -75,13 +61,15 @@ ANCHOR_SOVEREIGNS_FAMILY: MonsterFamily = {
                 "off_hand": "shield",
                 "chest_armor": "anchor_projection_aegis",
             },
-            "skill_overrides": {
-                "skill_swords": 1.0,
-                "skill_one_handed": 1.0,
-                "skill_shield_mastery": 1.0,
-                "skill_heavy_armor": 1.0,
-                "skill_light_armor": 1.0,
-            },
+            "skills": [
+                "skill_swords",
+                "skill_shield_mastery",
+                "skill_heavy_armor",
+                "skill_light_armor",
+                "skill_tactics",
+                "skill_anatomy",
+                "skill_parrying",
+            ],
         },
         "south_entropy_sovereign": {
             "id": "south_entropy_sovereign",
@@ -106,12 +94,15 @@ ANCHOR_SOVEREIGNS_FAMILY: MonsterFamily = {
                 "two_hand": "anchor_entropy_cinder_maul",
                 "chest_armor": "anchor_projection_aegis",
             },
-            "skill_overrides": {
-                "skill_macing": 1.0,
-                "skill_two_handed": 1.0,
-                "skill_heavy_armor": 1.0,
-                "skill_light_armor": 1.0,
-            },
+            "skills": [
+                "skill_macing",
+                "skill_two_handed",
+                "skill_heavy_armor",
+                "skill_light_armor",
+                "skill_tactics",
+                "skill_anatomy",
+                "skill_parrying",
+            ],
         },
         "west_gravity_sovereign": {
             "id": "west_gravity_sovereign",
@@ -136,12 +127,14 @@ ANCHOR_SOVEREIGNS_FAMILY: MonsterFamily = {
                 "main_hand": "anchor_gravity_storm_lance",
                 "chest_armor": "anchor_projection_aegis",
             },
-            "skill_overrides": {
-                "skill_polearms": 1.0,
-                "skill_one_handed": 1.0,
-                "skill_light_armor": 1.0,
-                "skill_heavy_armor": 1.0,
-            },
+            "skills": [
+                "skill_polearms",
+                "skill_light_armor",
+                "skill_heavy_armor",
+                "skill_tactics",
+                "skill_anatomy",
+                "skill_parrying",
+            ],
         },
         "east_evolution_sovereign": {
             "id": "east_evolution_sovereign",
@@ -167,12 +160,15 @@ ANCHOR_SOVEREIGNS_FAMILY: MonsterFamily = {
                 "off_hand": "anchor_evolution_bloom_talons",
                 "chest_armor": "anchor_projection_aegis",
             },
-            "skill_overrides": {
-                "skill_fencing": 1.0,
-                "skill_dual_wield": 1.0,
-                "skill_light_armor": 1.0,
-                "skill_heavy_armor": 1.0,
-            },
+            "skills": [
+                "skill_fencing",
+                "skill_dual_wield",
+                "skill_light_armor",
+                "skill_heavy_armor",
+                "skill_tactics",
+                "skill_anatomy",
+                "skill_parrying",
+            ],
         },
     },
 }

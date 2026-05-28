@@ -1,6 +1,6 @@
 import pytest
 
-from src.backend.features.character.managers.session import CharacterSessionManager
+from src.backend.infrastructure.actor_state.managers import CharacterSessionManager
 
 
 @pytest.mark.asyncio
@@ -80,6 +80,90 @@ async def test_combat_runtime_ref_moves_active_session_to_combat(
 
 
 @pytest.mark.asyncio
+async def test_rift_runtime_ref_moves_active_session_to_rift(
+    fake_redis_service,
+    fake_redis_client,
+) -> None:
+    fake_redis_client.store["game:ac:7"] = {
+        "char_id": 7,
+        "state": "scenario",
+        "prev_state": "lobby",
+        "sessions": {"scenario_id": "scenario-1"},
+        "items": {},
+    }
+    manager = CharacterSessionManager(fake_redis_service)
+
+    await manager.set_rift_session(
+        7,
+        "rift-run-1",
+        rift_instance_id="rift-instance-1",
+        prev_state="scenario",
+    )
+
+    active_character = fake_redis_client.store["game:ac:7"]
+    assert active_character["state"] == "rift"
+    assert active_character["prev_state"] == "scenario"
+    assert active_character["sessions"]["rift_session_id"] == "rift-run-1"
+    assert active_character["sessions"]["rift_instance_id"] == "rift-instance-1"
+    assert "$.state" in active_character["sync_dirty"]["paths"]
+    assert "$.sessions.rift_session_id" in active_character["sync_dirty"]["paths"]
+
+
+@pytest.mark.asyncio
+async def test_apply_symbiote_xp_updates_active_session_and_marks_symbiote_dirty(
+    fake_redis_service,
+    fake_redis_client,
+) -> None:
+    fake_redis_client.store["game:ac:7"] = {
+        "char_id": 7,
+        "symbiote": {"name": "SYSTEM", "gift_id": "starter", "gift_xp": 10, "gift_rank": 1},
+    }
+    manager = CharacterSessionManager(fake_redis_service)
+
+    result = await manager.apply_symbiote_xp(7, 25)
+
+    active_character = fake_redis_client.store["game:ac:7"]
+    assert result["gift_xp"] == 35
+    assert active_character["symbiote"]["gift_xp"] == 35
+    assert active_character["sync_dirty"]["dirty"] is True
+    assert active_character["sync_dirty"]["targets"]["symbiote"] is True
+    assert "$.symbiote.gift_xp" in active_character["sync_dirty"]["paths"]
+
+
+@pytest.mark.asyncio
+async def test_prepared_rift_ref_does_not_switch_active_session_until_activation(
+    fake_redis_service,
+    fake_redis_client,
+) -> None:
+    fake_redis_client.store["game:ac:7"] = {
+        "char_id": 7,
+        "state": "scenario",
+        "prev_state": "exploration",
+        "sessions": {"scenario_id": "scenario-1"},
+        "items": {},
+    }
+    manager = CharacterSessionManager(fake_redis_service)
+
+    await manager.attach_prepared_rift_session(
+        7,
+        "rift-run-1",
+        rift_instance_id="rift-instance-1",
+        request_id="request-1",
+    )
+
+    active_character = fake_redis_client.store["game:ac:7"]
+    assert active_character["state"] == "scenario"
+    assert active_character["sessions"]["rift_session_id"] == "rift-run-1"
+    assert active_character["sessions"]["rift_entry_request_id"] == "request-1"
+
+    refs = await manager.activate_prepared_rift_session(7, prev_state="exploration")
+
+    assert refs == {"rift_session_id": "rift-run-1", "rift_instance_id": "rift-instance-1"}
+    assert active_character["state"] == "rift"
+    assert active_character["prev_state"] == "exploration"
+
+
+@pytest.mark.asyncio
 async def test_reset_main_runtime_refs_to_exploration_clears_blocking_refs(
     fake_redis_service,
     fake_redis_client,
@@ -94,6 +178,9 @@ async def test_reset_main_runtime_refs_to_exploration_clears_blocking_refs(
             "combat_finalization_id": "combat-final-1",
             "encounter_id": "encounter-1",
             "arena_id": "arena-1",
+            "rift_session_id": "rift-run-1",
+            "rift_instance_id": "rift-instance-1",
+            "rift_entry_request_id": "request-1",
             "inventory_id": "inventory-1",
         },
         "active_quest": "awakening_rift",
@@ -110,6 +197,9 @@ async def test_reset_main_runtime_refs_to_exploration_clears_blocking_refs(
     assert active_character["sessions"]["combat_finalization_id"] is None
     assert active_character["sessions"]["encounter_id"] is None
     assert active_character["sessions"]["arena_id"] is None
+    assert active_character["sessions"]["rift_session_id"] is None
+    assert active_character["sessions"]["rift_instance_id"] is None
+    assert active_character["sessions"]["rift_entry_request_id"] is None
     assert active_character["sessions"]["inventory_id"] == "inventory-1"
     assert active_character["active_quest"] is None
 

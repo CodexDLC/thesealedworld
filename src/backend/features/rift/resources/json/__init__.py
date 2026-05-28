@@ -1,0 +1,1 @@
+"""Temporary JSON rift resources."""

@@ -16,12 +16,12 @@ from src.backend.features.items.repositories import ItemInstanceRepository
 from src.backend.features.items.services import ItemGenerationService
 from src.backend.features.monsters.integrations import (
     MonsterActorCommitmentIntegration,
-    MonsterGroupCacheIntegration,
     MonsterLocationContextIntegration,
 )
 from src.backend.features.monsters.repositories import MonsterGenerationRepository
 from src.backend.features.monsters.runtime import ClanFactory, MonsterClanGenerationBuilder
 from src.backend.features.monsters.services import MonsterGroupService
+from src.backend.infrastructure.monsters.managers import MonsterGroupCacheManager
 
 if TYPE_CHECKING:
     from fastapi import FastAPI
@@ -85,7 +85,7 @@ async def on_group_prepare_requested(payload: dict[str, Any]) -> None:
                 repository=monster_repository,
                 location_context=MonsterLocationContextIntegration(_app.state.world_locations),
                 actor_commitments=MonsterActorCommitmentIntegration(_app.state.actor_commitments),
-                group_cache=MonsterGroupCacheIntegration(_app.state.redis),
+                group_cache=MonsterGroupCacheManager(_app.state.redis),
                 factory=ClanFactory(
                     MonsterClanGenerationBuilder(
                         repository=monster_repository,

@@ -15,7 +15,7 @@ from src.shared.enums import CoreDomain
 if TYPE_CHECKING:
     from src.backend.core.bus import GameEventProducer
     from src.backend.features.arena.dto.session import ArenaCombatRequestDTO
-    from src.backend.features.character.managers import CharacterSessionManager
+    from src.backend.infrastructure.actor_state.managers import CharacterSessionManager
 
 
 class ArenaSystemIntegrator:

@@ -10,7 +10,10 @@ from loguru import logger
 if TYPE_CHECKING:
     from fastapi import FastAPI
 
-from src.backend.features.arena.repositories.session_store import ArenaSessionStore
+    from src.backend.infrastructure.arena.schemas.session import ArenaQueueSessionSchema, ArenaRuntimeSessionSchema
+
+from src.backend.features.arena.dto.session import ArenaCombatRequestDTO
+from src.backend.infrastructure.arena.managers import ArenaSessionManager
 
 router = StreamRouter()
 _app: FastAPI | None = None
@@ -33,7 +36,11 @@ async def on_combat_session_ready(payload: dict[str, Any]) -> None:
             logger.bind(payload=payload).warning("ArenaCombatReadyIgnored")
             return
 
-        store = ArenaSessionStore(_app.state.redis)
+        store: ArenaSessionManager[
+            ArenaQueueSessionSchema,
+            ArenaCombatRequestDTO,
+            ArenaRuntimeSessionSchema,
+        ] = ArenaSessionManager(_app.state.redis, combat_schema=ArenaCombatRequestDTO)
         match = await store.get_match(str(arena_session_id))
         if match is None:
             logger.bind(arena_session_id=arena_session_id).warning("ArenaCombatReadyMatchMissing")
@@ -57,7 +64,11 @@ async def on_combat_session_failed(payload: dict[str, Any]) -> None:
         if not arena_session_id:
             return
 
-        store = ArenaSessionStore(_app.state.redis)
+        store: ArenaSessionManager[
+            ArenaQueueSessionSchema,
+            ArenaCombatRequestDTO,
+            ArenaRuntimeSessionSchema,
+        ] = ArenaSessionManager(_app.state.redis, combat_schema=ArenaCombatRequestDTO)
         match = await store.get_match(str(arena_session_id))
         if match is None:
             logger.bind(arena_session_id=arena_session_id).warning("ArenaCombatFailureMatchMissing")

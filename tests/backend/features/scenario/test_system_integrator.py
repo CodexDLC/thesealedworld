@@ -9,11 +9,13 @@ from src.backend.core.exceptions import BusinessLogicException
 from src.backend.features.character.events import CharacterEvents
 from src.backend.features.inventory.events.publisher import InventoryEvents
 from src.backend.features.items.events.publisher import ItemEvents
+from src.backend.features.rift.events import RiftEvents
 from src.backend.features.scenario.dto.context import ScenarioContextDTO
 from src.backend.features.scenario.handlers.base_handler import ScenarioInitialHandlerContext
 from src.backend.features.scenario.integrations.system_integrator import (
     MONSTER_GROUP_PREPARE_REQUESTED,
     SCENARIO_COMBAT_TTL_SECONDS,
+    TUTORIAL_OUTSKIRTS_ZONE_IDS,
     TUTORIAL_PVE_CROSS_ZONE_IDS,
     ScenarioSystemIntegrator,
     _budget_from_gear_score,
@@ -315,8 +317,8 @@ async def test_apply_finalize_effects_grants_tavern_room() -> None:
 
 @pytest.mark.unit
 async def test_attach_npc_context_flattens_relationship_state() -> None:
-    npc_service = MagicMock()
-    npc_service.load_dialogue_context = AsyncMock(
+    npc = MagicMock()
+    npc.load_dialogue_context = AsyncMock(
         return_value=SimpleNamespace(
             reputation=3,
             affinity=1,
@@ -335,7 +337,7 @@ async def test_attach_npc_context_flattens_relationship_state() -> None:
         character_sessions=MagicMock(),
         repo=MagicMock(),
         events=MagicMock(),
-        npc_service=npc_service,
+        npc=npc,
     )
     context = ScenarioContextDTO(
         quest_key="portal_guide_dialogue",
@@ -356,15 +358,15 @@ async def test_attach_npc_context_flattens_relationship_state() -> None:
 
 @pytest.mark.unit
 async def test_apply_finalize_effects_delegates_npc_effects_to_service() -> None:
-    npc_service = MagicMock()
-    npc_service.apply_effects = AsyncMock(return_value={"applied": True, "duplicate": False})
+    npc = MagicMock()
+    npc.apply_effects = AsyncMock(return_value={"applied": True, "duplicate": False})
     integrator = ScenarioSystemIntegrator(
         sessions=MagicMock(),
         content=MagicMock(),
         character_sessions=MagicMock(),
         repo=MagicMock(),
         events=MagicMock(),
-        npc_service=npc_service,
+        npc=npc,
     )
 
     result = await integrator.apply_finalize_effects(
@@ -374,7 +376,7 @@ async def test_apply_finalize_effects_delegates_npc_effects_to_service() -> None
     )
 
     assert result["effects"]["npc.set_flag"]["applied"] is True
-    npc_service.apply_effects.assert_awaited_once()
+    npc.apply_effects.assert_awaited_once()
 
 
 @pytest.mark.unit
@@ -421,7 +423,87 @@ async def test_enter_prepared_combat_attaches_combat_and_switches_state() -> Non
 
 
 @pytest.mark.unit
-async def test_select_tutorial_pve_spawn_location_uses_cross_zone_passable_non_safe_nodes() -> None:
+async def test_publish_rift_entry_requested_is_fire_and_forget_with_exit_policy() -> None:
+    events = MagicMock()
+    events.publish = AsyncMock(return_value="1-0")
+    world_data = MagicMock()
+    world_data.get_active_nodes_by_zone_ids = AsyncMock(
+        return_value=[
+            SimpleNamespace(x=45, y=52, zone_id="D4_0_1", is_active=True, flags={"is_passable": True}),
+        ]
+    )
+    integrator = ScenarioSystemIntegrator(
+        sessions=MagicMock(),
+        content=MagicMock(),
+        character_sessions=MagicMock(),
+        repo=MagicMock(),
+        events=events,
+        world_data=world_data,
+    )
+    context = ScenarioContextDTO(quest_key="awakening_rift", current_node_key="crash_sequence_02")
+    node = {
+        "node_key": "crash_sequence_02",
+        "metadata": {
+            "rift_entry": {
+                "prepare_on_show": True,
+                "rift_key": "starter_rift",
+                "entry_reason": "knockout",
+                "exit_reason": "starter_rift_escape",
+                "completion_exit": "return_to_exit",
+            }
+        },
+    }
+
+    result = await integrator.publish_rift_entry_requested(7, context, node)
+
+    events.publish.assert_awaited_once()
+    event_type, payload = events.publish.await_args.args[:2]
+    assert event_type == RiftEvents.ENTRY_REQUESTED
+    assert payload["char_id"] == 7
+    assert payload["quest_key"] == "awakening_rift"
+    assert payload["source_ref"] == "scenario:awakening_rift:crash_sequence_02"
+    assert payload["rift_key"] == "starter_rift"
+    assert payload["exit_target_state"] == CoreDomain.EXPLORATION.value
+    assert payload["exit_location_id"] == "45_52"
+    assert payload["exit_reason"] == "starter_rift_escape"
+    assert payload["completion_exit"] == "return_to_exit"
+    assert result["request_id"]
+
+
+@pytest.mark.unit
+async def test_activate_prepared_rift_entry_switches_state_and_cleans_scenario_runtime() -> None:
+    character_sessions = MagicMock()
+    character_sessions.activate_prepared_rift_session = AsyncMock(
+        return_value={"rift_session_id": "rift-run-1", "rift_instance_id": "rift-instance-1"}
+    )
+    character_sessions.clear_scenario_session = AsyncMock()
+    sessions = MagicMock()
+    sessions.delete = AsyncMock()
+    repo = MagicMock()
+    repo.delete_state = AsyncMock()
+    integrator = ScenarioSystemIntegrator(
+        sessions=sessions,
+        content=MagicMock(),
+        character_sessions=character_sessions,
+        repo=repo,
+        events=MagicMock(),
+    )
+    context = ScenarioContextDTO(quest_key="awakening_rift", current_node_key="crash_sequence_02")
+
+    result = await integrator.activate_prepared_rift_entry(7, context)
+
+    assert result == {"rift_session_id": "rift-run-1", "rift_instance_id": "rift-instance-1"}
+    character_sessions.activate_prepared_rift_session.assert_awaited_once_with(
+        7,
+        prev_state=CoreDomain.EXPLORATION,
+    )
+    character_sessions.clear_scenario_session.assert_awaited_once_with(7)
+    sessions.delete.assert_awaited_once_with(7)
+    repo.delete_state.assert_awaited_once_with(7)
+
+
+@pytest.mark.unit
+async def test_select_tutorial_outskirts_spawn_location_uses_cross_zone_passable_non_safe_nodes() -> None:
     world_data = MagicMock()
     world_data.get_active_nodes_by_zone_ids = AsyncMock(
         return_value=[
@@ -441,10 +523,62 @@ async def test_select_tutorial_pve_spawn_location_uses_cross_zone_passable_non_s
         world_data=world_data,
     )
 
+    loc_id = await integrator.select_tutorial_outskirts_spawn_location()
+
+    assert loc_id == "45_52"
+    world_data.get_active_nodes_by_zone_ids.assert_awaited_once_with(list(TUTORIAL_OUTSKIRTS_ZONE_IDS))
+
+
+@pytest.mark.unit
+async def test_select_tutorial_pve_spawn_location_keeps_legacy_alias() -> None:
+    world_data = MagicMock()
+    world_data.get_active_nodes_by_zone_ids = AsyncMock(
+        return_value=[
+            SimpleNamespace(x=45, y=52, zone_id="D4_0_1", is_active=True, flags={"is_passable": True}),
+        ]
+    )
+    integrator = ScenarioSystemIntegrator(
+        sessions=MagicMock(),
+        content=MagicMock(),
+        character_sessions=MagicMock(),
+        repo=MagicMock(),
+        events=MagicMock(),
+        world_data=world_data,
+    )
+
     loc_id = await integrator.select_tutorial_pve_spawn_location()
 
     assert loc_id == "45_52"
     world_data.get_active_nodes_by_zone_ids.assert_awaited_once_with(list(TUTORIAL_PVE_CROSS_ZONE_IDS))
+
+
+@pytest.mark.unit
+async def test_prepare_exploration_return_context_sets_current_location_without_state_change() -> None:
+    character_sessions = MagicMock()
+    character_sessions.patch_fields = AsyncMock()
+    character_sessions.mark_dirty = AsyncMock()
+    integrator = ScenarioSystemIntegrator(
+        sessions=MagicMock(),
+        content=MagicMock(),
+        character_sessions=character_sessions,
+        repo=MagicMock(),
+        events=MagicMock(),
+    )
+
+    await integrator.prepare_exploration_return_context(7, location_id="45_52")
+
+    character_sessions.patch_fields.assert_awaited_once_with(
+        7,
+        {
+            "$.location.current": "45_52",
+            "$.location.prev": "45_52",
+        },
+    )
+    character_sessions.mark_dirty.assert_awaited_once_with(
+        7,
+        reason="exploration_return_context_prepared",
+        paths=["$.location.current", "$.location.prev"],
+    )
 
 
 @pytest.mark.unit

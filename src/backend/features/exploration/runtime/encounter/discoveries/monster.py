@@ -3,6 +3,7 @@ from __future__ import annotations
 import uuid
 from typing import TYPE_CHECKING, Any
 
+from src.backend.features.monsters.intel_projector import MonsterIntelProjector
 from src.backend.infrastructure.actor_commitments import ActorCommitmentManager
 from src.shared.schemas.exploration import (
     DetectionStatus,
@@ -14,7 +15,7 @@ from src.shared.schemas.exploration import (
 
 if TYPE_CHECKING:
     from src.backend.features.exploration.integrations.encounter_integration import EncounterIntegration
-    from src.backend.features.monsters.dto import MonsterGroupMemberPreview, MonsterGroupResult
+    from src.backend.features.monsters.dto import MonsterGroupResult
 
 
 class MonsterDiscoveryBuilder:
@@ -47,8 +48,8 @@ class MonsterDiscoveryBuilder:
             group=group,
         )
         combat = await self._request_combat(integration, combat_request, encounter_id)
-        intel_level = hunting_intel_level(hunting_skill)
-        enemies = [self._enemy_preview(preview, intel_level=intel_level) for preview in group.previews]
+        intel = MonsterIntelProjector().project_group(group, hunting_skill=hunting_skill)
+        enemies = [EnemyPreviewDTO.model_validate(enemy.model_dump(mode="json")) for enemy in intel.enemies]
         description = self._description(status, group)
         options = self._options(status)
         return EncounterDTO(
@@ -58,7 +59,7 @@ class MonsterDiscoveryBuilder:
             title="ЗАСАДА!" if status == DetectionStatus.AMBUSH else "УГРОЗА ОБНАРУЖЕНА",
             description=description,
             enemies=enemies,
-            info_level=intel_level,
+            info_level=intel.level,
             options=options,
             session_id=str(combat.get("combat_id") or combat_request["combat_id"]),
             metadata={
@@ -69,9 +70,10 @@ class MonsterDiscoveryBuilder:
                 "budget": budget,
                 "intel": {
                     "skill_key": "skill_hunting",
-                    "level": intel_level,
+                    "level": intel.level,
                     "value": _normalized_skill(hunting_skill),
                 },
+                "monster_intel": intel.model_dump(mode="json"),
                 "monster_group": group.model_dump(mode="json"),
                 "combat": {
                     "status": combat.get("status") or "requested",
@@ -134,34 +136,6 @@ class MonsterDiscoveryBuilder:
         return commitments
 
     @staticmethod
-    def _enemy_preview(preview: MonsterGroupMemberPreview, *, intel_level: int) -> EnemyPreviewDTO:
-        hp = preview.hp or {}
-        hp_current = _int_or_none(hp.get("current") or hp.get("hp") or hp.get("hp_current"))
-        hp_max = _int_or_none(hp.get("max") or hp.get("max_hp") or hp.get("hp_max"))
-        hp_percent = None
-        if hp_current is not None and hp_max:
-            hp_percent = max(0, min(100, round(hp_current / hp_max * 100)))
-        show_identity = intel_level >= 1
-        show_combat_estimate = intel_level >= 2
-        show_details = intel_level >= 3
-        return EnemyPreviewDTO(
-            name=preview.name if show_identity else "???",
-            level=preview.member_tier if show_identity else None,
-            member_tier=preview.member_tier if show_identity else None,
-            hp_percent=hp_percent if show_combat_estimate else None,
-            image=preview.image,
-            visual=preview.visual,
-            monster_id=preview.monster_id if show_identity else None,
-            description=preview.description if show_combat_estimate else "???",
-            role=preview.role if show_identity else "???",
-            variant_key=preview.variant_key if show_identity else "???",
-            threat_rating=preview.threat_rating if show_combat_estimate else None,
-            hp=preview.hp if show_details else {},
-            tags=preview.tags if show_details else [],
-            intel_level=intel_level,
-        )
-
-    @staticmethod
     def _description(status: DetectionStatus, group: MonsterGroupResult) -> str:
         for preview in group.previews:
             text = preview.ambush_ru if status == DetectionStatus.AMBUSH else preview.detected_ru
@@ -190,26 +164,6 @@ class MonsterDiscoveryBuilder:
             EncounterOptionDTO(id="bypass", label="Обойти", style="secondary"),
             EncounterOptionDTO(id="inspect", label="Изучить", style="primary"),
         ]
-
-
-def _int_or_none(value: Any) -> int | None:
-    try:
-        return int(value)
-    except (TypeError, ValueError):
-        return None
-
-
-def hunting_intel_level(hunting_skill: Any) -> int:
-    value = _normalized_skill(hunting_skill)
-    if value >= 0.8:
-        return 4
-    if value >= 0.6:
-        return 3
-    if value >= 0.4:
-        return 2
-    if value >= 0.2:
-        return 1
-    return 0
 
 
 def _normalized_skill(value: Any) -> float:

@@ -4,9 +4,9 @@ from fastapi import Depends, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.backend.core.database import get_db
+from src.backend.features.arena.dto.session import ArenaCombatRequestDTO, ArenaQueueRequestDTO, ArenaRuntimeSessionDTO
 from src.backend.features.arena.gateway import ArenaGateway
 from src.backend.features.arena.integrations import ArenaSessionIntegration, ArenaSystemIntegrator
-from src.backend.features.arena.repositories.session_store import ArenaSessionStore
 from src.backend.features.arena.services import (
     ArenaDuelService,
     ArenaGroupService,
@@ -15,6 +15,7 @@ from src.backend.features.arena.services import (
     RatingService,
     SeasonService,
 )
+from src.backend.infrastructure.arena.managers import ArenaSessionManager
 from src.backend.infrastructure.arena.repositories import (
     ArenaLeagueRepository,
     ArenaMatchRepository,
@@ -24,7 +25,12 @@ from src.backend.infrastructure.arena.repositories import (
 
 
 def get_arena_service(request: Request, db_session: Annotated[AsyncSession, Depends(get_db)]) -> ArenaService:
-    store = ArenaSessionStore(request.app.state.redis)
+    store = ArenaSessionManager(
+        request.app.state.redis,
+        queue_schema=ArenaQueueRequestDTO,
+        combat_schema=ArenaCombatRequestDTO,
+        runtime_schema=ArenaRuntimeSessionDTO,
+    )
     session_service = ArenaSessionIntegration(store)
     integrator = ArenaSystemIntegrator(
         events=request.app.state.events,

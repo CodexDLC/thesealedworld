@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING, Any
 from src.backend.features.npc.catalog import NpcDefinition, get_npc_definition
 
 if TYPE_CHECKING:
+    from src.backend.features.npc.models import CharacterNpcState
     from src.backend.features.npc.repositories import NpcStateRepository
 
 
@@ -41,7 +42,7 @@ class NpcService:
             raise ValueError(f"Unknown npc_key: {npc_key}")
         return definition
 
-    async def get_or_create_state(self, *, character_id: int, npc_key: str):
+    async def get_or_create_state(self, *, character_id: int, npc_key: str) -> CharacterNpcState:
         self.get_definition(npc_key)
         state = await self.repository.get_or_create_state(character_id=character_id, npc_key=npc_key)
         await self.repository.commit()

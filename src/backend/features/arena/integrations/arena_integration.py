@@ -8,7 +8,7 @@ if TYPE_CHECKING:
     from typing import Any
 
     from src.backend.features.arena.integrations.stream_client import ArenaStreamClient
-    from src.backend.features.character.managers import CharacterSessionManager
+    from src.backend.infrastructure.actor_state.managers import CharacterSessionManager
     from src.backend.infrastructure.arena.managers import ArenaSessionManager
 
 

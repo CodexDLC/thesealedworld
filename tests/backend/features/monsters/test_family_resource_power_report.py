@@ -14,12 +14,12 @@ def test_family_resource_power_report_covers_starter_variants_without_database()
 
 
 @pytest.mark.unit
-def test_family_resource_power_report_exposes_wolf_boss_baseline_skew() -> None:
+def test_family_resource_power_report_exposes_boss_skill_width() -> None:
     rows = build_rows()
     role_summary = {row.label: row for row in summarize(rows, key="family_role")}
 
     assert role_summary["wolf_pack/boss"].avg_attrs > role_summary["bandit_gang/boss"].avg_attrs
-    assert role_summary["bandit_gang/boss"].avg_skills > role_summary["wolf_pack/boss"].avg_skills
+    assert role_summary["wolf_pack/boss"].avg_skills > role_summary["bandit_gang/boss"].avg_skills
 
 
 @pytest.mark.unit

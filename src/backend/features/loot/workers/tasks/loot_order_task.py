@@ -59,8 +59,4 @@ async def loot_order_task(ctx: dict[str, Any], payload: dict[str, Any]) -> None:
     # Store actor_id -> corpse_id so victory_finalizer can activate only actually dead actors.
     # Uses a short-lived Redis key (session lifetime ~24h matches invisible corpse TTL).
     if corpse_ids_by_actor:
-        client = manager._client()
-        key = f"loot:pending:{session_id}"
-        import json
-
-        await client.set(key, json.dumps(corpse_ids_by_actor), ex=86400)
+        await manager.save_pending_actor_corpses(session_id, corpse_ids_by_actor)

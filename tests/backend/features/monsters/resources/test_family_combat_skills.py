@@ -6,7 +6,7 @@ from pathlib import Path
 from src.backend.features.monsters.skill_contract import MONSTER_COMBAT_SKILL_KEYS
 
 
-def test_starter_monster_skill_kits_only_use_monster_combat_skills() -> None:
+def test_starter_monster_variants_only_use_monster_combat_skills() -> None:
     families = [
         _load_family("rats.py"),
         _load_family("wolves.py"),
@@ -16,12 +16,9 @@ def test_starter_monster_skill_kits_only_use_monster_combat_skills() -> None:
     invalid: dict[str, list[str]] = {}
 
     for family in families:
-        skill_kit = family.get("skill_kit") or {}
-        keys = set((skill_kit.get("base") or {}).keys())
-        for role_bonus in (skill_kit.get("role_bonus") or {}).values():
-            keys.update((role_bonus or {}).keys())
+        keys = set()
         for variant in (family.get("variants") or {}).values():
-            keys.update((variant.get("skill_overrides") or {}).keys())
+            keys.update(variant.get("skills") or [])
         bad_keys = sorted(key for key in keys if key is not None and key not in MONSTER_COMBAT_SKILL_KEYS)
         if bad_keys:
             invalid[str(family["id"])] = bad_keys

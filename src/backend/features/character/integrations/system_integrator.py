@@ -6,14 +6,15 @@ from src.backend.features.character.schemas.session import CharacterSessionDocum
 from src.shared.enums.skill_enums import SkillProgressState
 
 if TYPE_CHECKING:
-    from src.backend.features.character.managers.session import CharacterSessionManager
     from src.backend.features.character.repositories import (
         CharacterAttributesRepository,
         CharacterProgressionRepository,
         CharacterRepository,
         SkillRepository,
+        SymbioteRepository,
     )
     from src.backend.features.expedition import CharacterExpeditionRepository
+    from src.backend.infrastructure.actor_state.managers import CharacterSessionManager
 
 
 class CharacterSystemIntegrator:
@@ -27,6 +28,7 @@ class CharacterSystemIntegrator:
         attributes_repo: CharacterAttributesRepository,
         skill_repo: SkillRepository,
         progression_repo: CharacterProgressionRepository | None = None,
+        symbiote_repo: SymbioteRepository | None = None,
         expedition_repo: CharacterExpeditionRepository | None = None,
     ) -> None:
         self.character_sessions = character_sessions
@@ -34,6 +36,7 @@ class CharacterSystemIntegrator:
         self.attributes_repo = attributes_repo
         self.skill_repo = skill_repo
         self.progression_repo = progression_repo
+        self.symbiote_repo = symbiote_repo
         self.expedition_repo = expedition_repo
 
     async def sync_active_session(self, char_id: int) -> dict[str, Any]:
@@ -69,6 +72,15 @@ class CharacterSystemIntegrator:
                     session_doc.char_id,
                     float(session_doc.progression.free_xp or 0.0),
                 )
+        if (
+            not unsafe_runtime
+            and self.symbiote_repo is not None
+            and (dirty_targets is None or dirty_targets.get("symbiote") is True)
+        ):
+            await self.symbiote_repo.upsert_from_session(
+                session_doc.char_id,
+                session_doc.symbiote.model_dump(mode="json"),
+            )
         await self.character_sessions.clear_dirty(char_id, generation=self._dirty_generation(dirty_marker))
         return {
             "char_id": char_id,

@@ -7,11 +7,14 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from src.backend.core.database import get_db
 from src.backend.features.monsters.dto.generated_view import (
     GeneratedMonstersResponseDTO,
+    MonsterDataRebuildRequestDTO,
+    MonsterDataRebuildResponseDTO,
     MonsterImageRegenerationBatchRequestDTO,
     MonsterImageRegenerationBatchResponseDTO,
     MonsterImageRegenerationResponseDTO,
 )
 from src.backend.features.monsters.repositories import MonsterGenerationRepository
+from src.backend.features.monsters.services.generated_rebuild_service import MonsterGeneratedRebuildService
 from src.backend.features.monsters.services.generated_view_service import GeneratedMonsterViewService
 from src.backend.features.monsters.services.visual_regeneration_service import MonsterVisualRegenerationService
 
@@ -32,6 +35,10 @@ def get_monster_visual_regeneration_service(
     )
 
 
+def get_monster_generated_rebuild_service(db_session=Depends(get_db)) -> MonsterGeneratedRebuildService:
+    return MonsterGeneratedRebuildService(session=db_session)
+
+
 @router.get("/generated", response_model=GeneratedMonstersResponseDTO)
 async def get_generated_monsters(
     service: Annotated[GeneratedMonsterViewService, Depends(get_generated_monster_view_service)],
@@ -50,6 +57,28 @@ async def get_generated_monsters(
         limit=limit,
         offset=offset,
     )
+
+
+@router.post("/generated/rebuild/plan", response_model=MonsterDataRebuildResponseDTO)
+async def plan_generated_monster_rebuild(
+    payload: MonsterDataRebuildRequestDTO,
+    service: Annotated[MonsterGeneratedRebuildService, Depends(get_monster_generated_rebuild_service)],
+) -> MonsterDataRebuildResponseDTO:
+    try:
+        return await service.plan(payload)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@router.post("/generated/rebuild/apply", response_model=MonsterDataRebuildResponseDTO)
+async def apply_generated_monster_rebuild(
+    payload: MonsterDataRebuildRequestDTO,
+    service: Annotated[MonsterGeneratedRebuildService, Depends(get_monster_generated_rebuild_service)],
+) -> MonsterDataRebuildResponseDTO:
+    try:
+        return await service.apply(payload)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 @router.post("/generated/clans/{clan_id}/regenerate-image", response_model=MonsterImageRegenerationResponseDTO)
@@ -99,4 +128,9 @@ async def regenerate_generated_member_image(
         raise HTTPException(status_code=404, detail=str(exc)) from exc
 
 
-__all__ = ["get_generated_monster_view_service", "get_monster_visual_regeneration_service", "router"]
+__all__ = [
+    "get_generated_monster_view_service",
+    "get_monster_generated_rebuild_service",
+    "get_monster_visual_regeneration_service",
+    "router",
+]

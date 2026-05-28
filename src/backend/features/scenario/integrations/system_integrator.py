@@ -16,6 +16,7 @@ from src.backend.features.city_services.events import CityServiceEvents
 from src.backend.features.inventory.events.publisher import InventoryEvents
 from src.backend.features.items.dto.instance import ItemGenerationRequestDTO, ItemOriginRefDTO, ItemPlacementRefDTO
 from src.backend.features.items.events.publisher import ItemEvents
+from src.backend.features.rift.events import RiftEvents
 from src.backend.features.scenario.dto.context import ScenarioContextDTO
 from src.backend.features.scenario.handlers import get_handler
 from src.backend.features.scenario.handlers.base_handler import ScenarioInitialHandlerContext
@@ -23,12 +24,12 @@ from src.shared.enums import CoreDomain
 
 if TYPE_CHECKING:
     from src.backend.core.bus import GameEventProducer
-    from src.backend.features.character.managers import CharacterSessionManager
     from src.backend.features.character.repositories import CharacterRepository
-    from src.backend.features.npc.services import NpcService
+    from src.backend.features.npc.integrations import NpcIntegration
     from src.backend.features.scenario.handlers import BaseScenarioHandler
     from src.backend.features.scenario.integrations.content_integration import ScenarioContentIntegration
     from src.backend.features.world.integrations import WorldDataIntegration
+    from src.backend.infrastructure.actor_state.managers import CharacterSessionManager
     from src.backend.infrastructure.scenario.managers.session_manager import ScenarioSessionManager
     from src.backend.infrastructure.scenario.repositories import ScenarioRepository
 
@@ -36,6 +37,7 @@ BACKUP_INTERVAL = 3
 SCENARIO_COMBAT_TTL_SECONDS = 24 * 60 * 60
 MONSTER_GROUP_PREPARE_REQUESTED = "monsters.group_prepare_requested"
 TUTORIAL_PVE_CROSS_ZONE_IDS = ("D4_1_0", "D4_2_1", "D4_1_2", "D4_0_1")
+TUTORIAL_OUTSKIRTS_ZONE_IDS = TUTORIAL_PVE_CROSS_ZONE_IDS
 
 
 def _elapsed_ms(started_at: float) -> float:
@@ -69,7 +71,7 @@ class ScenarioSystemIntegrator:
         events: GameEventProducer,
         character_repo: CharacterRepository | None = None,
         world_data: WorldDataIntegration | None = None,
-        npc_service: NpcService | None = None,
+        npc: NpcIntegration | None = None,
     ) -> None:
         self.sessions = sessions
         self.content = content
@@ -78,7 +80,7 @@ class ScenarioSystemIntegrator:
         self.events = events
         self.character_repo = character_repo
         self.world_data = world_data
-        self.npc_service = npc_service
+        self.npc = npc
 
     # --- Session Management (Redis & DB) ---
 
@@ -224,6 +226,56 @@ class ScenarioSystemIntegrator:
     async def enter_prepared_combat(self, char_id: int, combat_id: str) -> None:
         await self.character_sessions.set_combat_session(char_id, combat_id)
         await self.character_sessions.set_state(char_id, CoreDomain.COMBAT, prev_state=CoreDomain.EXPLORATION)
+
+    async def has_prepared_rift_entry(self, char_id: int) -> bool:
+        session = await self.character_sessions.get_session(char_id)
+        sessions = session.get("sessions") if isinstance(session, dict) else {}
+        sessions = sessions if isinstance(sessions, dict) else {}
+        return bool(sessions.get("rift_session_id") and sessions.get("rift_instance_id"))
+
+    async def publish_rift_entry_requested(
+        self,
+        char_id: int,
+        context: ScenarioContextDTO,
+        node: dict[str, Any],
+    ) -> dict[str, Any]:
+        metadata = node.get("metadata") if isinstance(node.get("metadata"), dict) else {}
+        rift_entry = metadata.get("rift_entry") if isinstance(metadata.get("rift_entry"), dict) else {}
+        request_id = str(context.flags.get("rift_entry_request_id") or uuid.uuid4())
+        exit_location_id = str(rift_entry.get("exit_location_id") or "")
+        if not exit_location_id:
+            exit_location_id = await self.select_tutorial_outskirts_spawn_location()
+        payload = {
+            "char_id": char_id,
+            "quest_key": context.quest_key,
+            "scenario_session_id": str(context.scenario_session_id),
+            "source_ref": f"scenario:{context.quest_key}:{node.get('node_key') or context.current_node_key}",
+            "request_id": request_id,
+            "rift_key": str(rift_entry.get("rift_key") or "starter_rift"),
+            "entry_reason": str(rift_entry.get("entry_reason") or "scenario"),
+            "seed": str(rift_entry.get("seed") or f"{context.quest_key}:{char_id}:{request_id}"),
+            "exit_target_state": str(rift_entry.get("exit_target_state") or CoreDomain.EXPLORATION.value),
+            "exit_location_id": exit_location_id,
+            "exit_reason": str(rift_entry.get("exit_reason") or "rift_exit"),
+            "completion_exit": rift_entry.get("completion_exit"),
+            "exit_node_id": rift_entry.get("exit_node_id"),
+        }
+        await self.events.publish(RiftEvents.ENTRY_REQUESTED, payload, correlation_id=request_id)
+        return {"request_id": request_id, "payload": payload}
+
+    async def activate_prepared_rift_entry(
+        self,
+        char_id: int,
+        context: ScenarioContextDTO,
+    ) -> dict[str, Any]:
+        refs = await self.character_sessions.activate_prepared_rift_session(
+            char_id,
+            prev_state=CoreDomain.EXPLORATION,
+        )
+        await self.character_sessions.clear_scenario_session(char_id)
+        await self.sessions.delete(char_id)
+        await self.repo.delete_state(char_id)
+        return dict(refs)
 
     async def cleanup_session(self, char_id: int) -> None:
         """Remove scenario artifacts without character state transitions."""
@@ -398,9 +450,9 @@ class ScenarioSystemIntegrator:
             await self.character_sessions.apply_attribute_bonus(char_id, bonuses)
 
     async def attach_npc_context(self, char_id: int, context: ScenarioContextDTO) -> None:
-        if self.npc_service is None or not context.npc_key:
+        if self.npc is None or not context.npc_key:
             return
-        npc_context = await self.npc_service.load_dialogue_context(character_id=char_id, npc_key=context.npc_key)
+        npc_context = await self.npc.load_dialogue_context(character_id=char_id, npc_key=context.npc_key)
         for key in [
             name for name in list(context.flags) if name.startswith("npc_flag_") or name.startswith("npc_counter_")
         ]:
@@ -420,10 +472,10 @@ class ScenarioSystemIntegrator:
         effects: list[dict[str, Any]],
         action_id: str,
     ) -> dict[str, Any]:
-        if self.npc_service is None or not context.npc_key or not effects:
+        if self.npc is None or not context.npc_key or not effects:
             return {}
         idempotency_key = f"scenario:{context.scenario_session_id}:node:{context.current_node_key}:action:{action_id}"
-        return await self.npc_service.apply_effects(
+        return await self.npc.apply_effects(
             character_id=char_id,
             npc_key=context.npc_key,
             effects=effects,
@@ -437,10 +489,10 @@ class ScenarioSystemIntegrator:
         *,
         effects: list[dict[str, Any]],
     ) -> dict[str, Any]:
-        if self.npc_service is None or not context.npc_key or not effects:
+        if self.npc is None or not context.npc_key or not effects:
             return {}
         idempotency_key = f"scenario:{context.scenario_session_id}:initialize:{context.current_node_key}"
-        return await self.npc_service.apply_effects(
+        return await self.npc.apply_effects(
             character_id=char_id,
             npc_key=context.npc_key,
             effects=effects,
@@ -477,12 +529,12 @@ class ScenarioSystemIntegrator:
         effect_type = str(effect.get("type") or "")
         if effect_type.startswith("npc."):
             npc_key = str(effect.get("npc_key") or "")
-            if self.npc_service is None:
+            if self.npc is None:
                 raise RuntimeError("NPC service is not configured for scenario finalize effects")
             if not npc_key:
                 raise RuntimeError(f"NPC finalize effect requires npc_key: {effect!r}")
             idempotency_key = f"scenario:{quest_key}:npc:{npc_key}:{effect_type}"
-            return await self.npc_service.apply_effects(
+            return await self.npc.apply_effects(
                 character_id=char_id,
                 npc_key=npc_key,
                 effects=[effect],
@@ -521,21 +573,38 @@ class ScenarioSystemIntegrator:
             char_id, reason="combat_return_context_prepared", paths=sorted(updates)
         )
 
-    async def select_tutorial_pve_spawn_location(self) -> str:
-        if self.world_data is None:
-            raise RuntimeError("Scenario tutorial PvE spawn selection requires world_data integration")
+    async def prepare_exploration_return_context(self, char_id: int, *, location_id: str | None = None) -> None:
+        if not location_id:
+            return
+        updates = {
+            "$.location.current": location_id,
+            "$.location.prev": location_id,
+        }
+        await self.character_sessions.patch_fields(char_id, updates)
+        await self.character_sessions.mark_dirty(
+            char_id,
+            reason="exploration_return_context_prepared",
+            paths=sorted(updates),
+        )
 
-        nodes = await self.world_data.get_active_nodes_by_zone_ids(list(TUTORIAL_PVE_CROSS_ZONE_IDS))
+    async def select_tutorial_outskirts_spawn_location(self) -> str:
+        if self.world_data is None:
+            raise RuntimeError("Scenario tutorial outskirts spawn selection requires world_data integration")
+
+        nodes = await self.world_data.get_active_nodes_by_zone_ids(list(TUTORIAL_OUTSKIRTS_ZONE_IDS))
         candidates = sorted(
             (self._loc_id(node) for node in nodes if self._is_tutorial_spawn_candidate(node)),
             key=lambda loc_id: tuple(int(part) for part in loc_id.split("_", 1)),
         )
         if not candidates:
             raise RuntimeError(
-                "Scenario tutorial PvE spawn selection failed: no active passable non-safe nodes in cross zones "
-                f"{list(TUTORIAL_PVE_CROSS_ZONE_IDS)}"
+                "Scenario tutorial outskirts spawn selection failed: no active passable non-safe nodes in cross zones "
+                f"{list(TUTORIAL_OUTSKIRTS_ZONE_IDS)}"
             )
         return random.choice(candidates)  # nosec B311
+
+    async def select_tutorial_pve_spawn_location(self) -> str:
+        return await self.select_tutorial_outskirts_spawn_location()
 
     async def request_combat_start(
         self,

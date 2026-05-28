@@ -20,9 +20,12 @@ from src.backend.features.monsters.services import (
     EncounterMonsterService,
     WorldMonsterPopulationService,
 )
+from src.backend.features.rift.resources.loader import RiftResourceLoader
+from src.backend.features.rift.services import RiftCatalogBootstrapService, RiftPopulationBootstrapService
 from src.backend.features.scenario.integrations import ScenarioImportIntegration
 from src.backend.features.world.integrations import WorldDataIntegration, WorldLocationIntegration
 from src.backend.features.world.services import LLMWorldGenerator, WorldBootstrapService, WorldCacheService
+from src.backend.infrastructure.rift.repositories import RiftNodePoolRepository, RiftSettingRepository
 from src.backend.infrastructure.world.repositories import WorldRepository
 
 
@@ -60,29 +63,53 @@ class GameFeatureContainer:
                 generation_mode=settings.world_generation_mode,
             )
             loaded_count = await bootstrap.bootstrap()
-            monster_population = WorldMonsterPopulationService(
-                EncounterMonsterService(
-                    MonsterGenerationRepository(session),
-                    factory=ClanFactory(
-                        MonsterClanGenerationBuilder(
-                            repository=MonsterGenerationRepository(session),
-                            item_generation=ItemGenerationService(
-                                ItemPersistenceIntegration(ItemInstanceRepository(session)),
-                            ),
-                            generation_ai=generation_ai,
+            encounter_service = EncounterMonsterService(
+                MonsterGenerationRepository(session),
+                factory=ClanFactory(
+                    MonsterClanGenerationBuilder(
+                        repository=MonsterGenerationRepository(session),
+                        item_generation=ItemGenerationService(
+                            ItemPersistenceIntegration(ItemInstanceRepository(session)),
                         ),
+                        generation_ai=generation_ai,
                     ),
-                )
+                ),
             )
+            monster_population = WorldMonsterPopulationService(encounter_service)
             population_result = await monster_population.ensure_population_for_nodes(await data.get_active_nodes())
+            rift_loader = RiftResourceLoader()
+            rift_catalog_result = await RiftCatalogBootstrapService(
+                loader=rift_loader,
+                setting_repository=RiftSettingRepository(session),
+                node_pool_repository=RiftNodePoolRepository(session),
+            ).sync_fixtures()
+            rift_population_result = await RiftPopulationBootstrapService(
+                loader=rift_loader,
+                encounter_service=encounter_service,
+            ).ensure_static_population()
             app.state.world_cache_loaded_count = loaded_count
             app.state.monster_population_contexts = population_result.contexts
             app.state.monster_population_clans = population_result.clans
+            app.state.rift_catalog_settings = rift_catalog_result.settings
+            app.state.rift_catalog_nodes = rift_catalog_result.nodes
+            app.state.rift_population_rifts = rift_population_result.rifts
+            app.state.rift_population_family_slots = rift_population_result.family_slots
+            app.state.rift_population_clans = rift_population_result.clans
+            app.state.rift_population_bindings = rift_population_result.bindings
             logger.bind(location_count=loaded_count).info("WorldBootstrapFinished")
             logger.bind(
                 context_count=population_result.contexts,
                 clan_count=population_result.clans,
             ).info("MonsterPopulationBootstrapFinished")
+            logger.bind(
+                setting_count=rift_catalog_result.settings,
+                node_count=rift_catalog_result.nodes,
+            ).info("RiftCatalogBootstrapFinished")
+            logger.bind(
+                rift_count=rift_population_result.rifts,
+                slot_count=rift_population_result.family_slots,
+                clan_count=rift_population_result.clans,
+            ).info("RiftPopulationBootstrapFinished")
             await session.commit()
             scheduled = await generation_ai.schedule_pending_task_ids()
             logger.bind(task_count=scheduled).info("GenerationAiBootstrapTasksScheduled")

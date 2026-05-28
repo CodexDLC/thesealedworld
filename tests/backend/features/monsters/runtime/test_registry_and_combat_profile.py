@@ -1,5 +1,11 @@
 import pytest
 
+from src.backend.features.game_catalog.combat.resources.feints.availability import (
+    BASIC_FEINTS,
+    FENCING_WEAPON_FEINTS,
+    MACING_WEAPON_FEINTS,
+    SHIELD_TACTICAL_FEINTS,
+)
 from src.backend.features.items.dto.instance import RuntimeItemProjectionDTO
 from src.backend.features.items.resources import get_base_by_id
 from src.backend.features.monsters.dto.generation import GeneratedClan, MonsterGenerationContext
@@ -326,16 +332,17 @@ def test_anchor_sovereigns_family_defines_four_tier_seven_bosses() -> None:
         "off_hand": "anchor_evolution_bloom_talons",
         "chest_armor": "anchor_projection_aegis",
     }
-    assert family.variants["north_stasis_sovereign"].skill_overrides["skill_shield_mastery"] == 1.0
-    assert family.variants["south_entropy_sovereign"].skill_overrides["skill_two_handed"] == 1.0
-    assert family.variants["west_gravity_sovereign"].skill_overrides["skill_one_handed"] == 1.0
-    assert family.variants["east_evolution_sovereign"].skill_overrides["skill_dual_wield"] == 1.0
+    assert "skill_shield_mastery" in family.variants["north_stasis_sovereign"].skills
+    assert "skill_two_handed" in family.variants["south_entropy_sovereign"].skills
+    assert "skill_one_handed" not in family.variants["west_gravity_sovereign"].skills
+    assert "skill_dual_wield" in family.variants["east_evolution_sovereign"].skills
     for variant in family.variants.values():
-        assert all(value == 1.0 for value in variant.skill_overrides.values())
+        assert "skill_tactics" in variant.skills
+        assert "skill_anatomy" in variant.skills
     from src.backend.features.monsters.resources.equipment_mapping import NATURAL_EQUIPMENT_MAPPINGS
 
     for variant in family.variants.values():
-        for slot, natural_key in variant.fixed_loadout.model_dump(exclude_none=True).items():
+        for _slot, natural_key in variant.fixed_loadout.model_dump(exclude_none=True).items():
             if natural_key == "shield":
                 continue  # abstract shield slot — no direct base item
             # Fixed loadout values are natural keys resolved through NATURAL_EQUIPMENT_MAPPINGS
@@ -359,9 +366,8 @@ async def test_rat_beast_profile_builds_combat_ready_context() -> None:
     assert combat["loadout"]["layout"]["body"] == "skill_light_armor"
     assert combat["loadout"]["equipment_layout"]["main_hand"]
     assert combat["loadout"]["equipment_layout"]["chest_armor"]
-    assert "measured_strike" in combat["loadout"]["known_feints"]
-    assert "close_grapple" not in combat["loadout"]["known_feints"]
-    assert combat["skills"]["skill_fencing"] >= 0.2
+    assert combat["loadout"]["known_feints"] == [*BASIC_FEINTS, *FENCING_WEAPON_FEINTS]
+    assert combat["skills"]["skill_fencing"] == pytest.approx(0.1429)
     assert snapshot["status"]["hp"]["max"] > 0
 
 
@@ -380,9 +386,8 @@ async def test_bandit_humanoid_loadout_resolves_into_modifiers_and_layout() -> N
     assert combat["math_model"]["modifiers"]["main_hand_accuracy"]["base"] == 0.0
     assert combat["math_model"]["modifiers"]["accuracy"]["source"]["family:bandit_gang"] == pytest.approx(-0.10)
     assert combat["math_model"]["modifiers"]["armor"]["base"] > 0
-    assert combat["skills"]["skill_macing"] >= 0.2
-    assert "measured_strike" in combat["loadout"]["known_feints"]
-    assert "guard_breaker" not in combat["loadout"]["known_feints"]
+    assert combat["skills"]["skill_macing"] == pytest.approx(0.1429)
+    assert combat["loadout"]["known_feints"] == [*BASIC_FEINTS, *MACING_WEAPON_FEINTS, *SHIELD_TACTICAL_FEINTS]
 
 
 @pytest.mark.unit
@@ -396,4 +401,4 @@ async def test_goblin_humanoid_loadout_resolves_into_damage_and_accuracy() -> No
     assert combat["math_model"]["modifiers"]["main_hand_accuracy"]["base"] == 0.0
     assert combat["math_model"]["modifiers"]["accuracy"]["source"]["family:goblin_tribe"] == pytest.approx(-0.10)
     assert combat["math_model"]["modifiers"]["shield_guard_power"]["base"] > 0
-    assert combat["skills"]["skill_macing"] >= 0.2
+    assert combat["skills"]["skill_macing"] == pytest.approx(0.1429)

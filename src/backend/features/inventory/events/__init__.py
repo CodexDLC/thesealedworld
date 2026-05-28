@@ -13,7 +13,7 @@ from src.backend.features.inventory.integrations import InventoryStreamClient
 from src.backend.features.inventory.repositories.items import InventoryItemRepository
 from src.backend.features.inventory.services.inventory_service import InventoryService
 from src.backend.features.inventory.services.reward_service import InventoryRewardService
-from src.backend.features.inventory.services.session_manager import InventorySessionManager
+from src.backend.infrastructure.inventory.managers import InventorySessionManager
 
 if TYPE_CHECKING:
     from fastapi import FastAPI

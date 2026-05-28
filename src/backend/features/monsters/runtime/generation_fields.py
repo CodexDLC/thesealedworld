@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import contextlib
 from typing import TYPE_CHECKING, Any
 
 from src.backend.features.monsters.dto.generation import (
@@ -72,19 +71,12 @@ def build_scaled_skills(
     family: MonsterFamilyDTO,
     variant: MonsterVariantDTO,
     member_model: MonsterMemberResourceModelDTO | None = None,
+    *,
+    member_tier: int,
 ) -> MonsterScaledSkillsDTO:
-    skills: dict[str, float] = {}
-    if family.skill_kit:
-        skills.update(family.skill_kit.base)
-        skills.update(family.skill_kit.role_bonus.get(variant.role, {}))
-    skills.update(_number_mapping((member_model.skill_profile if member_model else {}).get("base")))
-    if variant.skill_overrides:
-        for key, value in variant.skill_overrides.items():
-            if value is None:
-                skills.pop(str(key), None)
-            else:
-                with contextlib.suppress(TypeError, ValueError):
-                    skills[str(key)] = round(float(value), 4)
+    del family
+    skill_value = _skill_value_for_tier(member_tier)
+    skills: dict[str, float] = {skill_key: skill_value for skill_key in _declared_skill_keys(variant, member_model)}
     return MonsterScaledSkillsDTO(skills=filter_monster_combat_skills(skills))
 
 
@@ -201,7 +193,7 @@ def build_generated_monster_template(
         text_content=build_text_payload(variant, generated_text),
         meta=build_meta(family, variant, source=source),
         scaled_attributes=build_scaled_attributes(variant, member_tier, member_model),
-        scaled_skills=build_scaled_skills(family, variant, member_model),
+        scaled_skills=build_scaled_skills(family, variant, member_model, member_tier=member_tier),
         items=build_items(runtime_items, owner_key=owner_key),
         granted_abilities=build_granted_abilities(family, variant, member_model),
         ai_profile=build_ai_profile(family, variant, member_model),
@@ -224,6 +216,26 @@ def _number_mapping(value: object) -> dict[str, float]:
         except (TypeError, ValueError):
             continue
     return result
+
+
+def _declared_skill_keys(
+    variant: MonsterVariantDTO,
+    member_model: MonsterMemberResourceModelDTO | None,
+) -> list[str]:
+    keys: list[str] = []
+    keys.extend(str(skill) for skill in variant.skills)
+
+    profile = member_model.skill_profile if member_model else {}
+    base = profile.get("base")
+    if isinstance(base, dict | list):
+        keys.extend(str(skill) for skill in base)
+
+    return list(dict.fromkeys(keys))
+
+
+def _skill_value_for_tier(member_tier: int) -> float:
+    safe_tier = max(0, min(7, int(member_tier)))
+    return round(safe_tier / 7.0, 4)
 
 
 def _normalize_text_content(value: dict[str, Any]) -> dict[str, Any]:

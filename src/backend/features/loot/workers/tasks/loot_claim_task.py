@@ -13,6 +13,7 @@ from src.backend.features.expedition import ExpeditionService
 from src.backend.features.expedition.service import increment_expedition_resource
 from src.backend.features.items.models import ItemPlacement, ResourceBalance
 from src.backend.features.loot.integrations.loot_integration import LootIntegration
+from src.backend.infrastructure.inventory.managers import InventorySessionManager
 from src.backend.infrastructure.inventory.models import ResourceWallet
 from src.backend.infrastructure.loot.managers.loot_manager import LootManager
 from src.shared.infrastructure.log_task_wrapper import logged_task
@@ -210,7 +211,7 @@ async def _clear_inventory_runtime_cache(ctx: dict[str, Any], char_id: int) -> N
     if redis_service is None:
         return
     try:
-        await redis_service.string.delete(f"game:inventory:{char_id}")
+        await InventorySessionManager(redis_service).delete(char_id)
     except Exception:
         log.bind(char_id=char_id).exception("LootClaimInventoryRuntimeCacheClearFailed")
 

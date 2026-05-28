@@ -37,6 +37,9 @@ class TestCharacterCreationService:
         integration.count_user_characters = AsyncMock(return_value=1)
         integration.character_name_exists = AsyncMock(return_value=False)
         integration.create_character = AsyncMock(return_value=created_character)
+        integration.materialize_starting_imprint = AsyncMock(
+            return_value={"imprint_key": "starter_guard_01", "item_ids": ["item-1"]}
+        )
         integration.create_active_session = AsyncMock()
         scenario_payload = MagicMock(spec=ScenarioPayloadDTO)
         integration.initialize_starting_scenario = AsyncMock(return_value=scenario_payload)
@@ -49,11 +52,16 @@ class TestCharacterCreationService:
         assert integration.create_character.called
         assert integration.create_character.await_args.kwargs["name"] == "NewHero"
         assert integration.create_character.await_args.kwargs["name_key"] == "newhero"
+        integration.materialize_starting_imprint.assert_awaited_once_with(
+            created_character,
+            seed=f"{user_id}:123:newhero",
+        )
         assert integration.create_active_session.called
         assert integration.initialize_starting_scenario.called
         assert integration.initialize_starting_scenario.await_args.kwargs["npc_key"] == "portal_pad_guide"
         integration.release_other_active_sessions.assert_awaited_once_with(user_id, 123)
         assert integration.mark_character_entered_scenario.called
+        assert result.extra_data["starting_imprint"]["imprint_key"] == "starter_guard_01"
 
     async def test_ensure_slot_available_fails(self, service, integration):
         user = MagicMock(id=1)

@@ -16,7 +16,7 @@ from .generation_fields import (
     build_text_payload,
 )
 from .group_assembler import MonsterGroupAssembler, MonsterGroupAssembly
-from .hashing import compute_context_hash, compute_unique_clan_hash, normalize_tags
+from .hashing import compute_context_hash, compute_rift_context_hash, compute_unique_clan_hash, normalize_tags
 
 __all__ = [
     "EncounterPoolSelector",
@@ -38,6 +38,7 @@ __all__ = [
     "build_scaled_skills",
     "build_text_payload",
     "compute_context_hash",
+    "compute_rift_context_hash",
     "compute_unique_clan_hash",
     "normalize_tags",
 ]

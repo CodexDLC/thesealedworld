@@ -6,8 +6,10 @@ from typing import TYPE_CHECKING, Any
 from loguru import logger as log
 from sqlalchemy import func, select
 from sqlalchemy.orm import selectinload
+from sqlalchemy.orm.attributes import flag_modified
 
 from src.backend.features.monsters.dto.generation import GeneratedClan, GeneratedMonster
+from src.backend.features.monsters.services.gear_score_service import MonsterGearScoreService
 from src.backend.infrastructure.monsters import GeneratedClanORM, GeneratedMonsterORM, Monster
 
 if TYPE_CHECKING:
@@ -39,6 +41,15 @@ class MonsterGenerationRepository:
         )
         result = await self.session.scalars(stmt)
         return [_to_generated_clan(clan) for clan in result.all()]
+
+    async def get_generated_clan(self, clan_id: uuid.UUID | str) -> GeneratedClan | None:
+        stmt = (
+            select(GeneratedClanORM)
+            .where(GeneratedClanORM.id == uuid.UUID(str(clan_id)))
+            .options(selectinload(GeneratedClanORM.members))
+        )
+        clan = await self.session.scalar(stmt)
+        return _to_generated_clan(clan) if clan is not None else None
 
     async def get_clans_by_zone(self, zone_id: str) -> list[GeneratedClan]:
         stmt = (
@@ -97,6 +108,44 @@ class MonsterGenerationRepository:
         )
         result = await self.session.scalars(stmt)
         return [_to_generated_monster(monster) for monster in result.all()]
+
+    async def refresh_clan_gear_scores(
+        self,
+        clan_id: uuid.UUID | str,
+        *,
+        gear_score_service: MonsterGearScoreService | None = None,
+        persist: bool = False,
+    ) -> list[GeneratedMonster]:
+        service = gear_score_service or MonsterGearScoreService()
+        stmt = (
+            select(GeneratedClanORM)
+            .where(GeneratedClanORM.id == uuid.UUID(str(clan_id)))
+            .options(selectinload(GeneratedClanORM.members))
+        )
+        clan = await self.session.scalar(stmt)
+        if clan is None:
+            return []
+
+        members = list(clan.members)
+        changed_members: list[GeneratedMonsterORM] = []
+        for member in members:
+            if not service.needs_recalculation(member):  # type: ignore[arg-type]
+                continue
+            service.apply_monster_gear_score(member)  # type: ignore[arg-type]
+            flag_modified(member, "generation_meta")
+            changed_members.append(member)
+
+        service.apply_clan_summary(clan)  # type: ignore[arg-type]
+        flag_modified(clan, "raw_tags")
+        await self.session.flush()
+        await self.session.refresh(clan, attribute_names=["raw_tags", "updated_at"])
+        for member in changed_members:
+            await self.session.refresh(member, attribute_names=["generation_meta", "updated_at"])
+        if persist:
+            await self.session.commit()
+
+        clan_snapshot = _to_generated_clan_without_members(clan)
+        return [_to_generated_monster(member, clan_snapshot) for member in members]
 
     async def create_clan_with_members(
         self,

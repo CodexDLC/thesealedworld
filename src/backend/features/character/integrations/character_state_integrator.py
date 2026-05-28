@@ -30,7 +30,6 @@ from src.shared.enums.skill_enums import SkillProgressState
 if TYPE_CHECKING:
     from uuid import UUID
 
-    from src.backend.features.character.managers.session import CharacterSessionManager
     from src.backend.features.character.models.character import Character
     from src.backend.features.character.repositories import (
         CharacterProgressionRepository,
@@ -40,6 +39,7 @@ if TYPE_CHECKING:
     from src.backend.features.character.schemas.session import CharacterGender
     from src.backend.features.expedition import CharacterExpeditionRepository
     from src.backend.features.inventory.repositories.items import InventoryItemRepository
+    from src.backend.infrastructure.actor_state.managers import CharacterSessionManager
 
 
 @dataclass(frozen=True)
@@ -201,7 +201,9 @@ class CharacterStateIntegrator:
             ),
             symbiote=CharacterSessionSymbioteDTO(
                 name=character.symbiote.symbiote_name if character.symbiote else settings.default_symbiote_name,
-                gift_rank=character.symbiote.gift_rank if character.symbiote else 1,
+                gift_id=getattr(character.symbiote, "gift_id", None) if character.symbiote else None,
+                gift_xp=getattr(character.symbiote, "gift_xp", 0) if character.symbiote else 0,
+                gift_rank=getattr(character.symbiote, "gift_rank", 1) if character.symbiote else 1,
             ),
             updated_at=datetime.now(UTC),
         )

@@ -5,6 +5,7 @@ import pytest
 
 from src.backend.features.monsters.dto.generation import GeneratedClan, GeneratedMonster
 from src.backend.features.monsters.repositories import MonsterGenerationRepository
+from src.backend.features.monsters.services.gear_score_service import MonsterGearScoreService
 from src.backend.infrastructure.monsters import GeneratedClanORM, GeneratedMonsterORM
 
 
@@ -12,6 +13,7 @@ from src.backend.infrastructure.monsters import GeneratedClanORM, GeneratedMonst
 async def test_create_clan_with_members_persists_clan_and_members() -> None:
     session = MagicMock()
     session.flush = AsyncMock()
+    session.refresh = AsyncMock()
     repo = MonsterGenerationRepository(session)
     clan = GeneratedClan(
         id=uuid.uuid4(),
@@ -139,3 +141,70 @@ async def test_update_clan_flavor_updates_clan_and_member_text() -> None:
     assert clan_orm.flavor_content == {"name_ru": "Ashen Wolves", "variants_flavor": {}}
     assert member_orm.description == "New runner"
     session.flush.assert_awaited_once()
+
+
+@pytest.mark.unit
+async def test_refresh_clan_gear_scores_updates_stale_member_balance_and_summary() -> None:
+    session = MagicMock()
+    session.flush = AsyncMock()
+    session.refresh = AsyncMock()
+    clan_id = uuid.uuid4()
+    member_orm = GeneratedMonsterORM(
+        id=uuid.uuid4(),
+        clan_id=clan_id,
+        variant_key="runner",
+        role="minion",
+        member_tier=0,
+        threat_rating=20,
+        name_ru="Runner T1",
+        description="Old runner",
+        text_content={"name_ru": "Runner T1"},
+        scaled_attributes={
+            "strength": 6,
+            "agility": 6,
+            "endurance": 6,
+            "intellect": 1,
+            "memory": 1,
+            "mental": 2,
+            "perception": 3,
+            "projection": 1,
+            "prediction": 2,
+        },
+        scaled_skills={"skill_unarmed": 0.2},
+        items={},
+        vitals={"hp": {"current": 20, "max": 20}, "energy": {"current": 10, "max": 10}},
+        ai_profile={},
+        generation_meta={
+            "balance": {
+                "gear_score": 999,
+                "gear_score_version": MonsterGearScoreService.VERSION - 1,
+                "organization_type": "pack",
+            },
+            "meta": {"archetype": "beast", "tags": ["wolf"]},
+        },
+    )
+    clan_orm = GeneratedClanORM(
+        id=clan_id,
+        family_id="wolf_pack",
+        tier=1,
+        zone_id="zone-a",
+        context_hash="context",
+        unique_hash="unique",
+        raw_tags={},
+        flavor_content={},
+        name_ru="Wolf Pack T1",
+        description="Old",
+    )
+    clan_orm.members.append(member_orm)
+    session.scalar = AsyncMock(return_value=clan_orm)
+    repo = MonsterGenerationRepository(session)
+
+    members = await repo.refresh_clan_gear_scores(clan_id)
+
+    assert members[0].generation_meta["balance"]["gear_score"] != 999
+    assert members[0].generation_meta["balance"]["gear_score_version"] == MonsterGearScoreService.VERSION
+    assert clan_orm.raw_tags["gear_score_summary"]["version"] == MonsterGearScoreService.VERSION
+    session.flush.assert_awaited_once()
+    assert session.refresh.await_count == 2
+    session.refresh.assert_any_await(clan_orm, attribute_names=["raw_tags", "updated_at"])
+    session.refresh.assert_any_await(member_orm, attribute_names=["generation_meta", "updated_at"])

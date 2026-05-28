@@ -50,7 +50,7 @@ def _make_humanoid_monster(
             "projection": 1,
             "prediction": 2,
         },
-        scaled_skills={"skill_one_handed": 0.35, "skill_light_armor": 0.10},
+        scaled_skills={"skill_swords": 0.35, "skill_light_armor": 0.10},
         items={
             "layout": {"equipment": {"main_hand": "axe-1"}, "belt": {}},
             "by_id": {
@@ -67,7 +67,7 @@ def _make_humanoid_monster(
                         "bonuses": weapon_bonuses or {},
                         "triggers": [],
                         "tags": [],
-                        "related_skill": "skill_one_handed",
+                        "related_skill": "skill_swords",
                     },
                     "generation": {
                         "item_grade": "uncommon",
@@ -249,7 +249,7 @@ def test_monster_combat_actor_input_uses_generated_template_contract() -> None:
     assert snapshot["meta"]["actor_type"] == "monster"
     assert snapshot["meta"]["actor_id"] == str(monster_id)
     assert snapshot["meta"]["name"] == "Крыса с черными когтями"
-    assert snapshot["meta"]["avatar_url"] == "/static/images/monsters/families/rat_swarm.svg"
+    assert snapshot["meta"]["avatar_url"] is None
     assert snapshot["source"]["monster_id"] == str(monster_id)
     assert snapshot["source"]["family_id"] == "rat_swarm"
     assert snapshot["source"]["visual"]["status"] == "fallback"
@@ -274,6 +274,24 @@ def test_monster_combat_actor_input_uses_generated_template_contract() -> None:
         "skill_key": "skill_fencing",
     }
     assert combat["loadout"]["known_abilities"] == []
+
+
+@pytest.mark.unit
+def test_monster_combat_actor_input_uses_generated_member_portrait_when_ready() -> None:
+    clan = _make_clan()
+    monster = _make_humanoid_monster(clan)
+    monster.generation_meta["visual"] = {
+        "status": "generated",
+        "image_url": "/static/generated-assets/monsters/generated/members/bandit.webp",
+        "asset_hash": "generated-bandit-bytes",
+        "fallback_image_url": "/static/images/monsters/families/bandit_gang.svg",
+    }
+
+    snapshot = MonsterCombatActorInputBuilder().build_snapshot(monster)
+
+    assert snapshot["meta"]["avatar_url"] == (
+        "/static/generated-assets/monsters/generated/members/bandit.webp?v=generated-bandit-bytes"
+    )
 
 
 @pytest.mark.unit

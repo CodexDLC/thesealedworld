@@ -12,7 +12,7 @@ if TYPE_CHECKING:
 GeneratedMonsterRole = Literal["minion", "veteran", "elite", "boss"]
 GeneratedMonsterOrganizationType = Literal["solitary", "pack", "gang", "clan", "legion", "horde", "swarm"]
 MonsterItemBuildMode = Literal["natural", "base"]
-MonsterItemKind = Literal["weapon", "armor", "shield"]
+MonsterItemKind = Literal["weapon", "armor", "shield", "ammo"]
 
 
 class MonsterGenerationContext(BaseModel):
@@ -60,6 +60,13 @@ class MonsterGroupMemberPreview(BaseModel):
     image: str | None = None
     visual: dict[str, Any] = Field(default_factory=dict)
     tags: list[str] = Field(default_factory=list)
+    archetype: str | None = None
+    family_id: str | None = None
+    organization_type: str | None = None
+    gear_score: int | None = None
+    vitals: dict[str, Any] = Field(default_factory=dict)
+    equipment: list[dict[str, Any]] = Field(default_factory=list)
+    affixes: list[dict[str, Any]] = Field(default_factory=list)
 
 
 class MonsterGroupResult(BaseModel):

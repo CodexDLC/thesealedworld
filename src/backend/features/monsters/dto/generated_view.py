@@ -128,12 +128,45 @@ class MonsterImageRegenerationBatchResponseDTO(BaseModel):
     storage_keys: list[str]
 
 
+class MonsterDataRebuildRequestDTO(BaseModel):
+    family_id: str | None = None
+    clan_id: str | None = None
+    limit: int = Field(default=100, ge=1, le=500)
+    force: bool = False
+    remove_obsolete_members: bool = True
+
+
+class MonsterDataRebuildItemDTO(BaseModel):
+    clan_id: str
+    family_id: str
+    status: str
+    reason: str = ""
+    members_expected: int = 0
+    members_changed: int = 0
+    members_created: int = 0
+    members_removed: int = 0
+
+
+class MonsterDataRebuildResponseDTO(BaseModel):
+    dry_run: bool
+    status: str
+    scanned: int
+    stale: int
+    rebuilt: int
+    skipped: int
+    errors: list[str] = Field(default_factory=list)
+    items: list[MonsterDataRebuildItemDTO] = Field(default_factory=list)
+
+
 __all__ = [
     "GearScoreSummaryDTO",
     "GeneratedAssetVisualDTO",
     "GeneratedClanViewDTO",
     "GeneratedMonsterEquipmentSummaryDTO",
     "GeneratedMonsterViewDTO",
+    "MonsterDataRebuildItemDTO",
+    "MonsterDataRebuildRequestDTO",
+    "MonsterDataRebuildResponseDTO",
     "MonsterImageRegenerationBatchRequestDTO",
     "MonsterImageRegenerationBatchResponseDTO",
     "GeneratedMonstersResponseDTO",

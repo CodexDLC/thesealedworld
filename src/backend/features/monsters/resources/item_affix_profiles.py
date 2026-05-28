@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Literal, cast
 
-MonsterItemAffixKind = Literal["weapon", "armor", "shield"]
+MonsterItemAffixKind = Literal["weapon", "armor", "shield", "ammo"]
 MonsterRole = Literal["minion", "veteran", "elite", "boss"]
 
 MONSTER_AFFIX_COUNT_BY_ROLE: dict[MonsterRole, int] = {
@@ -62,7 +62,6 @@ _HUMANOID_ARMOR_POOL: tuple[str, ...] = (
 _HUMANOID_SHIELD_POOL: tuple[str, ...] = (
     "block_bonus",
     "shield_guard_power_bonus",
-    "armor_flat",
     "physical_resistance_bonus",
     "evasion_bonus",
     "control_resistance_bonus",

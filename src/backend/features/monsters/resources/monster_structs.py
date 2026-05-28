@@ -42,11 +42,7 @@ class MonsterLoadout(TypedDict, total=False):
     ring_1: str | None
     ring_2: str | None
     belt_accessory: str | None
-
-
-class MonsterSkillKit(TypedDict):
-    base: dict[str, float]
-    role_bonus: dict[str, dict[str, float]]
+    quiver: str | None
 
 
 class MonsterLootProfile(TypedDict, total=False):
@@ -120,7 +116,7 @@ class MonsterVariant(TypedDict):
 
     base_stats: MonsterStats
     fixed_loadout: MonsterLoadout
-    skill_overrides: NotRequired[dict[str, float | None]]
+    skills: NotRequired[list[str]]
     member_model: NotRequired[MonsterMemberResourceModel]
 
     # Служебные поля (проставляются в __init__ реестра)
@@ -147,7 +143,6 @@ class MonsterFamily(TypedDict):
     # А НЕ ГЕОГРАФИЯ. География только в spawn_config.
     default_tags: list[str]
 
-    skill_kit: NotRequired[MonsterSkillKit]
     loot_profile: NotRequired[MonsterLootProfile]
     clan_model: NotRequired[MonsterClanResourceModel]
     member_models: NotRequired[list[MonsterMemberResourceModel]]

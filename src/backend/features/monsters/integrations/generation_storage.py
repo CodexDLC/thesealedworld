@@ -13,7 +13,17 @@ class MonsterGenerationStorage(Protocol):
 
     async def get_clans_by_context_hash(self, context_hash: str) -> list[GeneratedClan]: ...
 
+    async def get_generated_clan(self, clan_id: uuid.UUID | str) -> GeneratedClan | None: ...
+
     async def get_clan_members(self, clan_id: uuid.UUID | str) -> list[GeneratedMonster]: ...
+
+    async def refresh_clan_gear_scores(
+        self,
+        clan_id: uuid.UUID | str,
+        *,
+        gear_score_service,
+        persist: bool = False,
+    ) -> list[GeneratedMonster]: ...
 
     async def create_clan_with_members(
         self,

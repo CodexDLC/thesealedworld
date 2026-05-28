@@ -11,24 +11,6 @@ RATS_FAMILY: MonsterFamily = {
     "archetype": "beast",
     "organization_type": "swarm",  # TSP Base: 30
     "default_tags": ["beast", "rat", "disease", "swarm"],
-    "skill_kit": {
-        "base": {
-            "skill_fencing": 0.20,
-            "skill_light_armor": 0.10,
-            "skill_one_handed": 0.10,
-        },
-        "role_bonus": {
-            "minion": {},
-            "veteran": {"skill_fencing": 0.10, "skill_medium_armor": 0.10},
-            "elite": {"skill_fencing": 0.25, "skill_anatomy": 0.15, "skill_medium_armor": 0.15},
-            "boss": {
-                "skill_fencing": 0.60,
-                "skill_anatomy": 0.25,
-                "skill_heavy_armor": 0.20,
-                "skill_tactics": 0.30,
-            },
-        },
-    },
     "family_modifiers": [
         {"target": "accuracy", "value": -0.10, "per_tier": 0.0},
         {"target": "poison_efficiency", "value": 0.05, "per_tier": 0.02},
@@ -72,6 +54,7 @@ RATS_FAMILY: MonsterFamily = {
                 "prediction": 2,  # Итого: 48
             },
             "fixed_loadout": {"main_hand": "rat_bite_claws", "chest_armor": "rat_light_hide"},
+            "skills": ["skill_fencing", "skill_light_armor"],
         },
         "scavenger_rat": {
             "id": "scavenger_rat",
@@ -93,6 +76,7 @@ RATS_FAMILY: MonsterFamily = {
                 "prediction": 3,  # Итого: 50
             },
             "fixed_loadout": {"main_hand": "rat_bite_claws", "chest_armor": "rat_light_hide"},
+            "skills": ["skill_fencing", "skill_light_armor"],
         },
         "swarm_rat": {
             "id": "swarm_rat",
@@ -114,6 +98,7 @@ RATS_FAMILY: MonsterFamily = {
                 "prediction": 2,  # Итого: 46
             },
             "fixed_loadout": {"main_hand": "rat_bite_claws", "chest_armor": "rat_light_hide"},
+            "skills": ["skill_fencing", "skill_light_armor"],
         },
         # --- 2. Опытные бойцы (Veterans) [TSP ~45] ---
         "tunnel_rat": {
@@ -136,6 +121,7 @@ RATS_FAMILY: MonsterFamily = {
                 "prediction": 3,  # Итого: 65
             },
             "fixed_loadout": {"main_hand": "rat_veteran_claws", "chest_armor": "rat_medium_hide"},
+            "skills": ["skill_fencing", "skill_medium_armor"],
         },
         "pack_rat": {
             "id": "pack_rat",
@@ -157,6 +143,7 @@ RATS_FAMILY: MonsterFamily = {
                 "prediction": 3,  # Итого: 67
             },
             "fixed_loadout": {"main_hand": "rat_veteran_claws", "chest_armor": "rat_light_hide"},
+            "skills": ["skill_fencing", "skill_light_armor"],
         },
         "screecher": {
             "id": "screecher",
@@ -178,6 +165,7 @@ RATS_FAMILY: MonsterFamily = {
                 "prediction": 3,  # Итого: 66
             },
             "fixed_loadout": {"main_hand": "rat_veteran_claws", "chest_armor": "rat_medium_hide"},
+            "skills": ["skill_fencing", "skill_medium_armor"],
         },
         # --- 3. Элита (Elites) [TSP ~75] ---
         "plague_rat": {
@@ -200,6 +188,7 @@ RATS_FAMILY: MonsterFamily = {
                 "prediction": 3,  # Итого: 86
             },
             "fixed_loadout": {"main_hand": "rat_elite_claws", "chest_armor": "rat_medium_hide"},
+            "skills": ["skill_fencing", "skill_medium_armor", "skill_anatomy"],
         },
         "rotfang": {
             "id": "rotfang",
@@ -221,6 +210,7 @@ RATS_FAMILY: MonsterFamily = {
                 "prediction": 4,  # Итого: 90
             },
             "fixed_loadout": {"main_hand": "rat_elite_claws", "chest_armor": "rat_heavy_hide"},
+            "skills": ["skill_fencing", "skill_heavy_armor", "skill_anatomy"],
         },
         "blight_carrier": {
             "id": "blight_carrier",
@@ -242,6 +232,7 @@ RATS_FAMILY: MonsterFamily = {
                 "prediction": 2,  # Итого: 82
             },
             "fixed_loadout": {"main_hand": "rat_elite_claws", "chest_armor": "rat_medium_hide"},
+            "skills": ["skill_fencing", "skill_medium_armor", "skill_anatomy"],
         },
         # --- 4. Боссы (Bosses) [TSP ~120] ---
         "rat_brute": {
@@ -264,6 +255,7 @@ RATS_FAMILY: MonsterFamily = {
                 "prediction": 5,  # Итого: 120
             },
             "fixed_loadout": {"main_hand": "rat_boss_claws", "chest_armor": "rat_heavy_hide"},
+            "skills": ["skill_fencing", "skill_heavy_armor", "skill_tactics", "skill_anatomy"],
         },
         "brood_alpha": {
             "id": "brood_alpha",
@@ -285,6 +277,7 @@ RATS_FAMILY: MonsterFamily = {
                 "prediction": 8,  # Итого: 126
             },
             "fixed_loadout": {"main_hand": "rat_boss_claws", "chest_armor": "rat_heavy_hide"},
+            "skills": ["skill_fencing", "skill_heavy_armor", "skill_tactics", "skill_anatomy"],
         },
         "rat_king": {
             "id": "rat_king",
@@ -306,6 +299,7 @@ RATS_FAMILY: MonsterFamily = {
                 "prediction": 5,  # Итого: 146
             },
             "fixed_loadout": {"main_hand": "rat_boss_claws", "chest_armor": "rat_heavy_hide"},
+            "skills": ["skill_fencing", "skill_heavy_armor", "skill_tactics", "skill_anatomy"],
         },
     },
 }

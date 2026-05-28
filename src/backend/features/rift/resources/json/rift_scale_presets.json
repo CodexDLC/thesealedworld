@@ -1,0 +1,86 @@
+{
+  "schema_version": 1,
+  "presets": [
+    {
+      "preset_key": "small",
+      "title": "Small rift",
+      "zone_count_range": {
+        "min": 1,
+        "max": 1
+      },
+      "level_count_range": {
+        "min": 1,
+        "max": 1
+      },
+      "zone_assembly_preset_keys": [
+        "grid_5x5_active_15",
+        "chain_2x_grid_4x4_active_12"
+      ],
+      "difficulty_pace": {
+        "shape": "flat",
+        "notes": "Training and short-lived rift drafts. No encounter implementation yet."
+      }
+    },
+    {
+      "preset_key": "medium",
+      "title": "Medium rift",
+      "zone_count_range": {
+        "min": 1,
+        "max": 3
+      },
+      "level_count_range": {
+        "min": 1,
+        "max": 2
+      },
+      "zone_assembly_preset_keys": [
+        "grid_5x5_active_15",
+        "chain_2x_grid_4x4_active_12",
+        "grid_6x6_active_20",
+        "grid_7x7_active_25"
+      ],
+      "difficulty_pace": {
+        "shape": "gentle_ramp",
+        "notes": "Later levels may increase encounter budget, but rift generation does not build mobs."
+      }
+    },
+    {
+      "preset_key": "large",
+      "title": "Large rift",
+      "zone_count_range": {
+        "min": 2,
+        "max": 5
+      },
+      "level_count_range": {
+        "min": 2,
+        "max": 4
+      },
+      "zone_assembly_preset_keys": [
+        "grid_6x6_active_20",
+        "grid_7x7_active_25"
+      ],
+      "difficulty_pace": {
+        "shape": "multi_level_ramp",
+        "notes": "Draft only. Large rifts will need zone-chain and level meta before use."
+      }
+    },
+    {
+      "preset_key": "xl",
+      "title": "XL rift",
+      "zone_count_range": {
+        "min": 4,
+        "max": 8
+      },
+      "level_count_range": {
+        "min": 3,
+        "max": 6
+      },
+      "zone_assembly_preset_keys": [
+        "grid_7x7_active_25"
+      ],
+      "difficulty_pace": {
+        "shape": "persistent_pressure",
+        "notes": "Draft only. Intended for long-lived rifts with persistent state."
+      }
+    }
+  ]
+}

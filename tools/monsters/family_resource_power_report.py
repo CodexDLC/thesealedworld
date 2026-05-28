@@ -130,7 +130,7 @@ def _build_variant_row(
 ) -> VariantPowerRow:
     member_tier = build_member_tier(context_tier, variant, member_model)
     attributes = build_scaled_attributes(variant, member_tier, member_model).model_dump(mode="json")
-    skills = build_scaled_skills(family, variant, member_model).skills
+    skills = build_scaled_skills(family, variant, member_model, member_tier=member_tier).skills
     family_modifiers = build_family_modifiers(family, member_tier)
 
     attribute_points = float(sum(int(value or 0) for value in attributes.values()))

@@ -44,17 +44,33 @@ class FakeCombatSessions:
     ``consume_feint`` so tests can simulate "feint not available".
     """
 
-    def __init__(self, feint_costs: dict[str, dict[str, int]] | None = None) -> None:
+    def __init__(
+        self,
+        feint_costs: dict[str, dict[str, int]] | None = None,
+        rejected_target_ids: set[Any] | None = None,
+    ) -> None:
         self.feint_costs = dict(feint_costs or {})
         self.registered_batches: list[list[dict[str, Any]]] = []
         self.appended_other_moves: list[Any] = []
         self.touched_sessions: list[str] = []
         self.started_sessions: list[str] = []
         self.consume_calls: list[str] = []
+        self.returned_feints: list[tuple[str, dict[str, int]]] = []
+        # If a registered move's target_id (compared as str) is in this set,
+        # the atomic Lua script "rejects" it (e.g. target died between
+        # consume and batch registration). Those move_ids are NOT returned
+        # in accepted_move_ids, which triggers the refund path in
+        # CombatTurnManager.
+        self._rejected_target_ids = {str(tid) for tid in (rejected_target_ids or ())}
 
     async def register_moves_batch(self, session_id: str, char_id: int, exchange_moves_data: list[dict[str, Any]]):
         self.registered_batches.append(list(exchange_moves_data))
-        return [str(item["move_id"]) for item in exchange_moves_data]
+        accepted: list[str] = []
+        for item in exchange_moves_data:
+            if str(item["target_id"]) in self._rejected_target_ids:
+                continue
+            accepted.append(str(item["move_id"]))
+        return accepted
 
     async def append_moves_batch(self, session_id: str, char_id: int, moves: list[Any]) -> None:
         self.appended_other_moves.extend(moves)
@@ -66,8 +82,9 @@ class FakeCombatSessions:
     async def return_feint(
         self, session_id: str, char_id: int, feint_id: str, cost: dict[str, int]
     ) -> None:
-        # Restore the cost map so other tests can observe a "still there"
-        # feint after a refusal path.
+        # Record refund call and restore the cost map so subsequent
+        # consume_feint observes the feint as available again.
+        self.returned_feints.append((feint_id, dict(cost)))
         self.feint_costs[feint_id] = dict(cost)
 
     async def touch_activity(self, session_id: str) -> None:
@@ -306,3 +323,62 @@ async def test_ai_turn_task_falls_back_to_decide_exchange_when_decide_turn_retur
     assert len(turn_manager.calls) == 1
     _, _, payloads = turn_manager.calls[0]
     assert [p["target_id"] for p in payloads] == ["p1", "p2"]
+
+
+# ---------------------------------------------------------------------------
+# Refund: move_id consumed but not accepted by Lua → feint must be returned.
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_batch_refunds_feint_when_lua_rejects_move_id() -> None:
+    """consume_feint succeeded but the atomic registration rejected the
+    intent (e.g. target died between consume and Lua). The feint must be
+    returned to the hand so the bot is not punished for an outcome it
+    could not control.
+    """
+    sessions = FakeCombatSessions(
+        feint_costs={"sword_blade_bind": {"hit": 3, "parry": 2}},
+        rejected_target_ids={5},  # Lua rejects intent vs target 5
+    )
+    arq = FakeArq()
+    manager = CombatTurnManager(sessions, arq)  # type: ignore[arg-type]
+
+    await manager.register_moves_batch(
+        "combat-int-1",
+        -7,
+        [
+            {"action": "attack", "target_id": 5, "feint_id": "sword_blade_bind"},
+            {"action": "attack", "target_id": 6},
+        ],
+    )
+
+    # consume_feint was called once.
+    assert sessions.consume_calls == ["sword_blade_bind"]
+    # Both moves were submitted to the batch.
+    assert len(sessions.registered_batches) == 1
+    submitted_targets = [str(item["target_id"]) for item in sessions.registered_batches[0]]
+    assert submitted_targets == ["5", "6"]
+    # The rejected move's feint was returned to the hand.
+    refunded_ids = [feint_id for feint_id, _ in sessions.returned_feints]
+    assert refunded_ids == ["sword_blade_bind"]
+    refunded_costs = [cost for _, cost in sessions.returned_feints]
+    assert refunded_costs == [{"hit": 3, "parry": 2}]
+
+
+@pytest.mark.asyncio
+async def test_batch_does_not_refund_when_lua_accepts_all() -> None:
+    """Happy path: no rejection, no refund."""
+    sessions = FakeCombatSessions(
+        feint_costs={"sword_blade_bind": {"hit": 3, "parry": 2}},
+    )
+    arq = FakeArq()
+    manager = CombatTurnManager(sessions, arq)  # type: ignore[arg-type]
+
+    await manager.register_moves_batch(
+        "combat-int-1",
+        -7,
+        [{"action": "attack", "target_id": 5, "feint_id": "sword_blade_bind"}],
+    )
+
+    assert sessions.returned_feints == []

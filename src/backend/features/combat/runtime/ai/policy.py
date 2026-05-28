@@ -48,6 +48,7 @@ DEFAULT_WEIGHT_KEYS: tuple[str, ...] = (
     "stamina_cost",
     "self_low_hp_resource_save",
     "self_low_stamina_save",
+    "finishable_resource_save",
     # Controlled exploration
     "randomness",
 )

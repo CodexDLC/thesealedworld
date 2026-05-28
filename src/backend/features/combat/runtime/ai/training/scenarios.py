@@ -6,10 +6,13 @@ policy should pick for that target — for example, ``{"anti_parry"}``
 means the trainer rewards policies whose chosen action carries the
 ``anti_parry`` tag against that target.
 
+All feint IDs below exist in the post-overhaul catalog under
+``src/backend/features/game_catalog/combat/resources/feints/definitions``.
+
 This is not a full self-play environment. It is a deterministic reward
 landscape that the MVP can iterate on without touching the real
 :class:`CombatPipeline`. The hand-off to a pipeline-based environment is
-the next iteration (see ``docs/ru/backend/combat-ai-policy-training.md``).
+the next iteration (see ``docs/ru/backend/features/combat/runtime/ai.md``).
 """
 
 from __future__ import annotations
@@ -51,8 +54,8 @@ def _stub_actor(
     team: str,
     hp: int = 100,
     max_hp: int = 100,
-    stamina: int = 50,
-    max_stamina: int = 50,
+    stamina: int = 60,
+    max_stamina: int = 60,
     tokens: dict[str, int] | None = None,
     hand: dict[str, dict[str, int]] | None = None,
     mods: dict[str, float] | None = None,
@@ -91,25 +94,30 @@ def _stub_actor(
 def default_scenario_set(seed: int = 0) -> list[SyntheticScenario]:
     """Hand-crafted scenarios covering the main tactical axes.
 
-    The ``seed`` is reserved for future random scenario generators; the MVP
-    set is deterministic regardless.
+    Each scenario uses real feint IDs from the post-overhaul catalog so the
+    reward landscape is meaningful end-to-end (catalog → tags → scorer).
     """
     _ = seed  # placeholder for forward compatibility
 
     scenarios: list[SyntheticScenario] = []
 
-    # 1. High-parry target → anti_parry feint should win.
+    # 1. High-parry target with a parry-paying weapon feint.
+    #    sword_blade_bind costs hit:3+parry:2 → anti_parry tag from parry token.
     bot = _stub_actor(
         "bot_anti_parry",
         team="red",
         is_ai=True,
-        hand={"weapon_bind": {"parry": 1, "hit": 1}},
+        stamina=60,
+        hand={
+            "measured_strike": {"hit": 3},  # basic (no defence tag)
+            "sword_blade_bind": {"hit": 3, "parry": 2},  # weapon, anti_parry
+        },
     )
     target = _stub_actor(
         "target_high_parry",
         team="blue",
         hp=80,
-        mods={"parry": 0.45, "block": 0.05, "evasion": 0.05},
+        mods={"parry": 0.45, "block": 0.05},
     )
     scenarios.append(
         SyntheticScenario(
@@ -120,13 +128,16 @@ def default_scenario_set(seed: int = 0) -> list[SyntheticScenario]:
         )
     )
 
-    # 2. High-evasion target → anti_evasion feint should win (low_line_step
-    #    pays a dodge-token, which adds the anti_evasion tag).
+    # 2. High-evasion target → sword_low_angle (hit:3+dodge:2) tags anti_evasion.
     bot = _stub_actor(
         "bot_anti_dodge",
         team="red",
         is_ai=True,
-        hand={"low_line_step": {"dodge": 1, "hit": 1}},
+        stamina=60,
+        hand={
+            "measured_strike": {"hit": 3},
+            "sword_low_angle": {"hit": 3, "dodge": 2},
+        },
     )
     target = _stub_actor(
         "target_high_evasion",
@@ -143,13 +154,17 @@ def default_scenario_set(seed: int = 0) -> list[SyntheticScenario]:
         )
     )
 
-    # 3. Multi-target with one anti_parry feint and one high-parry / one
-    #    low-defence opponent. Reward feint going to the high-parry one.
+    # 3. Multi-target with one anti-parry weapon feint shared between two
+    #    targets. Reward feint going to the high-parry one, basic to the soft one.
     bot = _stub_actor(
         "bot_alloc",
         team="red",
         is_ai=True,
-        hand={"weapon_bind": {"parry": 1, "hit": 1}},
+        stamina=60,
+        hand={
+            "measured_strike": {"hit": 3},
+            "sword_blade_bind": {"hit": 3, "parry": 2},
+        },
     )
     target_a = _stub_actor(
         "alloc_high_parry",
@@ -175,15 +190,17 @@ def default_scenario_set(seed: int = 0) -> list[SyntheticScenario]:
         )
     )
 
-    # 4. Low-stamina bot → cannot pay the feint activation cost, expected to
-    #    fall back to basic attack regardless of target.
+    # 4. Low-stamina bot → cannot pay sword feint activation cost
+    #    (5×5=25 stamina); falls back to basic.
     bot = _stub_actor(
         "bot_low_stam",
         team="red",
         is_ai=True,
-        stamina=3,
-        max_stamina=50,
-        hand={"weapon_bind": {"parry": 1, "hit": 1}},
+        stamina=12,
+        max_stamina=60,
+        hand={
+            "sword_blade_bind": {"hit": 3, "parry": 2},
+        },
     )
     target = _stub_actor(
         "target_any",
@@ -200,27 +217,60 @@ def default_scenario_set(seed: int = 0) -> list[SyntheticScenario]:
         )
     )
 
-    # 5. High-block target with an anti_block-tagged feint (low_line_step
-    #    also reduces target block via block_mult). Reward the policy when
-    #    the feint is chosen against a high-block opponent.
+    # 5. Wounded bot with a heal-prep parry feint in hand: expected to use it.
+    #    second_breath costs parry:5; applicability_tags include "heal" and
+    #    preparation_effects carry heal_* params → action_space emits `heal`.
     bot = _stub_actor(
-        "bot_anti_block",
+        "bot_wounded",
         team="red",
         is_ai=True,
-        hand={"low_line_step": {"dodge": 1, "hit": 1}},
+        hp=20,
+        max_hp=100,
+        stamina=60,
+        hand={
+            "measured_strike": {"hit": 3},
+            "second_breath": {"parry": 5},
+        },
     )
     target = _stub_actor(
-        "target_high_block",
+        "target_safe",
         team="blue",
-        hp=80,
-        mods={"block": 0.55, "evasion": 0.05},
+        hp=70,
+        mods={"parry": 0.05, "block": 0.05},
     )
     scenarios.append(
         SyntheticScenario(
-            name="high_block",
+            name="wounded_bot_heal",
             bot=bot,
             targets=[target],
-            expected=[ScenarioTarget(target.meta.id, frozenset({"anti_block"}))],
+            expected=[ScenarioTarget(target.meta.id, frozenset({"heal"}))],
+        )
+    )
+
+    # 6. Finishable target with a cheap basic and an expensive weapon feint;
+    #    don't burn an 8-token feint on a dying target — basic is the right call.
+    bot = _stub_actor(
+        "bot_finisher",
+        team="red",
+        is_ai=True,
+        stamina=60,
+        hand={
+            "measured_strike": {"hit": 3},
+            "sword_clean_path": {"hit": 3, "crit": 5},  # very expensive
+        },
+    )
+    target = _stub_actor(
+        "target_dying",
+        team="blue",
+        hp=12,
+        mods={"parry": 0.05, "block": 0.05},
+    )
+    scenarios.append(
+        SyntheticScenario(
+            name="finishable_cheap_kill",
+            bot=bot,
+            targets=[target],
+            expected=[ScenarioTarget(target.meta.id, frozenset())],
         )
     )
 

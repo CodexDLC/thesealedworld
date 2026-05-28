@@ -108,25 +108,41 @@ class MonsterCombatBrain:
 
 ### Action space: какие теги собираются
 
-Теги собираются из каталога финта
-([`CombatCatalogIntegrator.get_feint_catalog_entry`](../../../../../../src/backend/features/combat/integrations/catalog_integrator.py)):
+После переделки каталога (`feat: overhaul combat catalog and stat assembly`)
+дизайнеры стали проставлять `applicability_tags` на каждом финте явно —
+это первичный источник тегов для AI. Substring-маппинг по
+modifier/pipeline/effect id-шникам остался как fallback для записей без
+явных тегов.
 
 | Источник | Маппинг | Тег |
 |---|---|---|
-| `cost.tactics["hit"\|"crit"]` | tactic-token → тег | `damage_tag` |
-| `cost.tactics["tempo"]` | tactic-token → тег | `preparation` |
-| `cost.tactics["block"]` | tactic-token → тег | `anti_block` |
-| `cost.tactics["parry"]` | tactic-token → тег | `anti_parry` |
-| `cost.tactics["dodge"]` | tactic-token → тег | `anti_evasion` |
-| `modifier_applications[*].modifier_id` | substring match (`block_mult` → `anti_block`, `parry_mult` → `anti_parry`, `dodge_mult`/`evasion_mult` → `anti_evasion`, `armor_*` → `armor_bypass`, и т.д.) | разные |
-| `pipeline_mutations[*].mutation_id` | то же substring match | разные |
-| `effects[*].id` | то же substring match (`stun`/`control`/`root` → `control`, `bleed` → `bleed`) | разные |
-| `triggers[*]` | то же substring match | разные |
+| `cost.tactics["hit"\|"crit"]` | token → тег | `damage_tag` |
+| `cost.tactics["tempo"]` | token → тег | `preparation` |
+| `cost.tactics["block"]` | token → тег | `anti_block` |
+| `cost.tactics["parry"]` | token → тег | `anti_parry` |
+| `cost.tactics["dodge"]` | token → тег | `anti_evasion` |
+| `cost.tactics["counter"]` | token → тег | `counter_resource` |
+| `cost.tactics["blood"]` | token → тег | `blood_resource` |
+| `cost.tactics["gift"]` | token → тег | `gift_resource` |
+| `applicability_tags` | как есть | произвольные (например `anti_parry`, `heal`, `preparation`, `counter`, `debuff`, `defense`, `bleed`, `control`, `shield_bash`, `concussion`, ...) |
+| `purchase_group` | flat-tag | `group_basic` / `group_tactical` / `group_weapon` |
 | `target_count > 1` | флаг | `multi_target` |
-| `applicability_tags` | как есть | произвольные |
+| `preparation_effects[*]` с `target_actor=source` | флаг | `self_buff` |
+| `preparation_effects[*].params` содержит `heal_*` | флаг | `heal` |
+| `effects[*]` с `target_actor=target` | флаг | `debuff` |
+| `shield_guard_damage_ratio > 0` | флаг | `shield_damage`, `damage_tag` |
+| `modifier_applications[*].modifier_id` | substring match (`block_mult` → `anti_block`, `parry_mult` → `anti_parry`, и т. д.) | fallback |
+| `pipeline_mutations[*].mutation_id` | то же substring match | fallback |
+| `effects[*].id` | substring match (`stun`/`control`/`root`/`blind`/`concussion` → `control`, `bleed`/`dot_bleed` → `bleed`, `heal` → `heal`) | fallback |
+| `triggers[*]` | substring match | fallback |
 
 Полная таблица substring → тег — в
 [`action_space.py:_ID_KEYWORD_TAGS`](../../../../../../src/backend/features/combat/runtime/ai/action_space.py).
+
+Все 9 токенов из
+[`game_catalog/combat/resources/tokens.py`](../../../../../../src/backend/features/game_catalog/combat/resources/tokens.py)
+покрыты: `tempo`, `hit`, `crit`, `dodge`, `parry`, `block`, `counter`,
+`blood`, `gift`.
 
 ### Scorer: формула
 
@@ -150,10 +166,18 @@ score = Σ weight[feature] × feature_value
 | тег `armor_bypass` | `+ armor_bypass × min(1, armor/50)` |
 | тег `control` | `+ control` |
 | тег `bleed` | `+ bleed` |
+| тег `debuff` | `+ debuff` |
 | тег `multi_target` | `+ multi_target × max(0, enemies − 1)` |
 | тег `preparation` | `+ preparation` |
-| тег `counter` | `+ counter × target.counter_attack_chance` |
+| тег `counter` | `+ counter × (0.5 + target.counter_attack_chance)` |
 | тег `damage_tag` | `+ damage_tag` |
+| тег `heal` | `+ heal × max(0, 0.7 − self.hp_pct)` |
+| тег `self_buff` | `+ self_buff` |
+| тег `defense` | `+ defense × (1 − self.hp_pct)` |
+| тег `group_basic` / `group_tactical` / `group_weapon` | `+ group_*` (выбор cost-vs-school) |
+| бот имеет `blood` токены | `+ blood_resource × min(3, blood)` |
+| бот имеет `counter` токены и в action есть тег `counter` | `+ counter_resource` |
+| бот имеет `gift` токены | `+ gift_resource` |
 | токены | `+ token_cost × Σ cost.values()` |
 | стамина | `+ stamina_cost × action.stamina_cost` |
 | `low_hp` бот + финт | `+ self_low_hp_resource_save` (обычно отрицательный) |
@@ -198,11 +222,16 @@ score = Σ weight[feature] × feature_value
 ```json
 {
   "policy_id": "default_v1",
-  "version": 1,
+  "version": 2,
   "weights": {
     "finishable": 3.0,
-    "anti_block": 1.6,
-    "anti_parry": 1.5,
+    "anti_block": 2.4,
+    "anti_parry": 2.2,
+    "anti_evasion": 2.0,
+    "heal": 3.5,
+    "defense": 1.5,
+    "token_cost": -0.12,
+    "stamina_cost": -0.015,
     "...": "..."
   },
   "metadata": {
@@ -211,6 +240,9 @@ score = Σ weight[feature] × feature_value
   }
 }
 ```
+
+Полный список ключей — в
+[`policy.DEFAULT_WEIGHT_KEYS`](../../../../../../src/backend/features/combat/runtime/ai/policy.py).
 
 Контракт — [`Policy`](../../../../../../src/backend/features/combat/runtime/ai/policy.py).
 Ключи весов — открытая мапа: добавление нового тега в action space →
@@ -276,6 +308,21 @@ print(run.best_policy.metadata.get("final_reward"))
   `ScoringEnvironment` на headless-прогон двух policy-команд.
 - **Не учится в реальном бою.** Combat-runtime read-only по отношению
   к весам политики. Online-learning **не входит** в архитектуру MVP.
+
+### Baseline: какие numbers нужно ожидать
+
+На текущем наборе из 6 сценариев reward-потолок ≈ 6.4.
+
+| Политика | Total reward | Поведение |
+|---|---|---|
+| `zero` (все веса 0) | 0.8 | Только базовая атака — теряет три anti-X сценария и heal-сценарий |
+| `default_v2` (встроенный) | 6.4 | Выигрывает все 6 сценариев |
+| `trained` (50–80 поколений, pop 30–40) | 6.4 на training reward; ~5.0–6.4 на eval | Сходится к политике того же качества, что и default_v2; разброс — артефакт `randomness` шума при разных RNG seed |
+
+Это значит: **встроенный baseline уже близок к локальному оптимуму** на
+этом узком наборе сценариев. Главный потолок улучшения — не алгоритм
+поиска, а сам набор сценариев. Чтобы получить выше — нужен реальный
+`CombatPipeline` self-play.
 
 ## Деплой политики
 

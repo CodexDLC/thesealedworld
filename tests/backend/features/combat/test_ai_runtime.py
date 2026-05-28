@@ -133,8 +133,8 @@ def test_legal_actions_include_basic_and_each_affordable_hand_feint() -> None:
         is_ai=True,
         stamina=50,
         hand={
-            "weapon_bind": {"parry": 1, "hit": 1},
-            "low_line_step": {"dodge": 1, "hit": 1},
+            "sword_blade_bind": {"hit": 3, "parry": 2},
+            "sword_low_angle": {"hit": 3, "dodge": 2},
         },
     )
     target = _actor("t1", team="blue")
@@ -142,21 +142,21 @@ def test_legal_actions_include_basic_and_each_affordable_hand_feint() -> None:
 
     feint_ids = {a.feint_id for a in actions}
     assert None in feint_ids  # basic attack always present
-    assert "weapon_bind" in feint_ids
-    assert "low_line_step" in feint_ids
+    assert "sword_blade_bind" in feint_ids
+    assert "sword_low_angle" in feint_ids
     assert len(actions) == 3
 
 
 @pytest.mark.unit
 def test_legal_actions_exclude_feints_when_stamina_insufficient() -> None:
-    # 2 tokens * 5 = 10 stamina required; bot has only 3.
+    # 5 tokens * 5 = 25 stamina required; bot has only 10.
     bot = _actor(
         "bot",
         team="red",
         is_ai=True,
-        stamina=3,
-        max_stamina=50,
-        hand={"weapon_bind": {"parry": 1, "hit": 1}},
+        stamina=10,
+        max_stamina=60,
+        hand={"sword_blade_bind": {"hit": 3, "parry": 2}},
     )
     target = _actor("t1", team="blue")
     actions = build_legal_actions_for_target(bot, target)
@@ -184,9 +184,9 @@ def test_scorer_prefers_anti_block_against_high_block_target() -> None:
     anti_block = LegalAction(
         action_type="attack",
         target_id="t1",
-        feint_id="low_line_step",
-        cost={"dodge": 1, "hit": 1},
-        stamina_cost=10,
+        feint_id="sword_low_angle",
+        cost={"hit": 3, "dodge": 2},
+        stamina_cost=25,
         tags=frozenset({"anti_block", "damage_tag"}),
     )
 
@@ -235,9 +235,9 @@ def test_high_token_cost_makes_basic_attack_win_over_feint() -> None:
     feint = LegalAction(
         "attack",
         "t1",
-        "weapon_bind",
-        cost={"parry": 1, "hit": 1},
-        stamina_cost=10,
+        "sword_blade_bind",
+        cost={"hit": 3, "parry": 2},
+        stamina_cost=25,
         tags=frozenset({"anti_block", "damage_tag"}),
     )
 
@@ -257,7 +257,7 @@ def test_greedy_allocator_sends_anti_parry_feint_to_high_parry_target() -> None:
         "bot",
         team="red",
         is_ai=True,
-        hand={"weapon_bind": {"parry": 1, "hit": 1}},
+        hand={"sword_blade_bind": {"hit": 3, "parry": 2}},
     )
     high_parry = _actor("hp", team="blue", mods={"parry": 0.5})
     low_def = _actor("ld", team="blue", mods={"parry": 0.05})
@@ -276,7 +276,7 @@ def test_greedy_allocator_sends_anti_parry_feint_to_high_parry_target() -> None:
     payloads = brain.decide_turn(bot, battle, [high_parry, low_def])
     by_target = {p["target_id"]: p for p in payloads}
 
-    assert by_target["hp"].get("feint_id") == "weapon_bind"
+    assert by_target["hp"].get("feint_id") == "sword_blade_bind"
     assert "feint_id" not in by_target["ld"]
 
 
@@ -304,7 +304,7 @@ def test_decide_turn_emits_one_payload_per_target() -> None:
 
 @pytest.mark.unit
 def test_payload_shape_is_turn_manager_compatible() -> None:
-    bot = _actor("bot", team="red", is_ai=True, hand={"weapon_bind": {"parry": 1, "hit": 1}})
+    bot = _actor("bot", team="red", is_ai=True, hand={"sword_blade_bind": {"hit": 3, "parry": 2}})
     target = _actor("t1", team="blue", mods={"parry": 0.5})
     battle = _battle([bot, target])
 

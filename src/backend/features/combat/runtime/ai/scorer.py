@@ -61,14 +61,43 @@ class PolicyScorer:
             score += policy.get("control")
         if "bleed" in tags:
             score += policy.get("bleed")
+        if "debuff" in tags:
+            score += policy.get("debuff")
         if "multi_target" in tags:
             score += policy.get("multi_target") * max(0, self_obs.alive_enemy_count - 1)
         if "preparation" in tags:
             score += policy.get("preparation")
         if "counter" in tags:
-            score += policy.get("counter") * target_obs.counter_attack_chance
+            counter_weight = policy.get("counter")
+            score += counter_weight * (0.5 + target_obs.counter_attack_chance)
         if "damage_tag" in tags:
             score += policy.get("damage_tag")
+
+        # === Self-care axes: weight scaled by how badly the bot needs it ===
+        if "heal" in tags:
+            # Heal is worth more the lower we are; capped at 0.7 HP.
+            score += policy.get("heal") * max(0.0, 0.7 - self_obs.hp_pct)
+        if "self_buff" in tags:
+            score += policy.get("self_buff")
+        if "defense" in tags:
+            # Defence becomes valuable as the bot loses HP.
+            score += policy.get("defense") * (1.0 - self_obs.hp_pct)
+
+        # === Purchase-group preferences ===
+        if "group_basic" in tags:
+            score += policy.get("group_basic")
+        if "group_tactical" in tags:
+            score += policy.get("group_tactical")
+        if "group_weapon" in tags:
+            score += policy.get("group_weapon")
+
+        # === Resource-pool signals: bot already carries these tokens ===
+        if self_obs.tokens.get("blood", 0) > 0:
+            score += policy.get("blood_resource") * min(3, int(self_obs.tokens["blood"]))
+        if self_obs.tokens.get("counter", 0) > 0 and "counter" in tags:
+            score += policy.get("counter_resource")
+        if self_obs.tokens.get("gift", 0) > 0:
+            score += policy.get("gift_resource")
 
         # === Resource cost features ===
         token_total = sum(int(amount) for amount in action.cost.values())

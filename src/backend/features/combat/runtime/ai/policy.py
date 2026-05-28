@@ -8,25 +8,47 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
+# Keys the trainer and default policy normalize against. Adding a new tag
+# elsewhere (action_space or scorer) only needs a matching key here so
+# trainers seed an explicit zero instead of an unknown column.
 DEFAULT_WEIGHT_KEYS: tuple[str, ...] = (
+    # Target-state features
     "target_low_hp",
     "target_high_hp",
     "finishable",
+    # Universal action signals
     "expected_damage",
+    "damage_tag",
+    "multi_target",
+    # Anti-defence axes (scaled by the target's defence value)
     "anti_block",
     "anti_parry",
     "anti_evasion",
     "armor_bypass",
+    # Effects on target
     "control",
     "bleed",
-    "multi_target",
+    "debuff",
+    # Self-care axes (scaled by the bot's own state)
+    "heal",
+    "self_buff",
+    "defense",
     "preparation",
     "counter",
-    "damage_tag",
+    # Purchase-group preferences (let policy learn to prefer one slot type)
+    "group_basic",
+    "group_tactical",
+    "group_weapon",
+    # Resource pressure (when the bot already carries these tokens)
+    "blood_resource",
+    "counter_resource",
+    "gift_resource",
+    # Cost penalties
     "token_cost",
     "stamina_cost",
     "self_low_hp_resource_save",
     "self_low_stamina_save",
+    # Controlled exploration
     "randomness",
 )
 

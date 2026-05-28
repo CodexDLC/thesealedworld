@@ -38,6 +38,8 @@ The current runtime flow is:
 3. The selected `attribute_profile` derives secondary modifier commands from
    primary attributes.
 4. Derived values are combined with raw modifier base/source/temp values.
+5. Combat stats assembly converts weapon power plus weighted stat power into the
+   final hand damage base.
 
 Primary attributes are stored as raw layered values:
 
@@ -60,10 +62,12 @@ The player profile uses `ATTRIBUTE_MODIFIER_RULES`.
 
 | Attribute | Runtime output | Formula |
 | --- | --- | --- |
-| `strength` | `physical_damage` | `strength * 1.0` |
+| `strength` | `physical_strength_power` | `strength * 1.0` |
 | `strength` | `physical_suppression` | `strength * 0.02` |
+| `agility` | `physical_agility_power` | `agility * 1.0` |
 | `agility` | `evasion` | `agility * 0.05` |
 | `agility` | `initiative` | `agility * 0.5` |
+| `endurance` | `physical_endurance_power` | `endurance * 1.0` |
 | `endurance` | `physical_resistance` | `endurance * 0.02` |
 | `endurance` | `poison_resistance` | `endurance * 0.02` |
 | `endurance` | `bleed_resistance` | `endurance * 0.02` |
@@ -123,9 +127,23 @@ the new terminology.
 
 ## Current Simplifications
 
-Strength and Intellect currently grant `1.0` damage output per attribute point.
-The earlier design wording says `1-2` damage per point, but runtime currently
-uses the simple `1.0` coefficient. A more complex formula can be designed later.
+Strength, Agility, and Endurance currently grant `1.0` raw physical power per
+attribute point. Weapon classes decide how much of each physical power type they
+can use, then weapon mastery gates only that stat-derived part of damage.
+Weapon item power itself is not reduced by mastery.
+
+Current base-power assembly:
+
+```text
+stat_raw = strength_power * class_strength_weight
+         + agility_power * class_agility_weight
+         + endurance_power * class_endurance_weight
+mastery_factor = 0.25 + 0.75 * weapon_mastery
+stat_effective = stat_raw * mastery_factor
+hand_damage_base = weapon_power + stat_effective
+```
+
+Intellect still grants `1.0` magical damage output per attribute point.
 
 ## Player-Only Library Boundary
 

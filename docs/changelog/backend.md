@@ -4,6 +4,9 @@ Detailed milestone history for the `src/backend` game runtime layer.
 
 ## [Unreleased]
 
+- Monster generation now derives skill percentages from tiered variant skill sets instead of family-level fixed skill values.
+- Combat armor balance now treats heavy armor as a hard dodge-cap class, scales medium armor cap penalties by tier with skill recovery, and gives light armor a tier-scaled evasion bonus plus its combat skill cap boost.
+
 ## [v0.1.0a7] - Alpha 7
 
 - AI image text validation now uses an explicit Google GenAI SDK dependency and a dedicated Gemini client.

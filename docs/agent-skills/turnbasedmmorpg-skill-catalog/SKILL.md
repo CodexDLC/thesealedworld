@@ -48,7 +48,7 @@ Use these exact ids unless a rename task explicitly updates every reference.
 Combat:
 
 - Weapon Mastery: `skill_swords`, `skill_fencing`, `skill_polearms`, `skill_macing`, `skill_archery`, `skill_unarmed`
-- Tactical: `skill_one_handed`, `skill_two_handed`, `skill_shield_mastery`, `skill_dual_wield`
+- Tactical: `skill_ranged_combat`, `skill_two_handed`, `skill_shield_mastery`, `skill_dual_wield`
 - Armor: `skill_light_armor`, `skill_medium_armor`, `skill_heavy_armor`
 - Combat Support: `skill_parrying`, `skill_anatomy`, `skill_tactics`
 
@@ -159,7 +159,7 @@ Do not extend `src/shared/schemas/modifier_dto.py` as the canonical source of tr
 When adding or renaming a skill, search beyond the catalog.
 
 - Scenarios: JSON resources use `skills_queue` entries such as `push:skill_swords`; formatter exposes `catalog: skills` links.
-- Monsters: family resources use `skill_kit` and `skill_overrides`.
+- Monsters: family resources use per-variant `skills` lists; generated values are computed from monster tier.
 - Items and inventory: item resources and shared item schemas use `related_skill`, `skill_key`, `weapon_skill_key`, or `armor_skill_key`.
 - Combat loadout: `CharacterCombatActorInputBuilder` maps equipped items into combat layout skill ids; combat context consumes those layout ids.
 - Actor snapshots: character snapshots flatten active session skills into `combat.skills`.

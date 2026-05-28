@@ -21,12 +21,13 @@ Use these skills together:
 2. Define backend API request/response contracts.
 3. Put shared contracts in `src/shared` only if frontend and backend both use them.
 4. Implement backend integrations before services when the feature needs infrastructure, Redis Streams, session managers, repositories, or cross-feature flows.
-5. Implement backend service/repository/runtime changes inside the owning feature. Services/runtime code should call semantic integration methods for infrastructure work.
-6. Add or update the frontend backend API client.
-7. Add frontend routes, services, view models, forms, and templates inside the owning frontend feature.
-8. Add Redis Streams events only for cross-feature backend communication. **Handlers must be thin** — get service, call method, done. No business logic in handlers. See `turnbasedmmorpg-redis-streams` skill for the mandatory thin handler rule and the tg_bot reference pattern.
-9. Add focused tests for the changed backend, shared contracts, and frontend integration points.
-10. Run the strongest practical quality gate through `tools/dev/check.py` or documented targeted fallback checks.
+5. Put Redis/cache/session managers under `src/backend/infrastructure/<domain>/managers/` when the slice owns keys, RedisJSON paths, TTLs, locks, Lua scripts, scan patterns, or delete/touch behavior. One key-space has one manager.
+6. Implement backend service/repository/runtime changes inside the owning feature. Services/runtime code should call semantic integration methods for infrastructure work.
+7. Add or update the frontend backend API client.
+8. Add frontend routes, services, view models, forms, and templates inside the owning frontend feature.
+9. Add Redis Streams events only for cross-feature backend communication. **Handlers must be thin** — get service, call method, done. No business logic in handlers. See `turnbasedmmorpg-redis-streams` skill for the mandatory thin handler rule and the tg_bot reference pattern.
+10. Add focused tests for the changed backend, shared contracts, and frontend integration points.
+11. Run the strongest practical quality gate through `tools/dev/check.py` or documented targeted fallback checks.
 
 ## Keep Boundaries
 
@@ -37,3 +38,5 @@ Do not move feature-specific behavior into global core modules.
 Do not create shared DTOs for one-side-only convenience.
 
 Do not wire feature services directly to low-level `src/backend/infrastructure/<domain>/` modules when an integration boundary is part of the feature slice.
+
+Do not build Redis keys, RedisJSON paths, TTLs, locks, Lua scripts, or scan patterns inside feature services, repositories, events, or workers. Add methods to the owning infrastructure manager and call those methods directly only from dependency wiring or purely technical workers; otherwise expose semantic feature operations through `integrations/`.

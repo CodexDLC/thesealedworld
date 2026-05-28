@@ -21,6 +21,8 @@ Backend feature `integrations/` modules are the expected boundary between featur
 
 Backend infrastructure is domain-grouped under `src/backend/infrastructure/<domain>/` and may contain low-level `schemas/`, `models/`, `repositories/`, `managers/`, and adapters for that domain.
 
+Redis key-space ownership belongs to backend infrastructure managers. A feature service, repository, event handler, or worker must not construct Redis keys, RedisJSON paths, TTL behavior, lock keys, Lua scripts, scan patterns, or delete/touch behavior directly. One Redis key-space has one owning manager, and that manager exposes methods for stable nested RedisJSON sections when callers need to work below the top-level document.
+
 Frontend features own browser routes, page/fragment orchestration, forms, view models, and templates.
 
 Shared code owns only stable contracts used by both backend and frontend.
@@ -34,6 +36,8 @@ Do not put frontend view models in shared code.
 Do not put backend-internal service DTOs in shared code.
 
 Do not create global repositories or global Redis managers that know every game domain.
+
+Do not put Redis managers inside `src/backend/features/<feature>/services/` or `src/backend/features/<feature>/repositories/`. Use `src/backend/infrastructure/<domain>/managers/` and wrap it from feature `integrations/` when feature logic needs a semantic boundary.
 
 Do not recreate a central dispatcher that replaces feature ownership.
 

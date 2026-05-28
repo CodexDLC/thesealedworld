@@ -44,7 +44,8 @@ docs/game-design/rules/combat/active_actions.md
 ## Design Direction Not Yet Full Runtime Canon
 
 - Weapon mastery as a complete item-trigger unlock layer.
-- One-handed Flow token preservation.
+- Ranged combat perfect backstep is wired as a pre-evasion style trigger with a
+  25% cap; the full ranged feint tree is still future design work.
 - Full two-handed Ignore model beyond current style hooks.
 - Full shield mastery economy beyond existing shield guard/block/reflection
   direction.

@@ -99,7 +99,9 @@ The flow is:
 1. calculate final primary attributes;
 2. derive modifier commands from the selected attribute profile;
 3. combine derived values with modifier base/source/temp;
-4. produce flat `ActorStats.mods`.
+4. assemble weapon base power from weapon power, weighted stat power, and weapon
+   mastery;
+5. produce flat `ActorStats.mods`.
 
 Resolver input is `ActorStats`, not `ActorSnapshot.raw`.
 
@@ -109,10 +111,10 @@ Attribute-derived combat values are owned by the attribute bridge rules.
 
 Examples:
 
-- Strength derives `physical_damage` and `physical_suppression`;
-- Agility derives `evasion` and `initiative`;
-- Endurance derives health, physical resistance, poison resistance, bleed
-  resistance, and bio environment resistance;
+- Strength derives `physical_strength_power` and `physical_suppression`;
+- Agility derives `physical_agility_power`, `evasion`, and `initiative`;
+- Endurance derives `physical_endurance_power`, health, physical resistance,
+  poison resistance, bleed resistance, and bio environment resistance;
 - Intellect derives `magical_damage` and `magical_penetration`;
 - Mental derives magic/control/mental/elemental resistances;
 - Perception derives `anti_dodge_chance`;
@@ -192,6 +194,12 @@ Examples of resolver-owned behavior:
 - crit / trigger chance cap;
 - physical resistance and armor mitigation;
 - branch selection for main hand, off hand, magic, or item actions.
+
+Weapon base-power assembly is owned by `StatsEngine` after the waterfall, not by
+the mapper and not by the resolver. The mapper keeps weapon power in
+`{hand}_damage_base`; the assembler stores that original value in
+`{hand}_weapon_power`, adds mastered stat damage into `{hand}_damage_base`, and
+keeps trace fields for UI/tooltips.
 
 ## Modifier Aliases
 

@@ -60,5 +60,17 @@ HUMANOID_CONTACT_VS_HUMANOID_PHRASES = {
             "variables": ["target"],
             "tags": ["weapon", "bind"],
         },
+        "body.humanoid.contact_vs_humanoid.ranged.center_mass": {
+            "kind": "contact",
+            "text": "ведет стрелу в корпус {target}",
+            "variables": ["target"],
+            "tags": ["weapon", "ranged", "archery"],
+        },
+        "body.humanoid.contact_vs_humanoid.ranged.weak_spot": {
+            "kind": "contact",
+            "text": "ищет слабую точку в защите {target}",
+            "variables": ["target"],
+            "tags": ["weapon", "ranged", "archery", "crit"],
+        },
     },
 }

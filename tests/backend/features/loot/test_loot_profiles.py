@@ -54,6 +54,34 @@ def test_humanoid_loot_profiles_drop_valid_equipment_and_tier_zero_junk(family_i
 
 
 @pytest.mark.unit
+def test_residuum_dust_is_salvage_only_and_small_amount() -> None:
+    non_salvage_dust_entries = []
+    oversized_salvage_dust_entries = []
+    salvage_dust_roles = []
+
+    for profile_id, profile in LOOT_PROFILES.items():
+        for role, role_profile in profile.roles.items():
+            for layer, entries in (
+                ("drop", role_profile.drop),
+                ("spoil", role_profile.spoil),
+            ):
+                for entry in entries:
+                    if isinstance(entry, ResourceEntry) and entry.profile == "currency":
+                        non_salvage_dust_entries.append((profile_id, role, layer, entry.amount_range))
+
+            for entry in role_profile.salvage:
+                if not isinstance(entry, ResourceEntry) or entry.profile != "currency":
+                    continue
+                salvage_dust_roles.append((profile_id, role))
+                if entry.amount_range[0] < 1 or entry.amount_range[1] > 2:
+                    oversized_salvage_dust_entries.append((profile_id, role, entry.amount_range))
+
+    assert non_salvage_dust_entries == []
+    assert oversized_salvage_dust_entries == []
+    assert salvage_dust_roles != []
+
+
+@pytest.mark.unit
 def test_all_loot_resource_entries_use_existing_items() -> None:
     from src.backend.features.items.resources import ITEM_REGISTRY
 

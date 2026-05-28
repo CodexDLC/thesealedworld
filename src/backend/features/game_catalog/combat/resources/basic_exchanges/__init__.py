@@ -1,3 +1,6 @@
+from src.backend.features.game_catalog.combat.resources.basic_exchanges.definitions.natural_weapons import (
+    NATURAL_WEAPON_BASIC_EXCHANGES_CATALOG,
+)
 from src.backend.features.game_catalog.combat.resources.basic_exchanges.definitions.tactical_styles import (
     TACTICAL_STYLE_BASIC_EXCHANGES_CATALOG,
 )
@@ -8,6 +11,7 @@ from src.backend.features.game_catalog.combat.resources.basic_exchanges.schemas 
 
 BASIC_EXCHANGE_REGISTRY: dict[str, BasicExchangeCatalogEntryDTO] = {
     **WEAPON_MASTERY_BASIC_EXCHANGES_CATALOG,
+    **NATURAL_WEAPON_BASIC_EXCHANGES_CATALOG,
     **TACTICAL_STYLE_BASIC_EXCHANGES_CATALOG,
 }
 

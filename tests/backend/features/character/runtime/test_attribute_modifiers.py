@@ -39,13 +39,16 @@ def test_character_raw_attributes_drive_combat_modifiers_through_waterfall() -> 
 
     calculated, _ = StatsWaterfallCalculator.calculate_waterfall(raw)
 
-    assert calculated["physical_damage"] == 15.0
+    assert calculated["physical_damage"] == 0.0
+    assert calculated["physical_strength_power"] == 15.0
+    assert calculated["physical_agility_power"] == 9.0
+    assert calculated["physical_endurance_power"] == 16.0
     assert calculated["physical_suppression"] == 0.3
     assert calculated["magical_damage"] == 11.0
     assert calculated["magical_penetration"] == 0.22
     assert calculated["hp"] == pytest.approx(53.3333)
-    assert calculated["en"] == pytest.approx(22.6667)
-    assert calculated["stamina"] == pytest.approx(70.0)
+    assert calculated["en"] == pytest.approx(34.0)
+    assert calculated["stamina"] == pytest.approx(35.0)
     assert calculated["hp_regen"] == pytest.approx(1.3333)
     assert calculated["en_regen"] == pytest.approx(5.6667)
     assert calculated["stamina_regen"] == pytest.approx(3.1)
@@ -68,14 +71,36 @@ def test_character_raw_attributes_drive_combat_modifiers_through_waterfall() -> 
 
 
 @pytest.mark.unit
-def test_monster_attribute_profiles_do_not_derive_hp_regen_from_endurance() -> None:
+def test_humanoid_monster_attribute_profile_uses_body_average_for_hp_without_hp_regen() -> None:
     raw = {
-        "attributes": {"endurance": {"base": 16, "source": {}, "temp": {}}},
+        "attributes": {
+            "strength": {"base": 15, "source": {}, "temp": {}},
+            "agility": {"base": 8, "source": {}, "temp": {}},
+            "endurance": {"base": 16, "source": {}, "temp": {}},
+        },
+        "modifiers": {},
+        "rules": {"attribute_profile": "monster:humanoid"},
+    }
+
+    calculated, _ = StatsWaterfallCalculator.calculate_waterfall(raw)
+
+    assert calculated["hp"] == pytest.approx(39.0)
+    assert calculated.get("hp_regen", 0.0) == 0.0
+
+
+@pytest.mark.unit
+def test_beast_monster_attribute_profile_uses_body_average_for_hp_without_hp_regen() -> None:
+    raw = {
+        "attributes": {
+            "strength": {"base": 15, "source": {}, "temp": {}},
+            "agility": {"base": 8, "source": {}, "temp": {}},
+            "endurance": {"base": 16, "source": {}, "temp": {}},
+        },
         "modifiers": {},
         "rules": {"attribute_profile": "monster:beast"},
     }
 
     calculated, _ = StatsWaterfallCalculator.calculate_waterfall(raw)
 
-    assert calculated["hp"] == 64.0
+    assert calculated["hp"] == pytest.approx(65.0)
     assert calculated.get("hp_regen", 0.0) == 0.0

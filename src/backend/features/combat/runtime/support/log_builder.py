@@ -99,6 +99,14 @@ class CombatLogBuilder:
             "badges": [],
             "flags": cls._public_flags(result),
         }
+        if cls._effect_fact_entries_should_replace_primary(result):
+            return cls.build_effect_fact_entries(
+                ctx=ctx,
+                result=result,
+                action=action,
+                wave=wave,
+                timestamp=timestamp,
+            )
         entries = [entry]
         for trigger_id in result.fired_triggers:
             display_policy = cls._trigger_display_policy(result, trigger_id)
@@ -118,7 +126,187 @@ class CombatLogBuilder:
             if proc_entry:
                 proc_entry["id"] = f"{global_turn}:{wave}:{len(entries)}"
                 entries.append(proc_entry)
+        entries.extend(
+            cls.build_effect_fact_entries(
+                ctx=ctx,
+                result=result,
+                action=action,
+                wave=wave,
+                timestamp=timestamp,
+                skip_effect_id=str(entry["action"].get("id") or "")
+                if str(entry.get("kind") or "").startswith("effect_")
+                else "",
+            )
+        )
         return entries
+
+    @staticmethod
+    def _effect_fact_entries_should_replace_primary(result: InteractionResultDTO) -> bool:
+        if (
+            result.skip_reason
+            or result.is_miss
+            or result.is_dodged
+            or result.is_parried
+            or result.is_blocked
+            or result.is_hit
+            or result.damage_final > 0
+            or result.healing_final > 0
+            or result.reflected_damage > 0
+        ):
+            return False
+        return any(
+            str(getattr(fact, "action", "") or "") in {"apply", "expire", "resist", "cleanse"}
+            for fact in result.effect_facts
+        )
+
+    @classmethod
+    def build_effect_fact_entries(
+        cls,
+        *,
+        ctx: BattleContext,
+        result: InteractionResultDTO,
+        action: CombatActionDTO,
+        wave: int,
+        timestamp: float,
+        skip_effect_id: str = "",
+    ) -> list[dict[str, Any]]:
+        global_turn = ctx.meta.step_counter + 1
+        entries: list[dict[str, Any]] = []
+        source_id = result.source_id if result.source_id is not None else action.move.char_id
+        source = cls._actor_ref(ctx, source_id)
+        for fact in result.effect_facts:
+            fact_action = str(getattr(fact, "action", "") or "")
+            if fact_action not in {"apply", "expire", "resist", "cleanse"}:
+                continue
+            effect_id = str(getattr(fact, "effect_id", "") or "")
+            if not effect_id or effect_id == skip_effect_id:
+                continue
+            target_id = getattr(fact, "actor_id", None)
+            target = cls._actor_ref(ctx, target_id)
+            text = cls._effect_fact_text(ctx, effect_id=effect_id, action=fact_action, source=source, target=target)
+            kind = f"effect_{fact_action}"
+            entries.append(
+                {
+                    "id": f"{global_turn}:{wave}:effect:{len(entries)}",
+                    "type": "LOG",
+                    "kind": kind,
+                    "text": text,
+                    "timestamp": timestamp,
+                    "tags": ["runtime", "effect", fact_action, f"turn:{global_turn}"],
+                    "global_turn": global_turn,
+                    "wave": wave,
+                    "source": source,
+                    "target": target,
+                    "targets": [target] if target else [],
+                    "action": {
+                        "mode": action.action_type,
+                        "id": effect_id,
+                        "catalog": "combat_text",
+                        "catalog_key": f"combat.effect.{effect_id}",
+                        "event": fact_action,
+                        "taxonomy": "humanoid",
+                    },
+                    "template": {
+                        "key": f"combat.effect.{effect_id}.{fact_action}.runtime",
+                        "event": fact_action,
+                        "taxonomy": "humanoid",
+                        "variant": 0,
+                        "text": text,
+                    },
+                    "variables": {
+                        "source": str((source or {}).get("name") or "NO_SOURCE"),
+                        "target": str((target or {}).get("name") or "NO_TARGET"),
+                        "effect": cls._effect_label(
+                            CombatCatalogIntegrator.get_effect_catalog_entry(effect_id), effect_id
+                        ),
+                    },
+                    "result": {
+                        "resources": [],
+                        "tokens": [],
+                        "effects": [
+                            {
+                                "actor_id": str(target_id) if target_id is not None else None,
+                                "owner": getattr(fact, "owner", "target"),
+                                "effect_id": effect_id,
+                                "action": fact_action,
+                                "duration": getattr(fact, "duration", None),
+                                "icon": f"combat/effects/{effect_id}.svg",
+                                "tooltip": cls._effect_label(
+                                    CombatCatalogIntegrator.get_effect_catalog_entry(effect_id), effect_id
+                                ),
+                            }
+                        ],
+                    },
+                    "presentation": {
+                        "player_visible": True,
+                        "severity": "normal" if fact_action != "resist" else "warning",
+                        "render": "inline_result",
+                    },
+                    "outcome": fact_action,
+                    "severity": "normal" if fact_action != "resist" else "warning",
+                    "catalog": "combat_text",
+                    "catalog_key": f"combat.effect.{effect_id}.{fact_action}.runtime",
+                    "catalog_event": fact_action,
+                    "catalog_taxonomy": "humanoid",
+                    "catalog_tooltip": "",
+                    "resources": [],
+                    "effects": [
+                        {
+                            "actor_id": str(target_id) if target_id is not None else None,
+                            "owner": getattr(fact, "owner", "target"),
+                            "effect_id": effect_id,
+                            "action": fact_action,
+                            "duration": getattr(fact, "duration", None),
+                            "icon": f"combat/effects/{effect_id}.svg",
+                            "tooltip": cls._effect_label(
+                                CombatCatalogIntegrator.get_effect_catalog_entry(effect_id), effect_id
+                            ),
+                        }
+                    ],
+                    "badges": [],
+                    "flags": {},
+                }
+            )
+        return entries
+
+    @classmethod
+    def _effect_fact_text(
+        cls,
+        ctx: BattleContext,
+        *,
+        effect_id: str,
+        action: str,
+        source: dict[str, Any] | None,
+        target: dict[str, Any] | None,
+    ) -> str:
+        effect_entry = CombatCatalogIntegrator.get_effect_catalog_entry(effect_id)
+        effect = cls._effect_label(effect_entry, effect_id)
+        event = {
+            "apply": "apply_effect",
+            "expire": "expire_effect",
+            "resist": "resist",
+            "cleanse": "cleanse",
+        }.get(action, action)
+        template_text = None
+        if effect_entry is not None:
+            target_body = cls._actor_body(ctx, (target or {}).get("id"))
+            resolved = effect_entry.descriptive.resolve_event_template(event, [target_body])
+            template_text = resolved.text if resolved else None
+        if not template_text:
+            template_text = {
+                "apply": "{target} получает {effect}.",
+                "expire": "{effect} {target} проходит.",
+                "resist": "{target} сопротивляется: {effect} не закрепляется.",
+                "cleanse": "{effect} {target} снят.",
+            }.get(action, "{target}: {effect}.")
+        return cls._render_combat_text(
+            {"template": template_text},
+            {
+                "source": str((source or {}).get("name") or "NO_SOURCE"),
+                "target": str((target or {}).get("name") or "NO_TARGET"),
+                "effect": effect,
+            },
+        )
 
     @classmethod
     def _combat_text_template(
@@ -227,7 +415,12 @@ class CombatLogBuilder:
             feint_id = None if result.is_counter else cls._feint_id(action)
             if feint_id:
                 return "feint", feint_id, delivery, surface_tags
-            return "basic_exchange", "basic", delivery, surface_tags
+            return (
+                "basic_exchange",
+                cls._basic_exchange_resource_id(ctx, source_id, action, delivery),
+                delivery,
+                surface_tags,
+            )
         if action.action_type == "item":
             return "item", str(action_id or ""), "area" if event_name == "area_result" else "default", ()
         if action.action_type == "instant":
@@ -240,7 +433,8 @@ class CombatLogBuilder:
             return "trigger", cls._trigger_resource_id(action_id), "default", ()
         if action_id and CombatCatalogIntegrator.get_effect_catalog_entry(action_id) is not None:
             return "effect", action_id, "default", ()
-        return "basic_exchange", "basic", cls._source_delivery(ctx, source_id, action)[0], ()
+        delivery = cls._source_delivery(ctx, source_id, action)[0]
+        return "basic_exchange", cls._basic_exchange_resource_id(ctx, source_id, action, delivery), delivery, ()
 
     @staticmethod
     def _combat_text_outcome(event_name: str) -> str:
@@ -270,6 +464,12 @@ class CombatLogBuilder:
         return trigger_id.replace(".", "_")
 
     @staticmethod
+    def _action_source_type(action: CombatActionDTO) -> str:
+        payload = action.move.payload
+        hand = getattr(payload, "hand", None)
+        return "off_hand" if hand == "off" else "main_hand"
+
+    @staticmethod
     def _actor_body(ctx: BattleContext, actor_id: int | str | None) -> str:
         actor = ctx.get_actor(actor_id) if actor_id is not None else None
         value = str(getattr(getattr(actor, "meta", None), "archetype", None) or "humanoid")
@@ -286,9 +486,7 @@ class CombatLogBuilder:
         if action.action_type == "item":
             return "item", ()
         actor = ctx.get_actor(source_id) if source_id is not None else None
-        payload = action.move.payload
-        hand = getattr(payload, "hand", None)
-        source_type = "off_hand" if hand == "off" else "main_hand"
+        source_type = CombatLogBuilder._action_source_type(action)
         surface = getattr(getattr(actor, "loadout", None), "combat_surfaces", {}).get(source_type) if actor else None
         if surface is not None:
             if isinstance(surface, dict):
@@ -305,6 +503,64 @@ class CombatLogBuilder:
         if str(getattr(meta, "type", "") or "") == "monster" and str(getattr(meta, "archetype", "") or "") == "beast":
             return "natural", ()
         return "weapon", ()
+
+    @staticmethod
+    def _basic_exchange_resource_id(
+        ctx: BattleContext,
+        source_id: int | str | None,
+        action: CombatActionDTO,
+        delivery: str,
+    ) -> str:
+        actor = ctx.get_actor(source_id) if source_id is not None else None
+        source_type = CombatLogBuilder._action_source_type(action)
+        loadout = getattr(actor, "loadout", None)
+        surface = getattr(loadout, "combat_surfaces", {}).get(source_type) if loadout else None
+        if delivery == "natural":
+            return CombatLogBuilder._natural_basic_exchange_resource_id(surface, source_type)
+
+        if isinstance(surface, dict):
+            skill_key = str(surface.get("skill_key") or "")
+        else:
+            skill_key = str(getattr(surface, "skill_key", "") or "")
+        if not skill_key:
+            layout = getattr(loadout, "layout", {}) if loadout else {}
+            skill_key = str(layout.get(source_type) or "")
+        if not skill_key and delivery == "unarmed":
+            skill_key = "skill_unarmed"
+
+        exchange_id = f"{skill_key}.{source_type}" if skill_key else ""
+        if exchange_id and CombatCatalogIntegrator.get_basic_exchange(exchange_id) is not None:
+            return exchange_id
+        return "default"
+
+    @staticmethod
+    def _natural_basic_exchange_resource_id(surface: Any, source_type: str) -> str:
+        tags: set[str] = set()
+        surface_name = ""
+        if isinstance(surface, dict):
+            tags.update(str(tag) for tag in surface.get("tags") or [])
+            surface_name = str(surface.get("surface") or surface.get("base_id") or surface.get("item_id") or "")
+        elif surface is not None:
+            tags.update(str(tag) for tag in getattr(surface, "tags", []) or [])
+            surface_name = str(
+                getattr(surface, "surface", "")
+                or getattr(surface, "base_id", "")
+                or getattr(surface, "item_id", "")
+                or ""
+            )
+        tags.add(surface_name)
+
+        if {"fangs", "teeth", "jaws", "maw"} & tags:
+            weapon_class = "fangs"
+        elif {"claws", "paw", "forepaws"} & tags:
+            weapon_class = "claws"
+        else:
+            weapon_class = "default"
+
+        exchange_id = f"natural_weapon.{weapon_class}.{source_type}"
+        if CombatCatalogIntegrator.get_basic_exchange(exchange_id) is not None:
+            return exchange_id
+        return f"natural_weapon.default.{source_type}"
 
     @staticmethod
     def _combat_text_catalog_fields(template: dict[str, Any]) -> dict[str, Any]:

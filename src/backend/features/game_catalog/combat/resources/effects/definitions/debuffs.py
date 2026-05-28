@@ -3,6 +3,7 @@ from src.backend.features.game_catalog.combat.resources.common.descriptions impo
     build_combat_description,
 )
 from src.backend.features.game_catalog.combat.resources.common.modifier_applications import ModifierApplicationDTO
+from src.backend.features.game_catalog.combat.resources.common.pipeline_mutations import pipeline_mutation
 from src.backend.features.game_catalog.combat.resources.effects.schemas import (
     EffectCatalogEntryDTO,
     EffectTechnicalDTO,
@@ -31,6 +32,7 @@ def _debuff_catalog(
             effect_id=effect_id,
             type=EffectType.DEBUFF,
             duration=3,
+            resistance_profile_id="generic_debuff",
             modifier_applications=[
                 ModifierApplicationDTO(
                     modifier_id=modifier_id,
@@ -102,6 +104,35 @@ _debuff_accuracy_catalog = _debuff_catalog(
     expire_humanoid=["Ослабление Точности {target} спадает.", "{target} избавляется от {effect}."],
 )
 
+_debuff_2h_damage_halved_catalog = EffectCatalogEntryDTO(
+    key="combat.effect.debuff_2h_damage_halved",
+    technical=EffectTechnicalDTO(
+        effect_id="debuff_2h_damage_halved",
+        type=EffectType.DEBUFF,
+        duration=1,
+        resistance_profile_id="generic_debuff",
+        pipeline_mutations=[pipeline_mutation("damage_mult", 0.5)],
+        pipeline_mutation_role="source",
+        react_on_outcomes=["hit", "crit", "miss", "dodge", "parry", "block"],
+        consume_on_reaction=True,
+        tags=["debuff", "two_handed", "damage_reduction", "offense"],
+    ),
+    descriptive=build_combat_description(
+        resource_type="effects",
+        resource_id="debuff_2h_damage_halved",
+        icon="combat/effects/debuff_2h_damage_halved.svg",
+        display_name="Сбитый размах",
+        short_description="Следующий исходящий урон уменьшен вдвое.",
+        humanoid_event_texts=CombatEventTextSetDTO(
+            apply_effect=["{source} сбивает размах {target}."],
+            expire_effect=["{target} теряет сбитый размах."],
+            resist=["{target} удерживает размах."],
+            cleanse=["Сбитый размах {target} снят."],
+        ),
+        beast_event_texts=_DEBUFF_APPLY_BEAST,
+    ),
+)
+
 # ── REGISTRY ──────────────────────────────────────────────────────────────────
 
 DEBUFF_EFFECTS_CATALOG: dict[str, EffectCatalogEntryDTO] = {
@@ -109,4 +140,5 @@ DEBUFF_EFFECTS_CATALOG: dict[str, EffectCatalogEntryDTO] = {
     "debuff_armor": _debuff_armor_catalog,
     "debuff_evasion": _debuff_evasion_catalog,
     "debuff_accuracy": _debuff_accuracy_catalog,
+    "debuff_2h_damage_halved": _debuff_2h_damage_halved_catalog,
 }

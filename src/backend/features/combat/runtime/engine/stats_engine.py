@@ -2,6 +2,7 @@ from loguru import logger as log
 from pydantic import ValidationError
 
 from src.backend.core.calculators.stats_waterfall_calculator import StatsWaterfallCalculator
+from src.backend.features.character.runtime.rules.base_power_assembler import BasePowerAssembler
 from src.backend.features.combat.dto.actor import ActorSnapshot, ActorStats
 from src.shared.schemas.modifier_dto import CombatModifiersDTO, CombatSkillsDTO
 
@@ -9,8 +10,16 @@ TRACE_MOD_KEYS = (
     "main_hand_accuracy",
     "accuracy",
     "physical_damage",
+    "physical_strength_power",
+    "physical_agility_power",
+    "physical_endurance_power",
     "main_hand_damage_base",
     "main_hand_damage_spread",
+    "main_hand_weapon_power",
+    "main_hand_stat_damage_raw",
+    "main_hand_stat_damage_effective",
+    "main_hand_mastery_factor",
+    "main_hand_damage_spread_raw",
     "main_hand_crit_chance",
     "crit_chance",
     "physical_suppression",
@@ -77,6 +86,7 @@ class StatsEngine:
         # 2. Расчет (Waterfall)
         # Возвращает плоский словарь модификаторов и словарь формул
         calculated_mods, explanation = StatsWaterfallCalculator.calculate_waterfall(raw_data)
+        BasePowerAssembler.apply(actor, calculated_mods)
         calculated_mods = StatsEngine._normalize_calculated_mods(calculated_mods)
 
         # 3. Сборка ActorStats

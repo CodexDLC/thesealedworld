@@ -60,5 +60,17 @@ HUMANOID_APPROACH_PHRASES = {
             "variables": ["source"],
             "tags": ["weapon", "feint"],
         },
+        "body.humanoid.approach.ranged.draw": {
+            "kind": "approach",
+            "text": "{source} выводит тетиву на линию",
+            "variables": ["source"],
+            "tags": ["weapon", "ranged", "archery"],
+        },
+        "body.humanoid.approach.ranged.backstep": {
+            "kind": "approach",
+            "text": "{source} отступает и держит прицел",
+            "variables": ["source"],
+            "tags": ["weapon", "ranged", "footwork"],
+        },
     },
 }

@@ -15,7 +15,7 @@ SWORDS_DB = {
         base_durability=60,
         narrative_tags=["sword", "balanced", "blade"],
         implicit_bonuses={
-            "physical_crit_chance": 0.045,
+            "physical_crit_chance": 0.025,
             "parry_chance": 0.04,
         },
         triggers=["crit.weapon_serrated_bleed_crit"],
@@ -34,7 +34,7 @@ SWORDS_DB = {
         base_durability=70,
         narrative_tags=["longsword", "sword", "balanced", "blade"],
         implicit_bonuses={
-            "physical_crit_chance": 0.05,
+            "physical_crit_chance": 0.025,
             "parry_chance": 0.045,
         },
         triggers=["crit.weapon_serrated_bleed_crit"],
@@ -53,7 +53,7 @@ SWORDS_DB = {
         base_durability=85,
         narrative_tags=["greatsword", "sword", "two_handed", "cleave"],
         implicit_bonuses={
-            "physical_crit_chance": 0.04,
+            "physical_crit_chance": 0.05,
             "parry_chance": 0.025,
             "evasion_penalty": -0.08,
         },
@@ -73,7 +73,7 @@ SWORDS_DB = {
         base_durability=65,
         narrative_tags=["katana", "samurai", "fast_blade"],
         implicit_bonuses={
-            "physical_crit_chance": 0.10,
+            "physical_crit_chance": 0.05,
             "parry_chance": 0.035,
             "bleed_damage_bonus": 0.20,
         },
@@ -93,7 +93,7 @@ SWORDS_DB = {
         base_durability=55,
         narrative_tags=["scimitar", "sword", "flow", "fast_blade"],
         implicit_bonuses={
-            "physical_crit_chance": 0.07,
+            "physical_crit_chance": 0.025,
             "parry_chance": 0.03,
         },
         triggers=["crit.weapon_precision_crit"],

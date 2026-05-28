@@ -42,6 +42,7 @@ class RestrictionFlagsDTO(BaseModel):
     """Запреты."""
 
     cannot_crit: bool = False
+    suppress_crit_triggers: bool = False
     ignore_parry: bool = False
     ignore_block: bool = False
 
@@ -129,6 +130,7 @@ class MetaFlagsDTO(BaseModel):
 
     # Режим действия (Exchange / Unidirectional)
     action_mode: Literal["exchange", "unidirectional"] = "exchange"
+    grant_exchange_gift: bool = False
 
 
 class MechanicsFlagsDTO(BaseModel):
@@ -168,9 +170,14 @@ class PipelineModsDTO(BaseModel):
     """Числовые модификаторы."""
 
     accuracy_mult: float = 1.0
+    target_evasion_mult: float = 1.0
+    target_parry_mult: float = 1.0
     damage_mult: float = 1.0
     weapon_effect_value: float = 2.0  # Универсальный бонус оружия (Crit Mult / Pierce %)
     weapon_technique_bonus_damage: float = 0.0
+    incoming_damage_cap: int = 0
+    counter_chance_bonus_on_dodge: float = 0.0
+    counter_chance_bonus_on_parry: float = 0.0
     flat_armor_penetration_bonus_pct: float = 0.0
     flat_armor_ignore_chance_bonus: float = 0.0
     physical_resistance_suppression_pct: float = 0.0
@@ -494,6 +501,7 @@ class PipelineContextDTO(BaseModel):
 
     # Meta
     override_damage: tuple[float, float] | None = None
+    trigger_effect_payloads: dict[str, list[dict[str, Any]]] = Field(default_factory=dict)
 
     # Calc Flags
     can_counter: bool = True

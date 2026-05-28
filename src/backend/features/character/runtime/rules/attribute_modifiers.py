@@ -15,7 +15,9 @@ from src.shared.enums.stats_enums import StatKey
 # AC stores plain attribute values; combat raw keeps them as {base, source, temp}.
 ATTRIBUTE_MODIFIER_RULES: dict[str, dict[str, float]] = {
     # Body node
-    StatKey.PHYSICAL_DAMAGE: {StatKey.STRENGTH: 1.0},
+    StatKey.PHYSICAL_STRENGTH_POWER: {StatKey.STRENGTH: 1.0},
+    StatKey.PHYSICAL_AGILITY_POWER: {StatKey.AGILITY: 1.0},
+    StatKey.PHYSICAL_ENDURANCE_POWER: {StatKey.ENDURANCE: 1.0},
     StatKey.PHYSICAL_SUPPRESSION: {StatKey.STRENGTH: 0.02},
     StatKey.BLEED_RESISTANCE: {StatKey.ENDURANCE: 0.02},
     StatKey.ENVIRONMENT_BIO_RESISTANCE: {StatKey.ENDURANCE: 0.02},

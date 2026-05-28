@@ -74,6 +74,42 @@ def test_item_factory_scales_power_and_affixes_with_material_tier_mult():
 
 
 @pytest.mark.unit
+def test_item_factory_heavy_armor_has_no_evasion_penalty():
+    item = ItemFactory().generate(
+        ItemGenerationRequestDTO(
+            base_id="plate_chest",
+            material_id="mat_iron_ingot",
+            item_grade="common",
+        )
+    )
+
+    assert item.metadata["armor_class"] == "heavy"
+    assert "evasion_penalty" not in item.implicit_bonuses
+
+
+@pytest.mark.unit
+def test_item_factory_light_chest_evasion_scales_by_material_tier():
+    low = ItemFactory().generate(
+        ItemGenerationRequestDTO(
+            base_id="leather_armor",
+            material_id="mat_cured_leather",
+            item_grade="common",
+        )
+    )
+    high = ItemFactory().generate(
+        ItemGenerationRequestDTO(
+            base_id="leather_armor",
+            material_id="mat_thick_leather",
+            item_grade="common",
+        )
+    )
+
+    assert low.metadata["armor_class"] == "light"
+    assert low.implicit_bonuses["evasion"] == pytest.approx(0.05)
+    assert high.implicit_bonuses["evasion"] > low.implicit_bonuses["evasion"]
+
+
+@pytest.mark.unit
 def test_item_factory_common_grade_produces_no_affixes():
     item = ItemFactory().generate(
         ItemGenerationRequestDTO(
@@ -152,6 +188,27 @@ def test_item_factory_scales_belt_capacity_by_material_tier_not_tier_mult():
     assert "inventory_cell_capacity" not in low.mechanics["implicit_bonuses"]
     assert high.implicit_bonuses["quick_slot_capacity"] == 8.0
     assert high.power == 16.0
+
+
+@pytest.mark.unit
+def test_item_factory_carries_quiver_ammo_contract_into_mechanics():
+    item = ItemFactory().generate(
+        ItemGenerationRequestDTO(
+            base_id="quiver_fire",
+            material_id="mat_oak_plank",
+            item_grade="common",
+        )
+    )
+
+    assert item.slot == "quiver"
+    assert item.item_type == "ammo"
+    assert item.mechanics["ammo_charge_base"] == 12
+    assert item.mechanics["ammo_charge_skill_bonus"] == 12
+    assert item.mechanics["ammo_effect_payload"] == {
+        "id": "dot_burn",
+        "params": {"power": 1.0},
+        "tags": ["arrow", "fire", "burn"],
+    }
 
 
 @pytest.mark.unit

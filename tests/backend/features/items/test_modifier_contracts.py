@@ -206,6 +206,7 @@ def test_affix_pools_preserve_first_pass_build_identities():
     assert {"travel_speed", "scouting_bonus", "pathfinding_bonus"}.isdisjoint(heavy_armor_pool)
     assert "thorns_damage_bonus" in heavy_armor_pool
     assert "shield_guard_power_bonus" in shield_pool
+    assert "armor_flat" not in shield_pool
     assert "armor_flat" not in light_armor_pool
     assert {"evasion_bonus", "hp_regen_bonus"} <= light_armor_pool
     assert {"resource_find_chance", "crafting_speed", "travel_speed"} <= belt_pool

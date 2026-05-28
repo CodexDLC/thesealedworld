@@ -208,6 +208,7 @@ class CombatStatValueDTO(CombatJsonDTO):
     label: str
     value: int | float
     value_text: str
+    tooltip: str | None = None
 
 
 class CombatStatSectionDTO(CombatJsonDTO):
@@ -354,6 +355,7 @@ class PostCombatOutcomeDTO(CombatJsonDTO):
     char_id: int
     outcome: str
     target_state: str
+    return_state: str | None = None
     notice: str | None = None
     combat_id: str | None = None
     corpse_ids: list[str] = Field(default_factory=list)

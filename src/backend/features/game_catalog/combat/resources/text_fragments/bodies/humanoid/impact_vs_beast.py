@@ -60,5 +60,17 @@ HUMANOID_IMPACT_VS_BEAST_PHRASES = {
             "variables": ["target"],
             "tags": ["hit"],
         },
+        "body.humanoid.impact_vs_beast.ranged.hit.arrow": {
+            "kind": "impact",
+            "text": "стрела находит {target}",
+            "variables": ["target"],
+            "tags": ["hit", "weapon", "ranged", "archery"],
+        },
+        "body.humanoid.impact_vs_beast.ranged.crit.arrow": {
+            "kind": "impact",
+            "text": "{source} вгоняет стрелу глубоко в {target}",
+            "variables": ["source", "target"],
+            "tags": ["crit", "weapon", "ranged", "archery"],
+        },
     },
 }

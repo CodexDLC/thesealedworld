@@ -26,7 +26,7 @@ def test_combat_action_contract_preserves_exchange_pair() -> None:
         move_id="m1",
         char_id=1,
         strategy="exchange",
-        payload=ExchangePayload(target_id=2, feint_id="true_strike"),
+        payload=ExchangePayload(target_id=2, feint_id="future_feint_placeholder"),
     )
     partner = CombatMoveDTO(move_id="m2", char_id=2, strategy="exchange", payload=ExchangePayload(target_id=1))
 
@@ -58,12 +58,112 @@ def test_combat_resources_load_runtime_and_public_catalog() -> None:
     catalog = CombatResourceCatalogService.load_default().all_public_text()
 
     assert get_ability_catalog_entry("fireball") is not None
-    assert get_feint_catalog_entry("true_strike") is not None
+    assert get_feint_catalog_entry("measured_strike") is not None
     assert catalog["abilities"]["fireball"]["target"] == "single_enemy"
     assert catalog["combat_entries"]["combat.ability.fireball"]["resource_id"] == "fireball"
     assert catalog["combat_entries"]["combat.gift.gift_true_fire"]["resource_id"] == "gift_true_fire"
     assert catalog["combat_entries"]["combat.item.fire_grenade"]["resource_id"] == "fire_grenade"
-    assert catalog["feints"]["shield_bash"]["title"] == "Удар щитом"
+    assert set(catalog["feints"]) == {
+        "blade_dance",
+        "absolute_defense",
+        "aggressive_defense",
+        "active_defense",
+        "answering_stance",
+        "answering_series",
+        "backstep_shot",
+        "blade_return",
+        "blade_loop",
+        "blade_mill",
+        "bind_blade",
+        "blinding_shot",
+        "broken_step",
+        "closed_distance",
+        "concussion",
+        "covering_position",
+        "crushing_pressure",
+        "empty_line",
+        "fencing_corner_entry",
+        "fencing_gap_probe",
+        "fencing_hidden_entry",
+        "fencing_inside_line",
+        "fencing_needle_gap",
+        "fencing_precise_prick",
+        "fencing_slip_guard",
+        "flawless_strike",
+        "foresight_parry",
+        "full_defense",
+        "glancing_step",
+        "hard_intercept",
+        "heavy_swing",
+        "headshot",
+        "hidden_agility",
+        "hidden_strength",
+        "ignore_guard",
+        "lucky_break",
+        "macing_armor_crush",
+        "macing_break_stance",
+        "macing_break_swing",
+        "macing_guard_cracker",
+        "macing_heavy_line",
+        "macing_skullbreaker",
+        "measured_strike",
+        "offhand_over",
+        "open_distance",
+        "open_wound",
+        "open_vein",
+        "perfect_riposte",
+        "piercing_arrow",
+        "polearm_guard_intercept",
+        "polearm_hook_step",
+        "polearm_leg_sweep",
+        "polearm_locked_distance",
+        "polearm_long_line",
+        "polearm_pinning_point",
+        "polearm_stunning_intercept",
+        "precise_weak_spot",
+        "push_stance",
+        "quiet_weak_spot",
+        "read_tactic",
+        "reveal_intentions",
+        "second_breath",
+        "shifting_line",
+        "silent_puncture",
+        "snap_shot",
+        "steel_line",
+        "steady_strike",
+        "sword_blade_bind",
+        "sword_clean_path",
+        "sword_cut_angle",
+        "sword_hard_bind",
+        "sword_low_angle",
+        "sword_measured_line",
+        "sword_open_line",
+        "torn_rhythm",
+        "wind_dance",
+    }
+    assert catalog["feints"]["measured_strike"]["cost"]["tactics"] == {"hit": 3}
+    assert catalog["feints"]["glancing_step"]["cost"]["tactics"] == {"dodge": 3}
+    assert catalog["feints"]["perfect_riposte"]["cost"]["tactics"] == {"parry": 7}
+    assert catalog["feints"]["absolute_defense"]["cost"]["tactics"] == {"block": 7}
+    assert catalog["feints"]["read_tactic"]["cost"]["tactics"] == {"hit": 1, "block": 2}
+    assert catalog["feints"]["crushing_pressure"]["cost"]["tactics"] == {"hit": 3}
+    assert catalog["feints"]["ignore_guard"]["cost"]["tactics"] == {"hit": 2, "parry": 2}
+    assert catalog["feints"]["offhand_over"]["cost"]["tactics"] == {"hit": 3, "parry": 2}
+    assert catalog["feints"]["blade_mill"]["cost"]["tactics"] == {"hit": 5, "counter": 4}
+    assert catalog["feints"]["snap_shot"]["cost"]["tactics"] == {"hit": 3}
+    assert catalog["feints"]["sword_blade_bind"]["cost"]["tactics"] == {"hit": 3, "parry": 2}
+    assert catalog["feints"]["sword_clean_path"]["cost"]["tactics"] == {"hit": 3, "crit": 5}
+    assert catalog["feints"]["fencing_gap_probe"]["cost"]["tactics"] == {"hit": 3, "crit": 2}
+    assert catalog["feints"]["fencing_needle_gap"]["cost"]["tactics"] == {"hit": 3, "crit": 5}
+    assert catalog["feints"]["polearm_hook_step"]["cost"]["tactics"] == {"hit": 3, "dodge": 2}
+    assert catalog["feints"]["polearm_locked_distance"]["cost"]["tactics"] == {"hit": 3, "crit": 5}
+    assert catalog["feints"]["macing_break_swing"]["cost"]["tactics"] == {"hit": 3, "parry": 2}
+    assert catalog["feints"]["macing_guard_cracker"]["cost"]["tactics"] == {"hit": 5, "crit": 3}
+    assert catalog["feints"]["reveal_intentions"]["cost"]["tactics"] == {"hit": 2, "dodge": 1}
+    assert catalog["combat_entries"]["combat.feint.measured_strike"]["resource_id"] == "measured_strike"
+    assert catalog["combat_entries"]["combat.feint.absolute_defense"]["resource_id"] == "absolute_defense"
+    assert catalog["combat_entries"]["combat.feint.hidden_strength"]["resource_id"] == "hidden_strength"
+    assert catalog["combat_entries"]["combat.feint.blade_loop"]["resource_id"] == "blade_loop"
     assert not any(key.startswith("combat.trigger.crit.") for key in catalog["triggers"])
     assert not any(key.startswith("combat.trigger.crit.") for key in catalog["combat_entries"])
     assert catalog["triggers"]["combat.trigger.weapon.heavy_crit"]["resource_id"] == "weapon_heavy_crit"
@@ -98,49 +198,24 @@ def test_ability_gift_and_item_catalog_entries_split_technical_and_descriptive()
     assert item.descriptive.variants["humanoid"].event_texts.area_result
 
 
-def test_feint_catalog_entry_splits_technical_and_taxonomy_descriptions() -> None:
-    entry = get_feint_catalog_entry("cleave")
-
-    assert entry is not None
-    assert entry.key == "combat.feint.cleave"
-    assert entry.technical.feint_id == "cleave"
-    assert entry.technical.target_count == 3
-    assert entry.descriptive.default_taxonomy == "humanoid"
-    assert set(entry.descriptive.variants) == {"humanoid", "beast"}
-    assert entry.descriptive.variants["humanoid"].icon == "combat/feints/cleave.svg"
-    assert entry.descriptive.variants["beast"].display_name == "Рассечение"
-    assert len(entry.descriptive.variants["humanoid"].event_texts.hit) >= 2
-    assert len(entry.descriptive.variants["beast"].event_texts.dodge) >= 2
-    assert "{source}" in entry.descriptive.variants["humanoid"].event_texts.use[0]
-    assert "{target}" in entry.descriptive.variants["beast"].event_texts.hit[0]
+def test_non_basic_hit_archived_feint_catalog_entries_are_not_runtime_resources() -> None:
+    assert get_feint_catalog_entry("armor_slip") is None
+    assert CombatCatalogIntegrator.get_catalog_entry_by_key("combat.feint.armor_slip") is None
+    assert CombatCatalogIntegrator.get_catalog_entry_by_key("combat.feint.measured_strike") is not None
 
 
-def test_combat_runtime_can_resolve_catalog_entry_by_stable_key() -> None:
-    entry = CombatCatalogIntegrator.get_catalog_entry_by_key("combat.feint.cleave")
-
-    assert entry is not None
-    assert entry.technical.feint_id == "cleave"
-    assert entry.descriptive.variants["beast"].event_texts.hit
-
+def test_combat_runtime_can_resolve_non_feint_catalog_entry_by_stable_key() -> None:
     ability_entry = CombatCatalogIntegrator.get_catalog_entry_by_key("combat.ability.fireball")
     assert ability_entry is not None
     assert ability_entry.technical.ability_id == "fireball"
 
+    assert CombatCatalogIntegrator.get_catalog_entry_by_key("combat.trigger.style.1h_flow") is None
+    ranged_trigger = CombatCatalogIntegrator.get_catalog_entry_by_key("combat.trigger.style.ranged_perfect_backstep")
+    assert ranged_trigger is not None
+    assert ranged_trigger.technical.trigger_id == "style_ranged_perfect_backstep"
+
 
 def test_combat_description_resolves_event_and_exchange_templates_without_formatting() -> None:
-    entry = get_feint_catalog_entry("cleave")
-
-    assert entry is not None
-
-    resolved = entry.descriptive.resolve_exchange_template("hit", taxonomy_chain=["beast.wolves", "beast"])
-
-    assert resolved is not None
-    assert resolved.event == "hit"
-    assert resolved.taxonomy == "beast"
-    assert resolved.variant == 0
-    assert "{source}" in resolved.text
-    assert "{target}" in resolved.text
-
     trigger = CombatCatalogIntegrator.get_trigger_catalog_entry("weapon_serrated_bleed_crit")
     assert trigger is not None
     proc = trigger.descriptive.resolve_event_template("crit_proc", taxonomy_chain=["humanoid"])
@@ -167,6 +242,8 @@ def test_pipeline_mutation_contracts_are_technical_and_apply_to_context() -> Non
     assert "chain.trigger_cleave" not in PIPELINE_MUTATION_CONTRACTS
     assert PIPELINE_MUTATION_CONTRACTS["ignore_miss"].path == "flags.force.hit"
     assert PIPELINE_MUTATION_CONTRACTS["ignore_evasion"].path == "flags.force.hit_evasion"
+    assert PIPELINE_MUTATION_CONTRACTS["target_evasion_mult"].path == "mods.target_evasion_mult"
+    assert PIPELINE_MUTATION_CONTRACTS["target_parry_mult"].path == "mods.target_parry_mult"
 
     ctx = PipelineContextDTO()
 
@@ -179,6 +256,8 @@ def test_pipeline_mutation_contracts_are_technical_and_apply_to_context() -> Non
             pipeline_mutation("flat_armor_penetration_bonus_pct", 0.5),
             pipeline_mutation("stage.check_parry", False),
             pipeline_mutation("weapon_effect_value", 2.0),
+            pipeline_mutation("target_evasion_mult", 0.65),
+            pipeline_mutation("target_parry_mult", 0.65),
             pipeline_mutation("chain.preserve_feint"),
         ],
         ctx=ctx,
@@ -192,16 +271,15 @@ def test_pipeline_mutation_contracts_are_technical_and_apply_to_context() -> Non
     assert ctx.mods.flat_armor_penetration_bonus_pct == 0.5
     assert ctx.stages.check_parry is False
     assert ctx.mods.weapon_effect_value == 2.0
+    assert ctx.mods.target_evasion_mult == 0.65
+    assert ctx.mods.target_parry_mult == 0.65
     assert ctx.result.chain_events.preserve_feint is True
 
 
-def test_weapon_technique_feint_resolves_weapon_render_context() -> None:
+def test_basic_hit_weapon_technique_feint_has_render_context() -> None:
     entry = get_feint_catalog_entry("measured_strike")
 
     assert entry is not None
-    assert entry.technical.cost.tactics == {"hit": 3}
-    assert entry.technical.hit_damage_bonus_per_tier == 3
-    assert [application.mutation_id for application in entry.technical.pipeline_mutations] == ["ignore_miss"]
 
     context = CombatCatalogIntegrator.get_feint_render_context(
         "measured_strike",
@@ -212,9 +290,8 @@ def test_weapon_technique_feint_resolves_weapon_render_context() -> None:
     )
 
     assert context is not None
-    assert "{weapon_attack_form}" in context.template
     assert context.variables["bonus_damage"] == 6
-    assert context.variables["weapon_attack_form"]
+    assert "{bonus_damage}" in context.template
 
 
 def test_trigger_rules_use_pipeline_mutation_applications_not_raw_paths() -> None:
@@ -225,9 +302,8 @@ def test_trigger_rules_use_pipeline_mutation_applications_not_raw_paths() -> Non
     assert [application.mutation_id for application in rule["pipeline_mutations"]] == [
         "crit_damage_boost",
         "weapon_effect_value",
-        "boost_flat_armor_penetration",
-        "flat_armor_penetration_bonus_pct",
     ]
+    assert all("armor" not in application.mutation_id for application in rule["pipeline_mutations"])
 
 
 def test_weapon_armor_triggers_target_flat_armor_layers() -> None:

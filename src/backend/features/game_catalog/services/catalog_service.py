@@ -84,7 +84,7 @@ class GameCatalogBootstrapService:
                         "tier_max": variant.max_tier,
                         "cost": variant.cost,
                         "tags": variant.extra_tags,
-                        "skills": sorted(variant.skill_overrides),
+                        "skills": sorted(variant.skills),
                         "description": variant.narrative_hint,
                         "visual": get_family_visual(family_id),
                     }

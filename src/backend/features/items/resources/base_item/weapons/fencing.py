@@ -16,7 +16,7 @@ FENCING_DB = {
         base_durability=35,
         narrative_tags=["knife", "dagger", "fencing", "offhand", "swift"],
         implicit_bonuses={
-            "physical_crit_chance": 0.06,
+            "physical_crit_chance": 0.025,
             "parry_chance": 0.02,
         },
         triggers=["crit.weapon_flat_armor_gap_crit"],
@@ -36,7 +36,7 @@ FENCING_DB = {
         base_durability=40,
         narrative_tags=["dagger", "fencing", "swift", "piercing"],
         implicit_bonuses={
-            "physical_crit_chance": 0.07,
+            "physical_crit_chance": 0.025,
             "parry_chance": 0.025,
         },
         triggers=["crit.weapon_flat_armor_gap_crit"],
@@ -56,7 +56,7 @@ FENCING_DB = {
         base_durability=38,
         narrative_tags=["stiletto", "dagger", "fencing", "piercing", "offhand"],
         implicit_bonuses={
-            "physical_crit_chance": 0.075,
+            "physical_crit_chance": 0.025,
             "weapon_armor_penetration_pct": 0.10,
             "parry_chance": 0.02,
         },
@@ -76,7 +76,7 @@ FENCING_DB = {
         base_durability=48,
         narrative_tags=["rapier", "fencing", "duelist", "precision"],
         implicit_bonuses={
-            "physical_crit_chance": 0.08,
+            "physical_crit_chance": 0.025,
             "parry_chance": 0.035,
         },
         triggers=["crit.weapon_precision_crit"],
@@ -96,7 +96,7 @@ FENCING_DB = {
         base_durability=45,
         narrative_tags=["main_gauche", "dagger", "fencing", "parry", "offhand"],
         implicit_bonuses={
-            "physical_crit_chance": 0.05,
+            "physical_crit_chance": 0.025,
             "parry_chance": 0.10,
         },
         triggers=["parry.weapon_riposte_on_parry"],
@@ -116,7 +116,7 @@ FENCING_DB = {
         base_durability=42,
         narrative_tags=["katar", "dagger", "fencing", "piercing", "unique"],
         implicit_bonuses={
-            "physical_crit_chance": 0.085,
+            "physical_crit_chance": 0.025,
             "weapon_armor_penetration_pct": 0.12,
             "parry_chance": 0.02,
         },

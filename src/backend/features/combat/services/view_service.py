@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import contextlib
 import json
+import math
 import re
 import time
 from typing import Any, Literal
@@ -9,6 +10,7 @@ from typing import Any, Literal
 from src.backend.core.calculators.stats_waterfall_calculator import StatsWaterfallCalculator
 from src.backend.features.combat.integrations import CombatCatalogIntegrator
 from src.backend.features.game_catalog.combat.resources.common.targeting import TargetType
+from src.backend.features.monsters.resources.visuals import version_generated_asset_url
 from src.shared.schemas.combat import (
     CombatAbilityBadgeDTO,
     CombatActionOptionDTO,
@@ -492,7 +494,7 @@ class CombatViewService:
         source = source_raw if isinstance(source_raw, dict) else {}
         visual_raw = meta.get("visual") or source.get("visual")
         visual = visual_raw if isinstance(visual_raw, dict) else {}
-        avatar_url = self._optional_str(meta.get("avatar_url")) or self._visual_image_url(visual)
+        avatar_url = self._avatar_image_url(meta.get("avatar_url"), visual=visual) or self._visual_image_url(visual)
 
         actor_name = str(meta.get("name") or actor_id)
         return CombatActorCardDTO(
@@ -970,7 +972,6 @@ class CombatViewService:
     @classmethod
     def _offense_items(cls, values: dict[str, float | int]) -> list[CombatStatValueDTO]:
         items: list[CombatStatValueDTO] = []
-        phys_flat = float(values.get("physical_damage") or 0)
         phys_bonus_pct = float(values.get("physical_damage_bonus") or 0)
         global_acc = float(values.get("accuracy") or 0)
         global_crit = float(values.get("crit_chance") or 0)
@@ -985,15 +986,15 @@ class CombatViewService:
             if not base:
                 continue
             spread = float(values.get(f"{prefix}_damage_spread") or 0.1)
-            effective = base + phys_flat
-            min_d = max(0.0, effective * (1.0 - spread))
-            max_d = max(0.0, effective * (1.0 + spread))
+            min_d = max(0.0, base * (1.0 - spread))
+            max_d = max(0.0, base * (1.0 + spread))
             items.append(
                 CombatStatValueDTO(
                     key=f"{prefix}_damage",
                     label=f"{hand} DAMAGE",
-                    value=effective,
-                    value_text=f"{round(min_d)} — {round(max_d)}",
+                    value=base,
+                    value_text=f"{cls._round_display(min_d)} — {cls._round_display(max_d)}",
+                    tooltip=cls._damage_breakdown_tooltip(values, prefix, base=base, spread=spread),
                 )
             )
 
@@ -1033,6 +1034,42 @@ class CombatViewService:
             items.append(cls._stat_item_pct("physical_suppression", "PHYS SUPPRESS", phys_suppress))
 
         return items
+
+    @classmethod
+    def _damage_breakdown_tooltip(
+        cls,
+        values: dict[str, float | int],
+        prefix: str,
+        *,
+        base: float,
+        spread: float,
+    ) -> str | None:
+        weapon_power = cls._optional_float(values.get(f"{prefix}_weapon_power"))
+        stat_raw = cls._optional_float(values.get(f"{prefix}_stat_damage_raw"))
+        stat_effective = cls._optional_float(values.get(f"{prefix}_stat_damage_effective"))
+        mastery = cls._optional_float(values.get(f"{prefix}_mastery_factor"))
+        raw_spread = cls._optional_float(values.get(f"{prefix}_damage_spread_raw"))
+
+        if (
+            weapon_power is None
+            and stat_raw is None
+            and stat_effective is None
+            and mastery is None
+            and raw_spread is None
+        ):
+            return None
+
+        parts: list[str] = []
+        if weapon_power is not None:
+            parts.append(f"Оружие: {cls._round_display(weapon_power)}")
+        if stat_raw is not None or stat_effective is not None:
+            parts.append(f"Статы: {cls._round_display(stat_effective or 0.0)} из {cls._round_display(stat_raw or 0.0)}")
+        if mastery is not None:
+            parts.append(f"Владение: {cls._round_display(mastery * 100)}%")
+        if raw_spread is not None:
+            parts.append(f"Разброс: {cls._round_display(raw_spread * 100)}% -> {cls._round_display(spread * 100)}%")
+        parts.append(f"База: {cls._round_display(base)}")
+        return " // ".join(parts)
 
     @classmethod
     def _defense_items(cls, values: dict[str, float | int]) -> list[CombatStatValueDTO]:
@@ -1207,27 +1244,24 @@ class CombatViewService:
     def _visible_tokens(cls, meta: dict[str, Any]) -> dict[str, int]:
         tokens_raw = meta.get("tokens")
         tokens_source = tokens_raw if isinstance(tokens_raw, dict) else {}
-        tokens = {str(k): cls._int(v) for k, v in tokens_source.items()}
-
-        feints_raw = meta.get("feints")
-        feints = feints_raw if isinstance(feints_raw, dict) else {}
-        hand_raw = feints.get("hand")
-        hand = hand_raw if isinstance(hand_raw, dict) else {}
-        for cost in hand.values():
-            if not isinstance(cost, dict):
-                continue
-            for token, amount in cost.items():
-                key = str(token)
-                tokens[key] = tokens.get(key, 0) + cls._int(amount)
-        return tokens
+        return {str(k): cls._int(v) for k, v in tokens_source.items()}
 
     @classmethod
     def _visual_image_url(cls, visual: dict[str, Any]) -> str | None:
         for key in ("image_url", "generated_image_url", "fallback_image_url"):
-            url = cls._optional_str(visual.get(key))
+            url = cls._avatar_image_url(visual.get(key), visual=visual)
+            if key == "generated_image_url" and visual.get("status") != "generated":
+                continue
             if url:
                 return url
         return None
+
+    @classmethod
+    def _avatar_image_url(cls, value: object, *, visual: dict[str, Any] | None = None) -> str | None:
+        url = cls._optional_str(value)
+        if not url or "/static/images/monsters/families/" in url:
+            return None
+        return version_generated_asset_url(url, visual)
 
     @staticmethod
     def _pending_actions(moves: Any) -> dict[str, int]:
@@ -1324,6 +1358,20 @@ class CombatViewService:
                 with contextlib.suppress(ValueError):
                     return int(match.group(0))
         return None
+
+    @staticmethod
+    def _optional_float(value: Any) -> float | None:
+        if isinstance(value, bool) or value in (None, ""):
+            return None
+        with contextlib.suppress(TypeError, ValueError):
+            return float(value)
+        return None
+
+    @staticmethod
+    def _round_display(value: float) -> int:
+        if value >= 0:
+            return math.floor(value + 0.5)
+        return math.ceil(value - 0.5)
 
     @staticmethod
     def _turn_sort_key(turn: str) -> tuple[int, str]:

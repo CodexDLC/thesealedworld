@@ -65,8 +65,6 @@ WEAPON_TRIGGER_CATALOG: list[TriggerCatalogEntryDTO] = [
             pipeline_mutations=[
                 pipeline_mutation("crit_damage_boost"),
                 pipeline_mutation("weapon_effect_value", 2.0),
-                pipeline_mutation("boost_flat_armor_penetration"),
-                pipeline_mutation("flat_armor_penetration_bonus_pct", 0.5),
             ],
             allowed_sources=["weapon"],
             display_policy="merge",

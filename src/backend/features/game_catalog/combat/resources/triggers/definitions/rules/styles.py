@@ -11,28 +11,6 @@ from src.backend.features.game_catalog.combat.resources.triggers.schemas import 
 
 STYLE_CATALOG: list[TriggerCatalogEntryDTO] = [
     TriggerCatalogEntryDTO(
-        key="combat.trigger.style.1h_flow",
-        technical=TriggerTechnicalDTO(
-            trigger_id="style_1h_flow",
-            event="ON_ACCURACY_CHECK",
-            chance=0.25,
-            pipeline_mutations=[pipeline_mutation("chain.preserve_feint")],
-            allowed_sources=["style"],
-            display_policy="merge",
-            tags=["style", "resource", "preserve_feint"],
-        ),
-        descriptive=build_combat_description(
-            resource_type="trigger",
-            resource_id="style_1h_flow",
-            display_name="Поток (стиль)",
-            short_description="С шансом сохраняет темп: возвращает стоимость использованного финта.",
-            humanoid_event_texts=CombatEventTextSetDTO(
-                proc=["{source} сохраняет темп удара."],
-            ),
-            beast_event_texts=default_trigger_proc_event_texts("Поток (стиль)"),
-        ),
-    ),
-    TriggerCatalogEntryDTO(
         key="combat.trigger.style.2h_ignore",
         technical=TriggerTechnicalDTO(
             trigger_id="style_2h_ignore",
@@ -80,6 +58,32 @@ STYLE_CATALOG: list[TriggerCatalogEntryDTO] = [
                 block_proc=["{target} частично гасит удар {source} щитом."],
             ),
             beast_event_texts=default_trigger_proc_event_texts("Отражение (стиль)"),
+        ),
+    ),
+    TriggerCatalogEntryDTO(
+        key="combat.trigger.style.ranged_perfect_backstep",
+        technical=TriggerTechnicalDTO(
+            trigger_id="style_ranged_perfect_backstep",
+            event="ON_PRE_EVASION",
+            chance=0.25,
+            chance_skill_key="skill_ranged_combat",
+            chance_skill_scale=0.0,
+            chance_cap=0.25,
+            pipeline_mutations=[pipeline_mutation("force.dodge")],
+            allowed_sources=["style"],
+            display_policy="merge",
+            tags=["style", "ranged_combat", "dodge", "perfect_backstep"],
+        ),
+        descriptive=build_combat_description(
+            resource_type="trigger",
+            resource_id="style_ranged_perfect_backstep",
+            display_name="Идеальный отскок",
+            short_description="С шансом до 25% превращает входящую атаку в гарантированный уворот.",
+            humanoid_event_texts=CombatEventTextSetDTO(
+                dodge_proc=["{target} делает идеальный отскок от атаки {source}."],
+                proc=["{target} делает идеальный отскок."],
+            ),
+            beast_event_texts=default_trigger_proc_event_texts("Идеальный отскок"),
         ),
     ),
     TriggerCatalogEntryDTO(

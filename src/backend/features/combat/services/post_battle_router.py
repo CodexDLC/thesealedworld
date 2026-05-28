@@ -1,9 +1,6 @@
 from __future__ import annotations
 
-import json
 from typing import TYPE_CHECKING, Any
-
-from loguru import logger
 
 from src.backend.features.loot.integrations.loot_integration import LootIntegration
 from src.backend.infrastructure.loot.managers.loot_manager import LootManager
@@ -30,6 +27,7 @@ class CombatPostBattleRouter:
         battle_type = str(meta.get("battle_type") or "").lower()
         location_id = str(meta.get("location_id") or "")
         arena_session_id = str(meta.get("arena_session_id") or "")
+        rift_session_id = str(meta.get("rift_session_id") or "")
         winner_team = str(finalization.get("winner_team") or "")
         participant_char_ids = [
             int(char_id) for char_id in finalization.get("participant_char_ids", []) if _int_or_none(char_id)
@@ -59,6 +57,7 @@ class CombatPostBattleRouter:
                 )
                 for char_id in participant_char_ids
             }
+        is_rift = bool(rift_session_id) or battle_type == "rift"
 
         pending_corpses_by_actor = await self._pending_corpses_by_actor(ctx, combat_id)
         dead_monster_corpse_ids = self._dead_monster_corpse_ids(actors, pending_corpses_by_actor)
@@ -72,7 +71,7 @@ class CombatPostBattleRouter:
         outcomes: dict[int, PostCombatOutcomeDTO] = {}
         for char_id in participant_char_ids:
             if char_id in dead_char_ids:
-                outcomes[char_id] = await self._death_outcome(ctx, char_id, combat_id=combat_id)
+                outcomes[char_id] = await self._death_outcome(ctx, char_id, combat_id=combat_id, meta=meta)
                 continue
             if char_id in winner_char_ids and loot_corpses:
                 outcomes[char_id] = self._loot_outcome(
@@ -80,14 +79,19 @@ class CombatPostBattleRouter:
                     combat_id=combat_id,
                     location_id=location_id,
                     corpses=loot_corpses,
+                    return_state=CoreDomain.RIFT.value if is_rift else CoreDomain.EXPLORATION.value,
+                    extra_context=_rift_loot_context(meta, location_id=location_id) if is_rift else {},
                 )
                 continue
             outcomes[char_id] = PostCombatOutcomeDTO(
                 char_id=char_id,
                 combat_id=combat_id,
                 outcome="return",
-                target_state=CoreDomain.EXPLORATION.value,
-                notice="Бой завершен. Можно осмотреться вокруг.",
+                target_state=CoreDomain.RIFT.value if is_rift else CoreDomain.EXPLORATION.value,
+                notice="Бой завершен. Разлом снова отпускает вас на тропу."
+                if is_rift
+                else "Бой завершен. Можно осмотреться вокруг.",
+                loot_context=_rift_loot_context(meta, location_id=location_id) if is_rift and rift_session_id else {},
             )
         return outcomes
 
@@ -111,7 +115,15 @@ class CombatPostBattleRouter:
             loot_context={"battle_type": battle_type},
         )
 
-    async def _death_outcome(self, ctx: dict[str, Any], char_id: int, *, combat_id: str) -> PostCombatOutcomeDTO:
+    async def _death_outcome(
+        self,
+        ctx: dict[str, Any],
+        char_id: int,
+        *,
+        combat_id: str,
+        meta: dict[str, Any] | None = None,
+    ) -> PostCombatOutcomeDTO:
+        combat_meta = meta or {}
         session_doc = await self._active_session(ctx, char_id)
         sessions = session_doc.get("sessions") if isinstance(session_doc, dict) else {}
         risk = session_doc.get("risk") if isinstance(session_doc, dict) else {}
@@ -127,6 +139,15 @@ class CombatPostBattleRouter:
                 ctx, sessions.get("death_corpse_id") if isinstance(sessions, dict) else None
             ),
         }
+        rift_session_id = str(combat_meta.get("rift_session_id") or "")
+        if rift_session_id:
+            entrance_seals = bool(combat_meta.get("rift_entrance_seals_on_entry"))
+            death_summary["rift"] = {
+                "rift_session_id": rift_session_id,
+                "rift_instance_id": str(combat_meta.get("rift_instance_id") or ""),
+                "entrance_seals_on_entry": entrance_seals,
+                "death_policy": "sealed_access_lost" if entrance_seals else "return_possible",
+            }
         return PostCombatOutcomeDTO(
             char_id=char_id,
             combat_id=combat_id,
@@ -163,6 +184,8 @@ class CombatPostBattleRouter:
         combat_id: str,
         location_id: str,
         corpses: list[CorpseDTO],
+        return_state: str = CoreDomain.EXPLORATION.value,
+        extra_context: dict[str, Any] | None = None,
     ) -> PostCombatOutcomeDTO:
         corpse_rows = [
             PostCombatLootCorpseDTO(
@@ -191,12 +214,15 @@ class CombatPostBattleRouter:
             combat_id=combat_id,
             outcome="loot_available",
             target_state=CoreDomain.LOOT.value,
+            return_state=return_state,
             notice="После боя остался лут.",
             corpse_ids=corpse_ids,
             loot_context={
                 "location_id": location_id,
                 "corpse_ids": corpse_ids,
                 "corpses": corpse_rows,
+                "return_state": return_state,
+                **(extra_context or {}),
             },
         )
 
@@ -220,19 +246,7 @@ class CombatPostBattleRouter:
         redis_service = ctx.get("redis_service")
         if redis_service is None or not combat_id:
             return {}
-        client = redis_service.redis_client if hasattr(redis_service, "redis_client") else redis_service.pipeline.client
-        raw = await client.get(f"loot:pending:{combat_id}")
-        if not raw:
-            return {}
-        try:
-            value = json.loads(raw)
-        except json.JSONDecodeError:
-            logger.bind(combat_id=combat_id).warning("CombatPostBattlePendingLootInvalidJson")
-            return {}
-        if not isinstance(value, dict):
-            logger.bind(combat_id=combat_id).warning("CombatPostBattlePendingLootInvalidActorMap")
-            return {}
-        return {str(actor_id): str(corpse_id) for actor_id, corpse_id in value.items() if corpse_id}
+        return await LootManager(redis_service).get_pending_actor_corpses(combat_id)
 
     async def _activate_and_load_loot(
         self,
@@ -252,7 +266,7 @@ class CombatPostBattleRouter:
         corpses: list[CorpseDTO] = []
         for corpse_id in corpse_ids:
             corpse = await integration.get_corpse(corpse_id)
-            if corpse is not None and corpse.items:
+            if corpse is not None:
                 corpses.append(corpse)
         return corpses
 
@@ -270,6 +284,19 @@ def _int_or_none(value: Any) -> int | None:
         return int(value)
     except (TypeError, ValueError):
         return None
+
+
+def _rift_loot_context(meta: dict[str, Any], *, location_id: str) -> dict[str, Any]:
+    return {
+        "rift_session_id": str(meta.get("rift_session_id") or ""),
+        "rift_instance_id": str(meta.get("rift_instance_id") or ""),
+        "rift_node_id": str(meta.get("rift_node_id") or ""),
+        "rift_event_scope": str(meta.get("rift_event_scope") or ""),
+        "rift_travel_id": str(meta.get("rift_travel_id") or ""),
+        "rift_event_key": str(meta.get("rift_event_key") or ""),
+        "rift_target_node_id": str(meta.get("rift_target_node_id") or ""),
+        "rift_location_id": location_id,
+    }
 
 
 def _float_value(value: Any) -> float:

@@ -20,14 +20,17 @@ from src.backend.features.combat.dto import (
 from src.backend.features.combat.integrations import CombatCatalogIntegrator as GameData
 from src.backend.features.combat.runtime.engine.effect_factory import EffectFactory
 from src.backend.features.combat.runtime.engine.feint_service import FeintService
+from src.backend.features.combat.runtime.engine.math_core import MathCore
 from src.backend.features.combat.runtime.engine.modifier_application_service import ModifierApplicationService
 from src.backend.features.combat.runtime.engine.pipeline_mutation_service import PipelineMutationService
 from src.backend.features.combat.runtime.engine.stats_engine import StatsEngine
 from src.backend.features.combat.runtime.engine.trigger_activation import activate_trigger
 from src.backend.features.game_catalog.combat.resources.common.modifier_applications import ModifierApplicationDTO
+from src.backend.features.game_catalog.combat.resources.effects.resistance_profiles import get_effect_resistance_profile
 
 if TYPE_CHECKING:
     from src.backend.features.game_catalog.combat.resources.abilities.schemas import AbilityCostDTO, AbilityTechnicalDTO
+    from src.backend.features.game_catalog.combat.resources.effects.schemas import EffectTechnicalDTO
     from src.backend.features.game_catalog.combat.resources.feints.schemas import FeintTechnicalDTO
 
 
@@ -90,6 +93,19 @@ class AbilityService:
             if ability_id:
                 self._process_action_logic(ctx, move, source, target, mode="ability")
             elif feint_id:
+                if AbilityService._source_forbids_feints(source):
+                    ctx.result.chain_events.preserve_feint = True
+                    ctx.result.effect_facts.append(
+                        CombatEffectFactDTO(
+                            actor_id=source.char_id,
+                            owner="source",
+                            effect_id="concussed_no_feints",
+                            action="tick",
+                            source_effect_id="concussed_no_feints",
+                            tags=["control", "forbid_feints"],
+                        )
+                    )
+                    return
                 self._process_action_logic(ctx, move, source, target, mode="feint")
             else:
                 # Basic Attack (No CAST event needed? Or maybe "ATTACK"?)
@@ -142,6 +158,12 @@ class AbilityService:
         for effect in actor.statuses.effects:
             effect_entry = GameData.get_effect_catalog_entry(effect.effect_id)
             effect_config = effect_entry.technical if effect_entry else None
+            if (
+                effect_config
+                and AbilityService._effect_is_counter_only(effect_config)
+                and not (mode == "source" and ctx.result.is_counter)
+            ):
+                continue
             if effect_config and effect_config.pipeline_mutations:
                 role = effect_config.pipeline_mutation_role
                 if role == "both" or role == mode:
@@ -161,8 +183,25 @@ class AbilityService:
                     for path, value in behavior.items():
                         if path == "can_act":
                             continue
+                        if AbilityService._apply_control_behavior(ctx, path, value):
+                            continue
                         AbilityService._set_nested_flag(ctx, path, value)
             pass
+
+    @staticmethod
+    def _apply_control_behavior(ctx: PipelineContextDTO, path: str, value: Any) -> bool:
+        if path == "can_dodge":
+            ctx.stages.check_evasion = bool(value)
+            if value is False:
+                ctx.flags.force.hit_evasion = True
+            return True
+        if path == "force_hit":
+            ctx.flags.force.hit = bool(value)
+            return True
+        if path == "force_crit":
+            ctx.flags.force.crit = bool(value)
+            return True
+        return False
 
     @staticmethod
     def _set_nested_flag(root_obj: Any, path: str, value: Any) -> None:
@@ -313,6 +352,11 @@ class AbilityService:
             modified_keys = sorted(set(modified_keys) | applied_modifiers.modified_keys)
             AbilityService._merge_modified_sources(modified_sources, applied_modifiers.modified_sources)
 
+        if mode == "feint":
+            shield_damage = AbilityService._source_shield_power_damage(actor, config)
+            if shield_damage > 0:
+                ctx.override_damage = (float(shield_damage), float(shield_damage))
+
         payload_effects: dict[str, Any] = {}
         prep_effects = getattr(config, "preparation_effects", None)
         if prep_effects:
@@ -436,6 +480,10 @@ class AbilityService:
             if not effect_entry:
                 continue
             config = effect_entry.technical
+            if AbilityService._effect_is_counter_only(config) and not (
+                actor_role == "source" and ctx.result.is_counter
+            ):
+                continue
             if outcome not in config.react_on_outcomes:
                 continue
             if config.pipeline_mutation_role not in {actor_role, "both"}:
@@ -464,6 +512,74 @@ class AbilityService:
     def _apply_prepared_reaction_result(
         ctx: PipelineContextDTO, actor: ActorSnapshot, effect_id: str, params: dict[str, Any]
     ) -> None:
+        if effect_id in {"prep_second_breath", "prep_perfect_riposte"}:
+            AbilityService._apply_prepared_parry_heal(ctx, actor, effect_id, params)
+            return
+
+        if effect_id == "prep_aggressive_defense":
+            reflected_damage = AbilityService._shield_power_damage(actor)
+            if reflected_damage <= 0:
+                return
+            ctx.result.reflected_damage += reflected_damage
+            ctx.result.resource_facts.append(
+                CombatResourceFactDTO(
+                    actor_id=ctx.result.source_id,
+                    owner="source",
+                    resource="hp",
+                    reason="aggressive_defense_reflect",
+                    delta=-reflected_damage,
+                    source_effect_id=effect_id,
+                    tags=["prepared_reaction", "hit", "reflect", f"defender:{actor.char_id}"],
+                )
+            )
+            return
+
+        if effect_id == "prep_2h_hard_intercept":
+            if ctx.result.source_id is None:
+                return
+            ctx.result.applied_effects.append(
+                {
+                    "id": "debuff_2h_damage_halved",
+                    "target_id": ctx.result.source_id,
+                    "source_effect_id": effect_id,
+                }
+            )
+            return
+
+        if effect_id == "prep_dual_bind_blade":
+            if ctx.result.source_id is None:
+                return
+            ctx.result.applied_effects.append(
+                {
+                    "id": "debuff_2h_damage_halved",
+                    "target_id": ctx.result.source_id,
+                    "source_effect_id": effect_id,
+                }
+            )
+            return
+
+        if effect_id == "prep_dual_blade_mill_counter":
+            ctx.result.chain_events.trigger_offhand_attack = True
+            return
+
+        if effect_id == "prep_dual_blade_loop_parry":
+            if not ctx.result.chain_events.trigger_counter_attack:
+                return
+            AbilityService._append_runtime_effect(actor, "prep_dual_blade_loop_counter")
+            return
+
+        if effect_id == "prep_dual_blade_loop_counter":
+            if ctx.result.target_id is None:
+                return
+            ctx.result.applied_effects.append(
+                {
+                    "id": "debuff_2h_damage_halved",
+                    "target_id": ctx.result.target_id,
+                    "source_effect_id": effect_id,
+                }
+            )
+            return
+
         if effect_id != "spiked_guard":
             return
         reflected_damage = AbilityService._int_param(params, "reflect_damage", default=5)
@@ -479,6 +595,51 @@ class AbilityService:
                 delta=-reflected_damage,
                 source_effect_id=effect_id,
                 tags=["prepared_reaction", "block", "reflect", f"defender:{actor.char_id}"],
+            )
+        )
+
+    @staticmethod
+    def _apply_prepared_parry_heal(
+        ctx: PipelineContextDTO, actor: ActorSnapshot, effect_id: str, params: dict[str, Any]
+    ) -> None:
+        max_hp = max(0, int(actor.meta.max_hp or 0))
+        missing_hp = max(0, max_hp - int(actor.meta.hp or 0))
+        if max_hp <= 0 or missing_hp <= 0:
+            return
+
+        ratio = AbilityService._float_param(params, "heal_max_hp_ratio", default=0.18)
+        heal_min = AbilityService._int_param(params, "heal_min", default=8)
+        planned_heal = max(heal_min, int(round(max_hp * ratio)))
+        heal_amount = min(missing_hp, planned_heal)
+        if heal_amount <= 0:
+            return
+
+        before = actor.meta.hp
+        actor.meta.hp = min(max_hp, actor.meta.hp + heal_amount)
+        ctx.result.tokens_awarded_defender.pop("parry", None)
+        ctx.result.resource_facts.append(
+            CombatResourceFactDTO(
+                actor_id=actor.char_id,
+                owner=AbilityService._fact_owner(ctx, actor.char_id),
+                resource="hp",
+                reason="prepared_heal",
+                delta=actor.meta.hp - before,
+                before=before,
+                after=actor.meta.hp,
+                max=max_hp,
+                source_effect_id=effect_id,
+                tags=["prepared_reaction", "parry", "heal"],
+            )
+        )
+        ctx.result.events.append(
+            CombatEventDTO(
+                type="HEAL",
+                source_id=actor.char_id,
+                target_id=actor.char_id,
+                value=actor.meta.hp - before,
+                resource="hp",
+                action_id=effect_id,
+                tags=["PREPARED_REACTION", "PARRY"],
             )
         )
 
@@ -509,6 +670,55 @@ class AbilityService:
             return max(1, int(tiers.get(source_type, 1)))
         except (TypeError, ValueError):
             return 1
+
+    @staticmethod
+    def _source_shield_tier(actor: ActorSnapshot) -> int:
+        tiers = getattr(actor.loadout, "weapon_tiers", {}) or {}
+        try:
+            return max(1, int(tiers.get("off_hand", 1)))
+        except (TypeError, ValueError):
+            return 1
+
+    @staticmethod
+    def _source_shield_power_damage(actor: ActorSnapshot, config: AbilityTechnicalDTO | FeintTechnicalDTO) -> int:
+        ratio = float(getattr(config, "shield_guard_damage_ratio", 0.0) or 0.0)
+        if ratio <= 0:
+            return 0
+        minimum = max(0, int(getattr(config, "shield_guard_damage_min", 0) or 0))
+        fallback_per_tier = max(0, int(getattr(config, "shield_guard_damage_tier_fallback", 0) or 0))
+        tier_fallback = fallback_per_tier * AbilityService._source_shield_tier(actor)
+        shield_power = max(0.0, float(getattr(actor.stats.mods, "shield_guard_power", 0.0) or 0.0))
+        return max(minimum, tier_fallback, int(round(shield_power * ratio)))
+
+    @staticmethod
+    def _shield_power_damage(actor: ActorSnapshot) -> int:
+        shield_power = max(0.0, float(getattr(actor.stats.mods, "shield_guard_power", 0.0) or 0.0))
+        tier_fallback = 3 * AbilityService._source_shield_tier(actor)
+        return max(3, tier_fallback, int(round(shield_power * 0.25)))
+
+    @staticmethod
+    def _dispel_prepared_effects(actor: ActorSnapshot) -> int:
+        removed = 0
+        keep = []
+        for effect in actor.statuses.effects:
+            effect_entry = GameData.get_effect_catalog_entry(effect.effect_id)
+            tags = set(effect_entry.technical.tags) if effect_entry else set()
+            if "preparation" in tags:
+                if effect.modified_sources:
+                    ModifierApplicationService.remove_temp_sources(actor, effect.modified_sources)
+                removed += 1
+                continue
+            keep.append(effect)
+        actor.statuses.effects = keep
+        return removed
+
+    @staticmethod
+    def _source_forbids_feints(actor: ActorSnapshot) -> bool:
+        for effect in actor.statuses.effects:
+            control = effect.control
+            if control and control.source_behavior.get("forbid_feints") is True:
+                return True
+        return False
 
     @staticmethod
     def _merge_modified_sources(target: dict[str, list[str]], source: dict[str, list[str]]) -> None:
@@ -560,6 +770,21 @@ class AbilityService:
                 )
                 continue
 
+            if effect_id == "dispel_preparations":
+                removed = AbilityService._dispel_prepared_effects(effect_target)
+                ctx.result.effect_facts.append(
+                    CombatEffectFactDTO(
+                        actor_id=effect_target.char_id,
+                        owner=AbilityService._fact_owner(ctx, effect_target.char_id),
+                        effect_id="dispel_preparations",
+                        action="apply",
+                        value=removed,
+                        source_trigger_id=effect_data.get("source_trigger_id"),
+                        tags=["dispel", "preparation"],
+                    )
+                )
+                continue
+
             # 3. Create Active Effect (Factory)
             if not isinstance(effect_id, str):
                 continue
@@ -569,7 +794,18 @@ class AbilityService:
                 continue
             config = catalog_entry.technical
 
-            params = effect_data.get("params", {})
+            params_raw = effect_data.get("params", {})
+            params = params_raw if isinstance(params_raw, dict) else {}
+
+            if not AbilityService._effect_application_passes_resistance(
+                ctx=ctx,
+                source=source,
+                target=effect_target,
+                config=config,
+                params=params,
+                effect_data=effect_data,
+            ):
+                continue
 
             # ВАЖНО: Передаем damage_final как damage_ref для скалирования (например, Bleed)
             damage_ref = ctx.result.damage_final if ctx.result.damage_final > 0 else 0
@@ -612,6 +848,54 @@ class AbilityService:
                     type="APPLY_EFFECT", source_id=source.char_id, target_id=effect_target.char_id, action_id=effect_id
                 )
             )
+
+    @staticmethod
+    def _effect_application_passes_resistance(
+        ctx: PipelineContextDTO,
+        source: ActorSnapshot,
+        target: ActorSnapshot,
+        config: EffectTechnicalDTO,
+        params: dict[str, Any],
+        effect_data: dict[str, Any],
+    ) -> bool:
+        profile_id = config.resistance_profile_id
+        if profile_id is None:
+            return True
+
+        profile = get_effect_resistance_profile(profile_id)
+        if profile is None:
+            raise ValueError(f"Unknown effect resistance profile: {profile_id}")
+
+        StatsEngine.ensure_stats(source)
+        StatsEngine.ensure_stats(target)
+        source_bonus = AbilityService._sum_stat_modifiers(source, profile.source_modifiers)
+        target_resistance = AbilityService._sum_stat_modifiers(target, profile.target_modifiers)
+        param_bonus = float(params.get("apply_bonus", 0.0) or 0.0)
+        chance = profile.base_chance + source_bonus + param_bonus - target_resistance
+        chance = max(profile.floor, min(profile.cap, chance))
+        _, passed = MathCore.roll_chance(chance)
+        if passed:
+            return True
+
+        ctx.result.effect_facts.append(
+            CombatEffectFactDTO(
+                actor_id=target.char_id,
+                owner=AbilityService._fact_owner(ctx, target.char_id),
+                effect_id=config.effect_id,
+                action="resist",
+                source_action_id=effect_data.get("source_action_id"),
+                source_effect_id=effect_data.get("source_effect_id"),
+                source_trigger_id=effect_data.get("source_trigger_id"),
+                tags=["resist", profile.profile_id, *profile.tags],
+            )
+        )
+        return False
+
+    @staticmethod
+    def _sum_stat_modifiers(actor: ActorSnapshot, modifier_ids: list[str]) -> float:
+        if actor.stats is None:
+            return 0.0
+        return sum(float(getattr(actor.stats.mods, modifier_id, 0.0) or 0.0) for modifier_id in modifier_ids)
 
     @staticmethod
     def _register_combat_regen(ctx: PipelineContextDTO, source: ActorSnapshot) -> None:
@@ -681,6 +965,32 @@ class AbilityService:
             return int(params.get(key, default))
         except (TypeError, ValueError):
             return default
+
+    @staticmethod
+    def _float_param(params: dict[str, Any], key: str, *, default: float) -> float:
+        try:
+            return float(params.get(key, default))
+        except (TypeError, ValueError):
+            return default
+
+    @staticmethod
+    def _effect_is_counter_only(config: Any) -> bool:
+        return "counter_only" in set(getattr(config, "tags", []) or [])
+
+    @staticmethod
+    def _append_runtime_effect(actor: ActorSnapshot, effect_id: str) -> None:
+        entry = GameData.get_effect_catalog_entry(effect_id)
+        if not entry:
+            return
+        actor.statuses.effects.append(
+            EffectFactory.create_effect(
+                config=entry.technical,
+                params={},
+                source_id=actor.char_id,
+                current_exchange=actor.meta.exchange_counter,
+                damage_ref=0,
+            )
+        )
 
     @staticmethod
     def _fact_owner(

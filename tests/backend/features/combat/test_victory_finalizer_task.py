@@ -173,6 +173,7 @@ async def test_victory_finalizer_commits_player_vitals_to_active_session() -> No
                     "notice": "Бой завершен. Можно осмотреться вокруг.",
                     "outcome": "return",
                     "rating_delta": None,
+                    "return_state": None,
                     "target_state": "exploration",
                 },
                 "$.state": "combat_result",

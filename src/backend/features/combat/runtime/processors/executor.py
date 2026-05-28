@@ -8,7 +8,7 @@ from loguru import logger as log
 from src.backend.features.combat.dto.action import CombatActionDTO, CombatMoveDTO
 from src.backend.features.combat.dto.actor import ActorSnapshot
 from src.backend.features.combat.dto.ids import ActorId, ActorIdLike, normalize_actor_id
-from src.backend.features.combat.dto.pipeline import InteractionResultDTO, PipelineContextDTO
+from src.backend.features.combat.dto.pipeline import CombatEffectFactDTO, InteractionResultDTO, PipelineContextDTO
 from src.backend.features.combat.dto.session import BattleContext, TargetReturnDTO
 from src.backend.features.combat.integrations import CombatCatalogIntegrator
 from src.backend.features.combat.runtime.engine.feint_service import FeintService
@@ -276,6 +276,7 @@ class CombatExecutor:
         source.meta.exchange_counter += 1
         target.meta.exchange_counter += 1
         ctx.meta.step_counter += 1
+        self._cleanup_finished_control_effects(ctx, [source, target], action=action, wave=wave)
 
         self._reroll_exchange_feints(source)
         self._reroll_exchange_feints(target)
@@ -395,6 +396,49 @@ class CombatExecutor:
                 self._append_result_logs(ctx, tick_ctx.result, action=action, wave=wave)
                 self._append_result_support_payload(ctx, tick_ctx.result, action=action, wave=wave)
                 self._log_result_info(ctx, tick_ctx.result, wave=wave)
+
+    def _cleanup_finished_control_effects(
+        self, ctx: BattleContext, actors: list[ActorSnapshot], *, action: CombatActionDTO, wave: int
+    ) -> None:
+        """Remove one-shot control effects after the exchange they affected."""
+        seen: set[ActorId] = set()
+        for actor in actors:
+            actor_id = actor.char_id
+            if actor_id in seen:
+                continue
+            seen.add(actor_id)
+            expired = []
+            keep = []
+            for effect in actor.statuses.effects:
+                effect_entry = CombatCatalogIntegrator.get_effect_catalog_entry(effect.effect_id)
+                tags = set(effect_entry.technical.tags) if effect_entry else set()
+                if "control" in tags and effect.expire_at_exchange <= actor.meta.exchange_counter:
+                    expired.append(effect)
+                    continue
+                keep.append(effect)
+            if not expired:
+                continue
+            actor.statuses.effects = keep
+            result = InteractionResultDTO(source_id=action.move.char_id, target_id=actor.char_id)
+            for effect in expired:
+                result.effect_facts.append(
+                    CombatEffectFactDTO(
+                        actor_id=actor.char_id,
+                        owner="target",
+                        effect_id=effect.effect_id,
+                        action="expire",
+                        source_effect_id=effect.effect_id,
+                    )
+                )
+            ctx.pending_logs.extend(
+                CombatLogBuilder.build_effect_fact_entries(
+                    ctx=ctx,
+                    result=result,
+                    action=action,
+                    wave=wave,
+                    timestamp=time.time(),
+                )
+            )
 
     @staticmethod
     def _refund_feint_cost_if_needed(ctx: BattleContext, result: InteractionResultDTO, move: CombatMoveDTO) -> None:

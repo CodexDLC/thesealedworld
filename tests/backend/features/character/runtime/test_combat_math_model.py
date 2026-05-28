@@ -119,7 +119,7 @@ def test_builder_maps_shield_block_chance_without_skill_scaling() -> None:
 
 
 @pytest.mark.unit
-def test_builder_counts_garment_power_as_flat_armor() -> None:
+def test_builder_does_not_count_feetwear_power_as_flat_armor() -> None:
     raw = CharacterCombatMathModelBuilder().build_raw(
         attributes={},
         items={
@@ -136,7 +136,64 @@ def test_builder_counts_garment_power_as_flat_armor() -> None:
         skills={},
     )
 
-    assert raw["modifiers"]["armor"]["base"] == 1.6
+    assert raw["modifiers"]["armor"]["base"] == 0.0
+
+
+@pytest.mark.unit
+def test_builder_ignores_shield_flat_armor_bonuses() -> None:
+    raw = CharacterCombatMathModelBuilder().build_raw(
+        attributes={},
+        items={
+            "layout": {"equipment": {"off_hand": "buckler-1"}},
+            "by_id": {
+                "buckler-1": {
+                    "item_id": "buckler-1",
+                    "item_type": "armor",
+                    "slot": "off_hand",
+                    "mechanics": {
+                        "power": 3,
+                        "implicit_bonuses": {"parry_chance": 0.085},
+                        "bonuses": {"armor": "+1.62"},
+                        "affixes": [{"affix_id": "armor_flat", "value": 1.62}],
+                        "tags": ["buckler", "shield", "parry"],
+                    },
+                }
+            },
+        },
+        skills={},
+    )
+
+    assert raw["modifiers"]["armor"]["base"] == 0.0
+    assert raw["modifiers"]["armor"]["source"] == {}
+    assert raw["modifiers"]["parry"]["base"] == pytest.approx(0.085)
+
+
+@pytest.mark.unit
+def test_builder_treats_compiled_bonuses_as_affix_math_source() -> None:
+    raw = CharacterCombatMathModelBuilder().build_raw(
+        attributes={},
+        items={
+            "layout": {"equipment": {"chest_armor": "jerkin-1"}},
+            "by_id": {
+                "jerkin-1": {
+                    "item_id": "jerkin-1",
+                    "item_type": "armor",
+                    "slot": "chest_armor",
+                    "mechanics": {
+                        "power": 4,
+                        "bonuses": {"armor": "+1.6"},
+                        "affixes": [{"affix_id": "armor_flat", "value": 1.6}],
+                    },
+                }
+            },
+        },
+        skills={},
+    )
+
+    armor = raw["modifiers"]["armor"]
+
+    assert armor["base"] == 4.0
+    assert armor["source"] == {"item:jerkin-1": 1.6}
 
 
 @pytest.mark.unit
@@ -249,7 +306,11 @@ def test_builder_applies_heavy_chest_dodge_cap_override() -> None:
                     "item_id": "plate-1",
                     "base_id": "plate_chest",
                     "item_type": "armor",
-                    "mechanics": {"armor_class": "heavy", "power": 10},
+                    "mechanics": {
+                        "armor_class": "heavy",
+                        "power": 10,
+                        "implicit_bonuses": {"evasion_penalty": -0.25},
+                    },
                 }
             },
         },
@@ -257,6 +318,7 @@ def test_builder_applies_heavy_chest_dodge_cap_override() -> None:
     )
 
     assert raw["modifiers"]["dodge_cap"]["source"]["item:plate-1"] == "=0.35"
+    assert raw["modifiers"]["evasion"]["base"] == 0.0
 
 
 @pytest.mark.unit
@@ -270,7 +332,7 @@ def test_builder_applies_medium_chest_dodge_cap_penalty_and_skill_recovery() -> 
                     "item_id": "jerkin-1",
                     "base_id": "jerkin",
                     "item_type": "armor",
-                    "mechanics": {"armor_class": "medium", "power": 4},
+                    "mechanics": {"armor_class": "medium", "power": 4, "material": {"tier_mult": 1.5}},
                 }
             },
         },
@@ -279,12 +341,12 @@ def test_builder_applies_medium_chest_dodge_cap_penalty_and_skill_recovery() -> 
 
     sources = raw["modifiers"]["dodge_cap"]["source"]
 
-    assert sources["item:jerkin-1:medium_cap_penalty"] == pytest.approx(-0.10)
-    assert sources["skill:skill_medium_armor"] == pytest.approx(0.05)
+    assert sources["item:jerkin-1:medium_cap_penalty"] == pytest.approx(-0.30)
+    assert sources["skill:skill_medium_armor"] == pytest.approx(0.15)
 
 
 @pytest.mark.unit
-def test_builder_applies_light_armor_dodge_cap_skill_boost() -> None:
+def test_builder_applies_light_armor_skill_dodge_cap_boost() -> None:
     raw = CharacterCombatMathModelBuilder().build_raw(
         attributes={},
         items={
@@ -294,14 +356,17 @@ def test_builder_applies_light_armor_dodge_cap_skill_boost() -> None:
                     "item_id": "leather-1",
                     "base_id": "leather_armor",
                     "item_type": "armor",
-                    "mechanics": {"armor_class": "light", "power": 3},
+                    "mechanics": {"armor_class": "light", "power": 3, "material": {"tier_mult": 1.5}},
                 }
             },
         },
         skills={"skill_light_armor": 1.0},
     )
 
-    assert raw["modifiers"]["dodge_cap"]["source"]["skill:skill_light_armor"] == pytest.approx(0.20)
+    sources = raw["modifiers"]["dodge_cap"]["source"]
+
+    assert sources["skill:skill_light_armor"] == pytest.approx(0.20)
+    assert "item:leather-1:light_cap_bonus" not in sources
 
 
 @pytest.mark.unit

@@ -45,6 +45,12 @@ COMBAT_TOKENS: dict[str, dict[str, Any]] = {
         "icon": "token-counter",
         "order": 70,
     },
+    "blood": {
+        "title": "Кровь",
+        "description": "Ресурс выживания, накапливаемый за пережитый фактический урон.",
+        "icon": "token-blood",
+        "order": 75,
+    },
     "gift": {
         "title": "Дар",
         "description": "Магический ресурс для способностей, связанных с даром персонажа.",

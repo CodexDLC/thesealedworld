@@ -46,6 +46,9 @@ class FakePipeline:
     def set(self, key, path, value):
         self.commands.append(("json_set", key, path, value))
 
+    def merge(self, key, path, value):
+        self.commands.append(("json_merge", key, path, value))
+
     def get(self, key, path="$"):
         self.commands.append(("json_get", key, path))
 
@@ -72,8 +75,12 @@ class FakePipeline:
                 self.client.ttls[key] = payload[0]
                 results.append(True)
             elif name == "json_set":
-                _, value = payload
-                self.client.json_store[key] = value
+                path, value = payload
+                self.client.set_json_path(key, path, value)
+                results.append(True)
+            elif name == "json_merge":
+                path, value = payload
+                self.client.merge_json_path(key, path, value)
                 results.append(True)
             elif name == "json_get":
                 path = payload[0]
@@ -135,6 +142,34 @@ class FakeRedisClient:
         values = self.lists.get(key, [])
         end = None if stop == -1 else stop + 1
         return values[start:end]
+
+    def set_json_path(self, key, path, value):
+        if path == "$":
+            self.json_store[key] = value
+            return
+        doc = self.json_store.setdefault(key, {})
+        parts = path.removeprefix("$.").split(".")
+        cursor = doc
+        for part in parts[:-1]:
+            cursor = cursor.setdefault(part, {})
+        cursor[parts[-1]] = value
+
+    def merge_json_path(self, key, path, value):
+        if path == "$":
+            target = self.json_store.setdefault(key, {})
+        else:
+            target = self.json_store.setdefault(key, {})
+            for part in path.removeprefix("$.").split("."):
+                target = target.setdefault(part, {})
+        self._deep_merge(target, value)
+
+    @classmethod
+    def _deep_merge(cls, target, value):
+        for key, new_value in value.items():
+            if isinstance(new_value, dict) and isinstance(target.get(key), dict):
+                cls._deep_merge(target[key], new_value)
+            else:
+                target[key] = new_value
 
     async def eval(self, script, numkeys, *args):
         if "local dead = cjson.decode(ARGV[1])" in script:
@@ -220,6 +255,30 @@ async def test_create_session_batch_writes_rbc_shape():
 
 
 @pytest.mark.asyncio
+async def test_create_session_batch_serializes_bool_meta_for_redis_hash():
+    redis = FakeRedisService()
+    store = CombatSessionManager(redis)
+
+    await store.create_session_batch(
+        "c1",
+        SessionDataDTO(
+            meta={
+                "active": 1,
+                "teams": '{"blue":["1"],"red":["-1"]}',
+                "rift_entrance_seals_on_entry": True,
+                "rift_return_allowed": False,
+            },
+            actors={"1": {"meta": {"id": "1"}}, "-1": {"meta": {"id": "-1"}}},
+            targets={"1": ["-1"], "-1": ["1"]},
+        ),
+    )
+
+    meta = redis.redis_client.hash_store["combat:rbc:c1:meta"]
+    assert meta["rift_entrance_seals_on_entry"] == 1
+    assert meta["rift_return_allowed"] == 0
+
+
+@pytest.mark.asyncio
 async def test_logs_round_trip():
     redis = FakeRedisService()
     store = CombatSessionManager(redis)
@@ -275,6 +334,48 @@ async def test_commit_battle_results_persists_meta_updates():
     await store.commit_battle_results("c1", {}, [], 0, meta_update={"step_counter": 3})
 
     assert redis.redis_client.hash_store["combat:rbc:c1:meta"]["step_counter"] == 3
+
+
+@pytest.mark.asyncio
+async def test_commit_battle_results_replaces_feints_instead_of_merging_stale_hand():
+    redis = FakeRedisService()
+    store = CombatSessionManager(redis)
+    redis.redis_client.json_store["combat:rbc:c1:actor:1"] = {
+        "meta": {
+            "hp": 10,
+            "max_hp": 10,
+            "feints": {
+                "arsenal": ["a", "b", "stale"],
+                "hand": {"a": {"hit": 1}, "stale": {"crit": 3}},
+                "pinned": "stale",
+            },
+        }
+    }
+
+    await store.commit_battle_results(
+        "c1",
+        {
+            "1": {
+                "state": {
+                    "hp": 7,
+                    "max_hp": 10,
+                    "feints": {
+                        "arsenal": ["a", "b", "stale"],
+                        "hand": {"b": {"dodge": 1}},
+                        "pinned": None,
+                    },
+                }
+            }
+        },
+        [],
+        0,
+    )
+
+    assert redis.redis_client.json_store["combat:rbc:c1:actor:1"]["meta"]["feints"] == {
+        "arsenal": ["a", "b", "stale"],
+        "hand": {"b": {"dodge": 1}},
+        "pinned": None,
+    }
 
 
 @pytest.mark.asyncio

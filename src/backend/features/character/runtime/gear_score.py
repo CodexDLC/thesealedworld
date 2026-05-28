@@ -4,7 +4,9 @@ from typing import Any
 
 from src.backend.core.calculators.stats_waterfall_calculator import StatsWaterfallCalculator
 from src.backend.features.character.dto.modifiers import CombatModifiersDTO
+from src.backend.features.character.runtime.combat_actor_input import CharacterCombatActorInputBuilder
 from src.backend.features.character.runtime.combat_math_model import CharacterCombatMathModelBuilder
+from src.backend.features.character.runtime.rules.base_power_assembler import BasePowerAssembler
 from src.backend.features.character.runtime.rules.gear_score import (
     GEAR_SCORE_BASE,
     GEAR_SCORE_BASELINES,
@@ -15,22 +17,28 @@ from src.backend.features.character.runtime.rules.gear_score import (
 
 
 class CharacterGearScoreCalculator:
-    """Calculates character gear score from waterfall-calculated combat modifiers."""
+    """Calculates gear score from combat-effective modifiers after base-power assembly."""
 
     def __init__(self, math_model: CharacterCombatMathModelBuilder | None = None) -> None:
         self.math_model = math_model or CharacterCombatMathModelBuilder()
 
     def calculate_from_active_character(self, active_character: dict[str, Any]) -> int:
-        raw = self.math_model.build_raw(
-            attributes=active_character.get("attributes") or {},
-            items=active_character.get("items") or {},
-            skills=active_character.get("skills") or {},
+        actor_input = CharacterCombatActorInputBuilder(self.math_model).build_input(active_character)
+        return self.calculate_from_raw(
+            actor_input["raw"],
+            skills=actor_input["skills"],
+            loadout=actor_input["loadout"],
         )
-        return self.calculate_from_raw(raw)
 
     @staticmethod
-    def calculate_from_raw(raw: dict[str, Any]) -> int:
+    def calculate_from_raw(
+        raw: dict[str, Any],
+        *,
+        skills: dict[str, Any] | None = None,
+        loadout: dict[str, Any] | None = None,
+    ) -> int:
         calculated, _ = StatsWaterfallCalculator.calculate_waterfall(raw)
+        CharacterGearScoreCalculator._apply_combat_power_projection(calculated, skills=skills, loadout=loadout)
         return CharacterGearScoreCalculator.calculate_from_calculated(calculated)
 
     @staticmethod
@@ -58,6 +66,20 @@ class CharacterGearScoreCalculator:
             return float(value)
         except (TypeError, ValueError):
             return None
+
+    @staticmethod
+    def _apply_combat_power_projection(
+        calculated: dict[str, Any],
+        *,
+        skills: dict[str, Any] | None,
+        loadout: dict[str, Any] | None,
+    ) -> None:
+        if not skills or not loadout:
+            return
+        layout = loadout.get("layout")
+        if not isinstance(layout, dict):
+            return
+        BasePowerAssembler.apply_to_values(calculated, loadout_layout=layout, skills=skills)
 
 
 __all__ = ["CharacterGearScoreCalculator"]

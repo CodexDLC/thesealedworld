@@ -263,7 +263,7 @@ def actor(actor_id: int | str, team: str, hp: int = 100) -> ActorSnapshot:
             max_stamina=100,
         ),
         raw=ActorRawDTO(modifiers={"main_hand_damage_base": 200, "main_hand_accuracy": 1.0}),
-        loadout=ActorLoadoutDTO(),
+        loadout=ActorLoadoutDTO(layout={"main_hand": "skill_swords"}),
     )
 
 
@@ -291,6 +291,88 @@ def stats(mods: dict[str, float] | None = None, skills: dict[str, float] | None 
         mods=CombatModifiersDTO(**(mods or {})),
         skills=CombatSkillsDTO(**(skills or {})),
     )
+
+
+@pytest.mark.unit
+def test_queued_effect_resistance_can_prevent_dot_application(monkeypatch: pytest.MonkeyPatch) -> None:
+    captured_chances: list[float] = []
+
+    def capture_roll(chance: float) -> tuple[float | None, bool]:
+        captured_chances.append(chance)
+        return 0.99, False
+
+    monkeypatch.setattr(MathCore, "roll_chance", staticmethod(capture_roll))
+
+    source = actor(1, "a")
+    target = actor(2, "b")
+    target.stats = stats({"poison_resistance": 1.0})
+    ctx = PipelineContextDTO()
+    ctx.result.source_id = source.char_id
+    ctx.result.target_id = target.char_id
+    ctx.result.is_hit = True
+    ctx.result.damage_final = 10
+    ctx.result.applied_effects.append(
+        {"id": "dot_poison", "target_id": target.char_id, "source_trigger_id": "poison_arrow"}
+    )
+
+    AbilityService().post_process(
+        ctx,
+        source,
+        target,
+        CombatMoveDTO(
+            move_id="m1",
+            char_id=source.char_id,
+            strategy="exchange",
+            payload=ExchangePayload(target_id=target.char_id),
+        ),
+    )
+
+    assert captured_chances == [pytest.approx(0.05)]
+    assert target.statuses.effects == []
+    assert ctx.result.effect_facts[-1].effect_id == "dot_poison"
+    assert ctx.result.effect_facts[-1].action == "resist"
+    assert ctx.result.effect_facts[-1].source_trigger_id == "poison_arrow"
+
+
+@pytest.mark.unit
+def test_queued_effect_resistance_uses_source_and_param_apply_bonus(monkeypatch: pytest.MonkeyPatch) -> None:
+    captured_chances: list[float] = []
+
+    def capture_roll(chance: float) -> tuple[float | None, bool]:
+        captured_chances.append(chance)
+        return 0.25, True
+
+    monkeypatch.setattr(MathCore, "roll_chance", staticmethod(capture_roll))
+
+    source = actor(1, "a")
+    source.stats = stats({"control_chance_bonus": 0.2})
+    target = actor(2, "b")
+    target.stats = stats({"poison_resistance": 0.7})
+    ctx = PipelineContextDTO()
+    ctx.result.source_id = source.char_id
+    ctx.result.target_id = target.char_id
+    ctx.result.is_hit = True
+    ctx.result.damage_final = 10
+    ctx.result.applied_effects.append(
+        {"id": "dot_poison", "target_id": target.char_id, "params": {"apply_bonus": 0.1}}
+    )
+
+    AbilityService().post_process(
+        ctx,
+        source,
+        target,
+        CombatMoveDTO(
+            move_id="m1",
+            char_id=source.char_id,
+            strategy="exchange",
+            payload=ExchangePayload(target_id=target.char_id),
+        ),
+    )
+
+    assert captured_chances == [pytest.approx(0.6)]
+    assert [effect.effect_id for effect in target.statuses.effects] == ["dot_poison"]
+    assert ctx.result.effect_facts[-1].effect_id == "dot_poison"
+    assert ctx.result.effect_facts[-1].action == "apply"
 
 
 @pytest.mark.unit
@@ -612,7 +694,7 @@ def test_executor_log_entries_use_actor_names_and_result_summary() -> None:
     ]
     assert ctx.pending_logs[0]["result"]["resources"] == ctx.pending_logs[0]["resources"]
     assert ctx.pending_logs[0]["catalog"] == "combat_text"
-    assert ctx.pending_logs[0]["template"]["key"] == "combat.exchange.basic.hit.humanoid_to_humanoid.weapon"
+    assert ctx.pending_logs[0]["template"]["key"] == "combat.exchange.skill_swords.main_hand.hit.humanoid_to_humanoid.weapon"
     assert ctx.pending_logs[0]["template"]["text"]
     assert ctx.pending_logs[0]["text"].endswith("нанося 7 урона.")
     assert "damage_final" not in ctx.pending_logs[0]
@@ -681,65 +763,6 @@ def test_executor_log_entries_use_dual_wield_proc_text_without_runtime_fallback(
 
 
 @pytest.mark.unit
-def test_executor_log_entries_use_humanoid_feint_text_templates() -> None:
-    ctx = BattleContext(session_id="c1", meta=battle_meta(), actors={"1": actor(1, "a"), "2": actor(2, "b")})
-    ctx.actors["2"].meta.hp = 93
-    action = CombatActionDTO(
-        action_type="exchange",
-        move=CombatMoveDTO(
-            move_id="m1",
-            char_id=1,
-            strategy="exchange",
-            payload=ExchangePayload(target_id=2, feint_id="true_strike"),
-        ),
-    )
-    result = InteractionResultDTO(source_id=1, target_id=2, damage_final=7, is_hit=True)
-    result.events.append(CombatEventDTO(type="CAST", source_id=1, target_id=2, action_id="true_strike"))
-    result.events.append(CombatEventDTO(type="HIT", source_id=1, target_id=2, value=7, resource="hp"))
-
-    CombatExecutor()._append_result_logs(ctx, result, action=action, wave=1)
-
-    assert ctx.pending_logs[0]["text"].endswith("нанося 7 урона.")
-    assert len(ctx.pending_logs) == 1
-    assert ctx.pending_logs[0]["catalog"] == "combat_text"
-    assert ctx.pending_logs[0]["catalog_key"] == "combat.feint.true_strike.hit.humanoid_to_humanoid.weapon"
-    assert ctx.pending_logs[0]["catalog_event"] == "hit"
-    assert ctx.pending_logs[0]["catalog_tooltip"] == ""
-    assert "weapon_attack_form" not in ctx.pending_logs[0]["variables"]
-    assert ctx.pending_logs[0]["result"]["resources"] == [
-        {"actor_id": "2", "resource": "hp", "before": 100, "after": 93, "max": 100, "delta": -7, "label": "HP 93/100"}
-    ]
-
-
-@pytest.mark.unit
-def test_executor_log_entries_use_specific_feint_avoidance_text_templates() -> None:
-    ctx = BattleContext(session_id="c1", meta=battle_meta(), actors={"1": actor(1, "a"), "2": actor(2, "b")})
-    action = CombatActionDTO(
-        action_type="exchange",
-        move=CombatMoveDTO(
-            move_id="m1",
-            char_id=1,
-            strategy="exchange",
-            payload=ExchangePayload(target_id=2, feint_id="side_cut"),
-        ),
-    )
-    result = InteractionResultDTO(source_id=1, target_id=2, is_dodged=True)
-    result.events.append(CombatEventDTO(type="CAST", source_id=1, target_id=2, action_id="side_cut"))
-    result.events.append(CombatEventDTO(type="DODGE", source_id=1, target_id=2))
-
-    CombatExecutor()._append_result_logs(ctx, result, action=action, wave=1)
-
-    entry = ctx.pending_logs[0]
-    assert entry["template"]["key"] == "combat.feint.side_cut.dodge.humanoid_to_humanoid.weapon"
-    assert entry["catalog_key"] == "combat.feint.side_cut.dodge.humanoid_to_humanoid.weapon"
-    assert entry["action"]["catalog_key"] == "combat.feint.side_cut.dodge.humanoid_to_humanoid.weapon"
-    assert entry["catalog_event"] == "dodge"
-    assert "(F)" not in entry["text"]
-    assert "Боковой срез" not in entry["text"]
-    assert "срезая боковую линию защиты" in entry["text"]
-
-
-@pytest.mark.unit
 def test_executor_log_entries_use_combat_text_for_beast_natural_exchange() -> None:
     source = beast_actor(1, "a")
     target = actor(2, "b")
@@ -762,9 +785,46 @@ def test_executor_log_entries_use_combat_text_for_beast_natural_exchange() -> No
 
     entry = ctx.pending_logs[0]
     assert entry["catalog"] == "combat_text"
-    assert entry["template"]["key"] == "combat.exchange.basic.hit.beast_to_humanoid.natural"
+    assert entry["template"]["key"] == "combat.exchange.natural_weapon.fangs.main_hand.hit.beast_to_humanoid.natural"
     assert entry["template"]["text"]
     assert all(forbidden not in entry["text"].casefold() for forbidden in ("клинк", "остри", "доспех"))
+    assert "(F)" not in entry["text"]
+
+
+@pytest.mark.unit
+def test_executor_log_entries_use_archery_basic_exchange_text_for_bow_attacks() -> None:
+    source = actor(1, "a")
+    source.meta.archetype = "humanoid"
+    source.loadout.layout["main_hand"] = "skill_archery"
+    source.loadout.combat_surfaces = {
+        "main_hand": {
+            "slot": "main_hand",
+            "delivery": "weapon",
+            "surface": "bow",
+            "tags": ["weapon", "bow", "archery", "ranged", "skill_archery"],
+            "item_id": "training_bow",
+            "base_id": "training_bow",
+            "skill_key": "skill_archery",
+        }
+    }
+    target = actor(2, "b")
+    target.meta.archetype = "humanoid"
+    ctx = BattleContext(session_id="c1", meta=battle_meta(), actors={"1": source, "2": target})
+    action = CombatActionDTO(
+        action_type="exchange",
+        move=CombatMoveDTO(move_id="m1", char_id=1, strategy="exchange", payload=ExchangePayload(target_id=2)),
+    )
+    result = InteractionResultDTO(source_id=1, target_id=2, damage_final=9, is_hit=True)
+    result.events.append(CombatEventDTO(type="HIT", source_id=1, target_id=2, value=9, resource="hp"))
+
+    CombatExecutor()._append_result_logs(ctx, result, action=action, wave=1)
+
+    entry = ctx.pending_logs[0]
+    assert entry["catalog"] == "combat_text"
+    assert entry["catalog_key"] == "combat.exchange.skill_archery.main_hand.hit.humanoid_to_humanoid.weapon"
+    assert "стрел" in entry["text"].casefold() or "выстрел" in entry["text"].casefold()
+    assert "режущ" not in entry["text"].casefold()
+    assert "рубящ" not in entry["text"].casefold()
 
 
 @pytest.mark.unit
@@ -773,15 +833,15 @@ def test_executor_log_entries_use_combat_text_for_beast_natural_exchange() -> No
     [
         (
             InteractionResultDTO(source_id=1, target_id=2, is_miss=True),
-            "combat.exchange.basic.miss.beast_to_humanoid.natural",
+            "combat.exchange.natural_weapon.fangs.main_hand.miss.beast_to_humanoid.natural",
         ),
         (
             InteractionResultDTO(source_id=1, target_id=2, is_dodged=True),
-            "combat.exchange.basic.dodge.beast_to_humanoid.natural",
+            "combat.exchange.natural_weapon.fangs.main_hand.dodge.beast_to_humanoid.natural",
         ),
         (
             InteractionResultDTO(source_id=1, target_id=2, is_parried=True),
-            "combat.exchange.basic.parry.beast_to_humanoid.natural",
+            "combat.exchange.natural_weapon.fangs.main_hand.parry.beast_to_humanoid.natural",
         ),
     ],
 )
@@ -824,8 +884,8 @@ def test_executor_log_entries_treat_beast_monster_without_surface_as_natural() -
     CombatExecutor()._append_result_logs(ctx, result, action=action, wave=1)
 
     entry = ctx.pending_logs[0]
-    assert entry["template"]["key"] == "combat.exchange.basic.parry.beast_to_humanoid.natural"
-    assert entry["catalog_key"] == "combat.exchange.basic.parry.beast_to_humanoid.natural"
+    assert entry["template"]["key"] == "combat.exchange.natural_weapon.default.main_hand.parry.beast_to_humanoid.natural"
+    assert entry["catalog_key"] == "combat.exchange.natural_weapon.default.main_hand.parry.beast_to_humanoid.natural"
     assert entry["catalog_tooltip"] == ""
     assert "(F)" not in entry["text"]
 
@@ -836,11 +896,11 @@ def test_executor_log_entries_treat_beast_monster_without_surface_as_natural() -
     [
         (
             InteractionResultDTO(source_id=1, target_id=2, is_miss=True),
-            "combat.exchange.basic.miss.humanoid_to_beast.weapon",
+            "combat.exchange.skill_swords.main_hand.miss.humanoid_to_beast.weapon",
         ),
         (
             InteractionResultDTO(source_id=1, target_id=2, is_dodged=True),
-            "combat.exchange.basic.dodge.humanoid_to_beast.weapon",
+            "combat.exchange.skill_swords.main_hand.dodge.humanoid_to_beast.weapon",
         ),
     ],
 )
@@ -868,36 +928,7 @@ def test_executor_log_entries_cover_humanoid_weapon_exchange_against_beasts(
 
 
 @pytest.mark.unit
-def test_executor_log_entries_use_combat_text_for_beast_natural_feint() -> None:
-    source = beast_actor(1, "a")
-    target = actor(2, "b")
-    target.meta.archetype = "humanoid"
-    ctx = BattleContext(session_id="c1", meta=battle_meta(), actors={"1": source, "2": target})
-    ctx.actors["2"].meta.hp = 93
-    action = CombatActionDTO(
-        action_type="exchange",
-        move=CombatMoveDTO(
-            move_id="m1",
-            char_id=1,
-            strategy="exchange",
-            payload=ExchangePayload(target_id=2, feint_id="true_strike"),
-        ),
-    )
-    result = InteractionResultDTO(source_id=1, target_id=2, damage_final=7, is_hit=True)
-    result.events.append(CombatEventDTO(type="CAST", source_id=1, target_id=2, action_id="true_strike"))
-    result.events.append(CombatEventDTO(type="HIT", source_id=1, target_id=2, value=7, resource="hp"))
-
-    CombatExecutor()._append_result_logs(ctx, result, action=action, wave=1)
-
-    entry = ctx.pending_logs[0]
-    assert entry["catalog"] == "combat_text"
-    assert entry["template"]["key"] == "combat.feint.true_strike.hit.beast_to_humanoid.natural"
-    assert "weapon_attack_form" not in entry["variables"]
-    assert all(forbidden not in entry["text"].casefold() for forbidden in ("клинк", "остри", "доспех"))
-
-
-@pytest.mark.unit
-def test_executor_log_entries_use_visible_combat_text_default_for_uncovered_exchange() -> None:
+def test_executor_log_entries_use_natural_weapon_template_for_beast_surface_even_with_skill_mapping() -> None:
     source = actor(1, "a")
     source.meta.type = "monster"
     source.meta.archetype = "beast"
@@ -928,53 +959,9 @@ def test_executor_log_entries_use_visible_combat_text_default_for_uncovered_exch
 
     entry = ctx.pending_logs[0]
     assert entry["catalog"] == "combat_text"
-    assert entry["template"]["key"] == "combat.exchange.default.crit"
-    assert "(F)" in entry["text"]
-    assert entry["text"].endswith("7 урона. (F)")
-
-
-@pytest.mark.unit
-def test_executor_log_entries_use_visible_combat_text_default_for_uncovered_feint_body() -> None:
-    source = actor(1, "a")
-    source.meta.type = "monster"
-    source.meta.archetype = "beast"
-    source.loadout.layout["main_hand"] = "skill_fencing"
-    source.loadout.combat_surfaces = {
-        "main_hand": {
-            "slot": "main_hand",
-            "delivery": "natural",
-            "surface": "fangs",
-            "tags": ["natural_weapon", "fangs", "rat"],
-            "item_id": "rat_bite_claws",
-            "base_id": "rat_bite_claws",
-            "skill_key": "skill_fencing",
-        }
-    }
-    target = actor(2, "b")
-    target.meta.archetype = "humanoid"
-    ctx = BattleContext(session_id="c1", meta=battle_meta(), actors={"1": source, "2": target})
-    ctx.actors["2"].meta.hp = 93
-    action = CombatActionDTO(
-        action_type="exchange",
-        move=CombatMoveDTO(
-            move_id="m1",
-            char_id=1,
-            strategy="exchange",
-            payload=ExchangePayload(target_id=2, feint_id="sand_throw"),
-        ),
-    )
-    result = InteractionResultDTO(source_id=1, target_id=2, damage_final=7, is_hit=True)
-    result.events.append(CombatEventDTO(type="CAST", source_id=1, target_id=2, action_id="sand_throw"))
-    result.events.append(CombatEventDTO(type="HIT", source_id=1, target_id=2, value=7, resource="hp"))
-
-    CombatExecutor()._append_result_logs(ctx, result, action=action, wave=1)
-
-    entry = ctx.pending_logs[0]
-    assert entry["catalog"] == "combat_text"
-    assert entry["template"]["key"] == "combat.feint.default.hit"
-    assert entry["variables"]["feint"] == "Бросок песка"
-    assert "(F)" in entry["text"]
-    assert "weapon_attack_form" not in entry["variables"]
+    assert entry["template"]["key"] == "combat.exchange.natural_weapon.fangs.main_hand.crit.beast_to_humanoid.natural"
+    assert "(F)" not in entry["text"]
+    assert entry["text"].endswith("7 урона.")
 
 
 @pytest.mark.unit
@@ -1032,41 +1019,6 @@ def test_combat_trigger_log_missing_combat_text_template_uses_runtime_fallback(m
 
 
 @pytest.mark.unit
-def test_executor_log_entries_use_actual_partner_move_template() -> None:
-    ctx = BattleContext(session_id="c1", meta=battle_meta(), actors={"1": actor(1, "a"), "2": actor(2, "b")})
-    ctx.actors["1"].meta.hp = 96
-    source_move = CombatMoveDTO(
-        move_id="m1",
-        char_id=1,
-        strategy="exchange",
-        payload=ExchangePayload(target_id=2, feint_id="true_strike"),
-    )
-    partner_move = CombatMoveDTO(
-        move_id="m2",
-        char_id=2,
-        strategy="exchange",
-        payload=ExchangePayload(target_id=1, feint_id="sand_throw"),
-    )
-    action = CombatActionDTO(action_type="exchange", move=source_move, partner_move=partner_move)
-    result_action = CombatExecutor()._action_for_move(
-        action,
-        partner_move,
-        result=InteractionResultDTO(source_id=2, target_id=1),
-    )
-    result = InteractionResultDTO(source_id=2, target_id=1, damage_final=4, is_hit=True)
-    result.events.append(CombatEventDTO(type="CAST", source_id=2, target_id=1, action_id="sand_throw"))
-    result.events.append(CombatEventDTO(type="HIT", source_id=2, target_id=1, value=4, resource="hp"))
-
-    CombatExecutor()._append_result_logs(ctx, result, action=result_action, wave=1)
-
-    entry = ctx.pending_logs[0]
-    assert entry["catalog"] == "combat_text"
-    assert entry["catalog_key"] == "combat.feint.sand_throw.hit.humanoid_to_humanoid.weapon"
-    assert entry["template"]["key"] == "combat.feint.sand_throw.hit.humanoid_to_humanoid.weapon"
-    assert "выжидает момент" not in entry["text"]
-
-
-@pytest.mark.unit
 def test_executor_log_entries_render_counter_as_counterattack() -> None:
     ctx = BattleContext(session_id="c1", meta=battle_meta(), actors={"1": actor(1, "a"), "2": actor(2, "b")})
     ctx.actors["1"].meta.hp = 96
@@ -1074,7 +1026,7 @@ def test_executor_log_entries_render_counter_as_counterattack() -> None:
         move_id="m1",
         char_id=1,
         strategy="exchange",
-        payload=ExchangePayload(target_id=2, feint_id="true_strike"),
+        payload=ExchangePayload(target_id=2, feint_id="future_feint_placeholder"),
     )
     action = CombatActionDTO(action_type="exchange", move=source_move)
     result = InteractionResultDTO(source_id=2, target_id=1, damage_final=4, is_hit=True, is_counter=True)
@@ -1085,7 +1037,7 @@ def test_executor_log_entries_render_counter_as_counterattack() -> None:
 
     entry = ctx.pending_logs[0]
     assert entry["catalog"] == "combat_text"
-    assert entry["template"]["key"] == "combat.exchange.basic.hit.humanoid_to_humanoid.weapon"
+    assert entry["template"]["key"] == "combat.exchange.skill_swords.main_hand.hit.humanoid_to_humanoid.weapon"
     assert entry["text"].endswith("нанося 4 урона.")
     assert entry["targets"] == [{"id": "1", "name": "A1", "team": "a", "actor_type": "player"}]
     assert entry["flags"]["counter"] is True
@@ -1102,7 +1054,7 @@ def test_executor_tick_logs_ignore_current_move_feint_template() -> None:
             move_id="m1",
             char_id=1,
             strategy="exchange",
-            payload=ExchangePayload(target_id=2, feint_id="true_strike"),
+            payload=ExchangePayload(target_id=2, feint_id="future_feint_placeholder"),
         ),
     )
     result = InteractionResultDTO(source_id=1, target_id=1)
@@ -1128,7 +1080,7 @@ def test_executor_tick_log_uses_effect_text_even_without_action_id_priority() ->
             move_id="m1",
             char_id=1,
             strategy="exchange",
-            payload=ExchangePayload(target_id=2, feint_id="sand_throw"),
+            payload=ExchangePayload(target_id=2, feint_id="future_feint_placeholder"),
         ),
     )
     result = InteractionResultDTO(source_id=1, target_id=1)
@@ -1139,7 +1091,7 @@ def test_executor_tick_log_uses_effect_text_even_without_action_id_priority() ->
     entry = ctx.pending_logs[0]
     assert entry["catalog"] == "combat_text"
     assert entry["text"] == "Кровотечение терзает A1: -1 hp."
-    assert "бросает песок" not in entry["text"]
+    assert "future_feint_placeholder" not in entry["text"]
 
 
 @pytest.mark.unit
@@ -1151,7 +1103,7 @@ def test_executor_lethal_tick_log_stays_effect_tick_text() -> None:
             move_id="m1",
             char_id=1,
             strategy="exchange",
-            payload=ExchangePayload(target_id=2, feint_id="power_attack"),
+            payload=ExchangePayload(target_id=2, feint_id="future_feint_placeholder"),
         ),
     )
     result = InteractionResultDTO(source_id=1, target_id=1)
@@ -1186,7 +1138,7 @@ async def test_executor_periodic_tick_before_feint_keeps_effect_text() -> None:
             move_id="m1",
             char_id=1,
             strategy="exchange",
-            payload=ExchangePayload(target_id=2, feint_id="sand_throw"),
+            payload=ExchangePayload(target_id=2, feint_id="future_feint_placeholder"),
         ),
         is_forced=True,
     )
@@ -1196,7 +1148,7 @@ async def test_executor_periodic_tick_before_feint_keeps_effect_text() -> None:
     tick_entry = next(entry for entry in ctx.pending_logs if entry["kind"] == "effect_tick")
     assert tick_entry["text"] == "Кровотечение терзает A1: -2 hp."
     assert tick_entry["catalog_key"] == "combat.effect.dot_bleed.tick.humanoid.hp"
-    assert "бросает песок" not in tick_entry["text"]
+    assert "future_feint_placeholder" not in tick_entry["text"]
 
 
 @pytest.mark.unit
@@ -1353,50 +1305,6 @@ def test_executor_log_entries_use_area_contract_for_multi_target_actions() -> No
 
 
 @pytest.mark.unit
-async def test_executor_expands_all_enemy_feint_to_secondary_targets() -> None:
-    ctx = BattleContext(
-        session_id="c1",
-        meta=BattleMeta(
-            active=1,
-            step_counter=0,
-            active_actors_count=4,
-            teams={"a": [1], "b": [2, 3, 4]},
-            actors_info={"1": "player", "2": "ai", "3": "ai", "4": "ai"},
-            battle_type="arena",
-            location_id="arena",
-        ),
-        actors={"1": actor(1, "a"), "2": actor(2, "b"), "3": actor(3, "b"), "4": actor(4, "b")},
-    )
-    for combat_actor in ctx.actors.values():
-        combat_actor.raw.modifiers = {"main_hand_damage_base": {"base": 20}, "main_hand_accuracy": {"base": 1.0}}
-
-    action = CombatActionDTO(
-        action_type="exchange",
-        move=CombatMoveDTO(
-            move_id="m1",
-            char_id=1,
-            strategy="exchange",
-            payload=ExchangePayload(target_id=2, feint_id="cleave"),
-        ),
-        partner_move=CombatMoveDTO(
-            move_id="m2",
-            char_id=2,
-            strategy="exchange",
-            payload=ExchangePayload(target_id=1),
-        ),
-    )
-
-    await CombatExecutor()._handle_exchange(ctx, action)
-
-    assert ctx.actors["2"].meta.hp < 100
-    assert ctx.actors["3"].meta.hp < 100
-    assert ctx.actors["4"].meta.hp < 100
-    assert ctx.actors["3"].meta.hp > ctx.actors["2"].meta.hp
-    assert ctx.actors["4"].meta.hp > ctx.actors["2"].meta.hp
-    assert ctx.actors["1"].meta.hp < 100
-
-
-@pytest.mark.unit
 def test_executor_log_entries_use_combat_text_for_humanoid_effect_apply() -> None:
     ctx = BattleContext(session_id="c1", meta=battle_meta(), actors={"1": actor(1, "a"), "2": actor(2, "b")})
     action = CombatActionDTO(
@@ -1418,6 +1326,25 @@ def test_executor_log_entries_use_combat_text_for_humanoid_effect_apply() -> Non
 
 
 @pytest.mark.unit
+def test_executor_effect_resist_log_does_not_use_runtime_fallback_text() -> None:
+    ctx = BattleContext(session_id="c1", meta=battle_meta(), actors={"1": actor(1, "a"), "2": actor(2, "b")})
+    action = CombatActionDTO(
+        action_type="exchange",
+        move=CombatMoveDTO(move_id="m1", char_id=1, strategy="exchange", payload=ExchangePayload(target_id=2)),
+    )
+    result = InteractionResultDTO(source_id=1, target_id=2)
+    result.applied_effects.append({"id": "stun", "target_id": 2})
+    result.effect_facts.append(CombatEffectFactDTO(actor_id=2, owner="target", effect_id="stun", action="resist"))
+
+    CombatExecutor()._append_result_logs(ctx, result, action=action, wave=1)
+
+    assert len(ctx.pending_logs) == 1
+    assert ctx.pending_logs[0]["kind"] == "effect_resist"
+    assert "(F)" not in ctx.pending_logs[0]["text"]
+    assert "не срабатывает" in ctx.pending_logs[0]["text"]
+
+
+@pytest.mark.unit
 def test_executor_hit_with_effect_event_keeps_attack_template() -> None:
     ctx = BattleContext(session_id="c1", meta=battle_meta(), actors={"1": actor(1, "a"), "2": actor(2, "b")})
     ctx.actors["1"].loadout.layout["main_hand"] = "skill_swords"
@@ -1430,43 +1357,19 @@ def test_executor_hit_with_effect_event_keeps_attack_template() -> None:
     result.events.append(CombatEventDTO(type="HIT", source_id=1, target_id=2, value=3, resource="hp"))
     result.events.append(CombatEventDTO(type="APPLY_EFFECT", source_id=1, target_id=2, action_id="dot_bleed"))
     result.applied_effects.append({"id": "dot_bleed"})
+    result.effect_facts.append(CombatEffectFactDTO(actor_id=2, owner="target", effect_id="dot_bleed", action="apply"))
 
     CombatExecutor()._append_result_logs(ctx, result, action=action, wave=1)
 
     entry = ctx.pending_logs[0]
     assert entry["catalog"] == "combat_text"
-    assert entry["catalog_key"] == "combat.exchange.basic.hit.humanoid_to_humanoid.weapon"
+    assert entry["catalog_key"] == "combat.exchange.skill_swords.main_hand.hit.humanoid_to_humanoid.weapon"
     assert "применяет Кровотечение" not in entry["text"]
+    assert len(ctx.pending_logs) == 2
+    assert ctx.pending_logs[1]["kind"] == "effect_apply"
+    assert "A2" in ctx.pending_logs[1]["text"]
+    assert "кровоточ" in ctx.pending_logs[1]["text"]
     assert entry["result"]["effects"][0]["effect_id"] == "dot_bleed"
-
-
-@pytest.mark.unit
-def test_executor_deduplicates_merged_bleed_trigger_suffixes() -> None:
-    ctx = BattleContext(session_id="c1", meta=battle_meta(), actors={"1": actor(1, "a"), "2": actor(2, "b")})
-    ctx.actors["2"].meta.hp = 96
-    action = CombatActionDTO(
-        action_type="exchange",
-        move=CombatMoveDTO(
-            move_id="m1",
-            char_id=1,
-            strategy="exchange",
-            payload=ExchangePayload(target_id=2, feint_id="true_strike"),
-        ),
-    )
-    result = InteractionResultDTO(source_id=1, target_id=2, damage_final=4, is_hit=True, is_crit=True)
-    result.fired_triggers.extend(["weapon_serrated_bleed_crit", "weapon_serrated_bleed_hit"])
-    result.applied_effects.append({"id": "dot_bleed"})
-    result.events.append(CombatEventDTO(type="HIT", source_id=1, target_id=2, value=4, resource="hp"))
-    result.events.append(CombatEventDTO(type="APPLY_EFFECT", source_id=1, target_id=2, action_id="dot_bleed"))
-
-    CombatExecutor()._append_result_logs(ctx, result, action=action, wave=1)
-
-    entry = ctx.pending_logs[0]
-    assert entry["catalog"] == "combat_text"
-    assert entry["template"]["key"] == "combat.feint.true_strike.crit.humanoid_to_humanoid.weapon"
-    assert entry["text"].endswith("нанося 4 урона.")
-    assert entry["text"].count("кровот") == 0
-    assert [effect["effect_id"] for effect in entry["result"]["effects"]] == ["dot_bleed"]
 
 
 @pytest.mark.unit
@@ -1492,6 +1395,37 @@ def test_bleed_effect_uses_catalog_minimum_without_stacking_base_damage() -> Non
 
     assert weak_effect.impact == {"hp": -3}
     assert strong_effect.impact == {"hp": -6}
+
+
+@pytest.mark.unit
+async def test_executor_stun_blocks_dodge_and_expires_after_exchange() -> None:
+    source = actor(1, "a")
+    target = actor(2, "b")
+    source.stats = stats({"main_hand_accuracy": 1.0})
+    target.stats = stats({"evasion": 1.0, "dodge_cap": 1.0})
+    stun_entry = CombatCatalogIntegrator.get_effect_catalog_entry("stun")
+    assert stun_entry is not None
+    target.statuses.effects.append(
+        EffectFactory.create_effect(
+            config=stun_entry.technical,
+            params={},
+            source_id=1,
+            current_exchange=0,
+            damage_ref=0,
+        )
+    )
+    ctx = BattleContext(session_id="c1", meta=battle_meta(), actors={"1": source, "2": target})
+    action = CombatActionDTO(
+        action_type="exchange",
+        move=CombatMoveDTO(move_id="m1", char_id=1, strategy="exchange", payload=ExchangePayload(target_id=2)),
+        is_forced=True,
+    )
+
+    await CombatExecutor().process_batch(ctx, [action])
+
+    assert all(entry["outcome"] != "dodge" for entry in ctx.pending_logs)
+    assert [effect.effect_id for effect in target.statuses.effects] == []
+    assert any(entry["kind"] == "effect_expire" and entry["text"] == "Оглушение A2 проходит." for entry in ctx.pending_logs)
 
 
 @pytest.mark.unit
@@ -1527,6 +1461,7 @@ async def test_session_integration_round_trips_stamina_state() -> None:
             "stamina": 37,
             "max_stamina": 80,
             "tokens": {},
+            "token_progress": {"blood": 7},
         },
         {},
         {},
@@ -1538,15 +1473,18 @@ async def test_session_integration_round_trips_stamina_state() -> None:
 
     assert snapshot.meta.stamina == 37
     assert snapshot.meta.max_stamina == 80
+    assert snapshot.meta.token_progress == {"blood": 7}
 
     ctx = BattleContext(session_id="c1", meta=battle_meta(), actors={"1": snapshot})
     snapshot.meta.stamina = 12
+    snapshot.meta.token_progress["blood"] = 3
 
     await integration.commit_session(ctx, ["m1"])
 
     updates = manager.commit_kwargs["args"][1]
     assert updates["1"]["state"]["stamina"] == 12
     assert updates["1"]["state"]["max_stamina"] == 80
+    assert updates["1"]["state"]["token_progress"] == {"blood": 3}
 
 
 @pytest.mark.unit
@@ -1673,41 +1611,15 @@ def test_stats_engine_rounds_fractional_resource_maxima_for_dto_contract() -> No
     StatsEngine.ensure_stats(snapshot)
 
     assert snapshot.stats is not None
-    assert snapshot.stats.mods.stamina == 113
+    assert snapshot.stats.mods.stamina == 57
     assert snapshot.stats.mods.stamina_regen == pytest.approx(4.4)
 
 
 @pytest.mark.unit
-def test_ability_service_applies_feint_modifier_applications_and_triggers() -> None:
+def test_ability_service_applies_basic_hit_feint_weapon_technique_bonus() -> None:
     source = actor(1, "a")
     target = actor(2, "b")
-    move = CombatMoveDTO(
-        move_id="m1",
-        char_id=1,
-        strategy="exchange",
-        payload=ExchangePayload(target_id=2, feint_id="true_strike"),
-    )
-    ctx = PipelineContextDTO()
-
-    AbilityService().pre_process(ctx, move, source, target)
-
-    assert ctx.triggers.accuracy.true_strike is True
-    assert ctx.trigger_activations["true_strike"][0].source == "feint"
-    assert ctx.trigger_activations["true_strike"][0].source_id == "true_strike"
-    damage_mult = source.raw.modifiers["damage_mult"]
-    source_id = next(iter(damage_mult["temp"]))
-    assert damage_mult["base"] == 1.0
-    assert damage_mult["temp"][source_id] == "*0.8"
-    assert source_id.startswith(f"feint:{source.statuses.abilities[0].uid}:true_strike:damage_mult")
-    assert source.statuses.abilities[0].modified_sources == {"damage_mult": [source_id]}
-    assert source.statuses.abilities[0].ability_id == "true_strike"
-    assert ctx.result.events[0].type == "CAST"
-
-
-@pytest.mark.unit
-def test_ability_service_applies_weapon_technique_ignore_miss_and_tier_bonus() -> None:
-    source = actor(1, "a")
-    target = actor(2, "b")
+    source.meta.stamina = 100
     source.loadout.weapon_tiers = {"main_hand": 2}
     move = CombatMoveDTO(
         move_id="m1",
@@ -1721,6 +1633,7 @@ def test_ability_service_applies_weapon_technique_ignore_miss_and_tier_bonus() -
 
     assert ctx.flags.force.hit is True
     assert ctx.mods.weapon_technique_bonus_damage == 6
+    assert ctx.result.resource_changes["stamina"]["cost"] == "-15"
     bonus = source.raw.modifiers["physical_damage_bonus"]
     source_id = next(iter(bonus["temp"]))
     assert bonus["temp"][source_id] == "+6"
@@ -1728,83 +1641,25 @@ def test_ability_service_applies_weapon_technique_ignore_miss_and_tier_bonus() -
 
 
 @pytest.mark.unit
-def test_ability_service_applies_press_defense_without_forcing_accuracy() -> None:
+@pytest.mark.parametrize(
+    ("feint_id", "expected_cost", "expected_effect"),
+    [
+        ("glancing_step", "-15", "prep_glancing_dodge"),
+        ("wind_dance", "-25", "prep_counter_cap_on_dodge"),
+        ("blade_dance", "-35", "prep_counter_on_dodge"),
+    ],
+)
+def test_ability_service_applies_basic_dodge_feint_preparation(
+    feint_id: str, expected_cost: str, expected_effect: str
+) -> None:
     source = actor(1, "a")
     target = actor(2, "b")
+    source.meta.stamina = 100
     move = CombatMoveDTO(
         move_id="m1",
         char_id=1,
         strategy="exchange",
-        payload=ExchangePayload(target_id=2, feint_id="press_defense"),
-    )
-    ctx = PipelineContextDTO()
-
-    AbilityService().pre_process(ctx, move, source, target)
-
-    assert ctx.flags.force.hit is False
-    assert ctx.flags.force.hit_evasion is True
-    assert ctx.flags.restriction.ignore_parry is True
-    assert ctx.flags.restriction.ignore_block is True
-
-
-@pytest.mark.unit
-def test_ability_service_applies_cheap_tactical_modifier_to_target_defense() -> None:
-    source = actor(1, "a")
-    target = actor(2, "b")
-    move = CombatMoveDTO(
-        move_id="m1",
-        char_id=1,
-        strategy="exchange",
-        payload=ExchangePayload(target_id=2, feint_id="weapon_bind"),
-    )
-    ctx = PipelineContextDTO()
-
-    AbilityService().pre_process(ctx, move, source, target)
-
-    parry = target.raw.modifiers["parry"]
-    source_id = next(iter(parry["temp"]))
-    assert parry["temp"][source_id] == "*0.75"
-    assert source_id.startswith(f"feint:{source.statuses.abilities[0].uid}:weapon_bind")
-
-
-@pytest.mark.unit
-def test_loaded_crit_boosts_critical_damage_without_forcing_crit() -> None:
-    source = actor(1, "a")
-    target = actor(2, "b")
-    source.stats = stats({"main_hand_accuracy": 1.0})
-    target.stats = stats()
-    move = CombatMoveDTO(
-        move_id="m1",
-        char_id=1,
-        strategy="exchange",
-        payload=ExchangePayload(target_id=2, feint_id="loaded_crit"),
-    )
-    ctx = PipelineContextDTO()
-    ctx.result.source_id = source.char_id
-    ctx.result.target_id = target.char_id
-    ctx.override_damage = (20, 20)
-
-    AbilityService().pre_process(ctx, move, source, target)
-    assert ctx.flags.force.crit is False
-    assert ctx.flags.formula.crit_damage_boost is True
-    assert ctx.mods.weapon_effect_value == 2.0
-
-    ctx.flags.force.crit = True
-    CombatResolver.resolve_exchange(source.stats, target.stats, ctx)
-
-    assert ctx.result.is_crit is True
-    assert ctx.result.damage_final == 40
-
-
-@pytest.mark.unit
-def test_ability_service_applies_preparation_effect_to_source() -> None:
-    source = actor(1, "a")
-    target = actor(2, "b")
-    move = CombatMoveDTO(
-        move_id="m1",
-        char_id=1,
-        strategy="exchange",
-        payload=ExchangePayload(target_id=2, feint_id="counter_parry"),
+        payload=ExchangePayload(target_id=2, feint_id=feint_id),
     )
     ctx = PipelineContextDTO()
 
@@ -1812,8 +1667,39 @@ def test_ability_service_applies_preparation_effect_to_source() -> None:
     service.pre_process(ctx, move, source, target)
     service.post_process(ctx, source, target, move)
 
-    assert [effect.effect_id for effect in source.statuses.effects] == ["prep_counter_on_parry"]
-    assert ctx.result.applied_effects[0]["target_id"] == source.char_id
+    assert ctx.result.resource_changes["stamina"]["cost"] == expected_cost
+    assert [effect.effect_id for effect in source.statuses.effects] == [expected_effect]
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize(
+    ("feint_id", "expected_cost", "expected_effect"),
+    [
+        ("foresight_parry", "-15", "prep_foresight_parry"),
+        ("second_breath", "-25", "prep_second_breath"),
+        ("perfect_riposte", "-35", "prep_perfect_riposte"),
+    ],
+)
+def test_ability_service_applies_basic_parry_feint_preparation(
+    feint_id: str, expected_cost: str, expected_effect: str
+) -> None:
+    source = actor(1, "a")
+    target = actor(2, "b")
+    source.meta.stamina = 100
+    move = CombatMoveDTO(
+        move_id="m1",
+        char_id=1,
+        strategy="exchange",
+        payload=ExchangePayload(target_id=2, feint_id=feint_id),
+    )
+    ctx = PipelineContextDTO()
+
+    service = AbilityService()
+    service.pre_process(ctx, move, source, target)
+    service.post_process(ctx, source, target, move)
+
+    assert ctx.result.resource_changes["stamina"]["cost"] == expected_cost
+    assert [effect.effect_id for effect in source.statuses.effects] == [expected_effect]
 
 
 @pytest.mark.unit
@@ -1841,6 +1727,102 @@ def test_prepared_parry_counter_consumes_buff_and_forces_counter() -> None:
     assert target.statuses.effects == []
     assert ctx.result.effect_facts[-1].effect_id == "prep_counter_on_parry"
     assert ctx.result.effect_facts[-1].tags == ["prepared_reaction", "parry"]
+
+
+@pytest.mark.unit
+def test_foresight_parry_forces_next_incoming_parry_and_consumes_buff() -> None:
+    source = actor(1, "a")
+    target = actor(2, "b")
+    source.stats = stats({"main_hand_accuracy": 1.0})
+    target.stats = stats({"parry": 0.0})
+    target.statuses.effects.append(
+        ActiveEffectDTO(uid="fx1", effect_id="prep_foresight_parry", source_id=2, expire_at_exchange=999)
+    )
+    move = CombatMoveDTO(move_id="m1", char_id=1, strategy="exchange", payload=ExchangePayload(target_id=2))
+    ctx = PipelineContextDTO()
+    ctx.result.source_id = source.char_id
+    ctx.result.target_id = target.char_id
+
+    service = AbilityService()
+    service.pre_process(ctx, move, source, target)
+    ctx.flags.force.hit = True
+    CombatResolver.resolve_exchange(source.stats, target.stats, ctx)
+    service.post_process(ctx, source, target, move)
+
+    assert ctx.result.is_parried is True
+    assert target.statuses.effects == []
+    assert ctx.result.effect_facts[-1].effect_id == "prep_foresight_parry"
+
+
+@pytest.mark.unit
+def test_second_breath_heals_on_next_successful_parry_and_consumes_buff() -> None:
+    source = actor(1, "a")
+    target = actor(2, "b", hp=50)
+    target.meta.max_hp = 100
+    source.stats = stats({"main_hand_accuracy": 1.0})
+    target.stats = stats()
+    target.statuses.effects.append(
+        ActiveEffectDTO(
+            uid="fx1",
+            effect_id="prep_second_breath",
+            source_id=2,
+            expire_at_exchange=999,
+            params={"heal_max_hp_ratio": 0.18, "heal_min": 8},
+        )
+    )
+    move = CombatMoveDTO(move_id="m1", char_id=1, strategy="exchange", payload=ExchangePayload(target_id=2))
+    ctx = PipelineContextDTO()
+    ctx.result.source_id = source.char_id
+    ctx.result.target_id = target.char_id
+
+    service = AbilityService()
+    service.pre_process(ctx, move, source, target)
+    ctx.flags.force.parry = True
+    CombatResolver.resolve_exchange(source.stats, target.stats, ctx)
+    service.post_process(ctx, source, target, move)
+    MechanicsService().apply_interaction_result(ctx, source, target, ctx.result)
+
+    assert target.meta.hp == 68
+    assert target.meta.tokens.get("parry", 0) == 0
+    assert target.statuses.effects == []
+    assert ctx.result.resource_facts[-1].reason == "prepared_heal"
+    assert ctx.result.resource_facts[-1].delta == 18
+
+
+@pytest.mark.unit
+def test_perfect_riposte_heals_and_forces_counter_on_next_successful_parry() -> None:
+    source = actor(1, "a")
+    target = actor(2, "b", hp=50)
+    target.meta.max_hp = 100
+    source.stats = stats({"main_hand_accuracy": 1.0})
+    target.stats = stats({"counter_attack_chance": 0.0, "counter_attack_cap": 0.0})
+    target.statuses.effects.append(
+        ActiveEffectDTO(
+            uid="fx1",
+            effect_id="prep_perfect_riposte",
+            source_id=2,
+            expire_at_exchange=999,
+            params={"heal_max_hp_ratio": 0.12, "heal_min": 6},
+        )
+    )
+    move = CombatMoveDTO(move_id="m1", char_id=1, strategy="exchange", payload=ExchangePayload(target_id=2))
+    ctx = PipelineContextDTO()
+    ctx.result.source_id = source.char_id
+    ctx.result.target_id = target.char_id
+
+    service = AbilityService()
+    service.pre_process(ctx, move, source, target)
+    ctx.flags.force.parry = True
+    CombatResolver.resolve_exchange(source.stats, target.stats, ctx)
+    service.post_process(ctx, source, target, move)
+    MechanicsService().apply_interaction_result(ctx, source, target, ctx.result)
+
+    assert ctx.result.chain_events.trigger_counter_attack is True
+    assert target.meta.hp == 62
+    assert target.meta.tokens.get("parry", 0) == 0
+    assert target.statuses.effects == []
+    assert ctx.result.resource_facts[-1].reason == "prepared_heal"
+    assert ctx.result.resource_facts[-1].delta == 12
 
 
 @pytest.mark.unit
@@ -1923,6 +1905,646 @@ def test_brace_guard_reduces_next_incoming_hit_and_consumes_buff() -> None:
 
 
 @pytest.mark.unit
+@pytest.mark.parametrize(
+    ("feint_id", "expected_cost", "expected_effect"),
+    [
+        ("active_defense", "-15", "prep_active_defense"),
+        ("full_defense", "-25", "prep_full_defense"),
+        ("absolute_defense", "-35", "prep_absolute_defense"),
+        ("aggressive_defense", "-35", "prep_aggressive_defense"),
+    ],
+)
+def test_ability_service_applies_shield_tactical_feint_preparation(
+    feint_id: str, expected_cost: str, expected_effect: str
+) -> None:
+    source = actor(1, "a")
+    target = actor(2, "b")
+    source.meta.stamina = 100
+    move = CombatMoveDTO(
+        move_id="m1",
+        char_id=1,
+        strategy="exchange",
+        payload=ExchangePayload(target_id=2, feint_id=feint_id),
+    )
+    ctx = PipelineContextDTO()
+
+    service = AbilityService()
+    service.pre_process(ctx, move, source, target)
+    service.post_process(ctx, source, target, move)
+
+    assert ctx.result.resource_changes["stamina"]["cost"] == expected_cost
+    assert [effect.effect_id for effect in source.statuses.effects] == [expected_effect]
+
+
+@pytest.mark.unit
+def test_active_defense_halves_next_incoming_resolver_damage_and_consumes_buff() -> None:
+    source = actor(1, "a")
+    target = actor(2, "b")
+    source.stats = stats()
+    target.stats = stats()
+    target.statuses.effects.append(
+        ActiveEffectDTO(uid="fx1", effect_id="prep_active_defense", source_id=2, expire_at_exchange=999)
+    )
+    move = CombatMoveDTO(move_id="m1", char_id=1, strategy="exchange", payload=ExchangePayload(target_id=2))
+    ctx = PipelineContextDTO()
+    ctx.result.source_id = source.char_id
+    ctx.result.target_id = target.char_id
+    ctx.override_damage = (20, 20)
+
+    service = AbilityService()
+    service.pre_process(ctx, move, source, target)
+    ctx.flags.force.hit = True
+    CombatResolver.resolve_exchange(source.stats, target.stats, ctx)
+    service.post_process(ctx, source, target, move)
+
+    assert ctx.result.is_hit is True
+    assert ctx.result.damage_final == 10
+    assert target.statuses.effects == []
+    assert ctx.result.effect_facts[-1].effect_id == "prep_active_defense"
+
+
+@pytest.mark.unit
+def test_full_defense_caps_next_incoming_resolver_damage_to_one_and_consumes_buff() -> None:
+    source = actor(1, "a")
+    target = actor(2, "b")
+    source.stats = stats()
+    target.stats = stats()
+    target.statuses.effects.append(
+        ActiveEffectDTO(uid="fx1", effect_id="prep_full_defense", source_id=2, expire_at_exchange=999)
+    )
+    move = CombatMoveDTO(move_id="m1", char_id=1, strategy="exchange", payload=ExchangePayload(target_id=2))
+    ctx = PipelineContextDTO()
+    ctx.result.source_id = source.char_id
+    ctx.result.target_id = target.char_id
+    ctx.override_damage = (20, 20)
+
+    service = AbilityService()
+    service.pre_process(ctx, move, source, target)
+    ctx.flags.force.hit = True
+    CombatResolver.resolve_exchange(source.stats, target.stats, ctx)
+    service.post_process(ctx, source, target, move)
+
+    assert ctx.result.is_hit is True
+    assert ctx.result.damage_final == 1
+    assert ctx.result.damage_trace.details["incoming_damage_cap"] == 1
+    assert target.statuses.effects == []
+    assert ctx.result.effect_facts[-1].effect_id == "prep_full_defense"
+
+
+@pytest.mark.unit
+def test_absolute_defense_caps_resolver_damage_without_consuming_until_duration_expires() -> None:
+    source = actor(1, "a")
+    target = actor(2, "b")
+    target.meta.exchange_counter = 1
+    source.stats = stats()
+    target.stats = stats()
+    target.statuses.effects.append(
+        ActiveEffectDTO(uid="fx1", effect_id="prep_absolute_defense", source_id=2, expire_at_exchange=1)
+    )
+    move = CombatMoveDTO(move_id="m1", char_id=1, strategy="exchange", payload=ExchangePayload(target_id=2))
+    ctx = PipelineContextDTO()
+    ctx.result.source_id = source.char_id
+    ctx.result.target_id = target.char_id
+    ctx.override_damage = (20, 20)
+
+    service = AbilityService()
+    service.pre_process(ctx, move, source, target)
+    ctx.flags.force.hit = True
+    CombatResolver.resolve_exchange(source.stats, target.stats, ctx)
+    service.post_process(ctx, source, target, move)
+
+    assert ctx.result.damage_final == 1
+    assert [effect.effect_id for effect in target.statuses.effects] == ["prep_absolute_defense"]
+    assert ctx.result.effect_facts[-1].action == "tick"
+
+    target.meta.exchange_counter = 2
+    service.pre_process(PipelineContextDTO(), move, target, source)
+
+    assert target.statuses.effects == []
+
+
+@pytest.mark.unit
+def test_aggressive_defense_caps_incoming_damage_and_reflects_from_shield_power() -> None:
+    source = actor(1, "a", hp=100)
+    target = actor(2, "b")
+    source.stats = stats()
+    target.stats = stats({"shield_guard_power": 20.0})
+    target.statuses.effects.append(
+        ActiveEffectDTO(uid="fx1", effect_id="prep_aggressive_defense", source_id=2, expire_at_exchange=999)
+    )
+    move = CombatMoveDTO(move_id="m1", char_id=1, strategy="exchange", payload=ExchangePayload(target_id=2))
+    ctx = PipelineContextDTO()
+    ctx.result.source_id = source.char_id
+    ctx.result.target_id = target.char_id
+    ctx.override_damage = (20, 20)
+
+    service = AbilityService()
+    service.pre_process(ctx, move, source, target)
+    ctx.flags.force.hit = True
+    CombatResolver.resolve_exchange(source.stats, target.stats, ctx)
+    service.post_process(ctx, source, target, move)
+    MechanicsService().apply_interaction_result(ctx, source, target, ctx.result)
+
+    assert ctx.result.damage_final == 1
+    assert ctx.result.reflected_damage == 5
+    assert source.meta.hp == 95
+    assert target.statuses.effects == []
+    assert ctx.result.effect_facts[-1].effect_id == "prep_aggressive_defense"
+
+
+@pytest.mark.unit
+def test_read_tactic_removes_prepared_effects_on_successful_hit_only() -> None:
+    source = actor(1, "a")
+    target = actor(2, "b")
+    source.meta.stamina = 100
+    source.stats = stats()
+    target.stats = stats()
+    target.statuses.effects.extend(
+        [
+            ActiveEffectDTO(uid="prep", effect_id="prep_parry_riposte", source_id=2, expire_at_exchange=999),
+            ActiveEffectDTO(uid="dot", effect_id="dot_bleed", source_id=1, expire_at_exchange=999, impact={"hp": -2}),
+        ]
+    )
+    move = CombatMoveDTO(
+        move_id="m1",
+        char_id=1,
+        strategy="exchange",
+        payload=ExchangePayload(target_id=2, feint_id="read_tactic"),
+    )
+    ctx = PipelineContextDTO()
+    ctx.result.source_id = source.char_id
+    ctx.result.target_id = target.char_id
+    ctx.override_damage = (5, 5)
+
+    service = AbilityService()
+    service.pre_process(ctx, move, source, target)
+    ctx.flags.force.hit = True
+    CombatResolver.resolve_exchange(source.stats, target.stats, ctx)
+    service.post_process(ctx, source, target, move)
+
+    assert [effect.effect_id for effect in target.statuses.effects] == ["dot_bleed"]
+    assert ctx.result.effect_facts[-1].effect_id == "dispel_preparations"
+    assert ctx.result.effect_facts[-1].value == 1
+
+
+@pytest.mark.unit
+def test_concussion_uses_shield_power_damage_and_blocks_next_feint_use() -> None:
+    source = actor(1, "a")
+    target = actor(2, "b")
+    source.meta.stamina = 100
+    source.stats = stats({"shield_guard_power": 20.0})
+    target.stats = stats()
+    move = CombatMoveDTO(
+        move_id="m1",
+        char_id=1,
+        strategy="exchange",
+        payload=ExchangePayload(target_id=2, feint_id="concussion"),
+    )
+    ctx = PipelineContextDTO()
+    ctx.result.source_id = source.char_id
+    ctx.result.target_id = target.char_id
+
+    service = AbilityService()
+    service.pre_process(ctx, move, source, target)
+    ctx.flags.force.hit = True
+    CombatResolver.resolve_exchange(source.stats, target.stats, ctx)
+    service.post_process(ctx, source, target, move)
+
+    assert ctx.result.damage_final == 5
+    assert [effect.effect_id for effect in target.statuses.effects] == ["concussed_no_feints"]
+
+    next_move = CombatMoveDTO(
+        move_id="m2",
+        char_id=2,
+        strategy="exchange",
+        payload=ExchangePayload(target_id=1, feint_id="measured_strike"),
+    )
+    next_ctx = PipelineContextDTO()
+    service.pre_process(next_ctx, next_move, target, source)
+
+    assert next_ctx.result.chain_events.preserve_feint is True
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize(
+    ("feint_id", "expected_cost", "expected_effect"),
+    [
+        ("steel_line", "-15", "prep_2h_steel_line"),
+        ("blade_return", "-20", "prep_2h_blade_return"),
+        ("hard_intercept", "-20", "prep_2h_hard_intercept"),
+        ("answering_stance", "-25", "prep_2h_answering_stance"),
+        ("closed_distance", "-35", "prep_2h_closed_distance"),
+        ("hidden_agility", "-30", "prep_2h_hidden_agility"),
+    ],
+)
+def test_ability_service_applies_two_handed_tactical_preparations(
+    feint_id: str, expected_cost: str, expected_effect: str
+) -> None:
+    source = actor(1, "a")
+    target = actor(2, "b")
+    source.meta.stamina = 100
+    move = CombatMoveDTO(
+        move_id="m1",
+        char_id=1,
+        strategy="exchange",
+        payload=ExchangePayload(target_id=2, feint_id=feint_id),
+    )
+    ctx = PipelineContextDTO()
+
+    service = AbilityService()
+    service.pre_process(ctx, move, source, target)
+    service.post_process(ctx, source, target, move)
+
+    assert ctx.result.resource_changes["stamina"]["cost"] == expected_cost
+    assert [effect.effect_id for effect in source.statuses.effects] == [expected_effect]
+
+
+@pytest.mark.unit
+def test_crushing_pressure_halves_targets_next_outgoing_damage_after_hit() -> None:
+    source = actor(1, "a")
+    target = actor(2, "b")
+    source.meta.stamina = 100
+    source.stats = stats()
+    target.stats = stats()
+    move = CombatMoveDTO(
+        move_id="m1",
+        char_id=1,
+        strategy="exchange",
+        payload=ExchangePayload(target_id=2, feint_id="crushing_pressure"),
+    )
+    ctx = PipelineContextDTO()
+    ctx.result.source_id = source.char_id
+    ctx.result.target_id = target.char_id
+    ctx.override_damage = (5, 5)
+
+    service = AbilityService()
+    service.pre_process(ctx, move, source, target)
+    ctx.flags.force.hit = True
+    CombatResolver.resolve_exchange(source.stats, target.stats, ctx)
+    service.post_process(ctx, source, target, move)
+
+    assert [effect.effect_id for effect in target.statuses.effects] == ["debuff_2h_damage_halved"]
+
+    next_move = CombatMoveDTO(move_id="m2", char_id=2, strategy="exchange", payload=ExchangePayload(target_id=1))
+    next_ctx = PipelineContextDTO()
+    next_ctx.result.source_id = target.char_id
+    next_ctx.result.target_id = source.char_id
+    next_ctx.override_damage = (20, 20)
+
+    service.pre_process(next_ctx, next_move, target, source)
+    next_ctx.flags.force.hit = True
+    CombatResolver.resolve_exchange(target.stats, source.stats, next_ctx)
+    service.post_process(next_ctx, target, source, next_move)
+
+    assert next_ctx.result.damage_final == 10
+    assert target.statuses.effects == []
+
+
+@pytest.mark.unit
+def test_hard_intercept_applies_damage_halving_debuff_to_parried_attacker() -> None:
+    source = actor(1, "a")
+    target = actor(2, "b")
+    source.stats = stats()
+    target.stats = stats()
+    target.statuses.effects.append(
+        ActiveEffectDTO(uid="fx1", effect_id="prep_2h_hard_intercept", source_id=2, expire_at_exchange=999)
+    )
+    move = CombatMoveDTO(move_id="m1", char_id=1, strategy="exchange", payload=ExchangePayload(target_id=2))
+    ctx = PipelineContextDTO()
+    ctx.result.source_id = source.char_id
+    ctx.result.target_id = target.char_id
+
+    service = AbilityService()
+    service.pre_process(ctx, move, source, target)
+    ctx.flags.force.hit = True
+    CombatResolver.resolve_exchange(source.stats, target.stats, ctx)
+    service.post_process(ctx, source, target, move)
+
+    assert ctx.result.is_parried is True
+    assert [effect.effect_id for effect in source.statuses.effects] == ["debuff_2h_damage_halved"]
+    assert target.statuses.effects == []
+
+
+@pytest.mark.unit
+def test_push_stance_adds_current_exchange_crit_chance() -> None:
+    source = actor(1, "a")
+    target = actor(2, "b")
+    source.meta.stamina = 100
+    move = CombatMoveDTO(
+        move_id="m1",
+        char_id=1,
+        strategy="exchange",
+        payload=ExchangePayload(target_id=2, feint_id="push_stance"),
+    )
+    ctx = PipelineContextDTO()
+
+    AbilityService().pre_process(ctx, move, source, target)
+
+    assert ctx.result.resource_changes["stamina"]["cost"] == "-15"
+    crit_sources = source.raw.modifiers["crit_chance"]["temp"]
+    assert next(iter(crit_sources.values())) == "+0.3"
+
+
+@pytest.mark.unit
+def test_open_wound_applies_bleed_on_successful_hit() -> None:
+    source = actor(1, "a")
+    target = actor(2, "b")
+    source.meta.stamina = 100
+    source.stats = stats()
+    target.stats = stats()
+    move = CombatMoveDTO(
+        move_id="m1",
+        char_id=1,
+        strategy="exchange",
+        payload=ExchangePayload(target_id=2, feint_id="open_wound"),
+    )
+    ctx = PipelineContextDTO()
+    ctx.result.source_id = source.char_id
+    ctx.result.target_id = target.char_id
+    ctx.override_damage = (20, 20)
+
+    service = AbilityService()
+    service.pre_process(ctx, move, source, target)
+    ctx.flags.force.hit = True
+    CombatResolver.resolve_exchange(source.stats, target.stats, ctx)
+    service.post_process(ctx, source, target, move)
+
+    assert [effect.effect_id for effect in target.statuses.effects] == ["dot_bleed"]
+    assert target.statuses.effects[0].impact == {"hp": -3}
+
+
+@pytest.mark.unit
+def test_hidden_strength_forces_crit_damage_without_weapon_crit_trigger() -> None:
+    source = actor(1, "a")
+    target = actor(2, "b")
+    source.meta.stamina = 100
+    source.loadout.layout.update({"main_hand": "skill_swords", "main_hand_trigger": "crit.weapon_serrated_bleed_crit"})
+    source.stats = stats()
+    target.stats = stats()
+    move = CombatMoveDTO(
+        move_id="m1",
+        char_id=1,
+        strategy="exchange",
+        payload=ExchangePayload(target_id=2, feint_id="hidden_strength"),
+    )
+    ctx = ContextBuilder.build_context(source, target, move)
+    ctx.override_damage = (10, 10)
+
+    service = AbilityService()
+    service.pre_process(ctx, move, source, target)
+    ctx.flags.force.hit = True
+    CombatResolver.resolve_exchange(source.stats, target.stats, ctx)
+    service.post_process(ctx, source, target, move)
+
+    assert ctx.result.is_crit is True
+    assert ctx.result.crit_mult == 2.0
+    assert ctx.result.damage_final == 20
+    assert ctx.result.fired_triggers == []
+    assert ctx.result.applied_effects == []
+
+
+@pytest.mark.unit
+def test_lucky_break_keeps_weapon_crit_trigger_and_double_damage() -> None:
+    source = actor(1, "a")
+    target = actor(2, "b")
+    source.meta.stamina = 100
+    source.loadout.layout.update({"main_hand": "skill_swords", "main_hand_trigger": "crit.weapon_serrated_bleed_crit"})
+    source.stats = stats()
+    target.stats = stats()
+    move = CombatMoveDTO(
+        move_id="m1",
+        char_id=1,
+        strategy="exchange",
+        payload=ExchangePayload(target_id=2, feint_id="lucky_break"),
+    )
+    ctx = ContextBuilder.build_context(source, target, move)
+    ctx.override_damage = (10, 10)
+
+    service = AbilityService()
+    service.pre_process(ctx, move, source, target)
+    ctx.flags.force.hit = True
+    CombatResolver.resolve_exchange(source.stats, target.stats, ctx)
+    service.post_process(ctx, source, target, move)
+
+    assert ctx.result.is_crit is True
+    assert ctx.result.crit_mult == 2.0
+    assert ctx.result.damage_final == 20
+    assert ctx.result.fired_triggers == ["weapon_serrated_bleed_crit"]
+    assert ctx.result.applied_effects[0]["id"] == "dot_bleed"
+
+
+@pytest.mark.unit
+def test_ignore_guard_skips_dodge_parry_and_block_checks() -> None:
+    source = actor(1, "a")
+    target = actor(2, "b")
+    source.meta.stamina = 100
+    source.stats = stats()
+    target.stats = stats({"evasion": 1.0, "parry": 1.0, "block": 1.0})
+    move = CombatMoveDTO(
+        move_id="m1",
+        char_id=1,
+        strategy="exchange",
+        payload=ExchangePayload(target_id=2, feint_id="ignore_guard"),
+    )
+    ctx = PipelineContextDTO()
+    ctx.result.source_id = source.char_id
+    ctx.result.target_id = target.char_id
+    ctx.override_damage = (7, 7)
+
+    service = AbilityService()
+    service.pre_process(ctx, move, source, target)
+    CombatResolver.resolve_exchange(source.stats, target.stats, ctx)
+
+    assert ctx.result.is_hit is True
+    assert ctx.result.damage_final == 7
+    assert ctx.result.is_dodged is False
+    assert ctx.result.is_parried is False
+    assert ctx.result.is_blocked is False
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize(
+    ("feint_id", "expected_cost", "expected_effect"),
+    [
+        ("broken_step", "-15", "prep_dual_broken_step"),
+        ("shifting_line", "-25", "prep_dual_shifting_line"),
+        ("empty_line", "-30", "prep_dual_empty_line"),
+        ("torn_rhythm", "-40", "prep_dual_torn_rhythm"),
+        ("bind_blade", "-20", "prep_dual_bind_blade"),
+        ("offhand_over", "-25", "prep_dual_offhand_over"),
+        ("answering_series", "-25", "prep_dual_answering_series_counter"),
+        ("blade_mill", "-45", "prep_dual_blade_mill_counter"),
+        ("blade_loop", "-60", "prep_dual_blade_loop_parry"),
+    ],
+)
+def test_ability_service_applies_dual_wield_tactical_preparations(
+    feint_id: str, expected_cost: str, expected_effect: str
+) -> None:
+    source = actor(1, "a")
+    target = actor(2, "b")
+    source.meta.stamina = 100
+    move = CombatMoveDTO(
+        move_id="m1",
+        char_id=1,
+        strategy="exchange",
+        payload=ExchangePayload(target_id=2, feint_id=feint_id),
+    )
+    ctx = PipelineContextDTO()
+
+    service = AbilityService()
+    service.pre_process(ctx, move, source, target)
+    service.post_process(ctx, source, target, move)
+
+    assert ctx.result.resource_changes["stamina"]["cost"] == expected_cost
+    assert [effect.effect_id for effect in source.statuses.effects] == [expected_effect]
+
+
+@pytest.mark.unit
+def test_dual_counter_only_preparation_does_not_modify_normal_attack() -> None:
+    source = actor(1, "a")
+    target = actor(2, "b")
+    source.stats = stats()
+    target.stats = stats()
+    source.statuses.effects.append(
+        ActiveEffectDTO(uid="fx1", effect_id="prep_dual_answering_series_counter", source_id=1, expire_at_exchange=999)
+    )
+    move = CombatMoveDTO(move_id="m1", char_id=1, strategy="exchange", payload=ExchangePayload(target_id=2))
+    ctx = ContextBuilder.build_context(source, target, move)
+    ctx.override_damage = (10, 10)
+
+    service = AbilityService()
+    service.pre_process(ctx, move, source, target)
+    ctx.flags.force.hit = True
+    CombatResolver.resolve_exchange(source.stats, target.stats, ctx)
+    service.post_process(ctx, source, target, move)
+
+    assert ctx.result.is_counter is False
+    assert ctx.result.damage_final == 10
+    assert [effect.effect_id for effect in source.statuses.effects] == ["prep_dual_answering_series_counter"]
+
+
+@pytest.mark.unit
+def test_dual_answering_series_boosts_next_successful_counter() -> None:
+    source = actor(1, "a")
+    target = actor(2, "b")
+    source.stats = stats()
+    target.stats = stats()
+    source.statuses.effects.append(
+        ActiveEffectDTO(uid="fx1", effect_id="prep_dual_answering_series_counter", source_id=1, expire_at_exchange=999)
+    )
+    move = CombatMoveDTO(move_id="m1", char_id=1, strategy="exchange", payload=ExchangePayload(target_id=2))
+    ctx = ContextBuilder.build_context(source, target, move, {"is_counter_attack": True, "action_mode": "exchange"})
+    ctx.override_damage = (10, 10)
+
+    service = AbilityService()
+    service.pre_process(ctx, move, source, target)
+    ctx.flags.force.hit = True
+    CombatResolver.resolve_exchange(source.stats, target.stats, ctx)
+    service.post_process(ctx, source, target, move)
+
+    assert ctx.result.is_counter is True
+    assert ctx.result.damage_final == 12
+    assert source.statuses.effects == []
+
+
+@pytest.mark.unit
+def test_dual_blade_mill_boosts_successful_counter_and_forces_existing_offhand_chain() -> None:
+    source = actor(1, "a")
+    target = actor(2, "b")
+    source.stats = stats()
+    target.stats = stats()
+    source.statuses.effects.append(
+        ActiveEffectDTO(uid="fx1", effect_id="prep_dual_blade_mill_counter", source_id=1, expire_at_exchange=999)
+    )
+    move = CombatMoveDTO(move_id="m1", char_id=1, strategy="exchange", payload=ExchangePayload(target_id=2))
+    ctx = ContextBuilder.build_context(source, target, move, {"is_counter_attack": True, "action_mode": "exchange"})
+    ctx.override_damage = (10, 10)
+
+    service = AbilityService()
+    service.pre_process(ctx, move, source, target)
+    ctx.flags.force.hit = True
+    CombatResolver.resolve_exchange(source.stats, target.stats, ctx)
+    service.post_process(ctx, source, target, move)
+
+    assert ctx.result.damage_final == 15
+    assert ctx.result.chain_events.trigger_offhand_attack is True
+    assert source.statuses.effects == []
+
+
+@pytest.mark.unit
+def test_dual_offhand_over_opens_counter_check_after_parry_without_medium_armor(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(MathCore, "check_chance", staticmethod(lambda chance: chance > 0))
+    source = actor(1, "a")
+    target = actor(2, "b")
+    source.stats = stats()
+    target.stats = stats({"counter_attack_chance": 0.0, "counter_attack_cap": 0.0})
+    target.statuses.effects.append(
+        ActiveEffectDTO(uid="fx1", effect_id="prep_dual_offhand_over", source_id=2, expire_at_exchange=999)
+    )
+    move = CombatMoveDTO(move_id="m1", char_id=1, strategy="exchange", payload=ExchangePayload(target_id=2))
+    ctx = PipelineContextDTO()
+    ctx.result.source_id = source.char_id
+    ctx.result.target_id = target.char_id
+
+    service = AbilityService()
+    service.pre_process(ctx, move, source, target)
+    ctx.flags.force.hit = True
+    ctx.flags.force.parry = True
+    CombatResolver.resolve_exchange(source.stats, target.stats, ctx)
+    service.post_process(ctx, source, target, move)
+
+    assert ctx.result.is_parried is True
+    assert ctx.result.chain_events.trigger_counter_attack is True
+    assert target.statuses.effects == []
+
+
+@pytest.mark.unit
+def test_dual_blade_loop_turns_successful_parry_into_boosted_counter_debuff() -> None:
+    attacker = actor(1, "a")
+    defender = actor(2, "b")
+    attacker.stats = stats()
+    defender.stats = stats()
+    defender.statuses.effects.append(
+        ActiveEffectDTO(uid="fx1", effect_id="prep_dual_blade_loop_parry", source_id=2, expire_at_exchange=999)
+    )
+    incoming = CombatMoveDTO(move_id="m1", char_id=1, strategy="exchange", payload=ExchangePayload(target_id=2))
+    incoming_ctx = PipelineContextDTO()
+    incoming_ctx.result.source_id = attacker.char_id
+    incoming_ctx.result.target_id = defender.char_id
+
+    service = AbilityService()
+    service.pre_process(incoming_ctx, incoming, attacker, defender)
+    incoming_ctx.flags.force.hit = True
+    incoming_ctx.flags.force.parry = True
+    CombatResolver.resolve_exchange(attacker.stats, defender.stats, incoming_ctx)
+    service.post_process(incoming_ctx, attacker, defender, incoming)
+
+    assert incoming_ctx.result.is_parried is True
+    assert incoming_ctx.result.chain_events.trigger_counter_attack is True
+    assert [effect.effect_id for effect in defender.statuses.effects] == ["prep_dual_blade_loop_counter"]
+
+    counter_move = CombatMoveDTO(move_id="m2", char_id=2, strategy="exchange", payload=ExchangePayload(target_id=1))
+    counter_ctx = ContextBuilder.build_context(
+        defender,
+        attacker,
+        counter_move,
+        {"is_counter_attack": True, "action_mode": "exchange"},
+    )
+    counter_ctx.override_damage = (10, 10)
+
+    service.pre_process(counter_ctx, counter_move, defender, attacker)
+    counter_ctx.flags.force.hit = True
+    CombatResolver.resolve_exchange(defender.stats, attacker.stats, counter_ctx)
+    service.post_process(counter_ctx, defender, attacker, counter_move)
+
+    assert counter_ctx.result.damage_final == 15
+    assert [effect.effect_id for effect in attacker.statuses.effects] == ["debuff_2h_damage_halved"]
+    assert defender.statuses.effects == []
+
+
+@pytest.mark.unit
 def test_parry_riposte_allows_boosted_counter_on_next_parry(monkeypatch: pytest.MonkeyPatch) -> None:
     source = actor(1, "a")
     target = actor(2, "b")
@@ -1990,32 +2612,6 @@ def test_counter_window_uses_counter_cap_on_next_dodge(monkeypatch: pytest.Monke
 
 
 @pytest.mark.unit
-def test_armor_slip_ignores_armor_without_forcing_hit() -> None:
-    source = actor(1, "a")
-    target = actor(2, "b")
-    source.stats = stats({"main_hand_accuracy": 1.0})
-    target.stats = stats({"armor": 12.0})
-    move = CombatMoveDTO(
-        move_id="m1",
-        char_id=1,
-        strategy="exchange",
-        payload=ExchangePayload(target_id=2, feint_id="armor_slip"),
-    )
-    ctx = PipelineContextDTO()
-    ctx.result.source_id = source.char_id
-    ctx.result.target_id = target.char_id
-    ctx.override_damage = (20, 20)
-
-    AbilityService().pre_process(ctx, move, source, target)
-    CombatResolver.resolve_exchange(source.stats, target.stats, ctx)
-
-    assert ctx.flags.force.hit is False
-    assert ctx.flags.formula.ignore_armor is True
-    assert ctx.result.is_hit is True
-    assert ctx.result.damage_final == 20
-
-
-@pytest.mark.unit
 def test_spiked_guard_reflects_on_block_without_consuming_buff() -> None:
     source = actor(1, "a", hp=100)
     target = actor(2, "b", hp=100)
@@ -2027,7 +2623,7 @@ def test_spiked_guard_reflects_on_block_without_consuming_buff() -> None:
             effect_id="spiked_guard",
             source_id=2,
             expire_at_exchange=999,
-            params={"reflect_damage": 7},
+            params={"reflect_damage": 12},
         )
     )
     move = CombatMoveDTO(move_id="m1", char_id=1, strategy="exchange", payload=ExchangePayload(target_id=2))
@@ -2043,8 +2639,11 @@ def test_spiked_guard_reflects_on_block_without_consuming_buff() -> None:
     MechanicsService().apply_interaction_result(ctx, source, target, ctx.result)
 
     assert ctx.result.is_blocked is True
-    assert ctx.result.reflected_damage == 7
-    assert source.meta.hp == 93
+    assert ctx.result.reflected_damage == 12
+    assert source.meta.hp == 88
+    assert source.meta.token_progress["blood"] == 2
+    assert ctx.result.tokens_awarded_attacker == {"blood": 1}
+    assert any(fact.owner == "source" and fact.token == "blood" for fact in ctx.result.token_facts)
     assert [effect.effect_id for effect in target.statuses.effects] == ["spiked_guard"]
 
 
@@ -2070,63 +2669,9 @@ def test_executor_log_merges_prepared_reaction_into_defender_outcome() -> None:
 
     entry = ctx.pending_logs[0]
     assert entry["catalog"] == "combat_text"
-    assert entry["template"]["key"] == "combat.exchange.basic.parry.humanoid_to_humanoid.weapon"
+    assert entry["template"]["key"] == "combat.exchange.skill_swords.main_hand.parry.humanoid_to_humanoid.weapon"
     assert entry["outcome"] == "parry"
     assert "переводит парирование в контратаку" not in entry["text"]
-
-
-@pytest.mark.unit
-def test_executor_log_uses_weapon_technique_render_context_variables() -> None:
-    ctx = BattleContext(session_id="c1", meta=battle_meta(), actors={"1": actor(1, "a"), "2": actor(2, "b")})
-    ctx.actors["1"].loadout.layout["main_hand"] = "skill_swords"
-    action = CombatActionDTO(
-        action_type="exchange",
-        move=CombatMoveDTO(
-            move_id="m1",
-            char_id=1,
-            strategy="exchange",
-            payload=ExchangePayload(target_id=2, feint_id="measured_strike"),
-        ),
-    )
-    result = InteractionResultDTO(source_id=1, target_id=2, damage_final=12, is_hit=True)
-    result.damage_trace = CombatDamageTraceDTO(
-        raw=12,
-        final=12,
-        min=12,
-        max=12,
-        details={"weapon_technique_bonus_damage": 6},
-    )
-    result.events.append(CombatEventDTO(type="HIT", source_id=1, target_id=2, value=12, resource="hp"))
-
-    CombatExecutor()._append_result_logs(ctx, result, action=action, wave=1)
-
-    entry = ctx.pending_logs[0]
-    assert entry["variables"]["bonus_damage"] == 6
-    assert "weapon_attack_form" not in entry["variables"]
-    assert entry["catalog"] == "combat_text"
-    assert entry["template"]["key"] == "combat.feint.measured_strike.hit.humanoid_to_humanoid.weapon"
-    assert "добавляя 6 урона" in entry["text"]
-
-
-@pytest.mark.unit
-def test_ability_service_cleans_feint_modifier_application_sources() -> None:
-    source = actor(1, "a")
-    target = actor(2, "b")
-    move = CombatMoveDTO(
-        move_id="m1",
-        char_id=1,
-        strategy="exchange",
-        payload=ExchangePayload(target_id=2, feint_id="true_strike"),
-    )
-    ctx = PipelineContextDTO()
-
-    service = AbilityService()
-    service.pre_process(ctx, move, source, target)
-
-    service.post_process(ctx, source, target, move)
-
-    assert source.raw.modifiers["damage_mult"]["temp"] == {}
-    assert source.statuses.abilities == []
 
 
 @pytest.mark.unit
@@ -2173,7 +2718,7 @@ def test_resolver_records_source_aware_trigger_facts() -> None:
 def test_resolver_skips_trigger_sources_not_allowed_by_catalog() -> None:
     ctx = PipelineContextDTO()
     result = InteractionResultDTO(source_id=1, target_id=2)
-    activate_trigger(ctx, "accuracy.true_strike", source="style", source_id="skill_one_handed")
+    activate_trigger(ctx, "accuracy.true_strike", source="style", source_id="skill_tactics")
 
     CombatResolver._resolve_triggers(ctx, result, "ON_ACCURACY_CHECK")
 
@@ -2206,45 +2751,6 @@ def test_ability_service_applies_ability_cost_and_pipeline_flags() -> None:
 
 
 @pytest.mark.unit
-def test_ability_service_registers_feint_stamina_cost_on_activation() -> None:
-    source = actor(1, "a")
-    source.meta.stamina = 100
-    target = actor(2, "b")
-    move = CombatMoveDTO(
-        move_id="m1",
-        char_id=1,
-        strategy="exchange",
-        payload=ExchangePayload(feint_id="steady_hand", target_id=2),
-    )
-    ctx = PipelineContextDTO()
-
-    AbilityService().pre_process(ctx, move, source, target)
-
-    assert ctx.result.resource_changes["stamina"]["cost"] == "-10"
-
-
-@pytest.mark.unit
-def test_ability_service_rejects_feint_when_stamina_is_missing() -> None:
-    source = actor(1, "a")
-    source.meta.stamina = 9
-    target = actor(2, "b")
-    move = CombatMoveDTO(
-        move_id="m1",
-        char_id=1,
-        strategy="exchange",
-        payload=ExchangePayload(feint_id="steady_hand", target_id=2),
-    )
-    ctx = PipelineContextDTO()
-
-    AbilityService().pre_process(ctx, move, source, target)
-
-    assert ctx.phases.run_calculator is False
-    assert ctx.result.skip_reason == "NO_RESOURCE"
-    assert ctx.result.chain_events.preserve_feint is True
-    assert "stamina" not in ctx.result.resource_changes
-
-
-@pytest.mark.unit
 def test_mechanics_applies_stamina_resource_changes() -> None:
     source = actor(1, "a")
     source.meta.stamina = 11
@@ -2274,15 +2780,198 @@ def test_mechanics_applies_stamina_resource_changes() -> None:
 
 
 @pytest.mark.unit
-def test_feint_service_refill_hand_uses_token_costs() -> None:
+def test_feint_service_refill_hand_ignores_unknown_archived_feints() -> None:
     source = actor(1, "a")
-    source.meta.feints.arsenal = ["true_strike"]
+    source.meta.feints.arsenal = ["future_feint_placeholder"]
     source.meta.tokens["hit"] = 2
 
     FeintService.refill_hand(source.meta, hand_size=1)
 
-    assert source.meta.feints.hand == {"true_strike": {"hit": 2}}
-    assert source.meta.tokens["hit"] == 0
+    assert source.meta.feints.hand == {}
+    assert source.meta.tokens["hit"] == 2
+
+
+@pytest.mark.unit
+def test_feint_service_refill_prioritizes_one_best_feint_per_purchase_group(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from types import SimpleNamespace
+
+    source = actor(1, "a")
+    source.meta.feints.arsenal = [
+        "basic_cheap",
+        "basic_expensive",
+        "weapon_expensive",
+        "weapon_cheap",
+        "tactical_expensive",
+        "tactical_cheap",
+    ]
+    source.meta.tokens = {"hit": 10, "crit": 10, "tempo": 10}
+    fake_catalog = {
+        "basic_cheap": ("basic", {"hit": 3}),
+        "basic_expensive": ("basic", {"hit": 7}),
+        "weapon_expensive": ("weapon", {"crit": 7}),
+        "weapon_cheap": ("weapon", {"crit": 3}),
+        "tactical_expensive": ("tactical", {"tempo": 7}),
+        "tactical_cheap": ("tactical", {"tempo": 3}),
+    }
+
+    def fake_get_feint_catalog_entry(feint_id: str):
+        group, cost = fake_catalog[feint_id]
+        return SimpleNamespace(
+            technical=SimpleNamespace(
+                feint_id=feint_id,
+                cost=SimpleNamespace(tactics=cost),
+                purchase_group=group,
+            )
+        )
+
+    monkeypatch.setattr(CombatCatalogIntegrator, "get_feint_catalog_entry", fake_get_feint_catalog_entry)
+
+    FeintService.refill_hand(source.meta, hand_size=3)
+
+    assert source.meta.feints.hand == {
+        "weapon_expensive": {"crit": 7},
+        "tactical_expensive": {"tempo": 7},
+        "basic_expensive": {"hit": 7},
+    }
+    assert list(source.meta.feints.hand) == ["weapon_expensive", "tactical_expensive", "basic_expensive"]
+    assert source.meta.tokens == {"hit": 3, "crit": 3, "tempo": 3}
+
+
+@pytest.mark.unit
+def test_feint_service_refill_never_spends_basic_before_affordable_non_basic(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from types import SimpleNamespace
+
+    source = actor(1, "a")
+    source.meta.feints.arsenal = ["basic_expensive", "basic_cheap", "weapon_expensive"]
+    source.meta.tokens = {"hit": 10}
+    fake_catalog = {
+        "basic_expensive": ("basic", {"hit": 7}),
+        "basic_cheap": ("basic", {"hit": 3}),
+        "weapon_expensive": ("weapon", {"hit": 7}),
+    }
+
+    def fake_get_feint_catalog_entry(feint_id: str):
+        group, cost = fake_catalog[feint_id]
+        return SimpleNamespace(
+            technical=SimpleNamespace(
+                feint_id=feint_id,
+                cost=SimpleNamespace(tactics=cost),
+                purchase_group=group,
+            )
+        )
+
+    monkeypatch.setattr(CombatCatalogIntegrator, "get_feint_catalog_entry", fake_get_feint_catalog_entry)
+
+    FeintService.refill_hand(source.meta, hand_size=3)
+
+    assert source.meta.feints.hand == {
+        "weapon_expensive": {"hit": 7},
+        "basic_cheap": {"hit": 3},
+    }
+    assert "basic_expensive" not in source.meta.feints.hand
+    assert source.meta.tokens == {"hit": 0}
+
+
+@pytest.mark.unit
+def test_feint_service_refill_fallback_prefers_non_basic_groups_before_basic(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from types import SimpleNamespace
+
+    source = actor(1, "a")
+    source.meta.feints.arsenal = [
+        "weapon_expensive",
+        "weapon_cheap",
+        "tactical_expensive",
+        "basic_expensive",
+        "basic_cheap",
+    ]
+    source.meta.tokens = {"hit": 20, "tempo": 10}
+    fake_catalog = {
+        "weapon_expensive": ("weapon", {"hit": 7}),
+        "weapon_cheap": ("weapon", {"hit": 3}),
+        "tactical_expensive": ("tactical", {"tempo": 7}),
+        "basic_expensive": ("basic", {"hit": 7}),
+        "basic_cheap": ("basic", {"hit": 3}),
+    }
+
+    def fake_get_feint_catalog_entry(feint_id: str):
+        group, cost = fake_catalog[feint_id]
+        return SimpleNamespace(
+            technical=SimpleNamespace(
+                feint_id=feint_id,
+                cost=SimpleNamespace(tactics=cost),
+                purchase_group=group,
+            )
+        )
+
+    picked_from_free_pool: list[list[str]] = []
+
+    def fake_choice(pool: list[str]) -> str:
+        picked_from_free_pool.append(list(pool))
+        return pool[0]
+
+    monkeypatch.setattr(CombatCatalogIntegrator, "get_feint_catalog_entry", fake_get_feint_catalog_entry)
+    monkeypatch.setattr("src.backend.features.combat.runtime.engine.feint_service.random.choice", fake_choice)
+
+    FeintService.refill_hand(source.meta, hand_size=4)
+
+    assert list(source.meta.feints.hand) == [
+        "weapon_expensive",
+        "tactical_expensive",
+        "basic_expensive",
+        "weapon_cheap",
+    ]
+    assert picked_from_free_pool == [["weapon_cheap"]]
+    assert "basic_cheap" not in source.meta.feints.hand
+
+
+@pytest.mark.unit
+def test_feint_service_refill_uses_random_free_pool_when_purchase_group_slot_is_unavailable(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from types import SimpleNamespace
+
+    source = actor(1, "a")
+    source.meta.feints.arsenal = ["basic_expensive", "basic_cheap", "weapon_expensive"]
+    source.meta.tokens = {"hit": 10}
+    fake_catalog = {
+        "basic_expensive": ("basic", {"hit": 7}),
+        "basic_cheap": ("basic", {"hit": 3}),
+        "weapon_expensive": ("weapon", {"crit": 7}),
+    }
+
+    def fake_get_feint_catalog_entry(feint_id: str):
+        group, cost = fake_catalog[feint_id]
+        return SimpleNamespace(
+            technical=SimpleNamespace(
+                feint_id=feint_id,
+                cost=SimpleNamespace(tactics=cost),
+                purchase_group=group,
+            )
+        )
+
+    picked_from_free_pool: list[list[str]] = []
+
+    def fake_choice(pool: list[str]) -> str:
+        picked_from_free_pool.append(list(pool))
+        return "basic_cheap"
+
+    monkeypatch.setattr(CombatCatalogIntegrator, "get_feint_catalog_entry", fake_get_feint_catalog_entry)
+    monkeypatch.setattr("src.backend.features.combat.runtime.engine.feint_service.random.choice", fake_choice)
+
+    FeintService.refill_hand(source.meta, hand_size=3)
+
+    assert source.meta.feints.hand == {
+        "basic_expensive": {"hit": 7},
+        "basic_cheap": {"hit": 3},
+    }
+    assert picked_from_free_pool == [["basic_cheap"]]
+    assert source.meta.tokens == {"hit": 0}
 
 
 @pytest.mark.unit
@@ -2292,48 +2981,48 @@ def test_session_integration_recovers_feint_arsenal_from_loadout() -> None:
         "team_1",
         {"hp": 10, "max_hp": 10, "en": 0, "max_en": 0, "tokens": {"hit": 2}, "feints": {}},
         {},
-        {"known_feints": ["true_strike"]},
+        {"known_feints": ["future_feint_placeholder"]},
         {"name": "a", "type": "player"},
         {"abilities": [], "effects": []},
         {},
         {},
     )
 
-    assert snapshot.meta.feints.arsenal == ["true_strike"]
+    assert snapshot.meta.feints.arsenal == ["future_feint_placeholder"]
 
 
 @pytest.mark.unit
 def test_feint_service_reroll_preserves_pinned_and_refunds_unpinned() -> None:
     source = actor(1, "a")
-    source.meta.feints.arsenal = ["true_strike", "piercing_thrust"]
+    source.meta.feints.arsenal = ["future_feint_placeholder", "another_future_feint"]
     source.meta.feints.hand = {
-        "true_strike": {"hit": 2},
-        "piercing_thrust": {"hit": 3},
+        "future_feint_placeholder": {"hit": 2},
+        "another_future_feint": {"hit": 3},
     }
-    source.meta.feints.pinned = "true_strike"
+    source.meta.feints.pinned = "future_feint_placeholder"
 
     FeintService.reroll_hand(source.meta, hand_size=1)
 
-    assert source.meta.feints.hand == {"true_strike": {"hit": 2}}
-    assert source.meta.feints.pinned == "true_strike"
+    assert source.meta.feints.hand == {"future_feint_placeholder": {"hit": 2}}
+    assert source.meta.feints.pinned == "future_feint_placeholder"
     assert source.meta.tokens["hit"] == 3
 
 
 @pytest.mark.unit
-def test_executor_flow_refunds_used_feint_cost() -> None:
+def test_executor_flow_does_not_refund_unknown_feint_cost() -> None:
     ctx = BattleContext(session_id="c1", meta=battle_meta(), actors={"1": actor(1, "a")})
     move = CombatMoveDTO(
         move_id="m1",
         char_id=1,
         strategy="exchange",
-        payload=ExchangePayload(target_id=2, feint_id="true_strike"),
+        payload=ExchangePayload(target_id=2, feint_id="future_feint_placeholder"),
     )
     result = InteractionResultDTO(source_id=1, target_id=2)
     result.chain_events.preserve_feint = True
 
     CombatExecutor._refund_feint_cost_if_needed(ctx, result, move)
 
-    assert ctx.actors["1"].meta.tokens["hit"] == 2
+    assert ctx.actors["1"].meta.tokens == {}
 
 
 @pytest.mark.unit
@@ -2586,6 +3275,121 @@ def test_mechanics_applies_defender_tokens_from_resolver_result() -> None:
             "tags": [],
         },
     ]
+
+
+@pytest.mark.unit
+def test_mechanics_grants_one_gift_token_to_source_for_exchange_action() -> None:
+    source = actor(1, "a")
+    target = actor(2, "b")
+    ctx = PipelineContextDTO()
+    ctx.flags.meta.action_mode = "exchange"
+    ctx.flags.meta.grant_exchange_gift = True
+    result = InteractionResultDTO(source_id=1, target_id=2)
+
+    MechanicsService().apply_interaction_result(ctx, source, target, result)
+
+    assert source.meta.tokens["gift"] == 1
+    assert result.tokens_awarded_attacker["gift"] == 1
+    assert result.token_facts[-1].model_dump() == {
+        "actor_id": "1",
+        "owner": "source",
+        "token": "gift",
+        "amount": 1,
+        "before": 0,
+        "after": 1,
+        "reason": "exchange",
+        "source_action_id": None,
+        "source_effect_id": None,
+        "source_trigger_id": None,
+        "tags": ["exchange"],
+    }
+
+
+@pytest.mark.unit
+def test_mechanics_does_not_grant_exchange_gift_for_unidirectional_action() -> None:
+    source = actor(1, "a")
+    target = actor(2, "b")
+    ctx = PipelineContextDTO()
+    ctx.flags.meta.action_mode = "unidirectional"
+    result = InteractionResultDTO(source_id=1, target_id=2)
+
+    MechanicsService().apply_interaction_result(ctx, source, target, result)
+
+    assert "gift" not in source.meta.tokens
+    assert "gift" not in result.tokens_awarded_attacker
+    assert not result.token_facts
+
+
+@pytest.mark.unit
+def test_mechanics_applies_gift_token_cost_from_ability_resource_changes() -> None:
+    source = actor(1, "a")
+    source.meta.tokens["gift"] = 2
+    target = actor(2, "b")
+    ctx = PipelineContextDTO()
+    ctx.flags.meta.action_mode = "unidirectional"
+    result = InteractionResultDTO(source_id=1, target_id=2, resource_changes={"gift": {"cost": "-1"}})
+
+    MechanicsService().apply_interaction_result(ctx, source, target, result)
+
+    assert source.meta.tokens["gift"] == 1
+    assert [fact.model_dump() for fact in result.token_facts] == [
+        {
+            "actor_id": "1",
+            "owner": "source",
+            "token": "gift",
+            "amount": -1,
+            "before": 2,
+            "after": 1,
+            "reason": "cost",
+            "source_action_id": None,
+            "source_effect_id": None,
+            "source_trigger_id": None,
+            "tags": ["cost"],
+        }
+    ]
+
+
+@pytest.mark.unit
+def test_mechanics_accumulates_blood_token_progress_from_survived_damage() -> None:
+    source = actor(1, "a")
+    target = actor(2, "b", hp=100)
+
+    first = InteractionResultDTO(source_id=1, target_id=2, damage_final=5, is_hit=True)
+    MechanicsService().apply_interaction_result(PipelineContextDTO(), source, target, first)
+
+    assert target.meta.hp == 95
+    assert target.meta.token_progress["blood"] == 5
+    assert "blood" not in target.meta.tokens
+    assert not first.token_facts
+
+    target.meta.hp = 100
+    second = InteractionResultDTO(source_id=1, target_id=2, damage_final=5, is_hit=True)
+    MechanicsService().apply_interaction_result(PipelineContextDTO(), source, target, second)
+
+    assert target.meta.hp == 95
+    assert target.meta.token_progress["blood"] == 0
+    assert target.meta.tokens["blood"] == 1
+    assert second.tokens_awarded_defender["blood"] == 1
+    assert second.token_facts[-1].token == "blood"
+    assert second.token_facts[-1].reason == "damage_taken"
+
+
+@pytest.mark.unit
+def test_mechanics_does_not_award_blood_token_progress_to_dead_actor() -> None:
+    source = actor(1, "a")
+    target = actor(2, "b", hp=8)
+    target.meta.max_hp = 100
+    target.meta.token_progress["blood"] = 9
+
+    result = InteractionResultDTO(source_id=1, target_id=2, damage_final=20, is_hit=True)
+    MechanicsService().apply_interaction_result(PipelineContextDTO(), source, target, result)
+
+    assert target.meta.hp == 0
+    assert target.meta.is_dead is True
+    assert target.meta.token_progress["blood"] == 9
+    assert "blood" not in target.meta.tokens
+    assert "blood" not in result.tokens_awarded_defender
+    assert not result.token_facts
 
 
 @pytest.mark.unit
@@ -2863,6 +3667,148 @@ def test_dual_wield_style_chance_scales_with_skill_to_half_cap(monkeypatch: pyte
 
 
 @pytest.mark.unit
+def test_ranged_combat_style_activates_on_defender_from_loadout() -> None:
+    source = actor(1, "a")
+    target = actor(2, "b")
+    target.loadout.layout.update(
+        {
+            "main_hand": "skill_archery",
+            "tactical_style": "skill_ranged_combat",
+            "tactical_style_trigger": "dodge.style_ranged_perfect_backstep",
+        }
+    )
+    move = CombatMoveDTO(move_id="m1", char_id=1, strategy="exchange", payload=ExchangePayload(target_id=2))
+
+    ctx = ContextBuilder.build_context(source, target, move)
+
+    assert ctx.triggers.dodge.style_ranged_perfect_backstep is True
+    assert ctx.trigger_activations["style_ranged_perfect_backstep"][0].source == "style"
+    assert ctx.trigger_activations["style_ranged_perfect_backstep"][0].source_id == "skill_ranged_combat"
+
+
+@pytest.mark.unit
+def test_archery_attack_ignores_parry_but_keeps_block_and_dodge_checks(monkeypatch: pytest.MonkeyPatch) -> None:
+    seen_parry_chances: list[float] = []
+
+    def capture_roll(chance: float) -> tuple[float | None, bool]:
+        seen_parry_chances.append(chance)
+        return None, True
+
+    monkeypatch.setattr(MathCore, "roll_chance", staticmethod(capture_roll))
+    source = actor(1, "a")
+    target = actor(2, "b")
+    source.loadout.layout["main_hand"] = "skill_archery"
+    move = CombatMoveDTO(move_id="m1", char_id=1, strategy="exchange", payload=ExchangePayload(target_id=2))
+
+    ctx = ContextBuilder.build_context(source, target, move)
+    result = InteractionResultDTO(source_id=1, target_id=2)
+
+    assert ctx.flags.restriction.ignore_parry is True
+    assert ctx.stages.check_evasion is True
+    assert ctx.stages.check_block is True
+    assert CombatResolver._step_parry_roll(
+        stats(),
+        stats({"parry": 1.0, "parry_cap": 1.0}, {"skill_parrying": 1.0}),
+        ctx,
+        result,
+    ) is False
+    assert result.is_parried is False
+    assert seen_parry_chances == []
+
+
+@pytest.mark.unit
+def test_context_builder_exposes_active_ammo_effect_only_for_archery() -> None:
+    source = actor(1, "a")
+    target = actor(2, "b")
+    source.loadout.layout["main_hand"] = "skill_archery"
+    source.loadout.ammo_effects["main_hand"] = {
+        "id": "dot_burn",
+        "params": {"power": 2.0, "apply_bonus": 0.1},
+        "tags": ["arrow", "fire"],
+    }
+    move = CombatMoveDTO(move_id="m1", char_id=1, strategy="exchange", payload=ExchangePayload(target_id=2))
+
+    ctx = ContextBuilder.build_context(source, target, move)
+
+    assert ctx.trigger_effect_payloads["main_hand"] == [
+        {
+            "id": "dot_burn",
+            "params": {"power": 2.0, "apply_bonus": 0.1},
+            "tags": ["arrow", "fire"],
+        }
+    ]
+
+    source.loadout.layout["main_hand"] = "skill_swords"
+    sword_ctx = ContextBuilder.build_context(source, target, move)
+
+    assert sword_ctx.trigger_effect_payloads == {}
+
+
+@pytest.mark.unit
+def test_archery_weapon_trigger_queues_active_ammo_effect_payload() -> None:
+    source = actor(1, "a")
+    target = actor(2, "b")
+    source.loadout.layout.update(
+        {
+            "main_hand": "skill_archery",
+            "main_hand_trigger": "control.weapon_evasive_shot",
+        }
+    )
+    source.loadout.ammo_effects["main_hand"] = {
+        "id": "dot_burn",
+        "params": {"power": 2.0, "apply_bonus": 0.1},
+        "tags": ["arrow", "fire"],
+    }
+    move = CombatMoveDTO(move_id="m1", char_id=1, strategy="exchange", payload=ExchangePayload(target_id=2))
+    ctx = ContextBuilder.build_context(source, target, move)
+    result = ctx.result
+
+    CombatResolver._resolve_triggers(ctx, result, "ON_CHECK_CONTROL")
+
+    ammo_effects = [effect for effect in result.applied_effects if effect.get("id") == "dot_burn"]
+    assert ammo_effects == [
+        {
+            "id": "dot_burn",
+            "params": {"power": 2.0, "apply_bonus": 0.1},
+            "tags": ["arrow", "fire"],
+            "source_trigger_id": "weapon_evasive_shot",
+        }
+    ]
+    assert result.trigger_facts[0].trigger_id == "weapon_evasive_shot"
+
+
+@pytest.mark.unit
+def test_ranged_combat_style_perfect_backstep_forces_dodge(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    seen_chances: list[float] = []
+
+    def fake_roll_chance(chance: float) -> tuple[float, bool]:
+        seen_chances.append(chance)
+        return 0.0, True
+
+    monkeypatch.setattr(MathCore, "roll_chance", staticmethod(fake_roll_chance))
+    monkeypatch.setattr(CombatResolver, "_bonus_token_roll", staticmethod(lambda: False))
+    ctx = PipelineContextDTO()
+    result = InteractionResultDTO(source_id=1, target_id=2)
+    ctx.result = result
+    activate_trigger(ctx, "dodge.style_ranged_perfect_backstep", source="style", source_id="skill_ranged_combat")
+
+    dodged = CombatResolver._step_evasion_roll(
+        stats(),
+        stats(skills={"skill_ranged_combat": 1.0}),
+        ctx,
+        result,
+    )
+
+    assert seen_chances == [pytest.approx(0.25)]
+    assert dodged is True
+    assert result.is_dodged is True
+    assert result.tokens_awarded_defender == {"dodge": 1}
+    assert result.trigger_facts[0].trigger_id == "style_ranged_perfect_backstep"
+
+
+@pytest.mark.unit
 def test_two_handed_style_activates_catalog_trigger_from_loadout() -> None:
     source = actor(1, "a")
     target = actor(2, "b")
@@ -3019,8 +3965,8 @@ def test_physical_damage_attribute_bonus_applies_to_weapon_damage(monkeypatch: p
         result,
     )
 
-    assert damage == 10.0
-    assert result.damage_final == 10
+    assert damage == 4.0
+    assert result.damage_final == 4
 
 
 @pytest.mark.unit
@@ -3072,6 +4018,27 @@ def test_armor_penetration_pct_and_flat_reduce_only_flat_armor(monkeypatch: pyte
     )
 
     assert damage == pytest.approx(90.0)
+
+
+@pytest.mark.unit
+def test_successful_hit_deals_one_damage_when_flat_armor_absorbs_all(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(MathCore, "random_range", staticmethod(lambda min_d, max_d: min_d))
+    monkeypatch.setattr(MathCore, "check_chance", staticmethod(lambda chance: False))
+
+    ctx = PipelineContextDTO()
+    result = InteractionResultDTO(source_id=1, target_id=2)
+
+    damage = CombatResolver._step_calculate_damage(
+        stats({"main_hand_damage_base": 5.0, "main_hand_damage_spread": 0.0}),
+        stats({"armor": 50.0}),
+        ctx,
+        result,
+    )
+
+    assert damage == pytest.approx(1.0)
+    assert result.damage_final == 1
+    assert result.damage_trace is not None
+    assert result.damage_trace.details["after_armor"] == pytest.approx(0.0)
 
 
 @pytest.mark.unit
@@ -3284,6 +4251,41 @@ def test_parry_roll_applies_parrying_skill_multiplier_in_resolver(monkeypatch: p
     )
 
     assert captured_chances == [pytest.approx(0.3)]
+
+
+@pytest.mark.unit
+def test_soft_target_reaction_multipliers_reduce_evasion_and_parry(monkeypatch: pytest.MonkeyPatch) -> None:
+    captured_chances: list[float] = []
+
+    def capture_roll(chance: float) -> tuple[float | None, bool]:
+        captured_chances.append(chance)
+        return None, False
+
+    monkeypatch.setattr(MathCore, "roll_chance", staticmethod(capture_roll))
+
+    evasion_ctx = PipelineContextDTO()
+    evasion_ctx.mods.target_evasion_mult = 0.65
+    evasion_result = InteractionResultDTO(source_id=1, target_id=2)
+    CombatResolver._step_evasion_roll(
+        stats(),
+        stats({"evasion": 0.4, "dodge_cap": 1.0}),
+        evasion_ctx,
+        evasion_result,
+    )
+
+    parry_ctx = PipelineContextDTO()
+    parry_ctx.mods.target_parry_mult = 0.65
+    parry_result = InteractionResultDTO(source_id=1, target_id=2)
+    CombatResolver._step_parry_roll(
+        stats(),
+        stats({"parry": 0.1, "parry_cap": 0.75}, {"skill_parrying": 0.5}),
+        parry_ctx,
+        parry_result,
+    )
+
+    assert captured_chances == [pytest.approx(0.26), pytest.approx(0.195)]
+    assert evasion_result.checks[0].details["target_evasion_mult"] == 0.65
+    assert parry_result.checks[0].details["target_parry_mult"] == 0.65
 
 
 @pytest.mark.unit

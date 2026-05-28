@@ -1,5 +1,10 @@
 import pytest
 
+from src.backend.core.calculators.skill_progression_calculator import (
+    SkillProgressionBatchInput,
+    SkillProgressionCalculator,
+    SkillProgressionEntry,
+)
 from src.backend.features.combat.dto import (
     ActorLoadoutDTO,
     ActorMetaDTO,
@@ -10,6 +15,9 @@ from src.backend.features.combat.dto import (
 )
 from src.backend.features.combat.runtime.engine.mechanics_service import MechanicsService
 from src.backend.features.combat.runtime.services.experience_finalizer import CombatExperienceFinalizer
+from src.backend.features.game_catalog.skills.services import SkillCatalogService
+
+MINIMAL_COMBAT_ATTRIBUTES = {"strength": 8, "agility": 8, "endurance": 8}
 
 
 class FakeCombatDataService:
@@ -45,6 +53,69 @@ class FakeCharacterSessions:
 
     async def apply_skill_progress(self, char_id: int, rewards: dict[str, float]) -> None:
         self.calls.append((char_id, rewards))
+
+
+def _expected_skill_reward(
+    skill_key: str,
+    *,
+    action_power: float,
+    attributes: dict[str, float] | None = None,
+) -> dict[str, float]:
+    skill = SkillCatalogService().get(skill_key)
+    assert skill is not None
+    return SkillProgressionCalculator.calculate(
+        SkillProgressionBatchInput(
+            entries={
+                skill_key: SkillProgressionEntry(
+                    skill=skill,
+                    attributes=attributes or _base_attributes(),
+                    current_skill=0.0,
+                    action_power=action_power,
+                )
+            }
+        )
+    )
+
+
+def _expected_free_reward(
+    *,
+    action_power: float,
+    attributes: dict[str, float] | None = None,
+) -> dict[str, float]:
+    attrs = attributes or _base_attributes()
+    combat_skills = [skill for skill in SkillCatalogService().skills if skill.category.value == "combat"]
+    base_power = sum(
+        sum(float(attrs.get(stat_key, 0.0)) * float(weight) for stat_key, weight in skill.stat_weights.items())
+        for skill in combat_skills
+    ) / len(combat_skills)
+    return SkillProgressionCalculator.calculate(
+        SkillProgressionBatchInput(
+            entries={
+                "free_xp": SkillProgressionEntry(
+                    attributes=attrs,
+                    current_skill=0.0,
+                    action_power=action_power,
+                    base_power=base_power,
+                    rate_mod=1.0,
+                    wall_mod=0.0,
+                )
+            }
+        )
+    )
+
+
+def _base_attributes(value: float = 8.0) -> dict[str, float]:
+    return {
+        "strength": value,
+        "agility": value,
+        "endurance": value,
+        "perception": value,
+        "intellect": value,
+        "memory": value,
+        "mental": value,
+        "projection": value,
+        "prediction": value,
+    }
 
 
 @pytest.mark.unit
@@ -111,7 +182,7 @@ def test_experience_finalizer_sends_unknown_useful_actions_to_free_xp() -> None:
 
     rewards = CombatExperienceFinalizer().calculate_actor_rewards(actor)
 
-    assert rewards == {"free_xp": 0.0012}
+    assert rewards == _expected_free_reward(action_power=1, attributes=MINIMAL_COMBAT_ATTRIBUTES)
 
 
 @pytest.mark.unit
@@ -125,7 +196,7 @@ def test_experience_finalizer_does_not_unlock_non_combat_skills_from_combat() ->
 
     rewards = CombatExperienceFinalizer().calculate_actor_rewards(actor)
 
-    assert rewards == {"free_xp": 0.0012}
+    assert rewards == _expected_free_reward(action_power=1, attributes=MINIMAL_COMBAT_ATTRIBUTES)
     assert "skill_scouting" not in rewards
 
 
@@ -146,7 +217,11 @@ def test_experience_finalizer_routes_block_to_shield_mastery_even_when_skill_was
 
     rewards = CombatExperienceFinalizer().calculate_actor_rewards(actor)
 
-    assert rewards == {"skill_shield_mastery": 0.0016}
+    assert rewards == _expected_skill_reward(
+        "skill_shield_mastery",
+        action_power=1,
+        attributes=MINIMAL_COMBAT_ATTRIBUTES,
+    )
 
 
 @pytest.mark.unit
@@ -163,8 +238,9 @@ async def test_experience_finalizer_routes_rewards_to_dirty_progression_recorder
         progression_recorder=recorder,
     )
 
-    assert results["7"].rewards == {"free_xp": 0.0012}
-    assert recorder.calls == [(7, {"free_xp": 0.0012})]
+    expected = _expected_free_reward(action_power=1, attributes=MINIMAL_COMBAT_ATTRIBUTES)
+    assert results["7"].rewards == expected
+    assert recorder.calls == [(7, expected)]
     assert sessions.calls == []
 
 

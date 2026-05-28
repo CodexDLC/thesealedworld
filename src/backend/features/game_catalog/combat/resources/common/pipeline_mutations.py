@@ -69,6 +69,7 @@ PIPELINE_MUTATION_CONTRACT_DEFINITIONS: tuple[PipelineMutationContractDTO, ...] 
     _contract("ignore_evasion", "flags.force.hit_evasion", "bool", True),
     # Restrictions.
     _contract("cannot_crit", "flags.restriction.cannot_crit", "bool", True),
+    _contract("suppress_crit_triggers", "flags.restriction.suppress_crit_triggers", "bool", True),
     _contract("ignore_parry", "flags.restriction.ignore_parry", "bool", True),
     _contract("ignore_block", "flags.restriction.ignore_block", "bool", True),
     # Mastery flags.
@@ -91,6 +92,8 @@ PIPELINE_MUTATION_CONTRACT_DEFINITIONS: tuple[PipelineMutationContractDTO, ...] 
     _contract("suppress_physical_resistance", "flags.formula.suppress_physical_resistance", "bool", True),
     _contract("ignore_physical_resistance", "flags.formula.ignore_physical_resistance", "bool", True),
     _contract("counter_chance_boost", "flags.formula.counter_chance_boost", "bool", True),
+    _contract("counter_chance_bonus_on_dodge", "mods.counter_chance_bonus_on_dodge", "float", 0.20),
+    _contract("counter_chance_bonus_on_parry", "mods.counter_chance_bonus_on_parry", "float", 0.20),
     # Damage type flags.
     _contract("damage.physical", "flags.damage.physical", "bool", True),
     _contract("damage.pure", "flags.damage.pure", "bool", True),
@@ -131,7 +134,10 @@ PIPELINE_MUTATION_CONTRACT_DEFINITIONS: tuple[PipelineMutationContractDTO, ...] 
     _contract("mechanics.generate_feints", "flags.mechanics.generate_feints", "bool", True),
     # Numeric pipeline-local modifiers.
     _contract("accuracy_mult", "mods.accuracy_mult", "float", 1.0),
+    _contract("target_evasion_mult", "mods.target_evasion_mult", "float", 1.0),
+    _contract("target_parry_mult", "mods.target_parry_mult", "float", 1.0),
     _contract("damage_mult", "mods.damage_mult", "float", 1.0),
+    _contract("incoming_damage_cap", "mods.incoming_damage_cap", "int", 0),
     _contract("weapon_effect_value", "mods.weapon_effect_value", "float", 2.0),
     _contract("flat_armor_penetration_bonus_pct", "mods.flat_armor_penetration_bonus_pct", "float", 0.0),
     _contract("flat_armor_ignore_chance_bonus", "mods.flat_armor_ignore_chance_bonus", "float", 0.0),

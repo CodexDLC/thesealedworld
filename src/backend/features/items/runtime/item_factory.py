@@ -3,7 +3,7 @@ from __future__ import annotations
 import random
 from dataclasses import dataclass
 from math import floor
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from src.backend.features.items.dto.instance import (
     GeneratedItemDTO,
@@ -107,7 +107,7 @@ class ItemFactory:
         rarity = self.catalog.get_rarity(request.rarity_tier)
         name = self._build_player_name(base, material, rarity)
         description = self._build_player_description(base, material)
-        mechanics = self._build_mechanics(material, tier_mult, scaled.implicit_bonuses, affixes)
+        mechanics = self._build_mechanics(base, material, tier_mult, scaled.implicit_bonuses, affixes)
         metadata = self._build_metadata(
             request=request,
             base=base,
@@ -155,7 +155,7 @@ class ItemFactory:
         rarity = self.catalog.get_rarity(request.rarity_tier)
         name = request.presentation_name_ru or self._build_player_name(base, material, rarity)
         description = request.presentation_description or self._build_player_description(base, material)
-        mechanics = self._build_mechanics(material, tier_mult, scaled.implicit_bonuses, affixes)
+        mechanics = self._build_mechanics(base, material, tier_mult, scaled.implicit_bonuses, affixes)
         metadata = self._build_metadata(
             request=request,
             base=base,
@@ -350,12 +350,13 @@ class ItemFactory:
 
     @staticmethod
     def _build_mechanics(
+        base,
         material,
         tier_mult: float,
         scaled_implicit: dict[str, float],
         affixes: list[dict[str, object]],
     ) -> dict[str, object]:
-        return {
+        mechanics: dict[str, object] = {
             "implicit_bonuses": scaled_implicit,
             "material": {
                 "material_id": material.id if material else None,
@@ -365,6 +366,19 @@ class ItemFactory:
             "affixes": affixes,
             "sockets": [],
         }
+        for key in ("ammo_charge_base", "ammo_charge_skill_bonus", "ammo_effect_payload"):
+            value = getattr(base, key, None)
+            if value is not None:
+                mechanics[key] = ItemFactory._copy_mechanics_value(value)
+        return mechanics
+
+    @staticmethod
+    def _copy_mechanics_value(value: Any) -> object:
+        if isinstance(value, dict):
+            return {str(key): ItemFactory._copy_mechanics_value(nested) for key, nested in value.items()}
+        if isinstance(value, list):
+            return [ItemFactory._copy_mechanics_value(nested) for nested in value]
+        return value
 
     @staticmethod
     def _build_metadata(

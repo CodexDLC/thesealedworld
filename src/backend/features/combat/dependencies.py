@@ -12,7 +12,9 @@ from src.backend.features.combat.integrations.analytics_dashboard import CombatA
 from src.backend.features.combat.orchestrators import CombatRuntimeOrchestrator
 from src.backend.features.combat.services.analytics_dashboard_service import CombatAnalyticsDashboardService
 from src.backend.features.combat.services.session_service import CombatSessionService
+from src.backend.features.rift.integrations import RiftRuntimeIntegration
 from src.backend.infrastructure.combat.repositories import CombatAnalyticsRepository
+from src.backend.infrastructure.rift.managers import RiftInstanceStore, RiftPresenceStore, RiftRunSessionStore
 
 
 def get_combat_session_service(request: Request) -> CombatSessionService:
@@ -25,6 +27,11 @@ def get_combat_session_service(request: Request) -> CombatSessionService:
             character_sessions=app_state.character_sessions,
             events=app_state.events,
             redis=app_state.redis,
+            rift_runtime=RiftRuntimeIntegration(
+                instance_store=RiftInstanceStore(app_state.redis),
+                session_store=RiftRunSessionStore(app_state.redis),
+                presence_store=RiftPresenceStore(app_state.redis),
+            ),
         ),
         arq=arq,
     )

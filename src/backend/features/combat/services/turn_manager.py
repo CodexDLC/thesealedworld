@@ -211,40 +211,46 @@ class CombatTurnManager:
         exchange_moves_data = []
         other_moves_dtos = []
 
-        # 1. Build DTOs and Separate
+        # 1. Build DTOs and Separate.
+        #
+        # IMPORTANT: feint consumption runs BEFORE the move is appended to
+        # any batch list. Otherwise a failed consume_feint (race / stale AI
+        # task / duplicate) would leave the move in ``exchange_moves_data``
+        # and ``register_moves_batch`` would happily register an exchange
+        # whose feint was never consumed. Mirrors the single-move
+        # ``register_move_request`` ordering above.
         for payload in payloads:
             action_type = payload.get("action", "attack")
             try:
                 move_dto = self._with_timeout(self._build_move_dto(char_id, action_type, payload), timeout)
-
-                if move_dto.strategy == "exchange":
-                    target_id = getattr(move_dto.payload, "target_id", None)
-                    if target_id:
-                        exchange_moves_data.append(
-                            {
-                                "move_json": move_dto.model_dump_json(),
-                                "target_id": target_id,
-                                "strategy": move_dto.strategy,
-                                "move_id": move_dto.move_id,
-                            }
-                        )
-                else:
-                    # Instant / Item
-                    other_moves_dtos.append(move_dto)
-
-                # --- FEINT CONSUMPTION (AI) ---
-                feint_id = None
-                if isinstance(move_dto.payload, (ExchangePayload, InstantPayload)):
-                    feint_id = move_dto.payload.feint_id
-
-                if feint_id:
-                    cost = await self.combat_sessions.consume_feint(session_id, char_id, feint_id)
-                    if not cost:
-                        log.bind(feint_id=feint_id).warning("TurnManagerAiMissingFeint")
-                        continue  # Пропускаем этот ход, так как финта нет
-
             except ValidationError:
                 continue
+
+            # --- FEINT CONSUMPTION (AI) — run first ---
+            feint_id = None
+            if isinstance(move_dto.payload, (ExchangePayload, InstantPayload)):
+                feint_id = move_dto.payload.feint_id
+
+            if feint_id:
+                cost = await self.combat_sessions.consume_feint(session_id, char_id, feint_id)
+                if not cost:
+                    log.bind(feint_id=feint_id).warning("TurnManagerAiMissingFeint")
+                    continue  # skip this move — feint was not consumed
+
+            if move_dto.strategy == "exchange":
+                target_id = getattr(move_dto.payload, "target_id", None)
+                if target_id:
+                    exchange_moves_data.append(
+                        {
+                            "move_json": move_dto.model_dump_json(),
+                            "target_id": target_id,
+                            "strategy": move_dto.strategy,
+                            "move_id": move_dto.move_id,
+                        }
+                    )
+            else:
+                # Instant / Item
+                other_moves_dtos.append(move_dto)
 
         accepted_move_ids: list[str] = []
 

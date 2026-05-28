@@ -9,6 +9,7 @@ outside :class:`CombatTurnManager` / :class:`FeintService`.
 
 from __future__ import annotations
 
+import hashlib
 import random
 from typing import Any
 
@@ -98,9 +99,18 @@ class MonsterCombatBrain:
 
     @staticmethod
     def _rng_seed(bot: ActorSnapshot, battle: BattleContext | None) -> int:
+        """Process-stable RNG seed for the bot's turn.
+
+        Uses ``blake2b`` so the same ``(session_id, bot_id, step)`` triple
+        always produces the same seed — across worker restarts and across
+        machines. Python's built-in ``hash()`` is randomized via
+        ``PYTHONHASHSEED`` and is not stable between processes.
+        """
         session_id = battle.session_id if battle is not None else "no-session"
         step = battle.meta.step_counter if battle is not None else 0
-        return hash((session_id, str(bot.meta.id), step)) & 0xFFFFFFFF
+        payload = f"{session_id}|{bot.meta.id}|{step}".encode()
+        digest = hashlib.blake2b(payload, digest_size=8).digest()
+        return int.from_bytes(digest, "big") & 0xFFFFFFFF
 
     @staticmethod
     def _greedy_allocate(

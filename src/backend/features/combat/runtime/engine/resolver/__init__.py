@@ -16,11 +16,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
-from src.backend.features.combat.dto.pipeline import (
-    CombatEventDTO,
-    InteractionResultDTO,
-)
-from src.backend.features.combat.runtime.engine.math_core import MathCore
+from src.backend.features.combat.dto.pipeline import InteractionResultDTO
 
 from .orchestrator import run_exchange
 from .steps import (
@@ -32,6 +28,7 @@ from .steps import (
     healing_step,
     parry_step,
 )
+from .steps.damage import damage_step
 from .support import (
     armor_math,
     offensive_lookup,
@@ -46,13 +43,6 @@ if TYPE_CHECKING:
         CombatTriggerActivationDTO,
         PipelineContextDTO,
     )
-
-SHIELD_MASTERY_ABSORB_CAP_RATIO_AT_FULL = 0.50
-SHIELD_MASTERY_REFLECT_RATIO_AT_FULL = 0.50
-UNARMED_MIN_EFFICIENCY = 0.5
-UNARMED_MAX_EFFICIENCY = 3.0
-UNARMED_NOVICE_SPREAD = 0.5
-UNARMED_MASTER_SPREAD = 0.1
 
 
 class CombatResolver:
@@ -132,229 +122,14 @@ class CombatResolver:
         # DEPRECATED facade — removed in Phase 6 after test surface migration.
         return healing_step.run(atk_stats, atk_stats, ctx, res)
 
-    # ----- Damage step body (decomposed into per-phase classes in Phase 5). -----
+    # ----- Damage step (decomposed into steps/damage/* sub-phases in Phase 5). -----
 
     @staticmethod
     def _step_calculate_damage(
         atk_stats: ActorStats, def_stats: ActorStats, ctx: PipelineContextDTO, res: InteractionResultDTO
     ) -> float:
-        if not ctx.stages.calculate_damage:
-            return 0.0
-
-        source_id = res.source_id if res.source_id is not None else "0"
-        target_id = res.target_id if res.target_id is not None else "0"
-
-        if ctx.override_damage:
-            min_d, max_d = ctx.override_damage
-            base = None
-            spread = None
-        else:
-            base = offensive_lookup.get_offensive_val(atk_stats, ctx, "damage_base")
-            spread = offensive_lookup.get_offensive_val(atk_stats, ctx, "damage_spread")
-
-            if ctx.flags.damage.physical:
-                if ctx.flags.meta.weapon_class == "unarmed":
-                    unarmed = atk_stats.skills.skill_unarmed
-                    efficiency = UNARMED_MIN_EFFICIENCY + ((UNARMED_MAX_EFFICIENCY - UNARMED_MIN_EFFICIENCY) * unarmed)
-                    base *= efficiency
-                    spread = max(UNARMED_MASTER_SPREAD, UNARMED_NOVICE_SPREAD - (0.4 * unarmed))
-                base += atk_stats.mods.physical_damage_bonus
-
-            min_d = base * (1.0 - spread)
-            max_d = base * (1.0 + spread)
-
-        raw_damage = MathCore.random_range(min_d, max_d)
-        total_damage = 0.0
-        damage_parts: dict[str, float] = {}
-        base_before_physical = float(base or 0.0)
-        physical_added = 0.0
-        mitigation_pct = 0.0
-        armor_flat = 0.0
-        armor_trace = {
-            "raw": max(0.0, getattr(def_stats.mods, "armor", 0.0)),
-            "effective": 0.0,
-            "ignored": 0.0,
-            "chance": 0.0,
-            "roll": None,
-            "passed": False,
-        }
-        phys_res_raw = max(0.0, getattr(def_stats.mods, "physical_resistance", 0.0))
-        phys_suppression = max(0.0, offensive_lookup.get_offensive_val(atk_stats, ctx, "physical_suppression"))
-        phys_res_suppression_pct = (
-            max(0.0, ctx.mods.physical_resistance_suppression_pct)
-            if ctx.flags.formula.suppress_physical_resistance
-            else 0.0
-        )
-        after_resist = raw_damage
-        after_armor = raw_damage
-
-        crit_multiplier = 1.0
-        if res.is_crit:
-            crit_multiplier = armor_math.calculate_crit_multiplier(ctx)
-            res.crit_mult = crit_multiplier
-
-        if ctx.flags.damage.physical:
-            phys_dmg = raw_damage
-
-            if res.is_crit:
-                phys_dmg *= crit_multiplier
-                heavy_skill = def_stats.skills.skill_heavy_armor
-                if heavy_skill > 0:
-                    bonus_part = crit_multiplier - 1.0
-                    if bonus_part > 0:
-                        phys_dmg *= 1.0 - (heavy_skill * 0.2)
-
-            mitigation_pct = armor_math.effective_physical_resistance(atk_stats, def_stats, ctx)
-            phys_dmg *= 1.0 - mitigation_pct
-            after_resist = phys_dmg
-
-            armor_flat, armor_trace = armor_math.effective_armor_trace(atk_stats, def_stats, ctx)
-            phys_dmg = max(0.0, phys_dmg - armor_flat)
-            after_armor = phys_dmg
-            damage_parts["physical"] = phys_dmg
-
-            if res.is_crit:
-                token_awarder.award_attacker_token(res, "crit")
-            else:
-                token_awarder.award_attacker_token(res, "hit")
-
-            total_damage += phys_dmg
-
-        if ctx.flags.damage.pure:
-            pure_dmg = raw_damage
-            if res.is_crit:
-                pure_dmg *= 1.5
-            total_damage += pure_dmg
-            damage_parts["pure"] = pure_dmg
-
-        elements = ["fire", "water", "air", "earth", "light", "darkness", "arcane", "nature"]
-        elemental_damage_enabled = False
-        for elem in elements:
-            if getattr(ctx.flags.damage, elem, False):
-                elemental_damage_enabled = True
-                elem_dmg = raw_damage
-
-                if res.is_crit:
-                    elem_dmg *= crit_multiplier
-
-                resist_pct = getattr(def_stats.mods, f"{elem}_resistance", 0.0)
-                pen_pct = 0.0
-
-                if atk_stats.mods.magical_penetration > 0:
-                    pen_pct = atk_stats.mods.magical_penetration
-
-                mitigation_pct = max(0.0, resist_pct - pen_pct)
-                elem_dmg *= 1.0 - mitigation_pct
-                total_damage += elem_dmg
-                damage_parts[elem] = elem_dmg
-
-        if ctx.flags.state.hit_index > 0:
-            heavy_skill = def_stats.skills.skill_heavy_armor
-            if heavy_skill > 0:
-                total_damage *= 1.0 - (heavy_skill * 0.5)
-
-        shield_absorb = 0.0
-        shield_reflect = 0.0
-        shield_absorb_ratio = 0.0
-        shield_absorb_cap = 0.0
-        shield_guard_power = 0.0
-        shield_reflect_ratio = 0.0
-        shield_mastery = 0.0
-        if ctx.flags.state.partial_absorb_reflect:
-            shield_mastery = min(1.0, max(0.0, def_stats.skills.skill_shield_mastery))
-            shield_guard_power_base = max(0.0, getattr(def_stats.mods, "shield_guard_power", 0.0))
-            shield_guard_power = shield_guard_power_base * shield_mastery
-            shield_absorb_cap_ratio = SHIELD_MASTERY_ABSORB_CAP_RATIO_AT_FULL * shield_mastery
-            shield_absorb_cap = total_damage * shield_absorb_cap_ratio
-            shield_absorb_ratio = shield_absorb_cap_ratio
-            shield_reflect_ratio = (
-                min(
-                    max(0.0, getattr(def_stats.mods, "shield_reflect_ratio", SHIELD_MASTERY_REFLECT_RATIO_AT_FULL)),
-                    SHIELD_MASTERY_REFLECT_RATIO_AT_FULL,
-                )
-                * shield_mastery
-            )
-
-            raw_shield_absorb = (total_damage * max(0.0, getattr(def_stats.mods, "shield_absorb_ratio", 0.40))) + (
-                shield_guard_power
-            )
-            shield_absorb = min(total_damage, shield_absorb_cap, raw_shield_absorb)
-            total_damage -= shield_absorb
-            shield_reflect = shield_absorb * shield_reflect_ratio
-            res.reflected_damage += int(shield_reflect)
-
-        total_damage *= max(0.0, getattr(atk_stats.mods, "damage_mult", 1.0))
-        total_damage *= ctx.mods.damage_mult
-        total_damage = max(0.0, total_damage)
-        damage_channel_enabled = ctx.flags.damage.physical or ctx.flags.damage.pure or elemental_damage_enabled
-        if damage_channel_enabled and raw_damage > 0.0:
-            total_damage = max(1.0, total_damage)
-        incoming_damage_cap = max(0, int(ctx.mods.incoming_damage_cap or 0))
-        if incoming_damage_cap > 0 and total_damage > 0.0:
-            total_damage = min(total_damage, float(incoming_damage_cap))
-        res.damage_final = int(total_damage)
-        if ctx.flags.damage.physical and base is not None:
-            physical_added = max(0.0, float(base) - base_before_physical)
-        trace_writer.trace_damage(
-            res,
-            raw=raw_damage,
-            final=total_damage,
-            min_d=min_d,
-            max_d=max_d,
-            base=base,
-            spread=spread,
-            parts=damage_parts,
-            armor=getattr(def_stats.mods, "armor", 0.0),
-            shield_absorb=shield_absorb,
-            shield_absorb_cap=shield_absorb_cap,
-            shield_absorb_ratio=shield_absorb_ratio,
-            shield_guard_power=shield_guard_power,
-            shield_reflect=shield_reflect,
-            shield_reflect_ratio=shield_reflect_ratio,
-            shield_mastery=shield_mastery,
-            weapon_technique_bonus_damage=ctx.mods.weapon_technique_bonus_damage,
-            phys_res=phys_res_raw,
-            physical_suppression=phys_suppression,
-            physical_resistance_suppression=phys_res_suppression_pct,
-            effective_phys_res=mitigation_pct,
-            crit_mult=crit_multiplier,
-            dbp={
-                "base": base_before_physical,
-                "weapon": getattr(atk_stats.mods, "physical_damage", 0.0) if ctx.flags.damage.physical else 0.0,
-                "bonus": getattr(atk_stats.mods, "physical_damage_bonus", 0.0) if ctx.flags.damage.physical else 0.0,
-                "added": physical_added,
-                "raw_roll": raw_damage,
-            },
-            resl={
-                "raw": phys_res_raw,
-                "effective": mitigation_pct,
-                "suppression": phys_suppression,
-                "suppression_pct": phys_res_suppression_pct,
-                "after": after_resist,
-            },
-            arm=armor_trace,
-            after_resist=after_resist,
-            after_armor=after_armor,
-            after_absorb=total_damage,
-            incoming_damage_cap=incoming_damage_cap or None,
-        )
-
-        res.is_hit = True
-        tags = []
-        if res.is_crit:
-            tags.append("CRIT")
-        res.events.append(
-            CombatEventDTO(
-                type="HIT",
-                source_id=source_id,
-                target_id=target_id,
-                value=res.damage_final,
-                resource="hp",
-                tags=tags,
-            )
-        )
-
-        return total_damage
+        # DEPRECATED facade — removed in Phase 6 after test surface migration.
+        return damage_step.run(atk_stats, def_stats, ctx, res)
 
     # ----- Helper facades (DEPRECATED — removed in Phase 6). -----
 

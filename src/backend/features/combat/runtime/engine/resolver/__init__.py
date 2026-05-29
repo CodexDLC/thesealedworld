@@ -1,18 +1,37 @@
-from typing import Any
+"""CombatResolver facade.
 
-from src.backend.features.combat.dto.actor import ActorStats
+Public contract preserved: ``from ...engine.resolver import CombatResolver``
+and ``CombatResolver.resolve_exchange(atk, def_, ctx)``. Internally the work
+flows through the orchestrator and Step singletons; the private ``_step_*``
+and helper methods remain on the class as deprecated delegates so the
+existing direct-call tests in ``test_runtime_processors.py`` keep passing
+until Phase 6 migrates them. All delegates carry a ``DEPRECATED facade``
+comment and will be removed in Phase 6.
+
+Damage decomposition (Phase 5) replaces the in-place ``_step_calculate_damage``
+implementation below with a sub-pipeline under ``steps/damage/``.
+"""
+
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Any
+
 from src.backend.features.combat.dto.pipeline import (
     CombatEventDTO,
-    CombatTriggerActivationDTO,
-    CombatTriggerAttemptDTO,
-    CombatTriggerFactDTO,
     InteractionResultDTO,
-    PipelineContextDTO,
 )
-from src.backend.features.combat.integrations import CombatCatalogIntegrator
 from src.backend.features.combat.runtime.engine.math_core import MathCore
-from src.backend.features.combat.runtime.engine.pipeline_mutation_service import PipelineMutationService
 
+from .orchestrator import run_exchange
+from .steps import (
+    accuracy_step,
+    block_step,
+    counter_check_step,
+    crit_step,
+    evasion_step,
+    healing_step,
+    parry_step,
+)
 from .support import (
     armor_math,
     offensive_lookup,
@@ -20,11 +39,14 @@ from .support import (
     trace_writer,
     trigger_activator,
 )
-from .support.offensive_lookup import BASE_ACCURACY_CHANCE
-from .support.token_awarder import TOKEN_BONUS_EXCLUDED
 
-PARRY_SKILL_MULT_PER_POINT = 4.0
-SHIELD_BLOCK_SKILL_MULT_PER_POINT = 1.5
+if TYPE_CHECKING:
+    from src.backend.features.combat.dto.actor import ActorStats
+    from src.backend.features.combat.dto.pipeline import (
+        CombatTriggerActivationDTO,
+        PipelineContextDTO,
+    )
+
 SHIELD_MASTERY_ABSORB_CAP_RATIO_AT_FULL = 0.50
 SHIELD_MASTERY_REFLECT_RATIO_AT_FULL = 0.50
 UNARMED_MIN_EFFICIENCY = 0.5
@@ -34,16 +56,15 @@ UNARMED_MASTER_SPREAD = 0.1
 
 
 class CombatResolver:
-    """
-    Stateless Math Engine.
-    Отвечает за расчет одного взаимодействия (Attacker -> Defender).
-    """
+    """Stateless math engine. Computes one Attacker → Defender exchange."""
 
     @classmethod
     def resolve_exchange(
-        cls, attacker_stats: ActorStats, defender_stats: ActorStats, context: PipelineContextDTO
+        cls,
+        attacker_stats: ActorStats,
+        defender_stats: ActorStats,
+        context: PipelineContextDTO,
     ) -> InteractionResultDTO:
-        # Используем уже созданный результат из контекста
         result = context.result
         if result is None:
             result = InteractionResultDTO()
@@ -51,405 +72,67 @@ class CombatResolver:
         if not context.phases.run_calculator:
             return result
 
-        # Ensure source_id and target_id are set in result from context if not already
         if result.source_id is None and context.result.source_id is not None:
             result.source_id = context.result.source_id
         if result.target_id is None and context.result.target_id is not None:
             result.target_id = context.result.target_id
 
-        # 1. Accuracy
-        if not cls._step_accuracy_roll(attacker_stats, context, result):
-            return result
-
-        # 2. Crit
-        cls._step_crit_roll(attacker_stats, defender_stats, context, result)
-
-        # 3. Evasion
-        if cls._step_evasion_roll(attacker_stats, defender_stats, context, result):
-            cls._step_counter_check(defender_stats, context, result)
-            return result
-
-        # 4. Parry
-        if cls._step_parry_roll(attacker_stats, defender_stats, context, result):
-            cls._step_counter_check(defender_stats, context, result)
-            return result
-
-        # 5. Block
-        if cls._step_block_roll(attacker_stats, defender_stats, context, result):
-            cls._step_counter_check(defender_stats, context, result)
-            return result
-
-        # 6. Damage
-        cls._step_calculate_damage(attacker_stats, defender_stats, context, result)
-
-        # 7. Healing (NEW)
-        cls._step_calculate_healing(attacker_stats, context, result)
-
-        # 8. Control Check
-        if result.is_hit:
-            cls._resolve_triggers(context, result, "ON_CHECK_CONTROL")
+        run_exchange(
+            attacker_stats,
+            defender_stats,
+            context,
+            result,
+            damage_callable=cls._step_calculate_damage,
+        )
 
         return result
 
-    @staticmethod
-    def _get_offensive_val(stats: ActorStats, ctx: PipelineContextDTO, key: str) -> float:
-        # DEPRECATED facade — removed in Phase 6 after test surface migration.
-        return offensive_lookup.get_offensive_val(stats, ctx, key)
+    # ----- Step facades (DEPRECATED — removed in Phase 6). -----
 
     @staticmethod
     def _step_accuracy_roll(atk_stats: ActorStats, ctx: PipelineContextDTO, res: InteractionResultDTO) -> bool:
-        if not ctx.stages.check_accuracy:
-            return True
-
-        source_id = res.source_id if res.source_id is not None else "0"
-        target_id = res.target_id if res.target_id is not None else "0"
-
-        if ctx.flags.force.miss:
-            res.is_miss = True
-            CombatResolver._award_defender_token(res, "tempo")
-            res.events.append(CombatEventDTO(type="MISS", source_id=source_id, target_id=target_id))
-            CombatResolver._trace_step(res, "accuracy", "fail", reason="force_miss")
-            return False
-
-        if ctx.flags.force.hit:
-            CombatResolver._resolve_triggers(ctx, res, "ON_ACCURACY_CHECK", source_stats=atk_stats)
-            CombatResolver._trace_step(res, "accuracy", "pass", reason="force_hit")
-            return True
-
-        accuracy_modifier = CombatResolver._get_offensive_val(atk_stats, ctx, "accuracy")
-        skill_bonus = CombatResolver._accuracy_skill_bonus(atk_stats, ctx)
-        multiplier = ctx.mods.accuracy_mult
-        final_acc = max(0.0, min(1.0, (BASE_ACCURACY_CHANCE + skill_bonus + accuracy_modifier) * multiplier))
-        roll, passed = MathCore.roll_chance(final_acc)
-        CombatResolver._trace_roll(
-            res,
-            "accuracy",
-            final_acc,
-            roll,
-            passed,
-            base=BASE_ACCURACY_CHANCE,
-            skill_bonus=skill_bonus,
-            modifier=accuracy_modifier,
-            mult=multiplier,
-            source_type=ctx.flags.meta.source_type,
-        )
-
-        if not passed:
-            res.is_miss = True
-            CombatResolver._award_defender_token(res, "tempo")
-            res.events.append(CombatEventDTO(type="MISS", source_id=source_id, target_id=target_id))
-            CombatResolver._resolve_triggers(ctx, res, "ON_MISS")
-            return False
-
-        CombatResolver._resolve_triggers(ctx, res, "ON_ACCURACY_CHECK", source_stats=atk_stats)
-        return True
+        # DEPRECATED facade — removed in Phase 6 after test surface migration.
+        return accuracy_step.run(atk_stats, atk_stats, ctx, res)
 
     @staticmethod
-    def _accuracy_skill_bonus(atk_stats: ActorStats, ctx: PipelineContextDTO) -> float:
+    def _step_crit_roll(
+        atk_stats: ActorStats, _def_stats: ActorStats, ctx: PipelineContextDTO, res: InteractionResultDTO
+    ) -> None:
         # DEPRECATED facade — removed in Phase 6 after test surface migration.
-        return offensive_lookup.accuracy_skill_bonus(atk_stats, ctx)
+        crit_step.run(atk_stats, _def_stats, ctx, res)
 
     @staticmethod
     def _step_evasion_roll(
         atk_stats: ActorStats, def_stats: ActorStats, ctx: PipelineContextDTO, res: InteractionResultDTO
     ) -> bool:
-        if not ctx.stages.check_evasion:
-            return False
-
-        source_id = res.source_id if res.source_id is not None else "0"
-        target_id = res.target_id if res.target_id is not None else "0"
-
-        CombatResolver._resolve_triggers(ctx, res, "ON_PRE_EVASION", source_stats=def_stats)
-
-        if ctx.flags.force.dodge:
-            res.is_dodged = True
-            CombatResolver._award_defender_token(res, "dodge")
-            res.events.append(CombatEventDTO(type="DODGE", source_id=source_id, target_id=target_id))
-            CombatResolver._resolve_triggers(ctx, res, "ON_DODGE")
-            ctx.flags.state.check_counter = True
-            return True
-
-        if ctx.flags.force.hit_evasion:
-            CombatResolver._resolve_triggers(ctx, res, "ON_DODGE_FAIL")
-            return False
-
-        base_evasion = def_stats.mods.evasion  # FIXED: dodge_chance -> evasion
-        evasion_cap = def_stats.mods.dodge_cap
-        anti_evasion = atk_stats.mods.anti_dodge_chance
-
-        if ctx.flags.formula.ignore_evasion_cap:
-            final_chance = base_evasion - anti_evasion
-        elif ctx.flags.formula.zero_anti_evasion:
-            final_chance = base_evasion
-            final_chance = min(final_chance, evasion_cap)
-        else:
-            final_chance = base_evasion - anti_evasion
-            final_chance = min(final_chance, evasion_cap)
-
-        evasion_mult = max(0.0, ctx.mods.target_evasion_mult)
-        final_chance = max(0.0, min(1.0, final_chance * evasion_mult))
-
-        if final_chance <= 0:
-            CombatResolver._resolve_triggers(ctx, res, "ON_DODGE_FAIL")
-            CombatResolver._trace_roll(
-                res,
-                "evasion",
-                final_chance,
-                None,
-                False,
-                base=base_evasion,
-                cap=evasion_cap,
-                anti=anti_evasion,
-                target_evasion_mult=evasion_mult,
-            )
-            return False
-
-        roll, passed = MathCore.roll_chance(final_chance)
-        CombatResolver._trace_roll(
-            res,
-            "evasion",
-            final_chance,
-            roll,
-            passed,
-            base=base_evasion,
-            cap=evasion_cap,
-            anti=anti_evasion,
-            target_evasion_mult=evasion_mult,
-        )
-
-        if passed:
-            res.is_dodged = True
-            CombatResolver._award_defender_token(res, "dodge")
-            res.events.append(CombatEventDTO(type="DODGE", source_id=source_id, target_id=target_id))
-            CombatResolver._resolve_triggers(ctx, res, "ON_DODGE")
-            ctx.flags.state.check_counter = True
-            return True
-        else:
-            CombatResolver._resolve_triggers(ctx, res, "ON_DODGE_FAIL")
-            return False
+        # DEPRECATED facade — removed in Phase 6 after test surface migration.
+        return evasion_step.run(atk_stats, def_stats, ctx, res)
 
     @staticmethod
     def _step_parry_roll(
         atk_stats: ActorStats, def_stats: ActorStats, ctx: PipelineContextDTO, res: InteractionResultDTO
     ) -> bool:
-        if not ctx.stages.check_parry:
-            return False
-
-        source_id = res.source_id if res.source_id is not None else "0"
-        target_id = res.target_id if res.target_id is not None else "0"
-
-        if ctx.flags.restriction.ignore_parry:
-            CombatResolver._resolve_triggers(ctx, res, "ON_PARRY_FAIL")
-            return False
-
-        if ctx.flags.force.parry:
-            res.is_parried = True
-            CombatResolver._award_defender_token(res, "parry")
-            res.events.append(CombatEventDTO(type="PARRY", source_id=source_id, target_id=target_id))
-            CombatResolver._resolve_triggers(ctx, res, "ON_PARRY")
-            if (
-                ctx.flags.mastery.medium_armor
-                or ctx.flags.state.allow_counter_on_parry
-                or ctx.flags.state.force_counter_on_parry
-            ):
-                ctx.flags.state.check_counter = True
-            return True
-
-        parry_base = def_stats.mods.parry  # FIXED: parry_chance -> parry
-        parry_cap = def_stats.mods.parry_cap
-        parrying = def_stats.skills.skill_parrying
-        skill_mult = 1.0 + (PARRY_SKILL_MULT_PER_POINT * parrying)
-        parry_chance = parry_base * skill_mult
-
-        if ctx.flags.formula.ignore_parry_cap:
-            final_chance = parry_chance
-        else:
-            final_chance = parry_chance
-            final_chance = min(final_chance, parry_cap)
-
-        parry_mult = max(0.0, ctx.mods.target_parry_mult)
-        final_chance = max(0.0, min(1.0, final_chance * parry_mult))
-
-        roll, passed = MathCore.roll_chance(final_chance)
-        CombatResolver._trace_roll(
-            res,
-            "parry",
-            final_chance,
-            roll,
-            passed,
-            base=parry_base,
-            cap=parry_cap,
-            skill=parrying,
-            skill_mult=skill_mult,
-            target_parry_mult=parry_mult,
-        )
-
-        if passed:
-            res.is_parried = True
-            CombatResolver._award_defender_token(res, "parry")
-            res.events.append(CombatEventDTO(type="PARRY", source_id=source_id, target_id=target_id))
-            CombatResolver._resolve_triggers(ctx, res, "ON_PARRY")
-
-            if ctx.flags.mastery.medium_armor:
-                mastery_chance = def_stats.skills.skill_medium_armor
-                if MathCore.check_chance(mastery_chance):
-                    ctx.flags.state.check_counter = True
-            elif ctx.flags.state.allow_counter_on_parry or ctx.flags.state.force_counter_on_parry:
-                ctx.flags.state.check_counter = True
-            return True
-        else:
-            CombatResolver._resolve_triggers(ctx, res, "ON_PARRY_FAIL")
-            return False
+        # DEPRECATED facade — removed in Phase 6 after test surface migration.
+        return parry_step.run(atk_stats, def_stats, ctx, res)
 
     @staticmethod
     def _step_block_roll(
         atk_stats: ActorStats, def_stats: ActorStats, ctx: PipelineContextDTO, res: InteractionResultDTO
     ) -> bool:
-        if not ctx.stages.check_block:
-            return False
-
-        source_id = res.source_id if res.source_id is not None else "0"
-        target_id = res.target_id if res.target_id is not None else "0"
-
-        if ctx.flags.restriction.ignore_block:
-            CombatResolver._resolve_triggers(ctx, res, "ON_BLOCK_FAIL")
-            return False
-        if ctx.flags.force.block:
-            res.is_blocked = True
-            CombatResolver._award_defender_token(res, "block")
-            res.events.append(CombatEventDTO(type="BLOCK", source_id=source_id, target_id=target_id))
-            CombatResolver._resolve_triggers(ctx, res, "ON_BLOCK")
-            return True
-
-        block_base = def_stats.mods.block  # FIXED: shield_block_chance -> block
-        block_cap = def_stats.mods.shield_block_cap
-        parrying = def_stats.skills.skill_parrying
-        skill_mult = 1.0 + (SHIELD_BLOCK_SKILL_MULT_PER_POINT * parrying)
-        block_chance = block_base * skill_mult
-
-        final_chance = block_chance if ctx.flags.formula.ignore_block_cap else min(block_chance, block_cap)
-
-        roll, passed = MathCore.roll_chance(final_chance)
-        CombatResolver._trace_roll(
-            res,
-            "block",
-            final_chance,
-            roll,
-            passed,
-            base=block_base,
-            cap=block_cap,
-            skill=parrying,
-            skill_mult=skill_mult,
-        )
-
-        if passed:
-            res.is_blocked = True
-            CombatResolver._award_defender_token(res, "block")
-            res.events.append(CombatEventDTO(type="BLOCK", source_id=source_id, target_id=target_id))
-            CombatResolver._resolve_triggers(ctx, res, "ON_BLOCK")
-            return True
-
-        CombatResolver._resolve_triggers(ctx, res, "ON_BLOCK_FAIL")
-        return False
-
-    @staticmethod
-    def _step_counter_check(def_stats: ActorStats, ctx: PipelineContextDTO, res: InteractionResultDTO):
-        if not ctx.stages.check_counter or not ctx.flags.state.check_counter:
-            return
-
-        base_chance = def_stats.mods.counter_attack_chance
-        cap = def_stats.mods.counter_attack_cap
-        counter_chance = min(base_chance, cap)
-
-        if res.is_dodged and ctx.flags.mastery.light_armor and MathCore.check_chance(0.50):
-            skill_lvl = def_stats.skills.skill_light_armor
-            mult = 1.0 + skill_lvl
-            counter_chance *= mult
-
-        if ctx.flags.formula.counter_chance_boost:
-            counter_chance += 0.20
-
-        if res.is_dodged:
-            counter_chance += ctx.mods.counter_chance_bonus_on_dodge
-
-        if res.is_parried:
-            counter_chance += ctx.mods.counter_chance_bonus_on_parry
-
-        if res.is_dodged and ctx.flags.state.counter_to_cap_on_dodge:
-            counter_chance = max(counter_chance, cap)
-
-        if (res.is_dodged and ctx.flags.state.force_counter_on_dodge) or (
-            res.is_parried and ctx.flags.state.force_counter_on_parry
-        ):
-            counter_chance = 1.0
-
-        if counter_chance > 0 and MathCore.check_chance(counter_chance):
-            res.is_counter = True
-            CombatResolver._award_defender_token(res, "counter")
-            res.chain_events.trigger_counter_attack = True
-
-    @staticmethod
-    def _step_crit_roll(
-        atk_stats: ActorStats, _def_stats: ActorStats, ctx: PipelineContextDTO, res: InteractionResultDTO
-    ):
-        if not ctx.stages.check_crit:
-            return
-
-        if ctx.flags.force.crit:
-            res.is_crit = True
-            if not ctx.flags.restriction.suppress_crit_triggers:
-                CombatResolver._resolve_triggers(ctx, res, "ON_CRIT")
-            return
-
-        if ctx.flags.restriction.cannot_crit:
-            CombatResolver._resolve_triggers(ctx, res, "ON_CRIT_FAIL")
-            return
-
-        is_magic = False
-        elements = ["fire", "water", "air", "earth", "light", "darkness", "arcane", "nature"]
-        for elem in elements:
-            if getattr(ctx.flags.damage, elem, False):
-                is_magic = True
-                break
-
-        if is_magic:
-            my_crit_chance = atk_stats.mods.magical_crit_chance
-        else:
-            my_crit_chance = CombatResolver._get_offensive_val(atk_stats, ctx, "crit_chance")
-
-        skill_multiplier = 1.0
-        if ctx.flags.meta.weapon_class:
-            skill_key = f"skill_{ctx.flags.meta.weapon_class}"
-            skill_val = getattr(atk_stats.skills, skill_key, 0.0)
-            skill_multiplier = 1.0 + skill_val
-
-        final_chance = my_crit_chance * skill_multiplier
-        crit_cap = CombatResolver._get_offensive_val(atk_stats, ctx, "crit_cap")
-        final_chance = min(final_chance, crit_cap)
-
-        roll, passed = MathCore.roll_chance(final_chance)
-        CombatResolver._trace_roll(
-            res,
-            "crit",
-            final_chance,
-            roll,
-            passed,
-            base=my_crit_chance,
-            cap=crit_cap,
-            skill_mult=skill_multiplier,
-        )
-
-        if passed:
-            res.is_crit = True
-            if not ctx.flags.restriction.suppress_crit_triggers:
-                CombatResolver._resolve_triggers(ctx, res, "ON_CRIT")
-        else:
-            CombatResolver._resolve_triggers(ctx, res, "ON_CRIT_FAIL")
-
-    @staticmethod
-    def _calculate_crit_multiplier(ctx: PipelineContextDTO) -> float:
         # DEPRECATED facade — removed in Phase 6 after test surface migration.
-        return armor_math.calculate_crit_multiplier(ctx)
+        return block_step.run(atk_stats, def_stats, ctx, res)
+
+    @staticmethod
+    def _step_counter_check(def_stats: ActorStats, ctx: PipelineContextDTO, res: InteractionResultDTO) -> None:
+        # DEPRECATED facade — removed in Phase 6 after test surface migration.
+        counter_check_step.run(def_stats, def_stats, ctx, res)
+
+    @staticmethod
+    def _step_calculate_healing(atk_stats: ActorStats, ctx: PipelineContextDTO, res: InteractionResultDTO) -> float:
+        # DEPRECATED facade — removed in Phase 6 after test surface migration.
+        return healing_step.run(atk_stats, atk_stats, ctx, res)
+
+    # ----- Damage step body (decomposed into per-phase classes in Phase 5). -----
 
     @staticmethod
     def _step_calculate_damage(
@@ -466,8 +149,8 @@ class CombatResolver:
             base = None
             spread = None
         else:
-            base = CombatResolver._get_offensive_val(atk_stats, ctx, "damage_base")
-            spread = CombatResolver._get_offensive_val(atk_stats, ctx, "damage_spread")
+            base = offensive_lookup.get_offensive_val(atk_stats, ctx, "damage_base")
+            spread = offensive_lookup.get_offensive_val(atk_stats, ctx, "damage_spread")
 
             if ctx.flags.damage.physical:
                 if ctx.flags.meta.weapon_class == "unarmed":
@@ -496,7 +179,7 @@ class CombatResolver:
             "passed": False,
         }
         phys_res_raw = max(0.0, getattr(def_stats.mods, "physical_resistance", 0.0))
-        phys_suppression = max(0.0, CombatResolver._get_offensive_val(atk_stats, ctx, "physical_suppression"))
+        phys_suppression = max(0.0, offensive_lookup.get_offensive_val(atk_stats, ctx, "physical_suppression"))
         phys_res_suppression_pct = (
             max(0.0, ctx.mods.physical_resistance_suppression_pct)
             if ctx.flags.formula.suppress_physical_resistance
@@ -507,7 +190,7 @@ class CombatResolver:
 
         crit_multiplier = 1.0
         if res.is_crit:
-            crit_multiplier = CombatResolver._calculate_crit_multiplier(ctx)
+            crit_multiplier = armor_math.calculate_crit_multiplier(ctx)
             res.crit_mult = crit_multiplier
 
         if ctx.flags.damage.physical:
@@ -521,19 +204,19 @@ class CombatResolver:
                     if bonus_part > 0:
                         phys_dmg *= 1.0 - (heavy_skill * 0.2)
 
-            mitigation_pct = CombatResolver._effective_physical_resistance(atk_stats, def_stats, ctx)
+            mitigation_pct = armor_math.effective_physical_resistance(atk_stats, def_stats, ctx)
             phys_dmg *= 1.0 - mitigation_pct
             after_resist = phys_dmg
 
-            armor_flat, armor_trace = CombatResolver._effective_armor_trace(atk_stats, def_stats, ctx)
+            armor_flat, armor_trace = armor_math.effective_armor_trace(atk_stats, def_stats, ctx)
             phys_dmg = max(0.0, phys_dmg - armor_flat)
             after_armor = phys_dmg
             damage_parts["physical"] = phys_dmg
 
             if res.is_crit:
-                CombatResolver._award_attacker_token(res, "crit")
+                token_awarder.award_attacker_token(res, "crit")
             else:
-                CombatResolver._award_attacker_token(res, "hit")
+                token_awarder.award_attacker_token(res, "hit")
 
             total_damage += phys_dmg
 
@@ -612,7 +295,7 @@ class CombatResolver:
         res.damage_final = int(total_damage)
         if ctx.flags.damage.physical and base is not None:
             physical_added = max(0.0, float(base) - base_before_physical)
-        CombatResolver._trace_damage(
+        trace_writer.trace_damage(
             res,
             raw=raw_damage,
             final=total_damage,
@@ -656,12 +339,10 @@ class CombatResolver:
             incoming_damage_cap=incoming_damage_cap or None,
         )
 
-        # [EVENT] HIT
         res.is_hit = True
         tags = []
         if res.is_crit:
             tags.append("CRIT")
-
         res.events.append(
             CombatEventDTO(
                 type="HIT",
@@ -675,66 +356,39 @@ class CombatResolver:
 
         return total_damage
 
+    # ----- Helper facades (DEPRECATED — removed in Phase 6). -----
+
     @staticmethod
-    def _step_calculate_healing(atk_stats: ActorStats, ctx: PipelineContextDTO, res: InteractionResultDTO) -> float:
-        """
-        Расчет лечения (Healing).
-        Использует магические статы или override_damage.
-        """
-        if not ctx.stages.calculate_healing:
-            return 0.0
+    def _get_offensive_val(stats: ActorStats, ctx: PipelineContextDTO, key: str) -> float:
+        # DEPRECATED facade — removed in Phase 6 after test surface migration.
+        return offensive_lookup.get_offensive_val(stats, ctx, key)
 
-        source_id = res.source_id if res.source_id is not None else "0"
-        target_id = res.target_id if res.target_id is not None else "0"
+    @staticmethod
+    def _accuracy_skill_bonus(atk_stats: ActorStats, ctx: PipelineContextDTO) -> float:
+        # DEPRECATED facade — removed in Phase 6 after test surface migration.
+        return offensive_lookup.accuracy_skill_bonus(atk_stats, ctx)
 
-        # 1. Базовое значение
-        if ctx.override_damage:
-            min_h, max_h = ctx.override_damage
-        else:
-            # Если нет override, берем магическую базу (или 0)
-            # TODO: Можно добавить healing_base в статы
-            base = atk_stats.mods.magical_damage  # FIXED: magical_damage_base -> magical_damage
-            min_h = base * 0.9
-            max_h = base * 1.1
+    @staticmethod
+    def _calculate_crit_multiplier(ctx: PipelineContextDTO) -> float:
+        # DEPRECATED facade — removed in Phase 6 after test surface migration.
+        return armor_math.calculate_crit_multiplier(ctx)
 
-        raw_healing = MathCore.random_range(min_h, max_h)
+    @staticmethod
+    def _effective_armor(atk_stats: ActorStats, def_stats: ActorStats, ctx: PipelineContextDTO) -> float:
+        # DEPRECATED facade — removed in Phase 6 after test surface migration.
+        return armor_math.effective_armor(atk_stats, def_stats, ctx)
 
-        # 2. Крит
-        if res.is_crit:
-            raw_healing *= 1.5  # Стандартный крит хила
-            res.crit_mult = 1.5
+    @staticmethod
+    def _effective_armor_trace(
+        atk_stats: ActorStats, def_stats: ActorStats, ctx: PipelineContextDTO
+    ) -> tuple[float, dict[str, Any]]:
+        # DEPRECATED facade — removed in Phase 6 after test surface migration.
+        return armor_math.effective_armor_trace(atk_stats, def_stats, ctx)
 
-        # 3. Бонусы (Anatomy / Healing Power)
-        # Пока используем intelligence как бонус
-        # TODO: Добавить healing_power_mult в статы
-
-        final_healing = int(raw_healing)
-        res.healing_final = final_healing
-
-        # Записываем в resource_changes (чтобы MechanicsService применил)
-        if "hp" not in res.resource_changes:
-            res.resource_changes["hp"] = {}
-
-        # Используем ключ "heal" для WaterfallCalculator
-        res.resource_changes["hp"]["heal"] = f"+{final_healing}"
-
-        # [EVENT] HEAL
-        tags = []
-        if res.is_crit:
-            tags.append("CRIT")
-
-        res.events.append(
-            CombatEventDTO(
-                type="HEAL",
-                source_id=source_id,
-                target_id=target_id,
-                value=final_healing,
-                resource="hp",
-                tags=tags,
-            )
-        )
-
-        return float(final_healing)
+    @staticmethod
+    def _effective_physical_resistance(atk_stats: ActorStats, def_stats: ActorStats, ctx: PipelineContextDTO) -> float:
+        # DEPRECATED facade — removed in Phase 6 after test surface migration.
+        return armor_math.effective_physical_resistance(atk_stats, def_stats, ctx)
 
     @staticmethod
     def _resolve_triggers(
@@ -743,98 +397,16 @@ class CombatResolver:
         step_key: str,
         *,
         source_stats: ActorStats | None = None,
-    ):
-        """
-        Обрабатывает триггеры, используя глобальную библиотеку правил.
-        Использует вложенный поиск по TriggerRulesFlagsDTO.
-        """
-        # 1. Определяем секцию DTO
-        dto_section: Any = None
-        if step_key == "ON_ACCURACY_CHECK" or step_key == "ON_MISS":
-            dto_section = ctx.triggers.accuracy
-        elif step_key == "ON_CRIT" or step_key == "ON_CRIT_FAIL":
-            dto_section = ctx.triggers.crit
-        elif step_key in {"ON_PRE_EVASION", "ON_DODGE", "ON_DODGE_FAIL"}:
-            dto_section = ctx.triggers.dodge
-        elif step_key == "ON_PARRY" or step_key == "ON_PARRY_FAIL":
-            dto_section = ctx.triggers.parry
-        elif step_key == "ON_BLOCK" or step_key == "ON_BLOCK_FAIL":
-            dto_section = ctx.triggers.block
-        elif step_key == "ON_CHECK_CONTROL":
-            dto_section = ctx.triggers.control
-        elif step_key == "ON_DAMAGE":
-            dto_section = ctx.triggers.damage
+    ) -> None:
+        # DEPRECATED facade — removed in Phase 6 after test surface migration.
+        trigger_activator.resolve_triggers(ctx, res, step_key, source_stats=source_stats)
 
-        if not dto_section:
-            return
-
-        # 2. Находим активные флаги (True)
-        active_rule_ids = [k for k, v in dto_section.model_dump().items() if v is True]
-
-        if not active_rule_ids:
-            return
-
-        # 3. Ищем правила
-        for rule_id in active_rule_ids:
-            rule_data = CombatCatalogIntegrator.get_trigger_rule(rule_id)
-            if not rule_data:
-                continue
-
-            if rule_data.get("event") != step_key:
-                continue
-
-            activation = CombatResolver._select_trigger_activation(ctx, rule_id, rule_data)
-            if activation is None:
-                continue
-
-            # 4. Шанс
-            chance = CombatResolver._trigger_chance(rule_data, source_stats=source_stats)
-
-            roll, passed = MathCore.roll_chance(chance)
-            tags = [*activation.tags, *[str(tag) for tag in rule_data.get("tags", [])]]
-            res.trigger_attempts.append(
-                CombatTriggerAttemptDTO(
-                    trigger_id=rule_id,
-                    event=step_key,
-                    source=activation.source,
-                    source_id=activation.source_id,
-                    source_slot=activation.source_slot,
-                    chance=chance,
-                    roll=roll,
-                    passed=passed,
-                    display_policy=str(rule_data.get("display_policy") or "merge"),
-                    stacking_rule=str(rule_data.get("stacking_rule") or "unique"),
-                    tags=tags,
-                )
-            )
-
-            if not passed:
-                continue
-
-            res.fired_triggers.append(rule_id)
-            res.trigger_facts.append(
-                CombatTriggerFactDTO(
-                    trigger_id=rule_id,
-                    event=step_key,
-                    source=activation.source,
-                    source_id=activation.source_id,
-                    source_slot=activation.source_slot,
-                    chance=chance,
-                    display_policy=str(rule_data.get("display_policy") or "merge"),
-                    stacking_rule=str(rule_data.get("stacking_rule") or "unique"),
-                    tags=tags,
-                )
-            )
-
-            # 5. Pipeline-local mutations. Effects/tokens stay separate technical outputs.
-            PipelineMutationService.apply(
-                applications=rule_data.get("pipeline_mutations", []),
-                ctx=ctx,
-                source=activation.source,
-                source_id=activation.source_id or rule_id,
-            )
-            CombatResolver._apply_trigger_effects(ctx, res, activation, rule_id, rule_data, step_key=step_key)
-            CombatResolver._apply_trigger_token_grants(res, rule_data)
+    @staticmethod
+    def _select_trigger_activation(
+        ctx: PipelineContextDTO, rule_id: str, rule_data: dict[str, Any]
+    ) -> CombatTriggerActivationDTO | None:
+        # DEPRECATED facade — removed in Phase 6 after test surface migration.
+        return trigger_activator.select_trigger_activation(ctx, rule_id, rule_data)
 
     @staticmethod
     def _trigger_chance(rule_data: dict[str, Any], *, source_stats: ActorStats | None = None) -> float:
@@ -855,60 +427,29 @@ class CombatResolver:
         trigger_activator.apply_trigger_effects(ctx, res, activation, rule_id, rule_data, step_key=step_key)
 
     @staticmethod
-    def _apply_trigger_token_grants(
-        res: InteractionResultDTO,
-        rule_data: dict[str, Any],
-    ) -> None:
-        attacker_tokens = rule_data.get("token_grants_attacker", [])
-        defender_tokens = rule_data.get("token_grants_defender", [])
-        for token in attacker_tokens:
-            CombatResolver._award_attacker_token(res, str(token))
-        for token in defender_tokens:
-            CombatResolver._award_defender_token(res, str(token))
+    def _apply_trigger_token_grants(res: InteractionResultDTO, rule_data: dict[str, Any]) -> None:
+        # DEPRECATED facade — removed in Phase 6 after test surface migration.
+        trigger_activator.apply_trigger_token_grants(res, rule_data)
 
     @staticmethod
     def _award_attacker_token(res: InteractionResultDTO, token: str) -> None:
-        CombatResolver._award_token(res.tokens_awarded_attacker, token)
+        # DEPRECATED facade — removed in Phase 6 after test surface migration.
+        token_awarder.award_attacker_token(res, token)
 
     @staticmethod
     def _award_defender_token(res: InteractionResultDTO, token: str) -> None:
-        CombatResolver._award_token(res.tokens_awarded_defender, token)
+        # DEPRECATED facade — removed in Phase 6 after test surface migration.
+        token_awarder.award_defender_token(res, token)
 
     @staticmethod
     def _award_token(bucket: dict[str, int], token: str) -> None:
-        amount = 1
-        if token not in TOKEN_BONUS_EXCLUDED and CombatResolver._bonus_token_roll():
-            amount = 2
-        bucket[token] = bucket.get(token, 0) + amount
+        # DEPRECATED facade — removed in Phase 6 after test surface migration.
+        token_awarder.award_token(bucket, token)
 
     @staticmethod
     def _bonus_token_roll() -> bool:
         # DEPRECATED facade — removed in Phase 6 after test surface migration.
         return token_awarder.bonus_token_roll()
-
-    @staticmethod
-    def _effective_armor(atk_stats: ActorStats, def_stats: ActorStats, ctx: PipelineContextDTO) -> float:
-        # DEPRECATED facade — removed in Phase 6 after test surface migration.
-        return armor_math.effective_armor(atk_stats, def_stats, ctx)
-
-    @staticmethod
-    def _effective_armor_trace(
-        atk_stats: ActorStats, def_stats: ActorStats, ctx: PipelineContextDTO
-    ) -> tuple[float, dict[str, Any]]:
-        # DEPRECATED facade — removed in Phase 6 after test surface migration.
-        return armor_math.effective_armor_trace(atk_stats, def_stats, ctx)
-
-    @staticmethod
-    def _effective_physical_resistance(atk_stats: ActorStats, def_stats: ActorStats, ctx: PipelineContextDTO) -> float:
-        # DEPRECATED facade — removed in Phase 6 after test surface migration.
-        return armor_math.effective_physical_resistance(atk_stats, def_stats, ctx)
-
-    @staticmethod
-    def _select_trigger_activation(
-        ctx: PipelineContextDTO, rule_id: str, rule_data: dict[str, Any]
-    ) -> CombatTriggerActivationDTO | None:
-        # DEPRECATED facade — removed in Phase 6 after test surface migration.
-        return trigger_activator.select_trigger_activation(ctx, rule_id, rule_data)
 
     @staticmethod
     def _trace_roll(

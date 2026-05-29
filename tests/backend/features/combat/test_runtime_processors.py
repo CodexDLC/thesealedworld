@@ -38,6 +38,7 @@ from src.backend.features.combat.runtime.engine.math_core import MathCore
 from src.backend.features.combat.runtime.engine.mechanics_service import MechanicsService
 from src.backend.features.combat.runtime.engine.pipeline import CombatPipeline
 from src.backend.features.combat.runtime.engine.resolver import CombatResolver
+from src.backend.features.combat.runtime.engine.resolver.support import token_awarder
 from src.backend.features.combat.runtime.engine.stats_engine import StatsEngine
 from src.backend.features.combat.runtime.engine.target_resolver import TargetResolver
 from src.backend.features.combat.runtime.engine.trigger_activation import activate_trigger
@@ -3788,7 +3789,7 @@ def test_ranged_combat_style_perfect_backstep_forces_dodge(
         return 0.0, True
 
     monkeypatch.setattr(MathCore, "roll_chance", staticmethod(fake_roll_chance))
-    monkeypatch.setattr(CombatResolver, "_bonus_token_roll", staticmethod(lambda: False))
+    monkeypatch.setattr(token_awarder, "bonus_token_roll", lambda: False)
     ctx = PipelineContextDTO()
     result = InteractionResultDTO(source_id=1, target_id=2)
     ctx.result = result
@@ -4339,7 +4340,7 @@ def test_item_source_type_reads_item_offensive_modifiers() -> None:
 
 @pytest.mark.unit
 def test_token_award_can_double_non_excluded_combat_tokens(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(CombatResolver, "_bonus_token_roll", staticmethod(lambda: True))
+    monkeypatch.setattr(token_awarder, "bonus_token_roll", lambda: True)
     bucket = {"hit": 1}
 
     CombatResolver._award_token(bucket, "hit")
@@ -4349,7 +4350,7 @@ def test_token_award_can_double_non_excluded_combat_tokens(monkeypatch: pytest.M
 
 @pytest.mark.unit
 def test_token_award_does_not_double_tempo_or_gift(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(CombatResolver, "_bonus_token_roll", staticmethod(lambda: True))
+    monkeypatch.setattr(token_awarder, "bonus_token_roll", lambda: True)
     bucket: dict[str, int] = {}
 
     CombatResolver._award_token(bucket, "tempo")
@@ -4360,7 +4361,7 @@ def test_token_award_does_not_double_tempo_or_gift(monkeypatch: pytest.MonkeyPat
 
 @pytest.mark.unit
 def test_trigger_token_grants_use_bonus_award_rule(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(CombatResolver, "_bonus_token_roll", staticmethod(lambda: True))
+    monkeypatch.setattr(token_awarder, "bonus_token_roll", lambda: True)
     result = InteractionResultDTO(source_id=1, target_id=2)
 
     CombatResolver._apply_trigger_token_grants(

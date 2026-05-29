@@ -31,6 +31,7 @@ from src.backend.features.combat.dto import (
 from src.backend.features.combat.dto.actor import ActorStats
 from src.backend.features.combat.runtime.engine.ability_service import AbilityService
 from src.backend.features.combat.runtime.engine.resolver import CombatResolver
+from src.backend.features.combat.runtime.engine.resolver.support import trigger_activator
 from src.shared.schemas.modifier_dto import CombatModifiersDTO, CombatSkillsDTO
 
 EXPECTED_TRIGGER_EVENTS: frozenset[str] = frozenset(
@@ -100,14 +101,14 @@ def _run_scenario(configure: Callable[[PipelineContextDTO], None]) -> list[str]:
     configure(ctx)
 
     observed: list[str] = []
-    original = CombatResolver._resolve_triggers
+    original = trigger_activator.resolve_triggers
 
     def spy(ctx_, res_, step_key, *, source_stats=None):
         observed.append(step_key)
         return original(ctx_, res_, step_key, source_stats=source_stats)
 
     with pytest.MonkeyPatch.context() as mp:
-        mp.setattr(CombatResolver, "_resolve_triggers", staticmethod(spy))
+        mp.setattr(trigger_activator, "resolve_triggers", spy)
         CombatResolver.resolve_exchange(source.stats, target.stats, ctx)
 
     return observed

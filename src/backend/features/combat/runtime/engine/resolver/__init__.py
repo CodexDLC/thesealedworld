@@ -1,12 +1,7 @@
-import random
 from typing import Any
-
-from loguru import logger as log
 
 from src.backend.features.combat.dto.actor import ActorStats
 from src.backend.features.combat.dto.pipeline import (
-    CombatCheckTraceDTO,
-    CombatDamageTraceDTO,
     CombatEventDTO,
     CombatTriggerActivationDTO,
     CombatTriggerAttemptDTO,
@@ -18,18 +13,24 @@ from src.backend.features.combat.integrations import CombatCatalogIntegrator
 from src.backend.features.combat.runtime.engine.math_core import MathCore
 from src.backend.features.combat.runtime.engine.pipeline_mutation_service import PipelineMutationService
 
+from .support import (
+    armor_math,
+    offensive_lookup,
+    token_awarder,
+    trace_writer,
+    trigger_activator,
+)
+from .support.offensive_lookup import BASE_ACCURACY_CHANCE
+from .support.token_awarder import TOKEN_BONUS_EXCLUDED
+
 PARRY_SKILL_MULT_PER_POINT = 4.0
 SHIELD_BLOCK_SKILL_MULT_PER_POINT = 1.5
 SHIELD_MASTERY_ABSORB_CAP_RATIO_AT_FULL = 0.50
 SHIELD_MASTERY_REFLECT_RATIO_AT_FULL = 0.50
-BASE_ACCURACY_CHANCE = 0.70
-SKILL_ACCURACY_BONUS_AT_FULL = 0.30
 UNARMED_MIN_EFFICIENCY = 0.5
 UNARMED_MAX_EFFICIENCY = 3.0
 UNARMED_NOVICE_SPREAD = 0.5
 UNARMED_MASTER_SPREAD = 0.1
-TOKEN_BONUS_CHANCE = 0.30
-TOKEN_BONUS_EXCLUDED = frozenset({"tempo", "gift"})
 
 
 class CombatResolver:
@@ -92,69 +93,8 @@ class CombatResolver:
 
     @staticmethod
     def _get_offensive_val(stats: ActorStats, ctx: PipelineContextDTO, key: str) -> float:
-        """
-        Получает значение модификатора в зависимости от источника (main_hand, off_hand, magic, item).
-        """
-        source = ctx.flags.meta.source_type
-
-        # Маппинг ключей
-        prefix = "main_hand"  # Default is Main Hand (Physical)
-        if source == "off_hand":
-            prefix = "off_hand"
-        elif source == "magic":
-            prefix = "magical"
-        elif source == "item":
-            prefix = "item"
-
-        # Спец. кейсы (явный доступ к полям DTO)
-        if key == "damage_base":
-            return {
-                "off_hand": stats.mods.off_hand_damage_base,
-                "magic": stats.mods.magical_damage,  # FIXED: magical_damage_base -> magical_damage
-                "item": stats.mods.item_damage_base,
-            }.get(source, stats.mods.main_hand_damage_base)
-
-        if key == "crit_chance":
-            return {
-                "magic": stats.mods.magical_crit_chance,
-                "item": stats.mods.item_crit_chance,
-                "off_hand": stats.mods.off_hand_crit_chance + stats.mods.crit_chance,
-            }.get(source, stats.mods.main_hand_crit_chance + stats.mods.crit_chance)
-
-        if key == "accuracy":
-            return {
-                "magic": stats.mods.magical_accuracy + stats.mods.accuracy,
-                "item": stats.mods.item_accuracy,
-                "off_hand": stats.mods.off_hand_accuracy + stats.mods.accuracy,
-            }.get(source, stats.mods.main_hand_accuracy + stats.mods.accuracy)
-
-        if key == "physical_suppression":
-            return {
-                "magic": 0.0,
-                "item": 0.0,
-                "off_hand": stats.mods.physical_suppression,
-            }.get(source, stats.mods.physical_suppression)
-
-        if key == "armor_penetration_pct":
-            return {
-                "magic": 0.0,
-                "item": stats.mods.item_armor_penetration_pct + stats.mods.armor_penetration_pct,
-                "off_hand": stats.mods.off_hand_armor_penetration_pct + stats.mods.armor_penetration_pct,
-            }.get(source, stats.mods.main_hand_armor_penetration_pct + stats.mods.armor_penetration_pct)
-
-        if key == "armor_ignore_chance":
-            return {
-                "magic": 0.0,
-                "item": stats.mods.item_armor_ignore_chance + stats.mods.armor_ignore_chance,
-                "off_hand": stats.mods.off_hand_armor_ignore_chance + stats.mods.armor_ignore_chance,
-            }.get(source, stats.mods.main_hand_armor_ignore_chance + stats.mods.armor_ignore_chance)
-
-        # Fallback (если ключ не специфичен, например damage_spread)
-        full_key = f"{prefix}_{key}"
-        if hasattr(stats.mods, full_key):
-            return getattr(stats.mods, full_key)
-
-        return 0.0
+        # DEPRECATED facade — removed in Phase 6 after test surface migration.
+        return offensive_lookup.get_offensive_val(stats, ctx, key)
 
     @staticmethod
     def _step_accuracy_roll(atk_stats: ActorStats, ctx: PipelineContextDTO, res: InteractionResultDTO) -> bool:
@@ -206,12 +146,8 @@ class CombatResolver:
 
     @staticmethod
     def _accuracy_skill_bonus(atk_stats: ActorStats, ctx: PipelineContextDTO) -> float:
-        weapon_class = ctx.flags.meta.weapon_class
-        if not weapon_class:
-            return 0.0
-        skill_val = getattr(atk_stats.skills, f"skill_{weapon_class}", 0.0)
-        normalized = max(0.0, min(1.0, float(skill_val or 0.0)))
-        return normalized * SKILL_ACCURACY_BONUS_AT_FULL
+        # DEPRECATED facade — removed in Phase 6 after test surface migration.
+        return offensive_lookup.accuracy_skill_bonus(atk_stats, ctx)
 
     @staticmethod
     def _step_evasion_roll(
@@ -512,15 +448,8 @@ class CombatResolver:
 
     @staticmethod
     def _calculate_crit_multiplier(ctx: PipelineContextDTO) -> float:
-        elements = ["fire", "water", "air", "earth", "light", "darkness", "arcane", "nature"]
-        is_magic = any(getattr(ctx.flags.damage, elem, False) for elem in elements)
-        if is_magic:
-            return 3.0
-
-        if ctx.flags.formula.crit_damage_boost:
-            return ctx.mods.weapon_effect_value
-
-        return 1.0
+        # DEPRECATED facade — removed in Phase 6 after test surface migration.
+        return armor_math.calculate_crit_multiplier(ctx)
 
     @staticmethod
     def _step_calculate_damage(
@@ -909,20 +838,8 @@ class CombatResolver:
 
     @staticmethod
     def _trigger_chance(rule_data: dict[str, Any], *, source_stats: ActorStats | None = None) -> float:
-        raw_chance = rule_data.get("chance", 0.0)
-        chance = float(raw_chance) if isinstance(raw_chance, (int, float)) else 0.0
-
-        skill_key = rule_data.get("chance_skill_key")
-        if source_stats is not None and isinstance(skill_key, str) and skill_key:
-            raw_scale = rule_data.get("chance_skill_scale", 0.0)
-            scale = float(raw_scale) if isinstance(raw_scale, (int, float)) else 0.0
-            chance += max(0.0, getattr(source_stats.skills, skill_key, 0.0)) * scale
-
-        raw_cap = rule_data.get("chance_cap")
-        if isinstance(raw_cap, (int, float)):
-            chance = min(chance, float(raw_cap))
-
-        return max(0.0, chance)
+        # DEPRECATED facade — removed in Phase 6 after test surface migration.
+        return trigger_activator.trigger_chance(rule_data, source_stats=source_stats)
 
     @staticmethod
     def _apply_trigger_effects(
@@ -934,31 +851,8 @@ class CombatResolver:
         *,
         step_key: str,
     ) -> None:
-        for effect_id in rule_data.get("applied_effect_ids", []):
-            effect_data = {"id": effect_id, "source_trigger_id": rule_id}
-            if step_key == "ON_CRIT":
-                conditions = effect_data.setdefault("conditions", {})
-                conditions.setdefault("is_hit", True)
-                conditions.setdefault("is_crit", True)
-            res.applied_effects.append(effect_data)
-
-        if activation.source != "weapon" or not activation.source_slot:
-            return
-
-        for payload in ctx.trigger_effect_payloads.get(activation.source_slot, []):
-            if not isinstance(payload, dict):
-                continue
-            effect_id = payload.get("id") or payload.get("effect_id")
-            if not isinstance(effect_id, str):
-                continue
-            effect_data = dict(payload)
-            effect_data["id"] = effect_id
-            effect_data.setdefault("source_trigger_id", rule_id)
-            if step_key == "ON_CRIT":
-                conditions = effect_data.setdefault("conditions", {})
-                conditions.setdefault("is_hit", True)
-                conditions.setdefault("is_crit", True)
-            res.applied_effects.append(effect_data)
+        # DEPRECATED facade — removed in Phase 6 after test surface migration.
+        trigger_activator.apply_trigger_effects(ctx, res, activation, rule_id, rule_data, step_key=step_key)
 
     @staticmethod
     def _apply_trigger_token_grants(
@@ -989,84 +883,32 @@ class CombatResolver:
 
     @staticmethod
     def _bonus_token_roll() -> bool:
-        return random.random() < TOKEN_BONUS_CHANCE  # nosec B311
+        # DEPRECATED facade — removed in Phase 6 after test surface migration.
+        return token_awarder.bonus_token_roll()
 
     @staticmethod
     def _effective_armor(atk_stats: ActorStats, def_stats: ActorStats, ctx: PipelineContextDTO) -> float:
-        return CombatResolver._effective_armor_trace(atk_stats, def_stats, ctx)[0]
+        # DEPRECATED facade — removed in Phase 6 after test surface migration.
+        return armor_math.effective_armor(atk_stats, def_stats, ctx)
 
     @staticmethod
     def _effective_armor_trace(
         atk_stats: ActorStats, def_stats: ActorStats, ctx: PipelineContextDTO
     ) -> tuple[float, dict[str, Any]]:
-        armor_raw = max(0.0, def_stats.mods.armor)
-        trace = {
-            "raw": armor_raw,
-            "effective": 0.0,
-            "ignored": armor_raw,
-            "chance": 0.0,
-            "roll": None,
-            "passed": False,
-            "penetration_pct": 0.0,
-            "penetration_flat": 0.0,
-        }
-        if ctx.flags.formula.ignore_armor or ctx.flags.formula.ignore_flat_armor:
-            trace["passed"] = True
-            trace["reason"] = "ignore_armor"
-            return 0.0, trace
-
-        armor = armor_raw
-        ignore_chance = CombatResolver._get_offensive_val(atk_stats, ctx, "armor_ignore_chance")
-        if ctx.flags.formula.roll_flat_armor_ignore:
-            ignore_chance += max(0.0, ctx.mods.flat_armor_ignore_chance_bonus)
-        trace["chance"] = ignore_chance
-        if ignore_chance > 0.0:
-            roll, passed = MathCore.roll_chance(ignore_chance)
-            trace["roll"] = roll
-            trace["passed"] = passed
-            if passed:
-                return 0.0, trace
-
-        penetration_pct = max(0.0, CombatResolver._get_offensive_val(atk_stats, ctx, "armor_penetration_pct"))
-        if ctx.flags.formula.boost_flat_armor_penetration:
-            penetration_pct += max(0.0, ctx.mods.flat_armor_penetration_bonus_pct)
-        penetration_flat = max(0.0, atk_stats.mods.armor_penetration_flat)
-        armor *= max(0.0, 1.0 - penetration_pct)
-        effective = max(0.0, armor - penetration_flat)
-        trace["effective"] = effective
-        trace["ignored"] = max(0.0, armor_raw - effective)
-        trace["penetration_pct"] = penetration_pct
-        trace["penetration_flat"] = penetration_flat
-        return effective, trace
+        # DEPRECATED facade — removed in Phase 6 after test surface migration.
+        return armor_math.effective_armor_trace(atk_stats, def_stats, ctx)
 
     @staticmethod
     def _effective_physical_resistance(atk_stats: ActorStats, def_stats: ActorStats, ctx: PipelineContextDTO) -> float:
-        if ctx.flags.formula.ignore_physical_resistance:
-            return 0.0
-
-        phys_res = max(0.0, def_stats.mods.physical_resistance)
-        if ctx.flags.formula.suppress_physical_resistance:
-            suppression_pct = max(0.0, ctx.mods.physical_resistance_suppression_pct)
-            phys_res *= max(0.0, 1.0 - suppression_pct)
-
-        phys_suppression = max(0.0, CombatResolver._get_offensive_val(atk_stats, ctx, "physical_suppression"))
-        return max(0.0, phys_res - phys_suppression)
+        # DEPRECATED facade — removed in Phase 6 after test surface migration.
+        return armor_math.effective_physical_resistance(atk_stats, def_stats, ctx)
 
     @staticmethod
     def _select_trigger_activation(
         ctx: PipelineContextDTO, rule_id: str, rule_data: dict[str, Any]
     ) -> CombatTriggerActivationDTO | None:
-        activations = ctx.trigger_activations.get(rule_id) or [
-            CombatTriggerActivationDTO(trigger_id=rule_id, source="system")
-        ]
-        allowed_sources = set(rule_data.get("allowed_sources") or [])
-        if not allowed_sources:
-            return activations[0]
-
-        for activation in activations:
-            if activation.source in allowed_sources:
-                return activation
-        return None
+        # DEPRECATED facade — removed in Phase 6 after test surface migration.
+        return trigger_activator.select_trigger_activation(ctx, rule_id, rule_data)
 
     @staticmethod
     def _trace_roll(
@@ -1077,68 +919,25 @@ class CombatResolver:
         passed: bool,
         **details: Any,
     ) -> None:
-        compact_details = CombatResolver._compact_trace_details(details)
-        res.checks.append(
-            CombatCheckTraceDTO(
-                stage=stage,
-                chance=chance,
-                roll=roll,
-                passed=passed,
-                details=compact_details,
-            )
-        )
-        log.bind(
-            source_id=res.source_id,
-            target_id=res.target_id,
-            stage=stage,
-            chance=chance,
-            roll="auto" if roll is None else round(roll, 3),
-            passed=passed,
-            details=compact_details,
-        ).debug("CombatRoll")
+        # DEPRECATED facade — removed in Phase 6 after test surface migration.
+        trace_writer.trace_roll(res, stage, chance, roll, passed, **details)
 
     @staticmethod
     def _trace_step(res: InteractionResultDTO, stage: str, outcome: str, **details: Any) -> None:
-        log.bind(source_id=res.source_id, target_id=res.target_id, stage=stage, outcome=outcome, details=details).debug(
-            "CombatStep"
-        )
+        # DEPRECATED facade — removed in Phase 6 after test surface migration.
+        trace_writer.trace_step(res, stage, outcome, **details)
 
     @staticmethod
     def _trace_damage(res: InteractionResultDTO, **details: Any) -> None:
-        final = details.pop("final")
-        raw = details.pop("raw")
-        min_d = details.pop("min_d")
-        max_d = details.pop("max_d")
-        compact_details = CombatResolver._compact_trace_details(details)
-        res.damage_trace = CombatDamageTraceDTO(
-            raw=float(raw),
-            final=float(final),
-            min=float(min_d),
-            max=float(max_d),
-            details=compact_details,
-        )
-        log.bind(
-            source_id=res.source_id,
-            target_id=res.target_id,
-            final=round(float(final), 2),
-            raw=round(float(raw), 2),
-            min_damage=round(float(min_d), 2),
-            max_damage=round(float(max_d), 2),
-            details=compact_details,
-        ).debug("CombatDamage")
+        # DEPRECATED facade — removed in Phase 6 after test surface migration.
+        trace_writer.trace_damage(res, **details)
 
     @staticmethod
     def _compact_details(details: dict[str, Any]) -> str:
-        parts = []
-        for key, value in details.items():
-            if value is None:
-                continue
-            if isinstance(value, float):
-                parts.append(f"{key}={value:.3f}")
-            else:
-                parts.append(f"{key}={value}")
-        return " ".join(parts)
+        # DEPRECATED facade — removed in Phase 6 after test surface migration.
+        return trace_writer.compact_details(details)
 
     @staticmethod
     def _compact_trace_details(details: dict[str, Any]) -> dict[str, Any]:
-        return {key: value for key, value in details.items() if value is not None}
+        # DEPRECATED facade — removed in Phase 6 after test surface migration.
+        return trace_writer.compact_trace_details(details)

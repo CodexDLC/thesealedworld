@@ -38,7 +38,19 @@ from src.backend.features.combat.runtime.engine.math_core import MathCore
 from src.backend.features.combat.runtime.engine.mechanics_service import MechanicsService
 from src.backend.features.combat.runtime.engine.pipeline import CombatPipeline
 from src.backend.features.combat.runtime.engine.resolver import CombatResolver
-from src.backend.features.combat.runtime.engine.resolver.support import token_awarder
+from src.backend.features.combat.runtime.engine.resolver.steps import (
+    accuracy_step,
+    block_step,
+    crit_step,
+    evasion_step,
+    parry_step,
+)
+from src.backend.features.combat.runtime.engine.resolver.steps.damage import damage_step
+from src.backend.features.combat.runtime.engine.resolver.support import (
+    offensive_lookup,
+    token_awarder,
+    trigger_activator,
+)
 from src.backend.features.combat.runtime.engine.stats_engine import StatsEngine
 from src.backend.features.combat.runtime.engine.target_resolver import TargetResolver
 from src.backend.features.combat.runtime.engine.trigger_activation import activate_trigger
@@ -2705,7 +2717,7 @@ def test_resolver_records_source_aware_trigger_facts() -> None:
     result = InteractionResultDTO(source_id=1, target_id=2)
     activate_trigger(ctx, "accuracy.true_strike", source="feint", source_id="true_strike")
 
-    CombatResolver._resolve_triggers(ctx, result, "ON_ACCURACY_CHECK")
+    trigger_activator.resolve_triggers(ctx, result, "ON_ACCURACY_CHECK")
 
     assert result.fired_triggers == ["true_strike"]
     assert result.trigger_facts[0].trigger_id == "true_strike"
@@ -2721,7 +2733,7 @@ def test_resolver_skips_trigger_sources_not_allowed_by_catalog() -> None:
     result = InteractionResultDTO(source_id=1, target_id=2)
     activate_trigger(ctx, "accuracy.true_strike", source="style", source_id="skill_tactics")
 
-    CombatResolver._resolve_triggers(ctx, result, "ON_ACCURACY_CHECK")
+    trigger_activator.resolve_triggers(ctx, result, "ON_ACCURACY_CHECK")
 
     assert result.fired_triggers == []
     assert result.trigger_facts == []
@@ -3655,7 +3667,7 @@ def test_dual_wield_style_chance_scales_with_skill_to_half_cap(monkeypatch: pyte
 
     monkeypatch.setattr(MathCore, "roll_chance", staticmethod(fake_roll_chance))
 
-    CombatResolver._resolve_triggers(
+    trigger_activator.resolve_triggers(
         ctx,
         result,
         "ON_ACCURACY_CHECK",
@@ -3707,7 +3719,7 @@ def test_archery_attack_ignores_parry_but_keeps_block_and_dodge_checks(monkeypat
     assert ctx.flags.restriction.ignore_parry is True
     assert ctx.stages.check_evasion is True
     assert ctx.stages.check_block is True
-    assert CombatResolver._step_parry_roll(
+    assert parry_step.run(
         stats(),
         stats({"parry": 1.0, "parry_cap": 1.0}, {"skill_parrying": 1.0}),
         ctx,
@@ -3764,7 +3776,7 @@ def test_archery_weapon_trigger_queues_active_ammo_effect_payload() -> None:
     ctx = ContextBuilder.build_context(source, target, move)
     result = ctx.result
 
-    CombatResolver._resolve_triggers(ctx, result, "ON_CHECK_CONTROL")
+    trigger_activator.resolve_triggers(ctx, result, "ON_CHECK_CONTROL")
 
     ammo_effects = [effect for effect in result.applied_effects if effect.get("id") == "dot_burn"]
     assert ammo_effects == [
@@ -3795,7 +3807,7 @@ def test_ranged_combat_style_perfect_backstep_forces_dodge(
     ctx.result = result
     activate_trigger(ctx, "dodge.style_ranged_perfect_backstep", source="style", source_id="skill_ranged_combat")
 
-    dodged = CombatResolver._step_evasion_roll(
+    dodged = evasion_step.run(
         stats(),
         stats(skills={"skill_ranged_combat": 1.0}),
         ctx,
@@ -3860,7 +3872,7 @@ def test_evasion_uses_attacker_anti_dodge(monkeypatch: pytest.MonkeyPatch) -> No
     ctx = PipelineContextDTO()
     result = InteractionResultDTO(source_id=1, target_id=2)
 
-    dodged = CombatResolver._step_evasion_roll(
+    dodged = evasion_step.run(
         stats({"anti_dodge_chance": 0.6}),
         stats({"evasion": 0.5, "dodge_cap": 0.75, "anti_dodge_chance": 0.0}),
         ctx,
@@ -3885,7 +3897,7 @@ def test_crit_roll_uses_normalized_weapon_skill_and_default_cap(monkeypatch: pyt
     ctx.flags.meta.weapon_class = "swords"
     result = InteractionResultDTO(source_id=1, target_id=2)
 
-    CombatResolver._step_crit_roll(
+    crit_step.run(
         stats({"main_hand_crit_chance": 0.5}, {"skill_swords": 0.5}),
         stats(),
         ctx,
@@ -3912,11 +3924,8 @@ def test_accuracy_roll_starts_at_seventy_and_scales_to_cap_with_weapon_skill(
     ctx.flags.meta.weapon_class = "swords"
     result = InteractionResultDTO(source_id=1, target_id=2)
 
-    passed = CombatResolver._step_accuracy_roll(
-        stats(skills={"skill_swords": 1.0}),
-        ctx,
-        result,
-    )
+    atk_stats = stats(skills={"skill_swords": 1.0})
+    passed = accuracy_step.run(atk_stats, atk_stats, ctx, result)
 
     assert passed is True
     assert captured_chances == [1.0]
@@ -3940,11 +3949,8 @@ def test_accuracy_roll_applies_family_and_item_modifiers_after_skill(
     ctx.flags.meta.weapon_class = "swords"
     result = InteractionResultDTO(source_id=1, target_id=2)
 
-    CombatResolver._step_accuracy_roll(
-        stats({"main_hand_accuracy": 0.05, "accuracy": -0.10}, {"skill_swords": 0.5}),
-        ctx,
-        result,
-    )
+    atk_stats = stats({"main_hand_accuracy": 0.05, "accuracy": -0.10}, {"skill_swords": 0.5})
+    accuracy_step.run(atk_stats, atk_stats, ctx, result)
 
     assert captured_chances == [pytest.approx(0.80)]
     assert result.checks[-1].details["modifier"] == pytest.approx(-0.05)
@@ -3959,7 +3965,7 @@ def test_physical_damage_attribute_bonus_applies_to_weapon_damage(monkeypatch: p
     ctx.flags.meta.weapon_class = "swords"
     result = InteractionResultDTO(source_id=1, target_id=2)
 
-    damage = CombatResolver._step_calculate_damage(
+    damage = damage_step.run(
         stats({"main_hand_damage_base": 4.0, "main_hand_damage_spread": 0.0, "physical_damage": 6.0}),
         stats(),
         ctx,
@@ -3978,7 +3984,7 @@ def test_physical_suppression_reduces_resistance_before_flat_armor(monkeypatch: 
     ctx = PipelineContextDTO()
     result = InteractionResultDTO(source_id=1, target_id=2)
 
-    damage = CombatResolver._step_calculate_damage(
+    damage = damage_step.run(
         stats(
             {
                 "main_hand_damage_base": 100.0,
@@ -4004,7 +4010,7 @@ def test_armor_penetration_pct_and_flat_reduce_only_flat_armor(monkeypatch: pyte
     ctx = PipelineContextDTO()
     result = InteractionResultDTO(source_id=1, target_id=2)
 
-    damage = CombatResolver._step_calculate_damage(
+    damage = damage_step.run(
         stats(
             {
                 "main_hand_damage_base": 100.0,
@@ -4029,7 +4035,7 @@ def test_successful_hit_deals_one_damage_when_flat_armor_absorbs_all(monkeypatch
     ctx = PipelineContextDTO()
     result = InteractionResultDTO(source_id=1, target_id=2)
 
-    damage = CombatResolver._step_calculate_damage(
+    damage = damage_step.run(
         stats({"main_hand_damage_base": 5.0, "main_hand_damage_spread": 0.0}),
         stats({"armor": 50.0}),
         ctx,
@@ -4050,7 +4056,7 @@ def test_armor_ignore_chance_can_skip_flat_armor(monkeypatch: pytest.MonkeyPatch
     ctx = PipelineContextDTO()
     result = InteractionResultDTO(source_id=1, target_id=2)
 
-    damage = CombatResolver._step_calculate_damage(
+    damage = damage_step.run(
         stats(
             {
                 "main_hand_damage_base": 100.0,
@@ -4076,7 +4082,7 @@ def test_flat_armor_ignore_trigger_bonus_can_skip_flat_armor(monkeypatch: pytest
     ctx.mods.flat_armor_ignore_chance_bonus = 0.5
     result = InteractionResultDTO(source_id=1, target_id=2)
 
-    damage = CombatResolver._step_calculate_damage(
+    damage = damage_step.run(
         stats({"main_hand_damage_base": 100.0, "main_hand_damage_spread": 0.0}),
         stats({"armor": 40.0}),
         ctx,
@@ -4098,7 +4104,7 @@ def test_flat_armor_penetration_trigger_bonus_reduces_only_flat_armor(
     ctx.mods.flat_armor_penetration_bonus_pct = 0.5
     result = InteractionResultDTO(source_id=1, target_id=2)
 
-    damage = CombatResolver._step_calculate_damage(
+    damage = damage_step.run(
         stats({"main_hand_damage_base": 100.0, "main_hand_damage_spread": 0.0}),
         stats({"physical_resistance": 0.25, "armor": 40.0}),
         ctx,
@@ -4120,7 +4126,7 @@ def test_physical_resistance_suppression_trigger_bonus_reduces_only_natural_laye
     ctx.mods.physical_resistance_suppression_pct = 0.5
     result = InteractionResultDTO(source_id=1, target_id=2)
 
-    damage = CombatResolver._step_calculate_damage(
+    damage = damage_step.run(
         stats({"main_hand_damage_base": 100.0, "main_hand_damage_spread": 0.0}),
         stats({"physical_resistance": 0.40, "armor": 10.0}),
         ctx,
@@ -4138,7 +4144,7 @@ def test_shield_reflect_scales_absorb_and_return_by_shield_mastery(monkeypatch: 
     ctx.flags.state.partial_absorb_reflect = True
     result = InteractionResultDTO(source_id=1, target_id=2)
 
-    damage = CombatResolver._step_calculate_damage(
+    damage = damage_step.run(
         stats({"main_hand_damage_base": 20.0, "main_hand_damage_spread": 0.0}),
         stats(
             {
@@ -4172,7 +4178,7 @@ def test_shield_reflect_never_absorbs_full_hit_even_with_huge_guard(monkeypatch:
     ctx.flags.state.partial_absorb_reflect = True
     result = InteractionResultDTO(source_id=1, target_id=2)
 
-    damage = CombatResolver._step_calculate_damage(
+    damage = damage_step.run(
         stats({"main_hand_damage_base": 5.0, "main_hand_damage_spread": 0.0}),
         stats({"shield_guard_power": 100.0}, {"skill_shield_mastery": 1.0}),
         ctx,
@@ -4196,7 +4202,7 @@ def test_unarmed_damage_uses_strength_and_unarmed_skill_efficiency(monkeypatch: 
     ctx.flags.meta.weapon_class = "unarmed"
     result = InteractionResultDTO(source_id=1, target_id=2)
 
-    damage = CombatResolver._step_calculate_damage(
+    damage = damage_step.run(
         stats(
             {"main_hand_damage_base": 6.0, "main_hand_damage_spread": 0.5, "physical_damage": 6.0},
             {"skill_unarmed": 1.0},
@@ -4220,7 +4226,7 @@ def test_unarmed_damage_uses_novice_efficiency_without_double_counting_strength(
     ctx.flags.meta.weapon_class = "unarmed"
     result = InteractionResultDTO(source_id=1, target_id=2)
 
-    damage = CombatResolver._step_calculate_damage(
+    damage = damage_step.run(
         stats({"main_hand_damage_base": 6.0, "main_hand_damage_spread": 0.5, "physical_damage": 6.0}),
         stats(),
         ctx,
@@ -4244,7 +4250,7 @@ def test_parry_roll_applies_parrying_skill_multiplier_in_resolver(monkeypatch: p
     ctx = PipelineContextDTO()
     result = InteractionResultDTO(source_id=1, target_id=2)
 
-    CombatResolver._step_parry_roll(
+    parry_step.run(
         stats(),
         stats({"parry": 0.1, "parry_cap": 0.75}, {"skill_parrying": 0.5}),
         ctx,
@@ -4267,7 +4273,7 @@ def test_soft_target_reaction_multipliers_reduce_evasion_and_parry(monkeypatch: 
     evasion_ctx = PipelineContextDTO()
     evasion_ctx.mods.target_evasion_mult = 0.65
     evasion_result = InteractionResultDTO(source_id=1, target_id=2)
-    CombatResolver._step_evasion_roll(
+    evasion_step.run(
         stats(),
         stats({"evasion": 0.4, "dodge_cap": 1.0}),
         evasion_ctx,
@@ -4277,7 +4283,7 @@ def test_soft_target_reaction_multipliers_reduce_evasion_and_parry(monkeypatch: 
     parry_ctx = PipelineContextDTO()
     parry_ctx.mods.target_parry_mult = 0.65
     parry_result = InteractionResultDTO(source_id=1, target_id=2)
-    CombatResolver._step_parry_roll(
+    parry_step.run(
         stats(),
         stats({"parry": 0.1, "parry_cap": 0.75}, {"skill_parrying": 0.5}),
         parry_ctx,
@@ -4302,7 +4308,7 @@ def test_block_roll_applies_parrying_skill_multiplier_in_resolver(monkeypatch: p
     ctx = PipelineContextDTO()
     result = InteractionResultDTO(source_id=1, target_id=2)
 
-    CombatResolver._step_block_roll(
+    block_step.run(
         stats(),
         stats({"block": 0.2, "shield_block_cap": 0.75}, {"skill_parrying": 1.0}),
         ctx,
@@ -4330,12 +4336,12 @@ def test_item_source_type_reads_item_offensive_modifiers() -> None:
         }
     )
 
-    assert CombatResolver._get_offensive_val(actor_stats, ctx, "damage_base") == 12.0
-    assert CombatResolver._get_offensive_val(actor_stats, ctx, "damage_spread") == 0.25
-    assert CombatResolver._get_offensive_val(actor_stats, ctx, "accuracy") == 0.8
-    assert CombatResolver._get_offensive_val(actor_stats, ctx, "crit_chance") == 0.2
-    assert CombatResolver._get_offensive_val(actor_stats, ctx, "crit_cap") == 0.75
-    assert CombatResolver._get_offensive_val(actor_stats, ctx, "armor_penetration_pct") == 0.1
+    assert offensive_lookup.get_offensive_val(actor_stats, ctx, "damage_base") == 12.0
+    assert offensive_lookup.get_offensive_val(actor_stats, ctx, "damage_spread") == 0.25
+    assert offensive_lookup.get_offensive_val(actor_stats, ctx, "accuracy") == 0.8
+    assert offensive_lookup.get_offensive_val(actor_stats, ctx, "crit_chance") == 0.2
+    assert offensive_lookup.get_offensive_val(actor_stats, ctx, "crit_cap") == 0.75
+    assert offensive_lookup.get_offensive_val(actor_stats, ctx, "armor_penetration_pct") == 0.1
 
 
 @pytest.mark.unit
@@ -4343,7 +4349,7 @@ def test_token_award_can_double_non_excluded_combat_tokens(monkeypatch: pytest.M
     monkeypatch.setattr(token_awarder, "bonus_token_roll", lambda: True)
     bucket = {"hit": 1}
 
-    CombatResolver._award_token(bucket, "hit")
+    token_awarder.award_token(bucket, "hit")
 
     assert bucket["hit"] == 3
 
@@ -4353,8 +4359,8 @@ def test_token_award_does_not_double_tempo_or_gift(monkeypatch: pytest.MonkeyPat
     monkeypatch.setattr(token_awarder, "bonus_token_roll", lambda: True)
     bucket: dict[str, int] = {}
 
-    CombatResolver._award_token(bucket, "tempo")
-    CombatResolver._award_token(bucket, "gift")
+    token_awarder.award_token(bucket, "tempo")
+    token_awarder.award_token(bucket, "gift")
 
     assert bucket == {"tempo": 1, "gift": 1}
 
@@ -4364,7 +4370,7 @@ def test_trigger_token_grants_use_bonus_award_rule(monkeypatch: pytest.MonkeyPat
     monkeypatch.setattr(token_awarder, "bonus_token_roll", lambda: True)
     result = InteractionResultDTO(source_id=1, target_id=2)
 
-    CombatResolver._apply_trigger_token_grants(
+    trigger_activator.apply_trigger_token_grants(
         result,
         {"token_grants_attacker": ["hit"], "token_grants_defender": ["block", "tempo"]},
     )

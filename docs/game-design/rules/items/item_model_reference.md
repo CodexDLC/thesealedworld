@@ -97,14 +97,41 @@ shape and can be projected into combat or world systems.
 
 Examples:
 
-- weapon accuracy or penetration properties;
-- armor evasion penalties;
-- parry chance;
+- weapon accuracy penalties, crit profile, and small weapon parry profile;
+- shield block chance and parrying off-hand profile;
+- armor penalties such as evasion, anti-dodge, accuracy, or resource penalties;
+- jewelry type profile bonuses; jewelry `base_power` maps to flat
+  `magic_armor`;
+- garment anchor/environment profile bonuses such as cold, heat, gravity, or
+  bio resistance;
 - environmental resistance;
 - quick-slot capacity;
 - concentration/stamina regen.
 
 Implicit bonuses are not random affixes. They are part of the item identity.
+
+Combat base-item implicit rules:
+
+- armor pieces carry armor value plus penalties; they do not grant offensive
+  bonuses;
+- main-hand weapons can carry crit chance, weapon parry chance, damage spread,
+  and accuracy/evasion penalties;
+- off-hand parrying weapons can carry a higher parry baseline than ordinary
+  weapons, paid for by their own penalties;
+- shields keep their shield block baseline, also paid for by accuracy/evasion
+  penalties;
+- rings, earrings, and amulets use `base_power` as flat magical armor. Their
+  implicit bonuses are slot profiles, not affix duplicates: ring currently
+  carries `mental_resistance`, amulet carries `debuff_avoidance`, and earring
+  carries `initiative`;
+- garments use implicit bonuses as their anchor/environment protection layer:
+  cold, heat, gravity, and bio resistance come from garment identity. Garment
+  `base_power` does not become physical armor or jewelry-style magical armor.
+  Future garment-only affix pools may add combat elemental resistances, but
+  those affixes are not part of the current baseline;
+- always-on armor bypass, resistance suppression, or bleed scaling should live
+  in triggers, feints, affixes, or future active mechanics instead of baseline
+  weapon implicit bonuses.
 
 ## Affixes
 

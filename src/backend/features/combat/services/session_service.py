@@ -56,7 +56,12 @@ class CombatSessionService:
     """
 
     def __init__(
-        self, *, store: CombatSessionIntegration, system_integrator: CombatSystemIntegrator, arq: Any | None = None
+        self,
+        *,
+        store: CombatSessionIntegration,
+        system_integrator: CombatSystemIntegrator,
+        arq: Any | None = None,
+        game_config: Any | None = None,
     ) -> None:
         self.store = store
         self.system_integrator = system_integrator
@@ -64,9 +69,10 @@ class CombatSessionService:
             from src.backend.core.arq import ArqService
 
         self.arq: ArqService = arq or NullArqQueue()  # type: ignore
+        self.game_config = game_config
         self.result_archive = CombatResultArchiveService()
         self.view = CombatViewService()
-        self.turn_manager = CombatTurnManager(self.store, self.arq)
+        self.turn_manager = CombatTurnManager(self.store, self.arq, game_config)
 
     async def get_dashboard(self, char_id: int, *, session_id: str | None = None) -> CombatDashboardDTO:
         """Build the live combat dashboard from runtime session state.

@@ -23,6 +23,16 @@ DEFAULT_SHADOW_AVATAR_URL = "/static/images/avatars/veil4.webp"
 DEFAULT_MONSTER_AVATAR_URL = "/static/images/avatars/silhouette_f.webp"
 COMBAT_ICON_ROOT = "/static/images/ui/combat-icons"
 COMBAT_LOG_PAGE_SIZE = 8
+BASIC_ABILITY_ICON_FILES: dict[str, str] = {
+    "basic_punish_mistake": "basic_punish_mistake",
+    "basic_finish_moment": "basic_finish_moment",
+    "basic_break_stance": "basic_break_stance",
+    "basic_expose_weakness": "basic_expose_weakness",
+    "basic_wipe_blood": "basic_wipe_blood",
+    "basic_grit_teeth": "basic_grit_teeth",
+    "basic_bloody_answer": "basic_bloody_answer",
+    "basic_last_push": "basic_last_push",
+}
 
 
 class CombatEffectBadgeVM(BaseModel):
@@ -1292,7 +1302,7 @@ def _split_actions(
         if action.action == "exchange":
             primary = _action_vm(action, kind="attack", icon="attack")
         elif action.ability_id:
-            abilities.append(_action_vm(action, kind="ability", icon="gift-token"))
+            abilities.append(_action_vm(action, kind="ability", icon=_ability_icon(action.ability_id)))
 
     feints: list[CombatActionVM] = []
     for feint in hero.feints:
@@ -1340,6 +1350,13 @@ def _action_vm(action: CombatActionOptionDTO, *, kind: str, icon: str) -> Combat
         catalog=catalog,
         catalog_key=catalog_key,
     )
+
+
+def _ability_icon(ability_id: str | None) -> str:
+    icon_file = BASIC_ABILITY_ICON_FILES.get(str(ability_id or ""))
+    if icon_file:
+        return f"abilities/{icon_file}"
+    return "gift-token"
 
 
 def _action_catalog(kind: str) -> str | None:

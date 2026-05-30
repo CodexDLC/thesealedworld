@@ -1,0 +1,20 @@
+{
+  "metadata": {
+    "algorithm": "manual_seed",
+    "created_by": "combat-ai-pr3",
+    "archetype": "tactician",
+    "note": "Control + debuffs + dispel: cripple the opposition rather than out-DPS it."
+  },
+  "policy_id": "archetype_tactician_v1",
+  "version": 1,
+  "weights": {
+    "control": 2.5,
+    "bleed": 1.6,
+    "debuff": 1.5,
+    "dispel_prep": 2.8,
+    "preparation": 0.8,
+    "prep_threat_penalty": 2.0,
+    "expected_damage": 0.8,
+    "damage_tag": 0.4
+  }
+}

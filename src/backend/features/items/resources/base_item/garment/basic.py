@@ -11,7 +11,7 @@ GARMENT_DB = {
             "damage_spread": 0.0,
             "narrative_description": "Рабочий фартук с карманами для мелких инструментов и расходников.",
             "narrative_tags": ["apron", "garment", "workwear", "tools"],
-            "implicit_bonuses": {},
+            "implicit_bonuses": {"environment_bio_resistance": 2.0},
         },
         "linen_shirt": {
             "id": "linen_shirt",
@@ -63,7 +63,7 @@ GARMENT_DB = {
             "damage_spread": 0.0,
             "narrative_description": "Прочные ботинки для камня, грязи и долгого пути после выхода из Рифта.",
             "narrative_tags": ["boots", "garment", "travel", "feetwear"],
-            "implicit_bonuses": {"stamina_regen": 1.5},
+            "implicit_bonuses": {"stamina_regen": 1.5, "environment_gravity_resistance": 1.0},
         },
         "work_gloves": {
             "id": "work_gloves",
@@ -76,7 +76,7 @@ GARMENT_DB = {
             "damage_spread": 0.0,
             "narrative_description": "Плотные перчатки для грубой работы, хватов и защиты ладоней.",
             "narrative_tags": ["gloves", "garment", "workwear", "grip"],
-            "implicit_bonuses": {},
+            "implicit_bonuses": {"environment_bio_resistance": 2.0},
         },
         "winter_cloak": {
             "id": "winter_cloak",

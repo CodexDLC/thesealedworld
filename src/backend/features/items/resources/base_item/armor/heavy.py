@@ -11,12 +11,13 @@ HEAVY_ARMOR_DB = {
         related_skill="skill_heavy_armor",
         armor_class="heavy",
         allowed_materials=["ingots"],
-        base_power=2,
+        base_power=1,
         base_durability=60,
         damage_spread=0.0,
         narrative_tags=["helmet", "heavy", "visor", "protection"],
         implicit_bonuses={
-            "control_resistance": 0.006,
+            "anti_dodge_chance": -0.020,
+            "main_hand_accuracy_penalty": 0.005,
         },
     ),
     "plate_chest": BaseItemDTO(
@@ -34,8 +35,9 @@ HEAVY_ARMOR_DB = {
         damage_spread=0.0,
         narrative_tags=["plate", "heavy", "metal"],
         implicit_bonuses={
-            "physical_resistance": 0.012,
-            "thorns_damage_flat": 0.20,
+            "evasion_penalty": -0.070,
+            "main_hand_accuracy_penalty": 0.015,
+            "off_hand_accuracy_penalty": 0.015,
         },
     ),
     "gauntlets": BaseItemDTO(
@@ -48,12 +50,13 @@ HEAVY_ARMOR_DB = {
         related_skill="skill_heavy_armor",
         armor_class="heavy",
         allowed_materials=["ingots"],
-        base_power=2,
+        base_power=1,
         damage_spread=0.0,
         base_durability=70,
         narrative_tags=["gauntlets", "heavy", "hands", "plate"],
         implicit_bonuses={
-            "thorns_damage_flat": 0.10,
+            "main_hand_accuracy_penalty": 0.015,
+            "off_hand_accuracy_penalty": 0.015,
         },
     ),
     "greaves": BaseItemDTO(
@@ -66,13 +69,12 @@ HEAVY_ARMOR_DB = {
         related_skill="skill_heavy_armor",
         armor_class="heavy",
         allowed_materials=["ingots"],
-        base_power=3,
+        base_power=2,
         damage_spread=0.0,
         base_durability=80,
         narrative_tags=["greaves", "heavy", "legs", "plate"],
         implicit_bonuses={
-            "physical_resistance": 0.006,
-            "shock_resistance": 0.006,
+            "evasion_penalty": -0.025,
         },
     ),
 }

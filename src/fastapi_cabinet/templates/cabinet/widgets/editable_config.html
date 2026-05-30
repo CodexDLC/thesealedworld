@@ -13,6 +13,16 @@
             </form>
         {% endfor %}
 
+        {# Namespace-level reset form #}
+        {% if widget.reset_namespace_url %}
+            <form id="fc-reset-ns-{{ widget.key }}"
+                  method="post"
+                  action="{{ widget.reset_namespace_url }}">
+                <input type="hidden" name="namespace" value="{{ widget.namespace }}">
+                <input type="hidden" name="redirect_to" value="{{ widget.redirect_to }}">
+            </form>
+        {% endif %}
+
         {# Main save form #}
         <form method="post" action="{{ widget.update_url }}">
             <input type="hidden" name="namespace" value="{{ widget.namespace }}">
@@ -36,12 +46,53 @@
                                         class="fc-btn-reset"
                                         title="Сбросить к значению по умолчанию">↺</button>
                             </td>
-                            <td class="fc-config-key">{{ entry.key }}</td>
+                            <td class="fc-config-key">
+                                <div class="fc-config-label">{{ entry.label or entry.key }}</div>
+                                {% if entry.description %}
+                                    <div class="fc-config-description">{{ entry.description }}</div>
+                                {% endif %}
+                                {% if entry.label %}
+                                    <div class="fc-config-raw-key">{{ entry.key }}</div>
+                                {% endif %}
+                            </td>
                             <td>
-                                <input class="fc-config-input"
-                                       type="text"
-                                       name="values[{{ entry.key }}]"
-                                       value="{{ entry.current }}">
+                                {% if entry.choices %}
+                                    <select class="fc-config-input"
+                                            name="values[{{ entry.key }}]">
+                                        {% for choice in entry.choices %}
+                                            <option value="{{ choice.value }}"
+                                                    {% if choice.value == entry.current %}selected{% endif %}>
+                                                {{ choice.label }}
+                                            </option>
+                                        {% endfor %}
+                                    </select>
+                                {% elif entry.value_type == "bool" %}
+                                    {# Hidden "false" precedes the checkbox so an unchecked box still submits a value;
+                                       when checked, the second "true" wins via form.multi_items() order in the action handler. #}
+                                    <input type="hidden" name="values[{{ entry.key }}]" value="false">
+                                    <input class="fc-config-input fc-config-input--bool"
+                                           type="checkbox"
+                                           name="values[{{ entry.key }}]"
+                                           value="true"
+                                           {% if entry.current|lower in ["true", "1", "yes"] %}checked{% endif %}>
+                                {% elif entry.value_type == "int" %}
+                                    <input class="fc-config-input fc-config-input--number"
+                                           type="number"
+                                           step="1"
+                                           name="values[{{ entry.key }}]"
+                                           value="{{ entry.current }}">
+                                {% elif entry.value_type == "float" %}
+                                    <input class="fc-config-input fc-config-input--number"
+                                           type="number"
+                                           step="any"
+                                           name="values[{{ entry.key }}]"
+                                           value="{{ entry.current }}">
+                                {% else %}
+                                    <input class="fc-config-input"
+                                           type="text"
+                                           name="values[{{ entry.key }}]"
+                                           value="{{ entry.current }}">
+                                {% endif %}
                             </td>
                             <td class="fc-config-default">{{ entry.default }}</td>
                             <td class="fc-config-type">{{ entry.value_type }}</td>
@@ -51,6 +102,14 @@
             </table>
             <div class="fc-config-actions">
                 <button type="submit" class="fc-btn-save">Сохранить изменения</button>
+                {% if widget.reset_namespace_url %}
+                    <button type="submit"
+                            form="fc-reset-ns-{{ widget.key }}"
+                            class="fc-btn-reset-namespace"
+                            title="Сбросить все параметры этого раздела к значениям по умолчанию">
+                        Сбросить всё
+                    </button>
+                {% endif %}
             </div>
         </form>
     {% else %}

@@ -128,16 +128,17 @@ the new terminology.
 ## Current Simplifications
 
 Strength, Agility, and Endurance currently grant `1.0` raw physical power per
-attribute point. Weapon classes decide how much of each physical power type they
-can use, then weapon mastery gates only that stat-derived part of damage.
-Weapon item power itself is not reduced by mastery.
+attribute point. Ordinary weapon damage uses only Strength and Agility through
+class-specific two-stat weights; Endurance is reserved for survival and
+style-specific mechanics such as shield guard power. Weapon mastery gates only
+the stat-derived part of weapon damage. Weapon item power itself is not reduced
+by mastery.
 
 Current base-power assembly:
 
 ```text
 stat_raw = strength_power * class_strength_weight
          + agility_power * class_agility_weight
-         + endurance_power * class_endurance_weight
 mastery_factor = 0.25 + 0.75 * weapon_mastery
 stat_effective = stat_raw * mastery_factor
 hand_damage_base = weapon_power + stat_effective

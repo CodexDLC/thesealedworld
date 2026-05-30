@@ -25,6 +25,35 @@
                             <form method="post" action="{{ widget.action_url }}" style="display:inline">
                                 <input type="hidden" name="request_id" value="{{ row.get(widget.id_key, '') }}">
                                 <input type="hidden" name="action" value="{{ act.action }}">
+                                {% if act.select_name and act.select_options_key %}
+                                    {% set options = row.get(act.select_options_key, []) %}
+                                    {% if options %}
+                                        {% if act.select_label %}
+                                            <label class="fc-action-label">{{ act.select_label }}</label>
+                                        {% endif %}
+                                        <select class="fc-action-select" name="{{ act.select_name }}">
+                                            {% for option in options %}
+                                                <option value="{{ option.value }}"
+                                                        {% if option.selected %}selected{% endif %}>
+                                                    {{ option.label }}
+                                                </option>
+                                            {% endfor %}
+                                        </select>
+                                    {% endif %}
+                                {% endif %}
+                                {% if act.input_name and act.input_value_key %}
+                                    {% if act.input_label %}
+                                        <label class="fc-action-label">{{ act.input_label }}</label>
+                                    {% endif %}
+                                    <input
+                                        class="fc-action-input"
+                                        type="{{ act.input_type }}"
+                                        name="{{ act.input_name }}"
+                                        value="{{ row.get(act.input_value_key, '') }}"
+                                        {% if act.input_min is not none %}min="{{ act.input_min }}"{% endif %}
+                                        {% if act.input_max is not none %}max="{{ act.input_max }}"{% endif %}
+                                    >
+                                {% endif %}
                                 <button type="submit" class="fc-action-btn {{ act.css_class }}">{{ act.label }}</button>
                             </form>
                             {% endfor %}

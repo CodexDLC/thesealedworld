@@ -6,19 +6,28 @@ from src.backend.features.exploration.runtime.encounter.modes import EncounterMo
 from src.backend.features.exploration.runtime.encounter.policy import EncounterPolicy
 from src.backend.features.exploration.runtime.encounter.scouting import TerritoryScoutingRuntime
 from src.backend.features.exploration.runtime.encounter.travel import TravelEncounterRuntime
+from src.backend.features.exploration.runtime.tunables import load_exploration_tunables, use_tunables
 
 if TYPE_CHECKING:
     from src.backend.features.exploration.integrations.encounter_integration import EncounterIntegration
+    from src.backend.infrastructure.game_config.manager import GameConfigManager
     from src.shared.schemas.exploration import EncounterDTO
 
 
 class EncounterEngine:
     """Routes encounter generation to mode runtimes."""
 
-    def __init__(self, *, policy: EncounterPolicy | None = None, **_: Any) -> None:
+    def __init__(
+        self,
+        *,
+        policy: EncounterPolicy | None = None,
+        game_config: GameConfigManager | None = None,
+        **_: Any,
+    ) -> None:
         self._policy = policy or EncounterPolicy()
         self._travel = TravelEncounterRuntime(policy=self._policy)
         self._scouting = TerritoryScoutingRuntime(self._travel)
+        self._game_config = game_config
 
     async def try_generate_encounter(
         self,
@@ -44,29 +53,33 @@ class EncounterEngine:
             return None
 
         encounter_mode = EncounterMode(mode)
-        if not self._policy.should_roll(
-            mode=encounter_mode,
-            trigger=trigger,
-            scouting_skill=scouting_skill,
-            hunting_skill=hunting_skill,
-            pathfinder_skill=pathfinder_skill,
-        ):
-            return None
+        # Снимок tunables на одну попытку — отсюда policy.should_roll читает
+        # CHANCE_COMBAT_* через ContextVar без перетряхивания сигнатур.
+        tunables = await load_exploration_tunables(self._game_config)
+        with use_tunables(tunables):
+            if not self._policy.should_roll(
+                mode=encounter_mode,
+                trigger=trigger,
+                scouting_skill=scouting_skill,
+                hunting_skill=hunting_skill,
+                pathfinder_skill=pathfinder_skill,
+            ):
+                return None
 
-        tier = _safe_int(flags.get("threat_tier", 1), default=1)
-        roll = self._policy.roll(mode=encounter_mode, tier=tier, scouting_skill=scouting_skill)
-        runtime = self._travel if encounter_mode == EncounterMode.TRAVEL else self._scouting
-        return await runtime.build(
-            char_id=char_id,
-            loc_id=loc_id,
-            tier=tier,
-            roll_type=roll.discovery_type,
-            difficulty=roll.difficulty,
-            status=roll.status,
-            gear_score=gear_score,
-            hunting_skill=hunting_skill,
-            integration=encounter_integration,
-        )
+            tier = _safe_int(flags.get("threat_tier", 1), default=1)
+            roll = self._policy.roll(mode=encounter_mode, tier=tier, scouting_skill=scouting_skill)
+            runtime = self._travel if encounter_mode == EncounterMode.TRAVEL else self._scouting
+            return await runtime.build(
+                char_id=char_id,
+                loc_id=loc_id,
+                tier=tier,
+                roll_type=roll.discovery_type,
+                difficulty=roll.difficulty,
+                status=roll.status,
+                gear_score=gear_score,
+                hunting_skill=hunting_skill,
+                integration=encounter_integration,
+            )
 
 
 def _safe_int(value: Any, *, default: int) -> int:

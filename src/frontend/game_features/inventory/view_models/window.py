@@ -242,6 +242,11 @@ def build_inventory_window_vm(status_seed: dict[str, Any] | None = None) -> Inve
                 label="Пояс",
                 slots=[_slot("belt_accessory", "Пояс", "accessory")],
             ),
+            InventoryAccessoryRowVM(
+                row_id="quiver",
+                label="Колчан",
+                slots=[_slot("quiver", "Колчан", "accessory")],
+            ),
         ],
         quick_slots=[InventoryQuickSlotVM(slot_id=f"belt_slot_{index}", slot_index=index) for index in range(1, 9)],
         tabs=[

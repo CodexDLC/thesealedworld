@@ -34,6 +34,7 @@ def get_combat_session_service(request: Request) -> CombatSessionService:
             ),
         ),
         arq=arq,
+        game_config=getattr(app_state, "game_config", None),
     )
 
 

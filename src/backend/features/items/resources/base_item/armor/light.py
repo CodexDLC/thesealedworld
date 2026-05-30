@@ -16,8 +16,7 @@ LIGHT_ARMOR_DB = {
         damage_spread=0.0,
         narrative_tags=["hood", "light", "scout"],
         implicit_bonuses={
-            "magic_resist": 0.005,
-            "debuff_avoidance": 0.005,
+            "anti_dodge_chance": -0.005,
         },
     ),
     "leather_armor": BaseItemDTO(
@@ -30,12 +29,12 @@ LIGHT_ARMOR_DB = {
         related_skill="skill_light_armor",
         armor_class="light",
         allowed_materials=["leathers"],
-        base_power=2,
+        base_power=3,
         base_durability=45,
         damage_spread=0.0,
         narrative_tags=["leather_armor", "light", "mobile", "scout"],
         implicit_bonuses={
-            "evasion": 0.050,
+            "evasion_penalty": -0.010,
         },
     ),
     "soft_bracers": BaseItemDTO(
@@ -53,8 +52,8 @@ LIGHT_ARMOR_DB = {
         damage_spread=0.0,
         narrative_tags=["bracers", "light", "mobile"],
         implicit_bonuses={
-            "evasion": 0.005,
-            "debuff_avoidance": 0.005,
+            "main_hand_accuracy_penalty": 0.005,
+            "off_hand_accuracy_penalty": 0.005,
         },
     ),
     "scout_leggings": BaseItemDTO(
@@ -67,12 +66,10 @@ LIGHT_ARMOR_DB = {
         related_skill="skill_light_armor",
         armor_class="light",
         allowed_materials=["cloths", "leathers"],
-        base_power=1,
+        base_power=2,
         base_durability=35,
         damage_spread=0.0,
         narrative_tags=["leggings", "light", "scout"],
-        implicit_bonuses={
-            "evasion": 0.010,
-        },
+        implicit_bonuses={},
     ),
 }

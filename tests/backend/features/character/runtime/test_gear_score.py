@@ -82,7 +82,7 @@ def test_combat_math_model_outputs_only_combat_modifier_keys() -> None:
                     "mechanics": {
                         "power": 7,
                         "implicit_bonuses": {
-                            "accuracy_penalty": 0.1,
+                            "main_hand_accuracy_penalty": 0.1,
                             "unknown_bonus": 99,
                         },
                     },
@@ -116,7 +116,7 @@ def test_gear_score_uses_waterfall_calculated_raw_and_equipment() -> None:
                 "weapon-1": {
                     "item_id": "weapon-1",
                     "item_type": "weapon",
-                    "mechanics": {"power": 7, "implicit_bonuses": {"accuracy_penalty": 0.1}},
+                    "mechanics": {"power": 7, "implicit_bonuses": {"main_hand_accuracy_penalty": 0.1}},
                 },
                 "armor-1": {
                     "item_id": "armor-1",
@@ -165,7 +165,74 @@ def test_gear_score_uses_assembled_weapon_power_after_mastery() -> None:
 
 
 @pytest.mark.unit
-def test_gear_score_changes_when_equipping_garment_power() -> None:
+def test_gear_score_breakdown_from_active_character_matches_total_and_skills() -> None:
+    active_character = {
+        "attributes": {"strength": 12},
+        "items": {},
+        "skills": {"skill_swords": {"xp": 0.4}, "skill_light_armor": {"xp": 0.8}},
+    }
+
+    breakdown = CharacterGearScoreCalculator().calculate_breakdown_from_active_character(active_character)
+
+    assert breakdown["skills"] == 60.0
+    assert breakdown["total"] == CharacterGearScoreCalculator().calculate_from_active_character(active_character)
+
+
+@pytest.mark.unit
+def test_gear_score_adds_normalized_skill_package_up_to_100_points() -> None:
+    novice_score = CharacterGearScoreCalculator.calculate_from_raw(
+        {},
+        skills={"skill_fencing": 0.25, "skill_light_armor": {"xp": 0.25}},
+    )
+    master_score = CharacterGearScoreCalculator.calculate_from_raw(
+        {},
+        skills={"skill_fencing": 1.0, "skill_light_armor": {"xp": 1.0}},
+    )
+    master_breakdown = CharacterGearScoreCalculator.calculate_breakdown_from_raw(
+        {},
+        skills={"skill_fencing": 1.0, "skill_light_armor": {"xp": 1.0}},
+    )
+
+    assert master_breakdown["skills"] == 100.0
+    assert master_score - novice_score == 75
+
+
+@pytest.mark.unit
+def test_gear_score_breakdown_exposes_skill_score_component() -> None:
+    breakdown = CharacterGearScoreCalculator.calculate_breakdown_from_raw(
+        {"modifiers": {"armor": {"base": 10.0}}},
+        skills={"skill_heavy_armor": 1.0, "skill_shield": 0.5},
+    )
+
+    assert breakdown["skills"] == 75.0
+    assert breakdown["total"] >= 75
+
+
+@pytest.mark.unit
+def test_gear_score_breakdown_splits_combat_value_by_role() -> None:
+    breakdown = CharacterGearScoreCalculator.calculate_breakdown_from_calculated(
+        {
+            "hp": 100.0,
+            "main_hand_damage_base": 20.0,
+            "main_hand_accuracy_penalty": 0.10,
+            "armor": 10.0,
+            "block": 0.20,
+            "hand_size": 4.0,
+        }
+    )
+
+    assert breakdown["total"] >= 1
+    assert breakdown["offense"] > 0
+    assert breakdown["defense"] > 0
+    assert breakdown["resources"] > 0
+    assert breakdown["utility"] > 0
+    assert round(breakdown["offense"] + breakdown["defense"] + breakdown["resources"] + breakdown["utility"]) >= breakdown[
+        "total"
+    ]
+
+
+@pytest.mark.unit
+def test_gear_score_ignores_garment_power_without_combat_modifiers() -> None:
     base_ac = {
         "attributes": {
             "strength": 15,
@@ -193,7 +260,16 @@ def test_gear_score_changes_when_equipping_garment_power() -> None:
 
     calculator = CharacterGearScoreCalculator()
 
-    assert calculator.calculate_from_active_character(equipped_ac) > calculator.calculate_from_active_character(base_ac)
+    assert calculator.calculate_from_active_character(equipped_ac) == calculator.calculate_from_active_character(base_ac)
+
+
+@pytest.mark.unit
+def test_gear_score_counts_jewelry_power_as_defensive_magic_armor() -> None:
+    breakdown = CharacterGearScoreCalculator.calculate_breakdown_from_calculated({"magic_armor": 5.0})
+
+    assert breakdown["total"] >= 1
+    assert breakdown["defense"] == pytest.approx(4.0)
+    assert breakdown["offense"] == 0.0
 
 
 @pytest.mark.unit
@@ -202,7 +278,7 @@ def test_starter_breaker_imprint_is_not_inflated_by_survival_garments() -> None:
 
     score = CharacterGearScoreCalculator().calculate_from_active_character(active_character)
 
-    assert 240 <= score <= 320
+    assert 220 <= score <= 320
 
 
 def _build_starting_imprint_active_character(imprint_key: str) -> dict[str, object]:

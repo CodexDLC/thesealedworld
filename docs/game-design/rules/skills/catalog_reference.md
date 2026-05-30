@@ -24,22 +24,22 @@ Skill values are normalized floats. Player UI may show them as `0..100`.
 
 | Skill key | Player name | UI group | Weights |
 | --- | --- | --- | --- |
-| `skill_swords` | Владение мечами | weapon mastery | `strength 2`, `agility 1`, `endurance 1` |
-| `skill_fencing` | Фехтование | weapon mastery | `agility 2`, `perception 1`, `strength 1` |
-| `skill_polearms` | Древковое оружие | weapon mastery | `strength 2`, `agility 1`, `perception 1` |
-| `skill_macing` | Дробящее оружие | weapon mastery | `strength 2`, `endurance 1`, `mental 1` |
-| `skill_archery` | Стрельба из лука | weapon mastery | `agility 2`, `perception 1`, `strength 1` |
-| `skill_unarmed` | Рукопашный бой | weapon mastery | `agility 2`, `strength 1`, `endurance 1` |
+| `skill_swords` | Владение мечами | weapon mastery | `strength 1`, `agility 1`, `prediction 1` |
+| `skill_fencing` | Фехтование | weapon mastery | `agility 2`, `perception 1`, `prediction 1` |
+| `skill_polearms` | Древковое оружие | weapon mastery | `strength 1`, `perception 1`, `prediction 1` |
+| `skill_macing` | Дробящее оружие | weapon mastery | `strength 2`, `agility 1`, `mental 1` |
+| `skill_archery` | Стрельба из лука | weapon mastery | `agility 1`, `perception 2`, `prediction 1` |
+| `skill_unarmed` | Рукопашный бой | weapon mastery | `strength 1`, `agility 1`, `endurance 1` |
 | `skill_ranged_combat` | Дальний бой | tactical | `agility 1`, `memory 1`, `perception 1`, `prediction 1` |
-| `skill_two_handed` | Двуручный стиль | tactical | `strength 2`, `endurance 1`, `agility 1` |
-| `skill_shield_mastery` | Владение щитом | tactical | `strength 2`, `endurance 1`, `agility 1` |
-| `skill_dual_wield` | Бой двумя руками | tactical | `agility 2`, `perception 1`, `strength 1` |
+| `skill_two_handed` | Двуручный стиль | tactical | `strength 2`, `endurance 1`, `perception 1` |
+| `skill_shield_mastery` | Владение щитом | tactical | `endurance 1`, `memory 1`, `mental 1`, `strength 1` |
+| `skill_dual_wield` | Бой двумя руками | tactical | `agility 1`, `memory 1`, `perception 1`, `prediction 1` |
 | `skill_light_armor` | Легкая броня | armor | `agility 2`, `endurance 1`, `perception 1` |
-| `skill_medium_armor` | Средняя броня | armor | `endurance 2`, `strength 1`, `agility 1` |
-| `skill_heavy_armor` | Тяжелая броня | armor | `strength 2`, `endurance 2` |
-| `skill_parrying` | Парирование | combat support | `agility 2`, `perception 1`, `strength 1` |
-| `skill_anatomy` | Анатомия | combat support | `intellect 2`, `perception 2` |
-| `skill_tactics` | Тактика | combat support | `intellect 2`, `memory 2` |
+| `skill_medium_armor` | Средняя броня | armor | `agility 1`, `endurance 1`, `perception 1`, `strength 1` |
+| `skill_heavy_armor` | Тяжелая броня | armor | `endurance 2`, `mental 1`, `strength 1` |
+| `skill_parrying` | Парирование | combat support | `agility 1`, `perception 2`, `prediction 1` |
+| `skill_anatomy` | Анатомия | combat support | `intellect 2`, `memory 1`, `perception 1` |
+| `skill_tactics` | Тактика | combat support | `intellect 2`, `memory 1`, `prediction 1` |
 
 ## Crafting Skills
 
@@ -83,8 +83,21 @@ Skill values are normalized floats. Player UI may show them as `0..100`.
 
 ## Design Notes
 
-The old "sum 4" rule still matches current definitions and remains the design
-constraint for skill attribute weights.
+`stat_weights` describe progression speed, not direct combat damage.
+
+Weapon mastery damage uses a separate runtime table with two body stats per
+weapon class:
+
+| Weapon class | Damage stats |
+| --- | --- |
+| `swords` | `strength 0.55`, `agility 0.45` |
+| `fencing` | `strength 0.25`, `agility 0.75` |
+| `polearms` | `strength 0.60`, `agility 0.40` |
+| `macing` | `strength 0.75`, `agility 0.25` |
+| `archery` | `strength 0.45`, `agility 0.55` |
+
+`endurance` no longer feeds ordinary weapon damage. It remains a survival stat
+and can feed style-specific mechanics such as shield guard power.
 
 Some skill descriptions already include future mechanics. Treat descriptions as
 catalog copy plus design intent, not proof that every effect is implemented in

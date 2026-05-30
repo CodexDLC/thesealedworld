@@ -41,6 +41,14 @@ Design intent:
   state;
 - can modify an exchange, prepare a reaction, create pressure, or change tempo.
 
+Mass-target feints are still exchange techniques, not Gift abilities. The
+primary target participates in the normal exchange; secondary targets are
+resolved as one-way physical echoes from the same action. They keep hit, dodge,
+parry, block, armor, and effect checks, but they do not create additional
+exchanges, do not return targets through the exchange queue, do not reroll the
+feint hand, and do not pay the feint cost again. Per-feint
+`secondary_damage_mult` caps the damage of those echoes.
+
 ### Gift Ability
 
 A Gift ability is a conscious release of accumulated rift energy through the

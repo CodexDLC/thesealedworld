@@ -107,7 +107,9 @@ class ItemFactory:
         rarity = self.catalog.get_rarity(request.rarity_tier)
         name = self._build_player_name(base, material, rarity)
         description = self._build_player_description(base, material)
-        mechanics = self._build_mechanics(base, material, tier_mult, scaled.implicit_bonuses, affixes)
+        mechanics = self._build_mechanics(
+            base, material, tier_mult, base.implicit_bonuses, scaled.implicit_bonuses, affixes
+        )
         metadata = self._build_metadata(
             request=request,
             base=base,
@@ -155,7 +157,9 @@ class ItemFactory:
         rarity = self.catalog.get_rarity(request.rarity_tier)
         name = request.presentation_name_ru or self._build_player_name(base, material, rarity)
         description = request.presentation_description or self._build_player_description(base, material)
-        mechanics = self._build_mechanics(base, material, tier_mult, scaled.implicit_bonuses, affixes)
+        mechanics = self._build_mechanics(
+            base, material, tier_mult, base.implicit_bonuses, scaled.implicit_bonuses, affixes
+        )
         metadata = self._build_metadata(
             request=request,
             base=base,
@@ -353,10 +357,12 @@ class ItemFactory:
         base,
         material,
         tier_mult: float,
+        base_implicit: dict[str, float],
         scaled_implicit: dict[str, float],
         affixes: list[dict[str, object]],
     ) -> dict[str, object]:
         mechanics: dict[str, object] = {
+            "implicit_bonuses_base": dict(base_implicit),
             "implicit_bonuses": scaled_implicit,
             "material": {
                 "material_id": material.id if material else None,

@@ -16,7 +16,7 @@ MEDIUM_ARMOR_DB = {
         damage_spread=0.0,
         narrative_tags=["cap", "medium", "leather"],
         implicit_bonuses={
-            "parry": 0.005,
+            "anti_dodge_chance": -0.010,
         },
     ),
     "jerkin": BaseItemDTO(
@@ -34,8 +34,8 @@ MEDIUM_ARMOR_DB = {
         base_durability=60,
         narrative_tags=["jerkin", "medium", "leather", "balanced"],
         implicit_bonuses={
-            "physical_resistance": 0.006,
-            "evasion_penalty": -0.004,
+            "evasion_penalty": -0.030,
+            "main_hand_accuracy_penalty": 0.010,
         },
     ),
     "reinforced_gloves": BaseItemDTO(
@@ -53,7 +53,8 @@ MEDIUM_ARMOR_DB = {
         base_durability=45,
         narrative_tags=["gloves", "medium", "reinforced"],
         implicit_bonuses={
-            "parry": 0.010,
+            "main_hand_accuracy_penalty": 0.010,
+            "off_hand_accuracy_penalty": 0.010,
         },
     ),
     "breeches": BaseItemDTO(
@@ -70,8 +71,6 @@ MEDIUM_ARMOR_DB = {
         damage_spread=0.0,
         base_durability=45,
         narrative_tags=["breeches", "medium", "pants", "travel"],
-        implicit_bonuses={
-            "bleed_resistance": 0.008,
-        },
+        implicit_bonuses={},
     ),
 }

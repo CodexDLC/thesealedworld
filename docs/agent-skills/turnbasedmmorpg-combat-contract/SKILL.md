@@ -78,12 +78,26 @@ InteractionResultDTO
 - Crit roll: `(hand_crit_chance + global_crit_chance) * (1.0 + skill_val)`
 - Evasion check: `min(evasion - atk.anti_dodge_chance, dodge_cap)`
 - Parry check: `min(parry * (1 + PARRY_SKILL_MULT_PER_POINT * skill_parrying), parry_cap)`
-- Block check: `min(block * (1 + SHIELD_BLOCK_SKILL_MULT_PER_POINT * skill_parrying), shield_block_cap)`
+- Shield block check: `min((block + SHIELD_BLOCK_SKILL_BONUS_AT_FULL * skill_shield_mastery) * shield_block_chance_mult, shield_block_cap)`.
+  A successful shield block is a shield-contact event, not full damage cancel:
+  it rolls the item's defensive/counter weights, then either adds
+  `shield_guard_power` to mitigation or reflects shield power.
+  Shield formula flags may force the defensive branch, force the counter branch,
+  invert branch weights, or make counter reflect from shield contact power.
 - Counter check: `min(counter_attack_chance, counter_attack_cap)`
 - Weapon damage: `rand((assembled_base + physical_damage_bonus)*(1-spread), ... ) - resist - armor`.
-- Assembled weapon base: `weapon_power + ((strength_power*wS + agility_power*wA + endurance_power*wE) * mastery_factor)`.
+- Elemental/magic damage: `rand(magical_damage*(1-spread), ...) - elemental_resist - magic_armor`.
+- Assembled weapon base: `weapon_power + ((strength_power*wS + agility_power*wA) * mastery_factor)`.
+  Weapon classes use normalized two-stat damage weights; `endurance` does not feed ordinary weapon damage.
 - Unarmed damage: `rand((strength_base * unarmed_efficiency + physical_damage_bonus)*(1-spread), ... ) - resist - armor`; unarmed does not add `physical_damage` twice.
 - Healing: `rand(magical_damage*0.9, magical_damage*1.1) [* 1.5 if crit]`
+
+Mass-target feints use the normal resolver for every concrete target. The
+primary target is the exchange target; secondary targets are executor-created
+`unidirectional` interactions with `feint_role="secondary"`, `pay_cost=False`,
+and `generate_feints=False`. They keep physical hit/defense/armor checks but do
+not advance exchange counters, do not return target-queue pairs, and do not
+create counter/off-hand chain tasks.
 
 ---
 
@@ -182,9 +196,9 @@ chance = min(0.50, 0.25 + 0.25 * skill_dual_wield)  # 0.25 base, 0.50 at full ma
 | crit_chance (main/off) | `atk.mods.{prefix}_crit_chance + crit_chance` | CharMathModel | OK |
 | crit_chance (magic) | `atk.mods.magical_crit_chance` only | CharMathModel | OK (asymmetric) |
 | crit_cap (all) | `atk.mods.{prefix}_crit_cap` | DTO defaults | OK |
-| physical_strength_power | `atk.mods.physical_strength_power` for base-power assembly | Waterfall from Strength | OK |
-| physical_agility_power | `atk.mods.physical_agility_power` for base-power assembly | Waterfall from Agility | OK |
-| physical_endurance_power | `atk.mods.physical_endurance_power` for base-power assembly | Waterfall from Endurance | OK |
+| physical_strength_power | `atk.mods.physical_strength_power` for weapon/style assembly | Waterfall from Strength | OK |
+| physical_agility_power | `atk.mods.physical_agility_power` for weapon assembly | Waterfall from Agility | OK |
+| physical_endurance_power | `atk.mods.physical_endurance_power` for style-specific assembly, not ordinary weapon damage | Waterfall from Endurance | OK |
 | physical_damage | legacy/reserved flat field; weapon resolver does not add it automatically | DTO / compatibility | OK |
 | physical_damage_bonus | `atk.mods.physical_damage_bonus` | CharMathModel | OK |
 | evasion | `def.mods.evasion` | CharMathModel / MonsterProfile | OK |
@@ -196,6 +210,7 @@ chance = min(0.50, 0.25 + 0.25 * skill_dual_wield)  # 0.25 base, 0.50 at full ma
 | shield_block_cap | `def.mods.shield_block_cap` (default 0.75) | DTO default | OK |
 | physical_resistance | `def.mods.physical_resistance` | CharMathModel / MonsterProfile | OK |
 | armor | `def.mods.armor` | CharMathModel / MonsterProfile | OK |
+| magic_armor | `def.mods.magic_armor` | CharMathModel jewelry power / MonsterProfile | OK |
 | `{elem}_resistance` | `def.mods.{elem}_resistance` | CharMathModel / MonsterProfile | OK |
 | magical_penetration (elemental) | `atk.mods.magical_penetration` | CharMathModel | OK |
 | counter_attack_chance | `def.mods.counter_attack_chance` | CharMathModel | OK |
@@ -248,7 +263,9 @@ physical_damage_bonus
 evasion                  dodge_cap                  anti_dodge_chance
 parry                    parry_cap
 block                    shield_block_cap
-physical_resistance      armor
+physical_resistance      armor                    magic_armor
+shield_guard_power
+shield_style_guard_power_raw shield_style_guard_power_bonus
 {fire|water|air|earth|light|dark|arcane|nature}_resistance
 counter_attack_chance    counter_attack_cap
 ```
@@ -271,6 +288,7 @@ dodge_chance       → evasion
 parry_chance       → parry
 shield_block_chance → block
 damage_reduction_flat → armor
+magical_armor        → magic_armor
 magical_damage_base   → magical_damage    (old design docs used this name)
 magical_resistance    → magic_resist
 ```
@@ -281,10 +299,12 @@ magical_resistance    → magic_resist
 
 Strength flows into `physical_strength_power` through the attribute waterfall.
 Agility and Endurance flow into their own physical power fields. For weapon
-attacks, `BasePowerAssembler` combines weapon power, class-specific stat
-weights, and weapon mastery into the final hand damage base before
-`ActorStats` is created. The resolver reads that assembled base and does not
-add `physical_damage`.
+attacks, `BasePowerAssembler` combines weapon power, class-specific normalized
+two-stat damage weights, and weapon mastery into the final hand damage base
+before `ActorStats` is created. The current weapon damage table uses Strength
+and Agility only; Endurance is reserved for survival and style-specific
+mechanics such as shield guard power. The resolver reads that assembled base
+and does not add `physical_damage`.
 
 For unarmed attacks, the mapper already uses Strength as `main_hand_damage_base`,
 so `BasePowerAssembler` skips the `unarmed` class and the resolver applies the
@@ -336,15 +356,17 @@ Wrong: computing `base = 0.70 + 0.30 * skill - 0.10` and writing it to `main_han
 Correct: keep hand accuracy as modifier-only and let resolver combine built-in base, skill bonus, and sources.
 
 **DO NOT pre-apply parry/block skill bonuses in mappers.**
-Parry and shield block base chances come from equipment. `CombatResolver` applies
-the normalized `skill_parrying` multiplier during the exchange.
+Parry and shield block base chances come from equipment. `CombatResolver`
+applies `skill_parrying` to parry and `skill_shield_mastery` to shield block
+during the exchange.
 
 **DO NOT write attributes into modifiers.**
 Strength, Agility, and Endurance go into `raw.attributes`. WaterfallCalculator
 derives `physical_strength_power`, `physical_agility_power`, and
-`physical_endurance_power`; `BasePowerAssembler` decides how those powers affect
-each weapon class. Mappers put strength directly into `main_hand_damage_base`
-only for unarmed.
+`physical_endurance_power`; `BasePowerAssembler` uses Strength/Agility for
+ordinary weapon damage and may use Endurance only for style-specific mechanics
+such as shield guard scaling. Mappers put strength directly into
+`main_hand_damage_base` only for unarmed.
 
 **DO NOT assume skills are 0..100.**
 `actor.skills["skill_swords"] = 0.75` means 75% mastery. Use directly: `1.0 + skill_val`.

@@ -97,6 +97,20 @@ WEAPON_MACING_FEINTS_TECHNICAL = {
             pipeline_mutation("accuracy_mult", 1.05),
         ],
     ),
+    "macing_shock_sweep": FeintTechnicalDTO(
+        feint_id="macing_shock_sweep",
+        cost=FeintCostDTO(tactics={"hit": 5, "parry": 2}),
+        target=TargetType.ALL_ENEMIES,
+        target_count=3,
+        secondary_damage_mult=0.65,
+        applicability_tags=[*_MACING_TAGS, "hit", "parry", "damage", "anti_parry", "multi_target", "high_cost"],
+        purchase_group="weapon",
+        pipeline_mutations=[
+            pipeline_mutation("accuracy_mult", 0.90),
+            pipeline_mutation("target_parry_mult", 0.85),
+            pipeline_mutation("target_block_mult", 0.85),
+        ],
+    ),
 }
 
 _MACING_TEXTS = {
@@ -147,6 +161,14 @@ _MACING_TEXTS = {
         "разгоняя оружие для пролома защиты",
         "и пробивает блок цели",
         "и проламывает защиту критическим ударом",
+    ),
+    "macing_shock_sweep": (
+        "Ударная дуга",
+        "Продавить три цели",
+        "Оружейный финт тяжелого оружия: основной размен задевает до двух дополнительных целей.",
+        "ведя тяжелое оружие ударной дугой",
+        "и продавливает соседнюю защиту",
+        "и расшатывает строй тяжелым кругом",
     ),
 }
 

@@ -14,6 +14,10 @@ Full layer changelogs live in:
 
 ## [Unreleased]
 
+### Combat Runtime And AI
+
+- Adds combat AI simulation and training surfaces, including backend run tracking, cabinet controls, archetype policies, tactical memory, and combat tuning/resource updates.
+
 ### Telegram And News
 
 - Telegram news announcements now edit existing media posts before falling back

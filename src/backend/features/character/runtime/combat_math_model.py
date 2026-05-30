@@ -3,6 +3,12 @@ from __future__ import annotations
 from typing import Any
 
 from src.backend.features.character.dto.modifiers import CombatModifiersDTO
+from src.backend.features.character.runtime.item_sync import (
+    apply_penalty_sync,
+    item_combat_tier,
+    symbiote_tier,
+    sync_factors,
+)
 from src.backend.features.character.schemas.session import CharacterSessionAttributesDTO
 from src.backend.features.items.resources.affixes.catalog import AFFIX_CATALOG
 from src.backend.features.items.resources.modifier_contracts import MODIFIER_CONTRACTS, compile_modifier_command
@@ -14,11 +20,28 @@ ATTRIBUTE_KEYS = tuple(CharacterSessionAttributesDTO.model_fields)
 COMBAT_MODIFIER_KEYS = frozenset(CombatModifiersDTO.model_fields)
 UNARMED_DAMAGE_SPREAD = 0.50
 ARMOR_BEARING_SLOTS = frozenset({"head_armor", "chest_armor", "arms_armor", "legs_armor"})
+JEWELRY_SLOTS = frozenset({"ring_1", "ring_2", "amulet", "earring"})
 HEAVY_CHEST_DODGE_CAPS = {
     "plate_chest": 0.35,
 }
 MEDIUM_CHEST_DODGE_CAP_PENALTY = -0.20
 LIGHT_ARMOR_SKILL_DODGE_CAP_BOOST = 0.20
+ITEM_SYNC_POSITIVE_PENALTY_KEYS = frozenset(
+    {
+        "main_hand_accuracy_penalty",
+        "off_hand_accuracy_penalty",
+        "weapon_accuracy_penalty",
+        "item_accuracy_penalty",
+    }
+)
+ITEM_SYNC_NEGATIVE_PENALTY_KEYS = frozenset(
+    {
+        "anti_dodge_chance",
+        "evasion_penalty",
+        "parry_penalty",
+        "stamina_regen",
+    }
+)
 MODIFIER_ALIASES = {
     "block_chance": "block",
     "damage_reduction_flat": "armor",
@@ -27,7 +50,9 @@ MODIFIER_ALIASES = {
     "evasion_penalty": "evasion",
     "hp_max": "hp",
     "magical_resistance": "magic_resist",
+    "magical_armor": "magic_armor",
     "magic_resistance": "magic_resist",
+    "parry_penalty": "parry",
     "parry_chance": "parry",
     "physical_accuracy": "accuracy",
     "physical_crit_chance": "crit_chance",
@@ -45,13 +70,20 @@ class CharacterCombatMathModelBuilder:
         attributes: Any,
         items: dict[str, Any] | None = None,
         skills: dict[str, Any] | None = None,
+        symbiote: dict[str, Any] | None = None,
     ) -> RawCombatMathModel:
         equipped = self._equipped_items(items or {})
         attributes_data = self._dump(attributes)
         raw_attributes = self._build_attributes(attributes_data)
         return {
             "attributes": raw_attributes,
-            "modifiers": self._build_modifiers(equipped, attributes_data, skills or {}, raw_attributes),
+            "modifiers": self._build_modifiers(
+                equipped,
+                attributes_data,
+                skills or {},
+                raw_attributes,
+                symbiote=symbiote,
+            ),
             "rules": {"attribute_profile": "player"},
             "tags": ["player"],
         }
@@ -70,8 +102,11 @@ class CharacterCombatMathModelBuilder:
         attributes: dict[str, Any],
         skills: dict[str, Any],
         raw_attributes: RawStatBlock,
+        *,
+        symbiote: dict[str, Any] | None = None,
     ) -> RawStatBlock:
         modifiers = self._empty_modifiers()
+        symbiote_rank = symbiote_tier(symbiote)
         has_main_hand_weapon = False
         chest_item: dict[str, Any] | None = None
         for item in equipment:
@@ -105,8 +140,16 @@ class CharacterCombatMathModelBuilder:
                     self._replace_base_modifier(modifiers, "off_hand_damage_spread", damage_spread)
 
             for bonus_key, value in (mechanics.get("implicit_bonuses") or {}).items():
-                if bonus_key == "evasion_penalty" and item_type == "armor" and armor_class == "heavy":
-                    continue
+                value, extra_bonuses = self._apply_item_sync_to_implicit_bonus(
+                    item,
+                    mechanics,
+                    str(bonus_key),
+                    value,
+                    skills,
+                    item_type=item_type,
+                    armor_class=armor_class,
+                    symbiote_rank=symbiote_rank,
+                )
                 self._add_item_base_modifier(
                     modifiers,
                     str(bonus_key),
@@ -115,6 +158,15 @@ class CharacterCombatMathModelBuilder:
                     item_type=item_type,
                     tags=tags,
                 )
+                for extra_key, extra_value in extra_bonuses.items():
+                    self._add_item_base_modifier(
+                        modifiers,
+                        extra_key,
+                        extra_value,
+                        slot=combat_slot,
+                        item_type=item_type,
+                        tags=tags,
+                    )
             for bonus_key, value in (mechanics.get("bonuses") or {}).items():
                 self._add_item_source_modifier(
                     modifiers,
@@ -267,6 +319,9 @@ class CharacterCombatMathModelBuilder:
         if slot.endswith("_armor"):
             self._set_base_modifier(modifiers, "armor", value)
             return
+        if item_type == "accessory" and slot in JEWELRY_SLOTS:
+            self._set_base_modifier(modifiers, "magic_armor", value)
+            return
 
     @staticmethod
     def _combat_slot(slot: str) -> str:
@@ -322,6 +377,80 @@ class CharacterCombatMathModelBuilder:
         if value is None or value <= 0:
             return 1.0
         return value
+
+    @staticmethod
+    def _apply_item_sync_to_implicit_bonus(
+        item: dict[str, Any],
+        mechanics: dict[str, Any],
+        bonus_key: str,
+        scaled_value: Any,
+        skills: dict[str, Any],
+        *,
+        item_type: str,
+        armor_class: str,
+        symbiote_rank: int,
+    ) -> tuple[Any, dict[str, float]]:
+        if not CharacterCombatMathModelBuilder._is_sync_penalty_key(bonus_key):
+            return scaled_value, {}
+        if item_type not in {"armor", "weapon", "shield"}:
+            return scaled_value, {}
+
+        scaled_numeric = CharacterCombatMathModelBuilder._float_value(scaled_value)
+        if scaled_numeric is None:
+            return scaled_value, {}
+
+        base_value = CharacterCombatMathModelBuilder._base_implicit_value(mechanics, bonus_key, scaled_numeric)
+        skill = CharacterCombatMathModelBuilder._item_sync_skill(
+            item, mechanics, skills, item_type=item_type, armor_class=armor_class
+        )
+        factors = sync_factors(
+            symbiote_rank=symbiote_rank,
+            item_tier=item_combat_tier(item, mechanics),
+        )
+        effective, bonus = apply_penalty_sync(
+            base_value=base_value,
+            scaled_value=scaled_numeric,
+            skill=skill,
+            factors=factors,
+        )
+        extra_bonuses: dict[str, float] = {}
+        if bonus > 0.0 and bonus_key in ITEM_SYNC_POSITIVE_PENALTY_KEYS:
+            extra_bonuses["physical_accuracy"] = bonus
+        return effective, extra_bonuses
+
+    @staticmethod
+    def _is_sync_penalty_key(key: str) -> bool:
+        return key in ITEM_SYNC_POSITIVE_PENALTY_KEYS or key in ITEM_SYNC_NEGATIVE_PENALTY_KEYS
+
+    @staticmethod
+    def _base_implicit_value(mechanics: dict[str, Any], key: str, scaled_value: float) -> float:
+        base_bonuses = CharacterCombatMathModelBuilder._dump(mechanics.get("implicit_bonuses_base"))
+        base_value = CharacterCombatMathModelBuilder._float_value(base_bonuses.get(key))
+        if base_value is not None:
+            return base_value
+        tier_mult = CharacterCombatMathModelBuilder._tier_mult({}, mechanics)
+        return round(scaled_value / tier_mult, 4)
+
+    @staticmethod
+    def _item_sync_skill(
+        item: dict[str, Any],
+        mechanics: dict[str, Any],
+        skills: dict[str, Any],
+        *,
+        item_type: str,
+        armor_class: str,
+    ) -> float:
+        related_skill = str(
+            item.get("related_skill")
+            or mechanics.get("related_skill")
+            or CharacterCombatMathModelBuilder._dump(item.get("metadata") or mechanics.get("metadata")).get(
+                "related_skill"
+            )
+            or ""
+        )
+        if not related_skill and item_type == "armor" and armor_class in {"light", "medium", "heavy"}:
+            related_skill = f"skill_{armor_class}_armor"
+        return max(0.0, min(1.0, float(skills.get(related_skill, 0.0) or 0.0)))
 
     @staticmethod
     def _is_shield(item_type: str, tags: list[str]) -> bool:
@@ -437,6 +566,18 @@ class CharacterCombatMathModelBuilder:
             if slot == "off_hand" and not CharacterCombatMathModelBuilder._is_shield(item_type, tags):
                 return "off_hand_accuracy"
             return "accuracy"
+        if (
+            key
+            in {
+                "weapon_accuracy_penalty",
+                "main_hand_accuracy_penalty",
+                "off_hand_accuracy_penalty",
+            }
+            and item_type == "weapon"
+        ):
+            if slot == "off_hand" and not CharacterCombatMathModelBuilder._is_shield(item_type, tags):
+                return "off_hand_accuracy_penalty"
+            return "main_hand_accuracy_penalty"
         if key == "physical_crit_chance":
             if slot == "main_hand":
                 return "main_hand_crit_chance"

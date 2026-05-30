@@ -111,6 +111,7 @@ class MainHandStatsDTO(BaseModel):
     main_hand_armor_penetration_pct: float = 0.0
     main_hand_armor_ignore_chance: float = 0.0
     main_hand_accuracy: float = 0.0
+    main_hand_accuracy_penalty: float = 0.0
 
     # Crit
     main_hand_crit_chance: float = 0.0
@@ -133,6 +134,7 @@ class OffHandStatsDTO(BaseModel):
     off_hand_armor_penetration_pct: float = 0.0
     off_hand_armor_ignore_chance: float = 0.0
     off_hand_accuracy: float = 0.0
+    off_hand_accuracy_penalty: float = 0.0
 
     # Crit
     off_hand_crit_chance: float = 0.0
@@ -151,6 +153,7 @@ class ItemStatsDTO(BaseModel):
     item_armor_penetration_pct: float = 0.0
     item_armor_ignore_chance: float = 0.0
     item_accuracy: float = 0.0
+    item_accuracy_penalty: float = 0.0
     item_crit_chance: float = 0.0
     item_crit_cap: float = 0.75
 
@@ -210,6 +213,8 @@ class DefensiveStatsDTO(BaseModel):
     # Block
     block: float = 0.0  # StatKey.BLOCK
     shield_block_cap: float = 0.75
+    shield_block_defense_weight: float = 1.0
+    shield_block_counter_weight: float = 0.0
 
 
 class MitigationStatsDTO(BaseModel):
@@ -224,9 +229,12 @@ class MitigationStatsDTO(BaseModel):
 
     # Armor (Flat)
     armor: float = 0.0  # StatKey.ARMOR
+    magic_armor: float = 0.0
     shield_guard_power: float = 0.0
+    shield_style_guard_power_raw: float = 0.0
+    shield_style_guard_power_bonus: float = 0.0
     shield_absorb_ratio: float = 0.40
-    shield_reflect_ratio: float = 0.50
+    shield_reflect_ratio: float = 1.00
 
 
 class ElementalStatsDTO(BaseModel):

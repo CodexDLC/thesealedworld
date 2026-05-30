@@ -41,3 +41,9 @@ def test_inventory_view_uses_distinct_resource_icons_by_category() -> None:
     assert service._resource_icon_key("res_plant_fiber", item_type="resource") == "resource_fiber"
     assert service._resource_icon_key("res_torn_pelt", item_type="resource") == "resource_hide"
     assert service._resource_icon_key("currency_dust", item_type="currency") == "resource_currency"
+
+
+def test_inventory_view_uses_quiver_icon_for_ammo_slot() -> None:
+    service = InventoryViewService()
+
+    assert service._icon_key(_item("quiver_poison", "ammo", slot="quiver", tags=["quiver", "arrows"])) == "quiver"

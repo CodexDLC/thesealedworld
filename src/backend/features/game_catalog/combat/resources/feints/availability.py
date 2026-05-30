@@ -31,6 +31,7 @@ SWORD_WEAPON_FEINTS: tuple[str, ...] = (
     "sword_hard_bind",
     "sword_cut_angle",
     "sword_clean_path",
+    "sword_blade_whirl",
 )
 
 FENCING_WEAPON_FEINTS: tuple[str, ...] = (
@@ -41,6 +42,7 @@ FENCING_WEAPON_FEINTS: tuple[str, ...] = (
     "fencing_needle_gap",
     "fencing_slip_guard",
     "fencing_inside_line",
+    "fencing_line_flurry",
 )
 
 POLEARM_WEAPON_FEINTS: tuple[str, ...] = (
@@ -51,6 +53,7 @@ POLEARM_WEAPON_FEINTS: tuple[str, ...] = (
     "polearm_stunning_intercept",
     "polearm_pinning_point",
     "polearm_locked_distance",
+    "polearm_line_cleave",
 )
 
 MACING_WEAPON_FEINTS: tuple[str, ...] = (
@@ -60,9 +63,11 @@ MACING_WEAPON_FEINTS: tuple[str, ...] = (
     "macing_break_swing",
     "macing_break_stance",
     "macing_guard_cracker",
+    "macing_shock_sweep",
 )
 
 ARCHERY_WEAPON_FEINTS: tuple[str, ...] = (
+    "arrow_rain",
     "snap_shot",
     "headshot",
     "piercing_arrow",
@@ -76,6 +81,7 @@ RANGED_TACTICAL_FEINTS: tuple[str, ...] = (
     "backstep_shot",
     "open_distance",
     "blinding_shot",
+    "ranged_covering_volley",
 )
 
 SHIELD_TACTICAL_FEINTS: tuple[str, ...] = (
@@ -85,6 +91,7 @@ SHIELD_TACTICAL_FEINTS: tuple[str, ...] = (
     "aggressive_defense",
     "read_tactic",
     "concussion",
+    "shield_line_bash",
 )
 
 TWO_HANDED_TACTICAL_FEINTS: tuple[str, ...] = (
@@ -101,6 +108,7 @@ TWO_HANDED_TACTICAL_FEINTS: tuple[str, ...] = (
     "heavy_swing",
     "hidden_strength",
     "lucky_break",
+    "two_handed_whirl",
 )
 
 DUAL_WIELD_TACTICAL_FEINTS: tuple[str, ...] = (
@@ -115,6 +123,7 @@ DUAL_WIELD_TACTICAL_FEINTS: tuple[str, ...] = (
     "answering_series",
     "blade_mill",
     "blade_loop",
+    "dual_blade_whirl",
 )
 
 SKILL_FEINT_UNLOCKS: dict[str, tuple[tuple[float, tuple[str, ...]], ...]] = {

@@ -17,18 +17,8 @@ from src.backend.features.combat.dto.pipeline import (
 from src.backend.features.combat.integrations import CombatCatalogIntegrator
 from src.backend.features.combat.runtime.engine.math_core import MathCore
 from src.backend.features.combat.runtime.engine.pipeline_mutation_service import PipelineMutationService
+from src.backend.features.combat.runtime.engine.tunables import current_tunables
 
-PARRY_SKILL_MULT_PER_POINT = 4.0
-SHIELD_BLOCK_SKILL_MULT_PER_POINT = 1.5
-SHIELD_MASTERY_ABSORB_CAP_RATIO_AT_FULL = 0.50
-SHIELD_MASTERY_REFLECT_RATIO_AT_FULL = 0.50
-BASE_ACCURACY_CHANCE = 0.70
-SKILL_ACCURACY_BONUS_AT_FULL = 0.30
-UNARMED_MIN_EFFICIENCY = 0.5
-UNARMED_MAX_EFFICIENCY = 3.0
-UNARMED_NOVICE_SPREAD = 0.5
-UNARMED_MASTER_SPREAD = 0.1
-TOKEN_BONUS_CHANCE = 0.30
 TOKEN_BONUS_EXCLUDED = frozenset({"tempo", "gift"})
 
 
@@ -73,10 +63,10 @@ class CombatResolver:
             cls._step_counter_check(defender_stats, context, result)
             return result
 
-        # 5. Block
-        if cls._step_block_roll(attacker_stats, defender_stats, context, result):
+        # 5. Block. Shield block is a contact event, not a full damage cancel.
+        block_passed = cls._step_block_roll(attacker_stats, defender_stats, context, result)
+        if block_passed:
             cls._step_counter_check(defender_stats, context, result)
-            return result
 
         # 6. Damage
         cls._step_calculate_damage(attacker_stats, defender_stats, context, result)
@@ -128,6 +118,13 @@ class CombatResolver:
                 "off_hand": stats.mods.off_hand_accuracy + stats.mods.accuracy,
             }.get(source, stats.mods.main_hand_accuracy + stats.mods.accuracy)
 
+        if key == "accuracy_penalty":
+            return {
+                "magic": 0.0,
+                "item": stats.mods.item_accuracy_penalty,
+                "off_hand": stats.mods.off_hand_accuracy_penalty,
+            }.get(source, stats.mods.main_hand_accuracy_penalty)
+
         if key == "physical_suppression":
             return {
                 "magic": 0.0,
@@ -176,10 +173,22 @@ class CombatResolver:
             CombatResolver._trace_step(res, "accuracy", "pass", reason="force_hit")
             return True
 
+        tunables = current_tunables()
         accuracy_modifier = CombatResolver._get_offensive_val(atk_stats, ctx, "accuracy")
+        raw_penalty = CombatResolver._get_offensive_val(atk_stats, ctx, "accuracy_penalty")
+        weapon_skill = CombatResolver._weapon_skill_value(atk_stats, ctx)
+        style_skill = CombatResolver._style_skill_value(atk_stats, ctx)
+        effective_penalty = CombatResolver._accuracy_penalty_after_mastery(raw_penalty, weapon_skill, style_skill)
         skill_bonus = CombatResolver._accuracy_skill_bonus(atk_stats, ctx)
         multiplier = ctx.mods.accuracy_mult
-        final_acc = max(0.0, min(1.0, (BASE_ACCURACY_CHANCE + skill_bonus + accuracy_modifier) * multiplier))
+        accuracy_cap = max(0.0, min(1.0, tunables.accuracy_chance_cap))
+        final_acc = max(
+            0.0,
+            min(
+                accuracy_cap,
+                (tunables.base_accuracy_chance + skill_bonus + accuracy_modifier - effective_penalty) * multiplier,
+            ),
+        )
         roll, passed = MathCore.roll_chance(final_acc)
         CombatResolver._trace_roll(
             res,
@@ -187,9 +196,15 @@ class CombatResolver:
             final_acc,
             roll,
             passed,
-            base=BASE_ACCURACY_CHANCE,
+            base=tunables.base_accuracy_chance,
             skill_bonus=skill_bonus,
             modifier=accuracy_modifier,
+            raw_penalty=raw_penalty,
+            effective_penalty=effective_penalty,
+            cap=accuracy_cap,
+            weapon_skill=weapon_skill,
+            style_skill=style_skill,
+            tactical_style_skill=ctx.flags.meta.tactical_style_skill,
             mult=multiplier,
             source_type=ctx.flags.meta.source_type,
         )
@@ -206,12 +221,37 @@ class CombatResolver:
 
     @staticmethod
     def _accuracy_skill_bonus(atk_stats: ActorStats, ctx: PipelineContextDTO) -> float:
+        return CombatResolver._weapon_skill_value(atk_stats, ctx) * current_tunables().skill_accuracy_bonus_at_full
+
+    @staticmethod
+    def _weapon_skill_value(atk_stats: ActorStats, ctx: PipelineContextDTO) -> float:
         weapon_class = ctx.flags.meta.weapon_class
         if not weapon_class:
             return 0.0
-        skill_val = getattr(atk_stats.skills, f"skill_{weapon_class}", 0.0)
-        normalized = max(0.0, min(1.0, float(skill_val or 0.0)))
-        return normalized * SKILL_ACCURACY_BONUS_AT_FULL
+        return CombatResolver._normalized_skill_value(getattr(atk_stats.skills, f"skill_{weapon_class}", 0.0))
+
+    @staticmethod
+    def _style_skill_value(atk_stats: ActorStats, ctx: PipelineContextDTO) -> float:
+        style_skill = ctx.flags.meta.tactical_style_skill
+        if not style_skill:
+            return 0.0
+        return CombatResolver._normalized_skill_value(getattr(atk_stats.skills, style_skill, 0.0))
+
+    @staticmethod
+    def _normalized_skill_value(value: Any) -> float:
+        return max(0.0, min(1.0, float(value or 0.0)))
+
+    @staticmethod
+    def _accuracy_penalty_after_mastery(raw_penalty: float, weapon_skill: float, style_skill: float) -> float:
+        if raw_penalty <= 0.0:
+            return 0.0
+        tunables = current_tunables()
+        reduction = (
+            weapon_skill * tunables.accuracy_penalty_weapon_skill_reduction_at_full
+            + style_skill * tunables.accuracy_penalty_style_skill_reduction_at_full
+        )
+        penalty_mult = max(tunables.accuracy_penalty_min_multiplier, 1.0 - reduction)
+        return raw_penalty * penalty_mult
 
     @staticmethod
     def _step_evasion_roll(
@@ -241,14 +281,8 @@ class CombatResolver:
         evasion_cap = def_stats.mods.dodge_cap
         anti_evasion = atk_stats.mods.anti_dodge_chance
 
-        if ctx.flags.formula.ignore_evasion_cap:
-            final_chance = base_evasion - anti_evasion
-        elif ctx.flags.formula.zero_anti_evasion:
-            final_chance = base_evasion
-            final_chance = min(final_chance, evasion_cap)
-        else:
-            final_chance = base_evasion - anti_evasion
-            final_chance = min(final_chance, evasion_cap)
+        final_chance = base_evasion if ctx.flags.formula.zero_anti_evasion else base_evasion - anti_evasion
+        final_chance = min(final_chance, evasion_cap)
 
         evasion_mult = max(0.0, ctx.mods.target_evasion_mult)
         final_chance = max(0.0, min(1.0, final_chance * evasion_mult))
@@ -322,7 +356,7 @@ class CombatResolver:
         parry_base = def_stats.mods.parry  # FIXED: parry_chance -> parry
         parry_cap = def_stats.mods.parry_cap
         parrying = def_stats.skills.skill_parrying
-        skill_mult = 1.0 + (PARRY_SKILL_MULT_PER_POINT * parrying)
+        skill_mult = 1.0 + (current_tunables().parry_skill_mult_per_point * parrying)
         parry_chance = parry_base * skill_mult
 
         if ctx.flags.formula.ignore_parry_cap:
@@ -380,18 +414,22 @@ class CombatResolver:
             return False
         if ctx.flags.force.block:
             res.is_blocked = True
+            res.shield_block_branch = CombatResolver._roll_shield_block_branch(def_stats, ctx, res)
             CombatResolver._award_defender_token(res, "block")
             res.events.append(CombatEventDTO(type="BLOCK", source_id=source_id, target_id=target_id))
-            CombatResolver._resolve_triggers(ctx, res, "ON_BLOCK")
+            if res.shield_block_branch == "counter":
+                CombatResolver._resolve_triggers(ctx, res, "ON_BLOCK")
             return True
 
         block_base = def_stats.mods.block  # FIXED: shield_block_chance -> block
         block_cap = def_stats.mods.shield_block_cap
-        parrying = def_stats.skills.skill_parrying
-        skill_mult = 1.0 + (SHIELD_BLOCK_SKILL_MULT_PER_POINT * parrying)
-        block_chance = block_base * skill_mult
+        shield_mastery = max(0.0, min(1.0, float(def_stats.skills.skill_shield_mastery or 0.0)))
+        skill_bonus = current_tunables().shield_block_skill_bonus_at_full * shield_mastery
+        block_chance = (block_base + skill_bonus) * max(0.0, ctx.mods.shield_block_chance_mult)
 
         final_chance = block_chance if ctx.flags.formula.ignore_block_cap else min(block_chance, block_cap)
+        block_mult = max(0.0, ctx.mods.target_block_mult)
+        final_chance = max(0.0, min(1.0, final_chance * block_mult))
 
         roll, passed = MathCore.roll_chance(final_chance)
         CombatResolver._trace_roll(
@@ -402,19 +440,72 @@ class CombatResolver:
             passed,
             base=block_base,
             cap=block_cap,
-            skill=parrying,
-            skill_mult=skill_mult,
+            skill=shield_mastery,
+            skill_bonus=skill_bonus,
+            shield_block_chance_mult=max(0.0, ctx.mods.shield_block_chance_mult),
+            target_block_mult=block_mult,
         )
 
         if passed:
             res.is_blocked = True
+            res.shield_block_branch = CombatResolver._roll_shield_block_branch(def_stats, ctx, res)
             CombatResolver._award_defender_token(res, "block")
             res.events.append(CombatEventDTO(type="BLOCK", source_id=source_id, target_id=target_id))
-            CombatResolver._resolve_triggers(ctx, res, "ON_BLOCK")
+            if res.shield_block_branch == "counter":
+                CombatResolver._resolve_triggers(ctx, res, "ON_BLOCK")
             return True
 
         CombatResolver._resolve_triggers(ctx, res, "ON_BLOCK_FAIL")
         return False
+
+    @staticmethod
+    def _roll_shield_block_branch(def_stats: ActorStats, ctx: PipelineContextDTO, res: InteractionResultDTO) -> str:
+        if ctx.flags.formula.force_shield_counter_branch:
+            CombatResolver._trace_roll(
+                res,
+                "shield_block_branch",
+                1.0,
+                None,
+                True,
+                forced="counter",
+                branch="counter",
+            )
+            return "counter"
+
+        if ctx.flags.formula.force_shield_defense_branch:
+            CombatResolver._trace_roll(
+                res,
+                "shield_block_branch",
+                1.0,
+                None,
+                True,
+                forced="defense",
+                branch="defense",
+            )
+            return "defense"
+
+        defense_weight = max(0.0, float(getattr(def_stats.mods, "shield_block_defense_weight", 1.0) or 0.0))
+        counter_weight = max(0.0, float(getattr(def_stats.mods, "shield_block_counter_weight", 0.0) or 0.0))
+        inverted = bool(ctx.flags.formula.shield_branch_invert)
+        if inverted:
+            defense_weight, counter_weight = counter_weight, defense_weight
+        total_weight = defense_weight + counter_weight
+        defense_chance = 1.0 if total_weight <= 0.0 else defense_weight / total_weight
+
+        roll, defense_passed = MathCore.roll_chance(defense_chance)
+        branch = "defense" if defense_passed else "counter"
+        CombatResolver._trace_roll(
+            res,
+            "shield_block_branch",
+            defense_chance,
+            roll,
+            defense_passed,
+            defense_weight=defense_weight,
+            counter_weight=counter_weight,
+            inverted=inverted,
+            branch=branch,
+        )
+        return branch
 
     @staticmethod
     def _step_counter_check(def_stats: ActorStats, ctx: PipelineContextDTO, res: InteractionResultDTO):
@@ -542,14 +633,20 @@ class CombatResolver:
 
             if ctx.flags.damage.physical:
                 if ctx.flags.meta.weapon_class == "unarmed":
+                    tunables = current_tunables()
                     unarmed = atk_stats.skills.skill_unarmed
-                    efficiency = UNARMED_MIN_EFFICIENCY + ((UNARMED_MAX_EFFICIENCY - UNARMED_MIN_EFFICIENCY) * unarmed)
+                    efficiency = tunables.unarmed_min_efficiency + (
+                        (tunables.unarmed_max_efficiency - tunables.unarmed_min_efficiency) * unarmed
+                    )
                     base *= efficiency
-                    spread = max(UNARMED_MASTER_SPREAD, UNARMED_NOVICE_SPREAD - (0.4 * unarmed))
+                    spread = max(
+                        tunables.unarmed_master_spread,
+                        tunables.unarmed_novice_spread - (0.4 * unarmed),
+                    )
                 base += atk_stats.mods.physical_damage_bonus
 
             min_d = base * (1.0 - spread)
-            max_d = base * (1.0 + spread)
+            max_d = base
 
         raw_damage = MathCore.random_range(min_d, max_d)
         total_damage = 0.0
@@ -575,6 +672,8 @@ class CombatResolver:
         )
         after_resist = raw_damage
         after_armor = raw_damage
+        magic_armor_flat = 0.0
+        magic_after_armor = raw_damage
 
         crit_multiplier = 1.0
         if res.is_crit:
@@ -617,6 +716,7 @@ class CombatResolver:
 
         elements = ["fire", "water", "air", "earth", "light", "darkness", "arcane", "nature"]
         elemental_damage_enabled = False
+        elemental_damage_before_armor = 0.0
         for elem in elements:
             if getattr(ctx.flags.damage, elem, False):
                 elemental_damage_enabled = True
@@ -634,7 +734,13 @@ class CombatResolver:
                 mitigation_pct = max(0.0, resist_pct - pen_pct)
                 elem_dmg *= 1.0 - mitigation_pct
                 total_damage += elem_dmg
+                elemental_damage_before_armor += elem_dmg
                 damage_parts[elem] = elem_dmg
+
+        if elemental_damage_enabled and elemental_damage_before_armor > 0.0:
+            magic_armor_flat = min(elemental_damage_before_armor, max(0.0, getattr(def_stats.mods, "magic_armor", 0.0)))
+            total_damage = max(0.0, total_damage - magic_armor_flat)
+            magic_after_armor = max(0.0, elemental_damage_before_armor - magic_armor_flat)
 
         if ctx.flags.state.hit_index > 0:
             heavy_skill = def_stats.skills.skill_heavy_armor
@@ -647,18 +753,49 @@ class CombatResolver:
         shield_absorb_cap = 0.0
         shield_guard_power = 0.0
         shield_reflect_ratio = 0.0
+        shield_reflect_base = 0.0
         shield_mastery = 0.0
-        if ctx.flags.state.partial_absorb_reflect:
+        shield_block_branch = res.shield_block_branch
+        if res.is_blocked:
+            shield_mastery = min(1.0, max(0.0, def_stats.skills.skill_shield_mastery))
+            shield_guard_power_base = max(0.0, getattr(def_stats.mods, "shield_guard_power", 0.0))
+            shield_guard_power = shield_guard_power_base * (1.0 + (0.50 * shield_mastery))
+            shield_guard_power *= max(0.0, ctx.mods.shield_guard_power_mult)
+            if shield_block_branch == "defense":
+                shield_absorb_cap_ratio = 1.0
+                shield_absorb_cap = total_damage
+                shield_absorb_ratio = 1.0
+                shield_absorb = min(total_damage, shield_guard_power)
+                total_damage -= shield_absorb
+            elif shield_block_branch == "counter":
+                shield_reflect_ratio = 1.0 + (0.50 * shield_mastery)
+                shield_reflect_ratio *= max(0.0, ctx.mods.shield_counter_power_mult)
+                shield_reflect_base = (
+                    min(total_damage, shield_guard_power)
+                    if ctx.flags.formula.shield_counter_from_absorbed
+                    else shield_guard_power_base
+                )
+                shield_reflect = shield_reflect_base * shield_reflect_ratio
+                res.reflected_damage += int(shield_reflect)
+        elif ctx.flags.state.partial_absorb_reflect:
             shield_mastery = min(1.0, max(0.0, def_stats.skills.skill_shield_mastery))
             shield_guard_power_base = max(0.0, getattr(def_stats.mods, "shield_guard_power", 0.0))
             shield_guard_power = shield_guard_power_base * shield_mastery
-            shield_absorb_cap_ratio = SHIELD_MASTERY_ABSORB_CAP_RATIO_AT_FULL * shield_mastery
+            tunables = current_tunables()
+            shield_absorb_cap_ratio = tunables.shield_mastery_absorb_cap_ratio_at_full * shield_mastery
             shield_absorb_cap = total_damage * shield_absorb_cap_ratio
             shield_absorb_ratio = shield_absorb_cap_ratio
             shield_reflect_ratio = (
                 min(
-                    max(0.0, getattr(def_stats.mods, "shield_reflect_ratio", SHIELD_MASTERY_REFLECT_RATIO_AT_FULL)),
-                    SHIELD_MASTERY_REFLECT_RATIO_AT_FULL,
+                    max(
+                        0.0,
+                        getattr(
+                            def_stats.mods,
+                            "shield_reflect_ratio",
+                            tunables.shield_mastery_reflect_ratio_at_full,
+                        ),
+                    ),
+                    tunables.shield_mastery_reflect_ratio_at_full,
                 )
                 * shield_mastery
             )
@@ -693,11 +830,14 @@ class CombatResolver:
             spread=spread,
             parts=damage_parts,
             armor=getattr(def_stats.mods, "armor", 0.0),
+            magic_armor=magic_armor_flat,
             shield_absorb=shield_absorb,
             shield_absorb_cap=shield_absorb_cap,
             shield_absorb_ratio=shield_absorb_ratio,
             shield_guard_power=shield_guard_power,
+            shield_block_branch=shield_block_branch,
             shield_reflect=shield_reflect,
+            shield_reflect_base=shield_reflect_base,
             shield_reflect_ratio=shield_reflect_ratio,
             shield_mastery=shield_mastery,
             weapon_technique_bonus_damage=ctx.mods.weapon_technique_bonus_damage,
@@ -723,6 +863,7 @@ class CombatResolver:
             arm=armor_trace,
             after_resist=after_resist,
             after_armor=after_armor,
+            after_magic_armor=magic_after_armor,
             after_absorb=total_damage,
             incoming_damage_cap=incoming_damage_cap or None,
         )
@@ -989,7 +1130,7 @@ class CombatResolver:
 
     @staticmethod
     def _bonus_token_roll() -> bool:
-        return random.random() < TOKEN_BONUS_CHANCE  # nosec B311
+        return random.random() < current_tunables().token_bonus_chance  # nosec B311
 
     @staticmethod
     def _effective_armor(atk_stats: ActorStats, def_stats: ActorStats, ctx: PipelineContextDTO) -> float:
@@ -1095,11 +1236,11 @@ class CombatResolver:
             roll="auto" if roll is None else round(roll, 3),
             passed=passed,
             details=compact_details,
-        ).debug("CombatRoll")
+        ).trace("CombatRoll")
 
     @staticmethod
     def _trace_step(res: InteractionResultDTO, stage: str, outcome: str, **details: Any) -> None:
-        log.bind(source_id=res.source_id, target_id=res.target_id, stage=stage, outcome=outcome, details=details).debug(
+        log.bind(source_id=res.source_id, target_id=res.target_id, stage=stage, outcome=outcome, details=details).trace(
             "CombatStep"
         )
 
@@ -1125,7 +1266,7 @@ class CombatResolver:
             min_damage=round(float(min_d), 2),
             max_damage=round(float(max_d), 2),
             details=compact_details,
-        ).debug("CombatDamage")
+        ).trace("CombatDamage")
 
     @staticmethod
     def _compact_details(details: dict[str, Any]) -> str:

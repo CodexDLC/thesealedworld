@@ -40,3 +40,6 @@ class GameConfigApi(BaseApiClient):
 
     async def reset_key(self, namespace: str, key: str) -> None:
         await self._request("DELETE", f"/api/internal/config/{namespace}/{key}")
+
+    async def reset_namespace(self, namespace: str) -> None:
+        await self._request("DELETE", f"/api/internal/config/{namespace}")

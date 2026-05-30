@@ -234,6 +234,10 @@ body.fc-shell {
     grid-column: span 2;
 }
 
+.fc-widget--editable_config.fc-widget--wide {
+    grid-column: 1 / -1;
+}
+
 .fc-widget h2 {
     color: #6b7a92;
     font-size: 11px;
@@ -310,6 +314,37 @@ body.fc-shell {
     text-align: right;
 }
 
+.fc-action-label {
+    display: inline-block;
+    margin-right: 6px;
+    color: #64748b;
+    font-size: 11px;
+    text-transform: uppercase;
+}
+
+.fc-action-select {
+    min-width: 220px;
+    max-width: 360px;
+    height: 28px;
+    margin-right: 6px;
+    border: 1px solid #cbd5e1;
+    border-radius: 4px;
+    background: #fff;
+    color: #0f172a;
+    font-size: 12px;
+}
+
+.fc-action-input {
+    width: 92px;
+    height: 28px;
+    margin-right: 6px;
+    border: 1px solid #cbd5e1;
+    border-radius: 4px;
+    background: #fff;
+    color: #0f172a;
+    font-size: 12px;
+}
+
 .fc-action-btn {
     display: inline-block;
     padding: 4px 12px;
@@ -366,9 +401,28 @@ body.fc-shell {
 }
 
 .fc-config-key {
-    font-family: ui-monospace, monospace;
-    font-size: 12px;
     color: #18202a;
+    min-width: 260px;
+    max-width: 420px;
+}
+
+.fc-config-label {
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.fc-config-description {
+    color: #6b7a92;
+    font-size: 12px;
+    line-height: 1.35;
+    margin-top: 4px;
+}
+
+.fc-config-raw-key {
+    color: #9aa5b1;
+    font-family: ui-monospace, monospace;
+    font-size: 11px;
+    margin-top: 5px;
 }
 
 .fc-config-default,

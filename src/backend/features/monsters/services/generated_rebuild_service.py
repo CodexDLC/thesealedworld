@@ -162,7 +162,7 @@ class MonsterGeneratedRebuildService:
             if existing is None:
                 created[variant_key] = expected
                 continue
-            if request.force or _mechanics_payload(existing) != _mechanics_payload(expected):
+            if request.force or _rebuild_version_payload(existing) != _rebuild_version_payload(expected):
                 changed[variant_key] = expected
 
         reasons = []
@@ -206,8 +206,13 @@ class MonsterGeneratedRebuildService:
                 if obsolete is not None:
                     await self.session.delete(obsolete)
 
+        family = get_family_config(clan.family_id)
+        if family is None:
+            raise ValueError(f"Unknown monster family: {clan.family_id}")
+
         raw_tags = dict(clan.raw_tags or {})
         raw_tags["schema_version"] = 2
+        raw_tags["family_resource_version"] = family.resource_version
         raw_tags["composition"] = sorted(outcome.expected_by_variant)
         raw_tags["rebuild"] = {
             "source": "monster_generated_rebuild_service",
@@ -240,6 +245,15 @@ class _NoopMonsterRepository:
         return None
 
     async def get_clan_members(self, clan_id: uuid.UUID | str) -> list[Any]:
+        return []
+
+    async def refresh_clan_gear_scores(
+        self,
+        clan_id: uuid.UUID | str,
+        *,
+        gear_score_service: MonsterGearScoreService | None = None,
+        persist: bool = False,
+    ) -> list[Any]:
         return []
 
     async def create_clan_with_members(self, clan: GeneratedClan, members: list[Any]) -> GeneratedClan:
@@ -326,6 +340,24 @@ def _mechanics_payload(member: Any) -> dict[str, Any]:
         "balance": dict(generation_meta.get("balance") or {}),
         "family_modifiers": list(generation_meta.get("family_modifiers") or []),
     }
+
+
+def _rebuild_version_payload(member: Any) -> dict[str, Any]:
+    generation_meta = dict(getattr(member, "generation_meta", {}) or {})
+    return {
+        "variant_key": getattr(member, "variant_key", ""),
+        "schema_version": _optional_int(generation_meta.get("schema_version")),
+        "family_resource_version": _optional_int(generation_meta.get("family_resource_version")),
+    }
+
+
+def _optional_int(value: object) -> int | None:
+    if not isinstance(value, int | str):
+        return None
+    try:
+        return int(value)
+    except ValueError:
+        return None
 
 
 def _copy_member_mechanics(target: GeneratedMonsterORM, expected: Any) -> None:

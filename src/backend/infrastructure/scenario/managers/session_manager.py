@@ -3,10 +3,13 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 
 from src.backend.features.scenario.dto.context import ScenarioContextDTO
+from src.backend.features.scenario.game_config import ScenarioConfig
 from src.backend.infrastructure.scenario.managers.keys import ScenarioSessionKey
 
 if TYPE_CHECKING:
     from codex_platform.redis_service import RedisService
+
+    from src.backend.infrastructure.game_config.manager import GameConfigManager
 
 
 class ScenarioSessionError(RuntimeError):
@@ -17,13 +20,19 @@ class ScenarioSessionAlreadyExistsError(ScenarioSessionError):
     pass
 
 
-SCENARIO_SESSION_TTL_SECONDS = 24 * 60 * 60
+SCENARIO_SESSION_TTL_SECONDS = int(ScenarioConfig.SESSION_TTL_SECONDS)
 
 
 class ScenarioSessionManager:
-    def __init__(self, redis: RedisService) -> None:
+    def __init__(self, redis: RedisService, game_config: GameConfigManager | None = None) -> None:
         self.redis = redis
         self.key = ScenarioSessionKey()
+        self.game_config = game_config
+
+    async def _session_ttl_seconds(self) -> int:
+        if self.game_config is None:
+            return SCENARIO_SESSION_TTL_SECONDS
+        return await self.game_config.get_int("scenario", "SESSION_TTL_SECONDS", default=SCENARIO_SESSION_TTL_SECONDS)
 
     def build_key(self, char_id: int) -> str:
         return self.key.build(char_id=char_id)
@@ -42,7 +51,8 @@ class ScenarioSessionManager:
         )
         if not result:
             raise ScenarioSessionAlreadyExistsError(f"Scenario session already exists: char_id={char_id}")
-        await self.redis.string.expire(self.build_key(char_id), SCENARIO_SESSION_TTL_SECONDS)
+        ttl = await self._session_ttl_seconds()
+        await self.redis.string.expire(self.build_key(char_id), ttl)
 
     async def get(self, char_id: int) -> ScenarioContextDTO | None:
         result = await self.redis.json_module.get(self.build_key(char_id), "$")
@@ -53,10 +63,11 @@ class ScenarioSessionManager:
         if not updates:
             return
         key = self.build_key(char_id)
+        ttl = await self._session_ttl_seconds()
         async with self._redis_client().pipeline(transaction=False) as pipe:
             for path, value in updates.items():
                 pipe.json().set(key, path, value)
-            pipe.expire(key, SCENARIO_SESSION_TTL_SECONDS)
+            pipe.expire(key, ttl)
             await pipe.execute()
 
     async def delete(self, char_id: int) -> None:

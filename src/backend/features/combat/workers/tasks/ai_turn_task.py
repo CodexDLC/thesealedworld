@@ -1,8 +1,15 @@
+from typing import Any
+
 from loguru import logger as log
 
+from src.backend.core.database import get_session_context
 from src.backend.features.combat.dto.worker import AiTurnRequestDTO
+from src.backend.features.combat.runtime.ai import MonsterCombatBrain, PolicyStore
+from src.backend.features.combat.runtime.processors.ai_processor import AiProcessor
 from src.backend.features.combat.runtime.services.data_service import CombatDataService  # noqa: TC001
+from src.backend.features.combat.services.ai_simulation_service import _policy_from_training_row
 from src.backend.features.combat.services.turn_manager import CombatTurnManager  # noqa: TC001
+from src.backend.infrastructure.combat.repositories import CombatAiSimulationRunRepository
 from src.shared.infrastructure.log_task_wrapper import logged_task
 
 
@@ -30,7 +37,7 @@ async def ai_turn_task(ctx: dict, request_data: dict) -> None:
 
         # Извлечение сервисов
         turn_manager: CombatTurnManager = ctx["turn_manager"]
-        ai_processor = ctx["ai_processor"]
+        default_ai_processor = ctx["ai_processor"]
 
         # Получаем сервис данных (с фоллбеком)
         data_service: CombatDataService | None = ctx.get("combat_data_service")
@@ -47,6 +54,9 @@ async def ai_turn_task(ctx: dict, request_data: dict) -> None:
         if not battle_ctx or not battle_ctx.meta.active:
             log.bind(reason="inactive_session", session_id=request.session_id).warning("AiTurnSkipped")
             return
+        ai_processor = await _ai_processor_for_policy(
+            ctx, str(battle_ctx.meta.ai_policy_id or ""), default_ai_processor
+        )
 
         # 2. ИЗВЛЕЧЕНИЕ ДАННЫХ БОТА
         bot = battle_ctx.get_actor(request.bot_id)
@@ -103,3 +113,28 @@ async def ai_turn_task(ctx: dict, request_data: dict) -> None:
     except Exception:
         log.bind(bot_id=request_data.get("bot_id", "unknown")).exception("AiTurnError")
         raise
+
+
+async def _ai_processor_for_policy(ctx: dict, policy_id: str, default_processor) -> Any:
+    if not policy_id:
+        return default_processor
+    cache: dict[str, AiProcessor] = ctx.setdefault("ai_policy_processor_cache", {})
+    cached = cache.get(policy_id)
+    if cached is not None:
+        return cached
+
+    policy = None
+    async with get_session_context() as session:
+        row = await CombatAiSimulationRunRepository(session).get(policy_id)
+        if row is not None and row.run_kind == "training" and row.status == "completed":
+            try:
+                policy, _ = _policy_from_training_row(row)
+            except (TypeError, ValueError):
+                log.bind(policy_id=policy_id).warning("AiPolicyTrainingRunInvalid")
+
+    if policy is None:
+        policy = PolicyStore().load(policy_id=policy_id)
+
+    processor = AiProcessor(MonsterCombatBrain(policy=policy))
+    cache[policy_id] = processor
+    return processor

@@ -113,6 +113,19 @@ TACTICAL_DUAL_WIELD_FEINTS_TECHNICAL = {
         purchase_group="tactical",
         preparation_effects=[{"id": "prep_dual_blade_loop_parry", "target_actor": "source"}],
     ),
+    "dual_blade_whirl": FeintTechnicalDTO(
+        feint_id="dual_blade_whirl",
+        cost=FeintCostDTO(tactics={"hit": 5, "dodge": 3}),
+        target=TargetType.ALL_ENEMIES,
+        target_count=5,
+        secondary_damage_mult=0.50,
+        applicability_tags=[*_DUAL_TAGS, "hit", "dodge", "damage", "multi_target", "offhand", "high_cost"],
+        purchase_group="tactical",
+        pipeline_mutations=[
+            pipeline_mutation("accuracy_mult", 0.90),
+            pipeline_mutation("suppress_crit_triggers"),
+        ],
+    ),
 }
 
 _DUAL_TEXTS = {
@@ -203,6 +216,14 @@ _DUAL_TEXTS = {
         "замыкая клинки в петлю",
         "и ловит атаку в петлю",
         "и затягивает противника в ответную связку",
+    ),
+    "dual_blade_whirl": (
+        "Вихрь двух клинков",
+        "Задеть пять целей",
+        "Дуальный финт: основной размен задевает до четырех дополнительных целей.",
+        "разводя клинки в быстрый круг",
+        "и режет соседние линии",
+        "и превращает темп в широкий вихрь",
     ),
 }
 

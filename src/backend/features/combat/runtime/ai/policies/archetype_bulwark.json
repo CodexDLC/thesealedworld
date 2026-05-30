@@ -1,0 +1,21 @@
+{
+  "metadata": {
+    "algorithm": "manual_seed",
+    "created_by": "combat-ai-pr3",
+    "archetype": "bulwark",
+    "note": "Defensive endurance: prioritise survival, avoid attacking through preps."
+  },
+  "policy_id": "archetype_bulwark_v1",
+  "version": 1,
+  "weights": {
+    "defense": 3.0,
+    "self_buff": 1.0,
+    "heal": 5.0,
+    "heal_dedup_penalty": 3.5,
+    "prep_threat_penalty": 2.5,
+    "expected_damage": 0.6,
+    "damage_tag": 0.3,
+    "finishable": 2.0,
+    "group_tactical": 0.4
+  }
+}

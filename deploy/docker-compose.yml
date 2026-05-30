@@ -245,6 +245,32 @@ services:
     networks:
       - tbmmorpg-network
 
+  # Temporary local balance load-test worker. Remove/disable before production deploy.
+  combat-worker-loadtest:
+    build:
+      context: ..
+      dockerfile: deploy/worker/Dockerfile
+    container_name: tbmmorpg-combat-worker-loadtest
+    restart: unless-stopped
+    env_file: ../.env
+    environment:
+      SITE_DATABASE_URL: postgresql+asyncpg://tbmmorpg:tbmmorpg_dev@postgres:5432/tbmmorpg_site  # pragma: allowlist secret
+      GAME_DATABASE_URL: postgresql+asyncpg://tbmmorpg:tbmmorpg_dev@postgres:5432/tbmmorpg_game  # pragma: allowlist secret
+      DATABASE_URL: postgresql+asyncpg://tbmmorpg:tbmmorpg_dev@postgres:5432/tbmmorpg_game  # pragma: allowlist secret
+      REDIS_URL: redis://:${REDIS_PASSWORD:-dev_redis_password}@redis:6379/0
+    volumes:
+      - ../src/backend:/app/src/backend
+      - ../src/shared:/app/src/shared
+    command: >
+      arq src.backend.features.combat.workers.arq.CombatArqSettings
+    depends_on:
+      backend-migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+    networks:
+      - tbmmorpg-network
+
   system-worker:
     build:
       context: ..

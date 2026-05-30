@@ -483,6 +483,7 @@ class CombatSessionIntegration:
             battle_type=d("battle_type") or "standard",
             location_id=d("location_id") or "unknown",
             started_at=self._optional_int(d("started_at")),
+            ai_policy_id=str(d("ai_policy_id") or ""),
         )
 
     @staticmethod
@@ -571,6 +572,7 @@ class CombatSessionIntegration:
             template_id=meta_dict.get("template_id"),
             is_ai=meta_dict.get("is_ai", False),
             archetype=meta_dict.get("archetype", "humanoid"),
+            ai_archetype=meta_dict.get("ai_archetype", "balanced"),
             # State fields (from r_state dict)
             hp=int(r_state.get("hp", 0)),
             max_hp=int(r_state.get("max_hp", 0)),

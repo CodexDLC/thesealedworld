@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING, Any
 
 from loguru import logger
 
+from src.backend.features.exploration.game_config import ExplorationConfig
 from src.backend.features.exploration.runtime.experience import flat_attribute_snapshot
 from src.backend.features.monsters.dto import MonsterGroupResult
 from src.backend.infrastructure.exploration.managers import ExplorationEncounterRuntimeManager
@@ -15,13 +16,14 @@ if TYPE_CHECKING:
 
     from src.backend.core.bus import GameEventProducer
     from src.backend.infrastructure.actor_state.managers import CharacterSessionManager
+    from src.backend.infrastructure.game_config.manager import GameConfigManager
     from src.backend.infrastructure.world.location_store import WorldLocationStore
 
 
 ENCOUNTER_SKILL_KEYS = ("skill_scouting", "skill_pathfinder", "skill_hunting", "skill_taming")
 MONSTER_GROUP_PREPARE_REQUESTED = "monsters.group_prepare_requested"
 COMBAT_SESSION_REQUESTED = "combat.session_requested"
-ENCOUNTER_SESSION_TTL_SECONDS = 30 * 60
+ENCOUNTER_SESSION_TTL_SECONDS = int(ExplorationConfig.ENCOUNTER_SESSION_TTL_SECONDS)
 
 
 @dataclass(frozen=True, slots=True)
@@ -66,6 +68,7 @@ class EncounterIntegration:
         events: GameEventProducer | None = None,
         redis: RedisService | None = None,
         encounter_runtime: ExplorationEncounterRuntimeManager | None = None,
+        game_config: GameConfigManager | None = None,
     ) -> None:
         self.character_sessions = character_sessions
         self.world_store = world_store
@@ -73,6 +76,7 @@ class EncounterIntegration:
         self.encounter_runtime = encounter_runtime or (
             ExplorationEncounterRuntimeManager(redis) if redis is not None else None
         )
+        self.game_config = game_config
 
     async def get_ac_skill_snapshot(self, char_id: int) -> EncounterSkillSnapshot:
         started_at = perf_counter()
@@ -134,11 +138,21 @@ class EncounterIntegration:
         encounter_id: str,
         payload: dict[str, Any],
         *,
-        ttl_seconds: int = ENCOUNTER_SESSION_TTL_SECONDS,
+        ttl_seconds: int | None = None,
     ) -> dict[str, Any]:
         if self.encounter_runtime is None:
             raise RuntimeError("EncounterIntegration requires redis for encounter session writes")
-        return await self.encounter_runtime.create_session(encounter_id, payload, ttl_seconds=ttl_seconds)
+        effective_ttl = ttl_seconds if ttl_seconds is not None else await self._encounter_ttl_seconds()
+        return await self.encounter_runtime.create_session(encounter_id, payload, ttl_seconds=effective_ttl)
+
+    async def _encounter_ttl_seconds(self) -> int:
+        if self.game_config is None:
+            return ENCOUNTER_SESSION_TTL_SECONDS
+        return await self.game_config.get_int(
+            "exploration",
+            "ENCOUNTER_SESSION_TTL_SECONDS",
+            default=ENCOUNTER_SESSION_TTL_SECONDS,
+        )
 
     async def get_encounter_session(self, encounter_id: str) -> dict[str, Any] | None:
         if self.encounter_runtime is None:

@@ -5,6 +5,7 @@ Detailed milestone history for browser-facing gameplay surfaces inside
 
 ## [Unreleased]
 
+- Combat and inventory views now expose updated combat action, gear, and quiver presentation data from backend resources.
 - Combat log now keeps the newest exchange turns visible after the first eight turns instead of pinning the embedded page to old entries.
 - Combat token counters now show only free tokens, while reserved feint costs stay visible on the feint buttons.
 

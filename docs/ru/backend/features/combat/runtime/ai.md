@@ -127,6 +127,7 @@ modifier/pipeline/effect id-шникам остался как fallback для �
 | `applicability_tags` | как есть | произвольные (например `anti_parry`, `heal`, `preparation`, `counter`, `debuff`, `defense`, `bleed`, `control`, `shield_bash`, `concussion`, ...) |
 | `purchase_group` | flat-tag | `group_basic` / `group_tactical` / `group_weapon` |
 | `target_count > 1` | флаг | `multi_target` |
+| `secondary_damage_mult` | множитель отголосков массового финта | используется runtime executor-ом |
 | `preparation_effects[*]` с `target_actor=source` | флаг | `self_buff` |
 | `preparation_effects[*].params` содержит `heal_*` | флаг | `heal` |
 | `effects[*]` с `target_actor=target` | флаг | `debuff` |
@@ -191,6 +192,11 @@ score = Σ weight[feature] × feature_value
 Финт в руке можно использовать **один раз за ход**. Стамина делится между
 всеми intent-ами одного бота. Токены **уже заморожены** при `refill_hand`
 (после `consume_feint` идёт `refund_cost`).
+
+Массовый финт всё равно занимает один intent на основную цель. Executor
+разворачивает вторичные цели сам: основной удар остаётся `exchange`, а
+отголоски идут как `unidirectional`-попадания без повторной оплаты финта и без
+нового размена.
 
 Алгоритм ([`brain.MonsterCombatBrain._greedy_allocate`](../../../../../../src/backend/features/combat/runtime/ai/brain.py)):
 

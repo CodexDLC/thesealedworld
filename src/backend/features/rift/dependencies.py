@@ -33,7 +33,11 @@ from src.backend.infrastructure.rift.managers import (
     RiftPresenceStore,
     RiftRunSessionStore,
 )
-from src.backend.infrastructure.rift.repositories import RiftPortalKeyRepository
+from src.backend.infrastructure.rift.repositories import (
+    RiftInstanceStateRepository,
+    RiftPortalKeyRepository,
+    RiftRunStateRepository,
+)
 
 
 def _build_rift_runtime_integration(
@@ -46,6 +50,8 @@ def _build_rift_runtime_integration(
         session_store=RiftRunSessionStore(redis),
         presence_store=RiftPresenceStore(redis),
         portal_store=RiftPortalStore(redis),
+        instance_state_repository=RiftInstanceStateRepository(db_session) if db_session is not None else None,
+        run_state_repository=RiftRunStateRepository(db_session) if db_session is not None else None,
         portal_key_repository=RiftPortalKeyRepository(db_session) if db_session is not None else None,
     )
 

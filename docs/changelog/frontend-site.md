@@ -4,6 +4,8 @@ Detailed milestone history for the `src/frontend` site-web layer.
 
 ## [Unreleased]
 
+- Cabinet tools now expose combat AI simulation controls and richer editable game configuration widgets.
+
 ## [v0.1.0a7] - Alpha 7
 
 - Generated asset serving now redirects S3-backed assets to presigned object URLs instead of buffering images through the site process.

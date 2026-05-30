@@ -131,6 +131,7 @@ class MonsterClanGenerationBuilder:
             unique_hash=resolved_unique_hash,
             raw_tags={
                 "schema_version": 2,
+                "family_resource_version": family.resource_version,
                 "tags": tags,
                 "biome_id": context.biome_id,
                 "difficulty": context.difficulty,
@@ -303,6 +304,7 @@ class MonsterClanGenerationBuilder:
             ai_profile=template.ai_profile.model_dump(mode="json"),
             generation_meta={
                 "schema_version": 2,
+                "family_resource_version": family.resource_version,
                 "source": "monster_clan_generation_builder",
                 "clan_unique_hash": unique_hash,
                 "owner_key": plan.owner_key,

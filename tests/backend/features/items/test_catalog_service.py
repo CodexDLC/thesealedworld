@@ -1,6 +1,9 @@
 import pytest
 
 from src.backend.features.combat.dto.trigger_rules import TriggerRulesFlagsDTO
+from src.backend.features.items.resources.affixes.catalog import AFFIX_CATALOG
+from src.backend.features.items.resources.affixes.pools import AFFIX_POOLS_BY_SLOT
+from src.backend.features.items.resources.modifier_contracts import MODIFIER_CONTRACTS
 from src.backend.features.items.services.catalog_service import ItemCatalogService
 
 WEAPON_DIRECTIONS_EXCEPT_ARCHERY = {
@@ -22,6 +25,43 @@ ARCHERY_QUIVERS = {
 DAGGERLIKE_DUAL_SLOT_WEAPONS = {"knife", "dagger", "stiletto", "main_gauche", "katar"}
 CAPACITY_KEYS = {"inventory_cell_capacity", "inventory_slot_capacity", "inventory_slots", "quick_slot_capacity"}
 ATTRIBUTE_KEYS = {"strength", "agility", "intelligence", "constitution", "perception", "willpower", "charisma"}
+ARMOR_PENALTY_KEYS = {
+    "anti_dodge_chance",
+    "evasion_penalty",
+    "main_hand_accuracy_penalty",
+    "off_hand_accuracy_penalty",
+}
+WEAPON_PROFILE_KEYS = {
+    "evasion_penalty",
+    "main_hand_accuracy_penalty",
+    "off_hand_accuracy_penalty",
+    "parry_chance",
+    "physical_crit_chance",
+}
+OFFHAND_DEFENSE_PROFILE_KEYS = {
+    "evasion_penalty",
+    "main_hand_accuracy_penalty",
+    "off_hand_accuracy_penalty",
+    "parry_chance",
+    "parry_penalty",
+    "shield_block_chance",
+    "shield_block_counter_weight",
+    "shield_block_defense_weight",
+}
+GARMENT_ANCHOR_PROFILE_KEYS = {
+    "environment_bio_resistance",
+    "environment_cold_resistance",
+    "environment_gravity_resistance",
+    "environment_heat_resistance",
+}
+BANNED_BASE_WEAPON_ALWAYS_ON_KEYS = {
+    "armor_penetration_pct",
+    "bleed_damage_bonus",
+    "main_hand_armor_penetration_pct",
+    "off_hand_armor_penetration_pct",
+    "physical_suppression",
+    "weapon_armor_penetration_pct",
+}
 
 
 @pytest.mark.unit
@@ -46,9 +86,9 @@ def test_mvp_armor_catalog_has_exact_three_four_piece_sets():
     expected_sets = {
         "light": {
             "hood": ("head_armor", 1),
-            "leather_armor": ("chest_armor", 2),
+            "leather_armor": ("chest_armor", 3),
             "soft_bracers": ("arms_armor", 1),
-            "scout_leggings": ("legs_armor", 1),
+            "scout_leggings": ("legs_armor", 2),
         },
         "medium": {
             "leather_cap": ("head_armor", 1),
@@ -57,10 +97,10 @@ def test_mvp_armor_catalog_has_exact_three_four_piece_sets():
             "breeches": ("legs_armor", 2),
         },
         "heavy": {
-            "helmet": ("head_armor", 2),
+            "helmet": ("head_armor", 1),
             "plate_chest": ("chest_armor", 5),
-            "gauntlets": ("arms_armor", 2),
-            "greaves": ("legs_armor", 3),
+            "gauntlets": ("arms_armor", 1),
+            "greaves": ("legs_armor", 2),
         },
     }
     removed_armor_ids = {
@@ -145,22 +185,22 @@ def test_starting_weapons_match_combat_snapshot_contract():
         "warhammer",
     }
 
-    accuracy_penalty_items = []
+    missing_accuracy_penalty = []
     missing_skill = []
     for item_id in starting_weapon_ids:
         item = catalog.get_base_item(item_id)
         assert item is not None
         if not item.related_skill:
             missing_skill.append(item_id)
-        if "accuracy_penalty" in item.implicit_bonuses:
-            accuracy_penalty_items.append(item_id)
+        if "main_hand_accuracy_penalty" not in item.implicit_bonuses:
+            missing_accuracy_penalty.append(item_id)
 
     assert missing_skill == []
-    assert accuracy_penalty_items == []
+    assert missing_accuracy_penalty == []
 
 
 @pytest.mark.unit
-def test_player_weapons_do_not_carry_base_accuracy_penalty() -> None:
+def test_player_weapons_carry_base_main_hand_accuracy_penalty() -> None:
     catalog = ItemCatalogService.load_default()
 
     offenders = [
@@ -168,10 +208,193 @@ def test_player_weapons_do_not_carry_base_accuracy_penalty() -> None:
         for item_id, item in catalog.base_items.items()
         if item.type == "weapon"
         and catalog.entries[item_id].category != "monster_equipment"
-        and "accuracy_penalty" in item.implicit_bonuses
+        and "main_hand_accuracy_penalty" not in item.implicit_bonuses
     ]
 
     assert offenders == []
+
+
+@pytest.mark.unit
+def test_player_weapon_implicit_profiles_are_crit_parry_accuracy_and_penalties() -> None:
+    catalog = ItemCatalogService.load_default()
+
+    offenders = []
+    for item_id, item in catalog.base_items.items():
+        if item.type != "weapon" or catalog.entries[item_id].category == "monster_equipment":
+            continue
+        unexpected = sorted(set(item.implicit_bonuses) - WEAPON_PROFILE_KEYS)
+        if unexpected:
+            offenders.append(f"{item_id}:{','.join(unexpected)}")
+
+    assert offenders == []
+
+
+@pytest.mark.unit
+def test_player_weapons_do_not_carry_always_on_bypass_or_dot_scalers() -> None:
+    catalog = ItemCatalogService.load_default()
+
+    offenders = []
+    for item_id, item in catalog.base_items.items():
+        if item.type != "weapon" or catalog.entries[item_id].category == "monster_equipment":
+            continue
+        banned = sorted(set(item.implicit_bonuses) & BANNED_BASE_WEAPON_ALWAYS_ON_KEYS)
+        if banned:
+            offenders.append(f"{item_id}:{','.join(banned)}")
+
+    assert offenders == []
+
+
+@pytest.mark.unit
+def test_equipped_armor_implicit_bonuses_are_only_penalties() -> None:
+    catalog = ItemCatalogService.load_default()
+
+    offenders = []
+    for item_id, item in catalog.base_items.items():
+        if catalog.entries[item_id].category != "armor":
+            continue
+        unexpected = sorted(set(item.implicit_bonuses) - ARMOR_PENALTY_KEYS)
+        if unexpected:
+            offenders.append(f"{item_id}:{','.join(unexpected)}")
+
+    assert offenders == []
+
+
+@pytest.mark.unit
+def test_equipped_armor_does_not_reduce_regeneration_resources() -> None:
+    catalog = ItemCatalogService.load_default()
+
+    offenders = [
+        item_id
+        for item_id, item in catalog.base_items.items()
+        if catalog.entries[item_id].category == "armor" and "stamina_regen" in item.implicit_bonuses
+    ]
+
+    assert offenders == []
+
+
+@pytest.mark.unit
+def test_heavy_armor_penalty_totals_stay_above_medium_after_tuning() -> None:
+    catalog = ItemCatalogService.load_default()
+    medium = _armor_penalty_totals(catalog, ("leather_cap", "jerkin", "reinforced_gloves", "breeches"))
+    heavy = _armor_penalty_totals(catalog, ("helmet", "plate_chest", "gauntlets", "greaves"))
+
+    assert heavy["evasion_penalty"] < medium["evasion_penalty"]
+    assert heavy["main_hand_accuracy_penalty"] > medium["main_hand_accuracy_penalty"]
+    assert heavy["off_hand_accuracy_penalty"] > medium["off_hand_accuracy_penalty"]
+
+
+def _armor_penalty_totals(catalog: ItemCatalogService, item_ids: tuple[str, ...]) -> dict[str, float]:
+    totals = {
+        "evasion_penalty": 0.0,
+        "main_hand_accuracy_penalty": 0.0,
+        "off_hand_accuracy_penalty": 0.0,
+    }
+    for item_id in item_ids:
+        item = catalog.get_base_item(item_id)
+        assert item is not None
+        for key in totals:
+            totals[key] += float(item.implicit_bonuses.get(key, 0.0))
+    return totals
+
+
+@pytest.mark.unit
+def test_offhand_defense_items_keep_block_or_parry_but_no_offense_profile() -> None:
+    catalog = ItemCatalogService.load_default()
+
+    offenders = []
+    for item_id in {"buckler", "shield", "kite_shield", "tower_shield"}:
+        item = catalog.get_base_item(item_id)
+        assert item is not None
+        unexpected = sorted(set(item.implicit_bonuses) - OFFHAND_DEFENSE_PROFILE_KEYS)
+        if unexpected:
+            offenders.append(f"{item_id}:{','.join(unexpected)}")
+
+    shield = catalog.get_base_item("shield")
+    buckler = catalog.get_base_item("buckler")
+    assert shield is not None
+    assert buckler is not None
+    assert shield.implicit_bonuses["shield_block_chance"] > 0
+    assert buckler.implicit_bonuses["shield_block_chance"] > shield.implicit_bonuses["shield_block_chance"]
+    assert "parry_chance" not in buckler.implicit_bonuses
+    assert offenders == []
+
+
+@pytest.mark.unit
+def test_jewelry_power_is_flat_magic_armor_and_implicits_are_slot_profiles() -> None:
+    catalog = ItemCatalogService.load_default()
+    expected_profiles = {
+        "ring": ("ring_1", 1.0, {"mental_resistance"}),
+        "amulet": ("amulet", 2.0, {"debuff_avoidance"}),
+        "earring": ("earring", 1.0, {"initiative"}),
+    }
+
+    for item_id, (slot, power, implicit_keys) in expected_profiles.items():
+        item = catalog.get_base_item(item_id)
+        assert item is not None
+        assert item.type == "accessory"
+        assert item.slot == slot
+        assert item.base_power == power
+        assert set(item.implicit_bonuses) == implicit_keys
+
+        affix_targets = {
+            MODIFIER_CONTRACTS[AFFIX_CATALOG[affix_id].technical.modifier_id].target_field
+            for affix_id in AFFIX_POOLS_BY_SLOT[item.slot]
+        }
+        assert implicit_keys.isdisjoint(affix_targets)
+
+
+@pytest.mark.unit
+def test_garment_templates_carry_anchor_environment_implicit_profile() -> None:
+    catalog = ItemCatalogService.load_default()
+
+    missing_profile = [
+        item_id
+        for item_id, item in catalog.base_items.items()
+        if item.type == "garment" and not (set(item.implicit_bonuses) & GARMENT_ANCHOR_PROFILE_KEYS)
+    ]
+
+    assert missing_profile == []
+
+
+@pytest.mark.unit
+def test_non_warhammer_player_weapons_get_power_offset_for_capped_spread() -> None:
+    catalog = ItemCatalogService.load_default()
+    expected_power = {
+        "sling": 5,
+        "shortbow": 8,
+        "longbow": 11,
+        "composite_bow": 11,
+        "warbow": 11,
+        "knife": 3,
+        "dagger": 4,
+        "stiletto": 4,
+        "rapier": 6,
+        "main_gauche": 4,
+        "katar": 5,
+        "hatchet": 6,
+        "battle_axe": 8,
+        "mace": 7,
+        "warhammer": 12,
+        "flail": 7,
+        "spear": 8,
+        "pike": 10,
+        "halberd": 11,
+        "quarterstaff": 9,
+        "trident": 8,
+        "sword": 7,
+        "longsword": 8,
+        "greatsword": 11,
+        "katana": 11,
+        "scimitar": 7,
+    }
+
+    actual_power = {
+        item_id: item.base_power
+        for item_id, item in catalog.base_items.items()
+        if item.type == "weapon" and catalog.entries[item_id].category != "monster_equipment"
+    }
+
+    assert actual_power == expected_power
 
 
 @pytest.mark.unit
@@ -223,6 +446,7 @@ def test_archery_quivers_are_single_ammo_items_scaled_by_material_tier():
         assert item.type == "ammo"
         assert item.related_skill == "skill_archery"
         assert item.allowed_materials == ["woods"]
+        assert item.base_power == 3
         assert item.implicit_bonuses == {}
         assert item.ammo_charge_base == 12
         assert item.ammo_charge_skill_bonus == 12
@@ -273,6 +497,7 @@ def test_piercing_fencing_weapons_work_flat_armor_instead_of_bleeding():
         "knife": ["crit.weapon_flat_armor_gap_crit"],
         "dagger": ["crit.weapon_flat_armor_gap_crit"],
         "stiletto": ["crit.weapon_flat_armor_bypass_crit"],
+        "main_gauche": ["crit.weapon_flat_armor_bypass_crit"],
         "katar": ["crit.weapon_flat_armor_bypass_crit"],
     }
 
@@ -329,6 +554,20 @@ def test_base_item_triggers_reference_runtime_trigger_flags():
 
 
 @pytest.mark.unit
+def test_player_base_items_do_not_grant_riposte_triggers_directly():
+    catalog = ItemCatalogService.load_default()
+
+    offenders = [
+        item_id
+        for item_id, item in catalog.base_items.items()
+        if catalog.entries[item_id].category != "monster_equipment"
+        and "parry.weapon_riposte_on_parry" in item.triggers
+    ]
+
+    assert offenders == []
+
+
+@pytest.mark.unit
 def test_player_base_items_do_not_carry_passive_counter_attack_chance():
     catalog = ItemCatalogService.load_default()
 
@@ -353,7 +592,7 @@ def test_parry_base_bonus_is_limited_to_weapons_and_parrying_offhand():
             continue
         if item.type == "weapon":
             continue
-        if item.slot == "off_hand" and "parry" in item.narrative_tags:
+        if item.slot == "off_hand" and "parry_weapon" in item.narrative_tags:
             continue
         offenders.append(item_id)
 
@@ -373,7 +612,7 @@ def test_starting_parry_rewards_reach_cap_only_near_full_parrying_skill():
 
     parry_builds = {
         "dagger_main_gauche": base_parry("dagger", "main_gauche"),
-        "sword_buckler": base_parry("sword", "buckler"),
+        "sword_main_gauche": base_parry("sword", "main_gauche"),
     }
 
     for raw_base in parry_builds.values():
@@ -399,8 +638,8 @@ def test_primary_offhand_parry_weapons_trade_offense_for_defense():
     assert main_gauche.slot == "off_hand"
     assert "main_hand" in main_gauche.extra_slots
     assert main_gauche.implicit_bonuses["parry_chance"] >= rapier.implicit_bonuses["parry_chance"] * 2
-    assert main_gauche.base_power < dagger.base_power
-    assert main_gauche.base_power < stiletto.base_power
+    assert main_gauche.base_power == dagger.base_power
+    assert main_gauche.base_power == stiletto.base_power
 
 
 @pytest.mark.unit

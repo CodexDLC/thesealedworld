@@ -19,6 +19,7 @@ Copied source filenames:
 - delapouite/flanged-mace.svg
 - lorc/spears.svg
 - delapouite/bow-arrow.svg
+- delapouite/quiver.svg
 - delapouite/two-handed-sword.svg
 - lorc/stone-spear.svg
 - lorc/barbed-spear.svg

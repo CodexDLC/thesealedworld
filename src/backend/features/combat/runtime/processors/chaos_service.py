@@ -13,6 +13,7 @@ from src.backend.features.combat.dto.ids import normalize_actor_id
 from src.backend.features.combat.integrations import CombatSessionIntegration
 from src.backend.features.combat.services.lifecycle_service import CombatLifecycleService
 from src.backend.features.monsters.resources import get_family_config
+from src.backend.features.monsters.runtime.ai_archetype import resolve_monster_ai_archetype
 from src.backend.features.monsters.runtime.generation_fields import build_scaled_skills
 
 ANCHOR_FAMILY_ID = "anchor_sovereigns"
@@ -172,6 +173,7 @@ class ChaosService:
             template_id=variant.id,
             is_ai=True,
             archetype=family.archetype,
+            ai_archetype=resolve_monster_ai_archetype(variant.id, family.archetype, variant.role),
             hp=hp,
             max_hp=max_hp,
             en=energy,
@@ -207,6 +209,7 @@ class ChaosService:
             team=self.FORCE_TEAM,
             template_id=projection.variant_id,
             is_ai=True,
+            ai_archetype=resolve_monster_ai_archetype(projection.variant_id, "unknown", "boss"),
             hp=2500,
             max_hp=2500,
             en=1000,

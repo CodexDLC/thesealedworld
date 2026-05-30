@@ -14,10 +14,11 @@ from src.backend.features.character.events import router as character_router
 from src.backend.features.character.events.publisher import CharacterSessionEvents
 from src.backend.features.city_services.events import bind as bind_city_services_events
 from src.backend.features.city_services.events import router as city_services_router
-from src.backend.features.combat.events import bind as bind_combat_events
-from src.backend.features.combat.events import router as combat_router
 
 # Game Config
+from src.backend.features.combat.ai_config import CombatAiConfig
+from src.backend.features.combat.events import bind as bind_combat_events
+from src.backend.features.combat.events import router as combat_router
 from src.backend.features.combat.game_config import CombatConfig
 from src.backend.features.exploration.game_config import ExplorationConfig
 from src.backend.features.inventory.events import bind as bind_inventory_events
@@ -39,7 +40,7 @@ from src.backend.infrastructure.game_config.manager import GameConfigManager
 # Infrastructure Managers
 from src.backend.infrastructure.redis.managers import build_redis_managers
 
-_GAME_CONFIGS = (CombatConfig, ExplorationConfig, ScenarioConfig)
+_GAME_CONFIGS = (CombatConfig, CombatAiConfig, ExplorationConfig, ScenarioConfig)
 
 EVENT_ROUTER_GROUPS = (
     ("character", character_router),
@@ -68,14 +69,16 @@ class RedisContainer:
         )
         redis_service = RedisService(app.state.redis_client)
 
-        # 2. Managers
-        managers = build_redis_managers(redis_service)
-
+        # 2. GameConfigManager (must be ready before redis_managers so scenario
+        # session TTL can be threaded into ScenarioSessionManager).
         game_config = GameConfigManager(app.state.redis_client)
         for cfg in _GAME_CONFIGS:
             game_config.register(cfg)
         await game_config.bootstrap()
         app.state.game_config = game_config
+
+        # 3. Managers
+        managers = build_redis_managers(redis_service, game_config)
 
         app.state.redis = redis_service
         app.state.combat_arq = ArqService()

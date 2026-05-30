@@ -70,6 +70,19 @@ WEAPON_ARCHERY_FEINTS_TECHNICAL = {
             pipeline_mutation("suppress_crit_triggers"),
         ],
     ),
+    "arrow_rain": FeintTechnicalDTO(
+        feint_id="arrow_rain",
+        cost=FeintCostDTO(tactics={"hit": 5, "crit": 2}),
+        target=TargetType.ALL_ENEMIES,
+        target_count=99,
+        secondary_damage_mult=0.50,
+        applicability_tags=[*_ARCHERY_TAGS, "hit", "crit", "damage", "multi_target", "high_cost"],
+        purchase_group="weapon",
+        pipeline_mutations=[
+            pipeline_mutation("accuracy_mult", 0.85),
+            pipeline_mutation("suppress_crit_triggers"),
+        ],
+    ),
 }
 
 _ARCHERY_TEXTS = {
@@ -112,6 +125,14 @@ _ARCHERY_TEXTS = {
         "удерживая прицел до последнего момента",
         "и попадает в тихую слабую точку",
         "и превращает точность в чистый урон",
+    ),
+    "arrow_rain": (
+        "Град стрел",
+        "Накрыть всех врагов",
+        "Оружейный финт лука: основной выстрел расходится по всем врагам отголосками половинного урона.",
+        "выпуская стрелы по широкой дуге",
+        "и накрывает линию противников",
+        "и превращает залп в опасный град",
     ),
 }
 

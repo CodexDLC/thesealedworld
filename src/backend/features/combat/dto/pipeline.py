@@ -66,6 +66,10 @@ class FormulaFlagsDTO(BaseModel):
     # Parry/Block
     ignore_parry_cap: bool = False
     ignore_block_cap: bool = False
+    shield_branch_invert: bool = False
+    force_shield_defense_branch: bool = False
+    force_shield_counter_branch: bool = False
+    shield_counter_from_absorbed: bool = False
 
     # Crit
     crit_ignore_anticrit: bool = False
@@ -121,6 +125,7 @@ class MetaFlagsDTO(BaseModel):
 
     source_type: Literal["main_hand", "off_hand", "magic", "item"] = "main_hand"
     weapon_class: str | None = None  # swords, macing, unarmed...
+    tactical_style_skill: str | None = None  # skill_two_handed, skill_dual_wield...
     crit_trigger_key: str | None = None  # stun, bleed...
     attack_index: int = 0
     combo_stage: int = 0
@@ -172,6 +177,7 @@ class PipelineModsDTO(BaseModel):
     accuracy_mult: float = 1.0
     target_evasion_mult: float = 1.0
     target_parry_mult: float = 1.0
+    target_block_mult: float = 1.0
     damage_mult: float = 1.0
     weapon_effect_value: float = 2.0  # Универсальный бонус оружия (Crit Mult / Pierce %)
     weapon_technique_bonus_damage: float = 0.0
@@ -181,6 +187,9 @@ class PipelineModsDTO(BaseModel):
     flat_armor_penetration_bonus_pct: float = 0.0
     flat_armor_ignore_chance_bonus: float = 0.0
     physical_resistance_suppression_pct: float = 0.0
+    shield_block_chance_mult: float = 1.0
+    shield_guard_power_mult: float = 1.0
+    shield_counter_power_mult: float = 1.0
 
 
 class PipelineStagesDTO(BaseModel):
@@ -442,6 +451,7 @@ class InteractionResultDTO(BaseModel):
     healing_final: int = 0  # NEW: Итоговый хил
     reflected_damage: int = 0
     lifesteal_amount: int = 0  # NEW: Восстановленное HP от лайфстила
+    shield_block_branch: str | None = None
 
     # Токены (изменил на dict[str, int])
     tokens_awarded_attacker: dict[str, int] = Field(default_factory=dict)

@@ -55,3 +55,11 @@ class ExpeditionRunKey(BaseRedisKey):
     @property
     def template(self) -> str:
         return "game:expedition:{run_id}"
+
+
+class CombatAiSimulationProgressKey(BaseRedisKey):
+    """Hot progress snapshot for an admin in-memory combat AI simulation run."""
+
+    @property
+    def template(self) -> str:
+        return "combat_ai:simulation:run:{run_id}:progress"

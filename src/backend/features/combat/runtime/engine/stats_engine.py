@@ -37,6 +37,10 @@ TRACE_MOD_KEYS = (
     "block",
     "shield_block_cap",
     "armor",
+    "magic_armor",
+    "shield_guard_power",
+    "shield_style_guard_power_raw",
+    "shield_style_guard_power_bonus",
     "physical_resistance",
     "stamina",
     "stamina_regen",
@@ -134,7 +138,7 @@ class StatsEngine:
             dirty_stats=sorted(actor.dirty_stats),
             values=values,
             formulas=formulas,
-        ).debug("CombatStats")
+        ).trace("CombatStats")
 
     @staticmethod
     def _normalize_calculated_mods(calculated_mods: dict[str, float]) -> dict[str, float | int]:

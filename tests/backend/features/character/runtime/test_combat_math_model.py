@@ -60,7 +60,7 @@ def test_builder_wraps_active_character_attributes_and_equipped_item_mechanics()
                         "power": 7,
                         "damage_spread": 0.2,
                         "related_skill": "skill_macing",
-                        "implicit_bonuses": {"accuracy_penalty": 0.1, "parry_chance": 0.1},
+                        "implicit_bonuses": {"main_hand_accuracy_penalty": 0.1, "parry_chance": 0.1},
                     },
                     "tags": ["axe"],
                 },
@@ -109,7 +109,7 @@ def test_builder_maps_shield_block_chance_without_skill_scaling() -> None:
                 }
             },
         },
-        skills={"skill_parrying": {"xp": 0.5}},
+        skills={"skill_shield_mastery": {"xp": 0.5}},
     )
 
     assert raw["modifiers"]["block"]["base"] == 0.1
@@ -152,10 +152,10 @@ def test_builder_ignores_shield_flat_armor_bonuses() -> None:
                     "slot": "off_hand",
                     "mechanics": {
                         "power": 3,
-                        "implicit_bonuses": {"parry_chance": 0.085},
+                        "implicit_bonuses": {"shield_block_chance": 0.18},
                         "bonuses": {"armor": "+1.62"},
                         "affixes": [{"affix_id": "armor_flat", "value": 1.62}],
-                        "tags": ["buckler", "shield", "parry"],
+                        "tags": ["buckler", "shield"],
                     },
                 }
             },
@@ -165,7 +165,50 @@ def test_builder_ignores_shield_flat_armor_bonuses() -> None:
 
     assert raw["modifiers"]["armor"]["base"] == 0.0
     assert raw["modifiers"]["armor"]["source"] == {}
-    assert raw["modifiers"]["parry"]["base"] == pytest.approx(0.085)
+    assert raw["modifiers"]["block"]["base"] == pytest.approx(0.18)
+
+
+@pytest.mark.unit
+def test_builder_maps_jewelry_power_to_flat_magic_armor_and_unique_implicits() -> None:
+    raw = CharacterCombatMathModelBuilder().build_raw(
+        attributes={},
+        items={
+            "layout": {
+                "equipment": {
+                    "ring_1": "ring-1",
+                    "amulet": "amulet-1",
+                    "earring": "earring-1",
+                }
+            },
+            "by_id": {
+                "ring-1": {
+                    "item_id": "ring-1",
+                    "item_type": "accessory",
+                    "slot": "ring_1",
+                    "mechanics": {"power": 1.5, "implicit_bonuses": {"mental_resistance": 0.005}},
+                },
+                "amulet-1": {
+                    "item_id": "amulet-1",
+                    "item_type": "accessory",
+                    "slot": "amulet",
+                    "mechanics": {"power": 2.0, "implicit_bonuses": {"debuff_avoidance": 0.03}},
+                },
+                "earring-1": {
+                    "item_id": "earring-1",
+                    "item_type": "accessory",
+                    "slot": "earring",
+                    "mechanics": {"power": 1.0, "implicit_bonuses": {"initiative": 0.5}},
+                },
+            },
+        },
+        skills={},
+    )
+
+    assert raw["modifiers"]["magic_armor"]["base"] == pytest.approx(4.5)
+    assert raw["modifiers"]["mental_resistance"]["base"] == pytest.approx(0.005)
+    assert raw["modifiers"]["debuff_avoidance"]["base"] == pytest.approx(0.03)
+    assert raw["modifiers"]["initiative"]["base"] == pytest.approx(0.5)
+    assert raw["modifiers"]["armor"]["base"] == 0.0
 
 
 @pytest.mark.unit
@@ -218,7 +261,44 @@ def test_builder_routes_feetwear_concentration_regen_into_waterfall_modifiers() 
 
 
 @pytest.mark.unit
-def test_builder_counts_two_hand_weapon_as_main_hand_damage_source() -> None:
+def test_builder_routes_garment_anchor_implicits_without_flat_armor_power() -> None:
+    raw = CharacterCombatMathModelBuilder().build_raw(
+        attributes={},
+        items={
+            "layout": {"equipment": {"outer_garment": "cloak-1", "gloves_garment": "gloves-1"}},
+            "by_id": {
+                "cloak-1": {
+                    "item_id": "cloak-1",
+                    "item_type": "garment",
+                    "slot": "outer_garment",
+                    "mechanics": {
+                        "power": 3,
+                        "implicit_bonuses": {
+                            "environment_cold_resistance": 6.0,
+                            "environment_heat_resistance": -2.0,
+                        },
+                    },
+                },
+                "gloves-1": {
+                    "item_id": "gloves-1",
+                    "item_type": "garment",
+                    "slot": "gloves_garment",
+                    "mechanics": {"power": 2, "implicit_bonuses": {"environment_bio_resistance": 2.0}},
+                },
+            },
+        },
+        skills={},
+    )
+
+    assert raw["modifiers"]["environment_cold_resistance"]["base"] == pytest.approx(6.0)
+    assert raw["modifiers"]["environment_heat_resistance"]["base"] == pytest.approx(-2.0)
+    assert raw["modifiers"]["environment_bio_resistance"]["base"] == pytest.approx(2.0)
+    assert raw["modifiers"]["armor"]["base"] == 0.0
+    assert raw["modifiers"]["magic_armor"]["base"] == 0.0
+
+
+@pytest.mark.unit
+def test_builder_counts_two_hand_weapon_as_main_hand_damage_source_with_skill_penalty_relief() -> None:
     raw = CharacterCombatMathModelBuilder().build_raw(
         attributes={},
         items={
@@ -232,7 +312,7 @@ def test_builder_counts_two_hand_weapon_as_main_hand_damage_source() -> None:
                         "power": 9,
                         "damage_spread": 0.1,
                         "related_skill": "skill_swords",
-                        "implicit_bonuses": {"accuracy_penalty": 0.12},
+                        "implicit_bonuses": {"main_hand_accuracy_penalty": 0.12},
                     },
                 }
             },
@@ -243,6 +323,7 @@ def test_builder_counts_two_hand_weapon_as_main_hand_damage_source() -> None:
     assert raw["modifiers"]["main_hand_damage_base"]["base"] == 9.0
     assert raw["modifiers"]["main_hand_damage_spread"]["base"] == 0.1
     assert raw["modifiers"]["main_hand_accuracy"]["base"] == 0.0
+    assert raw["modifiers"]["main_hand_accuracy_penalty"]["base"] == pytest.approx(0.06)
     assert "item:katana-1" not in raw["modifiers"]["main_hand_accuracy"]["source"]
 
 
@@ -260,7 +341,10 @@ def test_builder_routes_weapon_armor_penetration_pct_to_equipped_hand() -> None:
                     "mechanics": {
                         "power": 3,
                         "damage_spread": 0.07,
-                        "implicit_bonuses": {"weapon_armor_penetration_pct": 0.10},
+                        "implicit_bonuses": {
+                            "weapon_armor_penetration_pct": 0.10,
+                            "main_hand_accuracy_penalty": 0.03,
+                        },
                     },
                 },
                 "stiletto-2": {
@@ -270,7 +354,10 @@ def test_builder_routes_weapon_armor_penetration_pct_to_equipped_hand() -> None:
                     "mechanics": {
                         "power": 2,
                         "damage_spread": 0.07,
-                        "implicit_bonuses": {"weapon_armor_penetration_pct": 0.08},
+                        "implicit_bonuses": {
+                            "weapon_armor_penetration_pct": 0.08,
+                            "main_hand_accuracy_penalty": 0.02,
+                        },
                     },
                 },
             },
@@ -280,6 +367,8 @@ def test_builder_routes_weapon_armor_penetration_pct_to_equipped_hand() -> None:
 
     assert raw["modifiers"]["main_hand_armor_penetration_pct"]["base"] == 0.10
     assert raw["modifiers"]["off_hand_armor_penetration_pct"]["base"] == 0.08
+    assert raw["modifiers"]["main_hand_accuracy_penalty"]["base"] == 0.03
+    assert raw["modifiers"]["off_hand_accuracy_penalty"]["base"] == 0.02
 
 
 @pytest.mark.unit
@@ -296,7 +385,7 @@ def test_builder_adds_unarmed_main_hand_when_no_weapon_is_equipped() -> None:
 
 
 @pytest.mark.unit
-def test_builder_applies_heavy_chest_dodge_cap_override() -> None:
+def test_builder_applies_heavy_chest_dodge_cap_override_and_armor_skill_penalty_relief() -> None:
     raw = CharacterCombatMathModelBuilder().build_raw(
         attributes={},
         items={
@@ -315,10 +404,69 @@ def test_builder_applies_heavy_chest_dodge_cap_override() -> None:
             },
         },
         skills={"skill_heavy_armor": 1.0},
+        symbiote={"gift_rank": 1},
     )
 
     assert raw["modifiers"]["dodge_cap"]["source"]["item:plate-1"] == "=0.35"
-    assert raw["modifiers"]["evasion"]["base"] == 0.0
+    assert raw["modifiers"]["evasion"]["base"] == pytest.approx(-0.125)
+
+
+@pytest.mark.unit
+def test_builder_uses_symbiote_item_delta_to_amplify_over_tier_armor_penalty() -> None:
+    raw = CharacterCombatMathModelBuilder().build_raw(
+        attributes={},
+        items={
+            "layout": {"equipment": {"chest_armor": "plate-1"}},
+            "by_id": {
+                "plate-1": {
+                    "item_id": "plate-1",
+                    "base_id": "plate_chest",
+                    "item_type": "armor",
+                    "mechanics": {
+                        "armor_class": "heavy",
+                        "tier": 4,
+                        "material": {"tier_mult": 2.0},
+                        "power": 10,
+                        "implicit_bonuses_base": {"evasion_penalty": -0.10},
+                        "implicit_bonuses": {"evasion_penalty": -0.20},
+                    },
+                }
+            },
+        },
+        skills={},
+        symbiote={"gift_rank": 1},
+    )
+
+    assert raw["modifiers"]["evasion"]["base"] == pytest.approx(-0.26)
+
+
+@pytest.mark.unit
+def test_builder_uses_symbiote_overdrive_to_reduce_tier_penalty_before_skill_relief() -> None:
+    raw = CharacterCombatMathModelBuilder().build_raw(
+        attributes={},
+        items={
+            "layout": {"equipment": {"chest_armor": "plate-1"}},
+            "by_id": {
+                "plate-1": {
+                    "item_id": "plate-1",
+                    "base_id": "plate_chest",
+                    "item_type": "armor",
+                    "mechanics": {
+                        "armor_class": "heavy",
+                        "tier": 0,
+                        "material": {"tier_mult": 2.0},
+                        "power": 10,
+                        "implicit_bonuses_base": {"evasion_penalty": -0.10},
+                        "implicit_bonuses": {"evasion_penalty": -0.20},
+                    },
+                }
+            },
+        },
+        skills={"skill_heavy_armor": 1.0},
+        symbiote={"gift_rank": 7},
+    )
+
+    assert raw["modifiers"]["evasion"]["base"] == pytest.approx(-0.0188)
 
 
 @pytest.mark.unit

@@ -120,6 +120,9 @@ Examples:
 - Perception derives `anti_dodge_chance`;
 - Memory and Prediction derive `counter_attack_chance`.
 
+`physical_endurance_power` is available to style-specific mechanics such as
+shield guard scaling. It is not part of ordinary weapon damage assembly.
+
 See `docs/game-design/rules/attributes/technical_reference.md` for the current
 formula table and monster profile differences.
 

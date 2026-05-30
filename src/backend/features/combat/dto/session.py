@@ -7,6 +7,7 @@ from typing import Any, NamedTuple, TypedDict
 from pydantic import BaseModel, Field
 
 from src.backend.features.combat.dto.actor import ActorSnapshot
+from src.backend.features.combat.dto.ai_memory_dto import AiMemoryDTO
 from src.backend.features.combat.dto.ids import ActorId, ActorIdLike
 
 
@@ -54,6 +55,10 @@ class BattleMeta(BaseModel):
     started_at: int | None = None
     battle_type: str
     location_id: str
+    # AI policy artifact id used by all AI actors in this battle. Frozen at
+    # battle start from CombatAiConfig.ACTIVE_POLICY_ID; empty string defers
+    # to PolicyStore env/default resolution.
+    ai_policy_id: str = ""
 
 
 class BattleContext(BaseModel):
@@ -77,6 +82,11 @@ class BattleContext(BaseModel):
     # NEW: Очередь умерших акторов (заполняется в Executor, обрабатывается в DataService)
     pending_dead_actors: list[ActorIdLike] = Field(default_factory=list)
 
+    # NEW (PR5): Cross-turn AI memory keyed by actor id. Filled by the
+    # executor's post-exchange hook; read by the AI runtime. Reset when the
+    # battle session ends. See runtime/ai/ai_memory.py for the contract.
+    ai_memory: dict[str, AiMemoryDTO] = Field(default_factory=dict)
+
     def get_actor(self, char_id: ActorIdLike) -> ActorSnapshot | None:
         return self.actors.get(str(char_id))
 
@@ -85,6 +95,14 @@ class BattleContext(BaseModel):
         if not me:
             return []
         return [a for a in self.actors.values() if a.team != me.meta.team and a.is_alive]
+
+    def get_allies(self, char_id: ActorIdLike) -> list[ActorSnapshot]:
+        """Live teammates of ``char_id``, excluding the actor itself."""
+        me = self.get_actor(char_id)
+        if not me:
+            return []
+        my_id = str(me.meta.id)
+        return [a for a in self.actors.values() if a.team == me.meta.team and str(a.meta.id) != my_id and a.is_alive]
 
 
 class MechanicsFlagsDTO(BaseModel):

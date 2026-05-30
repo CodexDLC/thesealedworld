@@ -9,8 +9,8 @@ class AiProcessor:
     """Produce runtime move payloads for NPC-controlled combat actors.
 
     Backed by :class:`MonsterCombatBrain`: legal actions are scored under a
-    JSON-trained policy and finite resources (feint hand, stamina) are
-    allocated across per-target intents.
+    JSON-trained policy and finite resources (feint hand, stamina, energy,
+    combat tokens) are allocated across per-target intents.
 
     Both APIs return payloads compatible with
     :meth:`CombatTurnManager.register_moves_batch` — no AI-specific
@@ -34,8 +34,9 @@ class AiProcessor:
             candidate_targets: Targets the bot must produce an intent against.
 
         Returns:
-            One payload per target, in the same order. Each payload is
-            ``{"action": "attack", "target_id": ..., "feint_id"?: ...}``.
+            Exchange payloads in target order, with optional instant ability
+            payloads immediately before the exchange they support. Instant
+            payloads do not consume a target queue slot.
         """
         return self._brain.decide_turn(bot, battle, candidate_targets)
 

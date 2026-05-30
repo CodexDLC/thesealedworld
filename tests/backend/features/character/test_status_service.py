@@ -123,6 +123,17 @@ class FakeGearScoreCalculator:
         assert active_character["items"]["layout"]["equipment"]["main_hand"] == "item-weapon"
         return 777
 
+    def calculate_breakdown_from_active_character(self, active_character):
+        assert active_character["items"]["layout"]["equipment"]["main_hand"] == "item-weapon"
+        return {
+            "total": 777,
+            "offense": 300.0,
+            "defense": 250.0,
+            "resources": 100.0,
+            "skills": 100.0,
+            "utility": 27.0,
+        }
+
 
 def build_service(repo_cls, sessions):
     return CharacterStatusService(
@@ -305,6 +316,7 @@ async def test_get_actor_core_initializes_items_and_gear_score_from_inventory():
 
     assert sessions.created["items"]["layout"]["equipment"]["main_hand"] == "item-weapon"
     assert dto.metrics["gear_score"] == 777
+    assert dto.metrics["gear_score_breakdown"]["skills"] == 100.0
     avatar_widget = next(widget for widget in dto.panel.widgets if widget.title == "PROFILE")
     assert avatar_widget.data["gear_score"] == 777
 

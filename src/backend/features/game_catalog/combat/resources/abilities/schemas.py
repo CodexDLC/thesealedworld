@@ -20,6 +20,7 @@ class AbilityCostDTO(BaseModel):
     energy: int = 0  # Мана / Энергия
     hp: int = 0  # Здоровье (Кровавая магия)
     gift_tokens: int = 0  # Спец. ресурс Дара
+    tokens: dict[str, int] = Field(default_factory=dict)  # Боевые токены: tempo, blood, hit, crit, etc.
 
 
 class PipelineMutationsDTO(BaseModel):
@@ -71,6 +72,9 @@ class AbilityTechnicalDTO(BaseModel):
 
     # Future: tokens granted by the action, separate from resolver-generated tokens.
     token_grants: dict[str, int] | None = None
+
+    # Stable semantic hints for AI scoring and reports. They do not change runtime math.
+    ai_tags: list[str] = Field(default_factory=list)
 
 
 class AbilityCatalogEntryDTO(CombatCatalogEntryDTO):

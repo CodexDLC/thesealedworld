@@ -1,5 +1,7 @@
 from src.backend.features.character.runtime.rules.base_power_assembler import (
     MASTERY_STAT_DAMAGE_FLOOR,
+    SHIELD_STYLE_GUARD_POWER_RATIO,
+    SHIELD_STYLE_GUARD_WEIGHTS,
     SPREAD_REDUCTION_AT_FULL_MASTERY,
     WEAPON_STAT_DAMAGE_WEIGHTS,
     BasePowerAssembler,
@@ -8,6 +10,8 @@ from src.backend.features.character.runtime.rules.base_power_assembler import (
 __all__ = [
     "BasePowerAssembler",
     "MASTERY_STAT_DAMAGE_FLOOR",
+    "SHIELD_STYLE_GUARD_POWER_RATIO",
+    "SHIELD_STYLE_GUARD_WEIGHTS",
     "SPREAD_REDUCTION_AT_FULL_MASTERY",
     "WEAPON_STAT_DAMAGE_WEIGHTS",
 ]

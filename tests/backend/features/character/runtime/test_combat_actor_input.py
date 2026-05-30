@@ -27,7 +27,7 @@ def test_builder_creates_combat_actor_input_from_active_character_document() -> 
             "skill_light_armor": 0.2,
             "skill_parrying": 0.25,
         },
-        "symbiote": {"name": "SYSTEM"},
+        "symbiote": {"name": "SYSTEM", "gift_rank": 7},
         "items": {
             "layout": {
                 "equipment": {
@@ -102,6 +102,10 @@ def test_builder_creates_combat_actor_input_from_active_character_document() -> 
         "tier": 1,
         "combat_tier": 2,
         "tier_mult": 1.2,
+        "sync_delta": 5,
+        "durability_stress_mult": pytest.approx(5.0),
+        "overload_penalty_mult": 1.0,
+        "overdrive_bonus_factor": pytest.approx(0.25),
         "power": 7.0,
         "armor_class": None,
         "skill_key": "skill_swords",
@@ -114,7 +118,17 @@ def test_builder_creates_combat_actor_input_from_active_character_document() -> 
     assert actor_input["loadout"]["two_handed"] is False
     assert actor_input["loadout"]["weapon_slots"] == ["main_hand"]
     assert actor_input["loadout"]["belt"][0]["belt_slot"] == "belt_slot_1"
-    assert actor_input["loadout"]["known_abilities"] == ["minor_heal"]
+    assert actor_input["loadout"]["known_abilities"] == [
+        "basic_punish_mistake",
+        "basic_finish_moment",
+        "basic_break_stance",
+        "basic_expose_weakness",
+        "basic_wipe_blood",
+        "basic_grit_teeth",
+        "basic_bloody_answer",
+        "basic_last_push",
+        "minor_heal",
+    ]
     assert actor_input["loadout"]["known_feints"] == [*BASIC_FEINTS, *SWORD_WEAPON_FEINTS]
 
 
@@ -134,6 +148,16 @@ def test_builder_can_emit_lifecycle_compatible_snapshot() -> None:
     assert "attributes" in snapshot["combat"]["math_model"]
     assert snapshot["combat"]["skills"] == {}
     assert snapshot["combat"]["loadout"]["layout"] == {"main_hand": "skill_unarmed"}
+    assert snapshot["combat"]["loadout"]["known_abilities"] == [
+        "basic_punish_mistake",
+        "basic_finish_moment",
+        "basic_break_stance",
+        "basic_expose_weakness",
+        "basic_wipe_blood",
+        "basic_grit_teeth",
+        "basic_bloody_answer",
+        "basic_last_push",
+    ]
     assert snapshot["combat"]["loadout"]["combat_surfaces"]["main_hand"] == {
         "slot": "main_hand",
         "delivery": "unarmed",
@@ -262,6 +286,7 @@ def test_builder_maps_equipped_quiver_payload_to_archery_main_hand() -> None:
                         "item_type": "ammo",
                         "slot": "quiver",
                         "mechanics": {
+                            "power": 2.4,
                             "ammo_effect_payload": {
                                 "id": "dot_burn",
                                 "params": {"power": 1.0},
@@ -277,7 +302,7 @@ def test_builder_maps_equipped_quiver_payload_to_archery_main_hand() -> None:
     assert actor_input["loadout"]["ammo_effects"] == {
         "main_hand": {
             "id": "dot_burn",
-            "params": {"power": 1.0},
+            "params": {"power": 2.4},
             "tags": ["arrow", "fire", "burn"],
         }
     }
@@ -359,13 +384,13 @@ def test_builder_marks_only_real_offhand_weapons_for_dual_wield() -> None:
 
 
 @pytest.mark.unit
-def test_builder_keeps_buckler_on_parrying_not_shield_mastery() -> None:
+def test_builder_treats_buckler_as_light_shield_not_parry_weapon() -> None:
     actor_input = CharacterCombatActorInputBuilder().build_input(
         {
             "char_id": 7,
             "bio": {"name": "Ada"},
             "attributes": {},
-            "skills": {"skill_swords": 0.2, "skill_parrying": 0.1},
+            "skills": {"skill_swords": 0.2, "skill_shield_mastery": 0.1},
             "items": {
                 "layout": {"equipment": {"main_hand": "sword-1", "off_hand": "buckler-1"}},
                 "by_id": {
@@ -378,18 +403,18 @@ def test_builder_keeps_buckler_on_parrying_not_shield_mastery() -> None:
                     "buckler-1": {
                         "item_id": "buckler-1",
                         "item_type": "armor",
-                        "related_skill": "skill_parrying",
-                        "mechanics": {"power": 3, "tags": ["buckler", "shield", "parry", "small_shield"]},
+                        "related_skill": "skill_shield_mastery",
+                        "mechanics": {"power": 3, "tags": ["buckler", "shield", "small_shield"]},
                     },
                 },
             },
         }
     )
 
-    assert actor_input["loadout"]["layout"]["off_hand"] == "skill_parrying"
-    assert "tactical_style" not in actor_input["loadout"]["layout"]
+    assert actor_input["loadout"]["layout"]["off_hand"] == "skill_shield_mastery"
+    assert actor_input["loadout"]["layout"]["tactical_style"] == "skill_shield_mastery"
     assert actor_input["loadout"]["equipment_layout"]["off_hand"] == "buckler-1"
-    assert actor_input["loadout"]["known_feints"] == [*BASIC_FEINTS, *SWORD_WEAPON_FEINTS]
+    assert actor_input["loadout"]["known_feints"] == [*BASIC_FEINTS, *SWORD_WEAPON_FEINTS, *SHIELD_TACTICAL_FEINTS]
 
 
 @pytest.mark.unit

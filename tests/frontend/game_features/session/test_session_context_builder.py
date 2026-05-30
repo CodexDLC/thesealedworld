@@ -526,7 +526,7 @@ async def test_build_current_returns_full_scenario_shell_context():
     assert context["inventory_window"].avatar_url == "/avatar.png"
     assert context["inventory_window"].contract_state == "FRONTEND_CONTRACT_PENDING"
     assert len(context["inventory_window"].body_zones) == 6
-    assert len(context["inventory_window"].accessory_rows) == 4
+    assert len(context["inventory_window"].accessory_rows) == 5
     assert len(context["inventory_window"].quick_slots) == 8
     assert context["nav"] == {"l2": None, "l1": None, "center": None, "r1": None, "r2": None}
     assert context["initial_inventory_open"] is False

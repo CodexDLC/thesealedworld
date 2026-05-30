@@ -115,10 +115,11 @@ class CombatResultSupportTaskDTO(BaseModel):
         skills = actor.stats.get("skills")
         if not isinstance(mods, dict) or not isinstance(skills, dict):
             return {}
+        evasion = min(float(mods.get("evasion", 0.0)), float(mods.get("dodge_cap", 1.0)))
         return {
             "acc": float(mods.get("accuracy", 0.0)),
             "crit": float(mods.get("crit_chance", 0.0)),
-            "eva": float(mods.get("evasion", 0.0)),
+            "eva": evasion,
             "par": float(mods.get("parry", 0.0)),
             "blk": float(mods.get("block", 0.0)),
             "arm": float(mods.get("armor", 0.0)),

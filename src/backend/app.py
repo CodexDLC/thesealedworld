@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from loguru import logger
 
-from src.backend.config.settings import settings
+from src.backend.config.settings import apply_runtime_environment_overrides, settings
 from src.backend.core.exceptions import BaseAPIException, api_exception_handler
 from src.backend.core.lifespan import lifespan
 from src.backend.core.middleware import ActiveCharacterDirtySyncMiddleware
@@ -9,6 +9,8 @@ from src.shared.infrastructure.log_middleware import LogContextMiddleware
 from src.shared.infrastructure.logging_config import setup_logging
 from src.shared.infrastructure.metrics_endpoint import metrics_router
 from src.shared.infrastructure.metrics_middleware import PrometheusMiddleware
+
+apply_runtime_environment_overrides()
 
 setup_logging(
     settings=settings,
@@ -22,6 +24,7 @@ from src.backend.features.arena.api import router as arena_router  # noqa: E402
 from src.backend.features.character.api import router as character_router  # noqa: E402
 from src.backend.features.city_services.api import router as city_services_router  # noqa: E402
 from src.backend.features.combat.api import router as combat_router  # noqa: E402
+from src.backend.features.combat.api.ai_simulation_router import router as combat_ai_simulation_router  # noqa: E402
 from src.backend.features.combat.api.analytics_router import router as combat_analytics_router  # noqa: E402
 from src.backend.features.combat.api.internal_router import router as combat_internal_router  # noqa: E402
 from src.backend.features.exploration.api import router as exploration_router  # noqa: E402
@@ -50,6 +53,7 @@ app.include_router(metrics_router)
 app.include_router(game_config_router)
 app.include_router(generation_ai_router)
 app.include_router(admin_players_router)
+app.include_router(combat_ai_simulation_router)
 app.include_router(combat_internal_router)
 app.include_router(scenario_internal_router)
 app.include_router(exploration_internal_router)

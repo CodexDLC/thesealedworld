@@ -11,6 +11,7 @@ from src.backend.features.combat.dto.ids import ActorId, ActorIdLike, normalize_
 from src.backend.features.combat.dto.pipeline import CombatEffectFactDTO, InteractionResultDTO, PipelineContextDTO
 from src.backend.features.combat.dto.session import BattleContext, TargetReturnDTO
 from src.backend.features.combat.integrations import CombatCatalogIntegrator
+from src.backend.features.combat.runtime.ai.ai_memory import record_exchange_outcome
 from src.backend.features.combat.runtime.engine.feint_service import FeintService
 from src.backend.features.combat.runtime.engine.pipeline import CombatPipeline
 from src.backend.features.combat.runtime.engine.target_resolver import TargetResolver
@@ -161,11 +162,11 @@ class CombatExecutor:
         self._process_periodic_effects(ctx, [source, target], action=action, wave=0)
 
         # Очередь задач (Waves)
-        pending_tasks: list[tuple[Awaitable[InteractionResultDTO], CombatMoveDTO]] = []
+        pending_tasks: list[tuple[Awaitable[InteractionResultDTO], CombatMoveDTO, bool]] = []
 
         # 1. Main Attack (A -> B)
         pending_tasks.append(
-            (self._create_task(source, target, action.move, mods={"action_mode": "exchange"}), action.move)
+            (self._create_task(source, target, action.move, mods={"action_mode": "exchange"}), action.move, False)
         )
 
         # 2. Partner Attack (B -> A)
@@ -174,24 +175,33 @@ class CombatExecutor:
                 (
                     self._create_task(target, source, action.partner_move, mods={"action_mode": "exchange"}),
                     action.partner_move,
+                    False,
                 )
             )
         elif not action.is_forced:
             log.error("ExecutorExchangePartnerMissing")
             return
 
-        for secondary_target in self._secondary_feint_targets(
+        secondary_targets, secondary_damage_mult = self._secondary_feint_plan(
             ctx, action, primary_target_id=normalize_actor_id(cast("ActorIdLike", target_id))
-        ):
+        )
+        for secondary_target in secondary_targets:
             pending_tasks.append(
                 (
                     self._create_task(
                         source,
                         secondary_target,
                         action.move,
-                        mods={"action_mode": "exchange", "damage_mult": 0.5, "feint_role": "secondary"},
+                        mods={
+                            "action_mode": "unidirectional",
+                            "damage_mult": secondary_damage_mult,
+                            "feint_role": "secondary",
+                            "pay_cost": False,
+                            "generate_feints": False,
+                        },
                     ),
                     action.move,
+                    True,
                 )
             )
 
@@ -204,10 +214,15 @@ class CombatExecutor:
 
             # Запускаем текущую волну
             current_tasks = pending_tasks
-            results = await asyncio.gather(*(task for task, _move in current_tasks))
+            results = await asyncio.gather(*(task for task, _move, _is_secondary in current_tasks))
             pending_tasks = []
 
-            for result, move in zip(results, (move for _task, move in current_tasks), strict=False):
+            for result, move, is_secondary in zip(
+                results,
+                (move for _task, move, _is_secondary in current_tasks),
+                (is_secondary for _task, _move, is_secondary in current_tasks),
+                strict=False,
+            ):
                 result_action = self._action_for_move(action, move, result=result)
                 s_id = result.source_id
                 t_id = result.target_id
@@ -222,7 +237,7 @@ class CombatExecutor:
                     damage_final=result.damage_final,
                     healing_final=result.healing_final,
                     events=[event.type for event in result.events],
-                ).debug("ExecutorResult")
+                ).trace("ExecutorResult")
                 self._append_result_logs(ctx, result, action=result_action, wave=wave)
                 self._append_result_support_payload(ctx, result, action=result_action, wave=wave)
                 self._log_result_info(ctx, result, wave=wave)
@@ -231,7 +246,21 @@ class CombatExecutor:
                     log.warning("ExecutorResultActorIdsMissing")
                     continue
 
+                # Cross-turn AI memory hook: observe one (attacker, defender,
+                # outcome, feint) tuple per resolved exchange. Read-only side
+                # is the AI runtime; this is the only writer.
+                if not is_secondary:
+                    record_exchange_outcome(
+                        ctx,
+                        s_id,
+                        t_id,
+                        self._result_outcome(result),
+                        getattr(move.payload, "feint_id", None),
+                    )
+
                 # --- CHAIN REACTIONS ---
+                if is_secondary:
+                    continue
 
                 # 1. Counter-Attack
                 if result.chain_events.trigger_counter_attack:
@@ -239,7 +268,7 @@ class CombatExecutor:
                     attacker = ctx.get_actor(s_id)
 
                     if defender and attacker:
-                        log.bind(source_id=t_id, target_id=s_id).info("ExecutorCounterAttackTriggered")
+                        log.bind(source_id=t_id, target_id=s_id).trace("ExecutorCounterAttackTriggered")
                         counter_move = action.partner_move if action.partner_move else action.move
                         pending_tasks.append(
                             (
@@ -250,6 +279,7 @@ class CombatExecutor:
                                     mods={"is_counter_attack": True, "action_mode": "exchange"},
                                 ),
                                 counter_move,
+                                False,
                             )
                         )
 
@@ -259,7 +289,7 @@ class CombatExecutor:
                     defender = ctx.get_actor(t_id)
 
                     if attacker and defender:
-                        log.bind(source_id=s_id, target_id=t_id).info("ExecutorOffHandAttackTriggered")
+                        log.bind(source_id=s_id, target_id=t_id).trace("ExecutorOffHandAttackTriggered")
                         pending_tasks.append(
                             (
                                 self._create_task(
@@ -269,6 +299,7 @@ class CombatExecutor:
                                     mods={"hand": "off", "action_mode": "exchange"},
                                 ),
                                 action.move,
+                                False,
                             )
                         )
 
@@ -284,7 +315,7 @@ class CombatExecutor:
         # НОВОЕ: Собираем пары для возврата целей
         self._collect_target_returns(ctx, action)
 
-        log.bind(wave_count=wave, global_step=ctx.meta.step_counter).info("ExecutorExchangeCompleted")
+        log.bind(wave_count=wave, global_step=ctx.meta.step_counter).trace("ExecutorExchangeCompleted")
 
     @staticmethod
     def _action_for_move(
@@ -351,19 +382,19 @@ class CombatExecutor:
             exchange_count=source.meta.exchange_counter,
         )
 
-    def _secondary_feint_targets(
+    def _secondary_feint_plan(
         self, ctx: BattleContext, action: CombatActionDTO, *, primary_target_id: ActorId
-    ) -> list[ActorSnapshot]:
+    ) -> tuple[list[ActorSnapshot], float]:
         feint_id = getattr(action.move.payload, "feint_id", None)
         if not feint_id:
-            return []
+            return [], 0.5
 
         feint_entry = CombatCatalogIntegrator.get_feint_catalog_entry(str(feint_id))
         if not feint_entry:
-            return []
+            return [], 0.5
         feint_config = feint_entry.technical
         if feint_config.target != TargetType.ALL_ENEMIES or feint_config.target_count <= 1:
-            return []
+            return [], 0.5
 
         resolved = self.target_resolver.resolve(action.move.char_id, feint_config.target.value, ctx.meta)
         limit = max(0, int(feint_config.target_count) - 1)
@@ -376,7 +407,7 @@ class CombatExecutor:
                 selected.append(actor)
             if len(selected) >= limit:
                 break
-        return selected
+        return selected, max(0.0, float(getattr(feint_config, "secondary_damage_mult", 0.5) or 0.5))
 
     def _process_periodic_effects(
         self, ctx: BattleContext, actors: list[Any], *, action: CombatActionDTO, wave: int
@@ -528,7 +559,7 @@ class CombatExecutor:
             damage=result.damage_final,
             healing=result.healing_final,
             events=[event.type for event in result.events],
-        ).debug("CombatExchange")
+        ).trace("CombatExchange")
 
     def _collect_target_returns(self, ctx: BattleContext, action: CombatActionDTO) -> None:
         """Collect target queue return pairs after a resolved exchange.

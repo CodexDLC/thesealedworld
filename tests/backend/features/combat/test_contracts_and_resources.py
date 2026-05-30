@@ -10,6 +10,9 @@ from src.backend.features.combat.integrations import CombatCatalogIntegrator
 from src.backend.features.combat.runtime.engine.pipeline_mutation_service import PipelineMutationService
 from src.backend.features.game_catalog.combat.resources import CombatResourceCatalogService
 from src.backend.features.game_catalog.combat.resources.abilities import get_ability_catalog_entry
+from src.backend.features.game_catalog.combat.resources.abilities.definitions.basic_gift import (
+    BASIC_GIFT_ABILITY_IDS,
+)
 from src.backend.features.game_catalog.combat.resources.common import CombatEventTextSetDTO
 from src.backend.features.game_catalog.combat.resources.common.pipeline_mutations import (
     PIPELINE_MUTATION_CONTRACTS,
@@ -173,6 +176,39 @@ def test_combat_resources_load_runtime_and_public_catalog() -> None:
     )
 
 
+def test_basic_gift_abilities_are_runtime_resources_with_combat_token_costs() -> None:
+    expected_costs = {
+        "basic_punish_mistake": {"tempo": 1, "hit": 1},
+        "basic_finish_moment": {"tempo": 1, "crit": 1},
+        "basic_break_stance": {"tempo": 1, "hit": 1},
+        "basic_expose_weakness": {"tempo": 1, "crit": 1},
+        "basic_wipe_blood": {"blood": 1},
+        "basic_grit_teeth": {"blood": 1},
+        "basic_bloody_answer": {"blood": 1, "hit": 1},
+        "basic_last_push": {"blood": 1, "tempo": 1},
+    }
+
+    assert tuple(expected_costs) == BASIC_GIFT_ABILITY_IDS
+
+    for ability_id, token_costs in expected_costs.items():
+        entry = get_ability_catalog_entry(ability_id)
+        assert entry is not None
+        assert entry.key == f"combat.ability.{ability_id}"
+        assert entry.technical.cost.energy > 0
+        assert entry.technical.cost.gift_tokens == 0
+        assert entry.technical.cost.tokens == token_costs
+        assert entry.descriptive.variants["humanoid"].display_name
+
+    wipe_blood = get_ability_catalog_entry("basic_wipe_blood")
+    last_push = get_ability_catalog_entry("basic_last_push")
+
+    assert wipe_blood is not None
+    assert wipe_blood.technical.override_damage == (6.0, 10.0)
+    assert last_push is not None
+    assert last_push.technical.override_damage == (8.0, 12.0)
+    assert [app.modifier_id for app in last_push.technical.modifier_applications] == ["physical_damage_bonus_add"]
+
+
 def test_ability_gift_and_item_catalog_entries_split_technical_and_descriptive() -> None:
     ability = get_ability_catalog_entry("fireball")
     gift = get_gift_catalog_entry("gift_true_fire")
@@ -244,6 +280,16 @@ def test_pipeline_mutation_contracts_are_technical_and_apply_to_context() -> Non
     assert PIPELINE_MUTATION_CONTRACTS["ignore_evasion"].path == "flags.force.hit_evasion"
     assert PIPELINE_MUTATION_CONTRACTS["target_evasion_mult"].path == "mods.target_evasion_mult"
     assert PIPELINE_MUTATION_CONTRACTS["target_parry_mult"].path == "mods.target_parry_mult"
+    assert PIPELINE_MUTATION_CONTRACTS["target_block_mult"].path == "mods.target_block_mult"
+    assert PIPELINE_MUTATION_CONTRACTS["force_shield_defense_branch"].path == (
+        "flags.formula.force_shield_defense_branch"
+    )
+    assert PIPELINE_MUTATION_CONTRACTS["force_shield_counter_branch"].path == (
+        "flags.formula.force_shield_counter_branch"
+    )
+    assert PIPELINE_MUTATION_CONTRACTS["shield_branch_invert"].path == "flags.formula.shield_branch_invert"
+    assert PIPELINE_MUTATION_CONTRACTS["shield_guard_power_mult"].path == "mods.shield_guard_power_mult"
+    assert PIPELINE_MUTATION_CONTRACTS["shield_counter_power_mult"].path == "mods.shield_counter_power_mult"
 
     ctx = PipelineContextDTO()
 
@@ -258,6 +304,12 @@ def test_pipeline_mutation_contracts_are_technical_and_apply_to_context() -> Non
             pipeline_mutation("weapon_effect_value", 2.0),
             pipeline_mutation("target_evasion_mult", 0.65),
             pipeline_mutation("target_parry_mult", 0.65),
+            pipeline_mutation("target_block_mult", 0.75),
+            pipeline_mutation("force_shield_counter_branch"),
+            pipeline_mutation("shield_counter_from_absorbed"),
+            pipeline_mutation("shield_guard_power_mult", 1.25),
+            pipeline_mutation("shield_counter_power_mult", 1.5),
+            pipeline_mutation("shield_block_chance_mult", 1.2),
             pipeline_mutation("chain.preserve_feint"),
         ],
         ctx=ctx,
@@ -273,6 +325,12 @@ def test_pipeline_mutation_contracts_are_technical_and_apply_to_context() -> Non
     assert ctx.mods.weapon_effect_value == 2.0
     assert ctx.mods.target_evasion_mult == 0.65
     assert ctx.mods.target_parry_mult == 0.65
+    assert ctx.mods.target_block_mult == 0.75
+    assert ctx.flags.formula.force_shield_counter_branch is True
+    assert ctx.flags.formula.shield_counter_from_absorbed is True
+    assert ctx.mods.shield_guard_power_mult == 1.25
+    assert ctx.mods.shield_counter_power_mult == 1.5
+    assert ctx.mods.shield_block_chance_mult == 1.2
     assert ctx.result.chain_events.preserve_feint is True
 
 

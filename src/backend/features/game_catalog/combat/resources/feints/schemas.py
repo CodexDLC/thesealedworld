@@ -38,6 +38,7 @@ class FeintTechnicalDTO(BaseModel):
     # === TARGETING ===
     target: TargetType = TargetType.SINGLE_ENEMY
     target_count: int = 1
+    secondary_damage_mult: float = 0.5
 
     # === PRE-CALC (Настройка удара) ===
 

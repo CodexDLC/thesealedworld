@@ -44,6 +44,15 @@ class TableActionMap(BaseModel):
     action: str
     label: str
     css_class: str = ""
+    select_name: str | None = None
+    select_options_key: str | None = None
+    select_label: str | None = None
+    input_name: str | None = None
+    input_value_key: str | None = None
+    input_label: str | None = None
+    input_type: str = "number"
+    input_min: int | None = None
+    input_max: int | None = None
 
 
 class TableWidgetMap(BaseModel):
@@ -71,6 +80,9 @@ class ConfigEntryRow(BaseModel):
     default: str
     value_type: str
     is_modified: bool = False
+    label: str | None = None
+    description: str | None = None
+    choices: list[dict[str, str]] = Field(default_factory=list)
 
 
 class EditableConfigWidget(DashboardWidget):
@@ -85,7 +97,9 @@ class EditableConfigWidgetMap(BaseModel):
     redirect_to: str
     update_url: str
     reset_url: str
+    reset_namespace_url: str | None = None
     entries: list[ConfigEntryRow] = Field(default_factory=list)
+    span: int = 2
 
 
 class ChartWidget(DashboardWidget):

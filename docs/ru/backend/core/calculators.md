@@ -61,6 +61,11 @@ Bridge-правила живут в `src/backend/features/character/runtime/rule
 | `mental` | `magic_resist` | 0.02 |
 | `perception` | `anti_dodge_chance` | 0.03 |
 
+`physical_endurance_power` остается производным полем для боевых расчетов, но
+обычный урон оружия теперь собирается только из силы и ловкости. Выносливость
+используется для живучести и стилевых механик, например щитового
+`shield_guard_power`.
+
 **Публичный API:**
 
 ```python

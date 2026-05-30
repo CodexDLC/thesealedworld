@@ -46,9 +46,35 @@ DEFAULT_WEIGHT_KEYS: tuple[str, ...] = (
     # Cost penalties
     "token_cost",
     "stamina_cost",
+    "energy_cost",
     "self_low_hp_resource_save",
     "self_low_stamina_save",
     "finishable_resource_save",
+    # Preparation awareness (PR2): magnitudes are stored positive, the scorer
+    # applies the appropriate sign. ``prep_threat_penalty`` is *subtracted* when
+    # attacking through a dangerous prep; ``dispel_prep`` is *added* when the
+    # action dispels prep stacks; ``heal_dedup_penalty`` is *subtracted* when
+    # the bot already has a heal-promising prep active.
+    "prep_threat_penalty",
+    "dispel_prep",
+    "heal_dedup_penalty",
+    # Team awareness (PR4): magnitudes stored positive, scorer applies sign.
+    # ``team_focus`` is *added* per ally already aiming at the target;
+    # ``team_focus_pile_on`` is *added* once when the target is already
+    # controlled and an ally is already focusing it; ``team_dedup_control``
+    # is *subtracted* when this action would queue a duplicate control on a
+    # target an ally is already controlling.
+    "team_focus",
+    "team_focus_pile_on",
+    "team_dedup_control",
+    # Cross-turn memory (PR5): observed-behaviour bonuses for anti-X tags
+    # and small biases for sticky focus and variety. All stored positive;
+    # the scorer applies the appropriate sign per branch.
+    "observed_parry_rate",
+    "observed_evasion_rate",
+    "observed_block_rate",
+    "sticky_target_bonus",
+    "repeat_feint_penalty",
     # Controlled exploration
     "randomness",
 )
@@ -76,6 +102,26 @@ class Policy(BaseModel):
         if weights:
             merged.update({k: float(v) for k, v in weights.items()})
         return cls(weights=merged, **kwargs)
+
+    def with_overlay(self, overlay: dict[str, float]) -> Policy:
+        """Return a derived policy with weights multiplied by ``overlay``.
+
+        Pure: the source policy is not mutated. Unknown overlay keys are
+        ignored (overlays are cross-cutting tactical multipliers, not a way
+        to *introduce* weights — those belong in the underlying policy).
+        """
+        if not overlay:
+            return self
+        new_weights = dict(self.weights)
+        for key, multiplier in overlay.items():
+            if key in new_weights:
+                new_weights[key] = float(new_weights[key]) * float(multiplier)
+        return Policy(
+            policy_id=self.policy_id,
+            version=self.version,
+            weights=new_weights,
+            metadata=dict(self.metadata),
+        )
 
     def to_json(self) -> str:
         return json.dumps(self.model_dump(mode="json"), indent=2, sort_keys=True)

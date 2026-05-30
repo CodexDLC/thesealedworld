@@ -50,9 +50,10 @@ def build_exploration_service(
         world_store=world_store,
         events=event_bus,
         redis=redis,
+        game_config=getattr(request.app.state, "game_config", None),
     )
 
-    encounter_engine = EncounterEngine()
+    encounter_engine = EncounterEngine(game_config=getattr(request.app.state, "game_config", None))
 
     return ExplorationService(
         integrator=integrator,
@@ -93,11 +94,12 @@ def build_exploration_gateway(
         world_store=world_store,
         events=event_bus,
         redis=redis,
+        game_config=getattr(request.app.state, "game_config", None),
     )
     navigation = ExplorationNavigationService(integrator)
     encounter_sessions = ExplorationEncounterSessionService(encounter_integration)
     encounters = ExplorationEncounterService(
-        engine=EncounterEngine(),
+        engine=EncounterEngine(game_config=getattr(request.app.state, "game_config", None)),
         integration=encounter_integration,
         session=encounter_sessions,
         navigation=navigation,

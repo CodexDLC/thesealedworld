@@ -44,6 +44,7 @@ if TYPE_CHECKING:
     from src.backend.features.inventory.repositories.items import InventoryItemRepository
     from src.backend.features.rift.integrations import RiftRuntimeIntegration
     from src.backend.infrastructure.actor_state.managers import CharacterSessionManager
+    from src.backend.infrastructure.game_lobby.managers import StartingImprintDistributionManager
 
 
 @dataclass(frozen=True, slots=True)
@@ -82,6 +83,7 @@ class GameLobbyIntegration:
         db_session: AsyncSession | None = None,
         character_sessions: CharacterSessionManager,
         events: GameEventProducer | None = None,
+        starting_imprint_distribution: StartingImprintDistributionManager | None = None,
         rift_runtime: RiftRuntimeIntegration | None = None,
     ) -> None:
         if character_repo is None:
@@ -100,6 +102,7 @@ class GameLobbyIntegration:
             self.item_persistence = ItemPersistenceIntegration(ItemInstanceRepository(db_session))
         self.character_sessions = character_sessions
         self.events = events
+        self.starting_imprint_distribution = starting_imprint_distribution
         self.scenario_service = scenario_service
         self.rift_runtime = rift_runtime
 
@@ -212,7 +215,17 @@ class GameLobbyIntegration:
     ) -> dict[str, Any]:
         self._ensure_starting_imprint_dependencies()
         service = StartingImprintService()
-        build = service.build(imprint_key) if imprint_key else service.build_random(seed=seed)
+        if imprint_key:
+            build = service.build(imprint_key)
+        elif self.starting_imprint_distribution is not None:
+            selected_imprint_key = await self.starting_imprint_distribution.select_and_record(
+                user_id=character.user_id,
+                seed=seed,
+                imprint_keys=service.available_keys(),
+            )
+            build = service.build(selected_imprint_key)
+        else:
+            build = service.build_random(seed=seed)
         char_id = character.character_id
 
         await self.attributes_repo.upsert_attributes(char_id, build.attributes)

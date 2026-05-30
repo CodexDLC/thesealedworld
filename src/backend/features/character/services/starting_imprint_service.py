@@ -38,6 +38,10 @@ class StartingImprintBuild:
 class StartingImprintService:
     """Build future starter materialization payloads without mutating character state."""
 
+    @staticmethod
+    def available_keys() -> tuple[str, ...]:
+        return tuple(STARTING_IMPRINTS)
+
     def build(self, imprint_key: str = DEFAULT_STARTING_IMPRINT_KEY) -> StartingImprintBuild:
         imprint = self.get_definition(imprint_key)
         combat = self._get_pack(STARTING_COMBAT_STYLES, imprint.combat_style, "combat_style")

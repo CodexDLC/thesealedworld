@@ -1,0 +1,1 @@
+"""Game lobby infrastructure adapters."""

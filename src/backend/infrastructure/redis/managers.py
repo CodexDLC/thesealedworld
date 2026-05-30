@@ -8,6 +8,7 @@ from codex_platform.redis_service import RedisService
 from src.backend.infrastructure.actor_commitments import ActorCommitmentManager
 from src.backend.infrastructure.actor_state.managers import CharacterSessionManager
 from src.backend.infrastructure.expedition.managers import ExpeditionRedisManager
+from src.backend.infrastructure.game_lobby.managers import StartingImprintDistributionManager
 from src.backend.infrastructure.inventory.managers import InventorySessionManager
 from src.backend.infrastructure.rift.managers import RiftPortalStore
 from src.backend.infrastructure.scenario.managers.content_manager import ScenarioContentManager
@@ -29,6 +30,7 @@ class RedisManagers:
     expeditions: ExpeditionRedisManager
     inventory_sessions: InventorySessionManager
     rift_portals: RiftPortalStore
+    starting_imprints: StartingImprintDistributionManager
 
 
 def build_redis_managers(
@@ -45,4 +47,5 @@ def build_redis_managers(
         expeditions=ExpeditionRedisManager(redis),
         inventory_sessions=InventorySessionManager(redis),
         rift_portals=RiftPortalStore(redis),
+        starting_imprints=StartingImprintDistributionManager(redis),
     )

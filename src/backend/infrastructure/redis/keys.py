@@ -63,3 +63,19 @@ class CombatAiSimulationProgressKey(BaseRedisKey):
     @property
     def template(self) -> str:
         return "combat_ai:simulation:run:{run_id}:progress"
+
+
+class StartingImprintUsageKey(BaseRedisKey):
+    """Global usage counters for automatic starting imprint distribution."""
+
+    @property
+    def template(self) -> str:
+        return "game:starter_imprint:usage"
+
+
+class StartingImprintUserRecentKey(BaseRedisKey):
+    """Recent automatic starting imprints issued to one account."""
+
+    @property
+    def template(self) -> str:
+        return "game:starter_imprint:user:{user_id}:recent"

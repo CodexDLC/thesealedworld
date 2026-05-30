@@ -53,6 +53,7 @@ def get_game_lobby_integration(
         item_persistence=ItemPersistenceIntegration(ItemInstanceRepository(db_session)),
         character_sessions=character_sessions,
         events=request.app.state.events,
+        starting_imprint_distribution=request.app.state.redis_managers.starting_imprints,
         rift_runtime=RiftRuntimeIntegration(
             instance_store=RiftInstanceStore(request.app.state.redis),
             session_store=RiftRunSessionStore(request.app.state.redis),

@@ -90,6 +90,7 @@ class RedisContainer:
         app.state.scenario_sessions = managers.scenario_sessions
         app.state.scenario_content = managers.scenario_content
         app.state.world_locations = managers.world_locations
+        app.state.starting_imprint_distribution = managers.starting_imprints
 
         # 3. Stream Runtimes
         runtimes = self._build_stream_runtimes(app)

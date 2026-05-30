@@ -52,10 +52,14 @@
 *   `formula.evasion_halved`: Шанс уворота врага / 2.
 *   `formula.parry_halved`: Шанс парирования врага / 2.
 *   `formula.block_halved`: Шанс блока врага / 2.
+*   `formula.force_shield_defense_branch`: Успешный block щитом всегда идет в защитную ветку.
+*   `formula.force_shield_counter_branch`: Успешный block щитом всегда идет в контр-ветку.
+*   `formula.shield_branch_invert`: Меняет местами веса defensive/counter ветки щита.
+*   `formula.shield_counter_from_absorbed`: Контр-ветка считает возврат от мощности контакта, а не от сырого power щита.
 
 ### 🔹 State (Состояние)
 *   `state.check_counter`: Запустить проверку контратаки.
-*   `state.partial_absorb_reflect`: Включить отражение урона щитом.
+*   `state.partial_absorb_reflect`: Legacy-флаг точечного поглощения/отражения щитом. Основная щитовая механика теперь проходит через успешный shield block и его defensive/counter ветку.
 
 ### 🔹 Chain Events (Цепные реакции)
 *   `chain_events.trigger_offhand_attack`: Доп. атака второй рукой.
@@ -68,6 +72,9 @@
 Поддерживают строки для калькулятора: `"+10"`, `"-20%"`, `"*1.5"`.
 
 *   `accuracy_mult`: Множитель точности.
+*   `shield_block_chance_mult`: Множитель шанса события block щитом.
+*   `shield_guard_power_mult`: Множитель power щита для защитной ветки.
+*   `shield_counter_power_mult`: Множитель возврата для контр-ветки щита.
 *   `physical_damage_mult`: Множитель физ. урона.
 *   `crit_chance`: Шанс крита.
 *   `dodge_chance`: Шанс уворота.

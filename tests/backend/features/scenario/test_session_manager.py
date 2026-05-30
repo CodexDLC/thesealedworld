@@ -91,3 +91,31 @@ class TestScenarioSessionManager:
         redis.pipeline.client = "fallback"
         manager = ScenarioSessionManager(redis)
         assert manager._redis_client() == "fallback"
+
+    async def test_create_uses_ttl_override_from_game_config(self, redis, context_dto):
+        game_config = MagicMock()
+        game_config.get_int = AsyncMock(return_value=120)
+        manager = ScenarioSessionManager(redis, game_config)
+        redis.json_module.set.return_value = "OK"
+
+        await manager.create(7, context_dto)
+
+        redis.string.expire.assert_awaited_once_with(manager.build_key(7), 120)
+        game_config.get_int.assert_awaited_once_with(
+            "scenario", "SESSION_TTL_SECONDS", default=SCENARIO_SESSION_TTL_SECONDS
+        )
+
+    async def test_patch_uses_ttl_override_from_game_config(self, redis):
+        game_config = MagicMock()
+        game_config.get_int = AsyncMock(return_value=99)
+        manager = ScenarioSessionManager(redis, game_config)
+
+        mock_json = MagicMock()
+        mock_pipe = MagicMock()
+        mock_pipe.execute = AsyncMock()
+        mock_pipe.json.return_value = mock_json
+        redis.redis_client.pipeline.return_value.__aenter__.return_value = mock_pipe
+
+        await manager.patch(7, {"$.hp": 10})
+
+        mock_pipe.expire.assert_called_once_with(manager.build_key(7), 99)

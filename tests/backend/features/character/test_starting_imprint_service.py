@@ -8,10 +8,10 @@ from src.backend.features.character.services import StartingImprintService
 def test_starting_imprint_builds_complete_guard_payload() -> None:
     build = StartingImprintService().build("starter_guard_01")
 
-    assert build.attributes["endurance"] == 17
-    assert build.attributes["strength"] == 16
-    assert build.attributes["perception"] == 15
-    assert build.attributes["mental"] == 14
+    assert build.attributes["strength"] == 17
+    assert build.attributes["agility"] == 16
+    assert build.attributes["endurance"] == 15
+    assert build.attributes["perception"] == 14
     assert set(build.attributes) == {
         "strength",
         "agility",
@@ -70,7 +70,8 @@ def test_starting_imprint_selects_closest_profile_from_weights() -> None:
 
     assert build.imprint_key == "starter_duelist_01"
     assert build.attributes["agility"] == 17
-    assert build.attributes["perception"] == 16
+    assert build.attributes["strength"] == 16
+    assert build.attributes["perception"] == 15
     assert "skill_light_armor" in build.skill_keys
 
 
@@ -96,6 +97,24 @@ def test_starting_imprints_define_eleven_four_skill_profiles_with_two_archery_st
 
 
 @pytest.mark.unit
+def test_starting_imprints_put_top_two_stats_into_weapon_damage_pair_for_calibration() -> None:
+    service = StartingImprintService()
+    agility_first = {
+        "starter_duelist_01",
+        "starter_dual_blades_01",
+        "starter_pathfinder_01",
+        "starter_hunter_01",
+        "starter_archer_01",
+    }
+
+    for imprint_key in STARTING_IMPRINTS:
+        build = service.build(imprint_key)
+        expected = {"agility": 17, "strength": 16} if imprint_key in agility_first else {"strength": 17, "agility": 16}
+
+        assert {stat: build.attributes[stat] for stat in ("strength", "agility")} == expected
+
+
+@pytest.mark.unit
 def test_archery_starting_imprints_include_expected_bow_and_quiver_pairs() -> None:
     service = StartingImprintService()
 
@@ -105,8 +124,8 @@ def test_archery_starting_imprints_include_expected_bow_and_quiver_pairs() -> No
     assert hunter.item_base_ids[:2] == ("shortbow", "quiver_poison")
     assert hunter.skill_xp == {
         "skill_archery": 0.15,
-        "skill_scouting": 0.15,
-        "skill_pathfinder": 0.10,
+        "skill_ranged_combat": 0.15,
+        "skill_scouting": 0.10,
         "skill_light_armor": 0.10,
     }
     assert archer.item_base_ids[:2] == ("longbow", "quiver_training")
@@ -115,6 +134,44 @@ def test_archery_starting_imprints_include_expected_bow_and_quiver_pairs() -> No
         "skill_ranged_combat": 0.15,
         "skill_tactics": 0.10,
         "skill_light_armor": 0.10,
+    }
+
+
+@pytest.mark.unit
+def test_support_starting_imprints_are_combat_ready_before_respec() -> None:
+    service = StartingImprintService()
+
+    tactician = service.build("starter_tactician_01")
+    assert tactician.primary_stats == ("strength", "agility", "perception", "prediction")
+    assert tactician.skill_xp == {
+        "skill_tactics": 0.15,
+        "skill_swords": 0.15,
+        "skill_shield_mastery": 0.10,
+        "skill_medium_armor": 0.10,
+    }
+    assert tactician.item_base_ids[:2] == ("sword", "buckler")
+
+    survivor = service.build("starter_rift_survivor_01")
+    assert survivor.primary_stats == ("strength", "agility", "endurance", "perception")
+    assert survivor.skill_xp == {
+        "skill_polearms": 0.15,
+        "skill_two_handed": 0.15,
+        "skill_adaptation": 0.10,
+        "skill_medium_armor": 0.10,
+    }
+    assert survivor.item_base_ids[0] == "quarterstaff"
+
+
+@pytest.mark.unit
+def test_heavy_guard_has_both_shield_block_and_parry_training() -> None:
+    build = StartingImprintService().build("starter_heavy_guard_01")
+
+    assert build.item_base_ids[:2] == ("mace", "kite_shield")
+    assert build.skill_xp == {
+        "skill_macing": 0.15,
+        "skill_shield_mastery": 0.15,
+        "skill_parrying": 0.10,
+        "skill_heavy_armor": 0.10,
     }
 
 

@@ -1,10 +1,9 @@
 """Token-grant primitives.
 
-These are the canonical implementations used by Step-классы (Phase 4) and by
-``trigger_activator``. ``CombatResolver`` retains a parallel implementation
-during Phase 3 to honor the ``_bonus_token_roll`` monkeypatch contract through
-``cls.`` chaining; in Phase 4 that parallel impl is migrated to use these
-directly and the monkeypatch is rebound.
+These are the canonical implementations used by Step-classes and by
+``trigger_activator``. The bonus-roll chance is read from
+``current_tunables()`` rather than a module-level constant so Redis-backed
+balance changes apply at runtime.
 """
 
 from __future__ import annotations
@@ -12,15 +11,16 @@ from __future__ import annotations
 import random
 from typing import TYPE_CHECKING
 
+from src.backend.features.combat.runtime.engine.tunables import current_tunables
+
 if TYPE_CHECKING:
     from src.backend.features.combat.dto.pipeline import InteractionResultDTO
 
-TOKEN_BONUS_CHANCE = 0.30
 TOKEN_BONUS_EXCLUDED = frozenset({"tempo", "gift"})
 
 
 def bonus_token_roll() -> bool:
-    return random.random() < TOKEN_BONUS_CHANCE  # nosec B311
+    return random.random() < current_tunables().token_bonus_chance  # nosec B311
 
 
 def award_token(bucket: dict[str, int], token: str) -> None:

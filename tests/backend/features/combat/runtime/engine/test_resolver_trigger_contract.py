@@ -140,6 +140,9 @@ def test_resolver_emits_exactly_the_contracted_trigger_event_set() -> None:
         ctx.flags.force.hit_evasion = True
         ctx.flags.restriction.ignore_parry = True
         ctx.flags.force.block = True
+        # ON_BLOCK only emits when the shield-block branch resolves to "counter"
+        # (the defense branch is a passive mitigation, not a trigger event).
+        ctx.flags.formula.force_shield_counter_branch = True
 
     def _hit_through_to_damage(ctx: PipelineContextDTO) -> None:
         ctx.flags.force.hit = True

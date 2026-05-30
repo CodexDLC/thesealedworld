@@ -34,9 +34,11 @@ from src.backend.features.combat.runtime.ai import MonsterCombatBrain, Policy, P
 from src.backend.features.combat.runtime.ai.action_space import (
     LegalAction,
     build_legal_actions_for_target,
+    build_legal_instant_actions_for_target,
 )
 from src.backend.features.combat.runtime.ai.observation import extract_self, extract_target
 from src.backend.features.combat.runtime.ai.scorer import PolicyScorer
+from src.backend.features.combat.runtime.ai.team_awareness import TeamState
 from src.backend.features.combat.runtime.engine.feint_service import FeintService
 from src.backend.features.combat.runtime.processors.ai_processor import AiProcessor
 from src.shared.schemas.modifier_dto import CombatModifiersDTO, CombatSkillsDTO
@@ -54,6 +56,7 @@ def _actor(
     hand: dict[str, dict[str, int]] | None = None,
     mods: dict[str, float] | None = None,
     is_ai: bool = False,
+    known_abilities: list[str] | None = None,
 ) -> ActorSnapshot:
     feints = FeintHandDTO(hand=dict(hand or {}), arsenal=list((hand or {}).keys()))
     meta = ActorMetaDTO(
@@ -80,7 +83,7 @@ def _actor(
         meta=meta,
         raw=ActorRawDTO(),
         skills={},
-        loadout=ActorLoadoutDTO(),
+        loadout=ActorLoadoutDTO(known_abilities=list(known_abilities or [])),
         stats=stats,
     )
 
@@ -121,6 +124,15 @@ def test_observation_target_features_match_known_stats() -> None:
     assert obs.parry == pytest.approx(0.1)
     assert obs.block == pytest.approx(0.4)
     assert obs.finishable is True  # 0.25 boundary inclusive
+
+
+@pytest.mark.unit
+def test_observation_uses_effective_evasion_after_dodge_cap() -> None:
+    target = _actor("t1", team="blue", mods={"evasion": 0.90, "dodge_cap": 0.35})
+
+    obs = extract_target(target)
+
+    assert obs.evasion == pytest.approx(0.35)
 
 
 @pytest.mark.unit
@@ -182,6 +194,44 @@ def test_legal_actions_exclude_feints_when_stamina_insufficient() -> None:
     assert len(actions) == 1
     assert actions[0].feint_id is None
     assert actions[0].action_type == "attack"
+
+
+@pytest.mark.unit
+def test_legal_instant_actions_include_affordable_known_abilities() -> None:
+    bot = _actor(
+        "bot",
+        team="red",
+        is_ai=True,
+        tokens={"blood": 1, "hit": 1},
+        known_abilities=["basic_wipe_blood", "basic_bloody_answer"],
+    )
+    bot.meta.en = 20
+    target = _actor("t1", team="blue")
+
+    actions = build_legal_instant_actions_for_target(bot, target)
+
+    by_id = {action.ability_id: action for action in actions}
+    assert set(by_id) == {"basic_wipe_blood", "basic_bloody_answer"}
+    assert by_id["basic_wipe_blood"].target_id == "bot"
+    assert by_id["basic_wipe_blood"].energy_cost == 10
+    assert by_id["basic_wipe_blood"].cost == {"blood": 1}
+    assert {"heal", "blood"} <= set(by_id["basic_wipe_blood"].tags)
+    assert by_id["basic_bloody_answer"].target_id == "t1"
+
+
+@pytest.mark.unit
+def test_legal_instant_actions_exclude_abilities_when_combat_tokens_are_missing() -> None:
+    bot = _actor(
+        "bot",
+        team="red",
+        is_ai=True,
+        tokens={"blood": 1},
+        known_abilities=["basic_bloody_answer"],
+    )
+    bot.meta.en = 20
+    target = _actor("t1", team="blue")
+
+    assert build_legal_instant_actions_for_target(bot, target) == []
 
 
 # ---------------------------------------------------------------------------
@@ -255,6 +305,108 @@ def test_high_token_cost_makes_basic_attack_win_over_feint() -> None:
 
     assert PolicyScorer.score(self_obs, target_obs, basic, policy) > PolicyScorer.score(
         self_obs, target_obs, feint, policy
+    )
+
+
+@pytest.mark.unit
+def test_non_execute_feint_is_blocked_on_finishable_target_even_with_group_bonus() -> None:
+    target = _actor("t1", team="blue", hp=10, max_hp=100)
+    bot = _actor("bot", team="red", is_ai=True)
+    target_obs = extract_target(target)
+    self_obs = extract_self(bot, alive_enemy_count=1)
+
+    policy = Policy.with_defaults(
+        {
+            "damage_tag": 0.5,
+            "group_basic": 10.0,
+            "finishable_resource_save": 0.0,
+            "token_cost": 0.0,
+            "stamina_cost": 0.0,
+        }
+    )
+
+    basic = LegalAction("attack", "t1", None, tags=frozenset({"damage_tag"}))
+    feint = LegalAction(
+        "attack",
+        "t1",
+        "measured_strike",
+        cost={"hit": 3},
+        stamina_cost=15,
+        tags=frozenset({"damage_tag", "group_basic"}),
+    )
+
+    assert PolicyScorer.score(self_obs, target_obs, basic, policy) > PolicyScorer.score(
+        self_obs, target_obs, feint, policy
+    )
+
+
+@pytest.mark.unit
+def test_execute_feint_is_penalized_before_finishable_window() -> None:
+    target = _actor("t1", team="blue", hp=80, max_hp=100)
+    bot = _actor("bot", team="red", is_ai=True)
+    target_obs = extract_target(target)
+    self_obs = extract_self(bot, alive_enemy_count=1)
+
+    policy = Policy.with_defaults(
+        {
+            "damage_tag": 0.5,
+            "group_weapon": 10.0,
+            "token_cost": 0.0,
+            "stamina_cost": 0.0,
+        }
+    )
+
+    basic = LegalAction("attack", "t1", None, tags=frozenset({"damage_tag"}))
+    execute_feint = LegalAction(
+        "attack",
+        "t1",
+        "sword_clean_path",
+        cost={"hit": 3, "crit": 5},
+        stamina_cost=40,
+        tags=frozenset({"damage_tag", "execute", "group_weapon"}),
+    )
+
+    assert PolicyScorer.score(self_obs, target_obs, basic, policy) > PolicyScorer.score(
+        self_obs, target_obs, execute_feint, policy
+    )
+
+
+@pytest.mark.unit
+def test_duplicate_control_is_blocked_even_with_large_control_bonus() -> None:
+    target = _actor("t1", team="blue")
+    bot = _actor("bot", team="red", is_ai=True)
+    target_obs = extract_target(target)
+    self_obs = extract_self(
+        bot,
+        alive_enemy_count=1,
+        team_state=TeamState(
+            allies_targets={"t1": 1},
+            allies_pending_control_targets=frozenset({"t1"}),
+        ),
+    )
+
+    policy = Policy.with_defaults(
+        {
+            "damage_tag": 0.5,
+            "control": 50.0,
+            "team_dedup_control": 0.0,
+            "token_cost": 0.0,
+            "stamina_cost": 0.0,
+        }
+    )
+
+    basic = LegalAction("attack", "t1", None, tags=frozenset({"damage_tag"}))
+    duplicate_control = LegalAction(
+        "attack",
+        "t1",
+        "concussion",
+        cost={"block": 3},
+        stamina_cost=15,
+        tags=frozenset({"control", "damage_tag"}),
+    )
+
+    assert PolicyScorer.score(self_obs, target_obs, basic, policy) > PolicyScorer.score(
+        self_obs, target_obs, duplicate_control, policy
     )
 
 
@@ -395,6 +547,57 @@ def test_decide_turn_does_not_overcommit_stamina_across_targets() -> None:
 
 
 @pytest.mark.unit
+def test_decide_turn_can_emit_instant_before_exchange_without_consuming_the_turn() -> None:
+    bot = _actor(
+        "bot",
+        team="red",
+        is_ai=True,
+        hp=25,
+        max_hp=100,
+        tokens={"blood": 1},
+        known_abilities=["basic_wipe_blood"],
+    )
+    bot.meta.en = 20
+    target = _actor("t1", team="blue")
+    battle = _battle([bot, target])
+    policy = Policy.with_defaults({"heal": 8.0, "token_cost": 0.0, "blood_resource": 0.0, "expected_damage": 0.0})
+
+    payloads = MonsterCombatBrain(policy=policy).decide_turn(bot, battle, [target])
+
+    assert payloads == [
+        {"action": "instant", "target_id": "bot", "ability_id": "basic_wipe_blood"},
+        {"action": "attack", "target_id": "t1"},
+    ]
+    assert bot.meta.tokens == {"blood": 1}
+    assert bot.meta.en == 20
+
+
+@pytest.mark.unit
+def test_decide_turn_does_not_overcommit_instant_resources_across_targets() -> None:
+    bot = _actor(
+        "bot",
+        team="red",
+        is_ai=True,
+        hp=25,
+        max_hp=100,
+        tokens={"blood": 1},
+        known_abilities=["basic_wipe_blood"],
+    )
+    bot.meta.en = 20
+    t1 = _actor("t1", team="blue")
+    t2 = _actor("t2", team="blue")
+    battle = _battle([bot, t1, t2])
+    policy = Policy.with_defaults({"heal": 8.0, "token_cost": 0.0, "blood_resource": 0.0, "expected_damage": 0.0})
+
+    payloads = MonsterCombatBrain(policy=policy).decide_turn(bot, battle, [t1, t2])
+
+    assert [payload.get("ability_id") for payload in payloads if payload.get("action") == "instant"] == [
+        "basic_wipe_blood"
+    ]
+    assert [payload["target_id"] for payload in payloads if payload.get("action") == "attack"] == ["t1", "t2"]
+
+
+@pytest.mark.unit
 def test_decide_turn_does_not_use_the_same_feint_twice() -> None:
     """Across a batch the same feint id must not appear twice."""
     bot = _actor(
@@ -484,6 +687,30 @@ def test_decide_exchange_returns_legacy_payload_shape() -> None:
     payload = AiProcessor().decide_exchange(bot, target)
     assert payload["action"] == "attack"
     assert payload["target_id"] == "t1"
+
+
+@pytest.mark.unit
+def test_brain_caches_default_archetype_policy_per_instance() -> None:
+    class CountingPolicyStore:
+        def __init__(self) -> None:
+            self.calls: list[str | None] = []
+
+        def load(self, path=None, *, archetype=None, policy_id=None):  # noqa: ANN001, ANN202
+            self.calls.append(archetype)
+            return Policy.with_defaults(policy_id=f"policy-{archetype or 'base'}")
+
+    store = CountingPolicyStore()
+    brain = MonsterCombatBrain(policy_store=store)  # type: ignore[arg-type]
+    bot = _actor("bot", team="red", is_ai=True)
+    bot.meta.ai_archetype = "duelist"
+    target = _actor("t1", team="blue")
+    battle = _battle([bot, target])
+
+    brain.decide_exchange(bot, target, battle)
+    brain.decide_exchange(bot, target, battle)
+    brain.decide_turn(bot, battle, [target])
+
+    assert store.calls == ["duelist"]
 
 
 # ---------------------------------------------------------------------------

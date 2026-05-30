@@ -202,10 +202,14 @@ async def on_gear_score_recalculate_requested(payload: dict[str, Any]) -> None:
             if not isinstance(active_character, dict):
                 failed.append(char_id)
                 continue
-            gear_score = calculator.calculate_from_active_character(active_character)
+            gear_score_breakdown = calculator.calculate_breakdown_from_active_character(active_character)
+            gear_score = int(gear_score_breakdown["total"])
             await _app.state.character_sessions.patch_fields(
                 char_id,
-                {"$.metrics.gear_score": gear_score},
+                {
+                    "$.metrics.gear_score": gear_score,
+                    "$.metrics.gear_score_breakdown": gear_score_breakdown,
+                },
             )
             gear_scores[str(char_id)] = gear_score
         ack = {"status": "partial" if failed else "ok", "gear_scores": gear_scores, "failed": failed}

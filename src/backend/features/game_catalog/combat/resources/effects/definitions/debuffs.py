@@ -133,6 +133,33 @@ _debuff_2h_damage_halved_catalog = EffectCatalogEntryDTO(
     ),
 )
 
+_debuff_ranged_repositioning_catalog = EffectCatalogEntryDTO(
+    key="combat.effect.debuff_ranged_repositioning",
+    technical=EffectTechnicalDTO(
+        effect_id="debuff_ranged_repositioning",
+        type=EffectType.DEBUFF,
+        duration=1,
+        resistance_profile_id=None,
+        pipeline_mutation_role="source",
+        react_on_outcomes=["hit", "crit", "miss", "dodge", "parry", "block"],
+        consume_on_reaction=True,
+        tags=["debuff", "ranged_combat", "backstep", "damage_reduction", "offense"],
+    ),
+    descriptive=build_combat_description(
+        resource_type="effects",
+        resource_id="debuff_ranged_repositioning",
+        icon="combat/effects/debuff_ranged_repositioning.svg",
+        display_name="Смена позиции",
+        short_description="После идеального отскока следующий исходящий урон снижен на один размен.",
+        humanoid_event_texts=CombatEventTextSetDTO(
+            apply_effect=["{target} сбивает темп сменой позиции."],
+            expire_effect=["{target} восстанавливает линию огня."],
+            cleanse=["Смена позиции {target} снята."],
+        ),
+        beast_event_texts=_DEBUFF_APPLY_BEAST,
+    ),
+)
+
 # ── REGISTRY ──────────────────────────────────────────────────────────────────
 
 DEBUFF_EFFECTS_CATALOG: dict[str, EffectCatalogEntryDTO] = {
@@ -141,4 +168,5 @@ DEBUFF_EFFECTS_CATALOG: dict[str, EffectCatalogEntryDTO] = {
     "debuff_evasion": _debuff_evasion_catalog,
     "debuff_accuracy": _debuff_accuracy_catalog,
     "debuff_2h_damage_halved": _debuff_2h_damage_halved_catalog,
+    "debuff_ranged_repositioning": _debuff_ranged_repositioning_catalog,
 }

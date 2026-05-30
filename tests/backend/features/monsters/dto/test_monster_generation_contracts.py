@@ -140,8 +140,43 @@ def test_monster_family_accepts_clan_and_member_resource_models() -> None:
     )
 
     assert family.clan_model is not None
+    assert family.resource_version == 1
     assert family.clan_model.balance.organization_divisor == 5.0
     assert family.member_models[0].variant_key == "sewer_rat"
+
+
+def test_monster_family_accepts_explicit_resource_version() -> None:
+    family = MonsterFamilyDTO.model_validate(
+        {
+            "id": "rat_swarm",
+            "resource_version": 3,
+            "archetype": "beast",
+            "organization_type": "swarm",
+            "default_tags": ["rat"],
+            "hierarchy": {"minions": ["sewer_rat"], "veterans": [], "elites": [], "boss": []},
+            "variants": {
+                "sewer_rat": {
+                    "id": "sewer_rat",
+                    "role": "minion",
+                    "narrative_hint": "Small diseased rat.",
+                    "cost": 20,
+                    "base_stats": {
+                        "strength": 4,
+                        "agility": 10,
+                        "endurance": 5,
+                        "intellect": 1,
+                        "memory": 1,
+                        "mental": 2,
+                        "perception": 6,
+                        "projection": 1,
+                        "prediction": 2,
+                    },
+                }
+            },
+        }
+    )
+
+    assert family.resource_version == 3
 
 
 def test_monster_family_rejects_member_model_for_missing_variant() -> None:

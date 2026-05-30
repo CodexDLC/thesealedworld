@@ -55,7 +55,7 @@ def trace_roll(
         roll="auto" if roll is None else round(roll, 3),
         passed=passed,
         details=compacted,
-    ).debug("CombatRoll")
+    ).trace("CombatRoll")
 
 
 def trace_step(res: InteractionResultDTO, stage: str, outcome: str, **details: Any) -> None:
@@ -65,7 +65,7 @@ def trace_step(res: InteractionResultDTO, stage: str, outcome: str, **details: A
         stage=stage,
         outcome=outcome,
         details=details,
-    ).debug("CombatStep")
+    ).trace("CombatStep")
 
 
 def trace_damage(res: InteractionResultDTO, **details: Any) -> None:
@@ -89,4 +89,4 @@ def trace_damage(res: InteractionResultDTO, **details: Any) -> None:
         min_damage=round(float(min_d), 2),
         max_damage=round(float(max_d), 2),
         details=compacted,
-    ).debug("CombatDamage")
+    ).trace("CombatDamage")

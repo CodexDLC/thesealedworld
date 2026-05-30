@@ -44,6 +44,7 @@ class StatKey(StrEnum):
 
     # Defense
     ARMOR = "armor"
+    MAGIC_ARMOR = "magic_armor"
     EVASION = "evasion"  # или DODGE
     BLOCK = "block"
     PARRY = "parry"

@@ -85,6 +85,12 @@ class ContextBuilder:
         if mods.get("is_counter_attack") or mods.get("feint_role") == "secondary" or mods.get("hand") == "off":
             ctx.flags.meta.grant_exchange_gift = False
 
+        if "pay_cost" in mods:
+            ctx.flags.mechanics.pay_cost = bool(mods["pay_cost"])
+
+        if "generate_feints" in mods:
+            ctx.flags.mechanics.generate_feints = bool(mods["generate_feints"])
+
         if "damage_mult" in mods:
             ctx.mods.damage_mult = float(mods["damage_mult"])
 
@@ -130,6 +136,7 @@ class ContextBuilder:
 
         # Определяем Weapon Class (для скиллов и триггеров)
         if source_type in ["main_hand", "off_hand"]:
+            ctx.flags.meta.tactical_style_skill = actor.loadout.layout.get("tactical_style")
             weapon_skill_key = actor.loadout.layout.get(source_type)
             if source_type == "main_hand" and weapon_skill_key == "skill_archery":
                 ctx.flags.restriction.ignore_parry = True

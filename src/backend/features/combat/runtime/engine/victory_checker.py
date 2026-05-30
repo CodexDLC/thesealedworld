@@ -39,5 +39,5 @@ class VictoryChecker:
             log.bind(result="victory", winner_team=winner_team).info("VictoryCheckerBattleEnded")
             return winner_team
 
-        log.debug("VictoryCheckerBattleContinues")
+        log.trace("VictoryCheckerBattleContinues")
         return None

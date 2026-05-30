@@ -1,0 +1,21 @@
+{
+  "metadata": {
+    "algorithm": "manual_seed",
+    "created_by": "combat-ai-pr3",
+    "archetype": "duelist",
+    "note": "Technical attacker: counter-defence finesse, counter-attack reliance, slight damage edge."
+  },
+  "policy_id": "archetype_duelist_v1",
+  "version": 1,
+  "weights": {
+    "anti_parry": 3.2,
+    "anti_evasion": 3.0,
+    "anti_block": 3.0,
+    "armor_bypass": 2.0,
+    "counter": 1.5,
+    "counter_resource": 1.0,
+    "expected_damage": 1.1,
+    "damage_tag": 0.7,
+    "group_weapon": 0.4
+  }
+}

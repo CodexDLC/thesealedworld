@@ -17,19 +17,18 @@ STYLE_CATALOG: list[TriggerCatalogEntryDTO] = [
             event="ON_ACCURACY_CHECK",
             chance=0.25,
             pipeline_mutations=[
-                pipeline_mutation("ignore_evasion"),
-                pipeline_mutation("ignore_parry"),
-                pipeline_mutation("ignore_block"),
+                pipeline_mutation("target_parry_mult", 0.65),
+                pipeline_mutation("target_block_mult", 0.65),
             ],
             allowed_sources=["style"],
             display_policy="merge",
-            tags=["style", "defense_bypass", "ignore_dodge", "ignore_parry", "ignore_block"],
+            tags=["style", "defense_pressure", "anti_parry", "anti_block"],
         ),
         descriptive=build_combat_description(
             resource_type="trigger",
             resource_id="style_2h_ignore",
             display_name="Пробитие (стиль)",
-            short_description="Игнорирует броню и ослабляет защиту врага.",
+            short_description="Тяжелый замах подавляет парирование и блок.",
             humanoid_event_texts=CombatEventTextSetDTO(
                 proc=["{source} пробивает защиту {target} мощным ударом."],
             ),
@@ -40,9 +39,9 @@ STYLE_CATALOG: list[TriggerCatalogEntryDTO] = [
         key="combat.trigger.style.shield_reflect",
         technical=TriggerTechnicalDTO(
             trigger_id="style_shield_reflect",
-            event="ON_BLOCK_FAIL",
+            event="ON_BLOCK",
             chance=0.25,
-            pipeline_mutations=[pipeline_mutation("partial_absorb_reflect")],
+            pipeline_mutations=[],
             allowed_sources=["style"],
             display_policy="merge",
             tags=["style", "block", "reflect"],
@@ -51,9 +50,7 @@ STYLE_CATALOG: list[TriggerCatalogEntryDTO] = [
             resource_type="trigger",
             resource_id="style_shield_reflect",
             display_name="Отражение (стиль)",
-            short_description=(
-                "При провале блока частично гасит прошедший удар и возвращает часть поглощенного урона."
-            ),
+            short_description=("При контратакующей ветке щитового блока отмечает ответ щитом."),
             humanoid_event_texts=CombatEventTextSetDTO(
                 block_proc=["{target} частично гасит удар {source} щитом."],
             ),
@@ -70,6 +67,7 @@ STYLE_CATALOG: list[TriggerCatalogEntryDTO] = [
             chance_skill_scale=0.0,
             chance_cap=0.25,
             pipeline_mutations=[pipeline_mutation("force.dodge")],
+            applied_effect_ids=["debuff_ranged_repositioning"],
             allowed_sources=["style"],
             display_policy="merge",
             tags=["style", "ranged_combat", "dodge", "perfect_backstep"],
@@ -78,7 +76,10 @@ STYLE_CATALOG: list[TriggerCatalogEntryDTO] = [
             resource_type="trigger",
             resource_id="style_ranged_perfect_backstep",
             display_name="Идеальный отскок",
-            short_description="С шансом до 25% превращает входящую атаку в гарантированный уворот.",
+            short_description=(
+                "С шансом до 25% превращает входящую атаку в гарантированный уворот, "
+                "но снижает урон следующего размена."
+            ),
             humanoid_event_texts=CombatEventTextSetDTO(
                 dodge_proc=["{target} делает идеальный отскок от атаки {source}."],
                 proc=["{target} делает идеальный отскок."],

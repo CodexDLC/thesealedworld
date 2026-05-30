@@ -52,14 +52,8 @@ class EvasionStep(ResolverStep):
         evasion_cap = def_.mods.dodge_cap
         anti_evasion = atk.mods.anti_dodge_chance
 
-        if ctx.flags.formula.ignore_evasion_cap:
-            final_chance = base_evasion - anti_evasion
-        elif ctx.flags.formula.zero_anti_evasion:
-            final_chance = base_evasion
-            final_chance = min(final_chance, evasion_cap)
-        else:
-            final_chance = base_evasion - anti_evasion
-            final_chance = min(final_chance, evasion_cap)
+        final_chance = base_evasion if ctx.flags.formula.zero_anti_evasion else base_evasion - anti_evasion
+        final_chance = min(final_chance, evasion_cap)
 
         evasion_mult = max(0.0, ctx.mods.target_evasion_mult)
         final_chance = max(0.0, min(1.0, final_chance * evasion_mult))

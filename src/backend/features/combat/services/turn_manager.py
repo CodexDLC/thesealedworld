@@ -20,6 +20,7 @@ from src.backend.features.combat.exceptions import (
 from src.backend.features.combat.game_config import CombatConfig
 from src.backend.features.combat.integrations import CombatSessionIntegration
 from src.backend.features.combat.runtime.engine.feint_service import FeintService
+from src.backend.infrastructure.game_config.manager import GameConfigManager
 
 # Конфиг таймеров согласно документации
 AFK_TIMEOUTS = {
@@ -43,9 +44,15 @@ class CombatTurnManager:
     collector/executor pipeline can process it asynchronously.
     """
 
-    def __init__(self, combat_sessions: CombatSessionIntegration, arq_service: ArqService):
+    def __init__(
+        self,
+        combat_sessions: CombatSessionIntegration,
+        arq_service: ArqService,
+        game_config: GameConfigManager | None = None,
+    ):
         self.combat_sessions = combat_sessions
         self.arq = arq_service
+        self.game_config = game_config
 
     async def register_move_request(self, session_id: str, char_id: ActorIdLike, payload: dict[str, Any]) -> None:
         """Register one player intent into the runtime buffer.
@@ -383,10 +390,20 @@ class CombatTurnManager:
         started = await self.combat_sessions.mark_started_and_refresh_ttl(session_id)
         if not started:
             return
+        delay = await self._chaos_first_check_delay_seconds()
         await self.arq.enqueue_job(
             "chaos_check_task",
             session_id,
-            _defer_until=self._defer_after(int(CombatConfig.CHAOS_FIRST_CHECK_DELAY_SECONDS)),
+            _defer_until=self._defer_after(delay),
+        )
+
+    async def _chaos_first_check_delay_seconds(self) -> int:
+        if self.game_config is None:
+            return int(CombatConfig.CHAOS_FIRST_CHECK_DELAY_SECONDS)
+        return await self.game_config.get_int(
+            "combat",
+            "CHAOS_FIRST_CHECK_DELAY_SECONDS",
+            default=int(CombatConfig.CHAOS_FIRST_CHECK_DELAY_SECONDS),
         )
 
     async def _is_dead_target(self, session_id: str, target_id: ActorIdLike) -> bool:

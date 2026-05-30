@@ -35,7 +35,10 @@ async def on_session_requested(payload: dict[str, Any]) -> None:
         request_data = dict(payload)
         correlation_id = request_data.get("correlation_id")
         orchestrator = CombatCreationOrchestrator(
-            lifecycle=CombatLifecycleService(store=CombatSessionIntegration.from_redis(_app.state.redis)),
+            lifecycle=CombatLifecycleService(
+                store=CombatSessionIntegration.from_redis(_app.state.redis),
+                game_config=getattr(_app.state, "game_config", None),
+            ),
             integrator=CombatSystemIntegrator(
                 actor_commitments=_app.state.actor_commitments,
                 character_sessions=_app.state.character_sessions,

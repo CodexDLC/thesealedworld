@@ -4,8 +4,9 @@ import random
 from dataclasses import dataclass
 from typing import Any
 
-from src.backend.features.exploration.dto.config import ExplorationConfig
+from src.backend.features.exploration.game_config import ExplorationConfig
 from src.backend.features.exploration.runtime.encounter.modes import EncounterMode
+from src.backend.features.exploration.runtime.tunables import current_tunables
 from src.shared.schemas.exploration import DetectionStatus
 
 
@@ -41,12 +42,13 @@ class EncounterPolicy:
         hunting_skill: float = 0.0,
         pathfinder_skill: float = 0.0,
     ) -> bool:
+        tunables = current_tunables()
         if mode == EncounterMode.TRAVEL:
-            chance = ExplorationConfig.CHANCE_COMBAT_BASE
+            chance = tunables.chance_combat_base
         elif trigger == "search":
-            chance = ExplorationConfig.CHANCE_COMBAT_SEARCH
+            chance = tunables.chance_combat_search
         else:
-            chance = ExplorationConfig.CHANCE_COMBAT_BASE
+            chance = tunables.chance_combat_base
         chance = self.encounter_chance(
             base_chance=chance,
             trigger=trigger,

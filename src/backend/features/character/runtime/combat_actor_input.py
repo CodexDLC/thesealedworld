@@ -3,6 +3,8 @@ from __future__ import annotations
 from typing import Any
 
 from src.backend.features.character.runtime.combat_math_model import CharacterCombatMathModelBuilder
+from src.backend.features.character.runtime.item_sync import symbiote_tier, sync_factors
+from src.backend.features.game_catalog.combat.resources.abilities.definitions.basic_gift import BASIC_GIFT_ABILITY_IDS
 from src.backend.features.game_catalog.combat.resources.feints.availability import build_known_feints
 
 
@@ -14,6 +16,7 @@ class CharacterCombatActorInputBuilder:
 
     def build_input(self, active_character: dict[str, Any]) -> dict[str, Any]:
         items = self._dict(active_character.get("items"))
+        symbiote = self._dict(active_character.get("symbiote"))
         flat_skills = self._flat_skills(self._dict(active_character.get("skills")))
         flat_skills = self._apply_pending_skills(flat_skills, active_character.get("pending_progress"))
         return {
@@ -24,9 +27,10 @@ class CharacterCombatActorInputBuilder:
                 attributes=active_character.get("attributes") or {},
                 items=items,
                 skills=flat_skills,
+                symbiote=symbiote,
             ),
             "skills": flat_skills,
-            "loadout": self._loadout(items, flat_skills),
+            "loadout": self._loadout(items, flat_skills, symbiote),
         }
 
     def build_snapshot(self, active_character: dict[str, Any]) -> dict[str, Any]:
@@ -72,7 +76,9 @@ class CharacterCombatActorInputBuilder:
         return source
 
     @staticmethod
-    def _loadout(items: dict[str, Any], flat_skills: dict[str, float]) -> dict[str, Any]:
+    def _loadout(
+        items: dict[str, Any], flat_skills: dict[str, float], symbiote: dict[str, Any] | None = None
+    ) -> dict[str, Any]:
         layout = CharacterCombatActorInputBuilder._dict(items.get("layout"))
         equipment_layout = CharacterCombatActorInputBuilder._dict(layout.get("equipment"))
         belt_layout = CharacterCombatActorInputBuilder._dict(layout.get("belt"))
@@ -100,6 +106,7 @@ class CharacterCombatActorInputBuilder:
                 item_id=str(item_id),
                 item=item,
                 skill_key=skill_key,
+                symbiote=symbiote,
             )
             if str(slot) == "two_hand":
                 hand_usage[combat_slot] = "two_hand"
@@ -148,6 +155,9 @@ class CharacterCombatActorInputBuilder:
             if item:
                 belt.append({**item, "belt_slot": str(belt_slot)})
 
+        known_abilities = CharacterCombatActorInputBuilder._known_abilities(by_id)
+        default_known_abilities = list(dict.fromkeys([*BASIC_GIFT_ABILITY_IDS, *known_abilities]))
+
         loadout = {
             "layout": combat_layout,
             "equipment_layout": {str(slot): str(item_id) for slot, item_id in equipment_layout.items() if item_id},
@@ -159,8 +169,8 @@ class CharacterCombatActorInputBuilder:
             "equipment_refs": equipment_refs,
             "ammo_effects": ammo_effects,
             "belt": belt,
-            "abilities": CharacterCombatActorInputBuilder._known_abilities(by_id),
-            "known_abilities": CharacterCombatActorInputBuilder._known_abilities(by_id),
+            "abilities": default_known_abilities,
+            "known_abilities": default_known_abilities,
             "skills": sorted(flat_skills),
         }
         loadout["known_feints"] = build_known_feints(loadout, flat_skills)
@@ -253,6 +263,7 @@ class CharacterCombatActorInputBuilder:
         item_id: str,
         item: dict[str, Any],
         skill_key: str | None,
+        symbiote: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         mechanics = CharacterCombatActorInputBuilder._mechanics(item)
         metadata = CharacterCombatActorInputBuilder._dict(item.get("metadata") or mechanics.get("metadata"))
@@ -260,6 +271,7 @@ class CharacterCombatActorInputBuilder:
         tags = CharacterCombatActorInputBuilder._tags(item, mechanics)
         triggers = CharacterCombatActorInputBuilder._triggers(item)
         tier = CharacterCombatActorInputBuilder._raw_tier(item)
+        sync = CharacterCombatActorInputBuilder._sync_ref(symbiote=symbiote, item_tier=max(1, tier + 1))
         return {
             "slot": slot,
             "combat_slot": combat_slot,
@@ -270,6 +282,7 @@ class CharacterCombatActorInputBuilder:
             "tier": tier,
             "combat_tier": max(1, tier + 1),
             "tier_mult": CharacterCombatActorInputBuilder._float_value(material.get("tier_mult"), default=1.0),
+            **sync,
             "power": CharacterCombatActorInputBuilder._float_value(
                 item.get("power") if item.get("power") is not None else mechanics.get("power"),
                 default=0.0,
@@ -280,6 +293,16 @@ class CharacterCombatActorInputBuilder:
             "skill_key": str(skill_key or ""),
             "triggers": triggers,
             "tags": tags,
+        }
+
+    @staticmethod
+    def _sync_ref(*, symbiote: dict[str, Any] | None, item_tier: int) -> dict[str, float | int]:
+        factors = sync_factors(symbiote_rank=symbiote_tier(symbiote), item_tier=item_tier)
+        return {
+            "sync_delta": factors.delta,
+            "durability_stress_mult": factors.durability_stress_mult,
+            "overload_penalty_mult": factors.overload_penalty_mult,
+            "overdrive_bonus_factor": factors.overdrive_bonus_factor,
         }
 
     @staticmethod
@@ -313,6 +336,14 @@ class CharacterCombatActorInputBuilder:
             return None
         payload = dict(raw)
         effect_id = payload.get("id") or payload.get("effect_id")
+        item_power = CharacterCombatActorInputBuilder._float_value(
+            item.get("power") if item.get("power") is not None else mechanics.get("power"),
+            default=0.0,
+        )
+        if item_power > 0:
+            params = dict(payload.get("params") or {})
+            params["power"] = item_power
+            payload["params"] = params
         return payload if isinstance(effect_id, str) and effect_id else None
 
     @staticmethod

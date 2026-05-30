@@ -5,13 +5,9 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from src.backend.features.combat.runtime.engine.math_core import MathCore
+from src.backend.features.combat.runtime.engine.tunables import current_tunables
 
 from ...support import offensive_lookup
-
-UNARMED_MIN_EFFICIENCY = 0.5
-UNARMED_MAX_EFFICIENCY = 3.0
-UNARMED_NOVICE_SPREAD = 0.5
-UNARMED_MASTER_SPREAD = 0.1
 
 if TYPE_CHECKING:
     from src.backend.features.combat.dto.actor import ActorStats
@@ -40,16 +36,25 @@ def apply(
 
         if ctx.flags.damage.physical:
             if ctx.flags.meta.weapon_class == "unarmed":
+                tunables = current_tunables()
                 unarmed = atk.skills.skill_unarmed
-                efficiency = UNARMED_MIN_EFFICIENCY + ((UNARMED_MAX_EFFICIENCY - UNARMED_MIN_EFFICIENCY) * unarmed)
+                efficiency = tunables.unarmed_min_efficiency + (
+                    (tunables.unarmed_max_efficiency - tunables.unarmed_min_efficiency) * unarmed
+                )
                 base *= efficiency
-                spread = max(UNARMED_MASTER_SPREAD, UNARMED_NOVICE_SPREAD - (0.4 * unarmed))
+                spread = max(
+                    tunables.unarmed_master_spread,
+                    tunables.unarmed_novice_spread - (0.4 * unarmed),
+                )
             base += atk.mods.physical_damage_bonus
 
         state.base = base
         state.spread = spread
         state.min_d = base * (1.0 - spread)
-        state.max_d = base * (1.0 + spread)
+        # NOTE: max_d is intentionally just ``base`` — the spread asymmetry is by design;
+        # rolls land below base, never above (matches the historical resolver after
+        # main's balance pass).
+        state.max_d = base
 
     state.raw_damage = MathCore.random_range(state.min_d, state.max_d)
     state.base_before_physical = float(state.base or 0.0)
@@ -71,3 +76,4 @@ def apply(
     )
     state.after_resist = state.raw_damage
     state.after_armor = state.raw_damage
+    state.magic_after_armor = state.raw_damage

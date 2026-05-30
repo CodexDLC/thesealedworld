@@ -660,6 +660,9 @@ def test_status_attribute_and_skill_widgets_are_collapsible():
     assert "status-widget-skill-group-row" in compact_status
     assert "status-widget-metrics" in compact_status
     assert "status-widget-metric-card--primary" in compact_status
+    assert "gear_score_breakdown" in compact_status
+    assert "Offense GS" in compact_status
+    assert "Skill GS" in compact_status
     assert ">GS<" in compact_status
     assert "loop.index <= 8" not in compact_status
     assert (

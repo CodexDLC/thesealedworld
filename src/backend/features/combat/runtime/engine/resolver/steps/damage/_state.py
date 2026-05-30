@@ -26,6 +26,7 @@ class DamageState:
     total_damage: float = 0.0
     damage_parts: dict[str, float] = field(default_factory=dict)
     elemental_damage_enabled: bool = False
+    elemental_damage_before_armor: float = 0.0
 
     # Physical channel trace fields (also read by damage_event).
     crit_multiplier: float = 1.0
@@ -40,9 +41,14 @@ class DamageState:
     after_resist: float = 0.0
     after_armor: float = 0.0
 
-    # Shield absorb/reflect.
+    # Magic-armor mitigation applied after the elemental loop.
+    magic_armor_flat: float = 0.0
+    magic_after_armor: float = 0.0
+
+    # Shield absorb/reflect (both blocked-branch path and partial_absorb_reflect path).
     shield_absorb: float = 0.0
     shield_reflect: float = 0.0
+    shield_reflect_base: float = 0.0
     shield_absorb_ratio: float = 0.0
     shield_absorb_cap: float = 0.0
     shield_guard_power: float = 0.0

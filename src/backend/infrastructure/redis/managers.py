@@ -1,4 +1,7 @@
+from __future__ import annotations
+
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
 from codex_platform.redis_service import RedisService
 
@@ -10,6 +13,9 @@ from src.backend.infrastructure.rift.managers import RiftPortalStore
 from src.backend.infrastructure.scenario.managers.content_manager import ScenarioContentManager
 from src.backend.infrastructure.scenario.managers.session_manager import ScenarioSessionManager
 from src.backend.infrastructure.world import WorldLocationStore
+
+if TYPE_CHECKING:
+    from src.backend.infrastructure.game_config.manager import GameConfigManager
 
 
 @dataclass
@@ -25,12 +31,15 @@ class RedisManagers:
     rift_portals: RiftPortalStore
 
 
-def build_redis_managers(redis: RedisService) -> RedisManagers:
+def build_redis_managers(
+    redis: RedisService,
+    game_config: GameConfigManager | None = None,
+) -> RedisManagers:
     return RedisManagers(
         redis=redis,
         character_sessions=CharacterSessionManager(redis),
         actor_commitments=ActorCommitmentManager(redis),
-        scenario_sessions=ScenarioSessionManager(redis),
+        scenario_sessions=ScenarioSessionManager(redis, game_config),
         scenario_content=ScenarioContentManager(redis),
         world_locations=WorldLocationStore(redis),
         expeditions=ExpeditionRedisManager(redis),

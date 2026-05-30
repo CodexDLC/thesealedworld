@@ -250,6 +250,7 @@ def test_monster_combat_actor_input_uses_generated_template_contract() -> None:
     assert snapshot["meta"]["actor_id"] == str(monster_id)
     assert snapshot["meta"]["name"] == "Крыса с черными когтями"
     assert snapshot["meta"]["avatar_url"] is None
+    assert snapshot["meta"]["ai_archetype"] == "balanced"
     assert snapshot["source"]["monster_id"] == str(monster_id)
     assert snapshot["source"]["family_id"] == "rat_swarm"
     assert snapshot["source"]["visual"]["status"] == "fallback"
@@ -273,7 +274,16 @@ def test_monster_combat_actor_input_uses_generated_template_contract() -> None:
         "base_id": "dagger",
         "skill_key": "skill_fencing",
     }
-    assert combat["loadout"]["known_abilities"] == []
+    assert combat["loadout"]["known_abilities"] == [
+        "basic_punish_mistake",
+        "basic_finish_moment",
+        "basic_break_stance",
+        "basic_expose_weakness",
+        "basic_wipe_blood",
+        "basic_grit_teeth",
+        "basic_bloody_answer",
+        "basic_last_push",
+    ]
 
 
 @pytest.mark.unit
@@ -311,6 +321,17 @@ def test_monster_with_affixed_item_preserves_bonuses() -> None:
     assert "main_hand_accuracy" in modifiers, "main_hand_accuracy modifier missing — bonus was wiped (Bug 1)"
     sources = modifiers["main_hand_accuracy"].get("source", {})
     assert any("axe-1" in k for k in sources), "item bonus source missing from main_hand_accuracy"
+
+
+@pytest.mark.unit
+def test_monster_combat_actor_input_assigns_ai_archetype_from_variant() -> None:
+    clan = _make_clan()
+    monster = _make_humanoid_monster(clan)
+    monster.variant_key = "bandit_thug"
+
+    snapshot = MonsterCombatActorInputBuilder().build_snapshot(monster)
+
+    assert snapshot["meta"]["ai_archetype"] == "berserker"
 
 
 @pytest.mark.unit

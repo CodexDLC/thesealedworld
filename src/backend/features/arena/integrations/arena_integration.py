@@ -41,8 +41,12 @@ class ArenaIntegration:
                 cached = metrics.get("gear_score")
                 if cached is not None:
                     return max(0, int(cached))
-                score = self.gear_score_calculator.calculate_from_active_character(session)
-                await self.character_sessions.patch_fields(char_id, {"$.metrics.gear_score": score})
+                breakdown = self.gear_score_calculator.calculate_breakdown_from_active_character(session)
+                score = int(breakdown["total"])
+                await self.character_sessions.patch_fields(
+                    char_id,
+                    {"$.metrics.gear_score": score, "$.metrics.gear_score_breakdown": breakdown},
+                )
                 return score
 
         scores = await self.stream_client.request_gear_scores([char_id])
@@ -65,8 +69,12 @@ class ArenaIntegration:
             if cached is not None:
                 scores[char_id] = max(0, int(cached))
                 continue
-            score = self.gear_score_calculator.calculate_from_active_character(session)
-            await self.character_sessions.patch_fields(char_id, {"$.metrics.gear_score": score})
+            breakdown = self.gear_score_calculator.calculate_breakdown_from_active_character(session)
+            score = int(breakdown["total"])
+            await self.character_sessions.patch_fields(
+                char_id,
+                {"$.metrics.gear_score": score, "$.metrics.gear_score_breakdown": breakdown},
+            )
             scores[char_id] = score
 
         missing = [char_id for char_id in char_ids if char_id not in scores]

@@ -1,0 +1,20 @@
+{
+  "metadata": {
+    "algorithm": "manual_seed",
+    "created_by": "combat-ai-pr3",
+    "archetype": "berserker",
+    "note": "High aggression: maximise expected damage and finishers; ignore prep threats; minimal self-care."
+  },
+  "policy_id": "archetype_berserker_v1",
+  "version": 1,
+  "weights": {
+    "expected_damage": 1.6,
+    "damage_tag": 0.9,
+    "finishable": 4.5,
+    "target_low_hp": 2.0,
+    "defense": 0.5,
+    "heal": 1.5,
+    "self_buff": 0.2,
+    "prep_threat_penalty": 0.0
+  }
+}

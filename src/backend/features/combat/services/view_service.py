@@ -755,6 +755,7 @@ class CombatViewService:
             hero.vitals.energy_current >= ability.cost.energy
             and hero.vitals.hp_current >= ability.cost.hp
             and hero.tokens.get("gift", 0) >= ability.cost.gift_tokens
+            and all(hero.tokens.get(token, 0) >= amount for token, amount in ability.cost.tokens.items())
         )
 
     @staticmethod

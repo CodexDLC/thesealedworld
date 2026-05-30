@@ -117,7 +117,7 @@ def _player_snapshot(char_id):
 
 def _monster_snapshot(monster_id):
     return {
-        "meta": {"actor_type": "monster", "actor_id": monster_id, "name": "Rat"},
+        "meta": {"actor_type": "monster", "actor_id": monster_id, "name": "Rat", "ai_archetype": "duelist"},
         "combat": {
             "math_model": {
                 "attributes": {"agility": {"base": 4}},
@@ -155,6 +155,7 @@ async def test_lifecycle_preserves_monster_pipeline_profile_in_actor_raw():
         "organization_type": "swarm",
     }
     assert monster_doc["raw"]["rules"] == {"attribute_profile": "monster:beast"}
+    assert monster_doc["meta"]["ai_archetype"] == "duelist"
 
 
 @pytest.mark.asyncio

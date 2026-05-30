@@ -10,6 +10,7 @@ from ...monster_structs import MonsterFamily
 
 ANCHOR_SOVEREIGNS_FAMILY: MonsterFamily = {
     "id": "anchor_sovereigns",
+    "resource_version": 1,
     "archetype": "unknown",
     "organization_type": "solitary",
     "default_tags": ["anchor", "higher_force", "projection", "raid_boss"],

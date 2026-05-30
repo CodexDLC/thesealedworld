@@ -6,11 +6,10 @@ from typing import TYPE_CHECKING
 
 from src.backend.features.combat.dto.pipeline import CombatEventDTO
 from src.backend.features.combat.runtime.engine.math_core import MathCore
+from src.backend.features.combat.runtime.engine.tunables import current_tunables
 
 from ..support import token_awarder, trace_writer, trigger_activator
 from ._base import ResolverStep
-
-PARRY_SKILL_MULT_PER_POINT = 4.0
 
 if TYPE_CHECKING:
     from src.backend.features.combat.dto.actor import ActorStats
@@ -56,7 +55,7 @@ class ParryStep(ResolverStep):
         parry_base = def_.mods.parry
         parry_cap = def_.mods.parry_cap
         parrying = def_.skills.skill_parrying
-        skill_mult = 1.0 + (PARRY_SKILL_MULT_PER_POINT * parrying)
+        skill_mult = 1.0 + (current_tunables().parry_skill_mult_per_point * parrying)
         parry_chance = parry_base * skill_mult
 
         if ctx.flags.formula.ignore_parry_cap:

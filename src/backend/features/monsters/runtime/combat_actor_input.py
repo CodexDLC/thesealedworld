@@ -7,6 +7,7 @@ from src.backend.features.character.runtime.combat_actor_input import CharacterC
 from src.backend.features.game_catalog.combat.resources.feints.availability import build_known_feints
 from src.backend.features.monsters.resources import get_family_config
 from src.backend.features.monsters.resources.visuals import version_generated_asset_url
+from src.backend.features.monsters.runtime.ai_archetype import resolve_monster_ai_archetype
 from src.backend.features.monsters.runtime.combat_math_model import MonsterCombatMathModelBuilder
 from src.backend.features.monsters.skill_contract import filter_monster_combat_skills
 
@@ -161,6 +162,7 @@ class MonsterCombatActorInputBuilder:
             "avatar_url": MonsterCombatActorInputBuilder._avatar_url(visual),
             "tags": MonsterCombatActorInputBuilder._meta_tags(monster),
             "archetype": MonsterCombatActorInputBuilder._archetype(monster),
+            "ai_archetype": MonsterCombatActorInputBuilder._ai_archetype(monster),
         }
 
     @staticmethod
@@ -249,6 +251,14 @@ class MonsterCombatActorInputBuilder:
         meta = generation_meta.get("meta")
         meta_data = meta if isinstance(meta, dict) else {}
         return str(meta_data.get("archetype") or "unknown")
+
+    @staticmethod
+    def _ai_archetype(monster: Any) -> str:
+        return resolve_monster_ai_archetype(
+            str(getattr(monster, "variant_key", "") or ""),
+            MonsterCombatActorInputBuilder._archetype(monster),
+            str(getattr(monster, "role", "") or ""),
+        )
 
     @staticmethod
     def _status_from_vitals(vitals: dict[str, Any]) -> dict[str, Any]:

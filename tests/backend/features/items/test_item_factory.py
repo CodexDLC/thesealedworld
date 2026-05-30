@@ -23,16 +23,17 @@ def test_item_factory_generates_combat_ready_item_spec():
     assert item.base_id == "warhammer"
     assert item.material_id == "mat_iron_ingot"
     assert item.slot == "two_hand"
-    # power = base_power(13) * tier_mult(1.0)
-    assert item.power == pytest.approx(13.0)
-    # base weapon accuracy is resolver-owned; weapons no longer carry tier-scaled miss penalties
-    assert "accuracy_penalty" not in item.implicit_bonuses
-    assert item.implicit_bonuses["main_hand_armor_penetration_pct"] == pytest.approx(0.22)
+    # power = base_power(12) * tier_mult(1.0)
+    assert item.power == pytest.approx(12.0)
+    assert item.implicit_bonuses["main_hand_accuracy_penalty"] == pytest.approx(0.15)
+    assert "main_hand_armor_penetration_pct" not in item.implicit_bonuses
     assert item.implicit_bonuses["evasion_penalty"] == pytest.approx(-0.10)
     # bonuses is intentionally empty — projection is runtime-only
     assert item.bonuses == {}
     # mechanics carries the canonical source
     assert isinstance(item.mechanics["affixes"], list)
+    assert item.mechanics["implicit_bonuses_base"]["main_hand_accuracy_penalty"] == pytest.approx(0.15)
+    assert "main_hand_armor_penetration_pct" not in item.mechanics["implicit_bonuses_base"]
     assert all(affix["tier"] == 1 for affix in item.mechanics["affixes"])
     assert item.mechanics["material"]["material_id"] == "mat_iron_ingot"
     assert item.mechanics["material"]["tier_mult"] == pytest.approx(1.0)
@@ -60,8 +61,8 @@ def test_item_factory_scales_power_and_affixes_with_material_tier_mult():
     assert high.power == pytest.approx(low.power * 1.5)
     assert high.durability_max == pytest.approx(low.durability_max * 1.5)
 
-    assert "accuracy_penalty" not in low.implicit_bonuses
-    assert "accuracy_penalty" not in high.implicit_bonuses
+    assert low.implicit_bonuses["main_hand_accuracy_penalty"] == pytest.approx(0.15)
+    assert high.implicit_bonuses["main_hand_accuracy_penalty"] == pytest.approx(0.225)
 
     # affix values also scale with tier_mult when both draw the same affix
     low_affixes = {a["affix_id"]: a["value"] for a in low.mechanics["affixes"]}
@@ -74,7 +75,7 @@ def test_item_factory_scales_power_and_affixes_with_material_tier_mult():
 
 
 @pytest.mark.unit
-def test_item_factory_heavy_armor_has_no_evasion_penalty():
+def test_item_factory_heavy_armor_scales_class_penalties_for_sync_math():
     item = ItemFactory().generate(
         ItemGenerationRequestDTO(
             base_id="plate_chest",
@@ -84,11 +85,13 @@ def test_item_factory_heavy_armor_has_no_evasion_penalty():
     )
 
     assert item.metadata["armor_class"] == "heavy"
-    assert "evasion_penalty" not in item.implicit_bonuses
+    assert item.mechanics["implicit_bonuses_base"]["evasion_penalty"] == pytest.approx(-0.07)
+    assert item.implicit_bonuses["evasion_penalty"] == pytest.approx(-0.07)
+    assert item.implicit_bonuses["main_hand_accuracy_penalty"] == pytest.approx(0.015)
 
 
 @pytest.mark.unit
-def test_item_factory_light_chest_evasion_scales_by_material_tier():
+def test_item_factory_light_chest_penalty_scales_by_material_tier():
     low = ItemFactory().generate(
         ItemGenerationRequestDTO(
             base_id="leather_armor",
@@ -105,8 +108,8 @@ def test_item_factory_light_chest_evasion_scales_by_material_tier():
     )
 
     assert low.metadata["armor_class"] == "light"
-    assert low.implicit_bonuses["evasion"] == pytest.approx(0.05)
-    assert high.implicit_bonuses["evasion"] > low.implicit_bonuses["evasion"]
+    assert low.implicit_bonuses["evasion_penalty"] == pytest.approx(-0.01)
+    assert high.implicit_bonuses["evasion_penalty"] < low.implicit_bonuses["evasion_penalty"]
 
 
 @pytest.mark.unit
@@ -163,7 +166,8 @@ def test_item_factory_generates_earring_accessory():
     assert item.item_type == "accessory"
     assert item.slot == "earring"
     assert item.name == "Железная серьга"
-    assert item.implicit_bonuses["debuff_avoidance"] == pytest.approx(0.015)
+    assert item.power == 1.0
+    assert item.implicit_bonuses == {"initiative": pytest.approx(0.5)}
 
 
 @pytest.mark.unit
@@ -202,6 +206,7 @@ def test_item_factory_carries_quiver_ammo_contract_into_mechanics():
 
     assert item.slot == "quiver"
     assert item.item_type == "ammo"
+    assert item.power == pytest.approx(3.0)
     assert item.mechanics["ammo_charge_base"] == 12
     assert item.mechanics["ammo_charge_skill_bonus"] == 12
     assert item.mechanics["ammo_effect_payload"] == {
@@ -229,8 +234,10 @@ def test_item_factory_scales_travel_boots_concentration_regen_by_material_tier_m
     )
 
     assert low.implicit_bonuses["stamina_regen"] == pytest.approx(1.5)
+    assert low.implicit_bonuses["environment_gravity_resistance"] == pytest.approx(1.0)
     assert low.mechanics["implicit_bonuses"]["stamina_regen"] == pytest.approx(1.5)
     assert high.implicit_bonuses["stamina_regen"] == pytest.approx(10.2)
+    assert high.implicit_bonuses["environment_gravity_resistance"] == pytest.approx(6.8)
 
 
 @pytest.mark.unit

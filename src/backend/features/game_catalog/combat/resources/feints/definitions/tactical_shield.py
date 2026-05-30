@@ -3,6 +3,7 @@ from src.backend.features.game_catalog.combat.resources.common.descriptions impo
     CombatEventTextSetDTO,
     build_combat_description,
 )
+from src.backend.features.game_catalog.combat.resources.common.pipeline_mutations import pipeline_mutation
 from src.backend.features.game_catalog.combat.resources.common.targeting import TargetType
 from src.backend.features.game_catalog.combat.resources.feints.schemas import (
     FeintCatalogEntryDTO,
@@ -77,13 +78,29 @@ TACTICAL_SHIELD_FEINTS_TECHNICAL = {
             {"id": "concussed_no_feints", "target_actor": "target"},
         ],
     ),
+    "shield_line_bash": FeintTechnicalDTO(
+        feint_id="shield_line_bash",
+        cost=FeintCostDTO(tactics={"hit": 3, "block": 3}),
+        target=TargetType.ALL_ENEMIES,
+        target_count=3,
+        secondary_damage_mult=0.45,
+        applicability_tags=[*_TACTICAL_SHIELD_TAGS, "hit", "shield_bash", "control", "multi_target"],
+        purchase_group="tactical",
+        shield_guard_damage_ratio=0.20,
+        shield_guard_damage_min=2,
+        shield_guard_damage_tier_fallback=2,
+        pipeline_mutations=[pipeline_mutation("accuracy_mult", 0.90)],
+        effects=[
+            {"id": "debuff_accuracy", "target_actor": "target"},
+        ],
+    ),
 }
 
 _TACTICAL_SHIELD_TEXTS = {
     "active_defense": (
         "Активная защита",
         "Принять следующий удар щитом",
-        "Тактический щитовой финт: следующий входящий урон через resolver уменьшается вдвое.",
+        "Тактический щитовой финт: следующий входящий удар принудительно уходит в защитную ветку щита.",
         "закрывая линию щитом",
         "и оставляет щит на линии активной защиты",
         "и жестко собирает активную защиту",
@@ -91,7 +108,7 @@ _TACTICAL_SHIELD_TEXTS = {
     "full_defense": (
         "Полная защита",
         "Свести следующий удар к минимуму",
-        "Тактический щитовой финт: следующий входящий урон через resolver становится не больше 1.",
+        "Тактический щитовой финт: следующий входящий удар уходит в усиленную защитную ветку щита.",
         "уходя за полную защиту щита",
         "и удерживает щит в полной защите",
         "и закрывает корпус полной защитой",
@@ -107,7 +124,7 @@ _TACTICAL_SHIELD_TEXTS = {
     "aggressive_defense": (
         "Агрессивная защита",
         "Встретить удар щитом",
-        "Тактический щитовой финт: следующий входящий урон становится не больше 1 и отражает урон щитом.",
+        "Тактический щитовой финт: следующий входящий удар уходит в контр-ветку щита.",
         "закрываясь щитом с давлением вперед",
         "и удерживает щит для жесткой встречи",
         "и готовит щит к болезненному ответу",
@@ -127,6 +144,14 @@ _TACTICAL_SHIELD_TEXTS = {
         "вынося щит в короткий удар",
         "и попадает щитом в корпус",
         "и жестко срывает концентрацию цели",
+    ),
+    "shield_line_bash": (
+        "Щитовой проход",
+        "Сбить три цели",
+        "Тактический щитовой финт: основной удар щитом задевает до двух дополнительных целей.",
+        "вынося щит в проход по линии",
+        "и сбивает строй щитом",
+        "и срывает прицел нескольким целям",
     ),
 }
 

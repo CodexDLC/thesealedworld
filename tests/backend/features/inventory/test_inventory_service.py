@@ -327,6 +327,25 @@ async def test_open_window_uses_weapon_family_icons_and_two_hand_slot(fake_redis
 
 
 @pytest.mark.asyncio
+async def test_open_window_exposes_equipped_quiver_slot(fake_redis_service, fake_redis_client):
+    _active_character(fake_redis_client, state="exploration")
+    service = _service(
+        fake_redis_service,
+        [
+            _item("shortbow-1", "weapon", slot="two_hand", placement="equipped", tags=["bow", "archery"]),
+            _item("quiver_poison-1", "ammo", slot="quiver", placement="equipped", tags=["quiver", "arrows"]),
+        ],
+    )
+
+    window = await service.open_window(7)
+
+    rows = {row.row_id: row for row in window.accessory_rows}
+    assert rows["quiver"].slots[0].slot_id == "quiver"
+    assert rows["quiver"].slots[0].label == "Колчан"
+    assert rows["quiver"].slots[0].item.item_id == "quiver_poison-1"
+
+
+@pytest.mark.asyncio
 async def test_open_window_builds_structured_item_tooltip_without_html(fake_redis_service, fake_redis_client):
     _active_character(fake_redis_client, state="exploration")
     service = _service(
@@ -600,7 +619,8 @@ async def test_open_window_shows_belt_power_as_inventory_cells(fake_redis_servic
 
     window = await service.open_window(7)
 
-    details = window.accessory_rows[-1].slots[0].details
+    accessory_rows = {row.row_id: row for row in window.accessory_rows}
+    details = accessory_rows["belt"].slots[0].details
     assert details is not None
     assert any(line.label == "Ячейки инвентаря" and line.value == "8" for line in details.details)
     assert any(line.label == "Слоты пояса" and line.value == "4" for line in details.details)

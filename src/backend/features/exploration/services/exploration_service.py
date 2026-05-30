@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING, Any, cast
 from loguru import logger as log
 from pydantic import ValidationError
 
-from src.backend.features.exploration.dto.config import ExplorationConfig
+from src.backend.features.exploration.game_config import ExplorationConfig
 from src.backend.features.exploration.resources.service_registry import get_service_entry
 from src.backend.features.exploration.runtime.city_map import build_city_map_payload
 from src.backend.features.exploration.runtime.encounter.bypass import (

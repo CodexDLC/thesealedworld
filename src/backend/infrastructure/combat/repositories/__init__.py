@@ -1,4 +1,5 @@
+from src.backend.infrastructure.combat.repositories.ai_simulation_repository import CombatAiSimulationRunRepository
 from src.backend.infrastructure.combat.repositories.analytics_repository import CombatAnalyticsRepository
 from src.backend.infrastructure.combat.repositories.finalization_repository import CombatFinalizationRepository
 
-__all__ = ["CombatAnalyticsRepository", "CombatFinalizationRepository"]
+__all__ = ["CombatAiSimulationRunRepository", "CombatAnalyticsRepository", "CombatFinalizationRepository"]

@@ -245,9 +245,11 @@ class CharacterStateIntegrator:
         inventory_session = build_runtime_session(session_doc.char_id, runtime_items)
         projection = build_active_character_projection(inventory_session).model_dump(mode="json")
         session_doc.items = CharacterSessionItemsDTO.model_validate(projection)
-        session_doc.metrics.gear_score = self.gear_score_calculator.calculate_from_active_character(
+        gear_score_breakdown = self.gear_score_calculator.calculate_breakdown_from_active_character(
             session_doc.model_dump(mode="json")
         )
+        session_doc.metrics.gear_score = int(gear_score_breakdown["total"])
+        session_doc.metrics.gear_score_breakdown = gear_score_breakdown
 
     async def _apply_and_persist_vitals_regen(
         self,

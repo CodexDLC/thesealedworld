@@ -74,6 +74,17 @@ class FakeGearScoreCalculator:
         assert active_character["items"]["layout"]["equipment"]["main_hand"] == "item-weapon"
         return 777
 
+    def calculate_breakdown_from_active_character(self, active_character):
+        assert active_character["items"]["layout"]["equipment"]["main_hand"] == "item-weapon"
+        return {
+            "total": 777,
+            "offense": 300.0,
+            "defense": 250.0,
+            "resources": 100.0,
+            "skills": 100.0,
+            "utility": 27.0,
+        }
+
 
 @pytest.mark.asyncio
 async def test_bootstrap_active_session_restores_persisted_runtime_refs_progress_and_items() -> None:
@@ -167,6 +178,7 @@ async def test_bootstrap_active_session_restores_persisted_runtime_refs_progress
     assert session_doc.symbiote.gift_xp == 42
     assert session_doc.items.layout.equipment["main_hand"] == "item-weapon"
     assert session_doc.metrics.gear_score == 777
+    assert session_doc.metrics.gear_score_breakdown["skills"] == 100.0
 
     assert sessions.replaced is not None
     assert sessions.replaced["state"] == "scenario"
@@ -177,6 +189,7 @@ async def test_bootstrap_active_session_restores_persisted_runtime_refs_progress
     assert sessions.replaced["symbiote"]["gift_id"] == "gift-flame"
     assert sessions.replaced["symbiote"]["gift_xp"] == 42
     assert sessions.replaced["items"]["layout"]["equipment"]["main_hand"] == "item-weapon"
+    assert sessions.replaced["metrics"]["gear_score_breakdown"]["offense"] == 300.0
 
 
 @pytest.mark.asyncio

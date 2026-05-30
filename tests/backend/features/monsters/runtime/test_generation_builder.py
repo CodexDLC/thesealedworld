@@ -118,6 +118,7 @@ async def test_generation_builder_creates_clan_template_with_all_available_membe
     first = clan.members[0]
     assert first.items["layout"]["equipment"]
     assert first.generation_meta["schema_version"] == 2
+    assert first.generation_meta["family_resource_version"] == family.resource_version
     assert first.generation_meta["visual"]["status"] == "fallback"
     assert first.generation_meta["visual"]["image_url"] == "/static/images/monsters/families/rat_swarm.svg"
     assert first.items["by_id"]

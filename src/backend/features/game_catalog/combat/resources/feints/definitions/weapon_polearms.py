@@ -107,6 +107,16 @@ WEAPON_POLEARM_FEINTS_TECHNICAL = {
         ],
         effects=[{"id": "knockdown", "target_actor": "target"}],
     ),
+    "polearm_line_cleave": FeintTechnicalDTO(
+        feint_id="polearm_line_cleave",
+        cost=FeintCostDTO(tactics={"hit": 4, "parry": 1}),
+        target=TargetType.ALL_ENEMIES,
+        target_count=3,
+        secondary_damage_mult=0.75,
+        applicability_tags=[*_POLEARM_TAGS, "hit", "parry", "damage", "multi_target"],
+        purchase_group="weapon",
+        pipeline_mutations=[pipeline_mutation("accuracy_mult", 0.95)],
+    ),
 }
 
 _POLEARM_TEXTS = {
@@ -165,6 +175,14 @@ _POLEARM_TEXTS = {
         "запирая дистанцию древком",
         "и закрывает цель в зоне контроля",
         "и валит цель в запертой дистанции",
+    ),
+    "polearm_line_cleave": (
+        "Срез строя",
+        "Ударить по трем целям",
+        "Оружейный финт древкового: основной размен задевает до двух дополнительных целей на 75% урона.",
+        "срезая строй длинной дугой древка",
+        "и задевает соседние цели",
+        "и прорезает линию противников",
     ),
 }
 

@@ -91,6 +91,16 @@ WEAPON_SWORD_FEINTS_TECHNICAL = {
         ],
         pipeline_mutations=[pipeline_mutation("accuracy_mult", 1.05)],
     ),
+    "sword_blade_whirl": FeintTechnicalDTO(
+        feint_id="sword_blade_whirl",
+        cost=FeintCostDTO(tactics={"hit": 5, "dodge": 2}),
+        target=TargetType.ALL_ENEMIES,
+        target_count=5,
+        secondary_damage_mult=0.50,
+        applicability_tags=[*_SWORD_TAGS, "hit", "dodge", "damage", "multi_target", "high_cost"],
+        purchase_group="weapon",
+        pipeline_mutations=[pipeline_mutation("accuracy_mult", 0.95)],
+    ),
 }
 
 _SWORD_TEXTS = {
@@ -149,6 +159,14 @@ _SWORD_TEXTS = {
         "собирая чистую траекторию",
         "и ведет клинок в слабую точку",
         "и раскрывает сильное критовое окно",
+    ),
+    "sword_blade_whirl": (
+        "Вихрь клинка",
+        "Задеть несколько целей",
+        "Оружейный финт меча: основной размен задевает до пяти врагов отголосками половинного урона.",
+        "разворачивая клинок в широкий круг",
+        "и рассекает линию рядом с целью",
+        "и превращает размен в широкий вихрь",
     ),
 }
 

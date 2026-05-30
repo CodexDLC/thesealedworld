@@ -8,11 +8,13 @@ from collections import defaultdict
 from typing import TYPE_CHECKING, Any
 
 from src.backend.features.combat.dto.session import SessionDataDTO
+from src.backend.features.combat.game_config import CombatConfig
 from src.backend.features.combat.runtime.support.analytics_builder import CombatAnalyticsFactBuilder
 from src.backend.infrastructure.actor_commitments import ActorCommitmentManager
 
 if TYPE_CHECKING:
     from src.backend.features.combat.integrations import CombatSessionIntegration
+    from src.backend.infrastructure.game_config.manager import GameConfigManager
 
 
 class CombatLifecycleError(RuntimeError):
@@ -23,14 +25,16 @@ class CombatLifecycleService:
     """Creates RBC-compatible combat sessions from prepared actor snapshots."""
 
     SNAPSHOT_TIMEOUT_SECONDS = 10.0
-    DEFAULT_TTL_SECONDS = 3600
+    DEFAULT_TTL_SECONDS = int(CombatConfig.SESSION_TTL_SECONDS)
 
     def __init__(
         self,
         *,
         store: CombatSessionIntegration,
+        game_config: GameConfigManager | None = None,
     ) -> None:
         self.store = store
+        self.game_config = game_config
 
     async def create_session_from_snapshots(
         self,
@@ -41,11 +45,15 @@ class CombatLifecycleService:
         snapshots: dict[str, dict[str, Any]],
         request: dict[str, Any],
     ) -> SessionDataDTO:
-        session_data = self._assemble_session_data(combat_id, battle_type, participants, snapshots, request)
+        ai_policy_id = await self._active_ai_policy_id()
+        session_data = self._assemble_session_data(
+            combat_id, battle_type, participants, snapshots, request, ai_policy_id=ai_policy_id
+        )
+        ttl = int(request.get("ttl") or await self._session_ttl_seconds())
         await self.store.create_session_batch(
             combat_id,
             session_data,
-            ttl=int(request.get("ttl") or self.DEFAULT_TTL_SECONDS),
+            ttl=ttl,
         )
         if hasattr(self.store, "append_analytics"):
             await self.store.append_analytics(
@@ -53,6 +61,16 @@ class CombatLifecycleService:
                 CombatAnalyticsFactBuilder.build_session_profile(combat_id=combat_id, session_data=session_data),
             )
         return session_data
+
+    async def _session_ttl_seconds(self) -> int:
+        if self.game_config is None:
+            return self.DEFAULT_TTL_SECONDS
+        return await self.game_config.get_int("combat", "SESSION_TTL_SECONDS", default=self.DEFAULT_TTL_SECONDS)
+
+    async def _active_ai_policy_id(self) -> str:
+        if self.game_config is None:
+            return ""
+        return await self.game_config.get_str("combat_ai", "ACTIVE_POLICY_ID", default="")
 
     async def complete_session(self, session_id: str, *, winner: str | None = None) -> None:
         if winner:
@@ -66,6 +84,8 @@ class CombatLifecycleService:
         participants: dict[str, list[int | str]],
         snapshots: dict[str, dict[str, Any]],
         request: dict[str, Any],
+        *,
+        ai_policy_id: str = "",
     ) -> SessionDataDTO:
         actors: dict[str, dict[str, Any]] = {}
         teams: dict[str, list[str]] = {}
@@ -106,6 +126,7 @@ class CombatLifecycleService:
             "battle_type": battle_type,
             "location_id": str(request.get("location_id") or request.get("loc_id") or "arena"),
             "source": str(request.get("source") or "unknown"),
+            "ai_policy_id": ai_policy_id,
             "arena_session_id": str(request.get("arena_session_id") or ""),
             "rift_session_id": str(request.get("rift_session_id") or ""),
             "rift_instance_id": str(request.get("rift_instance_id") or ""),
@@ -176,6 +197,7 @@ class CombatLifecycleService:
                 "name": name,
                 "type": actor_type,
                 "archetype": meta.get("archetype", "humanoid"),
+                "ai_archetype": meta.get("ai_archetype", "balanced"),
                 "avatar_url": avatar_url,
                 "gender": meta.get("gender") or source.get("gender"),
                 "role": meta.get("role") or source.get("role"),

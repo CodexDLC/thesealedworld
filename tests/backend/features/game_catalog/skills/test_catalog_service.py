@@ -72,8 +72,9 @@ def test_skill_catalog_public_descriptions_explain_effects():
 
     assert "штрафов оружия к точности" in str(public_text["skill_swords"]["description"])
     assert "шанс парирования" in str(public_text["skill_parrying"]["description"])
-    assert "блоком щитом" in str(public_text["skill_parrying"]["description"])
+    assert "Блок полноразмерным щитом" in str(public_text["skill_parrying"]["description"])
     assert "Shield Mastery" not in str(public_text["skill_parrying"]["description"])
+    assert "базовый шанс блока щитом" in str(public_text["skill_shield_mastery"]["description"])
     assert "до 50% входящего урона" in str(public_text["skill_shield_mastery"]["description"])
     assert "не парирование в 0 урона" in str(public_text["skill_shield_mastery"]["description"])
     assert "до 50% на 100 мастерства" in str(public_text["skill_dual_wield"]["description"])
@@ -171,12 +172,12 @@ def test_weapon_mastery_skill_stat_weights_match_current_design():
     assert macing is not None
     assert archery is not None
     assert unarmed is not None
-    assert swords.stat_weights == {"agility": 1, "perception": 1, "prediction": 1, "strength": 1}
+    assert swords.stat_weights == {"agility": 1, "prediction": 1, "strength": 1}
     assert fencing.stat_weights == {"agility": 2, "perception": 1, "prediction": 1}
-    assert polearms.stat_weights == {"agility": 1, "perception": 2, "strength": 1}
-    assert macing.stat_weights == {"endurance": 1, "mental": 1, "strength": 2}
+    assert polearms.stat_weights == {"perception": 1, "prediction": 1, "strength": 1}
+    assert macing.stat_weights == {"agility": 1, "mental": 1, "strength": 2}
     assert archery.stat_weights == {"agility": 1, "perception": 2, "prediction": 1}
-    assert unarmed.stat_weights == {"agility": 1, "endurance": 1, "mental": 1, "strength": 1}
+    assert unarmed.stat_weights == {"agility": 1, "endurance": 1, "strength": 1}
 
 
 def test_combat_support_skill_stat_weights_match_current_design():

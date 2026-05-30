@@ -164,6 +164,8 @@ class AbilityService:
                 and not (mode == "source" and ctx.result.is_counter)
             ):
                 continue
+            if mode == "source" and effect.effect_id == "debuff_ranged_repositioning":
+                AbilityService._apply_ranged_repositioning_penalty(ctx, actor)
             if effect_config and effect_config.pipeline_mutations:
                 role = effect_config.pipeline_mutation_role
                 if role == "both" or role == mode:
@@ -187,6 +189,12 @@ class AbilityService:
                             continue
                         AbilityService._set_nested_flag(ctx, path, value)
             pass
+
+    @staticmethod
+    def _apply_ranged_repositioning_penalty(ctx: PipelineContextDTO, actor: ActorSnapshot) -> None:
+        StatsEngine.ensure_stats(actor)
+        skill = max(0.0, min(1.0, float(actor.stats.skills.skill_ranged_combat if actor.stats else 0.0)))
+        ctx.mods.damage_mult *= 0.20 + (0.60 * skill)
 
     @staticmethod
     def _apply_control_behavior(ctx: PipelineContextDTO, path: str, value: Any) -> bool:
@@ -285,15 +293,18 @@ class AbilityService:
             feint_entry = GameData.get_feint_catalog_entry(action_id)
             if feint_entry:
                 config = feint_entry.technical
-                stamina_cost = FeintService.activation_stamina_cost(config.cost.tactics)
-                cost_ok = actor.meta.stamina >= stamina_cost
-                if cost_ok:
-                    AbilityService._register_feint_activation_cost(ctx, stamina_cost)
+                if not ctx.flags.mechanics.pay_cost:
+                    cost_ok = True
                 else:
-                    ctx.phases.run_calculator = False
-                    ctx.result.skip_reason = "NO_RESOURCE"
-                    ctx.result.chain_events.preserve_feint = True
-                    log.bind(feint_id=config.feint_id).debug("AbilityServiceInsufficientStamina")
+                    stamina_cost = FeintService.activation_stamina_cost(config.cost.tactics)
+                    cost_ok = actor.meta.stamina >= stamina_cost
+                    if cost_ok:
+                        AbilityService._register_feint_activation_cost(ctx, stamina_cost)
+                    else:
+                        ctx.phases.run_calculator = False
+                        ctx.result.skip_reason = "NO_RESOURCE"
+                        ctx.result.chain_events.preserve_feint = True
+                        log.bind(feint_id=config.feint_id).trace("AbilityServiceInsufficientStamina")
 
         if not config or not cost_ok:
             return
@@ -516,24 +527,6 @@ class AbilityService:
             AbilityService._apply_prepared_parry_heal(ctx, actor, effect_id, params)
             return
 
-        if effect_id == "prep_aggressive_defense":
-            reflected_damage = AbilityService._shield_power_damage(actor)
-            if reflected_damage <= 0:
-                return
-            ctx.result.reflected_damage += reflected_damage
-            ctx.result.resource_facts.append(
-                CombatResourceFactDTO(
-                    actor_id=ctx.result.source_id,
-                    owner="source",
-                    resource="hp",
-                    reason="aggressive_defense_reflect",
-                    delta=-reflected_damage,
-                    source_effect_id=effect_id,
-                    tags=["prepared_reaction", "hit", "reflect", f"defender:{actor.char_id}"],
-                )
-            )
-            return
-
         if effect_id == "prep_2h_hard_intercept":
             if ctx.result.source_id is None:
                 return
@@ -689,12 +682,6 @@ class AbilityService:
         tier_fallback = fallback_per_tier * AbilityService._source_shield_tier(actor)
         shield_power = max(0.0, float(getattr(actor.stats.mods, "shield_guard_power", 0.0) or 0.0))
         return max(minimum, tier_fallback, int(round(shield_power * ratio)))
-
-    @staticmethod
-    def _shield_power_damage(actor: ActorSnapshot) -> int:
-        shield_power = max(0.0, float(getattr(actor.stats.mods, "shield_guard_power", 0.0) or 0.0))
-        tier_fallback = 3 * AbilityService._source_shield_tier(actor)
-        return max(3, tier_fallback, int(round(shield_power * 0.25)))
 
     @staticmethod
     def _dispel_prepared_effects(actor: ActorSnapshot) -> int:
@@ -906,9 +893,9 @@ class AbilityService:
         if not source.stats:
             return
 
+        # Energy regen is an out-of-combat or explicit item/effect resource, not passive combat sustain.
         regen_sources = (
             ("hp", source.stats.mods.hp_regen),
-            ("en", source.stats.mods.en_regen),
             ("stamina", source.stats.mods.stamina_regen),
         )
         for resource, regen_value in regen_sources:
@@ -1027,10 +1014,13 @@ class AbilityService:
 
     @staticmethod
     def _check_ability_cost(actor: ActorSnapshot, cost: AbilityCostDTO) -> bool:
+        token_costs = dict(cost.tokens)
+        if cost.gift_tokens > 0:
+            token_costs["gift"] = token_costs.get("gift", 0) + cost.gift_tokens
         return (
             actor.meta.en >= cost.energy
             and actor.meta.hp >= cost.hp
-            and actor.meta.tokens.get("gift", 0) >= cost.gift_tokens
+            and all(actor.meta.tokens.get(token, 0) >= amount for token, amount in token_costs.items())
         )
 
     @staticmethod
@@ -1047,6 +1037,12 @@ class AbilityService:
             if "gift" not in ctx.result.resource_changes:
                 ctx.result.resource_changes["gift"] = {}
             ctx.result.resource_changes["gift"]["cost"] = f"-{cost.gift_tokens}"
+        for token, amount in cost.tokens.items():
+            if amount <= 0:
+                continue
+            if token not in ctx.result.resource_changes:
+                ctx.result.resource_changes[token] = {}
+            ctx.result.resource_changes[token]["cost"] = f"-{amount}"
 
     @staticmethod
     def _register_feint_activation_cost(ctx: PipelineContextDTO, stamina_cost: int) -> None:

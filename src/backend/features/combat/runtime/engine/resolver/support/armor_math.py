@@ -1,4 +1,4 @@
-"""Armor, resistance, and crit-multiplier math."""
+"""Armor, resistance, crit-multiplier math, and shield block-branch roll."""
 
 from __future__ import annotations
 
@@ -6,11 +6,11 @@ from typing import TYPE_CHECKING, Any
 
 from src.backend.features.combat.runtime.engine.math_core import MathCore
 
-from . import offensive_lookup
+from . import offensive_lookup, trace_writer
 
 if TYPE_CHECKING:
     from src.backend.features.combat.dto.actor import ActorStats
-    from src.backend.features.combat.dto.pipeline import PipelineContextDTO
+    from src.backend.features.combat.dto.pipeline import InteractionResultDTO, PipelineContextDTO
 
 
 def effective_armor(atk_stats: ActorStats, def_stats: ActorStats, ctx: PipelineContextDTO) -> float:
@@ -72,6 +72,43 @@ def effective_physical_resistance(atk_stats: ActorStats, def_stats: ActorStats, 
 
     phys_suppression = max(0.0, offensive_lookup.get_offensive_val(atk_stats, ctx, "physical_suppression"))
     return max(0.0, phys_res - phys_suppression)
+
+
+def roll_shield_block_branch(def_stats: ActorStats, ctx: PipelineContextDTO, res: InteractionResultDTO) -> str:
+    """Roll which branch a successful shield block takes: ``"defense"`` or ``"counter"``.
+
+    Mirrors the formula in the historical ``CombatResolver._roll_shield_block_branch``.
+    """
+    if ctx.flags.formula.force_shield_counter_branch:
+        trace_writer.trace_roll(res, "shield_block_branch", 1.0, None, True, forced="counter", branch="counter")
+        return "counter"
+
+    if ctx.flags.formula.force_shield_defense_branch:
+        trace_writer.trace_roll(res, "shield_block_branch", 1.0, None, True, forced="defense", branch="defense")
+        return "defense"
+
+    defense_weight = max(0.0, float(getattr(def_stats.mods, "shield_block_defense_weight", 1.0) or 0.0))
+    counter_weight = max(0.0, float(getattr(def_stats.mods, "shield_block_counter_weight", 0.0) or 0.0))
+    inverted = bool(ctx.flags.formula.shield_branch_invert)
+    if inverted:
+        defense_weight, counter_weight = counter_weight, defense_weight
+    total_weight = defense_weight + counter_weight
+    defense_chance = 1.0 if total_weight <= 0.0 else defense_weight / total_weight
+
+    roll, defense_passed = MathCore.roll_chance(defense_chance)
+    branch = "defense" if defense_passed else "counter"
+    trace_writer.trace_roll(
+        res,
+        "shield_block_branch",
+        defense_chance,
+        roll,
+        defense_passed,
+        defense_weight=defense_weight,
+        counter_weight=counter_weight,
+        inverted=inverted,
+        branch=branch,
+    )
+    return branch
 
 
 def calculate_crit_multiplier(ctx: PipelineContextDTO) -> float:

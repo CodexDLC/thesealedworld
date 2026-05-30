@@ -8,6 +8,15 @@ from pydantic_settings import SettingsConfigDict
 
 # Root directory of the project
 BASE_DIR = Path(__file__).parent.parent.parent.parent
+_BUNDLED_TRAINED_COMBAT_AI_POLICY = (
+    Path(__file__).resolve().parents[1]
+    / "features"
+    / "combat"
+    / "runtime"
+    / "ai"
+    / "policies"
+    / "trained_g500_seed0.json"
+)
 
 
 class BackendSettings(BaseCommonSettings):
@@ -89,6 +98,7 @@ class BackendSettings(BaseCommonSettings):
     monster_clan_flavor_ai_interval_seconds: float = 30.0
     gemini_token: str | None = None
     openrouter_api_key: str | None = None
+    combat_ai_policy_path: str | None = None
     # Removed: bug_report_channel_id (per user request)
 
     model_config = SettingsConfigDict(
@@ -103,3 +113,18 @@ class BackendSettings(BaseCommonSettings):
 
 
 settings = BackendSettings()
+
+
+def apply_runtime_environment_overrides() -> None:
+    """Export runtime-only settings consumed by lower-level modules.
+
+    PolicyStore intentionally reads process env or explicit paths only, so
+    tests and tools keep the bundled default unless the application process
+    opts into a live policy at startup.
+    """
+
+    policy_path = settings.combat_ai_policy_path
+    if not policy_path and _BUNDLED_TRAINED_COMBAT_AI_POLICY.exists():
+        policy_path = str(_BUNDLED_TRAINED_COMBAT_AI_POLICY)
+    if policy_path:
+        os.environ.setdefault("COMBAT_AI_POLICY_PATH", policy_path)

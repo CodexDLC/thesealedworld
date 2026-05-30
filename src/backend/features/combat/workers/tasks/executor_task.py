@@ -6,6 +6,7 @@ from loguru import logger as log
 from src.backend.config.settings import settings
 from src.backend.features.combat.dto.action import CombatActionDTO
 from src.backend.features.combat.dto.worker import CollectorSignalDTO, WorkerBatchJobDTO
+from src.backend.features.combat.runtime.engine.tunables import load_combat_tunables, use_tunables
 from src.backend.features.combat.runtime.processors.executor import CombatExecutor  # noqa: TC001
 from src.backend.features.combat.runtime.services.data_service import CombatDataService  # noqa: TC001
 from src.shared.infrastructure.log_task_wrapper import logged_task
@@ -97,8 +98,11 @@ async def execute_batch_task(ctx: dict, job_data: dict) -> None:
             ).debug("ExecutorBatchLoaded")
 
             # 4. Process Batch (Pure Logic Calculation)
-            # Вся математика происходит тут
-            processed_ids = await executor.process_batch(battle_ctx, actions)
+            # Вся математика происходит тут. Снимок tunables на батч —
+            # одно чтение Redis, далее resolver достаёт значения через ContextVar.
+            tunables = await load_combat_tunables(ctx.get("game_config"))
+            with use_tunables(tunables):
+                processed_ids = await executor.process_batch(battle_ctx, actions)
             log.bind(
                 session_id=session_id,
                 processed_count=len(processed_ids),

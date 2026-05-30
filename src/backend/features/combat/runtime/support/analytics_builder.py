@@ -412,10 +412,11 @@ class CombatAnalyticsFactBuilder:
             return {}
         mods = actor.stats.mods
         skills = actor.stats.skills
+        evasion = min(float(mods.evasion), float(mods.dodge_cap))
         return {
             "acc": mods.accuracy,
             "crit": mods.crit_chance,
-            "eva": mods.evasion,
+            "eva": evasion,
             "par": mods.parry,
             "blk": mods.block,
             "arm": mods.armor,

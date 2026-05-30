@@ -1016,6 +1016,42 @@ def test_combat_vm_exposes_full_token_strip_from_backend_key_values():
     assert screen.token_bar[0].catalog_key == "tempo"
 
 
+def test_combat_vm_uses_physical_icons_for_basic_abilities_only():
+    dashboard = CombatDashboardDTO(
+        session_id="combat-1",
+        turn_number=3,
+        status="active",
+        hero=CombatActorCardDTO(
+            actor_id="1",
+            name="Hero",
+            team="team_1",
+            vitals=CombatActorVitalsDTO(hp_current=70, hp_max=100),
+        ),
+        available_actions=[
+            CombatActionOptionDTO(
+                action="instant",
+                label="Наказать ошибку",
+                enabled=True,
+                target_id="2",
+                ability_id="basic_punish_mistake",
+            ),
+            CombatActionOptionDTO(
+                action="instant",
+                label="Огненный шар",
+                enabled=True,
+                target_id="2",
+                ability_id="fireball",
+            ),
+        ],
+    )
+
+    screen = build_combat_screen_vm(dashboard)
+
+    icons = {action.ability_id: action.icon_url for action in screen.ability_options}
+    assert icons["basic_punish_mistake"].endswith("/abilities/basic_punish_mistake.svg")
+    assert icons["fireball"].endswith("/gift-token.svg")
+
+
 def test_combat_vm_effect_badge_shows_remaining_turns_not_absolute_expire_exchange():
     dashboard = CombatDashboardDTO(
         session_id="combat-1",

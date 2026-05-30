@@ -1,4 +1,4 @@
-"""Elemental damage loop (8 elements) + post-loop heavy-armor subsequent-hit penalty."""
+"""Elemental damage loop (8 elements), magic-armor flat mitigation, heavy-armor subsequent penalty."""
 
 from __future__ import annotations
 
@@ -37,7 +37,17 @@ def apply(
             state.mitigation_pct = max(0.0, resist_pct - pen_pct)
             elem_dmg *= 1.0 - state.mitigation_pct
             state.total_damage += elem_dmg
+            state.elemental_damage_before_armor += elem_dmg
             state.damage_parts[elem] = elem_dmg
+
+    # Magic-armor flat mitigation applied to the accumulated elemental subtotal.
+    if state.elemental_damage_enabled and state.elemental_damage_before_armor > 0.0:
+        state.magic_armor_flat = min(
+            state.elemental_damage_before_armor,
+            max(0.0, getattr(def_.mods, "magic_armor", 0.0)),
+        )
+        state.total_damage = max(0.0, state.total_damage - state.magic_armor_flat)
+        state.magic_after_armor = max(0.0, state.elemental_damage_before_armor - state.magic_armor_flat)
 
     # Subsequent-hit heavy-armor penalty (applies to TOTAL after all channels accumulated).
     if ctx.flags.state.hit_index > 0:

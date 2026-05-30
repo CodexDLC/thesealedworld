@@ -147,6 +147,7 @@ class MechanicsService:
             en_changes: list[tuple[str, str]] = []
             stamina_changes: list[tuple[str, str]] = []
             gift_changes: list[tuple[str, str]] = []
+            token_changes: dict[str, list[tuple[str, str]]] = {}
 
             # Пример: {"hp": {"cost": "-10"}, "en": {"cost": "-20"}, "stamina": {"cost": "-10"}}
             if "hp" in result.resource_changes:
@@ -160,6 +161,12 @@ class MechanicsService:
 
             if "gift" in result.resource_changes:
                 gift_changes.extend(result.resource_changes["gift"].items())
+
+            resource_keys = {"hp", "en", "stamina", "gift"}
+            for resource, changes in result.resource_changes.items():
+                if resource in resource_keys:
+                    continue
+                token_changes.setdefault(resource, []).extend(changes.items())
 
             # Apply Costs
             if hp_changes:
@@ -200,6 +207,15 @@ class MechanicsService:
                     token=GIFT_MARKER,
                     sources=[val for _key, val in gift_changes],
                     reason=self._resource_change_reason(gift_changes),
+                )
+            for token, changes in token_changes.items():
+                self._apply_token_delta(
+                    result,
+                    actor=source,
+                    owner="source",
+                    token=token,
+                    sources=[val for _key, val in changes],
+                    reason=self._resource_change_reason(changes),
                 )
 
         # B. Tokens Awarded (Всегда начисляем, если не сказано иное? Пока оставим безусловно)
@@ -572,7 +588,7 @@ class MechanicsService:
 
     @staticmethod
     def _uses_body_armor_for_xp(target: ActorSnapshot, result: InteractionResultDTO) -> bool:
-        if not result.is_hit or result.is_dodged or result.is_parried or result.is_blocked:
+        if not result.is_hit or result.is_dodged or result.is_parried:
             return False
         if not target.loadout.layout.get("body"):
             return False

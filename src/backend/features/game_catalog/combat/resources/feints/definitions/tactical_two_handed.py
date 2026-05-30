@@ -143,6 +143,20 @@ TACTICAL_TWO_HANDED_FEINTS_TECHNICAL = {
             pipeline_mutation("crit_damage_boost"),
         ],
     ),
+    "two_handed_whirl": FeintTechnicalDTO(
+        feint_id="two_handed_whirl",
+        cost=FeintCostDTO(tactics={"hit": 5, "parry": 2}),
+        target=TargetType.ALL_ENEMIES,
+        target_count=3,
+        secondary_damage_mult=0.65,
+        applicability_tags=[*_TWO_HANDED_TAGS, "hit", "parry", "damage", "multi_target", "high_cost"],
+        purchase_group="tactical",
+        pipeline_mutations=[
+            pipeline_mutation("accuracy_mult", 0.90),
+            pipeline_mutation("target_parry_mult", 0.85),
+            pipeline_mutation("target_block_mult", 0.85),
+        ],
+    ),
 }
 
 _TWO_HANDED_TEXTS = {
@@ -249,6 +263,14 @@ _TWO_HANDED_TEXTS = {
         "рискуя всем ради одного окна",
         "и ловит удачный критический момент",
         "и раскрывает удар полностью",
+    ),
+    "two_handed_whirl": (
+        "Тяжелый круг",
+        "Задеть три цели",
+        "Двуручный финт: основной размен задевает до двух дополнительных целей.",
+        "ведя оружие тяжелым кругом",
+        "и продавливает соседнюю линию",
+        "и разбрасывает давление по строю",
     ),
 }
 

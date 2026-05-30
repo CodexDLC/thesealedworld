@@ -3,14 +3,20 @@ from __future__ import annotations
 from typing import Any
 
 MASTERY_STAT_DAMAGE_FLOOR = 0.25
-SPREAD_REDUCTION_AT_FULL_MASTERY = 0.35
+SPREAD_REDUCTION_AT_FULL_MASTERY = 0.50
+SHIELD_STYLE_GUARD_POWER_RATIO = 0.35
 
 WEAPON_STAT_DAMAGE_WEIGHTS: dict[str, dict[str, float]] = {
-    "swords": {"strength": 0.7, "agility": 0.5, "endurance": 0.2},
-    "fencing": {"strength": 0.5, "agility": 1.0, "endurance": 0.0},
-    "polearms": {"strength": 0.8, "agility": 0.5, "endurance": 0.2},
-    "macing": {"strength": 1.0, "agility": 0.2, "endurance": 0.4},
-    "archery": {"strength": 0.5, "agility": 1.0, "endurance": 0.0},
+    "swords": {"strength": 0.55, "agility": 0.45},
+    "fencing": {"strength": 0.25, "agility": 0.75},
+    "polearms": {"strength": 0.60, "agility": 0.40},
+    "macing": {"strength": 0.75, "agility": 0.25},
+    "archery": {"strength": 0.45, "agility": 0.55},
+}
+
+SHIELD_STYLE_GUARD_WEIGHTS: dict[str, float] = {
+    "endurance": 0.60,
+    "strength": 0.40,
 }
 
 
@@ -35,6 +41,7 @@ class BasePowerAssembler:
     ) -> None:
         for slot in ("main_hand", "off_hand"):
             cls._apply_slot(calculated_mods, slot, loadout_layout=loadout_layout, skills=skills)
+        cls._apply_shield_style(calculated_mods, loadout_layout=loadout_layout)
 
     @classmethod
     def _apply_slot(
@@ -81,6 +88,26 @@ class BasePowerAssembler:
         )
 
     @classmethod
+    def _apply_shield_style(cls, calculated_mods: dict[str, Any], *, loadout_layout: dict[str, str]) -> None:
+        if loadout_layout.get("off_hand") != "skill_shield_mastery":
+            return
+        if loadout_layout.get("tactical_style") != "skill_shield_mastery":
+            return
+
+        guard_power = cls._float(calculated_mods.get("shield_guard_power"))
+        if guard_power <= 0:
+            return
+
+        stat_raw = cls._weighted_stat_power(calculated_mods, SHIELD_STYLE_GUARD_WEIGHTS)
+        if stat_raw <= 0:
+            return
+
+        bonus = stat_raw * SHIELD_STYLE_GUARD_POWER_RATIO
+        calculated_mods["shield_style_guard_power_raw"] = round(stat_raw, 4)
+        calculated_mods["shield_style_guard_power_bonus"] = round(bonus, 4)
+        calculated_mods["shield_guard_power"] = round(guard_power + bonus, 4)
+
+    @classmethod
     def _weighted_stat_power(cls, calculated_mods: dict[str, Any], weights: dict[str, float]) -> float:
         total = 0.0
         for stat_key, weight in weights.items():
@@ -102,6 +129,8 @@ class BasePowerAssembler:
 __all__ = [
     "BasePowerAssembler",
     "MASTERY_STAT_DAMAGE_FLOOR",
+    "SHIELD_STYLE_GUARD_POWER_RATIO",
+    "SHIELD_STYLE_GUARD_WEIGHTS",
     "SPREAD_REDUCTION_AT_FULL_MASTERY",
     "WEAPON_STAT_DAMAGE_WEIGHTS",
 ]

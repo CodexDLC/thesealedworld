@@ -36,7 +36,12 @@ from src.backend.infrastructure.arena.models import (
     ArenaTeam,
     ArenaTeamMembership,
 )
-from src.backend.infrastructure.combat.models import CombatBalanceRollup, CombatExchangeFact, CombatFinalization
+from src.backend.infrastructure.combat.models import (
+    CombatAiSimulationRun,
+    CombatBalanceRollup,
+    CombatExchangeFact,
+    CombatFinalization,
+)
 from src.backend.infrastructure.inventory import InventoryItem, ResourceWallet
 from src.backend.infrastructure.monsters import GeneratedClanORM, GeneratedMonsterORM
 from src.backend.infrastructure.rift import (
@@ -94,6 +99,7 @@ __all__ = [
     "ArenaSeasonReward",
     "ArenaTeam",
     "ArenaTeamMembership",
+    "CombatAiSimulationRun",
     "CombatFinalization",
     "CombatExchangeFact",
     "CombatBalanceRollup",

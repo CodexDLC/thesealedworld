@@ -10,6 +10,7 @@ from src.backend.features.combat.runtime.ai.observation import (  # noqa: TC001
     TargetObservation,
 )
 from src.backend.features.combat.runtime.ai.policy import Policy  # noqa: TC001
+from src.backend.features.combat.runtime.ai.preparations import HEAL_PREPS, THREATENING_PREPS
 
 
 class PolicyScorer:
@@ -49,12 +50,19 @@ class PolicyScorer:
 
         # Counter-defence bonuses: weight is multiplied by the defence value it
         # bypasses, so anti_block matters more against high-block targets.
+        # Observed-rate bonuses are added on top: a target that *behaviourally*
+        # parries a lot deserves anti_parry pressure even if their parry stat
+        # is unremarkable. Both signals are positive contributions to the
+        # anti-X branch they extend.
         if "anti_block" in tags:
             score += policy.get("anti_block") * target_obs.block
+            score += policy.get("observed_block_rate") * target_obs.observed_block_rate
         if "anti_parry" in tags:
             score += policy.get("anti_parry") * target_obs.parry
+            score += policy.get("observed_parry_rate") * target_obs.observed_parry_rate
         if "anti_evasion" in tags:
             score += policy.get("anti_evasion") * target_obs.evasion
+            score += policy.get("observed_evasion_rate") * target_obs.observed_dodge_rate
         if "armor_bypass" in tags:
             score += policy.get("armor_bypass") * _armor_density(target_obs)
         if "control" in tags:
@@ -72,16 +80,54 @@ class PolicyScorer:
             score += counter_weight * (0.5 + target_obs.counter_attack_chance)
         if "damage_tag" in tags:
             score += policy.get("damage_tag")
+        if "execute" in tags and target_obs.finishable:
+            score += policy.get("finishable")
+        if "execute" in tags and not target_obs.finishable:
+            score -= 100.0
 
         # === Self-care axes: weight scaled by how badly the bot needs it ===
         if "heal" in tags:
             # Heal is worth more the lower we are; capped at 0.7 HP.
             score += policy.get("heal") * max(0.0, 0.7 - self_obs.hp_pct)
+            # Dedup: don't queue another heal feint on top of an active heal prep.
+            if self_obs.my_preparations & HEAL_PREPS:
+                score -= policy.get("heal_dedup_penalty")
         if "self_buff" in tags:
             score += policy.get("self_buff")
         if "defense" in tags:
             # Defence becomes valuable as the bot loses HP.
             score += policy.get("defense") * (1.0 - self_obs.hp_pct)
+
+        # === Preparation awareness ===
+        # Attacking through a dangerous prep (counter / forced defence / damage
+        # reduction) is wasteful unless the action explicitly dispels it.
+        if target_obs.active_preparations & THREATENING_PREPS and "dispel_prep" not in tags:
+            score -= policy.get("prep_threat_penalty")
+        # Dispelling is more valuable the more preparations are stacked.
+        if "dispel_prep" in tags and target_obs.active_preparations:
+            score += policy.get("dispel_prep") * len(target_obs.active_preparations)
+
+        # === Team awareness (best-effort from committed intents) ===
+        target_id = action.target_id
+        ally_focus_count = self_obs.allies_targets.get(target_id, 0)
+        if ally_focus_count > 0:
+            score += policy.get("team_focus") * ally_focus_count
+            # If the target is already controlled, piling on accelerates the kill.
+            if target_obs.has_control:
+                score += policy.get("team_focus_pile_on")
+        # Queueing another control on a target an ally already controls is wasted.
+        if "control" in tags and target_id in self_obs.allies_pending_control_targets:
+            score -= policy.get("team_dedup_control")
+            score -= 100.0
+
+        # === Cross-turn memory signals (PR5) ===
+        # Sticky focus: small commitment bias to last turn's target — keeps
+        # the bot from flitting between equal-value enemies on RNG noise.
+        if self_obs.last_target_id is not None and target_id == self_obs.last_target_id:
+            score += policy.get("sticky_target_bonus")
+        # Variety: discourage spamming the same feint id over and over.
+        if action.feint_id is not None and action.feint_id in self_obs.recently_used_feints:
+            score -= policy.get("repeat_feint_penalty")
 
         # === Purchase-group preferences ===
         if "group_basic" in tags:
@@ -103,6 +149,7 @@ class PolicyScorer:
         token_total = sum(int(amount) for amount in action.cost.values())
         score += policy.get("token_cost") * token_total
         score += policy.get("stamina_cost") * action.stamina_cost
+        score += policy.get("energy_cost") * action.energy_cost
 
         if action.feint_id is not None:
             if self_obs.low_hp:
@@ -114,6 +161,8 @@ class PolicyScorer:
             # marginal feint benefit can't compensate the lost resource.
             if target_obs.finishable:
                 score += policy.get("finishable_resource_save")
+                if "execute" not in tags:
+                    score -= 100.0
 
         # === Controlled exploration noise ===
         randomness = policy.get("randomness")

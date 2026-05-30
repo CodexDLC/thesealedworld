@@ -11,7 +11,9 @@ from src.backend.features.rift.dto import (
     RiftZoneCellDTO,
     RiftZoneRuntimeDTO,
 )
+from src.backend.features.rift.integrations import RiftRuntimeIntegration, RiftRuntimeNotFoundError
 from src.backend.features.rift.services.player_service import RiftPlayerService
+from src.backend.infrastructure.rift.managers import RiftInstanceNotFoundError, RiftRunSessionNotFoundError
 
 
 class FakeRuntimeIntegration:
@@ -153,6 +155,49 @@ class FakeRiftCombatLauncher:
         return prompt.model_copy(update={"metadata": metadata})
 
 
+class ColdMissingInstanceStore:
+    def __init__(self) -> None:
+        self.saved: list[RiftZoneRuntimeDTO] = []
+
+    async def save_instance(self, runtime: RiftZoneRuntimeDTO) -> None:
+        self.saved.append(runtime)
+
+    async def require_instance(self, rift_instance_id: str) -> RiftZoneRuntimeDTO:
+        raise RiftInstanceNotFoundError(f"Rift instance not found: {rift_instance_id}")
+
+
+class ColdMissingRunSessionStore:
+    def __init__(self) -> None:
+        self.created: list[dict] = []
+
+    async def create_session(self, payload: dict) -> dict:
+        self.created.append(dict(payload))
+        return payload
+
+    async def require_session(self, rift_session_id: str) -> dict:
+        raise RiftRunSessionNotFoundError(f"Rift run session not found: {rift_session_id}")
+
+
+class ColdRestoreRepository:
+    def __init__(self, records: dict[str, object]) -> None:
+        self.records = records
+
+    async def get(self, key: str) -> object | None:
+        return self.records.get(key)
+
+
+class ColdRestoreInstanceMapper:
+    def to_runtime(self, state: object) -> RiftZoneRuntimeDTO:
+        assert isinstance(state, RiftZoneRuntimeDTO)
+        return state
+
+
+class ColdRestoreRunMapper:
+    def to_session_payload(self, state: object) -> dict:
+        assert isinstance(state, dict)
+        return dict(state)
+
+
 @pytest.mark.asyncio
 async def test_player_service_builds_screen_from_active_character_rift_refs() -> None:
     service = RiftPlayerService(
@@ -167,6 +212,65 @@ async def test_player_service_builds_screen_from_active_character_rift_refs() ->
     assert screen.exit.mode == "heart_exit_only"
     assert screen.exit.entrance_seals_on_entry is True
     assert screen.exit.can_leave is False
+
+
+@pytest.mark.asyncio
+async def test_player_service_cold_restores_screen_from_db_backups_when_redis_runtime_expired() -> None:
+    instance_store = ColdMissingInstanceStore()
+    session_store = ColdMissingRunSessionStore()
+    instance = _two_node_runtime()
+    run_session = {
+        "rift_session_id": "rift-run-1",
+        "rift_instance_id": "rift-instance-1",
+        "zone_instance_id": "zone-1",
+        "current_zone_key": "z01",
+        "current_node_id": "node-next",
+        "previous_node_id": "node-start",
+        "heading": "north",
+        "visited_node_ids": ["node-start", "node-next"],
+        "active_travel": None,
+        "last_travel": None,
+        "participant_ref": "char:7",
+    }
+    runtime = RiftRuntimeIntegration(
+        instance_store=instance_store,  # type: ignore[arg-type]
+        session_store=session_store,  # type: ignore[arg-type]
+        presence_store=FakeRuntimeIntegration(),  # type: ignore[arg-type]
+        instance_state_repository=ColdRestoreRepository({"rift-instance-1": instance}),  # type: ignore[arg-type]
+        run_state_repository=ColdRestoreRepository({"rift-run-1": run_session}),  # type: ignore[arg-type]
+        instance_state_mapper=ColdRestoreInstanceMapper(),  # type: ignore[arg-type]
+        run_state_mapper=ColdRestoreRunMapper(),  # type: ignore[arg-type]
+    )
+    service = RiftPlayerService(runtime=runtime, character_sessions=FakeCharacterSessions())
+
+    screen = await service.screen(7)
+
+    assert screen.meta.rift_instance_id == "rift-instance-1"
+    assert screen.current_node.node_id == "node-next"
+    assert instance_store.saved == [instance]
+    assert session_store.created == [run_session]
+
+
+@pytest.mark.asyncio
+async def test_player_service_keeps_missing_rift_not_found_when_redis_and_db_backup_are_absent() -> None:
+    instance_store = ColdMissingInstanceStore()
+    session_store = ColdMissingRunSessionStore()
+    runtime = RiftRuntimeIntegration(
+        instance_store=instance_store,  # type: ignore[arg-type]
+        session_store=session_store,  # type: ignore[arg-type]
+        presence_store=FakeRuntimeIntegration(),  # type: ignore[arg-type]
+        instance_state_repository=ColdRestoreRepository({}),  # type: ignore[arg-type]
+        run_state_repository=ColdRestoreRepository({}),  # type: ignore[arg-type]
+        instance_state_mapper=ColdRestoreInstanceMapper(),  # type: ignore[arg-type]
+        run_state_mapper=ColdRestoreRunMapper(),  # type: ignore[arg-type]
+    )
+    service = RiftPlayerService(runtime=runtime, character_sessions=FakeCharacterSessions())
+
+    with pytest.raises(RiftRuntimeNotFoundError, match="Rift instance not found: rift-instance-1"):
+        await service.screen(7)
+
+    assert instance_store.saved == []
+    assert session_store.created == []
 
 
 @pytest.mark.asyncio

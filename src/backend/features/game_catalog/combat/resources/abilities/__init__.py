@@ -1,5 +1,8 @@
 from loguru import logger as log
 
+from src.backend.features.game_catalog.combat.resources.abilities.definitions.basic_gift import (
+    BASIC_GIFT_ABILITIES_CATALOG,
+)
 from src.backend.features.game_catalog.combat.resources.abilities.definitions.debug import (
     ABILITIES_CATALOG,
 )
@@ -34,9 +37,10 @@ def _initialize_library() -> None:
 
     log.info("AbilityLibraryInitializing")
 
-    # Собираем все группы определений (пока только одна)
-    # Преобразуем values() словаря в список для регистрации
-    all_groups = [list(ABILITIES_CATALOG.values())]
+    all_groups = [
+        list(ABILITIES_CATALOG.values()),
+        list(BASIC_GIFT_ABILITIES_CATALOG.values()),
+    ]
 
     count = 0
 

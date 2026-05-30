@@ -32,8 +32,88 @@ class TrainingRun:
     metrics: list[GenerationMetric] = field(default_factory=list)
 
 
+_NON_NEGATIVE_TRAINING_KEYS: frozenset[str] = frozenset(
+    {
+        "target_low_hp",
+        "finishable",
+        "expected_damage",
+        "damage_tag",
+        "multi_target",
+        "anti_block",
+        "anti_parry",
+        "anti_evasion",
+        "armor_bypass",
+        "control",
+        "bleed",
+        "debuff",
+        "heal",
+        "self_buff",
+        "defense",
+        "preparation",
+        "counter",
+        "counter_resource",
+        "prep_threat_penalty",
+        "dispel_prep",
+        "heal_dedup_penalty",
+        "team_focus",
+        "team_focus_pile_on",
+        "team_dedup_control",
+        "observed_parry_rate",
+        "observed_evasion_rate",
+        "observed_block_rate",
+        "sticky_target_bonus",
+        "repeat_feint_penalty",
+    }
+)
+
+_NON_POSITIVE_TRAINING_KEYS: frozenset[str] = frozenset(
+    {
+        "token_cost",
+        "stamina_cost",
+        "energy_cost",
+        "self_low_hp_resource_save",
+        "self_low_stamina_save",
+        "finishable_resource_save",
+    }
+)
+
+_ZEROED_TRAINING_KEYS: frozenset[str] = frozenset(
+    {
+        "randomness",
+    }
+)
+
+
+def _constrain_training_weights(weights: dict[str, float]) -> dict[str, float]:
+    """Clamp the synthetic search space to semantically valid signs."""
+    constrained = {key: float(weights.get(key, 0.0)) for key in DEFAULT_WEIGHT_KEYS}
+    for key, value in weights.items():
+        if key not in constrained:
+            constrained[key] = float(value)
+
+    for key in _NON_NEGATIVE_TRAINING_KEYS:
+        if key in constrained and constrained[key] < 0.0:
+            constrained[key] = 0.0
+    for key in _NON_POSITIVE_TRAINING_KEYS:
+        if key in constrained and constrained[key] > 0.0:
+            constrained[key] = 0.0
+    for key in _ZEROED_TRAINING_KEYS:
+        if key in constrained:
+            constrained[key] = 0.0
+    return constrained
+
+
+def _constrain_training_policy(policy: Policy) -> Policy:
+    return Policy(
+        policy_id=policy.policy_id,
+        version=policy.version,
+        weights=_constrain_training_weights(policy.weights),
+        metadata=dict(policy.metadata),
+    )
+
+
 def _mutate(weights: dict[str, float], rng: random.Random, sigma: float) -> dict[str, float]:
-    return {key: float(value) + rng.gauss(0.0, sigma) for key, value in weights.items()}
+    return _constrain_training_weights({key: float(value) + rng.gauss(0.0, sigma) for key, value in weights.items()})
 
 
 def _seed_population(
@@ -42,6 +122,7 @@ def _seed_population(
     rng: random.Random,
     sigma: float,
 ) -> list[Policy]:
+    seed_policy = _constrain_training_policy(seed_policy)
     base = {key: seed_policy.get(key) for key in DEFAULT_WEIGHT_KEYS}
     # Inject any extra keys the seed policy carried in.
     base.update({k: seed_policy.get(k) for k in seed_policy.weights})
@@ -87,6 +168,7 @@ def evolve(
     if generations < 1:
         raise ValueError("generations must be >= 1")
 
+    seed_policy = _constrain_training_policy(seed_policy)
     rng = random.Random(seed)
     eval_rng = random.Random(seed + 1)
 

@@ -3,6 +3,7 @@ from src.backend.features.game_catalog.combat.resources.common.descriptions impo
     CombatEventTextSetDTO,
     build_combat_description,
 )
+from src.backend.features.game_catalog.combat.resources.common.pipeline_mutations import pipeline_mutation
 from src.backend.features.game_catalog.combat.resources.common.targeting import TargetType
 from src.backend.features.game_catalog.combat.resources.feints.schemas import (
     FeintCatalogEntryDTO,
@@ -58,6 +59,19 @@ TACTICAL_RANGED_FEINTS_TECHNICAL = {
             {"id": "debuff_accuracy", "target_actor": "target"},
         ],
     ),
+    "ranged_covering_volley": FeintTechnicalDTO(
+        feint_id="ranged_covering_volley",
+        cost=FeintCostDTO(tactics={"hit": 4, "dodge": 2}),
+        target=TargetType.ALL_ENEMIES,
+        target_count=5,
+        secondary_damage_mult=0.45,
+        applicability_tags=[*_RANGED_TACTICAL_TAGS, "hit", "dodge", "damage", "multi_target"],
+        purchase_group="tactical",
+        pipeline_mutations=[
+            pipeline_mutation("accuracy_mult", 0.90),
+            pipeline_mutation("suppress_crit_triggers"),
+        ],
+    ),
 }
 
 _RANGED_TEXTS = {
@@ -100,6 +114,14 @@ _RANGED_TEXTS = {
         "целится в линию зрения",
         "и сбивает прицел цели",
         "и заставляет цель потерять линию атаки",
+    ),
+    "ranged_covering_volley": (
+        "Прикрывающий залп",
+        "Накрыть пять целей",
+        "Тактический финт дальнего боя: основной размен задевает до четырех дополнительных целей.",
+        "раскладывая выстрелы по сектору",
+        "и накрывает сектор прикрывающим залпом",
+        "и удерживает несколько целей под давлением",
     ),
 }
 

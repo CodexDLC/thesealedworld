@@ -66,7 +66,7 @@ class FakeCombatStore:
                     "feints": {"hand": {"true_strike": {"hit": 1}}},
                 },
                 "loadout": {
-                    "known_abilities": ["fireball"],
+                    "known_abilities": ["fireball", "basic_punish_mistake"],
                     "belt": [
                         {
                             "item_id": "potion-1",
@@ -832,7 +832,10 @@ async def test_available_actions_contains_exchange_and_no_feint_instant_actions(
     assert exchange.feint_id is None
     assert exchange.ability_id is None
     assert all(action.feint_id is None for action in dashboard.available_actions if action.action == "instant")
-    assert {action.ability_id for action in dashboard.available_actions if action.action == "instant"} == {"fireball"}
+    instant_actions = {action.ability_id: action for action in dashboard.available_actions if action.action == "instant"}
+    assert set(instant_actions) == {"fireball", "basic_punish_mistake"}
+    assert instant_actions["fireball"].enabled is True
+    assert instant_actions["basic_punish_mistake"].enabled is False
 
 
 @pytest.mark.asyncio

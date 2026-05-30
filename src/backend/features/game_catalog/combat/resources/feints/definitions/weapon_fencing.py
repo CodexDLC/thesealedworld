@@ -117,6 +117,16 @@ WEAPON_FENCING_FEINTS_TECHNICAL = {
             pipeline_mutation("accuracy_mult", 1.05),
         ],
     ),
+    "fencing_line_flurry": FeintTechnicalDTO(
+        feint_id="fencing_line_flurry",
+        cost=FeintCostDTO(tactics={"hit": 4, "dodge": 2}),
+        target=TargetType.ALL_ENEMIES,
+        target_count=3,
+        secondary_damage_mult=0.55,
+        applicability_tags=[*_FENCING_TAGS, "hit", "dodge", "damage", "multi_target"],
+        purchase_group="weapon",
+        pipeline_mutations=[pipeline_mutation("accuracy_mult", 1.02)],
+    ),
 }
 
 _FENCING_TEXTS = {
@@ -175,6 +185,14 @@ _FENCING_TEXTS = {
         "ныряя во внутреннюю линию",
         "и проходит мимо парирующего клинка",
         "и уходит с линии после прокола",
+    ),
+    "fencing_line_flurry": (
+        "Серия по линии",
+        "Задеть три цели",
+        "Оружейный финт фехтования: основной укол задевает до двух дополнительных целей.",
+        "проводя серию коротких уколов",
+        "и цепляет соседнюю линию",
+        "и прошивает несколько открытых окон",
     ),
 }
 

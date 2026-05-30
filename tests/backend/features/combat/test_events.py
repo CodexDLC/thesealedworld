@@ -40,7 +40,7 @@ async def test_session_requested_does_not_enqueue_chaos_watchdog(monkeypatch) ->
         )
     )
     monkeypatch.setattr(events.CombatSessionIntegration, "from_redis", lambda redis: object())
-    monkeypatch.setattr(events, "CombatLifecycleService", lambda store: object())
+    monkeypatch.setattr(events, "CombatLifecycleService", lambda store, game_config=None: object())
     monkeypatch.setattr(events, "CombatSystemIntegrator", lambda **kwargs: object())
     monkeypatch.setattr(events, "CombatCreationOrchestrator", FakeCreationOrchestrator)
     monkeypatch.setattr(events, "_app", app)

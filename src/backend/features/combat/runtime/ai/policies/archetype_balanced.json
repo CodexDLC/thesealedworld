@@ -1,0 +1,11 @@
+{
+  "metadata": {
+    "algorithm": "manual_seed",
+    "created_by": "combat-ai-pr3",
+    "archetype": "balanced",
+    "note": "Mirror of default_policy.json — explicit baseline so tests can resolve every archetype id."
+  },
+  "policy_id": "archetype_balanced_v1",
+  "version": 1,
+  "weights": {}
+}

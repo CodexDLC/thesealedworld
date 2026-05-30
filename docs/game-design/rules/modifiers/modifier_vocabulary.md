@@ -78,9 +78,9 @@ similar instant item actions.
 | Field | Meaning |
 | --- | --- |
 | `physical_damage` | Legacy/reserved flat physical damage field. Weapon attacks no longer add this automatically. |
-| `physical_strength_power` | Attribute-derived Strength power used by the base-power assembler. |
-| `physical_agility_power` | Attribute-derived Agility power used by the base-power assembler. |
-| `physical_endurance_power` | Attribute-derived Endurance power used by the base-power assembler. |
+| `physical_strength_power` | Attribute-derived Strength power used by weapon and style assembly. |
+| `physical_agility_power` | Attribute-derived Agility power used by weapon assembly. |
+| `physical_endurance_power` | Attribute-derived Endurance power used by survival and style-specific assembly, not ordinary weapon damage. |
 | `physical_damage_bonus` | Additional global physical damage bonus. |
 | `accuracy` | Global accuracy modifier added to relevant offensive branches. |
 | `physical_suppression` | Physical resistance suppression, currently from Strength. |
@@ -124,9 +124,10 @@ similar instant item actions.
 | `magic_resist` | Percent magical resistance. |
 | `resistance_cap` | Resistance cap. Current default: `0.85`; verify consumer before relying on it. |
 | `armor` | Flat physical damage reduction from armor. |
+| `magic_armor` | Flat elemental/magical damage reduction from jewelry power. |
 | `shield_guard_power` | Shield guard power for the current shield model. |
 | `shield_absorb_ratio` | Shield absorb ratio. Current default: `0.40`. |
-| `shield_reflect_ratio` | Shield reflect ratio. Current default: `0.50`. |
+| `shield_reflect_ratio` | Shield reflect ratio. Current default: `1.00`. |
 
 ## Elemental
 
@@ -180,10 +181,10 @@ systems consume them.
 
 | Field | Meaning |
 | --- | --- |
-| `environment_cold_resistance` | Cold environment resistance. |
-| `environment_heat_resistance` | Heat environment resistance. |
-| `environment_gravity_resistance` | Gravity environment resistance. |
-| `environment_bio_resistance` | Biohazard environment resistance, currently derived from Endurance. |
+| `environment_cold_resistance` | Cold/anchor environment resistance; garment implicit profiles can add it. |
+| `environment_heat_resistance` | Heat/anchor environment resistance; garment implicit profiles can add it. |
+| `environment_gravity_resistance` | Gravity/anchor environment resistance; garment implicit profiles can add it. |
+| `environment_bio_resistance` | Biohazard/anchor environment resistance, currently derived from Endurance and garment profiles. |
 
 ## World Stats
 
@@ -223,6 +224,7 @@ maps them to current fields:
 | `evasion_penalty` | `evasion` |
 | `hp_max` | `hp` |
 | `magical_resistance` | `magic_resist` |
+| `magical_armor` | `magic_armor` |
 | `magic_resistance` | `magic_resist` |
 | `parry_chance` | `parry` |
 | `physical_accuracy` | `accuracy` |

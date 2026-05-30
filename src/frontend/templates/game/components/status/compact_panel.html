@@ -5,6 +5,12 @@
 {% set skills = status.skills if status else {} %}
 {% set metrics = status.metrics if status and status.metrics is defined else {} %}
 {% set gear_score = metrics.get('gear_score') if metrics else none %}
+{% set gear_score_breakdown = metrics.get('gear_score_breakdown', {}) if metrics else {} %}
+{% set gs_offense = gear_score_breakdown.get('offense', 0) if gear_score_breakdown is mapping else 0 %}
+{% set gs_defense = gear_score_breakdown.get('defense', 0) if gear_score_breakdown is mapping else 0 %}
+{% set gs_resources = gear_score_breakdown.get('resources', 0) if gear_score_breakdown is mapping else 0 %}
+{% set gs_skills = gear_score_breakdown.get('skills', 0) if gear_score_breakdown is mapping else 0 %}
+{% set gs_utility = gear_score_breakdown.get('utility', 0) if gear_score_breakdown is mapping else 0 %}
 {% set hp = vitals.get('hp', {}) %}
 {% set en = vitals.get('energy', {}) %}
 {% set sta = vitals.get('stamina', {}) %}
@@ -115,7 +121,9 @@
                 <strong>RATING</strong>
             </summary>
             <div class="status-widget-metric-grid" aria-label="Character power metrics">
-                <div class="status-widget-metric-card status-widget-metric-card--primary">
+                <div class="status-widget-metric-card status-widget-metric-card--primary"
+                     data-tippy-content="Offense GS: {{ gs_offense|round(1) }} | Defense GS: {{ gs_defense|round(1) }} | Resources GS: {{ gs_resources|round(1) }} | Skill GS: {{ gs_skills|round(1) }} | Utility GS: {{ gs_utility|round(1) }}"
+                     data-tippy-theme="game-hint">
                     <span>GS</span>
                     <strong>{{ gear_score }}</strong>
                 </div>

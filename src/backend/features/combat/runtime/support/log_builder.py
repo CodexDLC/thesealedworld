@@ -427,7 +427,7 @@ class CombatLogBuilder:
             resource_type = (
                 "gift" if action_id and CombatCatalogIntegrator.get_gift_catalog_entry(action_id) else "ability"
             )
-            delivery = "area" if event_name == "area_result" else "default"
+            delivery = "area" if event_name == "area_result" else "single" if event_name == "cast" else "default"
             return resource_type, str(action_id or ""), delivery, ()
         if action_id and CombatCatalogIntegrator.get_trigger_catalog_entry(action_id) is not None:
             return "trigger", cls._trigger_resource_id(action_id), "default", ()
@@ -587,6 +587,8 @@ class CombatLogBuilder:
         label = cls._resource_label(resource_type, str(action_id or resource_id))
         if label and resource_type in {"ability", "gift", "item", "feint", "effect", "trigger"}:
             variables[resource_type] = label
+        if resource_type == "ability" and label and not variables.get("effect"):
+            variables["effect"] = label
         variables.setdefault("resource", "hp")
         variables.setdefault("value", variables.get("damage") or variables.get("healing") or 0)
         variables.setdefault("target_results", cls._target_result_text(variables))
@@ -1191,6 +1193,11 @@ class CombatLogBuilder:
             return "apply_effect"
         if result.applied_effects:
             return "apply_effect"
+        action_outcome = result.action_facts.get("outcome")
+        if action_outcome:
+            return str(action_outcome)
+        if CombatLogBuilder._has_event(result, "CAST"):
+            return "cast"
         return "none"
 
     @staticmethod

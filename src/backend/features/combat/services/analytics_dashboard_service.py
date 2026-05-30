@@ -30,7 +30,6 @@ ROLLUP_DIMENSION_KEYS = (
 INT_DIMENSION_KEYS = {"weapon_tier", "armor_tier"}
 VALID_BUCKET_GRAINS = {"day", "week", "month"}
 DEFAULT_BUCKET_GRAIN = "day"
-MAX_DRILLDOWN_LIMIT = 500
 
 
 class CombatAnalyticsDashboardService:
@@ -136,12 +135,13 @@ class CombatAnalyticsDashboardService:
         dimensions: dict[str, Any],
         limit: int,
         offset: int,
+        max_limit: int = 500,
     ) -> CombatAnalyticsDrilldownResponseDTO:
         start = _parse_datetime_bound(date_from, is_end=False)
         end = _parse_datetime_bound(date_to, is_end=True)
         version = await self._aggregate_version(aggregate_version)
         filters = self._normalize_dimensions(dimensions)
-        normalized_limit = max(1, min(int(limit), MAX_DRILLDOWN_LIMIT))
+        normalized_limit = max(1, min(int(limit), max_limit))
         normalized_offset = max(0, int(offset))
         rows = await self.integration.query_exchange_facts(
             start=start,

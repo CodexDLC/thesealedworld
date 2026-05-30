@@ -45,7 +45,6 @@ LivePersistCallback = Callable[
 LiveProgressCallback = Callable[[dict[str, Any]], Awaitable[None]]
 LIVE_DEFAULT_MAX_EXCHANGES = 500
 LIVE_DEFAULT_TICK_INTERVAL_SECONDS = 0.05
-STALE_RUNNING_REPORT_MINUTES = 20
 
 
 class CombatAiSimulationRunService:
@@ -64,7 +63,7 @@ class CombatAiSimulationRunService:
     async def clear_training_runs(self) -> int:
         return await self.repository.clear_run_kinds(["training"])
 
-    async def cleanup_stale_running_reports(self, *, older_than_minutes: int = STALE_RUNNING_REPORT_MINUTES) -> int:
+    async def cleanup_stale_running_reports(self, *, older_than_minutes: int = 20) -> int:
         cutoff = datetime.now(UTC) - timedelta(minutes=int(older_than_minutes))
         return await self.repository.mark_running_stale(before=cutoff)
 

@@ -68,9 +68,16 @@ async def clear_training_runs(
 
 @router.post("/simulation-runs/cleanup-stale")
 async def cleanup_stale_simulation_runs(
+    request: Request,
     db_session: Annotated[AsyncSession, Depends(get_db)],
-    older_than_minutes: Annotated[int, Query(ge=1, le=24 * 60)] = 20,
+    older_than_minutes: Annotated[int | None, Query(ge=1, le=24 * 60)] = None,
 ) -> dict[str, int]:
+    if older_than_minutes is None:
+        game_config = getattr(request.app.state, "game_config", None)
+        if game_config:
+            older_than_minutes = await game_config.get_int("combat_ai", "STALE_RUNNING_REPORT_MINUTES", default=20)
+        else:
+            older_than_minutes = 20
     updated = await _service(db_session).cleanup_stale_running_reports(older_than_minutes=older_than_minutes)
     await db_session.commit()
     return {"updated": updated}

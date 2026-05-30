@@ -45,7 +45,9 @@ async def on_order_requested(payload: dict[str, Any]) -> None:
             return
 
         manager = LootManager(_app.state.redis)
-        integration = LootIntegration(manager, events=_app.state.events)
+        integration = LootIntegration(
+            manager, events=_app.state.events, game_config=getattr(_app.state, "game_config", None)
+        )
         service = LootService(integration, LootEngine())
         corpse_ids_by_actor = await service.order_loot_for_combat(
             session_id=session_id,

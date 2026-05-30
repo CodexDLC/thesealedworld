@@ -42,7 +42,7 @@ async def loot_order_task(ctx: dict[str, Any], payload: dict[str, Any]) -> None:
         return
 
     manager = LootManager(redis_service)
-    integration = LootIntegration(manager)  # no events needed for generation
+    integration = LootIntegration(manager, game_config=ctx.get("game_config"))  # no events needed for generation
     service = LootService(integration, LootEngine())
 
     corpse_ids_by_actor = await service.order_loot_for_combat(

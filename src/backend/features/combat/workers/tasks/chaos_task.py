@@ -9,9 +9,6 @@ from src.backend.features.combat.runtime.services.data_service import CombatData
 from src.backend.infrastructure.monsters.managers import AnchorProjectionSnapshotCache
 from src.shared.infrastructure.log_task_wrapper import logged_task
 
-# Константа таймаута (10 минут)
-MAX_INACTIVITY_SEC = 600
-
 
 @logged_task
 async def chaos_check_task(ctx: dict, session_id: str) -> None:
@@ -60,9 +57,16 @@ async def chaos_check_task(ctx: dict, session_id: str) -> None:
         now = int(time.time())
         delta = now - meta.last_activity_at
 
+        max_inactivity_sec = 600
+        next_check_delay = 300
+        game_config = ctx.get("game_config")
+        if game_config is not None:
+            max_inactivity_sec = await game_config.get_int("combat_ai", "CHAOS_MAX_INACTIVITY_SEC", default=600)
+            next_check_delay = await game_config.get_int("combat_ai", "CHAOS_NEXT_CHECK_DELAY_SEC", default=300)
+
         if meta.started_at is None:
             log.bind(reason="not_started", session_id=session_id).debug("ChaosSkipped")
-        elif delta > MAX_INACTIVITY_SEC:
+        elif delta > max_inactivity_sec:
             # Trigger Cleanup Event
             spawned = await chaos_service.spawn_cleaner(session_id)
             if spawned:
@@ -78,8 +82,6 @@ async def chaos_check_task(ctx: dict, session_id: str) -> None:
                 log.bind(reason="already_spawned", session_id=session_id).debug("ChaosCleanerSkipped")
 
         # 3. Relay (Self-Requeue)
-        # Планируем следующий чек через 5 минут (300 сек)
-        next_check_delay = 300
         await ctx["redis"].enqueue_job(
             "chaos_check_task",
             session_id,

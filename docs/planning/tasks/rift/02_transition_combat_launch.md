@@ -24,7 +24,7 @@ This stage owns only the chance and interruption contract for combat during trav
 - The current dev placeholder can resolve combat as `victory` and then complete travel into `to_node_id`.
 - After transition combat resolves, `last_travel.suppress_random_node_combat` tells the future node-entry resolver not to roll a random combat immediately in the destination node.
 - Transition combat descriptive text is selected from setting/master `encounter_vocabulary.transition_combat`.
-- Base chance per tick belongs to setting/master `transition_combat_rules.base_chance_per_tick`; current accepted prototype value is `0.35`.
+- Base chance per tick belongs to Redis-backed `RiftConfig.TRANSITION_BASE_CHANCE_PER_TICK`; current accepted default is `0.35`.
 - Future skill influence is represented only as `opening_context` contract data for combat assembly.
 
 This stage does not own the real monster group generation formula, boss encounter templates, node-entry event rolls, combat buffs/debuffs, or final combat service integration.

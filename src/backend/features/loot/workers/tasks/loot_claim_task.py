@@ -70,7 +70,7 @@ async def loot_claim_task(ctx: dict[str, Any], payload: dict[str, Any]) -> None:
     # Step 2: Redis — remove claimed items from corpse, set short TTL if empty
     # -----------------------------------------------------------------
     manager = LootManager(redis_service)
-    integration = LootIntegration(manager)
+    integration = LootIntegration(manager, game_config=ctx.get("game_config"))
     claim = ClaimResultDTO(instance_ids=instance_ids, resource_deltas=resource_deltas)
     updated_corpse = await integration.mark_items_claimed(corpse_id, claim)
 
@@ -115,6 +115,7 @@ async def _transfer_to_inventory(
                 session=session,
                 character_sessions=ctx.get("character_sessions"),
                 expedition_manager=ctx.get("expeditions"),
+                game_config=ctx.get("game_config"),
             )
             expedition = await expedition_service.get_active_run(char_id, for_update=True)
             unsafe_claim = expedition is not None and expedition.status == "active"

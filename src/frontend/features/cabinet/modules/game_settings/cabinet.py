@@ -18,25 +18,6 @@ _UPDATE_URL = "/admin/game-settings/update-config"
 _RESET_URL = "/admin/game-settings/reset-config"
 _RESET_NAMESPACE_URL = "/admin/game-settings/reset-namespace"
 
-_COMBAT_AI_ENTRY_META = {
-    "ACTIVE_POLICY_ID": {
-        "label": "Активная политика ИИ",
-        "description": "Версия обучения для новых боев. Пусто означает runtime default или env override.",
-    },
-    "EXPLORATION_RANDOMNESS_MULT": {
-        "label": "Множитель случайности",
-        "description": "Управляет случайностью выбора хода: 0.0 почти детерминированно, 1.0 как в policy.",
-    },
-    "TRAINING_ENABLED": {
-        "label": "Разрешить обучение",
-        "description": "Флаг для training entry points. В live-бой сам по себе обученные веса не включает.",
-    },
-    "TRAINING_SEED": {
-        "label": "Seed обучения",
-        "description": "Фиксирует воспроизводимость тренировок. 0 оставляет текущий дефолт.",
-    },
-}
-
 
 def _config_provider(
     widget_key: str,
@@ -70,8 +51,16 @@ def _config_provider(
                     default=e.default,
                     value_type=e.value_type,
                     is_modified=e.is_modified,
-                    label=metadata.get(e.key, {}).get("label"),
-                    description=metadata.get(e.key, {}).get("description"),
+                    label=e.label or metadata.get(e.key, {}).get("label"),
+                    description=e.description or metadata.get(e.key, {}).get("description"),
+                    group=e.group,
+                    unit=e.unit,
+                    min_value=e.min_value,
+                    max_value=e.max_value,
+                    step=e.step,
+                    risk=e.risk,
+                    live_scope=e.live_scope,
+                    tags=e.tags or [],
                     choices=choices_by_key.get(e.key, []),
                 )
                 for e in entries
@@ -208,7 +197,6 @@ class GameSettingsAdmin(CabinetAdmin):
             "Поведение ИИ боя",
             "combat_ai",
             "/admin/game-settings/combat-ai",
-            entry_meta=_COMBAT_AI_ENTRY_META,
         ),
         "game_settings.scenario": _config_provider(
             "scenario_cfg", "Настройки сценариев", "scenario", "/admin/game-settings/scenario"

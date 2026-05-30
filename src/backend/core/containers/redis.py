@@ -7,6 +7,7 @@ from loguru import logger as log
 from src.backend.config.settings import settings
 from src.backend.core.arq import GENERATION_AI_ARQ_QUEUE, SYSTEM_ARQ_QUEUE, ArqService
 from src.backend.core.bus import GameEventProducer
+from src.backend.core.game_config import CoreConfig
 from src.backend.features.arena.events import bind as bind_arena_events
 from src.backend.features.arena.events import router as arena_router
 from src.backend.features.character.events import bind as bind_character_events
@@ -20,6 +21,7 @@ from src.backend.features.combat.ai_config import CombatAiConfig
 from src.backend.features.combat.events import bind as bind_combat_events
 from src.backend.features.combat.events import router as combat_router
 from src.backend.features.combat.game_config import CombatConfig
+from src.backend.features.expedition.game_config import ExpeditionConfig
 from src.backend.features.exploration.game_config import ExplorationConfig
 from src.backend.features.inventory.events import bind as bind_inventory_events
 from src.backend.features.inventory.events import router as inventory_router
@@ -27,10 +29,12 @@ from src.backend.features.items.events import bind as bind_items_events
 from src.backend.features.items.events import router as items_router
 from src.backend.features.loot.events import bind as bind_loot_events
 from src.backend.features.loot.events import router as loot_router
+from src.backend.features.loot.game_config import LootConfig
 from src.backend.features.monsters.events import bind as bind_monsters_events
 from src.backend.features.monsters.events import router as monsters_router
 from src.backend.features.rift.events import bind as bind_rift_events
 from src.backend.features.rift.events import router as rift_router
+from src.backend.features.rift.game_config import RiftConfig
 from src.backend.features.scenario.events import bind as bind_scenario_events
 from src.backend.features.scenario.events import router as scenario_router
 from src.backend.features.scenario.game_config import ScenarioConfig
@@ -40,7 +44,16 @@ from src.backend.infrastructure.game_config.manager import GameConfigManager
 # Infrastructure Managers
 from src.backend.infrastructure.redis.managers import build_redis_managers
 
-_GAME_CONFIGS = (CombatConfig, CombatAiConfig, ExplorationConfig, ScenarioConfig)
+_GAME_CONFIGS = (
+    CoreConfig,
+    CombatConfig,
+    CombatAiConfig,
+    ExpeditionConfig,
+    ExplorationConfig,
+    LootConfig,
+    ScenarioConfig,
+    RiftConfig,
+)
 
 EVENT_ROUTER_GROUPS = (
     ("character", character_router),

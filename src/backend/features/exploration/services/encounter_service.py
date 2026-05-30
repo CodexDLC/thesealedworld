@@ -35,11 +35,13 @@ class ExplorationEncounterService:
         integration: EncounterIntegration | None,
         session: ExplorationEncounterSessionService,
         navigation: ExplorationNavigationService,
+        game_config: Any | None = None,
     ) -> None:
         self._engine = engine
         self._integration = integration
         self._session = session
         self._navigation = navigation
+        self._game_config = game_config
         self._experience = ExplorationExperienceService()
         redis = getattr(integration, "redis", None)
         self._knowledge = (
@@ -176,7 +178,12 @@ class ExplorationEncounterService:
                 attributes=attributes,
                 action_power_by_skill={"skill_hunting": 1.0},
             )
-        return encounter_with_bypass_chance(encounter, calculate_bypass_chance(skills))
+        base_bypass_chance = 0.14
+        if self._game_config is not None:
+            base_bypass_chance = await self._game_config.get_float("exploration", "BASE_BYPASS_CHANCE", default=0.14)
+        return encounter_with_bypass_chance(
+            encounter, calculate_bypass_chance(skills, base_bypass_chance=base_bypass_chance)
+        )
 
     async def attempt_bypass(self, char_id: int, encounter: EncounterDTO) -> tuple[bool, EncounterDTO | None, int]:
         skills = await self._skill_snapshot(char_id)
@@ -189,7 +196,10 @@ class ExplorationEncounterService:
                 attributes=attributes,
                 action_power_by_skill={"skill_scouting": 0.5, "skill_hunting": 0.5},
             )
-        chance = calculate_bypass_chance(skills)
+        base_bypass_chance = 0.14
+        if self._game_config is not None:
+            base_bypass_chance = await self._game_config.get_float("exploration", "BASE_BYPASS_CHANCE", default=0.14)
+        chance = calculate_bypass_chance(skills, base_bypass_chance=base_bypass_chance)
         chance_percent = bypass_chance_percent(chance)
         roll = random.random()
         if roll <= chance:
@@ -240,7 +250,12 @@ class ExplorationEncounterService:
 
     async def _attach_bypass_chance(self, char_id: int, encounter: EncounterDTO) -> EncounterDTO:
         skills = await self._skill_snapshot(char_id)
-        return encounter_with_bypass_chance(encounter, calculate_bypass_chance(skills))
+        base_bypass_chance = 0.14
+        if self._game_config is not None:
+            base_bypass_chance = await self._game_config.get_float("exploration", "BASE_BYPASS_CHANCE", default=0.14)
+        return encounter_with_bypass_chance(
+            encounter, calculate_bypass_chance(skills, base_bypass_chance=base_bypass_chance)
+        )
 
     async def _skill_snapshot(self, char_id: int) -> Any:
         if self._integration is None:
@@ -258,10 +273,14 @@ class ExplorationEncounterService:
     ) -> None:
         if self._integration is None:
             return
+        global_rate = 0.00005
+        if self._game_config is not None:
+            global_rate = await self._game_config.get_float("core", "SKILL_PROGRESSION_BASE_RATE", default=0.00005)
         rewards = self._experience.calculate_rewards(
             action_power_by_skill=action_power_by_skill,
             current_skills=skills,
             attributes=attributes,
+            global_rate=global_rate,
         )
         if self._knowledge is not None and loc_id:
             rewards = await self._knowledge.cap_rewards(char_id, loc_id, rewards)

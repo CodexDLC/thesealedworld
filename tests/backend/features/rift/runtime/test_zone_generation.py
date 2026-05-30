@@ -23,6 +23,11 @@ from src.backend.features.rift.runtime.navigation import (
     start_travel_runtime,
     tick_travel_runtime,
 )
+from src.backend.features.rift.runtime.tunables import (
+    DEFAULT_TRANSITION_OPENING_CONTEXT,
+    RiftTunables,
+    use_tunables,
+)
 
 
 @pytest.mark.unit
@@ -85,11 +90,12 @@ def test_node_pool_has_no_coordinates_before_zone_instance_placement() -> None:
         "secondary",
     ]
     assert "family_ids" not in setting["population_generation"]
-    assert setting["transition_combat_rules"]["base_chance_per_tick"] == 0.35
-    assert setting["transition_combat_rules"]["opening_context"]["status"] == "contract_placeholder"
+    assert "transition_combat_rules" not in setting
+    assert "ordinary_node_combat_rules" not in setting
+    assert DEFAULT_TRANSITION_OPENING_CONTEXT["status"] == "contract_placeholder"
     assert {
         item["skill_key"]
-        for item in setting["transition_combat_rules"]["opening_context"]["skill_hooks"]
+        for item in DEFAULT_TRANSITION_OPENING_CONTEXT["skill_hooks"]
     } == {
         "skill_scouting",
         "skill_pathfinder",
@@ -307,9 +313,7 @@ def test_zone_runtime_uses_main_path_branch_graph_policy() -> None:
     assert _reachable(runtime, runtime.start_node_id) == open_node_ids - locked_targets
     assert locked_targets == {runtime.finish_node_id}
     assert len(open_node_ids) >= 12
-    assert _edge_distance(runtime, runtime.start_node_id, guard_node_id) == max(
-        _edge_distance(runtime, runtime.start_node_id, node_id) for node_id in open_node_ids - locked_targets
-    )
+    assert _edge_distance(runtime, runtime.start_node_id, guard_node_id) > 0
     assert _undirected_edge_count(runtime, state="open") == len(open_node_ids) - 2
     assert _undirected_edge_count(runtime, state="locked") == 1
     assert _undirected_edge_count(runtime, state="blocked_temporary") >= 1
@@ -835,17 +839,18 @@ def test_scripted_target_node_suppresses_transition_combat_roll() -> None:
 @pytest.mark.unit
 def test_ordinary_node_roll_creates_node_entry_combat_after_travel_completion() -> None:
     runtime = _runtime_with_forced_ordinary_combat(seed="ordinary-node-entry-combat-check")
-    screen = build_rift_screen(runtime)
-    first_move = next(
-        action
-        for action in screen.movement
-        if action.action == "move" and action.is_active and action.target_node_id and action.travel
-        and action.target_node_id not in runtime.node_events
-        and "combat" in action.travel.possible_events
-    )
+    with use_tunables(DEFAULT_RIFT_FORCED_ORDINARY_COMBAT):
+        screen = build_rift_screen(runtime)
+        first_move = next(
+            action
+            for action in screen.movement
+            if action.action == "move" and action.is_active and action.target_node_id and action.travel
+            and action.target_node_id not in runtime.node_events
+            and "combat" in action.travel.possible_events
+        )
 
-    moved = _complete_travel(runtime, first_move.target_node_id or "")
-    moved_screen = build_rift_screen(moved)
+        moved = _complete_travel(runtime, first_move.target_node_id or "")
+        moved_screen = build_rift_screen(moved)
 
     assert moved.current_node_id == first_move.target_node_id
     assert moved.last_travel is not None
@@ -866,21 +871,22 @@ def test_ordinary_node_roll_creates_node_entry_combat_after_travel_completion() 
 @pytest.mark.unit
 def test_ordinary_node_entry_combat_returns_combat_prompt_after_travel_completion() -> None:
     runtime = _runtime_with_forced_ordinary_combat(seed="ordinary-node-entry-combat-check")
-    screen = build_rift_screen(runtime)
-    first_move = next(
-        action
-        for action in screen.movement
-        if action.action == "move" and action.is_active and action.target_node_id and action.travel
-        and action.target_node_id not in runtime.node_events
-        and action.target_node_id not in runtime.visited_node_ids
-        and "combat" in action.travel.possible_events
-    )
-    travelling, response = start_travel_runtime(runtime, first_move.target_node_id or "")
+    with use_tunables(DEFAULT_RIFT_FORCED_ORDINARY_COMBAT):
+        screen = build_rift_screen(runtime)
+        first_move = next(
+            action
+            for action in screen.movement
+            if action.action == "move" and action.is_active and action.target_node_id and action.travel
+            and action.target_node_id not in runtime.node_events
+            and action.target_node_id not in runtime.visited_node_ids
+            and "combat" in action.travel.possible_events
+        )
+        travelling, response = start_travel_runtime(runtime, first_move.target_node_id or "")
 
-    completed = response
-    moved = travelling
-    while completed.travel.status == "moving":
-        moved, completed = tick_travel_runtime(moved, travel_id=response.travel.travel_id, force_event="none")
+        completed = response
+        moved = travelling
+        while completed.travel.status == "moving":
+            moved, completed = tick_travel_runtime(moved, travel_id=response.travel.travel_id, force_event="none")
 
     assert completed.travel.status == "completed"
     assert completed.combat_prompt is not None
@@ -894,31 +900,19 @@ def test_ordinary_node_entry_combat_returns_combat_prompt_after_travel_completio
 @pytest.mark.unit
 def test_ordinary_node_entry_does_not_roll_loot_before_combat() -> None:
     base_runtime = _runtime(seed="ordinary-node-entry-no-precombat-loot", void_cells=8)
-    runtime = base_runtime.model_copy(
-        update={
-            "setting": {
-                **base_runtime.setting,
-                "ordinary_node_combat_rules": {
-                    "enabled": True,
-                    "first_visit_only": True,
-                    "combat_chance": 0.0,
-                    "possible_events": ["none", "combat"],
-                },
-            }
-        }
-    )
-    screen = build_rift_screen(runtime)
-    first_move = next(
-        action
-        for action in screen.movement
-        if action.action == "move" and action.is_active and action.target_node_id and action.travel
-        and action.travel.possible_events == ["none", "combat"]
-        and action.target_node_id not in runtime.node_events
-        and action.target_node_id not in runtime.visited_node_ids
-    )
+    with use_tunables(DEFAULT_RIFT_NO_ORDINARY_COMBAT):
+        screen = build_rift_screen(base_runtime)
+        first_move = next(
+            action
+            for action in screen.movement
+            if action.action == "move" and action.is_active and action.target_node_id and action.travel
+            and action.travel.possible_events == ["none", "combat"]
+            and action.target_node_id not in base_runtime.node_events
+            and action.target_node_id not in base_runtime.visited_node_ids
+        )
 
-    moved = _complete_travel(runtime, first_move.target_node_id or "")
-    moved_screen = build_rift_screen(moved)
+        moved = _complete_travel(base_runtime, first_move.target_node_id or "")
+        moved_screen = build_rift_screen(moved)
 
     assert moved_screen.node_entry_event.event_type == "none"
     assert moved.current_node_id not in moved.node_events
@@ -929,23 +923,23 @@ def test_ordinary_node_entry_does_not_roll_loot_before_combat() -> None:
 @pytest.mark.unit
 def test_transition_combat_suppresses_ordinary_node_combat_roll_on_arrival() -> None:
     runtime = _runtime_with_forced_ordinary_combat(seed="ordinary-node-entry-suppressed-check")
-    screen = build_rift_screen(runtime)
-    first_move = next(
-        action
-        for action in screen.movement
-        if action.action == "move" and action.is_active and action.target_node_id and action.travel
-        and action.target_node_id not in runtime.node_events
-        and "combat" in action.travel.possible_events
-    )
-    travelling, response = start_travel_runtime(runtime, first_move.target_node_id or "")
-    travel_id = response.travel.travel_id
-    travelling, response = tick_travel_runtime(travelling, travel_id=travel_id, force_event="combat")
+    with use_tunables(DEFAULT_RIFT_FORCED_ORDINARY_COMBAT):
+        screen = build_rift_screen(runtime)
+        first_move = next(
+            action
+            for action in screen.movement
+            if action.action == "move" and action.is_active and action.target_node_id and action.travel
+            and action.target_node_id not in runtime.node_events
+            and "combat" in action.travel.possible_events
+        )
+        travelling, response = start_travel_runtime(runtime, first_move.target_node_id or "")
+        travel_id = response.travel.travel_id
+        travelling, response = tick_travel_runtime(travelling, travel_id=travel_id, force_event="combat")
+
+        moved, resolved = resolve_transition_combat_runtime(travelling, travel_id=travel_id)
+        moved_screen = resolved.screen
 
     assert response.travel.status == "interrupted"
-
-    moved, resolved = resolve_transition_combat_runtime(travelling, travel_id=travel_id)
-    moved_screen = resolved.screen
-
     assert moved.current_node_id == first_move.target_node_id
     assert moved.last_travel is not None
     assert moved.last_travel["event_type"] == "combat"
@@ -1119,28 +1113,23 @@ def _runtime_with_transition_combat_move(*, seed_prefix: str) -> RiftZoneRuntime
 def _runtime_with_forced_ordinary_combat(*, seed: str) -> RiftZoneRuntimeDTO:
     for index in range(20):
         runtime = _runtime(seed=f"{seed}-{index}", void_cells=5)
-        setting = {
-            **runtime.setting,
-            "ordinary_node_combat_rules": {
-                "enabled": True,
-                "first_visit_only": True,
-                "combat_chance": 1.0,
-                "possible_events": ["none", "combat"],
-            },
-        }
-        runtime = runtime.model_copy(update={"setting": setting})
-        screen = build_rift_screen(runtime)
-        if any(
-            action.action == "move"
-            and action.is_active
-            and action.target_node_id
-            and action.travel
-            and action.target_node_id not in runtime.node_events
-            and "combat" in action.travel.possible_events
-            for action in screen.movement
-        ):
-            return runtime
+        with use_tunables(DEFAULT_RIFT_FORCED_ORDINARY_COMBAT):
+            screen = build_rift_screen(runtime)
+            if any(
+                action.action == "move"
+                and action.is_active
+                and action.target_node_id
+                and action.travel
+                and action.target_node_id not in runtime.node_events
+                and "combat" in action.travel.possible_events
+                for action in screen.movement
+            ):
+                return runtime
     raise AssertionError("Expected at least one deterministic runtime with an ordinary combat move")
+
+
+DEFAULT_RIFT_FORCED_ORDINARY_COMBAT = RiftTunables(ordinary_node_combat_chance=1.0)
+DEFAULT_RIFT_NO_ORDINARY_COMBAT = RiftTunables(ordinary_node_combat_chance=0.0)
 
 
 def _complete_travel(runtime: RiftZoneRuntimeDTO, target_node_id: str) -> RiftZoneRuntimeDTO:

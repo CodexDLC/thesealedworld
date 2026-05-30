@@ -383,23 +383,30 @@
                                 <div class="combat-action-group__label">ABILITIES</div>
                                 <div class="combat-ability-grid">
                                     {% for action in ability_slots %}
-                                        <button type="button"
-                                                class="game-action-button game-action-button--icon combat-ability-option"
-                                                hx-post="/game/combat/move"
-                                                hx-target="#main-content .shell-constrained"
-                                                hx-swap="innerHTML"
-                                                hx-disabled-elt="this"
-                                                hx-vals='{"char_id": {{ char_id }}, "action": "instant"{% if action.target_id %}, "target_id": "{{ action.target_id }}"{% endif %}, "ability_id": "{{ action.ability_id or "" }}"}'
-                                                {% if action.catalog and action.catalog_key %}
-                                                data-catalog="{{ action.catalog }}"
-                                                data-catalog-key="{{ action.catalog_key }}"
-                                                data-catalog-tooltip="description"
-                                                {% endif %}
-                                                data-tippy-content="{{ action.label }} // {{ action.reason or 'ABILITY_READY' }}"
-                                                data-tippy-theme="game-hint"
-                                                {% if not action.enabled %}disabled{% endif %}>
-                                            <img src="{{ action.icon_url }}" alt="">
-                                        </button>
+                                        <span class="combat-ability-tooltip-host"
+                                              {% if action.catalog and action.catalog_key %}
+                                              data-catalog="{{ action.catalog }}"
+                                              data-catalog-key="{{ action.catalog_key }}"
+                                              data-catalog-tooltip="ability"
+                                              {% endif %}
+                                              data-tippy-content="{{ action.label }} // {{ action.reason or 'ABILITY_READY' }}"
+                                              data-tippy-theme="game-hint">
+                                            <button type="button"
+                                                    class="game-action-button game-action-button--icon combat-ability-option"
+                                                    hx-post="/game/combat/move"
+                                                    hx-target="#main-content .shell-constrained"
+                                                    hx-swap="innerHTML"
+                                                    hx-disabled-elt="this"
+                                                    hx-vals='{"char_id": {{ char_id }}, "action": "instant"{% if action.target_id %}, "target_id": "{{ action.target_id }}"{% endif %}, "ability_id": "{{ action.ability_id or "" }}"}'
+                                                    {% if action.catalog and action.catalog_key %}
+                                                    data-catalog="{{ action.catalog }}"
+                                                    data-catalog-key="{{ action.catalog_key }}"
+                                                    data-catalog-tooltip="ability"
+                                                    {% endif %}
+                                                    {% if not action.enabled %}disabled{% endif %}>
+                                                <img src="{{ action.icon_url }}" alt="">
+                                            </button>
+                                        </span>
                                     {% endfor %}
                                     {% for index in [1, 2, 3, 4, 5, 6, 7, 8][:8 - (ability_slots|length)] %}
                                         <button type="button" class="game-action-button game-action-button--icon combat-ability-option combat-ability-option--empty" disabled>
@@ -429,23 +436,30 @@
                                 <summary>ABILITIES</summary>
                                 <div class="combat-ability-grid">
                                     {% for action in ability_slots %}
-                                        <button type="button"
-                                                class="game-action-button game-action-button--icon combat-ability-option"
-                                                hx-post="/game/combat/move"
-                                                hx-target="#main-content .shell-constrained"
-                                                hx-swap="innerHTML"
-                                                hx-disabled-elt="this"
-                                                hx-vals='{"char_id": {{ char_id }}, "action": "instant"{% if action.target_id %}, "target_id": "{{ action.target_id }}"{% endif %}, "ability_id": "{{ action.ability_id or "" }}"}'
-                                                {% if action.catalog and action.catalog_key %}
-                                                data-catalog="{{ action.catalog }}"
-                                                data-catalog-key="{{ action.catalog_key }}"
-                                                data-catalog-tooltip="description"
-                                                {% endif %}
-                                                data-tippy-content="{{ action.label }} // {{ action.reason or 'ABILITY_READY' }}"
-                                                data-tippy-theme="game-hint"
-                                                {% if not action.enabled %}disabled{% endif %}>
-                                            <img src="{{ action.icon_url }}" alt="">
-                                        </button>
+                                        <span class="combat-ability-tooltip-host"
+                                              {% if action.catalog and action.catalog_key %}
+                                              data-catalog="{{ action.catalog }}"
+                                              data-catalog-key="{{ action.catalog_key }}"
+                                              data-catalog-tooltip="ability"
+                                              {% endif %}
+                                              data-tippy-content="{{ action.label }} // {{ action.reason or 'ABILITY_READY' }}"
+                                              data-tippy-theme="game-hint">
+                                            <button type="button"
+                                                    class="game-action-button game-action-button--icon combat-ability-option"
+                                                    hx-post="/game/combat/move"
+                                                    hx-target="#main-content .shell-constrained"
+                                                    hx-swap="innerHTML"
+                                                    hx-disabled-elt="this"
+                                                    hx-vals='{"char_id": {{ char_id }}, "action": "instant"{% if action.target_id %}, "target_id": "{{ action.target_id }}"{% endif %}, "ability_id": "{{ action.ability_id or "" }}"}'
+                                                    {% if action.catalog and action.catalog_key %}
+                                                    data-catalog="{{ action.catalog }}"
+                                                    data-catalog-key="{{ action.catalog_key }}"
+                                                    data-catalog-tooltip="ability"
+                                                    {% endif %}
+                                                    {% if not action.enabled %}disabled{% endif %}>
+                                                <img src="{{ action.icon_url }}" alt="">
+                                            </button>
+                                        </span>
                                     {% endfor %}
                                     {% for index in [1, 2, 3, 4, 5, 6, 7, 8][:8 - (ability_slots|length)] %}
                                         <button type="button" class="game-action-button game-action-button--icon combat-ability-option combat-ability-option--empty" disabled>

@@ -5,6 +5,7 @@ Detailed milestone history for the `src/frontend` site-web layer.
 ## [Unreleased]
 
 - Cabinet tools now expose combat AI simulation controls and richer editable game configuration widgets.
+- Editable game settings now render backend-owned labels, descriptions, risk badges, groups, and numeric min/max hints.
 
 ## [v0.1.0a7] - Alpha 7
 

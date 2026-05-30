@@ -82,6 +82,14 @@ class ConfigEntryRow(BaseModel):
     is_modified: bool = False
     label: str | None = None
     description: str | None = None
+    group: str | None = None
+    unit: str | None = None
+    min_value: float | None = None
+    max_value: float | None = None
+    step: float | None = None
+    risk: str = "low"
+    live_scope: str = "runtime"
+    tags: list[str] = Field(default_factory=list)
     choices: list[dict[str, str]] = Field(default_factory=list)
 
 

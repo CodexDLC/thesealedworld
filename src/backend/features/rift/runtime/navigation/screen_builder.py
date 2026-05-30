@@ -44,6 +44,7 @@ from src.backend.features.rift.runtime.geometry import (
     neighbor_coord,
     relative_direction,
 )
+from src.backend.features.rift.runtime.tunables import current_tunables
 
 _COLOR_BY_STATE = {
     "open": "green",
@@ -234,7 +235,7 @@ def resolve_transition_combat_runtime(
         event_type="combat",
         resolved=True,
         result=result,
-        suppress_random_node_combat=True,
+        suppress_random_node_combat=current_tunables().transition_suppress_ordinary_after_combat,
     )
     return updated, RiftCombatResolveResponseDTO(
         result="victory",
@@ -716,12 +717,13 @@ def _resolve_ordinary_node_entry(runtime: RiftZoneRuntimeDTO, *, was_visited: bo
 
 
 def _ordinary_node_combat_rules(runtime: RiftZoneRuntimeDTO) -> dict[str, Any]:
-    rules = dict(runtime.setting.get("ordinary_node_combat_rules") or {})
+    _ = runtime
+    tunables = current_tunables()
     return {
-        "enabled": bool(rules.get("enabled", True)),
-        "first_visit_only": bool(rules.get("first_visit_only", True)),
-        "combat_chance": float(rules.get("combat_chance") or 0.0),
-        "possible_events": list(rules.get("possible_events") or ["none", "combat"]),
+        "enabled": tunables.ordinary_node_combat_enabled,
+        "first_visit_only": tunables.ordinary_node_first_visit_only,
+        "combat_chance": tunables.ordinary_node_combat_chance,
+        "possible_events": ["none", "combat"],
     }
 
 
@@ -874,7 +876,15 @@ def _transition_combat_prompt(runtime: RiftZoneRuntimeDTO, *, active_travel: dic
 
 
 def _transition_combat_rules(runtime: RiftZoneRuntimeDTO) -> dict[str, Any]:
-    return dict(runtime.setting.get("transition_combat_rules") or {})
+    _ = runtime
+    tunables = current_tunables()
+    return {
+        "base_chance_per_tick": tunables.transition_base_chance_per_tick,
+        "tick_interval_ms": tunables.transition_tick_interval_ms,
+        "exploration_duration_ms": tunables.transition_exploration_duration_ms,
+        "return_duration_ms": tunables.transition_return_duration_ms,
+        "opening_context": dict(tunables.transition_opening_context),
+    }
 
 
 def _transition_event_check_count(rules: dict[str, Any]) -> int:

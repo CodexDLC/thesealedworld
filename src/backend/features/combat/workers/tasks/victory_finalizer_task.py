@@ -52,6 +52,11 @@ async def victory_finalizer_task(ctx: dict, data: dict) -> None:
         await _commit_player_vitals_to_active_sessions(ctx, data_service, session_id)
 
         # 3. Convert flat runtime xp_buffer counters into character progression rewards.
+        global_rate = 0.00005
+        game_config = ctx.get("game_config")
+        if game_config is not None:
+            global_rate = await game_config.get_float("core", "SKILL_PROGRESSION_BASE_RATE", default=0.00005)
+
         progression_recorder = None
         if ctx.get("expeditions") is not None or ctx.get("world_locations") is not None:
             async with get_session_context() as session:
@@ -60,6 +65,7 @@ async def victory_finalizer_task(ctx: dict, data: dict) -> None:
                     character_sessions=ctx.get("character_sessions"),
                     expedition_manager=ctx.get("expeditions"),
                     world_store=ctx.get("world_locations"),
+                    game_config=ctx.get("game_config"),
                 )
                 progression_results = await CombatExperienceFinalizer().finalize(
                     data_service,
@@ -67,6 +73,7 @@ async def victory_finalizer_task(ctx: dict, data: dict) -> None:
                     winner,
                     character_sessions=ctx.get("character_sessions"),
                     progression_recorder=progression_recorder,
+                    global_rate=global_rate,
                 )
         else:
             progression_results = await CombatExperienceFinalizer().finalize(
@@ -75,6 +82,7 @@ async def victory_finalizer_task(ctx: dict, data: dict) -> None:
                 winner,
                 character_sessions=ctx.get("character_sessions"),
                 progression_recorder=None,
+                global_rate=global_rate,
             )
 
         # 4. Freeze final combat facts before runtime cleanup can remove actor/session keys.
@@ -161,6 +169,8 @@ async def _attach_finalization_to_active_sessions(ctx: dict, session_id: str, fi
                 expedition_manager=ctx.get("expeditions"),
                 loot_manager=LootManager(ctx["redis_service"]) if ctx.get("redis_service") is not None else None,
                 world_store=ctx.get("world_locations"),
+                commit_on_write=True,
+                game_config=ctx.get("game_config"),
             )
             for char_id in dead_char_ids:
                 if await expedition_service.mark_death_pending(

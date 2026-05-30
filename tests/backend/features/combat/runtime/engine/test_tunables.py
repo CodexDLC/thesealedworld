@@ -28,8 +28,13 @@ class FakeRedis:
 
 
 @pytest.fixture()
-def manager() -> GameConfigManager:
-    mgr = GameConfigManager(FakeRedis())  # type: ignore[arg-type]
+def redis_client() -> FakeRedis:
+    return FakeRedis()
+
+
+@pytest.fixture()
+def manager(redis_client: FakeRedis) -> GameConfigManager:
+    mgr = GameConfigManager(redis_client)  # type: ignore[arg-type]
     mgr.register(CombatConfig)
     return mgr
 
@@ -69,9 +74,11 @@ class TestLoader:
         # untouched key falls back to default
         assert tunables.token_bonus_chance == DEFAULT_COMBAT_TUNABLES.token_bonus_chance
 
-    async def test_load_tolerates_garbage_value(self, manager: GameConfigManager) -> None:
+    async def test_load_tolerates_garbage_value(
+        self, manager: GameConfigManager, redis_client: FakeRedis
+    ) -> None:
         await manager.bootstrap()
-        await manager.set("combat", "PARRY_SKILL_MULT_PER_POINT", "not-a-number")
+        redis_client.store[CombatConfig.redis_key("PARRY_SKILL_MULT_PER_POINT")] = "not-a-number"
 
         tunables = await load_combat_tunables(manager)
 

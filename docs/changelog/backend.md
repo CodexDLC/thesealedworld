@@ -4,6 +4,7 @@ Detailed milestone history for the `src/backend` game runtime layer.
 
 ## [Unreleased]
 
+- Redis-backed game config entries now carry admin metadata, range validation, and an audit helper for classifying future runtime tuning candidates.
 - Automatic starter imprints now use Redis-backed least-used distribution with per-account repeat protection.
 - Combat AI now includes archetype policies, tactical memory, offline battle simulation, and admin-triggered simulation run persistence.
 - Combat runtime tuning now centralizes skill/stat formulas, actor snapshot mapping, preparation effects, feint tags, and equipment-derived combat power.

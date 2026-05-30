@@ -103,6 +103,7 @@ def build_exploration_gateway(
         integration=encounter_integration,
         session=encounter_sessions,
         navigation=navigation,
+        game_config=getattr(request.app.state, "game_config", None),
     )
     return ExplorationGateway(navigation=navigation, encounters=encounters)
 

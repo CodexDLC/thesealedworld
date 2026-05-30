@@ -171,6 +171,64 @@ window.GameCatalogCache = {
         return this.getNested(variant, field) || '';
     },
 
+    formatAbilityTooltip(entry, taxonomy = 'humanoid') {
+        if (!entry) return '';
+        const title = this.getField(entry, 'title', taxonomy) || this.getField(entry, 'label', taxonomy);
+        const description = this.getField(entry, 'description', taxonomy);
+        const cost = this.formatAbilityCost(entry.cost);
+        const target = entry.target_label || this.formatAbilityTarget(entry.target);
+        const mechanics = Array.isArray(entry?.mechanics) ? entry.mechanics.filter(Boolean) : [];
+        return [
+            title,
+            description,
+            cost ? `Цена: ${cost}` : '',
+            target ? `Цель: ${target}` : '',
+            ...mechanics,
+        ].filter(Boolean).join(' /' + '/ ');
+    },
+
+    formatAbilityCost(cost) {
+        if (!cost || typeof cost !== 'object') return '';
+        const parts = [];
+        if (cost.energy) parts.push(`${cost.energy} EN`);
+        if (cost.hp) parts.push(`${cost.hp} HP`);
+        if (cost.gift_tokens) parts.push(`${cost.gift_tokens} дар`);
+        Object.entries(cost.tokens || {}).forEach(([token, amount]) => {
+            if (amount) parts.push(`${amount} ${this.formatCombatToken(token)}`);
+        });
+        return parts.join(' · ');
+    },
+
+    formatCombatToken(token) {
+        const labels = {
+            tempo: 'темп',
+            hit: 'попадание',
+            crit: 'крит',
+            dodge: 'уклонение',
+            parry: 'парирование',
+            block: 'блок',
+            counter: 'ответ',
+            blood: 'кровь',
+            gift: 'дар',
+        };
+        return labels[token] || token;
+    },
+
+    formatAbilityTarget(target) {
+        const labels = {
+            self: 'На себя',
+            single_enemy: 'Один враг',
+            all_enemies: 'Все враги',
+            single_ally: 'Один союзник',
+            all_allies: 'Все союзники',
+            random_enemy: 'Случайный враг',
+            lowest_hp_ally: 'Союзник с минимальным HP',
+            lowest_hp_enemy: 'Враг с минимальным HP',
+            cleave: 'Несколько врагов',
+        };
+        return labels[target] || target || '';
+    },
+
     getNested(value, path) {
         if (!value || !path) return value;
         return path.split('.').reduce((current, part) => {
@@ -222,7 +280,9 @@ window.GameCatalogCache = {
                 if (value) node.textContent = value;
             }
             if (tooltipField) {
-                const tooltip = this.getField(entry, tooltipField, taxonomy);
+                const tooltip = tooltipField === 'ability'
+                    ? this.formatAbilityTooltip(entry, taxonomy)
+                    : this.getField(entry, tooltipField, taxonomy);
                 if (tooltip) node.setAttribute('data-tippy-content', tooltip);
             }
         });

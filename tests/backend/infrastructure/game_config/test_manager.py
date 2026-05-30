@@ -111,7 +111,9 @@ class TestTypedGetters:
 
         assert result == str(CombatConfig.PARRY_SKILL_MULT_PER_POINT)
 
-    async def test_get_bool_parses_truthy_and_falsy(self, manager: GameConfigManager) -> None:
+    async def test_get_bool_parses_truthy_and_falsy(
+        self, manager: GameConfigManager, redis_client: FakeRedis
+    ) -> None:
         # No bool field exists today; register a tiny ad-hoc namespace.
         from src.backend.infrastructure.game_config.base import BaseGameConfig
 
@@ -125,7 +127,7 @@ class TestTypedGetters:
         assert await manager.get_bool("_test_bool", "FEATURE_ON") is False
         await manager.set("_test_bool", "FEATURE_ON", "YES")
         assert await manager.get_bool("_test_bool", "FEATURE_ON") is True
-        await manager.set("_test_bool", "FEATURE_ON", "garbage")
+        redis_client.store[_BoolConfig.redis_key("FEATURE_ON")] = "garbage"
         assert await manager.get_bool("_test_bool", "FEATURE_ON") is True  # registered default
 
     async def test_unknown_namespace_returns_caller_default(self, manager: GameConfigManager) -> None:
@@ -144,6 +146,26 @@ class TestWriteAndReset:
 
     async def test_set_rejects_unknown_namespace(self, manager: GameConfigManager) -> None:
         assert await manager.set("nope", "PARRY_SKILL_MULT_PER_POINT", "1.0") is False
+
+    async def test_set_rejects_value_outside_metadata_range(self, manager: GameConfigManager) -> None:
+        from src.backend.infrastructure.game_config.manager import ConfigValidationError
+
+        await manager.bootstrap()
+
+        with pytest.raises(ConfigValidationError) as exc:
+            await manager.set("combat", "BASE_ACCURACY_CHANCE", "1.5")
+
+        assert "must be <= 1.0" in str(exc.value)
+
+    async def test_set_rejects_wrong_scalar_type(self, manager: GameConfigManager) -> None:
+        from src.backend.infrastructure.game_config.manager import ConfigValidationError
+
+        await manager.bootstrap()
+
+        with pytest.raises(ConfigValidationError) as exc:
+            await manager.set("combat", "PARRY_SKILL_MULT_PER_POINT", "not-a-number")
+
+        assert "must be a float" in str(exc.value)
 
     async def test_reset_restores_registered_default(
         self, manager: GameConfigManager, redis_client: FakeRedis
@@ -186,6 +208,15 @@ class TestListing:
         assert parry.default == str(CombatConfig.PARRY_SKILL_MULT_PER_POINT)
         assert parry.value_type == "float"
         assert parry.namespace == "combat"
+        assert parry.label == "Множитель навыка парирования"
+        assert parry.group == "Парирование и щит"
+        assert parry.unit == "multiplier"
+        assert parry.min_value == 0.0
+        assert parry.max_value == 10.0
+        assert parry.step == 0.1
+        assert parry.risk == "medium"
+        assert parry.live_scope == "new_exchange"
+        assert "balance" in parry.tags
 
         chaos = entry_map["CHAOS_FIRST_CHECK_DELAY_SECONDS"]
         assert chaos.value_type == "int"

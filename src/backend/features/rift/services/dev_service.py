@@ -15,6 +15,7 @@ from src.backend.features.rift.runtime.navigation import (
     start_travel_runtime,
     tick_travel_runtime,
 )
+from src.backend.features.rift.runtime.tunables import load_rift_tunables, use_tunables
 
 if TYPE_CHECKING:
     from src.backend.features.rift.dto import (
@@ -28,6 +29,7 @@ if TYPE_CHECKING:
         RiftZoneRuntimeDTO,
     )
     from src.backend.features.rift.integrations import RiftRuntimeIntegration
+    from src.backend.infrastructure.game_config.manager import GameConfigManager
 
 _DEV_OWNER_TYPE = "dev"
 _DEV_OWNER_ID = "dev-character-rift-tester"
@@ -42,17 +44,21 @@ class RiftDevService:
         resources: RiftResourceLoader | None = None,
         rift_key: str = "starter_rift",
         encounters: Any | None = None,
+        game_config: GameConfigManager | None = None,
     ) -> None:
         self.runtime = runtime
         self.resources = resources or RiftResourceLoader()
         self.rift_key = rift_key
         self.encounters = encounters
+        self.game_config = game_config
 
     async def start(self, request: RiftStartRequestDTO) -> RiftScreenDTO:
         runtime = self.build_runtime(request)
         await self.runtime.save_instance(runtime)
         session = await self._reset_dev_run_session(runtime)
-        return build_rift_screen(self._runtime_for_session(runtime, session))
+        tunables = await load_rift_tunables(self.game_config)
+        with use_tunables(tunables):
+            return build_rift_screen(self._runtime_for_session(runtime, session))
 
     def build_runtime(self, request: RiftStartRequestDTO) -> RiftZoneRuntimeDTO:
         setting = self.resources.load_setting(self.rift_key)
@@ -84,7 +90,9 @@ class RiftDevService:
     async def screen(self, rift_instance_id: str) -> RiftScreenDTO:
         runtime = await self.runtime.require_instance(rift_instance_id)
         session = await self._ensure_dev_run_session(runtime)
-        return build_rift_screen(self._runtime_for_session(runtime, session))
+        tunables = await load_rift_tunables(self.game_config)
+        with use_tunables(tunables):
+            return build_rift_screen(self._runtime_for_session(runtime, session))
 
     async def start_travel(
         self,
@@ -94,7 +102,9 @@ class RiftDevService:
         instance = await self.runtime.require_instance(rift_instance_id)
         session = await self._ensure_dev_run_session(instance)
         runtime = self._runtime_for_session(instance, session)
-        updated, response = start_travel_runtime(runtime, request.target_node_id)
+        tunables = await load_rift_tunables(self.game_config)
+        with use_tunables(tunables):
+            updated, response = start_travel_runtime(runtime, request.target_node_id)
         await self._save_runtime_update(instance=instance, previous_session=session, updated=updated)
         return response
 
@@ -106,7 +116,11 @@ class RiftDevService:
         instance = await self.runtime.require_instance(rift_instance_id)
         session = await self._ensure_dev_run_session(instance)
         runtime = self._runtime_for_session(instance, session)
-        updated, response = tick_travel_runtime(runtime, travel_id=request.travel_id, force_event=request.force_event)
+        tunables = await load_rift_tunables(self.game_config)
+        with use_tunables(tunables):
+            updated, response = tick_travel_runtime(
+                runtime, travel_id=request.travel_id, force_event=request.force_event
+            )
         await self._save_runtime_update(instance=instance, previous_session=session, updated=updated)
         if response.combat_prompt is not None and self.encounters is not None:
             response = response.model_copy(
@@ -128,7 +142,9 @@ class RiftDevService:
         instance = await self.runtime.require_instance(rift_instance_id)
         session = await self._ensure_dev_run_session(instance)
         runtime = self._runtime_for_session(instance, session)
-        updated, response = resolve_rift_action_runtime(runtime, request)
+        tunables = await load_rift_tunables(self.game_config)
+        with use_tunables(tunables):
+            updated, response = resolve_rift_action_runtime(runtime, request)
         await self._save_runtime_update(instance=instance, previous_session=session, updated=updated)
         return response
 
@@ -172,7 +188,9 @@ class RiftDevService:
         updated = updated.model_copy(update={"dev_character_snapshot": self.resources.load_dev_character_snapshot()})
         await self.runtime.save_instance(updated)
         session = await self._reset_dev_run_session(updated)
-        return build_rift_screen(self._runtime_for_session(updated, session))
+        tunables = await load_rift_tunables(self.game_config)
+        with use_tunables(tunables):
+            return build_rift_screen(self._runtime_for_session(updated, session))
 
     def _dev_session_id(self, rift_instance_id: str) -> str:
         return f"dev:{rift_instance_id}:run"

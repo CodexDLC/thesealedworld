@@ -28,8 +28,13 @@ class FakeRedis:
 
 
 @pytest.fixture()
-def manager() -> GameConfigManager:
-    mgr = GameConfigManager(FakeRedis())  # type: ignore[arg-type]
+def redis_client() -> FakeRedis:
+    return FakeRedis()
+
+
+@pytest.fixture()
+def manager(redis_client: FakeRedis) -> GameConfigManager:
+    mgr = GameConfigManager(redis_client)  # type: ignore[arg-type]
     mgr.register(ExplorationConfig)
     return mgr
 
@@ -65,9 +70,11 @@ class TestLoader:
         # untouched key still default
         assert tunables.chance_combat_search == DEFAULT_EXPLORATION_TUNABLES.chance_combat_search
 
-    async def test_load_tolerates_garbage_value(self, manager: GameConfigManager) -> None:
+    async def test_load_tolerates_garbage_value(
+        self, manager: GameConfigManager, redis_client: FakeRedis
+    ) -> None:
         await manager.bootstrap()
-        await manager.set("exploration", "CHANCE_COMBAT_BASE", "not-a-number")
+        redis_client.store[ExplorationConfig.redis_key("CHANCE_COMBAT_BASE")] = "not-a-number"
 
         tunables = await load_exploration_tunables(manager)
 
@@ -89,8 +96,7 @@ class TestContextVar:
     def test_use_tunables_restores_after_exception(self) -> None:
         override = ExplorationTunables(chance_combat_base=0.99)
 
-        with pytest.raises(RuntimeError):
-            with use_tunables(override):
-                raise RuntimeError("boom")
+        with pytest.raises(RuntimeError), use_tunables(override):
+            raise RuntimeError("boom")
 
         assert current_tunables() == DEFAULT_EXPLORATION_TUNABLES

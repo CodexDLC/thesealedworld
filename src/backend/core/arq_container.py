@@ -10,15 +10,28 @@ from loguru import logger
 from src.backend.config.settings import apply_runtime_environment_overrides, settings
 from src.backend.core.bus import GameEventProducer
 from src.backend.core.database import load_orm_models
+from src.backend.core.game_config import CoreConfig
 from src.backend.core.repository_factory import RepositoryFactory
 from src.backend.features.combat.ai_config import CombatAiConfig
 from src.backend.features.combat.game_config import CombatConfig
+from src.backend.features.expedition.game_config import ExpeditionConfig
 from src.backend.features.exploration.game_config import ExplorationConfig
+from src.backend.features.loot.game_config import LootConfig
+from src.backend.features.rift.game_config import RiftConfig
 from src.backend.features.scenario.game_config import ScenarioConfig
 from src.backend.infrastructure.game_config.manager import GameConfigManager
 from src.backend.infrastructure.redis.managers import build_redis_managers
 
-_GAME_CONFIGS = (CombatConfig, CombatAiConfig, ExplorationConfig, ScenarioConfig)
+_GAME_CONFIGS = (
+    CoreConfig,
+    CombatConfig,
+    CombatAiConfig,
+    ExpeditionConfig,
+    ExplorationConfig,
+    LootConfig,
+    ScenarioConfig,
+    RiftConfig,
+)
 
 
 class ArqWorkerContainer:

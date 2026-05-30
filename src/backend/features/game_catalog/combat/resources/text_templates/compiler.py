@@ -15,7 +15,7 @@ from src.backend.features.game_catalog.combat.resources.text_templates.schemas i
     CombatTextTemplateRecipeDTO,
 )
 
-COMBAT_TEXT_CATALOG_VERSION = "combat-text:2026-05-17.3"
+COMBAT_TEXT_CATALOG_VERSION = "combat-text:2026-05-17.4"
 
 
 class CombatTextResolutionError(RuntimeError):

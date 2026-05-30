@@ -30,6 +30,8 @@ def build_scenario_service(request: Request | Any, db_session: AsyncSession) -> 
         character_sessions=request.app.state.character_sessions,
         repo=repo,
         events=request.app.state.events,
+        redis=getattr(request.app.state, "redis", None),
+        game_config=getattr(request.app.state, "game_config", None),
         character_repo=CharacterRepository(db_session),
         world_data=WorldDataIntegration(WorldRepository(db_session)),
         npc=npc,

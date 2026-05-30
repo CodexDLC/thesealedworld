@@ -10,31 +10,39 @@ if TYPE_CHECKING:
     from src.backend.infrastructure.loot.managers.loot_manager import LootManager
     from src.shared.schemas.loot import ClaimResultDTO, CorpseDTO, LootContainerDTO
 
-_PUBLIC_DELAY_SEC = 900
-_PUBLIC_WINDOW_SEC = 3600
-_INVISIBLE_TTL_SEC = 86400
-_EMPTY_CORPSE_TTL_SEC = 300
 
 ITEMS_GENERATE_REQUESTED = "items.generate_requested"
 
 
 class LootIntegration:
-    def __init__(self, manager: LootManager, events: GameEventProducer | None = None) -> None:
+    def __init__(
+        self, manager: LootManager, events: GameEventProducer | None = None, game_config: Any | None = None
+    ) -> None:
         self._manager = manager
         self._events = events
+        self._game_config = game_config
 
     # ------------------------------------------------------------------
     # Corpse lifecycle
     # ------------------------------------------------------------------
 
     async def persist_corpse(self, corpse: CorpseDTO, location_id: str) -> None:
-        await self._manager.save_corpse(corpse, location_id, ttl=_INVISIBLE_TTL_SEC)
+        invisible_ttl = 86400.0
+        if self._game_config is not None:
+            invisible_ttl = await self._game_config.get_float("loot", "INVISIBLE_TTL_SEC", default=86400.0)
+        await self._manager.save_corpse(corpse, location_id, ttl=invisible_ttl)
 
     async def activate_corpses(self, corpse_ids: list[str], char_ids: list[int], location_id: str) -> None:
+        public_delay = 900.0
+        public_window = 3600.0
+        if self._game_config is not None:
+            public_delay = await self._game_config.get_float("loot", "PUBLIC_DELAY_SEC", default=900.0)
+            public_window = await self._game_config.get_float("loot", "PUBLIC_WINDOW_SEC", default=3600.0)
+
         now = time.time()
-        public_at = now + _PUBLIC_DELAY_SEC
-        decay_at = public_at + _PUBLIC_WINDOW_SEC
-        ttl = int(public_at - now) + _PUBLIC_WINDOW_SEC
+        public_at = now + public_delay
+        decay_at = public_at + public_window
+        ttl = int(public_at - now) + public_window
 
         for corpse_id in corpse_ids:
             await self._manager.patch_corpse(
@@ -61,7 +69,10 @@ class LootIntegration:
             resource_template_ids=set(claim.resource_deltas.keys()),
         )
         if updated is not None and updated.is_empty:
-            await self._manager.set_ttl(corpse_id, _EMPTY_CORPSE_TTL_SEC)
+            empty_ttl = 300.0
+            if self._game_config is not None:
+                empty_ttl = await self._game_config.get_float("loot", "EMPTY_CORPSE_TTL_SEC", default=300.0)
+            await self._manager.set_ttl(corpse_id, empty_ttl)
         return updated
 
     # ------------------------------------------------------------------

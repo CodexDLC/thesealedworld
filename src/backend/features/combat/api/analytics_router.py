@@ -56,9 +56,15 @@ async def get_combat_analytics_drilldown(
     date_from: str | None = None,
     date_to: str | None = None,
     aggregate_version: Annotated[int | None, Query(ge=1)] = None,
-    limit: Annotated[int, Query(ge=1, le=500)] = 100,
+    limit: Annotated[int, Query(ge=1, le=10000)] = 100,
     offset: Annotated[int, Query(ge=0)] = 0,
 ) -> CombatAnalyticsDrilldownResponseDTO:
+    game_config = getattr(request.app.state, "game_config", None)
+    if game_config:
+        max_drilldown_limit = await game_config.get_int("combat_ai", "ANALYTICS_DRILLDOWN_LIMIT", default=500)
+    else:
+        max_drilldown_limit = 500
+
     try:
         return await service.drilldown(
             date_from=date_from,
@@ -67,6 +73,7 @@ async def get_combat_analytics_drilldown(
             dimensions=_dimension_filters(request),
             limit=limit,
             offset=offset,
+            max_limit=max_drilldown_limit,
         )
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc

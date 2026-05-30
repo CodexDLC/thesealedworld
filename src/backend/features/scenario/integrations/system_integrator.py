@@ -30,6 +30,8 @@ if TYPE_CHECKING:
     from src.backend.features.scenario.integrations.content_integration import ScenarioContentIntegration
     from src.backend.features.world.integrations import WorldDataIntegration
     from src.backend.infrastructure.actor_state.managers import CharacterSessionManager
+    from src.backend.infrastructure.config.manager import GameConfigManager
+    from src.backend.infrastructure.redis.manager import RedisManager
     from src.backend.infrastructure.scenario.managers.session_manager import ScenarioSessionManager
     from src.backend.infrastructure.scenario.repositories import ScenarioRepository
 
@@ -69,6 +71,8 @@ class ScenarioSystemIntegrator:
         character_sessions: CharacterSessionManager,
         repo: ScenarioRepository,
         events: GameEventProducer,
+        redis: RedisManager,
+        game_config: GameConfigManager,
         character_repo: CharacterRepository | None = None,
         world_data: WorldDataIntegration | None = None,
         npc: NpcIntegration | None = None,
@@ -76,7 +80,8 @@ class ScenarioSystemIntegrator:
         self.sessions = sessions
         self.content = content
         self.character_sessions = character_sessions
-        self.repo = repo
+        self.redis = redis
+        self._game_config = game_config
         self.events = events
         self.character_repo = character_repo
         self.world_data = world_data
@@ -187,7 +192,10 @@ class ScenarioSystemIntegrator:
         )
 
         # DB Backup
-        if force_backup or context.step_counter % BACKUP_INTERVAL == 0:
+        backup_interval = 3
+        if self._game_config is not None:
+            backup_interval = await self._game_config.get_int("scenario", "BACKUP_INTERVAL", default=3)
+        if force_backup or context.step_counter % backup_interval == 0:
             await self._backup_state(
                 char_id, context.quest_key, context.current_node_key, context, context.scenario_session_id
             )
@@ -667,7 +675,7 @@ class ScenarioSystemIntegrator:
                 "participants": json.dumps(participants),
                 "commitments": json.dumps(commitments),
                 "location_id": location_id or "",
-                "ttl": SCENARIO_COMBAT_TTL_SECONDS,
+                "ttl": await self._get_combat_ttl(),
                 "metadata": json.dumps(
                     {
                         "quest_key": quest_key,
@@ -713,7 +721,7 @@ class ScenarioSystemIntegrator:
                 "budget": str(budget),
                 "force_single_family": "true",
                 "scope_id": combat_id,
-                "ttl": SCENARIO_COMBAT_TTL_SECONDS,
+                "ttl": await self._get_combat_ttl(),
             },
             timeout=30.0,
             correlation_id=f"{combat_id}:monster_group",

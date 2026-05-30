@@ -55,6 +55,7 @@ class CombatExperienceFinalizer:
         *,
         character_sessions: Any | None = None,
         progression_recorder: Any | None = None,
+        global_rate: float | None = None,
     ) -> dict[str, CombatActorExperienceResult]:
         meta = await data_service.get_meta(session_id)
         if not isinstance(meta, dict):
@@ -70,7 +71,7 @@ class CombatExperienceFinalizer:
                 continue
 
             char_id = int(actor_id)
-            rewards = self.calculate_actor_rewards(actor)
+            rewards = self.calculate_actor_rewards(actor, global_rate=global_rate)
             result = CombatActorExperienceResult(
                 actor_id=str(actor_id),
                 char_id=char_id,
@@ -99,7 +100,7 @@ class CombatExperienceFinalizer:
         ).info("CombatXpFinalizerCompleted")
         return results
 
-    def calculate_actor_rewards(self, actor: dict[str, Any]) -> dict[str, float]:
+    def calculate_actor_rewards(self, actor: dict[str, Any], global_rate: float | None = None) -> dict[str, float]:
         xp_buffer = self._float_mapping(actor.get("xp_buffer"))
         if not xp_buffer:
             return {}
@@ -159,7 +160,11 @@ class CombatExperienceFinalizer:
                 wall_mod=0.0,
             )
 
-        return SkillProgressionCalculator.calculate(SkillProgressionBatchInput(entries=entries))
+        if global_rate is not None:
+            batch_input = SkillProgressionBatchInput(entries=entries, global_rate=global_rate)
+        else:
+            batch_input = SkillProgressionBatchInput(entries=entries)
+        return SkillProgressionCalculator.calculate(batch_input)
 
     def _add_weapon_power(
         self,

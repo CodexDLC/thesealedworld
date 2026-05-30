@@ -181,7 +181,14 @@
     display: grid;
     place-items: center;
     aspect-ratio: 1.1;
+}
+
+.combat-belt-slot {
     opacity: .72;
+}
+
+.combat-ability-tooltip-host {
+    aspect-ratio: 1.1;
 }
 
 .combat-belt-slot--empty,

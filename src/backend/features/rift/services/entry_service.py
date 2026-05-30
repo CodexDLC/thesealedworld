@@ -51,22 +51,21 @@ class RiftEntryService:
             "combat_power": await self._entry_power_context(char_id),
         }
 
-        await self.runtime.save_instance(runtime)
-        session = await self.runtime.create_run_session(
-            self._session_payload_from_runtime(
-                runtime,
-                rift_session_id=rift_session_id,
-                char_id=char_id,
-                participant_ref=participant_ref,
-                entry_context=entry_context,
-                exit_policy={
-                    "target_state": CoreDomain.EXPLORATION.value,
-                    "location_id": None,
-                    "reason": "rift_exit",
-                    "completion_exit": "from_heart",
-                },
-            )
+        await self.runtime.save_instance_runtime(runtime, mode="redis_and_db", status="active")
+        session = self._session_payload_from_runtime(
+            runtime,
+            rift_session_id=rift_session_id,
+            char_id=char_id,
+            participant_ref=participant_ref,
+            entry_context=entry_context,
+            exit_policy={
+                "target_state": CoreDomain.EXPLORATION.value,
+                "location_id": None,
+                "reason": "rift_exit",
+                "completion_exit": "from_heart",
+            },
         )
+        await self.runtime.save_run_session_runtime(session, mode="redis_and_db", status="active")
         await self.runtime.enter_node_presence(runtime.rift_instance_id, runtime.current_node_id, participant_ref)
         await self.character_sessions.set_rift_session(
             char_id,
@@ -107,17 +106,16 @@ class RiftEntryService:
             "combat_power": await self._entry_power_context(char_id),
         }
 
-        await self.runtime.save_instance(runtime)
-        session = await self.runtime.create_run_session(
-            self._session_payload_from_runtime(
-                runtime,
-                rift_session_id=rift_session_id,
-                char_id=char_id,
-                participant_ref=participant_ref,
-                entry_context=entry_context,
-                exit_policy=exit_policy,
-            )
+        await self.runtime.save_instance_runtime(runtime, mode="redis_and_db", status="active")
+        session = self._session_payload_from_runtime(
+            runtime,
+            rift_session_id=rift_session_id,
+            char_id=char_id,
+            participant_ref=participant_ref,
+            entry_context=entry_context,
+            exit_policy=exit_policy,
         )
+        await self.runtime.save_run_session_runtime(session, mode="redis_and_db", status="active")
         await self.runtime.enter_node_presence(runtime.rift_instance_id, runtime.current_node_id, participant_ref)
         await self.character_sessions.attach_prepared_rift_session(
             char_id,

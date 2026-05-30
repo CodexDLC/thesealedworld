@@ -97,6 +97,38 @@ class FakeRuntimeIntegration:
         self.left_presence.append((rift_instance_id, node_id, participant_ref))
 
 
+class FakeGameConfig:
+    def __init__(self, values: dict[str, object]) -> None:
+        self.values = values
+
+    async def get_float(self, namespace: str, key: str, default: float) -> float:
+        assert namespace == "rift"
+        return float(self.values.get(key, default))
+
+    async def get_int(self, namespace: str, key: str, default: int) -> int:
+        assert namespace == "rift"
+        return int(self.values.get(key, default))
+
+    async def get_bool(self, namespace: str, key: str, default: bool) -> bool:
+        assert namespace == "rift"
+        return bool(self.values.get(key, default))
+
+
+FAST_RIFT_CONFIG = FakeGameConfig(
+    {
+        "TRANSITION_EXPLORATION_DURATION_MS": 2000,
+        "TRANSITION_TICK_INTERVAL_MS": 2000,
+    }
+)
+FAST_RIFT_ORDINARY_COMBAT_CONFIG = FakeGameConfig(
+    {
+        "TRANSITION_EXPLORATION_DURATION_MS": 2000,
+        "TRANSITION_TICK_INTERVAL_MS": 2000,
+        "ORDINARY_NODE_COMBAT_CHANCE": 1.0,
+    }
+)
+
+
 class FakeCharacterSessions:
     def __init__(self, *, document: dict | None = None) -> None:
         self.document = document
@@ -402,6 +434,7 @@ async def test_player_service_starts_real_combat_when_travel_tick_triggers_encou
         runtime=runtime,
         character_sessions=FakeCharacterSessions(),
         encounters=encounters,
+        game_config=FAST_RIFT_CONFIG,
     )
 
     started = await service.start_travel(7, RiftTravelStartRequestDTO(target_node_id="node-next"))
@@ -451,6 +484,7 @@ async def test_player_service_starts_required_node_entry_combat_after_arrival_wi
         runtime=runtime,
         character_sessions=FakeCharacterSessions(),
         encounters=encounters,
+        game_config=FAST_RIFT_CONFIG,
     )
 
     started = await service.start_travel(7, RiftTravelStartRequestDTO(target_node_id="node-next"))
@@ -481,25 +515,14 @@ async def test_player_service_starts_required_node_entry_combat_after_arrival_wi
 
 @pytest.mark.asyncio
 async def test_player_service_starts_ordinary_node_entry_combat_after_arrival() -> None:
-    instance = _two_node_runtime().model_copy(
-        update={
-            "setting": {
-                **_two_node_runtime().setting,
-                "ordinary_node_combat_rules": {
-                    "enabled": True,
-                    "first_visit_only": True,
-                    "combat_chance": 1.0,
-                    "possible_events": ["none", "combat"],
-                },
-            }
-        }
-    )
+    instance = _two_node_runtime()
     runtime = FakeRuntimeIntegration(instance=instance)
     encounters = FakeRiftCombatLauncher()
     service = RiftPlayerService(
         runtime=runtime,
         character_sessions=FakeCharacterSessions(),
         encounters=encounters,
+        game_config=FAST_RIFT_ORDINARY_COMBAT_CONFIG,
     )
 
     started = await service.start_travel(7, RiftTravelStartRequestDTO(target_node_id="node-next"))
@@ -809,16 +832,7 @@ def _two_node_runtime() -> RiftZoneRuntimeDTO:
         zone_canvas_key="starter",
         scale_preset_key="starter_5x5",
         assembly_preset_key="starter",
-        setting={
-            "title": "Рваный тракт",
-            "tier": 1,
-            "transition_combat_rules": {
-                "exploration_duration_ms": 2000,
-                "tick_interval_ms": 2000,
-                "event_chance": 1.0,
-                "possible_events": ["none", "combat"],
-            },
-        },
+        setting={"title": "Рваный тракт", "tier": 1},
         nodes={
             "node-start": RiftZoneCellDTO(
                 node_id="node-start",

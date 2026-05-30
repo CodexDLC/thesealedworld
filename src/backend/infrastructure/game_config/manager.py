@@ -18,6 +18,22 @@ class ConfigEntry:
     current: str
     default: str
     value_type: str  # "int" | "float" | "str" | "bool"
+    label: str | None = None
+    description: str | None = None
+    group: str | None = None
+    unit: str | None = None
+    min_value: float | None = None
+    max_value: float | None = None
+    step: float | None = None
+    risk: str = "low"
+    live_scope: str = "runtime"
+    tags: tuple[str, ...] = ()
+    choices: tuple[str, ...] = ()
+    source: str = "code_default"
+
+
+class ConfigValidationError(ValueError):
+    """Raised when a known config key receives a value outside its contract."""
 
 
 _BOOL_TRUE = {"true", "1", "yes"}
@@ -111,6 +127,7 @@ class GameConfigManager:
         entries: list[ConfigEntry] = []
         for key, default in config_cls.defaults().items():
             current = await self._redis.get(config_cls.redis_key(key))
+            meta = config_cls.metadata_for(key)
             entries.append(
                 ConfigEntry(
                     key=key,
@@ -118,6 +135,18 @@ class GameConfigManager:
                     current=current if current is not None else str(default),
                     default=str(default),
                     value_type=type(default).__name__,
+                    label=meta.label,
+                    description=meta.description,
+                    group=meta.group,
+                    unit=meta.unit,
+                    min_value=meta.min_value,
+                    max_value=meta.max_value,
+                    step=meta.step,
+                    risk=meta.risk,
+                    live_scope=meta.live_scope,
+                    tags=meta.tags,
+                    choices=meta.choices,
+                    source=meta.source,
                 )
             )
         return entries
@@ -134,6 +163,7 @@ class GameConfigManager:
         config_cls = self._registry.get(namespace)
         if config_cls is None or key not in config_cls.defaults():
             return False
+        self._validate_value(namespace, key, value)
         await self._redis.set(config_cls.redis_key(key), value)
         log.bind(namespace=namespace, key=key).info("GameConfigSet")
         return True
@@ -166,6 +196,25 @@ class GameConfigManager:
         if key not in defaults:
             return None
         return defaults[key]
+
+    def _validate_value(self, namespace: str, key: str, value: str) -> None:
+        registered_default = self._registered_default(namespace, key)
+        if registered_default is None:
+            return
+        config_cls = self._registry[namespace]
+        meta = config_cls.metadata_for(key)
+        parsed = _parse_for_default(registered_default, value)
+        if parsed is None:
+            raise ConfigValidationError(f"{namespace}.{key} must be a {_type_label(registered_default)}")
+        if meta.choices and str(parsed) not in meta.choices:
+            choices = ", ".join(meta.choices)
+            raise ConfigValidationError(f"{namespace}.{key} must be one of: {choices}")
+        if isinstance(parsed, (int, float)) and not isinstance(parsed, bool):
+            numeric = float(parsed)
+            if meta.min_value is not None and numeric < meta.min_value:
+                raise ConfigValidationError(f"{namespace}.{key} must be >= {meta.min_value}")
+            if meta.max_value is not None and numeric > meta.max_value:
+                raise ConfigValidationError(f"{namespace}.{key} must be <= {meta.max_value}")
 
     async def _coerce(
         self,
@@ -221,3 +270,23 @@ def _to_bool(raw: object) -> bool | None:
     if token in _BOOL_FALSE:
         return False
     return None
+
+
+def _parse_for_default(default: ConfigValue, raw: str) -> ConfigValue | None:
+    if isinstance(default, bool):
+        return _to_bool(raw)
+    if isinstance(default, int):
+        return _to_int(raw)
+    if isinstance(default, float):
+        return _to_float(raw)
+    return str(raw)
+
+
+def _type_label(default: ConfigValue) -> str:
+    if isinstance(default, bool):
+        return "bool"
+    if isinstance(default, int):
+        return "int"
+    if isinstance(default, float):
+        return "float"
+    return "str"

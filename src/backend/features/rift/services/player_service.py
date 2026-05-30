@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING, Any
 from src.backend.features.rift.dto.screen import RiftExitResponseDTO, RiftTravelTickResponseDTO
 from src.backend.features.rift.runtime.actions import resolve_rift_action_runtime
 from src.backend.features.rift.runtime.navigation import build_rift_screen, start_travel_runtime, tick_travel_runtime
+from src.backend.features.rift.runtime.tunables import load_rift_tunables, use_tunables
 from src.shared.enums import CoreDomain
 
 if TYPE_CHECKING:
@@ -18,6 +19,7 @@ if TYPE_CHECKING:
     )
     from src.backend.features.rift.integrations import RiftRuntimeIntegration
     from src.backend.infrastructure.actor_state.managers import CharacterSessionManager
+    from src.backend.infrastructure.game_config.manager import GameConfigManager
 
 
 class RiftPlayerService:
@@ -27,20 +29,24 @@ class RiftPlayerService:
         runtime: RiftRuntimeIntegration,
         character_sessions: CharacterSessionManager,
         encounters: Any | None = None,
+        game_config: GameConfigManager | None = None,
     ) -> None:
         self.runtime = runtime
         self.character_sessions = character_sessions
         self.encounters = encounters
+        self.game_config = game_config
 
     async def screen(self, char_id: int) -> RiftScreenDTO:
         context = await self._exit_context(char_id)
-        return build_rift_screen(
-            self._runtime_for_session(
-                context["instance"],
-                context["session"],
-                document=context["document"],
+        tunables = await load_rift_tunables(self.game_config)
+        with use_tunables(tunables):
+            return build_rift_screen(
+                self._runtime_for_session(
+                    context["instance"],
+                    context["session"],
+                    document=context["document"],
+                )
             )
-        )
 
     async def start_travel(
         self,
@@ -49,7 +55,9 @@ class RiftPlayerService:
     ) -> RiftTravelTickResponseDTO:
         context = await self._exit_context(char_id)
         runtime = self._runtime_for_session(context["instance"], context["session"], document=context["document"])
-        updated, response = start_travel_runtime(runtime, request.target_node_id)
+        tunables = await load_rift_tunables(self.game_config)
+        with use_tunables(tunables):
+            updated, response = start_travel_runtime(runtime, request.target_node_id)
         await self._save_runtime_update(context=context, updated=updated)
         return response
 
@@ -60,7 +68,11 @@ class RiftPlayerService:
     ) -> RiftTravelTickResponseDTO:
         context = await self._exit_context(char_id)
         runtime = self._runtime_for_session(context["instance"], context["session"], document=context["document"])
-        updated, response = tick_travel_runtime(runtime, travel_id=request.travel_id, force_event=request.force_event)
+        tunables = await load_rift_tunables(self.game_config)
+        with use_tunables(tunables):
+            updated, response = tick_travel_runtime(
+                runtime, travel_id=request.travel_id, force_event=request.force_event
+            )
         session = await self._save_runtime_update(context=context, updated=updated)
         if response.combat_prompt is not None and self.encounters is not None:
             response = response.model_copy(
@@ -83,7 +95,9 @@ class RiftPlayerService:
         runtime = self._runtime_for_session(context["instance"], context["session"], document=context["document"])
         if request.action_type == "resolve_node_event" and _current_node_combat_event(runtime):
             raise ValueError("Node combat must be resolved by combat result")
-        updated, response = resolve_rift_action_runtime(runtime, request)
+        tunables = await load_rift_tunables(self.game_config)
+        with use_tunables(tunables):
+            updated, response = resolve_rift_action_runtime(runtime, request)
         await self._save_runtime_update(context=context, updated=updated)
         return response
 

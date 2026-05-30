@@ -10,7 +10,9 @@ from src.shared.enums import CoreDomain
 class FakeRuntimeIntegration:
     def __init__(self) -> None:
         self.saved_instances: list[RiftZoneRuntimeDTO] = []
+        self.saved_instance_runtime: list[tuple[RiftZoneRuntimeDTO, str, str]] = []
         self.sessions: list[dict] = []
+        self.saved_session_runtime: list[tuple[dict, str, str | None]] = []
         self.presence: list[tuple[str, str, str]] = []
 
     async def save_instance(self, runtime: RiftZoneRuntimeDTO) -> None:
@@ -18,6 +20,25 @@ class FakeRuntimeIntegration:
 
     async def create_run_session(self, payload: dict) -> dict:
         self.sessions.append(dict(payload))
+        return dict(payload)
+
+    async def save_instance_runtime(
+        self,
+        runtime: RiftZoneRuntimeDTO,
+        *,
+        mode: str = "redis_only",
+        status: str = "active",
+    ) -> None:
+        self.saved_instance_runtime.append((runtime, mode, status))
+
+    async def save_run_session_runtime(
+        self,
+        payload: dict,
+        *,
+        mode: str = "redis_only",
+        status: str | None = None,
+    ) -> dict:
+        self.saved_session_runtime.append((dict(payload), mode, status))
         return dict(payload)
 
     async def enter_node_presence(self, rift_instance_id: str, node_id: str, participant_ref: str) -> None:
@@ -105,10 +126,14 @@ async def test_enter_from_scenario_creates_rift_run_and_moves_active_character(m
     assert result["target_state"] == CoreDomain.RIFT.value
     assert result["rift_instance_id"] == "rift-instance-1"
     assert result["rift_session_id"].startswith("rift:run:")
-    assert runtime.saved_instances[0].rift_instance_id == "rift-instance-1"
-    assert runtime.sessions[0]["owner_id"] == "char:7"
-    assert runtime.sessions[0]["participant_ref"] == "char:7"
-    assert runtime.sessions[0]["entry_context"] == {
+    assert runtime.saved_instances == []
+    assert runtime.sessions == []
+    assert runtime.saved_instance_runtime[0] == (_runtime(), "redis_and_db", "active")
+    assert runtime.saved_session_runtime[0][1:] == ("redis_and_db", "active")
+    persisted_session = runtime.saved_session_runtime[0][0]
+    assert persisted_session["owner_id"] == "char:7"
+    assert persisted_session["participant_ref"] == "char:7"
+    assert persisted_session["entry_context"] == {
         "source_state": CoreDomain.SCENARIO.value,
         "source_ref": "awakening_rift:knockout",
         "combat_power": {
@@ -153,7 +178,12 @@ async def test_prepare_from_scenario_creates_rift_run_with_exit_policy_without_s
 
     assert result["status"] == "ok"
     assert result["target_state"] == CoreDomain.SCENARIO.value
-    assert runtime.sessions[0]["exit_policy"] == {
+    assert runtime.saved_instances == []
+    assert runtime.sessions == []
+    assert runtime.saved_instance_runtime[0] == (_runtime(), "redis_and_db", "active")
+    assert runtime.saved_session_runtime[0][1:] == ("redis_and_db", "active")
+    persisted_session = runtime.saved_session_runtime[0][0]
+    assert persisted_session["exit_policy"] == {
         "mode": "heart_exit_only",
         "completion_exit": "from_heart",
         "entrance_seals_on_entry": True,
@@ -164,7 +194,7 @@ async def test_prepare_from_scenario_creates_rift_run_with_exit_policy_without_s
         "reason": "starter_rift_escape",
         "close_rift_on_exit": True,
     }
-    assert runtime.sessions[0]["entry_context"]["combat_power"] == {
+    assert persisted_session["entry_context"]["combat_power"] == {
         "scope": "solo",
         "player_gear_score": 612,
         "party_gear_score": 612,
@@ -205,8 +235,10 @@ async def test_prepare_from_scenario_can_require_return_to_exit_after_heart(monk
         request=RiftStartRequestDTO(seed="story-seed", debug=False),
     )
 
-    assert runtime.sessions[0]["exit_policy"]["completion_exit"] == "return_to_exit"
-    assert runtime.sessions[0]["exit_policy"]["exit_node_id"] == "node-start"
+    persisted_session = runtime.saved_session_runtime[0][0]
+    assert runtime.sessions == []
+    assert persisted_session["exit_policy"]["completion_exit"] == "return_to_exit"
+    assert persisted_session["exit_policy"]["exit_node_id"] == "node-start"
 
 
 @pytest.mark.asyncio

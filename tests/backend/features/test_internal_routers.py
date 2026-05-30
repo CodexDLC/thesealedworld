@@ -48,12 +48,34 @@ class FakeConfigManager:
         entries = []
         for key, current in self._data[namespace].items():
             default = self._defaults.get(namespace, {}).get(key, current)
-            entries.append(ConfigEntry(key=key, namespace=namespace, current=current, default=default, value_type="str"))
+            entries.append(
+                ConfigEntry(
+                    key=key,
+                    namespace=namespace,
+                    current=current,
+                    default=default,
+                    value_type="str",
+                    label="Round time",
+                    description="How long a round remains open.",
+                    group="Timing",
+                    unit="seconds",
+                    min_value=1.0,
+                    max_value=300.0,
+                    step=1.0,
+                    risk="medium",
+                    live_scope="new_round",
+                    tags=("combat", "timing"),
+                )
+            )
         return entries
 
     async def set(self, namespace: str, key: str, value: str) -> bool:
         if namespace not in self._data or key not in self._data[namespace]:
             return False
+        if value == "invalid":
+            from src.backend.infrastructure.game_config.manager import ConfigValidationError
+
+            raise ConfigValidationError("round_time must be an int")
         self._data[namespace][key] = value
         return True
 
@@ -95,6 +117,15 @@ class TestGameConfigRouter:
         assert entries[0]["current"] == "30"
         assert entries[0]["default"] == "45"
         assert entries[0]["is_modified"] is True
+        assert entries[0]["label"] == "Round time"
+        assert entries[0]["group"] == "Timing"
+        assert entries[0]["unit"] == "seconds"
+        assert entries[0]["min_value"] == 1.0
+        assert entries[0]["max_value"] == 300.0
+        assert entries[0]["step"] == 1.0
+        assert entries[0]["risk"] == "medium"
+        assert entries[0]["live_scope"] == "new_round"
+        assert entries[0]["tags"] == ["combat", "timing"]
 
     def test_list_namespace_unknown(self, config_client: TestClient) -> None:
         resp = config_client.get("/api/internal/config/nonexistent")
@@ -108,6 +139,11 @@ class TestGameConfigRouter:
     def test_set_value_unknown_key(self, config_client: TestClient) -> None:
         resp = config_client.patch("/api/internal/config/combat/unknown_key", json={"value": "1"})
         assert resp.status_code == 404
+
+    def test_set_value_invalid_returns_422(self, config_client: TestClient) -> None:
+        resp = config_client.patch("/api/internal/config/combat/round_time", json={"value": "invalid"})
+        assert resp.status_code == 422
+        assert "must be an int" in resp.json()["detail"]
 
     def test_reset_key(self, config_client: TestClient) -> None:
         config_client.patch("/api/internal/config/combat/round_time", json={"value": "99"})

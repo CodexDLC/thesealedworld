@@ -8,7 +8,10 @@ if TYPE_CHECKING:
 
 from src.backend.features.game_catalog.combat.resources.abilities import get_all_ability_catalog_entries
 from src.backend.features.game_catalog.combat.resources.basic_exchanges import get_all_basic_exchange_entries
-from src.backend.features.game_catalog.combat.resources.effects import get_all_effect_catalog_entries
+from src.backend.features.game_catalog.combat.resources.effects import (
+    get_all_effect_catalog_entries,
+    get_effect_catalog_entry,
+)
 from src.backend.features.game_catalog.combat.resources.feints import get_all_feint_catalog_entries
 from src.backend.features.game_catalog.combat.resources.gifts import get_all_gift_catalog_entries
 from src.backend.features.game_catalog.combat.resources.items import get_all_combat_item_action_catalog_entries
@@ -83,6 +86,8 @@ class CombatResourceCatalogService:
             for field in ("cost", "target", "target_count"):
                 if field in technical and technical[field] not in (None, [], {}):
                     public[field] = technical[field]
+            if id_field == "ability_id":
+                public.update(self._ability_public_details(technical))
             public["catalog_key"] = data["key"]
             catalog[entry_id] = public
         return catalog
@@ -152,3 +157,150 @@ class CombatResourceCatalogService:
             "default_taxonomy": default_taxonomy,
             "taxonomy_variants": variants,
         }
+
+    @classmethod
+    def _ability_public_details(cls, technical: dict[str, Any]) -> dict[str, Any]:
+        target = str(technical.get("target") or "")
+        details: dict[str, Any] = {
+            "target_label": cls._target_label(target),
+        }
+        mechanics = cls._ability_mechanics(technical)
+        if mechanics:
+            details["mechanics"] = mechanics
+        return details
+
+    @classmethod
+    def _ability_mechanics(cls, technical: dict[str, Any]) -> list[str]:
+        mechanics: list[str] = []
+        preset = (technical.get("pipeline_mutations") or {}).get("preset")
+        if preset:
+            mechanics.append(f"Тип: {cls._preset_label(str(preset))}")
+
+        damage = technical.get("override_damage")
+        if damage:
+            label = "Лечение" if preset == "HEALING" else "Урон"
+            mechanics.append(f"{label}: {cls._range_text(damage)}")
+
+        for application in technical.get("modifier_applications") or []:
+            text = cls._modifier_text(application)
+            if text:
+                mechanics.append(text)
+
+        for effect in technical.get("effects") or []:
+            text = cls._effect_text(effect)
+            if text:
+                mechanics.append(text)
+
+        triggers = technical.get("triggers") or []
+        for trigger in triggers:
+            if trigger:
+                mechanics.append(f"Триггер: {trigger}")
+
+        return mechanics
+
+    @staticmethod
+    def _target_label(target: str) -> str:
+        labels = {
+            "self": "На себя",
+            "single_enemy": "Один враг",
+            "all_enemies": "Все враги",
+            "single_ally": "Один союзник",
+            "all_allies": "Все союзники",
+            "random_enemy": "Случайный враг",
+            "lowest_hp_ally": "Союзник с минимальным HP",
+            "lowest_hp_enemy": "Враг с минимальным HP",
+            "cleave": "Несколько врагов",
+        }
+        return labels.get(target, target or "NO_TARGET")
+
+    @staticmethod
+    def _preset_label(preset: str) -> str:
+        labels = {
+            "MAGIC_ATTACK": "атака",
+            "HEALING": "лечение",
+            "BUFF": "эффект",
+        }
+        return labels.get(preset, preset.lower())
+
+    @classmethod
+    def _modifier_text(cls, application: dict[str, Any]) -> str:
+        modifier_id = str(application.get("modifier_id") or "")
+        if not modifier_id:
+            return ""
+        target_actor = str(application.get("target_actor") or "self")
+        value = application.get("value_override")
+        value_text = (
+            cls._number_text(value)
+            if value is not None
+            else f"x{cls._number_text(application.get('value_multiplier'))}"
+        )
+        duration = application.get("duration_exchanges")
+        duration_text = f" на {duration} {cls._exchange_word(duration)}" if duration else ""
+        target_text = "Цель получает" if target_actor == "target" else "Вы получаете"
+        return f"{target_text}: {cls._modifier_label(modifier_id)} {value_text}{duration_text}"
+
+    @staticmethod
+    def _modifier_label(modifier_id: str) -> str:
+        labels = {
+            "armor_add": "броня",
+            "damage_mult": "урон",
+            "evasion_add": "уклонение",
+            "physical_damage_bonus_add": "физический урон",
+        }
+        return labels.get(modifier_id, modifier_id)
+
+    @classmethod
+    def _effect_text(cls, effect: dict[str, Any]) -> str:
+        effect_id = str(effect.get("id") or "")
+        if not effect_id:
+            return ""
+        params = effect.get("params") or {}
+        text = f"Эффект: {cls._effect_label(effect_id).lower()}"
+        parts: list[str] = []
+        duration = params.get("duration")
+        if duration:
+            text = f"{text} на {duration} {cls._exchange_word(duration)}"
+        power = params.get("power")
+        if power is not None:
+            parts.append(f"сила {cls._number_text(power)}")
+        value = params.get("value")
+        if value is not None:
+            parts.append(f"значение {cls._number_text(value)}")
+        if parts:
+            text = f"{text}, {', '.join(parts)}"
+        return text
+
+    @staticmethod
+    def _effect_label(effect_id: str) -> str:
+        entry = get_effect_catalog_entry(effect_id)
+        if entry is None:
+            return effect_id
+        variant = entry.descriptive.variants.get(entry.descriptive.default_taxonomy)
+        variant = variant or entry.descriptive.variants.get("humanoid")
+        if variant is None:
+            return effect_id
+        return variant.display_name or effect_id
+
+    @classmethod
+    def _range_text(cls, value: Any) -> str:
+        if isinstance(value, list | tuple) and len(value) == 2:
+            return f"{cls._number_text(value[0])}-{cls._number_text(value[1])}"
+        return cls._number_text(value)
+
+    @staticmethod
+    def _number_text(value: Any) -> str:
+        if isinstance(value, float) and value.is_integer():
+            return str(int(value))
+        return str(value)
+
+    @staticmethod
+    def _exchange_word(value: Any) -> str:
+        try:
+            number = abs(int(value))
+        except (TypeError, ValueError):
+            return "размена"
+        if number % 10 == 1 and number % 100 != 11:
+            return "размен"
+        if 2 <= number % 10 <= 4 and not 12 <= number % 100 <= 14:
+            return "размена"
+        return "разменов"

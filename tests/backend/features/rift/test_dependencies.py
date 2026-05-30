@@ -6,7 +6,8 @@ from typing import Any
 import pytest
 
 from src.backend.features.rift import dependencies
-from src.backend.features.rift.services import RiftPlayerService
+from src.backend.features.rift import events as rift_events
+from src.backend.features.rift.services import RiftEntryService, RiftPlayerService
 
 
 class SpyRiftRuntimeIntegration:
@@ -23,6 +24,54 @@ def test_rift_player_dependency_wires_db_state_repositories_for_cold_restore(mon
     service = dependencies.get_rift_player_service(request, db_session)  # type: ignore[arg-type]
 
     assert isinstance(service, RiftPlayerService)
+    assert isinstance(service.runtime, SpyRiftRuntimeIntegration)
+    assert service.runtime.kwargs["portal_key_repository"] is not None
+    assert service.runtime.kwargs["instance_state_repository"] is not None
+    assert service.runtime.kwargs["run_state_repository"] is not None
+
+
+@pytest.mark.unit
+def test_rift_entry_dependency_wires_db_state_repositories_for_initial_snapshot(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(dependencies, "RiftRuntimeIntegration", SpyRiftRuntimeIntegration)
+    request = SimpleNamespace(
+        app=SimpleNamespace(
+            state=SimpleNamespace(
+                redis=object(),
+                character_sessions=object(),
+                rift_population_bindings={},
+            )
+        )
+    )
+    db_session = object()
+
+    service = dependencies.get_rift_entry_service(request, db_session)  # type: ignore[arg-type]
+
+    assert isinstance(service, RiftEntryService)
+    assert isinstance(service.runtime, SpyRiftRuntimeIntegration)
+    assert service.runtime.kwargs["portal_key_repository"] is not None
+    assert service.runtime.kwargs["instance_state_repository"] is not None
+    assert service.runtime.kwargs["run_state_repository"] is not None
+
+
+@pytest.mark.unit
+def test_rift_event_entry_service_wires_db_state_repositories_for_initial_snapshot(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(rift_events, "RiftRuntimeIntegration", SpyRiftRuntimeIntegration)
+    app = SimpleNamespace(
+        state=SimpleNamespace(
+            redis=object(),
+            character_sessions=object(),
+            rift_population_bindings={},
+        )
+    )
+    db_session = object()
+
+    service = rift_events._entry_service(app, db_session)  # type: ignore[arg-type]  # noqa: SLF001
+
+    assert isinstance(service, RiftEntryService)
     assert isinstance(service.runtime, SpyRiftRuntimeIntegration)
     assert service.runtime.kwargs["portal_key_repository"] is not None
     assert service.runtime.kwargs["instance_state_repository"] is not None

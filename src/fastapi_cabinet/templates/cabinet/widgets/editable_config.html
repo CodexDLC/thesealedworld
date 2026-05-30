@@ -38,7 +38,14 @@
                     </tr>
                 </thead>
                 <tbody>
+                    {% set row_state = namespace(group=None) %}
                     {% for entry in widget.entries %}
+                        {% if entry.group and entry.group != row_state.group %}
+                            {% set row_state.group = entry.group %}
+                            <tr class="fc-config-group-row">
+                                <td colspan="5">{{ entry.group }}</td>
+                            </tr>
+                        {% endif %}
                         <tr class="{% if entry.is_modified %}fc-config-row--modified{% endif %}">
                             <td>
                                 <button type="submit"
@@ -51,6 +58,17 @@
                                 {% if entry.description %}
                                     <div class="fc-config-description">{{ entry.description }}</div>
                                 {% endif %}
+                                <div class="fc-config-meta">
+                                    {% if entry.unit %}
+                                        <span class="fc-config-badge">{{ entry.unit }}</span>
+                                    {% endif %}
+                                    {% if entry.risk and entry.risk != "low" %}
+                                        <span class="fc-config-badge fc-config-badge--risk-{{ entry.risk }}">{{ entry.risk }}</span>
+                                    {% endif %}
+                                    {% if entry.live_scope and entry.live_scope != "runtime" %}
+                                        <span class="fc-config-badge">{{ entry.live_scope }}</span>
+                                    {% endif %}
+                                </div>
                                 {% if entry.label %}
                                     <div class="fc-config-raw-key">{{ entry.key }}</div>
                                 {% endif %}
@@ -78,13 +96,17 @@
                                 {% elif entry.value_type == "int" %}
                                     <input class="fc-config-input fc-config-input--number"
                                            type="number"
-                                           step="1"
+                                           step="{{ entry.step if entry.step is not none else 1 }}"
+                                           {% if entry.min_value is not none %}min="{{ entry.min_value }}"{% endif %}
+                                           {% if entry.max_value is not none %}max="{{ entry.max_value }}"{% endif %}
                                            name="values[{{ entry.key }}]"
                                            value="{{ entry.current }}">
                                 {% elif entry.value_type == "float" %}
                                     <input class="fc-config-input fc-config-input--number"
                                            type="number"
-                                           step="any"
+                                           step="{{ entry.step if entry.step is not none else 'any' }}"
+                                           {% if entry.min_value is not none %}min="{{ entry.min_value }}"{% endif %}
+                                           {% if entry.max_value is not none %}max="{{ entry.max_value }}"{% endif %}
                                            name="values[{{ entry.key }}]"
                                            value="{{ entry.current }}">
                                 {% else %}

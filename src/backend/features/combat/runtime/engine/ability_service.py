@@ -317,6 +317,8 @@ class AbilityService:
                 "target_count": 1 if target is not None else 0,
             }
         )
+        if mode == "ability":
+            ctx.result.action_facts["outcome"] = AbilityService._ability_default_outcome(config)
 
         # [EVENT] CAST
         ctx.result.events.append(
@@ -1060,3 +1062,11 @@ class AbilityService:
                 duration = application.duration_exchanges or 1
                 expire_at_exchange = max(expire_at_exchange, current_exchange + duration)
         return expire_at_exchange
+
+    @staticmethod
+    def _ability_default_outcome(config: AbilityTechnicalDTO | FeintTechnicalDTO) -> str:
+        if getattr(config, "modifier_applications", None):
+            return "apply"
+        if getattr(config, "effects", None):
+            return "apply"
+        return "cast"

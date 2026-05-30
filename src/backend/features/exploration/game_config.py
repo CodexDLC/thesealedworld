@@ -1,6 +1,6 @@
 from typing import ClassVar
 
-from src.backend.infrastructure.game_config.base import BaseGameConfig
+from src.backend.infrastructure.game_config.base import BaseGameConfig, ConfigEntryMeta
 
 
 class ExplorationConfig(BaseGameConfig):
@@ -23,6 +23,126 @@ class ExplorationConfig(BaseGameConfig):
 
     # ── Session lifetime ───────────────────────────────────────────────────────
     ENCOUNTER_SESSION_TTL_SECONDS: int = 30 * 60
+
+    config_metadata = {
+        "DEFAULT_SPAWN_POINT": ConfigEntryMeta(
+            label="Стартовая точка",
+            description="Fallback location id для персонажа, если активная позиция отсутствует.",
+            group="Мир",
+            unit="location_id",
+            risk="high",
+            live_scope="next_location_resolution",
+            tags=("exploration", "world"),
+        ),
+        "TRAVEL_TIME_MULT": ConfigEntryMeta(
+            label="Множитель времени путешествия",
+            description="Глобально ускоряет или замедляет travel pacing.",
+            group="Темп путешествий",
+            unit="multiplier",
+            min_value=0.0,
+            max_value=10.0,
+            step=0.1,
+            risk="medium",
+            live_scope="new_travel",
+            tags=("exploration", "pacing"),
+        ),
+        "EVENT_CHANCE_PER_STEP": ConfigEntryMeta(
+            label="Шанс события на шаг",
+            description="Базовая вероятность получить exploration event на шаг перемещения.",
+            group="Темп путешествий",
+            unit="ratio",
+            min_value=0.0,
+            max_value=1.0,
+            step=0.01,
+            risk="medium",
+            live_scope="new_step",
+            tags=("exploration", "events"),
+        ),
+        "CHANCE_MERCHANT": ConfigEntryMeta(
+            label="Шанс торговца",
+            description="Зарезервированный шанс merchant discovery в exploration policy.",
+            group="Энкаунтеры",
+            unit="ratio",
+            min_value=0.0,
+            max_value=1.0,
+            step=0.01,
+            risk="low",
+            live_scope="reserved",
+            tags=("exploration", "encounter", "reserved"),
+        ),
+        "CHANCE_QUEST": ConfigEntryMeta(
+            label="Шанс квеста",
+            description="Зарезервированный шанс quest discovery в exploration policy.",
+            group="Энкаунтеры",
+            unit="ratio",
+            min_value=0.0,
+            max_value=1.0,
+            step=0.01,
+            risk="low",
+            live_scope="reserved",
+            tags=("exploration", "encounter", "reserved"),
+        ),
+        "CHANCE_COMBAT_BASE": ConfigEntryMeta(
+            label="Базовый шанс боя",
+            description="Вероятность combat encounter при обычном travel roll.",
+            group="Энкаунтеры",
+            unit="ratio",
+            min_value=0.0,
+            max_value=1.0,
+            step=0.01,
+            risk="high",
+            live_scope="next_encounter_roll",
+            tags=("exploration", "encounter", "combat"),
+        ),
+        "CHANCE_COMBAT_SEARCH": ConfigEntryMeta(
+            label="Шанс боя при поиске",
+            description="Вероятность combat encounter, когда игрок явно ищет столкновение.",
+            group="Энкаунтеры",
+            unit="ratio",
+            min_value=0.0,
+            max_value=1.0,
+            step=0.01,
+            risk="high",
+            live_scope="next_encounter_roll",
+            tags=("exploration", "encounter", "combat"),
+        ),
+        "ENCOUNTER_BASE_CHANCE": ConfigEntryMeta(
+            label="Базовый шанс discovery",
+            description="Зарезервированная базовая вероятность discovery engine.",
+            group="Энкаунтеры",
+            unit="ratio",
+            min_value=0.0,
+            max_value=1.0,
+            step=0.01,
+            risk="medium",
+            live_scope="reserved",
+            tags=("exploration", "encounter", "reserved"),
+        ),
+        "ENCOUNTER_WEIGHT_BASE": ConfigEntryMeta(
+            label="Базовый вес энкаунтера",
+            description="Зарезервированный multiplier для весов encounter selection.",
+            group="Энкаунтеры",
+            unit="weight",
+            min_value=0.0,
+            max_value=100.0,
+            step=0.1,
+            risk="medium",
+            live_scope="reserved",
+            tags=("exploration", "encounter", "reserved"),
+        ),
+        "ENCOUNTER_SESSION_TTL_SECONDS": ConfigEntryMeta(
+            label="Время жизни энкаунтера",
+            description="TTL Redis-сессии exploration encounter. 1800 = 30 минут.",
+            group="Сессии",
+            unit="seconds",
+            min_value=60.0,
+            max_value=86400.0,
+            step=60.0,
+            risk="medium",
+            live_scope="new_encounter_session",
+            tags=("exploration", "runtime", "ttl"),
+        ),
+    }
 
     # ── Tables (non-scalar, not Redis-overridable) ─────────────────────────────
     # BaseGameConfig.defaults() filters to scalar types only, so these dict

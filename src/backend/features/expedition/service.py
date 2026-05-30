@@ -25,7 +25,6 @@ if TYPE_CHECKING:
 
 _CURRENCY_PREFIXES = ("coin_", "currency_", "gold_", "silver_", "copper_")
 _COMPONENT_PREFIXES = ("essence_", "flower_", "bark_", "supply_", "component_")
-_PLAYER_CORPSE_TTL_SECONDS = 24 * 60 * 60
 
 
 class ExpeditionService:
@@ -41,6 +40,7 @@ class ExpeditionService:
         loot_manager=None,
         world_store=None,
         commit_on_write: bool = False,
+        game_config: Any | None = None,
     ) -> None:
         self.session = session
         self.character_sessions = character_sessions
@@ -49,6 +49,7 @@ class ExpeditionService:
         self.loot_manager = loot_manager
         self.world_store = world_store
         self.commit_on_write = commit_on_write
+        self._game_config = game_config
 
     @staticmethod
     def has_system_connect(flags: dict[str, Any] | None) -> bool:
@@ -211,10 +212,14 @@ class ExpeditionService:
             await self._patch_death_corpse_session(char_id, expedition)
             return {"status": "already_finalized", "corpse_id": expedition.corpse_id}
 
+        corpse_ttl = 86400.0
+        if self._game_config is not None:
+            corpse_ttl = await self._game_config.get_float("expedition", "PLAYER_CORPSE_TTL_SECONDS", default=86400.0)
+
         corpse_id = expedition.corpse_id or uuid.uuid4().hex
         corpse_location_id = expedition.current_location_id or "52_52"
         now = datetime.now(UTC)
-        expires_at = now + timedelta(seconds=_PLAYER_CORPSE_TTL_SECONDS)
+        expires_at = now + timedelta(seconds=corpse_ttl)
 
         item_rows = await self._move_expedition_items_to_corpse(expedition, corpse_id)
         resource_rows = await self._move_expedition_resources_to_corpse(expedition, corpse_id)
@@ -243,6 +248,7 @@ class ExpeditionService:
             resource_rows=resource_rows,
             now_ts=now.timestamp(),
             expires_ts=expires_at.timestamp(),
+            corpse_ttl=corpse_ttl,
         )
         await self._patch_death_corpse_session(char_id, expedition)
         await self._maybe_commit()
@@ -532,6 +538,7 @@ class ExpeditionService:
         resource_rows: list[ResourceBalance],
         now_ts: float,
         expires_ts: float,
+        corpse_ttl: float,
     ) -> None:
         if self.loot_manager is None or expedition.corpse_id is None or expedition.corpse_location_id is None:
             return
@@ -572,10 +579,10 @@ class ExpeditionService:
             corpse_type="player",
             owner_char_id=expedition.character_id,
             source_run_id=expedition.run_id,
-            access_policy={"owner_lock": True, "public_delay_seconds": 0, "ttl_seconds": _PLAYER_CORPSE_TTL_SECONDS},
+            access_policy={"owner_lock": True, "public_delay_seconds": 0, "ttl_seconds": corpse_ttl},
             timestamps=LootTimestamps(created_at=now_ts, public_at=now_ts, decay_at=expires_ts),
         )
-        await self.loot_manager.save_corpse(corpse, expedition.corpse_location_id, _PLAYER_CORPSE_TTL_SECONDS)
+        await self.loot_manager.save_corpse(corpse, expedition.corpse_location_id, corpse_ttl)
 
     async def _patch_death_corpse_session(self, char_id: int, expedition: CharacterExpedition) -> None:
         if self.character_sessions is None:

@@ -23,13 +23,7 @@ from src.backend.features.combat.runtime.engine.feint_service import FeintServic
 from src.backend.infrastructure.game_config.manager import GameConfigManager
 
 # Конфиг таймеров согласно документации
-AFK_TIMEOUTS = {
-    0: 60,  # Обычный ход
-    1: 50,
-    2: 40,
-    3: 30,
-}
-MIN_TIMEOUT = 20
+AFK_TIMEOUTS = {0: 60, 1: 45, 2: 30}
 
 
 class CombatTurnManager:
@@ -97,7 +91,10 @@ class CombatTurnManager:
             log.exception("TurnManagerPayloadValidationFailed")
             raise CombatInvalidMovePayloadError("Invalid move payload structure") from e
 
-        timeout = AFK_TIMEOUTS.get(afk_level, MIN_TIMEOUT)
+        min_timeout = 20.0
+        if self.game_config is not None:
+            min_timeout = await self.game_config.get_float("combat", "MIN_TIMEOUT", default=20.0)
+        timeout = AFK_TIMEOUTS.get(afk_level, min_timeout)
         move_dto = self._with_timeout(move_dto, timeout)
 
         # --- FEINT VALIDATION & CONSUMPTION (ATOMIC) ---

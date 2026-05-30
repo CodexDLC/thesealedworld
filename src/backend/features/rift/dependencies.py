@@ -61,13 +61,17 @@ def get_rift_runtime_integration(request: Request) -> RiftRuntimeIntegration:
 
 
 def get_rift_dev_service(
+    request: Request,
     runtime: Annotated[RiftRuntimeIntegration, Depends(get_rift_runtime_integration)],
 ) -> RiftDevService:
-    return RiftDevService(runtime=runtime)
+    return RiftDevService(runtime=runtime, game_config=getattr(request.app.state, "game_config", None))
 
 
-def get_rift_entry_service(request: Request) -> RiftEntryService:
-    runtime = get_rift_runtime_integration(request)
+def get_rift_entry_service(
+    request: Request,
+    db_session: Annotated[AsyncSession, Depends(get_db)],
+) -> RiftEntryService:
+    runtime = _build_rift_runtime_integration(request, db_session)
     return RiftEntryService(
         runtime=runtime,
         character_sessions=request.app.state.character_sessions,
@@ -80,7 +84,11 @@ def get_rift_player_service(
     db_session: Annotated[AsyncSession, Depends(get_db)],
 ) -> RiftPlayerService:
     runtime = _build_rift_runtime_integration(request, db_session)
-    return RiftPlayerService(runtime=runtime, character_sessions=request.app.state.character_sessions)
+    return RiftPlayerService(
+        runtime=runtime,
+        character_sessions=request.app.state.character_sessions,
+        game_config=getattr(request.app.state, "game_config", None),
+    )
 
 
 def get_rift_game_player_service(
@@ -92,6 +100,7 @@ def get_rift_game_player_service(
         runtime=runtime,
         character_sessions=request.app.state.character_sessions,
         encounters=_rift_encounter_service(request=request, db_session=db_session, runtime=runtime),
+        game_config=getattr(request.app.state, "game_config", None),
     )
 
 

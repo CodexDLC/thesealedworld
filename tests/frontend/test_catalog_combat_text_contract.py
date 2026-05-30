@@ -1,6 +1,5 @@
 from pathlib import Path
 
-
 GAME_CATALOG_JS = Path("src/frontend/static/js/core/catalog.js")
 GAME_BUNDLE_JS = Path("src/frontend/static/js/game.js")
 
@@ -28,3 +27,17 @@ def test_game_catalog_cache_renders_combat_text_templates_without_html() -> None
         assert "String(template || '').replace(/\\{([a-zA-Z_][a-zA-Z0-9_]*)\\}/g" in source
         assert "if (value === undefined || value === null) return match" in source
         assert "return String(value)" in source
+
+
+def test_game_catalog_cache_formats_ability_tooltips_from_catalog_payload() -> None:
+    catalog_js = GAME_CATALOG_JS.read_text(encoding="utf-8")
+    bundle_js = GAME_BUNDLE_JS.read_text(encoding="utf-8")
+
+    for source in (catalog_js, bundle_js):
+        assert "formatAbilityTooltip(entry" in source
+        assert "formatAbilityCost(cost)" in source
+        assert "Цена: " in source
+        assert "Цель: " in source
+        assert "entry?.mechanics" in source
+        assert ".join(' /' + '/ ')" in source
+        assert "tooltipField === 'ability'" in source

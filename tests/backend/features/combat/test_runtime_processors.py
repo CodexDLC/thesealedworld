@@ -59,7 +59,7 @@ from src.backend.features.combat.runtime.engine.trigger_activation import activa
 from src.backend.features.combat.runtime.processors import AiProcessor, CombatCollector, CombatExecutor
 from src.backend.features.combat.runtime.processors.chaos_service import ANCHOR_FORCE_TEAM, ChaosService
 from src.backend.features.combat.runtime.support import CombatResultSupportTask, CombatResultSupportTaskDTO
-from src.backend.features.combat.workers.tasks.chaos_task import MAX_INACTIVITY_SEC, chaos_check_task
+from src.backend.features.combat.workers.tasks.chaos_task import chaos_check_task
 from src.backend.features.combat.workers.tasks.chat_announcements import (
     publish_combat_final_announcement,
     publish_combat_start_announcement,
@@ -427,7 +427,7 @@ async def test_chaos_service_does_not_spawn_second_anchor_projection() -> None:
 async def test_chaos_task_enqueues_collector_after_anchor_spawn(monkeypatch) -> None:
     monkeypatch.setattr(
         "src.backend.features.combat.workers.tasks.chaos_task.time.time",
-        lambda: MAX_INACTIVITY_SEC + 2,
+        lambda: 600 + 2,
     )
     data_service = FakeChaosTaskDataService(battle_type="arena")
     queue = CapturingChaosQueue()
@@ -446,7 +446,7 @@ async def test_chaos_task_enqueues_collector_after_anchor_spawn(monkeypatch) -> 
 async def test_chaos_task_does_not_spawn_before_combat_started(monkeypatch) -> None:
     monkeypatch.setattr(
         "src.backend.features.combat.workers.tasks.chaos_task.time.time",
-        lambda: MAX_INACTIVITY_SEC + 2,
+        lambda: 600 + 2,
     )
     data_service = FakeChaosTaskDataService(battle_type="arena", started_at=None)
     queue = CapturingChaosQueue()
@@ -1193,7 +1193,7 @@ def test_executor_log_entries_use_ability_catalog_templates() -> None:
     assert entry["catalog_key"] == "combat.ability.fireball.target.hit.humanoid"
     assert entry["template"]["event"] == "hit"
     assert entry["variables"]["ability"] == "Огненный Шар"
-    assert entry["text"] == "A2 получает 16 урона"
+    assert entry["text"] == "пламя ударяет в A2"
     assert entry["result"]["resources"] == [
         {"actor_id": "2", "resource": "hp", "before": 100, "after": 84, "max": 100, "delta": -16, "label": "HP 84/100"}
     ]
@@ -1219,24 +1219,32 @@ def test_executor_log_entries_use_ability_no_resource_template() -> None:
     assert entry["catalog"] == "combat_text"
     assert entry["catalog_key"] == "combat.ability.fireball.no_resource"
     assert entry["template"]["event"] == "no_resource"
-    assert entry["text"] == "A1 пытается применить Огненный Шар, но ресурса не хватает."
+    assert entry["text"] == "A1 пытается собрать Огненный Шар, но жар гаснет раньше броска"
     assert entry["result"]["resources"] == []
 
 
 @pytest.mark.unit
 @pytest.mark.parametrize(
-    ("result_kwargs", "expected_outcome"),
+    ("result_kwargs", "expected_outcome", "expected_key", "uses_runtime_fallback"),
     [
-        ({"damage_final": 16, "is_hit": True, "is_crit": True}, "crit"),
-        ({"is_dodged": True}, "dodge"),
-        ({"is_parried": True}, "parry"),
-        ({"is_blocked": True}, "block"),
-        ({"skip_reason": "CONTROLLED"}, "controlled"),
-        ({}, "none"),
+        (
+            {"damage_final": 16, "is_hit": True, "is_crit": True},
+            "crit",
+            "combat.ability.fireball.target.crit.humanoid",
+            False,
+        ),
+        ({"is_dodged": True}, "dodge", "combat.ability.fireball.target.dodge.humanoid", False),
+        ({"is_parried": True}, "parry", "combat.ability.fireball.target.parry.humanoid", False),
+        ({"is_blocked": True}, "block", "combat.ability.fireball.target.block.humanoid", False),
+        ({"skip_reason": "CONTROLLED"}, "controlled", "combat_text.runtime_fallback.ability.controlled", True),
+        ({}, "cast", "combat.ability.fireball.cast.single", False),
     ],
 )
-def test_executor_log_entries_use_runtime_fallback_for_uncovered_ability_outcomes(
-    result_kwargs: dict[str, Any], expected_outcome: str
+def test_executor_log_entries_use_ability_templates_for_instant_outcomes(
+    result_kwargs: dict[str, Any],
+    expected_outcome: str,
+    expected_key: str,
+    uses_runtime_fallback: bool,
 ) -> None:
     ctx = BattleContext(session_id="c1", meta=battle_meta(), actors={"1": actor(1, "a"), "2": actor(2, "b")})
     action = CombatActionDTO(
@@ -1255,11 +1263,11 @@ def test_executor_log_entries_use_runtime_fallback_for_uncovered_ability_outcome
 
     entry = ctx.pending_logs[0]
     assert entry["catalog"] == "combat_text"
-    assert entry["template"]["key"] == f"combat_text.runtime_fallback.ability.{expected_outcome}"
+    assert entry["template"]["key"] == expected_key
     assert entry["template"]["event"] == expected_outcome
     assert entry["outcome"] == expected_outcome
     assert entry["variables"]["ability"] == "Огненный Шар"
-    assert entry["text"].endswith("(F)")
+    assert entry["text"].endswith("(F)") is uses_runtime_fallback
 
 
 @pytest.mark.unit
@@ -1318,7 +1326,7 @@ def test_executor_log_entries_use_area_contract_for_multi_target_actions() -> No
     assert [target["id"] for target in entry["targets"]] == ["2", "3"]
     assert entry["catalog"] == "combat_text"
     assert entry["catalog_key"] == "combat.ability.fireball.cast.area"
-    assert entry["text"] == "A1 применяет Огненный Шар: A2 получает 9 урона."
+    assert entry["text"] == "пламя расходится по 2 целям"
     assert entry["result"]["resources"][0]["delta"] == -9
 
 
@@ -1360,6 +1368,73 @@ def test_executor_effect_resist_log_does_not_use_runtime_fallback_text() -> None
     assert ctx.pending_logs[0]["kind"] == "effect_resist"
     assert "(F)" not in ctx.pending_logs[0]["text"]
     assert "не срабатывает" in ctx.pending_logs[0]["text"]
+
+
+@pytest.mark.unit
+def test_executor_basic_ability_hit_log_uses_ability_event_text() -> None:
+    ctx = BattleContext(session_id="c1", meta=battle_meta(), actors={"1": actor(1, "a"), "2": actor(2, "b")})
+    move = CombatMoveDTO(
+        move_id="m1",
+        char_id=1,
+        strategy="instant",
+        payload=InstantPayload(ability_id="basic_punish_mistake", target_id=2),
+    )
+    action = CombatActionDTO(action_type="instant", move=move)
+    result = InteractionResultDTO(source_id=1, target_id=2, damage_final=7, is_hit=True)
+    result.events.append(CombatEventDTO(type="CAST", source_id=1, target_id=2, action_id="basic_punish_mistake"))
+
+    CombatExecutor()._append_result_logs(ctx, result, action=action, wave=1)
+
+    entry = ctx.pending_logs[0]
+    assert entry["catalog_key"] == "combat.ability.basic_punish_mistake.target.hit.humanoid"
+    assert entry["text"] == "удар дара наказывает A2"
+    assert "(F)" not in entry["text"]
+
+
+@pytest.mark.unit
+def test_executor_basic_ability_no_resource_log_uses_ability_event_text() -> None:
+    ctx = BattleContext(session_id="c1", meta=battle_meta(), actors={"1": actor(1, "a"), "2": actor(2, "b")})
+    move = CombatMoveDTO(
+        move_id="m1",
+        char_id=1,
+        strategy="instant",
+        payload=InstantPayload(ability_id="basic_punish_mistake", target_id=2),
+    )
+    action = CombatActionDTO(action_type="instant", move=move)
+    result = InteractionResultDTO(source_id=1, target_id=2, skip_reason="NO_RESOURCE")
+
+    CombatExecutor()._append_result_logs(ctx, result, action=action, wave=1)
+
+    entry = ctx.pending_logs[0]
+    assert entry["catalog_key"] == "combat.ability.basic_punish_mistake.no_resource"
+    assert entry["text"] == "A1 видит ошибку, но не успевает её наказать"
+    assert "(F)" not in entry["text"]
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_pipeline_modifier_only_basic_ability_logs_apply_text_not_runtime_fallback() -> None:
+    source = actor(1, "a")
+    source.meta.en = 100
+    source.meta.tokens.update({"tempo": 1, "hit": 1})
+    target = actor(2, "b")
+    ctx = BattleContext(session_id="c1", meta=battle_meta(), actors={"1": source, "2": target})
+    move = CombatMoveDTO(
+        move_id="m1",
+        char_id=1,
+        strategy="instant",
+        payload=InstantPayload(ability_id="basic_break_stance", target_id=2),
+    )
+    action = CombatActionDTO(action_type="instant", move=move)
+
+    result = await CombatPipeline().calculate(source, target, move)
+    CombatExecutor()._append_result_logs(ctx, result, action=action, wave=1)
+
+    entry = ctx.pending_logs[0]
+    assert result.action_facts["outcome"] == "apply"
+    assert entry["catalog_key"] == "combat.ability.basic_break_stance.target.apply.humanoid"
+    assert entry["text"] == "A2 теряет устойчивость: Сбить стойку."
+    assert "(F)" not in entry["text"]
 
 
 @pytest.mark.unit
@@ -1755,6 +1830,7 @@ def test_prepared_parry_counter_consumes_buff_and_forces_counter() -> None:
 
     service = AbilityService()
     service.pre_process(ctx, move, source, target)
+    ctx.flags.force.hit = True
     ctx.flags.force.parry = True
     CombatResolver.resolve_exchange(source.stats, target.stats, ctx)
     service.post_process(ctx, source, target, move)
@@ -2400,6 +2476,7 @@ def test_ignore_guard_skips_dodge_parry_and_block_checks() -> None:
 
     service = AbilityService()
     service.pre_process(ctx, move, source, target)
+    ctx.flags.force.hit = True
     CombatResolver.resolve_exchange(source.stats, target.stats, ctx)
 
     assert ctx.result.is_hit is True

@@ -1119,25 +1119,133 @@
     gap: 6px;
 }
 
+.combat-ability-tooltip-host {
+    min-width: 0;
+    display: grid;
+    place-items: stretch;
+}
+
 .combat-ability-option {
+    position: relative;
     width: 42px;
     height: 42px;
     display: grid;
     place-items: center;
     padding: 0;
-    border-color: rgba(105, 190, 255, .36);
+    overflow: hidden;
+    border-color: rgba(50, 220, 190, .62);
     background:
-        linear-gradient(180deg, rgba(105, 190, 255, .14), rgba(0, 0, 0, .42)),
-        linear-gradient(rgba(8, 11, 15, .82), rgba(0, 0, 0, .92)),
+        radial-gradient(circle at 50% 38%, rgba(80, 245, 210, .28), transparent 54%),
+        linear-gradient(180deg, rgba(40, 210, 185, .24), rgba(0, 0, 0, .34)),
+        linear-gradient(rgba(6, 18, 18, .78), rgba(0, 0, 0, .92)),
         url("/static/images/ui/textures/button-candidates/button-surface-02-blackened-metal.webp");
     background-position: center;
     background-size: cover;
-    color: rgba(150, 215, 255, .95);
+    color: rgba(150, 255, 230, .98);
+    box-shadow:
+        inset 0 1px 0 rgba(210, 255, 245, .22),
+        inset 0 -9px 14px rgba(0, 0, 0, .42),
+        0 0 13px rgba(45, 230, 190, .14);
+}
+
+.combat-ability-tooltip-host .combat-ability-option {
+    width: 100%;
+    height: 100%;
+}
+
+.combat-ability-option::after {
+    content: "";
+    position: absolute;
+    right: 3px;
+    bottom: 3px;
+    width: 6px;
+    height: 6px;
+    border: 1px solid rgba(205, 255, 242, .68);
+    background: #35ffc8;
+    box-shadow: 0 0 8px rgba(53, 255, 200, .55);
+    pointer-events: none;
+}
+
+.combat-ability-option:not(:disabled):hover,
+.combat-ability-tooltip-host:hover .combat-ability-option:not(:disabled) {
+    border-color: rgba(95, 210, 255, .78);
+    background:
+        radial-gradient(circle at 50% 38%, rgba(95, 210, 255, .36), transparent 56%),
+        linear-gradient(180deg, rgba(75, 190, 255, .28), rgba(0, 0, 0, .32)),
+        linear-gradient(rgba(6, 14, 24, .78), rgba(0, 0, 0, .92)),
+        url("/static/images/ui/textures/button-candidates/button-surface-02-blackened-metal.webp");
+    color: rgba(190, 235, 255, 1);
+    box-shadow:
+        inset 0 1px 0 rgba(220, 245, 255, .26),
+        inset 0 -9px 14px rgba(0, 0, 0, .40),
+        0 0 18px rgba(70, 190, 255, .22);
+}
+
+.combat-ability-option:disabled:not(.combat-ability-option--empty) {
+    opacity: 1;
+    border-color: rgba(255, 82, 70, .42);
+    background:
+        radial-gradient(circle at 50% 38%, rgba(255, 78, 64, .14), transparent 56%),
+        linear-gradient(180deg, rgba(255, 70, 55, .12), rgba(0, 0, 0, .48)),
+        linear-gradient(rgba(24, 7, 8, .80), rgba(0, 0, 0, .94)),
+        url("/static/images/ui/textures/button-candidates/button-surface-02-blackened-metal.webp");
+    color: rgba(255, 138, 118, .86);
+    box-shadow:
+        inset 0 1px 0 rgba(255, 170, 150, .12),
+        inset 0 -9px 14px rgba(0, 0, 0, .50),
+        0 0 10px rgba(255, 56, 48, .10);
+}
+
+.combat-ability-option:disabled:not(.combat-ability-option--empty)::after {
+    border-color: rgba(255, 150, 132, .54);
+    background: #ff4d42;
+    box-shadow: 0 0 8px rgba(255, 77, 66, .42);
 }
 
 .combat-ability-option img {
     width: 22px;
     height: 22px;
+    position: relative;
+    z-index: 1;
+    opacity: .98;
+    filter:
+        brightness(0)
+        saturate(100%)
+        invert(89%)
+        sepia(40%)
+        saturate(1180%)
+        hue-rotate(111deg)
+        brightness(108%)
+        contrast(106%)
+        drop-shadow(0 0 6px rgba(64, 255, 205, .46));
+}
+
+.combat-ability-option:not(:disabled):hover img,
+.combat-ability-tooltip-host:hover .combat-ability-option:not(:disabled) img {
+    filter:
+        brightness(0)
+        saturate(100%)
+        invert(82%)
+        sepia(42%)
+        saturate(1220%)
+        hue-rotate(173deg)
+        brightness(112%)
+        contrast(108%)
+        drop-shadow(0 0 7px rgba(80, 205, 255, .58));
+}
+
+.combat-ability-option:disabled:not(.combat-ability-option--empty) img {
+    opacity: .84;
+    filter:
+        brightness(0)
+        saturate(100%)
+        invert(58%)
+        sepia(54%)
+        saturate(1350%)
+        hue-rotate(322deg)
+        brightness(104%)
+        contrast(104%)
+        drop-shadow(0 0 5px rgba(255, 82, 70, .28));
 }
 
 @media (max-width: 860px) {

@@ -27,7 +27,7 @@ if TYPE_CHECKING:
         CombatRegisterMoveRequestDTO,
     )
 
-AFK_TIMEOUTS = {0: 60, 1: 50, 2: 40, 3: 30}
+AFK_TIMEOUTS = {0: 60, 1: 45, 2: 30}
 MIN_TIMEOUT = 20
 LOG_PAGE_SIZE = 20
 MOVE_RESPONSE_SETTLE_DELAY_SECONDS = 0.6
@@ -65,6 +65,7 @@ class CombatSessionService:
     ) -> None:
         self.store = store
         self.system_integrator = system_integrator
+        self._game_config = game_config
         if TYPE_CHECKING:
             from src.backend.core.arq import ArqService
 
@@ -163,7 +164,12 @@ class CombatSessionService:
         combat_id = session_id or await self._resolve_session_id(char_id)
         payload = {**body.payload, **body.model_dump(mode="json", exclude={"payload"})}
         await self.register_move_request(combat_id, char_id, payload)
-        await asyncio.sleep(MOVE_RESPONSE_SETTLE_DELAY_SECONDS)
+        settle_delay = 0.6
+        if self._game_config is not None:
+            settle_delay = await self._game_config.get_float(
+                "combat", "MOVE_RESPONSE_SETTLE_DELAY_SECONDS", default=0.6
+            )
+        await asyncio.sleep(settle_delay)
         return await self.get_dashboard(char_id, session_id=combat_id)
 
     async def pin_feint(
@@ -400,7 +406,10 @@ class CombatSessionService:
 
     async def _enqueue_collector(self, session_id: str, actor_id: int, move_id: str) -> None:
         state = await self.store.get_actor_state(session_id, actor_id) or {}
-        timeout = AFK_TIMEOUTS.get(int(state.get("afk_level", 0) or 0), MIN_TIMEOUT)
+        min_timeout = 20.0
+        if self._game_config is not None:
+            min_timeout = await self._game_config.get_float("combat", "MIN_TIMEOUT", default=20.0)
+        timeout = AFK_TIMEOUTS.get(int(state.get("afk_level", 0) or 0), min_timeout)
         immediate = CollectorSignalDTO(
             session_id=session_id,
             char_id=normalize_actor_id(actor_id),

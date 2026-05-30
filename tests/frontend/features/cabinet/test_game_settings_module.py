@@ -64,6 +64,16 @@ class TestConfigProvider:
                 "default": "4.0",
                 "value_type": "float",
                 "is_modified": True,
+                "label": "Множитель навыка парирования",
+                "description": "Усиливает шанс парирования от навыка.",
+                "group": "Парирование и щит",
+                "unit": "multiplier",
+                "min_value": 0.0,
+                "max_value": 10.0,
+                "step": 0.1,
+                "risk": "medium",
+                "live_scope": "new_exchange",
+                "tags": ["combat", "balance"],
             },
             {
                 "key": "SESSION_TTL_SECONDS",
@@ -97,6 +107,16 @@ class TestConfigProvider:
         modified = next(e for e in widget.entries if e.key == "PARRY_SKILL_MULT_PER_POINT")
         assert modified.is_modified is True
         assert modified.value_type == "float"
+        assert modified.label == "Множитель навыка парирования"
+        assert modified.description == "Усиливает шанс парирования от навыка."
+        assert modified.group == "Парирование и щит"
+        assert modified.unit == "multiplier"
+        assert modified.min_value == 0.0
+        assert modified.max_value == 10.0
+        assert modified.step == 0.1
+        assert modified.risk == "medium"
+        assert modified.live_scope == "new_exchange"
+        assert modified.tags == ["combat", "balance"]
 
     async def test_degrades_to_empty_entries_on_backend_error(self) -> None:
         def handler(_: httpx.Request) -> httpx.Response:
@@ -120,7 +140,7 @@ class TestConfigProvider:
         assert isinstance(widget, EditableConfigWidgetMap)
         assert widget.entries == []
 
-    async def test_can_attach_human_labels_for_selected_namespace_entries(self) -> None:
+    async def test_preserves_backend_labels_without_local_metadata(self) -> None:
         payload = [
             {
                 "key": "ACTIVE_POLICY_ID",
@@ -129,6 +149,8 @@ class TestConfigProvider:
                 "default": "",
                 "value_type": "str",
                 "is_modified": False,
+                "label": "Активная политика ИИ",
+                "description": "Policy id для новых боев.",
             },
         ]
 
@@ -138,12 +160,6 @@ class TestConfigProvider:
             "Поведение ИИ боя",
             "combat_ai",
             "/admin/game-settings/combat-ai",
-            entry_meta={
-                "ACTIVE_POLICY_ID": {
-                    "label": "Активная политика ИИ",
-                    "description": "Policy id для новых боев.",
-                },
-            },
         )
         widget = await provider(request)
 

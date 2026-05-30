@@ -161,7 +161,9 @@ class CombatPostBattleRouter:
         redis_service = ctx.get("redis_service")
         if redis_service is None or not corpse_id:
             return []
-        corpse = await LootIntegration(LootManager(redis_service)).get_corpse(str(corpse_id))
+        corpse = await LootIntegration(LootManager(redis_service), game_config=ctx.get("game_config")).get_corpse(
+            str(corpse_id)
+        )
         if corpse is None:
             return []
         return [
@@ -260,7 +262,7 @@ class CombatPostBattleRouter:
         if redis_service is None or not corpse_ids:
             return []
         manager = LootManager(redis_service)
-        integration = LootIntegration(manager)
+        integration = LootIntegration(manager, game_config=ctx.get("game_config"))
         if location_id:
             await integration.activate_corpses(corpse_ids, char_ids, location_id)
         corpses: list[CorpseDTO] = []

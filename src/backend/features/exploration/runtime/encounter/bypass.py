@@ -5,15 +5,14 @@ from typing import Any
 from src.backend.features.exploration.integrations.encounter_integration import ENCOUNTER_SKILL_KEYS
 from src.shared.schemas.exploration import EncounterDTO, EncounterOptionDTO
 
-BASE_BYPASS_CHANCE = 0.14
 BYPASS_SKILL_KEYS = ("skill_scouting", "skill_hunting")
 
 
-def calculate_bypass_chance(skills: Any) -> float:
+def calculate_bypass_chance(skills: Any, base_bypass_chance: float = 0.14) -> float:
     """Return a 0..1 bypass chance from exploration encounter skills."""
     values = [_normalized_skill(_skill_value(skills, skill_key)) for skill_key in BYPASS_SKILL_KEYS]
     skill_factor = sum(values) / len(values) if values else 0.0
-    return min(1.0, BASE_BYPASS_CHANCE + skill_factor * (1.0 - BASE_BYPASS_CHANCE))
+    return min(1.0, base_bypass_chance + skill_factor * (1.0 - base_bypass_chance))
 
 
 def bypass_chance_percent(chance: float) -> int:

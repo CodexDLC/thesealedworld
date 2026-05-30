@@ -18,6 +18,16 @@ python tools/validators/run.py
 
 Validates project fixtures such as scenario JSON graphs before tests run.
 
+## Game Config Audit
+
+```powershell
+python tools/dev/game_config_audit.py
+python tools/dev/game_config_audit.py --json
+```
+
+Classifies uppercase constants as `runtime_config`, `catalog_later`, `code_contract`, or `ignore`.
+Use it before migrating new knobs into Redis-backed `BaseGameConfig` namespaces.
+
 ## Project Tree
 
 ```powershell

@@ -568,6 +568,25 @@ def _build_effect_template_recipes() -> tuple[CombatTextTemplateRecipeDTO, ...]:
 EFFECT_TEMPLATE_RECIPES = _build_effect_template_recipes()
 
 
+def _ability_event_pattern(entry, event: str, target_body: str = "humanoid") -> str | None:
+    resolved = entry.descriptive.resolve_event_template(event, [target_body])
+    return resolved.text if resolved else None
+
+
+def _ability_outcome_pattern(
+    entry,
+    *,
+    outcome: str,
+    target_body: str = "humanoid",
+    fallback: str,
+) -> str:
+    event = {
+        "cast": "use",
+        "apply": "apply_effect",
+    }.get(outcome, outcome)
+    return _ability_event_pattern(entry, event, target_body) or fallback
+
+
 def _build_ability_template_recipes() -> tuple[CombatTextTemplateRecipeDTO, ...]:
     recipes: list[CombatTextTemplateRecipeDTO] = []
     for entry in get_all_ability_catalog_entries():
@@ -581,7 +600,11 @@ def _build_ability_template_recipes() -> tuple[CombatTextTemplateRecipeDTO, ...]
                     catalog_key=entry.key,
                     outcome="cast",
                     delivery="single",
-                    pattern="{source} применяет {ability} на {target}: {target_results}.",
+                    pattern=_ability_outcome_pattern(
+                        entry,
+                        outcome="cast",
+                        fallback="{source} применяет {ability} на {target}: {target_results}.",
+                    ),
                     tags=["ability", "cast", "single"],
                 ),
                 CombatTextTemplateRecipeDTO(
@@ -591,7 +614,11 @@ def _build_ability_template_recipes() -> tuple[CombatTextTemplateRecipeDTO, ...]
                     catalog_key=entry.key,
                     outcome="area_result",
                     delivery="area",
-                    pattern="{source} применяет {ability}: {target_results}.",
+                    pattern=_ability_outcome_pattern(
+                        entry,
+                        outcome="area_result",
+                        fallback="{source} применяет {ability}: {target_results}.",
+                    ),
                     tags=["ability", "cast", "area"],
                 ),
                 CombatTextTemplateRecipeDTO(
@@ -600,56 +627,43 @@ def _build_ability_template_recipes() -> tuple[CombatTextTemplateRecipeDTO, ...]
                     resource_id=ability_id,
                     catalog_key=entry.key,
                     outcome="no_resource",
-                    pattern="{source} пытается применить {ability}, но ресурса не хватает.",
+                    pattern=_ability_outcome_pattern(
+                        entry,
+                        outcome="no_resource",
+                        fallback="{source} пытается применить {ability}, но ресурса не хватает.",
+                    ),
                     tags=["ability", "no_resource"],
                 ),
             ]
         )
         for target_body in TARGET_BODIES:
-            recipes.extend(
-                [
+            for outcome, fallback in (
+                ("hit", "{target} получает {damage} урона"),
+                ("crit", "{target} получает критический удар от {ability}"),
+                ("heal", "{target} восстанавливает {healing} здоровья"),
+                ("apply", "{target} получает {effect}"),
+                ("miss", "{target} избегает {ability}"),
+                ("dodge", "{target} уклоняется от {ability}"),
+                ("parry", "{target} парирует {ability}"),
+                ("block", "{target} блокирует {ability}"),
+            ):
+                recipes.append(
                     CombatTextTemplateRecipeDTO(
-                        template_key=f"combat.ability.{ability_id}.target.hit.{target_body}",
+                        template_key=f"combat.ability.{ability_id}.target.{outcome}.{target_body}",
                         resource_type="ability",
                         resource_id=ability_id,
                         catalog_key=entry.key,
-                        outcome="hit",
+                        outcome=outcome,
                         target_body=target_body,
-                        pattern="{target} получает {damage} урона",
-                        tags=["ability", "target", "hit", target_body],
-                    ),
-                    CombatTextTemplateRecipeDTO(
-                        template_key=f"combat.ability.{ability_id}.target.heal.{target_body}",
-                        resource_type="ability",
-                        resource_id=ability_id,
-                        catalog_key=entry.key,
-                        outcome="heal",
-                        target_body=target_body,
-                        pattern="{target} восстанавливает {healing} здоровья",
-                        tags=["ability", "target", "heal", target_body],
-                    ),
-                    CombatTextTemplateRecipeDTO(
-                        template_key=f"combat.ability.{ability_id}.target.apply.{target_body}",
-                        resource_type="ability",
-                        resource_id=ability_id,
-                        catalog_key=entry.key,
-                        outcome="apply",
-                        target_body=target_body,
-                        pattern="{target} получает {effect}",
-                        tags=["ability", "target", "apply", target_body],
-                    ),
-                    CombatTextTemplateRecipeDTO(
-                        template_key=f"combat.ability.{ability_id}.target.miss.{target_body}",
-                        resource_type="ability",
-                        resource_id=ability_id,
-                        catalog_key=entry.key,
-                        outcome="miss",
-                        target_body=target_body,
-                        pattern="{target} избегает {ability}",
-                        tags=["ability", "target", "miss", target_body],
-                    ),
-                ]
-            )
+                        pattern=_ability_outcome_pattern(
+                            entry,
+                            outcome=outcome,
+                            target_body=target_body,
+                            fallback=fallback,
+                        ),
+                        tags=["ability", "target", outcome, target_body],
+                    )
+                )
     return tuple(recipes)
 
 

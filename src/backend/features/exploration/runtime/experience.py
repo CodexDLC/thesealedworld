@@ -22,6 +22,7 @@ class ExplorationExperienceService:
         action_power_by_skill: dict[str, float],
         current_skills: dict[str, float],
         attributes: dict[str, float],
+        global_rate: float | None = None,
     ) -> dict[str, float]:
         entries: dict[str, SkillProgressionEntry] = {}
         for skill_key, action_power in action_power_by_skill.items():
@@ -34,7 +35,11 @@ class ExplorationExperienceService:
                 current_skill=float(current_skills.get(skill_key, 0.0) or 0.0),
                 action_power=action_power,
             )
-        return SkillProgressionCalculator.calculate(SkillProgressionBatchInput(entries=entries))
+        if global_rate is not None:
+            batch_input = SkillProgressionBatchInput(entries=entries, global_rate=global_rate)
+        else:
+            batch_input = SkillProgressionBatchInput(entries=entries)
+        return SkillProgressionCalculator.calculate(batch_input)
 
 
 def flat_attribute_snapshot(raw: Any) -> dict[str, float]:

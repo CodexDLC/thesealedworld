@@ -14,7 +14,11 @@ from src.backend.infrastructure.rift.managers import (
     RiftPresenceStore,
     RiftRunSessionStore,
 )
-from src.backend.infrastructure.rift.repositories import RiftPortalKeyRepository
+from src.backend.infrastructure.rift.repositories import (
+    RiftInstanceStateRepository,
+    RiftPortalKeyRepository,
+    RiftRunStateRepository,
+)
 
 if TYPE_CHECKING:
     from fastapi import FastAPI
@@ -53,6 +57,8 @@ def _entry_service(app: FastAPI, session: Any) -> RiftEntryService:
             session_store=RiftRunSessionStore(app.state.redis),
             presence_store=RiftPresenceStore(app.state.redis),
             portal_store=RiftPortalStore(app.state.redis),
+            instance_state_repository=RiftInstanceStateRepository(session),
+            run_state_repository=RiftRunStateRepository(session),
             portal_key_repository=RiftPortalKeyRepository(session),
         ),
         character_sessions=app.state.character_sessions,

@@ -146,6 +146,8 @@ def test_combat_viewport_uses_prototype_field_and_bottom_action_panel():
     assert "combat_screen.ability_options" in template
     assert "ability_source is mapping" in template
     assert "ability_source is sequence" in template
+    assert "combat-ability-tooltip-host" in template
+    assert 'data-catalog-tooltip="ability"' in template
     assert "belt_slots = hero.quick_belt[:8]" in template
     assert "ability_slots = ability_options[:8]" in template
     assert "[:8 - (belt_slots|length)]" in template

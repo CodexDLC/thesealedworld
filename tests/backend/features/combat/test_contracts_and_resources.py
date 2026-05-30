@@ -73,6 +73,7 @@ def test_combat_resources_load_runtime_and_public_catalog() -> None:
         "active_defense",
         "answering_stance",
         "answering_series",
+        "arrow_rain",
         "backstep_shot",
         "blade_return",
         "blade_loop",
@@ -84,11 +85,13 @@ def test_combat_resources_load_runtime_and_public_catalog() -> None:
         "concussion",
         "covering_position",
         "crushing_pressure",
+        "dual_blade_whirl",
         "empty_line",
         "fencing_corner_entry",
         "fencing_gap_probe",
         "fencing_hidden_entry",
         "fencing_inside_line",
+        "fencing_line_flurry",
         "fencing_needle_gap",
         "fencing_precise_prick",
         "fencing_slip_guard",
@@ -108,6 +111,7 @@ def test_combat_resources_load_runtime_and_public_catalog() -> None:
         "macing_break_swing",
         "macing_guard_cracker",
         "macing_heavy_line",
+        "macing_shock_sweep",
         "macing_skullbreaker",
         "measured_strike",
         "offhand_over",
@@ -119,6 +123,7 @@ def test_combat_resources_load_runtime_and_public_catalog() -> None:
         "polearm_guard_intercept",
         "polearm_hook_step",
         "polearm_leg_sweep",
+        "polearm_line_cleave",
         "polearm_locked_distance",
         "polearm_long_line",
         "polearm_pinning_point",
@@ -126,15 +131,18 @@ def test_combat_resources_load_runtime_and_public_catalog() -> None:
         "precise_weak_spot",
         "push_stance",
         "quiet_weak_spot",
+        "ranged_covering_volley",
         "read_tactic",
         "reveal_intentions",
         "second_breath",
+        "shield_line_bash",
         "shifting_line",
         "silent_puncture",
         "snap_shot",
         "steel_line",
         "steady_strike",
         "sword_blade_bind",
+        "sword_blade_whirl",
         "sword_clean_path",
         "sword_cut_angle",
         "sword_hard_bind",
@@ -142,6 +150,7 @@ def test_combat_resources_load_runtime_and_public_catalog() -> None:
         "sword_measured_line",
         "sword_open_line",
         "torn_rhythm",
+        "two_handed_whirl",
         "wind_dance",
     }
     assert catalog["feints"]["measured_strike"]["cost"]["tactics"] == {"hit": 3}
@@ -207,6 +216,28 @@ def test_basic_gift_abilities_are_runtime_resources_with_combat_token_costs() ->
     assert last_push is not None
     assert last_push.technical.override_damage == (8.0, 12.0)
     assert [app.modifier_id for app in last_push.technical.modifier_applications] == ["physical_damage_bonus_add"]
+
+
+def test_public_ability_catalog_exposes_tooltip_payload() -> None:
+    catalog = CombatResourceCatalogService.load_default().all_public_text()
+
+    punish = catalog["abilities"]["basic_punish_mistake"]
+    break_stance = catalog["abilities"]["basic_break_stance"]
+    bloody_answer = catalog["abilities"]["basic_bloody_answer"]
+
+    assert punish["title"] == "Наказать ошибку"
+    assert punish["description"] == "Тратит темп и попадание, чтобы нанести быстрый урон."
+    assert punish["cost"] == {"energy": 10, "hp": 0, "gift_tokens": 0, "tokens": {"tempo": 1, "hit": 1}}
+    assert punish["target_label"] == "Один враг"
+    assert "Тип: атака" in punish["mechanics"]
+    assert "Урон: 18-22" in punish["mechanics"]
+
+    assert break_stance["target_label"] == "Один враг"
+    assert "Тип: эффект" in break_stance["mechanics"]
+    assert "Цель получает: уклонение -0.05 на 2 размена" in break_stance["mechanics"]
+
+    assert "Урон: 20-26" in bloody_answer["mechanics"]
+    assert "Эффект: кровотечение на 2 размена, сила 0.75" in bloody_answer["mechanics"]
 
 
 def test_ability_gift_and_item_catalog_entries_split_technical_and_descriptive() -> None:

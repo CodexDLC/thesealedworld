@@ -34,6 +34,8 @@
     {% set button_value = button.value if button.value is mapping else {} %}
     {% set opens_modal = button_action in ['start_shadow'] %}
     hx-post="/game/arena/action"
+    hx-sync="this:drop"
+    hx-disabled-elt="this"
     hx-target="{{ '#game-modal-root' if opens_modal else '#game-center' }}"
     hx-swap="{{ 'outerHTML' if opens_modal else 'innerHTML' }}"
     hx-vals='{"char_id": {{ char_id }}, "action": "{{ button_action }}"{% if button_mode %}, "mode": "{{ button_mode }}"{% endif %}{% if button_value.get("arena_session_id") %}, "arena_session_id": "{{ button_value.get("arena_session_id") }}"{% endif %}{% if button_value.get("wait_limit_sec") %}, "wait_limit_sec": {{ button_value.get("wait_limit_sec") }}{% endif %}{% if button_value.get("confirm") %}, "confirm": true{% endif %}{% if opens_modal %}, "modal": true{% endif %}}'
@@ -107,6 +109,8 @@
 
 {% macro arena_group_action_attrs(action, item_id='') -%}
     hx-post="/game/arena/group-action"
+    hx-sync="this:drop"
+    hx-disabled-elt="this"
     hx-target="#game-modal-root"
     hx-swap="outerHTML"
     hx-vals='{"char_id": {{ char_id }}, "action": "{{ action }}"{% if item_id %}, "item_id": "{{ item_id }}"{% endif %}}'

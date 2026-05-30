@@ -46,10 +46,23 @@ async def game_lobby_page(
         )
     response = await lobby_service.get_view(user)
     lobby = build_lobby_page_vm(response)
-    return await ui.render(
+    reason = request.query_params.get("reason")
+    lobby_notice = "session_replaced" if reason == "session_replaced" else None
+    rendered = await ui.render(
         "site/index.html",
-        context={"user": user, "lobby": lobby, "lobby_overlay_open": True},
+        context={
+            "user": user,
+            "lobby": lobby,
+            "lobby_overlay_open": True,
+            "lobby_notice": lobby_notice,
+        },
     )
+    if lobby_notice == "session_replaced":
+        # The browser arrived here because its game tokens were rejected — drop
+        # any stale game cookies so a stale device cannot keep hammering the API.
+        clear_active_character_cookie(rendered)
+        clear_game_token_cookies(rendered)
+    return rendered
 
 
 @router.get("/api/game-lobby/status", name="api_game_lobby_status")

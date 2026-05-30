@@ -16,6 +16,8 @@
             <div><span>Ресурсы</span><strong>{{ death_summary.get('carried_resource_count') or 0 }}</strong></div>
         </div>
         <form hx-post="{{ death.respawn_action if death else '/game/death/respawn' }}"
+              hx-sync="this:drop"
+              hx-disabled-elt="find button"
               hx-target="#game-session-root"
               hx-swap="outerHTML"
               class="death-screen-actions">

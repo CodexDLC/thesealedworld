@@ -46,6 +46,8 @@
             <button class="{{ base_class }}{{ state_class }}"
                     type="button"
                     hx-post="/game/exploration/move"
+                    hx-sync="this:drop"
+                    hx-disabled-elt="this"
                     hx-target="#game-center"
                     hx-swap="innerHTML"
                     hx-vals='{"char_id": {{ char_id }}, "target_id": "{{ action_parts[1] }}"}'
@@ -59,6 +61,8 @@
             <button class="{{ base_class }}{{ state_class }}"
                     type="button"
                     hx-post="/game/exploration/interact"
+                    hx-sync="this:drop"
+                    hx-disabled-elt="this"
                     hx-target="#game-center"
                     hx-swap="innerHTML"
                     hx-vals='{"char_id": {{ char_id }}, "action": "{{ action_parts[1] }}"}'>
@@ -86,6 +90,8 @@
         <button class="mobile-service-tile {{ 'is-reversed' if reversed else '' }}"
                 type="button"
                 hx-post="/game/exploration/use-service"
+                hx-sync="this:drop"
+                hx-disabled-elt="this"
                 hx-target="#game-center"
                 hx-swap="innerHTML"
                 hx-vals='{"char_id": {{ char_id }}, "service_id": "{{ target_service_id }}"}'>
@@ -236,6 +242,8 @@
                 <button class="dp game-action-button mobile-action mobile-encounter-action {{ 'mobile-encounter-action--fight' if option.style == 'danger' or option.id == 'attack' else 'mobile-encounter-action--escape' }}"
                         type="button"
                         hx-post="/game/exploration/interact"
+                        hx-sync="this:drop"
+                        hx-disabled-elt="this"
                         hx-target="#game-center"
                         hx-swap="innerHTML"
                         hx-vals='{"char_id": {{ char_id }}, "action": "{{ option.id }}"}'>
@@ -256,6 +264,8 @@
             <button class="dp game-action-button mobile-action mobile-encounter-action mobile-encounter-action--fight"
                     type="button"
                     hx-post="/game/exploration/interact"
+                    hx-sync="this:drop"
+                    hx-disabled-elt="this"
                     hx-target="#game-center"
                     hx-swap="innerHTML"
                     hx-vals='{"char_id": {{ char_id }}, "action": "attack"}'>
@@ -267,6 +277,8 @@
             <button class="dp game-action-button mobile-action mobile-encounter-action mobile-encounter-action--escape"
                     type="button"
                     hx-post="/game/exploration/interact"
+                    hx-sync="this:drop"
+                    hx-disabled-elt="this"
                     hx-target="#game-center"
                     hx-swap="innerHTML"
                     hx-vals='{"char_id": {{ char_id }}, "action": "bypass"}'>

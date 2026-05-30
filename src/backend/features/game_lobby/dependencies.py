@@ -19,7 +19,7 @@ from src.backend.features.inventory.repositories.items import InventoryItemRepos
 from src.backend.features.items.integrations import ItemPersistenceIntegration
 from src.backend.features.items.repositories import ItemInstanceRepository
 from src.backend.features.rift.integrations import RiftRuntimeIntegration
-from src.backend.infrastructure.actor_state.managers import CharacterSessionManager
+from src.backend.infrastructure.actor_state.managers import CharacterSessionManager, GameSessionLockManager
 from src.backend.infrastructure.rift.managers import (
     RiftInstanceStore,
     RiftPortalStore,
@@ -37,10 +37,15 @@ def get_character_sessions(request: Request) -> CharacterSessionManager:
     return request.app.state.character_sessions
 
 
+def get_game_session_lock(request: Request) -> GameSessionLockManager:
+    return request.app.state.game_session_lock
+
+
 def get_game_lobby_integration(
     request: Request,
     db_session: Annotated[AsyncSession, Depends(get_db)],
     character_sessions: Annotated[CharacterSessionManager, Depends(get_character_sessions)],
+    game_session_lock: Annotated[GameSessionLockManager, Depends(get_game_session_lock)],
 ) -> GameLobbyIntegration:
     return GameLobbyIntegration(
         character_repo=CharacterRepository(db_session),
@@ -52,6 +57,7 @@ def get_game_lobby_integration(
         inventory_repo=InventoryItemRepository(db_session),
         item_persistence=ItemPersistenceIntegration(ItemInstanceRepository(db_session)),
         character_sessions=character_sessions,
+        game_session_lock=game_session_lock,
         events=request.app.state.events,
         starting_imprint_distribution=request.app.state.redis_managers.starting_imprints,
         rift_runtime=RiftRuntimeIntegration(

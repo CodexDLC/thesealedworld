@@ -99,6 +99,7 @@ class RedisContainer:
         app.state.generation_ai_arq = ArqService(queue_name=GENERATION_AI_ARQ_QUEUE)
         app.state.redis_managers = managers
         app.state.character_sessions = managers.character_sessions
+        app.state.game_session_lock = managers.game_session_lock
         app.state.actor_commitments = managers.actor_commitments
         app.state.scenario_sessions = managers.scenario_sessions
         app.state.scenario_content = managers.scenario_content

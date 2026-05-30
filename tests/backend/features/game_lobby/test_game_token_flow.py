@@ -77,6 +77,14 @@ async def test_population_stats_for_site_user_uses_lobby_service() -> None:
     assert response.characters_total == 11
 
 
+def _request_with_session_lock() -> tuple[SimpleNamespace, AsyncMock]:
+    """Fake FastAPI Request exposing ``app.state.game_session_lock.claim``."""
+    claim = AsyncMock()
+    state = SimpleNamespace(game_session_lock=SimpleNamespace(claim=claim))
+    request = SimpleNamespace(app=SimpleNamespace(state=state))
+    return request, claim
+
+
 @pytest.mark.unit
 async def test_select_character_issues_game_access_token() -> None:
     user_id = uuid4()
@@ -89,8 +97,10 @@ async def test_select_character_issues_game_access_token() -> None:
             )
         )
     )
+    request, claim = _request_with_session_lock()
 
     response = await select_lobby_character_for_site_user(
+        request,
         GameLobbyCharacterSelectRequestDTO(user_id=user_id, character_id=7),
         object(),
         service,
@@ -102,14 +112,19 @@ async def test_select_character_issues_game_access_token() -> None:
     claims = decode_game_access_token(tokens["access_token"])
     assert claims.sub == user_id
     assert claims.character_id == 7
+    # Session id must be a fresh uuid hex claim, not the legacy str(char_id).
+    assert claims.session_id and claims.session_id != "7"
+    claim.assert_awaited_once_with(7, claims.session_id)
 
 
 @pytest.mark.unit
 async def test_select_character_rejects_foreign_character() -> None:
     service = SimpleNamespace(enter_character=AsyncMock(side_effect=BusinessLogicException("Character is unavailable")))
+    request, _ = _request_with_session_lock()
 
     with pytest.raises(BusinessLogicException, match="Character is unavailable"):
         await select_lobby_character_for_site_user(
+            request,
             GameLobbyCharacterSelectRequestDTO(user_id=uuid4(), character_id=999),
             object(),
             service,
@@ -128,8 +143,10 @@ async def test_create_character_for_site_user_returns_scenario_and_game_tokens()
             )
         )
     )
+    request, claim = _request_with_session_lock()
 
     response = await create_lobby_character_for_site_user(
+        request,
         GameLobbyCharacterCreateRequestDTO(
             user_id=user_id,
             email="hero@example.test",
@@ -146,6 +163,8 @@ async def test_create_character_for_site_user_returns_scenario_and_game_tokens()
     claims = decode_game_access_token(tokens["access_token"])
     assert claims.sub == user_id
     assert claims.character_id == 7
+    assert claims.session_id and claims.session_id != "7"
+    claim.assert_awaited_once_with(7, claims.session_id)
 
 
 @pytest.mark.unit

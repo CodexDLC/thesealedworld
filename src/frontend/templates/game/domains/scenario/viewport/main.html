@@ -92,6 +92,7 @@
                         <button class="game-action-button scenario-choice {{ 'scenario-choice--primary' if loop.first else '' }} {{ 'scenario-choice--danger' if icon_key in ['risk', 'warning'] else '' }}"
                                 type="button"
                                 hx-post="/game/scenario/step"
+                                hx-sync="closest .scenario-action-panel:drop"
                                 hx-vals='{{ {"action_id": btn.action_id, "char_id": scenario_char_id}|tojson }}'
                                 hx-target="#scenario-panel-root"
                                 hx-swap="outerHTML"

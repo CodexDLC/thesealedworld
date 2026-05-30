@@ -48,7 +48,7 @@ class GameTokenRefreshMiddleware(BaseHTTPMiddleware):
                 access_token=tokens.access_token,
                 refresh_token=tokens.refresh_token,
             )
-        elif getattr(request.state, "clear_game_token_cookies", False):
+        elif getattr(request.state, "clear_game_token_cookies", False) or _is_session_replaced_response(response):
             clear_game_token_cookies(response)
         return response
 
@@ -82,6 +82,16 @@ class GameTokenRefreshMiddleware(BaseHTTPMiddleware):
 
 def _should_refresh_for_path(path: str) -> bool:
     return path.startswith(GAME_TOKEN_REFRESH_PATH_PREFIXES)
+
+
+def _is_session_replaced_response(response: Response) -> bool:
+    """Detect the backend single-session 409 reply by the HX-Trigger header."""
+    if response.status_code != 409:
+        return False
+    trigger = response.headers.get("HX-Trigger") or response.headers.get("hx-trigger")
+    if not trigger:
+        return False
+    return "session-replaced" in trigger
 
 
 def _token_needs_refresh(token: str) -> bool:

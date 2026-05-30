@@ -2,6 +2,8 @@
     {% set button_action = button.action.value if button.action and button.action.value is defined else button.action %}
     {% set current_screen = city_service.screen.value if city_service.screen and city_service.screen.value is defined else city_service.screen %}
     hx-post="/game/city-services/action"
+    hx-sync="this:drop"
+    hx-disabled-elt="this"
     hx-target="#game-center"
     hx-swap="innerHTML"
     hx-vals='{"char_id": {{ char_id }}, "action": "{{ button_action }}", "screen": "{{ current_screen }}", "service_id": "{{ city_service.service_id }}"{% if button.section_id %}, "section_id": "{{ button.section_id }}"{% elif city_service.section_id %}, "section_id": "{{ city_service.section_id }}"{% endif %}{% if city_service.location_id %}, "location_id": "{{ city_service.location_id }}"{% endif %}}'
@@ -11,6 +13,8 @@
     {% set current_screen = city_service.screen.value if city_service.screen and city_service.screen.value is defined else city_service.screen %}
     {% set npc_section_id = npc.section_id if npc and npc.section_id is defined and npc.section_id else city_service.section_id %}
     hx-post="/game/city-services/action"
+    hx-sync="this:drop"
+    hx-disabled-elt="this"
     hx-target="#game-center"
     hx-swap="innerHTML"
     hx-vals='{"char_id": {{ char_id }}, "action": "start_dialogue", "screen": "{{ current_screen }}", "service_id": "{{ city_service.service_id }}"{% if npc_section_id %}, "section_id": "{{ npc_section_id }}"{% endif %}{% if city_service.location_id %}, "location_id": "{{ city_service.location_id }}"{% endif %}}'

@@ -17,6 +17,14 @@ class PlayerCoreKey(BaseRedisKey):
         return "game:ac:{char_id}"
 
 
+class GameSessionLockKey(BaseRedisKey):
+    """Single active game session id per character (single-tab/device enforcement)."""
+
+    @property
+    def template(self) -> str:
+        return "game:ac_sess:{char_id}"
+
+
 class WorldLocationKey(BaseRedisKey):
     """Runtime location metadata loaded from persistent world tables."""
 

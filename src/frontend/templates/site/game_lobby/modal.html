@@ -4,6 +4,12 @@
         <a class="lobby-modal-close" href="/" aria-label="Закрыть лобби">
             <span aria-hidden="true">×</span>
         </a>
+        {% if lobby_notice == "session_replaced" %}
+            <div class="login-notice" role="status">
+                <strong>Сессия передана другому устройству</strong>
+                Эта вкладка отключена. Чтобы продолжить здесь, выберите персонажа снова.
+            </div>
+        {% endif %}
         {% include "site/game_lobby/fragments/lobby_panel.html" %}
     </section>
 </div>

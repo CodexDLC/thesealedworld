@@ -1,12 +1,15 @@
+import uuid
 from typing import Annotated, Any, cast
 
 from fastapi import APIRouter, Depends, Request
 
 from src.backend.core.auth import User, get_current_user, require_game_character_scope
+from src.backend.core.exceptions import SessionReplacedException
 from src.backend.core.game_auth import (
     GameTokenPairDTO,
     GameTokenRefreshRequestDTO,
     create_game_token_pair,
+    decode_game_refresh_token,
     refresh_game_token_pair,
     require_internal_service_key,
 )
@@ -69,6 +72,7 @@ async def get_lobby_population_stats(
 
 @router.post("/select", response_model=CoreResponseDTO[dict[str, object]])
 async def select_lobby_character_for_site_user(
+    request: Request,
     dto: GameLobbyCharacterSelectRequestDTO,
     _service: Annotated[object, Depends(require_internal_service_key)],
     lobby_service: Annotated[GameLobbyService, Depends(get_game_lobby_service)],
@@ -76,11 +80,13 @@ async def select_lobby_character_for_site_user(
     """Select an owned character and issue game tokens for gameplay API calls."""
     user = AuthenticatedUser(id=dto.user_id, email=dto.email)
     response = await lobby_service.enter_character(user, dto.character_id)
+    session_id = uuid.uuid4().hex
     tokens = create_game_token_pair(
         user_id=user.id,
         character_id=dto.character_id,
-        session_id=str(dto.character_id),
+        session_id=session_id,
     )
+    await request.app.state.game_session_lock.claim(dto.character_id, session_id)
     payload = {
         **(response.payload or {}),
         "game_tokens": tokens.model_dump(mode="json"),
@@ -90,6 +96,7 @@ async def select_lobby_character_for_site_user(
 
 @router.post("/create", response_model=CoreResponseDTO[ScenarioPayloadDTO | dict[Any, Any]])
 async def create_lobby_character_for_site_user(
+    request: Request,
     dto: GameLobbyCharacterCreateRequestDTO,
     _service: Annotated[object, Depends(require_internal_service_key)],
     creation_service: Annotated[CharacterCreationService, Depends(get_character_creation_service)],
@@ -98,11 +105,13 @@ async def create_lobby_character_for_site_user(
     user = AuthenticatedUser(id=dto.user_id, email=dto.email)
     payload = await creation_service.create_and_enter(user, dto.character)
     char_id = _char_id_from_payload(payload)
+    session_id = uuid.uuid4().hex
     tokens = create_game_token_pair(
         user_id=user.id,
         character_id=char_id,
-        session_id=str(char_id),
+        session_id=session_id,
     )
+    await request.app.state.game_session_lock.claim(char_id, session_id)
     payload.extra_data = {
         **(payload.extra_data or {}),
         "game_tokens": tokens.model_dump(mode="json"),
@@ -158,9 +167,17 @@ async def delete_lobby_character_for_site_user(
 
 @router.post("/refresh-token", response_model=GameTokenPairDTO)
 async def refresh_game_token(
+    request: Request,
     dto: GameTokenRefreshRequestDTO,
     _service: Annotated[object, Depends(require_internal_service_key)],
 ) -> GameTokenPairDTO:
+    # Validate that the refresh token belongs to the currently active session for
+    # this character. If a newer login claimed the slot, refuse to mint a new
+    # access token so the old device cannot resurrect itself.
+    claims = decode_game_refresh_token(dto.refresh_token)
+    current_session = await request.app.state.game_session_lock.current(claims.character_id)
+    if claims.session_id is None or current_session != claims.session_id:
+        raise SessionReplacedException()
     return refresh_game_token_pair(dto.refresh_token)
 
 
@@ -193,6 +210,7 @@ async def get_lobby_view(
 
 @router.post("/start", response_model=CoreResponseDTO[ScenarioPayloadDTO | dict[Any, Any]])
 async def start_lobby_flow(
+    request: Request,
     dto: CreateCharacterRequestDTO,
     current_user: Annotated[User, Depends(get_current_user)],
     creation_service: Annotated[CharacterCreationService, Depends(get_character_creation_service)],
@@ -200,11 +218,13 @@ async def start_lobby_flow(
     """Creates a new character and enters the starting scenario."""
     payload = await creation_service.create_and_enter(current_user, dto)
     char_id = _char_id_from_payload(payload)
+    session_id = uuid.uuid4().hex
     tokens = create_game_token_pair(
         user_id=current_user.id,
         character_id=char_id,
-        session_id=str(char_id),
+        session_id=session_id,
     )
+    await request.app.state.game_session_lock.claim(char_id, session_id)
     payload.extra_data = {
         **(payload.extra_data or {}),
         "game_tokens": tokens.model_dump(mode="json"),

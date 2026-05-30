@@ -148,7 +148,7 @@ chance = min(0.50, 0.25 + 0.25 * skill_dual_wield)  # 0.25 base, 0.50 at full ma
 
 ## Offensive Branch Selection
 
-`CombatResolver._get_offensive_val(stats, ctx, key)` dispatches on `ctx.flags.meta.source_type`:
+`resolver.support.offensive_lookup.get_offensive_val(stats, ctx, key)` dispatches on `ctx.flags.meta.source_type`:
 
 | source_type | damage_base | accuracy | armor_penetration_pct | crit_chance |
 |---|---|---|---|---|

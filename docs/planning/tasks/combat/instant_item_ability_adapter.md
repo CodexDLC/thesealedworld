@@ -73,7 +73,7 @@ Item instances may need usage parameters in addition to ability id:
 - Whether item log text should extend combat catalog descriptions or remain item-instance text.
 - Whether consumable item usage should be committed by combat runtime, inventory integration, or a post-result session commit step.
 - Whether throwable/offensive items should use ability `override_damage` only, or also support resolver-level `item_damage_*` stats.
-- Whether `CombatResolver._get_offensive_val()` should support `source_type="item"` at all if ability delegation covers most instant item cases.
+- Whether `resolver.support.offensive_lookup.get_offensive_val()` should support `source_type="item"` at all if ability delegation covers most instant item cases.
 
 ## Acceptance Notes
 

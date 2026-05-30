@@ -7,25 +7,50 @@
 
 ## Tier 1 — Критичные файлы (>500 строк, массивное смешение ответственностей)
 
-### 1. `CombatResolver` — 1,106 строк, 32 метода
+### 1. ~~`CombatResolver` — 1,106 строк, 32 метода~~ ✅ DONE (refactor/combat-resolver-package)
 
-**Файл:** `src/backend/features/combat/runtime/engine/resolver.py`
+**Файл:** `src/backend/features/combat/runtime/engine/resolver/` (был `resolver.py`)
 
-Монолитный stateless-класс: расчёт урона, хила, триггеров, токенов, логирования — всё через static-методы.
-`_step_calculate_damage()` — 215 строк вложенных условий.
+Декомпозирован в пакет с императивным оркестратором, 7 простыми `ResolverStep`-классами,
+суб-пайплайном `DamageStep` (7 фаз) и 5 support-модулями. Публичный контракт
+(`CombatResolver.resolve_exchange`) сохранён бит-в-бит. `__init__.py` ужался до 55 строк.
 
-**Рекомендация:** Превратить в оркестратор цепочки калькуляторов. Каждый тип расчёта — отдельный класс с единым интерфейсом (`ResolverStep`). Resolver собирает шаги и вызывает по очереди:
+**Раскладка пакета:**
 
 ```
-ResolverStep (protocol)
-├── AccuracyStep        — броски точности, уклонения, парирования, блока
-├── DamageStep          — base → resistance → armor → shield → absorb → reflect
-├── HealingStep         — базовый хил, крит-множитель, ресурсные дельты
-├── TriggerStep         — активация триггеров, шанс, применение эффектов/токенов
-└── TraceStep           — логирование и диагностика
+src/backend/features/combat/runtime/engine/resolver/
+├── __init__.py            — CombatResolver facade (resolve_exchange only)
+├── orchestrator.py        — imperative run_exchange(...) with explicit early-returns
+├── steps/
+│   ├── _base.py           — ResolverStep (__slots__ = ())
+│   ├── accuracy.py        — AccuracyStep + accuracy_step singleton
+│   ├── crit.py            — CritStep
+│   ├── evasion.py         — EvasionStep
+│   ├── parry.py           — ParryStep
+│   ├── block.py           — BlockStep
+│   ├── counter_check.py   — CounterCheckStep
+│   ├── healing.py         — HealingStep
+│   └── damage/            — sub-pipeline (Phase 5 decomposition)
+│       ├── damage_step.py — DamageStep + damage_step singleton
+│       ├── _state.py      — DamageState dataclass(slots=True)
+│       ├── raw_roll.py    — init + raw_damage
+│       ├── physical.py    — physical mitigation + armor + crit
+│       ├── pure.py        — pure damage
+│       ├── elemental.py   — 8-element loop + heavy-armor subsequent penalty
+│       ├── shield_absorb.py
+│       ├── final_clamp.py — damage_mult + cap + res.damage_final
+│       └── damage_event.py — trace + HIT event
+└── support/
+    ├── trace_writer.py     — trace_roll/trace_step/trace_damage + compact helpers
+    ├── offensive_lookup.py — get_offensive_val, accuracy_skill_bonus
+    ├── armor_math.py       — effective_armor*, effective_physical_resistance, calculate_crit_multiplier
+    ├── token_awarder.py    — bonus_token_roll, award_token / attacker / defender
+    └── trigger_activator.py — resolve_triggers, trigger_chance, apply_*_effects/token_grants
 ```
 
-`CombatResolver.resolve()` — цикл по шагам, передаёт общий контекст.
+**Закреплено тестом:** `tests/backend/features/combat/runtime/engine/test_resolver_trigger_contract.py`
+фиксирует множество эмитируемых триггер-событий (12 имён, `ON_DAMAGE` — dormant,
+не эмитится по дизайну).
 
 ---
 
@@ -248,7 +273,7 @@ Session queries + move registration + result archival + log aggregation + winner
 
 | Антипаттерн | Примеры | Встречается |
 |-------------|---------|-------------|
-| **Mega-метод (100+ строк)** | CombatResolver._step_calculate_damage (215), CityService._payload (187), ScenarioService.finalize (170) | 3+ раза |
+| **Mega-метод (100+ строк)** | ~~CombatResolver._step_calculate_damage (215)~~ (resolved Phase 5), CityService._payload (187), ScenarioService.finalize (170) | 3+ раза |
 | **Dependency hell (7+ deps)** | GameLobbyIntegration (11), GameSessionIntegrator (7), MonsterGroupService (7) | 3 класса |
 | **SQL в сервисном слое** | ExpeditionService (select/delete/insert прямо в методах) | 1+ |
 | **Embedded Lua** | CombatSessionManager (128+ строк Lua в Python-строках) | 1 |

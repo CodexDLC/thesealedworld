@@ -15,7 +15,7 @@ GEAR_SCORE_WEIGHTS: dict[str, float] = {
     "en_regen": 2.0,
     "stamina": 0.015,
     "stamina_regen": 1.0,
-    # Hand and item attack stats read by CombatResolver._get_offensive_val.
+    # Hand and item attack stats read by resolver.support.offensive_lookup.get_offensive_val.
     "main_hand_damage_base": 1.2,
     "main_hand_damage_spread": -80.0,
     "main_hand_armor_penetration_pct": 70.0,

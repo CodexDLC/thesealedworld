@@ -20,7 +20,7 @@ def default_trigger_sources() -> list[TriggerSource]:
 class TriggerTechnicalDTO(BaseModel):
     """
     Pure logic configuration for a trigger.
-    Consumed by CombatResolver._resolve_triggers() and log_builder.
+    Consumed by resolver.support.trigger_activator.resolve_triggers() and log_builder.
     No UI fields.
     """
 

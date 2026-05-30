@@ -26,7 +26,7 @@ TRIGGER_CATALOG_BY_KEY: dict[str, TriggerCatalogEntryDTO] = {}
 
 # ==========================================
 # 4. RULES: event -> { trigger_id: {event, chance, pipeline_mutations} }
-#    Consumed by CombatResolver._resolve_triggers() — preserves existing contract.
+#    Consumed by resolver.support.trigger_activator.resolve_triggers() — preserves existing contract.
 # ==========================================
 TRIGGER_RULES: dict[str, dict[str, dict[str, Any]]] = defaultdict(dict)
 

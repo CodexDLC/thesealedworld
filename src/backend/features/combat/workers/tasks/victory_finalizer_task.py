@@ -12,7 +12,17 @@ from src.backend.features.combat.workers.tasks.chat_announcements import publish
 from src.backend.features.expedition import ExpeditionService
 from src.backend.features.inventory.events.publisher import InventoryEvents
 from src.backend.infrastructure.loot.managers.loot_manager import LootManager
-from src.backend.infrastructure.rift.managers import RiftInstanceStore, RiftPresenceStore, RiftRunSessionStore
+from src.backend.infrastructure.rift.managers import (
+    RiftInstanceStore,
+    RiftPortalStore,
+    RiftPresenceStore,
+    RiftRunSessionStore,
+)
+from src.backend.infrastructure.rift.repositories import (
+    RiftInstanceStateRepository,
+    RiftPortalKeyRepository,
+    RiftRunStateRepository,
+)
 from src.shared.enums import CoreDomain
 from src.shared.infrastructure.log_task_wrapper import logged_task
 
@@ -158,7 +168,10 @@ async def _apply_rift_combat_result(ctx: dict, finalization: dict[str, Any]) -> 
         log.bind(combat_id=finalization.get("combat_id")).warning("VictoryFinalizerRiftResultMissingSession")
         return
 
+    result = _resolve_rift_result(finalization)
+
     rift_runtime = ctx.get("rift_runtime")
+    db_session_cm = None
     if rift_runtime is None:
         redis_service = ctx.get("redis_service")
         if redis_service is None:
@@ -166,29 +179,62 @@ async def _apply_rift_combat_result(ctx: dict, finalization: dict[str, Any]) -> 
             return
         from src.backend.features.rift.integrations import RiftRuntimeIntegration
 
+        # Build the full runtime integration so DB fallback for require_instance /
+        # require_run_session works, and so portal status can be marked on defeat.
+        db_session_cm = get_session_context()
+        db_session = await db_session_cm.__aenter__()
         rift_runtime = RiftRuntimeIntegration(
             instance_store=RiftInstanceStore(redis_service),
             session_store=RiftRunSessionStore(redis_service),
             presence_store=RiftPresenceStore(redis_service),
+            portal_store=RiftPortalStore(redis_service),
+            instance_state_repository=RiftInstanceStateRepository(db_session),
+            run_state_repository=RiftRunStateRepository(db_session),
+            portal_key_repository=RiftPortalKeyRepository(db_session),
         )
 
-    apply_combat_result = getattr(rift_runtime, "apply_combat_result", None)
-    if apply_combat_result is None:
-        clear_run_active_encounter = getattr(rift_runtime, "clear_run_active_encounter", None)
-        if clear_run_active_encounter is not None:
-            await clear_run_active_encounter(rift_session_id)
-        return
+    try:
+        apply_combat_result = getattr(rift_runtime, "apply_combat_result", None)
+        if apply_combat_result is None:
+            clear_run_active_encounter = getattr(rift_runtime, "clear_run_active_encounter", None)
+            if clear_run_active_encounter is not None:
+                await clear_run_active_encounter(rift_session_id)
+            return
 
-    await apply_combat_result(
-        combat_id=str(finalization.get("combat_id") or ""),
-        result="victory",
-        rift_session_id=rift_session_id,
-        rift_instance_id=str(meta.get("rift_instance_id") or ""),
-        event_scope=str(meta.get("rift_event_scope") or ""),
-        travel_id=str(meta.get("rift_travel_id") or ""),
-        event_key=str(meta.get("rift_event_key") or ""),
-        participant_ref="",
-    )
+        await apply_combat_result(
+            combat_id=str(finalization.get("combat_id") or ""),
+            result=result,
+            rift_session_id=rift_session_id,
+            rift_instance_id=str(meta.get("rift_instance_id") or ""),
+            event_scope=str(meta.get("rift_event_scope") or ""),
+            travel_id=str(meta.get("rift_travel_id") or ""),
+            event_key=str(meta.get("rift_event_key") or ""),
+            participant_ref="",
+        )
+    finally:
+        if db_session_cm is not None:
+            await db_session_cm.__aexit__(None, None, None)
+
+
+def _resolve_rift_result(finalization: dict[str, Any]) -> str:
+    """Return ``victory`` if the winning team contained a player char_id, else ``defeat``.
+
+    The previous implementation hardcoded ``victory``, which silently cleared rift
+    node_events / opened gates even when monsters won the encounter.
+    """
+    winner_team = str(finalization.get("winner_team") or "")
+    if not winner_team or winner_team == "draw":
+        return "defeat"
+    actors = finalization.get("actors") if isinstance(finalization.get("actors"), dict) else {}
+    for actor in actors.values():
+        if not isinstance(actor, dict):
+            continue
+        if actor.get("char_id") is None:
+            continue
+        if str(actor.get("team") or "") != winner_team:
+            continue
+        return "victory"
+    return "defeat"
 
 
 async def _attach_finalization_to_active_sessions(ctx: dict, session_id: str, finalization: dict[str, Any]) -> None:

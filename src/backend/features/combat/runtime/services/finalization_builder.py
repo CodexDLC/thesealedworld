@@ -63,6 +63,7 @@ class CombatFinalizationBuilder:
                 "rift_session_id": self._optional_str(meta.get("rift_session_id")),
                 "rift_instance_id": self._optional_str(meta.get("rift_instance_id")),
                 "rift_node_id": self._optional_str(meta.get("rift_node_id")),
+                "rift_setting_key": self._optional_str(meta.get("rift_setting_key")),
                 "rift_event_scope": self._optional_str(meta.get("rift_event_scope")),
                 "rift_travel_id": self._optional_str(meta.get("rift_travel_id")),
                 "rift_event_key": self._optional_str(meta.get("rift_event_key")),

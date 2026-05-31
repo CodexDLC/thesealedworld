@@ -131,6 +131,7 @@ class CombatLifecycleService:
             "rift_session_id": str(request.get("rift_session_id") or ""),
             "rift_instance_id": str(request.get("rift_instance_id") or ""),
             "rift_node_id": str(request.get("rift_node_id") or ""),
+            "rift_setting_key": str(request.get("rift_setting_key") or ""),
             "rift_event_scope": str(request.get("rift_event_scope") or ""),
             "rift_travel_id": str(request.get("rift_travel_id") or ""),
             "rift_event_key": str(request.get("rift_event_key") or ""),

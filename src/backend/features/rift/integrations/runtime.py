@@ -338,7 +338,7 @@ class RiftRuntimeIntegration:
         participant_ref: str | None = None,
     ) -> dict[str, Any]:
         """Apply a finalized combat result to the owning rift runtime state."""
-        if result != "victory":
+        if result not in {"victory", "defeat", "draw"}:
             return {"applied": False, "reason": "unsupported_result"}
 
         session = await self.require_run_session(rift_session_id)
@@ -355,15 +355,45 @@ class RiftRuntimeIntegration:
         instance = await self.require_instance(resolved_instance_id)
         runtime = _runtime_for_run_session(instance, session)
         scope = str(event_scope or _active_event_scope(runtime) or "")
+        resolved_travel_id = str(travel_id or dict(runtime.active_travel or {}).get("travel_id") or "")
 
+        if result != "victory":
+            # Defeat / draw: do not advance node_events or open gates. Only clear the
+            # encounter binding so the player can either die-out via post-combat flow
+            # or retry the encounter on re-entry. active_travel is reset so the player
+            # is no longer stuck in an "interrupted" travel state.
+            next_session = _session_payload_from_runtime(
+                runtime,
+                previous_session=session,
+                active_encounter_id=None,
+                clear_active_travel=True,
+            )
+            await self.save_run_session(next_session)
+            await self._clear_resolved_encounter(
+                session=next_session,
+                combat_id=combat_id,
+                rift_instance_id=resolved_instance_id,
+                travel_id=resolved_travel_id or travel_id,
+            )
+            return {
+                "applied": True,
+                "result": result,
+                "event_scope": scope,
+                "rift_session_id": rift_session_id,
+                "rift_instance_id": resolved_instance_id,
+                "current_node_id": str(session.get("current_node_id") or "") or None,
+            }
+
+        # NOTE: "boss"/"boss_solo"/"boss_with_minions"/"heart_guard" scopes are not
+        # emitted anywhere in the encounter pipeline today (only "transition" and
+        # "node_entry"). See plan #7 in docs/known-issues/rift_scripted_nodes.md.
         if scope == "transition":
-            resolved_travel_id = str(travel_id or dict(runtime.active_travel or {}).get("travel_id") or "")
             updated, _response = resolve_transition_combat_runtime(
                 runtime,
                 travel_id=resolved_travel_id,
                 result=result,
             )
-        elif scope in {"node_entry", "heart_guard", "boss", "boss_solo", "boss_with_minions"}:
+        elif scope == "node_entry":
             updated, _response = resolve_node_entry_event_runtime(
                 runtime,
                 event_key=event_key or None,
@@ -401,6 +431,7 @@ class RiftRuntimeIntegration:
         )
         return {
             "applied": True,
+            "result": result,
             "event_scope": scope,
             "rift_session_id": rift_session_id,
             "rift_instance_id": updated.rift_instance_id,
@@ -527,6 +558,7 @@ def _session_payload_from_runtime(
     *,
     previous_session: dict[str, Any],
     active_encounter_id: str | None,
+    clear_active_travel: bool = False,
 ) -> dict[str, Any]:
     existing = dict(previous_session or {})
     return {
@@ -539,7 +571,7 @@ def _session_payload_from_runtime(
         "heading": runtime.heading,
         "visited_node_ids": sorted(runtime.visited_node_ids),
         "discovered_node_ids": sorted(runtime.visited_node_ids),
-        "active_travel": runtime.active_travel,
+        "active_travel": None if clear_active_travel else runtime.active_travel,
         "last_travel": runtime.last_travel,
         "active_encounter_id": active_encounter_id,
     }

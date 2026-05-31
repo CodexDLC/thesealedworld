@@ -3,6 +3,8 @@ from __future__ import annotations
 import hashlib
 from typing import TYPE_CHECKING, Any
 
+from loguru import logger
+
 from src.backend.features.monsters.intel_projector import MonsterIntelProjector
 from src.backend.features.rift.dto.screen import RiftCombatPromptDTO, RiftCombatPromptEnemyDTO
 from src.backend.features.rift.runtime.encounter import composition_policy_for_encounter_kind
@@ -158,6 +160,7 @@ class RiftEncounterService:
         monster_ids = list(group.monster_ids)
         policy = dict(session.get("exit_policy") or {})
         node_id = _encounter_node_id(runtime, session=session, metadata=metadata)
+        setting_key = str(dict(runtime.setting or {}).get("setting_key") or "")
         return {
             "combat_id": _combat_id(runtime, session=session, metadata=metadata),
             "source": "rift",
@@ -166,6 +169,7 @@ class RiftEncounterService:
             "rift_session_id": str(session.get("rift_session_id") or ""),
             "rift_instance_id": runtime.rift_instance_id,
             "rift_node_id": node_id,
+            "rift_setting_key": setting_key,
             "rift_event_scope": str(metadata.get("event_scope") or ""),
             "rift_travel_id": str(metadata.get("travel_id") or ""),
             "rift_event_key": str(metadata.get("event_key") or ""),
@@ -213,26 +217,35 @@ class RiftEncounterService:
         prompt: RiftCombatPromptDTO,
         combat_id: str,
     ) -> None:
-        apply_combat_result = getattr(self.runtime, "apply_combat_result", None)
+        """Unstick a rift session whose active_encounter no longer matches the player's combat_id.
+
+        Clears the encounter binding without applying any combat result — the previous
+        encounter is treated as abandoned, not auto-victory. Failures in clearing are
+        logged and swallowed so the new combat can still be launched.
+        """
         rift_session_id = str(session.get("rift_session_id") or "")
-        if apply_combat_result is None:
-            clear_run_active_encounter = getattr(self.runtime, "clear_run_active_encounter", None)
+        rift_instance_id = str(session.get("rift_instance_id") or "")
+        clear_run_active_encounter = getattr(self.runtime, "clear_run_active_encounter", None)
+        clear_encounter_presence = getattr(self.runtime, "clear_transition_encounter_presence", None)
+        try:
             if clear_run_active_encounter is not None and rift_session_id:
                 await clear_run_active_encounter(rift_session_id)
-            return
-
-        metadata = dict(prompt.metadata or {})
-        active_travel = dict(session.get("active_travel") or {})
-        await apply_combat_result(
-            combat_id=combat_id,
-            result="victory",
-            rift_session_id=rift_session_id,
-            rift_instance_id=str(session.get("rift_instance_id") or ""),
-            event_scope=str(metadata.get("event_scope") or active_travel.get("event_scope") or ""),
-            travel_id=str(metadata.get("travel_id") or active_travel.get("travel_id") or ""),
-            event_key=str(metadata.get("event_key") or ""),
-            participant_ref=str(session.get("participant_ref") or ""),
-        )
+            if clear_encounter_presence is not None and rift_instance_id and combat_id:
+                await clear_encounter_presence(rift_instance_id, combat_id)
+        except Exception:  # noqa: BLE001
+            logger.bind(
+                rift_session_id=rift_session_id,
+                rift_instance_id=rift_instance_id,
+                stale_combat_id=combat_id,
+            ).warning("RiftStaleEncounterForceClearFailed")
+        else:
+            logger.bind(
+                rift_session_id=rift_session_id,
+                rift_instance_id=rift_instance_id,
+                stale_combat_id=combat_id,
+            ).info("RiftStaleEncounterForceCleared")
+        # Drop unused arg now that we no longer dispatch into apply_combat_result.
+        _ = prompt
 
 
 def _select_family_binding(

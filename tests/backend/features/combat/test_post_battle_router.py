@@ -243,9 +243,37 @@ async def test_post_battle_router_adds_rift_death_policy_to_dead_player() -> Non
     assert outcomes[7].death_summary["rift"] == {
         "rift_session_id": "rift-run-1",
         "rift_instance_id": "rift-instance-1",
+        "rift_setting_key": None,
         "entrance_seals_on_entry": True,
         "death_policy": "sealed_access_lost",
     }
+
+
+@pytest.mark.asyncio
+async def test_post_battle_router_marks_starter_rift_defeat_as_training_restart() -> None:
+    finalization = {
+        "combat_id": "combat-starter-rift-death",
+        "winner_team": "team_2",
+        "participant_char_ids": [7],
+        "meta": {
+            "battle_type": "rift",
+            "rift_session_id": "rift-run-2",
+            "rift_instance_id": "rift-instance-2",
+            "rift_setting_key": "starter_rift",
+            # entrance_seals_on_entry is irrelevant for the starter_rift policy
+            "rift_entrance_seals_on_entry": True,
+        },
+        "actors": {
+            "7": {"char_id": 7, "team": "team_1", "is_dead": True},
+        },
+    }
+    ctx = {"character_sessions": FakeCharacterSessions()}
+
+    outcomes = await CombatPostBattleRouter().build_outcomes(ctx, finalization)
+
+    assert outcomes[7].target_state == "death"
+    assert outcomes[7].death_summary["rift"]["rift_setting_key"] == "starter_rift"
+    assert outcomes[7].death_summary["rift"]["death_policy"] == "training_restart"
 
 
 @pytest.mark.asyncio

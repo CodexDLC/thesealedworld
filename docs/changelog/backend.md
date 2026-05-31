@@ -4,6 +4,13 @@ Detailed milestone history for the `src/backend` game runtime layer.
 
 ## [Unreleased]
 
+- Loot TTL values (`PUBLIC_DELAY_SEC`, `PUBLIC_WINDOW_SEC`, `INVISIBLE_TTL_SEC`, `EMPTY_CORPSE_TTL_SEC`) are now stored and read as integers — Redis `EXPIRE` rejects fractional seconds, which previously caused corpse persistence to fail silently and dropped post-combat loot entirely.
+- Loot order stream handler now wraps its body in try/except so a single malformed payload no longer poisons the consumer group.
+- Rift combat finalization now propagates the real combat winner instead of hardcoded `victory`; defeats no longer auto-open guarded gates or clear node events. The rift integration's `apply_combat_result` accepts `defeat`/`draw` and only resets the encounter binding / active travel.
+- Victory finalizer task builds the rift runtime integration with the full DB-backed repositories (instance/run/portal-key) so DB fallback works when Redis state has expired.
+- Combat finalization meta and rift combat requests now carry `rift_setting_key`; `_death_outcome` exposes a `training_restart` death policy for the starter rift so the frontend can route training defeats back to the platform dialog.
+- Stale rift encounter cleanup no longer force-applies `victory`. It clears the encounter binding + presence and swallows clear failures so a new combat can always be launched.
+- Removed dead worker `src/backend/features/loot/workers/tasks/loot_order_task.py` — the ARQ entry point was never enqueued; loot order is handled by the `on_order_requested` Redis stream listener.
 - Redis-backed game config entries now carry admin metadata, range validation, and an audit helper for classifying future runtime tuning candidates.
 - Automatic starter imprints now use Redis-backed least-used distribution with per-account repeat protection.
 - Combat AI now includes archetype policies, tactical memory, offline battle simulation, and admin-triggered simulation run persistence.

@@ -182,6 +182,83 @@ async def test_apply_node_entry_combat_result_clears_event_and_grants_flags() ->
 
 
 @pytest.mark.asyncio
+async def test_apply_combat_result_defeat_clears_encounter_without_resolving_event() -> None:
+    """Regression: defeat must NOT cleared events or open gates — only release the encounter."""
+    runtime = _two_node_runtime().model_copy(
+        update={
+            "current_node_id": "node-next",
+            "visited_node_ids": {"node-start", "node-next"},
+            "node_events": {
+                "node-next": {
+                    "event_key": "guard-1",
+                    "event_type": "combat",
+                    "state": "ready",
+                    "grants_flags": ["heart_guard_cleared"],
+                }
+            },
+            "gate_states": {
+                "heart_gate": {
+                    "state": "locked",
+                    "requirement": {"type": "rift_flag", "flag": "heart_guard_cleared"},
+                }
+            },
+            "active_travel": {
+                "travel_id": "trv-1",
+                "status": "interrupted",
+                "tick_result": "combat",
+                "from_node_id": "node-start",
+                "to_node_id": "node-next",
+                "kind": "exploration",
+                "duration_ms": 2000,
+                "tick_interval_ms": 2000,
+                "checks_done": 1,
+                "checks_total": 1,
+                "remaining_ms": 0,
+                "direction": "north",
+            },
+        }
+    )
+    session_store = FakeSessionStore(
+        {
+            "rift_session_id": "rift-run-1",
+            "rift_instance_id": "rift-instance-1",
+            "current_node_id": "node-next",
+            "visited_node_ids": ["node-start", "node-next"],
+            "participant_ref": "char:7",
+            "active_encounter_id": "combat-guard",
+            "active_travel": runtime.active_travel,
+        }
+    )
+    instance_store = FakeInstanceStore(runtime)
+    presence = FakePresenceStore()
+    integration = RiftRuntimeIntegration(
+        instance_store=instance_store,
+        session_store=session_store,
+        presence_store=presence,
+    )
+
+    result = await integration.apply_combat_result(
+        combat_id="combat-guard",
+        result="defeat",
+        rift_session_id="rift-run-1",
+        rift_instance_id="rift-instance-1",
+        event_scope="node_entry",
+        event_key="guard-1",
+    )
+
+    assert result["applied"] is True
+    assert result["result"] == "defeat"
+    # Encounter binding released, but no instance save occurred (no progression).
+    assert instance_store.saved == []
+    # Session was saved with cleared encounter + travel, current node unchanged.
+    saved_session = session_store.saved[-1]
+    assert saved_session["active_encounter_id"] is None
+    assert saved_session["active_travel"] is None
+    assert saved_session["current_node_id"] == "node-next"
+    assert presence.cleared_encounters == [("rift-instance-1", "combat-guard")]
+
+
+@pytest.mark.asyncio
 async def test_apply_combat_result_is_idempotent_when_rift_session_is_already_unlocked() -> None:
     runtime = _two_node_runtime()
     session_store = FakeSessionStore(

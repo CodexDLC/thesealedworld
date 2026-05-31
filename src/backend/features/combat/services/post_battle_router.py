@@ -142,11 +142,21 @@ class CombatPostBattleRouter:
         rift_session_id = str(combat_meta.get("rift_session_id") or "")
         if rift_session_id:
             entrance_seals = bool(combat_meta.get("rift_entrance_seals_on_entry"))
+            setting_key = str(combat_meta.get("rift_setting_key") or "")
+            # The starter rift is the tutorial — defeat means restart the platform
+            # dialog rather than the normal death screen. Frontend routes on this hint.
+            if setting_key == "starter_rift":
+                death_policy = "training_restart"
+            elif entrance_seals:
+                death_policy = "sealed_access_lost"
+            else:
+                death_policy = "return_possible"
             death_summary["rift"] = {
                 "rift_session_id": rift_session_id,
                 "rift_instance_id": str(combat_meta.get("rift_instance_id") or ""),
+                "rift_setting_key": setting_key or None,
                 "entrance_seals_on_entry": entrance_seals,
-                "death_policy": "sealed_access_lost" if entrance_seals else "return_possible",
+                "death_policy": death_policy,
             }
         return PostCombatOutcomeDTO(
             char_id=char_id,

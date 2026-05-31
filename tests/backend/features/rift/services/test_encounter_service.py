@@ -71,6 +71,8 @@ class FakeRuntimeIntegration:
         self.active_encounters: list[tuple[str, str]] = []
         self.joined_encounters: list[tuple[str, str, str]] = []
         self.applied_results: list[dict] = []
+        self.cleared_encounters: list[str] = []
+        self.cleared_encounter_presence: list[tuple[str, str]] = []
 
     async def set_run_active_encounter(self, rift_session_id: str, encounter_id: str) -> None:
         self.active_encounters.append((rift_session_id, encounter_id))
@@ -81,6 +83,12 @@ class FakeRuntimeIntegration:
     async def apply_combat_result(self, **kwargs) -> dict:
         self.applied_results.append(kwargs)
         return {"applied": True}
+
+    async def clear_run_active_encounter(self, rift_session_id: str) -> None:
+        self.cleared_encounters.append(rift_session_id)
+
+    async def clear_transition_encounter_presence(self, rift_instance_id: str, encounter_id: str) -> None:
+        self.cleared_encounter_presence.append((rift_instance_id, encounter_id))
 
 
 class FakeCharacterSessions:
@@ -254,20 +262,55 @@ async def test_rift_encounter_service_resolves_stale_active_encounter_before_lau
 
     launched = await service.launch_combat_from_prompt(runtime, session=session, prompt=prompt)
 
-    assert runtime_integration.applied_results == [
-        {
-            "combat_id": "rift-old-combat",
-            "result": "victory",
-            "rift_session_id": "rift-run-1",
-            "rift_instance_id": "rift-instance-1",
-            "event_scope": "transition",
-            "travel_id": "travel-1",
-            "event_key": "",
-            "participant_ref": "char:7",
-        }
-    ]
+    # Stale encounter is force-cleared without auto-applying a victory result.
+    assert runtime_integration.applied_results == []
+    assert runtime_integration.cleared_encounters == ["rift-run-1"]
+    assert runtime_integration.cleared_encounter_presence == [("rift-instance-1", "rift-old-combat")]
     assert combat_creator.requests
     assert combat_creator.requests[0]["combat_id"] != "rift-old-combat"
+    assert launched.metadata["combat"]["combat_id"] == combat_creator.requests[0]["combat_id"]
+
+
+@pytest.mark.asyncio
+async def test_rift_encounter_service_swallows_stale_encounter_clear_errors() -> None:
+    """A failing clear must not propagate — new combat should still be launched."""
+    monster_groups = FakeMonsterGroupService()
+    combat_creator = FakeCombatCreator()
+
+    class _BrokenRuntime(FakeRuntimeIntegration):
+        async def clear_run_active_encounter(self, rift_session_id: str) -> None:
+            raise RuntimeError("redis down")
+
+    runtime_integration = _BrokenRuntime()
+    character_sessions = FakeCharacterSessions(
+        {"state": "rift", "sessions": {"combat_id": None, "combat_finalization_id": None}}
+    )
+    service = RiftEncounterService(
+        monster_groups=monster_groups,
+        combat_creator=combat_creator,
+        runtime=runtime_integration,
+        character_sessions=character_sessions,
+    )
+    runtime = _runtime()
+    session = {
+        "rift_session_id": "rift-run-1",
+        "rift_instance_id": "rift-instance-1",
+        "participant_ref": "char:7",
+        "active_encounter_id": "rift-old-combat",
+        "active_travel": {"travel_id": "travel-1"},
+        "entry_context": {"combat_power": {"player_gear_score": 612}},
+    }
+    prompt = RiftCombatPromptDTO(
+        source="rift_transition",
+        title="Шорох у повозки",
+        description="Из-за борта поднимается силуэт.",
+        actions=[RiftCombatPromptActionDTO(id="attack", label="В бой!", action="attack")],
+        metadata={"event_scope": "transition", "travel_id": "travel-1", "to_node_id": "node-start"},
+    )
+
+    launched = await service.launch_combat_from_prompt(runtime, session=session, prompt=prompt)
+
+    assert combat_creator.requests, "new combat should still be created despite clear failure"
     assert launched.metadata["combat"]["combat_id"] == combat_creator.requests[0]["combat_id"]
 
 

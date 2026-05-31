@@ -340,6 +340,28 @@ async def test_victory_finalizer_applies_rift_result_before_player_claims_loot()
     assert rift_runtime.cleared == []
 
 
+@pytest.mark.asyncio
+async def test_victory_finalizer_propagates_defeat_to_rift_when_monsters_win() -> None:
+    """Regression: hardcoded 'victory' would silently open gates for the player after a loss."""
+    rift_runtime = FakeRiftRuntime()
+
+    await victory_finalizer_task(
+        {
+            "combat_data_service": RiftCombatDataService(),
+            "character_sessions": FakeCharacterSessions(),
+            "events": FakeEvents(),
+            "redis": FakeQueue(),
+            "rift_runtime": rift_runtime,
+        },
+        # winner is team_2 (monsters) — player team has no winning char_id
+        {"session_id": "rift-combat-2", "winner": "team_2"},
+    )
+
+    assert len(rift_runtime.applied) == 1
+    assert rift_runtime.applied[0]["result"] == "defeat"
+    assert rift_runtime.applied[0]["rift_session_id"] == "rift-run-1"
+
+
 def test_durability_policy_uses_death_damage_for_dead_pve_players() -> None:
     finalization = {
         "combat_id": "combat-2",

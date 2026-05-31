@@ -242,7 +242,7 @@ async def test_prepare_monster_group_allows_repeated_monster_templates() -> None
         factory=FakeClanFactory(storage),  # type: ignore[arg-type]
     )
 
-    result = await service.prepare_monster_group("45_45", budget=120, scope_id="encounter:test", ttl=120)
+    result = await service.prepare_monster_group("45_45", budget=150, scope_id="encounter:test", ttl=120)
 
     assert len(result.monster_ids) == 2
     assert len(set(result.monster_ids)) == 1

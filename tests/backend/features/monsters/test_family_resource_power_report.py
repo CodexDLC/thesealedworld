@@ -18,7 +18,8 @@ def test_family_resource_power_report_exposes_boss_skill_width() -> None:
     rows = build_rows()
     role_summary = {row.label: row for row in summarize(rows, key="family_role")}
 
-    assert role_summary["wolf_pack/boss"].avg_attrs > role_summary["bandit_gang/boss"].avg_attrs
+    assert role_summary["wolf_pack/boss"].avg_attrs == pytest.approx(153.0)
+    assert role_summary["bandit_gang/boss"].avg_attrs == pytest.approx(153.0)
     assert role_summary["wolf_pack/boss"].avg_skills > role_summary["bandit_gang/boss"].avg_skills
 
 

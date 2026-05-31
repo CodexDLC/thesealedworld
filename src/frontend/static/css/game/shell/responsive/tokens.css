@@ -15,6 +15,7 @@
     --game-ui-scale: 1;
     --game-panel-z: 200;
     --game-overlay-z: 240;
+    --game-system-bottom-reserve: 0px;
 }
 
 #app-viewport .shell-constrained {
@@ -27,6 +28,7 @@
     --game-ui-scale: inherit;
     --game-panel-z: inherit;
     --game-overlay-z: inherit;
+    --game-system-bottom-reserve: inherit;
 }
 
 .game-header {

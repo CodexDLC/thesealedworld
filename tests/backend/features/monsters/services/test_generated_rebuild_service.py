@@ -122,6 +122,23 @@ async def test_generated_rebuild_marks_missing_family_resource_version_as_stale(
     assert stale_member.variant_key in outcome.changed
 
 
+@pytest.mark.unit
+async def test_generated_rebuild_marks_integer_family_resource_version_as_stale_after_minor_bump() -> None:
+    clan = _clan(family_id="bandit_gang", tier=1)
+    service = MonsterGeneratedRebuildService(session=FakeSession())
+    initial = await service._plan_clan(clan, MonsterDataRebuildRequestDTO())
+    clan.members.extend(_member_orm(member) for member in initial.expected_by_variant.values())
+    stale_member = clan.members[0]
+    stale_member.generation_meta = {
+        **stale_member.generation_meta,
+        "family_resource_version": 1,
+    }
+
+    outcome = await service._plan_clan(clan, MonsterDataRebuildRequestDTO())
+
+    assert stale_member.variant_key in outcome.changed
+
+
 def _clan(*, family_id: str, tier: int) -> GeneratedClanORM:
     return GeneratedClanORM(
         id=uuid.uuid4(),

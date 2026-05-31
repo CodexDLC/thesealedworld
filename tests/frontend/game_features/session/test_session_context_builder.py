@@ -962,14 +962,19 @@ async def test_build_state_combat_uses_combat_session_without_character_status_l
     assert "session_ui" not in context
     assert context["nav"]["center"]["label"] == "COMBAT"
     assert context["nav"]["l2"]["label"] == "STATUS"
-    assert context["nav"]["l1"]["label"] == "BUILDS"
-    assert context["nav"]["r1"]["label"] == "INVENTORY"
-    assert context["nav"]["r2"]["label"] == "VIEW"
+    assert context["nav"]["l1"]["label"] == "PARTY"
+    assert context["nav"]["r1"]["label"] == "FOES"
+    assert context["nav"]["r2"]["label"] == "LOG"
     assert context["nav"]["l2"]["is_disabled"] is False
     assert context["nav"]["l2"]["panel"] == "left"
-    assert context["nav"]["r1"]["is_disabled"] is True
+    assert context["nav"]["l1"]["panel"] == "left"
+    assert context["nav"]["l1"]["panel_view"] == "allies"
+    assert context["nav"]["r1"]["is_disabled"] is False
+    assert context["nav"]["r1"]["panel"] == "right"
+    assert context["nav"]["r1"]["panel_view"] == "enemies"
     assert context["nav"]["r2"]["is_disabled"] is False
     assert context["nav"]["r2"]["panel"] == "right"
+    assert context["nav"]["r2"]["panel_view"] == "log"
     assert context["status_seed"]["hp"] == 70
     assert context["status_seed"]["stamina"] == 55
     assert context["status_seed"]["max_stamina"] == 120

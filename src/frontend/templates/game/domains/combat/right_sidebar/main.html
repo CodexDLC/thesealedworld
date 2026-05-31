@@ -19,115 +19,165 @@
     </aside>
 {% elif combat_screen %}
     <aside class="panel-dock panel-dock--framed panel-dock--scroll combat-side combat-side--right">
-        <nav class="dock-nav dock-nav--bar dock-nav--panel combat-info-actions" aria-label="Combat info actions">
-            <button class="dock-nav-button is-active"
-                    type="button"
-                    x-show="!activeStatSheet">INFO</button>
-            <button class="dock-nav-button combat-stat-back-btn"
-                    type="button"
-                    style="display:none"
-                    x-show="activeStatSheet"
-                    @click="activeStatSheet = null">← BACK</button>
-            <button class="dock-nav-button dock-nav-button--close"
-                    type="button"
-                    @click="$dispatch('panel-toggle', { side: 'right', view: 'context' })">CLOSE</button>
-        </nav>
+        <div x-show="!window.matchMedia('(max-width: 767px)').matches || rightPanelView === 'enemies'" x-cloak>
+            <nav class="dock-nav dock-nav--bar dock-nav--panel combat-info-actions" aria-label="Enemy panel actions">
+                <button class="dock-nav-button is-active" type="button">FOES</button>
+                <button class="dock-nav-button dock-nav-button--close"
+                        type="button"
+                        @click="$dispatch('panel-toggle', { side: 'right', view: 'enemies' })">CLOSE</button>
+            </nav>
 
-        {% if combat_screen.action_state == 'TARGET_QUEUE_EMPTY' %}
-        <section class="combat-panel combat-target-empty-panel">
-            <div class="combat-panel-header">TARGET QUEUE</div>
-            <div class="combat-target-empty">
-                <div class="combat-target-empty__image" role="presentation"></div>
-                <span>TARGET_QUEUE_EMPTY</span>
-                <strong>Цель не найдена</strong>
-                <p>Очередь целей пуста. Экран обновится автоматически.</p>
-            </div>
-        </section>
-        {% else %}
-
-        {# Inline stat panels — one per enemy, shown instead of INFO #}
-        {% for enemy in combat_screen.enemies %}
-            {% if enemy.stat_sheet %}
-            <section class="combat-panel combat-enemy-stat-panel"
-                     x-show="activeStatSheet === 'enemy-{{ enemy.actor_id }}'"
-                     x-cloak>
-                <div class="combat-panel-header combat-enemy-stat-header">
-                    <strong>{{ enemy.name }}</strong>
+            {% if combat_screen.action_state == 'TARGET_QUEUE_EMPTY' %}
+            <section class="combat-panel combat-target-empty-panel">
+                <div class="combat-panel-header">TARGET QUEUE</div>
+                <div class="combat-target-empty">
+                    <div class="combat-target-empty__image" role="presentation"></div>
+                    <span>TARGET_QUEUE_EMPTY</span>
+                    <strong>Цель не найдена</strong>
+                    <p>Очередь целей пуста. Экран обновится автоматически.</p>
                 </div>
-                <div class="combat-enemy-stat-body">
-                    {% for section in enemy.stat_sheet.sections %}
-                    <details class="combat-stat-group combat-stat-group--compact" {% if loop.first %}open{% endif %}>
-                        <summary><span>{{ section.label }}</span></summary>
-                        <div class="combat-stat-list">
-                            {% for item in section.items %}
-                            <div class="combat-stat-row"
-                                 {% if item.tooltip %}data-tippy-content="{{ item.tooltip }}" data-tippy-theme="game-hint"{% endif %}>
-                                <span>{{ item.label }}</span>
-                                <strong>{{ item.value_text }}</strong>
-                            </div>
+            </section>
+            {% else %}
+
+            {% set default_enemy_id = combat_screen.target.actor_id if combat_screen.target else (combat_screen.enemies[0].actor_id if combat_screen.enemies else none) %}
+            {% for enemy in combat_screen.enemies %}
+                {% set enemy_selected_expr = "activeStatSheet === 'enemy-" ~ enemy.actor_id ~ "'" %}
+                {% set enemy_default_expr = "(!activeStatSheet || !activeStatSheet.startsWith('enemy-')) && '" ~ enemy.actor_id ~ "' === '" ~ default_enemy_id ~ "'" %}
+                <section class="status-widget-card scenario-status-card combat-side-summary-card combat-side-summary-card--right combat-enemy-summary-card"
+                         x-show="{{ enemy_selected_expr }} || ({{ enemy_default_expr }})"
+                         x-cloak>
+                    <div class="status-widget-core">
+                        <div class="status-widget-name">
+                            <strong>{{ enemy.name }}</strong>
+                            {% if enemy.is_target %}<span>TARGET</span>{% endif %}
+                        </div>
+                        <div class="status-widget-bars">
+                            <div class="status-widget-bar status-widget-bar--hp" style="--status-fill: {{ enemy.vitals.hp_percent }}%;"><span>HP</span><i></i><b>{{ enemy.vitals.hp_current }} / {{ enemy.vitals.hp_max }}</b></div>
+                            <div class="status-widget-bar status-widget-bar--en" style="--status-fill: {{ enemy.vitals.energy_percent }}%;"><span>EN</span><i></i><b>{{ enemy.vitals.energy_current }} / {{ enemy.vitals.energy_max }}</b></div>
+                            <div class="status-widget-bar status-widget-bar--sta" style="--status-fill: {{ enemy.vitals.stamina_percent }}%;"><span>CONC</span><i></i><b>{{ enemy.vitals.stamina_current }} / {{ enemy.vitals.stamina_max }}</b></div>
+                        </div>
+                        <div class="combat-effect-stack combat-effect-stack--field combat-side-summary-effects combat-enemy-summary-effects" aria-label="{{ enemy.name }} effects">
+                            {% for effect in enemy.effects %}
+                                <span class="combat-effect combat-effect--{{ effect.frame_kind }}"
+                                      data-catalog="{{ effect.catalog }}"
+                                      data-catalog-key="{{ effect.catalog_key }}"
+                                      data-tippy-content="{{ effect.tooltip }}"
+                                      data-tippy-theme="game-hint">
+                                    <span class="combat-effect-mark" aria-hidden="true"></span>
+                                    {% if effect.duration_text %}
+                                        <b>{{ effect.duration_text }}</b>
+                                    {% endif %}
+                                </span>
+                            {% else %}
+                                <span class="combat-effect-empty">NO EFFECTS</span>
                             {% endfor %}
                         </div>
-                    </details>
+                    </div>
+                    <div class="status-widget-avatar combat-side-summary-avatar combat-enemy-summary-avatar">
+                        <img src="{{ enemy.avatar_url }}" alt="{{ enemy.name }}">
+                    </div>
+                </section>
+
+                {% if enemy.stat_sheet %}
+                <section class="combat-panel combat-enemy-stat-panel"
+                         x-show="{{ enemy_selected_expr }} || ({{ enemy_default_expr }})"
+                         x-cloak>
+                    <div class="combat-panel-header combat-enemy-stat-header">
+                        <strong>STATS</strong>
+                    </div>
+                    <div class="combat-enemy-stat-body">
+                        {% for section in enemy.stat_sheet.sections %}
+                        <details class="combat-stat-group combat-stat-group--compact" {% if loop.first %}open{% endif %}>
+                            <summary><span>{{ section.label }}</span></summary>
+                            <div class="combat-stat-list">
+                                {% for item in section.items %}
+                                <div class="combat-stat-row"
+                                     {% if item.tooltip %}data-tippy-content="{{ item.tooltip }}" data-tippy-theme="game-hint"{% endif %}>
+                                    <span>{{ item.label }}</span>
+                                    <strong>{{ item.value_text }}</strong>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </details>
+                        {% endfor %}
+                    </div>
+                </section>
+                {% endif %}
+            {% endfor %}
+
+            <section class="combat-panel combat-roster-panel">
+                <div class="combat-panel-header">ENEMIES</div>
+                <div class="combat-info-list">
+                    <span><b>ALIVE</b><em>{{ combat_screen.enemy_team.alive_count }}/{{ combat_screen.enemy_team.total_count }}</em></span>
+                    <span><b>HP</b><em>{{ combat_screen.enemy_team.hp_current }}/{{ combat_screen.enemy_team.hp_max }}</em></span>
+                </div>
+                <div class="combat-roster">
+                    {% for group in combat_screen.enemy_groups %}
+                        <div class="combat-roster-group">
+                            <div class="combat-roster-group__head">
+                                <span>{{ group.label }}</span>
+                                <b>{{ group.alive_count }}/{{ group.total_count }}</b>
+                            </div>
+                            {% for enemy in group.rows %}
+                                <div class="combat-roster-row combat-roster-row--button combat-commit-row combat-commit-row--{{ enemy.commit_state }} {% if enemy.is_target %}is-target{% endif %}"
+                                     data-team="{{ enemy.team }}"
+                                     data-commit-state="{{ enemy.commit_state }}"
+                                     data-tippy-content="{{ enemy.commit_tooltip }}"
+                                     data-tippy-theme="game-hint">
+                                    <span class="combat-queue-dot combat-queue-dot--{{ enemy.commit_state }}"></span>
+                                    <span class="combat-roster-name">{{ enemy.name }}</span>
+                                    <div class="combat-roster-hp"><i style="width: {{ enemy.hp_percent }}%"></i></div>
+                                    <b>{{ enemy.hp_current }}/{{ enemy.hp_max }}</b>
+                                    {% if enemy.stat_sheet %}
+                                        <span class="combat-info-mark combat-info-mark--button">
+                                            <button type="button"
+                                                    class="combat-stat-trigger combat-roster-info-button"
+                                                    :class="{ 'is-active': activeStatSheet === 'enemy-{{ enemy.actor_id }}' }"
+                                                    @click.stop="openStatSheet('enemy-{{ enemy.actor_id }}')"
+                                                    aria-label="Open {{ enemy.name }} stats">
+                                                <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                                                    <circle cx="12" cy="12" r="9"></circle>
+                                                    <path d="M12 10v7"></path>
+                                                    <path d="M12 7h.01"></path>
+                                                </svg>
+                                            </button>
+                                        </span>
+                                    {% else %}
+                                        <span class="combat-info-mark"></span>
+                                    {% endif %}
+                                </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <div class="missing-data-block"><span>NO_ENEMIES</span></div>
                     {% endfor %}
                 </div>
             </section>
             {% endif %}
-        {% endfor %}
+        </div>
 
-        <section class="combat-panel" x-show="!activeStatSheet">
-            <div class="combat-panel-header">INFO</div>
-            <div class="combat-info-list">
-                <span><b>PAIR</b><em>{{ combat_screen.exchange_state.pair_status }}</em></span>
-                <span><b>RESPONSE</b><em>{{ combat_screen.exchange_state.opponent_response_state }}</em></span>
-                <span><b>TARGET</b><em>{{ combat_screen.target.name if combat_screen.target else 'NO_TARGET' }}</em></span>
+        <div x-show="window.matchMedia('(max-width: 767px)').matches && rightPanelView === 'log'" x-cloak>
+            <nav class="dock-nav dock-nav--bar dock-nav--panel combat-info-actions" aria-label="Combat log actions">
+                <button class="dock-nav-button is-active" type="button">LOG</button>
+                <button class="dock-nav-button dock-nav-button--close"
+                        type="button"
+                        @click="$dispatch('panel-toggle', { side: 'right', view: 'log' })">CLOSE</button>
+            </nav>
+            <div class="combat-battle-log combat-battle-log--drawer" aria-label="Full combat log">
+                {% set combat_log_panel_id = "combat-drawer-log-panel" %}
+                {% set combat_log_label = "BATTLE LOG" %}
+                {% set combat_log_turns = combat_screen.log_turns %}
+                {% set combat_log_entries = [] %}
+                {% set combat_log_page = combat_screen.log_page %}
+                {% set combat_log_page_size = combat_screen.log_page_size %}
+                {% set combat_log_total = combat_screen.log_total %}
+                {% set combat_log_total_pages = combat_screen.log_total_pages %}
+                {% set combat_log_pages = combat_screen.log_pages %}
+                {% set combat_log_embedded = true %}
+                {% set combat_log_show_size_control = false %}
+                {% include "game/domains/combat/viewport/log_panel.html" %}
             </div>
-        </section>
-        {% endif %}
-
-        <section class="combat-panel combat-roster-panel">
-            <div class="combat-panel-header">ENEMIES</div>
-            <div class="combat-roster">
-                {% for group in combat_screen.enemy_groups %}
-                    <div class="combat-roster-group">
-                        <div class="combat-roster-group__head">
-                            <span>{{ group.label }}</span>
-                            <b>{{ group.alive_count }}/{{ group.total_count }}</b>
-                        </div>
-                        {% for enemy in group.rows %}
-                            <div class="combat-roster-row combat-roster-row--button combat-commit-row combat-commit-row--{{ enemy.commit_state }} {% if enemy.is_target %}is-target{% endif %}"
-                                 data-team="{{ enemy.team }}"
-                                 data-commit-state="{{ enemy.commit_state }}"
-                                 data-tippy-content="{{ enemy.commit_tooltip }}"
-                                 data-tippy-theme="game-hint">
-                                <span class="combat-queue-dot combat-queue-dot--{{ enemy.commit_state }}"></span>
-                                <span class="combat-roster-name">{{ enemy.name }}</span>
-                                <div class="combat-roster-hp"><i style="width: {{ enemy.hp_percent }}%"></i></div>
-                                <b>{{ enemy.hp_current }}/{{ enemy.hp_max }}</b>
-                                {% if enemy.stat_sheet %}
-                                    <span class="combat-info-mark combat-info-mark--button">
-                                        <button type="button"
-                                                class="combat-stat-trigger combat-roster-info-button"
-                                                :class="{ 'is-active': activeStatSheet === 'enemy-{{ enemy.actor_id }}' }"
-                                                @click.stop="openStatSheet('enemy-{{ enemy.actor_id }}')"
-                                                aria-label="Open {{ enemy.name }} stats">
-                                            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-                                                <circle cx="12" cy="12" r="9"></circle>
-                                                <path d="M12 10v7"></path>
-                                                <path d="M12 7h.01"></path>
-                                            </svg>
-                                        </button>
-                                    </span>
-                                {% else %}
-                                    <span class="combat-info-mark"></span>
-                                {% endif %}
-                            </div>
-                        {% endfor %}
-                    </div>
-                {% else %}
-                    <div class="missing-data-block"><span>NO_ENEMIES</span></div>
-                {% endfor %}
-            </div>
-        </section>
+        </div>
     </aside>
 {% else %}
     <aside class="panel-dock panel-dock--framed panel-dock--scroll combat-side combat-side--right">

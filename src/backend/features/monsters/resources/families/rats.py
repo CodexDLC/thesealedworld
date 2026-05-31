@@ -9,7 +9,7 @@ from ..stat_ladders import build_role_ladder_stats
 
 RATS_FAMILY: MonsterFamily = {
     "id": "rat_swarm",
-    "resource_version": 1,
+    "resource_version": 1.1,
     "archetype": "beast",
     "organization_type": "swarm",  # TSP Base: 30
     "default_tags": ["beast", "rat", "disease", "swarm"],

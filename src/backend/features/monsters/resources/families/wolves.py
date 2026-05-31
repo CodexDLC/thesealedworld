@@ -9,7 +9,7 @@ from ..stat_ladders import build_role_ladder_stats
 
 WOLVES_FAMILY: MonsterFamily = {
     "id": "wolf_pack",
-    "resource_version": 1,
+    "resource_version": 1.1,
     "archetype": "beast",
     "organization_type": "pack",  # TSP Base: 50
     "default_tags": ["beast", "wolf", "predator", "pack"],

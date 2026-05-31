@@ -229,6 +229,7 @@ async def test_open_window_prefers_free_dual_wield_slot_before_replacement(
     assert row.equip_target == "off_hand"
     assert row.details is not None
     assert row.details.actions[0].action == "equip"
+    assert row.details.actions[0].label == "Надеть"
     assert row.details.actions[0].slot_id == "off_hand"
 
 
@@ -459,6 +460,7 @@ async def test_open_window_builds_structured_item_tooltip_without_html(fake_redi
     assert details.requirements[0].met is True
     assert any(field.label == "Источник" and field.value == "test" for field in details.meta)
     assert details.actions[0].action == "equip"
+    assert details.actions[0].label == "Надеть"
     assert details.actions[0].slot_id == "main_hand"
     dumped = details.model_dump_json()
     assert "<" not in dumped

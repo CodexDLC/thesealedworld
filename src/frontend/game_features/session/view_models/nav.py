@@ -39,10 +39,10 @@ def build_game_nav(*, state: CoreDomain | str, char_id: int) -> dict[str, dict[s
     if current == CoreDomain.COMBAT.value:
         return {
             "l2": _item("STATUS", "#", False, icon="person", panel="left", panel_view="status"),
-            "l1": _disabled_item("BUILDS", icon="bolt"),
+            "l1": _item("PARTY", "#", False, icon="person", panel="left", panel_view="allies"),
             "center": _item("COMBAT", "#", True, icon="swords"),
-            "r1": _disabled_item("INVENTORY", icon="inventory"),
-            "r2": _item("VIEW", "#", False, icon="journal", panel="right", panel_view="context"),
+            "r1": _item("FOES", "#", False, icon="swords", panel="right", panel_view="enemies"),
+            "r2": _item("LOG", "#", False, icon="journal", panel="right", panel_view="log"),
         }
 
     if current == CoreDomain.ARENA.value:

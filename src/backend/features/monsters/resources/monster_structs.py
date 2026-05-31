@@ -136,7 +136,7 @@ class FamilyHierarchy(TypedDict):
 
 class MonsterFamily(TypedDict):
     id: str
-    resource_version: NotRequired[int]
+    resource_version: NotRequired[float]
     archetype: Literal["humanoid", "beast", "undead", "construct", "demon", "unknown"]
     organization_type: Literal["solitary", "pack", "gang", "clan", "legion", "horde", "swarm"]
 

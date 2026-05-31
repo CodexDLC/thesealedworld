@@ -525,6 +525,12 @@
     letter-spacing: .12em;
 }
 
+.combat-field-title .combat-field-name {
+    color: #fff0cc;
+    font-size: clamp(10px, 1.8cqw, 15px);
+    letter-spacing: .08em;
+}
+
 .combat-field-vitals {
     display: grid;
     gap: 5px;

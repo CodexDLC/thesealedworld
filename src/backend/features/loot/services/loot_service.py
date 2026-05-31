@@ -34,26 +34,38 @@ class LootService:
             return {}
 
         corpse_ids_by_actor: dict[str, str] = {}
-        for actor in actors:
-            if actor.get("meta", {}).get("type") != "monster":
-                continue
-            actor_id = self._actor_id(actor)
-            if not actor_id:
-                log.bind(session_id=session_id).warning("LootCorpseSkipped")
-                continue
-            corpse = await self._build_corpse(actor, session_id, battle_type, location_id)
-            if corpse is None:
-                continue
-            await self._integration.persist_corpse(corpse, location_id)
-            corpse_ids_by_actor[actor_id] = corpse.id
-            log.bind(
-                corpse_id=corpse.id,
-                actor_id=actor_id,
-                monster_name=corpse.monster_name,
-                location_id=location_id,
-            ).info("LootCorpseCreated")
+        try:
+            for actor in actors:
+                if actor.get("meta", {}).get("type") != "monster":
+                    continue
+                actor_id = self._actor_id(actor)
+                if not actor_id:
+                    log.bind(session_id=session_id).warning("LootCorpseSkipped")
+                    continue
+                corpse = await self._build_corpse(actor, session_id, battle_type, location_id)
+                if corpse is None:
+                    continue
+                await self._integration.persist_corpse(corpse, location_id)
+                corpse_ids_by_actor[actor_id] = corpse.id
+                log.bind(
+                    corpse_id=corpse.id,
+                    actor_id=actor_id,
+                    monster_name=corpse.monster_name,
+                    location_id=location_id,
+                ).info("LootCorpseCreated")
+        except Exception:
+            await self._clear_order_marker(session_id)
+            raise
+
+        if not corpse_ids_by_actor:
+            await self._clear_order_marker(session_id)
 
         return corpse_ids_by_actor
+
+    async def _clear_order_marker(self, session_id: str) -> None:
+        clear = getattr(self._integration, "clear_loot_ordered", None)
+        if clear is not None:
+            await clear(session_id)
 
     @staticmethod
     def _actor_id(actor: dict[str, Any]) -> str | None:

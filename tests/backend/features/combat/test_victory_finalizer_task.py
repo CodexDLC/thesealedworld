@@ -78,6 +78,26 @@ class ArenaCombatDataService(FakeCombatDataService):
         return meta
 
 
+class RiftCombatDataService(FakeCombatDataService):
+    async def get_meta(self, session_id: str) -> dict:
+        meta = await super().get_meta(session_id)
+        meta.update(
+            {
+                "battle_type": "rift",
+                "source": "rift",
+                "location_id": "rift:rift-instance-1:node-road",
+                "rift_session_id": "rift-run-1",
+                "rift_instance_id": "rift-instance-1",
+                "rift_node_id": "node-road",
+                "rift_event_scope": "transition",
+                "rift_travel_id": "travel-1",
+                "rift_event_key": "",
+                "rift_target_node_id": "node-next",
+            }
+        )
+        return meta
+
+
 class NoXpCombatDataService(FakeCombatDataService):
     async def get_actors_batch(self, session_id: str, actor_ids: list[str]) -> dict:
         actors = await super().get_actors_batch(session_id, actor_ids)
@@ -138,6 +158,19 @@ class FakeEvents:
         return {"status": "ok"}
 
 
+class FakeRiftRuntime:
+    def __init__(self) -> None:
+        self.applied: list[dict] = []
+        self.cleared: list[str] = []
+
+    async def clear_run_active_encounter(self, rift_session_id: str) -> None:
+        self.cleared.append(rift_session_id)
+
+    async def apply_combat_result(self, **kwargs) -> dict:
+        self.applied.append(kwargs)
+        return {"applied": True}
+
+
 @pytest.mark.asyncio
 async def test_victory_finalizer_commits_player_vitals_to_active_session() -> None:
     data_service = FakeCombatDataService()
@@ -156,7 +189,7 @@ async def test_victory_finalizer_commits_player_vitals_to_active_session() -> No
         (7, "stamina", 12, 50),
     ]
     assert character_sessions.progress == [
-        (7, {"skill_swords": 0.0016, "skill_anatomy": 0.0008, "skill_tactics": 0.0008})
+        (7, {"skill_swords": 0.0012, "skill_anatomy": 0.0008, "skill_tactics": 0.0008})
     ]
     assert character_sessions.patches == [
         (
@@ -194,7 +227,7 @@ async def test_victory_finalizer_commits_player_vitals_to_active_session() -> No
     assert ttl == 86400
     assert finalization["actors"]["7"]["xp_buffer"] == {"main_hand_hit": 1.0}
     assert finalization["actors"]["7"]["progression"] == {
-        "skill_swords": 0.0016,
+        "skill_swords": 0.0012,
         "skill_anatomy": 0.0008,
         "skill_tactics": 0.0008,
     }
@@ -275,6 +308,36 @@ async def test_victory_finalizer_attaches_arena_post_combat_outcome() -> None:
     assert post_combat["target_state"] == "arena"
     assert post_combat["outcome"] == "arena"
     assert post_combat["rating_delta"] is None
+
+
+@pytest.mark.asyncio
+async def test_victory_finalizer_applies_rift_result_before_player_claims_loot() -> None:
+    rift_runtime = FakeRiftRuntime()
+
+    await victory_finalizer_task(
+        {
+            "combat_data_service": RiftCombatDataService(),
+            "character_sessions": FakeCharacterSessions(),
+            "events": FakeEvents(),
+            "redis": FakeQueue(),
+            "rift_runtime": rift_runtime,
+        },
+        {"session_id": "rift-combat-1", "winner": "team_1"},
+    )
+
+    assert rift_runtime.applied == [
+        {
+            "combat_id": "rift-combat-1",
+            "result": "victory",
+            "rift_session_id": "rift-run-1",
+            "rift_instance_id": "rift-instance-1",
+            "event_scope": "transition",
+            "travel_id": "travel-1",
+            "event_key": "",
+            "participant_ref": "",
+        }
+    ]
+    assert rift_runtime.cleared == []
 
 
 def test_durability_policy_uses_death_damage_for_dead_pve_players() -> None:

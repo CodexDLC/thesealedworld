@@ -2,13 +2,22 @@
    On tablet/mobile the combat center keeps priority and sidebars collapse out of flow. */
 @media (min-width: 1025px) {
     .game-top-row.combat-layout {
-        grid-template-columns: var(--side-panel-width-compact) minmax(0, 1fr) var(--side-panel-width-compact);
+        grid-template-columns: var(--side-panel-width) minmax(0, 1fr) var(--side-panel-width);
     }
 
     .game-top-row.combat-layout .col-left,
     .game-top-row.combat-layout .col-right {
         display: block;
-        width: var(--side-panel-width-compact);
-        max-width: var(--side-panel-width-compact);
+        width: var(--side-panel-width);
+        max-width: var(--side-panel-width);
+    }
+
+    .game-top-row.combat-layout .combat-screen-shell {
+        justify-content: stretch;
+    }
+
+    .game-top-row.combat-layout .combat-screen {
+        --center-content-max: 100%;
+        width: 100%;
     }
 }

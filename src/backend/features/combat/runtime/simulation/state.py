@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from src.backend.features.combat.runtime.engine.victory_checker import VictoryChecker
 from src.backend.features.combat.runtime.simulation.telemetry import CombatTelemetry
@@ -74,5 +74,5 @@ class InMemoryBattleState:
                 targets.append(target_id)
 
     @staticmethod
-    def _contains_actor_id(values: list[ActorIdLike], candidate: ActorIdLike) -> bool:
+    def _contains_actor_id(values: list[Any], candidate: ActorIdLike) -> bool:
         return any(str(value) == str(candidate) for value in values)

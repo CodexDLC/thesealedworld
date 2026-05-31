@@ -185,6 +185,8 @@
 <div class="inventory-shell"
      data-contract-state="{{ inventory.contract_state }}"
      data-inventory-target="#{{ inventory_target_id }}"
+     data-game-state="inventory"
+     data-game-scripts='{{ ["/static/js/game/components/inventory.js"] | tojson | forceescape }}'
      x-data='{"activeInventoryTab": {{ active_inventory_tab | tojson }}, "selectedSlot": null, "inventoryNotice": {{ inventory_state_notice | tojson }}, "searchQuery": ""}'>
     <input type="hidden" name="tab_id" :value="activeInventoryTab">
     <section class="inventory-loadout" aria-label="Character equipment">
@@ -215,6 +217,33 @@
                     aria-label="{{ zone.label }}: {{ primary_name }}"
                     data-slot-id="{{ zone.primary_slot.slot_id }}"
                     {% if zone_has_item %}data-inventory-tooltip-trigger{% endif %}
+                    {% if zone_has_item and inventory.can_act %}
+                    data-inventory-menu-trigger
+                    data-inventory-char-id="{{ inventory.char_id }}"
+                    data-inventory-item-id="{{ zone_action_item.item_id if zone_action_item else '' }}"
+                    data-inventory-actions='[
+                        {% if primary_item %}
+                        {
+                            "action": "unequip",
+                            "label": {{ ("СНЯТЬ " ~ zone.primary_slot.label) | tojson }},
+                            "slot_id": {{ zone.primary_slot.slot_id | tojson }},
+                            "item_id": {{ primary_item.item_id | tojson }},
+                            "enabled": true,
+                            "reason": ""
+                        }{{ "," if secondary_item else "" }}
+                        {% endif %}
+                        {% if secondary_item and zone.secondary_slot %}
+                        {
+                            "action": "unequip",
+                            "label": {{ ("СНЯТЬ " ~ zone.secondary_slot.label) | tojson }},
+                            "slot_id": {{ zone.secondary_slot.slot_id | tojson }},
+                            "item_id": {{ secondary_item.item_id | tojson }},
+                            "enabled": true,
+                            "reason": ""
+                        }
+                        {% endif %}
+                    ]'
+                    {% endif %}
                     {% if zone_has_item %}style="--inventory-item-icon-url: url('/static/images/ui/inventory-gear/{{ primary_icon if not primary_empty else secondary_icon }}.svg');"{% endif %}
                     {% if zone_has_item and inventory.can_act and zone_action_item %}
                     hx-post="/game/inventory/action"

@@ -9,7 +9,7 @@
      class="game-session-shell"
      data-game-state="{{ game_state_name }}"
      data-game-scripts='{{ versioned_game_scripts.items|tojson|forceescape }}'
-     {% if domain in ['combats', 'death', 'loot'] %}x-init="rightPanelView = 'context'"{% endif %}
+     {% if domain == 'combats' %}x-init="rightPanelView = 'enemies'"{% elif domain in ['death', 'loot'] %}x-init="rightPanelView = 'context'"{% endif %}
      style="display: flex; flex-direction: column; flex: 1; position: relative;">
     {# Background layer #}
     {% set shell_background_url = background_url %}
@@ -49,14 +49,12 @@
         <aside id="game-left" class="col-left" :class="{ 'panel-open': leftOpen }">
             <div id="game-left-content">
                 {% block game_left %}
+                    {% if domain == 'combats' %}
+                        {% include "game/domains/combat/left_sidebar/main.html" %}
+                    {% else %}
                     <div x-show="leftPanelView === 'status'">
-                        {% if domain == 'combats' %}
-                            {% include "game/domains/combat/left_sidebar/main.html" %}
-                        {% else %}
-                            {% include "game/components/status/main.html" %}
-                        {% endif %}
+                        {% include "game/components/status/main.html" %}
                     </div>
-                    {% if domain != 'combats' %}
                     <div x-show="leftPanelView === 'builds'" x-cloak>
                         {% include "game/components/status/build_draft.html" %}
                     </div>

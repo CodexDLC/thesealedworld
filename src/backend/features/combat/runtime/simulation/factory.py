@@ -25,7 +25,7 @@ class InMemoryBattleFactory:
         battle_type: str = "simulation",
         location_id: str = "simulation",
     ) -> InMemoryBattleState:
-        teams: dict[str, list[str]] = defaultdict(list)
+        teams: dict[str, list[int | str]] = defaultdict(list)
         actor_map: dict[str, ActorSnapshot] = {}
         actors_info: dict[str, str] = {}
 
@@ -54,6 +54,6 @@ class InMemoryBattleFactory:
                 ]
                 for actor in actors
                 if actor.is_alive
-            },
+            },  # type: ignore
         )
         return InMemoryBattleState(ctx=ctx, limits=limits or InMemoryBattleLimits(), seed=seed)

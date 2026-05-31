@@ -305,11 +305,12 @@ class MonsterCombatBrain:
             return
 
         hand = local_bot.meta.feints.hand
-        cost = hand.pop(feint_id, None)
-        if cost is None:
+        if feint_id not in hand:
             return
 
-        stamina_cost = FeintService.activation_stamina_cost(cost)
+        feint_cost_item = hand.pop(feint_id)
+        feint_cost_dict = feint_cost_item.model_dump() if hasattr(feint_cost_item, "model_dump") else feint_cost_item
+        stamina_cost = FeintService.activation_stamina_cost(feint_cost_dict)
         local_bot.meta.stamina = max(0, int(local_bot.meta.stamina or 0) - stamina_cost)
 
     # ------------------------------------------------------------------

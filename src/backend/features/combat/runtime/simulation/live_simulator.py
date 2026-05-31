@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import math
-from collections.abc import Awaitable, Callable
+from collections.abc import Awaitable, Callable, Sequence
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
@@ -78,7 +78,7 @@ class SimulationMoveRegistrar:
         state.ctx.moves_cache = cache
 
     @staticmethod
-    def _target_index(target_queue: list[ActorIdLike], target_id: ActorIdLike) -> int | None:
+    def _target_index(target_queue: Sequence[ActorIdLike], target_id: ActorIdLike) -> int | None:
         normalized = str(target_id)
         for index, candidate in enumerate(target_queue):
             if str(candidate) == normalized:
@@ -196,8 +196,8 @@ class LiveInMemoryCombatSimulator:
         target_queue = [
             target_id for target_id in state.ctx.targets.get(actor.meta.id, []) if state.ctx.get_actor(target_id)
         ]
-        candidates = [state.ctx.get_actor(target_id) for target_id in target_queue[: state.limits.candidate_limit]]
-        candidates = [candidate for candidate in candidates if candidate is not None and candidate.is_alive]
+        raw_candidates = [state.ctx.get_actor(target_id) for target_id in target_queue[: state.limits.candidate_limit]]
+        candidates: list[ActorSnapshot] = [c for c in raw_candidates if c is not None and c.is_alive]
         if not candidates:
             return None, []
 

@@ -666,7 +666,7 @@
     }
 
     .combat-field {
-        --combat-target-card-width: min(100%, 300px);
+        --combat-target-card-width: 100%;
         --combat-target-portrait-size: clamp(46px, 14cqw, 68px);
         --combat-target-gap: 7px;
         min-height: min(430px, calc(100dvh - var(--game-header-height, 40px) - var(--game-footer-height, 28px) - 280px));
@@ -678,6 +678,8 @@
         --combat-resource-label-width: 22px;
         --combat-resource-value-width: 58px;
         grid-template-columns: var(--combat-target-portrait-size) minmax(0, 1fr);
+        gap: 5px;
+        padding: 5px;
         text-align: left;
     }
 
@@ -692,13 +694,69 @@
     }
 
     .combat-field-title {
-        align-items: start;
-        flex-direction: column;
+        min-height: 18px;
+        align-items: center;
+        flex-direction: row;
+        gap: 5px;
+    }
+
+    .combat-field-actor--enemy .combat-field-title {
+        justify-content: flex-end;
+    }
+
+    .combat-field-title span {
+        font-size: 7px;
+        line-height: 1;
+    }
+
+    .combat-field-title .combat-field-name {
+        font-size: 9px;
+        line-height: 1.1;
+    }
+
+    .combat-stat-trigger {
+        width: 18px;
+        height: 18px;
+    }
+
+    .combat-field-actor-data,
+    .combat-field-vitals {
         gap: 3px;
     }
 
     .combat-resource {
         grid-template-columns: var(--combat-resource-label-width) minmax(0, 1fr) var(--combat-resource-value-width);
+        gap: 4px;
+    }
+
+    .combat-resource i {
+        height: 5px;
+    }
+
+    .combat-effect-stack--field {
+        display: flex;
+        max-height: 38px;
+        min-height: 0;
+        gap: 2px;
+        overflow: hidden;
+    }
+
+    .combat-effect-stack--field .combat-effect {
+        width: 18px;
+        height: 18px;
+    }
+
+    .combat-effect-stack--field .combat-effect-mark {
+        width: 10px;
+        height: 10px;
+    }
+
+    .combat-effect b {
+        font-size: 7px;
+    }
+
+    .combat-effect-empty {
+        display: none;
     }
 
     .combat-exchange-summary {

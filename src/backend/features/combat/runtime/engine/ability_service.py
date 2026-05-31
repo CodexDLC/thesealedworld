@@ -682,7 +682,8 @@ class AbilityService:
         minimum = max(0, int(getattr(config, "shield_guard_damage_min", 0) or 0))
         fallback_per_tier = max(0, int(getattr(config, "shield_guard_damage_tier_fallback", 0) or 0))
         tier_fallback = fallback_per_tier * AbilityService._source_shield_tier(actor)
-        shield_power = max(0.0, float(getattr(actor.stats.mods, "shield_guard_power", 0.0) or 0.0))
+        mods = actor.stats.mods if actor.stats else None
+        shield_power = max(0.0, float(getattr(mods, "shield_guard_power", 0.0) or 0.0))
         return max(minimum, tier_fallback, int(round(shield_power * ratio)))
 
     @staticmethod

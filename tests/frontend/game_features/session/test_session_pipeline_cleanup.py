@@ -118,21 +118,27 @@ def test_legacy_game_menu_fallback_keeps_global_domains_in_center_only():
                 assert item.label not in global_labels
 
 
-def test_legacy_combat_menu_keeps_standard_roster_drawers():
+def test_combat_menu_uses_tactical_drawers():
     nav = GameMenuService().build_menu(CoreDomain.COMBAT)
 
     assert nav.center is not None
     assert nav.center.label == "COMBAT"
     assert nav.l2 is not None
+    assert nav.l2.label == "STATUS"
     assert nav.l2.panel == "left"
     assert nav.l2.panel_view == "status"
     assert nav.l1 is not None
-    assert nav.l1.is_disabled is True
+    assert nav.l1.label == "PARTY"
+    assert nav.l1.panel == "left"
+    assert nav.l1.panel_view == "allies"
     assert nav.r1 is not None
-    assert nav.r1.is_disabled is True
+    assert nav.r1.label == "FOES"
+    assert nav.r1.panel == "right"
+    assert nav.r1.panel_view == "enemies"
     assert nav.r2 is not None
+    assert nav.r2.label == "LOG"
     assert nav.r2.panel == "right"
-    assert nav.r2.panel_view == "context"
+    assert nav.r2.panel_view == "log"
 
 
 def test_legacy_exploration_menu_fallback_does_not_link_to_other_main_states():

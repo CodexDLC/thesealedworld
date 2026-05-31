@@ -13,6 +13,15 @@
 </div>
 
 <div class="header-right">
+    <button type="button"
+            class="game-chat-toggle"
+            @click="toggleChatOverlay()"
+            :class="{ 'has-unread': chatUnread, 'is-open': !chatClosed }"
+            :aria-expanded="(!chatClosed).toString()"
+            aria-controls="game-chat-container"
+            aria-label="Toggle chat">
+        <span class="game-chat-toggle-glyph" aria-hidden="true"></span>
+    </button>
     <div class="game-system-menu" x-data="{ open: false }" @keydown.escape="open = false" @click.outside="open = false">
         <button type="button"
                 class="game-system-menu-toggle"

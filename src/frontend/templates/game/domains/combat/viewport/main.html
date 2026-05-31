@@ -1,3 +1,31 @@
+{% from "game/domains/game_menu/header_nav.html" import nav_action, nav_state_class with context %}
+
+{% macro combat_nav_item(item, fallback_label, extra_class='') %}
+    {% if item %}
+        <button type="button"
+                class="dock-nav-button mobile-center-menu-item {{ extra_class }} {{ 'is-disabled' if item.is_disabled else '' }} {{ 'is-active' if item.is_active else '' }}"
+                {% if item.id == 'combat' %}
+                @click="leftOpen = false; rightOpen = false"
+                {% else %}
+                {{ nav_action(item) }}
+                {% endif %}
+                :class="{{ nav_state_class(item) }}">
+            {% set icon_key = item.icon if item.icon else 'unknown' %}
+            <span class="mobile-nav-icon mobile-nav-icon--{{ icon_key }}"
+                  style="--nav-icon-url: url('/static/images/ui/game-menu-icons/{{ icon_key }}.svg')"
+                  aria-hidden="true"></span>
+            <span>{{ item.label }}</span>
+        </button>
+    {% else %}
+        <button type="button"
+                class="dock-nav-button mobile-center-menu-item is-disabled {{ extra_class }}"
+                disabled>
+            <span class="mobile-nav-icon mobile-nav-icon--empty" aria-hidden="true"></span>
+            <span>{{ fallback_label }}</span>
+        </button>
+    {% endif %}
+{% endmacro %}
+
 {% if (combat_outcome_screen is defined and combat_outcome_screen) or combat_result %}
         {% set outcome_screen = combat_outcome_screen if combat_outcome_screen is defined and combat_outcome_screen else none %}
         {% set result_screen = combat_result_screen if combat_result_screen is defined else none %}
@@ -188,6 +216,13 @@
         {% set target = combat_screen.target %}
         <section class="combat-screen-shell">
             <article class="combat-screen">
+                <nav class="dock-nav dock-nav--bar dock-nav--five mobile-center-menu combat-center-menu" aria-label="Combat sections">
+                    {{ combat_nav_item(nav.l2 if nav else none, 'STATUS') }}
+                    {{ combat_nav_item(nav.l1 if nav else none, 'PARTY') }}
+                    {{ combat_nav_item(nav.center if nav else none, 'COMBAT', 'is-active') }}
+                    {{ combat_nav_item(nav.r1 if nav else none, 'FOES') }}
+                    {{ combat_nav_item(nav.r2 if nav else none, 'LOG') }}
+                </nav>
                 {% set exchange = combat_screen.exchange_state %}
                 <header class="combat-statebar" aria-label="Combat state">
                     <div class="combat-statebar__brand">
@@ -216,11 +251,10 @@
                                  data-tippy-theme="game-hint">
                             <div class="combat-field-portrait combat-field-portrait--enemy{% if field_target.is_shadow %} combat-field-portrait--shadow{% endif %} combat-commit-frame combat-commit-frame--{{ field_target.commit_state }}">
                                 <img src="{{ field_target.avatar_url }}" alt="{{ field_target.name }}">
-                                <strong>{{ field_target.name }}</strong>
                             </div>
                             <div class="combat-field-actor-data">
                                 <div class="combat-field-title">
-                                    <span>ENEMY</span>
+                                    <span class="combat-field-name" title="{{ field_target.name }}">{{ field_target.name }}</span>
                                     {% if field_target.stat_sheet %}
                                         <button type="button"
                                                 class="combat-stat-trigger"
@@ -252,7 +286,7 @@
                                     </div>
                                 </div>
                                 <div class="combat-effect-stack combat-effect-stack--field" aria-label="Enemy effects">
-                                    {% for effect in field_target.effects[:3] %}
+                                    {% for effect in field_target.effects[:10] %}
                                         <span class="combat-effect combat-effect--{{ effect.frame_kind }}"
                                               data-catalog="{{ effect.catalog }}"
                                               data-catalog-key="{{ effect.catalog_key }}"
@@ -301,7 +335,7 @@
                                 </div>
                             </div>
                             <div class="combat-effect-stack combat-effect-stack--field" aria-label="Player effects">
-                                {% for effect in field_hero.effects[:3] %}
+                                {% for effect in field_hero.effects[:10] %}
                                     <span class="combat-effect combat-effect--{{ effect.frame_kind }}"
                                           data-catalog="{{ effect.catalog }}"
                                           data-catalog-key="{{ effect.catalog_key }}"
@@ -318,29 +352,6 @@
                             </div>
                         </div>
                     </article>
-                </section>
-
-                <section class="combat-mobile-dock" aria-label="Combat rosters">
-                    <details>
-                        <summary>ALLIES {{ combat_screen.allied_team.alive_count }}/{{ combat_screen.allied_team.total_count }}</summary>
-                        <div class="combat-mobile-roster">
-                            {% for actor in combat_screen.allies[:4] %}
-                                <span><b>{{ actor.name }}</b><i style="--value: {{ actor.hp_percent }}%"></i><em>{{ actor.hp_current }}/{{ actor.hp_max }}</em></span>
-                            {% else %}
-                                <span>ALLIES_NO_DATA</span>
-                            {% endfor %}
-                        </div>
-                    </details>
-                    <details>
-                        <summary>ENEMIES {{ combat_screen.enemy_team.alive_count }}/{{ combat_screen.enemy_team.total_count }}</summary>
-                        <div class="combat-mobile-roster">
-                            {% for actor in combat_screen.enemies[:4] %}
-                                <span><b>{{ actor.name }}</b><i style="--value: {{ actor.hp_percent }}%"></i><em>{{ actor.hp_current }}/{{ actor.hp_max }}</em></span>
-                            {% else %}
-                                <span>ENEMIES_NO_DATA</span>
-                            {% endfor %}
-                        </div>
-                    </details>
                 </section>
 
                 <section class="game-action-panel game-action-panel--bottom combat-action-panel" hx-sync="this:drop" aria-label="Combat action panel">

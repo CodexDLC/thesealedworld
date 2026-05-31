@@ -43,7 +43,7 @@ class FakeLootIntegration:
     activated: list[tuple[list[str], list[int], str]] = []
     corpses: dict[str, CorpseDTO] = {}
 
-    def __init__(self, manager) -> None:
+    def __init__(self, manager, **kwargs) -> None:
         self.manager = manager
 
     async def activate_corpses(self, corpse_ids: list[str], char_ids: list[int], location_id: str) -> None:

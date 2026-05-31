@@ -44,12 +44,21 @@ def test_combat_shell_uses_desktop_docks_without_forcing_mobile_panels():
     assert "shell_left_open" not in template
     assert "shell_right_open" not in template
     assert "session_ui" not in template
-    assert "x-init=\"rightPanelView = 'context'\"" in template
+    assert "x-init=\"rightPanelView = 'enemies'\"" in template
+    assert (
+        "{% if domain == 'combats' %}\n"
+        "                        {% include \"game/domains/combat/left_sidebar/main.html\" %}\n"
+        "                    {% else %}\n"
+        "                    <div x-show=\"leftPanelView === 'status'\">"
+    ) in template
     assert '{% if domain in [\'combats\', \'death\', \'loot\'] %}x-show="true"' in template
     assert "@media (min-width: 1025px)" in combat_desktop_css
     assert ".game-top-row.combat-layout" in combat_desktop_css
+    assert "grid-template-columns: var(--side-panel-width) minmax(0, 1fr) var(--side-panel-width);" in combat_desktop_css
     assert ".game-top-row.combat-layout .col-left" in combat_desktop_css
     assert ".game-top-row.combat-layout .col-right" in combat_desktop_css
+    assert ".game-top-row.combat-layout .combat-screen-shell" in combat_desktop_css
+    assert "--center-content-max: 100%;" in combat_desktop_css
     assert "@media (max-width: 1279px)" in tablet_css
     assert "@media (max-width: 767px)" in mobile_css
     assert ".game-top-row.combat-layout .col-left,\n    .game-top-row.combat-layout .col-right {\n        display: none !important;" not in combat_desktop_css
@@ -77,6 +86,11 @@ def test_combat_viewport_uses_prototype_field_and_bottom_action_panel():
     exchange_card = Path("src/frontend/templates/game/domains/combat/viewport/exchange_card.html").read_text()
 
     assert "combat-screen-shell" in template
+    assert "combat-center-menu" in template
+    assert "leftOpen = false; rightOpen = false" in template
+    assert "nav.l1 if nav else none, 'PARTY'" in template
+    assert "nav.r1 if nav else none, 'FOES'" in template
+    assert "nav.r2 if nav else none, 'LOG'" in template
     assert "combat-statebar" in template
     assert "combat-viewport" not in template
     assert 'id="center-screens"' not in template
@@ -94,7 +108,7 @@ def test_combat_viewport_uses_prototype_field_and_bottom_action_panel():
     assert "game-action-panel game-action-panel--bottom combat-action-panel" in template
     assert "game-action-button" in template
     assert "combat-action-panel" in template
-    assert "combat-mobile-dock" in template
+    assert "combat-mobile-dock" not in template
     assert "QUEUE" in template
     assert "combat-stage" not in template
     assert "combat-duelist--hero" not in template
@@ -112,6 +126,11 @@ def test_combat_viewport_uses_prototype_field_and_bottom_action_panel():
     assert "combat-effect-empty" in template
     assert "combat-exchange-card" in exchange_card
     assert "combat-exchange-wave" in exchange_card
+    assert 'import "game/domains/combat/viewport/log_line_macros.html" as combat_log' in exchange_card
+    assert "combat_log.combat_log_display_text(line.text)" in exchange_card
+    assert "combat_log.combat_log_facts(line, data)" in exchange_card
+    assert "data-source-id" in exchange_card
+    assert "data-target-id" in exchange_card
     assert "combat-battle-log" in exchange_card
     assert 'combat_log_panel_id = "combat-battle-log-panel"' in exchange_card
     assert "combat_screen.log_pages" in exchange_card
@@ -227,6 +246,9 @@ def test_combat_exchange_card_uses_only_latest_current_target_exchange():
                                 source=hero_ref,
                                 target=current_target_ref,
                                 global_turn=9,
+                                resources=[
+                                    {"actor_id": "2", "resource": "hp", "before": 40, "after": 31, "max": 40, "delta": -9}
+                                ],
                             ),
                             CombatEventDTO(
                                 type="HIT",
@@ -241,6 +263,7 @@ def test_combat_exchange_card_uses_only_latest_current_target_exchange():
                                 source=current_target_ref,
                                 target=hero_ref,
                                 global_turn=9,
+                                badges=[{"kind": "counter", "value": 1}],
                             ),
                         ],
                     ),
@@ -274,6 +297,11 @@ def test_combat_exchange_card_uses_only_latest_current_target_exchange():
     assert "Current target counters Hero." in html
     target_exchange_html = html.split("combat-battle-log", maxsplit=1)[0]
     battle_log_html = html.split("combat-battle-log", maxsplit=1)[1]
+    assert "combat-log-facts" in target_exchange_html
+    assert "[HP 31/40]" in target_exchange_html
+    assert "token-counter.svg" in target_exchange_html
+    assert 'data-source-id="1"' in target_exchange_html
+    assert 'data-target-id="2"' in target_exchange_html
     assert "Other enemy is hit by area attack." not in target_exchange_html
     assert "Older current target exchange." not in target_exchange_html
     assert "Other enemy is hit by area attack." in battle_log_html
@@ -424,7 +452,7 @@ def test_combat_active_template_renders_prototype_layout():
     assert "combat-field" in html
     assert "combat-exchange-wave" in html
     assert "Shadow hits Hero." in html
-    assert "combat-mobile-dock" in html
+    assert "combat-mobile-dock" not in html
     assert "combat-action-panel" in html
     assert "combat-team-bars" not in html
     assert "СБЕЖАТЬ" not in html
@@ -433,17 +461,39 @@ def test_combat_active_template_renders_prototype_layout():
 def test_combat_sidebars_use_combat_panels():
     left = Path("src/frontend/templates/game/domains/combat/left_sidebar/main.html").read_text()
     right = Path("src/frontend/templates/game/domains/combat/right_sidebar/main.html").read_text()
+    active_left = left.split("{% elif combat_screen %}", maxsplit=1)[1].split("{% else %}", maxsplit=1)[0]
 
     assert "combat-panel combat-actor-panel" in left
+    assert "combat-panel combat-actor-panel" not in active_left
+    assert "status-widget-card scenario-status-card combat-side-summary-card combat-side-summary-card--left" in active_left
+    assert "combat-side-summary-effects" in active_left
     assert "combat-panel combat-actor-panel" not in right.split("{% elif combat_screen %}", maxsplit=1)[1].split("{% else %}", maxsplit=1)[0]
     assert "combat-panel-header" in left
     assert "combat-panel-header" in right
+    assert "Status panel actions" in left
+    assert "Party panel actions" in left
+    assert "$dispatch('panel-toggle', { side: 'left', view: 'status' })" in left
+    assert "$dispatch('panel-toggle', { side: 'left', view: 'allies' })" in left
+    assert "activeStatSheet && activeStatSheet.startsWith('ally-')" in left
     assert "combat-actor-name--with-action" not in left
     assert "openStatSheet('hero')" not in left
-    assert "openStatSheet('ally-{{ ally.actor_id }}')" not in left
+    assert "openStatSheet('ally-{{ ally.actor_id }}')" in left
     assert "{{ ally.queue_state }}" not in left
-    assert "combat_screen.exchange_state.pair_status" in right
-    assert "combat_screen.exchange_state.opponent_response_state" in right
+    assert "rightPanelView === 'enemies'" in right
+    assert "rightPanelView === 'log'" in right
+    assert "combat-drawer-log-panel" in right
+    assert "combat-context-panel" not in right
+    assert "combat_screen.exchange_state.pair_status" not in right
+    assert "combat_screen.exchange_state.opponent_response_state" not in right
+    assert "<button class=\"dock-nav-button is-active\" type=\"button\">FOES</button>" in right
+    assert "default_enemy_id = combat_screen.target.actor_id" in right
+    assert "status-widget-card scenario-status-card combat-side-summary-card combat-side-summary-card--right combat-enemy-summary-card" in right
+    assert "status-widget-avatar combat-side-summary-avatar combat-enemy-summary-avatar" in right
+    assert "status-widget-bar status-widget-bar--hp" in right
+    assert "enemy.vitals.hp_current" in right
+    assert "combat-enemy-summary-effects" in right
+    assert "combat-panel combat-roster-panel\"" in right
+    assert "combat-panel combat-roster-panel\"\n                     x-show" not in right
     assert "combat-commit-row--{{ enemy.commit_state }}" in right
     assert "combat-queue-dot--{{ enemy.commit_state }}" in right
     assert "enemy.commit_tooltip" in right
@@ -480,6 +530,7 @@ def test_combat_css_contains_texture_surfaces_without_shell_overrides():
     actions = combat_dir.joinpath("actions.css").read_text()
     logs = combat_dir.joinpath("logs.css").read_text()
     result = combat_dir.joinpath("result.css").read_text()
+    responsive = combat_dir.joinpath("responsive.css").read_text()
     source = "\n".join(
         path.read_text()
         for path in (
@@ -538,6 +589,8 @@ def test_combat_css_contains_texture_surfaces_without_shell_overrides():
     assert "@media (min-width: 768px)" in source
     assert "@media (min-width: 1025px)" in source
     assert ".combat-field > .combat-field-actor--hero" in source
+    assert ".combat-field > .combat-field-actor--enemy {\n        display: none;" in responsive
+    assert "grid-template-rows: minmax(0, 1fr);" in responsive
     assert ".combat-field-actor--enemy .combat-field-portrait {\n    order: 2;" in source
     assert ".combat-field-actor--enemy .combat-field-portrait {\n        order: 0;" not in source
     assert ".combat-field-actor--enemy .combat-resource span,\n    .combat-field-actor--enemy .combat-resource i,\n    .combat-field-actor--enemy .combat-resource strong {\n        order: initial;" not in source
@@ -552,8 +605,8 @@ def test_combat_css_contains_texture_surfaces_without_shell_overrides():
     assert "@media (max-width: 860px)" in source
     assert ".combat-statebar {\n        display: none;" in source
     assert "width: 100%;" in source
-    assert "grid-template-rows: minmax(138px, auto) minmax(0, 1fr);" in source
-    assert "width: min(100%, 300px);" in source
+    assert "grid-template-rows: minmax(138px, auto) minmax(0, 1fr);" not in responsive
+    assert "--combat-target-card-width: 100%;" in source
     assert "--combat-target-card-width: clamp(340px, 52cqw, 620px);" in source
     assert "--combat-target-portrait-size: clamp(100px, min(16cqw, 30cqh), 190px);" in source
     assert "grid-template-columns: minmax(0, 1fr) var(--combat-target-portrait-size);" in source
@@ -573,8 +626,7 @@ def test_combat_css_contains_texture_surfaces_without_shell_overrides():
     assert "#center-screens" not in source
     assert "height: 100%;" in screen
     assert "grid-template-rows: auto minmax(0, 1fr) auto auto;" in screen
-    assert ".combat-mobile-dock details[open] {\n        overflow: visible;" in source
-    assert ".combat-mobile-dock details[open] .combat-mobile-roster {\n        position: absolute;" in source
+    assert ".combat-mobile-dock {\n        display: none;" in source
     assert ".combat-action-panel {\n        position: sticky;\n        bottom: 0;" not in source
     assert ".combat-action-panel {\n        max-height: min(44dvh, 320px);" in source
     assert ".combat-primary-row {\n        order: 3;" in source
@@ -977,6 +1029,9 @@ def test_combat_vm_includes_hero_in_allied_side_and_session_metrics():
     assert screen.allied_team.target_queue_size == 0
     assert screen.enemy_team.pending_action_count == 0
     assert [actor.team for actor in screen.enemies] == ["team_2", "team_3"]
+    assert screen.enemies[0].avatar_url
+    assert screen.enemies[0].vitals.hp_current == 40
+    assert screen.enemies[0].vitals.energy_max == 1
     assert [group.team for group in screen.enemy_groups] == ["team_2", "team_3"]
     assert [group.label for group in screen.enemy_groups] == ["TEAM 2", "TEAM 3"]
     assert [row.actor_id for row in screen.enemy_groups[0].rows] == ["2"]

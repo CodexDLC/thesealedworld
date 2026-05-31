@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import uuid
 from dataclasses import dataclass
+from decimal import Decimal, InvalidOperation
 from typing import Any
 
 from sqlalchemy import select
@@ -347,7 +348,7 @@ def _rebuild_version_payload(member: Any) -> dict[str, Any]:
     return {
         "variant_key": getattr(member, "variant_key", ""),
         "schema_version": _optional_int(generation_meta.get("schema_version")),
-        "family_resource_version": _optional_int(generation_meta.get("family_resource_version")),
+        "family_resource_version": _optional_version(generation_meta.get("family_resource_version")),
     }
 
 
@@ -358,6 +359,16 @@ def _optional_int(value: object) -> int | None:
         return int(value)
     except ValueError:
         return None
+
+
+def _optional_version(value: object) -> str | None:
+    if not isinstance(value, int | float | str):
+        return None
+    try:
+        version = Decimal(str(value))
+    except InvalidOperation:
+        return None
+    return format(version.normalize(), "f")
 
 
 def _copy_member_mechanics(target: GeneratedMonsterORM, expected: Any) -> None:

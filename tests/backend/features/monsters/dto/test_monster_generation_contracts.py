@@ -3,6 +3,7 @@ from pydantic import ValidationError
 
 from src.backend.features.monsters.dto.generation import GeneratedMonsterTemplateDTO
 from src.backend.features.monsters.dto.resources import MonsterFamilyDTO
+from src.backend.features.monsters.resources import get_family_config
 
 
 def test_generated_monster_template_accepts_target_json_contract() -> None:
@@ -149,7 +150,7 @@ def test_monster_family_accepts_explicit_resource_version() -> None:
     family = MonsterFamilyDTO.model_validate(
         {
             "id": "rat_swarm",
-            "resource_version": 3,
+            "resource_version": 1.1,
             "archetype": "beast",
             "organization_type": "swarm",
             "default_tags": ["rat"],
@@ -176,7 +177,14 @@ def test_monster_family_accepts_explicit_resource_version() -> None:
         }
     )
 
-    assert family.resource_version == 3
+    assert family.resource_version == 1.1
+
+
+def test_starter_monster_families_use_minor_resource_version_after_stat_ladder_rebalance() -> None:
+    for family_id in ("rat_swarm", "wolf_pack", "bandit_gang", "goblin_tribe"):
+        family = get_family_config(family_id)
+        assert family is not None
+        assert family.resource_version == 1.1
 
 
 def test_monster_family_rejects_member_model_for_missing_variant() -> None:

@@ -12,6 +12,7 @@ from src.backend.features.combat.workers.tasks.chat_announcements import publish
 from src.backend.features.expedition import ExpeditionService
 from src.backend.features.inventory.events.publisher import InventoryEvents
 from src.backend.infrastructure.loot.managers.loot_manager import LootManager
+from src.backend.infrastructure.rift.managers import RiftInstanceStore, RiftPresenceStore, RiftRunSessionStore
 from src.shared.enums import CoreDomain
 from src.shared.infrastructure.log_task_wrapper import logged_task
 
@@ -100,6 +101,7 @@ async def victory_finalizer_task(ctx: dict, data: dict) -> None:
                 char_ids=finalization.get("participant_char_ids", []),
                 ttl=86400,
             )
+            await _apply_rift_combat_result(ctx, finalization)
             await _apply_durability_consequences(ctx, finalization)
             await _attach_finalization_to_active_sessions(ctx, session_id, finalization)
             await publish_combat_final_announcement(ctx, finalization)
@@ -144,6 +146,49 @@ async def _apply_durability_consequences(ctx: dict, finalization: dict[str, Any]
                 char_id=durability_request.char_id,
                 combat_id=durability_request.combat_id,
             ).exception("VictoryFinalizerDurabilityDamageRequestFailed")
+
+
+async def _apply_rift_combat_result(ctx: dict, finalization: dict[str, Any]) -> None:
+    meta = finalization.get("meta") if isinstance(finalization.get("meta"), dict) else {}
+    battle_type = str(meta.get("battle_type") or "").lower()
+    rift_session_id = str(meta.get("rift_session_id") or "")
+    if battle_type != "rift" and not rift_session_id:
+        return
+    if not rift_session_id:
+        log.bind(combat_id=finalization.get("combat_id")).warning("VictoryFinalizerRiftResultMissingSession")
+        return
+
+    rift_runtime = ctx.get("rift_runtime")
+    if rift_runtime is None:
+        redis_service = ctx.get("redis_service")
+        if redis_service is None:
+            log.bind(combat_id=finalization.get("combat_id")).warning("VictoryFinalizerRiftRuntimeUnavailable")
+            return
+        from src.backend.features.rift.integrations import RiftRuntimeIntegration
+
+        rift_runtime = RiftRuntimeIntegration(
+            instance_store=RiftInstanceStore(redis_service),
+            session_store=RiftRunSessionStore(redis_service),
+            presence_store=RiftPresenceStore(redis_service),
+        )
+
+    apply_combat_result = getattr(rift_runtime, "apply_combat_result", None)
+    if apply_combat_result is None:
+        clear_run_active_encounter = getattr(rift_runtime, "clear_run_active_encounter", None)
+        if clear_run_active_encounter is not None:
+            await clear_run_active_encounter(rift_session_id)
+        return
+
+    await apply_combat_result(
+        combat_id=str(finalization.get("combat_id") or ""),
+        result="victory",
+        rift_session_id=rift_session_id,
+        rift_instance_id=str(meta.get("rift_instance_id") or ""),
+        event_scope=str(meta.get("rift_event_scope") or ""),
+        travel_id=str(meta.get("rift_travel_id") or ""),
+        event_key=str(meta.get("rift_event_key") or ""),
+        participant_ref="",
+    )
 
 
 async def _attach_finalization_to_active_sessions(ctx: dict, session_id: str, finalization: dict[str, Any]) -> None:

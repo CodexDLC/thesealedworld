@@ -145,6 +145,9 @@ class LootManager:
         result = await self._client().set(key, "1", ex=86400, nx=True)
         return bool(result)
 
+    async def clear_loot_ordered(self, session_id: str) -> None:
+        await self._client().delete(_ordered_key(session_id))
+
     async def is_loot_ordered(self, session_id: str) -> bool:
         return bool(await self._client().exists(_ordered_key(session_id)))
 

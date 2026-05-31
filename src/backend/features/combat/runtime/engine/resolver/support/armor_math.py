@@ -21,7 +21,7 @@ def effective_armor_trace(
     atk_stats: ActorStats, def_stats: ActorStats, ctx: PipelineContextDTO
 ) -> tuple[float, dict[str, Any]]:
     armor_raw = max(0.0, def_stats.mods.armor)
-    trace = {
+    trace: dict[str, Any] = {
         "raw": armor_raw,
         "effective": 0.0,
         "ignored": armor_raw,

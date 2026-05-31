@@ -809,6 +809,8 @@ def test_inventory_window_template_renders_contract_view_model():
     html = template.render(inventory_window=build_inventory_window_vm({"avatar_url": "/avatar.png", "name": "Ada"}))
 
     assert 'data-contract-state="FRONTEND_CONTRACT_PENDING"' in html
+    assert 'data-game-state="inventory"' in html
+    assert "data-game-scripts='[&#34;/static/js/game/components/inventory.js&#34;]'" in html
     assert 'src="/avatar.png"' in html
     assert 'data-slot-id="chest_armor"' in html
     assert 'data-slot-id="chest_garment"' not in html
@@ -941,6 +943,30 @@ def test_inventory_window_template_renders_backend_contract_dto():
     assert '|| "Bronze Sword".toLowerCase()' not in locked_html
 
 
+def test_inventory_js_is_loaded_as_narrow_game_state_module():
+    config = Path("src/frontend/static/css/compiler_config.json").read_text(encoding="utf-8")
+    core_main_source = Path("src/frontend/static/js/core/main.js").read_text(encoding="utf-8")
+    game_bundle = Path("src/frontend/static/js/game.js").read_text(encoding="utf-8")
+    inventory_source = Path("src/frontend/static/js/game/components/inventory.js").read_text(encoding="utf-8")
+    template = Path("src/frontend/templates/game/components/inventory/window.html").read_text(encoding="utf-8")
+
+    assert "game/components/inventory.js" not in config
+    assert "function initInventoryTooltips" not in core_main_source
+    assert "inventoryTooltipHost" not in core_main_source
+    assert "function initInventoryTooltips" not in game_bundle
+    assert "inventoryTooltipHost" not in game_bundle
+    assert "window.GameStates.inventory" in inventory_source
+    assert "init(root" in inventory_source
+    assert "function runInventoryAction" in inventory_source
+    assert "window.htmx.ajax('POST', '/game/inventory/action'" in inventory_source
+    assert "button.type = 'button'" in inventory_source
+    assert "button.addEventListener('pointerup'" in inventory_source
+    assert "button.addEventListener('touchend'" in inventory_source
+    assert "button.type = 'submit'" not in inventory_source
+    assert "data-game-state=\"inventory\"" in template
+    assert "/static/js/game/components/inventory.js" in template
+
+
 def test_inventory_card_mapper_builds_grid_card_from_type_and_numeric_size():
     assert inventory_card_dimensions("armor", 0, 0) == (2, 2)
     assert inventory_card_dimensions("quest", 12, 7) == (8, 4)
@@ -1015,6 +1041,9 @@ def test_inventory_css_has_loadout_container_and_table_contract():
     assert ".inventory-tooltip-section-title" in source
     assert ".inventory-floating-tooltip--touch" in source
     assert ".inventory-tooltip-action" in source
+    assert "z-index: 2147483000" in source
+    assert "isolation: isolate" in source
+    assert "-webkit-tap-highlight-color: transparent" in source
     assert ".inventory-context-menu" in source
     assert ".inventory-context-menu-action" in source
     assert ".inventory-accessory-row-label" in source
@@ -1045,14 +1074,21 @@ def test_game_shell_drag_logic_lives_in_source_js():
 
     assert "window.gameShell" in source
     main_source = Path("src/frontend/static/js/core/main.js").read_text()
-    assert "isTouchInventoryMode" in main_source
-    assert "appendTouchInventoryActions" in main_source
-    assert "event.stopImmediatePropagation()" in main_source
-    assert "inventory-tooltip-action" in main_source
-    assert "contextmenu" in main_source
-    assert "inventory-context-menu-host" in main_source
-    assert "data-inventory-menu-trigger" in main_source
-    assert "setTimeout" in main_source
+    inventory_source = Path("src/frontend/static/js/game/components/inventory.js").read_text()
+    assert "isTouchInventoryMode" not in main_source
+    assert "appendTouchInventoryActions" not in main_source
+    assert "inventory-tooltip-action" not in main_source
+    assert "inventory-context-menu-host" not in main_source
+    assert "data-inventory-menu-trigger" not in main_source
+    assert "isTouchInventoryMode" in inventory_source
+    assert "appendTouchInventoryActions" in inventory_source
+    assert "event.stopImmediatePropagation()" in inventory_source
+    assert "event.stopPropagation()" in inventory_source
+    assert "inventory-tooltip-action" in inventory_source
+    assert "contextmenu" in inventory_source
+    assert "inventory-context-menu-host" in inventory_source
+    assert "data-inventory-menu-trigger" in inventory_source
+    assert "setTimeout" in inventory_source
     assert "!detail.forceOpen && this.leftOpen && this.leftPanelView === nextView" in source
     assert "!detail.forceOpen && this.rightOpen && this.rightPanelView === nextView" in source
     assert "startHudWindowDrag" in source
@@ -1061,11 +1097,12 @@ def test_game_shell_drag_logic_lives_in_source_js():
     assert "moveHudWindow" in source
     assert "hudOpenStorageKey" in source
     assert "panelStateStorageKey" in source
-    assert "explorationDesktopPanelsDefaultOpen" in source
+    assert "worldDesktopPanelsDefaultOpen" in source
+    assert '["exploration", "rift"].includes(domain)' in source
     assert "clearDrawerPanelState" in source
     assert "if (isDrawerViewport())" in source
     assert "window.localStorage.removeItem(panelStateStorageKey())" in source
-    assert 'domain !== "exploration"' in source
+    assert 'if (!["exploration", "rift"].includes(domain)) return false;' in source
     assert 'window.matchMedia("(min-width: 1025px)")' in source
     assert 'window.matchMedia("(max-width: 1024px)")' in source
     assert '${domainScope}:${scope}:${viewportScope}:v1' in source

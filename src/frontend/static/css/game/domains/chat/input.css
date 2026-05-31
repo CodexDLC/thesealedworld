@@ -64,6 +64,11 @@
         padding-inline: var(--sp-2);
     }
 
+    .chat-tab-select {
+        height: 26px;
+        font-size: 8px;
+    }
+
 }
 
 #chat-input:focus {

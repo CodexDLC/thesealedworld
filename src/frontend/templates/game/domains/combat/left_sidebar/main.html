@@ -35,83 +35,151 @@
 {% elif combat_screen %}
     {% set actor = combat_screen.hero %}
     <div class="combat-side combat-side--left">
-        <section class="combat-panel combat-actor-panel">
-            <div class="combat-panel-header">PLAYER</div>
-            <div class="combat-actor-avatar{% if actor.is_shadow %} combat-actor-avatar--shadow{% endif %}">
-                <img src="{{ actor.avatar_url }}" alt="{{ actor.name }}">
-                <div class="combat-effect-stack">
-                    {% for effect in actor.effects %}
-                        <span class="combat-effect combat-effect--{{ effect.frame_kind }}"
-                              data-catalog="{{ effect.catalog }}"
-                              data-catalog-key="{{ effect.catalog_key }}"
-                              data-tippy-content="{{ effect.tooltip }}"
-                              data-tippy-theme="game-hint">
-                            <span class="combat-effect-mark" aria-hidden="true"></span>
-                            {% if effect.duration_text %}
-                                <b>{{ effect.duration_text }}</b>
-                            {% endif %}
-                        </span>
-                    {% endfor %}
-                </div>
-            </div>
-            <div class="combat-actor-name">{{ actor.name }}</div>
-            <div class="combat-vitals">
-                <div class="combat-vital-row">
-                    <span>HP</span>
-                    <div class="combat-vital-bar combat-vital-bar--hp"><i style="width: {{ actor.vitals.hp_percent }}%"></i></div>
-                    <b>{{ actor.vitals.hp_current }}/{{ actor.vitals.hp_max }}</b>
-                </div>
-                <div class="combat-vital-row">
-                    <span>EN</span>
-                    <div class="combat-vital-bar combat-vital-bar--energy"><i style="width: {{ actor.vitals.energy_percent }}%"></i></div>
-                    <b>{{ actor.vitals.energy_current }}/{{ actor.vitals.energy_max }}</b>
-                </div>
-                <div class="combat-vital-row">
-                    <span>CONC</span>
-                    <div class="combat-vital-bar combat-vital-bar--stamina"><i style="width: {{ actor.vitals.stamina_percent }}%"></i></div>
-                    <b>{{ actor.vitals.stamina_current }}/{{ actor.vitals.stamina_max }}</b>
-                </div>
-            </div>
-        </section>
+        <div x-show="!window.matchMedia('(max-width: 767px)').matches || leftPanelView === 'status'">
+            <nav class="dock-nav dock-nav--bar dock-nav--panel combat-info-actions" aria-label="Status panel actions">
+                <button class="dock-nav-button is-active" type="button">STATUS</button>
+                <button class="dock-nav-button dock-nav-button--close"
+                        type="button"
+                        @click="$dispatch('panel-toggle', { side: 'left', view: 'status' })">CLOSE</button>
+            </nav>
 
-        {% if actor.stat_sheet and actor.stat_sheet.sections %}
-        <section class="combat-panel combat-hero-stats-panel">
-            <div class="combat-panel-header">CHARACTER STATS</div>
-            <div class="combat-hero-stat-body">
-                {% for section in actor.stat_sheet.sections %}
-                <details class="combat-stat-group combat-stat-group--compact" {% if loop.first %}open{% endif %}>
-                    <summary><span>{{ section.label }}</span></summary>
-                    <div class="combat-stat-list">
-                        {% for item in section.items %}
-                        <div class="combat-stat-row"
-                             {% if item.tooltip %}data-tippy-content="{{ item.tooltip }}" data-tippy-theme="game-hint"{% endif %}>
-                            <span>{{ item.label }}</span>
-                            <strong>{{ item.value_text }}</strong>
-                        </div>
+            <section class="status-widget-card scenario-status-card combat-side-summary-card combat-side-summary-card--left">
+                <div class="status-widget-avatar combat-side-summary-avatar{% if actor.is_shadow %} combat-side-summary-avatar--shadow{% endif %}">
+                    <img src="{{ actor.avatar_url }}" alt="{{ actor.name }}">
+                </div>
+                <div class="status-widget-core">
+                    <div class="status-widget-name">
+                        <strong>{{ actor.name }}</strong>
+                    </div>
+                    <div class="status-widget-bars">
+                        <div class="status-widget-bar status-widget-bar--hp" style="--status-fill: {{ actor.vitals.hp_percent }}%;"><span>HP</span><i></i><b>{{ actor.vitals.hp_current }} / {{ actor.vitals.hp_max }}</b></div>
+                        <div class="status-widget-bar status-widget-bar--en" style="--status-fill: {{ actor.vitals.energy_percent }}%;"><span>EN</span><i></i><b>{{ actor.vitals.energy_current }} / {{ actor.vitals.energy_max }}</b></div>
+                        <div class="status-widget-bar status-widget-bar--sta" style="--status-fill: {{ actor.vitals.stamina_percent }}%;"><span>CONC</span><i></i><b>{{ actor.vitals.stamina_current }} / {{ actor.vitals.stamina_max }}</b></div>
+                    </div>
+                    <div class="combat-effect-stack combat-effect-stack--field combat-side-summary-effects" aria-label="{{ actor.name }} effects">
+                        {% for effect in actor.effects %}
+                            <span class="combat-effect combat-effect--{{ effect.frame_kind }}"
+                                  data-catalog="{{ effect.catalog }}"
+                                  data-catalog-key="{{ effect.catalog_key }}"
+                                  data-tippy-content="{{ effect.tooltip }}"
+                                  data-tippy-theme="game-hint">
+                                <span class="combat-effect-mark" aria-hidden="true"></span>
+                                {% if effect.duration_text %}
+                                    <b>{{ effect.duration_text }}</b>
+                                {% endif %}
+                            </span>
+                        {% else %}
+                            <span class="combat-effect-empty">NO EFFECTS</span>
                         {% endfor %}
                     </div>
-                </details>
-                {% endfor %}
-            </div>
-        </section>
-        {% endif %}
+                </div>
+            </section>
 
-        <section class="combat-panel combat-roster-panel">
-            <div class="combat-panel-header">ALLIES</div>
-            <div class="combat-roster">
-                {% for ally in combat_screen.allies %}
-                    <div class="combat-roster-row">
-                        <span class="combat-queue-dot combat-queue-dot--{{ ally.queue_indicator }}"></span>
-                        <span class="combat-roster-name">{{ ally.name }}</span>
-                        <div class="combat-roster-hp"><i style="width: {{ ally.hp_percent }}%"></i></div>
-                        <b>{{ ally.hp_current }}/{{ ally.hp_max }}</b>
-                        <span class="combat-info-mark"></span>
+            {% if actor.stat_sheet and actor.stat_sheet.sections %}
+            <section class="combat-panel combat-hero-stats-panel">
+                <div class="combat-panel-header">CHARACTER STATS</div>
+                <div class="combat-hero-stat-body">
+                    {% for section in actor.stat_sheet.sections %}
+                    <details class="combat-stat-group combat-stat-group--compact" {% if loop.first %}open{% endif %}>
+                        <summary><span>{{ section.label }}</span></summary>
+                        <div class="combat-stat-list">
+                            {% for item in section.items %}
+                            <div class="combat-stat-row"
+                                 {% if item.tooltip %}data-tippy-content="{{ item.tooltip }}" data-tippy-theme="game-hint"{% endif %}>
+                                <span>{{ item.label }}</span>
+                                <strong>{{ item.value_text }}</strong>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </details>
+                    {% endfor %}
+                </div>
+            </section>
+            {% endif %}
+        </div>
+
+        <div x-show="!window.matchMedia('(max-width: 767px)').matches || leftPanelView === 'allies'" x-cloak>
+            <nav class="dock-nav dock-nav--bar dock-nav--panel combat-info-actions" aria-label="Party panel actions">
+                <button class="dock-nav-button is-active"
+                        type="button"
+                        x-show="!activeStatSheet || !activeStatSheet.startsWith('ally-')">PARTY</button>
+                <button class="dock-nav-button combat-stat-back-btn"
+                        type="button"
+                        style="display:none"
+                        x-show="activeStatSheet && activeStatSheet.startsWith('ally-')"
+                        @click="activeStatSheet = null">← BACK</button>
+                <button class="dock-nav-button dock-nav-button--close"
+                        type="button"
+                        @click="$dispatch('panel-toggle', { side: 'left', view: 'allies' })">CLOSE</button>
+            </nav>
+
+            {% for ally in combat_screen.allies %}
+                {% if ally.stat_sheet %}
+                <section class="combat-panel combat-ally-stat-panel"
+                         x-show="activeStatSheet === 'ally-{{ ally.actor_id }}'"
+                         x-cloak>
+                    <div class="combat-panel-header combat-enemy-stat-header">
+                        <strong>{{ ally.name }}</strong>
                     </div>
-                {% else %}
-                    <div class="missing-data-block"><span>NO_ALLIES</span></div>
-                {% endfor %}
-            </div>
-        </section>
+                    <div class="combat-enemy-stat-body">
+                        {% for section in ally.stat_sheet.sections %}
+                        <details class="combat-stat-group combat-stat-group--compact" {% if loop.first %}open{% endif %}>
+                            <summary><span>{{ section.label }}</span></summary>
+                            <div class="combat-stat-list">
+                                {% for item in section.items %}
+                                <div class="combat-stat-row"
+                                     {% if item.tooltip %}data-tippy-content="{{ item.tooltip }}" data-tippy-theme="game-hint"{% endif %}>
+                                    <span>{{ item.label }}</span>
+                                    <strong>{{ item.value_text }}</strong>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </details>
+                        {% endfor %}
+                    </div>
+                </section>
+                {% endif %}
+            {% endfor %}
+
+            <section class="combat-panel combat-roster-panel"
+                     x-show="!activeStatSheet || !activeStatSheet.startsWith('ally-')">
+                <div class="combat-panel-header">PARTY</div>
+                <div class="combat-info-list">
+                    <span><b>ALIVE</b><em>{{ combat_screen.allied_team.alive_count }}/{{ combat_screen.allied_team.total_count }}</em></span>
+                    <span><b>HP</b><em>{{ combat_screen.allied_team.hp_current }}/{{ combat_screen.allied_team.hp_max }}</em></span>
+                    <span><b>EFFECTS</b><em>{{ combat_screen.allied_team.effects_count }}</em></span>
+                </div>
+                <div class="combat-roster">
+                    {% for ally in combat_screen.allies %}
+                        <div class="combat-roster-row">
+                            <span class="combat-queue-dot combat-queue-dot--{{ ally.queue_indicator }}"></span>
+                            <span class="combat-roster-name">{{ ally.name }}</span>
+                            <div class="combat-roster-hp"><i style="width: {{ ally.hp_percent }}%"></i></div>
+                            <b>{{ ally.hp_current }}/{{ ally.hp_max }}</b>
+                            {% if ally.stat_sheet %}
+                                <span class="combat-info-mark combat-info-mark--button">
+                                    <button type="button"
+                                            class="combat-stat-trigger combat-roster-info-button"
+                                            :class="{ 'is-active': activeStatSheet === 'ally-{{ ally.actor_id }}' }"
+                                            @click.stop="openStatSheet('ally-{{ ally.actor_id }}')"
+                                            aria-label="Open {{ ally.name }} stats">
+                                        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                                            <circle cx="12" cy="12" r="9"></circle>
+                                            <path d="M12 10v7"></path>
+                                            <path d="M12 7h.01"></path>
+                                        </svg>
+                                    </button>
+                                </span>
+                            {% else %}
+                                <span class="combat-info-mark"></span>
+                            {% endif %}
+                        </div>
+                    {% else %}
+                        <div class="missing-data-block"><span>NO_ALLIES</span></div>
+                    {% endfor %}
+                </div>
+            </section>
+        </div>
     </div>
 {% else %}
     {% include "game/components/status/main.html" %}

@@ -140,7 +140,7 @@ class FamilyHierarchyDTO(BaseModel):
 
 class MonsterFamilyDTO(BaseModel):
     id: str
-    resource_version: int = Field(default=1, ge=1)
+    resource_version: float = Field(default=1.0, ge=1)
     archetype: MonsterArchetype
     organization_type: OrganizationType
     default_tags: list[str] = Field(default_factory=list)

@@ -9,7 +9,7 @@ from ..stat_ladders import build_role_ladder_stats
 
 GOBLINS_FAMILY: MonsterFamily = {
     "id": "goblin_tribe",
-    "resource_version": 1,
+    "resource_version": 1.1,
     "archetype": "humanoid",
     "organization_type": "horde",  # TSP Base: 30
     "default_tags": ["goblin", "small", "cunning", "tinkerer"],

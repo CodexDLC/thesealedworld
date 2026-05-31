@@ -9,9 +9,13 @@ class FakeLootIntegration:
     def __init__(self) -> None:
         self.corpses = []
         self.item_requests = []
+        self.cleared_orders = []
 
     async def mark_loot_ordered(self, session_id: str) -> bool:
         return True
+
+    async def clear_loot_ordered(self, session_id: str) -> None:
+        self.cleared_orders.append(session_id)
 
     async def persist_corpse(self, corpse, location_id: str) -> None:
         self.corpses.append((corpse, location_id))
@@ -47,6 +51,23 @@ class DropOnlyEngine:
 
     def build_spoil_items(self, role_profile, monster_tier: int, role: str):
         raise AssertionError("spoil must not be generated for ordinary post-combat loot")
+
+
+class EmptyEngine:
+    def build_drop_items(self, role_profile, monster_tier: int, role: str, battle_type: str):
+        return []
+
+    def build_salvage_items(self, role_profile, monster_tier: int, role: str):
+        return []
+
+    def build_spoil_items(self, role_profile, monster_tier: int, role: str):
+        return []
+
+    def roll_equipment_tier(self, monster_tier: int, role: str):
+        return 0
+
+    def pick_equipment_base_id(self, eq_profile, role: str):
+        return None
 
 
 @pytest.mark.asyncio
@@ -95,6 +116,29 @@ async def test_order_loot_for_combat_materializes_only_plain_drop_items() -> Non
     corpse = integration.corpses[0][0]
     assert [item.layer for item in corpse.items] == ["drop"]
     assert [item.template_id for item in corpse.items] == ["res_torn_pelt"]
+
+
+@pytest.mark.asyncio
+async def test_order_loot_for_combat_clears_order_marker_when_no_corpses_are_created() -> None:
+    integration = FakeLootIntegration()
+    service = LootService(integration, EmptyEngine())
+
+    pending = await service.order_loot_for_combat(
+        session_id="combat-empty",
+        location_id="forest",
+        battle_type="pve",
+        actors=[
+            {
+                "actor_id": "wolf_1",
+                "meta": {"type": "monster", "id": "wolf_1", "name": "Wolf"},
+                "source": {"loot_profile_id": "default"},
+            },
+        ],
+    )
+
+    assert pending == {}
+    assert integration.corpses == []
+    assert integration.cleared_orders == ["combat-empty"]
 
 
 class FakeEquipmentEngine:

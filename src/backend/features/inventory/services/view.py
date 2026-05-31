@@ -816,16 +816,16 @@ class InventoryViewService:
         actions: list[InventoryItemActionDTO] = []
         equip_target = self._equip_target(session, item)
         if item.placement == "equipped":
-            actions.append(InventoryItemActionDTO(action="unequip", label="Unequip", slot_id=item.slot))
+            actions.append(InventoryItemActionDTO(action="unequip", label="Снять", slot_id=item.slot))
         elif item.placement == "belt":
             actions.append(
-                InventoryItemActionDTO(action="remove_from_belt", label="Remove from belt", slot_id=item.slot)
+                InventoryItemActionDTO(action="remove_from_belt", label="Убрать из пояса", slot_id=item.slot)
             )
         elif equip_target:
             actions.append(
                 InventoryItemActionDTO(
                     action="equip",
-                    label="Equip",
+                    label="Надеть",
                     enabled=requirements_met,
                     reason=None if requirements_met else "requirements",
                     slot_id=equip_target,
@@ -838,7 +838,7 @@ class InventoryViewService:
             actions.append(
                 InventoryItemActionDTO(
                     action="move_to_belt",
-                    label="Move to belt",
+                    label="В пояс",
                     enabled=first_free is not None,
                     reason=None if first_free is not None else "belt_capacity",
                     slot_id=first_free,

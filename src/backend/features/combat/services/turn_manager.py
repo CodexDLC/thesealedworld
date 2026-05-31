@@ -370,7 +370,7 @@ class CombatTurnManager:
         )
 
     @staticmethod
-    def _with_timeout(move: CombatMoveDTO, timeout_seconds: int) -> CombatMoveDTO:
+    def _with_timeout(move: CombatMoveDTO, timeout_seconds: int | float) -> CombatMoveDTO:
         """Attach registration and forced-timeout timestamps to a move DTO."""
         now_ms = int(datetime.now(UTC).timestamp() * 1000)
         timeout_ms = max(0, int(timeout_seconds * 1000))
@@ -416,7 +416,7 @@ class CombatTurnManager:
             return False
 
     @staticmethod
-    def _defer_after(seconds: int) -> datetime:
+    def _defer_after(seconds: int | float) -> datetime:
         return datetime.now(UTC) + timedelta(seconds=seconds)
 
     @staticmethod

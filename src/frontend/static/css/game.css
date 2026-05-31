@@ -1933,7 +1933,7 @@ a.is-action-pending .choice-label,
 
 .inventory-floating-tooltip {
   position: fixed;
-  z-index: calc(var(--game-overlay-z, 240) + 20);
+  z-index: 2147483000;
   width: 292px;
   max-width: calc(100vw - 24px);
   padding: 0;
@@ -1952,17 +1952,19 @@ a.is-action-pending .choice-label,
 }
 
 .inventory-floating-tooltip--touch {
-  left: 10px !important;
-  right: 10px;
-  bottom: calc(var(--game-footer-height, 30px) + 10px);
-  top: auto !important;
+  left: var(--inventory-touch-overlay-left, 10px) !important;
+  right: var(--inventory-touch-overlay-right, 10px);
+  bottom: auto;
+  top: var(--inventory-touch-overlay-top, calc(var(--game-header-height, 40px) + 54px)) !important;
   width: auto;
   max-width: none;
-  max-height: min(72dvh, 560px);
+  max-height: var(--inventory-touch-overlay-max-height, min(62dvh, calc(100dvh - var(--game-header-height, 40px) - var(--game-footer-height, 30px) - var(--game-system-bottom-reserve, 0px) - 16px)));
   display: grid;
   grid-template-rows: minmax(0, 1fr) auto;
   padding: 0;
   pointer-events: auto;
+  touch-action: manipulation;
+  isolation: isolate;
 }
 
 .inventory-floating-tooltip--touch .inventory-tooltip-card,
@@ -1977,7 +1979,7 @@ a.is-action-pending .choice-label,
 }
 
 .inventory-floating-tooltip--touch .inventory-tooltip-card {
-  max-height: calc(min(72dvh, 560px) - 58px);
+  max-height: calc(var(--inventory-touch-overlay-max-height, min(62dvh, calc(100dvh - var(--game-header-height, 40px) - var(--game-footer-height, 30px) - var(--game-system-bottom-reserve, 0px) - 16px))) - 54px);
   overflow-y: auto;
 }
 
@@ -1998,10 +2000,39 @@ a.is-action-pending .choice-label,
 .inventory-tooltip-actions {
   display: grid;
   padding: 8px 0 0;
+  pointer-events: auto;
+}
+
+.inventory-action-form {
+  display: block;
+  min-width: 0;
+  width: 100%;
+  margin: 0;
+  pointer-events: auto;
+}
+
+.inventory-floating-tooltip--touch .inventory-tooltip-actions {
+  position: sticky;
+  bottom: 0;
+  z-index: 10;
+  gap: 4px;
+  padding: 6px 0 0;
+  background: linear-gradient(180deg, rgba(8, 6, 4, 0), rgba(8, 6, 4, .96) 34%);
+}
+
+.inventory-tooltip-actions--multi {
+  grid-template-columns: repeat(auto-fit, minmax(108px, 1fr));
 }
 
 .inventory-tooltip-action {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  box-sizing: border-box;
   min-height: 42px;
+  display: grid;
+  place-items: center;
+  padding: 6px 8px;
   border: 1px solid rgba(255, 170, 0, .38);
   background:
     linear-gradient(180deg, rgba(255, 170, 0, .14), rgba(0, 0, 0, .5)),
@@ -2010,12 +2041,20 @@ a.is-action-pending .choice-label,
   cursor: pointer;
   font: 900 10px/1 var(--font-ui);
   letter-spacing: .16em;
+  line-height: 1.1;
+  text-align: center;
   text-transform: uppercase;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  pointer-events: auto;
+  touch-action: manipulation;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .inventory-context-menu {
   position: fixed;
-  z-index: 2600;
+  z-index: 2147483000;
   display: none;
   min-width: 168px;
   padding: 4px;
@@ -2025,6 +2064,8 @@ a.is-action-pending .choice-label,
     var(--inventory-control-texture) center / cover no-repeat;
   box-shadow: 0 14px 28px rgba(0, 0, 0, .55);
   clip-path: var(--clip-node-sm);
+  pointer-events: auto;
+  touch-action: manipulation;
 }
 
 .inventory-context-menu.is-visible {
@@ -2033,7 +2074,10 @@ a.is-action-pending .choice-label,
 }
 
 .inventory-context-menu-action {
+  width: 100%;
   min-height: 30px;
+  display: grid;
+  align-items: center;
   padding: 7px 10px;
   border: 1px solid rgba(255, 170, 0, .22);
   background: linear-gradient(180deg, rgba(45, 27, 12, .88), rgba(12, 8, 5, .94));
@@ -2043,6 +2087,8 @@ a.is-action-pending .choice-label,
   text-align: left;
   text-transform: uppercase;
   cursor: pointer;
+  pointer-events: auto;
+  touch-action: manipulation;
 }
 
 .inventory-context-menu-action:hover,
@@ -2056,6 +2102,26 @@ a.is-action-pending .choice-label,
   color: var(--inventory-muted);
   cursor: not-allowed;
   opacity: .58;
+}
+
+@media (max-width: 720px) {
+  .inventory-context-menu.inventory-context-menu--touch {
+    left: var(--inventory-touch-overlay-left, 8px) !important;
+    right: var(--inventory-touch-overlay-right, 8px) !important;
+    top: var(--inventory-touch-overlay-top, calc(var(--game-header-height, 40px) + 54px)) !important;
+    bottom: auto;
+    min-width: 0;
+    max-height: var(--inventory-touch-overlay-max-height, min(42dvh, calc(100dvh - var(--game-header-height, 40px) - var(--game-footer-height, 30px) - var(--game-system-bottom-reserve, 0px) - 16px)));
+    overflow-y: auto;
+    grid-template-columns: repeat(auto-fit, minmax(112px, 1fr));
+    gap: 4px;
+    padding: 6px;
+  }
+
+  .inventory-context-menu.inventory-context-menu--touch .inventory-context-menu-action {
+    min-height: 40px;
+    text-align: center;
+  }
 }
 
 .item-card.inventory-tooltip-card {
@@ -4469,6 +4535,7 @@ html, body {
     justify-content: flex-end;
 }
 
+.game-chat-toggle,
 .game-system-menu-toggle {
     width: 34px;
     height: 34px;
@@ -4478,6 +4545,52 @@ html, body {
     background: rgba(255, 170, 0, 0.025);
     color: var(--col-accent);
     cursor: pointer;
+}
+
+.game-chat-toggle {
+    position: relative;
+    border-color: transparent;
+    background: transparent;
+    box-shadow: none;
+    opacity: 0.86;
+}
+
+.game-chat-toggle-glyph {
+    width: 18px;
+    height: 18px;
+    display: block;
+    background: currentColor;
+    transform: translateY(1px);
+    mask: url("/static/images/ui/game-menu-icons/chat.svg") center / contain no-repeat;
+    -webkit-mask: url("/static/images/ui/game-menu-icons/chat.svg") center / contain no-repeat;
+}
+
+.game-chat-toggle:hover,
+.game-chat-toggle:focus-visible {
+    opacity: 1;
+    color: #ffd36a;
+    filter: drop-shadow(0 0 7px rgba(255, 170, 0, 0.28));
+}
+
+.game-chat-toggle.is-open {
+    border-color: transparent;
+    background: transparent;
+    box-shadow: none;
+    opacity: 1;
+    color: #ffd36a;
+    filter: drop-shadow(0 0 8px rgba(255, 170, 0, 0.34));
+}
+
+.game-chat-toggle.has-unread::after {
+    content: "";
+    position: absolute;
+    top: 5px;
+    right: 5px;
+    width: 6px;
+    height: 6px;
+    background: var(--col-accent);
+    box-shadow: 0 0 10px rgba(255, 170, 0, 0.72);
+    animation: notify-pulse 1.3s ease-in-out infinite;
 }
 
 .game-system-menu-glyph {
@@ -6042,9 +6155,42 @@ html, body {
 }
 
 @media (max-width: 767px) {
+    #game-footer-shell {
+        flex: 0 0 var(--game-footer-height, 30px);
+        min-height: var(--game-footer-height, 30px);
+    }
+
+    .game-chat-footer {
+        height: var(--game-footer-height, 30px);
+        min-height: var(--game-footer-height, 30px);
+        border-top: 0;
+        background: transparent;
+        pointer-events: none;
+        z-index: var(--game-overlay-z);
+    }
+
+    .game-chat-footer-shell {
+        height: var(--game-footer-height, 30px);
+        min-height: var(--game-footer-height, 30px);
+    }
+
     .game-chat-footer .game-chat-row {
-        width: 100%;
-        max-height: min(52vh, calc(100dvh - var(--game-header-height, 40px) - var(--game-footer-height, 30px) - 12px));
+        display: none;
+    }
+
+    .game-chat-footer.is-chat-open .game-chat-row {
+        position: fixed;
+        right: 8px;
+        bottom: calc(var(--game-system-bottom-reserve, 0px) + 6px);
+        left: 8px;
+        display: block;
+        width: auto;
+        max-height: min(56dvh, calc(100dvh - var(--game-header-height, 40px) - var(--game-system-bottom-reserve, 0px) - 14px));
+        height: min(52dvh, calc(100dvh - var(--game-header-height, 40px) - var(--game-system-bottom-reserve, 0px) - 18px));
+        pointer-events: auto;
+        border: 1px solid rgba(255, 170, 0, 0.24);
+        box-shadow: 0 -18px 34px rgba(0, 0, 0, 0.54);
+        z-index: var(--game-overlay-z);
     }
 
     .chat-tab-group {
@@ -6053,11 +6199,25 @@ html, body {
 
     .chat-tab-select-wrap {
         display: block;
-        flex: 1 1 92px;
-        max-width: 150px;
+        flex: 1 1 auto;
+        max-width: none;
+    }
+
+    .chat-win-controls {
+        flex: 0 0 auto;
+        gap: 4px;
+        padding-right: 6px;
     }
 
     .chat-tab-system-toggle {
+        display: none;
+    }
+
+    .chat-step-track,
+    .chat-win-controls .btn-node.ghost[title="Свернуть на шаг"],
+    .chat-win-controls .btn-node.ghost[title="Развернуть на шаг"],
+    .chat-win-controls .btn-node.ghost[aria-label="Очистить видимые сообщения вкладки"],
+    .chat-win-controls .btn-node[data-chat-minmax-label] {
         display: none;
     }
 }
@@ -6643,6 +6803,11 @@ html, body {
     .chat-tabs {
         gap: 8px;
         padding-inline: var(--sp-2);
+    }
+
+    .chat-tab-select {
+        height: 26px;
+        font-size: 8px;
     }
 
 }
@@ -9165,7 +9330,7 @@ html, body {
 
 @media (max-width: 760px) {
     #center-screens {
-        padding: 12px 10px 0;
+        padding: 0 10px 0;
         justify-content: flex-start;
         overflow-y: auto;
     }
@@ -13092,6 +13257,12 @@ html, body {
     letter-spacing: .12em;
 }
 
+.combat-field-title .combat-field-name {
+    color: #fff0cc;
+    font-size: clamp(10px, 1.8cqw, 15px);
+    letter-spacing: .08em;
+}
+
 .combat-field-vitals {
     display: grid;
     gap: 5px;
@@ -14189,8 +14360,48 @@ html, body {
     box-shadow: none;
 }
 
+.combat-side-summary-card {
+    grid-template-columns: 72px minmax(0, 1fr);
+}
+
+.combat-side-summary-card--right {
+    grid-template-columns: minmax(0, 1fr) 72px;
+}
+
+.combat-side-summary-card--right .status-widget-name {
+    grid-template-columns: minmax(0, 1fr) auto;
+    text-align: right;
+}
+
+.combat-side-summary-avatar img {
+    object-fit: contain;
+}
+
+.combat-side-summary-effects {
+    min-height: 20px;
+    max-height: 48px;
+    overflow: hidden;
+}
+
+.combat-side-summary-card--right .combat-side-summary-effects {
+    justify-content: flex-end;
+}
+
+.combat-side-summary-effects .combat-effect {
+    width: 20px;
+    height: 20px;
+}
+
+.combat-side-summary-effects .combat-effect-mark {
+    width: 11px;
+    height: 11px;
+}
+
 .combat-actor-avatar {
     position: relative;
+    width: min(100%, 170px);
+    max-height: 170px;
+    justify-self: center;
     aspect-ratio: 1;
     overflow: hidden;
     border: 1px solid rgba(255, 170, 0, .18);
@@ -15365,7 +15576,7 @@ html, body {
     }
 
     .combat-field {
-        --combat-target-card-width: min(100%, 300px);
+        --combat-target-card-width: 100%;
         --combat-target-portrait-size: clamp(46px, 14cqw, 68px);
         --combat-target-gap: 7px;
         min-height: min(430px, calc(100dvh - var(--game-header-height, 40px) - var(--game-footer-height, 28px) - 280px));
@@ -15377,6 +15588,8 @@ html, body {
         --combat-resource-label-width: 22px;
         --combat-resource-value-width: 58px;
         grid-template-columns: var(--combat-target-portrait-size) minmax(0, 1fr);
+        gap: 5px;
+        padding: 5px;
         text-align: left;
     }
 
@@ -15391,13 +15604,69 @@ html, body {
     }
 
     .combat-field-title {
-        align-items: start;
-        flex-direction: column;
+        min-height: 18px;
+        align-items: center;
+        flex-direction: row;
+        gap: 5px;
+    }
+
+    .combat-field-actor--enemy .combat-field-title {
+        justify-content: flex-end;
+    }
+
+    .combat-field-title span {
+        font-size: 7px;
+        line-height: 1;
+    }
+
+    .combat-field-title .combat-field-name {
+        font-size: 9px;
+        line-height: 1.1;
+    }
+
+    .combat-stat-trigger {
+        width: 18px;
+        height: 18px;
+    }
+
+    .combat-field-actor-data,
+    .combat-field-vitals {
         gap: 3px;
     }
 
     .combat-resource {
         grid-template-columns: var(--combat-resource-label-width) minmax(0, 1fr) var(--combat-resource-value-width);
+        gap: 4px;
+    }
+
+    .combat-resource i {
+        height: 5px;
+    }
+
+    .combat-effect-stack--field {
+        display: flex;
+        max-height: 38px;
+        min-height: 0;
+        gap: 2px;
+        overflow: hidden;
+    }
+
+    .combat-effect-stack--field .combat-effect {
+        width: 18px;
+        height: 18px;
+    }
+
+    .combat-effect-stack--field .combat-effect-mark {
+        width: 10px;
+        height: 10px;
+    }
+
+    .combat-effect b {
+        font-size: 7px;
+    }
+
+    .combat-effect-empty {
+        display: none;
     }
 
     .combat-exchange-summary {
@@ -15718,9 +15987,7 @@ html, body {
     }
 
     .combat-mobile-dock {
-        display: grid;
-        position: relative;
-        z-index: 8;
+        display: none;
     }
 
     .combat-mobile-dock details {
@@ -15912,6 +16179,10 @@ html, body {
     }
 }
 
+.combat-center-menu {
+    display: none;
+}
+
 @media (min-width: 1025px) {
     .combat-screen-shell {
         padding-bottom: 8px;
@@ -15936,13 +16207,10 @@ html, body {
     }
 
     .combat-field {
-        --combat-target-card-width: clamp(340px, 52cqw, 620px);
-        --combat-target-portrait-size: clamp(100px, min(16cqw, 30cqh), 190px);
-        --combat-target-gap: clamp(10px, 1.6cqw, 18px);
         min-height: 0;
         height: 100%;
         grid-template-columns: minmax(0, 1fr);
-        grid-template-rows: minmax(138px, auto) minmax(0, 1fr);
+        grid-template-rows: minmax(0, 1fr);
         align-items: stretch;
         align-self: stretch;
         gap: 8px;
@@ -15954,47 +16222,7 @@ html, body {
     }
 
     .combat-field > .combat-field-actor--enemy {
-        width: min(100%, var(--combat-target-card-width));
-        justify-self: end;
-        grid-template-columns: minmax(0, 1fr) var(--combat-target-portrait-size);
-        align-items: center;
-        gap: var(--combat-target-gap);
-        padding: clamp(10px, 1.8cqw, 18px);
-        text-align: right;
-    }
-
-    .combat-field > .combat-field-actor--enemy .combat-field-actor-data {
-        width: 100%;
-        max-width: none;
-        justify-self: stretch;
-        align-content: center;
-        gap: 6px;
-    }
-
-    .combat-field > .combat-field-actor--enemy .combat-field-vitals {
-        width: 100%;
-        justify-self: stretch;
-    }
-
-    .combat-field > .combat-field-actor--enemy .combat-field-portrait {
-        order: 2;
-        width: var(--combat-target-portrait-size);
-        height: var(--combat-target-portrait-size);
-        justify-self: end;
-    }
-
-    .combat-field > .combat-field-actor--enemy .combat-field-title {
-        align-items: baseline;
-        flex-direction: row;
-        gap: 8px;
-    }
-
-    .combat-field > .combat-field-actor--enemy .combat-field-title span {
-        max-width: min(100%, 18ch);
-    }
-
-    .combat-field > .combat-field-actor--enemy .combat-effect-row {
-        justify-content: flex-end;
+        display: none;
     }
 
     .combat-field > .combat-exchange-card {
@@ -16098,12 +16326,12 @@ html, body {
 }
 
 @media (max-width: 767px) {
-    .game-top-row.combat-layout .col-left,
-    .game-top-row.combat-layout .col-right {
-        display: none !important;
-        width: 0 !important;
-        max-width: 0;
-        transform: none !important;
+    .combat-center-menu {
+        display: grid;
+    }
+
+    .combat-field > .combat-field-actor--hero {
+        display: grid;
     }
 
     .side-panel-close {
@@ -16144,7 +16372,7 @@ html, body {
     }
 
     .combat-field {
-        --combat-target-card-width: min(100%, 300px);
+        --combat-target-card-width: 100%;
         --combat-target-portrait-size: clamp(46px, 14cqw, 68px);
         --combat-target-gap: 7px;
         min-height: min(430px, calc(100dvh - var(--game-header-height, 40px) - var(--game-footer-height, 28px) - 280px));
@@ -16152,36 +16380,40 @@ html, body {
         padding: 6px;
     }
 
-    .combat-field-actor,
-    .combat-field-actor--enemy {
-        grid-template-columns: 46px minmax(0, 1fr);
+    .combat-field-actor {
+        --combat-resource-label-width: 24px;
+        --combat-resource-value-width: 50px;
+        grid-template-columns: var(--combat-target-portrait-size) minmax(0, 1fr);
+        gap: 5px;
+        padding: 5px;
         text-align: left;
     }
 
-    .combat-field-actor--enemy .combat-field-portrait {
-        order: 0;
-    }
-
-    .combat-field-actor--enemy .combat-effect-row {
-        justify-content: flex-start;
+    .combat-field-actor--enemy {
+        grid-template-columns: minmax(0, 1fr) var(--combat-target-portrait-size);
+        text-align: right;
     }
 
     .combat-field-actor--enemy .combat-resource {
-        grid-template-columns: 24px minmax(0, 1fr) 50px;
+        grid-template-columns: var(--combat-resource-value-width) minmax(0, 1fr) var(--combat-resource-label-width);
     }
 
-    .combat-field-actor--enemy .combat-resource span,
-    .combat-field-actor--enemy .combat-resource i,
-    .combat-field-actor--enemy .combat-resource strong {
-        order: initial;
+    .combat-field-actor--enemy .combat-effect-stack--field {
+        justify-content: flex-end;
     }
 
     .combat-field-actor--enemy .combat-resource span {
-        text-align: left;
+        order: 3;
+        text-align: right;
+    }
+
+    .combat-field-actor--enemy .combat-resource i {
+        order: 2;
     }
 
     .combat-field-actor--enemy .combat-resource strong {
-        text-align: right;
+        order: 1;
+        text-align: left;
     }
 
     .combat-field-portrait {
@@ -16190,13 +16422,69 @@ html, body {
     }
 
     .combat-field-title {
-        align-items: start;
-        flex-direction: column;
+        min-height: 18px;
+        align-items: center;
+        flex-direction: row;
+        gap: 5px;
+    }
+
+    .combat-field-actor--enemy .combat-field-title {
+        justify-content: flex-end;
+    }
+
+    .combat-field-title span {
+        font-size: 7px;
+        line-height: 1;
+    }
+
+    .combat-field-title .combat-field-name {
+        font-size: 9px;
+        line-height: 1.1;
+    }
+
+    .combat-stat-trigger {
+        width: 18px;
+        height: 18px;
+    }
+
+    .combat-field-actor-data,
+    .combat-field-vitals {
         gap: 3px;
     }
 
     .combat-resource {
-        grid-template-columns: 24px minmax(0, 1fr) 50px;
+        grid-template-columns: var(--combat-resource-label-width) minmax(0, 1fr) var(--combat-resource-value-width);
+        gap: 4px;
+    }
+
+    .combat-resource i {
+        height: 5px;
+    }
+
+    .combat-effect-stack--field {
+        display: flex;
+        max-height: 38px;
+        min-height: 0;
+        gap: 2px;
+        overflow: hidden;
+    }
+
+    .combat-effect-stack--field .combat-effect {
+        width: 18px;
+        height: 18px;
+    }
+
+    .combat-effect-stack--field .combat-effect-mark {
+        width: 10px;
+        height: 10px;
+    }
+
+    .combat-effect b {
+        font-size: 7px;
+    }
+
+    .combat-effect-empty {
+        display: none;
     }
 
     .combat-exchange-summary {
@@ -18325,14 +18613,14 @@ html, body {
 }
 
 @media (max-width: 767px) {
-    .rift-center-screens {
-        padding: 6px;
+    #center-screens.rift-center-screens {
+        padding: 0 6px 6px;
     }
 
     .rift-screen-content {
         grid-template-rows: minmax(188px, 0.34fr) minmax(0, 1fr);
-        gap: 6px;
-        margin-bottom: 6px;
+        gap: 5px;
+        margin-bottom: 4px;
     }
 
     .rift-map-stage,
@@ -18349,8 +18637,37 @@ html, body {
         width: var(--rift-node-size);
     }
 
+    .rift-text-stage {
+        overflow-x: hidden;
+        overflow-y: auto;
+        overscroll-behavior: contain;
+        scrollbar-width: thin;
+    }
+
+    .rift-node-copy {
+        overflow: visible;
+    }
+
     .rift-hud-strip {
-        grid-template-columns: minmax(0, 1fr);
+        grid-template-columns: minmax(0, 1fr) minmax(0, .82fr);
+        gap: 4px;
+    }
+
+    .rift-hud-strip > div {
+        gap: 2px;
+        padding: 5px 6px;
+    }
+
+    .rift-hud-strip span {
+        font-size: 7px;
+    }
+
+    .rift-hud-strip strong {
+        font-size: 9px;
+        line-height: 1;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
     }
 
     .rift-node-copy h2 {
@@ -18367,7 +18684,18 @@ html, body {
     }
 
     .rift-action-button {
-        min-height: 44px;
+        min-height: 40px;
+        padding: 5px;
+    }
+
+    .rift-action-panel {
+        --game-action-padding: 6px;
+        --game-action-gap: 4px;
+        padding-top: 6px;
+    }
+
+    .rift-action-grid {
+        grid-template-rows: repeat(2, minmax(40px, auto));
     }
 
     .rift-combat-actions__body,
@@ -18377,6 +18705,10 @@ html, body {
 }
 
 @media (max-width: 500px) {
+    #center-screens.rift-center-screens {
+        padding: 0 6px 6px;
+    }
+
     .rift-screen-content {
         grid-template-rows: minmax(168px, 0.32fr) minmax(0, 1fr);
     }
@@ -18388,6 +18720,23 @@ html, body {
     .rift-map-canvas {
         --rift-map-step: 56px;
         --rift-node-size: 36px;
+    }
+
+    .rift-hud-strip {
+        grid-template-columns: minmax(0, 1fr) minmax(0, .76fr);
+    }
+
+    .rift-hud-strip > div {
+        padding: 4px 5px;
+    }
+
+    .rift-action-button {
+        min-height: 38px;
+        padding: 4px 5px;
+    }
+
+    .rift-action-grid {
+        grid-template-rows: repeat(2, minmax(38px, auto));
     }
 
     .rift-node-copy p {
@@ -18412,6 +18761,7 @@ html, body {
     --game-ui-scale: 1;
     --game-panel-z: 200;
     --game-overlay-z: 240;
+    --game-system-bottom-reserve: 0px;
 }
 
 #app-viewport .shell-constrained {
@@ -18424,6 +18774,7 @@ html, body {
     --game-ui-scale: inherit;
     --game-panel-z: inherit;
     --game-overlay-z: inherit;
+    --game-system-bottom-reserve: inherit;
 }
 
 .game-header {
@@ -18496,14 +18847,23 @@ html, body {
 
 @media (min-width: 1025px) {
     .game-top-row.combat-layout {
-        grid-template-columns: var(--side-panel-width-compact) minmax(0, 1fr) var(--side-panel-width-compact);
+        grid-template-columns: var(--side-panel-width) minmax(0, 1fr) var(--side-panel-width);
     }
 
     .game-top-row.combat-layout .col-left,
     .game-top-row.combat-layout .col-right {
         display: block;
-        width: var(--side-panel-width-compact);
-        max-width: var(--side-panel-width-compact);
+        width: var(--side-panel-width);
+        max-width: var(--side-panel-width);
+    }
+
+    .game-top-row.combat-layout .combat-screen-shell {
+        justify-content: stretch;
+    }
+
+    .game-top-row.combat-layout .combat-screen {
+        --center-content-max: 100%;
+        width: 100%;
     }
 }
 
@@ -18657,6 +19017,10 @@ html, body {
         --game-footer-height: 30px;
         --game-drawer-width: min(340px, calc(100vw - 16px));
         --game-ui-scale: .9;
+        --game-system-bottom-reserve: max(env(safe-area-inset-bottom, 0px), 24px);
+        height: 100dvh;
+        box-sizing: border-box;
+        padding-bottom: var(--game-system-bottom-reserve);
     }
 
     .game-header {
@@ -18679,9 +19043,9 @@ html, body {
     .col-left,
     .col-right {
         top: var(--game-header-height);
-        bottom: var(--game-footer-height);
+        bottom: calc(var(--game-footer-height) + var(--game-system-bottom-reserve));
         height: auto;
-        max-height: calc(100dvh - var(--game-header-height) - var(--game-footer-height));
+        max-height: calc(100dvh - var(--game-header-height) - var(--game-footer-height) - var(--game-system-bottom-reserve));
         overflow: auto;
         z-index: var(--game-overlay-z);
     }

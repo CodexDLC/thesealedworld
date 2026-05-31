@@ -30,6 +30,19 @@ Also use:
 - Before editing shared shell selectors, inspect all current definitions with `rg`.
 - Gameplay action panel placement, chat slot behavior, side panel slots, and viewport sizing are shell/component contracts. Do not reimplement them independently in exploration, combat, scenario, loot, or inventory CSS.
 
+## Compiled CSS Discipline
+
+Never hand-edit compiled CSS after running the compiler.
+
+After compilation, do nothing manually to `src/frontend/static/css/game.css`.
+
+The compiler removes comments and may leave whitespace or line-ending diffs.
+That output is still the compiler output. Do not clean it, narrow it, restore
+comments, fix line endings, or copy selected hunks by hand.
+
+If compiled output should not be part of the current task, revert `game.css` as
+a whole. Otherwise accept the compiler output exactly as produced.
+
 ## Shell-Owned Selectors
 
 Do not redefine these in domain CSS unless the task is explicitly shell refactor work:

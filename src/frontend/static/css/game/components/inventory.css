@@ -633,7 +633,7 @@
 
 .inventory-floating-tooltip {
   position: fixed;
-  z-index: calc(var(--game-overlay-z, 240) + 20);
+  z-index: 2147483000;
   width: 292px;
   max-width: calc(100vw - 24px);
   padding: 0;
@@ -652,17 +652,19 @@
 }
 
 .inventory-floating-tooltip--touch {
-  left: 10px !important;
-  right: 10px;
-  bottom: calc(var(--game-footer-height, 30px) + 10px);
-  top: auto !important;
+  left: var(--inventory-touch-overlay-left, 10px) !important;
+  right: var(--inventory-touch-overlay-right, 10px);
+  bottom: auto;
+  top: var(--inventory-touch-overlay-top, calc(var(--game-header-height, 40px) + 54px)) !important;
   width: auto;
   max-width: none;
-  max-height: min(72dvh, 560px);
+  max-height: var(--inventory-touch-overlay-max-height, min(62dvh, calc(100dvh - var(--game-header-height, 40px) - var(--game-footer-height, 30px) - var(--game-system-bottom-reserve, 0px) - 16px)));
   display: grid;
   grid-template-rows: minmax(0, 1fr) auto;
   padding: 0;
   pointer-events: auto;
+  touch-action: manipulation;
+  isolation: isolate;
 }
 
 .inventory-floating-tooltip--touch .inventory-tooltip-card,
@@ -677,7 +679,7 @@
 }
 
 .inventory-floating-tooltip--touch .inventory-tooltip-card {
-  max-height: calc(min(72dvh, 560px) - 58px);
+  max-height: calc(var(--inventory-touch-overlay-max-height, min(62dvh, calc(100dvh - var(--game-header-height, 40px) - var(--game-footer-height, 30px) - var(--game-system-bottom-reserve, 0px) - 16px))) - 54px);
   overflow-y: auto;
 }
 
@@ -698,10 +700,39 @@
 .inventory-tooltip-actions {
   display: grid;
   padding: 8px 0 0;
+  pointer-events: auto;
+}
+
+.inventory-action-form {
+  display: block;
+  min-width: 0;
+  width: 100%;
+  margin: 0;
+  pointer-events: auto;
+}
+
+.inventory-floating-tooltip--touch .inventory-tooltip-actions {
+  position: sticky;
+  bottom: 0;
+  z-index: 10;
+  gap: 4px;
+  padding: 6px 0 0;
+  background: linear-gradient(180deg, rgba(8, 6, 4, 0), rgba(8, 6, 4, .96) 34%);
+}
+
+.inventory-tooltip-actions--multi {
+  grid-template-columns: repeat(auto-fit, minmax(108px, 1fr));
 }
 
 .inventory-tooltip-action {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  box-sizing: border-box;
   min-height: 42px;
+  display: grid;
+  place-items: center;
+  padding: 6px 8px;
   border: 1px solid rgba(255, 170, 0, .38);
   background:
     linear-gradient(180deg, rgba(255, 170, 0, .14), rgba(0, 0, 0, .5)),
@@ -710,12 +741,20 @@
   cursor: pointer;
   font: 900 10px/1 var(--font-ui);
   letter-spacing: .16em;
+  line-height: 1.1;
+  text-align: center;
   text-transform: uppercase;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  pointer-events: auto;
+  touch-action: manipulation;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .inventory-context-menu {
   position: fixed;
-  z-index: 2600;
+  z-index: 2147483000;
   display: none;
   min-width: 168px;
   padding: 4px;
@@ -725,6 +764,8 @@
     var(--inventory-control-texture) center / cover no-repeat;
   box-shadow: 0 14px 28px rgba(0, 0, 0, .55);
   clip-path: var(--clip-node-sm);
+  pointer-events: auto;
+  touch-action: manipulation;
 }
 
 .inventory-context-menu.is-visible {
@@ -733,7 +774,10 @@
 }
 
 .inventory-context-menu-action {
+  width: 100%;
   min-height: 30px;
+  display: grid;
+  align-items: center;
   padding: 7px 10px;
   border: 1px solid rgba(255, 170, 0, .22);
   background: linear-gradient(180deg, rgba(45, 27, 12, .88), rgba(12, 8, 5, .94));
@@ -743,6 +787,8 @@
   text-align: left;
   text-transform: uppercase;
   cursor: pointer;
+  pointer-events: auto;
+  touch-action: manipulation;
 }
 
 .inventory-context-menu-action:hover,
@@ -756,6 +802,26 @@
   color: var(--inventory-muted);
   cursor: not-allowed;
   opacity: .58;
+}
+
+@media (max-width: 720px) {
+  .inventory-context-menu.inventory-context-menu--touch {
+    left: var(--inventory-touch-overlay-left, 8px) !important;
+    right: var(--inventory-touch-overlay-right, 8px) !important;
+    top: var(--inventory-touch-overlay-top, calc(var(--game-header-height, 40px) + 54px)) !important;
+    bottom: auto;
+    min-width: 0;
+    max-height: var(--inventory-touch-overlay-max-height, min(42dvh, calc(100dvh - var(--game-header-height, 40px) - var(--game-footer-height, 30px) - var(--game-system-bottom-reserve, 0px) - 16px)));
+    overflow-y: auto;
+    grid-template-columns: repeat(auto-fit, minmax(112px, 1fr));
+    gap: 4px;
+    padding: 6px;
+  }
+
+  .inventory-context-menu.inventory-context-menu--touch .inventory-context-menu-action {
+    min-height: 40px;
+    text-align: center;
+  }
 }
 
 .item-card.inventory-tooltip-card {

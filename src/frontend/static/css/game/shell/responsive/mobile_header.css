@@ -6,6 +6,10 @@
         --game-footer-height: 30px;
         --game-drawer-width: min(340px, calc(100vw - 16px));
         --game-ui-scale: .9;
+        --game-system-bottom-reserve: max(env(safe-area-inset-bottom, 0px), 24px);
+        height: 100dvh;
+        box-sizing: border-box;
+        padding-bottom: var(--game-system-bottom-reserve);
     }
 
     .game-header {
@@ -28,9 +32,9 @@
     .col-left,
     .col-right {
         top: var(--game-header-height);
-        bottom: var(--game-footer-height);
+        bottom: calc(var(--game-footer-height) + var(--game-system-bottom-reserve));
         height: auto;
-        max-height: calc(100dvh - var(--game-header-height) - var(--game-footer-height));
+        max-height: calc(100dvh - var(--game-header-height) - var(--game-footer-height) - var(--game-system-bottom-reserve));
         overflow: auto;
         z-index: var(--game-overlay-z);
     }

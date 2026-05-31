@@ -70,6 +70,7 @@ class FakeRuntimeIntegration:
     def __init__(self) -> None:
         self.active_encounters: list[tuple[str, str]] = []
         self.joined_encounters: list[tuple[str, str, str]] = []
+        self.applied_results: list[dict] = []
 
     async def set_run_active_encounter(self, rift_session_id: str, encounter_id: str) -> None:
         self.active_encounters.append((rift_session_id, encounter_id))
@@ -77,13 +78,21 @@ class FakeRuntimeIntegration:
     async def join_transition_encounter(self, rift_instance_id: str, encounter_id: str, participant_ref: str) -> None:
         self.joined_encounters.append((rift_instance_id, encounter_id, participant_ref))
 
+    async def apply_combat_result(self, **kwargs) -> dict:
+        self.applied_results.append(kwargs)
+        return {"applied": True}
+
 
 class FakeCharacterSessions:
-    def __init__(self) -> None:
+    def __init__(self, session: dict | None = None) -> None:
         self.combat_sessions: list[tuple[int, str]] = []
+        self.session = session
 
     async def set_combat_session(self, char_id: int, combat_id: str) -> None:
         self.combat_sessions.append((char_id, combat_id))
+
+    async def get_session(self, char_id: int) -> dict | None:
+        return self.session
 
 
 @pytest.mark.asyncio
@@ -210,6 +219,56 @@ async def test_rift_encounter_service_launches_real_combat_and_locks_rift_sessio
     assert character_sessions.combat_sessions == [(7, combat_id)]
     assert launched.metadata["combat"]["status"] == "started"
     assert launched.metadata["combat"]["combat_id"] == combat_id
+
+
+@pytest.mark.asyncio
+async def test_rift_encounter_service_resolves_stale_active_encounter_before_launching_new_combat() -> None:
+    monster_groups = FakeMonsterGroupService()
+    combat_creator = FakeCombatCreator()
+    runtime_integration = FakeRuntimeIntegration()
+    character_sessions = FakeCharacterSessions(
+        {"state": "rift", "sessions": {"combat_id": None, "combat_finalization_id": None}}
+    )
+    service = RiftEncounterService(
+        monster_groups=monster_groups,
+        combat_creator=combat_creator,
+        runtime=runtime_integration,
+        character_sessions=character_sessions,
+    )
+    runtime = _runtime()
+    session = {
+        "rift_session_id": "rift-run-1",
+        "rift_instance_id": "rift-instance-1",
+        "participant_ref": "char:7",
+        "active_encounter_id": "rift-old-combat",
+        "active_travel": {"travel_id": "travel-1"},
+        "entry_context": {"combat_power": {"player_gear_score": 612}},
+    }
+    prompt = RiftCombatPromptDTO(
+        source="rift_transition",
+        title="Шорох у повозки",
+        description="Из-за борта поднимается силуэт.",
+        actions=[RiftCombatPromptActionDTO(id="attack", label="В бой!", action="attack")],
+        metadata={"event_scope": "transition", "travel_id": "travel-1", "to_node_id": "node-start"},
+    )
+
+    launched = await service.launch_combat_from_prompt(runtime, session=session, prompt=prompt)
+
+    assert runtime_integration.applied_results == [
+        {
+            "combat_id": "rift-old-combat",
+            "result": "victory",
+            "rift_session_id": "rift-run-1",
+            "rift_instance_id": "rift-instance-1",
+            "event_scope": "transition",
+            "travel_id": "travel-1",
+            "event_key": "",
+            "participant_ref": "char:7",
+        }
+    ]
+    assert combat_creator.requests
+    assert combat_creator.requests[0]["combat_id"] != "rift-old-combat"
+    assert launched.metadata["combat"]["combat_id"] == combat_creator.requests[0]["combat_id"]
 
 
 def _runtime() -> RiftZoneRuntimeDTO:

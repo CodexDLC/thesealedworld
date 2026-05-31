@@ -93,7 +93,9 @@ class RiftEncounterService:
 
         existing_combat_id = str(session.get("active_encounter_id") or "")
         if existing_combat_id:
-            return self._mark_prompt_started(prompt, combat_id=existing_combat_id)
+            if await self._active_encounter_belongs_to_character(session, existing_combat_id):
+                return self._mark_prompt_started(prompt, combat_id=existing_combat_id)
+            await self._resolve_stale_active_encounter(session, prompt=prompt, combat_id=existing_combat_id)
 
         enriched = await self.enrich_combat_prompt(runtime, session=session, prompt=prompt)
         combat_meta = dict(enriched.metadata.get("combat") or {})
@@ -191,6 +193,46 @@ class RiftEncounterService:
             "combat_id": combat_id,
         }
         return prompt.model_copy(update={"metadata": metadata})
+
+    async def _active_encounter_belongs_to_character(self, session: dict[str, Any], combat_id: str) -> bool:
+        char_id = _optional_participant_char_id(session)
+        getter = getattr(self.character_sessions, "get_session", None)
+        if char_id is None or getter is None:
+            return True
+        character_session = await getter(char_id)
+        if not isinstance(character_session, dict):
+            return True
+        raw_sessions = character_session.get("sessions")
+        sessions = raw_sessions if isinstance(raw_sessions, dict) else {}
+        return str(sessions.get("combat_id") or "") == str(combat_id)
+
+    async def _resolve_stale_active_encounter(
+        self,
+        session: dict[str, Any],
+        *,
+        prompt: RiftCombatPromptDTO,
+        combat_id: str,
+    ) -> None:
+        apply_combat_result = getattr(self.runtime, "apply_combat_result", None)
+        rift_session_id = str(session.get("rift_session_id") or "")
+        if apply_combat_result is None:
+            clear_run_active_encounter = getattr(self.runtime, "clear_run_active_encounter", None)
+            if clear_run_active_encounter is not None and rift_session_id:
+                await clear_run_active_encounter(rift_session_id)
+            return
+
+        metadata = dict(prompt.metadata or {})
+        active_travel = dict(session.get("active_travel") or {})
+        await apply_combat_result(
+            combat_id=combat_id,
+            result="victory",
+            rift_session_id=rift_session_id,
+            rift_instance_id=str(session.get("rift_instance_id") or ""),
+            event_scope=str(metadata.get("event_scope") or active_travel.get("event_scope") or ""),
+            travel_id=str(metadata.get("travel_id") or active_travel.get("travel_id") or ""),
+            event_key=str(metadata.get("event_key") or ""),
+            participant_ref=str(session.get("participant_ref") or ""),
+        )
 
 
 def _select_family_binding(

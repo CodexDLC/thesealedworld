@@ -459,8 +459,10 @@ class ScenarioService:
         context: ScenarioContextDTO,
         node: dict[str, Any],
     ) -> None:
-        metadata = node.get("metadata") if isinstance(node.get("metadata"), dict) else {}
-        rift_entry = metadata.get("rift_entry") if isinstance(metadata.get("rift_entry"), dict) else {}
+        raw_metadata = node.get("metadata")
+        metadata = raw_metadata if isinstance(raw_metadata, dict) else {}
+        raw_rift_entry = metadata.get("rift_entry")
+        rift_entry = raw_rift_entry if isinstance(raw_rift_entry, dict) else {}
         if not bool(rift_entry.get("prepare_on_show")):
             return
         if await self.integrator.has_prepared_rift_entry(char_id):

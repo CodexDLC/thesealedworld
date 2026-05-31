@@ -208,14 +208,14 @@ class MechanicsService:
                     sources=[val for _key, val in gift_changes],
                     reason=self._resource_change_reason(gift_changes),
                 )
-            for token, changes in token_changes.items():
+            for token, token_change_list in token_changes.items():
                 self._apply_token_delta(
                     result,
                     actor=source,
                     owner="source",
                     token=token,
-                    sources=[val for _key, val in changes],
-                    reason=self._resource_change_reason(changes),
+                    sources=[val for _key, val in token_change_list],
+                    reason=self._resource_change_reason(token_change_list),
                 )
 
         # B. Tokens Awarded (Всегда начисляем, если не сказано иное? Пока оставим безусловно)

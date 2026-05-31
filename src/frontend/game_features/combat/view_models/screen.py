@@ -121,6 +121,9 @@ class CombatRosterRowVM(BaseModel):
     actor_id: str
     name: str
     team: str
+    actor_type: str = "unknown"
+    avatar_url: str
+    vitals: CombatVitalsVM
     hp_current: int
     hp_max: int
     hp_percent: int
@@ -134,6 +137,7 @@ class CombatRosterRowVM(BaseModel):
     remaining_ms: int | None = None
     queue_state: str = "NO_DATA"
     queue_indicator: str = "unknown"
+    effects: list[CombatEffectBadgeVM] = Field(default_factory=list)
     stat_sheet: CombatActorStatSheetVM | None = None
 
 
@@ -1105,6 +1109,9 @@ def _roster_row(actor: CombatActorCardDTO) -> CombatRosterRowVM:
         actor_id=actor.actor_id,
         name=actor.name,
         team=actor.team,
+        actor_type=actor.actor_type,
+        avatar_url=_avatar_url(actor),
+        vitals=vitals,
         hp_current=vitals.hp_current,
         hp_max=vitals.hp_max,
         hp_percent=vitals.hp_percent,
@@ -1118,6 +1125,7 @@ def _roster_row(actor: CombatActorCardDTO) -> CombatRosterRowVM:
         remaining_ms=actor.remaining_ms,
         queue_state=_queue_state(actor),
         queue_indicator=_queue_indicator(actor),
+        effects=[_effect_badge(effect, actor.exchange_counter) for effect in actor.active_effects],
         stat_sheet=_stat_sheet(actor),
     )
 

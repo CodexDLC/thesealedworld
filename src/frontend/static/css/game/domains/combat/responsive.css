@@ -41,6 +41,10 @@
     }
 }
 
+.combat-center-menu {
+    display: none;
+}
+
 @media (min-width: 1025px) {
     .combat-screen-shell {
         padding-bottom: 8px;
@@ -65,13 +69,10 @@
     }
 
     .combat-field {
-        --combat-target-card-width: clamp(340px, 52cqw, 620px);
-        --combat-target-portrait-size: clamp(100px, min(16cqw, 30cqh), 190px);
-        --combat-target-gap: clamp(10px, 1.6cqw, 18px);
         min-height: 0;
         height: 100%;
         grid-template-columns: minmax(0, 1fr);
-        grid-template-rows: minmax(138px, auto) minmax(0, 1fr);
+        grid-template-rows: minmax(0, 1fr);
         align-items: stretch;
         align-self: stretch;
         gap: 8px;
@@ -83,47 +84,7 @@
     }
 
     .combat-field > .combat-field-actor--enemy {
-        width: min(100%, var(--combat-target-card-width));
-        justify-self: end;
-        grid-template-columns: minmax(0, 1fr) var(--combat-target-portrait-size);
-        align-items: center;
-        gap: var(--combat-target-gap);
-        padding: clamp(10px, 1.8cqw, 18px);
-        text-align: right;
-    }
-
-    .combat-field > .combat-field-actor--enemy .combat-field-actor-data {
-        width: 100%;
-        max-width: none;
-        justify-self: stretch;
-        align-content: center;
-        gap: 6px;
-    }
-
-    .combat-field > .combat-field-actor--enemy .combat-field-vitals {
-        width: 100%;
-        justify-self: stretch;
-    }
-
-    .combat-field > .combat-field-actor--enemy .combat-field-portrait {
-        order: 2;
-        width: var(--combat-target-portrait-size);
-        height: var(--combat-target-portrait-size);
-        justify-self: end;
-    }
-
-    .combat-field > .combat-field-actor--enemy .combat-field-title {
-        align-items: baseline;
-        flex-direction: row;
-        gap: 8px;
-    }
-
-    .combat-field > .combat-field-actor--enemy .combat-field-title span {
-        max-width: min(100%, 18ch);
-    }
-
-    .combat-field > .combat-field-actor--enemy .combat-effect-row {
-        justify-content: flex-end;
+        display: none;
     }
 
     .combat-field > .combat-exchange-card {
@@ -227,12 +188,12 @@
 }
 
 @media (max-width: 767px) {
-    .game-top-row.combat-layout .col-left,
-    .game-top-row.combat-layout .col-right {
-        display: none !important;
-        width: 0 !important;
-        max-width: 0;
-        transform: none !important;
+    .combat-center-menu {
+        display: grid;
+    }
+
+    .combat-field > .combat-field-actor--hero {
+        display: grid;
     }
 
     .side-panel-close {
@@ -273,7 +234,7 @@
     }
 
     .combat-field {
-        --combat-target-card-width: min(100%, 300px);
+        --combat-target-card-width: 100%;
         --combat-target-portrait-size: clamp(46px, 14cqw, 68px);
         --combat-target-gap: 7px;
         min-height: min(430px, calc(100dvh - var(--game-header-height, 40px) - var(--game-footer-height, 28px) - 280px));
@@ -281,36 +242,40 @@
         padding: 6px;
     }
 
-    .combat-field-actor,
-    .combat-field-actor--enemy {
-        grid-template-columns: 46px minmax(0, 1fr);
+    .combat-field-actor {
+        --combat-resource-label-width: 24px;
+        --combat-resource-value-width: 50px;
+        grid-template-columns: var(--combat-target-portrait-size) minmax(0, 1fr);
+        gap: 5px;
+        padding: 5px;
         text-align: left;
     }
 
-    .combat-field-actor--enemy .combat-field-portrait {
-        order: 0;
-    }
-
-    .combat-field-actor--enemy .combat-effect-row {
-        justify-content: flex-start;
+    .combat-field-actor--enemy {
+        grid-template-columns: minmax(0, 1fr) var(--combat-target-portrait-size);
+        text-align: right;
     }
 
     .combat-field-actor--enemy .combat-resource {
-        grid-template-columns: 24px minmax(0, 1fr) 50px;
+        grid-template-columns: var(--combat-resource-value-width) minmax(0, 1fr) var(--combat-resource-label-width);
     }
 
-    .combat-field-actor--enemy .combat-resource span,
-    .combat-field-actor--enemy .combat-resource i,
-    .combat-field-actor--enemy .combat-resource strong {
-        order: initial;
+    .combat-field-actor--enemy .combat-effect-stack--field {
+        justify-content: flex-end;
     }
 
     .combat-field-actor--enemy .combat-resource span {
-        text-align: left;
+        order: 3;
+        text-align: right;
+    }
+
+    .combat-field-actor--enemy .combat-resource i {
+        order: 2;
     }
 
     .combat-field-actor--enemy .combat-resource strong {
-        text-align: right;
+        order: 1;
+        text-align: left;
     }
 
     .combat-field-portrait {
@@ -319,13 +284,69 @@
     }
 
     .combat-field-title {
-        align-items: start;
-        flex-direction: column;
+        min-height: 18px;
+        align-items: center;
+        flex-direction: row;
+        gap: 5px;
+    }
+
+    .combat-field-actor--enemy .combat-field-title {
+        justify-content: flex-end;
+    }
+
+    .combat-field-title span {
+        font-size: 7px;
+        line-height: 1;
+    }
+
+    .combat-field-title .combat-field-name {
+        font-size: 9px;
+        line-height: 1.1;
+    }
+
+    .combat-stat-trigger {
+        width: 18px;
+        height: 18px;
+    }
+
+    .combat-field-actor-data,
+    .combat-field-vitals {
         gap: 3px;
     }
 
     .combat-resource {
-        grid-template-columns: 24px minmax(0, 1fr) 50px;
+        grid-template-columns: var(--combat-resource-label-width) minmax(0, 1fr) var(--combat-resource-value-width);
+        gap: 4px;
+    }
+
+    .combat-resource i {
+        height: 5px;
+    }
+
+    .combat-effect-stack--field {
+        display: flex;
+        max-height: 38px;
+        min-height: 0;
+        gap: 2px;
+        overflow: hidden;
+    }
+
+    .combat-effect-stack--field .combat-effect {
+        width: 18px;
+        height: 18px;
+    }
+
+    .combat-effect-stack--field .combat-effect-mark {
+        width: 10px;
+        height: 10px;
+    }
+
+    .combat-effect b {
+        font-size: 7px;
+    }
+
+    .combat-effect-empty {
+        display: none;
     }
 
     .combat-exchange-summary {

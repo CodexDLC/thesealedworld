@@ -54,8 +54,48 @@
     box-shadow: none;
 }
 
+.combat-side-summary-card {
+    grid-template-columns: 72px minmax(0, 1fr);
+}
+
+.combat-side-summary-card--right {
+    grid-template-columns: minmax(0, 1fr) 72px;
+}
+
+.combat-side-summary-card--right .status-widget-name {
+    grid-template-columns: minmax(0, 1fr) auto;
+    text-align: right;
+}
+
+.combat-side-summary-avatar img {
+    object-fit: contain;
+}
+
+.combat-side-summary-effects {
+    min-height: 20px;
+    max-height: 48px;
+    overflow: hidden;
+}
+
+.combat-side-summary-card--right .combat-side-summary-effects {
+    justify-content: flex-end;
+}
+
+.combat-side-summary-effects .combat-effect {
+    width: 20px;
+    height: 20px;
+}
+
+.combat-side-summary-effects .combat-effect-mark {
+    width: 11px;
+    height: 11px;
+}
+
 .combat-actor-avatar {
     position: relative;
+    width: min(100%, 170px);
+    max-height: 170px;
+    justify-self: center;
     aspect-ratio: 1;
     overflow: hidden;
     border: 1px solid rgba(255, 170, 0, .18);

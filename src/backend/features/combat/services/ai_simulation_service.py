@@ -1050,13 +1050,14 @@ def _mutated_policy(parent: Policy, *, rng: random.Random, sigma: float, policy_
     )
 
 
-class _TeamPolicyBrain:
+class _TeamPolicyBrain(MonsterCombatBrain):
     def __init__(self, *, candidate_policy: Policy, baseline_policy: Policy, candidate_team: str) -> None:
+        super().__init__()
         self.candidate_team = candidate_team
         self.candidate_brain = MonsterCombatBrain(policy=candidate_policy)
         self.baseline_brain = MonsterCombatBrain(policy=baseline_policy)
 
-    def decide_turn(self, actor, ctx, candidates):
+    def decide_turn(self, actor: Any, ctx: Any, candidates: list[Any]) -> list[dict[str, Any]]:
         brain = self.candidate_brain if str(actor.meta.team) == self.candidate_team else self.baseline_brain
         return brain.decide_turn(actor, ctx, candidates)
 
@@ -1381,7 +1382,8 @@ def _safe_int(value: Any) -> int:
 
 def _team_damage(telemetry: dict[str, Any], participants: list[dict[str, Any]]) -> dict[str, int]:
     team_by_actor = {str(row.get("actor_id") or ""): str(row.get("team") or "") for row in participants}
-    damage_by_actor = telemetry.get("damage_by_actor") if isinstance(telemetry.get("damage_by_actor"), dict) else {}
+    raw_damage = telemetry.get("damage_by_actor")
+    damage_by_actor = raw_damage if isinstance(raw_damage, dict) else {}
     totals: dict[str, int] = {}
     for actor_id, damage in damage_by_actor.items():
         team = team_by_actor.get(str(actor_id))

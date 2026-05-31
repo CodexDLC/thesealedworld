@@ -82,6 +82,7 @@
 {% macro combat_log_display_text(text) -%}
     {{ (text or 'NO_DATA')|replace('; но ', ', но ')|replace('; ', ', ') }}
 {%- endmacro %}
+{% import "game/domains/combat/viewport/log_line_macros.html" as combat_log %}
 {% set panel_id = combat_log_panel_id|default("combat-log-panel") %}
 {% set panel_label = combat_log_label|default("EXCHANGE LOG") %}
 {% set embedded_query = "&embedded=1" if combat_log_embedded|default(false) else "" %}
@@ -169,8 +170,8 @@
                             {% if line.icon_url is defined and line.icon_url %}
                                 <img class="combat-log-icon" src="{{ line.icon_url }}" alt="">
                             {% endif %}
-                            <span class="combat-log-text">{{ combat_log_display_text(line.text) }}</span>
-                            {{ combat_log_facts(line, data) }}
+                            <span class="combat-log-text">{{ combat_log.combat_log_display_text(line.text) }}</span>
+                            {{ combat_log.combat_log_facts(line, data) }}
                         </div>
                     {% endfor %}
                 </div>
@@ -217,8 +218,8 @@
                 {% if line.icon_url is defined and line.icon_url %}
                     <img class="combat-log-icon" src="{{ line.icon_url }}" alt="">
                 {% endif %}
-                <span class="combat-log-text">{{ combat_log_display_text(line.text) }}</span>
-                {{ combat_log_facts(line, data) }}
+                <span class="combat-log-text">{{ combat_log.combat_log_display_text(line.text) }}</span>
+                {{ combat_log.combat_log_facts(line, data) }}
             </div>
             {% if loop.last and log_group.is_open %}
                     </div>

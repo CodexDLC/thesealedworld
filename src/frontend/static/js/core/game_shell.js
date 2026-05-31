@@ -82,8 +82,8 @@ window.gameShell = function(initial = {}) {
             return;
         }
     };
-    const explorationDesktopPanelsDefaultOpen = () => {
-        if (domain !== "exploration") return false;
+    const worldDesktopPanelsDefaultOpen = () => {
+        if (!["exploration", "rift"].includes(domain)) return false;
         return window.matchMedia("(min-width: 1025px)").matches;
     };
     const unavailableModalCopy = {
@@ -101,6 +101,24 @@ window.gameShell = function(initial = {}) {
         "'": "&#39;",
     })[char]);
     const noInventoryDomains = ["combats", "death", "loot"];
+    const defaultRightPanelView = domain === "combats" ? "enemies" : "context";
+    const normalizeLeftPanelView = (value) => {
+        const view = typeof value === "string" ? value : "status";
+        if (domain === "combats" && !["status", "allies"].includes(view)) {
+            return "status";
+        }
+        return view;
+    };
+    const normalizeRightPanelView = (value) => {
+        const view = typeof value === "string" ? value : defaultRightPanelView;
+        if (domain === "combats" && !["enemies", "log"].includes(view)) {
+            return "enemies";
+        }
+        if (noInventoryDomains.includes(domain) && view === "inventory") {
+            return defaultRightPanelView;
+        }
+        return view;
+    };
     const loadPanelState = () => {
         if (isDrawerViewport()) {
             clearDrawerPanelState();
@@ -111,12 +129,11 @@ window.gameShell = function(initial = {}) {
             if (!raw) return null;
             const saved = JSON.parse(raw);
             if (typeof saved?.leftOpen !== "boolean" || typeof saved?.rightOpen !== "boolean") return null;
-            const savedRightView = typeof saved.rightPanelView === "string" ? saved.rightPanelView : "context";
             return {
                 leftOpen: saved.leftOpen,
                 rightOpen: saved.rightOpen,
-                leftPanelView: typeof saved.leftPanelView === "string" ? saved.leftPanelView : "status",
-                rightPanelView: noInventoryDomains.includes(domain) ? "context" : savedRightView,
+                leftPanelView: normalizeLeftPanelView(saved.leftPanelView),
+                rightPanelView: normalizeRightPanelView(saved.rightPanelView),
             };
         } catch (_error) {
             window.localStorage.removeItem(panelStateStorageKey());
@@ -132,8 +149,8 @@ window.gameShell = function(initial = {}) {
             window.localStorage.setItem(panelStateStorageKey(), JSON.stringify({
                 leftOpen: Boolean(state.leftOpen),
                 rightOpen: Boolean(state.rightOpen),
-                leftPanelView: state.leftPanelView || "status",
-                rightPanelView: state.rightPanelView || "context",
+                leftPanelView: normalizeLeftPanelView(state.leftPanelView),
+                rightPanelView: normalizeRightPanelView(state.rightPanelView),
             }));
         } catch (_error) {
             return;
@@ -158,12 +175,12 @@ window.gameShell = function(initial = {}) {
         }));
     };
     const savedPanelState = loadPanelState();
-    const defaultPanelsOpen = explorationDesktopPanelsDefaultOpen();
+    const defaultPanelsOpen = worldDesktopPanelsDefaultOpen();
     const initialPanelState = savedPanelState || {
         leftOpen: !isDrawerViewport() && defaultPanelsOpen,
         rightOpen: !isDrawerViewport() && defaultPanelsOpen,
         leftPanelView: "status",
-        rightPanelView: "context",
+        rightPanelView: defaultRightPanelView,
     };
     const chatLauncher = {
         x: null,
@@ -181,7 +198,7 @@ window.gameShell = function(initial = {}) {
         chatHeight: 30,
         chatMinimized: true,
         chatStep: 0,
-        chatClosed: false,
+        chatClosed: true,
         chatUnread: false,
         selectedAgentId: activeCharId,
         domain,
@@ -222,6 +239,36 @@ window.gameShell = function(initial = {}) {
                 this.rightOpen = true;
                 this.panelStateUserEdited = true;
                 savePanelState(this);
+            }
+        },
+
+        openChatOverlay() {
+            this.chatClosed = false;
+            this.chatUnread = false;
+            if (typeof window.setChatStep === "function") {
+                window.setChatStep(2);
+                return;
+            }
+            this.chatStep = 2;
+            this.chatMinimized = false;
+        },
+
+        closeChatOverlay() {
+            if (!shellMetrics().isMobile) return;
+            this.chatClosed = true;
+            if (typeof window.setChatStep === "function") {
+                window.setChatStep(0);
+                return;
+            }
+            this.chatStep = 0;
+            this.chatMinimized = true;
+        },
+
+        toggleChatOverlay() {
+            if (this.chatClosed) {
+                this.openChatOverlay();
+            } else {
+                this.closeChatOverlay();
             }
         },
 

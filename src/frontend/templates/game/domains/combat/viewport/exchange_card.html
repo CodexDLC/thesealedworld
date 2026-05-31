@@ -1,3 +1,4 @@
+{% import "game/domains/combat/viewport/log_line_macros.html" as combat_log %}
 <article class="combat-exchange-card combat-exchange-card--{{ exchange.pair_status }}">
     {% set target_exchange = combat_screen.target_exchange_turn %}
     <header class="combat-exchange-head">
@@ -12,13 +13,22 @@
             </div>
             <div class="combat-exchange-wave__lines">
                 {% for line in target_exchange.lines %}
-                    {% set source_id = line.source.id if line.source else none %}
-                    {% set target_id = line.target.id if line.target else none %}
-                    <div class="combat-exchange-wave__line combat-exchange-wave__line--{{ line.severity }}{% if source_id|string == char_id|string %} is-player-source{% elif target_id|string == char_id|string %} is-player-target{% endif %}">
-                        {% if line.icon_url %}
+                    {% set data = line.data if line.data is defined and line.data else {} %}
+                    {% set flags = line.flags if line.flags is defined and line.flags else data.get('flags', {}) %}
+                    {% set source_ref = line.source if line.source is defined and line.source else data.get('source', {}) %}
+                    {% set target_ref = line.target if line.target is defined and line.target else data.get('target', {}) %}
+                    {% set source_id = source_ref.id if source_ref.id is defined else source_ref.get('id') if source_ref else none %}
+                    {% set target_id = target_ref.id if target_ref.id is defined else target_ref.get('id') if target_ref else none %}
+                    <div class="combat-exchange-wave__line combat-log-line combat-log-line--{{ line.kind if line.kind is defined else line.type }} combat-log-line--{{ line.severity if line.severity is defined else 'normal' }}{% if line.outcome is defined and line.outcome %} combat-log-line--outcome-{{ line.outcome }}{% endif %}{% if flags.crit is defined and flags.crit %} is-crit{% endif %}{% if flags.parried is defined and flags.parried %} is-parried{% endif %}{% if flags.blocked is defined and flags.blocked %} is-blocked{% endif %}{% if flags.dodged is defined and flags.dodged %} is-dodged{% endif %}{% if source_id|string == char_id|string %} is-player-source{% elif target_id|string == char_id|string %} is-player-target{% endif %}"
+                         {% if line.id is defined and line.id %}data-log-id="{{ line.id }}"{% endif %}
+                         {% if source_id %}data-source-id="{{ source_id }}"{% endif %}
+                         {% if target_id %}data-target-id="{{ target_id }}"{% endif %}
+                         {% if line.outcome is defined and line.outcome %}data-outcome="{{ line.outcome }}"{% endif %}>
+                        {% if line.icon_url is defined and line.icon_url %}
                             <img class="combat-log-icon" src="{{ line.icon_url }}" alt="">
                         {% endif %}
-                        <span>{{ line.text }}</span>
+                        <span class="combat-log-text">{{ combat_log.combat_log_display_text(line.text) }}</span>
+                        {{ combat_log.combat_log_facts(line, data) }}
                     </div>
                 {% endfor %}
             </div>

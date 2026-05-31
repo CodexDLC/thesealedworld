@@ -200,7 +200,7 @@
 
 @media (max-width: 760px) {
     #center-screens {
-        padding: 12px 10px 0;
+        padding: 0 10px 0;
         justify-content: flex-start;
         overflow-y: auto;
     }

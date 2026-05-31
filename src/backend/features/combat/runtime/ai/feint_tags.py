@@ -85,9 +85,9 @@ def derive_feint_tags(entry: FeintCatalogEntryDTO | None, feint_id: str) -> froz
             tags.add("damage_tag")
 
     # 4. Pipeline mutations — primary semantic source for anti-X and armor_bypass.
-    for app in tech.pipeline_mutations or []:
-        mid = str(app.mutation_id)
-        value = _resolve_mutation_value(app)
+    for mut in tech.pipeline_mutations or []:
+        mid = str(mut.mutation_id)
+        value = _resolve_mutation_value(mut)
 
         if mid == "target_parry_mult" and isinstance(value, (int, float)) and value < 1.0:
             tags.add("anti_parry")

@@ -82,6 +82,9 @@ class LootIntegration:
     async def mark_loot_ordered(self, session_id: str) -> bool:
         return await self._manager.mark_loot_ordered(session_id)
 
+    async def clear_loot_ordered(self, session_id: str) -> None:
+        await self._manager.clear_loot_ordered(session_id)
+
     async def is_loot_ordered(self, session_id: str) -> bool:
         return await self._manager.is_loot_ordered(session_id)
 

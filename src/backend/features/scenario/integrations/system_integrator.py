@@ -83,6 +83,7 @@ class ScenarioSystemIntegrator:
         self.redis = redis
         self._game_config = game_config
         self.events = events
+        self.repo = repo
         self.character_repo = character_repo
         self.world_data = world_data
         self.npc = npc
@@ -247,8 +248,10 @@ class ScenarioSystemIntegrator:
         context: ScenarioContextDTO,
         node: dict[str, Any],
     ) -> dict[str, Any]:
-        metadata = node.get("metadata") if isinstance(node.get("metadata"), dict) else {}
-        rift_entry = metadata.get("rift_entry") if isinstance(metadata.get("rift_entry"), dict) else {}
+        raw_metadata = node.get("metadata")
+        metadata = raw_metadata if isinstance(raw_metadata, dict) else {}
+        raw_rift_entry = metadata.get("rift_entry")
+        rift_entry = raw_rift_entry if isinstance(raw_rift_entry, dict) else {}
         request_id = str(context.flags.get("rift_entry_request_id") or uuid.uuid4())
         exit_location_id = str(rift_entry.get("exit_location_id") or "")
         if not exit_location_id:
@@ -675,7 +678,7 @@ class ScenarioSystemIntegrator:
                 "participants": json.dumps(participants),
                 "commitments": json.dumps(commitments),
                 "location_id": location_id or "",
-                "ttl": await self._get_combat_ttl(),
+                "ttl": SCENARIO_COMBAT_TTL_SECONDS,
                 "metadata": json.dumps(
                     {
                         "quest_key": quest_key,
@@ -721,7 +724,7 @@ class ScenarioSystemIntegrator:
                 "budget": str(budget),
                 "force_single_family": "true",
                 "scope_id": combat_id,
-                "ttl": await self._get_combat_ttl(),
+                "ttl": SCENARIO_COMBAT_TTL_SECONDS,
             },
             timeout=30.0,
             correlation_id=f"{combat_id}:monster_group",

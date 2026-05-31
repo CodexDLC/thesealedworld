@@ -108,6 +108,9 @@ async def _overview_provider(request: Request) -> ListWidgetMap:
             "Поведение ИИ боя — активная политика, случайность и training-флаги (Redis, live)",
             "Сценарии — параметры генерации сценариев (Redis, live)",
             "Исследование — параметры путешествий и событий (Redis, live)",
+            "Экспедиции — параметры экспедиций (Redis, live)",
+            "Лут — параметры генерации и таймеры лута (Redis, live)",
+            "Рифт — параметры генерации и таймеры рифта (Redis, live)",
             "Redis Streams — состояние event bus (не подключено)",
             "Воркеры — состояние фоновых задач (не подключено)",
         ],
@@ -142,6 +145,9 @@ class GameSettingsAdmin(CabinetAdmin):
         SidebarItem(key="combat_ai", label="Поведение ИИ боя", path="/admin/game-settings/combat-ai", order=15),
         SidebarItem(key="scenario", label="Сценарии", path="/admin/game-settings/scenario", order=20),
         SidebarItem(key="exploration", label="Исследование", path="/admin/game-settings/exploration", order=30),
+        SidebarItem(key="expedition", label="Экспедиции", path="/admin/game-settings/expedition", order=32),
+        SidebarItem(key="loot", label="Лут", path="/admin/game-settings/loot", order=34),
+        SidebarItem(key="rift", label="Рифт", path="/admin/game-settings/rift", order=36),
         SidebarItem(key="streams", label="Redis Streams", path="/admin/game-settings/streams", order=40),
         SidebarItem(key="workers", label="Воркеры", path="/admin/game-settings/workers", order=50),
     )
@@ -172,6 +178,17 @@ class GameSettingsAdmin(CabinetAdmin):
                 provider="game_settings.exploration",
                 order=10,
             ),
+        ),
+        "expedition": (
+            EditableConfigWidget(
+                key="expedition_cfg", title="Настройки экспедиций", provider="game_settings.expedition", order=10
+            ),
+        ),
+        "loot": (
+            EditableConfigWidget(key="loot_cfg", title="Настройки лута", provider="game_settings.loot", order=10),
+        ),
+        "rift": (
+            EditableConfigWidget(key="rift_cfg", title="Настройки рифта", provider="game_settings.rift", order=10),
         ),
         "streams": (
             ListWidget(
@@ -204,6 +221,11 @@ class GameSettingsAdmin(CabinetAdmin):
         "game_settings.exploration": _config_provider(
             "exploration_cfg", "Настройки исследования", "exploration", "/admin/game-settings/exploration"
         ),
+        "game_settings.expedition": _config_provider(
+            "expedition_cfg", "Настройки экспедиций", "expedition", "/admin/game-settings/expedition"
+        ),
+        "game_settings.loot": _config_provider("loot_cfg", "Настройки лута", "loot", "/admin/game-settings/loot"),
+        "game_settings.rift": _config_provider("rift_cfg", "Настройки рифта", "rift", "/admin/game-settings/rift"),
         "game_settings.streams": _streams_provider,
         "game_settings.workers": _workers_provider,
     }

@@ -3,7 +3,7 @@ from ..stat_ladders import build_role_ladder_stats
 
 BANDITS_FAMILY: MonsterFamily = {
     "id": "bandit_gang",
-    "resource_version": 1,
+    "resource_version": 1.1,
     "archetype": "humanoid",
     "organization_type": "gang",  # TSP Base: 50
     "default_tags": ["human", "outlaw", "survivor", "marauder"],

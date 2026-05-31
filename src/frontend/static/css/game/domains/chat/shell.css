@@ -58,9 +58,42 @@
 }
 
 @media (max-width: 767px) {
+    #game-footer-shell {
+        flex: 0 0 var(--game-footer-height, 30px);
+        min-height: var(--game-footer-height, 30px);
+    }
+
+    .game-chat-footer {
+        height: var(--game-footer-height, 30px);
+        min-height: var(--game-footer-height, 30px);
+        border-top: 0;
+        background: transparent;
+        pointer-events: none;
+        z-index: var(--game-overlay-z);
+    }
+
+    .game-chat-footer-shell {
+        height: var(--game-footer-height, 30px);
+        min-height: var(--game-footer-height, 30px);
+    }
+
     .game-chat-footer .game-chat-row {
-        width: 100%;
-        max-height: min(52vh, calc(100dvh - var(--game-header-height, 40px) - var(--game-footer-height, 30px) - 12px));
+        display: none;
+    }
+
+    .game-chat-footer.is-chat-open .game-chat-row {
+        position: fixed;
+        right: 8px;
+        bottom: calc(var(--game-system-bottom-reserve, 0px) + 6px);
+        left: 8px;
+        display: block;
+        width: auto;
+        max-height: min(56dvh, calc(100dvh - var(--game-header-height, 40px) - var(--game-system-bottom-reserve, 0px) - 14px));
+        height: min(52dvh, calc(100dvh - var(--game-header-height, 40px) - var(--game-system-bottom-reserve, 0px) - 18px));
+        pointer-events: auto;
+        border: 1px solid rgba(255, 170, 0, 0.24);
+        box-shadow: 0 -18px 34px rgba(0, 0, 0, 0.54);
+        z-index: var(--game-overlay-z);
     }
 
     .chat-tab-group {
@@ -69,11 +102,25 @@
 
     .chat-tab-select-wrap {
         display: block;
-        flex: 1 1 92px;
-        max-width: 150px;
+        flex: 1 1 auto;
+        max-width: none;
+    }
+
+    .chat-win-controls {
+        flex: 0 0 auto;
+        gap: 4px;
+        padding-right: 6px;
     }
 
     .chat-tab-system-toggle {
+        display: none;
+    }
+
+    .chat-step-track,
+    .chat-win-controls .btn-node.ghost[title="Свернуть на шаг"],
+    .chat-win-controls .btn-node.ghost[title="Развернуть на шаг"],
+    .chat-win-controls .btn-node.ghost[aria-label="Очистить видимые сообщения вкладки"],
+    .chat-win-controls .btn-node[data-chat-minmax-label] {
         display: none;
     }
 }

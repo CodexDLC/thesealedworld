@@ -89,7 +89,7 @@ def test_rift_nav_uses_status_inventory_and_info_view():
     assert nav["r2"]["panel_view"] == "context"
 
 
-def test_combat_nav_keeps_standard_shell_slots_for_rosters():
+def test_combat_nav_uses_tactical_drawer_slots():
     nav = build_game_nav(state=CoreDomain.COMBAT, char_id=7)
 
     assert nav["center"]["label"] == "COMBAT"
@@ -97,8 +97,12 @@ def test_combat_nav_keeps_standard_shell_slots_for_rosters():
     assert nav["l2"]["label"] == "STATUS"
     assert nav["l2"]["panel"] == "left"
     assert nav["l2"]["panel_view"] == "status"
-    assert nav["l1"]["is_disabled"] is True
-    assert nav["r1"]["is_disabled"] is True
-    assert nav["r2"]["label"] == "VIEW"
+    assert nav["l1"]["label"] == "PARTY"
+    assert nav["l1"]["panel"] == "left"
+    assert nav["l1"]["panel_view"] == "allies"
+    assert nav["r1"]["label"] == "FOES"
+    assert nav["r1"]["panel"] == "right"
+    assert nav["r1"]["panel_view"] == "enemies"
+    assert nav["r2"]["label"] == "LOG"
     assert nav["r2"]["panel"] == "right"
-    assert nav["r2"]["panel_view"] == "context"
+    assert nav["r2"]["panel_view"] == "log"

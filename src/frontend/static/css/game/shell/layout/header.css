@@ -83,6 +83,7 @@
     justify-content: flex-end;
 }
 
+.game-chat-toggle,
 .game-system-menu-toggle {
     width: 34px;
     height: 34px;
@@ -92,6 +93,52 @@
     background: rgba(255, 170, 0, 0.025);
     color: var(--col-accent);
     cursor: pointer;
+}
+
+.game-chat-toggle {
+    position: relative;
+    border-color: transparent;
+    background: transparent;
+    box-shadow: none;
+    opacity: 0.86;
+}
+
+.game-chat-toggle-glyph {
+    width: 18px;
+    height: 18px;
+    display: block;
+    background: currentColor;
+    transform: translateY(1px);
+    mask: url("/static/images/ui/game-menu-icons/chat.svg") center / contain no-repeat;
+    -webkit-mask: url("/static/images/ui/game-menu-icons/chat.svg") center / contain no-repeat;
+}
+
+.game-chat-toggle:hover,
+.game-chat-toggle:focus-visible {
+    opacity: 1;
+    color: #ffd36a;
+    filter: drop-shadow(0 0 7px rgba(255, 170, 0, 0.28));
+}
+
+.game-chat-toggle.is-open {
+    border-color: transparent;
+    background: transparent;
+    box-shadow: none;
+    opacity: 1;
+    color: #ffd36a;
+    filter: drop-shadow(0 0 8px rgba(255, 170, 0, 0.34));
+}
+
+.game-chat-toggle.has-unread::after {
+    content: "";
+    position: absolute;
+    top: 5px;
+    right: 5px;
+    width: 6px;
+    height: 6px;
+    background: var(--col-accent);
+    box-shadow: 0 0 10px rgba(255, 170, 0, 0.72);
+    animation: notify-pulse 1.3s ease-in-out infinite;
 }
 
 .game-system-menu-glyph {

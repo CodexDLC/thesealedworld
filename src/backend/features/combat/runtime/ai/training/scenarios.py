@@ -74,7 +74,7 @@ def _stub_actor(
     max_stamina: int = 60,
     tokens: dict[str, int] | None = None,
     hand: dict[str, dict[str, int]] | None = None,
-    mods: dict[str, float] | None = None,
+    mods: dict[str, Any] | None = None,
     is_ai: bool = False,
     effect_ids: list[str] | None = None,
     ai_archetype: str = "balanced",

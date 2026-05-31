@@ -22,7 +22,7 @@ class FrontendSettings(BaseCommonSettings):
     app_host: str = "0.0.0.0"  # nosec
     app_port: int = 8000
     backend_base_url: str = "http://127.0.0.1:8001"
-    chat_ws_url: str = "ws://127.0.0.1:8002"
+    realtime_ws_url: str = "ws://127.0.0.1:8002"
     backend_internal_service_key: str = "dev-site-to-game-service-key"  # pragma: allowlist secret
     backend_internal_service_header: str = "X-Internal-Service-Key"
     active_character_cookie_secure: bool = False

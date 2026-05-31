@@ -44,6 +44,28 @@ def test_chat_template_uses_canonical_channel_keys() -> None:
     assert 'data-channel="local"' not in template
 
 
+def test_chat_template_uses_realtime_ws_endpoint() -> None:
+    template = CHAT_TEMPLATE.read_text(encoding="utf-8")
+
+    assert 'ws-connect="{{ realtime_ws_endpoint }}' in template
+    assert "chat_ws_endpoint" not in template
+    assert "/ws/chat" not in template
+
+
+def test_chat_template_sends_typed_envelopes_and_unwraps_chat_message() -> None:
+    template = CHAT_TEMPLATE.read_text(encoding="utf-8")
+
+    # outgoing envelope shape
+    assert "type: 'chat.send'" in template
+    # inbound envelope handling
+    assert "envelope.type" in template
+    assert "'chat.message'" in template
+    assert "envelope.payload" in template
+    assert "system.session_replaced" in template
+    # ws-connect must be the realtime endpoint, used exactly once
+    assert template.count("ws-connect=") == 1
+
+
 def test_chat_template_keeps_combat_logs_in_system_channel() -> None:
     template = CHAT_TEMPLATE.read_text(encoding="utf-8")
 

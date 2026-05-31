@@ -115,41 +115,6 @@ class MessageService:
         )
         await self.push_outgoing(outgoing.model_dump(mode="json"), topic=topic)
 
-    async def push_combat_log(self, payload: dict[str, Any]) -> None:
-        """Push a structured combat log into the system tab of each recipient."""
-        now = datetime.now(UTC)
-        recipients = await self._resolve_recipient_topics(payload.get("recipients", []))
-        if not recipients:
-            return
-        session_id = str(payload["scope_id"])
-        combat_topic = f"chat:combat:{session_id}"
-        for cid in recipients:
-            self._manager.subscribe_user(cid, combat_topic)
-
-        outgoing = OutgoingMessageDTO.build(
-            channel="system",
-            scope_id=None,
-            sender_id=uuid.UUID(int=0),
-            sender_name="Combat",
-            content=payload.get("content", ""),
-            created_at=now,
-            template=payload.get("template"),
-            variables=payload.get("variables"),
-            result=payload.get("result"),
-            presentation=payload.get("presentation")
-            or {
-                "render": "combat_log",
-                "separator": {
-                    "label": f"ХОД {payload.get('meta', {}).get('global_turn')}",
-                    "key": f"combat:{session_id}:turn:{payload.get('meta', {}).get('global_turn')}",
-                },
-            },
-            meta=payload.get("meta"),
-        )
-        outgoing_payload = outgoing.model_dump(mode="json")
-        for cid in recipients:
-            await self.push_outgoing(outgoing_payload, topic=f"chat:system:{cid}")
-
     async def _resolve_recipient_topics(self, recipients: list[Any]) -> list[str]:
         resolved: list[str] = []
         seen: set[str] = set()

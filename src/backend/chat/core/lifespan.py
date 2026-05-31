@@ -8,6 +8,7 @@ from loguru import logger
 from src.backend.chat.services.connection_manager import ChatConnectionManager
 from src.backend.chat.services.session_service import PlayerChatSession
 from src.backend.config.settings import settings
+from src.backend.realtime.core.lifespan import bootstrap_realtime
 
 
 @asynccontextmanager
@@ -19,6 +20,10 @@ async def lifespan(app: FastAPI):
 
     app.state.chat_manager = ChatConnectionManager()
     app.state.chat_sessions = PlayerChatSession(app.state.redis)
+
+    # Realtime gateway (stage 1 co-locates the realtime module here; see
+    # docs/planning/tech-debt/realtime/player_realtime_gateway.md).
+    bootstrap_realtime(app)
 
     from src.backend.chat.events import bind as bind_chat_events
     from src.backend.chat.events import router as chat_events_router

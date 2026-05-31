@@ -162,7 +162,24 @@
          },
          _onWsMessage(e) {
              try {
-                 const raw = JSON.parse(e.detail.message);
+                 const envelope = JSON.parse(e.detail.message);
+                 if (!envelope || typeof envelope !== 'object' || !envelope.type) {
+                     if (window.console && console.warn) console.warn('realtime: dropping un-typed message', envelope);
+                     return;
+                 }
+                 if (envelope.type === 'system.session_replaced') {
+                     if (window.console && console.warn) console.warn('realtime: session replaced by newer login');
+                     return;
+                 }
+                 if (envelope.type === 'error') {
+                     if (window.console && console.warn) console.warn('realtime: server error', envelope.payload);
+                     return;
+                 }
+                 if (envelope.type !== 'chat.message') {
+                     if (window.console && console.warn) console.warn('realtime: ignoring envelope type', envelope.type);
+                     return;
+                 }
+                 const raw = envelope.payload || {};
                  const msg = this._normalizeMessage(raw);
                  const ch  = msg.channel || 'system';
                  const dynamicKey = this._ensureDynamicTab(msg);
@@ -659,9 +676,12 @@
              const channel = dynamicTab ? dynamicTab.tab.kind : (chatTab.startsWith('dm_') ? 'dm' : chatTab);
              const scope_id = dynamicTab ? dynamicTab.scope_id : (chatTab.startsWith('dm_') ? chatTab.slice(3) : null);
              form.querySelector('[name=chat_message]').value = JSON.stringify({
-                 channel: channel,
-                 content: text,
-                 scope_id: scope_id
+                 type: 'chat.send',
+                 payload: {
+                     channel: channel,
+                     content: text,
+                     scope_id: scope_id
+                 }
              });
              htmx.trigger(form, 'chat-send');
              input.value = '';
@@ -700,7 +720,7 @@
 >
     <!-- WS connection — on the outer wrapper so all child forms can ws-send -->
     <div hx-ext="ws"
-         ws-connect="{{ chat_ws_endpoint }}?token={{ access_token }}&char_id={{ char_id }}{% if combat_chat_session_id %}&combat_session_id={{ combat_chat_session_id }}{% endif %}"
+         ws-connect="{{ realtime_ws_endpoint }}?token={{ access_token }}&char_id={{ char_id }}{% if combat_chat_session_id %}&combat_session_id={{ combat_chat_session_id }}{% endif %}"
          style="display:contents;">
 
     <!-- ── TAB BAR ── -->

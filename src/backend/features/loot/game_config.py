@@ -4,6 +4,13 @@ from src.backend.infrastructure.game_config.base import BaseGameConfig, ConfigEn
 class LootConfig(BaseGameConfig):
     namespace = "loot"
 
+    # Redis EXPIRE requires integer seconds — keep these as int to avoid
+    # "value is not an integer or out of range" errors from the Redis wire protocol.
+    PUBLIC_DELAY_SEC = 900
+    PUBLIC_WINDOW_SEC = 3600
+    INVISIBLE_TTL_SEC = 86400
+    EMPTY_CORPSE_TTL_SEC = 300
+
     config_metadata = {
         "PUBLIC_DELAY_SEC": ConfigEntryMeta(
             label="Задержка публичности",
@@ -51,13 +58,13 @@ class LootConfig(BaseGameConfig):
         ),
     }
 
-    PUBLIC_DELAY_SEC = 900.0
-    PUBLIC_WINDOW_SEC = 3600.0
-    INVISIBLE_TTL_SEC = 86400.0
-    EMPTY_CORPSE_TTL_SEC = 300.0
 
-    TIER_WEIGHT_COMMON = 60
-    TIER_WEIGHT_UNCOMMON = 25
-    TIER_WEIGHT_RARE = 10
-    TIER_WEIGHT_EPIC = 4
-    TIER_WEIGHT_LEGENDARY = 1
+# Per-tier roll weights used by tooling/analytics — not exposed via game_config Redis namespace,
+# since they are constants that drive offline math rather than runtime tunables.
+TIER_WEIGHTS: dict[str, int] = {
+    "common": 60,
+    "uncommon": 25,
+    "rare": 10,
+    "epic": 4,
+    "legendary": 1,
+}

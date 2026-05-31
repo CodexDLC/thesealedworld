@@ -27,22 +27,23 @@ class LootIntegration:
     # ------------------------------------------------------------------
 
     async def persist_corpse(self, corpse: CorpseDTO, location_id: str) -> None:
-        invisible_ttl = 86400.0
+        invisible_ttl = 86400
         if self._game_config is not None:
-            invisible_ttl = await self._game_config.get_float("loot", "INVISIBLE_TTL_SEC", default=86400.0)
-        await self._manager.save_corpse(corpse, location_id, ttl=invisible_ttl)
+            invisible_ttl = await self._game_config.get_int("loot", "INVISIBLE_TTL_SEC", default=86400)
+        # Redis EXPIRE requires int seconds — guard against float overrides from cabinet.
+        await self._manager.save_corpse(corpse, location_id, ttl=int(invisible_ttl))
 
     async def activate_corpses(self, corpse_ids: list[str], char_ids: list[int], location_id: str) -> None:
-        public_delay = 900.0
-        public_window = 3600.0
+        public_delay = 900
+        public_window = 3600
         if self._game_config is not None:
-            public_delay = await self._game_config.get_float("loot", "PUBLIC_DELAY_SEC", default=900.0)
-            public_window = await self._game_config.get_float("loot", "PUBLIC_WINDOW_SEC", default=3600.0)
+            public_delay = await self._game_config.get_int("loot", "PUBLIC_DELAY_SEC", default=900)
+            public_window = await self._game_config.get_int("loot", "PUBLIC_WINDOW_SEC", default=3600)
 
         now = time.time()
         public_at = now + public_delay
         decay_at = public_at + public_window
-        ttl = int(public_at - now) + public_window
+        ttl = int(public_at - now) + int(public_window)
 
         for corpse_id in corpse_ids:
             await self._manager.patch_corpse(
@@ -69,10 +70,10 @@ class LootIntegration:
             resource_template_ids=set(claim.resource_deltas.keys()),
         )
         if updated is not None and updated.is_empty:
-            empty_ttl = 300.0
+            empty_ttl = 300
             if self._game_config is not None:
-                empty_ttl = await self._game_config.get_float("loot", "EMPTY_CORPSE_TTL_SEC", default=300.0)
-            await self._manager.set_ttl(corpse_id, empty_ttl)
+                empty_ttl = await self._game_config.get_int("loot", "EMPTY_CORPSE_TTL_SEC", default=300)
+            await self._manager.set_ttl(corpse_id, int(empty_ttl))
         return updated
 
     # ------------------------------------------------------------------

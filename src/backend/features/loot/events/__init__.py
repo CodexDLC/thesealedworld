@@ -27,12 +27,12 @@ def bind(app: FastAPI) -> None:
 @router.on(LOOT_ORDER_REQUESTED, group="loot")
 async def on_order_requested(payload: dict[str, Any]) -> None:
     set_log_context(correlation_id=payload.get("correlation_id"))
+    session_id = str(payload.get("session_id") or "")
     try:
         if _app is None:
             logger.warning("LootOrderRequestIgnored")
             return
 
-        session_id = str(payload.get("session_id") or "")
         if not session_id:
             logger.warning("LootOrderRequestMissingSessionId")
             return
@@ -63,6 +63,10 @@ async def on_order_requested(payload: dict[str, Any]) -> None:
             generated_count=len(corpse_ids_by_actor),
             location_id=location_id,
         ).info("LootOrderStreamProcessed")
+    except Exception:  # noqa: BLE001
+        # Swallow handler-level errors so a single bad payload does not poison the
+        # entire stream consumer group. Errors are still logged with the session_id.
+        logger.bind(session_id=session_id).exception("LootOrderHandlerFailed")
     finally:
         clear_log_context()
 

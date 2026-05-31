@@ -22,9 +22,10 @@ class CapturingEvents:
 class FakeLootIntegration:
     saved_pending: list[tuple[str, dict[str, str]]] = []
 
-    def __init__(self, manager: Any, events: Any = None) -> None:
+    def __init__(self, manager: Any, events: Any = None, game_config: Any = None) -> None:
         self.manager = manager
         self.events = events
+        self.game_config = game_config
 
     async def save_pending_actor_corpses(self, session_id: str, corpse_ids_by_actor: dict[str, str]) -> None:
         self.saved_pending.append((session_id, corpse_ids_by_actor))
@@ -113,3 +114,32 @@ async def test_loot_order_requested_handler_uses_app_events_and_saves_pending_ma
         }
     ]
     assert FakeLootIntegration.saved_pending == [("combat-1", {"wolf_1": "corpse-1"})]
+
+
+class _ExplodingLootService:
+    def __init__(self, integration: Any, engine: Any) -> None:
+        self.integration = integration
+
+    async def order_loot_for_combat(self, **_kwargs) -> dict[str, str]:
+        raise RuntimeError("simulated downstream failure")
+
+
+@pytest.mark.asyncio
+async def test_loot_order_requested_handler_swallows_exceptions(monkeypatch) -> None:
+    """Regression: a single broken payload must not poison the stream consumer group."""
+    app = SimpleNamespace(state=SimpleNamespace(redis=object(), events=object()))
+
+    monkeypatch.setattr(events, "_app", app)
+    monkeypatch.setattr(events, "LootManager", lambda redis: object())
+    monkeypatch.setattr(events, "LootIntegration", FakeLootIntegration)
+    monkeypatch.setattr(events, "LootService", _ExplodingLootService)
+
+    # Must not raise — handler swallows and logs.
+    await events.on_order_requested(
+        {
+            "session_id": "combat-broken",
+            "battle_type": "pve",
+            "location_id": "forest",
+            "actors_json": json.dumps([{"actor_id": "wolf_1"}]),
+        }
+    )

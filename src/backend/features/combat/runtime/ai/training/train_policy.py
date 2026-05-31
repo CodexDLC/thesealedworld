@@ -3,10 +3,7 @@
 from __future__ import annotations
 
 import argparse
-import dataclasses
-import json
 import sys
-import time
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -21,22 +18,18 @@ class TrainArgs:
     generations: int = 10
     population: int = 20
     seed: int = 0
-    output_dir: Path | None = None
     start_from: Path | None = None
     duration_seconds: float | None = None
     sigma: float = 0.25
 
 
 def train(args: TrainArgs) -> TrainingRun:
-    """Run an evolutionary search and write artefacts to ``args.output_dir``.
-
-    The function is the single seam used by both the CLI and the smoke test.
-    """
+    """Run an evolutionary search and return the in-memory training result."""
     seed_policy = _load_seed_policy(args.start_from)
     scenarios = default_scenario_set(seed=args.seed)
     environment = ScoringEnvironment(scenarios)
 
-    run = evolve(
+    return evolve(
         seed_policy,
         environment,
         population=args.population,
@@ -46,37 +39,6 @@ def train(args: TrainArgs) -> TrainingRun:
         duration_seconds=args.duration_seconds,
     )
 
-    output_dir = _resolve_output_dir(args.output_dir)
-    output_dir.mkdir(parents=True, exist_ok=True)
-
-    best_path = output_dir / "best_policy.json"
-    run.best_policy.write(best_path)
-
-    leaderboard_path = output_dir / "leaderboard.json"
-    leaderboard_path.write_text(
-        json.dumps(
-            [
-                {
-                    "policy_id": entry.policy_id,
-                    "reward": entry.reward,
-                    "weights": entry.weights,
-                }
-                for entry in run.leaderboard
-            ],
-            indent=2,
-            sort_keys=True,
-        ),
-        encoding="utf-8",
-    )
-
-    metrics_path = output_dir / "metrics.jsonl"
-    with metrics_path.open("w", encoding="utf-8") as handle:
-        for metric in run.metrics:
-            handle.write(json.dumps(dataclasses.asdict(metric), sort_keys=True))
-            handle.write("\n")
-
-    return run
-
 
 def _load_seed_policy(path: Path | None) -> Policy:
     if path is not None and path.exists():
@@ -84,19 +46,11 @@ def _load_seed_policy(path: Path | None) -> Policy:
     return Policy.with_defaults(policy_id="train_seed")
 
 
-def _resolve_output_dir(path: Path | None) -> Path:
-    if path is not None:
-        return path
-    stamp = time.strftime("%Y%m%d-%H%M%S")
-    return Path(r"C:\\tmp\\combat-ai-runs") / stamp
-
-
 def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Train a combat AI policy offline.")
     parser.add_argument("--generations", type=int, default=10)
     parser.add_argument("--population", type=int, default=20)
     parser.add_argument("--seed", type=int, default=0)
-    parser.add_argument("--output-dir", type=Path, default=None)
     parser.add_argument("--start-from", type=Path, default=None)
     parser.add_argument("--duration-seconds", type=float, default=None)
     parser.add_argument("--sigma", type=float, default=0.25)
@@ -110,7 +64,6 @@ def main(argv: list[str] | None = None) -> int:
         generations=namespace.generations,
         population=namespace.population,
         seed=namespace.seed,
-        output_dir=namespace.output_dir,
         start_from=namespace.start_from,
         duration_seconds=namespace.duration_seconds,
         sigma=namespace.sigma,

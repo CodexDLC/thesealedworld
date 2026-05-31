@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from pathlib import Path
 from typing import TYPE_CHECKING, Annotated, Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
@@ -217,7 +216,6 @@ async def run_synthetic_training(
         sigma=sigma,
     )
     await db_session.commit()
-    output_dir = Path(str(row.metadata_.get("output_dir") or "tmp/combat_ai_training/unknown"))
     try:
         await _enqueue_synthetic_training_job(
             getattr(request.app.state, "combat_arq", None),
@@ -227,7 +225,6 @@ async def run_synthetic_training(
                 "population": population,
                 "seed": seed,
                 "sigma": sigma,
-                "output_dir": str(output_dir),
             },
         )
     except Exception as exc:
@@ -261,7 +258,6 @@ async def run_battle_training(
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     await db_session.commit()
-    output_dir = Path(str(row.metadata_.get("output_dir") or "tmp/combat_ai_training/unknown"))
     try:
         await _enqueue_battle_training_job(
             getattr(request.app.state, "combat_arq", None),
@@ -272,7 +268,6 @@ async def run_battle_training(
                 "population": population,
                 "seed": seed,
                 "sigma": sigma,
-                "output_dir": str(output_dir),
             },
         )
     except Exception as exc:

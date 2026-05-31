@@ -221,7 +221,6 @@ async def test_synthetic_training_enqueue_uses_combat_worker_queue() -> None:
         "population": 32,
         "seed": 0,
         "sigma": 0.25,
-        "output_dir": "tmp/combat_ai_training/run-1",
     }
 
     await _enqueue_synthetic_training_job(arq, payload)
@@ -239,7 +238,6 @@ async def test_battle_training_enqueue_uses_combat_worker_queue() -> None:
         "population": 8,
         "seed": 0,
         "sigma": 0.15,
-        "output_dir": "tmp/combat_ai_training/run-1",
     }
 
     await _enqueue_battle_training_job(arq, payload)
@@ -293,7 +291,6 @@ async def test_battle_training_task_marks_run_failed_when_cancelled(monkeypatch:
             {
                 "run_id": "battle-run",
                 "source_policy_run_id": "source-run",
-                "output_dir": "tmp/combat_ai_training/battle-run",
             },
         )
 
@@ -529,7 +526,7 @@ async def test_ai_simulation_service_starts_battle_training_from_selected_policy
 
 
 @pytest.mark.asyncio
-async def test_execute_battle_training_smoke_writes_candidate_policy(tmp_path) -> None:
+async def test_execute_battle_training_smoke_persists_candidate_policy_in_result(tmp_path) -> None:
     progress_updates: list[dict] = []
 
     async def progress(payload: dict) -> None:
@@ -542,16 +539,20 @@ async def test_execute_battle_training_smoke_writes_candidate_policy(tmp_path) -
         population=2,
         seed=0,
         sigma=0.05,
-        output_dir=tmp_path,
         progress=progress,
     )
 
     assert result["rounds_completed"] == 1
     assert result["metadata"]["training_stage"] == "battle_finetune"
     assert result["metadata"]["source_policy_run_id"] == "training-source"
-    assert (tmp_path / "best_policy.json").exists()
-    assert (tmp_path / "metrics.jsonl").exists()
+    assert result["metadata"]["storage"] == "database"
+    assert result["metadata"]["best_policy"]["policy_id"]
+    assert "output_dir" not in result["metadata"]
+    assert "metrics_path" not in result["metadata"]
     assert result["telemetry"]["scenario_rewards"]
+    assert result["telemetry"]["metrics"]
+    assert result["telemetry"]["leaderboard"]
+    assert list(tmp_path.rglob("*")) == []
     assert progress_updates
     assert progress_updates[-1]["status"] == "running"
     assert progress_updates[-1]["telemetry"]["run_kind"] == "battle_training"
@@ -791,6 +792,8 @@ async def test_ai_simulation_service_runs_synthetic_training_without_live_activa
     assert row.policy_ref == "candidate_not_activated"
     assert row.rounds_completed == 2
     assert row.metadata_["live_policy_activation"] is False
+    assert row.metadata_["storage"] == "database"
+    assert "output_dir" not in row.metadata_
     assert "best_policy" in row.metadata_
     assert row.telemetry["generations"] == 2
     assert row.telemetry["population"] == 4

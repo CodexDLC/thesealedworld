@@ -1807,9 +1807,8 @@ def _training_telemetry_rows(run: CombatAiSimulationRun) -> list[dict[str, objec
         {"metric": "best_reward_so_far", "value": telemetry.get("best_reward_so_far", "—")},
         {"metric": "metrics_count", "value": telemetry.get("metrics_count", len(telemetry.get("metrics") or []))},
         {"metric": "weight_deltas_count", "value": telemetry.get("weight_deltas_count", "—")},
-        {"metric": "output_dir", "value": metadata.get("output_dir", "—")},
+        {"metric": "storage", "value": metadata.get("storage", "database")},
         {"metric": "best_policy_id", "value": _dict(metadata.get("best_policy")).get("policy_id", "—")},
-        {"metric": "metrics_path", "value": metadata.get("metrics_path", "—")},
         {"metric": "live_policy_activation", "value": metadata.get("live_policy_activation", False)},
     ]
     return [row for row in rows if row["value"] not in {"", None}]

@@ -261,15 +261,14 @@ score = Σ weight[feature] × feature_value
 ```powershell
 .\.venv\Scripts\python.exe -m src.backend.features.combat.runtime.ai.training.train_policy `
     --generations 50 --population 30 --seed 1 `
-    --output-dir C:\tmp\combat-ai-runs\v2 `
-    [--start-from C:\tmp\combat-ai-runs\v1\best_policy.json] `
     [--duration-seconds 60] `
     [--sigma 0.25]
 ```
 
-Без `--output-dir` пишется в `C:\tmp\combat-ai-runs\<timestamp>\`. В
-`src/` тренер не пишет ничего — только встроенный `default_policy.json`
-лежит под source control.
+CLI и backend-тренировка не пишут файловые артефакты. Runtime-контракт:
+результаты обучения сохраняются в строке `CombatAiSimulationRun` в БД:
+`metadata.best_policy`, `telemetry.metrics`, `telemetry.leaderboard`,
+`telemetry.scenario_rewards` и `report_text`.
 
 ### Что внутри
 
@@ -287,13 +286,14 @@ Reward (детерминированный):
 - `−0.1 × cost_tokens` за необоснованную трату токенов.
 - `+0.1` за полноту плана (есть payload на каждую цель).
 
-### Артефакты
+### Сохранение результата
 
-| Файл | Содержание |
+| Поле БД | Содержание |
 |---|---|
-| `best_policy.json` | Лучшая политика прогона. Готова к деплою. |
-| `leaderboard.json` | Все политики последнего поколения с их reward и весами. |
-| `metrics.jsonl` | По строке на поколение: `{generation, best_reward, mean_reward, elapsed_seconds}`. |
+| `metadata.best_policy` | Лучшая политика прогона. |
+| `telemetry.leaderboard` | Все политики последнего поколения с их reward и весами. |
+| `telemetry.metrics` | Метрики поколений: `{generation, best_reward, mean_reward, elapsed_seconds}`. |
+| `report_text` | Человекочитаемый отчёт для кабинета. |
 
 ### Программный API
 
@@ -303,7 +303,7 @@ Reward (детерминированный):
 ```python
 from src.backend.features.combat.runtime.ai.training import TrainArgs, train
 
-run = train(TrainArgs(generations=20, population=30, seed=42, output_dir=Path("...")))
+run = train(TrainArgs(generations=20, population=30, seed=42))
 print(run.best_policy.metadata.get("final_reward"))
 ```
 
@@ -333,15 +333,13 @@ print(run.best_policy.metadata.get("final_reward"))
 ## Деплой политики
 
 ```powershell
-# 1. Обучить
+# 1. Обучить через кабинет или backend API: результат сохраняется в БД.
 .\.venv\Scripts\python.exe -m src.backend.features.combat.runtime.ai.training.train_policy `
-    --generations 50 --population 30 --seed 1 --output-dir C:\tmp\combat-ai-runs\v2
+    --generations 50 --population 30 --seed 1
 
-# 2. Подложить как override (per-worker-process env)
-$env:COMBAT_AI_POLICY_PATH = "C:\tmp\combat-ai-runs\v2\best_policy.json"
-# перезапустить ARQ-воркер
+# 2. Активировать политику из completed training run через кабинетный workflow.
 
-# 3. Откат — снять env-переменную и перезапустить.
+# 3. Откат — выбрать предыдущую completed policy в БД.
 # Встроенный default_policy.json продолжит работать.
 ```
 
@@ -372,7 +370,7 @@ default, бой не ломается.
 
 # End-to-end smoke тренировки
 .\.venv\Scripts\python.exe -m src.backend.features.combat.runtime.ai.training.train_policy `
-    --generations 2 --population 4 --seed 0 --output-dir C:\tmp\combat-ai-runs\smoke
+    --generations 2 --population 4 --seed 0
 
 # Полный quality gate
 uv run python tools/dev/check.py

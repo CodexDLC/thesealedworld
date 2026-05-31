@@ -1,12 +1,10 @@
 from __future__ import annotations
 
-import json
 import random
 import time
 from collections.abc import Awaitable, Callable
 from dataclasses import asdict, dataclass
 from datetime import UTC, datetime, timedelta
-from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from src.backend.features.combat.dto import ActorLoadoutDTO, ActorMetaDTO, ActorRawDTO, ActorSnapshot, FeintHandDTO
@@ -598,14 +596,11 @@ class CombatAiSimulationRunService:
         seed: int = 0,
         sigma: float = 0.25,
     ) -> CombatAiSimulationRun:
-        started = datetime.now(UTC)
-        output_dir = _training_output_dir(started=started, seed=seed, generations=generations, population=population)
         result = execute_synthetic_training(
             generations=generations,
             population=population,
             seed=seed,
             sigma=sigma,
-            output_dir=output_dir,
         )
         return await self.repository.create(
             run_kind="training",
@@ -630,8 +625,6 @@ class CombatAiSimulationRunService:
         seed: int = 0,
         sigma: float = 0.25,
     ) -> CombatAiSimulationRun:
-        started = datetime.now(UTC)
-        output_dir = _training_output_dir(started=started, seed=seed, generations=generations, population=population)
         return await self.repository.create(
             run_kind="training",
             scenario_key="synthetic_policy_training",
@@ -658,7 +651,7 @@ class CombatAiSimulationRunService:
                 "status: running\n"
                 "live_policy_activation: false"
             ),
-            metadata=_training_metadata(output_dir=output_dir, best_policy_payload=None),
+            metadata=_training_metadata(best_policy_payload=None),
         )
 
     async def complete_synthetic_training(
@@ -669,14 +662,12 @@ class CombatAiSimulationRunService:
         population: int,
         seed: int = 0,
         sigma: float = 0.25,
-        output_dir: Path,
     ) -> CombatAiSimulationRun | None:
         result = execute_synthetic_training(
             generations=generations,
             population=population,
             seed=seed,
             sigma=sigma,
-            output_dir=output_dir,
         )
         return await self.repository.mark_completed(
             run_id,
@@ -700,8 +691,6 @@ class CombatAiSimulationRunService:
         if source_row is None or source_row.run_kind != "training" or source_row.status != "completed":
             raise ValueError(f"Combat AI training policy run not found: {source_policy_run_id}")
         policy, policy_metadata = _policy_from_training_row(source_row)
-        started = datetime.now(UTC)
-        output_dir = _training_output_dir(started=started, seed=seed, generations=generations, population=population)
         return await self.repository.create(
             run_kind="training",
             scenario_key="battle_policy_finetune",
@@ -734,7 +723,7 @@ class CombatAiSimulationRunService:
                 "live_policy_activation: false"
             ),
             metadata={
-                **_training_metadata(output_dir=output_dir, best_policy_payload=None),
+                **_training_metadata(best_policy_payload=None),
                 "training_stage": "battle_finetune",
                 "source_policy_run_id": source_policy_run_id,
                 **policy_metadata,
@@ -748,14 +737,12 @@ def execute_synthetic_training(
     population: int,
     seed: int = 0,
     sigma: float = 0.25,
-    output_dir: Path,
 ) -> dict[str, Any]:
     args = TrainArgs(
         generations=generations,
         population=population,
         seed=seed,
         sigma=sigma,
-        output_dir=output_dir,
     )
     run = train(args)
     seed_policy = Policy.with_defaults(policy_id="train_seed")
@@ -781,7 +768,6 @@ def execute_synthetic_training(
         metrics=metrics,
         deltas=deltas,
         scenario_rewards=scenario_eval.per_scenario,
-        output_dir=output_dir,
     )
     return {
         "rounds_completed": len(metrics),
@@ -802,7 +788,7 @@ def execute_synthetic_training(
             "scenario_rewards": scenario_eval.per_scenario,
         },
         "report_text": report_text,
-        "metadata": _training_metadata(output_dir=output_dir, best_policy_payload=best_policy_payload),
+        "metadata": _training_metadata(best_policy_payload=best_policy_payload),
     }
 
 
@@ -814,12 +800,10 @@ async def execute_battle_training(
     population: int,
     seed: int = 0,
     sigma: float = 0.15,
-    output_dir: Path,
     progress: LiveProgressCallback | None = None,
 ) -> dict[str, Any]:
     rng = random.Random(seed)
     started = time.monotonic()
-    output_dir.mkdir(parents=True, exist_ok=True)
     generation_count = int(max(1, generations))
     population_count = int(max(2, population))
     source_policy = Policy.with_defaults(
@@ -896,8 +880,6 @@ async def execute_battle_training(
                 "telemetry": telemetry,
                 "report_text": report_text,
                 "metadata": {
-                    "output_dir": str(output_dir),
-                    "metrics_path": str(output_dir / "metrics.jsonl"),
                     "training_stage": "battle_finetune",
                     "source_policy_run_id": source_policy_run_id,
                     "source_policy_id": source_policy.policy_id,
@@ -984,15 +966,6 @@ async def execute_battle_training(
             "final_reward": float(best_reward),
         },
     )
-    best_policy.write(output_dir / "best_policy.json")
-    (output_dir / "leaderboard.json").write_text(
-        json.dumps(leaderboard, indent=2, sort_keys=True),
-        encoding="utf-8",
-    )
-    (output_dir / "metrics.jsonl").write_text(
-        "".join(json.dumps(metric, sort_keys=True) + "\n" for metric in metrics),
-        encoding="utf-8",
-    )
     deltas = _weight_deltas(source_policy, best_policy)
     report_text = _render_battle_training_report(
         generations=generation_count,
@@ -1006,7 +979,6 @@ async def execute_battle_training(
         metrics=metrics,
         deltas=deltas,
         scenario_rewards=latest_scenarios,
-        output_dir=output_dir,
     )
     best_policy_payload = best_policy.model_dump(mode="json")
     return {
@@ -1032,7 +1004,7 @@ async def execute_battle_training(
         },
         "report_text": report_text,
         "metadata": {
-            **_training_metadata(output_dir=output_dir, best_policy_payload=best_policy_payload),
+            **_training_metadata(best_policy_payload=best_policy_payload),
             "training_stage": "battle_finetune",
             "source_policy_run_id": source_policy_run_id,
             "source_policy_id": source_policy.policy_id,
@@ -1605,18 +1577,11 @@ def _policy_training_metadata(row: Any, policy: Policy) -> dict[str, Any]:
     }
 
 
-def _training_output_dir(*, started: datetime, seed: int, generations: int, population: int) -> Path:
-    stamp = started.strftime("%Y%m%d-%H%M%S")
-    return Path("tmp") / "combat_ai_training" / f"{stamp}_seed{seed}_g{generations}_p{population}"
-
-
-def _training_metadata(*, output_dir: Path, best_policy_payload: dict[str, Any] | None) -> dict[str, Any]:
+def _training_metadata(*, best_policy_payload: dict[str, Any] | None) -> dict[str, Any]:
     metadata: dict[str, Any] = {
         "source": "admin_cabinet",
         "purpose": "weight_training",
-        "output_dir": str(output_dir),
-        "leaderboard_path": str(output_dir / "leaderboard.json"),
-        "metrics_path": str(output_dir / "metrics.jsonl"),
+        "storage": "database",
         "live_policy_activation": False,
     }
     if best_policy_payload is not None:
@@ -1648,7 +1613,6 @@ def _render_training_report(
     metrics: list[dict[str, Any]],
     deltas: list[dict[str, float | str]],
     scenario_rewards: dict[str, float],
-    output_dir: Path,
 ) -> str:
     lines = [
         "training: synthetic policy weights",
@@ -1659,7 +1623,7 @@ def _render_training_report(
         f"initial_best_reward: {initial_reward}",
         f"final_best_reward: {final_reward}",
         f"final_mean_reward: {mean_reward}",
-        f"output_dir: {output_dir}",
+        "storage: database",
         "live_policy_activation: false",
         "top_weight_deltas:",
     ]
@@ -1687,7 +1651,6 @@ def _render_battle_training_report(
     metrics: list[dict[str, Any]],
     deltas: list[dict[str, float | str]],
     scenario_rewards: dict[str, float],
-    output_dir: Path,
 ) -> str:
     lines = [
         "training: battle policy fine-tune",
@@ -1700,7 +1663,7 @@ def _render_battle_training_report(
         f"initial_best_reward: {initial_reward}",
         f"final_best_reward: {final_reward}",
         f"final_mean_reward: {mean_reward}",
-        f"output_dir: {output_dir}",
+        "storage: database",
         "live_policy_activation: false",
         "battle_stage:",
         "  mode: candidate policy vs selected source policy",

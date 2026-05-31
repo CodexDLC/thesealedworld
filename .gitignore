@@ -193,3 +193,5 @@ src/frontend/static/js/app.bundle.js
 # Project specific
 *.db
 logs/
+tmp/
+pytest_output.txt

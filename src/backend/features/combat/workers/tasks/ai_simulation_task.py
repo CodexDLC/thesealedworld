@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import asyncio
-from pathlib import Path
 from typing import Any
 
 from loguru import logger as log
@@ -116,7 +115,6 @@ async def combat_ai_synthetic_training_task(ctx: dict[str, Any], payload: dict[s
                 population=int(payload.get("population", 32)),
                 seed=int(payload.get("seed", 0)),
                 sigma=float(payload.get("sigma", 0.25)),
-                output_dir=Path(str(payload["output_dir"])),
             )
         async with get_session_context() as session:
             await CombatAiSimulationRunRepository(session).mark_completed(
@@ -166,7 +164,6 @@ async def combat_ai_battle_training_task(ctx: dict[str, Any], payload: dict[str,
                 population=int(payload.get("population", 8)),
                 seed=int(payload.get("seed", 0)),
                 sigma=float(payload.get("sigma", 0.15)),
-                output_dir=Path(str(payload["output_dir"])),
                 progress=progress,
             )
         async with get_session_context() as session:

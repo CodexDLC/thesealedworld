@@ -7,6 +7,7 @@ Detailed milestone history for the `src/backend` game runtime layer.
 - Redis-backed game config entries now carry admin metadata, range validation, and an audit helper for classifying future runtime tuning candidates.
 - Automatic starter imprints now use Redis-backed least-used distribution with per-account repeat protection.
 - Combat AI now includes archetype policies, tactical memory, offline battle simulation, and admin-triggered simulation run persistence.
+- Combat AI training now stores policies, metrics, leaderboards, and reports in simulation-run database records instead of writing local run artifacts.
 - Combat runtime tuning now centralizes skill/stat formulas, actor snapshot mapping, preparation effects, feint tags, and equipment-derived combat power.
 - Monster generation now derives skill percentages from tiered variant skill sets instead of family-level fixed skill values.
 - Combat armor balance now treats heavy armor as a hard dodge-cap class, scales medium armor cap penalties by tier with skill recovery, and gives light armor a tier-scaled evasion bonus plus its combat skill cap boost.

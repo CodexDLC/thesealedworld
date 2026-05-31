@@ -10,7 +10,7 @@ from src.backend.features.character.runtime.combat_math_model import (
 )
 
 MonsterSizeClass = Literal["small", "medium", "large", "huge"]
-MonsterOrganizationType = Literal["solitary", "pack", "gang", "clan", "legion", "horde", "swarm"]
+MonsterOrganizationType = Literal["solitary", "pack", "gang", "horde", "swarm"]
 
 
 @dataclass(frozen=True)

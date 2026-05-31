@@ -10,7 +10,7 @@ if TYPE_CHECKING:
     from datetime import datetime
 
 GeneratedMonsterRole = Literal["minion", "veteran", "elite", "boss"]
-GeneratedMonsterOrganizationType = Literal["solitary", "pack", "gang", "clan", "legion", "horde", "swarm"]
+GeneratedMonsterOrganizationType = Literal["solitary", "pack", "gang", "horde", "swarm"]
 MonsterItemBuildMode = Literal["natural", "base"]
 MonsterItemKind = Literal["weapon", "armor", "shield", "ammo"]
 

@@ -4,6 +4,7 @@ Detailed milestone history for the `src/backend` game runtime layer.
 
 ## [Unreleased]
 
+- Combat AI family-pressure runs now stay in Redis progress until completion and player vitals scale by equipped armor profile.
 - Scripted rift combat nodes now seed required `node_entry` combat events, so boss/key/crystal-chamber nodes still suppress transition combat but no longer become empty rooms.
 - Loot TTL values (`PUBLIC_DELAY_SEC`, `PUBLIC_WINDOW_SEC`, `INVISIBLE_TTL_SEC`, `EMPTY_CORPSE_TTL_SEC`) are now stored and read as integers — Redis `EXPIRE` rejects fractional seconds, which previously caused corpse persistence to fail silently and dropped post-combat loot entirely.
 - Loot order stream handler now wraps its body in try/except so a single malformed payload no longer poisons the consumer group.

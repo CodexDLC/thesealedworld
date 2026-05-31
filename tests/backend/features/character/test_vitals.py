@@ -1,4 +1,5 @@
 from src.backend.features.character.runtime import CharacterVitalsCalculator
+from src.backend.features.character.runtime.vital_profile import resolve_player_vital_profile_key
 from src.backend.features.character.schemas.session import (
     CharacterSessionAttributesDTO,
     CharacterSessionVitalsDTO,
@@ -18,13 +19,13 @@ def test_initial_vitals_fill_current_from_calculated_maximums():
 
     vitals = CharacterVitalsCalculator.build_initial_vitals(attributes)
 
-    assert vitals.hp.max == 52
-    assert vitals.hp.cur == 52
-    assert vitals.energy.max == 34
-    assert vitals.energy.cur == 34
+    assert vitals.hp.max == 39
+    assert vitals.hp.cur == 39
+    assert vitals.energy.max == 23
+    assert vitals.energy.cur == 23
     assert vitals.stamina.max == 37
     assert vitals.stamina.cur == 37
-    assert vitals.hp.regen == 1.3
+    assert vitals.hp.regen == 0.65
     assert vitals.energy.regen == 5.6667
     assert vitals.stamina.regen == 3.2
 
@@ -44,7 +45,7 @@ def test_monster_vitals_use_monster_profile_without_hp_regen():
     assert vitals.hp.max == 39
     assert vitals.hp.cur == 39
     assert vitals.hp.regen == 0.0
-    assert vitals.energy.max == 34
+    assert vitals.energy.max == 23
     assert vitals.stamina.max == 37
     assert vitals.energy.regen == 5.6667
     assert vitals.stamina.regen == 3.2
@@ -65,8 +66,50 @@ def test_beast_monster_vitals_use_body_average_with_beast_hp_multiplier():
     assert vitals.hp.max == 65
     assert vitals.hp.cur == 65
     assert vitals.hp.regen == 0.0
-    assert vitals.energy.max == 34
+    assert vitals.energy.max == 23
     assert vitals.stamina.max == 37
+
+
+def test_player_vitals_use_armor_body_profiles():
+    attributes = CharacterSessionAttributesDTO(
+        strength=15,
+        agility=8,
+        endurance=16,
+        intellect=11,
+        memory=10,
+        mental=13,
+        prediction=6,
+    )
+
+    naked = CharacterVitalsCalculator.build_initial_vitals(attributes, profile_key="player:naked")
+    light = CharacterVitalsCalculator.build_initial_vitals(attributes, profile_key="player:light")
+    medium = CharacterVitalsCalculator.build_initial_vitals(attributes, profile_key="player:medium")
+    heavy = CharacterVitalsCalculator.build_initial_vitals(attributes, profile_key="player:heavy")
+
+    assert naked.hp.max == 39
+    assert naked.hp.regen == 0.65
+    assert light.hp.max == 52
+    assert light.hp.regen == 1.3
+    assert medium.hp.max == 65
+    assert medium.hp.regen == 1.3
+    assert heavy.hp.max == 78
+    assert heavy.hp.regen == 2.6
+
+
+def test_player_vital_profile_resolves_from_equipped_chest_armor():
+    items = {
+        "layout": {"equipment": {"chest_armor": "plate-1"}},
+        "by_id": {
+            "plate-1": {
+                "item_id": "plate-1",
+                "item_type": "armor",
+                "mechanics": {"armor_class": "heavy"},
+            }
+        },
+    }
+
+    assert resolve_player_vital_profile_key(items) == "player:heavy"
+    assert resolve_player_vital_profile_key({"layout": {"equipment": {}}, "by_id": {}}) == "player:naked"
 
 
 def test_refresh_max_vitals_preserves_current_values_from_combat():
@@ -84,12 +127,12 @@ def test_refresh_max_vitals_preserves_current_values_from_combat():
         stamina=VitalValueDTO(cur=12, max=100),
     )
 
-    refreshed = CharacterVitalsCalculator.refresh_max_vitals(current, attributes)
+    refreshed = CharacterVitalsCalculator.refresh_max_vitals(current, attributes, profile_key="player:light")
 
     assert refreshed.hp.cur == 42
     assert refreshed.hp.max == 52
-    assert refreshed.energy.cur == 25
-    assert refreshed.energy.max == 34
+    assert refreshed.energy.cur == 23
+    assert refreshed.energy.max == 23
     assert refreshed.stamina.cur == 12
     assert refreshed.stamina.max == 37
 
@@ -104,8 +147,8 @@ def test_refresh_max_vitals_clamps_current_values_to_new_maximums():
 
     refreshed = CharacterVitalsCalculator.refresh_max_vitals(current, attributes)
 
-    assert refreshed.hp.cur == 32
-    assert refreshed.energy.cur == 24
+    assert refreshed.hp.cur == 24
+    assert refreshed.energy.cur == 16
     assert refreshed.stamina.cur == 40
 
 
@@ -121,10 +164,10 @@ def test_restore_to_max_vitals_refills_all_resources():
 
     restored = CharacterVitalsCalculator.restore_to_max_vitals(attributes)
 
-    assert restored.hp.cur == 52
-    assert restored.hp.max == 52
-    assert restored.energy.cur == 34
-    assert restored.energy.max == 34
+    assert restored.hp.cur == 39
+    assert restored.hp.max == 39
+    assert restored.energy.cur == 23
+    assert restored.energy.max == 23
     assert restored.stamina.cur == 37
     assert restored.stamina.max == 37
 
@@ -147,10 +190,10 @@ def test_snapshot_restore_uses_saved_current_values_with_recalculated_maximums()
 
     vitals = CharacterVitalsCalculator.build_vitals_from_snapshot(snapshot, attributes)
 
-    assert vitals.hp.cur == 41
-    assert vitals.hp.max == 52
+    assert vitals.hp.cur == 39
+    assert vitals.hp.max == 39
     assert vitals.energy.cur == 22
-    assert vitals.energy.max == 34
+    assert vitals.energy.max == 23
     assert vitals.stamina.cur == 15
     assert vitals.stamina.max == 37
     assert vitals.last_update == 123.0

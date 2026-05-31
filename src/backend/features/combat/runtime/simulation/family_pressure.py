@@ -38,6 +38,7 @@ class FamilyPressureComposition:
 
     key: str
     role_counts: dict[str, int]
+    grade: str = "light"
 
 
 @dataclass(frozen=True, slots=True)
@@ -80,7 +81,7 @@ class FamilyPressureReport:
 
 @dataclass(frozen=True, slots=True)
 class FamilyPressureConfig:
-    trials_per_composition: int = 30
+    trials_per_composition: int = 5
     max_rounds: int = 80
     max_minions: int = 6
     max_scenarios: int = 24
@@ -318,34 +319,33 @@ def build_family_pressure_compositions(
     rule = dict(ENCOUNTER_BALANCE_CONFIG["organizations"].get(organization) or {})
     max_units = max(1, int(rule.get("max_units") or max_minions))
     max_units = min(max_units, max(1, int(max_minions)))
-    max_veterans = min(int(rule.get("max_veterans") or 0), max_units)
-    max_elites = min(int(rule.get("max_elites") or 0), max_units)
 
     rows: list[FamilyPressureComposition] = []
-    for count in range(1, max_units + 1):
+    minion_start = _family_pressure_minion_start(organization, rule, max_units)
+    for count in range(minion_start, max_units + 1):
         if "minion" in roles_available:
-            rows.append(_composition({"minion": count}))
-    for total in range(2, max_units + 1):
-        for veterans in range(1, min(max_veterans, total) + 1):
-            minions = total - veterans
-            if minions <= 0 or "veteran" not in roles_available:
-                continue
-            rows.append(_composition({"minion": minions, "veteran": veterans}))
-    for total in range(3, max_units + 1):
-        for elites in range(1, min(max_elites, total) + 1):
-            if "elite" not in roles_available:
-                continue
-            remaining = total - elites
-            for veterans in range(0, min(max_veterans, remaining) + 1):
-                minions = remaining - veterans
-                if minions <= 0:
-                    continue
-                if veterans > 0 and "veteran" not in roles_available:
-                    continue
-                rows.append(_composition({"minion": minions, "veteran": veterans, "elite": elites}))
+            rows.append(_composition({"minion": count}, grade="medium" if count >= max_units else "light"))
+    if "veteran" in roles_available:
+        for veterans in range(1, max_units + 1):
+            rows.append(
+                _composition(
+                    {"minion": max_units - veterans, "veteran": veterans},
+                    grade="medium" if veterans <= max_units // 2 else "hard",
+                )
+            )
+    if "elite" in roles_available:
+        if "veteran" in roles_available:
+            for elites in range(1, max_units + 1):
+                rows.append(_composition({"veteran": max_units - elites, "elite": elites}, grade="hard"))
+        elif "minion" in roles_available:
+            for elites in range(1, max_units + 1):
+                rows.append(_composition({"minion": max_units - elites, "elite": elites}, grade="hard"))
+    if "minion" in roles_available and "elite" in roles_available:
+        rows.append(_composition({"minion": min(2, max_units - 1), "elite": 1}, grade="hard"))
+    if "minion" in roles_available and "boss" in roles_available:
+        rows.append(_composition({"minion": min(2, max_units - 1), "boss": 1}, grade="boss_probe"))
 
-    unique = {row.key: row for row in rows}
-    return sorted(unique.values(), key=_composition_sort_key)[: max(1, int(max_scenarios))]
+    return _unique_compositions(rows)[: max(1, int(max_scenarios))]
 
 
 def select_members_for_composition(
@@ -447,10 +447,24 @@ def format_family_pressure_report(report: FamilyPressureReport) -> str:
     return "\n".join(lines)
 
 
-def _composition(role_counts: dict[str, int]) -> FamilyPressureComposition:
+def _composition(role_counts: dict[str, int], *, grade: str) -> FamilyPressureComposition:
     normalized = {role: int(role_counts.get(role, 0)) for role in ROLE_ORDER if int(role_counts.get(role, 0)) > 0}
     key = "_".join(f"{role[0]}{count}" for role, count in normalized.items())
-    return FamilyPressureComposition(key=key, role_counts=normalized)
+    return FamilyPressureComposition(key=key, role_counts=normalized, grade=grade)
+
+
+def _unique_compositions(rows: list[FamilyPressureComposition]) -> list[FamilyPressureComposition]:
+    unique: dict[str, FamilyPressureComposition] = {}
+    for row in rows:
+        unique.setdefault(row.key, row)
+    return list(unique.values())
+
+
+def _family_pressure_minion_start(organization: str, rule: dict[str, Any], max_units: int) -> int:
+    if organization == "swarm":
+        return min(3, max_units)
+    configured_min = int(rule.get("min_units") or 1)
+    return min(max(1, configured_min), max_units)
 
 
 def _composition_sort_key(row: FamilyPressureComposition) -> tuple[int, int, int, int]:

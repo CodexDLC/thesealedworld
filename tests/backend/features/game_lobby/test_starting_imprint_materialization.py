@@ -134,9 +134,8 @@ async def test_materialize_starting_imprint_persists_attributes_skills_and_equip
     assert attributes_repo.attributes[7]["perception"] == 15
     assert progression_repo.free_xp[7] == 0.0
     assert {row["skill_key"]: row["total_xp"] for row in skill_repo.rows} == {
-        "skill_swords": 0.15,
+        "skill_swords": 0.20,
         "skill_shield_mastery": 0.15,
-        "skill_parrying": 0.10,
         "skill_medium_armor": 0.10,
     }
     assert all(row["progress_state"] == SkillProgressState.PLUS for row in skill_repo.rows)

@@ -14,7 +14,8 @@ from src.backend.features.character.runtime.rules.attribute_modifiers import ATT
 @pytest.mark.unit
 def test_core_calculator_uses_character_attribute_modifier_rules() -> None:
     assert CORE_MODIFIER_RULES is ATTRIBUTE_MODIFIER_RULES
-    assert ATTRIBUTE_RULE_PROFILES["player"] is ATTRIBUTE_MODIFIER_RULES
+    assert ATTRIBUTE_RULE_PROFILES["player"]["hp"] == ATTRIBUTE_RULE_PROFILES["player:naked"]["hp"]
+    assert ATTRIBUTE_RULE_PROFILES["player:light"]["hp"] != ATTRIBUTE_RULE_PROFILES["player:naked"]["hp"]
     assert "hp_regen" not in ATTRIBUTE_RULE_PROFILES["monster:humanoid"]
     assert "hp_regen" not in ATTRIBUTE_RULE_PROFILES["monster:beast"]
 
@@ -46,10 +47,10 @@ def test_character_raw_attributes_drive_combat_modifiers_through_waterfall() -> 
     assert calculated["physical_suppression"] == 0.3
     assert calculated["magical_damage"] == 11.0
     assert calculated["magical_penetration"] == 0.22
-    assert calculated["hp"] == pytest.approx(53.3333)
+    assert calculated["hp"] == pytest.approx(40.0)
     assert calculated["en"] == pytest.approx(22.6667)
     assert calculated["stamina"] == pytest.approx(35.0)
-    assert calculated["hp_regen"] == pytest.approx(1.3333)
+    assert calculated["hp_regen"] == pytest.approx(0.6667)
     assert calculated["en_regen"] == pytest.approx(5.6667)
     assert calculated["stamina_regen"] == pytest.approx(3.1)
     assert calculated["physical_resistance"] == 0.32

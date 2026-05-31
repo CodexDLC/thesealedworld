@@ -183,15 +183,13 @@ def test_starting_imprint_builds_complete_guard_payload() -> None:
     }
     assert build.attributes == EXPECTED_MANUAL_ATTRIBUTES["starter_guard_01"]
     assert build.skill_xp == {
-        "skill_swords": 0.15,
+        "skill_swords": 0.20,
         "skill_shield_mastery": 0.15,
-        "skill_parrying": 0.10,
         "skill_medium_armor": 0.10,
     }
     assert build.skill_keys == (
         "skill_swords",
         "skill_shield_mastery",
-        "skill_parrying",
         "skill_medium_armor",
     )
     assert build.item_base_ids == (
@@ -265,14 +263,13 @@ def test_starting_imprints_define_complete_profiles_with_three_archery_starters(
         build = service.build(imprint_key)
 
         assert set(definition.primary_stats).issubset(set(build.attributes))
-        if imprint_key in dual_imprints or imprint_key in archery_imprints:
-            assert sum(build.skill_xp.values()) == pytest.approx(0.45)
-            if imprint_key in dual_imprints:
-                assert "skill_dual_wield" in build.skill_xp
-        else:
-            assert len(definition.primary_stats) == 4
-            assert len(build.skill_xp) == 4
-            assert sorted(build.skill_xp.values()) == [0.10, 0.10, 0.15, 0.15]
+        assert sum(build.skill_xp.values()) == pytest.approx(0.45)
+        assert "skill_parrying" not in build.skill_xp
+        if imprint_key in dual_imprints:
+            assert "skill_dual_wield" in build.skill_xp
+        elif imprint_key not in archery_imprints:
+            assert len(definition.primary_stats) >= 4
+            assert len(build.skill_xp) == 3
         if imprint_key in archery_imprints:
             assert "skill_archery" in build.skill_xp
             assert any(base_id in build.item_base_ids for base_id in {"shortbow", "longbow", "composite_bow"})
@@ -435,8 +432,7 @@ def test_support_starting_imprints_are_combat_ready_before_respec() -> None:
     assert tactician.primary_stats == ("strength", "agility", "perception", "prediction")
     assert tactician.skill_xp == {
         "skill_tactics": 0.15,
-        "skill_swords": 0.15,
-        "skill_shield_mastery": 0.10,
+        "skill_swords": 0.20,
         "skill_medium_armor": 0.10,
     }
     assert tactician.item_base_ids[:2] == ("sword", "buckler")
@@ -444,23 +440,21 @@ def test_support_starting_imprints_are_combat_ready_before_respec() -> None:
     survivor = service.build("starter_rift_survivor_01")
     assert survivor.primary_stats == ("strength", "agility", "endurance", "perception")
     assert survivor.skill_xp == {
-        "skill_polearms": 0.15,
+        "skill_polearms": 0.20,
         "skill_two_handed": 0.15,
-        "skill_adaptation": 0.10,
         "skill_medium_armor": 0.10,
     }
     assert survivor.item_base_ids[0] == "halberd"
 
 
 @pytest.mark.unit
-def test_heavy_guard_has_both_shield_block_and_parry_training() -> None:
+def test_heavy_guard_uses_shield_block_without_support_parry_training() -> None:
     build = StartingImprintService().build("starter_heavy_guard_01")
 
     assert build.item_base_ids[:2] == ("mace", "kite_shield")
     assert build.skill_xp == {
-        "skill_macing": 0.15,
+        "skill_macing": 0.20,
         "skill_shield_mastery": 0.15,
-        "skill_parrying": 0.10,
         "skill_heavy_armor": 0.10,
     }
 

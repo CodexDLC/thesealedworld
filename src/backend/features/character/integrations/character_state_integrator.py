@@ -10,6 +10,7 @@ from src.backend.config.settings import settings
 from src.backend.core.exceptions import BusinessLogicException
 from src.backend.features.character.runtime import CharacterVitalsCalculator
 from src.backend.features.character.runtime.gear_score import CharacterGearScoreCalculator
+from src.backend.features.character.runtime.vital_profile import resolve_player_vital_profile_key
 from src.backend.features.character.schemas.session import (
     CharacterSessionAttributesDTO,
     CharacterSessionBioDTO,
@@ -208,6 +209,11 @@ class CharacterStateIntegrator:
             updated_at=datetime.now(UTC),
         )
         await self._hydrate_items_and_gear_score(session_doc, expedition_run_id=getattr(expedition, "run_id", None))
+        session_doc.vitals = CharacterVitalsCalculator.build_vitals_from_snapshot(
+            getattr(character, "vitals_snapshot", None),
+            session_doc.attributes,
+            profile_key=resolve_player_vital_profile_key(session_doc.items),
+        )
         return session_doc
 
     @staticmethod
@@ -323,6 +329,7 @@ class CharacterStateIntegrator:
         refreshed_vitals = CharacterVitalsCalculator.refresh_max_vitals(
             session_doc.vitals,
             session_doc.attributes,
+            profile_key=resolve_player_vital_profile_key(session_doc.items),
             fill_if_default=True,
         )
         if refreshed_vitals != session_doc.vitals:

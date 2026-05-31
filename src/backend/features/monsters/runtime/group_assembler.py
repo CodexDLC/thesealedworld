@@ -90,24 +90,6 @@ ENCOUNTER_BALANCE_CONFIG: dict[str, Any] = {
             "boss_allowed": True,
             "upgrade_order": ["veteran", "elite", "boss"],
         },
-        "clan": {
-            "start_minions": 4,
-            "min_units": 3,
-            "max_units": 7,
-            "max_veterans": 3,
-            "max_elites": 2,
-            "boss_allowed": False,
-            "upgrade_order": ["veteran", "elite", "boss"],
-        },
-        "legion": {
-            "start_minions": 6,
-            "min_units": 4,
-            "max_units": 10,
-            "max_veterans": 4,
-            "max_elites": 2,
-            "boss_allowed": False,
-            "upgrade_order": ["veteran", "elite", "boss"],
-        },
     },
 }
 

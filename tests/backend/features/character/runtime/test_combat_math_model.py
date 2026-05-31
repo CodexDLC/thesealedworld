@@ -81,7 +81,7 @@ def test_builder_wraps_active_character_attributes_and_equipped_item_mechanics()
 
     assert raw["attributes"]["strength"] == {"base": 15.0, "source": {}, "temp": {}}
     assert raw["attributes"]["agility"] == {"base": 9.0, "source": {}, "temp": {}}
-    assert raw["rules"] == {"attribute_profile": "player"}
+    assert raw["rules"] == {"attribute_profile": "player:naked"}
     assert raw["modifiers"]["main_hand_damage_base"]["base"] == 7.0
     assert raw["modifiers"]["main_hand_damage_spread"]["base"] == 0.2
     assert raw["modifiers"]["main_hand_accuracy"]["base"] == 0.0
@@ -407,6 +407,7 @@ def test_builder_applies_heavy_chest_dodge_cap_resistance_bonus_and_penalty_reli
         symbiote={"gift_rank": 1},
     )
 
+    assert raw["rules"] == {"attribute_profile": "player:heavy"}
     assert raw["modifiers"]["dodge_cap"]["source"]["item:plate-1"] == "=0.35"
     assert raw["modifiers"]["physical_resistance"]["source"][
         "skill:skill_heavy_armor:natural_resistance"

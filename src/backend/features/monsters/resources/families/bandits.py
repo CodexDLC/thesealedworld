@@ -1,5 +1,10 @@
 from ..monster_structs import MonsterFamily
-from ..stat_ladders import build_role_ladder_stats
+from ..stat_ladders import build_role_ladder_stats as _build_role_ladder_stats
+
+
+def build_role_ladder_stats(role, priority):
+    return _build_role_ladder_stats(role, priority, organization_type="gang")
+
 
 BANDITS_FAMILY: MonsterFamily = {
     "id": "bandit_gang",

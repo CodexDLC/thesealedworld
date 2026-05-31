@@ -35,7 +35,7 @@ class FakeProgressionRepository:
 
 class FakeInventoryRepository:
     async def list_character_items(self, char_id, *, expedition_run_id=None):
-        instance = SimpleNamespace(
+        weapon = SimpleNamespace(
             id="item-weapon",
             base_id="sword",
             item_type="weapon",
@@ -48,8 +48,22 @@ class FakeInventoryRepository:
             rarity_tier=1,
             generation={},
         )
-        placement = SimpleNamespace(holder_type="character", storage_type="equipped", slot="main_hand")
-        return [(instance, placement)]
+        armor = SimpleNamespace(
+            id="item-armor",
+            base_id="plate_chest",
+            item_type="armor",
+            mechanics={"slot": "chest_armor", "valid_slots": ["chest_armor"], "power": 8, "armor_class": "heavy"},
+            metadata_={"armor_class": "heavy"},
+            appearance={},
+            name="Practice Plate",
+            description="Starter plate",
+            rarity="common",
+            rarity_tier=1,
+            generation={},
+        )
+        weapon_placement = SimpleNamespace(holder_type="character", storage_type="equipped", slot="main_hand")
+        armor_placement = SimpleNamespace(holder_type="character", storage_type="equipped", slot="chest_armor")
+        return [(weapon, weapon_placement), (armor, armor_placement)]
 
 
 class FakeExpeditionRepository:
@@ -72,10 +86,12 @@ class FakeExpeditionRepository:
 class FakeGearScoreCalculator:
     def calculate_from_active_character(self, active_character):
         assert active_character["items"]["layout"]["equipment"]["main_hand"] == "item-weapon"
+        assert active_character["items"]["layout"]["equipment"]["chest_armor"] == "item-armor"
         return 777
 
     def calculate_breakdown_from_active_character(self, active_character):
         assert active_character["items"]["layout"]["equipment"]["main_hand"] == "item-weapon"
+        assert active_character["items"]["layout"]["equipment"]["chest_armor"] == "item-armor"
         return {
             "total": 777,
             "offense": 300.0,
@@ -164,10 +180,10 @@ async def test_bootstrap_active_session_restores_persisted_runtime_refs_progress
     assert session_doc.sessions.scenario_id == scenario_id
     assert session_doc.sessions.inventory_id == "inventory-window-1"
     assert session_doc.active_quest == "awakening_rift"
-    assert session_doc.vitals.hp.cur == 64
-    assert session_doc.vitals.hp.max == 64
-    assert session_doc.vitals.energy.cur == 39
-    assert session_doc.vitals.energy.max == 39
+    assert session_doc.vitals.hp.cur == 90
+    assert session_doc.vitals.hp.max == 96
+    assert session_doc.vitals.energy.cur == 26
+    assert session_doc.vitals.energy.max == 26
     assert session_doc.vitals.stamina.cur == 50
     assert session_doc.vitals.stamina.max == 50
     assert session_doc.attributes.strength == 17
@@ -177,6 +193,7 @@ async def test_bootstrap_active_session_restores_persisted_runtime_refs_progress
     assert session_doc.symbiote.gift_id == "gift-flame"
     assert session_doc.symbiote.gift_xp == 42
     assert session_doc.items.layout.equipment["main_hand"] == "item-weapon"
+    assert session_doc.items.layout.equipment["chest_armor"] == "item-armor"
     assert session_doc.metrics.gear_score == 777
     assert session_doc.metrics.gear_score_breakdown["skills"] == 100.0
 
@@ -189,6 +206,7 @@ async def test_bootstrap_active_session_restores_persisted_runtime_refs_progress
     assert sessions.replaced["symbiote"]["gift_id"] == "gift-flame"
     assert sessions.replaced["symbiote"]["gift_xp"] == 42
     assert sessions.replaced["items"]["layout"]["equipment"]["main_hand"] == "item-weapon"
+    assert sessions.replaced["items"]["layout"]["equipment"]["chest_armor"] == "item-armor"
     assert sessions.replaced["metrics"]["gear_score_breakdown"]["offense"] == 300.0
 
 

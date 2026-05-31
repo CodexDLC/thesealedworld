@@ -20,6 +20,8 @@ from src.backend.features.combat.api.ai_simulation_router import (
     _enqueue_synthetic_training_job,
     _live_skill_profile_from_scenario,
     _view,
+    get_simulation_run,
+    list_simulation_runs,
     run_family_pressure_simulation,
     run_live_demo_simulation_batch,
 )
@@ -31,6 +33,7 @@ from src.backend.features.combat.runtime.simulation import (
     FamilyPressureComposition,
     FamilyPressureCompositionReport,
     FamilyPressureReport,
+    build_family_pressure_compositions,
 )
 from src.backend.features.combat.services import ai_simulation_service as ai_simulation_service_module
 from src.backend.features.combat.services.ai_simulation_service import (
@@ -152,6 +155,8 @@ class FakeRedisClient:
     def __init__(self) -> None:
         self.zsets: dict[str, list[str]] = {}
         self.keys: set[str] = set()
+        self.docs: dict[str, dict] = {}
+        self.ttls: dict[str, int] = {}
 
     async def zrange(self, key: str, start: int, end: int):
         values = list(self.zsets.get(key, []))
@@ -170,12 +175,41 @@ class FakeRedisClient:
             if key in self.keys:
                 self.keys.remove(key)
                 deleted += 1
+            if key in self.docs:
+                del self.docs[key]
         return deleted
+
+
+class FakeJsonModule:
+    def __init__(self, redis_client: FakeRedisClient) -> None:
+        self.redis_client = redis_client
+
+    async def set(self, key: str, _path: str, payload: dict) -> None:
+        self.redis_client.keys.add(key)
+        self.redis_client.docs[key] = payload
+
+    async def get(self, key: str, _path: str):
+        if key not in self.redis_client.docs:
+            return []
+        return [self.redis_client.docs[key]]
+
+
+class FakeStringModule:
+    def __init__(self, redis_client: FakeRedisClient) -> None:
+        self.redis_client = redis_client
+
+    async def expire(self, key: str, ttl: int) -> None:
+        self.redis_client.ttls[key] = ttl
+
+    async def delete(self, key: str) -> int:
+        return await self.redis_client.delete(key)
 
 
 class FakeRedisService:
     def __init__(self, redis_client: FakeRedisClient) -> None:
         self.redis_client = redis_client
+        self.json_module = FakeJsonModule(redis_client)
+        self.string = FakeStringModule(redis_client)
 
 
 @pytest.mark.asyncio
@@ -204,7 +238,7 @@ async def test_live_demo_enqueue_requires_arq() -> None:
 
 
 @pytest.mark.asyncio
-async def test_clear_combat_ai_runtime_state_removes_queue_jobs_and_hot_progress() -> None:
+async def test_clear_combat_ai_runtime_state_removes_pvp_queue_and_preserves_pve_progress() -> None:
     redis_client = FakeRedisClient()
     redis_client.zsets[COMBAT_AI_SIMULATION_ARQ_QUEUE] = ["job-1", "job-2"]
     redis_client.zsets[COMBAT_ARQ_QUEUE] = ["pve-job-1"]
@@ -217,6 +251,14 @@ async def test_clear_combat_ai_runtime_state_removes_queue_jobs_and_hot_progress
         "combat_ai:simulation:run:run-2:progress",
         "arq:job:foreign-job",
     }
+    redis_client.docs["combat_ai:simulation:run:run-1:progress"] = {
+        "metadata": {"family_pressure": True},
+        "telemetry": {"run_kind": "family_pressure"},
+    }
+    redis_client.docs["combat_ai:simulation:run:run-2:progress"] = {
+        "metadata": {},
+        "telemetry": {"run_kind": "simulation_live"},
+    }
     request = SimpleNamespace(
         app=SimpleNamespace(
             state=SimpleNamespace(redis_client=redis_client, redis=FakeRedisService(redis_client)),
@@ -225,10 +267,10 @@ async def test_clear_combat_ai_runtime_state_removes_queue_jobs_and_hot_progress
 
     result = await _clear_combat_ai_simulation_runtime_state(request)
 
-    assert result == {"queued_deleted": 6, "ai_queue_deleted": 4, "combat_queue_deleted": 2, "progress_deleted": 2}
+    assert result == {"queued_deleted": 4, "ai_queue_deleted": 4, "progress_deleted": 1}
     assert COMBAT_AI_SIMULATION_ARQ_QUEUE not in redis_client.zsets
-    assert COMBAT_ARQ_QUEUE not in redis_client.zsets
-    assert redis_client.keys == {"arq:job:foreign-job"}
+    assert redis_client.zsets[COMBAT_ARQ_QUEUE] == ["pve-job-1"]
+    assert redis_client.keys == {"arq:job:pve-job-1", "combat_ai:simulation:run:run-1:progress", "arq:job:foreign-job"}
 
 
 @pytest.mark.asyncio
@@ -366,55 +408,25 @@ async def test_family_pressure_route_only_schedules_worker_job(monkeypatch: pyte
         async def commit(self) -> None:
             self.commit_calls += 1
 
-    class FakeService:
-        async def start_family_pressure_probe(
-            self,
-            *,
-            family_id: str,
-            imprint_key: str,
-            seed: int,
-            trials: int,
-            max_rounds: int,
-            max_minions: int,
-            max_scenarios: int,
-        ):
-            assert family_id == "rat_swarm"
-            assert imprint_key == ""
-            assert trials == 30
-            assert max_minions == 6
-            assert max_scenarios == 12
-            return SimpleNamespace(
-                id="family-run-1",
-                run_kind="simulation",
-                scenario_key="family_pressure:rat_swarm",
-                status="running",
-                policy_ref="runtime_default",
-                seed=seed,
-                max_rounds=max_rounds,
-                rounds_completed=0,
-                winner=None,
-                reward=None,
-                telemetry={"run_kind": "family_pressure", "status_message": "family pressure scheduled"},
-                report_text="family pressure scheduled",
-                created_at=None,
-                metadata_={
-                    "family_pressure": True,
-                    "family_id": family_id,
-                    "imprint_key": "starter_breaker_01",
-                    "trials_per_composition": trials,
-                    "max_minions": max_minions,
-                    "max_scenarios": max_scenarios,
-                    "composition_reports": [],
-                },
-            )
+    class FakeProgressStore:
+        def __init__(self) -> None:
+            self.saved: dict[str, dict] = {}
+
+        async def set_progress(self, run_id: str, payload: dict) -> None:
+            self.saved[run_id] = payload
 
     def fail_monster_repository(_db_session):
         raise AssertionError("family pressure route must not load generated monsters")
 
+    def fail_service(_db_session):
+        raise AssertionError("family pressure route must not create DB reports")
+
     db_session = FakeDbSession()
     arq = FakeArqQueue()
+    progress_store = FakeProgressStore()
     request = SimpleNamespace(app=SimpleNamespace(state=SimpleNamespace(combat_arq=arq)))
-    monkeypatch.setattr(ai_simulation_router_module, "_service", lambda _db_session: FakeService())
+    monkeypatch.setattr(ai_simulation_router_module, "_service", fail_service)
+    monkeypatch.setattr(ai_simulation_router_module, "_progress_store_from_request", lambda _request: progress_store)
     monkeypatch.setattr(
         ai_simulation_router_module,
         "MonsterGenerationRepository",
@@ -427,27 +439,31 @@ async def test_family_pressure_route_only_schedules_worker_job(monkeypatch: pyte
         db_session,
         family_id="rat_swarm",
         seed=17,
-        trials=30,
+        trials=5,
         max_rounds=80,
         max_minions=6,
-        max_scenarios=12,
+        max_scenarios=24,
     )
 
-    assert db_session.commit_calls == 1
+    assert db_session.commit_calls == 0
     assert result.status == "running"
     assert result.metadata["family_pressure"] is True
+    assert result.metadata["storage"] == "redis_only"
+    assert result.metadata["imprint_key"] == "starter_breaker_01"
+    assert set(progress_store.saved) == {result.id}
     assert arq.enqueued == [
         (
             COMBAT_FAMILY_PRESSURE_TASK,
             {
-                "run_id": "family-run-1",
+                "run_id": result.id,
                 "family_id": "rat_swarm",
                 "imprint_key": "starter_breaker_01",
                 "seed": 17,
-                "trials": 30,
+                "trials": 5,
                 "max_rounds": 80,
                 "max_minions": 6,
-                "max_scenarios": 12,
+                "max_scenarios": 24,
+                "created_at": result.created_at.isoformat(),
             },
         )
     ]
@@ -464,34 +480,108 @@ async def test_family_pressure_enqueue_uses_combat_runtime_queue() -> None:
 
 
 @pytest.mark.asyncio
-async def test_family_pressure_schedule_does_not_run_simulator(monkeypatch: pytest.MonkeyPatch) -> None:
-    def fail_simulator(*_args, **_kwargs):
-        raise AssertionError("scheduled family pressure rows must not run combat simulations")
+async def test_family_pressure_get_reads_redis_when_db_row_is_absent(monkeypatch: pytest.MonkeyPatch) -> None:
+    class FakeService:
+        async def get(self, run_id: str):
+            assert run_id == "family-run-1"
+            return None
 
-    monkeypatch.setattr(ai_simulation_service_module, "FamilyPressureSimulator", fail_simulator)
+    class FakeProgressStore:
+        async def get_progress(self, run_id: str):
+            assert run_id == "family-run-1"
+            return {
+                "id": "family-run-1",
+                "run_kind": "simulation",
+                "scenario_key": "family_pressure:rat_swarm",
+                "status": "completed",
+                "policy_ref": "runtime_default",
+                "seed": 5,
+                "max_rounds": 80,
+                "rounds_completed": 30,
+                "created_at": "2026-05-31T20:54:50+00:00",
+                "telemetry": {"run_kind": "family_pressure"},
+                "metadata": {"family_pressure": True, "storage": "redis_only"},
+            }
 
-    repository = FakeSimulationRunRepository()
-    row = await CombatAiSimulationRunService(repository).start_family_pressure_probe(
-        family_id="rat_swarm",
-        imprint_key="",
-        seed=3,
-        trials=30,
-        max_rounds=80,
-        max_minions=6,
-        max_scenarios=12,
+    monkeypatch.setattr(ai_simulation_router_module, "_service", lambda _db_session: FakeService())
+    monkeypatch.setattr(ai_simulation_router_module, "_progress_store_from_request", lambda _request: FakeProgressStore())
+
+    result = await get_simulation_run(
+        "family-run-1",
+        SimpleNamespace(app=SimpleNamespace(state=SimpleNamespace())),
+        SimpleNamespace(),
     )
 
-    assert row.status == "running"
-    assert row.scenario_key == "family_pressure:rat_swarm"
-    assert row.rounds_completed == 0
-    assert row.metadata_["family_pressure"] is True
-    assert row.metadata_["composition_reports"] == []
-    assert row.metadata_["imprint_key"] in DEFAULT_STARTER_SIMULATION_IMPRINTS
+    assert result.id == "family-run-1"
+    assert result.status == "completed"
+    assert result.metadata["storage"] == "redis_only"
 
 
 @pytest.mark.asyncio
-async def test_family_pressure_execute_completes_existing_run(monkeypatch: pytest.MonkeyPatch) -> None:
-    progress_updates: list[dict[str, object]] = []
+async def test_family_pressure_list_includes_redis_only_reports(monkeypatch: pytest.MonkeyPatch) -> None:
+    class FakeService:
+        async def list_recent(self, *, limit: int, run_kind: str | None):
+            assert limit == 50
+            assert run_kind is None
+            return []
+
+    class FakeProgressStore:
+        async def list_progress(self):
+            return [
+                {
+                    "id": "family-run-1",
+                    "run_kind": "simulation",
+                    "scenario_key": "family_pressure:rat_swarm",
+                    "status": "completed",
+                    "policy_ref": "runtime_default",
+                    "seed": 5,
+                    "max_rounds": 80,
+                    "rounds_completed": 30,
+                    "created_at": "2026-05-31T20:54:50+00:00",
+                    "telemetry": {"run_kind": "family_pressure"},
+                    "metadata": {"family_pressure": True, "storage": "redis_only"},
+                }
+            ]
+
+    monkeypatch.setattr(ai_simulation_router_module, "_service", lambda _db_session: FakeService())
+    monkeypatch.setattr(ai_simulation_router_module, "_progress_store_from_request", lambda _request: FakeProgressStore())
+
+    result = await list_simulation_runs(
+        SimpleNamespace(app=SimpleNamespace(state=SimpleNamespace())),
+        SimpleNamespace(),
+        limit=50,
+        run_kind=None,
+    )
+
+    assert [run.id for run in result.runs] == ["family-run-1"]
+    assert result.runs[0].metadata["storage"] == "redis_only"
+
+
+@pytest.mark.asyncio
+async def test_family_pressure_worker_writes_completed_report_only_to_redis(monkeypatch: pytest.MonkeyPatch) -> None:
+    class FakeProgressStore:
+        def __init__(self) -> None:
+            self.saved: list[tuple[str, dict]] = []
+
+        async def set_progress(self, run_id: str, payload: dict) -> None:
+            self.saved.append((run_id, payload))
+
+    class FakeSessionContext:
+        async def __aenter__(self):
+            return object()
+
+        async def __aexit__(self, exc_type, exc, tb):
+            return False
+
+    class FakeMonsterRepository:
+        def __init__(self, _session) -> None:
+            pass
+
+        async def list_generated_clans_page(self, *, family_id: str, limit: int):
+            assert family_id == "rat_swarm"
+            assert limit == 100
+            return [SimpleNamespace(members=[SimpleNamespace(family_id=family_id)])]
+
     report = FamilyPressureReport(
         family_id="rat_swarm",
         imprint_key="starter_breaker_01",
@@ -528,63 +618,100 @@ async def test_family_pressure_execute_completes_existing_run(monkeypatch: pytes
             await kwargs["progress"](report)
             return report
 
-    monkeypatch.setattr(ai_simulation_service_module, "FamilyPressureSimulator", lambda: FakeSimulator())
-    repository = FakeSimulationRunRepository()
-    repository.recent.append(
-        SimpleNamespace(
-            id="family-run-1",
-            run_kind="simulation",
-            scenario_key="family_pressure:rat_swarm",
-            status="running",
-            policy_ref="runtime_default",
-            seed=5,
-            max_rounds=80,
-            rounds_completed=0,
-            winner=None,
-            reward=None,
-            telemetry={},
-            report_text="scheduled",
-            created_at=None,
-            metadata_={"family_pressure": True},
-        )
+    async def fail_mark_failed(*_args, **_kwargs):
+        raise AssertionError("family pressure Redis-only worker must not mark DB rows")
+
+    progress_store = FakeProgressStore()
+    monkeypatch.setattr(ai_simulation_task_module, "_progress_store", lambda _ctx: progress_store)
+    monkeypatch.setattr(ai_simulation_task_module, "get_session_context", lambda: FakeSessionContext())
+    monkeypatch.setattr(ai_simulation_task_module, "MonsterGenerationRepository", FakeMonsterRepository)
+    monkeypatch.setattr(ai_simulation_task_module, "FamilyPressureSimulator", lambda: FakeSimulator())
+    monkeypatch.setattr(ai_simulation_task_module, "_mark_failed", fail_mark_failed)
+
+    await combat_family_pressure_task(
+        {"redis_service": object()},
+        {
+            "run_id": "family-run-1",
+            "family_id": "rat_swarm",
+            "imprint_key": "starter_breaker_01",
+            "seed": 5,
+            "trials": 2,
+            "max_rounds": 80,
+            "max_minions": 1,
+            "max_scenarios": 1,
+            "created_at": "2026-05-31T20:54:50+00:00",
+        },
     )
 
-    async def progress(status, rounds_completed, winner, reward, telemetry, report_text, metadata):
-        progress_updates.append(
-            {
-                "status": status,
-                "rounds_completed": rounds_completed,
-                "winner": winner,
-                "reward": reward,
-                "telemetry": telemetry,
-                "report_text": report_text,
-                "metadata": metadata,
-            }
-        )
+    assert [status for _, doc in progress_store.saved for status in [doc["status"]]] == ["running", "completed"]
+    run_id, completed = progress_store.saved[-1]
+    assert run_id == "family-run-1"
+    assert completed["id"] == "family-run-1"
+    assert completed["status"] == "completed"
+    assert completed["rounds_completed"] == 2
+    assert completed["telemetry"]["run_kind"] == "family_pressure"
+    assert completed["telemetry"]["first_losing_composition"] == {}
+    assert completed["metadata"]["storage"] == "redis_only"
+    assert completed["metadata"]["completion_reason"] == "completed"
+    assert completed["metadata"]["composition_reports"][0]["member_roles"] == ["minion"]
 
-    row = await CombatAiSimulationRunService(repository).execute_family_pressure_probe(
-        "family-run-1",
-        family_id="rat_swarm",
-        members=[SimpleNamespace(family_id="rat_swarm")],
-        imprint_key="starter_breaker_01",
-        seed=5,
-        trials=2,
-        max_rounds=80,
-        max_minions=1,
-        max_scenarios=1,
-        progress=progress,
+
+def test_swarm_family_pressure_ladder_fills_minions_then_replaces_full_pack() -> None:
+    members = [
+        SimpleNamespace(role="minion", family_id="rat_swarm"),
+        SimpleNamespace(role="veteran", family_id="rat_swarm"),
+        SimpleNamespace(role="elite", family_id="rat_swarm"),
+        SimpleNamespace(role="boss", family_id="rat_swarm"),
+    ]
+
+    rows = build_family_pressure_compositions(
+        "rat_swarm",
+        members=members,
+        max_minions=6,
+        max_scenarios=24,
     )
 
-    assert row is not None
-    assert row.status == "completed"
-    assert row.rounds_completed == 2
-    assert row.telemetry["run_kind"] == "family_pressure"
-    assert row.telemetry["first_losing_composition"] == {}
-    assert row.metadata_["composition_reports"][0]["composition"]["key"] == "minionx1"
-    assert progress_updates
-    assert progress_updates[-1]["status"] == "running"
-    assert progress_updates[-1]["rounds_completed"] == 2
-    assert progress_updates[-1]["metadata"]["composition_reports"][0]["member_roles"] == ["minion"]
+    assert [row.role_counts for row in rows[:16]] == [
+        {"minion": 3},
+        {"minion": 4},
+        {"minion": 5},
+        {"minion": 6},
+        {"minion": 5, "veteran": 1},
+        {"minion": 4, "veteran": 2},
+        {"minion": 3, "veteran": 3},
+        {"minion": 2, "veteran": 4},
+        {"minion": 1, "veteran": 5},
+        {"veteran": 6},
+        {"veteran": 5, "elite": 1},
+        {"veteran": 4, "elite": 2},
+        {"veteran": 3, "elite": 3},
+        {"veteran": 2, "elite": 4},
+        {"veteran": 1, "elite": 5},
+        {"elite": 6},
+    ]
+    assert rows[16].role_counts == {"minion": 2, "elite": 1}
+    assert rows[17].role_counts == {"minion": 2, "boss": 1}
+    assert [row.grade for row in rows[:18]] == [
+        "light",
+        "light",
+        "light",
+        "medium",
+        "medium",
+        "medium",
+        "medium",
+        "hard",
+        "hard",
+        "hard",
+        "hard",
+        "hard",
+        "hard",
+        "hard",
+        "hard",
+        "hard",
+        "hard",
+        "boss_probe",
+    ]
+    assert {"minion": 1, "veteran": 1} not in [row.role_counts for row in rows]
 
 
 @pytest.mark.asyncio

@@ -10,6 +10,7 @@ from src.backend.features.character.runtime.item_sync import (
     sync_factors,
 )
 from src.backend.features.character.runtime.rules.attribute_modifiers import ATTRIBUTE_MODIFIER_RULES
+from src.backend.features.character.runtime.vital_profile import resolve_player_vital_profile_key_from_equipped
 from src.backend.features.character.schemas.session import CharacterSessionAttributesDTO
 from src.backend.features.items.resources.affixes.catalog import AFFIX_CATALOG
 from src.backend.features.items.resources.modifier_contracts import MODIFIER_CONTRACTS, compile_modifier_command
@@ -88,7 +89,7 @@ class CharacterCombatMathModelBuilder:
                 raw_attributes,
                 symbiote=symbiote,
             ),
-            "rules": {"attribute_profile": "player"},
+            "rules": {"attribute_profile": resolve_player_vital_profile_key_from_equipped(equipped)},
             "tags": ["player"],
         }
 

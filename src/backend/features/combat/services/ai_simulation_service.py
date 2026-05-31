@@ -19,9 +19,7 @@ from src.backend.features.combat.runtime.simulation import (
     STARTER_SKILL_PROFILE_BASELINE,
     STARTER_SKILL_PROFILE_MAXED_EXISTING,
     AiSimulationIntentProvider,
-    FamilyPressureConfig,
     FamilyPressureReport,
-    FamilyPressureSimulator,
     InMemoryBattleFactory,
     InMemoryBattleLimits,
     InMemoryCombatSimulator,
@@ -29,7 +27,6 @@ from src.backend.features.combat.runtime.simulation import (
     LiveSimulationStepResult,
     LiveSimulationTiming,
     StartingImprintSimulationActorBuilder,
-    format_family_pressure_report,
     random_starter_6v6_imprints,
     random_starter_roster_imprints,
     render_simulation_report,
@@ -37,7 +34,6 @@ from src.backend.features.combat.runtime.simulation import (
 from src.shared.schemas.modifier_dto import CombatModifiersDTO, CombatSkillsDTO
 
 if TYPE_CHECKING:
-    from src.backend.features.monsters.dto.generation import GeneratedMonster
     from src.backend.infrastructure.combat.models import CombatAiSimulationRun
     from src.backend.infrastructure.combat.repositories import CombatAiSimulationRunRepository
 
@@ -114,123 +110,6 @@ class CombatAiSimulationRunService:
             policy_ref="runtime_default",
             policy=None,
             policy_metadata={},
-        )
-
-    async def start_family_pressure_probe(
-        self,
-        *,
-        family_id: str,
-        imprint_key: str = "",
-        seed: int = 0,
-        trials: int = 30,
-        max_rounds: int = 80,
-        max_minions: int = 6,
-        max_scenarios: int = 12,
-    ) -> CombatAiSimulationRun:
-        resolved_imprint = imprint_key or random.Random(seed).choice(DEFAULT_STARTER_SIMULATION_IMPRINTS)
-        return await self.repository.create(
-            run_kind="simulation",
-            scenario_key=f"family_pressure:{family_id}",
-            status="running",
-            policy_ref="runtime_default",
-            seed=seed,
-            max_rounds=max_rounds,
-            rounds_completed=0,
-            winner=None,
-            reward=None,
-            telemetry={
-                "run_kind": "family_pressure",
-                "family_id": family_id,
-                "imprint_key": resolved_imprint,
-                "trials_per_composition": trials,
-                "composition_count": 0,
-                "trials_total": 0,
-                "status_message": "family pressure scheduled",
-                "pressure_rows": [],
-            },
-            report_text=(
-                "family pressure scheduled\n"
-                f"family_id: {family_id}\n"
-                f"imprint_key: {resolved_imprint}\n"
-                f"trials_per_composition: {trials}"
-            ),
-            metadata={
-                "source": "admin_cabinet",
-                "purpose": "family_pressure_balance_report",
-                "simulation_mode": "family_pressure",
-                "simulation_actor_source": "character_starting_imprints_and_generated_monsters",
-                "family_pressure": True,
-                "family_id": family_id,
-                "imprint_key": resolved_imprint,
-                "trials_per_composition": trials,
-                "max_minions": max_minions,
-                "max_scenarios": max_scenarios,
-                "composition_reports": [],
-                "team_labels": {"blue": "Стартовый слепок", "red": f"Семья {family_id}"},
-            },
-        )
-
-    async def execute_family_pressure_probe(
-        self,
-        run_id: str,
-        *,
-        family_id: str,
-        members: list[GeneratedMonster],
-        imprint_key: str,
-        seed: int = 0,
-        trials: int = 30,
-        max_rounds: int = 80,
-        max_minions: int = 6,
-        max_scenarios: int = 12,
-        progress: LiveProgressCallback | None = None,
-    ) -> CombatAiSimulationRun | None:
-        async def publish_progress(report: FamilyPressureReport) -> None:
-            if progress is None:
-                return
-            completion = _family_pressure_completion_payload(
-                report,
-                max_minions=max_minions,
-                max_scenarios=max_scenarios,
-            )
-            telemetry = dict(completion["telemetry"])
-            telemetry["status_message"] = "family pressure running"
-            metadata = dict(completion["metadata"])
-            metadata["completion_reason"] = "running"
-            await progress(
-                "running",
-                int(completion["trials_total"]),
-                None,
-                None,
-                telemetry,
-                format_family_pressure_report(report),
-                metadata,
-            )
-
-        report = await FamilyPressureSimulator().run(
-            family_id=family_id,
-            imprint_key=imprint_key,
-            members=members,
-            seed=seed,
-            config=FamilyPressureConfig(
-                trials_per_composition=trials,
-                max_rounds=max_rounds,
-                max_minions=max_minions,
-                max_scenarios=max_scenarios,
-            ),
-            progress=publish_progress,
-        )
-        completion = _family_pressure_completion_payload(
-            report,
-            max_minions=max_minions,
-            max_scenarios=max_scenarios,
-        )
-        return await self.repository.mark_completed(
-            str(run_id),
-            rounds_completed=completion["trials_total"],
-            reward=None,
-            telemetry=completion["telemetry"],
-            report_text=format_family_pressure_report(report),
-            metadata=completion["metadata"],
         )
 
     async def start_live_starter_presets_demo(

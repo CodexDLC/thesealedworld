@@ -138,7 +138,7 @@ class MonsterFamily(TypedDict):
     id: str
     resource_version: NotRequired[float]
     archetype: Literal["humanoid", "beast", "undead", "construct", "demon", "unknown"]
-    organization_type: Literal["solitary", "pack", "gang", "clan", "legion", "horde", "swarm"]
+    organization_type: Literal["solitary", "pack", "gang", "horde", "swarm"]
 
     # Общие теги семьи (просто как справочник свойств, например ["insect", "hive_mind"])
     # А НЕ ГЕОГРАФИЯ. География только в spawn_config.

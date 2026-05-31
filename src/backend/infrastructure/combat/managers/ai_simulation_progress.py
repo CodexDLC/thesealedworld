@@ -34,17 +34,39 @@ class CombatAiSimulationProgressManager:
         doc = self._first(result)
         return doc if isinstance(doc, dict) else None
 
+    async def list_progress(self, *, scan_count: int = 200) -> list[dict[str, Any]]:
+        client = self._redis_client()
+        cursor = 0
+        rows: list[dict[str, Any]] = []
+        while True:
+            cursor, keys = await client.scan(cursor=cursor, match=self.build_pattern(), count=scan_count)
+            for key in keys:
+                result = await self.redis.json_module.get(key, "$")
+                doc = self._first(result)
+                if isinstance(doc, dict):
+                    rows.append(doc)
+            if cursor == 0:
+                return rows
+
     async def delete_progress(self, run_id: str) -> None:
         await self.redis.string.delete(self.build_key(run_id))
 
-    async def clear_all_progress(self, *, scan_count: int = 200) -> int:
+    async def clear_all_progress(self, *, scan_count: int = 200, preserve_family_pressure: bool = False) -> int:
         client = self._redis_client()
         cursor = 0
         deleted = 0
         while True:
             cursor, keys = await client.scan(cursor=cursor, match=self.build_pattern(), count=scan_count)
-            if keys:
-                deleted += int(await client.delete(*keys))
+            delete_keys = []
+            for key in keys:
+                if preserve_family_pressure:
+                    result = await self.redis.json_module.get(key, "$")
+                    doc = self._first(result)
+                    if self._is_family_pressure(doc):
+                        continue
+                delete_keys.append(key)
+            if delete_keys:
+                deleted += int(await client.delete(*delete_keys))
             if cursor == 0:
                 return deleted
 
@@ -58,3 +80,11 @@ class CombatAiSimulationProgressManager:
         if isinstance(result, list):
             return result[0] if result else None
         return result
+
+    @staticmethod
+    def _is_family_pressure(doc: Any) -> bool:
+        if not isinstance(doc, dict):
+            return False
+        metadata = doc.get("metadata") if isinstance(doc.get("metadata"), dict) else {}
+        telemetry = doc.get("telemetry") if isinstance(doc.get("telemetry"), dict) else {}
+        return bool(metadata.get("family_pressure")) or str(telemetry.get("run_kind") or "") == "family_pressure"

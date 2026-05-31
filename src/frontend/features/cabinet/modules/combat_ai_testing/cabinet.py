@@ -30,6 +30,22 @@ _LIVE_LAUNCH_SCENARIOS = {
     "starter_presets_5v5_live_latest_training_file",
     "starter_presets_random_draft_live",
 }
+_STARTER_IMPRINT_OPTIONS = [
+    {"value": "starter_guard_01", "label": "Слепок стража"},
+    {"value": "starter_breaker_01", "label": "Слепок проломщика"},
+    {"value": "starter_duelist_01", "label": "Слепок дуэлянта"},
+    {"value": "starter_dual_blades_01", "label": "Слепок двух клинков"},
+    {"value": "starter_dual_sword_01", "label": "Слепок меча и клинка"},
+    {"value": "starter_dual_mace_01", "label": "Слепок булавы и даги"},
+    {"value": "starter_pathfinder_01", "label": "Слепок следопыта"},
+    {"value": "starter_hunter_01", "label": "Слепок охотника"},
+    {"value": "starter_archer_01", "label": "Слепок лучника"},
+    {"value": "starter_marksman_01", "label": "Слепок стрелка"},
+    {"value": "starter_staff_01", "label": "Слепок опорного бойца"},
+    {"value": "starter_heavy_guard_01", "label": "Слепок тяжелого стража"},
+    {"value": "starter_tactician_01", "label": "Слепок тактика"},
+    {"value": "starter_rift_survivor_01", "label": "Слепок рифт-выжившего"},
+]
 
 _TACTICAL_PART_LABELS = {
     "style_2h_ignore": "Двуручный стиль: давление",
@@ -159,6 +175,7 @@ async def _policy_run_launcher_provider(request: Request) -> TableWidgetMap:
 
 
 async def _family_pressure_launcher_provider(request: Request) -> TableWidgetMap:
+    imprint_options = _starter_imprint_options(selected="starter_breaker_01")
     return TableWidgetMap(
         key="combat_ai_family_pressure_launcher",
         title="Диагностика семей против стартового слепка",
@@ -174,28 +191,31 @@ async def _family_pressure_launcher_provider(request: Request) -> TableWidgetMap
                 "id": "family_pressure:rat_swarm",
                 "scenario": "Стартовый слепок vs лестница семьи",
                 "family": "rat_swarm",
-                "runs": "30 на состав",
+                "runs": "5 на состав",
                 "mode": "последовательно, 1..6 + veteran/elite mixes",
-                "note": "случайный слепок по seed; свежие HP/EN/stamina на каждый бой; отчёт по winrate и effective GS",
+                "note": "выбери слепок; свежие HP/EN/stamina на каждый бой; отчёт по winrate и effective GS",
                 "seed": 3,
+                "imprint_options": imprint_options,
             },
             {
                 "id": "family_pressure:goblin_tribe",
                 "scenario": "Стартовый слепок vs лестница семьи",
                 "family": "goblin_tribe",
-                "runs": "30 на состав",
+                "runs": "5 на состав",
                 "mode": "последовательно, horde ladder",
-                "note": "проверяет, где гоблинская пачка начинает статистически ломать слепок",
+                "note": "выбери слепок; проверяет, где гоблинская пачка начинает статистически ломать билд",
                 "seed": 7,
+                "imprint_options": imprint_options,
             },
             {
                 "id": "family_pressure:bandit_gang",
                 "scenario": "Стартовый слепок vs лестница семьи",
                 "family": "bandit_gang",
-                "runs": "30 на состав",
+                "runs": "5 на состав",
                 "mode": "последовательно, gang ladder",
-                "note": "проверяет бандитов как не-swarm семью с другой ценой action economy",
+                "note": "выбери слепок; проверяет бандитов как не-swarm семью с другой ценой action economy",
                 "seed": 11,
+                "imprint_options": imprint_options,
             },
         ],
         action_url=f"{_BASE}/run",
@@ -209,6 +229,9 @@ async def _family_pressure_launcher_provider(request: Request) -> TableWidgetMap
                 input_label="Seed",
                 input_min=0,
                 input_max=1_000_000,
+                select_name="imprint_key",
+                select_options_key="imprint_options",
+                select_label="Слепок",
             )
         ],
     )
@@ -638,34 +661,30 @@ async def _analytics_table_provider(request: Request) -> TableWidgetMap:
 
 
 async def _pve_survival_summary_provider(request: Request) -> MetricWidgetMap:
-    rows = await _pve_pressure_rows(request)
-    completed = [row for row in rows if row["status"] == "completed"]
+    summaries = await _pve_summary_rows(request)
+    completed = [row for row in summaries if row["status"] == "completed"]
+    composition_count = sum(_int(row.get("composition_count")) for row in completed)
     return MetricWidgetMap(
         key="combat_ai_pve_survival_summary",
-        title="Выборка PvE",
+        title="Пары PvE",
         value=str(len(completed)),
-        subtitle=f"составов в завершённых family-pressure отчётах: {len(rows)}",
+        subtitle=f"завершённых пар семья+слепок; составов: {composition_count}",
     )
 
 
 async def _pve_survival_chart_provider(request: Request) -> ChartWidgetMap:
-    rows = _ranked_rows(await _pve_pressure_rows(request), key="winrate")[:24]
+    rows = _ranked_rows(await _pve_summary_rows(request), key="minions_held_value")[:24]
     labels = [str(row["label"]) for row in rows]
     return ChartWidgetMap(
         key="combat_ai_pve_survival_chart",
-        title="Выживаемость слепка против PvE составов",
+        title="Миньон-cap по слепкам",
         chart_type="bar",
         labels=labels,
         datasets=[
             {
-                "label": "Win %",
-                "data": [_float(row.get("winrate")) * 100 for row in rows],
-                "backgroundColor": "rgba(34,197,94,0.75)",
-            },
-            {
-                "label": "Avg HP",
-                "data": [_float(row.get("avg_hp")) for row in rows],
-                "backgroundColor": "rgba(14,165,233,0.7)",
+                "label": "Чистых миньонов держит",
+                "data": [_int(row.get("minions_held_value")) for row in rows],
+                "backgroundColor": "rgba(14,165,233,0.78)",
             },
         ],
         options=_ranking_chart_options(),
@@ -675,23 +694,23 @@ async def _pve_survival_chart_provider(request: Request) -> ChartWidgetMap:
 
 
 async def _pve_pressure_chart_provider(request: Request) -> ChartWidgetMap:
-    rows = sorted(await _pve_pressure_rows(request), key=lambda row: _float(row.get("ratio")))[:24]
+    rows = sorted(await _pve_summary_rows(request), key=lambda row: str(row.get("label")))[:24]
     labels = [str(row["label"]) for row in rows]
     return ChartWidgetMap(
         key="combat_ai_pve_pressure_chart",
-        title="GS pressure ratio",
+        title="GS ratio удержания и перелома",
         chart_type="bar",
         labels=labels,
         datasets=[
             {
-                "label": "Eff GS / player GS",
-                "data": [_float(row.get("ratio")) for row in rows],
-                "backgroundColor": "rgba(245,158,11,0.78)",
+                "label": "Макс. удержанный ratio",
+                "data": [_float(row.get("held_ratio_value")) for row in rows],
+                "backgroundColor": "rgba(34,197,94,0.72)",
             },
             {
-                "label": "Win %",
-                "data": [_float(row.get("winrate")) * 100 for row in rows],
-                "backgroundColor": "rgba(168,85,247,0.62)",
+                "label": "Первый перелом ratio",
+                "data": [_float(row.get("break_ratio_value")) for row in rows],
+                "backgroundColor": "rgba(245,158,11,0.78)",
             },
         ],
         options=_ranking_chart_options(),
@@ -703,13 +722,41 @@ async def _pve_pressure_chart_provider(request: Request) -> ChartWidgetMap:
 async def _pve_pressure_table_provider(request: Request) -> TableWidgetMap:
     return TableWidgetMap(
         key="combat_ai_pve_pressure_table",
-        title="Family pressure отчёты",
+        title="Сравнение слепков против PvE",
         columns=[
             TableColumnMap(key="created_at", label="Создан"),
+            TableColumnMap(key="source", label="Источник"),
             TableColumnMap(key="family", label="Семья"),
             TableColumnMap(key="imprint", label="Слепок"),
+            TableColumnMap(key="composition_count", label="Составов"),
+            TableColumnMap(key="trials_total", label="Бои"),
+            TableColumnMap(key="minions_held", label="Миньонов держит"),
+            TableColumnMap(key="minion_breakpoint", label="Миньон-перелом"),
+            TableColumnMap(key="first_danger", label="Первый опасный"),
+            TableColumnMap(key="held_pressure", label="Макс. удержано"),
+            TableColumnMap(key="held_ratio", label="Held ratio"),
+            TableColumnMap(key="break_ratio", label="Break ratio"),
+            TableColumnMap(key="avg_hp_break", label="HP на переломе"),
+        ],
+        rows=await _pve_summary_rows(request),
+        row_href_key="href",
+    )
+
+
+async def _pve_composition_table_provider(request: Request) -> TableWidgetMap:
+    return TableWidgetMap(
+        key="combat_ai_pve_composition_table",
+        title="Все PvE составы последнего прогона",
+        columns=[
+            TableColumnMap(key="created_at", label="Создан"),
+            TableColumnMap(key="source", label="Источник"),
+            TableColumnMap(key="family", label="Семья"),
+            TableColumnMap(key="imprint", label="Слепок"),
+            TableColumnMap(key="grade", label="Класс"),
+            TableColumnMap(key="composition_type", label="Тип"),
             TableColumnMap(key="composition", label="Состав"),
             TableColumnMap(key="trials", label="Бои"),
+            TableColumnMap(key="result", label="W/L/D"),
             TableColumnMap(key="winrate_pct", label="Win %"),
             TableColumnMap(key="avg_hp", label="Avg HP"),
             TableColumnMap(key="ratio", label="Ratio"),
@@ -1153,23 +1200,29 @@ class CombatAiTestingAdmin(CabinetAdmin):
             ),
             ChartWidget(
                 key="combat_ai_pve_survival_chart",
-                title="Выживаемость слепка",
+                title="Миньон-cap по слепкам",
                 provider="combat_ai.pve.survival_chart",
                 chart_type="bar",
                 order=30,
             ),
             ChartWidget(
                 key="combat_ai_pve_pressure_chart",
-                title="Pressure ratio",
+                title="GS ratio удержания и перелома",
                 provider="combat_ai.pve.pressure_chart",
                 chart_type="bar",
                 order=35,
             ),
             TableWidget(
                 key="combat_ai_pve_pressure_table",
-                title="Family pressure отчёты",
+                title="Сравнение слепков против PvE",
                 provider="combat_ai.pve.pressure_table",
                 order=40,
+            ),
+            TableWidget(
+                key="combat_ai_pve_composition_table",
+                title="Все PvE составы последнего прогона",
+                provider="combat_ai.pve.composition_table",
+                order=45,
             ),
         ),
         "run-detail": (
@@ -1288,6 +1341,7 @@ class CombatAiTestingAdmin(CabinetAdmin):
         "combat_ai.pve.survival_chart": _pve_survival_chart_provider,
         "combat_ai.pve.pressure_chart": _pve_pressure_chart_provider,
         "combat_ai.pve.pressure_table": _pve_pressure_table_provider,
+        "combat_ai.pve.composition_table": _pve_composition_table_provider,
         "combat_ai.detail.status": _detail_status_provider,
         "combat_ai.detail.result": _detail_result_provider,
         "combat_ai.detail.summary": _detail_summary_provider,
@@ -1308,6 +1362,7 @@ class CombatAiTestingAdmin(CabinetAdmin):
         action = str(form.get("action") or "")
         request_id = str(form.get("request_id") or "")
         policy_run_id = str(form.get("policy_run_id") or "")
+        imprint_key = str(form.get("imprint_key") or "")
         if action == "clear_reports":
             await _api(request).clear_runs()
             return RedirectResponse(f"{_BASE}/reports", status_code=303)
@@ -1328,7 +1383,12 @@ class CombatAiTestingAdmin(CabinetAdmin):
             )
             return RedirectResponse(f"{_BASE}/training-detail?id={run.id}", status_code=303)
         if action == "family_pressure":
-            run = await _run_family_pressure(request, request_id=request_id, seed=_seed_from_form(form))
+            run = await _run_family_pressure(
+                request,
+                request_id=request_id,
+                seed=_seed_from_form(form),
+                imprint_key=imprint_key,
+            )
             return RedirectResponse(f"{_BASE}/run-detail?id={run.id}", status_code=303)
         if action != "run_demo":
             return RedirectResponse(_BASE, status_code=303)
@@ -1376,15 +1436,22 @@ async def _run_live_scenario(
     )
 
 
-async def _run_family_pressure(request: Request, *, request_id: str, seed: int) -> CombatAiSimulationRun:
+async def _run_family_pressure(
+    request: Request,
+    *,
+    request_id: str,
+    seed: int,
+    imprint_key: str = "",
+) -> CombatAiSimulationRun:
     family_id = request_id.split(":", maxsplit=1)[1] if request_id.startswith("family_pressure:") else "rat_swarm"
     return await _api(request).run_family_pressure(
         family_id=family_id,
+        imprint_key=imprint_key,
         seed=seed,
-        trials=30,
+        trials=5,
         max_rounds=80,
         max_minions=6,
-        max_scenarios=12,
+        max_scenarios=24,
     )
 
 
@@ -2679,6 +2746,9 @@ def _family_pressure_rows(run: CombatAiSimulationRun | None) -> list[dict[str, o
         rows.append(
             {
                 "composition": composition_label or str(composition.get("key") or "—"),
+                "role_counts": role_counts,
+                "composition_type": _family_pressure_composition_type(role_counts),
+                "grade": _family_pressure_grade(role_counts, composition.get("grade") or row.get("grade")),
                 "raw_gs": _int(row.get("raw_gear_score")),
                 "effective_gs": _round(row.get("effective_gear_score")),
                 "ratio": _round(row.get("effective_ratio")),
@@ -2705,6 +2775,8 @@ def _family_pressure_display_rows(run: CombatAiSimulationRun | None) -> list[dic
     return [
         {
             "composition": "ожидает worker" if run.status == "running" else "нет данных",
+            "composition_type": "—",
+            "grade": "—",
             "raw_gs": "—",
             "effective_gs": "—",
             "ratio": "—",
@@ -2744,11 +2816,7 @@ def _family_pressure_parameter_rows(run: CombatAiSimulationRun) -> list[dict[str
 
 
 async def _pve_pressure_rows(request: Request) -> list[dict[str, object]]:
-    runs = [
-        run
-        for run in await _safe_list_runs(request, limit=200)
-        if _is_family_pressure_run(run) and run.status in {"running", "completed"}
-    ]
+    runs = await _latest_family_pressure_runs(request)
     rows: list[dict[str, object]] = []
     for run in runs:
         family = str(run.metadata.get("family_id") or run.telemetry.get("family_id") or run.scenario_key)
@@ -2757,14 +2825,122 @@ async def _pve_pressure_rows(request: Request) -> list[dict[str, object]]:
             enriched = {
                 **row,
                 "created_at": _short_ts(run.created_at),
+                "source": "generated/catalog",
                 "family": family,
                 "imprint": imprint,
                 "status": run.status,
-                "label": f"{family}: {row['composition']}",
+                "label": f"{family} / {imprint}",
                 "href": _detail_href(run),
             }
             rows.append(enriched)
     return rows
+
+
+async def _pve_summary_rows(request: Request) -> list[dict[str, object]]:
+    rows: list[dict[str, object]] = []
+    for run in await _latest_family_pressure_runs(request):
+        family = str(run.metadata.get("family_id") or run.telemetry.get("family_id") or run.scenario_key)
+        imprint = str(run.metadata.get("imprint_title") or run.metadata.get("imprint_key") or "—")
+        pressure_rows = _family_pressure_rows(run)
+        minion_rows = [row for row in pressure_rows if _is_pure_minion_row(row)]
+        held_minion_rows = [row for row in minion_rows if _float(row.get("winrate")) >= 0.5]
+        held_rows = [row for row in pressure_rows if _float(row.get("winrate")) >= 0.5]
+        first_minion_break = next((row for row in minion_rows if _float(row.get("winrate")) < 0.5), None)
+        first_danger = next((row for row in pressure_rows if _float(row.get("winrate")) < 0.5), None)
+        best_held = max(held_rows, key=lambda row: _float(row.get("ratio")), default=None)
+        minions_held = max((_composition_units(row) for row in held_minion_rows), default=0)
+        rows.append(
+            {
+                "created_at": _short_ts(run.created_at),
+                "source": "generated/catalog",
+                "family": family,
+                "imprint": imprint,
+                "label": f"{family} / {imprint}",
+                "status": run.status,
+                "composition_count": len(pressure_rows),
+                "trials_total": run.telemetry.get("trials_total", run.rounds_completed),
+                "minions_held": str(minions_held) if minions_held else "—",
+                "minions_held_value": minions_held,
+                "minion_breakpoint": str(first_minion_break["composition"]) if first_minion_break else "не найден",
+                "first_danger": str(first_danger["composition"]) if first_danger else "не найден",
+                "held_pressure": str(best_held["composition"]) if best_held else "—",
+                "held_ratio": best_held.get("ratio", "—") if best_held else "—",
+                "held_ratio_value": _float(best_held.get("ratio")) if best_held else 0.0,
+                "break_ratio": first_danger.get("ratio", "—") if first_danger else "—",
+                "break_ratio_value": _float(first_danger.get("ratio")) if first_danger else 0.0,
+                "avg_hp_break": first_danger.get("avg_hp", "—") if first_danger else "—",
+                "href": _detail_href(run),
+            }
+        )
+    return sorted(rows, key=lambda row: (str(row.get("family")), str(row.get("imprint"))))
+
+
+def _family_pressure_composition_type(role_counts: dict[str, Any]) -> str:
+    if _int(role_counts.get("boss")):
+        return "босс"
+    if _int(role_counts.get("elite")):
+        return "элита"
+    if _int(role_counts.get("veteran")):
+        return "охрана"
+    if _int(role_counts.get("minion")):
+        return "миньоны"
+    return "—"
+
+
+def _family_pressure_grade(role_counts: dict[str, Any], explicit: Any = None) -> str:
+    if explicit:
+        return str(explicit)
+    if _int(role_counts.get("boss")):
+        return "boss_probe"
+    if _int(role_counts.get("elite")):
+        return "hard"
+    veterans = _int(role_counts.get("veteran"))
+    minions = _int(role_counts.get("minion"))
+    total = veterans + minions
+    if veterans:
+        return "medium" if veterans <= max(1, total // 2) else "hard"
+    if minions >= 6:
+        return "medium"
+    if minions:
+        return "light"
+    return "—"
+
+
+def _is_pure_minion_row(row: dict[str, object]) -> bool:
+    role_counts = _dict(row.get("role_counts"))
+    minions = _int(role_counts.get("minion"))
+    return (
+        minions > 0 and sum(_int(role_counts.get(role)) for role in ("minion", "veteran", "elite", "boss")) == minions
+    )
+
+
+def _composition_units(row: dict[str, object]) -> int:
+    role_counts = _dict(row.get("role_counts"))
+    return sum(_int(role_counts.get(role)) for role in ("minion", "veteran", "elite", "boss"))
+
+
+async def _latest_family_pressure_runs(request: Request) -> list[CombatAiSimulationRun]:
+    latest_by_pair: dict[tuple[str, str], CombatAiSimulationRun] = {}
+    for run in await _safe_list_runs(request, limit=200):
+        if not _is_family_pressure_run(run) or run.status not in {"running", "completed"}:
+            continue
+        family = str(run.metadata.get("family_id") or run.telemetry.get("family_id") or run.scenario_key)
+        imprint = str(run.metadata.get("imprint_key") or run.telemetry.get("imprint_key") or "")
+        key = (family, imprint)
+        if key not in latest_by_pair:
+            latest_by_pair[key] = run
+    return list(latest_by_pair.values())
+
+
+def _starter_imprint_options(*, selected: str = "") -> list[dict[str, object]]:
+    selected_key = selected or "starter_breaker_01"
+    return [
+        {
+            **option,
+            "selected": option["value"] == selected_key,
+        }
+        for option in _STARTER_IMPRINT_OPTIONS
+    ]
 
 
 def _dict(value: Any) -> dict[str, Any]:

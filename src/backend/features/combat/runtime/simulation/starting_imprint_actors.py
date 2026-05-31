@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import hashlib
 import random
 from dataclasses import dataclass
 from typing import Any
@@ -36,7 +35,7 @@ DEFAULT_STARTER_SIMULATION_IMPRINTS: tuple[str, ...] = (
 )
 STARTER_SKILL_PROFILE_BASELINE = "baseline"
 STARTER_SKILL_PROFILE_MAXED_EXISTING = "maxed_existing_skills"
-STARTER_SIMULATION_BEHAVIOR_PROFILES: tuple[str, ...] = ("aggressive", "balanced", "defensive")
+STARTER_SIMULATION_BEHAVIOR_PROFILES: tuple[str, ...] = ("aggressive",)
 
 STARTER_6V6_BLUE: tuple[str, ...] = DEFAULT_STARTER_SIMULATION_IMPRINTS[:6]
 STARTER_6V6_RED: tuple[str, ...] = DEFAULT_STARTER_SIMULATION_IMPRINTS[6:]
@@ -367,7 +366,7 @@ class StartingImprintSimulationActorBuilder:
             "start_hp": actor.meta.max_hp,
             "imprint_key": build.imprint_key,
             "imprint_title": build.title,
-            "analytics_key": f"{build.imprint_key}/{actor.meta.ai_behavior_profile}",
+            "analytics_key": build.imprint_key,
             "combat_style": build.combat_style,
             "armor_pack": build.armor_pack,
             "item_base_ids": list(build.item_base_ids),
@@ -385,11 +384,7 @@ def all_starting_imprint_keys() -> tuple[str, ...]:
 
 
 def _starter_behavior_profile(*, imprint_key: str, actor_id: str, seed: int | None = None) -> str:
-    payload = f"{seed if seed is not None else 'default'}|{actor_id}|{imprint_key}".encode()
-    index = int.from_bytes(hashlib.blake2b(payload, digest_size=2).digest(), "big") % len(
-        STARTER_SIMULATION_BEHAVIOR_PROFILES
-    )
-    return STARTER_SIMULATION_BEHAVIOR_PROFILES[index]
+    return STARTER_SIMULATION_BEHAVIOR_PROFILES[0]
 
 
 def random_starter_5v5_imprints(

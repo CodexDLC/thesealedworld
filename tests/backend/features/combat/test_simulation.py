@@ -17,6 +17,7 @@ from src.backend.features.combat.dto.actor import ActorStats
 from src.backend.features.combat.runtime.engine.math_core import MathCore
 from src.backend.features.combat.runtime.simulation import (
     DEFAULT_STARTER_SIMULATION_IMPRINTS,
+    STARTER_SIMULATION_BEHAVIOR_PROFILES,
     AiSimulationIntentProvider,
     CombatTelemetry,
     InMemoryBattleFactory,
@@ -124,7 +125,7 @@ def test_starting_imprint_actor_builder_uses_real_character_presets() -> None:
 
     assert snapshot.meta.name == "Ada Guard"
     assert snapshot.meta.ai_archetype == "bulwark"
-    assert snapshot.meta.ai_behavior_profile in {"aggressive", "balanced", "defensive"}
+    assert snapshot.meta.ai_behavior_profile == "aggressive"
     assert snapshot.meta.hp > 1
     assert snapshot.meta.stamina > 1
     assert snapshot.stats is not None
@@ -135,7 +136,7 @@ def test_starting_imprint_actor_builder_uses_real_character_presets() -> None:
     assert snapshot.meta.feints.hand
     assert actor.participant["imprint_key"] == "starter_guard_01"
     assert actor.participant["behavior_profile"] == snapshot.meta.ai_behavior_profile
-    assert actor.participant["analytics_key"] == f"starter_guard_01/{snapshot.meta.ai_behavior_profile}"
+    assert actor.participant["analytics_key"] == "starter_guard_01"
     assert actor.participant["combat_stats"]["block"] > 0
     assert actor.participant["combat_stats"]["physical_resistance"] >= 0
     assert actor.participant["combat_stats"]["hp_regen"] >= 0
@@ -153,7 +154,7 @@ def test_starting_imprint_actor_builder_builds_6v6_roster() -> None:
     assert {actor.meta.team for actor in actors} == {"blue", "red"}
     assert len({actor.meta.id for actor in actors}) == 12
     assert all(participant["item_base_ids"] for participant in participants)
-    assert {participant["behavior_profile"] for participant in participants} <= {"aggressive", "balanced", "defensive"}
+    assert {participant["behavior_profile"] for participant in participants} == {"aggressive"}
 
 
 @pytest.mark.unit
@@ -179,6 +180,7 @@ def test_starting_imprint_actor_builder_builds_seeded_random_6v6_roster() -> Non
 
 @pytest.mark.unit
 def test_default_starter_pool_is_twelve_imprint_balance_matrix() -> None:
+    assert STARTER_SIMULATION_BEHAVIOR_PROFILES == ("aggressive",)
     assert set(DEFAULT_STARTER_SIMULATION_IMPRINTS) == {
         "starter_guard_01",
         "starter_tactician_01",
@@ -656,14 +658,16 @@ async def test_live_simulator_resolves_one_exchange_per_step(monkeypatch: pytest
 
 
 @pytest.mark.unit
-async def test_live_simulator_behavior_profile_controls_decisions_per_tick() -> None:
-    actor = sim_actor("aggressive", "blue", behavior_profile="aggressive")
-    targets = [sim_actor(f"target_{index}", "red") for index in range(5)]
+async def test_live_simulator_registers_max_candidate_limit_per_tick_independent_of_behavior_profile() -> None:
+    actor = sim_actor("formerly_slow", "blue", behavior_profile="defensive")
+    targets = [sim_actor(f"target_{index}", "red") for index in range(4)]
     state = InMemoryBattleFactory.from_actors(
         [actor, *targets],
         session_id="live-behavior-profile",
-        limits=InMemoryBattleLimits(max_rounds=1, candidate_limit=5, force_unanswered_exchange=False),
+        limits=InMemoryBattleLimits(max_rounds=1, candidate_limit=4, force_unanswered_exchange=False),
     )
+    for target in targets:
+        state.ctx.targets[target.meta.id] = []
     brain = StaticBrain(all_targets=True)
     simulator = LiveInMemoryCombatSimulator(
         timing=LiveSimulationTiming(tick_interval_seconds=0, timeout_ticks=None),
@@ -674,13 +678,12 @@ async def test_live_simulator_behavior_profile_controls_decisions_per_tick() -> 
 
     assert step.action_count == 0
     assert step.registered_move_ids == [
-        "live-10-aggressive-target_0-0",
-        "live-10-aggressive-target_1-1",
-        "live-10-aggressive-target_2-2",
-        "live-10-aggressive-target_3-3",
-        "live-10-aggressive-target_4-4",
+        "live-10-formerly_slow-target_0-0",
+        "live-10-formerly_slow-target_1-1",
+        "live-10-formerly_slow-target_2-2",
+        "live-10-formerly_slow-target_3-3",
     ]
-    assert brain.calls == [("aggressive", ["target_0", "target_1", "target_2", "target_3", "target_4"])]
+    assert brain.calls == [("formerly_slow", ["target_0", "target_1", "target_2", "target_3"])]
 
 
 @pytest.mark.unit

@@ -211,8 +211,8 @@ class LiveInMemoryCombatSimulator:
             for target_id in state.ctx.targets.get(actor.meta.id, [])
             if (target := state.ctx.get_actor(target_id)) is not None and target.is_alive
         ]
-        max_decisions = self._decisions_per_tick(actor)
-        candidate_limit = max(1, min(int(state.limits.candidate_limit), max_decisions))
+        max_decisions = max(1, int(state.limits.candidate_limit))
+        candidate_limit = max_decisions
         raw_candidates = [state.ctx.get_actor(target_id) for target_id in target_queue[:candidate_limit]]
         candidates: list[ActorSnapshot] = [c for c in raw_candidates if c is not None and c.is_alive]
         if not candidates:
@@ -325,10 +325,6 @@ class LiveInMemoryCombatSimulator:
         settings = behavior_settings(getattr(actor.meta, "ai_behavior_profile", "balanced"))
         scaled = self.timing.base_decision_ticks * settings.decision_interval_multiplier
         return max(int(self.timing.min_decision_ticks), int(math.ceil(scaled)))
-
-    @staticmethod
-    def _decisions_per_tick(actor: ActorSnapshot) -> int:
-        return max(1, int(behavior_settings(getattr(actor.meta, "ai_behavior_profile", "balanced")).decisions_per_tick))
 
     @staticmethod
     def _stable_jitter(seed: int, actor_id: ActorId) -> int:

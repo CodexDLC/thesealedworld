@@ -6,7 +6,7 @@ from pydantic import BaseModel, Field, model_validator
 
 MonsterRole = Literal["minion", "veteran", "elite", "boss"]
 MonsterArchetype = Literal["humanoid", "beast", "undead", "construct", "demon", "unknown"]
-OrganizationType = Literal["solitary", "pack", "gang", "clan", "legion", "horde", "swarm"]
+OrganizationType = Literal["solitary", "pack", "gang", "horde", "swarm"]
 LootMode = Literal["equipment", "salvage", "hybrid"]
 LootLoadoutSlots = Literal["full_humanoid", "natural_only", "none"]
 EquipmentDropPolicy = Literal["fixed_loadout", "curated", "none"]

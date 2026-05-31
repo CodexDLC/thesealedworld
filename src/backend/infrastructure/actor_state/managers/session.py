@@ -5,6 +5,7 @@ import time
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any, Literal
 
+from src.backend.features.character.runtime.vital_profile import resolve_player_vital_profile_key
 from src.backend.features.character.runtime.vitals import CharacterVitalsCalculator
 from src.backend.features.character.schemas.session import (
     CharacterSessionAttributesDTO,
@@ -474,7 +475,10 @@ class CharacterSessionManager:
             raise SessionNotFoundError(f"Character session not found: char_id={char_id}")
 
         attributes = CharacterSessionAttributesDTO.model_validate(document.get("attributes") or {})
-        restored_vitals = CharacterVitalsCalculator.restore_to_max_vitals(attributes)
+        restored_vitals = CharacterVitalsCalculator.restore_to_max_vitals(
+            attributes,
+            profile_key=resolve_player_vital_profile_key(document.get("items") or {}),
+        )
         payload = restored_vitals.model_dump(mode="json")
         await self.patch_fields(char_id, {"$.vitals": payload})
         await self.mark_dirty(

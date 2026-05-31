@@ -85,10 +85,10 @@ class CombatAiTestingApi(BaseApiClient):
         family_id: str,
         imprint_key: str = "",
         seed: int = 0,
-        trials: int = 30,
+        trials: int = 5,
         max_rounds: int = 80,
         max_minions: int = 6,
-        max_scenarios: int = 12,
+        max_scenarios: int = 24,
     ) -> CombatAiSimulationRun:
         raw = await self._request(
             "POST",

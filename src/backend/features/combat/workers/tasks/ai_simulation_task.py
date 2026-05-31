@@ -1,15 +1,23 @@
 from __future__ import annotations
 
 import asyncio
+from datetime import UTC, datetime
 from typing import Any
 
 from loguru import logger as log
 
 from src.backend.core.database import get_session_context
 from src.backend.features.combat.runtime.ai.policy import Policy
+from src.backend.features.combat.runtime.simulation import (
+    FamilyPressureConfig,
+    FamilyPressureReport,
+    FamilyPressureSimulator,
+    format_family_pressure_report,
+)
 from src.backend.features.combat.services.ai_simulation_service import (
     STARTER_SKILL_PROFILE_BASELINE,
     CombatAiSimulationRunService,
+    _family_pressure_completion_payload,
     _policy_from_training_row,
     execute_battle_training,
     execute_synthetic_training,
@@ -125,7 +133,7 @@ async def combat_family_pressure_task(ctx: dict[str, Any], payload: dict[str, An
                 run_id=run_id,
                 family_id=family_id,
                 seed=int(payload.get("seed", 0)),
-                trials=int(payload.get("trials", 30)),
+                trials=int(payload.get("trials", 5)),
             ).info("CombatAiFamilyPressureJobStarted")
             async with get_session_context() as session:
                 clans = await MonsterGenerationRepository(session).list_generated_clans_page(
@@ -136,66 +144,59 @@ async def combat_family_pressure_task(ctx: dict[str, Any], payload: dict[str, An
                 if not members:
                     raise ValueError(f"Generated family members not found: {family_id}")
 
-                async def progress(
-                    status: str,
-                    rounds_completed: int,
-                    winner: str | None,
-                    reward: float | None,
-                    telemetry: dict[str, Any],
-                    report_text: str,
-                    metadata: dict[str, Any],
-                ) -> None:
+                async def progress(report: FamilyPressureReport) -> None:
                     if progress_store is None:
                         return
                     await progress_store.set_progress(
                         run_id,
-                        {
-                            "status": status,
-                            "rounds_completed": rounds_completed,
-                            "winner": winner,
-                            "reward": reward,
-                            "telemetry": telemetry,
-                            "report_text": report_text,
-                            "metadata": metadata,
-                        },
+                        _family_pressure_progress_document(
+                            payload,
+                            report=report,
+                            status="running",
+                            status_message="family pressure running",
+                            completion_reason="running",
+                        ),
                     )
 
-                await CombatAiSimulationRunService(
-                    CombatAiSimulationRunRepository(session)
-                ).execute_family_pressure_probe(
-                    run_id,
+                report = await FamilyPressureSimulator().run(
                     family_id=family_id,
-                    members=members,
                     imprint_key=str(payload.get("imprint_key") or "").strip(),
+                    members=members,
                     seed=int(payload.get("seed", 0)),
-                    trials=int(payload.get("trials", 30)),
-                    max_rounds=int(payload.get("max_rounds", 80)),
-                    max_minions=int(payload.get("max_minions", 6)),
-                    max_scenarios=int(payload.get("max_scenarios", 12)),
+                    config=FamilyPressureConfig(
+                        trials_per_composition=int(payload.get("trials", 5)),
+                        max_rounds=int(payload.get("max_rounds", 80)),
+                        max_minions=int(payload.get("max_minions", 6)),
+                        max_scenarios=int(payload.get("max_scenarios", 24)),
+                    ),
                     progress=progress,
                 )
-        if progress_store is not None:
-            await progress_store.delete_progress(run_id)
+                if progress_store is not None:
+                    await progress_store.set_progress(
+                        run_id,
+                        _family_pressure_progress_document(
+                            payload,
+                            report=report,
+                            status="completed",
+                            status_message="family pressure completed",
+                            completion_reason="completed",
+                        ),
+                    )
         log.bind(run_id=run_id, family_id=family_id).info("CombatAiFamilyPressureJobFinished")
     except asyncio.CancelledError as exc:
         log.bind(run_id=run_id, family_id=family_id).warning("CombatAiFamilyPressureWorkerCancelled")
-        await asyncio.shield(
-            _mark_failed(
-                run_id,
-                error={
-                    "type": exc.__class__.__name__,
-                    "message": "Family pressure worker task was cancelled or timed out.",
-                },
-            )
-        )
+        error = {
+            "type": exc.__class__.__name__,
+            "message": "Family pressure worker task was cancelled or timed out.",
+        }
         if progress_store is not None:
-            await asyncio.shield(progress_store.delete_progress(run_id))
+            await asyncio.shield(progress_store.set_progress(run_id, _failed_family_pressure_document(payload, error)))
         raise
     except Exception as exc:
         log.bind(run_id=run_id, family_id=family_id).exception("CombatAiFamilyPressureWorkerFailed")
-        await _mark_failed(run_id, error={"type": exc.__class__.__name__, "message": str(exc)})
+        error = {"type": exc.__class__.__name__, "message": str(exc)}
         if progress_store is not None:
-            await progress_store.delete_progress(run_id)
+            await progress_store.set_progress(run_id, _failed_family_pressure_document(payload, error))
 
 
 @logged_task
@@ -308,6 +309,98 @@ def _progress_store(ctx: dict[str, Any]) -> CombatAiSimulationProgressManager | 
     if redis_service is None:
         return None
     return CombatAiSimulationProgressManager(redis_service)
+
+
+def _family_pressure_progress_document(
+    payload: dict[str, Any],
+    *,
+    report: FamilyPressureReport,
+    status: str,
+    status_message: str,
+    completion_reason: str,
+) -> dict[str, Any]:
+    completion = _family_pressure_completion_payload(
+        report,
+        max_minions=int(payload.get("max_minions", 6)),
+        max_scenarios=int(payload.get("max_scenarios", 24)),
+    )
+    telemetry = dict(completion["telemetry"])
+    telemetry["status_message"] = status_message
+    metadata = dict(completion["metadata"])
+    metadata.update(
+        {
+            "storage": "redis_only",
+            "completion_reason": completion_reason,
+        }
+    )
+    if status in {"completed", "failed"}:
+        metadata["completed_at"] = _utc_now_iso()
+    return {
+        "id": str(payload.get("run_id") or ""),
+        "run_kind": "simulation",
+        "scenario_key": f"family_pressure:{report.family_id}",
+        "status": status,
+        "policy_ref": "runtime_default",
+        "seed": int(payload.get("seed", 0)),
+        "max_rounds": int(payload.get("max_rounds", 80)),
+        "rounds_completed": int(completion["trials_total"]),
+        "winner": None,
+        "reward": None,
+        "created_at": str(payload.get("created_at") or ""),
+        "telemetry": telemetry,
+        "report_text": format_family_pressure_report(report),
+        "metadata": metadata,
+    }
+
+
+def _failed_family_pressure_document(payload: dict[str, Any], error: dict[str, Any]) -> dict[str, Any]:
+    family_id = str(payload.get("family_id") or "").strip()
+    imprint_key = str(payload.get("imprint_key") or "").strip()
+    finished_at = _utc_now_iso()
+    return {
+        "id": str(payload.get("run_id") or ""),
+        "run_kind": "simulation",
+        "scenario_key": f"family_pressure:{family_id}",
+        "status": "failed",
+        "policy_ref": "runtime_default",
+        "seed": int(payload.get("seed", 0)),
+        "max_rounds": int(payload.get("max_rounds", 80)),
+        "rounds_completed": 0,
+        "winner": None,
+        "reward": None,
+        "created_at": str(payload.get("created_at") or ""),
+        "telemetry": {
+            "run_kind": "family_pressure",
+            "family_id": family_id,
+            "imprint_key": imprint_key,
+            "trials_per_composition": int(payload.get("trials", 5)),
+            "composition_count": 0,
+            "trials_total": 0,
+            "status_message": "family pressure failed",
+            "pressure_rows": [],
+        },
+        "report_text": f"family pressure failed\nfamily_id: {family_id}\nerror: {error.get('message') or ''}",
+        "metadata": {
+            "source": "admin_cabinet",
+            "storage": "redis_only",
+            "purpose": "family_pressure_balance_report",
+            "simulation_mode": "family_pressure",
+            "family_pressure": True,
+            "family_id": family_id,
+            "imprint_key": imprint_key,
+            "trials_per_composition": int(payload.get("trials", 5)),
+            "max_minions": int(payload.get("max_minions", 6)),
+            "max_scenarios": int(payload.get("max_scenarios", 24)),
+            "composition_reports": [],
+            "completion_reason": "failed",
+            "error": error,
+            "completed_at": finished_at,
+        },
+    }
+
+
+def _utc_now_iso() -> str:
+    return datetime.now(UTC).isoformat()
 
 
 async def _policy_payload_from_training_run(raw_run_id: Any) -> tuple[dict[str, Any] | None, dict[str, Any]]:

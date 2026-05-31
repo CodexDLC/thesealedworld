@@ -1,12 +1,14 @@
 from __future__ import annotations
 
 import asyncio
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Annotated, Any
+from uuid import uuid4
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.backend.core.arq import COMBAT_AI_SIMULATION_ARQ_QUEUE, COMBAT_ARQ_QUEUE, clear_arq_queue
+from src.backend.core.arq import COMBAT_AI_SIMULATION_ARQ_QUEUE, clear_arq_queue
 from src.backend.core.database import get_db
 from src.backend.features.combat.dto.ai_simulation import CombatAiSimulationRunDTO, CombatAiSimulationRunListDTO
 from src.backend.features.combat.runtime.simulation import (
@@ -47,7 +49,17 @@ async def list_simulation_runs(
     rows = await _service(db_session).list_recent(limit=limit, run_kind=run_kind)
     progress_store = _progress_store_from_request(request)
     progress_by_run = await _progress_for_rows(progress_store, rows)
-    return CombatAiSimulationRunListDTO(runs=[_view(row, progress_by_run.get(row.id)) for row in rows])
+    views = [_view(row, progress_by_run.get(row.id)) for row in rows]
+    if run_kind in {None, "simulation"} and progress_store is not None:
+        db_ids = {row.id for row in rows}
+        redis_views = [
+            _view_redis_run(progress)
+            for progress in await progress_store.list_progress()
+            if _is_family_pressure_progress(progress) and str(progress.get("id") or "") not in db_ids
+        ]
+        views.extend(redis_views)
+        views = sorted(views, key=lambda row: row.created_at or datetime.min.replace(tzinfo=UTC), reverse=True)
+    return CombatAiSimulationRunListDTO(runs=views[:limit])
 
 
 @router.post("/simulation-runs/clear")
@@ -97,6 +109,10 @@ async def get_simulation_run(
 ) -> CombatAiSimulationRunDTO:
     row = await _service(db_session).get(run_id)
     if row is None:
+        progress_store = _progress_store_from_request(request)
+        progress = await progress_store.get_progress(run_id) if progress_store is not None else None
+        if progress is not None and _is_family_pressure_progress(progress):
+            return _view_redis_run(progress)
         raise HTTPException(status_code=404, detail="Combat AI simulation run not found")
     progress_store = _progress_store_from_request(request)
     progress = (
@@ -124,12 +140,16 @@ async def run_family_pressure_simulation(
     family_id: Annotated[str, Query(min_length=1, max_length=80)] = "rat_swarm",
     imprint_key: Annotated[str, Query(max_length=120)] = "",
     seed: Annotated[int, Query(ge=0, le=1_000_000)] = 0,
-    trials: Annotated[int, Query(ge=1, le=100)] = 30,
+    trials: Annotated[int, Query(ge=1, le=100)] = 5,
     max_rounds: Annotated[int, Query(ge=1, le=200)] = 80,
     max_minions: Annotated[int, Query(ge=1, le=10)] = 6,
-    max_scenarios: Annotated[int, Query(ge=1, le=50)] = 12,
+    max_scenarios: Annotated[int, Query(ge=1, le=50)] = 24,
 ) -> CombatAiSimulationRunDTO:
-    row = await _service(db_session).start_family_pressure_probe(
+    del db_session
+    progress_store = _progress_store_from_request(request)
+    if progress_store is None:
+        raise HTTPException(status_code=503, detail="Redis progress store is required for PvE family pressure runs")
+    progress = _initial_family_pressure_progress(
         family_id=family_id,
         imprint_key=imprint_key,
         seed=seed,
@@ -138,20 +158,17 @@ async def run_family_pressure_simulation(
         max_minions=max_minions,
         max_scenarios=max_scenarios,
     )
-    await db_session.commit()
+    await progress_store.set_progress(str(progress["id"]), progress)
     try:
         await _enqueue_family_pressure_job(
             getattr(request.app.state, "combat_arq", None),
-            _family_pressure_payload(row),
+            _family_pressure_payload(progress),
         )
     except Exception as exc:
-        failed = await CombatAiSimulationRunRepository(db_session).mark_failed(
-            row.id,
-            error={"type": exc.__class__.__name__, "message": str(exc)},
-        )
-        await db_session.commit()
-        return _view(failed or row)
-    return _view(row)
+        failed = _failed_family_pressure_progress(progress, error={"type": exc.__class__.__name__, "message": str(exc)})
+        await progress_store.set_progress(str(progress["id"]), failed)
+        return _view_redis_run(failed)
+    return _view_redis_run(progress)
 
 
 @router.post("/simulation-runs/live-demo", response_model=CombatAiSimulationRunDTO)
@@ -449,17 +466,18 @@ def _live_demo_payload(row: CombatAiSimulationRun, *, seed: int) -> dict[str, An
     }
 
 
-def _family_pressure_payload(row: CombatAiSimulationRun) -> dict[str, Any]:
-    metadata = dict(row.metadata_ or {})
+def _family_pressure_payload(progress: dict[str, Any]) -> dict[str, Any]:
+    metadata = dict(progress.get("metadata") or {})
     return {
-        "run_id": row.id,
+        "run_id": str(progress.get("id") or ""),
         "family_id": str(metadata.get("family_id") or "").strip(),
         "imprint_key": str(metadata.get("imprint_key") or "").strip(),
-        "seed": int(row.seed),
-        "trials": int(metadata.get("trials_per_composition") or 30),
-        "max_rounds": int(row.max_rounds),
+        "seed": int(progress.get("seed") or 0),
+        "trials": int(metadata.get("trials_per_composition") or 5),
+        "max_rounds": int(progress.get("max_rounds") or 80),
         "max_minions": int(metadata.get("max_minions") or 6),
-        "max_scenarios": int(metadata.get("max_scenarios") or 12),
+        "max_scenarios": int(metadata.get("max_scenarios") or 24),
+        "created_at": str(progress.get("created_at") or ""),
     }
 
 
@@ -518,6 +536,109 @@ def _view(row: CombatAiSimulationRun, progress: dict[str, Any] | None = None) ->
     )
 
 
+def _view_redis_run(progress: dict[str, Any]) -> CombatAiSimulationRunDTO:
+    return CombatAiSimulationRunDTO(
+        id=str(progress.get("id") or ""),
+        run_kind=str(progress.get("run_kind") or "simulation"),
+        scenario_key=str(progress.get("scenario_key") or ""),
+        status=str(progress.get("status") or "running"),
+        policy_ref=progress.get("policy_ref") if progress.get("policy_ref") is not None else "runtime_default",
+        seed=int(progress.get("seed") or 0),
+        max_rounds=int(progress.get("max_rounds") or 0),
+        rounds_completed=int(progress.get("rounds_completed") or 0),
+        winner=progress.get("winner"),
+        reward=progress.get("reward"),
+        telemetry=dict(progress.get("telemetry") if isinstance(progress.get("telemetry"), dict) else {}),
+        report_text=str(progress.get("report_text") or ""),
+        metadata=dict(progress.get("metadata") if isinstance(progress.get("metadata"), dict) else {}),
+        created_at=_parse_datetime(progress.get("created_at")),
+    )
+
+
+def _initial_family_pressure_progress(
+    *,
+    family_id: str,
+    imprint_key: str,
+    seed: int,
+    trials: int,
+    max_rounds: int,
+    max_minions: int,
+    max_scenarios: int,
+) -> dict[str, Any]:
+    resolved_imprint = str(imprint_key or "starter_breaker_01")
+    run_id = f"pve-family-pressure-{uuid4()}"
+    return {
+        "id": run_id,
+        "run_kind": "simulation",
+        "scenario_key": f"family_pressure:{family_id}",
+        "status": "running",
+        "policy_ref": "runtime_default",
+        "seed": int(seed),
+        "max_rounds": int(max_rounds),
+        "rounds_completed": 0,
+        "winner": None,
+        "reward": None,
+        "created_at": datetime.now(UTC).isoformat(),
+        "telemetry": {
+            "run_kind": "family_pressure",
+            "family_id": family_id,
+            "imprint_key": resolved_imprint,
+            "trials_per_composition": int(trials),
+            "composition_count": 0,
+            "trials_total": 0,
+            "status_message": "family pressure scheduled",
+            "pressure_rows": [],
+        },
+        "report_text": (
+            "family pressure scheduled\n"
+            f"family_id: {family_id}\n"
+            f"imprint_key: {resolved_imprint}\n"
+            f"trials_per_composition: {trials}"
+        ),
+        "metadata": {
+            "source": "admin_cabinet",
+            "storage": "redis_only",
+            "purpose": "family_pressure_balance_report",
+            "simulation_mode": "family_pressure",
+            "simulation_actor_source": "character_starting_imprints_and_generated_monsters",
+            "family_pressure": True,
+            "family_id": family_id,
+            "imprint_key": resolved_imprint,
+            "trials_per_composition": int(trials),
+            "max_minions": int(max_minions),
+            "max_scenarios": int(max_scenarios),
+            "composition_reports": [],
+            "team_labels": {"blue": "Стартовый слепок", "red": f"Семья {family_id}"},
+        },
+    }
+
+
+def _failed_family_pressure_progress(progress: dict[str, Any], *, error: dict[str, Any]) -> dict[str, Any]:
+    metadata = dict(progress.get("metadata") or {})
+    telemetry = dict(progress.get("telemetry") if isinstance(progress.get("telemetry"), dict) else {})
+    finished_at = datetime.now(UTC).isoformat()
+    metadata.update({"error": error, "failed_at": finished_at, "completed_at": finished_at})
+    telemetry["status_message"] = "family pressure failed"
+    return {**progress, "status": "failed", "telemetry": telemetry, "metadata": metadata}
+
+
+def _is_family_pressure_progress(progress: dict[str, Any]) -> bool:
+    metadata = progress.get("metadata") if isinstance(progress.get("metadata"), dict) else {}
+    telemetry = progress.get("telemetry") if isinstance(progress.get("telemetry"), dict) else {}
+    return bool(metadata.get("family_pressure")) or str(telemetry.get("run_kind") or "") == "family_pressure"
+
+
+def _parse_datetime(value: Any) -> datetime | None:
+    if isinstance(value, datetime):
+        return value
+    if not value:
+        return None
+    try:
+        return datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+    except ValueError:
+        return None
+
+
 def _progress_store_from_request(request: Request) -> CombatAiSimulationProgressManager | None:
     redis_service = getattr(request.app.state, "redis", None)
     if redis_service is None:
@@ -528,13 +649,13 @@ def _progress_store_from_request(request: Request) -> CombatAiSimulationProgress
 async def _clear_combat_ai_simulation_runtime_state(request: Request) -> dict[str, int]:
     redis_client = getattr(request.app.state, "redis_client", None)
     ai_queue_deleted = await clear_arq_queue(redis_client, COMBAT_AI_SIMULATION_ARQ_QUEUE)
-    combat_queue_deleted = await clear_arq_queue(redis_client, COMBAT_ARQ_QUEUE)
     progress_store = _progress_store_from_request(request)
-    progress_deleted = await progress_store.clear_all_progress() if progress_store is not None else 0
+    progress_deleted = (
+        await progress_store.clear_all_progress(preserve_family_pressure=True) if progress_store is not None else 0
+    )
     return {
-        "queued_deleted": ai_queue_deleted + combat_queue_deleted,
+        "queued_deleted": ai_queue_deleted,
         "ai_queue_deleted": ai_queue_deleted,
-        "combat_queue_deleted": combat_queue_deleted,
         "progress_deleted": progress_deleted,
     }
 

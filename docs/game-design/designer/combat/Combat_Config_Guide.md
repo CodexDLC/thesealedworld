@@ -59,7 +59,6 @@
 
 ### 🔹 State (Состояние)
 *   `state.check_counter`: Запустить проверку контратаки.
-*   `state.partial_absorb_reflect`: Legacy-флаг точечного поглощения/отражения щитом. Основная щитовая механика теперь проходит через успешный shield block и его defensive/counter ветку.
 
 ### 🔹 Chain Events (Цепные реакции)
 *   `chain_events.trigger_offhand_attack`: Доп. атака второй рукой.

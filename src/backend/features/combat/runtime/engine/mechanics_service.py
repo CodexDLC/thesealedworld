@@ -3,6 +3,7 @@ from typing import Literal
 # === НОВЫЙ ИМПОРТ ===
 from src.backend.core.calculators.stats_waterfall_calculator import StatsWaterfallCalculator
 from src.backend.features.combat.dto import (
+    ActiveEffectDTO,
     ActorSnapshot,
     CombatDeathFactDTO,
     CombatEffectFactDTO,
@@ -12,7 +13,9 @@ from src.backend.features.combat.dto import (
     InteractionResultDTO,
     PipelineContextDTO,
 )
+from src.backend.features.combat.integrations import CombatCatalogIntegrator
 from src.backend.features.combat.runtime.engine.feint_service import FeintService
+from src.backend.features.combat.runtime.engine.modifier_application_service import ModifierApplicationService
 
 BLOOD_TOKEN_DAMAGE_STEP = 10
 GIFT_TOKEN_PER_EXCHANGE = 1
@@ -119,8 +122,14 @@ class MechanicsService:
         if target:
             self._apply_target_changes(ctx, target, result)
 
+        # 2.5. [RESOURCES] Commit actor-specific staged resource deltas.
+        self._apply_staged_resource_applications(source, target, result)
+
         # 3. [XP] Register Events
         self._register_xp_events(ctx, source, target, result)
+
+        # 3.5. [STATUS] Commit staged effects/removals after resource math.
+        self._apply_staged_status_changes(ctx, source, target, result)
 
         # 4. [FEINTS] One-way actions can still refill locally. Exchange hands are
         # rerolled once in CombatExecutor after the full paired exchange resolves.
@@ -132,6 +141,15 @@ class MechanicsService:
             if target:
                 target_hand = target.stats.mods.hand_size if target.stats else 3
                 FeintService.refill_hand(target.meta, hand_size=target_hand)
+
+    def apply_exchange_results(
+        self,
+        ctx: PipelineContextDTO,
+        pairs: list[tuple[ActorSnapshot, ActorSnapshot | None, InteractionResultDTO]],
+    ) -> None:
+        """Commit a simultaneous exchange layer after all results were calculated."""
+        for source, target, result in pairs:
+            self.apply_interaction_result(ctx, source, target, result)
 
     # ==============================================================================
     # INTERNAL LOGIC
@@ -218,6 +236,8 @@ class MechanicsService:
                     reason=self._resource_change_reason(token_change_list),
                 )
 
+        self._apply_ammo_spend(source, result)
+
         # B. Tokens Awarded (Всегда начисляем, если не сказано иное? Пока оставим безусловно)
         if result.tokens_awarded_attacker:
             for token, amount in result.tokens_awarded_attacker.items():
@@ -256,7 +276,7 @@ class MechanicsService:
                 applied=applied,
                 token_bucket=result.tokens_awarded_attacker,
             )
-            ctx.result.events.append(
+            result.events.append(
                 CombatEventDTO(
                     type="HIT",
                     source_id=result.target_id or source.char_id,
@@ -269,10 +289,8 @@ class MechanicsService:
 
             if ctx.flags.mechanics.check_death and source.meta.hp <= 0:
                 source.meta.is_dead = True
-                ctx.result.death_facts.append(
-                    CombatDeathFactDTO(actor_id=source.char_id, owner="source", reason="reflect")
-                )
-                ctx.result.events.append(
+                result.death_facts.append(CombatDeathFactDTO(actor_id=source.char_id, owner="source", reason="reflect"))
+                result.events.append(
                     CombatEventDTO(
                         type="DEATH",
                         source_id=source.char_id,
@@ -280,6 +298,191 @@ class MechanicsService:
                         value=0,
                     )
                 )
+
+    @staticmethod
+    def _apply_ammo_spend(source: ActorSnapshot, result: InteractionResultDTO) -> None:
+        for slot, raw_amount in result.ammo_spent.items():
+            try:
+                amount = max(0, int(raw_amount))
+            except (TypeError, ValueError):
+                continue
+            if amount <= 0:
+                continue
+            before = max(0, int(source.loadout.ammo_charges.get(slot, 0) or 0))
+            applied = min(before, amount)
+            after = before - applied
+            source.loadout.ammo_charges[slot] = after
+            if applied <= 0:
+                continue
+            result.resource_facts.append(
+                CombatResourceFactDTO(
+                    actor_id=source.char_id,
+                    owner="source",
+                    resource="ammo",
+                    reason="ammo_crit",
+                    delta=-applied,
+                    before=before,
+                    after=after,
+                    max=source.loadout.ammo_charge_caps.get(slot),
+                    tags=["ammo", slot],
+                )
+            )
+
+    def _apply_staged_status_changes(
+        self, ctx: PipelineContextDTO, source: ActorSnapshot, target: ActorSnapshot | None, result: InteractionResultDTO
+    ) -> None:
+        actors = {str(source.char_id): source}
+        if target:
+            actors[str(target.char_id)] = target
+
+        for removal in result.status_removals:
+            actor_id = getattr(removal, "actor_id", None) if not isinstance(removal, dict) else removal.get("actor_id")
+            actor = actors.get(str(actor_id)) if actor_id is not None else None
+            if not actor:
+                continue
+            effect_uid = (
+                getattr(removal, "effect_uid", None) if not isinstance(removal, dict) else removal.get("effect_uid")
+            )
+            effect_id = (
+                getattr(removal, "effect_id", None) if not isinstance(removal, dict) else removal.get("effect_id")
+            )
+            kept_effects = []
+            for effect in actor.statuses.effects:
+                should_remove = (effect_uid and effect.uid == effect_uid) or (
+                    effect_id and not effect_uid and effect.effect_id == effect_id
+                )
+                if should_remove:
+                    if effect.modified_sources:
+                        ModifierApplicationService.remove_temp_sources(actor, effect.modified_sources)
+                    continue
+                kept_effects.append(effect)
+            actor.statuses.effects = kept_effects
+            actor.statuses.abilities = [
+                ability
+                for ability in actor.statuses.abilities
+                if not (
+                    (effect_uid and ability.uid == effect_uid)
+                    or (effect_id and not effect_uid and ability.ability_id == effect_id)
+                )
+            ]
+
+        for application in result.status_applications:
+            actor_id = (
+                getattr(application, "actor_id", None)
+                if not isinstance(application, dict)
+                else application.get("actor_id") or application.get("target_id")
+            )
+            actor = actors.get(str(actor_id)) if actor_id is not None else None
+            if not actor:
+                continue
+            active_raw = (
+                getattr(application, "active_effect", None)
+                if not isinstance(application, dict)
+                else application.get("active_effect")
+            )
+            if active_raw:
+                active_effect = ActiveEffectDTO.model_validate(active_raw)
+            else:
+                effect_id = (
+                    getattr(application, "effect_id", None)
+                    if not isinstance(application, dict)
+                    else application.get("effect_id") or application.get("id")
+                )
+                if not effect_id:
+                    continue
+                entry = CombatCatalogIntegrator.get_effect_catalog_entry(str(effect_id))
+                if not entry:
+                    continue
+                source_id = (
+                    getattr(application, "source_id", None)
+                    if not isinstance(application, dict)
+                    else application.get("source_id") or source.char_id
+                )
+                active_from = actor.meta.exchange_counter + (1 if ctx.flags.meta.action_mode == "exchange" else 0)
+                active_effect = ActiveEffectDTO(
+                    uid=str(effect_id),
+                    effect_id=str(effect_id),
+                    source_id=source_id,
+                    active_from_exchange=active_from,
+                    expire_at_exchange=active_from + int(entry.technical.duration or 0),
+                )
+
+            if any(existing.uid == active_effect.uid for existing in actor.statuses.effects):
+                continue
+
+            entry = CombatCatalogIntegrator.get_effect_catalog_entry(active_effect.effect_id)
+            if entry and entry.technical.modifier_applications:
+                applied = ModifierApplicationService.apply(
+                    applications=entry.technical.modifier_applications,
+                    owner="effect",
+                    owner_uid=active_effect.uid,
+                    owner_id=active_effect.effect_id,
+                    source=source,
+                    target=actor,
+                )
+                active_effect.modified_keys = sorted(set(active_effect.modified_keys) | applied.modified_keys)
+                active_effect.modified_sources = applied.modified_sources
+            actor.statuses.effects.append(active_effect)
+
+    def _apply_staged_resource_applications(
+        self, source: ActorSnapshot, target: ActorSnapshot | None, result: InteractionResultDTO
+    ) -> None:
+        actors = {str(source.char_id): source}
+        if target:
+            actors[str(target.char_id)] = target
+
+        for application in result.resource_applications:
+            actor_id = (
+                getattr(application, "actor_id", None)
+                if not isinstance(application, dict)
+                else application.get("actor_id")
+            )
+            actor = actors.get(str(actor_id)) if actor_id is not None else None
+            if not actor:
+                continue
+            resource = (
+                getattr(application, "resource", None)
+                if not isinstance(application, dict)
+                else application.get("resource")
+            )
+            value = (
+                getattr(application, "value", None) if not isinstance(application, dict) else application.get("value")
+            )
+            reason = (
+                getattr(application, "reason", "staged")
+                if not isinstance(application, dict)
+                else application.get("reason", "staged")
+            )
+            if not isinstance(resource, str) or not isinstance(value, str):
+                continue
+            applied = self._apply_resource_delta(actor, resource, [value])
+            self._record_resource_fact(
+                result,
+                actor=actor,
+                owner=(
+                    getattr(application, "owner", "other")
+                    if not isinstance(application, dict)
+                    else application.get("owner", "other")
+                ),
+                resource=resource,
+                reason=str(reason),
+                applied=applied,
+                source_effect_id=(
+                    getattr(application, "source_effect_id", None)
+                    if not isinstance(application, dict)
+                    else application.get("source_effect_id")
+                ),
+                source_trigger_id=(
+                    getattr(application, "source_trigger_id", None)
+                    if not isinstance(application, dict)
+                    else application.get("source_trigger_id")
+                ),
+                tags=(
+                    getattr(application, "tags", [])
+                    if not isinstance(application, dict)
+                    else application.get("tags", [])
+                ),
+            )
 
     def _apply_target_changes(
         self, ctx: PipelineContextDTO, target: ActorSnapshot, result: InteractionResultDTO
@@ -308,10 +511,10 @@ class MechanicsService:
         # B. Death Check
         if ctx.flags.mechanics.check_death and target.meta.hp <= 0:
             target.meta.is_dead = True
-            ctx.result.death_facts.append(CombatDeathFactDTO(actor_id=target.char_id, owner="target", reason="damage"))
+            result.death_facts.append(CombatDeathFactDTO(actor_id=target.char_id, owner="target", reason="damage"))
 
             # Log Death Event
-            ctx.result.events.append(
+            result.events.append(
                 CombatEventDTO(
                     type="DEATH",
                     source_id=target.char_id,

@@ -79,10 +79,6 @@ class CombatPipeline:
             # AbilityService использует ctx.result
             self.ability_service.post_process(ctx, source, target, move)
 
-        # 5. Mechanics (Apply Results & Logs)
-        # Исправлен порядок аргументов: ctx, source, target, result
-        self.mechanics_service.apply_interaction_result(ctx, source, target, ctx.result)
-
         return ctx.result
 
     def _check_liveness(self, ctx: PipelineContextDTO, source: ActorSnapshot, target: ActorSnapshot | None) -> None:

@@ -837,6 +837,49 @@ def test_scripted_target_node_suppresses_transition_combat_roll() -> None:
 
 
 @pytest.mark.unit
+def test_crystal_chamber_scripted_node_is_seeded_as_required_entry_combat() -> None:
+    runtime = _runtime(seed="crystal-chamber-scripted-event-check", void_cells=5)
+    event = runtime.node_events[runtime.finish_node_id]
+
+    assert event["event_key"] == "crystal_chamber"
+    assert event["event_type"] == "combat"
+    assert event["state"] == "ready"
+    assert event["source"] == "scripted_node"
+    assert event["is_required"] is True
+    assert event["encounter_kind"] == "heart_guard"
+    assert runtime.node_states[runtime.finish_node_id]["entry_event_state"] == "ready"
+    assert runtime.node_states[runtime.finish_node_id]["event_key"] == "crystal_chamber"
+
+
+@pytest.mark.unit
+def test_scripted_node_entry_combat_returns_prompt_after_travel_completion() -> None:
+    runtime = _runtime(seed="scripted-node-entry-prompt-check", void_cells=5)
+    guard_node_id = next(node_id for node_id, event in runtime.node_events.items() if event.get("event_key") == "guard_combat")
+    unlocked, _response = resolve_node_entry_event_runtime(
+        runtime.model_copy(
+            update={
+                "current_node_id": guard_node_id,
+                "visited_node_ids": {runtime.start_node_id, guard_node_id},
+            }
+        ),
+        event_key="guard_combat",
+    )
+
+    travelling, response = start_travel_runtime(unlocked, unlocked.finish_node_id)
+    completed = response
+    while completed.travel.status == "moving":
+        travelling, completed = tick_travel_runtime(travelling, travel_id=response.travel.travel_id, force_event="none")
+
+    assert travelling.current_node_id == unlocked.finish_node_id
+    assert completed.travel.status == "completed"
+    assert completed.combat_prompt is not None
+    assert completed.combat_prompt.metadata["event_scope"] == "node_entry"
+    assert completed.combat_prompt.metadata["event_key"] == "crystal_chamber"
+    assert completed.combat_prompt.metadata["encounter_kind"] == "heart_guard"
+    assert completed.screen is None
+
+
+@pytest.mark.unit
 def test_ordinary_node_roll_creates_node_entry_combat_after_travel_completion() -> None:
     runtime = _runtime_with_forced_ordinary_combat(seed="ordinary-node-entry-combat-check")
     with use_tunables(DEFAULT_RIFT_FORCED_ORDINARY_COMBAT):

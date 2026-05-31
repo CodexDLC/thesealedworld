@@ -1,5 +1,93 @@
 [
   {
+    "node_key": "guide_memory_entry",
+    "node_type": "event",
+    "phase": "portal_pad",
+    "text": "",
+    "actions": [
+      {
+        "action_id": "auto",
+        "branching": [
+          {
+            "condition": "npc_counter_first_contact_resistance >= 1",
+            "to_node": "memory_intro_resistant"
+          },
+          {
+            "condition": "npc_counter_first_contact_curiosity >= 2",
+            "to_node": "memory_intro_curious"
+          },
+          {
+            "condition": "npc_counter_first_contact_compliance >= 1",
+            "to_node": "memory_intro_compliant"
+          },
+          {
+            "condition": "default",
+            "to_node": "guide_dialogue_hub"
+          }
+        ]
+      }
+    ],
+    "metadata": {},
+    "ui": {}
+  },
+  {
+    "node_key": "memory_intro_resistant",
+    "node_type": "dialog",
+    "phase": "portal_pad",
+    "speaker": "portal_pad_guide",
+    "avatar": "/static/images/scenarios/overseer.webp",
+    "display_name": "Оценщик",
+    "text": "Оценщик узнает тебя раньше, чем ты успеваешь подобрать первый вопрос.\n\n— Ты тот, кто пытался подняться на круге, пока люди держали шесты наготове. Хорошо. Значит, страх у тебя не всегда идет впереди тела. Плохо, если тело опять пойдет раньше головы.",
+    "actions": [
+      {
+        "action_id": "continue",
+        "label": "Продолжить разговор",
+        "icon": "default",
+        "to_node": "guide_dialogue_hub"
+      }
+    ],
+    "metadata": {},
+    "ui": {}
+  },
+  {
+    "node_key": "memory_intro_curious",
+    "node_type": "dialog",
+    "phase": "portal_pad",
+    "speaker": "portal_pad_guide",
+    "avatar": "/static/images/scenarios/overseer.webp",
+    "display_name": "Оценщик",
+    "text": "Оценщик задерживает взгляд на твоем лице.\n\n— Помню. Ты задавал вопросы даже тогда, когда круг уже забирал тебя из-под ног. Любопытство полезно, если оно не просит у мира честных ответов раньше времени.",
+    "actions": [
+      {
+        "action_id": "continue",
+        "label": "Продолжить разговор",
+        "icon": "default",
+        "to_node": "guide_dialogue_hub"
+      }
+    ],
+    "metadata": {},
+    "ui": {}
+  },
+  {
+    "node_key": "memory_intro_compliant",
+    "node_type": "dialog",
+    "phase": "portal_pad",
+    "speaker": "portal_pad_guide",
+    "avatar": "/static/images/scenarios/overseer.webp",
+    "display_name": "Оценщик",
+    "text": "Оценщик кивает почти незаметно.\n\n— Ты тогда услышал протокол быстрее многих. Это не делает его мягче, но делает тебя живее. Запомни: здесь послушание не добродетель. Иногда это просто способ дожить до следующего выбора.",
+    "actions": [
+      {
+        "action_id": "continue",
+        "label": "Продолжить разговор",
+        "icon": "default",
+        "to_node": "guide_dialogue_hub"
+      }
+    ],
+    "metadata": {},
+    "ui": {}
+  },
+  {
     "node_key": "guide_dialogue_hub",
     "node_type": "dialog",
     "phase": "portal_pad",

@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+import asyncio
 from typing import TYPE_CHECKING, Annotated, Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.backend.core.arq import COMBAT_AI_SIMULATION_ARQ_QUEUE, COMBAT_ARQ_QUEUE, clear_arq_queue
 from src.backend.core.database import get_db
 from src.backend.features.combat.dto.ai_simulation import CombatAiSimulationRunDTO, CombatAiSimulationRunListDTO
 from src.backend.features.combat.runtime.simulation import (
@@ -20,6 +22,7 @@ from src.backend.features.combat.workers.tasks.ai_simulation_task import (
     COMBAT_AI_BATTLE_TRAINING_TASK,
     COMBAT_AI_LIVE_SIMULATION_TASK,
     COMBAT_AI_SYNTHETIC_TRAINING_TASK,
+    COMBAT_FAMILY_PRESSURE_TASK,
 )
 from src.backend.infrastructure.combat.managers import CombatAiSimulationProgressManager
 from src.backend.infrastructure.combat.repositories import CombatAiSimulationRunRepository
@@ -49,20 +52,24 @@ async def list_simulation_runs(
 
 @router.post("/simulation-runs/clear")
 async def clear_simulation_runs(
+    request: Request,
     db_session: Annotated[AsyncSession, Depends(get_db)],
 ) -> dict[str, int]:
     deleted = await _service(db_session).clear_reports()
+    runtime_deleted = await _clear_combat_ai_simulation_runtime_state(request)
     await db_session.commit()
-    return {"deleted": deleted}
+    return {"deleted": deleted, **runtime_deleted}
 
 
 @router.post("/simulation-runs/clear-training")
 async def clear_training_runs(
+    request: Request,
     db_session: Annotated[AsyncSession, Depends(get_db)],
 ) -> dict[str, int]:
     deleted = await _service(db_session).clear_training_runs()
+    runtime_deleted = await _clear_combat_ai_simulation_runtime_state(request)
     await db_session.commit()
-    return {"deleted": deleted}
+    return {"deleted": deleted, **runtime_deleted}
 
 
 @router.post("/simulation-runs/cleanup-stale")
@@ -110,6 +117,43 @@ async def run_demo_simulation(
     return _view(row)
 
 
+@router.post("/simulation-runs/family-pressure", response_model=CombatAiSimulationRunDTO)
+async def run_family_pressure_simulation(
+    request: Request,
+    db_session: Annotated[AsyncSession, Depends(get_db)],
+    family_id: Annotated[str, Query(min_length=1, max_length=80)] = "rat_swarm",
+    imprint_key: Annotated[str, Query(max_length=120)] = "",
+    seed: Annotated[int, Query(ge=0, le=1_000_000)] = 0,
+    trials: Annotated[int, Query(ge=1, le=100)] = 30,
+    max_rounds: Annotated[int, Query(ge=1, le=200)] = 80,
+    max_minions: Annotated[int, Query(ge=1, le=10)] = 6,
+    max_scenarios: Annotated[int, Query(ge=1, le=50)] = 12,
+) -> CombatAiSimulationRunDTO:
+    row = await _service(db_session).start_family_pressure_probe(
+        family_id=family_id,
+        imprint_key=imprint_key,
+        seed=seed,
+        trials=trials,
+        max_rounds=max_rounds,
+        max_minions=max_minions,
+        max_scenarios=max_scenarios,
+    )
+    await db_session.commit()
+    try:
+        await _enqueue_family_pressure_job(
+            getattr(request.app.state, "combat_arq", None),
+            _family_pressure_payload(row),
+        )
+    except Exception as exc:
+        failed = await CombatAiSimulationRunRepository(db_session).mark_failed(
+            row.id,
+            error={"type": exc.__class__.__name__, "message": str(exc)},
+        )
+        await db_session.commit()
+        return _view(failed or row)
+    return _view(row)
+
+
 @router.post("/simulation-runs/live-demo", response_model=CombatAiSimulationRunDTO)
 async def run_live_demo_simulation(
     request: Request,
@@ -118,8 +162,8 @@ async def run_live_demo_simulation(
     max_rounds: Annotated[int, Query(ge=1, le=2000)] = LIVE_DEFAULT_MAX_EXCHANGES,
     tick_interval_seconds: Annotated[float, Query(ge=0.0, le=5.0)] = LIVE_DEFAULT_TICK_INTERVAL_SECONDS,
     timeout_ticks: Annotated[int, Query(ge=1, le=100)] = 8,
-    min_team_size: Annotated[int, Query(ge=1, le=5)] = 5,
-    max_team_size: Annotated[int, Query(ge=1, le=5)] = 5,
+    min_team_size: Annotated[int, Query(ge=1, le=6)] = 6,
+    max_team_size: Annotated[int, Query(ge=1, le=6)] = 6,
     scenario_key: str = "starter_presets_5v5_live",
     policy_run_id: str = "",
 ) -> CombatAiSimulationRunDTO:
@@ -141,7 +185,10 @@ async def run_live_demo_simulation(
     if row.status != "running":
         return _view(row)
     try:
-        await _enqueue_live_demo_job(getattr(request.app.state, "combat_arq", None), _live_demo_payload(row, seed=seed))
+        await _enqueue_live_demo_job(
+            getattr(request.app.state, "combat_ai_simulation_arq", None),
+            _live_demo_payload(row, seed=seed),
+        )
     except Exception as exc:
         failed = await CombatAiSimulationRunRepository(db_session).mark_failed(
             row.id,
@@ -161,8 +208,8 @@ async def run_live_demo_simulation_batch(
     max_rounds: Annotated[int, Query(ge=1, le=2000)] = LIVE_DEFAULT_MAX_EXCHANGES,
     tick_interval_seconds: Annotated[float, Query(ge=0.0, le=5.0)] = LIVE_DEFAULT_TICK_INTERVAL_SECONDS,
     timeout_ticks: Annotated[int, Query(ge=1, le=100)] = 8,
-    min_team_size: Annotated[int, Query(ge=1, le=5)] = 5,
-    max_team_size: Annotated[int, Query(ge=1, le=5)] = 5,
+    min_team_size: Annotated[int, Query(ge=1, le=6)] = 6,
+    max_team_size: Annotated[int, Query(ge=1, le=6)] = 6,
     scenario_key: str = "starter_presets_5v5_live",
     policy_run_id: str = "",
 ) -> CombatAiSimulationRunListDTO:
@@ -173,7 +220,7 @@ async def run_live_demo_simulation_batch(
     for index in range(int(count)):
         run_seed = (int(seed) + index) % 1_000_000
         rows.append(
-            await _start_live_demo_row(
+            await _schedule_live_demo_row(
                 service,
                 seed=run_seed,
                 max_rounds=max_rounds,
@@ -188,10 +235,10 @@ async def run_live_demo_simulation_batch(
     await db_session.commit()
     running_rows = [row for row in rows if row.status == "running"]
     try:
-        for row in running_rows:
-            await _enqueue_live_demo_job(
-                getattr(request.app.state, "combat_arq", None), _live_demo_payload(row, seed=row.seed)
-            )
+        arq = getattr(request.app.state, "combat_ai_simulation_arq", None)
+        await asyncio.gather(
+            *[_enqueue_live_demo_job(arq, _live_demo_payload(row, seed=row.seed)) for row in running_rows]
+        )
     except Exception as exc:
         repository = CombatAiSimulationRunRepository(db_session)
         for row in running_rows:
@@ -218,7 +265,7 @@ async def run_synthetic_training(
     await db_session.commit()
     try:
         await _enqueue_synthetic_training_job(
-            getattr(request.app.state, "combat_arq", None),
+            getattr(request.app.state, "combat_ai_simulation_arq", None),
             {
                 "run_id": row.id,
                 "generations": generations,
@@ -260,7 +307,7 @@ async def run_battle_training(
     await db_session.commit()
     try:
         await _enqueue_battle_training_job(
-            getattr(request.app.state, "combat_arq", None),
+            getattr(request.app.state, "combat_ai_simulation_arq", None),
             {
                 "run_id": row.id,
                 "source_policy_run_id": source_policy_run_id,
@@ -332,6 +379,58 @@ async def _start_live_demo_row(
     )
 
 
+async def _schedule_live_demo_row(
+    service: CombatAiSimulationRunService,
+    *,
+    seed: int,
+    max_rounds: int,
+    tick_interval_seconds: float,
+    timeout_ticks: int,
+    min_team_size: int,
+    max_team_size: int,
+    scenario_key: str,
+    policy_run_id: str = "",
+) -> CombatAiSimulationRun:
+    mirror_full_roster = scenario_key.startswith("starter_presets_mirror_10v10_live")
+    skill_profile = _live_skill_profile_from_scenario(scenario_key)
+    if policy_run_id:
+        return await service.schedule_live_starter_presets_demo_with_training_policy(
+            policy_run_id=policy_run_id,
+            seed=seed,
+            max_rounds=max_rounds,
+            tick_interval_seconds=tick_interval_seconds,
+            timeout_ticks=timeout_ticks,
+            min_team_size=min_team_size,
+            max_team_size=max_team_size,
+            scenario_key=scenario_key,
+            mirror_full_roster=mirror_full_roster,
+            skill_profile=skill_profile,
+        )
+    if scenario_key.endswith("_latest_training_file"):
+        return await service.schedule_live_starter_presets_demo_with_latest_training_file(
+            seed=seed,
+            max_rounds=max_rounds,
+            tick_interval_seconds=tick_interval_seconds,
+            timeout_ticks=timeout_ticks,
+            min_team_size=min_team_size,
+            max_team_size=max_team_size,
+            scenario_key=scenario_key,
+            mirror_full_roster=mirror_full_roster,
+            skill_profile=skill_profile,
+        )
+    return await service.schedule_live_starter_presets_demo(
+        seed=seed,
+        max_rounds=max_rounds,
+        tick_interval_seconds=tick_interval_seconds,
+        timeout_ticks=timeout_ticks,
+        min_team_size=min_team_size,
+        max_team_size=max_team_size,
+        scenario_key=scenario_key,
+        mirror_full_roster=mirror_full_roster,
+        skill_profile=skill_profile,
+    )
+
+
 def _live_demo_payload(row: CombatAiSimulationRun, *, seed: int) -> dict[str, Any]:
     metadata = dict(row.metadata_ or {})
     return {
@@ -340,9 +439,9 @@ def _live_demo_payload(row: CombatAiSimulationRun, *, seed: int) -> dict[str, An
         "max_rounds": row.max_rounds,
         "tick_interval_seconds": float(metadata.get("tick_interval_seconds") or LIVE_DEFAULT_TICK_INTERVAL_SECONDS),
         "timeout_ticks": int(metadata.get("timeout_ticks") or 8),
-        "min_team_size": int(metadata.get("roster_min_team_size") or 5),
-        "max_team_size": int(metadata.get("roster_max_team_size") or 5),
-        "mirror_full_roster": str(metadata.get("roster_mode") or "") == "mirror_10v10",
+        "min_team_size": int(metadata.get("roster_min_team_size") or 6),
+        "max_team_size": int(metadata.get("roster_max_team_size") or 6),
+        "mirror_full_roster": str(metadata.get("roster_mode") or "") in {"mirror_10v10", "mirror_full_roster"},
         "skill_profile": str(metadata.get("skill_profile") or STARTER_SKILL_PROFILE_BASELINE),
         "blue_imprints": list(metadata.get("blue_imprints") or []),
         "red_imprints": list(metadata.get("red_imprints") or []),
@@ -350,10 +449,30 @@ def _live_demo_payload(row: CombatAiSimulationRun, *, seed: int) -> dict[str, An
     }
 
 
+def _family_pressure_payload(row: CombatAiSimulationRun) -> dict[str, Any]:
+    metadata = dict(row.metadata_ or {})
+    return {
+        "run_id": row.id,
+        "family_id": str(metadata.get("family_id") or "").strip(),
+        "imprint_key": str(metadata.get("imprint_key") or "").strip(),
+        "seed": int(row.seed),
+        "trials": int(metadata.get("trials_per_composition") or 30),
+        "max_rounds": int(row.max_rounds),
+        "max_minions": int(metadata.get("max_minions") or 6),
+        "max_scenarios": int(metadata.get("max_scenarios") or 12),
+    }
+
+
 async def _enqueue_live_demo_job(arq: Any | None, payload: dict[str, Any]) -> None:
     if arq is None:
-        raise RuntimeError("Combat ARQ service is not available")
+        raise RuntimeError("Combat AI simulation ARQ service is not available")
     await arq.enqueue_job(COMBAT_AI_LIVE_SIMULATION_TASK, payload)
+
+
+async def _enqueue_family_pressure_job(arq: Any | None, payload: dict[str, Any]) -> None:
+    if arq is None:
+        raise RuntimeError("Combat ARQ service is not available")
+    await arq.enqueue_job(COMBAT_FAMILY_PRESSURE_TASK, payload)
 
 
 def _live_skill_profile_from_scenario(scenario_key: str) -> str:
@@ -364,13 +483,13 @@ def _live_skill_profile_from_scenario(scenario_key: str) -> str:
 
 async def _enqueue_synthetic_training_job(arq: Any | None, payload: dict[str, Any]) -> None:
     if arq is None:
-        raise RuntimeError("Combat ARQ service is not available")
+        raise RuntimeError("Combat AI simulation ARQ service is not available")
     await arq.enqueue_job(COMBAT_AI_SYNTHETIC_TRAINING_TASK, payload)
 
 
 async def _enqueue_battle_training_job(arq: Any | None, payload: dict[str, Any]) -> None:
     if arq is None:
-        raise RuntimeError("Combat ARQ service is not available")
+        raise RuntimeError("Combat AI simulation ARQ service is not available")
     await arq.enqueue_job(COMBAT_AI_BATTLE_TRAINING_TASK, payload)
 
 
@@ -404,6 +523,20 @@ def _progress_store_from_request(request: Request) -> CombatAiSimulationProgress
     if redis_service is None:
         return None
     return CombatAiSimulationProgressManager(redis_service)
+
+
+async def _clear_combat_ai_simulation_runtime_state(request: Request) -> dict[str, int]:
+    redis_client = getattr(request.app.state, "redis_client", None)
+    ai_queue_deleted = await clear_arq_queue(redis_client, COMBAT_AI_SIMULATION_ARQ_QUEUE)
+    combat_queue_deleted = await clear_arq_queue(redis_client, COMBAT_ARQ_QUEUE)
+    progress_store = _progress_store_from_request(request)
+    progress_deleted = await progress_store.clear_all_progress() if progress_store is not None else 0
+    return {
+        "queued_deleted": ai_queue_deleted + combat_queue_deleted,
+        "ai_queue_deleted": ai_queue_deleted,
+        "combat_queue_deleted": combat_queue_deleted,
+        "progress_deleted": progress_deleted,
+    }
 
 
 async def _progress_for_rows(

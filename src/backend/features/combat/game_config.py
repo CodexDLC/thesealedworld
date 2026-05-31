@@ -7,8 +7,6 @@ class CombatConfig(BaseGameConfig):
     # Parry / Block
     PARRY_SKILL_MULT_PER_POINT: float = 4.0
     SHIELD_BLOCK_SKILL_BONUS_AT_FULL: float = 0.32
-    SHIELD_MASTERY_ABSORB_CAP_RATIO_AT_FULL: float = 0.50
-    SHIELD_MASTERY_REFLECT_RATIO_AT_FULL: float = 1.00
 
     # Accuracy
     BASE_ACCURACY_CHANCE: float = 0.70
@@ -60,30 +58,6 @@ class CombatConfig(BaseGameConfig):
             max_value=1.0,
             step=0.01,
             risk="medium",
-            live_scope="new_exchange",
-            tags=("combat", "balance", "shield"),
-        ),
-        "SHIELD_MASTERY_ABSORB_CAP_RATIO_AT_FULL": ConfigEntryMeta(
-            label="Предел поглощения щитом",
-            description="Доля входящего урона, которую мастерство щита может пустить в защитную ветку.",
-            group="Парирование и щит",
-            unit="ratio",
-            min_value=0.0,
-            max_value=1.0,
-            step=0.01,
-            risk="high",
-            live_scope="new_exchange",
-            tags=("combat", "balance", "shield"),
-        ),
-        "SHIELD_MASTERY_REFLECT_RATIO_AT_FULL": ConfigEntryMeta(
-            label="Предел отражения щитом",
-            description="Максимальная доля shield counter power, доступная при полном мастерстве щита.",
-            group="Парирование и щит",
-            unit="ratio",
-            min_value=0.0,
-            max_value=2.0,
-            step=0.01,
-            risk="high",
             live_scope="new_exchange",
             tags=("combat", "balance", "shield"),
         ),

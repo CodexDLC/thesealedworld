@@ -16,7 +16,6 @@ from src.backend.features.combat.dto import (
 from src.backend.features.combat.dto.actor import ActorStats
 from src.backend.features.combat.runtime.engine.math_core import MathCore
 from src.backend.features.combat.runtime.simulation import (
-    BALANCE_TEST_SIMULATION_IMPRINTS,
     DEFAULT_STARTER_SIMULATION_IMPRINTS,
     AiSimulationIntentProvider,
     CombatTelemetry,
@@ -24,11 +23,12 @@ from src.backend.features.combat.runtime.simulation import (
     InMemoryBattleLimits,
     InMemoryCombatSimulator,
     LiveInMemoryCombatSimulator,
+    LiveSimulationNoExchangeWorkError,
     LiveSimulationTiming,
     SimulationActionCollector,
     SimulationMoveRegistrar,
     StartingImprintSimulationActorBuilder,
-    random_starter_5v5_imprints,
+    random_starter_6v6_imprints,
     random_starter_roster_imprints,
     render_simulation_report,
 )
@@ -36,12 +36,22 @@ from src.shared.schemas.modifier_dto import CombatModifiersDTO, CombatSkillsDTO
 
 
 class StaticBrain:
-    def __init__(self, feint_id: str | None = None) -> None:
+    def __init__(self, feint_id: str | None = None, *, all_targets: bool = False) -> None:
         self.feint_id = feint_id
+        self.all_targets = all_targets
         self.calls: list[tuple[str, list[str]]] = []
 
     def decide_turn(self, bot: ActorSnapshot, battle: BattleContext, candidate_targets: list[ActorSnapshot]):
         self.calls.append((str(bot.meta.id), [str(target.meta.id) for target in candidate_targets]))
+        if self.all_targets:
+            return [
+                {
+                    "action": "attack",
+                    "target_id": str(target.meta.id),
+                    **({"feint_id": self.feint_id} if self.feint_id else {}),
+                }
+                for target in candidate_targets
+            ]
         return [
             {
                 "action": "attack",
@@ -49,6 +59,11 @@ class StaticBrain:
                 **({"feint_id": self.feint_id} if self.feint_id else {}),
             }
         ]
+
+
+class EmptyBrain:
+    def decide_turn(self, bot: ActorSnapshot, battle: BattleContext, candidate_targets: list[ActorSnapshot]):
+        return []
 
 
 def sim_actor(
@@ -60,6 +75,7 @@ def sim_actor(
     is_ai: bool = True,
     feints: dict[str, dict[str, int]] | None = None,
     initiative: float = 0.0,
+    behavior_profile: str = "balanced",
 ) -> ActorSnapshot:
     hand = dict(feints or {})
     return ActorSnapshot(
@@ -69,6 +85,7 @@ def sim_actor(
             type="monster" if is_ai else "player",
             team=team,
             is_ai=is_ai,
+            ai_behavior_profile=behavior_profile,
             hp=hp,
             max_hp=hp,
             stamina=100,
@@ -107,6 +124,7 @@ def test_starting_imprint_actor_builder_uses_real_character_presets() -> None:
 
     assert snapshot.meta.name == "Ada Guard"
     assert snapshot.meta.ai_archetype == "bulwark"
+    assert snapshot.meta.ai_behavior_profile in {"aggressive", "balanced", "defensive"}
     assert snapshot.meta.hp > 1
     assert snapshot.meta.stamina > 1
     assert snapshot.stats is not None
@@ -116,25 +134,30 @@ def test_starting_imprint_actor_builder_uses_real_character_presets() -> None:
     assert snapshot.meta.feints.arsenal
     assert snapshot.meta.feints.hand
     assert actor.participant["imprint_key"] == "starter_guard_01"
+    assert actor.participant["behavior_profile"] == snapshot.meta.ai_behavior_profile
+    assert actor.participant["analytics_key"] == f"starter_guard_01/{snapshot.meta.ai_behavior_profile}"
     assert actor.participant["combat_stats"]["block"] > 0
+    assert actor.participant["combat_stats"]["physical_resistance"] >= 0
+    assert actor.participant["combat_stats"]["hp_regen"] >= 0
     assert actor.participant["gear_score"]["total"] > 0
     assert actor.participant["gear_score"]["offense"] > 0
     assert actor.participant["gear_score"]["defense"] > 0
 
 
 @pytest.mark.unit
-def test_starting_imprint_actor_builder_builds_5v5_roster() -> None:
+def test_starting_imprint_actor_builder_builds_6v6_roster() -> None:
     actors, participants = StartingImprintSimulationActorBuilder().build_roster()
 
-    assert len(actors) == 10
-    assert len(participants) == 10
+    assert len(actors) == 12
+    assert len(participants) == 12
     assert {actor.meta.team for actor in actors} == {"blue", "red"}
-    assert len({actor.meta.id for actor in actors}) == 10
+    assert len({actor.meta.id for actor in actors}) == 12
     assert all(participant["item_base_ids"] for participant in participants)
+    assert {participant["behavior_profile"] for participant in participants} <= {"aggressive", "balanced", "defensive"}
 
 
 @pytest.mark.unit
-def test_starting_imprint_actor_builder_builds_seeded_random_5v5_roster() -> None:
+def test_starting_imprint_actor_builder_builds_seeded_random_6v6_roster() -> None:
     seed_zero = StartingImprintSimulationActorBuilder().build_roster(seed=0)
     seed_zero_again = StartingImprintSimulationActorBuilder().build_roster(seed=0)
     seed_one = StartingImprintSimulationActorBuilder().build_roster(seed=1)
@@ -145,36 +168,41 @@ def test_starting_imprint_actor_builder_builds_seeded_random_5v5_roster() -> Non
 
     assert zero_teams == zero_again_teams
     assert zero_teams != one_teams
-    assert len({actor.meta.template_id for actor in seed_zero[0]}) == 10
+    assert len({actor.meta.template_id for actor in seed_zero[0]}) == 12
     assert {actor.meta.team for actor in seed_zero[0]} == {"blue", "red"}
-    assert len([actor for actor in seed_zero[0] if actor.meta.team == "blue"]) == 5
-    assert len([actor for actor in seed_zero[0] if actor.meta.team == "red"]) == 5
-    assert len(BALANCE_TEST_SIMULATION_IMPRINTS) > len(DEFAULT_STARTER_SIMULATION_IMPRINTS)
-    assert {str(actor.meta.template_id) for actor in seed_zero[0]}.issubset(set(BALANCE_TEST_SIMULATION_IMPRINTS))
-    assert random_starter_5v5_imprints(seed=0) == random_starter_5v5_imprints(seed=0)
+    assert len([actor for actor in seed_zero[0] if actor.meta.team == "blue"]) == 6
+    assert len([actor for actor in seed_zero[0] if actor.meta.team == "red"]) == 6
+    assert len(DEFAULT_STARTER_SIMULATION_IMPRINTS) == 12
+    assert {str(actor.meta.template_id) for actor in seed_zero[0]}.issubset(set(DEFAULT_STARTER_SIMULATION_IMPRINTS))
+    assert random_starter_6v6_imprints(seed=0) == random_starter_6v6_imprints(seed=0)
 
 
 @pytest.mark.unit
-def test_starting_imprint_actor_builder_can_build_balance_only_variants() -> None:
-    dual_heavy = StartingImprintSimulationActorBuilder().build_actor(
-        "sim_dual_heavy_01",
-        actor_id="sim_dual_heavy",
-        team="blue",
-    )
-    polearm_medium = StartingImprintSimulationActorBuilder().build_actor(
-        "sim_polearm_medium_01",
-        actor_id="sim_polearm_medium",
-        team="red",
-    )
+def test_default_starter_pool_is_twelve_imprint_balance_matrix() -> None:
+    assert set(DEFAULT_STARTER_SIMULATION_IMPRINTS) == {
+        "starter_guard_01",
+        "starter_tactician_01",
+        "starter_heavy_guard_01",
+        "starter_breaker_01",
+        "starter_staff_01",
+        "starter_rift_survivor_01",
+        "starter_dual_blades_01",
+        "starter_dual_sword_01",
+        "starter_dual_mace_01",
+        "starter_hunter_01",
+        "starter_archer_01",
+        "starter_marksman_01",
+    }
 
-    assert dual_heavy.actor.stats is not None
-    assert dual_heavy.participant["imprint_key"] == "sim_dual_heavy_01"
-    assert dual_heavy.participant["combat_style"] == "dual_light"
-    assert dual_heavy.participant["armor_pack"] == "heavy_full"
-    assert dual_heavy.participant["skill_profile"] == "baseline"
-    assert polearm_medium.actor.stats is not None
-    assert polearm_medium.participant["combat_style"] == "polearm_reach"
-    assert polearm_medium.participant["item_base_ids"][0] == "halberd"
+
+@pytest.mark.unit
+def test_starting_imprint_actor_builder_rejects_removed_balance_variants() -> None:
+    with pytest.raises(ValueError, match="Unknown starting imprint"):
+        StartingImprintSimulationActorBuilder().build_actor(
+            "sim_dual_heavy_01",
+            actor_id="sim_dual_heavy",
+            team="blue",
+        )
 
 
 @pytest.mark.unit
@@ -195,16 +223,17 @@ def test_starting_imprint_actor_builder_can_draft_partial_rosters() -> None:
 
 
 @pytest.mark.unit
-def test_starting_imprint_actor_builder_can_build_mirror_10v10_roster() -> None:
+def test_starting_imprint_actor_builder_can_build_mirror_full_roster() -> None:
     actors, participants = StartingImprintSimulationActorBuilder().build_roster(
         blue_imprints=DEFAULT_STARTER_SIMULATION_IMPRINTS,
         red_imprints=DEFAULT_STARTER_SIMULATION_IMPRINTS,
     )
 
-    assert len(actors) == 20
-    assert len(participants) == 20
-    assert len([actor for actor in actors if actor.meta.team == "blue"]) == 10
-    assert len([actor for actor in actors if actor.meta.team == "red"]) == 10
+    expected_team_size = len(DEFAULT_STARTER_SIMULATION_IMPRINTS)
+    assert len(actors) == expected_team_size * 2
+    assert len(participants) == expected_team_size * 2
+    assert len([actor for actor in actors if actor.meta.team == "blue"]) == expected_team_size
+    assert len([actor for actor in actors if actor.meta.team == "red"]) == expected_team_size
     assert {actor.meta.template_id for actor in actors if actor.meta.team == "blue"} == set(
         DEFAULT_STARTER_SIMULATION_IMPRINTS
     )
@@ -229,6 +258,18 @@ def test_in_memory_battle_factory_builds_valid_context() -> None:
     assert state.ctx.meta.teams == {"blue": ["hero"], "red": ["wolf"]}
     assert state.ctx.meta.actors_info == {"hero": "player", "wolf": "ai"}
     assert state.limits.max_rounds == 3
+
+
+@pytest.mark.unit
+def test_in_memory_battle_factory_places_fast_targets_later_in_enemy_queues() -> None:
+    slow = sim_actor("slow", "red", initiative=0.0)
+    middle = sim_actor("middle", "red", initiative=50.0)
+    fast = sim_actor("fast", "red", initiative=100.0)
+    hero = sim_actor("hero", "blue")
+
+    state = InMemoryBattleFactory.from_actors([hero, fast, slow, middle], session_id="sim-initiative-queue")
+
+    assert state.ctx.targets["hero"] == ["slow", "middle", "fast"]
 
 
 @pytest.mark.unit
@@ -615,7 +656,35 @@ async def test_live_simulator_resolves_one_exchange_per_step(monkeypatch: pytest
 
 
 @pytest.mark.unit
-async def test_live_simulator_uses_virtual_initiative_without_wall_clock_sleep(
+async def test_live_simulator_behavior_profile_controls_decisions_per_tick() -> None:
+    actor = sim_actor("aggressive", "blue", behavior_profile="aggressive")
+    targets = [sim_actor(f"target_{index}", "red") for index in range(5)]
+    state = InMemoryBattleFactory.from_actors(
+        [actor, *targets],
+        session_id="live-behavior-profile",
+        limits=InMemoryBattleLimits(max_rounds=1, candidate_limit=5, force_unanswered_exchange=False),
+    )
+    brain = StaticBrain(all_targets=True)
+    simulator = LiveInMemoryCombatSimulator(
+        timing=LiveSimulationTiming(tick_interval_seconds=0, timeout_ticks=None),
+        brain=brain,
+    )
+
+    step = await simulator.step(state, tick_index=10)
+
+    assert step.action_count == 0
+    assert step.registered_move_ids == [
+        "live-10-aggressive-target_0-0",
+        "live-10-aggressive-target_1-1",
+        "live-10-aggressive-target_2-2",
+        "live-10-aggressive-target_3-3",
+        "live-10-aggressive-target_4-4",
+    ]
+    assert brain.calls == [("aggressive", ["target_0", "target_1", "target_2", "target_3", "target_4"])]
+
+
+@pytest.mark.unit
+async def test_live_simulator_uses_behavior_ticks_without_wall_clock_sleep(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     async def fail_sleep(_seconds: float) -> None:
@@ -626,8 +695,8 @@ async def test_live_simulator_uses_virtual_initiative_without_wall_clock_sleep(
     monkeypatch.setattr(asyncio, "sleep", fail_sleep)
     state = InMemoryBattleFactory.from_actors(
         [
-            sim_actor("slow", "blue", initiative=0.0),
-            sim_actor("fast", "red", initiative=100.0),
+            sim_actor("slow", "blue", behavior_profile="defensive"),
+            sim_actor("fast", "red", behavior_profile="aggressive"),
         ],
         session_id="live-virtual-time",
         limits=InMemoryBattleLimits(max_rounds=1, candidate_limit=1, force_unanswered_exchange=False),
@@ -643,13 +712,102 @@ async def test_live_simulator_uses_virtual_initiative_without_wall_clock_sleep(
     )
 
     first = await simulator.step(state, tick_index=0)
-    second = await simulator.step(state, tick_index=5)
+    second = await simulator.step(state, tick_index=2)
     third = await simulator.step(state, tick_index=10)
 
     assert first.registered_move_id is None
     assert second.registered_move_id
     assert "fast" in second.registered_move_id
     assert third.action_count == 1
+
+
+@pytest.mark.unit
+async def test_live_simulator_forces_exchange_when_ai_returns_no_move() -> None:
+    state = InMemoryBattleFactory.from_actors(
+        [sim_actor("blue", "blue", hp=100), sim_actor("red", "red", hp=100)],
+        session_id="live-empty-ai-fallback",
+        limits=InMemoryBattleLimits(max_rounds=1, candidate_limit=1, force_unanswered_exchange=False),
+    )
+    simulator = LiveInMemoryCombatSimulator(
+        timing=LiveSimulationTiming(tick_interval_seconds=0, timeout_ticks=1),
+        brain=EmptyBrain(),
+    )
+
+    result = await simulator.run(state)
+
+    assert result.completion_reason == "max_exchanges_reached"
+    assert result.rounds_completed == 1
+    assert state.telemetry.action_count >= 2
+
+
+@pytest.mark.unit
+async def test_live_simulator_filters_dead_targets_before_candidate_limit() -> None:
+    blue = sim_actor("blue", "blue", hp=100)
+    dead_targets = [sim_actor(f"dead_{index}", "red", hp=0) for index in range(5)]
+    alive = sim_actor("alive", "red", hp=100)
+    state = InMemoryBattleFactory.from_actors(
+        [blue, *dead_targets, alive],
+        session_id="live-dead-target-prefix",
+        limits=InMemoryBattleLimits(max_rounds=1, candidate_limit=5, force_unanswered_exchange=False),
+    )
+    state.ctx.targets["blue"] = [target.meta.id for target in dead_targets] + [alive.meta.id]
+    simulator = LiveInMemoryCombatSimulator(
+        timing=LiveSimulationTiming(tick_interval_seconds=0, timeout_ticks=None),
+        brain=StaticBrain(),
+    )
+
+    step = await simulator.step(state, tick_index=10)
+
+    assert step.registered_move_ids == ["live-10-blue-alive-0"]
+
+
+@pytest.mark.unit
+async def test_live_simulator_uses_exchange_limit_as_default_safety_guard(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(MathCore, "random_range", staticmethod(lambda min_d, _max_d: min_d))
+    monkeypatch.setattr(MathCore, "roll_chance", staticmethod(lambda chance: (0.0, chance >= 0.7)))
+    state = InMemoryBattleFactory.from_actors(
+        [
+            sim_actor("slow_blue", "blue", hp=100, damage=1.0),
+            sim_actor("slow_red", "red", hp=100, damage=1.0),
+        ],
+        session_id="live-exchange-limit-only",
+        limits=InMemoryBattleLimits(max_rounds=1, candidate_limit=1, force_unanswered_exchange=False),
+    )
+    simulator = LiveInMemoryCombatSimulator(
+        timing=LiveSimulationTiming(
+            tick_interval_seconds=0,
+            timeout_ticks=None,
+            base_decision_ticks=1000,
+            min_decision_ticks=1000,
+        ),
+        brain=StaticBrain(),
+    )
+
+    result = await simulator.run(state)
+
+    assert result.completion_reason == "max_exchanges_reached"
+    assert result.rounds_completed == 1
+    assert result.final_tick_index > 500
+
+
+@pytest.mark.unit
+async def test_live_simulator_stops_when_no_future_exchange_work_exists() -> None:
+    state = InMemoryBattleFactory.from_actors(
+        [sim_actor("blue", "blue", hp=100), sim_actor("red", "red", hp=100)],
+        session_id="live-stalled-no-targets",
+        limits=InMemoryBattleLimits(max_rounds=500, candidate_limit=1, force_unanswered_exchange=False),
+    )
+    state.ctx.targets["blue"] = []
+    state.ctx.targets["red"] = []
+    simulator = LiveInMemoryCombatSimulator(
+        timing=LiveSimulationTiming(tick_interval_seconds=0, timeout_ticks=None),
+        brain=StaticBrain(),
+    )
+
+    with pytest.raises(LiveSimulationNoExchangeWorkError):
+        await simulator.run(state)
 
 
 @pytest.mark.unit

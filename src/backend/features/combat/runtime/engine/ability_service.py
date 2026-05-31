@@ -12,7 +12,10 @@ from src.backend.features.combat.dto import (
     CombatEffectFactDTO,
     CombatEventDTO,
     CombatMoveDTO,
+    CombatResourceApplicationDTO,
     CombatResourceFactDTO,
+    CombatStatusApplicationDTO,
+    CombatStatusRemovalDTO,
     ExchangePayload,
     InstantPayload,
     PipelineContextDTO,
@@ -156,6 +159,11 @@ class AbilityService:
     def _apply_status_effects(ctx: PipelineContextDTO, actor: ActorSnapshot, mode: Literal["source", "target"]) -> None:
         """Apply active status effects into pipeline flags, phases, and mods."""
         for effect in actor.statuses.effects:
+            current_exchange = actor.meta.exchange_counter
+            if current_exchange < int(getattr(effect, "active_from_exchange", 0) or 0):
+                continue
+            if effect.expire_at_exchange <= current_exchange:
+                continue
             effect_entry = GameData.get_effect_catalog_entry(effect.effect_id)
             effect_config = effect_entry.technical if effect_entry else None
             if (
@@ -181,6 +189,16 @@ class AbilityService:
                     if mode == "source" and behavior.get("can_act") is False:
                         ctx.phases.run_calculator = False
                         ctx.result.skip_reason = "CONTROLLED"
+                        ctx.result.effect_facts.append(
+                            CombatEffectFactDTO(
+                                actor_id=actor.char_id,
+                                owner="source",
+                                effect_id=effect.effect_id,
+                                action="tick",
+                                source_effect_id=effect.effect_id,
+                                tags=["control", "prevent_action"],
+                            )
+                        )
 
                     for path, value in behavior.items():
                         if path == "can_act":
@@ -365,11 +383,6 @@ class AbilityService:
             modified_keys = sorted(set(modified_keys) | applied_modifiers.modified_keys)
             AbilityService._merge_modified_sources(modified_sources, applied_modifiers.modified_sources)
 
-        if mode == "feint":
-            shield_damage = AbilityService._source_shield_power_damage(actor, config)
-            if shield_damage > 0:
-                ctx.override_damage = (float(shield_damage), float(shield_damage))
-
         payload_effects: dict[str, Any] = {}
         prep_effects = getattr(config, "preparation_effects", None)
         if prep_effects:
@@ -465,6 +478,15 @@ class AbilityService:
                 to_remove.append(ability)
 
         for ability in to_remove:
+            ctx.result.status_removals.append(
+                CombatStatusRemovalDTO(
+                    actor_id=source.char_id,
+                    effect_uid=ability.uid,
+                    effect_id=ability.ability_id,
+                    source_effect_id=ability.ability_id,
+                    tags=["ability"],
+                )
+            )
             source.statuses.abilities.remove(ability)
 
     @staticmethod
@@ -514,8 +536,15 @@ class AbilityService:
                 )
             )
             if config.consume_on_reaction:
-                if effect.modified_sources:
-                    ModifierApplicationService.remove_temp_sources(actor, effect.modified_sources)
+                ctx.result.status_removals.append(
+                    CombatStatusRemovalDTO(
+                        actor_id=actor.char_id,
+                        effect_uid=effect.uid,
+                        effect_id=effect.effect_id,
+                        source_effect_id=effect.effect_id,
+                        tags=["prepared_reaction", outcome],
+                    )
+                )
                 to_remove.append(effect)
 
         for effect in to_remove:
@@ -609,19 +638,14 @@ class AbilityService:
         if heal_amount <= 0:
             return
 
-        before = actor.meta.hp
-        actor.meta.hp = min(max_hp, actor.meta.hp + heal_amount)
         ctx.result.tokens_awarded_defender.pop("parry", None)
-        ctx.result.resource_facts.append(
-            CombatResourceFactDTO(
+        ctx.result.resource_applications.append(
+            CombatResourceApplicationDTO(
                 actor_id=actor.char_id,
                 owner=AbilityService._fact_owner(ctx, actor.char_id),
                 resource="hp",
                 reason="prepared_heal",
-                delta=actor.meta.hp - before,
-                before=before,
-                after=actor.meta.hp,
-                max=max_hp,
+                value=f"+{heal_amount}",
                 source_effect_id=effect_id,
                 tags=["prepared_reaction", "parry", "heal"],
             )
@@ -631,7 +655,7 @@ class AbilityService:
                 type="HEAL",
                 source_id=actor.char_id,
                 target_id=actor.char_id,
-                value=actor.meta.hp - before,
+                value=heal_amount,
                 resource="hp",
                 action_id=effect_id,
                 tags=["PREPARED_REACTION", "PARRY"],
@@ -673,18 +697,6 @@ class AbilityService:
             return max(1, int(tiers.get("off_hand", 1)))
         except (TypeError, ValueError):
             return 1
-
-    @staticmethod
-    def _source_shield_power_damage(actor: ActorSnapshot, config: AbilityTechnicalDTO | FeintTechnicalDTO) -> int:
-        ratio = float(getattr(config, "shield_guard_damage_ratio", 0.0) or 0.0)
-        if ratio <= 0:
-            return 0
-        minimum = max(0, int(getattr(config, "shield_guard_damage_min", 0) or 0))
-        fallback_per_tier = max(0, int(getattr(config, "shield_guard_damage_tier_fallback", 0) or 0))
-        tier_fallback = fallback_per_tier * AbilityService._source_shield_tier(actor)
-        mods = actor.stats.mods if actor.stats else None
-        shield_power = max(0.0, float(getattr(mods, "shield_guard_power", 0.0) or 0.0))
-        return max(minimum, tier_fallback, int(round(shield_power * ratio)))
 
     @staticmethod
     def _dispel_prepared_effects(actor: ActorSnapshot) -> int:
@@ -808,6 +820,12 @@ class AbilityService:
                 damage_ref=damage_ref,  # Передаем урон
             )
 
+            if ctx.flags.meta.action_mode == "exchange":
+                active_from_exchange = source.meta.exchange_counter + 1
+                duration = max(0, active_effect.expire_at_exchange - source.meta.exchange_counter)
+                active_effect.active_from_exchange = active_from_exchange
+                active_effect.expire_at_exchange = active_from_exchange + duration
+
             if config.modifier_applications:
                 applied_modifiers = ModifierApplicationService.apply(
                     applications=config.modifier_applications,
@@ -821,13 +839,25 @@ class AbilityService:
                 active_effect.modified_sources = applied_modifiers.modified_sources
 
             effect_target.statuses.effects.append(active_effect)
+
+            ctx.result.status_applications.append(
+                CombatStatusApplicationDTO(
+                    actor_id=effect_target.char_id,
+                    source_id=source.char_id,
+                    effect_id=active_effect.effect_id,
+                    active_effect=active_effect.model_dump(mode="json"),
+                    source_action_id=effect_data.get("source_action_id"),
+                    source_effect_id=effect_data.get("source_effect_id"),
+                    source_trigger_id=effect_data.get("source_trigger_id"),
+                )
+            )
             ctx.result.effect_facts.append(
                 CombatEffectFactDTO(
                     actor_id=effect_target.char_id,
                     owner=AbilityService._fact_owner(ctx, effect_target.char_id),
                     effect_id=active_effect.effect_id,
                     action="apply",
-                    duration=max(0, active_effect.expire_at_exchange - source.meta.exchange_counter),
+                    duration=max(0, active_effect.expire_at_exchange - active_effect.active_from_exchange),
                     source_trigger_id=effect_data.get("source_trigger_id"),
                 )
             )
@@ -1002,13 +1032,12 @@ class AbilityService:
         to_remove = []
 
         for effect in actor.statuses.effects:
-            if effect.expire_at_exchange < current_exchange:
-                if effect.modified_sources:
-                    ModifierApplicationService.remove_temp_sources(actor, effect.modified_sources)
-
+            if effect.expire_at_exchange <= current_exchange:
                 to_remove.append(effect)
 
         for effect in to_remove:
+            if effect.modified_sources:
+                ModifierApplicationService.remove_temp_sources(actor, effect.modified_sources)
             actor.statuses.effects.remove(effect)
 
     # ==============================================================================

@@ -8,19 +8,48 @@
         "action_id": "ask_where",
         "label": "Где я?",
         "icon": "default",
-        "to_node": "arrival_where_01"
+        "to_node": "arrival_where_01",
+        "effects": [
+          {
+            "type": "npc.bump_counter",
+            "npc_key": "portal_pad_guide",
+            "counter": "first_contact_curiosity",
+            "amount": 1
+          }
+        ]
       },
       {
         "action_id": "ask_thread",
         "label": "Что со мной?",
         "icon": "default",
-        "to_node": "arrival_thread_01"
+        "to_node": "arrival_thread_01",
+        "effects": [
+          {
+            "type": "npc.bump_counter",
+            "npc_key": "portal_pad_guide",
+            "counter": "first_contact_curiosity",
+            "amount": 1
+          }
+        ]
       },
       {
         "action_id": "stand_up",
         "label": "Попытаться подняться",
         "icon": "warning",
-        "to_node": "arrival_resist_01"
+        "to_node": "arrival_resist_01",
+        "effects": [
+          {
+            "type": "npc.bump_counter",
+            "npc_key": "portal_pad_guide",
+            "counter": "first_contact_resistance",
+            "amount": 1
+          },
+          {
+            "type": "npc.adjust_reputation",
+            "npc_key": "portal_pad_guide",
+            "amount": -1
+          }
+        ]
       }
     ],
     "node_type": "dialog",
@@ -40,13 +69,29 @@
         "action_id": "ask_him",
         "label": "Кто ты?",
         "icon": "default",
-        "to_node": "arrival_overseer_01"
+        "to_node": "arrival_overseer_01",
+        "effects": [
+          {
+            "type": "npc.bump_counter",
+            "npc_key": "portal_pad_guide",
+            "counter": "first_contact_curiosity",
+            "amount": 1
+          }
+        ]
       },
       {
         "action_id": "ask_next",
         "label": "Что будет дальше?",
         "icon": "default",
-        "to_node": "arrival_protocol_01"
+        "to_node": "arrival_protocol_01",
+        "effects": [
+          {
+            "type": "npc.bump_counter",
+            "npc_key": "portal_pad_guide",
+            "counter": "first_contact_curiosity",
+            "amount": 1
+          }
+        ]
       }
     ],
     "node_type": "dialog",
@@ -66,13 +111,29 @@
         "action_id": "ask_protocol",
         "label": "Какой шанс?",
         "icon": "default",
-        "to_node": "arrival_protocol_01"
+        "to_node": "arrival_protocol_01",
+        "effects": [
+          {
+            "type": "npc.bump_counter",
+            "npc_key": "portal_pad_guide",
+            "counter": "first_contact_curiosity",
+            "amount": 1
+          }
+        ]
       },
       {
         "action_id": "demand_answers",
         "label": "Сначала объясни, что со мной",
         "icon": "warning",
-        "to_node": "arrival_thread_01"
+        "to_node": "arrival_thread_01",
+        "effects": [
+          {
+            "type": "npc.bump_counter",
+            "npc_key": "portal_pad_guide",
+            "counter": "first_contact_curiosity",
+            "amount": 1
+          }
+        ]
       }
     ],
     "node_type": "dialog",
@@ -92,13 +153,34 @@
         "action_id": "freeze",
         "label": "Замереть и выслушать",
         "icon": "default",
-        "to_node": "arrival_thread_01"
+        "to_node": "arrival_thread_01",
+        "effects": [
+          {
+            "type": "npc.bump_counter",
+            "npc_key": "portal_pad_guide",
+            "counter": "first_contact_compliance",
+            "amount": 1
+          }
+        ]
       },
       {
         "action_id": "stay_defiant",
         "label": "Не опускать взгляд",
         "icon": "warning",
-        "to_node": "arrival_protocol_01"
+        "to_node": "arrival_protocol_01",
+        "effects": [
+          {
+            "type": "npc.bump_counter",
+            "npc_key": "portal_pad_guide",
+            "counter": "first_contact_resistance",
+            "amount": 1
+          },
+          {
+            "type": "npc.adjust_reputation",
+            "npc_key": "portal_pad_guide",
+            "amount": -1
+          }
+        ]
       }
     ],
     "node_type": "dialog",
@@ -118,13 +200,29 @@
         "action_id": "ask_survive",
         "label": "А если не выживу?",
         "icon": "default",
-        "to_node": "arrival_protocol_01"
+        "to_node": "arrival_protocol_01",
+        "effects": [
+          {
+            "type": "npc.bump_counter",
+            "npc_key": "portal_pad_guide",
+            "counter": "first_contact_curiosity",
+            "amount": 1
+          }
+        ]
       },
       {
         "action_id": "ask_choice",
         "label": "У меня есть выбор?",
         "icon": "default",
-        "to_node": "arrival_protocol_01"
+        "to_node": "arrival_protocol_01",
+        "effects": [
+          {
+            "type": "npc.bump_counter",
+            "npc_key": "portal_pad_guide",
+            "counter": "first_contact_curiosity",
+            "amount": 1
+          }
+        ]
       }
     ],
     "node_type": "dialog",
@@ -144,13 +242,39 @@
         "action_id": "accept_protocol",
         "label": "Принять протокол",
         "icon": "check",
-        "to_node": "overseer_dialogue_01"
+        "to_node": "overseer_dialogue_01",
+        "effects": [
+          {
+            "type": "npc.bump_counter",
+            "npc_key": "portal_pad_guide",
+            "counter": "first_contact_compliance",
+            "amount": 1
+          },
+          {
+            "type": "npc.adjust_reputation",
+            "npc_key": "portal_pad_guide",
+            "amount": 1
+          }
+        ]
       },
       {
         "action_id": "reject_protocol",
         "label": "Отказаться",
         "icon": "warning",
-        "to_node": "overseer_dialogue_01"
+        "to_node": "overseer_dialogue_01",
+        "effects": [
+          {
+            "type": "npc.bump_counter",
+            "npc_key": "portal_pad_guide",
+            "counter": "first_contact_resistance",
+            "amount": 1
+          },
+          {
+            "type": "npc.adjust_reputation",
+            "npc_key": "portal_pad_guide",
+            "amount": -1
+          }
+        ]
       }
     ],
     "node_type": "dialog",
@@ -170,7 +294,15 @@
         "action_id": "turn",
         "label": "Провалиться в темноту",
         "icon": "warning",
-        "to_node": "crash_sequence_02"
+        "to_node": "crash_sequence_02",
+        "effects": [
+          {
+            "type": "npc.set_flag",
+            "npc_key": "portal_pad_guide",
+            "flag": "first_contact_completed",
+            "value": true
+          }
+        ]
       }
     ],
     "node_type": "dialog",

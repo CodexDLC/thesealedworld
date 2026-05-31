@@ -1,16 +1,13 @@
 from __future__ import annotations
 
-import hashlib
 import random
 from collections.abc import Mapping
 from dataclasses import dataclass
 
 from src.backend.features.character.resources.starting_imprints import (
     ATTRIBUTE_KEYS,
-    DEFAULT_ATTRIBUTE_TAIL_ORDER,
     DEFAULT_STARTING_IMPRINT_KEY,
     STARTING_ARMOR_PACKS,
-    STARTING_ATTRIBUTE_LADDER,
     STARTING_COMBAT_STYLES,
     STARTING_IMPRINTS,
     STARTING_UTILITY_PACKS,
@@ -50,7 +47,7 @@ class StartingImprintService:
         return StartingImprintBuild(
             imprint_key=imprint.imprint_key,
             title=imprint.title,
-            attributes=self._build_attributes(imprint.primary_stats, seed=imprint.imprint_key),
+            attributes=self._build_attributes(imprint.attribute_values),
             skill_xp=self._skill_xp(imprint.skill_xp),
             skill_keys=tuple(skill_key for skill_key, _ in imprint.skill_xp),
             item_base_ids=self._dedupe((*combat.item_base_ids, *armor.item_base_ids, *utility.item_base_ids)),
@@ -98,23 +95,14 @@ class StartingImprintService:
             raise ValueError(f"Unknown starting imprint: {imprint_key}") from exc
 
     @staticmethod
-    def _build_attributes(primary_stats: tuple[str, ...], *, seed: str) -> dict[str, int]:
-        order = StartingImprintService._attribute_order(primary_stats, seed=seed)
-        return dict(zip(order, STARTING_ATTRIBUTE_LADDER, strict=True))
-
-    @staticmethod
-    def _attribute_order(primary_stats: tuple[str, ...], *, seed: str) -> tuple[str, ...]:
-        unknown = [stat for stat in primary_stats if stat not in ATTRIBUTE_KEYS]
+    def _build_attributes(attribute_values: tuple[tuple[str, int], ...]) -> dict[str, int]:
+        attributes = dict(attribute_values)
+        unknown = [stat for stat in attributes if stat not in ATTRIBUTE_KEYS]
         if unknown:
             raise ValueError(f"Unknown starting imprint attributes: {unknown}")
-
-        order = list(StartingImprintService._dedupe(primary_stats))
-        tail = [stat for stat in DEFAULT_ATTRIBUTE_TAIL_ORDER if stat not in order]
-        StartingImprintService._stable_shuffle(tail, seed=seed)
-        order.extend(tail)
-        if set(order) != set(ATTRIBUTE_KEYS) or len(order) != len(ATTRIBUTE_KEYS):
-            raise ValueError("Starting imprint attribute order does not cover the character attribute contract")
-        return tuple(order)
+        if set(attributes) != set(ATTRIBUTE_KEYS):
+            raise ValueError("Starting imprint attributes do not cover the character attribute contract")
+        return attributes
 
     @staticmethod
     def _get_pack(packs: Mapping[str, StartingLoadoutPack], key: str, kind: str) -> StartingLoadoutPack:
@@ -135,11 +123,6 @@ class StartingImprintService:
                 continue
             skill_xp[skill_key] = round(float(xp), 4)
         return skill_xp
-
-    @staticmethod
-    def _stable_shuffle(values: list[str], *, seed: str) -> None:
-        digest = hashlib.sha256(seed.encode("utf-8")).digest()
-        random.Random(int.from_bytes(digest[:8], "big")).shuffle(values)
 
     @staticmethod
     def _primary_weight(position: int) -> float:

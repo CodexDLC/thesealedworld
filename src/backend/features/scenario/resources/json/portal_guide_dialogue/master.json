@@ -11,6 +11,6 @@
       "mode": "dialogue_context"
     }
   },
-  "start_node_id": "guide_dialogue_hub",
+  "start_node_id": "guide_memory_entry",
   "status_bar_fields": []
 }

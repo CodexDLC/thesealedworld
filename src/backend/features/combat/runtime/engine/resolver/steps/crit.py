@@ -32,6 +32,7 @@ class CritStep(ResolverStep):
 
         if ctx.flags.force.crit:
             res.is_crit = True
+            trigger_activator.apply_ammo_crit_payload(ctx, res)
             if not ctx.flags.restriction.suppress_crit_triggers:
                 trigger_activator.resolve_triggers(ctx, res, "ON_CRIT")
             return
@@ -76,6 +77,7 @@ class CritStep(ResolverStep):
 
         if passed:
             res.is_crit = True
+            trigger_activator.apply_ammo_crit_payload(ctx, res)
             if not ctx.flags.restriction.suppress_crit_triggers:
                 trigger_activator.resolve_triggers(ctx, res, "ON_CRIT")
         else:

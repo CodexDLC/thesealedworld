@@ -5,12 +5,13 @@ from __future__ import annotations
 import hashlib
 import math
 from collections.abc import Awaitable, Callable, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
 from src.backend.features.combat.dto.action import CombatActionDTO, CombatMoveDTO
 from src.backend.features.combat.dto.ids import ActorId, ActorIdLike, normalize_actor_id
 from src.backend.features.combat.dto.payloads import ExchangePayload, InstantPayload
+from src.backend.features.combat.runtime.ai.behavior import behavior_settings
 from src.backend.features.combat.runtime.ai.brain import MonsterCombatBrain
 from src.backend.features.combat.runtime.processors.executor import CombatExecutor
 from src.backend.features.combat.runtime.simulation.simulator import SimulationRunResult
@@ -22,10 +23,14 @@ if TYPE_CHECKING:
 LiveStepCallback = Callable[["LiveSimulationStepResult", "InMemoryBattleState"], Awaitable[None]]
 
 
+class LiveSimulationNoExchangeWorkError(RuntimeError):
+    """Raised when live simulation cannot schedule any future exchange work."""
+
+
 @dataclass(frozen=True)
 class LiveSimulationTiming:
     tick_interval_seconds: float = 0.05
-    max_ticks: int = 500
+    max_ticks: int | None = None
     timeout_ticks: int | None = 8
     use_wall_clock_delay: bool = False
     base_decision_ticks: int = 10
@@ -41,6 +46,7 @@ class LiveSimulationStepResult:
     action_count: int
     winner: str | None
     timeout_forced: bool = False
+    registered_move_ids: list[str] = field(default_factory=list)
 
 
 class SimulationMoveRegistrar:
@@ -121,15 +127,20 @@ class LiveInMemoryCombatSimulator:
     ) -> SimulationRunResult:
         winner = state.winner()
         tick_index = 0
+        completion_reason = "victory"
         while (
             winner is None
             and state.ctx.meta.step_counter < state.limits.max_rounds
-            and tick_index < self.timing.max_ticks
+            and (self.timing.max_ticks is None or tick_index < self.timing.max_ticks)
         ):
             step = await self.step(state, tick_index=tick_index)
             winner = step.winner
             if on_step is not None:
                 await on_step(step, state)
+            if winner is None and self._is_stalled(state):
+                raise LiveSimulationNoExchangeWorkError(
+                    "Live simulation has alive opponents but no pending moves and no schedulable targets."
+                )
             tick_index = self._next_tick_index(state, current_tick=tick_index + 1)
             if winner is not None:
                 break
@@ -138,14 +149,14 @@ class LiveInMemoryCombatSimulator:
 
                 await asyncio.sleep(self.timing.tick_interval_seconds)
 
-        completion_reason = "victory"
         if winner is None:
             winner = "draw"
-            completion_reason = (
-                "max_exchanges_reached"
-                if state.ctx.meta.step_counter >= state.limits.max_rounds
-                else "max_ticks_reached"
-            )
+            if state.ctx.meta.step_counter >= state.limits.max_rounds:
+                completion_reason = "max_exchanges_reached"
+            elif self.timing.max_ticks is not None and tick_index >= self.timing.max_ticks:
+                completion_reason = "max_ticks_reached"
+            else:
+                completion_reason = "stalled"
         state.ctx.meta.winner = winner
         state.ctx.meta.active = 0
         return SimulationRunResult(
@@ -154,10 +165,11 @@ class LiveInMemoryCombatSimulator:
             telemetry=state.telemetry,
             final_hp_by_actor={str(actor_id): actor.meta.hp for actor_id, actor in state.ctx.actors.items()},
             completion_reason=completion_reason,
+            final_tick_index=tick_index,
         )
 
     async def step(self, state: InMemoryBattleState, *, tick_index: int) -> LiveSimulationStepResult:
-        registered_move_id, instant_processed_ids = await self._try_register_next_move(state, tick_index=tick_index)
+        registered_move_ids, instant_processed_ids = await self._try_register_next_moves(state, tick_index=tick_index)
         action = self._ready_exchange_action()
         timeout_forced = False
         if action is None:
@@ -176,34 +188,39 @@ class LiveInMemoryCombatSimulator:
         return LiveSimulationStepResult(
             tick_index=tick_index,
             exchange_index=state.ctx.meta.step_counter,
-            registered_move_id=registered_move_id,
+            registered_move_id=registered_move_ids[0] if registered_move_ids else None,
             processed_move_ids=processed_move_ids,
             action_count=1 if action is not None else 0,
             winner=winner,
             timeout_forced=timeout_forced,
+            registered_move_ids=registered_move_ids,
         )
 
-    async def _try_register_next_move(
+    async def _try_register_next_moves(
         self,
         state: InMemoryBattleState,
         *,
         tick_index: int,
-    ) -> tuple[str | None, list[str]]:
+    ) -> tuple[list[str], list[str]]:
         actor = self._next_actor_ready_with_target(state, tick_index=tick_index)
         if actor is None:
-            return None, []
+            return [], []
 
         target_queue = [
-            target_id for target_id in state.ctx.targets.get(actor.meta.id, []) if state.ctx.get_actor(target_id)
+            target_id
+            for target_id in state.ctx.targets.get(actor.meta.id, [])
+            if (target := state.ctx.get_actor(target_id)) is not None and target.is_alive
         ]
-        raw_candidates = [state.ctx.get_actor(target_id) for target_id in target_queue[: state.limits.candidate_limit]]
+        max_decisions = self._decisions_per_tick(actor)
+        candidate_limit = max(1, min(int(state.limits.candidate_limit), max_decisions))
+        raw_candidates = [state.ctx.get_actor(target_id) for target_id in target_queue[:candidate_limit]]
         candidates: list[ActorSnapshot] = [c for c in raw_candidates if c is not None and c.is_alive]
         if not candidates:
-            return None, []
+            return [], []
 
-        payloads = self.brain.decide_turn(actor, state.ctx, candidates[:1])
+        payloads = self.brain.decide_turn(actor, state.ctx, candidates)
         if not payloads:
-            return None, []
+            payloads = [{"action": "attack", "target_id": str(candidates[0].meta.id)}]
 
         instant_processed_ids = await self._process_instant_payloads(
             state,
@@ -211,23 +228,28 @@ class LiveInMemoryCombatSimulator:
             tick_index=tick_index,
             payloads=[payload for payload in payloads if payload.get("action") == "instant"],
         )
-        exchange_payload = next((payload for payload in payloads if payload.get("action") != "instant"), None)
-        if exchange_payload is None:
-            return None, instant_processed_ids
-        target_id = exchange_payload.get("target_id") or str(candidates[0].meta.id)
-        move = CombatMoveDTO(
-            move_id=f"live-{tick_index}-{actor.meta.id}-{target_id}",
-            char_id=normalize_actor_id(actor.meta.id),
-            strategy="exchange",
-            payload=ExchangePayload(target_id=normalize_actor_id(target_id), feint_id=exchange_payload.get("feint_id")),
-        )
-        accepted = self.registrar.register_exchange_move(state, move, self._pending_moves)
-        if not accepted:
-            return None, instant_processed_ids
-        self._move_registered_tick[move.move_id] = tick_index
+        moves: list[CombatMoveDTO] = []
+        exchange_payloads = [payload for payload in payloads if payload.get("action") != "instant"][:max_decisions]
+        if not exchange_payloads:
+            exchange_payloads = [{"action": "attack", "target_id": str(candidates[0].meta.id)}]
+        for index, exchange_payload in enumerate(exchange_payloads):
+            target_id = exchange_payload.get("target_id") or str(candidates[min(index, len(candidates) - 1)].meta.id)
+            move = CombatMoveDTO(
+                move_id=f"live-{tick_index}-{actor.meta.id}-{target_id}-{index}",
+                char_id=normalize_actor_id(actor.meta.id),
+                strategy="exchange",
+                payload=ExchangePayload(
+                    target_id=normalize_actor_id(target_id),
+                    feint_id=exchange_payload.get("feint_id"),
+                ),
+            )
+            if self.registrar.register_exchange_move(state, move, self._pending_moves):
+                self._move_registered_tick[move.move_id] = tick_index
+                moves.append(move)
         self._next_decision_tick[str(actor.meta.id)] = tick_index + self._decision_delay(actor)
-        state.telemetry.record_moves([move])
-        return move.move_id, instant_processed_ids
+        if moves:
+            state.telemetry.record_moves(moves)
+        return [move.move_id for move in moves], instant_processed_ids
 
     async def _process_instant_payloads(
         self,
@@ -288,7 +310,7 @@ class LiveInMemoryCombatSimulator:
     def _actor_priority(self, state: InMemoryBattleState, actor: ActorSnapshot) -> tuple[int, float, int, str]:
         return (
             self._actor_ready_at(actor),
-            -self._initiative(actor),
+            0.0,
             self._stable_jitter(state.seed, actor.meta.id),
             str(actor.meta.id),
         )
@@ -300,15 +322,13 @@ class LiveInMemoryCombatSimulator:
         return self._decision_delay(actor)
 
     def _decision_delay(self, actor: ActorSnapshot) -> int:
-        initiative = max(self._initiative(actor), 0.0)
-        scaled = self.timing.base_decision_ticks / (1.0 + initiative / 100.0)
+        settings = behavior_settings(getattr(actor.meta, "ai_behavior_profile", "balanced"))
+        scaled = self.timing.base_decision_ticks * settings.decision_interval_multiplier
         return max(int(self.timing.min_decision_ticks), int(math.ceil(scaled)))
 
     @staticmethod
-    def _initiative(actor: ActorSnapshot) -> float:
-        if actor.stats is None:
-            return 0.0
-        return float(actor.stats.mods.initiative or 0.0)
+    def _decisions_per_tick(actor: ActorSnapshot) -> int:
+        return max(1, int(behavior_settings(getattr(actor.meta, "ai_behavior_profile", "balanced")).decisions_per_tick))
 
     @staticmethod
     def _stable_jitter(seed: int, actor_id: ActorId) -> int:
@@ -322,6 +342,11 @@ class LiveInMemoryCombatSimulator:
             if target is not None and target.is_alive:
                 return True
         return False
+
+    def _is_stalled(self, state: InMemoryBattleState) -> bool:
+        if self._pending_moves:
+            return False
+        return not any(self._has_live_target(state, actor) for actor in state.alive_actors())
 
     def _ready_exchange_action(self) -> CombatActionDTO | None:
         for move in self._pending_moves.values():
@@ -362,6 +387,7 @@ class LiveInMemoryCombatSimulator:
 
 __all__ = [
     "LiveInMemoryCombatSimulator",
+    "LiveSimulationNoExchangeWorkError",
     "LiveSimulationStepResult",
     "LiveSimulationTiming",
     "SimulationMoveRegistrar",

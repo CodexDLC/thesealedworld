@@ -17,6 +17,11 @@ class MonsterGenerationStorage(Protocol):
 
     async def get_clan_members(self, clan_id: uuid.UUID | str) -> list[GeneratedMonster]: ...
 
+    async def delete_generated_clans_outside_zone_contexts(
+        self,
+        expected: dict[str, set[tuple[str, str]]],
+    ) -> int: ...
+
     async def refresh_clan_gear_scores(
         self,
         clan_id: uuid.UUID | str,

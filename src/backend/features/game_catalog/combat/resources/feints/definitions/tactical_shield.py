@@ -69,11 +69,8 @@ TACTICAL_SHIELD_FEINTS_TECHNICAL = {
         feint_id="concussion",
         cost=FeintCostDTO(tactics={"block": 3}),
         target=TargetType.SINGLE_ENEMY,
-        applicability_tags=[*_TACTICAL_SHIELD_TAGS, "shield_bash", "control"],
+        applicability_tags=[*_TACTICAL_SHIELD_TAGS, "hit", "shield_bash", "control"],
         purchase_group="tactical",
-        shield_guard_damage_ratio=0.25,
-        shield_guard_damage_min=3,
-        shield_guard_damage_tier_fallback=3,
         effects=[
             {"id": "concussed_no_feints", "target_actor": "target"},
         ],
@@ -86,9 +83,6 @@ TACTICAL_SHIELD_FEINTS_TECHNICAL = {
         secondary_damage_mult=0.45,
         applicability_tags=[*_TACTICAL_SHIELD_TAGS, "hit", "shield_bash", "control", "multi_target"],
         purchase_group="tactical",
-        shield_guard_damage_ratio=0.20,
-        shield_guard_damage_min=2,
-        shield_guard_damage_tier_fallback=2,
         pipeline_mutations=[pipeline_mutation("accuracy_mult", 0.90)],
         effects=[
             {"id": "debuff_accuracy", "target_actor": "target"},

@@ -3,14 +3,15 @@ from __future__ import annotations
 
 from typing import Any
 
+from src.backend.core.arq_logging import setup_arq_worker_logging
+
+setup_arq_worker_logging("generation-ai-worker")
+
 from loguru import logger
 
 from src.backend.core.ai import AIService
 from src.backend.core.arq import GENERATION_AI_ARQ_QUEUE, ArqService, BaseArqSettings, base_shutdown, base_startup
-from src.backend.core.arq_logging import setup_arq_worker_logging
 from src.backend.features.generation_ai.workers.tasks import GENERATION_AI_TASKS
-
-setup_arq_worker_logging("generation-ai-worker")
 
 
 async def generation_ai_startup(ctx: dict[str, Any]) -> None:

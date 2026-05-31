@@ -210,9 +210,18 @@ def test_item_factory_carries_quiver_ammo_contract_into_mechanics():
     assert item.mechanics["ammo_charge_base"] == 12
     assert item.mechanics["ammo_charge_skill_bonus"] == 12
     assert item.mechanics["ammo_effect_payload"] == {
-        "id": "dot_burn",
-        "params": {"power": 1.0},
-        "tags": ["arrow", "fire", "burn"],
+        "effects": [
+            {
+                "id": "dot_burn",
+                "params": {"power": 1.0},
+                "tags": ["arrow", "fire", "burn"],
+            },
+            {
+                "id": "debuff_accuracy",
+                "params": {"power": 1.0},
+                "tags": ["arrow", "fire", "accuracy_debuff"],
+            },
+        ]
     }
 
 

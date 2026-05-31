@@ -51,6 +51,31 @@ def test_active_awakening_rift_has_no_calibration_rewards_or_stat_weights() -> N
         _assert_no_legacy_calibration_payload(data, path.name, forbidden_keys, forbidden_prefixes)
 
 
+def test_active_awakening_rift_records_first_contact_npc_memory() -> None:
+    curiosity_actions = {
+        "ask_where",
+        "ask_thread",
+        "ask_him",
+        "demand_answers",
+        "ask_survive",
+        "ask_choice",
+        "ask_protocol",
+    }
+    resistance_actions = {"stand_up", "stay_defiant", "reject_protocol"}
+    compliance_actions = {"freeze", "accept_protocol"}
+
+    for action_id in curiosity_actions:
+        _assert_action_bumps_npc_counter(action_id, "first_contact_curiosity")
+    for action_id in resistance_actions:
+        _assert_action_bumps_npc_counter(action_id, "first_contact_resistance")
+    for action_id in compliance_actions:
+        _assert_action_bumps_npc_counter(action_id, "first_contact_compliance")
+
+    assert _find_effect("stand_up", "npc.adjust_reputation")["amount"] == -1
+    assert _find_effect("stay_defiant", "npc.adjust_reputation")["amount"] == -1
+    assert _find_effect("accept_protocol", "npc.adjust_reputation")["amount"] == 1
+
+
 def test_active_awakening_rift_starts_from_materialization_circle_without_symbiote_reveal() -> None:
     active_text = "\n".join(_active_node_texts())
 
@@ -275,6 +300,21 @@ def _parse_queue_value(value: Any) -> set[str]:
     return set()
 
 
+def _assert_action_bumps_npc_counter(action_id: str, counter: str) -> None:
+    effect = _find_effect(action_id, "npc.bump_counter")
+    assert effect["npc_key"] == "portal_pad_guide"
+    assert effect["counter"] == counter
+    assert effect["amount"] == 1
+
+
+def _find_effect(action_id: str, effect_type: str) -> dict[str, Any]:
+    action = _find_active_action(action_id)
+    for effect in action.get("effects", []):
+        if effect.get("type") == effect_type:
+            return effect
+    raise AssertionError(f"Effect {effect_type!r} not found on action {action_id!r}")
+
+
 def _assert_no_legacy_calibration_payload(
     value: Any,
     source: str,
@@ -302,6 +342,16 @@ def _find_action(filename: str, action_id: str, *, node_dir: Path = ARCHIVE_NODE
             if action.get("action_id") == action_id:
                 return action
     raise AssertionError(f"Action {action_id!r} not found in {filename}")
+
+
+def _find_active_action(action_id: str) -> dict[str, Any]:
+    for path in sorted(ACTIVE_NODES_DIR.glob("*.json")):
+        data = json.loads(path.read_text(encoding="utf-8"))
+        for node in data:
+            for action in node.get("actions", []):
+                if action.get("action_id") == action_id:
+                    return action
+    raise AssertionError(f"Active action {action_id!r} not found")
 
 
 def _find_node(filename: str, node_key: str) -> dict[str, Any]:

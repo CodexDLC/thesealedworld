@@ -77,26 +77,6 @@ ARCHERY_DB = {
         },
         triggers=["crit.weapon_piercing_crit"],
     ),
-    "warbow": BaseItemDTO(
-        id="warbow",
-        name_ru="Боевой лук",
-        narrative_description="Тяжелый боевой лук: требует места и силы, зато награждает чистое критическое попадание.",
-        slot="two_hand",
-        type="weapon",
-        damage_type="physical",
-        related_skill="skill_archery",
-        allowed_materials=["woods"],
-        base_power=11,
-        damage_spread=0.18,
-        base_durability=55,
-        narrative_tags=["bow", "archery", "ranger", "warbow", "heavy"],
-        implicit_bonuses={
-            "main_hand_accuracy_penalty": 0.13,
-            "physical_crit_chance": 0.075,
-            "evasion_penalty": -0.03,
-        },
-        triggers=["crit.weapon_heavy_crit"],
-    ),
 }
 
 __all__ = ["ARCHERY_DB"]

@@ -6,6 +6,15 @@ from typing import TYPE_CHECKING, Any
 if TYPE_CHECKING:
     from src.backend.features.rift.dto import RiftPassageEdgeDTO, RiftZoneCellDTO, RiftZoneRuntimeDTO
 
+_SCRIPTED_COMBAT_NODE_KEYS = {
+    "boss",
+    "crystal_guard",
+    "objective_gate",
+    "story_combat",
+    "key_combat",
+    "crystal_chamber",
+}
+
 
 class NodeEventSeeder:
     """Seeds mandatory runtime events and their related gate state."""
@@ -26,33 +35,33 @@ class NodeEventSeeder:
             finish_node_id=finish_node_id,
             seed=seed,
         )
-        if gate is None:
-            return {}, {}, {}
-
-        guard_node_id, locked_node_id = gate
-        gate_key = f"guarded_node:{locked_node_id}"
-        unlock_flag = f"rift_flag:{gate_key}:cleared"
-        requirement = {
-            "type": "rift_flag",
-            "flag": unlock_flag,
-            "source_node_id": guard_node_id,
-            "source_event_key": "guard_combat",
-            "status": "locked_until_flag",
-        }
-        _set_edge_lock(
-            passage_edges,
-            from_node_id=guard_node_id,
-            to_node_id=locked_node_id,
-            blocker_key="guarded_service_bulkhead",
-            requirement=requirement,
-        )
-        _block_finish_bypass_edges(
-            passage_edges,
-            finish_node_id=locked_node_id,
-            guard_node_id=guard_node_id,
-        )
-        node_events = {
-            guard_node_id: {
+        node_events: dict[str, dict[str, Any]] = {}
+        node_states: dict[str, dict[str, Any]] = {}
+        gate_states: dict[str, dict[str, Any]] = {}
+        if gate is not None:
+            guard_node_id, locked_node_id = gate
+            gate_key = f"guarded_node:{locked_node_id}"
+            unlock_flag = f"rift_flag:{gate_key}:cleared"
+            requirement = {
+                "type": "rift_flag",
+                "flag": unlock_flag,
+                "source_node_id": guard_node_id,
+                "source_event_key": "guard_combat",
+                "status": "locked_until_flag",
+            }
+            _set_edge_lock(
+                passage_edges,
+                from_node_id=guard_node_id,
+                to_node_id=locked_node_id,
+                blocker_key="guarded_service_bulkhead",
+                requirement=requirement,
+            )
+            _block_finish_bypass_edges(
+                passage_edges,
+                finish_node_id=locked_node_id,
+                guard_node_id=guard_node_id,
+            )
+            node_events[guard_node_id] = {
                 "event_key": "guard_combat",
                 "event_type": "combat",
                 "state": "ready",
@@ -72,25 +81,21 @@ class NodeEventSeeder:
                     "budget_policy": "guard_node_plus_gear_score",
                 },
             }
-        }
-        node_states = {
-            guard_node_id: {
+            node_states[guard_node_id] = {
                 "entry_event_state": "ready",
                 "event_key": "guard_combat",
-            },
-            locked_node_id: {
+            }
+            node_states[locked_node_id] = {
                 "access_state": "locked",
                 "locked_by": gate_key,
-            },
-        }
-        gate_states = {
-            gate_key: {
+            }
+            gate_states[gate_key] = {
                 "state": "locked",
                 "from_node_id": guard_node_id,
                 "to_node_id": locked_node_id,
                 "requirement": requirement,
             }
-        }
+        _seed_scripted_node_events(nodes=nodes, node_events=node_events, node_states=node_states)
         return node_events, node_states, gate_states
 
     def add_next_zone_transition_event(
@@ -143,6 +148,76 @@ class NodeEventSeeder:
             }
         )
         return runtime.model_copy(update={"nodes": nodes, "node_events": node_events, "node_states": node_states})
+
+
+def _seed_scripted_node_events(
+    *,
+    nodes: dict[str, RiftZoneCellDTO],
+    node_events: dict[str, dict[str, Any]],
+    node_states: dict[str, dict[str, Any]],
+) -> None:
+    for node_id in sorted(nodes):
+        if node_id in node_events:
+            continue
+        node = nodes[node_id]
+        event_key = _scripted_combat_event_key(node)
+        if not event_key:
+            continue
+        encounter_kind = _scripted_node_encounter_kind(node, event_key=event_key)
+        node_events[node_id] = _scripted_node_event_payload(node, event_key=event_key, encounter_kind=encounter_kind)
+        state = dict(node_states.get(node_id) or {})
+        node_states[node_id] = {
+            **state,
+            "entry_event_state": "ready",
+            "event_key": event_key,
+            "node_role": "scripted_combat",
+        }
+
+
+def _scripted_combat_event_key(node: RiftZoneCellDTO) -> str | None:
+    for key in [*node.role_fit, *node.tags]:
+        if key in _SCRIPTED_COMBAT_NODE_KEYS:
+            return str(key)
+    return None
+
+
+def _scripted_node_encounter_kind(node: RiftZoneCellDTO, *, event_key: str) -> str:
+    marks = {str(item) for item in [*node.role_fit, *node.tags]}
+    if event_key == "crystal_chamber" or {"rift_heart", "crystal_chamber"} <= marks:
+        return "heart_guard"
+    if event_key == "boss" or "boss" in marks:
+        return "boss_with_minions"
+    return "key_guard"
+
+
+def _scripted_node_event_payload(
+    node: RiftZoneCellDTO,
+    *,
+    event_key: str,
+    encounter_kind: str,
+) -> dict[str, Any]:
+    title_by_key = {
+        "boss": "Бой с главарем",
+        "crystal_chamber": "Страж сердца",
+        "crystal_guard": "Кристальная охрана",
+        "objective_gate": "Охрана цели",
+        "story_combat": "Сюжетная схватка",
+        "key_combat": "Ключевая схватка",
+    }
+    return {
+        "event_key": event_key,
+        "event_type": "combat",
+        "state": "ready",
+        "source": "scripted_node",
+        "is_required": True,
+        "title": f"{title_by_key.get(event_key, 'Охрана узла')}: {node.title}",
+        "description": "Путь дальше держит обязательная враждебная группа. Этот бой нельзя обойти.",
+        "encounter_kind": encounter_kind,
+        "combat": {
+            "status": "placeholder",
+            "budget_policy": f"{encounter_kind}_plus_gear_score",
+        },
+    }
 
 
 def _select_guarded_gate(

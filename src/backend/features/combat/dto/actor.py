@@ -83,6 +83,9 @@ class ActorMetaDTO(BaseModel):
     # AI behaviour template used by MonsterCombatBrain (combat/runtime/ai/archetypes.py).
     # Default "balanced" preserves prior behaviour for monsters that don't opt in.
     ai_archetype: str = "balanced"
+    # AI simulation pacing profile. This is intentionally separate from weapon
+    # build and archetype: the same archer can play aggressive, balanced, or defensive.
+    ai_behavior_profile: str = "balanced"
 
     @field_validator("id", mode="before")
     @classmethod
@@ -162,6 +165,8 @@ class ActorLoadoutDTO(BaseModel):
     combat_surfaces: dict[str, CombatSurfaceDTO] = Field(default_factory=dict)
     equipment_refs: dict[str, CombatEquipmentRefDTO] = Field(default_factory=dict)
     ammo_effects: dict[str, dict[str, Any]] = Field(default_factory=dict)
+    ammo_charges: dict[str, int] = Field(default_factory=dict)
+    ammo_charge_caps: dict[str, int] = Field(default_factory=dict)
     belt: list[dict[str, Any]] = Field(default_factory=list)
     known_abilities: list[str] = Field(default_factory=list)
     tags: list[str] = Field(default_factory=list)
@@ -202,6 +207,7 @@ class ActiveEffectDTO(BaseModel):
     uid: str
     effect_id: str
     source_id: ActorId
+    active_from_exchange: int = 0
     expire_at_exchange: int
 
     # --- State ---

@@ -18,7 +18,13 @@ def test_combat_ai_testing_admin_declares_testing_section() -> None:
     assert CombatAiTestingAdmin.key == "combat_ai_testing"
     assert CombatAiTestingAdmin.path == "/admin/combat-ai-testing"
     assert CombatAiTestingAdmin.label == "Тренировка монстров"
-    assert [item.key for item in CombatAiTestingAdmin.sidebar] == ["overview", "training", "analytics", "reports"]
+    assert [item.key for item in CombatAiTestingAdmin.sidebar] == [
+        "overview",
+        "training",
+        "analytics",
+        "pve-arena",
+        "reports",
+    ]
     assert "run" in CombatAiTestingAdmin.action_routes
     assert "training" in CombatAiTestingAdmin.sub_pages
     assert "run-detail" in CombatAiTestingAdmin.sub_pages
@@ -102,16 +108,12 @@ async def test_policy_launcher_uses_training_run_dropdown(monkeypatch: pytest.Mo
     table = await combat_ai_testing._policy_run_launcher_provider(SimpleNamespace(query_params={}))
 
     assert table.key == "combat_ai_policy_run_launcher"
-    assert len(table.rows) == 8
+    assert len(table.rows) == 4
     assert {row["id"] for row in table.rows} == {
         "starter_presets_5v5_live",
         "live_batch:starter_presets_5v5_live:100",
         "starter_presets_5v5_live_full_skills",
         "live_batch:starter_presets_5v5_live_full_skills:100",
-        "starter_presets_mirror_10v10_live",
-        "live_batch:starter_presets_mirror_10v10_live:10",
-        "starter_presets_mirror_10v10_live_full_skills",
-        "live_batch:starter_presets_mirror_10v10_live_full_skills:10",
     }
     assert table.actions[0].select_name == "policy_run_id"
     assert table.rows[0]["policy_options"] == [
@@ -282,7 +284,13 @@ def test_participant_rows_show_actor_analytics_and_damage_share() -> None:
             "unused_imprints": ["starter_guard_01", "starter_archer_01"],
             "final_hp_by_actor": {"blue_berserker": 49},
             "participants": [
-                {"actor_id": "blue_berserker", "label": "Borin Breaker", "team": "blue", "start_hp": 59},
+                {
+                    "actor_id": "blue_berserker",
+                    "label": "Borin Breaker",
+                    "team": "blue",
+                    "start_hp": 59,
+                    "behavior_profile": "aggressive",
+                },
                 {"actor_id": "blue_guard", "label": "Ada Guard", "team": "blue", "start_hp": 56},
                 {"actor_id": "red_staff", "label": "Hara Staff", "team": "red", "start_hp": 60},
                 {"actor_id": "red_archer", "label": "Galen Archer", "team": "red", "start_hp": 55},
@@ -293,6 +301,7 @@ def test_participant_rows_show_actor_analytics_and_damage_share() -> None:
     row = combat_ai_testing._participant_rows(run)[0]
 
     assert row["actions"] == 22
+    assert row["behavior"] == "aggressive"
     assert row["damage_per_action"] == "8.0"
     assert row["targets"] == "Hara Staff: 9, Galen Archer: 4"
     assert row["checks"] == "hit 18, crit 3, dodge 2, overkill 12"
@@ -335,7 +344,9 @@ def test_imprint_analytics_rows_aggregate_saved_reports() -> None:
                     "team": "blue",
                     "imprint_key": "starter_breaker_01",
                     "imprint_title": "Слепок проломщика",
+                    "behavior_profile": "aggressive",
                     "start_hp": 59,
+                    "combat_stats": {"armor": 6, "physical_resistance": 0.2, "hp_regen": 1.0},
                     "gear_score": {"total": 260, "offense": 120, "defense": 95, "resources": 35, "utility": 10},
                 },
                 {
@@ -343,7 +354,9 @@ def test_imprint_analytics_rows_aggregate_saved_reports() -> None:
                     "team": "red",
                     "imprint_key": "starter_breaker_01",
                     "imprint_title": "Слепок проломщика",
+                    "behavior_profile": "aggressive",
                     "start_hp": 59,
+                    "combat_stats": {"armor": 2, "physical_resistance": 0.1, "hp_regen": 0.0},
                     "gear_score": {"total": 280, "offense": 130, "defense": 100, "resources": 40, "utility": 10},
                 },
             ],
@@ -351,39 +364,46 @@ def test_imprint_analytics_rows_aggregate_saved_reports() -> None:
     )
 
     rows = combat_ai_testing._imprint_analytics_rows([run])
+    expected_aggregate = {
+        "imprint_key": "starter_breaker_01",
+        "imprint": "Слепок проломщика",
+        "behavior": "Среднее",
+        "appearances": 2,
+        "win_rate": 50.0,
+        "survival_rate": 50.0,
+        "avg_end_hp_pct": 16.102,
+        "avg_damage": 100.0,
+        "avg_taken": 65.0,
+        "gear_score": 270.0,
+        "gear_score_offense": 125.0,
+        "gear_score_defense": 97.5,
+        "gear_score_resources": 37.5,
+        "gear_score_skills": 0.0,
+        "gear_score_utility": 10.0,
+        "effective_hp": 100.875,
+        "armor_absorbed_per_appearance": 10.0,
+        "armor_absorb_events_per_appearance": 2.0,
+        "armor_absorbed_per_event": 5.0,
+        "damage_per_action": 5.556,
+        "hit_rate": 62.5,
+        "crit_rate": 6.2,
+        "avg_overkill": 5.0,
+        "dodge_per_appearance": 2.0,
+        "parry_per_appearance": 0.5,
+        "block_per_appearance": 1.0,
+        "defence_per_appearance": 5.5,
+        "dodge_defence_share": 57.1,
+        "parry_defence_share": 14.3,
+        "block_defence_share": 28.6,
+    }
+    expected_role = expected_aggregate | {
+        "imprint_key": "starter_breaker_01:aggressive",
+        "imprint": "",
+        "behavior": "aggressive",
+    }
 
-    assert rows == [
-        {
-            "imprint_key": "starter_breaker_01",
-            "imprint": "Слепок проломщика",
-            "appearances": 2,
-            "win_rate": 50.0,
-            "survival_rate": 50.0,
-            "avg_end_hp_pct": 16.102,
-            "avg_damage": 100.0,
-            "avg_taken": 65.0,
-            "gear_score": 270.0,
-            "gear_score_offense": 125.0,
-            "gear_score_defense": 97.5,
-            "gear_score_resources": 37.5,
-            "gear_score_skills": 0.0,
-            "gear_score_utility": 10.0,
-            "armor_absorbed_per_appearance": 10.0,
-            "armor_absorb_events_per_appearance": 2.0,
-            "armor_absorbed_per_event": 5.0,
-            "damage_per_action": 5.556,
-            "hit_rate": 62.5,
-            "crit_rate": 6.2,
-            "avg_overkill": 5.0,
-            "dodge_per_appearance": 2.0,
-            "parry_per_appearance": 0.5,
-            "block_per_appearance": 1.0,
-            "defence_per_appearance": 5.5,
-            "dodge_defence_share": 57.1,
-            "parry_defence_share": 14.3,
-            "block_defence_share": 28.6,
-        }
-    ]
+    assert rows == [expected_aggregate | {"role_rows": [expected_role]}]
+    assert combat_ai_testing._expanded_analytics_table_rows(rows) == [expected_aggregate, expected_role]
 
 
 def test_tactical_rows_show_trigger_rates_damage_and_actors() -> None:
@@ -429,20 +449,20 @@ def test_tactical_rows_show_trigger_rates_damage_and_actors() -> None:
 
     assert rows[0] == {
         "part": "Щит: поглощение и возврат",
-        "attempts": 5,
-        "successes": 2,
-        "rate": "40.0",
+        "attempts": 4,
+        "successes": 1,
+        "rate": "25.0",
         "chain_hits": 0,
         "shield_defense": 3,
         "shield_counter": 1,
-        "damage": 0,
-        "shield_damage": 0,
+        "damage": 9,
+        "shield_damage": 9,
         "shield_absorbed": 30,
         "shield_reflected": 14,
         "reflected": 14,
         "prevented": 30,
         "actors": (
-            "Ada Guard: 2 сраб., 3 защ.блок, 1 контр.блок, "
+            "Ada Guard: 3 защ.блок, 1 контр.блок, 9 урон, 9 щит-урон, "
             "30 щит-погл., 14 щит-возвр., 14 возврат, 30 предотвр."
         ),
     }
@@ -462,22 +482,7 @@ def test_tactical_rows_show_trigger_rates_damage_and_actors() -> None:
         "prevented": 0,
         "actors": "Dax Twinblades: 3 сраб., 2 chain, 21 урон",
     }
-    assert rows[2] == {
-        "part": "Щит: ответный удар",
-        "attempts": 0,
-        "successes": 0,
-        "rate": "0.0",
-        "chain_hits": 0,
-        "shield_defense": 0,
-        "shield_counter": 0,
-        "damage": 9,
-        "shield_damage": 9,
-        "shield_absorbed": 0,
-        "shield_reflected": 0,
-        "reflected": 0,
-        "prevented": 0,
-        "actors": "Ada Guard: 9 урон, 9 щит-урон",
-    }
+    assert len(rows) == 2
 
 
 @pytest.mark.asyncio
@@ -878,8 +883,8 @@ async def test_batch_launcher_runs_safe_number_of_live_reports(monkeypatch: pyte
             max_rounds: int,
             tick_interval_seconds: float,
             timeout_ticks: int,
-            min_team_size: int = 5,
-            max_team_size: int = 5,
+            min_team_size: int = 6,
+            max_team_size: int = 6,
             scenario_key: str,
             policy_run_id: str = "",
         ):
@@ -908,7 +913,7 @@ async def test_batch_launcher_runs_safe_number_of_live_reports(monkeypatch: pyte
     response = await CombatAiTestingAdmin().handle_run(FakeRequest())
 
     assert response.status_code == 303
-    assert response.headers["location"] == "/admin/combat-ai-testing/analytics"
+    assert response.headers["location"] == "/admin/combat-ai-testing/reports"
     assert calls == [
         {
             "count": 100,
@@ -925,6 +930,222 @@ async def test_batch_launcher_runs_safe_number_of_live_reports(monkeypatch: pyte
 
 
 @pytest.mark.asyncio
+async def test_family_pressure_launcher_starts_async_report(monkeypatch: pytest.MonkeyPatch) -> None:
+    calls: list[dict[str, object]] = []
+
+    class FakeApi:
+        async def run_family_pressure(
+            self,
+            *,
+            family_id: str,
+            imprint_key: str = "",
+            seed: int,
+            trials: int,
+            max_rounds: int,
+            max_minions: int,
+            max_scenarios: int,
+        ):
+            calls.append(
+                {
+                    "family_id": family_id,
+                    "imprint_key": imprint_key,
+                    "seed": seed,
+                    "trials": trials,
+                    "max_rounds": max_rounds,
+                    "max_minions": max_minions,
+                    "max_scenarios": max_scenarios,
+                }
+            )
+            return CombatAiSimulationRun(
+                id="family-run-1",
+                run_kind="simulation",
+                scenario_key=f"family_pressure:{family_id}",
+                status="running",
+                policy_ref="runtime_default",
+                seed=seed,
+                max_rounds=max_rounds,
+                rounds_completed=0,
+                winner="",
+                reward=None,
+                metadata={"family_pressure": True, "composition_reports": []},
+            )
+
+    class FakeRequest:
+        async def form(self):
+            return FormData({"action": "family_pressure", "request_id": "family_pressure:rat_swarm", "seed": "31"})
+
+    monkeypatch.setattr(combat_ai_testing, "_api", lambda request: FakeApi())
+
+    response = await CombatAiTestingAdmin().handle_run(FakeRequest())
+
+    assert response.status_code == 303
+    assert response.headers["location"] == "/admin/combat-ai-testing/run-detail?id=family-run-1"
+    assert calls == [
+        {
+            "family_id": "rat_swarm",
+            "imprint_key": "",
+            "seed": 31,
+            "trials": 30,
+            "max_rounds": 80,
+            "max_minions": 6,
+            "max_scenarios": 12,
+        }
+    ]
+
+
+def test_running_family_pressure_detail_does_not_show_generic_combat_fallback() -> None:
+    run = CombatAiSimulationRun(
+        id="family-run",
+        run_kind="simulation",
+        scenario_key="family_pressure:rat_swarm",
+        status="running",
+        policy_ref="runtime_default",
+        seed=3,
+        max_rounds=80,
+        rounds_completed=0,
+        winner="",
+        reward=None,
+        telemetry={
+            "run_kind": "family_pressure",
+            "family_id": "rat_swarm",
+            "imprint_key": "starter_breaker_01",
+            "trials_per_composition": 30,
+            "trials_total": 0,
+        },
+        metadata={
+            "family_pressure": True,
+            "family_id": "rat_swarm",
+            "imprint_key": "starter_breaker_01",
+            "trials_per_composition": 30,
+            "max_minions": 6,
+            "max_scenarios": 12,
+            "composition_reports": [],
+        },
+    )
+
+    summary = combat_ai_testing._summary_items(run)
+    participant_rows = combat_ai_testing._participant_rows(run)
+    parameter_rows = combat_ai_testing._family_pressure_parameter_rows(run)
+    ladder_rows = combat_ai_testing._family_pressure_display_rows(run)
+
+    assert "запущен" in summary[0]
+    assert "worker" in summary[1].lower()
+    assert not any(row.get("actor") == "Player model" for row in participant_rows)
+    assert parameter_rows[0]["metric"] == "Семья"
+    assert ladder_rows[0]["composition"] == "ожидает worker"
+    assert combat_ai_testing._winner_label(run) == "считается"
+
+
+def test_completed_family_pressure_rows_show_monster_roles_and_gear_scores() -> None:
+    run = CombatAiSimulationRun(
+        id="family-run",
+        run_kind="simulation",
+        scenario_key="family_pressure:rat_swarm",
+        status="completed",
+        policy_ref="runtime_default",
+        seed=3,
+        max_rounds=80,
+        rounds_completed=60,
+        winner="",
+        reward=None,
+        telemetry={"run_kind": "family_pressure", "trials_total": 60},
+        metadata={
+            "family_pressure": True,
+            "family_id": "rat_swarm",
+            "imprint_key": "starter_breaker_01",
+            "imprint_title": "Breaker",
+            "player_gear_score": 281,
+            "player_start_hp": 61,
+            "trials_per_composition": 30,
+            "composition_reports": [
+                {
+                    "composition": {"key": "minionx2", "role_counts": {"minion": 2}},
+                    "member_variants": ["rat_biter", "rat_biter"],
+                    "member_roles": ["minion", "minion"],
+                    "member_gear_scores": [188, 188],
+                    "raw_gear_score": 376,
+                    "effective_gear_score": 376.0,
+                    "effective_ratio": 1.338,
+                    "trials": 30,
+                    "player_wins": 29,
+                    "monster_wins": 1,
+                    "draws": 0,
+                    "player_win_rate": 0.967,
+                    "avg_player_hp": 40.6,
+                    "avg_rounds": 16.3,
+                }
+            ],
+        },
+    )
+
+    rows = combat_ai_testing._family_pressure_rows(run)
+    display_rows = combat_ai_testing._family_pressure_display_rows(run)
+
+    assert rows[0]["composition"] == "2x minion"
+    assert rows[0]["roles"] == "minion, minion"
+    assert rows[0]["monster_gs"] == "188, 188"
+    assert rows == display_rows
+    assert "GS 281 / HP 61" in combat_ai_testing._summary_items(run)[1]
+
+
+@pytest.mark.asyncio
+async def test_pve_survival_chart_uses_family_pressure_reports(monkeypatch: pytest.MonkeyPatch) -> None:
+    family_run = CombatAiSimulationRun(
+        id="family-run",
+        run_kind="simulation",
+        scenario_key="family_pressure:rat_swarm",
+        status="completed",
+        policy_ref="runtime_default",
+        seed=3,
+        max_rounds=80,
+        rounds_completed=30,
+        winner="",
+        reward=None,
+        created_at="2026-05-31T12:00:00Z",
+        telemetry={"run_kind": "family_pressure"},
+        metadata={
+            "family_pressure": True,
+            "family_id": "rat_swarm",
+            "imprint_key": "starter_breaker_01",
+            "composition_reports": [
+                {
+                    "composition": {"key": "minionx1", "role_counts": {"minion": 1}},
+                    "member_variants": ["rat_biter"],
+                    "member_roles": ["minion"],
+                    "member_gear_scores": [188],
+                    "raw_gear_score": 188,
+                    "effective_gear_score": 188.0,
+                    "effective_ratio": 0.669,
+                    "trials": 30,
+                    "player_wins": 30,
+                    "monster_wins": 0,
+                    "draws": 0,
+                    "player_win_rate": 1.0,
+                    "avg_player_hp": 59.0,
+                    "avg_rounds": 12.0,
+                }
+            ],
+        },
+    )
+
+    class FakeApi:
+        async def list_runs(self, *, limit: int, run_kind: str | None = None):
+            assert limit == 200
+            assert run_kind is None
+            return [family_run]
+
+    monkeypatch.setattr(combat_ai_testing, "_api", lambda request: FakeApi())
+
+    chart = await combat_ai_testing._pve_survival_chart_provider(SimpleNamespace(query_params={}))
+    table = await combat_ai_testing._pve_pressure_table_provider(SimpleNamespace(query_params={}))
+
+    assert chart.labels == ["rat_swarm: 1x minion"]
+    assert chart.datasets[0]["data"] == [100.0]
+    assert table.rows[0]["family"] == "rat_swarm"
+    assert table.rows[0]["winrate_pct"] == "100.0"
+
+
+@pytest.mark.asyncio
 async def test_policy_live_launcher_passes_selected_training_run(monkeypatch: pytest.MonkeyPatch) -> None:
     calls: list[dict[str, object]] = []
 
@@ -936,8 +1157,8 @@ async def test_policy_live_launcher_passes_selected_training_run(monkeypatch: py
             max_rounds: int,
             tick_interval_seconds: float,
             timeout_ticks: int,
-            min_team_size: int = 5,
-            max_team_size: int = 5,
+            min_team_size: int = 6,
+            max_team_size: int = 6,
             scenario_key: str,
             policy_run_id: str = "",
         ):
@@ -988,8 +1209,8 @@ async def test_policy_live_launcher_passes_selected_training_run(monkeypatch: py
             "max_rounds": 500,
             "tick": 0.05,
             "timeout": 8,
-            "min_team_size": 5,
-            "max_team_size": 5,
+            "min_team_size": 6,
+            "max_team_size": 6,
             "scenario_key": "starter_presets_5v5_live",
             "policy_run_id": "training-1",
         }
@@ -1091,77 +1312,6 @@ async def test_battle_training_launcher_passes_selected_training_run(monkeypatch
 
 
 @pytest.mark.asyncio
-async def test_full_skills_mirror_launcher_keeps_10v10_limits(monkeypatch: pytest.MonkeyPatch) -> None:
-    calls: list[dict[str, object]] = []
-
-    class FakeApi:
-        async def run_live_demo(
-            self,
-            *,
-            seed: int,
-            max_rounds: int,
-            tick_interval_seconds: float,
-            timeout_ticks: int,
-            min_team_size: int = 5,
-            max_team_size: int = 5,
-            scenario_key: str,
-            policy_run_id: str = "",
-        ):
-            calls.append(
-                {
-                    "seed": seed,
-                    "max_rounds": max_rounds,
-                    "tick": tick_interval_seconds,
-                    "timeout": timeout_ticks,
-                    "min_team_size": min_team_size,
-                    "max_team_size": max_team_size,
-                    "scenario_key": scenario_key,
-                    "policy_run_id": policy_run_id,
-                }
-            )
-            return CombatAiSimulationRun(
-                id="run-full-skills",
-                run_kind="simulation_live",
-                scenario_key=scenario_key,
-                status="running",
-                policy_ref="runtime_default",
-                seed=seed,
-                max_rounds=max_rounds,
-                rounds_completed=0,
-                winner="",
-                reward=None,
-            )
-
-    class FakeRequest:
-        async def form(self):
-            return FormData(
-                {
-                    "action": "run_demo",
-                    "request_id": "starter_presets_mirror_10v10_live_full_skills",
-                }
-            )
-
-    monkeypatch.setattr(combat_ai_testing, "_api", lambda request: FakeApi())
-
-    response = await CombatAiTestingAdmin().handle_run(FakeRequest())
-
-    assert response.status_code == 303
-    assert response.headers["location"] == "/admin/combat-ai-testing/run-detail?id=run-full-skills"
-    assert calls == [
-        {
-            "seed": 0,
-            "max_rounds": 1000,
-            "tick": 0.05,
-            "timeout": 8,
-            "min_team_size": 5,
-            "max_team_size": 5,
-            "scenario_key": "starter_presets_mirror_10v10_live_full_skills",
-            "policy_run_id": "",
-        }
-    ]
-
-
-@pytest.mark.asyncio
 async def test_clear_reports_action_calls_backend_and_redirects(monkeypatch: pytest.MonkeyPatch) -> None:
     calls: list[str] = []
 
@@ -1218,10 +1368,11 @@ def test_combat_ai_testing_pages_render() -> None:
 
     assert response.status_code == 200
     assert "Тренировка монстров" in response.text
-    assert "Live tick: стартовые пресеты 5v5" in response.text
+    assert "Live tick: стартовые пресеты 6v6" in response.text
     assert "random draft 2v2-4v4" not in response.text
     assert "фон, пакет live-like" in response.text
-    assert "зеркало 10v10" in response.text
+    assert "зеркало полного пула" not in response.text
+    assert "Диагностика семей против стартового слепка" not in response.text
     assert "Запуск тестов: выбранная policy" in response.text
     assert "Нет завершённых policy" in response.text
     assert "память + CombatExecutor" not in response.text
@@ -1241,3 +1392,10 @@ def test_combat_ai_testing_pages_render() -> None:
     assert analytics.status_code == 200
     assert "Аналитика слепков" in analytics.text
     assert "Очистить таблицу" in analytics.text
+
+    pve = client.get("/admin/combat-ai-testing/pve-arena")
+    assert pve.status_code == 200
+    assert "PvE выживаемость" in pve.text
+    assert "Диагностика семей против стартового слепка" in pve.text
+    assert "Выживаемость слепка" in pve.text
+    assert "Family pressure отчёты" in pve.text

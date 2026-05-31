@@ -205,7 +205,6 @@ def test_duplicate_control_scenario_prefers_clean_action() -> None:
         {
             "damage_tag": 2.0,
             "control": 2.0,
-            "shield_damage": 2.0,
             "team_dedup_control": 0.1,
         }
     )

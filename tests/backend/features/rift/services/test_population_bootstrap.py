@@ -22,6 +22,7 @@ class RiftClanRequest:
 class FakeEncounterService:
     def __init__(self) -> None:
         self.requests: list[RiftClanRequest] = []
+        self.prune_requests: list[dict[str, set[tuple[str, str]]]] = []
 
     async def ensure_clan_for_precomputed_context_hash(
         self,
@@ -52,6 +53,10 @@ class FakeEncounterService:
             description=family_id,
         )
 
+    async def prune_generated_clans_for_zone_contexts(self, expected: dict[str, set[tuple[str, str]]]) -> int:
+        self.prune_requests.append(expected)
+        return 3
+
 
 @pytest.mark.unit
 async def test_rift_population_bootstrap_orders_static_family_slots_with_rift_hashes() -> None:
@@ -66,6 +71,7 @@ async def test_rift_population_bootstrap_orders_static_family_slots_with_rift_ha
     assert result.rifts == 1
     assert result.family_slots == 2
     assert result.clans == 2
+    assert result.pruned_clans == 3
     assert set(result.bindings["starter_rift"]) == {"primary", "secondary"}
     assert result.bindings["starter_rift"]["primary"]["family_id"] == "bandit_gang"
     assert result.bindings["starter_rift"]["primary"]["clan_id"]
@@ -82,3 +88,9 @@ async def test_rift_population_bootstrap_orders_static_family_slots_with_rift_ha
     assert "starter_rift" in encounter.requests[0].normalized_tags
     assert "camp_guard" in encounter.requests[0].normalized_tags
     assert encounter.requests[0].context.context_meta["rift_population"]["slot_id"] == "primary"
+    assert encounter.prune_requests == [
+        {
+            "rift:starter_rift:primary": {("bandit_gang", encounter.requests[0].context_hash)},
+            "rift:starter_rift:secondary": {("rat_swarm", encounter.requests[1].context_hash)},
+        }
+    ]

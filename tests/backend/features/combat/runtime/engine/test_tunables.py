@@ -40,12 +40,10 @@ def manager(redis_client: FakeRedis) -> GameConfigManager:
 
 
 class TestDefaults:
-    def test_default_tunables_match_legacy_constants(self) -> None:
+    def test_default_tunables_match_active_resolver_constants(self) -> None:
         d = DEFAULT_COMBAT_TUNABLES
         assert d.parry_skill_mult_per_point == 4.0
         assert d.shield_block_skill_bonus_at_full == 0.32
-        assert d.shield_mastery_absorb_cap_ratio_at_full == 0.50
-        assert d.shield_mastery_reflect_ratio_at_full == 1.00
         assert d.base_accuracy_chance == 0.70
         assert d.skill_accuracy_bonus_at_full == 0.30
         assert d.accuracy_chance_cap == 0.90
@@ -54,6 +52,14 @@ class TestDefaults:
         assert d.unarmed_novice_spread == 0.5
         assert d.unarmed_master_spread == 0.1
         assert d.token_bonus_chance == 0.30
+
+    def test_legacy_partial_shield_tunables_are_not_registered(self) -> None:
+        defaults = CombatConfig.defaults()
+
+        assert "SHIELD_MASTERY_ABSORB_CAP_RATIO_AT_FULL" not in defaults
+        assert "SHIELD_MASTERY_REFLECT_RATIO_AT_FULL" not in defaults
+        assert not hasattr(DEFAULT_COMBAT_TUNABLES, "shield_mastery_absorb_cap_ratio_at_full")
+        assert not hasattr(DEFAULT_COMBAT_TUNABLES, "shield_mastery_reflect_ratio_at_full")
 
 
 class TestLoader:

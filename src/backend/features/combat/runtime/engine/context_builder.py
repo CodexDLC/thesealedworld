@@ -140,7 +140,8 @@ class ContextBuilder:
             weapon_skill_key = actor.loadout.layout.get(source_type)
             if source_type == "main_hand" and weapon_skill_key == "skill_archery":
                 ctx.flags.restriction.ignore_parry = True
-                ContextBuilder._attach_ammo_effect_payload(ctx, actor, source_type)
+                if actor.loadout.ammo_charges.get(source_type, 0) > 0 and ctx.flags.mechanics.pay_cost:
+                    ContextBuilder._attach_ammo_effect_payload(ctx, actor, source_type)
             # Пример: "skill_swords" -> "swords"
             if weapon_skill_key and weapon_skill_key.startswith("skill_"):
                 ctx.flags.meta.weapon_class = weapon_skill_key.replace("skill_", "")
@@ -176,9 +177,14 @@ class ContextBuilder:
         payload = actor.loadout.ammo_effects.get(source_slot)
         if not isinstance(payload, dict):
             return
-        if not isinstance(payload.get("id") or payload.get("effect_id"), str):
+        effects = payload.get("effects")
+        if isinstance(effects, list):
+            for effect in effects:
+                if isinstance(effect, dict) and isinstance(effect.get("id") or effect.get("effect_id"), str):
+                    ctx.trigger_effect_payloads.setdefault(source_slot, []).append(dict(effect))
             return
-        ctx.trigger_effect_payloads.setdefault(source_slot, []).append(dict(payload))
+        if isinstance(payload.get("id") or payload.get("effect_id"), str):
+            ctx.trigger_effect_payloads.setdefault(source_slot, []).append(dict(payload))
 
     @staticmethod
     def _analyze_defense(ctx: PipelineContextDTO, target: ActorSnapshot) -> None:
@@ -191,6 +197,13 @@ class ContextBuilder:
             ctx.flags.mastery.light_armor = True
         elif body_skill == "skill_medium_armor":
             ctx.flags.mastery.medium_armor = True
+
+        if (
+            layout.get("main_hand") == "skill_archery"
+            or layout.get("off_hand") == "skill_archery"
+            or layout.get("tactical_style") == "skill_ranged_combat"
+        ):
+            ctx.flags.restriction.disable_passive_counter = True
 
         # 2. Shield (Off-hand)
         off_hand_skill = layout.get("off_hand")

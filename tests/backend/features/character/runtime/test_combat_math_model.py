@@ -385,9 +385,9 @@ def test_builder_adds_unarmed_main_hand_when_no_weapon_is_equipped() -> None:
 
 
 @pytest.mark.unit
-def test_builder_applies_heavy_chest_dodge_cap_override_and_armor_skill_penalty_relief() -> None:
+def test_builder_applies_heavy_chest_dodge_cap_resistance_bonus_and_penalty_relief() -> None:
     raw = CharacterCombatMathModelBuilder().build_raw(
-        attributes={},
+        attributes={"endurance": 15},
         items={
             "layout": {"equipment": {"chest_armor": "plate-1"}},
             "by_id": {
@@ -408,6 +408,9 @@ def test_builder_applies_heavy_chest_dodge_cap_override_and_armor_skill_penalty_
     )
 
     assert raw["modifiers"]["dodge_cap"]["source"]["item:plate-1"] == "=0.35"
+    assert raw["modifiers"]["physical_resistance"]["source"][
+        "skill:skill_heavy_armor:natural_resistance"
+    ] == pytest.approx(0.15)
     assert raw["modifiers"]["evasion"]["base"] == pytest.approx(-0.125)
 
 

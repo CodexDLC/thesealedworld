@@ -131,17 +131,16 @@ class CharacterGearScoreCalculator:
     def calculate_skill_score(skills: dict[str, Any] | None) -> float:
         if not skills:
             return 0.0
-        values = [
-            normalized
-            for key, value in skills.items()
-            if str(key).startswith("skill_")
-            for normalized in [CharacterGearScoreCalculator._normalized_skill_value(value)]
-            if normalized is not None
-        ]
+        values = []
+        for key, value in skills.items():
+            if not str(key).startswith("skill_"):
+                continue
+            normalized = CharacterGearScoreCalculator._normalized_skill_value(value)
+            if normalized is not None:
+                values.append(normalized)
         if not values:
             return 0.0
-        average = sum(values) / len(values)
-        return round(max(0.0, min(1.0, average)) * GEAR_SCORE_SKILLS_MAX, 3)
+        return round(sum(max(0.0, min(1.0, value)) * GEAR_SCORE_SKILLS_MAX for value in values), 3)
 
     @staticmethod
     def _normalized_skill_value(value: Any) -> float | None:

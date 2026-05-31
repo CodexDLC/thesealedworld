@@ -224,7 +224,6 @@ services:
     build:
       context: ..
       dockerfile: deploy/worker/Dockerfile
-    container_name: tbmmorpg-combat-worker
     restart: unless-stopped
     env_file: ../.env
     environment:
@@ -245,12 +244,10 @@ services:
     networks:
       - tbmmorpg-network
 
-  # Temporary local balance load-test worker. Remove/disable before production deploy.
-  combat-worker-loadtest:
+  combat-ai-simulation-worker:
     build:
       context: ..
       dockerfile: deploy/worker/Dockerfile
-    container_name: tbmmorpg-combat-worker-loadtest
     restart: unless-stopped
     env_file: ../.env
     environment:
@@ -262,7 +259,7 @@ services:
       - ../src/backend:/app/src/backend
       - ../src/shared:/app/src/shared
     command: >
-      arq src.backend.features.combat.workers.arq.CombatArqSettings
+      arq src.backend.features.combat.workers.ai_simulation_arq.CombatAiSimulationArqSettings
     depends_on:
       backend-migrate:
         condition: service_completed_successfully
@@ -275,7 +272,6 @@ services:
     build:
       context: ..
       dockerfile: deploy/worker/Dockerfile
-    container_name: tbmmorpg-system-worker
     restart: unless-stopped
     env_file: ../.env
     environment:
@@ -300,7 +296,6 @@ services:
     build:
       context: ..
       dockerfile: deploy/worker/Dockerfile
-    container_name: tbmmorpg-generation-ai-worker
     restart: unless-stopped
     env_file: ../.env
     environment:

@@ -22,8 +22,6 @@ class CombatTunables:
 
     parry_skill_mult_per_point: float = 4.0
     shield_block_skill_bonus_at_full: float = 0.32
-    shield_mastery_absorb_cap_ratio_at_full: float = 0.50
-    shield_mastery_reflect_ratio_at_full: float = 1.00
     base_accuracy_chance: float = 0.70
     skill_accuracy_bonus_at_full: float = 0.30
     accuracy_chance_cap: float = 0.90
@@ -68,16 +66,6 @@ async def load_combat_tunables(manager: GameConfigManager | None) -> CombatTunab
             "combat",
             "SHIELD_BLOCK_SKILL_BONUS_AT_FULL",
             default=d.shield_block_skill_bonus_at_full,
-        ),
-        shield_mastery_absorb_cap_ratio_at_full=await manager.get_float(
-            "combat",
-            "SHIELD_MASTERY_ABSORB_CAP_RATIO_AT_FULL",
-            default=d.shield_mastery_absorb_cap_ratio_at_full,
-        ),
-        shield_mastery_reflect_ratio_at_full=await manager.get_float(
-            "combat",
-            "SHIELD_MASTERY_REFLECT_RATIO_AT_FULL",
-            default=d.shield_mastery_reflect_ratio_at_full,
         ),
         base_accuracy_chance=await manager.get_float("combat", "BASE_ACCURACY_CHANCE", default=d.base_accuracy_chance),
         skill_accuracy_bonus_at_full=await manager.get_float(

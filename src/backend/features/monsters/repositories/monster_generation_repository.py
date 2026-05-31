@@ -4,7 +4,7 @@ import uuid
 from typing import TYPE_CHECKING, Any
 
 from loguru import logger as log
-from sqlalchemy import func, select
+from sqlalchemy import delete, func, select, tuple_
 from sqlalchemy.orm import selectinload
 from sqlalchemy.orm.attributes import flag_modified
 
@@ -108,6 +108,25 @@ class MonsterGenerationRepository:
         )
         result = await self.session.scalars(stmt)
         return [_to_generated_monster(monster) for monster in result.all()]
+
+    async def delete_generated_clans_outside_zone_contexts(self, expected: dict[str, set[tuple[str, str]]]) -> int:
+        deleted = 0
+        for zone_id, family_contexts in expected.items():
+            normalized_contexts = {
+                (str(family_id), str(context_hash))
+                for family_id, context_hash in family_contexts
+                if str(family_id).strip() and str(context_hash).strip()
+            }
+            if not zone_id or not normalized_contexts:
+                continue
+            result = await self.session.execute(
+                delete(GeneratedClanORM).where(
+                    GeneratedClanORM.zone_id == str(zone_id),
+                    tuple_(GeneratedClanORM.family_id, GeneratedClanORM.context_hash).not_in(normalized_contexts),
+                )
+            )
+            deleted += int(result.rowcount or 0)
+        return deleted
 
     async def refresh_clan_gear_scores(
         self,

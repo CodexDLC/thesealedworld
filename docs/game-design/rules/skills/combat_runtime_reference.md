@@ -26,11 +26,15 @@ docs/game-design/rules/combat/active_actions.md
 
 - Weapon mastery keys are part of actor snapshots and item/combat skill
   contracts.
-- Weapon mastery damage assembly uses two body stats per weapon class. Strength
-  and agility feed ordinary weapon damage; endurance is not part of weapon
-  damage and is reserved for survival or style-specific mechanics.
+- Weapon mastery damage assembly uses normalized Strength/Agility/Endurance
+  weights per weapon class. Endurance replaces part of the old
+  Strength/Agility share instead of adding extra damage above the class budget.
 - Tactical style keys are part of actor snapshots. `skill_dual_wield` has an
   off-hand exchange and trigger resources.
+- Archery/ranged combat disables passive armor counter openings on defense:
+  light armor dodge and medium armor parry do not open a counter by themselves.
+  Feints and prepared reactions can still open the counter window, and if they
+  do, light armor's counter-chance multiplier remains active.
 - `skill_shield_mastery` scales shield block events. A successful shield block
   is not a full damage cancel: it rolls a shield profile branch. Defensive
   branches add `shield_guard_power` to mitigation for that hit; counter
@@ -49,11 +53,18 @@ docs/game-design/rules/combat/active_actions.md
   shields have higher event chance and weaker power; heavy shields have lower
   event chance and stronger defensive power.
 - `skill_light_armor` can raise the effective dodge cap for light armor in the
-  character combat math model.
+  character combat math model. A successful dodge in light armor opens the
+  normal counter-check window; light armor skill can also multiply that
+  counter chance when the light-armor bonus roll passes.
 - `skill_medium_armor` can recover the medium armor dodge-cap penalty in the
-  character combat math model.
-- Heavy chest armor applies a hard dodge-cap layer; `skill_heavy_armor` is used
-  by resolver-side heavy armor logic.
+  character combat math model. Medium armor does not open counters on dodge;
+  after a successful parry it opens the counter-check window only through the
+  `skill_medium_armor` roll.
+- Heavy chest armor applies a hard dodge-cap layer. `skill_heavy_armor`
+  amplifies the Endurance-derived natural `physical_resistance` by up to 50%
+  at full mastery; for example, 30% natural resistance becomes 45%. Heavy armor
+  does not open the normal armor counter window and still has resolver-side
+  subsequent-hit chain protection.
 - `skill_parrying` is wired into parry resolution and defense experience. It no
   longer scales shield block chance.
 - `skill_anatomy` and `skill_tactics` receive combat progression from combat

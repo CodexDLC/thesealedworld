@@ -3,14 +3,14 @@ from __future__ import annotations
 
 from typing import Any
 
-from arq import cron
-from loguru import logger
-
-from src.backend.core.arq import SYSTEM_ARQ_QUEUE, ArqService, BaseArqSettings, base_shutdown, base_startup
 from src.backend.core.arq_logging import setup_arq_worker_logging
 
 setup_arq_worker_logging("system-worker")
 
+from arq import cron
+from loguru import logger
+
+from src.backend.core.arq import SYSTEM_ARQ_QUEUE, ArqService, BaseArqSettings, base_shutdown, base_startup
 from src.backend.features.character.workers.tasks import CHARACTER_TASKS
 from src.backend.features.exploration.workers.tasks import EXPLORATION_TASKS
 from src.backend.features.inventory.workers.tasks import INVENTORY_TASKS

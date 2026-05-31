@@ -44,12 +44,12 @@ class ParryStep(ResolverStep):
             token_awarder.award_defender_token(res, "parry")
             res.events.append(CombatEventDTO(type="PARRY", source_id=source_id, target_id=target_id))
             trigger_activator.resolve_triggers(ctx, res, "ON_PARRY")
-            if (
-                ctx.flags.mastery.medium_armor
-                or ctx.flags.state.allow_counter_on_parry
-                or ctx.flags.state.force_counter_on_parry
-            ):
+            if ctx.flags.state.allow_counter_on_parry or ctx.flags.state.force_counter_on_parry:
                 ctx.flags.state.check_counter = True
+            elif ctx.flags.mastery.medium_armor and not ctx.flags.restriction.disable_passive_counter:
+                mastery_chance = def_.skills.skill_medium_armor
+                if MathCore.check_chance(mastery_chance):
+                    ctx.flags.state.check_counter = True
             return True
 
         parry_base = def_.mods.parry
@@ -87,7 +87,7 @@ class ParryStep(ResolverStep):
             res.events.append(CombatEventDTO(type="PARRY", source_id=source_id, target_id=target_id))
             trigger_activator.resolve_triggers(ctx, res, "ON_PARRY")
 
-            if ctx.flags.mastery.medium_armor:
+            if ctx.flags.mastery.medium_armor and not ctx.flags.restriction.disable_passive_counter:
                 mastery_chance = def_.skills.skill_medium_armor
                 if MathCore.check_chance(mastery_chance):
                     ctx.flags.state.check_counter = True

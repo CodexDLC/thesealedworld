@@ -1,29 +1,38 @@
 from __future__ import annotations
 
 import asyncio
+import fnmatch
 from types import SimpleNamespace
 
 import pytest
 
+from src.backend.core.arq import COMBAT_AI_SIMULATION_ARQ_QUEUE, COMBAT_ARQ_QUEUE
 from src.backend.features.combat.api import ai_simulation_router as ai_simulation_router_module
 from src.backend.features.combat.api.ai_simulation_router import (
     COMBAT_AI_BATTLE_TRAINING_TASK,
     COMBAT_AI_LIVE_SIMULATION_TASK,
     COMBAT_AI_SYNTHETIC_TRAINING_TASK,
+    COMBAT_FAMILY_PRESSURE_TASK,
+    _clear_combat_ai_simulation_runtime_state,
     _enqueue_battle_training_job,
+    _enqueue_family_pressure_job,
     _enqueue_live_demo_job,
     _enqueue_synthetic_training_job,
     _live_skill_profile_from_scenario,
     _view,
+    run_family_pressure_simulation,
     run_live_demo_simulation_batch,
 )
 from src.backend.features.combat.runtime.ai.policy import Policy
 from src.backend.features.combat.runtime.simulation import (
-    BALANCE_TEST_SIMULATION_IMPRINTS,
     DEFAULT_STARTER_SIMULATION_IMPRINTS,
     STARTER_SKILL_PROFILE_BASELINE,
     STARTER_SKILL_PROFILE_MAXED_EXISTING,
+    FamilyPressureComposition,
+    FamilyPressureCompositionReport,
+    FamilyPressureReport,
 )
+from src.backend.features.combat.services import ai_simulation_service as ai_simulation_service_module
 from src.backend.features.combat.services.ai_simulation_service import (
     LIVE_DEFAULT_MAX_EXCHANGES,
     LIVE_DEFAULT_TICK_INTERVAL_SECONDS,
@@ -32,20 +41,29 @@ from src.backend.features.combat.services.ai_simulation_service import (
     _simulation_reward,
     execute_battle_training,
 )
-from src.backend.features.combat.workers.arq import (
+from src.backend.features.combat.workers.ai_simulation_arq import (
     AI_BATTLE_TRAINING_JOB_TIMEOUT_SECONDS,
     AI_LIVE_SIMULATION_JOB_TIMEOUT_SECONDS,
     AI_SYNTHETIC_TRAINING_JOB_TIMEOUT_SECONDS,
+    COMBAT_AI_SIMULATION_TASKS,
+    COMBAT_AI_SIMULATION_WORKER_MAX_JOBS,
+    CombatAiSimulationArqSettings,
+)
+from src.backend.features.combat.workers.arq import (
+    COMBAT_RUNTIME_MAX_JOBS,
     COMBAT_TASKS,
+    PVE_FAMILY_PRESSURE_JOB_TIMEOUT_SECONDS,
     CombatArqSettings,
 )
 from src.backend.features.combat.workers.tasks import ai_simulation_task as ai_simulation_task_module
 from src.backend.features.combat.workers.tasks.ai_simulation_task import (
+    FAMILY_PRESSURE_WORKER_CONCURRENCY,
     LIVE_SIMULATION_WORKER_CONCURRENCY,
     _policy_payload_from_training_run,
     combat_ai_battle_training_task,
     combat_ai_live_simulation_task,
     combat_ai_synthetic_training_task,
+    combat_family_pressure_task,
 )
 
 
@@ -98,6 +116,29 @@ class FakeSimulationRunRepository:
                 count += 1
         return count
 
+    async def mark_completed(
+        self,
+        run_id: str,
+        *,
+        rounds_completed: int,
+        reward: float | None,
+        telemetry: dict,
+        report_text: str,
+        metadata: dict,
+        winner: str | None = None,
+    ):
+        row = await self.get(run_id)
+        if row is None:
+            return None
+        row.status = "completed"
+        row.rounds_completed = rounds_completed
+        row.reward = reward
+        row.telemetry = telemetry
+        row.report_text = report_text
+        row.metadata_ = metadata
+        row.winner = winner
+        return row
+
 
 class FakeArqQueue:
     def __init__(self) -> None:
@@ -107,8 +148,38 @@ class FakeArqQueue:
         self.enqueued.append((name, payload))
 
 
+class FakeRedisClient:
+    def __init__(self) -> None:
+        self.zsets: dict[str, list[str]] = {}
+        self.keys: set[str] = set()
+
+    async def zrange(self, key: str, start: int, end: int):
+        values = list(self.zsets.get(key, []))
+        return values[start:] if end == -1 else values[start : end + 1]
+
+    async def scan(self, *, cursor: int, match: str, count: int):
+        del cursor, count
+        return 0, [key for key in sorted(self.keys) if fnmatch.fnmatch(key, match)]
+
+    async def delete(self, *keys: str) -> int:
+        deleted = 0
+        for key in keys:
+            if key in self.zsets:
+                del self.zsets[key]
+                deleted += 1
+            if key in self.keys:
+                self.keys.remove(key)
+                deleted += 1
+        return deleted
+
+
+class FakeRedisService:
+    def __init__(self, redis_client: FakeRedisClient) -> None:
+        self.redis_client = redis_client
+
+
 @pytest.mark.asyncio
-async def test_live_demo_enqueue_uses_combat_worker_queue() -> None:
+async def test_live_demo_enqueue_uses_combat_ai_simulation_queue() -> None:
     arq = FakeArqQueue()
     payload = {
         "run_id": "run-1",
@@ -128,13 +199,42 @@ async def test_live_demo_enqueue_uses_combat_worker_queue() -> None:
 
 @pytest.mark.asyncio
 async def test_live_demo_enqueue_requires_arq() -> None:
-    with pytest.raises(RuntimeError, match="Combat ARQ service is not available"):
+    with pytest.raises(RuntimeError, match="Combat AI simulation ARQ service is not available"):
         await _enqueue_live_demo_job(None, {"run_id": "run-1"})
+
+
+@pytest.mark.asyncio
+async def test_clear_combat_ai_runtime_state_removes_queue_jobs_and_hot_progress() -> None:
+    redis_client = FakeRedisClient()
+    redis_client.zsets[COMBAT_AI_SIMULATION_ARQ_QUEUE] = ["job-1", "job-2"]
+    redis_client.zsets[COMBAT_ARQ_QUEUE] = ["pve-job-1"]
+    redis_client.keys = {
+        "arq:job:job-1",
+        "arq:retry:job-1",
+        "arq:in-progress:job-2",
+        "arq:job:pve-job-1",
+        "combat_ai:simulation:run:run-1:progress",
+        "combat_ai:simulation:run:run-2:progress",
+        "arq:job:foreign-job",
+    }
+    request = SimpleNamespace(
+        app=SimpleNamespace(
+            state=SimpleNamespace(redis_client=redis_client, redis=FakeRedisService(redis_client)),
+        )
+    )
+
+    result = await _clear_combat_ai_simulation_runtime_state(request)
+
+    assert result == {"queued_deleted": 6, "ai_queue_deleted": 4, "combat_queue_deleted": 2, "progress_deleted": 2}
+    assert COMBAT_AI_SIMULATION_ARQ_QUEUE not in redis_client.zsets
+    assert COMBAT_ARQ_QUEUE not in redis_client.zsets
+    assert redis_client.keys == {"arq:job:foreign-job"}
 
 
 @pytest.mark.asyncio
 async def test_live_demo_batch_creates_rows_once_and_enqueues_all(monkeypatch: pytest.MonkeyPatch) -> None:
     rows: list[SimpleNamespace] = []
+    scheduled_calls: list[dict] = []
 
     class FakeDbSession:
         def __init__(self) -> None:
@@ -144,7 +244,7 @@ async def test_live_demo_batch_creates_rows_once_and_enqueues_all(monkeypatch: p
             self.commit_calls += 1
 
     class FakeService:
-        async def start_live_starter_presets_demo(
+        async def schedule_live_starter_presets_demo(
             self,
             *,
             seed: int,
@@ -156,14 +256,25 @@ async def test_live_demo_batch_creates_rows_once_and_enqueues_all(monkeypatch: p
             scenario_key: str,
             mirror_full_roster: bool,
             skill_profile: str,
+            policy_ref: str = "runtime_default",
+            policy_metadata: dict | None = None,
             policy_source_run_id: str | None = None,
         ):
+            scheduled_calls.append(
+                {
+                    "seed": seed,
+                    "max_rounds": max_rounds,
+                    "min_team_size": min_team_size,
+                    "max_team_size": max_team_size,
+                    "scenario_key": scenario_key,
+                }
+            )
             row = SimpleNamespace(
                 id=f"run-{len(rows) + 1}",
                 run_kind="simulation_live",
                 scenario_key=scenario_key,
                 status="running",
-                policy_ref="runtime_default",
+                policy_ref=policy_ref,
                 seed=seed,
                 max_rounds=max_rounds,
                 rounds_completed=0,
@@ -179,7 +290,10 @@ async def test_live_demo_batch_creates_rows_once_and_enqueues_all(monkeypatch: p
                     "roster_max_team_size": max_team_size,
                     "roster_mode": "mirror_10v10" if mirror_full_roster else "random_draft",
                     "skill_profile": skill_profile,
+                    "blue_imprints": [f"blue-{seed}"],
+                    "red_imprints": [f"red-{seed}"],
                     "policy_source_run_id": policy_source_run_id or "",
+                    **(policy_metadata or {}),
                 },
             )
             rows.append(row)
@@ -187,7 +301,7 @@ async def test_live_demo_batch_creates_rows_once_and_enqueues_all(monkeypatch: p
 
     db_session = FakeDbSession()
     arq = FakeArqQueue()
-    request = SimpleNamespace(app=SimpleNamespace(state=SimpleNamespace(combat_arq=arq)))
+    request = SimpleNamespace(app=SimpleNamespace(state=SimpleNamespace(combat_ai_simulation_arq=arq)))
     monkeypatch.setattr(ai_simulation_router_module, "_service", lambda _db_session: FakeService())
 
     result = await run_live_demo_simulation_batch(
@@ -204,16 +318,277 @@ async def test_live_demo_batch_creates_rows_once_and_enqueues_all(monkeypatch: p
     )
 
     assert db_session.commit_calls == 1
+    assert [call["seed"] for call in scheduled_calls] == [999_998, 999_999, 0]
     assert [row.seed for row in result.runs] == [999_998, 999_999, 0]
     assert [payload["seed"] for _, payload in arq.enqueued] == [999_998, 999_999, 0]
     assert [payload["run_id"] for _, payload in arq.enqueued] == ["run-1", "run-2", "run-3"]
     assert [payload["min_team_size"] for _, payload in arq.enqueued] == [2, 2, 2]
     assert [payload["max_team_size"] for _, payload in arq.enqueued] == [4, 4, 4]
+    assert [payload["blue_imprints"] for _, payload in arq.enqueued] == [["blue-999998"], ["blue-999999"], ["blue-0"]]
+    assert [payload["red_imprints"] for _, payload in arq.enqueued] == [["red-999998"], ["red-999999"], ["red-0"]]
     assert {name for name, _ in arq.enqueued} == {COMBAT_AI_LIVE_SIMULATION_TASK}
 
 
 @pytest.mark.asyncio
-async def test_synthetic_training_enqueue_uses_combat_worker_queue() -> None:
+async def test_scheduled_live_demo_row_does_not_materialize_roster(monkeypatch: pytest.MonkeyPatch) -> None:
+    def fail_roster_build(**_kwargs):
+        raise AssertionError("scheduled live rows must not build combat actors")
+
+    monkeypatch.setattr(ai_simulation_service_module, "_build_starter_roster", fail_roster_build)
+
+    repository = FakeSimulationRunRepository()
+    service = CombatAiSimulationRunService(repository)
+    row = await service.schedule_live_starter_presets_demo(
+        seed=7,
+        max_rounds=500,
+        tick_interval_seconds=0.05,
+        timeout_ticks=8,
+        min_team_size=6,
+        max_team_size=6,
+        scenario_key="starter_presets_5v5_live",
+        mirror_full_roster=False,
+        skill_profile=STARTER_SKILL_PROFILE_BASELINE,
+    )
+
+    assert row.status == "running"
+    assert row.metadata_["participants"] == []
+    assert row.metadata_["live_snapshot"]["actors"] == []
+    assert len(row.metadata_["blue_imprints"]) == 6
+    assert len(row.metadata_["red_imprints"]) == 6
+
+
+@pytest.mark.asyncio
+async def test_family_pressure_route_only_schedules_worker_job(monkeypatch: pytest.MonkeyPatch) -> None:
+    class FakeDbSession:
+        def __init__(self) -> None:
+            self.commit_calls = 0
+
+        async def commit(self) -> None:
+            self.commit_calls += 1
+
+    class FakeService:
+        async def start_family_pressure_probe(
+            self,
+            *,
+            family_id: str,
+            imprint_key: str,
+            seed: int,
+            trials: int,
+            max_rounds: int,
+            max_minions: int,
+            max_scenarios: int,
+        ):
+            assert family_id == "rat_swarm"
+            assert imprint_key == ""
+            assert trials == 30
+            assert max_minions == 6
+            assert max_scenarios == 12
+            return SimpleNamespace(
+                id="family-run-1",
+                run_kind="simulation",
+                scenario_key="family_pressure:rat_swarm",
+                status="running",
+                policy_ref="runtime_default",
+                seed=seed,
+                max_rounds=max_rounds,
+                rounds_completed=0,
+                winner=None,
+                reward=None,
+                telemetry={"run_kind": "family_pressure", "status_message": "family pressure scheduled"},
+                report_text="family pressure scheduled",
+                created_at=None,
+                metadata_={
+                    "family_pressure": True,
+                    "family_id": family_id,
+                    "imprint_key": "starter_breaker_01",
+                    "trials_per_composition": trials,
+                    "max_minions": max_minions,
+                    "max_scenarios": max_scenarios,
+                    "composition_reports": [],
+                },
+            )
+
+    def fail_monster_repository(_db_session):
+        raise AssertionError("family pressure route must not load generated monsters")
+
+    db_session = FakeDbSession()
+    arq = FakeArqQueue()
+    request = SimpleNamespace(app=SimpleNamespace(state=SimpleNamespace(combat_arq=arq)))
+    monkeypatch.setattr(ai_simulation_router_module, "_service", lambda _db_session: FakeService())
+    monkeypatch.setattr(
+        ai_simulation_router_module,
+        "MonsterGenerationRepository",
+        fail_monster_repository,
+        raising=False,
+    )
+
+    result = await run_family_pressure_simulation(
+        request,
+        db_session,
+        family_id="rat_swarm",
+        seed=17,
+        trials=30,
+        max_rounds=80,
+        max_minions=6,
+        max_scenarios=12,
+    )
+
+    assert db_session.commit_calls == 1
+    assert result.status == "running"
+    assert result.metadata["family_pressure"] is True
+    assert arq.enqueued == [
+        (
+            COMBAT_FAMILY_PRESSURE_TASK,
+            {
+                "run_id": "family-run-1",
+                "family_id": "rat_swarm",
+                "imprint_key": "starter_breaker_01",
+                "seed": 17,
+                "trials": 30,
+                "max_rounds": 80,
+                "max_minions": 6,
+                "max_scenarios": 12,
+            },
+        )
+    ]
+
+
+@pytest.mark.asyncio
+async def test_family_pressure_enqueue_uses_combat_runtime_queue() -> None:
+    arq = FakeArqQueue()
+    payload = {"run_id": "family-run-1", "family_id": "rat_swarm"}
+
+    await _enqueue_family_pressure_job(arq, payload)
+
+    assert arq.enqueued == [(COMBAT_FAMILY_PRESSURE_TASK, payload)]
+
+
+@pytest.mark.asyncio
+async def test_family_pressure_schedule_does_not_run_simulator(monkeypatch: pytest.MonkeyPatch) -> None:
+    def fail_simulator(*_args, **_kwargs):
+        raise AssertionError("scheduled family pressure rows must not run combat simulations")
+
+    monkeypatch.setattr(ai_simulation_service_module, "FamilyPressureSimulator", fail_simulator)
+
+    repository = FakeSimulationRunRepository()
+    row = await CombatAiSimulationRunService(repository).start_family_pressure_probe(
+        family_id="rat_swarm",
+        imprint_key="",
+        seed=3,
+        trials=30,
+        max_rounds=80,
+        max_minions=6,
+        max_scenarios=12,
+    )
+
+    assert row.status == "running"
+    assert row.scenario_key == "family_pressure:rat_swarm"
+    assert row.rounds_completed == 0
+    assert row.metadata_["family_pressure"] is True
+    assert row.metadata_["composition_reports"] == []
+    assert row.metadata_["imprint_key"] in DEFAULT_STARTER_SIMULATION_IMPRINTS
+
+
+@pytest.mark.asyncio
+async def test_family_pressure_execute_completes_existing_run(monkeypatch: pytest.MonkeyPatch) -> None:
+    progress_updates: list[dict[str, object]] = []
+    report = FamilyPressureReport(
+        family_id="rat_swarm",
+        imprint_key="starter_breaker_01",
+        imprint_title="Breaker",
+        player_gear_score=281,
+        player_start_hp=61,
+        trials_per_composition=2,
+        reports=[
+            FamilyPressureCompositionReport(
+                composition=FamilyPressureComposition(key="minionx1", role_counts={"minion": 1}),
+                member_variants=["rat_minion"],
+                member_roles=["minion"],
+                member_gear_scores=[188],
+                raw_gear_score=188,
+                effective_gear_score=188.0,
+                effective_ratio=0.669,
+                trials=2,
+                player_wins=2,
+                monster_wins=0,
+                draws=0,
+                player_win_rate=1.0,
+                avg_player_hp=59.0,
+                avg_rounds=12.0,
+                first_player_death_trial=None,
+            )
+        ],
+    )
+
+    class FakeSimulator:
+        async def run(self, **kwargs):
+            assert kwargs["family_id"] == "rat_swarm"
+            assert kwargs["imprint_key"] == "starter_breaker_01"
+            assert kwargs["seed"] == 5
+            await kwargs["progress"](report)
+            return report
+
+    monkeypatch.setattr(ai_simulation_service_module, "FamilyPressureSimulator", lambda: FakeSimulator())
+    repository = FakeSimulationRunRepository()
+    repository.recent.append(
+        SimpleNamespace(
+            id="family-run-1",
+            run_kind="simulation",
+            scenario_key="family_pressure:rat_swarm",
+            status="running",
+            policy_ref="runtime_default",
+            seed=5,
+            max_rounds=80,
+            rounds_completed=0,
+            winner=None,
+            reward=None,
+            telemetry={},
+            report_text="scheduled",
+            created_at=None,
+            metadata_={"family_pressure": True},
+        )
+    )
+
+    async def progress(status, rounds_completed, winner, reward, telemetry, report_text, metadata):
+        progress_updates.append(
+            {
+                "status": status,
+                "rounds_completed": rounds_completed,
+                "winner": winner,
+                "reward": reward,
+                "telemetry": telemetry,
+                "report_text": report_text,
+                "metadata": metadata,
+            }
+        )
+
+    row = await CombatAiSimulationRunService(repository).execute_family_pressure_probe(
+        "family-run-1",
+        family_id="rat_swarm",
+        members=[SimpleNamespace(family_id="rat_swarm")],
+        imprint_key="starter_breaker_01",
+        seed=5,
+        trials=2,
+        max_rounds=80,
+        max_minions=1,
+        max_scenarios=1,
+        progress=progress,
+    )
+
+    assert row is not None
+    assert row.status == "completed"
+    assert row.rounds_completed == 2
+    assert row.telemetry["run_kind"] == "family_pressure"
+    assert row.telemetry["first_losing_composition"] == {}
+    assert row.metadata_["composition_reports"][0]["composition"]["key"] == "minionx1"
+    assert progress_updates
+    assert progress_updates[-1]["status"] == "running"
+    assert progress_updates[-1]["rounds_completed"] == 2
+    assert progress_updates[-1]["metadata"]["composition_reports"][0]["member_roles"] == ["minion"]
+
+
+@pytest.mark.asyncio
+async def test_synthetic_training_enqueue_uses_combat_ai_simulation_queue() -> None:
     arq = FakeArqQueue()
     payload = {
         "run_id": "run-1",
@@ -229,7 +604,7 @@ async def test_synthetic_training_enqueue_uses_combat_worker_queue() -> None:
 
 
 @pytest.mark.asyncio
-async def test_battle_training_enqueue_uses_combat_worker_queue() -> None:
+async def test_battle_training_enqueue_uses_combat_ai_simulation_queue() -> None:
     arq = FakeArqQueue()
     payload = {
         "run_id": "run-1",
@@ -245,10 +620,11 @@ async def test_battle_training_enqueue_uses_combat_worker_queue() -> None:
     assert arq.enqueued == [(COMBAT_AI_BATTLE_TRAINING_TASK, payload)]
 
 
-def test_combat_worker_registers_ai_admin_tasks() -> None:
-    task_by_name = {getattr(task, "name", getattr(task, "__name__", "")): task for task in COMBAT_TASKS}
+def test_combat_ai_simulation_worker_registers_ai_admin_tasks() -> None:
+    task_by_name = {getattr(task, "name", getattr(task, "__name__", "")): task for task in COMBAT_AI_SIMULATION_TASKS}
     assert task_by_name["combat_ai_live_simulation_task"].coroutine is combat_ai_live_simulation_task
     assert task_by_name["combat_ai_live_simulation_task"].timeout_s == AI_LIVE_SIMULATION_JOB_TIMEOUT_SECONDS
+    assert "combat_family_pressure_task" not in task_by_name
     assert task_by_name["combat_ai_synthetic_training_task"].coroutine is combat_ai_synthetic_training_task
     assert task_by_name["combat_ai_synthetic_training_task"].timeout_s == AI_SYNTHETIC_TRAINING_JOB_TIMEOUT_SECONDS
     assert task_by_name["combat_ai_battle_training_task"].coroutine is combat_ai_battle_training_task
@@ -257,8 +633,24 @@ def test_combat_worker_registers_ai_admin_tasks() -> None:
 
 def test_live_simulation_worker_concurrency_matches_admin_batch_size() -> None:
     assert LIVE_SIMULATION_WORKER_CONCURRENCY == 3
-    assert CombatArqSettings.max_jobs == LIVE_SIMULATION_WORKER_CONCURRENCY
-    assert CombatArqSettings.job_timeout == AI_BATTLE_TRAINING_JOB_TIMEOUT_SECONDS
+    assert FAMILY_PRESSURE_WORKER_CONCURRENCY == 1
+    assert CombatAiSimulationArqSettings.max_jobs == COMBAT_AI_SIMULATION_WORKER_MAX_JOBS == 1
+    assert CombatAiSimulationArqSettings.job_timeout == AI_BATTLE_TRAINING_JOB_TIMEOUT_SECONDS
+
+
+def test_combat_runtime_worker_keeps_runtime_tasks_and_has_more_slots() -> None:
+    task_by_name = {getattr(task, "name", getattr(task, "__name__", "")): task for task in COMBAT_TASKS}
+    task_names = set(task_by_name)
+
+    assert "combat_ai_live_simulation_task" not in task_names
+    assert "combat_ai_synthetic_training_task" not in task_names
+    assert "combat_ai_battle_training_task" not in task_names
+    assert task_by_name["combat_family_pressure_task"].coroutine is combat_family_pressure_task
+    assert task_by_name["combat_family_pressure_task"].timeout_s == PVE_FAMILY_PRESSURE_JOB_TIMEOUT_SECONDS
+    assert "execute_batch_task" in task_names
+    assert "combat_collector_task" in task_names
+    assert CombatArqSettings.max_jobs == COMBAT_RUNTIME_MAX_JOBS == 30
+    assert CombatArqSettings.job_timeout == 60
 
 
 @pytest.mark.asyncio
@@ -329,12 +721,12 @@ async def test_ai_simulation_service_runs_starter_presets_demo() -> None:
     assert row.status == "completed"
     assert row.metadata_["simulation_actor_source"] == "character_starting_imprints"
     assert row.metadata_["live_policy_activation"] is False
-    assert len(row.metadata_["participants"]) == 10
-    assert row.metadata_["roster_mode"] == "seeded_random_5v5_split"
+    assert len(row.metadata_["participants"]) == 12
+    assert row.metadata_["roster_mode"] == "seeded_random_6v6_split"
     assert row.metadata_["roster_seed"] == 0
-    assert len(row.metadata_["imprint_pool"]) == len(BALANCE_TEST_SIMULATION_IMPRINTS)
-    assert len(row.metadata_["blue_imprints"]) == 5
-    assert len(row.metadata_["red_imprints"]) == 5
+    assert len(row.metadata_["imprint_pool"]) == len(DEFAULT_STARTER_SIMULATION_IMPRINTS)
+    assert len(row.metadata_["blue_imprints"]) == 6
+    assert len(row.metadata_["red_imprints"]) == 6
     assert row.metadata_["participants"][0]["combat_stats"]["damage"] > 0
     assert "winner:" in row.report_text
 
@@ -372,11 +764,11 @@ async def test_ai_simulation_service_runs_mirror_10v10_demo() -> None:
 
     assert row.run_kind == "simulation"
     assert row.scenario_key == "starter_presets_mirror_10v10"
-    assert row.metadata_["roster_mode"] == "mirror_10v10"
-    assert row.metadata_["roster_team_size"] == 10
+    assert row.metadata_["roster_mode"] == "mirror_full_roster"
+    assert row.metadata_["roster_team_size"] == len(DEFAULT_STARTER_SIMULATION_IMPRINTS)
     assert len(row.metadata_["imprint_pool"]) == len(DEFAULT_STARTER_SIMULATION_IMPRINTS)
-    assert len(row.metadata_["participants"]) == 20
-    assert len(row.metadata_["blue_imprints"]) == 10
+    assert len(row.metadata_["participants"]) == len(DEFAULT_STARTER_SIMULATION_IMPRINTS) * 2
+    assert len(row.metadata_["blue_imprints"]) == len(DEFAULT_STARTER_SIMULATION_IMPRINTS)
     assert row.metadata_["blue_imprints"] == row.metadata_["red_imprints"]
     assert row.metadata_["unused_imprints"] == []
 
@@ -397,10 +789,10 @@ async def test_ai_simulation_service_starts_live_starter_presets_demo() -> None:
     assert row.metadata_["simulation_mode"] == "live_tick"
     assert row.metadata_["completion_reason"] == "running"
     assert row.metadata_["tick_interval_seconds"] == LIVE_DEFAULT_TICK_INTERVAL_SECONDS
-    assert row.metadata_["roster_mode"] == "seeded_random_5v5_split"
-    assert len(row.metadata_["imprint_pool"]) == len(BALANCE_TEST_SIMULATION_IMPRINTS)
-    assert len(row.metadata_["participants"]) == 10
-    assert len(row.metadata_["live_snapshot"]["actors"]) == 10
+    assert row.metadata_["roster_mode"] == "seeded_random_6v6_split"
+    assert len(row.metadata_["imprint_pool"]) == len(DEFAULT_STARTER_SIMULATION_IMPRINTS)
+    assert len(row.metadata_["participants"]) == 12
+    assert len(row.metadata_["live_snapshot"]["actors"]) == 12
 
 
 @pytest.mark.asyncio
@@ -417,7 +809,7 @@ async def test_ai_simulation_service_starts_live_starter_presets_with_maxed_exis
     assert row.scenario_key == "starter_presets_5v5_live_full_skills"
     assert row.metadata_["skill_profile"] == STARTER_SKILL_PROFILE_MAXED_EXISTING
     participants = row.metadata_["participants"]
-    assert len(participants) == 10
+    assert len(participants) == 12
     for participant in participants:
         assert participant["skill_profile"] == STARTER_SKILL_PROFILE_MAXED_EXISTING
         assert participant["skills"]
@@ -490,7 +882,7 @@ async def test_ai_simulation_service_starts_live_demo_with_selected_training_pol
     assert row.policy_ref == "training:training-selected"
     assert row.metadata_["policy_source_run_id"] == "training-selected"
     assert row.metadata_["policy_id"] == "selected-live-test"
-    assert row.metadata_["roster_mode"] == "mirror_10v10"
+    assert row.metadata_["roster_mode"] == "mirror_full_roster"
 
 
 @pytest.mark.asyncio
@@ -681,17 +1073,19 @@ async def test_ai_simulation_service_executes_live_demo_with_preselected_roster(
 
     blue = (
         "starter_guard_01",
+        "starter_tactician_01",
+        "starter_heavy_guard_01",
         "starter_breaker_01",
-        "starter_duelist_01",
-        "starter_dual_blades_01",
-        "starter_hunter_01",
+        "starter_staff_01",
+        "starter_rift_survivor_01",
     )
     red = (
+        "starter_dual_blades_01",
+        "starter_dual_sword_01",
+        "starter_dual_mace_01",
+        "starter_hunter_01",
         "starter_archer_01",
-        "starter_staff_01",
-        "starter_heavy_guard_01",
-        "starter_tactician_01",
-        "starter_rift_survivor_01",
+        "starter_marksman_01",
     )
 
     await CombatAiSimulationRunService(FakeSimulationRunRepository()).execute_live_starter_presets_demo(
@@ -709,7 +1103,7 @@ async def test_ai_simulation_service_executes_live_demo_with_preselected_roster(
     assert updates
     assert updates[-1]["metadata"]["blue_imprints"] == list(blue)
     assert updates[-1]["metadata"]["red_imprints"] == list(red)
-    assert updates[-1]["metadata"]["roster_mode"] == "seeded_random_5v5_split"
+    assert updates[-1]["metadata"]["roster_mode"] == "seeded_random_6v6_split"
 
 
 @pytest.mark.asyncio

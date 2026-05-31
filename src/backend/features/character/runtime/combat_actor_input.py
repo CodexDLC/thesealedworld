@@ -91,12 +91,14 @@ class CharacterCombatActorInputBuilder:
         combat_surfaces: dict[str, dict[str, Any]] = {}
         equipment_refs: dict[str, dict[str, Any]] = {}
         quiver_payload: dict[str, Any] | None = None
+        quiver_charges: int | None = None
         for slot, item_id in equipment_layout.items():
             if not item_id:
                 continue
             item = CharacterCombatActorInputBuilder._dict(by_id.get(str(item_id)))
             if str(slot) == "quiver":
                 quiver_payload = CharacterCombatActorInputBuilder._ammo_effect_payload(item)
+                quiver_charges = CharacterCombatActorInputBuilder._ammo_charges(item, flat_skills)
             skill_key = CharacterCombatActorInputBuilder._skill_key_for_slot(str(slot), item)
             combat_slot = CharacterCombatActorInputBuilder._combat_slot(str(slot))
             item_type = CharacterCombatActorInputBuilder._item_type(item)
@@ -144,8 +146,13 @@ class CharacterCombatActorInputBuilder:
             combat_layout["tactical_style_trigger"] = tactical_style[1]
 
         ammo_effects: dict[str, dict[str, Any]] = {}
+        ammo_charges: dict[str, int] = {}
+        ammo_charge_caps: dict[str, int] = {}
         if quiver_payload and combat_layout.get("main_hand") == "skill_archery":
             ammo_effects["main_hand"] = quiver_payload
+        if quiver_charges is not None and combat_layout.get("main_hand") == "skill_archery":
+            ammo_charges["main_hand"] = quiver_charges
+            ammo_charge_caps["main_hand"] = quiver_charges
 
         belt = []
         for belt_slot, item_id in belt_layout.items():
@@ -168,6 +175,8 @@ class CharacterCombatActorInputBuilder:
             "combat_surfaces": combat_surfaces,
             "equipment_refs": equipment_refs,
             "ammo_effects": ammo_effects,
+            "ammo_charges": ammo_charges,
+            "ammo_charge_caps": ammo_charge_caps,
             "belt": belt,
             "abilities": default_known_abilities,
             "known_abilities": default_known_abilities,
@@ -335,16 +344,54 @@ class CharacterCombatActorInputBuilder:
         if not isinstance(raw, dict):
             return None
         payload = dict(raw)
-        effect_id = payload.get("id") or payload.get("effect_id")
         item_power = CharacterCombatActorInputBuilder._float_value(
             item.get("power") if item.get("power") is not None else mechanics.get("power"),
             default=0.0,
         )
+        raw_effects = payload.get("effects")
+        if isinstance(raw_effects, list):
+            effects = [
+                CharacterCombatActorInputBuilder._scaled_ammo_effect(effect, item_power)
+                for effect in raw_effects
+                if isinstance(effect, dict)
+            ]
+            effects = [effect for effect in effects if effect is not None]
+            return {"effects": effects} if effects else None
+        return CharacterCombatActorInputBuilder._scaled_ammo_effect(payload, item_power)
+
+    @staticmethod
+    def _ammo_charges(item: dict[str, Any], flat_skills: dict[str, float]) -> int | None:
+        mechanics = CharacterCombatActorInputBuilder._mechanics(item)
+        raw_base = item.get("ammo_charge_base")
+        if raw_base is None:
+            raw_base = mechanics.get("ammo_charge_base")
+        raw_bonus = item.get("ammo_charge_skill_bonus")
+        if raw_bonus is None:
+            raw_bonus = mechanics.get("ammo_charge_skill_bonus")
+        if raw_base is None and raw_bonus is None:
+            return None
+        base = CharacterCombatActorInputBuilder._float_value(raw_base, default=0.0)
+        bonus = CharacterCombatActorInputBuilder._float_value(raw_bonus, default=0.0)
+        skill = max(
+            0.0,
+            min(
+                1.0,
+                CharacterCombatActorInputBuilder._float_value(flat_skills.get("skill_archery"), default=0.0),
+            ),
+        )
+        return max(0, int(base + bonus * skill))
+
+    @staticmethod
+    def _scaled_ammo_effect(payload: dict[str, Any], item_power: float) -> dict[str, Any] | None:
+        effect_id = payload.get("id") or payload.get("effect_id")
+        if not isinstance(effect_id, str) or not effect_id:
+            return None
+        payload = dict(payload)
         if item_power > 0:
             params = dict(payload.get("params") or {})
             params["power"] = item_power
             payload["params"] = params
-        return payload if isinstance(effect_id, str) and effect_id else None
+        return payload
 
     @staticmethod
     def _weapon_tier(item: dict[str, Any]) -> int:

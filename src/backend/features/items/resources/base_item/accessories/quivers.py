@@ -11,6 +11,10 @@ def _ammo_effect(effect_id: str, *, power: float = 1.0, tags: list[str] | None =
     }
 
 
+def _ammo_effect_bundle(*effects: dict[str, Any]) -> dict[str, Any]:
+    return {"effects": list(effects)}
+
+
 QUIVERS_DB = {
     "quiver_training": BaseItemDTO(
         id="quiver_training",
@@ -30,7 +34,7 @@ QUIVERS_DB = {
     "quiver_fire": BaseItemDTO(
         id="quiver_fire",
         name_ru="Колчан огненных стрел",
-        narrative_description="Колчан со стрелами, подготовленными для поджигания цели после точного попадания.",
+        narrative_description="Колчан со стрелами, подготовленными для поджигания цели и сбивания прицела после точного попадания.",
         slot="quiver",
         type="ammo",
         related_skill="skill_archery",
@@ -41,7 +45,10 @@ QUIVERS_DB = {
         narrative_tags=["quiver", "arrows", "archery", "fire", "burn"],
         ammo_charge_base=12,
         ammo_charge_skill_bonus=12,
-        ammo_effect_payload=_ammo_effect("dot_burn", power=1.0, tags=["fire", "burn"]),
+        ammo_effect_payload=_ammo_effect_bundle(
+            _ammo_effect("dot_burn", power=1.0, tags=["fire", "burn"]),
+            _ammo_effect("debuff_accuracy", power=1.0, tags=["fire", "accuracy_debuff"]),
+        ),
     ),
     "quiver_poison": BaseItemDTO(
         id="quiver_poison",
@@ -73,12 +80,15 @@ QUIVERS_DB = {
         narrative_tags=["quiver", "arrows", "archery", "broadhead", "bleed"],
         ammo_charge_base=12,
         ammo_charge_skill_bonus=12,
-        ammo_effect_payload=_ammo_effect("dot_bleed", power=1.0, tags=["bleed", "physical"]),
+        ammo_effect_payload=_ammo_effect_bundle(
+            _ammo_effect("dot_bleed", power=1.0, tags=["bleed", "physical"]),
+            _ammo_effect("debuff_armor", power=1.0, tags=["bleed", "armor_debuff"]),
+        ),
     ),
     "quiver_frost": BaseItemDTO(
         id="quiver_frost",
         name_ru="Колчан ледяных стрел",
-        narrative_description="Колчан со стрелами, которые сковывают движения цели после точного попадания.",
+        narrative_description="Колчан со стрелами, которые наносят холодный урон и сковывают движения цели после точного попадания.",
         slot="quiver",
         type="ammo",
         related_skill="skill_archery",
@@ -89,7 +99,10 @@ QUIVERS_DB = {
         narrative_tags=["quiver", "arrows", "archery", "ice", "debuff"],
         ammo_charge_base=12,
         ammo_charge_skill_bonus=12,
-        ammo_effect_payload=_ammo_effect("debuff_evasion", power=1.0, tags=["ice", "debuff"]),
+        ammo_effect_payload=_ammo_effect_bundle(
+            _ammo_effect("dot_frost", power=1.0, tags=["ice", "frost"]),
+            _ammo_effect("debuff_evasion", power=1.0, tags=["ice", "evasion_debuff"]),
+        ),
     ),
     "quiver_bodkin": BaseItemDTO(
         id="quiver_bodkin",
@@ -105,6 +118,7 @@ QUIVERS_DB = {
         narrative_tags=["quiver", "arrows", "archery", "bodkin", "armor_piercing"],
         ammo_charge_base=12,
         ammo_charge_skill_bonus=12,
+        ammo_effect_payload=_ammo_effect("debuff_armor", power=1.0, tags=["bodkin", "armor_debuff"]),
     ),
 }
 

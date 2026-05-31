@@ -169,43 +169,47 @@ def test_gear_score_breakdown_from_active_character_matches_total_and_skills() -
     active_character = {
         "attributes": {"strength": 12},
         "items": {},
-        "skills": {"skill_swords": {"xp": 0.4}, "skill_light_armor": {"xp": 0.8}},
+        "skills": {
+            "skill_swords": {"xp": 0.4},
+            "skill_light_armor": {"xp": 0.8},
+            "skill_scouting": {"xp": 1.0},
+        },
     }
 
     breakdown = CharacterGearScoreCalculator().calculate_breakdown_from_active_character(active_character)
 
-    assert breakdown["skills"] == 60.0
+    assert breakdown["skills"] == 220.0
     assert breakdown["total"] == CharacterGearScoreCalculator().calculate_from_active_character(active_character)
 
 
 @pytest.mark.unit
-def test_gear_score_adds_normalized_skill_package_up_to_100_points() -> None:
+def test_gear_score_adds_each_normalized_skill_as_points() -> None:
     novice_score = CharacterGearScoreCalculator.calculate_from_raw(
         {},
-        skills={"skill_fencing": 0.25, "skill_light_armor": {"xp": 0.25}},
+        skills={"skill_fencing": 0.25, "skill_light_armor": {"xp": 0.25}, "skill_pathfinder": 1.0},
     )
     master_score = CharacterGearScoreCalculator.calculate_from_raw(
         {},
-        skills={"skill_fencing": 1.0, "skill_light_armor": {"xp": 1.0}},
+        skills={"skill_fencing": 1.0, "skill_light_armor": {"xp": 1.0}, "skill_pathfinder": 1.0},
     )
     master_breakdown = CharacterGearScoreCalculator.calculate_breakdown_from_raw(
         {},
-        skills={"skill_fencing": 1.0, "skill_light_armor": {"xp": 1.0}},
+        skills={"skill_fencing": 1.0, "skill_light_armor": {"xp": 1.0}, "skill_pathfinder": 1.0},
     )
 
-    assert master_breakdown["skills"] == 100.0
-    assert master_score - novice_score == 75
+    assert master_breakdown["skills"] == 300.0
+    assert master_score - novice_score == 150
 
 
 @pytest.mark.unit
 def test_gear_score_breakdown_exposes_skill_score_component() -> None:
     breakdown = CharacterGearScoreCalculator.calculate_breakdown_from_raw(
         {"modifiers": {"armor": {"base": 10.0}}},
-        skills={"skill_heavy_armor": 1.0, "skill_shield": 0.5},
+        skills={"skill_heavy_armor": 1.0, "skill_shield_mastery": 0.5, "skill_adaptation": 1.0},
     )
 
-    assert breakdown["skills"] == 75.0
-    assert breakdown["total"] >= 75
+    assert breakdown["skills"] == 250.0
+    assert breakdown["total"] >= 250
 
 
 @pytest.mark.unit

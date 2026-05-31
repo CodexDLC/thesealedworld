@@ -20,6 +20,16 @@ from src.frontend.config.settings import settings
 from src.frontend.integrations.backend_api.combat_ai_testing import CombatAiSimulationRun, CombatAiTestingApi
 
 _BASE = "/admin/combat-ai-testing"
+_EHP_REFERENCE_HIT_DAMAGE = 20.0
+_EHP_REGEN_WINDOW_EXCHANGES = 5.0
+_SHIELD_TACTICAL_PART_ID = "style_shield_reflect"
+_SHIELD_TACTICAL_PART_ALIASES = {"weapon_shield_bash_on_block"}
+_LIVE_LAUNCH_SCENARIOS = {
+    "starter_presets_5v5_live",
+    "starter_presets_5v5_live_full_skills",
+    "starter_presets_5v5_live_latest_training_file",
+    "starter_presets_random_draft_live",
+}
 
 _TACTICAL_PART_LABELS = {
     "style_2h_ignore": "Двуручный стиль: давление",
@@ -52,7 +62,7 @@ async def _run_launcher_provider(request: Request) -> TableWidgetMap:
         rows=[
             {
                 "id": "starter_presets_5v5_live",
-                "scenario": "Live tick: стартовые пресеты 5v5",
+                "scenario": "Live tick: стартовые пресеты 6v6",
                 "runs": 1,
                 "mode": "фон, 0.05 сек/tick",
                 "policy": "runtime_default",
@@ -60,7 +70,7 @@ async def _run_launcher_provider(request: Request) -> TableWidgetMap:
             },
             {
                 "id": "live_batch:starter_presets_5v5_live:100",
-                "scenario": "Live tick: стартовые пресеты 5v5",
+                "scenario": "Live tick: стартовые пресеты 6v6",
                 "runs": 100,
                 "mode": "фон, пакет live-like",
                 "policy": "runtime_default",
@@ -68,7 +78,7 @@ async def _run_launcher_provider(request: Request) -> TableWidgetMap:
             },
             {
                 "id": "starter_presets_5v5_live_full_skills",
-                "scenario": "Live tick: стартовые пресеты 5v5, full skills",
+                "scenario": "Live tick: стартовые пресеты 6v6, full skills",
                 "runs": 1,
                 "mode": "фон, maxed existing skills",
                 "policy": "runtime_default",
@@ -76,43 +86,11 @@ async def _run_launcher_provider(request: Request) -> TableWidgetMap:
             },
             {
                 "id": "live_batch:starter_presets_5v5_live_full_skills:100",
-                "scenario": "Live tick: стартовые пресеты 5v5, full skills",
+                "scenario": "Live tick: стартовые пресеты 6v6, full skills",
                 "runs": 100,
                 "mode": "фон, пакет maxed skills",
                 "policy": "runtime_default",
-                "note": "100 отдельных 5v5 боёв; состав фиксируется при заказе, навыки слепков на 100%",
-            },
-            {
-                "id": "starter_presets_mirror_10v10_live",
-                "scenario": "Live tick: зеркало 10v10",
-                "runs": 1,
-                "mode": "фон, полный baseline",
-                "policy": "runtime_default",
-                "note": "в каждой команде все 10 стартовых слепков; удобно искать перекосы классов",
-            },
-            {
-                "id": "live_batch:starter_presets_mirror_10v10_live:10",
-                "scenario": "Live tick: зеркало 10v10",
-                "runs": 10,
-                "mode": "фон, пакет live-like",
-                "policy": "runtime_default",
-                "note": "10 зеркальных live-like боёв 10v10; самый тяжёлый baseline",
-            },
-            {
-                "id": "starter_presets_mirror_10v10_live_full_skills",
-                "scenario": "Live tick: зеркало 10v10, full skills",
-                "runs": 1,
-                "mode": "фон, полный baseline, maxed skills",
-                "policy": "runtime_default",
-                "note": "зеркальный 10v10 с той же экипировкой, но существующие навыки слепков на 100%",
-            },
-            {
-                "id": "live_batch:starter_presets_mirror_10v10_live_full_skills:10",
-                "scenario": "Live tick: зеркало 10v10, full skills",
-                "runs": 10,
-                "mode": "фон, пакет maxed skills",
-                "policy": "runtime_default",
-                "note": "10 зеркальных 10v10 боёв с прокачанными существующими навыками",
+                "note": "100 отдельных 6v6 боёв; состав фиксируется при заказе, навыки слепков на 100%",
             },
         ],
         action_url=f"{_BASE}/run",
@@ -135,7 +113,7 @@ async def _policy_run_launcher_provider(request: Request) -> TableWidgetMap:
         rows=[
             {
                 "id": "starter_presets_5v5_live",
-                "scenario": "Live tick: стартовые пресеты 5v5 + policy",
+                "scenario": "Live tick: стартовые пресеты 6v6 + policy",
                 "runs": 1,
                 "mode": "фон, 0.05 сек/tick",
                 "note": "один live-like бой; решения берутся из выбранной версии обучения в БД",
@@ -143,58 +121,26 @@ async def _policy_run_launcher_provider(request: Request) -> TableWidgetMap:
             },
             {
                 "id": "live_batch:starter_presets_5v5_live:100",
-                "scenario": "Live tick: стартовые пресеты 5v5 + policy",
+                "scenario": "Live tick: стартовые пресеты 6v6 + policy",
                 "runs": 100,
                 "mode": "фон, пакет live-like",
-                "note": "100 отдельных 5v5 боёв с выбранной policy; состав фиксируется при заказе",
+                "note": "100 отдельных 6v6 боёв с выбранной policy; состав фиксируется при заказе",
                 "policy_options": policy_options,
             },
             {
                 "id": "starter_presets_5v5_live_full_skills",
-                "scenario": "Live tick: стартовые пресеты 5v5 full skills + policy",
+                "scenario": "Live tick: стартовые пресеты 6v6 full skills + policy",
                 "runs": 1,
                 "mode": "фон, maxed existing skills",
-                "note": "один 5v5 бой через выбранную policy; существующие навыки слепков подняты до 100%",
+                "note": "один 6v6 бой через выбранную policy; существующие навыки слепков подняты до 100%",
                 "policy_options": policy_options,
             },
             {
                 "id": "live_batch:starter_presets_5v5_live_full_skills:100",
-                "scenario": "Live tick: стартовые пресеты 5v5 full skills + policy",
+                "scenario": "Live tick: стартовые пресеты 6v6 full skills + policy",
                 "runs": 100,
                 "mode": "фон, пакет maxed skills",
-                "note": "100 отдельных 5v5 боёв через выбранную policy; состав фиксируется при заказе",
-                "policy_options": policy_options,
-            },
-            {
-                "id": "starter_presets_mirror_10v10_live",
-                "scenario": "Live tick: зеркало 10v10 + policy",
-                "runs": 1,
-                "mode": "фон, полный baseline",
-                "note": "зеркальный live-like baseline через выбранную policy",
-                "policy_options": policy_options,
-            },
-            {
-                "id": "live_batch:starter_presets_mirror_10v10_live:10",
-                "scenario": "Live tick: зеркало 10v10 + policy",
-                "runs": 10,
-                "mode": "фон, пакет live-like",
-                "note": "10 зеркальных 10v10 боёв с выбранной policy",
-                "policy_options": policy_options,
-            },
-            {
-                "id": "starter_presets_mirror_10v10_live_full_skills",
-                "scenario": "Live tick: зеркало 10v10 full skills + policy",
-                "runs": 1,
-                "mode": "фон, полный baseline, maxed skills",
-                "note": "зеркальный 10v10 через выбранную policy; существующие навыки слепков на 100%",
-                "policy_options": policy_options,
-            },
-            {
-                "id": "live_batch:starter_presets_mirror_10v10_live_full_skills:10",
-                "scenario": "Live tick: зеркало 10v10 full skills + policy",
-                "runs": 10,
-                "mode": "фон, пакет maxed skills",
-                "note": "10 зеркальных 10v10 боёв через выбранную policy с навыками слепков на 100%",
+                "note": "100 отдельных 6v6 боёв через выбранную policy; состав фиксируется при заказе",
                 "policy_options": policy_options,
             },
         ],
@@ -207,6 +153,62 @@ async def _policy_run_launcher_provider(request: Request) -> TableWidgetMap:
                 select_name="policy_run_id",
                 select_options_key="policy_options",
                 select_label="Policy",
+            )
+        ],
+    )
+
+
+async def _family_pressure_launcher_provider(request: Request) -> TableWidgetMap:
+    return TableWidgetMap(
+        key="combat_ai_family_pressure_launcher",
+        title="Диагностика семей против стартового слепка",
+        columns=[
+            TableColumnMap(key="scenario", label="Сценарий"),
+            TableColumnMap(key="family", label="Семья"),
+            TableColumnMap(key="runs", label="Бои"),
+            TableColumnMap(key="mode", label="Режим"),
+            TableColumnMap(key="note", label="Что сохраняем"),
+        ],
+        rows=[
+            {
+                "id": "family_pressure:rat_swarm",
+                "scenario": "Стартовый слепок vs лестница семьи",
+                "family": "rat_swarm",
+                "runs": "30 на состав",
+                "mode": "последовательно, 1..6 + veteran/elite mixes",
+                "note": "случайный слепок по seed; свежие HP/EN/stamina на каждый бой; отчёт по winrate и effective GS",
+                "seed": 3,
+            },
+            {
+                "id": "family_pressure:goblin_tribe",
+                "scenario": "Стартовый слепок vs лестница семьи",
+                "family": "goblin_tribe",
+                "runs": "30 на состав",
+                "mode": "последовательно, horde ladder",
+                "note": "проверяет, где гоблинская пачка начинает статистически ломать слепок",
+                "seed": 7,
+            },
+            {
+                "id": "family_pressure:bandit_gang",
+                "scenario": "Стартовый слепок vs лестница семьи",
+                "family": "bandit_gang",
+                "runs": "30 на состав",
+                "mode": "последовательно, gang ladder",
+                "note": "проверяет бандитов как не-swarm семью с другой ценой action economy",
+                "seed": 11,
+            },
+        ],
+        action_url=f"{_BASE}/run",
+        id_key="id",
+        actions=[
+            TableActionMap(
+                action="family_pressure",
+                label="Запустить",
+                input_name="seed",
+                input_value_key="seed",
+                input_label="Seed",
+                input_min=0,
+                input_max=1_000_000,
             )
         ],
     )
@@ -268,7 +270,7 @@ async def _battle_training_launcher_provider(request: Request) -> TableWidgetMap
                 "generations": 12,
                 "population": 8,
                 "seed": 0,
-                "note": "candidate против выбранной policy в live-like 5v5 боях; live-бой не меняет",
+                "note": "candidate против выбранной policy в live-like 6v6 боях; live-бой не меняет",
                 "policy_options": policy_options,
             }
         ],
@@ -611,16 +613,18 @@ async def _analytics_tactical_parts_provider(request: Request) -> TableWidgetMap
 
 
 async def _analytics_table_provider(request: Request) -> TableWidgetMap:
-    rows = await _analytics_imprint_rows(request)
+    rows = _expanded_analytics_table_rows(await _analytics_imprint_rows(request))
     return TableWidgetMap(
         key="combat_ai_analytics_table",
         title="Сводка по слепкам",
         columns=[
             TableColumnMap(key="imprint", label="Слепок"),
+            TableColumnMap(key="behavior", label="Роль"),
             TableColumnMap(key="appearances", label="Появл."),
             TableColumnMap(key="win_rate", label="Win %"),
             TableColumnMap(key="survival_rate", label="Выжил %"),
             TableColumnMap(key="gear_score", label="GS"),
+            TableColumnMap(key="effective_hp", label="EHP"),
             TableColumnMap(key="avg_damage", label="Ср. урон"),
             TableColumnMap(key="avg_taken", label="Ср. получено"),
             TableColumnMap(key="armor_absorbed_per_event", label="Броня/сраб."),
@@ -630,6 +634,90 @@ async def _analytics_table_provider(request: Request) -> TableWidgetMap:
             TableColumnMap(key="avg_overkill", label="Overkill"),
         ],
         rows=rows,
+    )
+
+
+async def _pve_survival_summary_provider(request: Request) -> MetricWidgetMap:
+    rows = await _pve_pressure_rows(request)
+    completed = [row for row in rows if row["status"] == "completed"]
+    return MetricWidgetMap(
+        key="combat_ai_pve_survival_summary",
+        title="Выборка PvE",
+        value=str(len(completed)),
+        subtitle=f"составов в завершённых family-pressure отчётах: {len(rows)}",
+    )
+
+
+async def _pve_survival_chart_provider(request: Request) -> ChartWidgetMap:
+    rows = _ranked_rows(await _pve_pressure_rows(request), key="winrate")[:24]
+    labels = [str(row["label"]) for row in rows]
+    return ChartWidgetMap(
+        key="combat_ai_pve_survival_chart",
+        title="Выживаемость слепка против PvE составов",
+        chart_type="bar",
+        labels=labels,
+        datasets=[
+            {
+                "label": "Win %",
+                "data": [_float(row.get("winrate")) * 100 for row in rows],
+                "backgroundColor": "rgba(34,197,94,0.75)",
+            },
+            {
+                "label": "Avg HP",
+                "data": [_float(row.get("avg_hp")) for row in rows],
+                "backgroundColor": "rgba(14,165,233,0.7)",
+            },
+        ],
+        options=_ranking_chart_options(),
+        height=_ranking_chart_height(rows),
+        span=2,
+    )
+
+
+async def _pve_pressure_chart_provider(request: Request) -> ChartWidgetMap:
+    rows = sorted(await _pve_pressure_rows(request), key=lambda row: _float(row.get("ratio")))[:24]
+    labels = [str(row["label"]) for row in rows]
+    return ChartWidgetMap(
+        key="combat_ai_pve_pressure_chart",
+        title="GS pressure ratio",
+        chart_type="bar",
+        labels=labels,
+        datasets=[
+            {
+                "label": "Eff GS / player GS",
+                "data": [_float(row.get("ratio")) for row in rows],
+                "backgroundColor": "rgba(245,158,11,0.78)",
+            },
+            {
+                "label": "Win %",
+                "data": [_float(row.get("winrate")) * 100 for row in rows],
+                "backgroundColor": "rgba(168,85,247,0.62)",
+            },
+        ],
+        options=_ranking_chart_options(),
+        height=_ranking_chart_height(rows),
+        span=2,
+    )
+
+
+async def _pve_pressure_table_provider(request: Request) -> TableWidgetMap:
+    return TableWidgetMap(
+        key="combat_ai_pve_pressure_table",
+        title="Family pressure отчёты",
+        columns=[
+            TableColumnMap(key="created_at", label="Создан"),
+            TableColumnMap(key="family", label="Семья"),
+            TableColumnMap(key="imprint", label="Слепок"),
+            TableColumnMap(key="composition", label="Состав"),
+            TableColumnMap(key="trials", label="Бои"),
+            TableColumnMap(key="winrate_pct", label="Win %"),
+            TableColumnMap(key="avg_hp", label="Avg HP"),
+            TableColumnMap(key="ratio", label="Ratio"),
+            TableColumnMap(key="effective_gs", label="Eff GS"),
+            TableColumnMap(key="variants", label="Монстры"),
+        ],
+        rows=await _pve_pressure_rows(request),
+        row_href_key="href",
     )
 
 
@@ -693,6 +781,16 @@ async def _detail_summary_provider(request: Request) -> ListWidgetMap:
 
 async def _detail_participants_provider(request: Request) -> TableWidgetMap:
     run = await _safe_get_run(request)
+    if run and _is_family_pressure_run(run):
+        return TableWidgetMap(
+            key="combat_ai_detail_participants",
+            title="Параметры family pressure",
+            columns=[
+                TableColumnMap(key="metric", label="Параметр"),
+                TableColumnMap(key="value", label="Значение"),
+            ],
+            rows=_family_pressure_parameter_rows(run),
+        )
     rows = _participant_rows(run)
     return TableWidgetMap(
         key="combat_ai_detail_participants",
@@ -702,6 +800,7 @@ async def _detail_participants_provider(request: Request) -> TableWidgetMap:
             TableColumnMap(key="team", label="Команда"),
             TableColumnMap(key="kind", label="Тип"),
             TableColumnMap(key="archetype", label="Характер"),
+            TableColumnMap(key="behavior", label="Роль"),
             TableColumnMap(key="imprint", label="Пресет"),
             TableColumnMap(key="hp", label="HP"),
             TableColumnMap(key="combat_stats", label="Боевые статы"),
@@ -719,6 +818,21 @@ async def _detail_participants_provider(request: Request) -> TableWidgetMap:
 
 async def _detail_rounds_provider(request: Request) -> TableWidgetMap:
     run = await _safe_get_run(request)
+    if run and _is_family_pressure_run(run):
+        return TableWidgetMap(
+            key="combat_ai_detail_rounds",
+            title="Серии боёв",
+            columns=[
+                TableColumnMap(key="composition", label="Состав"),
+                TableColumnMap(key="trials", label="Бои"),
+                TableColumnMap(key="result", label="W/L/D"),
+                TableColumnMap(key="winrate", label="Winrate"),
+                TableColumnMap(key="avg_hp", label="Avg HP"),
+                TableColumnMap(key="avg_rounds", label="Раунды/бой"),
+                TableColumnMap(key="variants", label="Монстры"),
+            ],
+            rows=_family_pressure_display_rows(run),
+        )
     return TableWidgetMap(
         key="combat_ai_detail_rounds",
         title="События по раундам",
@@ -736,6 +850,21 @@ async def _detail_rounds_provider(request: Request) -> TableWidgetMap:
 
 async def _detail_tactical_parts_provider(request: Request) -> TableWidgetMap:
     run = await _safe_get_run(request)
+    if run and _is_family_pressure_run(run):
+        return TableWidgetMap(
+            key="combat_ai_detail_tactical_parts",
+            title="Тактические части",
+            columns=[
+                TableColumnMap(key="metric", label="Метрика"),
+                TableColumnMap(key="value", label="Значение"),
+            ],
+            rows=[
+                {
+                    "metric": "Статус",
+                    "value": "Для family-pressure сохраняется survivability aggregate; per-exchange tactics не пишутся.",
+                }
+            ],
+        )
     return TableWidgetMap(
         key="combat_ai_detail_tactical_parts",
         title="Тактические части",
@@ -859,6 +988,30 @@ async def _detail_report_provider(request: Request) -> ListWidgetMap:
     )
 
 
+async def _detail_family_pressure_provider(request: Request) -> TableWidgetMap:
+    run = await _safe_get_run(request)
+    rows = _family_pressure_display_rows(run)
+    return TableWidgetMap(
+        key="combat_ai_detail_family_pressure",
+        title="Family pressure ladder",
+        columns=[
+            TableColumnMap(key="composition", label="Состав"),
+            TableColumnMap(key="raw_gs", label="Raw GS"),
+            TableColumnMap(key="effective_gs", label="Eff GS"),
+            TableColumnMap(key="ratio", label="Ratio"),
+            TableColumnMap(key="winrate", label="Winrate"),
+            TableColumnMap(key="result", label="W/L/D"),
+            TableColumnMap(key="avg_hp", label="Avg HP"),
+            TableColumnMap(key="avg_rounds", label="Rounds"),
+            TableColumnMap(key="trials", label="Бои"),
+            TableColumnMap(key="roles", label="Роли"),
+            TableColumnMap(key="monster_gs", label="Monster GS"),
+            TableColumnMap(key="variants", label="Монстры"),
+        ],
+        rows=rows,
+    )
+
+
 class CombatAiTestingAdmin(CabinetAdmin):
     key = "combat_ai_testing"
     label = "Тренировка монстров"
@@ -870,6 +1023,7 @@ class CombatAiTestingAdmin(CabinetAdmin):
         SidebarItem(key="overview", label="Прогоны", path=_BASE, order=10),
         SidebarItem(key="training", label="Обучение весов", path=f"{_BASE}/training", order=20),
         SidebarItem(key="analytics", label="Аналитика слепков", path=f"{_BASE}/analytics", order=30),
+        SidebarItem(key="pve-arena", label="PvE выживаемость", path=f"{_BASE}/pve-arena", order=35),
         SidebarItem(key="reports", label="Отчёты", path=f"{_BASE}/reports", order=40),
     )
     dashboard_widgets: ClassVar = (
@@ -984,6 +1138,40 @@ class CombatAiTestingAdmin(CabinetAdmin):
                 order=60,
             ),
         ),
+        "pve-arena": (
+            TableWidget(
+                key="combat_ai_family_pressure_launcher",
+                title="Запуск PvE pressure",
+                provider="combat_ai.family_pressure_launcher",
+                order=10,
+            ),
+            MetricWidget(
+                key="combat_ai_pve_survival_summary",
+                title="Выборка PvE",
+                provider="combat_ai.pve.survival_summary",
+                order=20,
+            ),
+            ChartWidget(
+                key="combat_ai_pve_survival_chart",
+                title="Выживаемость слепка",
+                provider="combat_ai.pve.survival_chart",
+                chart_type="bar",
+                order=30,
+            ),
+            ChartWidget(
+                key="combat_ai_pve_pressure_chart",
+                title="Pressure ratio",
+                provider="combat_ai.pve.pressure_chart",
+                chart_type="bar",
+                order=35,
+            ),
+            TableWidget(
+                key="combat_ai_pve_pressure_table",
+                title="Family pressure отчёты",
+                provider="combat_ai.pve.pressure_table",
+                order=40,
+            ),
+        ),
         "run-detail": (
             MetricWidget(key="combat_ai_detail_status", title="Статус", provider="combat_ai.detail.status", order=10),
             MetricWidget(
@@ -1009,6 +1197,12 @@ class CombatAiTestingAdmin(CabinetAdmin):
                 title="Тактические части",
                 provider="combat_ai.detail.tactical_parts",
                 order=45,
+            ),
+            TableWidget(
+                key="combat_ai_detail_family_pressure",
+                title="Family pressure ladder",
+                provider="combat_ai.detail.family_pressure",
+                order=47,
             ),
             ListWidget(
                 key="combat_ai_detail_findings",
@@ -1074,6 +1268,7 @@ class CombatAiTestingAdmin(CabinetAdmin):
         "combat_ai.runs_total": _latest_runs_metric_provider,
         "combat_ai.run_launcher": _run_launcher_provider,
         "combat_ai.policy_run_launcher": _policy_run_launcher_provider,
+        "combat_ai.family_pressure_launcher": _family_pressure_launcher_provider,
         "combat_ai.training_launcher": _training_launcher_provider,
         "combat_ai.battle_training_launcher": _battle_training_launcher_provider,
         "combat_ai.recent_runs": _recent_runs_provider,
@@ -1089,12 +1284,17 @@ class CombatAiTestingAdmin(CabinetAdmin):
         "combat_ai.analytics.defence_chart": _analytics_defence_chart_provider,
         "combat_ai.analytics.tactical_parts": _analytics_tactical_parts_provider,
         "combat_ai.analytics.table": _analytics_table_provider,
+        "combat_ai.pve.survival_summary": _pve_survival_summary_provider,
+        "combat_ai.pve.survival_chart": _pve_survival_chart_provider,
+        "combat_ai.pve.pressure_chart": _pve_pressure_chart_provider,
+        "combat_ai.pve.pressure_table": _pve_pressure_table_provider,
         "combat_ai.detail.status": _detail_status_provider,
         "combat_ai.detail.result": _detail_result_provider,
         "combat_ai.detail.summary": _detail_summary_provider,
         "combat_ai.detail.participants": _detail_participants_provider,
         "combat_ai.detail.rounds": _detail_rounds_provider,
         "combat_ai.detail.tactical_parts": _detail_tactical_parts_provider,
+        "combat_ai.detail.family_pressure": _detail_family_pressure_provider,
         "combat_ai.detail.training_metrics": _detail_training_metrics_provider,
         "combat_ai.detail.weight_deltas": _detail_weight_deltas_provider,
         "combat_ai.detail.scenario_rewards": _detail_scenario_rewards_provider,
@@ -1127,24 +1327,27 @@ class CombatAiTestingAdmin(CabinetAdmin):
                 seed=_seed_from_form(form),
             )
             return RedirectResponse(f"{_BASE}/training-detail?id={run.id}", status_code=303)
+        if action == "family_pressure":
+            run = await _run_family_pressure(request, request_id=request_id, seed=_seed_from_form(form))
+            return RedirectResponse(f"{_BASE}/run-detail?id={run.id}", status_code=303)
         if action != "run_demo":
             return RedirectResponse(_BASE, status_code=303)
         if request_id.startswith("live_batch:"):
+            scenario_key = _live_batch_scenario_key(request_id)
+            if scenario_key not in _LIVE_LAUNCH_SCENARIOS:
+                return RedirectResponse(_BASE, status_code=303)
             await _run_live_demo_batch(request, request_id=request_id, policy_run_id=policy_run_id)
-            return RedirectResponse(f"{_BASE}/analytics", status_code=303)
-        if request_id in {
-            "starter_presets_5v5_live",
-            "starter_presets_5v5_live_full_skills",
-            "starter_presets_5v5_live_latest_training_file",
-            "starter_presets_random_draft_live",
-            "starter_presets_mirror_10v10_live",
-            "starter_presets_mirror_10v10_live_full_skills",
-            "starter_presets_mirror_10v10_live_latest_training_file",
-        }:
+            return RedirectResponse(f"{_BASE}/reports", status_code=303)
+        if request_id in _LIVE_LAUNCH_SCENARIOS:
             seed = _auto_seed() if request_id == "starter_presets_random_draft_live" else 0
             run = await _run_live_scenario(request, scenario_key=request_id, seed=seed, policy_run_id=policy_run_id)
             return RedirectResponse(f"{_BASE}/run-detail?id={run.id}", status_code=303)
         return RedirectResponse(_BASE, status_code=303)
+
+
+def _live_batch_scenario_key(request_id: str) -> str:
+    parts = request_id.split(":", maxsplit=2)
+    return parts[1] if len(parts) == 3 else ""
 
 
 async def _run_live_demo_batch(request: Request, *, request_id: str, policy_run_id: str = "") -> None:
@@ -1170,6 +1373,18 @@ async def _run_live_scenario(
         seed=seed,
         **policy_kwargs,
         **_live_scenario_params(scenario_key),
+    )
+
+
+async def _run_family_pressure(request: Request, *, request_id: str, seed: int) -> CombatAiSimulationRun:
+    family_id = request_id.split(":", maxsplit=1)[1] if request_id.startswith("family_pressure:") else "rat_swarm"
+    return await _api(request).run_family_pressure(
+        family_id=family_id,
+        seed=seed,
+        trials=30,
+        max_rounds=80,
+        max_minions=6,
+        max_scenarios=12,
     )
 
 
@@ -1391,9 +1606,11 @@ def _analytics_tactical_rows(runs: list[CombatAiSimulationRun]) -> list[dict[str
     for run in runs:
         telemetry = run.telemetry
         for part_id, value in _dict(telemetry.get("tactical_trigger_attempts_by_id")).items():
-            attempts[str(part_id)] = attempts.get(str(part_id), 0) + _int(value)
+            canonical_part_id = _canonical_tactical_part_id(str(part_id))
+            attempts[canonical_part_id] = attempts.get(canonical_part_id, 0) + _int(value)
         for part_id, value in _dict(telemetry.get("tactical_trigger_success_by_id")).items():
-            successes[str(part_id)] = successes.get(str(part_id), 0) + _int(value)
+            canonical_part_id = _canonical_tactical_part_id(str(part_id))
+            successes[canonical_part_id] = successes.get(canonical_part_id, 0) + _int(value)
         _merge_tactical_nested_totals(damage, telemetry.get("tactical_damage_by_actor"))
         _merge_tactical_nested_totals(reflected, telemetry.get("tactical_reflected_by_actor"))
         _merge_tactical_nested_totals(prevented, telemetry.get("tactical_prevented_by_actor"))
@@ -1410,9 +1627,14 @@ def _analytics_tactical_rows(runs: list[CombatAiSimulationRun]) -> list[dict[str
     rows = [
         {
             "part": _tactical_part_label(part_id),
-            "attempts": attempts.get(part_id, 0),
-            "successes": successes.get(part_id, 0),
-            "rate": _round(_pct(successes.get(part_id, 0), attempts.get(part_id, 0))),
+            "attempts": _tactical_display_attempts(part_id, attempts=attempts, shield_branch=shield_branch),
+            "successes": _tactical_display_successes(part_id, successes=successes, shield_branch=shield_branch),
+            "rate": _round(
+                _pct(
+                    _tactical_display_successes(part_id, successes=successes, shield_branch=shield_branch),
+                    _tactical_display_attempts(part_id, attempts=attempts, shield_branch=shield_branch),
+                )
+            ),
             "chain_hits": chain_hits.get(part_id, 0),
             "shield_defense": shield_branch.get("defense", 0) if part_id == "style_shield_reflect" else 0,
             "shield_counter": shield_branch.get("counter", 0) if part_id == "style_shield_reflect" else 0,
@@ -1433,7 +1655,7 @@ def _analytics_tactical_rows(runs: list[CombatAiSimulationRun]) -> list[dict[str
                 + chain_hits.get(part_id, 0)
                 + (shield_branch.get("defense", 0) if part_id == "style_shield_reflect" else 0)
                 + (shield_branch.get("counter", 0) if part_id == "style_shield_reflect" else 0),
-                attempts.get(part_id, 0),
+                _tactical_display_attempts(part_id, attempts=attempts, shield_branch=shield_branch),
             ),
         }
         for part_id in part_ids
@@ -1450,8 +1672,8 @@ def _tactical_rows(run: CombatAiSimulationRun | None) -> list[dict[str, object]]
     if run is None:
         return []
     telemetry = run.telemetry
-    attempts = {str(key): _int(value) for key, value in _dict(telemetry.get("tactical_trigger_attempts_by_id")).items()}
-    successes = {str(key): _int(value) for key, value in _dict(telemetry.get("tactical_trigger_success_by_id")).items()}
+    attempts = _tactical_flat_totals(telemetry.get("tactical_trigger_attempts_by_id"))
+    successes = _tactical_flat_totals(telemetry.get("tactical_trigger_success_by_id"))
     damage = _tactical_damage_by_part(telemetry)
     reflected = _tactical_nested_totals(telemetry.get("tactical_reflected_by_actor"))
     prevented = _tactical_nested_totals(telemetry.get("tactical_prevented_by_actor"))
@@ -1467,9 +1689,14 @@ def _tactical_rows(run: CombatAiSimulationRun | None) -> list[dict[str, object]]
     rows = [
         {
             "part": _tactical_part_label(part_id),
-            "attempts": attempts.get(part_id, 0),
-            "successes": successes.get(part_id, 0),
-            "rate": _round(_pct(successes.get(part_id, 0), attempts.get(part_id, 0))),
+            "attempts": _tactical_display_attempts(part_id, attempts=attempts, shield_branch=shield_branch),
+            "successes": _tactical_display_successes(part_id, successes=successes, shield_branch=shield_branch),
+            "rate": _round(
+                _pct(
+                    _tactical_display_successes(part_id, successes=successes, shield_branch=shield_branch),
+                    _tactical_display_attempts(part_id, attempts=attempts, shield_branch=shield_branch),
+                )
+            ),
             "chain_hits": chain_hits.get(part_id, 0),
             "shield_defense": shield_branch.get("defense", 0) if part_id == "style_shield_reflect" else 0,
             "shield_counter": shield_branch.get("counter", 0) if part_id == "style_shield_reflect" else 0,
@@ -1491,7 +1718,7 @@ def _tactical_rows(run: CombatAiSimulationRun | None) -> list[dict[str, object]]
                 + chain_hits.get(part_id, 0)
                 + (shield_branch.get("defense", 0) if part_id == "style_shield_reflect" else 0)
                 + (shield_branch.get("counter", 0) if part_id == "style_shield_reflect" else 0),
-                attempts.get(part_id, 0),
+                _tactical_display_attempts(part_id, attempts=attempts, shield_branch=shield_branch),
             ),
         }
         for part_id in part_ids
@@ -1502,6 +1729,14 @@ def _tactical_rows(run: CombatAiSimulationRun | None) -> list[dict[str, object]]
     for row in rows:
         row.pop("_sort", None)
     return rows
+
+
+def _tactical_flat_totals(value: Any) -> dict[str, int]:
+    totals: dict[str, int] = {}
+    for part_id, raw_value in _dict(value).items():
+        canonical_part_id = _canonical_tactical_part_id(str(part_id))
+        totals[canonical_part_id] = totals.get(canonical_part_id, 0) + _int(raw_value)
+    return totals
 
 
 def _tactical_damage_by_part(telemetry: dict[str, Any]) -> dict[str, int]:
@@ -1523,7 +1758,8 @@ def _tactical_shield_branch_totals(value: Any) -> dict[str, int]:
 def _merge_tactical_nested_totals(totals: dict[str, int], value: Any) -> None:
     for actor_parts in _dict(value).values():
         for part_id, value in _dict(actor_parts).items():
-            totals[str(part_id)] = totals.get(str(part_id), 0) + _int(value)
+            canonical_part_id = _canonical_tactical_part_id(str(part_id))
+            totals[canonical_part_id] = totals.get(canonical_part_id, 0) + _int(value)
 
 
 def _merge_tactical_shield_branch_totals(totals: dict[str, int], value: Any) -> None:
@@ -1532,6 +1768,38 @@ def _merge_tactical_shield_branch_totals(totals: dict[str, int], value: Any) -> 
             branch_id = str(branch)
             if branch_id in {"defense", "counter"}:
                 totals[branch_id] = totals.get(branch_id, 0) + _int(value)
+
+
+def _canonical_tactical_part_id(part_id: str) -> str:
+    if part_id in _SHIELD_TACTICAL_PART_ALIASES:
+        return _SHIELD_TACTICAL_PART_ID
+    return part_id
+
+
+def _shield_block_total(shield_branch: dict[str, int]) -> int:
+    return _int(shield_branch.get("defense")) + _int(shield_branch.get("counter"))
+
+
+def _tactical_display_attempts(
+    part_id: str,
+    *,
+    attempts: dict[str, int],
+    shield_branch: dict[str, int],
+) -> int:
+    if part_id == _SHIELD_TACTICAL_PART_ID and _shield_block_total(shield_branch) > 0:
+        return _shield_block_total(shield_branch)
+    return attempts.get(part_id, 0)
+
+
+def _tactical_display_successes(
+    part_id: str,
+    *,
+    successes: dict[str, int],
+    shield_branch: dict[str, int],
+) -> int:
+    if part_id == _SHIELD_TACTICAL_PART_ID and _shield_block_total(shield_branch) > 0:
+        return _int(shield_branch.get("counter"))
+    return successes.get(part_id, 0)
 
 
 def _tactical_actor_label(run: CombatAiSimulationRun, part_id: str) -> str:
@@ -1558,17 +1826,21 @@ def _tactical_actor_label(run: CombatAiSimulationRun, part_id: str) -> str:
         | set(shield_reflected_by_actor)
     )
     for actor_id in sorted(actor_ids):
-        success_count = _int(_dict(success_by_actor.get(actor_id)).get(part_id))
-        chain_hits = _int(_dict(chain_hits_by_actor.get(actor_id)).get(part_id))
-        damage = _int(_dict(damage_by_actor.get(actor_id)).get(part_id))
-        reflected = _int(_dict(reflected_by_actor.get(actor_id)).get(part_id))
-        prevented = _int(_dict(prevented_by_actor.get(actor_id)).get(part_id))
+        success_count = (
+            0
+            if part_id == _SHIELD_TACTICAL_PART_ID
+            else _tactical_actor_part_total(success_by_actor, actor_id, part_id)
+        )
+        chain_hits = _tactical_actor_part_total(chain_hits_by_actor, actor_id, part_id)
+        damage = _tactical_actor_part_total(damage_by_actor, actor_id, part_id)
+        reflected = _tactical_actor_part_total(reflected_by_actor, actor_id, part_id)
+        prevented = _tactical_actor_part_total(prevented_by_actor, actor_id, part_id)
         shield_branches = _dict(shield_branch_by_actor.get(actor_id))
-        shield_defense = _int(shield_branches.get("defense")) if part_id == "style_shield_reflect" else 0
-        shield_counter = _int(shield_branches.get("counter")) if part_id == "style_shield_reflect" else 0
-        shield_damage = _int(_dict(shield_damage_by_actor.get(actor_id)).get(part_id))
-        shield_absorbed = _int(_dict(shield_absorbed_by_actor.get(actor_id)).get(part_id))
-        shield_reflected = _int(_dict(shield_reflected_by_actor.get(actor_id)).get(part_id))
+        shield_defense = _int(shield_branches.get("defense")) if part_id == _SHIELD_TACTICAL_PART_ID else 0
+        shield_counter = _int(shield_branches.get("counter")) if part_id == _SHIELD_TACTICAL_PART_ID else 0
+        shield_damage = _tactical_actor_part_total(shield_damage_by_actor, actor_id, part_id)
+        shield_absorbed = _tactical_actor_part_total(shield_absorbed_by_actor, actor_id, part_id)
+        shield_reflected = _tactical_actor_part_total(shield_reflected_by_actor, actor_id, part_id)
         if not any(
             (
                 success_count,
@@ -1610,8 +1882,34 @@ def _tactical_actor_label(run: CombatAiSimulationRun, part_id: str) -> str:
     return " / ".join(parts) if parts else "—"
 
 
+def _tactical_actor_part_total(value: Any, actor_id: str, part_id: str) -> int:
+    actor_parts = _dict(_dict(value).get(actor_id))
+    total = _int(actor_parts.get(part_id))
+    if part_id == _SHIELD_TACTICAL_PART_ID:
+        for alias in _SHIELD_TACTICAL_PART_ALIASES:
+            total += _int(actor_parts.get(alias))
+    return total
+
+
 def _tactical_part_label(part_id: str) -> str:
     return _TACTICAL_PART_LABELS.get(part_id, part_id)
+
+
+_BEHAVIOR_PROFILE_ORDER = {"aggressive": 0, "balanced": 1, "defensive": 2}
+
+
+def _expanded_analytics_table_rows(rows: list[dict[str, object]]) -> list[dict[str, object]]:
+    expanded: list[dict[str, object]] = []
+    for row in rows:
+        aggregate_row = dict(row)
+        role_rows = aggregate_row.pop("role_rows", None)
+        expanded.append(aggregate_row)
+        if not isinstance(role_rows, list):
+            continue
+        for role_row in role_rows:
+            if isinstance(role_row, dict):
+                expanded.append(dict(role_row))
+    return expanded
 
 
 def _imprint_analytics_rows(runs: list[CombatAiSimulationRun]) -> list[dict[str, object]]:
@@ -1635,6 +1933,7 @@ def _imprint_analytics_rows(runs: list[CombatAiSimulationRun]) -> list[dict[str,
         for participant in participants:
             actor_id = str(participant.get("actor_id") or "")
             imprint_key = str(participant.get("imprint_key") or actor_id)
+            behavior = str(participant.get("behavior_profile") or "balanced")
             if not actor_id or not imprint_key:
                 continue
             row = aggregate.setdefault(
@@ -1642,6 +1941,7 @@ def _imprint_analytics_rows(runs: list[CombatAiSimulationRun]) -> list[dict[str,
                 {
                     "imprint_key": imprint_key,
                     "imprint": participant.get("imprint_title") or imprint_key,
+                    "roles": {},
                     "appearances": 0,
                     "wins": 0,
                     "survived": 0,
@@ -1663,78 +1963,172 @@ def _imprint_analytics_rows(runs: list[CombatAiSimulationRun]) -> list[dict[str,
                     "gear_score_resources": 0.0,
                     "gear_score_skills": 0.0,
                     "gear_score_utility": 0.0,
+                    "effective_hp_total": 0.0,
                     "end_hp_pct_total": 0.0,
                 },
             )
+            role = _analytics_role_bucket(row, behavior)
             row["appearances"] += 1
+            role["appearances"] += 1
             if run.winner and str(participant.get("team") or "") == run.winner:
                 row["wins"] += 1
+                role["wins"] += 1
             end_hp = _int(final_hp.get(actor_id))
             start_hp = max(1, _int(participant.get("start_hp")))
             if end_hp > 0 and actor_id not in deaths:
                 row["survived"] += 1
+                role["survived"] += 1
             row["end_hp_pct_total"] += max(0.0, min(100.0, end_hp / start_hp * 100))
-            row["damage"] += _int(damage.get(actor_id))
-            row["taken"] += _int(taken.get(actor_id))
-            row["actions"] += _int(actions.get(actor_id))
-            row["hits"] += _int(hits.get(actor_id))
-            row["misses"] += _int(misses.get(actor_id))
-            row["crits"] += _int(crits.get(actor_id))
+            role["end_hp_pct_total"] += max(0.0, min(100.0, end_hp / start_hp * 100))
+            for target, source in (
+                ("damage", damage),
+                ("taken", taken),
+                ("actions", actions),
+                ("hits", hits),
+                ("misses", misses),
+                ("crits", crits),
+                ("overkill", overkill),
+            ):
+                value = _int(source.get(actor_id))
+                row[target] += value
+                role[target] += value
             row["dodges"] += _int(dodges.get(actor_id))
+            role["dodges"] += _int(dodges.get(actor_id))
             row["parries"] += _int(parries.get(actor_id))
+            role["parries"] += _int(parries.get(actor_id))
             row["blocks"] += _int(blocks.get(actor_id))
+            role["blocks"] += _int(blocks.get(actor_id))
             row["armor_absorbed"] += _int(armor_absorbed.get(actor_id))
+            role["armor_absorbed"] += _int(armor_absorbed.get(actor_id))
             row["armor_absorb_events"] += _int(armor_absorb_events.get(actor_id))
-            row["overkill"] += _int(overkill.get(actor_id))
+            role["armor_absorb_events"] += _int(armor_absorb_events.get(actor_id))
             gear_score = _gear_score_breakdown(participant.get("gear_score"))
             row["gear_score_total"] += gear_score["total"]
+            role["gear_score_total"] += gear_score["total"]
             row["gear_score_offense"] += gear_score["offense"]
+            role["gear_score_offense"] += gear_score["offense"]
             row["gear_score_defense"] += gear_score["defense"]
+            role["gear_score_defense"] += gear_score["defense"]
             row["gear_score_resources"] += gear_score["resources"]
+            role["gear_score_resources"] += gear_score["resources"]
             row["gear_score_skills"] += gear_score["skills"]
+            role["gear_score_skills"] += gear_score["skills"]
             row["gear_score_utility"] += gear_score["utility"]
+            role["gear_score_utility"] += gear_score["utility"]
+            effective_hp = _effective_hit_points(participant)
+            row["effective_hp_total"] += effective_hp
+            role["effective_hp_total"] += effective_hp
 
     rows: list[dict[str, object]] = []
     for item in aggregate.values():
-        appearances = max(1, _int(item["appearances"]))
-        attempts = _int(item["hits"]) + _int(item["misses"])
-        defence = _int(item["dodges"]) + _int(item["parries"]) + _int(item["blocks"])
-        defence_total = max(1, defence)
-        actions = max(1, _int(item["actions"]))
-        armor_events = max(1, _int(item["armor_absorb_events"]))
-        rows.append(
-            {
-                "imprint_key": item["imprint_key"],
-                "imprint": item["imprint"],
-                "appearances": appearances,
-                "win_rate": _pct(item["wins"], appearances),
-                "survival_rate": _pct(item["survived"], appearances),
-                "avg_end_hp_pct": _avg(item["end_hp_pct_total"], appearances),
-                "avg_damage": _avg(item["damage"], appearances),
-                "avg_taken": _avg(item["taken"], appearances),
-                "gear_score": _avg(item["gear_score_total"], appearances),
-                "gear_score_offense": _avg(item["gear_score_offense"], appearances),
-                "gear_score_defense": _avg(item["gear_score_defense"], appearances),
-                "gear_score_resources": _avg(item["gear_score_resources"], appearances),
-                "gear_score_skills": _avg(item["gear_score_skills"], appearances),
-                "gear_score_utility": _avg(item["gear_score_utility"], appearances),
-                "damage_per_action": _avg(item["damage"], actions),
-                "hit_rate": _pct(item["hits"], attempts),
-                "crit_rate": _pct(item["crits"], attempts),
-                "avg_overkill": _avg(item["overkill"], appearances),
-                "dodge_per_appearance": _avg(item["dodges"], appearances),
-                "parry_per_appearance": _avg(item["parries"], appearances),
-                "block_per_appearance": _avg(item["blocks"], appearances),
-                "armor_absorbed_per_appearance": _avg(item["armor_absorbed"], appearances),
-                "armor_absorb_events_per_appearance": _avg(item["armor_absorb_events"], appearances),
-                "armor_absorbed_per_event": _avg(item["armor_absorbed"], armor_events),
-                "defence_per_appearance": _avg(defence + _int(item["armor_absorb_events"]), appearances),
-                "dodge_defence_share": _pct(item["dodges"], defence_total) if defence else 0.0,
-                "parry_defence_share": _pct(item["parries"], defence_total) if defence else 0.0,
-                "block_defence_share": _pct(item["blocks"], defence_total) if defence else 0.0,
-            }
+        row = _analytics_metric_row(
+            item,
+            imprint_key=str(item["imprint_key"]),
+            imprint=str(item["imprint"]),
+            behavior="Среднее",
         )
+        roles = item.get("roles")
+        role_rows: list[dict[str, object]] = []
+        if isinstance(roles, dict):
+            for name, role in sorted(
+                roles.items(),
+                key=lambda pair: (_BEHAVIOR_PROFILE_ORDER.get(str(pair[0]), 99), str(pair[0])),
+            ):
+                if not isinstance(role, dict):
+                    continue
+                role_rows.append(
+                    _analytics_metric_row(
+                        role,
+                        imprint_key=f"{item['imprint_key']}:{name}",
+                        imprint="",
+                        behavior=str(name),
+                    )
+                )
+        row["role_rows"] = role_rows
+        rows.append(row)
     return sorted(rows, key=lambda row: str(row["imprint"]))
+
+
+def _analytics_metric_row(
+    item: dict[str, Any],
+    *,
+    imprint_key: str,
+    imprint: str,
+    behavior: str,
+) -> dict[str, object]:
+    appearances = max(1, _int(item.get("appearances")))
+    attempts = _int(item.get("hits")) + _int(item.get("misses"))
+    defence = _int(item.get("dodges")) + _int(item.get("parries")) + _int(item.get("blocks"))
+    defence_total = max(1, defence)
+    actions = max(1, _int(item.get("actions")))
+    armor_events = max(1, _int(item.get("armor_absorb_events")))
+    return {
+        "imprint_key": imprint_key,
+        "imprint": imprint,
+        "behavior": behavior,
+        "appearances": appearances,
+        "win_rate": _pct(item.get("wins"), appearances),
+        "survival_rate": _pct(item.get("survived"), appearances),
+        "avg_end_hp_pct": _avg(item.get("end_hp_pct_total"), appearances),
+        "avg_damage": _avg(item.get("damage"), appearances),
+        "avg_taken": _avg(item.get("taken"), appearances),
+        "gear_score": _avg(item.get("gear_score_total"), appearances),
+        "gear_score_offense": _avg(item.get("gear_score_offense"), appearances),
+        "gear_score_defense": _avg(item.get("gear_score_defense"), appearances),
+        "gear_score_resources": _avg(item.get("gear_score_resources"), appearances),
+        "gear_score_skills": _avg(item.get("gear_score_skills"), appearances),
+        "gear_score_utility": _avg(item.get("gear_score_utility"), appearances),
+        "effective_hp": _avg(item.get("effective_hp_total"), appearances),
+        "damage_per_action": _avg(item.get("damage"), actions),
+        "hit_rate": _pct(item.get("hits"), attempts),
+        "crit_rate": _pct(item.get("crits"), attempts),
+        "avg_overkill": _avg(item.get("overkill"), appearances),
+        "dodge_per_appearance": _avg(item.get("dodges"), appearances),
+        "parry_per_appearance": _avg(item.get("parries"), appearances),
+        "block_per_appearance": _avg(item.get("blocks"), appearances),
+        "armor_absorbed_per_appearance": _avg(item.get("armor_absorbed"), appearances),
+        "armor_absorb_events_per_appearance": _avg(item.get("armor_absorb_events"), appearances),
+        "armor_absorbed_per_event": _avg(item.get("armor_absorbed"), armor_events),
+        "defence_per_appearance": _avg(defence + _int(item.get("armor_absorb_events")), appearances),
+        "dodge_defence_share": _pct(item.get("dodges"), defence_total) if defence else 0.0,
+        "parry_defence_share": _pct(item.get("parries"), defence_total) if defence else 0.0,
+        "block_defence_share": _pct(item.get("blocks"), defence_total) if defence else 0.0,
+    }
+
+
+def _analytics_role_bucket(row: dict[str, Any], behavior: str) -> dict[str, Any]:
+    roles = row.setdefault("roles", {})
+    if not isinstance(roles, dict):
+        roles = {}
+        row["roles"] = roles
+    return roles.setdefault(
+        behavior,
+        {
+            "appearances": 0,
+            "wins": 0,
+            "survived": 0,
+            "damage": 0,
+            "taken": 0,
+            "actions": 0,
+            "hits": 0,
+            "misses": 0,
+            "crits": 0,
+            "dodges": 0,
+            "parries": 0,
+            "blocks": 0,
+            "armor_absorbed": 0,
+            "armor_absorb_events": 0,
+            "overkill": 0,
+            "gear_score_total": 0.0,
+            "gear_score_offense": 0.0,
+            "gear_score_defense": 0.0,
+            "gear_score_resources": 0.0,
+            "gear_score_skills": 0.0,
+            "gear_score_utility": 0.0,
+            "effective_hp_total": 0.0,
+            "end_hp_pct_total": 0.0,
+        },
+    )
 
 
 def _telemetry_rows(telemetry: dict[str, Any]) -> list[dict[str, object]]:
@@ -1858,6 +2252,43 @@ def _summary_items(run: CombatAiSimulationRun | None) -> list[str]:
             ),
             "Best policy сохранена как версия обучения в отчёте; live-бой её не использует до выбора ACTIVE_POLICY_ID.",
         ]
+    if _is_family_pressure_run(run):
+        rows = _family_pressure_rows(run)
+        if run.status == "running" and not rows:
+            return [
+                (
+                    f"Family pressure запущен: {run.metadata.get('imprint_key') or run.telemetry.get('imprint_key')} "
+                    f"против {run.metadata.get('family_id') or run.telemetry.get('family_id')}."
+                ),
+                "Worker считает бои в фоне и пишет Redis progress после каждого боя; обнови страницу, чтобы увидеть partial ladder.",
+                (
+                    f"План: {_int(run.metadata.get('trials_per_composition') or run.telemetry.get('trials_per_composition'))} "
+                    f"боёв на каждый состав, max rounds {run.max_rounds}, seed {run.seed}."
+                ),
+                "HP, energy и stamina сбрасываются перед каждым отдельным боем.",
+            ]
+        first_losing = next((row for row in rows if _float(row.get("winrate")) < 0.5), None)
+        items = [
+            (
+                f"Family pressure: {run.metadata.get('imprint_title') or run.metadata.get('imprint_key')} "
+                f"против {run.metadata.get('family_id')}; "
+                f"{run.telemetry.get('trials_total', run.rounds_completed)} боёв."
+            ),
+            (
+                f"Слепок: GS {run.metadata.get('player_gear_score')} / HP {run.metadata.get('player_start_hp')}; "
+                f"серия {_int(run.metadata.get('trials_per_composition'))} боёв на каждый состав."
+            ),
+        ]
+        if first_losing:
+            items.append(
+                "Первая зона статистического перелома: "
+                f"{first_losing['composition']} при effective GS {first_losing['effective_gs']} "
+                f"({first_losing['ratio']}x от GS слепка), winrate {first_losing['winrate']}."
+            )
+        else:
+            items.append("В проверенной лестнице нет состава, где winrate слепка упал ниже 50%.")
+        items.append("Каждый бой собирался заново: HP, energy и stamina сбрасывались перед прогоном.")
+        return items
     if run.status == "running":
         snapshot = _dict(run.metadata.get("live_snapshot"))
         actors = [row for row in snapshot.get("actors") or [] if isinstance(row, dict)]
@@ -1896,9 +2327,9 @@ def _summary_items(run: CombatAiSimulationRun | None) -> list[str]:
             f"не участвуют {len(run.metadata.get('unused_imprints') or [])}, "
             f"seed {run.metadata.get('roster_seed')}."
         )
-    elif run.metadata.get("roster_mode") == "mirror_10v10":
-        items.append("Составы зеркальные 10v10: в каждой команде есть все 10 стартовых слепков.")
-    elif run.metadata.get("roster_mode") == "seeded_random_5v5_split":
+    elif run.metadata.get("roster_mode") in {"mirror_10v10", "mirror_full_roster"}:
+        items.append("Составы зеркальные по полному стартовому пулу: в каждой команде есть все слепки матрицы.")
+    elif run.metadata.get("roster_mode") in {"seeded_random_5v5_split", "seeded_random_6v6_split"}:
         pool_size = len(run.metadata.get("imprint_pool") or [])
         items.append(
             f"Составы собраны случайным seed split из расширенного пула ({pool_size}): seed {run.metadata.get('roster_seed')}."
@@ -1917,6 +2348,8 @@ def _summary_items(run: CombatAiSimulationRun | None) -> list[str]:
 
 def _participant_rows(run: CombatAiSimulationRun | None) -> list[dict[str, object]]:
     if run is None:
+        return []
+    if _is_family_pressure_run(run):
         return []
     metadata = run.metadata or {}
     participants = [row for row in metadata.get("participants") or [] if isinstance(row, dict)]
@@ -1942,6 +2375,7 @@ def _participant_rows(run: CombatAiSimulationRun | None) -> list[dict[str, objec
                 "team": participant.get("team") or "—",
                 "kind": participant.get("type") or "—",
                 "archetype": participant.get("ai_archetype") or "—",
+                "behavior": participant.get("behavior_profile") or "—",
                 "imprint": participant.get("imprint_title") or participant.get("imprint_key") or "—",
                 "hp": f"{start_hp} -> {end_hp}",
                 "combat_stats": _combat_stats_label(_dict(participant.get("combat_stats"))),
@@ -1997,6 +2431,32 @@ def _finding_items(run: CombatAiSimulationRun | None) -> list[str]:
         if run.metadata.get("policy_source") == "training_run" and not run.metadata.get("policy_found"):
             return ["Версия обученной policy не найдена. Сначала запусти обучение весов, затем повтори этот тест."]
         return ["Прогон не выполнен; смотри технический лог."]
+    if _is_family_pressure_run(run):
+        rows = _family_pressure_rows(run)
+        if not rows:
+            return [
+                "Family pressure ещё считает бои; partial results появятся из Redis progress после первого завершённого боя.",
+                "Эта страница измеряет выживаемость стартового слепка против PvE состава, а не одиночный combat log.",
+            ]
+        first_losing = next((row for row in rows if _float(row.get("winrate")) < 0.5), None)
+        strongest_win = max(
+            rows,
+            key=lambda row: _float(row.get("effective_gs")) if _float(row.get("winrate")) >= 0.5 else -1,
+        )
+        items = [
+            "Это не PvP-прогон: отчёт измеряет, сколько состава семьи реально держит один стартовый слепок.",
+            (
+                f"Последний уверенно проходимый состав: {strongest_win['composition']} "
+                f"({strongest_win['effective_gs']} eff GS, winrate {strongest_win['winrate']})."
+            ),
+        ]
+        if first_losing:
+            items.append(
+                f"Для бюджета встречи точка перелома начинается около ratio {first_losing['ratio']} "
+                f"на составе {first_losing['composition']}."
+            )
+        items.append("Эти цифры лучше использовать как коэффициент состава, а не как прямое сложение raw GS монстров.")
+        return items
     if run.status == "running":
         return [
             "Это live-like memory loop: AI ставит одну заявку за tick, цель списывается из target queue.",
@@ -2056,7 +2516,7 @@ def _finding_items(run: CombatAiSimulationRun | None) -> list[str]:
     if not telemetry.get("resource_spent_by_actor"):
         items.append("Ресурсы не тратились: stamina discipline этим сценарием не проверяется.")
     if int(telemetry.get("control_applied") or 0) == 0 and int(telemetry.get("buff_applied") or 0) == 0:
-        items.append("Control/buffs не применялись: нужен отдельный 2v2/5v5 сценарий для командной логики.")
+        items.append("Control/buffs не применялись: нужен отдельный малый сценарий для командной логики.")
     return items
 
 
@@ -2116,19 +2576,21 @@ def _team_damage_share_item(run: CombatAiSimulationRun) -> str | None:
 
 
 def _scenario_label(scenario_key: str) -> str:
+    if scenario_key.startswith("family_pressure:"):
+        return f"Family pressure: {scenario_key.split(':', maxsplit=1)[1]}"
     labels = {
         "mvp_1v1_player_model_vs_trainer_bot": "MVP 1v1: trainer bot vs player model",
-        "starter_presets_5v5": "Стартовые пресеты 5v5",
-        "starter_presets_5v5_live": "Live tick: стартовые пресеты 5v5",
+        "starter_presets_5v5": "Стартовые пресеты 6v6",
+        "starter_presets_5v5_live": "Live tick: стартовые пресеты 6v6",
         "starter_presets_random_draft": "Random draft 2v2-4v4",
         "starter_presets_random_draft_live": "Live tick: random draft 2v2-4v4",
-        "starter_presets_mirror_10v10": "Зеркало 10v10",
-        "starter_presets_mirror_10v10_live": "Live tick: зеркало 10v10",
-        "starter_presets_5v5_live_full_skills": "Live tick: стартовые пресеты 5v5, full skills",
-        "starter_presets_mirror_10v10_live_full_skills": "Live tick: зеркало 10v10, full skills",
-        "starter_presets_5v5_latest_training_file": "Стартовые пресеты 5v5 + версия обучения",
-        "starter_presets_5v5_live_latest_training_file": "Live tick: стартовые пресеты 5v5 + версия обучения",
-        "starter_presets_mirror_10v10_live_latest_training_file": "Live tick: зеркало 10v10 + версия обучения",
+        "starter_presets_mirror_10v10": "Зеркало полного пула",
+        "starter_presets_mirror_10v10_live": "Live tick: зеркало полного пула",
+        "starter_presets_5v5_live_full_skills": "Live tick: стартовые пресеты 6v6, full skills",
+        "starter_presets_mirror_10v10_live_full_skills": "Live tick: зеркало полного пула, full skills",
+        "starter_presets_5v5_latest_training_file": "Стартовые пресеты 6v6 + версия обучения",
+        "starter_presets_5v5_live_latest_training_file": "Live tick: стартовые пресеты 6v6 + версия обучения",
+        "starter_presets_mirror_10v10_live_latest_training_file": "Live tick: зеркало полного пула + версия обучения",
         "battle_policy_finetune": "Стадия 2: обучение в боях",
         "synthetic_policy_training": "Synthetic training",
     }
@@ -2136,6 +2598,12 @@ def _scenario_label(scenario_key: str) -> str:
 
 
 def _winner_label(run: CombatAiSimulationRun) -> str:
+    if _is_family_pressure_run(run):
+        rows = _family_pressure_rows(run)
+        if not rows:
+            return "считается" if run.status == "running" else "нет данных"
+        first_losing = next((row for row in rows if _float(row.get("winrate")) < 0.5), None)
+        return "перелом найден" if first_losing else "слепок держится"
     if _stopped_by_limit(run):
         return "нет победителя"
     labels = _dict(run.metadata.get("team_labels"))
@@ -2154,6 +2622,8 @@ def _result_label(run: CombatAiSimulationRun) -> str:
 def _progress_label(run: CombatAiSimulationRun) -> str:
     if run.run_kind == "training":
         return _training_progress_label(run)
+    if _is_family_pressure_run(run):
+        return f"battles {run.rounds_completed}"
     unit = "exchanges" if _is_live_run(run) else "rounds"
     return f"{unit} {run.rounds_completed}/{run.max_rounds}"
 
@@ -2186,6 +2656,115 @@ def _damage_summary(telemetry: dict[str, Any]) -> str:
 def _detail_href(run: CombatAiSimulationRun) -> str:
     page = "training-detail" if run.run_kind == "training" else "run-detail"
     return f"{_BASE}/{page}?id={run.id}"
+
+
+def _is_family_pressure_run(run: CombatAiSimulationRun) -> bool:
+    return bool(run.metadata.get("family_pressure")) or str(run.telemetry.get("run_kind") or "") == "family_pressure"
+
+
+def _family_pressure_rows(run: CombatAiSimulationRun | None) -> list[dict[str, object]]:
+    if run is None:
+        return []
+    raw_rows = run.metadata.get("composition_reports") or run.telemetry.get("pressure_rows") or []
+    rows: list[dict[str, object]] = []
+    for raw_row in raw_rows:
+        row = _dict(raw_row)
+        composition = _dict(row.get("composition"))
+        role_counts = _dict(composition.get("role_counts"))
+        composition_label = " + ".join(
+            f"{_int(role_counts.get(role))}x {role}"
+            for role in ("minion", "veteran", "elite", "boss")
+            if _int(role_counts.get(role))
+        )
+        rows.append(
+            {
+                "composition": composition_label or str(composition.get("key") or "—"),
+                "raw_gs": _int(row.get("raw_gear_score")),
+                "effective_gs": _round(row.get("effective_gear_score")),
+                "ratio": _round(row.get("effective_ratio")),
+                "winrate": _round(row.get("player_win_rate")),
+                "winrate_pct": _round(_float(row.get("player_win_rate")) * 100),
+                "trials": _int(row.get("trials")),
+                "result": f"{_int(row.get('player_wins'))}/{_int(row.get('monster_wins'))}/{_int(row.get('draws'))}",
+                "avg_hp": _round(row.get("avg_player_hp")),
+                "avg_rounds": _round(row.get("avg_rounds")),
+                "roles": ", ".join(str(item) for item in row.get("member_roles") or []),
+                "monster_gs": ", ".join(str(item) for item in row.get("member_gear_scores") or []),
+                "variants": ", ".join(str(item) for item in row.get("member_variants") or []),
+            }
+        )
+    return rows
+
+
+def _family_pressure_display_rows(run: CombatAiSimulationRun | None) -> list[dict[str, object]]:
+    rows = _family_pressure_rows(run)
+    if rows:
+        return rows
+    if run is None or not _is_family_pressure_run(run):
+        return []
+    return [
+        {
+            "composition": "ожидает worker" if run.status == "running" else "нет данных",
+            "raw_gs": "—",
+            "effective_gs": "—",
+            "ratio": "—",
+            "winrate": "—",
+            "winrate_pct": "—",
+            "trials": 0,
+            "result": "—",
+            "avg_hp": "—",
+            "avg_rounds": "—",
+            "roles": "—",
+            "monster_gs": "—",
+            "variants": "Redis progress появится после первого завершённого боя",
+        }
+    ]
+
+
+def _family_pressure_parameter_rows(run: CombatAiSimulationRun) -> list[dict[str, object]]:
+    metadata = run.metadata
+    telemetry = run.telemetry
+    rows = [
+        {"metric": "Семья", "value": metadata.get("family_id") or telemetry.get("family_id") or "—"},
+        {"metric": "Слепок", "value": metadata.get("imprint_title") or metadata.get("imprint_key") or "—"},
+        {"metric": "Статус", "value": run.status},
+        {"metric": "Seed", "value": run.seed},
+        {
+            "metric": "Бои на состав",
+            "value": metadata.get("trials_per_composition") or telemetry.get("trials_per_composition") or "—",
+        },
+        {"metric": "Завершено боёв", "value": telemetry.get("trials_total", run.rounds_completed)},
+        {"metric": "Max rounds на бой", "value": run.max_rounds},
+        {"metric": "Max minions", "value": metadata.get("max_minions", "—")},
+        {"metric": "Max scenarios", "value": metadata.get("max_scenarios", "—")},
+        {"metric": "GS слепка", "value": metadata.get("player_gear_score", "после первого боя")},
+        {"metric": "HP слепка", "value": metadata.get("player_start_hp", "после первого боя")},
+    ]
+    return rows
+
+
+async def _pve_pressure_rows(request: Request) -> list[dict[str, object]]:
+    runs = [
+        run
+        for run in await _safe_list_runs(request, limit=200)
+        if _is_family_pressure_run(run) and run.status in {"running", "completed"}
+    ]
+    rows: list[dict[str, object]] = []
+    for run in runs:
+        family = str(run.metadata.get("family_id") or run.telemetry.get("family_id") or run.scenario_key)
+        imprint = str(run.metadata.get("imprint_title") or run.metadata.get("imprint_key") or "—")
+        for row in _family_pressure_rows(run):
+            enriched = {
+                **row,
+                "created_at": _short_ts(run.created_at),
+                "family": family,
+                "imprint": imprint,
+                "status": run.status,
+                "label": f"{family}: {row['composition']}",
+                "href": _detail_href(run),
+            }
+            rows.append(enriched)
+    return rows
 
 
 def _dict(value: Any) -> dict[str, Any]:
@@ -2229,6 +2808,20 @@ def _combat_stats_label(stats: dict[str, Any]) -> str:
         f"eva {_round(stats.get('evasion'))}, par {_round(stats.get('parry'))}, "
         f"blk {_round(stats.get('block'))}, acc {_round(stats.get('accuracy_mod'))}"
     )
+
+
+def _effective_hit_points(participant: dict[str, Any]) -> float:
+    stats = _dict(participant.get("combat_stats"))
+    hp = max(0.0, _float(participant.get("start_hp")))
+    hp_regen = max(0.0, _float(stats.get("hp_regen")))
+    armor = max(0.0, _float(stats.get("armor")))
+    physical_resistance = max(0.0, min(0.85, _float(stats.get("physical_resistance"))))
+    protected_hp = hp + (hp_regen * _EHP_REGEN_WINDOW_EXCHANGES)
+    damage_after_defense = max(
+        1.0,
+        (_EHP_REFERENCE_HIT_DAMAGE * (1.0 - physical_resistance)) - armor,
+    )
+    return round(protected_hp * (_EHP_REFERENCE_HIT_DAMAGE / damage_after_defense), 3)
 
 
 def _gear_score_breakdown(value: Any) -> dict[str, float]:

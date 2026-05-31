@@ -161,20 +161,21 @@ class CombatExecutor:
 
         self._process_periodic_effects(ctx, [source, target], action=action, wave=0)
 
-        # Очередь задач (Waves)
-        pending_tasks: list[tuple[Awaitable[InteractionResultDTO], CombatMoveDTO, bool]] = []
+        # Очередь расчетов (Waves). Actor ids are resolved into fresh snapshots
+        # at each wave so one result cannot leak mutations into its partner.
+        pending_tasks: list[tuple[ActorId, ActorId | None, CombatMoveDTO, dict[str, Any], bool]] = []
 
         # 1. Main Attack (A -> B)
-        pending_tasks.append(
-            (self._create_task(source, target, action.move, mods={"action_mode": "exchange"}), action.move, False)
-        )
+        pending_tasks.append((source.char_id, target.char_id, action.move, {"action_mode": "exchange"}, False))
 
         # 2. Partner Attack (B -> A)
         if action.partner_move:
             pending_tasks.append(
                 (
-                    self._create_task(target, source, action.partner_move, mods={"action_mode": "exchange"}),
+                    target.char_id,
+                    source.char_id,
                     action.partner_move,
+                    {"action_mode": "exchange"},
                     False,
                 )
             )
@@ -188,19 +189,16 @@ class CombatExecutor:
         for secondary_target in secondary_targets:
             pending_tasks.append(
                 (
-                    self._create_task(
-                        source,
-                        secondary_target,
-                        action.move,
-                        mods={
-                            "action_mode": "unidirectional",
-                            "damage_mult": secondary_damage_mult,
-                            "feint_role": "secondary",
-                            "pay_cost": False,
-                            "generate_feints": False,
-                        },
-                    ),
+                    source.char_id,
+                    secondary_target.char_id,
                     action.move,
+                    {
+                        "action_mode": "unidirectional",
+                        "damage_mult": secondary_damage_mult,
+                        "feint_role": "secondary",
+                        "pay_cost": False,
+                        "generate_feints": False,
+                    },
                     True,
                 )
             )
@@ -212,15 +210,44 @@ class CombatExecutor:
         while pending_tasks and wave < max_waves:
             wave += 1
 
-            # Запускаем текущую волну
+            # Запускаем текущую волну по sandbox snapshots текущего состояния.
             current_tasks = pending_tasks
-            results = await asyncio.gather(*(task for task, _move, _is_secondary in current_tasks))
+            runnable: list[
+                tuple[Awaitable[InteractionResultDTO], ActorSnapshot, ActorSnapshot | None, CombatMoveDTO, bool]
+            ] = []
+            for source_id, target_task_id, move, mods, is_secondary in current_tasks:
+                real_source = ctx.get_actor(source_id)
+                real_target = ctx.get_actor(target_task_id) if target_task_id is not None else None
+                if not real_source or (target_task_id is not None and not real_target):
+                    continue
+                calc_source = real_source.model_copy(deep=True)
+                calc_target = real_target.model_copy(deep=True) if real_target else None
+                runnable.append(
+                    (
+                        self._create_task(calc_source, calc_target, move, mods=mods),
+                        real_source,
+                        real_target,
+                        move,
+                        is_secondary,
+                    )
+                )
+            results = await asyncio.gather(*(task for task, _source, _target, _move, _is_secondary in runnable))
             pending_tasks = []
 
-            for result, move, is_secondary in zip(
+            commit_pairs = [
+                (real_source, real_target, result)
+                for result, (_task, real_source, real_target, _move, _is_secondary) in zip(
+                    results, runnable, strict=False
+                )
+            ]
+            commit_ctx = PipelineContextDTO()
+            commit_ctx.flags.meta.action_mode = "exchange"
+            commit_ctx.flags.meta.grant_exchange_gift = True
+            self.pipeline.mechanics_service.apply_exchange_results(commit_ctx, commit_pairs)
+
+            for result, (_task, _real_source, _real_target, move, is_secondary) in zip(
                 results,
-                (move for _task, move, _is_secondary in current_tasks),
-                (is_secondary for _task, _move, is_secondary in current_tasks),
+                runnable,
                 strict=False,
             ):
                 result_action = self._action_for_move(action, move, result=result)
@@ -267,18 +294,15 @@ class CombatExecutor:
                     defender = ctx.get_actor(t_id)
                     attacker = ctx.get_actor(s_id)
 
-                    if defender and attacker:
+                    if defender and attacker and defender.is_alive and attacker.is_alive:
                         log.bind(source_id=t_id, target_id=s_id).trace("ExecutorCounterAttackTriggered")
                         counter_move = action.partner_move if action.partner_move else action.move
                         pending_tasks.append(
                             (
-                                self._create_task(
-                                    defender,
-                                    attacker,
-                                    counter_move,
-                                    mods={"is_counter_attack": True, "action_mode": "exchange"},
-                                ),
+                                defender.char_id,
+                                attacker.char_id,
                                 counter_move,
+                                {"is_counter_attack": True, "action_mode": "exchange"},
                                 False,
                             )
                         )
@@ -288,17 +312,14 @@ class CombatExecutor:
                     attacker = ctx.get_actor(s_id)
                     defender = ctx.get_actor(t_id)
 
-                    if attacker and defender:
+                    if attacker and defender and attacker.is_alive and defender.is_alive:
                         log.bind(source_id=s_id, target_id=t_id).trace("ExecutorOffHandAttackTriggered")
                         pending_tasks.append(
                             (
-                                self._create_task(
-                                    attacker,
-                                    defender,
-                                    action.move,
-                                    mods={"hand": "off", "action_mode": "exchange"},
-                                ),
+                                attacker.char_id,
+                                defender.char_id,
                                 action.move,
+                                {"hand": "off", "action_mode": "exchange"},
                                 False,
                             )
                         )
@@ -357,6 +378,11 @@ class CombatExecutor:
         if tasks:
             results = await asyncio.gather(*tasks)
             for result in results:
+                target = ctx.get_actor(result.target_id) if result.target_id is not None else None
+                commit_ctx = PipelineContextDTO()
+                commit_ctx.flags.meta.action_mode = "unidirectional"
+                commit_ctx.flags.meta.grant_exchange_gift = False
+                self.pipeline.mechanics_service.apply_interaction_result(commit_ctx, source, target, result)
                 self._append_result_logs(ctx, result, action=action, wave=1)
                 self._append_result_support_payload(ctx, result, action=action, wave=1)
                 self._log_result_info(ctx, result, wave=1)

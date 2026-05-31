@@ -386,7 +386,7 @@ def default_scenario_set(seed: int = 0) -> list[SyntheticScenario]:
         stamina=60,
         hand={
             "measured_strike": {"hit": 3},
-            "concussion": {"block": 3},  # control + shield_damage
+            "concussion": {"block": 3},  # control + shield bash name, normal attack damage
         },
         tokens={"block": 6},  # so concussion is affordable from token side
     )

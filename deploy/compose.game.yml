@@ -112,7 +112,6 @@ services:
 
   combat-worker:
     image: ${DOCKER_IMAGE_WORKER:?DOCKER_IMAGE_WORKER is required}
-    container_name: tbmmorpg-combat-worker
     restart: unless-stopped
     env_file:
       - path: ${DEPLOY_ENV_FILE:-.env}
@@ -130,9 +129,29 @@ services:
     networks:
       - tbmmorpg-network
 
+  combat-ai-simulation-worker:
+    image: ${DOCKER_IMAGE_WORKER:?DOCKER_IMAGE_WORKER is required}
+    restart: unless-stopped
+    profiles:
+      - combat-ai-simulation
+    env_file:
+      - path: ${DEPLOY_ENV_FILE:-.env}
+        required: false
+    environment:
+      DATABASE_URL: ${GAME_DATABASE_URL:?GAME_DATABASE_URL is required}
+      SITE_DATABASE_URL: ${SITE_DATABASE_URL:?SITE_DATABASE_URL is required}
+      GAME_DATABASE_URL: ${GAME_DATABASE_URL:?GAME_DATABASE_URL is required}
+      REDIS_URL: ${REDIS_URL:?REDIS_URL is required}
+      DEBUG: "False"
+    command: ["arq", "src.backend.features.combat.workers.ai_simulation_arq.CombatAiSimulationArqSettings"]
+    depends_on:
+      backend-migrate:
+        condition: service_completed_successfully
+    networks:
+      - tbmmorpg-network
+
   system-worker:
     image: ${DOCKER_IMAGE_WORKER:?DOCKER_IMAGE_WORKER is required}
-    container_name: tbmmorpg-system-worker
     restart: unless-stopped
     env_file:
       - path: ${DEPLOY_ENV_FILE:-.env}
@@ -152,7 +171,6 @@ services:
 
   generation-ai-worker:
     image: ${DOCKER_IMAGE_WORKER:?DOCKER_IMAGE_WORKER is required}
-    container_name: tbmmorpg-generation-ai-worker
     restart: unless-stopped
     env_file:
       - path: ${DEPLOY_ENV_FILE:-.env}

@@ -70,7 +70,14 @@ class RiftNodeEntryCombatPolicyDTO(BaseModel):
     random_combat_suppressed_by_transition_combat: bool = True
     scripted_combat_suppresses_transition_combat: bool = True
     scripted_combat_tags: list[str] = Field(
-        default_factory=lambda: ["boss", "crystal_guard", "objective_gate", "story_combat", "crystal_chamber"]
+        default_factory=lambda: [
+            "boss",
+            "crystal_guard",
+            "objective_gate",
+            "story_combat",
+            "key_combat",
+            "crystal_chamber",
+        ]
     )
 
 

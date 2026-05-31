@@ -14,16 +14,20 @@ from src.backend.features.combat.services.ai_simulation_service import (
     execute_battle_training,
     execute_synthetic_training,
 )
+from src.backend.features.monsters.repositories.monster_generation_repository import MonsterGenerationRepository
 from src.backend.infrastructure.combat.managers import CombatAiSimulationProgressManager
 from src.backend.infrastructure.combat.repositories import CombatAiSimulationRunRepository
 from src.shared.infrastructure.log_task_wrapper import logged_task
 
 COMBAT_AI_LIVE_SIMULATION_TASK = "combat_ai_live_simulation_task"
+COMBAT_FAMILY_PRESSURE_TASK = "combat_family_pressure_task"
 COMBAT_AI_SYNTHETIC_TRAINING_TASK = "combat_ai_synthetic_training_task"
 COMBAT_AI_BATTLE_TRAINING_TASK = "combat_ai_battle_training_task"
 LIVE_SIMULATION_WORKER_CONCURRENCY = 3
+FAMILY_PRESSURE_WORKER_CONCURRENCY = 1
 SYNTHETIC_TRAINING_WORKER_CONCURRENCY = 1
 _LIVE_SIMULATION_SEMAPHORE = asyncio.Semaphore(LIVE_SIMULATION_WORKER_CONCURRENCY)
+_FAMILY_PRESSURE_SEMAPHORE = asyncio.Semaphore(FAMILY_PRESSURE_WORKER_CONCURRENCY)
 _SYNTHETIC_TRAINING_SEMAPHORE = asyncio.Semaphore(SYNTHETIC_TRAINING_WORKER_CONCURRENCY)
 
 
@@ -69,6 +73,11 @@ async def combat_ai_live_simulation_task(ctx: dict[str, Any], payload: dict[str,
 
     try:
         async with _LIVE_SIMULATION_SEMAPHORE:
+            log.bind(
+                run_id=run_id,
+                seed=int(payload.get("seed", 0)),
+                max_rounds=int(payload.get("max_rounds", 500)),
+            ).info("CombatAiLiveSimulationJobStarted")
             await CombatAiSimulationRunService.execute_live_starter_presets_demo(
                 run_id,
                 seed=int(payload.get("seed", 0)),
@@ -86,6 +95,7 @@ async def combat_ai_live_simulation_task(ctx: dict[str, Any], payload: dict[str,
                 persist=persist,
                 progress=None,
             )
+            log.bind(run_id=run_id).info("CombatAiLiveSimulationJobFinished")
     except asyncio.CancelledError as exc:
         log.bind(run_id=run_id).warning("CombatAiLiveSimulationWorkerCancelled")
         await asyncio.shield(
@@ -105,10 +115,99 @@ async def combat_ai_live_simulation_task(ctx: dict[str, Any], payload: dict[str,
 
 
 @logged_task
+async def combat_family_pressure_task(ctx: dict[str, Any], payload: dict[str, Any]) -> None:
+    run_id = str(payload["run_id"])
+    family_id = str(payload.get("family_id") or "").strip()
+    progress_store = _progress_store(ctx)
+    try:
+        async with _FAMILY_PRESSURE_SEMAPHORE:
+            log.bind(
+                run_id=run_id,
+                family_id=family_id,
+                seed=int(payload.get("seed", 0)),
+                trials=int(payload.get("trials", 30)),
+            ).info("CombatAiFamilyPressureJobStarted")
+            async with get_session_context() as session:
+                clans = await MonsterGenerationRepository(session).list_generated_clans_page(
+                    family_id=family_id,
+                    limit=100,
+                )
+                members = [member for clan in clans for member in clan.members]
+                if not members:
+                    raise ValueError(f"Generated family members not found: {family_id}")
+
+                async def progress(
+                    status: str,
+                    rounds_completed: int,
+                    winner: str | None,
+                    reward: float | None,
+                    telemetry: dict[str, Any],
+                    report_text: str,
+                    metadata: dict[str, Any],
+                ) -> None:
+                    if progress_store is None:
+                        return
+                    await progress_store.set_progress(
+                        run_id,
+                        {
+                            "status": status,
+                            "rounds_completed": rounds_completed,
+                            "winner": winner,
+                            "reward": reward,
+                            "telemetry": telemetry,
+                            "report_text": report_text,
+                            "metadata": metadata,
+                        },
+                    )
+
+                await CombatAiSimulationRunService(
+                    CombatAiSimulationRunRepository(session)
+                ).execute_family_pressure_probe(
+                    run_id,
+                    family_id=family_id,
+                    members=members,
+                    imprint_key=str(payload.get("imprint_key") or "").strip(),
+                    seed=int(payload.get("seed", 0)),
+                    trials=int(payload.get("trials", 30)),
+                    max_rounds=int(payload.get("max_rounds", 80)),
+                    max_minions=int(payload.get("max_minions", 6)),
+                    max_scenarios=int(payload.get("max_scenarios", 12)),
+                    progress=progress,
+                )
+        if progress_store is not None:
+            await progress_store.delete_progress(run_id)
+        log.bind(run_id=run_id, family_id=family_id).info("CombatAiFamilyPressureJobFinished")
+    except asyncio.CancelledError as exc:
+        log.bind(run_id=run_id, family_id=family_id).warning("CombatAiFamilyPressureWorkerCancelled")
+        await asyncio.shield(
+            _mark_failed(
+                run_id,
+                error={
+                    "type": exc.__class__.__name__,
+                    "message": "Family pressure worker task was cancelled or timed out.",
+                },
+            )
+        )
+        if progress_store is not None:
+            await asyncio.shield(progress_store.delete_progress(run_id))
+        raise
+    except Exception as exc:
+        log.bind(run_id=run_id, family_id=family_id).exception("CombatAiFamilyPressureWorkerFailed")
+        await _mark_failed(run_id, error={"type": exc.__class__.__name__, "message": str(exc)})
+        if progress_store is not None:
+            await progress_store.delete_progress(run_id)
+
+
+@logged_task
 async def combat_ai_synthetic_training_task(ctx: dict[str, Any], payload: dict[str, Any]) -> None:
     run_id = str(payload["run_id"])
     try:
         async with _SYNTHETIC_TRAINING_SEMAPHORE:
+            log.bind(
+                run_id=run_id,
+                generations=int(payload.get("generations", 60)),
+                population=int(payload.get("population", 32)),
+            ).info("CombatAiSyntheticTrainingJobStarted")
             result = await asyncio.to_thread(
                 execute_synthetic_training,
                 generations=int(payload.get("generations", 60)),
@@ -125,6 +224,7 @@ async def combat_ai_synthetic_training_task(ctx: dict[str, Any], payload: dict[s
                 report_text=str(result["report_text"]),
                 metadata=result["metadata"],
             )
+        log.bind(run_id=run_id).info("CombatAiSyntheticTrainingJobFinished")
     except asyncio.CancelledError as exc:
         log.bind(run_id=run_id).warning("CombatAiSyntheticTrainingWorkerCancelled")
         await asyncio.shield(
@@ -157,6 +257,12 @@ async def combat_ai_battle_training_task(ctx: dict[str, Any], payload: dict[str,
                 await progress_store.set_progress(run_id, snapshot)
 
         async with _SYNTHETIC_TRAINING_SEMAPHORE:
+            log.bind(
+                run_id=run_id,
+                source_run_id=source_run_id,
+                generations=int(payload.get("generations", 12)),
+                population=int(payload.get("population", 8)),
+            ).info("CombatAiBattleTrainingJobStarted")
             result = await execute_battle_training(
                 source_policy=_policy_from_payload(source_policy_payload),
                 source_policy_run_id=source_run_id,
@@ -177,6 +283,7 @@ async def combat_ai_battle_training_task(ctx: dict[str, Any], payload: dict[str,
             )
         if progress_store is not None:
             await progress_store.delete_progress(run_id)
+        log.bind(run_id=run_id).info("CombatAiBattleTrainingJobFinished")
     except asyncio.CancelledError as exc:
         log.bind(run_id=run_id).warning("CombatAiBattleTrainingWorkerCancelled")
         await asyncio.shield(

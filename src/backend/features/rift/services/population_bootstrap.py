@@ -20,6 +20,7 @@ class RiftPopulationBootstrapResult:
     rifts: int
     family_slots: int
     clans: int
+    pruned_clans: int
     bindings: dict[str, dict[str, dict[str, Any]]]
 
 
@@ -42,6 +43,7 @@ class RiftPopulationBootstrapService:
         rifts_count = 0
         slots_count = 0
         clans_count = 0
+        pruned_clans_count = 0
         bindings: dict[str, dict[str, dict[str, Any]]] = {}
 
         for setting_key in keys:
@@ -52,6 +54,7 @@ class RiftPopulationBootstrapService:
                 continue
 
             rifts_count += 1
+            expected_zone_contexts: dict[str, set[tuple[str, str]]] = {}
             for raw_slot in family_slots:
                 if not isinstance(raw_slot, dict):
                     continue
@@ -62,6 +65,7 @@ class RiftPopulationBootstrapService:
                 if not family_id or not context_hash:
                     continue
 
+                expected_zone_contexts.setdefault(f"rift:{setting_key}:{slot_id}", set()).add((family_id, context_hash))
                 context = _build_slot_generation_context(population, raw_slot)
                 tags = _build_slot_tags(population, raw_slot)
                 clan = await self.encounter_service.ensure_clan_for_precomputed_context_hash(
@@ -80,13 +84,22 @@ class RiftPopulationBootstrapService:
                 }
                 clans_count += 1
 
-        log.bind(rift_count=rifts_count, slot_count=slots_count, clan_count=clans_count).info(
-            "RiftStaticPopulationEnsured"
-        )
+            if expected_zone_contexts:
+                pruned_clans_count += await self.encounter_service.prune_generated_clans_for_zone_contexts(
+                    expected_zone_contexts
+                )
+
+        log.bind(
+            rift_count=rifts_count,
+            slot_count=slots_count,
+            clan_count=clans_count,
+            pruned_clan_count=pruned_clans_count,
+        ).info("RiftStaticPopulationEnsured")
         return RiftPopulationBootstrapResult(
             rifts=rifts_count,
             family_slots=slots_count,
             clans=clans_count,
+            pruned_clans=pruned_clans_count,
             bindings=bindings,
         )
 

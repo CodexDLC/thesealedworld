@@ -1,14 +1,17 @@
 from __future__ import annotations
 
-from src.backend.core.arq import COMBAT_ARQ_QUEUE, SYSTEM_ARQ_QUEUE, ArqService
+from src.backend.core.arq import COMBAT_AI_SIMULATION_ARQ_QUEUE, COMBAT_ARQ_QUEUE, SYSTEM_ARQ_QUEUE, ArqService
+from src.backend.features.combat.workers.ai_simulation_arq import CombatAiSimulationArqSettings
 from src.backend.features.combat.workers.arq import CombatArqSettings
 from src.backend.features.system.workers.arq import SystemArqSettings
 
 
 def test_worker_settings_use_separate_arq_queues() -> None:
     assert CombatArqSettings.queue_name == COMBAT_ARQ_QUEUE
+    assert CombatAiSimulationArqSettings.queue_name == COMBAT_AI_SIMULATION_ARQ_QUEUE
     assert SystemArqSettings.queue_name == SYSTEM_ARQ_QUEUE
     assert CombatArqSettings.queue_name != SystemArqSettings.queue_name
+    assert CombatArqSettings.queue_name != CombatAiSimulationArqSettings.queue_name
 
 
 def test_arq_service_defaults_to_combat_queue() -> None:
@@ -17,6 +20,10 @@ def test_arq_service_defaults_to_combat_queue() -> None:
 
 def test_arq_service_can_target_system_queue() -> None:
     assert ArqService(queue_name=SYSTEM_ARQ_QUEUE).queue_name == SYSTEM_ARQ_QUEUE
+
+
+def test_arq_service_can_target_combat_ai_simulation_queue() -> None:
+    assert ArqService(queue_name=COMBAT_AI_SIMULATION_ARQ_QUEUE).queue_name == COMBAT_AI_SIMULATION_ARQ_QUEUE
 
 
 def test_system_worker_consumes_loot_claim_jobs_from_system_queue() -> None:

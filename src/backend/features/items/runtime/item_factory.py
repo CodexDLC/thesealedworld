@@ -86,7 +86,7 @@ class ItemFactory:
     def generate_player_item(self, request: ItemGenerationRequestDTO) -> GeneratedItemDTO:
         base = self._resolve_base(request.base_id)
         material = self._resolve_material(base.allowed_materials, request.material_id, request.rarity_tier)
-        slot = base.slot
+        slot = self._resolve_target_slot(base, request.target_slot)
         item_grade = self._resolve_item_grade(request)
         item_tier = self._resolve_item_tier(material, request.rarity_tier)
         tier_mult = self._resolve_tier_mult(material)

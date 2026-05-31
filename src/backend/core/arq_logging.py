@@ -17,6 +17,7 @@ def setup_arq_worker_logging(service_name: str) -> None:
         settings=settings,
         service_name=service_name,
         intercept_loggers=ARQ_INTERCEPT_LOGGERS,
+        include_runtime_instance=True,
         log_levels={
             "arq": 30,
             "arq.worker": 30,

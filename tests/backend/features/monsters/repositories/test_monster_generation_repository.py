@@ -144,6 +144,24 @@ async def test_update_clan_flavor_updates_clan_and_member_text() -> None:
 
 
 @pytest.mark.unit
+async def test_delete_generated_clans_outside_zone_contexts_deletes_stale_rift_slots() -> None:
+    session = MagicMock()
+    session.execute = AsyncMock(side_effect=[MagicMock(rowcount=2), MagicMock(rowcount=1)])
+    repo = MonsterGenerationRepository(session)
+
+    deleted = await repo.delete_generated_clans_outside_zone_contexts(
+        {
+            "rift:starter_rift:primary": {("bandit_gang", "primary-hash")},
+            "rift:starter_rift:secondary": {("rat_swarm", "secondary-hash")},
+            "rift:starter_rift:empty": set(),
+        }
+    )
+
+    assert deleted == 3
+    assert session.execute.await_count == 2
+
+
+@pytest.mark.unit
 async def test_refresh_clan_gear_scores_updates_stale_member_balance_and_summary() -> None:
     session = MagicMock()
     session.flush = AsyncMock()

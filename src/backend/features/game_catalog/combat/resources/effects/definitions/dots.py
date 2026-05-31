@@ -134,10 +134,53 @@ _burn_catalog = EffectCatalogEntryDTO(
     ),
 )
 
+# ── FROST ────────────────────────────────────────────────────────────────────
+
+_frost_catalog = EffectCatalogEntryDTO(
+    key="combat.effect.dot_frost",
+    technical=EffectTechnicalDTO(
+        effect_id="dot_frost",
+        type=EffectType.DOT,
+        duration=3,
+        resistance_profile_id="frost",
+        resource_impact={"hp": -1},
+        tags=["dot", "frost", "ice", "water"],
+    ),
+    descriptive=build_combat_description(
+        resource_type="effects",
+        resource_id="dot_frost",
+        icon="combat/effects/dot_frost.svg",
+        display_name="Обморожение",
+        short_description="Холод истощает цель.",
+        humanoid_event_texts=CombatEventTextSetDTO(
+            apply_effect=[
+                "{source} сковывает {target} холодом.",
+                "{target} получает {effect}.",
+            ],
+            tick=[
+                "Холод вытягивает силы из {target}: -{value} {resource}.",
+                "{effect} держит {target}: -{value} {resource}.",
+            ],
+            expire_effect=[
+                "Холод отпускает {target}.",
+                "{target} больше не под действием {effect}.",
+            ],
+            resist=["{target} выдерживает холод — {effect} не закрепляется."],
+            cleanse=["Лёд с {target} сбит — {effect} снят."],
+        ),
+        beast_event_texts=CombatEventTextSetDTO(
+            apply_effect=["{target} скован холодом."],
+            tick=["Холод действует на {target}: -{value} {resource}."],
+            expire_effect=["Холод отпускает {target}."],
+        ),
+    ),
+)
+
 # ── REGISTRY ──────────────────────────────────────────────────────────────────
 
 DOT_EFFECTS_CATALOG: dict[str, EffectCatalogEntryDTO] = {
     "dot_poison": _poison_catalog,
     "dot_bleed": _bleed_catalog,
     "dot_burn": _burn_catalog,
+    "dot_frost": _frost_catalog,
 }

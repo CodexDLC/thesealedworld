@@ -57,7 +57,7 @@ def test_stats_engine_assembles_weapon_base_from_weighted_stats_and_mastery() ->
 
     assert actor.stats is not None
     mods = actor.stats.mods
-    stat_raw = (17 * 0.25) + (10 * 0.75)
+    stat_raw = (17 * 0.20) + (10 * 0.70) + (5 * 0.10)
     mastery = 0.25 + (0.75 * 0.4)
     assert mods.main_hand_weapon_power == pytest.approx(7.0)
     assert mods.main_hand_stat_damage_raw == pytest.approx(stat_raw)
@@ -83,14 +83,14 @@ def test_weapon_power_is_not_reduced_by_low_mastery() -> None:
 
     assert actor.stats is not None
     mods = actor.stats.mods
-    stat_raw = (12 * 0.75) + (8 * 0.25)
+    stat_raw = (12 * 0.60) + (8 * 0.10) + (6 * 0.30)
     assert mods.main_hand_weapon_power == pytest.approx(9.0)
     assert mods.main_hand_stat_damage_effective == pytest.approx(stat_raw * 0.25)
     assert mods.main_hand_damage_base == pytest.approx(9.0 + (stat_raw * 0.25))
 
 
 @pytest.mark.unit
-def test_weapon_damage_uses_only_two_body_stats_and_ignores_endurance_for_macing() -> None:
+def test_weapon_damage_uses_endurance_as_normalized_body_weight_for_macing() -> None:
     low_endurance = _actor_with_weapon(
         weapon_skill="skill_macing",
         skill_value=0.5,
@@ -113,18 +113,18 @@ def test_weapon_damage_uses_only_two_body_stats_and_ignores_endurance_for_macing
 
     assert low_endurance.stats is not None
     assert high_endurance.stats is not None
-    stat_raw = (16 * 0.75) + (12 * 0.25)
+    low_stat_raw = (16 * 0.60) + (12 * 0.10) + (4 * 0.30)
+    high_stat_raw = (16 * 0.60) + (12 * 0.10) + (24 * 0.30)
     mastery = 0.25 + (0.75 * 0.5)
-    assert low_endurance.stats.mods.main_hand_stat_damage_raw == pytest.approx(stat_raw)
-    assert high_endurance.stats.mods.main_hand_stat_damage_raw == pytest.approx(stat_raw)
-    assert high_endurance.stats.mods.main_hand_damage_base == pytest.approx(13 + (stat_raw * mastery))
-    assert high_endurance.stats.mods.main_hand_damage_base == pytest.approx(
-        low_endurance.stats.mods.main_hand_damage_base
-    )
+    assert low_endurance.stats.mods.main_hand_stat_damage_raw == pytest.approx(low_stat_raw)
+    assert high_endurance.stats.mods.main_hand_stat_damage_raw == pytest.approx(high_stat_raw)
+    assert low_endurance.stats.mods.main_hand_damage_base == pytest.approx(13 + (low_stat_raw * mastery))
+    assert high_endurance.stats.mods.main_hand_damage_base == pytest.approx(13 + (high_stat_raw * mastery))
+    assert high_endurance.stats.mods.main_hand_damage_base > low_endurance.stats.mods.main_hand_damage_base
 
 
 @pytest.mark.unit
-def test_shield_style_adds_endurance_based_guard_power_without_increasing_weapon_damage() -> None:
+def test_shield_style_adds_endurance_guard_power_and_weapon_endurance_damage() -> None:
     actor = _actor_with_weapon(
         weapon_skill="skill_swords",
         skill_value=0.5,
@@ -143,7 +143,7 @@ def test_shield_style_adds_endurance_based_guard_power_without_increasing_weapon
     StatsEngine.ensure_stats(actor)
 
     assert actor.stats is not None
-    stat_raw = (10 * 0.55) + (14 * 0.45)
+    stat_raw = (10 * 0.45) + (14 * 0.35) + (20 * 0.20)
     mastery = 0.25 + (0.75 * 0.5)
     shield_style_raw = (20 * 0.60) + (10 * 0.40)
     shield_style_bonus = shield_style_raw * 0.35

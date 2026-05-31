@@ -272,7 +272,7 @@ def test_action_space_basic_attack_has_damage_tag() -> None:
 
 
 # ---------------------------------------------------------------------------
-# 6. Effects: dispel_prep / control / shield_damage / bleed.
+# 6. Effects: dispel_prep / control / shield bash / bleed.
 # ---------------------------------------------------------------------------
 
 
@@ -285,12 +285,13 @@ def test_read_tactic_dispel_prep() -> None:
 
 
 @pytest.mark.unit
-def test_concussion_control_and_shield_damage() -> None:
+def test_concussion_control_and_attack_damage() -> None:
     tags = _tags("concussion")
     assert "control" in tags  # control tag from applicability + concussed_no_feints effect
     assert "debuff" in tags
-    assert "shield_damage" in tags
-    assert "damage_tag" in tags  # shield_guard_damage_ratio > 0 → damage vector
+    assert "shield_bash" in tags
+    assert "shield_damage" not in tags
+    assert "damage_tag" in tags
 
 
 @pytest.mark.unit

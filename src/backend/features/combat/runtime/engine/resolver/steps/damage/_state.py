@@ -45,7 +45,7 @@ class DamageState:
     magic_armor_flat: float = 0.0
     magic_after_armor: float = 0.0
 
-    # Shield absorb/reflect (both blocked-branch path and partial_absorb_reflect path).
+    # Shield absorb/reflect for successful blocked-branch contacts.
     shield_absorb: float = 0.0
     shield_reflect: float = 0.0
     shield_reflect_base: float = 0.0

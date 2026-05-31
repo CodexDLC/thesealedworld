@@ -129,8 +129,9 @@ async def test_materialize_starting_imprint_persists_attributes_skills_and_equip
 
     assert result["imprint_key"] == "starter_guard_01"
     assert attributes_repo.attributes[7]["strength"] == 17
-    assert attributes_repo.attributes[7]["agility"] == 16
-    assert attributes_repo.attributes[7]["endurance"] == 15
+    assert attributes_repo.attributes[7]["agility"] == 14
+    assert attributes_repo.attributes[7]["endurance"] == 16
+    assert attributes_repo.attributes[7]["perception"] == 15
     assert progression_repo.free_xp[7] == 0.0
     assert {row["skill_key"]: row["total_xp"] for row in skill_repo.rows} == {
         "skill_swords": 0.15,
@@ -144,6 +145,37 @@ async def test_materialize_starting_imprint_persists_attributes_skills_and_equip
     assert ("jerkin", "equipped", "chest_armor") in item_persistence.created
     assert result["item_ids"] == [f"item-{index}" for index in range(1, len(item_persistence.created) + 1)]
     assert character_repo.committed is True
+
+
+@pytest.mark.asyncio
+async def test_materialize_starting_imprint_places_second_fencing_weapon_offhand() -> None:
+    character = CreatedLobbyCharacter(
+        character_id=7,
+        user_id=uuid4(),
+        name="Nea",
+        gender="female",
+        avatar_url="/avatar.png",
+        created_at=datetime.now(UTC),
+        location_id="52_52",
+    )
+    item_persistence = FakeItemPersistence()
+    integration = GameLobbyIntegration(
+        character_repo=FakeCharacterRepository(),
+        attributes_repo=FakeAttributesRepository(),
+        skill_repo=FakeSkillRepository(),
+        progression_repo=FakeProgressionRepository(),
+        item_persistence=item_persistence,
+        character_sessions=SimpleNamespace(),
+    )
+
+    await integration.materialize_starting_imprint(
+        character,
+        imprint_key="starter_dual_blades_01",
+        seed="test-seed",
+    )
+
+    assert ("dagger", "equipped", "main_hand") in item_persistence.created
+    assert ("stiletto", "equipped", "off_hand") in item_persistence.created
 
 
 @pytest.mark.asyncio
@@ -177,7 +209,6 @@ async def test_materialize_starting_imprint_uses_distribution_for_automatic_sele
     assert result["skill_keys"] == [
         "skill_archery",
         "skill_ranged_combat",
-        "skill_tactics",
         "skill_light_armor",
     ]
     assert distribution.calls == [
@@ -189,9 +220,12 @@ async def test_materialize_starting_imprint_uses_distribution_for_automatic_sele
                 "starter_breaker_01",
                 "starter_duelist_01",
                 "starter_dual_blades_01",
+                "starter_dual_sword_01",
+                "starter_dual_mace_01",
                 "starter_pathfinder_01",
                 "starter_hunter_01",
                 "starter_archer_01",
+                "starter_marksman_01",
                 "starter_staff_01",
                 "starter_heavy_guard_01",
                 "starter_tactician_01",
@@ -276,8 +310,9 @@ async def test_reset_character_to_starting_imprint_clears_old_runtime_and_remate
     assert result["status"] == "reset"
     assert result["starting_imprint"]["imprint_key"] == "starter_guard_01"
     assert attributes_repo.attributes[7]["strength"] == 17
-    assert attributes_repo.attributes[7]["agility"] == 16
-    assert attributes_repo.attributes[7]["endurance"] == 15
+    assert attributes_repo.attributes[7]["agility"] == 14
+    assert attributes_repo.attributes[7]["endurance"] == 16
+    assert attributes_repo.attributes[7]["perception"] == 15
     assert progression_repo.free_xp[7] == 0.0
     assert skill_repo.deleted == [7]
     assert item_persistence.transferred == [7]

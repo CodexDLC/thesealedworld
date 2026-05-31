@@ -9,9 +9,11 @@ from src.backend.config.settings import settings
 from src.backend.core.arq_container import ArqWorkerContainer
 
 COMBAT_ARQ_QUEUE = "tbmmorpg:arq:combat"
+COMBAT_AI_SIMULATION_ARQ_QUEUE = "tbmmorpg:arq:combat_ai_simulation"
 SYSTEM_ARQ_QUEUE = "tbmmorpg:arq:system"
 GENERATION_AI_ARQ_QUEUE = "tbmmorpg:arq:generation_ai"
 WARNING = 30
+ARQ_JOB_KEY_PREFIXES = ("arq:job:", "arq:retry:", "arq:in-progress:")
 
 try:  # pragma: no cover - exercised only when the optional worker runtime is installed.
     from arq.connections import ArqRedis, RedisSettings, create_pool
@@ -107,3 +109,15 @@ async def get_arq_pool() -> ArqRedis:
     if create_pool is None:
         raise RuntimeError("arq is not installed; cannot create ARQ pool")
     return await create_pool(BaseArqSettings.redis_settings)
+
+
+async def clear_arq_queue(redis_client: Any | None, queue_name: str) -> int:
+    """Delete one ARQ queue and the job bookkeeping keys referenced by it."""
+    if redis_client is None:
+        return 0
+    raw_job_ids = await redis_client.zrange(queue_name, 0, -1)
+    job_ids = [str(job_id) for job_id in raw_job_ids if job_id]
+    keys = [queue_name]
+    for job_id in job_ids:
+        keys.extend(f"{prefix}{job_id}" for prefix in ARQ_JOB_KEY_PREFIXES)
+    return int(await redis_client.delete(*keys)) if keys else 0

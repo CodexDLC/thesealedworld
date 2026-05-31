@@ -41,7 +41,8 @@ class EvasionStep(ResolverStep):
             token_awarder.award_defender_token(res, "dodge")
             res.events.append(CombatEventDTO(type="DODGE", source_id=source_id, target_id=target_id))
             trigger_activator.resolve_triggers(ctx, res, "ON_DODGE")
-            ctx.flags.state.check_counter = True
+            if _opens_counter_on_dodge(ctx):
+                ctx.flags.state.check_counter = True
             return True
 
         if ctx.flags.force.hit_evasion:
@@ -91,7 +92,8 @@ class EvasionStep(ResolverStep):
             token_awarder.award_defender_token(res, "dodge")
             res.events.append(CombatEventDTO(type="DODGE", source_id=source_id, target_id=target_id))
             trigger_activator.resolve_triggers(ctx, res, "ON_DODGE")
-            ctx.flags.state.check_counter = True
+            if _opens_counter_on_dodge(ctx):
+                ctx.flags.state.check_counter = True
             return True
 
         trigger_activator.resolve_triggers(ctx, res, "ON_DODGE_FAIL")
@@ -99,3 +101,12 @@ class EvasionStep(ResolverStep):
 
 
 evasion_step = EvasionStep()
+
+
+def _opens_counter_on_dodge(ctx: PipelineContextDTO) -> bool:
+    return (
+        (ctx.flags.mastery.light_armor and not ctx.flags.restriction.disable_passive_counter)
+        or ctx.flags.state.force_counter_on_dodge
+        or ctx.flags.state.counter_to_cap_on_dodge
+        or ctx.mods.counter_chance_bonus_on_dodge > 0.0
+    )

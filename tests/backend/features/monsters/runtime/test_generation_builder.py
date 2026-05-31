@@ -200,3 +200,16 @@ def test_d4_rat_rift_family_is_available_at_tier_two() -> None:
     )
 
     assert builder.get_available_family_ids(context) == ["rat_swarm"]
+
+
+@pytest.mark.unit
+def test_broken_road_does_not_fall_back_to_every_tier_one_family() -> None:
+    builder = MonsterClanGenerationBuilder(repository=FakeRepository(), item_generation=FakeItemGeneration())
+    context = MonsterGenerationContext(
+        zone_id="rift:starter_rift:secondary",
+        biome_id="broken_road",
+        tier=1,
+        tags=[],
+    )
+
+    assert builder.get_available_family_ids(context) == ["bandit_gang", "rat_swarm"]

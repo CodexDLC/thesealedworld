@@ -5,7 +5,7 @@ from fastapi import FastAPI
 from loguru import logger as log
 
 from src.backend.config.settings import settings
-from src.backend.core.arq import GENERATION_AI_ARQ_QUEUE, SYSTEM_ARQ_QUEUE, ArqService
+from src.backend.core.arq import COMBAT_AI_SIMULATION_ARQ_QUEUE, GENERATION_AI_ARQ_QUEUE, SYSTEM_ARQ_QUEUE, ArqService
 from src.backend.core.bus import GameEventProducer
 from src.backend.core.game_config import CoreConfig
 from src.backend.features.arena.events import bind as bind_arena_events
@@ -95,6 +95,7 @@ class RedisContainer:
 
         app.state.redis = redis_service
         app.state.combat_arq = ArqService()
+        app.state.combat_ai_simulation_arq = ArqService(queue_name=COMBAT_AI_SIMULATION_ARQ_QUEUE)
         app.state.system_arq = ArqService(queue_name=SYSTEM_ARQ_QUEUE)
         app.state.generation_ai_arq = ArqService(queue_name=GENERATION_AI_ARQ_QUEUE)
         app.state.redis_managers = managers

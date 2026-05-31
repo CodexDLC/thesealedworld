@@ -12,12 +12,38 @@ def test_portal_guide_dialogue_hub_is_repeatable_npc_topic_list() -> None:
 
     assert master["quest_key"] == "portal_guide_dialogue"
     assert master["npc_key"] == "portal_pad_guide"
-    assert master["start_node_id"] == "guide_dialogue_hub"
+    assert master["start_node_id"] == "guide_memory_entry"
 
     hub_actions = {action["action_id"]: action for action in nodes["guide_dialogue_hub"]["actions"]}
     assert hub_actions["ask_first_death_again"]["to_node"] == "death_return_greeting"
     assert hub_actions["ask_first_death_again"]["condition"] == "npc_flag_first_death_dialogue_seen == 1"
     assert "enter_portal" not in hub_actions
+
+
+def test_portal_guide_starts_from_first_contact_memory() -> None:
+    nodes = _nodes_by_key()
+    router = nodes["guide_memory_entry"]["actions"][0]
+
+    assert router["action_id"] == "auto"
+    assert router["branching"] == [
+        {"condition": "npc_counter_first_contact_resistance >= 1", "to_node": "memory_intro_resistant"},
+        {"condition": "npc_counter_first_contact_curiosity >= 2", "to_node": "memory_intro_curious"},
+        {"condition": "npc_counter_first_contact_compliance >= 1", "to_node": "memory_intro_compliant"},
+        {"condition": "default", "to_node": "guide_dialogue_hub"},
+    ]
+
+    assert "подняться" in nodes["memory_intro_resistant"]["text"]
+    assert "вопрос" in nodes["memory_intro_curious"]["text"]
+    assert "протокол" in nodes["memory_intro_compliant"]["text"]
+    for node_key in ("memory_intro_resistant", "memory_intro_curious", "memory_intro_compliant"):
+        assert nodes[node_key]["actions"] == [
+            {
+                "action_id": "continue",
+                "label": "Продолжить разговор",
+                "icon": "default",
+                "to_node": "guide_dialogue_hub",
+            }
+        ]
 
 
 def test_portal_guide_nodes_use_overseer_avatar() -> None:

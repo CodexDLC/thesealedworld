@@ -21,6 +21,12 @@ EFFECT_RESISTANCE_PROFILES: dict[str, EffectResistanceProfileDTO] = {
         source_modifiers=["control_chance_bonus"],
         tags=["burn", "fire", "dot"],
     ),
+    "frost": EffectResistanceProfileDTO(
+        profile_id="frost",
+        target_modifiers=["water_resistance", "debuff_avoidance"],
+        source_modifiers=["control_chance_bonus"],
+        tags=["frost", "ice", "water", "dot"],
+    ),
     "control_physical": EffectResistanceProfileDTO(
         profile_id="control_physical",
         target_modifiers=["control_resistance", "shock_resistance"],

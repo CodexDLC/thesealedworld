@@ -1,4 +1,4 @@
-"""Physical damage channel: crit multiplier + heavy-armor crit reduction + resistance + armor."""
+"""Physical damage channel: crit multiplier + resistance + armor."""
 
 from __future__ import annotations
 
@@ -31,11 +31,6 @@ def apply(
 
     if res.is_crit:
         phys_dmg *= state.crit_multiplier
-        heavy_skill = def_.skills.skill_heavy_armor
-        if heavy_skill > 0:
-            bonus_part = state.crit_multiplier - 1.0
-            if bonus_part > 0:
-                phys_dmg *= 1.0 - (heavy_skill * 0.2)
 
     state.mitigation_pct = armor_math.effective_physical_resistance(atk, def_, ctx)
     phys_dmg *= 1.0 - state.mitigation_pct

@@ -307,6 +307,7 @@ def test_combat_event_text_set_prefers_semantic_exchange_parts() -> None:
 
 def test_pipeline_mutation_contracts_are_technical_and_apply_to_context() -> None:
     assert "chain.trigger_cleave" not in PIPELINE_MUTATION_CONTRACTS
+    assert "partial_absorb_reflect" not in PIPELINE_MUTATION_CONTRACTS
     assert PIPELINE_MUTATION_CONTRACTS["ignore_miss"].path == "flags.force.hit"
     assert PIPELINE_MUTATION_CONTRACTS["ignore_evasion"].path == "flags.force.hit_evasion"
     assert PIPELINE_MUTATION_CONTRACTS["target_evasion_mult"].path == "mods.target_evasion_mult"

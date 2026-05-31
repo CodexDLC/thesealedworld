@@ -83,6 +83,10 @@ Vitals:
 Implementation note: runtime stores this as per-attribute constants:
 `HP_PER_BODY_ATTRIBUTE = 4 / 3` and `HP_REGEN_PER_BODY_ATTRIBUTE = 0.1 / 3`.
 
+Heavy chest armor can add a skill source on top of the Endurance-derived
+`physical_resistance`: `endurance * 0.02 * skill_heavy_armor * 0.50`. This is
+an amplification of natural body resistance, not a flat +50 percentage points.
+
 ### Core Node
 
 | Attribute | Runtime output | Formula |
@@ -118,7 +122,7 @@ Elemental resistances currently derived from `mental`:
 | Attribute | Runtime output | Formula |
 | --- | --- | --- |
 | `perception` | `anti_dodge_chance` | `perception * 0.03` |
-| `perception` + `projection` + `prediction` | `stamina` | `(perception + projection + prediction) / 3 * 10` |
+| `perception` + `projection` + `prediction` | `stamina` | `(perception + projection + prediction) / 3 * 5` |
 | `perception` + `projection` + `prediction` | `stamina_regen` | `1 + (perception + projection + prediction) * 0.1` |
 
 Naming note: the player-facing design name is **Concentration**. The current
@@ -128,17 +132,18 @@ the new terminology.
 ## Current Simplifications
 
 Strength, Agility, and Endurance currently grant `1.0` raw physical power per
-attribute point. Ordinary weapon damage uses only Strength and Agility through
-class-specific two-stat weights; Endurance is reserved for survival and
-style-specific mechanics such as shield guard power. Weapon mastery gates only
-the stat-derived part of weapon damage. Weapon item power itself is not reduced
-by mastery.
+attribute point. Ordinary weapon damage uses class-specific normalized weights
+across all three body powers; each weapon-class row sums to `1.0`, so
+Endurance replaces part of the old Strength/Agility share instead of adding
+extra stat damage on top. Weapon mastery gates only the stat-derived part of
+weapon damage. Weapon item power itself is not reduced by mastery.
 
 Current base-power assembly:
 
 ```text
 stat_raw = strength_power * class_strength_weight
          + agility_power * class_agility_weight
+         + endurance_power * class_endurance_weight
 mastery_factor = 0.25 + 0.75 * weapon_mastery
 stat_effective = stat_raw * mastery_factor
 hand_damage_base = weapon_power + stat_effective

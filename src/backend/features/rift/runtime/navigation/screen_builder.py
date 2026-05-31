@@ -793,6 +793,7 @@ def _node_entry_combat_prompt(runtime: RiftZoneRuntimeDTO) -> RiftCombatPromptDT
     if not event:
         return None
     is_ordinary = event.get("source") == "ordinary_roll" or event.get("event_key") == "ordinary_combat"
+    encounter_kind = str(event.get("encounter_kind") or ("ordinary_node" if is_ordinary else "key_guard"))
     return RiftCombatPromptDTO(
         source="rift_transition",
         title=str(event.get("title") or ("Стычка" if is_ordinary else "Охрана узла")),
@@ -822,7 +823,7 @@ def _node_entry_combat_prompt(runtime: RiftZoneRuntimeDTO) -> RiftCombatPromptDT
             "to_node_id": runtime.current_node_id,
             "event_scope": "node_entry",
             "event_key": event.get("event_key"),
-            "encounter_kind": "ordinary_node" if is_ordinary else "key_guard",
+            "encounter_kind": encounter_kind,
             "opening_context": _transition_opening_context_contract(runtime),
             "combat": {
                 "status": "placeholder",

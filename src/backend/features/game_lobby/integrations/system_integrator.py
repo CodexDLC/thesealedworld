@@ -354,13 +354,17 @@ class GameLobbyIntegration:
         item_generation = ItemGenerationService(self.item_persistence)
         catalog = ItemCatalogService.load_default()
         item_ids: list[str] = []
+        occupied_slots: set[str] = set()
         for index, base_id in enumerate(build.item_base_ids, start=1):
             base = catalog.get_base_item(base_id)
             if base is None:
                 raise RuntimeError(f"Starting imprint item base is missing: {base_id}")
+            slot = self._starting_item_slot(base, occupied_slots)
+            occupied_slots.add(slot)
             result = await item_generation.generate_mechanical(
                 ItemGenerationRequestDTO(
                     base_id=base_id,
+                    target_slot=slot,
                     rarity_tier=0,
                     source="character_creation:starting_imprint",
                     char_id=char_id,
@@ -369,7 +373,7 @@ class GameLobbyIntegration:
                         holder_type="character",
                         holder_id=str(char_id),
                         storage_type="equipped",
-                        slot=base.slot,
+                        slot=slot,
                     ),
                     origin_ref=ItemOriginRefDTO(
                         origin_type="system",
@@ -389,6 +393,17 @@ class GameLobbyIntegration:
             )
             item_ids.extend(result.item_ids)
         return item_ids
+
+    @staticmethod
+    def _starting_item_slot(base, occupied_slots: set[str]) -> str:
+        base_slot = str(base.slot)
+        if base_slot not in occupied_slots:
+            return base_slot
+        for extra_slot in base.extra_slots:
+            slot = str(extra_slot)
+            if slot not in occupied_slots:
+                return slot
+        return base_slot
 
     def _expire_identity_map(self) -> None:
         session = getattr(self.character_repo, "session", None)

@@ -9,7 +9,6 @@ tags are derived **only** from semantic fields of ``FeintTechnicalDTO``:
 * ``modifier_applications`` — self-buff/self-debuff numeric modifiers.
 * ``effects`` — debuffs/controls applied to the target on hit.
 * ``preparation_effects`` — self-buffs/preparations applied to the source.
-* ``shield_guard_damage_*`` — shield-bash damage signal.
 * ``purchase_group`` and ``target_count`` — structural facets.
 
 The previous derivation used ``cost.tactics`` token slots as a proxy for
@@ -149,18 +148,11 @@ def derive_feint_tags(entry: FeintCatalogEntryDTO | None, feint_id: str) -> froz
         if "dodge" in prep_id:
             tags.add("prep_dodge")
 
-    # 7. Shield-guard damage → shield_damage + damage_tag.
-    shield_ratio = float(getattr(tech, "shield_guard_damage_ratio", 0.0) or 0.0)
-    shield_min = int(getattr(tech, "shield_guard_damage_min", 0) or 0)
-    if shield_ratio > 0.0 or shield_min > 0:
-        tags.add("shield_damage")
-        tags.add("damage_tag")
-
-    # 8. Purchase group — structural facet.
+    # 7. Purchase group — structural facet.
     group = getattr(tech, "purchase_group", None) or "basic"
     tags.add(f"group_{group}")
 
-    # 9. Multi-target flag.
+    # 8. Multi-target flag.
     if int(getattr(tech, "target_count", 1) or 1) > 1:
         tags.add("multi_target")
 

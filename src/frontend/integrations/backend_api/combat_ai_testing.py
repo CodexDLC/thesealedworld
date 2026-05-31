@@ -79,6 +79,33 @@ class CombatAiTestingApi(BaseApiClient):
         )
         return CombatAiSimulationRun.from_dict(dict(raw or {}))
 
+    async def run_family_pressure(
+        self,
+        *,
+        family_id: str,
+        imprint_key: str = "",
+        seed: int = 0,
+        trials: int = 30,
+        max_rounds: int = 80,
+        max_minions: int = 6,
+        max_scenarios: int = 12,
+    ) -> CombatAiSimulationRun:
+        raw = await self._request(
+            "POST",
+            "/api/admin/combat-ai/simulation-runs/family-pressure",
+            params={
+                "family_id": family_id,
+                "imprint_key": imprint_key,
+                "seed": seed,
+                "trials": trials,
+                "max_rounds": max_rounds,
+                "max_minions": max_minions,
+                "max_scenarios": max_scenarios,
+            },
+            timeout=30.0,
+        )
+        return CombatAiSimulationRun.from_dict(dict(raw or {}))
+
     async def train_synthetic(
         self,
         *,
@@ -123,8 +150,8 @@ class CombatAiTestingApi(BaseApiClient):
         max_rounds: int = 500,
         tick_interval_seconds: float = 0.05,
         timeout_ticks: int = 8,
-        min_team_size: int = 5,
-        max_team_size: int = 5,
+        min_team_size: int = 6,
+        max_team_size: int = 6,
         scenario_key: str = "starter_presets_5v5_live",
         policy_run_id: str = "",
     ) -> CombatAiSimulationRun:
@@ -152,8 +179,8 @@ class CombatAiTestingApi(BaseApiClient):
         max_rounds: int = 500,
         tick_interval_seconds: float = 0.05,
         timeout_ticks: int = 8,
-        min_team_size: int = 5,
-        max_team_size: int = 5,
+        min_team_size: int = 6,
+        max_team_size: int = 6,
         scenario_key: str = "starter_presets_5v5_live",
         policy_run_id: str = "",
     ) -> list[CombatAiSimulationRun]:
@@ -171,5 +198,6 @@ class CombatAiTestingApi(BaseApiClient):
                 "scenario_key": scenario_key,
                 "policy_run_id": policy_run_id,
             },
+            timeout=30.0,
         )
         return [CombatAiSimulationRun.from_dict(row) for row in (raw or {}).get("runs") or []]

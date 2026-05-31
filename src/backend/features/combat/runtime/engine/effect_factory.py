@@ -83,6 +83,7 @@ class EffectFactory:
             uid=effect_uid,
             effect_id=config.effect_id,
             source_id=normalize_actor_id(source_id),
+            active_from_exchange=current_exchange,
             expire_at_exchange=current_exchange + duration,
             # Calculated State
             impact=final_impact,

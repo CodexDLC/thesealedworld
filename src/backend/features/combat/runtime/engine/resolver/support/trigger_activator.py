@@ -76,10 +76,14 @@ def apply_trigger_effects(
             conditions.setdefault("is_crit", True)
         res.applied_effects.append(effect_data)
 
-    if activation.source != "weapon" or not activation.source_slot:
+
+def apply_ammo_crit_payload(ctx: PipelineContextDTO, res: InteractionResultDTO) -> None:
+    source_slot = ctx.flags.meta.source_type
+    if source_slot not in {"main_hand", "off_hand"}:
         return
 
-    for payload in ctx.trigger_effect_payloads.get(activation.source_slot, []):
+    spent = False
+    for payload in ctx.trigger_effect_payloads.get(source_slot, []):
         if not isinstance(payload, dict):
             continue
         effect_id = payload.get("id") or payload.get("effect_id")
@@ -87,12 +91,20 @@ def apply_trigger_effects(
             continue
         effect_data = dict(payload)
         effect_data["id"] = effect_id
-        effect_data.setdefault("source_trigger_id", rule_id)
-        if step_key == "ON_CRIT":
-            conditions = effect_data.setdefault("conditions", {})
-            conditions.setdefault("is_hit", True)
-            conditions.setdefault("is_crit", True)
+        effect_data.setdefault("source_trigger_id", "ammo_arrow_crit")
+        conditions = effect_data.setdefault("conditions", {})
+        conditions.setdefault("is_hit", True)
+        conditions.setdefault("is_crit", True)
+        tags = effect_data.setdefault("tags", [])
+        if isinstance(tags, list):
+            for tag in ("ammo", "arrow", "crit"):
+                if tag not in tags:
+                    tags.append(tag)
         res.applied_effects.append(effect_data)
+        spent = True
+
+    if spent:
+        res.ammo_spent[source_slot] = res.ammo_spent.get(source_slot, 0) + 1
 
 
 def apply_trigger_token_grants(res: InteractionResultDTO, rule_data: dict[str, Any]) -> None:

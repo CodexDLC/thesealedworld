@@ -30,6 +30,7 @@ class SimulationRunResult:
     telemetry: CombatTelemetry
     final_hp_by_actor: dict[str, int]
     completion_reason: str = "victory"
+    final_tick_index: int = 0
 
 
 class InMemoryCombatSimulator:

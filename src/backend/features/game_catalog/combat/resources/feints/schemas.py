@@ -62,11 +62,6 @@ class FeintTechnicalDTO(BaseModel):
     # Weapon technique flat damage added only when the exchange reaches damage calculation.
     hit_damage_bonus_per_tier: float = 0.0
 
-    # Shield technique damage derived from the acting shield guard power.
-    shield_guard_damage_ratio: float = 0.0
-    shield_guard_damage_min: int = 0
-    shield_guard_damage_tier_fallback: int = 0
-
     # Полная замена урона (редко, но бывает)
     override_damage: tuple[float, float] | None = None
 

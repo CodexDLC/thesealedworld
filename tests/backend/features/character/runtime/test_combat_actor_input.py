@@ -287,10 +287,21 @@ def test_builder_maps_equipped_quiver_payload_to_archery_main_hand() -> None:
                         "slot": "quiver",
                         "mechanics": {
                             "power": 2.4,
+                            "ammo_charge_base": 12,
+                            "ammo_charge_skill_bonus": 12,
                             "ammo_effect_payload": {
-                                "id": "dot_burn",
-                                "params": {"power": 1.0},
-                                "tags": ["arrow", "fire", "burn"],
+                                "effects": [
+                                    {
+                                        "id": "dot_burn",
+                                        "params": {"power": 1.0},
+                                        "tags": ["arrow", "fire", "burn"],
+                                    },
+                                    {
+                                        "id": "debuff_accuracy",
+                                        "params": {"power": 1.0},
+                                        "tags": ["arrow", "fire", "accuracy_debuff"],
+                                    },
+                                ]
                             },
                         },
                     },
@@ -301,11 +312,22 @@ def test_builder_maps_equipped_quiver_payload_to_archery_main_hand() -> None:
 
     assert actor_input["loadout"]["ammo_effects"] == {
         "main_hand": {
-            "id": "dot_burn",
-            "params": {"power": 2.4},
-            "tags": ["arrow", "fire", "burn"],
+            "effects": [
+                {
+                    "id": "dot_burn",
+                    "params": {"power": 2.4},
+                    "tags": ["arrow", "fire", "burn"],
+                },
+                {
+                    "id": "debuff_accuracy",
+                    "params": {"power": 2.4},
+                    "tags": ["arrow", "fire", "accuracy_debuff"],
+                },
+            ]
         }
     }
+    assert actor_input["loadout"]["ammo_charges"] == {"main_hand": 15}
+    assert actor_input["loadout"]["ammo_charge_caps"] == {"main_hand": 15}
 
 
 @pytest.mark.unit
@@ -345,6 +367,7 @@ def test_builder_ignores_equipped_quiver_payload_without_archery_weapon() -> Non
     )
 
     assert actor_input["loadout"]["ammo_effects"] == {}
+    assert actor_input["loadout"]["ammo_charges"] == {}
 
 
 @pytest.mark.unit

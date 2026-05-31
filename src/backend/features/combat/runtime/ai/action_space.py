@@ -18,7 +18,6 @@ fields** by :func:`derive_feint_tags`. Instant tags come from ability
   ``control`` / ``bleed`` / ``dispel_prep``.
 - ``preparation_effects`` with ``target_actor == "source"`` produce
   ``self_buff`` plus prep_* and ``heal`` signals.
-- ``shield_guard_damage_*`` produces ``shield_damage`` + ``damage_tag``.
 - ``purchase_group`` produces ``group_basic`` / ``group_weapon`` /
   ``group_tactical``; ``target_count > 1`` produces ``multi_target``.
 

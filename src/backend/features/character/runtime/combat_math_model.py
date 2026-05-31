@@ -9,9 +9,11 @@ from src.backend.features.character.runtime.item_sync import (
     symbiote_tier,
     sync_factors,
 )
+from src.backend.features.character.runtime.rules.attribute_modifiers import ATTRIBUTE_MODIFIER_RULES
 from src.backend.features.character.schemas.session import CharacterSessionAttributesDTO
 from src.backend.features.items.resources.affixes.catalog import AFFIX_CATALOG
 from src.backend.features.items.resources.modifier_contracts import MODIFIER_CONTRACTS, compile_modifier_command
+from src.shared.enums.stats_enums import StatKey
 
 RawStatBlock = dict[str, dict[str, Any]]
 RawCombatMathModel = dict[str, Any]
@@ -24,6 +26,8 @@ JEWELRY_SLOTS = frozenset({"ring_1", "ring_2", "amulet", "earring"})
 HEAVY_CHEST_DODGE_CAPS = {
     "plate_chest": 0.35,
 }
+HEAVY_ARMOR_NATURAL_RESISTANCE_BONUS_AT_FULL = 0.50
+PHYSICAL_RESISTANCE_PER_ENDURANCE = ATTRIBUTE_MODIFIER_RULES[StatKey.PHYSICAL_RESISTANCE][StatKey.ENDURANCE]
 MEDIUM_CHEST_DODGE_CAP_PENALTY = -0.20
 LIGHT_ARMOR_SKILL_DODGE_CAP_BOOST = 0.20
 ITEM_SYNC_POSITIVE_PENALTY_KEYS = frozenset(
@@ -191,7 +195,7 @@ class CharacterCombatMathModelBuilder:
         if not has_main_hand_weapon:
             self._apply_unarmed_base(modifiers, attributes)
 
-        self._apply_armor_dodge_cap_rules(modifiers, chest_item, skills)
+        self._apply_armor_dodge_cap_rules(modifiers, chest_item, skills, attributes)
 
         return modifiers
 
@@ -249,7 +253,10 @@ class CharacterCombatMathModelBuilder:
 
     @staticmethod
     def _apply_armor_dodge_cap_rules(
-        modifiers: RawStatBlock, chest_item: dict[str, Any] | None, skills: dict[str, Any]
+        modifiers: RawStatBlock,
+        chest_item: dict[str, Any] | None,
+        skills: dict[str, Any],
+        attributes: dict[str, Any],
     ) -> None:
         if not chest_item:
             return
@@ -266,6 +273,17 @@ class CharacterCombatMathModelBuilder:
         if armor_class == "heavy":
             cap = HEAVY_CHEST_DODGE_CAPS.get(base_id, 0.35)
             CharacterCombatMathModelBuilder._set_source_command(modifiers, "dodge_cap", source, f"={cap:.2f}")
+            skill = CharacterCombatMathModelBuilder._skill_value(skills.get("skill_heavy_armor"))
+            endurance = CharacterCombatMathModelBuilder._float_value(attributes.get("endurance")) or 0.0
+            natural_resistance = endurance * PHYSICAL_RESISTANCE_PER_ENDURANCE
+            skill_bonus = natural_resistance * HEAVY_ARMOR_NATURAL_RESISTANCE_BONUS_AT_FULL * skill
+            if skill_bonus > 0:
+                CharacterCombatMathModelBuilder._add_modifier(
+                    modifiers,
+                    "physical_resistance",
+                    "skill:skill_heavy_armor:natural_resistance",
+                    skill_bonus,
+                )
             return
 
         if armor_class == "medium":

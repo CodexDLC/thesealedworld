@@ -80,7 +80,7 @@ similar instant item actions.
 | `physical_damage` | Legacy/reserved flat physical damage field. Weapon attacks no longer add this automatically. |
 | `physical_strength_power` | Attribute-derived Strength power used by weapon and style assembly. |
 | `physical_agility_power` | Attribute-derived Agility power used by weapon assembly. |
-| `physical_endurance_power` | Attribute-derived Endurance power used by survival and style-specific assembly, not ordinary weapon damage. |
+| `physical_endurance_power` | Attribute-derived Endurance power used by normalized weapon damage weights, survival, and style-specific assembly. |
 | `physical_damage_bonus` | Additional global physical damage bonus. |
 | `accuracy` | Global accuracy modifier added to relevant offensive branches. |
 | `physical_suppression` | Physical resistance suppression, currently from Strength. |

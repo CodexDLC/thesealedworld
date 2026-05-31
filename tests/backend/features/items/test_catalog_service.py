@@ -12,7 +12,7 @@ WEAPON_DIRECTIONS_EXCEPT_ARCHERY = {
     "skill_polearms": {"spear", "pike", "halberd", "quarterstaff", "trident"},
     "skill_fencing": {"knife", "dagger", "stiletto", "rapier", "main_gauche", "katar"},
 }
-ARCHERY_BOWS = {"shortbow", "longbow", "composite_bow", "warbow"}
+ARCHERY_BOWS = {"shortbow", "longbow", "composite_bow"}
 ARCHERY_QUIVERS = {
     "quiver_training",
     "quiver_fire",
@@ -22,7 +22,7 @@ ARCHERY_QUIVERS = {
     "quiver_bodkin",
 }
 
-DAGGERLIKE_DUAL_SLOT_WEAPONS = {"knife", "dagger", "stiletto", "main_gauche", "katar"}
+FENCING_DUAL_SLOT_WEAPONS = {"knife", "dagger", "stiletto", "rapier", "main_gauche", "katar"}
 CAPACITY_KEYS = {"inventory_cell_capacity", "inventory_slot_capacity", "inventory_slots", "quick_slot_capacity"}
 ATTRIBUTE_KEYS = {"strength", "agility", "intelligence", "constitution", "perception", "willpower", "charisma"}
 ARMOR_PENALTY_KEYS = {
@@ -364,7 +364,6 @@ def test_non_warhammer_player_weapons_get_power_offset_for_capped_spread() -> No
         "shortbow": 8,
         "longbow": 11,
         "composite_bow": 11,
-        "warbow": 11,
         "knife": 3,
         "dagger": 4,
         "stiletto": 4,
@@ -415,7 +414,6 @@ def test_archery_bows_trade_parry_for_crit_and_ranged_triggers():
         "shortbow": ["control.weapon_evasive_shot"],
         "longbow": ["crit.weapon_precision_crit"],
         "composite_bow": ["crit.weapon_piercing_crit"],
-        "warbow": ["crit.weapon_heavy_crit"],
     }
 
     loaded = {item_id: catalog.get_base_item(item_id) for item_id in ARCHERY_BOWS}
@@ -457,33 +455,32 @@ def test_archery_quivers_are_single_ammo_items_scaled_by_material_tier():
 def test_archery_quiver_payloads_reference_existing_post_calc_effects():
     catalog = ItemCatalogService.load_default()
     expected_effects = {
-        "quiver_fire": "dot_burn",
-        "quiver_poison": "dot_poison",
-        "quiver_broadhead": "dot_bleed",
-        "quiver_frost": "debuff_evasion",
+        "quiver_fire": ["dot_burn", "debuff_accuracy"],
+        "quiver_poison": ["dot_poison"],
+        "quiver_broadhead": ["dot_bleed", "debuff_armor"],
+        "quiver_frost": ["dot_frost", "debuff_evasion"],
+        "quiver_bodkin": ["debuff_armor"],
     }
 
-    for item_id, effect_id in expected_effects.items():
+    for item_id, effect_ids in expected_effects.items():
         item = catalog.get_base_item(item_id)
         assert item is not None
-        assert item.ammo_effect_payload["id"] == effect_id
-        assert item.ammo_effect_payload["params"] == {"power": 1.0}
-        assert "arrow" in item.ammo_effect_payload["tags"]
+        effects = item.ammo_effect_payload.get("effects") or [item.ammo_effect_payload]
+        assert [effect["id"] for effect in effects] == effect_ids
+        for effect in effects:
+            assert effect["params"] == {"power": 1.0}
+            assert "arrow" in effect["tags"]
 
     training = catalog.get_base_item("quiver_training")
-    bodkin = catalog.get_base_item("quiver_bodkin")
     assert training is not None
-    assert bodkin is not None
     assert getattr(training, "ammo_effect_payload", None) is None
-    assert getattr(bodkin, "ammo_effect_payload", None) is None
-    assert "armor_piercing" in bodkin.narrative_tags
 
 
 @pytest.mark.unit
 def test_daggerlike_fencing_weapons_support_main_and_off_hand():
     catalog = ItemCatalogService.load_default()
 
-    for item_id in DAGGERLIKE_DUAL_SLOT_WEAPONS:
+    for item_id in FENCING_DUAL_SLOT_WEAPONS:
         item = catalog.get_base_item(item_id)
         assert item is not None
         assert {item.slot, *item.extra_slots} == {"main_hand", "off_hand"}
@@ -623,7 +620,7 @@ def test_starting_parry_rewards_reach_cap_only_near_full_parrying_skill():
 
 
 @pytest.mark.unit
-def test_primary_offhand_parry_weapons_trade_offense_for_defense():
+def test_parry_fencing_weapons_trade_offense_for_defense_without_fixed_offhand_slot():
     catalog = ItemCatalogService.load_default()
     main_gauche = catalog.get_base_item("main_gauche")
     rapier = catalog.get_base_item("rapier")
@@ -635,8 +632,8 @@ def test_primary_offhand_parry_weapons_trade_offense_for_defense():
     assert dagger is not None
     assert stiletto is not None
 
-    assert main_gauche.slot == "off_hand"
-    assert "main_hand" in main_gauche.extra_slots
+    assert main_gauche.slot == "main_hand"
+    assert "off_hand" in main_gauche.extra_slots
     assert main_gauche.implicit_bonuses["parry_chance"] >= rapier.implicit_bonuses["parry_chance"] * 2
     assert main_gauche.base_power == dagger.base_power
     assert main_gauche.base_power == stiletto.base_power

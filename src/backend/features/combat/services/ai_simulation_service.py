@@ -15,11 +15,13 @@ from src.backend.features.combat.runtime.ai.training import TrainArgs, train
 from src.backend.features.combat.runtime.ai.training.environment import ScoringEnvironment
 from src.backend.features.combat.runtime.ai.training.scenarios import default_scenario_set
 from src.backend.features.combat.runtime.simulation import (
-    BALANCE_TEST_SIMULATION_IMPRINTS,
     DEFAULT_STARTER_SIMULATION_IMPRINTS,
     STARTER_SKILL_PROFILE_BASELINE,
     STARTER_SKILL_PROFILE_MAXED_EXISTING,
     AiSimulationIntentProvider,
+    FamilyPressureConfig,
+    FamilyPressureReport,
+    FamilyPressureSimulator,
     InMemoryBattleFactory,
     InMemoryBattleLimits,
     InMemoryCombatSimulator,
@@ -27,13 +29,15 @@ from src.backend.features.combat.runtime.simulation import (
     LiveSimulationStepResult,
     LiveSimulationTiming,
     StartingImprintSimulationActorBuilder,
-    random_starter_5v5_imprints,
+    format_family_pressure_report,
+    random_starter_6v6_imprints,
     random_starter_roster_imprints,
     render_simulation_report,
 )
 from src.shared.schemas.modifier_dto import CombatModifiersDTO, CombatSkillsDTO
 
 if TYPE_CHECKING:
+    from src.backend.features.monsters.dto.generation import GeneratedMonster
     from src.backend.infrastructure.combat.models import CombatAiSimulationRun
     from src.backend.infrastructure.combat.repositories import CombatAiSimulationRunRepository
 
@@ -112,6 +116,123 @@ class CombatAiSimulationRunService:
             policy_metadata={},
         )
 
+    async def start_family_pressure_probe(
+        self,
+        *,
+        family_id: str,
+        imprint_key: str = "",
+        seed: int = 0,
+        trials: int = 30,
+        max_rounds: int = 80,
+        max_minions: int = 6,
+        max_scenarios: int = 12,
+    ) -> CombatAiSimulationRun:
+        resolved_imprint = imprint_key or random.Random(seed).choice(DEFAULT_STARTER_SIMULATION_IMPRINTS)
+        return await self.repository.create(
+            run_kind="simulation",
+            scenario_key=f"family_pressure:{family_id}",
+            status="running",
+            policy_ref="runtime_default",
+            seed=seed,
+            max_rounds=max_rounds,
+            rounds_completed=0,
+            winner=None,
+            reward=None,
+            telemetry={
+                "run_kind": "family_pressure",
+                "family_id": family_id,
+                "imprint_key": resolved_imprint,
+                "trials_per_composition": trials,
+                "composition_count": 0,
+                "trials_total": 0,
+                "status_message": "family pressure scheduled",
+                "pressure_rows": [],
+            },
+            report_text=(
+                "family pressure scheduled\n"
+                f"family_id: {family_id}\n"
+                f"imprint_key: {resolved_imprint}\n"
+                f"trials_per_composition: {trials}"
+            ),
+            metadata={
+                "source": "admin_cabinet",
+                "purpose": "family_pressure_balance_report",
+                "simulation_mode": "family_pressure",
+                "simulation_actor_source": "character_starting_imprints_and_generated_monsters",
+                "family_pressure": True,
+                "family_id": family_id,
+                "imprint_key": resolved_imprint,
+                "trials_per_composition": trials,
+                "max_minions": max_minions,
+                "max_scenarios": max_scenarios,
+                "composition_reports": [],
+                "team_labels": {"blue": "Стартовый слепок", "red": f"Семья {family_id}"},
+            },
+        )
+
+    async def execute_family_pressure_probe(
+        self,
+        run_id: str,
+        *,
+        family_id: str,
+        members: list[GeneratedMonster],
+        imprint_key: str,
+        seed: int = 0,
+        trials: int = 30,
+        max_rounds: int = 80,
+        max_minions: int = 6,
+        max_scenarios: int = 12,
+        progress: LiveProgressCallback | None = None,
+    ) -> CombatAiSimulationRun | None:
+        async def publish_progress(report: FamilyPressureReport) -> None:
+            if progress is None:
+                return
+            completion = _family_pressure_completion_payload(
+                report,
+                max_minions=max_minions,
+                max_scenarios=max_scenarios,
+            )
+            telemetry = dict(completion["telemetry"])
+            telemetry["status_message"] = "family pressure running"
+            metadata = dict(completion["metadata"])
+            metadata["completion_reason"] = "running"
+            await progress(
+                "running",
+                int(completion["trials_total"]),
+                None,
+                None,
+                telemetry,
+                format_family_pressure_report(report),
+                metadata,
+            )
+
+        report = await FamilyPressureSimulator().run(
+            family_id=family_id,
+            imprint_key=imprint_key,
+            members=members,
+            seed=seed,
+            config=FamilyPressureConfig(
+                trials_per_composition=trials,
+                max_rounds=max_rounds,
+                max_minions=max_minions,
+                max_scenarios=max_scenarios,
+            ),
+            progress=publish_progress,
+        )
+        completion = _family_pressure_completion_payload(
+            report,
+            max_minions=max_minions,
+            max_scenarios=max_scenarios,
+        )
+        return await self.repository.mark_completed(
+            str(run_id),
+            rounds_completed=completion["trials_total"],
+            reward=None,
+            telemetry=completion["telemetry"],
+            report_text=format_family_pressure_report(report),
+            metadata=completion["metadata"],
+        )
+
     async def start_live_starter_presets_demo(
         self,
         *,
@@ -119,8 +240,8 @@ class CombatAiSimulationRunService:
         max_rounds: int = LIVE_DEFAULT_MAX_EXCHANGES,
         tick_interval_seconds: float = LIVE_DEFAULT_TICK_INTERVAL_SECONDS,
         timeout_ticks: int = 8,
-        min_team_size: int = 5,
-        max_team_size: int = 5,
+        min_team_size: int = 6,
+        max_team_size: int = 6,
         scenario_key: str = "starter_presets_5v5_live",
         mirror_full_roster: bool = False,
         skill_profile: str = STARTER_SKILL_PROFILE_BASELINE,
@@ -165,6 +286,181 @@ class CombatAiSimulationRunService:
             },
         )
 
+    async def schedule_live_starter_presets_demo(
+        self,
+        *,
+        seed: int = 0,
+        max_rounds: int = LIVE_DEFAULT_MAX_EXCHANGES,
+        tick_interval_seconds: float = LIVE_DEFAULT_TICK_INTERVAL_SECONDS,
+        timeout_ticks: int = 8,
+        min_team_size: int = 6,
+        max_team_size: int = 6,
+        scenario_key: str = "starter_presets_5v5_live",
+        mirror_full_roster: bool = False,
+        skill_profile: str = STARTER_SKILL_PROFILE_BASELINE,
+        policy_ref: str = "runtime_default",
+        policy_metadata: dict[str, Any] | None = None,
+    ) -> CombatAiSimulationRun:
+        roster_metadata = _scheduled_roster_metadata(
+            seed=seed,
+            min_team_size=min_team_size,
+            max_team_size=max_team_size,
+            mirror_full_roster=mirror_full_roster,
+        )
+        return await self.repository.create(
+            run_kind="simulation_live",
+            scenario_key=scenario_key,
+            status="running",
+            policy_ref=policy_ref,
+            seed=seed,
+            max_rounds=max_rounds,
+            rounds_completed=0,
+            winner=None,
+            reward=None,
+            telemetry={"status_message": "live simulation scheduled", "action_count": 0, "round_events": []},
+            report_text="live simulation scheduled\nlive_policy_activation: false",
+            metadata={
+                "source": "admin_cabinet",
+                "purpose": "live_testing_report",
+                "simulation_actor_source": "character_starting_imprints",
+                "simulation_mode": "live_tick",
+                "skill_profile": skill_profile,
+                "completion_reason": "running",
+                "tick_interval_seconds": tick_interval_seconds,
+                "timeout_ticks": timeout_ticks,
+                "participants": [],
+                **roster_metadata,
+                **(policy_metadata or {}),
+                "team_labels": {"blue": "Стартовые пресеты A", "red": "Стартовые пресеты B"},
+                "final_hp_by_actor": {},
+                "live_snapshot": {"actors": []},
+                "live_policy_activation": False,
+            },
+        )
+
+    async def schedule_live_starter_presets_demo_with_latest_training_file(
+        self,
+        *,
+        seed: int = 0,
+        max_rounds: int = LIVE_DEFAULT_MAX_EXCHANGES,
+        tick_interval_seconds: float = LIVE_DEFAULT_TICK_INTERVAL_SECONDS,
+        timeout_ticks: int = 8,
+        min_team_size: int = 6,
+        max_team_size: int = 6,
+        scenario_key: str = "starter_presets_5v5_live_latest_training_file",
+        mirror_full_roster: bool = False,
+        skill_profile: str = STARTER_SKILL_PROFILE_BASELINE,
+    ) -> CombatAiSimulationRun:
+        training_row = await self.repository.latest_completed_training_with_policy()
+        if training_row is None:
+            return await self.repository.create(
+                run_kind="simulation_live",
+                scenario_key=scenario_key,
+                status="failed",
+                policy_ref="training:not_found",
+                seed=seed,
+                max_rounds=max_rounds,
+                rounds_completed=0,
+                winner=None,
+                reward=None,
+                telemetry={},
+                report_text=(
+                    "training policy version not found\n"
+                    "Run synthetic training first, then start this scenario again.\n"
+                    "live_policy_activation: false"
+                ),
+                metadata={
+                    "source": "admin_cabinet",
+                    "purpose": "live_testing_report",
+                    "simulation_actor_source": "character_starting_imprints",
+                    "simulation_mode": "live_tick",
+                    "policy_source": "training_run",
+                    "policy_found": False,
+                    "completion_reason": "training_policy_not_found",
+                    "live_policy_activation": False,
+                },
+            )
+
+        _policy, policy_metadata = _policy_from_training_row(training_row)
+        return await self.schedule_live_starter_presets_demo(
+            seed=seed,
+            max_rounds=max_rounds,
+            tick_interval_seconds=tick_interval_seconds,
+            timeout_ticks=timeout_ticks,
+            min_team_size=min_team_size,
+            max_team_size=max_team_size,
+            scenario_key=scenario_key,
+            mirror_full_roster=mirror_full_roster,
+            skill_profile=skill_profile,
+            policy_ref=f"training:{training_row.id}",
+            policy_metadata=policy_metadata,
+        )
+
+    async def schedule_live_starter_presets_demo_with_training_policy(
+        self,
+        *,
+        policy_run_id: str,
+        seed: int = 0,
+        max_rounds: int = LIVE_DEFAULT_MAX_EXCHANGES,
+        tick_interval_seconds: float = LIVE_DEFAULT_TICK_INTERVAL_SECONDS,
+        timeout_ticks: int = 8,
+        min_team_size: int = 6,
+        max_team_size: int = 6,
+        scenario_key: str = "starter_presets_5v5_live",
+        mirror_full_roster: bool = False,
+        skill_profile: str = STARTER_SKILL_PROFILE_BASELINE,
+    ) -> CombatAiSimulationRun:
+        training_row = await self.repository.get(str(policy_run_id))
+        if (
+            training_row is None
+            or training_row.run_kind != "training"
+            or training_row.status != "completed"
+            or not isinstance(dict(training_row.metadata_ or {}).get("best_policy"), dict)
+        ):
+            return await self.repository.create(
+                run_kind="simulation_live",
+                scenario_key=scenario_key,
+                status="failed",
+                policy_ref=f"training:{policy_run_id}:not_found",
+                seed=seed,
+                max_rounds=max_rounds,
+                rounds_completed=0,
+                winner=None,
+                reward=None,
+                telemetry={},
+                report_text=(
+                    "selected training policy version not found\n"
+                    "Choose a completed training run with metadata.best_policy, then start this scenario again.\n"
+                    "live_policy_activation: false"
+                ),
+                metadata={
+                    "source": "admin_cabinet",
+                    "purpose": "live_testing_report",
+                    "simulation_actor_source": "character_starting_imprints",
+                    "simulation_mode": "live_tick",
+                    "policy_source": "training_run",
+                    "policy_source_run_id": str(policy_run_id),
+                    "policy_found": False,
+                    "completion_reason": "training_policy_not_found",
+                    "live_policy_activation": False,
+                },
+            )
+
+        _policy, policy_metadata = _policy_from_training_row(training_row)
+        return await self.schedule_live_starter_presets_demo(
+            seed=seed,
+            max_rounds=max_rounds,
+            tick_interval_seconds=tick_interval_seconds,
+            timeout_ticks=timeout_ticks,
+            min_team_size=min_team_size,
+            max_team_size=max_team_size,
+            scenario_key=scenario_key,
+            mirror_full_roster=mirror_full_roster,
+            skill_profile=skill_profile,
+            policy_ref=f"training:{training_row.id}",
+            policy_metadata=policy_metadata,
+        )
+
     async def start_live_starter_presets_demo_with_latest_training_file(
         self,
         *,
@@ -172,8 +468,8 @@ class CombatAiSimulationRunService:
         max_rounds: int = LIVE_DEFAULT_MAX_EXCHANGES,
         tick_interval_seconds: float = LIVE_DEFAULT_TICK_INTERVAL_SECONDS,
         timeout_ticks: int = 8,
-        min_team_size: int = 5,
-        max_team_size: int = 5,
+        min_team_size: int = 6,
+        max_team_size: int = 6,
         scenario_key: str = "starter_presets_5v5_live_latest_training_file",
         mirror_full_roster: bool = False,
         skill_profile: str = STARTER_SKILL_PROFILE_BASELINE,
@@ -231,8 +527,8 @@ class CombatAiSimulationRunService:
         max_rounds: int = LIVE_DEFAULT_MAX_EXCHANGES,
         tick_interval_seconds: float = LIVE_DEFAULT_TICK_INTERVAL_SECONDS,
         timeout_ticks: int = 8,
-        min_team_size: int = 5,
-        max_team_size: int = 5,
+        min_team_size: int = 6,
+        max_team_size: int = 6,
         scenario_key: str = "starter_presets_5v5_live",
         mirror_full_roster: bool = False,
         skill_profile: str = STARTER_SKILL_PROFILE_BASELINE,
@@ -296,8 +592,8 @@ class CombatAiSimulationRunService:
         max_rounds: int = LIVE_DEFAULT_MAX_EXCHANGES,
         tick_interval_seconds: float = LIVE_DEFAULT_TICK_INTERVAL_SECONDS,
         timeout_ticks: int = 8,
-        min_team_size: int = 5,
-        max_team_size: int = 5,
+        min_team_size: int = 6,
+        max_team_size: int = 6,
         mirror_full_roster: bool = False,
         skill_profile: str = STARTER_SKILL_PROFILE_BASELINE,
         blue_imprints: tuple[str, ...] | None = None,
@@ -334,7 +630,6 @@ class CombatAiSimulationRunService:
         )
         timing = LiveSimulationTiming(
             tick_interval_seconds=tick_interval_seconds,
-            max_ticks=max(max_rounds * 30, 1),
             timeout_ticks=timeout_ticks,
         )
         simulator = LiveInMemoryCombatSimulator(
@@ -393,7 +688,7 @@ class CombatAiSimulationRunService:
             tick_interval_seconds=tick_interval_seconds,
             timeout_ticks=timeout_ticks,
             status="completed",
-            tick_index=timing.max_ticks,
+            tick_index=result.final_tick_index,
             completion_reason=result.completion_reason,
             roster_metadata=roster_metadata,
             policy_metadata=policy_metadata,
@@ -467,8 +762,8 @@ class CombatAiSimulationRunService:
         policy_ref: str,
         policy: Policy | None,
         policy_metadata: dict[str, Any],
-        min_team_size: int = 5,
-        max_team_size: int = 5,
+        min_team_size: int = 6,
+        max_team_size: int = 6,
         mirror_full_roster: bool = False,
     ) -> CombatAiSimulationRun:
         actors, participants, roster_metadata = _build_starter_roster(
@@ -1157,8 +1452,8 @@ async def _run_policy_battle_reward(
 ) -> float:
     actors, participants, _metadata = _build_starter_roster(
         seed=seed,
-        min_team_size=5,
-        max_team_size=5,
+        min_team_size=6,
+        max_team_size=6,
         mirror_full_roster=mirror_full_roster,
         skill_profile=skill_profile,
     )
@@ -1412,6 +1707,7 @@ def _build_starter_roster(
         actors, participants = StartingImprintSimulationActorBuilder().build_roster(
             blue_imprints=blue_imprints,
             red_imprints=red_imprints,
+            behavior_seed=seed,
             skill_profile=skill_profile,
         )
         metadata = _fixed_roster_metadata(
@@ -1429,6 +1725,7 @@ def _build_starter_roster(
         actors, participants = StartingImprintSimulationActorBuilder().build_roster(
             blue_imprints=DEFAULT_STARTER_SIMULATION_IMPRINTS,
             red_imprints=DEFAULT_STARTER_SIMULATION_IMPRINTS,
+            behavior_seed=seed,
             skill_profile=skill_profile,
         )
         metadata = _mirror_roster_metadata(seed, participants)
@@ -1436,6 +1733,7 @@ def _build_starter_roster(
         return actors, participants, metadata
     actors, participants = StartingImprintSimulationActorBuilder().build_roster(
         seed=seed,
+        behavior_seed=seed,
         min_team_size=min_team_size,
         max_team_size=max_team_size,
         skill_profile=skill_profile,
@@ -1450,14 +1748,53 @@ def _build_starter_roster(
     return actors, participants, metadata
 
 
-def _mirror_roster_metadata(seed: int, participants: list[dict[str, Any]]) -> dict[str, Any]:
+def _scheduled_roster_metadata(
+    *,
+    seed: int,
+    min_team_size: int,
+    max_team_size: int,
+    mirror_full_roster: bool,
+) -> dict[str, Any]:
+    if mirror_full_roster:
+        blue = DEFAULT_STARTER_SIMULATION_IMPRINTS
+        red = DEFAULT_STARTER_SIMULATION_IMPRINTS
+        mode = "mirror_full_roster"
+    elif min_team_size == 6 and max_team_size == 6:
+        blue, red = random_starter_6v6_imprints(seed=seed)
+        mode = "seeded_random_6v6_split"
+    else:
+        blue, red = random_starter_roster_imprints(
+            seed=seed,
+            min_team_size=min_team_size,
+            max_team_size=max_team_size,
+        )
+        mode = "seeded_random_draft"
+    used = set(blue + red)
     pool = DEFAULT_STARTER_SIMULATION_IMPRINTS
     return {
-        "roster_mode": "mirror_10v10",
+        "roster_mode": mode,
         "roster_seed": seed,
-        "roster_min_team_size": 10,
-        "roster_max_team_size": 10,
-        "roster_team_size": 10,
+        "roster_min_team_size": min_team_size if not mirror_full_roster else len(pool),
+        "roster_max_team_size": max_team_size if not mirror_full_roster else len(pool),
+        "roster_team_size": len(blue),
+        "imprint_pool": list(pool),
+        "blue_imprints": list(blue),
+        "red_imprints": list(red),
+        "unused_imprints": []
+        if mirror_full_roster
+        else [imprint_key for imprint_key in pool if imprint_key not in used],
+    }
+
+
+def _mirror_roster_metadata(seed: int, participants: list[dict[str, Any]]) -> dict[str, Any]:
+    pool = DEFAULT_STARTER_SIMULATION_IMPRINTS
+    team_size = len(pool)
+    return {
+        "roster_mode": "mirror_full_roster",
+        "roster_seed": seed,
+        "roster_min_team_size": team_size,
+        "roster_max_team_size": team_size,
+        "roster_team_size": team_size,
         "imprint_pool": list(pool),
         "blue_imprints": [str(row.get("imprint_key") or "") for row in participants if row.get("team") == "blue"],
         "red_imprints": [str(row.get("imprint_key") or "") for row in participants if row.get("team") == "red"],
@@ -1469,12 +1806,12 @@ def _random_roster_metadata(
     seed: int,
     participants: list[dict[str, Any]],
     *,
-    min_team_size: int = 5,
-    max_team_size: int = 5,
+    min_team_size: int = 6,
+    max_team_size: int = 6,
 ) -> dict[str, Any]:
-    if min_team_size == 5 and max_team_size == 5:
-        blue, red = random_starter_5v5_imprints(seed=seed)
-        mode = "seeded_random_5v5_split"
+    if min_team_size == 6 and max_team_size == 6:
+        blue, red = random_starter_6v6_imprints(seed=seed)
+        mode = "seeded_random_6v6_split"
     else:
         blue, red = random_starter_roster_imprints(
             seed=seed,
@@ -1483,7 +1820,7 @@ def _random_roster_metadata(
         )
         mode = "seeded_random_draft"
     used = set(blue + red)
-    pool = BALANCE_TEST_SIMULATION_IMPRINTS
+    pool = DEFAULT_STARTER_SIMULATION_IMPRINTS
     return {
         "roster_mode": mode,
         "roster_seed": seed,
@@ -1508,12 +1845,12 @@ def _fixed_roster_metadata(
     mirror_full_roster: bool,
 ) -> dict[str, Any]:
     if mirror_full_roster:
-        mode = "mirror_10v10"
-    elif min_team_size == 5 and max_team_size == 5 and len(blue_imprints) == 5 and len(red_imprints) == 5:
-        mode = "seeded_random_5v5_split"
+        mode = "mirror_full_roster"
+    elif min_team_size == 6 and max_team_size == 6 and len(blue_imprints) == 6 and len(red_imprints) == 6:
+        mode = "seeded_random_6v6_split"
     else:
         mode = "seeded_random_draft"
-    pool = DEFAULT_STARTER_SIMULATION_IMPRINTS if mirror_full_roster else BALANCE_TEST_SIMULATION_IMPRINTS
+    pool = DEFAULT_STARTER_SIMULATION_IMPRINTS
     used = set(blue_imprints + red_imprints)
     return {
         "roster_mode": mode,
@@ -1555,6 +1892,49 @@ def _policy_from_payload(payload: dict[str, Any] | None) -> Policy | None:
     if not isinstance(payload, dict):
         return None
     return Policy.model_validate(payload)
+
+
+def _family_pressure_completion_payload(
+    report: FamilyPressureReport,
+    *,
+    max_minions: int,
+    max_scenarios: int,
+) -> dict[str, Any]:
+    rows = [asdict(row) for row in report.reports]
+    trials_total = sum(int(row["trials"]) for row in rows)
+    breakpoints = [row for row in rows if float(row.get("player_win_rate") or 0.0) < 0.5]
+    return {
+        "trials_total": trials_total,
+        "telemetry": {
+            "run_kind": "family_pressure",
+            "family_id": report.family_id,
+            "imprint_key": report.imprint_key,
+            "player_gear_score": report.player_gear_score,
+            "player_start_hp": report.player_start_hp,
+            "trials_per_composition": report.trials_per_composition,
+            "composition_count": len(rows),
+            "trials_total": trials_total,
+            "first_losing_composition": breakpoints[0] if breakpoints else {},
+            "pressure_rows": rows,
+        },
+        "metadata": {
+            "source": "admin_cabinet",
+            "purpose": "family_pressure_balance_report",
+            "simulation_mode": "family_pressure",
+            "simulation_actor_source": "character_starting_imprints_and_generated_monsters",
+            "family_pressure": True,
+            "family_id": report.family_id,
+            "imprint_key": report.imprint_key,
+            "imprint_title": report.imprint_title,
+            "player_gear_score": report.player_gear_score,
+            "player_start_hp": report.player_start_hp,
+            "trials_per_composition": report.trials_per_composition,
+            "max_minions": max_minions,
+            "max_scenarios": max_scenarios,
+            "composition_reports": rows,
+            "team_labels": {"blue": "Стартовый слепок", "red": f"Семья {report.family_id}"},
+        },
+    }
 
 
 def _policy_from_training_row(row: Any) -> tuple[Policy, dict[str, Any]]:

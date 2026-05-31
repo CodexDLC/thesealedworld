@@ -47,7 +47,7 @@ def test_character_raw_attributes_drive_combat_modifiers_through_waterfall() -> 
     assert calculated["magical_damage"] == 11.0
     assert calculated["magical_penetration"] == 0.22
     assert calculated["hp"] == pytest.approx(53.3333)
-    assert calculated["en"] == pytest.approx(34.0)
+    assert calculated["en"] == pytest.approx(22.6667)
     assert calculated["stamina"] == pytest.approx(35.0)
     assert calculated["hp_regen"] == pytest.approx(1.3333)
     assert calculated["en_regen"] == pytest.approx(5.6667)

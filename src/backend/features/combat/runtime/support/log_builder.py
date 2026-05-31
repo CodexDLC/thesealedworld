@@ -53,7 +53,7 @@ class CombatLogBuilder:
             tags.append("forced")
 
         entry = {
-            "id": f"{global_turn}:{wave}:0",
+            "id": f"{global_turn}:{wave}:{source_id or 'none'}:{target_id or 'none'}:0",
             "type": "LOG",
             "kind": cls._entry_kind(result, action_type=action.action_type, is_area=is_area, catalog=catalog),
             "text": text,
@@ -187,7 +187,7 @@ class CombatLogBuilder:
             kind = f"effect_{fact_action}"
             entries.append(
                 {
-                    "id": f"{global_turn}:{wave}:effect:{len(entries)}",
+                    "id": f"{global_turn}:{wave}:effect:{target_id or 'none'}:{effect_id}:{len(entries)}",
                     "type": "LOG",
                     "kind": kind,
                     "text": text,
@@ -331,6 +331,10 @@ class CombatLogBuilder:
         source_body = cls._actor_body(ctx, source_id)
         target_body = cls._actor_body(ctx, target_id)
         outcome = cls._combat_text_outcome(event_name)
+        if outcome == "controlled":
+            controlled_template = cls._controlled_effect_template(ctx=ctx, result=result, target_id=source_id)
+            if controlled_template is not None:
+                return controlled_template
         try:
             template = CombatCatalogIntegrator.get_combat_text_template(
                 resource_type=resource_type,
@@ -362,6 +366,40 @@ class CombatLogBuilder:
                 reason="integrator returned no template",
             )
         return dict(template)
+
+    @classmethod
+    def _controlled_effect_template(
+        cls, *, ctx: BattleContext, result: InteractionResultDTO, target_id: int | str | None
+    ) -> dict[str, Any] | None:
+        effect_id = ""
+        for fact in result.effect_facts:
+            if "control" in set(getattr(fact, "tags", []) or []):
+                effect_id = str(getattr(fact, "effect_id", "") or "")
+                break
+        if not effect_id:
+            return None
+        effect_entry = CombatCatalogIntegrator.get_effect_catalog_entry(effect_id)
+        if effect_entry is None:
+            return None
+        resolved = effect_entry.descriptive.resolve_event_template(
+            "control_prevent_action", [cls._actor_body(ctx, target_id)]
+        )
+        if resolved is None:
+            return None
+        return {
+            "key": f"combat.effect.{effect_id}.control_prevent_action.runtime",
+            "template": resolved.text,
+            "variables": ["source", "target", "effect"],
+            "resource_type": "effect",
+            "resource_id": effect_id,
+            "catalog_key": f"combat.effect.{effect_id}",
+            "outcome": "controlled",
+            "body_pair": "",
+            "target_body": cls._actor_body(ctx, target_id),
+            "delivery": "default",
+            "phrase_keys": {},
+            "tags": ["runtime", "effect", "control"],
+        }
 
     @staticmethod
     def _runtime_fallback_template(

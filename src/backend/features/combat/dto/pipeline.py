@@ -45,6 +45,7 @@ class RestrictionFlagsDTO(BaseModel):
     suppress_crit_triggers: bool = False
     ignore_parry: bool = False
     ignore_block: bool = False
+    disable_passive_counter: bool = False
 
 
 class MasteryFlagsDTO(BaseModel):
@@ -107,7 +108,6 @@ class DamageTypeFlagsDTO(BaseModel):
 class StateFlagsDTO(BaseModel):
     """Внутреннее состояние."""
 
-    partial_absorb_reflect: bool = False
     is_reflect_block: bool = False
     open_combo: bool = False
     hit_index: int = 0
@@ -418,6 +418,86 @@ class CombatPipelineMutationFactDTO(BaseModel):
     tags: list[str] = Field(default_factory=list)
 
 
+class CombatStatusApplicationDTO(BaseModel):
+    """Staged status effect application to be committed after an exchange layer."""
+
+    actor_id: ActorId | None = None
+    source_id: ActorId | None = None
+    effect_id: str
+    active_effect: dict[str, Any]
+    source_action_id: str | None = None
+    source_effect_id: str | None = None
+    source_trigger_id: str | None = None
+    tags: list[str] = Field(default_factory=list)
+
+    @field_validator("actor_id", "source_id", mode="before")
+    @classmethod
+    def _normalize_actor_ids(cls, value: ActorIdLike | None) -> ActorId | None:
+        return normalize_actor_id(value) if value is not None else None
+
+
+class CombatStatusRemovalDTO(BaseModel):
+    """Staged status/effect removal to be committed after an exchange layer."""
+
+    actor_id: ActorId | None = None
+    effect_uid: str | None = None
+    effect_id: str | None = None
+    source_effect_id: str | None = None
+    tags: list[str] = Field(default_factory=list)
+
+    @field_validator("actor_id", mode="before")
+    @classmethod
+    def _normalize_actor_id(cls, value: ActorIdLike | None) -> ActorId | None:
+        return normalize_actor_id(value) if value is not None else None
+
+
+class CombatAbilityApplicationDTO(BaseModel):
+    """Staged active ability application to be committed after calculation."""
+
+    actor_id: ActorId | None = None
+    active_ability: dict[str, Any]
+    tags: list[str] = Field(default_factory=list)
+
+    @field_validator("actor_id", mode="before")
+    @classmethod
+    def _normalize_actor_id(cls, value: ActorIdLike | None) -> ActorId | None:
+        return normalize_actor_id(value) if value is not None else None
+
+
+class CombatModifierApplicationDTO(BaseModel):
+    """Reserved staged modifier command for future non-effect commit paths."""
+
+    actor_id: ActorId | None = None
+    owner: str
+    owner_uid: str
+    owner_id: str
+    applications: list[dict[str, Any]] = Field(default_factory=list)
+    tags: list[str] = Field(default_factory=list)
+
+    @field_validator("actor_id", mode="before")
+    @classmethod
+    def _normalize_actor_id(cls, value: ActorIdLike | None) -> ActorId | None:
+        return normalize_actor_id(value) if value is not None else None
+
+
+class CombatResourceApplicationDTO(BaseModel):
+    """Staged resource delta for a concrete actor."""
+
+    actor_id: ActorId | None = None
+    owner: Literal["source", "target", "self", "other"] = "other"
+    resource: str
+    reason: str
+    value: str
+    source_effect_id: str | None = None
+    source_trigger_id: str | None = None
+    tags: list[str] = Field(default_factory=list)
+
+    @field_validator("actor_id", mode="before")
+    @classmethod
+    def _normalize_actor_id(cls, value: ActorIdLike | None) -> ActorId | None:
+        return normalize_actor_id(value) if value is not None else None
+
+
 class InteractionResultDTO(BaseModel):
     """Итоговый отчет."""
 
@@ -469,6 +549,7 @@ class InteractionResultDTO(BaseModel):
     trigger_attempts: list[CombatTriggerAttemptDTO] = Field(default_factory=list)
     mutation_facts: list[CombatPipelineMutationFactDTO] = Field(default_factory=list)
     action_facts: dict[str, Any] = Field(default_factory=dict)
+    ammo_spent: dict[str, int] = Field(default_factory=dict)
 
     # === Resolver Trace (для читаемого INFO лога и аналитики) ===
     checks: list[CombatCheckTraceDTO] = Field(default_factory=list)
@@ -477,6 +558,11 @@ class InteractionResultDTO(BaseModel):
     # === Что надо сделать (Команды) ===
     # Список эффектов для наложения: [{"id": "bleed", "params": {"power": 30}}]
     applied_effects: list[dict[str, Any]] = Field(default_factory=list)
+    status_applications: list[CombatStatusApplicationDTO] = Field(default_factory=list)
+    status_removals: list[CombatStatusRemovalDTO] = Field(default_factory=list)
+    ability_applications: list[CombatAbilityApplicationDTO] = Field(default_factory=list)
+    modifier_applications: list[CombatModifierApplicationDTO] = Field(default_factory=list)
+    resource_applications: list[CombatResourceApplicationDTO] = Field(default_factory=list)
 
     # === Chain Reactions (Новые задачи) ===
     chain_events: ChainTriggersDTO = Field(default_factory=ChainTriggersDTO)

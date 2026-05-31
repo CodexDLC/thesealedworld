@@ -1,3 +1,4 @@
+from .game_session_lock import GameSessionLockManager
 from .session import (
     CharacterSessionError,
     CharacterSessionManager,
@@ -9,6 +10,7 @@ from .session import (
 __all__ = [
     "CharacterSessionManager",
     "CharacterSessionError",
+    "GameSessionLockManager",
     "SessionAlreadyExistsError",
     "SessionNotFoundError",
     "StateTransitionError",

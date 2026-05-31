@@ -1218,7 +1218,34 @@ document.addEventListener('htmx:timeout', (event) => {
 
 document.addEventListener('htmx:responseError', (event) => {
     clearActionFeedback(event.detail?.elt);
+    handleSessionReplaced(event);
 });
+
+document.addEventListener('htmx:afterRequest', (event) => {
+    handleSessionReplaced(event);
+});
+
+let sessionReplacedHandled = false;
+
+function handleSessionReplaced(event) {
+    if (sessionReplacedHandled) return;
+    const xhr = event.detail?.xhr;
+    if (!xhr || xhr.status !== 409) return;
+    const trigger = (xhr.getResponseHeader && xhr.getResponseHeader('HX-Trigger')) || '';
+    if (!trigger.includes('session-replaced')) return;
+    sessionReplacedHandled = true;
+    try {
+        const detail = event.detail;
+        if (detail) {
+            detail.shouldSwap = false;
+            detail.isError = false;
+        }
+    } catch (e) {  }
+    const target = '/game-lobby?reason=session_replaced';
+    if (window.location.pathname + window.location.search !== target) {
+        window.location.replace(target);
+    }
+}
 
 document.addEventListener('htmx:load', function() {
     if (window.GameCatalogCache) {

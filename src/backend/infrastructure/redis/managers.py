@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING
 from codex_platform.redis_service import RedisService
 
 from src.backend.infrastructure.actor_commitments import ActorCommitmentManager
-from src.backend.infrastructure.actor_state.managers import CharacterSessionManager
+from src.backend.infrastructure.actor_state.managers import CharacterSessionManager, GameSessionLockManager
 from src.backend.infrastructure.expedition.managers import ExpeditionRedisManager
 from src.backend.infrastructure.game_lobby.managers import StartingImprintDistributionManager
 from src.backend.infrastructure.inventory.managers import InventorySessionManager
@@ -23,6 +23,7 @@ if TYPE_CHECKING:
 class RedisManagers:
     redis: RedisService
     character_sessions: CharacterSessionManager
+    game_session_lock: GameSessionLockManager
     actor_commitments: ActorCommitmentManager
     scenario_sessions: ScenarioSessionManager
     scenario_content: ScenarioContentManager
@@ -40,6 +41,7 @@ def build_redis_managers(
     return RedisManagers(
         redis=redis,
         character_sessions=CharacterSessionManager(redis),
+        game_session_lock=GameSessionLockManager(redis),
         actor_commitments=ActorCommitmentManager(redis),
         scenario_sessions=ScenarioSessionManager(redis, game_config),
         scenario_content=ScenarioContentManager(redis),

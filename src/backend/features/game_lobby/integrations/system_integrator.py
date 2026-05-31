@@ -43,7 +43,7 @@ if TYPE_CHECKING:
     from src.backend.features.expedition import CharacterExpeditionRepository
     from src.backend.features.inventory.repositories.items import InventoryItemRepository
     from src.backend.features.rift.integrations import RiftRuntimeIntegration
-    from src.backend.infrastructure.actor_state.managers import CharacterSessionManager
+    from src.backend.infrastructure.actor_state.managers import CharacterSessionManager, GameSessionLockManager
     from src.backend.infrastructure.game_lobby.managers import StartingImprintDistributionManager
 
 
@@ -82,6 +82,7 @@ class GameLobbyIntegration:
         scenario_service: Any | None = None,
         db_session: AsyncSession | None = None,
         character_sessions: CharacterSessionManager,
+        game_session_lock: GameSessionLockManager | None = None,
         events: GameEventProducer | None = None,
         starting_imprint_distribution: StartingImprintDistributionManager | None = None,
         rift_runtime: RiftRuntimeIntegration | None = None,
@@ -101,10 +102,20 @@ class GameLobbyIntegration:
         if self.item_persistence is None and db_session is not None:
             self.item_persistence = ItemPersistenceIntegration(ItemInstanceRepository(db_session))
         self.character_sessions = character_sessions
+        self.game_session_lock = game_session_lock
         self.events = events
         self.starting_imprint_distribution = starting_imprint_distribution
         self.scenario_service = scenario_service
         self.rift_runtime = rift_runtime
+
+    async def _release_session_lock(self, char_id: int) -> None:
+        """Best-effort release of the single-session lock; never raises."""
+        if self.game_session_lock is None:
+            return
+        try:
+            await self.game_session_lock.release(char_id)
+        except Exception:  # noqa: BLE001
+            logger.bind(char_id=char_id).warning("GameSessionLockReleaseFailed")
 
     def _characters(self) -> CharacterRepository:
         return self.character_repo
@@ -435,6 +446,7 @@ class GameLobbyIntegration:
         )
         await sync.sync_active_session(character_id)
         await self.character_sessions.delete_session(character_id)
+        await self._release_session_lock(character_id)
         await self._characters().commit()
         logger.bind(user_id=str(user_id), char_id=character_id).info("LobbyActiveCharacterSessionReleased")
 
@@ -469,6 +481,7 @@ class GameLobbyIntegration:
             await self.scenario_service.cleanup(char_id)
         await self._abandon_active_rift(char_id, document)
         await self.character_sessions.delete_session(char_id)
+        await self._release_session_lock(char_id)
 
     async def _active_character_document(self, char_id: int) -> dict[str, Any] | None:
         getter = getattr(self.character_sessions, "get_session", None)
@@ -577,6 +590,7 @@ class GameLobbyIntegration:
                 await self.scenario_service.cleanup(char_id)
         with suppress(Exception):
             await self.character_sessions.delete_session(char_id)
+        await self._release_session_lock(char_id)
         with suppress(Exception):
             if self.item_persistence is not None:
                 await self.item_persistence.transfer_deleted_character_items_to_system(char_id)

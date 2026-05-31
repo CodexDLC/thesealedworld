@@ -247,6 +247,8 @@
                     {% if zone_has_item %}style="--inventory-item-icon-url: url('/static/images/ui/inventory-gear/{{ primary_icon if not primary_empty else secondary_icon }}.svg');"{% endif %}
                     {% if zone_has_item and inventory.can_act and zone_action_item %}
                     hx-post="/game/inventory/action"
+                    hx-sync="this:drop"
+                    hx-disabled-elt="this"
                     hx-target="#{{ inventory_target_id }}"
                     hx-swap="innerHTML"
                     x-bind:hx-vals='JSON.stringify({
@@ -305,6 +307,8 @@
                     style="--inventory-item-icon-url: url('/static/images/ui/inventory-gear/{{ slot_icon }}.svg');"
                     {% if inventory.can_act and slot_item %}
                     hx-post="/game/inventory/action"
+                    hx-sync="this:drop"
+                    hx-disabled-elt="this"
                     hx-target="#{{ inventory_target_id }}"
                     hx-swap="innerHTML"
                     x-bind:hx-vals='JSON.stringify({
@@ -332,6 +336,8 @@
                     {% if not slot_empty %}style="--inventory-item-icon-url: url('/static/images/ui/inventory-gear/{{ slot_icon }}.svg');"{% endif %}
                     {% if not slot_empty and inventory.can_act and slot_item %}
                     hx-post="/game/inventory/action"
+                    hx-sync="this:drop"
+                    hx-disabled-elt="this"
                     hx-target="#{{ inventory_target_id }}"
                     hx-swap="innerHTML"
                     x-bind:hx-vals='JSON.stringify({
@@ -390,6 +396,8 @@
                         {% if not slot_empty %}style="--inventory-item-icon-url: url('/static/images/ui/inventory-gear/{{ slot_icon }}.svg');"{% endif %}
                         {% if not slot_empty and inventory.can_act and slot_item %}
                         hx-post="/game/inventory/action"
+                        hx-sync="this:drop"
+                        hx-disabled-elt="this"
                         hx-target="#{{ inventory_target_id }}"
                         hx-swap="innerHTML"
                         x-bind:hx-vals='JSON.stringify({
@@ -445,6 +453,8 @@
                     {% if not quick_empty %}style="--inventory-item-icon-url: url('/static/images/ui/inventory-gear/{{ quick_icon }}.svg');"{% endif %}
                     {% if not quick_empty and inventory.can_act and quick_item %}
                     hx-post="/game/inventory/action"
+                    hx-sync="this:drop"
+                    hx-disabled-elt="this"
                     hx-target="#{{ inventory_target_id }}"
                     hx-swap="innerHTML"
                     x-bind:hx-vals='JSON.stringify({
@@ -558,6 +568,8 @@
                         data-equip-target="{{ row.equip_target or '' }}"
                         {% if inventory.can_act and primary_action %}
                         hx-post="/game/inventory/action"
+                        hx-sync="this:drop"
+                        hx-disabled-elt="this"
                         hx-target="#{{ inventory_target_id }}"
                         hx-swap="innerHTML"
                         x-bind:hx-vals='JSON.stringify({

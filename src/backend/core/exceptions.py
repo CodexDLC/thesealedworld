@@ -93,6 +93,22 @@ class SessionExpiredException(BaseAPIException):
         )
 
 
+class SessionReplacedException(BaseAPIException):
+    """
+    Игровая сессия персонажа была занята другим входом (другая вкладка/устройство).
+    Клиент должен обработать это как сигнал к чистке игровых кук и редиректу в лобби.
+    Заголовок HX-Trigger используется HTMX-фронтом для авто-обработки.
+    """
+
+    def __init__(self, detail: str = "Session was replaced by another login"):
+        super().__init__(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=detail,
+            error_code="session_replaced",
+            extra={"headers": {"HX-Trigger": "session-replaced"}},
+        )
+
+
 async def api_exception_handler(_: Request, exc: BaseAPIException) -> JSONResponse:
     extra = dict(exc.extra)
     headers: dict[str, str] | None = extra.pop("headers", None)

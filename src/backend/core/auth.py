@@ -4,7 +4,7 @@ from typing import Annotated, Any
 from fastapi import Depends, Request
 from fastapi.security import OAuth2PasswordBearer
 
-from src.backend.core.exceptions import AuthException, PermissionDeniedException
+from src.backend.core.exceptions import AuthException, PermissionDeniedException, SessionReplacedException
 from src.backend.core.game_auth import GameTokenClaims, decode_game_access_token
 from src.backend.core.security import decode_access_token
 from src.shared.schemas.auth import AuthenticatedUser
@@ -19,6 +19,7 @@ async def get_current_user(
 ) -> AuthenticatedUser:
     if _looks_like_game_token(token):
         claims = decode_game_access_token(token)
+        await _enforce_single_game_session(request, claims)
         request.state.game_token_claims = claims
         return AuthenticatedUser(id=claims.sub, is_active=True, is_superuser=False)
 
@@ -35,6 +36,28 @@ async def get_current_user(
         is_active=True,
         is_superuser=False,
     )
+
+
+async def _enforce_single_game_session(request: Request, claims: GameTokenClaims) -> None:
+    """Reject game-token requests whose session id was replaced by another login.
+
+    Tokens issued before single-session enforcement carried ``session_id=str(char_id)``
+    (or no session_id at all); when the production lock manager is wired in, the
+    check below treats any mismatch with the claimed slot for ``character_id`` as a
+    replaced session and raises ``SessionReplacedException`` (HTTP 409 +
+    ``HX-Trigger: session-replaced``). Stripped test setups without an attached
+    app/state simply skip the check.
+    """
+    app = getattr(request, "app", None)
+    state = getattr(app, "state", None) if app is not None else None
+    lock = getattr(state, "game_session_lock", None) if state is not None else None
+    if lock is None:
+        return
+    if not claims.session_id:
+        raise AuthException(detail="Game token has no session id; please re-enter the lobby")
+    current = await lock.current(claims.character_id)
+    if current != claims.session_id:
+        raise SessionReplacedException()
 
 
 def require_game_character_scope(request: Request, user: AuthenticatedUser, character_id: int) -> None:

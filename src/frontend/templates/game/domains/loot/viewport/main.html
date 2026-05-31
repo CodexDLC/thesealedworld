@@ -107,6 +107,8 @@
                         {% endfor %}
                     </div>
                     <form hx-post="{{ (loot or {}).get('claim_action') or '/game/loot/claim-all' }}"
+                          hx-sync="this:drop"
+                          hx-disabled-elt="find button"
                           hx-target="#game-session-root"
                           hx-swap="outerHTML"
                           class="loot-window-actions">
@@ -165,6 +167,8 @@
             </section>
 
             <form hx-post="{{ (loot or {}).get('claim_action') or '/game/loot/claim-all' }}"
+                  hx-sync="this:drop"
+                  hx-disabled-elt="find button"
                   hx-target="#game-session-root"
                   hx-swap="outerHTML"
                   class="loot-screen-actions">

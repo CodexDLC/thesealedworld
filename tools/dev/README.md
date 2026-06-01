@@ -8,7 +8,7 @@ Small project-local helpers for validation, project maps, and graphify navigatio
 python tools/dev/check.py
 ```
 
-Runs the project quality gate: hooks, types, security audit, fixture validators, and tests.
+Runs the project quality gate: hooks, types, security audit, fixture validators, documentation build, and tests.
 
 ## Fixture Validators
 

@@ -38,9 +38,6 @@ jobs:
           DEBUG: "False"
         run: uv run python tools/dev/check.py --ci
 
-      - name: Build documentation
-        run: uv run mkdocs build --clean
-
   build-images:
     name: Build and Push Images
     needs: quality

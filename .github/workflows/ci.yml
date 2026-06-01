@@ -65,9 +65,6 @@ jobs:
           DEBUG: "False"
         run: uv run python tools/dev/check.py --ci
 
-      - name: Build documentation
-        run: uv run mkdocs build --clean
-
   docker-build:
     name: Docker Build Verification
     needs: quality

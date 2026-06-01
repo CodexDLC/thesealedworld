@@ -4,10 +4,13 @@ Detailed milestone history for the `src/frontend` site-web layer.
 
 ## [Unreleased]
 
-- Combat AI cabinet PvE tools now launch family-pressure checks for every starter imprint and show detail pages as survival charts instead of raw markdown logs.
-- Cabinet tools now expose combat AI simulation controls and richer editable game configuration widgets.
-- Combat AI cabinet run details now show database storage status instead of local artifact paths.
+## [v0.2.0a1] - Alpha 0.2.0
+
+- Cabinet now exposes combat AI simulation, training, report browsing, PvE family-pressure batch launch, and survival-chart detail workflows.
+- Combat AI cabinet run details now show database/Redis storage status instead of local artifact paths.
 - Editable game settings now render backend-owned labels, descriptions, risk badges, groups, and numeric min/max hints.
+- Account/player cabinet tools now inspect accounts, characters, generated player projections, and character detail surfaces.
+- Content operations gained generated-content maintenance controls and richer generated monster inspection/regeneration workflows.
 
 ## [v0.1.0a7] - Alpha 7
 

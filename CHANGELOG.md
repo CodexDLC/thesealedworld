@@ -14,16 +14,22 @@ Full layer changelogs live in:
 
 ## [Unreleased]
 
-### Combat Runtime And AI
+## [v0.2.0a1] - Alpha 0.2.0
 
-- Adds combat AI simulation and training surfaces, including backend run tracking, cabinet controls, archetype policies, tactical memory, and combat tuning/resource updates.
-- PvE family-pressure diagnostics now compare all starter imprints from the cabinet and render survival curves instead of raw report tables.
+### Product
 
-### Telegram And News
+- Adds the rift runtime and browser client as the next exploration surface, including portal/session state, movement screens, maintenance tooling, and scenario entry content.
+- Adds combat AI simulation, policy training, PvE family-pressure diagnostics, and survival-chart cabinet workflows for balancing live-like combat.
+- Expands cabinet operations with account/player inspection, editable game settings, generated-content maintenance, and richer runtime analytics.
 
-- Telegram news announcements now edit existing media posts before falling back
-  to safe send-then-delete replacement, preventing retry failures from removing
-  visible channel posts.
+### Runtime
+
+- Reworks combat catalog resources, feints, triggers, stat assembly, resolver steps, tactical AI, tunable game config, and post-combat routing.
+- Adds starter imprint assignment/materialization, single active-character session enforcement, refreshed monster generation resources, and safer post-combat loot handling.
+
+### Docs And Tooling
+
+- Adds stable documentation for combat AI and Redis-backed game config, rift planning/reference updates, game config audit tooling, and generated-monster rebuild tooling.
 
 ## [v0.1.0a7] - Alpha 7
 

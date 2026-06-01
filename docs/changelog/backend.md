@@ -4,24 +4,20 @@ Detailed milestone history for the `src/backend` game runtime layer.
 
 ## [Unreleased]
 
-- PvE family-pressure diagnostics now run through the live-like simulator, can enqueue one report per starter imprint, and use refreshed monster-family resource versions for rebuild detection.
-- Starting dual-wield fencing imprints now preserve duplicate weapon base ids so both hands materialize the intended light weapon pair.
-- Combat AI family-pressure runs now stay in Redis progress until completion and player vitals scale by equipped armor profile.
-- Scripted rift combat nodes now seed required `node_entry` combat events, so boss/key/crystal-chamber nodes still suppress transition combat but no longer become empty rooms.
-- Loot TTL values (`PUBLIC_DELAY_SEC`, `PUBLIC_WINDOW_SEC`, `INVISIBLE_TTL_SEC`, `EMPTY_CORPSE_TTL_SEC`) are now stored and read as integers — Redis `EXPIRE` rejects fractional seconds, which previously caused corpse persistence to fail silently and dropped post-combat loot entirely.
-- Loot order stream handler now wraps its body in try/except so a single malformed payload no longer poisons the consumer group.
-- Rift combat finalization now propagates the real combat winner instead of hardcoded `victory`; defeats no longer auto-open guarded gates or clear node events. The rift integration's `apply_combat_result` accepts `defeat`/`draw` and only resets the encounter binding / active travel.
-- Victory finalizer task builds the rift runtime integration with the full DB-backed repositories (instance/run/portal-key) so DB fallback works when Redis state has expired.
-- Combat finalization meta and rift combat requests now carry `rift_setting_key`; `_death_outcome` exposes a `training_restart` death policy for the starter rift so the frontend can route training defeats back to the platform dialog.
-- Stale rift encounter cleanup no longer force-applies `victory`. It clears the encounter binding + presence and swallows clear failures so a new combat can always be launched.
-- Removed dead worker `src/backend/features/loot/workers/tasks/loot_order_task.py` — the ARQ entry point was never enqueued; loot order is handled by the `on_order_requested` Redis stream listener.
-- Redis-backed game config entries now carry admin metadata, range validation, and an audit helper for classifying future runtime tuning candidates.
-- Automatic starter imprints now use Redis-backed least-used distribution with per-account repeat protection.
-- Combat AI now includes archetype policies, tactical memory, offline battle simulation, and admin-triggered simulation run persistence.
-- Combat AI training now stores policies, metrics, leaderboards, and reports in simulation-run database records instead of writing local run artifacts.
-- Combat runtime tuning now centralizes skill/stat formulas, actor snapshot mapping, preparation effects, feint tags, and equipment-derived combat power.
-- Monster generation now derives skill percentages from tiered variant skill sets instead of family-level fixed skill values.
-- Combat armor balance now treats heavy armor as a hard dodge-cap class, scales medium armor cap penalties by tier with skill recovery, and gives light armor a tier-scaled evasion bonus plus its combat skill cap boost.
+## [v0.2.0a1] - Alpha 0.2.0
+
+- Rift backend runtime now includes portal keys, zone/session persistence, Redis managers, entry/player services, travel/event resolution, combat result integration, maintenance tools, and first scenario entry content.
+- Scripted rift combat nodes now seed required `node_entry` combat events, propagate real combat outcomes, support the starter-rift `training_restart` death policy, and clear stale encounter bindings without force-applying victory.
+- Combat catalog resources now include rebuilt active actions, gifts, feints, triggers, text templates, natural weapon exchanges, resistance profiles, and updated skill/modifier contracts.
+- Combat resolver internals were split into explicit support modules and per-phase steps while preserving trigger/event contracts through focused tests.
+- Combat runtime tuning now centralizes skill/stat formulas, actor snapshot mapping, preparation effects, feint tags, base power assembly, armor balance, equipment-derived combat power, and tunable game config.
+- Combat AI now includes archetype policies, tactical memory, policy storage, offline/live-like simulation, synthetic and battle training, database-backed run reports, and ARQ worker routing.
+- PvE family-pressure diagnostics now run through the live-like simulator, stay in Redis progress until completion, can enqueue one report per starter imprint, and scale player vitals by equipped armor profile.
+- Redis-backed game config entries now carry admin metadata and range validation, with an audit helper for classifying future runtime tuning candidates.
+- Single active-character sessions are enforced through game-session locks and frontend token flow updates.
+- Automatic starter imprints now use Redis-backed least-used distribution with per-account repeat protection, and materialization preserves duplicate weapon base ids for intended dual-wield loadouts.
+- Monster generation now derives skill percentages from tiered variant skill sets, tracks refreshed family resource versions for rebuild detection, and includes rebuild/backfill tooling.
+- Loot TTL values are coerced to integer seconds, loot order stream handling is isolated from malformed payloads, and the dead loot-order ARQ worker was removed.
 
 ## [v0.1.0a7] - Alpha 7
 

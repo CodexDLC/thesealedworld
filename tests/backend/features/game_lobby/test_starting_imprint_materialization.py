@@ -86,6 +86,14 @@ class FakeCharacterSessions:
         self.deleted.append(char_id)
 
 
+class FakeInventorySessions:
+    def __init__(self) -> None:
+        self.deleted: list[int] = []
+
+    async def delete(self, char_id: int) -> None:
+        self.deleted.append(char_id)
+
+
 class FakeStartingImprintDistribution:
     def __init__(self, selected: str) -> None:
         self.selected = selected
@@ -289,15 +297,18 @@ async def test_reset_character_to_starting_imprint_clears_old_runtime_and_remate
     progression_repo = FakeProgressionRepository()
     item_persistence = FakeItemPersistence()
     character_sessions = FakeCharacterSessions()
+    inventory_sessions = FakeInventorySessions()
     integration = GameLobbyIntegration(
         character_repo=character_repo,
         attributes_repo=attributes_repo,
         skill_repo=skill_repo,
         progression_repo=progression_repo,
         item_persistence=item_persistence,
+        inventory_sessions=inventory_sessions,
         character_sessions=character_sessions,
     )
     integration.create_active_session = AsyncMock()
+    integration.bootstrap_active_character = AsyncMock()
 
     result = await integration.reset_character_to_starting_imprint(
         user_id=user_id,
@@ -316,11 +327,10 @@ async def test_reset_character_to_starting_imprint_clears_old_runtime_and_remate
     assert skill_repo.deleted == [7]
     assert item_persistence.transferred == [7]
     assert character_sessions.deleted == [7]
-    reset_character = integration.create_active_session.await_args.args[0]
-    assert reset_character.character_id == 7
-    assert reset_character.name == "Nea"
-    assert reset_character.gender == "female"
-    assert reset_character.avatar_url == "/static/images/avatars/silhouette_f.webp"
+    assert inventory_sessions.deleted == [7]
+    integration.create_active_session.assert_not_awaited()
+    integration.bootstrap_active_character.assert_awaited_once_with(user_id=user_id, character_id=7)
+    assert integration.bootstrap_active_character.await_args.kwargs == {"user_id": user_id, "character_id": 7}
     assert character.avatar_url == "/static/images/avatars/silhouette_f.webp"
     assert character.game_stage == CoreDomain.EXPLORATION.value
     assert character.prev_game_stage == CoreDomain.DEATH.value

@@ -529,7 +529,14 @@ def _build_main_path_branch_graph(
         if len(open_node_ids) == before:
             break
 
-    finish_node_id = _farthest_node_by_edges(start_node_id, open_node_ids=open_node_ids, tree_edges=tree_edges)
+    finish_node_id = _deep_finish_node_by_edges(
+        start_node_id,
+        open_node_ids=open_node_ids,
+        tree_edges=tree_edges,
+        nodes=nodes,
+        width=width,
+        height=height,
+    )
     void_node_ids = set(nodes) - open_node_ids
     passage_edges: dict[str, RiftPassageEdgeDTO] = {}
     for left_node_id, right_node_id in sorted(tree_edges):
@@ -601,7 +608,42 @@ def _grow_tree_branch(
         current_node_id = next_node_id
 
 
-def _farthest_node_by_edges(start_node_id: str, *, open_node_ids: set[str], tree_edges: set[tuple[str, str]]) -> str:
+def _deep_finish_node_by_edges(
+    start_node_id: str,
+    *,
+    open_node_ids: set[str],
+    tree_edges: set[tuple[str, str]],
+    nodes: dict[str, RiftZoneCellDTO],
+    width: int,
+    height: int,
+) -> str:
+    distances = _edge_distances_from_start(start_node_id, open_node_ids=open_node_ids, tree_edges=tree_edges)
+    start = nodes[start_node_id]
+    candidates = [node_id for node_id in sorted(open_node_ids) if node_id != start_node_id]
+    min_spatial_distance = max(3, min(width, height) // 2)
+    spatial_candidates = [
+        node_id for node_id in candidates if _manhattan(start, nodes[node_id]) >= min_spatial_distance
+    ]
+    pool = spatial_candidates or candidates
+    if not pool:
+        return start_node_id
+    return max(
+        pool,
+        key=lambda node_id: (
+            distances.get(node_id, -1),
+            _manhattan(start, nodes[node_id]),
+            nodes[node_id].x,
+            nodes[node_id].y,
+        ),
+    )
+
+
+def _edge_distances_from_start(
+    start_node_id: str,
+    *,
+    open_node_ids: set[str],
+    tree_edges: set[tuple[str, str]],
+) -> dict[str, int]:
     adjacency: dict[str, list[str]] = {node_id: [] for node_id in open_node_ids}
     for left_node_id, right_node_id in tree_edges:
         if left_node_id in adjacency and right_node_id in adjacency:
@@ -609,18 +651,17 @@ def _farthest_node_by_edges(start_node_id: str, *, open_node_ids: set[str], tree
             adjacency[right_node_id].append(left_node_id)
     queue: deque[tuple[str, int]] = deque([(start_node_id, 0)])
     seen: set[str] = set()
-    farthest = (start_node_id, 0)
+    distances: dict[str, int] = {}
     while queue:
         node_id, distance = queue.popleft()
         if node_id in seen:
             continue
         seen.add(node_id)
-        if distance > farthest[1]:
-            farthest = (node_id, distance)
+        distances[node_id] = distance
         for neighbor_id in adjacency.get(node_id, []):
             if neighbor_id not in seen:
                 queue.append((neighbor_id, distance + 1))
-    return farthest[0]
+    return distances
 
 
 def _add_temporary_shortcut_edges(

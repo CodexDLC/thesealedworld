@@ -67,6 +67,16 @@ def test_starter_rift_heart_has_no_temporary_bypass_before_guard() -> None:
 
 
 @pytest.mark.unit
+def test_starter_rift_heart_is_not_placed_beside_start() -> None:
+    for index in range(100):
+        runtime = _runtime(seed=f"heart-depth-regression-{index}", void_cells=10)
+        start = runtime.nodes[runtime.start_node_id]
+        heart = runtime.nodes[runtime.finish_node_id]
+
+        assert _manhattan(start, heart) > 2
+
+
+@pytest.mark.unit
 def test_node_pool_has_no_coordinates_before_zone_instance_placement() -> None:
     resources = RiftResourceLoader()
     setting = resources.load_setting("starter_rift")
@@ -779,18 +789,29 @@ def test_rift_heart_shatter_requires_heart_node_metadata() -> None:
 
 @pytest.mark.unit
 def test_scripted_target_node_suppresses_transition_combat_roll() -> None:
-    runtime = _runtime(seed="scripted-node-suppression-check", void_cells=5)
-    screen = build_rift_screen(runtime)
     scripted_keys = {"boss", "crystal_guard", "objective_gate", "story_combat", "key_combat", "crystal_chamber"}
-    first_move = next(
-        action
-        for action in screen.movement
-        if action.action == "move"
-        and action.is_active
-        and action.target_node_id
-        and not set(runtime.nodes[action.target_node_id].role_fit).intersection(scripted_keys)
-        and not set(runtime.nodes[action.target_node_id].tags).intersection(scripted_keys)
-    )
+    runtime = None
+    first_move = None
+    for index in range(20):
+        candidate_runtime = _runtime(seed=f"scripted-node-suppression-check-{index}", void_cells=5)
+        screen = build_rift_screen(candidate_runtime)
+        first_move = next(
+            (
+                action
+                for action in screen.movement
+                if action.action == "move"
+                and action.is_active
+                and action.target_node_id
+                and not set(candidate_runtime.nodes[action.target_node_id].role_fit).intersection(scripted_keys)
+                and not set(candidate_runtime.nodes[action.target_node_id].tags).intersection(scripted_keys)
+            ),
+            None,
+        )
+        if first_move is not None:
+            runtime = candidate_runtime
+            break
+    if runtime is None or first_move is None:
+        raise AssertionError("Expected a deterministic runtime with a non-scripted target move")
     target_node_id = first_move.target_node_id or ""
     target_node = runtime.nodes[target_node_id]
     updated_nodes = dict(runtime.nodes)
@@ -1336,6 +1357,10 @@ def _locked_target_node_ids(runtime: RiftZoneRuntimeDTO) -> set[str]:
         if isinstance(target_node_id, str):
             result.add(target_node_id)
     return result
+
+
+def _manhattan(left, right) -> int:
+    return abs(left.x - right.x) + abs(left.y - right.y)
 
 
 def _opposite_direction(direction: str) -> str:

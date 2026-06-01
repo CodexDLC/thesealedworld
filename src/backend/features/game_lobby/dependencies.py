@@ -56,6 +56,7 @@ def get_game_lobby_integration(
         expedition_repo=CharacterExpeditionRepository(db_session),
         inventory_repo=InventoryItemRepository(db_session),
         item_persistence=ItemPersistenceIntegration(ItemInstanceRepository(db_session)),
+        inventory_sessions=request.app.state.redis_managers.inventory_sessions,
         character_sessions=character_sessions,
         game_session_lock=game_session_lock,
         events=request.app.state.events,

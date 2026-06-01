@@ -4,6 +4,8 @@ Detailed milestone history for the `src/backend` game runtime layer.
 
 ## [Unreleased]
 
+- Starter-rift resets now rebuild hot character state from the new imprint and drop stale inventory runtime cache, while rift hearts stay out of the start-adjacent cells.
+
 ## [v0.2.0a1] - Alpha 0.2.0
 
 - Rift backend runtime now includes portal keys, zone/session persistence, Redis managers, entry/player services, travel/event resolution, combat result integration, maintenance tools, and first scenario entry content.

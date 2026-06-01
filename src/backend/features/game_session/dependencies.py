@@ -72,6 +72,7 @@ def get_game_session_service(
             expedition_repo=expedition_repo,
             inventory_repo=inventory_repo,
             item_persistence=ItemPersistenceIntegration(ItemInstanceRepository(db_session)),
+            inventory_sessions=request.app.state.redis_managers.inventory_sessions,
             character_sessions=character_sessions,
             events=request.app.state.events,
         ),

@@ -45,6 +45,7 @@ if TYPE_CHECKING:
     from src.backend.features.rift.integrations import RiftRuntimeIntegration
     from src.backend.infrastructure.actor_state.managers import CharacterSessionManager, GameSessionLockManager
     from src.backend.infrastructure.game_lobby.managers import StartingImprintDistributionManager
+    from src.backend.infrastructure.inventory.managers import InventorySessionManager
 
 
 @dataclass(frozen=True, slots=True)
@@ -79,6 +80,7 @@ class GameLobbyIntegration:
         expedition_repo: CharacterExpeditionRepository | None = None,
         inventory_repo: InventoryItemRepository | None = None,
         item_persistence: ItemPersistenceIntegration | None = None,
+        inventory_sessions: InventorySessionManager | None = None,
         scenario_service: Any | None = None,
         db_session: AsyncSession | None = None,
         character_sessions: CharacterSessionManager,
@@ -101,6 +103,7 @@ class GameLobbyIntegration:
         self.item_persistence = item_persistence
         if self.item_persistence is None and db_session is not None:
             self.item_persistence = ItemPersistenceIntegration(ItemInstanceRepository(db_session))
+        self.inventory_sessions = inventory_sessions
         self.character_sessions = character_sessions
         self.game_session_lock = game_session_lock
         self.events = events
@@ -295,7 +298,7 @@ class GameLobbyIntegration:
             location_id="52_52",
         )
 
-        await self.cleanup_runtime(character_id)
+        await self.cleanup_runtime(character_id, clear_inventory_session=True)
         transferred_items = 0
         if self.item_persistence is not None:
             transferred_items = await self.item_persistence.transfer_deleted_character_items_to_system(character_id)
@@ -307,7 +310,7 @@ class GameLobbyIntegration:
             seed=seed,
             imprint_key=imprint_key,
         )
-        await self.create_active_session(reset_character)
+        await self.bootstrap_active_character(user_id=user_id, character_id=character_id)
         logger.bind(
             char_id=character_id,
             user_id=str(user_id),
@@ -489,7 +492,7 @@ class GameLobbyIntegration:
             raise RuntimeError(f"Scenario initialization failed: {response!r}")
         return ScenarioPayloadDTO(**response["payload"])
 
-    async def cleanup_runtime(self, char_id: int) -> None:
+    async def cleanup_runtime(self, char_id: int, *, clear_inventory_session: bool = False) -> None:
         document = await self._active_character_document(char_id)
         if self.events is not None:
             await self.events.request(
@@ -500,6 +503,8 @@ class GameLobbyIntegration:
         elif self.scenario_service is not None and hasattr(self.scenario_service, "cleanup"):
             await self.scenario_service.cleanup(char_id)
         await self._abandon_active_rift(char_id, document)
+        if clear_inventory_session:
+            await self._clear_inventory_session(char_id)
         await self.character_sessions.delete_session(char_id)
         await self._release_session_lock(char_id)
 
@@ -511,6 +516,12 @@ class GameLobbyIntegration:
             document = await getter(char_id)
             return document if isinstance(document, dict) else None
         return None
+
+    async def _clear_inventory_session(self, char_id: int) -> None:
+        if self.inventory_sessions is None:
+            return
+        with suppress(Exception):
+            await self.inventory_sessions.delete(char_id)
 
     async def _abandon_active_rift(self, char_id: int, document: dict[str, Any] | None) -> None:
         if self.rift_runtime is None or not isinstance(document, dict):

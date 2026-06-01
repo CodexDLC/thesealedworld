@@ -15,7 +15,9 @@ def build_rift_context(
     character_status: Any | None = None,
     debug_enabled: bool | None = None,
 ) -> dict[str, Any]:
-    debug = settings.debug if debug_enabled is None else bool(debug_enabled)
+    meta = rift.get("meta") if isinstance(rift, dict) else None
+    rift_debug = bool(meta.get("debug")) if isinstance(meta, dict) else False
+    debug = (settings.debug or rift_debug) if debug_enabled is None else bool(debug_enabled)
     status_payload = status_seed or {
         "character_id": char_id,
         "name": "Rift tester",

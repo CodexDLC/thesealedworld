@@ -3027,6 +3027,7 @@ def test_spiked_guard_reflects_on_block_without_consuming_buff(monkeypatch: pyte
 
     service = AbilityService()
     service.pre_process(ctx, move, source, target)
+    ctx.flags.force.hit = True
     ctx.flags.force.block = True
     CombatResolver.resolve_exchange(source.stats, target.stats, ctx)
     service.post_process(ctx, source, target, move)

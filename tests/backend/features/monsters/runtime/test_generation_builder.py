@@ -7,6 +7,7 @@ from src.backend.features.monsters.dto.generation import GeneratedClan, MonsterG
 from src.backend.features.monsters.resources import get_family_config
 from src.backend.features.monsters.runtime.generation_builder import MonsterClanGenerationBuilder
 from src.backend.features.monsters.runtime.hashing import compute_context_hash, normalize_tags
+from src.backend.features.monsters.services.gear_score_service import MonsterGearScoreService
 
 
 class FakeRepository:
@@ -128,7 +129,10 @@ async def test_generation_builder_creates_clan_template_with_all_available_membe
     assert first.text_content["ambush_ru"]
     assert first.text_content["idle_ru"]
     assert first.generation_meta["balance"]["gear_score"] > 0
-    assert first.generation_meta["balance"]["gear_score_version"] == 3
+    assert first.generation_meta["balance"]["gear_score_version"] == MonsterGearScoreService.VERSION
+    assert first.threat_rating == first.generation_meta["balance"]["gear_score"]
+    assert "base_cost" not in first.generation_meta["balance"]
+    assert "effective_cost" not in first.generation_meta["balance"]
 
 
 @pytest.mark.unit
@@ -203,7 +207,7 @@ def test_d4_rat_rift_family_is_available_at_tier_two() -> None:
 
 
 @pytest.mark.unit
-def test_broken_road_does_not_fall_back_to_every_tier_one_family() -> None:
+def test_broken_road_allows_authored_starter_goblins_without_tier_one_fallback() -> None:
     builder = MonsterClanGenerationBuilder(repository=FakeRepository(), item_generation=FakeItemGeneration())
     context = MonsterGenerationContext(
         zone_id="rift:starter_rift:secondary",
@@ -212,4 +216,4 @@ def test_broken_road_does_not_fall_back_to_every_tier_one_family() -> None:
         tags=[],
     )
 
-    assert builder.get_available_family_ids(context) == ["bandit_gang", "rat_swarm"]
+    assert builder.get_available_family_ids(context) == ["bandit_gang", "goblin_tribe", "rat_swarm"]

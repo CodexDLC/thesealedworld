@@ -115,7 +115,7 @@ class MonsterVariantDTO(BaseModel):
     id: str
     role: MonsterRole
     narrative_hint: str
-    cost: int = Field(gt=0)
+    spawn_weight: int = Field(default=1, gt=0)
     extra_tags: list[str] = Field(default_factory=list)
     min_tier: int = Field(default=0, ge=0, le=11)
     max_tier: int = Field(default=11, ge=0, le=11)

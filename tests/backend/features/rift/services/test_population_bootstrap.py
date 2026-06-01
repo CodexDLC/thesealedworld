@@ -73,15 +73,15 @@ async def test_rift_population_bootstrap_orders_static_family_slots_with_rift_ha
     assert result.clans == 2
     assert result.pruned_clans == 3
     assert set(result.bindings["starter_rift"]) == {"primary", "secondary"}
-    assert result.bindings["starter_rift"]["primary"]["family_id"] == "bandit_gang"
+    assert result.bindings["starter_rift"]["primary"]["family_id"] == "goblin_tribe"
     assert result.bindings["starter_rift"]["primary"]["clan_id"]
     assert result.bindings["starter_rift"]["primary"]["context_hash"] == encounter.requests[0].context_hash
     assert result.bindings["starter_rift"]["primary"]["unique_hash"] == compute_unique_clan_hash(
-        "bandit_gang",
+        "goblin_tribe",
         encounter.requests[0].context_hash,
     )
     assert [(request.context.zone_id, request.family_id) for request in encounter.requests] == [
-        ("rift:starter_rift:primary", "bandit_gang"),
+        ("rift:starter_rift:primary", "goblin_tribe"),
         ("rift:starter_rift:secondary", "rat_swarm"),
     ]
     assert encounter.requests[0].context_hash != encounter.requests[1].context_hash
@@ -90,7 +90,7 @@ async def test_rift_population_bootstrap_orders_static_family_slots_with_rift_ha
     assert encounter.requests[0].context.context_meta["rift_population"]["slot_id"] == "primary"
     assert encounter.prune_requests == [
         {
-            "rift:starter_rift:primary": {("bandit_gang", encounter.requests[0].context_hash)},
+            "rift:starter_rift:primary": {("goblin_tribe", encounter.requests[0].context_hash)},
             "rift:starter_rift:secondary": {("rat_swarm", encounter.requests[1].context_hash)},
         }
     ]

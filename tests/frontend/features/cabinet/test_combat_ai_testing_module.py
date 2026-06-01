@@ -281,7 +281,7 @@ def test_participant_rows_show_actor_analytics_and_damage_share() -> None:
             "roster_mode": "seeded_random_draft",
             "roster_seed": 123,
             "roster_team_size": 2,
-            "unused_imprints": ["starter_guard_01", "starter_archer_01"],
+            "unused_imprints": ["starter_guard_01", "starter_staff_01"],
             "final_hp_by_actor": {"blue_berserker": 49},
             "participants": [
                 {
@@ -626,13 +626,13 @@ async def test_analytics_charts_rank_imprints_from_best_to_worst(monkeypatch: py
         winner="red",
         reward=10.0,
         telemetry={
-            "damage_by_actor": {"blue_guard": 20, "red_archer": 60},
-            "damage_taken_by_actor": {"blue_guard": 80, "red_archer": 30},
-            "action_count_by_actor": {"blue_guard": 20, "red_archer": 10},
-            "dodge_by_actor": {"blue_guard": 1, "red_archer": 5},
-            "parry_by_actor": {"blue_guard": 0, "red_archer": 2},
-            "block_by_actor": {"blue_guard": 0, "red_archer": 1},
-            "armor_absorb_events_by_actor": {"blue_guard": 1, "red_archer": 4},
+            "damage_by_actor": {"blue_guard": 20, "red_staff": 60},
+            "damage_taken_by_actor": {"blue_guard": 80, "red_staff": 30},
+            "action_count_by_actor": {"blue_guard": 20, "red_staff": 10},
+            "dodge_by_actor": {"blue_guard": 1, "red_staff": 5},
+            "parry_by_actor": {"blue_guard": 0, "red_staff": 2},
+            "block_by_actor": {"blue_guard": 0, "red_staff": 1},
+            "armor_absorb_events_by_actor": {"blue_guard": 1, "red_staff": 4},
         },
         metadata={
             "participants": [
@@ -645,15 +645,15 @@ async def test_analytics_charts_rank_imprints_from_best_to_worst(monkeypatch: py
                     "gear_score": {"total": 180, "offense": 50, "defense": 90, "resources": 30, "utility": 10},
                 },
                 {
-                    "actor_id": "red_archer",
+                    "actor_id": "red_staff",
                     "team": "red",
-                    "imprint_key": "starter_archer_01",
-                    "imprint_title": "Слепок лучника",
+                    "imprint_key": "starter_staff_01",
+                    "imprint_title": "Слепок боевого посоха",
                     "start_hp": 55,
                     "gear_score": {"total": 260, "offense": 130, "defense": 80, "resources": 40, "utility": 10},
                 },
             ],
-            "final_hp_by_actor": {"blue_guard": 0, "red_archer": 25},
+            "final_hp_by_actor": {"blue_guard": 0, "red_staff": 25},
         },
     )
 
@@ -669,11 +669,11 @@ async def test_analytics_charts_rank_imprints_from_best_to_worst(monkeypatch: py
     gear_score = await combat_ai_testing._analytics_gear_score_chart_provider(request)
     defence = await combat_ai_testing._analytics_defence_chart_provider(request)
 
-    assert damage.labels == ["Слепок лучника", "Слепок стража"]
-    assert efficiency.labels == ["Слепок лучника", "Слепок стража"]
-    assert survival.labels == ["Слепок лучника", "Слепок стража"]
-    assert gear_score.labels == ["Слепок лучника", "Слепок стража"]
-    assert defence.labels == ["Слепок лучника", "Слепок стража"]
+    assert damage.labels == ["Слепок боевого посоха", "Слепок стража"]
+    assert efficiency.labels == ["Слепок боевого посоха", "Слепок стража"]
+    assert survival.labels == ["Слепок боевого посоха", "Слепок стража"]
+    assert gear_score.labels == ["Слепок боевого посоха", "Слепок стража"]
+    assert defence.labels == ["Слепок боевого посоха", "Слепок стража"]
     assert damage.options["indexAxis"] == "y"
     assert damage.options["scales"]["y"]["ticks"]["autoSkip"] is False
 
@@ -1084,6 +1084,7 @@ async def test_family_pressure_launcher_exposes_imprint_select() -> None:
     assert table.actions[1].input_name == "seed"
     assert "случайный слепок" not in table.rows[0]["note"]
     assert table.rows[0]["runs"] == "5 на состав"
+    assert [row["family"] for row in table.rows] == ["rat_swarm", "goblin_tribe", "wolf_pack", "bandit_gang"]
 
 
 def test_running_family_pressure_detail_does_not_show_generic_combat_fallback() -> None:
@@ -1482,8 +1483,8 @@ async def test_policy_live_launcher_passes_selected_training_run(monkeypatch: py
             "max_rounds": 500,
             "tick": 0.05,
             "timeout": 8,
-            "min_team_size": 6,
-            "max_team_size": 6,
+            "min_team_size": 5,
+            "max_team_size": 5,
             "scenario_key": "starter_presets_5v5_live",
             "policy_run_id": "training-1",
         }
@@ -1641,7 +1642,7 @@ def test_combat_ai_testing_pages_render() -> None:
 
     assert response.status_code == 200
     assert "Тренировка монстров" in response.text
-    assert "Live tick: стартовые пресеты 6v6" in response.text
+    assert "Live tick: стартовые пресеты 5v5" in response.text
     assert "random draft 2v2-4v4" not in response.text
     assert "фон, пакет live-like" in response.text
     assert "зеркало полного пула" not in response.text

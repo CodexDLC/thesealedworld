@@ -604,6 +604,24 @@ class AbilityService:
             )
             return
 
+        if effect_id == "prep_scarlet_riposte":
+            reflected_damage = AbilityService._int_param(params, "reflect_damage", default=10)
+            if reflected_damage <= 0:
+                return
+            ctx.result.reflected_damage += reflected_damage
+            ctx.result.resource_facts.append(
+                CombatResourceFactDTO(
+                    actor_id=ctx.result.source_id,
+                    owner="source",
+                    resource="hp",
+                    reason="prepared_reflect",
+                    delta=-reflected_damage,
+                    source_effect_id=effect_id,
+                    tags=["prepared_reaction", "shield", "blood", "reflect", f"defender:{actor.char_id}"],
+                )
+            )
+            return
+
         if effect_id != "spiked_guard":
             return
         reflected_damage = AbilityService._int_param(params, "reflect_damage", default=5)
@@ -743,6 +761,38 @@ class AbilityService:
             effect_id = effect_data.get("id") or effect_data.get("effect_id")
 
             # 2. Instant Actions (Heal/Cleanse)
+            if effect_id == "shield_blood_damage":
+                params_raw = effect_data.get("params", {})
+                params = params_raw if isinstance(params_raw, dict) else {}
+                damage = AbilityService._int_param(params, "damage", default=10)
+                if damage <= 0:
+                    continue
+                ctx.result.damage_final += damage
+                ctx.result.effect_facts.append(
+                    CombatEffectFactDTO(
+                        actor_id=effect_target.char_id,
+                        owner=AbilityService._fact_owner(ctx, effect_target.char_id),
+                        effect_id="shield_blood_damage",
+                        action="apply",
+                        value=damage,
+                        resource="hp",
+                        source_trigger_id=effect_data.get("source_trigger_id"),
+                        tags=["shield", "blood", "damage"],
+                    )
+                )
+                ctx.result.events.append(
+                    CombatEventDTO(
+                        type="HIT",
+                        source_id=source.char_id,
+                        target_id=effect_target.char_id,
+                        value=damage,
+                        resource="hp",
+                        action_id="shield_blood_damage",
+                        tags=["BLOOD", "SHIELD"],
+                    )
+                )
+                continue
+
             if effect_id == "restore_hp":
                 val = effect_data.get("params", {}).get("value", 0)
                 if "hp" not in ctx.result.resource_changes:

@@ -7,7 +7,6 @@ from .generated_view import (
     PaginationDTO,
 )
 from .generation import (
-    EncounterMonsterResult,
     GeneratedClan,
     GeneratedMonster,
     GeneratedMonsterTemplateDTO,
@@ -36,7 +35,6 @@ from .resources import (
 )
 
 __all__ = [
-    "EncounterMonsterResult",
     "GearScoreSummaryDTO",
     "GeneratedClanViewDTO",
     "GeneratedClan",

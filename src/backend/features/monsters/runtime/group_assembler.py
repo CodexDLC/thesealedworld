@@ -127,14 +127,14 @@ class MonsterGroupAssembler:
         composition_policy: dict[str, Any] | None = None,
     ) -> MonsterGroupAssembly:
         del force_single_family  # Current caller already passes members from one clan.
-        target_budget = self._target_budget(budget)
+        policy = _normalize_composition_policy(composition_policy)
+        target_budget = self._target_budget(budget, policy)
         adjusted_budget = self.adjust_budget(target_budget, tier=tier, danger=danger)
         candidates = self._sorted_candidates(members)
         if not candidates:
             return MonsterGroupAssembly([], target_budget, adjusted_budget, 0)
 
         organization = self._organization_type(candidates)
-        policy = _normalize_composition_policy(composition_policy)
         candidates = self._filter_candidates_by_policy(candidates, policy)
         if not candidates:
             return MonsterGroupAssembly([], target_budget, adjusted_budget, 0)
@@ -167,9 +167,12 @@ class MonsterGroupAssembler:
             return [self._best_single(candidates, budget, rule)]
 
         selected: list[GeneratedMonster] = []
-        start_minions = self._start_minion_target(candidates, rule)
+        start_role = str(rule.get("start_role") or "minion")
+        if start_role not in ROLE_ORDER:
+            start_role = "minion"
 
-        self._fill_role(selected, candidates, "minion", start_minions, budget, rule)
+        start_count = self._start_role_target(candidates, rule, start_role)
+        self._fill_role(selected, candidates, start_role, start_count, budget, rule)
 
         self._fill_min_units(selected, candidates, budget, rule)
         self._upgrade_group(selected, candidates, budget, rule)
@@ -178,16 +181,18 @@ class MonsterGroupAssembler:
             key=lambda member: (ROLE_ORDER.get(member.role, 9), self._member_power(member), member.variant_key),
         )
 
-    def _start_minion_target(
+    def _start_role_target(
         self,
         candidates: list[GeneratedMonster],
         rule: dict[str, Any],
+        role: str,
     ) -> int:
         max_units = int(rule["max_units"])
         if bool(self.config["global"]["fill_minion_slots_before_upgrades"]):
-            return max_units
-        unique_minions = len({member.variant_key for member in candidates if member.role == "minion"})
-        return min(max(int(rule["start_minions"]), unique_minions), max_units)
+            return min(max_units, self._role_cap(rule, role))
+        unique_role_members = len({member.variant_key for member in candidates if member.role == role})
+        configured_start = int(rule["start_minions"]) if role == "minion" else int(rule["min_units"])
+        return min(max(configured_start, unique_role_members), max_units, self._role_cap(rule, role))
 
     def _best_single(
         self,
@@ -386,6 +391,12 @@ class MonsterGroupAssembler:
             result["allow_repeated_members"] = bool(policy["allow_repeated_members"])
         if policy["prefer_distinct_members"] is not None:
             result["prefer_distinct_members"] = bool(policy["prefer_distinct_members"])
+        if policy["start_role"] is not None:
+            result["start_role"] = policy["start_role"]
+        if policy["upgrade_order"]:
+            result["upgrade_order"] = list(policy["upgrade_order"])
+        if policy["role_caps"]:
+            result["role_caps"] = dict(policy["role_caps"])
 
         allowed_roles = set(policy["allowed_roles"])
         required_roles = set(policy["required_roles"])
@@ -402,6 +413,13 @@ class MonsterGroupAssembler:
             result["max_veterans"] = max(1, int(result["max_veterans"]))
         if "elite" in required_roles:
             result["max_elites"] = max(1, int(result["max_elites"]))
+        if "boss" in required_roles:
+            result["boss_allowed"] = True
+        role_caps = result.get("role_caps")
+        if isinstance(role_caps, dict):
+            for role in required_roles:
+                if role in ROLE_ORDER:
+                    role_caps[role] = max(1, int(role_caps.get(role, 0)))
         if required_roles and "minion" not in required_roles:
             result["start_minions"] = 0
         return result
@@ -462,6 +480,12 @@ class MonsterGroupAssembler:
 
     @staticmethod
     def _role_cap(rule: dict[str, Any], role: str) -> int:
+        role_caps = rule.get("role_caps")
+        if isinstance(role_caps, dict) and role in role_caps:
+            try:
+                return max(0, int(role_caps[role]))
+            except (TypeError, ValueError):
+                return 0
         if role == "minion":
             return int(rule["max_units"])
         if role == "veteran":
@@ -488,8 +512,11 @@ class MonsterGroupAssembler:
         threshold = max((int(key) for key in table if int(key) <= count), default=1)
         return float(table[threshold])
 
-    def _target_budget(self, budget: float) -> float:
+    def _target_budget(self, budget: float, policy: dict[str, Any] | None = None) -> float:
+        policy_multiplier = (policy or {}).get("budget_multiplier")
         multiplier = float(self.config["global"]["budget_multiplier"])
+        if policy_multiplier is not None:
+            multiplier *= float(policy_multiplier)
         return round(self._clamp_budget(float(budget) * multiplier), 2)
 
     def _clamp_budget(self, budget: float) -> float:
@@ -514,6 +541,10 @@ def _normalize_composition_policy(policy: dict[str, Any] | None) -> dict[str, An
         "required_roles": _string_list(raw.get("required_roles")),
         "min_units": _optional_int(raw.get("min_units")),
         "max_units": _optional_int(raw.get("max_units")),
+        "budget_multiplier": _optional_float(raw.get("budget_multiplier")),
+        "start_role": _optional_role(raw.get("start_role")),
+        "role_caps": _role_caps(raw.get("role_caps")),
+        "upgrade_order": _role_list(raw.get("upgrade_order")),
         "allow_repeated_members": _optional_bool(raw.get("allow_repeated_members")),
         "prefer_distinct_members": _optional_bool(raw.get("prefer_distinct_members")),
     }
@@ -529,11 +560,44 @@ def _string_list(value: Any) -> list[str]:
     return [text for raw in values if (text := str(raw).strip())]
 
 
+def _role_list(value: Any) -> list[str]:
+    return [role for role in _string_list(value) if role in ROLE_ORDER]
+
+
+def _optional_role(value: Any) -> str | None:
+    role = str(value or "").strip()
+    return role if role in ROLE_ORDER else None
+
+
+def _role_caps(value: Any) -> dict[str, int]:
+    if not isinstance(value, dict):
+        return {}
+    result: dict[str, int] = {}
+    for key, raw in value.items():
+        role = str(key).strip()
+        if role not in ROLE_ORDER:
+            continue
+        try:
+            result[role] = max(0, int(raw))
+        except (TypeError, ValueError):
+            continue
+    return result
+
+
 def _optional_int(value: Any) -> int | None:
     if value is None:
         return None
     try:
         return int(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _optional_float(value: Any) -> float | None:
+    if value is None:
+        return None
+    try:
+        return float(value)
     except (TypeError, ValueError):
         return None
 

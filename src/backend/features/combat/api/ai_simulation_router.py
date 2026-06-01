@@ -234,8 +234,8 @@ async def run_live_demo_simulation(
     max_rounds: Annotated[int, Query(ge=1, le=2000)] = LIVE_DEFAULT_MAX_EXCHANGES,
     tick_interval_seconds: Annotated[float, Query(ge=0.0, le=5.0)] = LIVE_DEFAULT_TICK_INTERVAL_SECONDS,
     timeout_ticks: Annotated[int, Query(ge=1, le=100)] = 8,
-    min_team_size: Annotated[int, Query(ge=1, le=6)] = 6,
-    max_team_size: Annotated[int, Query(ge=1, le=6)] = 6,
+    min_team_size: Annotated[int, Query(ge=1, le=6)] = 5,
+    max_team_size: Annotated[int, Query(ge=1, le=6)] = 5,
     scenario_key: str = "starter_presets_5v5_live",
     policy_run_id: str = "",
 ) -> CombatAiSimulationRunDTO:
@@ -280,8 +280,8 @@ async def run_live_demo_simulation_batch(
     max_rounds: Annotated[int, Query(ge=1, le=2000)] = LIVE_DEFAULT_MAX_EXCHANGES,
     tick_interval_seconds: Annotated[float, Query(ge=0.0, le=5.0)] = LIVE_DEFAULT_TICK_INTERVAL_SECONDS,
     timeout_ticks: Annotated[int, Query(ge=1, le=100)] = 8,
-    min_team_size: Annotated[int, Query(ge=1, le=6)] = 6,
-    max_team_size: Annotated[int, Query(ge=1, le=6)] = 6,
+    min_team_size: Annotated[int, Query(ge=1, le=6)] = 5,
+    max_team_size: Annotated[int, Query(ge=1, le=6)] = 5,
     scenario_key: str = "starter_presets_5v5_live",
     policy_run_id: str = "",
 ) -> CombatAiSimulationRunListDTO:
@@ -709,9 +709,7 @@ async def _clear_combat_ai_simulation_runtime_state(request: Request) -> dict[st
     redis_client = getattr(request.app.state, "redis_client", None)
     ai_queue_deleted = await clear_arq_queue(redis_client, COMBAT_AI_SIMULATION_ARQ_QUEUE)
     progress_store = _progress_store_from_request(request)
-    progress_deleted = (
-        await progress_store.clear_all_progress(preserve_family_pressure=True) if progress_store is not None else 0
-    )
+    progress_deleted = await progress_store.clear_all_progress() if progress_store is not None else 0
     return {
         "queued_deleted": ai_queue_deleted,
         "ai_queue_deleted": ai_queue_deleted,

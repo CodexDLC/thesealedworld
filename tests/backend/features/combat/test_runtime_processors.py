@@ -2334,6 +2334,55 @@ def test_concussion_uses_normal_attack_damage_and_blocks_next_feint_use() -> Non
 
 
 @pytest.mark.unit
+def test_shield_blood_damage_converts_blood_feint_into_extra_hit_damage() -> None:
+    source = actor(1, "a")
+    target = actor(2, "b")
+    ctx = PipelineContextDTO()
+    ctx.result.source_id = "1"
+    ctx.result.target_id = "2"
+    ctx.result.is_hit = True
+    ctx.result.damage_final = 4
+    ctx.result.applied_effects.append(
+        {
+            "id": "shield_blood_damage",
+            "target_actor": "target",
+            "params": {"damage": 10},
+        }
+    )
+
+    AbilityService._apply_queued_effects(ctx, source, target)
+
+    assert ctx.result.damage_final == 14
+    assert ctx.result.effect_facts[-1].effect_id == "shield_blood_damage"
+    assert ctx.result.effect_facts[-1].value == 10
+
+
+@pytest.mark.unit
+def test_scarlet_riposte_reflects_blood_damage_on_block() -> None:
+    source = actor(1, "a")
+    target = actor(2, "b")
+    target.statuses.effects.append(
+        ActiveEffectDTO(
+            uid="fx1",
+            effect_id="prep_scarlet_riposte",
+            source_id=2,
+            expire_at_exchange=999,
+            params={"reflect_damage": 10},
+        )
+    )
+    ctx = PipelineContextDTO()
+    ctx.result.source_id = "1"
+    ctx.result.target_id = "2"
+    ctx.result.is_blocked = True
+
+    AbilityService._process_prepared_reactions_post_calc(ctx, source, target)
+
+    assert ctx.result.reflected_damage == 10
+    assert [effect.effect_id for effect in target.statuses.effects] == []
+    assert ctx.result.effect_facts[-1].effect_id == "prep_scarlet_riposte"
+
+
+@pytest.mark.unit
 @pytest.mark.parametrize(
     ("feint_id", "expected_cost", "expected_effect"),
     [

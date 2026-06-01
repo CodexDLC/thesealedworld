@@ -34,7 +34,7 @@ class VariantPowerRow:
     organization_type: str
     role: str
     variant_id: str
-    cost: int
+    spawn_weight: int
     context_tier: int
     member_tier: int
     min_tier: int
@@ -60,7 +60,7 @@ class SummaryRow:
     avg_attrs: float
     avg_skills: float
     avg_family_mods: float
-    avg_cost: float
+    avg_spawn_weight: float
 
 
 def build_rows(*, families: list[str] | None = None, tier: int | None = None) -> list[VariantPowerRow]:
@@ -98,7 +98,7 @@ def summarize(rows: list[VariantPowerRow], *, key: str) -> list[SummaryRow]:
             avg_attrs=_avg(row.attribute_points for row in items),
             avg_skills=_avg(row.skill_points for row in items),
             avg_family_mods=_avg(row.family_modifier_points for row in items),
-            avg_cost=_avg(row.cost for row in items),
+            avg_spawn_weight=_avg(row.spawn_weight for row in items),
         )
         for label, items in sorted(grouped.items(), key=lambda item: _summary_sort_key(item[0]))
     ]
@@ -144,7 +144,7 @@ def _build_variant_row(
         organization_type=family.organization_type,
         role=variant.role,
         variant_id=variant.id,
-        cost=variant.cost,
+        spawn_weight=variant.spawn_weight,
         context_tier=context_tier,
         member_tier=member_tier,
         min_tier=variant.min_tier,
@@ -199,7 +199,7 @@ def _print_summary(title: str, rows: list[SummaryRow]) -> None:
         print(
             f"{row.label} count={row.count} avg_power={row.avg_power:.2f} min={row.min_power:.2f} "
             f"max={row.max_power:.2f} avg_attrs={row.avg_attrs:.2f} avg_skills={row.avg_skills:.2f} "
-            f"avg_family_mods={row.avg_family_mods:.2f} avg_cost={row.avg_cost:.2f}"
+            f"avg_family_mods={row.avg_family_mods:.2f} avg_spawn_weight={row.avg_spawn_weight:.2f}"
         )
 
 
@@ -209,7 +209,7 @@ def _print_variants(rows: list[VariantPowerRow]) -> None:
         print(
             f"family={row.family_id} tier={row.context_tier} role={row.role} variant={row.variant_id} "
             f"power={row.resource_power:.2f} attrs={row.attribute_points:.2f} skills={row.skill_points:.2f} "
-            f"family_mods={row.family_modifier_points:.2f} cost={row.cost} "
+            f"family_mods={row.family_modifier_points:.2f} spawn_weight={row.spawn_weight} "
             f"str={row.strength} agi={row.agility} end={row.endurance} per={row.perception}"
         )
 

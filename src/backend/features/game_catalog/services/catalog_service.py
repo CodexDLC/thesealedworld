@@ -82,7 +82,7 @@ class GameCatalogBootstrapService:
                         "role": variant.role,
                         "tier_min": variant.min_tier,
                         "tier_max": variant.max_tier,
-                        "cost": variant.cost,
+                        "cost": getattr(variant, "cost", None),
                         "tags": variant.extra_tags,
                         "skills": sorted(variant.skills),
                         "description": variant.narrative_hint,

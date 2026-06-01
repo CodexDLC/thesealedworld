@@ -44,7 +44,7 @@ GOBLINS_FAMILY: MonsterFamily = {
         "goblin_sneak": {
             "id": "goblin_sneak",
             "role": "minion",
-            "cost": 20,
+            "spawn_weight": 20,
             "min_tier": 0,
             "max_tier": 4,
             "narrative_hint": "A small goblin with a hooded cloak and a pair of sharp daggers, moves silently.",
@@ -69,7 +69,7 @@ GOBLINS_FAMILY: MonsterFamily = {
         "goblin_scavenger": {
             "id": "goblin_scavenger",
             "role": "minion",
-            "cost": 20,
+            "spawn_weight": 20,
             "min_tier": 0,
             "max_tier": 4,
             "narrative_hint": "A goblin carrying a large, overflowing backpack. Wields a simple club.",
@@ -94,7 +94,7 @@ GOBLINS_FAMILY: MonsterFamily = {
         "goblin_cutter": {
             "id": "goblin_cutter",
             "role": "minion",
-            "cost": 20,
+            "spawn_weight": 20,
             "min_tier": 0,
             "max_tier": 4,
             "narrative_hint": "A mean little goblin with a chipped knife and a habit of aiming for tendons.",
@@ -119,7 +119,7 @@ GOBLINS_FAMILY: MonsterFamily = {
         "goblin_sparkpick": {
             "id": "goblin_sparkpick",
             "role": "minion",
-            "cost": 20,
+            "spawn_weight": 20,
             "min_tier": 0,
             "max_tier": 4,
             "narrative_hint": "A scavenger carrying a bent tool that spits unstable ether sparks when swung.",
@@ -145,7 +145,7 @@ GOBLINS_FAMILY: MonsterFamily = {
         "goblin_spearman": {
             "id": "goblin_spearman",
             "role": "veteran",
-            "cost": 50,
+            "spawn_weight": 50,
             "min_tier": 0,
             "max_tier": 5,
             "narrative_hint": "A disciplined goblin with a long spear and a crude wooden shield.",
@@ -170,7 +170,7 @@ GOBLINS_FAMILY: MonsterFamily = {
         "goblin_slinger": {
             "id": "goblin_slinger",
             "role": "veteran",
-            "cost": 50,
+            "spawn_weight": 50,
             "min_tier": 1,
             "max_tier": 5,
             "narrative_hint": "A fast goblin with a short bow and a simple quiver of training arrows.",
@@ -195,7 +195,7 @@ GOBLINS_FAMILY: MonsterFamily = {
         "goblin_scrapguard": {
             "id": "goblin_scrapguard",
             "role": "veteran",
-            "cost": 50,
+            "spawn_weight": 50,
             "min_tier": 1,
             "max_tier": 5,
             "narrative_hint": "A squat goblin hiding behind a crude shield packed with scavenged metal plates.",
@@ -221,7 +221,7 @@ GOBLINS_FAMILY: MonsterFamily = {
         "goblin_tinkerer": {
             "id": "goblin_tinkerer",
             "role": "elite",
-            "cost": 150,
+            "spawn_weight": 150,
             "min_tier": 2,
             "max_tier": 6,
             "narrative_hint": "A goblin with a leather cap and a belt full of tools. Throws caltrops and sets traps.",
@@ -246,7 +246,7 @@ GOBLINS_FAMILY: MonsterFamily = {
         "goblin_bomber": {
             "id": "goblin_bomber",
             "role": "elite",
-            "cost": 150,
+            "spawn_weight": 150,
             "min_tier": 2,
             "max_tier": 6,
             "narrative_hint": "A goblin with a manic grin and a sack of crude explosives.",
@@ -271,7 +271,7 @@ GOBLINS_FAMILY: MonsterFamily = {
         "goblin_trapmaster": {
             "id": "goblin_trapmaster",
             "role": "elite",
-            "cost": 150,
+            "spawn_weight": 150,
             "min_tier": 2,
             "max_tier": 6,
             "narrative_hint": "A patient goblin engineer covered in twine, hooks, and stolen monolith fragments.",
@@ -297,7 +297,7 @@ GOBLINS_FAMILY: MonsterFamily = {
         "goblin_chief": {
             "id": "goblin_chief",
             "role": "boss",
-            "cost": 600,
+            "spawn_weight": 600,
             "min_tier": 3,
             "max_tier": 7,
             "narrative_hint": "A larger, smarter goblin wearing a crude crown and better armor. Shouts commands.",
@@ -322,7 +322,7 @@ GOBLINS_FAMILY: MonsterFamily = {
         "scrap_king": {
             "id": "scrap_king",
             "role": "boss",
-            "cost": 600,
+            "spawn_weight": 600,
             "min_tier": 4,
             "max_tier": 7,
             "narrative_hint": "A huge goblin sitting on a throne of junk, wearing a makeshift power armor.",

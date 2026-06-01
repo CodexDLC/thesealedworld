@@ -27,7 +27,7 @@ from src.backend.features.combat.runtime.simulation import (
     LiveSimulationStepResult,
     LiveSimulationTiming,
     StartingImprintSimulationActorBuilder,
-    random_starter_6v6_imprints,
+    random_starter_5v5_imprints,
     random_starter_roster_imprints,
     render_simulation_report,
 )
@@ -119,8 +119,8 @@ class CombatAiSimulationRunService:
         max_rounds: int = LIVE_DEFAULT_MAX_EXCHANGES,
         tick_interval_seconds: float = LIVE_DEFAULT_TICK_INTERVAL_SECONDS,
         timeout_ticks: int = 8,
-        min_team_size: int = 6,
-        max_team_size: int = 6,
+        min_team_size: int = 5,
+        max_team_size: int = 5,
         scenario_key: str = "starter_presets_5v5_live",
         mirror_full_roster: bool = False,
         skill_profile: str = STARTER_SKILL_PROFILE_BASELINE,
@@ -172,8 +172,8 @@ class CombatAiSimulationRunService:
         max_rounds: int = LIVE_DEFAULT_MAX_EXCHANGES,
         tick_interval_seconds: float = LIVE_DEFAULT_TICK_INTERVAL_SECONDS,
         timeout_ticks: int = 8,
-        min_team_size: int = 6,
-        max_team_size: int = 6,
+        min_team_size: int = 5,
+        max_team_size: int = 5,
         scenario_key: str = "starter_presets_5v5_live",
         mirror_full_roster: bool = False,
         skill_profile: str = STARTER_SKILL_PROFILE_BASELINE,
@@ -224,8 +224,8 @@ class CombatAiSimulationRunService:
         max_rounds: int = LIVE_DEFAULT_MAX_EXCHANGES,
         tick_interval_seconds: float = LIVE_DEFAULT_TICK_INTERVAL_SECONDS,
         timeout_ticks: int = 8,
-        min_team_size: int = 6,
-        max_team_size: int = 6,
+        min_team_size: int = 5,
+        max_team_size: int = 5,
         scenario_key: str = "starter_presets_5v5_live_latest_training_file",
         mirror_full_roster: bool = False,
         skill_profile: str = STARTER_SKILL_PROFILE_BASELINE,
@@ -283,8 +283,8 @@ class CombatAiSimulationRunService:
         max_rounds: int = LIVE_DEFAULT_MAX_EXCHANGES,
         tick_interval_seconds: float = LIVE_DEFAULT_TICK_INTERVAL_SECONDS,
         timeout_ticks: int = 8,
-        min_team_size: int = 6,
-        max_team_size: int = 6,
+        min_team_size: int = 5,
+        max_team_size: int = 5,
         scenario_key: str = "starter_presets_5v5_live",
         mirror_full_roster: bool = False,
         skill_profile: str = STARTER_SKILL_PROFILE_BASELINE,
@@ -347,8 +347,8 @@ class CombatAiSimulationRunService:
         max_rounds: int = LIVE_DEFAULT_MAX_EXCHANGES,
         tick_interval_seconds: float = LIVE_DEFAULT_TICK_INTERVAL_SECONDS,
         timeout_ticks: int = 8,
-        min_team_size: int = 6,
-        max_team_size: int = 6,
+        min_team_size: int = 5,
+        max_team_size: int = 5,
         scenario_key: str = "starter_presets_5v5_live_latest_training_file",
         mirror_full_roster: bool = False,
         skill_profile: str = STARTER_SKILL_PROFILE_BASELINE,
@@ -406,8 +406,8 @@ class CombatAiSimulationRunService:
         max_rounds: int = LIVE_DEFAULT_MAX_EXCHANGES,
         tick_interval_seconds: float = LIVE_DEFAULT_TICK_INTERVAL_SECONDS,
         timeout_ticks: int = 8,
-        min_team_size: int = 6,
-        max_team_size: int = 6,
+        min_team_size: int = 5,
+        max_team_size: int = 5,
         scenario_key: str = "starter_presets_5v5_live",
         mirror_full_roster: bool = False,
         skill_profile: str = STARTER_SKILL_PROFILE_BASELINE,
@@ -471,8 +471,8 @@ class CombatAiSimulationRunService:
         max_rounds: int = LIVE_DEFAULT_MAX_EXCHANGES,
         tick_interval_seconds: float = LIVE_DEFAULT_TICK_INTERVAL_SECONDS,
         timeout_ticks: int = 8,
-        min_team_size: int = 6,
-        max_team_size: int = 6,
+        min_team_size: int = 5,
+        max_team_size: int = 5,
         mirror_full_roster: bool = False,
         skill_profile: str = STARTER_SKILL_PROFILE_BASELINE,
         blue_imprints: tuple[str, ...] | None = None,
@@ -641,8 +641,8 @@ class CombatAiSimulationRunService:
         policy_ref: str,
         policy: Policy | None,
         policy_metadata: dict[str, Any],
-        min_team_size: int = 6,
-        max_team_size: int = 6,
+        min_team_size: int = 5,
+        max_team_size: int = 5,
         mirror_full_roster: bool = False,
     ) -> CombatAiSimulationRun:
         actors, participants, roster_metadata = _build_starter_roster(
@@ -1331,8 +1331,8 @@ async def _run_policy_battle_reward(
 ) -> float:
     actors, participants, _metadata = _build_starter_roster(
         seed=seed,
-        min_team_size=6,
-        max_team_size=6,
+        min_team_size=5,
+        max_team_size=5,
         mirror_full_roster=mirror_full_roster,
         skill_profile=skill_profile,
     )
@@ -1638,9 +1638,9 @@ def _scheduled_roster_metadata(
         blue = DEFAULT_STARTER_SIMULATION_IMPRINTS
         red = DEFAULT_STARTER_SIMULATION_IMPRINTS
         mode = "mirror_full_roster"
-    elif min_team_size == 6 and max_team_size == 6:
-        blue, red = random_starter_6v6_imprints(seed=seed)
-        mode = "seeded_random_6v6_split"
+    elif min_team_size == 5 and max_team_size == 5:
+        blue, red = random_starter_5v5_imprints(seed=seed)
+        mode = "seeded_random_5v5_split"
     else:
         blue, red = random_starter_roster_imprints(
             seed=seed,
@@ -1685,12 +1685,12 @@ def _random_roster_metadata(
     seed: int,
     participants: list[dict[str, Any]],
     *,
-    min_team_size: int = 6,
-    max_team_size: int = 6,
+    min_team_size: int = 5,
+    max_team_size: int = 5,
 ) -> dict[str, Any]:
-    if min_team_size == 6 and max_team_size == 6:
-        blue, red = random_starter_6v6_imprints(seed=seed)
-        mode = "seeded_random_6v6_split"
+    if min_team_size == 5 and max_team_size == 5:
+        blue, red = random_starter_5v5_imprints(seed=seed)
+        mode = "seeded_random_5v5_split"
     else:
         blue, red = random_starter_roster_imprints(
             seed=seed,
@@ -1725,8 +1725,8 @@ def _fixed_roster_metadata(
 ) -> dict[str, Any]:
     if mirror_full_roster:
         mode = "mirror_full_roster"
-    elif min_team_size == 6 and max_team_size == 6 and len(blue_imprints) == 6 and len(red_imprints) == 6:
-        mode = "seeded_random_6v6_split"
+    elif min_team_size == 5 and max_team_size == 5 and len(blue_imprints) == 5 and len(red_imprints) == 5:
+        mode = "seeded_random_5v5_split"
     else:
         mode = "seeded_random_draft"
     pool = DEFAULT_STARTER_SIMULATION_IMPRINTS

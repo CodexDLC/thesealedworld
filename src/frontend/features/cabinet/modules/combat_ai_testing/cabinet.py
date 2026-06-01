@@ -31,20 +31,16 @@ _LIVE_LAUNCH_SCENARIOS = {
     "starter_presets_random_draft_live",
 }
 _STARTER_IMPRINT_OPTIONS = [
-    {"value": "starter_guard_01", "label": "Слепок стража"},
-    {"value": "starter_breaker_01", "label": "Слепок проломщика"},
-    {"value": "starter_duelist_01", "label": "Слепок дуэлянта"},
-    {"value": "starter_dual_blades_01", "label": "Слепок двух клинков"},
-    {"value": "starter_dual_sword_01", "label": "Слепок меча и клинка"},
+    {"value": "starter_guard_01", "label": "Слепок мечника со щитом"},
+    {"value": "starter_breaker_01", "label": "Слепок двуручного молота"},
+    {"value": "starter_dual_blades_01", "label": "Слепок двух стилетов"},
+    {"value": "starter_dual_sword_01", "label": "Слепок меча и стилета"},
     {"value": "starter_dual_mace_01", "label": "Слепок булавы и даги"},
-    {"value": "starter_pathfinder_01", "label": "Слепок следопыта"},
-    {"value": "starter_hunter_01", "label": "Слепок охотника"},
-    {"value": "starter_archer_01", "label": "Слепок лучника"},
-    {"value": "starter_marksman_01", "label": "Слепок стрелка"},
-    {"value": "starter_staff_01", "label": "Слепок опорного бойца"},
-    {"value": "starter_heavy_guard_01", "label": "Слепок тяжелого стража"},
-    {"value": "starter_tactician_01", "label": "Слепок тактика"},
-    {"value": "starter_rift_survivor_01", "label": "Слепок рифт-выжившего"},
+    {"value": "starter_pathfinder_01", "label": "Слепок кинжальщика"},
+    {"value": "starter_staff_01", "label": "Слепок боевого посоха"},
+    {"value": "starter_heavy_guard_01", "label": "Слепок булавы и щита"},
+    {"value": "starter_tactician_01", "label": "Слепок мечника с баклером"},
+    {"value": "starter_rift_survivor_01", "label": "Слепок алебардиста"},
 ]
 
 _TACTICAL_PART_LABELS = {
@@ -78,7 +74,7 @@ async def _run_launcher_provider(request: Request) -> TableWidgetMap:
         rows=[
             {
                 "id": "starter_presets_5v5_live",
-                "scenario": "Live tick: стартовые пресеты 6v6",
+                "scenario": "Live tick: стартовые пресеты 5v5",
                 "runs": 1,
                 "mode": "фон, 0.05 сек/tick",
                 "policy": "runtime_default",
@@ -86,7 +82,7 @@ async def _run_launcher_provider(request: Request) -> TableWidgetMap:
             },
             {
                 "id": "live_batch:starter_presets_5v5_live:100",
-                "scenario": "Live tick: стартовые пресеты 6v6",
+                "scenario": "Live tick: стартовые пресеты 5v5",
                 "runs": 100,
                 "mode": "фон, пакет live-like",
                 "policy": "runtime_default",
@@ -94,7 +90,7 @@ async def _run_launcher_provider(request: Request) -> TableWidgetMap:
             },
             {
                 "id": "starter_presets_5v5_live_full_skills",
-                "scenario": "Live tick: стартовые пресеты 6v6, full skills",
+                "scenario": "Live tick: стартовые пресеты 5v5, full skills",
                 "runs": 1,
                 "mode": "фон, maxed existing skills",
                 "policy": "runtime_default",
@@ -102,11 +98,11 @@ async def _run_launcher_provider(request: Request) -> TableWidgetMap:
             },
             {
                 "id": "live_batch:starter_presets_5v5_live_full_skills:100",
-                "scenario": "Live tick: стартовые пресеты 6v6, full skills",
+                "scenario": "Live tick: стартовые пресеты 5v5, full skills",
                 "runs": 100,
                 "mode": "фон, пакет maxed skills",
                 "policy": "runtime_default",
-                "note": "100 отдельных 6v6 боёв; состав фиксируется при заказе, навыки слепков на 100%",
+                "note": "100 отдельных 5v5 боёв; состав фиксируется при заказе, навыки слепков на 100%",
             },
         ],
         action_url=f"{_BASE}/run",
@@ -129,7 +125,7 @@ async def _policy_run_launcher_provider(request: Request) -> TableWidgetMap:
         rows=[
             {
                 "id": "starter_presets_5v5_live",
-                "scenario": "Live tick: стартовые пресеты 6v6 + policy",
+                "scenario": "Live tick: стартовые пресеты 5v5 + policy",
                 "runs": 1,
                 "mode": "фон, 0.05 сек/tick",
                 "note": "один live-like бой; решения берутся из выбранной версии обучения в БД",
@@ -137,26 +133,26 @@ async def _policy_run_launcher_provider(request: Request) -> TableWidgetMap:
             },
             {
                 "id": "live_batch:starter_presets_5v5_live:100",
-                "scenario": "Live tick: стартовые пресеты 6v6 + policy",
+                "scenario": "Live tick: стартовые пресеты 5v5 + policy",
                 "runs": 100,
                 "mode": "фон, пакет live-like",
-                "note": "100 отдельных 6v6 боёв с выбранной policy; состав фиксируется при заказе",
+                "note": "100 отдельных 5v5 боёв с выбранной policy; состав фиксируется при заказе",
                 "policy_options": policy_options,
             },
             {
                 "id": "starter_presets_5v5_live_full_skills",
-                "scenario": "Live tick: стартовые пресеты 6v6 full skills + policy",
+                "scenario": "Live tick: стартовые пресеты 5v5 full skills + policy",
                 "runs": 1,
                 "mode": "фон, maxed existing skills",
-                "note": "один 6v6 бой через выбранную policy; существующие навыки слепков подняты до 100%",
+                "note": "один 5v5 бой через выбранную policy; существующие навыки слепков подняты до 100%",
                 "policy_options": policy_options,
             },
             {
                 "id": "live_batch:starter_presets_5v5_live_full_skills:100",
-                "scenario": "Live tick: стартовые пресеты 6v6 full skills + policy",
+                "scenario": "Live tick: стартовые пресеты 5v5 full skills + policy",
                 "runs": 100,
                 "mode": "фон, пакет maxed skills",
-                "note": "100 отдельных 6v6 боёв через выбранную policy; состав фиксируется при заказе",
+                "note": "100 отдельных 5v5 боёв через выбранную policy; состав фиксируется при заказе",
                 "policy_options": policy_options,
             },
         ],
@@ -208,13 +204,23 @@ async def _family_pressure_launcher_provider(request: Request) -> TableWidgetMap
                 "imprint_options": imprint_options,
             },
             {
+                "id": "family_pressure:wolf_pack",
+                "scenario": "Стартовый слепок vs лестница семьи",
+                "family": "wolf_pack",
+                "runs": "5 на состав",
+                "mode": "последовательно, pack ladder",
+                "note": "выбери слепок; проверяет pack-семью и сдвиг на одного монстра относительно swarm",
+                "seed": 11,
+                "imprint_options": imprint_options,
+            },
+            {
                 "id": "family_pressure:bandit_gang",
                 "scenario": "Стартовый слепок vs лестница семьи",
                 "family": "bandit_gang",
                 "runs": "5 на состав",
                 "mode": "последовательно, gang ladder",
-                "note": "выбери слепок; проверяет бандитов как не-swarm семью с другой ценой action economy",
-                "seed": 11,
+                "note": "выбери слепок; проверяет humanoid gang 1-3 и другую плотность action economy",
+                "seed": 13,
                 "imprint_options": imprint_options,
             },
         ],
@@ -303,7 +309,7 @@ async def _battle_training_launcher_provider(request: Request) -> TableWidgetMap
                 "generations": 12,
                 "population": 8,
                 "seed": 0,
-                "note": "candidate против выбранной policy в live-like 6v6 боях; live-бой не меняет",
+                "note": "candidate против выбранной policy в live-like 5v5 боях; live-бой не меняет",
                 "policy_options": policy_options,
             }
         ],
@@ -1564,6 +1570,8 @@ def _live_scenario_params(scenario_key: str) -> dict[str, Any]:
         "max_rounds": 500,
         "tick_interval_seconds": 0.05,
         "timeout_ticks": 8,
+        "min_team_size": 5,
+        "max_team_size": 5,
         "scenario_key": scenario_key,
     }
 
@@ -2505,7 +2513,7 @@ def _summary_items(run: CombatAiSimulationRun | None) -> list[str]:
         )
     elif run.metadata.get("roster_mode") in {"mirror_10v10", "mirror_full_roster"}:
         items.append("Составы зеркальные по полному стартовому пулу: в каждой команде есть все слепки матрицы.")
-    elif run.metadata.get("roster_mode") in {"seeded_random_5v5_split", "seeded_random_6v6_split"}:
+    elif run.metadata.get("roster_mode") == "seeded_random_5v5_split":
         pool_size = len(run.metadata.get("imprint_pool") or [])
         items.append(
             f"Составы собраны случайным seed split из расширенного пула ({pool_size}): seed {run.metadata.get('roster_seed')}."
@@ -2756,16 +2764,16 @@ def _scenario_label(scenario_key: str) -> str:
         return f"Family pressure: {scenario_key.split(':', maxsplit=1)[1]}"
     labels = {
         "mvp_1v1_player_model_vs_trainer_bot": "MVP 1v1: trainer bot vs player model",
-        "starter_presets_5v5": "Стартовые пресеты 6v6",
-        "starter_presets_5v5_live": "Live tick: стартовые пресеты 6v6",
+        "starter_presets_5v5": "Стартовые пресеты 5v5",
+        "starter_presets_5v5_live": "Live tick: стартовые пресеты 5v5",
         "starter_presets_random_draft": "Random draft 2v2-4v4",
         "starter_presets_random_draft_live": "Live tick: random draft 2v2-4v4",
         "starter_presets_mirror_10v10": "Зеркало полного пула",
         "starter_presets_mirror_10v10_live": "Live tick: зеркало полного пула",
-        "starter_presets_5v5_live_full_skills": "Live tick: стартовые пресеты 6v6, full skills",
+        "starter_presets_5v5_live_full_skills": "Live tick: стартовые пресеты 5v5, full skills",
         "starter_presets_mirror_10v10_live_full_skills": "Live tick: зеркало полного пула, full skills",
-        "starter_presets_5v5_latest_training_file": "Стартовые пресеты 6v6 + версия обучения",
-        "starter_presets_5v5_live_latest_training_file": "Live tick: стартовые пресеты 6v6 + версия обучения",
+        "starter_presets_5v5_latest_training_file": "Стартовые пресеты 5v5 + версия обучения",
+        "starter_presets_5v5_live_latest_training_file": "Live tick: стартовые пресеты 5v5 + версия обучения",
         "starter_presets_mirror_10v10_live_latest_training_file": "Live tick: зеркало полного пула + версия обучения",
         "battle_policy_finetune": "Стадия 2: обучение в боях",
         "synthetic_policy_training": "Synthetic training",

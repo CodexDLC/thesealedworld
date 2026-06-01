@@ -31,6 +31,14 @@ ROLE_TIER_OFFSETS: dict[str, int] = {
     "boss": 1,
 }
 
+ORGANIZATION_GS_DIVISORS: dict[str, float] = {
+    "swarm": 5.0,
+    "horde": 4.0,
+    "pack": 3.0,
+    "gang": 2.0,
+    "solitary": 1.0,
+}
+
 
 def build_member_tier(
     context_tier: int,
@@ -118,18 +126,10 @@ def build_balance(
     variant: MonsterVariantDTO,
     member_model: MonsterMemberResourceModelDTO | None = None,
 ) -> MonsterBalanceDTO:
-    family_balance = family.clan_model.balance if family.clan_model else None
+    del variant
     member_balance = member_model.balance if member_model else {}
-    divisor = float(
-        member_balance.get("organization_divisor") or (family_balance.organization_divisor if family_balance else 1.0)
-    )
-    base_cost = int(member_balance.get("base_cost") or variant.cost)
-    effective_cost = float(member_balance.get("effective_cost") or round(base_cost / divisor, 4))
-    threat_rating = int(member_balance.get("threat_rating") or base_cost)
+    divisor = float(member_balance.get("organization_divisor") or _organization_gs_divisor(family.organization_type))
     return MonsterBalanceDTO(
-        base_cost=base_cost,
-        effective_cost=effective_cost,
-        threat_rating=threat_rating,
         organization_type=family.organization_type,
         organization_divisor=divisor,
     )
@@ -172,6 +172,10 @@ def build_family_modifiers(family: MonsterFamilyDTO, member_tier: int) -> list[d
             {"target": target, "value": entry.value, "per_tier": entry.per_tier, "effective_value": effective}
         )
     return result
+
+
+def _organization_gs_divisor(organization_type: str) -> float:
+    return float(ORGANIZATION_GS_DIVISORS.get(str(organization_type), 1.0))
 
 
 def build_generated_monster_template(

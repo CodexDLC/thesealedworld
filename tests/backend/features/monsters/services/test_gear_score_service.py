@@ -38,7 +38,12 @@ def _monster(
         ai_profile={},
         generation_meta={
             "schema_version": 2,
-            "balance": {"base_cost": 20, "effective_cost": 4, "threat_rating": 20},
+            "balance": {
+                "base_cost": 20,
+                "effective_cost": 4,
+                "threat_rating": 20,
+                "organization_divisor": 5,
+            },
             "meta": {"family_id": "rat_swarm", "archetype": "beast", "tags": ["rat"]},
         },
     )
@@ -77,7 +82,24 @@ def test_apply_monster_gear_score_persists_balance_snapshot() -> None:
     assert score > 0
     assert monster.generation_meta["balance"]["gear_score"] == score
     assert monster.generation_meta["balance"]["gear_score_version"] == MonsterGearScoreService.VERSION
-    assert monster.generation_meta["balance"]["base_cost"] == 20
+    assert monster.threat_rating == score
+    assert "base_cost" not in monster.generation_meta["balance"]
+    assert "effective_cost" not in monster.generation_meta["balance"]
+    assert "threat_rating" not in monster.generation_meta["balance"]
+
+
+def test_monster_gear_score_is_divided_by_organization_divisor() -> None:
+    clan_id = uuid.uuid4()
+    service = MonsterGearScoreService()
+    solitary = _monster(clan_id=clan_id)
+    solitary.generation_meta["balance"]["organization_divisor"] = 1
+    swarm = _monster(clan_id=clan_id)
+    swarm.generation_meta["balance"]["organization_divisor"] = 5
+
+    solitary_score = service.apply_monster_gear_score(solitary)
+    swarm_score = service.apply_monster_gear_score(swarm)
+
+    assert swarm_score == max(1, round(solitary_score / 5))
 
 
 def test_monster_gear_score_uses_assembled_weapon_power_after_mastery() -> None:

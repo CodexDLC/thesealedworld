@@ -1,7 +1,7 @@
 from .clan_factory import ClanFactory
 from .combat_actor_input import MonsterCombatActorInputBuilder
 from .combat_math_model import MonsterCombatMathModelBuilder, MonsterPipelineProfile
-from .encounter_pool import EncounterPoolSelector
+from .encounter_profiles import MONSTER_ENCOUNTER_PROFILES, get_monster_encounter_profile
 from .generation_builder import MonsterClanGenerationBuilder
 from .generation_fields import (
     build_ai_profile,
@@ -19,7 +19,6 @@ from .group_assembler import MonsterGroupAssembler, MonsterGroupAssembly
 from .hashing import compute_context_hash, compute_rift_context_hash, compute_unique_clan_hash, normalize_tags
 
 __all__ = [
-    "EncounterPoolSelector",
     "ClanFactory",
     "MonsterGroupAssembler",
     "MonsterGroupAssembly",
@@ -27,6 +26,7 @@ __all__ = [
     "MonsterCombatActorInputBuilder",
     "MonsterCombatMathModelBuilder",
     "MonsterPipelineProfile",
+    "MONSTER_ENCOUNTER_PROFILES",
     "build_ai_profile",
     "build_balance",
     "build_generated_monster_template",
@@ -40,5 +40,6 @@ __all__ = [
     "compute_context_hash",
     "compute_rift_context_hash",
     "compute_unique_clan_hash",
+    "get_monster_encounter_profile",
     "normalize_tags",
 ]

@@ -29,7 +29,7 @@ from src.backend.features.combat.runtime.simulation import (
     SimulationActionCollector,
     SimulationMoveRegistrar,
     StartingImprintSimulationActorBuilder,
-    random_starter_6v6_imprints,
+    random_starter_5v5_imprints,
     random_starter_roster_imprints,
     render_simulation_report,
 )
@@ -146,19 +146,19 @@ def test_starting_imprint_actor_builder_uses_real_character_presets() -> None:
 
 
 @pytest.mark.unit
-def test_starting_imprint_actor_builder_builds_6v6_roster() -> None:
+def test_starting_imprint_actor_builder_builds_5v5_roster() -> None:
     actors, participants = StartingImprintSimulationActorBuilder().build_roster()
 
-    assert len(actors) == 12
-    assert len(participants) == 12
+    assert len(actors) == 10
+    assert len(participants) == 10
     assert {actor.meta.team for actor in actors} == {"blue", "red"}
-    assert len({actor.meta.id for actor in actors}) == 12
+    assert len({actor.meta.id for actor in actors}) == 10
     assert all(participant["item_base_ids"] for participant in participants)
     assert {participant["behavior_profile"] for participant in participants} == {"aggressive"}
 
 
 @pytest.mark.unit
-def test_starting_imprint_actor_builder_builds_seeded_random_6v6_roster() -> None:
+def test_starting_imprint_actor_builder_builds_seeded_random_5v5_roster() -> None:
     seed_zero = StartingImprintSimulationActorBuilder().build_roster(seed=0)
     seed_zero_again = StartingImprintSimulationActorBuilder().build_roster(seed=0)
     seed_one = StartingImprintSimulationActorBuilder().build_roster(seed=1)
@@ -169,17 +169,17 @@ def test_starting_imprint_actor_builder_builds_seeded_random_6v6_roster() -> Non
 
     assert zero_teams == zero_again_teams
     assert zero_teams != one_teams
-    assert len({actor.meta.template_id for actor in seed_zero[0]}) == 12
+    assert len({actor.meta.template_id for actor in seed_zero[0]}) == 10
     assert {actor.meta.team for actor in seed_zero[0]} == {"blue", "red"}
-    assert len([actor for actor in seed_zero[0] if actor.meta.team == "blue"]) == 6
-    assert len([actor for actor in seed_zero[0] if actor.meta.team == "red"]) == 6
-    assert len(DEFAULT_STARTER_SIMULATION_IMPRINTS) == 12
+    assert len([actor for actor in seed_zero[0] if actor.meta.team == "blue"]) == 5
+    assert len([actor for actor in seed_zero[0] if actor.meta.team == "red"]) == 5
+    assert len(DEFAULT_STARTER_SIMULATION_IMPRINTS) == 10
     assert {str(actor.meta.template_id) for actor in seed_zero[0]}.issubset(set(DEFAULT_STARTER_SIMULATION_IMPRINTS))
-    assert random_starter_6v6_imprints(seed=0) == random_starter_6v6_imprints(seed=0)
+    assert random_starter_5v5_imprints(seed=0) == random_starter_5v5_imprints(seed=0)
 
 
 @pytest.mark.unit
-def test_default_starter_pool_is_twelve_imprint_balance_matrix() -> None:
+def test_default_starter_pool_is_selected_ten_imprint_balance_matrix() -> None:
     assert STARTER_SIMULATION_BEHAVIOR_PROFILES == ("aggressive",)
     assert set(DEFAULT_STARTER_SIMULATION_IMPRINTS) == {
         "starter_guard_01",
@@ -188,13 +188,13 @@ def test_default_starter_pool_is_twelve_imprint_balance_matrix() -> None:
         "starter_breaker_01",
         "starter_staff_01",
         "starter_rift_survivor_01",
+        "starter_pathfinder_01",
         "starter_dual_blades_01",
         "starter_dual_sword_01",
         "starter_dual_mace_01",
-        "starter_hunter_01",
-        "starter_archer_01",
-        "starter_marksman_01",
     }
+    assert "starter_hunter_01" not in DEFAULT_STARTER_SIMULATION_IMPRINTS
+    assert "starter_archer_01" not in DEFAULT_STARTER_SIMULATION_IMPRINTS
 
 
 @pytest.mark.unit

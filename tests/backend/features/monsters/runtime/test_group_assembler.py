@@ -253,3 +253,36 @@ def test_group_assembler_composition_policy_limits_transition_roles() -> None:
     assert {member.role for member in result.members} <= {"minion", "veteran"}
     assert len(result.members) <= 3
     assert len({member.id for member in result.members}) == len(result.members)
+
+
+def test_group_assembler_composition_policy_applies_profile_budget_and_role_caps() -> None:
+    members = [
+        _monster("minion", 10, role="minion", gear_score=10, organization_type="swarm"),
+        _monster("veteran", 20, role="veteran", gear_score=20, organization_type="swarm"),
+        _monster("elite_a", 30, role="elite", gear_score=30, organization_type="swarm"),
+        _monster("elite_b", 30, role="elite", gear_score=30, organization_type="swarm"),
+        _monster("boss", 100, role="boss", gear_score=100, organization_type="swarm"),
+    ]
+
+    result = MonsterGroupAssembler(rng=random.Random(1)).assemble(
+        members,
+        budget=40,
+        tier=1,
+        danger=0.0,
+        composition_policy={
+            "budget_multiplier": 1.25,
+            "allowed_roles": ["veteran", "elite"],
+            "min_units": 1,
+            "max_units": 2,
+            "start_role": "veteran",
+            "role_caps": {"minion": 0, "veteran": 2, "elite": 1, "boss": 0},
+            "upgrade_order": ["elite"],
+            "allow_repeated_members": False,
+        },
+    )
+
+    assert result.target_budget == 50
+    assert result.adjusted_budget == 50
+    assert {member.role for member in result.members} <= {"veteran", "elite"}
+    assert [member.role for member in result.members].count("elite") <= 1
+    assert len(result.members) <= 2

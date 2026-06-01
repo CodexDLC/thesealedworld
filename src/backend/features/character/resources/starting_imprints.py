@@ -100,15 +100,6 @@ STARTING_COMBAT_STYLES: dict[str, StartingLoadoutPack] = {
     "mace_shield": StartingLoadoutPack(
         item_base_ids=("mace", "kite_shield"),
     ),
-    "shortbow_quiver": StartingLoadoutPack(
-        item_base_ids=("shortbow", "quiver_frost"),
-    ),
-    "longbow_quiver": StartingLoadoutPack(
-        item_base_ids=("longbow", "quiver_fire"),
-    ),
-    "composite_bow_quiver": StartingLoadoutPack(
-        item_base_ids=("composite_bow", "quiver_bodkin"),
-    ),
 }
 
 STARTING_ARMOR_PACKS: dict[str, StartingLoadoutPack] = {
@@ -154,7 +145,7 @@ STARTING_UTILITY_PACKS: dict[str, StartingLoadoutPack] = {
 STARTING_IMPRINTS: dict[str, StartingImprintDefinition] = {
     "starter_guard_01": StartingImprintDefinition(
         imprint_key="starter_guard_01",
-        title="Слепок стража",
+        title="Слепок мечника со щитом",
         primary_stats=("strength", "agility", "endurance", "perception"),
         attribute_values=_attribute_values(
             strength=17,
@@ -180,7 +171,7 @@ STARTING_IMPRINTS: dict[str, StartingImprintDefinition] = {
     ),
     "starter_breaker_01": StartingImprintDefinition(
         imprint_key="starter_breaker_01",
-        title="Слепок проломщика",
+        title="Слепок двуручного молота",
         primary_stats=("strength", "agility", "endurance", "mental"),
         attribute_values=_attribute_values(
             strength=17,
@@ -204,35 +195,9 @@ STARTING_IMPRINTS: dict[str, StartingImprintDefinition] = {
         lore_tags=("physical", "frontline", "starter"),
         description="Тяжелая оболочка для прямого давления и грубого удержания темпа.",
     ),
-    "starter_duelist_01": StartingImprintDefinition(
-        imprint_key="starter_duelist_01",
-        title="Слепок дуэлянта",
-        primary_stats=("agility", "strength", "perception", "prediction"),
-        attribute_values=_attribute_values(
-            strength=16,
-            agility=17,
-            endurance=11,
-            intellect=9,
-            memory=12,
-            mental=10,
-            perception=15,
-            projection=13,
-            prediction=14,
-        ),
-        combat_style="sword_buckler",
-        armor_pack="light_full",
-        utility_pack="mobile_basic",
-        skill_xp=(
-            ("skill_swords", 0.20),
-            ("skill_tactics", 0.15),
-            ("skill_light_armor", 0.10),
-        ),
-        lore_tags=("physical", "mobile", "starter"),
-        description="Быстрый носитель для парирования, реакции и работы на открытой линии.",
-    ),
     "starter_dual_blades_01": StartingImprintDefinition(
         imprint_key="starter_dual_blades_01",
-        title="Слепок двух клинков",
+        title="Слепок двух стилетов",
         primary_stats=(
             "agility",
             "strength",
@@ -268,7 +233,7 @@ STARTING_IMPRINTS: dict[str, StartingImprintDefinition] = {
     ),
     "starter_dual_sword_01": StartingImprintDefinition(
         imprint_key="starter_dual_sword_01",
-        title="Слепок меча и клинка",
+        title="Слепок меча и стилета",
         primary_stats=(
             "strength",
             "agility",
@@ -342,7 +307,7 @@ STARTING_IMPRINTS: dict[str, StartingImprintDefinition] = {
     ),
     "starter_pathfinder_01": StartingImprintDefinition(
         imprint_key="starter_pathfinder_01",
-        title="Слепок следопыта",
+        title="Слепок кинжальщика",
         primary_stats=("agility", "strength", "perception", "prediction"),
         attribute_values=_attribute_values(
             strength=15,
@@ -366,117 +331,9 @@ STARTING_IMPRINTS: dict[str, StartingImprintDefinition] = {
         lore_tags=("physical", "scout", "starter"),
         description="Легкая оболочка для разведки, быстрых решений и боя на короткой дистанции.",
     ),
-    "starter_hunter_01": StartingImprintDefinition(
-        imprint_key="starter_hunter_01",
-        title="Слепок охотника",
-        primary_stats=(
-            "agility",
-            "strength",
-            "perception",
-            "prediction",
-            "endurance",
-            "memory",
-            "mental",
-            "projection",
-            "intellect",
-        ),
-        attribute_values=_attribute_values(
-            strength=15,
-            agility=17,
-            endurance=11,
-            intellect=12,
-            memory=13,
-            mental=10,
-            perception=16,
-            projection=9,
-            prediction=14,
-        ),
-        combat_style="shortbow_quiver",
-        armor_pack="light_full",
-        utility_pack="mobile_basic",
-        skill_xp=(
-            ("skill_archery", 0.20),
-            ("skill_ranged_combat", 0.15),
-            ("skill_light_armor", 0.10),
-        ),
-        lore_tags=("physical", "ranged", "hunter", "starter"),
-        description="Легкий носитель для охоты, разведки и стрельбы ледяными стрелами.",
-    ),
-    "starter_archer_01": StartingImprintDefinition(
-        imprint_key="starter_archer_01",
-        title="Слепок лучника",
-        primary_stats=(
-            "strength",
-            "agility",
-            "perception",
-            "prediction",
-            "endurance",
-            "mental",
-            "memory",
-            "projection",
-            "intellect",
-        ),
-        attribute_values=_attribute_values(
-            strength=16,
-            agility=17,
-            endurance=11,
-            intellect=12,
-            memory=13,
-            mental=10,
-            perception=15,
-            projection=9,
-            prediction=14,
-        ),
-        combat_style="longbow_quiver",
-        armor_pack="light_full",
-        utility_pack="mobile_basic",
-        skill_xp=(
-            ("skill_archery", 0.20),
-            ("skill_ranged_combat", 0.15),
-            ("skill_light_armor", 0.10),
-        ),
-        lore_tags=("physical", "ranged", "archer", "starter"),
-        description="Стартовый носитель для чистой дальней линии, прицела и контроля дистанции.",
-    ),
-    "starter_marksman_01": StartingImprintDefinition(
-        imprint_key="starter_marksman_01",
-        title="Слепок стрелка",
-        primary_stats=(
-            "strength",
-            "agility",
-            "perception",
-            "endurance",
-            "prediction",
-            "mental",
-            "memory",
-            "projection",
-            "intellect",
-        ),
-        attribute_values=_attribute_values(
-            strength=16,
-            agility=15,
-            endurance=14,
-            intellect=12,
-            memory=11,
-            mental=10,
-            perception=17,
-            projection=9,
-            prediction=13,
-        ),
-        combat_style="composite_bow_quiver",
-        armor_pack="medium_full",
-        utility_pack="field_basic",
-        skill_xp=(
-            ("skill_archery", 0.20),
-            ("skill_medium_armor", 0.15),
-            ("skill_ranged_combat", 0.10),
-        ),
-        lore_tags=("physical", "ranged", "marksman", "medium", "starter"),
-        description="Средний стрелок с композитным луком для работы по защищенным целям.",
-    ),
     "starter_staff_01": StartingImprintDefinition(
         imprint_key="starter_staff_01",
-        title="Слепок опорного бойца",
+        title="Слепок боевого посоха",
         primary_stats=("strength", "agility", "perception", "endurance"),
         attribute_values=_attribute_values(
             strength=16,
@@ -502,7 +359,7 @@ STARTING_IMPRINTS: dict[str, StartingImprintDefinition] = {
     ),
     "starter_heavy_guard_01": StartingImprintDefinition(
         imprint_key="starter_heavy_guard_01",
-        title="Слепок тяжелого стража",
+        title="Слепок булавы и щита",
         primary_stats=("strength", "agility", "endurance", "mental"),
         attribute_values=_attribute_values(
             strength=17,
@@ -528,7 +385,7 @@ STARTING_IMPRINTS: dict[str, StartingImprintDefinition] = {
     ),
     "starter_tactician_01": StartingImprintDefinition(
         imprint_key="starter_tactician_01",
-        title="Слепок тактика",
+        title="Слепок мечника с баклером",
         primary_stats=("strength", "agility", "perception", "prediction"),
         attribute_values=_attribute_values(
             strength=15,
@@ -545,8 +402,8 @@ STARTING_IMPRINTS: dict[str, StartingImprintDefinition] = {
         armor_pack="medium_full",
         utility_pack="field_basic",
         skill_xp=(
-            ("skill_tactics", 0.15),
             ("skill_swords", 0.20),
+            ("skill_shield_mastery", 0.15),
             ("skill_medium_armor", 0.10),
         ),
         lore_tags=("physical", "tactical", "starter"),
@@ -554,7 +411,7 @@ STARTING_IMPRINTS: dict[str, StartingImprintDefinition] = {
     ),
     "starter_rift_survivor_01": StartingImprintDefinition(
         imprint_key="starter_rift_survivor_01",
-        title="Слепок рифт-выжившего",
+        title="Слепок алебардиста",
         primary_stats=("strength", "agility", "endurance", "perception"),
         attribute_values=_attribute_values(
             strength=16,

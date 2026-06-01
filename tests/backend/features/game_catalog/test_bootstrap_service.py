@@ -43,6 +43,8 @@ def test_game_catalog_bootstrap_contains_safe_text_catalogs():
         "blade_mill",
         "bind_blade",
         "blinding_shot",
+        "blood_wall_crash",
+        "bloody_rebuke",
         "broken_step",
         "closed_distance",
         "concussion",
@@ -96,7 +98,9 @@ def test_game_catalog_bootstrap_contains_safe_text_catalogs():
         "quiet_weak_spot",
         "ranged_covering_volley",
         "read_tactic",
+        "red_line_bash",
         "reveal_intentions",
+        "scarlet_riposte",
         "second_breath",
         "shield_line_bash",
         "shifting_line",
@@ -121,6 +125,10 @@ def test_game_catalog_bootstrap_contains_safe_text_catalogs():
     assert payload.catalogs["feints"]["second_breath"]["cost"]["tactics"] == {"parry": 5}
     assert payload.catalogs["feints"]["full_defense"]["cost"]["tactics"] == {"block": 5}
     assert payload.catalogs["feints"]["aggressive_defense"]["cost"]["tactics"] == {"hit": 2, "block": 5}
+    assert payload.catalogs["feints"]["bloody_rebuke"]["cost"]["tactics"] == {"blood": 1, "hit": 2, "block": 2}
+    assert payload.catalogs["feints"]["blood_wall_crash"]["cost"]["tactics"] == {"blood": 1, "hit": 3, "block": 3}
+    assert payload.catalogs["feints"]["scarlet_riposte"]["cost"]["tactics"] == {"blood": 1, "block": 2, "parry": 2}
+    assert payload.catalogs["feints"]["red_line_bash"]["cost"]["tactics"] == {"blood": 1, "hit": 4, "block": 2}
     assert payload.catalogs["feints"]["hidden_strength"]["cost"]["tactics"] == {"hit": 3, "parry": 3}
     assert payload.catalogs["feints"]["lucky_break"]["cost"]["tactics"] == {"crit": 5}
     assert payload.catalogs["feints"]["blade_mill"]["cost"]["tactics"] == {"hit": 5, "counter": 4}

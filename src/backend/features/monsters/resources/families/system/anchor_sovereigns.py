@@ -41,7 +41,7 @@ ANCHOR_SOVEREIGNS_FAMILY: MonsterFamily = {
         "north_stasis_sovereign": {
             "id": "north_stasis_sovereign",
             "role": "boss",
-            "cost": 2200,
+            "spawn_weight": 2200,
             "min_tier": 7,
             "max_tier": 7,
             "narrative_hint": "Северный якорь стазиса. Его проекция не спешит: она отнимает у боя само движение.",
@@ -75,7 +75,7 @@ ANCHOR_SOVEREIGNS_FAMILY: MonsterFamily = {
         "south_entropy_sovereign": {
             "id": "south_entropy_sovereign",
             "role": "boss",
-            "cost": 2400,
+            "spawn_weight": 2400,
             "min_tier": 7,
             "max_tier": 7,
             "narrative_hint": "Южный якорь энтропии. Его проекция завершает спор грубой ценой распада.",
@@ -108,7 +108,7 @@ ANCHOR_SOVEREIGNS_FAMILY: MonsterFamily = {
         "west_gravity_sovereign": {
             "id": "west_gravity_sovereign",
             "role": "boss",
-            "cost": 2100,
+            "spawn_weight": 2100,
             "min_tier": 7,
             "max_tier": 7,
             "narrative_hint": "Западный якорь гравитации. Его проекция выбирает направление, в котором падают враги.",
@@ -140,7 +140,7 @@ ANCHOR_SOVEREIGNS_FAMILY: MonsterFamily = {
         "east_evolution_sovereign": {
             "id": "east_evolution_sovereign",
             "role": "boss",
-            "cost": 2300,
+            "spawn_weight": 2300,
             "min_tier": 7,
             "max_tier": 7,
             "narrative_hint": "Восточный якорь эволюции. Его проекция отвечает на застой быстрой мутацией боя.",

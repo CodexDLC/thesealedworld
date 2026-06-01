@@ -92,6 +92,10 @@ SHIELD_TACTICAL_FEINTS: tuple[str, ...] = (
     "read_tactic",
     "concussion",
     "shield_line_bash",
+    "bloody_rebuke",
+    "blood_wall_crash",
+    "scarlet_riposte",
+    "red_line_bash",
 )
 
 TWO_HANDED_TACTICAL_FEINTS: tuple[str, ...] = (

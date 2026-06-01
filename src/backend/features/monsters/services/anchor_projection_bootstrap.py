@@ -19,6 +19,7 @@ from src.backend.features.monsters.runtime.generation_fields import (
     build_generated_monster_template,
     build_member_tier,
 )
+from src.backend.features.monsters.services.gear_score_service import MonsterGearScoreService
 from src.backend.infrastructure.monsters.managers import (
     AnchorProjectionSnapshotCacheManager,
 )
@@ -106,7 +107,7 @@ class AnchorProjectionBootstrapService:
                 variant_key=variant.id,
                 role=variant.role,
                 member_tier=template.member_tier,
-                threat_rating=template.balance.threat_rating,
+                threat_rating=0,
                 name_ru=template.text_content.name_ru or ANCHOR_PROJECTION_NAMES_RU.get(variant.id, variant.id),
                 description=template.text_content.appearance_ru or variant.narrative_hint,
                 text_content=template.text_content.model_dump(mode="json"),
@@ -130,6 +131,7 @@ class AnchorProjectionBootstrapService:
                     ),
                 },
             )
+            MonsterGearScoreService(self.actor_builder).apply_monster_gear_score(member)
             members.append(member)
         return members
 

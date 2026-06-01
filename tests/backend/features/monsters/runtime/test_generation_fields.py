@@ -4,6 +4,8 @@ from src.backend.features.items.dto.instance import RuntimeItemProjectionDTO
 from src.backend.features.monsters.dto.resources import MonsterFamilyDTO
 from src.backend.features.monsters.resources import get_all_family_configs
 from src.backend.features.monsters.runtime.generation_fields import (
+    ORGANIZATION_GS_DIVISORS,
+    build_balance,
     build_family_modifiers,
     build_generated_monster_template,
     build_granted_abilities,
@@ -44,7 +46,7 @@ def _family() -> MonsterFamilyDTO:
                 "sewer_rat": {
                     "id": "sewer_rat",
                     "role": "minion",
-                    "cost": 20,
+                    "spawn_weight": 20,
                     "min_tier": 0,
                     "max_tier": 3,
                     "narrative_hint": "Small diseased rat.",
@@ -65,7 +67,7 @@ def _family() -> MonsterFamilyDTO:
                 "rat_king": {
                     "id": "rat_king",
                     "role": "boss",
-                    "cost": 600,
+                    "spawn_weight": 600,
                     "min_tier": 4,
                     "max_tier": 7,
                     "narrative_hint": "A horrific amalgamation.",
@@ -212,8 +214,60 @@ def test_build_generated_monster_template_composes_field_builders() -> None:
     assert template.meta.source == {"clan_id": "clan-1"}
     assert template.ai_profile.behavior == "swarm_chaff"
     assert template.ai_profile.targeting == "lowest_hp"
-    assert template.balance.base_cost == 20
-    assert template.balance.effective_cost == 4
+    assert template.balance.organization_type == "swarm"
+    assert template.balance.organization_divisor == 5.0
+    assert "base_cost" not in template.balance.model_dump()
+    assert "effective_cost" not in template.balance.model_dump()
+    assert "threat_rating" not in template.balance.model_dump()
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize(
+    ("organization_type", "expected_divisor"),
+    sorted(ORGANIZATION_GS_DIVISORS.items()),
+)
+def test_build_balance_uses_default_organization_gs_divisors(
+    organization_type: str,
+    expected_divisor: float,
+) -> None:
+    family = MonsterFamilyDTO.model_validate(
+        {
+            "id": f"test_{organization_type}",
+            "archetype": "beast",
+            "organization_type": organization_type,
+            "default_tags": [],
+            "hierarchy": {"minions": ["test_var"], "veterans": [], "elites": [], "boss": []},
+            "variants": {
+                "test_var": {
+                    "id": "test_var",
+                    "role": "minion",
+                    "spawn_weight": 100,
+                    "min_tier": 0,
+                    "max_tier": 5,
+                    "narrative_hint": "test",
+                    "base_stats": {
+                        "strength": 5,
+                        "agility": 5,
+                        "endurance": 5,
+                        "intellect": 1,
+                        "memory": 1,
+                        "mental": 2,
+                        "perception": 5,
+                        "projection": 1,
+                        "prediction": 2,
+                    },
+                }
+            },
+        }
+    )
+    variant = family.variants["test_var"]
+
+    balance = build_balance(family, variant)
+
+    assert balance.organization_divisor == expected_divisor
+    assert "base_cost" not in balance.model_dump()
+    assert "effective_cost" not in balance.model_dump()
+    assert "threat_rating" not in balance.model_dump()
 
 
 @pytest.mark.unit
@@ -241,7 +295,7 @@ def test_build_family_modifiers_keeps_accuracy_penalty_flat_across_tiers() -> No
                 "test_var": {
                     "id": "test_var",
                     "role": "minion",
-                    "cost": 20,
+                    "spawn_weight": 20,
                     "min_tier": 0,
                     "max_tier": 5,
                     "narrative_hint": "test",
@@ -279,7 +333,7 @@ def test_build_scaled_skills_uses_declared_variant_skills_and_tier_value() -> No
                 "test_var": {
                     "id": "test_var",
                     "role": "minion",
-                    "cost": 20,
+                    "spawn_weight": 20,
                     "min_tier": 0,
                     "max_tier": 5,
                     "narrative_hint": "test",

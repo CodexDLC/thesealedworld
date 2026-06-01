@@ -46,10 +46,8 @@ def test_generated_monsters_route_returns_paginated_clans(client) -> None:
                                 "role": "minion",
                                 "member_tier": 1,
                                 "name_ru": "Rat",
-                                "threat_rating": 20,
+                                "threat_rating": 7,
                                 "gear_score": 7,
-                                "base_cost": 20,
-                                "effective_cost": 4,
                             }
                         ],
                     }

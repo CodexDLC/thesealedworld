@@ -137,67 +137,11 @@ def _monster(
 
 
 @pytest.mark.unit
-async def test_prepare_encounter_reuses_existing_clan() -> None:
+def test_prepare_encounter_monsters_legacy_api_is_removed() -> None:
     repo = FakeMonsterRepository()
     service = EncounterMonsterService(repo, factory=FakeClanFactory(repo))
-    context = MonsterGenerationContext(biome_id="forest", tier=1, tags=["mana_leak"], difficulty="easy")
-    normalized = normalize_tags(context.tags)
-    actual_hash = compute_context_hash(context.tier, context.biome_id, normalized)
-    clan = _clan(actual_hash)
-    monster = _monster(clan.id)
-    clan.members.append(monster)
-    repo.clans_by_context[actual_hash] = [clan]
-    repo.members_by_clan[clan.id] = [monster]
 
-    result = await service.prepare_encounter_monsters(context)
-
-    assert result.reused_existing_clan is True
-    assert result.clan_id == str(clan.id)
-    assert result.monster_ids == [str(monster.id)]
-    assert repo.created is False
-
-
-@pytest.mark.unit
-async def test_prepare_encounter_creates_clan_and_returns_monster_ids() -> None:
-    repo = FakeMonsterRepository()
-    service = EncounterMonsterService(repo, factory=FakeClanFactory(repo))
-    context = MonsterGenerationContext(
-        zone_id="D4_0_1",
-        biome_id="forest",
-        tier=1,
-        tags=["mana_leak"],
-        difficulty="easy",
-        count=2,
-    )
-
-    result = await service.prepare_encounter_monsters(context)
-
-    assert repo.created is True
-    assert result.reused_existing_clan is False
-    assert result.clan_id
-    assert 1 <= len(result.monster_ids) <= 2
-
-
-@pytest.mark.unit
-async def test_prepare_encounter_uses_gear_score_budget_when_context_threat_is_present() -> None:
-    repo = FakeMonsterRepository()
-    service = EncounterMonsterService(repo, factory=FakeClanFactory(repo))
-    context = MonsterGenerationContext(biome_id="forest", tier=1, tags=["mana_leak"], threat=90)
-    normalized = normalize_tags(context.tags)
-    actual_hash = compute_context_hash(context.tier, context.biome_id, normalized)
-    clan = _clan(actual_hash)
-    expensive = _monster(clan.id, threat=10, gear_score=200)
-    cheap = _monster(clan.id, threat=100, gear_score=40)
-    mid = _monster(clan.id, threat=50, gear_score=45)
-    for monster in (expensive, cheap, mid):
-        monster.clan = clan
-        clan.members.append(monster)
-    repo.clans_by_context[actual_hash] = [clan]
-    repo.members_by_clan[clan.id] = [expensive, cheap, mid]
-
-    result = await service.prepare_encounter_monsters(context)
-
-    assert result.monster_ids == [str(cheap.id), str(cheap.id)]
+    assert not hasattr(service, "prepare_encounter_monsters")
 
 
 @pytest.mark.unit

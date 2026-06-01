@@ -133,14 +133,7 @@ async def test_rift_encounter_service_prepares_group_from_bound_family_and_build
     assert monster_groups.calls[0]["tier"] == 1
     assert monster_groups.calls[0]["biome_id"] == "broken_road"
     assert monster_groups.calls[0]["loc_id"] == "rift:rift-instance-1:node-start"
-    assert monster_groups.calls[0]["composition_policy"] == {
-        "allowed_roles": ["minion"],
-        "required_roles": [],
-        "min_units": 1,
-        "max_units": 3,
-        "allow_repeated_members": True,
-        "prefer_distinct_members": True,
-    }
+    assert monster_groups.calls[0]["composition_policy"] == {"encounter_kind": "ordinary"}
     assert enriched.enemies[0].name == "Дорожный налетчик"
     assert enriched.enemies[0].threat_rating is None
     assert enriched.enemies[0].intel["vitals"]["hp"] == {"current": 100, "max": 100, "label": "100/100"}

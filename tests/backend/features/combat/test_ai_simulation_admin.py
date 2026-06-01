@@ -241,7 +241,7 @@ async def test_live_demo_enqueue_requires_arq() -> None:
 
 
 @pytest.mark.asyncio
-async def test_clear_combat_ai_runtime_state_removes_pvp_queue_and_preserves_pve_progress() -> None:
+async def test_clear_combat_ai_runtime_state_removes_queue_and_all_hot_progress() -> None:
     redis_client = FakeRedisClient()
     redis_client.zsets[COMBAT_AI_SIMULATION_ARQ_QUEUE] = ["job-1", "job-2"]
     redis_client.zsets[COMBAT_ARQ_QUEUE] = ["pve-job-1"]
@@ -270,10 +270,10 @@ async def test_clear_combat_ai_runtime_state_removes_pvp_queue_and_preserves_pve
 
     result = await _clear_combat_ai_simulation_runtime_state(request)
 
-    assert result == {"queued_deleted": 4, "ai_queue_deleted": 4, "progress_deleted": 1}
+    assert result == {"queued_deleted": 4, "ai_queue_deleted": 4, "progress_deleted": 2}
     assert COMBAT_AI_SIMULATION_ARQ_QUEUE not in redis_client.zsets
     assert redis_client.zsets[COMBAT_ARQ_QUEUE] == ["pve-job-1"]
-    assert redis_client.keys == {"arq:job:pve-job-1", "combat_ai:simulation:run:run-1:progress", "arq:job:foreign-job"}
+    assert redis_client.keys == {"arq:job:pve-job-1", "arq:job:foreign-job"}
 
 
 @pytest.mark.asyncio
@@ -388,8 +388,8 @@ async def test_scheduled_live_demo_row_does_not_materialize_roster(monkeypatch: 
         max_rounds=500,
         tick_interval_seconds=0.05,
         timeout_ticks=8,
-        min_team_size=6,
-        max_team_size=6,
+        min_team_size=5,
+        max_team_size=5,
         scenario_key="starter_presets_5v5_live",
         mirror_full_roster=False,
         skill_profile=STARTER_SKILL_PROFILE_BASELINE,
@@ -398,8 +398,8 @@ async def test_scheduled_live_demo_row_does_not_materialize_roster(monkeypatch: 
     assert row.status == "running"
     assert row.metadata_["participants"] == []
     assert row.metadata_["live_snapshot"]["actors"] == []
-    assert len(row.metadata_["blue_imprints"]) == 6
-    assert len(row.metadata_["red_imprints"]) == 6
+    assert len(row.metadata_["blue_imprints"]) == 5
+    assert len(row.metadata_["red_imprints"]) == 5
 
 
 @pytest.mark.asyncio
@@ -697,7 +697,7 @@ async def test_family_pressure_worker_writes_completed_report_only_to_redis(monk
     assert completed["metadata"]["composition_reports"][0]["member_roles"] == ["minion"]
 
 
-def test_swarm_family_pressure_ladder_fills_minions_then_replaces_full_pack() -> None:
+def test_family_pressure_ladder_uses_encounter_profiles_for_swarm() -> None:
     members = [
         SimpleNamespace(role="minion", family_id="rat_swarm"),
         SimpleNamespace(role="veteran", family_id="rat_swarm"),
@@ -711,48 +711,64 @@ def test_swarm_family_pressure_ladder_fills_minions_then_replaces_full_pack() ->
         max_minions=6,
         max_scenarios=24,
     )
+    role_counts = [row.role_counts for row in rows]
 
-    assert [row.role_counts for row in rows[:16]] == [
-        {"minion": 3},
-        {"minion": 4},
-        {"minion": 5},
-        {"minion": 6},
-        {"minion": 5, "veteran": 1},
-        {"minion": 4, "veteran": 2},
-        {"minion": 3, "veteran": 3},
-        {"minion": 2, "veteran": 4},
-        {"minion": 1, "veteran": 5},
-        {"veteran": 6},
-        {"veteran": 5, "elite": 1},
-        {"veteran": 4, "elite": 2},
-        {"veteran": 3, "elite": 3},
-        {"veteran": 2, "elite": 4},
-        {"veteran": 1, "elite": 5},
-        {"elite": 6},
+    assert {"minion": 1} in role_counts
+    assert {"minion": 2} in role_counts
+    assert {"minion": 3} in role_counts
+    assert {"minion": 6} in role_counts
+    assert {"minion": 5, "veteran": 1} in role_counts
+    assert {"veteran": 6} in role_counts
+    assert {"veteran": 4, "elite": 2} in role_counts
+    assert {"veteran": 3, "elite": 3} in role_counts
+    assert {"elite": 6} not in role_counts
+    assert all(sum(row.values()) <= 6 for row in role_counts)
+    assert [row.grade for row in rows[:4]] == ["ordinary:easy", "ordinary:easy", "ordinary:easy", "ordinary:easy"]
+
+
+def test_family_pressure_ladder_uses_family_profile_body_caps() -> None:
+    goblin_members = [
+        SimpleNamespace(role="minion", family_id="goblin_tribe"),
+        SimpleNamespace(role="veteran", family_id="goblin_tribe"),
+        SimpleNamespace(role="elite", family_id="goblin_tribe"),
+        SimpleNamespace(role="boss", family_id="goblin_tribe"),
     ]
-    assert rows[16].role_counts == {"minion": 2, "elite": 1}
-    assert rows[17].role_counts == {"minion": 2, "boss": 1}
-    assert [row.grade for row in rows[:18]] == [
-        "light",
-        "light",
-        "light",
-        "medium",
-        "medium",
-        "medium",
-        "medium",
-        "hard",
-        "hard",
-        "hard",
-        "hard",
-        "hard",
-        "hard",
-        "hard",
-        "hard",
-        "hard",
-        "hard",
-        "boss_probe",
+    bandit_members = [
+        SimpleNamespace(role="minion", family_id="bandit_gang"),
+        SimpleNamespace(role="veteran", family_id="bandit_gang"),
+        SimpleNamespace(role="elite", family_id="bandit_gang"),
+        SimpleNamespace(role="boss", family_id="bandit_gang"),
     ]
-    assert {"minion": 1, "veteran": 1} not in [row.role_counts for row in rows]
+
+    goblin_rows = build_family_pressure_compositions(
+        "goblin_tribe",
+        members=goblin_members,
+        max_minions=6,
+        max_scenarios=50,
+    )
+    bandit_rows = build_family_pressure_compositions(
+        "bandit_gang",
+        members=bandit_members,
+        max_minions=6,
+        max_scenarios=50,
+    )
+    goblin_counts = [row.role_counts for row in goblin_rows]
+    bandit_counts = [row.role_counts for row in bandit_rows]
+
+    assert {"minion": 5} in goblin_counts
+    assert {"veteran": 5} in goblin_counts
+    assert {"veteran": 3, "elite": 2} in goblin_counts
+    assert {"minion": 6} not in goblin_counts
+    assert {"veteran": 6} not in goblin_counts
+    assert {"elite": 6} not in goblin_counts
+    assert all(sum(row.values()) <= 5 for row in goblin_counts)
+
+    assert {"minion": 3} in bandit_counts
+    assert {"veteran": 3} in bandit_counts
+    assert {"minion": 2, "veteran": 1} in bandit_counts
+    assert {"minion": 4} not in bandit_counts
+    assert {"veteran": 6} not in bandit_counts
+    assert all(sum(row.values()) <= 3 for row in bandit_counts)
 
 
 def test_family_pressure_uses_live_tick_simulator_by_default() -> None:
@@ -895,12 +911,12 @@ async def test_ai_simulation_service_runs_starter_presets_demo() -> None:
     assert row.status == "completed"
     assert row.metadata_["simulation_actor_source"] == "character_starting_imprints"
     assert row.metadata_["live_policy_activation"] is False
-    assert len(row.metadata_["participants"]) == 12
-    assert row.metadata_["roster_mode"] == "seeded_random_6v6_split"
+    assert len(row.metadata_["participants"]) == 10
+    assert row.metadata_["roster_mode"] == "seeded_random_5v5_split"
     assert row.metadata_["roster_seed"] == 0
     assert len(row.metadata_["imprint_pool"]) == len(DEFAULT_STARTER_SIMULATION_IMPRINTS)
-    assert len(row.metadata_["blue_imprints"]) == 6
-    assert len(row.metadata_["red_imprints"]) == 6
+    assert len(row.metadata_["blue_imprints"]) == 5
+    assert len(row.metadata_["red_imprints"]) == 5
     assert row.metadata_["participants"][0]["combat_stats"]["damage"] > 0
     assert "winner:" in row.report_text
 
@@ -963,10 +979,10 @@ async def test_ai_simulation_service_starts_live_starter_presets_demo() -> None:
     assert row.metadata_["simulation_mode"] == "live_tick"
     assert row.metadata_["completion_reason"] == "running"
     assert row.metadata_["tick_interval_seconds"] == LIVE_DEFAULT_TICK_INTERVAL_SECONDS
-    assert row.metadata_["roster_mode"] == "seeded_random_6v6_split"
+    assert row.metadata_["roster_mode"] == "seeded_random_5v5_split"
     assert len(row.metadata_["imprint_pool"]) == len(DEFAULT_STARTER_SIMULATION_IMPRINTS)
-    assert len(row.metadata_["participants"]) == 12
-    assert len(row.metadata_["live_snapshot"]["actors"]) == 12
+    assert len(row.metadata_["participants"]) == 10
+    assert len(row.metadata_["live_snapshot"]["actors"]) == 10
 
 
 @pytest.mark.asyncio
@@ -983,7 +999,7 @@ async def test_ai_simulation_service_starts_live_starter_presets_with_maxed_exis
     assert row.scenario_key == "starter_presets_5v5_live_full_skills"
     assert row.metadata_["skill_profile"] == STARTER_SKILL_PROFILE_MAXED_EXISTING
     participants = row.metadata_["participants"]
-    assert len(participants) == 12
+    assert len(participants) == 10
     for participant in participants:
         assert participant["skill_profile"] == STARTER_SKILL_PROFILE_MAXED_EXISTING
         assert participant["skills"]
@@ -1251,15 +1267,13 @@ async def test_ai_simulation_service_executes_live_demo_with_preselected_roster(
         "starter_heavy_guard_01",
         "starter_breaker_01",
         "starter_staff_01",
-        "starter_rift_survivor_01",
     )
     red = (
+        "starter_rift_survivor_01",
         "starter_dual_blades_01",
         "starter_dual_sword_01",
         "starter_dual_mace_01",
-        "starter_hunter_01",
-        "starter_archer_01",
-        "starter_marksman_01",
+        "starter_pathfinder_01",
     )
 
     await CombatAiSimulationRunService(FakeSimulationRunRepository()).execute_live_starter_presets_demo(
@@ -1270,6 +1284,8 @@ async def test_ai_simulation_service_executes_live_demo_with_preselected_roster(
         timeout_ticks=2,
         blue_imprints=blue,
         red_imprints=red,
+        min_team_size=5,
+        max_team_size=5,
         persist=persist,
         progress=None,
     )
@@ -1277,7 +1293,7 @@ async def test_ai_simulation_service_executes_live_demo_with_preselected_roster(
     assert updates
     assert updates[-1]["metadata"]["blue_imprints"] == list(blue)
     assert updates[-1]["metadata"]["red_imprints"] == list(red)
-    assert updates[-1]["metadata"]["roster_mode"] == "seeded_random_6v6_split"
+    assert updates[-1]["metadata"]["roster_mode"] == "seeded_random_5v5_split"
 
 
 @pytest.mark.asyncio

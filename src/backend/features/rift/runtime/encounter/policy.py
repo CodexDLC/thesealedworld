@@ -5,45 +5,22 @@ from typing import Any
 
 RIFT_COMPOSITION_POLICY_PRESETS: dict[str, dict[str, Any]] = {
     "ordinary": {
-        "allowed_roles": ["minion"],
-        "required_roles": [],
-        "min_units": 1,
-        "max_units": 3,
-        "allow_repeated_members": True,
-        "prefer_distinct_members": True,
+        "encounter_kind": "ordinary",
     },
     "ordinary_node": {
-        "allowed_roles": ["minion"],
-        "required_roles": [],
-        "min_units": 1,
-        "max_units": 3,
-        "allow_repeated_members": True,
-        "prefer_distinct_members": True,
+        "encounter_kind": "ordinary",
     },
     "transition": {
-        "allowed_roles": ["minion"],
-        "required_roles": [],
-        "min_units": 1,
-        "max_units": 3,
-        "allow_repeated_members": True,
-        "prefer_distinct_members": True,
+        "encounter_kind": "ordinary",
     },
     "key_guard": {
-        "allowed_roles": ["veteran", "elite"],
-        "required_roles": ["elite"],
-        "min_units": 1,
-        "max_units": 2,
-        "allow_repeated_members": False,
+        "encounter_kind": "guard",
     },
     "heart_guard": {
-        "allowed_roles": ["boss", "elite", "veteran", "minion"],
-        "required_roles": ["boss"],
-        "min_units": 1,
-        "max_units": 4,
-        "allow_repeated_members": True,
-        "prefer_distinct_members": True,
+        "encounter_kind": "boss",
     },
     "boss_solo": {
+        "encounter_kind": "boss",
         "allowed_roles": ["boss"],
         "required_roles": ["boss"],
         "min_units": 1,
@@ -51,12 +28,7 @@ RIFT_COMPOSITION_POLICY_PRESETS: dict[str, dict[str, Any]] = {
         "allow_repeated_members": False,
     },
     "boss_with_minions": {
-        "allowed_roles": ["boss", "minion", "veteran"],
-        "required_roles": ["boss"],
-        "min_units": 1,
-        "max_units": 4,
-        "allow_repeated_members": True,
-        "prefer_distinct_members": True,
+        "encounter_kind": "boss",
     },
 }
 

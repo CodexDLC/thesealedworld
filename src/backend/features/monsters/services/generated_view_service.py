@@ -135,8 +135,6 @@ class GeneratedMonsterViewService:
             "updated_at": member.updated_at,
             "threat_rating": member.threat_rating,
             "gear_score": _optional_int(balance.get("gear_score")),
-            "base_cost": _optional_int(balance.get("base_cost")),
-            "effective_cost": _optional_float(balance.get("effective_cost")),
             "visual": _visual((member.generation_meta or {}).get("visual")),
             "equipment_summary": _equipment_summary(member.items),
         }
@@ -212,13 +210,6 @@ def _equipment_summary(items: dict[str, Any]) -> dict[str, list[str]]:
 def _optional_int(value: Any) -> int | None:
     try:
         return int(value)
-    except (TypeError, ValueError):
-        return None
-
-
-def _optional_float(value: Any) -> float | None:
-    try:
-        return float(value)
     except (TypeError, ValueError):
         return None
 

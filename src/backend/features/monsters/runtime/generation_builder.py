@@ -195,7 +195,7 @@ class MonsterClanGenerationBuilder:
             raise ValueError(f"No monster variants for family={family.id} tier={context.tier}")
 
         plans: list[_MemberPlan] = []
-        for variant in sorted(available, key=lambda item: (item.min_tier, item.role, item.cost, item.id)):
+        for variant in sorted(available, key=lambda item: (item.min_tier, item.role, item.spawn_weight, item.id)):
             member_model = self._member_model_for(family, variant)
             member_id = uuid.uuid4()
             plans.append(
@@ -290,7 +290,7 @@ class MonsterClanGenerationBuilder:
             variant_key=plan.variant.id,
             role=plan.variant.role,
             member_tier=template.member_tier,
-            threat_rating=template.balance.threat_rating,
+            threat_rating=0,
             name_ru=template.text_content.name_ru or plan.variant.id,
             description=template.text_content.appearance_ru or plan.variant.narrative_hint,
             text_content=template.text_content.model_dump(mode="json"),

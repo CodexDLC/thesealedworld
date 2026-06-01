@@ -200,7 +200,7 @@ async def test_materialize_starting_imprint_uses_distribution_for_automatic_sele
     character_repo = FakeCharacterRepository()
     attributes_repo = FakeAttributesRepository()
     skill_repo = FakeSkillRepository()
-    distribution = FakeStartingImprintDistribution("starter_archer_01")
+    distribution = FakeStartingImprintDistribution("starter_staff_01")
     integration = GameLobbyIntegration(
         character_repo=character_repo,
         attributes_repo=attributes_repo,
@@ -212,11 +212,11 @@ async def test_materialize_starting_imprint_uses_distribution_for_automatic_sele
 
     result = await integration.materialize_starting_imprint(character, seed="creation-seed")
 
-    assert result["imprint_key"] == "starter_archer_01"
+    assert result["imprint_key"] == "starter_staff_01"
     assert result["skill_keys"] == [
-        "skill_archery",
-        "skill_ranged_combat",
-        "skill_light_armor",
+        "skill_polearms",
+        "skill_two_handed",
+        "skill_medium_armor",
     ]
     assert distribution.calls == [
         {
@@ -225,14 +225,10 @@ async def test_materialize_starting_imprint_uses_distribution_for_automatic_sele
             "imprint_keys": (
                 "starter_guard_01",
                 "starter_breaker_01",
-                "starter_duelist_01",
                 "starter_dual_blades_01",
                 "starter_dual_sword_01",
                 "starter_dual_mace_01",
                 "starter_pathfinder_01",
-                "starter_hunter_01",
-                "starter_archer_01",
-                "starter_marksman_01",
                 "starter_staff_01",
                 "starter_heavy_guard_01",
                 "starter_tactician_01",
@@ -253,7 +249,7 @@ async def test_materialize_starting_imprint_does_not_record_distribution_for_exp
         created_at=datetime.now(UTC),
         location_id="52_52",
     )
-    distribution = FakeStartingImprintDistribution("starter_archer_01")
+    distribution = FakeStartingImprintDistribution("starter_staff_01")
     integration = GameLobbyIntegration(
         character_repo=FakeCharacterRepository(),
         attributes_repo=FakeAttributesRepository(),

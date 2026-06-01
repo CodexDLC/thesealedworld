@@ -242,11 +242,27 @@ async def test_prepare_monster_group_allows_repeated_monster_templates() -> None
         factory=FakeClanFactory(storage),  # type: ignore[arg-type]
     )
 
-    result = await service.prepare_monster_group("45_45", budget=150, scope_id="encounter:test", ttl=120)
+    result = await service.prepare_monster_group(
+        "45_45",
+        budget=150,
+        composition_policy={
+            "encounter_kind": "guard",
+            "encounter_difficulty": "normal",
+            "budget_multiplier": 1.0,
+            "allowed_roles": ["minion"],
+            "min_units": 1,
+            "max_units": 8,
+            "role_caps": {"minion": 8, "veteran": 0, "elite": 0, "boss": 0},
+            "allow_repeated_members": True,
+        },
+        scope_id="encounter:test",
+        ttl=120,
+    )
 
-    assert len(result.monster_ids) == 2
+    assert len(result.monster_ids) == 8
     assert len(set(result.monster_ids)) == 1
-    assert len(result.previews) == 2
+    assert len(result.previews) == 8
+    assert result.previews[0].gear_score == 13
     assert set(result.actor_commitments) == {f"monster:{result.monster_ids[0]}"}
 
 
@@ -368,3 +384,75 @@ async def test_prepare_monster_group_from_clan_applies_rift_composition_policy()
 
     assert result.monster_ids == [str(boss.id)]
     assert result.previews[0].role == "boss"
+
+
+async def test_prepare_monster_group_from_clan_applies_family_encounter_profile() -> None:
+    storage = FakeStorage()
+    commitments = FakeActorCommitments()
+    clan = GeneratedClan(
+        id=uuid.uuid4(),
+        family_id="rat_swarm",
+        tier=1,
+        zone_id="rift:starter_rift",
+        context_hash="rift-guard-context-hash",
+        unique_hash="rift-guard-unique-hash",
+        raw_tags={},
+        flavor_content={},
+        name_ru="Rift Rats",
+        description="Rift Rats",
+    )
+    members = [
+        _generated_monster(
+            clan_id=clan.id,
+            variant_key="minion",
+            role="minion",
+            gear_score=20,
+            organization_type="swarm",
+        ),
+        _generated_monster(
+            clan_id=clan.id,
+            variant_key="veteran",
+            role="veteran",
+            gear_score=30,
+            organization_type="swarm",
+        ),
+        _generated_monster(
+            clan_id=clan.id,
+            variant_key="elite",
+            role="elite",
+            gear_score=50,
+            organization_type="swarm",
+        ),
+    ]
+    for member in members:
+        member.clan = clan
+        member.generation_meta["balance"]["gear_score_version"] = 5
+        clan.members.append(member)
+    storage.clans_by_unique[clan.unique_hash] = clan
+    storage.members_by_clan[clan.id] = members
+    service = MonsterGroupService(
+        repository=storage,
+        location_context=FakeLocationContext(),  # type: ignore[arg-type]
+        actor_commitments=commitments,  # type: ignore[arg-type]
+        factory=FakeClanFactory(storage),  # type: ignore[arg-type]
+    )
+
+    result = await service.prepare_monster_group_from_clan(
+        clan.id,
+        budget=200,
+        tier=1,
+        danger=0.0,
+        biome_id="broken_road",
+        loc_id="rift:starter_rift:guard",
+        zone_id="rift:starter_rift",
+        tags=["starter_rift"],
+        composition_policy={"encounter_kind": "guard", "encounter_difficulty": "hard"},
+        scope_id="rift:guard:test",
+        ttl=120,
+    )
+
+    assert result.target_budget == 260
+    assert 3 <= len(result.previews) <= 6
+    assert {preview.role for preview in result.previews} <= {"veteran", "elite"}
+    assert [preview.role for preview in result.previews].count("elite") >= 1
+    assert [preview.role for preview in result.previews].count("elite") <= 3

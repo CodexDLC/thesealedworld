@@ -225,4 +225,4 @@ async def test_refresh_clan_gear_scores_updates_stale_member_balance_and_summary
     session.flush.assert_awaited_once()
     assert session.refresh.await_count == 2
     session.refresh.assert_any_await(clan_orm, attribute_names=["raw_tags", "updated_at"])
-    session.refresh.assert_any_await(member_orm, attribute_names=["generation_meta", "updated_at"])
+    session.refresh.assert_any_await(member_orm, attribute_names=["generation_meta", "threat_rating", "updated_at"])

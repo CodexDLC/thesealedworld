@@ -22,8 +22,8 @@ from src.backend.features.combat.runtime.simulation.starting_imprint_actors impo
     StartingImprintSimulationActorBuilder,
 )
 from src.backend.features.combat.runtime.simulation.state import InMemoryBattleLimits
-from src.backend.features.monsters.resources import get_family_config
 from src.backend.features.monsters.runtime.combat_actor_input import MonsterCombatActorInputBuilder
+from src.backend.features.monsters.runtime.encounter_profiles import MONSTER_ENCOUNTER_PROFILES
 from src.backend.features.monsters.runtime.group_assembler import ENCOUNTER_BALANCE_CONFIG
 from src.backend.features.monsters.services.gear_score_service import MonsterGearScoreService
 
@@ -31,6 +31,13 @@ if TYPE_CHECKING:
     from src.backend.features.monsters.dto.generation import GeneratedMonster
 
 ROLE_ORDER = ("minion", "veteran", "elite", "boss")
+ENCOUNTER_PROFILE_KIND_ORDER = ("ordinary", "guard", "boss")
+ENCOUNTER_PROFILE_DIFFICULTY_ORDER = ("easy", "normal", "hard")
+LOWER_ROLE_ORDER = {
+    "veteran": ("minion",),
+    "elite": ("veteran", "minion"),
+    "boss": ("elite", "veteran", "minion"),
+}
 DEFAULT_COMBAT_TOKENS = {"hit": 4, "crit": 4, "block": 4, "parry": 4, "dodge": 4, "tempo": 4, "blood": 2, "gift": 2}
 FamilyPressureProgressCallback = Callable[["FamilyPressureReport"], Awaitable[None]]
 
@@ -320,35 +327,26 @@ def build_family_pressure_compositions(
     max_scenarios: int = 24,
 ) -> list[FamilyPressureComposition]:
     roles_available = {member.role for member in members}
-    organization = _organization_type(family_id)
-    rule = dict(ENCOUNTER_BALANCE_CONFIG["organizations"].get(organization) or {})
-    max_units = max(1, int(rule.get("max_units") or max_minions))
-    max_units = min(max_units, max(1, int(max_minions)))
+    family_profiles = MONSTER_ENCOUNTER_PROFILES.get(family_id)
+    if not family_profiles:
+        return []
 
     rows: list[FamilyPressureComposition] = []
-    minion_start = _family_pressure_minion_start(organization, rule, max_units)
-    for count in range(minion_start, max_units + 1):
-        if "minion" in roles_available:
-            rows.append(_composition({"minion": count}, grade="medium" if count >= max_units else "light"))
-    if "veteran" in roles_available:
-        for veterans in range(1, max_units + 1):
-            rows.append(
-                _composition(
-                    {"minion": max_units - veterans, "veteran": veterans},
-                    grade="medium" if veterans <= max_units // 2 else "hard",
+    for kind in ENCOUNTER_PROFILE_KIND_ORDER:
+        kind_profiles = family_profiles.get(kind) or {}
+        for difficulty in ENCOUNTER_PROFILE_DIFFICULTY_ORDER:
+            profile = kind_profiles.get(difficulty)
+            if profile is None:
+                continue
+            rows.extend(
+                _profile_pressure_compositions(
+                    profile,
+                    kind=kind,
+                    difficulty=difficulty,
+                    roles_available=roles_available,
+                    max_units_limit=max(1, int(max_minions)),
                 )
             )
-    if "elite" in roles_available:
-        if "veteran" in roles_available:
-            for elites in range(1, max_units + 1):
-                rows.append(_composition({"veteran": max_units - elites, "elite": elites}, grade="hard"))
-        elif "minion" in roles_available:
-            for elites in range(1, max_units + 1):
-                rows.append(_composition({"minion": max_units - elites, "elite": elites}, grade="hard"))
-    if "minion" in roles_available and "elite" in roles_available:
-        rows.append(_composition({"minion": min(2, max_units - 1), "elite": 1}, grade="hard"))
-    if "minion" in roles_available and "boss" in roles_available:
-        rows.append(_composition({"minion": min(2, max_units - 1), "boss": 1}, grade="boss_probe"))
 
     return _unique_compositions(rows)[: max(1, int(max_scenarios))]
 
@@ -465,11 +463,70 @@ def _unique_compositions(rows: list[FamilyPressureComposition]) -> list[FamilyPr
     return list(unique.values())
 
 
-def _family_pressure_minion_start(organization: str, rule: dict[str, Any], max_units: int) -> int:
-    if organization == "swarm":
-        return min(3, max_units)
-    configured_min = int(rule.get("min_units") or 1)
-    return min(max(1, configured_min), max_units)
+def _profile_pressure_compositions(
+    profile: dict[str, Any],
+    *,
+    kind: str,
+    difficulty: str,
+    roles_available: set[str],
+    max_units_limit: int,
+) -> list[FamilyPressureComposition]:
+    allowed_roles = [role for role in _role_list(profile.get("allowed_roles")) if role in roles_available]
+    if not allowed_roles:
+        return []
+
+    max_units = min(max(1, _int(profile.get("max_units"), default=1)), max_units_limit)
+    min_units = min(max_units, max(1, _int(profile.get("min_units"), default=1)))
+    start_role = str(profile.get("start_role") or allowed_roles[0])
+    if start_role not in allowed_roles:
+        start_role = allowed_roles[0]
+
+    grade = f"{kind}:{difficulty}"
+    rows: list[FamilyPressureComposition] = []
+    start_cap = min(max_units, _profile_role_cap(profile, start_role))
+    for count in range(min_units, start_cap + 1):
+        rows.append(_composition({start_role: count}, grade=grade))
+
+    counts = {start_role: start_cap} if start_cap > 0 else {}
+    for role in _role_list(profile.get("upgrade_order")):
+        if role not in allowed_roles or role not in roles_available:
+            continue
+        cap = min(max_units, _profile_role_cap(profile, role))
+        while counts.get(role, 0) < cap:
+            replacement = _replacement_role(counts, role)
+            if replacement is None:
+                break
+            counts[replacement] -= 1
+            if counts[replacement] <= 0:
+                counts.pop(replacement, None)
+            counts[role] = counts.get(role, 0) + 1
+            if min_units <= sum(counts.values()) <= max_units:
+                rows.append(_composition(counts, grade=grade))
+    return rows
+
+
+def _profile_role_cap(profile: dict[str, Any], role: str) -> int:
+    role_caps = profile.get("role_caps")
+    if isinstance(role_caps, dict) and role in role_caps:
+        return max(0, _int(role_caps.get(role), default=0))
+    return max(0, _int(profile.get("max_units"), default=1))
+
+
+def _replacement_role(counts: dict[str, int], target_role: str) -> str | None:
+    for role in LOWER_ROLE_ORDER.get(target_role, ()):
+        if counts.get(role, 0) > 0:
+            return role
+    return None
+
+
+def _role_list(value: Any) -> list[str]:
+    if isinstance(value, str):
+        values = [value]
+    elif isinstance(value, (list, tuple, set)):
+        values = list(value)
+    else:
+        values = []
+    return [role for raw in values if (role := str(raw).strip()) in ROLE_ORDER]
 
 
 def _composition_sort_key(row: FamilyPressureComposition) -> tuple[int, int, int, int]:
@@ -478,13 +535,6 @@ def _composition_sort_key(row: FamilyPressureComposition) -> tuple[int, int, int
     if counts.get("minion", 0) == total:
         return (0, total, 0, 0)
     return (1, total, counts.get("elite", 0), counts.get("veteran", 0))
-
-
-def _organization_type(family_id: str) -> str:
-    family = get_family_config(family_id)
-    if family is None:
-        return "solitary"
-    return str(family.organization_type or "solitary")
 
 
 def _vital(status: dict[str, Any], key: str, *, default: int) -> int:

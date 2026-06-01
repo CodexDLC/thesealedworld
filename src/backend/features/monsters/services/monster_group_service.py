@@ -14,6 +14,7 @@ from src.backend.features.monsters.dto.generation import (
 from src.backend.features.monsters.resources import get_available_variants_for_family_tier, get_family_config
 from src.backend.features.monsters.resources.visuals import version_generated_asset_url, version_visual_image_urls
 from src.backend.features.monsters.runtime.combat_actor_input import MonsterCombatActorInputBuilder
+from src.backend.features.monsters.runtime.encounter_profiles import get_monster_encounter_profile
 from src.backend.features.monsters.runtime.group_assembler import MonsterGroupAssembler
 from src.backend.features.monsters.runtime.hashing import compute_context_hash, compute_unique_clan_hash, normalize_tags
 from src.backend.features.monsters.services.gear_score_service import MonsterGearScoreService
@@ -26,6 +27,50 @@ if TYPE_CHECKING:
     )
     from src.backend.features.monsters.runtime.clan_factory import ClanFactory
     from src.backend.infrastructure.monsters.managers import MonsterGroupCacheManager
+
+
+_ENCOUNTER_KIND_ALIASES = {
+    "ordinary": "ordinary",
+    "ordinary_node": "ordinary",
+    "transition": "ordinary",
+    "node_event": "guard",
+    "key_guard": "guard",
+    "guard": "guard",
+    "heart_guard": "boss",
+    "boss": "boss",
+    "boss_solo": "boss",
+    "boss_with_minions": "boss",
+}
+_ENCOUNTER_DIFFICULTY_ALIASES = {
+    "easy": "easy",
+    "light": "easy",
+    "low": "easy",
+    "normal": "normal",
+    "medium": "normal",
+    "mid": "normal",
+    "hard": "hard",
+    "heavy": "hard",
+    "high": "hard",
+}
+_ORGANIZATION_EXPECTED_UNIT_COUNT = {
+    "swarm": 6,
+    "horde": 5,
+    "pack": 4,
+    "gang": 3,
+    "solitary": 1,
+}
+_PROFILE_POLICY_KEYS = {
+    "budget_multiplier",
+    "min_units",
+    "max_units",
+    "start_role",
+    "allowed_roles",
+    "required_roles",
+    "role_caps",
+    "upgrade_order",
+    "allow_repeated_members",
+    "prefer_distinct_members",
+}
 
 
 class MonsterGroupService:
@@ -90,7 +135,7 @@ class MonsterGroupService:
             tags=list(normalized_tags),
             reused_existing_clan=reused_existing_clan,
             force_single_family=force_single_family,
-            composition_policy=composition_policy,
+            composition_policy=self._location_composition_policy(location.raw_location, composition_policy),
             scope_id=scope_id,
             ttl=ttl,
         )
@@ -154,13 +199,21 @@ class MonsterGroupService:
         for member in members:
             if member.clan is None:
                 member.clan = clan
+        effective_policy = self._profile_composition_policy(
+            clan=clan,
+            members=members,
+            budget=budget,
+            tier=tier,
+            tags=tags,
+            composition_policy=composition_policy,
+        )
         assembly = self.assembler.assemble(
             members,
             budget=budget,
             tier=tier,
             danger=danger,
             force_single_family=force_single_family,
-            composition_policy=composition_policy,
+            composition_policy=effective_policy,
         )
         if not assembly.members:
             raise ValueError(f"No generated monsters available for clan={clan.id}")
@@ -260,13 +313,88 @@ class MonsterGroupService:
     def _choose_existing_clan(self, clans: list[GeneratedClan]) -> GeneratedClan:
         return self._rng.choice(sorted(clans, key=lambda clan: clan.unique_hash))
 
+    def _profile_composition_policy(
+        self,
+        *,
+        clan: GeneratedClan,
+        members: list[GeneratedMonster],
+        budget: float,
+        tier: int,
+        tags: list[str],
+        composition_policy: dict[str, Any] | None,
+    ) -> dict[str, Any] | None:
+        raw_policy = dict(composition_policy or {})
+        kind = _encounter_kind(raw_policy, tags)
+        difficulty = self._encounter_difficulty(raw_policy, members=members, budget=budget, tier=tier)
+        profile = get_monster_encounter_profile(clan.family_id, kind, difficulty)
+        if profile is None:
+            return raw_policy or None
+
+        profile_policy: dict[str, Any] = dict(profile)
+        profile_policy["encounter_kind"] = kind
+        profile_policy["encounter_difficulty"] = difficulty
+        return _merge_profile_policy(profile_policy, raw_policy)
+
+    def _encounter_difficulty(
+        self,
+        policy: dict[str, Any],
+        *,
+        members: list[GeneratedMonster],
+        budget: float,
+        tier: int,
+    ) -> str:
+        explicit = _normalize_encounter_difficulty(policy.get("encounter_difficulty") or policy.get("difficulty"))
+        if explicit is not None:
+            return explicit
+
+        expected = _family_expected_gear_score(members, tier=tier)
+        ratio = float(budget) / expected if expected > 0 else 1.0
+        return self._weighted_difficulty(ratio)
+
+    def _weighted_difficulty(self, power_ratio: float) -> str:
+        if power_ratio < 0.75:
+            weights = {"easy": 75, "normal": 25, "hard": 0}
+        elif power_ratio < 1.15:
+            weights = {"easy": 45, "normal": 45, "hard": 10}
+        elif power_ratio < 1.65:
+            weights = {"easy": 20, "normal": 55, "hard": 25}
+        elif power_ratio < 2.4:
+            weights = {"easy": 10, "normal": 45, "hard": 45}
+        else:
+            weights = {"easy": 5, "normal": 30, "hard": 65}
+        return _weighted_choice(weights, self._rng)
+
     @staticmethod
     def _context_meta(raw_location: dict) -> dict[str, object]:
         flags = raw_location.get("flags")
         if not isinstance(flags, dict):
             return {}
+        result: dict[str, object] = {}
         rift_profile = flags.get("rift_profile")
-        return {"rift_profile": rift_profile} if isinstance(rift_profile, dict) else {}
+        if isinstance(rift_profile, dict):
+            result["rift_profile"] = rift_profile
+        for key in ("encounter_kind", "encounter_difficulty", "difficulty"):
+            value = flags.get(key)
+            if value:
+                result[key] = str(value)
+        return result
+
+    @staticmethod
+    def _location_composition_policy(
+        raw_location: dict[str, Any],
+        composition_policy: dict[str, Any] | None,
+    ) -> dict[str, Any] | None:
+        flags = raw_location.get("flags")
+        if not isinstance(flags, dict):
+            return composition_policy
+        location_policy: dict[str, Any] = {}
+        for key in ("encounter_kind", "encounter_difficulty", "difficulty"):
+            value = flags.get(key)
+            if value:
+                location_policy[key] = str(value)
+        if not location_policy:
+            return composition_policy
+        return {**location_policy, **dict(composition_policy or {})}
 
     def _materialize_actor_source(self, monster: GeneratedMonster) -> dict[str, object]:
         return self.actor_builder.build_snapshot(monster)
@@ -403,3 +531,91 @@ class MonsterGroupService:
     @staticmethod
     def _group_payload(result: MonsterGroupResult) -> dict[str, object]:
         return result.model_dump(mode="json", exclude={"group_key"})
+
+
+def _encounter_kind(policy: dict[str, Any], tags: list[str]) -> str:
+    for value in (
+        policy.get("encounter_kind"),
+        policy.get("kind"),
+        policy.get("event_scope"),
+        policy.get("rift_event_scope"),
+    ):
+        normalized = _normalize_encounter_kind(value)
+        if normalized is not None:
+            return normalized
+    for tag in tags:
+        normalized = _normalize_encounter_kind(tag)
+        if normalized is not None:
+            return normalized
+    return "guard"
+
+
+def _normalize_encounter_kind(value: Any) -> str | None:
+    key = str(value or "").strip()
+    return _ENCOUNTER_KIND_ALIASES.get(key)
+
+
+def _normalize_encounter_difficulty(value: Any) -> str | None:
+    key = str(value or "").strip()
+    return _ENCOUNTER_DIFFICULTY_ALIASES.get(key)
+
+
+def _merge_profile_policy(profile_policy: dict[str, Any], explicit_policy: dict[str, Any]) -> dict[str, Any]:
+    result = dict(profile_policy)
+    for key, value in explicit_policy.items():
+        if key in _PROFILE_POLICY_KEYS or key not in {"encounter_kind", "encounter_difficulty"}:
+            result[key] = value
+    return result
+
+
+def _family_expected_gear_score(members: list[GeneratedMonster], *, tier: int) -> float:
+    base_scores = [
+        score
+        for member in members
+        if member.role in {"minion", "veteran"} and (score := _member_gear_score(member)) is not None
+    ]
+    scores = base_scores or [score for member in members if (score := _member_gear_score(member)) is not None]
+    if not scores:
+        return 1.0
+    scores = sorted(scores)
+    middle = len(scores) // 2
+    median = float(scores[middle]) if len(scores) % 2 else (float(scores[middle - 1]) + float(scores[middle])) / 2.0
+    organization = _organization_from_members(members)
+    expected_units = _ORGANIZATION_EXPECTED_UNIT_COUNT.get(organization, 1)
+    tier_multiplier = 1.0 + max(0, int(tier) - 1) * 0.15
+    return max(1.0, median * expected_units * tier_multiplier)
+
+
+def _organization_from_members(members: list[GeneratedMonster]) -> str:
+    for member in members:
+        balance = dict((member.generation_meta or {}).get("balance") or {})
+        organization = str(balance.get("organization_type") or "")
+        if organization:
+            return organization
+    for member in members:
+        family = get_family_config(member.family_id) if member.family_id else None
+        if family is not None:
+            return family.organization_type
+    return "solitary"
+
+
+def _member_gear_score(member: GeneratedMonster) -> int | None:
+    balance = dict((member.generation_meta or {}).get("balance") or {})
+    value = balance.get("gear_score")
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _weighted_choice(weights: dict[str, int], rng: random.Random) -> str:
+    total = sum(max(0, weight) for weight in weights.values())
+    if total <= 0:
+        return "normal"
+    roll = rng.uniform(0, total)
+    upto = 0.0
+    for value, weight in weights.items():
+        upto += max(0, weight)
+        if roll <= upto:
+            return value
+    return "normal"

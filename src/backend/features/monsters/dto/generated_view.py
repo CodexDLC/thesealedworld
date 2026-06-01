@@ -63,8 +63,6 @@ class GeneratedMonsterViewDTO(BaseModel):
     updated_at: datetime | None = None
     threat_rating: int
     gear_score: int | None = None
-    base_cost: int | None = None
-    effective_cost: float | None = None
     visual: GeneratedAssetVisualDTO = Field(default_factory=GeneratedAssetVisualDTO)
     equipment_summary: GeneratedMonsterEquipmentSummaryDTO = Field(default_factory=GeneratedMonsterEquipmentSummaryDTO)
 

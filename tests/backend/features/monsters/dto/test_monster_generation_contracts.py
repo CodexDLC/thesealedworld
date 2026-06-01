@@ -38,9 +38,6 @@ def test_generated_monster_template_accepts_target_json_contract() -> None:
             "granted_abilities": {"known_abilities": []},
             "ai_profile": {"behavior": "swarm_chaff"},
             "balance": {
-                "base_cost": 20,
-                "effective_cost": 4,
-                "threat_rating": 20,
                 "organization_type": "swarm",
                 "organization_divisor": 5.0,
             },
@@ -73,9 +70,6 @@ def test_generated_monster_template_rejects_missing_item_projection() -> None:
                 },
                 "items": {"layout": {"equipment": {"main_hand": "missing_item"}}, "by_id": {}},
                 "balance": {
-                    "base_cost": 20,
-                    "effective_cost": 4,
-                    "threat_rating": 20,
                     "organization_type": "swarm",
                     "organization_divisor": 5.0,
                 },
@@ -121,7 +115,7 @@ def test_monster_family_accepts_clan_and_member_resource_models() -> None:
                     "id": "sewer_rat",
                     "role": "minion",
                     "narrative_hint": "Small diseased rat.",
-                    "cost": 20,
+                    "spawn_weight": 20,
                     "base_stats": {
                         "strength": 4,
                         "agility": 10,
@@ -160,7 +154,7 @@ def test_monster_family_accepts_explicit_resource_version() -> None:
                     "id": "sewer_rat",
                     "role": "minion",
                     "narrative_hint": "Small diseased rat.",
-                    "cost": 20,
+                    "spawn_weight": 20,
                     "base_stats": {
                         "strength": 4,
                         "agility": 10,
@@ -202,7 +196,7 @@ def test_monster_family_rejects_member_model_for_missing_variant() -> None:
                         "id": "sewer_rat",
                         "role": "minion",
                         "narrative_hint": "Small diseased rat.",
-                        "cost": 20,
+                        "spawn_weight": 20,
                         "base_stats": {
                             "strength": 4,
                             "agility": 10,

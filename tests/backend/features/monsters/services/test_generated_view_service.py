@@ -5,6 +5,7 @@ import uuid
 import pytest
 
 from src.backend.features.monsters.dto.generation import GeneratedClan, GeneratedMonster
+from src.backend.features.monsters.services.gear_score_service import MonsterGearScoreService
 from src.backend.features.monsters.services.generated_view_service import GeneratedMonsterViewService
 
 
@@ -60,7 +61,7 @@ async def test_generated_view_projects_visual_storage_and_equipment_summary() ->
         vitals={"hp": {"current": 50, "max": 50}},
         ai_profile={"profile": "aggressive"},
         generation_meta={
-            "balance": {"gear_score": 11, "base_cost": 20, "effective_cost": 22.5},
+            "balance": {"gear_score": 11},
             "visual": {
                 "status": "generated",
                 "image_url": "/static/generated-assets/monsters/member.webp",
@@ -115,6 +116,8 @@ async def test_generated_view_projects_visual_storage_and_equipment_summary() ->
     assert item.members[0].vitals == {"hp": {"current": 50, "max": 50}}
     assert item.members[0].ai_profile == {"profile": "aggressive"}
     assert item.members[0].combat_actor_snapshot == {"meta": {"source": "generated_monsters"}}
+    assert "base_cost" not in item.members[0].model_dump()
+    assert "effective_cost" not in item.members[0].model_dump()
     assert item.members[0].equipment_summary.equipment == ["body: Patched coat", "main_hand: Rust knife"]
     assert item.members[0].equipment_summary.weapons == ["main_hand: Rust knife"]
     assert item.members[0].equipment_summary.armor == ["body: Patched coat"]
@@ -171,5 +174,5 @@ async def test_generated_view_refreshes_stale_gear_scores_before_projection() ->
 
     assert repository.refresh_calls == [clan_id]
     assert result.items[0].members[0].gear_score != 999
-    assert result.items[0].members[0].generation_meta["balance"]["gear_score_version"] == 3
-    assert result.items[0].gear_score_summary.version == 3
+    assert result.items[0].members[0].generation_meta["balance"]["gear_score_version"] == MonsterGearScoreService.VERSION
+    assert result.items[0].gear_score_summary.version == MonsterGearScoreService.VERSION

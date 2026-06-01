@@ -297,10 +297,10 @@
     "strategy": "rift_static_hash",
     "biome_id": "broken_road",
     "tier": 1,
-    "selection_profile_id": "starter_broken_road_raiders",
+    "selection_profile_id": "starter_broken_road_goblins",
     "selection_tags": [
       "humanoid",
-      "raider",
+      "goblin",
       "scavenger",
       "roadside_camp"
     ],
@@ -308,15 +308,15 @@
       {
         "slot_id": "primary",
         "role": "main_population",
-        "family_profile_key": "broken_road_humanoid_raiders",
+        "family_profile_key": "broken_road_goblin_scavengers",
         "archetype": "humanoid",
         "selection_tags": [
           "humanoid",
-          "raider",
+          "goblin",
           "camp_guard",
           "roadside_camp"
         ],
-        "prototype_family_key": "bandit_gang"
+        "prototype_family_key": "goblin_tribe"
       },
       {
         "slot_id": "secondary",
@@ -337,7 +337,7 @@
       "tier_1_rift",
       "broken_caravan",
       "roadside_camp",
-      "bandit_scavengers",
+      "goblin_scavengers",
       "rift_scavenger_beasts"
     ],
     "family_hash_intent": "Use setting_key + biome_id + tier + context_tags as the DB clan context. Resolve each authored family slot inside the monster generation layer against active monster family definitions."

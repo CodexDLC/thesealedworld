@@ -34,8 +34,6 @@ from src.backend.features.combat.runtime.simulation.starting_imprint_actors impo
     DEFAULT_STARTER_SIMULATION_IMPRINTS,
     STARTER_5V5_BLUE,
     STARTER_5V5_RED,
-    STARTER_6V6_BLUE,
-    STARTER_6V6_RED,
     STARTER_SIMULATION_BEHAVIOR_PROFILES,
     STARTER_SKILL_PROFILE_BASELINE,
     STARTER_SKILL_PROFILE_MAXED_EXISTING,
@@ -43,7 +41,6 @@ from src.backend.features.combat.runtime.simulation.starting_imprint_actors impo
     StartingImprintSimulationActorBuilder,
     all_starting_imprint_keys,
     random_starter_5v5_imprints,
-    random_starter_6v6_imprints,
     random_starter_roster_imprints,
 )
 from src.backend.features.combat.runtime.simulation.state import InMemoryBattleLimits, InMemoryBattleState
@@ -74,8 +71,6 @@ __all__ = [
     "DEFAULT_STARTER_SIMULATION_IMPRINTS",
     "STARTER_5V5_BLUE",
     "STARTER_5V5_RED",
-    "STARTER_6V6_BLUE",
-    "STARTER_6V6_RED",
     "STARTER_SIMULATION_BEHAVIOR_PROFILES",
     "STARTER_SKILL_PROFILE_BASELINE",
     "STARTER_SKILL_PROFILE_MAXED_EXISTING",
@@ -85,7 +80,6 @@ __all__ = [
     "build_family_pressure_compositions",
     "format_family_pressure_report",
     "random_starter_5v5_imprints",
-    "random_starter_6v6_imprints",
     "random_starter_roster_imprints",
     "render_simulation_report",
     "select_members_for_composition",

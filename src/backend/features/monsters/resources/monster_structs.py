@@ -100,7 +100,7 @@ class MonsterVariant(TypedDict):
     name_ru: NotRequired[str]  # Имя для отображения в UI
     role: Literal["minion", "veteran", "elite", "boss"]
     narrative_hint: str  # Описание для LLM
-    cost: int  # "Цена" для балансировщика
+    spawn_weight: NotRequired[int]  # Вес будущего выбора варианта, не цена боя.
 
     # Описания для UI
     description: NotRequired[str]  # Художественное описание (Бестиарий)

@@ -5,13 +5,14 @@ from typing import TYPE_CHECKING, Any
 
 from src.backend.features.character.runtime.gear_score import CharacterGearScoreCalculator
 from src.backend.features.monsters.runtime.combat_actor_input import MonsterCombatActorInputBuilder
+from src.backend.features.monsters.runtime.generation_fields import ORGANIZATION_GS_DIVISORS
 
 if TYPE_CHECKING:
     from src.backend.features.monsters.dto.generation import GeneratedClan, GeneratedMonster
 
 
 class MonsterGearScoreService:
-    VERSION = 3
+    VERSION = 5
 
     def __init__(self, actor_builder: MonsterCombatActorInputBuilder | None = None) -> None:
         self.actor_builder = actor_builder or MonsterCombatActorInputBuilder()
@@ -19,20 +20,26 @@ class MonsterGearScoreService:
     def calculate_monster_gear_score(self, monster: GeneratedMonster) -> int:
         snapshot = self.actor_builder.build_snapshot(monster)
         combat = snapshot["combat"]
-        return CharacterGearScoreCalculator.calculate_from_raw(
+        base_score = CharacterGearScoreCalculator.calculate_from_raw(
             combat["math_model"],
             skills=combat["skills"],
             loadout=combat["loadout"],
         )
+        return self._effective_score(base_score, monster)
 
     def apply_monster_gear_score(self, monster: GeneratedMonster) -> int:
         score = self.calculate_monster_gear_score(monster)
         generation_meta = dict(monster.generation_meta or {})
         balance = dict(generation_meta.get("balance") or {})
+        balance.pop("base_cost", None)
+        balance.pop("effective_cost", None)
+        balance.pop("threat_rating", None)
         balance["gear_score"] = score
         balance["gear_score_version"] = self.VERSION
         generation_meta["balance"] = balance
         monster.generation_meta = generation_meta
+        if hasattr(monster, "threat_rating"):
+            monster.threat_rating = score
         return score
 
     def refresh_stale_monster_scores(self, members: list[GeneratedMonster]) -> int:
@@ -82,6 +89,29 @@ class MonsterGearScoreService:
             "total": sum(all_scores),
             "by_role": {role: self._score_bucket(scores) for role, scores in sorted(scores_by_role.items())},
         }
+
+    @staticmethod
+    def _effective_score(score: int, monster: GeneratedMonster) -> int:
+        divisor = MonsterGearScoreService._organization_divisor(monster)
+        return max(1, int(round(score / divisor)))
+
+    @staticmethod
+    def _organization_divisor(monster: GeneratedMonster) -> float:
+        generation_meta = monster.generation_meta if isinstance(monster.generation_meta, dict) else {}
+        balance = generation_meta.get("balance")
+        if not isinstance(balance, dict):
+            return 1.0
+
+        raw_divisor = balance.get("organization_divisor")
+        try:
+            divisor = float(raw_divisor)
+            if divisor > 0:
+                return divisor
+        except (TypeError, ValueError):
+            pass
+
+        organization_type = str(balance.get("organization_type") or "")
+        return float(ORGANIZATION_GS_DIVISORS.get(organization_type, 1.0))
 
     @staticmethod
     def _stored_gear_score(monster: GeneratedMonster) -> int | None:

@@ -35,7 +35,7 @@ async def test_rift_catalog_bootstrap_syncs_setting_and_node_pool_from_fixtures(
         "tier_1_rift",
         "broken_caravan",
         "roadside_camp",
-        "bandit_scavengers",
+        "goblin_scavengers",
         "rift_scavenger_beasts",
         ]
     )

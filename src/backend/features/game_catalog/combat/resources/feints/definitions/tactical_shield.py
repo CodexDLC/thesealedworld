@@ -88,6 +88,53 @@ TACTICAL_SHIELD_FEINTS_TECHNICAL = {
             {"id": "debuff_accuracy", "target_actor": "target"},
         ],
     ),
+    "bloody_rebuke": FeintTechnicalDTO(
+        feint_id="bloody_rebuke",
+        cost=FeintCostDTO(tactics={"blood": 1, "hit": 2, "block": 2}),
+        target=TargetType.SINGLE_ENEMY,
+        applicability_tags=[*_TACTICAL_SHIELD_TAGS, "hit", "blood", "damage", "shield_bash"],
+        purchase_group="tactical",
+        effects=[
+            {"id": "shield_blood_damage", "target_actor": "target", "params": {"damage": 10}},
+        ],
+    ),
+    "blood_wall_crash": FeintTechnicalDTO(
+        feint_id="blood_wall_crash",
+        cost=FeintCostDTO(tactics={"blood": 1, "hit": 3, "block": 3}),
+        target=TargetType.SINGLE_ENEMY,
+        applicability_tags=[*_TACTICAL_SHIELD_TAGS, "hit", "blood", "damage", "shield_bash", "control"],
+        purchase_group="tactical",
+        effects=[
+            {"id": "shield_blood_damage", "target_actor": "target", "params": {"damage": 12}},
+            {"id": "knockdown", "target_actor": "target"},
+        ],
+    ),
+    "scarlet_riposte": FeintTechnicalDTO(
+        feint_id="scarlet_riposte",
+        cost=FeintCostDTO(tactics={"blood": 1, "block": 2, "parry": 2}),
+        target=TargetType.SINGLE_ENEMY,
+        applicability_tags=[*_TACTICAL_SHIELD_TAGS, "blood", "parry", "preparation", "reflect", "counter"],
+        purchase_group="tactical",
+        preparation_effects=[
+            {
+                "id": "prep_scarlet_riposte",
+                "target_actor": "source",
+                "params": {"reflect_damage": 10},
+            },
+        ],
+    ),
+    "red_line_bash": FeintTechnicalDTO(
+        feint_id="red_line_bash",
+        cost=FeintCostDTO(tactics={"blood": 1, "hit": 4, "block": 2}),
+        target=TargetType.ALL_ENEMIES,
+        target_count=3,
+        secondary_damage_mult=0.50,
+        applicability_tags=[*_TACTICAL_SHIELD_TAGS, "hit", "blood", "damage", "shield_bash", "multi_target"],
+        purchase_group="tactical",
+        effects=[
+            {"id": "shield_blood_damage", "target_actor": "target", "params": {"damage": 8}},
+        ],
+    ),
 }
 
 _TACTICAL_SHIELD_TEXTS = {
@@ -146,6 +193,38 @@ _TACTICAL_SHIELD_TEXTS = {
         "вынося щит в проход по линии",
         "и сбивает строй щитом",
         "и срывает прицел нескольким целям",
+    ),
+    "bloody_rebuke": (
+        "Кровавый упрек",
+        "Вернуть боль ударом щита",
+        "Тактический щитовой финт: тратит кровь и добавляет ответный урон к успешному удару.",
+        "вкладывая пережитую боль в удар щитом",
+        "и возвращает накопленную боль щитом",
+        "и отвечает кровавым щитовым ударом",
+    ),
+    "blood_wall_crash": (
+        "Кровавый пролом",
+        "Ударить щитом и сбить с ног",
+        "Тактический щитовой финт: тратит кровь, добавляет урон и пытается сбить цель с ног.",
+        "разгоняя щит через боль",
+        "и проламывает стойку щитом",
+        "и вбивает цель в землю кровавым напором",
+    ),
+    "scarlet_riposte": (
+        "Алый рипост",
+        "Подготовить кровавый ответ",
+        "Тактический щитовой финт: следующий блок или парирование возвращает урон атакующему.",
+        "оставляя кровь на линии ответа",
+        "и держит щит для алого рипоста",
+        "и превращает защиту в болезненный ответ",
+    ),
+    "red_line_bash": (
+        "Красная линия",
+        "Провести кровавый проход",
+        "Тактический щитовой финт: тратит кровь и задевает щитовым ударом до трех целей.",
+        "ведя щит по красной линии",
+        "и разносит давление по строю",
+        "и возвращает боль сразу нескольким целям",
     ),
 }
 

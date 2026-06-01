@@ -44,7 +44,7 @@ WOLVES_FAMILY: MonsterFamily = {
         "cub": {
             "id": "cub",
             "role": "minion",
-            "cost": 20,
+            "spawn_weight": 20,
             "min_tier": 0,
             "max_tier": 3,
             "narrative_hint": "A young wolf, inexperienced but eager. Soft fur and sharp little teeth.",
@@ -69,7 +69,7 @@ WOLVES_FAMILY: MonsterFamily = {
         "runner": {
             "id": "runner",
             "role": "minion",
-            "cost": 20,
+            "spawn_weight": 20,
             "min_tier": 0,
             "max_tier": 3,
             "narrative_hint": "A lean wolf built for speed. Scouts ahead of the pack.",
@@ -94,7 +94,7 @@ WOLVES_FAMILY: MonsterFamily = {
         "mangy_biter": {
             "id": "mangy_biter",
             "role": "minion",
-            "cost": 20,
+            "spawn_weight": 20,
             "min_tier": 0,
             "max_tier": 3,
             "narrative_hint": "A scarred, underfed wolf that darts in low and snaps at exposed limbs.",
@@ -120,7 +120,7 @@ WOLVES_FAMILY: MonsterFamily = {
         "stalker": {
             "id": "stalker",
             "role": "veteran",
-            "cost": 50,
+            "spawn_weight": 50,
             "min_tier": 1,
             "max_tier": 4,
             "narrative_hint": "A wolf that moves low to the ground, blending with the terrain.",
@@ -145,7 +145,7 @@ WOLVES_FAMILY: MonsterFamily = {
         "flanker": {
             "id": "flanker",
             "role": "veteran",
-            "cost": 50,
+            "spawn_weight": 50,
             "min_tier": 1,
             "max_tier": 4,
             "narrative_hint": "A clever wolf that always tries to get behind its prey.",
@@ -170,7 +170,7 @@ WOLVES_FAMILY: MonsterFamily = {
         "snapper": {
             "id": "snapper",
             "role": "veteran",
-            "cost": 50,
+            "spawn_weight": 50,
             "min_tier": 1,
             "max_tier": 4,
             "narrative_hint": "A wolf with powerful jaws, focused on finishing off wounded prey.",
@@ -196,7 +196,7 @@ WOLVES_FAMILY: MonsterFamily = {
         "pack_leader": {
             "id": "pack_leader",
             "role": "elite",
-            "cost": 150,
+            "spawn_weight": 150,
             "min_tier": 2,
             "max_tier": 5,
             "narrative_hint": "A large wolf with a confident stance. Howls to coordinate the pack.",
@@ -221,7 +221,7 @@ WOLVES_FAMILY: MonsterFamily = {
         "dire_wolf": {
             "id": "dire_wolf",
             "role": "elite",
-            "cost": 150,
+            "spawn_weight": 150,
             "min_tier": 2,
             "max_tier": 5,
             "narrative_hint": "A massive, prehistoric wolf. Its fur is thick and its eyes burn with hunger.",
@@ -246,7 +246,7 @@ WOLVES_FAMILY: MonsterFamily = {
         "old_fang": {
             "id": "old_fang",
             "role": "elite",
-            "cost": 150,
+            "spawn_weight": 150,
             "min_tier": 2,
             "max_tier": 5,
             "narrative_hint": "An old, scarred wolf. Missing an ear, but moves with deadly efficiency.",
@@ -272,7 +272,7 @@ WOLVES_FAMILY: MonsterFamily = {
         "alpha_prime": {
             "id": "alpha_prime",
             "role": "boss",
-            "cost": 600,
+            "spawn_weight": 600,
             "min_tier": 3,
             "max_tier": 6,
             "narrative_hint": "The apex predator. A wolf of perfect form and terrifying power.",
@@ -297,7 +297,7 @@ WOLVES_FAMILY: MonsterFamily = {
         "winter_maw": {
             "id": "winter_maw",
             "role": "boss",
-            "cost": 600,
+            "spawn_weight": 600,
             "min_tier": 3,
             "max_tier": 6,
             "narrative_hint": "A giant white wolf, exhaling frost. Its bite freezes the blood.",
@@ -322,7 +322,7 @@ WOLVES_FAMILY: MonsterFamily = {
         "blood_howl": {
             "id": "blood_howl",
             "role": "boss",
-            "cost": 600,
+            "spawn_weight": 600,
             "min_tier": 4,
             "max_tier": 7,
             "narrative_hint": "A wolf with fur stained red. It feeds on the fear of its prey.",

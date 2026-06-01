@@ -26,33 +26,25 @@ DEFAULT_STARTER_SIMULATION_IMPRINTS: tuple[str, ...] = (
     "starter_breaker_01",
     "starter_staff_01",
     "starter_rift_survivor_01",
+    "starter_pathfinder_01",
     "starter_dual_blades_01",
     "starter_dual_sword_01",
     "starter_dual_mace_01",
-    "starter_hunter_01",
-    "starter_archer_01",
-    "starter_marksman_01",
 )
 STARTER_SKILL_PROFILE_BASELINE = "baseline"
 STARTER_SKILL_PROFILE_MAXED_EXISTING = "maxed_existing_skills"
 STARTER_SIMULATION_BEHAVIOR_PROFILES: tuple[str, ...] = ("aggressive",)
 
-STARTER_6V6_BLUE: tuple[str, ...] = DEFAULT_STARTER_SIMULATION_IMPRINTS[:6]
-STARTER_6V6_RED: tuple[str, ...] = DEFAULT_STARTER_SIMULATION_IMPRINTS[6:]
-STARTER_5V5_BLUE = STARTER_6V6_BLUE
-STARTER_5V5_RED = STARTER_6V6_RED
+STARTER_5V5_BLUE = DEFAULT_STARTER_SIMULATION_IMPRINTS[:5]
+STARTER_5V5_RED = DEFAULT_STARTER_SIMULATION_IMPRINTS[5:10]
 
 STARTER_SIMULATION_NAMES: dict[str, str] = {
     "starter_guard_01": "Ada Guard",
     "starter_breaker_01": "Borin Breaker",
-    "starter_duelist_01": "Cira Duelist",
     "starter_dual_blades_01": "Dax Twinblades",
     "starter_dual_sword_01": "Mara Bladehand",
     "starter_dual_mace_01": "Nox Ironhand",
     "starter_pathfinder_01": "Eli Pathfinder",
-    "starter_hunter_01": "Fenn Hunter",
-    "starter_archer_01": "Galen Archer",
-    "starter_marksman_01": "Renn Marksman",
     "starter_staff_01": "Hara Staff",
     "starter_heavy_guard_01": "Ivar Bulwark",
     "starter_tactician_01": "Juno Tactician",
@@ -62,14 +54,10 @@ STARTER_SIMULATION_NAMES: dict[str, str] = {
 STARTER_SIMULATION_ARCHETYPES: dict[str, str] = {
     "starter_guard_01": "bulwark",
     "starter_breaker_01": "berserker",
-    "starter_duelist_01": "duelist",
     "starter_dual_blades_01": "duelist",
     "starter_dual_sword_01": "duelist",
     "starter_dual_mace_01": "bulwark",
     "starter_pathfinder_01": "duelist",
-    "starter_hunter_01": "duelist",
-    "starter_archer_01": "duelist",
-    "starter_marksman_01": "balanced",
     "starter_staff_01": "balanced",
     "starter_heavy_guard_01": "bulwark",
     "starter_tactician_01": "tactician",
@@ -157,12 +145,12 @@ class StartingImprintSimulationActorBuilder:
     def build_roster(
         self,
         *,
-        blue_imprints: tuple[str, ...] = STARTER_6V6_BLUE,
-        red_imprints: tuple[str, ...] = STARTER_6V6_RED,
+        blue_imprints: tuple[str, ...] = STARTER_5V5_BLUE,
+        red_imprints: tuple[str, ...] = STARTER_5V5_RED,
         seed: int | None = None,
         behavior_seed: int | None = None,
-        min_team_size: int = 6,
-        max_team_size: int = 6,
+        min_team_size: int = 5,
+        max_team_size: int = 5,
         skill_profile: str = STARTER_SKILL_PROFILE_BASELINE,
     ) -> tuple[list[ActorSnapshot], list[dict[str, Any]]]:
         if seed is not None:
@@ -395,20 +383,12 @@ def random_starter_5v5_imprints(
     return random_starter_roster_imprints(seed=seed, pool=pool, min_team_size=5, max_team_size=5)
 
 
-def random_starter_6v6_imprints(
-    *,
-    seed: int,
-    pool: tuple[str, ...] = DEFAULT_STARTER_SIMULATION_IMPRINTS,
-) -> tuple[tuple[str, ...], tuple[str, ...]]:
-    return random_starter_roster_imprints(seed=seed, pool=pool, min_team_size=6, max_team_size=6)
-
-
 def random_starter_roster_imprints(
     *,
     seed: int,
     pool: tuple[str, ...] = DEFAULT_STARTER_SIMULATION_IMPRINTS,
-    min_team_size: int = 6,
-    max_team_size: int = 6,
+    min_team_size: int = 5,
+    max_team_size: int = 5,
 ) -> tuple[tuple[str, ...], tuple[str, ...]]:
     if min_team_size < 1 or max_team_size < min_team_size:
         raise ValueError("Invalid starter simulation team size range")
@@ -427,12 +407,9 @@ __all__ = [
     "STARTER_SKILL_PROFILE_MAXED_EXISTING",
     "STARTER_5V5_BLUE",
     "STARTER_5V5_RED",
-    "STARTER_6V6_BLUE",
-    "STARTER_6V6_RED",
     "StartingImprintSimulationActor",
     "StartingImprintSimulationActorBuilder",
     "all_starting_imprint_keys",
     "random_starter_5v5_imprints",
-    "random_starter_6v6_imprints",
     "random_starter_roster_imprints",
 ]

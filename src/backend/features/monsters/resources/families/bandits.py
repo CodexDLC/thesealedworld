@@ -38,7 +38,7 @@ BANDITS_FAMILY: MonsterFamily = {
         "bandit_thug": {
             "id": "bandit_thug",
             "role": "minion",
-            "cost": 20,
+            "spawn_weight": 20,
             "min_tier": 0,
             "max_tier": 2,
             "narrative_hint": "A desperate settler turned marauder, armed with a crude axe and a wooden shield.",
@@ -66,7 +66,7 @@ BANDITS_FAMILY: MonsterFamily = {
         "bandit_poacher": {
             "id": "bandit_poacher",
             "role": "minion",
-            "cost": 20,
+            "spawn_weight": 20,
             "min_tier": 0,
             "max_tier": 2,
             "narrative_hint": "A former hunter, now an outlaw. Uses a simple short bow and wears leather scraps.",
@@ -94,7 +94,7 @@ BANDITS_FAMILY: MonsterFamily = {
         "bandit_lookout": {
             "id": "bandit_lookout",
             "role": "minion",
-            "cost": 20,
+            "spawn_weight": 20,
             "min_tier": 0,
             "max_tier": 2,
             "narrative_hint": "A nervous lookout with a spear and patched leather, watching ruined streets for prey.",
@@ -122,7 +122,7 @@ BANDITS_FAMILY: MonsterFamily = {
         "bandit_knife_rat": {
             "id": "bandit_knife_rat",
             "role": "minion",
-            "cost": 20,
+            "spawn_weight": 20,
             "min_tier": 0,
             "max_tier": 2,
             "narrative_hint": "A thin alley fighter carrying a chipped dagger and too much confidence.",
@@ -151,7 +151,7 @@ BANDITS_FAMILY: MonsterFamily = {
         "bandit_cutthroat": {
             "id": "bandit_cutthroat",
             "role": "boss",
-            "cost": 600,
+            "spawn_weight": 600,
             "min_tier": 2,
             "max_tier": 2,
             "narrative_hint": "A quick and ruthless knife-boss with two daggers, likely a former city rogue.",
@@ -186,7 +186,7 @@ BANDITS_FAMILY: MonsterFamily = {
         "bandit_raider": {
             "id": "bandit_raider",
             "role": "veteran",
-            "cost": 50,
+            "spawn_weight": 50,
             "min_tier": 0,
             "max_tier": 2,
             "narrative_hint": "A hard-handed raider with a mace and shield, used to breaking doors and skulls.",
@@ -215,7 +215,7 @@ BANDITS_FAMILY: MonsterFamily = {
         "bandit_billhook": {
             "id": "bandit_billhook",
             "role": "veteran",
-            "cost": 50,
+            "spawn_weight": 50,
             "min_tier": 0,
             "max_tier": 2,
             "narrative_hint": "A ruined-road enforcer with a hooked polearm for dragging victims off balance.",
@@ -244,7 +244,7 @@ BANDITS_FAMILY: MonsterFamily = {
         "bandit_captain": {
             "id": "bandit_captain",
             "role": "elite",
-            "cost": 150,
+            "spawn_weight": 150,
             "min_tier": 1,
             "max_tier": 2,
             "narrative_hint": "The leader of this small gang, a hardened survivor with a sword, shield, and reinforced mail.",
@@ -278,7 +278,7 @@ BANDITS_FAMILY: MonsterFamily = {
         "bandit_hedge_wizard": {
             "id": "bandit_hedge_wizard",
             "role": "veteran",
-            "cost": 50,
+            "spawn_weight": 50,
             "min_tier": 1,
             "max_tier": 2,
             "narrative_hint": "An outcast who dabbles in forbidden magic, using a crude staff to cast chaotic spells.",
@@ -305,7 +305,7 @@ BANDITS_FAMILY: MonsterFamily = {
         "bandit_blackguard": {
             "id": "bandit_blackguard",
             "role": "boss",
-            "cost": 600,
+            "spawn_weight": 600,
             "min_tier": 2,
             "max_tier": 2,
             "narrative_hint": "A disciplined killer in stolen armor, carrying a heavy mace and a tower shield.",
@@ -342,7 +342,7 @@ BANDITS_FAMILY: MonsterFamily = {
         "bandit_kingpin": {
             "id": "bandit_kingpin",
             "role": "elite",
-            "cost": 150,
+            "spawn_weight": 150,
             "min_tier": 1,
             "max_tier": 2,
             "narrative_hint": "A road executioner who favors a heavy two-handed weapon and a direct charge.",
@@ -375,7 +375,7 @@ BANDITS_FAMILY: MonsterFamily = {
         "bandit_warlord": {
             "id": "bandit_warlord",
             "role": "elite",
-            "cost": 150,
+            "spawn_weight": 150,
             "min_tier": 1,
             "max_tier": 2,
             "narrative_hint": "A hard-eyed bandit marksman who keeps the line pinned while allies close in.",

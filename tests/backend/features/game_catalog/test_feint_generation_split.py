@@ -25,9 +25,13 @@ ACTIVE_SHIELD_TACTICAL_FEINT_IDS = {
     "absolute_defense",
     "aggressive_defense",
     "active_defense",
+    "blood_wall_crash",
+    "bloody_rebuke",
     "concussion",
     "full_defense",
     "read_tactic",
+    "red_line_bash",
+    "scarlet_riposte",
     "shield_line_bash",
 }
 
@@ -131,6 +135,7 @@ ACTIVE_MASS_TARGET_FEINTS = {
     "macing_shock_sweep": (TargetType.ALL_ENEMIES, 3, 0.65),
     "arrow_rain": (TargetType.ALL_ENEMIES, 99, 0.50),
     "ranged_covering_volley": (TargetType.ALL_ENEMIES, 5, 0.45),
+    "red_line_bash": (TargetType.ALL_ENEMIES, 3, 0.50),
     "shield_line_bash": (TargetType.ALL_ENEMIES, 3, 0.45),
     "two_handed_whirl": (TargetType.ALL_ENEMIES, 3, 0.65),
     "dual_blade_whirl": (TargetType.ALL_ENEMIES, 5, 0.50),
@@ -210,6 +215,10 @@ def test_active_feint_catalog_contains_basic_and_shield_tactical_sets() -> None:
     assert get_feint_catalog_entry("read_tactic").technical.cost.tactics == {"hit": 1, "block": 2}
     assert get_feint_catalog_entry("concussion").technical.cost.tactics == {"block": 3}
     assert get_feint_catalog_entry("shield_line_bash").technical.cost.tactics == {"hit": 3, "block": 3}
+    assert get_feint_catalog_entry("bloody_rebuke").technical.cost.tactics == {"blood": 1, "hit": 2, "block": 2}
+    assert get_feint_catalog_entry("blood_wall_crash").technical.cost.tactics == {"blood": 1, "hit": 3, "block": 3}
+    assert get_feint_catalog_entry("scarlet_riposte").technical.cost.tactics == {"blood": 1, "block": 2, "parry": 2}
+    assert get_feint_catalog_entry("red_line_bash").technical.cost.tactics == {"blood": 1, "hit": 4, "block": 2}
     assert get_feint_catalog_entry("crushing_pressure").technical.cost.tactics == {"hit": 3}
     assert get_feint_catalog_entry("steel_line").technical.cost.tactics == {"crit": 3}
     assert get_feint_catalog_entry("blade_return").technical.cost.tactics == {"hit": 2, "crit": 2}

@@ -93,8 +93,8 @@ def test_node_pool_has_no_coordinates_before_zone_instance_placement() -> None:
     assert setting["heart"]["value_by_tier"]["2"] == 1000
     assert setting["population_generation"]["strategy"] == "rift_static_hash"
     assert setting["population_generation"]["tier"] == 1
-    assert setting["population_generation"]["selection_profile_id"] == "starter_broken_road_raiders"
-    assert setting["population_generation"]["selection_tags"] == ["humanoid", "raider", "scavenger", "roadside_camp"]
+    assert setting["population_generation"]["selection_profile_id"] == "starter_broken_road_goblins"
+    assert setting["population_generation"]["selection_tags"] == ["humanoid", "goblin", "scavenger", "roadside_camp"]
     assert [slot["slot_id"] for slot in setting["population_generation"]["family_slots"]] == [
         "primary",
         "secondary",
@@ -193,7 +193,7 @@ def test_zone_runtime_builds_rift_population_context_with_rift_hash() -> None:
             "tier_1_rift",
             "broken_caravan",
             "roadside_camp",
-            "bandit_scavengers",
+            "goblin_scavengers",
             "rift_scavenger_beasts",
         ],
     )
@@ -202,18 +202,18 @@ def test_zone_runtime_builds_rift_population_context_with_rift_hash() -> None:
     assert population["setting_key"] == "starter_rift"
     assert population["biome_id"] == "broken_road"
     assert population["tier"] == 1
-    assert population["selection_profile_id"] == "starter_broken_road_raiders"
-    assert population["selection_tags"] == ["humanoid", "raider", "roadside_camp", "scavenger"]
+    assert population["selection_profile_id"] == "starter_broken_road_goblins"
+    assert population["selection_tags"] == ["goblin", "humanoid", "roadside_camp", "scavenger"]
     assert [slot["slot_id"] for slot in population["family_slots"]] == ["primary", "secondary"]
-    assert population["family_slots"][0]["selection_tags"] == ["camp_guard", "humanoid", "raider", "roadside_camp"]
-    assert population["family_slots"][0]["prototype_family_key"] == "bandit_gang"
-    assert population["family_slots"][0]["family_id"] == "bandit_gang"
+    assert population["family_slots"][0]["selection_tags"] == ["camp_guard", "goblin", "humanoid", "roadside_camp"]
+    assert population["family_slots"][0]["prototype_family_key"] == "goblin_tribe"
+    assert population["family_slots"][0]["family_id"] == "goblin_tribe"
     assert population["family_slots"][1]["selection_tags"] == ["beast", "broken_caravan", "rat", "scavenger"]
     assert population["family_slots"][1]["prototype_family_key"] == "rat_swarm"
     assert population["family_bindings"]["secondary"]["family_id"] == "rat_swarm"
     assert population["family_slots"][0]["context_hash"] != population["family_slots"][1]["context_hash"]
     assert population["family_slots"][0]["unique_hash"] == population["family_bindings"]["primary"]["unique_hash"]
-    assert population["family_bindings"]["primary"]["family_id"] == "bandit_gang"
+    assert population["family_bindings"]["primary"]["family_id"] == "goblin_tribe"
     assert population["family_bindings"]["primary"]["clan_id"] is None
     assert population["family_bindings"]["primary"]["context_hash"] == population["family_slots"][0]["context_hash"]
     assert "family_ids" not in population

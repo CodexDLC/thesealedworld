@@ -159,7 +159,7 @@ class MonsterGenerationRepository:
         await self.session.flush()
         await self.session.refresh(clan, attribute_names=["raw_tags", "updated_at"])
         for member in changed_members:
-            await self.session.refresh(member, attribute_names=["generation_meta", "updated_at"])
+            await self.session.refresh(member, attribute_names=["generation_meta", "threat_rating", "updated_at"])
         if persist:
             await self.session.commit()
 

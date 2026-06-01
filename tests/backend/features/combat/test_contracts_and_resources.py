@@ -80,6 +80,8 @@ def test_combat_resources_load_runtime_and_public_catalog() -> None:
         "blade_mill",
         "bind_blade",
         "blinding_shot",
+        "blood_wall_crash",
+        "bloody_rebuke",
         "broken_step",
         "closed_distance",
         "concussion",
@@ -133,7 +135,9 @@ def test_combat_resources_load_runtime_and_public_catalog() -> None:
         "quiet_weak_spot",
         "ranged_covering_volley",
         "read_tactic",
+        "red_line_bash",
         "reveal_intentions",
+        "scarlet_riposte",
         "second_breath",
         "shield_line_bash",
         "shifting_line",
@@ -158,6 +162,8 @@ def test_combat_resources_load_runtime_and_public_catalog() -> None:
     assert catalog["feints"]["perfect_riposte"]["cost"]["tactics"] == {"parry": 7}
     assert catalog["feints"]["absolute_defense"]["cost"]["tactics"] == {"block": 7}
     assert catalog["feints"]["read_tactic"]["cost"]["tactics"] == {"hit": 1, "block": 2}
+    assert catalog["feints"]["bloody_rebuke"]["cost"]["tactics"] == {"blood": 1, "hit": 2, "block": 2}
+    assert catalog["feints"]["scarlet_riposte"]["cost"]["tactics"] == {"blood": 1, "block": 2, "parry": 2}
     assert catalog["feints"]["crushing_pressure"]["cost"]["tactics"] == {"hit": 3}
     assert catalog["feints"]["ignore_guard"]["cost"]["tactics"] == {"hit": 2, "parry": 2}
     assert catalog["feints"]["offhand_over"]["cost"]["tactics"] == {"hit": 3, "parry": 2}

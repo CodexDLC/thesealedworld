@@ -593,6 +593,31 @@ _spiked_guard_catalog = EffectCatalogEntryDTO(
     ),
 )
 
+_prep_scarlet_riposte_catalog = EffectCatalogEntryDTO(
+    key="combat.effect.prep_scarlet_riposte",
+    technical=EffectTechnicalDTO(
+        effect_id="prep_scarlet_riposte",
+        type=EffectType.BUFF,
+        duration=999,
+        pipeline_mutation_role="target",
+        react_on_outcomes=["block", "parry"],
+        consume_on_reaction=True,
+        tags=["buff", "preparation", "shield", "blood", "block", "parry", "reflect"],
+    ),
+    descriptive=build_combat_description(
+        resource_type="effects",
+        resource_id="prep_scarlet_riposte",
+        icon="combat/effects/prep_scarlet_riposte.svg",
+        display_name="Алый рипост",
+        short_description="Следующий блок или парирование возвращает урон атакующему.",
+        humanoid_event_texts=CombatEventTextSetDTO(
+            apply_effect=["{target} удерживает щит для кровавого ответа."],
+            expire_effect=["{target} переводит кровь в ответный удар."],
+        ),
+        beast_event_texts=_BUFF_APPLY_BEAST,
+    ),
+)
+
 _prep_2h_steel_line_catalog = EffectCatalogEntryDTO(
     key="combat.effect.prep_2h_steel_line",
     technical=EffectTechnicalDTO(
@@ -954,6 +979,7 @@ BUFF_EFFECTS_CATALOG: dict[str, EffectCatalogEntryDTO] = {
     "concussed_no_feints": _concussed_no_feints_catalog,
     "prep_parry_riposte": _prep_parry_riposte_catalog,
     "spiked_guard": _spiked_guard_catalog,
+    "prep_scarlet_riposte": _prep_scarlet_riposte_catalog,
     "prep_2h_steel_line": _prep_2h_steel_line_catalog,
     "prep_2h_blade_return": _prep_2h_blade_return_catalog,
     "prep_2h_hard_intercept": _prep_2h_hard_intercept_catalog,

@@ -175,8 +175,8 @@ class CombatAiTestingApi(BaseApiClient):
         max_rounds: int = 500,
         tick_interval_seconds: float = 0.05,
         timeout_ticks: int = 8,
-        min_team_size: int = 6,
-        max_team_size: int = 6,
+        min_team_size: int = 5,
+        max_team_size: int = 5,
         scenario_key: str = "starter_presets_5v5_live",
         policy_run_id: str = "",
     ) -> CombatAiSimulationRun:
@@ -204,8 +204,8 @@ class CombatAiTestingApi(BaseApiClient):
         max_rounds: int = 500,
         tick_interval_seconds: float = 0.05,
         timeout_ticks: int = 8,
-        min_team_size: int = 6,
-        max_team_size: int = 6,
+        min_team_size: int = 5,
+        max_team_size: int = 5,
         scenario_key: str = "starter_presets_5v5_live",
         policy_run_id: str = "",
     ) -> list[CombatAiSimulationRun]:

@@ -27,14 +27,6 @@ class MonsterGenerationContext(BaseModel):
     context_meta: dict[str, Any] = Field(default_factory=dict)
 
 
-class EncounterMonsterResult(BaseModel):
-    clan_id: str
-    monster_ids: list[str]
-    reused_existing_clan: bool
-    context_hash: str
-    unique_hash: str
-
-
 class MonsterLocationContext(BaseModel):
     loc_id: str
     zone_id: str
@@ -208,9 +200,6 @@ class MonsterAIProfileDTO(BaseModel):
 
 
 class MonsterBalanceDTO(BaseModel):
-    base_cost: int = Field(ge=0)
-    effective_cost: float = Field(ge=0.0)
-    threat_rating: int = Field(ge=0)
     organization_type: GeneratedMonsterOrganizationType
     organization_divisor: float = Field(gt=0.0)
 

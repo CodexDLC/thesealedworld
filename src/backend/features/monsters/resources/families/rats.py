@@ -44,7 +44,7 @@ RATS_FAMILY: MonsterFamily = {
         "sewer_rat": {
             "id": "sewer_rat",
             "role": "minion",
-            "cost": 20,
+            "spawn_weight": 20,
             "min_tier": 0,
             "max_tier": 3,
             "narrative_hint": "A dirty, wet rat with matted fur. Scavenges for food.",
@@ -69,7 +69,7 @@ RATS_FAMILY: MonsterFamily = {
         "scavenger_rat": {
             "id": "scavenger_rat",
             "role": "minion",
-            "cost": 20,
+            "spawn_weight": 20,
             "min_tier": 0,
             "max_tier": 3,
             "narrative_hint": "A rat dragging a piece of refuse. Will fight to protect its treasure.",
@@ -94,7 +94,7 @@ RATS_FAMILY: MonsterFamily = {
         "swarm_rat": {
             "id": "swarm_rat",
             "role": "minion",
-            "cost": 20,
+            "spawn_weight": 20,
             "min_tier": 0,
             "max_tier": 3,
             "narrative_hint": "One of hundreds. Individually weak, but terrifying in numbers.",
@@ -120,7 +120,7 @@ RATS_FAMILY: MonsterFamily = {
         "tunnel_rat": {
             "id": "tunnel_rat",
             "role": "veteran",
-            "cost": 50,
+            "spawn_weight": 50,
             "min_tier": 0,
             "max_tier": 4,
             "narrative_hint": "A rat with large claws for digging. Moves silently in the dark.",
@@ -145,7 +145,7 @@ RATS_FAMILY: MonsterFamily = {
         "pack_rat": {
             "id": "pack_rat",
             "role": "veteran",
-            "cost": 50,
+            "spawn_weight": 50,
             "min_tier": 1,
             "max_tier": 4,
             "narrative_hint": "A rat that never fights alone. Always looks for allies.",
@@ -170,7 +170,7 @@ RATS_FAMILY: MonsterFamily = {
         "screecher": {
             "id": "screecher",
             "role": "veteran",
-            "cost": 50,
+            "spawn_weight": 50,
             "min_tier": 1,
             "max_tier": 4,
             "narrative_hint": "A rat with an oversized throat pouch. Emits ear-piercing shrieks.",
@@ -196,7 +196,7 @@ RATS_FAMILY: MonsterFamily = {
         "plague_rat": {
             "id": "plague_rat",
             "role": "elite",
-            "cost": 150,
+            "spawn_weight": 150,
             "min_tier": 2,
             "max_tier": 5,
             "narrative_hint": "A rat covered in weeping sores and green pustules. Leaves a trail of sickness.",
@@ -221,7 +221,7 @@ RATS_FAMILY: MonsterFamily = {
         "rotfang": {
             "id": "rotfang",
             "role": "elite",
-            "cost": 150,
+            "spawn_weight": 150,
             "min_tier": 2,
             "max_tier": 5,
             "narrative_hint": "A large rat with dripping, rotten fangs. Its bite causes necrosis.",
@@ -246,7 +246,7 @@ RATS_FAMILY: MonsterFamily = {
         "blight_carrier": {
             "id": "blight_carrier",
             "role": "elite",
-            "cost": 150,
+            "spawn_weight": 150,
             "min_tier": 2,
             "max_tier": 5,
             "narrative_hint": "A bloated rat that explodes upon death, spreading disease.",
@@ -272,7 +272,7 @@ RATS_FAMILY: MonsterFamily = {
         "rat_brute": {
             "id": "rat_brute",
             "role": "boss",
-            "cost": 600,
+            "spawn_weight": 600,
             "min_tier": 3,
             "max_tier": 6,
             "narrative_hint": "A hulking, muscular rat, possibly mutated. Smashes through obstacles.",
@@ -297,7 +297,7 @@ RATS_FAMILY: MonsterFamily = {
         "brood_alpha": {
             "id": "brood_alpha",
             "role": "boss",
-            "cost": 600,
+            "spawn_weight": 600,
             "min_tier": 3,
             "max_tier": 6,
             "narrative_hint": "A cunning alpha rat that directs the swarm with chirps and gestures.",
@@ -322,7 +322,7 @@ RATS_FAMILY: MonsterFamily = {
         "rat_king": {
             "id": "rat_king",
             "role": "boss",
-            "cost": 600,
+            "spawn_weight": 600,
             "min_tier": 4,
             "max_tier": 7,
             "narrative_hint": "A horrific amalgamation of several rats joined at the tail. Moves as one entity.",

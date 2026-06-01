@@ -99,9 +99,6 @@ def _make_humanoid_monster(
             },
             "source": {"owner_key": "member-0"},
             "balance": {
-                "base_cost": 30,
-                "effective_cost": 10,
-                "threat_rating": 30,
                 "organization_type": "gang",
                 "organization_divisor": 3,
             },
@@ -202,9 +199,6 @@ def test_monster_combat_actor_input_uses_generated_template_contract() -> None:
         },
         "ai_profile": {"behavior": "swarm_chaff"},
         "balance": {
-            "base_cost": 20,
-            "effective_cost": 4,
-            "threat_rating": 20,
             "organization_type": "swarm",
             "organization_divisor": 5,
         },

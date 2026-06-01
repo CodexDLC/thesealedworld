@@ -315,7 +315,7 @@ def test_dual_wield_starting_imprints_use_full_attribute_orders_and_weapon_budge
         "mental",
         "intellect",
     )
-    assert light.item_base_ids[:2] == ("dagger", "stiletto")
+    assert light.item_base_ids[:2] == ("stiletto", "stiletto")
     assert light.skill_xp == {
         "skill_fencing": 0.20,
         "skill_dual_wield": 0.15,

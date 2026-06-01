@@ -22,6 +22,7 @@ from src.backend.features.combat.api.ai_simulation_router import (
     _view,
     get_simulation_run,
     list_simulation_runs,
+    run_family_pressure_batch_simulation,
     run_family_pressure_simulation,
     run_live_demo_simulation_batch,
 )
@@ -33,6 +34,8 @@ from src.backend.features.combat.runtime.simulation import (
     FamilyPressureComposition,
     FamilyPressureCompositionReport,
     FamilyPressureReport,
+    FamilyPressureSimulator,
+    LiveInMemoryCombatSimulator,
     build_family_pressure_compositions,
 )
 from src.backend.features.combat.services import ai_simulation_service as ai_simulation_service_module
@@ -470,6 +473,44 @@ async def test_family_pressure_route_only_schedules_worker_job(monkeypatch: pyte
 
 
 @pytest.mark.asyncio
+async def test_family_pressure_batch_route_schedules_one_job_per_imprint(monkeypatch: pytest.MonkeyPatch) -> None:
+    class FakeDbSession:
+        async def commit(self) -> None:
+            raise AssertionError("family pressure batch must not create DB reports")
+
+    class FakeProgressStore:
+        def __init__(self) -> None:
+            self.saved: dict[str, dict] = {}
+
+        async def set_progress(self, run_id: str, payload: dict) -> None:
+            self.saved[run_id] = payload
+
+    arq = FakeArqQueue()
+    progress_store = FakeProgressStore()
+    request = SimpleNamespace(app=SimpleNamespace(state=SimpleNamespace(combat_arq=arq)))
+    monkeypatch.setattr(ai_simulation_router_module, "_progress_store_from_request", lambda _request: progress_store)
+
+    result = await run_family_pressure_batch_simulation(
+        request,
+        FakeDbSession(),
+        family_id="rat_swarm",
+        imprint_keys=["starter_guard_01", "starter_breaker_01"],
+        seed=31,
+        trials=5,
+        max_rounds=80,
+        max_minions=6,
+        max_scenarios=24,
+    )
+
+    assert len(result.runs) == 2
+    assert [row.metadata["imprint_key"] for row in result.runs] == ["starter_guard_01", "starter_breaker_01"]
+    assert [row.seed for row in result.runs] == [31, 32]
+    assert set(progress_store.saved) == {row.id for row in result.runs}
+    assert [name for name, _ in arq.enqueued] == [COMBAT_FAMILY_PRESSURE_TASK, COMBAT_FAMILY_PRESSURE_TASK]
+    assert [payload["imprint_key"] for _, payload in arq.enqueued] == ["starter_guard_01", "starter_breaker_01"]
+
+
+@pytest.mark.asyncio
 async def test_family_pressure_enqueue_uses_combat_runtime_queue() -> None:
     arq = FakeArqQueue()
     payload = {"run_id": "family-run-1", "family_id": "rat_swarm"}
@@ -712,6 +753,12 @@ def test_swarm_family_pressure_ladder_fills_minions_then_replaces_full_pack() ->
         "boss_probe",
     ]
     assert {"minion": 1, "veteran": 1} not in [row.role_counts for row in rows]
+
+
+def test_family_pressure_uses_live_tick_simulator_by_default() -> None:
+    simulator = FamilyPressureSimulator()
+
+    assert isinstance(simulator.simulator, LiveInMemoryCombatSimulator)
 
 
 @pytest.mark.asyncio

@@ -403,7 +403,22 @@ def test_imprint_analytics_rows_aggregate_saved_reports() -> None:
     }
 
     assert rows == [expected_aggregate | {"role_rows": [expected_role]}]
-    assert combat_ai_testing._expanded_analytics_table_rows(rows) == [expected_aggregate, expected_role]
+    assert combat_ai_testing._expanded_analytics_table_rows(rows) == [expected_aggregate]
+
+
+def test_analytics_table_expands_role_rows_only_when_multiple_behaviors() -> None:
+    aggregate = {"imprint_key": "starter_breaker_01", "imprint": "Слепок проломщика", "behavior": "Среднее"}
+    aggressive = {"imprint_key": "starter_breaker_01:aggressive", "imprint": "", "behavior": "aggressive"}
+    defensive = {"imprint_key": "starter_breaker_01:defensive", "imprint": "", "behavior": "defensive"}
+
+    assert combat_ai_testing._expanded_analytics_table_rows([aggregate | {"role_rows": [aggressive]}]) == [aggregate]
+    assert combat_ai_testing._expanded_analytics_table_rows(
+        [aggregate | {"role_rows": [aggressive, defensive]}]
+    ) == [
+        aggregate,
+        aggressive,
+        defensive,
+    ]
 
 
 def test_tactical_rows_show_trigger_rates_damage_and_actors() -> None:
@@ -1001,6 +1016,61 @@ async def test_family_pressure_launcher_starts_async_report(monkeypatch: pytest.
 
 
 @pytest.mark.asyncio
+async def test_family_pressure_launcher_starts_all_imprints_for_one_family(monkeypatch: pytest.MonkeyPatch) -> None:
+    calls: list[dict[str, object]] = []
+
+    class FakeApi:
+        async def run_family_pressure_batch(
+            self,
+            *,
+            family_id: str,
+            seed: int,
+            trials: int,
+            max_rounds: int,
+            max_minions: int,
+            max_scenarios: int,
+        ):
+            calls.append(
+                {
+                    "family_id": family_id,
+                    "seed": seed,
+                    "trials": trials,
+                    "max_rounds": max_rounds,
+                    "max_minions": max_minions,
+                    "max_scenarios": max_scenarios,
+                }
+            )
+            return []
+
+    class FakeRequest:
+        async def form(self):
+            return FormData(
+                {
+                    "action": "family_pressure_all_imprints",
+                    "request_id": "family_pressure:goblin_tribe",
+                    "seed": "71",
+                }
+            )
+
+    monkeypatch.setattr(combat_ai_testing, "_api", lambda request: FakeApi())
+
+    response = await CombatAiTestingAdmin().handle_run(FakeRequest())
+
+    assert response.status_code == 303
+    assert response.headers["location"] == "/admin/combat-ai-testing/pve-arena"
+    assert calls == [
+        {
+            "family_id": "goblin_tribe",
+            "seed": 71,
+            "trials": 5,
+            "max_rounds": 80,
+            "max_minions": 6,
+            "max_scenarios": 24,
+        }
+    ]
+
+
+@pytest.mark.asyncio
 async def test_family_pressure_launcher_exposes_imprint_select() -> None:
     table = await combat_ai_testing._family_pressure_launcher_provider(SimpleNamespace(query_params={}))
 
@@ -1009,6 +1079,9 @@ async def test_family_pressure_launcher_exposes_imprint_select() -> None:
     assert table.actions[0].select_options_key == "imprint_options"
     assert table.rows[0]["imprint_options"][0]["value"] == "starter_guard_01"
     assert any(option["value"] == "starter_breaker_01" and option["selected"] for option in table.rows[0]["imprint_options"])
+    assert table.actions[1].action == "family_pressure_all_imprints"
+    assert table.actions[1].label == "Все слепки"
+    assert table.actions[1].input_name == "seed"
     assert "случайный слепок" not in table.rows[0]["note"]
     assert table.rows[0]["runs"] == "5 на состав"
 
@@ -1106,6 +1179,80 @@ def test_completed_family_pressure_rows_show_monster_roles_and_gear_scores() -> 
     assert rows[0]["monster_gs"] == "188, 188"
     assert rows == display_rows
     assert "GS 281 / HP 61" in combat_ai_testing._summary_items(run)[1]
+
+
+@pytest.mark.asyncio
+async def test_family_pressure_detail_renders_chart_instead_of_raw_markdown(monkeypatch: pytest.MonkeyPatch) -> None:
+    run = CombatAiSimulationRun(
+        id="family-run",
+        run_kind="simulation",
+        scenario_key="family_pressure:rat_swarm",
+        status="completed",
+        policy_ref="runtime_default",
+        seed=3,
+        max_rounds=80,
+        rounds_completed=10,
+        winner="",
+        reward=None,
+        report_text="| composition | raw_gs |\n|---|---|\n| 3x minion | 507 |",
+        telemetry={"run_kind": "family_pressure"},
+        metadata={
+            "family_pressure": True,
+            "family_id": "rat_swarm",
+            "imprint_key": "starter_breaker_01",
+            "player_start_hp": 92,
+            "composition_reports": [
+                {
+                    "composition": {"key": "minionx3", "role_counts": {"minion": 3}, "grade": "light"},
+                    "member_variants": ["scavenger_rat", "scavenger_rat", "sewer_rat"],
+                    "member_roles": ["minion", "minion", "minion"],
+                    "member_gear_scores": [169, 169, 169],
+                    "raw_gear_score": 507,
+                    "effective_gear_score": 547.56,
+                    "effective_ratio": 1.942,
+                    "trials": 5,
+                    "player_wins": 4,
+                    "monster_wins": 0,
+                    "draws": 1,
+                    "player_win_rate": 0.8,
+                    "avg_player_hp": 46,
+                    "avg_rounds": 51.6,
+                },
+                {
+                    "composition": {"key": "veteranx6", "role_counts": {"veteran": 6}, "grade": "hard"},
+                    "member_variants": ["pack_rat"],
+                    "member_roles": ["veteran"],
+                    "member_gear_scores": [192],
+                    "raw_gear_score": 1151,
+                    "effective_gear_score": 1461.77,
+                    "effective_ratio": 5.184,
+                    "trials": 5,
+                    "player_wins": 0,
+                    "monster_wins": 5,
+                    "draws": 0,
+                    "player_win_rate": 0,
+                    "avg_player_hp": 0,
+                    "avg_rounds": 20,
+                },
+            ],
+        },
+    )
+
+    async def fake_safe_get_run(_request):
+        return run
+
+    monkeypatch.setattr(combat_ai_testing, "_safe_get_run", fake_safe_get_run)
+
+    chart = await combat_ai_testing._detail_family_pressure_chart_provider(SimpleNamespace(query_params={"id": run.id}))
+    report = await combat_ai_testing._detail_report_provider(SimpleNamespace(query_params={"id": run.id}))
+
+    assert chart.labels == ["3x minion", "6x veteran"]
+    assert [dataset["label"] for dataset in chart.datasets] == ["Win %", "HP % после боя", "Ratio, норм. к максимуму"]
+    assert chart.datasets[0]["data"] == [80.0, 0.0]
+    assert chart.datasets[1]["data"] == [50.0, 0.0]
+    assert chart.datasets[2]["data"] == [37.46, 100.0]
+    assert "xRatio" not in chart.options["scales"]
+    assert all("| composition |" not in item for item in report.items)
 
 
 @pytest.mark.asyncio

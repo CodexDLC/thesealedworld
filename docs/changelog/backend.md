@@ -4,6 +4,8 @@ Detailed milestone history for the `src/backend` game runtime layer.
 
 ## [Unreleased]
 
+- PvE family-pressure diagnostics now run through the live-like simulator, can enqueue one report per starter imprint, and use refreshed monster-family resource versions for rebuild detection.
+- Starting dual-wield fencing imprints now preserve duplicate weapon base ids so both hands materialize the intended light weapon pair.
 - Combat AI family-pressure runs now stay in Redis progress until completion and player vitals scale by equipped armor profile.
 - Scripted rift combat nodes now seed required `node_entry` combat events, so boss/key/crystal-chamber nodes still suppress transition combat but no longer become empty rooms.
 - Loot TTL values (`PUBLIC_DELAY_SEC`, `PUBLIC_WINDOW_SEC`, `INVISIBLE_TTL_SEC`, `EMPTY_CORPSE_TTL_SEC`) are now stored and read as integers — Redis `EXPIRE` rejects fractional seconds, which previously caused corpse persistence to fail silently and dropped post-combat loot entirely.

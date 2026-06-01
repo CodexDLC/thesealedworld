@@ -50,7 +50,7 @@ class StartingImprintService:
             attributes=self._build_attributes(imprint.attribute_values),
             skill_xp=self._skill_xp(imprint.skill_xp),
             skill_keys=tuple(skill_key for skill_key, _ in imprint.skill_xp),
-            item_base_ids=self._dedupe((*combat.item_base_ids, *armor.item_base_ids, *utility.item_base_ids)),
+            item_base_ids=self._item_base_ids((*combat.item_base_ids, *armor.item_base_ids, *utility.item_base_ids)),
             primary_stats=imprint.primary_stats,
             combat_style=imprint.combat_style,
             armor_pack=imprint.armor_pack,
@@ -112,8 +112,8 @@ class StartingImprintService:
             raise ValueError(f"Unknown starting imprint {kind}: {key}") from exc
 
     @staticmethod
-    def _dedupe(values: tuple[str, ...]) -> tuple[str, ...]:
-        return tuple(dict.fromkeys(value for value in values if value))
+    def _item_base_ids(values: tuple[str, ...]) -> tuple[str, ...]:
+        return tuple(value for value in values if value)
 
     @staticmethod
     def _skill_xp(values: tuple[tuple[str, float], ...]) -> dict[str, float]:

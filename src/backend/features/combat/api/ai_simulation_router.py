@@ -14,6 +14,7 @@ from src.backend.features.combat.dto.ai_simulation import CombatAiSimulationRunD
 from src.backend.features.combat.runtime.simulation import (
     STARTER_SKILL_PROFILE_BASELINE,
     STARTER_SKILL_PROFILE_MAXED_EXISTING,
+    all_starting_imprint_keys,
 )
 from src.backend.features.combat.services.ai_simulation_service import (
     LIVE_DEFAULT_MAX_EXCHANGES,
@@ -169,6 +170,60 @@ async def run_family_pressure_simulation(
         await progress_store.set_progress(str(progress["id"]), failed)
         return _view_redis_run(failed)
     return _view_redis_run(progress)
+
+
+@router.post("/simulation-runs/family-pressure-batch", response_model=CombatAiSimulationRunListDTO)
+async def run_family_pressure_batch_simulation(
+    request: Request,
+    db_session: Annotated[AsyncSession, Depends(get_db)],
+    family_id: Annotated[str, Query(min_length=1, max_length=80)] = "rat_swarm",
+    imprint_keys: Annotated[list[str] | None, Query()] = None,
+    seed: Annotated[int, Query(ge=0, le=1_000_000)] = 0,
+    trials: Annotated[int, Query(ge=1, le=100)] = 5,
+    max_rounds: Annotated[int, Query(ge=1, le=200)] = 80,
+    max_minions: Annotated[int, Query(ge=1, le=10)] = 6,
+    max_scenarios: Annotated[int, Query(ge=1, le=50)] = 24,
+) -> CombatAiSimulationRunListDTO:
+    del db_session
+    progress_store = _progress_store_from_request(request)
+    if progress_store is None:
+        raise HTTPException(status_code=503, detail="Redis progress store is required for PvE family pressure runs")
+    resolved_imprints = tuple(dict.fromkeys(str(key) for key in (imprint_keys or all_starting_imprint_keys()) if key))
+    if not resolved_imprints:
+        raise HTTPException(status_code=400, detail="at least one imprint key is required")
+
+    progresses: list[dict[str, Any]] = []
+    for index, imprint_key in enumerate(resolved_imprints):
+        progress = _initial_family_pressure_progress(
+            family_id=family_id,
+            imprint_key=imprint_key,
+            seed=(int(seed) + index) % 1_000_000,
+            trials=trials,
+            max_rounds=max_rounds,
+            max_minions=max_minions,
+            max_scenarios=max_scenarios,
+        )
+        progresses.append(progress)
+        await progress_store.set_progress(str(progress["id"]), progress)
+    try:
+        await asyncio.gather(
+            *[
+                _enqueue_family_pressure_job(
+                    getattr(request.app.state, "combat_arq", None),
+                    _family_pressure_payload(progress),
+                )
+                for progress in progresses
+            ]
+        )
+    except Exception as exc:
+        failed_runs = []
+        error = {"type": exc.__class__.__name__, "message": str(exc)}
+        for progress in progresses:
+            failed = _failed_family_pressure_progress(progress, error=error)
+            await progress_store.set_progress(str(progress["id"]), failed)
+            failed_runs.append(_view_redis_run(failed))
+        return CombatAiSimulationRunListDTO(runs=failed_runs)
+    return CombatAiSimulationRunListDTO(runs=[_view_redis_run(progress) for progress in progresses])
 
 
 @router.post("/simulation-runs/live-demo", response_model=CombatAiSimulationRunDTO)
@@ -548,9 +603,9 @@ def _view_redis_run(progress: dict[str, Any]) -> CombatAiSimulationRunDTO:
         rounds_completed=int(progress.get("rounds_completed") or 0),
         winner=progress.get("winner"),
         reward=progress.get("reward"),
-        telemetry=dict(progress.get("telemetry") if isinstance(progress.get("telemetry"), dict) else {}),
+        telemetry=_dict_payload(progress.get("telemetry")),
         report_text=str(progress.get("report_text") or ""),
-        metadata=dict(progress.get("metadata") if isinstance(progress.get("metadata"), dict) else {}),
+        metadata=_dict_payload(progress.get("metadata")),
         created_at=_parse_datetime(progress.get("created_at")),
     )
 
@@ -614,8 +669,8 @@ def _initial_family_pressure_progress(
 
 
 def _failed_family_pressure_progress(progress: dict[str, Any], *, error: dict[str, Any]) -> dict[str, Any]:
-    metadata = dict(progress.get("metadata") or {})
-    telemetry = dict(progress.get("telemetry") if isinstance(progress.get("telemetry"), dict) else {})
+    metadata = _dict_payload(progress.get("metadata"))
+    telemetry = _dict_payload(progress.get("telemetry"))
     finished_at = datetime.now(UTC).isoformat()
     metadata.update({"error": error, "failed_at": finished_at, "completed_at": finished_at})
     telemetry["status_message"] = "family pressure failed"
@@ -623,9 +678,13 @@ def _failed_family_pressure_progress(progress: dict[str, Any], *, error: dict[st
 
 
 def _is_family_pressure_progress(progress: dict[str, Any]) -> bool:
-    metadata = progress.get("metadata") if isinstance(progress.get("metadata"), dict) else {}
-    telemetry = progress.get("telemetry") if isinstance(progress.get("telemetry"), dict) else {}
+    metadata = _dict_payload(progress.get("metadata"))
+    telemetry = _dict_payload(progress.get("telemetry"))
     return bool(metadata.get("family_pressure")) or str(telemetry.get("run_kind") or "") == "family_pressure"
+
+
+def _dict_payload(value: Any) -> dict[str, Any]:
+    return dict(value) if isinstance(value, dict) else {}
 
 
 def _parse_datetime(value: Any) -> datetime | None:

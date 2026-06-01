@@ -234,6 +234,10 @@ body.fc-shell {
     grid-column: span 2;
 }
 
+.fc-widget--chart.fc-widget--wide {
+    grid-column: 1 / -1;
+}
+
 .fc-widget--editable_config.fc-widget--wide {
     grid-column: 1 / -1;
 }

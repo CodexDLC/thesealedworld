@@ -173,7 +173,7 @@ async def test_materialize_starting_imprint_places_second_fencing_weapon_offhand
         seed="test-seed",
     )
 
-    assert ("dagger", "equipped", "main_hand") in item_persistence.created
+    assert ("stiletto", "equipped", "main_hand") in item_persistence.created
     assert ("stiletto", "equipped", "off_hand") in item_persistence.created
 
 

@@ -106,6 +106,31 @@ class CombatAiTestingApi(BaseApiClient):
         )
         return CombatAiSimulationRun.from_dict(dict(raw or {}))
 
+    async def run_family_pressure_batch(
+        self,
+        *,
+        family_id: str,
+        seed: int = 0,
+        trials: int = 5,
+        max_rounds: int = 80,
+        max_minions: int = 6,
+        max_scenarios: int = 24,
+    ) -> list[CombatAiSimulationRun]:
+        raw = await self._request(
+            "POST",
+            "/api/admin/combat-ai/simulation-runs/family-pressure-batch",
+            params={
+                "family_id": family_id,
+                "seed": seed,
+                "trials": trials,
+                "max_rounds": max_rounds,
+                "max_minions": max_minions,
+                "max_scenarios": max_scenarios,
+            },
+            timeout=30.0,
+        )
+        return [CombatAiSimulationRun.from_dict(row) for row in (raw or {}).get("runs") or []]
+
     async def train_synthetic(
         self,
         *,

@@ -55,7 +55,7 @@ class MonsterCombatMathModelBuilder:
         "boss": "huge",
     }
 
-    VALID_ORGANIZATIONS: set[str] = {"solitary", "pack", "gang", "clan", "legion", "horde", "swarm"}
+    VALID_ORGANIZATIONS: set[str] = {"solitary", "pack", "gang", "horde", "swarm"}
     VALID_SIZES: set[str] = set(SIZE_MODIFIERS)
 
     def __init__(self, base_builder: CharacterCombatMathModelBuilder | None = None) -> None:

@@ -14,7 +14,7 @@ def build_role_ladder_stats(role, priority):
 
 RATS_FAMILY: MonsterFamily = {
     "id": "rat_swarm",
-    "resource_version": 1.1,
+    "resource_version": 1.2,
     "archetype": "beast",
     "organization_type": "swarm",  # TSP Base: 30
     "default_tags": ["beast", "rat", "disease", "swarm"],

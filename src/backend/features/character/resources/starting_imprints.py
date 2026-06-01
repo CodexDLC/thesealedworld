@@ -86,7 +86,7 @@ STARTING_COMBAT_STYLES: dict[str, StartingLoadoutPack] = {
         item_base_ids=("dagger", "main_gauche"),
     ),
     "dual_fencing_light": StartingLoadoutPack(
-        item_base_ids=("dagger", "stiletto"),
+        item_base_ids=("stiletto", "stiletto"),
     ),
     "dual_sword_fencing": StartingLoadoutPack(
         item_base_ids=("sword", "stiletto"),

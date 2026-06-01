@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
-from typing import Any, ClassVar
+from typing import Any, ClassVar, cast
 
 import httpx
 from fastapi import Request
@@ -232,7 +232,17 @@ async def _family_pressure_launcher_provider(request: Request) -> TableWidgetMap
                 select_name="imprint_key",
                 select_options_key="imprint_options",
                 select_label="Слепок",
-            )
+            ),
+            TableActionMap(
+                action="family_pressure_all_imprints",
+                label="Все слепки",
+                css_class="fc-action-btn--secondary",
+                input_name="seed",
+                input_value_key="seed",
+                input_label="Seed",
+                input_min=0,
+                input_max=1_000_000,
+            ),
         ],
     )
 
@@ -895,6 +905,47 @@ async def _detail_rounds_provider(request: Request) -> TableWidgetMap:
     )
 
 
+async def _detail_family_pressure_chart_provider(request: Request) -> ChartWidgetMap:
+    run = await _safe_get_run(request)
+    rows = _family_pressure_rows(run) if run and _is_family_pressure_run(run) else []
+    player_hp = _float((run.metadata or {}).get("player_start_hp")) if run else 0.0
+    max_ratio = max((_float(row.get("ratio")) for row in rows), default=0.0)
+    labels = [str(row.get("composition") or "—") for row in rows]
+    return ChartWidgetMap(
+        key="combat_ai_detail_family_pressure_chart",
+        title="Кривая выживаемости PvE",
+        chart_type="bar",
+        labels=labels,
+        datasets=[
+            {
+                "label": "Win %",
+                "data": [_float(row.get("winrate_pct")) for row in rows],
+                "backgroundColor": "rgba(34,197,94,0.72)",
+                "xAxisID": "x",
+            },
+            {
+                "label": "HP % после боя",
+                "data": [
+                    round((_float(row.get("avg_hp")) / player_hp) * 100, 2) if player_hp > 0 else 0.0 for row in rows
+                ],
+                "backgroundColor": "rgba(14,165,233,0.72)",
+                "xAxisID": "x",
+            },
+            {
+                "label": "Ratio, норм. к максимуму",
+                "data": [
+                    round((_float(row.get("ratio")) / max_ratio) * 100, 2) if max_ratio > 0 else 0.0 for row in rows
+                ],
+                "backgroundColor": "rgba(245,158,11,0.72)",
+                "xAxisID": "x",
+            },
+        ],
+        options=_family_pressure_detail_chart_options(),
+        height=max(360, min(920, 120 + len(rows) * 34)),
+        span=2,
+    )
+
+
 async def _detail_tactical_parts_provider(request: Request) -> TableWidgetMap:
     run = await _safe_get_run(request)
     if run and _is_family_pressure_run(run):
@@ -1027,6 +1078,12 @@ async def _detail_telemetry_provider(request: Request) -> TableWidgetMap:
 
 async def _detail_report_provider(request: Request) -> ListWidgetMap:
     run = await _safe_get_run(request)
+    if run and _is_family_pressure_run(run):
+        return ListWidgetMap(
+            key="combat_ai_detail_report",
+            title="Технический лог",
+            items=["Family pressure показан графиком и ladder-таблицей выше; сырой markdown-лог скрыт."],
+        )
     lines = [line for line in (run.report_text if run else "").splitlines() if line.strip()]
     return ListWidgetMap(
         key="combat_ai_detail_report",
@@ -1245,6 +1302,13 @@ class CombatAiTestingAdmin(CabinetAdmin):
                 provider="combat_ai.detail.rounds",
                 order=40,
             ),
+            ChartWidget(
+                key="combat_ai_detail_family_pressure_chart",
+                title="Кривая выживаемости PvE",
+                provider="combat_ai.detail.family_pressure_chart",
+                chart_type="bar",
+                order=43,
+            ),
             TableWidget(
                 key="combat_ai_detail_tactical_parts",
                 title="Тактические части",
@@ -1347,6 +1411,7 @@ class CombatAiTestingAdmin(CabinetAdmin):
         "combat_ai.detail.summary": _detail_summary_provider,
         "combat_ai.detail.participants": _detail_participants_provider,
         "combat_ai.detail.rounds": _detail_rounds_provider,
+        "combat_ai.detail.family_pressure_chart": _detail_family_pressure_chart_provider,
         "combat_ai.detail.tactical_parts": _detail_tactical_parts_provider,
         "combat_ai.detail.family_pressure": _detail_family_pressure_provider,
         "combat_ai.detail.training_metrics": _detail_training_metrics_provider,
@@ -1390,6 +1455,9 @@ class CombatAiTestingAdmin(CabinetAdmin):
                 imprint_key=imprint_key,
             )
             return RedirectResponse(f"{_BASE}/run-detail?id={run.id}", status_code=303)
+        if action == "family_pressure_all_imprints":
+            await _run_family_pressure_all_imprints(request, request_id=request_id, seed=_seed_from_form(form))
+            return RedirectResponse(f"{_BASE}/pve-arena", status_code=303)
         if action != "run_demo":
             return RedirectResponse(_BASE, status_code=303)
         if request_id.startswith("live_batch:"):
@@ -1413,11 +1481,12 @@ def _live_batch_scenario_key(request_id: str) -> str:
 async def _run_live_demo_batch(request: Request, *, request_id: str, policy_run_id: str = "") -> None:
     _, scenario_key, count_raw = request_id.split(":", maxsplit=2)
     count = min(max(_int(count_raw), 1), 100)
+    params = _live_scenario_params(scenario_key)
     await _api(request).run_live_demo_batch(
         count=count,
         seed=_auto_seed(),
         policy_run_id=policy_run_id,
-        **_live_scenario_params(scenario_key),
+        **params,
     )
 
 
@@ -1428,11 +1497,12 @@ async def _run_live_scenario(
     seed: int,
     policy_run_id: str = "",
 ) -> CombatAiSimulationRun:
-    policy_kwargs = {"policy_run_id": policy_run_id} if policy_run_id else {}
+    params = _live_scenario_params(scenario_key)
+    if policy_run_id:
+        params["policy_run_id"] = policy_run_id
     return await _api(request).run_live_demo(
         seed=seed,
-        **policy_kwargs,
-        **_live_scenario_params(scenario_key),
+        **params,
     )
 
 
@@ -1455,7 +1525,21 @@ async def _run_family_pressure(
     )
 
 
-def _live_scenario_params(scenario_key: str) -> dict[str, object]:
+async def _run_family_pressure_all_imprints(
+    request: Request, *, request_id: str, seed: int
+) -> list[CombatAiSimulationRun]:
+    family_id = request_id.split(":", maxsplit=1)[1] if request_id.startswith("family_pressure:") else "rat_swarm"
+    return await _api(request).run_family_pressure_batch(
+        family_id=family_id,
+        seed=seed,
+        trials=5,
+        max_rounds=80,
+        max_minions=6,
+        max_scenarios=24,
+    )
+
+
+def _live_scenario_params(scenario_key: str) -> dict[str, Any]:
     if scenario_key == "starter_presets_random_draft_live":
         return {
             "max_rounds": 500,
@@ -1513,7 +1597,7 @@ def _request_cache(request: Request) -> dict[object, Any]:
     cache = getattr(request, "_combat_ai_testing_cache", None)
     if not isinstance(cache, dict):
         cache = {}
-        request._combat_ai_testing_cache = cache
+        cast("Any", request)._combat_ai_testing_cache = cache
     return cache
 
 
@@ -1645,6 +1729,21 @@ def _ranking_chart_options(*, stacked: bool = False) -> dict[str, object]:
     return {"indexAxis": "y", "scales": scales}
 
 
+def _family_pressure_detail_chart_options() -> dict[str, object]:
+    return {
+        "indexAxis": "y",
+        "interaction": {"mode": "nearest", "axis": "y", "intersect": False},
+        "scales": {
+            "x": {
+                "min": 0,
+                "max": 100,
+                "title": {"display": True, "text": "Проценты; ratio нормирован к максимуму в этом отчёте"},
+            },
+            "y": {"ticks": {"autoSkip": False}},
+        },
+    }
+
+
 def _top_rows(
     rows: list[dict[str, object]],
     *,
@@ -1728,7 +1827,12 @@ def _analytics_tactical_rows(runs: list[CombatAiSimulationRun]) -> list[dict[str
         for part_id in part_ids
     ]
     rows.sort(
-        key=lambda row: (-_int(row["_sort"][0]), -_int(row["_sort"][1]), -_int(row["_sort"][2]), str(row["part"]))
+        key=lambda row: (
+            -_int(cast("tuple[object, object, object]", row["_sort"])[0]),
+            -_int(cast("tuple[object, object, object]", row["_sort"])[1]),
+            -_int(cast("tuple[object, object, object]", row["_sort"])[2]),
+            str(row["part"]),
+        )
     )
     for row in rows:
         row.pop("_sort", None)
@@ -1791,7 +1895,12 @@ def _tactical_rows(run: CombatAiSimulationRun | None) -> list[dict[str, object]]
         for part_id in part_ids
     ]
     rows.sort(
-        key=lambda row: (-_int(row["_sort"][0]), -_int(row["_sort"][1]), -_int(row["_sort"][2]), str(row["part"]))
+        key=lambda row: (
+            -_int(cast("tuple[object, object, object]", row["_sort"])[0]),
+            -_int(cast("tuple[object, object, object]", row["_sort"])[1]),
+            -_int(cast("tuple[object, object, object]", row["_sort"])[2]),
+            str(row["part"]),
+        )
     )
     for row in rows:
         row.pop("_sort", None)
@@ -1971,7 +2080,7 @@ def _expanded_analytics_table_rows(rows: list[dict[str, object]]) -> list[dict[s
         aggregate_row = dict(row)
         role_rows = aggregate_row.pop("role_rows", None)
         expanded.append(aggregate_row)
-        if not isinstance(role_rows, list):
+        if not isinstance(role_rows, list) or len(role_rows) <= 1:
             continue
         for role_row in role_rows:
             if isinstance(role_row, dict):

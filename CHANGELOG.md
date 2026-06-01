@@ -17,6 +17,7 @@ Full layer changelogs live in:
 ### Combat Runtime And AI
 
 - Adds combat AI simulation and training surfaces, including backend run tracking, cabinet controls, archetype policies, tactical memory, and combat tuning/resource updates.
+- PvE family-pressure diagnostics now compare all starter imprints from the cabinet and render survival curves instead of raw report tables.
 
 ### Telegram And News
 

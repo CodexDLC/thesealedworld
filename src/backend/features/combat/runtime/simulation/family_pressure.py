@@ -13,7 +13,10 @@ from src.backend.features.combat.dto import ActorLoadoutDTO, ActorMetaDTO, Actor
 from src.backend.features.combat.runtime.engine.feint_service import FeintService
 from src.backend.features.combat.runtime.engine.stats_engine import StatsEngine
 from src.backend.features.combat.runtime.simulation.factory import InMemoryBattleFactory
-from src.backend.features.combat.runtime.simulation.simulator import InMemoryCombatSimulator
+from src.backend.features.combat.runtime.simulation.live_simulator import (
+    LiveInMemoryCombatSimulator,
+    LiveSimulationTiming,
+)
 from src.backend.features.combat.runtime.simulation.starting_imprint_actors import (
     STARTER_SKILL_PROFILE_BASELINE,
     StartingImprintSimulationActorBuilder,
@@ -97,12 +100,14 @@ class FamilyPressureSimulator:
         imprint_builder: StartingImprintSimulationActorBuilder | None = None,
         monster_builder: MonsterCombatActorInputBuilder | None = None,
         gear_scores: MonsterGearScoreService | None = None,
-        simulator: InMemoryCombatSimulator | None = None,
+        simulator: LiveInMemoryCombatSimulator | None = None,
     ) -> None:
         self.imprint_builder = imprint_builder or StartingImprintSimulationActorBuilder()
         self.monster_builder = monster_builder or MonsterCombatActorInputBuilder()
         self.gear_scores = gear_scores or MonsterGearScoreService(self.monster_builder)
-        self.simulator = simulator or InMemoryCombatSimulator()
+        self.simulator = simulator or LiveInMemoryCombatSimulator(
+            timing=LiveSimulationTiming(tick_interval_seconds=0, timeout_ticks=8)
+        )
 
     async def run(
         self,
@@ -205,11 +210,11 @@ class FamilyPressureSimulator:
                 limits=InMemoryBattleLimits(
                     max_rounds=config.max_rounds,
                     candidate_limit=5,
-                    max_actions_per_round=200,
-                    force_unanswered_exchange=True,
+                    max_actions_per_round=1,
+                    force_unanswered_exchange=False,
                 ),
                 seed=seed + trial_index,
-                battle_type="simulation",
+                battle_type="simulation_live",
                 location_id="family-pressure",
             )
             result = await self.simulator.run(state)

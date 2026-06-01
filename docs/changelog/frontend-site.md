@@ -4,6 +4,7 @@ Detailed milestone history for the `src/frontend` site-web layer.
 
 ## [Unreleased]
 
+- Combat AI cabinet PvE tools now launch family-pressure checks for every starter imprint and show detail pages as survival charts instead of raw markdown logs.
 - Cabinet tools now expose combat AI simulation controls and richer editable game configuration widgets.
 - Combat AI cabinet run details now show database storage status instead of local artifact paths.
 - Editable game settings now render backend-owned labels, descriptions, risk badges, groups, and numeric min/max hints.

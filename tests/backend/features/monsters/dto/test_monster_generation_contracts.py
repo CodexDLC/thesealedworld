@@ -184,7 +184,7 @@ def test_starter_monster_families_use_minor_resource_version_after_stat_ladder_r
     for family_id in ("rat_swarm", "wolf_pack", "bandit_gang", "goblin_tribe"):
         family = get_family_config(family_id)
         assert family is not None
-        assert family.resource_version == 1.1
+        assert family.resource_version == 1.2
 
 
 def test_monster_family_rejects_member_model_for_missing_variant() -> None:

@@ -14,7 +14,7 @@ def build_role_ladder_stats(role, priority):
 
 GOBLINS_FAMILY: MonsterFamily = {
     "id": "goblin_tribe",
-    "resource_version": 1.1,
+    "resource_version": 1.2,
     "archetype": "humanoid",
     "organization_type": "horde",  # TSP Base: 30
     "default_tags": ["goblin", "small", "cunning", "tinkerer"],

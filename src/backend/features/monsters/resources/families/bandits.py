@@ -8,7 +8,7 @@ def build_role_ladder_stats(role, priority):
 
 BANDITS_FAMILY: MonsterFamily = {
     "id": "bandit_gang",
-    "resource_version": 1.1,
+    "resource_version": 1.2,
     "archetype": "humanoid",
     "organization_type": "gang",  # TSP Base: 50
     "default_tags": ["human", "outlaw", "survivor", "marauder"],

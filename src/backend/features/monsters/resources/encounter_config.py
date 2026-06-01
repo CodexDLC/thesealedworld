@@ -21,9 +21,6 @@ ORGANIZATION_SCALING = {
     # Малые группы (x1.5 - x2)
     "pack": {"cost_divisor": 1.5, "description": "Координированные группы (волки, оборотни)."},
     "gang": {"cost_divisor": 1.8, "description": "Банды и неформальные группы (бандиты)."},
-    # Военные отряды (x2.5 - x3)
-    "clan": {"cost_divisor": 2.5, "description": "Племенная или клановая структура (орки, варвары)."},
-    "legion": {"cost_divisor": 3.0, "description": "Дисциплинированные армии (демоны, ангелы)."},
     # Массы (x4 - x5)
     "horde": {"cost_divisor": 4.0, "description": "Хаотичная толпа (гоблины, нежить)."},
     "swarm": {"cost_divisor": 5.0, "description": "Огромное количество слабых единиц (насекомые, крысы)."},

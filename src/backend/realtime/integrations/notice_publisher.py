@@ -42,19 +42,37 @@ class NoticeTemplates:
     ITEMS_SECURED = "expedition.items_secured"
 
 
+class RefreshTargets:
+    """Refresh targets the frontend knows how to re-fetch.
+
+    A ``presentation="refresh"`` notice does not render text; it wakes the UI
+    to re-fetch an existing HTMX fragment. The frontend maps each target to the
+    DOM event the fragment already listens for (e.g. ``status`` ->
+    ``character-status-refresh``). WebSocket delivery stays a wake-up signal —
+    the authoritative state is still fetched over HTTP.
+    """
+
+    STATUS = "status"
+
+
 def build_player_notice_payload(
     *,
     character_ids: list[int],
-    template_key: str,
+    template_key: str = "",
     variables: dict[str, Any] | None = None,
     presentation: str = "system_chat",
     severity: str = "info",
     domain: str,
+    target: str | None = None,
+    reason: str | None = None,
 ) -> dict[str, Any]:
     """Build the flat, string-safe ``player.notice`` stream payload.
 
     Complex values (``character_ids``, ``variables``) are JSON-encoded as
     strings so the payload survives the Redis Streams flat-dict contract.
+    ``template_key``/``variables`` drive ``system_chat`` rendering;
+    ``target``/``reason`` drive ``refresh`` delivery. Unused fields stay empty
+    and the realtime service drops them from the browser envelope.
     """
     return {
         "character_ids": json.dumps([int(cid) for cid in character_ids]),
@@ -63,6 +81,8 @@ def build_player_notice_payload(
         "presentation": presentation,
         "severity": severity,
         "domain": domain,
+        "target": target or "",
+        "reason": reason or "",
     }
 
 
@@ -106,10 +126,13 @@ class PlayerNoticePublisher:
         self,
         *,
         char_id: int,
-        template_key: str,
+        template_key: str = "",
         domain: str,
         variables: dict[str, Any] | None = None,
         severity: str = "info",
+        presentation: str = "system_chat",
+        target: str | None = None,
+        reason: str | None = None,
     ) -> None:
         payload = build_player_notice_payload(
             character_ids=[char_id],
@@ -117,6 +140,9 @@ class PlayerNoticePublisher:
             variables=variables,
             severity=severity,
             domain=domain,
+            presentation=presentation,
+            target=target,
+            reason=reason,
         )
         await self._producer.publish(PLAYER_NOTICE_EVENT, payload)
 
@@ -168,4 +194,27 @@ class PlayerNoticePublisher:
             template_key=NoticeTemplates.ITEMS_SECURED,
             domain="expedition",
             variables=variables,
+        )
+
+    async def request_refresh(
+        self,
+        char_id: int,
+        *,
+        target: str,
+        reason: str | None = None,
+        domain: str = "system",
+    ) -> None:
+        """Wake the player's UI to re-fetch an existing HTMX fragment.
+
+        Carries no text — ``presentation="refresh"`` tells the frontend to
+        re-fetch ``target`` (e.g. ``status``). Use this for state that changes
+        without a direct player request (combat resolved in the background,
+        opponent acted, etc.). The fragment stays the source of truth.
+        """
+        await self._emit(
+            char_id=char_id,
+            domain=domain,
+            presentation="refresh",
+            target=target,
+            reason=reason,
         )

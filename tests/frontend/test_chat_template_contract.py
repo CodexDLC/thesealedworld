@@ -87,6 +87,20 @@ def test_chat_template_renders_player_notice_into_system_tab() -> None:
     assert "presentation !== 'system_chat'" in template
 
 
+def test_chat_template_refresh_notice_wakes_existing_fragment() -> None:
+    template = CHAT_TEMPLATE.read_text(encoding="utf-8")
+
+    # refresh presentation is routed before system_chat handling
+    assert "presentation === 'refresh'" in template
+    assert "this._onRefreshNotice(envelope.payload || {})" in template
+    # reuses the existing character-status-refresh HTMX hook (no new visual UI)
+    assert "_refreshEvents" in template
+    assert "'status': 'character-status-refresh'" in template
+    assert "window.htmx.trigger(document.body, eventName)" in template
+    # also dispatches a generic opt-in event for other fragments
+    assert "new CustomEvent('realtime:refresh'" in template
+
+
 def test_chat_template_keeps_combat_logs_in_system_channel() -> None:
     template = CHAT_TEMPLATE.read_text(encoding="utf-8")
 

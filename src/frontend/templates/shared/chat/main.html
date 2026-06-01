@@ -224,8 +224,28 @@
              if (!template) return '';
              return this._renderTemplateText(template, vars || {});
          },
+         _refreshEvents: {
+             'status': 'character-status-refresh'
+         },
+         _onRefreshNotice(payload) {
+             const target = payload && payload.target;
+             // Let opt-in fragments react via hx-trigger="realtime:refresh[...] from:body".
+             try {
+                 document.body.dispatchEvent(new CustomEvent('realtime:refresh', { detail: payload || {}, bubbles: true }));
+             } catch (_) {}
+             const eventName = target && this._refreshEvents[target];
+             if (eventName && window.htmx) {
+                 window.htmx.trigger(document.body, eventName);
+             } else if (target && window.console && console.warn) {
+                 console.warn('realtime: no refresh binding for target', target);
+             }
+         },
          _onPlayerNotice(envelope) {
              const presentation = envelope.presentation || 'system_chat';
+             if (presentation === 'refresh') {
+                 this._onRefreshNotice(envelope.payload || {});
+                 return;
+             }
              if (presentation !== 'system_chat') {
                  if (window.console && console.warn) console.warn('realtime: unsupported notice presentation', presentation);
                  return;

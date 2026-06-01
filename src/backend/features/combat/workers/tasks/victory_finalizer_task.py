@@ -23,7 +23,11 @@ from src.backend.infrastructure.rift.repositories import (
     RiftPortalKeyRepository,
     RiftRunStateRepository,
 )
-from src.backend.realtime.integrations.notice_publisher import PlayerNoticePublisher, RawStreamNoticeProducer
+from src.backend.realtime.integrations.notice_publisher import (
+    PlayerNoticePublisher,
+    RawStreamNoticeProducer,
+    RefreshTargets,
+)
 from src.shared.enums import CoreDomain
 from src.shared.infrastructure.log_task_wrapper import logged_task
 
@@ -259,9 +263,9 @@ async def _attach_finalization_to_active_sessions(ctx: dict, session_id: str, fi
     location_id = (
         (finalization.get("meta") or {}).get("location_id") if isinstance(finalization.get("meta"), dict) else None
     )
+    notice_publisher = _build_notice_publisher(ctx)
     death_marked: set[int] = set()
     if dead_char_ids:
-        notice_publisher = _build_notice_publisher(ctx)
         async with get_session_context() as session:
             expedition_service = ExpeditionService(
                 session=session,
@@ -309,6 +313,17 @@ async def _attach_finalization_to_active_sessions(ctx: dict, session_id: str, fi
             reason="combat_finalization_attached",
             paths=["$.sessions.combat_finalization_id", "$.sessions.combat_id", "$.sessions.post_combat", "$.state"],
         )
+
+    # Combat resolved without a direct player request — wake each participant's
+    # HUD to re-fetch the status fragment (vitals/state changed in the worker).
+    if notice_publisher is not None:
+        for char_id in char_ids:
+            await notice_publisher.request_refresh(
+                char_id,
+                target=RefreshTargets.STATUS,
+                reason="combat_finalized",
+                domain="combat",
+            )
 
 
 async def _commit_player_vitals_to_active_sessions(ctx: dict, data_service: CombatDataService, session_id: str) -> None:

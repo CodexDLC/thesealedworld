@@ -78,6 +78,38 @@ async def test_notice_service_builds_envelope_and_fans_out() -> None:
 
 
 @pytest.mark.unit
+async def test_notice_service_builds_refresh_envelope_without_text_fields() -> None:
+    rt = RealtimeConnectionManager()
+    chat = ChatConnectionManager()
+    ws = await _connect(rt, chat, 42)
+    service = RealtimeNoticeService(rt)
+
+    payload = build_player_notice_payload(
+        character_ids=[42],
+        presentation="refresh",
+        target="status",
+        reason="combat_finalized",
+        domain="combat",
+    )
+    await service.deliver(payload)
+
+    decoded = json.loads(ws.sent[0])
+    assert decoded == {
+        "type": "player.notice",
+        "presentation": "refresh",
+        "payload": {
+            "domain": "combat",
+            "severity": "info",
+            "target": "status",
+            "reason": "combat_finalized",
+        },
+    }
+    # refresh notices carry no text fields
+    assert "template_key" not in decoded["payload"]
+    assert "variables" not in decoded["payload"]
+
+
+@pytest.mark.unit
 async def test_notice_service_skips_offline_recipients() -> None:
     rt = RealtimeConnectionManager()
     chat = ChatConnectionManager()

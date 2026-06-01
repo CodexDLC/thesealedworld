@@ -78,11 +78,10 @@
 
         <div id="game-shell-overlays">
             <div id="game-modal-root"></div>
+            {% include "game/includes/chat_overlay.html" %}
         </div>
 
-        <div id="game-footer-shell">
-            {% include "game/includes/chat_footer.html" %}
-        </div>
+        <div id="game-footer-shell"></div>
     </div>
 
     {% block scripts %}{% endblock scripts %}

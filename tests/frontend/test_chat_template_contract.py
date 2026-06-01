@@ -2,6 +2,7 @@ from pathlib import Path
 
 CHAT_TEMPLATE = Path("src/frontend/templates/shared/chat/main.html")
 CHAT_FOOTER_TEMPLATE = Path("src/frontend/templates/game/includes/chat_footer.html")
+CHAT_OVERLAY_TEMPLATE = Path("src/frontend/templates/game/includes/chat_overlay.html")
 CHAT_CSS_DIR = Path("src/frontend/static/css/game/domains/chat")
 SESSION_CONTENT_TEMPLATE = Path("src/frontend/templates/game/session_content.html")
 COMBAT_VIEWPORT_TEMPLATE = Path("src/frontend/templates/game/domains/combat/viewport/main.html")
@@ -178,13 +179,13 @@ def test_game_tooltips_preserve_line_breaks_without_html() -> None:
     assert "white-space: pre-line;" in css
 
 
-def test_session_content_replaces_footer_chat_shell_only() -> None:
+def test_session_content_does_not_render_footer_chat_shell() -> None:
     template = SESSION_CONTENT_TEMPLATE.read_text(encoding="utf-8")
 
     assert 'id="game-chat-shell"' not in template
     assert 'id="game-footer-shell" hx-swap-oob="outerHTML"' in template
-    assert 'include "game/includes/chat_footer.html"' in template
-    assert 'include "shared/chat/main.html"' not in template
+    assert 'include "game/includes/chat_footer.html"' not in template
+    assert 'include "game/includes/chat_overlay.html"' in template
 
 
 def test_combat_refresh_selects_only_main_content_shell() -> None:
@@ -209,7 +210,9 @@ def test_chat_shell_is_collapsible_footer() -> None:
     index = CHAT_CSS_DIR.joinpath("index.css").read_text(encoding="utf-8")
     template = CHAT_TEMPLATE.read_text(encoding="utf-8")
     footer = CHAT_FOOTER_TEMPLATE.read_text(encoding="utf-8")
+    overlay = CHAT_OVERLAY_TEMPLATE.read_text(encoding="utf-8")
     base = Path("src/frontend/templates/game/base_game.html").read_text(encoding="utf-8")
+    header = Path("src/frontend/templates/game/includes/header.html").read_text(encoding="utf-8")
     shell_js = Path("src/frontend/static/js/core/game_shell.js").read_text(encoding="utf-8")
     main_js = GAME_MAIN_JS.read_text(encoding="utf-8")
 
@@ -236,9 +239,14 @@ def test_chat_shell_is_collapsible_footer() -> None:
     assert "game-chat-footer-tabs" not in footer
     assert "game-chat-footer-mobile" not in footer
     assert "game-chat-footer-toggle" not in footer
-    assert 'include "shared/chat/main.html"' in footer
+    assert 'include "shared/chat/main.html"' not in footer
+    assert 'include "game/includes/chat_footer.html"' not in base
+    assert 'include "game/includes/chat_overlay.html"' in base
+    assert 'include "shared/chat/main.html"' in overlay
+    assert "game-chat-toggle" in header
+    assert 'aria-controls="game-chat-container"' in header
     assert "is-chat-closed" not in footer
-    assert "setChatStep(1)" in footer
+    assert "setChatStep(1)" not in footer
     assert "setChatStep(0)" in template
     assert 'class="chat-win-controls" @click.stop' in template
     assert "chat-tab-select-wrap" in template

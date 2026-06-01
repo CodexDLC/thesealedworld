@@ -64,15 +64,17 @@ def test_combat_shell_uses_desktop_docks_without_forcing_mobile_panels():
     assert ".game-top-row.combat-layout .col-left,\n    .game-top-row.combat-layout .col-right {\n        display: none !important;" not in combat_desktop_css
 
 
-def test_combat_shell_renders_standard_header_and_footer_chat():
+def test_combat_shell_renders_standard_header_without_footer_chat():
     base = Path("src/frontend/templates/game/base_game.html").read_text()
     session_oob = Path("src/frontend/templates/game/session_content.html").read_text()
     header = Path("src/frontend/templates/game/includes/header.html").read_text()
 
     assert 'domain != \'combats\'' not in base
     assert 'domain != \'combats\'' not in session_oob
-    assert 'include "game/includes/chat_footer.html"' in base
-    assert 'include "game/includes/chat_footer.html"' in session_oob
+    assert 'include "game/includes/chat_footer.html"' not in base
+    assert 'include "game/includes/chat_footer.html"' not in session_oob
+    assert 'include "game/includes/chat_overlay.html"' in base
+    assert 'include "game/includes/chat_overlay.html"' in session_oob
     assert "{% if domain == 'combats' %}" not in header
     assert "combat-header-state" not in header
     assert "combat-header-actions" not in header

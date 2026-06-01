@@ -1,18 +1,1 @@
-{% set chat_channel = 'scenario' if domain == 'scenario' else ('combat' if domain == 'combats' else 'world') %}
-<footer class="game-footer game-chat-footer"
-        data-chat-channel="{{ chat_channel }}"
-        :class="{ 'is-chat-open': !chatClosed, 'is-chat-closed': chatClosed }"
-        @keydown.escape.window="closeChatOverlay()">
-    <section class="game-chat-footer-shell" aria-label="Game chat footer">
-        <div class="game-chat-row game-chat-row--footer"
-             id="game-chat-container"
-             @click="if (chatStep === 0) setChatStep(1)"
-             :class="{ 'chat-minimized': chatStep === 0, ['chat-step-' + chatStep]: true }">
-            <div class="shell-constrained">
-                <div class="game-chat-panel-host">
-                    {% include "shared/chat/main.html" %}
-                </div>
-            </div>
-        </div>
-    </section>
-</footer>
+{# Footer chat is temporarily disabled. Keep this include empty until the shell contract is rebuilt. #}

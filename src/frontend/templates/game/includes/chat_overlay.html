@@ -1,0 +1,13 @@
+{% set chat_channel = 'scenario' if domain == 'scenario' else ('combat' if domain == 'combats' else 'world') %}
+<section id="game-chat-container"
+         class="hud-window game-chat-overlay"
+         data-chat-channel="{{ chat_channel }}"
+         x-show="!chatClosed"
+         x-cloak
+         @keydown.escape.window="closeChatOverlay()"
+         :class="{ ['chat-step-' + chatStep]: true }"
+         style="width: min(100vw - 32px, 920px); height: min(70vh, 720px);">
+    <div class="game-chat-panel-host" style="height: 100%; min-height: 0;">
+        {% include "shared/chat/main.html" %}
+    </div>
+</section>

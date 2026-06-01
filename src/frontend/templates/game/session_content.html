@@ -7,8 +7,7 @@
 </div>
 <div id="game-shell-overlays" hx-swap-oob="outerHTML">
     <div id="game-modal-root"></div>
+    {% include "game/includes/chat_overlay.html" %}
 </div>
-<div id="game-footer-shell" hx-swap-oob="outerHTML">
-    {% include "game/includes/chat_footer.html" %}
-</div>
+<div id="game-footer-shell" hx-swap-oob="outerHTML"></div>
 <span hidden aria-hidden="true"></span>

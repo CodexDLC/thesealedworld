@@ -5,6 +5,8 @@ Detailed milestone history for browser-facing gameplay surfaces inside
 
 ## [Unreleased]
 
+- Game chat now renders outside the footer shell while the footer placement contract is rebuilt.
+
 ## [v0.2.0a1] - Alpha 0.2.0
 
 - Browser gameplay now includes the rift screen, movement state, sidebars, icons, responsive styling, and typed backend API clients for rift play.

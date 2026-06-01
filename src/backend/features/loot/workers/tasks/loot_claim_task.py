@@ -16,6 +16,7 @@ from src.backend.features.loot.integrations.loot_integration import LootIntegrat
 from src.backend.infrastructure.inventory.managers import InventorySessionManager
 from src.backend.infrastructure.inventory.models import ResourceWallet
 from src.backend.infrastructure.loot.managers.loot_manager import LootManager
+from src.backend.realtime.integrations.notice_publisher import PlayerNoticePublisher, RawStreamNoticeProducer
 from src.shared.infrastructure.log_task_wrapper import logged_task
 from src.shared.schemas.loot import ClaimResultDTO
 
@@ -80,6 +81,10 @@ async def loot_claim_task(ctx: dict[str, Any], payload: dict[str, Any]) -> None:
         log.bind(corpse_id=corpse_id).info("LootClaimCorpseEmptied")
 
     log.bind(char_id=char_id, corpse_id=corpse_id).info("LootClaimTaskCompleted")
+
+    redis_client = ctx.get("redis_client_internal")
+    if redis_client is not None:
+        await PlayerNoticePublisher(RawStreamNoticeProducer(redis_client)).corpse_searched(char_id)
 
 
 def _split_resource_buckets(

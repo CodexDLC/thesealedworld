@@ -53,6 +53,25 @@ class RealtimeConnectionManager:
     def get(self, character_id: int) -> RealtimeEntry | None:
         return self._by_character.get(character_id)
 
+    async def send_to_character(self, character_id: int, envelope: dict[str, Any]) -> bool:
+        """Send a typed envelope to a character's live socket, if connected.
+
+        Writes directly to the real WebSocket so server-originated envelopes
+        (e.g. ``player.notice``) are NOT re-wrapped by the chat envelope
+        adapter. Returns ``False`` when the character is offline — callers must
+        keep critical state fetchable via HTTP, so a missed notice is not an
+        error.
+        """
+        entry = self._by_character.get(character_id)
+        if entry is None:
+            return False
+        try:
+            await entry.ws.send_text(json.dumps(envelope, default=str))
+        except Exception:
+            logger.bind(character_id=character_id).debug("RealtimeNoticeSendFailed")
+            return False
+        return True
+
     async def connect(
         self,
         ws: WebSocket,

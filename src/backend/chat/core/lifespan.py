@@ -9,6 +9,7 @@ from src.backend.chat.services.connection_manager import ChatConnectionManager
 from src.backend.chat.services.session_service import PlayerChatSession
 from src.backend.config.settings import settings
 from src.backend.realtime.core.lifespan import bootstrap_realtime
+from src.backend.realtime.services.notice_service import RealtimeNoticeService
 
 
 @asynccontextmanager
@@ -24,11 +25,15 @@ async def lifespan(app: FastAPI):
     # Realtime gateway (stage 1 co-locates the realtime module here; see
     # docs/planning/tech-debt/realtime/player_realtime_gateway.md).
     bootstrap_realtime(app)
+    app.state.realtime_notice_service = RealtimeNoticeService(app.state.realtime_manager)
 
     from src.backend.chat.events import bind as bind_chat_events
     from src.backend.chat.events import router as chat_events_router
+    from src.backend.realtime.events import bind as bind_realtime_events
+    from src.backend.realtime.events import router as realtime_events_router
 
     bind_chat_events(app)
+    bind_realtime_events(app)
 
     runtime = StreamRuntime(
         redis=app.state.redis,
@@ -40,6 +45,7 @@ async def lifespan(app: FastAPI):
         ),
     )
     runtime.include_router(chat_events_router)
+    runtime.include_router(realtime_events_router)
     app.state.stream_runtime = runtime
     await runtime.start()
 

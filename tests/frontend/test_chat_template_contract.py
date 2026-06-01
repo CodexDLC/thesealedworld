@@ -66,6 +66,27 @@ def test_chat_template_sends_typed_envelopes_and_unwraps_chat_message() -> None:
     assert template.count("ws-connect=") == 1
 
 
+def test_chat_template_renders_player_notice_into_system_tab() -> None:
+    template = CHAT_TEMPLATE.read_text(encoding="utf-8")
+
+    # _onWsMessage routes player.notice to a dedicated handler before the
+    # chat.message rejection branch.
+    assert "envelope.type === 'player.notice'" in template
+    assert "this._onPlayerNotice(envelope)" in template
+    # notice templates are frontend-owned and filled via the existing renderer
+    assert "_noticeTemplates" in template
+    assert "_renderNoticeText(key, vars)" in template
+    assert "this._renderTemplateText(template, vars || {})" in template
+    # a few of the classic-MMO notice strings + placeholder usage
+    assert "'player.death': 'Вы погибли.'" in template
+    assert "'exploration.safe_zone_entered': 'Вы вошли в безопасную зону: {location}.'" in template
+    # the synthesized message lands in the system channel as a plain message
+    assert "_onPlayerNotice(envelope)" in template
+    assert "channel: 'system'" in template
+    assert "this.channels.system.push" in template
+    assert "presentation !== 'system_chat'" in template
+
+
 def test_chat_template_keeps_combat_logs_in_system_channel() -> None:
     template = CHAT_TEMPLATE.read_text(encoding="utf-8")
 

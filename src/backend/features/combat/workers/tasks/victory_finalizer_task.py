@@ -23,8 +23,16 @@ from src.backend.infrastructure.rift.repositories import (
     RiftPortalKeyRepository,
     RiftRunStateRepository,
 )
+from src.backend.realtime.integrations.notice_publisher import PlayerNoticePublisher, RawStreamNoticeProducer
 from src.shared.enums import CoreDomain
 from src.shared.infrastructure.log_task_wrapper import logged_task
+
+
+def _build_notice_publisher(ctx: dict) -> PlayerNoticePublisher | None:
+    redis = ctx.get("redis_client_internal")
+    if redis is None:
+        return None
+    return PlayerNoticePublisher(RawStreamNoticeProducer(redis))
 
 
 @logged_task
@@ -253,6 +261,7 @@ async def _attach_finalization_to_active_sessions(ctx: dict, session_id: str, fi
     )
     death_marked: set[int] = set()
     if dead_char_ids:
+        notice_publisher = _build_notice_publisher(ctx)
         async with get_session_context() as session:
             expedition_service = ExpeditionService(
                 session=session,
@@ -262,6 +271,7 @@ async def _attach_finalization_to_active_sessions(ctx: dict, session_id: str, fi
                 world_store=ctx.get("world_locations"),
                 commit_on_write=True,
                 game_config=ctx.get("game_config"),
+                notice_publisher=notice_publisher,
             )
             for char_id in dead_char_ids:
                 if await expedition_service.mark_death_pending(

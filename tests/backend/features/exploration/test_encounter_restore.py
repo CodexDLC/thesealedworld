@@ -334,7 +334,7 @@ async def test_gateway_search_keeps_scouting_progress_in_unsafe_current_location
     response = await gateway.interact(char_id=7, action="search")
 
     assert response.payload_type == "exploration_navigation"
-    assert encounter_integration.progress == [(7, {"skill_scouting": 0.0016})]
+    assert encounter_integration.progress == [(7, {"skill_scouting": 0.0012})]
 
 
 @pytest.mark.asyncio
@@ -365,7 +365,7 @@ async def test_failed_gateway_bypass_routes_active_encounter_to_combat(monkeypat
     assert response.payload_type == "state_transition"
     assert response.payload.combat_id == "combat-enc-1"
     assert response.payload.reason == "exploration_attack"
-    assert encounter_integration.progress == [(7, {"skill_scouting": 0.0008, "skill_hunting": 0.0008})]
+    assert encounter_integration.progress == [(7, {"skill_scouting": 0.0006, "skill_hunting": 0.0006})]
     assert encounter_integration.combat_sessions == [(7, "combat-enc-1")]
     assert encounter_integration.cleared == ["enc-1"]
     assert encounter_integration.detached == [7]

@@ -1,3 +1,5 @@
+from typing import Literal
+
 from src.backend.features.game_catalog.combat.resources.common.descriptions import (
     CombatEventTextSetDTO,
     build_combat_description,
@@ -772,7 +774,7 @@ def _dual_prep_catalog(
     display_name: str,
     short_description: str,
     pipeline_mutations: list | None = None,
-    pipeline_mutation_role: str = "target",
+    pipeline_mutation_role: Literal["source", "target", "both"] = "target",
     react_on_outcomes: list[str] | None = None,
     tags: list[str] | None = None,
 ) -> EffectCatalogEntryDTO:

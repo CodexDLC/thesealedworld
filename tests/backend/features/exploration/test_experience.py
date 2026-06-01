@@ -15,8 +15,8 @@ def test_exploration_experience_calculates_catalog_skill_rewards() -> None:
     )
 
     assert rewards == {
-        "skill_pathfinder": 0.0016,
-        "skill_hunting": 0.0008,
+        "skill_pathfinder": 0.0012,
+        "skill_hunting": 0.0006,
     }
 
 

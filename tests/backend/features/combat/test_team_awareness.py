@@ -302,8 +302,8 @@ def test_scorer_team_dedup_control_penalises_duplicate_control_on_same_target() 
 
     control_score = PolicyScorer.score(obs, target_obs, control_action, policy)
     plain_score = PolicyScorer.score(obs, target_obs, plain_action, policy)
-    # Plain attack should win by exactly team_dedup_control.
-    assert plain_score - control_score == pytest.approx(2.0)
+    # Plain attack should win by the policy penalty plus the hard waste guard.
+    assert plain_score - control_score == pytest.approx(102.0)
 
 
 @pytest.mark.unit

@@ -28,8 +28,8 @@ class TestScenarioFormatter:
 
     def test_format_text_loot_queue_items_use_catalog_title(self, formatter):
         context = {"loot_queue": ["warhammer", "shield"]}
-        assert formatter.format_text("Блокировать [#loot_queue.1]", context) == "Блокировать Щит"
-        assert formatter.format_text("Принять удар на loot_queue.1", context) == "Принять удар на Щит"
+        assert formatter.format_text("Блокировать [#loot_queue.1]", context) == "Блокировать Круглый щит"
+        assert formatter.format_text("Принять удар на loot_queue.1", context) == "Принять удар на Круглый щит"
 
     def test_format_text_invalid_access(self, formatter):
         context = {"name": "Hero"}

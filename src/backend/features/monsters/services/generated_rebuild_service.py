@@ -15,7 +15,7 @@ from src.backend.features.monsters.dto.generated_view import (
     MonsterDataRebuildRequestDTO,
     MonsterDataRebuildResponseDTO,
 )
-from src.backend.features.monsters.dto.generation import GeneratedClan, MonsterGenerationContext
+from src.backend.features.monsters.dto.generation import GeneratedClan, GeneratedMonster, MonsterGenerationContext
 from src.backend.features.monsters.resources import get_family_config
 from src.backend.features.monsters.runtime.generation_builder import MonsterClanGenerationBuilder, _MemberPlan
 from src.backend.features.monsters.runtime.generation_fields import build_member_tier
@@ -245,8 +245,14 @@ class _NoopMonsterRepository:
     async def get_generated_clan(self, clan_id: uuid.UUID | str) -> GeneratedClan | None:
         return None
 
-    async def get_clan_members(self, clan_id: uuid.UUID | str) -> list[Any]:
+    async def get_clan_members(self, clan_id: uuid.UUID | str) -> list[GeneratedMonster]:
         return []
+
+    async def delete_generated_clans_outside_zone_contexts(
+        self,
+        expected: dict[str, set[tuple[str, str]]],
+    ) -> int:
+        return 0
 
     async def refresh_clan_gear_scores(
         self,
@@ -254,10 +260,10 @@ class _NoopMonsterRepository:
         *,
         gear_score_service: MonsterGearScoreService | None = None,
         persist: bool = False,
-    ) -> list[Any]:
+    ) -> list[GeneratedMonster]:
         return []
 
-    async def create_clan_with_members(self, clan: GeneratedClan, members: list[Any]) -> GeneratedClan:
+    async def create_clan_with_members(self, clan: GeneratedClan, members: list[GeneratedMonster]) -> GeneratedClan:
         raise RuntimeError("Rebuild service must not create clans through the generation repository")
 
     async def update_clan_flavor(self, clan: GeneratedClan) -> GeneratedClan:

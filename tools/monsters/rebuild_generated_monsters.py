@@ -29,8 +29,29 @@ class _NoopGenerationRepository:
         del context_hash
         return []
 
+    async def get_generated_clan(self, clan_id: uuid.UUID | str) -> None:
+        del clan_id
+        return None
+
     async def get_clan_members(self, clan_id: uuid.UUID | str) -> list[GeneratedMonster]:
         del clan_id
+        return []
+
+    async def delete_generated_clans_outside_zone_contexts(
+        self,
+        expected: dict[str, set[tuple[str, str]]],
+    ) -> int:
+        del expected
+        return 0
+
+    async def refresh_clan_gear_scores(
+        self,
+        clan_id: uuid.UUID | str,
+        *,
+        gear_score_service: MonsterGearScoreService | None = None,
+        persist: bool = False,
+    ) -> list[GeneratedMonster]:
+        del clan_id, gear_score_service, persist
         return []
 
     async def create_clan_with_members(self, clan: GeneratedClan, members: list[GeneratedMonster]) -> GeneratedClan:

@@ -1840,6 +1840,32 @@ def test_ability_service_applies_basic_dodge_feint_preparation(
 
 
 @pytest.mark.unit
+def test_ability_service_does_not_mutate_feint_preparation_catalog_payload() -> None:
+    source = actor(1, "a")
+    target = actor(2, "b")
+    source.meta.stamina = 100
+    move = CombatMoveDTO(
+        move_id="m1",
+        char_id=1,
+        strategy="exchange",
+        payload=ExchangePayload(target_id=2, feint_id="glancing_step"),
+    )
+    ctx = PipelineContextDTO()
+
+    entry = CombatCatalogIntegrator.get_feint_catalog_entry("glancing_step")
+    assert entry is not None
+    payload = entry.technical.preparation_effects[0]
+    assert "target_id" not in payload
+
+    service = AbilityService()
+    service.pre_process(ctx, move, source, target)
+    service.post_process(ctx, source, target, move)
+
+    assert ctx.result.applied_effects[0]["target_id"] == source.char_id
+    assert "target_id" not in payload
+
+
+@pytest.mark.unit
 @pytest.mark.parametrize(
     ("feint_id", "expected_cost", "expected_effect"),
     [
@@ -1982,6 +2008,7 @@ def test_perfect_riposte_heals_and_forces_counter_on_next_successful_parry() -> 
 
     service = AbilityService()
     service.pre_process(ctx, move, source, target)
+    ctx.flags.force.hit = True
     ctx.flags.force.parry = True
     CombatResolver.resolve_exchange(source.stats, target.stats, ctx)
     service.post_process(ctx, source, target, move)
@@ -2011,6 +2038,7 @@ def test_dodge_counter_preparation_does_not_trigger_on_parry() -> None:
 
     service = AbilityService()
     service.pre_process(ctx, move, source, target)
+    ctx.flags.force.hit = True
     ctx.flags.force.parry = True
     CombatResolver.resolve_exchange(source.stats, target.stats, ctx)
     service.post_process(ctx, source, target, move)
@@ -2749,6 +2777,7 @@ def test_parry_riposte_allows_boosted_counter_on_next_parry(monkeypatch: pytest.
 
     service = AbilityService()
     service.pre_process(ctx, move, source, target)
+    ctx.flags.force.hit = True
     ctx.flags.force.parry = True
     CombatResolver.resolve_exchange(source.stats, target.stats, ctx)
     service.post_process(ctx, source, target, move)

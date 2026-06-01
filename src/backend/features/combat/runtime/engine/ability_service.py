@@ -667,17 +667,18 @@ class AbilityService:
         ctx: PipelineContextDTO, effect_data: dict, source: ActorSnapshot, target: ActorSnapshot | None
     ) -> None:
         """Append one effect payload to the post-calculation application queue."""
-        if "target_id" not in effect_data:
-            target_actor = effect_data.get("target_actor")
+        queued_effect = dict(effect_data)
+        if "target_id" not in queued_effect:
+            target_actor = queued_effect.get("target_actor")
             if target_actor == "source":
                 real_target = source
             elif target_actor == "target":
                 real_target = target if target else source
             else:
                 real_target = target if target else source
-            effect_data["target_id"] = real_target.char_id
+            queued_effect["target_id"] = real_target.char_id
 
-        ctx.result.applied_effects.append(effect_data)
+        ctx.result.applied_effects.append(queued_effect)
 
     @staticmethod
     def _source_weapon_tier(actor: ActorSnapshot, move: CombatMoveDTO) -> int:

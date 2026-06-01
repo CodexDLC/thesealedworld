@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import hashlib
-from typing import Any
+from typing import Any, cast
 
 from src.backend.features.rift.dto.runtime import RiftZoneRuntimeDTO, coord_key
 from src.backend.features.rift.dto.screen import (
@@ -12,15 +12,18 @@ from src.backend.features.rift.dto.screen import (
     RiftCombatResolveResponseDTO,
     RiftCoordinateDTO,
     RiftCurrentNodeDTO,
+    RiftDebugCellState,
     RiftDebugMapCellDTO,
     RiftDebugMapDTO,
     RiftDebugMapEdgeDTO,
     RiftExitActionDTO,
     RiftExitDTO,
     RiftHeartDTO,
+    RiftHeartMethod,
     RiftHeartMethodDTO,
     RiftHeartRewardDTO,
     RiftHudDTO,
+    RiftMapNodeState,
     RiftMapViewDTO,
     RiftMapViewEdgeDTO,
     RiftMapViewNodeDTO,
@@ -28,11 +31,13 @@ from src.backend.features.rift.dto.screen import (
     RiftNodeEntryEventPreviewDTO,
     RiftNodeEventResolveResponseDTO,
     RiftObjectiveDTO,
+    RiftPassageState,
     RiftRadarArmDTO,
     RiftRadarDTO,
     RiftScreenDTO,
     RiftScreenMetaDTO,
     RiftSurroundingLineDTO,
+    RiftTransitionEventType,
     RiftTravelPreviewDTO,
     RiftTravelResultDTO,
     RiftTravelStateDTO,
@@ -63,6 +68,19 @@ _SCRIPTED_COMBAT_NODE_KEYS = {
     "key_combat",
     "crystal_chamber",
 }
+
+
+def _screen_passage_state(value: str) -> RiftPassageState:
+    return cast("RiftPassageState", value)
+
+
+def _screen_transition_event(value: str) -> RiftTransitionEventType:
+    return cast("RiftTransitionEventType", value)
+
+
+def _screen_map_node_state(value: str) -> RiftMapNodeState:
+    return cast("RiftMapNodeState", value)
+
 
 _ATTRIBUTE_LABELS = {
     "strength": "Сила",
@@ -379,7 +397,7 @@ def _build_heart(runtime: RiftZoneRuntimeDTO) -> RiftHeartDTO:
         is_current_node=runtime.current_node_id == heart["node_id"],
         methods=[
             RiftHeartMethodDTO(
-                method=str(method["method"]),
+                method=cast("RiftHeartMethod", str(method["method"])),
                 label=str(method["label"]),
                 enabled=bool(method.get("enabled")),
                 locked_reason=method.get("locked_reason"),
@@ -480,10 +498,10 @@ def _build_surroundings(
             RiftSurroundingLineDTO(
                 absolute_direction=direction,
                 relative_direction=rel,
-                state=state,
+                state=_screen_passage_state(state),
                 target_node_id=neighbor.node_id,
                 text=text,
-                tone=tone,
+                tone=cast("Any", tone),
             )
         )
     return result
@@ -523,7 +541,7 @@ def _build_movement(
                     target_coord=target_coord,
                     absolute_direction=direction,
                     relative_direction=rel,
-                    state=state,
+                    state=_screen_passage_state(state),
                     travel=_build_travel_preview(runtime, neighbor.node_id),
                     debug_text_parts={"template": template_key},
                 )
@@ -545,7 +563,7 @@ def _build_movement(
                 target_coord=target_coord,
                 absolute_direction=direction,
                 relative_direction=rel,
-                state=state,
+                state=_screen_passage_state(state),
                 tooltip=_blocker_tooltip(blocker_debug),
                 debug_text_parts=blocker_debug,
             )
@@ -565,7 +583,7 @@ def _build_radar(runtime: RiftZoneRuntimeDTO, *, heading: RiftAbsoluteDirection 
                 RiftRadarArmDTO(
                     absolute_direction=direction,
                     relative_direction=rel,
-                    state=state,
+                    state=_screen_passage_state(state),
                     target_coord=neighbor_coord_value,
                     color_hint=_COLOR_BY_STATE[state],
                 )
@@ -576,7 +594,7 @@ def _build_radar(runtime: RiftZoneRuntimeDTO, *, heading: RiftAbsoluteDirection 
             RiftRadarArmDTO(
                 absolute_direction=direction,
                 relative_direction=rel,
-                state=state,
+                state=_screen_passage_state(state),
                 target_node_id=neighbor.node_id,
                 target_coord=neighbor.coord,
                 is_available=state == "open",
@@ -652,7 +670,7 @@ def _complete_travel(
         duration_ms=int(active_travel.get("duration_ms") or 0),
         event_scope="transition",
         event_triggered=event_triggered,
-        event_type=event_type,
+        event_type=_screen_transition_event(event_type),
     )
     last_travel_payload = last_travel.model_dump(mode="json")
     last_travel_payload["resolved"] = resolved
@@ -757,10 +775,10 @@ def _resolve_transition_tick_event(
     active_travel: dict[str, Any],
     next_check: int,
     force_event: str | None,
-) -> str:
+) -> RiftTransitionEventType:
     possible_events = set(active_travel.get("possible_events") or ["none"])
     if force_event in possible_events:
-        return force_event
+        return _screen_transition_event(str(force_event))
     if "combat" not in possible_events or not active_travel.get("can_trigger_event"):
         return "none"
     roll = _travel_event_roll(runtime, active_travel=active_travel, next_check=next_check)
@@ -971,7 +989,7 @@ def _build_map_view(runtime: RiftZoneRuntimeDTO, *, heading: RiftAbsoluteDirecti
             node_id=neighbor.node_id,
             coord=neighbor.coord,
             title=neighbor.title,
-            state=state,
+            state=_screen_map_node_state(state),
             visited=neighbor.node_id in runtime.visited_node_ids,
             discovered=True,
         )
@@ -981,7 +999,7 @@ def _build_map_view(runtime: RiftZoneRuntimeDTO, *, heading: RiftAbsoluteDirecti
                 to_node_id=neighbor.node_id,
                 absolute_direction=direction,
                 relative_direction=rel,
-                state=state,
+                state=_screen_passage_state(state),
             )
         )
 
@@ -1008,7 +1026,7 @@ def _build_debug_map(runtime: RiftZoneRuntimeDTO) -> RiftDebugMapDTO:
                         node_id=None,
                         coord=RiftCoordinateDTO(x=x, y=y),
                         title=None,
-                        state=state,
+                        state=cast("RiftDebugCellState", state),
                         visited=False,
                         discovered=state == "void",
                     )
@@ -1020,7 +1038,7 @@ def _build_debug_map(runtime: RiftZoneRuntimeDTO) -> RiftDebugMapDTO:
                     node_id=node.node_id,
                     coord=node.coord,
                     title=node.title,
-                    state=state,
+                    state=cast("RiftDebugCellState", state),
                     visited=node.node_id in runtime.visited_node_ids,
                     discovered=True,
                 )
@@ -1041,7 +1059,7 @@ def _build_debug_map_edges(runtime: RiftZoneRuntimeDTO) -> list[RiftDebugMapEdge
         to_node = runtime.nodes.get(edge.to_node_id)
         if from_node is None or to_node is None:
             continue
-        pair = tuple(sorted((edge.from_node_id, edge.to_node_id)))
+        pair = cast("tuple[str, str]", tuple(sorted((edge.from_node_id, edge.to_node_id))))
         if pair in seen_pairs:
             continue
         seen_pairs.add(pair)
@@ -1051,7 +1069,7 @@ def _build_debug_map_edges(runtime: RiftZoneRuntimeDTO) -> list[RiftDebugMapEdge
                 to_node_id=edge.to_node_id,
                 from_coord=from_node.coord,
                 to_coord=to_node.coord,
-                state=_effective_edge_state(runtime, edge),
+                state=cast("Any", _effective_edge_state(runtime, edge)),
             )
         )
     return result

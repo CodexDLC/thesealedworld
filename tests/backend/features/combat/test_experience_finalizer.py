@@ -162,7 +162,7 @@ def test_experience_finalizer_maps_flat_xp_buffer_to_skill_rewards() -> None:
     rewards = CombatExperienceFinalizer().calculate_actor_rewards(actor)
 
     assert rewards == {
-        "skill_swords": 0.0048,
+        "skill_swords": 0.0036,
         "skill_two_handed": 0.0024,
         "skill_heavy_armor": 0.0032,
         "skill_parrying": 0.0016,

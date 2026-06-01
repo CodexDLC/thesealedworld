@@ -967,6 +967,18 @@
         "back right";
 }
 
+@media (max-width: 767px) {
+    .rift-action-grid {
+        grid-template-rows: repeat(2, minmax(40px, auto));
+    }
+}
+
+@media (max-width: 500px) {
+    .rift-action-grid {
+        grid-template-rows: repeat(2, minmax(38px, auto));
+    }
+}
+
 .rift-action-button {
     min-height: 48px;
     align-content: center;

@@ -355,7 +355,8 @@ class CharacterSessionManager:
         document = await self.get_session(char_id)
         if not isinstance(document, dict):
             raise SessionNotFoundError(f"Character session not found: char_id={char_id}")
-        sessions = document.get("sessions") if isinstance(document.get("sessions"), dict) else {}
+        raw_sessions = document.get("sessions")
+        sessions = raw_sessions if isinstance(raw_sessions, dict) else {}
         rift_session_id = str(sessions.get("rift_session_id") or "")
         rift_instance_id = str(sessions.get("rift_instance_id") or "")
         if not rift_session_id or not rift_instance_id:

@@ -92,10 +92,6 @@
         padding-top: 6px;
     }
 
-    .rift-action-grid {
-        grid-template-rows: repeat(2, minmax(40px, auto));
-    }
-
     .rift-combat-actions__body,
     .rift-combat-prompt .exploration-encounter-body {
         grid-template-columns: minmax(0, 1fr);
@@ -131,10 +127,6 @@
     .rift-action-button {
         min-height: 38px;
         padding: 4px 5px;
-    }
-
-    .rift-action-grid {
-        grid-template-rows: repeat(2, minmax(38px, auto));
     }
 
     .rift-node-copy p {

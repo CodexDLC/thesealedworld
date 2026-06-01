@@ -12,9 +12,19 @@ RiftTravelKind = Literal["exploration", "return"]
 RiftTransitionEventType = Literal["none", "combat"]
 RiftNodeEntryEventType = Literal["none", "combat"]
 RiftHeartMethod = Literal["shatter", "absorb", "dismantle"]
+RiftMapNodeState = Literal["current", "open", "void", "blocked_permanent", "blocked_temporary", "locked", "unknown"]
+RiftDebugCellState = Literal["current", "open", "void", "unknown"]
 RiftExitMode = Literal["entrance_return_only", "heart_exit_only"]
 RiftCompletionExit = Literal["from_heart", "return_to_exit"]
 RiftExitAction = Literal["leave_rift", "complete_rift"]
+
+
+def _default_transition_events() -> list[RiftTransitionEventType]:
+    return ["none"]
+
+
+def _default_node_entry_events() -> list[RiftNodeEntryEventType]:
+    return ["none", "combat"]
 
 
 class RiftCoordinateDTO(BaseModel):
@@ -59,7 +69,7 @@ class RiftTravelPreviewDTO(BaseModel):
     tick_interval_ms: int = 1000
     event_check_count: int = 0
     event_scope: Literal["transition"] = "transition"
-    possible_events: list[RiftTransitionEventType] = Field(default_factory=lambda: ["none"])
+    possible_events: list[RiftTransitionEventType] = Field(default_factory=_default_transition_events)
     can_trigger_event: bool = False
     event_chance: float = 0.0
     suppressed_by_target_node_event: bool = False
@@ -91,7 +101,7 @@ class RiftNodeEntryEventPreviewDTO(BaseModel):
     is_required: bool = False
     grants_flags: list[str] = Field(default_factory=list)
     metadata: dict[str, Any] = Field(default_factory=dict)
-    possible_events: list[RiftNodeEntryEventType] = Field(default_factory=lambda: ["none", "combat"])
+    possible_events: list[RiftNodeEntryEventType] = Field(default_factory=_default_node_entry_events)
     combat_policy: RiftNodeEntryCombatPolicyDTO = Field(default_factory=RiftNodeEntryCombatPolicyDTO)
 
 
@@ -120,7 +130,7 @@ class RiftTravelStateDTO(BaseModel):
     checks_done: int = 0
     checks_total: int = 0
     remaining_ms: int = 0
-    possible_events: list[RiftTransitionEventType] = Field(default_factory=lambda: ["none"])
+    possible_events: list[RiftTransitionEventType] = Field(default_factory=_default_transition_events)
     suppressed_by_target_node_event: bool = False
     target_node_event_key: str | None = None
 
@@ -195,7 +205,7 @@ class RiftMapViewNodeDTO(BaseModel):
     node_id: str
     coord: RiftCoordinateDTO
     title: str
-    state: Literal["current", "open", "void", "blocked_permanent", "blocked_temporary", "locked", "unknown"]
+    state: RiftMapNodeState
     visited: bool = False
     discovered: bool = True
 
@@ -220,7 +230,7 @@ class RiftDebugMapCellDTO(BaseModel):
     node_id: str | None = None
     coord: RiftCoordinateDTO
     title: str | None = None
-    state: Literal["current", "open", "void", "unknown"] = "open"
+    state: RiftDebugCellState = "open"
     visited: bool = False
     discovered: bool = False
 

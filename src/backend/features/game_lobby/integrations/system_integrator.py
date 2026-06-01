@@ -3,7 +3,7 @@ from __future__ import annotations
 from contextlib import suppress
 from dataclasses import dataclass
 from datetime import UTC, datetime
-from typing import TYPE_CHECKING, Any, Literal
+from typing import TYPE_CHECKING, Any, Literal, cast
 
 from loguru import logger
 from sqlalchemy.exc import IntegrityError
@@ -225,6 +225,9 @@ class GameLobbyIntegration:
         imprint_key: str | None = None,
     ) -> dict[str, Any]:
         self._ensure_starting_imprint_dependencies()
+        assert self.attributes_repo is not None
+        assert self.skill_repo is not None
+        assert self.item_persistence is not None
         service = StartingImprintService()
         if imprint_key:
             build = service.build(imprint_key)
@@ -286,7 +289,7 @@ class GameLobbyIntegration:
             character_id=character.character_id,
             user_id=character.user_id,
             name=character.name,
-            gender=character.gender,
+            gender=cast("CharacterGender", character.gender),
             avatar_url=avatar_url,
             created_at=character.created_at,
             location_id="52_52",
@@ -332,6 +335,8 @@ class GameLobbyIntegration:
             raise RuntimeError(f"Starting imprint materialization is not configured: missing={', '.join(missing)}")
 
     async def _materialize_starting_skills(self, char_id: int, build: StartingImprintBuild) -> None:
+        if self.skill_repo is None:
+            raise RuntimeError("Starting imprint skill materialization is not configured")
         rows = [
             {
                 "character_id": char_id,

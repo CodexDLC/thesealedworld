@@ -157,11 +157,11 @@ class RiftRuntimeIntegration:
                 details=details,
             )
             return None
-        portal = await self.portal_store.find_by_rift_session(rift_session_id)
-        if portal is None:
+        store_portal = await self.portal_store.find_by_rift_session(rift_session_id)
+        if store_portal is None:
             return None
         return await self.mark_portal_status(
-            portal_id=str(portal["portal_id"]),
+            portal_id=str(store_portal["portal_id"]),
             status=status,
             reason=reason,
             details=details,
@@ -387,14 +387,15 @@ class RiftRuntimeIntegration:
         # NOTE: "boss"/"boss_solo"/"boss_with_minions"/"heart_guard" scopes are not
         # emitted anywhere in the encounter pipeline today (only "transition" and
         # "node_entry"). See plan #7 in docs/known-issues/rift_scripted_nodes.md.
+        updated: RiftZoneRuntimeDTO
         if scope == "transition":
-            updated, _response = resolve_transition_combat_runtime(
+            updated, _transition_response = resolve_transition_combat_runtime(
                 runtime,
                 travel_id=resolved_travel_id,
                 result=result,
             )
         elif scope == "node_entry":
-            updated, _response = resolve_node_entry_event_runtime(
+            updated, _node_response = resolve_node_entry_event_runtime(
                 runtime,
                 event_key=event_key or None,
                 result=result,

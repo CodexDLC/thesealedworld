@@ -3,7 +3,7 @@ from __future__ import annotations
 import hashlib
 import random
 from collections import deque
-from typing import Any
+from typing import Any, cast
 from uuid import uuid4
 
 from src.backend.features.monsters.runtime.hashing import compute_rift_context_hash, compute_unique_clan_hash
@@ -14,7 +14,7 @@ from src.backend.features.rift.dto import (
     RiftZonePlacementDTO,
     RiftZoneRuntimeDTO,
 )
-from src.backend.features.rift.dto.runtime import coord_key
+from src.backend.features.rift.dto.runtime import RiftRuntimePassageState, coord_key
 from src.backend.features.rift.dto.screen import RiftAbsoluteDirection, RiftCoordinateDTO
 from src.backend.features.rift.runtime.generation.canvas import CanvasBuilder
 from src.backend.features.rift.runtime.generation.events import NodeEventSeeder
@@ -698,7 +698,7 @@ def _add_bidirectional_edge(
     nodes: dict[str, RiftZoneCellDTO],
     from_node_id: str,
     to_node_id: str,
-    state: str,
+    state: RiftRuntimePassageState,
     blocker_key: str | None = None,
     requirement: dict[str, Any] | None = None,
 ) -> None:
@@ -731,7 +731,7 @@ def _edge_key(node_id: str, direction: RiftAbsoluteDirection) -> str:
 
 
 def _edge_pair(left_node_id: str, right_node_id: str) -> tuple[str, str]:
-    return tuple(sorted((left_node_id, right_node_id)))
+    return cast("tuple[str, str]", tuple(sorted((left_node_id, right_node_id))))
 
 
 def _build_main_path(

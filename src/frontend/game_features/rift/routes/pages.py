@@ -1,4 +1,4 @@
-from typing import Annotated
+from typing import Annotated, Any
 from urllib.parse import quote
 
 from fastapi import APIRouter, Depends, Form, HTTPException, Query, Request, status
@@ -155,11 +155,11 @@ async def game_rift_action(
     result: Annotated[str, Form()] = "victory",
     char_id: Annotated[int | None, Form()] = None,
 ):
-    payload = {"result": result}
+    action_payload = {"result": result}
     if travel_id:
-        payload["travel_id"] = travel_id
+        action_payload["travel_id"] = travel_id
     if event_key:
-        payload["event_key"] = event_key
+        action_payload["event_key"] = event_key
     token = require_game_access_token(request) if char_id else None
     if char_id:
         response = await rift_api.action(
@@ -169,7 +169,7 @@ async def game_rift_action(
             action_id=action_id,
             target_node_id=target_node_id,
             direction=direction,
-            payload=payload,
+            payload=action_payload,
         )
     else:
         response = await rift_dev_api.action(
@@ -178,9 +178,9 @@ async def game_rift_action(
             action_id=action_id,
             target_node_id=target_node_id,
             direction=direction,
-            payload=payload,
+            payload=action_payload,
         )
-    payload = {
+    payload: dict[str, Any] = {
         "action_type": response.get("action_type"),
         "result": response.get("result"),
         "message": response.get("message"),

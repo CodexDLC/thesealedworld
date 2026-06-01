@@ -226,7 +226,17 @@ class TestConfigProvider:
 class TestAdminDeclaration:
     def test_sidebar_lists_expected_keys(self) -> None:
         keys = {item.key for item in GameSettingsAdmin.sidebar}
-        assert keys == {"combat", "combat_ai", "scenario", "exploration", "streams", "workers"}
+        assert keys == {
+            "combat",
+            "combat_ai",
+            "expedition",
+            "exploration",
+            "loot",
+            "rift",
+            "scenario",
+            "streams",
+            "workers",
+        }
 
     def test_sidebar_names_combat_ai_as_behavior_settings(self) -> None:
         labels = {item.key: item.label for item in GameSettingsAdmin.sidebar}

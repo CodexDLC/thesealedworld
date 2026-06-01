@@ -398,6 +398,7 @@ class MechanicsService:
                     if not isinstance(application, dict)
                     else application.get("source_id") or source.char_id
                 )
+                source_id = str(source_id or source.char_id)
                 active_from = actor.meta.exchange_counter + (1 if ctx.flags.meta.action_mode == "exchange" else 0)
                 active_effect = ActiveEffectDTO(
                     uid=str(effect_id),

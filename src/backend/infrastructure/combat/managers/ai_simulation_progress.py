@@ -85,6 +85,8 @@ class CombatAiSimulationProgressManager:
     def _is_family_pressure(doc: Any) -> bool:
         if not isinstance(doc, dict):
             return False
-        metadata = doc.get("metadata") if isinstance(doc.get("metadata"), dict) else {}
-        telemetry = doc.get("telemetry") if isinstance(doc.get("telemetry"), dict) else {}
+        raw_metadata = doc.get("metadata")
+        metadata = raw_metadata if isinstance(raw_metadata, dict) else {}
+        raw_telemetry = doc.get("telemetry")
+        telemetry = raw_telemetry if isinstance(raw_telemetry, dict) else {}
         return bool(metadata.get("family_pressure")) or str(telemetry.get("run_kind") or "") == "family_pressure"

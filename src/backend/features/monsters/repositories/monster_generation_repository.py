@@ -125,7 +125,7 @@ class MonsterGenerationRepository:
                     tuple_(GeneratedClanORM.family_id, GeneratedClanORM.context_hash).not_in(normalized_contexts),
                 )
             )
-            deleted += int(result.rowcount or 0)
+            deleted += int(getattr(result, "rowcount", 0) or 0)
         return deleted
 
     async def refresh_clan_gear_scores(

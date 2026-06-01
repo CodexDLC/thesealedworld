@@ -942,7 +942,7 @@ def test_ordinary_node_entry_combat_returns_combat_prompt_after_travel_completio
 
 @pytest.mark.unit
 def test_ordinary_node_entry_does_not_roll_loot_before_combat() -> None:
-    base_runtime = _runtime(seed="ordinary-node-entry-no-precombat-loot", void_cells=8)
+    base_runtime = _runtime_with_ordinary_node_entry_candidate(seed_prefix="ordinary-node-entry-no-precombat-loot")
     with use_tunables(DEFAULT_RIFT_NO_ORDINARY_COMBAT):
         screen = build_rift_screen(base_runtime)
         first_move = next(
@@ -1169,6 +1169,24 @@ def _runtime_with_forced_ordinary_combat(*, seed: str) -> RiftZoneRuntimeDTO:
             ):
                 return runtime
     raise AssertionError("Expected at least one deterministic runtime with an ordinary combat move")
+
+
+def _runtime_with_ordinary_node_entry_candidate(*, seed_prefix: str) -> RiftZoneRuntimeDTO:
+    for index in range(20):
+        runtime = _runtime(seed=f"{seed_prefix}-{index}", void_cells=8)
+        screen = build_rift_screen(runtime)
+        if any(
+            action.action == "move"
+            and action.is_active
+            and action.target_node_id
+            and action.travel
+            and action.travel.possible_events == ["none", "combat"]
+            and action.target_node_id not in runtime.node_events
+            and action.target_node_id not in runtime.visited_node_ids
+            for action in screen.movement
+        ):
+            return runtime
+    raise AssertionError("Expected at least one deterministic runtime with an ordinary node-entry candidate")
 
 
 DEFAULT_RIFT_FORCED_ORDINARY_COMBAT = RiftTunables(ordinary_node_combat_chance=1.0)

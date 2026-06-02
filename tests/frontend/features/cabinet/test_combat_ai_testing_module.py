@@ -281,7 +281,7 @@ def test_participant_rows_show_actor_analytics_and_damage_share() -> None:
             "roster_mode": "seeded_random_draft",
             "roster_seed": 123,
             "roster_team_size": 2,
-            "unused_imprints": ["starter_guard_01", "starter_staff_01"],
+            "unused_imprints": ["starter_guard_01", "starter_archer_01"],
             "final_hp_by_actor": {"blue_berserker": 49},
             "participants": [
                 {
@@ -525,7 +525,7 @@ async def test_analytics_chart_provider_maps_saved_reports(monkeypatch: pytest.M
                                 "actor_id": "blue_guard",
                                 "team": "blue",
                                 "imprint_key": "starter_guard_01",
-                                "imprint_title": "Слепок стража",
+                                "imprint_title": "Слепок мечника со щитом [МЕ/ЩТ/СБ]",
                                 "start_hp": 56,
                             }
                         ],
@@ -539,7 +539,7 @@ async def test_analytics_chart_provider_maps_saved_reports(monkeypatch: pytest.M
     chart = await combat_ai_testing._analytics_damage_chart_provider(SimpleNamespace(query_params={}))
 
     assert isinstance(chart, ChartWidgetMap)
-    assert chart.labels == ["Слепок стража"]
+    assert chart.labels == ["Слепок мечника со щитом [МЕ/ЩТ/СБ]"]
     assert chart.datasets[0]["data"] == [40.0]
 
 
@@ -577,7 +577,7 @@ async def test_analytics_widgets_reuse_request_cache(monkeypatch: pytest.MonkeyP
                                 "actor_id": "blue_guard",
                                 "team": "blue",
                                 "imprint_key": "starter_guard_01",
-                                "imprint_title": "Слепок стража",
+                                "imprint_title": "Слепок мечника со щитом [МЕ/ЩТ/СБ]",
                                 "start_hp": 56,
                             }
                         ],
@@ -626,13 +626,13 @@ async def test_analytics_charts_rank_imprints_from_best_to_worst(monkeypatch: py
         winner="red",
         reward=10.0,
         telemetry={
-            "damage_by_actor": {"blue_guard": 20, "red_staff": 60},
-            "damage_taken_by_actor": {"blue_guard": 80, "red_staff": 30},
-            "action_count_by_actor": {"blue_guard": 20, "red_staff": 10},
-            "dodge_by_actor": {"blue_guard": 1, "red_staff": 5},
-            "parry_by_actor": {"blue_guard": 0, "red_staff": 2},
-            "block_by_actor": {"blue_guard": 0, "red_staff": 1},
-            "armor_absorb_events_by_actor": {"blue_guard": 1, "red_staff": 4},
+            "damage_by_actor": {"blue_guard": 20, "red_archer": 60},
+            "damage_taken_by_actor": {"blue_guard": 80, "red_archer": 30},
+            "action_count_by_actor": {"blue_guard": 20, "red_archer": 10},
+            "dodge_by_actor": {"blue_guard": 1, "red_archer": 5},
+            "parry_by_actor": {"blue_guard": 0, "red_archer": 2},
+            "block_by_actor": {"blue_guard": 0, "red_archer": 1},
+            "armor_absorb_events_by_actor": {"blue_guard": 1, "red_archer": 4},
         },
         metadata={
             "participants": [
@@ -640,20 +640,20 @@ async def test_analytics_charts_rank_imprints_from_best_to_worst(monkeypatch: py
                     "actor_id": "blue_guard",
                     "team": "blue",
                     "imprint_key": "starter_guard_01",
-                    "imprint_title": "Слепок стража",
+                    "imprint_title": "Слепок мечника со щитом [МЕ/ЩТ/СБ]",
                     "start_hp": 56,
                     "gear_score": {"total": 180, "offense": 50, "defense": 90, "resources": 30, "utility": 10},
                 },
                 {
-                    "actor_id": "red_staff",
+                    "actor_id": "red_archer",
                     "team": "red",
-                    "imprint_key": "starter_staff_01",
-                    "imprint_title": "Слепок боевого посоха",
+                    "imprint_key": "starter_archer_01",
+                    "imprint_title": "Слепок лучника [ЛК/ДБ/ЛБ]",
                     "start_hp": 55,
                     "gear_score": {"total": 260, "offense": 130, "defense": 80, "resources": 40, "utility": 10},
                 },
             ],
-            "final_hp_by_actor": {"blue_guard": 0, "red_staff": 25},
+            "final_hp_by_actor": {"blue_guard": 0, "red_archer": 25},
         },
     )
 
@@ -669,11 +669,11 @@ async def test_analytics_charts_rank_imprints_from_best_to_worst(monkeypatch: py
     gear_score = await combat_ai_testing._analytics_gear_score_chart_provider(request)
     defence = await combat_ai_testing._analytics_defence_chart_provider(request)
 
-    assert damage.labels == ["Слепок боевого посоха", "Слепок стража"]
-    assert efficiency.labels == ["Слепок боевого посоха", "Слепок стража"]
-    assert survival.labels == ["Слепок боевого посоха", "Слепок стража"]
-    assert gear_score.labels == ["Слепок боевого посоха", "Слепок стража"]
-    assert defence.labels == ["Слепок боевого посоха", "Слепок стража"]
+    assert damage.labels == ["Слепок лучника [ЛК/ДБ/ЛБ]", "Слепок мечника со щитом [МЕ/ЩТ/СБ]"]
+    assert efficiency.labels == ["Слепок лучника [ЛК/ДБ/ЛБ]", "Слепок мечника со щитом [МЕ/ЩТ/СБ]"]
+    assert survival.labels == ["Слепок лучника [ЛК/ДБ/ЛБ]", "Слепок мечника со щитом [МЕ/ЩТ/СБ]"]
+    assert gear_score.labels == ["Слепок лучника [ЛК/ДБ/ЛБ]", "Слепок мечника со щитом [МЕ/ЩТ/СБ]"]
+    assert defence.labels == ["Слепок лучника [ЛК/ДБ/ЛБ]", "Слепок мечника со щитом [МЕ/ЩТ/СБ]"]
     assert damage.options["indexAxis"] == "y"
     assert damage.options["scales"]["y"]["ticks"]["autoSkip"] is False
 
@@ -793,7 +793,7 @@ async def test_analytics_gear_score_chart_uses_stacked_breakdown(monkeypatch: py
                                 "actor_id": "blue_guard",
                                 "team": "blue",
                                 "imprint_key": "starter_guard_01",
-                                "imprint_title": "Слепок стража",
+                                "imprint_title": "Слепок мечника со щитом [МЕ/ЩТ/СБ]",
                                 "start_hp": 56,
                                 "gear_score": {
                                     "total": 180,
@@ -862,7 +862,7 @@ async def test_analytics_defence_chart_uses_stacked_defence_volume(monkeypatch: 
                                 "actor_id": "blue_guard",
                                 "team": "blue",
                                 "imprint_key": "starter_guard_01",
-                                "imprint_title": "Слепок стража",
+                                "imprint_title": "Слепок мечника со щитом [МЕ/ЩТ/СБ]",
                                 "start_hp": 56,
                             }
                         ],

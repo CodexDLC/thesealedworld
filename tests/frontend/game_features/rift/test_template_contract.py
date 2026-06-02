@@ -1080,7 +1080,8 @@ def test_rift_right_sidebar_renders_full_debug_canvas_with_void_cells() -> None:
     assert "HEART" in html
     assert "intact" in html
     assert "PARTY" in html
-    assert "ON REQUEST" in html
+    assert "Current" in html
+    assert "Вход у разбитой вехи" in html
     assert 'hx-post="/game/rift/rebuild"' in html
     assert "data-rift-reset-map" in html
     assert "hx-push-url" not in html
@@ -1108,6 +1109,43 @@ def test_rift_right_sidebar_renders_full_debug_canvas_with_void_cells() -> None:
     assert "z01 -&gt; z02" in html
     assert "Instance" in html
     assert "dev-rift-001:zone-01" in html
+
+
+def test_rift_right_sidebar_keeps_player_view_free_of_debug_fields() -> None:
+    env = Environment(loader=FileSystemLoader("src/frontend/templates"), autoescape=True)
+    template = env.get_template("game/domains/rift/right_sidebar/main.html")
+    payload = deepcopy(_rift_payload())
+    payload["meta"]["debug"] = False
+    payload["corpse_ids"] = ["corpse-rat-1"]
+    payload["loot_context"] = {
+        "corpses": [
+            {
+                "corpse_id": "corpse-rat-1",
+                "label": "Гнилозуб",
+                "items": [{"name": "Сломанный клык"}],
+            }
+        ]
+    }
+    context = build_rift_context(payload, debug_enabled=False)
+
+    html = template.render(**context)
+
+    assert "Стартовый разлом" in html
+    assert "Current" in html
+    assert "Вход у разбитой вехи" in html
+    assert "OBJECTIVE" in html
+    assert "HEART" in html
+    assert "LOOT" in html
+    assert "Гнилозуб" in html
+    assert "DEBUG MAP" not in html
+    assert "PAYLOAD" not in html
+    assert "Visible" not in html
+    assert "Discovered" not in html
+    assert "Visited" not in html
+    assert "grid_5x5_active_15" not in html
+    assert "dev-rift-001:zone-01" not in html
+    assert "road" not in html
+    assert "starter_rift" not in html
 
 
 def test_rift_css_is_source_domain_import_only() -> None:

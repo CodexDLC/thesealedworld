@@ -262,6 +262,7 @@ window.GameCatalogCache = {
             const key = node.dataset.catalogKey;
             const field = node.dataset.catalogField;
             const tooltipField = node.dataset.catalogTooltip;
+            const tooltipExtra = node.dataset.catalogTooltipExtra;
             const taxonomy = node.dataset.catalogTaxonomy || 'humanoid';
             const eventName = node.dataset.catalogEvent;
             const entry = this.get(catalog, key) || this.getByKey(key);
@@ -283,7 +284,8 @@ window.GameCatalogCache = {
                 const tooltip = tooltipField === 'ability'
                     ? this.formatAbilityTooltip(entry, taxonomy)
                     : this.getField(entry, tooltipField, taxonomy);
-                if (tooltip) node.setAttribute('data-tippy-content', tooltip);
+                const tooltipParts = [tooltip, tooltipExtra].filter(Boolean);
+                if (tooltipParts.length) node.setAttribute('data-tippy-content', tooltipParts.join(' /' + '/ '));
             }
         });
 

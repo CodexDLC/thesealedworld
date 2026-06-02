@@ -31,16 +31,16 @@ _LIVE_LAUNCH_SCENARIOS = {
     "starter_presets_random_draft_live",
 }
 _STARTER_IMPRINT_OPTIONS = [
-    {"value": "starter_guard_01", "label": "Слепок мечника со щитом"},
-    {"value": "starter_breaker_01", "label": "Слепок двуручного молота"},
-    {"value": "starter_dual_blades_01", "label": "Слепок двух стилетов"},
-    {"value": "starter_dual_sword_01", "label": "Слепок меча и стилета"},
-    {"value": "starter_dual_mace_01", "label": "Слепок булавы и даги"},
-    {"value": "starter_pathfinder_01", "label": "Слепок кинжальщика"},
-    {"value": "starter_staff_01", "label": "Слепок боевого посоха"},
-    {"value": "starter_heavy_guard_01", "label": "Слепок булавы и щита"},
-    {"value": "starter_tactician_01", "label": "Слепок мечника с баклером"},
-    {"value": "starter_rift_survivor_01", "label": "Слепок алебардиста"},
+    {"value": "starter_guard_01", "label": "Слепок мечника со щитом [МЕ/ЩТ/СБ]"},
+    {"value": "starter_breaker_01", "label": "Слепок двуручного молота [БУ/ДВ/ТБ]"},
+    {"value": "starter_dual_blades_01", "label": "Слепок двух стилетов [ФЕ/ДУ/ЛБ]"},
+    {"value": "starter_dual_sword_01", "label": "Слепок меча и стилета [МЕ/ФЕ/ДУ/СБ]"},
+    {"value": "starter_dual_mace_01", "label": "Слепок булавы и даги [БУ/ФЕ/ДУ/ТБ]"},
+    {"value": "starter_hunter_01", "label": "Слепок охотника [ЛК/ДБ/ЛБ]"},
+    {"value": "starter_archer_01", "label": "Слепок лучника [ЛК/ДБ/ЛБ]"},
+    {"value": "starter_heavy_guard_01", "label": "Слепок булавы и щита [БУ/ЩТ/ТБ]"},
+    {"value": "starter_tactician_01", "label": "Слепок мечника с баклером [МЕ/ЩТ/СБ]"},
+    {"value": "starter_rift_survivor_01", "label": "Слепок алебардиста [ДК/ДВ/СБ]"},
 ]
 
 _TACTICAL_PART_LABELS = {

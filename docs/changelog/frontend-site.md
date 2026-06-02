@@ -4,6 +4,8 @@ Detailed milestone history for the `src/frontend` site-web layer.
 
 ## [Unreleased]
 
+- Combat AI cabinet tools now expose refreshed simulation controls and family-pressure result metadata for the gear-score balance pass.
+
 ## [v0.2.0a1] - Alpha 0.2.0
 
 - Cabinet now exposes combat AI simulation, training, report browsing, PvE family-pressure batch launch, and survival-chart detail workflows.

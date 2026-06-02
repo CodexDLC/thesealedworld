@@ -14,7 +14,7 @@
             <span class="mobile-nav-icon mobile-nav-icon--{{ icon_key }}"
                   style="--nav-icon-url: url('/static/images/ui/game-menu-icons/{{ icon_key }}.svg')"
                   aria-hidden="true"></span>
-            <span>{{ item.label }}</span>
+            <span>{{ item.label or fallback_label }}</span>
         </button>
     {% else %}
         <button type="button"
@@ -503,6 +503,7 @@
                             <div class="combat-action-list">
                                 {% set feint_slots = combat_screen.feint_options[:3] %}
                                 {% for action in feint_slots %}
+                                    {% set feint_tooltip_parts = [action.label, action.cost_tooltip, action.reason] | select | list %}
                                     <div class="combat-feint-row {% if action.pinned %}combat-feint-row--pinned{% endif %}">
                                         <button type="button"
                                                 class="game-action-button game-action-button--icon combat-feint-pin"
@@ -529,7 +530,10 @@
                                                 data-catalog-key="{{ action.catalog_key }}"
                                                 data-catalog-tooltip="description"
                                                 {% endif %}
-                                                data-tippy-content="{{ action.reason or action.label }}"
+                                                {% if action.cost_tooltip %}
+                                                data-catalog-tooltip-extra="{{ action.cost_tooltip }}"
+                                                {% endif %}
+                                                data-tippy-content="{{ feint_tooltip_parts | join(' // ') }}"
                                                 data-tippy-theme="game-hint"
                                                 {% if not action.enabled %}disabled{% endif %}>
                                             <img class="combat-feint-icon" src="{{ action.icon_url }}" alt="">
@@ -540,21 +544,6 @@
                                                       data-catalog-key="{{ action.catalog_key }}"
                                                       data-catalog-field="label"
                                                       {% endif %}>{{ action.label }}</span>
-                                                <span class="combat-feint-meta">
-                                                    {% for cost in action.cost_items %}
-                                                        <span class="combat-feint-cost"
-                                                              data-catalog="{{ cost.catalog }}"
-                                                              data-catalog-key="{{ cost.catalog_key }}"
-                                                              data-catalog-tooltip="description"
-                                                              data-tippy-content="{{ cost.token_id|upper }}"
-                                                              data-tippy-theme="game-hint">
-                                                            <img src="{{ cost.icon_url }}" alt="">
-                                                            <span>{{ cost.amount }}</span>
-                                                        </span>
-                                                    {% else %}
-                                                        COST_NO_DATA
-                                                    {% endfor %}
-                                                </span>
                                             </span>
                                         </button>
                                     </div>

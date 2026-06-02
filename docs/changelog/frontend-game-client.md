@@ -6,6 +6,8 @@ Detailed milestone history for browser-facing gameplay surfaces inside
 ## [Unreleased]
 
 - Game chat now renders outside the footer shell while the footer placement contract is rebuilt.
+- Combat viewport controls now expose richer action metadata, inventory slots, and responsive exchanges for the refreshed combat catalog.
+- Rift sidebars now surface detailed generated encounter previews from the monster gear-score contract.
 
 ## [v0.2.0a1] - Alpha 0.2.0
 

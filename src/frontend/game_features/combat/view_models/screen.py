@@ -184,6 +184,7 @@ class CombatActionVM(BaseModel):
     pinned: bool = False
     cost: dict[str, int] = Field(default_factory=dict)
     cost_items: list[CombatActionCostVM] = Field(default_factory=list)
+    cost_tooltip: str | None = None
 
 
 class CombatTokenVM(BaseModel):
@@ -1331,6 +1332,7 @@ def _split_actions(
                 pinned=feint.pinned,
                 cost=feint.cost,
                 cost_items=_action_cost_items(feint.cost),
+                cost_tooltip=_feint_cost_tooltip(feint.cost),
                 reason=None if enabled else f"CONC {hero.vitals.stamina_current}/{stamina_cost}",
             )
         )
@@ -1385,6 +1387,13 @@ def _action_cost_items(cost: dict[str, int]) -> list[CombatActionCostVM]:
         )
         for token_id, amount in cost.items()
     ]
+
+
+def _feint_cost_tooltip(cost: dict[str, int]) -> str:
+    items = _action_cost_items(cost)
+    if not items:
+        return "Стоимость: токены не требуются"
+    return "Стоимость: " + ", ".join(f"{item.token_id.upper()} x{item.amount}" for item in items)
 
 
 COMBAT_TOKEN_CATALOG: tuple[tuple[str, str, str], ...] = (

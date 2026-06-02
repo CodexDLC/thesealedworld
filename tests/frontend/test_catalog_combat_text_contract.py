@@ -41,3 +41,13 @@ def test_game_catalog_cache_formats_ability_tooltips_from_catalog_payload() -> N
         assert "entry?.mechanics" in source
         assert ".join(' /' + '/ ')" in source
         assert "tooltipField === 'ability'" in source
+
+
+def test_game_catalog_cache_appends_local_tooltip_extra() -> None:
+    catalog_js = GAME_CATALOG_JS.read_text(encoding="utf-8")
+    bundle_js = GAME_BUNDLE_JS.read_text(encoding="utf-8")
+
+    for source in (catalog_js, bundle_js):
+        assert "const tooltipExtra = node.dataset.catalogTooltipExtra" in source
+        assert "const tooltipParts = [tooltip, tooltipExtra].filter(Boolean)" in source
+        assert "tooltipParts.join(' /' + '/ ')" in source

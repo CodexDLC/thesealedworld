@@ -1,10 +1,5 @@
 {% import "game/domains/combat/viewport/log_line_macros.html" as combat_log %}
-<article class="combat-exchange-card combat-exchange-card--{{ exchange.pair_status }}">
-    {% set target_exchange = combat_screen.target_exchange_turn %}
-    <header class="combat-exchange-head">
-        <strong>{{ exchange.title }}</strong>
-        <span>{{ exchange.pair_status|upper }} // {{ exchange.opponent_response_state|upper }}</span>
-    </header>
+{% macro exchange_wave(target_exchange, exchange, char_id) %}
     {% if target_exchange and target_exchange.lines %}
         <section class="combat-exchange-wave" aria-label="Latest target exchange log">
             <div class="combat-exchange-wave__head">
@@ -36,18 +31,67 @@
     {% else %}
         <p class="combat-exchange-summary">{{ exchange.summary_text }}</p>
     {% endif %}
-    <div class="combat-battle-log" aria-label="Full combat log">
-        {% set combat_log_panel_id = "combat-battle-log-panel" %}
-        {% set combat_log_label = "BATTLE LOG" %}
-        {% set combat_log_turns = combat_screen.log_turns %}
-        {% set combat_log_entries = [] %}
-        {% set combat_log_page = combat_screen.log_page %}
-        {% set combat_log_page_size = combat_screen.log_page_size %}
-        {% set combat_log_total = combat_screen.log_total %}
-        {% set combat_log_total_pages = combat_screen.log_total_pages %}
-        {% set combat_log_pages = combat_screen.log_pages %}
-        {% set combat_log_embedded = true %}
-        {% set combat_log_show_size_control = false %}
-        {% include "game/domains/combat/viewport/log_panel.html" %}
+{% endmacro %}
+
+{% set target_exchange = combat_screen.target_exchange_turn %}
+<article class="combat-exchange-card combat-exchange-card--{{ exchange.pair_status }}"
+         x-data="{ exchangeOpen: false }"
+         @keydown.escape.window="exchangeOpen = false">
+    <button type="button"
+            class="combat-exchange-trigger combat-exchange-trigger--{{ exchange.opponent_response_state }}"
+            @click.stop="exchangeOpen = true"
+            aria-label="Открыть текущий размен">
+        <span class="combat-exchange-trigger__pulse" aria-hidden="true"></span>
+        <span class="combat-exchange-trigger__text">
+            <b>ТЕКУЩИЙ РАЗМЕН</b>
+            <em>{{ exchange.opponent_response_state|upper }}</em>
+        </span>
+        <strong>{{ target_exchange.title if target_exchange else exchange.pair_status|upper }}</strong>
+    </button>
+
+    <div class="combat-exchange-inline">
+        <header class="combat-exchange-head">
+            <strong>{{ exchange.title }}</strong>
+            <span>{{ exchange.pair_status|upper }} // {{ exchange.opponent_response_state|upper }}</span>
+        </header>
+        {{ exchange_wave(target_exchange, exchange, char_id) }}
+        <div class="combat-battle-log" aria-label="Full combat log">
+            {% set combat_log_panel_id = "combat-battle-log-panel" %}
+            {% set combat_log_label = "BATTLE LOG" %}
+            {% set combat_log_turns = combat_screen.log_turns %}
+            {% set combat_log_entries = [] %}
+            {% set combat_log_page = combat_screen.log_page %}
+            {% set combat_log_page_size = combat_screen.log_page_size %}
+            {% set combat_log_total = combat_screen.log_total %}
+            {% set combat_log_total_pages = combat_screen.log_total_pages %}
+            {% set combat_log_pages = combat_screen.log_pages %}
+            {% set combat_log_embedded = true %}
+            {% set combat_log_show_size_control = false %}
+            {% include "game/domains/combat/viewport/log_panel.html" %}
+        </div>
+    </div>
+
+    <div class="combat-exchange-modal"
+         x-cloak
+         x-show="exchangeOpen"
+         x-transition.opacity
+         @click.self="exchangeOpen = false"
+         role="dialog"
+         aria-modal="true"
+         aria-label="Последний размен">
+        <section class="combat-exchange-modal__panel">
+            <header class="combat-exchange-modal__head">
+                <span>ПОСЛЕДНИЙ РАЗМЕН</span>
+                <button type="button"
+                        class="combat-exchange-modal__close"
+                        @click="exchangeOpen = false"
+                        aria-label="Закрыть последний размен">×</button>
+            </header>
+            {% if target_exchange and target_exchange.lines %}
+                {{ exchange_wave(target_exchange, exchange, char_id) }}
+            {% else %}
+                <p class="combat-exchange-summary">LAST_EXCHANGE_NO_DATA</p>
+            {% endif %}
+        </section>
     </div>
 </article>

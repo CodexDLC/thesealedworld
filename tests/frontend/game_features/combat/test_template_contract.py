@@ -93,6 +93,7 @@ def test_combat_viewport_uses_prototype_field_and_bottom_action_panel():
     assert "nav.l1 if nav else none, 'PARTY'" in template
     assert "nav.r1 if nav else none, 'FOES'" in template
     assert "nav.r2 if nav else none, 'LOG'" in template
+    assert "item.label or fallback_label" in template
     assert "combat-statebar" in template
     assert "combat-viewport" not in template
     assert 'id="center-screens"' not in template
@@ -127,6 +128,11 @@ def test_combat_viewport_uses_prototype_field_and_bottom_action_panel():
     assert "{{ effect.title }}{% if effect.duration_text %} {{ effect.duration_text }}{% endif %}" not in template
     assert "combat-effect-empty" in template
     assert "combat-exchange-card" in exchange_card
+    assert "combat-exchange-trigger" in exchange_card
+    assert "ТЕКУЩИЙ РАЗМЕН" in exchange_card
+    assert "combat-exchange-inline" in exchange_card
+    assert "combat-exchange-modal" in exchange_card
+    assert "ПОСЛЕДНИЙ РАЗМЕН" in exchange_card
     assert "combat-exchange-wave" in exchange_card
     assert 'import "game/domains/combat/viewport/log_line_macros.html" as combat_log' in exchange_card
     assert "combat_log.combat_log_display_text(line.text)" in exchange_card
@@ -162,8 +168,9 @@ def test_combat_viewport_uses_prototype_field_and_bottom_action_panel():
     assert 'data-catalog="{{ action.catalog }}"' in template
     assert 'data-catalog-field="label"' in template
     assert 'data-catalog-field="title"' not in template
-    assert "action.cost_items" in template
-    assert "combat-feint-cost" in template
+    assert "action.cost_tooltip" in template
+    assert 'data-catalog-tooltip-extra="{{ action.cost_tooltip }}"' in template
+    assert "combat-feint-cost" not in template
     assert "combat_screen.ability_options" in template
     assert "ability_source is mapping" in template
     assert "ability_source is sequence" in template
@@ -555,7 +562,7 @@ def test_combat_css_contains_texture_surfaces_without_shell_overrides():
     assert ".combat-command-deck" in actions
     assert ".combat-feint-row" in actions
     assert ".combat-feint-pin" in actions
-    assert ".combat-feint-cost" in actions
+    assert ".combat-feint-cost" not in actions
     assert ".combat-log-list" in logs
     assert ".combat-result-hero" in result
     assert ".combat-result-visual" in result
@@ -582,6 +589,8 @@ def test_combat_css_contains_texture_surfaces_without_shell_overrides():
     assert ".combat-log-icon" in source
     assert ".combat-exchange-wave" in source
     assert ".combat-exchange-wave__line" in source
+    assert "grid-auto-rows: min-content;" in actions
+    assert ".combat-exchange-wave__line .combat-log-facts" in actions
     assert ".combat-battle-log" in source
     assert ".combat-log-panel--embedded" in source
     assert ".combat-battle-log {\n    min-width: 0;\n    min-height: 0;\n    height: 100%;" in source
@@ -609,6 +618,15 @@ def test_combat_css_contains_texture_surfaces_without_shell_overrides():
     assert "width: 100%;" in source
     assert "grid-template-rows: minmax(138px, auto) minmax(0, 1fr);" not in responsive
     assert "--combat-target-card-width: 100%;" in source
+    assert "min-height: min(430px, calc(100dvh" not in responsive
+    assert "grid-template-rows: auto 42px auto;" in responsive
+    assert ".combat-exchange-trigger" in responsive
+    assert ".combat-exchange-inline {\n        display: none;" in responsive
+    assert ".combat-exchange-modal" in actions
+    assert ".combat-exchange-wave__lines {\n        max-height: none;\n        overflow: visible;" in responsive
+    assert ".combat-action-panel {\n        gap: 6px;\n        padding: 7px;\n        max-height: min(38dvh, 270px);" in responsive
+    assert ".combat-feint-row {\n        grid-template-columns: 28px minmax(0, 1fr);" in responsive
+    assert ".combat-feint-title {\n        -webkit-line-clamp: 1;" in responsive
     assert "--combat-target-card-width: clamp(340px, 52cqw, 620px);" in source
     assert "--combat-target-portrait-size: clamp(100px, min(16cqw, 30cqh), 190px);" in source
     assert "grid-template-columns: minmax(0, 1fr) var(--combat-target-portrait-size);" in source
@@ -1206,6 +1224,7 @@ def test_combat_vm_marks_pinned_feints_and_costs():
     assert screen.feint_options[0].cost_items[0].amount == 2
     assert screen.feint_options[0].cost_items[0].icon_url.endswith("/token-hit.svg")
     assert screen.feint_options[0].cost_items[0].catalog_key == "hit"
+    assert screen.feint_options[0].cost_tooltip == "Стоимость: HIT x2"
 
 
 def test_combat_vm_disables_feint_when_concentration_is_too_low():

@@ -35,9 +35,9 @@ def test_monster_affix_profiles_have_enough_choice_for_mvp_pools() -> None:
 
 @pytest.mark.unit
 def test_monster_affix_policy_counts_and_steps_match_current_balance_rule() -> None:
-    assert get_monster_affix_count("minion") == 1
-    assert get_monster_affix_count("veteran") == 2
-    assert get_monster_affix_count("elite") == 3
+    assert get_monster_affix_count("minion") == 4
+    assert get_monster_affix_count("veteran") == 4
+    assert get_monster_affix_count("elite") == 4
     assert get_monster_affix_count("boss") == 4
 
     assert get_monster_affix_step_count(0) == 2

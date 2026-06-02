@@ -14,6 +14,12 @@ class GearScoreSummaryDTO(BaseModel):
     max: int = 0
     total: int = 0
     by_role: dict[str, dict[str, int | float]] = Field(default_factory=dict)
+    raw_count: int = 0
+    raw_min: int = 0
+    raw_avg: float = 0.0
+    raw_max: int = 0
+    raw_total: int = 0
+    raw_by_role: dict[str, dict[str, int | float]] = Field(default_factory=dict)
 
 
 class GeneratedAssetVisualDTO(BaseModel):

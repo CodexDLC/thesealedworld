@@ -282,7 +282,7 @@ def test_starter_breaker_imprint_is_not_inflated_by_survival_garments() -> None:
 
     score = CharacterGearScoreCalculator().calculate_from_active_character(active_character)
 
-    assert 220 <= score <= 320
+    assert 240 <= score <= 340
 
 
 def _build_starting_imprint_active_character(imprint_key: str) -> dict[str, object]:

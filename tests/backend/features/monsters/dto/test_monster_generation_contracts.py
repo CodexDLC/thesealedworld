@@ -39,7 +39,7 @@ def test_generated_monster_template_accepts_target_json_contract() -> None:
             "ai_profile": {"behavior": "swarm_chaff"},
             "balance": {
                 "organization_type": "swarm",
-                "organization_divisor": 5.0,
+                "organization_divisor": 4.0,
             },
         }
     )
@@ -71,7 +71,7 @@ def test_generated_monster_template_rejects_missing_item_projection() -> None:
                 "items": {"layout": {"equipment": {"main_hand": "missing_item"}}, "by_id": {}},
                 "balance": {
                     "organization_type": "swarm",
-                    "organization_divisor": 5.0,
+                    "organization_divisor": 4.0,
                 },
             }
         )
@@ -88,7 +88,7 @@ def test_monster_family_accepts_clan_and_member_resource_models() -> None:
             "clan_model": {
                 "tier_range": {"min_tier": 0, "max_tier": 4},
                 "balance": {
-                    "organization_divisor": 5.0,
+                    "organization_divisor": 4.0,
                     "composition_profile": "many_weak_one_support",
                     "max_elites_without_boss": 1,
                     "boss_allowed": False,
@@ -136,7 +136,7 @@ def test_monster_family_accepts_clan_and_member_resource_models() -> None:
 
     assert family.clan_model is not None
     assert family.resource_version == 1
-    assert family.clan_model.balance.organization_divisor == 5.0
+    assert family.clan_model.balance.organization_divisor == 4.0
     assert family.member_models[0].variant_key == "sewer_rat"
 
 
@@ -175,10 +175,16 @@ def test_monster_family_accepts_explicit_resource_version() -> None:
 
 
 def test_starter_monster_families_use_minor_resource_version_after_stat_ladder_rebalance() -> None:
-    for family_id in ("rat_swarm", "wolf_pack", "bandit_gang", "goblin_tribe"):
+    expected_versions = {
+        "rat_swarm": 1.4,
+        "wolf_pack": 1.4,
+        "bandit_gang": 1.4,
+        "goblin_tribe": 1.4,
+    }
+    for family_id, expected_version in expected_versions.items():
         family = get_family_config(family_id)
         assert family is not None
-        assert family.resource_version == 1.2
+        assert family.resource_version == expected_version
 
 
 def test_monster_family_rejects_member_model_for_missing_variant() -> None:

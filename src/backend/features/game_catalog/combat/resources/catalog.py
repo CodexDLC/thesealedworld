@@ -181,6 +181,11 @@ class CombatResourceCatalogService:
             label = "Лечение" if preset == "HEALING" else "Урон"
             mechanics.append(f"{label}: {cls._range_text(damage)}")
 
+        for mutation in (technical.get("pipeline_mutations") or {}).get("applications") or []:
+            text = cls._pipeline_mutation_text(mutation)
+            if text:
+                mechanics.append(text)
+
         for application in technical.get("modifier_applications") or []:
             text = cls._modifier_text(application)
             if text:
@@ -217,10 +222,20 @@ class CombatResourceCatalogService:
     def _preset_label(preset: str) -> str:
         labels = {
             "MAGIC_ATTACK": "атака",
+            "TACTICAL_INSTANT_STRIKE": "тактический удар",
             "HEALING": "лечение",
             "BUFF": "эффект",
         }
         return labels.get(preset, preset.lower())
+
+    @classmethod
+    def _pipeline_mutation_text(cls, mutation: dict[str, Any]) -> str:
+        if str(mutation.get("mutation_id") or "") != "damage_mult":
+            return ""
+        value = mutation.get("value_override")
+        if value is None:
+            return ""
+        return f"Урон оружия: x{cls._number_text(value)}"
 
     @classmethod
     def _modifier_text(cls, application: dict[str, Any]) -> str:
@@ -229,11 +244,14 @@ class CombatResourceCatalogService:
             return ""
         target_actor = str(application.get("target_actor") or "self")
         value = application.get("value_override")
-        value_text = (
-            cls._number_text(value)
-            if value is not None
-            else f"x{cls._number_text(application.get('value_multiplier'))}"
-        )
+        if str(application.get("value_mode") or "") == "source_main_hand_damage_multiplier":
+            value_text = f"{cls._number_text(float(application.get('value_multiplier') or 0.0) * 100.0)}% урона умения"
+        else:
+            value_text = (
+                cls._number_text(value)
+                if value is not None
+                else f"x{cls._number_text(application.get('value_multiplier'))}"
+            )
         duration = application.get("duration_exchanges")
         duration_text = f" на {duration} {cls._exchange_word(duration)}" if duration else ""
         target_text = "Цель получает" if target_actor == "target" else "Вы получаете"

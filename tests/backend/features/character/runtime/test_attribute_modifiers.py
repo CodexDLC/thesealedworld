@@ -11,11 +11,24 @@ from src.backend.features.character.runtime import CharacterCombatMathModelBuild
 from src.backend.features.character.runtime.rules.attribute_modifiers import ATTRIBUTE_MODIFIER_RULES
 
 
+def _effective(stat: float) -> float:
+    return stat * stat / 11.0
+
+
+def _approx_effective(value: float) -> pytest.approx:
+    return pytest.approx(round(value, 4))
+
+
 @pytest.mark.unit
 def test_core_calculator_uses_character_attribute_modifier_rules() -> None:
     assert CORE_MODIFIER_RULES is ATTRIBUTE_MODIFIER_RULES
     assert ATTRIBUTE_RULE_PROFILES["player"]["hp"] == ATTRIBUTE_RULE_PROFILES["player:naked"]["hp"]
-    assert ATTRIBUTE_RULE_PROFILES["player:light"]["hp"] != ATTRIBUTE_RULE_PROFILES["player:naked"]["hp"]
+    assert ATTRIBUTE_RULE_PROFILES["player:light"]["hp"] == ATTRIBUTE_RULE_PROFILES["player:naked"]["hp"]
+    assert ATTRIBUTE_RULE_PROFILES["player:medium"]["hp"] == ATTRIBUTE_RULE_PROFILES["player:naked"]["hp"]
+    assert ATTRIBUTE_RULE_PROFILES["player:heavy"]["hp"] == ATTRIBUTE_RULE_PROFILES["player:naked"]["hp"]
+    assert ATTRIBUTE_RULE_PROFILES["player"]["hp"] == {"endurance": 3.0}
+    assert ATTRIBUTE_RULE_PROFILES["monster:humanoid"]["hp"] == {"endurance": 3.0}
+    assert ATTRIBUTE_RULE_PROFILES["monster:beast"]["hp"] == {"endurance": 3.0}
     assert "hp_regen" not in ATTRIBUTE_RULE_PROFILES["monster:humanoid"]
     assert "hp_regen" not in ATTRIBUTE_RULE_PROFILES["monster:beast"]
 
@@ -41,38 +54,50 @@ def test_character_raw_attributes_drive_combat_modifiers_through_waterfall() -> 
     calculated, _ = StatsWaterfallCalculator.calculate_waterfall(raw)
 
     assert calculated["physical_damage"] == 0.0
-    assert calculated["physical_strength_power"] == 15.0
-    assert calculated["physical_agility_power"] == 9.0
-    assert calculated["physical_endurance_power"] == 16.0
-    assert calculated["physical_suppression"] == 0.3
-    assert calculated["magical_damage"] == 11.0
-    assert calculated["magical_penetration"] == 0.22
-    assert calculated["hp"] == pytest.approx(40.0)
-    assert calculated["en"] == pytest.approx(22.6667)
-    assert calculated["stamina"] == pytest.approx(35.0)
-    assert calculated["hp_regen"] == pytest.approx(0.6667)
-    assert calculated["en_regen"] == pytest.approx(5.6667)
-    assert calculated["stamina_regen"] == pytest.approx(3.1)
-    assert calculated["physical_resistance"] == 0.32
-    assert calculated["magic_resist"] == 0.26
-    assert calculated["poison_resistance"] == 0.32
-    assert calculated["bleed_resistance"] == 0.32
-    assert calculated["environment_bio_resistance"] == 0.32
-    assert calculated["control_resistance"] == 0.26
-    assert calculated["mental_resistance"] == 0.26
-    assert calculated["fire_resistance"] == 0.26
-    assert calculated["arcane_resistance"] == 0.26
-    assert calculated["evasion"] == 0.45
-    assert calculated["anti_dodge_chance"] == 0.24
-    assert calculated["counter_attack_chance"] == 0.034
-    assert calculated["initiative"] == 4.5
+    effective_strength = _effective(15)
+    effective_agility = _effective(9)
+    effective_endurance = _effective(16)
+    effective_intellect = _effective(11)
+    effective_memory = _effective(10)
+    effective_mental = _effective(13)
+    effective_perception = _effective(8)
+    effective_projection = _effective(7)
+    effective_prediction = _effective(6)
+
+    assert calculated["physical_strength_power"] == _approx_effective(effective_strength)
+    assert calculated["physical_agility_power"] == _approx_effective(effective_agility)
+    assert calculated["physical_endurance_power"] == _approx_effective(effective_endurance)
+    assert calculated["physical_suppression"] == _approx_effective(effective_strength * 0.02)
+    assert calculated["magical_damage"] == _approx_effective(effective_intellect)
+    assert calculated["magical_penetration"] == _approx_effective(effective_intellect * 0.02)
+    assert calculated["hp"] == _approx_effective(effective_endurance * 3.0)
+    assert calculated["en"] == _approx_effective(effective_mental * 1.25)
+    assert calculated["stamina"] == _approx_effective(effective_projection * 2.7)
+    assert calculated["hp_regen"] == _approx_effective(effective_endurance * 0.1)
+    assert calculated["en_regen"] == _approx_effective(effective_mental * 0.25)
+    assert calculated["stamina_regen"] == _approx_effective(1.0 + (effective_projection * 0.1))
+    assert calculated["physical_resistance"] == _approx_effective(effective_endurance * 0.02)
+    assert calculated["magic_resist"] == _approx_effective(effective_mental * 0.02)
+    assert calculated["poison_resistance"] == _approx_effective(effective_endurance * 0.02)
+    assert calculated["bleed_resistance"] == _approx_effective(effective_endurance * 0.02)
+    assert calculated["environment_bio_resistance"] == _approx_effective(effective_endurance * 0.02)
+    assert calculated["control_resistance"] == _approx_effective(effective_mental * 0.02)
+    assert calculated["mental_resistance"] == _approx_effective(effective_mental * 0.02)
+    assert calculated["fire_resistance"] == _approx_effective(effective_mental * 0.02)
+    assert calculated["arcane_resistance"] == _approx_effective(effective_mental * 0.02)
+    assert calculated["evasion"] == _approx_effective(effective_agility * 0.02)
+    assert calculated["anti_dodge_chance"] == _approx_effective(effective_perception * 0.03)
+    assert calculated["counter_attack_chance"] == _approx_effective(
+        (effective_memory * 0.0025) + (effective_prediction * 0.0015)
+    )
+    assert calculated["initiative"] == _approx_effective(effective_agility * 0.5)
     assert calculated["armor"] == 0.0
     assert calculated["block"] == 0.0
     assert calculated["parry"] == 0.0
 
 
 @pytest.mark.unit
-def test_humanoid_monster_attribute_profile_uses_body_average_for_hp_without_hp_regen() -> None:
+def test_humanoid_monster_attribute_profile_uses_endurance_hp_without_hp_regen() -> None:
     raw = {
         "attributes": {
             "strength": {"base": 15, "source": {}, "temp": {}},
@@ -85,12 +110,12 @@ def test_humanoid_monster_attribute_profile_uses_body_average_for_hp_without_hp_
 
     calculated, _ = StatsWaterfallCalculator.calculate_waterfall(raw)
 
-    assert calculated["hp"] == pytest.approx(39.0)
+    assert calculated["hp"] == _approx_effective(_effective(16) * 3.0)
     assert calculated.get("hp_regen", 0.0) == 0.0
 
 
 @pytest.mark.unit
-def test_beast_monster_attribute_profile_uses_body_average_for_hp_without_hp_regen() -> None:
+def test_beast_monster_attribute_profile_uses_endurance_hp_without_hp_regen() -> None:
     raw = {
         "attributes": {
             "strength": {"base": 15, "source": {}, "temp": {}},
@@ -103,5 +128,20 @@ def test_beast_monster_attribute_profile_uses_body_average_for_hp_without_hp_reg
 
     calculated, _ = StatsWaterfallCalculator.calculate_waterfall(raw)
 
-    assert calculated["hp"] == pytest.approx(65.0)
+    assert calculated["hp"] == _approx_effective(_effective(16) * 3.0)
     assert calculated.get("hp_regen", 0.0) == 0.0
+
+
+@pytest.mark.unit
+def test_effective_curve_keeps_medium_endurance_minions_from_inflated_hp() -> None:
+    raw = {
+        "attributes": {
+            "endurance": {"base": 11, "source": {}, "temp": {}},
+        },
+        "modifiers": {},
+        "rules": {"attribute_profile": "monster:beast"},
+    }
+
+    calculated, _ = StatsWaterfallCalculator.calculate_waterfall(raw)
+
+    assert calculated["hp"] == _approx_effective(33.0)

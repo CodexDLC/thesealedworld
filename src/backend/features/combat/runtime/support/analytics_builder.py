@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
+from src.backend.core.calculators.stats_waterfall_calculator import COMBAT_MATH_VERSION
+
 if TYPE_CHECKING:
     from src.backend.features.combat.dto.action import CombatActionDTO
     from src.backend.features.combat.dto.pipeline import InteractionResultDTO
@@ -9,7 +11,6 @@ if TYPE_CHECKING:
 
 
 ANALYTICS_SCHEMA_VERSION = 2
-COMBAT_MATH_VERSION = "combat-math:2026-05-17.1"
 
 
 class CombatAnalyticsFactBuilder:

@@ -14,11 +14,11 @@ def test_ingestion_extracts_exchange_fact_from_finalization_analytics_v2() -> No
         "finished_at": int(datetime(2026, 5, 17, tzinfo=UTC).timestamp()),
         "meta": {"battle_type": "pve", "location_id": "51_58"},
         "analytics": {
-            "_profile": {"v": 2, "analytics_schema_version": 2, "combat_math_version": "combat-math:2026-05-17.1"},
+            "_profile": {"v": 2, "analytics_schema_version": 2, "combat_math_version": "combat-math:2026-06-01.1"},
             "1:1": {
                 "v": 2,
                 "analytics_schema_version": 2,
-                "combat_math_version": "combat-math:2026-05-17.1",
+                "combat_math_version": "combat-math:2026-06-01.1",
                 "seq": 1,
                 "t": 1,
                 "w": 1,

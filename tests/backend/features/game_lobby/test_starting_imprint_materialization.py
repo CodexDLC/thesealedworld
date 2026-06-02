@@ -136,10 +136,10 @@ async def test_materialize_starting_imprint_persists_attributes_skills_and_equip
     )
 
     assert result["imprint_key"] == "starter_guard_01"
-    assert attributes_repo.attributes[7]["strength"] == 17
-    assert attributes_repo.attributes[7]["agility"] == 14
-    assert attributes_repo.attributes[7]["endurance"] == 16
-    assert attributes_repo.attributes[7]["perception"] == 15
+    assert attributes_repo.attributes[7]["strength"] == 16
+    assert attributes_repo.attributes[7]["agility"] == 15
+    assert attributes_repo.attributes[7]["endurance"] == 17
+    assert attributes_repo.attributes[7]["mental"] == 14
     assert progression_repo.free_xp[7] == 0.0
     assert {row["skill_key"]: row["total_xp"] for row in skill_repo.rows} == {
         "skill_swords": 0.20,
@@ -200,7 +200,7 @@ async def test_materialize_starting_imprint_uses_distribution_for_automatic_sele
     character_repo = FakeCharacterRepository()
     attributes_repo = FakeAttributesRepository()
     skill_repo = FakeSkillRepository()
-    distribution = FakeStartingImprintDistribution("starter_staff_01")
+    distribution = FakeStartingImprintDistribution("starter_hunter_01")
     integration = GameLobbyIntegration(
         character_repo=character_repo,
         attributes_repo=attributes_repo,
@@ -212,11 +212,11 @@ async def test_materialize_starting_imprint_uses_distribution_for_automatic_sele
 
     result = await integration.materialize_starting_imprint(character, seed="creation-seed")
 
-    assert result["imprint_key"] == "starter_staff_01"
+    assert result["imprint_key"] == "starter_hunter_01"
     assert result["skill_keys"] == [
-        "skill_polearms",
-        "skill_two_handed",
-        "skill_medium_armor",
+        "skill_archery",
+        "skill_ranged_combat",
+        "skill_light_armor",
     ]
     assert distribution.calls == [
         {
@@ -228,8 +228,8 @@ async def test_materialize_starting_imprint_uses_distribution_for_automatic_sele
                 "starter_dual_blades_01",
                 "starter_dual_sword_01",
                 "starter_dual_mace_01",
-                "starter_pathfinder_01",
-                "starter_staff_01",
+                "starter_hunter_01",
+                "starter_archer_01",
                 "starter_heavy_guard_01",
                 "starter_tactician_01",
                 "starter_rift_survivor_01",
@@ -249,7 +249,7 @@ async def test_materialize_starting_imprint_does_not_record_distribution_for_exp
         created_at=datetime.now(UTC),
         location_id="52_52",
     )
-    distribution = FakeStartingImprintDistribution("starter_staff_01")
+    distribution = FakeStartingImprintDistribution("starter_hunter_01")
     integration = GameLobbyIntegration(
         character_repo=FakeCharacterRepository(),
         attributes_repo=FakeAttributesRepository(),
@@ -315,10 +315,10 @@ async def test_reset_character_to_starting_imprint_clears_old_runtime_and_remate
 
     assert result["status"] == "reset"
     assert result["starting_imprint"]["imprint_key"] == "starter_guard_01"
-    assert attributes_repo.attributes[7]["strength"] == 17
-    assert attributes_repo.attributes[7]["agility"] == 14
-    assert attributes_repo.attributes[7]["endurance"] == 16
-    assert attributes_repo.attributes[7]["perception"] == 15
+    assert attributes_repo.attributes[7]["strength"] == 16
+    assert attributes_repo.attributes[7]["agility"] == 15
+    assert attributes_repo.attributes[7]["endurance"] == 17
+    assert attributes_repo.attributes[7]["mental"] == 14
     assert progression_repo.free_xp[7] == 0.0
     assert skill_repo.deleted == [7]
     assert item_persistence.transferred == [7]

@@ -18,10 +18,10 @@ BASE_TIER_COSTS = {
 ORGANIZATION_SCALING = {
     # Одиночные (1 к 1)
     "solitary": {"cost_divisor": 1.0, "description": "Мощные одиночные противники. Честный бой 1 на 1."},
-    # Малые группы (x1.5 - x2)
-    "pack": {"cost_divisor": 1.5, "description": "Координированные группы (волки, оборотни)."},
-    "gang": {"cost_divisor": 1.8, "description": "Банды и неформальные группы (бандиты)."},
-    # Массы (x4 - x5)
-    "horde": {"cost_divisor": 4.0, "description": "Хаотичная толпа (гоблины, нежить)."},
-    "swarm": {"cost_divisor": 5.0, "description": "Огромное количество слабых единиц (насекомые, крысы)."},
+    # Малые группы
+    "pack": {"cost_divisor": 2.5, "description": "Координированные группы (волки, оборотни)."},
+    "gang": {"cost_divisor": 1.5, "description": "Банды и неформальные группы (бандиты)."},
+    # Массы
+    "horde": {"cost_divisor": 3.0, "description": "Хаотичная толпа (гоблины, нежить)."},
+    "swarm": {"cost_divisor": 4.0, "description": "Огромное количество слабых единиц (насекомые, крысы)."},
 }

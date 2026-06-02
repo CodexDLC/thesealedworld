@@ -330,14 +330,14 @@ async def test_get_actor_core_initializes_actor_core_from_persisted_actor_state(
 
     assert dto.attributes["agility"] == 17
     assert dto.attributes["projection"] == 16
-    assert dto.vitals["hp"]["max"] == 42
-    assert dto.vitals["hp"]["cur"] == 42
-    assert dto.vitals["energy"]["max"] == 23
-    assert dto.vitals["stamina"]["max"] == 67
+    assert dto.vitals["hp"]["max"] == 61
+    assert dto.vitals["hp"]["cur"] == 61
+    assert dto.vitals["energy"]["max"] == 16
+    assert dto.vitals["stamina"]["max"] == 63
     assert dto.skills["skill_macing"]["state"] == "PLUS"
     assert "locked_skill" not in dto.skills
     assert sessions.created["attributes"]["agility"] == 17
-    assert sessions.created["vitals"]["hp"]["max"] == 42
+    assert sessions.created["vitals"]["hp"]["max"] == 61
     assert sessions.created["skills"]["skill_macing"]["unlocked"] is True
 
 
@@ -352,14 +352,14 @@ async def test_get_actor_core_repairs_stale_default_actor_core_from_persisted_ac
 
     assert dto.attributes["agility"] == 17
     assert dto.attributes["projection"] == 16
-    assert dto.vitals["hp"]["max"] == 42
-    assert dto.vitals["hp"]["cur"] == 42
-    assert dto.vitals["energy"]["max"] == 23
+    assert dto.vitals["hp"]["max"] == 61
+    assert dto.vitals["hp"]["cur"] == 52
+    assert dto.vitals["energy"]["max"] == 16
     assert dto.skills["skill_macing"]["state"] == "PLUS"
     assert sessions.updated is not None
     assert sessions.updated["attributes"]["agility"] == 17
-    assert sessions.updated["vitals"]["hp"]["cur"] == 42
-    assert sessions.updated["vitals"]["hp"]["max"] == 42
+    assert sessions.updated["vitals"]["hp"]["cur"] == 52
+    assert sessions.updated["vitals"]["hp"]["max"] == 61
     assert sessions.updated["skills"]["skill_macing"]["unlocked"] is True
 
 
@@ -388,8 +388,8 @@ async def test_get_actor_core_keeps_runtime_attributes_when_not_default():
     dto = await service.get_actor_core(SimpleNamespace(id=uuid4()), 7)
 
     assert dto.attributes["agility"] == 21
-    assert dto.vitals["hp"]["cur"] == 37
-    assert dto.vitals["hp"]["max"] == 37
+    assert dto.vitals["hp"]["cur"] == 17
+    assert dto.vitals["hp"]["max"] == 17
 
 
 @pytest.mark.asyncio
@@ -400,8 +400,8 @@ async def test_get_status_returns_flat_regenerated_vitals():
     status = await service.get_status(SimpleNamespace(id=uuid4()), 7)
 
     assert status.character_id == 7
-    assert status.hp == 24
-    assert status.max_hp == 24
+    assert status.hp == 17
+    assert status.max_hp == 17
     assert status.avatar_url == "/avatar.png"
     assert sessions.updated is not None
 

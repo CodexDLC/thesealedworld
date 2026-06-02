@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Literal
 
-MonsterEquipmentKind = Literal["weapon", "armor", "shield"]
+MonsterEquipmentKind = Literal["weapon", "armor", "shield", "ammo", "accessory"]
 
 
 @dataclass(frozen=True, slots=True)
@@ -60,6 +60,54 @@ NATURAL_EQUIPMENT_MAPPINGS: dict[str, MonsterNaturalEquipmentMapping] = {
         default_slot="off_hand",
         tags=("natural_weapon", "rat", "claws", "offhand"),
     ),
+    "rat_offhand_bite": MonsterNaturalEquipmentMapping(
+        natural_key="rat_offhand_bite",
+        base_id="dagger",
+        name_ru="Крысиный укус",
+        item_kind="weapon",
+        default_slot="off_hand",
+        tags=("natural_weapon", "rat", "bite", "fangs", "offhand"),
+    ),
+    "rat_bone_growth": MonsterNaturalEquipmentMapping(
+        natural_key="rat_bone_growth",
+        base_id="buckler",
+        name_ru="Костяные наросты крысы",
+        item_kind="shield",
+        default_slot="off_hand",
+        tags=("natural_shield", "rat", "bone_growth", "block"),
+    ),
+    "rat_spiked_growth": MonsterNaturalEquipmentMapping(
+        natural_key="rat_spiked_growth",
+        base_id="shield",
+        name_ru="Шипастые наросты крысы",
+        item_kind="shield",
+        default_slot="off_hand",
+        tags=("natural_shield", "rat", "spikes", "block", "counter"),
+    ),
+    "rat_poison_spit": MonsterNaturalEquipmentMapping(
+        natural_key="rat_poison_spit",
+        base_id="shortbow",
+        name_ru="Ядовитый плевок крысы",
+        item_kind="weapon",
+        default_slot="two_hand",
+        tags=("natural_weapon", "rat", "poison", "spit", "ranged"),
+    ),
+    "rat_poison_glands": MonsterNaturalEquipmentMapping(
+        natural_key="rat_poison_glands",
+        base_id="quiver_training",
+        name_ru="Ядовитые железы крысы",
+        item_kind="ammo",
+        default_slot="quiver",
+        tags=("natural_ammo", "rat", "poison", "glands"),
+    ),
+    "rat_crushing_bite": MonsterNaturalEquipmentMapping(
+        natural_key="rat_crushing_bite",
+        base_id="warhammer",
+        name_ru="Давящий крысиный укус",
+        item_kind="weapon",
+        default_slot="two_hand",
+        tags=("natural_weapon", "rat", "bite", "crushing", "two_handed"),
+    ),
     # ── КРЫСЫ: броня ─────────────────────────────────────────────────
     "rat_light_hide": MonsterNaturalEquipmentMapping(
         natural_key="rat_light_hide",
@@ -84,6 +132,15 @@ NATURAL_EQUIPMENT_MAPPINGS: dict[str, MonsterNaturalEquipmentMapping] = {
         item_kind="armor",
         default_slot="chest_armor",
         tags=("natural_armor", "rat", "hide", "heavy"),
+    ),
+    # ── КРЫСЫ: бижутерия / природный фокус ──────────────────────────
+    "rat_plague_gland": MonsterNaturalEquipmentMapping(
+        natural_key="rat_plague_gland",
+        base_id="amulet",
+        name_ru="Заражённая железа крысы",
+        item_kind="accessory",
+        default_slot="amulet",
+        tags=("natural_jewelry", "rat", "plague_gland", "magic_armor"),
     ),
     # ── ВОЛКИ: оружие ────────────────────────────────────────────────
     "wolf_young_fangs": MonsterNaturalEquipmentMapping(
@@ -118,6 +175,46 @@ NATURAL_EQUIPMENT_MAPPINGS: dict[str, MonsterNaturalEquipmentMapping] = {
         default_slot="main_hand",
         tags=("natural_weapon", "fangs", "claws", "wolf"),
     ),
+    "wolf_young_claws": MonsterNaturalEquipmentMapping(
+        natural_key="wolf_young_claws",
+        base_id="knife",
+        name_ru="Молодые волчьи когти",
+        item_kind="weapon",
+        default_slot="off_hand",
+        tags=("natural_weapon", "claws", "wolf", "offhand", "swift"),
+    ),
+    "wolf_raking_claws": MonsterNaturalEquipmentMapping(
+        natural_key="wolf_raking_claws",
+        base_id="katar",
+        name_ru="Раздирающие волчьи когти",
+        item_kind="weapon",
+        default_slot="off_hand",
+        tags=("natural_weapon", "claws", "wolf", "offhand", "piercing"),
+    ),
+    "wolf_locking_fangs": MonsterNaturalEquipmentMapping(
+        natural_key="wolf_locking_fangs",
+        base_id="main_gauche",
+        name_ru="Удерживающий волчий захват",
+        item_kind="weapon",
+        default_slot="off_hand",
+        tags=("natural_weapon", "fangs", "wolf", "offhand", "control"),
+    ),
+    "wolf_braced_mane": MonsterNaturalEquipmentMapping(
+        natural_key="wolf_braced_mane",
+        base_id="buckler",
+        name_ru="Жёсткий волчий загривок",
+        item_kind="shield",
+        default_slot="off_hand",
+        tags=("natural_shield", "wolf", "mane", "block", "counter"),
+    ),
+    "wolf_bone_shoulders": MonsterNaturalEquipmentMapping(
+        natural_key="wolf_bone_shoulders",
+        base_id="shield",
+        name_ru="Костистые плечи волка",
+        item_kind="shield",
+        default_slot="off_hand",
+        tags=("natural_shield", "wolf", "shoulders", "block", "guard"),
+    ),
     # ── ВОЛКИ: броня ─────────────────────────────────────────────────
     "wolf_hide": MonsterNaturalEquipmentMapping(
         natural_key="wolf_hide",
@@ -142,6 +239,14 @@ NATURAL_EQUIPMENT_MAPPINGS: dict[str, MonsterNaturalEquipmentMapping] = {
         item_kind="armor",
         default_slot="chest_armor",
         tags=("natural_armor", "wolf", "hide", "heavy"),
+    ),
+    "wolf_pack_mark": MonsterNaturalEquipmentMapping(
+        natural_key="wolf_pack_mark",
+        base_id="amulet",
+        name_ru="Метка волчьей стаи",
+        item_kind="accessory",
+        default_slot="amulet",
+        tags=("natural_jewelry", "wolf", "pack_mark", "magic_armor"),
     ),
     # ── ЯКОРНЫЕ БОССЫ: оружие ────────────────────────────────────────
     "anchor_stasis_crown_blade": MonsterNaturalEquipmentMapping(

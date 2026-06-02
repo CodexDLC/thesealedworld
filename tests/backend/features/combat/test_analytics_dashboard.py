@@ -101,7 +101,7 @@ class FakeAnalyticsDashboardIntegration:
             "analytics": {
                 "_profile": {
                     "analytics_schema_version": 2,
-                    "combat_math_version": "combat-math:2026-05-17.1",
+                    "combat_math_version": "combat-math:2026-06-01.1",
                 },
                 "1:1": {"o": "C"},
             },
@@ -172,7 +172,7 @@ async def test_dashboard_raw_debug_is_separate_finalization_layer() -> None:
 
     assert result is not None
     assert result.analytics_schema_version == 2
-    assert result.combat_math_version == "combat-math:2026-05-17.1"
+    assert result.combat_math_version == "combat-math:2026-06-01.1"
     assert integration.calls == ["get_raw_analytics:combat-1"]
 
 

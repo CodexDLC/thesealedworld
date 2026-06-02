@@ -26,7 +26,7 @@ def _family() -> MonsterFamilyDTO:
             "default_tags": ["beast", "rat"],
             "hierarchy": {"minions": ["sewer_rat"], "veterans": [], "elites": [], "boss": ["rat_king"]},
             "clan_model": {
-                "balance": {"organization_divisor": 5.0, "composition_profile": "many_weak"},
+                "balance": {"organization_divisor": 4.0, "composition_profile": "many_weak"},
                 "ai_defaults": {"targeting": "lowest_hp", "group_logic": "swarm"},
             },
             "member_models": [
@@ -139,7 +139,7 @@ def test_build_items_groups_runtime_projections_by_owner() -> None:
         item_type="weapon",
         slot="main_hand",
         combat={"power": 3, "bonuses": {"main_hand_accuracy": "+0.01"}},
-        generation={"item_grade": "artifact", "rarity_tier": 1},
+        generation={"item_grade": "common", "affix_profile": "monster_equipment_4slot", "rarity_tier": 1},
     )
 
     projection = build_items([item], owner_key="member_0")
@@ -215,7 +215,7 @@ def test_build_generated_monster_template_composes_field_builders() -> None:
     assert template.ai_profile.behavior == "swarm_chaff"
     assert template.ai_profile.targeting == "lowest_hp"
     assert template.balance.organization_type == "swarm"
-    assert template.balance.organization_divisor == 5.0
+    assert template.balance.organization_divisor == 4.0
     assert "base_cost" not in template.balance.model_dump()
     assert "effective_cost" not in template.balance.model_dump()
     assert "threat_rating" not in template.balance.model_dump()

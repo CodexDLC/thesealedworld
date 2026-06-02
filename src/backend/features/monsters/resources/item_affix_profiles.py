@@ -1,16 +1,9 @@
 from __future__ import annotations
 
-from typing import Literal, cast
+from typing import Literal
 
-MonsterItemAffixKind = Literal["weapon", "armor", "shield", "ammo"]
-MonsterRole = Literal["minion", "veteran", "elite", "boss"]
-
-MONSTER_AFFIX_COUNT_BY_ROLE: dict[MonsterRole, int] = {
-    "minion": 1,
-    "veteran": 2,
-    "elite": 3,
-    "boss": 4,
-}
+MonsterItemAffixKind = Literal["weapon", "armor", "shield", "ammo", "accessory"]
+MONSTER_EQUIPMENT_AFFIX_COUNT = 4
 
 MONSTER_AFFIX_STEP_COUNT_BY_TIER: dict[int, int] = {
     0: 2,
@@ -41,6 +34,14 @@ _BEAST_ARMOR_POOL: tuple[str, ...] = (
     "armor_flat",
 )
 
+_BEAST_ACCESSORY_POOL: tuple[str, ...] = (
+    "attribute_perception",
+    "attribute_agility",
+    "hp_bonus",
+    "en_bonus",
+    "luck_bonus",
+)
+
 _HUMANOID_WEAPON_POOL: tuple[str, ...] = (
     "weapon_accuracy",
     "crit_chance",
@@ -59,6 +60,17 @@ _HUMANOID_ARMOR_POOL: tuple[str, ...] = (
     "heat_resistance_bonus",
 )
 
+_HUMANOID_ACCESSORY_POOL: tuple[str, ...] = (
+    "attribute_strength",
+    "attribute_perception",
+    "attribute_agility",
+    "crit_chance",
+    "evasion_bonus",
+    "hp_bonus",
+    "en_bonus",
+    "luck_bonus",
+)
+
 _HUMANOID_SHIELD_POOL: tuple[str, ...] = (
     "block_bonus",
     "shield_guard_power_bonus",
@@ -73,21 +85,25 @@ MONSTER_AFFIX_POOLS: dict[str, dict[MonsterItemAffixKind, tuple[str, ...]]] = {
         "weapon": _BEAST_WEAPON_POOL,
         "armor": _BEAST_ARMOR_POOL,
         "shield": (),
+        "accessory": _BEAST_ACCESSORY_POOL,
     },
     "wolf_pack": {
         "weapon": _BEAST_WEAPON_POOL,
         "armor": _BEAST_ARMOR_POOL,
         "shield": (),
+        "accessory": _BEAST_ACCESSORY_POOL,
     },
     "bandit_gang": {
         "weapon": _HUMANOID_WEAPON_POOL,
         "armor": _HUMANOID_ARMOR_POOL,
         "shield": _HUMANOID_SHIELD_POOL,
+        "accessory": _HUMANOID_ACCESSORY_POOL,
     },
     "goblin_tribe": {
         "weapon": _HUMANOID_WEAPON_POOL,
         "armor": _HUMANOID_ARMOR_POOL,
         "shield": _HUMANOID_SHIELD_POOL,
+        "accessory": _HUMANOID_ACCESSORY_POOL,
     },
 }
 
@@ -127,7 +143,8 @@ def get_monster_allowed_affixes(family_id: str, item_kind: MonsterItemAffixKind,
 
 
 def get_monster_affix_count(role: str) -> int:
-    return MONSTER_AFFIX_COUNT_BY_ROLE.get(cast("MonsterRole", role), MONSTER_AFFIX_COUNT_BY_ROLE["minion"])
+    del role
+    return MONSTER_EQUIPMENT_AFFIX_COUNT
 
 
 def get_monster_affix_step_count(member_tier: int) -> int:

@@ -46,7 +46,7 @@ class ModifierApplicationService:
                 log.bind(modifier_id=application.modifier_id).warning("ModifierApplicationUnknownContract")
                 continue
 
-            value = ModifierApplicationService._resolve_value(application)
+            value = ModifierApplicationService._resolve_value(application, source)
             source_id = ModifierApplicationService.source_id(owner, owner_uid, owner_id, application.modifier_id)
             stat_key = ModifierApplicationService._write_temp_command(target_actor, contract, value, source_id)
 
@@ -100,7 +100,7 @@ class ModifierApplicationService:
         return None
 
     @staticmethod
-    def _resolve_value(application: ModifierApplicationDTO) -> float:
+    def _resolve_value(application: ModifierApplicationDTO, source: ActorSnapshot) -> float:
         if application.value_mode == "base":
             if application.value_override is not None:
                 return application.value_override
@@ -114,6 +114,13 @@ class ModifierApplicationService:
             if application.value_override is not None:
                 return application.value_override
             return application.value_multiplier
+
+        if application.value_mode == "source_main_hand_damage_multiplier":
+            base = 0.0
+            if source.stats is not None:
+                base = float(source.stats.mods.main_hand_damage_base or 0.0)
+            skill_mult = application.value_override if application.value_override is not None else 1.0
+            return base * skill_mult * application.value_multiplier
 
         raise ValueError(f"Unsupported modifier application value mode: {application.value_mode!r}")
 

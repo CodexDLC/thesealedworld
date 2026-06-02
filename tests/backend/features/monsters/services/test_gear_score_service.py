@@ -2,6 +2,7 @@ import uuid
 
 from src.backend.features.monsters.dto.generation import GeneratedClan, GeneratedMonster
 from src.backend.features.monsters.services.gear_score_service import MonsterGearScoreService
+from src.backend.features.monsters.services.monster_group_service import _family_expected_gear_score
 
 
 def _monster(
@@ -42,7 +43,7 @@ def _monster(
                 "base_cost": 20,
                 "effective_cost": 4,
                 "threat_rating": 20,
-                "organization_divisor": 5,
+                "organization_divisor": 4,
             },
             "meta": {"family_id": "rat_swarm", "archetype": "beast", "tags": ["rat"]},
         },
@@ -81,6 +82,8 @@ def test_apply_monster_gear_score_persists_balance_snapshot() -> None:
 
     assert score > 0
     assert monster.generation_meta["balance"]["gear_score"] == score
+    assert monster.generation_meta["balance"]["assembly_cost"] == score
+    assert monster.generation_meta["balance"]["raw_gear_score"] >= score
     assert monster.generation_meta["balance"]["gear_score_version"] == MonsterGearScoreService.VERSION
     assert monster.threat_rating == score
     assert "base_cost" not in monster.generation_meta["balance"]
@@ -94,12 +97,13 @@ def test_monster_gear_score_is_divided_by_organization_divisor() -> None:
     solitary = _monster(clan_id=clan_id)
     solitary.generation_meta["balance"]["organization_divisor"] = 1
     swarm = _monster(clan_id=clan_id)
-    swarm.generation_meta["balance"]["organization_divisor"] = 5
+    swarm.generation_meta["balance"]["organization_divisor"] = 4
 
     solitary_score = service.apply_monster_gear_score(solitary)
     swarm_score = service.apply_monster_gear_score(swarm)
 
-    assert swarm_score == max(1, round(solitary_score / 5))
+    assert swarm_score == max(1, round(solitary_score / 4))
+    assert swarm.generation_meta["balance"]["raw_gear_score"] == solitary.generation_meta["balance"]["raw_gear_score"]
 
 
 def test_monster_gear_score_uses_assembled_weapon_power_after_mastery() -> None:
@@ -165,3 +169,34 @@ def test_apply_clan_summary_groups_scores_by_role() -> None:
     assert summary["min"] <= summary["avg"] <= summary["max"]
     assert summary["by_role"]["minion"]["count"] == 1
     assert summary["by_role"]["veteran"]["count"] == 1
+    assert summary["raw_count"] == 2
+    assert summary["raw_total"] >= summary["total"]
+    assert summary["raw_avg"] >= summary["avg"]
+    assert summary["raw_by_role"]["minion"]["count"] == 1
+    assert summary["raw_by_role"]["veteran"]["count"] == 1
+
+
+def test_family_expected_gear_score_uses_raw_average_and_ignores_assembly_cost() -> None:
+    clan_id = uuid.uuid4()
+    members = [
+        _monster(clan_id=clan_id, role="minion"),
+        _monster(clan_id=clan_id, role="veteran"),
+        _monster(clan_id=clan_id, role="elite"),
+        _monster(clan_id=clan_id, role="boss"),
+    ]
+    raw_scores = [100, 200, 700, 1000]
+    for member, raw_score in zip(members, raw_scores, strict=True):
+        member.generation_meta["balance"].update(
+            {
+                "organization_type": "swarm",
+                "organization_divisor": 4,
+                "raw_gear_score": raw_score,
+                "gear_score": 1,
+                "assembly_cost": 1,
+                "gear_score_version": MonsterGearScoreService.VERSION,
+            }
+        )
+
+    expected = _family_expected_gear_score(members, tier=5)
+
+    assert expected == 500.0

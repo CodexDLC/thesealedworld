@@ -105,8 +105,9 @@ Allowed combat-facing equipment slots for current monster design:
 - `main_hand`
 - `off_hand`
 - `body`
+- one jewelry/accessory slot, represented in resources as `amulet`, for natural beast foci that map item `power` to flat `magic_armor`
 
-Do not add or normalize toward `head_armor`, `arms_armor`, `legs_armor`, `feetwear`, rings, amulet, belt, or other full gear slots. The project intentionally concentrates item power into fewer item slots with larger affix capacity instead of spreading power across a full equipment doll.
+Do not add or normalize toward `head_armor`, `arms_armor`, `legs_armor`, `feetwear`, rings, belt, or other full gear slots. The project intentionally concentrates item power into fewer item slots with larger affix capacity instead of spreading power across a full equipment doll.
 
 `body` is equipment, not an abstract defensive layer or a path toward full paperdoll gear. It maps to a base item exactly like the hand slots, and item generation later enriches that base item with material, quality, affixes, triggers, and source context.
 

@@ -23,7 +23,12 @@ from src.backend.features.combat.runtime.simulation.starting_imprint_actors impo
 )
 from src.backend.features.combat.runtime.simulation.state import InMemoryBattleLimits
 from src.backend.features.monsters.runtime.combat_actor_input import MonsterCombatActorInputBuilder
-from src.backend.features.monsters.runtime.encounter_profiles import MONSTER_ENCOUNTER_PROFILES
+from src.backend.features.monsters.runtime.encounter_profiles import (
+    MONSTER_ENCOUNTER_PROFILES,
+    EncounterDifficulty,
+    EncounterKind,
+    MonsterEncounterProfile,
+)
 from src.backend.features.monsters.runtime.group_assembler import ENCOUNTER_BALANCE_CONFIG
 from src.backend.features.monsters.services.gear_score_service import MonsterGearScoreService
 
@@ -31,8 +36,8 @@ if TYPE_CHECKING:
     from src.backend.features.monsters.dto.generation import GeneratedMonster
 
 ROLE_ORDER = ("minion", "veteran", "elite", "boss")
-ENCOUNTER_PROFILE_KIND_ORDER = ("ordinary", "guard", "boss")
-ENCOUNTER_PROFILE_DIFFICULTY_ORDER = ("easy", "normal", "hard")
+ENCOUNTER_PROFILE_KIND_ORDER: tuple[EncounterKind, ...] = ("ordinary", "guard", "boss")
+ENCOUNTER_PROFILE_DIFFICULTY_ORDER: tuple[EncounterDifficulty, ...] = ("easy", "normal", "hard")
 LOWER_ROLE_ORDER = {
     "veteran": ("minion",),
     "elite": ("veteran", "minion"),
@@ -464,10 +469,10 @@ def _unique_compositions(rows: list[FamilyPressureComposition]) -> list[FamilyPr
 
 
 def _profile_pressure_compositions(
-    profile: dict[str, Any],
+    profile: MonsterEncounterProfile,
     *,
-    kind: str,
-    difficulty: str,
+    kind: EncounterKind,
+    difficulty: EncounterDifficulty,
     roles_available: set[str],
     max_units_limit: int,
 ) -> list[FamilyPressureComposition]:
@@ -505,7 +510,7 @@ def _profile_pressure_compositions(
     return rows
 
 
-def _profile_role_cap(profile: dict[str, Any], role: str) -> int:
+def _profile_role_cap(profile: MonsterEncounterProfile, role: str) -> int:
     role_caps = profile.get("role_caps")
     if isinstance(role_caps, dict) and role in role_caps:
         return max(0, _int(role_caps.get(role), default=0))

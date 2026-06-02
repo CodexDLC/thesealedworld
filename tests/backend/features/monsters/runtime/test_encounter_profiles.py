@@ -36,43 +36,43 @@ def test_bandit_gang_profiles_cover_kind_and_difficulty_matrix() -> None:
         assert set(kind_profiles) == {"easy", "normal", "hard"}
 
 
-def test_ordinary_easy_profiles_are_small_minion_to_veteran_placeholders() -> None:
-    for family_id in ("rat_swarm", "goblin_tribe", "wolf_pack", "bandit_gang"):
-        profile = get_monster_encounter_profile(family_id, "ordinary", "easy")
+def test_ordinary_profiles_keep_family_body_scale() -> None:
+    expected = {
+        "rat_swarm": {"easy": (3, 6), "normal": (3, 6), "hard": (3, 6)},
+        "goblin_tribe": {"easy": (2, 5), "normal": (2, 5), "hard": (2, 5)},
+        "wolf_pack": {"easy": (2, 4), "normal": (2, 4), "hard": (2, 4)},
+        "bandit_gang": {"easy": (1, 3), "normal": (1, 3), "hard": (2, 3)},
+    }
 
-        assert profile is not None
-        assert profile["budget_multiplier"] == 0.75
-        assert profile["min_units"] == 1
-        assert profile["max_units"] == 2
-        assert profile["start_role"] == "minion"
-        assert profile["allowed_roles"] == ["minion", "veteran"]
-        assert profile["role_caps"] == {"minion": 2, "veteran": 2, "elite": 0, "boss": 0}
-        assert profile["upgrade_order"] == ["veteran"]
+    for family_id, difficulty_counts in expected.items():
+        for difficulty, (min_units, max_units) in difficulty_counts.items():
+            profile = get_monster_encounter_profile(family_id, "ordinary", difficulty)
 
-
-def test_ordinary_normal_profiles_are_small_duos_with_one_elite_cap() -> None:
-    for family_id in ("rat_swarm", "goblin_tribe", "wolf_pack", "bandit_gang"):
-        profile = get_monster_encounter_profile(family_id, "ordinary", "normal")
-
-        assert profile is not None
-        assert profile["min_units"] == 1
-        assert profile["max_units"] == 2
-        assert profile["allowed_roles"] == ["minion", "veteran", "elite"]
-        assert profile["role_caps"]["elite"] == 1
-        assert profile["role_caps"]["boss"] == 0
+            assert profile is not None
+            assert profile["min_units"] == min_units
+            assert profile["max_units"] == max_units
+            assert profile["role_caps"]["boss"] == 0
 
 
-def test_ordinary_hard_profiles_are_small_veteran_to_elite_placeholders() -> None:
-    for family_id in ("rat_swarm", "goblin_tribe", "wolf_pack", "bandit_gang"):
-        profile = get_monster_encounter_profile(family_id, "ordinary", "hard")
+def test_swarm_and_horde_ordinary_progressions_do_not_use_duo_placeholder() -> None:
+    rat_easy = get_monster_encounter_profile("rat_swarm", "ordinary", "easy")
+    rat_normal = get_monster_encounter_profile("rat_swarm", "ordinary", "normal")
+    rat_hard = get_monster_encounter_profile("rat_swarm", "ordinary", "hard")
+    goblin_easy = get_monster_encounter_profile("goblin_tribe", "ordinary", "easy")
+    goblin_hard = get_monster_encounter_profile("goblin_tribe", "ordinary", "hard")
 
-        assert profile is not None
-        assert profile["budget_multiplier"] == 1.25
-        assert profile["min_units"] == 1
-        assert profile["max_units"] == 2
-        assert profile["start_role"] == "veteran"
-        assert profile["allowed_roles"] == ["veteran", "elite"]
-        assert profile["role_caps"] == {"minion": 0, "veteran": 2, "elite": 2, "boss": 0}
+    assert rat_easy is not None
+    assert rat_normal is not None
+    assert rat_hard is not None
+    assert goblin_easy is not None
+    assert goblin_hard is not None
+    assert rat_easy["allowed_roles"] == ["minion", "veteran"]
+    assert rat_easy["role_caps"] == {"minion": 6, "veteran": 6, "elite": 0, "boss": 0}
+    assert rat_normal["role_caps"] == {"minion": 6, "veteran": 6, "elite": 2, "boss": 0}
+    assert rat_hard["start_role"] == "veteran"
+    assert rat_hard["role_caps"] == {"minion": 0, "veteran": 6, "elite": 3, "boss": 0}
+    assert goblin_easy["role_caps"] == {"minion": 5, "veteran": 5, "elite": 0, "boss": 0}
+    assert goblin_hard["role_caps"] == {"minion": 0, "veteran": 5, "elite": 2, "boss": 0}
 
 
 def test_rat_swarm_guard_profiles_require_guard_roles_without_boss() -> None:

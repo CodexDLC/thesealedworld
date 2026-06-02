@@ -18,7 +18,7 @@ def test_item_text_service_builds_prompt_payload_from_mechanical_item():
     assert payload["base"]["id"] == "warhammer"
     assert payload["base"]["narrative_description"]
     assert payload["material"]["id"] == "mat_iron_ingot"
-    assert payload["grade"] == "uncommon"
+    assert payload["grade"] == "common"
     assert "affixes" not in payload
 
 

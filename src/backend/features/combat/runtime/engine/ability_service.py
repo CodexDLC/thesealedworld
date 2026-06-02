@@ -867,13 +867,13 @@ class AbilityService:
                 config=config,
                 params=params,
                 source_id=source.char_id,
-                current_exchange=source.meta.exchange_counter,
+                current_exchange=effect_target.meta.exchange_counter,
                 damage_ref=damage_ref,  # Передаем урон
             )
 
             if ctx.flags.meta.action_mode == "exchange":
-                active_from_exchange = source.meta.exchange_counter + 1
-                duration = max(0, active_effect.expire_at_exchange - source.meta.exchange_counter)
+                active_from_exchange = effect_target.meta.exchange_counter + 1
+                duration = max(0, active_effect.expire_at_exchange - effect_target.meta.exchange_counter)
                 active_effect.active_from_exchange = active_from_exchange
                 active_effect.expire_at_exchange = active_from_exchange + duration
 

@@ -36,7 +36,7 @@ The current runtime flow is:
 1. Actor snapshot provides raw attributes and raw modifiers.
 2. `StatsWaterfallCalculator` calculates final primary attributes.
 3. The selected `attribute_profile` derives secondary modifier commands from
-   primary attributes.
+   effective primary attributes.
 4. Derived values are combined with raw modifier base/source/temp values.
 5. Combat stats assembly converts weapon power plus weighted stat power into the
    final hand damage base.
@@ -58,53 +58,58 @@ evaluates additive, multiplicative, divisive, and set commands.
 
 The player profile uses `ATTRIBUTE_MODIFIER_RULES`.
 
+All attribute-derived outputs use the same effective-attribute curve before the
+profile coefficient is applied:
+
+```text
+effective(stat) = stat * stat / 11
+```
+
 ### Body Node
 
 | Attribute | Runtime output | Formula |
 | --- | --- | --- |
-| `strength` | `physical_strength_power` | `strength * 1.0` |
-| `strength` | `physical_suppression` | `strength * 0.02` |
-| `agility` | `physical_agility_power` | `agility * 1.0` |
-| `agility` | `evasion` | `agility * 0.05` |
-| `agility` | `initiative` | `agility * 0.5` |
-| `endurance` | `physical_endurance_power` | `endurance * 1.0` |
-| `endurance` | `physical_resistance` | `endurance * 0.02` |
-| `endurance` | `poison_resistance` | `endurance * 0.02` |
-| `endurance` | `bleed_resistance` | `endurance * 0.02` |
-| `endurance` | `environment_bio_resistance` | `endurance * 0.02` |
+| `strength` | `physical_strength_power` | `effective(strength) * 1.0` |
+| `strength` | `physical_suppression` | `effective(strength) * 0.02` |
+| `agility` | `physical_agility_power` | `effective(agility) * 1.0` |
+| `agility` | `evasion` | `effective(agility) * 0.02` |
+| `agility` | `initiative` | `effective(agility) * 0.5` |
+| `endurance` | `physical_endurance_power` | `effective(endurance) * 1.0` |
+| `endurance` | `physical_resistance` | `effective(endurance) * 0.02` |
+| `endurance` | `poison_resistance` | `effective(endurance) * 0.02` |
+| `endurance` | `bleed_resistance` | `effective(endurance) * 0.02` |
+| `endurance` | `environment_bio_resistance` | `effective(endurance) * 0.02` |
 
 Vitals:
 
 | Runtime output | Formula |
 | --- | --- |
-| `hp` | `(strength + agility + endurance) / 3 * 4` |
-| `hp_regen` | `(strength + agility + endurance) / 3 * 0.1` |
-
-Implementation note: runtime stores this as per-attribute constants:
-`HP_PER_BODY_ATTRIBUTE = 4 / 3` and `HP_REGEN_PER_BODY_ATTRIBUTE = 0.1 / 3`.
+| `hp` | `effective(endurance) * 3.0` |
+| `hp_regen` | `effective(endurance) * 0.1` |
 
 Heavy chest armor can add a skill source on top of the Endurance-derived
-`physical_resistance`: `endurance * 0.02 * skill_heavy_armor * 0.50`. This is
-an amplification of natural body resistance, not a flat +50 percentage points.
+`physical_resistance`: `effective(endurance) * 0.02 * skill_heavy_armor *
+0.50`. This is an amplification of natural body resistance, not a flat +50
+percentage points.
 
 ### Core Node
 
 | Attribute | Runtime output | Formula |
 | --- | --- | --- |
-| `intellect` | `magical_damage` | `intellect * 1.0` |
-| `intellect` | `magical_penetration` | `intellect * 0.02` |
-| `memory` + `prediction` | `counter_attack_chance` | `memory * 0.0025 + prediction * 0.0015` |
-| `mental` | `magic_resist` | `mental * 0.02` |
-| `mental` | `control_resistance` | `mental * 0.02` |
-| `mental` | `mental_resistance` | `mental * 0.02` |
-| `mental` | elemental resistances | `mental * 0.02` |
+| `intellect` | `magical_damage` | `effective(intellect) * 1.0` |
+| `intellect` | `magical_penetration` | `effective(intellect) * 0.02` |
+| `memory` + `prediction` | `counter_attack_chance` | `effective(memory) * 0.0025 + effective(prediction) * 0.0015` |
+| `mental` | `magic_resist` | `effective(mental) * 0.02` |
+| `mental` | `control_resistance` | `effective(mental) * 0.02` |
+| `mental` | `mental_resistance` | `effective(mental) * 0.02` |
+| `mental` | elemental resistances | `effective(mental) * 0.02` |
 
 Energy:
 
 | Runtime output | Formula |
 | --- | --- |
-| `en` | `(intellect + memory + mental) / 3 * 2` |
-| `en_regen` | `(intellect + memory + mental) / 3 * 0.5` |
+| `en` | `effective(mental) * 1.25` |
+| `en_regen` | `effective(mental) * 0.25` |
 
 Elemental resistances currently derived from `mental`:
 
@@ -121,9 +126,9 @@ Elemental resistances currently derived from `mental`:
 
 | Attribute | Runtime output | Formula |
 | --- | --- | --- |
-| `perception` | `anti_dodge_chance` | `perception * 0.03` |
-| `perception` + `projection` + `prediction` | `stamina` | `(perception + projection + prediction) / 3 * 5` |
-| `perception` + `projection` + `prediction` | `stamina_regen` | `1 + (perception + projection + prediction) * 0.1` |
+| `perception` | `anti_dodge_chance` | `effective(perception) * 0.03` |
+| `projection` | `stamina` | `effective(projection) * 2.7` |
+| `projection` | `stamina_regen` | `1 + effective(projection) * 0.1` |
 
 Naming note: the player-facing design name is **Concentration**. The current
 runtime field is `stamina`. Rename/migration is future work if the code adopts
@@ -131,11 +136,10 @@ the new terminology.
 
 ## Current Simplifications
 
-Strength, Agility, and Endurance currently grant `1.0` raw physical power per
+Strength, Agility, and Endurance grant `1.0` physical power per effective
 attribute point. Ordinary weapon damage uses class-specific normalized weights
-across all three body powers; each weapon-class row sums to `1.0`, so
-Endurance replaces part of the old Strength/Agility share instead of adding
-extra stat damage on top. Weapon mastery gates only the stat-derived part of
+across Strength and Agility only; Endurance stays available for survival and
+style-specific mechanics. Weapon mastery gates only the stat-derived part of
 weapon damage. Weapon item power itself is not reduced by mastery.
 
 Current base-power assembly:
@@ -143,7 +147,6 @@ Current base-power assembly:
 ```text
 stat_raw = strength_power * class_strength_weight
          + agility_power * class_agility_weight
-         + endurance_power * class_endurance_weight
 mastery_factor = 0.25 + 0.75 * weapon_mastery
 stat_effective = stat_raw * mastery_factor
 hand_damage_base = weapon_power + stat_effective
@@ -172,12 +175,12 @@ Current monster profile behavior:
 
 - `monster:humanoid` and `monster:beast` use the same rules today.
 - Monster profiles remove player `hp_regen` derivation.
-- Monster HP is derived as `endurance * 4`.
+- Monster HP is derived as `effective(endurance) * 3`.
 - Other attribute-to-modifier rules are inherited from the player profile unless
   later overridden.
 
-This means player HP uses the Body node average, while monster HP currently uses
-Endurance only.
+This means player and monster HP both use Endurance only; monster profiles remove
+player `hp_regen`.
 
 ## Monster Size Layer
 

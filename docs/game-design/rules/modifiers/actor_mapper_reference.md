@@ -107,7 +107,12 @@ Resolver input is `ActorStats`, not `ActorSnapshot.raw`.
 
 ## Attribute Bridge
 
-Attribute-derived combat values are owned by the attribute bridge rules.
+Attribute-derived combat values are owned by the attribute bridge rules. The
+bridge applies the effective-attribute curve before coefficients:
+
+```text
+effective(stat) = stat * stat / 11
+```
 
 Examples:
 
@@ -120,9 +125,9 @@ Examples:
 - Perception derives `anti_dodge_chance`;
 - Memory and Prediction derive `counter_attack_chance`.
 
-`physical_endurance_power` is available to ordinary weapon damage through
-normalized weapon-class weights and to style-specific mechanics such as shield
-guard scaling.
+`physical_endurance_power` is available to style-specific mechanics such as
+shield guard scaling, but ordinary weapon damage uses effective Strength and
+Agility only.
 
 See `docs/game-design/rules/attributes/technical_reference.md` for the current
 formula table and monster profile differences.

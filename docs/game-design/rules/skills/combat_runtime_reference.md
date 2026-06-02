@@ -26,9 +26,9 @@ docs/game-design/rules/combat/active_actions.md
 
 - Weapon mastery keys are part of actor snapshots and item/combat skill
   contracts.
-- Weapon mastery damage assembly uses normalized Strength/Agility/Endurance
-  weights per weapon class. Endurance replaces part of the old
-  Strength/Agility share instead of adding extra damage above the class budget.
+- Weapon mastery damage assembly uses normalized effective Strength/Agility
+  weights per weapon class. Endurance does not feed ordinary weapon damage; it
+  remains available to survival and style-specific mechanics.
 - Tactical style keys are part of actor snapshots. `skill_dual_wield` has an
   off-hand exchange and trigger resources.
 - Archery/ranged combat disables passive armor counter openings on defense:

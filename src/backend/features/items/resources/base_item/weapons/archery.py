@@ -1,25 +1,6 @@
 from src.backend.features.items.resources.schemas import BaseItemDTO
 
 ARCHERY_DB = {
-    "sling": BaseItemDTO(
-        id="sling",
-        name_ru="Праща",
-        narrative_description="Простое дальнобойное оружие для быстрых бросков камня с хорошей мобильностью и слабой пробивной силой.",
-        slot="main_hand",
-        type="weapon",
-        damage_type="physical",
-        related_skill="skill_archery",
-        allowed_materials=["leathers", "cloths"],
-        base_power=5,
-        damage_spread=0.24,
-        base_durability=30,
-        narrative_tags=["sling", "archery", "ranged", "mobile"],
-        implicit_bonuses={
-            "main_hand_accuracy_penalty": 0.05,
-            "physical_crit_chance": 0.025,
-        },
-        triggers=["crit.weapon_impact_stun_crit"],
-    ),
     "shortbow": BaseItemDTO(
         id="shortbow",
         name_ru="Короткий лук",

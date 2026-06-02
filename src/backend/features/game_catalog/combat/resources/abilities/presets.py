@@ -19,6 +19,18 @@ PIPELINE_PRESETS: dict[str, list[PipelineMutationApplicationDTO]] = {
         pipeline_mutation("stage.check_block", False),
         pipeline_mutation("stage.calculate_damage", True),
     ],
+    # === TACTICAL INSTANT STRIKE (Тактический мгновенный удар) ===
+    # Combat-token spender: the paid hit/crit window is already the opening, so
+    # it uses weapon damage and does not roll magic accuracy/evasion.
+    "TACTICAL_INSTANT_STRIKE": [
+        pipeline_mutation("meta.source_type", "main_hand"),
+        pipeline_mutation("stage.check_accuracy", False),
+        pipeline_mutation("stage.check_evasion", False),
+        pipeline_mutation("stage.check_parry", False),
+        pipeline_mutation("stage.check_block", False),
+        pipeline_mutation("stage.check_crit", False),
+        pipeline_mutation("stage.calculate_damage", True),
+    ],
     # === HEALING (Лечение) ===
     # Пропускает боевые проверки, считает только хил.
     "HEALING": [

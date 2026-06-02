@@ -14,7 +14,7 @@ def build_role_ladder_stats(role, priority):
 
 GOBLINS_FAMILY: MonsterFamily = {
     "id": "goblin_tribe",
-    "resource_version": 1.2,
+    "resource_version": 1.4,
     "archetype": "humanoid",
     "organization_type": "horde",  # TSP Base: 30
     "default_tags": ["goblin", "small", "cunning", "tinkerer"],
@@ -48,7 +48,7 @@ GOBLINS_FAMILY: MonsterFamily = {
             "min_tier": 0,
             "max_tier": 4,
             "narrative_hint": "A small goblin with a hooded cloak and a pair of sharp daggers, moves silently.",
-            "extra_tags": ["stealth", "assassin"],
+            "extra_tags": ["stealth", "assassin", "dual_wield", "knife"],
             "base_stats": build_role_ladder_stats(
                 "minion",
                 (
@@ -63,8 +63,13 @@ GOBLINS_FAMILY: MonsterFamily = {
                     "projection",
                 ),
             ),
-            "fixed_loadout": {"main_hand": "dagger", "off_hand": "dagger"},
-            "skills": ["skill_fencing", "skill_dual_wield"],
+            "fixed_loadout": {
+                "main_hand": "knife",
+                "off_hand": "knife",
+                "chest_armor": "leather_armor",
+                "amulet": "amulet",
+            },
+            "skills": ["skill_fencing", "skill_dual_wield", "skill_light_armor"],
         },
         "goblin_scavenger": {
             "id": "goblin_scavenger",
@@ -73,7 +78,7 @@ GOBLINS_FAMILY: MonsterFamily = {
             "min_tier": 0,
             "max_tier": 4,
             "narrative_hint": "A goblin carrying a large, overflowing backpack. Wields a simple club.",
-            "extra_tags": ["scavenger", "hoarder"],
+            "extra_tags": ["scavenger", "hoarder", "scrap", "buckler"],
             "base_stats": build_role_ladder_stats(
                 "minion",
                 (
@@ -88,8 +93,13 @@ GOBLINS_FAMILY: MonsterFamily = {
                     "projection",
                 ),
             ),
-            "fixed_loadout": {"main_hand": "mace"},
-            "skills": ["skill_macing"],
+            "fixed_loadout": {
+                "main_hand": "mace",
+                "off_hand": "buckler",
+                "chest_armor": "leather_armor",
+                "amulet": "amulet",
+            },
+            "skills": ["skill_macing", "skill_shield_mastery", "skill_light_armor"],
         },
         "goblin_cutter": {
             "id": "goblin_cutter",
@@ -98,7 +108,7 @@ GOBLINS_FAMILY: MonsterFamily = {
             "min_tier": 0,
             "max_tier": 4,
             "narrative_hint": "A mean little goblin with a chipped knife and a habit of aiming for tendons.",
-            "extra_tags": ["knife", "bleeder", "ambusher"],
+            "extra_tags": ["knife", "bleeder", "ambusher", "dual_wield"],
             "base_stats": build_role_ladder_stats(
                 "minion",
                 (
@@ -113,8 +123,13 @@ GOBLINS_FAMILY: MonsterFamily = {
                     "projection",
                 ),
             ),
-            "fixed_loadout": {"main_hand": "dagger"},
-            "skills": ["skill_fencing"],
+            "fixed_loadout": {
+                "main_hand": "dagger",
+                "off_hand": "knife",
+                "chest_armor": "leather_armor",
+                "amulet": "amulet",
+            },
+            "skills": ["skill_fencing", "skill_dual_wield", "skill_light_armor"],
         },
         "goblin_sparkpick": {
             "id": "goblin_sparkpick",
@@ -123,7 +138,7 @@ GOBLINS_FAMILY: MonsterFamily = {
             "min_tier": 0,
             "max_tier": 4,
             "narrative_hint": "A scavenger carrying a bent tool that spits unstable ether sparks when swung.",
-            "extra_tags": ["scrap", "ether", "reckless"],
+            "extra_tags": ["scrap", "ether", "reckless", "buckler"],
             "base_stats": build_role_ladder_stats(
                 "minion",
                 (
@@ -138,8 +153,13 @@ GOBLINS_FAMILY: MonsterFamily = {
                     "prediction",
                 ),
             ),
-            "fixed_loadout": {"main_hand": "hatchet"},
-            "skills": ["skill_macing"],
+            "fixed_loadout": {
+                "main_hand": "hatchet",
+                "off_hand": "buckler",
+                "chest_armor": "leather_armor",
+                "amulet": "amulet",
+            },
+            "skills": ["skill_macing", "skill_shield_mastery", "skill_light_armor"],
         },
         # --- 2. Бойцы (Veterans) [TSP ~45] ---
         "goblin_spearman": {
@@ -164,7 +184,7 @@ GOBLINS_FAMILY: MonsterFamily = {
                     "prediction",
                 ),
             ),
-            "fixed_loadout": {"main_hand": "spear", "off_hand": "shield", "chest_armor": "jerkin"},
+            "fixed_loadout": {"main_hand": "spear", "off_hand": "shield", "chest_armor": "jerkin", "amulet": "amulet"},
             "skills": ["skill_polearms", "skill_medium_armor", "skill_shield_mastery"],
         },
         "goblin_slinger": {
@@ -174,7 +194,7 @@ GOBLINS_FAMILY: MonsterFamily = {
             "min_tier": 1,
             "max_tier": 5,
             "narrative_hint": "A fast goblin with a short bow and a simple quiver of training arrows.",
-            "extra_tags": ["ranged", "archer", "fast"],
+            "extra_tags": ["ranged", "archer", "fast", "quiver"],
             "base_stats": build_role_ladder_stats(
                 "veteran",
                 (
@@ -189,8 +209,13 @@ GOBLINS_FAMILY: MonsterFamily = {
                     "projection",
                 ),
             ),
-            "fixed_loadout": {"two_hand": "shortbow", "quiver": "quiver_training"},
-            "skills": ["skill_archery", "skill_ranged_combat"],
+            "fixed_loadout": {
+                "two_hand": "shortbow",
+                "quiver": "quiver_training",
+                "chest_armor": "leather_armor",
+                "amulet": "amulet",
+            },
+            "skills": ["skill_archery", "skill_ranged_combat", "skill_light_armor"],
         },
         "goblin_scrapguard": {
             "id": "goblin_scrapguard",
@@ -214,7 +239,7 @@ GOBLINS_FAMILY: MonsterFamily = {
                     "prediction",
                 ),
             ),
-            "fixed_loadout": {"main_hand": "mace", "off_hand": "shield", "chest_armor": "jerkin"},
+            "fixed_loadout": {"main_hand": "mace", "off_hand": "shield", "chest_armor": "jerkin", "amulet": "amulet"},
             "skills": ["skill_macing", "skill_medium_armor", "skill_shield_mastery"],
         },
         # --- 3. Инженеры (Elites) [TSP ~75] ---
@@ -225,7 +250,7 @@ GOBLINS_FAMILY: MonsterFamily = {
             "min_tier": 2,
             "max_tier": 6,
             "narrative_hint": "A goblin with a leather cap and a belt full of tools. Throws caltrops and sets traps.",
-            "extra_tags": ["engineer", "trapper"],
+            "extra_tags": ["engineer", "duelist", "scrap", "buckler"],
             "base_stats": build_role_ladder_stats(
                 "elite",
                 (
@@ -240,8 +265,13 @@ GOBLINS_FAMILY: MonsterFamily = {
                     "prediction",
                 ),
             ),
-            "fixed_loadout": {"main_hand": "dagger"},
-            "skills": ["skill_fencing", "skill_tactics"],
+            "fixed_loadout": {
+                "main_hand": "rapier",
+                "off_hand": "buckler",
+                "chest_armor": "jerkin",
+                "amulet": "amulet",
+            },
+            "skills": ["skill_fencing", "skill_shield_mastery", "skill_medium_armor", "skill_tactics"],
         },
         "goblin_bomber": {
             "id": "goblin_bomber",
@@ -250,7 +280,7 @@ GOBLINS_FAMILY: MonsterFamily = {
             "min_tier": 2,
             "max_tier": 6,
             "narrative_hint": "A goblin with a manic grin and a sack of crude explosives.",
-            "extra_tags": ["bomber", "explosives", "reckless"],
+            "extra_tags": ["bomber", "explosives", "reckless", "archer", "fire_arrows"],
             "base_stats": build_role_ladder_stats(
                 "elite",
                 (
@@ -265,7 +295,12 @@ GOBLINS_FAMILY: MonsterFamily = {
                     "projection",
                 ),
             ),
-            "fixed_loadout": {"main_hand": "sling", "chest_armor": "jerkin"},
+            "fixed_loadout": {
+                "two_hand": "shortbow",
+                "quiver": "quiver_fire",
+                "chest_armor": "jerkin",
+                "amulet": "amulet",
+            },
             "skills": ["skill_archery", "skill_medium_armor", "skill_ranged_combat", "skill_tactics"],
         },
         "goblin_trapmaster": {
@@ -275,7 +310,7 @@ GOBLINS_FAMILY: MonsterFamily = {
             "min_tier": 2,
             "max_tier": 6,
             "narrative_hint": "A patient goblin engineer covered in twine, hooks, and stolen monolith fragments.",
-            "extra_tags": ["trapper", "engineer", "controller"],
+            "extra_tags": ["trapper", "engineer", "controller", "dual_wield", "precision"],
             "base_stats": build_role_ladder_stats(
                 "elite",
                 (
@@ -290,8 +325,13 @@ GOBLINS_FAMILY: MonsterFamily = {
                     "projection",
                 ),
             ),
-            "fixed_loadout": {"main_hand": "dagger"},
-            "skills": ["skill_fencing", "skill_tactics", "skill_anatomy"],
+            "fixed_loadout": {
+                "main_hand": "stiletto",
+                "off_hand": "main_gauche",
+                "chest_armor": "jerkin",
+                "amulet": "amulet",
+            },
+            "skills": ["skill_fencing", "skill_dual_wield", "skill_medium_armor", "skill_tactics", "skill_anatomy"],
         },
         # --- 4. Вожди (Bosses) [TSP ~120] ---
         "goblin_chief": {
@@ -301,7 +341,7 @@ GOBLINS_FAMILY: MonsterFamily = {
             "min_tier": 3,
             "max_tier": 7,
             "narrative_hint": "A larger, smarter goblin wearing a crude crown and better armor. Shouts commands.",
-            "extra_tags": ["leader", "commander"],
+            "extra_tags": ["leader", "commander", "heavy_armor", "shield"],
             "base_stats": build_role_ladder_stats(
                 "boss",
                 (
@@ -316,8 +356,13 @@ GOBLINS_FAMILY: MonsterFamily = {
                     "prediction",
                 ),
             ),
-            "fixed_loadout": {"main_hand": "battle_axe", "chest_armor": "plate_chest"},
-            "skills": ["skill_macing", "skill_heavy_armor", "skill_tactics", "skill_anatomy"],
+            "fixed_loadout": {
+                "main_hand": "battle_axe",
+                "off_hand": "kite_shield",
+                "chest_armor": "plate_chest",
+                "amulet": "amulet",
+            },
+            "skills": ["skill_macing", "skill_shield_mastery", "skill_heavy_armor", "skill_tactics", "skill_anatomy"],
         },
         "scrap_king": {
             "id": "scrap_king",
@@ -326,7 +371,7 @@ GOBLINS_FAMILY: MonsterFamily = {
             "min_tier": 4,
             "max_tier": 7,
             "narrative_hint": "A huge goblin sitting on a throne of junk, wearing a makeshift power armor.",
-            "extra_tags": ["king", "heavy_armor", "engineer"],
+            "extra_tags": ["king", "heavy_armor", "engineer", "two_handed", "scrap"],
             "base_stats": build_role_ladder_stats(
                 "boss",
                 (
@@ -344,6 +389,7 @@ GOBLINS_FAMILY: MonsterFamily = {
             "fixed_loadout": {
                 "two_hand": "warhammer",
                 "chest_armor": "plate_chest",
+                "amulet": "amulet",
             },
             "skills": ["skill_macing", "skill_heavy_armor", "skill_two_handed", "skill_tactics", "skill_anatomy"],
         },

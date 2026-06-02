@@ -33,7 +33,7 @@ _VARIANT_AI_ARCHETYPES: Final[dict[str, str]] = {
     "bandit_billhook": "duelist",
     "goblin_sneak": "duelist",
     "goblin_spearman": "duelist",
-    "goblin_slinger": "duelist",
+    "goblin_skirmisher": "duelist",
     # Bulwark: survival, guard, attrition.
     "swarm_rat": "bulwark",
     "plague_rat": "bulwark",

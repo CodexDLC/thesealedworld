@@ -29,7 +29,7 @@ This document uses the active modifier field names from
 | `main_hand_damage_spread` | Final main-hand damage variance after mastery stabilization. |
 | `main_hand_damage_bonus` | Reserved extra main-hand damage bonus. |
 | `main_hand_weapon_power` | Trace value: weapon/item power before stat power is added. |
-| `main_hand_stat_damage_raw` | Trace value: weighted Strength/Agility/Endurance power before mastery gating. |
+| `main_hand_stat_damage_raw` | Trace value: weighted effective Strength/Agility power before mastery gating. |
 | `main_hand_stat_damage_effective` | Trace value: stat damage actually added after mastery gating. |
 | `main_hand_mastery_factor` | Trace value: normalized mastery factor applied to stat damage. |
 | `main_hand_damage_spread_raw` | Trace value: damage variance before mastery stabilization. |
@@ -47,7 +47,7 @@ This document uses the active modifier field names from
 | `off_hand_damage_spread` | Final off-hand damage variance after mastery stabilization. |
 | `off_hand_damage_bonus` | Reserved extra off-hand damage bonus. |
 | `off_hand_weapon_power` | Trace value: weapon/item power before stat power is added. |
-| `off_hand_stat_damage_raw` | Trace value: weighted Strength/Agility/Endurance power before mastery gating. |
+| `off_hand_stat_damage_raw` | Trace value: weighted effective Strength/Agility power before mastery gating. |
 | `off_hand_stat_damage_effective` | Trace value: stat damage actually added after mastery gating. |
 | `off_hand_mastery_factor` | Trace value: normalized mastery factor applied to stat damage. |
 | `off_hand_damage_spread_raw` | Trace value: damage variance before mastery stabilization. |
@@ -78,9 +78,9 @@ similar instant item actions.
 | Field | Meaning |
 | --- | --- |
 | `physical_damage` | Legacy/reserved flat physical damage field. Weapon attacks no longer add this automatically. |
-| `physical_strength_power` | Attribute-derived Strength power used by weapon and style assembly. |
-| `physical_agility_power` | Attribute-derived Agility power used by weapon assembly. |
-| `physical_endurance_power` | Attribute-derived Endurance power used by normalized weapon damage weights, survival, and style-specific assembly. |
+| `physical_strength_power` | Effective attribute-derived Strength power used by weapon and style assembly. |
+| `physical_agility_power` | Effective attribute-derived Agility power used by weapon assembly. |
+| `physical_endurance_power` | Effective attribute-derived Endurance power used by survival and style-specific assembly, not ordinary weapon damage. |
 | `physical_damage_bonus` | Additional global physical damage bonus. |
 | `accuracy` | Global accuracy modifier added to relevant offensive branches. |
 | `physical_suppression` | Physical resistance suppression, currently from Strength. |

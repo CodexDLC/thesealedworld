@@ -5,7 +5,7 @@ from typing import Literal
 from pydantic import BaseModel, Field
 
 ModifierApplicationTargetActor = Literal["self", "target", "attacker", "defender"]
-ModifierApplicationValueMode = Literal["base", "base_multiplier", "override"]
+ModifierApplicationValueMode = Literal["base", "base_multiplier", "override", "source_main_hand_damage_multiplier"]
 ModifierApplicationScope = Literal["current_exchange", "duration"]
 
 

@@ -87,7 +87,7 @@ async def test_select_and_record_uses_all_imprints_before_repeating() -> None:
 @pytest.mark.asyncio
 async def test_select_for_user_uses_seeded_tie_break() -> None:
     manager = StartingImprintDistributionManager(FakeRedisService())
-    pool = ("starter_guard_01", "starter_archer_01", "starter_staff_01")
+    pool = ("starter_guard_01", "starter_archer_01", "starter_hunter_01")
 
     first = await manager.select_for_user(user_id="user-1", seed="fixed-seed", imprint_keys=pool)
     second = await manager.select_for_user(user_id="user-1", seed="fixed-seed", imprint_keys=pool)

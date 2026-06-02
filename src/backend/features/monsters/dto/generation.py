@@ -12,7 +12,7 @@ if TYPE_CHECKING:
 GeneratedMonsterRole = Literal["minion", "veteran", "elite", "boss"]
 GeneratedMonsterOrganizationType = Literal["solitary", "pack", "gang", "horde", "swarm"]
 MonsterItemBuildMode = Literal["natural", "base"]
-MonsterItemKind = Literal["weapon", "armor", "shield", "ammo"]
+MonsterItemKind = Literal["weapon", "armor", "shield", "ammo", "accessory"]
 
 
 class MonsterGenerationContext(BaseModel):
@@ -171,6 +171,7 @@ class MonsterItemBuildRequestDTO(BaseModel):
     natural_key: str | None = None
     material_id: str | None = None
     item_grade: str = ""
+    affix_profile: str = ""
     rarity_tier: int = Field(default=0, ge=0, le=7)
     affix_policy: MonsterItemAffixPolicyDTO
     seed: str | None = None

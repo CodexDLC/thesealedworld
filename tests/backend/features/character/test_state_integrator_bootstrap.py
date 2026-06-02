@@ -180,12 +180,12 @@ async def test_bootstrap_active_session_restores_persisted_runtime_refs_progress
     assert session_doc.sessions.scenario_id == scenario_id
     assert session_doc.sessions.inventory_id == "inventory-window-1"
     assert session_doc.active_quest == "awakening_rift"
-    assert session_doc.vitals.hp.cur == 90
-    assert session_doc.vitals.hp.max == 96
-    assert session_doc.vitals.energy.cur == 26
-    assert session_doc.vitals.energy.max == 26
-    assert session_doc.vitals.stamina.cur == 50
-    assert session_doc.vitals.stamina.max == 50
+    assert session_doc.vitals.hp.cur == 61
+    assert session_doc.vitals.hp.max == 61
+    assert session_doc.vitals.energy.cur == 16
+    assert session_doc.vitals.energy.max == 16
+    assert session_doc.vitals.stamina.cur == 25
+    assert session_doc.vitals.stamina.max == 25
     assert session_doc.attributes.strength == 17
     assert session_doc.skills["skill_swords"]["xp"] == 0.25
     assert "locked_skill" not in session_doc.skills

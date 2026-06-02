@@ -7,11 +7,11 @@ SPREAD_REDUCTION_AT_FULL_MASTERY = 0.50
 SHIELD_STYLE_GUARD_POWER_RATIO = 0.35
 
 WEAPON_STAT_DAMAGE_WEIGHTS: dict[str, dict[str, float]] = {
-    "swords": {"strength": 0.45, "agility": 0.35, "endurance": 0.20},
-    "fencing": {"strength": 0.20, "agility": 0.70, "endurance": 0.10},
-    "polearms": {"strength": 0.45, "agility": 0.20, "endurance": 0.35},
-    "macing": {"strength": 0.60, "agility": 0.10, "endurance": 0.30},
-    "archery": {"strength": 0.30, "agility": 0.60, "endurance": 0.10},
+    "swords": {"strength": 0.50, "agility": 0.50},
+    "fencing": {"strength": 0.10, "agility": 0.90},
+    "polearms": {"strength": 0.80, "agility": 0.20},
+    "macing": {"strength": 0.90, "agility": 0.10},
+    "archery": {"strength": 0.20, "agility": 0.80},
 }
 
 SHIELD_STYLE_GUARD_WEIGHTS: dict[str, float] = {

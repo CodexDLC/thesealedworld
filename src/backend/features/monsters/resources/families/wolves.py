@@ -14,7 +14,7 @@ def build_role_ladder_stats(role, priority):
 
 WOLVES_FAMILY: MonsterFamily = {
     "id": "wolf_pack",
-    "resource_version": 1.2,
+    "resource_version": 1.4,
     "archetype": "beast",
     "organization_type": "pack",  # TSP Base: 50
     "default_tags": ["beast", "wolf", "predator", "pack"],
@@ -63,8 +63,13 @@ WOLVES_FAMILY: MonsterFamily = {
                     "projection",
                 ),
             ),
-            "fixed_loadout": {"main_hand": "wolf_young_fangs", "chest_armor": "wolf_hide"},
-            "skills": ["skill_fencing", "skill_light_armor"],
+            "fixed_loadout": {
+                "main_hand": "wolf_young_fangs",
+                "off_hand": "wolf_young_claws",
+                "chest_armor": "wolf_hide",
+                "amulet": "wolf_pack_mark",
+            },
+            "skills": ["skill_fencing", "skill_dual_wield", "skill_light_armor"],
         },
         "runner": {
             "id": "runner",
@@ -88,8 +93,13 @@ WOLVES_FAMILY: MonsterFamily = {
                     "projection",
                 ),
             ),
-            "fixed_loadout": {"main_hand": "wolf_young_fangs", "chest_armor": "wolf_hide"},
-            "skills": ["skill_fencing", "skill_light_armor"],
+            "fixed_loadout": {
+                "main_hand": "wolf_young_fangs",
+                "off_hand": "wolf_young_claws",
+                "chest_armor": "wolf_hide",
+                "amulet": "wolf_pack_mark",
+            },
+            "skills": ["skill_fencing", "skill_dual_wield", "skill_light_armor"],
         },
         "mangy_biter": {
             "id": "mangy_biter",
@@ -113,8 +123,13 @@ WOLVES_FAMILY: MonsterFamily = {
                     "projection",
                 ),
             ),
-            "fixed_loadout": {"main_hand": "wolf_young_fangs", "chest_armor": "wolf_hide"},
-            "skills": ["skill_fencing", "skill_light_armor"],
+            "fixed_loadout": {
+                "main_hand": "wolf_young_fangs",
+                "off_hand": "wolf_locking_fangs",
+                "chest_armor": "wolf_hide",
+                "amulet": "wolf_pack_mark",
+            },
+            "skills": ["skill_fencing", "skill_dual_wield", "skill_light_armor"],
         },
         # --- 2. Охотники (Veterans) [TSP ~75] ---
         "stalker": {
@@ -139,8 +154,13 @@ WOLVES_FAMILY: MonsterFamily = {
                     "projection",
                 ),
             ),
-            "fixed_loadout": {"main_hand": "wolf_bite_claws", "chest_armor": "wolf_hide"},
-            "skills": ["skill_fencing", "skill_light_armor"],
+            "fixed_loadout": {
+                "main_hand": "wolf_bite_claws",
+                "off_hand": "wolf_raking_claws",
+                "chest_armor": "wolf_hide",
+                "amulet": "wolf_pack_mark",
+            },
+            "skills": ["skill_fencing", "skill_dual_wield", "skill_light_armor"],
         },
         "flanker": {
             "id": "flanker",
@@ -164,8 +184,13 @@ WOLVES_FAMILY: MonsterFamily = {
                     "projection",
                 ),
             ),
-            "fixed_loadout": {"main_hand": "wolf_bite_claws", "chest_armor": "wolf_medium_hide"},
-            "skills": ["skill_fencing", "skill_medium_armor"],
+            "fixed_loadout": {
+                "main_hand": "wolf_bite_claws",
+                "off_hand": "wolf_raking_claws",
+                "chest_armor": "wolf_medium_hide",
+                "amulet": "wolf_pack_mark",
+            },
+            "skills": ["skill_fencing", "skill_dual_wield", "skill_medium_armor"],
         },
         "snapper": {
             "id": "snapper",
@@ -189,8 +214,13 @@ WOLVES_FAMILY: MonsterFamily = {
                     "projection",
                 ),
             ),
-            "fixed_loadout": {"main_hand": "wolf_bite_claws", "chest_armor": "wolf_hide"},
-            "skills": ["skill_fencing", "skill_light_armor"],
+            "fixed_loadout": {
+                "main_hand": "wolf_bite_claws",
+                "off_hand": "wolf_locking_fangs",
+                "chest_armor": "wolf_hide",
+                "amulet": "wolf_pack_mark",
+            },
+            "skills": ["skill_fencing", "skill_dual_wield", "skill_light_armor"],
         },
         # --- 3. Альфы (Elites) [TSP ~125] ---
         "pack_leader": {
@@ -215,8 +245,13 @@ WOLVES_FAMILY: MonsterFamily = {
                     "prediction",
                 ),
             ),
-            "fixed_loadout": {"main_hand": "wolf_elite_fangs", "chest_armor": "wolf_medium_hide"},
-            "skills": ["skill_fencing", "skill_medium_armor", "skill_tactics", "skill_anatomy"],
+            "fixed_loadout": {
+                "main_hand": "wolf_elite_fangs",
+                "off_hand": "wolf_braced_mane",
+                "chest_armor": "wolf_medium_hide",
+                "amulet": "wolf_pack_mark",
+            },
+            "skills": ["skill_fencing", "skill_shield_mastery", "skill_medium_armor", "skill_tactics", "skill_anatomy"],
         },
         "dire_wolf": {
             "id": "dire_wolf",
@@ -240,8 +275,13 @@ WOLVES_FAMILY: MonsterFamily = {
                     "projection",
                 ),
             ),
-            "fixed_loadout": {"main_hand": "wolf_elite_fangs", "chest_armor": "wolf_heavy_hide"},
-            "skills": ["skill_fencing", "skill_heavy_armor", "skill_anatomy"],
+            "fixed_loadout": {
+                "main_hand": "wolf_elite_fangs",
+                "off_hand": "wolf_bone_shoulders",
+                "chest_armor": "wolf_heavy_hide",
+                "amulet": "wolf_pack_mark",
+            },
+            "skills": ["skill_fencing", "skill_shield_mastery", "skill_heavy_armor", "skill_anatomy"],
         },
         "old_fang": {
             "id": "old_fang",
@@ -265,8 +305,13 @@ WOLVES_FAMILY: MonsterFamily = {
                     "projection",
                 ),
             ),
-            "fixed_loadout": {"main_hand": "wolf_elite_fangs", "chest_armor": "wolf_medium_hide"},
-            "skills": ["skill_fencing", "skill_medium_armor", "skill_tactics", "skill_anatomy"],
+            "fixed_loadout": {
+                "main_hand": "wolf_elite_fangs",
+                "off_hand": "wolf_locking_fangs",
+                "chest_armor": "wolf_medium_hide",
+                "amulet": "wolf_pack_mark",
+            },
+            "skills": ["skill_fencing", "skill_dual_wield", "skill_medium_armor", "skill_tactics", "skill_anatomy"],
         },
         # --- 4. Боссы (Bosses) [TSP ~200] ---
         "alpha_prime": {
@@ -291,8 +336,13 @@ WOLVES_FAMILY: MonsterFamily = {
                     "prediction",
                 ),
             ),
-            "fixed_loadout": {"main_hand": "wolf_alpha_fangs", "chest_armor": "wolf_heavy_hide"},
-            "skills": ["skill_fencing", "skill_heavy_armor", "skill_tactics", "skill_anatomy"],
+            "fixed_loadout": {
+                "main_hand": "wolf_alpha_fangs",
+                "off_hand": "wolf_bone_shoulders",
+                "chest_armor": "wolf_heavy_hide",
+                "amulet": "wolf_pack_mark",
+            },
+            "skills": ["skill_fencing", "skill_shield_mastery", "skill_heavy_armor", "skill_tactics", "skill_anatomy"],
         },
         "winter_maw": {
             "id": "winter_maw",
@@ -316,8 +366,13 @@ WOLVES_FAMILY: MonsterFamily = {
                     "prediction",
                 ),
             ),
-            "fixed_loadout": {"main_hand": "wolf_alpha_fangs", "chest_armor": "wolf_heavy_hide"},
-            "skills": ["skill_fencing", "skill_heavy_armor", "skill_tactics", "skill_anatomy"],
+            "fixed_loadout": {
+                "main_hand": "wolf_alpha_fangs",
+                "off_hand": "wolf_braced_mane",
+                "chest_armor": "wolf_heavy_hide",
+                "amulet": "wolf_pack_mark",
+            },
+            "skills": ["skill_fencing", "skill_shield_mastery", "skill_heavy_armor", "skill_tactics", "skill_anatomy"],
         },
         "blood_howl": {
             "id": "blood_howl",
@@ -341,8 +396,13 @@ WOLVES_FAMILY: MonsterFamily = {
                     "prediction",
                 ),
             ),
-            "fixed_loadout": {"main_hand": "wolf_alpha_fangs", "chest_armor": "wolf_heavy_hide"},
-            "skills": ["skill_fencing", "skill_heavy_armor", "skill_tactics", "skill_anatomy"],
+            "fixed_loadout": {
+                "main_hand": "wolf_alpha_fangs",
+                "off_hand": "wolf_raking_claws",
+                "chest_armor": "wolf_heavy_hide",
+                "amulet": "wolf_pack_mark",
+            },
+            "skills": ["skill_fencing", "skill_dual_wield", "skill_heavy_armor", "skill_tactics", "skill_anatomy"],
         },
     },
 }

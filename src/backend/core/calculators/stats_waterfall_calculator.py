@@ -16,6 +16,9 @@ _OPS: dict[type[ast.AST], Callable[..., Any]] = {
     ast.UAdd: operator.pos,
 }
 
+COMBAT_MATH_VERSION = "combat-math:2026-06-01.1"
+ATTRIBUTE_EFFECTIVE_QUADRATIC_DIVISOR = 11.0
+
 
 def _simple_eval(expression: str) -> float:
     def walk(node: ast.AST) -> float:
@@ -47,6 +50,12 @@ class StatsWaterfallCalculator:
 
     # Кеш для трансформированных правил (Source -> [Target, Factor])
     _SOURCE_TO_TARGET_RULES: dict[str, dict[str, list[dict[str, Any]]]] = {}
+
+    @staticmethod
+    def effective_attribute_value(value: float) -> float:
+        if value <= 0:
+            return value
+        return value * value / ATTRIBUTE_EFFECTIVE_QUADRATIC_DIVISOR
 
     @classmethod
     def _get_rules(cls, profile_key: str | None = None) -> dict[str, list[dict[str, Any]]]:
@@ -165,12 +174,13 @@ class StatsWaterfallCalculator:
         rules_map = StatsWaterfallCalculator._get_rules(profile_key)
 
         for attr_name, attr_value in attributes.items():
+            effective_attr_value = StatsWaterfallCalculator.effective_attribute_value(attr_value)
             rules = rules_map.get(attr_name, [])
             for rule in rules:
                 target = rule["target"]
                 factor = rule["factor"]
 
-                bonus_val = attr_value * factor
+                bonus_val = effective_attr_value * factor
 
                 if bonus_val != 0:
                     if target not in derived:

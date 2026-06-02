@@ -9,6 +9,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 from sqlalchemy.orm.attributes import flag_modified
 
+from src.backend.core.calculators.stats_waterfall_calculator import COMBAT_MATH_VERSION
 from src.backend.features.items.services.generation_service import ItemGenerationService
 from src.backend.features.monsters.dto.generated_view import (
     MonsterDataRebuildItemDTO,
@@ -213,6 +214,7 @@ class MonsterGeneratedRebuildService:
 
         raw_tags = dict(clan.raw_tags or {})
         raw_tags["schema_version"] = 2
+        raw_tags["combat_math_version"] = COMBAT_MATH_VERSION
         raw_tags["family_resource_version"] = family.resource_version
         raw_tags["composition"] = sorted(outcome.expected_by_variant)
         raw_tags["rebuild"] = {
@@ -354,6 +356,7 @@ def _rebuild_version_payload(member: Any) -> dict[str, Any]:
     return {
         "variant_key": getattr(member, "variant_key", ""),
         "schema_version": _optional_int(generation_meta.get("schema_version")),
+        "combat_math_version": str(generation_meta.get("combat_math_version") or ""),
         "family_resource_version": _optional_version(generation_meta.get("family_resource_version")),
     }
 

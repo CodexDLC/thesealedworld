@@ -713,10 +713,12 @@ def test_family_pressure_ladder_uses_encounter_profiles_for_swarm() -> None:
     )
     role_counts = [row.role_counts for row in rows]
 
-    assert {"minion": 1} in role_counts
-    assert {"minion": 2} in role_counts
     assert {"minion": 3} in role_counts
+    assert {"minion": 4} in role_counts
+    assert {"minion": 5} in role_counts
     assert {"minion": 6} in role_counts
+    assert {"minion": 1} not in role_counts
+    assert {"minion": 2} not in role_counts
     assert {"minion": 5, "veteran": 1} in role_counts
     assert {"veteran": 6} in role_counts
     assert {"veteran": 4, "elite": 2} in role_counts
@@ -1266,14 +1268,14 @@ async def test_ai_simulation_service_executes_live_demo_with_preselected_roster(
         "starter_tactician_01",
         "starter_heavy_guard_01",
         "starter_breaker_01",
-        "starter_staff_01",
+        "starter_hunter_01",
     )
     red = (
         "starter_rift_survivor_01",
         "starter_dual_blades_01",
         "starter_dual_sword_01",
         "starter_dual_mace_01",
-        "starter_pathfinder_01",
+        "starter_archer_01",
     )
 
     await CombatAiSimulationRunService(FakeSimulationRunRepository()).execute_live_starter_presets_demo(

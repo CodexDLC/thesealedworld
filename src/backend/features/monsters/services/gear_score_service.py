@@ -12,28 +12,33 @@ if TYPE_CHECKING:
 
 
 class MonsterGearScoreService:
-    VERSION = 5
+    VERSION = 8
 
     def __init__(self, actor_builder: MonsterCombatActorInputBuilder | None = None) -> None:
         self.actor_builder = actor_builder or MonsterCombatActorInputBuilder()
 
-    def calculate_monster_gear_score(self, monster: GeneratedMonster) -> int:
+    def calculate_raw_monster_gear_score(self, monster: GeneratedMonster) -> int:
         snapshot = self.actor_builder.build_snapshot(monster)
         combat = snapshot["combat"]
-        base_score = CharacterGearScoreCalculator.calculate_from_raw(
+        return CharacterGearScoreCalculator.calculate_from_raw(
             combat["math_model"],
             skills=combat["skills"],
             loadout=combat["loadout"],
         )
-        return self._effective_score(base_score, monster)
+
+    def calculate_monster_gear_score(self, monster: GeneratedMonster) -> int:
+        return self._effective_score(self.calculate_raw_monster_gear_score(monster), monster)
 
     def apply_monster_gear_score(self, monster: GeneratedMonster) -> int:
-        score = self.calculate_monster_gear_score(monster)
+        raw_score = self.calculate_raw_monster_gear_score(monster)
+        score = self._effective_score(raw_score, monster)
         generation_meta = dict(monster.generation_meta or {})
         balance = dict(generation_meta.get("balance") or {})
         balance.pop("base_cost", None)
         balance.pop("effective_cost", None)
         balance.pop("threat_rating", None)
+        balance["raw_gear_score"] = raw_score
+        balance["assembly_cost"] = score
         balance["gear_score"] = score
         balance["gear_score_version"] = self.VERSION
         generation_meta["balance"] = balance
@@ -59,6 +64,8 @@ class MonsterGearScoreService:
         try:
             version = int(balance["gear_score_version"])
             int(balance["gear_score"])
+            int(balance["raw_gear_score"])
+            int(balance["assembly_cost"])
         except (KeyError, TypeError, ValueError):
             return True
         return version != self.VERSION
@@ -72,13 +79,18 @@ class MonsterGearScoreService:
 
     def build_clan_summary(self, members: list[GeneratedMonster]) -> dict[str, Any]:
         scores_by_role: dict[str, list[int]] = {}
+        raw_scores_by_role: dict[str, list[int]] = {}
         all_scores: list[int] = []
+        all_raw_scores: list[int] = []
         for member in members:
             score = self._stored_gear_score(member)
-            if score is None:
-                continue
-            all_scores.append(score)
-            scores_by_role.setdefault(member.role, []).append(score)
+            if score is not None:
+                all_scores.append(score)
+                scores_by_role.setdefault(member.role, []).append(score)
+            raw_score = self._stored_raw_gear_score(member)
+            if raw_score is not None:
+                all_raw_scores.append(raw_score)
+                raw_scores_by_role.setdefault(member.role, []).append(raw_score)
 
         return {
             "version": self.VERSION,
@@ -88,6 +100,12 @@ class MonsterGearScoreService:
             "max": max(all_scores) if all_scores else 0,
             "total": sum(all_scores),
             "by_role": {role: self._score_bucket(scores) for role, scores in sorted(scores_by_role.items())},
+            "raw_count": len(all_raw_scores),
+            "raw_min": min(all_raw_scores) if all_raw_scores else 0,
+            "raw_avg": round(mean(all_raw_scores), 2) if all_raw_scores else 0.0,
+            "raw_max": max(all_raw_scores) if all_raw_scores else 0,
+            "raw_total": sum(all_raw_scores),
+            "raw_by_role": {role: self._score_bucket(scores) for role, scores in sorted(raw_scores_by_role.items())},
         }
 
     @staticmethod
@@ -103,12 +121,13 @@ class MonsterGearScoreService:
             return 1.0
 
         raw_divisor = balance.get("organization_divisor")
-        try:
-            divisor = float(raw_divisor)
-            if divisor > 0:
-                return divisor
-        except (TypeError, ValueError):
-            pass
+        if raw_divisor is not None:
+            try:
+                divisor = float(raw_divisor)
+                if divisor > 0:
+                    return divisor
+            except (TypeError, ValueError):
+                pass
 
         organization_type = str(balance.get("organization_type") or "")
         return float(ORGANIZATION_GS_DIVISORS.get(organization_type, 1.0))
@@ -121,6 +140,17 @@ class MonsterGearScoreService:
             return None
         try:
             return int(balance["gear_score"])
+        except (KeyError, TypeError, ValueError):
+            return None
+
+    @staticmethod
+    def _stored_raw_gear_score(monster: GeneratedMonster) -> int | None:
+        generation_meta = monster.generation_meta if isinstance(monster.generation_meta, dict) else {}
+        balance = generation_meta.get("balance")
+        if not isinstance(balance, dict):
+            return None
+        try:
+            return int(balance["raw_gear_score"])
         except (KeyError, TypeError, ValueError):
             return None
 

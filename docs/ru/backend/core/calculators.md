@@ -19,7 +19,7 @@ flowchart TD
     end
 
     subgraph P2[Фаза 2 — Bridge / Derivation]
-        A2 --> B1[ATTRIBUTE_MODIFIER_RULES\nStrength × 1.0 → physical_strength_power\nEndurance × HP_PER_ENDURANCE → hp\nAgility × 0.05 → evasion\n...]
+        A2 --> B1[ATTRIBUTE_MODIFIER_RULES\neffective(Strength) × 1.0 → physical_strength_power\neffective(Endurance) × HP_PER_ENDURANCE → hp\neffective(Agility) × 0.02 → evasion\n...]
         B1 --> B2[derived bonuses\nсписок +X для каждого модификатора]
     end
 
@@ -55,22 +55,28 @@ Bridge-правила живут в `src/backend/features/character/runtime/rule
 | `agility` | `physical_agility_power` | 1.0 |
 | `endurance` | `physical_endurance_power` | 1.0 |
 | `endurance` | `hp` | HP_PER_ENDURANCE |
-| `agility` | `evasion` | 0.05 |
+| `agility` | `evasion` | 0.02 |
 | `agility` | `initiative` | 0.5 |
 | `intellect` | `magical_damage` | 1.0 |
 | `mental` | `magic_resist` | 0.02 |
 | `perception` | `anti_dodge_chance` | 0.03 |
 
-`physical_endurance_power` остается производным полем для боевых расчетов.
-Обычный урон оружия собирается из силы, ловкости и выносливости через
-нормализованные веса класса оружия: сумма весов равна `1.0`, поэтому
-выносливость заменяет часть старой доли силы/ловкости, а не добавляет урон
-сверх прежнего бюджета. Выносливость также используется для живучести и
-стилевых механик, например щитового `shield_guard_power`.
+Перед применением коэффициентов bridge использует эффективное значение
+атрибута:
+
+```text
+effective(stat) = stat * stat / 11
+```
+
+`physical_endurance_power` остается производным полем для живучести и стилевых
+механик, например щитового `shield_guard_power`. Обычный урон оружия
+собирается из `physical_strength_power` и `physical_agility_power`; Endurance
+не входит в обычные нормализованные веса weapon damage.
 
 При надетой тяжелой нагрудной броне `skill_heavy_armor` усиливает природный
-`physical_resistance` от выносливости: `endurance * 0.02 * skill_heavy_armor *
-0.50`. Это не плоские +50 процентных пунктов: если природный резист от
+`physical_resistance` от выносливости: `effective(endurance) * 0.02 *
+skill_heavy_armor * 0.50`. Это не плоские +50 процентных пунктов: если
+природный резист от
 выносливости равен 30%, полный навык добавит 15%, итог станет 45%.
 
 **Публичный API:**

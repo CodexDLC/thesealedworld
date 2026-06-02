@@ -114,6 +114,7 @@ class MonsterCombatActorInputBuilder:
         metadata = {
             "related_skill": combat.get("related_skill"),
             "item_grade": generation.get("item_grade"),
+            "affix_profile": generation.get("affix_profile"),
             "source_context": generation.get("source_context") or {},
         }
         raw_affixes = generation.get("affixes")
@@ -145,7 +146,7 @@ class MonsterCombatActorInputBuilder:
 
     @staticmethod
     def _loadout(monster: Any, items: dict[str, Any], skills: dict[str, float]) -> dict[str, Any]:
-        loadout = CharacterCombatActorInputBuilder._loadout(items, skills)
+        loadout = CharacterCombatActorInputBuilder._loadout(items, skills, include_basic_gift_abilities=False)
         tags = sorted(set([*loadout.get("tags", []), *MonsterCombatActorInputBuilder._meta_tags(monster)]))
         loadout["tags"] = tags
         loadout["known_feints"] = build_known_feints(loadout, skills)

@@ -85,21 +85,20 @@ Skill values are normalized floats. Player UI may show them as `0..100`.
 
 `stat_weights` describe progression speed, not direct combat damage.
 
-Weapon mastery damage uses a separate runtime table with normalized body-stat
-weights per weapon class. Each row sums to `1.0`; Endurance replaces part of
-the old Strength/Agility share instead of adding extra damage on top.
+Weapon mastery damage uses a separate runtime table with normalized effective
+Strength/Agility weights per weapon class. Each row sums to `1.0`; Endurance
+does not feed ordinary weapon damage.
 
 | Weapon class | Damage stats |
 | --- | --- |
-| `swords` | `strength 0.45`, `agility 0.35`, `endurance 0.20` |
-| `fencing` | `strength 0.20`, `agility 0.70`, `endurance 0.10` |
-| `polearms` | `strength 0.45`, `agility 0.20`, `endurance 0.35` |
-| `macing` | `strength 0.60`, `agility 0.10`, `endurance 0.30` |
-| `archery` | `strength 0.30`, `agility 0.60`, `endurance 0.10` |
+| `swords` | `strength 0.50`, `agility 0.50` |
+| `fencing` | `strength 0.10`, `agility 0.90` |
+| `polearms` | `strength 0.80`, `agility 0.20` |
+| `macing` | `strength 0.90`, `agility 0.10` |
+| `archery` | `strength 0.20`, `agility 0.80` |
 
-`endurance` feeds ordinary weapon damage only through those normalized weights.
-It also remains a survival stat and can feed style-specific mechanics such as
-shield guard power.
+`endurance` remains a survival stat and can feed style-specific mechanics such
+as shield guard power.
 
 Some skill descriptions already include future mechanics. Treat descriptions as
 catalog copy plus design intent, not proof that every effect is implemented in

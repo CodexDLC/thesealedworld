@@ -24,7 +24,9 @@ class ItemTextService:
     def _build_payload(self, item: GeneratedItemDTO, request: ItemGenerationRequestDTO) -> dict[str, Any]:
         base = self.catalog.get_base_item(item.base_id)
         material = self.catalog.get_material(item.material_id) if item.material_id else None
-        item_grade = str(item.metadata.get("item_grade") or "") or GRADE_BY_RARITY_TIER.get(item.rarity_tier, "common")
+        item_grade = str(item.metadata.get("item_grade") or "") or GRADE_BY_RARITY_TIER.get(
+            item.rarity_tier, "no_grade"
+        )
 
         narrative_tags = list(
             dict.fromkeys(

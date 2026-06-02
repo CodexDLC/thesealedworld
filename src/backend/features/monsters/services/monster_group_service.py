@@ -52,13 +52,6 @@ _ENCOUNTER_DIFFICULTY_ALIASES = {
     "heavy": "hard",
     "high": "hard",
 }
-_ORGANIZATION_EXPECTED_UNIT_COUNT = {
-    "swarm": 6,
-    "horde": 5,
-    "pack": 4,
-    "gang": 3,
-    "solitary": 1,
-}
 _PROFILE_POLICY_KEYS = {
     "budget_multiplier",
     "min_units",
@@ -569,39 +562,21 @@ def _merge_profile_policy(profile_policy: dict[str, Any], explicit_policy: dict[
 
 
 def _family_expected_gear_score(members: list[GeneratedMonster], *, tier: int) -> float:
-    base_scores = [
-        score
-        for member in members
-        if member.role in {"minion", "veteran"} and (score := _member_gear_score(member)) is not None
-    ]
-    scores = base_scores or [score for member in members if (score := _member_gear_score(member)) is not None]
+    """Raw family baseline for player/party difficulty comparisons.
+
+    This must not use balance.gear_score or balance.assembly_cost: those values
+    are organization-divided member costs for pack assembly only.
+    """
+    del tier
+    scores = [score for member in members if (score := _member_raw_gear_score(member)) is not None]
     if not scores:
         return 1.0
-    scores = sorted(scores)
-    middle = len(scores) // 2
-    median = float(scores[middle]) if len(scores) % 2 else (float(scores[middle - 1]) + float(scores[middle])) / 2.0
-    organization = _organization_from_members(members)
-    expected_units = _ORGANIZATION_EXPECTED_UNIT_COUNT.get(organization, 1)
-    tier_multiplier = 1.0 + max(0, int(tier) - 1) * 0.15
-    return max(1.0, median * expected_units * tier_multiplier)
+    return max(1.0, sum(scores) / len(scores))
 
 
-def _organization_from_members(members: list[GeneratedMonster]) -> str:
-    for member in members:
-        balance = dict((member.generation_meta or {}).get("balance") or {})
-        organization = str(balance.get("organization_type") or "")
-        if organization:
-            return organization
-    for member in members:
-        family = get_family_config(member.family_id) if member.family_id else None
-        if family is not None:
-            return family.organization_type
-    return "solitary"
-
-
-def _member_gear_score(member: GeneratedMonster) -> int | None:
+def _member_raw_gear_score(member: GeneratedMonster) -> int | None:
     balance = dict((member.generation_meta or {}).get("balance") or {})
-    value = balance.get("gear_score")
+    value = balance.get("raw_gear_score")
     try:
         return int(value)
     except (TypeError, ValueError):

@@ -26,6 +26,7 @@ class ItemGenerationRequestDTO(BaseModel):
     target_slot: str | None = None
     rarity_tier: int = 0
     item_grade: str = ""
+    affix_profile: str = ""
     material_id: str | None = None
     affix_bundle_ids: list[str] = Field(default_factory=list)
     forced_affix_ids: list[str] = Field(default_factory=list)
@@ -89,6 +90,7 @@ class RuntimeItemCombatProjectionDTO(BaseModel):
 class RuntimeItemGenerationDebugDTO(BaseModel):
     material_id: str | None = None
     item_grade: str
+    affix_profile: str = ""
     rarity_tier: int
     affix_bundle_ids: list[str] = Field(default_factory=list)
     affixes: list[dict[str, object]] = Field(default_factory=list)

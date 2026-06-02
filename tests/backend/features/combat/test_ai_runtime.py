@@ -202,7 +202,7 @@ def test_legal_instant_actions_include_affordable_known_abilities() -> None:
         "bot",
         team="red",
         is_ai=True,
-        tokens={"blood": 1, "hit": 1},
+        tokens={"blood": 1, "hit": 3},
         known_abilities=["basic_wipe_blood", "basic_bloody_answer"],
     )
     bot.meta.en = 20

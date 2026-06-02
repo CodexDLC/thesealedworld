@@ -43,3 +43,42 @@ def test_natural_equipment_mappings_cover_mvp_beast_families() -> None:
     assert {"rat_bite_claws", "rat_light_hide", "wolf_bite_claws", "wolf_hide"} <= set(
         NATURAL_EQUIPMENT_MAPPINGS
     )
+
+
+@pytest.mark.unit
+def test_rat_natural_equipment_covers_current_tactical_styles() -> None:
+    expected = {
+        "rat_offhand_bite": ("dagger", "off_hand", "weapon"),
+        "rat_bone_growth": ("buckler", "off_hand", "shield"),
+        "rat_spiked_growth": ("shield", "off_hand", "shield"),
+        "rat_poison_spit": ("shortbow", "two_hand", "weapon"),
+        "rat_poison_glands": ("quiver_training", "quiver", "ammo"),
+        "rat_crushing_bite": ("warhammer", "two_hand", "weapon"),
+        "rat_plague_gland": ("amulet", "amulet", "accessory"),
+    }
+
+    for natural_key, (base_id, slot, item_kind) in expected.items():
+        mapping = NATURAL_EQUIPMENT_MAPPINGS[natural_key]
+
+        assert mapping.base_id == base_id
+        assert mapping.default_slot == slot
+        assert mapping.item_kind == item_kind
+
+
+@pytest.mark.unit
+def test_wolf_natural_equipment_covers_current_pack_styles() -> None:
+    expected = {
+        "wolf_young_claws": ("knife", "off_hand", "weapon"),
+        "wolf_raking_claws": ("katar", "off_hand", "weapon"),
+        "wolf_locking_fangs": ("main_gauche", "off_hand", "weapon"),
+        "wolf_braced_mane": ("buckler", "off_hand", "shield"),
+        "wolf_bone_shoulders": ("shield", "off_hand", "shield"),
+        "wolf_pack_mark": ("amulet", "amulet", "accessory"),
+    }
+
+    for natural_key, (base_id, slot, item_kind) in expected.items():
+        mapping = NATURAL_EQUIPMENT_MAPPINGS[natural_key]
+
+        assert mapping.base_id == base_id
+        assert mapping.default_slot == slot
+        assert mapping.item_kind == item_kind

@@ -41,7 +41,12 @@ class FakeItemGeneration:
                         "tags": [],
                         "related_skill": related_skill,
                     },
-                    generation={"item_grade": "artifact", "rarity_tier": 7, "affixes": []},
+                    generation={
+                        "item_grade": "absolute",
+                        "affix_profile": "monster_equipment_4slot",
+                        "rarity_tier": 7,
+                        "affixes": [],
+                    },
                 )
             )
         return projections

@@ -186,15 +186,16 @@ def test_default_starter_pool_is_selected_ten_imprint_balance_matrix() -> None:
         "starter_tactician_01",
         "starter_heavy_guard_01",
         "starter_breaker_01",
-        "starter_staff_01",
+        "starter_hunter_01",
         "starter_rift_survivor_01",
-        "starter_pathfinder_01",
+        "starter_archer_01",
         "starter_dual_blades_01",
         "starter_dual_sword_01",
         "starter_dual_mace_01",
     }
-    assert "starter_hunter_01" not in DEFAULT_STARTER_SIMULATION_IMPRINTS
-    assert "starter_archer_01" not in DEFAULT_STARTER_SIMULATION_IMPRINTS
+    assert "starter_pathfinder_01" not in DEFAULT_STARTER_SIMULATION_IMPRINTS
+    assert "starter_staff_01" not in DEFAULT_STARTER_SIMULATION_IMPRINTS
+    assert "starter_marksman_01" not in DEFAULT_STARTER_SIMULATION_IMPRINTS
 
 
 @pytest.mark.unit

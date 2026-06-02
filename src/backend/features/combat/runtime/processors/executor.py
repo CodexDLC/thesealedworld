@@ -12,6 +12,7 @@ from src.backend.features.combat.dto.pipeline import CombatEffectFactDTO, Intera
 from src.backend.features.combat.dto.session import BattleContext, TargetReturnDTO
 from src.backend.features.combat.integrations import CombatCatalogIntegrator
 from src.backend.features.combat.runtime.ai.ai_memory import record_exchange_outcome
+from src.backend.features.combat.runtime.engine.ability_service import AbilityService
 from src.backend.features.combat.runtime.engine.feint_service import FeintService
 from src.backend.features.combat.runtime.engine.pipeline import CombatPipeline
 from src.backend.features.combat.runtime.engine.target_resolver import TargetResolver
@@ -457,27 +458,23 @@ class CombatExecutor:
     def _cleanup_finished_control_effects(
         self, ctx: BattleContext, actors: list[ActorSnapshot], *, action: CombatActionDTO, wave: int
     ) -> None:
-        """Remove one-shot control effects after the exchange they affected."""
+        """Remove effects that expired on the actor's own exchange counter."""
         seen: set[ActorId] = set()
         for actor in actors:
             actor_id = actor.char_id
             if actor_id in seen:
                 continue
             seen.add(actor_id)
-            expired = []
-            keep = []
-            for effect in actor.statuses.effects:
-                effect_entry = CombatCatalogIntegrator.get_effect_catalog_entry(effect.effect_id)
-                tags = set(effect_entry.technical.tags) if effect_entry else set()
-                if "control" in tags and effect.expire_at_exchange <= actor.meta.exchange_counter:
-                    expired.append(effect)
-                    continue
-                keep.append(effect)
+            expired = [
+                effect for effect in actor.statuses.effects if effect.expire_at_exchange <= actor.meta.exchange_counter
+            ]
             if not expired:
                 continue
-            actor.statuses.effects = keep
+            AbilityService._cleanup_expired_effects_pre_calc(actor)
             result = InteractionResultDTO(source_id=action.move.char_id, target_id=actor.char_id)
             for effect in expired:
+                effect_entry = CombatCatalogIntegrator.get_effect_catalog_entry(effect.effect_id)
+                tags = set(effect_entry.technical.tags) if effect_entry else set()
                 result.effect_facts.append(
                     CombatEffectFactDTO(
                         actor_id=actor.char_id,
@@ -485,6 +482,7 @@ class CombatExecutor:
                         effect_id=effect.effect_id,
                         action="expire",
                         source_effect_id=effect.effect_id,
+                        tags=sorted(tags),
                     )
                 )
             ctx.pending_logs.extend(

@@ -13,6 +13,7 @@ from src.backend.features.game_catalog.combat.resources.abilities import get_abi
 from src.backend.features.game_catalog.combat.resources.abilities.definitions.basic_gift import (
     BASIC_GIFT_ABILITY_IDS,
 )
+from src.backend.features.game_catalog.combat.resources.abilities.enums import AbilitySource
 from src.backend.features.game_catalog.combat.resources.common import CombatEventTextSetDTO
 from src.backend.features.game_catalog.combat.resources.common.pipeline_mutations import (
     PIPELINE_MUTATION_CONTRACTS,
@@ -193,14 +194,14 @@ def test_combat_resources_load_runtime_and_public_catalog() -> None:
 
 def test_basic_gift_abilities_are_runtime_resources_with_combat_token_costs() -> None:
     expected_costs = {
-        "basic_punish_mistake": {"tempo": 1, "hit": 1},
-        "basic_finish_moment": {"tempo": 1, "crit": 1},
-        "basic_break_stance": {"tempo": 1, "hit": 1},
-        "basic_expose_weakness": {"tempo": 1, "crit": 1},
+        "basic_punish_mistake": {"tempo": 2, "hit": 3},
+        "basic_finish_moment": {"tempo": 2, "crit": 2},
+        "basic_break_stance": {"tempo": 2, "hit": 3},
+        "basic_expose_weakness": {"tempo": 2, "crit": 2},
         "basic_wipe_blood": {"blood": 1},
         "basic_grit_teeth": {"blood": 1},
-        "basic_bloody_answer": {"blood": 1, "hit": 1},
-        "basic_last_push": {"blood": 1, "tempo": 1},
+        "basic_bloody_answer": {"blood": 1, "hit": 3},
+        "basic_last_push": {"blood": 1, "tempo": 2},
     }
 
     assert tuple(expected_costs) == BASIC_GIFT_ABILITY_IDS
@@ -209,10 +210,26 @@ def test_basic_gift_abilities_are_runtime_resources_with_combat_token_costs() ->
         entry = get_ability_catalog_entry(ability_id)
         assert entry is not None
         assert entry.key == f"combat.ability.{ability_id}"
-        assert entry.technical.cost.energy > 0
+        assert entry.technical.source == AbilitySource.COMBAT
+        assert entry.technical.cost.energy == 10
         assert entry.technical.cost.gift_tokens == 0
         assert entry.technical.cost.tokens == token_costs
         assert entry.descriptive.variants["humanoid"].display_name
+
+    for ability_id in (
+        "basic_punish_mistake",
+        "basic_finish_moment",
+        "basic_break_stance",
+        "basic_expose_weakness",
+        "basic_bloody_answer",
+    ):
+        entry = get_ability_catalog_entry(ability_id)
+        assert entry is not None
+        assert entry.technical.override_damage is None
+        assert entry.technical.pipeline_mutations is not None
+        assert entry.technical.pipeline_mutations.preset == "TACTICAL_INSTANT_STRIKE"
+        applications = {app.mutation_id: app.value_override for app in entry.technical.pipeline_mutations.applications}
+        assert applications["damage_mult"] == 1.2
 
     wipe_blood = get_ability_catalog_entry("basic_wipe_blood")
     last_push = get_ability_catalog_entry("basic_last_push")
@@ -229,20 +246,28 @@ def test_public_ability_catalog_exposes_tooltip_payload() -> None:
 
     punish = catalog["abilities"]["basic_punish_mistake"]
     break_stance = catalog["abilities"]["basic_break_stance"]
+    expose_weakness = catalog["abilities"]["basic_expose_weakness"]
     bloody_answer = catalog["abilities"]["basic_bloody_answer"]
 
     assert punish["title"] == "Наказать ошибку"
     assert punish["description"] == "Тратит темп и попадание, чтобы нанести быстрый урон."
-    assert punish["cost"] == {"energy": 10, "hp": 0, "gift_tokens": 0, "tokens": {"tempo": 1, "hit": 1}}
+    assert punish["cost"] == {"energy": 10, "hp": 0, "gift_tokens": 0, "tokens": {"tempo": 2, "hit": 3}}
     assert punish["target_label"] == "Один враг"
-    assert "Тип: атака" in punish["mechanics"]
-    assert "Урон: 18-22" in punish["mechanics"]
+    assert "Тип: тактический удар" in punish["mechanics"]
+    assert "Урон оружия: x1.2" in punish["mechanics"]
+    assert not any("18-22" in item for item in punish["mechanics"])
 
     assert break_stance["target_label"] == "Один враг"
-    assert "Тип: эффект" in break_stance["mechanics"]
-    assert "Цель получает: уклонение -0.05 на 2 размена" in break_stance["mechanics"]
+    assert "Тип: тактический удар" in break_stance["mechanics"]
+    assert "Урон оружия: x1.2" in break_stance["mechanics"]
+    assert "Цель получает: физический урон -25% урона умения на 4 размена" in break_stance["mechanics"]
 
-    assert "Урон: 20-26" in bloody_answer["mechanics"]
+    assert expose_weakness["description"] == "Тратит темп и критический момент, чтобы подавить уклонение цели."
+    assert "Тип: тактический удар" in expose_weakness["mechanics"]
+    assert "Урон оружия: x1.2" in expose_weakness["mechanics"]
+    assert "Цель получает: уклонение -0.5 на 3 размена" in expose_weakness["mechanics"]
+
+    assert "Урон оружия: x1.2" in bloody_answer["mechanics"]
     assert "Эффект: кровотечение на 2 размена, сила 0.75" in bloody_answer["mechanics"]
 
 

@@ -360,7 +360,6 @@ def test_garment_templates_carry_anchor_environment_implicit_profile() -> None:
 def test_non_warhammer_player_weapons_get_power_offset_for_capped_spread() -> None:
     catalog = ItemCatalogService.load_default()
     expected_power = {
-        "sling": 5,
         "shortbow": 8,
         "longbow": 11,
         "composite_bow": 11,
@@ -394,6 +393,14 @@ def test_non_warhammer_player_weapons_get_power_offset_for_capped_spread() -> No
     }
 
     assert actual_power == expected_power
+
+
+@pytest.mark.unit
+def test_archery_catalog_has_only_bows_not_sling() -> None:
+    catalog = ItemCatalogService.load_default()
+
+    assert catalog.get_base_item("sling") is None
+    assert {item_id for item_id in ARCHERY_BOWS if catalog.get_base_item(item_id)} == ARCHERY_BOWS
 
 
 @pytest.mark.unit

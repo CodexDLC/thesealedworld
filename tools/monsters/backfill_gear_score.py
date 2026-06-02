@@ -47,8 +47,7 @@ async def _run(args: argparse.Namespace) -> None:
                 member = members_by_id.get(member_row.id)
                 if member is None:
                     continue
-                member_row.generation_meta = dict(member.generation_meta)
-                flag_modified(member_row, "generation_meta")
+                _apply_member_backfill(member_row, member)
             clan_row.raw_tags = dict(clan.raw_tags)
             flag_modified(clan_row, "raw_tags")
 
@@ -60,6 +59,12 @@ async def _run(args: argparse.Namespace) -> None:
         f"clans={len(clan_rows)} monsters={monster_count} dry_run={bool(args.dry_run)} "
         f"limit={args.limit} offset={args.offset}"
     )
+
+
+def _apply_member_backfill(member_row: object, member: object) -> None:
+    member_row.generation_meta = dict(member.generation_meta)
+    member_row.threat_rating = int(member.threat_rating)
+    flag_modified(member_row, "generation_meta")
 
 
 def main() -> None:

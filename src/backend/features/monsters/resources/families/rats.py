@@ -14,7 +14,7 @@ def build_role_ladder_stats(role, priority):
 
 RATS_FAMILY: MonsterFamily = {
     "id": "rat_swarm",
-    "resource_version": 1.2,
+    "resource_version": 1.4,
     "archetype": "beast",
     "organization_type": "swarm",  # TSP Base: 30
     "default_tags": ["beast", "rat", "disease", "swarm"],
@@ -63,8 +63,13 @@ RATS_FAMILY: MonsterFamily = {
                     "projection",
                 ),
             ),
-            "fixed_loadout": {"main_hand": "rat_bite_claws", "chest_armor": "rat_light_hide"},
-            "skills": ["skill_fencing", "skill_light_armor"],
+            "fixed_loadout": {
+                "main_hand": "rat_bite_claws",
+                "off_hand": "rat_offhand_bite",
+                "chest_armor": "rat_light_hide",
+                "amulet": "rat_plague_gland",
+            },
+            "skills": ["skill_fencing", "skill_dual_wield", "skill_light_armor"],
         },
         "scavenger_rat": {
             "id": "scavenger_rat",
@@ -88,8 +93,13 @@ RATS_FAMILY: MonsterFamily = {
                     "projection",
                 ),
             ),
-            "fixed_loadout": {"main_hand": "rat_bite_claws", "chest_armor": "rat_light_hide"},
-            "skills": ["skill_fencing", "skill_light_armor"],
+            "fixed_loadout": {
+                "main_hand": "rat_bite_claws",
+                "off_hand": "rat_offhand_bite",
+                "chest_armor": "rat_light_hide",
+                "amulet": "rat_plague_gland",
+            },
+            "skills": ["skill_fencing", "skill_dual_wield", "skill_light_armor"],
         },
         "swarm_rat": {
             "id": "swarm_rat",
@@ -113,8 +123,13 @@ RATS_FAMILY: MonsterFamily = {
                     "projection",
                 ),
             ),
-            "fixed_loadout": {"main_hand": "rat_bite_claws", "chest_armor": "rat_light_hide"},
-            "skills": ["skill_fencing", "skill_light_armor"],
+            "fixed_loadout": {
+                "main_hand": "rat_bite_claws",
+                "off_hand": "rat_offhand_bite",
+                "chest_armor": "rat_light_hide",
+                "amulet": "rat_plague_gland",
+            },
+            "skills": ["skill_fencing", "skill_dual_wield", "skill_light_armor"],
         },
         # --- 2. Опытные бойцы (Veterans) [TSP ~45] ---
         "tunnel_rat": {
@@ -139,8 +154,13 @@ RATS_FAMILY: MonsterFamily = {
                     "projection",
                 ),
             ),
-            "fixed_loadout": {"main_hand": "rat_veteran_claws", "chest_armor": "rat_medium_hide"},
-            "skills": ["skill_fencing", "skill_medium_armor"],
+            "fixed_loadout": {
+                "main_hand": "rat_veteran_claws",
+                "off_hand": "rat_offhand_bite",
+                "chest_armor": "rat_medium_hide",
+                "amulet": "rat_plague_gland",
+            },
+            "skills": ["skill_fencing", "skill_dual_wield", "skill_medium_armor"],
         },
         "pack_rat": {
             "id": "pack_rat",
@@ -164,8 +184,13 @@ RATS_FAMILY: MonsterFamily = {
                     "projection",
                 ),
             ),
-            "fixed_loadout": {"main_hand": "rat_veteran_claws", "chest_armor": "rat_light_hide"},
-            "skills": ["skill_fencing", "skill_light_armor"],
+            "fixed_loadout": {
+                "main_hand": "rat_veteran_claws",
+                "off_hand": "rat_bone_growth",
+                "chest_armor": "rat_light_hide",
+                "amulet": "rat_plague_gland",
+            },
+            "skills": ["skill_fencing", "skill_shield_mastery", "skill_light_armor"],
         },
         "screecher": {
             "id": "screecher",
@@ -189,8 +214,13 @@ RATS_FAMILY: MonsterFamily = {
                     "projection",
                 ),
             ),
-            "fixed_loadout": {"main_hand": "rat_veteran_claws", "chest_armor": "rat_medium_hide"},
-            "skills": ["skill_fencing", "skill_medium_armor"],
+            "fixed_loadout": {
+                "two_hand": "rat_poison_spit",
+                "quiver": "rat_poison_glands",
+                "chest_armor": "rat_medium_hide",
+                "amulet": "rat_plague_gland",
+            },
+            "skills": ["skill_archery", "skill_ranged_combat", "skill_medium_armor"],
         },
         # --- 3. Элита (Elites) [TSP ~75] ---
         "plague_rat": {
@@ -215,8 +245,13 @@ RATS_FAMILY: MonsterFamily = {
                     "prediction",
                 ),
             ),
-            "fixed_loadout": {"main_hand": "rat_elite_claws", "chest_armor": "rat_medium_hide"},
-            "skills": ["skill_fencing", "skill_medium_armor", "skill_anatomy"],
+            "fixed_loadout": {
+                "two_hand": "rat_poison_spit",
+                "quiver": "rat_poison_glands",
+                "chest_armor": "rat_medium_hide",
+                "amulet": "rat_plague_gland",
+            },
+            "skills": ["skill_archery", "skill_ranged_combat", "skill_medium_armor", "skill_anatomy"],
         },
         "rotfang": {
             "id": "rotfang",
@@ -240,8 +275,12 @@ RATS_FAMILY: MonsterFamily = {
                     "projection",
                 ),
             ),
-            "fixed_loadout": {"main_hand": "rat_elite_claws", "chest_armor": "rat_heavy_hide"},
-            "skills": ["skill_fencing", "skill_heavy_armor", "skill_anatomy"],
+            "fixed_loadout": {
+                "two_hand": "rat_crushing_bite",
+                "chest_armor": "rat_heavy_hide",
+                "amulet": "rat_plague_gland",
+            },
+            "skills": ["skill_macing", "skill_two_handed", "skill_heavy_armor", "skill_anatomy"],
         },
         "blight_carrier": {
             "id": "blight_carrier",
@@ -265,8 +304,13 @@ RATS_FAMILY: MonsterFamily = {
                     "prediction",
                 ),
             ),
-            "fixed_loadout": {"main_hand": "rat_elite_claws", "chest_armor": "rat_medium_hide"},
-            "skills": ["skill_fencing", "skill_medium_armor", "skill_anatomy"],
+            "fixed_loadout": {
+                "main_hand": "rat_elite_claws",
+                "off_hand": "rat_spiked_growth",
+                "chest_armor": "rat_medium_hide",
+                "amulet": "rat_plague_gland",
+            },
+            "skills": ["skill_fencing", "skill_shield_mastery", "skill_medium_armor", "skill_anatomy"],
         },
         # --- 4. Боссы (Bosses) [TSP ~120] ---
         "rat_brute": {
@@ -291,8 +335,12 @@ RATS_FAMILY: MonsterFamily = {
                     "memory",
                 ),
             ),
-            "fixed_loadout": {"main_hand": "rat_boss_claws", "chest_armor": "rat_heavy_hide"},
-            "skills": ["skill_fencing", "skill_heavy_armor", "skill_tactics", "skill_anatomy"],
+            "fixed_loadout": {
+                "two_hand": "rat_crushing_bite",
+                "chest_armor": "rat_heavy_hide",
+                "amulet": "rat_plague_gland",
+            },
+            "skills": ["skill_macing", "skill_two_handed", "skill_heavy_armor", "skill_tactics", "skill_anatomy"],
         },
         "brood_alpha": {
             "id": "brood_alpha",
@@ -316,8 +364,19 @@ RATS_FAMILY: MonsterFamily = {
                     "prediction",
                 ),
             ),
-            "fixed_loadout": {"main_hand": "rat_boss_claws", "chest_armor": "rat_heavy_hide"},
-            "skills": ["skill_fencing", "skill_heavy_armor", "skill_tactics", "skill_anatomy"],
+            "fixed_loadout": {
+                "main_hand": "rat_boss_claws",
+                "off_hand": "rat_spiked_growth",
+                "chest_armor": "rat_heavy_hide",
+                "amulet": "rat_plague_gland",
+            },
+            "skills": [
+                "skill_fencing",
+                "skill_shield_mastery",
+                "skill_heavy_armor",
+                "skill_tactics",
+                "skill_anatomy",
+            ],
         },
         "rat_king": {
             "id": "rat_king",
@@ -341,8 +400,13 @@ RATS_FAMILY: MonsterFamily = {
                     "prediction",
                 ),
             ),
-            "fixed_loadout": {"main_hand": "rat_boss_claws", "chest_armor": "rat_heavy_hide"},
-            "skills": ["skill_fencing", "skill_heavy_armor", "skill_tactics", "skill_anatomy"],
+            "fixed_loadout": {
+                "two_hand": "rat_poison_spit",
+                "quiver": "rat_poison_glands",
+                "chest_armor": "rat_heavy_hide",
+                "amulet": "rat_plague_gland",
+            },
+            "skills": ["skill_archery", "skill_ranged_combat", "skill_heavy_armor", "skill_tactics", "skill_anatomy"],
         },
     },
 }

@@ -32,10 +32,10 @@ ROLE_TIER_OFFSETS: dict[str, int] = {
 }
 
 ORGANIZATION_GS_DIVISORS: dict[str, float] = {
-    "swarm": 5.0,
-    "horde": 4.0,
-    "pack": 3.0,
-    "gang": 2.0,
+    "swarm": 4.0,
+    "horde": 3.0,
+    "pack": 2.5,
+    "gang": 1.5,
     "solitary": 1.0,
 }
 

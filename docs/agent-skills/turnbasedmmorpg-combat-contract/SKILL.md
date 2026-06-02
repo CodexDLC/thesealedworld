@@ -87,8 +87,8 @@ InteractionResultDTO
 - Counter check: `min(counter_attack_chance, counter_attack_cap)`
 - Weapon damage: `rand((assembled_base + physical_damage_bonus)*(1-spread), ... ) - resist - armor`.
 - Elemental/magic damage: `rand(magical_damage*(1-spread), ...) - elemental_resist - magic_armor`.
-- Assembled weapon base: `weapon_power + ((strength_power*wS + agility_power*wA + endurance_power*wE) * mastery_factor)`.
-  Weapon classes use normalized body-stat damage weights that sum to `1.0`.
+- Assembled weapon base: `weapon_power + ((strength_power*wS + agility_power*wA) * mastery_factor)`.
+  Weapon classes use normalized effective Strength/Agility damage weights that sum to `1.0`.
 - Unarmed damage: `rand((strength_base * unarmed_efficiency + physical_damage_bonus)*(1-spread), ... ) - resist - armor`; unarmed does not add `physical_damage` twice.
 - Healing: `rand(magical_damage*0.9, magical_damage*1.1) [* 1.5 if crit]`
 
@@ -198,7 +198,7 @@ chance = min(0.50, 0.25 + 0.25 * skill_dual_wield)  # 0.25 base, 0.50 at full ma
 | crit_cap (all) | `atk.mods.{prefix}_crit_cap` | DTO defaults | OK |
 | physical_strength_power | `atk.mods.physical_strength_power` for weapon/style assembly | Waterfall from Strength | OK |
 | physical_agility_power | `atk.mods.physical_agility_power` for weapon assembly | Waterfall from Agility | OK |
-| physical_endurance_power | `atk.mods.physical_endurance_power` for normalized weapon damage and style-specific assembly | Waterfall from Endurance | OK |
+| physical_endurance_power | `atk.mods.physical_endurance_power` for survival and style-specific assembly | Waterfall from Endurance | OK |
 | physical_damage | legacy/reserved flat field; weapon resolver does not add it automatically | DTO / compatibility | OK |
 | physical_damage_bonus | `atk.mods.physical_damage_bonus` | CharMathModel | OK |
 | evasion | `def.mods.evasion` | CharMathModel / MonsterProfile | OK |
@@ -300,11 +300,11 @@ magical_resistance    → magic_resist
 Strength flows into `physical_strength_power` through the attribute waterfall.
 Agility and Endurance flow into their own physical power fields. For weapon
 attacks, `BasePowerAssembler` combines weapon power, class-specific normalized
-body-stat damage weights, and weapon mastery into the final hand damage base
-before `ActorStats` is created. The current weapon damage table uses Strength,
-Agility, and Endurance with each class row summing to `1.0`; Endurance replaces
-part of the old Strength/Agility share instead of adding extra damage on top.
-The resolver reads that assembled base and does not add `physical_damage`.
+effective Strength/Agility damage weights, and weapon mastery into the final
+hand damage base before `ActorStats` is created. Endurance does not feed
+ordinary weapon damage; it stays available for survival and style-specific
+mechanics. The resolver reads that assembled base and does not add
+`physical_damage`.
 
 For unarmed attacks, the mapper already uses Strength as `main_hand_damage_base`,
 so `BasePowerAssembler` skips the `unarmed` class and the resolver applies the

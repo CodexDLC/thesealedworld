@@ -24,11 +24,12 @@ BASIC_GIFT_ABILITY_IDS: tuple[str, ...] = (
     "basic_last_push",
 )
 
-_MAGIC_PHYSICAL_ATTACK = PipelineMutationsDTO(
-    preset="MAGIC_ATTACK",
+_TACTICAL_INSTANT_STRIKE = PipelineMutationsDTO(
+    preset="TACTICAL_INSTANT_STRIKE",
     applications=[
         pipeline_mutation("damage.physical", True),
         pipeline_mutation("damage.arcane", False),
+        pipeline_mutation("damage_mult", 1.2),
     ],
 )
 
@@ -36,63 +37,63 @@ _MAGIC_PHYSICAL_ATTACK = PipelineMutationsDTO(
 BASIC_GIFT_ABILITIES_TECHNICAL: dict[str, AbilityTechnicalDTO] = {
     "basic_punish_mistake": AbilityTechnicalDTO(
         ability_id="basic_punish_mistake",
-        source=AbilitySource.GIFT,
+        source=AbilitySource.COMBAT,
         type=AbilityType.INSTANT,
-        cost=AbilityCostDTO(energy=10, tokens={"tempo": 1, "hit": 1}),
+        cost=AbilityCostDTO(energy=10, tokens={"tempo": 2, "hit": 3}),
         target=TargetType.SINGLE_ENEMY,
-        pipeline_mutations=_MAGIC_PHYSICAL_ATTACK,
-        override_damage=(18.0, 22.0),
+        pipeline_mutations=_TACTICAL_INSTANT_STRIKE,
         ai_tags=["tempo", "hit", "damage", "single_target"],
     ),
     "basic_finish_moment": AbilityTechnicalDTO(
         ability_id="basic_finish_moment",
-        source=AbilitySource.GIFT,
+        source=AbilitySource.COMBAT,
         type=AbilityType.INSTANT,
-        cost=AbilityCostDTO(energy=14, tokens={"tempo": 1, "crit": 1}),
+        cost=AbilityCostDTO(energy=10, tokens={"tempo": 2, "crit": 2}),
         target=TargetType.SINGLE_ENEMY,
-        pipeline_mutations=_MAGIC_PHYSICAL_ATTACK,
-        override_damage=(30.0, 38.0),
+        pipeline_mutations=_TACTICAL_INSTANT_STRIKE,
         ai_tags=["tempo", "crit", "damage", "execute"],
     ),
     "basic_break_stance": AbilityTechnicalDTO(
         ability_id="basic_break_stance",
-        source=AbilitySource.GIFT,
+        source=AbilitySource.COMBAT,
         type=AbilityType.INSTANT,
-        cost=AbilityCostDTO(energy=12, tokens={"tempo": 1, "hit": 1}),
+        cost=AbilityCostDTO(energy=10, tokens={"tempo": 2, "hit": 3}),
         target=TargetType.SINGLE_ENEMY,
-        pipeline_mutations=PipelineMutationsDTO(preset="BUFF"),
+        pipeline_mutations=_TACTICAL_INSTANT_STRIKE,
         modifier_applications=[
             ModifierApplicationDTO(
-                modifier_id="evasion_add",
+                modifier_id="physical_damage_bonus_add",
                 target_actor="target",
-                value_override=-0.05,
+                value_mode="source_main_hand_damage_multiplier",
+                value_multiplier=-0.25,
+                value_override=1.2,
                 scope="duration",
-                duration_exchanges=2,
+                duration_exchanges=4,
             )
         ],
         ai_tags=["tempo", "hit", "debuff", "anti_defense"],
     ),
     "basic_expose_weakness": AbilityTechnicalDTO(
         ability_id="basic_expose_weakness",
-        source=AbilitySource.GIFT,
+        source=AbilitySource.COMBAT,
         type=AbilityType.INSTANT,
-        cost=AbilityCostDTO(energy=16, tokens={"tempo": 1, "crit": 1}),
+        cost=AbilityCostDTO(energy=10, tokens={"tempo": 2, "crit": 2}),
         target=TargetType.SINGLE_ENEMY,
-        pipeline_mutations=PipelineMutationsDTO(preset="BUFF"),
+        pipeline_mutations=_TACTICAL_INSTANT_STRIKE,
         modifier_applications=[
             ModifierApplicationDTO(
-                modifier_id="armor_add",
+                modifier_id="evasion_add",
                 target_actor="target",
-                value_override=-5.0,
+                value_override=-0.5,
                 scope="duration",
-                duration_exchanges=2,
+                duration_exchanges=3,
             )
         ],
-        ai_tags=["tempo", "crit", "debuff", "mark"],
+        ai_tags=["tempo", "crit", "debuff", "anti_evasion"],
     ),
     "basic_wipe_blood": AbilityTechnicalDTO(
         ability_id="basic_wipe_blood",
-        source=AbilitySource.GIFT,
+        source=AbilitySource.COMBAT,
         type=AbilityType.INSTANT,
         cost=AbilityCostDTO(energy=10, tokens={"blood": 1}),
         target=TargetType.SELF,
@@ -102,9 +103,9 @@ BASIC_GIFT_ABILITIES_TECHNICAL: dict[str, AbilityTechnicalDTO] = {
     ),
     "basic_grit_teeth": AbilityTechnicalDTO(
         ability_id="basic_grit_teeth",
-        source=AbilitySource.GIFT,
+        source=AbilitySource.COMBAT,
         type=AbilityType.INSTANT,
-        cost=AbilityCostDTO(energy=12, tokens={"blood": 1}),
+        cost=AbilityCostDTO(energy=10, tokens={"blood": 1}),
         target=TargetType.SELF,
         pipeline_mutations=PipelineMutationsDTO(preset="BUFF"),
         modifier_applications=[
@@ -120,20 +121,19 @@ BASIC_GIFT_ABILITIES_TECHNICAL: dict[str, AbilityTechnicalDTO] = {
     ),
     "basic_bloody_answer": AbilityTechnicalDTO(
         ability_id="basic_bloody_answer",
-        source=AbilitySource.GIFT,
+        source=AbilitySource.COMBAT,
         type=AbilityType.INSTANT,
-        cost=AbilityCostDTO(energy=14, tokens={"blood": 1, "hit": 1}),
+        cost=AbilityCostDTO(energy=10, tokens={"blood": 1, "hit": 3}),
         target=TargetType.SINGLE_ENEMY,
-        pipeline_mutations=_MAGIC_PHYSICAL_ATTACK,
-        override_damage=(20.0, 26.0),
+        pipeline_mutations=_TACTICAL_INSTANT_STRIKE,
         effects=[{"id": "dot_bleed", "params": {"duration": 2, "power": 0.75, "apply_bonus": 0.25}}],
         ai_tags=["blood", "hit", "damage", "bleed"],
     ),
     "basic_last_push": AbilityTechnicalDTO(
         ability_id="basic_last_push",
-        source=AbilitySource.GIFT,
+        source=AbilitySource.COMBAT,
         type=AbilityType.INSTANT,
-        cost=AbilityCostDTO(energy=18, tokens={"blood": 1, "tempo": 1}),
+        cost=AbilityCostDTO(energy=10, tokens={"blood": 1, "tempo": 2}),
         target=TargetType.SELF,
         pipeline_mutations=PipelineMutationsDTO(preset="HEALING"),
         override_damage=(8.0, 12.0),
@@ -161,7 +161,7 @@ BASIC_GIFT_ABILITIES_DESCRIPTIVE = {
         short_description="Тратит темп и попадание, чтобы нанести быстрый урон.",
         humanoid_event_texts=CombatEventTextSetDTO(
             use=["{source} ловит ошибку {target}."],
-            hit=["удар дара наказывает {target}"],
+            hit=["удар в окно наказывает {target}"],
             crit=["{source} превращает ошибку {target} в резкий перелом"],
             miss=["{target} успевает закрыть ошибку"],
             no_resource=["{source} видит ошибку, но не успевает её наказать"],
@@ -174,7 +174,7 @@ BASIC_GIFT_ABILITIES_DESCRIPTIVE = {
         icon="combat/abilities/basic_finish_moment.svg",
         display_name="Добить момент",
         ui_label="Добить момент",
-        short_description="Тратит темп и критический момент на сильный добивающий удар.",
+        short_description="Тратит темп и критический момент на удар по открытому моменту.",
         humanoid_event_texts=CombatEventTextSetDTO(
             use=["{source} вкладывает критический момент в удар по {target}."],
             hit=["момент обрушивается на {target}"],
@@ -193,6 +193,7 @@ BASIC_GIFT_ABILITIES_DESCRIPTIVE = {
         short_description="Тратит темп и попадание, чтобы ослабить защитную стойку цели.",
         humanoid_event_texts=CombatEventTextSetDTO(
             use=["{source} сбивает стойку {target}."],
+            hit=["{source} ломает устойчивость {target}"],
             apply_effect=["{target} теряет устойчивость: {effect}."],
             no_resource=["{source} не удерживает темп для сбития стойки"],
         ),
@@ -204,9 +205,10 @@ BASIC_GIFT_ABILITIES_DESCRIPTIVE = {
         icon="combat/abilities/basic_expose_weakness.svg",
         display_name="Открыть слабость",
         ui_label="Открыть слабость",
-        short_description="Тратит темп и критический момент, чтобы ослабить броню цели.",
+        short_description="Тратит темп и критический момент, чтобы подавить уклонение цели.",
         humanoid_event_texts=CombatEventTextSetDTO(
             use=["{source} отмечает слабое место {target}."],
+            hit=["{source} бьёт в слабое место {target}"],
             apply_effect=["слабость {target} открыта: {effect}."],
             no_resource=["{source} видит слабость, но не может её открыть"],
         ),

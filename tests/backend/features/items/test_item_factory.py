@@ -38,7 +38,7 @@ def test_item_factory_generates_combat_ready_item_spec():
     assert item.mechanics["material"]["material_id"] == "mat_iron_ingot"
     assert item.mechanics["material"]["tier_mult"] == pytest.approx(1.0)
     assert item.metadata["source"] == "scenario:awakening_rift"
-    assert item.metadata["item_grade"] == "uncommon"
+    assert item.metadata["item_grade"] == "common"
 
 
 @pytest.mark.unit
@@ -80,7 +80,7 @@ def test_item_factory_heavy_armor_scales_class_penalties_for_sync_math():
         ItemGenerationRequestDTO(
             base_id="plate_chest",
             material_id="mat_iron_ingot",
-            item_grade="common",
+            item_grade="no_grade",
         )
     )
 
@@ -96,14 +96,14 @@ def test_item_factory_light_chest_penalty_scales_by_material_tier():
         ItemGenerationRequestDTO(
             base_id="leather_armor",
             material_id="mat_cured_leather",
-            item_grade="common",
+            item_grade="no_grade",
         )
     )
     high = ItemFactory().generate(
         ItemGenerationRequestDTO(
             base_id="leather_armor",
             material_id="mat_thick_leather",
-            item_grade="common",
+            item_grade="no_grade",
         )
     )
 
@@ -122,7 +122,7 @@ def test_item_factory_common_grade_produces_no_affixes():
         )
     )
 
-    assert item.metadata["item_grade"] == "common"
+    assert item.metadata["item_grade"] == "no_grade"
     assert item.mechanics["affixes"] == []
     assert item.bonuses == {}
 
@@ -135,14 +135,14 @@ def test_item_factory_uses_material_prefix_for_generated_names():
         ItemGenerationRequestDTO(
             base_id="buckler",
             material_id="mat_oak_plank",
-            item_grade="common",
+            item_grade="no_grade",
         )
     )
     breeches = factory.generate(
         ItemGenerationRequestDTO(
             base_id="breeches",
             material_id="mat_cured_leather",
-            item_grade="common",
+            item_grade="no_grade",
         )
     )
 
@@ -176,14 +176,14 @@ def test_item_factory_scales_belt_capacity_by_material_tier_not_tier_mult():
         ItemGenerationRequestDTO(
             base_id="belt",
             material_id="mat_torn_leather",
-            item_grade="common",
+            item_grade="no_grade",
         )
     )
     high = ItemFactory().generate(
         ItemGenerationRequestDTO(
             base_id="belt",
             material_id="mat_ancient_dragonhide",
-            item_grade="common",
+            item_grade="no_grade",
         )
     )
 
@@ -200,7 +200,7 @@ def test_item_factory_carries_quiver_ammo_contract_into_mechanics():
         ItemGenerationRequestDTO(
             base_id="quiver_fire",
             material_id="mat_oak_plank",
-            item_grade="common",
+            item_grade="no_grade",
         )
     )
 
@@ -231,14 +231,14 @@ def test_item_factory_scales_travel_boots_concentration_regen_by_material_tier_m
         ItemGenerationRequestDTO(
             base_id="travel_boots",
             material_id="mat_cured_leather",
-            item_grade="common",
+            item_grade="no_grade",
         )
     )
     high = ItemFactory().generate(
         ItemGenerationRequestDTO(
             base_id="travel_boots",
             material_id="mat_ancient_dragonhide",
-            item_grade="common",
+            item_grade="no_grade",
         )
     )
 
@@ -250,7 +250,7 @@ def test_item_factory_scales_travel_boots_concentration_regen_by_material_tier_m
 
 
 @pytest.mark.unit
-def test_item_factory_high_rarity_tier_uses_artifact_container():
+def test_item_factory_high_rarity_tier_uses_absolute_rarity_container():
     item = ItemFactory().generate(
         ItemGenerationRequestDTO(
             base_id="warhammer",
@@ -258,7 +258,8 @@ def test_item_factory_high_rarity_tier_uses_artifact_container():
         )
     )
 
-    assert item.metadata["item_grade"] == "artifact"
+    assert item.metadata["item_grade"] == "absolute"
+    assert item.metadata["affix_profile"] == "absolute"
     assert len(item.mechanics["affixes"]) == 4
 
 
@@ -269,7 +270,8 @@ def test_item_factory_runtime_item_uses_presentation_override_and_custom_affix_s
         generation_mode="runtime",
         base_id="dagger",
         material_id="mat_cobalt_ingot",
-        item_grade="artifact",
+        affix_profile="monster_equipment_4slot",
+        item_grade="rare",
         affix_bundle_ids=["duelist_weapon_4"],
         affix_step_count=2,
         presentation_name_ru="Крысиные клыки и когти",
@@ -283,6 +285,8 @@ def test_item_factory_runtime_item_uses_presentation_override_and_custom_affix_s
     assert item.name == "Крысиные клыки и когти"
     assert item.description == "Естественное оружие твари."
     assert item.metadata["runtime_item"] is True
+    assert item.metadata["item_grade"] == "rare"
+    assert item.metadata["affix_profile"] == "monster_equipment_4slot"
     assert item.metadata["monster_equipment_key"] == "rat_bite_claws"
     assert item.metadata["affix_step_count"] == 2
     assert item.metadata["request_ai_text"] is False
@@ -297,7 +301,7 @@ def test_item_factory_player_pipeline_keeps_default_affix_steps():
         ItemGenerationRequestDTO(
             base_id="dagger",
             material_id="mat_iron_ingot",
-            item_grade="artifact",
+            item_grade="legendary",
             affix_bundle_ids=["duelist_weapon_4"],
         )
     )
@@ -312,7 +316,8 @@ def test_item_factory_runtime_item_filters_allowed_affixes_and_exact_count():
             generation_mode="runtime",
             base_id="dagger",
             material_id="mat_cobalt_ingot",
-            item_grade="artifact",
+            item_grade="rare",
+            affix_profile="monster_equipment_4slot",
             allowed_affix_ids=["crit_chance", "weapon_accuracy"],
             affix_count=2,
             affix_step_count=7,
@@ -332,7 +337,8 @@ def test_item_factory_runtime_item_applies_forced_affixes_before_random_fill():
             generation_mode="runtime",
             base_id="dagger",
             material_id="mat_cobalt_ingot",
-            item_grade="artifact",
+            item_grade="rare",
+            affix_profile="monster_equipment_4slot",
             allowed_affix_ids=["weapon_accuracy", "crit_chance", "armor_penetration_pct_bonus", "control_chance_bonus"],
             forced_affix_ids=["weapon_accuracy", "crit_chance"],
             affix_count=4,
@@ -354,7 +360,8 @@ def test_item_factory_runtime_projection_is_compact_and_compiles_affix_bonuses()
             base_id="dagger",
             target_slot="off_hand",
             material_id="mat_cobalt_ingot",
-            item_grade="artifact",
+            item_grade="uncommon",
+            affix_profile="monster_equipment_4slot",
             allowed_affix_ids=["off_hand_accuracy", "crit_chance"],
             forced_affix_ids=["off_hand_accuracy"],
             affix_count=1,
@@ -407,7 +414,7 @@ def test_item_factory_rejects_bundle_when_affix_required_tags_do_not_match():
         ItemGenerationRequestDTO(
             base_id="plate_chest",
             material_id="mat_iron_ingot",
-            item_grade="artifact",
+            item_grade="legendary",
             affix_bundle_ids=["bulwark_shield_4"],
         )
     )
@@ -423,7 +430,7 @@ def test_item_factory_accepts_type_specific_bundles():
         ItemGenerationRequestDTO(
             base_id="plate_chest",
             material_id="mat_iron_ingot",
-            item_grade="artifact",
+            item_grade="legendary",
             affix_bundle_ids=["bulwark_armor_4"],
         )
     )
@@ -431,7 +438,7 @@ def test_item_factory_accepts_type_specific_bundles():
         ItemGenerationRequestDTO(
             base_id="shield",
             material_id="mat_iron_ingot",
-            item_grade="artifact",
+            item_grade="legendary",
             affix_bundle_ids=["bulwark_shield_4"],
         )
     )
@@ -470,7 +477,7 @@ def test_item_factory_forced_bundle_smoke_by_item_family():
             ItemGenerationRequestDTO(
                 base_id=base_id,
                 material_id=material_id,
-                item_grade="artifact",
+                item_grade="legendary",
                 affix_bundle_ids=[bundle_id],
             )
         )

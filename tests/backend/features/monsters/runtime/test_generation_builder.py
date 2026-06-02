@@ -2,10 +2,11 @@ import uuid
 
 import pytest
 
+from src.backend.core.calculators.stats_waterfall_calculator import COMBAT_MATH_VERSION
 from src.backend.features.items.dto.instance import RuntimeItemProjectionDTO
 from src.backend.features.monsters.dto.generation import GeneratedClan, MonsterGenerationContext
 from src.backend.features.monsters.resources import get_family_config
-from src.backend.features.monsters.runtime.generation_builder import MonsterClanGenerationBuilder
+from src.backend.features.monsters.runtime.generation_builder import MonsterClanGenerationBuilder, _MemberPlan
 from src.backend.features.monsters.runtime.hashing import compute_context_hash, normalize_tags
 from src.backend.features.monsters.services.gear_score_service import MonsterGearScoreService
 
@@ -50,7 +51,9 @@ class FakeItemGeneration:
                     item_id=f"item-{index}",
                     owner_key=owner_key,
                     base_id=request.base_id,
-                    item_type="weapon" if request.target_slot in {"main_hand", "off_hand"} else "armor",
+                    item_type="accessory"
+                    if request.target_slot == "amulet"
+                    else ("weapon" if request.target_slot in {"main_hand", "off_hand", "two_hand"} else "armor"),
                     slot=str(request.target_slot),
                     combat={
                         "power": 3,
@@ -109,16 +112,26 @@ async def test_generation_builder_creates_clan_template_with_all_available_membe
     assert len(clan.members) == len(expected_variants)
     assert {member.variant_key for member in clan.members} == {variant.id for variant in expected_variants}
     assert len(item_generation.batches) == 1
-    assert len(item_generation.batches[0]) == len(clan.members) * 2
+    expected_item_count = sum(
+        len(variant.fixed_loadout.model_dump(exclude_none=True)) for variant in expected_variants
+    )
+    assert len(item_generation.batches[0]) == expected_item_count
     # transmog: natural keys resolve to player item base_ids
-    rat_weapon_bases = {"knife", "dagger", "katar", "rapier"}
+    rat_weapon_bases = {"knife", "dagger", "katar", "rapier", "shortbow", "warhammer"}
+    rat_shield_bases = {"buckler", "shield"}
+    rat_ammo_bases = {"quiver_training"}
+    rat_accessory_bases = {"amulet"}
     rat_armor_bases = {"leather_armor", "jerkin", "plate_chest"}
     actual_base_ids = {request.base_id for request in item_generation.batches[0]}
-    assert actual_base_ids <= (rat_weapon_bases | rat_armor_bases)
+    assert actual_base_ids <= (
+        rat_weapon_bases | rat_shield_bases | rat_ammo_bases | rat_accessory_bases | rat_armor_bases
+    )
 
     first = clan.members[0]
     assert first.items["layout"]["equipment"]
+    assert clan.raw_tags["combat_math_version"] == COMBAT_MATH_VERSION
     assert first.generation_meta["schema_version"] == 2
+    assert first.generation_meta["combat_math_version"] == COMBAT_MATH_VERSION
     assert first.generation_meta["family_resource_version"] == family.resource_version
     assert first.generation_meta["visual"]["status"] == "fallback"
     assert first.generation_meta["visual"]["image_url"] == "/static/images/monsters/families/rat_swarm.svg"
@@ -133,6 +146,29 @@ async def test_generation_builder_creates_clan_template_with_all_available_membe
     assert first.threat_rating == first.generation_meta["balance"]["gear_score"]
     assert "base_cost" not in first.generation_meta["balance"]
     assert "effective_cost" not in first.generation_meta["balance"]
+
+
+@pytest.mark.unit
+def test_generation_builder_uses_natural_mapping_item_kind_for_wolf_offhand_and_amulet() -> None:
+    family = get_family_config("wolf_pack")
+    assert family is not None
+    variant = family.variants["pack_leader"]
+    builder = MonsterClanGenerationBuilder(repository=FakeRepository(), item_generation=FakeItemGeneration())
+    plan = _MemberPlan(
+        member_id=uuid.uuid4(),
+        owner_key="member-0",
+        variant=variant,
+        member_model=None,
+        member_tier=3,
+    )
+
+    item_requests = builder._build_item_requests(family, [plan], "wolf-clan")
+    by_slot = {str(request.target_slot): request for request in item_requests}
+
+    assert by_slot["off_hand"].base_id == "buckler"
+    assert by_slot["off_hand"].source_context["item_kind"] == "shield"
+    assert by_slot["amulet"].base_id == "amulet"
+    assert by_slot["amulet"].source_context["item_kind"] == "accessory"
 
 
 @pytest.mark.unit
@@ -181,8 +217,15 @@ async def test_generation_builder_creates_humanoid_item_orders_from_fixed_loadou
     )
 
     assert item_generation.batches
-    requested_base_ids = {request.base_id for request in item_generation.batches[0]}
+    requests = item_generation.batches[0]
+    requested_base_ids = {request.base_id for request in requests}
     assert requested_base_ids & {"hatchet", "buckler", "jerkin", "shortbow", "belt"}
+
+    amulet_requests = [request for request in requests if request.target_slot == "amulet"]
+    assert amulet_requests
+    assert {request.base_id for request in amulet_requests} == {"amulet"}
+    assert {request.source_context["item_kind"] for request in amulet_requests} == {"accessory"}
+    assert all("natural_key" not in request.runtime_metadata for request in amulet_requests)
 
 
 @pytest.mark.unit

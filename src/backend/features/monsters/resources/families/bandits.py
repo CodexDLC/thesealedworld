@@ -8,7 +8,7 @@ def build_role_ladder_stats(role, priority):
 
 BANDITS_FAMILY: MonsterFamily = {
     "id": "bandit_gang",
-    "resource_version": 1.2,
+    "resource_version": 1.4,
     "archetype": "humanoid",
     "organization_type": "gang",  # TSP Base: 50
     "default_tags": ["human", "outlaw", "survivor", "marauder"],
@@ -60,6 +60,7 @@ BANDITS_FAMILY: MonsterFamily = {
                 "main_hand": "hatchet",
                 "off_hand": "buckler",
                 "chest_armor": "jerkin",
+                "amulet": "amulet",
             },
             "skills": ["skill_macing", "skill_medium_armor"],
         },
@@ -87,9 +88,10 @@ BANDITS_FAMILY: MonsterFamily = {
             "fixed_loadout": {
                 "two_hand": "shortbow",
                 "quiver": "quiver_training",
-                "chest_armor": "jerkin",
+                "chest_armor": "leather_armor",
+                "amulet": "amulet",
             },
-            "skills": ["skill_archery", "skill_medium_armor", "skill_ranged_combat"],
+            "skills": ["skill_archery", "skill_light_armor", "skill_ranged_combat"],
         },
         "bandit_lookout": {
             "id": "bandit_lookout",
@@ -115,9 +117,10 @@ BANDITS_FAMILY: MonsterFamily = {
             ),
             "fixed_loadout": {
                 "main_hand": "spear",
-                "chest_armor": "jerkin",
+                "chest_armor": "leather_armor",
+                "amulet": "amulet",
             },
-            "skills": ["skill_polearms", "skill_medium_armor"],
+            "skills": ["skill_polearms", "skill_light_armor"],
         },
         "bandit_knife_rat": {
             "id": "bandit_knife_rat",
@@ -143,9 +146,11 @@ BANDITS_FAMILY: MonsterFamily = {
             ),
             "fixed_loadout": {
                 "main_hand": "dagger",
-                "chest_armor": "jerkin",
+                "off_hand": "dagger",
+                "chest_armor": "leather_armor",
+                "amulet": "amulet",
             },
-            "skills": ["skill_fencing", "skill_medium_armor"],
+            "skills": ["skill_fencing", "skill_dual_wield", "skill_light_armor"],
         },
         # === 2. Головорезы (Veterans) [TSP ~75] ===
         "bandit_cutthroat": {
@@ -172,11 +177,12 @@ BANDITS_FAMILY: MonsterFamily = {
             "fixed_loadout": {
                 "main_hand": "dagger",
                 "off_hand": "dagger",
-                "chest_armor": "jerkin",
+                "chest_armor": "leather_armor",
+                "amulet": "amulet",
             },
             "skills": [
                 "skill_fencing",
-                "skill_medium_armor",
+                "skill_light_armor",
                 "skill_dual_wield",
                 "skill_tactics",
                 "skill_parrying",
@@ -209,6 +215,7 @@ BANDITS_FAMILY: MonsterFamily = {
                 "main_hand": "mace",
                 "off_hand": "shield",
                 "chest_armor": "jerkin",
+                "amulet": "amulet",
             },
             "skills": ["skill_macing", "skill_medium_armor", "skill_shield_mastery"],
         },
@@ -237,6 +244,7 @@ BANDITS_FAMILY: MonsterFamily = {
             "fixed_loadout": {
                 "main_hand": "spear",
                 "chest_armor": "jerkin",
+                "amulet": "amulet",
             },
             "skills": ["skill_polearms", "skill_medium_armor"],
         },
@@ -266,6 +274,7 @@ BANDITS_FAMILY: MonsterFamily = {
                 "main_hand": "sword",
                 "off_hand": "shield",
                 "chest_armor": "jerkin",
+                "amulet": "amulet",
             },
             "skills": [
                 "skill_swords",
@@ -299,6 +308,7 @@ BANDITS_FAMILY: MonsterFamily = {
             "fixed_loadout": {
                 "two_hand": "quarterstaff",
                 "chest_armor": "leather_armor",
+                "amulet": "amulet",
             },
             "skills": ["skill_polearms", "skill_light_armor", "skill_two_handed"],
         },
@@ -328,6 +338,7 @@ BANDITS_FAMILY: MonsterFamily = {
                 "main_hand": "mace",
                 "off_hand": "shield",
                 "chest_armor": "plate_chest",
+                "amulet": "amulet",
             },
             "skills": [
                 "skill_macing",
@@ -363,6 +374,7 @@ BANDITS_FAMILY: MonsterFamily = {
             "fixed_loadout": {
                 "two_hand": "warhammer",
                 "chest_armor": "plate_chest",
+                "amulet": "amulet",
             },
             "skills": [
                 "skill_macing",
@@ -398,6 +410,7 @@ BANDITS_FAMILY: MonsterFamily = {
                 "two_hand": "longbow",
                 "quiver": "quiver_bodkin",
                 "chest_armor": "leather_armor",
+                "amulet": "amulet",
             },
             "skills": [
                 "skill_archery",

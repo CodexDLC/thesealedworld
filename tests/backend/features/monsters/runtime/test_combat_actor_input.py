@@ -157,7 +157,7 @@ def test_monster_combat_actor_input_uses_generated_template_contract() -> None:
         },
         "items": {
             "layout": {
-                "equipment": {"main_hand": "claws-1", "chest_armor": "hide-1"},
+                "equipment": {"main_hand": "claws-1", "chest_armor": "hide-1", "amulet": "gland-1"},
                 "belt": {},
             },
             "by_id": {
@@ -176,7 +176,12 @@ def test_monster_combat_actor_input_uses_generated_template_contract() -> None:
                         "tags": ["natural_weapon"],
                         "related_skill": "skill_fencing",
                     },
-                    "generation": {"item_grade": "artifact", "rarity_tier": 1, "affixes": []},
+                    "generation": {
+                        "item_grade": "common",
+                        "affix_profile": "monster_equipment_4slot",
+                        "rarity_tier": 1,
+                        "affixes": [],
+                    },
                 },
                 "hide-1": {
                     "item_id": "hide-1",
@@ -193,14 +198,41 @@ def test_monster_combat_actor_input_uses_generated_template_contract() -> None:
                         "tags": ["natural_armor"],
                         "related_skill": "skill_light_armor",
                     },
-                    "generation": {"item_grade": "artifact", "rarity_tier": 1, "affixes": []},
+                    "generation": {
+                        "item_grade": "common",
+                        "affix_profile": "monster_equipment_4slot",
+                        "rarity_tier": 1,
+                        "affixes": [],
+                    },
+                },
+                "gland-1": {
+                    "item_id": "gland-1",
+                    "owner_key": "member-1",
+                    "base_id": "amulet",
+                    "item_type": "accessory",
+                    "slot": "amulet",
+                    "combat": {
+                        "power": 2,
+                        "damage_spread": 0,
+                        "implicit_bonuses": {},
+                        "bonuses": {},
+                        "triggers": [],
+                        "tags": ["natural_jewelry"],
+                        "related_skill": None,
+                    },
+                    "generation": {
+                        "item_grade": "common",
+                        "affix_profile": "monster_equipment_4slot",
+                        "rarity_tier": 1,
+                        "affixes": [],
+                    },
                 },
             },
         },
         "ai_profile": {"behavior": "swarm_chaff"},
         "balance": {
             "organization_type": "swarm",
-            "organization_divisor": 5,
+            "organization_divisor": 4,
         },
     }
     monster = GeneratedMonster(
@@ -254,11 +286,13 @@ def test_monster_combat_actor_input_uses_generated_template_contract() -> None:
     assert combat["math_model"]["rules"] == {"attribute_profile": "monster:beast"}
     assert combat["math_model"]["modifiers"]["main_hand_damage_base"]["base"] == 7.0
     assert combat["math_model"]["modifiers"]["armor"]["base"] == 3.0
+    assert combat["math_model"]["modifiers"]["magic_armor"]["base"] == 2.0
     assert combat["math_model"]["modifiers"]["main_hand_accuracy"]["source"]["item:claws-1"] == 0.02
     assert combat["skills"] == {"skill_fencing": 0.25, "skill_light_armor": 0.05}
     assert combat["loadout"]["layout"]["main_hand"] == "skill_fencing"
     assert combat["loadout"]["layout"]["main_hand_trigger"] == "crit.weapon_flat_armor_gap_crit"
     assert combat["loadout"]["layout"]["body"] == "skill_light_armor"
+    assert combat["loadout"]["equipment_layout"]["amulet"] == "gland-1"
     assert combat["loadout"]["combat_surfaces"]["main_hand"] == {
         "slot": "main_hand",
         "delivery": "natural",
@@ -268,16 +302,7 @@ def test_monster_combat_actor_input_uses_generated_template_contract() -> None:
         "base_id": "dagger",
         "skill_key": "skill_fencing",
     }
-    assert combat["loadout"]["known_abilities"] == [
-        "basic_punish_mistake",
-        "basic_finish_moment",
-        "basic_break_stance",
-        "basic_expose_weakness",
-        "basic_wipe_blood",
-        "basic_grit_teeth",
-        "basic_bloody_answer",
-        "basic_last_push",
-    ]
+    assert combat["loadout"]["known_abilities"] == []
 
 
 @pytest.mark.unit

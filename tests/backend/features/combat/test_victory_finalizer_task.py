@@ -233,7 +233,7 @@ async def test_victory_finalizer_commits_player_vitals_to_active_session() -> No
     }
     assert finalization["report"]["last_turn"] == 1
     assert finalization["analytics"]["analytics_schema_version"] == 2
-    assert finalization["analytics"]["combat_math_version"] == "combat-math:2026-05-17.1"
+    assert finalization["analytics"]["combat_math_version"] == "combat-math:2026-06-01.1"
     assert finalization["analytics"]["1:0"] == {"t": 1, "o": "H"}
     assert queue.jobs == [("combat_finalization_persist_task", {"combat_id": "combat-1"})]
 

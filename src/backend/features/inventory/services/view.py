@@ -675,7 +675,7 @@ class InventoryViewService:
         haystack = {base_id, *tags}
         if base_id in {"greatsword", "katana"} or "two_handed" in haystack:
             return "weapon_two_hand"
-        if haystack & {"bow", "archery", "ranged", "shortbow", "sling"}:
+        if haystack & {"bow", "archery", "ranged", "shortbow"}:
             return "weapon_bow"
         if haystack & {"dagger", "knife", "stiletto", "main_gauche", "katar"}:
             return "weapon_dagger"

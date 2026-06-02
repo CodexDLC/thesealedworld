@@ -2,6 +2,7 @@ from enum import StrEnum
 
 
 class AbilitySource(StrEnum):
+    COMBAT = "combat"  # Боевой прием / трата боевых токенов
     GIFT = "gift"  # Дар (Energy + Gift Token)
     ITEM = "item"  # Предмет (Свиток, Зелье)
 

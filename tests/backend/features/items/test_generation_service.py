@@ -174,7 +174,7 @@ async def test_generation_service_creates_mechanical_item_without_returning_payl
     repo = FakeRepo()
     request = ItemGenerationRequestDTO(
         base_id="warhammer",
-        rarity_tier=1,
+        rarity_tier=2,
         request_ai_text=True,
         delivery_mode="forward",
         return_item=False,
@@ -205,7 +205,7 @@ async def test_generation_service_reuses_text_visual_template_when_affixes_diffe
     base_request = ItemGenerationRequestDTO(
         base_id="warhammer",
         material_id="mat_iron_ingot",
-        rarity_tier=1,
+        rarity_tier=2,
         request_ai_text=True,
         source_context={"family_id": "bandit_gang", "member_role": "bruiser", "member_tier": 2},
         placement_ref=ItemPlacementRefDTO(holder_type="system", holder_id="loot", storage_type="backpack"),
@@ -232,7 +232,7 @@ async def test_generation_service_creates_character_owned_instances_from_reused_
     base_request = ItemGenerationRequestDTO(
         base_id="warhammer",
         material_id="mat_iron_ingot",
-        rarity_tier=1,
+        rarity_tier=2,
         request_ai_text=True,
         source_context={"monster_family_id": "bandit_gang", "member_role": "bruiser", "member_tier": 2},
         placement_ref=ItemPlacementRefDTO(holder_type="character", holder_id="7", storage_type="backpack"),
@@ -325,7 +325,8 @@ async def test_generation_service_generates_runtime_item_without_persistence():
     request = ItemGenerationRequestDTO(
         generation_mode="runtime",
         base_id="dagger",
-        item_grade="artifact",
+        item_grade="no_grade",
+        affix_profile="monster_equipment_4slot",
         affix_bundle_ids=["duelist_weapon_4"],
         affix_step_count=1,
         presentation_name_ru="Крысиные клыки",
@@ -353,20 +354,22 @@ async def test_generation_service_generates_runtime_projection_batch_without_per
             generation_mode="runtime",
             base_id="dagger",
             target_slot="main_hand",
-            item_grade="artifact",
+            item_grade="uncommon",
+            affix_profile="monster_equipment_4slot",
             allowed_affix_ids=["weapon_accuracy", "crit_chance"],
             forced_affix_ids=["weapon_accuracy"],
-            affix_count=1,
+            affix_count=4,
             affix_step_count=2,
             runtime_metadata={"owner_key": "member_0", "runtime_item_id": "item-main"},
         ),
         ItemGenerationRequestDTO(
             generation_mode="runtime",
             base_id="leather_armor",
-            item_grade="artifact",
+            item_grade="uncommon",
+            affix_profile="monster_equipment_4slot",
             allowed_affix_ids=["evasion_bonus", "physical_resistance_bonus"],
             forced_affix_ids=["evasion_bonus"],
-            affix_count=1,
+            affix_count=4,
             affix_step_count=2,
             runtime_metadata={"owner_key": "member_0", "runtime_item_id": "item-armor"},
         ),
@@ -376,7 +379,7 @@ async def test_generation_service_generates_runtime_projection_batch_without_per
 
     assert [item.item_id for item in projections] == ["item-main", "item-armor"]
     assert [item.owner_key for item in projections] == ["member_0", "member_0"]
-    assert set(projections[0].combat.bonuses) == {"main_hand_accuracy"}
+    assert set(projections[0].combat.bonuses) == {"crit_chance", "main_hand_accuracy"}
     assert set(projections[1].combat.bonuses) == {"evasion"}
     assert repo.instances == {}
 
@@ -389,7 +392,8 @@ def test_item_generation_stream_parser_preserves_runtime_fields() -> None:
                 {
                     "generation_mode": "runtime",
                     "base_id": "dagger",
-                    "item_grade": "artifact",
+                    "item_grade": "common",
+                    "affix_profile": "monster_equipment_4slot",
                     "affix_step_count": 2,
                     "presentation_name_ru": "Крысиные клыки",
                     "runtime_metadata": {"monster_equipment_key": "rat_bite_claws"},
@@ -399,6 +403,7 @@ def test_item_generation_stream_parser_preserves_runtime_fields() -> None:
     )
 
     assert requests[0].generation_mode == "runtime"
+    assert requests[0].affix_profile == "monster_equipment_4slot"
     assert requests[0].affix_step_count == 2
     assert requests[0].presentation_name_ru == "Крысиные клыки"
     assert requests[0].runtime_metadata["monster_equipment_key"] == "rat_bite_claws"
@@ -464,7 +469,7 @@ async def test_generation_service_enqueues_item_text_task_after_mechanical_item_
     repo = FakeRepo()
     generation_ai = FakeGenerationAI()
     service = ItemGenerationService(ItemPersistenceIntegration(repo), generation_ai=generation_ai)
-    request = ItemGenerationRequestDTO(base_id="warhammer", rarity_tier=1, request_ai_text=True)
+    request = ItemGenerationRequestDTO(base_id="warhammer", rarity_tier=2, request_ai_text=True)
     result = await service.generate_mechanical(request)
 
     item = await service.enrich_text(result.item_ids[0], request)

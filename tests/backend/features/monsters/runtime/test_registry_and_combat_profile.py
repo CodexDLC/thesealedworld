@@ -1,10 +1,15 @@
 import pytest
 
 from src.backend.features.game_catalog.combat.resources.feints.availability import (
+    ARCHERY_WEAPON_FEINTS,
+    BASIC_ARCHERY_FEINTS,
     BASIC_FEINTS,
     FENCING_WEAPON_FEINTS,
+    DUAL_WIELD_TACTICAL_FEINTS,
     MACING_WEAPON_FEINTS,
+    RANGED_TACTICAL_FEINTS,
     SHIELD_TACTICAL_FEINTS,
+    TWO_HANDED_TACTICAL_FEINTS,
 )
 from src.backend.features.items.dto.instance import RuntimeItemProjectionDTO
 from src.backend.features.items.resources import get_base_by_id
@@ -47,12 +52,17 @@ class FakeItemGeneration:
             related_skill = {
                 "rat_bite_claws": "skill_fencing",
                 "rat_light_hide": "skill_light_armor",
-                "wolf_bite_claws": "skill_fencing",
-                "wolf_hide": "skill_light_armor",
-            }.get(str(natural_key))
+                    "wolf_bite_claws": "skill_fencing",
+                    "wolf_hide": "skill_light_armor",
+                }.get(str(natural_key))
             if related_skill is None:
                 related_skill = {
+                    "knife": "skill_fencing",
                     "dagger": "skill_fencing",
+                    "stiletto": "skill_fencing",
+                    "rapier": "skill_fencing",
+                    "main_gauche": "skill_fencing",
+                    "katar": "skill_fencing",
                     "hatchet": "skill_macing",
                     "mace": "skill_macing",
                     "warhammer": "skill_macing",
@@ -60,19 +70,33 @@ class FakeItemGeneration:
                     "quarterstaff": "skill_polearms",
                     "sling": "skill_archery",
                     "shortbow": "skill_archery",
+                    "quiver_training": "skill_archery",
+                    "quiver_fire": "skill_archery",
                     "buckler": "skill_shield_mastery",
                     "shield": "skill_shield_mastery",
+                    "kite_shield": "skill_shield_mastery",
                     "jerkin": "skill_medium_armor",
                     "leather_armor": "skill_light_armor",
+                    "plate_chest": "skill_heavy_armor",
                 }.get(str(request.base_id), "skill_unarmed")
+            if request.base_id == "amulet":
+                related_skill = None
             projections.append(
                 RuntimeItemProjectionDTO(
                     item_id=f"item-{index}",
                     owner_key=str(request.runtime_metadata["owner_key"]),
                     base_id=request.base_id,
-                    item_type="shield"
-                    if request.target_slot == "off_hand" and request.base_id in {"buckler", "shield"}
-                    else ("weapon" if request.target_slot in {"main_hand", "two_hand"} else "armor"),
+                    item_type="ammo"
+                    if request.target_slot == "quiver"
+                    else (
+                        "accessory"
+                        if request.target_slot == "amulet"
+                        else (
+                        "shield"
+                        if request.target_slot == "off_hand" and request.base_id in {"buckler", "shield", "kite_shield"}
+                        else ("weapon" if request.target_slot in {"main_hand", "off_hand", "two_hand"} else "armor")
+                        )
+                    ),
                     slot=str(request.target_slot),
                     combat={
                         "power": 4,
@@ -80,7 +104,7 @@ class FakeItemGeneration:
                         "implicit_bonuses": {},
                         "bonuses": {"main_hand_accuracy": "+0.01"},
                         "triggers": ["crit.weapon_flat_armor_gap_crit"],
-                        "tags": ["shield"] if request.base_id == "buckler" else [],
+                        "tags": ["shield"] if request.base_id in {"buckler", "shield", "kite_shield"} else [],
                         "related_skill": related_skill,
                     },
                     generation={"item_grade": request.item_grade, "rarity_tier": request.rarity_tier, "affixes": []},
@@ -264,6 +288,350 @@ def test_beast_families_are_marked_for_salvage_loot(family_id: str) -> None:
 
 
 @pytest.mark.unit
+@pytest.mark.parametrize("family_id", ["rat_swarm", "wolf_pack", "bandit_gang", "goblin_tribe"])
+def test_starter_families_have_single_accessory_layer(family_id: str) -> None:
+    from src.backend.features.monsters.resources.equipment_mapping import NATURAL_EQUIPMENT_MAPPINGS
+
+    family = get_family_config(family_id)
+
+    assert family is not None
+    missing_accessory = []
+    invalid_accessory = []
+    for variant in family.variants.values():
+        loadout = variant.fixed_loadout.model_dump(exclude_none=True)
+        accessory_key = loadout.get("amulet")
+        if not accessory_key:
+            missing_accessory.append(variant.id)
+            continue
+        mapping = NATURAL_EQUIPMENT_MAPPINGS.get(str(accessory_key))
+        base_id = mapping.base_id if mapping else str(accessory_key)
+        base = get_base_by_id(base_id)
+        if base is None or base.get("type") != "accessory" or base.get("slot") != "amulet":
+            invalid_accessory.append((variant.id, accessory_key, base_id, None if base is None else base.get("slot")))
+
+    assert missing_accessory == []
+    assert invalid_accessory == []
+
+
+@pytest.mark.unit
+def test_bandit_gang_uses_authored_bow_and_armor_loadouts() -> None:
+    family = get_family_config("bandit_gang")
+
+    assert family is not None
+    assert family.resource_version == 1.4
+    expected = {
+        "bandit_thug": (
+            {"main_hand": "hatchet", "off_hand": "buckler", "chest_armor": "jerkin", "amulet": "amulet"},
+            {"skill_macing", "skill_medium_armor"},
+        ),
+        "bandit_poacher": (
+            {"two_hand": "shortbow", "quiver": "quiver_training", "chest_armor": "leather_armor", "amulet": "amulet"},
+            {"skill_archery", "skill_ranged_combat", "skill_light_armor"},
+        ),
+        "bandit_lookout": (
+            {"main_hand": "spear", "chest_armor": "leather_armor", "amulet": "amulet"},
+            {"skill_polearms", "skill_light_armor"},
+        ),
+        "bandit_knife_rat": (
+            {"main_hand": "dagger", "off_hand": "dagger", "chest_armor": "leather_armor", "amulet": "amulet"},
+            {"skill_fencing", "skill_dual_wield", "skill_light_armor"},
+        ),
+        "bandit_raider": (
+            {"main_hand": "mace", "off_hand": "shield", "chest_armor": "jerkin", "amulet": "amulet"},
+            {"skill_macing", "skill_medium_armor", "skill_shield_mastery"},
+        ),
+        "bandit_billhook": (
+            {"main_hand": "spear", "chest_armor": "jerkin", "amulet": "amulet"},
+            {"skill_polearms", "skill_medium_armor"},
+        ),
+        "bandit_hedge_wizard": (
+            {"two_hand": "quarterstaff", "chest_armor": "leather_armor", "amulet": "amulet"},
+            {"skill_polearms", "skill_light_armor", "skill_two_handed"},
+        ),
+        "bandit_captain": (
+            {"main_hand": "sword", "off_hand": "shield", "chest_armor": "jerkin", "amulet": "amulet"},
+            {"skill_swords", "skill_medium_armor", "skill_shield_mastery", "skill_tactics", "skill_parrying"},
+        ),
+        "bandit_kingpin": (
+            {"two_hand": "warhammer", "chest_armor": "plate_chest", "amulet": "amulet"},
+            {"skill_macing", "skill_heavy_armor", "skill_two_handed", "skill_tactics", "skill_anatomy"},
+        ),
+        "bandit_warlord": (
+            {"two_hand": "longbow", "quiver": "quiver_bodkin", "chest_armor": "leather_armor", "amulet": "amulet"},
+            {"skill_archery", "skill_ranged_combat", "skill_light_armor", "skill_tactics", "skill_anatomy"},
+        ),
+        "bandit_cutthroat": (
+            {"main_hand": "dagger", "off_hand": "dagger", "chest_armor": "leather_armor", "amulet": "amulet"},
+            {
+                "skill_fencing",
+                "skill_light_armor",
+                "skill_dual_wield",
+                "skill_tactics",
+                "skill_parrying",
+                "skill_anatomy",
+            },
+        ),
+        "bandit_blackguard": (
+            {"main_hand": "mace", "off_hand": "shield", "chest_armor": "plate_chest", "amulet": "amulet"},
+            {
+                "skill_macing",
+                "skill_heavy_armor",
+                "skill_shield_mastery",
+                "skill_tactics",
+                "skill_parrying",
+                "skill_anatomy",
+            },
+        ),
+    }
+    archer_variants = {"bandit_poacher", "bandit_warlord"}
+
+    for variant_key, (loadout, skills) in expected.items():
+        variant = family.variants[variant_key]
+        actual_loadout = variant.fixed_loadout.model_dump(exclude_none=True)
+
+        assert actual_loadout == loadout
+        assert skills <= set(variant.skills)
+        assert ("quiver" in actual_loadout) == (variant_key in archer_variants)
+        if variant_key in archer_variants:
+            assert actual_loadout["chest_armor"] == "leather_armor"
+            assert "skill_light_armor" in variant.skills
+            assert "skill_medium_armor" not in variant.skills
+            assert "skill_heavy_armor" not in variant.skills
+
+
+@pytest.mark.unit
+def test_rat_swarm_uses_natural_loadouts_for_current_tactical_styles() -> None:
+    family = get_family_config("rat_swarm")
+
+    assert family is not None
+    assert family.resource_version == 1.4
+    expected = {
+        "sewer_rat": ("dual", {"main_hand": "rat_bite_claws", "off_hand": "rat_offhand_bite"}),
+        "scavenger_rat": ("dual", {"main_hand": "rat_bite_claws", "off_hand": "rat_offhand_bite"}),
+        "swarm_rat": ("dual", {"main_hand": "rat_bite_claws", "off_hand": "rat_offhand_bite"}),
+        "tunnel_rat": ("dual", {"main_hand": "rat_veteran_claws", "off_hand": "rat_offhand_bite"}),
+        "pack_rat": ("shield", {"main_hand": "rat_veteran_claws", "off_hand": "rat_bone_growth"}),
+        "screecher": ("ranged", {"two_hand": "rat_poison_spit", "quiver": "rat_poison_glands"}),
+        "plague_rat": ("ranged", {"two_hand": "rat_poison_spit", "quiver": "rat_poison_glands"}),
+        "rotfang": ("two_handed", {"two_hand": "rat_crushing_bite"}),
+        "blight_carrier": ("shield", {"main_hand": "rat_elite_claws", "off_hand": "rat_spiked_growth"}),
+        "rat_brute": ("two_handed", {"two_hand": "rat_crushing_bite"}),
+        "brood_alpha": ("shield", {"main_hand": "rat_boss_claws", "off_hand": "rat_spiked_growth"}),
+        "rat_king": ("ranged", {"two_hand": "rat_poison_spit", "quiver": "rat_poison_glands"}),
+    }
+    required_skills = {
+        "dual": {"skill_fencing", "skill_dual_wield"},
+        "shield": {"skill_fencing", "skill_shield_mastery"},
+        "ranged": {"skill_archery", "skill_ranged_combat"},
+        "two_handed": {"skill_macing", "skill_two_handed"},
+    }
+
+    for variant_key, (style, loadout_subset) in expected.items():
+        variant = family.variants[variant_key]
+        loadout = variant.fixed_loadout.model_dump(exclude_none=True)
+
+        assert loadout_subset.items() <= loadout.items()
+        assert loadout["amulet"] == "rat_plague_gland"
+        assert required_skills[style] <= set(variant.skills)
+
+
+@pytest.mark.unit
+def test_goblin_tribe_uses_balanced_progression_loadouts_and_tags() -> None:
+    family = get_family_config("goblin_tribe")
+
+    assert family is not None
+    assert family.resource_version == 1.4
+    expected = {
+        "goblin_sneak": (
+            {"main_hand": "knife", "off_hand": "knife", "chest_armor": "leather_armor", "amulet": "amulet"},
+            {"skill_fencing", "skill_dual_wield", "skill_light_armor"},
+            {"stealth", "dual_wield", "knife"},
+        ),
+        "goblin_scavenger": (
+            {"main_hand": "mace", "off_hand": "buckler", "chest_armor": "leather_armor", "amulet": "amulet"},
+            {"skill_macing", "skill_shield_mastery", "skill_light_armor"},
+            {"scavenger", "scrap", "buckler"},
+        ),
+        "goblin_cutter": (
+            {"main_hand": "dagger", "off_hand": "knife", "chest_armor": "leather_armor", "amulet": "amulet"},
+            {"skill_fencing", "skill_dual_wield", "skill_light_armor"},
+            {"knife", "bleeder", "dual_wield"},
+        ),
+        "goblin_sparkpick": (
+            {"main_hand": "hatchet", "off_hand": "buckler", "chest_armor": "leather_armor", "amulet": "amulet"},
+            {"skill_macing", "skill_shield_mastery", "skill_light_armor"},
+            {"scrap", "ether", "buckler"},
+        ),
+        "goblin_spearman": (
+            {"main_hand": "spear", "off_hand": "shield", "chest_armor": "jerkin", "amulet": "amulet"},
+            {"skill_polearms", "skill_medium_armor", "skill_shield_mastery"},
+            {"infantry", "shield"},
+        ),
+        "goblin_slinger": (
+            {"two_hand": "shortbow", "quiver": "quiver_training", "chest_armor": "leather_armor", "amulet": "amulet"},
+            {"skill_archery", "skill_ranged_combat", "skill_light_armor"},
+            {"ranged", "archer", "quiver"},
+        ),
+        "goblin_scrapguard": (
+            {"main_hand": "mace", "off_hand": "shield", "chest_armor": "jerkin", "amulet": "amulet"},
+            {"skill_macing", "skill_medium_armor", "skill_shield_mastery"},
+            {"shield", "defender", "scrap"},
+        ),
+        "goblin_tinkerer": (
+            {"main_hand": "rapier", "off_hand": "buckler", "chest_armor": "jerkin", "amulet": "amulet"},
+            {"skill_fencing", "skill_shield_mastery", "skill_medium_armor", "skill_tactics"},
+            {"engineer", "duelist", "scrap", "buckler"},
+        ),
+        "goblin_bomber": (
+            {"two_hand": "shortbow", "quiver": "quiver_fire", "chest_armor": "jerkin", "amulet": "amulet"},
+            {"skill_archery", "skill_medium_armor", "skill_ranged_combat", "skill_tactics"},
+            {"bomber", "explosives", "archer", "fire_arrows"},
+        ),
+        "goblin_trapmaster": (
+            {"main_hand": "stiletto", "off_hand": "main_gauche", "chest_armor": "jerkin", "amulet": "amulet"},
+            {"skill_fencing", "skill_dual_wield", "skill_medium_armor", "skill_tactics", "skill_anatomy"},
+            {"trapper", "controller", "dual_wield", "precision"},
+        ),
+        "goblin_chief": (
+            {"main_hand": "battle_axe", "off_hand": "kite_shield", "chest_armor": "plate_chest", "amulet": "amulet"},
+            {"skill_macing", "skill_shield_mastery", "skill_heavy_armor", "skill_tactics", "skill_anatomy"},
+            {"leader", "commander", "heavy_armor", "shield"},
+        ),
+        "scrap_king": (
+            {"two_hand": "warhammer", "chest_armor": "plate_chest", "amulet": "amulet"},
+            {"skill_macing", "skill_heavy_armor", "skill_two_handed", "skill_tactics", "skill_anatomy"},
+            {"king", "heavy_armor", "two_handed", "scrap"},
+        ),
+    }
+
+    for variant_key, (loadout, skills, tags) in expected.items():
+        variant = family.variants[variant_key]
+
+        assert variant.fixed_loadout.model_dump(exclude_none=True) == loadout
+        assert skills <= set(variant.skills)
+        assert tags <= set(variant.extra_tags)
+
+
+@pytest.mark.unit
+def test_wolf_pack_uses_natural_loadouts_for_current_pack_styles() -> None:
+    family = get_family_config("wolf_pack")
+
+    assert family is not None
+    assert family.resource_version == 1.4
+    expected = {
+        "cub": (
+            "dual",
+            {
+                "main_hand": "wolf_young_fangs",
+                "off_hand": "wolf_young_claws",
+                "chest_armor": "wolf_hide",
+            },
+        ),
+        "runner": (
+            "dual",
+            {
+                "main_hand": "wolf_young_fangs",
+                "off_hand": "wolf_young_claws",
+                "chest_armor": "wolf_hide",
+            },
+        ),
+        "mangy_biter": (
+            "dual",
+            {
+                "main_hand": "wolf_young_fangs",
+                "off_hand": "wolf_locking_fangs",
+                "chest_armor": "wolf_hide",
+            },
+        ),
+        "stalker": (
+            "dual",
+            {
+                "main_hand": "wolf_bite_claws",
+                "off_hand": "wolf_raking_claws",
+                "chest_armor": "wolf_hide",
+            },
+        ),
+        "flanker": (
+            "dual",
+            {
+                "main_hand": "wolf_bite_claws",
+                "off_hand": "wolf_raking_claws",
+                "chest_armor": "wolf_medium_hide",
+            },
+        ),
+        "snapper": (
+            "dual",
+            {
+                "main_hand": "wolf_bite_claws",
+                "off_hand": "wolf_locking_fangs",
+                "chest_armor": "wolf_hide",
+            },
+        ),
+        "pack_leader": (
+            "shield",
+            {
+                "main_hand": "wolf_elite_fangs",
+                "off_hand": "wolf_braced_mane",
+                "chest_armor": "wolf_medium_hide",
+            },
+        ),
+        "dire_wolf": (
+            "shield",
+            {
+                "main_hand": "wolf_elite_fangs",
+                "off_hand": "wolf_bone_shoulders",
+                "chest_armor": "wolf_heavy_hide",
+            },
+        ),
+        "old_fang": (
+            "dual",
+            {
+                "main_hand": "wolf_elite_fangs",
+                "off_hand": "wolf_locking_fangs",
+                "chest_armor": "wolf_medium_hide",
+            },
+        ),
+        "alpha_prime": (
+            "shield",
+            {
+                "main_hand": "wolf_alpha_fangs",
+                "off_hand": "wolf_bone_shoulders",
+                "chest_armor": "wolf_heavy_hide",
+            },
+        ),
+        "winter_maw": (
+            "shield",
+            {
+                "main_hand": "wolf_alpha_fangs",
+                "off_hand": "wolf_braced_mane",
+                "chest_armor": "wolf_heavy_hide",
+            },
+        ),
+        "blood_howl": (
+            "dual",
+            {
+                "main_hand": "wolf_alpha_fangs",
+                "off_hand": "wolf_raking_claws",
+                "chest_armor": "wolf_heavy_hide",
+            },
+        ),
+    }
+    required_skills = {
+        "dual": {"skill_fencing", "skill_dual_wield"},
+        "shield": {"skill_fencing", "skill_shield_mastery"},
+    }
+
+    for variant_key, (style, loadout_subset) in expected.items():
+        variant = family.variants[variant_key]
+        loadout = variant.fixed_loadout.model_dump(exclude_none=True)
+
+        assert set(loadout) == {"main_hand", "off_hand", "chest_armor", "amulet"}
+        assert loadout_subset.items() <= loadout.items()
+        assert loadout["amulet"] == "wolf_pack_mark"
+        assert required_skills[style] <= set(variant.skills)
+
+
+@pytest.mark.unit
 def test_monster_natural_equipment_is_registered_as_item_base() -> None:
     from src.backend.features.monsters.resources.equipment_mapping import NATURAL_EQUIPMENT_MAPPINGS
 
@@ -362,13 +730,91 @@ async def test_rat_beast_profile_builds_combat_ready_context() -> None:
     assert combat["math_model"]["attributes"]["intellect"]["base"] >= 0
     assert combat["math_model"]["modifiers"]["main_hand_damage_base"]["base"] > 0
     assert combat["loadout"]["layout"]["main_hand"] == "skill_fencing"
+    assert combat["loadout"]["layout"]["off_hand"] == "skill_fencing"
     assert combat["loadout"]["layout"]["main_hand_trigger"] == "crit.weapon_flat_armor_gap_crit"
     assert combat["loadout"]["layout"]["body"] == "skill_light_armor"
     assert combat["loadout"]["equipment_layout"]["main_hand"]
+    assert combat["loadout"]["equipment_layout"]["off_hand"]
     assert combat["loadout"]["equipment_layout"]["chest_armor"]
-    assert combat["loadout"]["known_feints"] == [*BASIC_FEINTS, *FENCING_WEAPON_FEINTS]
+    assert combat["loadout"]["equipment_layout"]["amulet"]
+    assert combat["math_model"]["modifiers"]["magic_armor"]["base"] > 0
+    assert combat["loadout"]["known_feints"] == [*BASIC_FEINTS, *FENCING_WEAPON_FEINTS, *DUAL_WIELD_TACTICAL_FEINTS]
+    assert combat["loadout"]["known_abilities"] == []
     assert combat["skills"]["skill_fencing"] == pytest.approx(0.1429)
     assert snapshot["status"]["hp"]["max"] > 0
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize(
+    ("variant_key", "expected_layout", "expected_feints"),
+    [
+        (
+            "pack_rat",
+            {"main_hand": "skill_fencing", "off_hand": "skill_shield_mastery"},
+            [*BASIC_FEINTS, *FENCING_WEAPON_FEINTS, *SHIELD_TACTICAL_FEINTS],
+        ),
+        (
+            "screecher",
+            {"main_hand": "skill_archery", "tactical_style": "skill_ranged_combat"},
+            [*BASIC_ARCHERY_FEINTS, *ARCHERY_WEAPON_FEINTS, *RANGED_TACTICAL_FEINTS],
+        ),
+        (
+            "rotfang",
+            {"main_hand": "skill_macing", "tactical_style": "skill_two_handed"},
+            [*BASIC_FEINTS, *MACING_WEAPON_FEINTS, *TWO_HANDED_TACTICAL_FEINTS],
+        ),
+    ],
+)
+async def test_rat_tactical_variants_build_expected_combat_layouts(
+    variant_key: str,
+    expected_layout: dict[str, str],
+    expected_feints: list[str],
+) -> None:
+    monster = await _build_member("rat_swarm", variant_key)
+    combat = MonsterCombatActorInputBuilder().build_snapshot(monster)["combat"]
+
+    for slot, skill_key in expected_layout.items():
+        assert combat["loadout"]["layout"][slot] == skill_key
+    assert combat["loadout"]["known_feints"] == expected_feints
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize(
+    ("variant_key", "expected_layout", "expected_feints"),
+    [
+        (
+            "flanker",
+            {
+                "main_hand": "skill_fencing",
+                "off_hand": "skill_fencing",
+                "tactical_style": "skill_dual_wield",
+            },
+            [*BASIC_FEINTS, *FENCING_WEAPON_FEINTS, *DUAL_WIELD_TACTICAL_FEINTS],
+        ),
+        (
+            "pack_leader",
+            {
+                "main_hand": "skill_fencing",
+                "off_hand": "skill_shield_mastery",
+                "tactical_style": "skill_shield_mastery",
+            },
+            [*BASIC_FEINTS, *FENCING_WEAPON_FEINTS, *SHIELD_TACTICAL_FEINTS],
+        ),
+    ],
+)
+async def test_wolf_tactical_variants_build_expected_combat_layouts(
+    variant_key: str,
+    expected_layout: dict[str, str],
+    expected_feints: list[str],
+) -> None:
+    monster = await _build_member("wolf_pack", variant_key)
+    combat = MonsterCombatActorInputBuilder().build_snapshot(monster)["combat"]
+
+    for slot, skill_key in expected_layout.items():
+        assert combat["loadout"]["layout"][slot] == skill_key
+    assert combat["loadout"]["equipment_layout"]["amulet"]
+    assert combat["math_model"]["modifiers"]["magic_armor"]["base"] > 0
+    assert combat["loadout"]["known_feints"] == expected_feints
 
 
 @pytest.mark.unit

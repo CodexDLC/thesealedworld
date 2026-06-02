@@ -208,7 +208,19 @@ async def test_prepare_monster_group_creates_clan_and_actor_commitments() -> Non
     )
 
     # scope_id passed here becomes group_id and is used in save_monster_sources as scope_id
-    result = await service.prepare_monster_group("45_45", budget=40, scope_id="encounter:test", ttl=120)
+    result = await service.prepare_monster_group(
+        "45_45",
+        budget=40,
+        composition_policy={
+            "allowed_roles": ["minion"],
+            "min_units": 1,
+            "max_units": 1,
+            "role_caps": {"minion": 1, "veteran": 0, "elite": 0, "boss": 0},
+            "allow_repeated_members": False,
+        },
+        scope_id="encounter:test",
+        ttl=120,
+    )
 
     assert storage.created is True
     assert result.group_id == "encounter:test"
@@ -262,7 +274,10 @@ async def test_prepare_monster_group_allows_repeated_monster_templates() -> None
     assert len(result.monster_ids) == 8
     assert len(set(result.monster_ids)) == 1
     assert len(result.previews) == 8
-    assert result.previews[0].gear_score == 13
+    clan_members = next(iter(storage.members_by_clan.values()))
+    expected_score = clan_members[0].generation_meta["balance"]["gear_score"]
+    assert result.previews[0].gear_score == expected_score
+    assert result.previews[0].threat_rating == expected_score
     assert set(result.actor_commitments) == {f"monster:{result.monster_ids[0]}"}
 
 
@@ -301,6 +316,13 @@ async def test_prepare_monster_group_from_clan_skips_world_location_and_hash_sel
         loc_id="rift:starter_rift:primary",
         zone_id="rift:starter_rift",
         tags=["starter_rift", "primary"],
+        composition_policy={
+            "allowed_roles": ["minion"],
+            "min_units": 1,
+            "max_units": 1,
+            "role_caps": {"minion": 1, "veteran": 0, "elite": 0, "boss": 0},
+            "allow_repeated_members": False,
+        },
         scope_id="rift:encounter:test",
         ttl=120,
     )
@@ -426,7 +448,6 @@ async def test_prepare_monster_group_from_clan_applies_family_encounter_profile(
     ]
     for member in members:
         member.clan = clan
-        member.generation_meta["balance"]["gear_score_version"] = 5
         clan.members.append(member)
     storage.clans_by_unique[clan.unique_hash] = clan
     storage.members_by_clan[clan.id] = members

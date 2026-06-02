@@ -200,5 +200,5 @@ class ItemGenerationService:
     def _should_request_ai_text(self, request: ItemGenerationRequestDTO) -> bool:
         if request.generation_mode == "runtime":
             return False
-        item_grade = request.item_grade or GRADE_BY_RARITY_TIER.get(request.rarity_tier, "common")
-        return request.request_ai_text and item_grade != "common"
+        item_grade = request.item_grade or GRADE_BY_RARITY_TIER.get(request.rarity_tier, "no_grade")
+        return request.request_ai_text and item_grade not in {"no_grade", "common"}

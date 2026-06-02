@@ -4,6 +4,7 @@ import uuid
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
+from src.backend.core.calculators.stats_waterfall_calculator import COMBAT_MATH_VERSION
 from src.backend.features.character.runtime import CharacterVitalsCalculator
 from src.backend.features.character.schemas.session import CharacterSessionAttributesDTO
 from src.backend.features.monsters.dto.generation import GeneratedClan, GeneratedMonster
@@ -131,6 +132,7 @@ class MonsterClanGenerationBuilder:
             unique_hash=resolved_unique_hash,
             raw_tags={
                 "schema_version": 2,
+                "combat_math_version": COMBAT_MATH_VERSION,
                 "family_resource_version": family.resource_version,
                 "tags": tags,
                 "biome_id": context.biome_id,
@@ -304,6 +306,7 @@ class MonsterClanGenerationBuilder:
             ai_profile=template.ai_profile.model_dump(mode="json"),
             generation_meta={
                 "schema_version": 2,
+                "combat_math_version": COMBAT_MATH_VERSION,
                 "family_resource_version": family.resource_version,
                 "source": "monster_clan_generation_builder",
                 "clan_unique_hash": unique_hash,
@@ -358,8 +361,13 @@ class MonsterClanGenerationBuilder:
 
     @staticmethod
     def _item_kind(slot: str, equipment_key: str) -> str:
+        mapping = NATURAL_EQUIPMENT_MAPPINGS.get(equipment_key)
+        if mapping is not None:
+            return mapping.item_kind
         if slot == "quiver" or equipment_key.startswith("quiver_"):
             return "ammo"
+        if slot == "amulet":
+            return "accessory"
         if equipment_key in {"shield", "buckler"}:
             return "shield"
         if slot in {"main_hand", "off_hand", "two_hand"}:

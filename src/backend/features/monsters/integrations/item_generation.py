@@ -7,6 +7,7 @@ from src.backend.features.items.dto.instance import (
     ItemOriginRefDTO,
     RuntimeItemProjectionDTO,
 )
+from src.backend.features.items.resources.item_grade import GRADE_BY_RARITY_TIER
 from src.backend.features.monsters.dto.generation import (
     MonsterItemAffixPolicyDTO,
     MonsterItemBuildRequestDTO,
@@ -38,7 +39,8 @@ def build_monster_item_request(
     base_id: str | None = None,
     item_kind: str | None = None,
     material_id: str | None = None,
-    item_grade: str = "artifact",
+    item_grade: str = "",
+    affix_profile: str = "monster_equipment_4slot",
     rarity_tier: int | None = None,
     seed: str | None = None,
     source_context: dict[str, object] | None = None,
@@ -54,6 +56,7 @@ def build_monster_item_request(
         affix_count=get_monster_affix_count(member_role),
         affix_step_count=get_monster_affix_step_count(member_tier),
     )
+    resolved_rarity_tier = member_tier if rarity_tier is None else rarity_tier
     return MonsterItemBuildRequestDTO(
         owner_key=owner_key,
         family_id=family_id,
@@ -65,8 +68,9 @@ def build_monster_item_request(
         base_id=base_id,
         natural_key=natural_key,
         material_id=material_id,
-        item_grade=item_grade,
-        rarity_tier=member_tier if rarity_tier is None else rarity_tier,
+        item_grade=item_grade or GRADE_BY_RARITY_TIER.get(resolved_rarity_tier, "no_grade"),
+        affix_profile=affix_profile,
+        rarity_tier=resolved_rarity_tier,
         affix_policy=policy,
         seed=seed,
         source_context=source_context or {},
@@ -104,6 +108,7 @@ def to_item_generation_request(request: MonsterItemBuildRequestDTO) -> ItemGener
         target_slot=request.slot,
         rarity_tier=request.rarity_tier,
         item_grade=request.item_grade or (mapping.item_grade if mapping else ""),
+        affix_profile=request.affix_profile,
         material_id=material_id,
         forced_affix_ids=list(request.affix_policy.forced_affix_ids),
         allowed_affix_ids=list(request.affix_policy.allowed_affix_ids),

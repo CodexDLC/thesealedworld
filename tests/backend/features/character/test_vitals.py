@@ -7,6 +7,10 @@ from src.backend.features.character.schemas.session import (
 )
 
 
+def _effective(stat: float) -> float:
+    return stat * stat / 11.0
+
+
 def test_initial_vitals_fill_current_from_calculated_maximums():
     attributes = CharacterSessionAttributesDTO(
         strength=15,
@@ -19,15 +23,15 @@ def test_initial_vitals_fill_current_from_calculated_maximums():
 
     vitals = CharacterVitalsCalculator.build_initial_vitals(attributes)
 
-    assert vitals.hp.max == 39
-    assert vitals.hp.cur == 39
-    assert vitals.energy.max == 23
-    assert vitals.energy.cur == 23
-    assert vitals.stamina.max == 37
-    assert vitals.stamina.cur == 37
-    assert vitals.hp.regen == 0.65
-    assert vitals.energy.regen == 5.6667
-    assert vitals.stamina.regen == 3.2
+    assert vitals.hp.max == 70
+    assert vitals.hp.cur == 70
+    assert vitals.energy.max == 19
+    assert vitals.energy.cur == 19
+    assert vitals.stamina.max == 16
+    assert vitals.stamina.cur == 16
+    assert vitals.hp.regen == 2.3273
+    assert vitals.energy.regen == 3.8409
+    assert vitals.stamina.regen == 1.5818
 
 
 def test_monster_vitals_use_monster_profile_without_hp_regen():
@@ -42,16 +46,16 @@ def test_monster_vitals_use_monster_profile_without_hp_regen():
 
     vitals = CharacterVitalsCalculator.build_initial_vitals(attributes, profile_key="monster:humanoid")
 
-    assert vitals.hp.max == 39
-    assert vitals.hp.cur == 39
+    assert vitals.hp.max == 70
+    assert vitals.hp.cur == 70
     assert vitals.hp.regen == 0.0
-    assert vitals.energy.max == 23
-    assert vitals.stamina.max == 37
-    assert vitals.energy.regen == 5.6667
-    assert vitals.stamina.regen == 3.2
+    assert vitals.energy.max == 19
+    assert vitals.stamina.max == 16
+    assert vitals.energy.regen == 3.8409
+    assert vitals.stamina.regen == 1.5818
 
 
-def test_beast_monster_vitals_use_body_average_with_beast_hp_multiplier():
+def test_beast_monster_vitals_use_endurance_hp_like_other_monsters():
     attributes = CharacterSessionAttributesDTO(
         strength=15,
         endurance=16,
@@ -63,14 +67,14 @@ def test_beast_monster_vitals_use_body_average_with_beast_hp_multiplier():
 
     vitals = CharacterVitalsCalculator.build_initial_vitals(attributes, profile_key="monster:beast")
 
-    assert vitals.hp.max == 65
-    assert vitals.hp.cur == 65
+    assert vitals.hp.max == 70
+    assert vitals.hp.cur == 70
     assert vitals.hp.regen == 0.0
-    assert vitals.energy.max == 23
-    assert vitals.stamina.max == 37
+    assert vitals.energy.max == 19
+    assert vitals.stamina.max == 16
 
 
-def test_player_vitals_use_armor_body_profiles():
+def test_player_vitals_use_endurance_hp_without_armor_profile_scaling():
     attributes = CharacterSessionAttributesDTO(
         strength=15,
         agility=8,
@@ -86,14 +90,15 @@ def test_player_vitals_use_armor_body_profiles():
     medium = CharacterVitalsCalculator.build_initial_vitals(attributes, profile_key="player:medium")
     heavy = CharacterVitalsCalculator.build_initial_vitals(attributes, profile_key="player:heavy")
 
-    assert naked.hp.max == 39
-    assert naked.hp.regen == 0.65
-    assert light.hp.max == 52
-    assert light.hp.regen == 1.3
-    assert medium.hp.max == 65
-    assert medium.hp.regen == 1.3
-    assert heavy.hp.max == 78
-    assert heavy.hp.regen == 2.6
+    expected_hp = round(_effective(16) * 3.0)
+    assert naked.hp.max == expected_hp
+    assert naked.hp.regen == 2.3273
+    assert light.hp.max == expected_hp
+    assert light.hp.regen == 2.3273
+    assert medium.hp.max == expected_hp
+    assert medium.hp.regen == 2.3273
+    assert heavy.hp.max == expected_hp
+    assert heavy.hp.regen == 2.3273
 
 
 def test_player_vital_profile_resolves_from_equipped_chest_armor():
@@ -130,11 +135,11 @@ def test_refresh_max_vitals_preserves_current_values_from_combat():
     refreshed = CharacterVitalsCalculator.refresh_max_vitals(current, attributes, profile_key="player:light")
 
     assert refreshed.hp.cur == 42
-    assert refreshed.hp.max == 52
-    assert refreshed.energy.cur == 23
-    assert refreshed.energy.max == 23
+    assert refreshed.hp.max == 70
+    assert refreshed.energy.cur == 19
+    assert refreshed.energy.max == 19
     assert refreshed.stamina.cur == 12
-    assert refreshed.stamina.max == 37
+    assert refreshed.stamina.max == 16
 
 
 def test_refresh_max_vitals_clamps_current_values_to_new_maximums():
@@ -147,9 +152,9 @@ def test_refresh_max_vitals_clamps_current_values_to_new_maximums():
 
     refreshed = CharacterVitalsCalculator.refresh_max_vitals(current, attributes)
 
-    assert refreshed.hp.cur == 24
-    assert refreshed.energy.cur == 16
-    assert refreshed.stamina.cur == 40
+    assert refreshed.hp.cur == 17
+    assert refreshed.energy.cur == 7
+    assert refreshed.stamina.cur == 16
 
 
 def test_restore_to_max_vitals_refills_all_resources():
@@ -164,12 +169,12 @@ def test_restore_to_max_vitals_refills_all_resources():
 
     restored = CharacterVitalsCalculator.restore_to_max_vitals(attributes)
 
-    assert restored.hp.cur == 39
-    assert restored.hp.max == 39
-    assert restored.energy.cur == 23
-    assert restored.energy.max == 23
-    assert restored.stamina.cur == 37
-    assert restored.stamina.max == 37
+    assert restored.hp.cur == 70
+    assert restored.hp.max == 70
+    assert restored.energy.cur == 19
+    assert restored.energy.max == 19
+    assert restored.stamina.cur == 16
+    assert restored.stamina.max == 16
 
 
 def test_snapshot_restore_uses_saved_current_values_with_recalculated_maximums():
@@ -190,12 +195,12 @@ def test_snapshot_restore_uses_saved_current_values_with_recalculated_maximums()
 
     vitals = CharacterVitalsCalculator.build_vitals_from_snapshot(snapshot, attributes)
 
-    assert vitals.hp.cur == 39
-    assert vitals.hp.max == 39
-    assert vitals.energy.cur == 22
-    assert vitals.energy.max == 23
+    assert vitals.hp.cur == 41
+    assert vitals.hp.max == 70
+    assert vitals.energy.cur == 19
+    assert vitals.energy.max == 19
     assert vitals.stamina.cur == 15
-    assert vitals.stamina.max == 37
+    assert vitals.stamina.max == 16
     assert vitals.last_update == 123.0
 
 

@@ -6,6 +6,9 @@ Detailed milestone history for the `src/backend` game runtime layer.
 
 - Starter-rift resets now rebuild hot character state from the new imprint and drop stale inventory runtime cache, while rift hearts stay out of the start-adjacent cells.
 - Combat feint hands now always refill to the target hand size without reserving tactical tokens; feint activation pays token costs at use time. Shield tactical catalog gained blood/block/parry finits for tank damage conversion, control, reflect, and multi-target pressure.
+- Attribute-derived combat stats now use a shared quadratic effective-stat curve (`stat * stat / 11`); HP comes from Endurance, Energy from Mental, Concentration from Projection, ordinary weapon damage no longer uses Endurance, and generated monsters track the combat math version for rebuild detection.
+- Weapon stat damage weights now make swords a Strength/Agility hybrid, push maces and polearms toward Strength, and push fencing and archery toward Agility.
+- Starter imprint attributes now follow weapon archetypes more tightly, with sword builds keeping Strength/Agility together and tank builds moving Mental into the top four stats.
 
 ## [v0.2.0a1] - Alpha 0.2.0
 

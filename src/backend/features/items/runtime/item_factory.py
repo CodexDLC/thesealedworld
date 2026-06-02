@@ -96,6 +96,7 @@ class ItemFactory:
         affixes, bundle_ids = self._roll_affix_set(
             request=request,
             item_grade=item_grade,
+            affix_profile=self._resolve_affix_profile(request, item_grade),
             item_type=item_type,
             slot=slot,
             item_tags=item_tags,
@@ -114,6 +115,7 @@ class ItemFactory:
             request=request,
             base=base,
             item_grade=item_grade,
+            affix_profile=self._resolve_affix_profile(request, item_grade),
             request_ai_text=request.request_ai_text,
         )
         return self._build_generated_item(
@@ -146,6 +148,7 @@ class ItemFactory:
         affixes, bundle_ids = self._roll_affix_set(
             request=request,
             item_grade=item_grade,
+            affix_profile=self._resolve_affix_profile(request, item_grade),
             item_type=item_type,
             slot=slot,
             item_tags=item_tags,
@@ -164,6 +167,7 @@ class ItemFactory:
             request=request,
             base=base,
             item_grade=item_grade,
+            affix_profile=self._resolve_affix_profile(request, item_grade),
             request_ai_text=False,
             extra_metadata={
                 **request.runtime_metadata,
@@ -221,6 +225,7 @@ class ItemFactory:
                 if isinstance(material, dict)
                 else item.material_id,
                 item_grade=str(item.metadata.get("item_grade") or ""),
+                affix_profile=str(item.metadata.get("affix_profile") or ""),
                 rarity_tier=item.rarity_tier,
                 affix_bundle_ids=list(item.affix_bundle_ids),
                 affixes=affixes,
@@ -248,7 +253,11 @@ class ItemFactory:
 
     @staticmethod
     def _resolve_item_grade(request: ItemGenerationRequestDTO) -> str:
-        return request.item_grade or GRADE_BY_RARITY_TIER.get(request.rarity_tier, "common")
+        return request.item_grade or GRADE_BY_RARITY_TIER.get(request.rarity_tier, "no_grade")
+
+    @staticmethod
+    def _resolve_affix_profile(request: ItemGenerationRequestDTO, item_grade: str) -> str:
+        return request.affix_profile or item_grade
 
     @staticmethod
     def _resolve_item_tier(material, rarity_tier: int) -> int:
@@ -279,6 +288,7 @@ class ItemFactory:
         *,
         request: ItemGenerationRequestDTO,
         item_grade: str,
+        affix_profile: str,
         item_type: str,
         slot: str,
         item_tags: list[str],
@@ -287,7 +297,7 @@ class ItemFactory:
         affix_step_count: int,
     ) -> tuple[list[dict[str, object]], list[str]]:
         affix_item_type = self._affix_item_type(item_type, slot, item_tags)
-        container_rules = AFFIX_CONTAINER_RULES.get(item_grade, AFFIX_CONTAINER_RULES["common"])
+        container_rules = AFFIX_CONTAINER_RULES.get(affix_profile, AFFIX_CONTAINER_RULES["no_grade"])
         seed = request.origin_ref.seed if request.origin_ref and request.origin_ref.seed else None
         return self._fill_affixes(
             container_rules=container_rules,
@@ -392,6 +402,7 @@ class ItemFactory:
         request: ItemGenerationRequestDTO,
         base,
         item_grade: str,
+        affix_profile: str,
         request_ai_text: bool,
         extra_metadata: dict[str, object] | None = None,
     ) -> dict[str, object]:
@@ -404,6 +415,7 @@ class ItemFactory:
             "related_skill": base.related_skill,
             "armor_class": base.armor_class,
             "item_grade": item_grade,
+            "affix_profile": affix_profile,
             **(extra_metadata or {}),
         }
 

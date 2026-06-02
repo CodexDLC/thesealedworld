@@ -77,7 +77,11 @@ class CharacterCombatActorInputBuilder:
 
     @staticmethod
     def _loadout(
-        items: dict[str, Any], flat_skills: dict[str, float], symbiote: dict[str, Any] | None = None
+        items: dict[str, Any],
+        flat_skills: dict[str, float],
+        symbiote: dict[str, Any] | None = None,
+        *,
+        include_basic_gift_abilities: bool = True,
     ) -> dict[str, Any]:
         layout = CharacterCombatActorInputBuilder._dict(items.get("layout"))
         equipment_layout = CharacterCombatActorInputBuilder._dict(layout.get("equipment"))
@@ -163,7 +167,11 @@ class CharacterCombatActorInputBuilder:
                 belt.append({**item, "belt_slot": str(belt_slot)})
 
         known_abilities = CharacterCombatActorInputBuilder._known_abilities(by_id)
-        default_known_abilities = list(dict.fromkeys([*BASIC_GIFT_ABILITY_IDS, *known_abilities]))
+        default_known_abilities = (
+            list(dict.fromkeys([*BASIC_GIFT_ABILITY_IDS, *known_abilities]))
+            if include_basic_gift_abilities
+            else known_abilities
+        )
 
         loadout = {
             "layout": combat_layout,

@@ -155,8 +155,8 @@ def _build_generation_service(session: Any) -> ItemGenerationService:
 def _should_request_ai_text(request: ItemGenerationRequestDTO) -> bool:
     if request.generation_mode != "player" or not request.request_ai_text:
         return False
-    item_grade = request.item_grade or GRADE_BY_RARITY_TIER.get(request.rarity_tier, "common")
-    return item_grade != "common"
+    item_grade = request.item_grade or GRADE_BY_RARITY_TIER.get(request.rarity_tier, "no_grade")
+    return item_grade not in {"no_grade", "common"}
 
 
 __all__ = ["ItemEvents", "bind", "router"]

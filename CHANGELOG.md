@@ -14,6 +14,17 @@ Full layer changelogs live in:
 
 ## [Unreleased]
 
+## [v0.2.1a2] - Alpha 0.2.1a2
+
+### Runtime
+
+- Rebalances starter imprints, attribute-derived combat stats, weapon stat weighting, and generated monster gear-score assembly for the refreshed PvE pressure pass.
+- Refreshes combat encounter profiles, family resources, shield tactical actions, and simulation diagnostics used by starter-rift balancing.
+
+### Game Client
+
+- Updates combat and rift gameplay surfaces to show richer action, inventory, exchange, and generated encounter metadata.
+
 ## [v0.2.0a1] - Alpha 0.2.0
 
 ### Product

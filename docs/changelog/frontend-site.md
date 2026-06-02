@@ -4,6 +4,8 @@ Detailed milestone history for the `src/frontend` site-web layer.
 
 ## [Unreleased]
 
+## [v0.2.1a2] - Alpha 0.2.1a2
+
 - Combat AI cabinet tools now expose refreshed simulation controls and family-pressure result metadata for the gear-score balance pass.
 
 ## [v0.2.0a1] - Alpha 0.2.0

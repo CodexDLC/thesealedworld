@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from .._base import ResolverStep
-from . import damage_event, elemental, final_clamp, physical, pure, raw_roll, shield_absorb
+from . import damage_event, elemental, final_clamp, physical, pure, ranged_position_damage, raw_roll
 from ._state import DamageState
 
 if TYPE_CHECKING:
@@ -34,7 +34,7 @@ class DamageStep(ResolverStep):
         physical.apply(state, atk, def_, ctx, res)
         pure.apply(state, atk, def_, ctx, res)
         elemental.apply(state, atk, def_, ctx, res)
-        shield_absorb.apply(state, atk, def_, ctx, res)
+        ranged_position_damage.apply(state, atk, def_, ctx, res)
         final_clamp.apply(state, atk, def_, ctx, res)
         damage_event.emit(state, atk, def_, ctx, res)
 

@@ -184,7 +184,7 @@ class TestWriteAndReset:
     ) -> None:
         await manager.bootstrap()
         await manager.set("combat", "PARRY_SKILL_MULT_PER_POINT", "9.0")
-        await manager.set("combat", "SHIELD_BLOCK_SKILL_BONUS_AT_FULL", "0.9")
+        await manager.set("combat", "SHIELD_BLOCK_POWER_TO_CHANCE", "0.09")
 
         assert await manager.reset_namespace("combat") is True
 

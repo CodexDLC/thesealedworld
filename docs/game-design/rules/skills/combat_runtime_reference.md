@@ -35,23 +35,31 @@ docs/game-design/rules/combat/active_actions.md
   light armor dodge and medium armor parry do not open a counter by themselves.
   Feints and prepared reactions can still open the counter window, and if they
   do, light armor's counter-chance multiplier remains active.
-- `skill_shield_mastery` scales shield block events. A successful shield block
-  is not a full damage cancel: it rolls a shield profile branch. Defensive
-  branches add `shield_guard_power` to mitigation for that hit; counter
-  branches return shield power as reflected damage.
-- Shield formula flags can temporarily change the branch math for feints and
-  prepared reactions: `force_shield_defense_branch`,
-  `force_shield_counter_branch`, `shield_branch_invert`, and
-  `shield_counter_from_absorbed`. Numeric pipeline modifiers can scale
-  `shield_block_chance_mult`, `shield_guard_power_mult`, and
-  `shield_counter_power_mult`.
-- Shield tactical preparations now use those shield formula mutations:
-  active/full/absolute defense force the defensive shield branch, while
-  aggressive defense forces the counter branch and reflects from shield contact.
-- Shield base items define `shield_block_chance`,
-  `shield_block_defense_weight`, and `shield_block_counter_weight`. Small
-  shields have higher event chance and weaker power; heavy shields have lower
-  event chance and stronger defensive power.
+- `skill_shield_mastery` changes the defender into a shield tactic when the
+  off-hand style is shield mastery: the evasion stage is disabled and block is
+  checked by the shield step instead.
+- Shield block chance is derived from shield `power`, uncapped `evasion`, and
+  shield mastery. High evasion raises block frequency, but shield absorption is
+  penalized by that same evasion, so agile shield builds block more often while
+  heavy shield builds hold each blocked hit harder.
+- A successful shield block adds temporary guard armor only for that hit. The
+  guard value uses shield power plus `physical_endurance_power`, scaled and
+  gated by shield mastery; it no longer reflects shield power.
+- A successful shield block can open an instant shield counter using existing
+  `counter_attack_chance`, capped at 50%. This is not a full exchange: it deals
+  half main-hand damage gated by shield mastery, skips accuracy/evasion/parry/
+  block/crit, applies normal mitigation, and cannot recurse into another
+  counter.
+- Shield counters apply `shield_opening` to the attacker. The debuff lowers
+  target evasion and parry through pipeline multipliers for all attackers, but
+  is consumed only after the next exchange with the tank that applied it.
+- Shield tactical preparations force or amplify shield block/guard through
+  `force.block`, `shield_guard_power_mult`, and incoming-damage caps. The old
+  shield defense/counter branch mutation flags are no longer part of the
+  runtime contract.
+- Shield base items define guard `power`, penalties, tags, and triggers. They
+  no longer define `shield_block_chance`, defensive branch weight, or counter
+  branch weight.
 - `skill_light_armor` can raise the effective dodge cap for light armor in the
   character combat math model. A successful dodge in light armor opens the
   normal counter-check window; light armor skill can also multiply that
@@ -79,9 +87,10 @@ docs/game-design/rules/combat/active_actions.md
 ## Design Direction Not Yet Full Runtime Canon
 
 - Weapon mastery as a complete item-trigger unlock layer.
-- Ranged combat perfect backstep is wired as a pre-evasion style trigger with a
-  25% cap. Ranged combat also has a tactical multi-target covering volley; the
-  broader ranged tree remains design work.
+- Ranged combat perfect backstep is wired as a positioning style trigger with a
+  25% cap: on proc it fixes `far` for the next exchange instead of forcing a
+  dodge on the current hit. Ranged combat also has a tactical multi-target
+  covering volley; the broader ranged tree remains design work.
 - Full two-handed style economy beyond current parry/block pressure hooks.
 - Full shield mastery economy beyond existing shield guard/block/reflection and
   endurance/strength guard-power scaling.

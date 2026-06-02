@@ -1011,7 +1011,7 @@ TRIGGER_TEMPLATE_RECIPES: tuple[CombatTextTemplateRecipeDTO, ...] = (
         catalog_key="combat.trigger.style.ranged_perfect_backstep",
         outcome="dodge_proc",
         target_body="humanoid",
-        pattern="{target} делает идеальный отскок от атаки {source}.",
+        pattern="{target} отрывается от {source} и закрепляет дальнюю позицию.",
         tags=["trigger", "style", "ranged_combat", "dodge"],
     ),
     CombatTextTemplateRecipeDTO(
@@ -1025,14 +1025,14 @@ TRIGGER_TEMPLATE_RECIPES: tuple[CombatTextTemplateRecipeDTO, ...] = (
         tags=["trigger", "style", "block"],
     ),
     CombatTextTemplateRecipeDTO(
-        template_key="combat.trigger.style.offhand_attack.proc.humanoid",
+        template_key="combat.trigger.style.dual_cross_cut.proc.humanoid",
         resource_type="trigger",
-        resource_id="style_dual_extra",
-        catalog_key="combat.trigger.style.offhand_attack",
+        resource_id="style_dual_cross_cut",
+        catalog_key="combat.trigger.style.dual_cross_cut",
         outcome="proc",
         target_body="humanoid",
-        pattern="{source} начинает замах второй рукой по {target}.",
-        tags=["trigger", "style", "dual_wield"],
+        pattern="{source} усиливает критический удар перекрестным срезом.",
+        tags=["trigger", "style", "dual_wield", "crit"],
     ),
     # --- dodge / accuracy triggers ---
     CombatTextTemplateRecipeDTO(

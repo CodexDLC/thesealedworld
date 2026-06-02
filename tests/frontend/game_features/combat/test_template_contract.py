@@ -174,21 +174,24 @@ def test_combat_viewport_uses_prototype_field_and_bottom_action_panel():
     assert "combat_screen.ability_options" in template
     assert "ability_source is mapping" in template
     assert "ability_source is sequence" in template
+    assert "combat-ability-strip" in template
     assert "combat-ability-tooltip-host" in template
     assert 'data-catalog-tooltip="ability"' in template
-    assert "belt_slots = hero.quick_belt[:8]" in template
-    assert "ability_slots = ability_options[:8]" in template
-    assert "[:8 - (belt_slots|length)]" in template
+    assert "ability_slots = ability_options" in template
+    assert "belt_slots = hero.quick_belt[:8]" not in template
+    assert "ability_slots = ability_options[:8]" not in template
+    assert "[:8 - (belt_slots|length)]" not in template
     assert "[:8 - (ability_slots|length)]" in template
-    assert "combat-belt-slot--empty" in template
+    assert "combat-belt-slot--empty" not in template
     assert "combat-ability-option--empty" in template
     assert "/static/images/ui/inventory-gear/default.svg" in template
     assert "<span>x</span>" not in template
-    assert "combat-action-group--desktop" in template
-    assert "combat-action-group--mobile" in template
-    assert "panel-dock panel-dock--framed combat-action-group combat-action-group--belt" in template
-    assert "panel-dock panel-dock--framed combat-action-group combat-action-group--abilities" in template
+    assert "combat-action-group--desktop" not in template
+    assert "combat-action-group--mobile" not in template
+    assert "panel-dock panel-dock--framed combat-action-group combat-action-group--belt" not in template
+    assert "panel-dock panel-dock--framed combat-action-group combat-action-group--abilities" not in template
     assert "combat-ability-option" in template
+    assert template.index("combat-token-strip") < template.index("combat-ability-strip")
     assert "ability-debug-swirl.svg" not in template
     assert "DEBUG_ABILITY_PLACEHOLDER" not in template
     assert 'include "game/domains/combat/viewport/log_panel.html"' not in template
@@ -272,7 +275,6 @@ def test_combat_exchange_card_uses_only_latest_current_target_exchange():
                                 source=current_target_ref,
                                 target=hero_ref,
                                 global_turn=9,
-                                badges=[{"kind": "counter", "value": 1}],
                             ),
                         ],
                     ),
@@ -308,7 +310,7 @@ def test_combat_exchange_card_uses_only_latest_current_target_exchange():
     battle_log_html = html.split("combat-battle-log", maxsplit=1)[1]
     assert "combat-log-facts" in target_exchange_html
     assert "[HP 31/40]" in target_exchange_html
-    assert "token-counter.svg" in target_exchange_html
+    assert "token-counter.svg" not in target_exchange_html
     assert 'data-source-id="1"' in target_exchange_html
     assert 'data-target-id="2"' in target_exchange_html
     assert "Other enemy is hit by area attack." not in target_exchange_html
@@ -619,13 +621,22 @@ def test_combat_css_contains_texture_surfaces_without_shell_overrides():
     assert "grid-template-rows: minmax(138px, auto) minmax(0, 1fr);" not in responsive
     assert "--combat-target-card-width: 100%;" in source
     assert "min-height: min(430px, calc(100dvh" not in responsive
-    assert "grid-template-rows: auto 42px auto;" in responsive
+    assert "grid-template-rows: auto 42px auto;" not in responsive
+    assert "grid-template-rows: auto minmax(0, 1fr) auto;" in responsive
+    assert ".combat-field > .combat-field-actor--enemy {\n        grid-row: 1;\n        align-self: start;" in responsive
+    assert ".combat-field > .combat-field-actor--hero {\n        grid-row: 3;\n        align-self: end;" in responsive
+    assert ".combat-field > .combat-exchange-card {\n        grid-row: 2;\n        align-self: center;\n        justify-self: center;" in responsive
     assert ".combat-exchange-trigger" in responsive
     assert ".combat-exchange-inline {\n        display: none;" in responsive
     assert ".combat-exchange-modal" in actions
     assert ".combat-exchange-wave__lines {\n        max-height: none;\n        overflow: visible;" in responsive
     assert ".combat-action-panel {\n        gap: 6px;\n        padding: 7px;\n        max-height: min(38dvh, 270px);" in responsive
-    assert ".combat-feint-row {\n        grid-template-columns: 28px minmax(0, 1fr);" in responsive
+    assert ".combat-feint-row {\n        grid-template-columns: 26px minmax(0, 1fr);" in responsive
+    assert ".combat-feint-row--empty {\n        grid-template-columns: minmax(0, 1fr);" in responsive
+    assert ".combat-feint-pin {\n        width: 26px;\n        min-height: 28px;\n        height: 28px;\n        aspect-ratio: auto;" in responsive
+    assert ".combat-feint-option,\n    .combat-feint-option--debug {\n        min-height: 28px;\n        height: 28px;" in responsive
+    assert ".combat-feint-row--empty .combat-feint-option--debug {\n        width: 100%;" in responsive
+    assert ".combat-feint-option img,\n    .combat-feint-icon {\n        width: 12px;\n        height: 12px;" in responsive
     assert ".combat-feint-title {\n        -webkit-line-clamp: 1;" in responsive
     assert "--combat-target-card-width: clamp(340px, 52cqw, 620px);" in source
     assert "--combat-target-portrait-size: clamp(100px, min(16cqw, 30cqh), 190px);" in source
@@ -636,11 +647,15 @@ def test_combat_css_contains_texture_surfaces_without_shell_overrides():
     assert ".combat-commit-frame--committed" in source
     assert ".combat-commit-row--timeout_warning" in source
     assert ".combat-info-list" in source
-    assert "grid-template-columns: minmax(148px, 190px) minmax(0, 1fr);" in source
+    assert "grid-template-columns: minmax(0, 1fr);" in source
+    assert ".combat-ability-strip" in actions
+    assert "grid-template-columns: repeat(8, var(--combat-ability-slot-size));" in actions
+    assert ".combat-ability-grid:has(> :nth-child(9))" in actions
+    assert "--combat-ability-slot-size: 30px;" in actions
     assert ".combat-roster-group" in source
     assert ".combat-roster-group__head" in source
-    assert ".combat-action-group--desktop" in source
-    assert ".combat-action-group--mobile" in source
+    assert ".combat-action-group--desktop" not in source
+    assert ".combat-action-group--mobile" not in source
     assert "grid-template-columns: repeat(4, minmax(0, 1fr));" in source
     assert ".combat-viewport" not in source
     assert "#center-screens" not in source
@@ -653,14 +668,12 @@ def test_combat_css_contains_texture_surfaces_without_shell_overrides():
     assert "position: sticky;\n        bottom: 0;" in source
     assert ".combat-primary-row {\n        order: -1;" not in source
     mobile_actions = actions.split("@media (max-width: 860px)", maxsplit=1)[1]
-    assert ".combat-field {\n        min-height: auto;\n        grid-template-rows: auto auto auto;\n        align-content: start;" in mobile_actions
+    assert ".combat-field {\n        min-height: auto;\n        grid-template-rows: auto minmax(0, 1fr) auto;\n        align-content: stretch;" in mobile_actions
     assert "minmax(240px, 1fr)" not in mobile_actions
-    assert ".combat-exchange-card {\n        align-content: start;" in actions
-    assert ".combat-belt-slot--empty" in source
+    assert ".combat-exchange-card {\n        align-content: center;" in actions
     assert ".combat-ability-option--empty" in source
-    assert ".combat-belt-slot--empty img" in source
     assert "button-surface-02-blackened-metal.webp" in source
-    assert ".combat-tool-panel {\n        order: -1;" in source
+    assert ".combat-tool-panel {\n        order: -1;" not in source
     assert ".combat-decision-panel {\n        order: 1;" in source
     assert ".combat-refresh-button" in source
 
@@ -757,7 +770,6 @@ def test_combat_log_panel_renders_mechanical_facts_after_text():
                                 "label": "HP 30/56",
                             }
                         ],
-                        badges=[{"kind": "counter", "value": 1}],
                         effects=[
                             {
                                 "actor_id": "2",
@@ -787,10 +799,10 @@ def test_combat_log_panel_renders_mechanical_facts_after_text():
     assert '<span class="combat-log-text">CodexDLC отвечает контратакой по Shadow CodexDLC.</span>' in html
     assert "[HP 30/56]" in html
     assert 'data-delta="-3"' in html
-    assert "token-counter.svg" in html
+    assert "token-counter.svg" not in html
     assert "token-dodge.svg" in html
     assert "token-crit.svg" in html
-    assert 'data-token="counter"' in html
+    assert 'data-token="counter"' not in html
     assert 'data-token="dodge"' in html
     assert "[counter +1]" not in html
     assert "[dodge +1]" not in html
@@ -1081,12 +1093,13 @@ def test_combat_vm_exposes_full_token_strip_from_backend_key_values():
         "dodge",
         "parry",
         "block",
-        "counter",
+        "pressure",
         "blood",
         "gift",
     ]
     assert [token.value for token in screen.token_bar] == [0, 2, 0, 0, 0, 0, 0, 1, 1]
     assert screen.token_bar[1].icon_url.endswith("/token-hit.svg")
+    assert screen.token_bar[-3].icon_url.endswith("/token-pressure.svg")
     assert screen.token_bar[-2].icon_url.endswith("/token-blood.svg")
     assert screen.token_bar[-1].icon_url.endswith("/token-gift.svg")
     assert screen.token_bar[0].catalog == "combat_tokens"
@@ -1236,7 +1249,7 @@ def test_combat_vm_disables_feint_when_concentration_is_too_low():
             actor_id="1",
             name="Hero",
             team="team_1",
-            vitals=CombatActorVitalsDTO(stamina_current=9, stamina_max=100),
+            vitals=CombatActorVitalsDTO(stamina_current=5, stamina_max=100),
             feints=[CombatFeintOptionDTO(feint_id="true_strike", cost={"hit": 2})],
         ),
         available_actions=[
@@ -1247,7 +1260,7 @@ def test_combat_vm_disables_feint_when_concentration_is_too_low():
     screen = build_combat_screen_vm(dashboard)
 
     assert screen.feint_options[0].enabled is False
-    assert screen.feint_options[0].reason == "CONC 9/10"
+    assert screen.feint_options[0].reason == "CONC 5/6"
 
 
 def test_combat_vm_preserves_log_catalog_metadata():

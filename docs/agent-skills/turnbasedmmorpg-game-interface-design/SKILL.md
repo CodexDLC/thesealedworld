@@ -138,6 +138,21 @@ Do not invent gameplay data just to fill a design.
 - Do not show database keys as player coordinates or labels.
 - Convert internal ids into player-facing names, coordinates, or unknown states.
 
+## Preview Validation
+
+For gameplay template or CSS changes, validate layout through the project preview renderer before relying on real game sessions:
+
+```powershell
+.\.venv\Scripts\python.exe tools\game_preview\render.py --fixture combat/active_8_abilities --out tmp\game_preview\combat_8.html
+.\.venv\Scripts\python.exe tools\game_preview\render.py --fixture combat/active_10_abilities --out tmp\game_preview\combat_10.html
+```
+
+- Use `tools/game_preview/render.py` for combat, scenario, exploration, loot, rift, status, and inventory UI previews when fixture data exists.
+- Add or extend a fixture under `tools/game_preview/fixtures/` when the affected state cannot be rendered with an existing fixture.
+- Use preview fixtures for Codex-owned layout validation; real-data validation can be done by the user or through a provided live session URL.
+- Do not open a real combat/session route unless the user provides a valid `char_id`, session URL, or dev/spectator route.
+- Prefer preview states that stress the changed layout, for example 8 abilities and 10+ abilities for ability-strip work.
+
 ## Required Self-Check
 
 Before finishing gameplay UI work, report:

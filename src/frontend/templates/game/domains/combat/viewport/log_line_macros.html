@@ -70,7 +70,6 @@
                     <span>[{{ effect_id }}{% if effect_duration is not none %} {{ effect_duration }}{% endif %}]</span>
                 </span>
             {% endfor %}
-            {% if flags.counter is defined and flags.counter and not seen.counter %}<span class="combat-log-badge combat-log-badge--counter combat-log-badge--flag" title="counter +1" data-token="counter"><img class="combat-log-badge-icon" src="/static/images/ui/combat-icons/token-counter.svg" alt=""><span>+1</span></span>{% endif %}
             {% if flags.crit is defined and flags.crit and not seen.crit %}<span class="combat-log-badge combat-log-badge--crit combat-log-badge--flag" title="crit" data-token="crit"><img class="combat-log-badge-icon" src="/static/images/ui/combat-icons/token-crit.svg" alt=""></span>{% endif %}
             {% if ((flags.dodged is defined and flags.dodged) or (flags.dodge is defined and flags.dodge)) and not seen.dodged %}<span class="combat-log-badge combat-log-badge--dodge combat-log-badge--flag" title="dodge +1" data-token="dodge"><img class="combat-log-badge-icon" src="/static/images/ui/combat-icons/token-dodge.svg" alt=""><span>+1</span></span>{% endif %}
             {% if ((flags.parried is defined and flags.parried) or (flags.parry is defined and flags.parry)) and not seen.parried %}<span class="combat-log-badge combat-log-badge--parry combat-log-badge--flag" title="parry +1" data-token="parry"><img class="combat-log-badge-icon" src="/static/images/ui/combat-icons/token-parry.svg" alt=""><span>+1</span></span>{% endif %}

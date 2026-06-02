@@ -15,6 +15,7 @@ from src.backend.features.combat.runtime.ai.ai_memory import record_exchange_out
 from src.backend.features.combat.runtime.engine.ability_service import AbilityService
 from src.backend.features.combat.runtime.engine.feint_service import FeintService
 from src.backend.features.combat.runtime.engine.pipeline import CombatPipeline
+from src.backend.features.combat.runtime.engine.ranged_position import RangedPositionService
 from src.backend.features.combat.runtime.engine.target_resolver import TargetResolver
 from src.backend.features.combat.runtime.support import (
     CombatAnalyticsFactBuilder,
@@ -245,6 +246,7 @@ class CombatExecutor:
             commit_ctx.flags.meta.action_mode = "exchange"
             commit_ctx.flags.meta.grant_exchange_gift = True
             self.pipeline.mechanics_service.apply_exchange_results(commit_ctx, commit_pairs)
+            RangedPositionService.update_after_exchange(commit_pairs)
 
             for result, (_task, _real_source, _real_target, move, is_secondary) in zip(
                 results,

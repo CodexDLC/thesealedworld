@@ -20,6 +20,12 @@ DEFAULT_WEIGHT_KEYS: tuple[str, ...] = (
     "expected_damage",
     "damage_tag",
     "multi_target",
+    # Ranged-position resolver axes
+    "ranged_reposition",
+    "ranged_keep_far",
+    "ranged_stabilize",
+    "ranged_pressure_reduce",
+    "ranged_position_damage",
     # Anti-defence axes (scaled by the target's defence value)
     "anti_block",
     "anti_parry",
@@ -41,7 +47,7 @@ DEFAULT_WEIGHT_KEYS: tuple[str, ...] = (
     "group_weapon",
     # Resource pressure (when the bot already carries these tokens)
     "blood_resource",
-    "counter_resource",
+    "pressure_resource",
     "gift_resource",
     # Cost penalties
     "token_cost",

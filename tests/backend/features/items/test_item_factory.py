@@ -446,7 +446,7 @@ def test_item_factory_accepts_type_specific_bundles():
     assert "bulwark_armor_4" in armor.affix_bundle_ids
     assert "block_bonus" not in {affix["affix_id"] for affix in armor.mechanics["affixes"]}
     assert "bulwark_shield_4" in shield.affix_bundle_ids
-    assert "block_bonus" in {affix["affix_id"] for affix in shield.mechanics["affixes"]}
+    assert "shield_guard_power_bonus" in {affix["affix_id"] for affix in shield.mechanics["affixes"]}
 
 
 @pytest.mark.unit
@@ -467,7 +467,7 @@ def test_item_factory_forced_bundle_smoke_by_item_family():
     cases = [
         ("rapier", "mat_cobalt_ingot", "duelist_weapon_4", {"weapon_accuracy", "armor_penetration_pct_bonus"}),
         ("ring", "mat_cobalt_ingot", "duelist_accessory_4", {"attribute_agility", "attribute_perception"}),
-        ("shield", "mat_iron_ingot", "bulwark_shield_4", {"block_bonus", "shield_guard_power_bonus"}),
+        ("shield", "mat_iron_ingot", "bulwark_shield_4", {"shield_guard_power_bonus", "physical_resistance_bonus"}),
         ("plate_chest", "mat_iron_ingot", "bulwark_armor_4", {"armor_flat", "thorns_damage_bonus"}),
         ("winter_cloak", "mat_linen", "survival_garment_3", {"cold_resistance_bonus", "heat_resistance_bonus"}),
     ]
@@ -515,7 +515,7 @@ def test_item_factory_random_generation_smoke_preserves_item_identities():
 
     assert {"hp_bonus", "en_bonus"}.isdisjoint(weapon_affixes)
     assert all(AFFIX_CATALOG[affix_id].technical.required_item_tags != ("shield",) for affix_id in armor_affixes)
-    assert "block_bonus" in shield_affixes or "block_bonus" not in armor_affixes
+    assert all(AFFIX_CATALOG[affix_id].technical.required_item_tags != ("armor",) for affix_id in shield_affixes)
     assert "armor_flat" not in garment_affixes
     assert belt_affixes <= {
         "hp_bonus",

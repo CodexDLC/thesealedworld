@@ -5,8 +5,10 @@ Status: current vocabulary reference for reviewed modifier names.
 This document uses the active modifier field names from
 `src/backend/features/character/dto/modifiers.py`. Older names such as
 `hp_max`, `energy_max`, `dodge_chance`, `parry_chance`,
-`shield_block_chance`, `damage_reduction_flat`, `magical_resistance`, and
+`damage_reduction_flat`, `magical_resistance`, and
 `magical_damage_base` are legacy aliases or old design names.
+`shield_block_chance` is retired; shield block now derives from shield power,
+uncapped evasion, and shield mastery inside the resolver.
 
 ## Vitals
 
@@ -35,7 +37,7 @@ This document uses the active modifier field names from
 | `main_hand_damage_spread_raw` | Trace value: damage variance before mastery stabilization. |
 | `main_hand_armor_penetration_pct` | Percent armor penetration from the main hand. |
 | `main_hand_armor_ignore_chance` | Chance to ignore armor from the main hand. |
-| `main_hand_accuracy` | Main-hand accuracy modifier. The built-in `0.70` hit baseline lives in the resolver, not here. |
+| `main_hand_accuracy` | Main-hand accuracy modifier. The built-in `0.60` hit baseline lives in the resolver, not here. |
 | `main_hand_crit_chance` | Main-hand crit / trigger chance. |
 | `main_hand_crit_cap` | Main-hand crit cap. Current DTO default: `0.75`. |
 
@@ -230,4 +232,3 @@ maps them to current fields:
 | `physical_accuracy` | `accuracy` |
 | `physical_crit_chance` | `crit_chance` |
 | `physical_crit_power_float` | `crit_power` |
-| `shield_block_chance` | `block` |

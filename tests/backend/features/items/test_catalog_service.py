@@ -44,9 +44,6 @@ OFFHAND_DEFENSE_PROFILE_KEYS = {
     "off_hand_accuracy_penalty",
     "parry_chance",
     "parry_penalty",
-    "shield_block_chance",
-    "shield_block_counter_weight",
-    "shield_block_defense_weight",
 }
 GARMENT_ANCHOR_PROFILE_KEYS = {
     "environment_bio_resistance",
@@ -138,7 +135,6 @@ def test_item_catalog_exposes_new_affix_bundle_lookup():
     bundle = catalog.get_affix_bundle("bulwark_shield_4")
     assert bundle is not None
     assert bundle.affix_ids == (
-        "block_bonus",
         "shield_guard_power_bonus",
         "physical_resistance_bonus",
         "control_resistance_bonus",
@@ -298,7 +294,7 @@ def _armor_penalty_totals(catalog: ItemCatalogService, item_ids: tuple[str, ...]
 
 
 @pytest.mark.unit
-def test_offhand_defense_items_keep_block_or_parry_but_no_offense_profile() -> None:
+def test_offhand_defense_items_keep_guard_or_parry_but_no_offense_profile() -> None:
     catalog = ItemCatalogService.load_default()
 
     offenders = []
@@ -313,8 +309,8 @@ def test_offhand_defense_items_keep_block_or_parry_but_no_offense_profile() -> N
     buckler = catalog.get_base_item("buckler")
     assert shield is not None
     assert buckler is not None
-    assert shield.implicit_bonuses["shield_block_chance"] > 0
-    assert buckler.implicit_bonuses["shield_block_chance"] > shield.implicit_bonuses["shield_block_chance"]
+    assert shield.base_power > buckler.base_power
+    assert shield.implicit_bonuses["evasion_penalty"] <= buckler.implicit_bonuses["evasion_penalty"]
     assert "parry_chance" not in buckler.implicit_bonuses
     assert offenders == []
 

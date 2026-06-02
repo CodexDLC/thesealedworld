@@ -16,6 +16,7 @@ ACTIVE_BASIC_FEINT_IDS = {
     "glancing_step",
     "measured_strike",
     "perfect_riposte",
+    "press_defense",
     "second_breath",
     "steady_strike",
     "wind_dance",
@@ -134,7 +135,6 @@ ACTIVE_MASS_TARGET_FEINTS = {
     "polearm_line_cleave": (TargetType.ALL_ENEMIES, 3, 0.75),
     "macing_shock_sweep": (TargetType.ALL_ENEMIES, 3, 0.65),
     "arrow_rain": (TargetType.ALL_ENEMIES, 99, 0.50),
-    "ranged_covering_volley": (TargetType.ALL_ENEMIES, 5, 0.45),
     "red_line_bash": (TargetType.ALL_ENEMIES, 3, 0.50),
     "shield_line_bash": (TargetType.ALL_ENEMIES, 3, 0.45),
     "two_handed_whirl": (TargetType.ALL_ENEMIES, 3, 0.65),
@@ -166,7 +166,6 @@ ARCHIVED_FEINT_IDS = {
     "polearm_trip",
     "pommel_strike",
     "power_attack",
-    "press_defense",
     "sand_throw",
     "seize_tempo",
     "shield_bash",
@@ -208,6 +207,7 @@ def test_active_feint_catalog_contains_basic_and_shield_tactical_sets() -> None:
     assert get_feint_catalog_entry("foresight_parry").technical.cost.tactics == {"parry": 3}
     assert get_feint_catalog_entry("second_breath").technical.cost.tactics == {"parry": 5}
     assert get_feint_catalog_entry("perfect_riposte").technical.cost.tactics == {"parry": 7}
+    assert get_feint_catalog_entry("press_defense").technical.cost.tactics == {"pressure": 3}
     assert get_feint_catalog_entry("active_defense").technical.cost.tactics == {"block": 3}
     assert get_feint_catalog_entry("full_defense").technical.cost.tactics == {"block": 5}
     assert get_feint_catalog_entry("absolute_defense").technical.cost.tactics == {"block": 7}
@@ -241,9 +241,9 @@ def test_active_feint_catalog_contains_basic_and_shield_tactical_sets() -> None:
     assert get_feint_catalog_entry("offhand_over").technical.cost.tactics == {"hit": 3, "parry": 2}
     assert get_feint_catalog_entry("open_vein").technical.cost.tactics == {"hit": 3, "parry": 3}
     assert get_feint_catalog_entry("silent_puncture").technical.cost.tactics == {"hit": 5, "parry": 3}
-    assert get_feint_catalog_entry("answering_series").technical.cost.tactics == {"hit": 3, "counter": 2}
-    assert get_feint_catalog_entry("blade_mill").technical.cost.tactics == {"hit": 5, "counter": 4}
-    assert get_feint_catalog_entry("blade_loop").technical.cost.tactics == {"hit": 6, "parry": 3, "counter": 3}
+    assert get_feint_catalog_entry("answering_series").technical.cost.tactics == {"hit": 3, "pressure": 2}
+    assert get_feint_catalog_entry("blade_mill").technical.cost.tactics == {"hit": 5, "pressure": 4}
+    assert get_feint_catalog_entry("blade_loop").technical.cost.tactics == {"hit": 6, "parry": 3, "pressure": 3}
     assert get_feint_catalog_entry("dual_blade_whirl").technical.cost.tactics == {"hit": 5, "dodge": 3}
     assert get_feint_catalog_entry("arrow_rain").technical.cost.tactics == {"hit": 5, "crit": 2}
     assert get_feint_catalog_entry("snap_shot").technical.cost.tactics == {"hit": 3}
@@ -282,12 +282,17 @@ def test_active_feint_catalog_contains_basic_and_shield_tactical_sets() -> None:
     assert get_feint_catalog_entry("macing_break_stance").technical.cost.tactics == {"hit": 3, "parry": 5}
     assert get_feint_catalog_entry("macing_guard_cracker").technical.cost.tactics == {"hit": 5, "crit": 3}
     assert get_feint_catalog_entry("macing_shock_sweep").technical.cost.tactics == {"hit": 5, "parry": 2}
-    assert get_feint_catalog_entry("reveal_intentions").technical.cost.tactics == {"hit": 2, "dodge": 1}
-    assert get_feint_catalog_entry("covering_position").technical.cost.tactics == {"hit": 2, "dodge": 3}
-    assert get_feint_catalog_entry("backstep_shot").technical.cost.tactics == {"dodge": 3, "counter": 2}
-    assert get_feint_catalog_entry("open_distance").technical.cost.tactics == {"dodge": 5, "counter": 2}
-    assert get_feint_catalog_entry("blinding_shot").technical.cost.tactics == {"hit": 4, "dodge": 3}
-    assert get_feint_catalog_entry("ranged_covering_volley").technical.cost.tactics == {"hit": 4, "dodge": 2}
+    assert get_feint_catalog_entry("reveal_intentions").technical.cost.tactics == {"hit": 2, "tempo": 1}
+    assert get_feint_catalog_entry("covering_position").technical.cost.tactics == {"dodge": 3, "tempo": 2}
+    assert get_feint_catalog_entry("backstep_shot").technical.cost.tactics == {"hit": 2, "dodge": 3}
+    assert get_feint_catalog_entry("open_distance").technical.cost.tactics == {"dodge": 5, "tempo": 2}
+    assert get_feint_catalog_entry("blinding_shot").technical.cost.tactics == {"hit": 3, "tempo": 2}
+    assert get_feint_catalog_entry("ranged_covering_volley").technical.cost.tactics == {"hit": 4, "tempo": 2}
+    assert all(
+        "counter" not in get_feint_catalog_entry(feint_id).technical.cost.tactics
+        for feint_id in ACTIVE_RANGED_TACTICAL_FEINT_IDS
+    )
+    assert get_feint_catalog_entry("ranged_covering_volley").technical.target == TargetType.SINGLE_ENEMY
     assert all(
         get_feint_catalog_entry(feint_id).technical.purchase_group == "basic" for feint_id in ACTIVE_BASIC_FEINT_IDS
     )

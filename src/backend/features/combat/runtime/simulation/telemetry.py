@@ -49,6 +49,12 @@ class CombatTelemetry:
     tactical_shield_damage_by_actor: dict[str, dict[str, int]] = field(default_factory=dict)
     tactical_shield_absorbed_by_actor: dict[str, dict[str, int]] = field(default_factory=dict)
     tactical_shield_reflected_by_actor: dict[str, dict[str, int]] = field(default_factory=dict)
+    ranged_position_outgoing_by_actor: dict[str, dict[str, int]] = field(default_factory=dict)
+    ranged_position_incoming_by_actor: dict[str, dict[str, int]] = field(default_factory=dict)
+    ranged_position_defense_attempts_by_actor: dict[str, dict[str, int]] = field(default_factory=dict)
+    ranged_position_defense_success_by_actor: dict[str, dict[str, int]] = field(default_factory=dict)
+    ranged_position_outgoing_damage_by_actor: dict[str, dict[str, int]] = field(default_factory=dict)
+    ranged_position_incoming_damage_by_actor: dict[str, dict[str, int]] = field(default_factory=dict)
     hit_count: int = 0
     miss_count: int = 0
     dodge_count: int = 0
@@ -124,7 +130,8 @@ class CombatTelemetry:
             self.miss_count += 1
             if source_id:
                 self.miss_by_actor[source_id] = self.miss_by_actor.get(source_id, 0) + 1
-        if result.get("is_dodged"):
+        ranged_position_dodged = self._has_successful_ranged_position_defense(result)
+        if result.get("is_dodged") or ranged_position_dodged:
             self.dodge_count += 1
             if target_id:
                 self.dodge_by_actor[target_id] = self.dodge_by_actor.get(target_id, 0) + 1
@@ -144,6 +151,7 @@ class CombatTelemetry:
         self._record_tactical_result(
             result, actors=actors or {}, source_id=source_id, target_id=target_id, damage=damage
         )
+        self._record_ranged_position_result(result, source_id=source_id, target_id=target_id, damage=damage)
 
         for fact in self._list_of_dicts(result.get("resource_facts")):
             self._record_overkill_fact(fact, source_id=source_id, target_id=target_id, damage=damage)
@@ -176,6 +184,47 @@ class CombatTelemetry:
                     "deaths": deaths,
                 }
             )
+
+    def _record_ranged_position_result(
+        self,
+        result: dict[str, Any],
+        *,
+        source_id: str | None,
+        target_id: str | None,
+        damage: int,
+    ) -> None:
+        for check in self._list_of_dicts(result.get("checks")):
+            if str(check.get("stage") or "") != "ranged_position_defense" or not target_id:
+                continue
+            position = self._ranged_position_or_none(self._dict(check.get("details")).get("position"))
+            if position is None:
+                continue
+            self._increment_nested(self.ranged_position_defense_attempts_by_actor, target_id, position)
+            if bool(check.get("passed")):
+                self._increment_nested(self.ranged_position_defense_success_by_actor, target_id, position)
+
+        details = self._damage_trace_details(result)
+        source_position = self._ranged_position_or_none(details.get("ranged_position_source"))
+        if source_id and source_position:
+            self._increment_nested(self.ranged_position_outgoing_by_actor, source_id, source_position)
+            if damage > 0:
+                self._increment_nested(
+                    self.ranged_position_outgoing_damage_by_actor, source_id, source_position, damage
+                )
+
+        target_position = self._ranged_position_or_none(details.get("ranged_position_target"))
+        if target_id and target_position:
+            self._increment_nested(self.ranged_position_incoming_by_actor, target_id, target_position)
+            if damage > 0:
+                self._increment_nested(
+                    self.ranged_position_incoming_damage_by_actor, target_id, target_position, damage
+                )
+
+    def _has_successful_ranged_position_defense(self, result: dict[str, Any]) -> bool:
+        for check in self._list_of_dicts(result.get("checks")):
+            if str(check.get("stage") or "") == "ranged_position_defense" and bool(check.get("passed")):
+                return True
+        return False
 
     def _record_resource_fact(self, fact: dict[str, Any]) -> None:
         actor_id = self._string_or_none(fact.get("actor_id"))
@@ -241,7 +290,17 @@ class CombatTelemetry:
                     self._increment_nested(self.tactical_trigger_success_by_actor, owner_id, trigger_id)
                     if damage > 0 and trigger_id == "style_2h_ignore":
                         self._increment_nested(self.tactical_damage_by_actor, owner_id, trigger_id, damage)
+                    if damage > 0 and trigger_id == "style_dual_cross_cut":
+                        self._increment_nested(self.tactical_damage_by_actor, owner_id, trigger_id, damage)
                     if trigger_id == "style_ranged_perfect_backstep":
+                        ranged_punish_damage = self._int(result.get("ranged_punish_damage"))
+                        if ranged_punish_damage > 0:
+                            self._increment_nested(
+                                self.tactical_damage_by_actor,
+                                owner_id,
+                                trigger_id,
+                                ranged_punish_damage,
+                            )
                         prevented = self._prevented_damage_estimate(
                             result,
                             source_actor=actors.get(str(source_id)) if source_id else None,
@@ -306,7 +365,7 @@ class CombatTelemetry:
             "style_2h_ignore",
             "style_shield_reflect",
             "style_ranged_perfect_backstep",
-            "style_dual_extra",
+            "style_dual_cross_cut",
             "weapon_shield_bash_on_block",
             "weapon_riposte_on_parry",
         }
@@ -327,8 +386,6 @@ class CombatTelemetry:
         actor_data = cls._dict(actor)
         loadout = cls._dict(actor_data.get("loadout"))
         layout = cls._dict(loadout.get("layout"))
-        if layout.get("tactical_style") == "skill_dual_wield":
-            return "style_dual_extra"
         if layout.get("off_hand") == "skill_shield_mastery":
             return "weapon_shield_bash_on_block"
         return "offhand_attack"
@@ -436,6 +493,11 @@ class CombatTelemetry:
         if value is None:
             return None
         return str(value)
+
+    @staticmethod
+    def _ranged_position_or_none(value: Any) -> str | None:
+        text = str(value or "")
+        return text if text in {"far", "mid", "close"} else None
 
     @staticmethod
     def _int(value: Any) -> int:

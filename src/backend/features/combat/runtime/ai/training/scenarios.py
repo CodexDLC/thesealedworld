@@ -75,6 +75,9 @@ def _stub_actor(
     tokens: dict[str, int] | None = None,
     hand: dict[str, dict[str, int]] | None = None,
     mods: dict[str, Any] | None = None,
+    skills: dict[str, Any] | None = None,
+    layout: dict[str, str] | None = None,
+    ranged_position: str | None = None,
     is_ai: bool = False,
     effect_ids: list[str] | None = None,
     ai_archetype: str = "balanced",
@@ -102,24 +105,34 @@ def _stub_actor(
     )
     stats = ActorStats(
         mods=CombatModifiersDTO(**(mods or {})),
-        skills=CombatSkillsDTO(),
+        skills=CombatSkillsDTO(**(skills or {})),
     )
-    statuses = ActorStatusesDTO(
-        effects=[
+    effects = [
+        ActiveEffectDTO(
+            uid=f"uid_{actor_id}_{eid}",
+            effect_id=eid,
+            source_id=actor_id,
+            expire_at_exchange=99,
+        )
+        for eid in (effect_ids or [])
+    ]
+    if ranged_position is not None:
+        effects.append(
             ActiveEffectDTO(
-                uid=f"uid_{actor_id}_{eid}",
-                effect_id=eid,
+                uid=f"ranged_position:{actor_id}",
+                effect_id="ranged_position",
                 source_id=actor_id,
+                active_from_exchange=0,
                 expire_at_exchange=99,
+                params={"position": ranged_position},
             )
-            for eid in (effect_ids or [])
-        ]
-    )
+        )
+    statuses = ActorStatusesDTO(effects=effects)
     return ActorSnapshot(
         meta=meta,
         raw=ActorRawDTO(),
         skills={},
-        loadout=ActorLoadoutDTO(known_abilities=list(known_abilities or [])),
+        loadout=ActorLoadoutDTO(layout=dict(layout or {}), known_abilities=list(known_abilities or [])),
         stats=stats,
         statuses=statuses,
     )
@@ -251,7 +264,7 @@ def default_scenario_set(seed: int = 0) -> list[SyntheticScenario]:
     )
 
     # 4. Low-stamina bot → cannot pay sword feint activation cost
-    #    (5×5=25 stamina); falls back to basic.
+    #    (5×3=15 stamina); falls back to basic.
     bot = _stub_actor(
         "bot_low_stam",
         team="red",
@@ -738,10 +751,10 @@ def default_scenario_set(seed: int = 0) -> list[SyntheticScenario]:
     # the post-overhaul catalog. expected_tags uses the semantic
     # ``multi_target`` tag derived in ``feint_tags`` from ``target_count > 1``.
     # AoE feint stamina cost = sum(cost.values()) * FEINT_STAMINA_PER_TOKEN
-    # (= 5), so bots get enough stamina to afford the AoE in every case.
+    # (= 3), so bots get enough stamina to afford the AoE in every case.
     # =========================================================================
 
-    # 20. arrow_rain (cost 5+2=7 → 35 stamina): archery swarm cleanup.
+    # 20. arrow_rain (cost 5+2=7 → 21 stamina): archery swarm cleanup.
     bot = _stub_actor(
         "bot_arrow_rain",
         team="red",
@@ -771,7 +784,7 @@ def default_scenario_set(seed: int = 0) -> list[SyntheticScenario]:
         )
     )
 
-    # 21. ranged_covering_volley (cost 4+2=6 → 30 stamina): tactical ranged AoE.
+    # 21. ranged_covering_volley (cost 4+2=6 → 18 stamina): tactical ranged position-fire.
     bot = _stub_actor(
         "bot_covering_volley",
         team="red",
@@ -779,31 +792,253 @@ def default_scenario_set(seed: int = 0) -> list[SyntheticScenario]:
         stamina=60,
         hand={
             "snap_shot": {"hit": 3},
-            "ranged_covering_volley": {"hit": 4, "dodge": 2},
+            "ranged_covering_volley": {"hit": 4, "tempo": 2},
         },
-        tokens={"hit": 5, "dodge": 4},
+        tokens={"hit": 5, "tempo": 4},
     )
     target_a = _stub_actor("volley_target_a", team="blue", hp=50, mods={"parry": 0.05})
-    target_b = _stub_actor("volley_target_b", team="blue", hp=50, mods={"parry": 0.05})
-    target_c = _stub_actor("volley_target_c", team="blue", hp=50, mods={"parry": 0.05})
     scenarios.append(
         SyntheticScenario(
-            name="ranged_covering_volley_swarm",
+            name="ranged_covering_fire_position",
             bot=bot,
-            targets=[target_a, target_b, target_c],
+            targets=[target_a],
             expected=[
                 ScenarioTarget(
                     target_a.meta.id,
-                    frozenset({"multi_target"}),
+                    frozenset({"damage_tag"}),
                     expected_feint_id="ranged_covering_volley",
                 ),
-                ScenarioTarget(target_b.meta.id, frozenset({"damage_tag"})),
-                ScenarioTarget(target_c.meta.id, frozenset({"damage_tag"})),
             ],
         )
     )
 
-    # 22. polearm_line_cleave (cost 4+1=5 → 25 stamina): polearm 3-target cleave.
+    # 21a. Archer is trapped in close range. The resolver makes close the
+    # worst bow position and the only range where counters are reachable, so
+    # the trainer should value a real distance reset over a plain shot.
+    bot = _stub_actor(
+        "bot_archer_close_open",
+        team="red",
+        is_ai=True,
+        stamina=60,
+        hand={
+            "snap_shot": {"hit": 3},
+            "open_distance": {"dodge": 5, "tempo": 2},
+            "backstep_shot": {"hit": 2, "dodge": 3},
+        },
+        tokens={"hit": 5, "dodge": 7, "tempo": 4},
+        skills={"skill_archery": 0.75, "skill_ranged_combat": 0.75},
+        layout={"main_hand": "skill_archery", "tactical_style": "skill_ranged_combat"},
+        ranged_position="close",
+    )
+    target = _stub_actor(
+        "target_close_counter_entry",
+        team="blue",
+        hp=85,
+        mods={"counter_attack_chance": 0.45, "initiative": 12.0},
+    )
+    scenarios.append(
+        SyntheticScenario(
+            name="archer_close_open_distance",
+            bot=bot,
+            targets=[target],
+            expected=[
+                ScenarioTarget(
+                    target.meta.id,
+                    frozenset({"ranged_reposition", "ranged_keep_far"}),
+                    expected_feint_id="open_distance",
+                    reward_weight=2.0,
+                )
+            ],
+        )
+    )
+
+    # 21b. From mid range, a cheaper backstep shot is enough: improve current
+    # position and keep firing instead of spending the full distance reset.
+    bot = _stub_actor(
+        "bot_archer_mid_backstep",
+        team="red",
+        is_ai=True,
+        stamina=60,
+        hand={
+            "snap_shot": {"hit": 3},
+            "backstep_shot": {"hit": 2, "dodge": 3},
+            "open_distance": {"dodge": 5, "tempo": 2},
+        },
+        tokens={"hit": 5, "dodge": 7, "tempo": 3},
+        skills={"skill_archery": 0.7, "skill_ranged_combat": 0.7},
+        layout={"main_hand": "skill_archery", "tactical_style": "skill_ranged_combat"},
+        ranged_position="mid",
+    )
+    target = _stub_actor("target_mid_entry", team="blue", hp=85, mods={"counter_attack_chance": 0.15})
+    scenarios.append(
+        SyntheticScenario(
+            name="archer_mid_backstep_shot",
+            bot=bot,
+            targets=[target],
+            expected=[
+                ScenarioTarget(
+                    target.meta.id,
+                    frozenset({"ranged_reposition"}),
+                    expected_feint_id="backstep_shot",
+                    reward_weight=1.5,
+                )
+            ],
+        )
+    )
+
+    # 21c. At far range, the archer should cash in the positional damage
+    # bonus instead of paying to move again.
+    bot = _stub_actor(
+        "bot_archer_far_covering",
+        team="red",
+        is_ai=True,
+        stamina=60,
+        hand={
+            "snap_shot": {"hit": 3},
+            "open_distance": {"dodge": 5, "tempo": 2},
+            "ranged_covering_volley": {"hit": 4, "tempo": 2},
+        },
+        tokens={"hit": 6, "dodge": 5, "tempo": 5},
+        skills={"skill_archery": 0.8, "skill_ranged_combat": 0.8},
+        layout={"main_hand": "skill_archery", "tactical_style": "skill_ranged_combat"},
+        ranged_position="far",
+    )
+    target = _stub_actor("target_far_lane", team="blue", hp=90, mods={"counter_attack_chance": 0.05})
+    scenarios.append(
+        SyntheticScenario(
+            name="archer_far_covering_fire",
+            bot=bot,
+            targets=[target],
+            expected=[
+                ScenarioTarget(
+                    target.meta.id,
+                    frozenset({"ranged_position_damage"}),
+                    expected_feint_id="ranged_covering_volley",
+                    reward_weight=1.5,
+                )
+            ],
+        )
+    )
+
+    # 21d. A close-range shield target is especially hostile to the archer:
+    # guard power raises mitigation and close range allows counter pressure.
+    bot = _stub_actor(
+        "bot_archer_close_shield_escape",
+        team="red",
+        is_ai=True,
+        stamina=60,
+        hand={
+            "snap_shot": {"hit": 3},
+            "open_distance": {"dodge": 5, "tempo": 2},
+            "ranged_covering_volley": {"hit": 4, "tempo": 2},
+        },
+        tokens={"hit": 6, "dodge": 7, "tempo": 5},
+        skills={"skill_archery": 0.75, "skill_ranged_combat": 0.75},
+        layout={"main_hand": "skill_archery", "tactical_style": "skill_ranged_combat"},
+        ranged_position="close",
+    )
+    target = _stub_actor(
+        "target_close_shield_counter",
+        team="blue",
+        hp=90,
+        mods={"counter_attack_chance": 0.35, "shield_guard_power": 32.0},
+        skills={"skill_shield_mastery": 0.8},
+        layout={"off_hand": "skill_shield_mastery", "tactical_style": "skill_shield_mastery"},
+    )
+    scenarios.append(
+        SyntheticScenario(
+            name="archer_close_shield_counter_escape",
+            bot=bot,
+            targets=[target],
+            expected=[
+                ScenarioTarget(
+                    target.meta.id,
+                    frozenset({"ranged_reposition", "ranged_keep_far"}),
+                    expected_feint_id="open_distance",
+                    reward_weight=2.0,
+                )
+            ],
+        )
+    )
+
+    # 21e. New shield resolver folds guard power into mitigation. Armor-bypass
+    # training must see that shield guard behaves like a real damage gate even
+    # when legacy ``block`` is low.
+    bot = _stub_actor(
+        "bot_shield_guard_crush",
+        team="red",
+        is_ai=True,
+        stamina=60,
+        hand={
+            "macing_heavy_line": {"hit": 3},
+            "macing_armor_crush": {"hit": 3, "crit": 2},
+        },
+        tokens={"hit": 5, "crit": 3},
+    )
+    target = _stub_actor(
+        "target_guard_armor",
+        team="blue",
+        hp=90,
+        mods={"armor": 8.0, "block": 0.05, "shield_guard_power": 36.0},
+        skills={"skill_shield_mastery": 0.85},
+        layout={"off_hand": "skill_shield_mastery", "tactical_style": "skill_shield_mastery"},
+    )
+    scenarios.append(
+        SyntheticScenario(
+            name="shield_guard_armor_bypass",
+            bot=bot,
+            targets=[target],
+            expected=[
+                ScenarioTarget(
+                    target.meta.id,
+                    frozenset({"armor_bypass"}),
+                    expected_feint_id="macing_armor_crush",
+                    reward_weight=1.5,
+                )
+            ],
+        )
+    )
+
+    # 21f. Shield mastery no longer maps cleanly to raw ``block``. Teach the
+    # policy that guard-cracking still matters when shield guard + mastery are
+    # the resolver's real block pressure.
+    bot = _stub_actor(
+        "bot_shield_mastery_cracker",
+        team="red",
+        is_ai=True,
+        stamina=60,
+        hand={
+            "macing_heavy_line": {"hit": 3},
+            "sword_blade_bind": {"hit": 3, "parry": 2},
+            "macing_guard_cracker": {"hit": 5, "crit": 3},
+        },
+        tokens={"hit": 6, "parry": 3, "crit": 4},
+    )
+    target = _stub_actor(
+        "target_mastery_guard",
+        team="blue",
+        hp=90,
+        mods={"block": 0.05, "parry": 0.05, "shield_guard_power": 34.0},
+        skills={"skill_shield_mastery": 0.9},
+        layout={"off_hand": "skill_shield_mastery", "tactical_style": "skill_shield_mastery"},
+    )
+    scenarios.append(
+        SyntheticScenario(
+            name="shield_mastery_block_pressure",
+            bot=bot,
+            targets=[target],
+            expected=[
+                ScenarioTarget(
+                    target.meta.id,
+                    frozenset({"anti_block"}),
+                    expected_feint_id="macing_guard_cracker",
+                    reward_weight=1.5,
+                )
+            ],
+        )
+    )
+
+    # 22. polearm_line_cleave (cost 4+1=5 → 15 stamina): polearm 3-target cleave.
     bot = _stub_actor(
         "bot_polearm_cleave",
         team="red",
@@ -835,7 +1070,7 @@ def default_scenario_set(seed: int = 0) -> list[SyntheticScenario]:
         )
     )
 
-    # 23. two_handed_whirl (cost 5+2=7 → 35 stamina): tactical 2H AoE.
+    # 23. two_handed_whirl (cost 5+2=7 → 21 stamina): tactical 2H AoE.
     bot = _stub_actor(
         "bot_two_handed_whirl",
         team="red",
@@ -867,7 +1102,7 @@ def default_scenario_set(seed: int = 0) -> list[SyntheticScenario]:
         )
     )
 
-    # 24. dual_blade_whirl (cost 5+3=8 → 40 stamina): tactical dual-wield AoE.
+    # 24. dual_blade_whirl (cost 5+3=8 → 24 stamina): tactical dual-wield AoE.
     bot = _stub_actor(
         "bot_dual_blade_whirl",
         team="red",
@@ -902,7 +1137,7 @@ def default_scenario_set(seed: int = 0) -> list[SyntheticScenario]:
     )
 
     # 25. overkill_waste_vs_aoe: a single-target finisher (sword_clean_path,
-    #     cost 3+5=8 → 40 stamina) competes with a true AoE (two_handed_whirl).
+    #     cost 3+5=8 → 24 stamina) competes with a true AoE (two_handed_whirl).
     #     Three low-HP soft targets are present. The trainer rewards the AoE
     #     choice so the policy learns that one big overkill swing is wasted
     #     when a cleave clears the wave.
@@ -1054,7 +1289,7 @@ def default_scenario_set(seed: int = 0) -> list[SyntheticScenario]:
     )
 
     # 29. aoe_stamina_discipline: bot has a true AoE feint but not enough
-    #     stamina to activate it (two_handed_whirl needs 35; bot has 18).
+    #     stamina to activate it (two_handed_whirl needs 21; bot has 18).
     #     ``build_legal_actions_for_target`` filters the AoE out, so the
     #     policy must fall back to the basic. Reward staying on
     #     ``measured_strike`` with no AoE expectation — guards against the

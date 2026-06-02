@@ -243,7 +243,7 @@ _ELEMENTAL_NAMES: tuple[str, ...] = (
     "nature",
 )
 
-_STAT_SHEET_BASE_HIT_CHANCE = 0.70
+_STAT_SHEET_BASE_HIT_CHANCE = 0.60
 
 _CAP_ROWS: tuple[tuple[str, str], ...] = (
     ("dodge_cap", "EVASION CAP"),

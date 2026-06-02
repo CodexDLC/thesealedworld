@@ -53,23 +53,6 @@ physical_resistance_bonus = AffixCatalogEntryDTO(
     ),
 )
 
-block_bonus = AffixCatalogEntryDTO(
-    id="block_bonus",
-    group="combat_defense",
-    technical=AffixTechnicalDTO(
-        modifier_id="block_add",
-        base_value=0.003,
-        value_kind="probability",
-        roll_profile=AffixRollProfileDTO(step_spread=0.06, rounding="decimal", round_digits=4),
-        required_item_tags=("shield",),
-    ),
-    descriptive=AffixDescriptiveDTO(
-        display_name="Block Chance",
-        ui_template="+{value}% Block",
-        narrative_tags=("guard", "stalwart", "defender"),
-    ),
-)
-
 shield_guard_power_bonus = AffixCatalogEntryDTO(
     id="shield_guard_power_bonus",
     group="combat_defense",
@@ -107,7 +90,6 @@ COMBAT_DEFENSE_AFFIXES = [
     armor_flat,
     evasion_bonus,
     physical_resistance_bonus,
-    block_bonus,
     shield_guard_power_bonus,
     thorns_damage_bonus,
 ]

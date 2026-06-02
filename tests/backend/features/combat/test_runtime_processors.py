@@ -39,17 +39,19 @@ from src.backend.features.combat.runtime.engine.feint_service import FeintServic
 from src.backend.features.combat.runtime.engine.math_core import MathCore
 from src.backend.features.combat.runtime.engine.mechanics_service import MechanicsService
 from src.backend.features.combat.runtime.engine.pipeline import CombatPipeline
+from src.backend.features.combat.runtime.engine.ranged_position import RangedPositionService
 from src.backend.features.combat.runtime.engine.resolver import CombatResolver
 from src.backend.features.combat.runtime.engine.resolver.steps import (
     accuracy_step,
     block_step,
+    counter_check_step,
     crit_step,
     evasion_step,
     parry_step,
+    ranged_position_defense_step,
 )
 from src.backend.features.combat.runtime.engine.resolver.steps.damage import damage_step
 from src.backend.features.combat.runtime.engine.resolver.support import (
-    armor_math,
     offensive_lookup,
     token_awarder,
     trigger_activator,
@@ -758,17 +760,17 @@ def test_executor_log_entries_use_dual_wield_proc_text_without_runtime_fallback(
         action_type="exchange",
         move=CombatMoveDTO(move_id="m1", char_id=1, strategy="exchange", payload=ExchangePayload(target_id=2)),
     )
-    result = InteractionResultDTO(source_id=1, target_id=2, damage_final=7, is_hit=True)
-    result.fired_triggers.append("style_dual_extra")
+    result = InteractionResultDTO(source_id=1, target_id=2, damage_final=7, is_hit=True, is_crit=True)
+    result.fired_triggers.append("style_dual_cross_cut")
     result.trigger_facts.append(
         CombatTriggerFactDTO(
-            trigger_id="style_dual_extra",
-            event="ON_ACCURACY_CHECK",
+            trigger_id="style_dual_cross_cut",
+            event="ON_CRIT",
             source="style",
             source_id="skill_dual_wield",
-            chance=0.5,
+            chance=0.25,
             display_policy="separate",
-            tags=["style", "dual_wield", "extra_strike"],
+            tags=["style", "dual_wield", "crit", "cross_cut"],
         )
     )
 
@@ -776,8 +778,8 @@ def test_executor_log_entries_use_dual_wield_proc_text_without_runtime_fallback(
 
     assert len(ctx.pending_logs) == 2
     trigger_entry = ctx.pending_logs[1]
-    assert trigger_entry["catalog_key"] == "combat.trigger.style.offhand_attack.proc.humanoid"
-    assert trigger_entry["text"] == "A1 начинает замах второй рукой по A2."
+    assert trigger_entry["catalog_key"] == "combat.trigger.style.dual_cross_cut.proc.humanoid"
+    assert trigger_entry["text"] == "A1 усиливает критический удар перекрестным срезом."
     assert "(F)" not in trigger_entry["text"]
 
 
@@ -1801,7 +1803,7 @@ def test_ability_service_applies_basic_hit_feint_weapon_technique_bonus() -> Non
 
     assert ctx.flags.force.hit is True
     assert ctx.mods.weapon_technique_bonus_damage == 6
-    assert ctx.result.resource_changes["stamina"]["cost"] == "-15"
+    assert ctx.result.resource_changes["stamina"]["cost"] == "-9"
     bonus = source.raw.modifiers["physical_damage_bonus"]
     source_id = next(iter(bonus["temp"]))
     assert bonus["temp"][source_id] == "+6"
@@ -1812,9 +1814,9 @@ def test_ability_service_applies_basic_hit_feint_weapon_technique_bonus() -> Non
 @pytest.mark.parametrize(
     ("feint_id", "expected_cost", "expected_effect"),
     [
-        ("glancing_step", "-15", "prep_glancing_dodge"),
-        ("wind_dance", "-25", "prep_counter_cap_on_dodge"),
-        ("blade_dance", "-35", "prep_counter_on_dodge"),
+        ("glancing_step", "-9", "prep_glancing_dodge"),
+        ("wind_dance", "-15", "prep_counter_cap_on_dodge"),
+        ("blade_dance", "-21", "prep_counter_on_dodge"),
     ],
 )
 def test_ability_service_applies_basic_dodge_feint_preparation(
@@ -1869,9 +1871,9 @@ def test_ability_service_does_not_mutate_feint_preparation_catalog_payload() -> 
 @pytest.mark.parametrize(
     ("feint_id", "expected_cost", "expected_effect"),
     [
-        ("foresight_parry", "-15", "prep_foresight_parry"),
-        ("second_breath", "-25", "prep_second_breath"),
-        ("perfect_riposte", "-35", "prep_perfect_riposte"),
+        ("foresight_parry", "-9", "prep_foresight_parry"),
+        ("second_breath", "-15", "prep_second_breath"),
+        ("perfect_riposte", "-21", "prep_perfect_riposte"),
     ],
 )
 def test_ability_service_applies_basic_parry_feint_preparation(
@@ -1894,6 +1896,28 @@ def test_ability_service_applies_basic_parry_feint_preparation(
 
     assert ctx.result.resource_changes["stamina"]["cost"] == expected_cost
     assert [effect.effect_id for effect in source.statuses.effects] == [expected_effect]
+
+
+@pytest.mark.unit
+def test_ability_service_applies_basic_pressure_defense_preparation() -> None:
+    source = actor(1, "a")
+    target = actor(2, "b")
+    source.meta.stamina = 100
+    source.meta.tokens["pressure"] = 3
+    move = CombatMoveDTO(
+        move_id="m1",
+        char_id=1,
+        strategy="exchange",
+        payload=ExchangePayload(target_id=2, feint_id="press_defense"),
+    )
+    ctx = PipelineContextDTO()
+
+    service = AbilityService()
+    service.pre_process(ctx, move, source, target)
+    service.post_process(ctx, source, target, move)
+
+    assert ctx.result.resource_changes["stamina"]["cost"] == "-9"
+    assert [effect.effect_id for effect in source.statuses.effects] == ["prep_brace_guard"]
 
 
 @pytest.mark.unit
@@ -2106,10 +2130,10 @@ def test_brace_guard_reduces_next_incoming_hit_and_consumes_buff() -> None:
 @pytest.mark.parametrize(
     ("feint_id", "expected_cost", "expected_effect"),
     [
-        ("active_defense", "-15", "prep_active_defense"),
-        ("full_defense", "-25", "prep_full_defense"),
-        ("absolute_defense", "-35", "prep_absolute_defense"),
-        ("aggressive_defense", "-35", "prep_aggressive_defense"),
+        ("active_defense", "-9", "prep_active_defense"),
+        ("full_defense", "-15", "prep_full_defense"),
+        ("absolute_defense", "-21", "prep_absolute_defense"),
+        ("aggressive_defense", "-21", "prep_aggressive_defense"),
     ],
 )
 def test_ability_service_applies_shield_tactical_feint_preparation(
@@ -2158,9 +2182,9 @@ def test_active_defense_forces_defensive_shield_block_and_consumes_buff() -> Non
     assert ctx.result.is_hit is True
     assert ctx.result.is_blocked is True
     assert ctx.result.shield_block_branch == "defense"
-    assert ctx.result.damage_final == 10
+    assert ctx.result.damage_final == 19
     assert ctx.result.damage_trace is not None
-    assert ctx.result.damage_trace.details["shield_guard_power"] == pytest.approx(10.0)
+    assert ctx.result.damage_trace.details["shield_guard_power"] == pytest.approx(1.225)
     assert target.statuses.effects == []
     assert ctx.result.effect_facts[-1].effect_id == "prep_active_defense"
 
@@ -2189,9 +2213,9 @@ def test_full_defense_uses_amplified_shield_guard_power_and_consumes_buff() -> N
     assert ctx.result.is_hit is True
     assert ctx.result.is_blocked is True
     assert ctx.result.shield_block_branch == "defense"
-    assert ctx.result.damage_final == 1
+    assert ctx.result.damage_final == 18
     assert ctx.result.damage_trace is not None
-    assert ctx.result.damage_trace.details["shield_guard_power"] == pytest.approx(20.0)
+    assert ctx.result.damage_trace.details["shield_guard_power"] == pytest.approx(2.45)
     assert ctx.result.damage_trace.details.get("incoming_damage_cap") is None
     assert target.statuses.effects == []
     assert ctx.result.effect_facts[-1].effect_id == "prep_full_defense"
@@ -2230,7 +2254,7 @@ def test_absolute_defense_caps_resolver_damage_without_consuming_until_duration_
 
 
 @pytest.mark.unit
-def test_aggressive_defense_caps_incoming_damage_and_reflects_from_shield_power() -> None:
+def test_aggressive_defense_forces_block_and_scales_guard_without_reflect_branch() -> None:
     source = actor(1, "a", hp=100)
     target = actor(2, "b")
     source.stats = stats()
@@ -2252,10 +2276,10 @@ def test_aggressive_defense_caps_incoming_damage_and_reflects_from_shield_power(
     MechanicsService().apply_interaction_result(ctx, source, target, ctx.result)
 
     assert ctx.result.is_blocked is True
-    assert ctx.result.shield_block_branch == "counter"
-    assert ctx.result.damage_final == 20
-    assert ctx.result.reflected_damage == 30
-    assert source.meta.hp == 70
+    assert ctx.result.shield_block_branch == "defense"
+    assert ctx.result.damage_final == 18
+    assert ctx.result.reflected_damage == 0
+    assert source.meta.hp == 100
     assert target.statuses.effects == []
     assert ctx.result.effect_facts[-1].effect_id == "prep_aggressive_defense"
 
@@ -2334,6 +2358,40 @@ def test_concussion_uses_normal_attack_damage_and_blocks_next_feint_use() -> Non
 
 
 @pytest.mark.unit
+def test_hit_condition_effects_do_not_apply_after_parry_but_hit_token_is_awarded(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(token_awarder, "bonus_token_roll", lambda: False)
+    source = actor(1, "a")
+    target = actor(2, "b")
+    source.meta.stamina = 100
+    source.stats = stats({"main_hand_damage_base": 12.0, "main_hand_damage_spread": 0.0})
+    target.stats = stats()
+    move = CombatMoveDTO(
+        move_id="m1",
+        char_id=1,
+        strategy="exchange",
+        payload=ExchangePayload(target_id=2, feint_id="concussion"),
+    )
+    ctx = PipelineContextDTO()
+    ctx.result.source_id = source.char_id
+    ctx.result.target_id = target.char_id
+
+    service = AbilityService()
+    service.pre_process(ctx, move, source, target)
+    ctx.flags.force.hit = True
+    ctx.flags.force.parry = True
+    CombatResolver.resolve_exchange(source.stats, target.stats, ctx)
+    service.post_process(ctx, source, target, move)
+
+    assert ctx.result.is_hit is True
+    assert ctx.result.is_parried is True
+    assert ctx.result.tokens_awarded_attacker == {"hit": 1}
+    assert ctx.result.tokens_awarded_defender == {"parry": 1}
+    assert target.statuses.effects == []
+
+
+@pytest.mark.unit
 def test_shield_blood_damage_converts_blood_feint_into_extra_hit_damage() -> None:
     source = actor(1, "a")
     target = actor(2, "b")
@@ -2386,12 +2444,12 @@ def test_scarlet_riposte_reflects_blood_damage_on_block() -> None:
 @pytest.mark.parametrize(
     ("feint_id", "expected_cost", "expected_effect"),
     [
-        ("steel_line", "-15", "prep_2h_steel_line"),
-        ("blade_return", "-20", "prep_2h_blade_return"),
-        ("hard_intercept", "-20", "prep_2h_hard_intercept"),
-        ("answering_stance", "-25", "prep_2h_answering_stance"),
-        ("closed_distance", "-35", "prep_2h_closed_distance"),
-        ("hidden_agility", "-30", "prep_2h_hidden_agility"),
+        ("steel_line", "-9", "prep_2h_steel_line"),
+        ("blade_return", "-12", "prep_2h_blade_return"),
+        ("hard_intercept", "-12", "prep_2h_hard_intercept"),
+        ("answering_stance", "-15", "prep_2h_answering_stance"),
+        ("closed_distance", "-21", "prep_2h_closed_distance"),
+        ("hidden_agility", "-18", "prep_2h_hidden_agility"),
     ],
 )
 def test_ability_service_applies_two_handed_tactical_preparations(
@@ -2498,7 +2556,7 @@ def test_push_stance_adds_current_exchange_crit_chance() -> None:
 
     AbilityService().pre_process(ctx, move, source, target)
 
-    assert ctx.result.resource_changes["stamina"]["cost"] == "-15"
+    assert ctx.result.resource_changes["stamina"]["cost"] == "-9"
     crit_sources = source.raw.modifiers["crit_chance"]["temp"]
     assert next(iter(crit_sources.values())) == "+0.3"
 
@@ -2622,18 +2680,218 @@ def test_ignore_guard_skips_dodge_parry_and_block_checks() -> None:
 
 
 @pytest.mark.unit
+def test_context_builder_disables_evasion_stage_for_shield_defender() -> None:
+    source = actor(1, "a")
+    target = actor(2, "b")
+    target.loadout.layout.update({"off_hand": "skill_shield_mastery", "tactical_style": "skill_shield_mastery"})
+    move = CombatMoveDTO(move_id="m1", char_id=1, strategy="exchange", payload=ExchangePayload(target_id=2))
+
+    ctx = ContextBuilder.build_context(source, target, move)
+
+    assert ctx.stages.check_evasion is False
+    assert ctx.stages.check_block is True
+
+
+@pytest.mark.unit
+def test_shield_block_chance_uses_shield_power_and_evasion_without_dodge_cap(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    captured_chances: list[float] = []
+
+    def capture_roll(chance: float) -> tuple[float | None, bool]:
+        captured_chances.append(chance)
+        return None, False
+
+    monkeypatch.setattr(MathCore, "roll_chance", staticmethod(capture_roll))
+
+    ctx = PipelineContextDTO()
+    result = InteractionResultDTO(source_id=1, target_id=2)
+
+    block_step.run(
+        stats(),
+        stats(
+            {
+                "block": 1.0,
+                "dodge_cap": 0.0,
+                "evasion": 0.5,
+                "shield_guard_power": 20.0,
+            },
+            {"skill_shield_mastery": 1.0},
+        ),
+        ctx,
+        result,
+    )
+
+    assert captured_chances == [pytest.approx(0.45)]
+    assert result.is_blocked is False
+
+
+@pytest.mark.unit
+def test_shield_block_success_opens_capped_half_weapon_counter_and_opening(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    captured_chances: list[float] = []
+
+    def capture_roll(chance: float) -> tuple[float | None, bool]:
+        captured_chances.append(chance)
+        return 0.0, True
+
+    monkeypatch.setattr(MathCore, "roll_chance", staticmethod(capture_roll))
+
+    ctx = PipelineContextDTO()
+    result = InteractionResultDTO(source_id=1, target_id=2)
+
+    block_step.run(
+        stats({"armor": 4.0}),
+        stats(
+            {
+                "counter_attack_chance": 0.9,
+                "evasion": 0.2,
+                "main_hand_damage_base": 40.0,
+                "shield_guard_power": 20.0,
+            },
+            {"skill_shield_mastery": 1.0},
+        ),
+        ctx,
+        result,
+    )
+
+    assert captured_chances == [pytest.approx(0.36), pytest.approx(0.5)]
+    assert result.is_blocked is True
+    assert result.is_shield_counter is True
+    assert result.shield_counter_damage == 17
+    assert result.applied_effects == [
+        {
+            "id": "shield_opening",
+            "target_id": result.source_id,
+            "source_id": result.target_id,
+            "params": {
+                "evasion_mult": pytest.approx(0.74),
+                "parry_mult": pytest.approx(0.74),
+                "opening_strength": pytest.approx(0.26),
+            },
+        }
+    ]
+
+
+@pytest.mark.unit
+def test_shield_block_denies_counter_against_ranged_combat_far_position(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    captured_chances: list[float] = []
+
+    def capture_roll(chance: float) -> tuple[float | None, bool]:
+        captured_chances.append(chance)
+        return 0.0, True
+
+    monkeypatch.setattr(MathCore, "roll_chance", staticmethod(capture_roll))
+
+    ctx = PipelineContextDTO()
+    ctx.flags.meta.tactical_style_skill = "skill_ranged_combat"
+    ctx.flags.meta.source_ranged_position = "far"
+    result = InteractionResultDTO(source_id=1, target_id=2)
+
+    block_step.run(
+        stats(),
+        stats(
+            {
+                "counter_attack_chance": 1.0,
+                "main_hand_damage_base": 40.0,
+                "shield_guard_power": 20.0,
+            },
+            {"skill_shield_mastery": 1.0},
+        ),
+        ctx,
+        result,
+    )
+
+    assert captured_chances == [pytest.approx(0.3)]
+    assert result.is_blocked is True
+    assert result.is_shield_counter is False
+    assert result.shield_counter_damage == 0
+    assert result.applied_effects == []
+
+
+@pytest.mark.unit
+def test_shield_block_allows_counter_against_ranged_combat_close_position(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    captured_chances: list[float] = []
+
+    def capture_roll(chance: float) -> tuple[float | None, bool]:
+        captured_chances.append(chance)
+        return 0.0, True
+
+    monkeypatch.setattr(MathCore, "roll_chance", staticmethod(capture_roll))
+
+    ctx = PipelineContextDTO()
+    ctx.flags.meta.tactical_style_skill = "skill_ranged_combat"
+    ctx.flags.meta.source_ranged_position = "close"
+    result = InteractionResultDTO(source_id=1, target_id=2)
+
+    block_step.run(
+        stats(),
+        stats(
+            {
+                "counter_attack_chance": 1.0,
+                "main_hand_damage_base": 40.0,
+                "shield_guard_power": 20.0,
+            },
+            {"skill_shield_mastery": 1.0},
+        ),
+        ctx,
+        result,
+    )
+
+    assert captured_chances == [pytest.approx(0.3), pytest.approx(0.5)]
+    assert result.is_shield_counter is True
+    assert result.shield_counter_damage == 20
+    assert result.applied_effects[0]["id"] == "shield_opening"
+
+
+@pytest.mark.unit
+def test_shield_opening_applies_to_any_attacker_but_expires_after_tank_exchange() -> None:
+    tank = actor(1, "a")
+    ally = actor(3, "a")
+    opened = actor(2, "b")
+    opened.statuses.effects.append(
+        ActiveEffectDTO(
+            uid="opening-1",
+            effect_id="shield_opening",
+            source_id=tank.char_id,
+            active_from_exchange=0,
+            expire_at_exchange=999,
+            params={"evasion_mult": 0.74, "parry_mult": 0.74},
+        )
+    )
+
+    ally_ctx = PipelineContextDTO()
+    ally_ctx.result.source_id = ally.char_id
+    ally_ctx.result.target_id = opened.char_id
+    AbilityService._apply_status_effects(ally_ctx, opened, mode="target")
+
+    assert ally_ctx.mods.target_evasion_mult == pytest.approx(0.74)
+    assert ally_ctx.mods.target_parry_mult == pytest.approx(0.74)
+
+    result = InteractionResultDTO(source_id=tank.char_id, target_id=opened.char_id)
+    MechanicsService().apply_interaction_result(PipelineContextDTO(), tank, opened, result)
+
+    assert opened.statuses.effects == []
+
+
+@pytest.mark.unit
 @pytest.mark.parametrize(
     ("feint_id", "expected_cost", "expected_effect"),
     [
-        ("broken_step", "-15", "prep_dual_broken_step"),
-        ("shifting_line", "-25", "prep_dual_shifting_line"),
-        ("empty_line", "-30", "prep_dual_empty_line"),
-        ("torn_rhythm", "-40", "prep_dual_torn_rhythm"),
-        ("bind_blade", "-20", "prep_dual_bind_blade"),
-        ("offhand_over", "-25", "prep_dual_offhand_over"),
-        ("answering_series", "-25", "prep_dual_answering_series_counter"),
-        ("blade_mill", "-45", "prep_dual_blade_mill_counter"),
-        ("blade_loop", "-60", "prep_dual_blade_loop_parry"),
+        ("broken_step", "-9", "prep_dual_broken_step"),
+        ("shifting_line", "-15", "prep_dual_shifting_line"),
+        ("empty_line", "-18", "prep_dual_empty_line"),
+        ("torn_rhythm", "-24", "prep_dual_torn_rhythm"),
+        ("bind_blade", "-12", "prep_dual_bind_blade"),
+        ("offhand_over", "-15", "prep_dual_offhand_over"),
+        ("answering_series", "-15", "prep_dual_answering_series_counter"),
+        ("blade_mill", "-27", "prep_dual_blade_mill_counter"),
+        ("blade_loop", "-36", "prep_dual_blade_loop_parry"),
     ],
 )
 def test_ability_service_applies_dual_wield_tactical_preparations(
@@ -2872,6 +3130,68 @@ def test_counter_window_uses_counter_cap_on_next_dodge(monkeypatch: pytest.Monke
 
 
 @pytest.mark.unit
+def test_counter_check_denies_counter_against_ranged_combat_far_position(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    captured_chances: list[float] = []
+
+    def capture_roll(chance: float) -> tuple[float | None, bool]:
+        captured_chances.append(chance)
+        return 0.0, True
+
+    monkeypatch.setattr(MathCore, "roll_chance", staticmethod(capture_roll))
+
+    ctx = PipelineContextDTO()
+    ctx.flags.state.check_counter = True
+    ctx.flags.meta.tactical_style_skill = "skill_ranged_combat"
+    ctx.flags.meta.source_ranged_position = "far"
+    result = InteractionResultDTO(source_id=1, target_id=2, is_parried=True)
+
+    counter_check_step.run(
+        stats(),
+        stats({"counter_attack_chance": 1.0, "counter_attack_cap": 1.0}),
+        ctx,
+        result,
+    )
+
+    assert captured_chances == []
+    assert result.is_counter is False
+    assert result.chain_events.trigger_counter_attack is False
+
+
+@pytest.mark.unit
+def test_counter_check_allows_counter_against_ranged_combat_close_position(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(token_awarder, "bonus_token_roll", lambda: False)
+    captured_chances: list[float] = []
+
+    def capture_roll(chance: float) -> tuple[float | None, bool]:
+        captured_chances.append(chance)
+        return 0.0, True
+
+    monkeypatch.setattr(MathCore, "roll_chance", staticmethod(capture_roll))
+
+    ctx = PipelineContextDTO()
+    ctx.flags.state.check_counter = True
+    ctx.flags.meta.tactical_style_skill = "skill_ranged_combat"
+    ctx.flags.meta.source_ranged_position = "close"
+    result = InteractionResultDTO(source_id=1, target_id=2, is_parried=True)
+
+    counter_check_step.run(
+        stats(),
+        stats({"counter_attack_chance": 1.0, "counter_attack_cap": 1.0}),
+        ctx,
+        result,
+    )
+
+    assert captured_chances == [pytest.approx(1.0)]
+    assert result.is_counter is True
+    assert result.chain_events.trigger_counter_attack is True
+    assert result.tokens_awarded_defender == {}
+
+
+@pytest.mark.unit
 def test_plain_dodge_does_not_open_counter_window_without_light_armor(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(MathCore, "check_chance", staticmethod(lambda chance: True))
     source = actor(1, "a")
@@ -2981,6 +3301,7 @@ def test_medium_armor_parry_without_skill_does_not_open_counter_window(monkeypat
 @pytest.mark.unit
 def test_archery_light_armor_dodge_does_not_open_passive_counter(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(MathCore, "check_chance", staticmethod(lambda chance: True))
+    monkeypatch.setattr(token_awarder, "bonus_token_roll", lambda: False)
     source = actor(1, "a")
     target = actor(2, "b")
     source.stats = stats()
@@ -2996,7 +3317,10 @@ def test_archery_light_armor_dodge_does_not_open_passive_counter(monkeypatch: py
     ctx.flags.force.dodge = True
     CombatResolver.resolve_exchange(source.stats, target.stats, ctx)
 
+    assert ctx.result.is_hit is True
     assert ctx.result.is_dodged is True
+    assert ctx.result.tokens_awarded_attacker == {"hit": 1}
+    assert ctx.result.tokens_awarded_defender == {"dodge": 1}
     assert ctx.result.chain_events.trigger_counter_attack is False
 
 
@@ -3642,18 +3966,18 @@ async def test_result_support_task_payload_captures_actor_refs_and_analytics_sli
             "after_absorb": 6.0,
         },
     )
-    result.fired_triggers.append("style_dual_extra")
+    result.fired_triggers.append("style_dual_cross_cut")
     result.trigger_attempts.append(
         CombatTriggerAttemptDTO(
-            trigger_id="style_dual_extra",
-            event="ON_ACCURACY_CHECK",
+            trigger_id="style_dual_cross_cut",
+            event="ON_CRIT",
             source="style",
             source_id="skill_dual_wield",
-            chance=0.5,
+            chance=0.25,
             roll=0.25,
             passed=True,
             display_policy="separate",
-            tags=["style", "dual_wield"],
+            tags=["style", "dual_wield", "crit", "cross_cut"],
         )
     )
     result.trigger_attempts.append(
@@ -3679,13 +4003,13 @@ async def test_result_support_task_payload_captures_actor_refs_and_analytics_sli
     )
     result.trigger_facts.append(
         CombatTriggerFactDTO(
-            trigger_id="style_dual_extra",
-            event="ON_ACCURACY_CHECK",
+            trigger_id="style_dual_cross_cut",
+            event="ON_CRIT",
             source="style",
             source_id="skill_dual_wield",
-            chance=0.5,
+            chance=0.25,
             display_policy="separate",
-            tags=["style", "dual_wield"],
+            tags=["style", "dual_wield", "crit", "cross_cut"],
         )
     )
     result.chain_events.trigger_offhand_attack = True
@@ -3738,12 +4062,32 @@ async def test_result_support_task_payload_captures_actor_refs_and_analytics_sli
     assert data_service.analytics[0][1]["t"] == 1
     assert data_service.analytics[0][1]["w"] == 3
     assert data_service.analytics[0][1]["st"] == payload.stat_slice
-    assert data_service.analytics[0][1]["trg"] == ["style_dual_extra"]
+    assert data_service.analytics[0][1]["trg"] == ["style_dual_cross_cut"]
     assert data_service.analytics[0][1]["tf"] == [
-        ["style_dual_extra", "acc", "st", "skill_dual_wield", None, 0.5, "separate", ["style", "dual_wield"]]
+        [
+            "style_dual_cross_cut",
+            "crit",
+            "st",
+            "skill_dual_wield",
+            None,
+            0.25,
+            "separate",
+            ["style", "dual_wield", "crit", "cross_cut"],
+        ]
     ]
     assert data_service.analytics[0][1]["trga"] == [
-        ["style_dual_extra", "acc", "st", "skill_dual_wield", None, 0.5, 0.25, 1, "separate", ["style", "dual_wield"]],
+        [
+            "style_dual_cross_cut",
+            "crit",
+            "st",
+            "skill_dual_wield",
+            None,
+            0.25,
+            0.25,
+            1,
+            "separate",
+            ["style", "dual_wield", "crit", "cross_cut"],
+        ],
         ["crit.weapon_serrated_bleed_crit", "crit", "w", "short_sword", "main_hand", 0.35, 0.8, 0, "merge", []],
     ]
     assert data_service.analytics[0][1]["mut"] == [
@@ -3998,6 +4342,30 @@ def test_mechanics_accumulates_blood_token_progress_from_survived_damage() -> No
     assert second.tokens_awarded_defender["blood"] == 1
     assert second.token_facts[-1].token == "blood"
     assert second.token_facts[-1].reason == "damage_taken"
+
+
+@pytest.mark.unit
+def test_mechanics_accumulates_pressure_token_progress_from_dealt_damage() -> None:
+    source = actor(1, "a")
+    target = actor(2, "b", hp=100)
+
+    first = InteractionResultDTO(source_id=1, target_id=2, damage_final=5, is_hit=True)
+    MechanicsService().apply_interaction_result(PipelineContextDTO(), source, target, first)
+
+    assert target.meta.hp == 95
+    assert source.meta.token_progress["pressure"] == 5
+    assert "pressure" not in source.meta.tokens
+    assert all(fact.token != "pressure" for fact in first.token_facts)
+
+    target.meta.hp = 100
+    second = InteractionResultDTO(source_id=1, target_id=2, damage_final=5, is_hit=True)
+    MechanicsService().apply_interaction_result(PipelineContextDTO(), source, target, second)
+
+    assert target.meta.hp == 95
+    assert source.meta.token_progress["pressure"] == 0
+    assert source.meta.tokens["pressure"] == 1
+    assert second.tokens_awarded_attacker["pressure"] == 1
+    assert any(fact.token == "pressure" and fact.reason == "damage_dealt" for fact in second.token_facts)
 
 
 @pytest.mark.unit
@@ -4373,6 +4741,7 @@ def test_context_builder_can_mark_secondary_hits_as_costless_one_way() -> None:
 
 @pytest.mark.unit
 async def test_crit_bleed_trigger_is_cancelled_when_attack_is_parried(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(token_awarder, "bonus_token_roll", lambda: False)
     source = actor(1, "a")
     target = actor(2, "b")
     source.loadout.layout.update({"main_hand": "skill_swords", "main_hand_trigger": "crit.weapon_serrated_bleed_crit"})
@@ -4398,13 +4767,15 @@ async def test_crit_bleed_trigger_is_cancelled_when_attack_is_parried(monkeypatc
 
     assert result.is_crit is True
     assert result.is_parried is True
-    assert result.is_hit is False
+    assert result.is_hit is True
+    assert result.tokens_awarded_attacker == {"crit": 1}
+    assert result.tokens_awarded_defender == {"parry": 1}
     assert target.statuses.effects == []
     assert "APPLY_EFFECT" not in [event.type for event in result.events]
 
 
 @pytest.mark.unit
-def test_dual_wield_style_activates_catalog_trigger_from_loadout() -> None:
+def test_dual_wield_style_activates_crit_trigger_and_guarantees_offhand_from_loadout() -> None:
     source = actor(1, "a")
     target = actor(2, "b")
     source.loadout.layout.update(
@@ -4412,17 +4783,17 @@ def test_dual_wield_style_activates_catalog_trigger_from_loadout() -> None:
             "main_hand": "skill_swords",
             "off_hand": "skill_fencing",
             "tactical_style": "skill_dual_wield",
-            "tactical_style_trigger": "accuracy.style_dual_extra",
+            "tactical_style_trigger": "crit.style_dual_cross_cut",
         }
     )
     move = CombatMoveDTO(move_id="m1", char_id=1, strategy="exchange", payload=ExchangePayload(target_id=2))
 
     ctx = ContextBuilder.build_context(source, target, move)
 
-    assert ctx.triggers.accuracy.style_dual_extra is True
-    assert ctx.trigger_activations["style_dual_extra"][0].source == "style"
-    assert ctx.trigger_activations["style_dual_extra"][0].source_id == "skill_dual_wield"
-    assert ctx.result.chain_events.trigger_offhand_attack is False
+    assert ctx.triggers.crit.style_dual_cross_cut is True
+    assert ctx.trigger_activations["style_dual_cross_cut"][0].source == "style"
+    assert ctx.trigger_activations["style_dual_cross_cut"][0].source_id == "skill_dual_wield"
+    assert ctx.result.chain_events.trigger_offhand_attack is True
 
 
 @pytest.mark.unit
@@ -4434,7 +4805,7 @@ def test_dual_wield_style_does_not_activate_for_offhand_chain() -> None:
             "main_hand": "skill_swords",
             "off_hand": "skill_fencing",
             "tactical_style": "skill_dual_wield",
-            "tactical_style_trigger": "accuracy.style_dual_extra",
+            "tactical_style_trigger": "crit.style_dual_cross_cut",
         }
     )
     move = CombatMoveDTO(move_id="m1", char_id=1, strategy="exchange", payload=ExchangePayload(target_id=2))
@@ -4442,36 +4813,57 @@ def test_dual_wield_style_does_not_activate_for_offhand_chain() -> None:
     ctx = ContextBuilder.build_context(source, target, move, external_mods={"hand": "off"})
 
     assert ctx.flags.meta.source_type == "off_hand"
-    assert ctx.triggers.accuracy.style_dual_extra is False
-    assert "style_dual_extra" not in ctx.trigger_activations
+    assert ctx.triggers.crit.style_dual_cross_cut is True
+    assert "style_dual_cross_cut" in ctx.trigger_activations
+    assert ctx.result.chain_events.trigger_offhand_attack is False
 
 
 @pytest.mark.unit
-def test_dual_wield_style_chance_scales_with_skill_to_forty_percent_cap(
+def test_dual_wield_cross_cut_fixed_chance_scales_crit_power_with_skill(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    ctx = PipelineContextDTO()
-    activate_trigger(ctx, "accuracy.style_dual_extra", source="style", source_id="skill_dual_wield")
-    result = InteractionResultDTO(source_id=1, target_id=2)
-    ctx.result = result
-    seen_chances: list[float] = []
+    monkeypatch.setattr(MathCore, "roll_chance", staticmethod(lambda _chance: (0.0, True)))
+    monkeypatch.setattr(MathCore, "random_range", staticmethod(lambda min_d, max_d: min_d))
 
-    def fake_roll_chance(chance: float) -> tuple[float, bool]:
-        seen_chances.append(chance)
-        return 0.1, True
-
-    monkeypatch.setattr(MathCore, "roll_chance", staticmethod(fake_roll_chance))
-
-    trigger_activator.resolve_triggers(
-        ctx,
-        result,
-        "ON_ACCURACY_CHECK",
-        source_stats=stats(skills={"skill_dual_wield": 1.0}),
+    source = actor(1, "a")
+    target = actor(2, "b")
+    source.loadout.layout.update(
+        {
+            "main_hand": "skill_swords",
+            "off_hand": "skill_fencing",
+            "tactical_style": "skill_dual_wield",
+            "tactical_style_trigger": "crit.style_dual_cross_cut",
+        }
     )
+    source.stats = stats(
+        {
+            "main_hand_accuracy": 1.0,
+            "main_hand_crit_chance": 1.0,
+            "main_hand_crit_cap": 1.0,
+            "main_hand_damage_base": 10.0,
+            "main_hand_damage_spread": 0.0,
+        },
+        {"skill_dual_wield": 1.0, "skill_swords": 1.0},
+    )
+    target.stats = stats()
+    move = CombatMoveDTO(move_id="m1", char_id=1, strategy="exchange", payload=ExchangePayload(target_id=2))
+    ctx = ContextBuilder.build_context(source, target, move)
+    ctx.flags.force.hit = True
+    ctx.flags.force.crit = True
+    ctx.stages.check_evasion = False
+    ctx.stages.check_parry = False
+    ctx.stages.check_block = False
+    ctx.flags.formula.crit_damage_boost = True
+    ctx.mods.weapon_effect_value = 2.0
 
-    assert seen_chances == [pytest.approx(0.4)]
-    assert result.chain_events.trigger_offhand_attack is True
-    assert result.trigger_facts[0].chance == pytest.approx(0.4)
+    result = CombatResolver.resolve_exchange(source.stats, target.stats, ctx)
+
+    assert result.is_crit is True
+    assert result.crit_mult == pytest.approx(6.0)
+    assert result.damage_final == 60
+    assert result.fired_triggers == ["style_dual_cross_cut"]
+    assert result.trigger_facts[0].chance == pytest.approx(0.25)
+    assert ctx.mods.crit_damage_mult == pytest.approx(3.0)
 
 
 @pytest.mark.unit
@@ -4492,10 +4884,14 @@ def test_ranged_combat_style_activates_on_defender_from_loadout() -> None:
     assert ctx.triggers.dodge.style_ranged_perfect_backstep is True
     assert ctx.trigger_activations["style_ranged_perfect_backstep"][0].source == "style"
     assert ctx.trigger_activations["style_ranged_perfect_backstep"][0].source_id == "skill_ranged_combat"
+    assert ctx.stages.check_evasion is False
+    assert ctx.stages.check_parry is False
+    assert ctx.stages.check_block is False
+    assert ctx.stages.check_ranged_position_defense is True
 
 
 @pytest.mark.unit
-def test_archery_attack_ignores_parry_but_keeps_block_and_dodge_checks(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_archery_attack_keeps_parry_block_and_dodge_checks(monkeypatch: pytest.MonkeyPatch) -> None:
     seen_parry_chances: list[float] = []
 
     def capture_roll(chance: float) -> tuple[float | None, bool]:
@@ -4511,7 +4907,7 @@ def test_archery_attack_ignores_parry_but_keeps_block_and_dodge_checks(monkeypat
     ctx = ContextBuilder.build_context(source, target, move)
     result = InteractionResultDTO(source_id=1, target_id=2)
 
-    assert ctx.flags.restriction.ignore_parry is True
+    assert ctx.flags.restriction.ignore_parry is False
     assert ctx.stages.check_evasion is True
     assert ctx.stages.check_block is True
     assert parry_step.run(
@@ -4519,9 +4915,9 @@ def test_archery_attack_ignores_parry_but_keeps_block_and_dodge_checks(monkeypat
         stats({"parry": 1.0, "parry_cap": 1.0}, {"skill_parrying": 1.0}),
         ctx,
         result,
-    ) is False
-    assert result.is_parried is False
-    assert seen_parry_chances == []
+    ) is True
+    assert result.is_parried is True
+    assert seen_parry_chances == [pytest.approx(1.0)]
 
 
 @pytest.mark.unit
@@ -4667,41 +5063,169 @@ def test_mechanics_service_commits_ammo_spend_to_source_loadout() -> None:
 
 
 @pytest.mark.unit
-def test_ranged_combat_style_perfect_backstep_forces_dodge(
+def test_ranged_position_service_commits_next_position_effect_from_trigger_override() -> None:
+    archer = actor(1, "a")
+    enemy = actor(2, "b")
+    archer.loadout.layout.update({"main_hand": "skill_archery", "tactical_style": "skill_ranged_combat"})
+    archer.meta.exchange_counter = 3
+    archer.statuses.effects.append(
+        ActiveEffectDTO(
+            uid="old-position",
+            effect_id="ranged_position",
+            source_id=archer.char_id,
+            active_from_exchange=3,
+            expire_at_exchange=4,
+            params={"position": "close"},
+        )
+    )
+    archer.stats = stats(skills={"skill_ranged_combat": 0.2})
+    enemy.stats = stats()
+    result = InteractionResultDTO(source_id=archer.char_id, target_id=enemy.char_id)
+    result.action_facts["next_ranged_position_override"] = "far"
+
+    RangedPositionService.update_after_exchange([(archer, enemy, result)])
+
+    positions = [effect for effect in archer.statuses.effects if effect.effect_id == "ranged_position"]
+    assert len(positions) == 1
+    assert positions[0].params["position"] == "far"
+    assert positions[0].active_from_exchange == 4
+    assert positions[0].expire_at_exchange == 5
+    assert result.effect_facts[-1].effect_id == "ranged_position"
+    assert result.effect_facts[-1].action == "apply"
+
+
+@pytest.mark.unit
+def test_ranged_position_service_counts_incoming_melee_contact_pressure(monkeypatch: pytest.MonkeyPatch) -> None:
+    captured: dict[str, int] = {}
+
+    def fake_roll_next_position(**kwargs: Any) -> str:
+        captured["damage_taken"] = kwargs["damage_taken"]
+        captured["melee_pressure"] = kwargs["melee_pressure"]
+        return "mid"
+
+    monkeypatch.setattr(RangedPositionService, "roll_next_position", staticmethod(fake_roll_next_position))
+    archer = actor(1, "a")
+    enemy = actor(2, "b")
+    archer.loadout.layout.update({"main_hand": "skill_archery", "tactical_style": "skill_ranged_combat"})
+    archer.stats = stats(skills={"skill_ranged_combat": 0.15})
+    enemy.stats = stats()
+    archer_result = InteractionResultDTO(source_id=archer.char_id, target_id=enemy.char_id)
+    melee_result = InteractionResultDTO(source_id=enemy.char_id, target_id=archer.char_id, damage_final=0)
+    melee_result.checks.append(
+        {"stage": "ranged_position_defense", "chance": 0.1, "roll": 0.2, "passed": False, "details": {"position": "far"}}
+    )
+
+    RangedPositionService.update_after_exchange([(archer, enemy, archer_result), (enemy, archer, melee_result)])
+
+    assert captured == {"damage_taken": 0, "melee_pressure": 1}
+
+
+@pytest.mark.unit
+def test_ranged_combat_style_perfect_backstep_improves_current_position_without_forcing_dodge(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     seen_chances: list[float] = []
+    rolls = iter([(0.0, True), (0.99, False)])
 
     def fake_roll_chance(chance: float) -> tuple[float, bool]:
         seen_chances.append(chance)
-        return 0.0, True
+        return next(rolls)
 
     monkeypatch.setattr(MathCore, "roll_chance", staticmethod(fake_roll_chance))
     monkeypatch.setattr(token_awarder, "bonus_token_roll", lambda: False)
     ctx = PipelineContextDTO()
+    ctx.flags.meta.source_type = "main_hand"
+    ctx.flags.meta.weapon_class = "swords"
+    ctx.flags.meta.target_tactical_style_skill = "skill_ranged_combat"
+    ctx.flags.meta.target_ranged_position = "mid"
+    ctx.stages.check_ranged_position_defense = True
     result = InteractionResultDTO(source_id=1, target_id=2)
     ctx.result = result
     activate_trigger(ctx, "dodge.style_ranged_perfect_backstep", source="style", source_id="skill_ranged_combat")
 
-    dodged = evasion_step.run(
+    dodged = ranged_position_defense_step.run(
         stats(),
-        stats(skills={"skill_ranged_combat": 1.0}),
+        stats({"evasion": 0.5, "parry": 0.0}, {"skill_ranged_combat": 1.0}),
         ctx,
         result,
     )
 
-    assert seen_chances == [pytest.approx(0.25)]
-    assert dodged is True
-    assert result.is_dodged is True
-    assert result.tokens_awarded_defender == {"dodge": 1}
+    assert seen_chances == [pytest.approx(0.25), pytest.approx(0.575)]
+    assert dodged is False
+    assert result.is_dodged is False
+    assert result.tokens_awarded_defender == {}
     assert result.trigger_facts[0].trigger_id == "style_ranged_perfect_backstep"
-    assert result.applied_effects == [
-        {"id": "debuff_ranged_repositioning", "source_trigger_id": "style_ranged_perfect_backstep"}
-    ]
+    assert ctx.flags.meta.target_ranged_position == "far"
+    assert result.checks[0].details["position"] == "far"
+    assert result.action_facts["ranged_current_target_position_applied"] == "far"
+    assert result.action_facts["next_ranged_position_override"] == "far"
+    assert result.is_ranged_punish is False
+    assert result.applied_effects == []
 
 
 @pytest.mark.unit
-def test_ranged_repositioning_reduces_next_outgoing_exchange_and_consumes() -> None:
+def test_ranged_combat_style_perfect_backstep_far_position_becomes_critical_punish(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    rolls = iter([(0.0, True), (0.99, False)])
+    monkeypatch.setattr(MathCore, "roll_chance", staticmethod(lambda chance: next(rolls)))
+    monkeypatch.setattr(token_awarder, "bonus_token_roll", lambda: False)
+    ctx = PipelineContextDTO()
+    ctx.flags.meta.source_type = "main_hand"
+    ctx.flags.meta.weapon_class = "swords"
+    ctx.flags.meta.target_tactical_style_skill = "skill_ranged_combat"
+    ctx.flags.meta.target_ranged_position = "far"
+    ctx.stages.check_ranged_position_defense = True
+    result = InteractionResultDTO(source_id=1, target_id=2)
+    ctx.result = result
+    activate_trigger(ctx, "dodge.style_ranged_perfect_backstep", source="style", source_id="skill_ranged_combat")
+
+    stopped = ranged_position_defense_step.run(
+        stats({"armor": 3.0, "physical_resistance": 0.10}),
+        stats({"main_hand_damage_base": 10.0, "evasion": 0.0, "parry": 0.0}, {"skill_ranged_combat": 1.0}),
+        ctx,
+        result,
+    )
+
+    assert stopped is False
+    assert result.trigger_facts[0].trigger_id == "style_ranged_perfect_backstep"
+    assert result.is_ranged_punish is True
+    assert result.ranged_punish_damage == 16
+    assert result.ranged_punish_crit_mult == pytest.approx(2.0)
+    assert result.chain_events.trigger_counter_attack is False
+    assert result.events[-1].type == "HIT"
+    assert result.events[-1].source_id == "2"
+    assert result.events[-1].target_id == "1"
+    assert result.events[-1].tags == ["RANGED_PUNISH", "CRIT"]
+
+
+@pytest.mark.unit
+def test_ranged_far_punish_damage_is_applied_to_exchange_source() -> None:
+    source = actor(1, "a", hp=40)
+    target = actor(2, "b", hp=40)
+    target.meta.token_progress["pressure"] = 5
+    result = InteractionResultDTO(source_id=source.char_id, target_id=target.char_id)
+    result.is_ranged_punish = True
+    result.ranged_punish_damage = 15
+
+    MechanicsService().apply_interaction_result(PipelineContextDTO(), source, target, result)
+
+    assert source.meta.hp == 25
+    assert target.meta.hp == 40
+    assert result.resource_facts[-1].actor_id == "1"
+    assert result.resource_facts[-1].owner == "source"
+    assert result.resource_facts[-1].reason == "ranged_far_punish"
+    assert result.resource_facts[-1].delta == -15
+    assert result.resource_facts[-1].source_trigger_id == "style_ranged_perfect_backstep"
+    assert result.resource_facts[-1].tags == ["RANGED_PUNISH", "CRIT"]
+    assert target.meta.tokens["pressure"] == 2
+    assert result.tokens_awarded_defender["pressure"] == 2
+    assert result.token_facts[-1].token == "pressure"
+    assert result.token_facts[-1].reason == "damage_dealt"
+
+
+@pytest.mark.unit
+def test_legacy_ranged_repositioning_no_longer_reduces_outgoing_exchange() -> None:
     source = actor(2, "b")
     target = actor(1, "a")
     source.stats = stats(
@@ -4725,7 +5249,7 @@ def test_ranged_repositioning_reduces_next_outgoing_exchange_and_consumes() -> N
     ctx.result.is_hit = True
     service.post_process(ctx, source, target, move)
 
-    assert ctx.mods.damage_mult == pytest.approx(0.4)
+    assert ctx.mods.damage_mult == pytest.approx(0.8)
     assert source.statuses.effects == []
     assert ctx.result.effect_facts[-1].effect_id == "debuff_ranged_repositioning"
     assert ctx.result.effect_facts[-1].action == "expire"
@@ -4914,7 +5438,7 @@ def test_crit_roll_uses_normalized_weapon_skill_and_default_cap(monkeypatch: pyt
 
 
 @pytest.mark.unit
-def test_accuracy_roll_starts_at_seventy_and_caps_below_guaranteed_hit_with_weapon_skill(
+def test_accuracy_roll_starts_at_sixty_and_caps_below_guaranteed_hit_with_weapon_skill(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     captured_chances: list[float] = []
@@ -4934,8 +5458,8 @@ def test_accuracy_roll_starts_at_seventy_and_caps_below_guaranteed_hit_with_weap
 
     assert passed is True
     assert captured_chances == [0.90]
-    assert result.checks[-1].details["base"] == pytest.approx(0.70)
-    assert result.checks[-1].details["skill_bonus"] == pytest.approx(0.30)
+    assert result.checks[-1].details["base"] == pytest.approx(0.60)
+    assert result.checks[-1].details["skill_bonus"] == pytest.approx(0.40)
     assert result.checks[-1].details["cap"] == pytest.approx(0.90)
 
 
@@ -4958,9 +5482,9 @@ def test_accuracy_roll_applies_family_and_item_modifiers_after_skill(
     atk_stats = stats({"main_hand_accuracy": 0.05, "accuracy": -0.10}, {"skill_swords": 0.5})
     accuracy_step.run(atk_stats, atk_stats, ctx, result)
 
-    assert captured_chances == [pytest.approx(0.80)]
+    assert captured_chances == [pytest.approx(0.75)]
     assert result.checks[-1].details["modifier"] == pytest.approx(-0.05)
-    assert result.checks[-1].details["skill_bonus"] == pytest.approx(0.15)
+    assert result.checks[-1].details["skill_bonus"] == pytest.approx(0.20)
 
 
 @pytest.mark.unit
@@ -4992,7 +5516,7 @@ def test_accuracy_roll_applies_weapon_penalty_reduced_by_weapon_and_style_skills
         result,
     )
 
-    assert captured_chances == [pytest.approx(0.41)]
+    assert captured_chances == [pytest.approx(0.36)]
     assert result.checks[-1].details["raw_penalty"] == pytest.approx(0.80)
     assert result.checks[-1].details["effective_penalty"] == pytest.approx(0.44)
     assert result.checks[-1].details["style_skill"] == pytest.approx(0.5)
@@ -5044,7 +5568,7 @@ def test_weapon_damage_spread_keeps_base_as_damage_cap(monkeypatch: pytest.Monke
 
 
 @pytest.mark.unit
-def test_physical_suppression_reduces_resistance_before_flat_armor(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_physical_suppression_reduces_resistance_before_armor_power(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(MathCore, "random_range", staticmethod(lambda min_d, max_d: min_d))
     monkeypatch.setattr(MathCore, "check_chance", staticmethod(lambda chance: False))
 
@@ -5059,18 +5583,21 @@ def test_physical_suppression_reduces_resistance_before_flat_armor(monkeypatch: 
                 "physical_suppression": 0.20,
             }
         ),
-        stats({"physical_resistance": 0.30, "armor": 10.0}),
+        stats({"physical_resistance": 0.30}),
         ctx,
         result,
     )
 
-    assert damage == pytest.approx(80.0)
+    assert damage == pytest.approx(90.0)
     assert result.damage_trace is not None
     assert result.damage_trace.details["physical_suppression"] == pytest.approx(0.20)
+    assert result.damage_trace.details["after_resist"] == pytest.approx(90.0)
 
 
 @pytest.mark.unit
-def test_armor_penetration_pct_and_flat_reduce_only_flat_armor(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_armor_penetration_pct_and_flat_reduce_armor_power_before_percent(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     monkeypatch.setattr(MathCore, "random_range", staticmethod(lambda min_d, max_d: min_d))
     monkeypatch.setattr(MathCore, "check_chance", staticmethod(lambda chance: False))
 
@@ -5086,16 +5613,19 @@ def test_armor_penetration_pct_and_flat_reduce_only_flat_armor(monkeypatch: pyte
                 "armor_penetration_flat": 10.0,
             }
         ),
-        stats({"armor": 40.0}),
+        stats({"armor": 40.0}, {"skill_heavy_armor": 1.0}),
         ctx,
         result,
     )
 
-    assert damage == pytest.approx(90.0)
+    assert damage == pytest.approx(54.054054)
+    assert result.damage_trace is not None
+    assert result.damage_trace.details["arm"]["effective_power"] == pytest.approx(10.0)
+    assert result.damage_trace.details["arm"]["pct"] == pytest.approx(0.459459459)
 
 
 @pytest.mark.unit
-def test_successful_hit_deals_one_damage_when_flat_armor_absorbs_all(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_armor_power_uses_type_cap_instead_of_flat_full_absorb(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(MathCore, "random_range", staticmethod(lambda min_d, max_d: min_d))
     monkeypatch.setattr(MathCore, "check_chance", staticmethod(lambda chance: False))
 
@@ -5104,7 +5634,7 @@ def test_successful_hit_deals_one_damage_when_flat_armor_absorbs_all(monkeypatch
 
     damage = damage_step.run(
         stats({"main_hand_damage_base": 5.0, "main_hand_damage_spread": 0.0}),
-        stats({"armor": 50.0}),
+        stats({"armor": 10_000.0}, {"skill_heavy_armor": 1.0}),
         ctx,
         result,
     )
@@ -5112,7 +5642,9 @@ def test_successful_hit_deals_one_damage_when_flat_armor_absorbs_all(monkeypatch
     assert damage == pytest.approx(1.0)
     assert result.damage_final == 1
     assert result.damage_trace is not None
-    assert result.damage_trace.details["after_armor"] == pytest.approx(0.0)
+    assert result.damage_trace.details["after_armor"] == pytest.approx(0.5)
+    assert result.damage_trace.details["arm"]["pct"] == pytest.approx(0.90)
+    assert result.damage_trace.details["arm"]["cap"] == pytest.approx(0.90)
 
 
 @pytest.mark.unit
@@ -5141,7 +5673,7 @@ def test_magic_armor_reduces_elemental_damage_after_resistance(monkeypatch: pyte
 
 
 @pytest.mark.unit
-def test_armor_ignore_chance_can_skip_flat_armor(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_armor_ignore_chance_can_skip_armor_power(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(MathCore, "random_range", staticmethod(lambda min_d, max_d: min_d))
     monkeypatch.setattr(MathCore, "check_chance", staticmethod(lambda chance: True))
 
@@ -5165,7 +5697,7 @@ def test_armor_ignore_chance_can_skip_flat_armor(monkeypatch: pytest.MonkeyPatch
 
 
 @pytest.mark.unit
-def test_flat_armor_ignore_trigger_bonus_can_skip_flat_armor(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_flat_armor_ignore_trigger_bonus_can_skip_armor_power(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(MathCore, "random_range", staticmethod(lambda min_d, max_d: min_d))
     monkeypatch.setattr(MathCore, "roll_chance", staticmethod(lambda chance: (0.0, chance == pytest.approx(0.5))))
 
@@ -5185,25 +5717,330 @@ def test_flat_armor_ignore_trigger_bonus_can_skip_flat_armor(monkeypatch: pytest
 
 
 @pytest.mark.unit
-def test_flat_armor_penetration_trigger_bonus_reduces_only_flat_armor(
+def test_flat_armor_penetration_trigger_bonus_reduces_armor_power_only(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setattr(MathCore, "random_range", staticmethod(lambda min_d, max_d: min_d))
     monkeypatch.setattr(MathCore, "check_chance", staticmethod(lambda chance: False))
 
     ctx = PipelineContextDTO()
+    ctx.flags.mastery.medium_armor = True
     ctx.flags.formula.boost_flat_armor_penetration = True
     ctx.mods.flat_armor_penetration_bonus_pct = 0.5
     result = InteractionResultDTO(source_id=1, target_id=2)
 
     damage = damage_step.run(
         stats({"main_hand_damage_base": 100.0, "main_hand_damage_spread": 0.0}),
-        stats({"physical_resistance": 0.25, "armor": 40.0}),
+        stats({"physical_resistance": 0.25, "armor": 40.0}, {"skill_medium_armor": 1.0}),
         ctx,
         result,
     )
 
-    assert damage == pytest.approx(55.0)
+    assert damage == pytest.approx(35.714286)
+    assert result.damage_trace is not None
+    assert result.damage_trace.details["after_resist"] == pytest.approx(75.0)
+    assert result.damage_trace.details["arm"]["effective_power"] == pytest.approx(20.0)
+
+
+@pytest.mark.unit
+def test_far_position_boosts_archer_outgoing_bow_damage_after_mitigation(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(MathCore, "random_range", staticmethod(lambda min_d, max_d: min_d))
+
+    ctx = PipelineContextDTO()
+    ctx.flags.meta.source_type = "main_hand"
+    ctx.flags.meta.weapon_class = "archery"
+    ctx.flags.meta.tactical_style_skill = "skill_ranged_combat"
+    ctx.flags.meta.source_ranged_position = "far"
+    result = InteractionResultDTO(source_id=1, target_id=2)
+
+    damage = damage_step.run(
+        stats({"main_hand_damage_base": 100.0, "main_hand_damage_spread": 0.0}),
+        stats({"armor": 20.0}),
+        ctx,
+        result,
+    )
+
+    assert damage == pytest.approx(72.100313)
+    assert result.damage_final == 72
+    assert result.damage_trace is not None
+    assert result.damage_trace.details["ranged_position_outgoing_mult"] == pytest.approx(1.15)
+
+
+@pytest.mark.unit
+def test_ranged_backstep_position_step_updates_current_archer_context() -> None:
+    ctx = PipelineContextDTO()
+    ctx.flags.meta.source_type = "main_hand"
+    ctx.flags.meta.weapon_class = "archery"
+    ctx.flags.meta.tactical_style_skill = "skill_ranged_combat"
+    ctx.flags.meta.source_ranged_position = "close"
+    ctx.mods.accuracy_mult = 0.85
+    ctx.result.action_facts["ranged_current_position_step"] = 1
+    ctx.result.action_facts["ranged_outgoing_accuracy_bonus_mult"] = 1.05
+
+    RangedPositionService.apply_action_position_context(ctx)
+
+    assert ctx.flags.meta.source_ranged_position == "mid"
+    assert ctx.result.action_facts["ranged_current_position_applied"] == "mid"
+    assert ctx.mods.accuracy_mult == pytest.approx(1.0 * 1.05)
+
+
+@pytest.mark.unit
+def test_ranged_covering_fire_expands_position_outgoing_damage_bonus(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(MathCore, "random_range", staticmethod(lambda min_d, max_d: min_d))
+
+    ctx = PipelineContextDTO()
+    ctx.flags.meta.source_type = "main_hand"
+    ctx.flags.meta.weapon_class = "archery"
+    ctx.flags.meta.tactical_style_skill = "skill_ranged_combat"
+    ctx.flags.meta.source_ranged_position = "close"
+    ctx.result.action_facts["ranged_outgoing_damage_bonus_mult"] = 1.20
+    result = InteractionResultDTO(source_id=1, target_id=2, action_facts=ctx.result.action_facts)
+
+    damage = damage_step.run(
+        stats({"main_hand_damage_base": 100.0, "main_hand_damage_spread": 0.0}),
+        stats(),
+        ctx,
+        result,
+    )
+
+    assert damage == pytest.approx(90.0)
+    assert result.damage_trace is not None
+    assert result.damage_trace.details["ranged_position_outgoing_mult"] == pytest.approx(0.75)
+    assert result.damage_trace.details["ranged_position_outgoing_bonus_mult"] == pytest.approx(1.20)
+
+
+@pytest.mark.unit
+def test_ranged_position_roll_uses_feint_weight_and_pressure_modifiers(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    rolls = iter(["tail", "head"])
+
+    def controlled_roll(min_d: float, max_d: float) -> float:
+        return max_d - 0.001 if next(rolls) == "tail" else min_d
+
+    monkeypatch.setattr(MathCore, "random_range", staticmethod(controlled_roll))
+    archer = actor("archer", team="blue", hp=100)
+    enemy = actor("enemy", team="red", hp=100)
+    archer.loadout.layout.update({"main_hand": "skill_archery", "tactical_style": "skill_ranged_combat"})
+    archer.stats = stats(
+        {"evasion": 0.05, "parry": 0.0, "initiative": 5.0},
+        skills={"skill_ranged_combat": 0.2, "skill_archery": 0.2},
+    )
+    enemy.stats = stats({"initiative": 30.0, "anti_dodge_chance": 0.4})
+
+    strong_result = InteractionResultDTO(source_id=archer.char_id, target_id=enemy.char_id)
+    strong_result.action_facts.update(
+        {
+            "ranged_far_weight_bonus": 5.0,
+            "ranged_close_weight_bonus": -5.0,
+            "ranged_damage_pressure_mult": 0.0,
+            "ranged_enemy_pressure_mult": 0.0,
+            "next_ranged_position_min": "mid",
+        }
+    )
+
+    assert RangedPositionService.roll_next_position(archer=archer, enemy=enemy, damage_taken=60) == "close"
+    assert (
+        RangedPositionService.roll_next_position(
+            archer=archer,
+            enemy=enemy,
+            damage_taken=60,
+            action_facts=strong_result.action_facts,
+        )
+        == "far"
+    )
+
+
+@pytest.mark.unit
+def test_ranged_position_weights_treat_melee_contact_as_position_pressure() -> None:
+    archer = actor(1, "a", hp=100)
+    enemy = actor(2, "b")
+    archer.loadout.layout.update({"main_hand": "skill_archery", "tactical_style": "skill_ranged_combat"})
+    archer.statuses.effects.append(
+        ActiveEffectDTO(
+            uid="current-position",
+            effect_id="ranged_position",
+            source_id=archer.char_id,
+            active_from_exchange=0,
+            expire_at_exchange=1,
+            params={"position": "far"},
+        )
+    )
+    archer.stats = stats({"evasion": 0.50, "parry": 0.0, "initiative": 10.0}, {"skill_ranged_combat": 0.15})
+    enemy.stats = stats({"initiative": 10.0, "anti_dodge_chance": 0.0})
+
+    no_contact = RangedPositionService.position_weights(archer=archer, enemy=enemy, damage_taken=0)
+    melee_contact = RangedPositionService.position_weights(
+        archer=archer,
+        enemy=enemy,
+        damage_taken=0,
+        melee_pressure=1,
+    )
+
+    assert melee_contact.far < no_contact.far
+    assert melee_contact.close > no_contact.close
+
+
+@pytest.mark.unit
+def test_ranged_position_weights_scale_melee_contact_recovery_with_ranged_skill() -> None:
+    low = actor(1, "a", hp=100)
+    full = actor(2, "a", hp=100)
+    enemy = actor(3, "b")
+    for archer, skill in ((low, 0.15), (full, 1.0)):
+        archer.loadout.layout.update({"main_hand": "skill_archery", "tactical_style": "skill_ranged_combat"})
+        archer.statuses.effects.append(
+            ActiveEffectDTO(
+                uid=f"current-position-{archer.char_id}",
+                effect_id="ranged_position",
+                source_id=archer.char_id,
+                active_from_exchange=0,
+                expire_at_exchange=1,
+                params={"position": "far"},
+            )
+        )
+        archer.stats = stats({"evasion": 0.50, "parry": 0.0, "initiative": 10.0}, {"skill_ranged_combat": skill})
+    enemy.stats = stats({"initiative": 10.0, "anti_dodge_chance": 0.0})
+
+    low_weights = RangedPositionService.position_weights(archer=low, enemy=enemy, damage_taken=0, melee_pressure=1)
+    full_weights = RangedPositionService.position_weights(archer=full, enemy=enemy, damage_taken=0, melee_pressure=1)
+
+    assert full_weights.close == pytest.approx(0.10)
+    assert full_weights.far > low_weights.far
+    assert full_weights.close < low_weights.close
+
+
+@pytest.mark.unit
+def test_target_far_position_reduces_only_incoming_physical_melee_damage(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(MathCore, "random_range", staticmethod(lambda min_d, max_d: min_d))
+
+    melee_ctx = PipelineContextDTO()
+    melee_ctx.flags.meta.source_type = "main_hand"
+    melee_ctx.flags.meta.weapon_class = "swords"
+    melee_ctx.flags.meta.target_tactical_style_skill = "skill_ranged_combat"
+    melee_ctx.flags.meta.target_ranged_position = "far"
+    melee_result = InteractionResultDTO(source_id=1, target_id=2)
+
+    melee_damage = damage_step.run(
+        stats({"main_hand_damage_base": 100.0, "main_hand_damage_spread": 0.0}),
+        stats(),
+        melee_ctx,
+        melee_result,
+    )
+
+    assert melee_damage == pytest.approx(50.0)
+    assert melee_result.damage_final == 50
+    assert melee_result.damage_trace is not None
+    assert melee_result.damage_trace.details["ranged_position_incoming_mult"] == pytest.approx(0.5)
+
+    arrow_ctx = PipelineContextDTO()
+    arrow_ctx.flags.meta.source_type = "main_hand"
+    arrow_ctx.flags.meta.weapon_class = "archery"
+    arrow_ctx.flags.meta.tactical_style_skill = "skill_ranged_combat"
+    arrow_ctx.flags.meta.source_ranged_position = "far"
+    arrow_ctx.flags.meta.target_tactical_style_skill = "skill_ranged_combat"
+    arrow_ctx.flags.meta.target_ranged_position = "far"
+    arrow_result = InteractionResultDTO(source_id=1, target_id=2)
+
+    arrow_damage = damage_step.run(
+        stats({"main_hand_damage_base": 100.0, "main_hand_damage_spread": 0.0}),
+        stats(),
+        arrow_ctx,
+        arrow_result,
+    )
+
+    assert arrow_damage == pytest.approx(115.0)
+    assert arrow_result.damage_final == 115
+    assert arrow_result.damage_trace is not None
+    assert "ranged_position_incoming_mult" not in arrow_result.damage_trace.details
+    assert arrow_result.damage_trace.details["ranged_position_outgoing_mult"] == pytest.approx(1.15)
+
+
+@pytest.mark.unit
+def test_target_far_position_ignores_magic_damage(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(MathCore, "random_range", staticmethod(lambda min_d, max_d: min_d))
+
+    ctx = PipelineContextDTO()
+    ctx.flags.meta.source_type = "magic"
+    ctx.flags.damage.physical = False
+    ctx.flags.damage.fire = True
+    ctx.flags.meta.target_tactical_style_skill = "skill_ranged_combat"
+    ctx.flags.meta.target_ranged_position = "far"
+    result = InteractionResultDTO(source_id=1, target_id=2)
+
+    damage = damage_step.run(
+        stats({"magical_damage": 100.0, "magical_damage_spread": 0.0}),
+        stats(),
+        ctx,
+        result,
+    )
+
+    assert damage == pytest.approx(100.0)
+    assert result.damage_trace is not None
+    assert "ranged_position_incoming_mult" not in result.damage_trace.details
+
+
+@pytest.mark.unit
+def test_ranged_position_defense_keeps_meaningful_evasion_caps_by_distance() -> None:
+    ctx = PipelineContextDTO()
+    ctx.flags.meta.target_ranged_position = "close"
+
+    close_low, close_low_details = RangedPositionService.ranged_avoid_chance(
+        stats(),
+        stats({"evasion": 1.0, "parry": 0.0}, {"skill_ranged_combat": 0.0}),
+        ctx,
+    )
+    close_full, close_full_details = RangedPositionService.ranged_avoid_chance(
+        stats(),
+        stats({"evasion": 1.0, "parry": 0.0}, {"skill_ranged_combat": 1.0}),
+        ctx,
+    )
+
+    ctx.flags.meta.target_ranged_position = "far"
+    far_low, far_low_details = RangedPositionService.ranged_avoid_chance(
+        stats(),
+        stats({"evasion": 1.0, "parry": 0.0}, {"skill_ranged_combat": 0.0}),
+        ctx,
+    )
+    far_full, far_full_details = RangedPositionService.ranged_avoid_chance(
+        stats(),
+        stats({"evasion": 1.0, "parry": 0.0}, {"skill_ranged_combat": 1.0}),
+        ctx,
+    )
+
+    assert close_low == pytest.approx(0.35)
+    assert close_full == pytest.approx(0.50)
+    assert far_low == pytest.approx(0.65)
+    assert far_full == pytest.approx(0.95)
+    assert close_low_details["cap"] == pytest.approx(0.35)
+    assert close_full_details["cap"] == pytest.approx(0.50)
+    assert far_low_details["cap"] == pytest.approx(0.65)
+    assert far_full_details["cap"] == pytest.approx(0.95)
+
+
+@pytest.mark.unit
+def test_successful_ranged_position_defense_awards_dodge_token(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(MathCore, "roll_chance", staticmethod(lambda chance: (0.0, True)))
+    monkeypatch.setattr(token_awarder, "bonus_token_roll", lambda: False)
+
+    ctx = PipelineContextDTO()
+    ctx.flags.meta.source_type = "main_hand"
+    ctx.flags.meta.weapon_class = "macing"
+    ctx.flags.meta.target_tactical_style_skill = "skill_ranged_combat"
+    ctx.flags.meta.target_ranged_position = "far"
+    ctx.stages.check_ranged_position_defense = True
+    result = InteractionResultDTO(source_id=1, target_id=2)
+
+    stopped = ranged_position_defense_step.run(
+        stats(),
+        stats({"evasion": 1.0, "parry": 0.0}, {"skill_ranged_combat": 1.0}),
+        ctx,
+        result,
+    )
+
+    assert stopped is True
+    assert result.is_dodged is True
+    assert result.tokens_awarded_defender == {"dodge": 1}
+    assert result.checks[0].stage == "ranged_position_defense"
 
 
 @pytest.mark.unit
@@ -5225,7 +6062,7 @@ def test_physical_resistance_suppression_trigger_bonus_reduces_only_natural_laye
         result,
     )
 
-    assert damage == pytest.approx(70.0)
+    assert damage == pytest.approx(61.657033)
 
 
 @pytest.mark.unit
@@ -5266,22 +6103,28 @@ def test_defensive_shield_block_adds_guard_power_to_damage_reduction(monkeypatch
 
     damage = damage_step.run(
         stats({"main_hand_damage_base": 20.0, "main_hand_damage_spread": 0.0}),
-        stats({"shield_guard_power": 8.0}, {"skill_shield_mastery": 0.5}),
+        stats(
+            {"armor": 10.0, "evasion": 0.2, "physical_endurance_power": 12.0, "shield_guard_power": 8.0},
+            {"skill_heavy_armor": 1.0, "skill_shield_mastery": 0.5},
+        ),
         ctx,
         result,
     )
 
-    assert damage == pytest.approx(10.0)
-    assert result.damage_final == 10
+    assert damage == pytest.approx(9.027394)
+    assert result.damage_final == 9
     assert result.reflected_damage == 0
     assert result.damage_trace is not None
     assert result.damage_trace.details["shield_block_branch"] == "defense"
-    assert result.damage_trace.details["shield_absorb"] == pytest.approx(10.0)
-    assert result.damage_trace.details["shield_guard_power"] == pytest.approx(10.0)
+    assert result.damage_trace.details["shield_guard_power"] == pytest.approx(4.29975)
+    assert result.damage_trace.details["arm"]["total_power"] == pytest.approx(14.29975)
+    assert result.damage_trace.details["arm"]["shield_guard_power"] == pytest.approx(4.29975)
+    assert result.damage_trace.details["shield_absorb"] == pytest.approx(3.299321)
+    assert result.damage_trace.details["shield_guard_power"] == pytest.approx(4.29975)
 
 
 @pytest.mark.unit
-def test_counter_shield_block_reflects_guard_power_without_full_damage_cancel(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_counter_shield_block_no_longer_reflects_guard_power(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(MathCore, "random_range", staticmethod(lambda min_d, max_d: min_d))
 
     ctx = PipelineContextDTO()
@@ -5289,18 +6132,18 @@ def test_counter_shield_block_reflects_guard_power_without_full_damage_cancel(mo
 
     damage = damage_step.run(
         stats({"main_hand_damage_base": 20.0, "main_hand_damage_spread": 0.0}),
-        stats({"armor": 3.0, "shield_guard_power": 8.0}, {"skill_shield_mastery": 0.5}),
+        stats({"armor": 3.0, "evasion": 0.2, "physical_endurance_power": 12.0, "shield_guard_power": 8.0}, {"skill_shield_mastery": 0.5}),
         ctx,
         result,
     )
 
-    assert damage == pytest.approx(17.0)
-    assert result.damage_final == 17
-    assert result.reflected_damage == 10
+    assert damage == pytest.approx(16.431591)
+    assert result.damage_final == 16
+    assert result.reflected_damage == 0
     assert result.damage_trace is not None
     assert result.damage_trace.details["shield_block_branch"] == "counter"
-    assert result.damage_trace.details["shield_absorb"] == pytest.approx(0.0)
-    assert result.damage_trace.details["shield_reflect"] == pytest.approx(10.0)
+    assert result.damage_trace.details["shield_absorb"] == pytest.approx(2.101889)
+    assert result.damage_trace.details["shield_reflect"] == pytest.approx(0.0)
 
 
 @pytest.mark.unit
@@ -5420,7 +6263,7 @@ def test_block_roll_uses_soft_target_block_multiplier(monkeypatch: pytest.Monkey
 
     block_step.run(
         stats(),
-        stats({"block": 0.2, "shield_block_cap": 0.75}, {"skill_shield_mastery": 1.0}),
+        stats({"evasion": 0.7333333333, "shield_guard_power": 20.0}, {"skill_shield_mastery": 1.0}),
         ctx,
         result,
     )
@@ -5444,36 +6287,36 @@ def test_block_roll_applies_shield_mastery_skill_bonus_in_resolver(monkeypatch: 
 
     block_step.run(
         stats(),
-        stats({"block": 0.2, "shield_block_cap": 0.75}, {"skill_parrying": 1.0, "skill_shield_mastery": 0.0}),
+        stats({"shield_guard_power": 20.0}, {"skill_parrying": 1.0, "skill_shield_mastery": 0.0}),
         ctx,
         result,
     )
 
-    assert captured_chances == [0.2]
+    assert captured_chances == [pytest.approx(0.105)]
 
     captured_chances.clear()
     block_step.run(
         stats(),
-        stats({"block": 0.2, "shield_block_cap": 0.75}, {"skill_parrying": 0.0, "skill_shield_mastery": 1.0}),
+        stats({"shield_guard_power": 20.0}, {"skill_parrying": 0.0, "skill_shield_mastery": 1.0}),
         ctx,
         result,
     )
 
-    assert captured_chances == [pytest.approx(0.52)]
+    assert captured_chances == [pytest.approx(0.3)]
 
 
 @pytest.mark.unit
-def test_successful_shield_block_rolls_defensive_or_counter_branch_by_weights(
+def test_successful_shield_block_ignores_legacy_branch_weights(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     captured_chances: list[float] = []
-    outcomes = iter([(0.0, True), (0.5, False)])
 
     def capture_roll(chance: float) -> tuple[float | None, bool]:
         captured_chances.append(chance)
-        return next(outcomes)
+        return 0.0, True
 
     monkeypatch.setattr(MathCore, "roll_chance", staticmethod(capture_roll))
+    monkeypatch.setattr(MathCore, "check_chance", staticmethod(lambda chance: False))
     monkeypatch.setattr(token_awarder, "bonus_token_roll", lambda: False)
 
     ctx = PipelineContextDTO()
@@ -5483,7 +6326,8 @@ def test_successful_shield_block_rolls_defensive_or_counter_branch_by_weights(
         stats(),
         stats(
             {
-                "block": 0.2,
+                "evasion": 0.4,
+                "shield_guard_power": 10.0,
                 "shield_block_defense_weight": 40.0,
                 "shield_block_counter_weight": 60.0,
             },
@@ -5496,59 +6340,12 @@ def test_successful_shield_block_rolls_defensive_or_counter_branch_by_weights(
     assert passed is True
     assert result.is_blocked is True
     assert result.tokens_awarded_defender == {"block": 1}
-    assert result.shield_block_branch == "counter"
-    assert captured_chances == [pytest.approx(0.2), pytest.approx(0.4)]
+    assert result.shield_block_branch == "defense"
+    assert captured_chances == [pytest.approx(0.0735)]
 
 
 @pytest.mark.unit
-def test_shield_block_branch_formula_flags_can_force_or_invert_branch(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    ctx = PipelineContextDTO()
-    ctx.flags.formula.force_shield_counter_branch = True
-    result = InteractionResultDTO(source_id=1, target_id=2)
-
-    assert armor_math.roll_shield_block_branch(stats(), ctx, result) == "counter"
-    assert result.checks[-1].details["forced"] == "counter"
-
-    ctx = PipelineContextDTO()
-    ctx.flags.formula.force_shield_defense_branch = True
-    result = InteractionResultDTO(source_id=1, target_id=2)
-
-    assert armor_math.roll_shield_block_branch(stats(), ctx, result) == "defense"
-    assert result.checks[-1].details["forced"] == "defense"
-
-    captured_chances: list[float] = []
-
-    def capture_roll(chance: float) -> tuple[float | None, bool]:
-        captured_chances.append(chance)
-        return 0.0, True
-
-    monkeypatch.setattr(MathCore, "roll_chance", staticmethod(capture_roll))
-
-    ctx = PipelineContextDTO()
-    ctx.flags.formula.shield_branch_invert = True
-    result = InteractionResultDTO(source_id=1, target_id=2)
-
-    assert (
-        armor_math.roll_shield_block_branch(
-            stats(
-                {
-                    "shield_block_defense_weight": 40.0,
-                    "shield_block_counter_weight": 60.0,
-                }
-            ),
-            ctx,
-            result,
-        )
-        == "defense"
-    )
-    assert captured_chances == [pytest.approx(0.6)]
-    assert result.checks[-1].details["inverted"] is True
-
-
-@pytest.mark.unit
-def test_shield_block_pipeline_mods_scale_guard_and_counter_power(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_shield_block_pipeline_mods_scale_guard_power(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(MathCore, "random_range", staticmethod(lambda min_d, max_d: min_d))
 
     defense_ctx = PipelineContextDTO()
@@ -5568,32 +6365,9 @@ def test_shield_block_pipeline_mods_scale_guard_and_counter_power(monkeypatch: p
         defense_result,
     )
 
-    assert damage == pytest.approx(4.0)
+    assert damage == pytest.approx(18.898054)
     assert defense_result.damage_trace is not None
-    assert defense_result.damage_trace.details["shield_guard_power"] == pytest.approx(16.0)
-
-    counter_ctx = PipelineContextDTO()
-    counter_ctx.flags.formula.shield_counter_from_absorbed = True
-    counter_ctx.mods.shield_counter_power_mult = 1.5
-    counter_result = InteractionResultDTO(
-        source_id=1,
-        target_id=2,
-        is_hit=True,
-        is_blocked=True,
-        shield_block_branch="counter",
-    )
-
-    damage = damage_step.run(
-        stats({"main_hand_damage_base": 12.0, "main_hand_damage_spread": 0.0}),
-        stats({"shield_guard_power": 20.0}, {"skill_shield_mastery": 0.0}),
-        counter_ctx,
-        counter_result,
-    )
-
-    assert damage == pytest.approx(12.0)
-    assert counter_result.reflected_damage == 18
-    assert counter_result.damage_trace is not None
-    assert counter_result.damage_trace.details["shield_reflect_base"] == pytest.approx(12.0)
+    assert defense_result.damage_trace.details["shield_guard_power"] == pytest.approx(1.96)
 
 
 @pytest.mark.unit

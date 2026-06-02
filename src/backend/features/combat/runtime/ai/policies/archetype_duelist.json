@@ -13,7 +13,7 @@
     "anti_block": 3.0,
     "armor_bypass": 2.0,
     "counter": 1.5,
-    "counter_resource": 1.0,
+    "pressure_resource": 1.0,
     "expected_damage": 1.1,
     "damage_tag": 0.7,
     "group_weapon": 0.4

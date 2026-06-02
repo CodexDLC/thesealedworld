@@ -169,19 +169,6 @@
         grid-template-columns: 1fr;
     }
 
-    .combat-tool-panel {
-        order: -1;
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-    }
-
-    .combat-action-group--desktop {
-        display: none;
-    }
-
-    .combat-action-group--mobile {
-        display: block;
-    }
-
     .combat-mobile-dock {
         display: grid;
     }
@@ -192,11 +179,28 @@
         display: grid;
     }
 
+    .combat-field {
+        grid-template-rows: auto minmax(0, 1fr) auto;
+        align-content: stretch;
+    }
+
+    .combat-field > .combat-field-actor--enemy {
+        grid-row: 1;
+        align-self: start;
+    }
+
     .combat-field > .combat-field-actor--hero {
+        grid-row: 3;
+        align-self: end;
         display: grid;
     }
 
     .combat-field > .combat-exchange-card {
+        grid-row: 2;
+        align-self: center;
+        justify-self: center;
+        z-index: 3;
+        width: min(100%, 330px);
         min-height: 42px;
         padding: 0;
         overflow: visible;
@@ -325,7 +329,8 @@
         --combat-target-portrait-size: clamp(46px, 14cqw, 68px);
         --combat-target-gap: 7px;
         min-height: 0;
-        grid-template-rows: auto 42px auto;
+        grid-template-rows: auto minmax(0, 1fr) auto;
+        align-content: stretch;
         padding: 6px;
     }
 
@@ -484,8 +489,27 @@
         max-height: min(38dvh, 270px);
     }
 
+    .combat-action-panel:has(.combat-ability-grid > :nth-child(9)) {
+        max-height: min(42dvh, 300px);
+    }
+
     .combat-action-panel .combat-token-strip {
         padding: 5px;
+    }
+
+    .combat-action-panel .combat-ability-strip {
+        padding: 5px;
+    }
+
+    .combat-action-panel .combat-ability-grid {
+        --combat-ability-gap: 4px;
+        --combat-ability-slot-size: 28px;
+        --combat-ability-icon-size: 14px;
+    }
+
+    .combat-action-panel .combat-ability-grid:has(> :nth-child(9)) {
+        --combat-ability-slot-size: 24px;
+        --combat-ability-icon-size: 13px;
     }
 
     .combat-action-panel .combat-token-bar {
@@ -499,23 +523,20 @@
     }
 
     .combat-action-panel .combat-token img,
-    .combat-action-panel .combat-feint-option img,
-    .combat-action-panel .combat-ability-option img {
+    .combat-action-panel .combat-feint-option img {
         width: 14px;
         height: 14px;
-    }
-
-    .combat-tool-panel {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: 5px;
     }
 
     .combat-decision-panel {
         order: 1;
         gap: 5px;
+        min-height: 0;
     }
 
     .combat-decision-panel .combat-action-list {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr);
         gap: 4px;
     }
 
@@ -530,14 +551,12 @@
         font-size: 7px;
     }
 
-    .combat-belt-slots,
-    .combat-ability-grid {
+    .combat-belt-slots {
         grid-template-columns: repeat(4, minmax(0, 1fr));
         gap: 4px;
     }
 
-    .combat-belt-slot,
-    .combat-ability-option {
+    .combat-belt-slot {
         min-height: 28px;
         aspect-ratio: auto;
     }
@@ -552,22 +571,41 @@
     }
 
     .combat-feint-row {
-        grid-template-columns: 28px minmax(0, 1fr);
-        gap: 4px;
+        grid-template-columns: 26px minmax(0, 1fr);
+        gap: 3px;
+        max-height: 28px;
+    }
+
+    .combat-feint-row--empty {
+        grid-template-columns: minmax(0, 1fr);
     }
 
     .combat-feint-pin {
-        min-height: 30px;
-        font-size: 11px;
+        width: 26px;
+        min-height: 28px;
+        height: 28px;
+        aspect-ratio: auto;
+        font-size: 10px;
     }
 
     .combat-feint-option,
     .combat-feint-option--debug {
-        min-height: 30px;
-        gap: 6px;
-        padding: 0 8px;
+        min-height: 28px;
+        height: 28px;
+        gap: 5px;
+        padding: 0 7px;
         font-size: 8px;
         letter-spacing: .08em;
+    }
+
+    .combat-feint-row--empty .combat-feint-option--debug {
+        width: 100%;
+    }
+
+    .combat-feint-option img,
+    .combat-feint-icon {
+        width: 12px;
+        height: 12px;
     }
 
     .combat-feint-title {

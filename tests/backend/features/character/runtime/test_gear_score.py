@@ -30,6 +30,13 @@ def test_gear_score_weights_are_combat_runtime_subset() -> None:
 
 
 @pytest.mark.unit
+def test_physical_armor_power_scores_below_old_flat_armor_weight() -> None:
+    assert GEAR_SCORE_WEIGHTS["armor"] == pytest.approx(0.35)
+    assert GEAR_SCORE_WEIGHTS["shield_guard_power"] == pytest.approx(0.35)
+    assert GEAR_SCORE_WEIGHTS["magic_armor"] == pytest.approx(0.8)
+
+
+@pytest.mark.unit
 def test_gear_score_does_not_add_constant_base_or_default_modifier_offset() -> None:
     score = CharacterGearScoreCalculator().calculate_from_active_character(
         {

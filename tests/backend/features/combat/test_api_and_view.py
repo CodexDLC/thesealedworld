@@ -195,7 +195,7 @@ class LowStaminaCombatStore(FakeCombatStore):
         self.returned_feints = []
 
     async def get_actor_state(self, session_id, actor_id):
-        return {"afk_level": 0, "stamina": 4, "max_stamina": 100}
+        return {"afk_level": 0, "stamina": 2, "max_stamina": 100}
 
     async def return_feint(self, session_id, actor_id, feint_id, cost):
         self.returned_feints.append((session_id, actor_id, feint_id, cost))
@@ -1024,8 +1024,8 @@ async def test_post_exchange_rejects_feint_when_concentration_is_too_low():
 
     assert exc_info.value.status_code == 400
     assert exc_info.value.error_code == "combat_feint_unavailable"
-    assert exc_info.value.extra["context"]["required_stamina"] == 5
-    assert exc_info.value.extra["context"]["current_stamina"] == 4
+    assert exc_info.value.extra["context"]["required_stamina"] == 3
+    assert exc_info.value.extra["context"]["current_stamina"] == 2
     assert store.exchange_moves == []
     assert store.returned_feints == [("combat-1", 1, "true_strike", {"hit": 1})]
 

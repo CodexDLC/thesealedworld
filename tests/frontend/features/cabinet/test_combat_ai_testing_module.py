@@ -43,6 +43,12 @@ def test_analytics_page_orders_comparison_charts_for_balance_review() -> None:
         "combat_ai_analytics_efficiency_chart",
     ]
     assert widgets[7].key == "combat_ai_analytics_defence_chart"
+    assert [widget.key for widget in widgets[8:12]] == [
+        "combat_ai_analytics_tactical_two_handed",
+        "combat_ai_analytics_tactical_dual_wield",
+        "combat_ai_analytics_tactical_shield",
+        "combat_ai_analytics_tactical_ranged",
+    ]
 
 
 @pytest.mark.asyncio
@@ -111,9 +117,9 @@ async def test_policy_launcher_uses_training_run_dropdown(monkeypatch: pytest.Mo
     assert len(table.rows) == 4
     assert {row["id"] for row in table.rows} == {
         "starter_presets_5v5_live",
-        "live_batch:starter_presets_5v5_live:100",
+        "live_batch:starter_presets_5v5_live:50",
         "starter_presets_5v5_live_full_skills",
-        "live_batch:starter_presets_5v5_live_full_skills:100",
+        "live_batch:starter_presets_5v5_live_full_skills:50",
     }
     assert table.actions[0].select_name == "policy_run_id"
     assert table.rows[0]["policy_options"] == [
@@ -385,12 +391,16 @@ def test_imprint_analytics_rows_aggregate_saved_reports() -> None:
         "armor_absorb_events_per_appearance": 2.0,
         "armor_absorbed_per_event": 5.0,
         "damage_per_action": 5.556,
+        "attack_checks_per_action": 0.889,
+        "damage_per_hit": 10.0,
         "hit_rate": 62.5,
-        "crit_rate": 6.2,
+        "crit_rate": 10.0,
         "avg_overkill": 5.0,
         "dodge_per_appearance": 2.0,
+        "ordinary_dodge_per_appearance": 2.0,
         "parry_per_appearance": 0.5,
         "block_per_appearance": 1.0,
+        "ranged_defense_per_appearance": 0.0,
         "defence_per_appearance": 5.5,
         "dodge_defence_share": 57.1,
         "parry_defence_share": 14.3,
@@ -434,19 +444,19 @@ def test_tactical_rows_show_trigger_rates_damage_and_actors() -> None:
         winner="blue",
         reward=20.0,
         telemetry={
-            "tactical_trigger_attempts_by_id": {"style_shield_reflect": 5, "style_dual_extra": 4},
-            "tactical_trigger_success_by_id": {"style_shield_reflect": 2, "style_dual_extra": 3},
+            "tactical_trigger_attempts_by_id": {"style_shield_reflect": 5, "style_dual_cross_cut": 4},
+            "tactical_trigger_success_by_id": {"style_shield_reflect": 2, "style_dual_cross_cut": 3},
             "tactical_trigger_success_by_actor": {
                 "blue_guard": {"style_shield_reflect": 2},
-                "blue_duelist": {"style_dual_extra": 3},
+                "blue_duelist": {"style_dual_cross_cut": 3},
             },
             "tactical_damage_by_actor": {
                 "blue_guard": {"weapon_shield_bash_on_block": 9},
-                "blue_duelist": {"style_dual_extra": 21},
+                "blue_duelist": {"offhand_attack": 21},
             },
             "tactical_reflected_by_actor": {"blue_guard": {"style_shield_reflect": 14}},
             "tactical_prevented_by_actor": {"blue_guard": {"style_shield_reflect": 30}},
-            "tactical_chain_hits_by_actor": {"blue_duelist": {"style_dual_extra": 2}},
+            "tactical_chain_hits_by_actor": {"blue_duelist": {"offhand_attack": 2}},
             "tactical_shield_branch_by_actor": {"blue_guard": {"defense": 3, "counter": 1}},
             "tactical_shield_damage_by_actor": {"blue_guard": {"weapon_shield_bash_on_block": 9}},
             "tactical_shield_absorbed_by_actor": {"blue_guard": {"style_shield_reflect": 30}},
@@ -471,6 +481,8 @@ def test_tactical_rows_show_trigger_rates_damage_and_actors() -> None:
         "shield_defense": 3,
         "shield_counter": 1,
         "damage": 9,
+        "damage_per_event": 5.75,
+        "defense_per_event": 8.25,
         "shield_damage": 9,
         "shield_absorbed": 30,
         "shield_reflected": 14,
@@ -482,22 +494,124 @@ def test_tactical_rows_show_trigger_rates_damage_and_actors() -> None:
         ),
     }
     assert rows[1] == {
-        "part": "Две руки: второй удар",
-        "attempts": 4,
-        "successes": 3,
-        "rate": "75.0",
+        "part": "Off-hand удар",
+        "attempts": 0,
+        "successes": 0,
+        "rate": "0.0",
         "chain_hits": 2,
         "shield_defense": 0,
         "shield_counter": 0,
         "damage": 21,
+        "damage_per_event": 10.5,
+        "defense_per_event": 0.0,
         "shield_damage": 0,
         "shield_absorbed": 0,
         "shield_reflected": 0,
         "reflected": 0,
         "prevented": 0,
-        "actors": "Dax Twinblades: 3 сраб., 2 chain, 21 урон",
+        "actors": "Dax Twinblades: 2 chain, 21 урон",
     }
-    assert len(rows) == 2
+    assert rows[2] == {
+        "part": "Две руки: перекрестный крит",
+        "attempts": 4,
+        "successes": 3,
+        "rate": "75.0",
+        "chain_hits": 0,
+        "shield_defense": 0,
+        "shield_counter": 0,
+        "damage": 0,
+        "damage_per_event": 0.0,
+        "defense_per_event": 0.0,
+        "shield_damage": 0,
+        "shield_absorbed": 0,
+        "shield_reflected": 0,
+        "reflected": 0,
+        "prevented": 0,
+        "actors": "Dax Twinblades: 3 сраб.",
+    }
+    assert len(rows) == 3
+
+
+@pytest.mark.asyncio
+async def test_analytics_tactical_skill_tables_split_style_groups(monkeypatch: pytest.MonkeyPatch) -> None:
+    run = CombatAiSimulationRun(
+        id="run-tactics",
+        run_kind="simulation_live",
+        scenario_key="starter_presets_5v5",
+        status="completed",
+        policy_ref="runtime_default",
+        seed=0,
+        max_rounds=100,
+        rounds_completed=20,
+        winner="blue",
+        reward=20.0,
+        telemetry={
+            "tactical_trigger_attempts_by_id": {
+                "style_2h_ignore": 3,
+                "style_dual_cross_cut": 2,
+                "style_ranged_perfect_backstep": 4,
+            },
+            "tactical_trigger_success_by_id": {
+                "style_2h_ignore": 1,
+                "style_dual_cross_cut": 1,
+                "style_ranged_perfect_backstep": 2,
+            },
+            "tactical_damage_by_actor": {
+                "breaker": {"style_2h_ignore": 30},
+                "duelist": {"offhand_attack": 12, "style_dual_cross_cut": 24},
+            },
+            "tactical_chain_hits_by_actor": {"duelist": {"offhand_attack": 2}},
+            "tactical_prevented_by_actor": {
+                "guard": {"style_shield_reflect": 18},
+                "archer": {"style_ranged_perfect_backstep": 20},
+            },
+            "tactical_shield_branch_by_actor": {"guard": {"defense": 3, "counter": 1}},
+            "tactical_shield_absorbed_by_actor": {"guard": {"style_shield_reflect": 18}},
+            "tactical_shield_reflected_by_actor": {"guard": {"style_shield_reflect": 7}},
+            "tactical_reflected_by_actor": {"guard": {"style_shield_reflect": 7}},
+            "ranged_position_outgoing_by_actor": {"archer": {"far": 2, "mid": 1}},
+            "ranged_position_incoming_by_actor": {"archer": {"close": 1}},
+            "ranged_position_defense_attempts_by_actor": {"archer": {"far": 1, "close": 2}},
+            "ranged_position_defense_success_by_actor": {"archer": {"far": 1}},
+            "ranged_position_outgoing_damage_by_actor": {"archer": {"far": 36, "mid": 12}},
+            "ranged_position_incoming_damage_by_actor": {"archer": {"close": 18}},
+        },
+    )
+
+    async def fake_analytics_runs(_request):
+        return [run]
+
+    monkeypatch.setattr(combat_ai_testing, "_analytics_runs", fake_analytics_runs)
+
+    request = SimpleNamespace(query_params={})
+    two_handed = await combat_ai_testing._analytics_tactical_two_handed_table_provider(request)
+    dual = await combat_ai_testing._analytics_tactical_dual_wield_table_provider(request)
+    shield = await combat_ai_testing._analytics_tactical_shield_table_provider(request)
+    ranged = await combat_ai_testing._analytics_tactical_ranged_table_provider(request)
+
+    assert [row["part"] for row in two_handed.rows] == ["Двуручный стиль: давление"]
+    assert two_handed.rows[0]["attempts"] == 3
+    assert two_handed.rows[0]["damage_per_event"] == 30
+    assert [row["part"] for row in dual.rows] == ["Off-hand удар", "Две руки: перекрестный крит"]
+    assert dual.rows[0]["chain_hits"] == 2
+    assert dual.rows[0]["damage_per_event"] == 6.0
+    assert dual.rows[1]["damage_per_event"] == 24.0
+    assert shield.rows[0]["part"] == "Щит: поглощение и возврат"
+    assert shield.rows[0]["successes"] == 1
+    assert shield.rows[0]["damage_per_event"] == 1.75
+    assert shield.rows[0]["defense_per_event"] == 5.25
+    assert [row["position"] for row in ranged.rows] == ["far", "mid", "close"]
+    assert ranged.rows[0]["shots"] == 2
+    assert ranged.rows[0]["incoming_melee"] == 0
+    assert ranged.rows[0]["ranged_dodge_attempts"] == 1
+    assert ranged.rows[0]["ranged_dodge_success"] == 1
+    assert ranged.rows[0]["ranged_dodge_rate"] == "100.0"
+    assert ranged.rows[0]["bow_damage"] == 36
+    assert ranged.rows[0]["melee_taken"] == 0
+    assert ranged.rows[2]["incoming_melee"] == 1
+    assert ranged.rows[2]["ranged_dodge_attempts"] == 2
+    assert ranged.rows[2]["ranged_dodge_success"] == 0
+    assert ranged.rows[2]["melee_taken"] == 18
 
 
 @pytest.mark.asyncio
@@ -606,6 +720,10 @@ async def test_analytics_widgets_reuse_request_cache(monkeypatch: pytest.MonkeyP
     await combat_ai_testing._analytics_gear_score_chart_provider(request)
     await combat_ai_testing._analytics_defence_chart_provider(request)
     await combat_ai_testing._analytics_tactical_parts_provider(request)
+    await combat_ai_testing._analytics_tactical_two_handed_table_provider(request)
+    await combat_ai_testing._analytics_tactical_dual_wield_table_provider(request)
+    await combat_ai_testing._analytics_tactical_shield_table_provider(request)
+    await combat_ai_testing._analytics_tactical_ranged_table_provider(request)
     await combat_ai_testing._analytics_table_provider(request)
 
     assert api.calls == 1
@@ -850,11 +968,12 @@ async def test_analytics_defence_chart_uses_stacked_defence_volume(monkeypatch: 
                     winner="blue",
                     reward=10.0,
                     telemetry={
-                        "dodge_by_actor": {"blue_guard": 3},
+                        "dodge_by_actor": {"blue_guard": 5},
                         "parry_by_actor": {"blue_guard": 1},
                         "block_by_actor": {"blue_guard": 2},
                         "armor_absorbed_by_actor": {"blue_guard": 400},
                         "armor_absorb_events_by_actor": {"blue_guard": 4},
+                        "ranged_position_defense_success_by_actor": {"blue_guard": {"far": 2}},
                     },
                     metadata={
                         "participants": [
@@ -878,11 +997,12 @@ async def test_analytics_defence_chart_uses_stacked_defence_volume(monkeypatch: 
     assert chart.title == "Защитные срабатывания за появление"
     assert chart.options["scales"]["x"]["stacked"] is True
     assert chart.options["scales"]["y"]["stacked"] is True
-    assert [dataset["label"] for dataset in chart.datasets] == ["Dodge", "Parry", "Block", "Armor"]
+    assert [dataset["label"] for dataset in chart.datasets] == ["Dodge", "Parry", "Block", "Ranged", "Armor"]
     assert chart.datasets[0]["data"] == [3.0]
     assert chart.datasets[1]["data"] == [1.0]
     assert chart.datasets[2]["data"] == [2.0]
-    assert chart.datasets[3]["data"] == [4.0]
+    assert chart.datasets[3]["data"] == [2.0]
+    assert chart.datasets[4]["data"] == [4.0]
 
 
 @pytest.mark.asyncio
@@ -931,7 +1051,7 @@ async def test_batch_launcher_runs_safe_number_of_live_reports(monkeypatch: pyte
     assert response.headers["location"] == "/admin/combat-ai-testing/reports"
     assert calls == [
         {
-            "count": 100,
+            "count": 50,
             "seed": 999990,
             "max_rounds": 500,
             "tick": 0.05,

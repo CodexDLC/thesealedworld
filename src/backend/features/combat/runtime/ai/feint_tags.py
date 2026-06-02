@@ -42,6 +42,8 @@ _BYPASS_PARRY_MUTATIONS: frozenset[str] = frozenset({"ignore_parry"})
 _BYPASS_EVASION_MUTATIONS: frozenset[str] = frozenset({"ignore_evasion"})
 _BYPASS_BLOCK_MUTATIONS: frozenset[str] = frozenset({"ignore_block"})
 
+_RANGED_POSITION_RANK: dict[str, int] = {"close": 0, "mid": 1, "far": 2}
+
 # Effect id substring hints (only on effects with target_actor == "target").
 _CONTROL_EFFECT_HINTS: tuple[str, ...] = (
     "stun",
@@ -105,6 +107,8 @@ def derive_feint_tags(entry: FeintCatalogEntryDTO | None, feint_id: str) -> froz
                 tags.add("armor_bypass")
         elif mid in {"accuracy_mult", "damage_mult"} and isinstance(value, (int, float)) and value > 1.0:
             tags.add("damage_tag")
+        elif mid.startswith("ranged."):
+            _add_ranged_position_tags(tags, mid, value)
         elif "crit" in mid:
             # force.crit, crit_damage_boost, etc. — all attack-vector mutations.
             tags.add("damage_tag")
@@ -166,3 +170,46 @@ def _resolve_mutation_value(app: PipelineMutationApplicationDTO) -> Any:
         return override
     contract = get_pipeline_mutation_contract(str(app.mutation_id))
     return contract.default_value if contract is not None else None
+
+
+def _add_ranged_position_tags(tags: set[str], mutation_id: str, value: Any) -> None:
+    """Translate ranged-position resolver mutations into trainable AI tags."""
+    if mutation_id in {
+        "ranged.current_position_step",
+        "ranged.current_position_min",
+        "ranged.next_position_override",
+        "ranged.next_position_min",
+    }:
+        tags.add("ranged_reposition")
+
+    if mutation_id in {"ranged.current_position_min", "ranged.next_position_override", "ranged.next_position_min"}:
+        position = str(value) if value is not None else ""
+        if _RANGED_POSITION_RANK.get(position, -1) >= _RANGED_POSITION_RANK["mid"]:
+            tags.add("ranged_keep_far")
+        if position == "far":
+            tags.add("ranged_keep_far")
+
+    if mutation_id == "ranged.current_position_step" and isinstance(value, (int, float)) and value > 0:
+        tags.add("ranged_keep_far")
+
+    if mutation_id == "ranged.far_weight_bonus" and isinstance(value, (int, float)) and value > 0.0:
+        tags.add("ranged_keep_far")
+    elif (
+        mutation_id == "ranged.mid_weight_bonus"
+        and isinstance(value, (int, float))
+        and value > 0.0
+        or mutation_id == "ranged.close_weight_bonus"
+        and isinstance(value, (int, float))
+        and value < 0.0
+    ):
+        tags.add("ranged_stabilize")
+        tags.add("ranged_keep_far")
+    elif mutation_id == "ranged.damage_pressure_mult" and isinstance(value, (int, float)) and value < 1.0:
+        tags.add("ranged_stabilize")
+    elif mutation_id == "ranged.enemy_pressure_mult" and isinstance(value, (int, float)) and value < 1.0:
+        tags.add("ranged_pressure_reduce")
+    elif mutation_id == "ranged.outgoing_damage_bonus_mult" and isinstance(value, (int, float)) and value > 1.0:
+        tags.add("ranged_position_damage")
+        tags.add("damage_tag")
+    elif mutation_id == "ranged.outgoing_accuracy_bonus_mult" and isinstance(value, (int, float)) and value > 1.0:
+        tags.add("damage_tag")

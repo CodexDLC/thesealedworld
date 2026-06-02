@@ -55,5 +55,12 @@ class DamageState:
     shield_reflect_ratio: float = 0.0
     shield_mastery: float = 0.0
 
+    # Ranged position post-multipliers.
+    ranged_position_outgoing_mult: float = 1.0
+    ranged_position_outgoing_bonus_mult: float = 1.0
+    ranged_position_incoming_mult: float = 1.0
+    ranged_position_source: str | None = None
+    ranged_position_target: str | None = None
+
     # Final clamp.
     incoming_damage_cap: int = 0

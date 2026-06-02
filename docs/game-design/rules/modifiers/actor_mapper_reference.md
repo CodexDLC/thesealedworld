@@ -44,7 +44,7 @@ Current examples:
 - armor power is written into `armor.base`;
 - item damage spread may replace the relevant spread base.
 
-Do not write the resolver's built-in `0.70` hit baseline into
+Do not write the resolver's built-in `0.60` hit baseline into
 `main_hand_accuracy.base` or `off_hand_accuracy.base`. The hit baseline is
 resolver-owned.
 

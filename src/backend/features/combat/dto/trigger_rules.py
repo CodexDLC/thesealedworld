@@ -14,7 +14,6 @@ class AccuracyTriggersDTO(BaseModel):
 
     # Styles
     style_2h_ignore: bool = False  # Игнор брони + Дебафф
-    style_dual_extra: bool = False  # Доп. атака
 
 
 class CritTriggersDTO(BaseModel):
@@ -29,6 +28,9 @@ class CritTriggersDTO(BaseModel):
     weapon_flat_armor_crush_crit: bool = False
     weapon_precision_crit: bool = False
     weapon_shieldbreaker_crit: bool = False
+
+    # Styles
+    style_dual_cross_cut: bool = False
 
 
 class DodgeTriggersDTO(BaseModel):

@@ -130,14 +130,14 @@ def test_starting_imprint_actor_builder_uses_real_character_presets() -> None:
     assert snapshot.meta.stamina > 1
     assert snapshot.stats is not None
     assert snapshot.stats.mods.main_hand_damage_base > 0
-    assert snapshot.stats.mods.block > 0
+    assert snapshot.stats.mods.shield_guard_power > 0
     assert snapshot.loadout.layout["main_hand"] == "skill_swords"
     assert snapshot.meta.feints.arsenal
     assert snapshot.meta.feints.hand
     assert actor.participant["imprint_key"] == "starter_guard_01"
     assert actor.participant["behavior_profile"] == snapshot.meta.ai_behavior_profile
     assert actor.participant["analytics_key"] == "starter_guard_01"
-    assert actor.participant["combat_stats"]["block"] > 0
+    assert actor.participant["combat_stats"]["shield_guard_power"] > 0
     assert actor.participant["combat_stats"]["physical_resistance"] >= 0
     assert actor.participant["combat_stats"]["hp_regen"] >= 0
     assert actor.participant["gear_score"]["total"] > 0
@@ -475,6 +475,7 @@ def test_telemetry_records_tactical_trigger_and_chain_parts() -> None:
                 "reflected_damage": 4,
                 "trigger_attempts": [
                     {"trigger_id": "style_2h_ignore", "passed": True},
+                    {"trigger_id": "style_dual_cross_cut", "passed": True},
                     {"trigger_id": "style_ranged_perfect_backstep", "passed": True},
                 ],
             }
@@ -531,19 +532,29 @@ def test_telemetry_records_tactical_trigger_and_chain_parts() -> None:
 
     assert telemetry.tactical_trigger_attempts_by_id == {
         "style_2h_ignore": 1,
+        "style_dual_cross_cut": 1,
         "style_ranged_perfect_backstep": 1,
     }
-    assert telemetry.tactical_trigger_success_by_id == {"style_2h_ignore": 1, "style_ranged_perfect_backstep": 1}
+    assert telemetry.tactical_trigger_success_by_id == {
+        "style_2h_ignore": 1,
+        "style_dual_cross_cut": 1,
+        "style_ranged_perfect_backstep": 1,
+    }
     assert telemetry.tactical_trigger_attempts_by_actor == {
-        "a": {"style_2h_ignore": 1},
+        "a": {"style_2h_ignore": 1, "style_dual_cross_cut": 1},
         "b": {"style_ranged_perfect_backstep": 1},
     }
     assert telemetry.tactical_trigger_success_by_actor == {
-        "a": {"style_2h_ignore": 1},
+        "a": {"style_2h_ignore": 1, "style_dual_cross_cut": 1},
         "b": {"style_ranged_perfect_backstep": 1},
     }
     assert telemetry.tactical_damage_by_actor == {
-        "a": {"style_2h_ignore": 9, "style_dual_extra": 6, "weapon_shield_bash_on_block": 7},
+        "a": {
+            "style_2h_ignore": 9,
+            "style_dual_cross_cut": 9,
+            "offhand_attack": 6,
+            "weapon_shield_bash_on_block": 7,
+        },
         "b": {"counter_attack": 5},
     }
     assert telemetry.tactical_reflected_by_actor == {"b": {"style_shield_reflect": 4}}
@@ -555,7 +566,7 @@ def test_telemetry_records_tactical_trigger_and_chain_parts() -> None:
     assert telemetry.tactical_shield_absorbed_by_actor == {"b": {"style_shield_reflect": 3}}
     assert telemetry.tactical_shield_reflected_by_actor == {"b": {"style_shield_reflect": 4}}
     assert telemetry.tactical_chain_hits_by_actor == {
-        "a": {"style_dual_extra": 1},
+        "a": {"offhand_attack": 1},
         "b": {"counter_attack": 1},
     }
 
@@ -593,6 +604,139 @@ def test_telemetry_estimates_prevented_damage_for_backstep_without_damage_trace(
     telemetry.record_executor_context(state.ctx)
 
     assert telemetry.tactical_prevented_by_actor == {"b": {"style_ranged_perfect_backstep": 11}}
+
+
+@pytest.mark.unit
+def test_telemetry_records_ranged_position_contract() -> None:
+    telemetry = CombatTelemetry()
+    state = InMemoryBattleFactory.from_actors(
+        [sim_actor("archer", "blue"), sim_actor("fighter", "red")],
+        session_id="sim-ranged-position",
+    )
+    state.ctx.pending_result_support_tasks = [
+        {
+            "result": {
+                "source_id": "archer",
+                "target_id": "fighter",
+                "hand": "main",
+                "damage_final": 18,
+                "damage_trace": {
+                    "raw": 20,
+                    "final": 18,
+                    "details": {
+                        "ranged_position_source": "far",
+                        "ranged_position_outgoing_mult": 1.15,
+                    },
+                },
+            }
+        },
+        {
+            "result": {
+                "source_id": "fighter",
+                "target_id": "archer",
+                "hand": "main",
+                "damage_final": 22,
+                "checks": [
+                    {
+                        "stage": "ranged_position_defense",
+                        "chance": 0.1,
+                        "roll": 0.8,
+                        "passed": False,
+                        "details": {"position": "close"},
+                    }
+                ],
+                "damage_trace": {
+                    "raw": 20,
+                    "final": 22,
+                    "details": {
+                        "ranged_position_target": "close",
+                        "ranged_position_incoming_mult": 1.25,
+                    },
+                },
+            }
+        },
+        {
+            "result": {
+                "source_id": "fighter",
+                "target_id": "archer",
+                "hand": "main",
+                "damage_final": 0,
+                "is_dodged": True,
+                "tokens_awarded_defender": {"dodge": 1},
+                "checks": [
+                    {
+                        "stage": "ranged_position_defense",
+                        "chance": 0.4,
+                        "roll": 0.1,
+                        "passed": True,
+                        "details": {"position": "far"},
+                    }
+                ],
+            }
+        },
+        {
+            "result": {
+                "source_id": "fighter",
+                "target_id": "archer",
+                "hand": "main",
+                "damage_final": 0,
+                "is_ranged_punish": True,
+                "ranged_punish_damage": 14,
+                "trigger_attempts": [
+                    {
+                        "trigger_id": "style_ranged_perfect_backstep",
+                        "event": "ON_PRE_EVASION",
+                        "chance": 0.25,
+                        "roll": 0.1,
+                        "passed": True,
+                    }
+                ],
+            }
+        },
+    ]
+
+    telemetry.record_executor_context(state.ctx)
+
+    assert telemetry.ranged_position_outgoing_by_actor == {"archer": {"far": 1}}
+    assert telemetry.ranged_position_incoming_by_actor == {"archer": {"close": 1}}
+    assert telemetry.ranged_position_defense_attempts_by_actor == {"archer": {"close": 1, "far": 1}}
+    assert telemetry.ranged_position_defense_success_by_actor == {"archer": {"far": 1}}
+    assert telemetry.ranged_position_outgoing_damage_by_actor == {"archer": {"far": 18}}
+    assert telemetry.ranged_position_incoming_damage_by_actor == {"archer": {"close": 22}}
+    assert telemetry.tactical_damage_by_actor == {"archer": {"style_ranged_perfect_backstep": 14}}
+    assert telemetry.dodge_by_actor == {"archer": 1}
+
+
+@pytest.mark.unit
+def test_telemetry_counts_successful_ranged_position_defense_as_dodge_when_payload_lacks_flag() -> None:
+    telemetry = CombatTelemetry()
+    state = InMemoryBattleFactory.from_actors(
+        [sim_actor("archer", "blue"), sim_actor("fighter", "red")],
+        session_id="sim-ranged-position-dodge",
+    )
+    state.ctx.pending_result_support_tasks = [
+        {
+            "result": {
+                "source_id": "fighter",
+                "target_id": "archer",
+                "hand": "main",
+                "checks": [
+                    {
+                        "stage": "ranged_position_defense",
+                        "chance": 0.4,
+                        "roll": 0.1,
+                        "passed": True,
+                        "details": {"position": "far"},
+                    }
+                ],
+            }
+        },
+    ]
+
+    telemetry.record_executor_context(state.ctx)
+
+    assert telemetry.ranged_position_defense_success_by_actor == {"archer": {"far": 1}}
+    assert telemetry.dodge_by_actor == {"archer": 1}
 
 
 @pytest.mark.unit

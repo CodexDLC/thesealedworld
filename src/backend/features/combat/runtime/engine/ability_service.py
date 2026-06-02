@@ -8,6 +8,7 @@ from loguru import logger as log
 
 from src.backend.features.combat.dto import (
     ActiveAbilityDTO,
+    ActiveEffectDTO,
     ActorSnapshot,
     CombatEffectFactDTO,
     CombatEventDTO,
@@ -26,6 +27,7 @@ from src.backend.features.combat.runtime.engine.feint_service import FeintServic
 from src.backend.features.combat.runtime.engine.math_core import MathCore
 from src.backend.features.combat.runtime.engine.modifier_application_service import ModifierApplicationService
 from src.backend.features.combat.runtime.engine.pipeline_mutation_service import PipelineMutationService
+from src.backend.features.combat.runtime.engine.ranged_position import RangedPositionService
 from src.backend.features.combat.runtime.engine.stats_engine import StatsEngine
 from src.backend.features.combat.runtime.engine.trigger_activation import activate_trigger
 from src.backend.features.game_catalog.combat.resources.common.modifier_applications import ModifierApplicationDTO
@@ -172,8 +174,8 @@ class AbilityService:
                 and not (mode == "source" and ctx.result.is_counter)
             ):
                 continue
-            if mode == "source" and effect.effect_id == "debuff_ranged_repositioning":
-                AbilityService._apply_ranged_repositioning_penalty(ctx, actor)
+            if mode == "target" and effect.effect_id == "shield_opening":
+                AbilityService._apply_shield_opening(ctx, effect)
             if effect_config and effect_config.pipeline_mutations:
                 role = effect_config.pipeline_mutation_role
                 if role == "both" or role == mode:
@@ -209,10 +211,12 @@ class AbilityService:
             pass
 
     @staticmethod
-    def _apply_ranged_repositioning_penalty(ctx: PipelineContextDTO, actor: ActorSnapshot) -> None:
-        StatsEngine.ensure_stats(actor)
-        skill = max(0.0, min(1.0, float(actor.stats.skills.skill_ranged_combat if actor.stats else 0.0)))
-        ctx.mods.damage_mult *= 0.20 + (0.60 * skill)
+    def _apply_shield_opening(ctx: PipelineContextDTO, effect: ActiveEffectDTO) -> None:
+        params = effect.params if isinstance(effect.params, dict) else {}
+        evasion_mult = AbilityService._float_param(params, "evasion_mult", default=1.0)
+        parry_mult = AbilityService._float_param(params, "parry_mult", default=1.0)
+        ctx.mods.target_evasion_mult *= max(0.0, evasion_mult)
+        ctx.mods.target_parry_mult *= max(0.0, parry_mult)
 
     @staticmethod
     def _apply_control_behavior(ctx: PipelineContextDTO, path: str, value: Any) -> bool:
@@ -436,6 +440,9 @@ class AbilityService:
             for trigger in config.triggers:
                 activate_trigger(ctx, trigger, source=mode, source_id=action_id)
 
+        if mode == "feint":
+            RangedPositionService.apply_action_position_context(ctx)
+
         if config.override_damage:
             ctx.override_damage = config.override_damage
 
@@ -460,9 +467,10 @@ class AbilityService:
 
                 effects_map = ability.payload.get("effects", {})
                 if effects_map:
+                    contact_hit = ctx.result.is_hit and not ctx.result.is_dodged and not ctx.result.is_parried
                     conditions = {
                         "always": True,
-                        "is_hit": ctx.result.is_hit,
+                        "is_hit": contact_hit,
                         "is_crit": ctx.result.is_crit,
                         "is_blocked": ctx.result.is_blocked,
                         "is_parried": ctx.result.is_parried,
@@ -863,10 +871,11 @@ class AbilityService:
             # ВАЖНО: Передаем damage_final как damage_ref для скалирования (например, Bleed)
             damage_ref = ctx.result.damage_final if ctx.result.damage_final > 0 else 0
 
+            effect_source_id = effect_data.get("source_id", source.char_id)
             active_effect = EffectFactory.create_effect(
                 config=config,
                 params=params,
-                source_id=source.char_id,
+                source_id=effect_source_id,
                 current_exchange=effect_target.meta.exchange_counter,
                 damage_ref=damage_ref,  # Передаем урон
             )
@@ -894,7 +903,7 @@ class AbilityService:
             ctx.result.status_applications.append(
                 CombatStatusApplicationDTO(
                     actor_id=effect_target.char_id,
-                    source_id=source.char_id,
+                    source_id=effect_source_id,
                     effect_id=active_effect.effect_id,
                     active_effect=active_effect.model_dump(mode="json"),
                     source_action_id=effect_data.get("source_action_id"),

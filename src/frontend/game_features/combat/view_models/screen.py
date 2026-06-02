@@ -23,6 +23,7 @@ DEFAULT_SHADOW_AVATAR_URL = "/static/images/avatars/veil4.webp"
 DEFAULT_MONSTER_AVATAR_URL = "/static/images/avatars/silhouette_f.webp"
 COMBAT_ICON_ROOT = "/static/images/ui/combat-icons"
 COMBAT_LOG_PAGE_SIZE = 8
+FEINT_STAMINA_PER_TOKEN = 3
 BASIC_ABILITY_ICON_FILES: dict[str, str] = {
     "basic_punish_mistake": "basic_punish_mistake",
     "basic_finish_moment": "basic_finish_moment",
@@ -1340,7 +1341,7 @@ def _split_actions(
 
 
 def _feint_stamina_cost(cost: dict[str, int]) -> int:
-    return max(0, sum(max(0, int(amount or 0)) for amount in cost.values()) * 5)
+    return max(0, sum(max(0, int(amount or 0)) for amount in cost.values()) * FEINT_STAMINA_PER_TOKEN)
 
 
 def _action_vm(action: CombatActionOptionDTO, *, kind: str, icon: str) -> CombatActionVM:
@@ -1403,7 +1404,7 @@ COMBAT_TOKEN_CATALOG: tuple[tuple[str, str, str], ...] = (
     ("dodge", "DODGE", "token-dodge"),
     ("parry", "PARRY", "token-parry"),
     ("block", "BLOCK", "token-block"),
-    ("counter", "COUNTER", "token-counter"),
+    ("pressure", "PRESSURE", "token-pressure"),
     ("blood", "BLOOD", "token-blood"),
     ("gift", "GIFT", "token-gift"),
 )

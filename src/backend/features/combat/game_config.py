@@ -6,11 +6,28 @@ class CombatConfig(BaseGameConfig):
 
     # Parry / Block
     PARRY_SKILL_MULT_PER_POINT: float = 4.0
-    SHIELD_BLOCK_SKILL_BONUS_AT_FULL: float = 0.32
+    SHIELD_BLOCK_POWER_TO_CHANCE: float = 0.015
+    SHIELD_BLOCK_EVASION_BONUS_RATE: float = 1.0
+    SHIELD_BLOCK_BASE_CAP: float = 0.45
+    SHIELD_BLOCK_MASTERY_CAP_BONUS: float = 0.30
+    SHIELD_GUARD_ABSORB_RATE: float = 0.35
+    SHIELD_GUARD_EVASION_PENALTY_RATE: float = 0.45
+    SHIELD_GUARD_EVASION_PENALTY_FLOOR: float = 0.35
+    SHIELD_COUNTER_CAP: float = 0.50
+    SHIELD_COUNTER_DAMAGE_RATIO: float = 0.50
+    SHIELD_OPENING_EVASION_RATE: float = 1.0
+    SHIELD_OPENING_MIN_STRENGTH: float = 0.10
+    SHIELD_OPENING_MAX_STRENGTH: float = 0.30
+    ARMOR_LIGHT_COEF: float = 0.030
+    ARMOR_MEDIUM_COEF: float = 0.055
+    ARMOR_HEAVY_COEF: float = 0.085
+    ARMOR_LIGHT_CAP: float = 0.70
+    ARMOR_MEDIUM_CAP: float = 0.80
+    ARMOR_HEAVY_CAP: float = 0.90
 
     # Accuracy
-    BASE_ACCURACY_CHANCE: float = 0.70
-    SKILL_ACCURACY_BONUS_AT_FULL: float = 0.30
+    BASE_ACCURACY_CHANCE: float = 0.60
+    SKILL_ACCURACY_BONUS_AT_FULL: float = 0.40
     ACCURACY_CHANCE_CAP: float = 0.90
     ACCURACY_PENALTY_WEAPON_SKILL_REDUCTION_AT_FULL: float = 0.45
     ACCURACY_PENALTY_STYLE_SKILL_REDUCTION_AT_FULL: float = 0.45
@@ -34,7 +51,7 @@ class CombatConfig(BaseGameConfig):
     MOVE_RESPONSE_SETTLE_DELAY_SECONDS: float = 0.6
 
     # UI Accuracy
-    STAT_SHEET_BASE_HIT_CHANCE: float = 0.70
+    STAT_SHEET_BASE_HIT_CHANCE: float = 0.60
 
     config_metadata = {
         "PARRY_SKILL_MULT_PER_POINT": ConfigEntryMeta(
@@ -49,9 +66,81 @@ class CombatConfig(BaseGameConfig):
             live_scope="new_exchange",
             tags=("combat", "balance", "defense"),
         ),
-        "SHIELD_BLOCK_SKILL_BONUS_AT_FULL": ConfigEntryMeta(
-            label="Бонус блока щитом от навыка",
-            description="Дополнительный шанс shield block при полном skill_shield_mastery.",
+        "SHIELD_BLOCK_POWER_TO_CHANCE": ConfigEntryMeta(
+            label="Шанс блока от power щита",
+            description="Сколько базового shield block chance дает единица power щита до evasion и mastery gate.",
+            group="Парирование и щит",
+            unit="ratio",
+            min_value=0.0,
+            max_value=0.2,
+            step=0.001,
+            risk="high",
+            live_scope="new_exchange",
+            tags=("combat", "balance", "shield"),
+        ),
+        "SHIELD_BLOCK_EVASION_BONUS_RATE": ConfigEntryMeta(
+            label="Усиление блока от evasion",
+            description="Коэффициент, с которым uncapped evasion повышает шанс shield block.",
+            group="Парирование и щит",
+            unit="multiplier",
+            min_value=0.0,
+            max_value=5.0,
+            step=0.05,
+            risk="high",
+            live_scope="new_exchange",
+            tags=("combat", "balance", "shield"),
+        ),
+        "SHIELD_BLOCK_BASE_CAP": ConfigEntryMeta(
+            label="Базовый cap shield block",
+            description="Потолок shield block chance до расширения от skill_shield_mastery.",
+            group="Парирование и щит",
+            unit="ratio",
+            min_value=0.0,
+            max_value=1.0,
+            step=0.01,
+            risk="high",
+            live_scope="new_exchange",
+            tags=("combat", "balance", "shield"),
+        ),
+        "SHIELD_BLOCK_MASTERY_CAP_BONUS": ConfigEntryMeta(
+            label="Расширение cap shield block",
+            description="Сколько cap shield block добавляет полное skill_shield_mastery.",
+            group="Парирование и щит",
+            unit="ratio",
+            min_value=0.0,
+            max_value=1.0,
+            step=0.01,
+            risk="high",
+            live_scope="new_exchange",
+            tags=("combat", "balance", "shield"),
+        ),
+        "SHIELD_GUARD_ABSORB_RATE": ConfigEntryMeta(
+            label="Absorb rate shield guard",
+            description="Коэффициент временной guard-брони от суммы shield power и physical endurance power.",
+            group="Парирование и щит",
+            unit="multiplier",
+            min_value=0.0,
+            max_value=5.0,
+            step=0.01,
+            risk="high",
+            live_scope="new_exchange",
+            tags=("combat", "balance", "shield"),
+        ),
+        "SHIELD_GUARD_EVASION_PENALTY_RATE": ConfigEntryMeta(
+            label="Штраф guard от evasion",
+            description="Коэффициент, с которым evasion снижает силу каждого успешного shield block.",
+            group="Парирование и щит",
+            unit="multiplier",
+            min_value=0.0,
+            max_value=5.0,
+            step=0.05,
+            risk="high",
+            live_scope="new_exchange",
+            tags=("combat", "balance", "shield"),
+        ),
+        "SHIELD_GUARD_EVASION_PENALTY_FLOOR": ConfigEntryMeta(
+            label="Минимум guard после evasion",
+            description="Нижняя граница множителя guard после штрафа от evasion.",
             group="Парирование и щит",
             unit="ratio",
             min_value=0.0,
@@ -60,6 +149,138 @@ class CombatConfig(BaseGameConfig):
             risk="medium",
             live_scope="new_exchange",
             tags=("combat", "balance", "shield"),
+        ),
+        "SHIELD_COUNTER_CAP": ConfigEntryMeta(
+            label="Cap shield counter",
+            description="Максимальный шанс instant shield counter после успешного shield block.",
+            group="Парирование и щит",
+            unit="ratio",
+            min_value=0.0,
+            max_value=1.0,
+            step=0.01,
+            risk="high",
+            live_scope="new_exchange",
+            tags=("combat", "balance", "shield"),
+        ),
+        "SHIELD_COUNTER_DAMAGE_RATIO": ConfigEntryMeta(
+            label="Доля урона shield counter",
+            description="Доля main-hand base damage, которую использует instant shield counter до mastery gate.",
+            group="Парирование и щит",
+            unit="ratio",
+            min_value=0.0,
+            max_value=2.0,
+            step=0.01,
+            risk="high",
+            live_scope="new_exchange",
+            tags=("combat", "balance", "shield"),
+        ),
+        "SHIELD_OPENING_EVASION_RATE": ConfigEntryMeta(
+            label="Evasion tradeoff opening",
+            description="Коэффициент, с которым evasion щитовика ослабляет силу shield_opening.",
+            group="Парирование и щит",
+            unit="multiplier",
+            min_value=0.0,
+            max_value=5.0,
+            step=0.05,
+            risk="medium",
+            live_scope="new_exchange",
+            tags=("combat", "balance", "shield"),
+        ),
+        "SHIELD_OPENING_MIN_STRENGTH": ConfigEntryMeta(
+            label="Минимум shield opening",
+            description="Минимальная сила shield_opening до mastery gate при высоком evasion щитовика.",
+            group="Парирование и щит",
+            unit="ratio",
+            min_value=0.0,
+            max_value=1.0,
+            step=0.01,
+            risk="medium",
+            live_scope="new_exchange",
+            tags=("combat", "balance", "shield"),
+        ),
+        "SHIELD_OPENING_MAX_STRENGTH": ConfigEntryMeta(
+            label="Максимум shield opening",
+            description="Максимальная сила shield_opening до mastery gate при низком evasion щитовика.",
+            group="Парирование и щит",
+            unit="ratio",
+            min_value=0.0,
+            max_value=1.0,
+            step=0.01,
+            risk="medium",
+            live_scope="new_exchange",
+            tags=("combat", "balance", "shield"),
+        ),
+        "ARMOR_LIGHT_COEF": ConfigEntryMeta(
+            label="Коэффициент легкой брони",
+            description="Как быстро item armor power легкого комплекта превращается в процентное поглощение урона.",
+            group="Броня",
+            unit="multiplier",
+            min_value=0.0,
+            max_value=1.0,
+            step=0.001,
+            risk="high",
+            live_scope="new_exchange",
+            tags=("combat", "balance", "armor"),
+        ),
+        "ARMOR_MEDIUM_COEF": ConfigEntryMeta(
+            label="Коэффициент средней брони",
+            description="Как быстро item armor power среднего комплекта превращается в процентное поглощение урона.",
+            group="Броня",
+            unit="multiplier",
+            min_value=0.0,
+            max_value=1.0,
+            step=0.001,
+            risk="high",
+            live_scope="new_exchange",
+            tags=("combat", "balance", "armor"),
+        ),
+        "ARMOR_HEAVY_COEF": ConfigEntryMeta(
+            label="Коэффициент тяжелой брони",
+            description="Как быстро item armor power тяжелого комплекта превращается в процентное поглощение урона.",
+            group="Броня",
+            unit="multiplier",
+            min_value=0.0,
+            max_value=1.0,
+            step=0.001,
+            risk="high",
+            live_scope="new_exchange",
+            tags=("combat", "balance", "armor"),
+        ),
+        "ARMOR_LIGHT_CAP": ConfigEntryMeta(
+            label="Cap легкой брони",
+            description="Максимальный процент поглощения урона от armor-stage для легкой брони.",
+            group="Броня",
+            unit="ratio",
+            min_value=0.0,
+            max_value=1.0,
+            step=0.01,
+            risk="high",
+            live_scope="new_exchange",
+            tags=("combat", "balance", "armor"),
+        ),
+        "ARMOR_MEDIUM_CAP": ConfigEntryMeta(
+            label="Cap средней брони",
+            description="Максимальный процент поглощения урона от armor-stage для средней брони.",
+            group="Броня",
+            unit="ratio",
+            min_value=0.0,
+            max_value=1.0,
+            step=0.01,
+            risk="high",
+            live_scope="new_exchange",
+            tags=("combat", "balance", "armor"),
+        ),
+        "ARMOR_HEAVY_CAP": ConfigEntryMeta(
+            label="Cap тяжелой брони",
+            description="Максимальный процент поглощения урона от armor-stage для тяжелой брони.",
+            group="Броня",
+            unit="ratio",
+            min_value=0.0,
+            max_value=1.0,
+            step=0.01,
+            risk="high",
+            live_scope="new_exchange",
+            tags=("combat", "balance", "armor"),
         ),
         "BASE_ACCURACY_CHANCE": ConfigEntryMeta(
             label="Базовый шанс попадания",

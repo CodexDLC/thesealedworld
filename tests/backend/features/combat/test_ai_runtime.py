@@ -22,6 +22,7 @@ from pathlib import Path
 import pytest
 
 from src.backend.features.combat.dto.actor import (
+    ActiveEffectDTO,
     ActorLoadoutDTO,
     ActorMetaDTO,
     ActorRawDTO,
@@ -55,6 +56,9 @@ def _actor(
     tokens: dict[str, int] | None = None,
     hand: dict[str, dict[str, int]] | None = None,
     mods: dict[str, float] | None = None,
+    skills: dict[str, float] | None = None,
+    layout: dict[str, str] | None = None,
+    ranged_position: str | None = None,
     is_ai: bool = False,
     known_abilities: list[str] | None = None,
 ) -> ActorSnapshot:
@@ -77,13 +81,26 @@ def _actor(
     )
     stats = ActorStats(
         mods=CombatModifiersDTO(**(mods or {})),
-        skills=CombatSkillsDTO(),
+        skills=CombatSkillsDTO(**(skills or {})),
     )
+    effects = []
+    if ranged_position is not None:
+        effects.append(
+            ActiveEffectDTO(
+                uid=f"ranged_position:{actor_id}",
+                effect_id="ranged_position",
+                source_id=actor_id,
+                active_from_exchange=0,
+                expire_at_exchange=99,
+                params={"position": ranged_position},
+            )
+        )
     return ActorSnapshot(
         meta=meta,
         raw=ActorRawDTO(),
         skills={},
-        loadout=ActorLoadoutDTO(known_abilities=list(known_abilities or [])),
+        loadout=ActorLoadoutDTO(layout=dict(layout or {}), known_abilities=list(known_abilities or [])),
+        statuses={"effects": effects},
         stats=stats,
     )
 
@@ -136,6 +153,33 @@ def test_observation_uses_effective_evasion_after_dodge_cap() -> None:
 
 
 @pytest.mark.unit
+def test_observation_exposes_ranged_position_and_shield_guard_contracts() -> None:
+    archer = _actor(
+        "archer",
+        team="blue",
+        layout={"main_hand": "skill_archery", "tactical_style": "skill_ranged_combat"},
+        skills={"skill_ranged_combat": 0.7},
+        ranged_position="close",
+    )
+    shield = _actor(
+        "shield",
+        team="blue",
+        layout={"off_hand": "skill_shield_mastery", "tactical_style": "skill_shield_mastery"},
+        mods={"shield_guard_power": 24.0, "counter_attack_chance": 0.6},
+        skills={"skill_shield_mastery": 0.8},
+    )
+
+    archer_obs = extract_target(archer)
+    shield_obs = extract_target(shield)
+
+    assert archer_obs.is_ranged_style is True
+    assert archer_obs.ranged_position == "close"
+    assert shield_obs.is_shield_style is True
+    assert shield_obs.shield_guard_power == pytest.approx(24.0)
+    assert shield_obs.shield_mastery == pytest.approx(0.8)
+
+
+@pytest.mark.unit
 def test_observation_self_features_include_resources_and_enemy_count() -> None:
     bot = _actor(
         "bot", team="red", is_ai=True, hp=30, max_hp=100, stamina=10, max_stamina=50, tokens={"hit": 2}
@@ -179,7 +223,7 @@ def test_legal_actions_include_basic_and_each_affordable_hand_feint() -> None:
 
 @pytest.mark.unit
 def test_legal_actions_exclude_feints_when_stamina_insufficient() -> None:
-    # 5 tokens * 5 = 25 stamina required; bot has only 10.
+    # 5 tokens * 3 = 15 stamina required; bot has only 10.
     bot = _actor(
         "bot",
         team="red",
@@ -256,13 +300,80 @@ def test_scorer_prefers_anti_block_against_high_block_target() -> None:
         target_id="t1",
         feint_id="sword_low_angle",
         cost={"hit": 3, "dodge": 2},
-        stamina_cost=25,
+        stamina_cost=15,
         tags=frozenset({"anti_block", "damage_tag"}),
     )
 
     score_basic = PolicyScorer.score(self_obs, target_obs, basic, policy)
     score_anti = PolicyScorer.score(self_obs, target_obs, anti_block, policy)
     assert score_anti > score_basic
+
+
+@pytest.mark.unit
+def test_scorer_prefers_ranged_reposition_when_archer_is_close() -> None:
+    bot = _actor(
+        "bot",
+        team="red",
+        is_ai=True,
+        layout={"main_hand": "skill_archery", "tactical_style": "skill_ranged_combat"},
+        ranged_position="close",
+    )
+    target = _actor("shield", team="blue", mods={"counter_attack_chance": 0.6})
+    self_obs = extract_self(bot, alive_enemy_count=1)
+    target_obs = extract_target(target)
+    policy = Policy.with_defaults(
+        {
+            "damage_tag": 0.2,
+            "ranged_reposition": 3.0,
+            "ranged_keep_far": 2.0,
+            "ranged_position_damage": 1.0,
+            "token_cost": 0.0,
+            "stamina_cost": 0.0,
+        }
+    )
+
+    basic = LegalAction("attack", "shield", None, tags=frozenset({"damage_tag"}))
+    open_distance = LegalAction(
+        "attack",
+        "shield",
+        "open_distance",
+        cost={"dodge": 5, "tempo": 2},
+        stamina_cost=21,
+        tags=frozenset({"ranged_reposition", "ranged_keep_far"}),
+    )
+
+    assert PolicyScorer.score(self_obs, target_obs, open_distance, policy) > PolicyScorer.score(
+        self_obs, target_obs, basic, policy
+    )
+
+
+@pytest.mark.unit
+def test_scorer_prefers_armor_bypass_against_shield_guard_target() -> None:
+    bot = _actor("bot", team="red", is_ai=True)
+    shield = _actor(
+        "shield",
+        team="blue",
+        layout={"off_hand": "skill_shield_mastery", "tactical_style": "skill_shield_mastery"},
+        mods={"shield_guard_power": 30.0, "armor": 5.0},
+        skills={"skill_shield_mastery": 0.9},
+    )
+    self_obs = extract_self(bot, alive_enemy_count=1)
+    target_obs = extract_target(shield)
+    policy = Policy.with_defaults({"armor_bypass": 3.0, "damage_tag": 0.2, "token_cost": 0.0, "stamina_cost": 0.0})
+
+    basic = LegalAction("attack", "shield", None, tags=frozenset({"damage_tag"}))
+    armor_bypass = LegalAction(
+        "attack",
+        "shield",
+        "macing_armor_crush",
+        cost={"hit": 3, "crit": 2},
+        stamina_cost=15,
+        tags=frozenset({"armor_bypass", "damage_tag"}),
+    )
+
+    assert PolicyScorer.score(self_obs, target_obs, armor_bypass, policy) > PolicyScorer.score(
+        self_obs, target_obs, basic, policy
+    )
 
 
 @pytest.mark.unit
@@ -299,7 +410,7 @@ def test_high_token_cost_makes_basic_attack_win_over_feint() -> None:
         "t1",
         "sword_blade_bind",
         cost={"hit": 3, "parry": 2},
-        stamina_cost=25,
+        stamina_cost=15,
         tags=frozenset({"anti_block", "damage_tag"}),
     )
 
@@ -331,7 +442,7 @@ def test_non_execute_feint_is_blocked_on_finishable_target_even_with_group_bonus
         "t1",
         "measured_strike",
         cost={"hit": 3},
-        stamina_cost=15,
+        stamina_cost=9,
         tags=frozenset({"damage_tag", "group_basic"}),
     )
 
@@ -362,7 +473,7 @@ def test_execute_feint_is_penalized_before_finishable_window() -> None:
         "t1",
         "sword_clean_path",
         cost={"hit": 3, "crit": 5},
-        stamina_cost=40,
+        stamina_cost=24,
         tags=frozenset({"damage_tag", "execute", "group_weapon"}),
     )
 
@@ -401,7 +512,7 @@ def test_duplicate_control_is_blocked_even_with_large_control_bonus() -> None:
         "t1",
         "concussion",
         cost={"block": 3},
-        stamina_cost=15,
+        stamina_cost=9,
         tags=frozenset({"control", "damage_tag"}),
     )
 
@@ -497,11 +608,11 @@ def test_decide_turn_does_not_overcommit_stamina_across_targets() -> None:
     """Anchor test for the planning-budget contract.
 
     Bot has stamina 60. Two targets both ideal for an anti_parry feint that
-    costs 5 tokens × 5 = 25 stamina each. With two such feints the bot can
-    only pay 50 stamina total, which is fine. But with one expensive
-    (sword_clean_path, 8 tokens × 5 = 40 stam) and one cheaper
-    (sword_blade_bind, 25 stam), the planner must pick at most one of each
-    that fits the budget, not greedily commit two 40-cost actions.
+    costs 5 tokens × 3 = 15 stamina each. With two such feints the bot can
+    only pay 30 stamina total, which is fine. But with one expensive
+    (sword_clean_path, 8 tokens × 3 = 24 stam) and one cheaper
+    (sword_blade_bind, 15 stam), the planner must pick actions that fit the
+    budget, not greedily overcommit expensive actions.
     """
     bot = _actor(
         "bot",
@@ -509,9 +620,9 @@ def test_decide_turn_does_not_overcommit_stamina_across_targets() -> None:
         is_ai=True,
         stamina=60,
         hand={
-            "measured_strike": {"hit": 3},  # cheap basic, 15 stam
-            "sword_clean_path": {"hit": 3, "crit": 5},  # expensive, 40 stam
-            "sword_blade_bind": {"hit": 3, "parry": 2},  # mid, 25 stam, anti_parry
+            "measured_strike": {"hit": 3},  # cheap basic, 9 stam
+            "sword_clean_path": {"hit": 3, "crit": 5},  # expensive, 24 stam
+            "sword_blade_bind": {"hit": 3, "parry": 2},  # mid, 15 stam, anti_parry
         },
     )
     t1 = _actor("t1", team="blue", hp=80, mods={"parry": 0.55})

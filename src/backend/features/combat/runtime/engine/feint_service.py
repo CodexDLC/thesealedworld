@@ -12,7 +12,7 @@ from typing import Any
 from src.backend.features.combat.dto.actor import ActorMetaDTO
 from src.backend.features.combat.integrations import CombatCatalogIntegrator
 
-FEINT_STAMINA_PER_TOKEN = 5
+FEINT_STAMINA_PER_TOKEN = 3
 FEINT_PURCHASE_GROUP_ORDER = ("weapon", "tactical", "basic")
 
 # === ОСНОВНОЙ СЕРВИС ===

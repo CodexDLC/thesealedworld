@@ -20,10 +20,13 @@ from src.frontend.config.settings import settings
 from src.frontend.integrations.backend_api.combat_ai_testing import CombatAiSimulationRun, CombatAiTestingApi
 
 _BASE = "/admin/combat-ai-testing"
+_LIVE_BATCH_ANALYSIS_COUNT = 50
+_LIVE_BATCH_ANALYSIS_MAX = 50
 _EHP_REFERENCE_HIT_DAMAGE = 20.0
 _EHP_REGEN_WINDOW_EXCHANGES = 5.0
 _SHIELD_TACTICAL_PART_ID = "style_shield_reflect"
 _SHIELD_TACTICAL_PART_ALIASES = {"weapon_shield_bash_on_block"}
+_RANGED_POSITIONS = ("far", "mid", "close")
 _LIVE_LAUNCH_SCENARIOS = {
     "starter_presets_5v5_live",
     "starter_presets_5v5_live_full_skills",
@@ -47,11 +50,17 @@ _TACTICAL_PART_LABELS = {
     "style_2h_ignore": "Двуручный стиль: давление",
     "style_shield_reflect": "Щит: поглощение и возврат",
     "style_ranged_perfect_backstep": "Дальний бой: идеальный отскок",
-    "style_dual_extra": "Две руки: второй удар",
+    "style_dual_cross_cut": "Две руки: перекрестный крит",
     "weapon_shield_bash_on_block": "Щит: ответный удар",
     "weapon_riposte_on_parry": "Рипост после парирования",
     "counter_attack": "Контратака",
     "offhand_attack": "Off-hand удар",
+}
+_TACTICAL_SKILL_CHARTS = {
+    "skill_two_handed": ("two_handed", "Двуручный стиль", ("style_2h_ignore",)),
+    "skill_dual_wield": ("dual_wield", "Две руки", ("offhand_attack", "style_dual_cross_cut")),
+    "skill_shield_mastery": ("shield", "Щит", ("style_shield_reflect",)),
+    "skill_ranged_combat": ("ranged", "Дальний бой", ("style_ranged_perfect_backstep",)),
 }
 
 
@@ -81,12 +90,12 @@ async def _run_launcher_provider(request: Request) -> TableWidgetMap:
                 "note": "до победы, максимум 500 exchanges; target queue, polling отчёта; live-бой не меняет",
             },
             {
-                "id": "live_batch:starter_presets_5v5_live:100",
+                "id": f"live_batch:starter_presets_5v5_live:{_LIVE_BATCH_ANALYSIS_COUNT}",
                 "scenario": "Live tick: стартовые пресеты 5v5",
-                "runs": 100,
+                "runs": _LIVE_BATCH_ANALYSIS_COUNT,
                 "mode": "фон, пакет live-like",
                 "policy": "runtime_default",
-                "note": "запускает 100 отдельных live-like боёв; состав фиксируется при заказе задачи",
+                "note": f"запускает {_LIVE_BATCH_ANALYSIS_COUNT} отдельных live-like боёв; состав фиксируется при заказе задачи",
             },
             {
                 "id": "starter_presets_5v5_live_full_skills",
@@ -97,12 +106,12 @@ async def _run_launcher_provider(request: Request) -> TableWidgetMap:
                 "note": "та же экипировка и статы; только уже имеющиеся навыки слепков подняты до 100%",
             },
             {
-                "id": "live_batch:starter_presets_5v5_live_full_skills:100",
+                "id": f"live_batch:starter_presets_5v5_live_full_skills:{_LIVE_BATCH_ANALYSIS_COUNT}",
                 "scenario": "Live tick: стартовые пресеты 5v5, full skills",
-                "runs": 100,
+                "runs": _LIVE_BATCH_ANALYSIS_COUNT,
                 "mode": "фон, пакет maxed skills",
                 "policy": "runtime_default",
-                "note": "100 отдельных 5v5 боёв; состав фиксируется при заказе, навыки слепков на 100%",
+                "note": f"{_LIVE_BATCH_ANALYSIS_COUNT} отдельных 5v5 боёв; состав фиксируется при заказе, навыки слепков на 100%",
             },
         ],
         action_url=f"{_BASE}/run",
@@ -132,11 +141,11 @@ async def _policy_run_launcher_provider(request: Request) -> TableWidgetMap:
                 "policy_options": policy_options,
             },
             {
-                "id": "live_batch:starter_presets_5v5_live:100",
+                "id": f"live_batch:starter_presets_5v5_live:{_LIVE_BATCH_ANALYSIS_COUNT}",
                 "scenario": "Live tick: стартовые пресеты 5v5 + policy",
-                "runs": 100,
+                "runs": _LIVE_BATCH_ANALYSIS_COUNT,
                 "mode": "фон, пакет live-like",
-                "note": "100 отдельных 5v5 боёв с выбранной policy; состав фиксируется при заказе",
+                "note": f"{_LIVE_BATCH_ANALYSIS_COUNT} отдельных 5v5 боёв с выбранной policy; состав фиксируется при заказе",
                 "policy_options": policy_options,
             },
             {
@@ -148,11 +157,11 @@ async def _policy_run_launcher_provider(request: Request) -> TableWidgetMap:
                 "policy_options": policy_options,
             },
             {
-                "id": "live_batch:starter_presets_5v5_live_full_skills:100",
+                "id": f"live_batch:starter_presets_5v5_live_full_skills:{_LIVE_BATCH_ANALYSIS_COUNT}",
                 "scenario": "Live tick: стартовые пресеты 5v5 full skills + policy",
-                "runs": 100,
+                "runs": _LIVE_BATCH_ANALYSIS_COUNT,
                 "mode": "фон, пакет maxed skills",
-                "note": "100 отдельных 5v5 боёв через выбранную policy; состав фиксируется при заказе",
+                "note": f"{_LIVE_BATCH_ANALYSIS_COUNT} отдельных 5v5 боёв через выбранную policy; состав фиксируется при заказе",
                 "policy_options": policy_options,
             },
         ],
@@ -603,7 +612,9 @@ async def _analytics_defence_chart_provider(request: Request) -> ChartWidgetMap:
         datasets=[
             {
                 "label": "Dodge",
-                "data": [row["dodge_per_appearance"] for row in rows],
+                "data": [
+                    row.get("ordinary_dodge_per_appearance", row.get("dodge_per_appearance", 0.0)) for row in rows
+                ],
                 "backgroundColor": "rgba(20,184,166,0.78)",
             },
             {
@@ -615,6 +626,11 @@ async def _analytics_defence_chart_provider(request: Request) -> ChartWidgetMap:
                 "label": "Block",
                 "data": [row["block_per_appearance"] for row in rows],
                 "backgroundColor": "rgba(100,116,139,0.78)",
+            },
+            {
+                "label": "Ranged",
+                "data": [row.get("ranged_defense_per_appearance", 0.0) for row in rows],
+                "backgroundColor": "rgba(99,102,241,0.72)",
             },
             {
                 "label": "Armor",
@@ -641,13 +657,48 @@ async def _analytics_tactical_parts_provider(request: Request) -> TableWidgetMap
             TableColumnMap(key="shield_defense", label="Блок-защ."),
             TableColumnMap(key="shield_counter", label="Блок-контр."),
             TableColumnMap(key="damage", label="Урон"),
+            TableColumnMap(key="damage_per_event", label="Урон/сраб."),
             TableColumnMap(key="shield_damage", label="Щит-урон"),
             TableColumnMap(key="shield_absorbed", label="Щит-погл."),
             TableColumnMap(key="shield_reflected", label="Щит-возвр."),
             TableColumnMap(key="reflected", label="Возврат"),
             TableColumnMap(key="prevented", label="Предотвр."),
+            TableColumnMap(key="defense_per_event", label="Защ./сраб."),
         ],
         rows=await _analytics_tactical_rows_for_request(request),
+    )
+
+
+async def _analytics_tactical_two_handed_table_provider(request: Request) -> TableWidgetMap:
+    return await _analytics_tactical_skill_table(request, "skill_two_handed")
+
+
+async def _analytics_tactical_dual_wield_table_provider(request: Request) -> TableWidgetMap:
+    return await _analytics_tactical_skill_table(request, "skill_dual_wield")
+
+
+async def _analytics_tactical_shield_table_provider(request: Request) -> TableWidgetMap:
+    return await _analytics_tactical_skill_table(request, "skill_shield_mastery")
+
+
+async def _analytics_tactical_ranged_table_provider(request: Request) -> TableWidgetMap:
+    runs = await _analytics_runs(request)
+    return TableWidgetMap(
+        key="combat_ai_analytics_tactical_ranged",
+        title="Тактика: дальний бой",
+        columns=[
+            TableColumnMap(key="position", label="Позиция"),
+            TableColumnMap(key="shots", label="Выстрелы"),
+            TableColumnMap(key="bow_damage", label="Урон стрелой"),
+            TableColumnMap(key="bow_damage_per_shot", label="Урон/выстр."),
+            TableColumnMap(key="incoming_melee", label="Melee входы"),
+            TableColumnMap(key="ranged_dodge_attempts", label="Лучн. уворот: попытки"),
+            TableColumnMap(key="ranged_dodge_success", label="Лучн. уворот: успех"),
+            TableColumnMap(key="ranged_dodge_rate", label="Лучн. уворот %"),
+            TableColumnMap(key="melee_taken", label="Получено melee"),
+            TableColumnMap(key="melee_taken_per_entry", label="Melee урон/вход"),
+        ],
+        rows=_ranged_position_rows(runs),
     )
 
 
@@ -667,9 +718,11 @@ async def _analytics_table_provider(request: Request) -> TableWidgetMap:
             TableColumnMap(key="avg_damage", label="Ср. урон"),
             TableColumnMap(key="avg_taken", label="Ср. получено"),
             TableColumnMap(key="armor_absorbed_per_event", label="Броня/сраб."),
-            TableColumnMap(key="damage_per_action", label="Урон/действ."),
-            TableColumnMap(key="hit_rate", label="Hit %"),
-            TableColumnMap(key="crit_rate", label="Crit %"),
+            TableColumnMap(key="damage_per_action", label="Урон/ход"),
+            TableColumnMap(key="attack_checks_per_action", label="Атак/ход"),
+            TableColumnMap(key="damage_per_hit", label="Урон/Hit"),
+            TableColumnMap(key="hit_rate", label="Hit/Miss %"),
+            TableColumnMap(key="crit_rate", label="Crit/Hit %"),
             TableColumnMap(key="avg_overkill", label="Overkill"),
         ],
         rows=rows,
@@ -981,11 +1034,13 @@ async def _detail_tactical_parts_provider(request: Request) -> TableWidgetMap:
             TableColumnMap(key="shield_defense", label="Блок-защ."),
             TableColumnMap(key="shield_counter", label="Блок-контр."),
             TableColumnMap(key="damage", label="Урон"),
+            TableColumnMap(key="damage_per_event", label="Урон/сраб."),
             TableColumnMap(key="shield_damage", label="Щит-урон"),
             TableColumnMap(key="shield_absorbed", label="Щит-погл."),
             TableColumnMap(key="shield_reflected", label="Щит-возвр."),
             TableColumnMap(key="reflected", label="Возврат"),
             TableColumnMap(key="prevented", label="Предотвр."),
+            TableColumnMap(key="defense_per_event", label="Защ./сраб."),
             TableColumnMap(key="actors", label="Акторы"),
         ],
         rows=_tactical_rows(run),
@@ -1236,10 +1291,28 @@ class CombatAiTestingAdmin(CabinetAdmin):
                 order=50,
             ),
             TableWidget(
-                key="combat_ai_analytics_tactical_parts",
-                title="Тактические части",
-                provider="combat_ai.analytics.tactical_parts",
+                key="combat_ai_analytics_tactical_two_handed",
+                title="Тактика: двуручный стиль",
+                provider="combat_ai.analytics.tactical_two_handed",
                 order=55,
+            ),
+            TableWidget(
+                key="combat_ai_analytics_tactical_dual_wield",
+                title="Тактика: две руки",
+                provider="combat_ai.analytics.tactical_dual_wield",
+                order=56,
+            ),
+            TableWidget(
+                key="combat_ai_analytics_tactical_shield",
+                title="Тактика: щит",
+                provider="combat_ai.analytics.tactical_shield",
+                order=57,
+            ),
+            TableWidget(
+                key="combat_ai_analytics_tactical_ranged",
+                title="Тактика: дальний бой",
+                provider="combat_ai.analytics.tactical_ranged",
+                order=58,
             ),
             TableWidget(
                 key="combat_ai_analytics_table",
@@ -1406,6 +1479,10 @@ class CombatAiTestingAdmin(CabinetAdmin):
         "combat_ai.analytics.gear_score_chart": _analytics_gear_score_chart_provider,
         "combat_ai.analytics.defence_chart": _analytics_defence_chart_provider,
         "combat_ai.analytics.tactical_parts": _analytics_tactical_parts_provider,
+        "combat_ai.analytics.tactical_two_handed": _analytics_tactical_two_handed_table_provider,
+        "combat_ai.analytics.tactical_dual_wield": _analytics_tactical_dual_wield_table_provider,
+        "combat_ai.analytics.tactical_shield": _analytics_tactical_shield_table_provider,
+        "combat_ai.analytics.tactical_ranged": _analytics_tactical_ranged_table_provider,
         "combat_ai.analytics.table": _analytics_table_provider,
         "combat_ai.pve.survival_summary": _pve_survival_summary_provider,
         "combat_ai.pve.survival_chart": _pve_survival_chart_provider,
@@ -1486,7 +1563,7 @@ def _live_batch_scenario_key(request_id: str) -> str:
 
 async def _run_live_demo_batch(request: Request, *, request_id: str, policy_run_id: str = "") -> None:
     _, scenario_key, count_raw = request_id.split(":", maxsplit=2)
-    count = min(max(_int(count_raw), 1), 100)
+    count = min(max(_int(count_raw), 1), _LIVE_BATCH_ANALYSIS_MAX)
     params = _live_scenario_params(scenario_key)
     await _api(request).run_live_demo_batch(
         count=count,
@@ -1800,6 +1877,7 @@ def _analytics_tactical_rows(runs: list[CombatAiSimulationRun]) -> list[dict[str
     part_ids |= set(shield_damage) | set(shield_absorbed) | set(shield_reflected)
     rows = [
         {
+            "part_id": part_id,
             "part": _tactical_part_label(part_id),
             "attempts": _tactical_display_attempts(part_id, attempts=attempts, shield_branch=shield_branch),
             "successes": _tactical_display_successes(part_id, successes=successes, shield_branch=shield_branch),
@@ -1842,9 +1920,122 @@ def _analytics_tactical_rows(runs: list[CombatAiSimulationRun]) -> list[dict[str
             str(row["part"]),
         )
     )
+    _attach_tactical_rate_metrics(rows)
     for row in rows:
         row.pop("_sort", None)
     return rows
+
+
+def _attach_tactical_rate_metrics(rows: list[dict[str, object]]) -> None:
+    for row in rows:
+        event_count = _tactical_event_count(row)
+        row["damage_per_event"] = _avg(_int(row.get("damage")) + _int(row.get("reflected")), event_count)
+        row["defense_per_event"] = _avg(_int(row.get("prevented")) + _int(row.get("shield_defense")), event_count)
+
+
+def _tactical_event_count(row: dict[str, object]) -> int:
+    chain_hits = _int(row.get("chain_hits"))
+    if chain_hits > 0:
+        return chain_hits
+    shield_events = _int(row.get("shield_defense")) + _int(row.get("shield_counter"))
+    if shield_events > 0:
+        return shield_events
+    successes = _int(row.get("successes"))
+    if successes > 0:
+        return successes
+    return max(1, _int(row.get("attempts")))
+
+
+def _merge_ranged_position_totals(totals: dict[str, int], value: Any) -> None:
+    for actor_positions in _dict(value).values():
+        for position, amount in _dict(actor_positions).items():
+            position_id = str(position)
+            if position_id in totals:
+                totals[position_id] += _int(amount)
+
+
+def _ranged_position_actor_total(value: Any) -> int:
+    return sum(_int(amount) for amount in _dict(value).values())
+
+
+async def _analytics_tactical_skill_table(request: Request, skill_id: str) -> TableWidgetMap:
+    key_suffix, title, part_ids = _TACTICAL_SKILL_CHARTS.get(skill_id, (skill_id, skill_id, ()))
+    rows_by_part = {str(row.get("part_id") or ""): row for row in await _analytics_tactical_rows_for_request(request)}
+    rows = [
+        {
+            "part_id": part_id,
+            "part": _tactical_part_label(part_id),
+            "attempts": _int(row.get("attempts")),
+            "successes": _int(row.get("successes")),
+            "rate": _float(row.get("rate")),
+            "chain_hits": _int(row.get("chain_hits")),
+            "shield_defense": _int(row.get("shield_defense")),
+            "shield_counter": _int(row.get("shield_counter")),
+            "damage": _int(row.get("damage")),
+            "damage_per_event": _float(row.get("damage_per_event")),
+            "shield_damage": _int(row.get("shield_damage")),
+            "shield_absorbed": _int(row.get("shield_absorbed")),
+            "shield_reflected": _int(row.get("shield_reflected")),
+            "reflected": _int(row.get("reflected")),
+            "prevented": _int(row.get("prevented")),
+            "defense_per_event": _float(row.get("defense_per_event")),
+        }
+        for part_id in part_ids
+        for row in [rows_by_part.get(part_id, {})]
+    ]
+    return TableWidgetMap(
+        key=f"combat_ai_analytics_tactical_{key_suffix}",
+        title=f"Тактика: {title}",
+        columns=[
+            TableColumnMap(key="part", label="Часть"),
+            TableColumnMap(key="attempts", label="Попытки"),
+            TableColumnMap(key="successes", label="Сработало"),
+            TableColumnMap(key="rate", label="%"),
+            TableColumnMap(key="chain_hits", label="Chain/off-hand"),
+            TableColumnMap(key="shield_defense", label="Блок-защ."),
+            TableColumnMap(key="shield_counter", label="Блок-контр."),
+            TableColumnMap(key="damage", label="Урон"),
+            TableColumnMap(key="damage_per_event", label="Урон/сраб."),
+            TableColumnMap(key="shield_damage", label="Щит-урон"),
+            TableColumnMap(key="shield_absorbed", label="Щит-погл."),
+            TableColumnMap(key="shield_reflected", label="Щит-возвр."),
+            TableColumnMap(key="reflected", label="Возврат"),
+            TableColumnMap(key="prevented", label="Предотвр."),
+            TableColumnMap(key="defense_per_event", label="Защ./сраб."),
+        ],
+        rows=rows,
+    )
+
+
+def _ranged_position_rows(runs: list[CombatAiSimulationRun]) -> list[dict[str, object]]:
+    shots = _ranged_position_totals(runs, "ranged_position_outgoing_by_actor")
+    incoming = _ranged_position_totals(runs, "ranged_position_incoming_by_actor")
+    attempts = _ranged_position_totals(runs, "ranged_position_defense_attempts_by_actor")
+    successes = _ranged_position_totals(runs, "ranged_position_defense_success_by_actor")
+    bow_damage = _ranged_position_totals(runs, "ranged_position_outgoing_damage_by_actor")
+    melee_taken = _ranged_position_totals(runs, "ranged_position_incoming_damage_by_actor")
+    return [
+        {
+            "position": position,
+            "shots": shots.get(position, 0),
+            "bow_damage": bow_damage.get(position, 0),
+            "bow_damage_per_shot": _round(_avg(bow_damage.get(position, 0), shots.get(position, 0))),
+            "incoming_melee": incoming.get(position, 0),
+            "ranged_dodge_attempts": attempts.get(position, 0),
+            "ranged_dodge_success": successes.get(position, 0),
+            "ranged_dodge_rate": _round(_pct(successes.get(position, 0), attempts.get(position, 0))),
+            "melee_taken": melee_taken.get(position, 0),
+            "melee_taken_per_entry": _round(_avg(melee_taken.get(position, 0), incoming.get(position, 0))),
+        }
+        for position in _RANGED_POSITIONS
+    ]
+
+
+def _ranged_position_totals(runs: list[CombatAiSimulationRun], telemetry_key: str) -> dict[str, int]:
+    totals = {position: 0 for position in _RANGED_POSITIONS}
+    for run in runs:
+        _merge_ranged_position_totals(totals, run.telemetry.get(telemetry_key))
+    return totals
 
 
 def _tactical_rows(run: CombatAiSimulationRun | None) -> list[dict[str, object]]:
@@ -1910,6 +2101,7 @@ def _tactical_rows(run: CombatAiSimulationRun | None) -> list[dict[str, object]]
             str(row["part"]),
         )
     )
+    _attach_tactical_rate_metrics(rows)
     for row in rows:
         row.pop("_sort", None)
     return rows
@@ -2112,6 +2304,7 @@ def _imprint_analytics_rows(runs: list[CombatAiSimulationRun]) -> list[dict[str,
         blocks = _dict(run.telemetry.get("block_by_actor"))
         armor_absorbed = _dict(run.telemetry.get("armor_absorbed_by_actor"))
         armor_absorb_events = _dict(run.telemetry.get("armor_absorb_events_by_actor"))
+        ranged_defense_successes = _dict(run.telemetry.get("ranged_position_defense_success_by_actor"))
         overkill = _dict(run.telemetry.get("overkill_by_actor"))
         deaths = {str(actor_id) for actor_id in run.telemetry.get("deaths") or []}
         for participant in participants:
@@ -2138,6 +2331,7 @@ def _imprint_analytics_rows(runs: list[CombatAiSimulationRun]) -> list[dict[str,
                     "dodges": 0,
                     "parries": 0,
                     "blocks": 0,
+                    "ranged_defense_successes": 0,
                     "armor_absorbed": 0,
                     "armor_absorb_events": 0,
                     "overkill": 0,
@@ -2182,6 +2376,9 @@ def _imprint_analytics_rows(runs: list[CombatAiSimulationRun]) -> list[dict[str,
             role["parries"] += _int(parries.get(actor_id))
             row["blocks"] += _int(blocks.get(actor_id))
             role["blocks"] += _int(blocks.get(actor_id))
+            ranged_defense = _ranged_position_actor_total(ranged_defense_successes.get(actor_id))
+            row["ranged_defense_successes"] += ranged_defense
+            role["ranged_defense_successes"] += ranged_defense
             row["armor_absorbed"] += _int(armor_absorbed.get(actor_id))
             role["armor_absorbed"] += _int(armor_absorbed.get(actor_id))
             row["armor_absorb_events"] += _int(armor_absorb_events.get(actor_id))
@@ -2241,8 +2438,12 @@ def _analytics_metric_row(
     behavior: str,
 ) -> dict[str, object]:
     appearances = max(1, _int(item.get("appearances")))
-    attempts = _int(item.get("hits")) + _int(item.get("misses"))
-    defence = _int(item.get("dodges")) + _int(item.get("parries")) + _int(item.get("blocks"))
+    hits = _int(item.get("hits"))
+    accuracy_checks = hits + _int(item.get("misses"))
+    ranged_defense = _int(item.get("ranged_defense_successes"))
+    dodges = _int(item.get("dodges"))
+    ordinary_dodges = max(0, dodges - ranged_defense)
+    defence = dodges + _int(item.get("parries")) + _int(item.get("blocks"))
     defence_total = max(1, defence)
     actions = max(1, _int(item.get("actions")))
     armor_events = max(1, _int(item.get("armor_absorb_events")))
@@ -2264,12 +2465,16 @@ def _analytics_metric_row(
         "gear_score_utility": _avg(item.get("gear_score_utility"), appearances),
         "effective_hp": _avg(item.get("effective_hp_total"), appearances),
         "damage_per_action": _avg(item.get("damage"), actions),
-        "hit_rate": _pct(item.get("hits"), attempts),
-        "crit_rate": _pct(item.get("crits"), attempts),
+        "attack_checks_per_action": _avg(accuracy_checks, actions),
+        "damage_per_hit": _avg(item.get("damage"), max(1, hits)),
+        "hit_rate": _pct(hits, accuracy_checks),
+        "crit_rate": _pct(item.get("crits"), hits),
         "avg_overkill": _avg(item.get("overkill"), appearances),
-        "dodge_per_appearance": _avg(item.get("dodges"), appearances),
+        "dodge_per_appearance": _avg(dodges, appearances),
+        "ordinary_dodge_per_appearance": _avg(ordinary_dodges, appearances),
         "parry_per_appearance": _avg(item.get("parries"), appearances),
         "block_per_appearance": _avg(item.get("blocks"), appearances),
+        "ranged_defense_per_appearance": _avg(ranged_defense, appearances),
         "armor_absorbed_per_appearance": _avg(item.get("armor_absorbed"), appearances),
         "armor_absorb_events_per_appearance": _avg(item.get("armor_absorb_events"), appearances),
         "armor_absorbed_per_event": _avg(item.get("armor_absorbed"), armor_events),
@@ -2300,6 +2505,7 @@ def _analytics_role_bucket(row: dict[str, Any], behavior: str) -> dict[str, Any]
             "dodges": 0,
             "parries": 0,
             "blocks": 0,
+            "ranged_defense_successes": 0,
             "armor_absorbed": 0,
             "armor_absorb_events": 0,
             "overkill": 0,
@@ -2346,6 +2552,30 @@ def _telemetry_rows(telemetry: dict[str, Any]) -> list[dict[str, object]]:
         {
             "metric": "tactical_shield_reflected_by_actor",
             "value": telemetry.get("tactical_shield_reflected_by_actor", {}),
+        },
+        {
+            "metric": "ranged_position_outgoing_by_actor",
+            "value": telemetry.get("ranged_position_outgoing_by_actor", {}),
+        },
+        {
+            "metric": "ranged_position_incoming_by_actor",
+            "value": telemetry.get("ranged_position_incoming_by_actor", {}),
+        },
+        {
+            "metric": "ranged_position_defense_attempts_by_actor",
+            "value": telemetry.get("ranged_position_defense_attempts_by_actor", {}),
+        },
+        {
+            "metric": "ranged_position_defense_success_by_actor",
+            "value": telemetry.get("ranged_position_defense_success_by_actor", {}),
+        },
+        {
+            "metric": "ranged_position_outgoing_damage_by_actor",
+            "value": telemetry.get("ranged_position_outgoing_damage_by_actor", {}),
+        },
+        {
+            "metric": "ranged_position_incoming_damage_by_actor",
+            "value": telemetry.get("ranged_position_incoming_damage_by_actor", {}),
         },
         {
             "metric": "checks",

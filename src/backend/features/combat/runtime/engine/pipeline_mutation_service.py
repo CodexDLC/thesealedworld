@@ -49,10 +49,16 @@ class PipelineMutationService:
         parts = path.split(".")
         obj = ctx
         for part in parts[:-1]:
+            if isinstance(obj, dict):
+                obj = obj.setdefault(part, {})
+                continue
             if not hasattr(obj, part):
                 raise ValueError(f"Invalid pipeline mutation path: {path!r}")
             obj = getattr(obj, part)
         field_name = parts[-1]
+        if isinstance(obj, dict):
+            obj[field_name] = value
+            return
         if not hasattr(obj, field_name):
             raise ValueError(f"Invalid pipeline mutation path: {path!r}")
         setattr(obj, field_name, value)

@@ -24,8 +24,9 @@ from .steps import (
     evasion_step,
     healing_step,
     parry_step,
+    ranged_position_defense_step,
 )
-from .support import trigger_activator
+from .support import token_awarder, trigger_activator
 
 if TYPE_CHECKING:
     from src.backend.features.combat.dto.actor import ActorStats
@@ -47,6 +48,7 @@ def run_exchange(
         return
 
     crit_step.run(atk, def_, ctx, res)
+    _mark_accuracy_success(res)
 
     if evasion_step.run(atk, def_, ctx, res):
         counter_check_step.run(atk, def_, ctx, res)
@@ -61,8 +63,20 @@ def run_exchange(
     if block_step.run(atk, def_, ctx, res):
         counter_check_step.run(atk, def_, ctx, res)
 
+    if ranged_position_defense_step.run(atk, def_, ctx, res):
+        return
+
     damage_callable(atk, def_, ctx, res)
     healing_step.run(atk, def_, ctx, res)
 
     if res.is_hit:
         trigger_activator.resolve_triggers(ctx, res, "ON_CHECK_CONTROL")
+
+
+def _mark_accuracy_success(res: InteractionResultDTO) -> None:
+    """Record offensive mastery success before defensive reactions resolve."""
+    res.is_hit = True
+    if res.is_crit:
+        token_awarder.award_attacker_token(res, "crit")
+    else:
+        token_awarder.award_attacker_token(res, "hit")

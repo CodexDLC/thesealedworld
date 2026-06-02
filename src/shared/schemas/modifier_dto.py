@@ -213,8 +213,6 @@ class DefensiveStatsDTO(BaseModel):
     # Block
     block: float = 0.0  # StatKey.BLOCK
     shield_block_cap: float = 0.75
-    shield_block_defense_weight: float = 1.0
-    shield_block_counter_weight: float = 0.0
 
 
 class MitigationStatsDTO(BaseModel):

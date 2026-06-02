@@ -19,7 +19,7 @@ from src.shared.schemas.modifier_dto import (
 class FeintCostDTO(BaseModel):
     """
     Стоимость финта в тактических токенах.
-    Ключи: "hit", "crit", "block", "parry", "dodge", "tempo", "blood"
+    Ключи: "hit", "crit", "block", "parry", "dodge", "tempo", "blood", "pressure"
     Значения: количество токенов для списания
     """
 

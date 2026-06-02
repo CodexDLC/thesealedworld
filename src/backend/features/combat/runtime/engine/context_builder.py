@@ -10,6 +10,7 @@ from src.backend.features.combat.dto import (
     PipelineStagesDTO,
 )
 from src.backend.features.combat.dto.trigger_rules import TriggerRulesFlagsDTO
+from src.backend.features.combat.runtime.engine.ranged_position import RangedPositionService
 from src.backend.features.combat.runtime.engine.trigger_activation import activate_trigger
 
 
@@ -138,10 +139,13 @@ class ContextBuilder:
         if source_type in ["main_hand", "off_hand"]:
             ctx.flags.meta.tactical_style_skill = actor.loadout.layout.get("tactical_style")
             weapon_skill_key = actor.loadout.layout.get(source_type)
-            if source_type == "main_hand" and weapon_skill_key == "skill_archery":
-                ctx.flags.restriction.ignore_parry = True
-                if actor.loadout.ammo_charges.get(source_type, 0) > 0 and ctx.flags.mechanics.pay_cost:
-                    ContextBuilder._attach_ammo_effect_payload(ctx, actor, source_type)
+            if (
+                source_type == "main_hand"
+                and weapon_skill_key == "skill_archery"
+                and actor.loadout.ammo_charges.get(source_type, 0) > 0
+                and ctx.flags.mechanics.pay_cost
+            ):
+                ContextBuilder._attach_ammo_effect_payload(ctx, actor, source_type)
             # Пример: "skill_swords" -> "swords"
             if weapon_skill_key and weapon_skill_key.startswith("skill_"):
                 ctx.flags.meta.weapon_class = weapon_skill_key.replace("skill_", "")
@@ -154,18 +158,26 @@ class ContextBuilder:
             if trigger_id:
                 activate_trigger(ctx, trigger_id, source="weapon", source_slot=source_type)
 
+            tactical_style = actor.loadout.layout.get("tactical_style")
             style_trigger = actor.loadout.layout.get("tactical_style_trigger")
             if (
                 source_type == "main_hand"
-                and style_trigger
-                and actor.loadout.layout.get("tactical_style") != "skill_shield_mastery"
+                and tactical_style == "skill_dual_wield"
+                and actor.loadout.layout.get("off_hand")
+            ):
+                ctx.result.chain_events.trigger_offhand_attack = True
+            if (
+                style_trigger
+                and tactical_style != "skill_shield_mastery"
+                and (source_type == "main_hand" or tactical_style == "skill_dual_wield")
             ):
                 activate_trigger(
                     ctx,
                     style_trigger,
                     source="style",
-                    source_id=actor.loadout.layout.get("tactical_style"),
+                    source_id=tactical_style,
                 )
+            RangedPositionService.apply_source_context(ctx, actor)
 
     @staticmethod
     def _activate_trigger_flag(ctx: PipelineContextDTO, trigger_id: str) -> None:
@@ -209,6 +221,8 @@ class ContextBuilder:
         off_hand_skill = layout.get("off_hand")
         if off_hand_skill == "skill_shield_mastery":
             ctx.flags.mastery.shield_reflect = True
+            ctx.stages.check_evasion = False
+            ctx.stages.check_block = True
             style_trigger = layout.get("tactical_style_trigger")
             if layout.get("tactical_style") == "skill_shield_mastery" and style_trigger:
                 activate_trigger(ctx, style_trigger, source="style", source_id=layout.get("tactical_style"))
@@ -217,3 +231,4 @@ class ContextBuilder:
             style_trigger = layout.get("tactical_style_trigger")
             if style_trigger:
                 activate_trigger(ctx, style_trigger, source="style", source_id=layout.get("tactical_style"))
+            RangedPositionService.apply_target_context(ctx, target)

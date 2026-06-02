@@ -208,7 +208,7 @@ class CharacterCombatActorInputBuilder:
 
         weapon_slot_set = set(weapon_slots)
         if {"main_hand", "off_hand"}.issubset(weapon_slot_set):
-            return "skill_dual_wield", "accuracy.style_dual_extra"
+            return "skill_dual_wield", "crit.style_dual_cross_cut"
 
         return None
 

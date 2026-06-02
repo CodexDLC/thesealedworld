@@ -933,7 +933,7 @@ class CombatLogBuilder:
     _SEPARATE_LINE_TRIGGERS: frozenset[str] = frozenset(
         {
             "counter_on_dodge",
-            "style_dual_extra",
+            "style_dual_cross_cut",
             "weapon_riposte_on_parry",
             "weapon_shield_bash_on_block",
         }
@@ -962,7 +962,7 @@ class CombatLogBuilder:
         tags: list[str],
         global_turn: int,
     ) -> dict[str, Any] | None:
-        proc_event = "proc" if trigger_id == "style_dual_extra" else cls._resolve_trigger_event_name(outcome)
+        proc_event = "proc" if trigger_id == "style_dual_cross_cut" else cls._resolve_trigger_event_name(outcome)
         source = cls._actor_ref(ctx, result.source_id)
         target = cls._actor_ref(ctx, result.target_id)
         source_name = str((source or {}).get("name") or "NO_SOURCE")

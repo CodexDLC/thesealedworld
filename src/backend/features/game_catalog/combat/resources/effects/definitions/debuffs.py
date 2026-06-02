@@ -160,6 +160,30 @@ _debuff_ranged_repositioning_catalog = EffectCatalogEntryDTO(
     ),
 )
 
+_shield_opening_catalog = EffectCatalogEntryDTO(
+    key="combat.effect.shield_opening",
+    technical=EffectTechnicalDTO(
+        effect_id="shield_opening",
+        type=EffectType.DEBUFF,
+        duration=999,
+        resistance_profile_id=None,
+        tags=["debuff", "shield", "opening", "defense_break"],
+    ),
+    descriptive=build_combat_description(
+        resource_type="effects",
+        resource_id="shield_opening",
+        icon="combat/effects/shield_opening.svg",
+        display_name="Окно щита",
+        short_description="Щитовой ответ связывает стойку: уклонение и парирование цели снижены до нового размена с щитовиком.",
+        humanoid_event_texts=CombatEventTextSetDTO(
+            apply_effect=["{source} отводит удар щитом и связывает стойку {target}."],
+            expire_effect=["{target} возвращает дистанцию после давления щита."],
+            cleanse=["Окно щита на {target} закрыто."],
+        ),
+        beast_event_texts=_DEBUFF_APPLY_BEAST,
+    ),
+)
+
 # ── REGISTRY ──────────────────────────────────────────────────────────────────
 
 DEBUFF_EFFECTS_CATALOG: dict[str, EffectCatalogEntryDTO] = {
@@ -169,4 +193,5 @@ DEBUFF_EFFECTS_CATALOG: dict[str, EffectCatalogEntryDTO] = {
     "debuff_accuracy": _debuff_accuracy_catalog,
     "debuff_2h_damage_halved": _debuff_2h_damage_halved_catalog,
     "debuff_ranged_repositioning": _debuff_ranged_repositioning_catalog,
+    "shield_opening": _shield_opening_catalog,
 }

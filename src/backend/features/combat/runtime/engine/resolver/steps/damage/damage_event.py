@@ -42,6 +42,17 @@ def emit(
         shield_reflect_base=state.shield_reflect_base,
         shield_reflect_ratio=state.shield_reflect_ratio,
         shield_mastery=state.shield_mastery,
+        ranged_position_source=state.ranged_position_source,
+        ranged_position_target=state.ranged_position_target,
+        ranged_position_outgoing_mult=(
+            state.ranged_position_outgoing_mult if state.ranged_position_source is not None else None
+        ),
+        ranged_position_outgoing_bonus_mult=(
+            state.ranged_position_outgoing_bonus_mult if state.ranged_position_source is not None else None
+        ),
+        ranged_position_incoming_mult=(
+            state.ranged_position_incoming_mult if state.ranged_position_target is not None else None
+        ),
         weapon_technique_bonus_damage=ctx.mods.weapon_technique_bonus_damage,
         phys_res=state.phys_res_raw,
         physical_suppression=state.phys_suppression,

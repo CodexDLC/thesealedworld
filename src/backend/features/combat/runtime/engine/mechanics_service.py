@@ -9,6 +9,7 @@ from src.backend.features.combat.dto import (
     CombatEffectFactDTO,
     CombatEventDTO,
     CombatResourceFactDTO,
+    CombatStatusRemovalDTO,
     CombatTokenFactDTO,
     InteractionResultDTO,
     PipelineContextDTO,
@@ -18,8 +19,10 @@ from src.backend.features.combat.runtime.engine.feint_service import FeintServic
 from src.backend.features.combat.runtime.engine.modifier_application_service import ModifierApplicationService
 
 BLOOD_TOKEN_DAMAGE_STEP = 10
+PRESSURE_TOKEN_DAMAGE_STEP = BLOOD_TOKEN_DAMAGE_STEP
 GIFT_TOKEN_PER_EXCHANGE = 1
 BLOOD_MARKER = "blood"
+PRESSURE_MARKER = "pressure"
 GIFT_MARKER = "gift"
 
 
@@ -116,17 +119,22 @@ class MechanicsService:
             result: Resolver/post-process output to materialize.
         """
         # 1. [SOURCE] Apply Costs & Tokens
-        self._apply_source_changes(ctx, source, result)
+        self._apply_source_changes(ctx, source, target, result)
 
         # 2. [TARGET] Apply Damage
         if target:
-            self._apply_target_changes(ctx, target, result)
+            self._apply_target_changes(ctx, source, target, result)
 
         # 2.5. [RESOURCES] Commit actor-specific staged resource deltas.
         self._apply_staged_resource_applications(source, target, result)
 
         # 3. [XP] Register Events
         self._register_xp_events(ctx, source, target, result)
+
+        # 3.25. [SHIELD OPENING] Existing opening lasts through this exchange
+        # against its source, then drops before newly staged effects are applied.
+        if target:
+            self._consume_shield_opening_between(source, target, result)
 
         # 3.5. [STATUS] Commit staged effects/removals after resource math.
         self._apply_staged_status_changes(ctx, source, target, result)
@@ -156,7 +164,11 @@ class MechanicsService:
     # ==============================================================================
 
     def _apply_source_changes(
-        self, ctx: PipelineContextDTO, source: ActorSnapshot, result: InteractionResultDTO
+        self,
+        ctx: PipelineContextDTO,
+        source: ActorSnapshot,
+        target: ActorSnapshot | None,
+        result: InteractionResultDTO,
     ) -> None:
         """Apply source-side costs, token awards, and reflected damage."""
         # A. Costs (из resource_changes)
@@ -241,6 +253,13 @@ class MechanicsService:
         # B. Tokens Awarded (Всегда начисляем, если не сказано иное? Пока оставим безусловно)
         if result.tokens_awarded_attacker:
             for token, amount in result.tokens_awarded_attacker.items():
+                if self._token_award_already_materialized(
+                    result,
+                    actor_id=source.char_id,
+                    owner="source",
+                    token=token,
+                ):
+                    continue
                 before = source.meta.tokens.get(token, 0)
                 source.meta.tokens[token] = source.meta.tokens.get(token, 0) + amount
                 result.token_facts.append(
@@ -276,6 +295,14 @@ class MechanicsService:
                 applied=applied,
                 token_bucket=result.tokens_awarded_attacker,
             )
+            if target:
+                self._apply_damage_dealt_token_progress(
+                    result,
+                    actor=target,
+                    owner="target",
+                    applied=applied,
+                    token_bucket=result.tokens_awarded_defender,
+                )
             result.events.append(
                 CombatEventDTO(
                     type="HIT",
@@ -290,6 +317,89 @@ class MechanicsService:
             if ctx.flags.mechanics.check_death and source.meta.hp <= 0:
                 source.meta.is_dead = True
                 result.death_facts.append(CombatDeathFactDTO(actor_id=source.char_id, owner="source", reason="reflect"))
+                result.events.append(
+                    CombatEventDTO(
+                        type="DEATH",
+                        source_id=source.char_id,
+                        target_id=source.char_id,
+                        value=0,
+                    )
+                )
+
+        if ctx.flags.mechanics.apply_damage and result.shield_counter_damage > 0:
+            applied = self._apply_resource_delta(source, "hp", [f"-{result.shield_counter_damage}"])
+            self._record_resource_fact(
+                result,
+                actor=source,
+                owner="source",
+                resource="hp",
+                reason="shield_counter",
+                applied=applied,
+                tags=["SHIELD_COUNTER"],
+            )
+            self._apply_damage_taken_token_progress(
+                result,
+                actor=source,
+                owner="source",
+                applied=applied,
+                token_bucket=result.tokens_awarded_attacker,
+            )
+            if target:
+                self._apply_damage_dealt_token_progress(
+                    result,
+                    actor=target,
+                    owner="target",
+                    applied=applied,
+                    token_bucket=result.tokens_awarded_defender,
+                )
+
+            if ctx.flags.mechanics.check_death and source.meta.hp <= 0:
+                source.meta.is_dead = True
+                result.death_facts.append(
+                    CombatDeathFactDTO(actor_id=source.char_id, owner="source", reason="shield_counter")
+                )
+                result.events.append(
+                    CombatEventDTO(
+                        type="DEATH",
+                        source_id=source.char_id,
+                        target_id=source.char_id,
+                        value=0,
+                    )
+                )
+
+        if ctx.flags.mechanics.apply_damage and result.ranged_punish_damage > 0:
+            applied = self._apply_resource_delta(source, "hp", [f"-{result.ranged_punish_damage}"])
+            self._record_resource_fact(
+                result,
+                actor=source,
+                owner="source",
+                resource="hp",
+                reason="ranged_far_punish",
+                applied=applied,
+                source_trigger_id="style_ranged_perfect_backstep",
+                tags=["RANGED_PUNISH", "CRIT"],
+            )
+            self._apply_damage_taken_token_progress(
+                result,
+                actor=source,
+                owner="source",
+                applied=applied,
+                token_bucket=result.tokens_awarded_attacker,
+            )
+            if target:
+                self._apply_damage_dealt_token_progress(
+                    result,
+                    actor=target,
+                    owner="target",
+                    applied=applied,
+                    token_bucket=result.tokens_awarded_defender,
+                )
+
+            if ctx.flags.mechanics.check_death and source.meta.hp <= 0:
+                source.meta.is_dead = True
+                result.death_facts.append(
+                    CombatDeathFactDTO(actor_id=source.char_id, owner="source", reason="ranged_far_punish")
+                )
                 result.events.append(
                     CombatEventDTO(
                         type="DEATH",
@@ -485,8 +595,45 @@ class MechanicsService:
                 ),
             )
 
+    def _consume_shield_opening_between(
+        self, source: ActorSnapshot, target: ActorSnapshot, result: InteractionResultDTO
+    ) -> None:
+        self._consume_actor_shield_opening(source, opposing_actor=target, result=result)
+        self._consume_actor_shield_opening(target, opposing_actor=source, result=result)
+
+    @staticmethod
+    def _consume_actor_shield_opening(
+        actor: ActorSnapshot, *, opposing_actor: ActorSnapshot, result: InteractionResultDTO
+    ) -> None:
+        kept_effects = []
+        owner = "source" if str(actor.char_id) == str(result.source_id) else "target"
+        for effect in actor.statuses.effects:
+            if effect.effect_id == "shield_opening" and str(effect.source_id) == str(opposing_actor.char_id):
+                result.status_removals.append(
+                    CombatStatusRemovalDTO(
+                        actor_id=actor.char_id,
+                        effect_uid=effect.uid,
+                        effect_id=effect.effect_id,
+                        source_effect_id=effect.effect_id,
+                        tags=["shield", "opening", "source_exchange"],
+                    )
+                )
+                result.effect_facts.append(
+                    CombatEffectFactDTO(
+                        actor_id=actor.char_id,
+                        owner=owner,
+                        effect_id=effect.effect_id,
+                        action="expire",
+                        source_effect_id=effect.effect_id,
+                        tags=["shield", "opening", "source_exchange"],
+                    )
+                )
+                continue
+            kept_effects.append(effect)
+        actor.statuses.effects = kept_effects
+
     def _apply_target_changes(
-        self, ctx: PipelineContextDTO, target: ActorSnapshot, result: InteractionResultDTO
+        self, ctx: PipelineContextDTO, source: ActorSnapshot, target: ActorSnapshot, result: InteractionResultDTO
     ) -> None:
         """Apply target-side damage, death checks, and defensive token awards."""
         damage_applied: tuple[int, int, int, int] | None = None
@@ -508,6 +655,13 @@ class MechanicsService:
                     reason="damage",
                     applied=damage_applied,
                 )
+                self._apply_damage_dealt_token_progress(
+                    result,
+                    actor=source,
+                    owner="source",
+                    applied=damage_applied,
+                    token_bucket=result.tokens_awarded_attacker,
+                )
 
         # B. Death Check
         if ctx.flags.mechanics.check_death and target.meta.hp <= 0:
@@ -527,6 +681,13 @@ class MechanicsService:
         # C. Tokens Awarded
         if result.tokens_awarded_defender:
             for token, amount in result.tokens_awarded_defender.items():
+                if self._token_award_already_materialized(
+                    result,
+                    actor_id=target.char_id,
+                    owner="target",
+                    token=token,
+                ):
+                    continue
                 before = target.meta.tokens.get(token, 0)
                 target.meta.tokens[token] = target.meta.tokens.get(token, 0) + amount
                 result.token_facts.append(
@@ -633,8 +794,8 @@ class MechanicsService:
             )
         )
 
-    @staticmethod
     def _apply_damage_taken_token_progress(
+        self,
         result: InteractionResultDTO,
         *,
         actor: ActorSnapshot,
@@ -642,39 +803,85 @@ class MechanicsService:
         applied: tuple[int, int, int, int] | None,
         token_bucket: dict[str, int],
     ) -> None:
+        self._apply_damage_token_progress(
+            result,
+            actor=actor,
+            owner=owner,
+            applied=applied,
+            token_bucket=token_bucket,
+            token=BLOOD_MARKER,
+            threshold=BLOOD_TOKEN_DAMAGE_STEP,
+            reason="damage_taken",
+            skip_dead_recipient=True,
+        )
+
+    def _apply_damage_dealt_token_progress(
+        self,
+        result: InteractionResultDTO,
+        *,
+        actor: ActorSnapshot,
+        owner: Literal["source", "target", "self", "other"],
+        applied: tuple[int, int, int, int] | None,
+        token_bucket: dict[str, int],
+    ) -> None:
+        self._apply_damage_token_progress(
+            result,
+            actor=actor,
+            owner=owner,
+            applied=applied,
+            token_bucket=token_bucket,
+            token=PRESSURE_MARKER,
+            threshold=PRESSURE_TOKEN_DAMAGE_STEP,
+            reason="damage_dealt",
+            skip_dead_recipient=False,
+        )
+
+    @staticmethod
+    def _apply_damage_token_progress(
+        result: InteractionResultDTO,
+        *,
+        actor: ActorSnapshot,
+        owner: Literal["source", "target", "self", "other"],
+        applied: tuple[int, int, int, int] | None,
+        token_bucket: dict[str, int],
+        token: str,
+        threshold: int,
+        reason: str,
+        skip_dead_recipient: bool,
+    ) -> None:
         if applied is None:
             return
 
         before_hp, after_hp, _max_hp, delta = applied
-        if delta >= 0 or after_hp <= 0:
+        if delta >= 0 or (skip_dead_recipient and after_hp <= 0):
             return
 
         hp_lost = max(0, before_hp - after_hp)
         if hp_lost <= 0:
             return
 
-        old_progress = MechanicsService._token_progress_value(actor, BLOOD_MARKER)
+        old_progress = MechanicsService._token_progress_value(actor, token)
         new_progress = old_progress + hp_lost
-        token_gain = new_progress // BLOOD_TOKEN_DAMAGE_STEP
-        actor.meta.token_progress[BLOOD_MARKER] = new_progress % BLOOD_TOKEN_DAMAGE_STEP
+        token_gain = new_progress // threshold
+        actor.meta.token_progress[token] = new_progress % threshold
 
         if token_gain <= 0:
             return
 
-        before_tokens = actor.meta.tokens.get(BLOOD_MARKER, 0)
+        before_tokens = actor.meta.tokens.get(token, 0)
         after_tokens = before_tokens + token_gain
-        actor.meta.tokens[BLOOD_MARKER] = after_tokens
-        token_bucket[BLOOD_MARKER] = token_bucket.get(BLOOD_MARKER, 0) + token_gain
+        actor.meta.tokens[token] = after_tokens
+        token_bucket[token] = token_bucket.get(token, 0) + token_gain
         result.token_facts.append(
             CombatTokenFactDTO(
                 actor_id=actor.char_id,
                 owner=owner,
-                token=BLOOD_MARKER,
+                token=token,
                 amount=token_gain,
                 before=before_tokens,
                 after=after_tokens,
-                reason="damage_taken",
-                tags=["damage_taken"],
+                reason=reason,
+                tags=[reason],
             )
         )
 
@@ -684,6 +891,23 @@ class MechanicsService:
             return max(0, int(actor.meta.token_progress.get(token, 0)))
         except (TypeError, ValueError):
             return 0
+
+    @staticmethod
+    def _token_award_already_materialized(
+        result: InteractionResultDTO,
+        *,
+        actor_id: str,
+        owner: Literal["source", "target"],
+        token: str,
+    ) -> bool:
+        progress_reasons = {"damage_taken", "damage_dealt"}
+        return any(
+            fact.actor_id == str(actor_id)
+            and fact.owner == owner
+            and fact.token == token
+            and fact.reason in progress_reasons
+            for fact in result.token_facts
+        )
 
     def _grant_exchange_gift_token(
         self,

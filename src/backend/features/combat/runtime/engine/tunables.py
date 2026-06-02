@@ -21,9 +21,8 @@ class CombatTunables:
     """
 
     parry_skill_mult_per_point: float = 4.0
-    shield_block_skill_bonus_at_full: float = 0.32
-    base_accuracy_chance: float = 0.70
-    skill_accuracy_bonus_at_full: float = 0.30
+    base_accuracy_chance: float = 0.60
+    skill_accuracy_bonus_at_full: float = 0.40
     accuracy_chance_cap: float = 0.90
     accuracy_penalty_weapon_skill_reduction_at_full: float = 0.45
     accuracy_penalty_style_skill_reduction_at_full: float = 0.45
@@ -33,6 +32,24 @@ class CombatTunables:
     unarmed_novice_spread: float = 0.5
     unarmed_master_spread: float = 0.1
     token_bonus_chance: float = 0.30
+    shield_block_power_to_chance: float = 0.015
+    shield_block_evasion_bonus_rate: float = 1.0
+    shield_block_base_cap: float = 0.45
+    shield_block_mastery_cap_bonus: float = 0.30
+    shield_guard_absorb_rate: float = 0.35
+    shield_guard_evasion_penalty_rate: float = 0.45
+    shield_guard_evasion_penalty_floor: float = 0.35
+    shield_counter_cap: float = 0.50
+    shield_counter_damage_ratio: float = 0.50
+    shield_opening_evasion_rate: float = 1.0
+    shield_opening_min_strength: float = 0.10
+    shield_opening_max_strength: float = 0.30
+    armor_light_coef: float = 0.030
+    armor_medium_coef: float = 0.055
+    armor_heavy_coef: float = 0.085
+    armor_light_cap: float = 0.70
+    armor_medium_cap: float = 0.80
+    armor_heavy_cap: float = 0.90
 
 
 DEFAULT_COMBAT_TUNABLES = CombatTunables()
@@ -61,11 +78,6 @@ async def load_combat_tunables(manager: GameConfigManager | None) -> CombatTunab
     return CombatTunables(
         parry_skill_mult_per_point=await manager.get_float(
             "combat", "PARRY_SKILL_MULT_PER_POINT", default=d.parry_skill_mult_per_point
-        ),
-        shield_block_skill_bonus_at_full=await manager.get_float(
-            "combat",
-            "SHIELD_BLOCK_SKILL_BONUS_AT_FULL",
-            default=d.shield_block_skill_bonus_at_full,
         ),
         base_accuracy_chance=await manager.get_float("combat", "BASE_ACCURACY_CHANCE", default=d.base_accuracy_chance),
         skill_accuracy_bonus_at_full=await manager.get_float(
@@ -106,4 +118,44 @@ async def load_combat_tunables(manager: GameConfigManager | None) -> CombatTunab
             "combat", "UNARMED_MASTER_SPREAD", default=d.unarmed_master_spread
         ),
         token_bonus_chance=await manager.get_float("combat", "TOKEN_BONUS_CHANCE", default=d.token_bonus_chance),
+        shield_block_power_to_chance=await manager.get_float(
+            "combat", "SHIELD_BLOCK_POWER_TO_CHANCE", default=d.shield_block_power_to_chance
+        ),
+        shield_block_evasion_bonus_rate=await manager.get_float(
+            "combat", "SHIELD_BLOCK_EVASION_BONUS_RATE", default=d.shield_block_evasion_bonus_rate
+        ),
+        shield_block_base_cap=await manager.get_float(
+            "combat", "SHIELD_BLOCK_BASE_CAP", default=d.shield_block_base_cap
+        ),
+        shield_block_mastery_cap_bonus=await manager.get_float(
+            "combat", "SHIELD_BLOCK_MASTERY_CAP_BONUS", default=d.shield_block_mastery_cap_bonus
+        ),
+        shield_guard_absorb_rate=await manager.get_float(
+            "combat", "SHIELD_GUARD_ABSORB_RATE", default=d.shield_guard_absorb_rate
+        ),
+        shield_guard_evasion_penalty_rate=await manager.get_float(
+            "combat", "SHIELD_GUARD_EVASION_PENALTY_RATE", default=d.shield_guard_evasion_penalty_rate
+        ),
+        shield_guard_evasion_penalty_floor=await manager.get_float(
+            "combat", "SHIELD_GUARD_EVASION_PENALTY_FLOOR", default=d.shield_guard_evasion_penalty_floor
+        ),
+        shield_counter_cap=await manager.get_float("combat", "SHIELD_COUNTER_CAP", default=d.shield_counter_cap),
+        shield_counter_damage_ratio=await manager.get_float(
+            "combat", "SHIELD_COUNTER_DAMAGE_RATIO", default=d.shield_counter_damage_ratio
+        ),
+        shield_opening_evasion_rate=await manager.get_float(
+            "combat", "SHIELD_OPENING_EVASION_RATE", default=d.shield_opening_evasion_rate
+        ),
+        shield_opening_min_strength=await manager.get_float(
+            "combat", "SHIELD_OPENING_MIN_STRENGTH", default=d.shield_opening_min_strength
+        ),
+        shield_opening_max_strength=await manager.get_float(
+            "combat", "SHIELD_OPENING_MAX_STRENGTH", default=d.shield_opening_max_strength
+        ),
+        armor_light_coef=await manager.get_float("combat", "ARMOR_LIGHT_COEF", default=d.armor_light_coef),
+        armor_medium_coef=await manager.get_float("combat", "ARMOR_MEDIUM_COEF", default=d.armor_medium_coef),
+        armor_heavy_coef=await manager.get_float("combat", "ARMOR_HEAVY_COEF", default=d.armor_heavy_coef),
+        armor_light_cap=await manager.get_float("combat", "ARMOR_LIGHT_CAP", default=d.armor_light_cap),
+        armor_medium_cap=await manager.get_float("combat", "ARMOR_MEDIUM_CAP", default=d.armor_medium_cap),
+        armor_heavy_cap=await manager.get_float("combat", "ARMOR_HEAVY_CAP", default=d.armor_heavy_cap),
     )

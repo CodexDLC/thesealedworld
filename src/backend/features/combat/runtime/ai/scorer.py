@@ -55,7 +55,7 @@ class PolicyScorer:
         # is unremarkable. Both signals are positive contributions to the
         # anti-X branch they extend.
         if "anti_block" in tags:
-            score += policy.get("anti_block") * target_obs.block
+            score += policy.get("anti_block") * max(target_obs.block, _shield_block_pressure(target_obs))
             score += policy.get("observed_block_rate") * target_obs.observed_block_rate
         if "anti_parry" in tags:
             score += policy.get("anti_parry") * target_obs.parry
@@ -64,7 +64,7 @@ class PolicyScorer:
             score += policy.get("anti_evasion") * target_obs.evasion
             score += policy.get("observed_evasion_rate") * target_obs.observed_dodge_rate
         if "armor_bypass" in tags:
-            score += policy.get("armor_bypass") * _armor_density(target_obs)
+            score += policy.get("armor_bypass") * max(_armor_density(target_obs), _shield_guard_density(target_obs))
         if "control" in tags:
             score += policy.get("control")
         if "bleed" in tags:
@@ -84,6 +84,30 @@ class PolicyScorer:
             score += policy.get("finishable")
         if "execute" in tags and not target_obs.finishable:
             score -= 100.0
+
+        # === Ranged position style ===
+        # These tags are meaningful only for the archer tactical style. They
+        # mirror the resolver's distance contract: close is dangerous and
+        # weak for bow output, far is safer and amplifies outgoing archery.
+        if self_obs.is_ranged_style:
+            position_need = _ranged_position_need(self_obs.ranged_position)
+            position_advantage = _ranged_position_advantage(self_obs.ranged_position)
+            incoming_threat = min(
+                1.0,
+                target_obs.counter_attack_chance
+                + (0.35 if target_obs.is_shield_style else 0.0)
+                + (_shield_guard_density(target_obs) * 0.5),
+            )
+            if "ranged_reposition" in tags:
+                score += policy.get("ranged_reposition") * (position_need + 0.5 * incoming_threat)
+            if "ranged_keep_far" in tags:
+                score += policy.get("ranged_keep_far") * (position_need + 0.25 * incoming_threat)
+            if "ranged_stabilize" in tags:
+                score += policy.get("ranged_stabilize") * (0.4 + position_need + (1.0 - self_obs.hp_pct) * 0.5)
+            if "ranged_pressure_reduce" in tags:
+                score += policy.get("ranged_pressure_reduce") * (0.3 + incoming_threat)
+            if "ranged_position_damage" in tags:
+                score += policy.get("ranged_position_damage") * (0.4 + position_advantage)
 
         # === Self-care axes: weight scaled by how badly the bot needs it ===
         if "heal" in tags:
@@ -140,8 +164,8 @@ class PolicyScorer:
         # === Resource-pool signals: bot already carries these tokens ===
         if self_obs.tokens.get("blood", 0) > 0:
             score += policy.get("blood_resource") * min(3, int(self_obs.tokens["blood"]))
-        if self_obs.tokens.get("counter", 0) > 0 and "counter" in tags:
-            score += policy.get("counter_resource")
+        if self_obs.tokens.get("pressure", 0) > 0 and "pressure" in tags:
+            score += policy.get("pressure_resource")
         if self_obs.tokens.get("gift", 0) > 0:
             score += policy.get("gift_resource")
 
@@ -189,3 +213,25 @@ def _baseline_damage_factor(target_obs: TargetObservation) -> float:
 def _armor_density(target_obs: TargetObservation) -> float:
     """Normalised armor footprint, capped so a huge raw value cannot dominate."""
     return min(1.0, target_obs.armor / 50.0)
+
+
+def _shield_guard_density(target_obs: TargetObservation) -> float:
+    """Normalised shield guard footprint used by the current block resolver."""
+    return min(1.0, max(0.0, target_obs.shield_guard_power) / 50.0)
+
+
+def _shield_block_pressure(target_obs: TargetObservation) -> float:
+    guard = _shield_guard_density(target_obs)
+    if guard <= 0.0 and target_obs.shield_mastery <= 0.0:
+        return 0.0
+    mastery = max(0.0, min(1.0, target_obs.shield_mastery))
+    style_bonus = 0.2 if target_obs.is_shield_style else 0.0
+    return min(1.0, guard * (0.6 + mastery + style_bonus))
+
+
+def _ranged_position_need(position: str | None) -> float:
+    return {"close": 1.0, "mid": 0.45, "far": 0.0}.get(position or "far", 0.0)
+
+
+def _ranged_position_advantage(position: str | None) -> float:
+    return {"far": 1.0, "mid": 0.4, "close": 0.0}.get(position or "far", 1.0)

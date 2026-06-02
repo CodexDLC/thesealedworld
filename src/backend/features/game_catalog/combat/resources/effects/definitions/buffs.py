@@ -393,7 +393,6 @@ _prep_active_defense_catalog = EffectCatalogEntryDTO(
         duration=999,
         pipeline_mutations=[
             pipeline_mutation("force.block"),
-            pipeline_mutation("force_shield_defense_branch"),
             pipeline_mutation("shield_guard_power_mult", 1.25),
         ],
         pipeline_mutation_role="target",
@@ -406,7 +405,7 @@ _prep_active_defense_catalog = EffectCatalogEntryDTO(
         resource_id="prep_active_defense",
         icon="combat/effects/prep_active_defense.svg",
         display_name="Активная защита",
-        short_description="Следующий входящий удар принудительно принимается защитной веткой щита.",
+        short_description="Следующий входящий удар принудительно встречается щитом с усиленным guard.",
         humanoid_event_texts=CombatEventTextSetDTO(
             apply_effect=["{target} поднимает щит в активную защиту."],
             expire_effect=["{target} гасит удар активной защитой."],
@@ -424,7 +423,6 @@ _prep_full_defense_catalog = EffectCatalogEntryDTO(
         duration=999,
         pipeline_mutations=[
             pipeline_mutation("force.block"),
-            pipeline_mutation("force_shield_defense_branch"),
             pipeline_mutation("shield_guard_power_mult", 2.5),
         ],
         pipeline_mutation_role="target",
@@ -437,7 +435,7 @@ _prep_full_defense_catalog = EffectCatalogEntryDTO(
         resource_id="prep_full_defense",
         icon="combat/effects/prep_full_defense.svg",
         display_name="Полная защита",
-        short_description="Следующий входящий удар принудительно уходит в усиленную защитную ветку щита.",
+        short_description="Следующий входящий удар принудительно встречается усиленным щитовым guard.",
         humanoid_event_texts=CombatEventTextSetDTO(
             apply_effect=["{target} закрывается полной защитой."],
             expire_effect=["{target} сводит удар к минимуму полной защитой."],
@@ -455,7 +453,6 @@ _prep_absolute_defense_catalog = EffectCatalogEntryDTO(
         duration=1,
         pipeline_mutations=[
             pipeline_mutation("force.block"),
-            pipeline_mutation("force_shield_defense_branch"),
             pipeline_mutation("shield_guard_power_mult", 2.5),
             pipeline_mutation("incoming_damage_cap", 1),
         ],
@@ -488,21 +485,19 @@ _prep_aggressive_defense_catalog = EffectCatalogEntryDTO(
         duration=999,
         pipeline_mutations=[
             pipeline_mutation("force.block"),
-            pipeline_mutation("force_shield_counter_branch"),
-            pipeline_mutation("shield_counter_from_absorbed"),
-            pipeline_mutation("shield_counter_power_mult", 1.5),
+            pipeline_mutation("shield_guard_power_mult", 1.5),
         ],
         pipeline_mutation_role="target",
         react_on_outcomes=["hit", "crit", "block"],
         consume_on_reaction=True,
-        tags=["buff", "preparation", "block", "shield", "damage_cap", "reflect"],
+        tags=["buff", "preparation", "block", "shield", "guard"],
     ),
     descriptive=build_combat_description(
         resource_type="effects",
         resource_id="prep_aggressive_defense",
         icon="combat/effects/prep_aggressive_defense.svg",
         display_name="Агрессивная защита",
-        short_description="Следующий входящий удар принудительно уходит в контр-ветку щита.",
+        short_description="Следующий входящий удар принудительно встречается щитом и усиливает guard.",
         humanoid_event_texts=CombatEventTextSetDTO(
             apply_effect=["{target} поднимает щит в агрессивную защиту."],
             expire_effect=["{target} встречает удар агрессивной защитой."],
@@ -952,6 +947,30 @@ _prep_dual_blade_loop_counter_catalog = _dual_prep_catalog(
     tags=["counter", "counter_only", "damage", "debuff", "high_cost"],
 )
 
+_ranged_position_catalog = EffectCatalogEntryDTO(
+    key="combat.effect.ranged_position",
+    technical=EffectTechnicalDTO(
+        effect_id="ranged_position",
+        type=EffectType.BUFF,
+        duration=1,
+        resistance_profile_id=None,
+        tags=["ranged_combat", "position"],
+    ),
+    descriptive=build_combat_description(
+        resource_type="effects",
+        resource_id="ranged_position",
+        icon="combat/effects/ranged_position.svg",
+        display_name="Дистанция лучника",
+        short_description="Текущая позиция дальнего боя: дальняя, средняя или ближняя.",
+        humanoid_event_texts=CombatEventTextSetDTO(
+            apply_effect=["{source} меняет дистанцию боя."],
+            expire_effect=["Дистанция {target} меняется."],
+            cleanse=["Дистанция {target} сбита."],
+        ),
+        beast_event_texts=_BUFF_APPLY_BEAST,
+    ),
+)
+
 # ── REGISTRY ──────────────────────────────────────────────────────────────────
 
 BUFF_EFFECTS_CATALOG: dict[str, EffectCatalogEntryDTO] = {
@@ -996,4 +1015,5 @@ BUFF_EFFECTS_CATALOG: dict[str, EffectCatalogEntryDTO] = {
     "prep_dual_blade_mill_counter": _prep_dual_blade_mill_counter_catalog,
     "prep_dual_blade_loop_parry": _prep_dual_blade_loop_parry_catalog,
     "prep_dual_blade_loop_counter": _prep_dual_blade_loop_counter_catalog,
+    "ranged_position": _ranged_position_catalog,
 }

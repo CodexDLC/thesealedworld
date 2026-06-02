@@ -368,13 +368,12 @@ def test_resolve_mutation_value_returns_none_for_unknown_mutation() -> None:
 
 # ---------------------------------------------------------------------------
 # 10. multi_target: AoE feints must derive ``multi_target`` from target_count > 1.
-# These are the five swarm-cleanup feints used by the PR6 training scenarios.
+# These are the swarm-cleanup feints used by the PR6 training scenarios.
 # ---------------------------------------------------------------------------
 
 
 _AOE_FEINTS: tuple[str, ...] = (
     "arrow_rain",
-    "ranged_covering_volley",
     "polearm_line_cleave",
     "two_handed_whirl",
     "dual_blade_whirl",
@@ -399,3 +398,41 @@ def test_aoe_feint_keeps_damage_tag(feint_id: str) -> None:
     """multi_target is additive: AoE feints must still compete on the
     damage axis against single-target attacks."""
     assert "damage_tag" in _tags(feint_id), f"{feint_id} lost damage_tag despite AoE applicability"
+
+
+# ---------------------------------------------------------------------------
+# 11. ranged position semantics: tactical-ranged mutations must become
+# trainable tags, not only opaque resolver action_facts.
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.unit
+def test_open_distance_emits_ranged_reposition_and_keep_far_tags() -> None:
+    tags = _tags("open_distance")
+    assert {"ranged_reposition", "ranged_keep_far"} <= tags
+
+
+@pytest.mark.unit
+def test_covering_position_emits_ranged_stabilize_tag() -> None:
+    tags = _tags("covering_position")
+    assert "ranged_stabilize" in tags
+    assert "ranged_keep_far" in tags
+
+
+@pytest.mark.unit
+def test_backstep_shot_emits_ranged_reposition_tag() -> None:
+    tags = _tags("backstep_shot")
+    assert "ranged_reposition" in tags
+    assert "damage_tag" in tags
+
+
+@pytest.mark.unit
+def test_blinding_shot_emits_ranged_pressure_reduce_tag() -> None:
+    assert "ranged_pressure_reduce" in _tags("blinding_shot")
+
+
+@pytest.mark.unit
+def test_ranged_covering_volley_emits_position_damage_tag() -> None:
+    tags = _tags("ranged_covering_volley")
+    assert "ranged_position_damage" in tags
+    assert "damage_tag" in tags

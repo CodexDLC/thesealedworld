@@ -5,8 +5,8 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from src.backend.features.combat.runtime.engine.math_core import MathCore
+from src.backend.features.combat.runtime.engine.ranged_position import RangedPositionService
 
-from ..support import token_awarder
 from ._base import ResolverStep
 
 if TYPE_CHECKING:
@@ -28,6 +28,8 @@ class CounterCheckStep(ResolverStep):
         res: InteractionResultDTO,
     ) -> None:
         if not ctx.stages.check_counter or not ctx.flags.state.check_counter:
+            return
+        if not RangedPositionService.source_counter_reachable(ctx):
             return
 
         base_chance = def_.mods.counter_attack_chance
@@ -58,7 +60,6 @@ class CounterCheckStep(ResolverStep):
 
         if counter_chance > 0 and MathCore.check_chance(counter_chance):
             res.is_counter = True
-            token_awarder.award_defender_token(res, "counter")
             res.chain_events.trigger_counter_attack = True
 
 

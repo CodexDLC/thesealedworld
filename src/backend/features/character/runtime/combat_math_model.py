@@ -31,6 +31,22 @@ HEAVY_ARMOR_NATURAL_RESISTANCE_BONUS_AT_FULL = 0.50
 PHYSICAL_RESISTANCE_PER_ENDURANCE = ATTRIBUTE_MODIFIER_RULES[StatKey.PHYSICAL_RESISTANCE][StatKey.ENDURANCE]
 MEDIUM_CHEST_DODGE_CAP_PENALTY = -0.20
 LIGHT_ARMOR_SKILL_DODGE_CAP_BOOST = 0.20
+DUAL_WIELD_DAMAGE_QUALITY_MIN = 0.50
+DUAL_WIELD_DAMAGE_QUALITY_MAX = 0.80
+DUAL_WIELD_RESTORE_QUALITY_MIN = 0.50
+DUAL_WIELD_RESTORE_QUALITY_MAX = 1.00
+DUAL_WIELD_PENALTY_MULT_MIN = 1.00
+DUAL_WIELD_PENALTY_MULT_MAX = 2.00
+DUAL_WIELD_DAMAGE_FIELDS = frozenset({"main_hand_damage_base", "off_hand_damage_base"})
+DUAL_WIELD_RESTORE_FIELDS = frozenset({"main_hand_crit_chance", "off_hand_crit_chance", "parry"})
+DUAL_WIELD_PENALTY_FIELDS = frozenset(
+    {
+        "main_hand_accuracy_penalty",
+        "off_hand_accuracy_penalty",
+        "main_hand_damage_spread",
+        "off_hand_damage_spread",
+    }
+)
 ITEM_SYNC_POSITIVE_PENALTY_KEYS = frozenset(
     {
         "main_hand_accuracy_penalty",
@@ -62,7 +78,6 @@ MODIFIER_ALIASES = {
     "physical_accuracy": "accuracy",
     "physical_crit_chance": "crit_chance",
     "physical_crit_power_float": "crit_power",
-    "shield_block_chance": "block",
 }
 
 
@@ -112,6 +127,7 @@ class CharacterCombatMathModelBuilder:
     ) -> RawStatBlock:
         modifiers = self._empty_modifiers()
         symbiote_rank = symbiote_tier(symbiote)
+        dual_quality = self._dual_wield_quality(equipment, skills)
         has_main_hand_weapon = False
         chest_item: dict[str, Any] | None = None
         for item in equipment:
@@ -128,6 +144,16 @@ class CharacterCombatMathModelBuilder:
             )
             tags = self._tags(item, mechanics)
             armor_class = self._armor_class(item, mechanics)
+            dual_weapon_quality = (
+                dual_quality
+                if self._is_dual_wield_weapon(
+                    slot=slot,
+                    combat_slot=combat_slot,
+                    item_type=item_type,
+                    tags=tags,
+                )
+                else None
+            )
             if combat_slot == "chest_armor" and item_type == "armor":
                 chest_item = item
             if combat_slot == "main_hand" and item_type == "weapon":
@@ -135,10 +161,20 @@ class CharacterCombatMathModelBuilder:
 
             power = self._float_value(mechanics.get("power", mechanics.get("base_power")))
             if power:
+                power = self._apply_dual_wield_quality_to_value(
+                    f"{combat_slot}_damage_base",
+                    power,
+                    dual_weapon_quality,
+                )
                 self._add_power_modifier(modifiers, slot=combat_slot, item_type=item_type, tags=tags, value=power)
 
             damage_spread = self._float_value(mechanics.get("damage_spread"))
             if damage_spread is not None:
+                damage_spread = self._apply_dual_wield_quality_to_value(
+                    f"{combat_slot}_damage_spread",
+                    damage_spread,
+                    dual_weapon_quality,
+                )
                 if combat_slot == "main_hand":
                     self._replace_base_modifier(modifiers, "main_hand_damage_spread", damage_spread)
                 elif combat_slot == "off_hand" and not self._is_shield(item_type, tags):
@@ -162,6 +198,7 @@ class CharacterCombatMathModelBuilder:
                     slot=combat_slot,
                     item_type=item_type,
                     tags=tags,
+                    dual_quality=dual_weapon_quality,
                 )
                 for extra_key, extra_value in extra_bonuses.items():
                     self._add_item_base_modifier(
@@ -199,6 +236,66 @@ class CharacterCombatMathModelBuilder:
         self._apply_armor_dodge_cap_rules(modifiers, chest_item, skills, attributes)
 
         return modifiers
+
+    @staticmethod
+    def _dual_wield_quality(equipment: list[dict[str, Any]], skills: dict[str, Any]) -> dict[str, float] | None:
+        weapon_slots: set[str] = set()
+        for item in equipment:
+            mechanics = CharacterCombatMathModelBuilder._mechanics(item)
+            slot = str(item.get("slot") or mechanics.get("slot") or "")
+            combat_slot = CharacterCombatMathModelBuilder._combat_slot(slot)
+            item_type = str(
+                item.get("item_type") or item.get("type") or mechanics.get("item_type") or mechanics.get("type") or ""
+            )
+            tags = CharacterCombatMathModelBuilder._tags(item, mechanics)
+            if CharacterCombatMathModelBuilder._is_dual_wield_weapon(
+                slot=slot,
+                combat_slot=combat_slot,
+                item_type=item_type,
+                tags=tags,
+            ):
+                weapon_slots.add(combat_slot)
+
+        if not {"main_hand", "off_hand"}.issubset(weapon_slots):
+            return None
+
+        skill = CharacterCombatMathModelBuilder._skill_value(skills.get("skill_dual_wield"))
+        return {
+            "damage": DUAL_WIELD_DAMAGE_QUALITY_MIN
+            + ((DUAL_WIELD_DAMAGE_QUALITY_MAX - DUAL_WIELD_DAMAGE_QUALITY_MIN) * skill),
+            "restore": DUAL_WIELD_RESTORE_QUALITY_MIN
+            + ((DUAL_WIELD_RESTORE_QUALITY_MAX - DUAL_WIELD_RESTORE_QUALITY_MIN) * skill),
+            "penalty": DUAL_WIELD_PENALTY_MULT_MAX
+            - ((DUAL_WIELD_PENALTY_MULT_MAX - DUAL_WIELD_PENALTY_MULT_MIN) * skill),
+        }
+
+    @staticmethod
+    def _is_dual_wield_weapon(*, slot: str, combat_slot: str, item_type: str, tags: list[str]) -> bool:
+        return (
+            slot != "two_hand"
+            and combat_slot in {"main_hand", "off_hand"}
+            and item_type == "weapon"
+            and not CharacterCombatMathModelBuilder._is_shield(item_type, tags)
+        )
+
+    @staticmethod
+    def _apply_dual_wield_quality_to_value(
+        key: str,
+        value: Any,
+        dual_quality: dict[str, float] | None,
+    ) -> Any:
+        if dual_quality is None:
+            return value
+        numeric = CharacterCombatMathModelBuilder._float_value(value)
+        if numeric is None:
+            return value
+        if key in DUAL_WIELD_DAMAGE_FIELDS:
+            return round(numeric * dual_quality["damage"], 4)
+        if key in DUAL_WIELD_RESTORE_FIELDS:
+            return round(numeric * dual_quality["restore"], 4)
+        if key in DUAL_WIELD_PENALTY_FIELDS:
+            return round(numeric * dual_quality["penalty"], 4)
+        return value
 
     @staticmethod
     def _apply_affix_sources(
@@ -534,6 +631,7 @@ class CharacterCombatMathModelBuilder:
         slot: str,
         item_type: str,
         tags: list[str],
+        dual_quality: dict[str, float] | None = None,
     ) -> None:
         mapped_key = CharacterCombatMathModelBuilder._item_base_key(key, slot=slot, item_type=item_type, tags=tags)
         if mapped_key == "armor" and not CharacterCombatMathModelBuilder._allows_armor_modifier(
@@ -542,6 +640,7 @@ class CharacterCombatMathModelBuilder:
             tags=tags,
         ):
             return
+        value = CharacterCombatMathModelBuilder._apply_dual_wield_quality_to_value(mapped_key, value, dual_quality)
         CharacterCombatMathModelBuilder._set_base_modifier(modifiers, mapped_key, value)
 
     @staticmethod

@@ -55,7 +55,7 @@ def test_training_weight_constraints_keep_semantic_signs() -> None:
             "dispel_prep": -1.0,
             "team_dedup_control": -1.0,
             "observed_evasion_rate": -1.0,
-            "counter_resource": -1.0,
+            "pressure_resource": -1.0,
             "token_cost": 1.0,
             "stamina_cost": 1.0,
             "energy_cost": 1.0,
@@ -75,7 +75,7 @@ def test_training_weight_constraints_keep_semantic_signs() -> None:
         "dispel_prep",
         "team_dedup_control",
         "observed_evasion_rate",
-        "counter_resource",
+        "pressure_resource",
     ):
         assert constrained[key] == 0.0
     for key in (
@@ -293,7 +293,6 @@ def test_required_exact_feint_mismatch_is_a_synthetic_failure() -> None:
 
 _MULTI_TARGET_SCENARIOS: tuple[str, ...] = (
     "arrow_rain_swarm",
-    "ranged_covering_volley_swarm",
     "polearm_line_swarm",
     "two_handed_whirl_swarm",
     "dual_blade_whirl_swarm",
@@ -312,11 +311,28 @@ _DISCIPLINE_SCENARIOS: tuple[str, ...] = (
     "aoe_stamina_discipline",
 )
 
+_RANGED_POSITION_SCENARIOS: tuple[str, ...] = (
+    "archer_close_open_distance",
+    "archer_mid_backstep_shot",
+    "archer_far_covering_fire",
+    "archer_close_shield_counter_escape",
+)
+
+_SHIELD_RESOLVER_SCENARIOS: tuple[str, ...] = (
+    "shield_guard_armor_bypass",
+    "shield_mastery_block_pressure",
+)
+
 
 _ALL_PR6_SCENARIOS: tuple[str, ...] = (
     *_MULTI_TARGET_SCENARIOS,
     *_ANTI_DEFENCE_SCENARIOS,
     *_DISCIPLINE_SCENARIOS,
+)
+
+_RESOLVER_ALIGNMENT_SCENARIOS: tuple[str, ...] = (
+    *_RANGED_POSITION_SCENARIOS,
+    *_SHIELD_RESOLVER_SCENARIOS,
 )
 
 
@@ -325,6 +341,16 @@ def test_scenario_set_includes_all_pr6_swarm_and_anti_defence_scenarios() -> Non
     scenarios = {scenario.name: scenario for scenario in default_scenario_set(seed=0)}
     missing = set(_ALL_PR6_SCENARIOS) - set(scenarios)
     assert not missing, f"PR6 scenarios missing from default_scenario_set: {sorted(missing)}"
+
+
+@pytest.mark.unit
+def test_scenario_set_includes_ranged_position_and_new_shield_resolver_scenarios() -> None:
+    scenarios = {scenario.name: scenario for scenario in default_scenario_set(seed=0)}
+    missing = set(_RESOLVER_ALIGNMENT_SCENARIOS) - set(scenarios)
+    assert not missing, (
+        "Resolver-aligned AI scenarios missing from default_scenario_set: "
+        f"{sorted(missing)}"
+    )
 
 
 @pytest.mark.unit
@@ -372,6 +398,22 @@ def test_pr6_scenario_expected_feint_ids_are_in_bot_hand(scenario_name: str) -> 
 
 
 @pytest.mark.unit
+@pytest.mark.parametrize("scenario_name", _RESOLVER_ALIGNMENT_SCENARIOS)
+def test_resolver_alignment_scenario_expected_feint_ids_are_in_bot_hand(scenario_name: str) -> None:
+    scenarios = {scenario.name: scenario for scenario in default_scenario_set(seed=0)}
+    scenario = scenarios[scenario_name]
+    hand = (scenario.bot.meta.feints.hand if scenario.bot.meta.feints else None) or {}
+
+    for expected in scenario.expected:
+        if expected.expected_feint_id is None:
+            continue
+        assert expected.expected_feint_id in hand, (
+            f"{scenario_name} expects feint {expected.expected_feint_id!r} on target "
+            f"{expected.target_id} but it is not in the bot's hand ({sorted(hand)})."
+        )
+
+
+@pytest.mark.unit
 @pytest.mark.parametrize("scenario_name", _ALL_PR6_SCENARIOS)
 def test_pr6_expected_feints_resolve_to_real_catalog_entries(scenario_name: str) -> None:
     from src.backend.features.combat.integrations import CombatCatalogIntegrator
@@ -387,6 +429,20 @@ def test_pr6_expected_feints_resolve_to_real_catalog_entries(scenario_name: str)
             f"{scenario_name} expects feint {expected.expected_feint_id!r} "
             "but it does not resolve in the live combat catalog."
         )
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize("scenario_name", _RESOLVER_ALIGNMENT_SCENARIOS)
+def test_resolver_alignment_expected_feints_resolve_to_real_catalog_entries(scenario_name: str) -> None:
+    from src.backend.features.combat.integrations import CombatCatalogIntegrator
+
+    scenarios = {scenario.name: scenario for scenario in default_scenario_set(seed=0)}
+    scenario = scenarios[scenario_name]
+
+    for expected in scenario.expected:
+        if expected.expected_feint_id is None:
+            continue
+        assert CombatCatalogIntegrator.get_feint_catalog_entry(expected.expected_feint_id) is not None
 
 
 @pytest.mark.unit
@@ -414,6 +470,56 @@ def test_pr6_expected_tags_are_subset_of_derived_tags(scenario_name: str) -> Non
             f"{expected.expected_feint_id} but derive_feint_tags produced "
             f"{sorted(derived)}; missing: {sorted(missing)}."
         )
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize("scenario_name", _RESOLVER_ALIGNMENT_SCENARIOS)
+def test_resolver_alignment_expected_tags_are_subset_of_derived_tags(scenario_name: str) -> None:
+    from src.backend.features.combat.integrations import CombatCatalogIntegrator
+    from src.backend.features.combat.runtime.ai.feint_tags import derive_feint_tags
+
+    scenarios = {scenario.name: scenario for scenario in default_scenario_set(seed=0)}
+    scenario = scenarios[scenario_name]
+
+    for expected in scenario.expected:
+        if expected.expected_feint_id is None or not expected.expected_tags:
+            continue
+        entry = CombatCatalogIntegrator.get_feint_catalog_entry(expected.expected_feint_id)
+        assert entry is not None
+        derived = derive_feint_tags(entry, expected.expected_feint_id)
+        missing = expected.expected_tags - derived
+        assert not missing, (
+            f"{scenario_name} expects tags {sorted(expected.expected_tags)} from "
+            f"{expected.expected_feint_id} but derive_feint_tags produced "
+            f"{sorted(derived)}; missing: {sorted(missing)}."
+        )
+
+
+@pytest.mark.unit
+def test_ranged_position_scenarios_use_ranged_actor_layout_and_position_state() -> None:
+    scenarios = {scenario.name: scenario for scenario in default_scenario_set(seed=0)}
+
+    for name in _RANGED_POSITION_SCENARIOS:
+        scenario = scenarios[name]
+        layout = scenario.bot.loadout.layout
+        assert layout.get("main_hand") == "skill_archery"
+        assert layout.get("tactical_style") == "skill_ranged_combat"
+        position_effects = [effect for effect in scenario.bot.statuses.effects if effect.effect_id == "ranged_position"]
+        assert position_effects, f"{name} must pin a ranged_position effect for training context"
+
+
+@pytest.mark.unit
+def test_shield_resolver_scenarios_use_guard_power_not_legacy_block_only() -> None:
+    scenarios = {scenario.name: scenario for scenario in default_scenario_set(seed=0)}
+
+    for name in _SHIELD_RESOLVER_SCENARIOS:
+        scenario = scenarios[name]
+        target = scenario.targets[0]
+        assert target.loadout.layout.get("off_hand") == "skill_shield_mastery"
+        assert target.loadout.layout.get("tactical_style") == "skill_shield_mastery"
+        assert target.stats is not None
+        assert target.stats.mods.shield_guard_power > 0.0
+        assert target.stats.skills.skill_shield_mastery > 0.0
 
 
 @pytest.mark.unit

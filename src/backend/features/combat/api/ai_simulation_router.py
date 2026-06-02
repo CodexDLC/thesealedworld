@@ -275,7 +275,7 @@ async def run_live_demo_simulation(
 async def run_live_demo_simulation_batch(
     request: Request,
     db_session: Annotated[AsyncSession, Depends(get_db)],
-    count: Annotated[int, Query(ge=1, le=100)] = 10,
+    count: Annotated[int, Query(ge=1, le=50)] = 10,
     seed: Annotated[int, Query(ge=0, le=1_000_000)] = 0,
     max_rounds: Annotated[int, Query(ge=1, le=2000)] = LIVE_DEFAULT_MAX_EXCHANGES,
     tick_interval_seconds: Annotated[float, Query(ge=0.0, le=5.0)] = LIVE_DEFAULT_TICK_INTERVAL_SECONDS,

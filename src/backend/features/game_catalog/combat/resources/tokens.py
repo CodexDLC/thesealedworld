@@ -39,10 +39,10 @@ COMBAT_TOKENS: dict[str, dict[str, Any]] = {
         "icon": "token-block",
         "order": 60,
     },
-    "counter": {
-        "title": "Контратака",
-        "description": "Ресурс для ответных действий после удачной защиты или ошибки противника.",
-        "icon": "token-counter",
+    "pressure": {
+        "title": "Нажим",
+        "description": "Ресурс давления, накапливаемый за нанесенный фактический урон.",
+        "icon": "token-pressure",
         "order": 70,
     },
     "blood": {

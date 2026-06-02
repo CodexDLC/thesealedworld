@@ -43,6 +43,20 @@ comments, fix line endings, or copy selected hunks by hand.
 If compiled output should not be part of the current task, revert `game.css` as
 a whole. Otherwise accept the compiler output exactly as produced.
 
+## Template Preview Discipline
+
+For game shell, responsive layout, action panel, or domain template/CSS changes, use the local preview renderer before trying to inspect live game routes:
+
+```powershell
+.\.venv\Scripts\python.exe tools\game_preview\render.py --fixture combat/active_10_abilities --out tmp\game_preview\combat_10.html
+.\.venv\Scripts\python.exe tools\game_preview\render.py --fixture combat/active_10_abilities --serve
+```
+
+- The preview renderer links `src/frontend/static/css/game.css`, matching the real game shell. Compile static assets before visual CSS checks when source CSS changed.
+- Use `--serve` when assets under `/static/...` must load in a browser screenshot.
+- Add focused fixtures under `tools/game_preview/fixtures/` for new gameplay states instead of depending on live user sessions.
+- Only inspect a live combat/session route when the user provides a valid session URL, `char_id`, or explicit dev/spectator route.
+
 ## Shell-Owned Selectors
 
 Do not redefine these in domain CSS unless the task is explicitly shell refactor work:
@@ -66,7 +80,8 @@ Do not redefine these in domain CSS unless the task is explicitly shell refactor
 For shell/responsive work:
 
 - Run `git diff --check`.
+- Render affected template states with `tools/game_preview/render.py`; for responsive checks, use fixtures that stress the changed state.
 - Do not hand-edit compiled `game.css`.
-- Compile static output only when integration is ready.
+- Compile static output before browser validation when source CSS changed.
 - Check viewports: `1600`, `1440`, `1280`, `1024`, `768`, `500`.
 - Search for accidental shell selector duplication in domain CSS.

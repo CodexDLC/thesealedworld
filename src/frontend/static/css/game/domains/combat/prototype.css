@@ -108,21 +108,33 @@
 }
 
 .combat-action-panel .combat-token-strip {
+    justify-self: stretch;
+    width: 100%;
+    box-sizing: border-box;
     padding: 6px;
+}
+
+.combat-action-panel .combat-ability-strip {
+    justify-self: stretch;
+    width: 100%;
+    box-sizing: border-box;
 }
 
 .combat-command-layout {
     display: grid;
-    grid-template-columns: minmax(148px, 190px) minmax(0, 1fr);
+    grid-template-columns: minmax(0, 1fr);
+    justify-self: stretch;
+    width: 100%;
     gap: 8px;
     min-width: 0;
 }
 
-.combat-tool-panel,
 .combat-decision-panel {
     display: grid;
+    justify-self: stretch;
     align-content: start;
     gap: 7px;
+    width: 100%;
     min-width: 0;
 }
 
@@ -132,10 +144,6 @@
     padding: 18px 6px 6px;
     border: 1px solid rgba(255, 185, 45, .18);
     background: rgba(0, 0, 0, .28);
-}
-
-.combat-action-group--mobile {
-    display: none;
 }
 
 .combat-action-panel .combat-action-group summary,
@@ -167,15 +175,13 @@
     white-space: nowrap;
 }
 
-.combat-belt-slots,
-.combat-ability-grid {
+.combat-belt-slots {
     display: grid;
     grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: 4px;
 }
 
-.combat-belt-slot,
-.combat-ability-option {
+.combat-belt-slot {
     min-width: 0;
     min-height: 28px;
     display: grid;
@@ -185,10 +191,6 @@
 
 .combat-belt-slot {
     opacity: .72;
-}
-
-.combat-ability-tooltip-host {
-    aspect-ratio: 1.1;
 }
 
 .combat-belt-slot--empty,
@@ -214,7 +216,9 @@
 .combat-decision-panel .combat-action-list {
     display: grid;
     grid-template-columns: minmax(0, 1fr);
+    justify-self: stretch;
     gap: 6px;
+    width: 100%;
 }
 
 .combat-primary-row {
@@ -276,19 +280,6 @@
 
     .combat-command-layout {
         grid-template-columns: 1fr;
-    }
-
-    .combat-tool-panel {
-        order: -1;
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-    }
-
-    .combat-action-group--desktop {
-        display: none;
-    }
-
-    .combat-action-group--mobile {
-        display: block;
     }
 
     .combat-mobile-dock {
@@ -357,8 +348,27 @@
         padding: 7px;
     }
 
+    .combat-action-panel:has(.combat-ability-grid > :nth-child(9)) {
+        max-height: min(42dvh, 300px);
+    }
+
     .combat-action-panel .combat-token-strip {
         padding: 5px;
+    }
+
+    .combat-action-panel .combat-ability-strip {
+        padding: 5px;
+    }
+
+    .combat-action-panel .combat-ability-grid {
+        --combat-ability-gap: 4px;
+        --combat-ability-slot-size: 28px;
+        --combat-ability-icon-size: 14px;
+    }
+
+    .combat-action-panel .combat-ability-grid:has(> :nth-child(9)) {
+        --combat-ability-slot-size: 24px;
+        --combat-ability-icon-size: 13px;
     }
 
     .combat-action-panel .combat-token-bar {
@@ -372,23 +382,20 @@
     }
 
     .combat-action-panel .combat-token img,
-    .combat-action-panel .combat-feint-option img,
-    .combat-action-panel .combat-ability-option img {
+    .combat-action-panel .combat-feint-option img {
         width: 14px;
         height: 14px;
-    }
-
-    .combat-tool-panel {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: 5px;
     }
 
     .combat-decision-panel {
         order: 1;
         gap: 5px;
+        min-height: 0;
     }
 
     .combat-decision-panel .combat-action-list {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr);
         gap: 5px;
     }
 
@@ -403,14 +410,12 @@
         font-size: 7px;
     }
 
-    .combat-belt-slots,
-    .combat-ability-grid {
+    .combat-belt-slots {
         grid-template-columns: repeat(4, minmax(0, 1fr));
         gap: 4px;
     }
 
-    .combat-belt-slot,
-    .combat-ability-option {
+    .combat-belt-slot {
         min-height: 28px;
         aspect-ratio: auto;
     }
@@ -426,7 +431,40 @@
 
     .combat-feint-option,
     .combat-feint-option--debug {
-        min-height: 34px;
+        min-height: 28px;
+        height: 28px;
+        gap: 5px;
+        padding: 0 7px;
+        font-size: 8px;
+        letter-spacing: .08em;
+    }
+
+    .combat-feint-row--empty .combat-feint-option--debug {
+        width: 100%;
+    }
+
+    .combat-feint-row {
+        grid-template-columns: 26px minmax(0, 1fr);
+        gap: 3px;
+        max-height: 28px;
+    }
+
+    .combat-feint-row--empty {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .combat-feint-pin {
+        width: 26px;
+        min-height: 28px;
+        height: 28px;
+        aspect-ratio: auto;
+        font-size: 10px;
+    }
+
+    .combat-feint-option img,
+    .combat-feint-icon {
+        width: 12px;
+        height: 12px;
     }
 
     .combat-mobile-dock {

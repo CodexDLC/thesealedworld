@@ -4,6 +4,11 @@ Detailed milestone history for the `src/backend` game runtime layer.
 
 ## [Unreleased]
 
+- Shield mastery now owns a dedicated defensive tactic: shield defenders skip
+  the evasion stage, derive block chance from shield power plus uncapped
+  evasion, absorb blocked hits through Endurance-gated guard armor, and can
+  apply a capped instant shield counter plus `shield_opening` debuff.
+
 ## [v0.2.1a2] - Alpha 0.2.1a2
 
 - Starter-rift resets now rebuild hot character state from the new imprint and drop stale inventory runtime cache, while rift hearts stay out of the start-adjacent cells.

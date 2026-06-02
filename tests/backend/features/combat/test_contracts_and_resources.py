@@ -22,6 +22,7 @@ from src.backend.features.game_catalog.combat.resources.common.pipeline_mutation
 from src.backend.features.game_catalog.combat.resources.feints import get_feint_catalog_entry
 from src.backend.features.game_catalog.combat.resources.gifts import get_gift_catalog_entry
 from src.backend.features.game_catalog.combat.resources.items import get_combat_item_action_catalog_entry
+from src.backend.features.game_catalog.combat.resources.tokens import get_all_combat_tokens
 from src.shared.schemas.messages import GameMessageDTO, GameMessageTabDTO, GameMessageTemplateDTO
 
 
@@ -131,6 +132,7 @@ def test_combat_resources_load_runtime_and_public_catalog() -> None:
         "polearm_long_line",
         "polearm_pinning_point",
         "polearm_stunning_intercept",
+        "press_defense",
         "precise_weak_spot",
         "push_stance",
         "quiet_weak_spot",
@@ -168,7 +170,7 @@ def test_combat_resources_load_runtime_and_public_catalog() -> None:
     assert catalog["feints"]["crushing_pressure"]["cost"]["tactics"] == {"hit": 3}
     assert catalog["feints"]["ignore_guard"]["cost"]["tactics"] == {"hit": 2, "parry": 2}
     assert catalog["feints"]["offhand_over"]["cost"]["tactics"] == {"hit": 3, "parry": 2}
-    assert catalog["feints"]["blade_mill"]["cost"]["tactics"] == {"hit": 5, "counter": 4}
+    assert catalog["feints"]["blade_mill"]["cost"]["tactics"] == {"hit": 5, "pressure": 4}
     assert catalog["feints"]["snap_shot"]["cost"]["tactics"] == {"hit": 3}
     assert catalog["feints"]["sword_blade_bind"]["cost"]["tactics"] == {"hit": 3, "parry": 2}
     assert catalog["feints"]["sword_clean_path"]["cost"]["tactics"] == {"hit": 3, "crit": 5}
@@ -178,7 +180,7 @@ def test_combat_resources_load_runtime_and_public_catalog() -> None:
     assert catalog["feints"]["polearm_locked_distance"]["cost"]["tactics"] == {"hit": 3, "crit": 5}
     assert catalog["feints"]["macing_break_swing"]["cost"]["tactics"] == {"hit": 3, "parry": 2}
     assert catalog["feints"]["macing_guard_cracker"]["cost"]["tactics"] == {"hit": 5, "crit": 3}
-    assert catalog["feints"]["reveal_intentions"]["cost"]["tactics"] == {"hit": 2, "dodge": 1}
+    assert catalog["feints"]["reveal_intentions"]["cost"]["tactics"] == {"hit": 2, "tempo": 1}
     assert catalog["combat_entries"]["combat.feint.measured_strike"]["resource_id"] == "measured_strike"
     assert catalog["combat_entries"]["combat.feint.absolute_defense"]["resource_id"] == "absolute_defense"
     assert catalog["combat_entries"]["combat.feint.hidden_strength"]["resource_id"] == "hidden_strength"
@@ -190,6 +192,22 @@ def test_combat_resources_load_runtime_and_public_catalog() -> None:
     assert catalog["combat_entries"]["combat.basic_exchange.skill_swords.main_hand"]["resource_id"] == (
         "skill_swords.main_hand"
     )
+
+
+def test_combat_token_catalog_replaces_counter_currency_with_pressure() -> None:
+    tokens = get_all_combat_tokens()
+
+    assert "pressure" in tokens
+    assert tokens["pressure"]["title"] == "Нажим"
+    assert "counter" not in tokens
+
+
+def test_feint_costs_do_not_require_counter_token() -> None:
+    catalog = CombatResourceCatalogService.load_default().all_public_text()
+
+    for feint_id, payload in catalog["feints"].items():
+        tactics = payload.get("cost", {}).get("tactics", {})
+        assert "counter" not in tactics, feint_id
 
 
 def test_basic_gift_abilities_are_runtime_resources_with_combat_token_costs() -> None:
@@ -344,15 +362,27 @@ def test_pipeline_mutation_contracts_are_technical_and_apply_to_context() -> Non
     assert PIPELINE_MUTATION_CONTRACTS["target_evasion_mult"].path == "mods.target_evasion_mult"
     assert PIPELINE_MUTATION_CONTRACTS["target_parry_mult"].path == "mods.target_parry_mult"
     assert PIPELINE_MUTATION_CONTRACTS["target_block_mult"].path == "mods.target_block_mult"
-    assert PIPELINE_MUTATION_CONTRACTS["force_shield_defense_branch"].path == (
-        "flags.formula.force_shield_defense_branch"
+    assert PIPELINE_MUTATION_CONTRACTS["stage.check_ranged_position_defense"].path == (
+        "stages.check_ranged_position_defense"
     )
-    assert PIPELINE_MUTATION_CONTRACTS["force_shield_counter_branch"].path == (
-        "flags.formula.force_shield_counter_branch"
+    assert PIPELINE_MUTATION_CONTRACTS["ranged.next_position_override"].path == (
+        "result.action_facts.next_ranged_position_override"
     )
-    assert PIPELINE_MUTATION_CONTRACTS["shield_branch_invert"].path == "flags.formula.shield_branch_invert"
+    assert PIPELINE_MUTATION_CONTRACTS["ranged.current_position_step"].path == (
+        "result.action_facts.ranged_current_position_step"
+    )
+    assert PIPELINE_MUTATION_CONTRACTS["ranged.outgoing_damage_bonus_mult"].path == (
+        "result.action_facts.ranged_outgoing_damage_bonus_mult"
+    )
+    assert PIPELINE_MUTATION_CONTRACTS["ranged.far_weight_bonus"].path == (
+        "result.action_facts.ranged_far_weight_bonus"
+    )
+    assert "force_shield_defense_branch" not in PIPELINE_MUTATION_CONTRACTS
+    assert "force_shield_counter_branch" not in PIPELINE_MUTATION_CONTRACTS
+    assert "shield_branch_invert" not in PIPELINE_MUTATION_CONTRACTS
+    assert "shield_counter_from_absorbed" not in PIPELINE_MUTATION_CONTRACTS
     assert PIPELINE_MUTATION_CONTRACTS["shield_guard_power_mult"].path == "mods.shield_guard_power_mult"
-    assert PIPELINE_MUTATION_CONTRACTS["shield_counter_power_mult"].path == "mods.shield_counter_power_mult"
+    assert "shield_counter_power_mult" not in PIPELINE_MUTATION_CONTRACTS
 
     ctx = PipelineContextDTO()
 
@@ -368,11 +398,13 @@ def test_pipeline_mutation_contracts_are_technical_and_apply_to_context() -> Non
             pipeline_mutation("target_evasion_mult", 0.65),
             pipeline_mutation("target_parry_mult", 0.65),
             pipeline_mutation("target_block_mult", 0.75),
-            pipeline_mutation("force_shield_counter_branch"),
-            pipeline_mutation("shield_counter_from_absorbed"),
             pipeline_mutation("shield_guard_power_mult", 1.25),
-            pipeline_mutation("shield_counter_power_mult", 1.5),
             pipeline_mutation("shield_block_chance_mult", 1.2),
+            pipeline_mutation("stage.check_ranged_position_defense"),
+            pipeline_mutation("ranged.current_position_step", 1),
+            pipeline_mutation("ranged.next_position_override", "far"),
+            pipeline_mutation("ranged.outgoing_damage_bonus_mult", 1.1),
+            pipeline_mutation("ranged.far_weight_bonus", 0.25),
             pipeline_mutation("chain.preserve_feint"),
         ],
         ctx=ctx,
@@ -389,11 +421,13 @@ def test_pipeline_mutation_contracts_are_technical_and_apply_to_context() -> Non
     assert ctx.mods.target_evasion_mult == 0.65
     assert ctx.mods.target_parry_mult == 0.65
     assert ctx.mods.target_block_mult == 0.75
-    assert ctx.flags.formula.force_shield_counter_branch is True
-    assert ctx.flags.formula.shield_counter_from_absorbed is True
     assert ctx.mods.shield_guard_power_mult == 1.25
-    assert ctx.mods.shield_counter_power_mult == 1.5
     assert ctx.mods.shield_block_chance_mult == 1.2
+    assert ctx.stages.check_ranged_position_defense is True
+    assert ctx.result.action_facts["ranged_current_position_step"] == 1
+    assert ctx.result.action_facts["next_ranged_position_override"] == "far"
+    assert ctx.result.action_facts["ranged_outgoing_damage_bonus_mult"] == 1.1
+    assert ctx.result.action_facts["ranged_far_weight_bonus"] == 0.25
     assert ctx.result.chain_events.preserve_feint is True
 
 

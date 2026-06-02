@@ -74,16 +74,22 @@ InteractionResultDTO
 
 ### What Is Calculated INSIDE Resolver (Never Pre-Compute These)
 
-- Accuracy roll: `(0.70 + min(skill_val, 1.0) * 0.30 + source_accuracy_modifier) * ctx.mods.accuracy_mult`, clamped to `0..1`
+- Accuracy roll: `(0.60 + min(skill_val, 1.0) * 0.40 + source_accuracy_modifier) * ctx.mods.accuracy_mult`, clamped to `0..1`
 - Crit roll: `(hand_crit_chance + global_crit_chance) * (1.0 + skill_val)`
 - Evasion check: `min(evasion - atk.anti_dodge_chance, dodge_cap)`
 - Parry check: `min(parry * (1 + PARRY_SKILL_MULT_PER_POINT * skill_parrying), parry_cap)`
-- Shield block check: `min((block + SHIELD_BLOCK_SKILL_BONUS_AT_FULL * skill_shield_mastery) * shield_block_chance_mult, shield_block_cap)`.
-  A successful shield block is a shield-contact event, not full damage cancel:
-  it rolls the item's defensive/counter weights, then either adds
-  `shield_guard_power` to mitigation or reflects shield power.
-  Shield formula flags may force the defensive branch, force the counter branch,
-  invert branch weights, or make counter reflect from shield contact power.
+- Shield defenders disable the evasion stage when the off-hand style is
+  `skill_shield_mastery`.
+- Shield block check derives from shield power, uncapped evasion, and shield
+  mastery gate: `min(power * PB * (1 + evasion * EB) * G * shield_block_chance_mult, BC0 + BCM * mastery)`.
+- Successful shield blocks add temporary guard armor for that hit:
+  `(shield_power + physical_endurance_power) * AR * G * max(Kmin, 1 - evasion * EC) * shield_guard_power_mult`.
+- Successful shield blocks can open a non-recursive instant shield counter:
+  `min(counter_attack_chance * G, 0.50)` for half main-hand damage gated by `G`,
+  with normal mitigation and no accuracy/evasion/parry/block/crit checks.
+- Shield counters apply `shield_opening` to the attacker; it reduces evasion
+  and parry through pipeline multipliers and expires only after the next
+  exchange with the tank that applied it.
 - Counter check: `min(counter_attack_chance, counter_attack_cap)`
 - Weapon damage: `rand((assembled_base + physical_damage_bonus)*(1-spread), ... ) - resist - armor`.
 - Elemental/magic damage: `rand(magical_damage*(1-spread), ...) - elemental_resist - magic_armor`.
@@ -166,10 +172,10 @@ chance = min(0.50, 0.25 + 0.25 * skill_dual_wield)  # 0.25 base, 0.50 at full ma
 
 | source_type | damage_base | accuracy | armor_penetration_pct | crit_chance |
 |---|---|---|---|---|
-| `main_hand` | `main_hand_damage_base` | `0.70 + skill_bonus + main_hand_accuracy + accuracy` | `main_hand_armor_penetration_pct + armor_penetration_pct` | `main_hand_crit_chance + crit_chance` |
-| `off_hand` | `off_hand_damage_base` | `0.70 + skill_bonus + off_hand_accuracy + accuracy` | `off_hand_armor_penetration_pct + armor_penetration_pct` | `off_hand_crit_chance + crit_chance` |
-| `magic` | `magical_damage` | `0.70 + skill_bonus + magical_accuracy + accuracy` | `0.0` | `magical_crit_chance` (no global crit) |
-| `item` | `item_damage_base` | `0.70 + skill_bonus + item_accuracy` | `item_armor_penetration_pct + armor_penetration_pct` | `item_crit_chance` |
+| `main_hand` | `main_hand_damage_base` | `0.60 + skill_bonus + main_hand_accuracy + accuracy` | `main_hand_armor_penetration_pct + armor_penetration_pct` | `main_hand_crit_chance + crit_chance` |
+| `off_hand` | `off_hand_damage_base` | `0.60 + skill_bonus + off_hand_accuracy + accuracy` | `off_hand_armor_penetration_pct + armor_penetration_pct` | `off_hand_crit_chance + crit_chance` |
+| `magic` | `magical_damage` | `0.60 + skill_bonus + magical_accuracy + accuracy` | `0.0` | `magical_crit_chance` (no global crit) |
+| `item` | `item_damage_base` | `0.60 + skill_bonus + item_accuracy` | `item_armor_penetration_pct + armor_penetration_pct` | `item_crit_chance` |
 
 `ContextBuilder._analyze_intent()` sets `source_type`:
 - `strategy == "instant"` → `"magic"`
@@ -182,9 +188,9 @@ chance = min(0.50, 0.25 + 0.25 * skill_dual_wield)  # 0.25 base, 0.50 at full ma
 
 | Resolver reads | ActorStats path | Populated by | Status |
 |---|---|---|---|
-| accuracy (main) | `0.70 + weapon skill bonus + atk.mods.main_hand_accuracy + atk.mods.accuracy` | Resolver + CharMathModel / MonsterProfile modifiers | OK |
-| accuracy (off) | `0.70 + weapon skill bonus + atk.mods.off_hand_accuracy + atk.mods.accuracy` | Resolver + CharMathModel / MonsterProfile modifiers | OK |
-| accuracy (magic) | `0.70 + skill bonus + atk.mods.magical_accuracy + atk.mods.accuracy` | Resolver + CharMathModel / MonsterProfile modifiers | OK |
+| accuracy (main) | `0.60 + weapon skill bonus + atk.mods.main_hand_accuracy + atk.mods.accuracy` | Resolver + CharMathModel / MonsterProfile modifiers | OK |
+| accuracy (off) | `0.60 + weapon skill bonus + atk.mods.off_hand_accuracy + atk.mods.accuracy` | Resolver + CharMathModel / MonsterProfile modifiers | OK |
+| accuracy (magic) | `0.60 + skill bonus + atk.mods.magical_accuracy + atk.mods.accuracy` | Resolver + CharMathModel / MonsterProfile modifiers | OK |
 | damage_base (main) | `atk.mods.main_hand_damage_base` | CharMathModel / MonsterProfile | OK |
 | damage_base (off) | `atk.mods.off_hand_damage_base` | CharMathModel / MonsterProfile | OK |
 | damage_base (magic) | `atk.mods.magical_damage` | CharMathModel / MonsterProfile | OK |
@@ -286,7 +292,6 @@ item_damage_bonus
 ```
 dodge_chance       → evasion
 parry_chance       → parry
-shield_block_chance → block
 damage_reduction_flat → armor
 magical_armor        → magic_armor
 magical_damage_base   → magical_damage    (old design docs used this name)
@@ -352,7 +357,7 @@ or `ctx.stages` — these are pipeline-local and do NOT persist to the snapshot.
 ## Common Mistakes Agents Make
 
 **DO NOT duplicate resolver math in mappers.**
-Wrong: computing `base = 0.70 + 0.30 * skill - 0.10` and writing it to `main_hand_accuracy.base`.
+Wrong: computing `base = 0.60 + 0.40 * skill - 0.10` and writing it to `main_hand_accuracy.base`.
 Correct: keep hand accuracy as modifier-only and let resolver combine built-in base, skill bonus, and sources.
 
 **DO NOT pre-apply parry/block skill bonuses in mappers.**

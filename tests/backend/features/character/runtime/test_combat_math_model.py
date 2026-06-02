@@ -95,7 +95,7 @@ def test_builder_wraps_active_character_attributes_and_equipped_item_mechanics()
 
 
 @pytest.mark.unit
-def test_builder_maps_shield_block_chance_without_skill_scaling() -> None:
+def test_builder_maps_shield_power_without_legacy_block_chance() -> None:
     raw = CharacterCombatMathModelBuilder().build_raw(
         attributes={},
         items={
@@ -112,7 +112,7 @@ def test_builder_maps_shield_block_chance_without_skill_scaling() -> None:
         skills={"skill_shield_mastery": {"xp": 0.5}},
     )
 
-    assert raw["modifiers"]["block"]["base"] == 0.1
+    assert raw["modifiers"]["block"]["base"] == 0.0
     assert raw["modifiers"]["block"]["source"] == {}
     assert raw["modifiers"]["armor"]["base"] == 0.0
     assert raw["modifiers"]["shield_guard_power"]["base"] == 6.6
@@ -165,7 +165,7 @@ def test_builder_ignores_shield_flat_armor_bonuses() -> None:
 
     assert raw["modifiers"]["armor"]["base"] == 0.0
     assert raw["modifiers"]["armor"]["source"] == {}
-    assert raw["modifiers"]["block"]["base"] == pytest.approx(0.18)
+    assert raw["modifiers"]["block"]["base"] == 0.0
 
 
 @pytest.mark.unit
@@ -367,8 +367,63 @@ def test_builder_routes_weapon_armor_penetration_pct_to_equipped_hand() -> None:
 
     assert raw["modifiers"]["main_hand_armor_penetration_pct"]["base"] == 0.10
     assert raw["modifiers"]["off_hand_armor_penetration_pct"]["base"] == 0.08
-    assert raw["modifiers"]["main_hand_accuracy_penalty"]["base"] == 0.03
-    assert raw["modifiers"]["off_hand_accuracy_penalty"]["base"] == 0.02
+    assert raw["modifiers"]["main_hand_accuracy_penalty"]["base"] == 0.06
+    assert raw["modifiers"]["off_hand_accuracy_penalty"]["base"] == 0.04
+
+
+@pytest.mark.unit
+def test_builder_applies_dual_wield_quality_to_equipped_weapon_base_stats() -> None:
+    raw = CharacterCombatMathModelBuilder().build_raw(
+        attributes={},
+        items={
+            "layout": {"equipment": {"main_hand": "sword-1", "off_hand": "dagger-1"}},
+            "by_id": {
+                "sword-1": {
+                    "item_id": "sword-1",
+                    "item_type": "weapon",
+                    "slot": "main_hand",
+                    "related_skill": "skill_swords",
+                    "mechanics": {
+                        "power": 10,
+                        "damage_spread": 0.10,
+                        "related_skill": "skill_swords",
+                        "implicit_bonuses": {
+                            "main_hand_accuracy_penalty": 0.10,
+                            "physical_crit_chance": 0.20,
+                            "parry_chance": 0.10,
+                        },
+                    },
+                },
+                "dagger-1": {
+                    "item_id": "dagger-1",
+                    "item_type": "weapon",
+                    "slot": "off_hand",
+                    "related_skill": "skill_fencing",
+                    "mechanics": {
+                        "power": 4,
+                        "damage_spread": 0.06,
+                        "related_skill": "skill_fencing",
+                        "implicit_bonuses": {
+                            "main_hand_accuracy_penalty": 0.08,
+                            "physical_crit_chance": 0.10,
+                            "parry_chance": 0.06,
+                        },
+                    },
+                },
+            },
+        },
+        skills={"skill_swords": 1.0, "skill_fencing": 1.0, "skill_dual_wield": 0.5},
+    )
+
+    assert raw["modifiers"]["main_hand_damage_base"]["base"] == pytest.approx(6.5)
+    assert raw["modifiers"]["off_hand_damage_base"]["base"] == pytest.approx(2.6)
+    assert raw["modifiers"]["main_hand_damage_spread"]["base"] == pytest.approx(0.15)
+    assert raw["modifiers"]["off_hand_damage_spread"]["base"] == pytest.approx(0.09)
+    assert raw["modifiers"]["main_hand_accuracy_penalty"]["base"] == pytest.approx(0.075)
+    assert raw["modifiers"]["off_hand_accuracy_penalty"]["base"] == pytest.approx(0.06)
+    assert raw["modifiers"]["main_hand_crit_chance"]["base"] == pytest.approx(0.15)
+    assert raw["modifiers"]["off_hand_crit_chance"]["base"] == pytest.approx(0.075)
+    assert raw["modifiers"]["parry"]["base"] == pytest.approx(0.12)
 
 
 @pytest.mark.unit

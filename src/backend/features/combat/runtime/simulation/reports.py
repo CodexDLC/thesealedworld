@@ -42,6 +42,12 @@ def render_simulation_report(result: SimulationRunResult) -> str:
         f"tactical_shield_damage_by_actor: {telemetry.tactical_shield_damage_by_actor}",
         f"tactical_shield_absorbed_by_actor: {telemetry.tactical_shield_absorbed_by_actor}",
         f"tactical_shield_reflected_by_actor: {telemetry.tactical_shield_reflected_by_actor}",
+        f"ranged_position_outgoing_by_actor: {telemetry.ranged_position_outgoing_by_actor}",
+        f"ranged_position_incoming_by_actor: {telemetry.ranged_position_incoming_by_actor}",
+        f"ranged_position_defense_attempts_by_actor: {telemetry.ranged_position_defense_attempts_by_actor}",
+        f"ranged_position_defense_success_by_actor: {telemetry.ranged_position_defense_success_by_actor}",
+        f"ranged_position_outgoing_damage_by_actor: {telemetry.ranged_position_outgoing_damage_by_actor}",
+        f"ranged_position_incoming_damage_by_actor: {telemetry.ranged_position_incoming_damage_by_actor}",
         f"deaths: {telemetry.deaths}",
         f"feints: {telemetry.feint_pick_count}",
     ]

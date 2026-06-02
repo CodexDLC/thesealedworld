@@ -12,6 +12,7 @@ BASIC_FEINTS: tuple[str, ...] = (
     "foresight_parry",
     "second_breath",
     "perfect_riposte",
+    "press_defense",
 )
 
 BASIC_ARCHERY_FEINTS: tuple[str, ...] = (
@@ -21,6 +22,7 @@ BASIC_ARCHERY_FEINTS: tuple[str, ...] = (
     "glancing_step",
     "wind_dance",
     "blade_dance",
+    "press_defense",
 )
 
 SWORD_WEAPON_FEINTS: tuple[str, ...] = (

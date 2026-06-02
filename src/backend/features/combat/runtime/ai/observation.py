@@ -14,6 +14,7 @@ from src.backend.features.combat.dto.ai_memory_dto import AiMemoryDTO  # noqa: T
 from src.backend.features.combat.runtime.ai.ai_memory import defence_rate
 from src.backend.features.combat.runtime.ai.preparations import extract_preparations
 from src.backend.features.combat.runtime.ai.team_awareness import TeamState  # noqa: TC001
+from src.backend.features.combat.runtime.engine.ranged_position import RangedPositionService
 from src.backend.features.combat.runtime.engine.stats_engine import StatsEngine
 
 
@@ -33,6 +34,9 @@ class SelfObservation:
     tokens: dict[str, int]
     alive_enemy_count: int
     my_preparations: frozenset[str] = frozenset()
+    tactical_style: str | None = None
+    is_ranged_style: bool = False
+    ranged_position: str | None = None
     # Best-effort awareness of teammate intents already committed this step.
     # Empty when no battle context or empty moves_cache.
     allies_targets: dict[str, int] = field(default_factory=dict)
@@ -65,6 +69,12 @@ class TargetObservation:
     has_bleed: bool
     has_control: bool
     finishable: bool
+    tactical_style: str | None = None
+    is_ranged_style: bool = False
+    is_shield_style: bool = False
+    ranged_position: str | None = None
+    shield_guard_power: float = 0.0
+    shield_mastery: float = 0.0
     active_preparations: frozenset[str] = frozenset()
     # Observed defence rates from cross-turn memory: fraction of recent
     # exchanges that resolved as each outcome. 0.0 when no memory yet.
@@ -100,6 +110,8 @@ def extract_self(
     else:
         last_target_id = memory.last_target_id
         recently_used_feints = frozenset(memory.feints_used)
+    tactical_style = _loadout_slot(bot, "tactical_style")
+    is_ranged_style = RangedPositionService.is_ranged_actor(bot)
     return SelfObservation(
         hp_pct=_safe_pct(meta.hp, meta.max_hp),
         stamina_pct=_safe_pct(meta.stamina, meta.max_stamina),
@@ -107,6 +119,9 @@ def extract_self(
         tokens=dict(meta.tokens or {}),
         alive_enemy_count=int(alive_enemy_count),
         my_preparations=extract_preparations(bot),
+        tactical_style=tactical_style,
+        is_ranged_style=is_ranged_style,
+        ranged_position=RangedPositionService.current_position(bot) if is_ranged_style else None,
         allies_targets=allies_targets,
         allies_pending_control_targets=allies_pending_control,
         last_target_id=last_target_id,
@@ -129,6 +144,13 @@ def extract_target(target: ActorSnapshot, memory: AiMemoryDTO | None = None) -> 
     parry = float(getattr(mods, "parry", 0.0) or 0.0) if mods is not None else 0.0
     block = float(getattr(mods, "block", 0.0) or 0.0) if mods is not None else 0.0
     counter = float(getattr(mods, "counter_attack_chance", 0.0) or 0.0) if mods is not None else 0.0
+    shield_guard_power = float(getattr(mods, "shield_guard_power", 0.0) or 0.0) if mods is not None else 0.0
+    skills = target.stats.skills if target.stats is not None else None
+    shield_mastery = float(getattr(skills, "skill_shield_mastery", 0.0) or 0.0) if skills is not None else 0.0
+    tactical_style = _loadout_slot(target, "tactical_style")
+    off_hand = _loadout_slot(target, "off_hand")
+    is_ranged_style = RangedPositionService.is_ranged_actor(target)
+    is_shield_style = tactical_style == "skill_shield_mastery" or off_hand == "skill_shield_mastery"
 
     has_bleed, has_control = _status_flags(target)
     hp_pct = _safe_pct(target.meta.hp, target.meta.max_hp)
@@ -152,6 +174,12 @@ def extract_target(target: ActorSnapshot, memory: AiMemoryDTO | None = None) -> 
         has_bleed=has_bleed,
         has_control=has_control,
         finishable=finishable,
+        tactical_style=tactical_style,
+        is_ranged_style=is_ranged_style,
+        is_shield_style=is_shield_style,
+        ranged_position=RangedPositionService.current_position(target) if is_ranged_style else None,
+        shield_guard_power=shield_guard_power,
+        shield_mastery=shield_mastery,
         active_preparations=extract_preparations(target),
         observed_parry_rate=observed_parry,
         observed_dodge_rate=observed_dodge,
@@ -165,6 +193,11 @@ def _effective_evasion(mods: Any) -> float:
     evasion = float(getattr(mods, "evasion", 0.0) or 0.0)
     dodge_cap = float(getattr(mods, "dodge_cap", 1.0) or 0.0)
     return max(0.0, min(evasion, dodge_cap))
+
+
+def _loadout_slot(actor: ActorSnapshot, slot: str) -> str | None:
+    value = actor.loadout.layout.get(slot)
+    return str(value) if value else None
 
 
 _CONTROL_EFFECT_HINTS = ("stun", "control", "root", "freeze", "knockdown", "fear")

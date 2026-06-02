@@ -43,23 +43,34 @@ class TestDefaults:
     def test_default_tunables_match_active_resolver_constants(self) -> None:
         d = DEFAULT_COMBAT_TUNABLES
         assert d.parry_skill_mult_per_point == 4.0
-        assert d.shield_block_skill_bonus_at_full == 0.32
-        assert d.base_accuracy_chance == 0.70
-        assert d.skill_accuracy_bonus_at_full == 0.30
+        assert d.base_accuracy_chance == 0.60
+        assert d.skill_accuracy_bonus_at_full == 0.40
         assert d.accuracy_chance_cap == 0.90
         assert d.unarmed_min_efficiency == 0.5
         assert d.unarmed_max_efficiency == 3.0
         assert d.unarmed_novice_spread == 0.5
         assert d.unarmed_master_spread == 0.1
         assert d.token_bonus_chance == 0.30
+        assert d.shield_block_power_to_chance == 0.015
+        assert d.shield_block_base_cap == 0.45
+        assert d.shield_counter_cap == 0.50
+        assert d.shield_opening_max_strength == 0.30
+        assert d.armor_light_coef == 0.030
+        assert d.armor_medium_coef == 0.055
+        assert d.armor_heavy_coef == 0.085
+        assert d.armor_light_cap == 0.70
+        assert d.armor_medium_cap == 0.80
+        assert d.armor_heavy_cap == 0.90
 
     def test_legacy_partial_shield_tunables_are_not_registered(self) -> None:
         defaults = CombatConfig.defaults()
 
         assert "SHIELD_MASTERY_ABSORB_CAP_RATIO_AT_FULL" not in defaults
         assert "SHIELD_MASTERY_REFLECT_RATIO_AT_FULL" not in defaults
+        assert "SHIELD_BLOCK_SKILL_BONUS_AT_FULL" not in defaults
         assert not hasattr(DEFAULT_COMBAT_TUNABLES, "shield_mastery_absorb_cap_ratio_at_full")
         assert not hasattr(DEFAULT_COMBAT_TUNABLES, "shield_mastery_reflect_ratio_at_full")
+        assert not hasattr(DEFAULT_COMBAT_TUNABLES, "shield_block_skill_bonus_at_full")
 
 
 class TestLoader:
@@ -71,12 +82,18 @@ class TestLoader:
         await manager.set("combat", "PARRY_SKILL_MULT_PER_POINT", "9.5")
         await manager.set("combat", "BASE_ACCURACY_CHANCE", "0.5")
         await manager.set("combat", "ACCURACY_CHANCE_CAP", "0.95")
+        await manager.set("combat", "SHIELD_BLOCK_POWER_TO_CHANCE", "0.025")
+        await manager.set("combat", "ARMOR_HEAVY_CAP", "0.88")
+        await manager.set("combat", "ARMOR_MEDIUM_COEF", "0.061")
 
         tunables = await load_combat_tunables(manager)
 
         assert tunables.parry_skill_mult_per_point == 9.5
         assert tunables.base_accuracy_chance == 0.5
         assert tunables.accuracy_chance_cap == 0.95
+        assert tunables.shield_block_power_to_chance == 0.025
+        assert tunables.armor_heavy_cap == 0.88
+        assert tunables.armor_medium_coef == 0.061
         # untouched key falls back to default
         assert tunables.token_bonus_chance == DEFAULT_COMBAT_TUNABLES.token_bonus_chance
 

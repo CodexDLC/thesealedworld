@@ -43,7 +43,17 @@ LOWER_ROLE_ORDER = {
     "elite": ("veteran", "minion"),
     "boss": ("elite", "veteran", "minion"),
 }
-DEFAULT_COMBAT_TOKENS = {"hit": 4, "crit": 4, "block": 4, "parry": 4, "dodge": 4, "tempo": 4, "blood": 2, "gift": 2}
+DEFAULT_COMBAT_TOKENS = {
+    "hit": 4,
+    "crit": 4,
+    "block": 4,
+    "parry": 4,
+    "dodge": 4,
+    "tempo": 4,
+    "blood": 2,
+    "pressure": 2,
+    "gift": 2,
+}
 FamilyPressureProgressCallback = Callable[["FamilyPressureReport"], Awaitable[None]]
 
 

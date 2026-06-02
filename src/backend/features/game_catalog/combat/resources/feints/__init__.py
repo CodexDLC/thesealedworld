@@ -1,6 +1,9 @@
 from src.backend.features.game_catalog.combat.resources.feints.definitions.basic_dodge import BASIC_DODGE_FEINTS_CATALOG
 from src.backend.features.game_catalog.combat.resources.feints.definitions.basic_hit import BASIC_HIT_FEINTS_CATALOG
 from src.backend.features.game_catalog.combat.resources.feints.definitions.basic_parry import BASIC_PARRY_FEINTS_CATALOG
+from src.backend.features.game_catalog.combat.resources.feints.definitions.basic_pressure import (
+    BASIC_PRESSURE_FEINTS_CATALOG,
+)
 from src.backend.features.game_catalog.combat.resources.feints.definitions.tactical_dual_wield import (
     TACTICAL_DUAL_WIELD_FEINTS_CATALOG,
 )
@@ -35,6 +38,7 @@ FEINT_CATALOG_REGISTRY: dict[str, FeintCatalogEntryDTO] = {
     **BASIC_DODGE_FEINTS_CATALOG,
     **BASIC_HIT_FEINTS_CATALOG,
     **BASIC_PARRY_FEINTS_CATALOG,
+    **BASIC_PRESSURE_FEINTS_CATALOG,
     **WEAPON_ARCHERY_FEINTS_CATALOG,
     **WEAPON_FENCING_FEINTS_CATALOG,
     **WEAPON_MACING_FEINTS_CATALOG,

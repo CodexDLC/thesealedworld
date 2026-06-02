@@ -72,7 +72,6 @@ _HUMANOID_ACCESSORY_POOL: tuple[str, ...] = (
 )
 
 _HUMANOID_SHIELD_POOL: tuple[str, ...] = (
-    "block_bonus",
     "shield_guard_power_bonus",
     "physical_resistance_bonus",
     "evasion_bonus",

@@ -34,7 +34,9 @@ class CritStep(ResolverStep):
             res.is_crit = True
             trigger_activator.apply_ammo_crit_payload(ctx, res)
             if not ctx.flags.restriction.suppress_crit_triggers:
+                before = len(res.fired_triggers)
                 trigger_activator.resolve_triggers(ctx, res, "ON_CRIT")
+                _apply_dual_cross_cut_bonus(atk, ctx, res, before)
             return
 
         if ctx.flags.restriction.cannot_crit:
@@ -79,9 +81,26 @@ class CritStep(ResolverStep):
             res.is_crit = True
             trigger_activator.apply_ammo_crit_payload(ctx, res)
             if not ctx.flags.restriction.suppress_crit_triggers:
+                before = len(res.fired_triggers)
                 trigger_activator.resolve_triggers(ctx, res, "ON_CRIT")
+                _apply_dual_cross_cut_bonus(atk, ctx, res, before)
         else:
             trigger_activator.resolve_triggers(ctx, res, "ON_CRIT_FAIL")
 
 
 crit_step = CritStep()
+
+
+def _apply_dual_cross_cut_bonus(
+    atk: ActorStats,
+    ctx: PipelineContextDTO,
+    res: InteractionResultDTO,
+    fired_before: int,
+) -> None:
+    if "style_dual_cross_cut" not in res.fired_triggers[fired_before:]:
+        return
+
+    skill = offensive_lookup.normalized_skill_value(atk.skills.skill_dual_wield)
+    multiplier = 1.5 + (1.5 * skill)
+    ctx.mods.crit_damage_mult *= multiplier
+    res.action_facts["dual_cross_cut_mult"] = multiplier

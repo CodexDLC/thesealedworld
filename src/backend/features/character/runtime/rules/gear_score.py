@@ -67,9 +67,11 @@ GEAR_SCORE_WEIGHTS: dict[str, float] = {
     "physical_resistance": 60.0,
     "magic_resist": 60.0,
     "resistance_cap": 20.0,
-    "armor": 0.8,
+    # Physical armor and shield guard now feed a diminishing percent-armor curve,
+    # so raw power should not score like direct flat damage prevention.
+    "armor": 0.35,
     "magic_armor": 0.8,
-    "shield_guard_power": 0.8,
+    "shield_guard_power": 0.35,
     "shield_absorb_ratio": 50.0,
     "shield_reflect_ratio": 20.0,
     # Elemental resistances are read dynamically by damage flags.

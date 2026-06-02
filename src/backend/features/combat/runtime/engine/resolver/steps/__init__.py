@@ -13,6 +13,7 @@ from .crit import CritStep, crit_step
 from .evasion import EvasionStep, evasion_step
 from .healing import HealingStep, healing_step
 from .parry import ParryStep, parry_step
+from .ranged_position_defense import RangedPositionDefenseStep, ranged_position_defense_step
 
 __all__ = [
     "AccuracyStep",
@@ -22,6 +23,7 @@ __all__ = [
     "EvasionStep",
     "HealingStep",
     "ParryStep",
+    "RangedPositionDefenseStep",
     "accuracy_step",
     "block_step",
     "counter_check_step",
@@ -29,4 +31,5 @@ __all__ = [
     "evasion_step",
     "healing_step",
     "parry_step",
+    "ranged_position_defense_step",
 ]

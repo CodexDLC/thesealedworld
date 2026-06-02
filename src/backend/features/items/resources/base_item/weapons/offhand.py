@@ -16,9 +16,6 @@ OFFHAND_DB = {
         narrative_tags=["shield", "block", "protection", "round_shield"],
         implicit_bonuses={
             "main_hand_accuracy_penalty": 0.035,
-            "shield_block_chance": 0.15,
-            "shield_block_defense_weight": 60.0,
-            "shield_block_counter_weight": 40.0,
             "evasion_penalty": -0.12,
             "parry_penalty": -0.02,
         },
@@ -39,9 +36,6 @@ OFFHAND_DB = {
         narrative_tags=["buckler", "shield", "small_shield"],
         implicit_bonuses={
             "main_hand_accuracy_penalty": 0.025,
-            "shield_block_chance": 0.18,
-            "shield_block_defense_weight": 40.0,
-            "shield_block_counter_weight": 60.0,
             "evasion_penalty": -0.08,
             "parry_penalty": -0.01,
         },
@@ -62,9 +56,6 @@ OFFHAND_DB = {
         narrative_tags=["shield", "block", "protection", "kite_shield"],
         implicit_bonuses={
             "main_hand_accuracy_penalty": 0.05,
-            "shield_block_chance": 0.12,
-            "shield_block_defense_weight": 75.0,
-            "shield_block_counter_weight": 25.0,
             "evasion_penalty": -0.20,
             "parry_penalty": -0.035,
         },
@@ -85,9 +76,6 @@ OFFHAND_DB = {
         narrative_tags=["shield", "block", "protection", "tower_shield", "heavy_shield"],
         implicit_bonuses={
             "main_hand_accuracy_penalty": 0.075,
-            "shield_block_chance": 0.08,
-            "shield_block_defense_weight": 90.0,
-            "shield_block_counter_weight": 10.0,
             "evasion_penalty": -0.30,
             "parry_penalty": -0.05,
         },

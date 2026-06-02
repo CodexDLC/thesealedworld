@@ -12914,13 +12914,31 @@ html, body {
 .combat-token-strip {
     display: grid;
     place-items: center;
+    justify-self: stretch;
+    width: 100%;
     min-width: 0;
+    box-sizing: border-box;
     padding: 6px 16px;
     border: 1px solid rgba(255, 185, 45, .24);
     background:
         linear-gradient(180deg, rgba(255, 190, 65, .075), rgba(0, 0, 0, .22)),
         rgba(8, 8, 9, .70);
     box-shadow: inset 0 1px 0 rgba(255, 230, 160, .08);
+}
+
+.combat-ability-strip {
+    display: grid;
+    place-items: center;
+    justify-self: stretch;
+    width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+    padding: 6px 16px;
+    border: 1px solid rgba(45, 220, 190, .24);
+    background:
+        linear-gradient(180deg, rgba(40, 210, 185, .07), rgba(0, 0, 0, .20)),
+        rgba(5, 12, 12, .70);
+    box-shadow: inset 0 1px 0 rgba(190, 255, 235, .08);
 }
 
 .combat-token-bar {
@@ -12955,10 +12973,6 @@ html, body {
     max-width: 860px;
     margin: 0 auto;
     width: 100%;
-}
-
-.combat-action-group--abilities {
-    padding-top: 7px;
 }
 
 .combat-action-label {
@@ -13831,6 +13845,7 @@ html, body {
     display: grid;
     grid-template-columns: 34px minmax(0, 1fr);
     gap: 6px;
+    align-items: stretch;
     min-width: 0;
     width: 100%;
 }
@@ -13842,6 +13857,7 @@ html, body {
 .combat-feint-pin {
     min-width: 0;
     min-height: 42px;
+    aspect-ratio: auto;
     display: grid;
     place-items: center;
     padding: 0;
@@ -13879,6 +13895,7 @@ html, body {
     min-width: 0;
     justify-content: flex-start;
     gap: 10px;
+    overflow: hidden;
     border-color: rgba(0, 255, 200, .18);
     background:
         linear-gradient(180deg, rgba(0, 255, 200, .055), rgba(0, 0, 0, .32)),
@@ -13917,6 +13934,10 @@ html, body {
     text-align: center;
 }
 
+.combat-feint-icon {
+    flex: 0 0 auto;
+}
+
 .combat-feint-main {
     min-width: 0;
     display: grid;
@@ -13934,13 +13955,29 @@ html, body {
 }
 
 .combat-ability-grid {
-    display: flex;
-    flex-wrap: wrap;
+    --combat-ability-gap: 6px;
+    --combat-ability-slot-size: 36px;
+    --combat-ability-icon-size: 18px;
+    display: grid;
+    grid-template-columns: repeat(8, var(--combat-ability-slot-size));
+    grid-auto-rows: var(--combat-ability-slot-size);
+    align-items: center;
+    justify-items: center;
     justify-content: center;
-    gap: 6px;
+    gap: var(--combat-ability-gap);
+    max-height: calc((var(--combat-ability-slot-size) * 2) + var(--combat-ability-gap));
+    overflow-y: auto;
+    overscroll-behavior: contain;
+}
+
+.combat-ability-grid:has(> :nth-child(9)) {
+    --combat-ability-slot-size: 30px;
+    --combat-ability-icon-size: 16px;
 }
 
 .combat-ability-tooltip-host {
+    width: var(--combat-ability-slot-size);
+    height: var(--combat-ability-slot-size);
     min-width: 0;
     display: grid;
     place-items: stretch;
@@ -13948,8 +13985,10 @@ html, body {
 
 .combat-ability-option {
     position: relative;
-    width: 42px;
-    height: 42px;
+    width: var(--combat-ability-slot-size);
+    height: var(--combat-ability-slot-size);
+    min-height: var(--combat-ability-slot-size);
+    aspect-ratio: auto;
     display: grid;
     place-items: center;
     padding: 0;
@@ -14024,8 +14063,8 @@ html, body {
 }
 
 .combat-ability-option img {
-    width: 22px;
-    height: 22px;
+    width: var(--combat-ability-icon-size);
+    height: var(--combat-ability-icon-size);
     position: relative;
     z-index: 1;
     opacity: .98;
@@ -14083,12 +14122,12 @@ html, body {
 
     .combat-field {
         min-height: auto;
-        grid-template-rows: auto auto auto;
-        align-content: start;
+        grid-template-rows: auto minmax(0, 1fr) auto;
+        align-content: stretch;
     }
 
     .combat-exchange-card {
-        align-content: start;
+        align-content: center;
     }
 }
 
@@ -15886,21 +15925,33 @@ html, body {
 }
 
 .combat-action-panel .combat-token-strip {
+    justify-self: stretch;
+    width: 100%;
+    box-sizing: border-box;
     padding: 6px;
+}
+
+.combat-action-panel .combat-ability-strip {
+    justify-self: stretch;
+    width: 100%;
+    box-sizing: border-box;
 }
 
 .combat-command-layout {
     display: grid;
-    grid-template-columns: minmax(148px, 190px) minmax(0, 1fr);
+    grid-template-columns: minmax(0, 1fr);
+    justify-self: stretch;
+    width: 100%;
     gap: 8px;
     min-width: 0;
 }
 
-.combat-tool-panel,
 .combat-decision-panel {
     display: grid;
+    justify-self: stretch;
     align-content: start;
     gap: 7px;
+    width: 100%;
     min-width: 0;
 }
 
@@ -15910,10 +15961,6 @@ html, body {
     padding: 18px 6px 6px;
     border: 1px solid rgba(255, 185, 45, .18);
     background: rgba(0, 0, 0, .28);
-}
-
-.combat-action-group--mobile {
-    display: none;
 }
 
 .combat-action-panel .combat-action-group summary,
@@ -15945,15 +15992,13 @@ html, body {
     white-space: nowrap;
 }
 
-.combat-belt-slots,
-.combat-ability-grid {
+.combat-belt-slots {
     display: grid;
     grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: 4px;
 }
 
-.combat-belt-slot,
-.combat-ability-option {
+.combat-belt-slot {
     min-width: 0;
     min-height: 28px;
     display: grid;
@@ -15963,10 +16008,6 @@ html, body {
 
 .combat-belt-slot {
     opacity: .72;
-}
-
-.combat-ability-tooltip-host {
-    aspect-ratio: 1.1;
 }
 
 .combat-belt-slot--empty,
@@ -15992,7 +16033,9 @@ html, body {
 .combat-decision-panel .combat-action-list {
     display: grid;
     grid-template-columns: minmax(0, 1fr);
+    justify-self: stretch;
     gap: 6px;
+    width: 100%;
 }
 
 .combat-primary-row {
@@ -16054,19 +16097,6 @@ html, body {
 
     .combat-command-layout {
         grid-template-columns: 1fr;
-    }
-
-    .combat-tool-panel {
-        order: -1;
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-    }
-
-    .combat-action-group--desktop {
-        display: none;
-    }
-
-    .combat-action-group--mobile {
-        display: block;
     }
 
     .combat-mobile-dock {
@@ -16135,8 +16165,27 @@ html, body {
         padding: 7px;
     }
 
+    .combat-action-panel:has(.combat-ability-grid > :nth-child(9)) {
+        max-height: min(42dvh, 300px);
+    }
+
     .combat-action-panel .combat-token-strip {
         padding: 5px;
+    }
+
+    .combat-action-panel .combat-ability-strip {
+        padding: 5px;
+    }
+
+    .combat-action-panel .combat-ability-grid {
+        --combat-ability-gap: 4px;
+        --combat-ability-slot-size: 28px;
+        --combat-ability-icon-size: 14px;
+    }
+
+    .combat-action-panel .combat-ability-grid:has(> :nth-child(9)) {
+        --combat-ability-slot-size: 24px;
+        --combat-ability-icon-size: 13px;
     }
 
     .combat-action-panel .combat-token-bar {
@@ -16150,23 +16199,20 @@ html, body {
     }
 
     .combat-action-panel .combat-token img,
-    .combat-action-panel .combat-feint-option img,
-    .combat-action-panel .combat-ability-option img {
+    .combat-action-panel .combat-feint-option img {
         width: 14px;
         height: 14px;
-    }
-
-    .combat-tool-panel {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: 5px;
     }
 
     .combat-decision-panel {
         order: 1;
         gap: 5px;
+        min-height: 0;
     }
 
     .combat-decision-panel .combat-action-list {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr);
         gap: 5px;
     }
 
@@ -16181,14 +16227,12 @@ html, body {
         font-size: 7px;
     }
 
-    .combat-belt-slots,
-    .combat-ability-grid {
+    .combat-belt-slots {
         grid-template-columns: repeat(4, minmax(0, 1fr));
         gap: 4px;
     }
 
-    .combat-belt-slot,
-    .combat-ability-option {
+    .combat-belt-slot {
         min-height: 28px;
         aspect-ratio: auto;
     }
@@ -16204,7 +16248,40 @@ html, body {
 
     .combat-feint-option,
     .combat-feint-option--debug {
-        min-height: 34px;
+        min-height: 28px;
+        height: 28px;
+        gap: 5px;
+        padding: 0 7px;
+        font-size: 8px;
+        letter-spacing: .08em;
+    }
+
+    .combat-feint-row--empty .combat-feint-option--debug {
+        width: 100%;
+    }
+
+    .combat-feint-row {
+        grid-template-columns: 26px minmax(0, 1fr);
+        gap: 3px;
+        max-height: 28px;
+    }
+
+    .combat-feint-row--empty {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .combat-feint-pin {
+        width: 26px;
+        min-height: 28px;
+        height: 28px;
+        aspect-ratio: auto;
+        font-size: 10px;
+    }
+
+    .combat-feint-option img,
+    .combat-feint-icon {
+        width: 12px;
+        height: 12px;
     }
 
     .combat-mobile-dock {
@@ -16390,19 +16467,6 @@ html, body {
         grid-template-columns: 1fr;
     }
 
-    .combat-tool-panel {
-        order: -1;
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-    }
-
-    .combat-action-group--desktop {
-        display: none;
-    }
-
-    .combat-action-group--mobile {
-        display: block;
-    }
-
     .combat-mobile-dock {
         display: grid;
     }
@@ -16413,11 +16477,28 @@ html, body {
         display: grid;
     }
 
+    .combat-field {
+        grid-template-rows: auto minmax(0, 1fr) auto;
+        align-content: stretch;
+    }
+
+    .combat-field > .combat-field-actor--enemy {
+        grid-row: 1;
+        align-self: start;
+    }
+
     .combat-field > .combat-field-actor--hero {
+        grid-row: 3;
+        align-self: end;
         display: grid;
     }
 
     .combat-field > .combat-exchange-card {
+        grid-row: 2;
+        align-self: center;
+        justify-self: center;
+        z-index: 3;
+        width: min(100%, 330px);
         min-height: 42px;
         padding: 0;
         overflow: visible;
@@ -16546,7 +16627,8 @@ html, body {
         --combat-target-portrait-size: clamp(46px, 14cqw, 68px);
         --combat-target-gap: 7px;
         min-height: 0;
-        grid-template-rows: auto 42px auto;
+        grid-template-rows: auto minmax(0, 1fr) auto;
+        align-content: stretch;
         padding: 6px;
     }
 
@@ -16705,8 +16787,27 @@ html, body {
         max-height: min(38dvh, 270px);
     }
 
+    .combat-action-panel:has(.combat-ability-grid > :nth-child(9)) {
+        max-height: min(42dvh, 300px);
+    }
+
     .combat-action-panel .combat-token-strip {
         padding: 5px;
+    }
+
+    .combat-action-panel .combat-ability-strip {
+        padding: 5px;
+    }
+
+    .combat-action-panel .combat-ability-grid {
+        --combat-ability-gap: 4px;
+        --combat-ability-slot-size: 28px;
+        --combat-ability-icon-size: 14px;
+    }
+
+    .combat-action-panel .combat-ability-grid:has(> :nth-child(9)) {
+        --combat-ability-slot-size: 24px;
+        --combat-ability-icon-size: 13px;
     }
 
     .combat-action-panel .combat-token-bar {
@@ -16720,23 +16821,20 @@ html, body {
     }
 
     .combat-action-panel .combat-token img,
-    .combat-action-panel .combat-feint-option img,
-    .combat-action-panel .combat-ability-option img {
+    .combat-action-panel .combat-feint-option img {
         width: 14px;
         height: 14px;
-    }
-
-    .combat-tool-panel {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: 5px;
     }
 
     .combat-decision-panel {
         order: 1;
         gap: 5px;
+        min-height: 0;
     }
 
     .combat-decision-panel .combat-action-list {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr);
         gap: 4px;
     }
 
@@ -16751,14 +16849,12 @@ html, body {
         font-size: 7px;
     }
 
-    .combat-belt-slots,
-    .combat-ability-grid {
+    .combat-belt-slots {
         grid-template-columns: repeat(4, minmax(0, 1fr));
         gap: 4px;
     }
 
-    .combat-belt-slot,
-    .combat-ability-option {
+    .combat-belt-slot {
         min-height: 28px;
         aspect-ratio: auto;
     }
@@ -16773,22 +16869,41 @@ html, body {
     }
 
     .combat-feint-row {
-        grid-template-columns: 28px minmax(0, 1fr);
-        gap: 4px;
+        grid-template-columns: 26px minmax(0, 1fr);
+        gap: 3px;
+        max-height: 28px;
+    }
+
+    .combat-feint-row--empty {
+        grid-template-columns: minmax(0, 1fr);
     }
 
     .combat-feint-pin {
-        min-height: 30px;
-        font-size: 11px;
+        width: 26px;
+        min-height: 28px;
+        height: 28px;
+        aspect-ratio: auto;
+        font-size: 10px;
     }
 
     .combat-feint-option,
     .combat-feint-option--debug {
-        min-height: 30px;
-        gap: 6px;
-        padding: 0 8px;
+        min-height: 28px;
+        height: 28px;
+        gap: 5px;
+        padding: 0 7px;
         font-size: 8px;
         letter-spacing: .08em;
+    }
+
+    .combat-feint-row--empty .combat-feint-option--debug {
+        width: 100%;
+    }
+
+    .combat-feint-option img,
+    .combat-feint-icon {
+        width: 12px;
+        height: 12px;
     }
 
     .combat-feint-title {

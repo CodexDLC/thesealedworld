@@ -39,9 +39,12 @@ WEAPON_POLEARM_FEINTS_TECHNICAL = {
         feint_id="polearm_leg_sweep",
         cost=FeintCostDTO(tactics={"hit": 3, "dodge": 5}),
         target=TargetType.SINGLE_ENEMY,
-        applicability_tags=[*_POLEARM_TAGS, "hit", "dodge", "trip", "knockdown", "high_cost"],
+        applicability_tags=[*_POLEARM_TAGS, "hit", "dodge", "trip", "knockdown", "anti_archer", "high_cost"],
         purchase_group="weapon",
-        effects=[{"id": "knockdown", "target_actor": "target"}],
+        effects=[
+            {"id": "knockdown", "target_actor": "target"},
+            {"id": "force_ranged_close", "target_actor": "target"},
+        ],
     ),
     "polearm_guard_intercept": FeintTechnicalDTO(
         feint_id="polearm_guard_intercept",
@@ -62,7 +65,7 @@ WEAPON_POLEARM_FEINTS_TECHNICAL = {
         feint_id="polearm_stunning_intercept",
         cost=FeintCostDTO(tactics={"hit": 3, "parry": 5}),
         target=TargetType.SINGLE_ENEMY,
-        applicability_tags=[*_POLEARM_TAGS, "hit", "parry", "intercept", "stun", "high_cost"],
+        applicability_tags=[*_POLEARM_TAGS, "hit", "parry", "intercept", "stun", "anti_archer", "high_cost"],
         purchase_group="weapon",
         modifier_applications=[
             ModifierApplicationDTO(
@@ -71,7 +74,10 @@ WEAPON_POLEARM_FEINTS_TECHNICAL = {
                 tags=["polearms", "intercept"],
             )
         ],
-        effects=[{"id": "stun", "target_actor": "target"}],
+        effects=[
+            {"id": "stun", "target_actor": "target"},
+            {"id": "force_ranged_close", "target_actor": "target"},
+        ],
     ),
     "polearm_pinning_point": FeintTechnicalDTO(
         feint_id="polearm_pinning_point",
@@ -92,7 +98,7 @@ WEAPON_POLEARM_FEINTS_TECHNICAL = {
         feint_id="polearm_locked_distance",
         cost=FeintCostDTO(tactics={"hit": 3, "crit": 5}),
         target=TargetType.SINGLE_ENEMY,
-        applicability_tags=[*_POLEARM_TAGS, "hit", "crit", "control_chance", "knockdown", "high_cost"],
+        applicability_tags=[*_POLEARM_TAGS, "hit", "crit", "control_chance", "knockdown", "anti_archer", "high_cost"],
         purchase_group="weapon",
         modifier_applications=[
             ModifierApplicationDTO(
@@ -105,7 +111,10 @@ WEAPON_POLEARM_FEINTS_TECHNICAL = {
             pipeline_mutation("target_evasion_mult", 0.70),
             pipeline_mutation("target_parry_mult", 0.80),
         ],
-        effects=[{"id": "knockdown", "target_actor": "target"}],
+        effects=[
+            {"id": "knockdown", "target_actor": "target"},
+            {"id": "force_ranged_close", "target_actor": "target"},
+        ],
     ),
     "polearm_line_cleave": FeintTechnicalDTO(
         feint_id="polearm_line_cleave",
@@ -117,12 +126,119 @@ WEAPON_POLEARM_FEINTS_TECHNICAL = {
         purchase_group="weapon",
         pipeline_mutations=[pipeline_mutation("accuracy_mult", 0.95)],
     ),
+    "polearm_field_sweep": FeintTechnicalDTO(
+        feint_id="polearm_field_sweep",
+        cost=FeintCostDTO(tactics={"hit": 5, "parry": 3, "crit": 2}),
+        target=TargetType.ALL_ENEMIES,
+        target_count=99,
+        secondary_damage_mult=0.45,
+        applicability_tags=[*_POLEARM_TAGS, "hit", "parry", "crit", "damage", "multi_target", "high_cost"],
+        purchase_group="weapon",
+        pipeline_mutations=[
+            pipeline_mutation("accuracy_mult", 0.85),
+            pipeline_mutation("target_evasion_mult", 0.85),
+        ],
+    ),
+    "polearm_pinning_point_advanced": FeintTechnicalDTO(
+        feint_id="polearm_pinning_point_advanced",
+        cost=FeintCostDTO(tactics={"hit": 3, "crit": 2, "tempo": 1}),
+        target=TargetType.SINGLE_ENEMY,
+        applicability_tags=[
+            *_POLEARM_TAGS,
+            "hit",
+            "crit",
+            "tempo",
+            "control_chance",
+            "anti_evasion",
+            "anti_archer",
+            "punish",
+        ],
+        purchase_group="weapon",
+        modifier_applications=[
+            ModifierApplicationDTO(
+                modifier_id="control_chance_add",
+                value_override=0.30,
+                tags=["polearms", "control_window"],
+            )
+        ],
+        pipeline_mutations=[pipeline_mutation("target_evasion_mult", 0.80)],
+        effects=[
+            {"id": "force_ranged_close", "target_actor": "target"},
+        ],
+    ),
+    "polearm_locked_distance_advanced": FeintTechnicalDTO(
+        feint_id="polearm_locked_distance_advanced",
+        cost=FeintCostDTO(tactics={"hit": 3, "crit": 5, "tempo": 2}),
+        target=TargetType.SINGLE_ENEMY,
+        applicability_tags=[
+            *_POLEARM_TAGS,
+            "hit",
+            "crit",
+            "tempo",
+            "control_chance",
+            "knockdown",
+            "anti_archer",
+            "punish",
+            "high_cost",
+        ],
+        purchase_group="weapon",
+        modifier_applications=[
+            ModifierApplicationDTO(
+                modifier_id="control_chance_add",
+                value_override=0.50,
+                tags=["polearms", "control_window"],
+            )
+        ],
+        pipeline_mutations=[
+            pipeline_mutation("target_evasion_mult", 0.70),
+            pipeline_mutation("target_parry_mult", 0.80),
+        ],
+        effects=[
+            {"id": "knockdown", "target_actor": "target"},
+            {"id": "force_ranged_close", "target_actor": "target"},
+        ],
+    ),
+    "polearm_field_sweep_advanced": FeintTechnicalDTO(
+        feint_id="polearm_field_sweep_advanced",
+        cost=FeintCostDTO(tactics={"hit": 5, "parry": 3, "crit": 2, "tempo": 2}),
+        target=TargetType.ALL_ENEMIES,
+        target_count=99,
+        secondary_damage_mult=0.45,
+        applicability_tags=[
+            *_POLEARM_TAGS,
+            "hit",
+            "parry",
+            "crit",
+            "tempo",
+            "damage",
+            "multi_target",
+            "control",
+            "anti_archer",
+            "punish",
+            "high_cost",
+        ],
+        purchase_group="weapon",
+        modifier_applications=[
+            ModifierApplicationDTO(
+                modifier_id="control_chance_add",
+                value_override=0.25,
+                tags=["polearms", "control_window"],
+            )
+        ],
+        pipeline_mutations=[
+            pipeline_mutation("accuracy_mult", 0.85),
+            pipeline_mutation("target_evasion_mult", 0.85),
+        ],
+        effects=[
+            {"id": "force_ranged_close", "target_actor": "target"},
+        ],
+    ),
 }
 
 _POLEARM_TEXTS = {
     "polearm_long_line": (
         "Длинная линия",
-        "Удержать дистанцию",
+        "удерживая длинную линию древка достать цель с дистанции",
         "Оружейный финт древкового: следующий удар точнее и сложнее уходит в уворот.",
         "удерживая длинную линию древка",
         "и достает цель с дистанции",
@@ -130,7 +246,7 @@ _POLEARM_TEXTS = {
     ),
     "polearm_hook_step": (
         "Зацепить шаг",
-        "Ослабить уворот",
+        "цепляя шаг противника крюком сбить ему уворот",
         "Оружейный финт древкового: при попадании снижает уклонение цели.",
         "цепляя шаг противника крюком древка",
         "и сбивает работу ног цели",
@@ -138,15 +254,15 @@ _POLEARM_TEXTS = {
     ),
     "polearm_leg_sweep": (
         "Подсечка древком",
-        "Сбить с ног",
-        "Оружейный финт древкового: при попадании сбивает цель с ног.",
+        "ведя древко в подсечку сбить цель с ног",
+        "Оружейный финт древкового: при попадании сбивает цель с ног и навязывает лучнику ближний бой.",
         "ведя древко в подсечку",
         "и валит цель с ног",
         "и жестко сбивает равновесие",
     ),
     "polearm_guard_intercept": (
         "Перехват древком",
-        "Сбить точность",
+        "ставя древко на перехват сбить точность цели",
         "Оружейный финт древкового: усиливает ваше парирование и при попадании снижает точность цели.",
         "ставя древко на перехват",
         "и сбивает прицел цели",
@@ -154,15 +270,15 @@ _POLEARM_TEXTS = {
     ),
     "polearm_stunning_intercept": (
         "Оглушающий перехват",
-        "Оглушить",
-        "Оружейный финт древкового: усиливает ваше парирование и при попадании оглушает цель.",
+        "перехватывая жестким концом древка оглушить цель",
+        "Оружейный финт древкового: усиливает ваше парирование и при попадании оглушает цель, навязывая лучнику ближний бой.",
         "перехватывая вход жестким концом древка",
         "и оглушает цель ударом древка",
         "и срывает вход тяжелым перехватом",
     ),
     "polearm_pinning_point": (
         "Прижать острием",
-        "Открыть контроль",
+        "прижимая цель острием открыть окно контроля",
         "Оружейный финт древкового: повышает шанс физического контроля и режет уворот цели.",
         "прижимая цель острием",
         "и не дает цели свободно сместиться",
@@ -170,19 +286,51 @@ _POLEARM_TEXTS = {
     ),
     "polearm_locked_distance": (
         "Запертая дистанция",
-        "Контроль и сбивание",
-        "Оружейный финт древкового: повышает шанс контроля, режет защитные реакции и при попадании сбивает с ног.",
+        "запирая дистанцию древком открыть контроль и сбить цель с ног",
+        "Оружейный финт древкового: повышает шанс контроля, режет защитные реакции и при попадании сбивает с ног, навязывая лучнику ближний бой.",
         "запирая дистанцию древком",
         "и закрывает цель в зоне контроля",
         "и валит цель в запертой дистанции",
     ),
     "polearm_line_cleave": (
         "Срез строя",
-        "Ударить по трем целям",
+        "ведя древко длинной дугой задеть три цели",
         "Оружейный финт древкового: основной размен задевает до двух дополнительных целей на 75% урона.",
         "срезая строй длинной дугой древка",
         "и задевает соседние цели",
         "и прорезает линию противников",
+    ),
+    "polearm_field_sweep": (
+        "Снос поля",
+        "разворачивая древко широкой дугой снести весь строй",
+        "Оружейный финт древкового: основной размен задевает всех ближайших врагов сниженной точностью и режет их уворот.",
+        "разворачивая древко в широкий снос",
+        "и сметает строй длинной дугой",
+        "и сносит весь строй мощным размахом",
+    ),
+    "polearm_pinning_point_advanced": (
+        "Карательный прижим",
+        "наказывая промах противника прижать его острием и навязать ближний бой",
+        "Карательный финт древкового: тратит темп, повышает шанс контроля, режет уворот цели и навязывает лучнику ближний бой.",
+        "наказывая промах противника точным прижимом",
+        "и прижимает цель острием в ближний бой",
+        "и стискивает цель в ближний бой острым прижимом",
+    ),
+    "polearm_locked_distance_advanced": (
+        "Карательная запертая дистанция",
+        "наказывая промах противника запереть его дистанцию и сбить с ног",
+        "Карательный финт древкового: тратит темп, контроль и сбивание с ног, навязывает лучнику ближний бой.",
+        "наказывая промах противника жестким контролем",
+        "и валит цель в запертой дистанции",
+        "и валит цель сокрушительной запертой дистанцией",
+    ),
+    "polearm_field_sweep_advanced": (
+        "Карательный снос поля",
+        "наказывая весь строй снести его дугой и навязать лучникам ближний бой",
+        "Карательный финт древкового: тратит темп, основной размен задевает всех ближайших, повышает контроль и навязывает лучникам ближний бой.",
+        "наказывая весь строй сокрушительной дугой",
+        "и сметает строй и стискивает лучников в ближний бой",
+        "и стискивает лучников в ближний бой сокрушительным сносом",
     ),
 }
 

@@ -42,7 +42,7 @@ WEAPON_MACING_FEINTS_TECHNICAL = {
         feint_id="macing_skullbreaker",
         cost=FeintCostDTO(tactics={"hit": 3, "crit": 5}),
         target=TargetType.SINGLE_ENEMY,
-        applicability_tags=[*_MACING_TAGS, "hit", "crit", "stun", "high_cost"],
+        applicability_tags=[*_MACING_TAGS, "hit", "crit", "stun", "anti_archer", "high_cost"],
         purchase_group="weapon",
         modifier_applications=[
             ModifierApplicationDTO(
@@ -51,7 +51,10 @@ WEAPON_MACING_FEINTS_TECHNICAL = {
                 tags=["macing", "skullbreaker"],
             )
         ],
-        effects=[{"id": "stun", "target_actor": "target", "conditions": {"is_crit": True}}],
+        effects=[
+            {"id": "stun", "target_actor": "target", "conditions": {"is_crit": True}},
+            {"id": "force_ranged_close", "target_actor": "target", "conditions": {"is_crit": True}},
+        ],
     ),
     "macing_break_swing": FeintTechnicalDTO(
         feint_id="macing_break_swing",
@@ -111,12 +114,115 @@ WEAPON_MACING_FEINTS_TECHNICAL = {
             pipeline_mutation("target_block_mult", 0.85),
         ],
     ),
+    "macing_earthshatter": FeintTechnicalDTO(
+        feint_id="macing_earthshatter",
+        cost=FeintCostDTO(tactics={"hit": 5, "parry": 3, "crit": 2}),
+        target=TargetType.ALL_ENEMIES,
+        target_count=99,
+        secondary_damage_mult=0.40,
+        applicability_tags=[*_MACING_TAGS, "hit", "parry", "crit", "damage", "multi_target", "high_cost"],
+        purchase_group="weapon",
+        pipeline_mutations=[
+            pipeline_mutation("accuracy_mult", 0.85),
+            pipeline_mutation("target_block_mult", 0.80),
+        ],
+    ),
+    "macing_skullbreaker_advanced": FeintTechnicalDTO(
+        feint_id="macing_skullbreaker_advanced",
+        cost=FeintCostDTO(tactics={"hit": 3, "crit": 5, "tempo": 2}),
+        target=TargetType.SINGLE_ENEMY,
+        applicability_tags=[
+            *_MACING_TAGS,
+            "hit",
+            "crit",
+            "tempo",
+            "stun",
+            "control",
+            "anti_archer",
+            "punish",
+            "high_cost",
+        ],
+        purchase_group="weapon",
+        modifier_applications=[
+            ModifierApplicationDTO(
+                modifier_id="crit_chance_add",
+                value_override=0.25,
+                tags=["macing", "skullbreaker"],
+            )
+        ],
+        effects=[
+            {"id": "stun", "target_actor": "target", "conditions": {"is_crit": True}},
+            {"id": "knockdown", "target_actor": "target", "conditions": {"is_crit": True}},
+            {"id": "force_ranged_close", "target_actor": "target", "conditions": {"is_crit": True}},
+        ],
+    ),
+    "macing_break_stance_advanced": FeintTechnicalDTO(
+        feint_id="macing_break_stance_advanced",
+        cost=FeintCostDTO(tactics={"hit": 3, "parry": 5, "tempo": 2}),
+        target=TargetType.SINGLE_ENEMY,
+        applicability_tags=[
+            *_MACING_TAGS,
+            "hit",
+            "parry",
+            "tempo",
+            "anti_parry",
+            "control",
+            "anti_archer",
+            "punish",
+            "high_cost",
+        ],
+        purchase_group="weapon",
+        modifier_applications=[
+            ModifierApplicationDTO(
+                modifier_id="parry_mult",
+                value_override=0.25,
+                tags=["macing", "break_stance"],
+            )
+        ],
+        pipeline_mutations=[
+            pipeline_mutation("target_parry_mult", 0.65),
+            pipeline_mutation("damage_mult", 1.10),
+        ],
+        effects=[
+            {"id": "concussed_no_feints", "target_actor": "target"},
+            {"id": "force_ranged_close", "target_actor": "target"},
+        ],
+    ),
+    "macing_earthshatter_advanced": FeintTechnicalDTO(
+        feint_id="macing_earthshatter_advanced",
+        cost=FeintCostDTO(tactics={"hit": 5, "parry": 3, "crit": 2, "tempo": 2}),
+        target=TargetType.ALL_ENEMIES,
+        target_count=99,
+        secondary_damage_mult=0.40,
+        applicability_tags=[
+            *_MACING_TAGS,
+            "hit",
+            "parry",
+            "crit",
+            "tempo",
+            "damage",
+            "multi_target",
+            "control",
+            "anti_archer",
+            "punish",
+            "high_cost",
+        ],
+        purchase_group="weapon",
+        pipeline_mutations=[
+            pipeline_mutation("accuracy_mult", 0.85),
+            pipeline_mutation("target_block_mult", 0.80),
+        ],
+        effects=[
+            {"id": "concussed_no_feints", "target_actor": "target"},
+            {"id": "force_ranged_close", "target_actor": "target"},
+        ],
+    ),
 }
 
 _MACING_TEXTS = {
     "macing_heavy_line": (
         "Тяжелая линия",
-        "Продавить удар",
+        "выводя тяжелое оружие на силовую линию продавить удар",
         "Оружейный финт тяжелого оружия: следующий удар немного точнее и сильнее.",
         "выводя тяжелое оружие на силовую линию",
         "и продавливает защиту тяжелым ударом",
@@ -124,7 +230,7 @@ _MACING_TEXTS = {
     ),
     "macing_armor_crush": (
         "Смятие брони",
-        "Смять броню",
+        "направляя удар в жесткую часть защиты смять броню",
         "Оружейный финт тяжелого оружия: следующий удар сильнее подавляет плоскую броню.",
         "направляя удар в жесткую часть защиты",
         "и сминает броню цели",
@@ -132,7 +238,7 @@ _MACING_TEXTS = {
     ),
     "macing_skullbreaker": (
         "Череполом",
-        "Оглушить критом",
+        "поднимая оружие для пролома оглушить цель критом",
         "Оружейный финт тяжелого оружия: повышает шанс крита; критический удар оглушает цель.",
         "поднимая оружие для оглушающего пролома",
         "и встряхивает цель тяжелым попаданием",
@@ -140,7 +246,7 @@ _MACING_TEXTS = {
     ),
     "macing_break_swing": (
         "Сбить размах",
-        "Ослабить удар",
+        "встречая удар тяжелым перехватом сбить размах цели",
         "Оружейный финт тяжелого оружия: усиливает ваше парирование и при попадании режет следующий урон цели.",
         "встречая удар тяжелым перехватом",
         "и сбивает размах цели",
@@ -148,7 +254,7 @@ _MACING_TEXTS = {
     ),
     "macing_break_stance": (
         "Разбить стойку",
-        "Сломать парирование",
+        "вклиниваясь в стойку цели разбить её парирование",
         "Оружейный финт тяжелого оружия: усиливает ваше парирование и снижает парирование цели.",
         "вклиниваясь тяжелым оружием в стойку цели",
         "и разбивает защитную стойку",
@@ -156,7 +262,7 @@ _MACING_TEXTS = {
     ),
     "macing_guard_cracker": (
         "Пролом защиты",
-        "Пробить блок",
+        "разгоняя оружие пробить блок цели",
         "Оружейный финт тяжелого оружия: следующий удар обходит блок щитом.",
         "разгоняя оружие для пролома защиты",
         "и пробивает блок цели",
@@ -164,11 +270,43 @@ _MACING_TEXTS = {
     ),
     "macing_shock_sweep": (
         "Ударная дуга",
-        "Продавить три цели",
+        "ведя тяжелое оружие дугой продавить три цели",
         "Оружейный финт тяжелого оружия: основной размен задевает до двух дополнительных целей.",
         "ведя тяжелое оружие ударной дугой",
         "и продавливает соседнюю защиту",
         "и расшатывает строй тяжелым кругом",
+    ),
+    "macing_earthshatter": (
+        "Колеблющий землю",
+        "обрушив вес обоих рук разнести строй землетрясением",
+        "Оружейный финт тяжелого оружия: основной размен сотрясает всех врагов сниженной точностью и тяжелым ударом.",
+        "обрушивая вес тяжелого оружия в землю",
+        "и сотрясает строй колеблющим ударом",
+        "и разносит строй сокрушительным колеблющим ударом",
+    ),
+    "macing_skullbreaker_advanced": (
+        "Карательный череполом",
+        "наказывая промах противника обрушить крит и сбить с ног",
+        "Карательный финт тяжелого оружия: тратит темп, повышает шанс крита; критический удар оглушает и валит цель с ног, навязывая лучнику ближний бой.",
+        "наказывая промах противника тяжелым проломом",
+        "и обрушивает крит и валит цель с ног",
+        "и валит цель с ног сокрушительным критом",
+    ),
+    "macing_break_stance_advanced": (
+        "Карательная разбитая стойка",
+        "наказывая промах противника разбить стойку и сорвать темп",
+        "Карательный финт тяжелого оружия: тратит темп, разбивает стойку и срывает темп цели, навязывая лучнику ближний бой.",
+        "наказывая промах противника тяжелым давлением",
+        "и разбивает стойку и срывает темп цели",
+        "и срывает темп цели сокрушительным разбиванием стойки",
+    ),
+    "macing_earthshatter_advanced": (
+        "Карательный колеблющий",
+        "наказывая весь строй сотрясти его и сорвать темп нескольким",
+        "Карательный финт тяжелого оружия: тратит темп, тяжелая дуга задевает всех ближайших, срывает темп трем целям и навязывает лучникам ближний бой.",
+        "наказывая весь строй сокрушительным землетрясением",
+        "и сотрясает строй и срывает темп нескольким",
+        "и срывает темп нескольким после сокрушительного землетрясения",
     ),
 }
 

@@ -3,8 +3,6 @@ from src.backend.features.game_catalog.combat.resources.common.descriptions impo
     CombatEventTextSetDTO,
     build_combat_description,
 )
-from src.backend.features.game_catalog.combat.resources.common.modifier_applications import ModifierApplicationDTO
-from src.backend.features.game_catalog.combat.resources.common.pipeline_mutations import pipeline_mutation
 from src.backend.features.game_catalog.combat.resources.common.targeting import TargetType
 from src.backend.features.game_catalog.combat.resources.feints.schemas import (
     FeintCatalogEntryDTO,
@@ -12,7 +10,7 @@ from src.backend.features.game_catalog.combat.resources.feints.schemas import (
     FeintTechnicalDTO,
 )
 
-_TWO_HANDED_TAGS = ["tactical", "two_handed", "skill_two_handed", "weapon", "melee"]
+_TWO_HANDED_TAGS = ["tactical", "two_handed", "skill_two_handed", "melee"]
 
 
 TACTICAL_TWO_HANDED_FEINTS_TECHNICAL = {
@@ -72,89 +70,58 @@ TACTICAL_TWO_HANDED_FEINTS_TECHNICAL = {
         purchase_group="tactical",
         preparation_effects=[{"id": "prep_2h_hidden_agility", "target_actor": "source"}],
     ),
-    "push_stance": FeintTechnicalDTO(
-        feint_id="push_stance",
-        cost=FeintCostDTO(tactics={"hit": 1, "parry": 2}),
+    "2h_brace_to_blade": FeintTechnicalDTO(
+        feint_id="2h_brace_to_blade",
+        cost=FeintCostDTO(tactics={"dodge": 3}),
         target=TargetType.SINGLE_ENEMY,
-        applicability_tags=[*_TWO_HANDED_TAGS, "hit", "parry", "crit_chance"],
+        applicability_tags=[*_TWO_HANDED_TAGS, "dodge", "converter", "parry_gain"],
         purchase_group="tactical",
-        modifier_applications=[
-            ModifierApplicationDTO(
-                modifier_id="crit_chance_add",
-                value_override=0.30,
-                tags=["two_handed", "crit_window"],
-            )
-        ],
+        preparation_effects=[{"id": "prep_2h_brace_to_blade", "target_actor": "source"}],
     ),
-    "ignore_guard": FeintTechnicalDTO(
-        feint_id="ignore_guard",
-        cost=FeintCostDTO(tactics={"hit": 2, "parry": 2}),
+    "2h_blade_to_break": FeintTechnicalDTO(
+        feint_id="2h_blade_to_break",
+        cost=FeintCostDTO(tactics={"parry": 3}),
         target=TargetType.SINGLE_ENEMY,
-        applicability_tags=[*_TWO_HANDED_TAGS, "hit", "parry", "defense_bypass"],
+        applicability_tags=[*_TWO_HANDED_TAGS, "parry", "converter", "crit_gain"],
         purchase_group="tactical",
-        pipeline_mutations=[
-            pipeline_mutation("ignore_evasion"),
-            pipeline_mutation("ignore_parry"),
-            pipeline_mutation("ignore_block"),
-        ],
+        preparation_effects=[{"id": "prep_2h_blade_to_break", "target_actor": "source"}],
     ),
-    "open_wound": FeintTechnicalDTO(
-        feint_id="open_wound",
-        cost=FeintCostDTO(tactics={"crit": 2, "parry": 2}),
+    "2h_break_to_step": FeintTechnicalDTO(
+        feint_id="2h_break_to_step",
+        cost=FeintCostDTO(tactics={"crit": 3}),
         target=TargetType.SINGLE_ENEMY,
-        applicability_tags=[*_TWO_HANDED_TAGS, "crit", "parry", "bleed"],
+        applicability_tags=[*_TWO_HANDED_TAGS, "crit", "converter", "dodge_gain"],
         purchase_group="tactical",
-        effects=[
+        preparation_effects=[{"id": "prep_2h_break_to_step", "target_actor": "source"}],
+    ),
+    "2h_press_to_parry": FeintTechnicalDTO(
+        feint_id="2h_press_to_parry",
+        cost=FeintCostDTO(tactics={"pressure": 3}),
+        target=TargetType.SINGLE_ENEMY,
+        applicability_tags=[*_TWO_HANDED_TAGS, "pressure", "converter", "parry_gain"],
+        purchase_group="tactical",
+        preparation_effects=[{"id": "prep_2h_press_to_parry", "target_actor": "source"}],
+    ),
+    "2h_blood_to_crit": FeintTechnicalDTO(
+        feint_id="2h_blood_to_crit",
+        cost=FeintCostDTO(tactics={"blood": 2}),
+        target=TargetType.SINGLE_ENEMY,
+        applicability_tags=[*_TWO_HANDED_TAGS, "blood", "converter", "crit_window"],
+        purchase_group="tactical",
+        preparation_effects=[{"id": "prep_2h_blood_to_crit", "target_actor": "source"}],
+    ),
+    "2h_perfect_riposte": FeintTechnicalDTO(
+        feint_id="2h_perfect_riposte",
+        cost=FeintCostDTO(tactics={"parry": 7}),
+        target=TargetType.SINGLE_ENEMY,
+        applicability_tags=[*_TWO_HANDED_TAGS, "parry", "heal", "counter", "high_cost"],
+        purchase_group="tactical",
+        preparation_effects=[
             {
-                "id": "dot_bleed",
-                "target_actor": "target",
-                "params": {"power": 0.5},
-            }
-        ],
-    ),
-    "heavy_swing": FeintTechnicalDTO(
-        feint_id="heavy_swing",
-        cost=FeintCostDTO(tactics={"hit": 2, "parry": 3}),
-        target=TargetType.SINGLE_ENEMY,
-        applicability_tags=[*_TWO_HANDED_TAGS, "hit", "parry", "forced_crit", "weapon_trigger"],
-        purchase_group="tactical",
-        pipeline_mutations=[pipeline_mutation("force.crit")],
-    ),
-    "hidden_strength": FeintTechnicalDTO(
-        feint_id="hidden_strength",
-        cost=FeintCostDTO(tactics={"hit": 3, "parry": 3}),
-        target=TargetType.SINGLE_ENEMY,
-        applicability_tags=[*_TWO_HANDED_TAGS, "hit", "parry", "forced_crit", "no_weapon_trigger", "damage"],
-        purchase_group="tactical",
-        pipeline_mutations=[
-            pipeline_mutation("force.crit"),
-            pipeline_mutation("crit_damage_boost"),
-            pipeline_mutation("suppress_crit_triggers"),
-        ],
-    ),
-    "lucky_break": FeintTechnicalDTO(
-        feint_id="lucky_break",
-        cost=FeintCostDTO(tactics={"crit": 5}),
-        target=TargetType.SINGLE_ENEMY,
-        applicability_tags=[*_TWO_HANDED_TAGS, "crit", "forced_crit", "weapon_trigger", "damage"],
-        purchase_group="tactical",
-        pipeline_mutations=[
-            pipeline_mutation("force.crit"),
-            pipeline_mutation("crit_damage_boost"),
-        ],
-    ),
-    "two_handed_whirl": FeintTechnicalDTO(
-        feint_id="two_handed_whirl",
-        cost=FeintCostDTO(tactics={"hit": 5, "parry": 2}),
-        target=TargetType.ALL_ENEMIES,
-        target_count=3,
-        secondary_damage_mult=0.65,
-        applicability_tags=[*_TWO_HANDED_TAGS, "hit", "parry", "damage", "multi_target", "high_cost"],
-        purchase_group="tactical",
-        pipeline_mutations=[
-            pipeline_mutation("accuracy_mult", 0.90),
-            pipeline_mutation("target_parry_mult", 0.85),
-            pipeline_mutation("target_block_mult", 0.85),
+                "id": "prep_perfect_riposte",
+                "target_actor": "source",
+                "params": {"heal_max_hp_ratio": 0.12, "heal_min": 6},
+            },
         ],
     ),
 }
@@ -162,7 +129,7 @@ TACTICAL_TWO_HANDED_FEINTS_TECHNICAL = {
 _TWO_HANDED_TEXTS = {
     "crushing_pressure": (
         "Давящая стойка",
-        "Сбить размах противника",
+        "давя весом оружия сбить размах противника",
         "Двуручный финт: при попадании снижает следующий исходящий урон цели вдвое.",
         "давя весом оружия на линию атаки",
         "и сбивает размах противника",
@@ -170,7 +137,7 @@ _TWO_HANDED_TEXTS = {
     ),
     "steel_line": (
         "Стальная линия",
-        "Купить следующее парирование",
+        "возвращая клинок в линию подготовить парирование",
         "Двуручный финт: следующая атака по вам будет парирована.",
         "возвращая оружие в стальную линию",
         "и ставит оружие на встречную защиту",
@@ -178,7 +145,7 @@ _TWO_HANDED_TEXTS = {
     ),
     "blade_return": (
         "Возврат клинка",
-        "Повысить следующее парирование",
+        "возвращая клинок поднять следующее парирование",
         "Двуручный финт: следующая входящая атака проходит против усиленного парирования.",
         "возвращая клинок после давления",
         "и усиливает линию будущего парирования",
@@ -186,7 +153,7 @@ _TWO_HANDED_TEXTS = {
     ),
     "hard_intercept": (
         "Жесткий перехват",
-        "Парировать и сбить размах",
+        "оставляя оружие на линии перехватить и сбить размах",
         "Двуручный финт: следующая атака парируется и снижает следующий исходящий урон противника.",
         "оставляя оружие для жесткого перехвата",
         "и готовит встречный сбив",
@@ -194,7 +161,7 @@ _TWO_HANDED_TEXTS = {
     ),
     "answering_stance": (
         "Ответная стойка",
-        "Парировать и контратаковать",
+        "собирая оружие в стойку парировать и контратаковать",
         "Двуручный финт: следующая атака парируется и вызывает контратаку.",
         "собирая ответную стойку",
         "и удерживает оружие для ответа",
@@ -202,7 +169,7 @@ _TWO_HANDED_TEXTS = {
     ),
     "closed_distance": (
         "Закрытая дистанция",
-        "Парировать дорогим ответом",
+        "сжимая дистанцию парировать жестким ответом",
         "Двуручный финт: следующая атака парируется и вызывает жесткую контратаку.",
         "сжимая дистанцию вокруг тяжелого оружия",
         "и готовит закрытый ответ",
@@ -210,67 +177,59 @@ _TWO_HANDED_TEXTS = {
     ),
     "hidden_agility": (
         "Скрытая ловкость",
-        "Уйти и ответить",
+        "пряча движение уйти с линии и ответить",
         "Двуручный финт: следующая атака уходит в уворот и вызывает контратаку.",
         "пряча движение за весом оружия",
         "и сохраняет скрытую ловкость",
         "и готовит резкий уход с ответом",
     ),
-    "push_stance": (
-        "Продавить стойку",
-        "Открыть критовое окно",
-        "Двуручный финт: следующий удар получает повышенный шанс крита.",
-        "продавливая стойку цели",
-        "и открывает критовое окно",
-        "и находит слабую точку в защите",
+    "2h_brace_to_blade": (
+        "Перевод стойки",
+        "уворачиваясь поставить оружие для парирования",
+        "Двуручный финт-конвертер: тратит уворот и сразу даёт жетон парирования.",
+        "уводя корпус и сразу собирая клинок в стойку",
+        "и закрепляет переход в защитную линию",
+        "и точно ловит момент для встречной линии",
     ),
-    "ignore_guard": (
-        "Игнорирование",
-        "Провести удар мимо защиты",
-        "Двуручный финт: следующий удар игнорирует уворот, парирование и блок.",
-        "выбирая линию вне привычной защиты",
-        "и проходит мимо защитной реакции",
-        "и ломает защитный ритм цели",
+    "2h_blade_to_break": (
+        "Окно после защиты",
+        "отводя удар выждать щель для следующего",
+        "Двуручный финт-конвертер: тратит парирование и готовит окно — следующий ваш крит даст бонусный жетон крита.",
+        "отводя клинок противника по дуге",
+        "и удерживает щель для следующего удара",
+        "и точно раскрывает критовое окно",
     ),
-    "open_wound": (
-        "Открытая рана",
-        "Открыть кровотечение",
-        "Двуручный финт: успешный удар накладывает кровотечение.",
-        "готовя режущую линию",
-        "и открывает кровоточащую рану",
-        "и глубоко раскрывает рану",
+    "2h_break_to_step": (
+        "Уход после крита",
+        "закрепив крит уйти с линии",
+        "Двуручный финт-конвертер: тратит крит и готовит окно — следующий ваш уворот даст бонусный жетон уворота.",
+        "закрепляя крит широким шагом",
+        "и уходит с линии после тяжелого удара",
+        "и оставляет линию пустой за собой",
     ),
-    "heavy_swing": (
-        "Тяжелый замах",
-        "Гарантировать крит с триггером",
-        "Двуручный финт: следующий удар становится критическим и запускает оружейный крит-триггер.",
-        "поднимая оружие в тяжелый замах",
-        "и обрушивает критический удар",
-        "и проводит тяжелый критический размен",
+    "2h_press_to_parry": (
+        "Давление в защиту",
+        "надавив корпусом перехватить линию обороны",
+        "Двуручный финт-конвертер: тратит давление и сразу даёт жетон парирования.",
+        "надавливая корпусом на линию противника",
+        "и сразу переводит давление в защитную стойку",
+        "и закрывает линию обороны точным движением",
     ),
-    "hidden_strength": (
-        "Скрытая сила",
-        "Крит без оружейного триггера",
-        "Двуручный финт: следующий удар критический, без оружейного триггера, но с x2 уроном.",
-        "собирая силу без лишнего раскрытия",
-        "и бьет скрытой силой",
-        "и вкладывает весь вес в чистый урон",
+    "2h_blood_to_crit": (
+        "Боль в удар",
+        "выдержав боль обрушить следующий удар",
+        "Двуручный финт-конвертер: тратит кровь и поднимает шанс крита следующего удара.",
+        "выдыхая накопленную боль",
+        "и закрепляет тяжелую линию следующего удара",
+        "и собирает боль в опасное критовое окно",
     ),
-    "lucky_break": (
-        "Слепая удача",
-        "Крит с триггером и x2 уроном",
-        "Двуручный финт: следующий удар критический, с оружейным триггером и x2 уроном.",
-        "рискуя всем ради одного окна",
-        "и ловит удачный критический момент",
-        "и раскрывает удар полностью",
-    ),
-    "two_handed_whirl": (
-        "Тяжелый круг",
-        "Задеть три цели",
-        "Двуручный финт: основной размен задевает до двух дополнительных целей.",
-        "ведя оружие тяжелым кругом",
-        "и продавливает соседнюю линию",
-        "и разбрасывает давление по строю",
+    "2h_perfect_riposte": (
+        "Совершенный рипост",
+        "сохраняя оружие для рипоста парировать восстановиться и ответить",
+        "Двуручный финт: следующее успешное парирование восстанавливает HP и вызывает контратаку.",
+        "сохраняя оружие для рипоста",
+        "и держит линию ответа после контакта",
+        "и открывает опасный рипост",
     ),
 }
 

@@ -127,12 +127,86 @@ WEAPON_FENCING_FEINTS_TECHNICAL = {
         purchase_group="weapon",
         pipeline_mutations=[pipeline_mutation("accuracy_mult", 1.02)],
     ),
+    "fencing_storm_lattice": FeintTechnicalDTO(
+        feint_id="fencing_storm_lattice",
+        cost=FeintCostDTO(tactics={"hit": 5, "dodge": 3, "crit": 2}),
+        target=TargetType.ALL_ENEMIES,
+        target_count=99,
+        secondary_damage_mult=0.40,
+        applicability_tags=[*_FENCING_TAGS, "hit", "dodge", "crit", "damage", "multi_target", "high_cost"],
+        purchase_group="weapon",
+        pipeline_mutations=[
+            pipeline_mutation("accuracy_mult", 0.85),
+            pipeline_mutation("target_parry_mult", 0.85),
+        ],
+    ),
+    "fencing_corner_entry_advanced": FeintTechnicalDTO(
+        feint_id="fencing_corner_entry_advanced",
+        cost=FeintCostDTO(tactics={"hit": 3, "dodge": 2, "tempo": 1}),
+        target=TargetType.SINGLE_ENEMY,
+        applicability_tags=[*_FENCING_TAGS, "hit", "dodge", "tempo", "crit_chance", "anti_parry", "punish"],
+        purchase_group="weapon",
+        modifier_applications=[
+            ModifierApplicationDTO(
+                modifier_id="crit_chance_add",
+                value_override=0.20,
+                tags=["fencing", "dodge_to_crit"],
+            )
+        ],
+        pipeline_mutations=[pipeline_mutation("target_parry_mult", 0.85)],
+    ),
+    "fencing_hidden_entry_advanced": FeintTechnicalDTO(
+        feint_id="fencing_hidden_entry_advanced",
+        cost=FeintCostDTO(tactics={"hit": 3, "dodge": 5, "tempo": 2}),
+        target=TargetType.SINGLE_ENEMY,
+        applicability_tags=[
+            *_FENCING_TAGS,
+            "hit",
+            "dodge",
+            "tempo",
+            "forced_crit",
+            "weapon_trigger",
+            "anti_parry",
+            "punish",
+            "high_cost",
+        ],
+        purchase_group="weapon",
+        pipeline_mutations=[
+            pipeline_mutation("force.crit"),
+            pipeline_mutation("target_evasion_mult", 0.75),
+            pipeline_mutation("target_parry_mult", 0.70),
+        ],
+    ),
+    "fencing_storm_lattice_advanced": FeintTechnicalDTO(
+        feint_id="fencing_storm_lattice_advanced",
+        cost=FeintCostDTO(tactics={"hit": 5, "dodge": 3, "crit": 2, "tempo": 2}),
+        target=TargetType.ALL_ENEMIES,
+        target_count=99,
+        secondary_damage_mult=0.40,
+        applicability_tags=[
+            *_FENCING_TAGS,
+            "hit",
+            "dodge",
+            "crit",
+            "tempo",
+            "damage",
+            "multi_target",
+            "anti_parry",
+            "punish",
+            "high_cost",
+        ],
+        purchase_group="weapon",
+        pipeline_mutations=[
+            pipeline_mutation("accuracy_mult", 0.85),
+            pipeline_mutation("target_parry_mult", 0.65),
+        ],
+    ),
 }
 
 _FENCING_TEXTS = {
     "fencing_precise_prick": (
         "Точный укол",
-        "Повысить точность",
+        "собирая короткую точную линию провести точный укол",
         "Оружейный финт фехтования: следующий укол получает повышенную точность.",
         "собирая короткую точную линию",
         "и проводит точный укол",
@@ -140,7 +214,7 @@ _FENCING_TEXTS = {
     ),
     "fencing_corner_entry": (
         "Вход под углом",
-        "Уворот в крит",
+        "входя под углом превратить смещение в критическое окно",
         "Оружейный финт фехтования: следующий удар получает повышенный шанс крита.",
         "входя под углом после смещения",
         "и находит окно для точного укола",
@@ -148,7 +222,7 @@ _FENCING_TEXTS = {
     ),
     "fencing_hidden_entry": (
         "Скрытый вход",
-        "Гарантировать крит",
+        "пряча вход гарантировать критический укол",
         "Оружейный финт фехтования: следующий удар становится критическим и сложнее уходит в уворот.",
         "пряча вход за движением корпуса",
         "и наносит скрытый критический укол",
@@ -156,7 +230,7 @@ _FENCING_TEXTS = {
     ),
     "fencing_gap_probe": (
         "Проба щели",
-        "Пробить броню и парировать",
+        "нащупывая щель пробить броню и подготовить парирование",
         "Оружейный финт фехтования: следующий удар получает шанс пройти плоскую броню, а вы усиливаете парирование.",
         "нащупывая щель в защите",
         "и проверяет броню точным уколом",
@@ -164,7 +238,7 @@ _FENCING_TEXTS = {
     ),
     "fencing_needle_gap": (
         "Игольная щель",
-        "Игнор брони и парри",
+        "вводя клинок в игольную щель пройти мимо брони и поднять парирование",
         "Оружейный финт фехтования: следующий удар игнорирует плоскую броню, а вы сильнее усиливаете парирование.",
         "вводя клинок в игольную щель",
         "и проходит мимо плоской брони",
@@ -172,7 +246,7 @@ _FENCING_TEXTS = {
     ),
     "fencing_slip_guard": (
         "Скользящая гарда",
-        "Парирование в уворот",
+        "скользя гардой подготовить переход парирования в уворот",
         "Оружейный финт фехтования: после подготовки следующий размен усиливает ваш уворот.",
         "скользя гардой на внешнюю линию",
         "и сохраняет корпус для ухода",
@@ -180,7 +254,7 @@ _FENCING_TEXTS = {
     ),
     "fencing_inside_line": (
         "Внутренняя линия",
-        "Игнор парирования",
+        "ныряя во внутреннюю линию пройти мимо парирования и поднять уворот",
         "Оружейный финт фехтования: следующий удар игнорирует парирование, а вы сильнее усиливаете уворот.",
         "ныряя во внутреннюю линию",
         "и проходит мимо парирующего клинка",
@@ -188,11 +262,43 @@ _FENCING_TEXTS = {
     ),
     "fencing_line_flurry": (
         "Серия по линии",
-        "Задеть три цели",
+        "проводя серию коротких уколов задеть три цели",
         "Оружейный финт фехтования: основной укол задевает до двух дополнительных целей.",
         "проводя серию коротких уколов",
         "и цепляет соседнюю линию",
         "и прошивает несколько открытых окон",
+    ),
+    "fencing_storm_lattice": (
+        "Решетка штормовых уколов",
+        "разворачивая клинок прошить штормовой решеткой весь строй",
+        "Оружейный финт фехтования: основной укол расходится по всем врагам сниженной точностью и снижает их парирование.",
+        "разворачивая клинок в штормовую решетку",
+        "и прошивает строй решеткой уколов",
+        "и накрывает весь строй штормом уколов",
+    ),
+    "fencing_corner_entry_advanced": (
+        "Карательный вход под углом",
+        "наказывая промах противника войти под углом и раскрыть его защиту",
+        "Карательный финт фехтования: тратит темп, повышает шанс крита и режет парирование цели.",
+        "наказывая промах противника входом под углом",
+        "и раскрывает защиту цели точным углом",
+        "и раскрывает защиту цели критическим углом",
+    ),
+    "fencing_hidden_entry_advanced": (
+        "Карательный скрытый вход",
+        "наказывая промах противника войти скрытым уколом и сорвать защиту",
+        "Карательный финт фехтования: тратит темп, критический удар проходит мимо уворота и сильно режет парирование цели.",
+        "наказывая промах противника скрытым входом",
+        "и пробивает защиту скрытым критическим уколом",
+        "и срывает защиту цели скрытым критом",
+    ),
+    "fencing_storm_lattice_advanced": (
+        "Карательная штормовая решетка",
+        "наказывая весь строй прошить его штормовой решеткой и сбить парирование",
+        "Карательный финт фехтования: тратит темп, основной укол расходится по всем врагам и сильно режет их парирование.",
+        "наказывая весь строй штормовой решеткой",
+        "и прошивает строй и сбивает парирование всем",
+        "и сбивает парирование всему строю штормовой решеткой",
     ),
 }
 

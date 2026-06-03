@@ -29,7 +29,7 @@ from src.backend.features.monsters.runtime.encounter_profiles import (
     EncounterKind,
     MonsterEncounterProfile,
 )
-from src.backend.features.monsters.runtime.group_assembler import ENCOUNTER_BALANCE_CONFIG
+from src.backend.features.monsters.runtime.group_assembler import GROUP_ASSEMBLY_CONFIG
 from src.backend.features.monsters.services.gear_score_service import MonsterGearScoreService
 
 if TYPE_CHECKING:
@@ -430,7 +430,7 @@ def monster_gear_score(monster: GeneratedMonster) -> int:
 
 
 def action_economy_multiplier(count: int) -> float:
-    config = ENCOUNTER_BALANCE_CONFIG["action_economy"]
+    config = GROUP_ASSEMBLY_CONFIG["action_economy"]
     if not config["enabled"] or count <= 0:
         return 1.0
     table = config["by_count"]

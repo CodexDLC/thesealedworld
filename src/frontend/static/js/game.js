@@ -216,7 +216,7 @@ window.GameCatalogCache = {
     renderFeintBadgesMini(entry) {
         const badges = this.buildFeintBadges(entry);
         if (!badges.length) return '';
-        const chips = badges.slice(0, 5).map((badge) => {
+        const chips = badges.slice(0, 3).map((badge) => {
             const icon = `/static/images/ui/combat-icons/${badge.icon}.svg`;
             const value = badge.value ? `<b>${this.escapeHtml(String(badge.value))}</b>` : '';
             const label = this.escapeHtml(badge.label);

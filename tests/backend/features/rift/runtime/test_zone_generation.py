@@ -4,7 +4,11 @@ from collections import deque
 
 import pytest
 
-from src.backend.features.monsters.runtime.hashing import compute_rift_context_hash
+from src.backend.features.monsters.runtime.hashing import (
+    MonsterHashContext,
+    compute_monster_context_hash,
+    compute_rift_context_hash,
+)
 from src.backend.features.rift.dto import RiftZoneRuntimeDTO
 from src.backend.features.rift.dto.runtime import RiftActionRequestDTO, coord_key
 from src.backend.features.rift.resources import RiftResourceLoader
@@ -212,10 +216,12 @@ def test_zone_runtime_builds_rift_population_context_with_rift_hash() -> None:
     assert population["family_slots"][1]["prototype_family_key"] == "rat_swarm"
     assert population["family_bindings"]["secondary"]["family_id"] == "rat_swarm"
     assert population["family_slots"][0]["context_hash"] != population["family_slots"][1]["context_hash"]
-    assert population["family_slots"][0]["unique_hash"] == population["family_bindings"]["primary"]["unique_hash"]
     assert population["family_bindings"]["primary"]["family_id"] == "goblin_tribe"
-    assert population["family_bindings"]["primary"]["clan_id"] is None
+    assert "clan_id" not in population["family_bindings"]["primary"]
+    assert "unique_hash" not in population["family_bindings"]["primary"]
     assert population["family_bindings"]["primary"]["context_hash"] == population["family_slots"][0]["context_hash"]
+    primary_hash_context = MonsterHashContext(**population["family_bindings"]["primary"]["hash_context"])
+    assert compute_monster_context_hash(primary_hash_context) == population["family_slots"][0]["context_hash"]
     assert "family_ids" not in population
     assert population["context_hash"] == expected_hash
     assert "broken_caravan" in population["tags"]

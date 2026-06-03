@@ -6,7 +6,11 @@ from collections import deque
 from typing import Any, cast
 from uuid import uuid4
 
-from src.backend.features.monsters.runtime.hashing import compute_rift_context_hash, compute_unique_clan_hash
+from src.backend.features.monsters.runtime.hashing import (
+    MonsterHashContext,
+    compute_monster_context_hash,
+    normalized_monster_hash_tags,
+)
 from src.backend.features.rift.dto import (
     RiftPassageEdgeDTO,
     RiftPoolNodeDTO,
@@ -206,11 +210,14 @@ def build_population_context(setting: dict[str, Any]) -> dict[str, Any]:
         rift_tags=tags,
         population_selection_tags=selection_tags,
     )
-    context_hash = compute_rift_context_hash(
-        setting_key=setting_key,
-        biome_id=biome_id,
-        tier=tier,
-        tags=tags,
+    context_hash = compute_monster_context_hash(
+        MonsterHashContext(
+            source="rift",
+            context_key=setting_key,
+            biome_id=biome_id,
+            tier=tier,
+            tags=tuple(tags),
+        )
     )
     return {
         "source": "rift_static",
@@ -290,12 +297,14 @@ def _family_slots(
             str(raw_slot.get("archetype") or ""),
             family_id,
         ]
-        context_hash = compute_rift_context_hash(
-            setting_key=f"{setting_key}:{slot_id}",
+        hash_context = MonsterHashContext(
+            source="rift",
+            context_key=f"{setting_key}:{slot_id}",
             biome_id=biome_id,
             tier=tier,
-            tags=slot_hash_tags,
+            tags=tuple(slot_hash_tags),
         )
+        context_hash = compute_monster_context_hash(hash_context)
         slots.append(
             {
                 "slot_id": slot_id,
@@ -306,7 +315,8 @@ def _family_slots(
                 "prototype_family_key": family_id,
                 "family_id": family_id,
                 "context_hash": context_hash,
-                "unique_hash": compute_unique_clan_hash(family_id, context_hash) if family_id else "",
+                "hash_context": _hash_context_payload(hash_context),
+                "normalized_tags": normalized_monster_hash_tags(hash_context),
             }
         )
     return slots
@@ -322,9 +332,9 @@ def _family_bindings(family_slots: list[dict[str, Any]]) -> dict[str, dict[str, 
         bindings[slot_id] = {
             "slot_id": slot_id,
             "family_id": family_id,
-            "clan_id": None,
             "context_hash": str(slot.get("context_hash") or ""),
-            "unique_hash": str(slot.get("unique_hash") or ""),
+            "hash_context": dict(slot.get("hash_context") or {}),
+            "normalized_tags": list(slot.get("normalized_tags") or []),
             "source": "rift_static",
         }
     return bindings
@@ -338,6 +348,16 @@ def _string_list(value: Any) -> list[str]:
     else:
         values = []
     return sorted({item for item in values if item})
+
+
+def _hash_context_payload(context: MonsterHashContext) -> dict[str, Any]:
+    return {
+        "source": context.source,
+        "context_key": context.context_key,
+        "biome_id": context.biome_id,
+        "tier": context.tier,
+        "tags": list(context.tags),
+    }
 
 
 def rebuild_zone_state(

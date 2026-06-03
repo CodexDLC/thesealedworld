@@ -16,7 +16,12 @@ from src.backend.features.monsters.resources.visuals import version_generated_as
 from src.backend.features.monsters.runtime.combat_actor_input import MonsterCombatActorInputBuilder
 from src.backend.features.monsters.runtime.encounter_profiles import get_monster_encounter_profile
 from src.backend.features.monsters.runtime.group_assembler import MonsterGroupAssembler
-from src.backend.features.monsters.runtime.hashing import compute_context_hash, compute_unique_clan_hash, normalize_tags
+from src.backend.features.monsters.runtime.hashing import (
+    MonsterHashContext,
+    compute_monster_context_hash,
+    compute_unique_clan_hash,
+    normalized_monster_hash_tags,
+)
 from src.backend.features.monsters.services.gear_score_service import MonsterGearScoreService
 
 if TYPE_CHECKING:
@@ -108,8 +113,15 @@ class MonsterGroupService:
             difficulty="mid",
             context_meta=self._context_meta(location.raw_location),
         )
-        normalized_tags = normalize_tags(context.tags)
-        context_hash = compute_context_hash(context.tier, context.biome_id, normalized_tags)
+        hash_context = MonsterHashContext(
+            source="world",
+            context_key=loc_id,
+            biome_id=context.biome_id,
+            tier=context.tier,
+            tags=tuple(context.tags),
+        )
+        normalized_tags = normalized_monster_hash_tags(hash_context)
+        context_hash = compute_monster_context_hash(hash_context)
         clan, reused_existing_clan = await self._resolve_clan(
             context,
             context_hash,
@@ -133,11 +145,13 @@ class MonsterGroupService:
             ttl=ttl,
         )
 
-    async def prepare_monster_group_from_clan(
+    async def prepare_monster_group_for_hash_context(
         self,
-        clan_id: uuid.UUID | str,
-        budget: float,
         *,
+        family_id: str,
+        hash_context: MonsterHashContext,
+        generation_context: MonsterGenerationContext,
+        budget: float,
         tier: int,
         danger: float,
         biome_id: str,
@@ -149,9 +163,14 @@ class MonsterGroupService:
         scope_id: str | None = None,
         ttl: int = 300,
     ) -> MonsterGroupResult:
-        clan = await self.repository.get_generated_clan(clan_id)
-        if clan is None:
-            raise ValueError(f"Generated monster clan not found: {clan_id}")
+        normalized_tags = normalized_monster_hash_tags(hash_context)
+        context_hash = compute_monster_context_hash(hash_context)
+        clan, reused_existing_clan = await self._resolve_clan(
+            generation_context,
+            context_hash,
+            normalized_tags,
+            family_id,
+        )
 
         return await self._prepare_group_from_clan(
             clan=clan,
@@ -161,9 +180,9 @@ class MonsterGroupService:
             loc_id=loc_id,
             zone_id=zone_id,
             biome_id=biome_id,
-            context_hash=clan.context_hash,
-            tags=list(tags or []),
-            reused_existing_clan=True,
+            context_hash=context_hash,
+            tags=list(tags if tags is not None else normalized_tags),
+            reused_existing_clan=reused_existing_clan,
             force_single_family=force_single_family,
             composition_policy=composition_policy,
             scope_id=scope_id,
@@ -540,7 +559,7 @@ def _encounter_kind(policy: dict[str, Any], tags: list[str]) -> str:
         normalized = _normalize_encounter_kind(tag)
         if normalized is not None:
             return normalized
-    return "guard"
+    return "ordinary"
 
 
 def _normalize_encounter_kind(value: Any) -> str | None:

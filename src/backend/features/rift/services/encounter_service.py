@@ -5,7 +5,9 @@ from typing import TYPE_CHECKING, Any
 
 from loguru import logger
 
+from src.backend.features.monsters.dto import MonsterGenerationContext
 from src.backend.features.monsters.intel_projector import MonsterIntelProjector
+from src.backend.features.monsters.runtime.hashing import MonsterHashContext, normalized_monster_hash_tags
 from src.backend.features.rift.dto.screen import RiftCombatPromptDTO, RiftCombatPromptEnemyDTO
 from src.backend.features.rift.runtime.encounter import composition_policy_for_encounter_kind
 
@@ -128,21 +130,24 @@ class RiftEncounterService:
         metadata = dict(metadata or {})
         node_id = _encounter_node_id(runtime, session=session, metadata=metadata)
         binding = _select_family_binding(runtime, encounter_kind=encounter_kind, node_id=node_id)
-        clan_id = str(binding.get("clan_id") or "").strip()
-        if not clan_id:
-            raise ValueError("Rift encounter family binding does not contain clan_id")
+        family_id = str(binding.get("family_id") or "").strip()
+        if not family_id:
+            raise ValueError("Rift encounter family binding does not contain family_id")
+        hash_context = _binding_hash_context(binding)
 
         population = dict(runtime.population_context or {})
         budget = _combat_budget(session)
-        return await self.monster_groups.prepare_monster_group_from_clan(
-            clan_id,
-            budget,
+        return await self.monster_groups.prepare_monster_group_for_hash_context(
+            family_id=family_id,
+            hash_context=hash_context,
+            generation_context=_generation_context(population, binding, hash_context=hash_context),
+            budget=budget,
             tier=max(1, int(population.get("tier") or dict(runtime.setting or {}).get("tier") or 1)),
             danger=float(population.get("danger") or 0.0),
             biome_id=str(population.get("biome_id") or "rift"),
             loc_id=f"rift:{runtime.rift_instance_id}:{node_id}",
             zone_id=f"rift:{runtime.rift_instance_id}:{runtime.current_zone_key}",
-            tags=[str(tag) for tag in population.get("tags", []) if tag],
+            tags=normalized_monster_hash_tags(hash_context),
             composition_policy=composition_policy_for_encounter_kind(encounter_kind),
             scope_id=f"rift:{session.get('rift_session_id') or runtime.rift_instance_id}:{node_id}:{encounter_kind}",
             ttl=900,
@@ -276,6 +281,56 @@ def _encounter_population_slot(runtime: RiftZoneRuntimeDTO, *, node_id: str | No
     if tags.intersection({"wagon", "debris", "loot", "cache", "ditch", "clay", "ruts", "bridge"}):
         return "secondary"
     return "primary"
+
+
+def _binding_hash_context(binding: dict[str, Any]) -> MonsterHashContext:
+    raw = binding.get("hash_context")
+    if not isinstance(raw, dict):
+        raise ValueError("Rift encounter family binding does not contain hash_context")
+    source = str(raw.get("source") or "")
+    if source != "rift":
+        raise ValueError("Rift encounter family binding hash_context must use source=rift")
+    context_key = str(raw.get("context_key") or "").strip()
+    biome_id = str(raw.get("biome_id") or "").strip()
+    if not context_key or not biome_id:
+        raise ValueError("Rift encounter family binding hash_context is incomplete")
+    return MonsterHashContext(
+        source="rift",
+        context_key=context_key,
+        biome_id=biome_id,
+        tier=max(1, int(raw.get("tier") or 1)),
+        tags=tuple(str(tag).strip() for tag in raw.get("tags", []) if str(tag).strip())
+        if isinstance(raw.get("tags"), list)
+        else (),
+    )
+
+
+def _generation_context(
+    population: dict[str, Any],
+    binding: dict[str, Any],
+    *,
+    hash_context: MonsterHashContext,
+) -> MonsterGenerationContext:
+    setting_key = str(population.get("setting_key") or "rift")
+    slot_id = str(binding.get("slot_id") or "slot")
+    return MonsterGenerationContext(
+        zone_id=f"rift:{setting_key}:{slot_id}",
+        biome_id=hash_context.biome_id,
+        tier=max(1, int(hash_context.tier)),
+        tags=normalized_monster_hash_tags(hash_context),
+        difficulty="mid",
+        context_meta={
+            "rift_population": {
+                "source": str(population.get("source") or "rift_static"),
+                "setting_key": setting_key,
+                "slot_id": slot_id,
+                "role": str(binding.get("role") or ""),
+                "family_profile_key": str(binding.get("family_profile_key") or ""),
+                "archetype": str(binding.get("archetype") or ""),
+                "hash_strategy": str(population.get("hash_strategy") or "rift_context_v1"),
+            }
+        },
+    )
 
 
 def _combat_budget(session: dict[str, Any]) -> float:

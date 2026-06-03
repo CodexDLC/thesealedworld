@@ -3,7 +3,18 @@ from __future__ import annotations
 import uuid
 from typing import Any
 
-from src.backend.features.monsters.dto.generation import GeneratedClan, GeneratedMonster, MonsterLocationContext
+from src.backend.features.monsters.dto.generation import (
+    GeneratedClan,
+    GeneratedMonster,
+    MonsterGenerationContext,
+    MonsterLocationContext,
+)
+from src.backend.features.monsters.runtime.hashing import (
+    MonsterHashContext,
+    compute_monster_context_hash,
+    compute_unique_clan_hash,
+    normalized_monster_hash_tags,
+)
 from src.backend.features.monsters.services.monster_group_service import MonsterGroupService
 
 
@@ -281,23 +292,33 @@ async def test_prepare_monster_group_allows_repeated_monster_templates() -> None
     assert set(result.actor_commitments) == {f"monster:{result.monster_ids[0]}"}
 
 
-async def test_prepare_monster_group_from_clan_skips_world_location_and_hash_selection() -> None:
+async def test_prepare_monster_group_for_hash_context_skips_world_location_and_uses_hash_contract() -> None:
     storage = FakeStorage()
     commitments = FakeActorCommitments()
     cache = FakeGroupCache()
     location_context = FakeLocationContext()
     factory = FakeClanFactory(storage)
-    world_context = type(
-        "WorldContext",
-        (),
-        {"tier": 1, "zone_id": "D4_0_0"},
-    )()
+    hash_context = MonsterHashContext(
+        source="rift",
+        context_key="starter_rift:primary",
+        biome_id="broken_road",
+        tier=1,
+        tags=("starter_rift", "primary", "rat_swarm"),
+    )
+    world_context = MonsterGenerationContext(
+        zone_id="D4_0_0",
+        biome_id="broken_road",
+        tier=1,
+        tags=list(hash_context.tags),
+    )
+    context_hash = compute_monster_context_hash(hash_context)
+    unique_hash = compute_unique_clan_hash("rat_swarm", context_hash)
     clan = await factory.build_clan_template(
         context=world_context,
         family_id="rat_swarm",
-        context_hash="rift-slot-context-hash",
-        unique_hash="rift-slot-unique-hash",
-        normalized_tags=["starter_rift", "primary"],
+        context_hash=context_hash,
+        unique_hash=unique_hash,
+        normalized_tags=normalized_monster_hash_tags(hash_context),
     )
     service = MonsterGroupService(
         repository=storage,
@@ -307,15 +328,16 @@ async def test_prepare_monster_group_from_clan_skips_world_location_and_hash_sel
         factory=factory,  # type: ignore[arg-type]
     )
 
-    result = await service.prepare_monster_group_from_clan(
-        clan.id,
+    result = await service.prepare_monster_group_for_hash_context(
+        family_id="rat_swarm",
+        hash_context=hash_context,
+        generation_context=world_context,
         budget=40,
         tier=1,
         danger=0.35,
         biome_id="broken_road",
         loc_id="rift:starter_rift:primary",
         zone_id="rift:starter_rift",
-        tags=["starter_rift", "primary"],
         composition_policy={
             "allowed_roles": ["minion"],
             "min_units": 1,
@@ -336,24 +358,33 @@ async def test_prepare_monster_group_from_clan_skips_world_location_and_hash_sel
     assert result.loc_id == "rift:starter_rift:primary"
     assert result.zone_id == "rift:starter_rift"
     assert result.biome_id == "broken_road"
-    assert result.context_hash == "rift-slot-context-hash"
-    assert result.unique_hash == "rift-slot-unique-hash"
-    assert result.tags == ["starter_rift", "primary"]
+    assert result.context_hash == context_hash
+    assert result.unique_hash == unique_hash
+    assert result.tags == ["primary", "rat_swarm", "starter_rift"]
     assert result.reused_existing_clan is True
     assert result.monster_ids
     assert set(result.actor_commitments.values()) == set(commitments.saved)
 
 
-async def test_prepare_monster_group_from_clan_applies_rift_composition_policy() -> None:
+async def test_prepare_monster_group_for_hash_context_applies_rift_composition_policy() -> None:
     storage = FakeStorage()
     commitments = FakeActorCommitments()
+    hash_context = MonsterHashContext(
+        source="rift",
+        context_key="starter_rift:heart",
+        biome_id="broken_road",
+        tier=1,
+        tags=("starter_rift", "heart_guard", "rat_swarm"),
+    )
+    context_hash = compute_monster_context_hash(hash_context)
+    unique_hash = compute_unique_clan_hash("rat_swarm", context_hash)
     clan = GeneratedClan(
         id=uuid.uuid4(),
         family_id="rat_swarm",
         tier=1,
         zone_id="rift:starter_rift",
-        context_hash="rift-boss-context-hash",
-        unique_hash="rift-boss-unique-hash",
+        context_hash=context_hash,
+        unique_hash=unique_hash,
         raw_tags={},
         flavor_content={},
         name_ru="Rift Rats",
@@ -377,6 +408,7 @@ async def test_prepare_monster_group_from_clan_applies_rift_composition_policy()
         member.clan = clan
         clan.members.append(member)
     storage.clans_by_unique[clan.unique_hash] = clan
+    storage.clans_by_context[clan.context_hash] = [clan]
     storage.members_by_clan[clan.id] = [minion, boss]
     service = MonsterGroupService(
         repository=storage,
@@ -385,8 +417,15 @@ async def test_prepare_monster_group_from_clan_applies_rift_composition_policy()
         factory=FakeClanFactory(storage),  # type: ignore[arg-type]
     )
 
-    result = await service.prepare_monster_group_from_clan(
-        clan.id,
+    result = await service.prepare_monster_group_for_hash_context(
+        family_id="rat_swarm",
+        hash_context=hash_context,
+        generation_context=MonsterGenerationContext(
+            zone_id="rift:starter_rift",
+            biome_id="broken_road",
+            tier=1,
+            tags=list(hash_context.tags),
+        ),
         budget=60,
         tier=1,
         danger=0.0,
@@ -408,16 +447,25 @@ async def test_prepare_monster_group_from_clan_applies_rift_composition_policy()
     assert result.previews[0].role == "boss"
 
 
-async def test_prepare_monster_group_from_clan_applies_family_encounter_profile() -> None:
+async def test_prepare_monster_group_for_hash_context_applies_family_encounter_profile() -> None:
     storage = FakeStorage()
     commitments = FakeActorCommitments()
+    hash_context = MonsterHashContext(
+        source="rift",
+        context_key="starter_rift:guard",
+        biome_id="broken_road",
+        tier=1,
+        tags=("starter_rift", "rat_swarm"),
+    )
+    context_hash = compute_monster_context_hash(hash_context)
+    unique_hash = compute_unique_clan_hash("rat_swarm", context_hash)
     clan = GeneratedClan(
         id=uuid.uuid4(),
         family_id="rat_swarm",
         tier=1,
         zone_id="rift:starter_rift",
-        context_hash="rift-guard-context-hash",
-        unique_hash="rift-guard-unique-hash",
+        context_hash=context_hash,
+        unique_hash=unique_hash,
         raw_tags={},
         flavor_content={},
         name_ru="Rift Rats",
@@ -450,6 +498,7 @@ async def test_prepare_monster_group_from_clan_applies_family_encounter_profile(
         member.clan = clan
         clan.members.append(member)
     storage.clans_by_unique[clan.unique_hash] = clan
+    storage.clans_by_context[clan.context_hash] = [clan]
     storage.members_by_clan[clan.id] = members
     service = MonsterGroupService(
         repository=storage,
@@ -458,8 +507,15 @@ async def test_prepare_monster_group_from_clan_applies_family_encounter_profile(
         factory=FakeClanFactory(storage),  # type: ignore[arg-type]
     )
 
-    result = await service.prepare_monster_group_from_clan(
-        clan.id,
+    result = await service.prepare_monster_group_for_hash_context(
+        family_id="rat_swarm",
+        hash_context=hash_context,
+        generation_context=MonsterGenerationContext(
+            zone_id="rift:starter_rift",
+            biome_id="broken_road",
+            tier=1,
+            tags=list(hash_context.tags),
+        ),
         budget=200,
         tier=1,
         danger=0.0,

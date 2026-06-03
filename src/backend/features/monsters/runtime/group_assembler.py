@@ -5,15 +5,13 @@ from copy import deepcopy
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
-from src.backend.features.monsters.resources import get_family_config
-
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
     from src.backend.features.monsters.dto.generation import GeneratedMonster
 
 
-ENCOUNTER_BALANCE_CONFIG: dict[str, Any] = {
+GROUP_ASSEMBLY_CONFIG: dict[str, Any] = {
     "global": {
         "budget_multiplier": 1.0,
         "danger_budget_bonus_per_point": 0.25,
@@ -44,53 +42,6 @@ ENCOUNTER_BALANCE_CONFIG: dict[str, Any] = {
         "elite": 1.0,
         "boss": 1.0,
     },
-    "organizations": {
-        "swarm": {
-            "start_minions": 10,
-            "min_units": 4,
-            "max_units": 10,
-            "max_veterans": 4,
-            "max_elites": 2,
-            "boss_allowed": False,
-            "upgrade_order": ["veteran", "elite", "boss"],
-        },
-        "horde": {
-            "start_minions": 5,
-            "min_units": 3,
-            "max_units": 8,
-            "max_veterans": 3,
-            "max_elites": 1,
-            "boss_allowed": False,
-            "upgrade_order": ["veteran", "elite", "boss"],
-        },
-        "pack": {
-            "start_minions": 2,
-            "min_units": 2,
-            "max_units": 5,
-            "max_veterans": 3,
-            "max_elites": 1,
-            "boss_allowed": False,
-            "upgrade_order": ["veteran", "elite", "boss"],
-        },
-        "gang": {
-            "start_minions": 3,
-            "min_units": 2,
-            "max_units": 6,
-            "max_veterans": 3,
-            "max_elites": 2,
-            "boss_allowed": False,
-            "upgrade_order": ["veteran", "elite", "boss"],
-        },
-        "solitary": {
-            "start_minions": 1,
-            "min_units": 1,
-            "max_units": 1,
-            "max_veterans": 1,
-            "max_elites": 1,
-            "boss_allowed": True,
-            "upgrade_order": ["veteran", "elite", "boss"],
-        },
-    },
 }
 
 ROLE_ORDER = {"minion": 1, "veteran": 2, "elite": 3, "boss": 4}
@@ -110,10 +61,10 @@ class MonsterGroupAssembly:
 
 
 class MonsterGroupAssembler:
-    """Select generated monsters by gear-score budget and organization rules."""
+    """Select generated monsters by gear-score budget and composition policy."""
 
     def __init__(self, config: dict[str, Any] | None = None, rng: random.Random | None = None) -> None:
-        self.config = deepcopy(config or ENCOUNTER_BALANCE_CONFIG)
+        self.config = deepcopy(config or GROUP_ASSEMBLY_CONFIG)
         self._rng = rng or random.Random()  # nosec B311
 
     def assemble(
@@ -134,12 +85,11 @@ class MonsterGroupAssembler:
         if not candidates:
             return MonsterGroupAssembly([], target_budget, adjusted_budget, 0)
 
-        organization = self._organization_type(candidates)
         candidates = self._filter_candidates_by_policy(candidates, policy)
         if not candidates:
             return MonsterGroupAssembly([], target_budget, adjusted_budget, 0)
 
-        rule = self._rule_with_policy_overrides(self._organization_rule(organization), policy)
+        rule = self._rule_from_policy(policy)
         selected = self._select_by_rule(candidates, adjusted_budget, rule)
         selected = self._ensure_required_roles(selected, candidates, adjusted_budget, rule, policy["required_roles"])
         total_power = sum(self._member_power(member) for member in selected)
@@ -191,7 +141,7 @@ class MonsterGroupAssembler:
         if bool(self.config["global"]["fill_minion_slots_before_upgrades"]):
             return min(max_units, self._role_cap(rule, role))
         unique_role_members = len({member.variant_key for member in candidates if member.role == role})
-        configured_start = int(rule["start_minions"]) if role == "minion" else int(rule["min_units"])
+        configured_start = int(rule["min_units"])
         return min(max(configured_start, unique_role_members), max_units, self._role_cap(rule, role))
 
     def _best_single(
@@ -200,7 +150,7 @@ class MonsterGroupAssembler:
         budget: float,
         rule: dict[str, Any],
     ) -> GeneratedMonster:
-        allowed_roles = [member for member in candidates if member.role != "boss" or bool(rule["boss_allowed"])]
+        allowed_roles = [member for member in candidates if member.role != "boss" or self._role_cap(rule, "boss") > 0]
         pool = allowed_roles or candidates
         return min(pool, key=lambda member: _single_score(self._member_power(member), budget))
 
@@ -238,7 +188,7 @@ class MonsterGroupAssembler:
         rule: dict[str, Any],
     ) -> None:
         for role in rule["upgrade_order"]:
-            if role == "boss" and not bool(rule["boss_allowed"]):
+            if role == "boss" and self._role_cap(rule, "boss") <= 0:
                 continue
             while self._role_count(selected, role) < self._role_cap(rule, role):
                 upgraded = self._try_upgrade_role(selected, candidates, budget, rule, role)
@@ -304,8 +254,6 @@ class MonsterGroupAssembler:
             return False
         if len(selected) >= int(rule["max_units"]):
             return False
-        if member.role == "boss" and not bool(rule["boss_allowed"]):
-            return False
         if self._role_count(selected, member.role) >= self._role_cap(rule, member.role):
             return False
         next_members = [*selected, member]
@@ -357,20 +305,6 @@ class MonsterGroupAssembler:
             key=lambda member: (ROLE_ORDER.get(member.role, 9), self._member_power(member), member.variant_key),
         )
 
-    def _organization_type(self, candidates: list[GeneratedMonster]) -> str:
-        balance = _balance(candidates[0])
-        organization = str(balance.get("organization_type") or "")
-        if organization in self.config["organizations"]:
-            return organization
-        family_id = candidates[0].family_id
-        family = get_family_config(family_id) if family_id else None
-        if family is not None and family.organization_type in self.config["organizations"]:
-            return family.organization_type
-        return "solitary"
-
-    def _organization_rule(self, organization: str) -> dict[str, Any]:
-        return dict(self.config["organizations"].get(organization) or self.config["organizations"]["solitary"])
-
     def _filter_candidates_by_policy(
         self,
         candidates: list[GeneratedMonster],
@@ -381,47 +315,42 @@ class MonsterGroupAssembler:
             return candidates
         return [member for member in candidates if member.role in allowed_roles]
 
-    def _rule_with_policy_overrides(self, rule: dict[str, Any], policy: dict[str, Any]) -> dict[str, Any]:
-        result = dict(rule)
-        if policy["max_units"] is not None:
-            result["max_units"] = max(1, int(policy["max_units"]))
-        if policy["min_units"] is not None:
-            result["min_units"] = min(int(result["max_units"]), max(0, int(policy["min_units"])))
-        if policy["allow_repeated_members"] is not None:
-            result["allow_repeated_members"] = bool(policy["allow_repeated_members"])
-        if policy["prefer_distinct_members"] is not None:
-            result["prefer_distinct_members"] = bool(policy["prefer_distinct_members"])
-        if policy["start_role"] is not None:
-            result["start_role"] = policy["start_role"]
-        if policy["upgrade_order"]:
-            result["upgrade_order"] = list(policy["upgrade_order"])
-        if policy["role_caps"]:
-            result["role_caps"] = dict(policy["role_caps"])
-
+    def _rule_from_policy(self, policy: dict[str, Any]) -> dict[str, Any]:
+        max_units = max(1, int(policy["max_units"] or 1))
+        min_units = min(max_units, max(0, int(policy["min_units"] or 1)))
         allowed_roles = set(policy["allowed_roles"])
         required_roles = set(policy["required_roles"])
-        if "boss" in allowed_roles or "boss" in required_roles:
-            result["boss_allowed"] = True
-        if allowed_roles:
-            if "veteran" not in allowed_roles:
-                result["max_veterans"] = 0
-            if "elite" not in allowed_roles:
-                result["max_elites"] = 0
-            if "boss" not in allowed_roles:
-                result["boss_allowed"] = False
-        if "veteran" in required_roles:
-            result["max_veterans"] = max(1, int(result["max_veterans"]))
-        if "elite" in required_roles:
-            result["max_elites"] = max(1, int(result["max_elites"]))
-        if "boss" in required_roles:
-            result["boss_allowed"] = True
-        role_caps = result.get("role_caps")
-        if isinstance(role_caps, dict):
-            for role in required_roles:
+        role_caps = {role: 0 for role in ROLE_ORDER}
+        source_caps = policy["role_caps"] or {}
+        if source_caps:
+            for role, cap in source_caps.items():
+                role_caps[role] = max(0, int(cap))
+        else:
+            default_allowed = allowed_roles or {"minion", "veteran", "elite"}
+            for role in default_allowed:
                 if role in ROLE_ORDER:
-                    role_caps[role] = max(1, int(role_caps.get(role, 0)))
-        if required_roles and "minion" not in required_roles:
-            result["start_minions"] = 0
+                    role_caps[role] = max_units
+        for role in required_roles:
+            if role in ROLE_ORDER:
+                role_caps[role] = max(1, role_caps[role])
+        if allowed_roles:
+            for role in ROLE_ORDER:
+                if role not in allowed_roles and role not in required_roles:
+                    role_caps[role] = 0
+        start_role = policy["start_role"] or "minion"
+        if role_caps.get(start_role, 0) <= 0:
+            start_role = next((role for role in ROLE_ORDER if role_caps.get(role, 0) > 0), "minion")
+        result = {
+            "min_units": min_units,
+            "max_units": max_units,
+            "start_role": start_role,
+            "role_caps": role_caps,
+            "upgrade_order": policy["upgrade_order"] or ["veteran", "elite", "boss"],
+            "allow_repeated_members": self.config["global"]["allow_repeated_members"]
+            if policy["allow_repeated_members"] is None
+            else bool(policy["allow_repeated_members"]),
+            "prefer_distinct_members": bool(policy["prefer_distinct_members"]),
+        }
         return result
 
     def _ensure_required_roles(
@@ -486,14 +415,6 @@ class MonsterGroupAssembler:
                 return max(0, int(role_caps[role]))
             except (TypeError, ValueError):
                 return 0
-        if role == "minion":
-            return int(rule["max_units"])
-        if role == "veteran":
-            return int(rule["max_veterans"])
-        if role == "elite":
-            return int(rule["max_elites"])
-        if role == "boss":
-            return 1 if bool(rule["boss_allowed"]) else 0
         return 0
 
     @staticmethod
@@ -606,4 +527,4 @@ def _optional_bool(value: Any) -> bool | None:
     return value if isinstance(value, bool) else None
 
 
-__all__ = ["ENCOUNTER_BALANCE_CONFIG", "MonsterGroupAssembler", "MonsterGroupAssembly"]
+__all__ = ["GROUP_ASSEMBLY_CONFIG", "MonsterGroupAssembler", "MonsterGroupAssembly"]

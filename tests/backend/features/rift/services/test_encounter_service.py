@@ -3,6 +3,7 @@ from __future__ import annotations
 import pytest
 
 from src.backend.features.monsters.dto import MonsterGroupMemberPreview, MonsterGroupResult
+from src.backend.features.monsters.runtime.hashing import MonsterHashContext
 from src.backend.features.rift.dto import (
     RiftCombatPromptActionDTO,
     RiftCombatPromptDTO,
@@ -16,13 +17,15 @@ class FakeMonsterGroupService:
     def __init__(self) -> None:
         self.calls: list[dict] = []
 
-    async def prepare_monster_group_from_clan(self, clan_id, budget, **kwargs) -> MonsterGroupResult:
-        self.calls.append({"clan_id": str(clan_id), "budget": budget, **kwargs})
+    async def prepare_monster_group_for_hash_context(self, **kwargs) -> MonsterGroupResult:
+        self.calls.append(dict(kwargs))
+        family_id = str(kwargs["family_id"])
+        budget = float(kwargs["budget"])
         return MonsterGroupResult(
             group_id="rift:encounter:1",
             group_key="monster_group:rift:encounter:1",
-            clan_id=str(clan_id),
-            family_id="bandit_gang",
+            clan_id=f"generated:{family_id}",
+            family_id=family_id,
             loc_id=kwargs["loc_id"],
             zone_id=kwargs["zone_id"],
             biome_id=kwargs["biome_id"],
@@ -46,8 +49,8 @@ class FakeMonsterGroupService:
                 )
             ],
             reused_existing_clan=True,
-            context_hash="ctx-primary",
-            unique_hash="unique-primary",
+            context_hash="ctx-from-hash-context",
+            unique_hash="unique-from-hash-context",
             tags=["starter_rift"],
         )
 
@@ -128,7 +131,14 @@ async def test_rift_encounter_service_prepares_group_from_bound_family_and_build
 
     enriched = await service.enrich_combat_prompt(runtime, session=session, prompt=prompt)
 
-    assert monster_groups.calls[0]["clan_id"] == "11111111-1111-1111-1111-111111111111"
+    assert monster_groups.calls[0]["family_id"] == "bandit_gang"
+    assert monster_groups.calls[0]["hash_context"] == MonsterHashContext(
+        source="rift",
+        context_key="starter_rift:primary",
+        biome_id="broken_road",
+        tier=1,
+        tags=("starter_rift", "camp_guard", "primary", "bandit_gang"),
+    )
     assert monster_groups.calls[0]["budget"] == 612
     assert monster_groups.calls[0]["tier"] == 1
     assert monster_groups.calls[0]["biome_id"] == "broken_road"
@@ -176,7 +186,8 @@ async def test_rift_encounter_service_uses_secondary_beast_family_for_scavenger_
 
     await service.enrich_combat_prompt(runtime, session=session, prompt=prompt)
 
-    assert monster_groups.calls[0]["clan_id"] == "22222222-2222-2222-2222-222222222222"
+    assert monster_groups.calls[0]["family_id"] == "rat_swarm"
+    assert monster_groups.calls[0]["hash_context"].context_key == "starter_rift:secondary"
     assert monster_groups.calls[0]["loc_id"] == "rift:rift-instance-1:node-wagon"
 
 
@@ -350,17 +361,29 @@ def _runtime() -> RiftZoneRuntimeDTO:
                 "primary": {
                     "slot_id": "primary",
                     "family_id": "bandit_gang",
-                    "clan_id": "11111111-1111-1111-1111-111111111111",
                     "context_hash": "ctx-primary",
-                    "unique_hash": "unique-primary",
+                    "hash_context": {
+                        "source": "rift",
+                        "context_key": "starter_rift:primary",
+                        "biome_id": "broken_road",
+                        "tier": 1,
+                        "tags": ["starter_rift", "camp_guard", "primary", "bandit_gang"],
+                    },
+                    "normalized_tags": ["bandit_gang", "camp_guard", "primary", "starter_rift"],
                     "source": "rift_static_bootstrap",
                 },
                 "secondary": {
                     "slot_id": "secondary",
                     "family_id": "rat_swarm",
-                    "clan_id": "22222222-2222-2222-2222-222222222222",
                     "context_hash": "ctx-secondary",
-                    "unique_hash": "unique-secondary",
+                    "hash_context": {
+                        "source": "rift",
+                        "context_key": "starter_rift:secondary",
+                        "biome_id": "broken_road",
+                        "tier": 1,
+                        "tags": ["starter_rift", "scavenger_pack", "secondary", "rat_swarm"],
+                    },
+                    "normalized_tags": ["rat_swarm", "scavenger_pack", "secondary", "starter_rift"],
                     "source": "rift_static_bootstrap",
                 },
             },

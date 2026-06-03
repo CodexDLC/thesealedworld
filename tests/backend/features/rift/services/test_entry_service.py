@@ -81,9 +81,15 @@ def _runtime() -> RiftZoneRuntimeDTO:
                 "primary": {
                     "slot_id": "primary",
                     "family_id": "bandit_gang",
-                    "clan_id": None,
                     "context_hash": "ctx-primary",
-                    "unique_hash": "unique-primary",
+                    "hash_context": {
+                        "source": "rift",
+                        "context_key": "starter_rift:primary",
+                        "biome_id": "broken_road",
+                        "tier": 1,
+                        "tags": ["starter_rift", "primary", "bandit_gang"],
+                    },
+                    "normalized_tags": ["bandit_gang", "primary", "starter_rift"],
                     "source": "rift_static",
                 }
             },
@@ -253,9 +259,15 @@ async def test_build_runtime_applies_bootstrapped_family_bindings(monkeypatch) -
                 "primary": {
                     "slot_id": "primary",
                     "family_id": "bandit_gang",
-                    "clan_id": "clan-1",
                     "context_hash": "ctx-primary",
-                    "unique_hash": "unique-primary",
+                    "hash_context": {
+                        "source": "rift",
+                        "context_key": "starter_rift:primary",
+                        "biome_id": "broken_road",
+                        "tier": 1,
+                        "tags": ["starter_rift", "primary", "bandit_gang"],
+                    },
+                    "normalized_tags": ["bandit_gang", "primary", "starter_rift"],
                     "source": "rift_static_bootstrap",
                 }
             }
@@ -272,8 +284,14 @@ async def test_build_runtime_applies_bootstrapped_family_bindings(monkeypatch) -
     assert result.population_context["family_bindings"]["primary"] == {
         "slot_id": "primary",
         "family_id": "bandit_gang",
-        "clan_id": "clan-1",
         "context_hash": "ctx-primary",
-        "unique_hash": "unique-primary",
+        "hash_context": {
+            "source": "rift",
+            "context_key": "starter_rift:primary",
+            "biome_id": "broken_road",
+            "tier": 1,
+            "tags": ["starter_rift", "primary", "bandit_gang"],
+        },
+        "normalized_tags": ["bandit_gang", "primary", "starter_rift"],
         "source": "rift_static_bootstrap",
     }

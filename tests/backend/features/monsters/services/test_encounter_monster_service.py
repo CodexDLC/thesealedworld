@@ -5,7 +5,13 @@ import uuid
 import pytest
 
 from src.backend.features.monsters.dto.generation import GeneratedClan, GeneratedMonster, MonsterGenerationContext
-from src.backend.features.monsters.runtime.hashing import compute_context_hash, compute_unique_clan_hash, normalize_tags
+from src.backend.features.monsters.runtime.hashing import (
+    MonsterHashContext,
+    compute_context_hash,
+    compute_monster_context_hash,
+    compute_unique_clan_hash,
+    normalize_tags,
+)
 from src.backend.features.monsters.services import EncounterMonsterService
 from src.backend.features.monsters.services.gear_score_service import MonsterGearScoreService
 
@@ -182,7 +188,7 @@ async def test_ensure_clan_for_context_reuses_existing_family_context_hash() -> 
 
 
 @pytest.mark.unit
-async def test_ensure_clan_for_precomputed_context_hash_uses_rift_hash_without_world_rehash() -> None:
+async def test_ensure_clan_for_hash_context_uses_same_rift_hash_contract_as_group_ordering() -> None:
     repo = FakeMonsterRepository()
     service = EncounterMonsterService(repo, factory=FakeClanFactory(repo))
     context = MonsterGenerationContext(
@@ -192,13 +198,19 @@ async def test_ensure_clan_for_precomputed_context_hash_uses_rift_hash_without_w
         tags=["starter_rift", "broken_caravan"],
         difficulty="mid",
     )
-    rift_context_hash = "1234567890abcdef1234567890abcdef"  # pragma: allowlist secret
+    hash_context = MonsterHashContext(
+        source="rift",
+        context_key="starter_rift:primary",
+        biome_id="broken_road",
+        tier=1,
+        tags=("starter_rift", "broken_caravan"),
+    )
+    rift_context_hash = compute_monster_context_hash(hash_context)
 
-    clan = await service.ensure_clan_for_precomputed_context_hash(
+    clan = await service.ensure_clan_for_hash_context(
         context,
         "goblin_tribe",
-        context_hash=rift_context_hash,
-        normalized_tags=["starter_rift", "broken_caravan"],
+        hash_context=hash_context,
     )
 
     assert clan.context_hash == rift_context_hash

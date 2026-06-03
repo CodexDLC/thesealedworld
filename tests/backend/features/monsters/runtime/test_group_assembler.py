@@ -2,7 +2,7 @@ import random
 import uuid
 
 from src.backend.features.monsters.dto.generation import GeneratedMonster
-from src.backend.features.monsters.runtime.group_assembler import MonsterGroupAssembler
+from src.backend.features.monsters.runtime.group_assembler import GROUP_ASSEMBLY_CONFIG, MonsterGroupAssembler
 
 
 def _monster(
@@ -37,6 +37,33 @@ def _monster(
     )
 
 
+def _policy(
+    *,
+    min_units: int = 1,
+    max_units: int = 1,
+    start_role: str = "minion",
+    allowed_roles: list[str] | None = None,
+    role_caps: dict[str, int] | None = None,
+    upgrade_order: list[str] | None = None,
+    allow_repeated_members: bool = True,
+    prefer_distinct_members: bool = False,
+) -> dict:
+    return {
+        "min_units": min_units,
+        "max_units": max_units,
+        "start_role": start_role,
+        "allowed_roles": allowed_roles or ["minion", "veteran", "elite"],
+        "role_caps": role_caps or {"minion": max_units, "veteran": max_units, "elite": max_units, "boss": 0},
+        "upgrade_order": upgrade_order or ["veteran", "elite"],
+        "allow_repeated_members": allow_repeated_members,
+        "prefer_distinct_members": prefer_distinct_members,
+    }
+
+
+def test_group_assembler_has_no_family_organization_limits() -> None:
+    assert "organizations" not in GROUP_ASSEMBLY_CONFIG
+
+
 def test_group_assembler_uses_gear_score_as_member_cost() -> None:
     members = [
         _monster("low_threat_expensive", 10, gear_score=200),
@@ -44,7 +71,13 @@ def test_group_assembler_uses_gear_score_as_member_cost() -> None:
         _monster("mid", 50, gear_score=45),
     ]
 
-    result = MonsterGroupAssembler().assemble(members, budget=90, tier=1, danger=0.0)
+    result = MonsterGroupAssembler().assemble(
+        members,
+        budget=90,
+        tier=1,
+        danger=0.0,
+        composition_policy=_policy(max_units=2, role_caps={"minion": 2, "veteran": 0, "elite": 0, "boss": 0}),
+    )
 
     assert "low_threat_expensive" not in [member.variant_key for member in result.members]
     assert result.total_power <= 90
@@ -58,7 +91,13 @@ def test_group_assembler_applies_danger_budget_bonus() -> None:
         _monster("c", 150, gear_score=150, organization_type="solitary"),
     ]
 
-    result = MonsterGroupAssembler().assemble(members, budget=120, tier=1, danger=1.0)
+    result = MonsterGroupAssembler().assemble(
+        members,
+        budget=120,
+        tier=1,
+        danger=1.0,
+        composition_policy=_policy(max_units=1),
+    )
 
     assert result.adjusted_budget == 150
     assert [member.variant_key for member in result.members] == ["c"]
@@ -71,7 +110,13 @@ def test_group_assembler_swarm_fills_minions_before_upgrading() -> None:
         _monster("elite", 150, role="elite", gear_score=150, organization_type="swarm"),
     ]
 
-    result = MonsterGroupAssembler().assemble(members, budget=160, tier=1, danger=0.0)
+    result = MonsterGroupAssembler().assemble(
+        members,
+        budget=160,
+        tier=1,
+        danger=0.0,
+        composition_policy=_policy(max_units=6, role_caps={"minion": 6, "veteran": 6, "elite": 2, "boss": 0}),
+    )
 
     assert [member.role for member in result.members].count("minion") == 6
     assert [member.role for member in result.members].count("veteran") == 0
@@ -85,7 +130,13 @@ def test_group_assembler_fills_max_affordable_weak_units_before_upgrading() -> N
         _monster("hook_veteran", 50, role="veteran", gear_score=80, organization_type="gang"),
     ]
 
-    result = MonsterGroupAssembler(rng=random.Random(1)).assemble(members, budget=200, tier=1, danger=0.0)
+    result = MonsterGroupAssembler(rng=random.Random(1)).assemble(
+        members,
+        budget=200,
+        tier=1,
+        danger=0.0,
+        composition_policy=_policy(max_units=3, role_caps={"minion": 3, "veteran": 3, "elite": 0, "boss": 0}),
+    )
 
     assert len(result.members) == 3
     assert [member.role for member in result.members].count("veteran") == 1
@@ -99,7 +150,13 @@ def test_group_assembler_does_not_add_upgrade_roles_before_base_group_is_built()
         _monster("raider", 50, role="veteran", gear_score=80, organization_type="gang"),
     ]
 
-    result = MonsterGroupAssembler(rng=random.Random(5)).assemble(members, budget=120, tier=1, danger=0.0)
+    result = MonsterGroupAssembler(rng=random.Random(5)).assemble(
+        members,
+        budget=120,
+        tier=1,
+        danger=0.0,
+        composition_policy=_policy(max_units=2, role_caps={"minion": 2, "veteran": 1, "elite": 0, "boss": 0}),
+    )
 
     assert len(result.members) == 2
     assert result.total_power == 100
@@ -113,7 +170,13 @@ def test_group_assembler_pack_fills_minion_slots_before_upgrading() -> None:
         _monster("elite", 150, role="elite", gear_score=150, organization_type="pack"),
     ]
 
-    result = MonsterGroupAssembler(rng=random.Random(1)).assemble(members, budget=150, tier=1, danger=0.0)
+    result = MonsterGroupAssembler(rng=random.Random(1)).assemble(
+        members,
+        budget=150,
+        tier=1,
+        danger=0.0,
+        composition_policy=_policy(max_units=5, role_caps={"minion": 5, "veteran": 3, "elite": 1, "boss": 0}),
+    )
 
     assert [member.role for member in result.members] == ["minion", "minion", "minion", "minion", "minion"]
     assert result.total_power == 100
@@ -125,7 +188,13 @@ def test_group_assembler_can_repeat_member_templates_to_fill_budget() -> None:
         _monster("veteran", 50, role="veteran", gear_score=600, organization_type="pack"),
     ]
 
-    result = MonsterGroupAssembler(rng=random.Random(1)).assemble(members, budget=506, tier=1, danger=0.0)
+    result = MonsterGroupAssembler(rng=random.Random(1)).assemble(
+        members,
+        budget=506,
+        tier=1,
+        danger=0.0,
+        composition_policy=_policy(max_units=5, role_caps={"minion": 5, "veteran": 3, "elite": 0, "boss": 0}),
+    )
 
     assert [member.variant_key for member in result.members] == ["cub", "cub"]
     assert result.total_power == 338
@@ -138,8 +207,13 @@ def test_group_assembler_uses_weakest_same_role_candidates_for_base_group() -> N
         _monster("cub_c", 20, gear_score=60, organization_type="swarm"),
     ]
 
-    first = MonsterGroupAssembler(rng=random.Random(1)).assemble(members, budget=170, tier=1, danger=0.0)
-    second = MonsterGroupAssembler(rng=random.Random(5)).assemble(members, budget=170, tier=1, danger=0.0)
+    policy = _policy(max_units=3, role_caps={"minion": 3, "veteran": 0, "elite": 0, "boss": 0})
+    first = MonsterGroupAssembler(rng=random.Random(1)).assemble(
+        members, budget=170, tier=1, danger=0.0, composition_policy=policy
+    )
+    second = MonsterGroupAssembler(rng=random.Random(5)).assemble(
+        members, budget=170, tier=1, danger=0.0, composition_policy=policy
+    )
 
     assert [member.variant_key for member in first.members] == ["cub_b", "cub_b", "cub_b"]
     assert [member.variant_key for member in second.members] == ["cub_b", "cub_b", "cub_b"]
@@ -174,7 +248,13 @@ def test_group_assembler_repeats_only_after_unique_same_role_candidates_do_not_f
         _monster("too_expensive", 20, gear_score=160, organization_type="swarm"),
     ]
 
-    result = MonsterGroupAssembler(rng=random.Random(1)).assemble(members, budget=130, tier=1, danger=0.0)
+    result = MonsterGroupAssembler(rng=random.Random(1)).assemble(
+        members,
+        budget=130,
+        tier=1,
+        danger=0.0,
+        composition_policy=_policy(max_units=3, role_caps={"minion": 3, "veteran": 0, "elite": 0, "boss": 0}),
+    )
 
     assert [member.variant_key for member in result.members] == ["cheap", "cheap", "cheap"]
     assert result.total_power == 120

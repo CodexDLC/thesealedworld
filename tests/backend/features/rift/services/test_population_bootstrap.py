@@ -6,7 +6,11 @@ from dataclasses import dataclass
 import pytest
 
 from src.backend.features.monsters.dto import GeneratedClan, MonsterGenerationContext
-from src.backend.features.monsters.runtime.hashing import compute_unique_clan_hash
+from src.backend.features.monsters.runtime.hashing import (
+    MonsterHashContext,
+    compute_monster_context_hash,
+    compute_unique_clan_hash,
+)
 from src.backend.features.rift.resources.loader import RiftResourceLoader
 from src.backend.features.rift.services.population_bootstrap import RiftPopulationBootstrapService
 
@@ -15,8 +19,7 @@ from src.backend.features.rift.services.population_bootstrap import RiftPopulati
 class RiftClanRequest:
     context: MonsterGenerationContext
     family_id: str
-    context_hash: str
-    normalized_tags: list[str]
+    hash_context: MonsterHashContext
 
 
 class FakeEncounterService:
@@ -24,20 +27,19 @@ class FakeEncounterService:
         self.requests: list[RiftClanRequest] = []
         self.prune_requests: list[dict[str, set[tuple[str, str]]]] = []
 
-    async def ensure_clan_for_precomputed_context_hash(
+    async def ensure_clan_for_hash_context(
         self,
         context: MonsterGenerationContext,
         family_id: str,
         *,
-        context_hash: str,
-        normalized_tags: list[str],
+        hash_context: MonsterHashContext,
     ) -> GeneratedClan:
+        context_hash = compute_monster_context_hash(hash_context)
         self.requests.append(
             RiftClanRequest(
                 context=context,
                 family_id=family_id,
-                context_hash=context_hash,
-                normalized_tags=normalized_tags,
+                hash_context=hash_context,
             )
         )
         return GeneratedClan(
@@ -74,23 +76,31 @@ async def test_rift_population_bootstrap_orders_static_family_slots_with_rift_ha
     assert result.pruned_clans == 3
     assert set(result.bindings["starter_rift"]) == {"primary", "secondary"}
     assert result.bindings["starter_rift"]["primary"]["family_id"] == "goblin_tribe"
-    assert result.bindings["starter_rift"]["primary"]["clan_id"]
-    assert result.bindings["starter_rift"]["primary"]["context_hash"] == encounter.requests[0].context_hash
+    assert "clan_id" not in result.bindings["starter_rift"]["primary"]
+    assert result.bindings["starter_rift"]["primary"]["context_hash"] == compute_monster_context_hash(
+        encounter.requests[0].hash_context
+    )
     assert result.bindings["starter_rift"]["primary"]["unique_hash"] == compute_unique_clan_hash(
         "goblin_tribe",
-        encounter.requests[0].context_hash,
+        compute_monster_context_hash(encounter.requests[0].hash_context),
     )
     assert [(request.context.zone_id, request.family_id) for request in encounter.requests] == [
         ("rift:starter_rift:primary", "goblin_tribe"),
         ("rift:starter_rift:secondary", "rat_swarm"),
     ]
-    assert encounter.requests[0].context_hash != encounter.requests[1].context_hash
-    assert "starter_rift" in encounter.requests[0].normalized_tags
-    assert "camp_guard" in encounter.requests[0].normalized_tags
+    assert compute_monster_context_hash(encounter.requests[0].hash_context) != compute_monster_context_hash(
+        encounter.requests[1].hash_context
+    )
+    assert "starter_rift" in encounter.requests[0].hash_context.tags
+    assert "camp_guard" in encounter.requests[0].hash_context.tags
     assert encounter.requests[0].context.context_meta["rift_population"]["slot_id"] == "primary"
     assert encounter.prune_requests == [
         {
-            "rift:starter_rift:primary": {("goblin_tribe", encounter.requests[0].context_hash)},
-            "rift:starter_rift:secondary": {("rat_swarm", encounter.requests[1].context_hash)},
+            "rift:starter_rift:primary": {
+                ("goblin_tribe", compute_monster_context_hash(encounter.requests[0].hash_context))
+            },
+            "rift:starter_rift:secondary": {
+                ("rat_swarm", compute_monster_context_hash(encounter.requests[1].hash_context))
+            },
         }
     ]

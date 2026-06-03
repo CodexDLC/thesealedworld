@@ -2,7 +2,14 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from src.backend.features.monsters.runtime.hashing import compute_context_hash, compute_unique_clan_hash, normalize_tags
+from src.backend.features.monsters.runtime.hashing import (
+    MonsterHashContext,
+    compute_context_hash,
+    compute_monster_context_hash,
+    compute_unique_clan_hash,
+    normalize_tags,
+    normalized_monster_hash_tags,
+)
 
 if TYPE_CHECKING:
     from src.backend.features.monsters.dto.generation import GeneratedClan, MonsterGenerationContext
@@ -29,28 +36,30 @@ class EncounterMonsterService:
         return int(await delete_generated_clans(expected))
 
     async def ensure_clan_for_context(self, context: MonsterGenerationContext, family_id: str) -> GeneratedClan:
-        available_family_ids = set(self.get_available_family_ids(context))
-        if family_id not in available_family_ids:
-            raise ValueError(
-                f"Monster family is not available for biome={context.biome_id} tier={context.tier}: {family_id}"
-            )
-
         normalized_tags = normalize_tags(context.tags)
         context_hash = compute_context_hash(context.tier, context.biome_id, normalized_tags)
-        unique_hash = compute_unique_clan_hash(family_id, context_hash)
-        clan = await self.repository.get_clan_by_unique_hash(unique_hash)
-        if clan is not None:
-            return clan
-
-        return await self.factory.build_clan_template(
-            context=context,
-            family_id=family_id,
+        return await self._ensure_clan(
+            context,
+            family_id,
             context_hash=context_hash,
-            unique_hash=unique_hash,
             normalized_tags=normalized_tags,
         )
 
-    async def ensure_clan_for_precomputed_context_hash(
+    async def ensure_clan_for_hash_context(
+        self,
+        context: MonsterGenerationContext,
+        family_id: str,
+        *,
+        hash_context: MonsterHashContext,
+    ) -> GeneratedClan:
+        return await self._ensure_clan(
+            context,
+            family_id,
+            context_hash=compute_monster_context_hash(hash_context),
+            normalized_tags=normalized_monster_hash_tags(hash_context),
+        )
+
+    async def _ensure_clan(
         self,
         context: MonsterGenerationContext,
         family_id: str,

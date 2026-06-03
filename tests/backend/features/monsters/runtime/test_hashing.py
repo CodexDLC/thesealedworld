@@ -1,10 +1,13 @@
 import pytest
 
 from src.backend.features.monsters.runtime.hashing import (
+    MonsterHashContext,
     compute_context_hash,
+    compute_monster_context_hash,
     compute_rift_context_hash,
     compute_unique_clan_hash,
     normalize_tags,
+    normalized_monster_hash_tags,
 )
 
 
@@ -62,3 +65,22 @@ def test_rift_context_hash_depends_on_setting_key() -> None:
     )
 
     assert starter_hash != quarry_hash
+
+
+@pytest.mark.unit
+def test_monster_hash_context_is_shared_by_rift_generation_and_group_ordering() -> None:
+    context = MonsterHashContext(
+        source="rift",
+        context_key="starter_rift:primary",
+        biome_id="broken_road",
+        tier=1,
+        tags=("starter_rift", "camp_guard", "primary"),
+    )
+
+    assert normalized_monster_hash_tags(context) == ["camp_guard", "primary", "starter_rift"]
+    assert compute_monster_context_hash(context) == compute_rift_context_hash(
+        setting_key="starter_rift:primary",
+        biome_id="broken_road",
+        tier=1,
+        tags=["starter_rift", "camp_guard", "primary"],
+    )

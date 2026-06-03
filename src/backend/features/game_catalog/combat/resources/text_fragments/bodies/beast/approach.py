@@ -8,7 +8,7 @@ BEAST_APPROACH_PHRASES = {
         },
         "body.beast.approach.default.circle": {
             "kind": "approach",
-            "text": "{source} описывает круг",
+            "text": "{source} кружит вокруг цели",
             "variables": ["source"],
             "tags": ["default"],
         },
@@ -59,6 +59,12 @@ BEAST_APPROACH_PHRASES = {
             "text": "{source} набирает скорость",
             "variables": ["source"],
             "tags": ["large", "aggressive"],
+        },
+        "body.beast.approach.offhand.default": {
+            "kind": "approach",
+            "text": "{source} тут же продолжает атаку",
+            "variables": ["source"],
+            "tags": ["offhand"],
         },
     },
 }

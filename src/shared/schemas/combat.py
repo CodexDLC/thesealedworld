@@ -174,6 +174,7 @@ class CombatEffectBadgeDTO(CombatJsonDTO):
     effect_id: str = "NO_DATA"
     expires_at_exchange: int | None = None
     impact: dict[str, Any] = Field(default_factory=dict)
+    params: dict[str, Any] = Field(default_factory=dict)
     title: str | None = None
     description: str | None = None
     duration_label: str | None = None

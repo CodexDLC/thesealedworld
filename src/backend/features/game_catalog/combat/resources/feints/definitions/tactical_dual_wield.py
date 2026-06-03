@@ -94,7 +94,7 @@ TACTICAL_DUAL_WIELD_FEINTS_TECHNICAL = {
         target=TargetType.SINGLE_ENEMY,
         applicability_tags=[*_DUAL_TAGS, "hit", "pressure", "counter", "damage", "high_cost"],
         purchase_group="tactical",
-        preparation_effects=[{"id": "prep_dual_blade_mill_v2_counter", "target_actor": "source"}],
+        preparation_effects=[{"id": "prep_dual_blade_mill_counter", "target_actor": "source"}],
     ),
     "dual_split_targets": FeintTechnicalDTO(
         feint_id="dual_split_targets",

@@ -70,7 +70,7 @@ class GeneratedItemDTO(BaseModel):
     slot: str
     valid_slots: list[str] = Field(default_factory=list)
     implicit_bonuses: dict[str, float] = Field(default_factory=dict)
-    bonuses: dict[str, float] = Field(default_factory=dict)
+    bonuses: dict[str, str] = Field(default_factory=dict)
     triggers: list[str] = Field(default_factory=list)
     narrative_tags: list[str] = Field(default_factory=list)
     mechanics: dict[str, object] = Field(default_factory=dict)

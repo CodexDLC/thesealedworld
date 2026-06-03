@@ -453,7 +453,7 @@ class ItemFactory:
             slot=slot,
             valid_slots=[base.slot, *base.extra_slots],
             implicit_bonuses=scaled.implicit_bonuses,
-            bonuses={},
+            bonuses=ItemFactory._compile_affix_bonuses(mechanics.get("affixes", [])),
             triggers=list(base.triggers),
             narrative_tags=narrative_tags,
             mechanics=mechanics,

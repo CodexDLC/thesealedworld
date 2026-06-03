@@ -86,9 +86,13 @@ class FakePlacement:
 class FakeInventoryStreamClient:
     def __init__(self) -> None:
         self.recalculate_requests: list[dict[str, object]] = []
+        self.status_refresh_requests: list[dict[str, object]] = []
 
     async def request_gear_score_recalculation(self, *, char_id: int, reason: str) -> None:
         self.recalculate_requests.append({"char_id": char_id, "reason": reason})
+
+    async def request_status_refresh(self, *, char_id: int, reason: str) -> None:
+        self.status_refresh_requests.append({"char_id": char_id, "reason": reason})
 
 
 class FakeEvents:
@@ -656,7 +660,8 @@ async def test_equip_action_updates_inventory_session_and_active_character_items
     assert inventory_doc["is_dirty"] is True
     assert inventory_doc["layout"]["equipment"]["feetwear"] == "boots-1"
     assert active_doc["items"]["layout"]["equipment"]["feetwear"] == "boots-1"
-    assert "sync_dirty" not in active_doc
+    assert active_doc["sync_dirty"]["dirty"] is True
+    assert "$.vitals.hp" in active_doc["sync_dirty"]["paths"]
 
 
 @pytest.mark.asyncio
@@ -690,6 +695,137 @@ async def test_equip_action_requests_active_character_gear_score_recalculation(
         {"char_id": 7, "reason": "inventory_opened"},
         {"char_id": 7, "reason": "equip"},
     ]
+
+
+@pytest.mark.asyncio
+async def test_equip_action_recalculates_active_character_vitals_and_requests_status_refresh(
+    fake_redis_service,
+    fake_redis_client,
+):
+    _active_character(
+        fake_redis_client,
+        state="exploration",
+        attributes={"strength": 15, "endurance": 16, "intellect": 11, "memory": 10, "mental": 13, "prediction": 6},
+        vitals={
+            "hp": {"cur": 70, "max": 70, "regen": 2.3273},
+            "energy": {"cur": 31, "max": 31, "regen": 3.8409},
+            "stamina": {"cur": 16, "max": 16, "regen": 2.1636},
+        },
+    )
+    stream_client = FakeInventoryStreamClient()
+    service = _service(
+        fake_redis_service,
+        [
+            _item(
+                "gloves-1",
+                "garment",
+                slot="gloves_garment",
+                mechanics={"valid_slots": ["gloves_garment"], "implicit_bonuses": {"hp_add": 19}},
+            )
+        ],
+        stream_client=stream_client,
+    )
+
+    await service.apply_action(
+        InventoryActionRequestDTO(char_id=7, action="equip", item_id="gloves-1", slot_id="gloves_garment")
+    )
+
+    active_doc = fake_redis_client.store["game:ac:7"]
+    assert active_doc["vitals"]["hp"]["max"] == 89
+    assert active_doc["vitals"]["hp"]["cur"] == 70
+    assert stream_client.status_refresh_requests == [{"char_id": 7, "reason": "equip"}]
+
+
+@pytest.mark.asyncio
+async def test_equip_action_recalculates_active_character_vitals_from_affix_hp_bonus(
+    fake_redis_service,
+    fake_redis_client,
+):
+    _active_character(
+        fake_redis_client,
+        state="exploration",
+        attributes={"strength": 15, "endurance": 16, "intellect": 11, "memory": 10, "mental": 13, "prediction": 6},
+        vitals={
+            "hp": {"cur": 70, "max": 70, "regen": 2.3273},
+            "energy": {"cur": 31, "max": 31, "regen": 3.8409},
+            "stamina": {"cur": 16, "max": 16, "regen": 2.1636},
+        },
+    )
+    stream_client = FakeInventoryStreamClient()
+    service = _service(
+        fake_redis_service,
+        [
+            _item(
+                "bracers-1",
+                "armor",
+                slot="arms_armor",
+                mechanics={
+                    "valid_slots": ["arms_armor"],
+                    "affixes": [{"affix_id": "hp_bonus", "value": 19, "source": "single:combat_resource"}],
+                },
+            )
+        ],
+        stream_client=stream_client,
+    )
+
+    await service.apply_action(
+        InventoryActionRequestDTO(char_id=7, action="equip", item_id="bracers-1", slot_id="arms_armor")
+    )
+
+    active_doc = fake_redis_client.store["game:ac:7"]
+    assert active_doc["vitals"]["hp"]["max"] == 89
+    assert active_doc["vitals"]["hp"]["cur"] == 70
+    assert stream_client.status_refresh_requests == [{"char_id": 7, "reason": "equip"}]
+
+
+@pytest.mark.asyncio
+async def test_unequip_action_recalculates_active_character_vitals_and_requests_status_refresh(
+    fake_redis_service,
+    fake_redis_client,
+):
+    _active_character(
+        fake_redis_client,
+        state="exploration",
+        attributes={"strength": 15, "endurance": 16, "intellect": 11, "memory": 10, "mental": 13, "prediction": 6},
+        vitals={
+            "hp": {"cur": 89, "max": 89, "regen": 2.8273},
+            "energy": {"cur": 31, "max": 31, "regen": 3.8409},
+            "stamina": {"cur": 16, "max": 16, "regen": 2.1636},
+        },
+        items={
+            "layout": {"equipment": {"gloves_garment": "gloves-1"}},
+            "by_id": {
+                "gloves-1": _item(
+                    "gloves-1",
+                    "garment",
+                    slot="gloves_garment",
+                    placement="equipped",
+                    mechanics={"valid_slots": ["gloves_garment"], "implicit_bonuses": {"hp_add": 19}},
+                ).model_dump(mode="json")
+            },
+        },
+    )
+    stream_client = FakeInventoryStreamClient()
+    service = _service(
+        fake_redis_service,
+        [
+            _item(
+                "gloves-1",
+                "garment",
+                slot="gloves_garment",
+                placement="equipped",
+                mechanics={"valid_slots": ["gloves_garment"], "implicit_bonuses": {"hp_add": 19}},
+            )
+        ],
+        stream_client=stream_client,
+    )
+
+    await service.apply_action(InventoryActionRequestDTO(char_id=7, action="unequip", item_id="gloves-1"))
+
+    active_doc = fake_redis_client.store["game:ac:7"]
+    assert active_doc["vitals"]["hp"]["max"] == 70
+    assert active_doc["vitals"]["hp"]["cur"] == 70
+    assert stream_client.status_refresh_requests == [{"char_id": 7, "reason": "unequip"}]
 
 
 @pytest.mark.asyncio
@@ -740,6 +876,21 @@ async def test_inventory_stream_client_publishes_gear_score_recalculation_task()
     assert events.published == [
         (CharacterEvents.GEAR_SCORE_RECALCULATE_REQUESTED, {"char_id": 7, "reason": "equip"})
     ]
+
+
+@pytest.mark.asyncio
+async def test_inventory_stream_client_publishes_status_refresh_notice():
+    from src.backend.features.inventory.integrations import InventoryStreamClient
+
+    events = FakeEvents()
+
+    await InventoryStreamClient(events).request_status_refresh(char_id=7, reason="equip")
+
+    event_type, payload = events.published[0]
+    assert event_type == "player.notice"
+    assert payload["presentation"] == "refresh"
+    assert payload["target"] == "status"
+    assert payload["reason"] == "equip"
 
 
 @pytest.mark.asyncio
@@ -949,6 +1100,8 @@ def _active_character(
     state: str,
     attributes: dict | None = None,
     risk: dict | None = None,
+    vitals: dict | None = None,
+    items: dict | None = None,
 ) -> None:
     fake_redis_client.store["game:ac:7"] = {
         "char_id": 7,
@@ -957,7 +1110,8 @@ def _active_character(
         "risk": risk or {},
         "bio": {"name": "Ada", "avatar": "/avatar.png"},
         "sessions": {},
-        "items": {},
+        "items": items or {},
+        "vitals": vitals or {},
     }
 
 

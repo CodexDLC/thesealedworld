@@ -179,7 +179,7 @@ async def test_generate_d4_capital_creates_first_playable_territory():
     assert by_coord[(48, 56)]["movement_profile"]["zone_archetype"] == "corner_rift_district"
     assert "former capital" in by_coord[(48, 56)]["flags"]["narrative_context"]
     assert "former_capital_ruins" in by_coord[(48, 56)]["content"]["environment_tags"]
-    assert by_coord[(52, 45)]["flags"]["threat_tier"] == 0
+    assert by_coord[(52, 45)]["flags"]["threat_tier"] == 1
     assert by_coord[(52, 45)]["node_type"] == "sealed_gate"
     assert by_coord[(52, 45)]["landmark_profile"] == "sealed_city_gate"
     assert "d4_tier0_gate_cross" in by_coord[(52, 45)]["flags"]["context_tags"]
@@ -196,6 +196,13 @@ async def test_generate_d4_capital_creates_first_playable_territory():
     assert by_coord[(45, 45)]["flags"]["city_map"]["district"]["key"] == "D4_CITY_0_0"
     assert set(by_coord[(45, 45)]["movement_profile"]["blocked_exits"]) == {"north", "west"}
     assert by_coord[(45, 46)]["movement_profile"]["blocked_exits"] == ["west"]
+    unsafe_non_rift_nodes = [
+        node
+        for node in nodes
+        if not node["flags"].get("is_safe_zone") and not node["flags"].get("is_rift")
+    ]
+    assert unsafe_non_rift_nodes
+    assert all(node["flags"]["threat_tier"] >= 1 for node in unsafe_non_rift_nodes)
 
     gates = [node for node in nodes if node["flags"].get("is_gate")]
     assert {(gate["x"], gate["y"]) for gate in gates} == {(52, 45), (52, 59), (45, 52), (59, 52)}
@@ -289,6 +296,13 @@ async def test_d4_static_seed_has_no_four_way_navigation_nodes_outside_safe_zone
     raw_nodes = list(by_coord.values())
     assert _non_exempt_four_way_nodes(raw_nodes) == {}
     assert _reachable_locs(raw_nodes, start="52_52") == set(_runtime_node_map(raw_nodes))
+    unsafe_non_rift_nodes = [
+        node
+        for node in village_nodes
+        if not node["flags"].get("is_safe_zone") and not node["flags"].get("is_rift")
+    ]
+    assert unsafe_non_rift_nodes
+    assert all(node["flags"]["threat_tier"] >= 1 for node in unsafe_non_rift_nodes)
 
 
 @pytest.mark.unit

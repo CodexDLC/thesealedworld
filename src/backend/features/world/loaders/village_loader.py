@@ -72,7 +72,7 @@ class VillageLoader:
                     zone_id,
                     region_id=region_id,
                     biome_id=region_profile.biome_id,
-                    tier=0 if is_hub_zone else (1 if zx in {0, 2} and zy in {0, 2} else influence.tier),
+                    tier=0 if is_hub_zone else 1,
                     zone_archetype=zone.zone_archetype,
                     navigation_profile_id=zone.navigation_profile_id,
                     landmark_profile=zone.landmark_profile,
@@ -83,7 +83,7 @@ class VillageLoader:
                         "is_hub": is_hub_zone,
                         "portal_shield": is_hub_zone,
                         "is_old_capital": True,
-                        "threat_tier": 0 if is_hub_zone else (1 if zx in {0, 2} and zy in {0, 2} else influence.tier),
+                        "threat_tier": 0 if is_hub_zone else 1,
                     },
                 )
 
@@ -155,6 +155,8 @@ class VillageLoader:
         influence = ThreatService.describe(x, y)
         flags = dict(raw_flags)
         flags.setdefault("threat_tier", influence.tier)
+        if not flags.get("is_safe_zone") and _is_d4_start_node(x, y):
+            flags["threat_tier"] = max(1, int(flags.get("threat_tier", 0) or 0))
         if flags.get("is_safe_zone"):
             flags.setdefault("system_connect", True)
         flags["anchor_influence"] = {
@@ -203,6 +205,10 @@ def _d4_min_x() -> int:
 
 def _d4_min_y() -> int:
     return REGION_ROWS.index("D") * REGION_SIZE
+
+
+def _is_d4_start_node(x: int, y: int) -> bool:
+    return _d4_min_x() <= x < _d4_min_x() + REGION_SIZE and _d4_min_y() <= y < _d4_min_y() + REGION_SIZE
 
 
 def _d4_zone_id(x: int, y: int) -> str:

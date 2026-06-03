@@ -348,10 +348,7 @@ class StartingImprintSimulationActorBuilder:
             "crit": round(float(stats.main_hand_crit_chance), 3) if stats else 0.0,
         }
         gear_score = (
-            CharacterGearScoreCalculator.calculate_breakdown_from_calculated(
-                stats.model_dump(mode="json"),
-                skill_score=CharacterGearScoreCalculator.calculate_skill_score(actor.skills),
-            )
+            CharacterGearScoreCalculator.calculate_breakdown_from_calculated(stats.model_dump(mode="json"))
             if stats
             else {"total": 1, "offense": 0.0, "defense": 0.0, "resources": 0.0, "skills": 0.0, "utility": 0.0}
         )

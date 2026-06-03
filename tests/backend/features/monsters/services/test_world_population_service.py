@@ -142,10 +142,10 @@ async def test_world_population_d4_start_region_excludes_rift_owned_contexts() -
     assert result.clans == 8
     calls_by_zone = [(context.zone_id, context.tier, family_id) for context, family_id in service.calls]
     assert calls_by_zone == [
-        ("D4_tier0_start", 0, "bandit_gang"),
-        ("D4_tier0_start", 0, "goblin_tribe"),
-        ("D4_tier0_start", 0, "rat_swarm"),
-        ("D4_tier0_start", 0, "wolf_pack"),
+        ("D4_tier1_start", 1, "bandit_gang"),
+        ("D4_tier1_start", 1, "goblin_tribe"),
+        ("D4_tier1_start", 1, "rat_swarm"),
+        ("D4_tier1_start", 1, "wolf_pack"),
         ("D4_tier1_corner_pressure", 1, "bandit_gang"),
         ("D4_tier1_corner_pressure", 1, "goblin_tribe"),
         ("D4_tier1_corner_pressure", 1, "rat_swarm"),

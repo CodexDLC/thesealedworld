@@ -318,7 +318,7 @@ def test_second_breath_heal_and_self_buff() -> None:
 
 @pytest.mark.unit
 def test_perfect_riposte_heal_and_prep_riposte() -> None:
-    tags = _tags("perfect_riposte")
+    tags = _tags("2h_perfect_riposte")
     assert "heal" in tags
     assert "self_buff" in tags
     assert "prep_riposte" in tags

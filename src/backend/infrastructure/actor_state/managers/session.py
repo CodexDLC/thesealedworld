@@ -416,6 +416,32 @@ class CharacterSessionManager:
     async def set_items_projection(self, char_id: int, items: dict[str, Any]) -> None:
         await self.patch_fields(char_id, {"$.items": items})
 
+    async def refresh_vitals_max(self, char_id: int) -> dict[str, Any]:
+        document = await self.get_session(char_id)
+        if not isinstance(document, dict):
+            raise SessionNotFoundError(f"Character session not found: char_id={char_id}")
+
+        attributes = CharacterSessionAttributesDTO.model_validate(document.get("attributes") or {})
+        current = CharacterSessionVitalsDTO.model_validate(document.get("vitals") or {})
+        items = document.get("items") or {}
+        refreshed = CharacterVitalsCalculator.refresh_max_vitals(
+            current,
+            attributes,
+            profile_key=resolve_player_vital_profile_key(items),
+            items=items,
+            fill_if_default=True,
+        )
+        payload = refreshed.model_dump(mode="json")
+        changed = payload != current.model_dump(mode="json")
+        if changed:
+            await self.patch_fields(char_id, {"$.vitals": payload})
+            await self.mark_dirty(
+                char_id,
+                reason="vitals_refreshed",
+                paths=["$.vitals.hp", "$.vitals.energy", "$.vitals.stamina", "$.vitals.last_update"],
+            )
+        return {"vitals": payload, "changed": changed}
+
     async def update_vital(
         self,
         char_id: int,
@@ -452,14 +478,14 @@ class CharacterSessionManager:
             paths=[f"$.vitals.{vital}", "$.vitals.last_update"],
         )
 
-    async def apply_vitals_regen(self, char_id: int) -> dict[str, Any]:
+    async def apply_vitals_regen(self, char_id: int, *, now: float | None = None) -> dict[str, Any]:
         document = await self.get_session(char_id)
         if not isinstance(document, dict):
             raise SessionNotFoundError(f"Character session not found: char_id={char_id}")
 
         vitals = CharacterSessionVitalsDTO.model_validate(document.get("vitals") or {})
         before = vitals.model_dump(mode="json")
-        updated_vitals = CharacterVitalsCalculator.apply_regen(vitals)
+        updated_vitals = CharacterVitalsCalculator.apply_regen(vitals, now=now)
         payload = updated_vitals.model_dump(mode="json")
         if payload != before:
             await self.patch_fields(char_id, {"$.vitals": payload})
@@ -476,9 +502,11 @@ class CharacterSessionManager:
             raise SessionNotFoundError(f"Character session not found: char_id={char_id}")
 
         attributes = CharacterSessionAttributesDTO.model_validate(document.get("attributes") or {})
+        items = document.get("items") or {}
         restored_vitals = CharacterVitalsCalculator.restore_to_max_vitals(
             attributes,
-            profile_key=resolve_player_vital_profile_key(document.get("items") or {}),
+            profile_key=resolve_player_vital_profile_key(items),
+            items=items,
         )
         payload = restored_vitals.model_dump(mode="json")
         await self.patch_fields(char_id, {"$.vitals": payload})
@@ -488,6 +516,42 @@ class CharacterSessionManager:
             paths=["$.vitals.hp", "$.vitals.energy", "$.vitals.stamina", "$.vitals.last_update"],
         )
         return payload
+
+    async def scan_vitals_regen_candidates(self, *, limit: int = 100) -> list[int]:
+        client = self._redis_client()
+        cursor = 0
+        char_ids: list[int] = []
+        allowed_states = {
+            CoreDomain.EXPLORATION.value,
+            CoreDomain.RIFT.value,
+            CoreDomain.SCENARIO.value,
+            CoreDomain.LOBBY.value,
+            "exploration",
+            "rift",
+            "scenario",
+            "lobby",
+        }
+        while True:
+            cursor, keys = await client.scan(cursor=cursor, match="game:ac:*", count=limit)
+            for key in keys:
+                raw = await self.redis.json_module.get(key, "$")
+                document = self._first(raw)
+                if not isinstance(document, dict):
+                    continue
+                state = str(document.get("state") or "")
+                if state not in allowed_states:
+                    continue
+                vitals = CharacterSessionVitalsDTO.model_validate(document.get("vitals") or {})
+                if not CharacterVitalsCalculator._is_full(vitals):
+                    try:
+                        char_ids.append(int(document.get("char_id")))
+                    except (TypeError, ValueError):
+                        continue
+                    if len(char_ids) >= limit:
+                        return char_ids
+            if cursor == 0:
+                break
+        return char_ids
 
     async def apply_attribute_bonus(self, char_id: int, bonuses: dict[str, int]) -> None:
         if not bonuses:

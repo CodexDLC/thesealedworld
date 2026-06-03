@@ -92,6 +92,7 @@ async def register_combat_move(
 ) -> CombatDashboardDTO | CombatResultDTO:
     """Accept one combat move request and return the updated runtime surface."""
     try:
+        logger.bind(char_id=char_id, action=body.action).info("CombatMoveAccepted")
         return await orchestrator.register_move(char_id, body)
     except CombatError as exc:
         logger.bind(char_id=char_id, code=exc.code, detail=exc.message).warning("CombatMoveRejected")

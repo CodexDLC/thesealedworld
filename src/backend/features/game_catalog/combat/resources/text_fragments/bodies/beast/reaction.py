@@ -7,6 +7,12 @@ BEAST_REACTION_PHRASES = {
             "variables": ["target"],
             "tags": ["miss"],
         },
+        "body.beast.reaction.miss.natural": {
+            "kind": "reaction",
+            "text": "атака проходит мимо {target}",
+            "variables": ["target"],
+            "tags": ["miss"],
+        },
         "body.beast.reaction.miss.low": {
             "kind": "reaction",
             "text": "{target} прижимается к земле",

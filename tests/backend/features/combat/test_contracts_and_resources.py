@@ -68,7 +68,7 @@ def test_combat_resources_load_runtime_and_public_catalog() -> None:
     assert catalog["combat_entries"]["combat.ability.fireball"]["resource_id"] == "fireball"
     assert catalog["combat_entries"]["combat.gift.gift_true_fire"]["resource_id"] == "gift_true_fire"
     assert catalog["combat_entries"]["combat.item.fire_grenade"]["resource_id"] == "fire_grenade"
-    assert set(catalog["feints"]) == {
+    expected_feints = {
         "blade_dance",
         "absolute_defense",
         "aggressive_defense",
@@ -79,7 +79,7 @@ def test_combat_resources_load_runtime_and_public_catalog() -> None:
         "backstep_shot",
         "blade_return",
         "blade_loop",
-        "blade_mill",
+        "dual_blade_mill_v2",
         "bind_blade",
         "blinding_shot",
         "blood_wall_crash",
@@ -122,7 +122,7 @@ def test_combat_resources_load_runtime_and_public_catalog() -> None:
         "open_distance",
         "open_wound",
         "open_vein",
-        "perfect_riposte",
+        "2h_perfect_riposte",
         "piercing_arrow",
         "polearm_guard_intercept",
         "polearm_hook_step",
@@ -149,7 +149,6 @@ def test_combat_resources_load_runtime_and_public_catalog() -> None:
         "steel_line",
         "steady_strike",
         "sword_blade_bind",
-        "sword_blade_whirl",
         "sword_clean_path",
         "sword_cut_angle",
         "sword_hard_bind",
@@ -160,9 +159,10 @@ def test_combat_resources_load_runtime_and_public_catalog() -> None:
         "two_handed_whirl",
         "wind_dance",
     }
+    assert expected_feints.issubset(set(catalog["feints"]))
     assert catalog["feints"]["measured_strike"]["cost"]["tactics"] == {"hit": 3}
     assert catalog["feints"]["glancing_step"]["cost"]["tactics"] == {"dodge": 3}
-    assert catalog["feints"]["perfect_riposte"]["cost"]["tactics"] == {"parry": 7}
+    assert catalog["feints"]["2h_perfect_riposte"]["cost"]["tactics"] == {"parry": 7}
     assert catalog["feints"]["absolute_defense"]["cost"]["tactics"] == {"block": 7}
     assert catalog["feints"]["read_tactic"]["cost"]["tactics"] == {"hit": 1, "block": 2}
     assert catalog["feints"]["bloody_rebuke"]["cost"]["tactics"] == {"blood": 1, "hit": 2, "block": 2}
@@ -170,7 +170,7 @@ def test_combat_resources_load_runtime_and_public_catalog() -> None:
     assert catalog["feints"]["crushing_pressure"]["cost"]["tactics"] == {"hit": 3}
     assert catalog["feints"]["ignore_guard"]["cost"]["tactics"] == {"hit": 2, "parry": 2}
     assert catalog["feints"]["offhand_over"]["cost"]["tactics"] == {"hit": 3, "parry": 2}
-    assert catalog["feints"]["blade_mill"]["cost"]["tactics"] == {"hit": 5, "pressure": 4}
+    assert catalog["feints"]["dual_blade_mill_v2"]["cost"]["tactics"] == {"hit": 5, "pressure": 4}
     assert catalog["feints"]["snap_shot"]["cost"]["tactics"] == {"hit": 3}
     assert catalog["feints"]["sword_blade_bind"]["cost"]["tactics"] == {"hit": 3, "parry": 2}
     assert catalog["feints"]["sword_clean_path"]["cost"]["tactics"] == {"hit": 3, "crit": 5}

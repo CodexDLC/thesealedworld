@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import math
 import uuid
 from typing import TYPE_CHECKING, Any, Literal
 
@@ -136,7 +135,7 @@ class AbilityService:
         Side Effects:
             - Removes expired temporary ability modifiers.
             - Consumes prepared reactions tied to the current outcome.
-            - Materializes queued effects and passive combat regeneration.
+            - Materializes queued effects and passive combat HP/concentration regeneration.
         """
         if not ctx.result:
             return
@@ -150,8 +149,9 @@ class AbilityService:
         # 3. [EXECUTE EFFECTS]
         self._apply_queued_effects(ctx, source, target)
 
-        # 4. [PASSIVE COMBAT REGEN]
-        self._register_combat_regen(ctx, source)
+        # 4. [PASSIVE COMBAT RESOURCE REGEN]
+        self._register_combat_hp_regen(ctx, source)
+        self._register_combat_stamina_regen(ctx, source)
 
     # ==============================================================================
     # ATOMIC STEPS: STATUS EFFECTS (FLAGS & MODS)
@@ -665,6 +665,7 @@ class AbilityService:
             return
 
         ctx.result.tokens_awarded_defender.pop("parry", None)
+        ctx.result.healing_final += heal_amount
         ctx.result.resource_applications.append(
             CombatResourceApplicationDTO(
                 actor_id=actor.char_id,
@@ -803,6 +804,7 @@ class AbilityService:
 
             if effect_id == "restore_hp":
                 val = effect_data.get("params", {}).get("value", 0)
+                ctx.result.healing_final += val
                 if "hp" not in ctx.result.resource_changes:
                     ctx.result.resource_changes["hp"] = {}
                 ctx.result.resource_changes["hp"]["heal"] = f"+{val}"
@@ -1002,7 +1004,7 @@ class AbilityService:
         return sum(float(getattr(actor.stats.mods, modifier_id, 0.0) or 0.0) for modifier_id in modifier_ids)
 
     @staticmethod
-    def _register_combat_regen(ctx: PipelineContextDTO, source: ActorSnapshot) -> None:
+    def _register_combat_stamina_regen(ctx: PipelineContextDTO, source: ActorSnapshot) -> None:
         if not source.is_alive:
             return
 
@@ -1010,23 +1012,35 @@ class AbilityService:
         if not source.stats:
             return
 
-        # Energy regen is an out-of-combat or explicit item/effect resource, not passive combat sustain.
-        regen_sources = (
-            ("hp", source.stats.mods.hp_regen),
-            ("stamina", source.stats.mods.stamina_regen),
-        )
-        for resource, regen_value in regen_sources:
-            delta = AbilityService._combat_regen_delta(regen_value)
-            if delta <= 0:
-                continue
-            ctx.result.resource_changes.setdefault(resource, {})["combat_regen"] = f"+{delta}"
+        delta = AbilityService._combat_stamina_regen_delta(source.stats.mods.stamina_regen)
+        if delta <= 0:
+            return
+        ctx.result.resource_changes.setdefault("stamina", {})["combat_regen"] = f"+{delta}"
+
+    @staticmethod
+    def _register_combat_hp_regen(ctx: PipelineContextDTO, source: ActorSnapshot) -> None:
+        if not source.is_alive:
+            return
+
+        StatsEngine.ensure_stats(source)
+        if not source.stats:
+            return
+
+        delta = AbilityService._combat_regen_delta(source.stats.mods.hp_regen)
+        if delta <= 0:
+            return
+        ctx.result.resource_changes.setdefault("hp", {})["combat_regen"] = f"+{delta}"
+
+    @staticmethod
+    def _combat_stamina_regen_delta(value: float) -> int:
+        return AbilityService._combat_regen_delta(value)
 
     @staticmethod
     def _combat_regen_delta(value: float) -> int:
         numeric = max(0.0, float(value or 0.0))
         if numeric <= 0:
             return 0
-        return max(1, int(math.floor(numeric)))
+        return max(1, int(numeric))
 
     @staticmethod
     def _effect_conditions_met(ctx: PipelineContextDTO, effect_data: dict[str, Any]) -> bool:

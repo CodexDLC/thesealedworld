@@ -1,3 +1,4 @@
+import contextlib
 import time
 
 from codex_platform.streams.codec import encode_stream_payload
@@ -9,6 +10,11 @@ from src.backend.features.combat.dto.worker import CollectorSignalDTO, WorkerBat
 from src.backend.features.combat.runtime.engine.tunables import load_combat_tunables, use_tunables
 from src.backend.features.combat.runtime.processors.executor import CombatExecutor  # noqa: TC001
 from src.backend.features.combat.runtime.services.data_service import CombatDataService  # noqa: TC001
+from src.backend.realtime.integrations.notice_publisher import (
+    PlayerNoticePublisher,
+    RawStreamNoticeProducer,
+    RefreshTargets,
+)
 from src.shared.infrastructure.log_task_wrapper import logged_task
 
 
@@ -124,6 +130,7 @@ async def execute_batch_task(ctx: dict, job_data: dict) -> None:
             await data_service.commit_session(battle_ctx, processed_ids)
             await _enqueue_result_support_tasks(ctx, battle_ctx)
             await _publish_combat_logs_to_chat(ctx, battle_ctx)
+            await _publish_combat_refresh_notices(ctx, battle_ctx)
 
             log.bind(
                 session_id=session_id,
@@ -248,3 +255,24 @@ def _combat_log_chat_payload(session_id: str, recipients: list[str], entry: dict
             "seq": entry.get("id"),
         },
     }
+
+
+async def _publish_combat_refresh_notices(ctx: dict, battle_ctx) -> None:
+    """Send realtime refresh notifications to all active player participants."""
+    redis = ctx.get("redis_client_internal")
+    if redis is None:
+        return
+
+    recipients = _player_recipients(battle_ctx)
+    if not recipients:
+        return
+
+    notice_publisher = PlayerNoticePublisher(RawStreamNoticeProducer(redis))
+    for actor_id in recipients:
+        with contextlib.suppress(Exception):
+            await notice_publisher.request_refresh(
+                int(actor_id),
+                target=RefreshTargets.STATUS,
+                reason="combat_turn_resolved",
+                domain="combat",
+            )

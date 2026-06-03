@@ -72,7 +72,13 @@ def _is_natural_basic_exchange(skill_key: str) -> bool:
     return skill_key == "natural_weapon"
 
 
-def _natural_weapon_phrase_key(weapon_class: str) -> str:
+def _natural_weapon_phrase_key(weapon_class: str, hand: str = "main") -> str:
+    if hand == "off":
+        return {
+            "fangs": "body.beast.natural_weapon.offhand.fangs",
+            "claws": "body.beast.natural_weapon.offhand.claws",
+            "default": "body.beast.natural_weapon.offhand.default",
+        }.get(weapon_class, "body.beast.natural_weapon.offhand.default")
     return {
         "fangs": "body.beast.natural_weapon.default.fangs",
         "claws": "body.beast.natural_weapon.default.claws",
@@ -80,7 +86,9 @@ def _natural_weapon_phrase_key(weapon_class: str) -> str:
     }.get(weapon_class, "body.beast.natural_weapon.default.teeth")
 
 
-def _natural_approach_phrase_key(weapon_class: str) -> str:
+def _natural_approach_phrase_key(weapon_class: str, hand: str = "main") -> str:
+    if hand == "off":
+        return "body.beast.approach.offhand.default"
     return {
         "fangs": "body.beast.approach.medium.low_lunge",
         "claws": "body.beast.approach.small.dart",
@@ -143,23 +151,28 @@ def _natural_impact_phrase_key(weapon_class: str, outcome: str, target_body: str
 def _natural_reaction_phrase_key(outcome: str, target_body: str) -> str:
     if target_body == "beast":
         return {
-            "miss": "body.beast.reaction.miss.pass",
+            "miss": "body.beast.reaction.miss.natural",
             "dodge": "body.beast.reaction.dodge.side_leap",
             "parry": "body.beast.reaction.parry.paw_swipe",
             "block": "body.beast.reaction.block.shoulder",
         }[outcome]
     return {
-        "miss": "body.humanoid.reaction.miss.gap",
+        "miss": "body.humanoid.reaction.miss.natural",
         "dodge": "body.humanoid.reaction.dodge.sidestep",
         "parry": "body.humanoid.reaction.parry.deflect",
         "block": "body.humanoid.reaction.block.shield_take",
     }[outcome]
 
 
-def _natural_basic_exchange_phrase_keys(weapon_class: str, outcome: str, target_body: str) -> dict[str, str]:
+def _natural_basic_exchange_phrase_keys(
+    weapon_class: str,
+    outcome: str,
+    target_body: str,
+    hand: str = "main",
+) -> dict[str, str]:
     keys = {
-        "approach": _natural_approach_phrase_key(weapon_class),
-        "natural_weapon": _natural_weapon_phrase_key(weapon_class),
+        "approach": _natural_approach_phrase_key(weapon_class, hand),
+        "natural_weapon": _natural_weapon_phrase_key(weapon_class, hand),
     }
     if outcome in {"hit", "crit"}:
         keys.update(
@@ -299,14 +312,26 @@ def _build_basic_exchange_template_recipes() -> tuple[CombatTextTemplateRecipeDT
             for outcome in ("hit", "crit", "miss", "dodge", "parry", "block"):
                 if _is_natural_basic_exchange(skill_key):
                     phrase_keys = _natural_basic_exchange_phrase_keys(
-                        entry.technical.weapon_class, outcome, target_body
+                        entry.technical.weapon_class,
+                        outcome,
+                        target_body,
+                        entry.technical.hand,
+                    )
+                    is_bite = (entry.technical.weapon_class == "fangs") or (
+                        entry.technical.weapon_class == "default"
+                        and entry.technical.hand != "off"
+                    )
+                    verb = (
+                        ("кусает" if outcome in {"hit", "crit"} else "пытается укусить")
+                        if is_bite
+                        else "бьёт"
                     )
                     pattern = (
-                        "{approach}, бьёт {natural_weapon} и {contact}; {impact}, {result}."
+                        f"{{approach}}, {verb} {{natural_weapon}} и {{contact}}; {{impact}}, {{result}}."
                         if outcome in {"hit", "crit"}
-                        else "{approach}, бьёт {natural_weapon}; но {reaction}."
+                        else f"{{approach}}, {verb} {{natural_weapon}}; но {{reaction}}."
                         if outcome == "miss"
-                        else "{approach}, бьёт {natural_weapon} и {contact}; но {reaction}."
+                        else f"{{approach}}, {verb} {{natural_weapon}} и {{contact}}; но {{reaction}}."
                     )
                 else:
                     phrase_keys = _basic_exchange_phrase_keys(skill_key, outcome, target_body)

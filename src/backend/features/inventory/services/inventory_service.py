@@ -239,6 +239,10 @@ class InventoryService:
         projection = build_active_character_projection(session)
         await self.character_sessions.set_items_projection(session.char_id, projection.model_dump(mode="json"))
         await self.stream_client.request_gear_score_recalculation(char_id=session.char_id, reason=reason)
+        if reason in {"equip", "unequip", "reward_granted"}:
+            vitals_refresh = await self.character_sessions.refresh_vitals_max(session.char_id)
+            if vitals_refresh.get("changed") is True:
+                await self.stream_client.request_status_refresh(char_id=session.char_id, reason=reason)
 
     def _equip(self, session: InventoryRuntimeSessionDTO, item_id: str, slot_id: str) -> None:
         if slot_id not in {slot.value for slot in EquippedSlot}:

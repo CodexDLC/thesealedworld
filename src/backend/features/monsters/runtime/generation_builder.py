@@ -93,6 +93,9 @@ class MonsterClanGenerationBuilder:
         normalized_tags: Sequence[str] | None = None,
         reuse_existing: bool = True,
     ) -> GeneratedClan:
+        if context.tier < 1:
+            raise ValueError(f"Generated monster clan tier must be >= 1, got {context.tier}")
+
         tags = list(normalized_tags or normalize_tags(context.tags))
         resolved_context_hash = context_hash or compute_context_hash(context.tier, context.biome_id, tags)
         resolved_family_id = family_id or self.select_family_id(context, resolved_context_hash)

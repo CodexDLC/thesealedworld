@@ -84,9 +84,18 @@ class ItemPersistenceIntegration:
         return await self.repo.transfer_character_items_to_system(character_id)
 
     def _dto_from_instance(self, instance: Any) -> GeneratedItemDTO:
+        mechanics_raw = dict(instance.mechanics or {})
+        bonuses = dict(mechanics_raw.get("bonuses") or {})
+
+        # Lazy heal: compile bonuses from affixes for legacy items stored with bonuses={}
+        if not bonuses and mechanics_raw.get("affixes"):
+            from src.backend.features.items.runtime.item_factory import ItemFactory
+
+            bonuses = ItemFactory._compile_affix_bonuses(mechanics_raw["affixes"])
+
         return GeneratedItemDTO(
             instance_id=instance.id,
-            template_id=str(instance.mechanics.get("template_id") or instance.base_id),
+            template_id=str(mechanics_raw.get("template_id") or instance.base_id),
             item_type=instance.item_type,
             rarity=instance.rarity,
             rarity_tier=instance.rarity_tier,
@@ -95,16 +104,16 @@ class ItemPersistenceIntegration:
             base_id=instance.base_id,
             material_id=instance.generation.get("material_id"),
             affix_bundle_ids=list(instance.generation.get("affix_bundle_ids") or []),
-            power=float(instance.mechanics.get("power") or 0),
-            durability_max=float(instance.mechanics.get("durability_max") or 0),
-            damage_spread=float(instance.mechanics.get("damage_spread") or 0.1),
-            slot=str(instance.mechanics.get("slot") or ""),
-            valid_slots=list(instance.mechanics.get("valid_slots") or []),
-            implicit_bonuses=dict(instance.mechanics.get("implicit_bonuses") or {}),
-            bonuses=dict(instance.mechanics.get("bonuses") or {}),
-            triggers=list(instance.mechanics.get("triggers") or []),
+            power=float(mechanics_raw.get("power") or 0),
+            durability_max=float(mechanics_raw.get("durability_max") or 0),
+            damage_spread=float(mechanics_raw.get("damage_spread") or 0.1),
+            slot=str(mechanics_raw.get("slot") or ""),
+            valid_slots=list(mechanics_raw.get("valid_slots") or []),
+            implicit_bonuses=dict(mechanics_raw.get("implicit_bonuses") or {}),
+            bonuses=bonuses,
+            triggers=list(mechanics_raw.get("triggers") or []),
             narrative_tags=list(instance.generation.get("narrative_tags") or []),
-            mechanics=dict(instance.mechanics or {}),
+            mechanics=mechanics_raw,
             metadata={
                 **dict(instance.metadata_ or {}),
                 "generated_template_id": getattr(instance, "generated_template_id", None),

@@ -794,6 +794,31 @@ class CombatLogBuilder:
         return tokens
 
     @classmethod
+    def _effect_icon_url(cls, effect_id: str) -> str:
+        # Check standard icons
+        if effect_id in {"dot_bleed", "bleed", "bleeding"}:
+            return "/static/images/ui/combat-icons/bleeding.svg"
+        if effect_id == "burn":
+            return "/static/images/ui/combat-icons/burn.svg"
+        if effect_id == "poison":
+            return "/static/images/ui/combat-icons/poison.svg"
+        if effect_id == "stun":
+            return "/static/images/ui/combat-icons/stun.svg"
+        if effect_id == "death":
+            return "/static/images/ui/combat-icons/target.svg"
+        if effect_id == "ranged_position":
+            return "/static/images/ui/combat-icons/ranged_position.svg"
+        if effect_id.startswith("prep_brace_guard") or "guard" in effect_id or "defense" in effect_id or "block" in effect_id:
+            return "/static/images/ui/combat-icons/shield.svg"
+        if "dodge" in effect_id:
+            return "/static/images/ui/combat-icons/token-dodge.svg"
+        if "parry" in effect_id:
+            return "/static/images/ui/combat-icons/token-parry.svg"
+        if "counter" in effect_id:
+            return "/static/images/ui/combat-icons/token-counter.svg"
+        return "/static/images/ui/combat-icons/token.svg"
+
+    @classmethod
     def _public_effects(cls, ctx: BattleContext, result: InteractionResultDTO) -> list[dict[str, Any]]:
         effects: list[dict[str, Any]] = []
         for effect in result.applied_effects:
@@ -813,7 +838,8 @@ class CombatLogBuilder:
                     "effect_id": effect_id,
                     "action": "apply",
                     "duration": duration,
-                    "icon": f"combat/effects/{effect_id}.svg",
+                    "label": label,
+                    "icon": cls._effect_icon_url(effect_id),
                     "tooltip": cls._effect_tooltip(label, duration),
                 }
             )
@@ -825,7 +851,8 @@ class CombatLogBuilder:
                     "effect_id": "death",
                     "action": "apply",
                     "duration": None,
-                    "icon": "combat/effects/death.svg",
+                    "label": "Побежден",
+                    "icon": "/static/images/ui/combat-icons/target.svg",
                     "tooltip": "Побежден",
                 }
             )
@@ -845,7 +872,8 @@ class CombatLogBuilder:
                     "effect_id": effect_id,
                     "action": "apply",
                     "duration": duration,
-                    "icon": f"combat/effects/{effect_id}.svg",
+                    "label": label,
+                    "icon": cls._effect_icon_url(effect_id),
                     "tooltip": cls._effect_tooltip(label, duration),
                 }
             )
@@ -880,7 +908,7 @@ class CombatLogBuilder:
 
     @staticmethod
     def _effect_tooltip(label: str, duration: int | None) -> str:
-        if duration is None:
+        if duration is None or duration >= 999:
             return label
         if duration == 1:
             return f"{label}, 1 ход"

@@ -226,6 +226,7 @@ class GameLobbyIntegration:
         *,
         seed: str | None = None,
         imprint_key: str | None = None,
+        exclude_imprint_key: str | None = None,
     ) -> dict[str, Any]:
         self._ensure_starting_imprint_dependencies()
         assert self.attributes_repo is not None
@@ -235,10 +236,12 @@ class GameLobbyIntegration:
         if imprint_key:
             build = service.build(imprint_key)
         elif self.starting_imprint_distribution is not None:
+            exclude_keys = [exclude_imprint_key] if exclude_imprint_key else None
             selected_imprint_key = await self.starting_imprint_distribution.select_and_record(
                 user_id=character.user_id,
                 seed=seed,
                 imprint_keys=service.available_keys(),
+                exclude_keys=exclude_keys,
             )
             build = service.build(selected_imprint_key)
         else:
@@ -278,6 +281,26 @@ class GameLobbyIntegration:
         if character is None:
             raise BusinessLogicException("Персонаж недоступен")
 
+        exclude_imprint_key = None
+        if self.attributes_repo is not None:
+            attrs_list = await self.attributes_repo.get_attributes_batch([character_id])
+            if attrs_list:
+                char_attrs = attrs_list[0]
+                from src.backend.features.character.resources.starting_imprints import (
+                    ATTRIBUTE_KEYS,
+                    STARTING_IMPRINTS,
+                )
+                for key, definition in STARTING_IMPRINTS.items():
+                    def_attrs = dict(definition.attribute_values)
+                    match = True
+                    for attr_name in ATTRIBUTE_KEYS:
+                        if getattr(char_attrs, attr_name, None) != def_attrs.get(attr_name):
+                            match = False
+                            break
+                    if match:
+                        exclude_imprint_key = key
+                        break
+
         avatar_url = _default_avatar_url(character.gender)
         character.avatar_url = avatar_url
         character.game_stage = CoreDomain.EXPLORATION.value
@@ -309,6 +332,7 @@ class GameLobbyIntegration:
             reset_character,
             seed=seed,
             imprint_key=imprint_key,
+            exclude_imprint_key=exclude_imprint_key,
         )
         await self.bootstrap_active_character(user_id=user_id, character_id=character_id)
         logger.bind(

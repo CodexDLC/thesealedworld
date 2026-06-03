@@ -268,6 +268,15 @@ async def test_navigation_builds_city_map_district_payload_from_runtime_flags() 
     assert len(result.city_map["rows"][0]) == 7
     assert result.city_map["rows"][0][0]["tile_url"].endswith("/d4_05_05.webp")
     assert result.city_map["rows"][3][3]["is_current"] is True
+    assert result.city_map["rows"][3][3]["service_markers"] == [
+        {
+            "service_id": "svc_portal_hub",
+            "service_type": "portal",
+            "label": "Портал",
+            "icon_url": "/static/images/ui/service-icons/portal.svg",
+            "corner": "bottom-right",
+        }
+    ]
     assert "service_marker" not in result.city_map["rows"][2][2]
     assert result.city_map["rows"][2][2]["service_markers"] == [
         {

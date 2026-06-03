@@ -26,7 +26,11 @@ from src.shared.schemas.combat import (
 
 @pytest.fixture(autouse=True)
 def _skip_combat_move_response_delay(monkeypatch):
-    monkeypatch.setattr("src.backend.features.combat.services.session_service.MOVE_RESPONSE_SETTLE_DELAY_SECONDS", 0)
+    monkeypatch.setattr(
+        "src.backend.features.combat.services.session_service.MOVE_RESPONSE_SETTLE_DELAY_SECONDS",
+        0,
+        raising=False,
+    )
 
 
 class FakeCombatStore:
@@ -294,12 +298,17 @@ class LockedCombatStore(FakeCombatStore):
         return {"1": {"exchange": {"m1": {"move_id": "m1"}}}}
 
 
-class WaitingResponseCombatStore(FakeCombatStore):
+class PendingWithTargetsCombatStore(FakeCombatStore):
     async def get_moves_batch(self, session_id, actor_ids):
         return {"1": {"exchange": {"m1": {"move_id": "m1", "payload": {"target_id": "2"}}}}}
 
 
-class OpponentRespondedCombatStore(FakeCombatStore):
+class WaitingResponseCombatStore(LockedCombatStore):
+    async def get_moves_batch(self, session_id, actor_ids):
+        return {"1": {"exchange": {"m1": {"move_id": "m1", "payload": {"target_id": "2"}}}}}
+
+
+class OpponentRespondedCombatStore(LockedCombatStore):
     async def get_moves_batch(self, session_id, actor_ids):
         return {
             "1": {"exchange": {"m1": {"move_id": "m1", "payload": {"target_id": "2"}}}},
@@ -577,6 +586,42 @@ def test_combat_view_service_ignores_monster_family_visual_as_avatar():
     assert dashboard.target.avatar_url is None
 
 
+def test_combat_view_service_ignores_string_none_avatar_url():
+    dashboard = CombatViewService().build_dashboard(
+        session_id="combat-string-none-avatar",
+        viewer_id=1,
+        meta={
+            "active": "1",
+            "teams": json.dumps({"team_1": ["1"], "team_2": ["2"]}),
+            "actors_info": json.dumps({"1": "player", "2": "ai"}),
+            "alive_counts": json.dumps({"team_1": 1, "team_2": 1}),
+            "dead_actors": "[]",
+        },
+        targets={"1": ["2"], "2": ["1"]},
+        actors={
+            "1": {
+                "meta": {"id": "1", "name": "Hero", "team": "team_1", "type": "player", "hp": 10, "max_hp": 10},
+            },
+            "2": {
+                "meta": {
+                    "id": "2",
+                    "name": "Bandit",
+                    "team": "team_2",
+                    "type": "monster",
+                    "hp": 10,
+                    "max_hp": 10,
+                    "avatar_url": "None",
+                },
+                "source": {"visual": {"image_url": "None", "fallback_image_url": "null"}},
+            },
+        },
+        raw_logs=[],
+    )
+
+    assert dashboard.target is not None
+    assert dashboard.target.avatar_url is None
+
+
 def test_combat_view_service_returns_latest_turn_first():
     service = CombatViewService()
     turns = service.parse_logs_by_turn(
@@ -760,6 +805,45 @@ def test_combat_view_enriches_reactive_effect_badges_from_catalog():
     assert effect.duration_label == "до следующего парирования"
 
 
+def test_combat_view_preserves_ranged_position_effect_params_for_ui():
+    service = CombatViewService()
+
+    dashboard = service.build_dashboard(
+        session_id="combat-1",
+        viewer_id=1,
+        meta={
+            "active": "1",
+            "teams": json.dumps({"team_1": ["1"], "team_2": ["2"]}),
+            "actors_info": json.dumps({"1": "player", "2": "ai"}),
+        },
+        targets={"1": ["2"], "2": ["1"]},
+        actors={
+            "1": {
+                "meta": {"id": "1", "name": "Hero", "team": "team_1", "hp": 30, "max_hp": 40},
+                "statuses": {
+                    "effects": [
+                        {
+                            "uid": "ranged_position:1:2",
+                            "effect_id": "ranged_position",
+                            "expire_at_exchange": 3,
+                            "params": {"position": "close"},
+                        }
+                    ]
+                },
+            },
+            "2": {
+                "meta": {"id": "2", "name": "Shadow", "team": "team_2", "hp": 40, "max_hp": 40},
+            },
+        },
+        raw_logs=[],
+    )
+
+    effect = dashboard.hero.active_effects[0]
+    assert effect.effect_id == "ranged_position"
+    assert effect.params == {"position": "close"}
+    assert effect.title == "Дистанция лучника"
+
+
 def test_combat_view_builds_flat_actor_stat_sheet_from_stats_and_attributes():
     service = CombatViewService()
 
@@ -821,6 +905,48 @@ def test_combat_view_builds_flat_actor_stat_sheet_from_stats_and_attributes():
     assert "skill_parrying" not in all_keys
 
 
+def test_combat_view_builds_actor_stat_sheet_from_raw_modifiers_without_stats_cache():
+    service = CombatViewService()
+
+    dashboard = service.build_dashboard(
+        session_id="combat-1",
+        viewer_id=1,
+        meta={
+            "active": "1",
+            "teams": json.dumps({"team_1": ["1"], "team_2": ["2"]}),
+            "actors_info": json.dumps({"1": "player", "2": "ai"}),
+        },
+        targets={"1": ["2"], "2": ["1"]},
+        actors={
+            "1": {
+                "meta": {"id": "1", "name": "Hero", "team": "team_1", "hp": 30, "max_hp": 40},
+                "raw": {
+                    "attributes": {
+                        "strength": {"base": 10, "source": {}, "temp": {}},
+                    },
+                    "modifiers": {
+                        "main_hand_damage_base": {"base": 14, "source": {}, "temp": {}},
+                        "main_hand_damage_spread": {"base": 0.25, "source": {}, "temp": {}},
+                        "armor": {"base": 11, "source": {}, "temp": {}},
+                    },
+                    "rules": {},
+                },
+            },
+            "2": {
+                "meta": {"id": "2", "name": "Shadow", "team": "team_2", "hp": 40, "max_hp": 40},
+            },
+        },
+        raw_logs=[],
+    )
+
+    assert dashboard.hero.stat_sheet is not None
+    sections = {section.key: section for section in dashboard.hero.stat_sheet.sections}
+    assert sections["offense"].items[0].key == "main_hand_damage"
+    assert sections["offense"].items[0].value_text == "11 — 18"
+    assert [item.key for item in sections["defense"].items] == ["armor"]
+    assert [item.key for item in sections["attributes"].items] == ["strength"]
+
+
 @pytest.mark.asyncio
 async def test_available_actions_contains_exchange_and_no_feint_instant_actions():
     service = CombatSessionService(store=FakeCombatStore(), system_integrator=FakeCombatSystemIntegrator())
@@ -846,7 +972,7 @@ async def test_combat_dashboard_marks_pending_action_as_locked_even_without_queu
 
     assert dashboard.target is None
     assert dashboard.pending_action_count == 1
-    assert dashboard.action_state == "ACTION_LOCKED"
+    assert dashboard.action_state == "WAITING_FOR_RESPONSES"
     assert dashboard.exchange_state is not None
     assert dashboard.exchange_state.pair_status == "waiting_response"
 
@@ -857,7 +983,7 @@ async def test_combat_dashboard_exchange_state_waits_for_opponent_response():
 
     dashboard = await service.get_dashboard(1)
 
-    assert dashboard.action_state == "ACTION_LOCKED"
+    assert dashboard.action_state == "WAITING_FOR_RESPONSES"
     assert dashboard.exchange_state is not None
     assert dashboard.exchange_state.pair_status == "waiting_response"
     assert dashboard.exchange_state.opponent_response_state == "waiting"
@@ -871,7 +997,7 @@ async def test_combat_dashboard_exchange_state_marks_opponent_responded():
 
     dashboard = await service.get_dashboard(1)
 
-    assert dashboard.action_state == "ACTION_LOCKED"
+    assert dashboard.action_state == "WAITING_FOR_RESPONSES"
     assert dashboard.exchange_state is not None
     assert dashboard.exchange_state.pair_status == "ready_to_resolve"
     assert dashboard.exchange_state.opponent_response_state == "responded"
@@ -1545,3 +1671,41 @@ async def test_combat_archive_stub_returns_result_contract():
     assert result.metadata["source"] == "combat_archive_stub"
     assert result.primary_action.action == "navigate"
     assert result.primary_action.target_state == "exploration"
+
+
+@pytest.mark.asyncio
+async def test_combat_dashboard_state_transition_matrix():
+    # 1. ACTION_READY (ready target, no moves)
+    service_ready = CombatSessionService(store=FakeCombatStore(), system_integrator=FakeCombatSystemIntegrator())
+    dashboard_ready = await service_ready.get_dashboard(1)
+    assert dashboard_ready.target is not None
+    assert dashboard_ready.pending_action_count == 0
+    assert dashboard_ready.action_state == "ACTION_READY"
+    assert dashboard_ready.available_actions[0].action == "exchange"
+    assert dashboard_ready.available_actions[0].enabled is True
+
+    # 2. EXCHANGE_PENDING_WITH_TARGETS (ready target, pending moves)
+    service_pending = CombatSessionService(store=PendingWithTargetsCombatStore(), system_integrator=FakeCombatSystemIntegrator())
+    dashboard_pending = await service_pending.get_dashboard(1)
+    assert dashboard_pending.target is not None
+    assert dashboard_pending.pending_action_count == 1
+    assert dashboard_pending.action_state == "EXCHANGE_PENDING_WITH_TARGETS"
+    assert dashboard_pending.available_actions[0].action == "exchange"
+    assert dashboard_pending.available_actions[0].enabled is True
+
+    # 3. WAITING_FOR_RESPONSES (empty target queue, pending moves)
+    service_waiting = CombatSessionService(store=LockedCombatStore(), system_integrator=FakeCombatSystemIntegrator())
+    dashboard_waiting = await service_waiting.get_dashboard(1)
+    assert dashboard_waiting.target is None
+    assert dashboard_waiting.pending_action_count == 1
+    assert dashboard_waiting.action_state == "WAITING_FOR_RESPONSES"
+    # Exchange option not registered in available_actions if target is None
+    assert not any(act.action == "exchange" for act in dashboard_waiting.available_actions)
+
+    # 4. TARGET_QUEUE_EMPTY (empty target queue, no moves)
+    service_empty = CombatSessionService(store=EmptyTargetCombatStore(), system_integrator=FakeCombatSystemIntegrator())
+    dashboard_empty = await service_empty.get_dashboard(1)
+    assert dashboard_empty.target is None
+    assert dashboard_empty.pending_action_count == 0
+    assert dashboard_empty.action_state == "TARGET_QUEUE_EMPTY"
+    assert not any(act.action == "exchange" for act in dashboard_empty.available_actions)

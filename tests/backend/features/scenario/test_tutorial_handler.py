@@ -66,3 +66,32 @@ async def test_tutorial_initialize_applies_npc_initialize_effects() -> None:
 
     assert context.npc_key == "portal_pad_guide"
     integration.apply_initialize_effects.assert_awaited_once()
+
+
+@pytest.mark.unit
+async def test_tutorial_initialize_routes_to_death_respawn_arrival_when_attempt_gt_1() -> None:
+    from src.shared.schemas.scenario import ScenarioReturnContextDTO
+    from src.shared.enums import CoreDomain
+
+    integration = AsyncMock()
+    integration.get_initial_handler_context.return_value = ScenarioInitialHandlerContext(
+        sys_actor="Eidolon",
+        prev_state="LOBBY",
+        prev_loc="52_52",
+    )
+    handler = TutorialScenarioHandler(integration=integration)
+
+    return_context = ScenarioReturnContextDTO(
+        source_state=CoreDomain.EXPLORATION,
+        return_state=CoreDomain.SCENARIO,
+        metadata={"attempt_index": 2},
+    )
+
+    context = await handler.on_initialize(
+        7,
+        {"quest_key": "awakening_rift", "start_node_id": "start"},
+        return_context=return_context,
+    )
+
+    assert context.current_node_key == "death_respawn_arrival"
+    assert context.flags.get("attempt_index") == 2

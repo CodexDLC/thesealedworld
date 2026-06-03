@@ -32,15 +32,6 @@ BIOME_FAMILIES: dict[str, set[str]] = {
 
 # 2. ГЛОБАЛЬНЫЙ ФИЛЬТР ТИРОВ (TIER AVAILABILITY)
 TIER_AVAILABILITY: dict[int, set[str]] = {
-    0: {
-        "bandit_gang",
-        "rat_swarm",
-        "wolf_pack",
-        "goblin_tribe",
-        "snake_den",
-        "spider_colony",
-        "werewolf_pack",
-    },  # Добавлены оборотни
     1: {
         "bandit_gang",
         "rat_swarm",
@@ -146,7 +137,7 @@ CONTEXT_HASH_TAGS_WHITELIST: set[str] = MUTATION_TAGS_WHITELIST | {
     "d4_city_ruins",
     "d4_city_rift",
     "d4_corner_pressure",
-    "d4_tier0_population",
+    "d4_tier1_start_population",
     "d4_tier1_population",
     "d4_rift_rat_king",
     "d4_rift_wolf_breach",

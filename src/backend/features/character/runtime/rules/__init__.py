@@ -9,7 +9,6 @@ from src.backend.features.character.runtime.rules.gear_score import (
     GEAR_SCORE_CAPS,
     GEAR_SCORE_CONFIG,
     GEAR_SCORE_MINIMUM,
-    GEAR_SCORE_SKILLS_MAX,
     GEAR_SCORE_WEIGHTS,
 )
 
@@ -21,7 +20,6 @@ __all__ = [
     "GEAR_SCORE_CAPS",
     "GEAR_SCORE_CONFIG",
     "GEAR_SCORE_MINIMUM",
-    "GEAR_SCORE_SKILLS_MAX",
     "GEAR_SCORE_WEIGHTS",
     "MODIFIER_RULES",
 ]

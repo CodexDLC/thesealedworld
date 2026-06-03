@@ -19,6 +19,12 @@ HUMANOID_REACTION_PHRASES = {
             "variables": ["target"],
             "tags": ["miss"],
         },
+        "body.humanoid.reaction.miss.natural": {
+            "kind": "reaction",
+            "text": "атака проходит мимо {target}",
+            "variables": ["target"],
+            "tags": ["miss"],
+        },
         "body.humanoid.reaction.miss.wide": {
             "kind": "reaction",
             "text": "атака уходит в сторону от {target}",

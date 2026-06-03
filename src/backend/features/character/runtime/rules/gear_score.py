@@ -4,7 +4,6 @@ from src.backend.features.character.dto.modifiers import CombatModifiersDTO
 
 GEAR_SCORE_BASE = 0.0
 GEAR_SCORE_MINIMUM = 1
-GEAR_SCORE_SKILLS_MAX = 100.0
 
 # Starter balancing weights for combat-effective modifiers.
 # Percent values are stored as 0..1, so they intentionally use larger weights.
@@ -207,7 +206,6 @@ GEAR_SCORE_CAPS: dict[str, float] = {
 GEAR_SCORE_CONFIG = {
     "base": GEAR_SCORE_BASE,
     "minimum": GEAR_SCORE_MINIMUM,
-    "skills_max": GEAR_SCORE_SKILLS_MAX,
     "weights": GEAR_SCORE_WEIGHTS,
     "baselines": GEAR_SCORE_BASELINES,
     "caps": GEAR_SCORE_CAPS,
@@ -223,6 +221,5 @@ __all__ = [
     "GEAR_SCORE_CONFIG",
     "GEAR_SCORE_GROUPS",
     "GEAR_SCORE_MINIMUM",
-    "GEAR_SCORE_SKILLS_MAX",
     "GEAR_SCORE_WEIGHTS",
 ]

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any
@@ -29,8 +30,9 @@ class CharacterVitalsCalculator:
         attributes: CharacterSessionAttributesDTO,
         *,
         profile_key: str = "player",
+        items: dict[str, Any] | None = None,
     ) -> CharacterSessionVitalsDTO:
-        max_vitals = cls.calculate_max_vitals(attributes, profile_key=profile_key)
+        max_vitals = cls.calculate_max_vitals(attributes, profile_key=profile_key, items=items)
         return CharacterSessionVitalsDTO(
             hp=VitalValueDTO(cur=max_vitals.hp.max, max=max_vitals.hp.max, regen=max_vitals.hp.regen),
             energy=VitalValueDTO(
@@ -52,12 +54,13 @@ class CharacterVitalsCalculator:
         attributes: CharacterSessionAttributesDTO,
         *,
         profile_key: str = "player",
+        items: dict[str, Any] | None = None,
     ) -> CharacterSessionVitalsDTO:
         if not snapshot:
-            return cls.build_initial_vitals(attributes, profile_key=profile_key)
+            return cls.build_initial_vitals(attributes, profile_key=profile_key, items=items)
 
         snapshot_vitals = CharacterSessionVitalsDTO.model_validate(snapshot)
-        return cls.refresh_max_vitals(snapshot_vitals, attributes, profile_key=profile_key)
+        return cls.refresh_max_vitals(snapshot_vitals, attributes, profile_key=profile_key, items=items)
 
     @classmethod
     def refresh_max_vitals(
@@ -67,8 +70,9 @@ class CharacterVitalsCalculator:
         *,
         profile_key: str = "player",
         fill_if_default: bool = False,
+        items: dict[str, Any] | None = None,
     ) -> CharacterSessionVitalsDTO:
-        max_vitals = cls.calculate_max_vitals(attributes, profile_key=profile_key)
+        max_vitals = cls.calculate_max_vitals(attributes, profile_key=profile_key, items=items)
         all_default = cls._is_default_vitals(current_vitals)
 
         return CharacterSessionVitalsDTO(
@@ -92,8 +96,9 @@ class CharacterVitalsCalculator:
         attributes: CharacterSessionAttributesDTO,
         *,
         profile_key: str = "player",
+        items: dict[str, Any] | None = None,
     ) -> CharacterSessionVitalsDTO:
-        max_vitals = cls.calculate_max_vitals(attributes, profile_key=profile_key)
+        max_vitals = cls.calculate_max_vitals(attributes, profile_key=profile_key, items=items)
         now = datetime.now(UTC).timestamp()
         return CharacterSessionVitalsDTO(
             hp=VitalValueDTO(cur=max_vitals.hp.max, max=max_vitals.hp.max, regen=max_vitals.hp.regen),
@@ -116,11 +121,12 @@ class CharacterVitalsCalculator:
         attributes: CharacterSessionAttributesDTO,
         *,
         profile_key: str = "player",
+        items: dict[str, Any] | None = None,
     ) -> CharacterSessionVitalsDTO:
         calculated, _ = StatsWaterfallCalculator.calculate_waterfall(
             {
                 "attributes": cls._raw_attributes(attributes),
-                "modifiers": cls._base_modifiers(),
+                "modifiers": cls._base_modifiers(items),
                 "rules": {"attribute_profile": profile_key},
             }
         )
@@ -181,11 +187,104 @@ class CharacterVitalsCalculator:
         }
 
     @staticmethod
-    def _base_modifiers() -> dict[str, dict[str, Any]]:
-        return {
+    def _base_modifiers(items: dict[str, Any] | None = None) -> dict[str, dict[str, Any]]:
+        modifiers = {
             key: {"base": float(value or 0.0), "source": {}, "temp": {}}
             for key, value in DEFAULT_MODIFIER_VALUES.items()
         }
+        # implicit bonuses → base layer (numeric values)
+        for key, value in CharacterVitalsCalculator._equipped_item_implicit_vital_bonuses(items).items():
+            modifiers.setdefault(key, {"base": 0.0, "source": {}, "temp": {}})
+            modifiers[key]["base"] = round(float(modifiers[key].get("base", 0.0) or 0.0) + value, 4)
+        # compiled affix bonuses → source layer (command strings)
+        CharacterVitalsCalculator._apply_equipped_item_compiled_bonuses(modifiers, items)
+        return modifiers
+
+    @staticmethod
+    def _equipped_item_implicit_vital_bonuses(items: dict[str, Any] | None) -> dict[str, float]:
+        """Collect numeric implicit_bonuses from equipped items (base/material intrinsic stats)."""
+        payload = CharacterVitalsCalculator._as_dict(items)
+        layout = CharacterVitalsCalculator._as_dict(payload.get("layout"))
+        equipment = CharacterVitalsCalculator._as_dict(layout.get("equipment"))
+        by_id = CharacterVitalsCalculator._as_dict(payload.get("by_id"))
+        totals: dict[str, float] = {}
+
+        for item_id in equipment.values():
+            if not item_id:
+                continue
+            item = CharacterVitalsCalculator._as_dict(by_id.get(str(item_id)))
+            if not item:
+                continue
+            mechanics = CharacterVitalsCalculator._as_dict(item.get("mechanics"))
+            bonuses = CharacterVitalsCalculator._as_dict(mechanics.get("implicit_bonuses"))
+            for raw_key, raw_value in bonuses.items():
+                key = CharacterVitalsCalculator._normalize_vital_modifier_key(str(raw_key))
+                if key is None:
+                    continue
+                try:
+                    numeric = float(raw_value or 0.0)
+                except (TypeError, ValueError):
+                    continue
+                if numeric == 0:
+                    continue
+                totals[key] = round(float(totals.get(key, 0.0) or 0.0) + numeric, 4)
+        return totals
+
+    @staticmethod
+    def _apply_equipped_item_compiled_bonuses(
+        modifiers: dict[str, dict[str, Any]],
+        items: dict[str, Any] | None,
+    ) -> None:
+        """Apply compiled affix bonuses (command strings) to the source layer."""
+        payload = CharacterVitalsCalculator._as_dict(items)
+        layout = CharacterVitalsCalculator._as_dict(payload.get("layout"))
+        equipment = CharacterVitalsCalculator._as_dict(layout.get("equipment"))
+        by_id = CharacterVitalsCalculator._as_dict(payload.get("by_id"))
+
+        for item_id in equipment.values():
+            if not item_id:
+                continue
+            item = CharacterVitalsCalculator._as_dict(by_id.get(str(item_id)))
+            if not item:
+                continue
+            mechanics = CharacterVitalsCalculator._as_dict(item.get("mechanics"))
+            bonuses = CharacterVitalsCalculator._as_dict(mechanics.get("bonuses"))
+            if not bonuses:
+                continue
+            item_source = f"item:{item.get('item_id') or item_id}"
+            for raw_key, raw_value in bonuses.items():
+                key = CharacterVitalsCalculator._normalize_vital_modifier_key(str(raw_key))
+                if key is None:
+                    continue
+                modifiers.setdefault(key, {"base": 0.0, "source": {}, "temp": {}})
+                modifiers[key]["source"][f"{item_source}:bonus:{raw_key}"] = raw_value
+
+    @staticmethod
+    def _normalize_vital_modifier_key(raw_key: str) -> str | None:
+        key = {
+            "energy_max": "en",
+            "en_max": "en",
+            "en_add": "en",
+            "hp_max": "hp",
+            "hp_add": "hp",
+            "maximum_hp": "hp",
+            "hp_regeneration": "hp_regen",
+            "hp_regen_add": "hp_regen",
+            "hp_regen_bonus": "hp_regen",
+            "energy_regen": "en_regen",
+            "en_regeneration": "en_regen",
+            "en_regen_add": "en_regen",
+            "stamina_max": "stamina",
+            "stamina_add": "stamina",
+            "stamina_regen_add": "stamina_regen",
+        }.get(raw_key, raw_key)
+        return key if key in {"hp", "hp_regen", "en", "en_regen", "stamina", "stamina_regen"} else None
+
+    @staticmethod
+    def _as_dict(value: Any) -> dict[str, Any]:
+        if hasattr(value, "model_dump"):
+            return value.model_dump(mode="json")
+        return dict(value) if isinstance(value, Mapping) else {}
 
     @staticmethod
     def _is_default_vitals(vitals: CharacterSessionVitalsDTO) -> bool:

@@ -3,6 +3,10 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from src.backend.features.character.events import CharacterEvents
+from src.backend.realtime.integrations.notice_publisher import (
+    RefreshTargets,
+    build_player_notice_payload,
+)
 
 if TYPE_CHECKING:
     from src.backend.core.bus import GameEventProducer
@@ -18,6 +22,18 @@ class InventoryStreamClient:
         await self.events.publish(
             CharacterEvents.GEAR_SCORE_RECALCULATE_REQUESTED,
             {"char_id": char_id, "reason": reason},
+        )
+
+    async def request_status_refresh(self, *, char_id: int, reason: str) -> None:
+        await self.events.publish(
+            "player.notice",
+            build_player_notice_payload(
+                character_ids=[char_id],
+                presentation="refresh",
+                domain="inventory",
+                target=RefreshTargets.STATUS,
+                reason=reason,
+            ),
         )
 
 

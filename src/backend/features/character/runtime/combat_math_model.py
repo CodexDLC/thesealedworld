@@ -12,8 +12,6 @@ from src.backend.features.character.runtime.item_sync import (
 from src.backend.features.character.runtime.rules.attribute_modifiers import ATTRIBUTE_MODIFIER_RULES
 from src.backend.features.character.runtime.vital_profile import resolve_player_vital_profile_key_from_equipped
 from src.backend.features.character.schemas.session import CharacterSessionAttributesDTO
-from src.backend.features.items.resources.affixes.catalog import AFFIX_CATALOG
-from src.backend.features.items.resources.modifier_contracts import MODIFIER_CONTRACTS, compile_modifier_command
 from src.shared.enums.stats_enums import StatKey
 
 RawStatBlock = dict[str, dict[str, Any]]
@@ -210,25 +208,21 @@ class CharacterCombatMathModelBuilder:
                         tags=tags,
                     )
             for bonus_key, value in (mechanics.get("bonuses") or {}).items():
-                self._add_item_source_modifier(
-                    modifiers,
-                    str(bonus_key),
-                    source,
-                    value,
-                    slot=combat_slot,
-                    item_type=item_type,
-                    tags=tags,
-                )
-            if not mechanics.get("bonuses"):
-                self._apply_affix_sources(
-                    raw_attributes,
-                    modifiers,
-                    mechanics,
-                    source,
-                    slot=combat_slot,
-                    item_type=item_type,
-                    tags=tags,
-                )
+                mapped_key = MODIFIER_ALIASES.get(bonus_key, bonus_key)
+                command = str(value)
+                if mapped_key in ATTRIBUTE_KEYS:
+                    self._set_attribute_source_command(raw_attributes, mapped_key, source, command)
+                else:
+                    self._add_item_source_modifier(
+                        modifiers,
+                        bonus_key,
+                        source,
+                        command,
+                        slot=combat_slot,
+                        item_type=item_type,
+                        tags=tags,
+                    )
+
 
         if not has_main_hand_weapon:
             self._apply_unarmed_base(modifiers, attributes)
@@ -297,57 +291,6 @@ class CharacterCombatMathModelBuilder:
             return round(numeric * dual_quality["penalty"], 4)
         return value
 
-    @staticmethod
-    def _apply_affix_sources(
-        raw_attributes: RawStatBlock,
-        modifiers: RawStatBlock,
-        mechanics: dict[str, Any],
-        item_source: str,
-        *,
-        slot: str,
-        item_type: str,
-        tags: list[str],
-    ) -> None:
-        affixes = mechanics.get("affixes") or []
-        if not isinstance(affixes, list):
-            return
-        for raw_affix in affixes:
-            if not isinstance(raw_affix, dict):
-                continue
-            affix_id = str(raw_affix.get("affix_id") or "")
-            if not affix_id:
-                continue
-            entry = AFFIX_CATALOG.get(affix_id)
-            if entry is None:
-                continue
-            contract = MODIFIER_CONTRACTS.get(entry.technical.modifier_id)
-            if contract is None:
-                continue
-            value = CharacterCombatMathModelBuilder._float_value(raw_affix.get("value"))
-            if value is None:
-                continue
-            command = compile_modifier_command(contract, value)
-            source_id = f"{item_source}:affix:{affix_id}"
-            target = MODIFIER_ALIASES.get(contract.target_field, contract.target_field)
-
-            if contract.default_layer == "attributes" or target in ATTRIBUTE_KEYS:
-                if target not in ATTRIBUTE_KEYS:
-                    continue
-                CharacterCombatMathModelBuilder._set_attribute_source_command(
-                    raw_attributes, target, source_id, command
-                )
-                continue
-
-            if contract.default_layer == "world" and target not in COMBAT_MODIFIER_KEYS:
-                continue
-            if target == "armor" and not CharacterCombatMathModelBuilder._allows_armor_modifier(
-                slot=slot,
-                item_type=item_type,
-                tags=tags,
-            ):
-                continue
-
-            CharacterCombatMathModelBuilder._set_source_command(modifiers, target, source_id, command)
 
     @staticmethod
     def _apply_armor_dodge_cap_rules(

@@ -16,7 +16,11 @@ from src.backend.features.exploration.workers.tasks import EXPLORATION_TASKS
 from src.backend.features.inventory.workers.tasks import INVENTORY_TASKS
 from src.backend.features.loot.workers.tasks.loot_claim_task import loot_claim_task
 from src.backend.features.rift.workers.tasks import RIFT_TASKS
-from src.backend.features.system.workers.tasks import SYSTEM_COORDINATOR_TASKS, system_dirty_sweeper_task
+from src.backend.features.system.workers.tasks import (
+    SYSTEM_COORDINATOR_TASKS,
+    online_vitals_regen_task,
+    system_dirty_sweeper_task,
+)
 
 SYSTEM_TASKS = (
     *CHARACTER_TASKS,
@@ -27,6 +31,7 @@ SYSTEM_TASKS = (
     loot_claim_task,
 )
 DIRTY_SWEEPER_MINUTES = set(range(0, 60, 3))
+VITALS_REGEN_SECONDS = set(range(0, 60, 2))
 
 
 async def system_startup(ctx: dict[str, Any]) -> None:
@@ -55,5 +60,6 @@ class SystemArqSettings(BaseArqSettings):
     on_shutdown = system_shutdown
     functions = SYSTEM_TASKS
     cron_jobs = [
+        cron(online_vitals_regen_task, second=VITALS_REGEN_SECONDS),
         cron(system_dirty_sweeper_task, minute=DIRTY_SWEEPER_MINUTES),
     ]

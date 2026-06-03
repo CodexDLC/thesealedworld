@@ -724,7 +724,7 @@ class LLMWorldGenerator:
     def _d4_zone_tier(zone_id: str, *, is_hub_zone: bool) -> int:
         if is_hub_zone:
             return 0
-        return 1 if zone_id in D4_CORNER_ZONE_TAGS else 0
+        return 1
 
     @staticmethod
     def _d4_zone_context_tags(zone_id: str) -> list[str]:
@@ -738,9 +738,7 @@ class LLMWorldGenerator:
     def _d4_node_tier(x: int, y: int, *, zone_id: str, has_road: bool) -> int:
         if (x, y) in D4_RIFT_PROFILES:
             return 2
-        if has_road:
-            return 0
-        return 1 if zone_id in D4_CORNER_ZONE_TAGS else 0
+        return 1
 
     @staticmethod
     def _d4_node_context_tags(x: int, y: int, *, zone_id: str, has_road: bool) -> list[str]:

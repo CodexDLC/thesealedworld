@@ -213,6 +213,7 @@ class CharacterStateIntegrator:
             getattr(character, "vitals_snapshot", None),
             session_doc.attributes,
             profile_key=resolve_player_vital_profile_key(session_doc.items),
+            items=session_doc.items,
         )
         return session_doc
 
@@ -331,6 +332,7 @@ class CharacterStateIntegrator:
             session_doc.attributes,
             profile_key=resolve_player_vital_profile_key(session_doc.items),
             fill_if_default=True,
+            items=session_doc.items,
         )
         if refreshed_vitals != session_doc.vitals:
             session_doc.vitals = refreshed_vitals

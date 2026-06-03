@@ -13,7 +13,7 @@ if TYPE_CHECKING:
     from src.backend.infrastructure.world.models import WorldGrid
 
 D4_STARTER_FAMILY_IDS = ("bandit_gang", "goblin_tribe", "rat_swarm", "wolf_pack")
-D4_TIER0_CONTEXT_TAGS = ("d4_city_ruins", "d4_tier0_population", *D4_STARTER_FAMILY_IDS)
+D4_TIER1_START_CONTEXT_TAGS = ("d4_city_ruins", "d4_tier1_start_population", *D4_STARTER_FAMILY_IDS)
 D4_TIER1_CONTEXT_TAGS = ("d4_city_ruins", "d4_corner_pressure", "d4_tier1_population", *D4_STARTER_FAMILY_IDS)
 
 
@@ -103,17 +103,17 @@ class WorldMonsterPopulationService:
             )
 
         return MonsterGenerationContext(
-            zone_id="D4_tier0_start",
+            zone_id="D4_tier1_start",
             biome_id=biome_id,
-            tier=0,
-            tags=list(D4_TIER0_CONTEXT_TAGS),
+            tier=1,
+            tags=list(D4_TIER1_START_CONTEXT_TAGS),
             difficulty="mid",
         )
 
     @staticmethod
     def _resolve_tier(node: WorldGrid, flags: dict[str, Any], zone: Any) -> int:
         candidates = [getattr(zone, "tier", 0) or 0, flags.get("threat_tier", 0)]
-        return max(0, min(7, max(_to_int(value) for value in candidates)))
+        return max(1, min(7, max(_to_int(value) for value in candidates)))
 
     @staticmethod
     def _collect_tags(node: WorldGrid, flags: dict[str, Any], zone: Any) -> list[str]:

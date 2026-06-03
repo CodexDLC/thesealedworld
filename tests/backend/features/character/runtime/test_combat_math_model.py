@@ -589,7 +589,8 @@ def test_builder_applies_rolled_affix_add_command_to_modifier_source() -> None:
                     "item_type": "accessory",
                     "slot": "ring",
                     "mechanics": {
-                        "affixes": [{"affix_id": "crit_chance", "value": 0.05, "source": "single:combat_offense"}]
+                        "bonuses": {"crit_chance": "+0.05"},
+                        "affixes": [{"affix_id": "crit_chance", "value": 0.05, "source": "single:combat_offense"}],
                     },
                 }
             },
@@ -599,7 +600,7 @@ def test_builder_applies_rolled_affix_add_command_to_modifier_source() -> None:
 
     sources = raw["modifiers"]["crit_chance"]["source"]
 
-    assert sources["item:ring-1:affix:crit_chance"] == "+0.05"
+    assert sources["item:ring-1"] == "+0.05"
     value, formula = StatsWaterfallCalculator.evaluate_sources(sources, base_value=0.10)
     assert value == pytest.approx(0.15)
     assert formula == "(0.1 + 0.05)"
@@ -617,7 +618,8 @@ def test_builder_applies_rolled_affix_add_command_to_attribute_source() -> None:
                     "item_type": "accessory",
                     "slot": "ring",
                     "mechanics": {
-                        "affixes": [{"affix_id": "attribute_strength", "value": 2, "source": "single:attributes"}]
+                        "bonuses": {"strength": "+2"},
+                        "affixes": [{"affix_id": "attribute_strength", "value": 2, "source": "single:attributes"}],
                     },
                 }
             },
@@ -626,7 +628,7 @@ def test_builder_applies_rolled_affix_add_command_to_attribute_source() -> None:
     )
 
     assert raw["attributes"]["strength"]["base"] == 8.0
-    assert raw["attributes"]["strength"]["source"]["item:ring-1:affix:attribute_strength"] == "+2"
+    assert raw["attributes"]["strength"]["source"]["item:ring-1"] == "+2"
 
 
 @pytest.mark.unit
@@ -689,7 +691,8 @@ def test_builder_accepts_affix_mult_command_from_modifier_contract(monkeypatch: 
                     "item_type": "accessory",
                     "slot": "ring",
                     "mechanics": {
-                        "affixes": [{"affix_id": "crit_chance_mult_test", "value": 0.10, "source": "single:test"}]
+                        "bonuses": {"crit_chance": "*1.1"},
+                        "affixes": [{"affix_id": "crit_chance_mult_test", "value": 0.10, "source": "single:test"}],
                     },
                 }
             },
@@ -699,7 +702,7 @@ def test_builder_accepts_affix_mult_command_from_modifier_contract(monkeypatch: 
 
     sources = raw["modifiers"]["crit_chance"]["source"]
 
-    assert sources["item:ring-1:affix:crit_chance_mult_test"] == "*1.1"
+    assert sources["item:ring-1"] == "*1.1"
     value, formula = StatsWaterfallCalculator.evaluate_sources(sources, base_value=0.20)
     assert value == pytest.approx(0.22)
     assert formula == "0.2 * 1.1"

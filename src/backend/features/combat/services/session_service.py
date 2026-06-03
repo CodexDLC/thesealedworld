@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import asyncio
 import contextlib
 import json
 import uuid
@@ -30,8 +29,6 @@ if TYPE_CHECKING:
 AFK_TIMEOUTS = {0: 60, 1: 45, 2: 30}
 MIN_TIMEOUT = 20
 LOG_PAGE_SIZE = 20
-MOVE_RESPONSE_SETTLE_DELAY_SECONDS = 0.6
-
 
 class NullArqQueue:
     async def enqueue_job(self, function: str, *args: Any, **kwargs: Any) -> Any | None:
@@ -164,12 +161,6 @@ class CombatSessionService:
         combat_id = session_id or await self._resolve_session_id(char_id)
         payload = {**body.payload, **body.model_dump(mode="json", exclude={"payload"})}
         await self.register_move_request(combat_id, char_id, payload)
-        settle_delay = 0.6
-        if self._game_config is not None:
-            settle_delay = await self._game_config.get_float(
-                "combat", "MOVE_RESPONSE_SETTLE_DELAY_SECONDS", default=0.6
-            )
-        await asyncio.sleep(settle_delay)
         return await self.get_dashboard(char_id, session_id=combat_id)
 
     async def pin_feint(

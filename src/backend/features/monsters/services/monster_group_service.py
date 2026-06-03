@@ -364,16 +364,12 @@ class MonsterGroupService:
         return self._weighted_difficulty(ratio)
 
     def _weighted_difficulty(self, power_ratio: float) -> str:
-        if power_ratio < 0.75:
+        if power_ratio < 2.0:
             weights = {"easy": 75, "normal": 25, "hard": 0}
-        elif power_ratio < 1.15:
-            weights = {"easy": 45, "normal": 45, "hard": 10}
-        elif power_ratio < 1.65:
-            weights = {"easy": 20, "normal": 55, "hard": 25}
-        elif power_ratio < 2.4:
-            weights = {"easy": 10, "normal": 45, "hard": 45}
+        elif power_ratio < 3.0:
+            weights = {"easy": 35, "normal": 50, "hard": 15}
         else:
-            weights = {"easy": 5, "normal": 30, "hard": 65}
+            weights = {"easy": 0, "normal": 25, "hard": 75}
         return _weighted_choice(weights, self._rng)
 
     @staticmethod

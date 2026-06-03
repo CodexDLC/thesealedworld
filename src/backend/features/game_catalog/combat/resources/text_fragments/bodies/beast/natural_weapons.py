@@ -72,5 +72,23 @@ BEAST_NATURAL_WEAPON_PHRASES = {
             "variables": [],
             "tags": ["fangs"],
         },
+        "body.beast.natural_weapon.offhand.claws": {
+            "kind": "natural_weapon",
+            "text": "когтями другой лапы",
+            "variables": [],
+            "tags": ["claws", "offhand"],
+        },
+        "body.beast.natural_weapon.offhand.fangs": {
+            "kind": "natural_weapon",
+            "text": "челюстями во втором укусе",
+            "variables": [],
+            "tags": ["fangs", "offhand"],
+        },
+        "body.beast.natural_weapon.offhand.default": {
+            "kind": "natural_weapon",
+            "text": "вспомогательным ударом",
+            "variables": [],
+            "tags": ["offhand"],
+        },
     },
 }

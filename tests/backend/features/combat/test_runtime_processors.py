@@ -1782,7 +1782,7 @@ def test_stats_engine_rounds_fractional_resource_maxima_for_dto_contract() -> No
 
     assert snapshot.stats is not None
     assert snapshot.stats.mods.stamina == 20
-    assert snapshot.stats.mods.stamina_regen == pytest.approx(1.7364)
+    assert snapshot.stats.mods.stamina_regen == pytest.approx(2.4727)
 
 
 @pytest.mark.unit
@@ -1802,11 +1802,11 @@ def test_ability_service_applies_basic_hit_feint_weapon_technique_bonus() -> Non
     AbilityService().pre_process(ctx, move, source, target)
 
     assert ctx.flags.force.hit is True
-    assert ctx.mods.weapon_technique_bonus_damage == 6
+    assert ctx.mods.weapon_technique_bonus_damage == 4
     assert ctx.result.resource_changes["stamina"]["cost"] == "-9"
     bonus = source.raw.modifiers["physical_damage_bonus"]
     source_id = next(iter(bonus["temp"]))
-    assert bonus["temp"][source_id] == "+6"
+    assert bonus["temp"][source_id] == "+4"
     assert source_id.startswith(f"feint:{source.statuses.abilities[0].uid}:measured_strike")
 
 
@@ -1873,7 +1873,7 @@ def test_ability_service_does_not_mutate_feint_preparation_catalog_payload() -> 
     [
         ("foresight_parry", "-9", "prep_foresight_parry"),
         ("second_breath", "-15", "prep_second_breath"),
-        ("perfect_riposte", "-21", "prep_perfect_riposte"),
+        ("2h_perfect_riposte", "-21", "prep_perfect_riposte"),
     ],
 )
 def test_ability_service_applies_basic_parry_feint_preparation(
@@ -2890,7 +2890,7 @@ def test_shield_opening_applies_to_any_attacker_but_expires_after_tank_exchange(
         ("bind_blade", "-12", "prep_dual_bind_blade"),
         ("offhand_over", "-15", "prep_dual_offhand_over"),
         ("answering_series", "-15", "prep_dual_answering_series_counter"),
-        ("blade_mill", "-27", "prep_dual_blade_mill_counter"),
+        ("dual_blade_mill_v2", "-27", "prep_dual_blade_mill_counter"),
         ("blade_loop", "-36", "prep_dual_blade_loop_parry"),
     ],
 )
@@ -4387,7 +4387,7 @@ def test_mechanics_does_not_award_blood_token_progress_to_dead_actor() -> None:
 
 
 @pytest.mark.unit
-def test_ability_post_process_registers_only_hp_and_stamina_combat_regen() -> None:
+def test_ability_post_process_registers_hp_and_stamina_combat_regen() -> None:
     source = actor(1, "a")
     source.meta.hp = 10
     source.meta.max_hp = 20
@@ -4500,7 +4500,7 @@ async def test_executor_ticks_periodic_effects_before_exchange() -> None:
 
 
 @pytest.mark.unit
-async def test_executor_applies_non_energy_combat_regen_only_to_current_exchange_actors(
+async def test_executor_applies_explicit_combat_regen_resource_changes_to_current_exchange_actors(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     async def fixed_result(self, source, target, move, exchange_count=0, external_mods=None):

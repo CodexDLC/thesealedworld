@@ -28,8 +28,11 @@ def test_item_factory_generates_combat_ready_item_spec():
     assert item.implicit_bonuses["main_hand_accuracy_penalty"] == pytest.approx(0.15)
     assert "main_hand_armor_penetration_pct" not in item.implicit_bonuses
     assert item.implicit_bonuses["evasion_penalty"] == pytest.approx(-0.10)
-    # bonuses is intentionally empty — projection is runtime-only
-    assert item.bonuses == {}
+    # bonuses are compiled from affixes at creation time
+    assert isinstance(item.bonuses, dict)
+    # rarity_tier=1 → "common" grade → affixes may or may not be present
+    for key, cmd in item.bonuses.items():
+        assert isinstance(cmd, str), f"bonus {key!r} should be a command string, got {cmd!r}"
     # mechanics carries the canonical source
     assert isinstance(item.mechanics["affixes"], list)
     assert item.mechanics["implicit_bonuses_base"]["main_hand_accuracy_penalty"] == pytest.approx(0.15)

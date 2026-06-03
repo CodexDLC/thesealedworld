@@ -141,3 +141,17 @@ async def test_record_selection_tracks_usage_and_deduped_recent_list() -> None:
         "starter_guard_01",
         "starter_archer_01",
     ]
+
+
+@pytest.mark.asyncio
+async def test_select_for_user_excludes_specified_exclude_keys() -> None:
+    redis = FakeRedisService()
+    manager = StartingImprintDistributionManager(redis)
+    selected = await manager.select_for_user(
+        user_id="user-1",
+        seed="fixed-seed",
+        imprint_keys=("starter_a", "starter_b", "starter_c"),
+        exclude_keys=("starter_c",),
+    )
+    assert selected in ("starter_a", "starter_b")
+    assert selected != "starter_c"

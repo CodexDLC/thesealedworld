@@ -172,7 +172,7 @@ def test_gear_score_uses_assembled_weapon_power_after_mastery() -> None:
 
 
 @pytest.mark.unit
-def test_gear_score_breakdown_from_active_character_matches_total_and_skills() -> None:
+def test_gear_score_breakdown_from_active_character_matches_total_without_skill_points() -> None:
     active_character = {
         "attributes": {"strength": 12},
         "items": {},
@@ -185,12 +185,12 @@ def test_gear_score_breakdown_from_active_character_matches_total_and_skills() -
 
     breakdown = CharacterGearScoreCalculator().calculate_breakdown_from_active_character(active_character)
 
-    assert breakdown["skills"] == 220.0
+    assert breakdown["skills"] == 0.0
     assert breakdown["total"] == CharacterGearScoreCalculator().calculate_from_active_character(active_character)
 
 
 @pytest.mark.unit
-def test_gear_score_adds_each_normalized_skill_as_points() -> None:
+def test_gear_score_does_not_add_each_normalized_skill_as_points() -> None:
     novice_score = CharacterGearScoreCalculator.calculate_from_raw(
         {},
         skills={"skill_fencing": 0.25, "skill_light_armor": {"xp": 0.25}, "skill_pathfinder": 1.0},
@@ -204,19 +204,20 @@ def test_gear_score_adds_each_normalized_skill_as_points() -> None:
         skills={"skill_fencing": 1.0, "skill_light_armor": {"xp": 1.0}, "skill_pathfinder": 1.0},
     )
 
-    assert master_breakdown["skills"] == 300.0
-    assert master_score - novice_score == 150
+    assert master_breakdown["skills"] == 0.0
+    assert master_score == novice_score
 
 
 @pytest.mark.unit
-def test_gear_score_breakdown_exposes_skill_score_component() -> None:
+def test_gear_score_breakdown_keeps_zero_skill_component() -> None:
     breakdown = CharacterGearScoreCalculator.calculate_breakdown_from_raw(
         {"modifiers": {"armor": {"base": 10.0}}},
         skills={"skill_heavy_armor": 1.0, "skill_shield_mastery": 0.5, "skill_adaptation": 1.0},
     )
 
-    assert breakdown["skills"] == 250.0
-    assert breakdown["total"] >= 250
+    assert breakdown["skills"] == 0.0
+    assert breakdown["defense"] == pytest.approx(3.5)
+    assert breakdown["total"] < 250
 
 
 @pytest.mark.unit
@@ -289,7 +290,7 @@ def test_starter_breaker_imprint_is_not_inflated_by_survival_garments() -> None:
 
     score = CharacterGearScoreCalculator().calculate_from_active_character(active_character)
 
-    assert 240 <= score <= 340
+    assert 230 <= score <= 320
 
 
 def _build_starting_imprint_active_character(imprint_key: str) -> dict[str, object]:

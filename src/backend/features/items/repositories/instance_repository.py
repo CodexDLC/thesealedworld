@@ -270,6 +270,13 @@ class ItemInstanceRepository:
     @staticmethod
     def _combat_item(instance: ItemInstance, placement: ItemPlacement) -> dict[str, Any]:
         mechanics = dict(instance.mechanics or {})
+
+        # Lazy heal: compile bonuses from affixes for legacy items stored with bonuses={}
+        if not mechanics.get("bonuses") and mechanics.get("affixes"):
+            from src.backend.features.items.runtime.item_factory import ItemFactory
+
+            mechanics["bonuses"] = ItemFactory._compile_affix_bonuses(mechanics["affixes"])
+
         metadata = {**dict(instance.metadata_ or {}), **dict(getattr(instance, "appearance", {}) or {})}
         slot = placement.slot or mechanics.get("slot")
         if slot:

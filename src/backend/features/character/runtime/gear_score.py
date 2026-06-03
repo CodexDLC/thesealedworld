@@ -13,7 +13,6 @@ from src.backend.features.character.runtime.rules.gear_score import (
     GEAR_SCORE_CAPS,
     GEAR_SCORE_GROUPS,
     GEAR_SCORE_MINIMUM,
-    GEAR_SCORE_SKILLS_MAX,
     GEAR_SCORE_WEIGHTS,
 )
 
@@ -49,15 +48,12 @@ class CharacterGearScoreCalculator:
     ) -> int:
         calculated, _ = StatsWaterfallCalculator.calculate_waterfall(raw)
         CharacterGearScoreCalculator._apply_combat_power_projection(calculated, skills=skills, loadout=loadout)
-        return CharacterGearScoreCalculator.calculate_from_calculated(
-            calculated,
-            skill_score=CharacterGearScoreCalculator.calculate_skill_score(skills),
-        )
+        return CharacterGearScoreCalculator.calculate_from_calculated(calculated)
 
     @staticmethod
-    def calculate_from_calculated(calculated: dict[str, Any], *, skill_score: float = 0.0) -> int:
+    def calculate_from_calculated(calculated: dict[str, Any]) -> int:
         default_modifiers = CombatModifiersDTO().model_dump(mode="json")
-        score = GEAR_SCORE_BASE + max(0.0, skill_score)
+        score = GEAR_SCORE_BASE
         for key, weight in GEAR_SCORE_WEIGHTS.items():
             value = CharacterGearScoreCalculator._float_value(calculated.get(key, default_modifiers.get(key)))
             if value is None:
@@ -80,17 +76,10 @@ class CharacterGearScoreCalculator:
     ) -> dict[str, float | int]:
         calculated, _ = StatsWaterfallCalculator.calculate_waterfall(raw)
         CharacterGearScoreCalculator._apply_combat_power_projection(calculated, skills=skills, loadout=loadout)
-        return CharacterGearScoreCalculator.calculate_breakdown_from_calculated(
-            calculated,
-            skill_score=CharacterGearScoreCalculator.calculate_skill_score(skills),
-        )
+        return CharacterGearScoreCalculator.calculate_breakdown_from_calculated(calculated)
 
     @staticmethod
-    def calculate_breakdown_from_calculated(
-        calculated: dict[str, Any],
-        *,
-        skill_score: float = 0.0,
-    ) -> dict[str, float | int]:
+    def calculate_breakdown_from_calculated(calculated: dict[str, Any]) -> dict[str, float | int]:
         default_modifiers = CombatModifiersDTO().model_dump(mode="json")
         group_by_key = {key: group for group, keys in GEAR_SCORE_GROUPS.items() for key in keys}
         groups = {group: 0.0 for group in GEAR_SCORE_GROUPS}
@@ -107,14 +96,13 @@ class CharacterGearScoreCalculator:
             groups[group] = groups.get(group, 0.0) + effective * weight
 
         display_groups = {group: round(max(0.0, value), 3) for group, value in groups.items()}
-        display_skill_score = round(max(0.0, skill_score), 3)
-        total = CharacterGearScoreCalculator.calculate_from_calculated(calculated, skill_score=display_skill_score)
+        total = CharacterGearScoreCalculator.calculate_from_calculated(calculated)
         return {
             "total": total,
             "offense": display_groups.get("offense", 0.0),
             "defense": display_groups.get("defense", 0.0),
             "resources": display_groups.get("resources", 0.0),
-            "skills": display_skill_score,
+            "skills": 0.0,
             "utility": display_groups.get("utility", 0.0),
         }
 
@@ -127,32 +115,6 @@ class CharacterGearScoreCalculator:
         except (TypeError, ValueError):
             return None
 
-    @staticmethod
-    def calculate_skill_score(skills: dict[str, Any] | None) -> float:
-        if not skills:
-            return 0.0
-        values = []
-        for key, value in skills.items():
-            if not str(key).startswith("skill_"):
-                continue
-            normalized = CharacterGearScoreCalculator._normalized_skill_value(value)
-            if normalized is not None:
-                values.append(normalized)
-        if not values:
-            return 0.0
-        return round(sum(max(0.0, min(1.0, value)) * GEAR_SCORE_SKILLS_MAX for value in values), 3)
-
-    @staticmethod
-    def _normalized_skill_value(value: Any) -> float | None:
-        raw_value = value
-        if isinstance(value, dict):
-            raw_value = value.get("xp", value.get("value", value.get("level")))
-        numeric = CharacterGearScoreCalculator._float_value(raw_value)
-        if numeric is None:
-            return None
-        return max(0.0, min(1.0, numeric))
-
-    @staticmethod
     def _apply_combat_power_projection(
         calculated: dict[str, Any],
         *,

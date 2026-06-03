@@ -36,6 +36,14 @@ class FakeAttributesRepository:
     async def upsert_attributes(self, char_id: int, attributes: dict[str, int]) -> None:
         self.attributes[char_id] = dict(attributes)
 
+    async def get_attributes_batch(self, char_ids: list[int]) -> list[object]:
+        from types import SimpleNamespace
+        results = []
+        for char_id in char_ids:
+            if char_id in self.attributes:
+                results.append(SimpleNamespace(character_id=char_id, **self.attributes[char_id]))
+        return results
+
 
 class FakeSkillRepository:
     def __init__(self) -> None:
@@ -99,8 +107,15 @@ class FakeStartingImprintDistribution:
         self.selected = selected
         self.calls: list[dict[str, object]] = []
 
-    async def select_and_record(self, *, user_id, seed, imprint_keys):
-        self.calls.append({"user_id": user_id, "seed": seed, "imprint_keys": tuple(imprint_keys)})
+    async def select_and_record(self, *, user_id, seed, imprint_keys, exclude_keys=None):
+        call = {
+            "user_id": user_id,
+            "seed": seed,
+            "imprint_keys": tuple(imprint_keys)
+        }
+        if exclude_keys is not None:
+            call["exclude_keys"] = exclude_keys
+        self.calls.append(call)
         return self.selected
 
 

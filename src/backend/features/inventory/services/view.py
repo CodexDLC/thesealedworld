@@ -884,21 +884,36 @@ class InventoryViewService:
             value = self._float_value(item.mechanics.get(key))
             if value is not None:
                 stats[self._base_line_key(item, key)] = value
-        for source in (item.mechanics.get("implicit_bonuses"),):
+        for source in (item.mechanics.get("implicit_bonuses"), item.mechanics.get("bonuses")):
             if not isinstance(source, dict):
                 continue
             for key, raw in source.items():
                 if key == "accuracy_penalty":
                     continue
-                value = self._float_value(raw)
+                value = self._bonus_numeric_value(raw)
                 if value is not None:
                     stats[str(key)] = stats.get(str(key), 0.0) + value
-        for affix in self._iter_affixes(item.mechanics.get("affixes")):
-            affix_id = str(affix.get("affix_id") or "")
-            value = self._float_value(affix.get("value"))
-            if affix_id and value is not None:
-                stats[f"affix:{affix_id}"] = stats.get(f"affix:{affix_id}", 0.0) + value
         return stats
+
+    @staticmethod
+    def _bonus_numeric_value(raw: Any) -> float | None:
+        """Parse a bonus value that may be a number or a command string ('+3', '*1.05', '=10')."""
+        if isinstance(raw, (int, float)):
+            return float(raw)
+        if isinstance(raw, str):
+            s = raw.strip()
+            if s.startswith("*"):
+                try:
+                    return float(s[1:]) - 1.0  # mult delta
+                except ValueError:
+                    return None
+            if s.startswith("="):
+                return None  # set operations not meaningfully comparable
+            try:
+                return float(s)  # "+3" or "-1.2"
+            except ValueError:
+                return None
+        return None
 
     def _bonus_lines(self, bonuses: dict[str, object]) -> list[InventoryDetailLineDTO]:
         lines: list[InventoryDetailLineDTO] = []

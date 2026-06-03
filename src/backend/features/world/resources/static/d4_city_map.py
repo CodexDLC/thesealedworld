@@ -13,6 +13,15 @@ D4_CITY_TILE_FORMAT = "webp"
 D4_CITY_TILE_BASE_URL = f"/static/images/exploration/city/d4/map/{D4_CITY_MAP_VERSION}/tiles_17x17_256"
 D4_CITY_SERVICE_MARKER_CORNERS = {"top-left", "top-right", "bottom-left", "bottom-right"}
 D4_CITY_SERVICE_MARKERS: dict[tuple[int, int], tuple[dict[str, str], ...]] = {
+    (52, 52): (
+        {
+            "service_id": "svc_portal_hub",
+            "service_type": "portal",
+            "label": "Портал",
+            "icon_url": "/static/images/ui/service-icons/portal.svg",
+            "corner": "bottom-right",
+        },
+    ),
     (51, 51): (
         {
             "service_id": "svc_arena_main",

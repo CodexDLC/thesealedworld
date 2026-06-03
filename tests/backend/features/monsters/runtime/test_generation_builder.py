@@ -203,6 +203,20 @@ async def test_generation_builder_reuses_existing_unique_clan_when_requested() -
 
 
 @pytest.mark.unit
+async def test_generation_builder_rejects_tier_zero_clan_templates() -> None:
+    builder = MonsterClanGenerationBuilder(repository=FakeRepository(), item_generation=FakeItemGeneration())
+
+    with pytest.raises(ValueError, match="tier must be >= 1"):
+        await builder.generate_clan_template(
+            MonsterGenerationContext(zone_id="D4_tier0_start", biome_id="city_ruins", tier=0, tags=[]),
+            family_id="rat_swarm",
+            context_hash="0" * 32,
+            unique_hash="1" * 32,
+            reuse_existing=False,
+        )
+
+
+@pytest.mark.unit
 async def test_generation_builder_creates_humanoid_item_orders_from_fixed_loadout() -> None:
     repository = FakeRepository()
     item_generation = FakeItemGeneration()

@@ -63,9 +63,13 @@ class FakePlacement:
 class FakeInventoryStreamClient:
     def __init__(self) -> None:
         self.recalculate_requests: list[dict[str, object]] = []
+        self.status_refresh_requests: list[dict[str, object]] = []
 
     async def request_gear_score_recalculation(self, *, char_id: int, reason: str) -> None:
         self.recalculate_requests.append({"char_id": char_id, "reason": reason})
+
+    async def request_status_refresh(self, *, char_id: int, reason: str) -> None:
+        self.status_refresh_requests.append({"char_id": char_id, "reason": reason})
 
 
 @pytest.mark.asyncio

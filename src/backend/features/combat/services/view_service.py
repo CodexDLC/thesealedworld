@@ -30,6 +30,8 @@ from src.shared.schemas.combat import (
     CombatStatValueDTO,
 )
 
+EMPTY_ASSET_URL_SENTINELS = {"none", "null", "undefined"}
+
 STAT_SHEET_SECTION_KEYS: tuple[tuple[str, str, tuple[str, ...]], ...] = (
     ("attributes", "ATTRIBUTES", ("strength", "dexterity", "constitution", "intelligence", "wisdom", "charisma")),
     (
@@ -348,7 +350,13 @@ class CombatViewService:
             enemies=enemies,
             active_effects=hero.active_effects,
             feints=hero.feints,
-            available_actions=self._available_actions(status, target, hero, pending_action_count=pending_action_count),
+            available_actions=self._available_actions(
+                status,
+                target,
+                hero,
+                pending_action_count=pending_action_count,
+                action_state=action_state,
+            ),
             exchange_state=exchange_state,
             events_delta=CombatDeltaDTO(events=log_events, turns=log_turns),
             log_total=total_logs if total_logs is not None else len(raw_logs),
@@ -559,33 +567,34 @@ class CombatViewService:
         hero: CombatActorCardDTO,
         *,
         pending_action_count: int,
+        action_state: str,
     ) -> list[CombatActionOptionDTO]:
         actions = [CombatActionOptionDTO(action="system", label="Обновить", enabled=True)]
         if status == "active" and target is not None and not target.is_dead and not hero.is_dead:
-            has_pending = pending_action_count > 0
+            enabled = action_state in ("ACTION_READY", "EXCHANGE_PENDING_WITH_TARGETS")
             actions.insert(
                 0,
                 CombatActionOptionDTO(
                     action="exchange",
                     label="Атака",
-                    enabled=not has_pending,
+                    enabled=enabled,
                     target_id=target.actor_id,
                     feint_id=None,
                     ability_id=None,
                     catalog_ref="triggers",
-                    reason="action_registered" if has_pending else None,
+                    reason="action_registered" if not enabled else None,
                 ),
             )
             actions.extend(
                 CombatActionOptionDTO(
                     action="instant",
                     label=ability_id,
-                    enabled=not has_pending and self._ability_enabled(hero, ability_id),
+                    enabled=enabled and self._ability_enabled(hero, ability_id),
                     target_id=self._ability_target_id(ability_id, target, hero),
                     ability_id=ability_id,
                     feint_id=None,
                     catalog_ref="abilities",
-                    reason="action_registered" if has_pending else None,
+                    reason="action_registered" if not enabled else None,
                 )
                 for ability_id in hero.known_abilities
             )
@@ -611,6 +620,20 @@ class CombatViewService:
             )
 
         target_id = target.actor_id if target else self._first_target_id(targets.get(viewer_id))
+        if not target_id:
+            viewer_moves = moves.get(viewer_id) or moves.get(str(viewer_id))
+            if isinstance(viewer_moves, dict):
+                exchange_moves = viewer_moves.get("exchange")
+                if isinstance(exchange_moves, dict):
+                    for move_json in exchange_moves.values():
+                        payload = move_json.get("payload") if isinstance(move_json, dict) else None
+                        if isinstance(payload, dict) and payload.get("target_id"):
+                            target_id = str(payload.get("target_id"))
+                            break
+                        t = getattr(getattr(move_json, "payload", None), "target_id", None)
+                        if t is not None:
+                            target_id = str(t)
+                            break
         opponent_responded = bool(target_id and self._has_exchange_move(moves, str(target_id), viewer_id))
 
         if action_state == "TARGET_QUEUE_EMPTY":
@@ -625,7 +648,7 @@ class CombatViewService:
                 }
             )
 
-        if action_state == "ACTION_LOCKED":
+        if action_state == "WAITING_FOR_RESPONSES":
             pair_status = "ready_to_resolve" if opponent_responded else "waiting_response"
             response_state = "responded" if opponent_responded else "waiting"
             summary = (
@@ -814,11 +837,13 @@ class CombatViewService:
             return "FINISHED"
         if status == "spectating":
             return "SPECTATING"
-        if pending_action_count:
-            return "ACTION_LOCKED"
-        if target is None:
-            return "TARGET_QUEUE_EMPTY"
-        return "ACTION_READY"
+        if target is not None:
+            if pending_action_count > 0:
+                return "EXCHANGE_PENDING_WITH_TARGETS"
+            return "ACTION_READY"
+        if pending_action_count > 0:
+            return "WAITING_FOR_RESPONSES"
+        return "TARGET_QUEUE_EMPTY"
 
     @staticmethod
     def _round_size(
@@ -897,9 +922,9 @@ class CombatViewService:
         stats = stats_raw if isinstance(stats_raw, dict) else {}
 
         mods_raw = stats.get("mods")
-        if isinstance(mods_raw, dict):
+        if isinstance(mods_raw, dict) and mods_raw:
             values.update(cls._numeric_nonzero_values(mods_raw))
-        else:
+        elif stats:
             values.update(
                 cls._numeric_nonzero_values(
                     {key: value for key, value in stats.items() if key not in {"skills", "calculated_at"}}
@@ -909,11 +934,14 @@ class CombatViewService:
         raw = actor.get("raw")
         raw_data = raw if isinstance(raw, dict) else {}
         raw_attributes = raw_data.get("attributes")
+        calculated: dict[str, Any] = {}
         if isinstance(raw_attributes, dict) and raw_attributes:
             try:
                 calculated, _ = StatsWaterfallCalculator.calculate_waterfall(raw_data)
             except Exception:  # noqa: BLE001
                 calculated = {}
+            if not values:
+                values.update(cls._numeric_nonzero_values(calculated))
             for key in raw_attributes:
                 numeric = cls._numeric_value(calculated.get(key))
                 if numeric is not None and numeric != 0:
@@ -1162,12 +1190,15 @@ class CombatViewService:
                 continue
             impact_raw = item.get("impact")
             impact = impact_raw if isinstance(impact_raw, dict) else {}
+            params_raw = item.get("params")
+            params = params_raw if isinstance(params_raw, dict) else {}
             result.append(
                 CombatEffectBadgeDTO(
                     uid=CombatViewService._optional_str(item.get("uid")),
                     effect_id=str(item["effect_id"]),
                     expires_at_exchange=CombatViewService._optional_int(item.get("expire_at_exchange")),
                     impact=impact,
+                    params=params,
                     **CombatViewService._effect_catalog_badge_fields(str(item["effect_id"])),
                 )
             )
@@ -1274,10 +1305,19 @@ class CombatViewService:
 
     @classmethod
     def _avatar_image_url(cls, value: object, *, visual: dict[str, Any] | None = None) -> str | None:
-        url = cls._optional_str(value)
+        url = cls._asset_url(value)
         if not url or "/static/images/monsters/families/" in url:
             return None
         return version_generated_asset_url(url, visual)
+
+    @staticmethod
+    def _asset_url(value: object) -> str | None:
+        if value in (None, ""):
+            return None
+        url = str(value).strip()
+        if not url or url.lower() in EMPTY_ASSET_URL_SENTINELS:
+            return None
+        return url
 
     @staticmethod
     def _pending_actions(moves: Any) -> dict[str, int]:

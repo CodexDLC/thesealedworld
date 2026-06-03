@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from src.backend.features.items.runtime.item_factory import ItemFactory
 from src.shared.enums.item_enums import EquippedSlot, ItemType
 from src.shared.schemas.inventory import (
     ActiveCharacterItemsProjectionDTO,
@@ -42,6 +43,12 @@ def build_active_character_projection(session: InventoryRuntimeSessionDTO) -> Ac
         backpack=[],
     )
     by_id = {item_id: item for item_id, item in session.by_id.items() if item_id in active_ids}
+    for item in by_id.values():
+        mechanics = dict(item.mechanics or {})
+        bonuses = dict(mechanics.get("bonuses") or {})
+        affixes = mechanics.get("affixes")
+        if not bonuses and isinstance(affixes, list):
+            item.mechanics["bonuses"] = bonuses = ItemFactory._compile_affix_bonuses(affixes)
     return ActiveCharacterItemsProjectionDTO(layout=layout, by_id=by_id)
 
 

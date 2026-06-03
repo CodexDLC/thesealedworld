@@ -33,8 +33,14 @@ class StartingImprintDistributionManager:
         user_id: object,
         seed: str | None,
         imprint_keys: Sequence[str],
+        exclude_keys: Sequence[str] | None = None,
     ) -> str:
-        selected = await self.select_for_user(user_id=user_id, seed=seed, imprint_keys=imprint_keys)
+        selected = await self.select_for_user(
+            user_id=user_id,
+            seed=seed,
+            imprint_keys=imprint_keys,
+            exclude_keys=exclude_keys,
+        )
         await self.record_selection(user_id=user_id, imprint_key=selected)
         return selected
 
@@ -44,6 +50,7 @@ class StartingImprintDistributionManager:
         user_id: object,
         seed: str | None,
         imprint_keys: Sequence[str],
+        exclude_keys: Sequence[str] | None = None,
     ) -> str:
         pool = tuple(dict.fromkeys(str(key) for key in imprint_keys if key))
         if not pool:
@@ -51,10 +58,17 @@ class StartingImprintDistributionManager:
 
         client = self._redis_client()
         usage = self._usage_counts(await client.hgetall(self.build_usage_key()))
-        recent = set(await client.lrange(self.build_user_recent_key(user_id), 0, max(0, self.recent_limit - 1)))
+        recent_raw = await client.lrange(self.build_user_recent_key(user_id), 0, max(0, self.recent_limit - 1))
+        recent = {self._decode_str(val) for val in recent_raw}
+        if exclude_keys:
+            recent.update(self._decode_str(k) for k in exclude_keys if k)
+
         candidates = tuple(key for key in pool if key not in recent)
         if not candidates:
-            candidates = pool
+            exclude_set = {self._decode_str(k) for k in exclude_keys if k} if exclude_keys else set()
+            candidates = tuple(key for key in pool if key not in exclude_set)
+            if not candidates:
+                candidates = pool
 
         min_count = min(usage.get(key, 0) for key in candidates)
         tied = tuple(key for key in candidates if usage.get(key, 0) == min_count)
@@ -85,8 +99,17 @@ class StartingImprintDistributionManager:
     def _usage_counts(raw: dict[Any, Any]) -> dict[str, int]:
         counts: dict[str, int] = {}
         for key, value in dict(raw or {}).items():
+            decoded_key = ""
             try:
-                counts[str(key)] = max(0, int(value))
+                decoded_key = key.decode("utf-8") if isinstance(key, bytes) else str(key)
+                counts[decoded_key] = max(0, int(value))
             except (TypeError, ValueError):
-                counts[str(key)] = 0
+                if decoded_key:
+                    counts[decoded_key] = 0
         return counts
+
+    @staticmethod
+    def _decode_str(val: Any) -> str:
+        if isinstance(val, bytes):
+            return val.decode("utf-8")
+        return str(val)

@@ -108,7 +108,7 @@ Energy:
 
 | Runtime output | Formula |
 | --- | --- |
-| `en` | `effective(mental) * 1.25` |
+| `en` | `effective(mental) * 2.0` |
 | `en_regen` | `effective(mental) * 0.25` |
 
 Elemental resistances currently derived from `mental`:
@@ -128,7 +128,7 @@ Elemental resistances currently derived from `mental`:
 | --- | --- | --- |
 | `perception` | `anti_dodge_chance` | `effective(perception) * 0.03` |
 | `projection` | `stamina` | `effective(projection) * 2.7` |
-| `projection` | `stamina_regen` | `1 + effective(projection) * 0.1` |
+| `projection` | `stamina_regen` | `1 + effective(projection) * 0.2` |
 
 Naming note: the player-facing design name is **Concentration**. The current
 runtime field is `stamina`. Rename/migration is future work if the code adopts

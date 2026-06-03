@@ -5,7 +5,7 @@
 D4 is the ruined old capital around the protected hub. Safe status and tier are separate:
 
 - Hub core, 5x5 nodes: `is_safe_zone=true`, tier 0, no monster population.
-- Main gate cross and ordinary ruined streets: `is_safe_zone=false`, tier 0, standard starter encounters.
+- Main gate cross and ordinary ruined streets: `is_safe_zone=false`, family tier 1, standard starter encounters.
 - Corner pressure districts: tier 1, with stable context tags for hash separation.
 - Four city rift nodes: tier 2 pressure sources. They are not lairs; they are active spatial breaks that let local monsters leak into the city ruins.
 
@@ -26,7 +26,7 @@ Monster clan context is based on:
 - family/clan tier,
 - normalized context tags.
 
-D4 rift and starter-region tags must be preserved for hashing, not filtered out as only mutation tags. This lets tier 0 streets, tier 1 corner pressure, and tier 2 rift nodes generate separate clan contexts.
+D4 rift and starter-region tags must be preserved for hashing, not filtered out as only mutation tags. This lets tier 1 starter streets, tier 1 corner pressure, and tier 2 rift nodes generate separate clan contexts.
 
 Family selection can use stable context tags such as `rat_swarm`, `wolf_pack`, `bandit_gang`, and `goblin_tribe` for rift-biased contexts.
 
@@ -34,7 +34,6 @@ Family selection can use stable context tags such as `rat_swarm`, `wolf_pack`, `
 
 Clan tier is the scaling tier. Variant availability is broad:
 
-- family tier 0 can use variant tiers 0..1,
 - family tier 1 can use variant tiers 0..2,
 - family tier 2 can use variant tiers 0..3.
 

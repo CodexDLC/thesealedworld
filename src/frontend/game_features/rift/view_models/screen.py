@@ -39,7 +39,7 @@ def build_rift_context(
         "payload_type": "rift_screen",
         "rift": rift,
         "background_url": "/static/images/exploration/city/d4/52_52_runic_circle_plaza.webp",
-        "chat_ws_endpoint": _chat_ws_endpoint(settings.chat_ws_url),
+        "realtime_ws_endpoint": _realtime_ws_endpoint(settings.realtime_ws_url),
         "world_resonance": "RIFT_DEV_HARNESS",
         "game_state_scripts": ["/static/js/game/states/rift.js"],
         "status_seed": status_payload,
@@ -96,11 +96,11 @@ def has_rift_inventory_runtime_ref(character_status: Any | None) -> bool:
     return isinstance(sessions, dict) and bool(sessions.get("inventory_id"))
 
 
-def _chat_ws_endpoint(raw_url: str) -> str:
+def _realtime_ws_endpoint(raw_url: str) -> str:
     base = raw_url.rstrip("/")
-    if base.endswith("/ws/chat"):
+    if base.endswith("/ws/realtime"):
         return base
-    return f"{base}/ws/chat"
+    return f"{base}/ws/realtime"
 
 
 def _rift_nav() -> dict[str, dict[str, Any] | None]:

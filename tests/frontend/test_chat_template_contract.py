@@ -45,6 +45,63 @@ def test_chat_template_uses_canonical_channel_keys() -> None:
     assert 'data-channel="local"' not in template
 
 
+def test_chat_template_uses_realtime_ws_endpoint() -> None:
+    template = CHAT_TEMPLATE.read_text(encoding="utf-8")
+
+    assert 'ws-connect="{{ realtime_ws_endpoint }}' in template
+    assert "chat_ws_endpoint" not in template
+    assert "/ws/chat" not in template
+
+
+def test_chat_template_sends_typed_envelopes_and_unwraps_chat_message() -> None:
+    template = CHAT_TEMPLATE.read_text(encoding="utf-8")
+
+    # outgoing envelope shape
+    assert "type: 'chat.send'" in template
+    # inbound envelope handling
+    assert "envelope.type" in template
+    assert "'chat.message'" in template
+    assert "envelope.payload" in template
+    assert "system.session_replaced" in template
+    # ws-connect must be the realtime endpoint, used exactly once
+    assert template.count("ws-connect=") == 1
+
+
+def test_chat_template_renders_player_notice_into_system_tab() -> None:
+    template = CHAT_TEMPLATE.read_text(encoding="utf-8")
+
+    # _onWsMessage routes player.notice to a dedicated handler before the
+    # chat.message rejection branch.
+    assert "envelope.type === 'player.notice'" in template
+    assert "this._onPlayerNotice(envelope)" in template
+    # notice templates are frontend-owned and filled via the existing renderer
+    assert "_noticeTemplates" in template
+    assert "_renderNoticeText(key, vars)" in template
+    assert "this._renderTemplateText(template, vars || {})" in template
+    # a few of the classic-MMO notice strings + placeholder usage
+    assert "'player.death': 'Вы погибли.'" in template
+    assert "'exploration.safe_zone_entered': 'Вы вошли в безопасную зону: {location}.'" in template
+    # the synthesized message lands in the system channel as a plain message
+    assert "_onPlayerNotice(envelope)" in template
+    assert "channel: 'system'" in template
+    assert "this.channels.system.push" in template
+    assert "presentation !== 'system_chat'" in template
+
+
+def test_chat_template_refresh_notice_wakes_existing_fragment() -> None:
+    template = CHAT_TEMPLATE.read_text(encoding="utf-8")
+
+    # refresh presentation is routed before system_chat handling
+    assert "presentation === 'refresh'" in template
+    assert "this._onRefreshNotice(envelope.payload || {})" in template
+    # reuses the existing character-status-refresh HTMX hook (no new visual UI)
+    assert "_refreshEvents" in template
+    assert "'status': 'character-status-refresh'" in template
+    assert "window.htmx.trigger(document.body, eventName)" in template
+    # also dispatches a generic opt-in event for other fragments
+    assert "new CustomEvent('realtime:refresh'" in template
+
+
 def test_chat_template_keeps_combat_logs_in_system_channel() -> None:
     template = CHAT_TEMPLATE.read_text(encoding="utf-8")
 

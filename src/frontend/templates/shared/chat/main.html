@@ -162,7 +162,28 @@
          },
          _onWsMessage(e) {
              try {
-                 const raw = JSON.parse(e.detail.message);
+                 const envelope = JSON.parse(e.detail.message);
+                 if (!envelope || typeof envelope !== 'object' || !envelope.type) {
+                     if (window.console && console.warn) console.warn('realtime: dropping un-typed message', envelope);
+                     return;
+                 }
+                 if (envelope.type === 'system.session_replaced') {
+                     if (window.console && console.warn) console.warn('realtime: session replaced by newer login');
+                     return;
+                 }
+                 if (envelope.type === 'error') {
+                     if (window.console && console.warn) console.warn('realtime: server error', envelope.payload);
+                     return;
+                 }
+                 if (envelope.type === 'player.notice') {
+                     this._onPlayerNotice(envelope);
+                     return;
+                 }
+                 if (envelope.type !== 'chat.message') {
+                     if (window.console && console.warn) console.warn('realtime: ignoring envelope type', envelope.type);
+                     return;
+                 }
+                 const raw = envelope.payload || {};
                  const msg = this._normalizeMessage(raw);
                  const ch  = msg.channel || 'system';
                  const dynamicKey = this._ensureDynamicTab(msg);
@@ -189,6 +210,68 @@
                  });
                  window.dispatchEvent(new CustomEvent('chat-unread'));
              } catch (_) {}
+         },
+         _noticeTemplates: {
+             'player.death': 'Вы погибли.',
+             'player.respawn': 'Вы воскресли у портала.',
+             'player.corpse_items_lost': 'Снаряжение осталось в трупе.',
+             'loot.corpse_searched': 'Вы обыскали труп.',
+             'exploration.safe_zone_entered': 'Вы вошли в безопасную зону: {location}.',
+             'expedition.items_secured': 'Снаряжение сохранено.'
+         },
+         _renderNoticeText(key, vars) {
+             const template = this._noticeTemplates[key];
+             if (!template) return '';
+             return this._renderTemplateText(template, vars || {});
+         },
+         _refreshEvents: {
+             'status': 'character-status-refresh'
+         },
+         _onRefreshNotice(payload) {
+             const target = payload && payload.target;
+             // Let opt-in fragments react via hx-trigger="realtime:refresh[...] from:body".
+             try {
+                 document.body.dispatchEvent(new CustomEvent('realtime:refresh', { detail: payload || {}, bubbles: true }));
+             } catch (_) {}
+             const eventName = target && this._refreshEvents[target];
+             if (eventName && window.htmx) {
+                 window.htmx.trigger(document.body, eventName);
+             } else if (target && window.console && console.warn) {
+                 console.warn('realtime: no refresh binding for target', target);
+             }
+         },
+         _onPlayerNotice(envelope) {
+             const presentation = envelope.presentation || 'system_chat';
+             if (presentation === 'refresh') {
+                 this._onRefreshNotice(envelope.payload || {});
+                 return;
+             }
+             if (presentation !== 'system_chat') {
+                 if (window.console && console.warn) console.warn('realtime: unsupported notice presentation', presentation);
+                 return;
+             }
+             const payload = envelope.payload || {};
+             const text = this._renderNoticeText(payload.template_key, payload.variables);
+             if (!text) {
+                 if (window.console && console.warn) console.warn('realtime: unknown notice template', payload.template_key);
+                 return;
+             }
+             const msg = this._normalizeMessage({
+                 id: 'notice_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8),
+                 channel: 'system',
+                 scope_id: '{{ char_id }}',
+                 sender_id: 'system',
+                 sender_name: 'System',
+                 content: text,
+                 created_at: new Date().toISOString()
+             });
+             this.channels.system.push(msg);
+             this._markUnread('system', msg);
+             this.$nextTick(() => {
+                 const log = document.getElementById('chat-log');
+                 if (log) log.scrollTop = log.scrollHeight;
+             });
+             window.dispatchEvent(new CustomEvent('chat-unread'));
          },
          _channelLabel(key) {
              const channelKey = key || 'global';
@@ -659,9 +742,12 @@
              const channel = dynamicTab ? dynamicTab.tab.kind : (chatTab.startsWith('dm_') ? 'dm' : chatTab);
              const scope_id = dynamicTab ? dynamicTab.scope_id : (chatTab.startsWith('dm_') ? chatTab.slice(3) : null);
              form.querySelector('[name=chat_message]').value = JSON.stringify({
-                 channel: channel,
-                 content: text,
-                 scope_id: scope_id
+                 type: 'chat.send',
+                 payload: {
+                     channel: channel,
+                     content: text,
+                     scope_id: scope_id
+                 }
              });
              htmx.trigger(form, 'chat-send');
              input.value = '';
@@ -700,7 +786,7 @@
 >
     <!-- WS connection — on the outer wrapper so all child forms can ws-send -->
     <div hx-ext="ws"
-         ws-connect="{{ chat_ws_endpoint }}?token={{ access_token }}&char_id={{ char_id }}{% if combat_chat_session_id %}&combat_session_id={{ combat_chat_session_id }}{% endif %}"
+         ws-connect="{{ realtime_ws_endpoint }}?token={{ access_token }}&char_id={{ char_id }}{% if combat_chat_session_id %}&combat_session_id={{ combat_chat_session_id }}{% endif %}"
          style="display:contents;">
 
     <!-- ── TAB BAR ── -->

@@ -43,11 +43,11 @@ def _elapsed_ms(started_at: float) -> float:
     return round((perf_counter() - started_at) * 1000, 2)
 
 
-def _chat_ws_endpoint(raw_url: str) -> str:
+def _realtime_ws_endpoint(raw_url: str) -> str:
     base = raw_url.rstrip("/")
-    if base.endswith("/ws/chat"):
+    if base.endswith("/ws/realtime"):
         return base
-    return f"{base}/ws/chat"
+    return f"{base}/ws/realtime"
 
 
 def _log_session_timing(step: str, *, started_at: float, char_id: int, **extra: Any) -> None:
@@ -644,8 +644,8 @@ class SessionContextBuilder:
             "initial_inventory_open": initial_inventory_open,
             "debug_enabled": settings.debug,
             "game_state_scripts": game_state_scripts or [],
-            "chat_ws_url": settings.chat_ws_url,
-            "chat_ws_endpoint": _chat_ws_endpoint(settings.chat_ws_url),
+            "realtime_ws_url": settings.realtime_ws_url,
+            "realtime_ws_endpoint": _realtime_ws_endpoint(settings.realtime_ws_url),
         }
 
     async def _inventory_window_state(

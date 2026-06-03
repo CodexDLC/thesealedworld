@@ -15,6 +15,7 @@ from src.backend.features.exploration.services.encounter_session_service import 
 from src.backend.features.exploration.services.exploration_service import ExplorationService
 from src.backend.features.exploration.services.navigation_service import ExplorationNavigationService
 from src.backend.infrastructure.loot.managers.loot_manager import LootManager
+from src.backend.realtime.integrations.notice_publisher import PlayerNoticePublisher
 
 
 def build_exploration_service(
@@ -38,6 +39,7 @@ def build_exploration_service(
         loot_manager=loot_manager,
         world_store=world_store,
         commit_on_write=True,
+        notice_publisher=PlayerNoticePublisher(event_bus) if event_bus is not None else None,
     )
     integrator = ExplorationSystemIntegrator(
         character_sessions=character_sessions,
@@ -82,6 +84,7 @@ def build_exploration_gateway(
         loot_manager=loot_manager,
         world_store=world_store,
         commit_on_write=True,
+        notice_publisher=PlayerNoticePublisher(event_bus) if event_bus is not None else None,
     )
     integrator = ExplorationSystemIntegrator(
         character_sessions=character_sessions,

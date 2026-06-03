@@ -22,6 +22,7 @@ from src.shared.schemas.loot import CorpseDTO, LootItemDTO, LootTimestamps
 
 if TYPE_CHECKING:
     from src.backend.features.expedition.models import CharacterExpedition
+    from src.backend.realtime.integrations.notice_publisher import PlayerNoticePublisher
 
 _CURRENCY_PREFIXES = ("coin_", "currency_", "gold_", "silver_", "copper_")
 _COMPONENT_PREFIXES = ("essence_", "flower_", "bark_", "supply_", "component_")
@@ -41,6 +42,7 @@ class ExpeditionService:
         world_store=None,
         commit_on_write: bool = False,
         game_config: Any | None = None,
+        notice_publisher: PlayerNoticePublisher | None = None,
     ) -> None:
         self.session = session
         self.character_sessions = character_sessions
@@ -50,6 +52,7 @@ class ExpeditionService:
         self.world_store = world_store
         self.commit_on_write = commit_on_write
         self._game_config = game_config
+        self.notice_publisher = notice_publisher
 
     @staticmethod
     def has_system_connect(flags: dict[str, Any] | None) -> bool:
@@ -72,7 +75,8 @@ class ExpeditionService:
     ) -> CharacterExpedition | None:
         flags = (target_loc_data or {}).get("flags")
         if self.has_system_connect(flags if isinstance(flags, dict) else {}):
-            await self.safe_sync(char_id=char_id, location_id=to_loc)
+            location_name = (target_loc_data or {}).get("name") if isinstance(target_loc_data, dict) else None
+            await self.safe_sync(char_id=char_id, location_id=to_loc, location_name=location_name)
             return None
 
         expedition = await self.get_active_run(char_id, for_update=True)
@@ -120,7 +124,7 @@ class ExpeditionService:
             await self.refresh_session_risk(char_id, expedition=expedition, system_connect=False)
         return True
 
-    async def safe_sync(self, *, char_id: int, location_id: str) -> None:
+    async def safe_sync(self, *, char_id: int, location_id: str, location_name: str | None = None) -> None:
         expedition = await self.get_active_run(char_id, for_update=True)
         if expedition is None:
             await self.refresh_session_risk(char_id, expedition=None, system_connect=True)
@@ -130,7 +134,7 @@ class ExpeditionService:
             return
 
         pending = self._pending(expedition)
-        await self._secure_expedition_items(expedition)
+        secured_items = await self._secure_expedition_items(expedition)
         await self._secure_expedition_resources(expedition)
         await self._persist_pending_progress(char_id, pending)
         character = await self.session.get(Character, char_id)
@@ -157,6 +161,11 @@ class ExpeditionService:
 
         logger.bind(char_id=char_id, run_id=expedition.run_id, location_id=location_id).info("ExpeditionSynced")
         await self._maybe_commit()
+
+        if self.notice_publisher is not None:
+            await self.notice_publisher.safe_zone_entered(char_id, location_name=location_name)
+            if secured_items:
+                await self.notice_publisher.items_secured(char_id, count=secured_items)
 
     async def mark_death_pending(
         self,
@@ -200,6 +209,8 @@ class ExpeditionService:
             )
             await self.refresh_session_risk(char_id, expedition=expedition, system_connect=False)
         await self._maybe_commit()
+        if self.notice_publisher is not None:
+            await self.notice_publisher.player_died(char_id)
         return True
 
     async def finalize_death_corpse(self, *, char_id: int) -> dict[str, Any]:
@@ -255,6 +266,8 @@ class ExpeditionService:
         logger.bind(char_id=char_id, run_id=expedition.run_id, corpse_id=corpse_id).info(
             "ExpeditionDeathCorpseFinalized"
         )
+        if self.notice_publisher is not None and (item_rows or resource_rows):
+            await self.notice_publisher.corpse_items_lost(char_id, count=len(item_rows))
         return {"status": "finalized", "corpse_id": corpse_id, "location_id": corpse_location_id}
 
     async def respawn(self, *, char_id: int) -> dict[str, Any]:
@@ -287,6 +300,8 @@ class ExpeditionService:
         logger.bind(char_id=char_id, run_id=expedition.run_id, corpse_id=expedition.corpse_id).info(
             "ExpeditionRespawned"
         )
+        if self.notice_publisher is not None:
+            await self.notice_publisher.player_respawned(char_id)
         return self._respawn_result(expedition)
 
     async def refresh_session_risk(
@@ -351,7 +366,7 @@ class ExpeditionService:
             },
         )
 
-    async def _secure_expedition_items(self, expedition: CharacterExpedition) -> None:
+    async def _secure_expedition_items(self, expedition: CharacterExpedition) -> int:
         placements = list(
             (
                 await self.session.scalars(
@@ -379,6 +394,7 @@ class ExpeditionService:
             placement.holder_type = "character"
             placement.holder_id = str(expedition.character_id)
             placement.locked_by = None
+        return len(placements)
 
     async def _secure_expedition_resources(self, expedition: CharacterExpedition) -> None:
         balances = list(

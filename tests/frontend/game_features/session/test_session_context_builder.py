@@ -6,7 +6,10 @@ from uuid import uuid4
 import pytest
 from fastapi import HTTPException
 
-from src.frontend.game_features.session.services.session_context_builder import SessionContextBuilder, _chat_ws_endpoint
+from src.frontend.game_features.session.services.session_context_builder import (
+    SessionContextBuilder,
+    _realtime_ws_endpoint,
+)
 from src.frontend.integrations.backend_api.combat import CombatViewResponse
 from src.shared.enums import CoreDomain
 from src.shared.schemas import CoreResponseDTO, GameStateHeader, ScenarioPayloadDTO, StateTransitionDTO
@@ -64,14 +67,14 @@ class FakeCharacterStatusApi:
 @pytest.mark.parametrize(
     ("raw_url", "endpoint"),
     [
-        ("ws://127.0.0.1:8002", "ws://127.0.0.1:8002/ws/chat"),
-        ("wss://thesealedworld.com", "wss://thesealedworld.com/ws/chat"),
-        ("wss://thesealedworld.com/ws/chat", "wss://thesealedworld.com/ws/chat"),
-        ("wss://thesealedworld.com/ws/chat/", "wss://thesealedworld.com/ws/chat"),
+        ("ws://127.0.0.1:8002", "ws://127.0.0.1:8002/ws/realtime"),
+        ("wss://thesealedworld.com", "wss://thesealedworld.com/ws/realtime"),
+        ("wss://thesealedworld.com/ws/realtime", "wss://thesealedworld.com/ws/realtime"),
+        ("wss://thesealedworld.com/ws/realtime/", "wss://thesealedworld.com/ws/realtime"),
     ],
 )
-def test_chat_ws_endpoint_accepts_base_origin_and_full_endpoint(raw_url, endpoint):
-    assert _chat_ws_endpoint(raw_url) == endpoint
+def test_realtime_ws_endpoint_accepts_base_origin_and_full_endpoint(raw_url, endpoint):
+    assert _realtime_ws_endpoint(raw_url) == endpoint
 
 
 def test_death_screen_uses_encounter_notice_and_respawn_tooltip():
@@ -530,6 +533,10 @@ async def test_build_current_returns_full_scenario_shell_context():
     assert len(context["inventory_window"].quick_slots) == 8
     assert context["nav"] == {"l2": None, "l1": None, "center": None, "r1": None, "r2": None}
     assert context["initial_inventory_open"] is False
+    assert context["realtime_ws_endpoint"].endswith("/ws/realtime")
+    assert context["realtime_ws_url"]
+    assert "chat_ws_endpoint" not in context
+    assert "chat_ws_url" not in context
 
 
 @pytest.mark.asyncio

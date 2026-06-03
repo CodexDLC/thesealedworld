@@ -1,9 +1,9 @@
 from fastapi import FastAPI
 
 from src.backend.chat.api.router import router as chat_rest_router
-from src.backend.chat.api.ws import router as chat_ws_router
 from src.backend.chat.core.lifespan import lifespan
 from src.backend.config.settings import settings
+from src.backend.realtime.api.ws import router as realtime_ws_router
 from src.shared.infrastructure.log_middleware import LogContextMiddleware
 from src.shared.infrastructure.logging_config import setup_logging
 from src.shared.infrastructure.metrics_endpoint import metrics_router
@@ -20,7 +20,7 @@ app = FastAPI(title="TurnBasedMMORPG Chat Service", lifespan=lifespan)
 
 app.add_middleware(PrometheusMiddleware, service_name="chat")
 app.add_middleware(LogContextMiddleware)
-app.include_router(chat_ws_router)
+app.include_router(realtime_ws_router)
 app.include_router(chat_rest_router)
 app.include_router(metrics_router)
 

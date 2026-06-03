@@ -22,6 +22,7 @@ from src.backend.features.npc.integrations import NpcIntegration
 from src.backend.features.rift.integrations import RiftRuntimeIntegration
 from src.backend.infrastructure.loot.managers.loot_manager import LootManager
 from src.backend.infrastructure.rift.managers import RiftInstanceStore, RiftPresenceStore, RiftRunSessionStore
+from src.backend.realtime.integrations.notice_publisher import PlayerNoticePublisher
 
 
 def get_game_session_service(
@@ -56,6 +57,11 @@ def get_game_session_service(
             world_store=request.app.state.world_locations,
             commit_on_write=True,
             game_config=getattr(request.app.state, "game_config", None),
+            notice_publisher=(
+                PlayerNoticePublisher(request.app.state.events)
+                if getattr(request.app.state, "events", None) is not None
+                else None
+            ),
         ),
         loot_manager=LootManager(redis),
         loot_arq=getattr(request.app.state, "system_arq", None),

@@ -30,6 +30,17 @@ WEAPON_TWO_HANDED_FEINTS_TECHNICAL = {
             )
         ],
     ),
+    "two_handed_momentum_strike": FeintTechnicalDTO(
+        feint_id="two_handed_momentum_strike",
+        cost=FeintCostDTO(tactics={"hit": 3, "tempo": 2}),
+        target=TargetType.SINGLE_ENEMY,
+        applicability_tags=[*_TWO_HANDED_WEAPON_TAGS, "hit", "tempo", "stun", "control", "bonus_damage"],
+        purchase_group="weapon",
+        hit_damage_bonus_per_tier=2,
+        effects=[
+            {"id": "stun", "target_actor": "target"},
+        ],
+    ),
     "ignore_guard": FeintTechnicalDTO(
         feint_id="ignore_guard",
         cost=FeintCostDTO(tactics={"hit": 2, "parry": 2}),
@@ -249,6 +260,14 @@ _TWO_HANDED_TEXTS = {
         "продавливая стойку цели",
         "и открывает критовое окно",
         "и находит слабую точку в защите",
+    ),
+    "two_handed_momentum_strike": (
+        "Удар на размахе",
+        "поймав темп размаха обрушить вес оружия и оглушить цель",
+        "Двуручный финт на темп: бонусный урон и оглушение цели при попадании.",
+        "поймав темп размаха",
+        "и оглушает цель тяжелым ударом",
+        "и обрушивает разящий темповой замах",
     ),
     "ignore_guard": (
         "Игнорирование",

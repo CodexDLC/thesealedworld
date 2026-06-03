@@ -13,6 +13,7 @@ BASIC_FEINTS: tuple[str, ...] = (
     "second_breath",
     "perfect_riposte",
     "press_defense",
+    "basic_seize_tempo",
 )
 
 BASIC_ARCHERY_FEINTS: tuple[str, ...] = (
@@ -23,6 +24,7 @@ BASIC_ARCHERY_FEINTS: tuple[str, ...] = (
     "wind_dance",
     "blade_dance",
     "press_defense",
+    "basic_seize_tempo",
 )
 
 SWORD_WEAPON_FEINTS: tuple[str, ...] = (
@@ -56,6 +58,7 @@ POLEARM_WEAPON_FEINTS: tuple[str, ...] = (
     "polearm_pinning_point",
     "polearm_locked_distance",
     "polearm_line_cleave",
+    "polearm_topple_strike",
 )
 
 MACING_WEAPON_FEINTS: tuple[str, ...] = (
@@ -115,6 +118,7 @@ TWO_HANDED_TACTICAL_FEINTS: tuple[str, ...] = (
     "hidden_strength",
     "lucky_break",
     "two_handed_whirl",
+    "two_handed_momentum_strike",
 )
 
 DUAL_WIELD_TACTICAL_FEINTS: tuple[str, ...] = (

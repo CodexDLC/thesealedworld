@@ -139,6 +139,16 @@ WEAPON_POLEARM_FEINTS_TECHNICAL = {
             pipeline_mutation("target_evasion_mult", 0.85),
         ],
     ),
+    "polearm_topple_strike": FeintTechnicalDTO(
+        feint_id="polearm_topple_strike",
+        cost=FeintCostDTO(tactics={"hit": 3, "tempo": 2}),
+        target=TargetType.SINGLE_ENEMY,
+        applicability_tags=[*_POLEARM_TAGS, "hit", "tempo", "knockdown", "control"],
+        purchase_group="weapon",
+        effects=[
+            {"id": "knockdown", "target_actor": "target"},
+        ],
+    ),
     "polearm_pinning_point_advanced": FeintTechnicalDTO(
         feint_id="polearm_pinning_point_advanced",
         cost=FeintCostDTO(tactics={"hit": 3, "crit": 2, "tempo": 1}),
@@ -307,6 +317,14 @@ _POLEARM_TEXTS = {
         "разворачивая древко в широкий снос",
         "и сметает строй длинной дугой",
         "и сносит весь строй мощным размахом",
+    ),
+    "polearm_topple_strike": (
+        "Опрокидывающий темп",
+        "выждав момент темпа провернуть древко под цель и сбить ее с ног",
+        "Оружейный финт древкового на темп: при попадании сбивает цель с ног.",
+        "выждав момент темпа",
+        "и опрокидывает цель древком",
+        "и валит цель темповым переворотом",
     ),
     "polearm_pinning_point_advanced": (
         "Карательный прижим",

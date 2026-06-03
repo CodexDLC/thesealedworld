@@ -38,6 +38,7 @@ def test_game_catalog_bootstrap_contains_safe_text_catalogs():
         "answering_series",
         "arrow_rain",
         "backstep_shot",
+        "basic_seize_tempo",
         "blade_return",
         "blade_loop",
         "blade_mill",
@@ -93,6 +94,7 @@ def test_game_catalog_bootstrap_contains_safe_text_catalogs():
         "polearm_long_line",
         "polearm_pinning_point",
         "polearm_stunning_intercept",
+        "polearm_topple_strike",
         "press_defense",
         "precise_weak_spot",
         "push_stance",
@@ -118,6 +120,7 @@ def test_game_catalog_bootstrap_contains_safe_text_catalogs():
         "sword_measured_line",
         "sword_open_line",
         "torn_rhythm",
+        "two_handed_momentum_strike",
         "two_handed_whirl",
         "wind_dance",
     }

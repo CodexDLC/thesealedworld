@@ -229,7 +229,7 @@
          },
          _onRefreshNotice(payload) {
              const target = payload && payload.target;
-             // Let opt-in fragments react via hx-trigger="realtime:refresh[...] from:body".
+             // Let opt-in fragments react via hx-trigger='realtime:refresh[...] from:body'.
              try {
                  document.body.dispatchEvent(new CustomEvent('realtime:refresh', { detail: payload || {}, bubbles: true }));
              } catch (_) {}
